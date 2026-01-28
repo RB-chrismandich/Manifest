@@ -103,31 +103,29 @@ load_services_config() {
         return 0
     fi
 
-    # Parse YAML using grep (portable, no external dependencies)
-    # Look for "enabled: true" or "enabled: false" under each service
+    # Parse YAML using awk (portable, no external dependencies)
+    # Reads services.yml once and sets variables
+    # Use process substitution to avoid subshell variable loss
+    local config_settings
+    config_settings=$(awk '
+        BEGIN { section="" }
+        /^[[:space:]]*claude:/ { section="claude" }
+        /^[[:space:]]*gemini:/ { section="gemini" }
+        /^[[:space:]]*cursor:/ { section="cursor" }
+        /^[[:space:]]*enabled:[[:space:]]*true/ {
+            if (section == "claude") print "RUN_CLAUDE=true;"
+            if (section == "gemini") print "RUN_GEMINI=true;"
+            if (section == "cursor") print "RUN_CURSOR=true;"
+        }
+        /^[[:space:]]*enabled:[[:space:]]*false/ {
+            if (section == "claude") print "RUN_CLAUDE=false;"
+            if (section == "gemini") print "RUN_GEMINI=false;"
+            if (section == "cursor") print "RUN_CURSOR=false;"
+        }
+    ' "$SERVICES_CONFIG")
 
-    # Claude service
-    local claude_section=$(sed -n '/^[[:space:]]*claude:/,/^[[:space:]]*[a-z]*:/p' "$SERVICES_CONFIG" | head -20)
-    if echo "$claude_section" | grep -qE "enabled:[[:space:]]*false"; then
-        RUN_CLAUDE=false
-    elif echo "$claude_section" | grep -qE "enabled:[[:space:]]*true"; then
-        RUN_CLAUDE=true
-    fi
-
-    # Gemini service
-    local gemini_section=$(sed -n '/^[[:space:]]*gemini:/,/^[[:space:]]*[a-z]*:/p' "$SERVICES_CONFIG" | head -20)
-    if echo "$gemini_section" | grep -qE "enabled:[[:space:]]*false"; then
-        RUN_GEMINI=false
-    elif echo "$gemini_section" | grep -qE "enabled:[[:space:]]*true"; then
-        RUN_GEMINI=true
-    fi
-
-    # Cursor service
-    local cursor_section=$(sed -n '/^[[:space:]]*cursor:/,/^[[:space:]]*[a-z]*:/p' "$SERVICES_CONFIG" | head -20)
-    if echo "$cursor_section" | grep -qE "enabled:[[:space:]]*false"; then
-        RUN_CURSOR=false
-    elif echo "$cursor_section" | grep -qE "enabled:[[:space:]]*true"; then
-        RUN_CURSOR=true
+    if [[ -n "$config_settings" ]]; then
+        eval "$config_settings"
     fi
 
     # Check minimum agents requirement
@@ -558,9 +556,9 @@ run_gemini() {
     printf '%s' "$prompt" > "$prompt_file"
 
     echo -e "${BLUE}[Gemini CLI]${NC} Starting with model: $GEMINI_MODEL..."
-    # Gemini CLI: pipe prompt via stdin for reliable handling
+    # Gemini CLI: use input redirection for reliable handling (saves cat process)
     run_with_retry "Gemini CLI" "$output_file" bash -c \
-        "cat '$prompt_file' | gemini --output-format text --model '$GEMINI_MODEL' ${include_args[*]}"
+        "gemini --output-format text --model '$GEMINI_MODEL' ${include_args[*]} < '$prompt_file'"
 }
 
 # Run Claude CLI with model selection
@@ -578,9 +576,9 @@ run_claude() {
 
     echo -e "${BLUE}[Claude CLI]${NC} Starting with model: $CLAUDE_MODEL..."
 
-    # Claude CLI: use prompt file as positional argument
+    # Claude CLI: use input redirection (saves cat process)
     if ! run_with_retry_capture_stderr "Claude CLI" "$output_file" "$stderr_file" \
-        bash -c "cat '$prompt_file' | claude --print --output-format text --model '$CLAUDE_MODEL'"; then
+        bash -c "claude --print --output-format text --model '$CLAUDE_MODEL' < '$prompt_file'"; then
 
         # Check for credit exhaustion
         if check_credit_exhaustion "$stderr_file" "Claude"; then
@@ -590,7 +588,7 @@ run_claude() {
 
             # Retry with haiku (cheapest model)
             run_with_retry "Claude CLI (fallback)" "$output_file" \
-                bash -c "cat '$prompt_file' | claude --print --output-format text --model haiku"
+                bash -c "claude --print --output-format text --model haiku < '$prompt_file'"
         fi
     fi
 }
