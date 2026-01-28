@@ -1033,6 +1033,20 @@ print_summary() {
     echo "  \$EDITOR ~/.claude/config/services.yml"
     echo ""
 
+    echo -e "${BOLD}Tip: Easy Access${NC}"
+    echo ""
+    echo "  Add an alias to run 'manifest' from anywhere:"
+    echo ""
+    if [[ "$SHELL" == *"zsh"* ]]; then
+        echo -e "  ${CYAN}echo 'alias manifest=\"~/.claude/scripts/parallel_agent.sh\"' >> ~/.zshrc && source ~/.zshrc${NC}"
+    elif [[ "$SHELL" == *"bash"* ]]; then
+        echo -e "  ${CYAN}echo 'alias manifest=\"~/.claude/scripts/parallel_agent.sh\"' >> ~/.bashrc && source ~/.bashrc${NC}"
+    else
+        echo -e "  ${CYAN}alias manifest=\"~/.claude/scripts/parallel_agent.sh\"${NC}"
+        echo "  (Add to your shell profile)"
+    fi
+    echo ""
+
     echo -e "${BOLD}Quick Start:${NC}"
     echo ""
     echo "  # Test parallel agents (uses enabled services only)"
