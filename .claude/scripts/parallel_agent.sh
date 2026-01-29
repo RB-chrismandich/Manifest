@@ -40,6 +40,20 @@ BLUE='\033[0;34m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
+# Draw a progress bar
+draw_bar() {
+    local percentage="$1"
+    local width=20
+    local filled=$(( percentage * width / 100 ))
+    local empty=$(( width - filled ))
+
+    local bar=""
+    for ((i=0; i<filled; i++)); do bar+="█"; done
+    for ((i=0; i<empty; i++)); do bar+="·"; done
+
+    echo "[$bar]"
+}
+
 # Create output directory
 mkdir -p "$OUTPUT_DIR"
 
@@ -154,6 +168,7 @@ VALIDATE=false
 RETRY_COUNT=1
 RETRY_DELAY=5
 CONSENSUS_SCORE=0
+CROSS_VERIFY_RAN=false
 
 # Model selection defaults
 CURSOR_MODEL_TIER="auto"
@@ -882,16 +897,19 @@ cross_verify() {
 
     echo ""
 
+    local bar=$(draw_bar $consensus_score)
+
     if [[ $consensus_score -ge 80 ]]; then
-        echo -e "${GREEN}Consensus: HIGH ($consensus_score%)${NC} - Agents largely agree"
+        echo -e "${GREEN}Consensus: HIGH ${bar} ${consensus_score}%${NC} - Agents largely agree"
     elif [[ $consensus_score -ge 50 ]]; then
-        echo -e "${YELLOW}Consensus: MEDIUM ($consensus_score%)${NC} - Some disagreement, review carefully"
+        echo -e "${YELLOW}Consensus: MEDIUM ${bar} ${consensus_score}%${NC} - Some disagreement, review carefully"
     else
-        echo -e "${RED}Consensus: LOW ($consensus_score%)${NC} - Agents disagree significantly"
+        echo -e "${RED}Consensus: LOW ${bar} ${consensus_score}%${NC} - Agents disagree significantly"
     fi
 
     # Store consensus score for JSON output
     CONSENSUS_SCORE=$consensus_score
+    CROSS_VERIFY_RAN=true
     return 0
 }
 
@@ -903,6 +921,12 @@ create_summary() {
     echo "" >> "$summary_file"
     echo "**Mode:** $MODE" >> "$summary_file"
     echo "**Prompt/Target:** ${PROMPT:-$TARGET}" >> "$summary_file"
+
+    if [[ "$CROSS_VERIFY_RAN" == true ]]; then
+        local bar=$(draw_bar $CONSENSUS_SCORE)
+        echo "**Consensus:** $CONSENSUS_SCORE% \`$bar\`" >> "$summary_file"
+    fi
+
     echo "" >> "$summary_file"
 
     if [[ -f "$OUTPUT_DIR/cursor_${TIMESTAMP}.txt" ]]; then
