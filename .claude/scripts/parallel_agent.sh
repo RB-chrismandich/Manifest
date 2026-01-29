@@ -122,6 +122,11 @@ load_services_config() {
             if (section == "gemini") print "RUN_GEMINI=false;"
             if (section == "cursor") print "RUN_CURSOR=false;"
         }
+        /^[[:space:]]*minimum_agents:[[:space:]]*[0-9]+/ {
+            if (match($0, /[0-9]+/)) {
+                print "MIN_AGENTS=" substr($0, RSTART, RLENGTH) ";"
+            }
+        }
     ' "$SERVICES_CONFIG")
 
     if [[ -n "$config_settings" ]]; then
@@ -129,8 +134,7 @@ load_services_config() {
     fi
 
     # Check minimum agents requirement
-    local min_agents=$(grep -E "^minimum_agents:" "$SERVICES_CONFIG" | grep -oE "[0-9]+" | head -1)
-    min_agents=${min_agents:-2}
+    local min_agents=${MIN_AGENTS:-2}
 
     local enabled_count=0
     [[ "$RUN_CLAUDE" == true ]] && enabled_count=$((enabled_count + 1))
