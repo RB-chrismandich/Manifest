@@ -624,14 +624,16 @@ preflight_credit_check() {
     echo -e "${BLUE}=== Pre-flight Credit Check ===${NC}"
 
     local test_prompt="Echo: test"
-    local test_output="/tmp/credit_check_$$.txt"
-    local test_stderr="/tmp/credit_check_$$_stderr.txt"
+    local test_output
+    test_output=$(mktemp)
+    local test_stderr
+    test_stderr=$(mktemp)
 
     # Check Cursor credits if using a specific model
     if [[ "$RUN_CURSOR" == true ]]; then
         resolve_cursor_model "$CURSOR_MODEL_TIER"
         if [[ -n "$CURSOR_MODEL" ]]; then
-            if ! timeout 15 cursor agent --print --model "$CURSOR_MODEL" -- "$test_prompt" \
+            if ! run_with_timeout 15 cursor agent --print --model "$CURSOR_MODEL" -- "$test_prompt" \
                 > "$test_output" 2> "$test_stderr"; then
                 if check_credit_exhaustion "$test_stderr" "Cursor"; then
                     echo -e "${YELLOW}[Pre-flight]${NC} Cursor credits exhausted for $CURSOR_MODEL, will use auto mode"
@@ -647,7 +649,7 @@ preflight_credit_check() {
     # Check Claude credits
     if [[ "$RUN_CLAUDE" == true ]]; then
         resolve_claude_model "$CLAUDE_MODEL_TIER"
-        if ! timeout 15 claude --print --output-format text --model "$CLAUDE_MODEL" -- "$test_prompt" \
+        if ! run_with_timeout 15 claude --print --output-format text --model "$CLAUDE_MODEL" -- "$test_prompt" \
             > "$test_output" 2> "$test_stderr"; then
             if check_credit_exhaustion "$test_stderr" "Claude"; then
                 echo -e "${YELLOW}[Pre-flight]${NC} Claude credits exhausted for $CLAUDE_MODEL, will use haiku"
