@@ -47,11 +47,13 @@ draw_bar() {
     local filled=$(( percentage * width / 100 ))
     local empty=$(( width - filled ))
 
-    local bar=""
-    for ((i=0; i<filled; i++)); do bar+="█"; done
-    for ((i=0; i<empty; i++)); do bar+="·"; done
+    # Optimized: Use printf for string generation instead of loops
+    printf -v filled_str "%${filled}s" ""
+    filled_str="${filled_str// /█}"
+    printf -v empty_str "%${empty}s" ""
+    empty_str="${empty_str// /·}"
 
-    echo "[$bar]"
+    echo "[$filled_str$empty_str]"
 }
 
 # Create output directory
@@ -464,7 +466,7 @@ run_with_retry() {
     shift 2
     local cmd=("$@")
 
-    for attempt in $(seq 0 $RETRY_COUNT); do
+    for (( attempt=0; attempt<=RETRY_COUNT; attempt++ )); do
         if [[ $attempt -gt 0 ]]; then
             echo -e "${YELLOW}[$agent_name]${NC} Retrying (attempt $attempt/$RETRY_COUNT)..."
             sleep $RETRY_DELAY
@@ -488,7 +490,7 @@ run_with_retry_capture_stderr() {
     shift 3
     local cmd=("$@")
 
-    for attempt in $(seq 0 $RETRY_COUNT); do
+    for (( attempt=0; attempt<=RETRY_COUNT; attempt++ )); do
         if [[ $attempt -gt 0 ]]; then
             echo -e "${YELLOW}[$agent_name]${NC} Retrying (attempt $attempt/$RETRY_COUNT)..."
             sleep $RETRY_DELAY
@@ -696,31 +698,25 @@ get_output_content() {
 }
 
 # Escape string for JSON - with fallback chain
-json_escape() {
-    local input="$1"
-
-    # Try jq first (fastest, most reliable)
-    if command -v jq &> /dev/null; then
-        printf '%s' "$input" | jq -Rs '.'
-        return
-    fi
-
-    # Fall back to python3
-    if command -v python3 &> /dev/null; then
-        printf '%s' "$input" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))'
-        return
-    fi
-
-    # Fall back to python
-    if command -v python &> /dev/null; then
-        printf '%s' "$input" | python -c 'import json,sys; print(json.dumps(sys.stdin.read()))'
-        return
-    fi
-
-    # Last resort: basic escaping
-    echo -e "${YELLOW}Warning: Neither jq nor python available for JSON escaping${NC}" >&2
-    printf '"%s"' "$(printf '%s' "$input" | sed 's/\\/\\\\/g; s/"/\\"/g' | tr '\n' ' ')"
-}
+# Optimized: Detects tool once to avoid repeated command -v checks
+if command -v jq &> /dev/null; then
+    json_escape() {
+        printf '%s' "$1" | jq -Rs '.'
+    }
+elif command -v python3 &> /dev/null; then
+    json_escape() {
+        printf '%s' "$1" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))'
+    }
+elif command -v python &> /dev/null; then
+    json_escape() {
+        printf '%s' "$1" | python -c 'import json,sys; print(json.dumps(sys.stdin.read()))'
+    }
+else
+    json_escape() {
+        echo -e "${YELLOW}Warning: Neither jq nor python available for JSON escaping${NC}" >&2
+        printf '"%s"' "$(printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g' | tr '\n' ' ')"
+    }
+fi
 
 # Create JSON output
 create_json_output() {
@@ -1066,4 +1062,4 @@ main() {
     echo -e "${GREEN}Done!${NC} Results in: $OUTPUT_DIR"
 }
 
-main "$@"
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then main "$@"; fi
