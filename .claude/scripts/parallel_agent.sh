@@ -920,6 +920,36 @@ cross_verify() {
     return 0
 }
 
+# Simple background spinner
+start_spinner() {
+    echo -n "Waiting for agents to complete... "
+    # Run spinner in background
+    (
+        local delay=0.1
+        local spinstr='|/-\'
+        while true; do
+            local temp=${spinstr#?}
+            printf " [%c]  " "$spinstr"
+            local spinstr=$temp${spinstr%"$temp"}
+            sleep $delay
+            printf "\b\b\b\b\b\b"
+        done
+    ) &
+    SPINNER_PID=$!
+
+    # Ensure spinner is killed on exit
+    trap "kill $SPINNER_PID 2>/dev/null" EXIT INT TERM
+}
+
+stop_spinner() {
+    if [[ -n "$SPINNER_PID" ]]; then
+        kill "$SPINNER_PID" 2>/dev/null
+        wait "$SPINNER_PID" 2>/dev/null || true
+        printf "    \b\b\b\b" # Clear spinner
+        echo "Done"
+    fi
+}
+
 # Combine outputs into markdown summary
 create_summary() {
     local summary_file="$OUTPUT_DIR/summary_${TIMESTAMP}.md"
@@ -1040,10 +1070,11 @@ main() {
 
     # Wait for all background processes
     echo ""
-    echo "Waiting for agents to complete..."
+    start_spinner
     for pid in "${pids[@]}"; do
         wait "$pid" 2>/dev/null || true
     done
+    stop_spinner
 
     echo ""
 
