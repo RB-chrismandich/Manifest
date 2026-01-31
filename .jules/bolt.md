@@ -9,3 +9,7 @@
 ## 2026-01-30 - Bash Process Forking Overhead
 **Learning:** Repeated calls to `command -v` and `seq` inside loops or frequently called functions create significant overhead due to process forking. In `parallel_agent.sh`, `json_escape` checked dependencies on every call, and retry loops spawned `seq` processes.
 **Action:** Use native Bash constructs (`for ((...))`) and detect dependencies once at startup to conditionally define optimized function implementations (dynamic dispatch pattern).
+
+## 2026-01-31 - Grep Pipeline to Awk Optimization
+**Learning:** Replaced a loop spawning 4 processes per iteration (grep | tr) with a single awk process. This significantly reduces fork overhead in shell scripts, especially when processing multiple files.
+**Action:** Identify sequences of `grep | cut/tr/sed` inside loops and consolidate them into single-pass `awk` scripts.

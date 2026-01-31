@@ -859,11 +859,20 @@ cross_verify() {
         local file="${available_outputs[$i]}"
         local name="${agent_names[$i]}"
 
-        local issues=$(grep -ci "bug\|error\|issue\|vulnerability\|security\|fix" "$file" 2>/dev/null | tr -d '[:space:]' || echo "0")
-        local warnings=$(grep -ci "warning\|caution\|consider\|potential\|might" "$file" 2>/dev/null | tr -d '[:space:]' || echo "0")
+        # Optimization: Use awk to count both metrics in a single pass
+        # This replaces 2 grep processes and 2 tr processes per agent (4 forks) with 1 awk process
+        local counts
+        counts=$(awk '
+            BEGIN { issues=0; warnings=0 }
+            {
+                line = tolower($0)
+                if (line ~ /bug|error|issue|vulnerability|security|fix/) issues++
+                if (line ~ /warning|caution|consider|potential|might/) warnings++
+            }
+            END { print issues, warnings }
+        ' "$file" 2>/dev/null || echo "0 0")
 
-        issues=${issues:-0}
-        warnings=${warnings:-0}
+        read -r issues warnings <<< "$counts"
 
         echo "$name: $issues issues, $warnings warnings"
 
