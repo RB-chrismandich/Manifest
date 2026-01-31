@@ -5,3 +5,7 @@
 ## 2026-01-28 - Visualizing Data in CLI
 **Learning:** CLI tools often output raw numbers that are hard to scan quickly. Adding simple ASCII/Unicode visualizations (like progress bars) significantly improves "at-a-glance" readability without requiring a GUI.
 **Action:** Look for opportunities to visualize percentage-based or status-based data in CLI outputs using text-based bars or indicators.
+
+## 2026-01-31 - Providing Duration Feedback in CLI
+**Learning:** For long-running CLI operations, users often lack context on whether a process is stuck or just slow. Providing a duration summary at the end helps users benchmark performance and reinforces completion.
+**Action:** Add a simple execution timer to the final success message of long-running scripts.

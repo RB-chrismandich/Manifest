@@ -13,6 +13,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 OUTPUT_DIR="$PROJECT_ROOT/.agent_outputs"
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+START_TIME=$(date +%s)
 
 # macOS compatibility: use gtimeout if available, otherwise no timeout
 TIMEOUT_CMD=""
@@ -54,6 +55,18 @@ draw_bar() {
     empty_str="${empty_str// /·}"
 
     echo "[$filled_str$empty_str]"
+}
+
+# Format duration in human readable format
+format_duration() {
+    local seconds=$1
+    if [[ $seconds -lt 60 ]]; then
+        echo "${seconds}s"
+    else
+        local minutes=$((seconds / 60))
+        local rem_seconds=$((seconds % 60))
+        echo "${minutes}m ${rem_seconds}s"
+    fi
 }
 
 # Create output directory
@@ -777,6 +790,8 @@ create_json_output() {
     cat > "$json_file" << EOF
 {
   "timestamp": "$TIMESTAMP",
+  "duration_seconds": ${DURATION_SECONDS:-0},
+  "duration_formatted": "${DURATION_FORMATTED:-0s}",
   "mode": "$MODE",
   "prompt": $(json_escape "${PROMPT:-$TARGET}"),
   "agents": {
@@ -955,6 +970,7 @@ create_summary() {
     echo "# Parallel Agent Results - $TIMESTAMP" > "$summary_file"
     echo "" >> "$summary_file"
     echo "**Mode:** $MODE" >> "$summary_file"
+    echo "**Duration:** $DURATION_FORMATTED" >> "$summary_file"
     echo "**Prompt/Target:** ${PROMPT:-$TARGET}" >> "$summary_file"
 
     if [[ "$CROSS_VERIFY_RAN" == true ]]; then
@@ -1087,10 +1103,15 @@ main() {
         echo ""
     fi
 
+    # Calculate duration
+    END_TIME=$(date +%s)
+    DURATION_SECONDS=$((END_TIME - START_TIME))
+    DURATION_FORMATTED=$(format_duration "$DURATION_SECONDS")
+
     create_summary
 
     echo ""
-    echo -e "${GREEN}Done!${NC} Results in: $OUTPUT_DIR"
+    echo -e "${GREEN}Done!${NC} ($DURATION_FORMATTED) Results in: $OUTPUT_DIR"
 }
 
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then main "$@"; fi
