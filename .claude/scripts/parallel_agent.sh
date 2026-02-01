@@ -942,33 +942,80 @@ cross_verify() {
     return 0
 }
 
-# Simple background spinner
-start_spinner() {
-    echo -n "Waiting for agents to complete... "
-    # Run spinner in background
-    (
-        local delay=0.1
-        local spinstr='|/-\'
-        while true; do
-            local temp=${spinstr#?}
-            printf " [%c]  " "$spinstr"
-            local spinstr=$temp${spinstr%"$temp"}
-            sleep $delay
-            printf "\b\b\b\b\b\b"
+# Monitor agents and show status
+monitor_agents() {
+    # Hide cursor
+    if command -v tput &> /dev/null; then
+        tput civis 2>/dev/null || true
+    fi
+
+    local running=true
+    local spinstr='|/-\'
+
+    # Track states locally
+    local agent_states=()
+    for i in "${!pids[@]}"; do agent_states[i]="running"; done
+
+    while $running; do
+        running=false
+        local status_line=""
+
+        # Advance spinner
+        local temp=${spinstr#?}
+        local spin_char="${spinstr:0:1}"
+        spinstr=$temp${spinstr%"$temp"}
+
+        for i in "${!pids[@]}"; do
+            local pid=${pids[$i]}
+            local name=${agent_names[$i]}
+            local state=${agent_states[$i]}
+
+            if [[ "$state" == "running" ]]; then
+                local is_alive=false
+                if kill -0 "$pid" 2>/dev/null; then
+                    is_alive=true
+                    # Check for zombie state if ps is available
+                    if command -v ps &>/dev/null; then
+                        local ps_state
+                        ps_state=$(ps -o state= -p "$pid" 2>/dev/null || true)
+                        if [[ "$ps_state" == *"Z"* ]]; then
+                             is_alive=false
+                        fi
+                    fi
+                fi
+
+                if $is_alive; then
+                    status_line="$status_line $name [${spin_char}]"
+                    running=true
+                else
+                    # Process finished
+                    wait "$pid"
+                    local code=$?
+                    if [[ $code -eq 0 ]]; then
+                        agent_states[$i]="${GREEN}✔${NC}"
+                    else
+                        agent_states[$i]="${RED}✘${NC}"
+                    fi
+                    status_line="$status_line $name [${agent_states[$i]}]"
+                fi
+            else
+                status_line="$status_line $name [$state]"
+            fi
         done
-    ) &
-    SPINNER_PID=$!
 
-    # Ensure spinner is killed on exit
-    trap "kill $SPINNER_PID 2>/dev/null" EXIT INT TERM
-}
+        if $running; then
+            # \r to start, \033[K to clear line
+            printf "\rWaiting for agents:%s\033[K" "$status_line"
+            sleep 0.1
+        fi
+    done
 
-stop_spinner() {
-    if [[ -n "$SPINNER_PID" ]]; then
-        kill "$SPINNER_PID" 2>/dev/null
-        wait "$SPINNER_PID" 2>/dev/null || true
-        printf "    \b\b\b\b" # Clear spinner
-        echo "Done"
+    # Final state
+    printf "\rWaiting for agents:%s\033[K\n" "$status_line"
+
+    # Restore cursor
+    if command -v tput &> /dev/null; then
+        tput cnorm 2>/dev/null || true
     fi
 }
 
@@ -1075,29 +1122,29 @@ main() {
 
     # Run agents in parallel using background processes
     pids=()
+    agent_names=()
 
     if [[ "$RUN_CURSOR" == true && -n "$CURSOR_PROMPT" ]]; then
-        run_cursor "$CURSOR_PROMPT" &
+        run_cursor "$CURSOR_PROMPT" > /dev/null &
         pids+=($!)
+        agent_names+=("Cursor")
     fi
 
     if [[ "$RUN_GEMINI" == true && -n "$GEMINI_PROMPT" ]]; then
-        run_gemini "$GEMINI_PROMPT" &
+        run_gemini "$GEMINI_PROMPT" > /dev/null &
         pids+=($!)
+        agent_names+=("Gemini")
     fi
 
     if [[ "$RUN_CLAUDE" == true && -n "$CLAUDE_PROMPT" ]]; then
-        run_claude "$CLAUDE_PROMPT" &
+        run_claude "$CLAUDE_PROMPT" > /dev/null &
         pids+=($!)
+        agent_names+=("Claude")
     fi
 
-    # Wait for all background processes
+    # Monitor agents
     echo ""
-    start_spinner
-    for pid in "${pids[@]}"; do
-        wait "$pid" 2>/dev/null || true
-    done
-    stop_spinner
+    monitor_agents
 
     echo ""
 
