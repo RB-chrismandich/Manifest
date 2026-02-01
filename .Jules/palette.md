@@ -9,3 +9,7 @@
 ## 2026-01-31 - Providing Duration Feedback in CLI
 **Learning:** For long-running CLI operations, users often lack context on whether a process is stuck or just slow. Providing a duration summary at the end helps users benchmark performance and reinforces completion.
 **Action:** Add a simple execution timer to the final success message of long-running scripts.
+
+## 2026-02-01 - Managing Concurrent CLI Output
+**Learning:** Background spinners in shell scripts often conflict with output from parallel background processes, causing visual artifacts. Redirecting background job output and using a main-thread polling loop to update a status line provides a much cleaner, artifact-free experience.
+**Action:** When orchestrating parallel tasks in CLI, suppress background job stdout and use a centralized status monitor loop that polls PIDs.
