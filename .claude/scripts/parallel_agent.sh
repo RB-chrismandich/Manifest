@@ -189,6 +189,11 @@ RETRY_DELAY=5
 CONSENSUS_SCORE=0
 CROSS_VERIFY_RAN=false
 
+# Validation results cache
+CURSOR_VAL_RESULT=-1
+GEMINI_VAL_RESULT=-1
+CLAUDE_VAL_RESULT=-1
+
 # Model selection defaults
 CURSOR_MODEL_TIER="auto"
 CURSOR_MODEL=""
@@ -748,12 +753,9 @@ create_json_output() {
     if [[ -f "$OUTPUT_DIR/cursor_${TIMESTAMP}.txt" ]]; then
         cursor_output=$(get_output_content "$OUTPUT_DIR/cursor_${TIMESTAMP}.txt")
         cursor_status="complete"
-        if [[ "$VALIDATE" == true ]]; then
-            local validate_result
-            validate_output "$OUTPUT_DIR/cursor_${TIMESTAMP}.txt" "Cursor Agent"
-            validate_result=$?
+        if [[ "$VALIDATE" == true && "$CURSOR_VAL_RESULT" -ne -1 ]]; then
             # Accept both passed (0) and warning (2) as valid
-            [[ $validate_result -eq 0 || $validate_result -eq 2 ]] && cursor_valid=true
+            [[ $CURSOR_VAL_RESULT -eq 0 || $CURSOR_VAL_RESULT -eq 2 ]] && cursor_valid=true
         fi
     fi
 
@@ -761,11 +763,8 @@ create_json_output() {
     if [[ -f "$OUTPUT_DIR/gemini_${TIMESTAMP}.txt" ]]; then
         gemini_output=$(get_output_content "$OUTPUT_DIR/gemini_${TIMESTAMP}.txt")
         gemini_status="complete"
-        if [[ "$VALIDATE" == true ]]; then
-            local validate_result
-            validate_output "$OUTPUT_DIR/gemini_${TIMESTAMP}.txt" "Gemini CLI"
-            validate_result=$?
-            [[ $validate_result -eq 0 || $validate_result -eq 2 ]] && gemini_valid=true
+        if [[ "$VALIDATE" == true && "$GEMINI_VAL_RESULT" -ne -1 ]]; then
+            [[ $GEMINI_VAL_RESULT -eq 0 || $GEMINI_VAL_RESULT -eq 2 ]] && gemini_valid=true
         fi
     fi
 
@@ -773,11 +772,8 @@ create_json_output() {
     if [[ -f "$OUTPUT_DIR/claude_${TIMESTAMP}.txt" ]]; then
         claude_output=$(get_output_content "$OUTPUT_DIR/claude_${TIMESTAMP}.txt")
         claude_status="complete"
-        if [[ "$VALIDATE" == true ]]; then
-            local validate_result
-            validate_output "$OUTPUT_DIR/claude_${TIMESTAMP}.txt" "Claude CLI"
-            validate_result=$?
-            [[ $validate_result -eq 0 || $validate_result -eq 2 ]] && claude_valid=true
+        if [[ "$VALIDATE" == true && "$CLAUDE_VAL_RESULT" -ne -1 ]]; then
+            [[ $CLAUDE_VAL_RESULT -eq 0 || $CLAUDE_VAL_RESULT -eq 2 ]] && claude_valid=true
         fi
     fi
 
@@ -1040,9 +1036,6 @@ create_summary() {
         echo "## Cursor Agent Output" >> "$summary_file"
         [[ -n "$CURSOR_MODEL" ]] && echo "**Model:** $CURSOR_MODEL" >> "$summary_file"
         [[ "$CURSOR_CREDIT_FALLBACK" == true ]] && echo "**Note:** Used fallback mode due to credit exhaustion" >> "$summary_file"
-        if [[ "$VALIDATE" == true ]]; then
-            validate_output "$OUTPUT_DIR/cursor_${TIMESTAMP}.txt" "Cursor Agent"
-        fi
         echo '```' >> "$summary_file"
         get_output_content "$OUTPUT_DIR/cursor_${TIMESTAMP}.txt" >> "$summary_file"
         echo '```' >> "$summary_file"
@@ -1051,9 +1044,6 @@ create_summary() {
 
     if [[ -f "$OUTPUT_DIR/gemini_${TIMESTAMP}.txt" ]]; then
         echo "## Gemini CLI Output" >> "$summary_file"
-        if [[ "$VALIDATE" == true ]]; then
-            validate_output "$OUTPUT_DIR/gemini_${TIMESTAMP}.txt" "Gemini CLI"
-        fi
         echo '```' >> "$summary_file"
         get_output_content "$OUTPUT_DIR/gemini_${TIMESTAMP}.txt" >> "$summary_file"
         echo '```' >> "$summary_file"
@@ -1064,9 +1054,6 @@ create_summary() {
         echo "## Claude CLI Output" >> "$summary_file"
         [[ -n "$CLAUDE_MODEL" ]] && echo "**Model:** $CLAUDE_MODEL" >> "$summary_file"
         [[ "$CLAUDE_CREDIT_FALLBACK" == true ]] && echo "**Note:** Used fallback mode due to credit exhaustion" >> "$summary_file"
-        if [[ "$VALIDATE" == true ]]; then
-            validate_output "$OUTPUT_DIR/claude_${TIMESTAMP}.txt" "Claude CLI"
-        fi
         echo '```' >> "$summary_file"
         get_output_content "$OUTPUT_DIR/claude_${TIMESTAMP}.txt" >> "$summary_file"
         echo '```' >> "$summary_file"
@@ -1156,6 +1143,24 @@ main() {
 
     if [[ $enabled_count -ge 2 ]]; then
         cross_verify
+        echo ""
+    fi
+
+    # Run validation if enabled (once)
+    if [[ "$VALIDATE" == true ]]; then
+        echo -e "${BLUE}=== Validation Results ===${NC}"
+        if [[ "$RUN_CURSOR" == true && -f "$OUTPUT_DIR/cursor_${TIMESTAMP}.txt" ]]; then
+            validate_output "$OUTPUT_DIR/cursor_${TIMESTAMP}.txt" "Cursor Agent"
+            CURSOR_VAL_RESULT=$?
+        fi
+        if [[ "$RUN_GEMINI" == true && -f "$OUTPUT_DIR/gemini_${TIMESTAMP}.txt" ]]; then
+            validate_output "$OUTPUT_DIR/gemini_${TIMESTAMP}.txt" "Gemini CLI"
+            GEMINI_VAL_RESULT=$?
+        fi
+        if [[ "$RUN_CLAUDE" == true && -f "$OUTPUT_DIR/claude_${TIMESTAMP}.txt" ]]; then
+            validate_output "$OUTPUT_DIR/claude_${TIMESTAMP}.txt" "Claude CLI"
+            CLAUDE_VAL_RESULT=$?
+        fi
         echo ""
     fi
 

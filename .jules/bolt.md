@@ -13,3 +13,7 @@
 ## 2026-01-31 - Grep Pipeline to Awk Optimization
 **Learning:** Replaced a loop spawning 4 processes per iteration (grep | tr) with a single awk process. This significantly reduces fork overhead in shell scripts, especially when processing multiple files.
 **Action:** Identify sequences of `grep | cut/tr/sed` inside loops and consolidate them into single-pass `awk` scripts.
+
+## 2026-02-01 - Redundant Validation Logic in Shell Scripts
+**Learning:** `parallel_agent.sh` was running validation logic (`grep`) twice per agent—once for the summary and once for JSON output—causing duplicate console output and unnecessary process forks.
+**Action:** Centralized validation logic to run once, stored results in global variables, and reused these results in subsequent steps. Always check if a computed result is needed in multiple places and cache it.
