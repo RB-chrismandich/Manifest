@@ -9,6 +9,9 @@
 
 set -e
 
+# Security: Ensure all created files are only readable by the owner
+umask 0077
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 OUTPUT_DIR="$PROJECT_ROOT/.agent_outputs"
@@ -71,6 +74,7 @@ format_duration() {
 
 # Create output directory
 mkdir -p "$OUTPUT_DIR"
+chmod 700 "$OUTPUT_DIR" 2>/dev/null || true
 
 usage() {
     echo "Parallel Agent Orchestration"
