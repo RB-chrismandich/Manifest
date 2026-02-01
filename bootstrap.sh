@@ -848,6 +848,7 @@ deploy_configs() {
     # Create target directory and copy files
     print_step "Creating $TARGET_DIR"
     mkdir -p "$TARGET_DIR"
+    chmod 700 "$TARGET_DIR"
 
     print_step "Copying configuration files..."
     cp -R "$source_dir"/* "$TARGET_DIR/"
