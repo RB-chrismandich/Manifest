@@ -944,8 +944,20 @@ cross_verify() {
 
 # Monitor agents and show status
 monitor_agents() {
-    # Hide cursor
+    # Check dependencies once to avoid repeated calls in the loop
+    # Optimized for performance (avoiding repeated PATH lookups and shell overhead in the loop)
+    local has_tput=false
     if command -v tput &> /dev/null; then
+        has_tput=true
+    fi
+
+    local has_ps=false
+    if command -v ps &> /dev/null; then
+        has_ps=true
+    fi
+
+    # Hide cursor
+    if $has_tput; then
         tput civis 2>/dev/null || true
     fi
 
@@ -975,7 +987,7 @@ monitor_agents() {
                 if kill -0 "$pid" 2>/dev/null; then
                     is_alive=true
                     # Check for zombie state if ps is available
-                    if command -v ps &>/dev/null; then
+                    if $has_ps; then
                         local ps_state
                         ps_state=$(ps -o state= -p "$pid" 2>/dev/null || true)
                         if [[ "$ps_state" == *"Z"* ]]; then
@@ -1014,7 +1026,7 @@ monitor_agents() {
     printf "\rWaiting for agents:%s\033[K\n" "$status_line"
 
     # Restore cursor
-    if command -v tput &> /dev/null; then
+    if $has_tput; then
         tput cnorm 2>/dev/null || true
     fi
 }
