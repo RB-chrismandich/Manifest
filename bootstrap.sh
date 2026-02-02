@@ -336,6 +336,7 @@ fallback:
   warn_threshold: 1  # Warn if only this many agents available
 EOF
 
+    chmod 600 "$SERVICES_CONFIG"
     print_success "Service configuration written to $SERVICES_CONFIG"
 }
 
@@ -759,7 +760,9 @@ setup_gemini_auth() {
     echo ""
     if prompt_yes_no "Set up Gemini API key instead?"; then
         echo ""
-        read -r -p "Enter your Gemini API key: " api_key
+        echo -n "Enter your Gemini API key: "
+        read -rs api_key
+        echo ""
 
         if [[ -n "$api_key" ]]; then
             # Escape single quotes for safe single-quoted string
@@ -852,6 +855,11 @@ deploy_configs() {
 
     print_step "Copying configuration files..."
     cp -R "$source_dir"/* "$TARGET_DIR/"
+
+    # Secure configuration files
+    if [[ -d "$TARGET_DIR/config" ]]; then
+        chmod 600 "$TARGET_DIR"/config/*.yml 2>/dev/null || true
+    fi
 
     # Make scripts executable
     if [[ -d "$TARGET_DIR/scripts" ]]; then
