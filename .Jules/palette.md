@@ -13,3 +13,7 @@
 ## 2026-02-01 - Managing Concurrent CLI Output
 **Learning:** Background spinners in shell scripts often conflict with output from parallel background processes, causing visual artifacts. Redirecting background job output and using a main-thread polling loop to update a status line provides a much cleaner, artifact-free experience.
 **Action:** When orchestrating parallel tasks in CLI, suppress background job stdout and use a centralized status monitor loop that polls PIDs.
+
+## 2026-02-02 - Liveness Indicators for Long Operations
+**Learning:** For indeterminate waiting states (like waiting for external APIs), a simple spinner is insufficient as users can't tell if the process is stalled. Adding an elapsed time counter (MM:SS) provides immediate liveness feedback and helps users decide if they should abort.
+**Action:** Enhance CLI spinners with a dynamic elapsed time counter for operations expected to take more than 10 seconds.
