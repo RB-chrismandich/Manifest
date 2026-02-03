@@ -951,6 +951,7 @@ monitor_agents() {
 
     local running=true
     local spinstr='|/-\'
+    local start_time=$(date +%s)
 
     # Track states locally
     local agent_states=()
@@ -959,6 +960,13 @@ monitor_agents() {
     while $running; do
         running=false
         local status_line=""
+
+        # Calculate elapsed time
+        local current_time=$(date +%s)
+        local elapsed=$((current_time - start_time))
+        local minutes=$((elapsed / 60))
+        local seconds=$((elapsed % 60))
+        local time_str=$(printf "%02d:%02d" $minutes $seconds)
 
         # Advance spinner
         local temp=${spinstr#?}
@@ -1005,13 +1013,19 @@ monitor_agents() {
 
         if $running; then
             # \r to start, \033[K to clear line
-            printf "\rWaiting for agents:%s\033[K" "$status_line"
+            printf "\rWaiting for agents (%s):%s\033[K" "$time_str" "$status_line"
             sleep 0.1
         fi
     done
 
     # Final state
-    printf "\rWaiting for agents:%s\033[K\n" "$status_line"
+    local current_time=$(date +%s)
+    local elapsed=$((current_time - start_time))
+    local minutes=$((elapsed / 60))
+    local seconds=$((elapsed % 60))
+    local time_str=$(printf "%02d:%02d" $minutes $seconds)
+
+    printf "\rWaiting for agents (%s):%s\033[K\n" "$time_str" "$status_line"
 
     # Restore cursor
     if command -v tput &> /dev/null; then
