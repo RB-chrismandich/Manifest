@@ -17,3 +17,7 @@
 ## 2026-02-01 - Redundant Validation Logic in Shell Scripts
 **Learning:** `parallel_agent.sh` was running validation logic (`grep`) twice per agent—once for the summary and once for JSON output—causing duplicate console output and unnecessary process forks.
 **Action:** Centralized validation logic to run once, stored results in global variables, and reused these results in subsequent steps. Always check if a computed result is needed in multiple places and cache it.
+
+## 2026-02-02 - Shell Process Monitoring Overhead
+**Learning:** Checking process state via `ps` inside a 10Hz loop caused ~30 forks/sec for 3 agents, creating unnecessary CPU load.
+**Action:** Implemented a dual-strategy: zero-overhead `/proc` parsing for Linux and throttled `ps` checks (1Hz) for macOS. Always prefer `/proc` reads over `ps` in shell scripts when available.

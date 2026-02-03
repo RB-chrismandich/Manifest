@@ -956,6 +956,11 @@ monitor_agents() {
         has_ps=true
     fi
 
+    local use_proc=false
+    if [[ -d "/proc" ]]; then
+        use_proc=true
+    fi
+
     # Hide cursor
     if $has_tput; then
         tput civis 2>/dev/null || true
@@ -969,9 +974,11 @@ monitor_agents() {
     local agent_states=()
     for i in "${!pids[@]}"; do agent_states[i]="running"; done
 
+    local loop_count=0
     while $running; do
         running=false
         local status_line=""
+        loop_count=$((loop_count + 1))
 
         # Calculate elapsed time
         local current_time=$(date +%s)
@@ -994,12 +1001,30 @@ monitor_agents() {
                 local is_alive=false
                 if kill -0 "$pid" 2>/dev/null; then
                     is_alive=true
-                    # Check for zombie state if ps is available
-                    if $has_ps; then
-                        local ps_state
-                        ps_state=$(ps -o state= -p "$pid" 2>/dev/null || true)
-                        if [[ "$ps_state" == *"Z"* ]]; then
-                             is_alive=false
+                    # Check for zombie state (process finished but not waited)
+                    # This check is critical to avoid infinite loops, but 'ps' is expensive
+                    if $use_proc && [[ -r "/proc/$pid/stat" ]]; then
+                        # Linux optimization: Read directly from /proc (fast, no fork)
+                        local content
+                        if content=$(< "/proc/$pid/stat" 2>/dev/null); then
+                             # Remove everything up to last ')' to handle comm with spaces
+                             local right_side="${content##*)}"
+                             # Read first field from the rest (state char)
+                             local state_char
+                             read -r state_char _ <<< "$right_side"
+                             if [[ "$state_char" == "Z" ]]; then
+                                 is_alive=false
+                             fi
+                        fi
+                    elif $has_ps; then
+                        # Fallback (e.g. macOS): use ps command (expensive, needs throttling)
+                        # Only check every 10th iteration (1 second) to save CPU
+                        if (( loop_count % 10 == 0 )); then
+                            local ps_state
+                            ps_state=$(ps -o state= -p "$pid" 2>/dev/null || true)
+                            if [[ "$ps_state" == *"Z"* ]]; then
+                                 is_alive=false
+                            fi
                         fi
                     fi
                 fi
