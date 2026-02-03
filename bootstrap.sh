@@ -737,11 +737,7 @@ setup_gemini_auth() {
     echo ""
     echo -e "${BOLD}Gemini CLI Authentication Setup${NC}"
     echo ""
-    echo "Options for authentication:"
-    echo "  1. OAuth login (recommended for personal use)"
-    echo "  2. API key (for programmatic access)"
-    echo ""
-    echo "Get an API key at: https://aistudio.google.com/apikey"
+    echo "Authenticating via OAuth login (recommended)."
     echo ""
 
     if prompt_yes_no "Start Gemini CLI authentication via OAuth?"; then
@@ -756,44 +752,7 @@ setup_gemini_auth() {
         fi
     fi
 
-    # Offer API key setup as alternative
-    echo ""
-    if prompt_yes_no "Set up Gemini API key instead?"; then
-        echo ""
-        echo -n "Enter your Gemini API key: "
-        read -rs api_key
-        echo ""
-
-        if [[ -n "$api_key" ]]; then
-            # Escape single quotes for safe single-quoted string
-            local safe_api_key="${api_key//\'/\'\\\'\'}"
-
-            # Add to shell profile
-            local shell_profile=""
-            if [[ -f "$HOME/.zshrc" ]]; then
-                shell_profile="$HOME/.zshrc"
-            elif [[ -f "$HOME/.bash_profile" ]]; then
-                shell_profile="$HOME/.bash_profile"
-            elif [[ -f "$HOME/.bashrc" ]]; then
-                shell_profile="$HOME/.bashrc"
-            fi
-
-            if [[ -n "$shell_profile" ]]; then
-                echo "" >> "$shell_profile"
-                echo "# Gemini API Key (added by ai-agent-support-frameworks bootstrap)" >> "$shell_profile"
-                echo "export GEMINI_API_KEY='$safe_api_key'" >> "$shell_profile"
-                export GEMINI_API_KEY="$api_key"
-                print_success "API key added to $shell_profile"
-                print_info "Run 'source $shell_profile' or restart your terminal"
-                return 0
-            else
-                print_warning "Could not find shell profile to add API key"
-                echo "Add this to your shell profile:"
-                echo "  export GEMINI_API_KEY='$safe_api_key'"
-            fi
-        fi
-    fi
-
+    # API key setup removed per security request
     print_warning "Skipping Gemini authentication"
     return 1
 }
