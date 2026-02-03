@@ -42,7 +42,35 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 BLUE='\033[0;34m'
 YELLOW='\033[1;33m'
+CYAN='\033[0;36m'
 NC='\033[0m' # No Color
+
+# Global array to track background process IDs
+pids=()
+
+# Cleanup function to restore cursor and kill background processes
+cleanup() {
+    local exit_code=$?
+
+    # Restore cursor
+    if command -v tput &> /dev/null; then
+        tput cnorm 2>/dev/null || true
+    fi
+
+    # Kill background processes if they exist
+    if [[ -n "${pids[*]}" ]]; then
+        for pid in "${pids[@]}"; do
+            if kill -0 "$pid" 2>/dev/null; then
+                kill "$pid" 2>/dev/null || true
+            fi
+        done
+    fi
+
+    exit "$exit_code"
+}
+
+# Trap exit to ensure cleanup
+trap cleanup EXIT
 
 # Draw a progress bar
 draw_bar() {
@@ -1005,7 +1033,7 @@ monitor_agents() {
                 fi
 
                 if $is_alive; then
-                    status_line="$status_line $name [${spin_char}]"
+                    status_line="$status_line $name [${CYAN}${spin_char}${NC}]"
                     running=true
                 else
                     # Process finished
@@ -1138,7 +1166,7 @@ main() {
     fi
 
     # Run agents in parallel using background processes
-    pids=()
+    # pids array is defined globally
     agent_names=()
 
     if [[ "$RUN_CURSOR" == true && -n "$CURSOR_PROMPT" ]]; then
