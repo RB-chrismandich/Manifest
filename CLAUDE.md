@@ -101,6 +101,18 @@ Required CLI tools (install those you want to use):
 | `.claude/config/command_config.yml` | Thresholds, tool policies, model selection, error recovery |
 | `.claude/config/validation_criteria.yml` | Tier 1 (critical) and Tier 2 (quality) validation rules |
 
+## Available Commands
+
+The following slash commands are available in Claude Code:
+
+| Command | Description | Parallel Agents |
+|---------|-------------|-----------------|
+| `/refactor` | Python codebase security and quality analysis | ALWAYS |
+| `/shell-refactor` | Bash/Shell script security and quality analysis | ALWAYS |
+| `/generate-diagrams` | Generate Mermaid architecture diagrams | CONDITIONAL (5+ modules) |
+| `/improve-docs` | Diataxis documentation framework analysis | CONDITIONAL (>500 lines) |
+| `/improve-readme` | Improve README documentation | NO |
+
 ## Testing Changes
 
 Test the parallel agent script locally:

@@ -197,6 +197,20 @@ command_overrides:
       type: unique_imports
       threshold: 5
 
+  shell-refactor:
+    tier1_required: true
+    tier1_checks:
+      - security
+      - error_handling
+      - cross_verification
+    tier2_required: true
+    tier2_threshold: 0.70
+    consensus_threshold: 0.75
+    consensus_action:
+      high: auto_proceed        # >=75%: Use unified recommendation
+      medium: show_disagreements # 50-74%: Highlight to user
+      low: block_and_escalate    # <50%: Human review required
+
   code-quality:  # Skill (auto-triggered)
     tier1_required: true
     tier1_checks:

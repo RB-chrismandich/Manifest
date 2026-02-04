@@ -104,6 +104,18 @@ tool_policies:
     trigger_condition: total_doc_lines >= 500
     validation_tier: 2
 
+  shell-refactor:
+    allowed:
+      - Read
+      - Glob
+      - Grep
+      - Bash  # Needed for shellcheck and yamllint
+    forbidden:
+      - Write
+      - Edit  # Read-only analysis
+    parallel_agents: always
+    validation_tier: 1
+
   code-quality:  # skill
     allowed:
       - Read

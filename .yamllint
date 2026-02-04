@@ -1,0 +1,26 @@
+---
+# yamllint configuration for Manifest project
+
+extends: default
+
+rules:
+  # Allow longer lines (default 80 is too strict for configs)
+  line-length:
+    max: 120
+    level: warning
+
+  # Don't require document start markers (---)
+  document-start: disable
+
+  # Allow single space before comments (more readable in configs)
+  comments:
+    min-spaces-from-content: 1
+
+  # Allow indentation in specific cases
+  indentation:
+    spaces: 2
+    indent-sequences: true
+
+  # Don't complain about truthy values (yes/no/on/off/true/false)
+  truthy:
+    allowed-values: ['true', 'false', 'yes', 'no']
