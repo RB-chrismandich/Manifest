@@ -17,3 +17,8 @@
 **Vulnerability:** The parallel agent framework generated code analysis reports and stored them in directories with default umask permissions (often 755/644). This allowed other users on the system to read potentially sensitive code or vulnerability findings.
 **Learning:** Default directory creation in shell scripts (`mkdir -p`) respects the user's umask, which is often too permissive for security tools. Tools handling sensitive data must explicitly manage permissions.
 **Prevention:** Use `umask 0077` at the beginning of scripts handling sensitive data, and explicitly `chmod 700` directories containing sensitive outputs or configuration.
+
+## 2026-02-05 - Insecure Secret Prompt in Shell Scripts
+**Vulnerability:** Interactive shell scripts using `read` without the `-s` flag to prompt for sensitive information (like API keys) expose the secret in plain text on the terminal screen and potentially in screen recordings or shoulder surfing scenarios.
+**Learning:** UX convenience should not compromise security. Users often copy-paste keys, and seeing them echoed back is a security risk.
+**Prevention:** Always use `read -rs` (silent mode) when prompting for secrets. Remember to echo a newline `echo ""` afterwards as silent mode suppresses the user's enter key newline.
