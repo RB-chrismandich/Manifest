@@ -17,3 +17,7 @@
 ## 2026-02-02 - Liveness Indicators for Long Operations
 **Learning:** For indeterminate waiting states (like waiting for external APIs), a simple spinner is insufficient as users can't tell if the process is stalled. Adding an elapsed time counter (MM:SS) provides immediate liveness feedback and helps users decide if they should abort.
 **Action:** Enhance CLI spinners with a dynamic elapsed time counter for operations expected to take more than 10 seconds.
+
+## 2026-02-04 - Accessible CLI Cursor Handling
+**Learning:** CLI tools that hide the cursor (`tput civis`) often fail to restore it if interrupted by the user (Ctrl+C), leaving the terminal in an unusable state. This is a major accessibility failure.
+**Action:** Always wrap cursor hiding logic in a `trap 'tput cnorm' EXIT` block to guarantee restoration regardless of exit reason.
