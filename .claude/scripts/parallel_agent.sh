@@ -994,8 +994,19 @@ monitor_agents() {
                 local is_alive=false
                 if kill -0 "$pid" 2>/dev/null; then
                     is_alive=true
-                    # Check for zombie state if ps is available
-                    if $has_ps; then
+                    # Check for zombie state
+                    # Optimization: On Linux, read /proc directly to avoid 'ps' fork overhead
+                    if [[ -r "/proc/$pid/stat" ]]; then
+                        local stat_line
+                        read -r stat_line < "/proc/$pid/stat" 2>/dev/null || true
+                        # The command name (comm) is in parens and can contain spaces/parens.
+                        # Everything after the last ')' starts with space then state.
+                        local stat_rest="${stat_line##*)}"
+                        local state_char="${stat_rest:1:1}"
+                        if [[ "$state_char" == "Z" ]]; then
+                             is_alive=false
+                        fi
+                    elif $has_ps; then
                         local ps_state
                         ps_state=$(ps -o state= -p "$pid" 2>/dev/null || true)
                         if [[ "$ps_state" == *"Z"* ]]; then
