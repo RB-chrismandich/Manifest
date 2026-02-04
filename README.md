@@ -63,6 +63,7 @@ User → Claude Code → /command → parallel_agent.sh
 | Command | Description | Parallel Agents |
 |---------|-------------|-----------------|
 | `/refactor` | Python codebase security and quality analysis | ALWAYS |
+| `/shell-refactor` | Bash/Shell script security and quality analysis | ALWAYS |
 | `/generate-diagrams` | Generate Mermaid architecture diagrams | CONDITIONAL (5+ modules) |
 | `/improve-docs` | Diataxis documentation framework analysis | CONDITIONAL (>500 lines) |
 | `/improve-readme` | Improve README documentation | NO |
