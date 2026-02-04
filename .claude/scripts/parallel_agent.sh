@@ -42,6 +42,7 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 BLUE='\033[0;34m'
 YELLOW='\033[1;33m'
+BOLD='\033[1m'
 NC='\033[0m' # No Color
 
 # Draw a progress bar
@@ -956,13 +957,18 @@ monitor_agents() {
         has_ps=true
     fi
 
+    # UX: Ensure cursor is restored if script is interrupted
+    trap 'tput cnorm 2>/dev/null || true' EXIT
+
     # Hide cursor
     if $has_tput; then
         tput civis 2>/dev/null || true
     fi
 
     local running=true
-    local spinstr='|/-\'
+    # Braille spinner for smoother animation
+    local spinner=('⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏')
+    local spin_idx=0
     local start_time=$(date +%s)
 
     # Track states locally
@@ -981,9 +987,8 @@ monitor_agents() {
         local time_str=$(printf "%02d:%02d" $minutes $seconds)
 
         # Advance spinner
-        local temp=${spinstr#?}
-        local spin_char="${spinstr:0:1}"
-        spinstr=$temp${spinstr%"$temp"}
+        local spin_char="${spinner[$spin_idx]}"
+        spin_idx=$(( (spin_idx + 1) % ${#spinner[@]} ))
 
         for i in "${!pids[@]}"; do
             local pid=${pids[$i]}
@@ -1025,7 +1030,7 @@ monitor_agents() {
 
         if $running; then
             # \r to start, \033[K to clear line
-            printf "\rWaiting for agents (%s):%s\033[K" "$time_str" "$status_line"
+            printf "\r${BOLD}Waiting for agents (%s):${NC}%s\033[K" "$time_str" "$status_line"
             sleep 0.1
         fi
     done
@@ -1037,7 +1042,7 @@ monitor_agents() {
     local seconds=$((elapsed % 60))
     local time_str=$(printf "%02d:%02d" $minutes $seconds)
 
-    printf "\rWaiting for agents (%s):%s\033[K\n" "$time_str" "$status_line"
+    printf "\r${BOLD}Waiting for agents (%s):${NC}%s\033[K\n" "$time_str" "$status_line"
 
     # Restore cursor
     if $has_tput; then
