@@ -417,6 +417,7 @@ Claude Code native commands are available in `~/.claude/commands/`. These integr
 
 | Command | Description | Parallel Agents |
 |---------|-------------|-----------------|
+| `/project-commit` | Full commit pipeline: docs, pull, pre-commits, commit, push | CONDITIONAL (Phase 3) |
 | `/improve-readme` | Improve README documentation | NO |
 | `/refactor` | Python codebase security and quality analysis | ALWAYS |
 | `/generate-diagrams` | Generate Mermaid architecture diagrams | CONDITIONAL (5+ modules) |
@@ -425,6 +426,10 @@ Claude Code native commands are available in `~/.claude/commands/`. These integr
 ### Command Usage
 
 ```bash
+# Full commit pipeline with documentation generation
+/project-commit "Add new feature"
+/project-commit  # Auto-generate commit message
+
 # Comprehensive Python refactoring analysis
 /refactor src/
 

@@ -124,11 +124,18 @@ Usage examples...
 ```
 
 **Examples**:
-- `/project-commit` - Full commit pipeline
+- `/project-commit` - Full commit pipeline (regenerate docs, pull, pre-commits, commit, push)
 - `/issue-process` - Process GitHub issue
 - `/full-deployment-pipeline` - Deploy with validation
 
-**Tool Usage**: Read + Write (Bash, Edit, Write)
+**Tool Usage**: Read + Write (Bash, Edit, Write, Skill for invoking other commands)
+
+**Example Structure** (`/project-commit`):
+1. Phase 1: Documentation Generation (`/generate-diagrams`, `/improve-docs`, `/improve-readme`)
+2. Phase 2: Pull Latest & Resolve Conflicts (git fetch, pull --rebase)
+3. Phase 3: Pre-commit Checks (pre-commit run --all-files with auto-fixes)
+4. Phase 4: Stage & Commit (auto-detect issue references, append "Fixes #N")
+5. Phase 5: Push (git push with fallback handling)
 
 ---
 

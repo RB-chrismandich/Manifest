@@ -3,6 +3,7 @@
 > Advanced patterns and examples for extending Manifest
 
 This directory contains templates and examples for:
+- Settings and permissions
 - Orchestration prompts
 - Auto-trigger skills
 - Validation overrides
@@ -15,7 +16,13 @@ This directory contains templates and examples for:
 ```
 templates/
 ├── README.md                           # This file
+├── settings-low-risk.json              # Low-risk auto-executable permissions
 ├── orchestration_prompt.md             # Template for multi-agent orchestration
+├── permissions/                        # Project-specific permission templates
+│   ├── django-web-app.json             # Django development permissions
+│   ├── express-api.json                # Express.js API permissions
+│   ├── go-microservices.json           # Go microservices permissions
+│   └── python-monorepo.json            # Python monorepo permissions
 ├── skills/                             # Auto-trigger skill examples
 │   ├── api-security-guard/             # API endpoint security validation
 │   └── database-migration-guard/       # Database schema change safety
@@ -23,6 +30,85 @@ templates/
 │   ├── django-security.yml             # Django security checks
 │   └── express-security.yml            # Express.js/Node.js security checks
 └── github-workflow/                    # (Coming soon) GitHub issue management
+```
+
+---
+
+## Settings Templates
+
+### Low-Risk Auto-Executable Permissions
+
+**File**: `settings-low-risk.json`
+
+**Purpose**: Pre-configured permissions for low-risk commands that Claude can auto-execute without prompting, minimizing environmental impact while enabling efficient development workflows.
+
+**Installation**:
+```bash
+# Copy to Claude Code settings
+cp templates/settings-low-risk.json ~/.claude/settings.json
+
+# Or merge with existing settings
+jq -s '.[0] * .[1]' ~/.claude/settings.json templates/settings-low-risk.json > ~/.claude/settings.json.new
+mv ~/.claude/settings.json.new ~/.claude/settings.json
+```
+
+**Included Permissions** (200+ safe commands):
+
+| Category | Examples | Risk Level |
+|----------|----------|------------|
+| Web Access | WebFetch (GitHub, docs, npm, AWS), WebSearch | Low - Read-only |
+| File Operations | Read, ls, cat, head, tail, grep, find | Low - Read-only |
+| Git Operations | status, diff, log, fetch, pull, add, checkout | Low - Local only |
+| GitHub CLI | issue/pr view, repo view, run view | Low - Read-only |
+| Python Tools | pytest, mypy, ruff, bandit, pip list/show | Low - Analysis |
+| Pre-commit | pre-commit run --all-files | Low - Local checks |
+| Docker | ps, images, logs, stats | Low - Inspection |
+| AWS | Read-only describe/list operations | Low - No modifications |
+| Parallel Agents | ~/.claude/scripts/parallel_agent.sh | Low - Analysis |
+
+**Excluded** (requires prompt):
+- Destructive git operations (reset --hard, clean -f, push --force)
+- File modifications (rm without -f, destructive mv/cp)
+- AWS write operations (create, update, delete)
+- System-level changes (sudo, systemctl start/stop)
+- Package installations (npm install, pip install, brew install)
+- Git commits and pushes (requires explicit user request)
+
+**Hooks**:
+- **PreToolUse (Skill)**: Runs parallel agent pre-analysis (180s timeout)
+- **PostToolUse (Bash)**: Post-execution validation (10s timeout)
+
+**Project-Specific Customization**:
+```bash
+# Start with low-risk template
+cp templates/settings-low-risk.json my-project-settings.json
+
+# Add project-specific permissions
+jq '.permissions.allow += ["Bash(make deploy-staging:*)"]' my-project-settings.json > temp.json
+mv temp.json my-project-settings.json
+
+# Apply
+cp my-project-settings.json ~/.claude/settings.json
+```
+
+### Project-Specific Permission Templates
+
+**Location**: `permissions/`
+
+Pre-configured permission sets for common project types:
+
+- **django-web-app.json**: Django development with pytest, migrations, runserver
+- **express-api.json**: Node.js/Express with npm, debugging, API testing
+- **go-microservices.json**: Go services with Docker, Kubernetes, protobuf
+- **python-monorepo.json**: Python monorepo with Poetry, tox, submodules
+
+**Usage**:
+```bash
+# Apply permission template
+jq -s '.[0] * .[1]' \
+  templates/settings-low-risk.json \
+  templates/permissions/django-web-app.json \
+  > ~/.claude/settings.json
 ```
 
 ---
