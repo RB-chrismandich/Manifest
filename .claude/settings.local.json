@@ -11,7 +11,10 @@
       "Bash(pre-commit run:*)",
       "Bash(chmod:*)",
       "Bash(./.claude/scripts/parallel_agent.sh:*)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash($HOME/Library/Python/3.9/bin/pre-commit run:*)",
+      "Bash(~/Library/Python/3.9/bin/yamllint:*)",
+      "Bash(git add:*)"
     ]
   }
 }

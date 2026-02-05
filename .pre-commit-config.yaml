@@ -1,50 +1,108 @@
-# Pre-commit hooks for Manifest repository
-# Install: pip install pre-commit
-# Setup: pre-commit install
-# Run: pre-commit run --all-files
+# Pre-commit hooks for Manifest project
+# Install: pre-commit install
+# Run manually: pre-commit run --all-files
 
 repos:
-  # ShellCheck - Shell script analysis
+  # Standard pre-commit hooks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace
+        exclude: ^(\.Jules/|templates/commands/|templates/patterns/)
+      - id: end-of-file-fixer
+        exclude: ^(\.Jules/|templates/commands/|templates/patterns/)
+      - id: check-yaml
+        args: ['--unsafe']
+        exclude: ^(\.Jules/)
+      - id: check-json
+        exclude: ^(\.Jules/)
+      - id: check-added-large-files
+        args: ['--maxkb=500']
+      - id: check-case-conflict
+      - id: check-merge-conflict
+      - id: check-executables-have-shebangs
+      - id: check-shebang-scripts-are-executable
+      - id: detect-private-key
+      - id: mixed-line-ending
+        args: ['--fix=lf']
+
+  # Shell script checking
   - repo: https://github.com/shellcheck-py/shellcheck-py
-    rev: v0.10.0.1
+    rev: v0.9.0.6
     hooks:
       - id: shellcheck
-        args: ['--severity=warning']  # Ignore info/style for now
+        args: ['--severity=warning']
+        exclude: ^(\.Jules/)
 
-  # YAML Linting
+  # Shell script formatting
+  - repo: https://github.com/scop/pre-commit-shfmt
+    rev: v3.7.0-4
+    hooks:
+      - id: shfmt
+        args: ['-i', '4', '-ci', '-sr', '-w']
+        exclude: ^(\.Jules/)
+
+  # Markdown linting
+  - repo: https://github.com/igorshubovych/markdownlint-cli
+    rev: v0.39.0
+    hooks:
+      - id: markdownlint
+        args: ['--fix']
+        exclude: ^(\.Jules/|templates/commands/|templates/patterns/|docs/SHELL_ANALYSIS_REPORT\.md|docs/VALIDATION_REPORT\.md)
+
+  # YAML linting
   - repo: https://github.com/adrienverge/yamllint
     rev: v1.35.1
     hooks:
       - id: yamllint
-        args: ['-d', '{extends: default, rules: {line-length: {max: 120}, document-start: disable, comments: {min-spaces-from-content: 1}}}']
+        exclude: ^(\.Jules/)
 
-  # Markdown Linting
-  - repo: https://github.com/igorshubovych/markdownlint-cli
-    rev: v0.41.0
+  # Secret detection
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.18.2
     hooks:
-      - id: markdownlint
-        args: ['--fix']
+      - id: gitleaks
 
-  # General file checks
-  - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.6.0
+  # Custom checks
+  - repo: local
     hooks:
-      - id: check-added-large-files
-        args: ['--maxkb=500']
-      - id: check-case-conflict
-      - id: check-executables-have-shebangs
-      - id: check-merge-conflict
-      - id: check-yaml
-        args: ['--allow-multiple-documents']
-      - id: end-of-file-fixer
-      - id: mixed-line-ending
-      - id: trailing-whitespace
-        args: ['--markdown-linebreak-ext=md']
+      # Validate parallel_agent.sh syntax
+      - id: validate-parallel-agent
+        name: Validate parallel_agent.sh syntax
+        entry: bash -n
+        language: system
+        files: ^\.claude/scripts/parallel_agent\.sh$
 
-  # Detect secrets
-  - repo: https://github.com/Yelp/detect-secrets
-    rev: v1.5.0
-    hooks:
-      - id: detect-secrets
-        args: ['--baseline', '.secrets.baseline']
-        exclude: package.lock.json
+      # Validate bootstrap.sh syntax
+      - id: validate-bootstrap
+        name: Validate bootstrap.sh syntax
+        entry: bash -n
+        language: system
+        files: ^bootstrap\.sh$
+
+      # Check for hardcoded credentials
+      - id: check-credentials
+        name: Check for hardcoded credentials
+        entry: bash -c 'if grep -rn "sk-[a-zA-Z0-9]\{32,\}" --include="*.sh" --include="*.md" --include="*.yaml" --include="*.json" .; then exit 1; fi'
+        language: system
+        pass_filenames: false
+
+      # Validate YAML config files
+      - id: validate-yaml-configs
+        name: Validate YAML config files
+        entry: python3 -c "import sys, yaml; [yaml.safe_load(open(f)) for f in sys.argv[1:]]"
+        language: system
+        files: ^\.claude/config/.*\.yml$
+
+      # Check command frontmatter
+      - id: check-command-frontmatter
+        name: Check command files have frontmatter
+        entry: bash -c 'for f in "$@"; do if ! head -5 "$f" | grep -q "^---$"; then echo "Missing frontmatter colon $f"; exit 1; fi; done'
+        language: system
+        files: ^\.claude/commands/.*\.md$
+
+# Global settings
+default_language_version:
+  python: python3
+
+exclude: ^(\.Jules/|\.git/|\.agent_outputs/|node_modules/)
