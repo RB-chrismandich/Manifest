@@ -17,3 +17,8 @@
 **Vulnerability:** The parallel agent framework generated code analysis reports and stored them in directories with default umask permissions (often 755/644). This allowed other users on the system to read potentially sensitive code or vulnerability findings.
 **Learning:** Default directory creation in shell scripts (`mkdir -p`) respects the user's umask, which is often too permissive for security tools. Tools handling sensitive data must explicitly manage permissions.
 **Prevention:** Use `umask 0077` at the beginning of scripts handling sensitive data, and explicitly `chmod 700` directories containing sensitive outputs or configuration.
+
+## 2026-02-05 - Secure Input for Sensitive Data
+**Vulnerability:** The `bootstrap.sh` script used `read -r` to capture the Gemini API key, echoing the secret to the terminal and potentially exposing it to screen recording or shoulder surfing.
+**Learning:** Interactive scripts must explicitly mask input for sensitive data like passwords and API keys.
+**Prevention:** Always use `read -rs` for secret inputs. Remember that `-s` suppresses the newline, so an explicit `echo ""` is required afterwards.
