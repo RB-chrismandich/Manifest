@@ -257,28 +257,55 @@ command_exists() {
     command -v "$1" &> /dev/null
 }
 
+# Parse service configuration using awk (single pass)
+parse_services_config() {
+    FILE_CLAUDE=""
+    FILE_GEMINI=""
+    FILE_CURSOR=""
+
+    if [[ -f "$SERVICES_CONFIG" ]]; then
+        local config_settings
+        config_settings=$(awk '
+            BEGIN { section="" }
+            /^[[:space:]]*claude:/ { section="claude" }
+            /^[[:space:]]*gemini:/ { section="gemini" }
+            /^[[:space:]]*cursor:/ { section="cursor" }
+            /^[[:space:]]*enabled:[[:space:]]*true/ {
+                if (section == "claude") print "FILE_CLAUDE=true;"
+                if (section == "gemini") print "FILE_GEMINI=true;"
+                if (section == "cursor") print "FILE_CURSOR=true;"
+            }
+            /^[[:space:]]*enabled:[[:space:]]*false/ {
+                if (section == "claude") print "FILE_CLAUDE=false;"
+                if (section == "gemini") print "FILE_GEMINI=false;"
+                if (section == "cursor") print "FILE_CURSOR=false;"
+            }
+        ' "$SERVICES_CONFIG")
+
+        if [[ -n "$config_settings" ]]; then
+            eval "$config_settings"
+        fi
+    fi
+}
+
 # Load existing service configuration
 load_existing_config() {
     if [[ -f "$SERVICES_CONFIG" ]]; then
         print_step "Loading existing service configuration..."
 
+        parse_services_config
+
         # Only load if user didn't explicitly set the toggle
-        if [[ "$CLAUDE_SET" == false ]]; then
-            local claude_enabled
-            claude_enabled=$(grep -E "^\s*claude:" "$SERVICES_CONFIG" | grep -oE "(true|false)" | head -1)
-            [[ "$claude_enabled" == "true" ]] && ENABLE_CLAUDE=true || ENABLE_CLAUDE=false
+        if [[ "$CLAUDE_SET" == false && -n "$FILE_CLAUDE" ]]; then
+            ENABLE_CLAUDE=$FILE_CLAUDE
         fi
 
-        if [[ "$GEMINI_SET" == false ]]; then
-            local gemini_enabled
-            gemini_enabled=$(grep -E "^\s*gemini:" "$SERVICES_CONFIG" | grep -oE "(true|false)" | head -1)
-            [[ "$gemini_enabled" == "true" ]] && ENABLE_GEMINI=true || ENABLE_GEMINI=false
+        if [[ "$GEMINI_SET" == false && -n "$FILE_GEMINI" ]]; then
+            ENABLE_GEMINI=$FILE_GEMINI
         fi
 
-        if [[ "$CURSOR_SET" == false ]]; then
-            local cursor_enabled
-            cursor_enabled=$(grep -E "^\s*cursor:" "$SERVICES_CONFIG" | grep -oE "(true|false)" | head -1)
-            [[ "$cursor_enabled" == "true" ]] && ENABLE_CURSOR=true || ENABLE_CURSOR=false
+        if [[ "$CURSOR_SET" == false && -n "$FILE_CURSOR" ]]; then
+            ENABLE_CURSOR=$FILE_CURSOR
         fi
 
         print_success "Loaded existing configuration"
@@ -1227,10 +1254,10 @@ run_reconfigure() {
     echo ""
 
     if [[ -f "$SERVICES_CONFIG" ]]; then
-        local old_claude old_gemini old_cursor
-        old_claude=$(grep -E "^\s*claude:" "$SERVICES_CONFIG" | grep -oE "(true|false)" | head -1)
-        old_gemini=$(grep -E "^\s*gemini:" "$SERVICES_CONFIG" | grep -oE "(true|false)" | head -1)
-        old_cursor=$(grep -E "^\s*cursor:" "$SERVICES_CONFIG" | grep -oE "(true|false)" | head -1)
+        # Use values parsed by load_existing_config -> parse_services_config
+        local old_claude=${FILE_CLAUDE:-unknown}
+        local old_gemini=${FILE_GEMINI:-unknown}
+        local old_cursor=${FILE_CURSOR:-unknown}
 
         echo "  Claude:  $old_claude → $ENABLE_CLAUDE"
         echo "  Gemini:  $old_gemini → $ENABLE_GEMINI"
