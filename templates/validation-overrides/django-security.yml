@@ -1,0 +1,218 @@
+# Django-Specific Validation Overrides
+# Extends ~/.claude/config/validation_criteria.yml
+#
+# Django framework-specific security and quality checks
+
+project_tier1:
+
+  django_csrf:
+    weight: 0.25
+    severity: critical
+    description: "CSRF protection enabled for state-changing views"
+    applies_to:
+      - "**/views.py"
+      - "**/api/*.py"
+    checks:
+      - id: csrf_exempt_dangerous
+        description: "csrf_exempt only used on documented public APIs"
+        patterns_bad:
+          - "@csrf_exempt.*\n.*def (post|put|patch|delete)"
+        exceptions:
+          - "# PUBLIC API"
+          - "# Webhook endpoint"
+      - id: csrf_middleware_enabled
+        description: "CSRF middleware in MIDDLEWARE setting"
+        patterns:
+          - "django.middleware.csrf.CsrfViewMiddleware"
+        context: "settings.py"
+
+  django_sql_injection:
+    weight: 0.25
+    severity: critical
+    description: "No raw SQL with string interpolation"
+    applies_to:
+      - "**/models.py"
+      - "**/views.py"
+      - "**/queries.py"
+    checks:
+      - id: no_raw_sql_concatenation
+        description: "Raw SQL uses parameterized queries"
+        patterns_bad:
+          - "cursor.execute.*f\""
+          - "cursor.execute.*%.*\""
+          - "raw\(.*f\""
+        patterns_good:
+          - "cursor.execute.*%s"
+          - ".raw\\(.*%s"
+
+  django_xss:
+    weight: 0.20
+    severity: critical
+    description: "Template output is auto-escaped"
+    applies_to:
+      - "**/*.html"
+      - "**/templates/**"
+    checks:
+      - id: safe_filter_justified
+        description: "safe filter only used with comment explaining why"
+        patterns:
+          - "\\|safe"
+        requires_comment: "SAFE: "
+      - id: autoescape_enabled
+        description: "No autoescape off without justification"
+        patterns_bad:
+          - "{% autoescape off %}"
+        exceptions:
+          - "JSON-LD"
+          - "Verified safe content"
+
+  django_secret_key:
+    weight: 0.15
+    severity: critical
+    description: "SECRET_KEY not hardcoded"
+    applies_to:
+      - "**/settings*.py"
+    checks:
+      - id: secret_key_from_env
+        description: "SECRET_KEY loaded from environment"
+        patterns:
+          - "SECRET_KEY = os.environ"
+          - "SECRET_KEY = env\\("
+          - "SECRET_KEY = get_secret\\("
+        patterns_bad:
+          - "SECRET_KEY = ['\"]"
+
+  django_debug_mode:
+    weight: 0.15
+    severity: high
+    description: "DEBUG=False in production settings"
+    applies_to:
+      - "**/settings/production.py"
+      - "**/settings.py"
+    checks:
+      - id: debug_false_production
+        description: "DEBUG explicitly set to False"
+        patterns:
+          - "DEBUG = False"
+          - "DEBUG = os.environ.*default=False"
+        context: "production"
+
+project_tier2:
+
+  django_model_validation:
+    weight: 0.25
+    severity: medium
+    description: "Model fields have appropriate validators"
+    applies_to:
+      - "**/models.py"
+    checks:
+      - id: email_field_for_emails
+        description: "Use EmailField for email addresses"
+        patterns_good:
+          - "EmailField\\("
+        patterns_bad:
+          - "CharField\\(.*email"
+      - id: url_field_for_urls
+        description: "Use URLField for URLs"
+        patterns_good:
+          - "URLField\\("
+        patterns_bad:
+          - "CharField\\(.*url"
+
+  django_permissions:
+    weight: 0.25
+    severity: medium
+    description: "Views check permissions appropriately"
+    applies_to:
+      - "**/views.py"
+    checks:
+      - id: permission_required_decorator
+        description: "Sensitive views have permission checks"
+        patterns:
+          - "@permission_required"
+          - "@login_required"
+          - "permission_classes = "
+      - id: user_passes_test
+        description: "Custom permission logic uses user_passes_test"
+        patterns:
+          - "@user_passes_test"
+
+  django_migrations:
+    weight: 0.20
+    severity: medium
+    description: "Migrations follow best practices"
+    applies_to:
+      - "**/migrations/*.py"
+    checks:
+      - id: migration_reversible
+        description: "Migrations have operations.RunPython with reverse"
+        patterns:
+          - "reverse_code="
+        context: "RunPython"
+      - id: data_migration_commented
+        description: "Data migrations have explanatory comments"
+        patterns:
+          - "# Data migration:"
+          - "# Backfill:"
+        context: "RunPython"
+
+  django_queryset_optimization:
+    weight: 0.15
+    severity: medium
+    description: "Querysets use select_related/prefetch_related"
+    applies_to:
+      - "**/views.py"
+      - "**/serializers.py"
+    checks:
+      - id: select_related_for_fk
+        description: "Foreign keys accessed with select_related"
+        indicators:
+          - "select_related"
+        context: "ForeignKey"
+      - id: prefetch_related_for_m2m
+        description: "Many-to-many accessed with prefetch_related"
+        indicators:
+          - "prefetch_related"
+        context: "ManyToManyField"
+
+  django_test_coverage:
+    weight: 0.15
+    severity: medium
+    description: "Views and models have corresponding tests"
+    applies_to:
+      - "**/views.py"
+      - "**/models.py"
+    checks:
+      - id: view_has_test
+        description: "View has test file"
+        requires_file: "tests/test_*.py"
+      - id: model_has_test
+        description: "Model has test file"
+        requires_file: "tests/test_*.py"
+
+# Command-specific overrides
+commands:
+  /refactor:
+    tier1_threshold: 1.0  # All tier 1 must pass
+    tier2_threshold: 0.70  # Raise bar for refactoring
+
+  /review:
+    tier1_threshold: 1.0
+    tier2_threshold: 0.60  # Standard bar
+
+# Exemptions
+exemptions:
+  - path: "**/migrations/*.py"
+    reason: "Generated files"
+    skip_checks:
+      - django_queryset_optimization
+
+  - path: "**/tests/*.py"
+    reason: "Test files"
+    skip_checks:
+      - django_permissions  # Tests don't need auth
+
+  - path: "**/management/commands/*.py"
+    reason: "CLI commands"
+    skip_checks:
+      - django_csrf  # No web requests

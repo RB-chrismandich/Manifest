@@ -85,6 +85,7 @@ usage() {
     echo "  $0 --analyze <file>            Analyze a specific file"
     echo "  $0 --review <file>             Code review a file"
     echo "  $0 --improve <observation>     Improve an observation YAML"
+    echo "  $0 --status                    Check system health and configuration"
     echo ""
     echo "Agent Selection:"
     echo "  --cursor-only                  Only run Cursor Agent"
@@ -230,6 +231,18 @@ while [[ $# -gt 0 ]]; do
     case $1 in
         --help|-h)
             usage
+            exit 0
+            ;;
+        --status)
+            # Run the status check script
+            STATUS_SCRIPT="$(dirname "$0")/check_status.sh"
+            if [[ -f "$STATUS_SCRIPT" ]]; then
+                "$STATUS_SCRIPT" "$@"
+            else
+                echo -e "${RED}Error: Status check script not found${NC}"
+                echo -e "${YELLOW}Expected: $STATUS_SCRIPT${NC}"
+                exit 1
+            fi
             exit 0
             ;;
         --analyze)
@@ -437,7 +450,13 @@ validate_agents() {
 
     if [[ $available -eq 0 ]]; then
         echo -e "${RED}Error: No agents available${NC}"
-        echo -e "${YELLOW}Hint: Use --cursor-only, --gemini-only, or --claude-only to specify an agent${NC}"
+        echo ""
+        echo -e "${YELLOW}Possible fixes:${NC}"
+        echo -e "  1. Enable services: ${BOLD}./bootstrap.sh --reconfigure --enable-claude --enable-gemini${NC}"
+        echo -e "  2. Check config:    ${BOLD}cat ~/.claude/config/services.yml${NC}"
+        echo -e "  3. Install CLIs:    ${BOLD}npm install -g @anthropic-ai/claude-code @google/gemini-cli${NC}"
+        echo ""
+        echo -e "${BLUE}Troubleshooting:${NC} https://github.com/ReefBytes/Manifest/blob/main/docs/TROUBLESHOOTING.md#all-agents-disabled"
         return 1
     fi
 

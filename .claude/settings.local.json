@@ -2,7 +2,16 @@
   "permissions": {
     "allow": [
       "Bash(~/.claude/scripts/parallel_agent.sh:*)",
-      "Bash(./bootstrap.sh:*)"
+      "Bash(./bootstrap.sh:*)",
+      "Bash(python3 -c \"import yaml; yaml.safe_load\\(open\\(''.claude/config/validation_criteria.yml''\\)\\)\")",
+      "Bash(shellcheck:*)",
+      "Bash(python3:*)",
+      "Bash(pip3 install:*)",
+      "Bash(export PATH=\"/Users/charlemagne/Library/Python/3.9/bin:$PATH\")",
+      "Bash(pre-commit run:*)",
+      "Bash(chmod:*)",
+      "Bash(./.claude/scripts/parallel_agent.sh:*)",
+      "Bash(ls:*)"
     ]
   }
 }

@@ -195,15 +195,21 @@ Error: No agents available to run
 **Solution:**
 
 ```bash
-# Check service configuration
+# 1. Check system status (recommended)
+~/.claude/scripts/parallel_agent.sh --status
+
+# 2. Check service configuration
 cat ~/.claude/config/services.yml
 
-# Reconfigure to enable services
+# 3. Reconfigure to enable services
 ./bootstrap.sh --reconfigure --enable-claude --enable-gemini
 
-# Or edit services.yml directly
+# 4. Or edit services.yml directly
 vim ~/.claude/config/services.yml
 # Change enabled: false → enabled: true
+
+# 5. Verify the fix
+~/.claude/scripts/parallel_agent.sh --json 'Hello from all agents'
 ```
 
 ---
@@ -502,7 +508,29 @@ chmod 755 ~/.claude/.agent_outputs
 
 ## Diagnostic Commands
 
-### Check Installation
+### Quick System Health Check
+
+Run the automated health check to see your system status:
+
+```bash
+# Quick check
+~/.claude/scripts/parallel_agent.sh --status
+
+# Or directly
+~/.claude/scripts/check_status.sh
+
+# Verbose output with versions and paths
+~/.claude/scripts/check_status.sh --verbose
+```
+
+This checks:
+- Configuration file existence and validity
+- Enabled/disabled services
+- CLI tool installations
+- Authentication status
+- Overall system readiness
+
+### Manual Installation Check
 
 ```bash
 # Verify script exists

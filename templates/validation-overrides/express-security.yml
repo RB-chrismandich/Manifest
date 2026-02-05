@@ -1,0 +1,251 @@
+# Express.js/Node.js-Specific Validation Overrides
+# Extends ~/.claude/config/validation_criteria.yml
+#
+# Express/Node.js framework-specific security and quality checks
+
+project_tier1:
+
+  express_input_validation:
+    weight: 0.30
+    severity: critical
+    description: "Request data validated before use"
+    applies_to:
+      - "**/routes/**/*.js"
+      - "**/routes/**/*.ts"
+      - "**/controllers/**/*.js"
+      - "**/controllers/**/*.ts"
+    checks:
+      - id: joi_or_zod_validation
+        description: "Request validated with Joi, Zod, or similar"
+        patterns:
+          - "Joi.validate"
+          - "schema.validate"
+          - "z.object"
+          - "validator.validate"
+      - id: no_direct_req_access
+        description: "No direct use of req.body/query/params without validation"
+        patterns_bad:
+          - "req.body\\[|req.query\\[|req.params\\["
+        exceptions:
+          - "// Validated above"
+
+  express_sql_injection:
+    weight: 0.25
+    severity: critical
+    description: "No SQL string concatenation"
+    applies_to:
+      - "**/models/**/*.js"
+      - "**/models/**/*.ts"
+      - "**/db/**/*.js"
+      - "**/db/**/*.ts"
+    checks:
+      - id: no_sql_template_literals
+        description: "No SQL in template literals with variables"
+        patterns_bad:
+          - "\\$\\{.*\\}.*SELECT|INSERT|UPDATE|DELETE"
+          - "\\+.*SELECT|INSERT|UPDATE|DELETE"
+      - id: use_parameterized_queries
+        description: "Use parameterized queries or ORM"
+        patterns_good:
+          - "\\?\\.execute.*\\$"
+          - "sequelize\\."
+          - "typeorm\\."
+          - "prisma\\."
+
+  express_auth_middleware:
+    weight: 0.20
+    severity: critical
+    description: "Protected routes use authentication middleware"
+    applies_to:
+      - "**/routes/**/*.js"
+      - "**/routes/**/*.ts"
+    checks:
+      - id: auth_middleware_present
+        description: "Auth middleware used on protected routes"
+        patterns:
+          - "requireAuth|authenticate|isAuthenticated|verifyToken"
+        context: "app\\.(post|put|patch|delete)|router\\.(post|put|patch|delete)"
+      - id: jwt_verification
+        description: "JWT tokens verified before use"
+        patterns:
+          - "jwt.verify"
+          - "verifyToken"
+
+  express_helmet_security:
+    weight: 0.15
+    severity: critical
+    description: "Helmet.js security headers configured"
+    applies_to:
+      - "**/app.js"
+      - "**/server.js"
+      - "**/index.js"
+    checks:
+      - id: helmet_middleware
+        description: "Helmet middleware configured"
+        patterns:
+          - "app.use\\(helmet"
+          - "helmet\\(\\)"
+
+  express_rate_limiting:
+    weight: 0.10
+    severity: high
+    description: "Rate limiting on sensitive endpoints"
+    applies_to:
+      - "**/routes/**/*.js"
+      - "**/routes/**/*.ts"
+    checks:
+      - id: rate_limit_on_auth
+        description: "Auth endpoints have rate limiting"
+        patterns:
+          - "express-rate-limit|rateLimit"
+        context: "/login|/register|/reset"
+
+project_tier2:
+
+  express_error_handling:
+    weight: 0.25
+    severity: medium
+    description: "Proper error handling middleware"
+    applies_to:
+      - "**/app.js"
+      - "**/server.js"
+      - "**/middleware/**/*.js"
+    checks:
+      - id: error_middleware_last
+        description: "Error middleware defined last"
+        patterns:
+          - "app.use\\(.*err.*req.*res.*next"
+      - id: no_error_stack_in_prod
+        description: "Error stack not sent in production"
+        patterns_bad:
+          - "res.*send.*err.stack"
+          - "res.*json.*err.stack"
+        exceptions:
+          - "if.*development|NODE_ENV.*dev"
+
+  express_async_error_handling:
+    weight: 0.25
+    severity: medium
+    description: "Async route handlers wrapped or use express-async-errors"
+    applies_to:
+      - "**/routes/**/*.js"
+      - "**/routes/**/*.ts"
+      - "**/controllers/**/*.js"
+      - "**/controllers/**/*.ts"
+    checks:
+      - id: async_handler_wrapped
+        description: "Async handlers use wrapper or express-async-errors"
+        patterns:
+          - "asyncHandler"
+          - "catchAsync"
+          - "express-async-errors"
+          - "express-async-handler"
+
+  express_cors_configuration:
+    weight: 0.20
+    severity: medium
+    description: "CORS properly configured"
+    applies_to:
+      - "**/app.js"
+      - "**/server.js"
+    checks:
+      - id: cors_origin_whitelist
+        description: "CORS origin whitelist defined"
+        patterns:
+          - "origin:.*\\["
+          - "origin:.*whitelist"
+        patterns_bad:
+          - "origin: '\\*'"
+          - "origin: true"
+
+  express_env_variables:
+    weight: 0.15
+    severity: medium
+    description: "Environment variables loaded securely"
+    applies_to:
+      - "**/config/**/*.js"
+      - "**/config/**/*.ts"
+    checks:
+      - id: dotenv_or_similar
+        description: "Environment variables loaded with dotenv or similar"
+        patterns:
+          - "dotenv.config"
+          - "process.env"
+      - id: no_hardcoded_secrets
+        description: "No hardcoded API keys or secrets"
+        patterns_bad:
+          - "API_KEY = ['\"]"
+          - "SECRET = ['\"]"
+          - "PASSWORD = ['\"]"
+
+  express_logging:
+    weight: 0.15
+    severity: medium
+    description: "Proper logging configured"
+    applies_to:
+      - "**/app.js"
+      - "**/server.js"
+    checks:
+      - id: logging_middleware
+        description: "Logging middleware configured (morgan, winston, etc.)"
+        patterns:
+          - "morgan\\("
+          - "winston\\."
+          - "pino\\("
+
+# TypeScript-specific checks
+typescript:
+  strict_mode:
+    weight: 0.20
+    severity: medium
+    description: "TypeScript strict mode enabled"
+    applies_to:
+      - "**/tsconfig.json"
+    checks:
+      - id: strict_enabled
+        description: "strict: true in tsconfig"
+        patterns:
+          - "\"strict\":\\s*true"
+
+  request_typing:
+    weight: 0.15
+    severity: medium
+    description: "Request/Response properly typed"
+    applies_to:
+      - "**/routes/**/*.ts"
+      - "**/controllers/**/*.ts"
+    checks:
+      - id: typed_request
+        description: "Request bodies typed"
+        patterns:
+          - "Request<.*>"
+          - "TypedRequest"
+
+# Command-specific overrides
+commands:
+  /refactor:
+    tier1_threshold: 1.0
+    tier2_threshold: 0.70
+
+  /review:
+    tier1_threshold: 1.0
+    tier2_threshold: 0.60
+
+# Exemptions
+exemptions:
+  - path: "**/tests/**/*.js"
+    reason: "Test files"
+    skip_checks:
+      - express_auth_middleware
+      - express_rate_limiting
+
+  - path: "**/scripts/**/*.js"
+    reason: "Utility scripts"
+    skip_checks:
+      - express_helmet_security
+      - express_cors_configuration
+
+  - path: "**/migrations/**/*.js"
+    reason: "Database migrations"
+    skip_checks:
+      - express_input_validation
