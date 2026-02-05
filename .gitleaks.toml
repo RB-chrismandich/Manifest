@@ -1,0 +1,48 @@
+# Gitleaks configuration for Manifest project
+
+title = "Manifest Gitleaks Config"
+
+[[rules]]
+id = "anthropic-api-key"
+description = "Anthropic API Key"
+regex = '''sk-ant-[a-zA-Z0-9\-_]{95}'''
+tags = ["key", "Anthropic"]
+
+[[rules]]
+id = "openai-api-key"
+description = "OpenAI API Key"
+regex = '''sk-[a-zA-Z0-9]{48}'''
+tags = ["key", "OpenAI"]
+
+[[rules]]
+id = "google-api-key"
+description = "Google API Key"
+regex = '''AIza[0-9A-Za-z\-_]{35}'''
+tags = ["key", "Google"]
+
+[[rules]]
+id = "github-pat"
+description = "GitHub Personal Access Token"
+regex = '''ghp_[0-9a-zA-Z]{36}'''
+tags = ["key", "GitHub"]
+
+[[rules]]
+id = "aws-access-key"
+description = "AWS Access Key"
+regex = '''AKIA[0-9A-Z]{16}'''
+tags = ["key", "AWS"]
+
+[allowlist]
+description = "Allowlist for false positives"
+paths = [
+  '''\.Jules/''',
+  '''templates/commands/''',
+  '''templates/patterns/''',
+  '''docs/SHELL_ANALYSIS_REPORT\.md''',
+  '''docs/VALIDATION_REPORT\.md''',
+]
+regexes = [
+  '''sk-ant-example-[a-zA-Z0-9\-_]{95}''',
+  '''sk-example[a-zA-Z0-9]{48}''',
+  '''example.*api.*key''',
+]
