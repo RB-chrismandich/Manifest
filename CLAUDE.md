@@ -107,6 +107,7 @@ The following slash commands are available in Claude Code:
 
 | Command | Description | Parallel Agents |
 |---------|-------------|-----------------|
+| `/project-commit` | Full commit pipeline: docs, pull, pre-commits, commit, push | CONDITIONAL (Phase 3) |
 | `/refactor` | Python codebase security and quality analysis | ALWAYS |
 | `/shell-refactor` | Bash/Shell script security and quality analysis | ALWAYS |
 | `/generate-diagrams` | Generate Mermaid architecture diagrams | CONDITIONAL (5+ modules) |

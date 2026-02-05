@@ -2,9 +2,11 @@
 
 > Parallel LLM agent orchestration framework for Claude Code
 
-**Last Updated**: 2026-01-27
+**Last Updated**: 2026-02-05
 
 Manifest is a configuration repository that deploys a sophisticated parallel agent orchestration system to `~/.claude/`, enabling Claude Code to leverage multiple AI agents (Cursor, Gemini CLI, Claude CLI) for cross-verification, consensus scoring, and enhanced code analysis.
+
+**Core Capabilities**: Multi-agent orchestration • Consensus scoring • Model fallback • Two-tier validation • Production-grade templates
 
 ---
 
@@ -22,18 +24,19 @@ cd Manifest
 ~/.claude/scripts/parallel_agent.sh --json "Test connection"
 ```
 
-**Time to setup**: ~5 minutes | **Platforms**: macOS, Linux
+⏱️ **Time to setup**: ~5 minutes | 💻 **Platforms**: macOS (Intel/Apple Silicon), Linux (Debian, RHEL, Arch, openSUSE)
 
 ---
 
 ## Features
 
-- **Parallel Agent Orchestration**: Run Cursor, Gemini, and Claude agents simultaneously for diverse perspectives
-- **Consensus Scoring**: Automatic agreement analysis with configurable thresholds (≥80% auto-proceed, <50% escalate)
-- **Model Selection**: Task-based model routing (security → opus/advanced, quick → haiku/mini)
-- **Credit Fallback**: Automatic retry with cheaper models on quota exhaustion
-- **Two-Tier Validation**: Critical security checks (Tier 1) + quality metrics (Tier 2)
-- **Cross-Platform**: Supports macOS (Intel/Apple Silicon) and Linux (Debian, RHEL, Arch, openSUSE)
+- **Parallel Agent Orchestration**: Run 2-3 AI agents simultaneously (Cursor, Gemini, Claude) with real-time monitoring
+- **Consensus Scoring**: Variance-based algorithm calculates agreement (≥80% = high confidence, <50% = escalate)
+- **Intelligent Model Selection**: Task-based routing (security→opus/gpt-5.2, review→sonnet/gpt-5.1-codex, quick→haiku/mini)
+- **Credit Exhaustion Fallback**: Automatic detection and retry with cheaper models (opus→sonnet→haiku)
+- **Two-Tier Validation**: Tier 1 (security, breaking changes) blocks commits • Tier 2 (quality) provides guidance
+- **Cross-Platform**: Native support for macOS (Intel/Apple Silicon) and 5 major Linux distributions
+- **Production Templates**: Pre-configured permission templates for Django, Express, Go microservices, Python monorepos
 
 ---
 
@@ -54,19 +57,20 @@ User → Claude Code → /command → parallel_agent.sh
                                   JSON Output
 ```
 
-**See**: [docs/ARCHITECTURE_DIAGRAMS.md](docs/ARCHITECTURE_DIAGRAMS.md) for visual documentation
+**Visual Documentation**: [Architecture Diagrams](docs/ARCHITECTURE_DIAGRAMS.md) - Mermaid flowcharts showing bootstrap, execution, validation, and consensus flows
 
 ---
 
 ## Available Commands
 
-| Command | Description | Parallel Agents |
-|---------|-------------|-----------------|
-| `/refactor` | Python codebase security and quality analysis | ALWAYS |
-| `/shell-refactor` | Bash/Shell script security and quality analysis | ALWAYS |
-| `/generate-diagrams` | Generate Mermaid architecture diagrams | CONDITIONAL (5+ modules) |
-| `/improve-docs` | Diataxis documentation framework analysis | CONDITIONAL (>500 lines) |
-| `/improve-readme` | Improve README documentation | NO |
+| Command | Description | Parallel Agents | Validation |
+|---------|-------------|-----------------|------------|
+| `/project-commit` | Full commit pipeline: regenerate docs, pull latest, run pre-commits, commit, push | CONDITIONAL (Phase 3) | Tier 1 + Tier 2 |
+| `/refactor` | Python security, architecture, code quality analysis | ALWAYS | Tier 1 + Tier 2 (≥0.80) |
+| `/shell-refactor` | Bash/Shell script security and quality with shellcheck | ALWAYS | Tier 1 + Tier 2 (≥0.70) |
+| `/generate-diagrams` | Generate Mermaid architecture flowcharts and sequence diagrams | CONDITIONAL (≥5 imports) | Tier 2 |
+| `/improve-docs` | Analyze docs against Diataxis framework (tutorials, how-tos, reference, explanation) | CONDITIONAL (≥500 lines) | Tier 2 |
+| `/improve-readme` | Improve README structure and content following best practices | NEVER | Tier 2 |
 
 ---
 
@@ -86,15 +90,15 @@ User → Claude Code → /command → parallel_agent.sh
 
 ## Documentation
 
-| Document | Purpose | Audience |
-|----------|---------|----------|
-| [Getting Started](docs/GETTING_STARTED.md) | First-time setup walkthrough | New users |
-| [Configuration](docs/CONFIGURATION.md) | All configuration options | Operators |
-| [Architecture Diagrams](docs/ARCHITECTURE_DIAGRAMS.md) | Visual system documentation | Developers |
-| [Troubleshooting](docs/TROUBLESHOOTING.md) | Common problems and solutions | All users |
-| [CLAUDE.md](CLAUDE.md) | Repository context for Claude Code | AI assistants |
+| Document | Purpose | Audience | Reading Time |
+|----------|---------|----------|--------------|
+| [Getting Started](docs/GETTING_STARTED.md) | First-time setup walkthrough with verification steps | New users | 10 min |
+| [Configuration](docs/CONFIGURATION.md) | All configuration options, YAML reference, environment variables | Operators | 15 min |
+| [Architecture Diagrams](docs/ARCHITECTURE_DIAGRAMS.md) | Visual system documentation with 9 Mermaid diagrams | Developers | 20 min |
+| [Troubleshooting](docs/TROUBLESHOOTING.md) | Common problems, error messages, solutions | All users | 10 min |
+| [CLAUDE.md](CLAUDE.md) | Repository context, testing, commands reference | AI assistants | 8 min |
 
-**Full documentation index**: [docs/README.md](docs/README.md)
+**Full documentation index**: [docs/README.md](docs/README.md) • **Quick ref**: [Commands](docs/COMMANDS.md)
 
 ---
 
@@ -102,25 +106,36 @@ User → Claude Code → /command → parallel_agent.sh
 
 ```
 Manifest/
-├── bootstrap.sh                     # Cross-platform installation script
+├── bootstrap.sh                     # Cross-platform installation script (macOS/Linux)
 ├── CLAUDE.md                        # AI assistant context
 ├── .claude/                         # Configuration deployed to ~/.claude/
 │   ├── CLAUDE.md                    # Orchestration guide
-│   ├── commands/                    # Slash commands (refactor, generate-diagrams)
+│   ├── commands/                    # Slash commands (refactor, generate-diagrams, etc.)
 │   ├── skills/code-quality/         # Auto-triggered quality checks
 │   ├── prompts/                     # Agent orchestration templates
+│   │   ├── preflight_analysis.md    # Pre-flight review criteria
+│   │   ├── synthesis.md             # Agent disagreement synthesis
+│   │   └── validation.md            # Validation criteria template
 │   ├── config/                      # YAML configuration files
 │   │   ├── services.yml             # Agent enable/disable states
-│   │   ├── command_config.yml       # Tool policies and thresholds
+│   │   ├── command_config.yml       # Tool policies, thresholds, model selection
 │   │   └── validation_criteria.yml  # Tier 1/2 validation rules
 │   └── scripts/
-│       └── parallel_agent.sh        # Core orchestration engine
+│       └── parallel_agent.sh        # Core orchestration engine (1244 lines)
+├── templates/                       # Production-grade permission templates
+│   ├── settings-low-risk.json       # Low-risk auto-executable permissions
+│   └── permissions/
+│       ├── django-web-app.json      # Django web application
+│       ├── express-api.json         # Express.js API
+│       ├── go-microservices.json    # Go microservices
+│       └── python-monorepo.json     # Python monorepo
 └── docs/
     ├── README.md                    # Documentation hub
-    ├── GETTING_STARTED.md           # First-time setup
-    ├── CONFIGURATION.md             # Config reference
-    ├── ARCHITECTURE_DIAGRAMS.md     # System diagrams
-    └── TROUBLESHOOTING.md           # Common issues
+    ├── GETTING_STARTED.md           # First-time setup walkthrough
+    ├── CONFIGURATION.md             # Complete config reference
+    ├── ARCHITECTURE_DIAGRAMS.md     # 9 Mermaid system diagrams
+    ├── TROUBLESHOOTING.md           # Common issues and solutions
+    └── COMMANDS.md                  # Command reference
 ```
 
 ---
@@ -151,7 +166,7 @@ Manifest/
   "Quick question"
 ```
 
-**See**: [Configuration Guide](docs/CONFIGURATION.md) for all options
+**See**: [Configuration Guide](docs/CONFIGURATION.md) for complete YAML reference, environment variables, and advanced options
 
 ---
 
@@ -172,22 +187,20 @@ cat ~/.claude/config/services.yml
 which claude gemini cursor
 ```
 
-**See**: [Troubleshooting Guide](docs/TROUBLESHOOTING.md) for more solutions
-
----
-
-## Contributing
-
-Contributions welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for:
-- Code style guidelines
-- Testing requirements
-- Pull request process
+**See**: [Troubleshooting Guide](docs/TROUBLESHOOTING.md) for 15+ common issues with solutions
 
 ---
 
 ## License
 
-This project is licensed under the MIT License - see [LICENSE](LICENSE) file for details.
+This project is licensed under a Proprietary License - see the [LICENSE](LICENSE) file for details.
+
+**Key Restrictions:**
+- ✅ Use and modify for personal/internal purposes
+- ❌ Distribution, sale, or sublicensing without written permission from ReefBytes
+- ❌ Commercial use requires explicit authorization
+
+For licensing inquiries: [ReefBytes/Manifest](https://github.com/ReefBytes/Manifest)
 
 ---
 
