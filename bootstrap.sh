@@ -33,6 +33,8 @@ NC='\033[0m' # No Color
 # Script directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TARGET_DIR="$HOME/.claude"
+CURSOR_TARGET_DIR="$HOME/.cursor"
+GEMINI_TARGET_DIR="$HOME/.gemini"
 SERVICES_CONFIG="$TARGET_DIR/config/services.yml"
 
 # Detect platform
@@ -874,12 +876,138 @@ deploy_configs() {
 
     print_success "Configuration files deployed to $TARGET_DIR"
 
+    # Deploy Cursor configuration
+    deploy_cursor_configs
+
+    # Deploy Gemini configuration
+    deploy_gemini_configs
+
     # List deployed files
     echo ""
     print_info "Deployed files:"
     find "$TARGET_DIR" -type f \( -name "*.md" -o -name "*.yml" -o -name "*.sh" \) 2> /dev/null | head -20 | while read -r file; do
         echo "    ${file#"$HOME"/}"
     done
+}
+
+# Deploy Cursor IDE configuration (mirrors .claude with symlinks)
+deploy_cursor_configs() {
+    print_step "Deploying Cursor IDE configuration..."
+
+    local cursor_source_dir="$SCRIPT_DIR/.cursor"
+
+    if [[ ! -d "$cursor_source_dir" ]]; then
+        print_warning "Cursor configuration source not found: $cursor_source_dir"
+        print_info "Skipping Cursor config deployment"
+        return 0
+    fi
+
+    # Create .cursor directory structure
+    mkdir -p "$CURSOR_TARGET_DIR/rules"
+
+    # Copy .mdc rule files
+    if [[ -d "$cursor_source_dir/rules" ]]; then
+        cp "$cursor_source_dir/rules"/*.mdc "$CURSOR_TARGET_DIR/rules/" 2> /dev/null || true
+        print_success "Deployed Cursor rules to $CURSOR_TARGET_DIR/rules/"
+    fi
+
+    # Create symlinks for shared assets (pointing to ~/.claude/)
+    local symlinks=(
+        "scripts:$TARGET_DIR/scripts"
+        "config:$TARGET_DIR/config"
+        "prompts:$TARGET_DIR/prompts"
+        ".plans:$TARGET_DIR/.plans"
+    )
+
+    for entry in "${symlinks[@]}"; do
+        local name="${entry%%:*}"
+        local target="${entry#*:}"
+        local link_path="$CURSOR_TARGET_DIR/$name"
+
+        if [[ -e "$target" ]]; then
+            # Remove existing file/link/dir at the link path
+            rm -rf "$link_path"
+            ln -sf "$target" "$link_path"
+            print_success "Symlinked $link_path -> $target"
+        else
+            print_warning "Symlink target not found: $target (skipping $name)"
+        fi
+    done
+
+    print_success "Cursor configuration deployed to $CURSOR_TARGET_DIR"
+}
+
+# Deploy Gemini CLI configuration (mirrors .claude with symlinks)
+deploy_gemini_configs() {
+    print_step "Deploying Gemini CLI configuration..."
+
+    local gemini_source_dir="$SCRIPT_DIR/.gemini"
+
+    if [[ ! -d "$gemini_source_dir" ]]; then
+        print_warning "Gemini configuration source not found: $gemini_source_dir"
+        print_info "Skipping Gemini config deployment"
+        return 0
+    fi
+
+    # Create .gemini directory structure
+    mkdir -p "$GEMINI_TARGET_DIR/commands"
+    mkdir -p "$GEMINI_TARGET_DIR/skills/code-quality"
+
+    # Copy GEMINI.md
+    if [[ -f "$gemini_source_dir/GEMINI.md" ]]; then
+        cp "$gemini_source_dir/GEMINI.md" "$GEMINI_TARGET_DIR/GEMINI.md"
+        print_success "Deployed GEMINI.md to $GEMINI_TARGET_DIR/"
+    fi
+
+    # Copy TOML command files
+    if [[ -d "$gemini_source_dir/commands" ]]; then
+        cp "$gemini_source_dir/commands"/*.toml "$GEMINI_TARGET_DIR/commands/" 2> /dev/null || true
+        print_success "Deployed Gemini commands to $GEMINI_TARGET_DIR/commands/"
+    fi
+
+    # Copy settings.json (project settings, not auth)
+    if [[ -f "$gemini_source_dir/settings.json" ]]; then
+        # Merge with existing settings rather than overwriting (preserve auth)
+        if [[ -f "$GEMINI_TARGET_DIR/settings.json" ]]; then
+            print_info "Existing settings.json found - preserving (manual merge may be needed)"
+        else
+            cp "$gemini_source_dir/settings.json" "$GEMINI_TARGET_DIR/settings.json"
+            print_success "Deployed settings.json to $GEMINI_TARGET_DIR/"
+        fi
+    fi
+
+    # Create symlinks for shared assets (pointing to ~/.claude/)
+    local symlinks=(
+        "scripts:$TARGET_DIR/scripts"
+        "config:$TARGET_DIR/config"
+        "prompts:$TARGET_DIR/prompts"
+        ".plans:$TARGET_DIR/.plans"
+    )
+
+    for entry in "${symlinks[@]}"; do
+        local name="${entry%%:*}"
+        local target="${entry#*:}"
+        local link_path="$GEMINI_TARGET_DIR/$name"
+
+        if [[ -e "$target" ]]; then
+            # Remove existing file/link/dir at the link path
+            rm -rf "$link_path"
+            ln -sf "$target" "$link_path"
+            print_success "Symlinked $link_path -> $target"
+        else
+            print_warning "Symlink target not found: $target (skipping $name)"
+        fi
+    done
+
+    # Symlink the code-quality skill
+    local skill_target="$TARGET_DIR/skills/code-quality/SKILL.md"
+    local skill_link="$GEMINI_TARGET_DIR/skills/code-quality/SKILL.md"
+    if [[ -f "$skill_target" ]]; then
+        ln -sf "$skill_target" "$skill_link"
+        print_success "Symlinked code-quality skill"
+    fi
+
+    print_success "Gemini configuration deployed to $GEMINI_TARGET_DIR"
 }
 
 # Verify installation
@@ -897,6 +1025,9 @@ verify_installation() {
         "$TARGET_DIR/config/command_config.yml"
         "$TARGET_DIR/config/validation_criteria.yml"
         "$TARGET_DIR/config/services.yml"
+        "$CURSOR_TARGET_DIR/rules/orchestration.mdc"
+        "$GEMINI_TARGET_DIR/GEMINI.md"
+        "$GEMINI_TARGET_DIR/commands/project-commit.toml"
     )
 
     for file in "${required_files[@]}"; do
@@ -985,8 +1116,10 @@ print_summary() {
 
     echo -e "${BOLD}Installation Summary:${NC}"
     echo ""
-    echo "  Configuration: $TARGET_DIR"
-    echo "  Agent Outputs: $TARGET_DIR/.agent_outputs"
+    echo "  Claude Config:  $TARGET_DIR"
+    echo "  Cursor Config:  $CURSOR_TARGET_DIR"
+    echo "  Gemini Config:  $GEMINI_TARGET_DIR"
+    echo "  Agent Outputs:  $TARGET_DIR/.agent_outputs"
     echo "  Services Config: $TARGET_DIR/config/services.yml"
     echo ""
 
@@ -1073,9 +1206,11 @@ print_summary() {
 
     echo -e "${BOLD}Documentation:${NC}"
     echo ""
-    echo "  Main guide: ~/.claude/CLAUDE.md"
-    echo "  Commands:   ~/.claude/commands/"
-    echo "  Config:     ~/.claude/config/"
+    echo "  Main guide:     ~/.claude/CLAUDE.md"
+    echo "  Commands:       ~/.claude/commands/"
+    echo "  Cursor rules:   ~/.cursor/rules/"
+    echo "  Gemini commands: ~/.gemini/commands/"
+    echo "  Config:         ~/.claude/config/"
     echo ""
 }
 

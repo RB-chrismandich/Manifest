@@ -1,0 +1,93 @@
+---
+description: "Plan lifecycle management with parallel agent orchestration for create/review"
+globs: ".claude/.plans/**/*.md,.cursor/.plans/**/*.md"
+alwaysApply: false
+---
+
+# Plan Management
+
+Manage implementation plans in `.claude/.plans/` (symlinked to `.cursor/.plans/`) with optional
+parallel agent orchestration for cross-verified planning.
+
+<!-- Adapted from: .claude/commands/plan-manage.md -->
+
+## Actions
+
+Determine the requested action (default: **list**).
+
+### list
+
+1. Read all `*.md` files in `.claude/.plans/` (excluding TEMPLATE.md and README.md)
+2. For each plan, extract: filename, status, title, created date, deliverables (checked/total)
+3. Flag any plan not modified in 7+ days as **STALE**
+4. Display a summary table
+
+### create
+
+Orchestrate a cross-verified implementation plan using parallel agents when appropriate.
+
+#### Step 1: Preflight
+
+Evaluate the task description against trigger criteria:
+
+- **Security-sensitive**: auth, crypto, secrets, input validation
+- **Architectural**: new services, API changes, schema modifications, new integrations
+- **Large scope**: 3+ files expected to change
+- **Critical logic**: payments, user data, compliance
+
+If **any** criterion matches, use parallel agents.
+
+#### Step 2a: Parallel Agent Planning
+
+Run parallel agents with the task description:
+
+```bash
+~/.claude/scripts/parallel_agent.sh --json --full-output --validate --timeout 600 \
+  --cursor-model flash --claude-model sonnet \
+  "Propose an implementation plan for: <DESCRIPTION>"
+```
+
+Parse the JSON output. Synthesize based on consensus score:
+- **>=80%**: Merge into unified plan directly
+- **50-79%**: Synthesize disagreements, highlight to user
+- **<50%**: Present all proposals to user for selection
+
+#### Step 2b: Single-Agent Planning
+
+Explore the codebase to understand current structure and draft the plan.
+
+#### Step 3: Save the Plan
+
+1. Read `.claude/.plans/TEMPLATE.md`
+2. Populate all sections from the synthesized/drafted plan
+3. Save as `.claude/.plans/YYYYMMDD-short-description.md`
+4. Present the final plan to the user for approval
+
+### review
+
+1. Review active plans for deliverable completion progress
+2. Check days since last modification
+3. Flag stale plans (7+ days) for re-evaluation
+4. Suggest actions for each plan
+
+### archive
+
+1. Verify all deliverables are checked off
+2. Move the plan to `.claude/.plans/.archive/`
+
+### abandon
+
+1. Confirm with the user
+2. Move the plan to `.claude/.plans/.abandoned/`
+
+---
+
+## Parallel Agent Trigger Criteria
+
+| Action | Parallel Agents | Trigger |
+|--------|----------------|---------|
+| `create` | CONDITIONAL | Security, architecture, 3+ files, critical logic |
+| `review` | CONDITIONAL | Stale plans (7+ days) being re-evaluated |
+| `list` | NEVER | Read-only metadata scan |
+| `archive` | NEVER | File move only |
+| `abandon` | NEVER | File move only |

@@ -1,0 +1,109 @@
+---
+description: "Analyze and improve documentation using Diataxis framework"
+globs: "docs/**/*.md"
+alwaysApply: false
+---
+
+# Documentation Improvement Rule
+
+Analyze and improve project documentation in the `docs/` directory following
+documentation best practices and the Diataxis framework.
+
+<!-- Adapted from: .claude/commands/docs-improve.md -->
+
+## Parallel Agent Integration
+
+This rule uses parallel agents CONDITIONALLY when total documentation lines > 500.
+When triggered, executes: `~/.claude/scripts/parallel_agent.sh --json --validate`
+
+## Task
+
+You are a documentation expert improving project documentation. Your goals are to:
+
+1. Audit all documentation for completeness and quality
+2. Identify missing document types essential for great applications
+3. Ensure consistent formatting and cross-referencing
+4. Improve individual documents based on their purpose
+5. Generate a documentation health score with actionable recommendations
+
+## The Diataxis Framework
+
+Organize documentation into four quadrants based on user needs:
+
+| Type | Orientation | Purpose | Example |
+|------|-------------|---------|---------|
+| **Tutorials** | Learning | Step-by-step lessons for beginners | "Your First Feature" |
+| **How-to Guides** | Problem-solving | Steps to achieve specific goals | "How to Configure X" |
+| **Reference** | Information | Technical specifications | "API Reference" |
+| **Explanation** | Understanding | Conceptual background | "Architecture Overview" |
+
+## Instructions
+
+### Step 1: Gather Documentation Inventory
+
+Read all documentation files:
+
+- Core documentation: README.md, AGENTS.md, CONTRIBUTING.md, CHANGELOG.md
+- Docs directory: docs/**/*.md
+- Config documentation: config/README.md
+
+### Step 2: Evaluate Against Required Documents
+
+**Essential Documents**:
+
+| Document | Priority | Purpose | Audience |
+|----------|----------|---------|----------|
+| `README.md` | Critical | Project overview, quick start | All |
+| `AGENTS.md` | Critical | AI assistant context | AI/Contributors |
+| `docs/README.md` | High | Documentation index/hub | All |
+| `docs/GETTING_STARTED.md` | High | First-time user guide | New users |
+| `docs/CONFIGURATION.md` | High | All config options | Operators |
+| `docs/ARCHITECTURE.md` | Medium | System design | Developers |
+| `docs/TROUBLESHOOTING.md` | Medium | Common problems/solutions | Operators |
+
+### Step 3: Quality Assessment
+
+For each document, check:
+
+**Structure Quality**:
+- Clear title and one-line description
+- Table of contents (if > 100 lines)
+- Consistent heading hierarchy
+- "Last Updated" date
+- "Related Documents" section
+
+**Content Quality**:
+- Defines target audience
+- States prerequisites
+- Provides working code examples
+- No placeholder text (TODO, TBD, FIXME)
+
+**Formatting Quality**:
+- Code blocks have language specified
+- Tables are properly aligned
+- Links use relative paths
+
+### Step 4: Calculate Documentation Health Score
+
+Score documentation on a 100-point scale:
+
+| Factor | Weight | Measurement |
+|--------|--------|-------------|
+| Required docs present | 30% | Count present / total required |
+| No broken links | 20% | Percentage of valid links |
+| Consistent formatting | 15% | Passes automated checks |
+| Has code examples | 15% | Docs with examples / total docs |
+| Up-to-date markers | 10% | Docs with "Last Updated" / total |
+| Cross-referenced | 10% | Docs with "Related" section / total |
+
+### Step 5: Generate Improvements
+
+For missing documents, create from template. For existing documents, apply improvements.
+
+## Writing Principles
+
+- **Be accurate**: Only document what actually exists
+- **Be concise**: Respect reader's time
+- **Be consistent**: Same style across all docs
+- **Be current**: Update docs with code changes
+- **Be connected**: Link related information

@@ -1,13 +1,13 @@
 # Manifest
 
-> Parallel LLM agent orchestration framework for Claude Code
+> Parallel LLM agent orchestration framework for Claude Code, Cursor IDE, and Gemini CLI
 
 **Last Updated**: 2026-02-05
 
 Manifest is a configuration repository that deploys a sophisticated parallel agent
-orchestration system to `~/.claude/`, enabling Claude Code to leverage multiple AI agents
-(Cursor, Gemini CLI, Claude CLI) for cross-verification, consensus scoring,
-and enhanced code analysis.
+orchestration system to `~/.claude/`, `~/.cursor/`, and `~/.gemini/`, enabling Claude Code,
+Cursor IDE, and Gemini CLI to leverage multiple AI agents for cross-verification, consensus
+scoring, and enhanced code analysis.
 
 **Core Capabilities**: Multi-agent orchestration | Consensus scoring | Model fallback
 | Two-tier validation | Production-grade templates
@@ -103,7 +103,8 @@ Mermaid flowcharts showing bootstrap, execution, validation, and consensus flows
 | [Configuration](docs/CONFIGURATION.md) | All configuration options, YAML reference, environment variables | Operators | 15 min |
 | [Architecture Diagrams](docs/ARCHITECTURE_DIAGRAMS.md) | Visual system documentation with 9 Mermaid diagrams | Developers | 20 min |
 | [Troubleshooting](docs/TROUBLESHOOTING.md) | Common problems, error messages, solutions | All users | 10 min |
-| [CLAUDE.md](CLAUDE.md) | Repository context, testing, commands reference | AI assistants | 8 min |
+| [AGENTS.md](AGENTS.md) | AI agent instructions (Cursor, Claude, Gemini) | AI assistants | 8 min |
+| [CLAUDE.md](CLAUDE.md) | Claude Code-specific project context | AI assistants | 8 min |
 
 **Full documentation index**: [docs/README.md](docs/README.md) • **Quick ref**: [Commands](docs/COMMANDS.md)
 
@@ -114,7 +115,8 @@ Mermaid flowcharts showing bootstrap, execution, validation, and consensus flows
 ```text
 Manifest/
 ├── bootstrap.sh                     # Cross-platform installation script (macOS/Linux)
-├── CLAUDE.md                        # AI assistant context
+├── CLAUDE.md                        # Claude Code project context
+├── AGENTS.md                        # AI agent instructions (all platforms)
 ├── .claude/                         # Configuration deployed to ~/.claude/
 │   ├── CLAUDE.md                    # Orchestration guide
 │   ├── commands/                    # Slash commands (refactor-python, docs-diagrams, etc.)
@@ -128,7 +130,35 @@ Manifest/
 │   │   ├── command_config.yml       # Tool policies, thresholds, model selection
 │   │   └── validation_criteria.yml  # Tier 1/2 validation rules
 │   └── scripts/
-│       └── parallel_agent.sh        # Core orchestration engine (1244 lines)
+│       └── parallel_agent.sh        # Core orchestration engine
+├── .cursor/                         # Cursor IDE configuration (mirrors .claude/)
+│   ├── rules/                       # Cursor rules (.mdc) adapted from commands
+│   │   ├── orchestration.mdc        # Always-on orchestration guide
+│   │   ├── code-quality.mdc         # Auto-triggered quality/security
+│   │   ├── refactor-python.mdc      # Python analysis
+│   │   ├── refactor-shell.mdc       # Shell analysis
+│   │   └── ...                      # docs-*, project-commit, plan-manage
+│   ├── scripts -> ../.claude/scripts/   # Symlinked shared assets
+│   ├── config -> ../.claude/config/
+│   ├── prompts -> ../.claude/prompts/
+│   └── .plans -> ../.claude/.plans/
+├── .gemini/                         # Gemini CLI configuration (mirrors .claude/)
+│   ├── GEMINI.md                    # Orchestration guide for Gemini CLI
+│   ├── commands/                    # TOML slash commands
+│   │   ├── project-commit.toml     # Commit pipeline command
+│   │   ├── refactor-python.toml    # Python analysis command
+│   │   ├── refactor-shell.toml     # Shell analysis command
+│   │   ├── docs-diagrams.toml      # Mermaid diagram generation
+│   │   ├── docs-improve.toml       # Diataxis documentation
+│   │   ├── docs-readme.toml        # README improvement
+│   │   ├── plan-manage.toml        # Plan lifecycle
+│   │   └── checkpoint.toml         # Context checkpoint
+│   ├── settings.json               # Gemini CLI project settings
+│   ├── skills/code-quality/SKILL.md    # Symlinked from .claude/
+│   ├── scripts -> ../.claude/scripts/  # Symlinked shared assets
+│   ├── config -> ../.claude/config/
+│   ├── prompts -> ../.claude/prompts/
+│   └── .plans -> ../.claude/.plans/
 ├── templates/                       # Production-grade permission templates
 │   ├── settings-low-risk.json       # Low-risk auto-executable permissions
 │   └── permissions/
@@ -140,7 +170,7 @@ Manifest/
     ├── README.md                    # Documentation hub
     ├── GETTING_STARTED.md           # First-time setup walkthrough
     ├── CONFIGURATION.md             # Complete config reference
-    ├── ARCHITECTURE_DIAGRAMS.md     # 9 Mermaid system diagrams
+    ├── ARCHITECTURE_DIAGRAMS.md     # Mermaid system diagrams
     ├── TROUBLESHOOTING.md           # Common issues and solutions
     └── COMMANDS.md                  # Command reference
 ```

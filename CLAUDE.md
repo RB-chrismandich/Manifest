@@ -19,15 +19,34 @@ that enable parallel LLM agent coordination (Cursor, Gemini CLI, Claude CLI).
 ## Repository Structure
 
 ```text
-.claude/
-├── CLAUDE.md                    # Orchestration guide (deployed to ~/.claude/)
-├── commands/                    # User-invokable slash commands
-├── skills/code-quality/         # Auto-triggered code quality skill
-├── prompts/                     # Agent orchestration prompt templates
-├── config/                      # YAML configuration files
-├── .plans/                      # Plan management (template, archive, abandoned)
-└── scripts/parallel_agent.sh    # Main parallel agent orchestration script
-bootstrap.sh                     # macOS bootstrap script
+.claude/                             # Primary configuration (Claude Code)
+├── CLAUDE.md                        # Orchestration guide (deployed to ~/.claude/)
+├── commands/                        # User-invokable slash commands
+├── skills/code-quality/             # Auto-triggered code quality skill
+├── prompts/                         # Agent orchestration prompt templates
+├── config/                          # YAML configuration files
+├── .plans/                          # Plan management (template, archive, abandoned)
+└── scripts/parallel_agent.sh        # Main parallel agent orchestration script
+
+.cursor/                             # Cursor IDE configuration (mirrors .claude/)
+├── rules/                           # Cursor rules (.mdc) adapted from commands/skills
+├── scripts -> ../.claude/scripts/   # Symlink to shared scripts
+├── config -> ../.claude/config/     # Symlink to shared configs
+├── prompts -> ../.claude/prompts/   # Symlink to shared prompts
+└── .plans -> ../.claude/.plans/     # Symlink to shared plans
+
+.gemini/                             # Gemini CLI configuration (mirrors .claude/)
+├── GEMINI.md                        # Orchestration guide for Gemini
+├── commands/                        # TOML slash commands (converted from .claude/commands/)
+├── settings.json                    # Gemini CLI project settings
+├── skills/code-quality/SKILL.md     # Symlink to shared skill
+├── scripts -> ../.claude/scripts/   # Symlink to shared scripts
+├── config -> ../.claude/config/     # Symlink to shared configs
+├── prompts -> ../.claude/prompts/   # Symlink to shared prompts
+└── .plans -> ../.claude/.plans/     # Symlink to shared plans
+
+bootstrap.sh                         # macOS/Linux bootstrap script
+AGENTS.md                            # AI agent instructions (Cursor, Claude, Gemini)
 ```
 
 ## Bootstrap (macOS / Linux)
@@ -90,11 +109,31 @@ The bootstrap script:
 
 ## Manual Deployment
 
-If not using bootstrap.sh, copy the `.claude/` directory manually:
+If not using bootstrap.sh, copy the configuration directories manually:
 
 ```bash
+# Deploy Claude Code configuration
 cp -r .claude/* ~/.claude/
 chmod +x ~/.claude/scripts/*.sh
+
+# Deploy Cursor configuration (optional)
+mkdir -p ~/.cursor/rules
+cp .cursor/rules/*.mdc ~/.cursor/rules/
+ln -sf ~/.claude/scripts ~/.cursor/scripts
+ln -sf ~/.claude/config ~/.cursor/config
+ln -sf ~/.claude/prompts ~/.cursor/prompts
+ln -sf ~/.claude/.plans ~/.cursor/.plans
+
+# Deploy Gemini configuration (optional)
+mkdir -p ~/.gemini/commands ~/.gemini/skills/code-quality
+cp .gemini/GEMINI.md ~/.gemini/
+cp .gemini/commands/*.toml ~/.gemini/commands/
+cp .gemini/settings.json ~/.gemini/ 2>/dev/null || true
+ln -sf ~/.claude/scripts ~/.gemini/scripts
+ln -sf ~/.claude/config ~/.gemini/config
+ln -sf ~/.claude/prompts ~/.gemini/prompts
+ln -sf ~/.claude/.plans ~/.gemini/.plans
+ln -sf ~/.claude/skills/code-quality/SKILL.md ~/.gemini/skills/code-quality/SKILL.md
 ```
 
 Required CLI tools (install those you want to use):
@@ -108,9 +147,12 @@ Required CLI tools (install those you want to use):
 | File | Purpose |
 |------|---------|
 | `.claude/CLAUDE.md` | Main orchestration guide - defines how Claude leverages parallel agents |
+| `.cursor/rules/orchestration.mdc` | Main orchestration guide for Cursor (always-on rule) |
+| `.gemini/GEMINI.md` | Main orchestration guide for Gemini CLI |
 | `.claude/scripts/parallel_agent.sh` | Bash script that runs agents in parallel with consensus scoring |
 | `.claude/config/command_config.yml` | Thresholds, tool policies, model selection, error recovery |
 | `.claude/config/validation_criteria.yml` | Tier 1 (critical) and Tier 2 (quality) validation rules |
+| `AGENTS.md` | AI agent instructions for all platforms (Cursor, Claude, Gemini) |
 
 ## Available Commands
 

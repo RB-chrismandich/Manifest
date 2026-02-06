@@ -1,0 +1,130 @@
+---
+description: "Full commit pipeline: generate docs, pull latest, run pre-commits, commit, and push"
+globs: ""
+alwaysApply: false
+---
+
+# Project Commit Pipeline
+
+Orchestrate a full project commit cycle: regenerate documentation, sync with remote,
+run pre-commit checks, stage changes, commit, and push.
+
+<!-- Adapted from: .claude/commands/project-commit.md -->
+
+## Pipeline Phases
+
+Execute these phases **in order**. Each phase must succeed before proceeding to the next.
+If a phase fails, attempt to fix the issue up to **2 times** before stopping and
+reporting the failure to the user.
+
+---
+
+### Phase 1: Documentation Generation
+
+Generate/update project documentation in this order:
+
+1. **Generate architecture diagrams**
+   - Use the @docs-diagrams rule guidance
+   - Purpose: Update Mermaid diagrams to reflect current architecture
+
+2. **Improve documentation**
+   - Use the @docs-improve rule guidance
+   - Purpose: Audit and improve docs against Diataxis framework
+
+3. **Improve README**
+   - Use the @docs-readme rule guidance
+   - Purpose: Ensure README reflects current project state
+
+After all three complete, run `git status` to confirm documentation files were modified.
+
+---
+
+### Phase 2: Pull Latest & Resolve Conflicts
+
+1. **Fetch and pull latest from the current branch's upstream**:
+
+   ```bash
+   git fetch origin
+   git pull --rebase origin $(git branch --show-current)
+   ```
+
+2. **If rebase conflicts occur**:
+   - List conflicted files with `git diff --name-only --diff-filter=U`
+   - Resolve by keeping both changes where possible
+   - Continue the rebase: `git rebase --continue`
+   - If conflicts cannot be auto-resolved, **stop and ask the user**
+
+3. **If pull fails** (e.g., no upstream):
+   - Try `git pull --rebase origin main` as fallback
+   - If that also fails, report the error and continue
+
+---
+
+### Phase 3: Pre-commit Checks
+
+1. **Stage all modified and new files**:
+
+   ```bash
+   git add -A
+   ```
+
+2. **Run pre-commit hooks**:
+
+   ```bash
+   pre-commit run --all-files
+   ```
+
+3. **If pre-commit fails**:
+   - **gitleaks** (secrets detected): **STOP immediately**. Do NOT commit.
+   - **bandit** (Python security): Fix the security issue or add `# nosec` with justification.
+   - **test failures**: Identify and fix the failing test.
+   - **Formatting/linting**: Run the appropriate formatter and re-stage.
+   - Allow up to **2 retry cycles**.
+
+---
+
+### Phase 4: Stage & Commit
+
+1. Stage all changes: `git add -A`
+2. Verify there are changes to commit: `git status --porcelain`
+3. Generate or use the provided commit message
+4. Auto-detect issue references and append "Fixes #" keywords
+5. Create the commit
+6. Verify the commit succeeded: `git log --oneline -1`
+
+---
+
+### Phase 5: Push
+
+1. Push to remote: `git push origin $(git branch --show-current)`
+2. Handle push failures (non-fast-forward, no upstream)
+3. Confirm success with final `git log --oneline -1`
+
+---
+
+## Error Recovery
+
+- **Network errors**: Retry once after 5 seconds
+- **Authentication errors**: Stop and inform the user
+- **Merge conflicts**: Stop and present the conflicts to the user
+- **Secrets detected by gitleaks**: NEVER commit. Always stop and report.
+
+## Summary Output
+
+After the pipeline completes, provide a summary:
+
+```text
+## Project Commit Summary
+
+| Phase | Status |
+|-------|--------|
+| Documentation Generation | pass/fail/skipped |
+| Pull & Rebase | pass/fail/skipped |
+| Pre-commit Checks | pass/fail (N retries) |
+| Commit | pass/fail/nothing-to-commit |
+| Push | pass/fail |
+
+**Commit**: <hash> <message>
+**Branch**: <branch-name>
+**Files changed**: <count>
+```
