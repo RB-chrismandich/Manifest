@@ -42,6 +42,8 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 BLUE='\033[0;34m'
 YELLOW='\033[1;33m'
+CYAN='\033[0;36m'
+MAGENTA='\033[0;35m'
 BOLD='\033[1m'
 NC='\033[0m' # No Color
 
@@ -1018,6 +1020,12 @@ monitor_agents() {
             local name=${agent_names[$i]}
             local state=${agent_states[$i]}
 
+            local name_color="${NC}"
+            if [[ "$name" == "Cursor" ]]; then name_color="${CYAN}"; fi
+            if [[ "$name" == "Gemini" ]]; then name_color="${BLUE}"; fi
+            if [[ "$name" == "Claude" ]]; then name_color="${MAGENTA}"; fi
+            local display_name="${name_color}${name}${NC}"
+
             if [[ "$state" == "running" ]]; then
                 local is_alive=false
                 if kill -0 "$pid" 2> /dev/null; then
@@ -1044,7 +1052,7 @@ monitor_agents() {
                 fi
 
                 if $is_alive; then
-                    status_line="$status_line $name [${spin_char}]"
+                    status_line="$status_line $display_name [${spin_char}]"
                     running=true
                 else
                     # Process finished
@@ -1055,10 +1063,10 @@ monitor_agents() {
                     else
                         agent_states[$i]="${RED}✘${NC}"
                     fi
-                    status_line="$status_line $name [${agent_states[$i]}]"
+                    status_line="$status_line $display_name [${agent_states[$i]}]"
                 fi
             else
-                status_line="$status_line $name [$state]"
+                status_line="$status_line $display_name [$state]"
             fi
         done
 
@@ -1078,7 +1086,7 @@ monitor_agents() {
     local time_str
     time_str=$(printf "%02d:%02d" $minutes $seconds)
 
-    printf "\r${BOLD}Waiting for agents (%s):${NC}%s\033[K\n" "$time_str" "$status_line"
+    printf "\r${BOLD}Agents completed (%s):${NC}%s\033[K\n" "$time_str" "$status_line"
 
     # Restore cursor
     if $has_tput; then
