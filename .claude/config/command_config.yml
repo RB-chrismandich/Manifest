@@ -116,6 +116,17 @@ tool_policies:
     parallel_agents: always
     validation_tier: 1
 
+  plan-manage:
+    allowed:
+      - Read
+      - Glob
+      - Grep
+      - Bash  # Needed for mv (archive/abandon) and date
+      - Write  # Needed for creating new plans from template
+    forbidden: []
+    parallel_agents: never
+    validation_tier: 2
+
   code-quality:  # skill
     allowed:
       - Read
@@ -163,14 +174,15 @@ parallel_agent:
     prompt: ""  # Generic prompt mode
 
 # Model selection configuration
+# Model IDs mirror parallel_agent.sh env var defaults (the script is the canonical source)
 model_selection:
   # Cursor Agent model tiers
   cursor:
     tiers:
-      mini: gpt-4o-mini        # Lightweight, fast, cheap
-      flash: gpt-4o            # Balanced performance
-      advanced: o1-preview     # Maximum capability
-    default: auto              # Let Cursor auto-select
+      mini: gpt-5.1-codex-mini   # Lightweight, fast, cheap
+      flash: gpt-5.1-codex       # Balanced performance
+      advanced: gpt-5.2          # Maximum capability
+    default: auto                 # Let Cursor auto-select
 
   # Claude CLI model tiers
   claude:
@@ -183,8 +195,8 @@ model_selection:
   # Gemini CLI model tiers (for reference)
   gemini:
     tiers:
-      flash: gemini-2.0-flash  # Fast
-      pro: gemini-2.0-pro      # Advanced
+      flash: gemini-3-flash-preview  # Fast
+      pro: gemini-3-pro-preview      # Advanced
     default: flash
 
 # Task-based model defaults (used by orchestrator)

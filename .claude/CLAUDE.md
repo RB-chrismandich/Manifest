@@ -1,6 +1,7 @@
 # Claude Orchestration Guide
 
-This document defines how Claude should leverage parallel LLM agents (Gemini, Cursor, Claude CLI) for cross-verification, planning, and validation.
+This document defines how Claude should leverage parallel LLM agents
+(Gemini, Cursor, Claude CLI) for cross-verification, planning, and validation.
 
 ## Parallel Agent Script
 
@@ -9,8 +10,11 @@ This document defines how Claude should leverage parallel LLM agents (Gemini, Cu
 ### Quick Usage
 
 **IMPORTANT**:
-- Always use **absolute paths** when specifying files to analyze or review. Relative paths may fail as agents run from different working directories.
-- Always use a **large timeout** (600-900 seconds) for complex analyses. The default 120s is often insufficient for thorough code review.
+
+- Always use **absolute paths** when specifying files to analyze or review.
+  Relative paths may fail as agents run from different working directories.
+- Always use a **large timeout** (600-900 seconds) for complex analyses.
+  The default 120s is often insufficient for thorough code review.
 
 ```bash
 # Basic code review with JSON output (all 3 agents, 10 min timeout)
@@ -70,10 +74,12 @@ The orchestrating agent (Claude) selects models based on task complexity:
 ### Credit Exhaustion Fallback
 
 The script automatically detects credit/quota exhaustion and falls back:
+
 - **Cursor**: gpt-5.2 → gpt-5.1-codex → gpt-5.1-codex-mini → auto
 - **Claude**: opus → sonnet → haiku
 
 Detection methods:
+
 1. Parse stderr for credit/quota error patterns after execution
 2. Optional pre-flight check with `--check-credits` flag
 
@@ -88,7 +94,7 @@ Detection methods:
     "cursor": {
       "status": "complete|missing|failed",
       "validated": true|false,
-      "model": "gpt-4o|auto",
+      "model": "gpt-5.1-codex|auto",
       "credit_fallback": false,
       "output": "Agent response..."
     },
@@ -135,7 +141,7 @@ Detection methods:
 
 ## Proactive Decision Framework
 
-### ALWAYS Use Parallel Agents For:
+### ALWAYS Use Parallel Agents For
 
 1. **Security-sensitive code changes**
    - Authentication/authorization logic
@@ -159,14 +165,14 @@ Detection methods:
    - User data handling
    - Compliance-related code
 
-### CONSIDER Parallel Agents For:
+### CONSIDER Parallel Agents For
 
 - Complex refactoring with multiple affected files
 - New feature implementation
 - Performance optimization
 - Debugging difficult issues
 
-### SKIP Parallel Agents For:
+### SKIP Parallel Agents For
 
 - Typo fixes, comments, formatting
 - Single-line changes
@@ -181,7 +187,7 @@ Detection methods:
 
 After receiving outputs from both agents, assess consensus:
 
-```
+```text
 Consensus Score = (Agreements / Total_Findings) * 100
 
 ≥80%: High confidence - proceed with unified recommendation
@@ -192,6 +198,7 @@ Consensus Score = (Agreements / Total_Findings) * 100
 ### Pattern 2: Synthesis
 
 When agents disagree, synthesize by:
+
 1. Identifying the core disagreement
 2. Evaluating each agent's reasoning
 3. Providing a unified recommendation with caveats
@@ -200,6 +207,7 @@ When agents disagree, synthesize by:
 ### Pattern 3: Specialization
 
 Use agents for their strengths:
+
 - **Gemini**: Broad knowledge, creative solutions, research
 - **Cursor**: IDE-integrated context, code-specific analysis
 - **Claude**: Deep reasoning, security analysis, complex logic
@@ -258,6 +266,7 @@ Use agents for their strengths:
 ## Error Handling
 
 The script implements:
+
 - **Agent validation**: Checks if `cursor`, `gemini`, and `claude` commands exist
 - **Retry logic**: Retries once after 5s delay on failure
 - **Partial results**: Continues with available agent outputs if some fail
@@ -271,6 +280,7 @@ The script implements:
 All outputs are stored in: `~/.claude/.agent_outputs/`
 
 Files generated per run:
+
 - `cursor_YYYYMMDD_HHMMSS.txt` - Cursor Agent output
 - `gemini_YYYYMMDD_HHMMSS.txt` - Gemini CLI output
 - `claude_YYYYMMDD_HHMMSS.txt` - Claude CLI output
@@ -285,7 +295,7 @@ When modifying code, Claude acts as an orchestrator that spawns Task subagents f
 
 ### Workflow Overview
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────────┐
 │                     Claude (Orchestrator)                        │
 ├─────────────────────────────────────────────────────────────────┤
@@ -303,7 +313,7 @@ When modifying code, Claude acts as an orchestrator that spawns Task subagents f
 
 Before making significant code changes, spawn a Task agent to determine if parallel review is needed:
 
-```
+```text
 Task(
   subagent_type: "Explore",
   prompt: "Analyze these files/changes against the criteria in ~/.claude/prompts/preflight_analysis.md:
@@ -313,6 +323,7 @@ Task(
 ```
 
 **Trigger Criteria** (from `~/.claude/prompts/preflight_analysis.md`):
+
 - Security-sensitive: auth, crypto, secrets, input validation
 - Architectural: new services, API changes, schema modifications
 - Large changes: >200 lines modified
@@ -328,6 +339,7 @@ If pre-flight triggers review, execute:
 ```
 
 Parse the JSON output to extract:
+
 - `agents.gemini.output` - Gemini's analysis
 - `agents.cursor.output` - Cursor's analysis
 - `agents.claude.output` - Claude's analysis
@@ -338,7 +350,7 @@ Parse the JSON output to extract:
 
 When agents disagree (consensus < 80%), spawn a synthesis agent:
 
-```
+```text
 Task(
   subagent_type: "general-purpose",
   prompt: "Using the template at ~/.claude/prompts/synthesis.md, synthesize these outputs:
@@ -351,6 +363,7 @@ Task(
 ```
 
 **Consensus Thresholds**:
+
 - ≥80%: High confidence - proceed with unified recommendation
 - 50-79%: Medium confidence - highlight disagreements to user
 - <50%: Low confidence - escalate for human review
@@ -359,7 +372,7 @@ Task(
 
 Always run validation before finalizing changes:
 
-```
+```text
 Task(
   subagent_type: "general-purpose",
   prompt: "Using the criteria in ~/.claude/prompts/validation.md and ~/.claude/config/validation_criteria.yml,
@@ -369,6 +382,7 @@ Task(
 ```
 
 **Verdicts**:
+
 - `APPROVED`: All Tier 1 checks pass, Tier 2 score ≥ 0.60
 - `NEEDS_REVIEW`: All Tier 1 checks pass, Tier 2 score < 0.60
 - `BLOCKED`: Any Tier 1 check fails
@@ -384,7 +398,7 @@ Task(
 
 ### Example Orchestration Flow
 
-```
+```text
 User: "Add authentication middleware to the API routes"
 
 Claude (Orchestrator):
@@ -411,7 +425,8 @@ Claude (Orchestrator):
 
 ## Native Commands
 
-Claude Code native commands are available in `~/.claude/commands/`. These integrate with the parallel agent orchestration framework.
+Claude Code native commands are available in `~/.claude/commands/`.
+These integrate with the parallel agent orchestration framework.
 
 ### Available Commands
 
@@ -422,6 +437,7 @@ Claude Code native commands are available in `~/.claude/commands/`. These integr
 | `/refactor` | Python codebase security and quality analysis | ALWAYS |
 | `/generate-diagrams` | Generate Mermaid architecture diagrams | CONDITIONAL (5+ modules) |
 | `/improve-docs` | Diataxis documentation framework analysis | CONDITIONAL (>500 lines) |
+| `/plan-manage` | Plan lifecycle housekeeping: list, create, review, archive, abandon | NO |
 
 ### Command Usage
 
@@ -471,7 +487,7 @@ When triggered, it provides inline feedback without blocking user workflow.
 
 ## File Structure
 
-```
+```text
 ~/.claude/
 ├── CLAUDE.md                        # This orchestration guide
 ├── commands/                        # User-invoked commands
@@ -489,6 +505,35 @@ When triggered, it provides inline feedback without blocking user workflow.
 ├── config/
 │   ├── command_config.yml
 │   └── validation_criteria.yml
+├── .plans/                         # Plan management
+│   ├── .archive/                   # Completed plans
+│   ├── .abandoned/                 # Stale/abandoned plans
+│   ├── TEMPLATE.md                 # Plan template
+│   └── README.md                   # Quick reference
 └── scripts/
     └── parallel_agent.sh
 ```
+
+---
+
+## Plan Management
+
+Implementation plans are tracked as markdown files in `~/.claude/.plans/`.
+
+### Lifecycle
+
+```text
+CREATE → ACTIVE → COMPLETED (.archive/) or ABANDONED (.abandoned/)
+```
+
+1. **CREATE**: Copy `TEMPLATE.md`, save as `YYYYMMDD-short-description.md`
+2. **ACTIVE**: Plan lives in `.plans/` root while work is in progress; check off deliverables as they are completed
+3. **COMPLETED**: Move to `.archive/` when all deliverables are done
+4. **ABANDONED**: Move to `.abandoned/` if superseded or no longer relevant
+
+### Housekeeping Rules
+
+- **Before creating a plan**: Review existing plans in `.plans/` to avoid duplicates
+- **During implementation**: Check off deliverables (`- [x]`) as each is completed
+- **Staleness threshold**: Plans untouched for 7+ days should be reviewed — either update, complete, or abandon them
+- **Use `/plan-manage`** for listing, creating, reviewing, archiving, and abandoning plans
