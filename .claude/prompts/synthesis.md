@@ -1,37 +1,47 @@
 # Disagreement Synthesis Task
 
-Two AI agents (Gemini and Cursor) have provided conflicting analyses. Your task is to synthesize their outputs into a unified recommendation.
+Two AI agents (Gemini and Cursor) have provided conflicting analyses.
+Your task is to synthesize their outputs into a unified recommendation.
 
-## Original Context:
+## Original Context
+
 {ORIGINAL_TASK}
 
-## Gemini Output:
+## Gemini Output
+
 {GEMINI_OUTPUT}
 
-## Cursor Output:
+## Cursor Output
+
 {CURSOR_OUTPUT}
 
-## Synthesis Instructions:
+## Synthesis Instructions
 
 ### Step 1: Identify Core Disagreements
+
 List each specific point where the agents differ in their analysis or recommendations.
 
 ### Step 2: Evaluate Reasoning
+
 For each disagreement:
+
 - Assess the strength and validity of each agent's rationale
 - Consider which agent has better context or expertise for that specific issue
 - Note any factual errors or logical flaws
 
 ### Step 3: Determine Priority
+
 For each disagreement:
+
 - Which position is safer from a security standpoint?
 - Which position is more correct technically?
 - Which position aligns better with best practices?
 
 ### Step 4: Synthesize Recommendation
+
 Produce unified guidance that takes the best from both agents.
 
-## Output Format:
+## Output Format
 
 ```json
 {
@@ -59,7 +69,8 @@ Produce unified guidance that takes the best from both agents.
 }
 ```
 
-## Scoring Guide:
+## Scoring Guide
+
 - consensus_score >= 0.80: High agreement, proceed with confidence
 - consensus_score 0.50-0.79: Moderate agreement, highlight key differences
 - consensus_score < 0.50: Low agreement, escalate for human review

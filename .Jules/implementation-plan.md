@@ -198,7 +198,7 @@ Extend Manifest with battle-tested patterns from cookedbooks:
    - Contents:
      - When to trace (new service, refactoring, onboarding)
      - How to interpret outputs
-     - Integration with `/generate-diagrams`
+     - Integration with `/docs-diagrams`
      - Auto-update workflows
 
 ### Success Criteria
@@ -215,7 +215,7 @@ Extend Manifest with battle-tested patterns from cookedbooks:
 2. Create `trace-api.md` (gRPC, REST, GraphQL)
 3. Create `trace-database.md` (PostgreSQL, MySQL, MongoDB)
 4. Create `docs/ARCHITECTURE_TRACING.md` guide
-5. Integrate with `/generate-diagrams` command
+5. Integrate with `/docs-diagrams` command
 6. Add examples for 3 architecture patterns
 7. Update `templates/README.md`
 
@@ -387,7 +387,7 @@ Track these before/after:
 |--------|--------|--------|
 | Template patterns | 3 | 7+ |
 | GitHub workflow commands | 0 (placeholder) | 5 (complete) |
-| Architecture commands | 1 (generate-diagrams) | 4 (+ 3 tracers) |
+| Architecture commands | 1 (docs-diagrams) | 4 (+ 3 tracers) |
 | Permission presets | 0 | 4 |
 | Tutorial examples | 0 | 3 |
 | Documentation pages | 6 | 10 |

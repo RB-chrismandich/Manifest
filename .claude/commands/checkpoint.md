@@ -100,7 +100,7 @@ Generate a structured summary in the scratchpad directory:
 | Command | Purpose | Outcome |
 |---------|---------|---------|
 | `/project-commit` | Create comprehensive commit | ✅ Success (commit 03e67ee) |
-| `/refactor` | Analyze codebase | ⚠️ Found 3 issues |
+| `/refactor-python` | Analyze codebase | ⚠️ Found 3 issues |
 
 ---
 

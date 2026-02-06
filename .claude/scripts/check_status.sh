@@ -77,7 +77,7 @@ if command -v claude &> /dev/null; then
     claude_installed=true
     if [[ "$VERBOSE" == true ]]; then
         echo -e "    Location: $(which claude)"
-        echo -e "    Version:  $(claude --version 2>/dev/null || echo 'unknown')"
+        echo -e "    Version:  $(claude --version 2> /dev/null || echo 'unknown')"
     fi
 else
     echo -e "  ${RED}✗${NC} Claude CLI not installed"
@@ -90,7 +90,7 @@ if command -v gemini &> /dev/null; then
     gemini_installed=true
     if [[ "$VERBOSE" == true ]]; then
         echo -e "    Location: $(which gemini)"
-        echo -e "    Version:  $(gemini --version 2>/dev/null || echo 'unknown')"
+        echo -e "    Version:  $(gemini --version 2> /dev/null || echo 'unknown')"
     fi
 else
     echo -e "  ${RED}✗${NC} Gemini CLI not installed"

@@ -6,7 +6,9 @@ argument-hint: [script-path]
 
 # Shell Script Refactor Analysis
 
-Analyze Bash/Shell scripts against security best practices, ShellCheck standards, and enterprise shell scripting guidelines. Generate a comprehensive refactoring report with prioritized recommendations.
+Analyze Bash/Shell scripts against security best practices, ShellCheck standards, and
+enterprise shell scripting guidelines. Generate a comprehensive refactoring report
+with prioritized recommendations.
 
 ## Parallel Agent Integration
 
@@ -14,6 +16,7 @@ This command ALWAYS uses parallel agents (security-critical).
 Executes: `~/.claude/scripts/parallel_agent.sh --json --full-output --validate`
 
 Consensus scoring:
+
 - ≥80%: Auto-proceed with unified recommendation
 - 50-79%: Highlight disagreements to user
 - <50%: Escalate for human review
@@ -36,6 +39,7 @@ You are a Senior DevOps/Infrastructure Engineer analyzing production shell scrip
 ### Step 1: Identify Shell Scripts
 
 Find all shell scripts in the repository:
+
 ```bash
 find . -name "*.sh" -type f
 find . -type f -exec grep -l "^#!/bin/bash\|^#!/bin/sh" {} \;
@@ -44,6 +48,7 @@ find . -type f -exec grep -l "^#!/bin/bash\|^#!/bin/sh" {} \;
 ### Step 2: Run ShellCheck Analysis
 
 For each script, run ShellCheck:
+
 ```bash
 shellcheck --severity=info script.sh
 ```
@@ -116,6 +121,7 @@ grep -nE 'https?://[^"[:space:]]+' script.sh
 ### Step 5: Documentation Analysis
 
 Check for:
+
 - Shebang line (#!/bin/bash)
 - Script-level comments explaining purpose
 - Function documentation
@@ -160,7 +166,7 @@ local var="value"  # Function-scoped variables
 
 ### Shell Script Refactor Analysis Report
 
-```markdown
+````markdown
 # Shell Script Refactor Analysis Report
 
 **Date:** YYYY-MM-DD
@@ -229,27 +235,35 @@ local var="value"  # Function-scoped variables
   ```bash
   cd $TARGET_DIR
   ```
+
 - **Issue:** Unquoted variable can cause word splitting and command injection
 - **Fix:**
+
   ```bash
   cd "$TARGET_DIR" || { echo "Failed to cd to $TARGET_DIR"; exit 1; }
   ```
+
 - **ShellCheck:** SC2164, SC2086
 
 #### QA-001: Declare and Assign Separately [MEDIUM]
+
 - **Location:** Line 265
 - **Risk:** Low
 - **Effort:** Minimal
 - **Current Code:**
+
   ```bash
   local var=$(command)
   ```
+
 - **Issue:** Masks return value of command
 - **Fix:**
+
   ```bash
   local var
   var=$(command) || { echo "Command failed"; return 1; }
   ```
+
 - **ShellCheck:** SC2155
 
 ---
@@ -298,7 +312,8 @@ local var="value"  # Function-scoped variables
 - [ ] Achieve zero ShellCheck warnings
 - [ ] Add structured logging
 - [ ] Implement debug mode
-```
+
+````
 
 ---
 

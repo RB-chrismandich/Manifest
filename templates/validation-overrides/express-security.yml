@@ -223,7 +223,7 @@ typescript:
 
 # Command-specific overrides
 commands:
-  /refactor:
+  /refactor-python:
     tier1_threshold: 1.0
     tier2_threshold: 0.70
 

@@ -17,34 +17,40 @@ This skill automatically activates when Claude detects changes to API-related co
 Activate when code modifications touch any of these patterns:
 
 **Express.js (Node.js)**:
+
 - `app.get(`, `app.post(`, `app.put(`, `app.delete(`, `app.patch(`
 - `router.get(`, `router.post(`, etc.
 - `express.Router()`
 - `req.params`, `req.query`, `req.body`
 
 **Django (Python)**:
+
 - `@api_view`
 - `class.*APIView`, `class.*ViewSet`
 - `request.GET`, `request.POST`, `request.data`
 - `serializers.`, `Serializer`
 
 **FastAPI (Python)**:
+
 - `@app.get(`, `@app.post(`, etc.
 - `@router.get(`, `@router.post(`, etc.
 - `Request`, `Response`, `HTTPException`
 
 **Flask (Python)**:
+
 - `@app.route(`
 - `@blueprint.route(`
 - `request.args`, `request.form`, `request.json`
 
 **Go (net/http, Gin, Echo)**:
+
 - `http.HandleFunc`
 - `router.GET(`, `router.POST(`, etc.
 - `c.Param(`, `c.Query(`, `c.Bind(`
 - `ServeHTTP`
 
 **Rails (Ruby)**:
+
 - `def create`, `def update`, `def destroy`
 - `params.require(`, `params.permit(`
 
@@ -69,6 +75,7 @@ This skill does NOT invoke parallel agents (must remain lightweight for auto-tri
 Verify that user input is validated before use:
 
 **Good patterns**:
+
 ```python
 # Python/FastAPI
 from pydantic import BaseModel, validator
@@ -95,6 +102,7 @@ const { error, value } = schema.validate(req.body);
 ```
 
 **Bad patterns**:
+
 ```python
 # NO validation!
 email = request.json['email']
@@ -102,6 +110,7 @@ user = User.objects.filter(email=email)  # SQL injection risk
 ```
 
 **Check**:
+
 - Input schemas defined (Pydantic, Joi, etc.)
 - Type validation enforced
 - Length/format constraints applied
@@ -112,6 +121,7 @@ user = User.objects.filter(email=email)  # SQL injection risk
 Verify that protected endpoints require authentication:
 
 **Good patterns**:
+
 ```python
 # Python/Django
 from rest_framework.permissions import IsAuthenticated
@@ -127,6 +137,7 @@ app.post('/api/users', requireAuth, createUserHandler);
 ```
 
 **Bad patterns**:
+
 ```javascript
 // NO authentication!
 app.post('/api/users/:id/delete', async (req, res) => {
@@ -136,6 +147,7 @@ app.post('/api/users/:id/delete', async (req, res) => {
 ```
 
 **Check**:
+
 - Authentication middleware present
 - JWT/session validation enforced
 - Public endpoints explicitly marked as such
@@ -145,6 +157,7 @@ app.post('/api/users/:id/delete', async (req, res) => {
 Verify that users can only access their own resources:
 
 **Good patterns**:
+
 ```python
 # Python - Check ownership
 def get_user_profile(request, user_id):
@@ -162,6 +175,7 @@ app.get('/api/orders', requireAuth, async (req, res) => {
 ```
 
 **Bad patterns**:
+
 ```javascript
 // IDOR vulnerability!
 app.get('/api/orders/:id', requireAuth, async (req, res) => {
@@ -171,6 +185,7 @@ app.get('/api/orders/:id', requireAuth, async (req, res) => {
 ```
 
 **Check**:
+
 - User ID from auth context, not request parameters
 - Resource ownership validated before access
 - Admin role checks for privileged operations
@@ -180,12 +195,14 @@ app.get('/api/orders/:id', requireAuth, async (req, res) => {
 Verify that high-risk endpoints have rate limits:
 
 **High-risk endpoints**:
+
 - Login (`/auth/login`)
 - Password reset (`/auth/reset-password`)
 - Email sending (`/contact`, `/invite`)
 - Resource creation (`POST /api/users`, `POST /api/orders`)
 
 **Good patterns**:
+
 ```javascript
 // Express with express-rate-limit
 const rateLimit = require('express-rate-limit');
@@ -209,6 +226,7 @@ def login(request):
 ```
 
 **Check**:
+
 - Rate limiters configured for sensitive endpoints
 - Limits based on IP or user ID
 - Appropriate time windows (15min for login, 1h for email)
@@ -218,11 +236,13 @@ def login(request):
 Verify that state-changing endpoints are CSRF-protected:
 
 **Applies to**:
+
 - All POST, PUT, PATCH, DELETE endpoints
 - Endpoints that modify server state
 - NOT needed for stateless APIs with token auth
 
 **Good patterns**:
+
 ```python
 # Django (CSRF enabled by default)
 from django.views.decorators.csrf import csrf_protect
@@ -241,6 +261,7 @@ app.post('/transfer', csrfProtection, transferHandler);
 ```
 
 **Check**:
+
 - CSRF middleware enabled for session-based auth
 - Token auth APIs may skip CSRF (stateless)
 - State-changing operations protected
@@ -250,6 +271,7 @@ app.post('/transfer', csrfProtection, transferHandler);
 Verify that database queries use parameterized queries:
 
 **Good patterns**:
+
 ```python
 # Python - Parameterized query
 user = User.objects.filter(email=email).first()  # Django ORM - safe
@@ -267,6 +289,7 @@ db.query('SELECT * FROM users WHERE email = ?', [email]);  // Safe
 ```
 
 **Bad patterns**:
+
 ```python
 # String concatenation - VULNERABLE!
 query = f"SELECT * FROM users WHERE email = '{email}'"
@@ -274,6 +297,7 @@ cursor.execute(query)
 ```
 
 **Check**:
+
 - ORM used for queries (SQLAlchemy, Django ORM, Sequelize)
 - If raw SQL, parameterized queries enforced
 - No string concatenation in SQL queries
@@ -282,7 +306,7 @@ cursor.execute(query)
 
 When this skill detects issues, it provides inline feedback:
 
-```
+```text
 🛡️ API Security Guard Findings:
 
 ✅ Input validation: PASS

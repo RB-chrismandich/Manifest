@@ -6,7 +6,9 @@ argument-hint: [file-or-directory]
 
 # Python Codebase Refactor Analysis
 
-Analyze a Python codebase against best practices, security principles, and enterprise architecture standards. Generate a comprehensive refactoring report with prioritized recommendations.
+Analyze a Python codebase against best practices, security principles, and enterprise
+architecture standards. Generate a comprehensive refactoring report with prioritized
+recommendations.
 
 ## Parallel Agent Integration
 
@@ -14,6 +16,7 @@ This command ALWAYS uses parallel agents (security-critical).
 Executes: `~/.claude/scripts/parallel_agent.sh --json --full-output --validate --analyze`
 
 Consensus scoring:
+
 - ≥80%: Auto-proceed with unified recommendation
 - 50-79%: Highlight disagreements to user
 - <50%: Escalate for human review
@@ -44,24 +47,28 @@ You are a Senior Principal Security Software Engineer analyzing a production Pyt
 - List all Python files and check structure
 - Check file sizes (detect God classes >500 lines)
 - Check for module-level global state
-- Check for proper package structure with __init__.py
+- Check for proper package structure with **init**.py
 
 ### Step 3: Security Analysis (CRITICAL)
 
 Scan for these patterns:
 
 **SQL Injection**:
+
 - f-strings in queries: `f"SELECT...WHERE {var}"`
 
 **Hardcoded Secrets**:
+
 - `password =`, `secret =`, `api_key =`, `token =`
 - Hardcoded URLs, emails, hostnames
 
 **Error Handling**:
+
 - Bare exceptions: `except:`
 - Silent failures without logging
 
 **Dangerous Operations**:
+
 - `import pickle`, `eval()`, `exec()`
 - `yaml.load()` (should be `yaml.safe_load()`)
 - `subprocess`, `os.system`, `os.popen`
@@ -191,6 +198,7 @@ Scan for these patterns:
 If missing, recommend creating these files:
 
 ### pyproject.toml
+
 ```toml
 [tool.ruff]
 line-length = 120
@@ -206,6 +214,7 @@ strict = true
 ```
 
 ### .pre-commit-config.yaml
+
 ```yaml
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit

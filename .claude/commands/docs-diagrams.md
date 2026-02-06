@@ -6,7 +6,8 @@ argument-hint: [output-path]
 
 # Generate Architecture Diagrams
 
-Generate comprehensive Mermaid diagrams for project documentation, visualizing workflow, data flows, and integration architecture.
+Generate comprehensive Mermaid diagrams for project documentation, visualizing
+workflow, data flows, and integration architecture.
 
 ## Parallel Agent Integration
 
@@ -15,13 +16,15 @@ When triggered, executes: `~/.claude/scripts/parallel_agent.sh --json --validate
 
 ## Task
 
-Create or update architecture diagram documentation with Mermaid diagrams that visualize the application architecture, data flows, and capabilities.
+Create or update architecture diagram documentation with Mermaid diagrams that
+visualize the application architecture, data flows, and capabilities.
 
 ## Instructions
 
 ### Step 1: Analyze Current Codebase
 
 Read key files to understand current architecture:
+
 - Main entry points and orchestration files
 - Client/service files for external integrations
 - Provider/adapter pattern implementations
@@ -53,19 +56,19 @@ Create documentation with these diagram types:
 
 #### Medium Priority Diagrams
 
-5. **State Lifecycle** (State)
+1. **State Lifecycle** (State)
    - Lifecycle stages of primary entities
    - Include error states and rejections
 
-6. **Decision Flow** (Flowchart)
+2. **Decision Flow** (Flowchart)
    - Decision logic for key processing gates
    - Show validation rules and thresholds
 
-7. **Data Model** (Flowchart)
+3. **Data Model** (Flowchart)
    - Overview of data relationships
    - Show data sources feeding into processing
 
-8. **Configuration Layer** (Flowchart)
+4. **Configuration Layer** (Flowchart)
    - Config loading from files, env vars, defaults
    - Show configuration hierarchy
 
@@ -124,6 +127,7 @@ flowchart LR
 ### Step 5: Test Diagrams
 
 After generating, verify each diagram:
+
 1. Check Mermaid syntax is valid
 2. Ensure all node names are properly quoted if they contain spaces
 3. Verify subgraph labels use proper syntax
@@ -131,7 +135,8 @@ After generating, verify each diagram:
 
 ## Mermaid Compatibility Notes
 
-- **Never use `:::className` on subgraphs** - only nodes support class assignment. Use `NODE["label"]:::className` not `subgraph Name["label"]:::className`
+- **Never use `:::className` on subgraphs** - only nodes support class assignment.
+  Use `NODE["label"]:::className` not `subgraph Name["label"]:::className`
 - **Avoid emojis in quadrant labels** - causes syntax errors
 - **Use `flowchart` instead of `block-beta`** - block diagrams not stable
 - **Emojis work in**: node labels, pie labels, markdown text outside diagrams

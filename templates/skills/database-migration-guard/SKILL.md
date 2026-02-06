@@ -16,22 +16,27 @@ This skill automatically activates when Claude detects changes to database schem
 Activate when files matching these patterns are modified:
 
 **Django (Python)**:
+
 - `*/migrations/*.py`
 - `models.py` files
 
 **SQLAlchemy (Python)**:
+
 - `*/alembic/versions/*.py`
 - `alembic/env.py`
 
 **Rails (Ruby)**:
+
 - `db/migrate/*.rb`
 - `db/schema.rb`
 
 **Node.js (Sequelize, Knex, TypeORM)**:
+
 - `*/migrations/*.js`, `*/migrations/*.ts`
 - `*/models/*.js`, `*/models/*.ts`
 
 **Go (golang-migrate, GORM)**:
+
 - `*/migrations/*.sql`
 - `*/migrations/*.go`
 
@@ -51,12 +56,14 @@ When triggered, this skill performs lightweight validation:
 ### 1. Breaking vs Non-Breaking Changes
 
 **Non-breaking (safe to deploy immediately)**:
+
 - ✅ Add new table
 - ✅ Add new column (with DEFAULT or NULL)
 - ✅ Add new index (CONCURRENTLY for PostgreSQL)
 - ✅ Add new constraint (NOT VALID, then validate separately)
 
 **Breaking (requires multi-phase deployment)**:
+
 - ⚠️ Rename column (needs dual-write period)
 - ⚠️ Remove column (needs dual-read period first)
 - ⚠️ Change column type (needs backfill)
@@ -70,24 +77,29 @@ When triggered, this skill performs lightweight validation:
 Verify that old application code can run with the new schema:
 
 **Good example** (backwards compatible):
+
 ```python
 # Migration: Add new column with DEFAULT
 class Migration:
     def upgrade():
         op.add_column('users', sa.Column('age', sa.Integer(), nullable=True, server_default='0'))
 ```
+
 Old code doesn't know about `age` column → still works ✅
 
 **Bad example** (breaks old code):
+
 ```python
 # Migration: Add NOT NULL column without DEFAULT
 class Migration:
     def upgrade():
         op.add_column('users', sa.Column('age', sa.Integer(), nullable=False))
 ```
+
 Old code tries to INSERT without `age` → fails ❌
 
 **Multi-phase approach** for breaking changes:
+
 ```python
 # Phase 1: Add nullable column
 op.add_column('users', sa.Column('age', sa.Integer(), nullable=True))
@@ -107,6 +119,7 @@ op.drop_column('users', 'old_age_field')
 ```
 
 **Check**:
+
 - New columns are nullable or have defaults
 - Renamed/removed columns use multi-phase approach
 - Migration comments explain phasing
@@ -116,12 +129,14 @@ op.drop_column('users', 'old_age_field')
 For migrations that transform existing data:
 
 **Required elements**:
+
 - Data backfill script
 - Rollback plan
 - Performance estimate (for large tables)
 - Batching strategy (for >100k rows)
 
 **Good example**:
+
 ```python
 # Migration: Normalize phone numbers
 class Migration:
@@ -149,6 +164,7 @@ class Migration:
 ```
 
 **Check**:
+
 - Batching used for large tables
 - Rollback script provided
 - Data transformation logic tested
@@ -158,21 +174,25 @@ class Migration:
 For large tables (>100k rows), use concurrent index creation to avoid locking:
 
 **PostgreSQL - Good**:
+
 ```sql
 CREATE INDEX CONCURRENTLY idx_users_email ON users(email);
 ```
 
 **PostgreSQL - Bad** (locks table during creation):
+
 ```sql
 CREATE INDEX idx_users_email ON users(email);
 ```
 
 **MySQL - Good**:
+
 ```sql
 ALTER TABLE users ADD INDEX idx_users_email (email), ALGORITHM=INPLACE, LOCK=NONE;
 ```
 
 **Check**:
+
 - Large tables (>100k rows) use CONCURRENT or ONLINE options
 - Migration comments note expected index creation time
 
@@ -181,6 +201,7 @@ ALTER TABLE users ADD INDEX idx_users_email (email), ALGORITHM=INPLACE, LOCK=NON
 Adding constraints requires care to avoid locking tables:
 
 **PostgreSQL - Good** (two-phase approach):
+
 ```sql
 -- Phase 1: Add constraint as NOT VALID (no table scan, fast)
 ALTER TABLE users ADD CONSTRAINT users_email_check CHECK (email ~* '@') NOT VALID;
@@ -190,11 +211,13 @@ ALTER TABLE users VALIDATE CONSTRAINT users_email_check;
 ```
 
 **PostgreSQL - Bad** (locks table during full scan):
+
 ```sql
 ALTER TABLE users ADD CONSTRAINT users_email_check CHECK (email ~* '@');
 ```
 
 **Check**:
+
 - NOT NULL constraints have DEFAULT values
 - CHECK constraints use NOT VALID + VALIDATE pattern
 - Foreign keys use NOT VALID + VALIDATE pattern
@@ -204,11 +227,13 @@ ALTER TABLE users ADD CONSTRAINT users_email_check CHECK (email ~* '@');
 Every migration should have a tested rollback plan:
 
 **Required**:
+
 - `downgrade()` or `down()` function implemented
 - Rollback tested on staging
 - Data loss risk documented (if any)
 
 **Example**:
+
 ```python
 class Migration:
     def upgrade():
@@ -221,13 +246,14 @@ class Migration:
 ```
 
 **Check**:
+
 - Downgrade function present
 - Data loss risk documented
 - Rollback tested
 
 ## Validation Output
 
-```
+```text
 🗄️ Database Migration Guard Findings:
 
 Migration: 20260204_add_user_age.py

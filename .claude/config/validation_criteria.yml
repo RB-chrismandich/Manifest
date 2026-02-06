@@ -159,7 +159,7 @@ scoring:
 # Command-specific validation overrides
 # These override the default tier1/tier2 requirements per command
 command_overrides:
-  refactor:
+  refactor-python:
     tier1_required: true
     tier1_checks:
       - security
@@ -174,14 +174,14 @@ command_overrides:
       medium: show_disagreements # 50-79%: Highlight to user
       low: block_and_escalate    # <50%: Human review required
 
-  improve-readme:
+  docs-readme:
     tier1_required: false
     tier2_required: true
     tier2_checks:
       - maintainability
     parallel_agents: false
 
-  improve-docs:
+  docs-improve:
     tier1_required: false
     tier2_required: true
     tier2_checks:
@@ -190,14 +190,14 @@ command_overrides:
       type: total_lines_changed
       threshold: 500
 
-  generate-diagrams:
+  docs-diagrams:
     tier1_required: false
     tier2_required: false
     parallel_agents_condition:
       type: unique_imports
       threshold: 5
 
-  shell-refactor:
+  refactor-shell:
     tier1_required: true
     tier1_checks:
       - security

@@ -49,8 +49,8 @@ NC='\033[0m' # No Color
 draw_bar() {
     local percentage="$1"
     local width=20
-    local filled=$(( percentage * width / 100 ))
-    local empty=$(( width - filled ))
+    local filled=$((percentage * width / 100))
+    local empty=$((width - filled))
 
     # Optimized: Use printf for string generation instead of loops
     printf -v filled_str "%${filled}s" ""
@@ -75,7 +75,7 @@ format_duration() {
 
 # Create output directory
 mkdir -p "$OUTPUT_DIR"
-chmod 700 "$OUTPUT_DIR" 2>/dev/null || true
+chmod 700 "$OUTPUT_DIR" 2> /dev/null || true
 
 usage() {
     echo "Parallel Agent Orchestration"
@@ -126,7 +126,7 @@ usage() {
 RUN_CURSOR=true
 RUN_GEMINI=true
 RUN_CLAUDE=true
-TIMEOUT=600  # 10 minutes - complex analyses need time
+TIMEOUT=600 # 10 minutes - complex analyses need time
 
 # Service configuration file
 SERVICES_CONFIG="$PROJECT_ROOT/config/services.yml"
@@ -229,7 +229,7 @@ GEMINI_INCLUDE_DIRS="${GEMINI_INCLUDE_DIRS:-$(pwd):$HOME/.claude}"
 # Parse arguments
 while [[ $# -gt 0 ]]; do
     case $1 in
-        --help|-h)
+        --help | -h)
             usage
             exit 0
             ;;
@@ -367,7 +367,7 @@ resolve_cursor_model() {
         advanced)
             CURSOR_MODEL="$CURSOR_MODEL_ADVANCED"
             ;;
-        auto|"")
+        auto | "")
             CURSOR_MODEL=""
             ;;
         *)
@@ -493,7 +493,7 @@ build_prompts() {
             GEMINI_PROMPT="Analyze this security observation YAML. Suggest improvements for: detection logic, entity mappings, and MITRE coverage. File: $TARGET"
             CLAUDE_PROMPT="Review this security observation YAML and suggest improvements for detection accuracy, coverage, and false positive reduction: $TARGET"
             ;;
-        prompt|*)
+        prompt | *)
             CURSOR_PROMPT="$PROMPT"
             GEMINI_PROMPT="$PROMPT"
             CLAUDE_PROMPT="$PROMPT"
@@ -508,7 +508,7 @@ run_with_retry() {
     shift 2
     local cmd=("$@")
 
-    for (( attempt=0; attempt<=RETRY_COUNT; attempt++ )); do
+    for ((attempt = 0; attempt <= RETRY_COUNT; attempt++)); do
         if [[ $attempt -gt 0 ]]; then
             echo -e "${YELLOW}[$agent_name]${NC} Retrying (attempt $attempt/$RETRY_COUNT)..."
             sleep $RETRY_DELAY
@@ -532,7 +532,7 @@ run_with_retry_capture_stderr() {
     shift 3
     local cmd=("$@")
 
-    for (( attempt=0; attempt<=RETRY_COUNT; attempt++ )); do
+    for ((attempt = 0; attempt <= RETRY_COUNT; attempt++)); do
         if [[ $attempt -gt 0 ]]; then
             echo -e "${YELLOW}[$agent_name]${NC} Retrying (attempt $attempt/$RETRY_COUNT)..."
             sleep $RETRY_DELAY
@@ -558,7 +558,7 @@ check_credit_exhaustion() {
     fi
 
     # Patterns indicating credit/quota issues
-    if grep -qiE "credit|quota|rate.limit|exceeded|insufficient|billing|subscription|limit.reached|usage.limit" "$stderr_file" 2>/dev/null; then
+    if grep -qiE "credit|quota|rate.limit|exceeded|insufficient|billing|subscription|limit.reached|usage.limit" "$stderr_file" 2> /dev/null; then
         echo -e "${YELLOW}[$agent_name]${NC} Credit/quota exhaustion detected"
         return 0
     fi
@@ -905,7 +905,7 @@ cross_verify() {
                 if (line ~ /warning|caution|consider|potential|might/) warnings++
             }
             END { print issues, warnings }
-        ' "$file" 2>/dev/null || echo "0 0")
+        ' "$file" 2> /dev/null || echo "0 0")
 
         read -r issues warnings <<< "$counts"
 
@@ -935,7 +935,7 @@ cross_verify() {
 
     local consensus_score=100
     if [[ $total_findings -gt 0 ]]; then
-        consensus_score=$(( (total_findings - total_deviation) * 100 / total_findings ))
+        consensus_score=$(((total_findings - total_deviation) * 100 / total_findings))
         # Clamp to valid range [0, 100]
         if [[ $consensus_score -lt 0 ]]; then
             consensus_score=0
@@ -946,7 +946,8 @@ cross_verify() {
 
     echo ""
 
-    local bar=$(draw_bar $consensus_score)
+    local bar
+    bar=$(draw_bar $consensus_score)
 
     if [[ $consensus_score -ge 80 ]]; then
         echo -e "${GREEN}Consensus: HIGH ${bar} ${consensus_score}%${NC} - Agents largely agree"
@@ -981,14 +982,15 @@ monitor_agents() {
 
     # Hide cursor
     if $has_tput; then
-        tput civis 2>/dev/null || true
+        tput civis 2> /dev/null || true
     fi
 
     local running=true
     # Braille spinner for smoother animation
     local spinner=('⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏')
     local spin_idx=0
-    local start_time=$(date +%s)
+    local start_time
+    start_time=$(date +%s)
 
     # Track states locally
     local agent_states=()
@@ -999,15 +1001,17 @@ monitor_agents() {
         local status_line=""
 
         # Calculate elapsed time
-        local current_time=$(date +%s)
+        local current_time
+        current_time=$(date +%s)
         local elapsed=$((current_time - start_time))
         local minutes=$((elapsed / 60))
         local seconds=$((elapsed % 60))
-        local time_str=$(printf "%02d:%02d" $minutes $seconds)
+        local time_str
+        time_str=$(printf "%02d:%02d" $minutes $seconds)
 
         # Advance spinner
         local spin_char="${spinner[$spin_idx]}"
-        spin_idx=$(( (spin_idx + 1) % ${#spinner[@]} ))
+        spin_idx=$(((spin_idx + 1) % ${#spinner[@]}))
 
         for i in "${!pids[@]}"; do
             local pid=${pids[$i]}
@@ -1016,25 +1020,25 @@ monitor_agents() {
 
             if [[ "$state" == "running" ]]; then
                 local is_alive=false
-                if kill -0 "$pid" 2>/dev/null; then
+                if kill -0 "$pid" 2> /dev/null; then
                     is_alive=true
                     # Check for zombie state
                     # Optimization: On Linux, read /proc directly to avoid 'ps' fork overhead
                     if [[ -r "/proc/$pid/stat" ]]; then
                         local stat_line
-                        read -r stat_line < "/proc/$pid/stat" 2>/dev/null || true
+                        read -r stat_line < "/proc/$pid/stat" 2> /dev/null || true
                         # The command name (comm) is in parens and can contain spaces/parens.
                         # Everything after the last ')' starts with space then state.
                         local stat_rest="${stat_line##*)}"
                         local state_char="${stat_rest:1:1}"
                         if [[ "$state_char" == "Z" ]]; then
-                             is_alive=false
+                            is_alive=false
                         fi
                     elif $has_ps; then
                         local ps_state
-                        ps_state=$(ps -o state= -p "$pid" 2>/dev/null || true)
+                        ps_state=$(ps -o state= -p "$pid" 2> /dev/null || true)
                         if [[ "$ps_state" == *"Z"* ]]; then
-                             is_alive=false
+                            is_alive=false
                         fi
                     fi
                 fi
@@ -1066,17 +1070,19 @@ monitor_agents() {
     done
 
     # Final state
-    local current_time=$(date +%s)
+    local current_time
+    current_time=$(date +%s)
     local elapsed=$((current_time - start_time))
     local minutes=$((elapsed / 60))
     local seconds=$((elapsed % 60))
-    local time_str=$(printf "%02d:%02d" $minutes $seconds)
+    local time_str
+    time_str=$(printf "%02d:%02d" $minutes $seconds)
 
     printf "\r${BOLD}Waiting for agents (%s):${NC}%s\033[K\n" "$time_str" "$status_line"
 
     # Restore cursor
     if $has_tput; then
-        tput cnorm 2>/dev/null || true
+        tput cnorm 2> /dev/null || true
     fi
 }
 
@@ -1091,7 +1097,8 @@ create_summary() {
     echo "**Prompt/Target:** ${PROMPT:-$TARGET}" >> "$summary_file"
 
     if [[ "$CROSS_VERIFY_RAN" == true ]]; then
-        local bar=$(draw_bar $CONSENSUS_SCORE)
+        local bar
+        bar=$(draw_bar $CONSENSUS_SCORE)
         echo "**Consensus:** $CONSENSUS_SCORE% \`$bar\`" >> "$summary_file"
     fi
 

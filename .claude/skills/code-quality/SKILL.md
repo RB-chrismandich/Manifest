@@ -17,22 +17,26 @@ This skill automatically activates when Claude detects code patterns that warran
 Activate when code contains any of these patterns:
 
 **Authentication/Authorization**:
+
 - `auth`, `login`, `logout`, `session`
 - `jwt`, `oauth`, `token`, `bearer`
 - `authenticate`, `authorize`, `permission`
 
 **Cryptography**:
+
 - `crypto`, `encrypt`, `decrypt`
 - `hash`, `digest`, `hmac`
 - `salt`, `iv`, `nonce`
 - `private_key`, `public_key`, `certificate`
 
 **Secrets Handling**:
+
 - `secret`, `password`, `credential`
 - `api_key`, `access_key`, `token`
 - `connection_string`, `database_url`
 
 **Input Validation**:
+
 - `sanitize`, `validate`, `escape`
 - `filter`, `whitelist`, `blacklist`
 - `regex`, `pattern`, `input`
@@ -54,9 +58,11 @@ When triggered, this skill:
 
 1. **Scans the file** for security patterns and complexity metrics
 2. **Invokes parallel agents** for cross-verification:
+
    ```bash
    ~/.claude/scripts/parallel_agent.sh --json --validate --analyze <file>
    ```
+
 3. **Reports findings inline** without blocking user workflow
 4. **Escalates critical issues** that require immediate attention
 
@@ -123,14 +129,15 @@ This skill provides information without interrupting user workflow:
 
 ## Integration with Commands
 
-This skill works alongside the `/refactor` command:
+This skill works alongside the `/refactor-python` command:
 
 - **Skill**: Lightweight, auto-triggered, inline feedback
 - **Command**: Comprehensive, user-invoked, full report
 
 When both trigger:
+
 1. Skill provides immediate feedback
-2. User can invoke `/refactor` for detailed analysis
+2. User can invoke `/refactor-python` for detailed analysis
 3. Results are complementary, not duplicated
 
 ## Configuration

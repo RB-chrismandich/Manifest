@@ -37,7 +37,7 @@ SERVICES_CONFIG="$TARGET_DIR/config/services.yml"
 
 # Detect platform
 PLATFORM="unknown"
-DISTRO=""
+export DISTRO=""
 PKG_MANAGER=""
 
 detect_platform() {
@@ -170,7 +170,7 @@ while [[ $# -gt 0 ]]; do
             RECONFIGURE=true
             shift
             ;;
-        -h|--help)
+        -h | --help)
             echo "AI Agent Support Framework Bootstrap"
             echo "Supports: macOS (Intel/Apple Silicon), Linux (Debian, RHEL, Arch, etc.)"
             echo ""
@@ -262,17 +262,20 @@ load_existing_config() {
 
         # Only load if user didn't explicitly set the toggle
         if [[ "$CLAUDE_SET" == false ]]; then
-            local claude_enabled=$(grep -E "^\s*claude:" "$SERVICES_CONFIG" | grep -oE "(true|false)" | head -1)
+            local claude_enabled
+            claude_enabled=$(grep -E "^\s*claude:" "$SERVICES_CONFIG" | grep -oE "(true|false)" | head -1)
             [[ "$claude_enabled" == "true" ]] && ENABLE_CLAUDE=true || ENABLE_CLAUDE=false
         fi
 
         if [[ "$GEMINI_SET" == false ]]; then
-            local gemini_enabled=$(grep -E "^\s*gemini:" "$SERVICES_CONFIG" | grep -oE "(true|false)" | head -1)
+            local gemini_enabled
+            gemini_enabled=$(grep -E "^\s*gemini:" "$SERVICES_CONFIG" | grep -oE "(true|false)" | head -1)
             [[ "$gemini_enabled" == "true" ]] && ENABLE_GEMINI=true || ENABLE_GEMINI=false
         fi
 
         if [[ "$CURSOR_SET" == false ]]; then
-            local cursor_enabled=$(grep -E "^\s*cursor:" "$SERVICES_CONFIG" | grep -oE "(true|false)" | head -1)
+            local cursor_enabled
+            cursor_enabled=$(grep -E "^\s*cursor:" "$SERVICES_CONFIG" | grep -oE "(true|false)" | head -1)
             [[ "$cursor_enabled" == "true" ]] && ENABLE_CURSOR=true || ENABLE_CURSOR=false
         fi
 
@@ -414,7 +417,7 @@ install_package_manager() {
                         sudo apt-get update -qq
                     fi
                     ;;
-                dnf|yum)
+                dnf | yum)
                     # dnf/yum auto-updates metadata
                     ;;
                 pacman)
@@ -433,7 +436,8 @@ install_node() {
     print_step "Checking for Node.js..."
 
     if command_exists node; then
-        local node_version=$(node --version)
+        local node_version
+        node_version=$(node --version)
         print_success "Node.js is installed ($node_version)"
     else
         print_warning "Node.js not found"
@@ -512,7 +516,7 @@ install_claude() {
 
     if command_exists claude; then
         print_success "Claude Code CLI is installed"
-        claude --version 2>/dev/null || true
+        claude --version 2> /dev/null || true
     else
         print_warning "Claude Code CLI not found"
         echo ""
@@ -645,7 +649,7 @@ check_claude_auth() {
     fi
 
     # Try to check auth status
-    if claude auth status &>/dev/null; then
+    if claude auth status &> /dev/null; then
         print_success "Claude Code is authenticated"
         return 0
     else
@@ -708,7 +712,7 @@ check_gemini_auth() {
     fi
 
     # Try a simple auth check
-    if gemini auth status &>/dev/null 2>&1; then
+    if gemini auth status &> /dev/null 2>&1; then
         print_success "Gemini CLI is authenticated"
         return 0
     fi
@@ -776,9 +780,11 @@ setup_gemini_auth() {
             fi
 
             if [[ -n "$shell_profile" ]]; then
-                echo "" >> "$shell_profile"
-                echo "# Gemini API Key (added by ai-agent-support-frameworks bootstrap)" >> "$shell_profile"
-                echo "export GEMINI_API_KEY='$safe_api_key'" >> "$shell_profile"
+                {
+                    echo ""
+                    echo "# Gemini API Key (added by ai-agent-support-frameworks bootstrap)"
+                    echo "export GEMINI_API_KEY='$safe_api_key'"
+                } >> "$shell_profile"
                 export GEMINI_API_KEY="$api_key"
                 print_success "API key added to $shell_profile"
                 print_info "Run 'source $shell_profile' or restart your terminal"
@@ -823,7 +829,8 @@ deploy_configs() {
 
             case $choice in
                 1)
-                    local backup_dir="$TARGET_DIR.backup.$(date +%Y%m%d_%H%M%S)"
+                    local backup_dir
+                    backup_dir="$TARGET_DIR.backup.$(date +%Y%m%d_%H%M%S)"
                     print_step "Backing up to $backup_dir"
                     mv "$TARGET_DIR" "$backup_dir"
                     print_success "Backup created"
@@ -837,7 +844,7 @@ deploy_configs() {
                     write_services_config
                     return 0
                     ;;
-                3|*)
+                3 | *)
                     print_info "Installation cancelled"
                     exit 0
                     ;;
@@ -855,7 +862,7 @@ deploy_configs() {
 
     # Make scripts executable
     if [[ -d "$TARGET_DIR/scripts" ]]; then
-        chmod +x "$TARGET_DIR/scripts"/*.sh 2>/dev/null || true
+        chmod +x "$TARGET_DIR/scripts"/*.sh 2> /dev/null || true
         print_success "Made scripts executable"
     fi
 
@@ -870,8 +877,8 @@ deploy_configs() {
     # List deployed files
     echo ""
     print_info "Deployed files:"
-    find "$TARGET_DIR" -type f \( -name "*.md" -o -name "*.yml" -o -name "*.sh" \) 2>/dev/null | head -20 | while read -r file; do
-        echo "    ${file#$HOME/}"
+    find "$TARGET_DIR" -type f \( -name "*.md" -o -name "*.yml" -o -name "*.sh" \) 2> /dev/null | head -20 | while read -r file; do
+        echo "    ${file#"$HOME"/}"
     done
 }
 
@@ -894,9 +901,9 @@ verify_installation() {
 
     for file in "${required_files[@]}"; do
         if [[ -f "$file" ]]; then
-            print_success "Found: ${file#$HOME/}"
+            print_success "Found: ${file#"$HOME"/}"
         else
-            print_error "Missing: ${file#$HOME/}"
+            print_error "Missing: ${file#"$HOME"/}"
             errors=$((errors + 1))
         fi
     done
@@ -1061,7 +1068,7 @@ print_summary() {
     echo ""
     echo "  # Use Claude Code commands"
     echo "  claude  # Start Claude Code CLI"
-    echo "  # Then use: /refactor, /improve-readme, /improve-docs, etc."
+    echo "  # Then use: /refactor-python, /docs-readme, /docs-improve, etc."
     echo ""
 
     echo -e "${BOLD}Documentation:${NC}"
@@ -1084,9 +1091,10 @@ run_reconfigure() {
     echo ""
 
     if [[ -f "$SERVICES_CONFIG" ]]; then
-        local old_claude=$(grep -E "^\s*claude:" "$SERVICES_CONFIG" | grep -oE "(true|false)" | head -1)
-        local old_gemini=$(grep -E "^\s*gemini:" "$SERVICES_CONFIG" | grep -oE "(true|false)" | head -1)
-        local old_cursor=$(grep -E "^\s*cursor:" "$SERVICES_CONFIG" | grep -oE "(true|false)" | head -1)
+        local old_claude old_gemini old_cursor
+        old_claude=$(grep -E "^\s*claude:" "$SERVICES_CONFIG" | grep -oE "(true|false)" | head -1)
+        old_gemini=$(grep -E "^\s*gemini:" "$SERVICES_CONFIG" | grep -oE "(true|false)" | head -1)
+        old_cursor=$(grep -E "^\s*cursor:" "$SERVICES_CONFIG" | grep -oE "(true|false)" | head -1)
 
         echo "  Claude:  $old_claude → $ENABLE_CLAUDE"
         echo "  Gemini:  $old_gemini → $ENABLE_GEMINI"

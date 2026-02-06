@@ -1,8 +1,10 @@
 # Validation Criteria Configuration
-# Used by Claude orchestrator for code review validation
+
+## Used by Claude orchestrator for code review validation
 
 tier1:
-  # Critical criteria - all must pass
+
+## Critical criteria - all must pass
 
   cross_verification:
     weight: 0.30
@@ -77,7 +79,8 @@ tier1:
         severity: medium
 
 tier2:
-  # Quality criteria - noted but not blocking
+
+## Quality criteria - noted but not blocking
 
   bug_detection:
     weight: 0.25
@@ -141,7 +144,8 @@ tier2:
       - id: edge_cases_covered
         description: "Edge cases have test coverage"
 
-# Scoring configuration
+## Scoring configuration
+
 scoring:
   tier1_pass_threshold: 1.0  # All tier1 checks must pass
   tier2_acceptable_threshold: 0.60
@@ -156,10 +160,12 @@ scoring:
     blocked:
       tier1_passed: false
 
-# Command-specific validation overrides
-# These override the default tier1/tier2 requirements per command
+## Command-specific validation overrides
+
+## These override the default tier1/tier2 requirements per command
+
 command_overrides:
-  refactor:
+  refactor-python:
     tier1_required: true
     tier1_checks:
       - security
@@ -174,14 +180,14 @@ command_overrides:
       medium: show_disagreements # 50-79%: Highlight to user
       low: block_and_escalate    # <50%: Human review required
 
-  improve-readme:
+  docs-readme:
     tier1_required: false
     tier2_required: true
     tier2_checks:
       - maintainability
     parallel_agents: false
 
-  improve-docs:
+  docs-improve:
     tier1_required: false
     tier2_required: true
     tier2_checks:
@@ -190,7 +196,7 @@ command_overrides:
       type: total_lines_changed
       threshold: 500
 
-  generate-diagrams:
+  docs-diagrams:
     tier1_required: false
     tier2_required: false
     parallel_agents_condition:

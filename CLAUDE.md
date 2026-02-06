@@ -119,12 +119,12 @@ The following slash commands are available in Claude Code:
 | Command | Description | Parallel Agents |
 |---------|-------------|-----------------|
 | `/project-commit` | Full commit pipeline: docs, pull, pre-commits, commit, push | CONDITIONAL (Phase 3) |
-| `/refactor` | Python codebase security and quality analysis | ALWAYS |
-| `/shell-refactor` | Bash/Shell script security and quality analysis | ALWAYS |
-| `/generate-diagrams` | Generate Mermaid architecture diagrams | CONDITIONAL (5+ modules) |
-| `/improve-docs` | Diataxis documentation framework analysis | CONDITIONAL (>500 lines) |
-| `/improve-readme` | Improve README documentation | NO |
-| `/plan-manage` | Plan lifecycle housekeeping: list, create, review, archive, abandon | NO |
+| `/refactor-python` | Python codebase security and quality analysis | ALWAYS |
+| `/refactor-shell` | Bash/Shell script security and quality analysis | ALWAYS |
+| `/docs-diagrams` | Generate Mermaid architecture diagrams | CONDITIONAL (5+ modules) |
+| `/docs-improve` | Diataxis documentation framework analysis | CONDITIONAL (>500 lines) |
+| `/docs-readme` | Improve README documentation | NO |
+| `/plan-manage` | Plan lifecycle with parallel agent orchestration for create/review | CONDITIONAL |
 
 ## Testing Changes
 
@@ -162,7 +162,8 @@ Implementation plans are tracked in `.claude/.plans/` as date-prefixed markdown 
 (`YYYYMMDD-description.md`). Plans follow a lifecycle:
 CREATE -> ACTIVE -> COMPLETED (`.archive/`) or ABANDONED (`.abandoned/`).
 See `.claude/.plans/README.md` for naming conventions and rules.
-Use `/plan-manage` to list, create, review, archive, or abandon plans.
+Use `/plan-manage` to create plans (with parallel agent orchestration for cross-verified
+approaches), review stale plans, or archive/abandon completed work.
 
 ## Configuration Reference
 

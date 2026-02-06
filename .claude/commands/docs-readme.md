@@ -43,45 +43,54 @@ Evaluate the existing README.md (if present) for:
 For each section that needs improvement, follow these guidelines:
 
 #### Project Title & Description (1-3 lines)
+
 - Extract purpose from AGENTS.md or main module docstrings
 - One sentence explaining what it does and why it's useful
 - Avoid marketing language - be factual
 
 #### Key Features (5-10 bullets)
+
 - Scan src/ for actual capabilities
 - One line per feature, focus on user benefits
 
 #### Quick Start (4-6 steps max)
+
 - Minimum steps to get running
 - Use actual commands from setup scripts or AGENTS.md
 - Include config setup and run command
 
 #### Requirements
+
 - Extract from requirements.txt or package.json
 - Note language version requirements
 - List external services needed
 
 #### Project Structure
+
 - Generate tree from actual directory structure
 - Add one-line comments explaining each key file
 - Group related files logically
 
 #### Configuration
+
 - Extract ALL options from config files
 - Use tables: Key | Default | Description
 - Include example YAML/JSON snippets
 
 #### Usage/Workflow
+
 - Describe the actual execution flow from main entry point
 - Include sample output or log examples
 - Reference AGENTS.md workflow sections
 
 #### Troubleshooting
+
 - Use table format: Issue | Fix
 - Extract common errors from code (try/except blocks)
 - Include actual error messages users might see
 
 #### Testing
+
 - List actual test commands that work
 - Document test environment variables
 
