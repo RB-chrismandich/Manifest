@@ -765,7 +765,8 @@ setup_gemini_auth() {
     echo ""
     if prompt_yes_no "Set up Gemini API key instead?"; then
         echo ""
-        read -r -p "Enter your Gemini API key: " api_key
+        read -rs -p "Enter your Gemini API key: " api_key
+        echo ""
 
         if [[ -n "$api_key" ]]; then
             # Escape single quotes for safe single-quoted string
