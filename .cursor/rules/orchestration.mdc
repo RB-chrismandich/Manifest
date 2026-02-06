@@ -1,0 +1,196 @@
+---
+description: "Parallel LLM agent orchestration guide for cross-verification, planning, and validation"
+globs: ""
+alwaysApply: true
+---
+
+# Agent Orchestration Guide
+
+This rule defines how the Cursor agent should leverage parallel LLM agents
+(Gemini CLI, Cursor Agent, Claude CLI) for cross-verification, planning, and validation.
+
+<!-- Adapted from: .claude/CLAUDE.md -->
+
+## Parallel Agent Script
+
+**Location**: `~/.claude/scripts/parallel_agent.sh` (symlinked at `.cursor/scripts/`)
+
+### Quick Usage
+
+**IMPORTANT**:
+
+- Always use **absolute paths** when specifying files to analyze or review.
+- Always use a **large timeout** (600-900 seconds) for complex analyses.
+
+```bash
+# Basic code review with JSON output (all 3 agents, 10 min timeout)
+~/.claude/scripts/parallel_agent.sh --json --timeout 600 --review /absolute/path/to/file
+
+# Full analysis with validation and model selection (15 min timeout)
+~/.claude/scripts/parallel_agent.sh --json --full-output --validate --timeout 900 \
+  --cursor-model advanced --claude-model opus --analyze /absolute/path/to/file
+
+# Generic prompt to all agents
+~/.claude/scripts/parallel_agent.sh --json "Your question here"
+```
+
+### Options
+
+| Option | Description |
+|--------|-------------|
+| `--json` | Output JSON for programmatic parsing |
+| `--full-output` | Include complete agent outputs (no truncation) |
+| `--validate` | Check outputs against success criteria |
+| `--review <file>` | Code review mode |
+| `--analyze <file>` | Bug/security analysis mode |
+| `--cursor-only` | Run only Cursor Agent |
+| `--gemini-only` | Run only Gemini CLI |
+| `--claude-only` | Run only Claude CLI |
+| `--no-claude` | Disable Claude CLI |
+| `--cursor-model <tier>` | Cursor model: mini, flash, advanced, auto |
+| `--claude-model <tier>` | Claude model: haiku, sonnet, opus |
+| `--timeout <sec>` | Timeout per agent (default: 120) |
+
+### Model Selection
+
+Select models based on task complexity:
+
+| Task Type | Cursor | Claude | Gemini | Reason |
+|-----------|--------|--------|--------|--------|
+| Security | advanced | opus | pro | Maximum capability for critical code |
+| Review | flash | sonnet | flash | Balanced performance/cost |
+| Analyze | flash | sonnet | flash | Good reasoning without opus cost |
+| Improve | mini | haiku | flash | Lighter models for suggestions |
+| Quick | mini | haiku | flash | Speed for simple queries |
+
+---
+
+## Proactive Decision Framework
+
+### ALWAYS Use Parallel Agents For
+
+1. **Security-sensitive code changes** — auth, crypto, secrets, input validation
+2. **Architectural decisions** — new services, API changes, schema modifications
+3. **Large file modifications (>200 lines)** — complex refactoring, major features
+4. **Critical business logic** — payments, user data, compliance
+
+### SKIP Parallel Agents For
+
+- Typo fixes, comments, formatting
+- Single-line changes
+- Documentation updates
+- Simple variable renames
+
+---
+
+## Cross-Verification Patterns
+
+### Agreement Scoring
+
+```text
+Consensus Score = (Agreements / Total_Findings) * 100
+
+>=80%: High confidence - proceed with unified recommendation
+50-79%: Medium confidence - highlight disagreements to user
+<50%: Low confidence - escalate for human review
+```
+
+### Synthesis
+
+When agents disagree, synthesize by:
+
+1. Identifying the core disagreement
+2. Evaluating each agent's reasoning
+3. Providing a unified recommendation with caveats
+4. Noting which agent's approach was preferred and why
+
+---
+
+## Validation Criteria
+
+### Tier 1: Critical (Always Check)
+
+| Criterion | Weight | Description |
+|-----------|--------|-------------|
+| Cross-Verification | 0.3 | Multiple agents agree on key findings |
+| Security Issues | 0.3 | No injection, XSS, auth bypass, secrets |
+| Error Handling | 0.2 | Proper exceptions, no silent failures |
+| Breaking Changes | 0.2 | API compatibility, data migrations |
+
+### Tier 2: Standard (Code Quality)
+
+| Criterion | Weight | Description |
+|-----------|--------|-------------|
+| Bug Detection | 0.25 | Logic errors, off-by-one, null refs |
+| Performance | 0.25 | No O(n^2), memory leaks |
+| Maintainability | 0.25 | Clear naming, reasonable complexity |
+| Test Coverage | 0.25 | Changes have corresponding tests |
+
+**Verdicts**:
+
+- `APPROVED`: All Tier 1 checks pass, Tier 2 score >= 0.60
+- `NEEDS_REVIEW`: All Tier 1 checks pass, Tier 2 score < 0.60
+- `BLOCKED`: Any Tier 1 check fails
+
+---
+
+## Workflow Integration
+
+### Before Making Changes
+
+```bash
+~/.claude/scripts/parallel_agent.sh --json --validate \
+  "Review this planned change: [description]. Files affected: [list]"
+```
+
+### After Making Changes
+
+```bash
+~/.claude/scripts/parallel_agent.sh --json --validate --timeout 600 \
+  --review /absolute/path/to/modified_file
+```
+
+---
+
+## Available Rules
+
+| Rule | Description | Parallel Agents |
+|------|-------------|-----------------|
+| @project-commit | Full commit pipeline | CONDITIONAL |
+| @docs-readme | Improve README documentation | NO |
+| @refactor-python | Python security and quality analysis | ALWAYS |
+| @refactor-shell | Shell script security and quality analysis | ALWAYS |
+| @docs-diagrams | Generate Mermaid architecture diagrams | CONDITIONAL |
+| @docs-improve | Diataxis documentation framework analysis | CONDITIONAL |
+| @plan-manage | Plan lifecycle management | CONDITIONAL |
+| @code-quality | Auto-triggered code quality checks | AUTO |
+
+---
+
+## Configuration Files
+
+All configuration is symlinked from `.claude/`:
+
+| File | Purpose |
+|------|---------|
+| `config/command_config.yml` | Thresholds, tool policies, error recovery |
+| `config/validation_criteria.yml` | Tier 1/Tier 2 validation rules |
+| `prompts/preflight_analysis.md` | Pre-flight analysis template |
+| `prompts/synthesis.md` | Agent disagreement synthesis template |
+| `prompts/validation.md` | Validation criteria template |
+
+---
+
+## Plan Management
+
+Implementation plans are tracked in `.plans/` (symlinked from `.claude/.plans/`).
+
+### Lifecycle
+
+```text
+CREATE -> ACTIVE -> COMPLETED (.archive/) or ABANDONED (.abandoned/)
+```
+
+Naming convention: `YYYYMMDD-short-description.md`
+
+Use the @plan-manage rule for orchestrated plan creation, review, archiving, and abandoning.

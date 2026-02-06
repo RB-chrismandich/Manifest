@@ -15,7 +15,14 @@
       "Bash($HOME/Library/Python/3.9/bin/pre-commit run:*)",
       "Bash(~/Library/Python/3.9/bin/yamllint:*)",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "WebSearch",
+      "Bash(grep:*)",
+      "Bash(wc:*)",
+      "Bash(git mv:*)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:gist.github.com)",
+      "WebFetch(domain:docs.github.com)"
     ]
   }
 }
