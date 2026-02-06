@@ -95,7 +95,7 @@ fallback:
 
 ### Enabling/Disabling Services
 
-**Option 1: Reconfigure with bootstrap.sh**
+### Option 1: Reconfigure with bootstrap.sh
 
 ```bash
 # Disable Cursor
@@ -105,7 +105,7 @@ fallback:
 ./bootstrap.sh --reconfigure --enable-claude --enable-gemini --enable-cursor
 ```
 
-**Option 2: Edit services.yml manually**
+### Option 2: Edit services.yml manually
 
 ```bash
 # Edit configuration
@@ -117,7 +117,7 @@ services:
     enabled: false  # Disabled
 ```
 
-**Option 3: Override at runtime with CLI flags**
+### Option 3: Override at runtime with CLI flags
 
 ```bash
 # Temporarily disable Claude for this run only
@@ -176,7 +176,7 @@ Defines which tools each command can use:
 
 ```yaml
 tool_policies:
-  refactor:
+  refactor-python:
     allowed:
       - Read
       - Glob
@@ -188,7 +188,7 @@ tool_policies:
     parallel_agents: always
     validation_tier: 1
 
-  generate-diagrams:
+  docs-diagrams:
     allowed:
       - Read
       - Glob
@@ -201,6 +201,7 @@ tool_policies:
 ```
 
 **Parallel agent modes:**
+
 - `always`: Always run parallel agents
 - `never`: Never run parallel agents (single-agent mode)
 - `conditional`: Run based on trigger_condition
@@ -255,6 +256,7 @@ credit_fallback:
 ```
 
 **How it works:**
+
 1. Agent runs with selected model (e.g., `opus`)
 2. If quota exceeded, script detects error in stderr
 3. Script retries with next model in chain (`sonnet`)
@@ -367,6 +369,7 @@ scoring:
 ```
 
 **Verdict Examples:**
+
 - Tier 1: 100% pass, Tier 2: 0.85 → **APPROVED**
 - Tier 1: 100% pass, Tier 2: 0.45 → **NEEDS_REVIEW** (quality concerns)
 - Tier 1: Security fail → **BLOCKED** (critical failure)
@@ -375,7 +378,7 @@ scoring:
 
 ```yaml
 command_overrides:
-  refactor:
+  refactor-python:
     tier1_required: true
     tier1_checks:
       - security
@@ -386,7 +389,7 @@ command_overrides:
     tier2_threshold: 0.80  # Higher threshold for refactoring
     consensus_threshold: 0.80
 
-  generate-diagrams:
+  docs-diagrams:
     tier1_required: false
     tier2_required: false
     # No validation for diagram generation
@@ -394,7 +397,9 @@ command_overrides:
 
 ### Project-Specific Validation Overrides
 
-Create project-specific validation rules by adding a `validation_overrides.yml` file to your project's `.claude/config/` directory. This extends the base validation criteria with domain-specific checks.
+Create project-specific validation rules by adding a `validation_overrides.yml` file to your
+project's `.claude/config/` directory.
+This extends the base validation criteria with domain-specific checks.
 
 **File**: `.claude/config/validation_overrides.yml` (in your project)
 
@@ -452,6 +457,7 @@ exemptions:
 #### Framework-Specific Examples
 
 **Django Projects**: See `templates/validation-overrides/django-security.yml`
+
 - CSRF protection checks
 - SQL injection prevention (no raw SQL with string interpolation)
 - XSS protection (template auto-escaping)
@@ -459,6 +465,7 @@ exemptions:
 - Migration safety (reversibility, backwards compatibility)
 
 **Express.js/Node.js Projects**: See `templates/validation-overrides/express-security.yml`
+
 - Input validation (Joi, Zod schemas)
 - SQL injection prevention (parameterized queries)
 - Authentication middleware
@@ -466,6 +473,7 @@ exemptions:
 - Rate limiting on sensitive endpoints
 
 **Go Projects**: See `templates/validation-overrides/go-security.yml` (coming soon)
+
 - SQL injection (database/sql parameterized queries)
 - Path traversal prevention
 - Secrets in environment variables (not code)
@@ -479,6 +487,7 @@ exemptions:
 4. **Exemptions applied**: Specific paths can skip certain checks
 
 **Example workflow**:
+
 ```bash
 # 1. Copy template for your framework
 cp templates/validation-overrides/django-security.yml \
@@ -496,6 +505,7 @@ vim .claude/config/validation_overrides.yml
 #### Pattern Syntax
 
 **Simple pattern matching**:
+
 ```yaml
 patterns:
   - "jwt.verify"           # Must contain this string
@@ -503,6 +513,7 @@ patterns:
 ```
 
 **Regex patterns**:
+
 ```yaml
 patterns:
   - "\\$\\{.*\\}.*SELECT"  # Template literal in SQL (bad)
@@ -510,6 +521,7 @@ patterns:
 ```
 
 **Context-aware patterns**:
+
 ```yaml
 patterns:
   - "current_version"      # Must contain this...
@@ -517,6 +529,7 @@ context: "UpdateTransaction"  # ...within this context
 ```
 
 **Good vs Bad patterns**:
+
 ```yaml
 patterns_good:
   - "cursor.execute.*%s"   # Parameterized query (good)
@@ -528,7 +541,7 @@ patterns_bad:
 
 When project-specific checks are used:
 
-```
+```text
 🔍 Validation Results (with project overrides)
 
 Base Checks:
@@ -560,16 +573,19 @@ Overall: NEEDS_REVIEW (tier1 pass, tier2: 0.55)
 #### Troubleshooting
 
 **Check not triggering**:
+
 - Verify `applies_to` paths match your file structure
 - Test regex patterns with a simple script
 - Enable verbose logging (if available)
 
 **Too many false positives**:
+
 - Refine `patterns` to be more specific
 - Add `context` to narrow scope
 - Use `exemptions` for known good cases
 
 **Check too strict**:
+
 - Lower `weight` for tier2 checks
 - Add exceptions for edge cases
 - Document reasoning in comments
@@ -760,6 +776,7 @@ Configuration values are resolved in this order (highest to lowest priority):
 ```
 
 **Effect:**
+
 - Uses cheapest models (mini/haiku)
 - 2-minute timeout
 - Still runs Tier 1 security validation
@@ -778,6 +795,7 @@ Configuration values are resolved in this order (highest to lowest priority):
 ```
 
 **Effect:**
+
 - Uses most powerful models
 - 15-minute timeout
 - Full output (no truncation)
@@ -795,6 +813,7 @@ Configuration values are resolved in this order (highest to lowest priority):
 ```
 
 **Effect:**
+
 - Only Claude runs (no Cursor/Gemini)
 - JSON output format
 - Custom output directory

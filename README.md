@@ -4,9 +4,13 @@
 
 **Last Updated**: 2026-02-05
 
-Manifest is a configuration repository that deploys a sophisticated parallel agent orchestration system to `~/.claude/`, enabling Claude Code to leverage multiple AI agents (Cursor, Gemini CLI, Claude CLI) for cross-verification, consensus scoring, and enhanced code analysis.
+Manifest is a configuration repository that deploys a sophisticated parallel agent
+orchestration system to `~/.claude/`, enabling Claude Code to leverage multiple AI agents
+(Cursor, Gemini CLI, Claude CLI) for cross-verification, consensus scoring,
+and enhanced code analysis.
 
-**Core Capabilities**: Multi-agent orchestration • Consensus scoring • Model fallback • Two-tier validation • Production-grade templates
+**Core Capabilities**: Multi-agent orchestration | Consensus scoring | Model fallback
+| Two-tier validation | Production-grade templates
 
 ---
 
@@ -42,7 +46,7 @@ cd Manifest
 
 ## Architecture
 
-```
+```text
 User → Claude Code → /command → parallel_agent.sh
                                       ↓
                     ┌─────────────────┼─────────────────┐
@@ -57,7 +61,8 @@ User → Claude Code → /command → parallel_agent.sh
                                   JSON Output
 ```
 
-**Visual Documentation**: [Architecture Diagrams](docs/ARCHITECTURE_DIAGRAMS.md) - Mermaid flowcharts showing bootstrap, execution, validation, and consensus flows
+**Visual Documentation**: [Architecture Diagrams](docs/ARCHITECTURE_DIAGRAMS.md) -
+Mermaid flowcharts showing bootstrap, execution, validation, and consensus flows
 
 ---
 
@@ -66,22 +71,24 @@ User → Claude Code → /command → parallel_agent.sh
 | Command | Description | Parallel Agents | Validation |
 |---------|-------------|-----------------|------------|
 | `/project-commit` | Full commit pipeline: regenerate docs, pull latest, run pre-commits, commit, push | CONDITIONAL (Phase 3) | Tier 1 + Tier 2 |
-| `/refactor` | Python security, architecture, code quality analysis | ALWAYS | Tier 1 + Tier 2 (≥0.80) |
-| `/shell-refactor` | Bash/Shell script security and quality with shellcheck | ALWAYS | Tier 1 + Tier 2 (≥0.70) |
-| `/generate-diagrams` | Generate Mermaid architecture flowcharts and sequence diagrams | CONDITIONAL (≥5 imports) | Tier 2 |
-| `/improve-docs` | Analyze docs against Diataxis framework (tutorials, how-tos, reference, explanation) | CONDITIONAL (≥500 lines) | Tier 2 |
-| `/improve-readme` | Improve README structure and content following best practices | NEVER | Tier 2 |
+| `/refactor-python` | Python security, architecture, code quality analysis | ALWAYS | Tier 1 + Tier 2 (≥0.80) |
+| `/refactor-shell` | Bash/Shell script security and quality with shellcheck | ALWAYS | Tier 1 + Tier 2 (≥0.70) |
+| `/docs-diagrams` | Generate Mermaid architecture flowcharts and sequence diagrams | CONDITIONAL (≥5 imports) | Tier 2 |
+| `/docs-improve` | Analyze docs against Diataxis framework (tutorials, how-tos, reference, explanation) | CONDITIONAL (≥500 lines) | Tier 2 |
+| `/docs-readme` | Improve README structure and content following best practices | NEVER | Tier 2 |
 
 ---
 
 ## Requirements
 
 **For bootstrap.sh (automated setup):**
+
 - macOS 10.15+ or Linux (Debian/Ubuntu, RHEL/Fedora, Arch, openSUSE)
 - Internet connection for package downloads
 - npm-compatible environment (auto-installed if missing)
 
 **For manual setup:**
+
 - Bash 4.0+
 - Node.js 18+ and npm
 - One or more of: Claude CLI, Gemini CLI, Cursor Agent
@@ -104,13 +111,13 @@ User → Claude Code → /command → parallel_agent.sh
 
 ## Project Structure
 
-```
+```text
 Manifest/
 ├── bootstrap.sh                     # Cross-platform installation script (macOS/Linux)
 ├── CLAUDE.md                        # AI assistant context
 ├── .claude/                         # Configuration deployed to ~/.claude/
 │   ├── CLAUDE.md                    # Orchestration guide
-│   ├── commands/                    # Slash commands (refactor, generate-diagrams, etc.)
+│   ├── commands/                    # Slash commands (refactor-python, docs-diagrams, etc.)
 │   ├── skills/code-quality/         # Auto-triggered quality checks
 │   ├── prompts/                     # Agent orchestration templates
 │   │   ├── preflight_analysis.md    # Pre-flight review criteria
@@ -173,12 +180,14 @@ Manifest/
 ## Troubleshooting
 
 **Bootstrap fails with "Permission denied":**
+
 ```bash
 chmod +x bootstrap.sh
 ./bootstrap.sh
 ```
 
 **Agents not running:**
+
 ```bash
 # Check service configuration
 cat ~/.claude/config/services.yml
@@ -196,6 +205,7 @@ which claude gemini cursor
 This project is licensed under a Proprietary License - see the [LICENSE](LICENSE) file for details.
 
 **Key Restrictions:**
+
 - ✅ Use and modify for personal/internal purposes
 - ❌ Distribution, sale, or sublicensing without written permission from ReefBytes
 - ❌ Commercial use requires explicit authorization

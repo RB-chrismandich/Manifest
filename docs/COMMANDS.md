@@ -24,6 +24,7 @@
 ## What Are Commands
 
 Commands are markdown files that define reusable workflows for Claude Code. They enable:
+
 - **Complex multi-step operations** (deployments, migrations)
 - **Automated workflows** (GitHub issue management)
 - **Architecture analysis** (event tracing, API mapping)
@@ -95,6 +96,7 @@ Usage examples...
 **Purpose**: Analyze code, generate reports, trace architecture
 
 **Structure**:
+
 ```markdown
 1. Scan codebase (Glob, Grep)
 2. Analyze patterns
@@ -103,7 +105,8 @@ Usage examples...
 ```
 
 **Examples**:
-- `/generate-diagrams` - Generate Mermaid diagrams
+
+- `/docs-diagrams` - Generate Mermaid diagrams
 - `/trace-events` - Map event publishers/consumers
 - `/trace-api` - Map API calls
 
@@ -116,6 +119,7 @@ Usage examples...
 **Purpose**: Automate repetitive workflows
 
 **Structure**:
+
 ```markdown
 1. Validate preconditions
 2. Execute workflow steps
@@ -124,6 +128,7 @@ Usage examples...
 ```
 
 **Examples**:
+
 - `/project-commit` - Full commit pipeline (regenerate docs, pull, pre-commits, commit, push)
 - `/issue-process` - Process GitHub issue
 - `/full-deployment-pipeline` - Deploy with validation
@@ -131,7 +136,8 @@ Usage examples...
 **Tool Usage**: Read + Write (Bash, Edit, Write, Skill for invoking other commands)
 
 **Example Structure** (`/project-commit`):
-1. Phase 1: Documentation Generation (`/generate-diagrams`, `/improve-docs`, `/improve-readme`)
+
+1. Phase 1: Documentation Generation (`/docs-diagrams`, `/docs-improve`, `/docs-readme`)
 2. Phase 2: Pull Latest & Resolve Conflicts (git fetch, pull --rebase)
 3. Phase 3: Pre-commit Checks (pre-commit run --all-files with auto-fixes)
 4. Phase 4: Stage & Commit (auto-detect issue references, append "Fixes #N")
@@ -144,6 +150,7 @@ Usage examples...
 **Purpose**: Require user input during execution
 
 **Structure**:
+
 ```markdown
 1. Gather context
 2. Ask user for decision (AskUserQuestion)
@@ -152,6 +159,7 @@ Usage examples...
 ```
 
 **Examples**:
+
 - `/issue-prioritize` - Score issues (user input on criteria)
 - `/issue-plan` - Design implementation (user chooses approach)
 
@@ -164,6 +172,7 @@ Usage examples...
 **Purpose**: Coordinate multiple sub-agents or services
 
 **Structure**:
+
 ```markdown
 1. Analyze cross-service impact
 2. Delegate to sub-agents (Task)
@@ -172,6 +181,7 @@ Usage examples...
 ```
 
 **Examples**:
+
 - `/issue-process` - Delegates to service-specific sub-agents
 - Headless orchestration prompts
 
@@ -183,23 +193,26 @@ Usage examples...
 
 **Pattern Documentation**: See [Command State Machine Pattern](../templates/patterns/command-state-machine.md)
 
-State machine commands structure complex operations as sequential phases with validation gates, error recovery, and progress tracking.
+State machine commands structure complex operations as sequential phases with
+validation gates, error recovery, and progress tracking.
 
 ### When to Use State Machines
 
 ✅ **Use for**:
+
 - Multi-step processes with dependencies (deployments, migrations)
 - Operations requiring rollback (destructive changes)
 - Long-running tasks needing progress tracking
 
 ❌ **Don't use for**:
+
 - Simple single-step commands
 - Read-only analysis
 - Quick queries
 
 ### State Machine Structure
 
-```markdown
+````markdown
 ## Command Phases
 
 Execute these phases **in order**. Each phase must succeed before proceeding to the next.
@@ -222,7 +235,8 @@ Execute these phases **in order**. Each phase must succeed before proceeding to 
 ### Phase 2: [Next Phase]
 
 [...]
-```
+
+````
 
 ### Key Components
 
@@ -253,7 +267,9 @@ Execute these phases **in order**. Each phase must succeed before proceeding to 
 **Full Deployment Pipeline**: `templates/commands/full-deployment-pipeline.md`
 
 5-phase deployment:
-```
+
+```text
+
 Phase 1: Run Tests
     ↓
 Phase 2: Build Artifacts
@@ -263,15 +279,19 @@ Phase 3: Validate Plan (parallel agents)
 Phase 4: Deploy (with automatic rollback)
     ↓
 Phase 5: Verify Deployment
+
 ```
 
 Each phase:
+
 - Has retry logic (2x)
 - Reports status
 - Can rollback on failure
 
 **Output Format**:
-```
+
+```text
+
 ## Deployment Pipeline Summary
 
 | Phase | Status | Duration | Notes |
@@ -283,6 +303,7 @@ Each phase:
 | 5. Verify | ⚠️ warn | 32s | 1 endpoint slow |
 
 Overall: SUCCESS (with warnings)
+
 ```
 
 ### Common State Machine Patterns
@@ -320,22 +341,25 @@ Commands can use parallel agents for cross-verification and consensus scoring.
 ### When to Use Parallel Agents
 
 **ALWAYS use** for:
+
 - Security-sensitive operations (deployments, migrations)
 - Architectural decisions (schema changes, API changes)
 - Code with high impact (>200 lines changed)
 
 **CONDITIONALLY use** for:
+
 - Moderate complexity changes
 - When confidence is low
 
 **SKIP** for:
+
 - Read-only analysis
 - Simple queries
 - Documentation generation
 
 ### Integration Pattern
 
-```markdown
+````markdown
 ## Parallel Agent Integration
 
 This command [ALWAYS|CONDITIONALLY|NEVER] uses parallel agents.
@@ -348,10 +372,12 @@ When triggered, execute:
 ```
 
 Consensus scoring:
+
 - >=80%: Auto-proceed with unified recommendation
 - 50-79%: Highlight disagreements to user
 - <50%: Block and escalate for human review
-```
+
+````
 
 ### Model Selection
 
@@ -448,7 +474,7 @@ rm "$file.backup"
 
 ### User Confirmation
 
-```markdown
+````markdown
 Use AskUserQuestion tool to ask user for input:
 
 ```json
@@ -474,7 +500,8 @@ Use AskUserQuestion tool to ask user for input:
   }]
 }
 ```
-```
+
+````
 
 ---
 
@@ -528,7 +555,7 @@ claude run /your-command "very-long-argument-here..."
 
 **File**: `.claude/commands/count-todos.md`
 
-```markdown
+````markdown
 ---
 description: Count TODO comments in codebase
 allowed-tools: Glob, Grep, Bash
@@ -565,7 +592,8 @@ echo "| HACK | $hack_count |"
 echo ""
 echo "**Total**: $((todo_count + fixme_count + hack_count))"
 ```
-```
+
+````
 
 ---
 
@@ -573,7 +601,7 @@ echo "**Total**: $((todo_count + fixme_count + hack_count))"
 
 **File**: `.claude/commands/create-feature-branch.md`
 
-```markdown
+````markdown
 ---
 description: Create feature branch with naming convention
 allowed-tools: Bash, AskUserQuestion
@@ -611,9 +639,11 @@ fi
 ```
 
 **Ask user for feature type** (use AskUserQuestion tool):
+
 - Options: "feature", "bugfix", "hotfix", "refactor"
 
 **Create branch**:
+
 ```bash
 feature_type="$USER_CHOICE"  # from AskUserQuestion
 feature_desc="$ARGUMENTS"
@@ -624,7 +654,8 @@ branch_name="${feature_type}/$(echo "$feature_desc" | tr '[:upper:]' '[:lower:]'
 git checkout -b "$branch_name"
 echo "✅ Created branch: $branch_name"
 ```
-```
+
+````
 
 ---
 
@@ -633,6 +664,7 @@ echo "✅ Created branch: $branch_name"
 See: `templates/commands/full-deployment-pipeline.md`
 
 Complete 5-phase deployment with:
+
 - Sequential phases
 - Retry logic
 - Automatic rollback
@@ -698,6 +730,7 @@ To contribute a command to Manifest:
 5. Submit PR to GitHub
 
 **Command checklist**:
+
 - [ ] Clear description
 - [ ] Frontmatter complete
 - [ ] Instructions step-by-step
@@ -734,7 +767,7 @@ A: Check Claude Code logs, verify tool permissions, test bash commands manually
 
 ## Appendix: Complete Command Template
 
-```markdown
+````markdown
 ---
 description: [Short description of command]
 allowed-tools: [Comma-separated list of tools]
@@ -783,6 +816,7 @@ This command [ALWAYS|CONDITIONALLY|NEVER] uses parallel agents.
 ## Error Recovery
 
 **On Failure**:
+
 - [Action 1]
 - [Action 2]
 
@@ -797,7 +831,8 @@ This command [ALWAYS|CONDITIONALLY|NEVER] uses parallel agents.
 ```
 
 Expected output:
-```
+
+```text
 [Output]
 ```
 
@@ -813,4 +848,5 @@ Expected output:
 
 - [Related command 1]
 - [Related command 2]
-```
+
+````

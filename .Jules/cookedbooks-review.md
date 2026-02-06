@@ -157,7 +157,7 @@ Example: `pipeline-validate.md`
 
 **Applicability to Manifest**:
 💡 NEW - Could create "architecture tracing" command template
-💡 Could integrate with `generate-diagrams` command
+💡 Could integrate with `docs-diagrams` command
 
 ---
 
@@ -410,7 +410,7 @@ Cleanup    Score    Design   Code    Validate
 
 2. **Automatic Architecture Documentation**
    - Commands that update docs as side effect
-   - Integrate with `/generate-diagrams`
+   - Integrate with `/docs-diagrams`
    - Auto-update ARCHITECTURE_DIAGRAMS.md
 
 3. **Cross-Service Validation Framework**

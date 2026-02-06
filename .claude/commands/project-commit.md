@@ -6,7 +6,8 @@ argument-hint: [commit-message (optional)]
 
 # Project Commit Pipeline
 
-Orchestrate a full project commit cycle: regenerate documentation, sync with remote, run pre-commit checks, stage changes, commit, and push.
+Orchestrate a full project commit cycle: regenerate documentation, sync with remote,
+run pre-commit checks, stage changes, commit, and push.
 
 ## Arguments
 
@@ -16,24 +17,27 @@ Orchestrate a full project commit cycle: regenerate documentation, sync with rem
 
 ## Pipeline Phases
 
-Execute these phases **in order**. Each phase must succeed before proceeding to the next. If a phase fails, attempt to fix the issue up to **2 times** before stopping and reporting the failure to the user.
+Execute these phases **in order**. Each phase must succeed before proceeding to the next.
+If a phase fails, attempt to fix the issue up to **2 times** before stopping and
+reporting the failure to the user.
 
 ---
 
 ### Phase 1: Documentation Generation
 
-Generate/update project documentation in this order. Each step uses the corresponding skill/command. Skip a step only if the skill is unavailable.
+Generate/update project documentation in this order. Each step uses the corresponding
+skill/command. Skip a step only if the skill is unavailable.
 
 1. **Generate architecture diagrams**
-   - Invoke: `/generate-diagrams docs/architecture/ARCHITECTURE_DIAGRAMS.md`
+   - Invoke: `/docs-diagrams docs/architecture/ARCHITECTURE_DIAGRAMS.md`
    - Purpose: Update Mermaid diagrams to reflect current architecture
 
 2. **Improve documentation**
-   - Invoke: `/improve-docs docs/`
+   - Invoke: `/docs-improve docs/`
    - Purpose: Audit and improve docs against Diataxis framework
 
 3. **Improve README**
-   - Invoke: `/improve-readme`
+   - Invoke: `/docs-readme`
    - Purpose: Ensure README reflects current project state
 
 After all three complete, run `git status` to confirm documentation files were modified.
@@ -43,6 +47,7 @@ After all three complete, run `git status` to confirm documentation files were m
 ### Phase 2: Pull Latest & Resolve Conflicts
 
 1. **Fetch and pull latest from the current branch's upstream**:
+
    ```bash
    git fetch origin
    git pull --rebase origin $(git branch --show-current)
@@ -52,7 +57,9 @@ After all three complete, run `git status` to confirm documentation files were m
    - Run `git diff --name-only --diff-filter=U` to list conflicted files
    - For each conflicted file:
      a. Read the file to understand the conflict markers
-     b. Resolve the conflict by keeping both changes where possible, preferring the incoming (remote) change for non-functional conflicts (formatting, docs) and the local change for functional code
+     b. Resolve the conflict by keeping both changes where possible, preferring the
+        incoming (remote) change for non-functional conflicts (formatting, docs)
+        and the local change for functional code
      c. Stage the resolved file with `git add <file>`
    - Continue the rebase: `git rebase --continue`
    - If conflicts cannot be auto-resolved, **stop and ask the user** for guidance using AskUserQuestion
@@ -66,11 +73,13 @@ After all three complete, run `git status` to confirm documentation files were m
 ### Phase 3: Pre-commit Checks
 
 1. **Stage all modified and new files** for pre-commit to analyze:
+
    ```bash
    git add -A
    ```
 
 2. **Run pre-commit hooks**:
+
    ```bash
    pre-commit run --all-files
    ```
@@ -78,30 +87,43 @@ After all three complete, run `git status` to confirm documentation files were m
 3. **If pre-commit fails**:
    - Parse the output to identify which hooks failed and which files are affected
    - **For each failure**, attempt a fix:
-     - **gitleaks** (secrets detected): **STOP immediately**. Do NOT commit. Report the finding to the user with the file and line number. Ask the user how to proceed.
-     - **bandit** (Python security): Read the flagged file, understand the finding, and fix the security issue if it's a true positive. If it's a false positive, add a `# nosec` comment with justification.
-     - **test-go / test-python / test-ts** (test failures): Read the test output, identify the failing test, read the relevant source code, and fix the issue. If the failure is a pre-existing issue (check MEMORY.md for known failures), note it and continue.
+     - **gitleaks** (secrets detected): **STOP immediately**. Do NOT commit.
+       Report the finding to the user with the file and line number.
+       Ask the user how to proceed.
+     - **bandit** (Python security): Read the flagged file, understand the
+       finding, and fix the security issue if it's a true positive.
+       If it's a false positive, add a `# nosec` comment with justification.
+     - **test-go / test-python / test-ts** (test failures): Read the test
+       output, identify the failing test, read the relevant source code, and
+       fix the issue. If the failure is pre-existing (check MEMORY.md for
+       known failures), note it and continue.
      - **Formatting/linting**: Run the appropriate formatter (`ruff format`, `gofmt`, `prettier`) and re-stage.
    - After fixes, **re-stage and re-run** pre-commit:
+
      ```bash
      git add -A
      pre-commit run --all-files
      ```
-   - Allow up to **2 retry cycles**. If pre-commit still fails after 2 retries, stop and report the remaining failures to the user.
+
+   - Allow up to **2 retry cycles**. If pre-commit still fails after 2 retries,
+     stop and report the remaining failures to the user.
 
 ---
 
 ### Phase 4: Stage & Commit
 
 1. **Stage all changes** (including any fixes from Phase 3):
+
    ```bash
    git add -A
    ```
 
 2. **Verify there are changes to commit**:
+
    ```bash
    git status --porcelain
    ```
+
    - If empty, inform the user "Nothing to commit — working tree clean" and skip to end.
 
 3. **Generate or use commit message**:
@@ -118,15 +140,18 @@ After all three complete, run `git status` to confirm documentation files were m
    - Search staged files for comments mentioning issues (e.g., "// Fix for #288", "# Resolves issue #296")
    - For each detected issue number, verify it's open using `gh issue view <number> --json state --jq '.state'`
    - If open issues are found, append to the commit message:
-     ```
+
+     ```text
 
      Fixes #296
      Fixes #288
      ```
+
    - If multiple issues are detected, ask the user to confirm which ones should be closed by this commit
    - If no issue references are found, skip this step
 
 5. **Create the commit**:
+
    ```bash
    git commit -m "$(cat <<'EOF'
    <commit message here>
@@ -135,6 +160,7 @@ After all three complete, run `git status` to confirm documentation files were m
    ```
 
 6. **Verify the commit succeeded**:
+
    ```bash
    git log --oneline -1
    ```
@@ -144,19 +170,24 @@ After all three complete, run `git status` to confirm documentation files were m
 ### Phase 5: Push
 
 1. **Push to remote**:
+
    ```bash
    git push origin $(git branch --show-current)
    ```
 
 2. **If push fails**:
    - If rejected (non-fast-forward): pull with rebase and retry push once
+
      ```bash
      git pull --rebase origin $(git branch --show-current) && git push origin $(git branch --show-current)
      ```
+
    - If no upstream: push with `-u` flag
+
      ```bash
      git push -u origin $(git branch --show-current)
      ```
+
    - If push still fails, report the error to the user
 
 3. **Confirm success**: Show the user the final `git log --oneline -1` and the remote URL.
@@ -174,7 +205,7 @@ After all three complete, run `git status` to confirm documentation files were m
 
 After the pipeline completes (or stops), provide a summary:
 
-```
+```text
 ## Project Commit Summary
 
 | Phase | Status |

@@ -433,11 +433,11 @@ These integrate with the parallel agent orchestration framework.
 | Command | Description | Parallel Agents |
 |---------|-------------|-----------------|
 | `/project-commit` | Full commit pipeline: docs, pull, pre-commits, commit, push | CONDITIONAL (Phase 3) |
-| `/improve-readme` | Improve README documentation | NO |
-| `/refactor` | Python codebase security and quality analysis | ALWAYS |
-| `/generate-diagrams` | Generate Mermaid architecture diagrams | CONDITIONAL (5+ modules) |
-| `/improve-docs` | Diataxis documentation framework analysis | CONDITIONAL (>500 lines) |
-| `/plan-manage` | Plan lifecycle housekeeping: list, create, review, archive, abandon | NO |
+| `/docs-readme` | Improve README documentation | NO |
+| `/refactor-python` | Python codebase security and quality analysis | ALWAYS |
+| `/docs-diagrams` | Generate Mermaid architecture diagrams | CONDITIONAL (5+ modules) |
+| `/docs-improve` | Diataxis documentation framework analysis | CONDITIONAL (>500 lines) |
+| `/plan-manage` | Plan lifecycle with parallel agent orchestration for create/review | CONDITIONAL |
 
 ### Command Usage
 
@@ -447,16 +447,16 @@ These integrate with the parallel agent orchestration framework.
 /project-commit  # Auto-generate commit message
 
 # Comprehensive Python refactoring analysis
-/refactor src/
+/refactor-python src/
 
 # Generate architecture diagrams
-/generate-diagrams docs/ARCHITECTURE_DIAGRAMS.md
+/docs-diagrams docs/ARCHITECTURE_DIAGRAMS.md
 
 # Improve README documentation
-/improve-readme
+/docs-readme
 
 # Analyze documentation against Diataxis framework
-/improve-docs docs/
+/docs-improve docs/
 ```
 
 ### Auto-Triggered Skill
@@ -491,10 +491,10 @@ When triggered, it provides inline feedback without blocking user workflow.
 ~/.claude/
 ├── CLAUDE.md                        # This orchestration guide
 ├── commands/                        # User-invoked commands
-│   ├── improve-readme.md
-│   ├── refactor.md
-│   ├── generate-diagrams.md
-│   └── improve-docs.md
+│   ├── docs-readme.md
+│   ├── refactor-python.md
+│   ├── docs-diagrams.md
+│   └── docs-improve.md
 ├── skills/
 │   └── code-quality/
 │       └── SKILL.md                 # Auto-triggered quality/security skill
@@ -536,4 +536,5 @@ CREATE → ACTIVE → COMPLETED (.archive/) or ABANDONED (.abandoned/)
 - **Before creating a plan**: Review existing plans in `.plans/` to avoid duplicates
 - **During implementation**: Check off deliverables (`- [x]`) as each is completed
 - **Staleness threshold**: Plans untouched for 7+ days should be reviewed — either update, complete, or abandon them
-- **Use `/plan-manage`** for listing, creating, reviewing, archiving, and abandoning plans
+- **Use `/plan-manage`** for orchestrated plan creation (parallel agents for cross-verified
+  planning), review, archiving, and abandoning plans

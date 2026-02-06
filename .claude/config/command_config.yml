@@ -5,8 +5,8 @@
 # Parallel agent trigger thresholds (configurable)
 thresholds:
   # Documentation commands
-  improve_docs_lines: 500         # Trigger parallel agents when total doc lines > 500
-  generate_diagrams_modules: 5    # Trigger when analyzing 5+ unique imports/modules
+  docs_improve_lines: 500         # Trigger parallel agents when total doc lines > 500
+  docs_diagrams_modules: 5       # Trigger when analyzing 5+ unique imports/modules
 
   # Code quality skill auto-triggers
   skill_file_lines: 500           # File > 500 lines
@@ -60,7 +60,7 @@ synthesis_priority:
 
 # Tool policies per command
 tool_policies:
-  improve-readme:
+  docs-readme:
     allowed:
       - Read
       - Glob
@@ -70,7 +70,7 @@ tool_policies:
     parallel_agents: never
     validation_tier: 2
 
-  refactor:
+  refactor-python:
     allowed:
       - Read
       - Glob
@@ -82,7 +82,7 @@ tool_policies:
     parallel_agents: always
     validation_tier: 1
 
-  generate-diagrams:
+  docs-diagrams:
     allowed:
       - Read
       - Glob
@@ -93,7 +93,7 @@ tool_policies:
     trigger_condition: unique_imports >= 5
     validation_tier: 2
 
-  improve-docs:
+  docs-improve:
     allowed:
       - Read
       - Glob
@@ -104,7 +104,7 @@ tool_policies:
     trigger_condition: total_doc_lines >= 500
     validation_tier: 2
 
-  shell-refactor:
+  refactor-shell:
     allowed:
       - Read
       - Glob
@@ -121,10 +121,12 @@ tool_policies:
       - Read
       - Glob
       - Grep
-      - Bash  # Needed for mv (archive/abandon) and date
+      - Bash  # Needed for parallel_agent.sh, mv (archive/abandon), date
       - Write  # Needed for creating new plans from template
+      - Task  # Needed for synthesis agent on disagreement
     forbidden: []
-    parallel_agents: never
+    parallel_agents: conditional
+    trigger_condition: security OR architecture OR scope >= 3 files OR critical_logic
     validation_tier: 2
 
   code-quality:  # skill

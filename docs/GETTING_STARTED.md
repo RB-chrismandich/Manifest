@@ -28,9 +28,12 @@ Manifest deploys a parallel LLM agent orchestration system that enables Claude C
 - **Gemini CLI**: Broad knowledge and creative solutions
 - **Claude CLI**: Deep reasoning and security analysis
 
-These agents run in parallel, analyze the same task from different perspectives, and their outputs are synthesized with consensus scoring to provide higher-quality results than any single agent.
+These agents run in parallel, analyze the same task from different perspectives,
+and their outputs are synthesized with consensus scoring to provide higher-quality
+results than any single agent.
 
 **Key Benefits**:
+
 - Cross-verification reduces hallucinations
 - Diverse perspectives catch more edge cases
 - Automatic model selection based on task complexity
@@ -54,6 +57,7 @@ cd Manifest
 ```
 
 **What happens during bootstrap:**
+
 1. ✅ Detects your platform (macOS/Linux)
 2. ✅ Installs Homebrew (macOS) or checks package manager (Linux)
 3. ✅ Installs Node.js if missing
@@ -115,7 +119,8 @@ Check that the parallel agent script is accessible:
 ```
 
 **Expected output:**
-```
+
+```text
 Parallel Agent Orchestration
 
 Usage:
@@ -134,6 +139,7 @@ Run a simple test to verify all agents are working:
 ```
 
 **Expected output:**
+
 ```json
 {
   "timestamp": "20260127_123456",
@@ -151,6 +157,7 @@ Run a simple test to verify all agents are working:
 ```
 
 **If an agent fails:**
+
 - `status: "missing"` → Agent CLI not installed
 - `status: "failed"` → Authentication issue or quota exceeded
 
@@ -177,70 +184,78 @@ Manifest integrates with Claude Code through slash commands.
 
 ### Available Commands
 
-#### `/refactor` - Code Analysis (Always uses parallel agents)
+#### `/refactor-python` - Code Analysis (Always uses parallel agents)
 
 Analyzes Python codebases for security, architecture, and code quality issues.
 
 **Example:**
+
 ```bash
 # In Claude Code
-/refactor src/
+/refactor-python src/
 ```
 
 **What it does:**
+
 1. Runs all 3 agents in parallel (Cursor, Gemini, Claude)
 2. Each agent analyzes for: security vulnerabilities, bugs, performance issues
 3. Synthesizes results with consensus scoring
 4. Validates against Tier 1 (security) and Tier 2 (quality) checks
 5. Returns unified recommendation
 
-#### `/generate-diagrams` - Architecture Diagrams (Conditional)
+#### `/docs-diagrams` - Architecture Diagrams (Conditional)
 
 Generates Mermaid diagrams for project documentation.
 
 **Example:**
+
 ```bash
 # In Claude Code
-/generate-diagrams docs/ARCHITECTURE.md
+/docs-diagrams docs/ARCHITECTURE.md
 ```
 
 **Triggers parallel agents when:** Analyzing 5+ unique imports/modules
 
-#### `/improve-docs` - Documentation Analysis (Conditional)
+#### `/docs-improve` - Documentation Analysis (Conditional)
 
 Analyzes documentation against the Diataxis framework.
 
 **Example:**
+
 ```bash
 # In Claude Code
-/improve-docs docs/
+/docs-improve docs/
 ```
 
 **Triggers parallel agents when:** Total documentation lines > 500
 
-#### `/improve-readme` - README Enhancement (Never uses parallel agents)
+#### `/docs-readme` - README Enhancement (Never uses parallel agents)
 
 Improves README.md documentation following best practices.
 
 **Example:**
+
 ```bash
 # In Claude Code
-/improve-readme
+/docs-readme
 ```
 
 ### Command Output Formats
 
 **Markdown (default):**
+
 ```bash
 ~/.claude/scripts/parallel_agent.sh "Review this code"
 ```
 
 **JSON (for programmatic parsing):**
+
 ```bash
 ~/.claude/scripts/parallel_agent.sh --json "Review this code"
 ```
 
 **Full output (no truncation):**
+
 ```bash
 ~/.claude/scripts/parallel_agent.sh --json --full-output "Review this code"
 ```
@@ -324,13 +339,14 @@ consensus:
 
 ### For Regular Use
 
-1. **Integrate with Claude Code**: Commands are available as `/refactor`, `/generate-diagrams`, etc.
+1. **Integrate with Claude Code**: Commands are available as `/refactor-python`, `/docs-diagrams`, etc.
 2. **Review Configuration**: Read [Configuration Guide](CONFIGURATION.md) to customize behavior
 3. **Learn Architecture**: View [Architecture Diagrams](ARCHITECTURE_DIAGRAMS.md) to understand data flows
 
 ### For Troubleshooting
 
 If you encounter issues:
+
 1. Check [Troubleshooting Guide](TROUBLESHOOTING.md)
 2. Verify service configuration: `cat ~/.claude/config/services.yml`
 3. Test individual agents: `~/.claude/scripts/parallel_agent.sh --claude-only "test"`

@@ -40,7 +40,7 @@ project_tier1:
         patterns_bad:
           - "cursor.execute.*f\""
           - "cursor.execute.*%.*\""
-          - "raw\(.*f\""
+          - "raw\\(.*f\""
         patterns_good:
           - "cursor.execute.*%s"
           - ".raw\\(.*%s"
@@ -192,7 +192,7 @@ project_tier2:
 
 # Command-specific overrides
 commands:
-  /refactor:
+  /refactor-python:
     tier1_threshold: 1.0  # All tier 1 must pass
     tier2_threshold: 0.70  # Raise bar for refactoring
 

@@ -3,6 +3,7 @@
 > Advanced patterns and examples for extending Manifest
 
 This directory contains templates and examples for:
+
 - Settings and permissions
 - Orchestration prompts
 - Auto-trigger skills
@@ -13,7 +14,7 @@ This directory contains templates and examples for:
 
 ## Directory Structure
 
-```
+```text
 templates/
 ├── README.md                           # This file
 ├── settings-low-risk.json              # Low-risk auto-executable permissions
@@ -40,9 +41,11 @@ templates/
 
 **File**: `settings-low-risk.json`
 
-**Purpose**: Pre-configured permissions for low-risk commands that Claude can auto-execute without prompting, minimizing environmental impact while enabling efficient development workflows.
+**Purpose**: Pre-configured permissions for low-risk commands that Claude can auto-execute
+without prompting, minimizing environmental impact while enabling efficient development workflows.
 
 **Installation**:
+
 ```bash
 # Copy to Claude Code settings
 cp templates/settings-low-risk.json ~/.claude/settings.json
@@ -67,6 +70,7 @@ mv ~/.claude/settings.json.new ~/.claude/settings.json
 | Parallel Agents | ~/.claude/scripts/parallel_agent.sh | Low - Analysis |
 
 **Excluded** (requires prompt):
+
 - Destructive git operations (reset --hard, clean -f, push --force)
 - File modifications (rm without -f, destructive mv/cp)
 - AWS write operations (create, update, delete)
@@ -75,10 +79,12 @@ mv ~/.claude/settings.json.new ~/.claude/settings.json
 - Git commits and pushes (requires explicit user request)
 
 **Hooks**:
+
 - **PreToolUse (Skill)**: Runs parallel agent pre-analysis (180s timeout)
 - **PostToolUse (Bash)**: Post-execution validation (10s timeout)
 
 **Project-Specific Customization**:
+
 ```bash
 # Start with low-risk template
 cp templates/settings-low-risk.json my-project-settings.json
@@ -103,6 +109,7 @@ Pre-configured permission sets for common project types:
 - **python-monorepo.json**: Python monorepo with Poetry, tox, submodules
 
 **Usage**:
+
 ```bash
 # Apply permission template
 jq -s '.[0] * .[1]' \
@@ -120,16 +127,19 @@ jq -s '.[0] * .[1]' \
 **Purpose**: Create multi-agent workflows that coordinate sub-agents, parallel tools, and complex validation.
 
 **When to use**:
+
 - Multi-service architectures (microservices, monorepos)
 - Complex workflows requiring multiple validation phases
 - Projects needing sub-agent delegation
 
 **How to use**:
+
 1. Copy `orchestration_prompt.md` to your project's `.claude/headless_prompt.md`
 2. Replace all `[PLACEHOLDERS]` with your project specifics
 3. Test with a simple multi-component change
 
 **Example projects**:
+
 - Microservices with event-driven communication
 - Monorepos with shared libraries
 - Multi-language codebases
@@ -147,11 +157,13 @@ Auto-trigger skills activate when Claude detects specific code patterns, providi
 **File**: `skills/api-security-guard/SKILL.md`
 
 **Triggers on**:
+
 - HTTP endpoint modifications (Express, Django, FastAPI, Flask, Go, Rails)
 - Request handler changes
 - Authentication/authorization middleware
 
 **Validates**:
+
 - Input validation (schemas, sanitization)
 - Authentication (JWT, sessions)
 - Authorization (IDOR prevention, ownership checks)
@@ -160,6 +172,7 @@ Auto-trigger skills activate when Claude detects specific code patterns, providi
 - SQL injection protection (parameterized queries)
 
 **How to use**:
+
 1. Copy `skills/api-security-guard/` to `.claude/skills/`
 2. Customize trigger patterns for your framework
 3. Add to `.claude/skills/` directory in your project
@@ -169,10 +182,12 @@ Auto-trigger skills activate when Claude detects specific code patterns, providi
 **File**: `skills/database-migration-guard/SKILL.md`
 
 **Triggers on**:
+
 - Database migration files (Django, Rails, Alembic, Sequelize, etc.)
 - Model/schema changes
 
 **Validates**:
+
 - Breaking vs non-breaking changes
 - Backwards compatibility
 - Data migration strategy
@@ -181,6 +196,7 @@ Auto-trigger skills activate when Claude detects specific code patterns, providi
 - Rollback strategy
 
 **How to use**:
+
 1. Copy `skills/database-migration-guard/` to `.claude/skills/`
 2. Adjust `large_table_threshold` in config
 3. Add framework-specific patterns if needed
@@ -198,6 +214,7 @@ Project-specific validation rules that extend the base `~/.claude/config/validat
 **File**: `validation-overrides/django-security.yml`
 
 **Tier 1 (Critical) Checks**:
+
 - CSRF protection enabled
 - No raw SQL with string interpolation
 - Template output auto-escaped
@@ -205,6 +222,7 @@ Project-specific validation rules that extend the base `~/.claude/config/validat
 - DEBUG=False in production
 
 **Tier 2 (Quality) Checks**:
+
 - Model field validators
 - Permission decorators on views
 - Reversible migrations
@@ -212,6 +230,7 @@ Project-specific validation rules that extend the base `~/.claude/config/validat
 - Test coverage
 
 **How to use**:
+
 1. Copy to your project: `.claude/config/validation_overrides.yml`
 2. Customize checks for your needs
 3. Reference in your project's CLAUDE.md
@@ -221,6 +240,7 @@ Project-specific validation rules that extend the base `~/.claude/config/validat
 **File**: `validation-overrides/express-security.yml`
 
 **Tier 1 (Critical) Checks**:
+
 - Input validation (Joi, Zod)
 - SQL injection prevention
 - Authentication middleware
@@ -228,6 +248,7 @@ Project-specific validation rules that extend the base `~/.claude/config/validat
 - Rate limiting on auth endpoints
 
 **Tier 2 (Quality) Checks**:
+
 - Error handling middleware
 - Async error handling
 - CORS configuration
@@ -235,10 +256,12 @@ Project-specific validation rules that extend the base `~/.claude/config/validat
 - Logging
 
 **TypeScript-specific**:
+
 - Strict mode enabled
 - Request/Response typing
 
 **How to use**:
+
 1. Copy to `.claude/config/validation_overrides.yml`
 2. Enable/disable checks as needed
 3. Add exemptions for test files, migrations, etc.
@@ -251,6 +274,7 @@ Project-specific validation rules that extend the base `~/.claude/config/validat
 
 1. Create directory: `.claude/skills/your-skill-name/`
 2. Create `SKILL.md` with frontmatter:
+
    ```markdown
    ---
    name: your-skill-name
@@ -259,6 +283,7 @@ Project-specific validation rules that extend the base `~/.claude/config/validat
      Validates [WHAT] without blocking user flow.
    ---
    ```
+
 3. Define trigger patterns (file paths, code patterns)
 4. Define validation checks
 5. Test by modifying matching files
@@ -269,7 +294,7 @@ Project-specific validation rules that extend the base `~/.claude/config/validat
 2. Define `project_tier1` (critical) and `project_tier2` (quality) checks
 3. Use patterns (regex) to detect issues
 4. Add exemptions for test files, generated code, etc.
-5. Test with `/refactor` or `--validate` flag
+5. Test with `/refactor-python` or `--validate` flag
 
 ---
 
@@ -296,6 +321,7 @@ These templates integrate with Manifest's core features:
 ### Command System
 
 Use in custom commands:
+
 ```markdown
 ## Phase 3: Validation
 
@@ -303,7 +329,8 @@ Run validation with overrides:
 ```bash
 ~/.claude/scripts/parallel_agent.sh --validate --review $CHANGED_FILE
 ```
-```
+
+```text
 
 ---
 

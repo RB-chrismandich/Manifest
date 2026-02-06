@@ -6,7 +6,8 @@ argument-hint: [docs-directory]
 
 # Documentation Improvement Command
 
-Analyze and improve project documentation in the `docs/` directory following documentation best practices and the Diataxis framework.
+Analyze and improve project documentation in the `docs/` directory following
+documentation best practices and the Diataxis framework.
 
 ## Parallel Agent Integration
 
@@ -39,6 +40,7 @@ Organize documentation into four quadrants based on user needs:
 ### Step 1: Gather Documentation Inventory
 
 Read all documentation files:
+
 - Core documentation: README.md, AGENTS.md, CONTRIBUTING.md, CHANGELOG.md
 - Docs directory: Glob docs/**/*.md
 - Config documentation: config/README.md
@@ -64,6 +66,7 @@ Read all documentation files:
 For each document, check:
 
 **Structure Quality**:
+
 - [ ] Clear title and one-line description
 - [ ] Table of contents (if > 100 lines)
 - [ ] Consistent heading hierarchy (H2 for sections, H3 for subsections)
@@ -71,6 +74,7 @@ For each document, check:
 - [ ] "Related Documents" section
 
 **Content Quality**:
+
 - [ ] Defines target audience
 - [ ] States prerequisites
 - [ ] Provides working code examples
@@ -78,12 +82,14 @@ For each document, check:
 - [ ] Progressive disclosure (overview → details)
 
 **Formatting Quality**:
+
 - [ ] Code blocks have language specified (`yaml`, `python`, `bash`)
 - [ ] Tables are properly aligned
 - [ ] Links use relative paths
 - [ ] Consistent emoji/icon usage
 
 **Cross-Reference Validation**:
+
 - [ ] All internal links resolve
 - [ ] Bidirectional links where appropriate
 - [ ] No orphan documents (not linked from anywhere)
@@ -139,6 +145,7 @@ Score documentation on a 100-point scale:
 ```
 
 **For Existing Documents** - Apply improvements:
+
 - Add missing sections (overview, prerequisites, related docs)
 - Fix broken links
 - Add "Last Updated" dates
@@ -148,6 +155,7 @@ Score documentation on a 100-point scale:
 ### Step 6: Create Documentation Index
 
 If `docs/README.md` doesn't exist, create it with:
+
 - Quick Links to most important docs
 - Documentation by Audience sections
 - All Documents table with descriptions and dates
@@ -158,7 +166,7 @@ Provide your analysis and improvements as:
 
 ### 1. Documentation Health Report
 
-```
+```text
 ## Documentation Health Score: XX/100
 
 ### Score Breakdown
@@ -187,7 +195,7 @@ For each document that needs creation or significant updates, provide the full c
 
 ### 3. Validation Summary
 
-```
+```text
 ## Validation Results
 
 ### Broken Links

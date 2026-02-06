@@ -2,9 +2,11 @@
 
 > Template for creating multi-agent orchestration workflows with Claude Code
 
-**Purpose**: This template helps you create orchestration prompts that coordinate multiple sub-agents, parallel tools, and complex workflows.
+**Purpose**: This template helps you create orchestration prompts that coordinate multiple
+sub-agents, parallel tools, and complex workflows.
 
 **When to use**: For projects with:
+
 - Multiple services/modules requiring coordination
 - Complex multi-step workflows
 - Need for parallel agent validation
@@ -40,8 +42,10 @@ Process [WHAT] into [DESIRED OUTCOME]. You act as the Orchestrator, coordinating
 
 ### Data Flow
 
-```
+```text
+
 [ASCII diagram or description of how data flows through the system]
+
 ```
 
 ### Key Constraints
@@ -58,10 +62,12 @@ Process [WHAT] into [DESIRED OUTCOME]. You act as the Orchestrator, coordinating
 
 1. [First analysis step]
 2. [Run parallel agents if needed]:
+
    ```bash
    ~/.claude/scripts/parallel_agent.sh --json --timeout 600 \
      --analyze "[ANALYSIS TASK]"
    ```
+
 3. [Break down into subtasks]
 
 ### Step 2: Implementation (Sub-Agent Delegation)
@@ -91,10 +97,12 @@ Once all sub-agents have completed:
 Once all tests pass:
 
 1. Run parallel agent validation on each modified file:
+
    ```bash
    ~/.claude/scripts/parallel_agent.sh --json --validate --timeout 600 \
      --review /absolute/path/to/modified_file
    ```
+
 2. Evaluate consensus:
    - **>= 80%**: High confidence — proceed
    - **50-79%**: Medium confidence — flag disagreements
@@ -141,7 +149,8 @@ When changes span multiple components, follow this checklist:
 ## Current Task
 
 [Prompt for user to provide input]
-```
+
+```text
 
 ---
 

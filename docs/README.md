@@ -91,6 +91,7 @@ All documentation in this repository follows these conventions:
 ### Required Elements
 
 Every user-facing document MUST include:
+
 - **Title** (H1): Clear, descriptive name
 - **Tagline**: One-line description in blockquote
 - **Last Updated**: Date in YYYY-MM-DD format
@@ -127,6 +128,7 @@ services:
 ### By Task
 
 **I want to...**
+
 - **Get started with Manifest** → [Getting Started](GETTING_STARTED.md)
 - **Configure agent behavior** → [Configuration](CONFIGURATION.md)
 - **Understand the architecture** → [Architecture Diagrams](ARCHITECTURE_DIAGRAMS.md)
@@ -137,6 +139,7 @@ services:
 ### By Role
 
 **I am a...**
+
 - **First-time user** → Start with [README](../README.md), then [Getting Started](GETTING_STARTED.md)
 - **System operator** → Read [Configuration](CONFIGURATION.md) and [Troubleshooting](TROUBLESHOOTING.md)
 - **Developer** → Review [Architecture Diagrams](ARCHITECTURE_DIAGRAMS.md) and [CLAUDE.md](../CLAUDE.md)
@@ -150,11 +153,13 @@ services:
 **Current Score**: 52/100
 
 **Areas for Improvement**:
+
 - ⚠️ Missing "Last Updated" dates on 50% of core docs
 - ⚠️ Limited cross-referencing between documents
 - ⚠️ No CONTRIBUTING.md or CHANGELOG.md yet
 
 **Recent Additions**:
+
 - ✅ 2026-01-27: Added README.md
 - ✅ 2026-01-27: Added GETTING_STARTED.md
 - ✅ 2026-01-27: Added CONFIGURATION.md

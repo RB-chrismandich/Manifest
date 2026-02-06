@@ -2,7 +2,8 @@
 
 Validate the proposed code changes against tiered criteria.
 
-## Code to Validate:
+## Code to Validate
+
 {CODE_OR_DIFF}
 
 ## Tier 1 Criteria (Critical - All must pass)
@@ -16,7 +17,8 @@ These are blocking criteria. Any failure requires resolution before proceeding.
 | Error Handling | 0.20 | Graceful failures, no silent errors, safe error messages |
 | Breaking Changes | 0.20 | API compatibility maintained, migrations provided |
 
-### Security Checklist:
+### Security Checklist
+
 - [ ] No hardcoded secrets, API keys, or credentials
 - [ ] Input validation present for user-supplied data
 - [ ] No SQL injection vulnerabilities (parameterized queries used)
@@ -25,13 +27,15 @@ These are blocking criteria. Any failure requires resolution before proceeding.
 - [ ] Authentication/authorization checks in place
 - [ ] Sensitive data not logged or exposed in errors
 
-### Error Handling Checklist:
+### Error Handling Checklist
+
 - [ ] Exceptions properly caught and handled
 - [ ] No silent failures that hide problems
 - [ ] Error messages don't leak internal details
 - [ ] Resources properly cleaned up on failure
 
-### Breaking Changes Checklist:
+### Breaking Changes Checklist
+
 - [ ] Public API signatures unchanged (or properly versioned)
 - [ ] Database migrations provided for schema changes
 - [ ] Deprecation warnings added for removed features
@@ -48,7 +52,7 @@ These are quality criteria. Issues should be noted but are not blocking.
 | Maintainability | 0.25 | Clear naming, reasonable complexity, good structure |
 | Test Coverage | 0.25 | Changes have corresponding tests |
 
-## Output Format:
+## Output Format
 
 ```json
 {
@@ -83,7 +87,8 @@ These are quality criteria. Issues should be noted but are not blocking.
 }
 ```
 
-## Verdict Guide:
+## Verdict Guide
+
 - **APPROVED**: All Tier 1 checks pass, Tier 2 score >= 0.60
 - **NEEDS_REVIEW**: All Tier 1 checks pass, Tier 2 score < 0.60
 - **BLOCKED**: Any Tier 1 check fails

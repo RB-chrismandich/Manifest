@@ -40,6 +40,7 @@ cp templates/permissions/python-monorepo.json .claude/settings.local.json
 ### 2. Review and Customize
 
 Open `.claude/settings.local.json` and:
+
 - Remove permissions you don't need
 - Add project-specific commands
 - Update WebFetch domains for your docs
@@ -78,6 +79,7 @@ Commands in the `allow` array can be executed:
 **Format**: `Tool(command:pattern)`
 
 **Wildcards**:
+
 - `*` - Matches anything
 - `pytest:*` - Allows all pytest commands
 - `git status:*` - Allows git status with any arguments
@@ -107,6 +109,7 @@ Commands in the `deny` array are explicitly blocked:
 ### Django Web App
 
 ✅ **Allowed**:
+
 - Testing: `pytest`, `coverage`, `ruff`, `mypy`
 - Django commands: `manage.py test`, `makemigrations`, `migrate`, `runserver`
 - Docker: `docker compose` (local development)
@@ -115,6 +118,7 @@ Commands in the `deny` array are explicitly blocked:
 - Pre-commit hooks
 
 ❌ **Blocked**:
+
 - `pip install` (use virtual env manually)
 - `django-admin` (too powerful)
 - `manage.py createsuperuser` (admin account creation)
@@ -125,6 +129,7 @@ Commands in the `deny` array are explicitly blocked:
 ### Express.js API
 
 ✅ **Allowed**:
+
 - Testing: `npm test`, `jest`, `vitest`, `mocha`
 - Linting: `eslint`, `prettier`, `tsc`
 - Development: `npm run dev`, `npm run build`
@@ -134,6 +139,7 @@ Commands in the `deny` array are explicitly blocked:
 - GitHub: Create PRs/issues
 
 ❌ **Blocked**:
+
 - `npm install` (use `npm ci` or allow explicitly)
 - `npm publish` (package publishing)
 - Database drops: `sequelize db:drop`, `prisma db reset`
@@ -144,6 +150,7 @@ Commands in the `deny` array are explicitly blocked:
 ### Go Microservices
 
 ✅ **Allowed**:
+
 - Testing: `go test`, `go vet`, `golangci-lint`
 - Build: `go build`, `go run`, `go mod`
 - Protobuf: `buf`, `protoc`
@@ -154,6 +161,7 @@ Commands in the `deny` array are explicitly blocked:
 - GitHub: Create PRs/issues
 
 ❌ **Blocked**:
+
 - `go mod tidy` (dependency updates)
 - Database operations: `migrate down`, `migrate drop`
 - Kubernetes write: `apply`, `delete`, `scale`, `exec`
@@ -164,6 +172,7 @@ Commands in the `deny` array are explicitly blocked:
 ### Python Monorepo
 
 ✅ **Allowed**:
+
 - Testing: `pytest`, `coverage`, `ruff`, `mypy`, `black`
 - Poetry: `poetry show`, `poetry run`, `poetry shell`
 - Docker: `docker compose`
@@ -173,6 +182,7 @@ Commands in the `deny` array are explicitly blocked:
 - Pre-commit hooks
 
 ❌ **Blocked**:
+
 - `pip install` (use virtual env)
 - `poetry install`, `poetry add` (dependency management)
 - `poetry publish` (package publishing)
@@ -248,6 +258,7 @@ For CI/CD environments, create a separate preset:
 **Principle**: Nothing is allowed unless explicitly permitted.
 
 **Implementation**:
+
 - Start with a restrictive preset
 - Add permissions as needed
 - Remove unnecessary permissions
@@ -255,11 +266,13 @@ For CI/CD environments, create a separate preset:
 ### 2. Separate Development and Production
 
 **Development** (`.claude/settings.local.json`):
+
 - Allow testing, linting, local docker
 - Block deployments, cloud operations
 - Block dangerous database operations
 
 **CI/CD** (separate preset):
+
 - Allow package installation
 - Allow docker push
 - Allow deployment commands
@@ -286,6 +299,7 @@ For CI/CD environments, create a separate preset:
 ### 5. Version Control
 
 **Commit** `.claude/settings.local.json` to your repository:
+
 - Team uses same permissions
 - Changes are reviewed in PRs
 - History of permission changes tracked
@@ -338,6 +352,7 @@ jq '.permissions.allow | length' .claude/settings.local.json
 **Cause**: Pattern doesn't match exactly
 
 **Solution**:
+
 ```json
 // Check exact command being run
 // If running: pytest --cov --cov-report=html
@@ -352,6 +367,7 @@ jq '.permissions.allow | length' .claude/settings.local.json
 **Cause**: May need a broader pattern or reconsider workflow
 
 **Solution**:
+
 ```json
 // Instead of:
 "Bash(pytest tests/unit:*)",
@@ -367,6 +383,7 @@ jq '.permissions.allow | length' .claude/settings.local.json
 **Symptom**: Don't know what to allow
 
 **Solution**:
+
 1. Start with a preset
 2. Try your workflow
 3. Check Claude Code logs for blocked commands
@@ -486,6 +503,7 @@ To contribute a new preset:
 5. Submit PR
 
 **Naming convention**: `[framework]-[type].json`
+
 - `django-web-app.json`
 - `rails-api.json`
 - `spring-boot-service.json`

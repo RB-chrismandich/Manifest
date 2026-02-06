@@ -25,12 +25,14 @@
 ### Bootstrap Fails with "Permission denied"
 
 **Symptom:**
+
 ```bash
 ./bootstrap.sh
 -bash: ./bootstrap.sh: Permission denied
 ```
 
 **Solution:**
+
 ```bash
 chmod +x bootstrap.sh
 ./bootstrap.sh
@@ -43,7 +45,8 @@ chmod +x bootstrap.sh
 ### Homebrew Installation Fails (macOS)
 
 **Symptom:**
-```
+
+```text
 Error: Homebrew installation failed
 ```
 
@@ -64,7 +67,8 @@ Error: Homebrew installation failed
 ### npm Install Fails
 
 **Symptom:**
-```
+
+```text
 npm ERR! code EACCES
 npm ERR! syscall access
 npm ERR! path /usr/local/lib/node_modules
@@ -93,7 +97,8 @@ npm install -g @google/gemini-cli
 ### Node.js Not Found (Linux)
 
 **Symptom:**
-```
+
+```text
 Error: Node.js not found
 ```
 
@@ -122,6 +127,7 @@ npm --version
 ### Agent Status: "missing"
 
 **Symptom:**
+
 ```json
 {
   "agents": {
@@ -152,6 +158,7 @@ gemini --version
 ### Agent Status: "failed"
 
 **Symptom:**
+
 ```json
 {
   "agents": {
@@ -161,6 +168,7 @@ gemini --version
 ```
 
 **Causes:**
+
 1. **Authentication failure** → See [Authentication Issues](#authentication-issues)
 2. **Quota exceeded** → Wait or use cheaper models
 3. **Timeout** → Increase timeout with `--timeout 900`
@@ -187,7 +195,8 @@ gemini auth status
 ### All Agents Disabled
 
 **Symptom:**
-```
+
+```text
 Warning: Only 0 services enabled (minimum: 2)
 Error: No agents available to run
 ```
@@ -241,7 +250,8 @@ cat ~/.claude/config/services.yml
 ### Claude CLI: "Not authenticated"
 
 **Symptom:**
-```
+
+```text
 Error: You are not authenticated. Run 'claude auth login'
 ```
 
@@ -258,7 +268,8 @@ claude auth status
 ```
 
 **Get API Key:**
-1. Visit: https://console.anthropic.com/account/keys
+
+1. Visit: <https://console.anthropic.com/account/keys>
 2. Create new API key
 3. Copy key for `claude auth login`
 
@@ -267,7 +278,8 @@ claude auth status
 ### Gemini CLI: "Authentication failed"
 
 **Symptom:**
-```
+
+```text
 Error: Invalid API key
 ```
 
@@ -282,7 +294,8 @@ gemini auth status
 ```
 
 **Get API Key:**
-1. Visit: https://makersuite.google.com/app/apikey
+
+1. Visit: <https://makersuite.google.com/app/apikey>
 2. Create new API key
 3. Copy key for `gemini auth login`
 
@@ -291,15 +304,18 @@ gemini auth status
 ### Cursor: "Command not found"
 
 **Symptom:**
+
 ```bash
 cursor: command not found
 ```
 
 **Solution:**
 
-Cursor is a desktop application, not a CLI tool. The Manifest integration expects Cursor to be installed but doesn't directly invoke it via command line in the current implementation.
+Cursor is a desktop application, not a CLI tool. The Manifest integration expects Cursor
+to be installed but doesn't directly invoke it via command line in the current implementation.
 
 **Workaround:**
+
 ```bash
 # Disable Cursor in configuration
 ./bootstrap.sh --reconfigure --disable-cursor
@@ -308,7 +324,8 @@ Cursor is a desktop application, not a CLI tool. The Manifest integration expect
 ~/.claude/scripts/parallel_agent.sh --no-claude "Task"
 ```
 
-**Note:** Cursor integration may be implemented differently in your environment. Check your specific Cursor setup for command-line access.
+**Note:** Cursor integration may be implemented differently in your environment.
+Check your specific Cursor setup for command-line access.
 
 ---
 
@@ -317,7 +334,8 @@ Cursor is a desktop application, not a CLI tool. The Manifest integration expect
 ### services.yml Not Found
 
 **Symptom:**
-```
+
+```text
 Warning: No services config, use defaults (all enabled)
 ```
 
@@ -336,7 +354,8 @@ cp -r .claude/* ~/.claude/
 ### Invalid YAML Syntax
 
 **Symptom:**
-```
+
+```text
 Error: YAML parsing failed
 ```
 
@@ -384,7 +403,8 @@ cat ~/.claude/config/services.yml
 ### Agents Timeout
 
 **Symptom:**
-```
+
+```text
 Error: Agent timed out after 600 seconds
 ```
 
@@ -524,6 +544,7 @@ Run the automated health check to see your system status:
 ```
 
 This checks:
+
 - Configuration file existence and validity
 - Enabled/disabled services
 - CLI tool installations
@@ -625,6 +646,7 @@ curl -I https://registry.npmjs.org
 ### Still Having Issues?
 
 1. **Check service status:**
+
    ```bash
    cat ~/.claude/config/services.yml
    claude auth status
@@ -632,12 +654,13 @@ curl -I https://registry.npmjs.org
    ```
 
 2. **Run with verbose output:**
+
    ```bash
    ~/.claude/scripts/parallel_agent.sh --json --full-output "Test" 2>&1 | tee debug.log
    ```
 
 3. **Check GitHub Issues:**
-   - Search existing issues: https://github.com/ReefBytes/Manifest/issues
+   - Search existing issues: <https://github.com/ReefBytes/Manifest/issues>
    - Create new issue with debug.log
 
 4. **Review documentation:**
