@@ -47,6 +47,33 @@ MAGENTA='\033[0;35m'
 BOLD='\033[1m'
 NC='\033[0m' # No Color
 
+# Global array to track background process IDs
+pids=()
+
+# Cleanup function to restore cursor and kill background processes
+cleanup() {
+    local exit_code=$?
+
+    # Restore cursor
+    if command -v tput &> /dev/null; then
+        tput cnorm 2> /dev/null || true
+    fi
+
+    # Kill background processes if they exist
+    if [[ -n "${pids[*]}" ]]; then
+        for pid in "${pids[@]}"; do
+            if kill -0 "$pid" 2> /dev/null; then
+                kill "$pid" 2> /dev/null || true
+            fi
+        done
+    fi
+
+    exit "$exit_code"
+}
+
+# Trap exit to ensure cleanup
+trap cleanup EXIT
+
 # Draw a progress bar
 draw_bar() {
     local percentage="$1"
@@ -979,9 +1006,6 @@ monitor_agents() {
         has_ps=true
     fi
 
-    # UX: Ensure cursor is restored if script is interrupted
-    trap 'tput cnorm 2>/dev/null || true' EXIT
-
     # Hide cursor
     if $has_tput; then
         tput civis 2> /dev/null || true
@@ -998,9 +1022,11 @@ monitor_agents() {
     local agent_states=()
     for i in "${!pids[@]}"; do agent_states[i]="running"; done
 
+    local loop_count=0
     while $running; do
         running=false
         local status_line=""
+        loop_count=$((loop_count + 1))
 
         # Calculate elapsed time
         local current_time
@@ -1043,16 +1069,19 @@ monitor_agents() {
                             is_alive=false
                         fi
                     elif $has_ps; then
-                        local ps_state
-                        ps_state=$(ps -o state= -p "$pid" 2> /dev/null || true)
-                        if [[ "$ps_state" == *"Z"* ]]; then
-                            is_alive=false
+                        # Fallback (e.g. macOS): throttle ps to every 10th iteration (~1s)
+                        if ((loop_count % 10 == 0)); then
+                            local ps_state
+                            ps_state=$(ps -o state= -p "$pid" 2> /dev/null || true)
+                            if [[ "$ps_state" == *"Z"* ]]; then
+                                is_alive=false
+                            fi
                         fi
                     fi
                 fi
 
                 if $is_alive; then
-                    status_line="$status_line $display_name [${spin_char}]"
+                    status_line="$status_line $display_name [${CYAN}${spin_char}${NC}]"
                     running=true
                 else
                     # Process finished
@@ -1188,6 +1217,7 @@ main() {
     fi
 
     # Run agents in parallel using background processes
+    # pids array is defined globally for cleanup trap
     pids=()
     agent_names=()
 
