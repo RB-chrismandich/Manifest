@@ -12,17 +12,20 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository Purpose
 
-This repository manages Claude Code agent configurations for deployment to `~/.claude/` on target machines. It contains orchestration guides, commands, skills, prompts, and scripts that enable parallel LLM agent coordination (Cursor, Gemini CLI, Claude CLI).
+This repository manages Claude Code agent configurations for deployment to `~/.claude/`
+on target machines. It contains orchestration guides, commands, skills, prompts, and scripts
+that enable parallel LLM agent coordination (Cursor, Gemini CLI, Claude CLI).
 
 ## Repository Structure
 
-```
+```text
 .claude/
 ├── CLAUDE.md                    # Orchestration guide (deployed to ~/.claude/)
 ├── commands/                    # User-invokable slash commands
 ├── skills/code-quality/         # Auto-triggered code quality skill
 ├── prompts/                     # Agent orchestration prompt templates
 ├── config/                      # YAML configuration files
+├── .plans/                      # Plan management (template, archive, abandoned)
 └── scripts/parallel_agent.sh    # Main parallel agent orchestration script
 bootstrap.sh                     # macOS bootstrap script
 ```
@@ -32,10 +35,12 @@ bootstrap.sh                     # macOS bootstrap script
 The `bootstrap.sh` script automates installation, deployment, and authentication.
 
 **Supported platforms:**
+
 - macOS (Intel and Apple Silicon)
 - Linux (Debian/Ubuntu, RHEL/Fedora, Arch, openSUSE)
 
 ### Quick Start
+
 ```bash
 # Full setup with all services
 ./bootstrap.sh
@@ -49,6 +54,7 @@ The `bootstrap.sh` script automates installation, deployment, and authentication
 ```
 
 ### Service Toggles
+
 ```bash
 --enable-claude / --disable-claude   # Claude CLI (default: enabled)
 --enable-gemini / --disable-gemini   # Gemini CLI (default: enabled)
@@ -56,6 +62,7 @@ The `bootstrap.sh` script automates installation, deployment, and authentication
 ```
 
 ### Other Options
+
 ```bash
 --skip-install    # Skip CLI tool installation
 --skip-auth       # Skip authentication setup
@@ -64,6 +71,7 @@ The `bootstrap.sh` script automates installation, deployment, and authentication
 ```
 
 ### Reconfigure Services
+
 ```bash
 # Change which services are enabled after initial setup
 ./bootstrap.sh --reconfigure --disable-cursor
@@ -71,6 +79,7 @@ The `bootstrap.sh` script automates installation, deployment, and authentication
 ```
 
 The bootstrap script:
+
 1. Checks for and installs Homebrew (if needed)
 2. Installs Node.js (required for npm-based CLIs)
 3. Installs enabled CLI tools (Claude, Gemini)
@@ -82,15 +91,17 @@ The bootstrap script:
 ## Manual Deployment
 
 If not using bootstrap.sh, copy the `.claude/` directory manually:
+
 ```bash
 cp -r .claude/* ~/.claude/
 chmod +x ~/.claude/scripts/*.sh
 ```
 
 Required CLI tools (install those you want to use):
+
 - `claude` - `npm install -g @anthropic-ai/claude-code`
 - `gemini` - `npm install -g @google/gemini-cli`
-- `cursor` - Download from https://cursor.sh
+- `cursor` - Download from <https://cursor.sh>
 
 ## Key Files
 
@@ -113,10 +124,12 @@ The following slash commands are available in Claude Code:
 | `/generate-diagrams` | Generate Mermaid architecture diagrams | CONDITIONAL (5+ modules) |
 | `/improve-docs` | Diataxis documentation framework analysis | CONDITIONAL (>500 lines) |
 | `/improve-readme` | Improve README documentation | NO |
+| `/plan-manage` | Plan lifecycle housekeeping: list, create, review, archive, abandon | NO |
 
 ## Testing Changes
 
 Test the parallel agent script locally:
+
 ```bash
 # Test with all agents
 .claude/scripts/parallel_agent.sh --json "Test prompt"
@@ -129,6 +142,7 @@ Test the parallel agent script locally:
 ```
 
 Validate YAML configuration syntax:
+
 ```bash
 python3 -c "import yaml; yaml.safe_load(open('.claude/config/command_config.yml'))"
 python3 -c "import yaml; yaml.safe_load(open('.claude/config/validation_criteria.yml'))"
@@ -142,18 +156,29 @@ python3 -c "import yaml; yaml.safe_load(open('.claude/config/validation_criteria
 
 Commands are invoked as `/my-command` in Claude Code.
 
+## Plan Management
+
+Implementation plans are tracked in `.claude/.plans/` as date-prefixed markdown files
+(`YYYYMMDD-description.md`). Plans follow a lifecycle:
+CREATE -> ACTIVE -> COMPLETED (`.archive/`) or ABANDONED (`.abandoned/`).
+See `.claude/.plans/README.md` for naming conventions and rules.
+Use `/plan-manage` to list, create, review, archive, or abandon plans.
+
 ## Configuration Reference
 
 **Consensus thresholds** (in `command_config.yml`):
+
 - `>=80%`: High confidence - auto-proceed
 - `50-79%`: Medium confidence - highlight disagreements
 - `<50%`: Low confidence - escalate for human review
 
 **Validation tiers** (in `validation_criteria.yml`):
+
 - Tier 1 (blocking): Security, error handling, breaking changes, cross-verification
 - Tier 2 (advisory): Bug detection, performance, maintainability, test coverage
 
 **Verdicts**:
+
 - `APPROVED`: Tier 1 passes, Tier 2 score >= 0.60
 - `NEEDS_REVIEW`: Tier 1 passes, Tier 2 score < 0.60
 - `BLOCKED`: Any Tier 1 check fails
@@ -168,4 +193,5 @@ Commands are invoked as `/my-command` in Claude Code.
 - [docs/CONFIGURATION.md](docs/CONFIGURATION.md) - Complete configuration reference
 - [docs/ARCHITECTURE_DIAGRAMS.md](docs/ARCHITECTURE_DIAGRAMS.md) - Visual system documentation
 - [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) - Common problems and solutions
+- [.claude/.plans/README.md](.claude/.plans/README.md) - Plan management quick reference
 - [.claude/CLAUDE.md](.claude/CLAUDE.md) - Orchestration guide (deployed to ~/.claude/)
