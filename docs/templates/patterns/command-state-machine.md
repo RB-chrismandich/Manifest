@@ -12,6 +12,7 @@
 ## Overview
 
 The **Command State Machine Pattern** structures complex commands as explicit state machines with:
+
 - **Phases**: Sequential stages with clear boundaries
 - **Validation Gates**: Each phase must succeed before next begins
 - **Error Recovery**: Automatic retry with backoff
@@ -57,12 +58,14 @@ The **Command State Machine Pattern** structures complex commands as explicit st
 ### 1. Phase Definition
 
 Each phase has:
+
 - **Name**: Clear, action-oriented (e.g., "Run Tests")
 - **Success Criteria**: How to know phase passed
 - **On Failure**: What to do if phase fails
 - **Retry Policy**: Whether/how to retry
 
 **Template**:
+
 ```markdown
 ## Command Phases
 
@@ -88,6 +91,7 @@ Execute these phases **in order**. Each phase must succeed before proceeding to 
 ### Phase 2: [Next Phase]
 
 [...]
+
 ```
 
 ---
@@ -103,6 +107,7 @@ Execute these phases **in order**. Each phase must succeed before proceeding to 
 ```
 
 **Implementation Pattern**:
+
 ```bash
 for attempt in {1..3}; do
   if run_phase_2; then
@@ -129,6 +134,7 @@ done
 ```
 
 **Implementation Pattern**:
+
 ```bash
 if ! run_phase; then
   if [[ "$error_type" == "network" ]]; then
@@ -156,6 +162,7 @@ fi
 ```
 
 **Implementation Pattern** (using AskUserQuestion):
+
 ```markdown
 Use AskUserQuestion tool:
 - Question: "Phase 2 failed with error: $ERROR. What would you like to do?"
@@ -177,6 +184,7 @@ Use AskUserQuestion tool:
 ```
 
 **Implementation Pattern**:
+
 ```bash
 # Save state before phase
 save_state "pre_phase_2"
@@ -297,6 +305,7 @@ At the end of command execution, provide a summary table:
 ```
 
 **Status Icons**:
+
 - ✅ pass - Phase succeeded
 - ❌ fail - Phase failed (after retries)
 - ⚠️ warn - Phase succeeded with warnings
@@ -310,6 +319,7 @@ At the end of command execution, provide a summary table:
 See: `templates/commands/full-deployment-pipeline.md`
 
 5-phase deployment command demonstrating:
+
 - Sequential phases with dependencies
 - Retry logic (2x per phase)
 - Rollback on failure
@@ -323,6 +333,7 @@ See: `templates/commands/full-deployment-pipeline.md`
 When building a state machine command:
 
 ### Design Phase
+
 - [ ] Identify all phases (typically 3-7 phases)
 - [ ] Define dependencies (which phases depend on others)
 - [ ] Choose error recovery strategy per phase
@@ -330,6 +341,7 @@ When building a state machine command:
 - [ ] Decide retry limits
 
 ### Implementation Phase
+
 - [ ] Document phase order at top of command
 - [ ] Implement each phase with clear boundaries
 - [ ] Add retry logic where appropriate
@@ -337,6 +349,7 @@ When building a state machine command:
 - [ ] Track phase status in variables
 
 ### Testing Phase
+
 - [ ] Test happy path (all phases pass)
 - [ ] Test failure recovery (force each phase to fail)
 - [ ] Test retry exhaustion (max retries reached)
@@ -460,18 +473,21 @@ fi
 ### 1. Keep Phases Focused
 
 Each phase should have **one clear responsibility**:
+
 - ✅ Good: "Run unit tests"
 - ❌ Bad: "Run tests and deploy if they pass"
 
 ### 2. Make Phases Idempotent
 
 Phases should be safe to retry:
+
 - ✅ Good: `mkdir -p temp/` (succeeds even if exists)
 - ❌ Bad: `mkdir temp/` (fails if exists)
 
 ### 3. Provide Clear Feedback
 
 Users should always know what's happening:
+
 ```bash
 echo "Phase 2: Running tests..."
 pytest
@@ -481,6 +497,7 @@ echo "✅ Tests passed"
 ### 4. Document Exit Points
 
 Make it clear when/why command stops:
+
 ```markdown
 **Exit Points**:
 - Phase 2 fails after 2 retries → Exit code 2
@@ -491,6 +508,7 @@ Make it clear when/why command stops:
 ### 5. Consider Partial Success
 
 Some commands can partially succeed:
+
 ```markdown
 **Partial Success**: If Phases 1-3 pass but Phase 4 fails, the core work is done but verification failed. User should decide whether to proceed.
 ```

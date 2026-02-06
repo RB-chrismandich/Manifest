@@ -7,6 +7,7 @@ Map the complete event topology of an event-driven system: identify all event ty
 **Arguments (optional)**: $ARGUMENTS
 
 Arguments may specify:
+
 - `--event <EventName>`: Trace a specific event type
 - `--service <ServiceName>`: Trace all events published/consumed by a service
 - `--format <mermaid|json|table>`: Output format (default: mermaid)
@@ -17,11 +18,13 @@ Arguments may specify:
 ## Applicability
 
 **Use this command if your project has**:
+
 - Event-driven architecture (event bus, message queue, pub/sub)
 - Multiple services communicating via events
 - Asynchronous workflows triggered by events
 
 **Skip this command if your project uses**:
+
 - Synchronous request/response only (REST, gRPC without events)
 - Monolithic architecture with no event bus
 - Simple function calls within a single process
@@ -114,6 +117,7 @@ Glob(pattern: "[your_schema_pattern]")
 ```
 
 For each schema file found:
+
 1. Extract event names
 2. Extract event fields and types
 3. Extract event versioning information (if present)
@@ -132,6 +136,7 @@ Grep(pattern: "send.*EventName", output_mode: "files_with_matches")
 **Customize the grep patterns for your publisher patterns.**
 
 For each publisher found:
+
 1. Identify the service/component (from file path)
 2. Extract the context (what triggers the publish?)
 3. Note any conditional logic (published only under certain conditions?)
@@ -151,6 +156,7 @@ Grep(pattern: "@Subscribe.*EventName", output_mode: "files_with_matches")
 **Customize the grep patterns for your consumer patterns.**
 
 For each consumer found:
+
 1. Identify the service/component (from file path)
 2. Extract what the consumer does (side effects, database writes, downstream events)
 3. Note any error handling or retry logic
@@ -171,16 +177,19 @@ Identify cascading event patterns (Event A triggers Event B):
 Check for common issues:
 
 **Orphaned Events** (published but never consumed):
+
 - Event is published somewhere
 - No consumers found in any service
 - Possible dead code or missing consumer
 
 **Ghost Consumers** (consume events that are never published):
+
 - Consumer subscribes to EventName
 - No publishers found in any service
 - Possible typo or removed publisher
 
 **Version Mismatches** (publisher/consumer use different event versions):
+
 - Publisher uses `OrderCreated v2`
 - Consumer only handles `OrderCreated v1`
 - Possible compatibility issue
@@ -265,6 +274,7 @@ graph LR
 ````
 
 **Diagram Legend**:
+
 - **Rectangle nodes**: Services/Components
 - **Diamond nodes**: Events
 - **Solid arrows**: Publish/consume relationships
@@ -275,11 +285,13 @@ graph LR
 Output the event catalog and topology in the requested format:
 
 **Mermaid** (default):
+
 - Event catalog as markdown tables
 - Topology as Mermaid diagram
 - Can be pasted directly into GitHub/GitLab/Confluence
 
 **JSON**:
+
 ```json
 {
   "events": [
@@ -305,6 +317,7 @@ Output the event catalog and topology in the requested format:
 ```
 
 **Table** (text):
+
 - ASCII table format for terminal display
 
 ---
@@ -319,6 +332,7 @@ For complex event chains or ambiguous code patterns, use parallel agents:
 ```
 
 Use consensus to validate:
+
 - >= 80%: Confident this is a publisher/consumer
 - 50-79%: Likely but needs verification
 - < 50%: Ambiguous, flag for human review
@@ -355,6 +369,7 @@ architecture/events.md
 ```
 
 Update this file whenever:
+
 - New events are added
 - Services are added/removed
 - Event schemas change

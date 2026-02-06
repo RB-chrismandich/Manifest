@@ -79,6 +79,7 @@ Before doing anything else, run `/compact` to summarize and free up context spac
 Before planning or implementing anything, verify that the issue has been through the planning phase (`/plan-issue` or `/issue-plan`):
 
 1. Fetch the issue metadata:
+
    ```bash
    gh issue view $ARGUMENTS --json labels,body,comments -R {owner}/{repo}
    ```
@@ -123,6 +124,7 @@ Before planning or implementing anything, verify that the issue has been through
 3. **Cross-reference checklists with the plan**: Map each checklist item to the relevant task(s) in the implementation plan extracted in Step 0.5. This ensures no acceptance criteria are missed during implementation.
 4. **Validate the plan against current codebase state**: Run a quick sanity check — do the files referenced in the plan still exist? Have they changed significantly since the plan was created? If the plan references files that no longer exist or have been substantially modified, warn the user that the plan may be stale and suggest re-running `/plan-issue`.
 5. Use the **Implementation Order** from the plan to produce the per-component task breakdown. Only run a cross-component impact analysis if the plan lacks an Implementation Order section:
+
    ```bash
    ~/.claude/scripts/parallel_agent.sh --json --timeout 600 \
      --analyze "Analyze impact of: [ISSUE_SUMMARY]. Components: [AFFECTED_COMPONENTS]"
@@ -161,10 +163,12 @@ Once all sub-agents have completed their tasks:
 Once all tests pass:
 
 1. Run parallel agent validation on each modified file:
+
    ```bash
    ~/.claude/scripts/parallel_agent.sh --json --validate --timeout 600 \
      --review /absolute/path/to/modified_file
    ```
+
 2. Evaluate consensus:
    - **>= 80%**: High confidence — proceed to Step 5 with status `processed`
    - **50-79%**: Medium confidence — proceed to Step 5 with status `needs-review`, include disagreements
@@ -182,6 +186,7 @@ For each checklist item extracted in Step 1, update its checkbox to reflect the 
 - **Partially completed or blocked items**: Leave as `- [ ]` (explain in the implementation comment)
 
 **To update the issue body**:
+
 ```bash
 # Fetch current body, update checkboxes, then PATCH
 BODY=$(gh api repos/{owner}/{repo}/issues/{number} --jq '.body')
@@ -190,6 +195,7 @@ gh api repos/{owner}/{repo}/issues/{number} -X PATCH --field body="$UPDATED_BODY
 ```
 
 **To update a comment**:
+
 ```bash
 # Fetch current comment body, update checkboxes, then PATCH
 COMMENT_BODY=$(gh api repos/{owner}/{repo}/issues/comments/{comment_id} --jq '.body')
@@ -198,6 +204,7 @@ gh api repos/{owner}/{repo}/issues/comments/{comment_id} -X PATCH --field body="
 ```
 
 **Important**:
+
 - Only modify checkbox lines (`- [ ]` → `- [x]`). Do not alter any other content in the body or comment.
 - Use the comment IDs recorded in Step 1 to target the correct comments.
 - If a checklist item was only partially completed, leave it unchecked and document the gap in the implementation comment (Step 5c).
@@ -294,11 +301,13 @@ If zero actionable items are found across all four sources, skip step 5f entirel
 For each follow-up item parsed in 5e, create a new GitHub issue.
 
 1. **Ensure the `follow-up` label exists**:
+
    ```bash
    gh label create "follow-up" --description "Follow-up item from a processed issue" --color "D4C5F9" -R {owner}/{repo} 2>/dev/null || true
    ```
 
 2. **Create each follow-up issue** using the standardized template:
+
    ```bash
    gh issue create --title "Follow-up: <DERIVED_TITLE>" --label "follow-up" -R {owner}/{repo} --body "$(cat <<'EOF'
    <!-- follow-up-from: #<PARENT_NUMBER> -->
@@ -324,6 +333,7 @@ For each follow-up item parsed in 5e, create a new GitHub issue.
    - Add type labels (e.g., `bug`, `enhancement`, `test`) when clearly applicable.
 
 3. **Post a summary comment on the parent issue** listing all created follow-up issues:
+
    ```bash
    gh issue comment <PARENT_NUMBER> --body "$(cat <<'EOF'
    ### Follow-up Issues Created
@@ -359,9 +369,11 @@ gh label create "needs-review" --description "Implementation complete but requir
 If the final status is `processed` (Step 5b), commit all changes with the issue reference:
 
 1. **Check for uncommitted changes**:
+
    ```bash
    git status --porcelain
    ```
+
    - If empty, skip to 5i (nothing to commit)
    - If changes exist, proceed to commit
 
@@ -369,6 +381,7 @@ If the final status is `processed` (Step 5b), commit all changes with the issue 
    - Analyze staged/unstaged changes with `git diff --stat`
    - Review implementation summary from 5d
    - Generate a concise commit message following conventional commits format:
+
      ```
      <type>(<scope>): <description>
 
@@ -376,11 +389,13 @@ If the final status is `processed` (Step 5b), commit all changes with the issue 
 
      Fixes #<ISSUE_NUMBER>
      ```
+
    - Types: feat, fix, refactor, test, docs, chore
    - Scope: affected component(s) or area
    - Always include `Fixes #<ISSUE_NUMBER>` at the end
 
 3. **Stage and commit**:
+
    ```bash
    git add -A
    git commit --no-verify -m "$(cat <<'EOF'
@@ -388,6 +403,7 @@ If the final status is `processed` (Step 5b), commit all changes with the issue 
    EOF
    )"
    ```
+
    - Use `--no-verify` to skip pre-commit hooks (already validated in Step 3)
    - Log the commit hash for the user notification in 5i
 
@@ -400,6 +416,7 @@ If the final status is `processed` (Step 5b), commit all changes with the issue 
 #### 5i. Notify user
 
 Report the final status to the user in the chat, including:
+
 - The label applied (`processed` or `needs-review`)
 - A link to the posted comment
 - **Commit status** (if step 5h executed):
