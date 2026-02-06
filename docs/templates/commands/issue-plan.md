@@ -41,6 +41,7 @@ Document your project's architectural constraints that implementations must resp
 ```
 
 **Examples of constraints**:
+
 - Communication patterns (REST only, gRPC required, event-driven, etc.)
 - Data access rules (schema boundaries, ORM requirements)
 - Deployment order requirements (migrations before code, feature flags)
@@ -77,6 +78,7 @@ Before doing anything else, run `/compact` to summarize and free up context spac
 ### Step 0.5: HARD STOP — Planning Only
 
 **YOU MUST NOT:**
+
 - Write, create, modify, or delete any file in the repository
 - Run builds, linters, formatters, or test commands
 - Create branches or commits
@@ -84,6 +86,7 @@ Before doing anything else, run `/compact` to summarize and free up context spac
 - Generate code from schemas
 
 **YOU MAY ONLY:**
+
 - Read files (Read, Glob, Grep tools)
 - Run `gh` commands to read/write GitHub issues
 - Run `~/.claude/scripts/parallel_agent.sh` for validation
@@ -96,6 +99,7 @@ If you catch yourself about to write code or modify a file, STOP immediately. Yo
 ### Step 1: Fetch & Parse the Issue
 
 1. Fetch the issue:
+
    ```bash
    gh issue view $ARGUMENTS --json title,body,labels,state,comments -R {owner}/{repo}
    ```
@@ -151,12 +155,14 @@ If you catch yourself about to write code or modify a file, STOP immediately. Yo
 Use Task sub-agents with `subagent_type: Explore` to gather implementation context. **Never use sub-agents that write files.**
 
 For **each affected component**:
+
 1. Read its agent file (if it exists) for architecture and patterns
 2. Explore the component's directory structure
 3. Find similar existing patterns that the implementation should follow
 4. Note key files that will need modification
 
 For **cross-component changes**, also explore:
+
 - Infrastructure files (databases, message queues, etc.)
 - Shared libraries or utilities
 - Configuration files
@@ -281,6 +287,7 @@ Structure the plan using this template. Include only sections that are relevant 
 ### Step 5: Validate with Parallel Agents
 
 1. Run parallel agent validation:
+
    ```bash
    ~/.claude/scripts/parallel_agent.sh --json --full-output --validate --timeout 600 \
      "Review this implementation plan for issue #[NUMBER]: [PLAN_SUMMARY].
@@ -304,6 +311,7 @@ Structure the plan using this template. Include only sections that are relevant 
 Based on the disposition determined in Step 1:
 
 **If REPLACING the body:**
+
 ```bash
 gh issue edit $ARGUMENTS --body-file - -R {owner}/{repo} <<'PLAN_EOF'
 [FULL PLAN MARKDOWN]
@@ -311,6 +319,7 @@ PLAN_EOF
 ```
 
 **If ADDING a comment:**
+
 ```bash
 gh issue comment $ARGUMENTS --body-file - -R {owner}/{repo} <<'PLAN_EOF'
 ## Updated Implementation Plan
@@ -320,6 +329,7 @@ PLAN_EOF
 ```
 
 After posting, confirm success by re-fetching the issue:
+
 ```bash
 gh issue view $ARGUMENTS --json title,body,comments -R {owner}/{repo}
 ```
@@ -343,6 +353,7 @@ gh issue edit $ARGUMENTS --add-label "planned" -R {owner}/{repo}
 ### Step 7: STOP
 
 Report to the user:
+
 - Issue URL
 - Label applied (`planned`)
 - Affected components

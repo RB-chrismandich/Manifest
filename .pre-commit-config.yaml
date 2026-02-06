@@ -8,9 +8,9 @@ repos:
     rev: v4.5.0
     hooks:
       - id: trailing-whitespace
-        exclude: ^(\.Jules/|templates/commands/|templates/patterns/)
+        exclude: ^(\.Jules/|docs/templates/)
       - id: end-of-file-fixer
-        exclude: ^(\.Jules/|templates/commands/|templates/patterns/)
+        exclude: ^(\.Jules/|docs/templates/)
       - id: check-yaml
         args: ['--unsafe']
         exclude: ^(\.Jules/)
@@ -48,7 +48,7 @@ repos:
     hooks:
       - id: markdownlint
         args: ['--fix']
-        exclude: ^(\.Jules/|templates/commands/|templates/patterns/|docs/SHELL_ANALYSIS_REPORT\.md|docs/VALIDATION_REPORT\.md)
+        exclude: ^(\.Jules/|docs/templates/|docs/SHELL_ANALYSIS_REPORT\.md|docs/VALIDATION_REPORT\.md)
 
   # YAML linting
   - repo: https://github.com/adrienverge/yamllint

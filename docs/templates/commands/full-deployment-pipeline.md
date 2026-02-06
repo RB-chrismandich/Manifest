@@ -26,6 +26,7 @@ Orchestrate a complete deployment cycle with multiple validation gates, automati
 Execute these phases **in order**. Each phase must succeed before proceeding to the next. If a phase fails, attempt to fix the issue up to **2 times** before stopping and reporting the failure to the user.
 
 **Phase Dependencies**:
+
 ```
 Phase 1 (Test) ─→ Phase 2 (Build) ─→ Phase 3 (Validate) ─→ Phase 4 (Deploy) ─→ Phase 5 (Verify)
      ↓                 ↓                    ↓                    ↓                    ↓
@@ -33,6 +34,7 @@ Phase 1 (Test) ─→ Phase 2 (Build) ─→ Phase 3 (Validate) ─→ Phase 4 (
 ```
 
 **Rollback Points**:
+
 - Phase 1-3 failures: No rollback needed (no changes made)
 - Phase 4 failure: Automatic rollback to previous version
 - Phase 5 failure: Keep deployment, alert team
@@ -155,6 +157,7 @@ Use parallel agents to validate the deployment plan and detect potential issues.
 **Always uses parallel agents** (deployments are critical).
 
 Execute:
+
 ```bash
 ~/.claude/scripts/parallel_agent.sh --json --full-output --validate --timeout 600 \
   --cursor-model flash --claude-model sonnet \
@@ -477,18 +480,21 @@ fi
 ### For Different Deployment Targets
 
 **AWS ECS**:
+
 ```bash
 # Replace Phase 4 implementation
 aws ecs update-service --cluster $CLUSTER --service myapp --force-new-deployment
 ```
 
 **Heroku**:
+
 ```bash
 # Replace Phase 4 implementation
 git push heroku main
 ```
 
 **VM/SSH**:
+
 ```bash
 # Replace Phase 4 implementation
 scp ./binary $HOST:/opt/myapp/
@@ -498,6 +504,7 @@ ssh $HOST 'sudo systemctl restart myapp'
 ### For Different Test Frameworks
 
 **Go**:
+
 ```bash
 # Phase 1
 go test ./... -cover -coverprofile=coverage.out
@@ -505,6 +512,7 @@ go tool cover -func=coverage.out | grep total | awk '{if ($3+0 < 80) exit 1}'
 ```
 
 **JavaScript**:
+
 ```bash
 # Phase 1
 npm test -- --coverage --coverageThreshold='{"global":{"lines":80}}'
@@ -533,6 +541,7 @@ alembic upgrade head
 # Go migrate
 migrate -path ./migrations -database "$DATABASE_URL" up
 ```
+
 ```
 
 ---

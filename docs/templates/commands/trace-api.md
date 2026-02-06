@@ -7,6 +7,7 @@ Map the complete API topology of a distributed system: identify all API endpoint
 **Arguments (optional)**: $ARGUMENTS
 
 Arguments may specify:
+
 - `--service <ServiceName>`: Trace APIs for a specific service
 - `--api-type <rest|grpc|graphql>`: Filter by API type
 - `--format <mermaid|json|table>`: Output format (default: mermaid)
@@ -17,11 +18,13 @@ Arguments may specify:
 ## Applicability
 
 **Use this command if your project has**:
+
 - Microservices or distributed components communicating via APIs
 - Multiple API types (REST + gRPC, REST + GraphQL)
 - Service-to-service API calls
 
 **Skip this command if your project uses**:
+
 - Single service with no external API calls
 - Only frontend-to-backend API (no service-to-service)
 - Monolithic architecture with function calls
@@ -120,7 +123,7 @@ Examples:
 
 ### Step 1: Discover API Definitions
 
-#### For REST APIs:
+#### For REST APIs
 
 ```bash
 # Find OpenAPI specs
@@ -132,13 +135,14 @@ Grep(pattern: "@app\\.route\\(|@Get\\(|@Post\\(|router\\.get\\(", output_mode: "
 ```
 
 For each REST endpoint found:
+
 1. Extract HTTP method (GET, POST, PUT, DELETE, PATCH)
 2. Extract path (e.g., `/api/users/:id`)
 3. Extract request/response schemas
 4. Identify the service that provides it (from file path)
 5. Note authentication requirements
 
-#### For gRPC APIs:
+#### For gRPC APIs
 
 ```bash
 # Find proto service definitions
@@ -147,13 +151,14 @@ Grep(pattern: "service \\w+", output_mode: "content")
 ```
 
 For each gRPC service found:
+
 1. Extract service name
 2. Extract RPC methods
 3. Extract request/response message types
 4. Identify the service that implements it (check for server code)
 5. Note streaming vs unary
 
-#### For GraphQL APIs:
+#### For GraphQL APIs
 
 ```bash
 # Find GraphQL schemas
@@ -163,6 +168,7 @@ Grep(pattern: "type Query|type Mutation", output_mode: "content")
 ```
 
 For each GraphQL endpoint found:
+
 1. Extract queries and mutations
 2. Extract types
 3. Extract resolvers
@@ -174,24 +180,28 @@ For each GraphQL endpoint found:
 For each API definition, find the server implementation:
 
 **REST**:
+
 ```bash
 # Find handler implementations
 Grep(pattern: "def <endpoint_name>|func <handler_name>|async <handler_name>", output_mode: "files_with_matches")
 ```
 
 **gRPC**:
+
 ```bash
 # Find service implementations
 Grep(pattern: "class \\w+Service|type \\w+Server|implement \\w+Service", output_mode: "files_with_matches")
 ```
 
 **GraphQL**:
+
 ```bash
 # Find resolver implementations
 Grep(pattern: "Query: \\{|Mutation: \\{|resolvers = \\{", output_mode: "files_with_matches")
 ```
 
 For each server found:
+
 1. Identify the service/component (from file path)
 2. Extract any middleware (auth, rate limiting, logging)
 3. Note dependencies (database calls, other API calls)
@@ -202,21 +212,25 @@ For each server found:
 For each API, search for client code that calls it:
 
 **REST**:
+
 ```bash
 Grep(pattern: "fetch\\(.*<endpoint_path>|axios.*<endpoint_path>|http.Get.*<endpoint_path>", output_mode: "files_with_matches")
 ```
 
 **gRPC**:
+
 ```bash
 Grep(pattern: "<ServiceName>Client\\(|client.<RpcMethod>\\(", output_mode: "files_with_matches")
 ```
 
 **GraphQL**:
+
 ```bash
 Grep(pattern: "useQuery\\(<QueryName>|useMutation\\(<MutationName>|client.query.*<QueryName>", output_mode: "files_with_matches")
 ```
 
 For each client found:
+
 1. Identify the calling service/component (from file path)
 2. Extract call context (what triggers the API call?)
 3. Note error handling and retry logic
@@ -237,21 +251,25 @@ Identify cascading API call patterns (Service A → Service B → Service C):
 Check for common issues:
 
 **Orphaned APIs** (defined but never called):
+
 - API endpoint exists
 - No clients found in any service
 - Possible dead code or external-only API
 
 **Missing Implementations** (clients call non-existent APIs):
+
 - Client calls `/api/endpoint`
 - No server implementation found
 - Possible typo or missing service
 
 **Version Mismatches**:
+
 - Client uses `v2` endpoint
 - Server only implements `v1`
 - Possible compatibility issue
 
 **Circular Dependencies**:
+
 - Service A calls Service B
 - Service B calls Service A
 - Risk of deadlock or infinite loops
@@ -346,10 +364,12 @@ graph LR
 Output the API catalog and topology in the requested format:
 
 **Mermaid** (default):
+
 - API catalog as markdown tables
 - Topology as Mermaid diagram
 
 **JSON**:
+
 ```json
 {
   "apis": {
@@ -370,6 +390,7 @@ Output the API catalog and topology in the requested format:
 ```
 
 **Table** (text):
+
 - ASCII table format for terminal display
 
 ---
@@ -414,6 +435,7 @@ architecture/apis.md
 ```
 
 Update when:
+
 - New endpoints are added
 - Services are added/removed
 - API contracts change

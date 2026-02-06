@@ -90,6 +90,7 @@ Find and replace `{owner}/{repo}` with your actual GitHub repository path (e.g.,
 #### Prioritization Weights (Optional)
 
 Adjust scoring formulas based on your project phase:
+
 - **Early stage**: Increase Urgency weight
 - **Growth stage**: Balance all factors
 - **Mature stage**: Increase Risk weight
@@ -198,6 +199,7 @@ gh label create "follow-up" --description "Follow-up from processed issue" --col
 **Purpose**: Comprehensive backlog audit
 
 **What it does**:
+
 - Detects duplicate issues (title/content similarity)
 - Finds stale issues (references deleted files, inactive >90 days)
 - Identifies overlapping issues (could be batched)
@@ -205,6 +207,7 @@ gh label create "follow-up" --description "Follow-up from processed issue" --col
 - Generates actionable recommendations
 
 **Arguments**:
+
 - No args: Audit all open issues
 - `--dry-run`: Report only, no actions
 - `--close-stale`: Auto-close stale issues with high confidence
@@ -221,12 +224,14 @@ gh label create "follow-up" --description "Follow-up from processed issue" --col
 **Purpose**: Rank top 5 issues to work on next
 
 **What it does**:
+
 - Scores each issue: `(Impact * 3) + (Urgency * 2) + (Readiness * 2) - (Risk * 1)`
 - Ranks by score (tiebreaker: bugs > features, older > newer)
 - Validates issue relevance against current codebase
 - Identifies issues that unblock others
 
 **Arguments**:
+
 - No args: Analyze all open issues
 
 **Output**: Top 5 recommended issues with scores, rationale, and scoring table. Honorable mentions for #6-8.
@@ -240,6 +245,7 @@ gh label create "follow-up" --description "Follow-up from processed issue" --col
 **Purpose**: Generate detailed implementation plan
 
 **What it does**:
+
 - Explores the codebase (read-only)
 - Identifies affected components
 - Designs implementation approach
@@ -249,6 +255,7 @@ gh label create "follow-up" --description "Follow-up from processed issue" --col
 - Adds `planned` label
 
 **Arguments**:
+
 - `123`: Issue number
 - `https://github.com/owner/repo/issues/456`: Issue URL
 
@@ -265,6 +272,7 @@ gh label create "follow-up" --description "Follow-up from processed issue" --col
 **Purpose**: Implement, test, and validate an issue end-to-end
 
 **What it does**:
+
 - Requires `planned` label (gates implementation)
 - Extracts checklists from issue body and comments
 - Follows implementation plan from issue
@@ -278,6 +286,7 @@ gh label create "follow-up" --description "Follow-up from processed issue" --col
 - Applies `processed` or `needs-review` label
 
 **Arguments**:
+
 - `123`: Issue number
 - `https://github.com/owner/repo/issues/456`: Issue URL
 
@@ -294,6 +303,7 @@ gh label create "follow-up" --description "Follow-up from processed issue" --col
 **Purpose**: Audit processed issues, close complete ones
 
 **What it does**:
+
 - Fetches all open issues with `processed` label
 - Extracts checklists from body and comments
 - Determines verdict: CLOSE (all checked or no checklist) vs. NEEDS-REVIEW (unchecked items)
@@ -303,6 +313,7 @@ gh label create "follow-up" --description "Follow-up from processed issue" --col
 - Adds `needs-review` label to incomplete issues
 
 **Arguments**:
+
 - No args: Audit all open processed issues
 - `123`: Audit specific issue only
 
@@ -337,6 +348,7 @@ Issues progress through labeled states:
 ```
 
 **Labels Used**:
+
 - `planned` — Has implementation plan
 - `processed` — Fully implemented, all tests pass, high consensus
 - `needs-review` — Implemented but requires human review
@@ -485,6 +497,7 @@ Always dry-run triage before applying changes to production backlog:
 ### 5. Validate Parallel Agent Output
 
 When commands use parallel agents, check consensus scores:
+
 - **>= 80%**: High confidence, trust the output
 - **50-79%**: Medium confidence, review disagreements
 - **< 50%**: Low confidence, escalate for human review
@@ -492,6 +505,7 @@ When commands use parallel agents, check consensus scores:
 ### 6. Customize Scoring for Your Project Phase
 
 Adjust prioritization weights in `issue-prioritize`:
+
 - **Early stage (MVP)**: `(Impact * 4) + (Urgency * 3) + (Readiness * 2) - (Risk * 0.5)`
 - **Growth stage**: Use default weights
 - **Mature (Production)**: `(Impact * 2) + (Urgency * 1) + (Readiness * 2) - (Risk * 3)`
@@ -505,6 +519,7 @@ Adjust prioritization weights in `issue-prioritize`:
 **Symptom**: `/issue-triage` returns "Command not found"
 
 **Solution**: Copy the command file to `.claude/commands/`:
+
 ```bash
 cp templates/commands/issue-triage.md .claude/commands/
 ```
@@ -514,6 +529,7 @@ cp templates/commands/issue-triage.md .claude/commands/
 **Symptom**: Commands report "parallel_agent.sh not available"
 
 **Solution**: Install the parallel agent script:
+
 ```bash
 cp .claude/scripts/parallel_agent.sh ~/.claude/scripts/
 chmod +x ~/.claude/scripts/parallel_agent.sh
@@ -524,6 +540,7 @@ chmod +x ~/.claude/scripts/parallel_agent.sh
 **Symptom**: `gh` commands fail with "authentication required"
 
 **Solution**: Authenticate GitHub CLI:
+
 ```bash
 gh auth login
 ```
@@ -547,6 +564,7 @@ To prevent: Break large issues into smaller ones before processing.
 **Symptom**: Low-priority issues ranked higher than critical bugs
 
 **Solution**:
+
 1. Review the scoring formula in `issue-prioritize`
 2. Adjust weights for your project phase
 3. Manually override scores by adding/removing labels

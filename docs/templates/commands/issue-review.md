@@ -45,10 +45,12 @@ gh issue view <NUMBER> --json number,title,body,comments,labels -R {owner}/{repo
 #### 2a. Extract Checklists
 
 Parse the issue **body** and every **comment** for GitHub-flavored markdown checklists:
+
 - `- [ ]` = unchecked item
 - `- [x]` = checked item
 
 Record:
+
 - Total checklist items found
 - Checked count
 - Unchecked count
@@ -66,6 +68,7 @@ Record:
 #### 2c. Detect follow-up items and check for existing follow-ups
 
 **2c-i. Parse candidate follow-up items** from all Implementation Update comments on the issue. For each comment containing `## Implementation Update`, extract items from:
+
 - `### Follow-up Items` section — each bullet point (skip "None")
 - `### Checklist Status` table — rows with `⚠️ Partial` status
 - `### Checklist Status` table — rows with `❌ Blocked` status
@@ -74,39 +77,43 @@ Record:
 For each candidate, record: `title`, `origin`, `body_text`, `context`.
 
 **2c-ii. Check for existing follow-up issues** by searching the issue comments for a comment containing `### Follow-up Issues Created`. If found:
+
 - Extract issue numbers from the table rows (pattern: `#<NUMBER>`)
 - Verify each extracted issue still exists: `gh issue view <NUMBER> --json number,title,state -R {owner}/{repo}`
 - Match each verified issue against the parsed candidates by title similarity
 
 **2c-iii. Classify each candidate** as:
+
 - `already-created` — a matching follow-up issue was found in 2c-ii
 - `needs-creation` — no matching follow-up issue exists
 
 ### Step 3: Take Action
 
-#### For CLOSE verdicts:
+#### For CLOSE verdicts
 
 ```bash
 gh issue close <NUMBER> -R {owner}/{repo}
 ```
 
-#### For NEEDS-REVIEW verdicts:
+#### For NEEDS-REVIEW verdicts
 
 ```bash
 gh label create "needs-review" --description "Implementation complete but requires human review" --color "FBCA04" -R {owner}/{repo} 2>/dev/null || true
 gh issue edit <NUMBER> --add-label "needs-review" -R {owner}/{repo}
 ```
 
-#### For issues with uncreated follow-ups (from 2c):
+#### For issues with uncreated follow-ups (from 2c)
 
 If any candidates were classified as `needs-creation` in step 2c-iii, create follow-up issues:
 
 1. **Ensure the `follow-up` label exists**:
+
    ```bash
    gh label create "follow-up" --description "Follow-up item from a processed issue" --color "D4C5F9" -R {owner}/{repo} 2>/dev/null || true
    ```
 
 2. **Create each follow-up issue** using the standardized template:
+
    ```bash
    gh issue create --title "Follow-up: <DERIVED_TITLE>" --label "follow-up" -R {owner}/{repo} --body "$(cat <<'EOF'
    <!-- follow-up-from: #<PARENT_NUMBER> -->
@@ -131,6 +138,7 @@ If any candidates were classified as `needs-creation` in step 2c-iii, create fol
    - Add relevant component and type labels when clearly applicable.
 
 3. **Post a summary comment on the parent issue**:
+
    ```bash
    gh issue comment <PARENT_NUMBER> --body "$(cat <<'EOF'
    ### Follow-up Issues Created (Audit)

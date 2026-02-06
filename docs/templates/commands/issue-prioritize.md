@@ -29,11 +29,13 @@ Replace the placeholders with your project's architecture and component map:
 ### Prioritization Weights (Optional)
 
 The default scoring formula is:
+
 ```
 Priority Score = (Impact * 3) + (Urgency * 2) + (Readiness * 2) - (Risk * 1)
 ```
 
 Adjust based on your project phase:
+
 - **Early stage** (MVP): Increase Urgency weight, reduce Risk penalty
 - **Growth stage**: Balance all factors
 - **Mature stage**: Increase Risk weight, prioritize stability
@@ -41,6 +43,7 @@ Adjust based on your project phase:
 ### Project Phase Context (Optional)
 
 Consider your current project phase when scoring:
+
 - **Phase 1 (MVP)**: Prioritize core features over nice-to-haves
 - **Phase 2 (Growth)**: Balance features with stability
 - **Phase 3 (Scale)**: Prioritize performance and observability
@@ -67,6 +70,7 @@ If there are fewer than 5 remaining open issues, note this and rank all of them.
 For each open issue, classify it along these dimensions:
 
 **Type**:
+
 - `bug` — Something is broken or incorrect
 - `feature` — New functionality
 - `enhancement` — Improvement to existing functionality
@@ -76,6 +80,7 @@ For each open issue, classify it along these dimensions:
 - `infra` — Infrastructure, CI/CD, deployment
 
 **Impact** (1-5):
+
 - 5: Blocks core functionality or causes data loss
 - 4: Affects user-facing features significantly
 - 3: Improves reliability, performance, or developer experience
@@ -83,6 +88,7 @@ For each open issue, classify it along these dimensions:
 - 1: Cosmetic or minor
 
 **Urgency** (1-5):
+
 - 5: Actively causing problems in production
 - 4: Will cause problems soon or blocks other work
 - 3: Should be done this sprint
@@ -90,6 +96,7 @@ For each open issue, classify it along these dimensions:
 - 1: Backlog — do when convenient
 
 **Readiness** (1-5):
+
 - 5: Well-defined, has an implementation plan, can start immediately
 - 4: Clear requirements, needs minor investigation
 - 3: Requirements known but needs design work
@@ -97,6 +104,7 @@ For each open issue, classify it along these dimensions:
 - 1: Vague, needs requirements gathering
 
 **Risk** (1-5, lower is better):
+
 - 1: Isolated change, low risk of breakage
 - 2: Touches one component, moderate testing needed
 - 3: Cross-component change, careful coordination needed
@@ -105,11 +113,12 @@ For each open issue, classify it along these dimensions:
 
 ### Step 3: Score and Rank
 
-**Priority Score** = (Impact * 3) + (Urgency * 2) + (Readiness * 2) - (Risk * 1)
+**Priority Score** = (Impact *3) + (Urgency* 2) + (Readiness *2) - (Risk* 1)
 
 Higher score = higher priority.
 
 In case of ties, prefer:
+
 1. Bugs over features
 2. Issues that unblock other issues
 3. Issues with implementation plans (`planned` label)
@@ -118,11 +127,13 @@ In case of ties, prefer:
 ### Step 4: Explore Context for Top Candidates
 
 For the top 5-7 candidates, briefly check the codebase to validate:
+
 - Are the referenced files/components still in the expected state?
 - Does the issue duplicate or overlap with recent commits?
 - Is there an existing implementation plan in the issue comments?
 
 **Use Task sub-agents** for efficient parallel exploration:
+
 ```
 Task(subagent_type: "Explore", prompt: "Check if issue #NNN is still relevant...")
 ```
@@ -198,6 +209,7 @@ For complex scoring decisions, use parallel agents:
 ```
 
 Use consensus across agents to validate your scoring:
+
 - >= 80% agreement: Confident in score
 - 50-79% agreement: Note scoring variance in report
 - < 50% agreement: Escalate issue for human review

@@ -7,6 +7,7 @@ Map database access patterns across services: identify all database schemas, tab
 **Arguments (optional)**: $ARGUMENTS
 
 Arguments may specify:
+
 - `--service <ServiceName>`: Trace database access for a specific service
 - `--table <TableName>`: Find all services accessing a specific table
 - `--format <mermaid|json|table>`: Output format (default: mermaid)
@@ -17,11 +18,13 @@ Arguments may specify:
 ## Applicability
 
 **Use this command if your project has**:
+
 - Multiple services with shared or separate databases
 - Database access patterns to document
 - Concerns about schema boundary violations
 
 **Skip this command if your project uses**:
+
 - In-memory data only (no database)
 - Single service with straightforward database access
 - File-based storage only
@@ -112,6 +115,7 @@ Glob(pattern: "**/schema.prisma")
 ```
 
 For each schema file found:
+
 1. Extract table names
 2. Extract column names and types
 3. Extract indexes and constraints (primary keys, foreign keys, unique)
@@ -123,6 +127,7 @@ For each schema file found:
 For each table identified in Step 1, search for write operations:
 
 **Raw SQL**:
+
 ```bash
 Grep(pattern: "INSERT INTO <table_name>", output_mode: "files_with_matches")
 Grep(pattern: "UPDATE <table_name>", output_mode: "files_with_matches")
@@ -130,6 +135,7 @@ Grep(pattern: "DELETE FROM <table_name>", output_mode: "files_with_matches")
 ```
 
 **ORM**:
+
 ```bash
 # Django
 Grep(pattern: "<ModelName>\\.objects\\.create\\(|<ModelName>\\.objects\\.update\\(", output_mode: "files_with_matches")
@@ -144,6 +150,7 @@ Grep(pattern: "<repository>\\.save\\(|<repository>\\.update\\(", output_mode: "f
 **Customize the grep patterns for your ORM.**
 
 For each write operation found:
+
 1. Identify the service/component (from file path)
 2. Extract the context (what triggers the write?)
 3. Note transaction boundaries (is it in a transaction?)
@@ -154,11 +161,13 @@ For each write operation found:
 For each table identified in Step 1, search for read operations:
 
 **Raw SQL**:
+
 ```bash
 Grep(pattern: "SELECT .* FROM <table_name>", output_mode: "files_with_matches")
 ```
 
 **ORM**:
+
 ```bash
 # Django
 Grep(pattern: "<ModelName>\\.objects\\.filter\\(|<ModelName>\\.objects\\.get\\(", output_mode: "files_with_matches")
@@ -171,6 +180,7 @@ Grep(pattern: "<repository>\\.find\\(|<repository>\\.findOne\\(", output_mode: "
 ```
 
 For each read operation found:
+
 1. Identify the service/component (from file path)
 2. Extract the context (what triggers the read?)
 3. Note query complexity (joins, aggregations)
@@ -181,23 +191,27 @@ For each read operation found:
 Check for anti-patterns:
 
 **Cross-Schema Writes** (Service A writes to Service B's table):
+
 - Service A owns `orders.orders` table
 - Service B writes to `orders.orders` table
 - **Violation**: Services should not write to other services' tables
 - **Recommendation**: Service B should call Service A's API instead
 
 **Cross-Schema Reads** (acceptable in some architectures, but flag for review):
+
 - Service A owns `users.users` table
 - Service B reads from `users.users` table
 - **Possible issue**: Tight coupling, consider API or event-driven approach
 - **Acceptable cases**: Read-only replicas, reporting services
 
 **Missing Foreign Key Constraints**:
+
 - Table A has column `user_id` referencing `users.id`
 - No foreign key constraint defined
 - **Issue**: Data integrity risk
 
 **N+1 Query Patterns**:
+
 - Loop over users, for each user fetch orders (separate query)
 - **Issue**: Performance problem
 - **Recommendation**: Use JOIN or ORM eager loading
@@ -295,10 +309,12 @@ graph TD
 Output the database access catalog and topology in the requested format:
 
 **Mermaid** (default):
+
 - Access catalog as markdown tables
 - Topology as Mermaid diagram
 
 **JSON**:
+
 ```json
 {
   "tables": [
@@ -324,6 +340,7 @@ Output the database access catalog and topology in the requested format:
 ```
 
 **Table** (text):
+
 - ASCII table format
 
 ---
@@ -338,6 +355,7 @@ For complex queries or ambiguous patterns, use parallel agents:
 ```
 
 Use consensus to validate:
+
 - >= 80%: Confident this is a database access
 - 50-79%: Likely but needs verification
 - < 50%: Ambiguous, flag for human review
@@ -373,6 +391,7 @@ architecture/database.md
 ```
 
 Update when:
+
 - New tables are added
 - Services are added/removed
 - Database access patterns change
@@ -396,6 +415,7 @@ diff before.json after.json
 ```
 
 This helps catch:
+
 - Unintended schema boundary violations
 - Missing index additions
 - Services affected by schema changes

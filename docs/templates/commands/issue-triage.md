@@ -7,6 +7,7 @@ Perform a comprehensive audit of all open GitHub issues: validate prioritization
 **Arguments (optional)**: $ARGUMENTS
 
 If arguments are provided, they may specify:
+
 - A comma-separated list of issue numbers to audit (e.g., `271, 272, 274`)
 - `--dry-run` — analyze and report only, take no actions
 - `--close-stale` — auto-close issues that reference deleted files or completed work
@@ -39,6 +40,7 @@ Replace the placeholders with your project's architecture and service map:
 ### Prioritization Scoring (Optional)
 
 The default scoring formula is:
+
 ```
 Priority Score = (Impact * 3) + (Urgency * 2) + (Readiness * 2) - (Risk * 1)
 ```
@@ -58,6 +60,7 @@ gh issue list --state open --limit 500 --json number,title,labels,createdAt,upda
 **Replace `{owner}/{repo}` with your repository.**
 
 Parse arguments to determine scope:
+
 - If specific issue numbers provided, filter to those
 - If `--dry-run` flag present, set `DRY_RUN=true` (report only, no mutations)
 - If `--close-stale` flag present, set `CLOSE_STALE=true`
@@ -66,6 +69,7 @@ Parse arguments to determine scope:
 ### Step 2: Classify and Group Issues
 
 For each issue, extract:
+
 - **Number, title, labels, body** (from API response)
 - **Age** (days since creation)
 - **Last activity** (days since last update)
@@ -73,6 +77,7 @@ For each issue, extract:
 - **Category**: bug, feature, enhancement, test, tech-debt, docs, infra, follow-up, chore
 
 Group issues by:
+
 1. **Component/area** (which component or cross-cutting concern)
 2. **Topic cluster** (semantically related issues)
 3. **Label** (planned, processed, follow-up, enhancement, bug, etc.)
@@ -82,20 +87,24 @@ Group issues by:
 Compare every pair of issues for similarity. Flag pairs as:
 
 **Duplicate** (same problem/feature described differently):
+
 - Title similarity > 80% (fuzzy match)
 - Body references same files AND same acceptance criteria
 - One issue is a subset of another
 
 **Overlapping** (related but distinct, could be batched):
+
 - Same component + same area of concern
 - Acceptance criteria partially overlap
 - One issue's follow-up items match another issue's scope
 
 **Parent-Child** (one issue was created as follow-up of another):
+
 - Body contains `<!-- follow-up-from: #NNN -->` or `Follow-up from #NNN`
 - Labels include `follow-up`
 
 For each flagged pair, record:
+
 - Issue numbers
 - Relationship type (duplicate / overlapping / parent-child)
 - Confidence (high / medium / low)
@@ -104,6 +113,7 @@ For each flagged pair, record:
 ### Step 4: Detect Stale Issues
 
 An issue is **stale** if ANY of:
+
 - References files that no longer exist in the codebase (verify with `ls` or `test -f`)
 - Describes a problem that has already been fixed (check recent commits or current code state)
 - Has not been updated in > 90 days AND has no `planned` label
@@ -113,6 +123,7 @@ An issue is **stale** if ANY of:
 **Customization**: Adjust the 90-day threshold based on your project's velocity.
 
 For each stale issue, record:
+
 - Issue number
 - Staleness reason
 - Confidence (high / medium / low)
@@ -122,15 +133,17 @@ For each stale issue, record:
 
 Score each non-stale issue using the prioritization framework:
 
-**Priority Score** = (Impact * 3) + (Urgency * 2) + (Readiness * 2) - (Risk * 1)
+**Priority Score** = (Impact *3) + (Urgency* 2) + (Readiness *2) - (Risk* 1)
 
 Where:
+
 - **Impact** (1-5): How much does this affect users or system reliability?
 - **Urgency** (1-5): How soon does this need to happen?
 - **Readiness** (1-5): How well-defined is the issue? Has a plan?
 - **Risk** (1-5): How risky is the change? (lower = better)
 
 Then check for prioritization issues:
+
 - **Misordered**: High-score issue has no label, low-score issue has `planned`
 - **Blocked chains**: Issue A blocks Issue B, but B has higher priority labels
 - **Label inconsistency**: Issue has `planned` but no implementation plan in comments
@@ -141,6 +154,7 @@ Then check for prioritization issues:
 For each finding, produce a specific actionable recommendation:
 
 **For duplicates**:
+
 ```
 DUPLICATE: #A and #B describe the same thing
   Action: Close #B as duplicate of #A (A is more detailed)
@@ -148,6 +162,7 @@ DUPLICATE: #A and #B describe the same thing
 ```
 
 **For overlaps**:
+
 ```
 OVERLAP: #A and #B both touch [component] [feature]
   Action: Consolidate into #A, update #A body to include #B scope
@@ -155,6 +170,7 @@ OVERLAP: #A and #B both touch [component] [feature]
 ```
 
 **For stale issues**:
+
 ```
 STALE: #C references [deprecated component/file]
   Action: Close as not planned
@@ -162,6 +178,7 @@ STALE: #C references [deprecated component/file]
 ```
 
 **For prioritization fixes**:
+
 ```
 PRIORITY: #D (score 28) has no labels but should be prioritized above #E (score 15, has 'planned')
   Action: Add 'enhancement' label to #D
@@ -173,7 +190,9 @@ PRIORITY: #D (score 28) has no labels but should be prioritized above #E (score 
 If `DRY_RUN=false`:
 
 #### 7a. Close confirmed duplicates
+
 For each duplicate pair with HIGH confidence:
+
 ```bash
 gh issue close <LOWER_QUALITY_NUMBER> --reason "not planned" -R {owner}/{repo} --comment "$(cat <<'EOF'
 Closing as duplicate of #<BETTER_NUMBER>.
@@ -184,7 +203,9 @@ EOF
 ```
 
 #### 7b. Close stale issues (only with --close-stale flag)
+
 For each stale issue with HIGH confidence:
+
 ```bash
 gh issue close <NUMBER> --reason "not planned" -R {owner}/{repo} --comment "$(cat <<'EOF'
 Closing as stale.
@@ -197,14 +218,18 @@ EOF
 ```
 
 #### 7c. Fix labels
+
 For issues with incorrect or missing labels:
+
 ```bash
 gh issue edit <NUMBER> --add-label "<label>" -R {owner}/{repo}
 gh issue edit <NUMBER> --remove-label "<label>" -R {owner}/{repo}
 ```
 
 #### 7d. Link related issues
+
 For overlapping issues that should reference each other, post a comment:
+
 ```bash
 gh issue comment <NUMBER> --body "Related: #<OTHER_NUMBER> (overlapping scope — consider batching)" -R {owner}/{repo}
 ```
@@ -313,6 +338,7 @@ For complex decision-making (e.g., determining if two issues truly duplicate), u
 ```
 
 Use parallel agent consensus to increase confidence in closure decisions:
+
 - >= 80% consensus: HIGH confidence
 - 50-79% consensus: MEDIUM confidence
 - < 50% consensus: LOW confidence (recommend only, don't act)
