@@ -13,6 +13,7 @@
 #   issue-list            List issues/MRs
 #   issue-create          Create new issue/MR
 #   issue-comment N       Add comment/note to issue/MR N
+#   issue-comment-edit-last N  Edit last comment on issue/MR N
 #   issue-close N         Close issue/MR N
 #   issue-edit N          Edit issue/MR N
 #   pr-create             Create pull/merge request
@@ -46,6 +47,7 @@ if [[ $# -eq 0 ]]; then
     echo "  issue-list         List issues/MRs" >&2
     echo "  issue-create       Create new issue/MR" >&2
     echo "  issue-comment N    Add comment/note to issue/MR N" >&2
+    echo "  issue-comment-edit-last N  Edit last comment on issue/MR N" >&2
     echo "  issue-close N      Close issue/MR N" >&2
     echo "  issue-edit N       Edit issue/MR N" >&2
     echo "  pr-create          Create pull/merge request" >&2
@@ -99,6 +101,9 @@ case "${platform}" in
             issue-comment)
                 gh issue comment "$@"
                 ;;
+            issue-comment-edit-last)
+                gh issue comment "$@" --edit-last
+                ;;
             issue-close)
                 gh issue close "$@"
                 ;;
@@ -142,6 +147,27 @@ case "${platform}" in
             issue-comment)
                 # GitLab uses 'note' instead of 'comment'
                 glab issue note "$@"
+                ;;
+            issue-comment-edit-last)
+                issue_num="$1"
+                shift
+                last_note_id=$(glab api "projects/:id/issues/${issue_num}/notes?sort=desc&per_page=1" --jq '.[0].id')
+                if [[ -n "${last_note_id}" ]]; then
+                    body=""
+                    while [[ $# -gt 0 ]]; do
+                        case "$1" in
+                            --body | -b)
+                                body="$2"
+                                shift 2
+                                ;;
+                            *) shift ;;
+                        esac
+                    done
+                    glab api "projects/:id/issues/${issue_num}/notes/${last_note_id}" -X PUT -f "body=${body}"
+                else
+                    echo "Error: No comments found on issue ${issue_num}" >&2
+                    exit 1
+                fi
                 ;;
             issue-close)
                 glab issue close "$@"

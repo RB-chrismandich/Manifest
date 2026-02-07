@@ -4,6 +4,7 @@
 **Created**: YYYY-MM-DD
 **Author**: [agent or human]
 **Branch**: [branch name, if applicable]
+**Issue**: [#N, if linked to an issue]
 
 ---
 
