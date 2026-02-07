@@ -134,7 +134,7 @@ Detection methods:
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `GEMINI_INCLUDE_DIRS` | Colon-separated directories for Gemini | `$(pwd):~/.claude` |
+| `GEMINI_INCLUDE_DIRS` | Colon-separated directories for Gemini | `$(pwd):~/.claude:~/.gemini` |
 | `CURSOR_MODEL_MINI` | Model name for 'mini' tier | `gpt-5.1-codex-mini` |
 | `CURSOR_MODEL_FLASH` | Model name for 'flash' tier | `gpt-5.1-codex` |
 | `CURSOR_MODEL_ADVANCED` | Model name for 'advanced' tier | `gpt-5.2` |

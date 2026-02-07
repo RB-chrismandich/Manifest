@@ -19,7 +19,7 @@
 #
 # Other options:
 #   --skip-install      Skip CLI tool installation
-#   --skip-auth         Skip authentication setup
+#   --skip-auth         Skip authentication checks
 #   --force             Overwrite existing ~/.claude without prompting
 #   --reconfigure       Only update service toggles (skip full setup)
 
@@ -228,7 +228,7 @@ while [[ $# -gt 0 ]]; do
             echo ""
             echo "Other Options:"
             echo "  --skip-install      Skip CLI tool installation"
-            echo "  --skip-auth         Skip authentication setup"
+            echo "  --skip-auth         Skip authentication checks"
             echo "  --force             Overwrite existing ~/.claude without prompting"
             echo "  --reconfigure       Only update service toggles (skip full setup)"
             echo ""
@@ -237,7 +237,7 @@ while [[ $# -gt 0 ]]; do
             echo "  $0 --disable-cursor             # Setup without Cursor"
             echo "  $0 --enable-gh --enable-glab    # Explicitly enable Git CLIs"
             echo "  $0 --reconfigure --disable-gemini  # Just disable Gemini"
-            echo "  $0 --skip-auth                  # Setup without authentication prompts"
+            echo "  $0 --skip-auth                  # Setup without authentication checks"
             exit 0
             ;;
         *)
@@ -1071,12 +1071,12 @@ check_claude_auth() {
 
     for auth_file in "${claude_auth_files[@]}"; do
         if [[ -f "$auth_file" ]]; then
-            print_success "Claude Code authentication file found"
+            print_success "Claude Code is authenticated"
             return 0
         fi
     done
 
-    # Fallback: try interactive check with timeout
+    # Fallback: try non-interactive check with timeout
     if [[ -n "$TIMEOUT_CMD" ]]; then
         if $TIMEOUT_CMD 5 claude auth status &> /dev/null; then
             print_success "Claude Code is authenticated"
@@ -1084,66 +1084,19 @@ check_claude_auth() {
         fi
     fi
 
-    print_warning "Claude Code is not authenticated"
+    print_error "Claude Code is NOT authenticated"
+    echo ""
+    echo "  To authenticate, run one of the following after bootstrap completes:"
+    echo ""
+    echo "    # Browser-based OAuth (opens Anthropic Console):"
+    echo -e "    ${CYAN}claude auth login${NC}"
+    echo ""
+    echo "    # Or set an API key directly:"
+    echo -e "    ${CYAN}export ANTHROPIC_API_KEY='your-api-key'${NC}"
+    echo ""
+    echo "  Get an API key at: https://console.anthropic.com/settings/keys"
+    echo ""
     return 1
-}
-
-# Setup Claude authentication
-setup_claude_auth() {
-    if [[ "$ENABLE_CLAUDE" == false ]]; then
-        return 0
-    fi
-
-    if ! command_exists claude; then
-        return 1
-    fi
-
-    echo ""
-    echo -e "${BOLD}Claude Code Authentication Setup${NC}"
-    echo ""
-    echo "You will be redirected to authenticate with your Anthropic account."
-    echo "This requires an active Claude subscription or API access."
-    echo ""
-
-    if prompt_yes_no "Start Claude Code authentication?"; then
-        print_step "Starting authentication..."
-        echo ""
-        print_info "Opening browser for authentication..."
-        print_info "Please complete the login process in your browser"
-        print_info "Follow the prompts from the Claude CLI"
-        print_info "This may take 30-60 seconds..."
-        echo ""
-
-        # Run with timeout if available
-        local auth_result=0
-        if [[ -n "$TIMEOUT_CMD" ]]; then
-            $TIMEOUT_CMD 180 claude auth login || auth_result=$?
-        else
-            claude auth login || auth_result=$?
-        fi
-
-        echo ""
-        if [[ $auth_result -eq 0 ]]; then
-            if check_claude_auth; then
-                print_success "Claude Code authentication successful"
-                return 0
-            else
-                print_error "Claude Code authentication failed"
-                return 1
-            fi
-        elif [[ $auth_result -eq 124 ]]; then
-            print_error "Authentication timed out after 3 minutes"
-            print_info "You can retry authentication later with: claude auth login"
-            return 1
-        else
-            print_error "Authentication failed or was cancelled"
-            print_info "You can retry authentication later with: claude auth login"
-            return 1
-        fi
-    else
-        print_warning "Skipping Claude Code authentication"
-        return 1
-    fi
 }
 
 # Check Gemini authentication
@@ -1163,238 +1116,89 @@ check_gemini_auth() {
 
     # Check for API key in environment or config
     if [[ -n "$GOOGLE_API_KEY" ]] || [[ -n "$GEMINI_API_KEY" ]]; then
-        print_success "Gemini API key found in environment"
+        print_success "Gemini CLI is authenticated (API key)"
         return 0
     fi
 
     # Check for OAuth credentials file (more reliable than `gemini auth status` which spawns an agent)
     if [[ -f "$HOME/.gemini/oauth_creds.json" ]]; then
-        print_success "Gemini OAuth credentials found"
+        print_success "Gemini CLI is authenticated (OAuth)"
         return 0
     fi
 
     # Check for config file
     if [[ -f "$HOME/.gemini/config.json" ]] || [[ -f "$HOME/.config/gemini/credentials.json" ]]; then
-        print_success "Gemini credentials file found"
+        print_success "Gemini CLI is authenticated (credentials file)"
         return 0
     fi
 
-    print_warning "Gemini CLI may not be authenticated"
+    print_error "Gemini CLI is NOT authenticated"
+    echo ""
+    echo "  To authenticate, run one of the following after bootstrap completes:"
+    echo ""
+    echo "    # Browser-based OAuth (recommended for personal use):"
+    echo -e "    ${CYAN}gemini auth login${NC}"
+    echo ""
+    echo "    # Or set an API key in your shell profile:"
+    echo -e "    ${CYAN}export GEMINI_API_KEY='your-api-key'${NC}"
+    echo ""
+    echo "  Get an API key at: https://aistudio.google.com/apikey"
+    echo ""
     return 1
 }
 
-# Setup Gemini authentication
-setup_gemini_auth() {
-    if [[ "$ENABLE_GEMINI" == false ]]; then
-        return 0
-    fi
-
-    if ! command_exists gemini; then
-        return 1
-    fi
-
-    echo ""
-    echo -e "${BOLD}Gemini CLI Authentication Setup${NC}"
-    echo ""
-    echo "Options for authentication:"
-    echo "  1. OAuth login (recommended for personal use)"
-    echo "  2. API key (for programmatic access)"
-    echo ""
-    echo "Get an API key at: https://aistudio.google.com/apikey"
-    echo ""
-
-    if prompt_yes_no "Start Gemini CLI authentication via OAuth?"; then
-        print_step "Starting OAuth authentication..."
-        echo ""
-        print_info "Opening browser for authentication..."
-        print_info "Please complete the login process in your browser"
-        print_info "Follow the prompts from the Gemini CLI"
-        print_info "This may take 30-60 seconds..."
-        echo ""
-
-        # Run with timeout if available
-        local auth_result=0
-        if [[ -n "$TIMEOUT_CMD" ]]; then
-            $TIMEOUT_CMD 180 gemini auth login || auth_result=$?
-        else
-            gemini auth login || auth_result=$?
-        fi
-
-        echo ""
-        if [[ $auth_result -eq 0 ]]; then
-            if check_gemini_auth; then
-                print_success "Gemini CLI authentication successful"
-                return 0
-            else
-                print_warning "OAuth authentication may have failed"
-            fi
-        elif [[ $auth_result -eq 124 ]]; then
-            print_warning "Authentication timed out after 3 minutes"
-            print_info "You can retry authentication later with: gemini auth login"
-        else
-            print_warning "Authentication failed or was cancelled"
-            print_info "You can retry authentication later with: gemini auth login"
-        fi
-    fi
-
-    # Offer API key setup as alternative
-    echo ""
-    if prompt_yes_no "Set up Gemini API key instead?"; then
-        echo ""
-        print_info "Get your API key from: https://aistudio.google.com/apikey"
-        echo ""
-        read -rs -p "Enter your Gemini API key (input will be hidden): " api_key
-        echo ""
-
-        if [[ -n "$api_key" ]]; then
-            print_step "Saving API key to shell profile..."
-            # Escape single quotes for safe single-quoted string
-            local safe_api_key="${api_key//\'/\'\\\'\'}"
-
-            # Add to shell profile
-            local shell_profile=""
-            if [[ -f "$HOME/.zshrc" ]]; then
-                shell_profile="$HOME/.zshrc"
-            elif [[ -f "$HOME/.bash_profile" ]]; then
-                shell_profile="$HOME/.bash_profile"
-            elif [[ -f "$HOME/.bashrc" ]]; then
-                shell_profile="$HOME/.bashrc"
-            fi
-
-            if [[ -n "$shell_profile" ]]; then
-                {
-                    echo ""
-                    echo "# Gemini API Key (added by ai-agent-support-frameworks bootstrap)"
-                    echo "export GEMINI_API_KEY='$safe_api_key'"
-                } >> "$shell_profile"
-                export GEMINI_API_KEY="$api_key"
-                print_success "API key added to $shell_profile"
-                print_info "Run 'source $shell_profile' or restart your terminal"
-                return 0
-            else
-                print_warning "Could not find shell profile to add API key"
-                echo "Add this to your shell profile:"
-                echo "  export GEMINI_API_KEY='$safe_api_key'"
-            fi
-        fi
-    fi
-
-    print_warning "Skipping Gemini authentication"
-    return 1
-}
-
-# Setup GitHub CLI authentication
-setup_gh_auth() {
+# Check GitHub CLI authentication
+check_gh_auth() {
     if [[ "$ENABLE_GH" == false ]]; then
         return 0
     fi
 
+    print_step "Checking GitHub CLI authentication..."
+
     if ! command_exists gh; then
+        print_warning "GitHub CLI not installed - skipping auth check"
         return 1
     fi
 
-    echo ""
-    echo -e "${BOLD}GitHub CLI Authentication Setup${NC}"
-    echo ""
-    echo "GitHub CLI requires authentication to access repositories."
-    echo ""
-
-    if prompt_yes_no "Authenticate with GitHub now?"; then
-        print_step "Starting GitHub authentication..."
-        echo ""
-        print_info "The GitHub CLI will guide you through the authentication process"
-        print_info "Follow the prompts - you may need to open a browser or enter a code"
-        print_info "This may take 30-60 seconds..."
-        echo ""
-
-        # Run with timeout if available
-        local auth_result=0
-        if [[ -n "$TIMEOUT_CMD" ]]; then
-            $TIMEOUT_CMD 180 gh auth login || auth_result=$?
-        else
-            gh auth login || auth_result=$?
-        fi
-
-        echo ""
-        if [[ $auth_result -eq 0 ]]; then
-            if gh auth status &> /dev/null; then
-                print_success "GitHub CLI authentication successful"
-                return 0
-            else
-                print_warning "GitHub CLI authentication may have failed"
-                return 1
-            fi
-        elif [[ $auth_result -eq 124 ]]; then
-            print_warning "Authentication timed out after 3 minutes"
-            print_info "Run 'gh auth login' later to authenticate"
-            return 1
-        else
-            print_warning "Authentication failed or was cancelled"
-            print_info "Run 'gh auth login' later to authenticate"
-            return 1
-        fi
-    else
-        print_warning "Skipping GitHub authentication"
-        print_info "Run 'gh auth login' later to authenticate"
-        return 1
+    if gh auth status &> /dev/null 2>&1; then
+        print_success "GitHub CLI is authenticated"
+        return 0
     fi
+
+    print_error "GitHub CLI is NOT authenticated"
+    echo ""
+    echo "  To authenticate, run the following after bootstrap completes:"
+    echo ""
+    echo -e "    ${CYAN}gh auth login${NC}"
+    echo ""
+    return 1
 }
 
-# Setup GitLab CLI authentication
-setup_glab_auth() {
+# Check GitLab CLI authentication
+check_glab_auth() {
     if [[ "$ENABLE_GLAB" == false ]]; then
         return 0
     fi
 
+    print_step "Checking GitLab CLI authentication..."
+
     if ! command_exists glab; then
+        print_warning "GitLab CLI not installed - skipping auth check"
         return 1
     fi
 
-    echo ""
-    echo -e "${BOLD}GitLab CLI Authentication Setup${NC}"
-    echo ""
-    echo "GitLab CLI requires authentication to access repositories."
-    echo ""
-
-    if prompt_yes_no "Authenticate with GitLab now?"; then
-        print_step "Starting GitLab authentication..."
-        echo ""
-        print_info "The GitLab CLI will guide you through the authentication process"
-        print_info "Follow the prompts - you may need to open a browser or enter a token"
-        print_info "This may take 30-60 seconds..."
-        echo ""
-
-        # Run with timeout if available
-        local auth_result=0
-        if [[ -n "$TIMEOUT_CMD" ]]; then
-            $TIMEOUT_CMD 180 glab auth login || auth_result=$?
-        else
-            glab auth login || auth_result=$?
-        fi
-
-        echo ""
-        if [[ $auth_result -eq 0 ]]; then
-            if glab auth status &> /dev/null; then
-                print_success "GitLab CLI authentication successful"
-                return 0
-            else
-                print_warning "GitLab CLI authentication may have failed"
-                return 1
-            fi
-        elif [[ $auth_result -eq 124 ]]; then
-            print_warning "Authentication timed out after 3 minutes"
-            print_info "Run 'glab auth login' later to authenticate"
-            return 1
-        else
-            print_warning "Authentication failed or was cancelled"
-            print_info "Run 'glab auth login' later to authenticate"
-            return 1
-        fi
-    else
-        print_warning "Skipping GitLab authentication"
-        print_info "Run 'glab auth login' later to authenticate"
-        return 1
+    if glab auth status &> /dev/null 2>&1; then
+        print_success "GitLab CLI is authenticated"
+        return 0
     fi
+
+    print_error "GitLab CLI is NOT authenticated"
+    echo ""
+    echo "  To authenticate, run the following after bootstrap completes:"
+    echo ""
+    echo -e "    ${CYAN}glab auth login${NC}"
+    echo ""
+    return 1
 }
 
 # Deploy configuration files
@@ -1793,6 +1597,27 @@ print_summary() {
     fi
     echo ""
 
+    echo -e "${BOLD}Authentication Commands:${NC}"
+    echo ""
+    echo "  If any services above need authentication, run these commands:"
+    echo ""
+    if [[ "$ENABLE_CLAUDE" == true ]]; then
+        echo -e "    Claude:  ${CYAN}claude auth login${NC}  or  ${CYAN}export ANTHROPIC_API_KEY='...'${NC}"
+    fi
+    if [[ "$ENABLE_GEMINI" == true ]]; then
+        echo -e "    Gemini:  ${CYAN}gemini auth login${NC}  or  ${CYAN}export GEMINI_API_KEY='...'${NC}"
+    fi
+    if [[ "$ENABLE_GH" == true ]]; then
+        echo -e "    GitHub:  ${CYAN}gh auth login${NC}"
+    fi
+    if [[ "$ENABLE_GLAB" == true ]]; then
+        echo -e "    GitLab:  ${CYAN}glab auth login${NC}"
+    fi
+    if [[ "$ENABLE_CURSOR" == true ]]; then
+        echo "    Cursor:  Sign in within the Cursor IDE"
+    fi
+    echo ""
+
     echo -e "${BOLD}Reconfigure Services:${NC}"
     echo ""
     echo "  # Enable/disable services"
@@ -1890,7 +1715,7 @@ main() {
     echo "This script will:"
     echo "  1. Install required CLI tools (based on enabled services)"
     echo "  2. Deploy configuration files to ~/.claude"
-    echo "  3. Set up authentication for each enabled service"
+    echo "  3. Check authentication status for each enabled service"
     echo ""
 
     echo -e "${BOLD}Services to configure:${NC}"
@@ -1929,38 +1754,30 @@ main() {
     # Deploy configurations
     deploy_configs
 
-    # Setup authentication
+    # Check authentication status
     if [[ "$SKIP_AUTH" == false ]]; then
-        print_header "Setting Up Authentication"
+        print_header "Checking Authentication Status"
 
-        echo ""
-        print_info "Authentication may take a few minutes per service"
-        print_info "Each CLI tool will open your browser for OAuth authentication"
-        print_info "Please complete the login process in your browser when prompted"
-        echo ""
+        local auth_failures=0
 
-        # Claude auth
+        # Claude auth check
         if [[ "$ENABLE_CLAUDE" == true ]]; then
-            if ! check_claude_auth; then
-                setup_claude_auth
-            fi
+            check_claude_auth || auth_failures=$((auth_failures + 1))
         fi
 
-        # Gemini auth
+        # Gemini auth check
         if [[ "$ENABLE_GEMINI" == true ]]; then
-            if ! check_gemini_auth; then
-                setup_gemini_auth
-            fi
+            check_gemini_auth || auth_failures=$((auth_failures + 1))
         fi
 
-        # GitHub CLI auth
+        # GitHub CLI auth check
         if [[ "$ENABLE_GH" == true ]]; then
-            setup_gh_auth
+            check_gh_auth || auth_failures=$((auth_failures + 1))
         fi
 
-        # GitLab CLI auth
+        # GitLab CLI auth check
         if [[ "$ENABLE_GLAB" == true ]]; then
-            setup_glab_auth
+            check_glab_auth || auth_failures=$((auth_failures + 1))
         fi
 
         # Cursor auth info
@@ -1977,13 +1794,22 @@ main() {
             fi
 
             if [[ "$cursor_found" == true ]]; then
-                echo ""
+                print_step "Checking Cursor authentication..."
                 print_info "Cursor authentication is handled within the Cursor IDE"
                 print_info "Open Cursor and sign in to enable the cursor agent"
             fi
         fi
+
+        # Summary of auth failures
+        if [[ $auth_failures -gt 0 ]]; then
+            echo ""
+            print_warning "$auth_failures service(s) require authentication (see instructions above)"
+        else
+            echo ""
+            print_success "All enabled services are authenticated"
+        fi
     else
-        print_info "Skipping authentication setup (--skip-auth)"
+        print_info "Skipping authentication checks (--skip-auth)"
     fi
 
     # Verify installation

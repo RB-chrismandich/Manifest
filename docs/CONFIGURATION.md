@@ -680,7 +680,7 @@ Override defaults without modifying configuration files.
 
 ```bash
 # Colon-separated directories to include in Gemini context
-export GEMINI_INCLUDE_DIRS="$(pwd):~/.claude:/path/to/other/dir"
+export GEMINI_INCLUDE_DIRS="$(pwd):~/.claude:~/.gemini:/path/to/other/dir"
 ```
 
 ### Model Tier Mappings

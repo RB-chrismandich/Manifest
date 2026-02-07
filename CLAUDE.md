@@ -39,7 +39,6 @@ that enable parallel LLM agent coordination (Cursor, Gemini CLI, Claude CLI).
 ├── GEMINI.md                        # Orchestration guide for Gemini
 ├── commands/                        # TOML slash commands (converted from .claude/commands/)
 ├── settings.json                    # Gemini CLI project settings
-├── skills/code-quality/SKILL.md     # Symlink to shared skill
 ├── scripts -> ../.claude/scripts/   # Symlink to shared scripts
 ├── config -> ../.claude/config/     # Symlink to shared configs
 ├── prompts -> ../.claude/prompts/   # Symlink to shared prompts
@@ -86,7 +85,7 @@ The `bootstrap.sh` script automates installation, deployment, and authentication
 
 ```bash
 --skip-install    # Skip CLI tool installation
---skip-auth       # Skip authentication setup
+--skip-auth       # Skip authentication checks
 --force           # Overwrite existing ~/.claude without prompting
 --reconfigure     # Only update service toggles
 ```
@@ -107,7 +106,7 @@ The bootstrap script:
 4. Opens Cursor download page (if enabled)
 5. Deploys configuration files to `~/.claude/`
 6. Writes service toggles to `~/.claude/config/services.yml`
-7. Walks through authentication for each enabled service
+7. Checks authentication status and provides setup instructions for unauthenticated services
 
 ## Manual Deployment
 

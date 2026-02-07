@@ -147,7 +147,7 @@ usage() {
     echo "  --check-credits                Run pre-flight credit check"
     echo ""
     echo "Environment Variables:"
-    echo "  GEMINI_INCLUDE_DIRS            Colon-separated directories for Gemini (default: pwd:~/.claude)"
+    echo "  GEMINI_INCLUDE_DIRS            Colon-separated directories for Gemini (default: pwd:~/.claude:~/.gemini)"
     echo "  CURSOR_MODEL_MINI              Model name for 'mini' tier (default: gpt-5.1-codex-mini)"
     echo "  CURSOR_MODEL_FLASH             Model name for 'flash' tier (default: gpt-5.1-codex)"
     echo "  CURSOR_MODEL_ADVANCED          Model name for 'advanced' tier (default: gpt-5.2)"
@@ -264,7 +264,7 @@ GEMINI_MODEL_FLASH="${GEMINI_MODEL_FLASH:-gemini-3-flash-preview}"
 GEMINI_MODEL_PRO="${GEMINI_MODEL_PRO:-gemini-3-pro-preview}"
 
 # Configurable directories for Gemini (colon-separated, like PATH)
-GEMINI_INCLUDE_DIRS="${GEMINI_INCLUDE_DIRS:-$(pwd):$HOME/.claude}"
+GEMINI_INCLUDE_DIRS="${GEMINI_INCLUDE_DIRS:-$(pwd):$HOME/.claude:$HOME/.gemini}"
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
@@ -659,9 +659,12 @@ run_gemini() {
     printf '%s' "$prompt" > "$prompt_file"
 
     echo -e "${BLUE}[Gemini CLI]${NC} Starting with model: $GEMINI_MODEL..."
-    # Gemini CLI: use input redirection for reliable handling (saves cat process)
+    # Gemini CLI: use -p flag for non-interactive (headless) mode.
+    # Run from a temp directory to avoid loading project-level .gemini/ settings
+    # (e.g., GEMINI.md orchestration guide) which can cause Gemini to
+    # "investigate the environment" instead of answering the prompt.
     run_with_retry "Gemini CLI" "$output_file" bash -c \
-        'gemini --output-format text --model "$1" "${@:2}" < "$0"' \
+        'cd "$(mktemp -d)" && gemini --output-format text --model "$1" -p "" "${@:2}" < "$0"' \
         "$prompt_file" "$GEMINI_MODEL" "${include_args[@]}"
 }
 
@@ -682,8 +685,9 @@ run_claude() {
 
     # Claude CLI: use input redirection (saves cat process)
     if ! run_with_retry_capture_stderr "Claude CLI" "$output_file" "$stderr_file" \
-        bash -c 'claude --print --output-format text --model "$1" < "$0"' \
-        "$prompt_file" "$CLAUDE_MODEL"; then
+        bash -c 'claude --print --output-format text --model "$1" --append-system-prompt "$2" < "$0"' \
+        "$prompt_file" "$CLAUDE_MODEL" \
+        "You are a code analysis agent in a parallel orchestration system. Rules: Do NOT use emojis. Do NOT claim to have read files or performed actions you did not actually perform. Keep responses concise and technical. Report only findings from actual analysis of the provided content."; then
 
         # Check for credit exhaustion
         if check_credit_exhaustion "$stderr_file" "Claude"; then
@@ -693,8 +697,9 @@ run_claude() {
 
             # Retry with haiku (cheapest model)
             run_with_retry "Claude CLI (fallback)" "$output_file" \
-                bash -c 'claude --print --output-format text --model haiku < "$0"' \
-                "$prompt_file"
+                bash -c 'claude --print --output-format text --model haiku --append-system-prompt "$1" < "$0"' \
+                "$prompt_file" \
+                "You are a code analysis agent in a parallel orchestration system. Rules: Do NOT use emojis. Do NOT claim to have read files or performed actions you did not actually perform. Keep responses concise and technical. Report only findings from actual analysis of the provided content."
         fi
     fi
 }
@@ -1112,7 +1117,7 @@ monitor_agents() {
 
         if $running; then
             # \r to start, \033[K to clear line
-            printf "\r${BOLD}Waiting for agents (%s):${NC}%s\033[K" "$time_str" "$status_line"
+            printf "\r${BOLD}Waiting for agents (%s):${NC}%b\033[K" "$time_str" "$status_line"
             sleep 0.1
         fi
     done
@@ -1126,7 +1131,7 @@ monitor_agents() {
     local time_str
     time_str=$(printf "%02d:%02d" $minutes $seconds)
 
-    printf "\r${BOLD}Agents completed (%s):${NC}%s\033[K\n" "$time_str" "$status_line"
+    printf "\r${BOLD}Agents completed (%s):${NC}%b\033[K\n" "$time_str" "$status_line"
 
     # Restore cursor
     if $has_tput; then

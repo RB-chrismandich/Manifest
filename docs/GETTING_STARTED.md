@@ -76,7 +76,7 @@ cd Manifest
 # Only install Claude
 ./bootstrap.sh --disable-gemini --disable-cursor
 
-# Skip interactive authentication (configure manually later)
+# Skip authentication checks (configure manually later)
 ./bootstrap.sh --skip-auth
 ```
 
