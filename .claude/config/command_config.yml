@@ -121,12 +121,13 @@ tool_policies:
       - Read
       - Glob
       - Grep
-      - Bash  # Needed for parallel_agent.sh, mv (archive/abandon), date
-      - Write  # Needed for creating new plans from template
-      - Task  # Needed for synthesis agent on disagreement
+      - Bash   # parallel_agent.sh, git_ops.sh, mv, date
+      - Write  # Creating new plans from template
+      - Edit   # Checking off deliverables during execute
+      - Task   # Synthesis agent on disagreement
     forbidden: []
     parallel_agents: conditional
-    trigger_condition: security OR architecture OR scope >= 3 files OR critical_logic
+    trigger_condition: security OR architecture OR scope >= 3 files OR critical_logic OR issue_execute_review
     validation_tier: 2
 
   code-quality:  # skill
