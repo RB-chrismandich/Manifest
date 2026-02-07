@@ -14,7 +14,18 @@ umask 0077
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
-OUTPUT_DIR="$PROJECT_ROOT/.agent_outputs"
+
+# Detect if running in a sandboxed environment (e.g., Task subagent)
+# Try to use ~/.claude/.agent_outputs, fallback to /tmp if not writable
+DEFAULT_OUTPUT_DIR="$PROJECT_ROOT/.agent_outputs"
+if mkdir -p "$DEFAULT_OUTPUT_DIR" 2> /dev/null && [ -w "$DEFAULT_OUTPUT_DIR" ]; then
+    OUTPUT_DIR="$DEFAULT_OUTPUT_DIR"
+else
+    # Fallback to /tmp if ~/.claude/.agent_outputs is not writable
+    OUTPUT_DIR="/tmp/.claude_agent_outputs_$$"
+    echo "Warning: Using fallback output directory: $OUTPUT_DIR" >&2
+fi
+
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 START_TIME=$(date +%s)
 
@@ -1242,6 +1253,49 @@ main() {
     # Monitor agents
     echo ""
     monitor_agents
+
+    echo ""
+
+    # Verify output files were created
+    echo -e "${BLUE}=== Output File Check ===${NC}"
+    local files_created=0
+    if [[ "$RUN_CURSOR" == true ]]; then
+        if [[ -f "$OUTPUT_DIR/cursor_${TIMESTAMP}.txt" ]]; then
+            local size
+            size=$(stat -f%z "$OUTPUT_DIR/cursor_${TIMESTAMP}.txt" 2> /dev/null || stat -c%s "$OUTPUT_DIR/cursor_${TIMESTAMP}.txt" 2> /dev/null || echo "0")
+            echo -e "${GREEN}[Cursor]${NC} Output file created (${size} bytes)"
+            files_created=$((files_created + 1))
+        else
+            echo -e "${RED}[Cursor]${NC} Output file NOT created: $OUTPUT_DIR/cursor_${TIMESTAMP}.txt"
+        fi
+    fi
+    if [[ "$RUN_GEMINI" == true ]]; then
+        if [[ -f "$OUTPUT_DIR/gemini_${TIMESTAMP}.txt" ]]; then
+            local size
+            size=$(stat -f%z "$OUTPUT_DIR/gemini_${TIMESTAMP}.txt" 2> /dev/null || stat -c%s "$OUTPUT_DIR/gemini_${TIMESTAMP}.txt" 2> /dev/null || echo "0")
+            echo -e "${GREEN}[Gemini]${NC} Output file created (${size} bytes)"
+            files_created=$((files_created + 1))
+        else
+            echo -e "${RED}[Gemini]${NC} Output file NOT created: $OUTPUT_DIR/gemini_${TIMESTAMP}.txt"
+        fi
+    fi
+    if [[ "$RUN_CLAUDE" == true ]]; then
+        if [[ -f "$OUTPUT_DIR/claude_${TIMESTAMP}.txt" ]]; then
+            local size
+            size=$(stat -f%z "$OUTPUT_DIR/claude_${TIMESTAMP}.txt" 2> /dev/null || stat -c%s "$OUTPUT_DIR/claude_${TIMESTAMP}.txt" 2> /dev/null || echo "0")
+            echo -e "${GREEN}[Claude]${NC} Output file created (${size} bytes)"
+            files_created=$((files_created + 1))
+        else
+            echo -e "${RED}[Claude]${NC} Output file NOT created: $OUTPUT_DIR/claude_${TIMESTAMP}.txt"
+        fi
+    fi
+
+    if [[ $files_created -eq 0 ]]; then
+        echo -e "${RED}ERROR: No output files were created!${NC}"
+        echo -e "${YELLOW}This may indicate a permissions issue or sandbox restriction.${NC}"
+        echo -e "${YELLOW}Try running with: --output /tmp/agent_outputs${NC}"
+        exit 13
+    fi
 
     echo ""
 

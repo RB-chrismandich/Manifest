@@ -51,6 +51,11 @@ This document defines how Claude should leverage parallel LLM agents
 | `--timeout <sec>` | Timeout per agent (default: 120) |
 | `--output <dir>` | Custom output directory |
 
+**Note on Sandboxed Environments**: When running from Task subagents or other sandboxed
+contexts, the script automatically detects write permission issues and falls back to
+`/tmp/.claude_agent_outputs_$$`. If you encounter file creation errors, manually specify
+an output directory with `--output /tmp/agent_outputs`.
+
 ### Model Selection
 
 The orchestrating agent (Claude) selects models based on task complexity:

@@ -84,6 +84,20 @@ services:
       - flash    # Balanced (default)
       - advanced # Maximum capability
 
+  # Git CLI tools - Platform-specific Git hosting integrations
+  git_cli:
+    github:
+      enabled: auto  # auto | true | false (default: auto-detect)
+      command: gh
+      description: "GitHub CLI for issue/PR management"
+    gitlab:
+      enabled: auto  # auto | true | false (default: auto-detect)
+      command: glab
+      description: "GitLab CLI for issue/MR management"
+    detection:
+      platform: auto  # auto | github | gitlab | git
+      remote: origin  # overridable via MANIFEST_GIT_REMOTE
+
 # Minimum agents required for parallel orchestration
 minimum_agents: 2
 
@@ -103,6 +117,12 @@ fallback:
 
 # Enable all services
 ./bootstrap.sh --reconfigure --enable-claude --enable-gemini --enable-cursor
+
+# Enable Git CLIs explicitly (useful when auto-detect isn't desired)
+./bootstrap.sh --reconfigure --enable-gh --enable-glab
+
+# Disable Git CLIs
+./bootstrap.sh --reconfigure --disable-gh --disable-glab
 ```
 
 ### Option 2: Edit services.yml manually

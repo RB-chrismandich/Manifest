@@ -276,6 +276,11 @@ services:
     enabled: true  # Enable/disable Gemini CLI
   cursor:
     enabled: true  # Enable/disable Cursor Agent
+  git_cli:
+    github:
+      enabled: auto  # auto | true | false (auto-detect if installed)
+    gitlab:
+      enabled: auto  # auto | true | false (auto-detect if installed)
 ```
 
 **Reconfigure after initial setup:**
@@ -286,6 +291,9 @@ services:
 
 # Re-enable Gemini CLI
 ./bootstrap.sh --reconfigure --enable-gemini
+
+# Enable Git CLIs explicitly
+./bootstrap.sh --reconfigure --enable-gh --enable-glab
 ```
 
 ### Model Selection
