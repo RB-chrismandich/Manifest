@@ -111,6 +111,14 @@ open_url() {
 # Initialize platform detection
 detect_platform
 
+# Detect timeout command (timeout on Linux, gtimeout on macOS via coreutils)
+TIMEOUT_CMD=""
+if command -v timeout &> /dev/null; then
+    TIMEOUT_CMD="timeout"
+elif command -v gtimeout &> /dev/null; then
+    TIMEOUT_CMD="gtimeout"
+fi
+
 # Flags
 SKIP_INSTALL=false
 SKIP_AUTH=false
@@ -288,6 +296,36 @@ prompt_yes_no() {
 
 command_exists() {
     command -v "$1" &> /dev/null
+}
+
+# Show a spinner while a command runs
+# Usage: run_with_spinner "command args" "Loading message"
+run_with_spinner() {
+    local cmd="$1"
+    local msg="${2:-Working}"
+    local pid
+    local spin='-\|/'
+    local i=0
+
+    # Start command in background
+    eval "$cmd" &
+    pid=$!
+
+    # Show spinner while command runs
+    while kill -0 "$pid" 2> /dev/null; do
+        i=$(((i + 1) % 4))
+        printf "\r${CYAN}${spin:$i:1}${NC} %s..." "$msg"
+        sleep 0.2
+    done
+
+    # Wait for command to complete and get exit code
+    wait "$pid"
+    local exit_code=$?
+
+    # Clear spinner line
+    printf "\r\033[K"
+
+    return $exit_code
 }
 
 # Parse service configuration using awk (single pass)
@@ -1010,6 +1048,8 @@ check_cursor() {
 }
 
 # Check Claude authentication
+# NOTE: We check credential files directly instead of running `claude auth status`
+# because that command may spawn an interactive session that can hang
 check_claude_auth() {
     if [[ "$ENABLE_CLAUDE" == false ]]; then
         return 0
@@ -1022,14 +1062,30 @@ check_claude_auth() {
         return 1
     fi
 
-    # Try to check auth status
-    if claude auth status &> /dev/null; then
-        print_success "Claude Code is authenticated"
-        return 0
-    else
-        print_warning "Claude Code is not authenticated"
-        return 1
+    # Check for auth token file (more reliable than `claude auth status` which may spawn interactive session)
+    local claude_auth_files=(
+        "$HOME/.config/claude-code/auth.json"
+        "$HOME/.claude-code/auth.json"
+        "$HOME/.config/@anthropic-ai/claude-code/auth.json"
+    )
+
+    for auth_file in "${claude_auth_files[@]}"; do
+        if [[ -f "$auth_file" ]]; then
+            print_success "Claude Code authentication file found"
+            return 0
+        fi
+    done
+
+    # Fallback: try interactive check with timeout
+    if [[ -n "$TIMEOUT_CMD" ]]; then
+        if $TIMEOUT_CMD 5 claude auth status &> /dev/null; then
+            print_success "Claude Code is authenticated"
+            return 0
+        fi
     fi
+
+    print_warning "Claude Code is not authenticated"
+    return 1
 }
 
 # Setup Claude authentication
@@ -1051,13 +1107,37 @@ setup_claude_auth() {
 
     if prompt_yes_no "Start Claude Code authentication?"; then
         print_step "Starting authentication..."
-        claude auth login
+        echo ""
+        print_info "Opening browser for authentication..."
+        print_info "Please complete the login process in your browser"
+        print_info "Follow the prompts from the Claude CLI"
+        print_info "This may take 30-60 seconds..."
+        echo ""
 
-        if check_claude_auth; then
-            print_success "Claude Code authentication successful"
-            return 0
+        # Run with timeout if available
+        local auth_result=0
+        if [[ -n "$TIMEOUT_CMD" ]]; then
+            $TIMEOUT_CMD 180 claude auth login || auth_result=$?
         else
-            print_error "Claude Code authentication failed"
+            claude auth login || auth_result=$?
+        fi
+
+        echo ""
+        if [[ $auth_result -eq 0 ]]; then
+            if check_claude_auth; then
+                print_success "Claude Code authentication successful"
+                return 0
+            else
+                print_error "Claude Code authentication failed"
+                return 1
+            fi
+        elif [[ $auth_result -eq 124 ]]; then
+            print_error "Authentication timed out after 3 minutes"
+            print_info "You can retry authentication later with: claude auth login"
+            return 1
+        else
+            print_error "Authentication failed or was cancelled"
+            print_info "You can retry authentication later with: claude auth login"
             return 1
         fi
     else
@@ -1067,6 +1147,8 @@ setup_claude_auth() {
 }
 
 # Check Gemini authentication
+# NOTE: We check credential files directly instead of running `gemini auth status`
+# because that command spawns a full agent session that can hang on tool execution
 check_gemini_auth() {
     if [[ "$ENABLE_GEMINI" == false ]]; then
         return 0
@@ -1085,9 +1167,9 @@ check_gemini_auth() {
         return 0
     fi
 
-    # Try a simple auth check
-    if gemini auth status &> /dev/null 2>&1; then
-        print_success "Gemini CLI is authenticated"
+    # Check for OAuth credentials file (more reliable than `gemini auth status` which spawns an agent)
+    if [[ -f "$HOME/.gemini/oauth_creds.json" ]]; then
+        print_success "Gemini OAuth credentials found"
         return 0
     fi
 
@@ -1123,13 +1205,35 @@ setup_gemini_auth() {
 
     if prompt_yes_no "Start Gemini CLI authentication via OAuth?"; then
         print_step "Starting OAuth authentication..."
-        gemini auth login
+        echo ""
+        print_info "Opening browser for authentication..."
+        print_info "Please complete the login process in your browser"
+        print_info "Follow the prompts from the Gemini CLI"
+        print_info "This may take 30-60 seconds..."
+        echo ""
 
-        if check_gemini_auth; then
-            print_success "Gemini CLI authentication successful"
-            return 0
+        # Run with timeout if available
+        local auth_result=0
+        if [[ -n "$TIMEOUT_CMD" ]]; then
+            $TIMEOUT_CMD 180 gemini auth login || auth_result=$?
         else
-            print_warning "OAuth authentication may have failed"
+            gemini auth login || auth_result=$?
+        fi
+
+        echo ""
+        if [[ $auth_result -eq 0 ]]; then
+            if check_gemini_auth; then
+                print_success "Gemini CLI authentication successful"
+                return 0
+            else
+                print_warning "OAuth authentication may have failed"
+            fi
+        elif [[ $auth_result -eq 124 ]]; then
+            print_warning "Authentication timed out after 3 minutes"
+            print_info "You can retry authentication later with: gemini auth login"
+        else
+            print_warning "Authentication failed or was cancelled"
+            print_info "You can retry authentication later with: gemini auth login"
         fi
     fi
 
@@ -1137,10 +1241,13 @@ setup_gemini_auth() {
     echo ""
     if prompt_yes_no "Set up Gemini API key instead?"; then
         echo ""
-        read -rs -p "Enter your Gemini API key: " api_key
+        print_info "Get your API key from: https://aistudio.google.com/apikey"
+        echo ""
+        read -rs -p "Enter your Gemini API key (input will be hidden): " api_key
         echo ""
 
         if [[ -n "$api_key" ]]; then
+            print_step "Saving API key to shell profile..."
             # Escape single quotes for safe single-quoted string
             local safe_api_key="${api_key//\'/\'\\\'\'}"
 
@@ -1194,13 +1301,36 @@ setup_gh_auth() {
 
     if prompt_yes_no "Authenticate with GitHub now?"; then
         print_step "Starting GitHub authentication..."
-        gh auth login
+        echo ""
+        print_info "The GitHub CLI will guide you through the authentication process"
+        print_info "Follow the prompts - you may need to open a browser or enter a code"
+        print_info "This may take 30-60 seconds..."
+        echo ""
 
-        if gh auth status &> /dev/null; then
-            print_success "GitHub CLI authentication successful"
-            return 0
+        # Run with timeout if available
+        local auth_result=0
+        if [[ -n "$TIMEOUT_CMD" ]]; then
+            $TIMEOUT_CMD 180 gh auth login || auth_result=$?
         else
-            print_warning "GitHub CLI authentication may have failed"
+            gh auth login || auth_result=$?
+        fi
+
+        echo ""
+        if [[ $auth_result -eq 0 ]]; then
+            if gh auth status &> /dev/null; then
+                print_success "GitHub CLI authentication successful"
+                return 0
+            else
+                print_warning "GitHub CLI authentication may have failed"
+                return 1
+            fi
+        elif [[ $auth_result -eq 124 ]]; then
+            print_warning "Authentication timed out after 3 minutes"
+            print_info "Run 'gh auth login' later to authenticate"
+            return 1
+        else
+            print_warning "Authentication failed or was cancelled"
+            print_info "Run 'gh auth login' later to authenticate"
             return 1
         fi
     else
@@ -1228,13 +1358,36 @@ setup_glab_auth() {
 
     if prompt_yes_no "Authenticate with GitLab now?"; then
         print_step "Starting GitLab authentication..."
-        glab auth login
+        echo ""
+        print_info "The GitLab CLI will guide you through the authentication process"
+        print_info "Follow the prompts - you may need to open a browser or enter a token"
+        print_info "This may take 30-60 seconds..."
+        echo ""
 
-        if glab auth status &> /dev/null; then
-            print_success "GitLab CLI authentication successful"
-            return 0
+        # Run with timeout if available
+        local auth_result=0
+        if [[ -n "$TIMEOUT_CMD" ]]; then
+            $TIMEOUT_CMD 180 glab auth login || auth_result=$?
         else
-            print_warning "GitLab CLI authentication may have failed"
+            glab auth login || auth_result=$?
+        fi
+
+        echo ""
+        if [[ $auth_result -eq 0 ]]; then
+            if glab auth status &> /dev/null; then
+                print_success "GitLab CLI authentication successful"
+                return 0
+            else
+                print_warning "GitLab CLI authentication may have failed"
+                return 1
+            fi
+        elif [[ $auth_result -eq 124 ]]; then
+            print_warning "Authentication timed out after 3 minutes"
+            print_info "Run 'glab auth login' later to authenticate"
+            return 1
+        else
+            print_warning "Authentication failed or was cancelled"
+            print_info "Run 'glab auth login' later to authenticate"
             return 1
         fi
     else
@@ -1779,6 +1932,12 @@ main() {
     # Setup authentication
     if [[ "$SKIP_AUTH" == false ]]; then
         print_header "Setting Up Authentication"
+
+        echo ""
+        print_info "Authentication may take a few minutes per service"
+        print_info "Each CLI tool will open your browser for OAuth authentication"
+        print_info "Please complete the login process in your browser when prompted"
+        echo ""
 
         # Claude auth
         if [[ "$ENABLE_CLAUDE" == true ]]; then
