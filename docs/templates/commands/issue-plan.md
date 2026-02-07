@@ -88,7 +88,7 @@ Before doing anything else, run `/compact` to summarize and free up context spac
 **YOU MAY ONLY:**
 
 - Read files (Read, Glob, Grep tools)
-- Run `gh` commands to read/write GitHub issues
+- Run Git CLI commands to read/write issues (GitHub/GitLab)
 - Run `~/.claude/scripts/parallel_agent.sh` for validation
 - Spawn read-only Task sub-agents (Explore type only)
 
@@ -101,7 +101,7 @@ If you catch yourself about to write code or modify a file, STOP immediately. Yo
 1. Fetch the issue:
 
    ```bash
-   gh issue view $ARGUMENTS --json title,body,labels,state,comments -R {owner}/{repo}
+   ~/.claude/scripts/git_ops.sh issue-view $ARGUMENTS --json title,body,labels,state,comments -R {owner}/{repo}
    ```
 
    **Replace `{owner}/{repo}` with your repository.**
@@ -313,7 +313,7 @@ Based on the disposition determined in Step 1:
 **If REPLACING the body:**
 
 ```bash
-gh issue edit $ARGUMENTS --body-file - -R {owner}/{repo} <<'PLAN_EOF'
+~/.claude/scripts/git_ops.sh issue-edit $ARGUMENTS --body-file - -R {owner}/{repo} <<'PLAN_EOF'
 [FULL PLAN MARKDOWN]
 PLAN_EOF
 ```
@@ -321,7 +321,7 @@ PLAN_EOF
 **If ADDING a comment:**
 
 ```bash
-gh issue comment $ARGUMENTS --body-file - -R {owner}/{repo} <<'PLAN_EOF'
+~/.claude/scripts/git_ops.sh issue-comment $ARGUMENTS --body-file - -R {owner}/{repo} <<'PLAN_EOF'
 ## Updated Implementation Plan
 
 [FULL PLAN MARKDOWN]
@@ -331,7 +331,7 @@ PLAN_EOF
 After posting, confirm success by re-fetching the issue:
 
 ```bash
-gh issue view $ARGUMENTS --json title,body,comments -R {owner}/{repo}
+~/.claude/scripts/git_ops.sh issue-view $ARGUMENTS --json title,body,comments -R {owner}/{repo}
 ```
 
 Verify the plan appears in the body or as the latest comment.
@@ -342,10 +342,10 @@ Add the `planned` label to the issue to indicate that an implementation plan has
 
 ```bash
 # Create label if it doesn't exist (idempotent — gh will error silently if label exists)
-gh label create "planned" --description "Implementation plan posted to issue" --color "1D76DB" -R {owner}/{repo} 2>/dev/null || true
+~/.claude/scripts/git_ops.sh label-create "planned" --description "Implementation plan posted to issue" --color "1D76DB" -R {owner}/{repo} 2>/dev/null || true
 
 # Add the label
-gh issue edit $ARGUMENTS --add-label "planned" -R {owner}/{repo}
+~/.claude/scripts/git_ops.sh issue-edit $ARGUMENTS --add-label "planned" -R {owner}/{repo}
 ```
 
 ---

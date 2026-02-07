@@ -81,7 +81,7 @@ Before planning or implementing anything, verify that the issue has been through
 1. Fetch the issue metadata:
 
    ```bash
-   gh issue view $ARGUMENTS --json labels,body,comments -R {owner}/{repo}
+   ~/.claude/scripts/git_ops.sh issue-view $ARGUMENTS --json labels,body,comments -R {owner}/{repo}
    ```
 
    **Replace `{owner}/{repo}` with your repository.**
@@ -115,7 +115,7 @@ Before planning or implementing anything, verify that the issue has been through
 
 ### Step 1: Ingestion & Checklist Extraction
 
-1. Read the provided GitHub Issue from $ARGUMENTS (use `gh issue view` if a number/URL is given). You already have the issue data from Step 0.5 — reuse it rather than re-fetching.
+1. Read the provided GitHub Issue from $ARGUMENTS (use `~/.claude/scripts/git_ops.sh issue-view` if a number/URL is given). You already have the issue data from Step 0.5 — reuse it rather than re-fetching.
 2. **Extract checklists from body AND comments**: Parse the issue body **and** every comment for GitHub-flavored markdown checklists (`- [ ]` / `- [x]` items). Track these as **acceptance criteria** throughout the workflow. For each checklist item, record:
    - The item text
    - Whether it's in the issue **body** or a **comment** (and if a comment, its `comment_id` — available from the API response)
@@ -240,10 +240,10 @@ If neither the issue body nor any comments had checklists, skip this table.
 
 #### 5d. Post implementation comment
 
-Post a structured comment on the issue using `gh issue comment`:
+Post a structured comment on the issue using `~/.claude/scripts/git_ops.sh issue-comment`:
 
 ```bash
-gh issue comment <ISSUE_NUMBER> --body "$(cat <<'EOF'
+~/.claude/scripts/git_ops.sh issue-comment <ISSUE_NUMBER> --body "$(cat <<'EOF'
 ## Implementation Update
 
 **Status**: `processed` | `needs-review`
@@ -303,13 +303,13 @@ For each follow-up item parsed in 5e, create a new GitHub issue.
 1. **Ensure the `follow-up` label exists**:
 
    ```bash
-   gh label create "follow-up" --description "Follow-up item from a processed issue" --color "D4C5F9" -R {owner}/{repo} 2>/dev/null || true
+   ~/.claude/scripts/git_ops.sh label-create "follow-up" --description "Follow-up item from a processed issue" --color "D4C5F9" -R {owner}/{repo} 2>/dev/null || true
    ```
 
 2. **Create each follow-up issue** using the standardized template:
 
    ```bash
-   gh issue create --title "Follow-up: <DERIVED_TITLE>" --label "follow-up" -R {owner}/{repo} --body "$(cat <<'EOF'
+   ~/.claude/scripts/git_ops.sh issue-create --title "Follow-up: <DERIVED_TITLE>" --label "follow-up" -R {owner}/{repo} --body "$(cat <<'EOF'
    <!-- follow-up-from: #<PARENT_NUMBER> -->
    ## Follow-up from #<PARENT_NUMBER>
 
@@ -335,7 +335,7 @@ For each follow-up item parsed in 5e, create a new GitHub issue.
 3. **Post a summary comment on the parent issue** listing all created follow-up issues:
 
    ```bash
-   gh issue comment <PARENT_NUMBER> --body "$(cat <<'EOF'
+   ~/.claude/scripts/git_ops.sh issue-comment <PARENT_NUMBER> --body "$(cat <<'EOF'
    ### Follow-up Issues Created
 
    | # | Title | Origin |
@@ -351,17 +351,17 @@ For each follow-up item parsed in 5e, create a new GitHub issue.
 
 ```bash
 # Add the status label
-gh issue edit <ISSUE_NUMBER> --add-label "processed" -R {owner}/{repo}
+~/.claude/scripts/git_ops.sh issue-edit <ISSUE_NUMBER> --add-label "processed" -R {owner}/{repo}
 # OR
-gh issue edit <ISSUE_NUMBER> --add-label "needs-review" -R {owner}/{repo}
+~/.claude/scripts/git_ops.sh issue-edit <ISSUE_NUMBER> --add-label "needs-review" -R {owner}/{repo}
 ```
 
 If the label does not yet exist in the repository, create it first:
 
 ```bash
 # Create labels if they don't exist (idempotent — gh will error silently if label exists)
-gh label create "processed" --description "Issue fully implemented and validated" --color "0E8A16" -R {owner}/{repo} 2>/dev/null || true
-gh label create "needs-review" --description "Implementation complete but requires human review" --color "FBCA04" -R {owner}/{repo} 2>/dev/null || true
+~/.claude/scripts/git_ops.sh label-create "processed" --description "Issue fully implemented and validated" --color "0E8A16" -R {owner}/{repo} 2>/dev/null || true
+~/.claude/scripts/git_ops.sh label-create "needs-review" --description "Implementation complete but requires human review" --color "FBCA04" -R {owner}/{repo} 2>/dev/null || true
 ```
 
 #### 5h. Commit changes (if status is "processed")

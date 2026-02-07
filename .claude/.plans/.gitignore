@@ -1,0 +1,6 @@
+# Ignore local plan files (keep TEMPLATE.md, README.md, .gitkeep)
+[0-9]*.md
+
+# Ignore archived/abandoned plan content (keep .gitkeep)
+.archive/[0-9]*.md
+.abandoned/[0-9]*.md

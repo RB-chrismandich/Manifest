@@ -12,6 +12,10 @@
 #   --disable-gemini    Disable Gemini CLI
 #   --enable-cursor     Enable Cursor agent (default: enabled)
 #   --disable-cursor    Disable Cursor agent
+#   --enable-gh         Enable GitHub CLI (default: auto-detect)
+#   --disable-gh        Disable GitHub CLI
+#   --enable-glab       Enable GitLab CLI (default: auto-detect)
+#   --disable-glab      Disable GitLab CLI
 #
 # Other options:
 #   --skip-install      Skip CLI tool installation
@@ -113,15 +117,19 @@ SKIP_AUTH=false
 FORCE=false
 RECONFIGURE=false
 
-# Service toggles (default: all enabled)
+# Service toggles (default: all enabled, gh/glab auto-detect)
 ENABLE_CLAUDE=true
 ENABLE_GEMINI=true
 ENABLE_CURSOR=true
+ENABLE_GH="auto"
+ENABLE_GLAB="auto"
 
 # Track if user explicitly set toggles
 CLAUDE_SET=false
 GEMINI_SET=false
 CURSOR_SET=false
+GH_SET=false
+GLAB_SET=false
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
@@ -154,6 +162,26 @@ while [[ $# -gt 0 ]]; do
         --disable-cursor)
             ENABLE_CURSOR=false
             CURSOR_SET=true
+            shift
+            ;;
+        --enable-gh)
+            ENABLE_GH=true
+            GH_SET=true
+            shift
+            ;;
+        --disable-gh)
+            ENABLE_GH=false
+            GH_SET=true
+            shift
+            ;;
+        --enable-glab)
+            ENABLE_GLAB=true
+            GLAB_SET=true
+            shift
+            ;;
+        --disable-glab)
+            ENABLE_GLAB=false
+            GLAB_SET=true
             shift
             ;;
         --skip-install)
@@ -262,23 +290,36 @@ parse_services_config() {
     FILE_CLAUDE=""
     FILE_GEMINI=""
     FILE_CURSOR=""
+    FILE_GH=""
+    FILE_GLAB=""
 
     if [[ -f "$SERVICES_CONFIG" ]]; then
         local config_settings
         config_settings=$(awk '
-            BEGIN { section="" }
-            /^[[:space:]]*claude:/ { section="claude" }
-            /^[[:space:]]*gemini:/ { section="gemini" }
-            /^[[:space:]]*cursor:/ { section="cursor" }
+            BEGIN { section=""; subsection="" }
+            /^[[:space:]]*claude:/ { section="claude"; subsection="" }
+            /^[[:space:]]*gemini:/ { section="gemini"; subsection="" }
+            /^[[:space:]]*cursor:/ { section="cursor"; subsection="" }
+            /^[[:space:]]*git_cli:/ { section="git_cli"; subsection="" }
+            /^[[:space:]]*github:/ { if (section == "git_cli") subsection="github" }
+            /^[[:space:]]*gitlab:/ { if (section == "git_cli") subsection="gitlab" }
             /^[[:space:]]*enabled:[[:space:]]*true/ {
                 if (section == "claude") print "FILE_CLAUDE=true;"
                 if (section == "gemini") print "FILE_GEMINI=true;"
                 if (section == "cursor") print "FILE_CURSOR=true;"
+                if (section == "git_cli" && subsection == "github") print "FILE_GH=true;"
+                if (section == "git_cli" && subsection == "gitlab") print "FILE_GLAB=true;"
             }
             /^[[:space:]]*enabled:[[:space:]]*false/ {
                 if (section == "claude") print "FILE_CLAUDE=false;"
                 if (section == "gemini") print "FILE_GEMINI=false;"
                 if (section == "cursor") print "FILE_CURSOR=false;"
+                if (section == "git_cli" && subsection == "github") print "FILE_GH=false;"
+                if (section == "git_cli" && subsection == "gitlab") print "FILE_GLAB=false;"
+            }
+            /^[[:space:]]*enabled:[[:space:]]*auto/ {
+                if (section == "git_cli" && subsection == "github") print "FILE_GH=auto;"
+                if (section == "git_cli" && subsection == "gitlab") print "FILE_GLAB=auto;"
             }
         ' "$SERVICES_CONFIG")
 
@@ -306,6 +347,14 @@ load_existing_config() {
 
         if [[ "$CURSOR_SET" == false && -n "$FILE_CURSOR" ]]; then
             ENABLE_CURSOR=$FILE_CURSOR
+        fi
+
+        if [[ "$GH_SET" == false && -n "$FILE_GH" ]]; then
+            ENABLE_GH=$FILE_GH
+        fi
+
+        if [[ "$GLAB_SET" == false && -n "$FILE_GLAB" ]]; then
+            ENABLE_GLAB=$FILE_GLAB
         fi
 
         print_success "Loaded existing configuration"
@@ -357,6 +406,20 @@ services:
       - mini     # Lightweight
       - flash    # Balanced (default)
       - advanced # Maximum capability
+
+  # Git CLI tools - Platform-specific Git hosting integrations
+  git_cli:
+    github:
+      enabled: $ENABLE_GH
+      command: gh
+      description: "GitHub CLI for issue/PR management"
+    gitlab:
+      enabled: $ENABLE_GLAB
+      command: glab
+      description: "GitLab CLI for issue/MR management"
+    detection:
+      platform: auto  # auto | github | gitlab | git
+      remote: origin  # overridable via MANIFEST_GIT_REMOTE
 
 # Minimum agents required for parallel orchestration
 # If fewer than this many services are enabled, parallel features are disabled
@@ -609,6 +672,283 @@ install_gemini() {
     fi
 }
 
+# Install GitHub CLI
+install_github_cli() {
+    # Auto-detect: skip if already installed or disabled
+    if [[ "$ENABLE_GH" == "auto" ]]; then
+        if command_exists gh; then
+            print_info "GitHub CLI (gh) is installed - enabling"
+            ENABLE_GH=true
+            return 0
+        else
+            print_info "GitHub CLI (gh) not found - skipping (auto-detect)"
+            ENABLE_GH=false
+            return 0
+        fi
+    fi
+
+    if [[ "$ENABLE_GH" == false ]]; then
+        print_info "GitHub CLI is disabled - skipping installation"
+        return 0
+    fi
+
+    print_step "Checking for GitHub CLI (gh)..."
+
+    if command_exists gh; then
+        print_success "GitHub CLI (gh) is installed"
+        gh --version 2> /dev/null || true
+    else
+        print_warning "GitHub CLI (gh) not found"
+        echo ""
+        echo -e "${BOLD}GitHub CLI Installation Options:${NC}"
+        case "$PLATFORM" in
+            macos)
+                echo "  brew install gh"
+                ;;
+            linux)
+                case "$PKG_MANAGER" in
+                    apt)
+                        echo "  sudo apt install gh"
+                        ;;
+                    dnf | yum)
+                        echo "  sudo dnf install gh"
+                        ;;
+                    pacman)
+                        echo "  sudo pacman -S github-cli"
+                        ;;
+                    *)
+                        echo "  See https://cli.github.com/manual/installation"
+                        ;;
+                esac
+                ;;
+        esac
+        echo ""
+
+        if prompt_yes_no "Install GitHub CLI now?"; then
+            case "$PLATFORM" in
+                macos)
+                    if command_exists brew; then
+                        print_step "Installing GitHub CLI via Homebrew..."
+                        brew install gh
+                        print_success "GitHub CLI installed"
+                    else
+                        print_error "Homebrew not found. Please install Homebrew first."
+                        return 1
+                    fi
+                    ;;
+                linux)
+                    case "$PKG_MANAGER" in
+                        apt)
+                            print_step "Installing GitHub CLI via apt..."
+                            sudo apt update && sudo apt install -y gh
+                            print_success "GitHub CLI installed"
+                            ;;
+                        dnf | yum)
+                            print_step "Installing GitHub CLI via $PKG_MANAGER..."
+                            sudo "$PKG_MANAGER" install -y gh
+                            print_success "GitHub CLI installed"
+                            ;;
+                        pacman)
+                            print_step "Installing GitHub CLI via pacman..."
+                            sudo pacman -S --noconfirm github-cli
+                            print_success "GitHub CLI installed"
+                            ;;
+                        *)
+                            print_error "Package manager not supported. Please install manually: https://cli.github.com/manual/installation"
+                            return 1
+                            ;;
+                    esac
+                    ;;
+            esac
+        else
+            print_warning "GitHub CLI not installed"
+            if prompt_yes_no "Disable GitHub CLI in service configuration?"; then
+                ENABLE_GH=false
+            fi
+        fi
+    fi
+}
+
+# Install GitLab CLI
+install_gitlab_cli() {
+    # Auto-detect: skip if already installed or disabled
+    if [[ "$ENABLE_GLAB" == "auto" ]]; then
+        if command_exists glab; then
+            print_info "GitLab CLI (glab) is installed - enabling"
+            ENABLE_GLAB=true
+            return 0
+        else
+            print_info "GitLab CLI (glab) not found - skipping (auto-detect)"
+            ENABLE_GLAB=false
+            return 0
+        fi
+    fi
+
+    if [[ "$ENABLE_GLAB" == false ]]; then
+        print_info "GitLab CLI is disabled - skipping installation"
+        return 0
+    fi
+
+    print_step "Checking for GitLab CLI (glab)..."
+
+    if command_exists glab; then
+        print_success "GitLab CLI (glab) is installed"
+        glab --version 2> /dev/null || true
+    else
+        print_warning "GitLab CLI (glab) not found"
+        echo ""
+        echo -e "${BOLD}GitLab CLI Installation Options:${NC}"
+        case "$PLATFORM" in
+            macos)
+                echo "  brew install glab"
+                ;;
+            linux)
+                case "$PKG_MANAGER" in
+                    apt)
+                        echo "  sudo apt install glab"
+                        ;;
+                    dnf | yum)
+                        echo "  sudo dnf install glab"
+                        ;;
+                    pacman)
+                        echo "  sudo pacman -S glab"
+                        ;;
+                    *)
+                        echo "  See https://gitlab.com/gitlab-org/cli"
+                        ;;
+                esac
+                ;;
+        esac
+        echo ""
+
+        if prompt_yes_no "Install GitLab CLI now?"; then
+            case "$PLATFORM" in
+                macos)
+                    if command_exists brew; then
+                        print_step "Installing GitLab CLI via Homebrew..."
+                        brew install glab
+                        print_success "GitLab CLI installed"
+                    else
+                        print_error "Homebrew not found. Please install Homebrew first."
+                        return 1
+                    fi
+                    ;;
+                linux)
+                    case "$PKG_MANAGER" in
+                        apt)
+                            print_step "Installing GitLab CLI via apt..."
+                            sudo apt update && sudo apt install -y glab
+                            print_success "GitLab CLI installed"
+                            ;;
+                        dnf | yum)
+                            print_step "Installing GitLab CLI via $PKG_MANAGER..."
+                            sudo "$PKG_MANAGER" install -y glab
+                            print_success "GitLab CLI installed"
+                            ;;
+                        pacman)
+                            print_step "Installing GitLab CLI via pacman..."
+                            sudo pacman -S --noconfirm glab
+                            print_success "GitLab CLI installed"
+                            ;;
+                        *)
+                            print_error "Package manager not supported. Please install manually: https://gitlab.com/gitlab-org/cli"
+                            return 1
+                            ;;
+                    esac
+                    ;;
+            esac
+        else
+            print_warning "GitLab CLI not installed"
+            if prompt_yes_no "Disable GitLab CLI in service configuration?"; then
+                ENABLE_GLAB=false
+            fi
+        fi
+    fi
+}
+
+# Check for jq (required by git_ops.sh)
+check_jq() {
+    print_step "Checking for jq (required by git_ops.sh)..."
+
+    if command_exists jq; then
+        print_success "jq is installed"
+    else
+        print_warning "jq not found"
+        echo ""
+        echo -e "${BOLD}jq Installation Options:${NC}"
+        case "$PLATFORM" in
+            macos)
+                echo "  brew install jq"
+                ;;
+            linux)
+                case "$PKG_MANAGER" in
+                    apt)
+                        echo "  sudo apt install jq"
+                        ;;
+                    dnf | yum)
+                        echo "  sudo dnf install jq"
+                        ;;
+                    pacman)
+                        echo "  sudo pacman -S jq"
+                        ;;
+                    zypper)
+                        echo "  sudo zypper install jq"
+                        ;;
+                    *)
+                        echo "  See https://stedolan.github.io/jq/"
+                        ;;
+                esac
+                ;;
+        esac
+        echo ""
+
+        if prompt_yes_no "Install jq now?"; then
+            case "$PLATFORM" in
+                macos)
+                    if command_exists brew; then
+                        print_step "Installing jq via Homebrew..."
+                        brew install jq
+                        print_success "jq installed"
+                    else
+                        print_error "Homebrew not found."
+                        return 1
+                    fi
+                    ;;
+                linux)
+                    case "$PKG_MANAGER" in
+                        apt)
+                            print_step "Installing jq via apt..."
+                            sudo apt update && sudo apt install -y jq
+                            print_success "jq installed"
+                            ;;
+                        dnf | yum)
+                            print_step "Installing jq via $PKG_MANAGER..."
+                            sudo "$PKG_MANAGER" install -y jq
+                            print_success "jq installed"
+                            ;;
+                        pacman)
+                            print_step "Installing jq via pacman..."
+                            sudo pacman -S --noconfirm jq
+                            print_success "jq installed"
+                            ;;
+                        zypper)
+                            print_step "Installing jq via zypper..."
+                            sudo zypper install -y jq
+                            print_success "jq installed"
+                            ;;
+                        *)
+                            print_error "Package manager not supported."
+                            return 1
+                            ;;
+                    esac
+                    ;;
+            esac
+        else
+            print_warning "jq not installed - git_ops.sh may have limited functionality"
+        fi
+    fi
+}
+
 # Install Cursor (if needed for cursor agent)
 check_cursor() {
     if [[ "$ENABLE_CURSOR" == false ]]; then
@@ -831,6 +1171,74 @@ setup_gemini_auth() {
     return 1
 }
 
+# Setup GitHub CLI authentication
+setup_gh_auth() {
+    if [[ "$ENABLE_GH" == false ]]; then
+        return 0
+    fi
+
+    if ! command_exists gh; then
+        return 1
+    fi
+
+    echo ""
+    echo -e "${BOLD}GitHub CLI Authentication Setup${NC}"
+    echo ""
+    echo "GitHub CLI requires authentication to access repositories."
+    echo ""
+
+    if prompt_yes_no "Authenticate with GitHub now?"; then
+        print_step "Starting GitHub authentication..."
+        gh auth login
+
+        if gh auth status &> /dev/null; then
+            print_success "GitHub CLI authentication successful"
+            return 0
+        else
+            print_warning "GitHub CLI authentication may have failed"
+            return 1
+        fi
+    else
+        print_warning "Skipping GitHub authentication"
+        print_info "Run 'gh auth login' later to authenticate"
+        return 1
+    fi
+}
+
+# Setup GitLab CLI authentication
+setup_glab_auth() {
+    if [[ "$ENABLE_GLAB" == false ]]; then
+        return 0
+    fi
+
+    if ! command_exists glab; then
+        return 1
+    fi
+
+    echo ""
+    echo -e "${BOLD}GitLab CLI Authentication Setup${NC}"
+    echo ""
+    echo "GitLab CLI requires authentication to access repositories."
+    echo ""
+
+    if prompt_yes_no "Authenticate with GitLab now?"; then
+        print_step "Starting GitLab authentication..."
+        glab auth login
+
+        if glab auth status &> /dev/null; then
+            print_success "GitLab CLI authentication successful"
+            return 0
+        else
+            print_warning "GitLab CLI authentication may have failed"
+            return 1
+        fi
+    else
+        print_warning "Skipping GitLab authentication"
+        print_info "Run 'glab auth login' later to authenticate"
+        return 1
+    fi
+}
+
 # Deploy configuration files
 deploy_configs() {
     print_header "Deploying Configuration Files"
@@ -889,6 +1297,8 @@ deploy_configs() {
 
     print_step "Copying configuration files..."
     cp -R "$source_dir"/* "$TARGET_DIR/"
+    # Copy dot-prefixed directories (e.g. .plans/) that the glob above skips
+    cp -R "$source_dir"/.[!.]* "$TARGET_DIR/" 2> /dev/null || true
 
     # Make scripts executable
     if [[ -d "$TARGET_DIR/scripts" ]]; then
@@ -1050,6 +1460,8 @@ verify_installation() {
     local required_files=(
         "$TARGET_DIR/CLAUDE.md"
         "$TARGET_DIR/scripts/parallel_agent.sh"
+        "$TARGET_DIR/scripts/git_platform.sh"
+        "$TARGET_DIR/scripts/git_ops.sh"
         "$TARGET_DIR/config/command_config.yml"
         "$TARGET_DIR/config/validation_criteria.yml"
         "$TARGET_DIR/config/services.yml"
@@ -1119,6 +1531,34 @@ verify_installation() {
         fi
     else
         print_info "cursor is disabled"
+    fi
+
+    # Check Git CLI tools
+    if [[ "$ENABLE_GH" == true ]]; then
+        if command_exists gh; then
+            print_success "gh (GitHub CLI) is available"
+        else
+            print_warning "gh is enabled but not installed"
+        fi
+    else
+        print_info "gh (GitHub CLI) is disabled"
+    fi
+
+    if [[ "$ENABLE_GLAB" == true ]]; then
+        if command_exists glab; then
+            print_success "glab (GitLab CLI) is available"
+        else
+            print_warning "glab is enabled but not installed"
+        fi
+    else
+        print_info "glab (GitLab CLI) is disabled"
+    fi
+
+    # Check jq
+    if command_exists jq; then
+        print_success "jq is installed (required by git_ops.sh)"
+    else
+        print_warning "jq is not installed - git_ops.sh will have limited functionality"
     fi
 
     # Summary
@@ -1320,6 +1760,9 @@ main() {
         install_node
         install_claude
         install_gemini
+        install_github_cli
+        install_gitlab_cli
+        check_jq
         check_cursor
     else
         print_info "Skipping installation (--skip-install)"
@@ -1344,6 +1787,16 @@ main() {
             if ! check_gemini_auth; then
                 setup_gemini_auth
             fi
+        fi
+
+        # GitHub CLI auth
+        if [[ "$ENABLE_GH" == true ]]; then
+            setup_gh_auth
+        fi
+
+        # GitLab CLI auth
+        if [[ "$ENABLE_GLAB" == true ]]; then
+            setup_glab_auth
         fi
 
         # Cursor auth info

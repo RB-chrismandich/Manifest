@@ -14,7 +14,7 @@ If arguments are provided, they may specify a single issue number to audit. Othe
 
 ### Repository (Required)
 
-Replace `{owner}/{repo}` with your repository path in all `gh` commands below.
+Replace `{owner}/{repo}` with your repository path in all Git CLI commands below (works with GitHub and GitLab).
 
 ---
 
@@ -26,10 +26,10 @@ Fetch all open issues with the `processed` label (or the specific issue if provi
 
 ```bash
 # All processed issues
-gh issue list --label processed --state open --json number,title,labels --limit 100 -R {owner}/{repo}
+~/.claude/scripts/git_ops.sh issue-list --label processed --state open --json number,title,labels --limit 100 -R {owner}/{repo}
 
 # Single issue (if $ARGUMENTS is a number)
-gh issue view $ARGUMENTS --json number,title,labels,body,comments -R {owner}/{repo}
+~/.claude/scripts/git_ops.sh issue-view $ARGUMENTS --json number,title,labels,body,comments -R {owner}/{repo}
 ```
 
 If no issues are found, report "No open issues with the `processed` label" and stop.
@@ -39,7 +39,7 @@ If no issues are found, report "No open issues with the `processed` label" and s
 For each issue, fetch full details (body + comments):
 
 ```bash
-gh issue view <NUMBER> --json number,title,body,comments,labels -R {owner}/{repo}
+~/.claude/scripts/git_ops.sh issue-view <NUMBER> --json number,title,body,comments,labels -R {owner}/{repo}
 ```
 
 #### 2a. Extract Checklists
@@ -79,7 +79,7 @@ For each candidate, record: `title`, `origin`, `body_text`, `context`.
 **2c-ii. Check for existing follow-up issues** by searching the issue comments for a comment containing `### Follow-up Issues Created`. If found:
 
 - Extract issue numbers from the table rows (pattern: `#<NUMBER>`)
-- Verify each extracted issue still exists: `gh issue view <NUMBER> --json number,title,state -R {owner}/{repo}`
+- Verify each extracted issue still exists: `~/.claude/scripts/git_ops.sh issue-view <NUMBER> --json number,title,state -R {owner}/{repo}`
 - Match each verified issue against the parsed candidates by title similarity
 
 **2c-iii. Classify each candidate** as:
@@ -92,14 +92,14 @@ For each candidate, record: `title`, `origin`, `body_text`, `context`.
 #### For CLOSE verdicts
 
 ```bash
-gh issue close <NUMBER> -R {owner}/{repo}
+~/.claude/scripts/git_ops.sh issue-close <NUMBER> -R {owner}/{repo}
 ```
 
 #### For NEEDS-REVIEW verdicts
 
 ```bash
-gh label create "needs-review" --description "Implementation complete but requires human review" --color "FBCA04" -R {owner}/{repo} 2>/dev/null || true
-gh issue edit <NUMBER> --add-label "needs-review" -R {owner}/{repo}
+~/.claude/scripts/git_ops.sh label-create "needs-review" --description "Implementation complete but requires human review" --color "FBCA04" -R {owner}/{repo} 2>/dev/null || true
+~/.claude/scripts/git_ops.sh issue-edit <NUMBER> --add-label "needs-review" -R {owner}/{repo}
 ```
 
 #### For issues with uncreated follow-ups (from 2c)
@@ -109,13 +109,13 @@ If any candidates were classified as `needs-creation` in step 2c-iii, create fol
 1. **Ensure the `follow-up` label exists**:
 
    ```bash
-   gh label create "follow-up" --description "Follow-up item from a processed issue" --color "D4C5F9" -R {owner}/{repo} 2>/dev/null || true
+   ~/.claude/scripts/git_ops.sh label-create "follow-up" --description "Follow-up item from a processed issue" --color "D4C5F9" -R {owner}/{repo} 2>/dev/null || true
    ```
 
 2. **Create each follow-up issue** using the standardized template:
 
    ```bash
-   gh issue create --title "Follow-up: <DERIVED_TITLE>" --label "follow-up" -R {owner}/{repo} --body "$(cat <<'EOF'
+   ~/.claude/scripts/git_ops.sh issue-create --title "Follow-up: <DERIVED_TITLE>" --label "follow-up" -R {owner}/{repo} --body "$(cat <<'EOF'
    <!-- follow-up-from: #<PARENT_NUMBER> -->
    ## Follow-up from #<PARENT_NUMBER>
 
@@ -140,7 +140,7 @@ If any candidates were classified as `needs-creation` in step 2c-iii, create fol
 3. **Post a summary comment on the parent issue**:
 
    ```bash
-   gh issue comment <PARENT_NUMBER> --body "$(cat <<'EOF'
+   ~/.claude/scripts/git_ops.sh issue-comment <PARENT_NUMBER> --body "$(cat <<'EOF'
    ### Follow-up Issues Created (Audit)
 
    | # | Title | Origin |

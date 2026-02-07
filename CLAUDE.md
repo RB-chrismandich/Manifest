@@ -150,6 +150,8 @@ Required CLI tools (install those you want to use):
 | `.cursor/rules/orchestration.mdc` | Main orchestration guide for Cursor (always-on rule) |
 | `.gemini/GEMINI.md` | Main orchestration guide for Gemini CLI |
 | `.claude/scripts/parallel_agent.sh` | Bash script that runs agents in parallel with consensus scoring |
+| `.claude/scripts/git_platform.sh` | Platform detection script (github, gitlab, git) |
+| `.claude/scripts/git_ops.sh` | Platform-agnostic Git operations wrapper (issue/PR management) |
 | `.claude/config/command_config.yml` | Thresholds, tool policies, model selection, error recovery |
 | `.claude/config/validation_criteria.yml` | Tier 1 (critical) and Tier 2 (quality) validation rules |
 | `AGENTS.md` | AI agent instructions for all platforms (Cursor, Claude, Gemini) |

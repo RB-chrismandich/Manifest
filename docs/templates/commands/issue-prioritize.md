@@ -56,7 +56,7 @@ Consider your current project phase when scoring:
 ### Step 1: Fetch Open Issues
 
 ```bash
-gh issue list --state open --limit 500 --json number,title,labels,createdAt,updatedAt,body -R {owner}/{repo}
+~/.claude/scripts/git_ops.sh issue-list --state open --limit 500 --json number,title,labels,createdAt,updatedAt,body -R {owner}/{repo}
 ```
 
 **Replace `{owner}/{repo}` with your repository.**

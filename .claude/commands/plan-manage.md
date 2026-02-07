@@ -1,7 +1,7 @@
 ---
-description: Plan lifecycle with parallel agent orchestration for create/review
-allowed-tools: Read, Glob, Grep, Bash, Write, Task
-argument-hint: [list|create|review|archive|abandon] [description-or-filename]
+description: Plan lifecycle with parallel agent orchestration for create/review/execute
+allowed-tools: Read, Glob, Grep, Bash, Write, Edit, Task
+argument-hint: [list|create|review|execute|archive|abandon] [description-or-filename]
 ---
 
 # Plan Management
@@ -11,9 +11,9 @@ for cross-verified planning.
 
 ## Arguments
 
-- `<action>` — One of: `list`, `create`, `review`, `archive`, `abandon` (default: **list**)
+- `<action>` — One of: `list`, `create`, `review`, `execute`, `archive`, `abandon` (default: **list**)
 - `<description>` — Task description (required for `create`)
-- `<filename>` — Plan filename (optional for `review`, `archive`, `abandon`)
+- `<filename>` — Plan filename (required for `execute`, optional for `review`, `archive`, `abandon`)
 
 ---
 
@@ -114,6 +114,32 @@ Otherwise → single-agent planning (Step 2b).
    - Present the recommendation to the user
 4. Suggest actions for each plan
 
+### execute
+
+Implement all unchecked deliverables in an active plan, then archive it on completion.
+
+1. Accept a filename argument or ask which plan to execute.
+2. Read the plan file. Verify `**Status**: ACTIVE`. If not active, abort with a message.
+3. Parse the **Deliverables** section. Identify all unchecked items (`- [ ]`).
+   - If no unchecked deliverables remain, skip to step 7 (archive).
+4. For each unchecked deliverable, in order:
+   a. Create a task (TaskCreate) for the deliverable with subject, description, and activeForm.
+   b. Set task status to `in_progress` (TaskUpdate).
+   c. Read the **Related Files** and **Implementation Notes** sections for context.
+   d. Implement the deliverable:
+      - Use Read, Glob, Grep to understand current code.
+      - Use Edit or Write to make changes.
+      - Use Bash for any shell operations (tests, builds, etc.).
+   e. After implementation, check off the deliverable (`- [x]`) in the plan file (Edit).
+   f. Set task status to `completed` (TaskUpdate).
+5. After all deliverables are done, update the plan's **Log** with an execution summary entry.
+6. Update `**Status**: ACTIVE` to `**Status**: COMPLETED` in the plan file.
+7. Move the plan to `.claude/.plans/.archive/`.
+8. Report a summary of all changes made.
+
+**Error handling**: If a deliverable fails, keep its task as `in_progress`, log the failure
+in the plan's **Log** section, and ask the user how to proceed (skip, retry, or abort).
+
 ### archive
 
 1. Accept a filename argument or ask which plan to archive
@@ -133,6 +159,7 @@ Otherwise → single-agent planning (Step 2b).
 | Action | Parallel Agents | Trigger |
 |--------|----------------|---------|
 | `create` | CONDITIONAL | Security, architecture, 3+ files, critical logic |
+| `execute` | NEVER | Implements deliverables directly |
 | `review` | CONDITIONAL | Stale plans (7+ days) being re-evaluated |
 | `list` | NEVER | Read-only metadata scan |
 | `archive` | NEVER | File move only |
