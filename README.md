@@ -2,7 +2,7 @@
 
 > Parallel LLM agent orchestration framework for Claude Code, Cursor IDE, and Gemini CLI
 
-**Last Updated**: 2026-02-05
+**Last Updated**: 2026-02-06
 
 Manifest is a configuration repository that deploys a sophisticated parallel agent
 orchestration system to `~/.claude/`, `~/.cursor/`, and `~/.gemini/`, enabling Claude Code,
@@ -185,6 +185,9 @@ Manifest/
 # Reconfigure after initial setup
 ./bootstrap.sh --reconfigure --disable-cursor
 ./bootstrap.sh --reconfigure --enable-gemini --disable-claude
+
+# Enable Git CLIs explicitly
+./bootstrap.sh --reconfigure --enable-gh --enable-glab
 ```
 
 ### Model Selection

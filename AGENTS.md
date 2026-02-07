@@ -98,6 +98,8 @@ The `bootstrap.sh` script automates installation, deployment, and authentication
 --enable-claude / --disable-claude   # Claude CLI (default: enabled)
 --enable-gemini / --disable-gemini   # Gemini CLI (default: enabled)
 --enable-cursor / --disable-cursor   # Cursor agent (default: enabled)
+--enable-gh / --disable-gh           # GitHub CLI (default: auto-detect)
+--enable-glab / --disable-glab       # GitLab CLI (default: auto-detect)
 ```
 
 ## Manual Deployment

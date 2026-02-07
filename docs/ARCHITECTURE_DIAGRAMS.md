@@ -2,7 +2,7 @@
 
 > Visual documentation of the Manifest parallel LLM agent orchestration framework
 
-**Last Updated**: 2026-02-06
+**Last Updated**: 2026-02-06 (Added sandbox detection & output verification to Parallel Agent flow)
 **Project**: Manifest - AI Agent Orchestration Framework
 
 ---
@@ -279,7 +279,8 @@ flowchart TD
 
 ## Parallel Agent Execution Flow
 
-How multiple LLM agents are orchestrated for cross-verification with consensus scoring.
+How multiple LLM agents are orchestrated for cross-verification with consensus scoring,
+including sandbox detection and output verification.
 
 ```mermaid
 %%{init: {'theme':'neutral'}}%%
@@ -294,6 +295,10 @@ flowchart TB
     START["Task Input<br/>(code review, analysis, planning)"]:::input
     PARSE["Parse Arguments<br/>(--review, --analyze, --improve)"]:::process
 
+    SANDBOX_CHECK{"Output Dir<br/>Writable?"}:::decision
+    DEFAULT_DIR["Use ~/.claude/.agent_outputs"]:::process
+    FALLBACK_DIR["Fallback to /tmp/.claude_agent_outputs_$$"]:::warning
+
     CHECK_SERVICES{"Check<br/>services.yml"}:::decision
 
     subgraph "Agent Execution (Parallel)"
@@ -303,6 +308,9 @@ flowchart TB
     end
 
     COLLECT["Collect Outputs<br/>(with retry + fallback)"]:::process
+
+    VERIFY_FILES{"Output Files<br/>Created?"}:::decision
+    FILE_ERROR["Exit with Error<br/>(code 13)"]:::error
 
     VALIDATE{"Validation<br/>Enabled?"}:::decision
     CHECK_CRITERIA["Check Success Criteria<br/>(from validation_criteria.yml)"]:::process
@@ -320,7 +328,12 @@ flowchart TB
     DONE["Return Results"]:::input
 
     START --> PARSE
-    PARSE --> CHECK_SERVICES
+    PARSE --> SANDBOX_CHECK
+    SANDBOX_CHECK -->|Yes| DEFAULT_DIR
+    SANDBOX_CHECK -->|No| FALLBACK_DIR
+    DEFAULT_DIR --> CHECK_SERVICES
+    FALLBACK_DIR --> CHECK_SERVICES
+
     CHECK_SERVICES --> GEMINI_EXEC
     CHECK_SERVICES --> CURSOR_EXEC
     CHECK_SERVICES --> CLAUDE_EXEC
@@ -329,7 +342,10 @@ flowchart TB
     CURSOR_EXEC --> COLLECT
     CLAUDE_EXEC --> COLLECT
 
-    COLLECT --> VALIDATE
+    COLLECT --> VERIFY_FILES
+    VERIFY_FILES -->|No| FILE_ERROR
+    VERIFY_FILES -->|Yes| VALIDATE
+
     VALIDATE -->|Yes| CHECK_CRITERIA
     VALIDATE -->|No| CONSENSUS
     CHECK_CRITERIA --> CONSENSUS
@@ -349,10 +365,21 @@ flowchart TB
 
 **Execution Model**:
 
+- **Sandbox Detection**: Auto-detects write restrictions and falls back to `/tmp` if needed
 - **Parallel Execution**: All enabled agents run simultaneously via background processes
+- **Output Verification**: Explicit check that files were created before proceeding
 - **Retry Logic**: Failed agents retry once after 5s delay
 - **Credit Fallback**: Automatically retries with cheaper models on quota errors
 - **Partial Results**: Continues with available agents if some fail
+
+**Sandbox Handling** (New in 2026-02-06):
+
+When running in sandboxed environments (e.g., Task subagents):
+
+1. Script tests if `~/.claude/.agent_outputs` is writable
+2. Falls back to `/tmp/.claude_agent_outputs_$$` if restricted
+3. Verifies output files exist after agents complete
+4. Exit code 13 if no files created (with helpful error message)
 
 **Consensus Calculation**:
 

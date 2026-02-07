@@ -38,6 +38,20 @@ services:
       - flash    # Balanced (default)
       - advanced # Maximum capability
 
+  # Git CLI tools - Platform-specific Git hosting integrations
+  git_cli:
+    github:
+      enabled: auto  # auto | true | false
+      command: gh
+      description: "GitHub CLI for issue/PR management"
+    gitlab:
+      enabled: auto  # auto | true | false
+      command: glab
+      description: "GitLab CLI for issue/MR management"
+    detection:
+      platform: auto  # auto | github | gitlab | git
+      remote: origin  # overridable via MANIFEST_GIT_REMOTE
+
 # Minimum agents required for parallel orchestration
 # If fewer than this many services are enabled, parallel features are disabled
 minimum_agents: 2

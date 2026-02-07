@@ -213,6 +213,10 @@ while [[ $# -gt 0 ]]; do
             echo "  --disable-gemini    Disable Gemini CLI"
             echo "  --enable-cursor     Enable Cursor agent (default: enabled)"
             echo "  --disable-cursor    Disable Cursor agent"
+            echo "  --enable-gh         Enable GitHub CLI (default: auto-detect)"
+            echo "  --disable-gh        Disable GitHub CLI"
+            echo "  --enable-glab       Enable GitLab CLI (default: auto-detect)"
+            echo "  --disable-glab      Disable GitLab CLI"
             echo ""
             echo "Other Options:"
             echo "  --skip-install      Skip CLI tool installation"
@@ -223,6 +227,7 @@ while [[ $# -gt 0 ]]; do
             echo "Examples:"
             echo "  $0                              # Full setup with all services"
             echo "  $0 --disable-cursor             # Setup without Cursor"
+            echo "  $0 --enable-gh --enable-glab    # Explicitly enable Git CLIs"
             echo "  $0 --reconfigure --disable-gemini  # Just disable Gemini"
             echo "  $0 --skip-auth                  # Setup without authentication prompts"
             exit 0
