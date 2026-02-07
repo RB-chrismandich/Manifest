@@ -88,7 +88,7 @@ After all three complete, run `git status` to confirm documentation files were m
 1. Stage all changes: `git add -A`
 2. Verify there are changes to commit: `git status --porcelain`
 3. Generate or use the provided commit message
-4. Auto-detect issue references and append "Fixes #" keywords
+4. Auto-detect issue references and append "Fixes #" keywords (use `~/.claude/scripts/git_ops.sh issue-view` for verification)
 5. Create the commit
 6. Verify the commit succeeded: `git log --oneline -1`
 

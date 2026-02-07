@@ -3,12 +3,12 @@
 This document defines how Gemini should leverage parallel LLM agents
 (Gemini, Cursor, Claude CLI) for cross-verification, planning, and validation.
 
-> **Symlink Strategy**: The `.gemini/` directory shares most assets with `.claude/`
-> via symlinks. Prompts, configuration, scripts, plans, and the code-quality skill
-> all point back to their canonical locations under `~/.claude/`. Only this guide
-> (`GEMINI.md`), the TOML-based slash commands, and `settings.json` are
-> Gemini-specific. This avoids duplication and ensures both agents always operate
-> from the same orchestration rules and validation criteria.
+**Symlink Strategy**: The `.gemini/` directory shares most assets with `.claude/`
+via symlinks. Prompts, configuration, scripts, plans, and the code-quality skill
+all point back to their canonical locations under `~/.claude/`. Only this guide
+(`GEMINI.md`), the TOML-based slash commands, and `settings.json` are
+Gemini-specific. This avoids duplication and ensures both agents always operate
+from the same orchestration rules and validation criteria.
 
 ## Parallel Agent Script
 
@@ -385,8 +385,8 @@ Return JSON with `tier1` results, `tier2` results, `overall_verdict`.
 | `~/.claude/prompts/validation.md` | Validation criteria prompt template |
 | `~/.claude/config/validation_criteria.yml` | Detailed validation rules and thresholds |
 
-> All of the above are accessible via symlinks under `~/.gemini/prompts/` and
-> `~/.gemini/config/`.
+All of the above are accessible via symlinks under `~/.gemini/prompts/` and
+`~/.gemini/config/`.
 
 ### Example Orchestration Flow
 

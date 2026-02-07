@@ -90,6 +90,17 @@
       "Bash(gh pr create:*)",
 
       "// ============================================",
+      "// GitLab CLI (read + create MRs/issues)",
+      "// ============================================",
+      "Bash(glab issue list:*)",
+      "Bash(glab issue view:*)",
+      "Bash(glab issue create:*)",
+      "Bash(glab issue note:*)",
+      "Bash(glab mr list:*)",
+      "Bash(glab mr view:*)",
+      "Bash(glab mr create:*)",
+
+      "// ============================================",
       "// File Operations (read-only)",
       "// ============================================",
       "Bash(ls:*)",

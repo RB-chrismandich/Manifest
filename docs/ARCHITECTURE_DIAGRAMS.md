@@ -2,7 +2,7 @@
 
 > Visual documentation of the Manifest parallel LLM agent orchestration framework
 
-**Last Updated**: 2026-02-05
+**Last Updated**: 2026-02-06
 **Project**: Manifest - AI Agent Orchestration Framework
 
 ---
@@ -10,14 +10,15 @@
 ## Table of Contents
 
 1. [Application Architecture](#application-architecture)
-2. [Bootstrap Installation Flow](#bootstrap-installation-flow)
-3. [Parallel Agent Execution Flow](#parallel-agent-execution-flow)
-4. [Command Processing Architecture](#command-processing-architecture)
-5. [Validation Pipeline](#validation-pipeline)
-6. [Model Selection & Credit Fallback](#model-selection--credit-fallback)
-7. [Configuration Layer](#configuration-layer)
-8. [Cross-Verification Consensus](#cross-verification-consensus)
-9. [Service State Management](#service-state-management)
+2. [Git Platform Detection & Operations](#git-platform-detection--operations)
+3. [Bootstrap Installation Flow](#bootstrap-installation-flow)
+4. [Parallel Agent Execution Flow](#parallel-agent-execution-flow)
+5. [Command Processing Architecture](#command-processing-architecture)
+6. [Validation Pipeline](#validation-pipeline)
+7. [Model Selection & Credit Fallback](#model-selection--credit-fallback)
+8. [Configuration Layer](#configuration-layer)
+9. [Cross-Verification Consensus](#cross-verification-consensus)
+10. [Service State Management](#service-state-management)
 
 ---
 
@@ -49,533 +50,637 @@ flowchart TB
     subgraph "Configuration Layer"
         SERVICES["services.yml"]:::config
         COMMAND_CFG["command_config.yml"]:::config
-        VALIDATION["validation_criteria.yml"]:::config
+        VALIDATION_CFG["validation_criteria.yml"]:::config
     end
 
-    subgraph "Command Execution"
-        SKILL["Auto-triggered Skills"]:::process
-        COMMANDS["User Commands<br/>(/refactor-python, /docs-improve, etc.)"]:::process
-        ORCHESTRATOR["parallel_agent.sh<br/>Orchestrator"]:::process
+    subgraph "Orchestration Layer"
+        CLAUDE_CLI
+        PARALLEL["parallel_agent.sh"]:::process
+        GIT_PLATFORM["git_platform.sh"]:::process
+        GIT_OPS["git_ops.sh"]:::process
     end
 
-    subgraph "Agent Execution Layer"
-        CURSOR["Cursor Agent"]:::external
+    subgraph "Agent Services"
         GEMINI["Gemini CLI"]:::external
-        CLAUDE_AGENT["Claude CLI Agent"]:::external
-    end
-
-    subgraph "Analysis & Output"
-        MONITOR["Agent Monitor"]:::process
-        VALIDATE_OUT["Output Validation"]:::process
-        CROSS_VERIFY["Cross-Verification"]:::process
-        SYNTHESIS["Consensus Scoring"]:::process
-        SUMMARY["Summary Generation"]:::output
+        CURSOR["Cursor Agent"]:::external
+        GH["GitHub CLI (gh)"]:::external
+        GLAB["GitLab CLI (glab)"]:::external
     end
 
     USER --> BOOTSTRAP
+    BOOTSTRAP --> SERVICES
     USER --> CLAUDE_CLI
-    CLAUDE_CLI --> SKILL
-    CLAUDE_CLI --> COMMANDS
-
-    SERVICES --> ORCHESTRATOR
-    COMMAND_CFG --> ORCHESTRATOR
-    VALIDATION --> ORCHESTRATOR
-
-    COMMANDS --> ORCHESTRATOR
-    SKILL --> ORCHESTRATOR
-
-    ORCHESTRATOR --> CURSOR
-    ORCHESTRATOR --> GEMINI
-    ORCHESTRATOR --> CLAUDE_AGENT
-
-    CURSOR --> MONITOR
-    GEMINI --> MONITOR
-    CLAUDE_AGENT --> MONITOR
-
-    MONITOR --> VALIDATE_OUT
-    VALIDATE_OUT --> CROSS_VERIFY
-    CROSS_VERIFY --> SYNTHESIS
-    SYNTHESIS --> SUMMARY
-
-    SUMMARY --> USER
+    CLAUDE_CLI --> PARALLEL
+    CLAUDE_CLI --> GIT_OPS
+    GIT_OPS --> GIT_PLATFORM
+    GIT_PLATFORM -.->|github| GH
+    GIT_PLATFORM -.->|gitlab| GLAB
+    PARALLEL --> GEMINI
+    PARALLEL --> CURSOR
+    SERVICES -.->|config| PARALLEL
+    COMMAND_CFG -.->|thresholds| PARALLEL
+    VALIDATION_CFG -.->|criteria| PARALLEL
 ```
 
-**Key Components:**
+**Key Components**:
 
-- **Bootstrap Layer**: Automated installation and configuration for macOS/Linux
-- **Configuration Layer**: YAML-based configuration for services, commands, and validation
-- **Command Execution**: User-invoked commands and auto-triggered skills
-- **Agent Layer**: Three independent AI agents (Cursor, Gemini, Claude) running in parallel
-- **Analysis Layer**: Output validation, cross-verification, and consensus scoring
+- **bootstrap.sh**: Automated installation and configuration deployment
+- **Git Platform Scripts**: Platform-agnostic Git operations (GitHub/GitLab/plain git)
+- **parallel_agent.sh**: Orchestrates multiple LLM agents for cross-verification
+- **Configuration Layer**: YAML files controlling behavior and validation rules
+- **Agent Services**: External LLM and Git hosting CLIs
 
 ---
 
-## Bootstrap Installation Flow
+## Git Platform Detection & Operations
 
-Detailed bootstrap process showing platform detection, dependency installation, and service configuration.
-
-```mermaid
-%%{init: {'theme':'neutral'}}%%
-flowchart TD
-    classDef active fill:#22c55e,stroke:#166534,color:#fff
-    classDef pending fill:#eab308,stroke:#a16207,color:#fff
-    classDef error fill:#ef4444,stroke:#dc2626,color:#fff
-    classDef external fill:#3b82f6,stroke:#1d4ed8,color:#fff
-
-    START["Start bootstrap.sh"]:::active
-    DETECT["Detect Platform<br/>(macOS/Linux)"]:::pending
-
-    PARSE["Parse Arguments<br/>(--enable/--disable services)"]:::pending
-    LOAD_CFG["Load Existing<br/>services.yml"]:::pending
-
-    CHECK_PKG["Check Package Manager<br/>(brew/apt/dnf/pacman)"]:::pending
-    INSTALL_PKG["Install Package Manager<br/>(macOS: Homebrew)"]:::pending
-
-    INSTALL_NODE["Install Node.js"]:::pending
-
-    subgraph "CLI Installation"
-        INSTALL_CLAUDE["Install Claude CLI<br/>(npm -g @anthropic-ai/claude-code)"]:::pending
-        INSTALL_GEMINI["Install Gemini CLI<br/>(npm -g @google/gemini-cli)"]:::pending
-        CHECK_CURSOR["Check Cursor<br/>(Open download page)"]:::pending
-    end
-
-    DEPLOY["Deploy .claude/ to ~/.claude/<br/>(backup if exists)"]:::active
-    WRITE_SVC["Write services.yml<br/>(enabled services)"]:::active
-
-    subgraph "Authentication"
-        AUTH_CLAUDE["Claude: claude auth login"]:::external
-        AUTH_GEMINI["Gemini: OAuth or API key"]:::external
-        AUTH_CURSOR["Cursor: Sign in via IDE"]:::external
-    end
-
-    VERIFY["Verify Installation<br/>(check files & commands)"]:::active
-    SUMMARY["Print Summary<br/>(service status, next steps)"]:::active
-    DONE["Installation Complete"]:::active
-
-    START --> DETECT
-    DETECT --> PARSE
-    PARSE --> LOAD_CFG
-    LOAD_CFG --> CHECK_PKG
-
-    CHECK_PKG -->|Missing| INSTALL_PKG
-    CHECK_PKG -->|Found| INSTALL_NODE
-    INSTALL_PKG --> INSTALL_NODE
-
-    INSTALL_NODE --> INSTALL_CLAUDE
-    INSTALL_NODE --> INSTALL_GEMINI
-    INSTALL_NODE --> CHECK_CURSOR
-
-    INSTALL_CLAUDE --> DEPLOY
-    INSTALL_GEMINI --> DEPLOY
-    CHECK_CURSOR --> DEPLOY
-
-    DEPLOY --> WRITE_SVC
-    WRITE_SVC --> AUTH_CLAUDE
-    WRITE_SVC --> AUTH_GEMINI
-    WRITE_SVC --> AUTH_CURSOR
-
-    AUTH_CLAUDE --> VERIFY
-    AUTH_GEMINI --> VERIFY
-    AUTH_CURSOR --> VERIFY
-
-    VERIFY --> SUMMARY
-    SUMMARY --> DONE
-```
-
-**Platform Support:**
-
-- **macOS**: Homebrew for package management
-- **Linux**: apt, dnf, yum, pacman, zypper support
-- **Services**: Toggle-based (--enable/--disable flags)
-- **Reconfiguration**: Run with --reconfigure to update service settings
-
----
-
-## Parallel Agent Execution Flow
-
-End-to-end flow from command invocation through parallel agent execution to final output.
+Platform-agnostic Git operations flow with automatic platform detection and routing to appropriate CLI tools.
 
 ```mermaid
 %%{init: {'theme':'neutral'}}%%
 flowchart LR
     classDef input fill:#f0f9ff,stroke:#0284c7,color:#0c4a6e
     classDef process fill:#f0fdf4,stroke:#16a34a,color:#14532d
-    classDef output fill:#fef3c7,stroke:#d97706,color:#78350f
-    classDef validation fill:#fef2f2,stroke:#dc2626,color:#7f1d1d
+    classDef github fill:#24292f,stroke:#0969da,color:#fff
+    classDef gitlab fill:#fc6d26,stroke:#e24329,color:#fff
+    classDef fallback fill:#fef3c7,stroke:#d97706,color:#78350f
 
-    USER["User Invokes<br/>/refactor-python or script"]:::input
+    COMMAND["User Command<br/>(issue-view, pr-create, etc.)"]:::input
+    GIT_OPS["git_ops.sh"]:::process
+    GIT_PLATFORM["git_platform.sh"]:::process
 
-    PARSE["Parse Arguments<br/>(--review, --analyze, --cursor-model)"]:::process
-    LOAD_SVC["Load services.yml<br/>(enabled services)"]:::process
-    VALIDATE_AGENTS["Validate Agent<br/>Availability"]:::process
-
-    BUILD["Build Prompts<br/>(per mode: review/analyze/improve)"]:::process
-
-    RESOLVE["Resolve Model Tiers<br/>(mini/flash/advanced → gpt-5.2)"]:::process
-
-    PREFLIGHT["Pre-flight Credit Check<br/>(optional)"]:::validation
-
-    subgraph "Parallel Execution"
-        CURSOR_EXEC["Cursor Agent<br/>cursor agent --model"]:::process
-        GEMINI_EXEC["Gemini CLI<br/>gemini --model"]:::process
-        CLAUDE_EXEC["Claude CLI<br/>claude --model"]:::process
+    subgraph "Platform Detection"
+        ENV_OVERRIDE["Check ENV vars<br/>(MANIFEST_GIT_PLATFORM)"]:::process
+        REMOTE_URL["Parse git remote URL"]:::process
+        PATTERN_MATCH["URL Pattern Match"]:::process
+        ENV_OVERRIDE --> REMOTE_URL
+        REMOTE_URL --> PATTERN_MATCH
     end
 
-    MONITOR["Monitor Agents<br/>(PIDs, spinner UI)"]:::process
+    GH_CLI["GitHub CLI (gh)<br/>gh issue view, gh pr create"]:::github
+    GLAB_CLI["GitLab CLI (glab)<br/>glab issue view, glab mr create"]:::gitlab
+    PLAIN_GIT["Plain Git<br/>(warn + suggest install)"]:::fallback
 
-    VALIDATE_OUT["Validate Outputs<br/>(non-empty, no fatal errors)"]:::validation
+    COMMAND --> GIT_OPS
+    GIT_OPS --> GIT_PLATFORM
+    GIT_PLATFORM --> ENV_OVERRIDE
 
-    CROSS_VERIFY["Cross-Verification<br/>(consensus scoring)"]:::process
+    PATTERN_MATCH -->|github.com| GH_CLI
+    PATTERN_MATCH -->|gitlab.com / gitlab.*| GLAB_CLI
+    PATTERN_MATCH -->|other| PLAIN_GIT
 
-    JSON_OUT["JSON Output<br/>(results_YYYYMMDD_HHMMSS.json)"]:::output
-    MD_OUT["Markdown Summary<br/>(summary_YYYYMMDD_HHMMSS.md)"]:::output
-
-    USER --> PARSE
-    PARSE --> LOAD_SVC
-    LOAD_SVC --> VALIDATE_AGENTS
-    VALIDATE_AGENTS --> BUILD
-    BUILD --> RESOLVE
-    RESOLVE --> PREFLIGHT
-
-    PREFLIGHT --> CURSOR_EXEC
-    PREFLIGHT --> GEMINI_EXEC
-    PREFLIGHT --> CLAUDE_EXEC
-
-    CURSOR_EXEC --> MONITOR
-    GEMINI_EXEC --> MONITOR
-    CLAUDE_EXEC --> MONITOR
-
-    MONITOR --> VALIDATE_OUT
-    VALIDATE_OUT --> CROSS_VERIFY
-
-    CROSS_VERIFY --> JSON_OUT
-    CROSS_VERIFY --> MD_OUT
-
-    JSON_OUT --> USER
-    MD_OUT --> USER
+    GH_CLI --> RESULT["Result"]:::input
+    GLAB_CLI --> RESULT
+    PLAIN_GIT --> RESULT
 ```
 
-**Execution Characteristics:**
+**Detection Logic**:
 
-- **Parallel Execution**: All enabled agents run simultaneously (background processes)
-- **Timeouts**: Default 600s (10 minutes) per agent, configurable via --timeout
-- **Retry Logic**: Automatic retry on failure with exponential backoff
-- **Progress Monitoring**: Real-time spinner UI showing agent status
+1. **Environment Override**: `MANIFEST_GIT_PLATFORM` forces specific platform
+2. **Remote URL Parsing**: Reads `git remote get-url origin` (or `$MANIFEST_GIT_REMOTE`)
+3. **Pattern Matching**:
+   - `*github.com*` → GitHub (gh)
+   - `*gitlab.com*` or `*gitlab.*` → GitLab (glab)
+   - Other → Plain git (warn)
+
+**Subcommand Mapping**:
+
+| Generic | GitHub (gh) | GitLab (glab) |
+|---------|-------------|---------------|
+| issue-comment | gh issue comment | glab issue note |
+| issue-edit | gh issue edit | glab issue update |
+| pr-create | gh pr create | glab mr create |
+| pr-view | gh pr view | glab mr view |
+
+---
+
+## Bootstrap Installation Flow
+
+Complete installation and configuration deployment process with Git CLI auto-detection.
+
+```mermaid
+%%{init: {'theme':'neutral'}}%%
+flowchart TD
+    classDef input fill:#f0f9ff,stroke:#0284c7,color:#0c4a6e
+    classDef process fill:#f0fdf4,stroke:#16a34a,color:#14532d
+    classDef decision fill:#fef3c7,stroke:#d97706,color:#78350f
+    classDef success fill:#22c55e,stroke:#166534,color:#fff
+    classDef skip fill:#e5e7eb,stroke:#6b7280,color:#374151
+
+    START["./bootstrap.sh"]:::input
+    PARSE_ARGS["Parse CLI Arguments<br/>(--enable/--disable flags)"]:::process
+    DETECT_PLATFORM["Detect OS Platform<br/>(macOS, Linux distro)"]:::process
+
+    LOAD_CONFIG{"Load Existing<br/>services.yml?"}:::decision
+    MERGE_CONFIG["Merge File Config<br/>with CLI Args"]:::process
+
+    INSTALL_PKG["Install Package Manager<br/>(Homebrew on macOS)"]:::process
+    INSTALL_NODE["Install Node.js<br/>(for npm CLIs)"]:::process
+
+    CHECK_CLAUDE{"Claude<br/>Enabled?"}:::decision
+    INSTALL_CLAUDE["Install Claude CLI<br/>(npm install -g)"]:::process
+    SKIP_CLAUDE["Skip Claude"]:::skip
+
+    CHECK_GEMINI{"Gemini<br/>Enabled?"}:::decision
+    INSTALL_GEMINI["Install Gemini CLI<br/>(npm install -g)"]:::process
+    SKIP_GEMINI["Skip Gemini"]:::skip
+
+    CHECK_GH{"GitHub CLI<br/>Enabled/Auto?"}:::decision
+    AUTO_GH{"gh already<br/>installed?"}:::decision
+    INSTALL_GH["Install GitHub CLI<br/>(brew/apt/dnf)"]:::process
+    SKIP_GH["Disable GitHub CLI"]:::skip
+
+    CHECK_GLAB{"GitLab CLI<br/>Enabled/Auto?"}:::decision
+    AUTO_GLAB{"glab already<br/>installed?"}:::decision
+    INSTALL_GLAB["Install GitLab CLI<br/>(brew/apt/dnf)"]:::process
+    SKIP_GLAB["Disable GitLab CLI"]:::skip
+
+    CHECK_JQ["Check jq<br/>(required by git_ops.sh)"]:::process
+    INSTALL_JQ["Install jq"]:::process
+
+    CHECK_CURSOR{"Cursor<br/>Enabled?"}:::decision
+    OPEN_CURSOR["Open Cursor<br/>Download Page"]:::process
+    SKIP_CURSOR["Skip Cursor"]:::skip
+
+    DEPLOY["Deploy Config Files<br/>(~/.claude, ~/.cursor, ~/.gemini)"]:::process
+    WRITE_SERVICES["Write services.yml<br/>(with final toggles)"]:::process
+
+    AUTH_CLAUDE["Setup Claude Auth"]:::process
+    AUTH_GEMINI["Setup Gemini Auth"]:::process
+    AUTH_GH["Setup GitHub Auth<br/>(gh auth login)"]:::process
+    AUTH_GLAB["Setup GitLab Auth<br/>(glab auth login)"]:::process
+
+    VERIFY["Verify Installation<br/>(check files, CLIs, scripts)"]:::process
+    DONE["Installation Complete"]:::success
+
+    START --> PARSE_ARGS
+    PARSE_ARGS --> DETECT_PLATFORM
+    DETECT_PLATFORM --> LOAD_CONFIG
+
+    LOAD_CONFIG -->|Yes| MERGE_CONFIG
+    LOAD_CONFIG -->|No| INSTALL_PKG
+    MERGE_CONFIG --> INSTALL_PKG
+
+    INSTALL_PKG --> INSTALL_NODE
+    INSTALL_NODE --> CHECK_CLAUDE
+
+    CHECK_CLAUDE -->|Yes| INSTALL_CLAUDE
+    CHECK_CLAUDE -->|No| SKIP_CLAUDE
+    INSTALL_CLAUDE --> CHECK_GEMINI
+    SKIP_CLAUDE --> CHECK_GEMINI
+
+    CHECK_GEMINI -->|Yes| INSTALL_GEMINI
+    CHECK_GEMINI -->|No| SKIP_GEMINI
+    INSTALL_GEMINI --> CHECK_GH
+    SKIP_GEMINI --> CHECK_GH
+
+    CHECK_GH -->|Enabled| INSTALL_GH
+    CHECK_GH -->|Auto| AUTO_GH
+    CHECK_GH -->|Disabled| SKIP_GH
+    AUTO_GH -->|Yes| SKIP_GH
+    AUTO_GH -->|No| SKIP_GH
+    INSTALL_GH --> CHECK_GLAB
+    SKIP_GH --> CHECK_GLAB
+
+    CHECK_GLAB -->|Enabled| INSTALL_GLAB
+    CHECK_GLAB -->|Auto| AUTO_GLAB
+    CHECK_GLAB -->|Disabled| SKIP_GLAB
+    AUTO_GLAB -->|Yes| SKIP_GLAB
+    AUTO_GLAB -->|No| SKIP_GLAB
+    INSTALL_GLAB --> CHECK_JQ
+    SKIP_GLAB --> CHECK_JQ
+
+    CHECK_JQ -->|Not Found| INSTALL_JQ
+    CHECK_JQ -->|Found| CHECK_CURSOR
+    INSTALL_JQ --> CHECK_CURSOR
+
+    CHECK_CURSOR -->|Yes| OPEN_CURSOR
+    CHECK_CURSOR -->|No| SKIP_CURSOR
+    OPEN_CURSOR --> DEPLOY
+    SKIP_CURSOR --> DEPLOY
+
+    DEPLOY --> WRITE_SERVICES
+    WRITE_SERVICES --> AUTH_CLAUDE
+    AUTH_CLAUDE --> AUTH_GEMINI
+    AUTH_GEMINI --> AUTH_GH
+    AUTH_GH --> AUTH_GLAB
+    AUTH_GLAB --> VERIFY
+    VERIFY --> DONE
+```
+
+**Key Features**:
+
+- **Auto-Detection**: gh/glab default to `auto` mode (enable if already installed)
+- **Platform-Specific Install**: Uses appropriate package manager (brew/apt/dnf/pacman)
+- **Dependency Checking**: Verifies jq is installed (required for git_ops.sh JSON normalization)
+- **Service Toggles**: Writes final enabled/disabled state to services.yml
+
+---
+
+## Parallel Agent Execution Flow
+
+How multiple LLM agents are orchestrated for cross-verification with consensus scoring.
+
+```mermaid
+%%{init: {'theme':'neutral'}}%%
+flowchart TB
+    classDef input fill:#f0f9ff,stroke:#0284c7,color:#0c4a6e
+    classDef process fill:#f0fdf4,stroke:#16a34a,color:#14532d
+    classDef decision fill:#fef3c7,stroke:#d97706,color:#78350f
+    classDef active fill:#22c55e,stroke:#166534,color:#fff
+    classDef warning fill:#eab308,stroke:#a16207,color:#fff
+    classDef error fill:#ef4444,stroke:#dc2626,color:#fff
+
+    START["Task Input<br/>(code review, analysis, planning)"]:::input
+    PARSE["Parse Arguments<br/>(--review, --analyze, --improve)"]:::process
+
+    CHECK_SERVICES{"Check<br/>services.yml"}:::decision
+
+    subgraph "Agent Execution (Parallel)"
+        GEMINI_EXEC["Gemini CLI<br/>(gemini-3-flash/pro)"]:::process
+        CURSOR_EXEC["Cursor Agent<br/>(gpt-5.1/5.2)"]:::process
+        CLAUDE_EXEC["Claude CLI<br/>(haiku/sonnet/opus)"]:::process
+    end
+
+    COLLECT["Collect Outputs<br/>(with retry + fallback)"]:::process
+
+    VALIDATE{"Validation<br/>Enabled?"}:::decision
+    CHECK_CRITERIA["Check Success Criteria<br/>(from validation_criteria.yml)"]:::process
+
+    CONSENSUS["Calculate Consensus Score<br/>(agreement / total findings * 100)"]:::process
+
+    SCORE_CHECK{"Consensus<br/>Score?"}:::decision
+
+    HIGH["High Confidence (≥80%)<br/>Proceed with unified recommendation"]:::active
+    MEDIUM["Medium Confidence (50-79%)<br/>Highlight disagreements"]:::warning
+    LOW["Low Confidence (<50%)<br/>Escalate for human review"]:::error
+
+    OUTPUT["Generate JSON Output<br/>(agents, consensus, validation)"]:::process
+    SUMMARY["Create Markdown Summary"]:::process
+    DONE["Return Results"]:::input
+
+    START --> PARSE
+    PARSE --> CHECK_SERVICES
+    CHECK_SERVICES --> GEMINI_EXEC
+    CHECK_SERVICES --> CURSOR_EXEC
+    CHECK_SERVICES --> CLAUDE_EXEC
+
+    GEMINI_EXEC --> COLLECT
+    CURSOR_EXEC --> COLLECT
+    CLAUDE_EXEC --> COLLECT
+
+    COLLECT --> VALIDATE
+    VALIDATE -->|Yes| CHECK_CRITERIA
+    VALIDATE -->|No| CONSENSUS
+    CHECK_CRITERIA --> CONSENSUS
+
+    CONSENSUS --> SCORE_CHECK
+    SCORE_CHECK -->|≥80%| HIGH
+    SCORE_CHECK -->|50-79%| MEDIUM
+    SCORE_CHECK -->|<50%| LOW
+
+    HIGH --> OUTPUT
+    MEDIUM --> OUTPUT
+    LOW --> OUTPUT
+
+    OUTPUT --> SUMMARY
+    SUMMARY --> DONE
+```
+
+**Execution Model**:
+
+- **Parallel Execution**: All enabled agents run simultaneously via background processes
+- **Retry Logic**: Failed agents retry once after 5s delay
+- **Credit Fallback**: Automatically retries with cheaper models on quota errors
+- **Partial Results**: Continues with available agents if some fail
+
+**Consensus Calculation**:
+
+```text
+Consensus Score = (Agreements / Total_Findings) * 100
+
+≥80%: High confidence (auto-proceed)
+50-79%: Medium confidence (show disagreements)
+<50%: Low confidence (user decision required)
+```
 
 ---
 
 ## Command Processing Architecture
 
-How user commands flow through the Claude Code CLI and trigger orchestration.
+How slash commands are processed from user input to execution with parallel agent integration.
 
 ```mermaid
 %%{init: {'theme':'neutral'}}%%
-flowchart TB
-    classDef user fill:#f0f9ff,stroke:#0284c7,color:#0c4a6e
-    classDef skill fill:#fef3c7,stroke:#d97706,color:#78350f
-    classDef command fill:#f0fdf4,stroke:#16a34a,color:#14532d
-    classDef decision fill:#f3e8ff,stroke:#9333ea,color:#581c87
-    classDef parallel fill:#3b82f6,stroke:#1d4ed8,color:#fff
+flowchart LR
+    classDef input fill:#f0f9ff,stroke:#0284c7,color:#0c4a6e
+    classDef process fill:#f0fdf4,stroke:#16a34a,color:#14532d
+    classDef decision fill:#fef3c7,stroke:#d97706,color:#78350f
+    classDef external fill:#3b82f6,stroke:#1d4ed8,color:#fff
 
-    USER["User Input"]:::user
+    USER["User: /command args"]:::input
 
-    subgraph "Claude Code CLI"
-        DETECT["Detect Command Type"]:::decision
-        SKILL_CHECK["Check Auto-Trigger<br/>Patterns"]:::decision
+    subgraph "Command Layer"
+        PARSE["Parse Command & Args"]:::process
+        LOAD_CMD["Load Command Definition<br/>(.md / .mdc / .toml)"]:::process
     end
 
-    subgraph "Auto-Triggered Skills"
-        CODE_QUAL["code-quality skill<br/>(security, complexity)"]:::skill
+    subgraph "Preflight Analysis"
+        CHECK_CRITERIA{"Meets Parallel<br/>Agent Criteria?"}:::decision
+        TRIGGER["Trigger Conditions:<br/>- Security-sensitive<br/>- Architecture changes<br/>- Large scope (3+ files)<br/>- Critical logic"]:::process
     end
 
-    subgraph "User Commands"
-        REFACTOR["/refactor-python<br/>(Python analysis)"]:::command
-        SHELL_REF["/refactor-shell<br/>(Bash analysis)"]:::command
-        GEN_DIAG["/docs-diagrams<br/>(Mermaid docs)"]:::command
-        IMP_DOCS["/docs-improve<br/>(Diataxis framework)"]:::command
-        IMP_README["/docs-readme<br/>(README structure)"]:::command
+    subgraph "Execution"
+        SINGLE["Single Agent Execution"]:::process
+        PARALLEL["Parallel Agent Execution<br/>(parallel_agent.sh)"]:::external
     end
 
-    CHECK_THRESH["Check Thresholds<br/>(lines, modules, security patterns)"]:::decision
+    subgraph "Post-Processing"
+        SYNTHESIS{"Consensus<br/>< 80%?"}:::decision
+        SYNTH_AGENT["Synthesis Agent<br/>(resolve disagreements)"]:::external
+        VALIDATION["Validation Agent<br/>(check against criteria)"]:::external
+    end
 
-    PARALLEL_YES["Trigger Parallel Agents<br/>(parallel_agent.sh)"]:::parallel
-    PARALLEL_NO["Single Agent Analysis<br/>(Claude only)"]:::command
+    OUTPUT["Return Result to User"]:::input
 
-    OUTPUT["Return Results<br/>to User"]:::user
+    USER --> PARSE
+    PARSE --> LOAD_CMD
+    LOAD_CMD --> CHECK_CRITERIA
 
-    USER --> DETECT
+    CHECK_CRITERIA -->|Yes| PARALLEL
+    CHECK_CRITERIA -->|No| SINGLE
 
-    DETECT -->|Auto-trigger| SKILL_CHECK
-    DETECT -->|User command| REFACTOR
-    DETECT -->|User command| SHELL_REF
-    DETECT -->|User command| GEN_DIAG
-    DETECT -->|User command| IMP_DOCS
-    DETECT -->|User command| IMP_README
+    PARALLEL --> SYNTHESIS
+    SINGLE --> OUTPUT
 
-    SKILL_CHECK -->|Match| CODE_QUAL
-
-    CODE_QUAL --> CHECK_THRESH
-    REFACTOR --> CHECK_THRESH
-    SHELL_REF --> CHECK_THRESH
-    GEN_DIAG --> CHECK_THRESH
-    IMP_DOCS --> CHECK_THRESH
-    IMP_README --> PARALLEL_NO
-
-    CHECK_THRESH -->|Always| PARALLEL_YES
-    CHECK_THRESH -->|Conditional| PARALLEL_YES
-    CHECK_THRESH -->|Never| PARALLEL_NO
-
-    PARALLEL_YES --> OUTPUT
-    PARALLEL_NO --> OUTPUT
+    SYNTHESIS -->|Yes| SYNTH_AGENT
+    SYNTHESIS -->|No| VALIDATION
+    SYNTH_AGENT --> VALIDATION
+    VALIDATION --> OUTPUT
 ```
 
-**Command Categories:**
+**Command Types**:
 
-| Command | Parallel Agents | Trigger Condition |
-|---------|----------------|-------------------|
-| `/refactor-python` | ALWAYS | N/A |
-| `/refactor-shell` | ALWAYS | N/A |
-| `code-quality` (skill) | ALWAYS | Auto-triggered |
-| `/docs-diagrams` | CONDITIONAL | ≥5 unique imports |
-| `/docs-improve` | CONDITIONAL | ≥500 lines |
-| `/docs-readme` | NEVER | N/A |
+- **ALWAYS Parallel**: `/refactor-python`, `/refactor-shell` (security-sensitive)
+- **CONDITIONAL**: `/docs-diagrams` (5+ modules), `/plan-manage` (complex planning)
+- **NEVER Parallel**: `/docs-readme` (straightforward documentation)
 
 ---
 
 ## Validation Pipeline
 
-Two-tier validation system for code review outputs.
+How code changes and agent outputs are validated against Tier 1 (critical) and Tier 2 (quality) criteria.
 
 ```mermaid
 %%{init: {'theme':'neutral'}}%%
 flowchart TD
-    classDef active fill:#22c55e,stroke:#166534,color:#fff
-    classDef pending fill:#eab308,stroke:#a16207,color:#fff
-    classDef error fill:#ef4444,stroke:#dc2626,color:#fff
+    classDef input fill:#f0f9ff,stroke:#0284c7,color:#0c4a6e
+    classDef tier1 fill:#ef4444,stroke:#dc2626,color:#fff
+    classDef tier2 fill:#eab308,stroke:#a16207,color:#fff
+    classDef process fill:#f0fdf4,stroke:#16a34a,color:#14532d
+    classDef success fill:#22c55e,stroke:#166534,color:#fff
+    classDef blocked fill:#dc2626,stroke:#991b1b,color:#fff
 
-    START["Agent Outputs<br/>(Cursor, Gemini, Claude)"]:::pending
+    CODE["Code/Agent Output"]:::input
+    LOAD_CRITERIA["Load validation_criteria.yml"]:::process
 
     subgraph "Tier 1: Critical Checks (Blocking)"
-        T1_CROSS["Cross-Verification<br/>(consensus ≥80%)"]:::active
-        T1_SEC["Security Issues<br/>(injection, XSS, secrets)"]:::active
-        T1_ERR["Error Handling<br/>(no silent failures)"]:::active
-        T1_BREAK["Breaking Changes<br/>(API compatibility)"]:::active
+        CROSS_VERIFY["Cross-Verification<br/>(weight: 0.3)"]:::tier1
+        SECURITY["Security Issues<br/>(weight: 0.3)"]:::tier1
+        ERROR_HANDLE["Error Handling<br/>(weight: 0.2)"]:::tier1
+        BREAKING["Breaking Changes<br/>(weight: 0.2)"]:::tier1
     end
 
-    T1_PASS{"All Tier 1<br/>Pass?"}:::pending
-    T1_BLOCK["BLOCKED<br/>(fix required)"]:::error
+    TIER1_CHECK{"All Tier 1<br/>Pass?"}:::tier1
+    BLOCKED_VERDICT["VERDICT: BLOCKED"]:::blocked
 
     subgraph "Tier 2: Quality Checks (Advisory)"
-        T2_BUG["Bug Detection<br/>(null refs, off-by-one)"]:::pending
-        T2_PERF["Performance<br/>(O(n²), memory leaks)"]:::pending
-        T2_MAINT["Maintainability<br/>(complexity, naming)"]:::pending
-        T2_TEST["Test Coverage<br/>(≥80% for new code)"]:::pending
+        BUG_DETECT["Bug Detection<br/>(weight: 0.25)"]:::tier2
+        PERFORMANCE["Performance<br/>(weight: 0.25)"]:::tier2
+        MAINTAIN["Maintainability<br/>(weight: 0.25)"]:::tier2
+        TEST_COV["Test Coverage<br/>(weight: 0.25)"]:::tier2
     end
 
-    T2_SCORE["Calculate Tier 2 Score<br/>(weighted average)"]:::pending
-    T2_THRESH{"Score ≥ 0.60?"}:::pending
+    TIER2_SCORE["Calculate Tier 2 Score<br/>(weighted sum)"]:::process
 
-    APPROVED["APPROVED<br/>(proceed with changes)"]:::active
-    NEEDS_REVIEW["NEEDS REVIEW<br/>(quality improvements suggested)"]:::pending
+    TIER2_CHECK{"Score<br/>≥ 0.60?"}:::tier2
 
-    START --> T1_CROSS
-    START --> T1_SEC
-    START --> T1_ERR
-    START --> T1_BREAK
+    APPROVED["VERDICT: APPROVED"]:::success
+    NEEDS_REVIEW["VERDICT: NEEDS_REVIEW"]:::tier2
 
-    T1_CROSS --> T1_PASS
-    T1_SEC --> T1_PASS
-    T1_ERR --> T1_PASS
-    T1_BREAK --> T1_PASS
+    CODE --> LOAD_CRITERIA
+    LOAD_CRITERIA --> CROSS_VERIFY
+    CROSS_VERIFY --> SECURITY
+    SECURITY --> ERROR_HANDLE
+    ERROR_HANDLE --> BREAKING
+    BREAKING --> TIER1_CHECK
 
-    T1_PASS -->|No| T1_BLOCK
-    T1_PASS -->|Yes| T2_BUG
+    TIER1_CHECK -->|Yes| BUG_DETECT
+    TIER1_CHECK -->|No| BLOCKED_VERDICT
 
-    T2_BUG --> T2_SCORE
-    T2_PERF --> T2_SCORE
-    T2_MAINT --> T2_SCORE
-    T2_TEST --> T2_SCORE
+    BUG_DETECT --> PERFORMANCE
+    PERFORMANCE --> MAINTAIN
+    MAINTAIN --> TEST_COV
+    TEST_COV --> TIER2_SCORE
+    TIER2_SCORE --> TIER2_CHECK
 
-    T2_SCORE --> T2_THRESH
-
-    T2_THRESH -->|Yes| APPROVED
-    T2_THRESH -->|No| NEEDS_REVIEW
+    TIER2_CHECK -->|Yes| APPROVED
+    TIER2_CHECK -->|No| NEEDS_REVIEW
 ```
 
-**Tier 1 Criteria (Blocking):**
+**Validation Verdicts**:
 
-| Criterion | Weight | Description |
-|-----------|--------|-------------|
-| Cross-Verification | 0.30 | Agents agree on key findings |
-| Security | 0.30 | No injection, XSS, auth bypass, secrets |
-| Error Handling | 0.20 | Proper exceptions, no silent failures |
-| Breaking Changes | 0.20 | API compatibility, data migrations |
+- **APPROVED**: All Tier 1 pass, Tier 2 ≥ 0.60 → Safe to proceed
+- **NEEDS_REVIEW**: All Tier 1 pass, Tier 2 < 0.60 → Manual review recommended
+- **BLOCKED**: Any Tier 1 fails → Changes rejected
 
-**Tier 2 Criteria (Quality):**
+**Command-Specific Overrides**:
+Commands can override default thresholds in `validation_criteria.yml`:
 
-| Criterion | Weight | Description |
-|-----------|--------|-------------|
-| Bug Detection | 0.25 | Logic errors, null refs, race conditions |
-| Performance | 0.25 | No O(n²), memory leaks, blocking I/O |
-| Maintainability | 0.25 | Clear naming, reasonable complexity |
-| Test Coverage | 0.25 | ≥80% coverage for new code |
+```yaml
+command_overrides:
+  refactor-python:
+    tier1:
+      security_issues: 0.5  # Higher weight for Python security
+  project-commit:
+    tier2:
+      test_coverage: 0.0    # Don't require tests for commits
+```
 
 ---
 
 ## Model Selection & Credit Fallback
 
-Dynamic model selection based on task complexity with automatic fallback on credit exhaustion.
+Automatic model tier selection and graceful fallback when quota/credits are exhausted.
 
 ```mermaid
 %%{init: {'theme':'neutral'}}%%
-flowchart LR
-    classDef task fill:#f0f9ff,stroke:#0284c7,color:#0c4a6e
-    classDef model fill:#22c55e,stroke:#166534,color:#fff
+flowchart TD
+    classDef input fill:#f0f9ff,stroke:#0284c7,color:#0c4a6e
+    classDef process fill:#f0fdf4,stroke:#16a34a,color:#14532d
+    classDef decision fill:#fef3c7,stroke:#d97706,color:#78350f
     classDef fallback fill:#eab308,stroke:#a16207,color:#fff
     classDef error fill:#ef4444,stroke:#dc2626,color:#fff
 
-    subgraph "Task Types"
-        SECURITY["Security<br/>(auth, crypto)"]:::task
-        REVIEW["Code Review"]:::task
-        ANALYZE["Bug Analysis"]:::task
-        IMPROVE["Improvements"]:::task
-        QUICK["Quick Query"]:::task
-    end
+    TASK["Task Type"]:::input
 
-    subgraph "Cursor Models"
-        C_ADV["gpt-5.2<br/>(advanced)"]:::model
-        C_FLASH["gpt-5.1-codex<br/>(flash)"]:::model
-        C_MINI["gpt-5.1-codex-mini<br/>(mini)"]:::model
-        C_AUTO["auto"]:::fallback
-    end
+    CLASSIFY{"Task<br/>Classification"}:::decision
 
-    subgraph "Claude Models"
-        CL_OPUS["opus"]:::model
-        CL_SONNET["sonnet"]:::model
-        CL_HAIKU["haiku"]:::model
-    end
+    SECURITY["Security Review<br/>(auth, crypto, secrets)"]:::process
+    REVIEW["Code Review<br/>(general changes)"]:::process
+    ANALYZE["Analysis<br/>(bugs, patterns)"]:::process
+    IMPROVE["Improvements<br/>(docs, suggestions)"]:::process
+    QUICK["Quick Query<br/>(simple questions)"]:::process
 
-    subgraph "Gemini Models"
-        G_PRO["gemini-3-pro-preview"]:::model
-        G_FLASH["gemini-3-flash-preview"]:::model
-    end
+    SEC_MODELS["Cursor: advanced<br/>Claude: opus<br/>Gemini: pro"]:::process
+    REV_MODELS["Cursor: flash<br/>Claude: sonnet<br/>Gemini: flash"]:::process
+    ANA_MODELS["Cursor: flash<br/>Claude: sonnet<br/>Gemini: flash"]:::process
+    IMP_MODELS["Cursor: mini<br/>Claude: haiku<br/>Gemini: flash"]:::process
+    QCK_MODELS["Cursor: mini<br/>Claude: haiku<br/>Gemini: flash"]:::process
 
-    CREDIT_ERR["Credit Exhaustion<br/>Detected"]:::error
+    EXECUTE["Execute with Selected Models"]:::process
 
-    SECURITY --> C_ADV
-    SECURITY --> CL_OPUS
-    SECURITY --> G_PRO
+    CHECK_ERROR{"Credit/Quota<br/>Error?"}:::decision
 
-    REVIEW --> C_FLASH
-    REVIEW --> CL_SONNET
-    REVIEW --> G_FLASH
+    FALLBACK["Fallback to Cheaper Model"]:::fallback
+    RETRY["Retry with Fallback"]:::process
 
-    ANALYZE --> C_FLASH
-    ANALYZE --> CL_SONNET
-    ANALYZE --> G_FLASH
+    SUCCESS["Return Results"]:::input
+    FAIL["Report Error<br/>(all fallbacks exhausted)"]:::error
 
-    IMPROVE --> C_MINI
-    IMPROVE --> CL_HAIKU
-    IMPROVE --> G_FLASH
+    TASK --> CLASSIFY
 
-    QUICK --> C_MINI
-    QUICK --> CL_HAIKU
-    QUICK --> G_FLASH
+    CLASSIFY -->|Security| SECURITY
+    CLASSIFY -->|Review| REVIEW
+    CLASSIFY -->|Analyze| ANALYZE
+    CLASSIFY -->|Improve| IMPROVE
+    CLASSIFY -->|Quick| QUICK
 
-    C_ADV -->|Quota exceeded| CREDIT_ERR
-    CL_OPUS -->|Quota exceeded| CREDIT_ERR
+    SECURITY --> SEC_MODELS
+    REVIEW --> REV_MODELS
+    ANALYZE --> ANA_MODELS
+    IMPROVE --> IMP_MODELS
+    QUICK --> QCK_MODELS
 
-    CREDIT_ERR -->|Cursor fallback| C_FLASH
-    C_FLASH -->|Quota exceeded| C_MINI
-    C_MINI -->|Quota exceeded| C_AUTO
+    SEC_MODELS --> EXECUTE
+    REV_MODELS --> EXECUTE
+    ANA_MODELS --> EXECUTE
+    IMP_MODELS --> EXECUTE
+    QCK_MODELS --> EXECUTE
 
-    CREDIT_ERR -->|Claude fallback| CL_SONNET
-    CL_SONNET -->|Quota exceeded| CL_HAIKU
+    EXECUTE --> CHECK_ERROR
+
+    CHECK_ERROR -->|Yes| FALLBACK
+    CHECK_ERROR -->|No| SUCCESS
+
+    FALLBACK --> RETRY
+    RETRY --> CHECK_ERROR
+
+    FALLBACK -.->|All fallbacks tried| FAIL
 ```
 
-**Model Tier Mappings:**
+**Cursor Fallback Chain**:
 
-| Tier | Cursor | Claude | Gemini |
-|------|--------|--------|--------|
-| Advanced/Opus/Pro | gpt-5.2 | opus | gemini-3-pro-preview |
-| Flash/Sonnet | gpt-5.1-codex | sonnet | gemini-3-flash-preview |
-| Mini/Haiku | gpt-5.1-codex-mini | haiku | N/A |
-| Fallback | auto | haiku | N/A |
+```text
+gpt-5.2 (advanced) → gpt-5.1-codex (flash) → gpt-5.1-codex-mini (mini) → auto
+```
 
-**Credit Detection:**
+**Claude Fallback Chain**:
 
-- Parse stderr for: `credit`, `quota`, `rate limit`, `exceeded`, `insufficient`
-- Automatic fallback chain with exponential model downgrade
-- Optional pre-flight check with `--check-credits` flag
+```text
+opus → sonnet → haiku
+```
+
+**Error Detection**:
+The script parses stderr for patterns:
+
+- "credit", "quota", "rate limit", "insufficient"
+- Automatically retries with next cheaper model
+- Continues with available agents if one exhausts credits
 
 ---
 
 ## Configuration Layer
 
-YAML-based configuration hierarchy showing how settings flow through the system.
+How YAML configuration files control behavior, thresholds, and service toggles.
 
 ```mermaid
 %%{init: {'theme':'neutral'}}%%
-flowchart TB
+flowchart LR
     classDef config fill:#f3e8ff,stroke:#9333ea,color:#581c87
-    classDef override fill:#fef3c7,stroke:#d97706,color:#78350f
-    classDef runtime fill:#f0fdf4,stroke:#16a34a,color:#14532d
+    classDef process fill:#f0fdf4,stroke:#16a34a,color:#14532d
+    classDef output fill:#fef3c7,stroke:#d97706,color:#78350f
 
-    subgraph "Configuration Files (~/.claude/config/)"
-        SERVICES["services.yml<br/>(enabled agents)"]:::config
-        COMMAND_CFG["command_config.yml<br/>(thresholds, policies)"]:::config
-        VALIDATION["validation_criteria.yml<br/>(tier 1/2 rules)"]:::config
+    BOOTSTRAP["bootstrap.sh"]:::process
+
+    subgraph "Configuration Files"
+        SERVICES["services.yml<br/>(Claude, Gemini, Cursor,<br/>GitHub CLI, GitLab CLI)"]:::config
+        COMMAND_CFG["command_config.yml<br/>(Thresholds, Tool Policies,<br/>Model Selection)"]:::config
+        VALIDATION["validation_criteria.yml<br/>(Tier 1/2 Criteria,<br/>Command Overrides)"]:::config
     end
 
-    subgraph "Command-Specific Overrides"
-        REFACTOR_OVER["refactor-python:<br/>consensus ≥80%<br/>tier2 ≥0.80"]:::override
-        SHELL_OVER["refactor-shell:<br/>consensus ≥75%<br/>tier2 ≥0.70"]:::override
-        DOCS_OVER["docs-improve:<br/>tier1: false<br/>tier2: true"]:::override
-    end
+    PARSE_SERVICES["Parse Service Toggles<br/>(awk parser)"]:::process
+    PARSE_COMMAND["Load Command Config<br/>(YAML parser)"]:::process
+    PARSE_VALID["Load Validation Rules<br/>(YAML parser)"]:::process
 
-    subgraph "Runtime Parameters"
-        CLI_ARGS["CLI Arguments<br/>(--cursor-model, --timeout)"]:::runtime
-        ENV_VARS["Environment Variables<br/>(CURSOR_MODEL_ADVANCED)"]:::runtime
-    end
+    PARALLEL["parallel_agent.sh"]:::process
+    COMMANDS["Command Execution"]:::process
+    VALIDATORS["Validation Agents"]:::process
 
-    subgraph "Execution Context"
-        FINAL_CFG["Final Configuration<br/>(merged)"]:::runtime
-        ORCHESTRATOR["parallel_agent.sh"]:::runtime
-    end
+    BOOTSTRAP --> SERVICES
+    SERVICES --> PARSE_SERVICES
+    PARSE_SERVICES --> PARALLEL
 
-    SERVICES --> FINAL_CFG
-    COMMAND_CFG --> FINAL_CFG
-    VALIDATION --> FINAL_CFG
+    COMMAND_CFG --> PARSE_COMMAND
+    PARSE_COMMAND --> PARALLEL
+    PARSE_COMMAND --> COMMANDS
 
-    REFACTOR_OVER --> FINAL_CFG
-    SHELL_OVER --> FINAL_CFG
-    DOCS_OVER --> FINAL_CFG
+    VALIDATION --> PARSE_VALID
+    PARSE_VALID --> VALIDATORS
+    PARSE_VALID --> PARALLEL
 
-    CLI_ARGS --> FINAL_CFG
-    ENV_VARS --> FINAL_CFG
-
-    FINAL_CFG --> ORCHESTRATOR
+    PARALLEL --> RESULT["Agent Outputs"]:::output
+    COMMANDS --> RESULT
+    VALIDATORS --> RESULT
 ```
 
-**Configuration Priority (Highest to Lowest):**
+**services.yml Structure**:
 
-1. **CLI Arguments**: `--cursor-model advanced`, `--timeout 900`
-2. **Command Overrides**: Per-command settings in `validation_criteria.yml`
-3. **Environment Variables**: `CURSOR_MODEL_ADVANCED=gpt-5.2`
-4. **Base Configuration**: Default values in `command_config.yml`
-5. **Service Toggles**: `services.yml` enabled/disabled flags
+```yaml
+services:
+  claude:
+    enabled: true
+    command: claude
+  gemini:
+    enabled: true
+    command: gemini
+  cursor:
+    enabled: true
+    command: cursor
+  git_cli:
+    github:
+      enabled: auto  # auto-detect
+      command: gh
+    gitlab:
+      enabled: auto
+      command: glab
+    detection:
+      platform: auto
+      remote: origin
+```
 
-**Key Configuration Files:**
+**Key Features**:
 
-- `services.yml`: Which agents are enabled (claude, gemini, cursor)
-- `command_config.yml`: Thresholds, model mappings, consensus rules
-- `validation_criteria.yml`: Tier 1/2 validation checks and scoring
+- **Service Toggles**: Enable/disable agents and Git CLIs
+- **Auto-Detection**: gh/glab default to `auto` (enable if installed)
+- **Nested Configuration**: git_cli section contains github/gitlab subsections
+- **Reconfigurable**: `bootstrap.sh --reconfigure` updates toggles without reinstall
 
 ---
 
 ## Cross-Verification Consensus
 
-Algorithm for calculating consensus score between multiple agent outputs.
+How agent outputs are compared and consensus scores are calculated for decision-making.
 
 ```mermaid
 %%{init: {'theme':'neutral'}}%%
@@ -586,131 +691,121 @@ flowchart TD
     classDef medium fill:#eab308,stroke:#a16207,color:#fff
     classDef low fill:#ef4444,stroke:#dc2626,color:#fff
 
-    START["Agent Outputs<br/>(2 or 3 agents)"]:::input
+    OUTPUTS["Agent Outputs<br/>(Gemini, Cursor, Claude)"]:::input
 
-    COUNT_METRICS["Count Metrics per Agent:<br/>- Issues (bugs, errors, vulnerabilities)<br/>- Warnings (cautions, potential problems)"]:::process
+    EXTRACT["Extract Key Findings<br/>(Issues, Recommendations, Risks)"]:::process
 
-    CALC_AVG["Calculate Averages:<br/>avg_issues = Σ(issues) / agent_count<br/>avg_warnings = Σ(warnings) / agent_count"]:::process
+    COMPARE["Compare Findings Across Agents"]:::process
 
-    CALC_DEV["Calculate Total Deviation:<br/>For each agent:<br/>  |issues - avg_issues| + |warnings - avg_warnings|"]:::process
+    COUNT_AGREE["Count Agreements<br/>(Same finding from 2+ agents)"]:::process
+    COUNT_TOTAL["Count Total Unique Findings"]:::process
 
-    CALC_CONSENSUS["Consensus Score:<br/>score = ((total_findings - total_deviation) * 100) / total_findings<br/>clamp to [0, 100]"]:::process
+    CALC["Calculate Consensus Score<br/>(Agreements / Total * 100)"]:::process
 
-    THRESHOLD{"Consensus<br/>Score?"}:::process
+    SCORE_CHECK{"Consensus<br/>Score?"}:::process
 
-    HIGH["HIGH (≥80%)<br/>Auto-proceed with unified recommendation"]:::high
-    MEDIUM["MEDIUM (50-79%)<br/>Highlight disagreements to user"]:::medium
-    LOW["LOW (<50%)<br/>Block and escalate for human review"]:::low
+    HIGH["≥80% - High Confidence<br/>✓ Unified recommendation<br/>✓ Auto-proceed"]:::high
+    MEDIUM["50-79% - Medium Confidence<br/>⚠ Show disagreements<br/>⚠ User review recommended"]:::medium
+    LOW["<50% - Low Confidence<br/>✗ Escalate to user<br/>✗ Manual decision required"]:::low
 
-    START --> COUNT_METRICS
-    COUNT_METRICS --> CALC_AVG
-    CALC_AVG --> CALC_DEV
-    CALC_DEV --> CALC_CONSENSUS
-    CALC_CONSENSUS --> THRESHOLD
+    OUTPUTS --> EXTRACT
+    EXTRACT --> COMPARE
+    COMPARE --> COUNT_AGREE
+    COMPARE --> COUNT_TOTAL
+    COUNT_AGREE --> CALC
+    COUNT_TOTAL --> CALC
+    CALC --> SCORE_CHECK
 
-    THRESHOLD -->|≥80%| HIGH
-    THRESHOLD -->|50-79%| MEDIUM
-    THRESHOLD -->|<50%| LOW
+    SCORE_CHECK -->|≥80%| HIGH
+    SCORE_CHECK -->|50-79%| MEDIUM
+    SCORE_CHECK -->|<50%| LOW
 ```
 
-**Consensus Example:**
+**Example Consensus Calculation**:
 
-```text
-Agent Findings:
-- Cursor:  15 issues, 8 warnings  (total: 23)
-- Gemini:  12 issues, 10 warnings (total: 22)
-- Claude:  14 issues, 9 warnings  (total: 23)
+Given 3 agents with these findings:
 
-Averages:
-- avg_issues = (15+12+14)/3 = 13.67
-- avg_warnings = (8+10+9)/3 = 9
+- **Gemini**: [A, B, C, D]
+- **Cursor**: [A, B, E]
+- **Claude**: [A, C, F]
 
-Deviations:
-- Cursor:  |15-13.67| + |8-9| = 1.33 + 1 = 2.33
-- Gemini:  |12-13.67| + |10-9| = 1.67 + 1 = 2.67
-- Claude:  |14-13.67| + |9-9| = 0.33 + 0 = 0.33
-- Total deviation = 5.33
+**Analysis**:
 
-Consensus Score:
-- total_findings = 68
-- score = ((68 - 5.33) * 100) / 68 = 92.2%
-- Result: HIGH confidence (agents largely agree)
-```
+- Total unique findings: A, B, C, D, E, F = **6**
+- Agreements (2+ agents):
+  - A: all 3 agents ✓
+  - B: Gemini + Cursor ✓
+  - C: Gemini + Claude ✓
+- Agreement count: **3**
+- **Consensus Score**: 3/6 * 100 = **50%** (MEDIUM)
+
+**Action**: Show disagreements (D, E, F are unique to single agents), recommend user review.
 
 ---
 
 ## Service State Management
 
-State transitions for enabled/disabled services throughout the lifecycle.
+Lifecycle and state transitions of enabled services throughout the framework.
 
 ```mermaid
 %%{init: {'theme':'neutral'}}%%
 stateDiagram-v2
-    classDef enabled fill:#dcfce7,stroke:#15803d
-    classDef disabled fill:#fee2e2,stroke:#dc2626
-    classDef warning fill:#fef3c7,stroke:#a16207
+    classDef enabled fill:#22c55e,stroke:#166534,color:#fff
+    classDef disabled fill:#e5e7eb,stroke:#6b7280,color:#374151
+    classDef auto fill:#3b82f6,stroke:#1d4ed8,color:#fff
 
-    [*] --> DefaultEnabled: bootstrap.sh<br/>initial setup
+    [*] --> NotInstalled
 
-    DefaultEnabled --> Enabled: services.yml<br/>enabled: true
-    DefaultEnabled --> Disabled: services.yml<br/>enabled: false
+    NotInstalled --> Auto: Default (gh/glab)
+    NotInstalled --> Disabled: --disable flag
+    NotInstalled --> Enabled: --enable flag
 
-    Enabled --> TemporaryDisabled: CLI flag<br/>--no-claude
-    Enabled --> Running: parallel_agent.sh<br/>executes
+    Auto --> Enabled: CLI detected
+    Auto --> Disabled: CLI not found
 
-    TemporaryDisabled --> Enabled: Next invocation<br/>without flag
+    Enabled --> Available: Auth successful
+    Enabled --> Unavailable: Auth failed / CLI missing
 
-    Disabled --> Enabled: Reconfigure<br/>--enable-claude
-    Enabled --> Disabled: Reconfigure<br/>--disable-claude
+    Available --> InUse: Command execution
+    InUse --> Available: Command complete
 
-    Running --> Success: Agent completes
-    Running --> CreditExhausted: Quota exceeded
-    Running --> Failed: Timeout/Error
+    Unavailable --> Available: Install + Auth
 
-    CreditExhausted --> FallbackModel: Try cheaper model
-    FallbackModel --> Success: Retry succeeds
-    FallbackModel --> Failed: All models fail
+    Disabled --> Enabled: --enable flag
+    Enabled --> Disabled: --disable flag
 
-    Success --> [*]
-    Failed --> [*]
+    Available --> [*]: Uninstall
+    Disabled --> [*]: Uninstall
 
-    class Enabled enabled
-    class Running enabled
-    class Success enabled
-    class Disabled disabled
-    class Failed disabled
-    class TemporaryDisabled warning
-    class CreditExhausted warning
-    class FallbackModel warning
+    class Enabled,Available,InUse enabled
+    class Disabled,Unavailable,NotInstalled disabled
+    class Auto auto
 ```
 
-**State Transitions:**
+**State Descriptions**:
 
-1. **Bootstrap**: All services start enabled by default
-2. **Configuration**: `services.yml` persists enabled/disabled state
-3. **Runtime Override**: CLI flags (`--cursor-only`, `--no-claude`) temporarily modify state
-4. **Execution**: Running state while agent processes request
-5. **Credit Exhaustion**: Automatic fallback to cheaper models
-6. **Reconfiguration**: User can change enabled state via `bootstrap.sh --reconfigure`
+- **NotInstalled**: Service not yet configured (initial state)
+- **Auto**: Auto-detect mode (default for gh/glab)
+- **Enabled**: Explicitly enabled by user
+- **Disabled**: Explicitly disabled by user
+- **Available**: CLI installed and authenticated (ready for use)
+- **Unavailable**: Enabled but CLI missing or auth failed
+- **InUse**: Currently executing a command
 
-**Fallback Chains:**
+**Transitions**:
 
-- **Cursor**: gpt-5.2 → gpt-5.1-codex → gpt-5.1-codex-mini → auto
-- **Claude**: opus → sonnet → haiku
+- `bootstrap.sh` initializes state based on flags and detection
+- `services.yml` persists state across sessions
+- `bootstrap.sh --reconfigure` allows state changes without reinstall
 
 ---
 
 ## Related Documents
 
-- [CLAUDE.md](../CLAUDE.md) - Repository context for AI assistants
-- [.claude/CLAUDE.md](../.claude/CLAUDE.md) - Full orchestration guide (deployed to ~/.claude/)
+- [AGENTS.md](../AGENTS.md) - AI agent instructions for all platforms
+- [CLAUDE.md](../CLAUDE.md) - Claude Code project instructions
 - [README.md](../README.md) - Project overview and quick start
-- [GETTING_STARTED.md](GETTING_STARTED.md) - First-time setup walkthrough
-- [CONFIGURATION.md](CONFIGURATION.md) - Complete configuration reference
-- [TROUBLESHOOTING.md](TROUBLESHOOTING.md) - Common problems and solutions
-
----
-
-**Generated by**: `/docs-diagrams` command
-**Mermaid Version**: Compatible with GitHub/GitLab markdown renderers
-**Last Validated**: 2026-02-04
+- [docs/GETTING_STARTED.md](GETTING_STARTED.md) - First-time setup walkthrough
+- [docs/CONFIGURATION.md](CONFIGURATION.md) - Complete configuration reference
+- [docs/TROUBLESHOOTING.md](TROUBLESHOOTING.md) - Common problems and solutions
+- [.claude/.plans/README.md](../.claude/.plans/README.md) - Plan management quick reference

@@ -138,7 +138,8 @@ After all three complete, run `git status` to confirm documentation files were m
    - Scan the commit message for issue number references (#123, issue #123, etc.)
    - Check git branch name for issue numbers (e.g., `fix/issue-296-backtest`)
    - Search staged files for comments mentioning issues (e.g., "// Fix for #288", "# Resolves issue #296")
-   - For each detected issue number, verify it's open using `gh issue view <number> --json state --jq '.state'`
+   - For each detected issue number, verify it's open using
+     `~/.claude/scripts/git_ops.sh issue-view <number> --json state --jq '.state'`
    - If open issues are found, append to the commit message:
 
      ```text

@@ -1,4 +1,4 @@
-description = "Plan lifecycle with parallel agent orchestration for create/review"
+description = "Plan lifecycle with parallel agent orchestration for create/review/execute"
 prompt = """
 # Plan Management
 
@@ -7,9 +7,9 @@ for cross-verified planning.
 
 ## Arguments
 
-- `<action>` -- One of: `list`, `create`, `review`, `archive`, `abandon` (default: **list**)
+- `<action>` -- One of: `list`, `create`, `review`, `execute`, `archive`, `abandon` (default: **list**)
 - `<description>` -- Task description (required for `create`)
-- `<filename>` -- Plan filename (optional for `review`, `archive`, `abandon`)
+- `<filename>` -- Plan filename (required for `execute`, optional for `review`, `archive`, `abandon`)
 
 Arguments provided: {{args}}
 
@@ -107,6 +107,25 @@ Otherwise -> single-agent planning (Step 2b).
    - Present the recommendation to the user
 4. Suggest actions for each plan
 
+### execute
+
+Implement all unchecked deliverables in an active plan, then archive it on completion.
+
+1. Accept a filename argument or ask which plan to execute.
+2. Read the plan file. Verify `**Status**: ACTIVE`. If not active, abort.
+3. Parse the **Deliverables** section. Identify all unchecked items (`- [ ]`).
+   - If none remain, skip to step 7 (archive).
+4. For each unchecked deliverable, in order:
+   a. Read **Related Files** and **Implementation Notes** for context.
+   b. Implement the deliverable using appropriate tools.
+   c. Check off the deliverable (`- [x]`) in the plan file.
+5. Update the plan's **Log** with an execution summary entry.
+6. Update `**Status**: ACTIVE` to `**Status**: COMPLETED`.
+7. Move the plan to `.claude/.plans/.archive/`.
+8. Report a summary of all changes made.
+
+If a deliverable fails, log the failure and ask the user how to proceed.
+
 ### archive
 
 1. Accept a filename argument or ask the user which plan to archive
@@ -126,6 +145,7 @@ Otherwise -> single-agent planning (Step 2b).
 | Action | Parallel Agents | Trigger |
 |--------|----------------|---------|
 | `create` | CONDITIONAL | Security, architecture, 3+ files, critical logic |
+| `execute` | NEVER | Implements deliverables directly |
 | `review` | CONDITIONAL | Stale plans (7+ days) being re-evaluated |
 | `list` | NEVER | Read-only metadata scan |
 | `archive` | NEVER | File move only |
