@@ -137,7 +137,7 @@ Detection methods:
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `GEMINI_INCLUDE_DIRS` | Colon-separated directories for Gemini | `$(pwd):~/.claude` |
+| `GEMINI_INCLUDE_DIRS` | Colon-separated directories for Gemini | `$(pwd):~/.claude:~/.gemini` |
 | `CURSOR_MODEL_MINI` | Model name for 'mini' tier | `gpt-5.1-codex-mini` |
 | `CURSOR_MODEL_FLASH` | Model name for 'flash' tier | `gpt-5.1-codex` |
 | `CURSOR_MODEL_ADVANCED` | Model name for 'advanced' tier | `gpt-5.2` |
@@ -512,13 +512,17 @@ operate from identical orchestration rules.
 │   └── checkpoint.toml
 ├── skills/
 │   └── code-quality/
-│       └── SKILL.md                 # Symlinked from .claude/
+│       └── SKILL.md                 # Symlinked from ~/.claude/skills/
 ├── prompts/ -> ~/.claude/prompts/   # Symlinked shared templates
 ├── config/ -> ~/.claude/config/     # Symlinked shared configs
 ├── scripts/ -> ~/.claude/scripts/   # Symlinked shared scripts
 ├── .plans/ -> ~/.claude/.plans/     # Symlinked shared plans
 └── settings.json                    # Gemini CLI project settings
 ```
+
+> **Note**: The `skills/` directory exists only in the deployed `~/.gemini/` location
+> (created by `bootstrap.sh`), NOT in the repository's `.gemini/` directory.
+> This prevents skill conflict warnings when Gemini runs inside the Manifest repo.
 
 ---
 

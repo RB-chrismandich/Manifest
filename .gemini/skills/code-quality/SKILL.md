@@ -1,1 +1,0 @@
-../../../.claude/skills/code-quality/SKILL.md
