@@ -1,5 +1,5 @@
 description = "Plan lifecycle with parallel agent orchestration for create/review/execute"
-prompt = """
+prompt = '''
 # Plan Management
 
 Manage implementation plans in `.claude/.plans/` with optional parallel agent orchestration
@@ -235,4 +235,4 @@ If a deliverable fails, log the failure and ask the user how to proceed.
 - **Edit files**: Check off deliverables (`- [x]`) during execute
 - **Analyze and synthesize**: Synthesize agent outputs when agents disagree (consensus < 80%)
 - **Ask the user**: Present plan for approval, resolve low-consensus disagreements
-"""
+'''

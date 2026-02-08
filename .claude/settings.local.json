@@ -22,7 +22,12 @@
       "Bash(git mv:*)",
       "WebFetch(domain:github.com)",
       "WebFetch(domain:gist.github.com)",
-      "WebFetch(domain:docs.github.com)"
+      "WebFetch(domain:docs.github.com)",
+      "Bash(gh issue comment:*)",
+      "Bash(gh api:*)",
+      "Bash(glab issue note:*)",
+      "Bash(gh issue view:*)",
+      "Bash(gh issue edit:*)"
     ]
   }
 }
