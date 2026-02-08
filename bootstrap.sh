@@ -278,20 +278,25 @@ print_info() {
 }
 
 prompt_yes_no() {
-    local prompt="$1"
+    local question="$1"
     local default="${2:-y}"
+    local prompt_suffix
     local response
 
     if [[ "$default" == "y" ]]; then
-        prompt="$prompt [Y/n]: "
+        prompt_suffix="[Y/n]"
     else
-        prompt="$prompt [y/N]: "
+        prompt_suffix="[y/N]"
     fi
 
-    read -r -p "$prompt" response
+    # Print question in bold, options in cyan
+    echo -ne "${BOLD}${question}${NC} ${CYAN}${prompt_suffix}${NC}: "
+
+    read -r response
     response="${response:-$default}"
 
-    [[ "$response" =~ ^[Yy]$ ]]
+    # Check for yes (Y, y, Yes, yes, YES)
+    [[ "$response" =~ ^[Yy]([Ee][Ss])?$ ]]
 }
 
 command_exists() {
