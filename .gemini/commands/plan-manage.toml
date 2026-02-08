@@ -96,7 +96,7 @@ Otherwise -> single-agent planning (Step 2b).
 
 #### Step 3: Save the Plan
 
-1. Read `.claude/.plans/TEMPLATE.md`
+1. Read `~/.claude/.plans/TEMPLATE.md`
 2. Populate all sections from the synthesized/drafted plan:
    - **Objective**: From the task description
    - **Context**: Why this work is needed, any relevant codebase context discovered
