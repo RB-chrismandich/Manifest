@@ -1104,6 +1104,64 @@ check_claude_auth() {
     return 1
 }
 
+# Setup Gemini authentication
+setup_gemini_auth() {
+    echo ""
+    echo -e "${BOLD}Gemini Authentication Setup${NC}"
+    echo "  1. Browser-based OAuth (recommended)"
+    echo "  2. API Key (for headless/CI)"
+    echo "  3. Skip"
+    echo ""
+
+    local auth_choice
+    read -r -p "Choose option [1/2/3]: " auth_choice
+
+    case $auth_choice in
+        1)
+            if command_exists gemini; then
+                print_step "Running 'gemini auth login'..."
+                gemini auth login
+                return $?
+            else
+                print_error "Gemini CLI not found."
+                return 1
+            fi
+            ;;
+        2)
+            echo ""
+            echo "  Get an API key at: https://aistudio.google.com/apikey"
+            echo -n "  Enter your Gemini API Key: "
+            local api_key
+            read -rs api_key
+            echo "" # Newline after silent input
+
+            if [[ -n "$api_key" ]]; then
+                local env_file="$TARGET_DIR/gemini_env.sh"
+
+                # Escape single quotes to prevent injection
+                local safe_key="${api_key//\'/\'\\\'\'}"
+
+                # Create file with restrictive permissions
+                touch "$env_file"
+                chmod 600 "$env_file"
+
+                echo "export GEMINI_API_KEY='$safe_key'" > "$env_file"
+                print_success "API key saved to $env_file (mode 600)"
+
+                # Source it for current session
+                export GEMINI_API_KEY="$api_key"
+                return 0
+            else
+                print_warning "No API key entered."
+                return 1
+            fi
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
 # Check Gemini authentication
 # NOTE: We check credential files directly instead of running `gemini auth status`
 # because that command spawns a full agent session that can hang on tool execution
@@ -1137,7 +1195,14 @@ check_gemini_auth() {
         return 0
     fi
 
-    print_error "Gemini CLI is NOT authenticated"
+    print_warning "Gemini CLI is NOT authenticated"
+
+    if prompt_yes_no "Do you want to set up Gemini authentication now?"; then
+        setup_gemini_auth
+        return $?
+    fi
+
+    print_error "Gemini CLI remains unauthenticated"
     echo ""
     echo "  To authenticate, run one of the following after bootstrap completes:"
     echo ""
