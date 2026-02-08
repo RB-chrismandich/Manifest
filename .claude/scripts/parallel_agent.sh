@@ -22,7 +22,19 @@ if mkdir -p "$DEFAULT_OUTPUT_DIR" 2> /dev/null && [ -w "$DEFAULT_OUTPUT_DIR" ]; 
     OUTPUT_DIR="$DEFAULT_OUTPUT_DIR"
 else
     # Fallback to /tmp if ~/.claude/.agent_outputs is not writable
-    OUTPUT_DIR="/tmp/.claude_agent_outputs_$$"
+    # Use mktemp to prevent symlink attacks (CWE-377)
+    if command -v mktemp &> /dev/null; then
+        # Try Linux/GNU style (template argument)
+        OUTPUT_DIR=$(mktemp -d "/tmp/claude_agent_outputs.XXXXXX" 2>/dev/null) || \
+        # Try macOS/BSD style (-t prefix)
+        OUTPUT_DIR=$(mktemp -d -t claude_agent_outputs 2>/dev/null)
+    fi
+
+    # Final fallback if mktemp fails or is missing
+    if [[ -z "$OUTPUT_DIR" ]]; then
+        OUTPUT_DIR="/tmp/.claude_agent_outputs_$RANDOM$RANDOM"
+    fi
+
     echo "Warning: Using fallback output directory: $OUTPUT_DIR" >&2
 fi
 
