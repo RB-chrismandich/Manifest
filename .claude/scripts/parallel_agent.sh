@@ -1193,6 +1193,147 @@ create_summary() {
     fi
 }
 
+# Print results table
+print_results_table() {
+    echo -e "${BLUE}=== Execution Summary ===${NC}"
+    echo ""
+    if [[ "$MODE" == "analyze" || "$MODE" == "review" ]]; then
+        echo "Task: $MODE $TARGET"
+        echo ""
+    fi
+
+    # Table Header
+    # Agent (10) | Status (10) | Model (20) | Validation (10)
+    printf "${BOLD}%-10s | %-10s | %-20s" "Agent" "Status" "Model"
+    if [[ "$VALIDATE" == true ]]; then
+        printf " | %-10s" "Validation"
+    fi
+    printf "${NC}\n"
+
+    printf "%s\n" "-----------|------------|----------------------$(if [[ "$VALIDATE" == true ]]; then echo "-|------------"; fi)"
+
+    # Cursor Row
+    if [[ "$RUN_CURSOR" == true ]]; then
+        local status="SKIPPED"
+        local model="${CURSOR_MODEL:-auto}"
+        local val_status=""
+        local color="${NC}"
+
+        if [[ -f "$OUTPUT_DIR/cursor_${TIMESTAMP}.txt" ]]; then
+            status="COMPLETE"
+            color="${GREEN}"
+        else
+            status="FAILED"
+            color="${RED}"
+        fi
+
+        if [[ "$CURSOR_CREDIT_FALLBACK" == true ]]; then
+             model="$model (fallback)"
+        fi
+
+        printf "%-10s | ${color}%-10s${NC} | %-20s" "Cursor" "$status" "$model"
+
+        if [[ "$VALIDATE" == true ]]; then
+            if [[ "$CURSOR_VAL_RESULT" -eq 0 ]]; then
+                val_status="${GREEN}PASSED${NC}"
+            elif [[ "$CURSOR_VAL_RESULT" -eq 2 ]]; then
+                val_status="${YELLOW}WARNING${NC}"
+            elif [[ "$CURSOR_VAL_RESULT" -eq 1 ]]; then
+                val_status="${RED}FAILED${NC}"
+            else
+                val_status="${NC}N/A${NC}"
+            fi
+            printf " | %-10b" "$val_status"
+        fi
+        printf "\n"
+    fi
+
+    # Gemini Row
+    if [[ "$RUN_GEMINI" == true ]]; then
+        local status="SKIPPED"
+        local model="${GEMINI_MODEL:-flash}"
+        local val_status=""
+        local color="${NC}"
+
+        if [[ -f "$OUTPUT_DIR/gemini_${TIMESTAMP}.txt" ]]; then
+            status="COMPLETE"
+            color="${GREEN}"
+        else
+            status="FAILED"
+            color="${RED}"
+        fi
+
+        printf "%-10s | ${color}%-10s${NC} | %-20s" "Gemini" "$status" "$model"
+
+        if [[ "$VALIDATE" == true ]]; then
+            if [[ "$GEMINI_VAL_RESULT" -eq 0 ]]; then
+                val_status="${GREEN}PASSED${NC}"
+            elif [[ "$GEMINI_VAL_RESULT" -eq 2 ]]; then
+                val_status="${YELLOW}WARNING${NC}"
+            elif [[ "$GEMINI_VAL_RESULT" -eq 1 ]]; then
+                val_status="${RED}FAILED${NC}"
+            else
+                val_status="${NC}N/A${NC}"
+            fi
+            printf " | %-10b" "$val_status"
+        fi
+        printf "\n"
+    fi
+
+    # Claude Row
+    if [[ "$RUN_CLAUDE" == true ]]; then
+        local status="SKIPPED"
+        local model="${CLAUDE_MODEL:-sonnet}"
+        local val_status=""
+        local color="${NC}"
+
+        if [[ -f "$OUTPUT_DIR/claude_${TIMESTAMP}.txt" ]]; then
+            status="COMPLETE"
+            color="${GREEN}"
+        else
+            status="FAILED"
+            color="${RED}"
+        fi
+
+        if [[ "$CLAUDE_CREDIT_FALLBACK" == true ]]; then
+             model="$model (fallback)"
+        fi
+
+        printf "%-10s | ${color}%-10s${NC} | %-20s" "Claude" "$status" "$model"
+
+        if [[ "$VALIDATE" == true ]]; then
+            if [[ "$CLAUDE_VAL_RESULT" -eq 0 ]]; then
+                val_status="${GREEN}PASSED${NC}"
+            elif [[ "$CLAUDE_VAL_RESULT" -eq 2 ]]; then
+                val_status="${YELLOW}WARNING${NC}"
+            elif [[ "$CLAUDE_VAL_RESULT" -eq 1 ]]; then
+                val_status="${RED}FAILED${NC}"
+            else
+                val_status="${NC}N/A${NC}"
+            fi
+            printf " | %-10b" "$val_status"
+        fi
+        printf "\n"
+    fi
+
+    echo ""
+
+    if [[ "$CROSS_VERIFY_RAN" == true ]]; then
+        local bar
+        bar=$(draw_bar $CONSENSUS_SCORE)
+        local score_color="${NC}"
+        if [[ $CONSENSUS_SCORE -ge 80 ]]; then score_color="${GREEN}";
+        elif [[ $CONSENSUS_SCORE -ge 50 ]]; then score_color="${YELLOW}";
+        else score_color="${RED}"; fi
+
+        echo -e "Consensus: ${score_color}${CONSENSUS_SCORE}%${NC} $bar"
+    fi
+
+    echo "Duration : $DURATION_FORMATTED"
+    echo "Results  : $OUTPUT_DIR"
+    echo ""
+}
+
 # Main execution
 main() {
     if [[ -z "$PROMPT" && -z "$TARGET" ]]; then
@@ -1340,8 +1481,7 @@ main() {
 
     create_summary
 
-    echo ""
-    echo -e "${GREEN}Done!${NC} ($DURATION_FORMATTED) Results in: $OUTPUT_DIR"
+    print_results_table
 }
 
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then main "$@"; fi
