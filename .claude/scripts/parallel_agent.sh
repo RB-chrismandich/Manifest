@@ -60,6 +60,7 @@ NC='\033[0m' # No Color
 
 # Global array to track background process IDs
 pids=()
+SLEEP_PROC_PID=""
 
 # Cleanup function to restore cursor and kill background processes
 cleanup() {
@@ -77,6 +78,11 @@ cleanup() {
                 kill "$pid" 2> /dev/null || true
             fi
         done
+    fi
+
+    # Kill sleep background process if it exists
+    if [[ -n "$SLEEP_PROC_PID" ]]; then
+        kill "$SLEEP_PROC_PID" 2> /dev/null || true
     fi
 
     exit "$exit_code"
@@ -110,6 +116,33 @@ format_duration() {
         local minutes=$((seconds / 60))
         local rem_seconds=$((seconds % 60))
         echo "${minutes}m ${rem_seconds}s"
+    fi
+}
+
+# Default sleep function (fallback)
+sleep_fractional() {
+    sleep "$1"
+}
+
+# Optimize sleep using builtin read -t if supported
+setup_sleep_optimization() {
+    # Bash 4+ supports coproc and fractional read timeout
+    if [[ "${BASH_VERSINFO[0]}" -ge 4 ]]; then
+        # Start a background sleep process that keeps a pipe open
+        # We read from its output FD, which blocks until timeout because no input is sent
+        coproc SLEEP_PROC { sleep 86400; }
+
+        # Save PID for cleanup
+        SLEEP_PROC_PID="$SLEEP_PROC_PID"
+
+        # Define optimized sleep function using the coproc output FD
+        # read -t with fractional seconds is a builtin in Bash 4+
+        local fd="${SLEEP_PROC[0]}"
+        eval "
+        sleep_fractional() {
+            read -t \"\$1\" -u $fd 2>/dev/null || true
+        }
+        "
     fi
 }
 
@@ -1115,7 +1148,7 @@ monitor_agents() {
         if $running; then
             # \r to start, \033[K to clear line
             printf "\r${BOLD}Waiting for agents (%s):${NC}%b\033[K" "$time_str" "$status_line"
-            sleep 0.1
+            sleep_fractional 0.1
         fi
     done
 
@@ -1356,6 +1389,9 @@ main() {
 
     # Pre-flight credit check if enabled
     preflight_credit_check
+
+    # Setup sleep optimization (must happen before main loop)
+    setup_sleep_optimization
 
     # Resolve models in parent process so variables are available for JSON output
     if [[ "$RUN_CURSOR" == true ]]; then
