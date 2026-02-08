@@ -1031,8 +1031,7 @@ monitor_agents() {
     # Braille spinner for smoother animation
     local spinner=('⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏')
     local spin_idx=0
-    local start_time
-    start_time=$(date +%s)
+    local start_seconds=$SECONDS
 
     # Track states locally
     local agent_states=()
@@ -1045,9 +1044,7 @@ monitor_agents() {
         loop_count=$((loop_count + 1))
 
         # Calculate elapsed time
-        local current_time
-        current_time=$(date +%s)
-        local elapsed=$((current_time - start_time))
+        local elapsed=$((SECONDS - start_seconds))
         local minutes=$((elapsed / 60))
         local seconds=$((elapsed % 60))
         local time_str
@@ -1123,9 +1120,7 @@ monitor_agents() {
     done
 
     # Final state
-    local current_time
-    current_time=$(date +%s)
-    local elapsed=$((current_time - start_time))
+    local elapsed=$((SECONDS - start_seconds))
     local minutes=$((elapsed / 60))
     local seconds=$((elapsed % 60))
     local time_str
