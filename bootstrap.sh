@@ -25,6 +25,14 @@
 
 set -e
 
+# Cleanup function to restore cursor on exit/interrupt
+cleanup() {
+    if command -v tput &> /dev/null; then
+        tput cnorm 2> /dev/null || true
+    fi
+}
+trap cleanup EXIT INT TERM
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -309,8 +317,19 @@ run_with_spinner() {
     local cmd="$1"
     local msg="${2:-Working}"
     local pid
-    local spin='-\|/'
-    local i=0
+    local spinner=('⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏')
+    local spin_idx=0
+
+    # Check for tput availability
+    local has_tput=false
+    if command -v tput &> /dev/null; then
+        has_tput=true
+    fi
+
+    # Hide cursor
+    if $has_tput; then
+        tput civis 2> /dev/null || true
+    fi
 
     # Start command in background
     eval "$cmd" &
@@ -318,14 +337,19 @@ run_with_spinner() {
 
     # Show spinner while command runs
     while kill -0 "$pid" 2> /dev/null; do
-        i=$(((i + 1) % 4))
-        printf "\r${CYAN}${spin:$i:1}${NC} %s..." "$msg"
-        sleep 0.2
+        spin_idx=$(((spin_idx + 1) % ${#spinner[@]}))
+        printf "\r${CYAN}${spinner[$spin_idx]}${NC} %s..." "$msg"
+        sleep 0.1
     done
 
     # Wait for command to complete and get exit code
     wait "$pid"
     local exit_code=$?
+
+    # Restore cursor
+    if $has_tput; then
+        tput cnorm 2> /dev/null || true
+    fi
 
     # Clear spinner line
     printf "\r\033[K"
