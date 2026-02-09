@@ -1250,21 +1250,49 @@ print_results_table() {
         echo ""
     fi
 
-    # Table Header
-    # Agent (10) | Status (10) | Model (20) | Validation (10)
-    printf "${BOLD}%-10s | %-10s | %-20s" "Agent" "Status" "Model"
-    if [[ "$VALIDATE" == true ]]; then
-        printf " | %-10s" "Validation"
-    fi
-    printf "${NC}\n"
+    # Column widths
+    local w_agent=10
+    local w_status=10
+    local w_model=30
+    local w_val=10
 
-    printf "%s\n" "-----------|------------|----------------------$(if [[ "$VALIDATE" == true ]]; then echo "-|------------"; fi)"
+    # Top border
+    printf "┌"
+    for ((i=0; i<w_agent+2; i++)); do printf "─"; done
+    printf "┬"
+    for ((i=0; i<w_status+2; i++)); do printf "─"; done
+    printf "┬"
+    for ((i=0; i<w_model+2; i++)); do printf "─"; done
+    if [[ "$VALIDATE" == true ]]; then
+        printf "┬"
+        for ((i=0; i<w_val+2; i++)); do printf "─"; done
+    fi
+    printf "┐\n"
+
+    # Header
+    printf "│ ${BOLD}%-${w_agent}s${NC} │ ${BOLD}%-${w_status}s${NC} │ ${BOLD}%-${w_model}s${NC} " "Agent" "Status" "Model"
+    if [[ "$VALIDATE" == true ]]; then
+        printf "│ ${BOLD}%-${w_val}s${NC} " "Validation"
+    fi
+    printf "│\n"
+
+    # Separator
+    printf "├"
+    for ((i=0; i<w_agent+2; i++)); do printf "─"; done
+    printf "┼"
+    for ((i=0; i<w_status+2; i++)); do printf "─"; done
+    printf "┼"
+    for ((i=0; i<w_model+2; i++)); do printf "─"; done
+    if [[ "$VALIDATE" == true ]]; then
+        printf "┼"
+        for ((i=0; i<w_val+2; i++)); do printf "─"; done
+    fi
+    printf "┤\n"
 
     # Cursor Row
     if [[ "$RUN_CURSOR" == true ]]; then
         local status="SKIPPED"
         local model="${CURSOR_MODEL:-auto}"
-        local val_status=""
         local color="${NC}"
 
         if [[ -f "$OUTPUT_DIR/cursor_${TIMESTAMP}.txt" ]]; then
@@ -1279,28 +1307,31 @@ print_results_table() {
              model="$model (fallback)"
         fi
 
-        printf "%-10s | ${color}%-10s${NC} | %-20s" "Cursor" "$status" "$model"
+        printf "│ %-${w_agent}s │ ${color}%-${w_status}s${NC} │ %-${w_model}s " "Cursor" "$status" "$model"
 
         if [[ "$VALIDATE" == true ]]; then
+            local val_msg="N/A"
+            local val_color="${NC}"
+
             if [[ "$CURSOR_VAL_RESULT" -eq 0 ]]; then
-                val_status="${GREEN}PASSED${NC}"
+                val_msg="PASSED"
+                val_color="${GREEN}"
             elif [[ "$CURSOR_VAL_RESULT" -eq 2 ]]; then
-                val_status="${YELLOW}WARNING${NC}"
+                val_msg="WARNING"
+                val_color="${YELLOW}"
             elif [[ "$CURSOR_VAL_RESULT" -eq 1 ]]; then
-                val_status="${RED}FAILED${NC}"
-            else
-                val_status="${NC}N/A${NC}"
+                val_msg="FAILED"
+                val_color="${RED}"
             fi
-            printf " | %-10b" "$val_status"
+            printf "│ ${val_color}%-${w_val}s${NC} " "$val_msg"
         fi
-        printf "\n"
+        printf "│\n"
     fi
 
     # Gemini Row
     if [[ "$RUN_GEMINI" == true ]]; then
         local status="SKIPPED"
         local model="${GEMINI_MODEL:-flash}"
-        local val_status=""
         local color="${NC}"
 
         if [[ -f "$OUTPUT_DIR/gemini_${TIMESTAMP}.txt" ]]; then
@@ -1311,28 +1342,31 @@ print_results_table() {
             color="${RED}"
         fi
 
-        printf "%-10s | ${color}%-10s${NC} | %-20s" "Gemini" "$status" "$model"
+        printf "│ %-${w_agent}s │ ${color}%-${w_status}s${NC} │ %-${w_model}s " "Gemini" "$status" "$model"
 
         if [[ "$VALIDATE" == true ]]; then
+            local val_msg="N/A"
+            local val_color="${NC}"
+
             if [[ "$GEMINI_VAL_RESULT" -eq 0 ]]; then
-                val_status="${GREEN}PASSED${NC}"
+                val_msg="PASSED"
+                val_color="${GREEN}"
             elif [[ "$GEMINI_VAL_RESULT" -eq 2 ]]; then
-                val_status="${YELLOW}WARNING${NC}"
+                val_msg="WARNING"
+                val_color="${YELLOW}"
             elif [[ "$GEMINI_VAL_RESULT" -eq 1 ]]; then
-                val_status="${RED}FAILED${NC}"
-            else
-                val_status="${NC}N/A${NC}"
+                val_msg="FAILED"
+                val_color="${RED}"
             fi
-            printf " | %-10b" "$val_status"
+            printf "│ ${val_color}%-${w_val}s${NC} " "$val_msg"
         fi
-        printf "\n"
+        printf "│\n"
     fi
 
     # Claude Row
     if [[ "$RUN_CLAUDE" == true ]]; then
         local status="SKIPPED"
         local model="${CLAUDE_MODEL:-sonnet}"
-        local val_status=""
         local color="${NC}"
 
         if [[ -f "$OUTPUT_DIR/claude_${TIMESTAMP}.txt" ]]; then
@@ -1347,22 +1381,39 @@ print_results_table() {
              model="$model (fallback)"
         fi
 
-        printf "%-10s | ${color}%-10s${NC} | %-20s" "Claude" "$status" "$model"
+        printf "│ %-${w_agent}s │ ${color}%-${w_status}s${NC} │ %-${w_model}s " "Claude" "$status" "$model"
 
         if [[ "$VALIDATE" == true ]]; then
+            local val_msg="N/A"
+            local val_color="${NC}"
+
             if [[ "$CLAUDE_VAL_RESULT" -eq 0 ]]; then
-                val_status="${GREEN}PASSED${NC}"
+                val_msg="PASSED"
+                val_color="${GREEN}"
             elif [[ "$CLAUDE_VAL_RESULT" -eq 2 ]]; then
-                val_status="${YELLOW}WARNING${NC}"
+                val_msg="WARNING"
+                val_color="${YELLOW}"
             elif [[ "$CLAUDE_VAL_RESULT" -eq 1 ]]; then
-                val_status="${RED}FAILED${NC}"
-            else
-                val_status="${NC}N/A${NC}"
+                val_msg="FAILED"
+                val_color="${RED}"
             fi
-            printf " | %-10b" "$val_status"
+            printf "│ ${val_color}%-${w_val}s${NC} " "$val_msg"
         fi
-        printf "\n"
+        printf "│\n"
     fi
+
+    # Bottom border
+    printf "└"
+    for ((i=0; i<w_agent+2; i++)); do printf "─"; done
+    printf "┴"
+    for ((i=0; i<w_status+2; i++)); do printf "─"; done
+    printf "┴"
+    for ((i=0; i<w_model+2; i++)); do printf "─"; done
+    if [[ "$VALIDATE" == true ]]; then
+        printf "┴"
+        for ((i=0; i<w_val+2; i++)); do printf "─"; done
+    fi
+    printf "┘\n"
 
     echo ""
 
@@ -1511,16 +1562,13 @@ main() {
     if [[ "$VALIDATE" == true ]]; then
         echo -e "${BLUE}=== Validation Results ===${NC}"
         if [[ "$RUN_CURSOR" == true && -f "$OUTPUT_DIR/cursor_${TIMESTAMP}.txt" ]]; then
-            validate_output "$OUTPUT_DIR/cursor_${TIMESTAMP}.txt" "Cursor Agent"
-            CURSOR_VAL_RESULT=$?
+            validate_output "$OUTPUT_DIR/cursor_${TIMESTAMP}.txt" "Cursor Agent" && CURSOR_VAL_RESULT=0 || CURSOR_VAL_RESULT=$?
         fi
         if [[ "$RUN_GEMINI" == true && -f "$OUTPUT_DIR/gemini_${TIMESTAMP}.txt" ]]; then
-            validate_output "$OUTPUT_DIR/gemini_${TIMESTAMP}.txt" "Gemini CLI"
-            GEMINI_VAL_RESULT=$?
+            validate_output "$OUTPUT_DIR/gemini_${TIMESTAMP}.txt" "Gemini CLI" && GEMINI_VAL_RESULT=0 || GEMINI_VAL_RESULT=$?
         fi
         if [[ "$RUN_CLAUDE" == true && -f "$OUTPUT_DIR/claude_${TIMESTAMP}.txt" ]]; then
-            validate_output "$OUTPUT_DIR/claude_${TIMESTAMP}.txt" "Claude CLI"
-            CLAUDE_VAL_RESULT=$?
+            validate_output "$OUTPUT_DIR/claude_${TIMESTAMP}.txt" "Claude CLI" && CLAUDE_VAL_RESULT=0 || CLAUDE_VAL_RESULT=$?
         fi
         echo ""
     fi
