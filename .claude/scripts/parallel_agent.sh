@@ -918,12 +918,14 @@ create_json_output() {
       "validated": $cursor_valid,
       "model": $(json_escape "${CURSOR_MODEL:-auto}"),
       "credit_fallback": $CURSOR_CREDIT_FALLBACK,
+      "duration_seconds": ${DURATION_CURSOR:-0},
       "output": $(json_escape "$cursor_output")
     },
     "gemini": {
       "status": "$gemini_status",
       "validated": $gemini_valid,
       "model": $(json_escape "${GEMINI_MODEL:-$GEMINI_MODEL_FLASH}"),
+      "duration_seconds": ${DURATION_GEMINI:-0},
       "output": $(json_escape "$gemini_output")
     },
     "claude": {
@@ -931,6 +933,7 @@ create_json_output() {
       "validated": $claude_valid,
       "model": $(json_escape "${CLAUDE_MODEL:-sonnet}"),
       "credit_fallback": $CLAUDE_CREDIT_FALLBACK,
+      "duration_seconds": ${DURATION_CLAUDE:-0},
       "output": $(json_escape "$claude_output")
     }
   },
@@ -1063,6 +1066,11 @@ cross_verify() {
 
 # Monitor agents and show status
 monitor_agents() {
+    # Initialize durations
+    DURATION_CURSOR=0
+    DURATION_GEMINI=0
+    DURATION_CLAUDE=0
+
     # Check dependencies once to avoid repeated calls in the loop
     # Optimized for performance (avoiding repeated PATH lookups and shell overhead in the loop)
     local has_tput=false
@@ -1159,6 +1167,12 @@ monitor_agents() {
                         agent_states[$i]="${RED}✘${NC}"
                     fi
                     status_line="$status_line $display_name [${agent_states[$i]}]"
+
+                    # Capture duration if not already captured
+                    local duration=$((SECONDS - start_seconds))
+                    if [[ "$name" == "Cursor" && "$DURATION_CURSOR" -eq 0 ]]; then DURATION_CURSOR=$duration; fi
+                    if [[ "$name" == "Gemini" && "$DURATION_GEMINI" -eq 0 ]]; then DURATION_GEMINI=$duration; fi
+                    if [[ "$name" == "Claude" && "$DURATION_CLAUDE" -eq 0 ]]; then DURATION_CLAUDE=$duration; fi
                 fi
             else
                 status_line="$status_line $display_name [$state]"
@@ -1254,6 +1268,7 @@ print_results_table() {
     local w_agent=10
     local w_status=10
     local w_model=30
+    local w_time=10
     local w_val=10
 
     # Top border
@@ -1263,6 +1278,8 @@ print_results_table() {
     for ((i=0; i<w_status+2; i++)); do printf "─"; done
     printf "┬"
     for ((i=0; i<w_model+2; i++)); do printf "─"; done
+    printf "┬"
+    for ((i=0; i<w_time+2; i++)); do printf "─"; done
     if [[ "$VALIDATE" == true ]]; then
         printf "┬"
         for ((i=0; i<w_val+2; i++)); do printf "─"; done
@@ -1270,7 +1287,7 @@ print_results_table() {
     printf "┐\n"
 
     # Header
-    printf "│ ${BOLD}%-${w_agent}s${NC} │ ${BOLD}%-${w_status}s${NC} │ ${BOLD}%-${w_model}s${NC} " "Agent" "Status" "Model"
+    printf "│ ${BOLD}%-${w_agent}s${NC} │ ${BOLD}%-${w_status}s${NC} │ ${BOLD}%-${w_model}s${NC} │ ${BOLD}%-${w_time}s${NC} " "Agent" "Status" "Model" "Time"
     if [[ "$VALIDATE" == true ]]; then
         printf "│ ${BOLD}%-${w_val}s${NC} " "Validation"
     fi
@@ -1283,6 +1300,8 @@ print_results_table() {
     for ((i=0; i<w_status+2; i++)); do printf "─"; done
     printf "┼"
     for ((i=0; i<w_model+2; i++)); do printf "─"; done
+    printf "┼"
+    for ((i=0; i<w_time+2; i++)); do printf "─"; done
     if [[ "$VALIDATE" == true ]]; then
         printf "┼"
         for ((i=0; i<w_val+2; i++)); do printf "─"; done
@@ -1307,7 +1326,14 @@ print_results_table() {
              model="$model (fallback)"
         fi
 
-        printf "│ %-${w_agent}s │ ${color}%-${w_status}s${NC} │ %-${w_model}s " "Cursor" "$status" "$model"
+        local time_str=""
+        if [[ "$status" == "COMPLETE" ]]; then
+            time_str=$(format_duration "$DURATION_CURSOR")
+        else
+            time_str="-"
+        fi
+
+        printf "│ %-${w_agent}s │ ${color}%-${w_status}s${NC} │ %-${w_model}s │ %-${w_time}s " "Cursor" "$status" "$model" "$time_str"
 
         if [[ "$VALIDATE" == true ]]; then
             local val_msg="N/A"
@@ -1342,7 +1368,14 @@ print_results_table() {
             color="${RED}"
         fi
 
-        printf "│ %-${w_agent}s │ ${color}%-${w_status}s${NC} │ %-${w_model}s " "Gemini" "$status" "$model"
+        local time_str=""
+        if [[ "$status" == "COMPLETE" ]]; then
+            time_str=$(format_duration "$DURATION_GEMINI")
+        else
+            time_str="-"
+        fi
+
+        printf "│ %-${w_agent}s │ ${color}%-${w_status}s${NC} │ %-${w_model}s │ %-${w_time}s " "Gemini" "$status" "$model" "$time_str"
 
         if [[ "$VALIDATE" == true ]]; then
             local val_msg="N/A"
@@ -1381,7 +1414,14 @@ print_results_table() {
              model="$model (fallback)"
         fi
 
-        printf "│ %-${w_agent}s │ ${color}%-${w_status}s${NC} │ %-${w_model}s " "Claude" "$status" "$model"
+        local time_str=""
+        if [[ "$status" == "COMPLETE" ]]; then
+            time_str=$(format_duration "$DURATION_CLAUDE")
+        else
+            time_str="-"
+        fi
+
+        printf "│ %-${w_agent}s │ ${color}%-${w_status}s${NC} │ %-${w_model}s │ %-${w_time}s " "Claude" "$status" "$model" "$time_str"
 
         if [[ "$VALIDATE" == true ]]; then
             local val_msg="N/A"
@@ -1409,6 +1449,8 @@ print_results_table() {
     for ((i=0; i<w_status+2; i++)); do printf "─"; done
     printf "┴"
     for ((i=0; i<w_model+2; i++)); do printf "─"; done
+    printf "┴"
+    for ((i=0; i<w_time+2; i++)); do printf "─"; done
     if [[ "$VALIDATE" == true ]]; then
         printf "┴"
         for ((i=0; i<w_val+2; i++)); do printf "─"; done
