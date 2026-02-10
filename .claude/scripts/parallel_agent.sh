@@ -716,9 +716,22 @@ run_gemini() {
     # Run from a temp directory to avoid loading project-level .gemini/ settings
     # (e.g., GEMINI.md orchestration guide) which can cause Gemini to
     # "investigate the environment" instead of answering the prompt.
-    run_with_retry "Gemini CLI" "$output_file" bash -c \
-        'cd "$(mktemp -d)" && gemini --output-format text --model "$1" -p "" "${@:2}" < "$0"' \
-        "$prompt_file" "$GEMINI_MODEL" "${include_args[@]}"
+
+    # Create temp directory for execution to avoid environment leakage
+    local exec_dir
+    exec_dir=$(mktemp -d)
+
+    # Subshell to isolate directory change
+    (
+        cd "$exec_dir" || exit 1
+
+        # Run Gemini CLI directly without bash -c wrapper
+        run_with_retry "Gemini CLI" "$output_file" \
+            gemini --output-format text --model "$GEMINI_MODEL" -p "" "${include_args[@]}" < "$prompt_file"
+    )
+
+    # Cleanup temp directory
+    rm -rf "$exec_dir"
 }
 
 # Run Claude CLI with model selection
@@ -736,11 +749,11 @@ run_claude() {
 
     echo -e "${BLUE}[Claude CLI]${NC} Starting with model: $CLAUDE_MODEL..."
 
-    # Claude CLI: use input redirection (saves cat process)
+    # Optimization: Run Claude directly with redirection, avoiding bash -c fork
     if ! run_with_retry_capture_stderr "Claude CLI" "$output_file" "$stderr_file" \
-        bash -c 'claude --print --output-format text --model "$1" --append-system-prompt "$2" < "$0"' \
-        "$prompt_file" "$CLAUDE_MODEL" \
-        "You are a code analysis agent in a parallel orchestration system. Rules: Do NOT use emojis. Do NOT claim to have read files or performed actions you did not actually perform. Keep responses concise and technical. Report only findings from actual analysis of the provided content."; then
+        claude --print --output-format text --model "$CLAUDE_MODEL" --append-system-prompt \
+        "You are a code analysis agent in a parallel orchestration system. Rules: Do NOT use emojis. Do NOT claim to have read files or performed actions you did not actually perform. Keep responses concise and technical. Report only findings from actual analysis of the provided content." \
+        < "$prompt_file"; then
 
         # Check for credit exhaustion
         if check_credit_exhaustion "$stderr_file" "Claude"; then
@@ -750,9 +763,9 @@ run_claude() {
 
             # Retry with haiku (cheapest model)
             run_with_retry "Claude CLI (fallback)" "$output_file" \
-                bash -c 'claude --print --output-format text --model haiku --append-system-prompt "$1" < "$0"' \
-                "$prompt_file" \
-                "You are a code analysis agent in a parallel orchestration system. Rules: Do NOT use emojis. Do NOT claim to have read files or performed actions you did not actually perform. Keep responses concise and technical. Report only findings from actual analysis of the provided content."
+                claude --print --output-format text --model haiku --append-system-prompt \
+                "You are a code analysis agent in a parallel orchestration system. Rules: Do NOT use emojis. Do NOT claim to have read files or performed actions you did not actually perform. Keep responses concise and technical. Report only findings from actual analysis of the provided content." \
+                < "$prompt_file"
         fi
     fi
 }
