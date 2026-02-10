@@ -27,12 +27,28 @@ else
         # Try Linux/GNU style (template argument)
         OUTPUT_DIR=$(mktemp -d "/tmp/claude_agent_outputs.XXXXXX" 2>/dev/null) || \
         # Try macOS/BSD style (-t prefix)
-        OUTPUT_DIR=$(mktemp -d -t claude_agent_outputs 2>/dev/null)
+        OUTPUT_DIR=$(mktemp -d -t claude_agent_outputs 2>/dev/null) || \
+        true
     fi
 
     # Final fallback if mktemp fails or is missing
     if [[ -z "$OUTPUT_DIR" ]]; then
-        OUTPUT_DIR="/tmp/.claude_agent_outputs_$RANDOM$RANDOM"
+        # Use openssl if available for higher entropy, otherwise combine multiple random sources
+        random_suffix=""
+        if command -v openssl &> /dev/null; then
+            random_suffix=$(openssl rand -hex 6)
+        else
+            random_suffix="$RANDOM$RANDOM$(date +%s)"
+        fi
+
+        OUTPUT_DIR="/tmp/.claude_agent_outputs_$random_suffix"
+
+        # Security: Atomically create directory with 700 permissions
+        # This prevents symlink attacks (CWE-377) because mkdir fails if target exists
+        if ! mkdir -m 700 "$OUTPUT_DIR" 2>/dev/null; then
+            echo "Error: Failed to create secure output directory in /tmp" >&2
+            exit 1
+        fi
     fi
 
     echo "Warning: Using fallback output directory: $OUTPUT_DIR" >&2
