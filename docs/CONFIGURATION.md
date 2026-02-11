@@ -418,10 +418,10 @@ command_overrides:
 ### Project-Specific Validation Overrides
 
 Create project-specific validation rules by adding a `validation_overrides.yml` file to your
-project's `.claude/config/` directory.
+project's `configs/claude/config/` directory.
 This extends the base validation criteria with domain-specific checks.
 
-**File**: `.claude/config/validation_overrides.yml` (in your project)
+**File**: `configs/claude/config/validation_overrides.yml` (in your project)
 
 #### Structure
 
@@ -502,7 +502,7 @@ exemptions:
 #### How Overrides Work
 
 1. **Base criteria loaded first**: `~/.claude/config/validation_criteria.yml`
-2. **Project overrides merged**: `.claude/config/validation_overrides.yml`
+2. **Project overrides merged**: `configs/claude/config/validation_overrides.yml`
 3. **Project checks added**: New `project_tier1` and `project_tier2` sections
 4. **Exemptions applied**: Specific paths can skip certain checks
 

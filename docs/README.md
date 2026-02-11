@@ -77,10 +77,10 @@
 
 | File | Description | Purpose |
 |------|-------------|---------|
-| [.claude/CLAUDE.md](../.claude/CLAUDE.md) | Orchestration guide (deployed to ~/.claude/) | AI agent coordination |
-| [.claude/commands/\*.md](../.claude/commands/) | Slash command definitions | Command behavior |
-| [.claude/prompts/\*.md](../.claude/prompts/) | Agent orchestration templates | Synthesis and validation |
-| [.claude/skills/code-quality/SKILL.md](../.claude/skills/code-quality/SKILL.md) | Auto-triggered code quality skill | Security/quality checks |
+| [configs/claude/CLAUDE.md](../configs/claude/CLAUDE.md) | Orchestration guide (deployed to ~/.claude/) | AI agent coordination |
+| [configs/claude/commands/\*.md](../configs/claude/commands/) | Slash command definitions | Command behavior |
+| [configs/claude/prompts/\*.md](../configs/claude/prompts/) | Agent orchestration templates | Synthesis and validation |
+| [configs/claude/skills/code-quality/SKILL.md](../configs/claude/skills/code-quality/SKILL.md) | Auto-triggered code quality skill | Security/quality checks |
 
 ---
 

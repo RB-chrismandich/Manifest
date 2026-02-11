@@ -48,7 +48,7 @@ or complex files (>10 functions or >5 classes).
 
 ## Label Management
 
-Issue labels are defined in a central registry at `.claude/config/labels.yml` and synced
+Issue labels are defined in a central registry at `configs/claude/config/labels.yml` and synced
 across GitHub, GitLab, and Linear.
 
 ### Canonical Labels
@@ -110,7 +110,7 @@ Commands are markdown files that define reusable workflows for Claude Code. They
 - **Architecture analysis** (event tracing, API mapping)
 - **Project management** (commit pipelines, PR creation)
 
-**Location**: `.claude/commands/`
+**Location**: `configs/claude/commands/`
 
 **Invocation**: Users run commands with `/command-name` in Claude Code.
 
@@ -633,7 +633,7 @@ claude run /your-command "very-long-argument-here..."
 
 ### Example 1: Simple Analysis Command
 
-**File**: `.claude/commands/count-todos.md`
+**File**: `configs/claude/commands/count-todos.md`
 
 ````markdown
 ---
@@ -679,7 +679,7 @@ echo "**Total**: $((todo_count + fixme_count + hack_count))"
 
 ### Example 2: Interactive Command
 
-**File**: `.claude/commands/create-feature-branch.md`
+**File**: `configs/claude/commands/create-feature-branch.md`
 
 ````markdown
 ---

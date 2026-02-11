@@ -361,8 +361,8 @@ If you encounter issues:
 
 ### For Advanced Usage
 
-- **Custom Commands**: Create new slash commands in `.claude/commands/`
-- **Validation Rules**: Customize security/quality checks in `.claude/config/validation_criteria.yml`
+- **Custom Commands**: Create new slash commands in `configs/claude/commands/`
+- **Validation Rules**: Customize security/quality checks in `configs/claude/config/validation_criteria.yml`
 - **Model Fallbacks**: Configure credit exhaustion fallback chains
 - **Environment Variables**: Override defaults with `CURSOR_MODEL_ADVANCED`, `GEMINI_INCLUDE_DIRS`, etc.
 
