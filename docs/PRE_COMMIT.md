@@ -59,8 +59,8 @@ pip3 install pre-commit --user
 - **validate-parallel-agent**: Bash syntax check for parallel_agent.sh
 - **validate-bootstrap**: Bash syntax check for bootstrap.sh
 - **check-credentials**: Search for hardcoded API keys
-- **validate-yaml-configs**: Validate .claude/config/*.yml files
-- **check-command-frontmatter**: Ensure command files have frontmatter
+- **validate-yaml-configs**: Validate configs/claude/config/*.yml files
+- **check-stale-repo-paths**: Detect stale repo-relative `.claude/` paths in docs
 
 ## Running Manually
 
@@ -72,7 +72,7 @@ pip3 install pre-commit --user
 ~/Library/Python/3.9/bin/pre-commit run shellcheck --all-files
 
 # Run on specific files
-~/Library/Python/3.9/bin/pre-commit run --files bootstrap.sh .claude/scripts/parallel_agent.sh
+~/Library/Python/3.9/bin/pre-commit run --files bootstrap.sh configs/claude/scripts/parallel_agent.sh
 ```
 
 ## Bypassing Hooks (Not Recommended)

@@ -318,7 +318,7 @@ echo "${file#"$HOME"/}"
          - name: Run yamllint
            run: |
              pip install yamllint
-             yamllint .claude/config/*.yml
+             yamllint configs/claude/config/*.yml
    ```
 
 3. **Add structured logging**
@@ -418,7 +418,7 @@ Create BATS tests for:
 - [.pre-commit-config.yaml](../.pre-commit-config.yaml) - Pre-commit hook configuration
 - [.yamllint](../.yamllint) - YAML linting rules
 - [.editorconfig](../.editorconfig) - Editor consistency settings
-- [.claude/commands/refactor-shell.md](../.claude/commands/refactor-shell.md) - Shell refactor command
+- [configs/claude/skills/refactor-shell/SKILL.md](../configs/claude/skills/refactor-shell/SKILL.md) - Shell refactor skill
 - [ShellCheck Wiki](https://www.shellcheck.net/wiki/) - Error code explanations
 
 ---
