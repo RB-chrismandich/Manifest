@@ -1027,8 +1027,8 @@ class CursorAgent(BaseAgent):
             }
 
         # Shell out to cursor CLI (simplified for prototype)
-        proc = await asyncio.create_subprocess_shell(
-            f'cursor --model {self.model_name} "{prompt}"',
+        proc = await asyncio.create_subprocess_exec(
+            'cursor', '--model', self.model_name, prompt,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE
         )
