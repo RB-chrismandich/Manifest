@@ -26,7 +26,7 @@ cd Manifest
 # Run bootstrap (macOS/Linux)
 ./bootstrap.sh
 
-# Optional: configure default MCP servers (sentry, context7, linear)
+# Optional: configure MCP servers (interactive per-server selection)
 ./bootstrap.sh --install-mcp
 
 # Verify installation (Bash version)
@@ -149,8 +149,7 @@ Manifest/
 ├── configs/                         # Deployment source configs (deployed to ~/ via bootstrap)
 │   ├── claude/                      # → ~/.claude/ (primary configuration)
 │   │   ├── CLAUDE.md                # Orchestration guide
-│   │   ├── commands/                # Slash commands (refactor-python, issue-prioritize, etc.)
-│   │   ├── skills/                  # Canonical shared skill library (source of truth)
+│   │   ├── skills/                  # Canonical shared skill library + slash commands (source of truth)
 │   │   ├── prompts/                 # Agent orchestration templates
 │   │   ├── config/                  # YAML configuration files
 │   │   │   ├── services.yml         # Agent enable/disable states
@@ -172,12 +171,11 @@ Manifest/
 │   │   └── (symlinks to ../claude/) # scripts, config, prompts, skills, .plans
 │   ├── gemini/                      # → ~/.gemini/ (Gemini CLI)
 │   │   ├── GEMINI.md                # Orchestration guide for Gemini
-│   │   ├── commands/                # TOML slash commands
 │   │   ├── settings.json            # Gemini settings
 │   │   └── (symlinks to ../claude/) # scripts, config, prompts, skills, .plans
 │   └── codex/                       # → ~/.codex/ (Codex CLI)
 │       ├── AGENTS.md                # Codex guide (symlink to ../../AGENTS.md)
-│       └── (symlinks to ../claude/) # commands, scripts, config, prompts, skills, .plans
+│       └── (symlinks to ../claude/) # scripts, config, prompts, skills, .plans
 ├── .claude/                         # Repo-specific config only (does NOT override sessions)
 │   ├── CLAUDE.md                    # Developer guide for working in this repo
 │   └── settings.local.json          # Repo-relevant permissions only
@@ -212,7 +210,7 @@ Manifest/
 # Enable Git CLIs explicitly
 ./bootstrap.sh --reconfigure --enable-gh --enable-glab
 
-# Configure default MCP servers for all supported agents
+# Configure MCP servers (interactive per-server selection; --force to auto-accept all)
 ./bootstrap.sh --install-mcp
 ```
 

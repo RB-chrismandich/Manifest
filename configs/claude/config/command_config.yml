@@ -81,6 +81,9 @@ tool_policies:
       - Edit  # Read-only analysis
     parallel_agents: always
     validation_tier: 1
+    mcp_servers:
+      - context7   # Python library/API documentation
+      - deepwiki   # Dependency internals and upstream contracts
 
   docs-diagrams:
     allowed:
@@ -103,6 +106,9 @@ tool_policies:
     parallel_agents: conditional
     trigger_condition: total_doc_lines >= 500
     validation_tier: 2
+    mcp_servers:
+      - deepwiki   # Cross-reference dependency docs for accuracy
+      - context7   # Library/API docs for code examples in documentation
 
   refactor-shell:
     allowed:
@@ -115,6 +121,54 @@ tool_policies:
       - Edit  # Read-only analysis
     parallel_agents: always
     validation_tier: 1
+    security_cli:
+      - semgrep    # Local SAST scanning via CLI (requires Bash)
+
+  refactor-node:
+    allowed:
+      - Read
+      - Glob
+      - Grep
+    forbidden:
+      - Bash
+      - Write
+      - Edit  # Read-only analysis
+    parallel_agents: always
+    validation_tier: 1
+    mcp_servers:
+      - context7   # Node/TS library documentation
+      - deepwiki   # Dependency internals and upstream contracts
+
+  refactor-go:
+    allowed:
+      - Read
+      - Glob
+      - Grep
+    forbidden:
+      - Bash
+      - Write
+      - Edit  # Read-only analysis
+    parallel_agents: always
+    validation_tier: 1
+    mcp_servers:
+      - context7   # Go library documentation
+      - deepwiki   # Dependency internals and upstream contracts
+
+  refactor-terraform:
+    allowed:
+      - Read
+      - Glob
+      - Grep
+    forbidden:
+      - Bash
+      - Write
+      - Edit  # Read-only analysis
+    parallel_agents: always
+    validation_tier: 1
+    mcp_servers:
+      - opentofu   # OpenTofu registry, provider/module docs, resource reference
+    security_cli:
+      - semgrep    # Local SAST scanning via CLI (requires Bash)
 
   plan-manage:
     allowed:
@@ -129,6 +183,12 @@ tool_policies:
     parallel_agents: conditional
     trigger_condition: security OR architecture OR scope >= 3 files OR critical_logic OR issue_execute_review
     validation_tier: 2
+    mcp_servers:
+      - deepwiki   # Research external deps and upstream APIs during planning
+      - linear     # Issue context and acceptance criteria
+      - atlassian  # Jira/Confluence context when project uses Atlassian
+      - glean      # Internal team knowledge, runbooks, ADRs
+      - opentofu   # OpenTofu registry docs when planning IaC changes
 
   code-quality:  # skill
     allowed:
@@ -141,6 +201,10 @@ tool_policies:
       - Edit  # Read-only for auto-trigger
     parallel_agents: always
     validation_tier: 1
+    mcp_servers:
+      - context7   # Library docs for security best practices
+    security_cli:
+      - semgrep    # Local SAST scanning via CLI (requires Bash)
 
   issue-triage:
     allowed:
@@ -157,7 +221,8 @@ tool_policies:
     trigger_condition: scenario_based
     validation_tier: 2
     mcp_servers:
-      - linear    # Primary: Linear MCP for issue operations
+      - linear      # Primary: Linear MCP for issue operations
+      - atlassian   # Alternative: Jira issues when project uses Atlassian
 
   issue-prioritize:
     allowed:
@@ -173,6 +238,9 @@ tool_policies:
     parallel_agents: conditional
     trigger_condition: top_candidates_scoring
     validation_tier: 2
+    mcp_servers:
+      - linear      # Primary: Linear issue data
+      - atlassian   # Alternative: Jira issues when project uses Atlassian
 
   health-check:
     allowed:

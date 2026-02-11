@@ -21,6 +21,20 @@ Use these MCP servers by default when their domain context matches the task:
   triage, and release regression analysis.
 - **Linear MCP**: issue requirements, acceptance criteria, project context, and
   implementation planning.
+- **Semgrep CLI**: local SAST scanning, vulnerability detection, supply-chain
+  and secrets checks during code review and refactoring (`semgrep scan`).
+- **DeepWiki MCP**: understanding unfamiliar repositories, dependency internals,
+  and upstream API contracts.
+- **Glean MCP**: internal team knowledge, runbooks, ADRs, and company-specific
+  documentation.
+- **Google Dev Docs MCP**: official Google platform documentation (Firebase,
+  Cloud, Android, Maps) when working with Google services.
+- **Atlassian MCP**: Jira issues, Confluence pages, and Compass components when
+  the project uses Atlassian tools.
+- **Apify MCP**: web scraping, data extraction, and crawling tasks that require
+  fetching structured data from external websites.
+- **OpenTofu MCP**: OpenTofu/Terraform registry lookups, provider and module
+  documentation, resource and datasource reference for Infrastructure as Code.
 
 ## Repository Purpose
 
@@ -35,7 +49,6 @@ commands/rules, skills, prompts, and scripts that enable parallel LLM agent coor
 configs/                             # Deployment source configs (deployed to ~/ via bootstrap.sh)
 ├── claude/                          # → ~/.claude/ (primary configuration)
 │   ├── CLAUDE.md                    # Orchestration guide
-│   ├── commands/                    # Claude Code slash commands
 │   ├── skills/                      # Canonical shared skill library (source of truth)
 │   ├── prompts/                     # Agent orchestration prompt templates
 │   ├── config/                      # YAML configuration files
@@ -53,7 +66,6 @@ configs/                             # Deployment source configs (deployed to ~/
 │   └── .plans -> ../claude/.plans   # Symlink to shared plans
 ├── gemini/                          # → ~/.gemini/ (Gemini CLI configuration)
 │   ├── GEMINI.md                    # Orchestration guide for Gemini CLI
-│   ├── commands/                    # TOML slash commands
 │   ├── settings.json                # Gemini settings (includes MCP server defaults)
 │   ├── scripts -> ../claude/scripts # Symlink to shared scripts
 │   ├── config -> ../claude/config   # Symlink to shared configs
@@ -62,7 +74,6 @@ configs/                             # Deployment source configs (deployed to ~/
 │   └── .plans -> ../claude/.plans   # Symlink to shared plans
 └── codex/                           # → ~/.codex/ (Codex CLI configuration)
     ├── AGENTS.md -> ../../AGENTS.md # Codex guide (repo-level instructions)
-    ├── commands -> ../claude/commands # Command-style wrappers
     ├── scripts -> ../claude/scripts # Symlink to shared scripts
     ├── config -> ../claude/config   # Symlink to shared configs
     ├── prompts -> ../claude/prompts # Symlink to shared prompts
@@ -118,7 +129,7 @@ The `bootstrap.sh` script automates installation, deployment, and authentication
 # Skip interactive prompts
 ./bootstrap.sh --skip-auth --force
 
-# Configure default MCP servers (sentry, context7, linear)
+# Configure MCP servers (interactive per-server selection)
 ./bootstrap.sh --install-mcp
 ```
 
@@ -131,7 +142,7 @@ The `bootstrap.sh` script automates installation, deployment, and authentication
 --enable-codex / --disable-codex     # Codex CLI (default: enabled)
 --enable-gh / --disable-gh           # GitHub CLI (default: auto-detect)
 --enable-glab / --disable-glab       # GitLab CLI (default: auto-detect)
---install-mcp                        # Configure default MCP servers (sentry/context7/linear)
+--install-mcp                        # Configure MCP servers (interactive per-server selection)
 ```
 
 ## Manual Deployment
@@ -155,9 +166,7 @@ ln -sf ~/.claude/.plans ~/.cursor/.plans
 ln -sf ~/.claude/skills ~/.cursor/skills
 
 # Deploy Gemini configuration (optional)
-mkdir -p ~/.gemini/commands
 cp configs/gemini/GEMINI.md ~/.gemini/
-cp configs/gemini/commands/*.toml ~/.gemini/commands/
 cp configs/gemini/settings.json ~/.gemini/settings.json
 ln -sf ~/.claude/scripts ~/.gemini/scripts
 ln -sf ~/.claude/config ~/.gemini/config
@@ -167,7 +176,6 @@ ln -sf ~/.claude/skills ~/.gemini/skills
 
 # Deploy Codex configuration (optional)
 cp AGENTS.md ~/.codex/AGENTS.md
-ln -sf ~/.claude/commands ~/.codex/commands
 ln -sf ~/.claude/scripts ~/.codex/scripts
 ln -sf ~/.claude/config ~/.codex/config
 ln -sf ~/.claude/prompts ~/.codex/prompts
@@ -190,7 +198,6 @@ Required CLI tools (install those you want to use):
 | `configs/cursor/rules/orchestration.mdc` | Main orchestration guide for Cursor (always-on rule) |
 | `configs/gemini/GEMINI.md` | Main orchestration guide for Gemini CLI |
 | `configs/codex/AGENTS.md` | Main orchestration guide for Codex CLI |
-| `configs/codex/commands/` | Codex command-style wrappers (shared with Claude command files) |
 | `configs/claude/scripts/parallel_agent.sh` | Bash script that runs agents in parallel with consensus scoring |
 | `configs/claude/config/command_config.yml` | Thresholds, tool policies, model selection, error recovery |
 | `configs/claude/config/validation_criteria.yml` | Tier 1 (critical) and Tier 2 (quality) validation rules |
@@ -347,11 +354,11 @@ Lifecycle: `CREATE -> ACTIVE -> COMPLETED (.archive/) or ABANDONED (.abandoned/)
 
 ## Adding New Configuration
 
-### Adding a Claude Code Command
+### Adding a Claude Code Skill
 
-1. Create a markdown file in `configs/claude/commands/` (e.g., `my-command.md`)
+1. Create a `SKILL.md` file in `configs/claude/skills/my-skill/` (e.g., `configs/claude/skills/my-skill/SKILL.md`)
 2. Add tool policies to `configs/claude/config/command_config.yml`
-3. Invoke as `/my-command` in Claude Code (after deploying via bootstrap)
+3. Skills are automatically available in Claude Code after deploying via bootstrap
 
 ### Adding a Cursor Rule
 
@@ -359,11 +366,10 @@ Lifecycle: `CREATE -> ACTIVE -> COMPLETED (.archive/) or ABANDONED (.abandoned/)
 2. Add YAML frontmatter with `description`, `globs`, and `alwaysApply`
 3. Rule auto-attaches when files matching `globs` are referenced (after deploying)
 
-### Adding a Gemini CLI Command
+### Adding a Gemini CLI Skill
 
-1. Create a `.toml` file in `configs/gemini/commands/` (e.g., `my-command.toml`)
-2. Add `description` and `prompt` fields (TOML format)
-3. Invoke as `/my-command` in Gemini CLI (after deploying)
+Gemini CLI uses the shared skills from `configs/claude/skills/` (symlinked at `~/.gemini/skills`).
+To add a new skill, follow the Claude Code skill instructions above.
 
 ---
 

@@ -29,6 +29,22 @@ from the same orchestration rules and validation criteria.
   stack traces, issue triage, and release regression analysis.
 - Use **Linear MCP** by default for issue requirements, acceptance criteria,
   project context, and implementation planning.
+- Use **Semgrep CLI** (`semgrep ci` or `semgrep scan`) for local SAST scanning,
+  vulnerability detection, and secrets checks during code review and refactoring.
+  Install: `brew install semgrep` or `pip install semgrep`.
+- Use **DeepWiki MCP** by default for understanding unfamiliar repositories,
+  dependency internals, and upstream API contracts.
+- Use **Glean MCP** by default for internal team knowledge, runbooks, ADRs,
+  and company-specific documentation.
+- Use **Google Dev Docs MCP** for official Google platform documentation
+  (Firebase, Cloud, Android, Maps) when working with Google services.
+- Use **Atlassian MCP** for Jira issues, Confluence pages, and Compass
+  components when the project uses Atlassian tools.
+- Use **Apify MCP** for web scraping, data extraction, and crawling tasks
+  that require fetching structured data from external websites.
+- Use **OpenTofu MCP** for OpenTofu/Terraform registry lookups, provider and
+  module documentation, resource and datasource reference when working with
+  Infrastructure as Code.
 
 ```bash
 # Basic code review with JSON output (all 3 agents, 10 min timeout)
@@ -423,7 +439,7 @@ Orchestrator:
 
 ## Native Commands
 
-Gemini CLI slash commands are defined as TOML files in `~/.gemini/commands/`.
+Gemini CLI discovers skills from `~/.gemini/skills/` (symlinked from `~/.claude/skills/`).
 These integrate with the parallel agent orchestration framework.
 
 ### Available Commands
@@ -537,31 +553,7 @@ operate from identical orchestration rules.
 ```text
 ~/.gemini/
 ├── GEMINI.md                        # This orchestration guide
-├── commands/                        # TOML slash commands (23)
-│   ├── project-commit.toml
-│   ├── refactor-python.toml
-│   ├── refactor-go.toml
-│   ├── refactor-node.toml
-│   ├── refactor-terraform.toml
-│   ├── refactor-shell.toml
-│   ├── scaffold.toml
-│   ├── verify.toml
-│   ├── ci-setup.toml
-│   ├── ux-review.toml
-│   ├── a11y-audit.toml
-│   ├── performance-check.toml
-│   ├── docs-diagrams.toml
-│   ├── docs-improve.toml
-│   ├── docs-readme.toml
-│   ├── plan-manage.toml
-│   ├── issue-triage.toml
-│   ├── issue-prioritize.toml
-│   ├── health-check.toml
-│   ├── sync-configs.toml
-│   ├── learning-loop.toml
-│   ├── dashboard.toml
-│   └── checkpoint.toml
-├── skills/ -> ~/.claude/skills/     # Symlinked shared skills (25+)
+├── skills/ -> ~/.claude/skills/     # Symlinked shared skills (source of truth)
 ├── prompts/ -> ~/.claude/prompts/   # Symlinked shared templates
 ├── config/ -> ~/.claude/config/     # Symlinked shared configs
 ├── scripts/ -> ~/.claude/scripts/   # Symlinked shared scripts

@@ -110,9 +110,9 @@ Commands are markdown files that define reusable workflows for Claude Code. They
 - **Architecture analysis** (event tracing, API mapping)
 - **Project management** (commit pipelines, PR creation)
 
-**Location**: `configs/claude/commands/`
+**Location**: `configs/claude/skills/` (each skill is a directory with a `SKILL.md` file)
 
-**Invocation**: Users run commands with `/command-name` in Claude Code.
+**Invocation**: Users run skills with `/skill-name` in Claude Code.
 
 ---
 

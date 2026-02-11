@@ -363,7 +363,8 @@ STUB
     # Remove all agent stubs from PATH
     rm -f "$MOCK_BIN/cursor" "$MOCK_BIN/gemini" "$MOCK_BIN/claude" "$MOCK_BIN/codex"
 
-    run env PATH="$MOCK_BIN" bash "$SCRIPT_UNDER_TEST" --review "$TEST_DIR/test_file.txt"
+    # Keep /usr/bin:/bin for system tools (bash, awk, etc.)
+    run env PATH="$MOCK_BIN:/usr/bin:/bin" bash "$SCRIPT_UNDER_TEST" --review "$TEST_DIR/test_file.txt"
     assert_failure
     [[ "$status" -eq 2 ]]
     assert_output --partial "No agents available"

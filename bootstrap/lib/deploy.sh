@@ -148,18 +148,12 @@ deploy_gemini_configs() {
     fi
 
     # Create .gemini directory structure
-    mkdir -p "$GEMINI_TARGET_DIR/commands"
+    mkdir -p "$GEMINI_TARGET_DIR"
 
     # Copy GEMINI.md
     if [[ -f "$gemini_source_dir/GEMINI.md" ]]; then
         cp "$gemini_source_dir/GEMINI.md" "$GEMINI_TARGET_DIR/GEMINI.md"
         print_success "Deployed GEMINI.md to $GEMINI_TARGET_DIR/"
-    fi
-
-    # Copy TOML command files
-    if [[ -d "$gemini_source_dir/commands" ]]; then
-        cp "$gemini_source_dir/commands"/*.toml "$GEMINI_TARGET_DIR/commands/" 2> /dev/null || true
-        print_success "Deployed Gemini commands to $GEMINI_TARGET_DIR/commands/"
     fi
 
     # Copy settings.json (project settings, not auth)
@@ -200,15 +194,6 @@ deploy_codex_configs() {
     # Link shared assets from ~/.claude to avoid duplicate copies, including shared skills.
     link_shared_assets "$CODEX_TARGET_DIR" "Codex" "true"
 
-    # Codex command-style wrappers mirror the canonical Claude wrappers.
-    local codex_commands_target="$TARGET_DIR/commands"
-    local codex_commands_link="$CODEX_TARGET_DIR/commands"
-    if [[ -d "$codex_commands_target" ]]; then
-        create_symlink "$codex_commands_link" "$codex_commands_target" "Codex commands"
-    else
-        print_warning "Codex command source not found: $codex_commands_target"
-    fi
-
     print_success "Codex configuration deployed to $CODEX_TARGET_DIR"
 }
 
@@ -234,10 +219,8 @@ verify_installation() {
         "$CURSOR_TARGET_DIR/mcp.json"
         "$CURSOR_TARGET_DIR/skills/code-quality/SKILL.md"
         "$GEMINI_TARGET_DIR/GEMINI.md"
-        "$GEMINI_TARGET_DIR/commands/project-commit.toml"
         "$GEMINI_TARGET_DIR/skills/code-quality/SKILL.md"
         "$CODEX_TARGET_DIR/AGENTS.md"
-        "$CODEX_TARGET_DIR/commands/project-commit.md"
         "$CODEX_TARGET_DIR/skills/code-quality/SKILL.md"
     )
 
@@ -540,11 +523,10 @@ print_summary() {
     echo -e "${BOLD}Documentation:${NC}"
     echo ""
     echo "  Main guide:     ~/.claude/CLAUDE.md"
-    echo "  Commands:       ~/.claude/commands/"
+    echo "  Skills:         ~/.claude/skills/"
     echo "  Cursor rules:   ~/.cursor/rules/"
-    echo "  Gemini commands: ~/.gemini/commands/"
+    echo "  Gemini guide:   ~/.gemini/GEMINI.md"
     echo "  Codex guide:    ~/.codex/AGENTS.md"
-    echo "  Codex skills:   ~/.codex/skills/"
     echo "  Config:         ~/.claude/config/"
     echo ""
 }

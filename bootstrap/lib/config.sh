@@ -10,12 +10,9 @@ set_bootstrap_defaults() {
     FORCE=false
     RECONFIGURE=false
 
-    # Default MCP server endpoints (OAuth-capable HTTP transports)
+    # MCP scope defaults (server URLs are parsed from configs/claude/config/mcp_servers.yml)
     CLAUDE_MCP_SCOPE="${CLAUDE_MCP_SCOPE:-user}" # local | user | project
     GEMINI_MCP_SCOPE="${GEMINI_MCP_SCOPE:-user}" # user | project
-    MCP_SENTRY_URL="${MCP_SENTRY_URL:-https://mcp.sentry.dev/mcp}"
-    MCP_CONTEXT7_URL="${MCP_CONTEXT7_URL:-https://mcp.context7.com/mcp/oauth}"
-    MCP_LINEAR_URL="${MCP_LINEAR_URL:-https://mcp.linear.app/mcp}"
 
     if [[ "$CLAUDE_MCP_SCOPE" != "local" && "$CLAUDE_MCP_SCOPE" != "user" && "$CLAUDE_MCP_SCOPE" != "project" ]]; then
         CLAUDE_MCP_SCOPE="user"
@@ -66,7 +63,7 @@ print_bootstrap_help() {
     echo "Other Options:"
     echo "  --skip-install      Skip CLI tool installation"
     echo "  --skip-auth         Skip authentication checks"
-    echo "  --install-mcp       Configure default MCP servers (sentry, context7, linear)"
+    echo "  --install-mcp       Configure MCP servers (interactive selection from registry)"
     echo "  --force             Overwrite existing ~/.claude without prompting"
     echo "  --reconfigure       Only update service toggles (skip full setup)"
     echo ""

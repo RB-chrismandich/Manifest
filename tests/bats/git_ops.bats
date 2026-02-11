@@ -228,8 +228,8 @@ STUB
     # Do not create gh stub -- ensure it is not in PATH
     # Remove any existing gh from MOCK_BIN
     rm -f "$MOCK_BIN/gh"
-    # Use a subshell with restricted PATH to ensure gh is not found
-    run env PATH="$MOCK_BIN" bash "$SCRIPT_UNDER_TEST" issue-view 1
+    # Use a subshell with restricted PATH (keep /usr/bin:/bin for system tools)
+    run env PATH="$MOCK_BIN:/usr/bin:/bin" bash "$SCRIPT_UNDER_TEST" issue-view 1
     assert_failure
     assert_output --partial "CLI not found"
 }
@@ -238,7 +238,7 @@ STUB
     cd "$TEST_REPO" || return 1
     git remote set-url origin "https://gitlab.com/user/repo.git"
     rm -f "$MOCK_BIN/glab"
-    run env PATH="$MOCK_BIN" bash "$SCRIPT_UNDER_TEST" issue-view 1
+    run env PATH="$MOCK_BIN:/usr/bin:/bin" bash "$SCRIPT_UNDER_TEST" issue-view 1
     assert_failure
     assert_output --partial "CLI not found"
 }
