@@ -1,0 +1,26 @@
+# Parallel Agent Python Dependencies
+# Install: pip install -r requirements.txt
+
+# Official API clients
+anthropic>=0.40.0
+
+# Gemini SDK (try new package first, fallback to legacy)
+# The script will prefer google.genai if available, otherwise use google-generativeai
+google-genai>=1.0.0; python_version >= "3.9"  # NEW (preferred)
+google-generativeai>=0.8.0  # Legacy fallback
+google-auth>=2.0.0  # OAuth for both packages
+
+# Async HTTP and utilities
+aiohttp>=3.9.0
+asyncio-throttle>=1.0.0
+
+# Configuration and data
+pyyaml>=6.0.1
+jsonschema>=4.23.0
+
+# CLI output and formatting
+rich>=13.0.0
+click>=8.1.0
+
+# Optional: Performance monitoring
+psutil>=5.9.0

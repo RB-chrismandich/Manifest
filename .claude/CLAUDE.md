@@ -15,6 +15,12 @@ This document defines how Claude should leverage parallel LLM agents
   Relative paths may fail as agents run from different working directories.
 - Always use a **large timeout** (600-900 seconds) for complex analyses.
   The default 120s is often insufficient for thorough code review.
+- Use **Context7 MCP** by default for library/API documentation, code generation,
+  setup steps, and configuration guidance.
+- Use **Sentry MCP** by default for production/runtime error investigation,
+  stack traces, issue triage, and release regression analysis.
+- Use **Linear MCP** by default for issue requirements, acceptance criteria,
+  project context, and implementation planning.
 
 ```bash
 # Basic code review with JSON output (all 3 agents, 10 min timeout)

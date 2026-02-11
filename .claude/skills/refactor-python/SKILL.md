@@ -1,0 +1,244 @@
+---
+name: refactor-python
+description: |
+  Perform security, architecture, and quality analysis for Python codebases and
+  return a prioritized, actionable refactoring roadmap.
+---
+
+# Python Codebase Refactor Analysis
+
+Analyze a Python codebase against best practices, security principles, and enterprise
+architecture standards. Generate a comprehensive refactoring report with prioritized
+recommendations.
+
+## Parallel Agent Integration
+
+This command ALWAYS uses parallel agents (security-critical).
+Executes: `~/.claude/scripts/parallel_agent.sh --json --full-output --validate --analyze`
+
+Consensus scoring:
+
+- ≥80%: Auto-proceed with unified recommendation
+- 50-79%: Highlight disagreements to user
+- <50%: Escalate for human review
+
+## Task
+
+You are a Senior Principal Security Software Engineer analyzing a production Python codebase. Your goals are to:
+
+1. Assess code against industry best practices and security standards
+2. Identify security vulnerabilities (OWASP Top 10, injection risks, secrets handling)
+3. Find architectural and code quality refactoring opportunities
+4. Rate each finding by **effort** (Minimal/Medium/High) and **risk** (Low/Medium/High/Critical)
+5. Generate an actionable improvement roadmap with priority matrix
+6. Identify missing tooling configuration files
+
+---
+
+## Instructions
+
+### Step 1: Read Project Standards and Configuration
+
+- Read AGENTS.md, CLAUDE.md for project context
+- Check for existing tooling: pyproject.toml, ruff.toml, mypy.ini, .pre-commit-config.yaml
+- Read requirements.txt for dependencies
+
+### Step 2: Architecture Analysis
+
+- List all Python files and check structure
+- Check file sizes (detect God classes >500 lines)
+- Check for module-level global state
+- Check for proper package structure with **init**.py
+
+### Step 3: Security Analysis (CRITICAL)
+
+Scan for these patterns:
+
+**SQL Injection**:
+
+- f-strings in queries: `f"SELECT...WHERE {var}"`
+
+**Hardcoded Secrets**:
+
+- `password =`, `secret =`, `api_key =`, `token =`
+- Hardcoded URLs, emails, hostnames
+
+**Error Handling**:
+
+- Bare exceptions: `except:`
+- Silent failures without logging
+
+**Dangerous Operations**:
+
+- `import pickle`, `eval()`, `exec()`
+- `yaml.load()` (should be `yaml.safe_load()`)
+- `subprocess`, `os.system`, `os.popen`
+
+### Step 4: Code Quality Analysis
+
+- Long functions (>100 lines)
+- Duplicate code patterns
+- Magic numbers/strings
+- Dead/unused imports
+- Inconsistent naming (snake_case for functions)
+
+### Step 5: Type Safety Analysis
+
+- Missing type hints on functions
+- Overuse of `Any` type
+- Old Optional syntax (prefer `X | None`)
+- Missing Pydantic models for data validation
+
+### Step 6: Documentation Analysis
+
+- Module docstrings
+- Functions without docstrings
+- TODO/FIXME comments
+
+### Step 7: Testing Analysis
+
+- Test file inventory
+- Test coverage gaps
+- Mocking patterns
+- Pre-commit hooks configuration
+
+---
+
+## Effort Classification
+
+| Level | Time | Scope | Examples |
+|-------|------|-------|----------|
+| **Minimal** | 1-2 hours | Single file, config only | Add docstring, extract constant, add type hint |
+| **Medium** | 2-8 hours | Multi-file refactor | Create Pydantic model, add unit tests, fix injection |
+| **High** | 1-3 days | Architectural | Dependency injection, full mypy compliance, break up God class |
+
+## Risk Classification
+
+| Level | Impact | Testing Required | Examples |
+|-------|--------|------------------|----------|
+| **Low** | No runtime change | None | Add config file, documentation, type hints |
+| **Medium** | Internal changes | Unit tests | Refactor helper functions, add validation |
+| **High** | API/signature changes | Integration tests | Change public interfaces, modify providers |
+| **Critical** | Security/Breaking | Full regression | Fix injection, remove hardcoded credentials |
+
+---
+
+## Output Format
+
+### Refactor Analysis Report
+
+```markdown
+# Refactor Analysis Report
+
+**Date:** YYYY-MM-DD
+**Overall Score:** XX/100
+
+---
+
+## Executive Summary
+
+| Category | Score | Issues | Critical |
+|----------|-------|--------|----------|
+| Security | XX/25 | N | Y/N |
+| Code Quality | XX/20 | N | Y/N |
+| Architecture | XX/15 | N | Y/N |
+| Type Safety | XX/15 | N | Y/N |
+| Documentation | XX/10 | N | Y/N |
+| Testing | XX/10 | N | Y/N |
+| Dependencies | XX/5 | N | Y/N |
+
+**Key Findings:**
+- [1-3 sentence summary of most critical issues]
+
+---
+
+## Priority Matrix
+
+### Immediate (Critical Risk - Any Effort)
+| ID | Issue | Location | Effort | Risk |
+|----|-------|----------|--------|------|
+| SEC-001 | SQL injection via f-strings | `file.py:XXX` | Medium | Critical |
+
+### Quick Wins (Low Risk + Minimal Effort)
+| ID | Issue | Location | Effort | Risk |
+|----|-------|----------|--------|------|
+| TS-001 | Add mypy configuration | Root | Minimal | Low |
+
+### Planned (Medium Risk/Effort)
+[Table of medium priority items]
+
+### Strategic (High Effort)
+[Table of long-term items]
+
+---
+
+## Detailed Findings
+
+[For each finding: Category, Severity, Risk, Effort, Location, Current Code, Issue, Recommended Fix]
+
+---
+
+## Recommendations
+
+### Immediate (This Sprint)
+- [ ] Fix SEC-001: ...
+- [ ] Create pyproject.toml with Ruff/Mypy configuration
+
+### Short Term (Next 2 Sprints)
+- [ ] Add pre-commit hooks
+- [ ] Add Pydantic models for API responses
+
+### Long Term (Roadmap)
+- [ ] Achieve 80%+ test coverage
+```
+
+---
+
+## Configuration Templates
+
+If missing, recommend creating these files:
+
+### pyproject.toml
+
+```toml
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+src = ["src"]
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "B", "C4", "UP", "S", "D"]
+
+[tool.mypy]
+python_version = "3.10"
+strict = true
+```
+
+### .pre-commit-config.yaml
+
+```yaml
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.8.0
+    hooks:
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format
+```
+
+---
+
+## Analysis Principles
+
+- **Be specific**: Every finding must have exact file:line location
+- **Be actionable**: Every finding must have a concrete fix
+- **Be accurate**: Verify patterns before reporting (avoid false positives)
+- **Be prioritized**: Security issues always come first
+- **Be practical**: Focus on high-impact improvements
+
+## Common False Positives to Avoid
+
+- f-strings used for logging (not SQL)
+- Test files with intentional bad patterns
+- Comments containing keywords (not actual code)
+- Type hints that look like code patterns

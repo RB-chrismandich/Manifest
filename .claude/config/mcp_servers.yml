@@ -1,0 +1,21 @@
+# Default MCP server registry for Manifest-managed agent environments.
+# Shared via symlinks from ~/.claude/config to ~/.cursor/config, ~/.gemini/config, ~/.codex/config.
+
+mcp_servers:
+  sentry:
+    url: "https://mcp.sentry.dev/mcp"
+    transport: "http"
+    oauth: true
+    purpose: "Error triage, issue investigation, stack traces, release regressions"
+
+  context7:
+    url: "https://mcp.context7.com/mcp/oauth"
+    transport: "http"
+    oauth: true
+    purpose: "Library/API documentation, setup guides, configuration examples"
+
+  linear:
+    url: "https://mcp.linear.app/mcp"
+    transport: "http"
+    oauth: true
+    purpose: "Issue context, project plans, acceptance criteria, team workflows"

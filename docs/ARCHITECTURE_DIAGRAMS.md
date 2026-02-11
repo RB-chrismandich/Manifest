@@ -2,7 +2,7 @@
 
 > Visual documentation of the Manifest parallel LLM agent orchestration framework
 
-**Last Updated**: 2026-02-06 (Added sandbox detection & output verification to Parallel Agent flow)
+**Last Updated**: 2026-02-10 (Added Phase 3 Python parallel agent with logging, validation, synthesis, streaming)
 **Project**: Manifest - AI Agent Orchestration Framework
 
 ---
@@ -10,15 +10,16 @@
 ## Table of Contents
 
 1. [Application Architecture](#application-architecture)
-2. [Git Platform Detection & Operations](#git-platform-detection--operations)
-3. [Bootstrap Installation Flow](#bootstrap-installation-flow)
-4. [Parallel Agent Execution Flow](#parallel-agent-execution-flow)
-5. [Command Processing Architecture](#command-processing-architecture)
-6. [Validation Pipeline](#validation-pipeline)
-7. [Model Selection & Credit Fallback](#model-selection--credit-fallback)
-8. [Configuration Layer](#configuration-layer)
-9. [Cross-Verification Consensus](#cross-verification-consensus)
-10. [Service State Management](#service-state-management)
+2. [Python Parallel Agent Architecture (Phase 3)](#python-parallel-agent-architecture-phase-3)
+3. [Git Platform Detection & Operations](#git-platform-detection--operations)
+4. [Bootstrap Installation Flow](#bootstrap-installation-flow)
+5. [Parallel Agent Execution Flow](#parallel-agent-execution-flow)
+6. [Command Processing Architecture](#command-processing-architecture)
+7. [Validation Pipeline](#validation-pipeline)
+8. [Model Selection & Credit Fallback](#model-selection--credit-fallback)
+9. [Configuration Layer](#configuration-layer)
+10. [Cross-Verification Consensus](#cross-verification-consensus)
+11. [Service State Management](#service-state-management)
 
 ---
 
@@ -55,7 +56,8 @@ flowchart TB
 
     subgraph "Orchestration Layer"
         CLAUDE_CLI
-        PARALLEL["parallel_agent.sh"]:::process
+        PARALLEL_BASH["parallel_agent.sh<br/>(Bash)"]:::process
+        PARALLEL_PY["parallel_agent.py<br/>(Python Phase 3)"]:::process
         GIT_PLATFORM["git_platform.sh"]:::process
         GIT_OPS["git_ops.sh"]:::process
     end
@@ -63,6 +65,7 @@ flowchart TB
     subgraph "Agent Services"
         GEMINI["Gemini CLI"]:::external
         CURSOR["Cursor Agent"]:::external
+        CLAUDE_API["Claude API"]:::external
         GH["GitHub CLI (gh)"]:::external
         GLAB["GitLab CLI (glab)"]:::external
     end
@@ -70,25 +73,147 @@ flowchart TB
     USER --> BOOTSTRAP
     BOOTSTRAP --> SERVICES
     USER --> CLAUDE_CLI
-    CLAUDE_CLI --> PARALLEL
+    CLAUDE_CLI --> PARALLEL_BASH
+    CLAUDE_CLI --> PARALLEL_PY
     CLAUDE_CLI --> GIT_OPS
     GIT_OPS --> GIT_PLATFORM
     GIT_PLATFORM -.->|github| GH
     GIT_PLATFORM -.->|gitlab| GLAB
-    PARALLEL --> GEMINI
-    PARALLEL --> CURSOR
-    SERVICES -.->|config| PARALLEL
-    COMMAND_CFG -.->|thresholds| PARALLEL
-    VALIDATION_CFG -.->|criteria| PARALLEL
+    PARALLEL_BASH --> GEMINI
+    PARALLEL_BASH --> CURSOR
+    PARALLEL_PY --> GEMINI
+    PARALLEL_PY --> CURSOR
+    PARALLEL_PY --> CLAUDE_API
+    SERVICES -.->|config| PARALLEL_BASH
+    SERVICES -.->|config| PARALLEL_PY
+    COMMAND_CFG -.->|thresholds| PARALLEL_BASH
+    COMMAND_CFG -.->|thresholds| PARALLEL_PY
+    VALIDATION_CFG -.->|criteria| PARALLEL_PY
 ```
 
 **Key Components**:
 
-- **bootstrap.sh**: Automated installation and configuration deployment
+- **bootstrap.sh**: Automated installation and configuration deployment with Python version detection
 - **Git Platform Scripts**: Platform-agnostic Git operations (GitHub/GitLab/plain git)
-- **parallel_agent.sh**: Orchestrates multiple LLM agents for cross-verification
-- **Configuration Layer**: YAML files controlling behavior and validation rules
+- **parallel_agent.sh**: Bash orchestrator for multiple LLM agents (legacy)
+- **parallel_agent.py**: Python orchestrator with Phase 3 features (logging, validation, synthesis, streaming)
+- **Configuration Layer**: YAML files controlling behavior, validation rules, and Phase 3 features
 - **Agent Services**: External LLM and Git hosting CLIs
+
+---
+
+## Python Parallel Agent Architecture (Phase 3)
+
+Detailed architecture of the Python parallel agent implementation with Phase 3 features: comprehensive logging, full validation, synthesis, streaming, and dual package support.
+
+```mermaid
+%%{init: {'theme':'neutral'}}%%
+flowchart TB
+    classDef active fill:#dcfce7,stroke:#16a34a,color:#14532d
+    classDef pending fill:#fef3c7,stroke:#d97706,color:#78350f
+    classDef error fill:#fee2e2,stroke:#dc2626,color:#7f1d1d
+    classDef external fill:#dbeafe,stroke:#2563eb,color:#1e3a8a
+    classDef config fill:#f3e8ff,stroke:#9333ea,color:#581c87
+
+    USER["User/Claude CLI"]:::external
+
+    subgraph "Main Orchestrator"
+        MAIN["main()"]:::active
+        LOGGER["Logger<br/>(correlation IDs, rotation)"]:::active
+        CONFIG["Config<br/>(YAML loader)"]:::config
+        ORCH["Orchestrator"]:::active
+    end
+
+    subgraph "Agent Execution"
+        BASE["BaseAgent<br/>(rate limiting, timeout, fallback)"]:::active
+        CLAUDE_AG["ClaudeAgent<br/>(streaming support)"]:::active
+        GEMINI_AG["GeminiAgent<br/>(dual package support)"]:::active
+        CURSOR_AG["CursorAgent<br/>(subprocess)"]:::pending
+    end
+
+    subgraph "Phase 3 Features"
+        VALIDATE["ValidationEngine<br/>(Tier 1 + Tier 2)"]:::active
+        SYNTH["SynthesisEngine<br/>(disagreement resolution)"]:::active
+        STREAM["Streaming Display<br/>(Rich Live)"]:::active
+        LIMITER["RateLimiter<br/>(token bucket)"]:::active
+    end
+
+    subgraph "External APIs"
+        ANTHROPIC["Anthropic API<br/>(Claude)"]:::external
+        GOOGLE["Google Gemini API<br/>(OAuth/API key)"]:::external
+        CURSOR_CLI["Cursor CLI"]:::external
+    end
+
+    subgraph "Configuration Files"
+        PA_YML["parallel_agent.yml<br/>(synthesis, streaming)"]:::config
+        VAL_YML["validation_criteria.yml<br/>(tier1/tier2 rules)"]:::config
+        SYNTH_MD["synthesis.md<br/>(prompt template)"]:::config
+    end
+
+    subgraph "Outputs"
+        LOGS["parallel_agent.log<br/>(JSON structured)"]:::pending
+        RESULTS["results_*.json<br/>(agent outputs)"]:::pending
+        SUMMARY["summary_*.md<br/>(markdown report)"]:::pending
+    end
+
+    USER --> MAIN
+    MAIN --> CONFIG
+    MAIN --> LOGGER
+    MAIN --> ORCH
+    CONFIG -.->|load| PA_YML
+    LOGGER -.->|write| LOGS
+
+    ORCH --> VALIDATE
+    ORCH --> SYNTH
+    ORCH --> STREAM
+    ORCH --> BASE
+
+    BASE --> LIMITER
+    BASE --> CLAUDE_AG
+    BASE --> GEMINI_AG
+    BASE --> CURSOR_AG
+
+    CLAUDE_AG --> ANTHROPIC
+    GEMINI_AG --> GOOGLE
+    CURSOR_AG --> CURSOR_CLI
+
+    VALIDATE -.->|load| VAL_YML
+    SYNTH -.->|load| SYNTH_MD
+    SYNTH --> ANTHROPIC
+
+    ORCH -.->|write| RESULTS
+    ORCH -.->|write| SUMMARY
+
+    STREAM -.->|display| USER
+```
+
+**Phase 3 Components**:
+
+- **Logger**: Structured JSON logging with correlation IDs (`YYYYMMDD_HHMMSS_PID`), rotating file handler (10MB, 5 backups), performance metrics
+- **ValidationEngine**:
+  - Tier 1 (critical): Security, error handling, breaking changes, cross-verification
+  - Tier 2 (quality): Bug detection, performance, maintainability, test coverage
+  - Verdicts: APPROVED, NEEDS_REVIEW, BLOCKED
+- **SynthesisEngine**: Automatic disagreement resolution when consensus < 50%, uses Claude Sonnet with synthesis.md template
+- **Streaming**: Real-time Rich Live display with progressive updates (4 updates/sec, 500 char truncation)
+- **RateLimiter**: Token bucket algorithm with burst support and adaptive backoff
+- **Dual Package Support**: google-genai (new) with fallback to google-generativeai (legacy), unified interface
+
+**Execution Flow**:
+
+1. **Initialization**: Load config, create logger with correlation ID, set up rate limiters
+2. **Agent Execution**: Run Claude/Gemini/Cursor in parallel with streaming or progress display
+3. **Consensus**: Calculate consensus score using keyword-based analysis
+4. **Synthesis**: If consensus < 50%, trigger SynthesisEngine for unified recommendation
+5. **Validation**: Run ValidationEngine if `--validate` flag set
+6. **Output**: Write structured logs, JSON results, markdown summary
+
+**Statistics**:
+
+- Lines: 1,616 (vs 634 in Phase 2, +155%)
+- Classes: 9 (Config, Logger, RateLimiter, ValidationEngine, SynthesisEngine, BaseAgent, ClaudeAgent, GeminiAgent, CursorAgent, Orchestrator)
+- CLI Flags: 21 (8 new in Phase 3)
+- Configuration Sections: 9 (synthesis, streaming added in Phase 3)
 
 ---
 

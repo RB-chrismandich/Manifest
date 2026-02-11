@@ -1,13 +1,13 @@
 # Manifest
 
-> Parallel LLM agent orchestration framework for Claude Code, Cursor IDE, and Gemini CLI
+> Parallel LLM agent orchestration framework for Claude Code, Cursor IDE, Gemini CLI, and Codex CLI
 
-**Last Updated**: 2026-02-06
+**Last Updated**: 2026-02-10 (Phase 3 Python implementation)
 
 Manifest is a configuration repository that deploys a sophisticated parallel agent
-orchestration system to `~/.claude/`, `~/.cursor/`, and `~/.gemini/`, enabling Claude Code,
-Cursor IDE, and Gemini CLI to leverage multiple AI agents for cross-verification, consensus
-scoring, and enhanced code analysis.
+orchestration system to `~/.claude/`, `~/.cursor/`, `~/.gemini/`, and `~/.codex/`, enabling Claude Code,
+Cursor IDE, Gemini CLI, and Codex CLI to share guides, skills, prompts, and scripts while leveraging
+multiple AI agents for cross-verification, consensus scoring, and enhanced code analysis.
 
 **Core Capabilities**: Multi-agent orchestration | Consensus scoring | Model fallback
 | Two-tier validation | Production-grade templates
@@ -24,21 +24,32 @@ cd Manifest
 # Run bootstrap (macOS/Linux)
 ./bootstrap.sh
 
-# Verify installation
+# Optional: configure default MCP servers (sentry, context7, linear)
+./bootstrap.sh --install-mcp
+
+# Verify installation (Bash version)
 ~/.claude/scripts/parallel_agent.sh --json "Test connection"
+
+# Or use Python version (Phase 3, recommended)
+python3 ~/.claude/scripts/parallel_agent.py --json "Test connection"
 ```
 
 ⏱️ **Time to setup**: ~5 minutes | 💻 **Platforms**: macOS (Intel/Apple Silicon), Linux (Debian, RHEL, Arch, openSUSE)
+🐍 **Python**: 3.9+ (Phase 3 features require Python; bootstrap auto-detects and prefers 3.12+)
 
 ---
 
 ## Features
 
-- **Parallel Agent Orchestration**: Run 2-3 AI agents simultaneously (Cursor, Gemini, Claude) with real-time monitoring
-- **Consensus Scoring**: Variance-based algorithm calculates agreement (≥80% = high confidence, <50% = escalate)
+- **Parallel Agent Orchestration**: Run 2-3 AI agents simultaneously (Cursor, Gemini, Claude) with real-time streaming display
+- **Phase 3 Python Implementation** (NEW): Production-grade async agent with logging, validation, synthesis, and streaming
+- **Comprehensive Logging**: Structured JSON logs with correlation IDs, rotation (10MB, 5 backups), performance metrics
+- **Full Validation Engine**: Tier 1 (critical: security, errors, breaking changes) + Tier 2 (quality: bugs, performance, tests)
+- **Automatic Synthesis**: Disagreement resolution when consensus < 50% using Claude Sonnet
+- **Streaming Responses**: Real-time Rich Live display with progressive updates (4 updates/sec)
+- **Consensus Scoring**: Variance-based algorithm calculates agreement (≥80% = high confidence, <50% = escalate + synthesis)
 - **Intelligent Model Selection**: Task-based routing (security→opus/gpt-5.2, review→sonnet/gpt-5.1-codex, quick→haiku/mini)
 - **Credit Exhaustion Fallback**: Automatic detection and retry with cheaper models (opus→sonnet→haiku)
-- **Two-Tier Validation**: Tier 1 (security, breaking changes) blocks commits • Tier 2 (quality) provides guidance
 - **Cross-Platform**: Native support for macOS (Intel/Apple Silicon) and 5 major Linux distributions
 - **Production Templates**: Pre-configured permission templates for Django, Express, Go microservices, Python monorepos
 
@@ -91,7 +102,7 @@ Mermaid flowcharts showing bootstrap, execution, validation, and consensus flows
 
 - Bash 4.0+
 - Node.js 18+ and npm
-- One or more of: Claude CLI, Gemini CLI, Cursor Agent
+- One or more of: Claude CLI, Gemini CLI, Cursor Agent, Codex CLI
 
 ---
 
@@ -103,7 +114,7 @@ Mermaid flowcharts showing bootstrap, execution, validation, and consensus flows
 | [Configuration](docs/CONFIGURATION.md) | All configuration options, YAML reference, environment variables | Operators | 15 min |
 | [Architecture Diagrams](docs/ARCHITECTURE_DIAGRAMS.md) | Visual system documentation with 9 Mermaid diagrams | Developers | 20 min |
 | [Troubleshooting](docs/TROUBLESHOOTING.md) | Common problems, error messages, solutions | All users | 10 min |
-| [AGENTS.md](AGENTS.md) | AI agent instructions (Cursor, Claude, Gemini) | AI assistants | 8 min |
+| [AGENTS.md](AGENTS.md) | AI agent instructions (Cursor, Claude, Gemini, Codex) | AI assistants | 8 min |
 | [CLAUDE.md](CLAUDE.md) | Claude Code-specific project context | AI assistants | 8 min |
 
 **Full documentation index**: [docs/README.md](docs/README.md) • **Quick ref**: [Commands](docs/COMMANDS.md)
@@ -115,18 +126,30 @@ Mermaid flowcharts showing bootstrap, execution, validation, and consensus flows
 ```text
 Manifest/
 ├── bootstrap.sh                     # Cross-platform installation script (macOS/Linux)
+├── bootstrap/                       # Modular bootstrap libraries and extension hooks
+│   ├── lib/
+│   │   ├── common.sh                # Shared bootstrap helpers (output, prompts, symlinks)
+│   │   ├── modules.sh               # Module loader + lifecycle hook registry
+│   │   ├── platform.sh              # Platform detection + timeout/browser helpers
+│   │   ├── config.sh                # Arg parsing + service config read/write helpers
+│   │   ├── install.sh               # CLI installation routines
+│   │   ├── auth.sh                  # Authentication + state setup routines
+│   │   ├── deploy.sh                # Deployment/verification/summary routines
+│   │   └── mcp.sh                   # MCP installation/configuration routines
+│   └── modules/README.md            # How to add custom bootstrap modules/hooks
 ├── CLAUDE.md                        # Claude Code project context
 ├── AGENTS.md                        # AI agent instructions (all platforms)
 ├── .claude/                         # Configuration deployed to ~/.claude/
 │   ├── CLAUDE.md                    # Orchestration guide
 │   ├── commands/                    # Slash commands (refactor-python, docs-diagrams, etc.)
-│   ├── skills/code-quality/         # Auto-triggered quality checks
+│   ├── skills/                      # Canonical shared skill library (source of truth)
 │   ├── prompts/                     # Agent orchestration templates
 │   │   ├── preflight_analysis.md    # Pre-flight review criteria
 │   │   ├── synthesis.md             # Agent disagreement synthesis
 │   │   └── validation.md            # Validation criteria template
 │   ├── config/                      # YAML configuration files
 │   │   ├── services.yml             # Agent enable/disable states
+│   │   ├── mcp_servers.yml          # Default MCP server registry (OAuth-capable endpoints)
 │   │   ├── command_config.yml       # Tool policies, thresholds, model selection
 │   │   └── validation_criteria.yml  # Tier 1/2 validation rules
 │   └── scripts/
@@ -138,9 +161,11 @@ Manifest/
 │   │   ├── refactor-python.mdc      # Python analysis
 │   │   ├── refactor-shell.mdc       # Shell analysis
 │   │   └── ...                      # docs-*, project-commit, plan-manage
+│   ├── mcp.json                     # Cursor MCP server defaults
 │   ├── scripts -> ../.claude/scripts/   # Symlinked shared assets
 │   ├── config -> ../.claude/config/
 │   ├── prompts -> ../.claude/prompts/
+│   ├── skills -> ../.claude/skills/      # Shared skills symlink (single source of truth)
 │   └── .plans -> ../.claude/.plans/
 ├── .gemini/                         # Gemini CLI configuration (mirrors .claude/)
 │   ├── GEMINI.md                    # Orchestration guide for Gemini CLI
@@ -153,9 +178,17 @@ Manifest/
 │   │   ├── docs-readme.toml        # README improvement
 │   │   ├── plan-manage.toml        # Plan lifecycle
 │   │   └── checkpoint.toml         # Context checkpoint
-│   ├── settings.json               # Gemini CLI project settings
-│   ├── skills/code-quality/SKILL.md    # Symlinked from .claude/
+│   ├── settings.json               # Gemini settings (includes MCP server defaults)
+│   ├── skills -> ../.claude/skills/    # Shared skills symlink (single source of truth)
 │   ├── scripts -> ../.claude/scripts/  # Symlinked shared assets
+│   ├── config -> ../.claude/config/
+│   ├── prompts -> ../.claude/prompts/
+│   └── .plans -> ../.claude/.plans/
+├── .codex/                          # Codex CLI configuration (mirrors .claude/)
+│   ├── AGENTS.md -> ../AGENTS.md    # Codex guide
+│   ├── commands -> ../.claude/commands/  # Command-style wrappers (shared with Claude)
+│   ├── skills -> ../.claude/skills/     # Shared skills symlink (single source of truth)
+│   ├── scripts -> ../.claude/scripts/   # Symlinked shared assets
 │   ├── config -> ../.claude/config/
 │   ├── prompts -> ../.claude/prompts/
 │   └── .plans -> ../.claude/.plans/
@@ -185,9 +218,13 @@ Manifest/
 # Reconfigure after initial setup
 ./bootstrap.sh --reconfigure --disable-cursor
 ./bootstrap.sh --reconfigure --enable-gemini --disable-claude
+./bootstrap.sh --reconfigure --disable-codex
 
 # Enable Git CLIs explicitly
 ./bootstrap.sh --reconfigure --enable-gh --enable-glab
+
+# Configure default MCP servers for all supported agents
+./bootstrap.sh --install-mcp
 ```
 
 ### Model Selection
@@ -226,7 +263,27 @@ chmod +x bootstrap.sh
 cat ~/.claude/config/services.yml
 
 # Verify CLI tools installed
-which claude gemini cursor
+which claude gemini cursor codex
+```
+
+**Codex fails with session permission errors:**
+
+```bash
+# Symptom from parallel_agent.sh/check_status.sh:
+# "Codex session storage not writable: ~/.manifest/codex/sessions"
+
+# Preferred fix (restore ownership/permissions)
+sudo chown -R "$(whoami)" ~/.manifest
+chmod -R u+rwX ~/.manifest
+```
+
+```bash
+# Optional override: move Codex state to a custom path
+mkdir -p ~/.manifest/custom-codex-state
+export CODEX_HOME="$HOME/.manifest/custom-codex-state"
+
+# Then run orchestration as normal
+~/.claude/scripts/parallel_agent.sh --codex-only --codex-model advanced "Quick test"
 ```
 
 **See**: [Troubleshooting Guide](docs/TROUBLESHOOTING.md) for 15+ common issues with solutions
@@ -252,6 +309,7 @@ For licensing inquiries: [ReefBytes/Manifest](https://github.com/ReefBytes/Manif
 - [Claude Code](https://claude.ai/code) - Official Anthropic CLI
 - [Cursor](https://cursor.sh) - AI-powered IDE
 - [Google Gemini CLI](https://www.npmjs.com/package/@google/gemini-cli) - Gemini command-line interface
+- [OpenAI Codex CLI](https://github.com/openai/codex) - Codex terminal coding agent
 
 ---
 

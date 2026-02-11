@@ -192,6 +192,44 @@ gemini auth status
 
 ---
 
+### Codex: Session Storage Not Writable
+
+**Symptom:**
+
+```text
+Warning: Codex runtime unavailable, disabling Codex agent
+Reason: Session directory is not writable: /Users/<user>/.manifest/codex/sessions
+```
+
+**Why this happens:**
+
+Codex CLI requires writable session storage even in non-interactive `exec` mode.
+
+**Preferred fix (repair ~/.manifest permissions):**
+
+```bash
+sudo chown -R "$(whoami)" ~/.manifest
+chmod -R u+rwX ~/.manifest
+```
+
+**Engineering workaround (use a custom Codex state path):**
+
+```bash
+# 1) Create a writable Manifest state directory
+mkdir -p ~/.manifest/custom-codex-state
+
+# 2) Point Codex state to it
+export CODEX_HOME="$HOME/.manifest/custom-codex-state"
+
+# 3) Re-run status or orchestration
+~/.claude/scripts/parallel_agent.sh --status
+~/.claude/scripts/parallel_agent.sh --codex-only --codex-model advanced "Quick test"
+```
+
+**Tradeoff:** This avoids permission issues but uses a separate Codex state/config history path.
+
+---
+
 ### All Agents Disabled
 
 **Symptom:**
@@ -480,7 +518,7 @@ vim ~/.claude/config/command_config.yml
 ~/.claude/scripts/parallel_agent.sh --json "Task" | jq .
 
 # Check output files directly
-cat ~/.claude/.agent_outputs/results_*.json
+cat ~/.manifest/orchestration/outputs/results_*.json
 
 # Validate JSON
 ~/.claude/scripts/parallel_agent.sh --json "Task" | python3 -m json.tool
@@ -499,15 +537,15 @@ cat ~/.claude/.agent_outputs/results_*.json
 ~/.claude/scripts/parallel_agent.sh --json --full-output "Task"
 
 # Check output files for complete responses
-cat ~/.claude/.agent_outputs/claude_*.txt
-cat ~/.claude/.agent_outputs/gemini_*.txt
+cat ~/.manifest/claude/outputs/claude_*.txt
+cat ~/.manifest/gemini/outputs/gemini_*.txt
 ```
 
 ---
 
 ### No Output Files Generated
 
-**Symptom:** Expected files in `~/.claude/.agent_outputs/` don't exist
+**Symptom:** Expected files in `~/.manifest/orchestration/outputs/` don't exist
 
 **Cause:** Output directory not created or permissions issue
 
@@ -515,13 +553,13 @@ cat ~/.claude/.agent_outputs/gemini_*.txt
 
 ```bash
 # Create output directory
-mkdir -p ~/.claude/.agent_outputs
+mkdir -p ~/.manifest/orchestration/outputs
 
 # Fix permissions
-chmod 755 ~/.claude/.agent_outputs
+chmod 700 ~/.manifest/orchestration/outputs
 
 # Specify custom output directory
-~/.claude/scripts/parallel_agent.sh --output /tmp/agent_outputs "Task"
+~/.claude/scripts/parallel_agent.sh --output ~/.manifest/orchestration/outputs "Task"
 ```
 
 ---
@@ -616,14 +654,14 @@ cat ~/.claude/config/validation_criteria.yml
 
 ```bash
 # View recent outputs
-ls -lth ~/.claude/.agent_outputs/ | head -20
+ls -lth ~/.manifest/orchestration/outputs/ | head -20
 
 # View latest agent outputs
-tail ~/.claude/.agent_outputs/claude_*.txt
-tail ~/.claude/.agent_outputs/gemini_*.txt
+tail ~/.manifest/claude/outputs/claude_*.txt
+tail ~/.manifest/gemini/outputs/gemini_*.txt
 
 # View JSON results
-cat ~/.claude/.agent_outputs/results_*.json | python3 -m json.tool
+cat ~/.manifest/orchestration/outputs/results_*.json | python3 -m json.tool
 ```
 
 ### Test Network Connectivity

@@ -1,9 +1,9 @@
 # AGENTS.md
 
-> Repository context and guidance for AI coding agents (Cursor, Claude Code, Gemini, etc.)
+> Repository context and guidance for AI coding agents (Cursor, Claude Code, Gemini, Codex, etc.)
 
-**Last Updated**: 2026-02-05
-**Audience**: AI assistants (Cursor Agent, Claude Code, Gemini CLI), contributors
+**Last Updated**: 2026-02-09
+**Audience**: AI assistants (Cursor Agent, Claude Code, Gemini CLI, Codex CLI), contributors
 **Purpose**: Provide AI agents with repository structure, deployment process, and testing guidelines
 
 ---
@@ -11,12 +11,23 @@
 This file provides guidance to AI coding agents when working with code in this repository.
 It follows the [AGENTS.md standard](https://agents.md/) for unified coding agent instructions.
 
+## MCP Default Policy
+
+Use these MCP servers by default when their domain context matches the task:
+
+- **Context7 MCP**: library/API documentation, code generation, setup steps,
+  and configuration guidance.
+- **Sentry MCP**: production/runtime error investigation, stack traces, issue
+  triage, and release regression analysis.
+- **Linear MCP**: issue requirements, acceptance criteria, project context, and
+  implementation planning.
+
 ## Repository Purpose
 
 This repository manages AI agent configurations for deployment to `~/.claude/` (and mirrored
-to `~/.cursor/` and `~/.gemini/`) on target machines. It contains orchestration guides,
+to `~/.cursor/`, `~/.gemini/`, and `~/.codex/`) on target machines. It contains orchestration guides,
 commands/rules, skills, prompts, and scripts that enable parallel LLM agent coordination
-(Cursor, Gemini CLI, Claude CLI).
+(Cursor, Gemini CLI, Claude CLI, Codex CLI).
 
 ## Repository Structure
 
@@ -24,9 +35,10 @@ commands/rules, skills, prompts, and scripts that enable parallel LLM agent coor
 .claude/                             # Primary configuration (Claude Code)
 ├── CLAUDE.md                        # Orchestration guide (deployed to ~/.claude/)
 ├── commands/                        # Claude Code slash commands
-├── skills/code-quality/SKILL.md     # Auto-triggered code quality skill
+├── skills/                          # Canonical shared skill library (source of truth)
 ├── prompts/                         # Agent orchestration prompt templates
 ├── config/                          # YAML configuration files
+│   └── mcp_servers.yml              # Default MCP server registry (OAuth-capable)
 ├── .plans/                          # Plan management (template, archive, abandoned)
 └── scripts/parallel_agent.sh        # Main parallel agent orchestration script
 
@@ -41,9 +53,11 @@ commands/rules, skills, prompts, and scripts that enable parallel LLM agent coor
 │   ├── docs-diagrams.mdc            # Mermaid diagram generation rule
 │   ├── project-commit.mdc           # Commit pipeline rule
 │   └── plan-manage.mdc              # Plan lifecycle rule
+├── mcp.json                         # Cursor MCP server defaults
 ├── scripts -> ../.claude/scripts/   # Symlink to shared scripts
 ├── config -> ../.claude/config/     # Symlink to shared configs
 ├── prompts -> ../.claude/prompts/   # Symlink to shared prompts
+├── skills -> ../.claude/skills      # Shared skills symlink (single source of truth)
 └── .plans -> ../.claude/.plans/     # Symlink to shared plans
 
 .gemini/                             # Gemini CLI configuration (mirrors .claude/)
@@ -57,14 +71,34 @@ commands/rules, skills, prompts, and scripts that enable parallel LLM agent coor
 │   ├── docs-diagrams.toml           # Mermaid diagram generation command
 │   ├── plan-manage.toml             # Plan lifecycle command
 │   └── checkpoint.toml              # Context checkpoint command
-├── settings.json                    # Gemini CLI project settings
-├── skills/code-quality/SKILL.md     # Symlinked from .claude/
+├── settings.json                    # Gemini settings (includes MCP server defaults)
+├── skills -> ../.claude/skills      # Shared skills symlink (single source of truth)
+├── scripts -> ../.claude/scripts/   # Symlink to shared scripts
+├── config -> ../.claude/config/     # Symlink to shared configs
+├── prompts -> ../.claude/prompts/   # Symlink to shared prompts
+└── .plans -> ../.claude/.plans/     # Symlink to shared plans
+
+.codex/                              # Codex CLI configuration (mirrors .claude/)
+├── AGENTS.md -> ../AGENTS.md        # Codex guide (repo-level instructions)
+├── commands -> ../.claude/commands  # Command-style wrappers (shared with Claude)
+├── skills -> ../.claude/skills      # Shared skills symlink (single source of truth)
 ├── scripts -> ../.claude/scripts/   # Symlink to shared scripts
 ├── config -> ../.claude/config/     # Symlink to shared configs
 ├── prompts -> ../.claude/prompts/   # Symlink to shared prompts
 └── .plans -> ../.claude/.plans/     # Symlink to shared plans
 
 bootstrap.sh                         # macOS/Linux bootstrap script
+bootstrap/                           # Modular bootstrap libraries + hookable modules
+├── lib/                             # Shared bootstrap logic split by concern
+│   ├── common.sh                    # Shared output/prompts/symlink helpers
+│   ├── modules.sh                   # Hook registry + module loader
+│   ├── platform.sh                  # Platform detection + timeout/browser helpers
+│   ├── config.sh                    # Argument parsing + services config helpers
+│   ├── install.sh                   # CLI install routines
+│   ├── auth.sh                      # Authentication + state setup routines
+│   ├── deploy.sh                    # Deploy/verify/summary routines
+│   └── mcp.sh                       # MCP configuration/install routines
+└── modules/README.md                # How to add custom bootstrap extensions
 AGENTS.md                            # This file (AI agent instructions)
 CLAUDE.md                            # Claude Code-specific project instructions
 ```
@@ -90,6 +124,9 @@ The `bootstrap.sh` script automates installation, deployment, and authentication
 
 # Skip interactive prompts
 ./bootstrap.sh --skip-auth --force
+
+# Configure default MCP servers (sentry, context7, linear)
+./bootstrap.sh --install-mcp
 ```
 
 ### Service Toggles
@@ -98,8 +135,10 @@ The `bootstrap.sh` script automates installation, deployment, and authentication
 --enable-claude / --disable-claude   # Claude CLI (default: enabled)
 --enable-gemini / --disable-gemini   # Gemini CLI (default: enabled)
 --enable-cursor / --disable-cursor   # Cursor agent (default: enabled)
+--enable-codex / --disable-codex     # Codex CLI (default: enabled)
 --enable-gh / --disable-gh           # GitHub CLI (default: auto-detect)
 --enable-glab / --disable-glab       # GitLab CLI (default: auto-detect)
+--install-mcp                        # Configure default MCP servers (sentry/context7/linear)
 ```
 
 ## Manual Deployment
@@ -114,21 +153,33 @@ chmod +x ~/.claude/scripts/*.sh
 # Deploy Cursor configuration (optional)
 mkdir -p ~/.cursor/rules
 cp .cursor/rules/*.mdc ~/.cursor/rules/
+cp .cursor/mcp.json ~/.cursor/mcp.json
 # Recreate symlinks for shared assets
 ln -sf ~/.claude/scripts ~/.cursor/scripts
 ln -sf ~/.claude/config ~/.cursor/config
 ln -sf ~/.claude/prompts ~/.cursor/prompts
 ln -sf ~/.claude/.plans ~/.cursor/.plans
+ln -sf ~/.claude/skills ~/.cursor/skills
 
 # Deploy Gemini configuration (optional)
-mkdir -p ~/.gemini/commands ~/.gemini/skills/code-quality
+mkdir -p ~/.gemini/commands
 cp .gemini/GEMINI.md ~/.gemini/
 cp .gemini/commands/*.toml ~/.gemini/commands/
+cp .gemini/settings.json ~/.gemini/settings.json
 ln -sf ~/.claude/scripts ~/.gemini/scripts
 ln -sf ~/.claude/config ~/.gemini/config
 ln -sf ~/.claude/prompts ~/.gemini/prompts
 ln -sf ~/.claude/.plans ~/.gemini/.plans
-ln -sf ~/.claude/skills/code-quality/SKILL.md ~/.gemini/skills/code-quality/SKILL.md
+ln -sf ~/.claude/skills ~/.gemini/skills
+
+# Deploy Codex configuration (optional)
+cp AGENTS.md ~/.codex/AGENTS.md
+ln -sf ~/.claude/commands ~/.codex/commands
+ln -sf ~/.claude/scripts ~/.codex/scripts
+ln -sf ~/.claude/config ~/.codex/config
+ln -sf ~/.claude/prompts ~/.codex/prompts
+ln -sf ~/.claude/.plans ~/.codex/.plans
+ln -sf ~/.claude/skills ~/.codex/skills
 ```
 
 Required CLI tools (install those you want to use):
@@ -136,6 +187,7 @@ Required CLI tools (install those you want to use):
 - `claude` - `npm install -g @anthropic-ai/claude-code`
 - `gemini` - `npm install -g @google/gemini-cli`
 - `cursor` - Download from <https://cursor.sh>
+- `codex` - `npm install -g @openai/codex`
 
 ## Key Files
 
@@ -144,6 +196,8 @@ Required CLI tools (install those you want to use):
 | `.claude/CLAUDE.md` | Main orchestration guide for Claude Code |
 | `.cursor/rules/orchestration.mdc` | Main orchestration guide for Cursor (always-on rule) |
 | `.gemini/GEMINI.md` | Main orchestration guide for Gemini CLI |
+| `.codex/AGENTS.md` | Main orchestration guide for Codex CLI |
+| `.codex/commands/` | Codex command-style wrappers (shared with Claude command files) |
 | `.claude/scripts/parallel_agent.sh` | Bash script that runs agents in parallel with consensus scoring |
 | `.claude/config/command_config.yml` | Thresholds, tool policies, model selection, error recovery |
 | `.claude/config/validation_criteria.yml` | Tier 1 (critical) and Tier 2 (quality) validation rules |
@@ -189,6 +243,17 @@ Required CLI tools (install those you want to use):
 | `/plan-manage` | Plan lifecycle with parallel agent orchestration | CONDITIONAL |
 | `/checkpoint` | Context checkpoint for session continuity | NO |
 
+### Shared Skills
+
+Shared skills are canonical in `.claude/skills/` and symlinked to both:
+
+- `~/.cursor/skills`
+- `~/.gemini/skills`
+- `~/.codex/skills`
+
+Examples include: `code-quality`, `project-commit`, `refactor-python`, `refactor-shell`,
+`docs-diagrams`, `docs-improve`, `docs-readme`, `plan-manage`, `checkpoint`.
+
 ## Parallel Agent Orchestration
 
 All agents share the same orchestration script at `.claude/scripts/parallel_agent.sh`.
@@ -230,8 +295,8 @@ python3 -c "import yaml; yaml.safe_load(open('.claude/config/validation_criteria
 
 ## Plan Management
 
-Implementation plans are tracked in `.claude/.plans/` (symlinked at `.cursor/.plans/` and
-`.gemini/.plans/`) as date-prefixed markdown files (`YYYYMMDD-description.md`).
+Implementation plans are tracked in `.claude/.plans/` (symlinked at `.cursor/.plans/`,
+`.gemini/.plans/`, and `.codex/.plans/`) as date-prefixed markdown files (`YYYYMMDD-description.md`).
 
 Lifecycle: `CREATE -> ACTIVE -> COMPLETED (.archive/) or ABANDONED (.abandoned/)`
 

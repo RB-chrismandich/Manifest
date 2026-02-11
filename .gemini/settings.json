@@ -1,1 +1,16 @@
-{}
+{
+  "mcpServers": {
+    "sentry": {
+      "url": "https://mcp.sentry.dev/mcp",
+      "type": "http"
+    },
+    "context7": {
+      "url": "https://mcp.context7.com/mcp/oauth",
+      "type": "http"
+    },
+    "linear": {
+      "url": "https://mcp.linear.app/mcp",
+      "type": "http"
+    }
+  }
+}
