@@ -19,9 +19,9 @@ session when working in this repo.
 
 ```text
 configs/                  # Deployment source configs (deployed to ~/ via bootstrap.sh)
-  claude/                 # → ~/.claude/  (CLAUDE.md, commands/, skills/, config/, scripts/)
+  claude/                 # → ~/.claude/  (CLAUDE.md, skills/, config/, scripts/)
   cursor/                 # → ~/.cursor/  (rules/, mcp.json + symlinks to claude/)
-  gemini/                 # → ~/.gemini/  (GEMINI.md, commands/, settings.json + symlinks)
+  gemini/                 # → ~/.gemini/  (GEMINI.md, settings.json + symlinks to claude/)
   codex/                  # → ~/.codex/   (AGENTS.md symlink + symlinks to claude/)
 
 .claude/                  # Repo-specific only (this file + settings.local.json)
@@ -64,8 +64,7 @@ python3 -c "import yaml; yaml.safe_load(open('configs/claude/config/command_conf
 | What | Path |
 |------|------|
 | Orchestration guide | `configs/claude/CLAUDE.md` |
-| Slash commands | `configs/claude/commands/` |
-| Skills | `configs/claude/skills/` |
+| Skills (slash commands) | `configs/claude/skills/` |
 | Scripts | `configs/claude/scripts/` |
 | Config files | `configs/claude/config/` |
 | Cursor rules | `configs/cursor/rules/` |

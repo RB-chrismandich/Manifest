@@ -14,7 +14,7 @@
 3. [Git Platform Detection & Operations](#git-platform-detection--operations)
 4. [Bootstrap Installation Flow](#bootstrap-installation-flow)
 5. [Parallel Agent Execution Flow](#parallel-agent-execution-flow)
-6. [Command Processing Architecture](#command-processing-architecture)
+6. [Skill Processing Architecture](#skill-processing-architecture)
 7. [Validation Pipeline](#validation-pipeline)
 8. [Model Selection & Credit Fallback](#model-selection--credit-fallback)
 9. [Configuration Layer](#configuration-layer)
@@ -523,9 +523,9 @@ Consensus Score = (Agreements / Total_Findings) * 100
 
 ---
 
-## Command Processing Architecture
+## Skill Processing Architecture
 
-How slash commands are processed from user input to execution with parallel agent integration.
+How slash commands (skills) are processed from user input to execution with parallel agent integration.
 
 ```mermaid
 %%{init: {'theme':'neutral'}}%%
@@ -535,11 +535,11 @@ flowchart LR
     classDef decision fill:#fef3c7,stroke:#d97706,color:#78350f
     classDef external fill:#3b82f6,stroke:#1d4ed8,color:#fff
 
-    USER["User: /command args"]:::input
+    USER["User: /skill-name args"]:::input
 
-    subgraph "Command Layer"
-        PARSE["Parse Command & Args"]:::process
-        LOAD_CMD["Load Command Definition<br/>(.md / .mdc / .toml)"]:::process
+    subgraph "Skill Layer"
+        PARSE["Parse Skill & Args"]:::process
+        LOAD_CMD["Load Skill Definition<br/>(SKILL.md)"]:::process
     end
 
     subgraph "Preflight Analysis"

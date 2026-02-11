@@ -21,6 +21,22 @@ This document defines how Claude should leverage parallel LLM agents
   stack traces, issue triage, and release regression analysis.
 - Use **Linear MCP** by default for issue requirements, acceptance criteria,
   project context, and implementation planning.
+- Use **Semgrep CLI** (`semgrep ci` or `semgrep scan`) for local SAST scanning,
+  vulnerability detection, and secrets checks during code review and refactoring.
+  Install: `brew install semgrep` or `pip install semgrep`.
+- Use **DeepWiki MCP** by default for understanding unfamiliar repositories,
+  dependency internals, and upstream API contracts.
+- Use **Glean MCP** by default for internal team knowledge, runbooks, ADRs,
+  and company-specific documentation.
+- Use **Google Dev Docs MCP** for official Google platform documentation
+  (Firebase, Cloud, Android, Maps) when working with Google services.
+- Use **Atlassian MCP** for Jira issues, Confluence pages, and Compass
+  components when the project uses Atlassian tools.
+- Use **Apify MCP** for web scraping, data extraction, and crawling tasks
+  that require fetching structured data from external websites.
+- Use **OpenTofu MCP** for OpenTofu/Terraform registry lookups, provider and
+  module documentation, resource and datasource reference when working with
+  Infrastructure as Code.
 
 ```bash
 # Basic code review with JSON output (all 3 agents, 10 min timeout)
@@ -434,12 +450,12 @@ Claude (Orchestrator):
 
 ---
 
-## Native Commands
+## Skills
 
-Claude Code native commands are available in `~/.claude/commands/`.
+Claude Code skills are available in `~/.claude/skills/`.
 These integrate with the parallel agent orchestration framework.
 
-### Available Commands
+### Available Skills
 
 | Command | Description | Parallel Agents |
 |---------|-------------|-----------------|
@@ -601,19 +617,6 @@ All arguments are passed through to the underlying CLI tool (`gh` or `glab`).
 ```text
 ~/.claude/
 ├── CLAUDE.md                        # This orchestration guide
-├── commands/                        # User-invoked slash commands (12)
-│   ├── checkpoint.md
-│   ├── docs-diagrams.md
-│   ├── docs-improve.md
-│   ├── docs-readme.md
-│   ├── health-check.md
-│   ├── issue-prioritize.md
-│   ├── issue-triage.md
-│   ├── plan-manage.md
-│   ├── project-commit.md
-│   ├── refactor-python.md
-│   ├── refactor-shell.md
-│   └── sync-configs.md
 ├── skills/                          # Canonical skill library (13)
 │   ├── checkpoint/SKILL.md
 │   ├── code-quality/SKILL.md       # Auto-triggered quality/security

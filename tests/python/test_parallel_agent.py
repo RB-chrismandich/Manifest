@@ -21,8 +21,10 @@ from pathlib import Path
 
 import pytest
 
-# Add the scripts directory to path so we can import the module
-SCRIPTS_DIR = str(Path(__file__).resolve().parent.parent.parent / ".claude" / "scripts")
+# Add the scripts directory to path so we can import the module.
+# In the repo the source lives at configs/claude/scripts/, not .claude/scripts/.
+REPO_ROOT = Path(__file__).resolve().parent.parent.parent
+SCRIPTS_DIR = str(REPO_ROOT / "configs" / "claude" / "scripts")
 sys.path.insert(0, SCRIPTS_DIR)
 
 from parallel_agent import (  # noqa: E402
