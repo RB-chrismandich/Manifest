@@ -103,7 +103,7 @@ Tables are regenerated on each run. Previous values are overwritten with current
 
 - **Agent output logs**: `~/.claude/.agent_outputs/`
 - **Knowledge base**: [KNOWLEDGE_BASE.md](KNOWLEDGE_BASE.md)
-- **Knowledge base config**: [`.claude/config/knowledge_base.yml`](../.claude/config/knowledge_base.yml)
-- **Validation criteria**: [`.claude/config/validation_criteria.yml`](../.claude/config/validation_criteria.yml)
-- **Command config**: [`.claude/config/command_config.yml`](../.claude/config/command_config.yml)
-- **Dashboard skill**: [`.claude/skills/dashboard/SKILL.md`](../.claude/skills/dashboard/SKILL.md)
+- **Knowledge base config**: [`configs/claude/config/knowledge_base.yml`](../configs/claude/config/knowledge_base.yml)
+- **Validation criteria**: [`configs/claude/config/validation_criteria.yml`](../configs/claude/config/validation_criteria.yml)
+- **Command config**: [`configs/claude/config/command_config.yml`](../configs/claude/config/command_config.yml)
+- **Dashboard skill**: [`configs/claude/skills/dashboard/SKILL.md`](../configs/claude/skills/dashboard/SKILL.md)

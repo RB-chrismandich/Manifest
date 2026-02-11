@@ -1,0 +1,50 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(~/.claude/scripts/parallel_agent.sh:*)",
+      "Bash(~/.claude/scripts/git_ops.sh:*)",
+      "Bash(~/.claude/scripts/label_sync.sh:*)",
+      "Bash(~/.claude/scripts/linear_ops.sh:*)",
+      "Bash(shellcheck:*)",
+      "Bash(python3:*)",
+      "Bash(pip3 install:*)",
+      "Bash(pre-commit run:*)",
+      "Bash(chmod:*)",
+      "Bash(ls:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git mv:*)",
+      "Bash(grep:*)",
+      "Bash(wc:*)",
+      "Bash(gh issue:*)",
+      "Bash(gh pr:*)",
+      "Bash(gh api:*)",
+      "Bash(glab issue:*)",
+      "WebSearch",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:gist.github.com)",
+      "WebFetch(domain:docs.github.com)"
+    ]
+  },
+  "mcpServers": {
+    "sentry": {
+      "url": "https://mcp.sentry.dev/mcp"
+    },
+    "context7": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "mcp-remote",
+        "https://mcp.context7.com/mcp/oauth"
+      ]
+    },
+    "linear": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "mcp-remote",
+        "https://mcp.linear.app/mcp"
+      ]
+    }
+  }
+}

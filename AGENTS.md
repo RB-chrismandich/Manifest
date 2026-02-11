@@ -32,34 +32,46 @@ commands/rules, skills, prompts, and scripts that enable parallel LLM agent coor
 ## Repository Structure
 
 ```text
-.claude/                             # Primary configuration (Claude Code)
-├── CLAUDE.md                        # Orchestration guide (deployed to ~/.claude/)
-├── commands/                        # Claude Code slash commands
-├── skills/                          # Canonical shared skill library (source of truth)
-├── prompts/                         # Agent orchestration prompt templates
-├── config/                          # YAML configuration files
-│   └── mcp_servers.yml              # Default MCP server registry (OAuth-capable)
-├── .plans/                          # Plan management (template, archive, abandoned)
-└── scripts/parallel_agent.sh        # Main parallel agent orchestration script
+configs/                             # Deployment source configs (deployed to ~/ via bootstrap.sh)
+├── claude/                          # → ~/.claude/ (primary configuration)
+│   ├── CLAUDE.md                    # Orchestration guide
+│   ├── commands/                    # Claude Code slash commands
+│   ├── skills/                      # Canonical shared skill library (source of truth)
+│   ├── prompts/                     # Agent orchestration prompt templates
+│   ├── config/                      # YAML configuration files
+│   │   └── mcp_servers.yml          # Default MCP server registry (OAuth-capable)
+│   ├── .plans/                      # Plan management (template, archive, abandoned)
+│   ├── settings.local.json          # Default permissions and MCP server config
+│   └── scripts/parallel_agent.sh    # Main parallel agent orchestration script
+├── cursor/                          # → ~/.cursor/ (Cursor IDE configuration)
+│   ├── rules/                       # Cursor rules (.mdc) — auto-generated from SKILL.md
+│   ├── mcp.json                     # Cursor MCP server defaults
+│   ├── scripts -> ../claude/scripts # Symlink to shared scripts
+│   ├── config -> ../claude/config   # Symlink to shared configs
+│   ├── prompts -> ../claude/prompts # Symlink to shared prompts
+│   ├── skills -> ../claude/skills   # Shared skills symlink
+│   └── .plans -> ../claude/.plans   # Symlink to shared plans
+├── gemini/                          # → ~/.gemini/ (Gemini CLI configuration)
+│   ├── GEMINI.md                    # Orchestration guide for Gemini CLI
+│   ├── commands/                    # TOML slash commands
+│   ├── settings.json                # Gemini settings (includes MCP server defaults)
+│   ├── scripts -> ../claude/scripts # Symlink to shared scripts
+│   ├── config -> ../claude/config   # Symlink to shared configs
+│   ├── prompts -> ../claude/prompts # Symlink to shared prompts
+│   ├── skills -> ../claude/skills   # Shared skills symlink
+│   └── .plans -> ../claude/.plans   # Symlink to shared plans
+└── codex/                           # → ~/.codex/ (Codex CLI configuration)
+    ├── AGENTS.md -> ../../AGENTS.md # Codex guide (repo-level instructions)
+    ├── commands -> ../claude/commands # Command-style wrappers
+    ├── scripts -> ../claude/scripts # Symlink to shared scripts
+    ├── config -> ../claude/config   # Symlink to shared configs
+    ├── prompts -> ../claude/prompts # Symlink to shared prompts
+    ├── skills -> ../claude/skills   # Shared skills symlink
+    └── .plans -> ../claude/.plans   # Symlink to shared plans
 
-.cursor/                             # Cursor IDE configuration (mirrors .claude/)
-├── rules/                           # Cursor rules (.mdc) — auto-generated from SKILL.md (25+)
-├── mcp.json                         # Cursor MCP server defaults
-├── scripts -> ../.claude/scripts/   # Symlink to shared scripts
-├── config -> ../.claude/config/     # Symlink to shared configs
-├── prompts -> ../.claude/prompts/   # Symlink to shared prompts
-├── skills -> ../.claude/skills      # Shared skills symlink (single source of truth)
-└── .plans -> ../.claude/.plans/     # Symlink to shared plans
-
-.gemini/                             # Gemini CLI configuration (mirrors .claude/)
-├── GEMINI.md                        # Orchestration guide for Gemini CLI
-├── commands/                        # TOML slash commands (23)
-├── settings.json                    # Gemini settings (includes MCP server defaults)
-├── skills -> ../.claude/skills      # Shared skills symlink (single source of truth)
-├── scripts -> ../.claude/scripts/   # Symlink to shared scripts
-├── config -> ../.claude/config/     # Symlink to shared configs
-├── prompts -> ../.claude/prompts/   # Symlink to shared prompts
-└── .plans -> ../.claude/.plans/     # Symlink to shared plans
+.claude/                             # Repo-specific config (minimal — does NOT override sessions)
+├── CLAUDE.md                        # Developer guide for working in this repo
+└── settings.local.json              # Repo-relevant permissions only
 
 templates/                           # Project scaffolding templates
 ├── scaffold/
@@ -67,15 +79,6 @@ templates/                           # Project scaffolding templates
 │   ├── go/                          # go.mod, Makefile, .golangci.yml
 │   ├── node/                        # package.json, tsconfig.json, eslint.config.js
 │   └── terraform/                   # main.tf, versions.tf, .tflint.hcl
-
-.codex/                              # Codex CLI configuration (mirrors .claude/)
-├── AGENTS.md -> ../AGENTS.md        # Codex guide (repo-level instructions)
-├── commands -> ../.claude/commands  # Command-style wrappers (shared with Claude)
-├── skills -> ../.claude/skills      # Shared skills symlink (single source of truth)
-├── scripts -> ../.claude/scripts/   # Symlink to shared scripts
-├── config -> ../.claude/config/     # Symlink to shared configs
-├── prompts -> ../.claude/prompts/   # Symlink to shared prompts
-└── .plans -> ../.claude/.plans/     # Symlink to shared plans
 
 bootstrap.sh                         # macOS/Linux bootstrap script
 bootstrap/                           # Modular bootstrap libraries + hookable modules
@@ -137,14 +140,14 @@ If not using bootstrap.sh, copy the configuration directories manually:
 
 ```bash
 # Deploy Claude Code configuration
-cp -r .claude/* ~/.claude/
+cp -r configs/claude/* ~/.claude/
+cp -r configs/claude/.[!.]* ~/.claude/ 2>/dev/null || true
 chmod +x ~/.claude/scripts/*.sh
 
 # Deploy Cursor configuration (optional)
 mkdir -p ~/.cursor/rules
-cp .cursor/rules/*.mdc ~/.cursor/rules/
-cp .cursor/mcp.json ~/.cursor/mcp.json
-# Recreate symlinks for shared assets
+cp configs/cursor/rules/*.mdc ~/.cursor/rules/
+cp configs/cursor/mcp.json ~/.cursor/mcp.json
 ln -sf ~/.claude/scripts ~/.cursor/scripts
 ln -sf ~/.claude/config ~/.cursor/config
 ln -sf ~/.claude/prompts ~/.cursor/prompts
@@ -153,9 +156,9 @@ ln -sf ~/.claude/skills ~/.cursor/skills
 
 # Deploy Gemini configuration (optional)
 mkdir -p ~/.gemini/commands
-cp .gemini/GEMINI.md ~/.gemini/
-cp .gemini/commands/*.toml ~/.gemini/commands/
-cp .gemini/settings.json ~/.gemini/settings.json
+cp configs/gemini/GEMINI.md ~/.gemini/
+cp configs/gemini/commands/*.toml ~/.gemini/commands/
+cp configs/gemini/settings.json ~/.gemini/settings.json
 ln -sf ~/.claude/scripts ~/.gemini/scripts
 ln -sf ~/.claude/config ~/.gemini/config
 ln -sf ~/.claude/prompts ~/.gemini/prompts
@@ -183,14 +186,14 @@ Required CLI tools (install those you want to use):
 
 | File | Purpose |
 |------|---------|
-| `.claude/CLAUDE.md` | Main orchestration guide for Claude Code |
-| `.cursor/rules/orchestration.mdc` | Main orchestration guide for Cursor (always-on rule) |
-| `.gemini/GEMINI.md` | Main orchestration guide for Gemini CLI |
-| `.codex/AGENTS.md` | Main orchestration guide for Codex CLI |
-| `.codex/commands/` | Codex command-style wrappers (shared with Claude command files) |
-| `.claude/scripts/parallel_agent.sh` | Bash script that runs agents in parallel with consensus scoring |
-| `.claude/config/command_config.yml` | Thresholds, tool policies, model selection, error recovery |
-| `.claude/config/validation_criteria.yml` | Tier 1 (critical) and Tier 2 (quality) validation rules |
+| `configs/claude/CLAUDE.md` | Main orchestration guide for Claude Code |
+| `configs/cursor/rules/orchestration.mdc` | Main orchestration guide for Cursor (always-on rule) |
+| `configs/gemini/GEMINI.md` | Main orchestration guide for Gemini CLI |
+| `configs/codex/AGENTS.md` | Main orchestration guide for Codex CLI |
+| `configs/codex/commands/` | Codex command-style wrappers (shared with Claude command files) |
+| `configs/claude/scripts/parallel_agent.sh` | Bash script that runs agents in parallel with consensus scoring |
+| `configs/claude/config/command_config.yml` | Thresholds, tool policies, model selection, error recovery |
+| `configs/claude/config/validation_criteria.yml` | Tier 1 (critical) and Tier 2 (quality) validation rules |
 
 ## Available Commands / Rules
 
@@ -284,7 +287,7 @@ All Cursor rules are auto-generated from SKILL.md files using `generate_cursor_r
 
 ### Shared Skills
 
-Shared skills are canonical in `.claude/skills/` and symlinked to:
+Shared skills are canonical in `configs/claude/skills/` and symlinked to:
 
 - `~/.cursor/skills`
 - `~/.gemini/skills`
@@ -298,7 +301,7 @@ Current skills: `code-quality`, `project-commit`, `refactor-python`, `refactor-g
 
 ## Parallel Agent Orchestration
 
-All agents share the same orchestration script at `.claude/scripts/parallel_agent.sh`.
+All agents share the same orchestration script at `configs/claude/scripts/parallel_agent.sh`.
 
 ```bash
 # Basic code review (all 3 agents)
@@ -325,20 +328,20 @@ All agents share the same orchestration script at `.claude/scripts/parallel_agen
 
 ```bash
 # Test parallel agent script
-.claude/scripts/parallel_agent.sh --json "Test prompt"
+configs/claude/scripts/parallel_agent.sh --json "Test prompt"
 
 # Test specific mode
-.claude/scripts/parallel_agent.sh --json --review /path/to/file
+configs/claude/scripts/parallel_agent.sh --json --review /path/to/file
 
 # Validate YAML configs
-python3 -c "import yaml; yaml.safe_load(open('.claude/config/command_config.yml'))"
-python3 -c "import yaml; yaml.safe_load(open('.claude/config/validation_criteria.yml'))"
+python3 -c "import yaml; yaml.safe_load(open('configs/claude/config/command_config.yml'))"
+python3 -c "import yaml; yaml.safe_load(open('configs/claude/config/validation_criteria.yml'))"
 ```
 
 ## Plan Management
 
-Implementation plans are tracked in `.claude/.plans/` (symlinked at `.cursor/.plans/`,
-`.gemini/.plans/`, and `.codex/.plans/`) as date-prefixed markdown files (`YYYYMMDD-description.md`).
+Implementation plans are tracked in `configs/claude/.plans/` (symlinked at `configs/cursor/.plans/`,
+`configs/gemini/.plans/`, and `configs/codex/.plans/`) as date-prefixed markdown files (`YYYYMMDD-description.md`).
 
 Lifecycle: `CREATE -> ACTIVE -> COMPLETED (.archive/) or ABANDONED (.abandoned/)`
 
@@ -346,21 +349,21 @@ Lifecycle: `CREATE -> ACTIVE -> COMPLETED (.archive/) or ABANDONED (.abandoned/)
 
 ### Adding a Claude Code Command
 
-1. Create a markdown file in `.claude/commands/` (e.g., `my-command.md`)
-2. Add tool policies to `.claude/config/command_config.yml`
-3. Invoke as `/my-command` in Claude Code
+1. Create a markdown file in `configs/claude/commands/` (e.g., `my-command.md`)
+2. Add tool policies to `configs/claude/config/command_config.yml`
+3. Invoke as `/my-command` in Claude Code (after deploying via bootstrap)
 
 ### Adding a Cursor Rule
 
-1. Create an `.mdc` file in `.cursor/rules/` (e.g., `my-rule.mdc`)
+1. Create an `.mdc` file in `configs/cursor/rules/` (e.g., `my-rule.mdc`)
 2. Add YAML frontmatter with `description`, `globs`, and `alwaysApply`
-3. Rule auto-attaches when files matching `globs` are referenced
+3. Rule auto-attaches when files matching `globs` are referenced (after deploying)
 
 ### Adding a Gemini CLI Command
 
-1. Create a `.toml` file in `.gemini/commands/` (e.g., `my-command.toml`)
+1. Create a `.toml` file in `configs/gemini/commands/` (e.g., `my-command.toml`)
 2. Add `description` and `prompt` fields (TOML format)
-3. Invoke as `/my-command` in Gemini CLI
+3. Invoke as `/my-command` in Gemini CLI (after deploying)
 
 ---
 
@@ -372,4 +375,4 @@ Lifecycle: `CREATE -> ACTIVE -> COMPLETED (.archive/) or ABANDONED (.abandoned/)
 - [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md) - First-time setup walkthrough
 - [docs/CONFIGURATION.md](docs/CONFIGURATION.md) - Complete configuration reference
 - [docs/ARCHITECTURE_DIAGRAMS.md](docs/ARCHITECTURE_DIAGRAMS.md) - Visual system documentation
-- [.claude/.plans/README.md](.claude/.plans/README.md) - Plan management quick reference
+- [configs/claude/.plans/README.md](configs/claude/.plans/README.md) - Plan management quick reference

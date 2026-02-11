@@ -1,11 +1,11 @@
 #!/usr/bin/env bats
-# Tests for .claude/scripts/git_platform.sh
+# Tests for configs/claude/scripts/git_platform.sh
 # Platform detection from remote URL, env var override, fallback behavior
 
 load '../test_helper/bats-support/load'
 load '../test_helper/bats-assert/load'
 
-SCRIPT_UNDER_TEST="$BATS_TEST_DIRNAME/../../.claude/scripts/git_platform.sh"
+SCRIPT_UNDER_TEST="$BATS_TEST_DIRNAME/../../configs/claude/scripts/git_platform.sh"
 
 setup() {
     # Create a temporary directory for each test

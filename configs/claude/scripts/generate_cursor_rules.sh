@@ -6,9 +6,9 @@
 
 set -euo pipefail
 
-REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-SKILLS_DIR="$REPO_ROOT/.claude/skills"
-RULES_DIR="$REPO_ROOT/.cursor/rules"
+REPO_ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
+SKILLS_DIR="$REPO_ROOT/configs/claude/skills"
+RULES_DIR="$REPO_ROOT/configs/cursor/rules"
 
 DRY_RUN=false
 VERBOSE=false
@@ -19,7 +19,7 @@ for arg in "$@"; do
         --verbose) VERBOSE=true ;;
         -h | --help)
             echo "Usage: $(basename "$0") [--dry-run] [--verbose]"
-            echo "Regenerate .cursor/rules/*.mdc from .claude/skills/*/SKILL.md"
+            echo "Regenerate configs/cursor/rules/*.mdc from configs/claude/skills/*/SKILL.md"
             exit 0
             ;;
     esac
