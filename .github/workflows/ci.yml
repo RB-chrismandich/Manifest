@@ -45,7 +45,7 @@ jobs:
       # --- markdownlint ---
 
       - name: markdownlint - key docs
-        uses: DavidAnson/markdownlint-cli2-action@v19
+        uses: DavidAnson/markdownlint-cli2-action@v22
         with:
           globs: |
             AGENTS.md
