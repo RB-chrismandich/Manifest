@@ -56,7 +56,7 @@ jobs:
       # --- YAML validation with Python ---
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.12"
 
@@ -99,7 +99,7 @@ jobs:
       # --- Python tests ---
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.12"
 
