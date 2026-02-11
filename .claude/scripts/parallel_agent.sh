@@ -1,6 +1,6 @@
 #!/bin/bash
 # Parallel Agent Orchestration Script
-# Uses Cursor Agent, Gemini CLI, and Claude CLI in parallel
+# Uses Cursor Agent, Gemini CLI, Claude CLI, and Codex CLI in parallel
 #
 # Usage:
 #   ./scripts/parallel_agent.sh "Your task description"
@@ -15,27 +15,39 @@ umask 0077
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 
-# Detect if running in a sandboxed environment (e.g., Task subagent)
-# Try to use ~/.claude/.agent_outputs, fallback to /tmp if not writable
-DEFAULT_OUTPUT_DIR="$PROJECT_ROOT/.agent_outputs"
-if mkdir -p "$DEFAULT_OUTPUT_DIR" 2> /dev/null && [ -w "$DEFAULT_OUTPUT_DIR" ]; then
+# Manifest state directories
+MANIFEST_STATE_ROOT="${MANIFEST_STATE_ROOT:-$HOME/.manifest}"
+ORCHESTRATION_STATE_DIR="${ORCHESTRATION_STATE_DIR:-$MANIFEST_STATE_ROOT/orchestration}"
+MANIFEST_TMP_DIR="${MANIFEST_TMP_DIR:-$MANIFEST_STATE_ROOT/tmp}"
+CURSOR_STATE_DIR="${CURSOR_STATE_DIR:-$MANIFEST_STATE_ROOT/cursor}"
+GEMINI_STATE_DIR="${GEMINI_STATE_DIR:-$MANIFEST_STATE_ROOT/gemini}"
+CLAUDE_STATE_DIR="${CLAUDE_STATE_DIR:-$MANIFEST_STATE_ROOT/claude}"
+CODEX_STATE_DIR="${CODEX_STATE_DIR:-${CODEX_HOME:-$MANIFEST_STATE_ROOT/codex}}"
+DEFAULT_OUTPUT_DIR="$ORCHESTRATION_STATE_DIR/outputs"
+STATE_PATH_FALLBACK=false
+STATE_PATH_FALLBACK_REASON=""
+
+# Prefer ~/.manifest state paths. Fallback to project-local output dir if unavailable.
+if mkdir -p "$DEFAULT_OUTPUT_DIR" "$MANIFEST_TMP_DIR" "$CURSOR_STATE_DIR" "$GEMINI_STATE_DIR" "$CLAUDE_STATE_DIR" "$CODEX_STATE_DIR" 2> /dev/null &&
+    [[ -w "$DEFAULT_OUTPUT_DIR" && -w "$MANIFEST_TMP_DIR" ]]; then
     OUTPUT_DIR="$DEFAULT_OUTPUT_DIR"
 else
-    # Fallback to /tmp if ~/.claude/.agent_outputs is not writable
-    # Use mktemp to prevent symlink attacks (CWE-377)
-    if command -v mktemp &> /dev/null; then
-        # Try Linux/GNU style (template argument)
-        OUTPUT_DIR=$(mktemp -d "/tmp/claude_agent_outputs.XXXXXX" 2>/dev/null) || \
-        # Try macOS/BSD style (-t prefix)
-        OUTPUT_DIR=$(mktemp -d -t claude_agent_outputs 2>/dev/null)
-    fi
+    OUTPUT_DIR="$PROJECT_ROOT/.agent_outputs"
+    mkdir -p "$OUTPUT_DIR" 2> /dev/null || true
+    STATE_PATH_FALLBACK=true
+    STATE_PATH_FALLBACK_REASON="~/.manifest state path is not writable"
+fi
 
-    # Final fallback if mktemp fails or is missing
-    if [[ -z "$OUTPUT_DIR" ]]; then
-        OUTPUT_DIR="/tmp/.claude_agent_outputs_$RANDOM$RANDOM"
+# Route temp files/directories to ~/.manifest/tmp when possible.
+# If state root is unavailable, keep temp artifacts under the fallback output dir.
+if [[ "$STATE_PATH_FALLBACK" == false && -d "$MANIFEST_TMP_DIR" && -w "$MANIFEST_TMP_DIR" ]]; then
+    export TMPDIR="$MANIFEST_TMP_DIR"
+else
+    TMP_FALLBACK_DIR="$OUTPUT_DIR/tmp"
+    mkdir -p "$TMP_FALLBACK_DIR" 2> /dev/null || true
+    if [[ -d "$TMP_FALLBACK_DIR" && -w "$TMP_FALLBACK_DIR" ]]; then
+        export TMPDIR="$TMP_FALLBACK_DIR"
     fi
-
-    echo "Warning: Using fallback output directory: $OUTPUT_DIR" >&2
 fi
 
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
@@ -72,7 +84,6 @@ NC='\033[0m' # No Color
 
 # Global array to track background process IDs
 pids=()
-SLEEP_PROC_PID=""
 
 # Cleanup function to restore cursor and kill background processes
 cleanup() {
@@ -90,11 +101,6 @@ cleanup() {
                 kill "$pid" 2> /dev/null || true
             fi
         done
-    fi
-
-    # Kill sleep background process if it exists
-    if [[ -n "$SLEEP_PROC_PID" ]]; then
-        kill "$SLEEP_PROC_PID" 2> /dev/null || true
     fi
 
     exit "$exit_code"
@@ -131,37 +137,6 @@ format_duration() {
     fi
 }
 
-# Default sleep function (fallback)
-sleep_fractional() {
-    sleep "$1"
-}
-
-# Optimize sleep using builtin read -t if supported
-setup_sleep_optimization() {
-    # Bash 4+ supports coproc and fractional read timeout
-    if [[ "${BASH_VERSINFO[0]}" -ge 4 ]]; then
-        # Start a background sleep process that keeps a pipe open
-        # We read from its output FD, which blocks until timeout because no input is sent
-        coproc SLEEP_PROC { sleep 86400; }
-
-        # Save PID for cleanup
-        SLEEP_PROC_PID="$SLEEP_PROC_PID"
-
-        # Define optimized sleep function using the coproc output FD
-        # read -t with fractional seconds is a builtin in Bash 4+
-        local fd="${SLEEP_PROC[0]}"
-        eval "
-        sleep_fractional() {
-            read -t \"\$1\" -u $fd 2>/dev/null || true
-        }
-        "
-    fi
-}
-
-# Create output directory
-mkdir -p "$OUTPUT_DIR"
-chmod 700 "$OUTPUT_DIR" 2> /dev/null || true
-
 usage() {
     echo "Parallel Agent Orchestration"
     echo ""
@@ -176,12 +151,15 @@ usage() {
     echo "  --cursor-only                  Only run Cursor Agent"
     echo "  --gemini-only                  Only run Gemini CLI"
     echo "  --claude-only                  Only run Claude CLI"
+    echo "  --codex-only                   Only run Codex CLI"
     echo "  --no-claude                    Disable Claude CLI (enabled by default if available)"
+    echo "  --no-codex                     Disable Codex CLI (enabled by default if available)"
     echo ""
     echo "Model Selection:"
     echo "  --cursor-model <tier>          Cursor model: mini, flash, advanced, auto (default: auto)"
     echo "  --claude-model <tier>          Claude model: haiku, sonnet, opus (default: sonnet)"
     echo "  --gemini-model <tier>          Gemini model: flash, pro (default: flash)"
+    echo "  --codex-model <tier|model>     Codex model: mini, flash, advanced, auto, or explicit model name"
     echo ""
     echo "Options:"
     echo "  --output <dir>                 Custom output directory"
@@ -198,6 +176,14 @@ usage() {
     echo "  CURSOR_MODEL_ADVANCED          Model name for 'advanced' tier (default: gpt-5.2)"
     echo "  GEMINI_MODEL_FLASH             Model name for 'flash' tier (default: gemini-3-flash-preview)"
     echo "  GEMINI_MODEL_PRO               Model name for 'pro' tier (default: gemini-3-pro-preview)"
+    echo "  CODEX_MODEL_TIER               Codex model tier: mini, flash, advanced, auto (default: auto)"
+    echo "  CODEX_MODEL                    Codex model override (tier or explicit model; takes precedence)"
+    echo "  CODEX_MODEL_MINI               Model name for 'mini' tier (default: gpt-5.1-codex-mini)"
+    echo "  CODEX_MODEL_FLASH              Model name for 'flash' tier (default: gpt-5.1-codex)"
+    echo "  CODEX_MODEL_ADVANCED           Model name for 'advanced' tier (default: gpt-5.2)"
+    echo "  MANIFEST_STATE_ROOT            Root state directory (default: ~/.manifest)"
+    echo "  MANIFEST_TMP_DIR               Temp directory for orchestration (default: ~/.manifest/tmp)"
+    echo "  CODEX_HOME                     Codex state directory (default: ~/.manifest/codex)"
     echo "  CHECK_CREDITS_PREFLIGHT        Enable pre-flight credit check (default: false)"
     echo ""
     echo "Examples:"
@@ -205,12 +191,15 @@ usage() {
     echo "  $0 --analyze src/tuning/orchestrator.py"
     echo "  $0 --cursor-model advanced --claude-model opus --review critical_auth.py"
     echo "  $0 --claude-only --claude-model haiku 'Quick question'"
+    echo "  $0 --codex-only --codex-model advanced 'Review this file'"
+    echo "  $0 --codex-only --codex-model gpt-5.3-codex 'Review this file'"
 }
 
 # Default settings
 RUN_CURSOR=true
 RUN_GEMINI=true
 RUN_CLAUDE=true
+RUN_CODEX=true
 TIMEOUT=600 # 10 minutes - complex analyses need time
 
 # Service configuration file
@@ -232,33 +221,28 @@ load_services_config() {
         /^[[:space:]]*claude:/ { section="claude" }
         /^[[:space:]]*gemini:/ { section="gemini" }
         /^[[:space:]]*cursor:/ { section="cursor" }
+        /^[[:space:]]*codex:/ { section="codex" }
         /^[[:space:]]*enabled:[[:space:]]*true/ {
-            if (section == "claude") print "RUN_CLAUDE=true"
-            if (section == "gemini") print "RUN_GEMINI=true"
-            if (section == "cursor") print "RUN_CURSOR=true"
+            if (section == "claude") print "RUN_CLAUDE=true;"
+            if (section == "gemini") print "RUN_GEMINI=true;"
+            if (section == "cursor") print "RUN_CURSOR=true;"
+            if (section == "codex") print "RUN_CODEX=true;"
         }
         /^[[:space:]]*enabled:[[:space:]]*false/ {
-            if (section == "claude") print "RUN_CLAUDE=false"
-            if (section == "gemini") print "RUN_GEMINI=false"
-            if (section == "cursor") print "RUN_CURSOR=false"
+            if (section == "claude") print "RUN_CLAUDE=false;"
+            if (section == "gemini") print "RUN_GEMINI=false;"
+            if (section == "cursor") print "RUN_CURSOR=false;"
+            if (section == "codex") print "RUN_CODEX=false;"
         }
         /^[[:space:]]*minimum_agents:[[:space:]]*[0-9]+/ {
             if (match($0, /[0-9]+/)) {
-                print "MIN_AGENTS=" substr($0, RSTART, RLENGTH)
+                print "MIN_AGENTS=" substr($0, RSTART, RLENGTH) ";"
             }
         }
     ' "$SERVICES_CONFIG")
 
     if [[ -n "$config_settings" ]]; then
-        # Securely parse config settings without using eval
-        while IFS='=' read -r key value; do
-            case "$key" in
-                RUN_CLAUDE) RUN_CLAUDE="$value" ;;
-                RUN_GEMINI) RUN_GEMINI="$value" ;;
-                RUN_CURSOR) RUN_CURSOR="$value" ;;
-                MIN_AGENTS) MIN_AGENTS="$value" ;;
-            esac
-        done <<< "$config_settings"
+        eval "$config_settings"
     fi
 
     # Check minimum agents requirement
@@ -268,6 +252,7 @@ load_services_config() {
     [[ "$RUN_CLAUDE" == true ]] && enabled_count=$((enabled_count + 1))
     [[ "$RUN_GEMINI" == true ]] && enabled_count=$((enabled_count + 1))
     [[ "$RUN_CURSOR" == true ]] && enabled_count=$((enabled_count + 1))
+    [[ "$RUN_CODEX" == true ]] && enabled_count=$((enabled_count + 1))
 
     if [[ $enabled_count -lt $min_agents ]]; then
         echo -e "${YELLOW}Warning: Only $enabled_count services enabled (minimum: $min_agents)${NC}"
@@ -287,11 +272,13 @@ RETRY_COUNT=1
 RETRY_DELAY=5
 CONSENSUS_SCORE=0
 CROSS_VERIFY_RAN=false
+CUSTOM_OUTPUT_DIR=false
 
 # Validation results cache
 CURSOR_VAL_RESULT=-1
 GEMINI_VAL_RESULT=-1
 CLAUDE_VAL_RESULT=-1
+CODEX_VAL_RESULT=-1
 
 # Model selection defaults
 CURSOR_MODEL_TIER="auto"
@@ -300,10 +287,42 @@ CLAUDE_MODEL_TIER="sonnet"
 CLAUDE_MODEL=""
 GEMINI_MODEL_TIER="flash"
 GEMINI_MODEL=""
+CODEX_MODEL_SELECTION="${CODEX_MODEL:-${CODEX_MODEL_TIER:-auto}}"
+CODEX_MODEL_TIER="auto"
+CODEX_MODEL=""
+
+# Codex runtime prerequisites
+if [[ -n "${CODEX_HOME:-}" ]]; then
+    CODEX_HOME_DIR="$CODEX_HOME"
+elif [[ "$STATE_PATH_FALLBACK" == true ]]; then
+    CODEX_HOME_DIR="$OUTPUT_DIR/codex"
+else
+    CODEX_HOME_DIR="$CODEX_STATE_DIR"
+fi
+CODEX_SESSIONS_DIR="$CODEX_HOME_DIR/sessions"
+CODEX_RUNTIME_BLOCKED_REASON=""
+# Use ~/.manifest/codex by default so Codex session state is co-located with Manifest state.
+export CODEX_HOME="$CODEX_HOME_DIR"
+
+# Per-run file paths (initialized after argument parsing)
+CURSOR_OUTPUT_FILE=""
+CURSOR_STDERR_FILE=""
+GEMINI_OUTPUT_FILE=""
+GEMINI_PROMPT_FILE=""
+CLAUDE_OUTPUT_FILE=""
+CLAUDE_STDERR_FILE=""
+CLAUDE_PROMPT_FILE=""
+CODEX_OUTPUT_FILE=""
+CODEX_STDOUT_FILE=""
+CODEX_STDERR_FILE=""
+CODEX_LAST_MESSAGE_FILE=""
+SUMMARY_FILE=""
+JSON_FILE=""
 
 # Credit exhaustion tracking
 CURSOR_CREDIT_FALLBACK=false
 CLAUDE_CREDIT_FALLBACK=false
+CODEX_CREDIT_FALLBACK=false
 CHECK_CREDITS_PREFLIGHT="${CHECK_CREDITS_PREFLIGHT:-false}"
 
 # Model tier mappings (configurable via environment)
@@ -315,6 +334,11 @@ CURSOR_MODEL_ADVANCED="${CURSOR_MODEL_ADVANCED:-gpt-5.2}"
 # Gemini model tier mappings (Gemini 3 series now available)
 GEMINI_MODEL_FLASH="${GEMINI_MODEL_FLASH:-gemini-3-flash-preview}"
 GEMINI_MODEL_PRO="${GEMINI_MODEL_PRO:-gemini-3-pro-preview}"
+
+# Codex model tier mappings
+CODEX_MODEL_MINI="${CODEX_MODEL_MINI:-gpt-5.1-codex-mini}"
+CODEX_MODEL_FLASH="${CODEX_MODEL_FLASH:-gpt-5.1-codex}"
+CODEX_MODEL_ADVANCED="${CODEX_MODEL_ADVANCED:-gpt-5.2}"
 
 # Configurable directories for Gemini (colon-separated, like PATH)
 GEMINI_INCLUDE_DIRS="${GEMINI_INCLUDE_DIRS:-$(pwd):$HOME/.claude:$HOME/.gemini}"
@@ -369,22 +393,36 @@ while [[ $# -gt 0 ]]; do
             RUN_CURSOR=true
             RUN_GEMINI=false
             RUN_CLAUDE=false
+            RUN_CODEX=false
             shift
             ;;
         --gemini-only)
             RUN_CURSOR=false
             RUN_GEMINI=true
             RUN_CLAUDE=false
+            RUN_CODEX=false
             shift
             ;;
         --claude-only)
             RUN_CURSOR=false
             RUN_GEMINI=false
             RUN_CLAUDE=true
+            RUN_CODEX=false
+            shift
+            ;;
+        --codex-only)
+            RUN_CURSOR=false
+            RUN_GEMINI=false
+            RUN_CLAUDE=false
+            RUN_CODEX=true
             shift
             ;;
         --no-claude)
             RUN_CLAUDE=false
+            shift
+            ;;
+        --no-codex)
+            RUN_CODEX=false
             shift
             ;;
         --cursor-model)
@@ -411,8 +449,17 @@ while [[ $# -gt 0 ]]; do
             GEMINI_MODEL_TIER="$2"
             shift 2
             ;;
+        --codex-model)
+            if [[ -z "$2" || "$2" == --* ]]; then
+                echo -e "${RED}Error: --codex-model requires a tier/model (mini, flash, advanced, auto, or gpt-5.3-codex)${NC}"
+                exit 1
+            fi
+            CODEX_MODEL_SELECTION="$2"
+            shift 2
+            ;;
         --output)
             OUTPUT_DIR="$2"
+            CUSTOM_OUTPUT_DIR=true
             mkdir -p "$OUTPUT_DIR"
             shift 2
             ;;
@@ -446,6 +493,61 @@ while [[ $# -gt 0 ]]; do
             ;;
     esac
 done
+
+# Initialize output/temp paths for this run.
+initialize_output_paths() {
+    local cursor_output_dir="$CURSOR_STATE_DIR/outputs"
+    local gemini_output_dir="$GEMINI_STATE_DIR/outputs"
+    local claude_output_dir="$CLAUDE_STATE_DIR/outputs"
+    local codex_output_dir="$CODEX_STATE_DIR/outputs"
+    local cursor_tmp_dir="$CURSOR_STATE_DIR/tmp"
+    local gemini_tmp_dir="$GEMINI_STATE_DIR/tmp"
+    local claude_tmp_dir="$CLAUDE_STATE_DIR/tmp"
+    local codex_tmp_dir="$CODEX_STATE_DIR/tmp"
+
+    if [[ "$STATE_PATH_FALLBACK" == true || "$CUSTOM_OUTPUT_DIR" == true ]]; then
+        cursor_output_dir="$OUTPUT_DIR"
+        gemini_output_dir="$OUTPUT_DIR"
+        claude_output_dir="$OUTPUT_DIR"
+        codex_output_dir="$OUTPUT_DIR"
+    fi
+
+    if [[ "$STATE_PATH_FALLBACK" == true ]]; then
+        cursor_tmp_dir="$OUTPUT_DIR/tmp"
+        gemini_tmp_dir="$OUTPUT_DIR/tmp"
+        claude_tmp_dir="$OUTPUT_DIR/tmp"
+        codex_tmp_dir="$OUTPUT_DIR/tmp"
+    fi
+
+    mkdir -p "$OUTPUT_DIR" \
+        "$MANIFEST_TMP_DIR" \
+        "$cursor_output_dir" "$gemini_output_dir" "$claude_output_dir" "$codex_output_dir" \
+        "$cursor_tmp_dir" "$gemini_tmp_dir" "$claude_tmp_dir" "$codex_tmp_dir" \
+        2> /dev/null || true
+
+    chmod 700 "$OUTPUT_DIR" "$MANIFEST_TMP_DIR" \
+        "$cursor_output_dir" "$gemini_output_dir" "$claude_output_dir" "$codex_output_dir" \
+        "$cursor_tmp_dir" "$gemini_tmp_dir" "$claude_tmp_dir" "$codex_tmp_dir" \
+        2> /dev/null || true
+
+    CURSOR_OUTPUT_FILE="$cursor_output_dir/cursor_${TIMESTAMP}.txt"
+    CURSOR_STDERR_FILE="$cursor_output_dir/cursor_${TIMESTAMP}_stderr.txt"
+
+    GEMINI_OUTPUT_FILE="$gemini_output_dir/gemini_${TIMESTAMP}.txt"
+    GEMINI_PROMPT_FILE="$gemini_tmp_dir/gemini_prompt_${TIMESTAMP}.txt"
+
+    CLAUDE_OUTPUT_FILE="$claude_output_dir/claude_${TIMESTAMP}.txt"
+    CLAUDE_STDERR_FILE="$claude_output_dir/claude_${TIMESTAMP}_stderr.txt"
+    CLAUDE_PROMPT_FILE="$claude_tmp_dir/claude_prompt_${TIMESTAMP}.txt"
+
+    CODEX_OUTPUT_FILE="$codex_output_dir/codex_${TIMESTAMP}.txt"
+    CODEX_STDOUT_FILE="$codex_output_dir/codex_${TIMESTAMP}_stdout.txt"
+    CODEX_STDERR_FILE="$codex_output_dir/codex_${TIMESTAMP}_stderr.txt"
+    CODEX_LAST_MESSAGE_FILE="$codex_tmp_dir/codex_${TIMESTAMP}_last_message.txt"
+
+    SUMMARY_FILE="$OUTPUT_DIR/summary_${TIMESTAMP}.md"
+    JSON_FILE="$OUTPUT_DIR/results_${TIMESTAMP}.json"
+}
 
 # Resolve Cursor model tier to actual model name
 resolve_cursor_model() {
@@ -507,6 +609,61 @@ resolve_gemini_model() {
     esac
 }
 
+# Resolve Codex model tier to actual model name.
+# Unknown values are treated as explicit model names for backwards compatibility.
+resolve_codex_model() {
+    local selection="$1"
+    case "$selection" in
+        mini)
+            CODEX_MODEL="$CODEX_MODEL_MINI"
+            CODEX_MODEL_TIER="mini"
+            ;;
+        flash)
+            CODEX_MODEL="$CODEX_MODEL_FLASH"
+            CODEX_MODEL_TIER="flash"
+            ;;
+        advanced)
+            CODEX_MODEL="$CODEX_MODEL_ADVANCED"
+            CODEX_MODEL_TIER="advanced"
+            ;;
+        auto | default | "")
+            CODEX_MODEL=""
+            CODEX_MODEL_TIER="auto"
+            ;;
+        *)
+            CODEX_MODEL="$selection"
+            CODEX_MODEL_TIER="custom"
+            ;;
+    esac
+}
+
+# Codex requires writable session storage even in non-interactive exec mode.
+check_codex_runtime_access() {
+    local sessions_dir="$CODEX_SESSIONS_DIR"
+    local probe_file="$sessions_dir/.manifest_codex_probe_$$"
+
+    if [[ ! -d "$sessions_dir" ]]; then
+        if ! mkdir -p "$sessions_dir" 2> /dev/null; then
+            CODEX_RUNTIME_BLOCKED_REASON="Cannot create session directory: $sessions_dir"
+            return 1
+        fi
+    fi
+
+    if [[ ! -w "$sessions_dir" ]]; then
+        CODEX_RUNTIME_BLOCKED_REASON="Session directory is not writable: $sessions_dir"
+        return 1
+    fi
+
+    if ! : > "$probe_file" 2> /dev/null; then
+        CODEX_RUNTIME_BLOCKED_REASON="Unable to write session probe in: $sessions_dir"
+        return 1
+    fi
+
+    rm -f "$probe_file" 2> /dev/null || true
+    CODEX_RUNTIME_BLOCKED_REASON=""
+    return 0
+}
+
 # Validate agent availability before launch
 validate_agents() {
     local available=0
@@ -541,13 +698,28 @@ validate_agents() {
         fi
     fi
 
+    if [[ "$RUN_CODEX" == true ]]; then
+        if ! command -v codex &> /dev/null; then
+            echo -e "${YELLOW}Warning: codex CLI not found, disabling Codex agent${NC}"
+            echo "Install: https://github.com/openai/codex"
+            RUN_CODEX=false
+        elif ! check_codex_runtime_access; then
+            echo -e "${YELLOW}Warning: Codex runtime unavailable, disabling Codex agent${NC}"
+            echo -e "${YELLOW}Reason:${NC} $CODEX_RUNTIME_BLOCKED_REASON"
+            echo -e "${YELLOW}Fix:${NC} Ensure this path is writable: $CODEX_SESSIONS_DIR"
+            RUN_CODEX=false
+        else
+            available=$((available + 1))
+        fi
+    fi
+
     if [[ $available -eq 0 ]]; then
         echo -e "${RED}Error: No agents available${NC}"
         echo ""
         echo -e "${YELLOW}Possible fixes:${NC}"
-        echo -e "  1. Enable services: ${BOLD}./bootstrap.sh --reconfigure --enable-claude --enable-gemini${NC}"
+        echo -e "  1. Enable services: ${BOLD}./bootstrap.sh --reconfigure --enable-claude --enable-gemini --enable-codex${NC}"
         echo -e "  2. Check config:    ${BOLD}cat ~/.claude/config/services.yml${NC}"
-        echo -e "  3. Install CLIs:    ${BOLD}npm install -g @anthropic-ai/claude-code @google/gemini-cli${NC}"
+        echo -e "  3. Install CLIs:    ${BOLD}npm install -g @anthropic-ai/claude-code @google/gemini-cli @openai/codex${NC}"
         echo ""
         echo -e "${BLUE}Troubleshooting:${NC} https://github.com/ReefBytes/Manifest/blob/main/docs/TROUBLESHOOTING.md#all-agents-disabled"
         return 1
@@ -567,6 +739,7 @@ build_prompts() {
             CURSOR_PROMPT="Analyze this file for bugs, improvements, and security issues: $TARGET"
             GEMINI_PROMPT="Review $TARGET for code quality, potential bugs, and suggest improvements. Focus on: error handling, edge cases, performance."
             CLAUDE_PROMPT="Analyze this file for security vulnerabilities, bugs, and code quality issues. Provide specific line-by-line recommendations: $TARGET"
+            CODEX_PROMPT="Analyze this file for bugs, security issues, and maintainability concerns. Provide actionable recommendations: $TARGET"
             ;;
         review)
             if [[ ! -f "$TARGET" ]]; then
@@ -576,6 +749,7 @@ build_prompts() {
             CURSOR_PROMPT="Perform a detailed code review of $TARGET. Check for: bugs, security issues, performance problems, and code style."
             GEMINI_PROMPT="Code review $TARGET. Identify: potential bugs, security vulnerabilities, performance issues, and maintainability concerns."
             CLAUDE_PROMPT="Perform a comprehensive code review of $TARGET. Focus on security, correctness, performance, and maintainability. Provide actionable feedback."
+            CODEX_PROMPT="Perform a thorough code review of $TARGET focusing on correctness, security, and maintainability. Provide concrete fixes."
             ;;
         improve)
             if [[ ! -f "$TARGET" ]]; then
@@ -585,11 +759,13 @@ build_prompts() {
             CURSOR_PROMPT="Review this observation YAML and suggest improvements for detection coverage and false positive reduction: $TARGET"
             GEMINI_PROMPT="Analyze this security observation YAML. Suggest improvements for: detection logic, entity mappings, and MITRE coverage. File: $TARGET"
             CLAUDE_PROMPT="Review this security observation YAML and suggest improvements for detection accuracy, coverage, and false positive reduction: $TARGET"
+            CODEX_PROMPT="Review this security observation YAML and suggest specific improvements for coverage, precision, and maintainability: $TARGET"
             ;;
         prompt | *)
             CURSOR_PROMPT="$PROMPT"
             GEMINI_PROMPT="$PROMPT"
             CLAUDE_PROMPT="$PROMPT"
+            CODEX_PROMPT="$PROMPT"
             ;;
     esac
 }
@@ -662,8 +838,6 @@ check_credit_exhaustion() {
 # Run Cursor Agent with optional model selection
 run_cursor() {
     local prompt="$1"
-    local output_file="$OUTPUT_DIR/cursor_${TIMESTAMP}.txt"
-    local stderr_file="$OUTPUT_DIR/cursor_${TIMESTAMP}_stderr.txt"
     local model_args=()
 
     # Resolve model tier to actual model name
@@ -677,17 +851,17 @@ run_cursor() {
     fi
 
     # Run with stderr capture for credit detection
-    if ! run_with_retry_capture_stderr "Cursor Agent" "$output_file" "$stderr_file" \
+    if ! run_with_retry_capture_stderr "Cursor Agent" "$CURSOR_OUTPUT_FILE" "$CURSOR_STDERR_FILE" \
         cursor agent --print --workspace "$PROJECT_ROOT" "${model_args[@]}" -- "$prompt"; then
 
         # Check for credit exhaustion
-        if check_credit_exhaustion "$stderr_file" "Cursor"; then
+        if check_credit_exhaustion "$CURSOR_STDERR_FILE" "Cursor"; then
             echo -e "${YELLOW}[Cursor Agent]${NC} Credit exhaustion detected, retrying with auto mode..."
             CURSOR_CREDIT_FALLBACK=true
             CURSOR_MODEL=""
 
             # Retry without model specification
-            run_with_retry "Cursor Agent (fallback)" "$output_file" \
+            run_with_retry "Cursor Agent (fallback)" "$CURSOR_OUTPUT_FILE" \
                 cursor agent --print --workspace "$PROJECT_ROOT" -- "$prompt"
         fi
     fi
@@ -696,7 +870,6 @@ run_cursor() {
 # Run Gemini CLI with model selection
 run_gemini() {
     local prompt="$1"
-    local output_file="$OUTPUT_DIR/gemini_${TIMESTAMP}.txt"
     local include_args=()
 
     # Build include-directories arguments from colon-separated list
@@ -708,53 +881,118 @@ run_gemini() {
     done
 
     # Write prompt to temp file for reliable handling of special characters
-    local prompt_file="$OUTPUT_DIR/gemini_prompt_${TIMESTAMP}.txt"
-    printf '%s' "$prompt" > "$prompt_file"
+    printf '%s' "$prompt" > "$GEMINI_PROMPT_FILE"
 
     echo -e "${BLUE}[Gemini CLI]${NC} Starting with model: $GEMINI_MODEL..."
     # Gemini CLI: use -p flag for non-interactive (headless) mode.
     # Run from a temp directory to avoid loading project-level .gemini/ settings
     # (e.g., GEMINI.md orchestration guide) which can cause Gemini to
     # "investigate the environment" instead of answering the prompt.
-    run_with_retry "Gemini CLI" "$output_file" bash -c \
+    run_with_retry "Gemini CLI" "$GEMINI_OUTPUT_FILE" bash -c \
         'cd "$(mktemp -d)" && gemini --output-format text --model "$1" -p "" "${@:2}" < "$0"' \
-        "$prompt_file" "$GEMINI_MODEL" "${include_args[@]}"
+        "$GEMINI_PROMPT_FILE" "$GEMINI_MODEL" "${include_args[@]}"
 }
 
 # Run Claude CLI with model selection
 run_claude() {
     local prompt="$1"
-    local output_file="$OUTPUT_DIR/claude_${TIMESTAMP}.txt"
-    local stderr_file="$OUTPUT_DIR/claude_${TIMESTAMP}_stderr.txt"
 
     # Resolve model tier
     resolve_claude_model "$CLAUDE_MODEL_TIER"
 
     # Write prompt to temp file for reliable handling of special characters
-    local prompt_file="$OUTPUT_DIR/claude_prompt_${TIMESTAMP}.txt"
-    printf '%s' "$prompt" > "$prompt_file"
+    printf '%s' "$prompt" > "$CLAUDE_PROMPT_FILE"
 
     echo -e "${BLUE}[Claude CLI]${NC} Starting with model: $CLAUDE_MODEL..."
 
     # Claude CLI: use input redirection (saves cat process)
-    if ! run_with_retry_capture_stderr "Claude CLI" "$output_file" "$stderr_file" \
+    if ! run_with_retry_capture_stderr "Claude CLI" "$CLAUDE_OUTPUT_FILE" "$CLAUDE_STDERR_FILE" \
         bash -c 'claude --print --output-format text --model "$1" --append-system-prompt "$2" < "$0"' \
-        "$prompt_file" "$CLAUDE_MODEL" \
+        "$CLAUDE_PROMPT_FILE" "$CLAUDE_MODEL" \
         "You are a code analysis agent in a parallel orchestration system. Rules: Do NOT use emojis. Do NOT claim to have read files or performed actions you did not actually perform. Keep responses concise and technical. Report only findings from actual analysis of the provided content."; then
 
         # Check for credit exhaustion
-        if check_credit_exhaustion "$stderr_file" "Claude"; then
+        if check_credit_exhaustion "$CLAUDE_STDERR_FILE" "Claude"; then
             echo -e "${YELLOW}[Claude CLI]${NC} Credit exhaustion detected, retrying with haiku..."
             CLAUDE_CREDIT_FALLBACK=true
             CLAUDE_MODEL="haiku"
 
             # Retry with haiku (cheapest model)
-            run_with_retry "Claude CLI (fallback)" "$output_file" \
+            run_with_retry "Claude CLI (fallback)" "$CLAUDE_OUTPUT_FILE" \
                 bash -c 'claude --print --output-format text --model haiku --append-system-prompt "$1" < "$0"' \
-                "$prompt_file" \
+                "$CLAUDE_PROMPT_FILE" \
                 "You are a code analysis agent in a parallel orchestration system. Rules: Do NOT use emojis. Do NOT claim to have read files or performed actions you did not actually perform. Keep responses concise and technical. Report only findings from actual analysis of the provided content."
         fi
     fi
+}
+
+# Run Codex CLI with optional model override
+run_codex() {
+    local prompt="$1"
+    local model_args=()
+
+    if [[ -n "$CODEX_MODEL" ]]; then
+        model_args=("--model" "$CODEX_MODEL")
+        if [[ "$CODEX_MODEL_TIER" == "custom" ]]; then
+            echo -e "${BLUE}[Codex CLI]${NC} Starting with explicit model: $CODEX_MODEL..."
+        else
+            echo -e "${BLUE}[Codex CLI]${NC} Starting with tier '$CODEX_MODEL_TIER' -> $CODEX_MODEL..."
+        fi
+    else
+        echo -e "${BLUE}[Codex CLI]${NC} Starting with default model from Codex config (tier: auto)..."
+    fi
+
+    # Codex CLI: use exec mode and write final assistant response to an explicit file.
+    if run_with_retry_capture_stderr "Codex CLI" "$CODEX_STDOUT_FILE" "$CODEX_STDERR_FILE" \
+        codex --sandbox read-only --ask-for-approval never exec --color never \
+        --output-last-message "$CODEX_LAST_MESSAGE_FILE" "${model_args[@]}" "$prompt"; then
+
+        if [[ -s "$CODEX_LAST_MESSAGE_FILE" ]]; then
+            mv "$CODEX_LAST_MESSAGE_FILE" "$CODEX_OUTPUT_FILE"
+        elif [[ -s "$CODEX_STDOUT_FILE" ]]; then
+            mv "$CODEX_STDOUT_FILE" "$CODEX_OUTPUT_FILE"
+        else
+            echo "Codex completed with no output." > "$CODEX_OUTPUT_FILE"
+        fi
+        return 0
+    fi
+
+    # Retry once without explicit model if quota/model-specific limits are detected.
+    if check_credit_exhaustion "$CODEX_STDERR_FILE" "Codex" && [[ -n "$CODEX_MODEL" ]]; then
+        echo -e "${YELLOW}[Codex CLI]${NC} Credit exhaustion detected, retrying with default model..."
+        CODEX_CREDIT_FALLBACK=true
+        CODEX_MODEL=""
+        CODEX_MODEL_TIER="auto"
+        CODEX_MODEL_SELECTION="auto"
+
+        if run_with_retry_capture_stderr "Codex CLI (fallback)" "$CODEX_STDOUT_FILE" "$CODEX_STDERR_FILE" \
+            codex --sandbox read-only --ask-for-approval never exec --color never \
+            --output-last-message "$CODEX_LAST_MESSAGE_FILE" "$prompt"; then
+
+            if [[ -s "$CODEX_LAST_MESSAGE_FILE" ]]; then
+                mv "$CODEX_LAST_MESSAGE_FILE" "$CODEX_OUTPUT_FILE"
+            elif [[ -s "$CODEX_STDOUT_FILE" ]]; then
+                mv "$CODEX_STDOUT_FILE" "$CODEX_OUTPUT_FILE"
+            else
+                echo "Codex fallback completed with no output." > "$CODEX_OUTPUT_FILE"
+            fi
+            return 0
+        fi
+    fi
+
+    # Preserve diagnostics for downstream summary/validation steps.
+    if [[ -s "$CODEX_LAST_MESSAGE_FILE" ]]; then
+        mv "$CODEX_LAST_MESSAGE_FILE" "$CODEX_OUTPUT_FILE"
+    elif [[ -s "$CODEX_STDOUT_FILE" ]]; then
+        mv "$CODEX_STDOUT_FILE" "$CODEX_OUTPUT_FILE"
+    else
+        {
+            echo "Codex execution failed."
+            [[ -f "$CODEX_STDERR_FILE" ]] && cat "$CODEX_STDERR_FILE"
+        } > "$CODEX_OUTPUT_FILE"
+    fi
+
+    return 1
 }
 
 # Pre-flight credit check (optional)
@@ -798,6 +1036,22 @@ preflight_credit_check() {
                 CLAUDE_MODEL="haiku"
                 CLAUDE_MODEL_TIER="haiku"
                 CLAUDE_CREDIT_FALLBACK=true
+            fi
+        fi
+        rm -f "$test_output" "$test_stderr"
+    fi
+
+    # Check Codex credits only when a concrete model is selected
+    if [[ "$RUN_CODEX" == true && -n "$CODEX_MODEL" ]]; then
+        if ! run_with_timeout 20 codex --sandbox read-only --ask-for-approval never exec --color never \
+            --model "$CODEX_MODEL" --output-last-message "$test_output" "$test_prompt" \
+            > /dev/null 2> "$test_stderr"; then
+            if check_credit_exhaustion "$test_stderr" "Codex"; then
+                echo -e "${YELLOW}[Pre-flight]${NC} Codex credits exhausted for $CODEX_MODEL, will use default model"
+                CODEX_MODEL=""
+                CODEX_MODEL_TIER="auto"
+                CODEX_MODEL_SELECTION="auto"
+                CODEX_CREDIT_FALLBACK=true
             fi
         fi
         rm -f "$test_output" "$test_stderr"
@@ -860,20 +1114,23 @@ fi
 
 # Create JSON output
 create_json_output() {
-    local json_file="$OUTPUT_DIR/results_${TIMESTAMP}.json"
+    local json_file="$JSON_FILE"
     local cursor_output=""
     local gemini_output=""
     local claude_output=""
+    local codex_output=""
     local cursor_status="missing"
     local gemini_status="missing"
     local claude_status="missing"
+    local codex_status="missing"
     local cursor_valid=false
     local gemini_valid=false
     local claude_valid=false
+    local codex_valid=false
 
     # Process Cursor output
-    if [[ -f "$OUTPUT_DIR/cursor_${TIMESTAMP}.txt" ]]; then
-        cursor_output=$(get_output_content "$OUTPUT_DIR/cursor_${TIMESTAMP}.txt")
+    if [[ -f "$CURSOR_OUTPUT_FILE" ]]; then
+        cursor_output=$(get_output_content "$CURSOR_OUTPUT_FILE")
         cursor_status="complete"
         if [[ "$VALIDATE" == true && "$CURSOR_VAL_RESULT" -ne -1 ]]; then
             # Accept both passed (0) and warning (2) as valid
@@ -882,8 +1139,8 @@ create_json_output() {
     fi
 
     # Process Gemini output
-    if [[ -f "$OUTPUT_DIR/gemini_${TIMESTAMP}.txt" ]]; then
-        gemini_output=$(get_output_content "$OUTPUT_DIR/gemini_${TIMESTAMP}.txt")
+    if [[ -f "$GEMINI_OUTPUT_FILE" ]]; then
+        gemini_output=$(get_output_content "$GEMINI_OUTPUT_FILE")
         gemini_status="complete"
         if [[ "$VALIDATE" == true && "$GEMINI_VAL_RESULT" -ne -1 ]]; then
             [[ $GEMINI_VAL_RESULT -eq 0 || $GEMINI_VAL_RESULT -eq 2 ]] && gemini_valid=true
@@ -891,11 +1148,24 @@ create_json_output() {
     fi
 
     # Process Claude output
-    if [[ -f "$OUTPUT_DIR/claude_${TIMESTAMP}.txt" ]]; then
-        claude_output=$(get_output_content "$OUTPUT_DIR/claude_${TIMESTAMP}.txt")
+    if [[ -f "$CLAUDE_OUTPUT_FILE" ]]; then
+        claude_output=$(get_output_content "$CLAUDE_OUTPUT_FILE")
         claude_status="complete"
         if [[ "$VALIDATE" == true && "$CLAUDE_VAL_RESULT" -ne -1 ]]; then
             [[ $CLAUDE_VAL_RESULT -eq 0 || $CLAUDE_VAL_RESULT -eq 2 ]] && claude_valid=true
+        fi
+    fi
+
+    # Process Codex output
+    if [[ -f "$CODEX_OUTPUT_FILE" ]]; then
+        codex_output=$(get_output_content "$CODEX_OUTPUT_FILE")
+        if grep -q "^Codex execution failed\." "$CODEX_OUTPUT_FILE" 2> /dev/null; then
+            codex_status="failed"
+        else
+            codex_status="complete"
+        fi
+        if [[ "$VALIDATE" == true && "$CODEX_VAL_RESULT" -ne -1 ]]; then
+            [[ $CODEX_VAL_RESULT -eq 0 || $CODEX_VAL_RESULT -eq 2 ]] && codex_valid=true
         fi
     fi
 
@@ -904,6 +1174,7 @@ create_json_output() {
     [[ "$cursor_status" == "complete" ]] && agent_count=$((agent_count + 1))
     [[ "$gemini_status" == "complete" ]] && agent_count=$((agent_count + 1))
     [[ "$claude_status" == "complete" ]] && agent_count=$((agent_count + 1))
+    [[ "$codex_status" == "complete" ]] && agent_count=$((agent_count + 1))
 
     cat > "$json_file" << EOF
 {
@@ -932,13 +1203,22 @@ create_json_output() {
       "model": $(json_escape "${CLAUDE_MODEL:-sonnet}"),
       "credit_fallback": $CLAUDE_CREDIT_FALLBACK,
       "output": $(json_escape "$claude_output")
+    },
+    "codex": {
+      "status": "$codex_status",
+      "validated": $codex_valid,
+      "model_tier": $(json_escape "$CODEX_MODEL_TIER"),
+      "model": $(json_escape "${CODEX_MODEL:-default}"),
+      "credit_fallback": $CODEX_CREDIT_FALLBACK,
+      "output": $(json_escape "$codex_output")
     }
   },
   "output_files": {
-    "cursor": "$OUTPUT_DIR/cursor_${TIMESTAMP}.txt",
-    "gemini": "$OUTPUT_DIR/gemini_${TIMESTAMP}.txt",
-    "claude": "$OUTPUT_DIR/claude_${TIMESTAMP}.txt",
-    "summary": "$OUTPUT_DIR/summary_${TIMESTAMP}.md"
+    "cursor": "$CURSOR_OUTPUT_FILE",
+    "gemini": "$GEMINI_OUTPUT_FILE",
+    "claude": "$CLAUDE_OUTPUT_FILE",
+    "codex": "$CODEX_OUTPUT_FILE",
+    "summary": "$SUMMARY_FILE"
   },
   "cross_verification": {
     "consensus_score": $CONSENSUS_SCORE,
@@ -951,11 +1231,12 @@ EOF
     echo -e "${GREEN}JSON:${NC} $json_file"
 }
 
-# Cross-verification: Compare agent outputs for consensus (supports 2 or 3 agents)
+# Cross-verification: Compare agent outputs for consensus (supports 2+ agents)
 cross_verify() {
-    local cursor_file="$OUTPUT_DIR/cursor_${TIMESTAMP}.txt"
-    local gemini_file="$OUTPUT_DIR/gemini_${TIMESTAMP}.txt"
-    local claude_file="$OUTPUT_DIR/claude_${TIMESTAMP}.txt"
+    local cursor_file="$CURSOR_OUTPUT_FILE"
+    local gemini_file="$GEMINI_OUTPUT_FILE"
+    local claude_file="$CLAUDE_OUTPUT_FILE"
+    local codex_file="$CODEX_OUTPUT_FILE"
 
     local available_outputs=()
     local agent_names=()
@@ -971,6 +1252,14 @@ cross_verify() {
     if [[ -f "$claude_file" ]]; then
         available_outputs+=("$claude_file")
         agent_names+=("Claude")
+    fi
+    if [[ -f "$codex_file" ]]; then
+        if grep -q "^Codex execution failed\." "$codex_file" 2> /dev/null; then
+            echo -e "${YELLOW}Cross-verification: Skipping Codex output due to execution failure${NC}"
+        else
+            available_outputs+=("$codex_file")
+            agent_names+=("Codex")
+        fi
     fi
 
     local output_count=${#available_outputs[@]}
@@ -1116,6 +1405,7 @@ monitor_agents() {
             if [[ "$name" == "Cursor" ]]; then name_color="${CYAN}"; fi
             if [[ "$name" == "Gemini" ]]; then name_color="${BLUE}"; fi
             if [[ "$name" == "Claude" ]]; then name_color="${MAGENTA}"; fi
+            if [[ "$name" == "Codex" ]]; then name_color="${YELLOW}"; fi
             local display_name="${name_color}${name}${NC}"
 
             if [[ "$state" == "running" ]]; then
@@ -1151,8 +1441,11 @@ monitor_agents() {
                     running=true
                 else
                     # Process finished
+                    local code=0
+                    set +e
                     wait "$pid"
-                    local code=$?
+                    code=$?
+                    set -e
                     if [[ $code -eq 0 ]]; then
                         agent_states[$i]="${GREEN}✔${NC}"
                     else
@@ -1168,7 +1461,7 @@ monitor_agents() {
         if $running; then
             # \r to start, \033[K to clear line
             printf "\r${BOLD}Waiting for agents (%s):${NC}%b\033[K" "$time_str" "$status_line"
-            sleep_fractional 0.1
+            sleep 0.1
         fi
     done
 
@@ -1189,7 +1482,7 @@ monitor_agents() {
 
 # Combine outputs into markdown summary
 create_summary() {
-    local summary_file="$OUTPUT_DIR/summary_${TIMESTAMP}.md"
+    local summary_file="$SUMMARY_FILE"
 
     echo "# Parallel Agent Results - $TIMESTAMP" > "$summary_file"
     echo "" >> "$summary_file"
@@ -1205,30 +1498,40 @@ create_summary() {
 
     echo "" >> "$summary_file"
 
-    if [[ -f "$OUTPUT_DIR/cursor_${TIMESTAMP}.txt" ]]; then
+    if [[ -f "$CURSOR_OUTPUT_FILE" ]]; then
         echo "## Cursor Agent Output" >> "$summary_file"
         [[ -n "$CURSOR_MODEL" ]] && echo "**Model:** $CURSOR_MODEL" >> "$summary_file"
         [[ "$CURSOR_CREDIT_FALLBACK" == true ]] && echo "**Note:** Used fallback mode due to credit exhaustion" >> "$summary_file"
         echo '```' >> "$summary_file"
-        get_output_content "$OUTPUT_DIR/cursor_${TIMESTAMP}.txt" >> "$summary_file"
+        get_output_content "$CURSOR_OUTPUT_FILE" >> "$summary_file"
         echo '```' >> "$summary_file"
         echo "" >> "$summary_file"
     fi
 
-    if [[ -f "$OUTPUT_DIR/gemini_${TIMESTAMP}.txt" ]]; then
+    if [[ -f "$GEMINI_OUTPUT_FILE" ]]; then
         echo "## Gemini CLI Output" >> "$summary_file"
         echo '```' >> "$summary_file"
-        get_output_content "$OUTPUT_DIR/gemini_${TIMESTAMP}.txt" >> "$summary_file"
+        get_output_content "$GEMINI_OUTPUT_FILE" >> "$summary_file"
         echo '```' >> "$summary_file"
         echo "" >> "$summary_file"
     fi
 
-    if [[ -f "$OUTPUT_DIR/claude_${TIMESTAMP}.txt" ]]; then
+    if [[ -f "$CLAUDE_OUTPUT_FILE" ]]; then
         echo "## Claude CLI Output" >> "$summary_file"
         [[ -n "$CLAUDE_MODEL" ]] && echo "**Model:** $CLAUDE_MODEL" >> "$summary_file"
         [[ "$CLAUDE_CREDIT_FALLBACK" == true ]] && echo "**Note:** Used fallback mode due to credit exhaustion" >> "$summary_file"
         echo '```' >> "$summary_file"
-        get_output_content "$OUTPUT_DIR/claude_${TIMESTAMP}.txt" >> "$summary_file"
+        get_output_content "$CLAUDE_OUTPUT_FILE" >> "$summary_file"
+        echo '```' >> "$summary_file"
+        echo "" >> "$summary_file"
+    fi
+
+    if [[ -f "$CODEX_OUTPUT_FILE" ]]; then
+        echo "## Codex CLI Output" >> "$summary_file"
+        [[ -n "$CODEX_MODEL" ]] && echo "**Model:** $CODEX_MODEL (tier: $CODEX_MODEL_TIER)" >> "$summary_file"
+        [[ "$CODEX_CREDIT_FALLBACK" == true ]] && echo "**Note:** Used default model due to credit exhaustion" >> "$summary_file"
+        echo '```' >> "$summary_file"
+        get_output_content "$CODEX_OUTPUT_FILE" >> "$summary_file"
         echo '```' >> "$summary_file"
         echo "" >> "$summary_file"
     fi
@@ -1250,52 +1553,24 @@ print_results_table() {
         echo ""
     fi
 
-    # Column widths
-    local w_agent=10
-    local w_status=10
-    local w_model=30
-    local w_val=10
-
-    # Top border
-    printf "┌"
-    for ((i=0; i<w_agent+2; i++)); do printf "─"; done
-    printf "┬"
-    for ((i=0; i<w_status+2; i++)); do printf "─"; done
-    printf "┬"
-    for ((i=0; i<w_model+2; i++)); do printf "─"; done
+    # Table Header
+    # Agent (10) | Status (10) | Model (20) | Validation (10)
+    printf "${BOLD}%-10s | %-10s | %-20s" "Agent" "Status" "Model"
     if [[ "$VALIDATE" == true ]]; then
-        printf "┬"
-        for ((i=0; i<w_val+2; i++)); do printf "─"; done
+        printf " | %-10s" "Validation"
     fi
-    printf "┐\n"
+    printf "${NC}\n"
 
-    # Header
-    printf "│ ${BOLD}%-${w_agent}s${NC} │ ${BOLD}%-${w_status}s${NC} │ ${BOLD}%-${w_model}s${NC} " "Agent" "Status" "Model"
-    if [[ "$VALIDATE" == true ]]; then
-        printf "│ ${BOLD}%-${w_val}s${NC} " "Validation"
-    fi
-    printf "│\n"
-
-    # Separator
-    printf "├"
-    for ((i=0; i<w_agent+2; i++)); do printf "─"; done
-    printf "┼"
-    for ((i=0; i<w_status+2; i++)); do printf "─"; done
-    printf "┼"
-    for ((i=0; i<w_model+2; i++)); do printf "─"; done
-    if [[ "$VALIDATE" == true ]]; then
-        printf "┼"
-        for ((i=0; i<w_val+2; i++)); do printf "─"; done
-    fi
-    printf "┤\n"
+    printf "%s\n" "-----------|------------|----------------------$(if [[ "$VALIDATE" == true ]]; then echo "-|------------"; fi)"
 
     # Cursor Row
     if [[ "$RUN_CURSOR" == true ]]; then
         local status="SKIPPED"
         local model="${CURSOR_MODEL:-auto}"
+        local val_status=""
         local color="${NC}"
 
-        if [[ -f "$OUTPUT_DIR/cursor_${TIMESTAMP}.txt" ]]; then
+        if [[ -f "$CURSOR_OUTPUT_FILE" ]]; then
             status="COMPLETE"
             color="${GREEN}"
         else
@@ -1304,37 +1579,34 @@ print_results_table() {
         fi
 
         if [[ "$CURSOR_CREDIT_FALLBACK" == true ]]; then
-             model="$model (fallback)"
+            model="$model (fallback)"
         fi
 
-        printf "│ %-${w_agent}s │ ${color}%-${w_status}s${NC} │ %-${w_model}s " "Cursor" "$status" "$model"
+        printf "%-10s | ${color}%-10s${NC} | %-20s" "Cursor" "$status" "$model"
 
         if [[ "$VALIDATE" == true ]]; then
-            local val_msg="N/A"
-            local val_color="${NC}"
-
             if [[ "$CURSOR_VAL_RESULT" -eq 0 ]]; then
-                val_msg="PASSED"
-                val_color="${GREEN}"
+                val_status="${GREEN}PASSED${NC}"
             elif [[ "$CURSOR_VAL_RESULT" -eq 2 ]]; then
-                val_msg="WARNING"
-                val_color="${YELLOW}"
+                val_status="${YELLOW}WARNING${NC}"
             elif [[ "$CURSOR_VAL_RESULT" -eq 1 ]]; then
-                val_msg="FAILED"
-                val_color="${RED}"
+                val_status="${RED}FAILED${NC}"
+            else
+                val_status="${NC}N/A${NC}"
             fi
-            printf "│ ${val_color}%-${w_val}s${NC} " "$val_msg"
+            printf " | %-10b" "$val_status"
         fi
-        printf "│\n"
+        printf "\n"
     fi
 
     # Gemini Row
     if [[ "$RUN_GEMINI" == true ]]; then
         local status="SKIPPED"
         local model="${GEMINI_MODEL:-flash}"
+        local val_status=""
         local color="${NC}"
 
-        if [[ -f "$OUTPUT_DIR/gemini_${TIMESTAMP}.txt" ]]; then
+        if [[ -f "$GEMINI_OUTPUT_FILE" ]]; then
             status="COMPLETE"
             color="${GREEN}"
         else
@@ -1342,34 +1614,31 @@ print_results_table() {
             color="${RED}"
         fi
 
-        printf "│ %-${w_agent}s │ ${color}%-${w_status}s${NC} │ %-${w_model}s " "Gemini" "$status" "$model"
+        printf "%-10s | ${color}%-10s${NC} | %-20s" "Gemini" "$status" "$model"
 
         if [[ "$VALIDATE" == true ]]; then
-            local val_msg="N/A"
-            local val_color="${NC}"
-
             if [[ "$GEMINI_VAL_RESULT" -eq 0 ]]; then
-                val_msg="PASSED"
-                val_color="${GREEN}"
+                val_status="${GREEN}PASSED${NC}"
             elif [[ "$GEMINI_VAL_RESULT" -eq 2 ]]; then
-                val_msg="WARNING"
-                val_color="${YELLOW}"
+                val_status="${YELLOW}WARNING${NC}"
             elif [[ "$GEMINI_VAL_RESULT" -eq 1 ]]; then
-                val_msg="FAILED"
-                val_color="${RED}"
+                val_status="${RED}FAILED${NC}"
+            else
+                val_status="${NC}N/A${NC}"
             fi
-            printf "│ ${val_color}%-${w_val}s${NC} " "$val_msg"
+            printf " | %-10b" "$val_status"
         fi
-        printf "│\n"
+        printf "\n"
     fi
 
     # Claude Row
     if [[ "$RUN_CLAUDE" == true ]]; then
         local status="SKIPPED"
         local model="${CLAUDE_MODEL:-sonnet}"
+        local val_status=""
         local color="${NC}"
 
-        if [[ -f "$OUTPUT_DIR/claude_${TIMESTAMP}.txt" ]]; then
+        if [[ -f "$CLAUDE_OUTPUT_FILE" ]]; then
             status="COMPLETE"
             color="${GREEN}"
         else
@@ -1378,42 +1647,70 @@ print_results_table() {
         fi
 
         if [[ "$CLAUDE_CREDIT_FALLBACK" == true ]]; then
-             model="$model (fallback)"
+            model="$model (fallback)"
         fi
 
-        printf "│ %-${w_agent}s │ ${color}%-${w_status}s${NC} │ %-${w_model}s " "Claude" "$status" "$model"
+        printf "%-10s | ${color}%-10s${NC} | %-20s" "Claude" "$status" "$model"
 
         if [[ "$VALIDATE" == true ]]; then
-            local val_msg="N/A"
-            local val_color="${NC}"
-
             if [[ "$CLAUDE_VAL_RESULT" -eq 0 ]]; then
-                val_msg="PASSED"
-                val_color="${GREEN}"
+                val_status="${GREEN}PASSED${NC}"
             elif [[ "$CLAUDE_VAL_RESULT" -eq 2 ]]; then
-                val_msg="WARNING"
-                val_color="${YELLOW}"
+                val_status="${YELLOW}WARNING${NC}"
             elif [[ "$CLAUDE_VAL_RESULT" -eq 1 ]]; then
-                val_msg="FAILED"
-                val_color="${RED}"
+                val_status="${RED}FAILED${NC}"
+            else
+                val_status="${NC}N/A${NC}"
             fi
-            printf "│ ${val_color}%-${w_val}s${NC} " "$val_msg"
+            printf " | %-10b" "$val_status"
         fi
-        printf "│\n"
+        printf "\n"
     fi
 
-    # Bottom border
-    printf "└"
-    for ((i=0; i<w_agent+2; i++)); do printf "─"; done
-    printf "┴"
-    for ((i=0; i<w_status+2; i++)); do printf "─"; done
-    printf "┴"
-    for ((i=0; i<w_model+2; i++)); do printf "─"; done
-    if [[ "$VALIDATE" == true ]]; then
-        printf "┴"
-        for ((i=0; i<w_val+2; i++)); do printf "─"; done
+    # Codex Row
+    if [[ "$RUN_CODEX" == true ]]; then
+        local status="SKIPPED"
+        local model="${CODEX_MODEL:-default}"
+        local val_status=""
+        local color="${NC}"
+
+        if [[ -f "$CODEX_OUTPUT_FILE" ]]; then
+            if grep -q "^Codex execution failed\." "$CODEX_OUTPUT_FILE" 2> /dev/null; then
+                status="FAILED"
+                color="${RED}"
+            else
+                status="COMPLETE"
+                color="${GREEN}"
+            fi
+        else
+            status="FAILED"
+            color="${RED}"
+        fi
+
+        if [[ -n "$CODEX_MODEL" && "$CODEX_MODEL_TIER" != "custom" ]]; then
+            model="$model ($CODEX_MODEL_TIER)"
+        fi
+
+        if [[ "$CODEX_CREDIT_FALLBACK" == true ]]; then
+            model="$model (fallback)"
+        fi
+
+        printf "%-10s | ${color}%-10s${NC} | %-20s" "Codex" "$status" "$model"
+
+        if [[ "$VALIDATE" == true ]]; then
+            if [[ "$CODEX_VAL_RESULT" -eq 0 ]]; then
+                val_status="${GREEN}PASSED${NC}"
+            elif [[ "$CODEX_VAL_RESULT" -eq 2 ]]; then
+                val_status="${YELLOW}WARNING${NC}"
+            elif [[ "$CODEX_VAL_RESULT" -eq 1 ]]; then
+                val_status="${RED}FAILED${NC}"
+            else
+                val_status="${NC}N/A${NC}"
+            fi
+            printf " | %-10b" "$val_status"
+        fi
+        printf "\n"
     fi
-    printf "┘\n"
 
     echo ""
 
@@ -1421,8 +1718,10 @@ print_results_table() {
         local bar
         bar=$(draw_bar $CONSENSUS_SCORE)
         local score_color="${NC}"
-        if [[ $CONSENSUS_SCORE -ge 80 ]]; then score_color="${GREEN}";
-        elif [[ $CONSENSUS_SCORE -ge 50 ]]; then score_color="${YELLOW}";
+        if [[ $CONSENSUS_SCORE -ge 80 ]]; then
+            score_color="${GREEN}"
+        elif [[ $CONSENSUS_SCORE -ge 50 ]]; then
+            score_color="${YELLOW}"
         else score_color="${RED}"; fi
 
         echo -e "Consensus: ${score_color}${CONSENSUS_SCORE}%${NC} $bar"
@@ -1440,6 +1739,12 @@ main() {
         exit 1
     fi
 
+    # Resolve model selection early so status/pre-flight use canonical values.
+    resolve_codex_model "$CODEX_MODEL_SELECTION"
+
+    # Prepare per-agent output and temp paths.
+    initialize_output_paths
+
     # Validate agents are available before proceeding
     if ! validate_agents; then
         exit 2
@@ -1450,9 +1755,14 @@ main() {
     echo -e "${GREEN}=== Parallel Agent Orchestration ===${NC}"
     echo "Mode: $MODE"
     echo "Output: $OUTPUT_DIR"
+    echo "State: $MANIFEST_STATE_ROOT"
+    if [[ "$STATE_PATH_FALLBACK" == true ]]; then
+        echo -e "${YELLOW}Warning:${NC} $STATE_PATH_FALLBACK_REASON"
+    fi
     [[ "$RUN_CURSOR" == true ]] && echo "Cursor: enabled (model: ${CURSOR_MODEL_TIER})"
     [[ "$RUN_GEMINI" == true ]] && echo "Gemini: enabled (model: ${GEMINI_MODEL_TIER})"
     [[ "$RUN_CLAUDE" == true ]] && echo "Claude: enabled (model: ${CLAUDE_MODEL_TIER})"
+    [[ "$RUN_CODEX" == true ]] && echo "Codex: enabled (model: ${CODEX_MODEL:-default}, tier: ${CODEX_MODEL_TIER})"
     [[ "$OUTPUT_FORMAT" == "json" ]] && echo "Format: JSON"
     [[ "$FULL_OUTPUT" == true ]] && echo "Full output: enabled"
     [[ "$VALIDATE" == true ]] && echo "Validation: enabled"
@@ -1460,9 +1770,6 @@ main() {
 
     # Pre-flight credit check if enabled
     preflight_credit_check
-
-    # Setup sleep optimization (must happen before main loop)
-    setup_sleep_optimization
 
     # Resolve models in parent process so variables are available for JSON output
     if [[ "$RUN_CURSOR" == true ]]; then
@@ -1473,6 +1780,9 @@ main() {
     fi
     if [[ "$RUN_CLAUDE" == true ]]; then
         resolve_claude_model "$CLAUDE_MODEL_TIER"
+    fi
+    if [[ "$RUN_CODEX" == true ]]; then
+        resolve_codex_model "$CODEX_MODEL_SELECTION"
     fi
 
     # Run agents in parallel using background processes
@@ -1498,6 +1808,12 @@ main() {
         agent_names+=("Claude")
     fi
 
+    if [[ "$RUN_CODEX" == true && -n "$CODEX_PROMPT" ]]; then
+        run_codex "$CODEX_PROMPT" > /dev/null &
+        pids+=($!)
+        agent_names+=("Codex")
+    fi
+
     # Monitor agents
     echo ""
     monitor_agents
@@ -1508,40 +1824,54 @@ main() {
     echo -e "${BLUE}=== Output File Check ===${NC}"
     local files_created=0
     if [[ "$RUN_CURSOR" == true ]]; then
-        if [[ -f "$OUTPUT_DIR/cursor_${TIMESTAMP}.txt" ]]; then
+        if [[ -f "$CURSOR_OUTPUT_FILE" ]]; then
             local size
-            size=$(stat -f%z "$OUTPUT_DIR/cursor_${TIMESTAMP}.txt" 2> /dev/null || stat -c%s "$OUTPUT_DIR/cursor_${TIMESTAMP}.txt" 2> /dev/null || echo "0")
+            size=$(stat -f%z "$CURSOR_OUTPUT_FILE" 2> /dev/null || stat -c%s "$CURSOR_OUTPUT_FILE" 2> /dev/null || echo "0")
             echo -e "${GREEN}[Cursor]${NC} Output file created (${size} bytes)"
             files_created=$((files_created + 1))
         else
-            echo -e "${RED}[Cursor]${NC} Output file NOT created: $OUTPUT_DIR/cursor_${TIMESTAMP}.txt"
+            echo -e "${RED}[Cursor]${NC} Output file NOT created: $CURSOR_OUTPUT_FILE"
         fi
     fi
     if [[ "$RUN_GEMINI" == true ]]; then
-        if [[ -f "$OUTPUT_DIR/gemini_${TIMESTAMP}.txt" ]]; then
+        if [[ -f "$GEMINI_OUTPUT_FILE" ]]; then
             local size
-            size=$(stat -f%z "$OUTPUT_DIR/gemini_${TIMESTAMP}.txt" 2> /dev/null || stat -c%s "$OUTPUT_DIR/gemini_${TIMESTAMP}.txt" 2> /dev/null || echo "0")
+            size=$(stat -f%z "$GEMINI_OUTPUT_FILE" 2> /dev/null || stat -c%s "$GEMINI_OUTPUT_FILE" 2> /dev/null || echo "0")
             echo -e "${GREEN}[Gemini]${NC} Output file created (${size} bytes)"
             files_created=$((files_created + 1))
         else
-            echo -e "${RED}[Gemini]${NC} Output file NOT created: $OUTPUT_DIR/gemini_${TIMESTAMP}.txt"
+            echo -e "${RED}[Gemini]${NC} Output file NOT created: $GEMINI_OUTPUT_FILE"
         fi
     fi
     if [[ "$RUN_CLAUDE" == true ]]; then
-        if [[ -f "$OUTPUT_DIR/claude_${TIMESTAMP}.txt" ]]; then
+        if [[ -f "$CLAUDE_OUTPUT_FILE" ]]; then
             local size
-            size=$(stat -f%z "$OUTPUT_DIR/claude_${TIMESTAMP}.txt" 2> /dev/null || stat -c%s "$OUTPUT_DIR/claude_${TIMESTAMP}.txt" 2> /dev/null || echo "0")
+            size=$(stat -f%z "$CLAUDE_OUTPUT_FILE" 2> /dev/null || stat -c%s "$CLAUDE_OUTPUT_FILE" 2> /dev/null || echo "0")
             echo -e "${GREEN}[Claude]${NC} Output file created (${size} bytes)"
             files_created=$((files_created + 1))
         else
-            echo -e "${RED}[Claude]${NC} Output file NOT created: $OUTPUT_DIR/claude_${TIMESTAMP}.txt"
+            echo -e "${RED}[Claude]${NC} Output file NOT created: $CLAUDE_OUTPUT_FILE"
+        fi
+    fi
+    if [[ "$RUN_CODEX" == true ]]; then
+        if [[ -f "$CODEX_OUTPUT_FILE" ]]; then
+            local size
+            size=$(stat -f%z "$CODEX_OUTPUT_FILE" 2> /dev/null || stat -c%s "$CODEX_OUTPUT_FILE" 2> /dev/null || echo "0")
+            if grep -q "^Codex execution failed\." "$CODEX_OUTPUT_FILE" 2> /dev/null; then
+                echo -e "${YELLOW}[Codex]${NC} Output file created but execution failed (${size} bytes)"
+            else
+                echo -e "${GREEN}[Codex]${NC} Output file created (${size} bytes)"
+            fi
+            files_created=$((files_created + 1))
+        else
+            echo -e "${RED}[Codex]${NC} Output file NOT created: $CODEX_OUTPUT_FILE"
         fi
     fi
 
     if [[ $files_created -eq 0 ]]; then
         echo -e "${RED}ERROR: No output files were created!${NC}"
         echo -e "${YELLOW}This may indicate a permissions issue or sandbox restriction.${NC}"
-        echo -e "${YELLOW}Try running with: --output /tmp/agent_outputs${NC}"
+        echo -e "${YELLOW}Try running with: --output $MANIFEST_STATE_ROOT/orchestration/outputs${NC}"
         exit 13
     fi
 
@@ -1552,6 +1882,7 @@ main() {
     [[ "$RUN_CURSOR" == true ]] && enabled_count=$((enabled_count + 1))
     [[ "$RUN_GEMINI" == true ]] && enabled_count=$((enabled_count + 1))
     [[ "$RUN_CLAUDE" == true ]] && enabled_count=$((enabled_count + 1))
+    [[ "$RUN_CODEX" == true ]] && enabled_count=$((enabled_count + 1))
 
     if [[ $enabled_count -ge 2 ]]; then
         cross_verify
@@ -1561,14 +1892,21 @@ main() {
     # Run validation if enabled (once)
     if [[ "$VALIDATE" == true ]]; then
         echo -e "${BLUE}=== Validation Results ===${NC}"
-        if [[ "$RUN_CURSOR" == true && -f "$OUTPUT_DIR/cursor_${TIMESTAMP}.txt" ]]; then
-            validate_output "$OUTPUT_DIR/cursor_${TIMESTAMP}.txt" "Cursor Agent" && CURSOR_VAL_RESULT=0 || CURSOR_VAL_RESULT=$?
+        if [[ "$RUN_CURSOR" == true && -f "$CURSOR_OUTPUT_FILE" ]]; then
+            validate_output "$CURSOR_OUTPUT_FILE" "Cursor Agent"
+            CURSOR_VAL_RESULT=$?
         fi
-        if [[ "$RUN_GEMINI" == true && -f "$OUTPUT_DIR/gemini_${TIMESTAMP}.txt" ]]; then
-            validate_output "$OUTPUT_DIR/gemini_${TIMESTAMP}.txt" "Gemini CLI" && GEMINI_VAL_RESULT=0 || GEMINI_VAL_RESULT=$?
+        if [[ "$RUN_GEMINI" == true && -f "$GEMINI_OUTPUT_FILE" ]]; then
+            validate_output "$GEMINI_OUTPUT_FILE" "Gemini CLI"
+            GEMINI_VAL_RESULT=$?
         fi
-        if [[ "$RUN_CLAUDE" == true && -f "$OUTPUT_DIR/claude_${TIMESTAMP}.txt" ]]; then
-            validate_output "$OUTPUT_DIR/claude_${TIMESTAMP}.txt" "Claude CLI" && CLAUDE_VAL_RESULT=0 || CLAUDE_VAL_RESULT=$?
+        if [[ "$RUN_CLAUDE" == true && -f "$CLAUDE_OUTPUT_FILE" ]]; then
+            validate_output "$CLAUDE_OUTPUT_FILE" "Claude CLI"
+            CLAUDE_VAL_RESULT=$?
+        fi
+        if [[ "$RUN_CODEX" == true && -f "$CODEX_OUTPUT_FILE" ]]; then
+            validate_output "$CODEX_OUTPUT_FILE" "Codex CLI"
+            CODEX_VAL_RESULT=$?
         fi
         echo ""
     fi

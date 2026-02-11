@@ -38,6 +38,21 @@ services:
       - flash    # Balanced (default)
       - advanced # Maximum capability
 
+  # Codex CLI - OpenAI terminal coding agent
+  # Install: npm install -g @openai/codex
+  codex:
+    enabled: true
+    command: codex
+    description: "Terminal coding assistant for codebase edits and automation"
+    model_tiers:
+      - mini     # Lightweight
+      - flash    # Balanced (default)
+      - advanced # Maximum capability
+      - auto     # Use Codex config default model
+    auth:
+      - OPENAI_API_KEY
+      - ~/.codex/auth.json
+
   # Git CLI tools - Platform-specific Git hosting integrations
   git_cli:
     github:

@@ -23,6 +23,12 @@ from the same orchestration rules and validation criteria.
   Relative paths may fail as agents run from different working directories.
 - Always use a **large timeout** (600-900 seconds) for complex analyses.
   The default 120s is often insufficient for thorough code review.
+- Use **Context7 MCP** by default for library/API documentation, code generation,
+  setup steps, and configuration guidance.
+- Use **Sentry MCP** by default for production/runtime error investigation,
+  stack traces, issue triage, and release regression analysis.
+- Use **Linear MCP** by default for issue requirements, acceptance criteria,
+  project context, and implementation planning.
 
 ```bash
 # Basic code review with JSON output (all 3 agents, 10 min timeout)
@@ -511,18 +517,13 @@ operate from identical orchestration rules.
 │   ├── plan-manage.toml
 │   └── checkpoint.toml
 ├── skills/
-│   └── code-quality/
-│       └── SKILL.md                 # Symlinked from ~/.claude/skills/
+│   └── ...                          # Symlinked shared skills from ~/.claude/skills/
 ├── prompts/ -> ~/.claude/prompts/   # Symlinked shared templates
 ├── config/ -> ~/.claude/config/     # Symlinked shared configs
 ├── scripts/ -> ~/.claude/scripts/   # Symlinked shared scripts
 ├── .plans/ -> ~/.claude/.plans/     # Symlinked shared plans
 └── settings.json                    # Gemini CLI project settings
 ```
-
-> **Note**: The `skills/` directory exists only in the deployed `~/.gemini/` location
-> (created by `bootstrap.sh`), NOT in the repository's `.gemini/` directory.
-> This prevents skill conflict warnings when Gemini runs inside the Manifest repo.
 
 ---
 
