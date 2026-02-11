@@ -1,55 +1,27 @@
 {
   "permissions": {
     "allow": [
-      "Bash(~/.claude/scripts/parallel_agent.sh:*)",
-      "Bash(./bootstrap.sh:*)",
-      "Bash(python3 -c \"import yaml; yaml.safe_load\\(open\\(''.claude/config/validation_criteria.yml''\\)\\)\")",
       "Bash(shellcheck:*)",
       "Bash(python3:*)",
-      "Bash(pip3 install:*)",
-      "Bash(export PATH=\"/Users/charlemagne/Library/Python/3.9/bin:$PATH\")",
-      "Bash(pre-commit run:*)",
-      "Bash(chmod:*)",
-      "Bash(./.claude/scripts/parallel_agent.sh:*)",
-      "Bash(ls:*)",
-      "Bash($HOME/Library/Python/3.9/bin/pre-commit run:*)",
-      "Bash(~/Library/Python/3.9/bin/yamllint:*)",
+      "Bash(bats:*)",
+      "Bash(yamllint:*)",
+      "Bash(markdownlint:*)",
+      "Bash(ruff:*)",
+      "Bash(pytest:*)",
+      "Bash(git mv:*)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "WebSearch",
-      "Bash(grep:*)",
-      "Bash(wc:*)",
-      "Bash(git mv:*)",
-      "WebFetch(domain:github.com)",
-      "WebFetch(domain:gist.github.com)",
-      "WebFetch(domain:docs.github.com)",
-      "Bash(gh issue comment:*)",
+      "Bash(git checkout:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(ls:*)",
+      "Bash(chmod:*)",
+      "Bash(./bootstrap.sh:*)",
+      "Bash(gh issue:*)",
+      "Bash(gh pr:*)",
       "Bash(gh api:*)",
-      "Bash(glab issue note:*)",
-      "Bash(gh issue view:*)",
-      "Bash(gh issue edit:*)",
-      "Bash(~/.claude/scripts/git_ops.sh:*)"
+      "WebSearch"
     ]
-  },
-  "mcpServers": {
-    "sentry": {
-      "url": "https://mcp.sentry.dev/mcp"
-    },
-    "context7": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "mcp-remote",
-        "https://mcp.context7.com/mcp/oauth"
-      ]
-    },
-    "linear": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "mcp-remote",
-        "https://mcp.linear.app/mcp"
-      ]
-    }
   }
 }

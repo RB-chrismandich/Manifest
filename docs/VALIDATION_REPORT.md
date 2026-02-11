@@ -192,7 +192,7 @@ refactor-shell:
 
 ### 5. /refactor-shell Command Registration ✅
 
-**Command File:** `.claude/commands/refactor-shell.md`
+**Command File:** `configs/claude/commands/refactor-shell.md`
 **Size:** 9,391 bytes
 **Status:** Properly registered and configured
 
@@ -251,7 +251,7 @@ refactor-shell:
 
 ### 6. parallel_agent.sh Execution ✅
 
-**Script:** `.claude/scripts/parallel_agent.sh`
+**Script:** `configs/claude/scripts/parallel_agent.sh`
 **Status:** Executable and functional
 
 **Validation Tests:**
@@ -333,7 +333,7 @@ User runs /refactor-shell → Claude Code loads command definition
 
 **Documentation Files:**
 - ✅ `docs/SHELL_ANALYSIS_REPORT.md` - Comprehensive analysis report
-- ✅ `.claude/commands/refactor-shell.md` - Command definition
+- ✅ `configs/claude/commands/refactor-shell.md` - Command definition
 - ✅ `README.md` - Updated with /refactor-shell command
 - ✅ `CLAUDE.md` - Updated with commands table
 
@@ -371,7 +371,7 @@ User runs /refactor-shell → Claude Code loads command definition
 **Steps:**
 1. Open Claude Code ✅
 2. Type `/refactor-shell bootstrap.sh` ✅
-3. Command loads from `.claude/commands/refactor-shell.md` ✅
+3. Command loads from `configs/claude/commands/refactor-shell.md` ✅
 4. Claude reads command instructions ✅
 5. Claude uses allowed tools (Read, Glob, Grep, Bash) ✅
 6. Runs `shellcheck bootstrap.sh` via Bash tool ✅

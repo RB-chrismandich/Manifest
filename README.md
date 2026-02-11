@@ -146,68 +146,41 @@ Manifest/
 │   └── modules/README.md            # How to add custom bootstrap modules/hooks
 ├── CLAUDE.md                        # Claude Code project context
 ├── AGENTS.md                        # AI agent instructions (all platforms)
-├── .claude/                         # Configuration deployed to ~/.claude/
-│   ├── CLAUDE.md                    # Orchestration guide
-│   ├── commands/                    # Slash commands (refactor-python, issue-prioritize, etc.)
-│   ├── skills/                      # Canonical shared skill library (source of truth)
-│   ├── prompts/                     # Agent orchestration templates
-│   │   ├── preflight_analysis.md    # Pre-flight review criteria
-│   │   ├── synthesis.md             # Agent disagreement synthesis
-│   │   └── validation.md            # Validation criteria template
-│   ├── config/                      # YAML configuration files
-│   │   ├── services.yml             # Agent enable/disable states
-│   │   ├── mcp_servers.yml          # Default MCP server registry (OAuth-capable endpoints)
-│   │   ├── command_config.yml       # Tool policies, thresholds, model selection
-│   │   ├── validation_criteria.yml  # Tier 1/2 validation rules
-│   │   ├── linear_triage.yml        # Linear triage scoring and thresholds
-│   │   └── labels.yml               # Canonical label registry (GitHub, GitLab, Linear)
-│   └── scripts/
-│       ├── parallel_agent.sh        # Core orchestration engine (Bash)
-│       ├── parallel_agent.py        # Core orchestration engine (Python, Phase 3)
-│       ├── git_platform.sh          # Git platform detection (GitHub/GitLab/git)
-│       ├── git_ops.sh               # Platform-agnostic Git operations wrapper
-│       ├── linear_ops.sh            # Linear API wrapper (GraphQL)
-│       └── label_sync.sh            # Label provisioning across platforms
-├── .cursor/                         # Cursor IDE configuration (mirrors .claude/)
-│   ├── rules/                       # Cursor rules (.mdc) adapted from commands
-│   │   ├── orchestration.mdc        # Always-on orchestration guide
-│   │   ├── code-quality.mdc         # Auto-triggered quality/security
-│   │   ├── refactor-python.mdc      # Python analysis
-│   │   ├── refactor-shell.mdc       # Shell analysis
-│   │   └── ...                      # docs-*, project-commit, plan-manage
-│   ├── mcp.json                     # Cursor MCP server defaults
-│   ├── scripts -> ../.claude/scripts/   # Symlinked shared assets
-│   ├── config -> ../.claude/config/
-│   ├── prompts -> ../.claude/prompts/
-│   ├── skills -> ../.claude/skills/      # Shared skills symlink (single source of truth)
-│   └── .plans -> ../.claude/.plans/
-├── .gemini/                         # Gemini CLI configuration (mirrors .claude/)
-│   ├── GEMINI.md                    # Orchestration guide for Gemini CLI
-│   ├── commands/                    # TOML slash commands
-│   │   ├── project-commit.toml     # Commit pipeline command
-│   │   ├── refactor-python.toml    # Python analysis command
-│   │   ├── refactor-shell.toml     # Shell analysis command
-│   │   ├── docs-diagrams.toml      # Mermaid diagram generation
-│   │   ├── docs-improve.toml       # Diataxis documentation
-│   │   ├── docs-readme.toml        # README improvement
-│   │   ├── plan-manage.toml        # Plan lifecycle
-│   │   ├── issue-prioritize.toml  # Issue prioritization
-│   │   ├── issue-triage.toml      # Issue triage
-│   │   └── checkpoint.toml         # Context checkpoint
-│   ├── settings.json               # Gemini settings (includes MCP server defaults)
-│   ├── skills -> ../.claude/skills/    # Shared skills symlink (single source of truth)
-│   ├── scripts -> ../.claude/scripts/  # Symlinked shared assets
-│   ├── config -> ../.claude/config/
-│   ├── prompts -> ../.claude/prompts/
-│   └── .plans -> ../.claude/.plans/
-├── .codex/                          # Codex CLI configuration (mirrors .claude/)
-│   ├── AGENTS.md -> ../AGENTS.md    # Codex guide
-│   ├── commands -> ../.claude/commands/  # Command-style wrappers (shared with Claude)
-│   ├── skills -> ../.claude/skills/     # Shared skills symlink (single source of truth)
-│   ├── scripts -> ../.claude/scripts/   # Symlinked shared assets
-│   ├── config -> ../.claude/config/
-│   ├── prompts -> ../.claude/prompts/
-│   └── .plans -> ../.claude/.plans/
+├── configs/                         # Deployment source configs (deployed to ~/ via bootstrap)
+│   ├── claude/                      # → ~/.claude/ (primary configuration)
+│   │   ├── CLAUDE.md                # Orchestration guide
+│   │   ├── commands/                # Slash commands (refactor-python, issue-prioritize, etc.)
+│   │   ├── skills/                  # Canonical shared skill library (source of truth)
+│   │   ├── prompts/                 # Agent orchestration templates
+│   │   ├── config/                  # YAML configuration files
+│   │   │   ├── services.yml         # Agent enable/disable states
+│   │   │   ├── mcp_servers.yml      # Default MCP server registry
+│   │   │   ├── command_config.yml   # Tool policies, thresholds, model selection
+│   │   │   ├── validation_criteria.yml # Tier 1/2 validation rules
+│   │   │   └── labels.yml           # Canonical label registry
+│   │   ├── scripts/                 # Orchestration scripts
+│   │   │   ├── parallel_agent.sh    # Core orchestration engine (Bash)
+│   │   │   ├── parallel_agent.py    # Core orchestration engine (Python)
+│   │   │   ├── git_platform.sh      # Git platform detection
+│   │   │   ├── git_ops.sh           # Platform-agnostic Git operations
+│   │   │   ├── linear_ops.sh        # Linear API wrapper (GraphQL)
+│   │   │   └── label_sync.sh        # Label provisioning across platforms
+│   │   └── settings.local.json      # Default permissions + MCP servers
+│   ├── cursor/                      # → ~/.cursor/ (Cursor IDE)
+│   │   ├── rules/                   # Cursor rules (.mdc) adapted from skills
+│   │   ├── mcp.json                 # Cursor MCP server defaults
+│   │   └── (symlinks to ../claude/) # scripts, config, prompts, skills, .plans
+│   ├── gemini/                      # → ~/.gemini/ (Gemini CLI)
+│   │   ├── GEMINI.md                # Orchestration guide for Gemini
+│   │   ├── commands/                # TOML slash commands
+│   │   ├── settings.json            # Gemini settings
+│   │   └── (symlinks to ../claude/) # scripts, config, prompts, skills, .plans
+│   └── codex/                       # → ~/.codex/ (Codex CLI)
+│       ├── AGENTS.md                # Codex guide (symlink to ../../AGENTS.md)
+│       └── (symlinks to ../claude/) # commands, scripts, config, prompts, skills, .plans
+├── .claude/                         # Repo-specific config only (does NOT override sessions)
+│   ├── CLAUDE.md                    # Developer guide for working in this repo
+│   └── settings.local.json          # Repo-relevant permissions only
 ├── templates/                       # Production-grade permission templates
 │   ├── settings-low-risk.json       # Low-risk auto-executable permissions
 │   └── permissions/

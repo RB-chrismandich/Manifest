@@ -1,681 +1,74 @@
-# Claude Orchestration Guide
+# Manifest Repository — Developer Guide
 
-This document defines how Claude should leverage parallel LLM agents
-(Gemini, Cursor, Claude CLI) for cross-verification, planning, and validation.
+> This file provides Claude Code with context for working **inside** the Manifest
+> repository. It is intentionally minimal to avoid overriding your active
+> `~/.claude/` session configuration.
 
-## Parallel Agent Script
+## What This Repo Is
 
-**Location**: `~/.claude/scripts/parallel_agent.sh`
+This repository manages AI agent configurations (Claude Code, Cursor, Gemini CLI,
+Codex CLI) for deployment to `~/` on target machines. It contains orchestration
+guides, commands, skills, prompts, and scripts that enable parallel LLM agent
+coordination.
 
-### Quick Usage
+**Important**: The deployment source configs live in `configs/`, not in root
+dot-directories. This prevents project-level config from overriding your active
+session when working in this repo.
 
-**IMPORTANT**:
-
-- Always use **absolute paths** when specifying files to analyze or review.
-  Relative paths may fail as agents run from different working directories.
-- Always use a **large timeout** (600-900 seconds) for complex analyses.
-  The default 120s is often insufficient for thorough code review.
-- Use **Context7 MCP** by default for library/API documentation, code generation,
-  setup steps, and configuration guidance.
-- Use **Sentry MCP** by default for production/runtime error investigation,
-  stack traces, issue triage, and release regression analysis.
-- Use **Linear MCP** by default for issue requirements, acceptance criteria,
-  project context, and implementation planning.
-
-```bash
-# Basic code review with JSON output (all 3 agents, 10 min timeout)
-~/.claude/scripts/parallel_agent.sh --json --timeout 600 --review /absolute/path/to/file
-
-# Full analysis with validation and model selection (15 min timeout)
-~/.claude/scripts/parallel_agent.sh --json --full-output --validate --timeout 900 \
-  --cursor-model advanced --claude-model opus --analyze /absolute/path/to/file
-
-# Generic prompt to all agents
-~/.claude/scripts/parallel_agent.sh --json "Your question here"
-
-# Quick query with lightweight models
-~/.claude/scripts/parallel_agent.sh --cursor-model mini --claude-model haiku "Quick question"
-```
-
-### Options
-
-| Option | Description |
-|--------|-------------|
-| `--json` | Output JSON for programmatic parsing |
-| `--full-output` | Include complete agent outputs (no truncation) |
-| `--validate` | Check outputs against success criteria |
-| `--review <file>` | Code review mode |
-| `--analyze <file>` | Bug/security analysis mode |
-| `--improve <file>` | Improve observation YAML mode |
-| `--cursor-only` | Run only Cursor Agent |
-| `--gemini-only` | Run only Gemini CLI |
-| `--claude-only` | Run only Claude CLI |
-| `--no-claude` | Disable Claude CLI (enabled by default) |
-| `--cursor-model <tier>` | Cursor model: mini, flash, advanced, auto (default: auto) |
-| `--claude-model <tier>` | Claude model: haiku, sonnet, opus (default: sonnet) |
-| `--check-credits` | Run pre-flight credit check |
-| `--timeout <sec>` | Timeout per agent (default: 120) |
-| `--output <dir>` | Custom output directory |
-
-**Note on Sandboxed Environments**: When running from Task subagents or other sandboxed
-contexts, the script automatically detects write permission issues and falls back to
-`/tmp/.claude_agent_outputs_$$`. If you encounter file creation errors, manually specify
-an output directory with `--output /tmp/agent_outputs`.
-
-### Model Selection
-
-The orchestrating agent (Claude) selects models based on task complexity:
-
-| Task Type | Cursor | Claude | Gemini | Reason |
-|-----------|--------|--------|--------|--------|
-| Security | advanced | opus | pro | Maximum capability for critical code |
-| Review | flash | sonnet | flash | Balanced performance/cost |
-| Analyze | flash | sonnet | flash | Good reasoning without opus cost |
-| Improve | mini | haiku | flash | Lighter models for suggestions |
-| Quick | mini | haiku | flash | Speed for simple queries |
-
-**Model Tier Mappings:**
-
-| Tier | Cursor | Claude | Gemini |
-|------|--------|--------|--------|
-| mini/haiku | gpt-5.1-codex-mini | haiku | - |
-| flash/sonnet | gpt-5.1-codex | sonnet | gemini-3-flash-preview |
-| advanced/opus/pro | gpt-5.2 | opus | gemini-3-pro-preview |
-
-### Credit Exhaustion Fallback
-
-The script automatically detects credit/quota exhaustion and falls back:
-
-- **Cursor**: gpt-5.2 → gpt-5.1-codex → gpt-5.1-codex-mini → auto
-- **Claude**: opus → sonnet → haiku
-
-Detection methods:
-
-1. Parse stderr for credit/quota error patterns after execution
-2. Optional pre-flight check with `--check-credits` flag
-
-### JSON Output Schema
-
-```json
-{
-  "timestamp": "YYYYMMDD_HHMMSS",
-  "mode": "review|analyze|prompt",
-  "prompt": "The task description",
-  "agents": {
-    "cursor": {
-      "status": "complete|missing|failed",
-      "validated": true|false,
-      "model": "gpt-5.1-codex|auto",
-      "credit_fallback": false,
-      "output": "Agent response..."
-    },
-    "gemini": {
-      "status": "complete|missing|failed",
-      "validated": true|false,
-      "output": "Agent response..."
-    },
-    "claude": {
-      "status": "complete|missing|failed",
-      "validated": true|false,
-      "model": "sonnet|haiku|opus",
-      "credit_fallback": false,
-      "output": "Agent response..."
-    }
-  },
-  "output_files": {
-    "cursor": "/path/to/cursor_output.txt",
-    "gemini": "/path/to/gemini_output.txt",
-    "claude": "/path/to/claude_output.txt",
-    "summary": "/path/to/summary.md"
-  },
-  "cross_verification": {
-    "consensus_score": 85,
-    "confidence": "high|medium|low",
-    "agent_count": 3
-  }
-}
-```
-
-### Environment Variables
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `GEMINI_INCLUDE_DIRS` | Colon-separated directories for Gemini | `$(pwd):~/.claude:~/.gemini` |
-| `CURSOR_MODEL_MINI` | Model name for 'mini' tier | `gpt-5.1-codex-mini` |
-| `CURSOR_MODEL_FLASH` | Model name for 'flash' tier | `gpt-5.1-codex` |
-| `CURSOR_MODEL_ADVANCED` | Model name for 'advanced' tier | `gpt-5.2` |
-| `GEMINI_MODEL_FLASH` | Model name for 'flash' tier | `gemini-3-flash-preview` |
-| `GEMINI_MODEL_PRO` | Model name for 'pro' tier | `gemini-3-pro-preview` |
-| `CHECK_CREDITS_PREFLIGHT` | Enable pre-flight credit check | `false` |
-
----
-
-## Proactive Decision Framework
-
-### ALWAYS Use Parallel Agents For
-
-1. **Security-sensitive code changes**
-   - Authentication/authorization logic
-   - Input validation and sanitization
-   - Cryptographic operations
-   - Secret handling
-
-2. **Architectural decisions**
-   - New system components
-   - API design changes
-   - Database schema modifications
-   - Service integration patterns
-
-3. **Large file modifications (>200 lines)**
-   - Complex refactoring
-   - Major feature additions
-   - Performance-critical code
-
-4. **Critical business logic**
-   - Payment processing
-   - User data handling
-   - Compliance-related code
-
-### CONSIDER Parallel Agents For
-
-- Complex refactoring with multiple affected files
-- New feature implementation
-- Performance optimization
-- Debugging difficult issues
-
-### SKIP Parallel Agents For
-
-- Typo fixes, comments, formatting
-- Single-line changes
-- Documentation updates
-- Simple variable renames
-
----
-
-## Cross-Verification Patterns
-
-### Pattern 1: Agreement Scoring
-
-After receiving outputs from both agents, assess consensus:
+## Repository Layout
 
 ```text
-Consensus Score = (Agreements / Total_Findings) * 100
+configs/                  # Deployment source configs (deployed to ~/ via bootstrap.sh)
+  claude/                 # → ~/.claude/  (CLAUDE.md, commands/, skills/, config/, scripts/)
+  cursor/                 # → ~/.cursor/  (rules/, mcp.json + symlinks to claude/)
+  gemini/                 # → ~/.gemini/  (GEMINI.md, commands/, settings.json + symlinks)
+  codex/                  # → ~/.codex/   (AGENTS.md symlink + symlinks to claude/)
 
-≥80%: High confidence - proceed with unified recommendation
-50-79%: Medium confidence - highlight disagreements to user
-<50%: Low confidence - escalate for human review
+.claude/                  # Repo-specific only (this file + settings.local.json)
+bootstrap.sh              # Deploys configs/ to ~/
+bootstrap/lib/            # Modular bootstrap libraries
+tests/                    # Bats + pytest test suites
+docs/                     # Project documentation
 ```
 
-### Pattern 2: Synthesis
+## Common Tasks
 
-When agents disagree, synthesize by:
-
-1. Identifying the core disagreement
-2. Evaluating each agent's reasoning
-3. Providing a unified recommendation with caveats
-4. Noting which agent's approach was preferred and why
-
-### Pattern 3: Specialization
-
-Use agents for their strengths:
-
-- **Gemini**: Broad knowledge, creative solutions, research
-- **Cursor**: IDE-integrated context, code-specific analysis
-- **Claude**: Deep reasoning, security analysis, complex logic
-
----
-
-## Validation Criteria
-
-### Tier 1: Critical (Always Check)
-
-| Criterion | Weight | Description |
-|-----------|--------|-------------|
-| Cross-Verification | 0.3 | Multiple agents agree on key findings |
-| Security Issues | 0.3 | No injection, XSS, auth bypass, secrets |
-| Error Handling | 0.2 | Proper exceptions, no silent failures |
-| Breaking Changes | 0.2 | API compatibility, data migrations |
-
-### Tier 2: Standard (Code Quality)
-
-| Criterion | Weight | Description |
-|-----------|--------|-------------|
-| Bug Detection | 0.25 | Logic errors, off-by-one, null refs |
-| Performance | 0.25 | No O(n²), memory leaks |
-| Maintainability | 0.25 | Clear naming, reasonable complexity |
-| Test Coverage | 0.25 | Changes have corresponding tests |
-
----
-
-## Workflow Integration
-
-### Before Making Changes
+### Deploy to your home directory
 
 ```bash
-# Get multi-agent review of proposed changes
-~/.claude/scripts/parallel_agent.sh --json --validate \
-  "Review this planned change: [description]. Files affected: [list]"
+./bootstrap.sh
 ```
 
-### After Making Changes
+### Run tests
 
 ```bash
-# Validate the implementation (use absolute path, 10 min timeout)
-~/.claude/scripts/parallel_agent.sh --json --validate --timeout 600 --review /absolute/path/to/modified_file
+# Shell script tests
+bats tests/bats/
+
+# Python tests
+pytest tests/python/
+
+# Lint
+shellcheck configs/claude/scripts/*.sh bootstrap.sh bootstrap/lib/*.sh
+yamllint configs/claude/config/*.yml
 ```
 
-### For Complex Decisions
+### Validate YAML configs
 
 ```bash
-# Get diverse perspectives
-~/.claude/scripts/parallel_agent.sh --json --full-output \
-  "Evaluate these approaches for [problem]: Option A: ... Option B: ..."
+python3 -c "import yaml; yaml.safe_load(open('configs/claude/config/command_config.yml'))"
 ```
 
----
-
-## Error Handling
-
-The script implements:
-
-- **Agent validation**: Checks if `cursor`, `gemini`, and `claude` commands exist
-- **Retry logic**: Retries once after 5s delay on failure
-- **Partial results**: Continues with available agent outputs if some fail
-- **Credit fallback**: Automatically retries with cheaper models on quota errors
-- **Exit codes**: 0=success, 1=no args, 2=no agents available
-
----
-
-## Output Location
-
-All outputs are stored in: `~/.claude/.agent_outputs/`
-
-Files generated per run:
-
-- `cursor_YYYYMMDD_HHMMSS.txt` - Cursor Agent output
-- `gemini_YYYYMMDD_HHMMSS.txt` - Gemini CLI output
-- `claude_YYYYMMDD_HHMMSS.txt` - Claude CLI output
-- `summary_YYYYMMDD_HHMMSS.md` - Markdown summary
-- `results_YYYYMMDD_HHMMSS.json` - JSON output (if --json)
-
----
-
-## Orchestrated Code Review Workflow
-
-When modifying code, Claude acts as an orchestrator that spawns Task subagents for analysis, synthesis, and validation.
-
-### Workflow Overview
-
-```text
-┌─────────────────────────────────────────────────────────────────┐
-│                     Claude (Orchestrator)                        │
-├─────────────────────────────────────────────────────────────────┤
-│  1. Receive code modification task                               │
-│  2. Task(Explore) → Pre-flight analysis                          │
-│  3. If criteria met → Bash: parallel_agent.sh --json --validate  │
-│  4. Parse JSON output from agents                                │
-│  5. If disagreement → Task(general-purpose) → Synthesis          │
-│  6. Task(general-purpose) → Validation against criteria          │
-│  7. Report final result to user                                  │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-### Phase 1: Pre-flight Analysis
-
-Before making significant code changes, spawn a Task agent to determine if parallel review is needed:
-
-```text
-Task(
-  subagent_type: "Explore",
-  prompt: "Analyze these files/changes against the criteria in ~/.claude/prompts/preflight_analysis.md:
-           [FILES_OR_DIFF]
-           Return JSON with needs_parallel_review, reason, triggered_criteria, confidence"
-)
-```
-
-**Trigger Criteria** (from `~/.claude/prompts/preflight_analysis.md`):
-
-- Security-sensitive: auth, crypto, secrets, input validation
-- Architectural: new services, API changes, schema modifications
-- Large changes: >200 lines modified
-- Critical logic: payments, user data, compliance
-
-### Phase 2: Parallel Agent Review
-
-If pre-flight triggers review, execute:
-
-```bash
-# Always use absolute paths and large timeout for file arguments
-~/.claude/scripts/parallel_agent.sh --json --full-output --validate --timeout 600 --review /absolute/path/to/file
-```
-
-Parse the JSON output to extract:
-
-- `agents.gemini.output` - Gemini's analysis
-- `agents.cursor.output` - Cursor's analysis
-- `agents.claude.output` - Claude's analysis
-- `agents.*.status` - Agent completion status
-- `cross_verification.consensus_score` - Agreement percentage
-
-### Phase 3: Synthesis (on disagreement)
-
-When agents disagree (consensus < 80%), spawn a synthesis agent:
-
-```text
-Task(
-  subagent_type: "general-purpose",
-  prompt: "Using the template at ~/.claude/prompts/synthesis.md, synthesize these outputs:
-           Original task: [TASK]
-           Gemini output: [GEMINI_OUTPUT]
-           Cursor output: [CURSOR_OUTPUT]
-           Claude output: [CLAUDE_OUTPUT]
-           Return JSON with consensus_score, disagreements, unified_recommendation"
-)
-```
-
-**Consensus Thresholds**:
-
-- ≥80%: High confidence - proceed with unified recommendation
-- 50-79%: Medium confidence - highlight disagreements to user
-- <50%: Low confidence - escalate for human review
-
-### Phase 4: Validation
-
-Always run validation before finalizing changes:
-
-```text
-Task(
-  subagent_type: "general-purpose",
-  prompt: "Using the criteria in ~/.claude/prompts/validation.md and ~/.claude/config/validation_criteria.yml,
-           validate this code: [CODE_OR_DIFF]
-           Return JSON with tier1 results, tier2 results, overall_verdict"
-)
-```
-
-**Verdicts**:
-
-- `APPROVED`: All Tier 1 checks pass, Tier 2 score ≥ 0.60
-- `NEEDS_REVIEW`: All Tier 1 checks pass, Tier 2 score < 0.60
-- `BLOCKED`: Any Tier 1 check fails
-
-### Configuration Files
-
-| File | Purpose |
-|------|---------|
-| `~/.claude/prompts/preflight_analysis.md` | Pre-flight analysis prompt template |
-| `~/.claude/prompts/synthesis.md` | Disagreement synthesis prompt template |
-| `~/.claude/prompts/validation.md` | Validation criteria prompt template |
-| `~/.claude/config/validation_criteria.yml` | Detailed validation rules and thresholds |
-
-### Example Orchestration Flow
-
-```text
-User: "Add authentication middleware to the API routes"
-
-Claude (Orchestrator):
-  1. Spawns Task(Explore) for pre-flight analysis
-     → Returns: {needs_parallel_review: true, reason: "Authentication logic", confidence: 0.95}
-
-  2. Executes: ~/.claude/scripts/parallel_agent.sh --json --validate --timeout 600 \
-       --cursor-model advanced --claude-model opus --review "$(pwd)/src/middleware/auth.js"
-     → Gemini: "Use JWT with refresh tokens, add rate limiting"
-     → Cursor: "Use JWT with session fallback, add CSRF protection"
-     → Claude: "Use JWT with refresh tokens, add rate limiting and input validation"
-     → Consensus: 75% (MEDIUM)
-
-  3. Spawns Task(general-purpose) for synthesis
-     → Returns: {consensus_score: 0.75, unified_recommendation: "Use JWT with refresh tokens, add rate limiting, CSRF, and input validation"}
-
-  4. Spawns Task(general-purpose) for validation
-     → Returns: {tier1: {passed: true}, tier2: {score: 0.85}, verdict: "APPROVED"}
-
-  5. Reports to user with synthesized recommendation and validation results
-```
-
----
-
-## Native Commands
-
-Claude Code native commands are available in `~/.claude/commands/`.
-These integrate with the parallel agent orchestration framework.
-
-### Available Commands
-
-| Command | Description | Parallel Agents |
-|---------|-------------|-----------------|
-| `/project-commit` | Full commit pipeline: docs, pull, pre-commits, commit, push | CONDITIONAL (Phase 3) |
-| `/docs-readme` | Improve README documentation | NO |
-| `/docs-diagrams` | Generate Mermaid architecture diagrams | CONDITIONAL (5+ modules) |
-| `/docs-improve` | Diataxis documentation framework analysis | CONDITIONAL (>500 lines) |
-| `/refactor-python` | Python codebase security and quality analysis | ALWAYS |
-| `/refactor-shell` | Bash/Shell script security and quality analysis | ALWAYS |
-| `/issue-triage` | Linear issue audit: duplicates, staleness, priority validation | CONDITIONAL |
-| `/issue-prioritize` | Score and rank open issues by impact/urgency/readiness/risk | CONDITIONAL |
-| `/plan-manage` | Plan lifecycle with parallel agent orchestration for create/review | CONDITIONAL |
-| `/checkpoint` | Create compact checkpoint summary when context usage is high | NO |
-| `/health-check` | Verify CLI tools, auth, config syntax, MCP, symlinks | NO |
-| `/sync-configs` | Detect cross-platform config drift and broken symlinks | NO |
-
-### Command Usage
-
-```bash
-# Full commit pipeline with documentation generation
-/project-commit "Add new feature"
-/project-commit  # Auto-generate commit message
-
-# Code analysis
-/refactor-python src/
-/refactor-shell .claude/scripts/
-
-# Documentation
-/docs-diagrams docs/ARCHITECTURE_DIAGRAMS.md
-/docs-readme
-/docs-improve docs/
-
-# Issue management
-/issue-triage                # Audit Linear backlog
-/issue-prioritize            # Rank open issues by impact
-
-# Plan management
-/plan-manage create #42      # Create plan from issue
-/plan-manage execute #42     # Execute plan deliverables
-
-# Context management
-/checkpoint                  # Save session state when context is high
-```
-
-### Auto-Triggered Skill
-
-The `code-quality` skill auto-triggers when detecting:
-
-1. **Security patterns**: auth, crypto, secrets, input validation
-2. **Complexity patterns**:
-   - File > 500 lines
-   - > 10 functions per file
-   - > 5 classes per file
-
-When triggered, it provides inline feedback without blocking user workflow.
-
----
-
-## Git Platform Detection & Operations
-
-The framework provides platform-agnostic Git hosting operations that work with GitHub, GitLab, and plain Git repositories.
-
-### Platform Detection Script
-
-**Location**: `~/.claude/scripts/git_platform.sh`
-
-Detects the Git hosting platform from the repository's remote URL.
-
-**Usage**:
-
-```bash
-~/.claude/scripts/git_platform.sh [remote_name]
-```
-
-**Output**: `github`, `gitlab`, or `git` to stdout
-
-**Environment Variables**:
-
-- `MANIFEST_GIT_PLATFORM` - Force a specific platform (github|gitlab|git)
-- `MANIFEST_GIT_REMOTE` - Remote name to check (default: origin)
-
-**Exit Codes**: 0 = success, 1 = failure (no repo or remote)
-
-**Examples**:
-
-```bash
-# Auto-detect from origin remote
-~/.claude/scripts/git_platform.sh
-# Output: github
-
-# Check a specific remote
-~/.claude/scripts/git_platform.sh upstream
-# Output: gitlab
-
-# Force platform override
-MANIFEST_GIT_PLATFORM=gitlab ~/.claude/scripts/git_platform.sh
-# Output: gitlab
-```
-
-### Operations Wrapper Script
-
-**Location**: `~/.claude/scripts/git_ops.sh`
-
-Platform-agnostic wrapper for Git operations (issue/PR management). Routes
-commands to `gh` (GitHub), `glab` (GitLab), or warns if neither is available.
-
-**Usage**:
-
-```bash
-~/.claude/scripts/git_ops.sh <subcommand> [args...]
-```
-
-**Subcommands**:
-| Subcommand | GitHub (`gh`) | GitLab (`glab`) | Plain git |
-|------------|---------------|-----------------|-----------|
-| `issue-view N` | `gh issue view N` | `glab issue view N` | warn |
-| `issue-list` | `gh issue list` | `glab issue list` | warn |
-| `issue-create` | `gh issue create` | `glab issue create` | warn |
-| `issue-comment N` | `gh issue comment N` | `glab issue note N` | warn |
-| `issue-close N` | `gh issue close N` | `glab issue close N` | warn |
-| `issue-edit N` | `gh issue edit N` | `glab issue update N` | warn |
-| `pr-create` | `gh pr create` | `glab mr create` | warn |
-| `pr-view N` | `gh pr view N` | `glab mr view N` | warn |
-| `pr-list` | `gh pr list` | `glab mr list` | warn |
-| `label-create` | `gh label create` | `glab label create` | warn |
-
-**Examples**:
-
-```bash
-# View an issue (auto-detects platform)
-~/.claude/scripts/git_ops.sh issue-view 123
-
-# Create a pull/merge request
-~/.claude/scripts/git_ops.sh pr-create --title "Fix bug" --body "Description"
-
-# List open issues
-~/.claude/scripts/git_ops.sh issue-list --state open
-```
-
-**Note**: The script automatically detects the platform using `git_platform.sh`.
-All arguments are passed through to the underlying CLI tool (`gh` or `glab`).
-
----
-
-## Configuration Files
-
-| File | Purpose |
-|------|---------|
-| `~/.claude/config/command_config.yml` | Thresholds, tool policies, error recovery |
-| `~/.claude/config/validation_criteria.yml` | Tier 1/Tier 2 validation rules with command overrides |
-| `~/.claude/prompts/preflight_analysis.md` | Pre-flight analysis template |
-| `~/.claude/prompts/synthesis.md` | Agent disagreement synthesis template |
-| `~/.claude/prompts/validation.md` | Validation criteria template |
-
----
-
-## File Structure
-
-```text
-~/.claude/
-├── CLAUDE.md                        # This orchestration guide
-├── commands/                        # User-invoked slash commands (12)
-│   ├── checkpoint.md
-│   ├── docs-diagrams.md
-│   ├── docs-improve.md
-│   ├── docs-readme.md
-│   ├── health-check.md
-│   ├── issue-prioritize.md
-│   ├── issue-triage.md
-│   ├── plan-manage.md
-│   ├── project-commit.md
-│   ├── refactor-python.md
-│   ├── refactor-shell.md
-│   └── sync-configs.md
-├── skills/                          # Canonical skill library (13)
-│   ├── checkpoint/SKILL.md
-│   ├── code-quality/SKILL.md       # Auto-triggered quality/security
-│   ├── docs-diagrams/SKILL.md
-│   ├── docs-improve/SKILL.md
-│   ├── docs-readme/SKILL.md
-│   ├── health-check/SKILL.md
-│   ├── issue-prioritize/SKILL.md
-│   ├── issue-triage/SKILL.md
-│   ├── plan-manage/SKILL.md
-│   ├── project-commit/SKILL.md
-│   ├── refactor-python/SKILL.md
-│   ├── refactor-shell/SKILL.md
-│   └── sync-configs/SKILL.md
-├── prompts/
-│   ├── context_monitor.md
-│   ├── preflight_analysis.md
-│   ├── synthesis.md
-│   ├── triage_synthesis.md
-│   └── validation.md
-├── config/
-│   ├── command_config.yml
-│   ├── linear_triage.yml
-│   ├── mcp_servers.yml
-│   ├── parallel_agent.yml           # Canonical model tiers source
-│   ├── services.yml
-│   └── validation_criteria.yml
-├── .plans/                          # Plan management
-│   ├── .archive/                    # Completed plans
-│   ├── .abandoned/                  # Stale/abandoned plans
-│   ├── TEMPLATE.md
-│   └── README.md
-└── scripts/
-    ├── parallel_agent.sh            # Main parallel agent orchestrator
-    ├── parallel_agent.py            # Python parallel agent (Phase 3)
-    ├── generate_cursor_rules.sh     # Regenerate .cursor/rules from SKILL.md
-    ├── git_platform.sh              # Platform detection
-    ├── git_ops.sh                   # Platform-agnostic Git operations
-    └── linear_ops.sh                # Linear API operations
-```
-
----
-
-## Plan Management
-
-Implementation plans are tracked as markdown files in `~/.claude/.plans/`.
-
-### Lifecycle
-
-```text
-CREATE → ACTIVE → COMPLETED (.archive/) or ABANDONED (.abandoned/)
-```
-
-1. **CREATE**: Copy `TEMPLATE.md`, save as `YYYYMMDD-short-description.md`
-2. **ACTIVE**: Plan lives in `.plans/` root while work is in progress; check off deliverables as they are completed
-3. **COMPLETED**: Move to `.archive/` when all deliverables are done
-4. **ABANDONED**: Move to `.abandoned/` if superseded or no longer relevant
-
-### Housekeeping Rules
-
-- **Before creating a plan**: Review existing plans in `.plans/` to avoid duplicates
-- **During implementation**: Check off deliverables (`- [x]`) as each is completed
-- **Staleness threshold**: Plans untouched for 7+ days should be reviewed — either update, complete, or abandon them
-- **Use `/plan-manage`** for orchestrated plan creation (parallel agents for cross-verified
-  planning), review, archiving, and abandoning plans
+## Key Paths (in this repo)
+
+| What | Path |
+|------|------|
+| Orchestration guide | `configs/claude/CLAUDE.md` |
+| Slash commands | `configs/claude/commands/` |
+| Skills | `configs/claude/skills/` |
+| Scripts | `configs/claude/scripts/` |
+| Config files | `configs/claude/config/` |
+| Cursor rules | `configs/cursor/rules/` |
+| Gemini guide | `configs/gemini/GEMINI.md` |
+| Bootstrap | `bootstrap.sh` + `bootstrap/lib/` |
+| Tests | `tests/bats/`, `tests/python/` |

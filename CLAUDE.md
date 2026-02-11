@@ -2,7 +2,7 @@
 
 > Repository context and guidance for Claude Code when working with this codebase
 
-**Last Updated**: 2026-02-09
+**Last Updated**: 2026-02-11
 **Audience**: AI assistants (Claude Code), contributors
 **Purpose**: Provide Claude Code with repository structure, deployment process, and testing guidelines
 
@@ -30,42 +30,33 @@ that enable parallel LLM agent coordination (Cursor, Gemini CLI, Claude CLI).
 ## Repository Structure
 
 ```text
-.claude/                             # Primary configuration (Claude Code)
-├── CLAUDE.md                        # Orchestration guide (deployed to ~/.claude/)
-├── commands/                        # User-invokable slash commands
-├── skills/                          # Canonical shared skill library (source of truth)
-├── prompts/                         # Agent orchestration prompt templates
-├── config/                          # YAML configuration files
-│   └── mcp_servers.yml              # Default MCP server registry (OAuth-capable)
-├── .plans/                          # Plan management (template, archive, abandoned)
-└── scripts/parallel_agent.sh        # Main parallel agent orchestration script
+configs/                             # Deployment source configs (deployed to ~/ via bootstrap.sh)
+├── claude/                          # → ~/.claude/ (primary configuration)
+│   ├── CLAUDE.md                    # Orchestration guide
+│   ├── commands/                    # User-invokable slash commands
+│   ├── skills/                      # Canonical shared skill library (source of truth)
+│   ├── prompts/                     # Agent orchestration prompt templates
+│   ├── config/                      # YAML configuration files
+│   │   └── mcp_servers.yml          # Default MCP server registry (OAuth-capable)
+│   ├── .plans/                      # Plan management (template, archive, abandoned)
+│   ├── settings.local.json          # Default permissions and MCP server config
+│   └── scripts/parallel_agent.sh    # Main parallel agent orchestration script
+├── cursor/                          # → ~/.cursor/ (Cursor IDE configuration)
+│   ├── rules/                       # Cursor rules (.mdc) adapted from commands/skills
+│   ├── mcp.json                     # Cursor MCP server defaults
+│   └── (symlinks to ../claude/)     # scripts, config, prompts, skills, .plans
+├── gemini/                          # → ~/.gemini/ (Gemini CLI configuration)
+│   ├── GEMINI.md                    # Orchestration guide for Gemini
+│   ├── commands/                    # TOML slash commands
+│   ├── settings.json                # Gemini settings (includes MCP server defaults)
+│   └── (symlinks to ../claude/)     # scripts, config, prompts, skills, .plans
+└── codex/                           # → ~/.codex/ (Codex CLI configuration)
+    ├── AGENTS.md -> ../../AGENTS.md # Codex guide
+    └── (symlinks to ../claude/)     # commands, scripts, config, prompts, skills, .plans
 
-.cursor/                             # Cursor IDE configuration (mirrors .claude/)
-├── rules/                           # Cursor rules (.mdc) adapted from commands/skills
-├── mcp.json                         # Cursor MCP server defaults
-├── scripts -> ../.claude/scripts/   # Symlink to shared scripts
-├── config -> ../.claude/config/     # Symlink to shared configs
-├── prompts -> ../.claude/prompts/   # Symlink to shared prompts
-├── skills -> ../.claude/skills      # Shared skills symlink (single source of truth)
-└── .plans -> ../.claude/.plans/     # Symlink to shared plans
-
-.gemini/                             # Gemini CLI configuration (mirrors .claude/)
-├── GEMINI.md                        # Orchestration guide for Gemini
-├── commands/                        # TOML slash commands (converted from .claude/commands/)
-├── settings.json                    # Gemini settings (includes MCP server defaults)
-├── skills -> ../.claude/skills      # Shared skills symlink (single source of truth)
-├── scripts -> ../.claude/scripts/   # Symlink to shared scripts
-├── config -> ../.claude/config/     # Symlink to shared configs
-├── prompts -> ../.claude/prompts/   # Symlink to shared prompts
-└── .plans -> ../.claude/.plans/     # Symlink to shared plans
-
-.codex/                              # Codex CLI configuration (mirrors .claude/)
-├── AGENTS.md -> ../AGENTS.md        # Codex guide
-├── skills -> ../.claude/skills      # Shared skills symlink (single source of truth)
-├── scripts -> ../.claude/scripts/   # Symlink to shared scripts
-├── config -> ../.claude/config/     # Symlink to shared configs
-├── prompts -> ../.claude/prompts/   # Symlink to shared prompts
-└── .plans -> ../.claude/.plans/     # Symlink to shared plans
+.claude/                             # Repo-specific config only (does NOT override active sessions)
+├── CLAUDE.md                        # Developer guide for working in this repo
+└── settings.local.json              # Repo-relevant permissions only (no MCP servers)
 
 bootstrap.sh                         # macOS/Linux bootstrap script
 bootstrap/                           # Modular bootstrap libraries + hookable modules
@@ -143,7 +134,7 @@ The bootstrap script:
 2. Installs Node.js (required for npm-based CLIs)
 3. Installs enabled CLI tools (Claude, Gemini)
 4. Opens Cursor download page (if enabled)
-5. Deploys configuration files to `~/.claude/`
+5. Deploys configuration files from `configs/` to `~/.claude/`
 6. Writes service toggles to `~/.claude/config/services.yml`
 7. Checks authentication status and provides setup instructions for unauthenticated services
 
@@ -153,13 +144,14 @@ If not using bootstrap.sh, copy the configuration directories manually:
 
 ```bash
 # Deploy Claude Code configuration
-cp -r .claude/* ~/.claude/
+cp -r configs/claude/* ~/.claude/
+cp -r configs/claude/.[!.]* ~/.claude/ 2>/dev/null || true
 chmod +x ~/.claude/scripts/*.sh
 
 # Deploy Cursor configuration (optional)
 mkdir -p ~/.cursor/rules
-cp .cursor/rules/*.mdc ~/.cursor/rules/
-cp .cursor/mcp.json ~/.cursor/mcp.json
+cp configs/cursor/rules/*.mdc ~/.cursor/rules/
+cp configs/cursor/mcp.json ~/.cursor/mcp.json
 ln -sf ~/.claude/scripts ~/.cursor/scripts
 ln -sf ~/.claude/config ~/.cursor/config
 ln -sf ~/.claude/prompts ~/.cursor/prompts
@@ -168,9 +160,9 @@ ln -sf ~/.claude/skills ~/.cursor/skills
 
 # Deploy Gemini configuration (optional)
 mkdir -p ~/.gemini/commands
-cp .gemini/GEMINI.md ~/.gemini/
-cp .gemini/commands/*.toml ~/.gemini/commands/
-cp .gemini/settings.json ~/.gemini/settings.json
+cp configs/gemini/GEMINI.md ~/.gemini/
+cp configs/gemini/commands/*.toml ~/.gemini/commands/
+cp configs/gemini/settings.json ~/.gemini/settings.json
 ln -sf ~/.claude/scripts ~/.gemini/scripts
 ln -sf ~/.claude/config ~/.gemini/config
 ln -sf ~/.claude/prompts ~/.gemini/prompts
@@ -197,19 +189,19 @@ Required CLI tools (install those you want to use):
 
 | File | Purpose |
 |------|---------|
-| `.claude/CLAUDE.md` | Main orchestration guide - defines how Claude leverages parallel agents |
-| `.cursor/rules/orchestration.mdc` | Main orchestration guide for Cursor (always-on rule) |
-| `.gemini/GEMINI.md` | Main orchestration guide for Gemini CLI |
-| `.codex/AGENTS.md` | Main orchestration guide for Codex CLI |
-| `.claude/scripts/parallel_agent.sh` | Bash script that runs agents in parallel with consensus scoring |
-| `.claude/scripts/git_platform.sh` | Platform detection script (github, gitlab, git) |
-| `.claude/scripts/git_ops.sh` | Platform-agnostic Git operations wrapper (issue/PR management) |
-| `.claude/scripts/linear_ops.sh` | Linear API wrapper for issue management (GraphQL) |
-| `.claude/config/command_config.yml` | Thresholds, tool policies, model selection, error recovery |
-| `.claude/config/linear_triage.yml` | Linear triage scoring, duplicate detection, staleness thresholds |
-| `.claude/config/validation_criteria.yml` | Tier 1 (critical) and Tier 2 (quality) validation rules |
-| `.claude/config/labels.yml` | Canonical label registry for GitHub, GitLab, and Linear |
-| `.claude/scripts/label_sync.sh` | Label sync script — reads registry, provisions labels across platforms |
+| `configs/claude/CLAUDE.md` | Main orchestration guide - defines how Claude leverages parallel agents |
+| `configs/cursor/rules/orchestration.mdc` | Main orchestration guide for Cursor (always-on rule) |
+| `configs/gemini/GEMINI.md` | Main orchestration guide for Gemini CLI |
+| `configs/codex/AGENTS.md` | Main orchestration guide for Codex CLI |
+| `configs/claude/scripts/parallel_agent.sh` | Bash script that runs agents in parallel with consensus scoring |
+| `configs/claude/scripts/git_platform.sh` | Platform detection script (github, gitlab, git) |
+| `configs/claude/scripts/git_ops.sh` | Platform-agnostic Git operations wrapper (issue/PR management) |
+| `configs/claude/scripts/linear_ops.sh` | Linear API wrapper for issue management (GraphQL) |
+| `configs/claude/config/command_config.yml` | Thresholds, tool policies, model selection, error recovery |
+| `configs/claude/config/linear_triage.yml` | Linear triage scoring, duplicate detection, staleness thresholds |
+| `configs/claude/config/validation_criteria.yml` | Tier 1 (critical) and Tier 2 (quality) validation rules |
+| `configs/claude/config/labels.yml` | Canonical label registry for GitHub, GitLab, and Linear |
+| `configs/claude/scripts/label_sync.sh` | Label sync script — reads registry, provisions labels across platforms |
 | `AGENTS.md` | AI agent instructions for all platforms (Cursor, Claude, Gemini, Codex) |
 
 ## Available Commands
@@ -234,56 +226,56 @@ Test the parallel agent script locally:
 
 ```bash
 # Test with all agents
-.claude/scripts/parallel_agent.sh --json "Test prompt"
+configs/claude/scripts/parallel_agent.sh --json "Test prompt"
 
 # Test specific mode
-.claude/scripts/parallel_agent.sh --json --review /path/to/file
+configs/claude/scripts/parallel_agent.sh --json --review /path/to/file
 
 # Test with single agent
-.claude/scripts/parallel_agent.sh --cursor-only "Test prompt"
+configs/claude/scripts/parallel_agent.sh --cursor-only "Test prompt"
 ```
 
 Validate YAML configuration syntax:
 
 ```bash
-python3 -c "import yaml; yaml.safe_load(open('.claude/config/command_config.yml'))"
-python3 -c "import yaml; yaml.safe_load(open('.claude/config/validation_criteria.yml'))"
+python3 -c "import yaml; yaml.safe_load(open('configs/claude/config/command_config.yml'))"
+python3 -c "import yaml; yaml.safe_load(open('configs/claude/config/validation_criteria.yml'))"
 ```
 
 ## Label Management
 
-Issue labels are managed centrally in `.claude/config/labels.yml` and synced across
+Issue labels are managed centrally in `configs/claude/config/labels.yml` and synced across
 GitHub, GitLab, and Linear via `label_sync.sh`.
 
 **Labels**: `planned` (blue), `in-progress` (yellow), `needs-review` (orange), `done` (green), `follow-up` (lavender)
 
 ```bash
 # Sync all labels to the current platform
-.claude/scripts/label_sync.sh
+configs/claude/scripts/label_sync.sh
 
 # Dry-run to preview changes
-.claude/scripts/label_sync.sh --dry-run
+configs/claude/scripts/label_sync.sh --dry-run
 
 # Sync via git_ops.sh wrapper
-.claude/scripts/git_ops.sh label-sync
+configs/claude/scripts/git_ops.sh label-sync
 ```
 
 See [docs/COMMANDS.md](docs/COMMANDS.md#label-management) for full label reference.
 
 ## Adding New Commands
 
-1. Create a markdown file in `.claude/commands/` (e.g., `my-command.md`)
-2. Add tool policies to `.claude/config/command_config.yml` under `tool_policies`
-3. If needed, add validation overrides to `.claude/config/validation_criteria.yml`
+1. Create a markdown file in `configs/claude/commands/` (e.g., `my-command.md`)
+2. Add tool policies to `configs/claude/config/command_config.yml` under `tool_policies`
+3. If needed, add validation overrides to `configs/claude/config/validation_criteria.yml`
 
 Commands are invoked as `/my-command` in Claude Code.
 
 ## Plan Management
 
-Implementation plans are tracked in `.claude/.plans/` as date-prefixed markdown files
+Implementation plans are tracked in `configs/claude/.plans/` as date-prefixed markdown files
 (`YYYYMMDD-description.md`). Plans follow a lifecycle:
 CREATE -> ACTIVE -> COMPLETED (`.archive/`) or ABANDONED (`.abandoned/`).
-See `.claude/.plans/README.md` for naming conventions and rules.
+See `configs/claude/.plans/README.md` for naming conventions and rules.
 Use `/plan-manage` to create plans (with parallel agent orchestration for cross-verified
 approaches), review stale plans, or archive/abandon completed work.
 
@@ -316,5 +308,5 @@ approaches), review stale plans, or archive/abandon completed work.
 - [docs/CONFIGURATION.md](docs/CONFIGURATION.md) - Complete configuration reference
 - [docs/ARCHITECTURE_DIAGRAMS.md](docs/ARCHITECTURE_DIAGRAMS.md) - Visual system documentation
 - [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) - Common problems and solutions
-- [.claude/.plans/README.md](.claude/.plans/README.md) - Plan management quick reference
-- [.claude/CLAUDE.md](.claude/CLAUDE.md) - Orchestration guide (deployed to ~/.claude/)
+- [configs/claude/.plans/README.md](configs/claude/.plans/README.md) - Plan management quick reference
+- [configs/claude/CLAUDE.md](configs/claude/CLAUDE.md) - Orchestration guide (deployed to ~/.claude/)

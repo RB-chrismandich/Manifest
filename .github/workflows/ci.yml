@@ -26,8 +26,8 @@ jobs:
       - name: Install shellcheck
         run: sudo apt-get update && sudo apt-get install -y shellcheck
 
-      - name: ShellCheck - .claude/scripts/
-        run: shellcheck .claude/scripts/*.sh
+      - name: ShellCheck - configs/claude/scripts/
+        run: shellcheck configs/claude/scripts/*.sh
 
       - name: ShellCheck - bootstrap/
         run: |
@@ -39,8 +39,8 @@ jobs:
       - name: Install yamllint
         run: pip install yamllint
 
-      - name: yamllint - .claude/config/
-        run: yamllint -d relaxed .claude/config/*.yml
+      - name: yamllint - configs/claude/config/
+        run: yamllint -d relaxed configs/claude/config/*.yml
 
       # --- markdownlint ---
 
@@ -63,7 +63,7 @@ jobs:
       - name: Validate YAML configs with Python
         run: |
           exit_code=0
-          for f in .claude/config/*.yml; do
+          for f in configs/claude/config/*.yml; do
             echo "Validating $f ..."
             python3 -c "import yaml; yaml.safe_load(open('$f'))" || exit_code=1
           done
@@ -143,28 +143,28 @@ jobs:
             fi
           }
 
-          # .cursor symlinks
-          check_symlink ".cursor/scripts"  "../.claude/scripts"
-          check_symlink ".cursor/config"   "../.claude/config"
-          check_symlink ".cursor/prompts"  "../.claude/prompts"
-          check_symlink ".cursor/.plans"   "../.claude/.plans"
-          check_symlink ".cursor/skills"   "../.claude/skills"
+          # configs/cursor symlinks
+          check_symlink "configs/cursor/scripts"  "../claude/scripts"
+          check_symlink "configs/cursor/config"   "../claude/config"
+          check_symlink "configs/cursor/prompts"  "../claude/prompts"
+          check_symlink "configs/cursor/.plans"   "../claude/.plans"
+          check_symlink "configs/cursor/skills"   "../claude/skills"
 
-          # .gemini symlinks
-          check_symlink ".gemini/scripts"  "../.claude/scripts"
-          check_symlink ".gemini/config"   "../.claude/config"
-          check_symlink ".gemini/prompts"  "../.claude/prompts"
-          check_symlink ".gemini/.plans"   "../.claude/.plans"
-          check_symlink ".gemini/skills"   "../.claude/skills"
+          # configs/gemini symlinks
+          check_symlink "configs/gemini/scripts"  "../claude/scripts"
+          check_symlink "configs/gemini/config"   "../claude/config"
+          check_symlink "configs/gemini/prompts"  "../claude/prompts"
+          check_symlink "configs/gemini/.plans"   "../claude/.plans"
+          check_symlink "configs/gemini/skills"   "../claude/skills"
 
-          # .codex symlinks
-          check_symlink ".codex/AGENTS.md" "../AGENTS.md"
-          check_symlink ".codex/commands"  "../.claude/commands"
-          check_symlink ".codex/scripts"   "../.claude/scripts"
-          check_symlink ".codex/config"    "../.claude/config"
-          check_symlink ".codex/prompts"   "../.claude/prompts"
-          check_symlink ".codex/.plans"    "../.claude/.plans"
-          check_symlink ".codex/skills"    "../.claude/skills"
+          # configs/codex symlinks
+          check_symlink "configs/codex/AGENTS.md" "../../AGENTS.md"
+          check_symlink "configs/codex/commands"  "../claude/commands"
+          check_symlink "configs/codex/scripts"   "../claude/scripts"
+          check_symlink "configs/codex/config"    "../claude/config"
+          check_symlink "configs/codex/prompts"   "../claude/prompts"
+          check_symlink "configs/codex/.plans"    "../claude/.plans"
+          check_symlink "configs/codex/skills"    "../claude/skills"
 
           if [ "$ERRORS" -gt 0 ]; then
             echo ""
@@ -175,14 +175,14 @@ jobs:
           echo "All symlinks intact"
 
       - name: Validate parallel_agent.sh syntax
-        run: bash -n .claude/scripts/parallel_agent.sh
+        run: bash -n configs/claude/scripts/parallel_agent.sh
 
       - name: Validate all shell scripts syntax
         run: |
           echo "Validating shell script syntax with bash -n..."
           ERRORS=0
 
-          for f in .claude/scripts/*.sh bootstrap.sh bootstrap/lib/*.sh; do
+          for f in configs/claude/scripts/*.sh bootstrap.sh bootstrap/lib/*.sh; do
             if bash -n "$f" 2>/dev/null; then
               echo "OK: $f"
             else
@@ -203,21 +203,21 @@ jobs:
       - name: Count and verify skills, commands, scripts
         run: |
           echo "=== Skills ==="
-          SKILL_COUNT=$(find .claude/skills -name 'SKILL.md' | wc -l | tr -d ' ')
+          SKILL_COUNT=$(find configs/claude/skills -name 'SKILL.md' | wc -l | tr -d ' ')
           echo "Found $SKILL_COUNT skills:"
-          find .claude/skills -name 'SKILL.md' | sed 's|/SKILL.md||;s|.claude/skills/||' | sort | sed 's/^/  /'
+          find configs/claude/skills -name 'SKILL.md' | sed 's|/SKILL.md||;s|configs/claude/skills/||' | sort | sed 's/^/  /'
           echo ""
 
           echo "=== Commands ==="
-          COMMAND_COUNT=$(find .claude/commands -name '*.md' | wc -l | tr -d ' ')
+          COMMAND_COUNT=$(find configs/claude/commands -name '*.md' | wc -l | tr -d ' ')
           echo "Found $COMMAND_COUNT commands:"
-          find .claude/commands -name '*.md' -printf '%f\n' | sed 's/.md$//' | sort | sed 's/^/  /'
+          find configs/claude/commands -name '*.md' -printf '%f\n' | sed 's/.md$//' | sort | sed 's/^/  /'
           echo ""
 
           echo "=== Scripts ==="
-          SCRIPT_COUNT=$(find .claude/scripts -name '*.sh' | wc -l | tr -d ' ')
+          SCRIPT_COUNT=$(find configs/claude/scripts -name '*.sh' | wc -l | tr -d ' ')
           echo "Found $SCRIPT_COUNT scripts:"
-          find .claude/scripts -name '*.sh' -printf '%f\n' | sort | sed 's/^/  /'
+          find configs/claude/scripts -name '*.sh' -printf '%f\n' | sort | sed 's/^/  /'
           echo ""
 
           # Verify minimum expected counts

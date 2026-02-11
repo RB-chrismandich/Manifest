@@ -6,7 +6,7 @@
 deploy_configs() {
     print_header "Deploying Configuration Files"
 
-    local source_dir="$SCRIPT_DIR/.claude"
+    local source_dir="$SCRIPT_DIR/configs/claude"
 
     if [[ ! -d "$source_dir" ]]; then
         print_error "Source directory not found: $source_dir"
@@ -106,7 +106,7 @@ deploy_configs() {
 deploy_cursor_configs() {
     print_step "Deploying Cursor IDE configuration..."
 
-    local cursor_source_dir="$SCRIPT_DIR/.cursor"
+    local cursor_source_dir="$SCRIPT_DIR/configs/cursor"
 
     if [[ ! -d "$cursor_source_dir" ]]; then
         print_warning "Cursor configuration source not found: $cursor_source_dir"
@@ -139,7 +139,7 @@ deploy_cursor_configs() {
 deploy_gemini_configs() {
     print_step "Deploying Gemini CLI configuration..."
 
-    local gemini_source_dir="$SCRIPT_DIR/.gemini"
+    local gemini_source_dir="$SCRIPT_DIR/configs/gemini"
 
     if [[ ! -d "$gemini_source_dir" ]]; then
         print_warning "Gemini configuration source not found: $gemini_source_dir"
@@ -187,9 +187,9 @@ deploy_codex_configs() {
     mkdir -p "$CODEX_TARGET_DIR"
 
     # Prefer repo-specific Codex guide if available; fallback to AGENTS.md at repo root
-    if [[ -f "$SCRIPT_DIR/.codex/AGENTS.md" ]]; then
-        cp "$SCRIPT_DIR/.codex/AGENTS.md" "$CODEX_TARGET_DIR/AGENTS.md"
-        print_success "Deployed Codex AGENTS.md from .codex/"
+    if [[ -f "$SCRIPT_DIR/configs/codex/AGENTS.md" ]]; then
+        cp "$SCRIPT_DIR/configs/codex/AGENTS.md" "$CODEX_TARGET_DIR/AGENTS.md"
+        print_success "Deployed Codex AGENTS.md from configs/codex/"
     elif [[ -f "$SCRIPT_DIR/AGENTS.md" ]]; then
         cp "$SCRIPT_DIR/AGENTS.md" "$CODEX_TARGET_DIR/AGENTS.md"
         print_success "Deployed Codex AGENTS.md from repository root"

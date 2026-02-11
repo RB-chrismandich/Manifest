@@ -1,11 +1,11 @@
 #!/usr/bin/env bats
-# Tests for .claude/scripts/linear_ops.sh
+# Tests for configs/claude/scripts/linear_ops.sh
 # Authentication fallback, subcommand routing, error handling
 
 load '../test_helper/bats-support/load'
 load '../test_helper/bats-assert/load'
 
-SCRIPT_UNDER_TEST="$BATS_TEST_DIRNAME/../../.claude/scripts/linear_ops.sh"
+SCRIPT_UNDER_TEST="$BATS_TEST_DIRNAME/../../configs/claude/scripts/linear_ops.sh"
 
 setup() {
     # Create a temporary directory for each test

@@ -1,5 +1,6 @@
 # Agent Output Directory (runtime files, logs, temp outputs)
 .claude/.agent_outputs/
+configs/claude/.agent_outputs/
 
 # Python
 __pycache__/

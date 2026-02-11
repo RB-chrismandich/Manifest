@@ -1,11 +1,11 @@
 #!/usr/bin/env bats
-# Tests for .claude/scripts/parallel_agent.sh
+# Tests for configs/claude/scripts/parallel_agent.sh
 # Argument parsing, model selection, mode flags, exit codes
 
 load '../test_helper/bats-support/load'
 load '../test_helper/bats-assert/load'
 
-SCRIPT_UNDER_TEST="$BATS_TEST_DIRNAME/../../.claude/scripts/parallel_agent.sh"
+SCRIPT_UNDER_TEST="$BATS_TEST_DIRNAME/../../configs/claude/scripts/parallel_agent.sh"
 
 setup() {
     # Create a temporary directory for each test

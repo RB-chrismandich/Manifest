@@ -1,11 +1,11 @@
 #!/usr/bin/env bats
-# Tests for .claude/scripts/label_sync.sh
+# Tests for configs/claude/scripts/label_sync.sh
 # YAML parsing, dry-run output, platform detection, error handling
 
 load '../test_helper/bats-support/load'
 load '../test_helper/bats-assert/load'
 
-SCRIPT_UNDER_TEST="$BATS_TEST_DIRNAME/../../.claude/scripts/label_sync.sh"
+SCRIPT_UNDER_TEST="$BATS_TEST_DIRNAME/../../configs/claude/scripts/label_sync.sh"
 
 setup() {
     export BATS_TMPDIR="${BATS_TMPDIR:-/tmp}"

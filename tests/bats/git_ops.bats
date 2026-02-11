@@ -1,11 +1,11 @@
 #!/usr/bin/env bats
-# Tests for .claude/scripts/git_ops.sh
+# Tests for configs/claude/scripts/git_ops.sh
 # Subcommand routing, unknown subcommand handling, platform detection integration
 
 load '../test_helper/bats-support/load'
 load '../test_helper/bats-assert/load'
 
-SCRIPT_UNDER_TEST="$BATS_TEST_DIRNAME/../../.claude/scripts/git_ops.sh"
+SCRIPT_UNDER_TEST="$BATS_TEST_DIRNAME/../../configs/claude/scripts/git_ops.sh"
 
 setup() {
     # Create a temporary directory for each test
