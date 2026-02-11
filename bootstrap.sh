@@ -28,11 +28,16 @@
 
 set -e
 
-# Colors for output
+# Colors for output (used in sourced libs via echo -e)
+# shellcheck disable=SC2034
 RED='\033[0;31m'
+# shellcheck disable=SC2034
 GREEN='\033[0;32m'
+# shellcheck disable=SC2034
 BLUE='\033[0;34m'
+# shellcheck disable=SC2034
 YELLOW='\033[1;33m'
+# shellcheck disable=SC2034
 CYAN='\033[0;36m'
 BOLD='\033[1m'
 NC='\033[0m' # No Color
@@ -42,21 +47,29 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BOOTSTRAP_LIB_DIR="$SCRIPT_DIR/bootstrap/lib"
 BOOTSTRAP_MODULE_DIR="${BOOTSTRAP_MODULE_DIR:-$SCRIPT_DIR/bootstrap/modules}"
 TARGET_DIR="$HOME/.claude"
+# shellcheck disable=SC2034
 CURSOR_TARGET_DIR="$HOME/.cursor"
+# shellcheck disable=SC2034
 GEMINI_TARGET_DIR="$HOME/.gemini"
+# shellcheck disable=SC2034
 CODEX_TARGET_DIR="$HOME/.codex"
 MANIFEST_STATE_DIR="$HOME/.manifest"
+# shellcheck disable=SC2034
 MANIFEST_OUTPUT_DIR="$MANIFEST_STATE_DIR/orchestration/outputs"
+# shellcheck disable=SC2034
 MANIFEST_TMP_DIR="$MANIFEST_STATE_DIR/tmp"
 SERVICES_CONFIG="$TARGET_DIR/config/services.yml"
 
 # Detect platform/runtime defaults (initialized by initialize_platform_runtime)
 PLATFORM="unknown"
 export DISTRO=""
+# shellcheck disable=SC2034
 PKG_MANAGER=""
+# shellcheck disable=SC2034
 TIMEOUT_CMD=""
 
 # Script name for help output
+# shellcheck disable=SC2034
 BOOTSTRAP_SCRIPT_NAME="$0"
 
 load_bootstrap_libs() {

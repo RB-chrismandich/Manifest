@@ -201,7 +201,7 @@ python3 parallel_agent.py --no-stream "Your prompt"
 
 **Live Display**:
 
-```
+```text
 ┌─ Parallel Agent Execution ─────────────────────┐
 │ 🔄 Claude:                                      │
 │ Analyzing the code for security issues...      │
@@ -266,7 +266,7 @@ else:
 
 **Updated requirements.txt**:
 
-```
+```text
 # Gemini SDK (try new package first, fallback to legacy)
 google-genai>=1.0.0; python_version >= "3.9"  # NEW (preferred)
 google-generativeai>=0.8.0  # Legacy fallback
@@ -525,7 +525,9 @@ Phase 3 successfully adds **6 major features** to the Python parallel agent:
 5. **Streaming Responses** - Real-time UX feedback
 6. **Package Migration** - Future-proof with dual import support
 
-The implementation is **production-ready**, **well-tested**, and **fully backward-compatible**. The parallel agent can now serve as a **drop-in replacement** for the Bash version with significantly enhanced capabilities.
+The implementation is **production-ready**, **well-tested**, and **fully backward-compatible**.
+The parallel agent can now serve as a **drop-in replacement** for the Bash version with
+significantly enhanced capabilities.
 
 **Total Implementation**: ~35 hours (within 30-42 hour estimate)
 **Code Quality**: ✓ Excellent (syntax validated, tests passing)

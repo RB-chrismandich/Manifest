@@ -14,7 +14,9 @@ python3 --version
 /usr/bin/python3 --version  # Usually Python 3.9 (stable)
 ```
 
-**Known Issue**: Python 3.15 alpha versions may have package compatibility issues. Use the bootstrap script (which auto-selects stable Python) or manually use `/usr/bin/python3` on macOS.
+**Known Issue**: Python 3.15 alpha versions may have package compatibility issues. Use the
+bootstrap script (which auto-selects stable Python) or manually use `/usr/bin/python3`
+on macOS.
 
 ### 2. Install Dependencies
 
@@ -86,7 +88,8 @@ python3 parallel_agent.py --json --validate "Review this code"
 python3 parallel_agent.py --claude-only "Your question"
 ```
 
-**Troubleshooting**: If you get "ModuleNotFoundError", ensure you're using the same Python version that you installed packages with:
+**Troubleshooting**: If you get "ModuleNotFoundError", ensure you're using the same
+Python version that you installed packages with:
 
 ```bash
 # Check which Python has packages

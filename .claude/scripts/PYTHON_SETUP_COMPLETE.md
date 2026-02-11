@@ -118,7 +118,7 @@ Get Claude API key from: <https://console.anthropic.com/>
 
 ### Issue: `google-generativeai` Deprecation Warning
 
-```
+```text
 FutureWarning: All support for the `google.generativeai` package has ended.
 Please switch to the `google.genai` package as soon as possible.
 ```
@@ -129,7 +129,7 @@ Please switch to the `google.genai` package as soon as possible.
 
 ### Issue: Python 3.9 EOL Warnings
 
-```
+```text
 FutureWarning: You are using a Python version 3.9 past its end of life.
 ```
 

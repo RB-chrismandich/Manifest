@@ -1,0 +1,75 @@
+description = "Fetch and prioritize open issues from GitHub, GitLab, or Linear by impact, urgency, readiness, and risk"
+
+prompt = """
+# Issue Prioritization
+
+Fetch open issues, score them using a weighted formula (Impact, Urgency, Readiness, Risk),
+and recommend the top issues to address next. Analysis-only — no mutations.
+
+## Overview
+
+This command:
+- Fetches open issues from GitHub, GitLab, or Linear (auto-detected or explicit)
+- Filters out already-triaged issues (configurable exclude label)
+- Scores each issue on 4 dimensions with heuristic pre-scoring
+- Refines top candidates using parallel agent consensus
+- Produces a ranked prioritization report
+
+## Execution Strategy
+
+Use the shared skill workflow as the source of truth.
+
+- **Skill path**: `~/.gemini/skills/issue-prioritize/SKILL.md`
+- **Canonical source**: `~/.claude/skills/issue-prioritize/SKILL.md` (via symlink)
+
+## Implementation
+
+1. Load and follow the skill file exactly
+2. Apply {{args}} as the command input for that skill
+3. Preserve the skill-defined safety checks, validation rules, and output format
+4. If the skill file is missing, stop and report the missing path
+
+## Safety Rules
+
+- Never modify repository files
+- Never mutate issues (no labels, comments, or state changes)
+- Score objectively — do not inflate based on interest
+- Flag stale issues that reference missing files
+
+## Arguments
+
+```bash
+/issue-prioritize [--repo OWNER/REPO] [--platform github|gitlab|linear]
+                  [--team TEAM] [--limit N] [--top N]
+                  [--exclude-label LABEL] [--project-context FILE]
+```
+
+| Argument | Description |
+|----------|-------------|
+| `--repo OWNER/REPO` | Target repository (GitHub/GitLab only) |
+| `--platform github|gitlab|linear` | Force platform (default: auto-detect) |
+| `--team TEAM` | Linear team key filter |
+| `--limit N` | Max issues to fetch (default: 100) |
+| `--top N` | Number of top issues to report (default: 5) |
+| `--exclude-label LABEL` | Skip issues with this label (default: `processed`) |
+| `--project-context FILE` | Markdown/YAML file with project-specific scoring context |
+
+## Example Usage
+
+```bash
+# Prioritize current repo (auto-detect platform)
+/issue-prioritize
+
+# Prioritize a specific GitHub repo
+/issue-prioritize --repo ReefBytes/cookedbooks --limit 200
+
+# With project context for better scoring
+/issue-prioritize --project-context docs/PROJECT_CONTEXT.md
+
+# Linear issues for a specific team
+/issue-prioritize --platform linear --team ENG --top 10
+
+# GitLab repo with custom exclude label
+/issue-prioritize --platform gitlab --exclude-label "wontfix"
+```
+"""

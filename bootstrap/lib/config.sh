@@ -144,22 +144,27 @@ parse_bootstrap_args() {
                 shift
                 ;;
             --skip-install)
+                # shellcheck disable=SC2034
                 SKIP_INSTALL=true
                 shift
                 ;;
             --skip-auth)
+                # shellcheck disable=SC2034
                 SKIP_AUTH=true
                 shift
                 ;;
             --install-mcp)
+                # shellcheck disable=SC2034
                 INSTALL_MCP=true
                 shift
                 ;;
             --force)
+                # shellcheck disable=SC2034
                 FORCE=true
                 shift
                 ;;
             --reconfigure)
+                # shellcheck disable=SC2034
                 RECONFIGURE=true
                 shift
                 ;;

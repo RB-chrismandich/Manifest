@@ -69,7 +69,8 @@ python3 parallel_agent.py --help
 
 **Verify**:
 
-- ✓ New flags present: `--analyze`, `--improve`, `--check-credits`, `--output`, `--full-output`, `--no-stream`, `--synthesize`, `--no-claude`
+- ✓ New flags present: `--analyze`, `--improve`, `--check-credits`, `--output`,
+  `--full-output`, `--no-stream`, `--synthesize`, `--no-claude`
 
 ---
 
@@ -128,7 +129,7 @@ print('✓ Logger functional')
 
 **Expected**:
 
-```
+```text
 ✓ Config loaded
 ✓ Logging config: INFO
 ✓ Synthesis config: True
@@ -494,7 +495,7 @@ python3 parallel_agent.py "Explain async/await in Python in 3 sentences" --timeo
 
 **Visual Verification**:
 
-```
+```text
 ┌─ Parallel Agent Execution ─────────────────────┐
 │                                                 │
 │ 🔄 Claude:                                      │
@@ -771,7 +772,7 @@ print('Cursor fallback chain:', config.get('credit_fallback.cursor'))
 
 **Expected**:
 
-```
+```text
 Claude fallback chain: ['opus', 'sonnet', 'haiku']
 Gemini fallback chain: ['pro', 'flash']
 Cursor fallback chain: ['advanced', 'flash', 'mini']
@@ -1013,7 +1014,7 @@ After completing E2E tests:
 
 **Test Report Template**:
 
-```
+```markdown
 # E2E Test Report
 
 Date: YYYY-MM-DD

@@ -32,7 +32,7 @@
 
 **Issue**: Python user scripts not on PATH
 
-```
+```text
 WARNING: The script websockets is installed in '/Users/charlemagne/Library/Python/3.9/bin' which is not on PATH.
 ```
 
@@ -58,7 +58,7 @@ source ~/.bash_profile
 
 **Warnings**:
 
-```
+```text
 FutureWarning: You are using a Python version 3.9 past its end of life.
 NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+
 ```
@@ -147,7 +147,7 @@ print('✓ Logger created')
 
 **Expected**:
 
-```
+```text
 ✓ Config loaded
   - Synthesis enabled: True
   - Streaming enabled: True
