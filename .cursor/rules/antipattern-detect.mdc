@@ -1,0 +1,14 @@
+---
+description: "Auto-triggered skill that analyzes linting failures, test results, and code review feedback to detect recurring antipatterns. Stores findings in docs/KNOWLEDGE_BASE.md for team-wide visibility."
+globs: ".claude/skills/antipattern-detect/**"
+alwaysApply: false
+---
+
+# antipattern-detect
+
+Auto-triggered skill that analyzes linting failures, test results, and code review feedback to detect recurring antipatterns. Stores findings in docs/KNOWLEDGE_BASE.md for team-wide visibility.
+
+<!-- Auto-generated from .claude/skills/antipattern-detect/SKILL.md -->
+<!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
+
+Refer to `.cursor/skills/antipattern-detect/SKILL.md` for the full skill definition.

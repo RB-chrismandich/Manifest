@@ -208,6 +208,8 @@ Required CLI tools (install those you want to use):
 | `.claude/config/command_config.yml` | Thresholds, tool policies, model selection, error recovery |
 | `.claude/config/linear_triage.yml` | Linear triage scoring, duplicate detection, staleness thresholds |
 | `.claude/config/validation_criteria.yml` | Tier 1 (critical) and Tier 2 (quality) validation rules |
+| `.claude/config/labels.yml` | Canonical label registry for GitHub, GitLab, and Linear |
+| `.claude/scripts/label_sync.sh` | Label sync script — reads registry, provisions labels across platforms |
 | `AGENTS.md` | AI agent instructions for all platforms (Cursor, Claude, Gemini, Codex) |
 
 ## Available Commands
@@ -247,6 +249,26 @@ Validate YAML configuration syntax:
 python3 -c "import yaml; yaml.safe_load(open('.claude/config/command_config.yml'))"
 python3 -c "import yaml; yaml.safe_load(open('.claude/config/validation_criteria.yml'))"
 ```
+
+## Label Management
+
+Issue labels are managed centrally in `.claude/config/labels.yml` and synced across
+GitHub, GitLab, and Linear via `label_sync.sh`.
+
+**Labels**: `planned` (blue), `in-progress` (yellow), `needs-review` (orange), `done` (green), `follow-up` (lavender)
+
+```bash
+# Sync all labels to the current platform
+.claude/scripts/label_sync.sh
+
+# Dry-run to preview changes
+.claude/scripts/label_sync.sh --dry-run
+
+# Sync via git_ops.sh wrapper
+.claude/scripts/git_ops.sh label-sync
+```
+
+See [docs/COMMANDS.md](docs/COMMANDS.md#label-management) for full label reference.
 
 ## Adding New Commands
 

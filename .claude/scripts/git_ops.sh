@@ -19,7 +19,13 @@
 #   pr-create             Create pull/merge request
 #   pr-view N             View PR/MR N
 #   pr-list               List PRs/MRs
+#   pr-review N           Review/approve PR/MR N
+#   pr-merge N            Merge PR/MR N
+#   release-create        Create a release
+#   release-list          List releases
 #   label-create          Create label
+#   label-list            List labels
+#   label-sync            Sync labels from registry to platform
 
 set -euo pipefail
 
@@ -53,7 +59,13 @@ if [[ $# -eq 0 ]]; then
     echo "  pr-create          Create pull/merge request" >&2
     echo "  pr-view N          View PR/MR N" >&2
     echo "  pr-list            List PRs/MRs" >&2
+    echo "  pr-review N        Review/approve PR/MR N" >&2
+    echo "  pr-merge N         Merge PR/MR N" >&2
+    echo "  release-create     Create a release" >&2
+    echo "  release-list       List releases" >&2
     echo "  label-create       Create label" >&2
+    echo "  label-list         List labels" >&2
+    echo "  label-sync         Sync labels from registry" >&2
     exit 1
 fi
 
@@ -119,8 +131,26 @@ case "${platform}" in
             pr-list)
                 gh pr list "$@"
                 ;;
+            pr-review)
+                gh pr review "$@"
+                ;;
+            pr-merge)
+                gh pr merge "$@"
+                ;;
+            release-create)
+                gh release create "$@"
+                ;;
+            release-list)
+                gh release list "$@"
+                ;;
             label-create)
                 gh label create "$@"
+                ;;
+            label-list)
+                gh label list "$@"
+                ;;
+            label-sync)
+                bash "${SCRIPT_DIR}/label_sync.sh" "$@"
                 ;;
             *)
                 echo "Error: Unknown subcommand: ${subcommand}" >&2
@@ -186,8 +216,27 @@ case "${platform}" in
             pr-list)
                 glab mr list "$@"
                 ;;
+            pr-review)
+                # GitLab uses 'mr approve' instead of 'pr review'
+                glab mr approve "$@"
+                ;;
+            pr-merge)
+                glab mr merge "$@"
+                ;;
+            release-create)
+                glab release create "$@"
+                ;;
+            release-list)
+                glab release list "$@"
+                ;;
             label-create)
                 glab label create "$@"
+                ;;
+            label-list)
+                glab label list "$@"
+                ;;
+            label-sync)
+                bash "${SCRIPT_DIR}/label_sync.sh" "$@"
                 ;;
             *)
                 echo "Error: Unknown subcommand: ${subcommand}" >&2
@@ -199,7 +248,7 @@ case "${platform}" in
     git)
         # Plain git remote - no issue tracker available
         case "${subcommand}" in
-            issue-* | pr-* | label-*)
+            issue-* | pr-* | release-* | label-*)
                 warn_no_tracker
                 ;;
             *)

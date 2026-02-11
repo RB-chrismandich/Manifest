@@ -123,10 +123,10 @@ Otherwise → single-agent planning (Step 2b).
 
 If the plan was created from an issue:
 
-1. Apply the `planned` label (blue `#1D76DB`) — create it if it doesn't exist:
+1. Apply the `planned` label — create it if it doesn't exist (see `.claude/config/labels.yml` for canonical definitions):
 
    ```bash
-   ~/.claude/scripts/git_ops.sh label-create "planned" --color "1D76DB" --description "Implementation plan created" --force 2>/dev/null || true
+   ~/.claude/scripts/git_ops.sh label-create "planned" --color "1D76DB" --description "Implementation plan exists for this issue" --force 2>/dev/null || true
    ~/.claude/scripts/git_ops.sh issue-edit N --add-label "planned"
    ```
 
@@ -166,10 +166,10 @@ Accepts a plan filename **or** an issue number (`42` / `#42`).
 
 If the plan has an `**Issue**: #N` field or was resolved from an issue number:
 
-1. Apply the `in-progress` label (yellow `#FBCA04`), remove `planned`:
+1. Apply the `in-progress` label, remove `planned` (see `.claude/config/labels.yml`):
 
    ```bash
-   ~/.claude/scripts/git_ops.sh label-create "in-progress" --color "FBCA04" --description "Implementation in progress" --force 2>/dev/null || true
+   ~/.claude/scripts/git_ops.sh label-create "in-progress" --color "FBCA04" --description "Implementation is actively underway" --force 2>/dev/null || true
    ~/.claude/scripts/git_ops.sh issue-edit N --add-label "in-progress" --remove-label "planned"
    ```
 
@@ -219,10 +219,10 @@ If the plan is linked to an issue:
 
 2. Post the review results as a comment on the issue.
 3. Based on the verdict:
-   - **APPROVED**: Apply `done` label (green `#0E8A16`), remove `in-progress`, close the issue:
+   - **APPROVED**: Apply `done` label, remove `in-progress`, close the issue (see `.claude/config/labels.yml`):
 
      ```bash
-     ~/.claude/scripts/git_ops.sh label-create "done" --color "0E8A16" --description "Implementation complete" --force 2>/dev/null || true
+     ~/.claude/scripts/git_ops.sh label-create "done" --color "0E8A16" --description "Implementation complete and validated" --force 2>/dev/null || true
      ~/.claude/scripts/git_ops.sh issue-edit N --add-label "done" --remove-label "in-progress"
      ~/.claude/scripts/git_ops.sh issue-close N
      ```

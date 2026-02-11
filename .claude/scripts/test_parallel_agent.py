@@ -12,23 +12,29 @@ from pathlib import Path
 
 try:
     import pytest
+
     HAS_PYTEST = True
 except ImportError:
     HAS_PYTEST = False
+
     # Mock pytest.mark.asyncio for non-pytest runs
     class MockPytest:
         class mark:
             @staticmethod
             def asyncio(func):
                 return func
+
     pytest = MockPytest()
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent))
 
 from parallel_agent import (
-    Config, Logger, ValidationEngine, SynthesisEngine,
-    RateLimiter, BaseAgent
+    Config,
+    Logger,
+    ValidationEngine,
+    SynthesisEngine,
+    RateLimiter,
 )
 
 
@@ -78,17 +84,17 @@ class TestValidationEngine:
 
         # Mock agent results with potential security issue
         results = {
-            'claude': {
-                'status': 'complete',
-                'output': 'Found hardcoded API_KEY = "secret123" in the code'
+            "claude": {
+                "status": "complete",
+                "output": 'Found hardcoded API_KEY = "secret123" in the code',
             }
         }
-        consensus = {'consensus_score': 85}
+        _consensus = {"consensus_score": 85}
 
         tier1_result = validator._check_security(results, {})
         # Should detect hardcoded secret
-        assert not tier1_result['passed']
-        assert len(tier1_result['issues']) > 0
+        assert not tier1_result["passed"]
+        assert len(tier1_result["issues"]) > 0
 
     def test_tier1_no_security_issues(self):
         """Test Tier 1 with clean code"""
@@ -96,17 +102,17 @@ class TestValidationEngine:
         validator = ValidationEngine(config)
 
         results = {
-            'claude': {
-                'status': 'complete',
-                'output': 'Code looks good, using environment variables for secrets'
+            "claude": {
+                "status": "complete",
+                "output": "Code looks good, using environment variables for secrets",
             }
         }
-        consensus = {'consensus_score': 85}
+        _consensus = {"consensus_score": 85}
 
         tier1_result = validator._check_security(results, {})
         # Should pass
-        assert tier1_result['passed']
-        assert len(tier1_result['issues']) == 0
+        assert tier1_result["passed"]
+        assert len(tier1_result["issues"]) == 0
 
     def test_tier2_bug_detection(self):
         """Test Tier 2 bug detection"""
@@ -114,16 +120,16 @@ class TestValidationEngine:
         validator = ValidationEngine(config)
 
         results = {
-            'claude': {
-                'status': 'complete',
-                'output': 'Warning: potential null reference issue detected'
+            "claude": {
+                "status": "complete",
+                "output": "Warning: potential null reference issue detected",
             }
         }
 
         tier2_result = validator._check_bugs(results, {})
         # Should have concerns
-        assert tier2_result['score'] < 1.0
-        assert len(tier2_result['concerns']) > 0
+        assert tier2_result["score"] < 1.0
+        assert len(tier2_result["concerns"]) > 0
 
     def test_verdict_computation(self):
         """Test verdict computation logic"""
@@ -131,21 +137,21 @@ class TestValidationEngine:
         validator = ValidationEngine(config)
 
         # APPROVED: tier1 passed, tier2 >= 0.60
-        tier1 = {'passed': True, 'score': 1.0}
-        tier2 = {'score': 0.75}
+        tier1 = {"passed": True, "score": 1.0}
+        tier2 = {"score": 0.75}
         verdict = validator._compute_verdict(tier1, tier2, {})
-        assert verdict == 'APPROVED'
+        assert verdict == "APPROVED"
 
         # NEEDS_REVIEW: tier1 passed, tier2 < 0.60
-        tier2 = {'score': 0.55}
+        tier2 = {"score": 0.55}
         verdict = validator._compute_verdict(tier1, tier2, {})
-        assert verdict == 'NEEDS_REVIEW'
+        assert verdict == "NEEDS_REVIEW"
 
         # BLOCKED: tier1 failed
-        tier1 = {'passed': False, 'score': 0.0}
-        tier2 = {'score': 0.75}
+        tier1 = {"passed": False, "score": 0.0}
+        tier2 = {"score": 0.75}
         verdict = validator._compute_verdict(tier1, tier2, {})
-        assert verdict == 'BLOCKED'
+        assert verdict == "BLOCKED"
 
 
 class TestSynthesisEngine:
@@ -163,15 +169,13 @@ class TestSynthesisEngine:
         synthesizer = SynthesisEngine(config)
 
         results = {
-            'gemini': {'status': 'complete', 'output': 'Use approach A'},
-            'claude': {'status': 'complete', 'output': 'Use approach A'}
+            "gemini": {"status": "complete", "output": "Use approach A"},
+            "claude": {"status": "complete", "output": "Use approach A"},
         }
-        consensus = {'consensus_score': 85}  # High consensus
+        consensus = {"consensus_score": 85}  # High consensus
 
         # Should return None (synthesis not needed)
-        result = asyncio.run(
-            synthesizer.synthesize("Test task", results, consensus)
-        )
+        result = asyncio.run(synthesizer.synthesize("Test task", results, consensus))
         assert result is None
 
     def test_template_loading(self):
@@ -222,12 +226,12 @@ class TestConfig:
         config = Config()
 
         # Get nested value
-        value = config.get('rate_limits.claude.requests_per_minute')
+        value = config.get("rate_limits.claude.requests_per_minute")
         assert value is not None
 
         # Get with default
-        value = config.get('nonexistent.key', 'default')
-        assert value == 'default'
+        value = config.get("nonexistent.key", "default")
+        assert value == "default"
 
 
 def run_tests():
@@ -281,6 +285,7 @@ if __name__ == "__main__":
     # Run without pytest if available, otherwise use simple runner
     try:
         import pytest
+
         sys.exit(pytest.main([__file__, "-v"]))
     except ImportError:
         run_tests()

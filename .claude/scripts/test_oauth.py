@@ -16,12 +16,12 @@ import argparse
 from pathlib import Path
 
 # Color codes for output
-GREEN = '\033[0;32m'
-RED = '\033[0;31m'
-YELLOW = '\033[1;33m'
-BLUE = '\033[0;34m'
-BOLD = '\033[1m'
-NC = '\033[0m'  # No Color
+GREEN = "\033[0;32m"
+RED = "\033[0;31m"
+YELLOW = "\033[1;33m"
+BLUE = "\033[0;34m"
+BOLD = "\033[1m"
+NC = "\033[0m"  # No Color
 
 
 def print_header(msg):
@@ -52,7 +52,9 @@ def test_python_version():
         print_success(f"Python {version.major}.{version.minor}.{version.micro}")
         return True
     else:
-        print_error(f"Python {version.major}.{version.minor}.{version.micro} (need 3.7+)")
+        print_error(
+            f"Python {version.major}.{version.minor}.{version.micro} (need 3.7+)"
+        )
         return False
 
 
@@ -61,12 +63,12 @@ def test_dependencies():
     print_header("Dependencies")
 
     required = {
-        'anthropic': 'Anthropic SDK (Claude)',
-        'google.generativeai': 'Google Generative AI SDK (Gemini)',
-        'google.auth': 'Google Auth (OAuth support)',
-        'aiohttp': 'Async HTTP',
-        'yaml': 'YAML parser',
-        'rich': 'Rich CLI output'
+        "anthropic": "Anthropic SDK (Claude)",
+        "google.generativeai": "Google Generative AI SDK (Gemini)",
+        "google.auth": "Google Auth (OAuth support)",
+        "aiohttp": "Async HTTP",
+        "yaml": "YAML parser",
+        "rich": "Rich CLI output",
     }
 
     all_ok = True
@@ -92,23 +94,25 @@ def test_gemini_oauth():
     oauth_sources = []
 
     # 1. Check GOOGLE_APPLICATION_CREDENTIALS
-    if 'GOOGLE_APPLICATION_CREDENTIALS' in os.environ:
-        cred_file = os.environ['GOOGLE_APPLICATION_CREDENTIALS']
+    if "GOOGLE_APPLICATION_CREDENTIALS" in os.environ:
+        cred_file = os.environ["GOOGLE_APPLICATION_CREDENTIALS"]
         if os.path.exists(cred_file):
             oauth_sources.append(f"Service account: {cred_file}")
 
     # 2. Check gemini CLI credentials
-    gemini_creds = Path.home() / '.config' / 'gemini' / 'credentials.json'
+    gemini_creds = Path.home() / ".config" / "gemini" / "credentials.json"
     if gemini_creds.exists():
         oauth_sources.append(f"Gemini CLI: {gemini_creds}")
 
     # 3. Check gcloud credentials
-    gcloud_creds = Path.home() / '.config' / 'gcloud' / 'application_default_credentials.json'
+    gcloud_creds = (
+        Path.home() / ".config" / "gcloud" / "application_default_credentials.json"
+    )
     if gcloud_creds.exists():
         oauth_sources.append(f"gcloud: {gcloud_creds}")
 
     # 4. Check API key
-    if 'GOOGLE_API_KEY' in os.environ:
+    if "GOOGLE_API_KEY" in os.environ:
         oauth_sources.append("API key: GOOGLE_API_KEY env var")
 
     if oauth_sources:
@@ -119,14 +123,15 @@ def test_gemini_oauth():
         # Try to actually use the credentials
         try:
             from google import genai
+
             print_info("Testing authentication...")
 
             # Create client (will fail if credentials are invalid)
-            if 'GOOGLE_API_KEY' in os.environ:
-                client = genai.Client(api_key=os.environ['GOOGLE_API_KEY'])
+            if "GOOGLE_API_KEY" in os.environ:
+                _client = genai.Client(api_key=os.environ["GOOGLE_API_KEY"])
                 print_success("API key authentication works")
             else:
-                client = genai.Client()
+                _client = genai.Client()
                 print_success("OAuth authentication works")
 
             return True
@@ -148,7 +153,7 @@ def test_claude_api_key():
     """Test Claude API key"""
     print_header("Claude API Key")
 
-    api_key = os.environ.get('ANTHROPIC_API_KEY')
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
 
     if not api_key:
         print_warning("ANTHROPIC_API_KEY not set")
@@ -156,7 +161,7 @@ def test_claude_api_key():
         print_info("Get key from: https://console.anthropic.com/")
         return False
 
-    if not api_key.startswith('sk-ant-'):
+    if not api_key.startswith("sk-ant-"):
         print_error(f"Invalid key format: {api_key[:10]}...")
         print_info("API key should start with 'sk-ant-'")
         return False
@@ -166,7 +171,8 @@ def test_claude_api_key():
     # Try to create client
     try:
         from anthropic import AsyncAnthropic
-        client = AsyncAnthropic(api_key=api_key)
+
+        _client = AsyncAnthropic(api_key=api_key)
         print_success("API key format is valid")
         return True
     except Exception as e:
@@ -179,8 +185,9 @@ def test_cursor_cli():
     print_header("Cursor CLI")
 
     import subprocess
+
     try:
-        result = subprocess.run(['which', 'cursor'], capture_output=True, check=True)
+        result = subprocess.run(["which", "cursor"], capture_output=True, check=True)
         cursor_path = result.stdout.decode().strip()
         print_success(f"Cursor CLI found: {cursor_path}")
         print_info("Cursor agent will use cursor CLI authentication")
@@ -200,10 +207,7 @@ def test_parallel_agent_import():
         script_dir = Path(__file__).parent
         sys.path.insert(0, str(script_dir))
 
-        from parallel_agent import (
-            Config, RateLimiter, BaseAgent,
-            ClaudeAgent, GeminiAgent, CursorAgent, Orchestrator
-        )
+        from parallel_agent import Config, RateLimiter
 
         print_success("All classes import successfully")
 
@@ -220,6 +224,7 @@ def test_parallel_agent_import():
     except Exception as e:
         print_error(f"Import failed: {str(e)}")
         import traceback
+
         traceback.print_exc()
         return False
 
@@ -231,7 +236,13 @@ def test_agent_creation(verbose=False):
     script_dir = Path(__file__).parent
     sys.path.insert(0, str(script_dir))
 
-    from parallel_agent import ClaudeAgent, GeminiAgent, CursorAgent, RateLimiter, Config
+    from parallel_agent import (
+        ClaudeAgent,
+        GeminiAgent,
+        CursorAgent,
+        RateLimiter,
+        Config,
+    )
 
     config = Config()
     limiter = RateLimiter()
@@ -241,40 +252,50 @@ def test_agent_creation(verbose=False):
     # Test Claude
     print_info("Creating ClaudeAgent...")
     try:
-        claude = ClaudeAgent(model="haiku", timeout=10, rate_limiter=limiter, config=config)
+        claude = ClaudeAgent(
+            model="haiku", timeout=10, rate_limiter=limiter, config=config
+        )
         print_success(f"ClaudeAgent created (model: {claude.model_name})")
-        results['claude'] = True
+        results["claude"] = True
     except Exception as e:
         print_error(f"ClaudeAgent failed: {str(e)}")
         if verbose:
             import traceback
+
             traceback.print_exc()
-        results['claude'] = False
+        results["claude"] = False
 
     # Test Gemini
     print_info("Creating GeminiAgent...")
     try:
-        gemini = GeminiAgent(model="flash", timeout=10, rate_limiter=limiter, config=config)
+        gemini = GeminiAgent(
+            model="flash", timeout=10, rate_limiter=limiter, config=config
+        )
         print_success(f"GeminiAgent created (model: {gemini.model_name})")
-        results['gemini'] = True
+        results["gemini"] = True
     except Exception as e:
         print_error(f"GeminiAgent failed: {str(e)}")
         if verbose:
             import traceback
+
             traceback.print_exc()
-        results['gemini'] = False
+        results["gemini"] = False
 
     # Test Cursor
     print_info("Creating CursorAgent...")
     try:
-        cursor = CursorAgent(model="flash", timeout=10, rate_limiter=limiter, config=config)
+        cursor = CursorAgent(
+            model="flash", timeout=10, rate_limiter=limiter, config=config
+        )
         print_success(f"CursorAgent created (model: {cursor.model_name})")
-        results['cursor'] = True
+        results["cursor"] = True
     except Exception as e:
         print_warning(f"CursorAgent failed: {str(e)}")
-        results['cursor'] = False
+        results["cursor"] = False
 
-    return all(results.get(k, False) for k in ['claude', 'gemini'])  # Cursor is optional
+    return all(
+        results.get(k, False) for k in ["claude", "gemini"]
+    )  # Cursor is optional
 
 
 def print_summary(results):
@@ -295,28 +316,32 @@ def print_summary(results):
         print(f"{GREEN}{BOLD}✓ All tests passed ({passed}/{total}){NC}")
         print()
         print(f"{BOLD}Ready to use!{NC}")
-        print("Try: python parallel_agent.py \"What is 2+2?\"")
+        print('Try: python parallel_agent.py "What is 2+2?"')
         return 0
     else:
         print(f"{RED}{BOLD}✗ Some tests failed ({passed}/{total}){NC}")
         print()
         print(f"{BOLD}Next steps:{NC}")
 
-        if not results.get('Gemini OAuth', False):
+        if not results.get("Gemini OAuth", False):
             print("  1. Setup Gemini: gemini auth login")
 
-        if not results.get('Claude API Key', False):
+        if not results.get("Claude API Key", False):
             print("  2. Setup Claude: export ANTHROPIC_API_KEY='sk-ant-...'")
 
-        if not results.get('Dependencies', False):
+        if not results.get("Dependencies", False):
             print("  3. Install packages: pip install -r requirements.txt")
 
         return 1
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Test OAuth and authentication for parallel agent")
-    parser.add_argument('--verbose', '-v', action='store_true', help="Show detailed error messages")
+    parser = argparse.ArgumentParser(
+        description="Test OAuth and authentication for parallel agent"
+    )
+    parser.add_argument(
+        "--verbose", "-v", action="store_true", help="Show detailed error messages"
+    )
     args = parser.parse_args()
 
     print(f"{BOLD}Parallel Agent OAuth Test{NC}")
@@ -325,17 +350,17 @@ def main():
     results = {}
 
     # Run tests
-    results['Python Version'] = test_python_version()
-    results['Dependencies'] = test_dependencies()
-    results['Gemini OAuth'] = test_gemini_oauth()
-    results['Claude API Key'] = test_claude_api_key()
-    results['Cursor CLI'] = test_cursor_cli()
+    results["Python Version"] = test_python_version()
+    results["Dependencies"] = test_dependencies()
+    results["Gemini OAuth"] = test_gemini_oauth()
+    results["Claude API Key"] = test_claude_api_key()
+    results["Cursor CLI"] = test_cursor_cli()
 
-    if results['Dependencies']:
-        results['Parallel Agent Import'] = test_parallel_agent_import()
+    if results["Dependencies"]:
+        results["Parallel Agent Import"] = test_parallel_agent_import()
 
-        if results['Parallel Agent Import']:
-            results['Agent Creation'] = test_agent_creation(verbose=args.verbose)
+        if results["Parallel Agent Import"]:
+            results["Agent Creation"] = test_agent_creation(verbose=args.verbose)
 
     # Print summary
     return print_summary(results)

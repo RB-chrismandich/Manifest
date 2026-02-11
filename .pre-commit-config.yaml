@@ -57,6 +57,42 @@ repos:
       - id: yamllint
         exclude: ^(\.Jules/)
 
+  # Python linting + formatting (Ruff)
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.8.6
+    hooks:
+      - id: ruff
+        args: ['--fix']
+        types_or: [python, pyi]
+      - id: ruff-format
+        types_or: [python, pyi]
+
+  # Go linting (golangci-lint)
+  - repo: https://github.com/golangci/golangci-lint
+    rev: v1.63.4
+    hooks:
+      - id: golangci-lint
+        types_or: [go]
+
+  # JavaScript/TypeScript linting (ESLint)
+  - repo: https://github.com/pre-commit/mirrors-eslint
+    rev: v9.18.0
+    hooks:
+      - id: eslint
+        types_or: [javascript, jsx, ts, tsx]
+        exclude: ^(templates/|\.Jules/)
+        additional_dependencies:
+          - eslint@9.18.0
+
+  # Terraform linting + security
+  - repo: https://github.com/antonbabenko/pre-commit-terraform
+    rev: v1.96.3
+    hooks:
+      - id: terraform_tflint
+        types_or: [terraform]
+      - id: terraform_tfsec
+        types_or: [terraform]
+
   # Secret detection
   - repo: https://github.com/gitleaks/gitleaks
     rev: v8.18.2
@@ -83,7 +119,11 @@ repos:
       # Check for hardcoded credentials
       - id: check-credentials
         name: Check for hardcoded credentials
-        entry: bash -c 'if grep -rn "sk-[a-zA-Z0-9]\{32,\}" --include="*.sh" --include="*.md" --include="*.yaml" --include="*.json" .; then exit 1; fi'
+        entry: >-
+          bash -c 'if grep -rn "sk-[a-zA-Z0-9]\{32,\}"
+          --include="*.sh" --include="*.md"
+          --include="*.yaml" --include="*.json" .;
+          then exit 1; fi'
         language: system
         pass_filenames: false
 

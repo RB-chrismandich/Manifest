@@ -1,0 +1,14 @@
+---
+description: "Capture structured lessons learned after major tasks. Categories: pattern, antipattern, tool discovery, configuration insight. Stores in .claude/config/knowledge_base.yml and queries existing learnings."
+globs: ".claude/skills/learning-loop/**"
+alwaysApply: false
+---
+
+# learning-loop
+
+Capture structured lessons learned after major tasks. Categories: pattern, antipattern, tool discovery, configuration insight. Stores in .claude/config/knowledge_base.yml and queries existing learnings.
+
+<!-- Auto-generated from .claude/skills/learning-loop/SKILL.md -->
+<!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
+
+Refer to `.cursor/skills/learning-loop/SKILL.md` for the full skill definition.

@@ -303,7 +303,7 @@ For each follow-up item parsed in 5e, create a new GitHub issue.
 1. **Ensure the `follow-up` label exists**:
 
    ```bash
-   ~/.claude/scripts/git_ops.sh label-create "follow-up" --description "Follow-up item from a processed issue" --color "D4C5F9" -R {owner}/{repo} 2>/dev/null || true
+   ~/.claude/scripts/git_ops.sh label-create "follow-up" --description "Spawned from another issue during implementation" --color "D4C5F9" -R {owner}/{repo} 2>/dev/null || true
    ```
 
 2. **Create each follow-up issue** using the standardized template:
@@ -351,7 +351,7 @@ For each follow-up item parsed in 5e, create a new GitHub issue.
 
 ```bash
 # Add the status label
-~/.claude/scripts/git_ops.sh issue-edit <ISSUE_NUMBER> --add-label "processed" -R {owner}/{repo}
+~/.claude/scripts/git_ops.sh issue-edit <ISSUE_NUMBER> --add-label "done" -R {owner}/{repo}
 # OR
 ~/.claude/scripts/git_ops.sh issue-edit <ISSUE_NUMBER> --add-label "needs-review" -R {owner}/{repo}
 ```
@@ -360,8 +360,9 @@ If the label does not yet exist in the repository, create it first:
 
 ```bash
 # Create labels if they don't exist (idempotent — gh will error silently if label exists)
-~/.claude/scripts/git_ops.sh label-create "processed" --description "Issue fully implemented and validated" --color "0E8A16" -R {owner}/{repo} 2>/dev/null || true
-~/.claude/scripts/git_ops.sh label-create "needs-review" --description "Implementation complete but requires human review" --color "FBCA04" -R {owner}/{repo} 2>/dev/null || true
+# Labels defined in .claude/config/labels.yml — use 'done' instead of deprecated 'processed'
+~/.claude/scripts/git_ops.sh label-create "done" --description "Implementation complete and validated" --color "0E8A16" -R {owner}/{repo} 2>/dev/null || true
+~/.claude/scripts/git_ops.sh label-create "needs-review" --description "Requires human review before completion" --color "E3A21A" -R {owner}/{repo} 2>/dev/null || true
 ```
 
 #### 5h. Commit changes (if status is "processed")

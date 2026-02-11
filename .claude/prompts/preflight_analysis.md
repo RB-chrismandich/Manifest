@@ -1,223 +1,106 @@
-# Validation Criteria Configuration
+# Pre-flight Analysis Task
 
-## Used by Claude orchestrator for code review validation
+Determine whether proposed code changes require parallel multi-agent review.
+Evaluate the change scope, sensitivity, and risk to produce a structured decision.
 
-tier1:
+## Changes to Analyze
 
-## Critical criteria - all must pass
+{FILES_OR_DIFF}
 
-  cross_verification:
-    weight: 0.30
-    description: "Multiple agents agree on key findings"
-    threshold: 0.80
-    enabled: true
+## Chain-of-Thought Reasoning
 
-  security:
-    weight: 0.30
-    description: "No security vulnerabilities introduced"
-    keywords:
-      - auth
-      - password
-      - secret
-      - token
-      - api_key
-      - crypto
-      - jwt
-      - session
-      - cookie
-      - credential
-      - private_key
-    checks:
-      - id: no_hardcoded_secrets
-        description: "No hardcoded secrets or credentials"
-        severity: critical
-      - id: input_validation
-        description: "User input is validated and sanitized"
-        severity: critical
-      - id: no_sql_injection
-        description: "Parameterized queries used for database access"
-        severity: critical
-      - id: no_command_injection
-        description: "User input not passed to shell commands"
-        severity: critical
-      - id: no_xss
-        description: "Output properly escaped to prevent XSS"
-        severity: critical
-      - id: auth_checks
-        description: "Authentication/authorization properly enforced"
-        severity: critical
+Think step by step through each trigger criterion below. For each criterion,
+explicitly state whether it applies, why or why not, and cite specific evidence
+from the files or diff.
 
-  error_handling:
-    weight: 0.20
-    description: "Errors handled gracefully without information leakage"
-    checks:
-      - id: exceptions_caught
-        description: "Exceptions properly caught and handled"
-        severity: high
-      - id: no_silent_failures
-        description: "No silent failures that hide problems"
-        severity: high
-      - id: safe_error_messages
-        description: "Error messages don't leak internal details"
-        severity: medium
-      - id: resource_cleanup
-        description: "Resources properly cleaned up on failure"
-        severity: medium
+### Step 1: Security Sensitivity
 
-  breaking_changes:
-    weight: 0.20
-    description: "API and data compatibility maintained"
-    checks:
-      - id: api_compatibility
-        description: "Public API signatures unchanged or versioned"
-        severity: high
-      - id: migrations_provided
-        description: "Database migrations provided for schema changes"
-        severity: high
-      - id: deprecation_warnings
-        description: "Deprecation warnings added for removed features"
-        severity: medium
+Check for any of these patterns in the changed code:
 
-tier2:
+- **Authentication/authorization**: login, session, JWT, OAuth, RBAC, middleware guards
+- **Cryptographic operations**: hashing, encryption, key generation, signing
+- **Secrets handling**: API keys, tokens, credentials, environment variables
+- **Input validation/sanitization**: user input parsing, form validation, query parameters
+- **Network security**: CORS, CSP, TLS configuration, firewall rules
 
-## Quality criteria - noted but not blocking
+Evidence format: Quote the specific line or pattern that triggered this criterion.
 
-  bug_detection:
-    weight: 0.25
-    description: "No obvious bugs or logic errors"
-    patterns:
-      - id: null_reference
-        description: "Potential null/undefined reference"
-        regex: "\\.(\\w+)\\s*\\("
-      - id: off_by_one
-        description: "Potential off-by-one error in loops"
-        regex: "(<=|>=).*\\.length"
-      - id: race_condition
-        description: "Potential race condition"
-        keywords: [async, await, Promise, setTimeout, concurrent]
-      - id: infinite_loop
-        description: "Potential infinite loop"
-        regex: "while\\s*\\(\\s*true\\s*\\)"
+### Step 2: Architectural Impact
 
-  performance:
-    weight: 0.25
-    description: "No performance anti-patterns"
-    antipatterns:
-      - id: quadratic_complexity
-        description: "O(n^2) or worse complexity"
-        indicators: ["nested loop", "forEach inside forEach", "map inside map"]
-      - id: n_plus_one
-        description: "N+1 query pattern"
-        indicators: ["query in loop", "fetch in map"]
-      - id: memory_leak
-        description: "Potential memory leak"
-        indicators: ["global array push", "event listener without cleanup"]
-      - id: blocking_io
-        description: "Blocking I/O in async context"
-        indicators: ["readFileSync", "execSync"]
+Check for structural changes:
 
-  maintainability:
-    weight: 0.25
-    description: "Code is readable and maintainable"
-    thresholds:
-      max_cyclomatic_complexity: 15
-      max_function_length: 50
-      max_file_length: 500
-      max_parameters: 5
-    checks:
-      - id: clear_naming
-        description: "Variables and functions have descriptive names"
-      - id: reasonable_complexity
-        description: "Functions are not overly complex"
-      - id: proper_structure
-        description: "Code is well-organized"
+- **New services or modules**: new entry points, new packages, new API routes
+- **API changes**: modified endpoints, changed request/response schemas, new public interfaces
+- **Schema modifications**: database migrations, model changes, state shape changes
+- **Integration patterns**: new external service calls, webhook handlers, message queue consumers
+- **Configuration changes**: environment config, infrastructure-as-code, CI/CD pipelines
 
-  test_coverage:
-    weight: 0.25
-    description: "Changes have corresponding tests"
-    thresholds:
-      minimum_coverage: 0.80
-      require_tests_for_new_functions: true
-    checks:
-      - id: tests_exist
-        description: "Test files exist for modified code"
-      - id: edge_cases_covered
-        description: "Edge cases have test coverage"
+### Step 3: Change Scope
 
-## Scoring configuration
+Assess the magnitude of changes:
 
-scoring:
-  tier1_pass_threshold: 1.0  # All tier1 checks must pass
-  tier2_acceptable_threshold: 0.60
+- **Line count**: >200 lines modified triggers review
+- **File count**: >5 files changed triggers review
+- **Cross-cutting changes**: modifications spanning multiple packages or layers
 
-  verdicts:
-    approved:
-      tier1_passed: true
-      tier2_min_score: 0.60
-    needs_review:
-      tier1_passed: true
-      tier2_min_score: 0.0
-    blocked:
-      tier1_passed: false
+### Step 4: Critical Logic
 
-## Command-specific validation overrides
+Check for business-critical operations:
 
-## These override the default tier1/tier2 requirements per command
+- **Payment processing**: billing, subscriptions, transactions, financial calculations
+- **User data handling**: PII, GDPR-relevant operations, data export/deletion
+- **Compliance-related**: audit logging, access control, data retention policies
+- **State mutations**: operations that are hard to reverse (deletes, migrations, deployments)
 
-command_overrides:
-  refactor-python:
-    tier1_required: true
-    tier1_checks:
-      - security
-      - error_handling
-      - breaking_changes
-      - cross_verification
-    tier2_required: true
-    tier2_threshold: 0.80
-    consensus_threshold: 0.80
-    consensus_action:
-      high: auto_proceed        # >=80%: Use unified recommendation
-      medium: show_disagreements # 50-79%: Highlight to user
-      low: block_and_escalate    # <50%: Human review required
+## Confidence Calibration
 
-  docs-readme:
-    tier1_required: false
-    tier2_required: true
-    tier2_checks:
-      - maintainability
-    parallel_agents: false
+Rate your confidence in the pre-flight decision:
 
-  docs-improve:
-    tier1_required: false
-    tier2_required: true
-    tier2_checks:
-      - maintainability
-    parallel_agents_condition:
-      type: total_lines_changed
-      threshold: 500
+- **0.90-1.00**: Clear trigger or clear non-trigger; no ambiguity
+- **0.70-0.89**: Likely trigger/non-trigger but some edge cases
+- **0.50-0.69**: Uncertain; could go either way depending on context
+- **Below 0.50**: Insufficient information to decide; default to triggering review
 
-  docs-diagrams:
-    tier1_required: false
-    tier2_required: false
-    parallel_agents_condition:
-      type: unique_imports
-      threshold: 5
+When confidence is below 0.70, default to triggering parallel review (false positives
+are cheaper than missed security issues).
 
-  code-quality:  # Skill (auto-triggered)
-    tier1_required: true
-    tier1_checks:
-      - security
-      - error_handling
-    tier2_required: true
-    tier2_threshold: 0.60
-    auto_trigger: true
-    trigger_patterns:
-      security:
-        - auth|login|session|jwt
-        - crypto|encrypt|hash|secret
-        - api_key|password|token|credential
-        - sanitize|validate|escape
-      complexity:
-        file_lines: 500
-        function_count: 10
-        class_count: 5
+## Output Format
+
+```json
+{
+  "needs_parallel_review": true,
+  "reason": "Short explanation of why review is or isn't needed",
+  "triggered_criteria": [
+    {
+      "criterion": "security_sensitivity",
+      "evidence": "Line 42: jwt.verify(token, secret) — authentication logic",
+      "severity": "high"
+    }
+  ],
+  "non_triggered_criteria": [
+    {
+      "criterion": "critical_logic",
+      "reason": "No payment or PII handling detected"
+    }
+  ],
+  "confidence": 0.92,
+  "recommended_model_tier": "security|review|analyze|quick",
+  "scope_summary": {
+    "files_changed": 3,
+    "lines_added": 120,
+    "lines_removed": 45,
+    "languages": ["python", "yaml"]
+  }
+}
+```
+
+## Decision Matrix
+
+| Criteria Triggered | Confidence | Decision |
+|--------------------|------------|----------|
+| Any security criterion | Any | REVIEW (use security model tier) |
+| Architectural + >200 lines | >= 0.70 | REVIEW (use review model tier) |
+| Critical logic only | >= 0.70 | REVIEW (use analyze model tier) |
+| Scope only (>200 lines) | >= 0.70 | REVIEW (use review model tier) |
+| None triggered | >= 0.80 | SKIP review |
+| None triggered | < 0.80 | REVIEW (insufficient confidence to skip) |

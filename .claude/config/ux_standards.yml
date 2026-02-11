@@ -1,0 +1,153 @@
+# UX Standards Configuration
+# Used by: ux-review, a11y-audit, performance-check skills
+# Reference: https://web.dev/vitals/ (2026 thresholds)
+
+# Core Web Vitals — Google's "good" thresholds (2026 standards)
+core_web_vitals:
+  lcp: 2.5       # Largest Contentful Paint (seconds) — good threshold
+  fid: 100       # First Input Delay (milliseconds) — good threshold (legacy)
+  cls: 0.1       # Cumulative Layout Shift — good threshold
+  inp: 200       # Interaction to Next Paint (ms) — good threshold (replaced FID)
+  ttfb: 800      # Time to First Byte (ms) — good threshold
+
+  # Extended metrics
+  fcp: 1.8       # First Contentful Paint (seconds) — good threshold
+  si: 3.4        # Speed Index (seconds) — good threshold
+  tbt: 200       # Total Blocking Time (ms) — good threshold
+
+  # Rating thresholds (good / needs-improvement / poor)
+  ratings:
+    lcp: [2.5, 4.0]      # good < 2.5s, poor > 4.0s
+    fid: [100, 300]       # good < 100ms, poor > 300ms
+    cls: [0.1, 0.25]      # good < 0.1, poor > 0.25
+    inp: [200, 500]       # good < 200ms, poor > 500ms
+    ttfb: [800, 1800]     # good < 800ms, poor > 1800ms
+
+# Accessibility — WCAG 2.2 (2026 conformance)
+accessibility:
+  target_level: AA          # WCAG conformance: A, AA, or AAA
+
+  # Color contrast ratios (WCAG 2.2)
+  contrast_ratios:
+    normal_text: 4.5        # AA minimum for normal text (< 18pt / 14pt bold)
+    large_text: 3.0         # AA minimum for large text (>= 18pt / 14pt bold)
+    ui_components: 3.0      # AA minimum for UI components and graphical objects
+    aaa_normal_text: 7.0    # AAA minimum for normal text
+    aaa_large_text: 4.5     # AAA minimum for large text
+
+  # Focus indicators
+  focus_indicators:
+    min_outline_width: 2    # pixels — minimum visible focus outline
+    min_contrast: 3.0       # contrast ratio against adjacent colors
+    no_outline_none: true   # flag: outline:none without replacement is a violation
+
+  # Touch targets (WCAG 2.2 Level AA — 2.5.8 Target Size)
+  touch_targets:
+    min_size: 24            # pixels — minimum target size (AA)
+    recommended_size: 44    # pixels — recommended target size (AAA / mobile)
+    min_spacing: 8          # pixels — minimum spacing between adjacent targets
+
+  # Motion and animation
+  motion:
+    respect_prefers_reduced_motion: true   # must honor prefers-reduced-motion
+    max_auto_play_duration: 5              # seconds — auto-playing content limit
+    no_flashing_above_3hz: true            # WCAG 2.3.1 — three flashes threshold
+
+  # Semantic HTML requirements
+  semantic:
+    require_landmarks: true       # main, nav, header, footer, aside
+    require_heading_hierarchy: true  # h1 > h2 > h3 — no skipping levels
+    require_alt_text: true        # all img elements need alt attributes
+    require_lang_attribute: true  # html element must have lang attribute
+    require_form_labels: true     # all form inputs must have associated labels
+
+  # Keyboard navigation
+  keyboard:
+    all_interactive_focusable: true  # every interactive element reachable via Tab
+    no_keyboard_traps: true          # user can always Tab away from any element
+    visible_focus_on_all: true       # focus indicator visible on every focusable element
+    logical_tab_order: true          # tab order follows visual/reading order
+
+# Performance budgets
+performance_budgets:
+  # JavaScript bundle sizes (gzipped)
+  javascript:
+    initial_bundle_kb: 150       # max initial JS bundle (gzipped)
+    total_bundle_kb: 350         # max total JS shipped (gzipped)
+    per_route_kb: 50             # max JS per lazy-loaded route (gzipped)
+    third_party_kb: 100          # max third-party JS (gzipped)
+
+  # CSS
+  css:
+    total_kb: 60                 # max total CSS (gzipped)
+    critical_kb: 14              # max critical/above-fold CSS (inline, ungzipped)
+    unused_percentage: 20        # max percentage of unused CSS on any page
+
+  # Images
+  images:
+    max_hero_kb: 200             # max hero/LCP image size (compressed)
+    max_thumbnail_kb: 30         # max thumbnail image size
+    require_modern_formats: true  # prefer AVIF > WebP > JPEG/PNG
+    require_lazy_loading: true   # images below fold must use loading="lazy"
+    require_dimensions: true     # img elements must have width/height attributes
+    max_lcp_image_kb: 150        # LCP image budget
+
+  # Fonts
+  fonts:
+    max_total_kb: 100            # max total web font weight (all formats)
+    max_families: 3              # max distinct font families
+    require_font_display: swap   # font-display strategy (swap recommended)
+    require_preload: true        # critical fonts should use <link rel="preload">
+    prefer_variable_fonts: true  # variable fonts over multiple static weights
+
+  # Documents / HTML
+  html:
+    max_dom_elements: 1500       # max DOM element count
+    max_dom_depth: 15            # max nesting depth
+    max_document_kb: 100         # max initial HTML document (uncompressed)
+
+  # Network
+  network:
+    max_requests_initial: 50     # max HTTP requests on initial load
+    max_redirects: 2             # max redirect chain length
+    require_compression: true    # gzip/brotli required for text assets
+    require_http2: true          # HTTP/2 or HTTP/3 required
+    require_cdn: true            # static assets should be served from CDN
+
+# Design system reference values
+design_system:
+  # Spacing scale (rem-based, 1rem = 16px)
+  spacing:
+    unit: rem
+    scale: [0.25, 0.5, 0.75, 1, 1.5, 2, 3, 4, 6, 8]  # 4px increments
+    base: 1                      # 16px base spacing
+
+  # Typography
+  typography:
+    base_font_size: 16           # pixels — root font size
+    min_body_font_size: 16       # pixels — minimum body text
+    min_line_height: 1.5         # unitless — minimum for body text
+    heading_line_height: 1.2     # unitless — typical heading line-height
+    max_line_length: 75          # characters — optimal reading width (ch units)
+    scale_ratio: 1.25            # major third — type scale multiplier
+
+  # Color palette references
+  colors:
+    require_system_colors: true  # support system/OS color scheme
+    require_dark_mode: true      # provide dark mode variant
+    min_palette_contrast: 4.5    # all text colors must meet AA contrast
+    max_palette_size: 12         # maximum distinct brand/UI colors
+
+  # Responsive breakpoints
+  breakpoints:
+    mobile: 320                  # pixels — minimum mobile width
+    tablet: 768                  # pixels — tablet breakpoint
+    desktop: 1024                # pixels — desktop breakpoint
+    wide: 1440                   # pixels — wide desktop breakpoint
+
+  # Animation/transition defaults
+  animation:
+    default_duration_ms: 200     # standard transition duration
+    max_duration_ms: 500         # maximum animation duration for UI elements
+    default_easing: ease-out     # default easing function
+    respect_reduced_motion: true  # always honor prefers-reduced-motion

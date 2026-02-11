@@ -52,6 +52,54 @@ These are quality criteria. Issues should be noted but are not blocking.
 | Maintainability | 0.25 | Clear naming, reasonable complexity, good structure |
 | Test Coverage | 0.25 | Changes have corresponding tests |
 
+## Language-Specific Validation
+
+Apply these additional checks based on the detected language(s) in the changeset.
+
+### Python
+
+- [ ] Type hints present on function signatures (pyright/mypy compatible)
+- [ ] No bare `except:` — use specific exception types
+- [ ] No `eval()`, `exec()`, or `pickle.loads()` on untrusted input
+- [ ] `yaml.safe_load()` used instead of `yaml.load()`
+- [ ] f-strings not used in SQL queries (parameterized queries required)
+- [ ] Async functions use `await` properly (no blocking calls in async context)
+
+### Go
+
+- [ ] Errors checked — no `_ :=` ignoring error returns
+- [ ] No goroutine leaks — goroutines have cancellation via context or done channels
+- [ ] Race conditions — shared state protected by mutex or channels
+- [ ] `defer` used for resource cleanup (file handles, locks, connections)
+- [ ] Input validation on exported functions
+- [ ] `context.Context` propagated through call chains
+
+### Node.js / TypeScript
+
+- [ ] TypeScript strict mode enabled (`strict: true` in tsconfig)
+- [ ] No `any` type — use specific types or `unknown` with type guards
+- [ ] Async/await used instead of raw callbacks (no callback hell)
+- [ ] No prototype pollution vectors (`Object.assign` on user input)
+- [ ] Dependencies audited — no known vulnerabilities (`npm audit`)
+- [ ] Event listeners cleaned up to prevent memory leaks
+
+### Terraform
+
+- [ ] No hardcoded secrets in `.tf` files or `terraform.tfvars`
+- [ ] IAM policies follow least privilege (no `*` actions or resources)
+- [ ] Security groups do not allow `0.0.0.0/0` ingress on sensitive ports
+- [ ] `sensitive = true` set on outputs containing secrets
+- [ ] Remote state backend configured with encryption and locking
+- [ ] Provider and module versions pinned with constraints
+
+### Shell / Bash
+
+- [ ] Variables quoted to prevent word splitting: `"$var"` not `$var`
+- [ ] No `eval` on user-supplied input
+- [ ] `set -euo pipefail` at script top (or equivalent error handling)
+- [ ] Temporary files created with `mktemp` (not predictable paths)
+- [ ] No command injection via unvalidated input to `$()` or backticks
+
 ## Output Format
 
 ```json

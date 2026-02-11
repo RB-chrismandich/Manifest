@@ -1,0 +1,33 @@
+# Knowledge Base — Structured Learning Storage
+# Managed by: learning-loop skill, antipattern-detect skill
+# Utility: ~/.claude/scripts/learning_capture.sh
+# Format: entries indexed by ID with category, language, and metadata
+#
+# Categories:
+#   - pattern          — recommended coding patterns and best practices
+#   - antipattern      — detected antipatterns to avoid
+#   - tool_discovery   — new/better tooling recommendations
+#   - config_insight   — configuration tips and environment setup
+#
+# Confidence levels: high, medium, low
+# Languages: python, go, typescript, javascript, bash, terraform, yaml, general
+
+entries: []
+# Example entry:
+# - id: KB-001
+#   title: "Use ruff instead of flake8+black+isort"
+#   category: tool_discovery
+#   language: python
+#   description: >
+#     ruff replaces multiple Python linters and formatters (flake8, black, isort,
+#     pyflakes, pycodestyle) in a single Rust-based tool. It is 10-100x faster
+#     and supports auto-fix for most rules. Migrate by adding a [tool.ruff]
+#     section to pyproject.toml and removing legacy tool configs.
+#   tags: [linting, formatting, migration, performance]
+#   confidence: high
+#   created: 2026-02-11
+#   last_seen: 2026-02-11
+#   occurrences: 1
+#   source: refactor-python
+#   references:
+#     - https://docs.astral.sh/ruff/

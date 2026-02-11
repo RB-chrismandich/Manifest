@@ -2,7 +2,7 @@
 
 > Repository context and guidance for AI coding agents (Cursor, Claude Code, Gemini, Codex, etc.)
 
-**Last Updated**: 2026-02-09
+**Last Updated**: 2026-02-11
 **Audience**: AI assistants (Cursor Agent, Claude Code, Gemini CLI, Codex CLI), contributors
 **Purpose**: Provide AI agents with repository structure, deployment process, and testing guidelines
 
@@ -43,16 +43,7 @@ commands/rules, skills, prompts, and scripts that enable parallel LLM agent coor
 └── scripts/parallel_agent.sh        # Main parallel agent orchestration script
 
 .cursor/                             # Cursor IDE configuration (mirrors .claude/)
-├── rules/                           # Cursor rules (.mdc) adapted from commands/skills
-│   ├── orchestration.mdc            # Always-on orchestration guide
-│   ├── code-quality.mdc             # Auto-triggered quality/security checks
-│   ├── refactor-python.mdc          # Python analysis rule
-│   ├── refactor-shell.mdc           # Shell analysis rule
-│   ├── docs-readme.mdc              # README improvement rule
-│   ├── docs-improve.mdc             # Diataxis documentation rule
-│   ├── docs-diagrams.mdc            # Mermaid diagram generation rule
-│   ├── project-commit.mdc           # Commit pipeline rule
-│   └── plan-manage.mdc              # Plan lifecycle rule
+├── rules/                           # Cursor rules (.mdc) — auto-generated from SKILL.md (25+)
 ├── mcp.json                         # Cursor MCP server defaults
 ├── scripts -> ../.claude/scripts/   # Symlink to shared scripts
 ├── config -> ../.claude/config/     # Symlink to shared configs
@@ -62,21 +53,20 @@ commands/rules, skills, prompts, and scripts that enable parallel LLM agent coor
 
 .gemini/                             # Gemini CLI configuration (mirrors .claude/)
 ├── GEMINI.md                        # Orchestration guide for Gemini CLI
-├── commands/                        # TOML slash commands
-│   ├── project-commit.toml          # Commit pipeline command
-│   ├── refactor-python.toml         # Python analysis command
-│   ├── refactor-shell.toml          # Shell analysis command
-│   ├── docs-readme.toml             # README improvement command
-│   ├── docs-improve.toml            # Diataxis documentation command
-│   ├── docs-diagrams.toml           # Mermaid diagram generation command
-│   ├── plan-manage.toml             # Plan lifecycle command
-│   └── checkpoint.toml              # Context checkpoint command
+├── commands/                        # TOML slash commands (23)
 ├── settings.json                    # Gemini settings (includes MCP server defaults)
 ├── skills -> ../.claude/skills      # Shared skills symlink (single source of truth)
 ├── scripts -> ../.claude/scripts/   # Symlink to shared scripts
 ├── config -> ../.claude/config/     # Symlink to shared configs
 ├── prompts -> ../.claude/prompts/   # Symlink to shared prompts
 └── .plans -> ../.claude/.plans/     # Symlink to shared plans
+
+templates/                           # Project scaffolding templates
+├── scaffold/
+│   ├── python/                      # pyproject.toml, .pre-commit-config.yaml
+│   ├── go/                          # go.mod, Makefile, .golangci.yml
+│   ├── node/                        # package.json, tsconfig.json, eslint.config.js
+│   └── terraform/                   # main.tf, versions.tf, .tflint.hcl
 
 .codex/                              # Codex CLI configuration (mirrors .claude/)
 ├── AGENTS.md -> ../AGENTS.md        # Codex guide (repo-level instructions)
@@ -210,25 +200,59 @@ Required CLI tools (install those you want to use):
 |---------|-------------|-----------------|
 | `/project-commit` | Full commit pipeline: docs, pull, pre-commits, commit, push | CONDITIONAL |
 | `/refactor-python` | Python codebase security and quality analysis | ALWAYS |
+| `/refactor-go` | Go codebase security and quality analysis | ALWAYS |
+| `/refactor-node` | Node.js/TypeScript security and quality analysis | ALWAYS |
+| `/refactor-terraform` | Terraform IaC security and modularity analysis | ALWAYS |
 | `/refactor-shell` | Bash/Shell script security and quality analysis | ALWAYS |
+| `/scaffold` | Initialize new project with quality gates and Manifest integration | NO |
+| `/verify` | Run linters, tests, and security scans in parallel | CONDITIONAL |
+| `/ci-setup` | Configure CI/CD pipelines for target repository | NO |
+| `/ux-review` | UX/accessibility/performance audit | NO |
+| `/a11y-audit` | WCAG 2.2 AA accessibility audit | NO |
+| `/performance-check` | Core Web Vitals and bundle analysis | NO |
 | `/docs-diagrams` | Generate Mermaid architecture diagrams | CONDITIONAL |
 | `/docs-improve` | Diataxis documentation framework analysis | CONDITIONAL |
 | `/docs-readme` | Improve README documentation | NO |
 | `/plan-manage` | Plan lifecycle with parallel agent orchestration | CONDITIONAL |
+| `/issue-triage` | Linear issue audit with duplicate detection | CONDITIONAL |
+| `/issue-prioritize` | Score and rank open issues by impact | CONDITIONAL |
+| `/health-check` | Verify CLI tools, auth, config, MCP, symlinks | NO |
+| `/sync-configs` | Detect cross-platform config drift | NO |
+| `/learning-loop` | Capture structured lessons learned | NO |
+| `/dashboard` | Visualize agent efficiency metrics | NO |
+| `/checkpoint` | Save context checkpoint for session continuity | NO |
 
 ### Cursor Rules
 
-| Rule | Trigger | Description |
-|------|---------|-------------|
-| `orchestration` | Always on | Parallel agent orchestration guide |
-| `code-quality` | Globs: `**/*.py,*.js,*.ts,*.go,*.sh` | Auto-triggered security/quality checks |
-| `refactor-python` | Globs: `**/*.py` | Python analysis |
-| `refactor-shell` | Globs: `**/*.sh,*.bash` | Shell analysis |
-| `docs-readme` | Globs: `**/README.md` | README improvement |
-| `docs-improve` | Globs: `docs/**/*.md` | Diataxis documentation |
-| `docs-diagrams` | Globs: `docs/**/*.md` | Mermaid diagram generation |
-| `project-commit` | Manual | Commit pipeline |
-| `plan-manage` | Globs: `.plans/**/*.md` | Plan lifecycle |
+All Cursor rules are auto-generated from SKILL.md files using `generate_cursor_rules.sh`.
+
+| Rule | Description |
+|------|-------------|
+| `orchestration` | Parallel agent orchestration guide (always-on) |
+| `code-quality` | Auto-triggered security/quality checks |
+| `refactor-python` | Python analysis |
+| `refactor-go` | Go analysis |
+| `refactor-node` | Node.js/TypeScript analysis |
+| `refactor-terraform` | Terraform IaC analysis |
+| `refactor-shell` | Shell analysis |
+| `scaffold` | Project scaffolding |
+| `verify` | Linter/test/security scan runner |
+| `ci-setup` | CI/CD pipeline configuration |
+| `ux-review` | UX/accessibility audit |
+| `a11y-audit` | WCAG 2.2 AA accessibility audit |
+| `performance-check` | Performance analysis |
+| `docs-readme` | README improvement |
+| `docs-improve` | Diataxis documentation |
+| `docs-diagrams` | Mermaid diagram generation |
+| `project-commit` | Commit pipeline |
+| `plan-manage` | Plan lifecycle |
+| `issue-triage` | Linear issue triage |
+| `issue-prioritize` | Issue prioritization |
+| `health-check` | Environment health check |
+| `sync-configs` | Config drift detection |
+| `learning-loop` | Lessons learned capture |
+| `dashboard` | Efficiency metrics |
+| `checkpoint` | Context checkpoint |
 
 ### Gemini CLI Commands
 
@@ -236,23 +260,41 @@ Required CLI tools (install those you want to use):
 |---------|-------------|-----------------|
 | `/project-commit` | Full commit pipeline: docs, pull, pre-commits, commit, push | CONDITIONAL |
 | `/refactor-python` | Python codebase security and quality analysis | ALWAYS |
+| `/refactor-go` | Go codebase security and quality analysis | ALWAYS |
+| `/refactor-node` | Node.js/TypeScript security and quality analysis | ALWAYS |
+| `/refactor-terraform` | Terraform IaC security and modularity analysis | ALWAYS |
 | `/refactor-shell` | Bash/Shell script security and quality analysis | ALWAYS |
+| `/scaffold` | Initialize new project with quality gates | NO |
+| `/verify` | Run linters, tests, and security scans | CONDITIONAL |
+| `/ci-setup` | Configure CI/CD pipelines | NO |
+| `/ux-review` | UX/accessibility audit | NO |
+| `/a11y-audit` | WCAG 2.2 AA accessibility audit | NO |
+| `/performance-check` | Core Web Vitals and bundle analysis | NO |
 | `/docs-diagrams` | Generate Mermaid architecture diagrams | CONDITIONAL |
 | `/docs-improve` | Diataxis documentation framework analysis | CONDITIONAL |
 | `/docs-readme` | Improve README documentation | NO |
 | `/plan-manage` | Plan lifecycle with parallel agent orchestration | CONDITIONAL |
+| `/issue-triage` | Linear issue audit with duplicate detection | CONDITIONAL |
+| `/issue-prioritize` | Score and rank open issues by impact | CONDITIONAL |
+| `/health-check` | Verify CLI tools, auth, config, MCP, symlinks | NO |
+| `/sync-configs` | Detect cross-platform config drift | NO |
+| `/learning-loop` | Capture structured lessons learned | NO |
+| `/dashboard` | Visualize agent efficiency metrics | NO |
 | `/checkpoint` | Context checkpoint for session continuity | NO |
 
 ### Shared Skills
 
-Shared skills are canonical in `.claude/skills/` and symlinked to both:
+Shared skills are canonical in `.claude/skills/` and symlinked to:
 
 - `~/.cursor/skills`
 - `~/.gemini/skills`
 - `~/.codex/skills`
 
-Examples include: `code-quality`, `project-commit`, `refactor-python`, `refactor-shell`,
-`docs-diagrams`, `docs-improve`, `docs-readme`, `plan-manage`, `checkpoint`.
+Current skills: `code-quality`, `project-commit`, `refactor-python`, `refactor-go`,
+`refactor-node`, `refactor-terraform`, `refactor-shell`, `scaffold`, `verify`, `ci-setup`,
+`ux-review`, `a11y-audit`, `performance-check`, `docs-diagrams`, `docs-improve`, `docs-readme`,
+`plan-manage`, `issue-triage`, `issue-prioritize`, `health-check`, `sync-configs`,
+`learning-loop`, `dashboard`, `antipattern-detect`, `checkpoint`.
 
 ## Parallel Agent Orchestration
 

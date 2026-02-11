@@ -407,3 +407,33 @@ docker run --rm -v "$PWD:/work" -w /work fedora:39 ./bootstrap.sh --skip-auth
 - **bashate**: OpenStack style checker
 - **bats**: Bash Automated Testing System
 - **shellharden**: Automatic script hardening
+
+---
+
+## Learning Capture (Optional)
+
+After completing the analysis, capture the most significant findings:
+
+1. For each critical or high-severity finding:
+   - Run:
+
+     ```bash
+     ~/.claude/scripts/learning_capture.sh add \
+       --category antipattern --language bash \
+       --title "<finding title>" \
+       --description "<finding description and recommended fix>" \
+       --source refactor-shell --confidence high
+     ```
+
+2. For any new tool recommendations discovered:
+   - Run:
+
+     ```bash
+     ~/.claude/scripts/learning_capture.sh add \
+       --category tool_discovery --language bash \
+       --title "<tool recommendation>" \
+       --description "<why this tool is better>" \
+       --source refactor-shell --confidence medium
+     ```
+
+3. This step is **non-blocking** -- failures in learning capture should not affect the analysis output.

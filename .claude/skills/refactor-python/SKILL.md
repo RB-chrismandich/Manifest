@@ -41,7 +41,10 @@ You are a Senior Principal Security Software Engineer analyzing a production Pyt
 
 - Read AGENTS.md, CLAUDE.md for project context
 - Check for existing tooling: pyproject.toml, ruff.toml, mypy.ini, .pre-commit-config.yaml
-- Read requirements.txt for dependencies
+- Check package manager: `uv` (recommended 2026), pip, poetry, pdm
+- Read pyproject.toml for dependencies (prefer over requirements.txt)
+- Check for PEP 735 dependency groups in pyproject.toml
+- Check Python version target (>=3.12 recommended for modern features)
 
 ### Step 2: Architecture Analysis
 
@@ -86,8 +89,12 @@ Scan for these patterns:
 
 - Missing type hints on functions
 - Overuse of `Any` type
-- Old Optional syntax (prefer `X | None`)
-- Missing Pydantic models for data validation
+- Old Optional syntax (prefer `X | None` union syntax, Python 3.10+)
+- Missing Pydantic v2 models for data validation
+- `pyright` or `mypy` strict mode configuration
+- Use of `typing_extensions` for backported features
+- Prefer `collections.abc` over `typing` for generic types (Sequence, Mapping)
+- Check for structured logging (structlog) over print/basic logging
 
 ### Step 6: Documentation Analysis
 
@@ -201,17 +208,27 @@ If missing, recommend creating these files:
 ### pyproject.toml
 
 ```toml
+[project]
+requires-python = ">=3.12"
+
+[dependency-groups]  # PEP 735
+dev = ["pytest>=8.0", "ruff>=0.9", "pyright>=1.1"]
+test = ["pytest>=8.0", "pytest-cov>=6.0", "pytest-asyncio>=0.24"]
+
 [tool.ruff]
 line-length = 120
-target-version = "py310"
+target-version = "py312"
 src = ["src"]
 
 [tool.ruff.lint]
-select = ["E", "W", "F", "I", "B", "C4", "UP", "S", "D"]
+select = ["E", "W", "F", "I", "B", "C4", "UP", "S", "D", "PT", "SIM", "TCH", "ASYNC"]
 
-[tool.mypy]
-python_version = "3.10"
-strict = true
+[tool.pyright]
+pythonVersion = "3.12"
+typeCheckingMode = "strict"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
 ```
 
 ### .pre-commit-config.yaml
@@ -242,3 +259,33 @@ repos:
 - Test files with intentional bad patterns
 - Comments containing keywords (not actual code)
 - Type hints that look like code patterns
+
+---
+
+## Learning Capture (Optional)
+
+After completing the analysis, capture the most significant findings:
+
+1. For each critical or high-severity finding:
+   - Run:
+
+     ```bash
+     ~/.claude/scripts/learning_capture.sh add \
+       --category antipattern --language python \
+       --title "<finding title>" \
+       --description "<finding description and recommended fix>" \
+       --source refactor-python --confidence high
+     ```
+
+2. For any new tool recommendations discovered:
+   - Run:
+
+     ```bash
+     ~/.claude/scripts/learning_capture.sh add \
+       --category tool_discovery --language python \
+       --title "<tool recommendation>" \
+       --description "<why this tool is better>" \
+       --source refactor-python --confidence medium
+     ```
+
+3. This step is **non-blocking** -- failures in learning capture should not affect the analysis output.

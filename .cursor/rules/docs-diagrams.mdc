@@ -1,97 +1,14 @@
 ---
-description: "Generate Mermaid diagrams for architecture documentation"
-globs: "docs/**/*.md"
+description: "Generate and maintain Mermaid architecture diagrams that reflect current system structure, workflows, and integrations."
+globs: ".claude/skills/docs-diagrams/**"
 alwaysApply: false
 ---
 
-# Generate Architecture Diagrams
+# docs-diagrams
 
-Generate comprehensive Mermaid diagrams for project documentation, visualizing
-workflow, data flows, and integration architecture.
+Generate and maintain Mermaid architecture diagrams that reflect current system structure, workflows, and integrations.
 
-<!-- Adapted from: .claude/commands/docs-diagrams.md -->
+<!-- Auto-generated from .claude/skills/docs-diagrams/SKILL.md -->
+<!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
 
-## Parallel Agent Integration
-
-This rule uses parallel agents CONDITIONALLY when analyzing 5+ unique imports/modules.
-When triggered, executes: `~/.claude/scripts/parallel_agent.sh --json --validate`
-
-## Task
-
-Create or update architecture diagram documentation with Mermaid diagrams that
-visualize the application architecture, data flows, and capabilities.
-
-## Instructions
-
-### Step 1: Analyze Current Codebase
-
-Read key files to understand current architecture:
-
-- Main entry points and orchestration files
-- Client/service files for external integrations
-- Provider/adapter pattern implementations
-- Configuration files
-- AGENTS.md or project context documentation
-
-### Step 2: Generate Diagrams
-
-Create documentation with these diagram types:
-
-#### High Priority Diagrams
-
-1. **Application Architecture** (Flowchart)
-   - Complete end-to-end flow from input to output
-   - Show major processing stages and decision points
-
-2. **Integration Flow** (Sequence)
-   - Show interaction between main components and external services
-
-3. **Component Architecture** (Class/Entity)
-   - Show provider/adapter patterns
-   - Common interfaces with configuration
-
-4. **Deployment/Output Flow** (Sequence)
-   - Data flow from processing to output destinations
-
-### Step 3: Color Scheme (Traffic Light)
-
-Use consistent color definitions:
-
-```mermaid
-%%{init: {'theme':'neutral'}}%%
-flowchart LR
-    classDef active fill:#22c55e,stroke:#166534,color:#fff
-    classDef pending fill:#eab308,stroke:#a16207,color:#fff
-    classDef error fill:#ef4444,stroke:#dc2626,color:#fff
-    classDef external fill:#3b82f6,stroke:#1d4ed8,color:#fff
-```
-
-| Class | Color | Usage |
-|-------|-------|-------|
-| `active` | Green | Active/healthy components |
-| `pending` | Yellow | In-progress states |
-| `error` | Red | Error/failed states |
-| `external` | Blue | External services |
-
-### Step 4: Test Diagrams
-
-After generating, verify each diagram:
-
-1. Check Mermaid syntax is valid
-2. Ensure all node names are properly quoted if they contain spaces
-3. Verify subgraph labels use proper syntax
-4. Test rendering in GitHub/GitLab markdown preview
-
-## Mermaid Compatibility Notes
-
-- **Never use `:::className` on subgraphs** - only nodes support class assignment
-- **Avoid emojis in quadrant labels** - causes syntax errors
-- **Use `flowchart` instead of `block-beta`** - block diagrams not stable
-- **Emojis work in**: node labels, pie labels, markdown text outside diagrams
-
-## Layout Guidelines
-
-- **LR (Left-Right)**: Use for timelines, chains, progression flows
-- **TB (Top-Bottom)**: Use for decision trees, hierarchies
-- **Subgraphs**: Group by logical category
-- **Max nodes**: Keep diagrams to ~20 nodes for readability
+Refer to `.cursor/skills/docs-diagrams/SKILL.md` for the full skill definition.

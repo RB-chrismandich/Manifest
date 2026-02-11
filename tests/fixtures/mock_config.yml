@@ -1,0 +1,48 @@
+# Mock configuration for testing YAML parsing
+# Used by test suites in ../bats/ and ../python/
+
+# Rate limits per agent
+rate_limits:
+  claude:
+    requests_per_minute: 60
+    burst_size: 5
+  gemini:
+    requests_per_minute: 30
+    burst_size: 3
+  cursor:
+    requests_per_minute: 100
+    burst_size: 10
+
+# Timeout settings (seconds)
+timeouts:
+  default: 120
+  review: 600
+  analyze: 900
+  improve: 300
+
+# Model tier mappings
+model_tiers:
+  claude:
+    haiku: claude-haiku-4-5-20251001
+    sonnet: claude-sonnet-4-5-20250929
+    opus: claude-opus-4-6
+  gemini:
+    flash: gemini-3-flash-preview
+    pro: gemini-3-pro-preview
+
+# Consensus thresholds
+validation:
+  consensus_threshold:
+    high: 0.80
+    medium: 0.50
+
+# Scoring
+scoring:
+  tier2_acceptable_threshold: 0.60
+
+# Synthesis settings
+synthesis:
+  enabled: true
+  threshold: 0.50
+  model: sonnet
+  timeout: 300

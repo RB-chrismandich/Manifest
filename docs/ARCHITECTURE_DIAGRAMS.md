@@ -2,7 +2,7 @@
 
 > Visual documentation of the Manifest parallel LLM agent orchestration framework
 
-**Last Updated**: 2026-02-11 (Added Issue Management Architecture diagram)
+**Last Updated**: 2026-02-11 (Added Label Management Architecture diagram)
 **Project**: Manifest - AI Agent Orchestration Framework
 
 ---
@@ -21,6 +21,7 @@
 10. [Cross-Verification Consensus](#cross-verification-consensus)
 11. [Service State Management](#service-state-management)
 12. [Issue Management Architecture](#issue-management-architecture)
+13. [Label Management Architecture](#label-management-architecture)
 
 ---
 
@@ -1023,6 +1024,77 @@ flowchart TB
 **Scoring formula**: `Priority Score = (Impact × 3) + (Urgency × 2) + (Readiness × 2) - Risk`
 
 **Tiebreakers**: bugs > features, unblockers > isolated, planned > unplanned, older > newer
+
+---
+
+## Label Management Architecture
+
+How the canonical label registry drives consistent label provisioning across GitHub, GitLab, and Linear.
+
+```mermaid
+%%{init: {'theme':'neutral'}}%%
+flowchart TB
+    classDef registry fill:#f3e8ff,stroke:#9333ea,color:#581c87
+    classDef script fill:#f0fdf4,stroke:#16a34a,color:#14532d
+    classDef platform fill:#3b82f6,stroke:#1d4ed8,color:#fff
+    classDef decision fill:#fef3c7,stroke:#d97706,color:#78350f
+    classDef output fill:#f0f9ff,stroke:#0284c7,color:#0c4a6e
+
+    LABELS["labels.yml<br/>(canonical registry)"]:::registry
+
+    subgraph "Label Sync Engine (label_sync.sh)"
+        PARSE["Parse YAML<br/>(python3)"]:::script
+        FILTER{"Platform<br/>Filter?"}:::decision
+        VALIDATE["Validate Fields<br/>(name, color, platforms)"]:::script
+        DRY_CHECK{"--dry-run?"}:::decision
+        DRY_OUT["Report would-create<br/>actions"]:::output
+        PROVISION["Create Label<br/>on Target Platform"]:::script
+    end
+
+    subgraph "Target Platforms"
+        GH["GitHub<br/>gh label create"]:::platform
+        GL["GitLab<br/>glab label create"]:::platform
+        LIN["Linear<br/>linear_ops.sh label-create"]:::platform
+    end
+
+    subgraph "Consumers"
+        PLAN["/plan-manage<br/>planned, in-progress, done"]:::script
+        TRIAGE["/issue-triage<br/>needs-review, follow-up"]:::script
+        HEALTH["/health-check<br/>label validation"]:::script
+    end
+
+    LABELS --> PARSE
+    PARSE --> FILTER
+    FILTER -->|Yes| VALIDATE
+    FILTER -->|No| VALIDATE
+    VALIDATE --> DRY_CHECK
+    DRY_CHECK -->|Yes| DRY_OUT
+    DRY_CHECK -->|No| PROVISION
+    PROVISION --> GH
+    PROVISION --> GL
+    PROVISION --> LIN
+    LABELS --> PLAN
+    LABELS --> TRIAGE
+    LABELS --> HEALTH
+```
+
+**Canonical Labels** (5 labels, 3 platforms):
+
+| Label | Color | Platforms | Used By |
+|-------|-------|-----------|---------|
+| `planned` | `#1D76DB` (Blue) | GitHub, GitLab, Linear | /plan-manage create |
+| `in-progress` | `#FBCA04` (Yellow) | GitHub, GitLab, Linear | /plan-manage execute |
+| `needs-review` | `#E3A21A` (Orange) | GitHub, GitLab, Linear | /issue-triage |
+| `done` | `#0E8A16` (Green) | GitHub, GitLab, Linear | /plan-manage execute |
+| `follow-up` | `#D4C5F9` (Lavender) | GitHub, GitLab, Linear | /issue-triage |
+
+**Deprecated**: `processed` (replaced by `done`)
+
+**Sync Modes**:
+
+- `--dry-run`: Report what would be created without making changes
+- `--validate`: Alias for `--dry-run` (validation only)
+- `--platform <name>`: Restrict sync to a single platform (github, gitlab, linear)
 
 ---
 

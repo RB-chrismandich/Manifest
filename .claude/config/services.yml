@@ -5,6 +5,8 @@
 # To reconfigure: ./bootstrap.sh --reconfigure [--enable|--disable]-<service>
 # Or edit this file directly and restart parallel_agent.sh
 
+# Available tier names are listed per service below.
+# For full model ID mappings, see parallel_agent.yml (model_tiers section).
 services:
   # Claude Code CLI - Anthropic's AI assistant
   # Install: npm install -g @anthropic-ai/claude-code
@@ -36,7 +38,7 @@ services:
     model_tiers:
       - mini     # Lightweight
       - flash    # Balanced (default)
-      - advanced # Maximum capability
+      - advanced  # Maximum capability
 
   # Codex CLI - OpenAI terminal coding agent
   # Install: npm install -g @openai/codex
@@ -47,7 +49,7 @@ services:
     model_tiers:
       - mini     # Lightweight
       - flash    # Balanced (default)
-      - advanced # Maximum capability
+      - advanced  # Maximum capability
       - auto     # Use Codex config default model
     auth:
       - OPENAI_API_KEY
