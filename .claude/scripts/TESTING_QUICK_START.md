@@ -17,7 +17,7 @@ cd /Users/charlemagne/.claude/scripts
 
 **Expected output**:
 
-```
+```text
 ═══════════════════════════════════════════════
   Level 0: Prerequisites
 ═══════════════════════════════════════════════

@@ -206,7 +206,7 @@ export GOOGLE_API_KEY="..." # Optional
 
 ### Successful Test Run
 
-```
+```text
 ╔═══════════════════════════════════════════════╗
 ║   Parallel Agent Phase 3 - E2E Tests         ║
 ╚═══════════════════════════════════════════════╝
@@ -241,7 +241,7 @@ Pass Rate:    100%
 
 ### Failed Test Run
 
-```
+```text
 ═══════════════════════════════════════════════
   Level 0: Prerequisites
 ═══════════════════════════════════════════════

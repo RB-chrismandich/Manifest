@@ -82,7 +82,7 @@
 
 ## 📂 Project Repository Structure (Phase 3)
 
-```
+```text
 /Users/charlemagne/Documents/GitHub/Manifest/
 ├── .claude/
 │   ├── scripts/
@@ -107,7 +107,7 @@
 
 ### Development → Testing → Version Control
 
-```
+```text
 ┌─────────────────────────────────────────────────────────┐
 │  1. Edit in deployed location (~/.claude/)              │
 │     - Make changes to parallel_agent.py, configs, etc.  │

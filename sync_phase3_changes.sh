@@ -7,11 +7,11 @@ set -e
 REPO_ROOT="/Users/charlemagne/Documents/GitHub/Manifest"
 DEPLOYED_ROOT="$HOME/.claude"
 
-# Colors
+# Colors (used in echo -e throughout)
 GREEN='\033[0;32m'
 BLUE='\033[0;34m'
 YELLOW='\033[1;33m'
-NC='\033[0m'
+NC='\033[0m' # No Color
 
 echo -e "${BLUE}╔═══════════════════════════════════════════════╗${NC}"
 echo -e "${BLUE}║  Syncing Phase 3 Changes to Project Repo     ║${NC}"
@@ -51,8 +51,10 @@ compare_files() {
     local file2="$2"
 
     if [[ -f "$file1" ]] && [[ -f "$file2" ]]; then
-        local lines1=$(wc -l < "$file1")
-        local lines2=$(wc -l < "$file2")
+        local lines1
+        lines1=$(wc -l < "$file1")
+        local lines2
+        lines2=$(wc -l < "$file2")
         local diff=$((lines2 - lines1))
 
         if [[ $diff -gt 0 ]]; then
@@ -177,16 +179,16 @@ if git -C "$REPO_ROOT" rev-parse --git-dir > /dev/null 2>&1; then
     cd "$REPO_ROOT"
 
     # Show modified files
-    if git diff --name-only | grep -q ".claude"; then
+    if git diff --name-only | grep -q '.claude'; then
         echo "Modified files:"
-        git diff --name-only | grep ".claude" | sed 's/^/  /'
+        git diff --name-only | grep '.claude' | sed 's/^/  /'
         echo ""
     fi
 
     # Show new files
-    if git ls-files --others --exclude-standard | grep -q ".claude"; then
+    if git ls-files --others --exclude-standard | grep -q '.claude'; then
         echo "New files:"
-        git ls-files --others --exclude-standard | grep ".claude" | sed 's/^/  /'
+        git ls-files --others --exclude-standard | grep '.claude' | sed 's/^/  /'
         echo ""
     fi
 

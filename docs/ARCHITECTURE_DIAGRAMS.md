@@ -2,7 +2,7 @@
 
 > Visual documentation of the Manifest parallel LLM agent orchestration framework
 
-**Last Updated**: 2026-02-10 (Added Phase 3 Python parallel agent with logging, validation, synthesis, streaming)
+**Last Updated**: 2026-02-11 (Added Issue Management Architecture diagram)
 **Project**: Manifest - AI Agent Orchestration Framework
 
 ---
@@ -20,6 +20,7 @@
 9. [Configuration Layer](#configuration-layer)
 10. [Cross-Verification Consensus](#cross-verification-consensus)
 11. [Service State Management](#service-state-management)
+12. [Issue Management Architecture](#issue-management-architecture)
 
 ---
 
@@ -104,7 +105,8 @@ flowchart TB
 
 ## Python Parallel Agent Architecture (Phase 3)
 
-Detailed architecture of the Python parallel agent implementation with Phase 3 features: comprehensive logging, full validation, synthesis, streaming, and dual package support.
+Detailed architecture of the Python parallel agent implementation with Phase 3 features:
+comprehensive logging, full validation, synthesis, streaming, and dual package support.
 
 ```mermaid
 %%{init: {'theme':'neutral'}}%%
@@ -189,7 +191,8 @@ flowchart TB
 
 **Phase 3 Components**:
 
-- **Logger**: Structured JSON logging with correlation IDs (`YYYYMMDD_HHMMSS_PID`), rotating file handler (10MB, 5 backups), performance metrics
+- **Logger**: Structured JSON logging with correlation IDs (`YYYYMMDD_HHMMSS_PID`),
+  rotating file handler (10MB, 5 backups), performance metrics
 - **ValidationEngine**:
   - Tier 1 (critical): Security, error handling, breaking changes, cross-verification
   - Tier 2 (quality): Bug detection, performance, maintainability, test coverage
@@ -211,7 +214,8 @@ flowchart TB
 **Statistics**:
 
 - Lines: 1,616 (vs 634 in Phase 2, +155%)
-- Classes: 9 (Config, Logger, RateLimiter, ValidationEngine, SynthesisEngine, BaseAgent, ClaudeAgent, GeminiAgent, CursorAgent, Orchestrator)
+- Classes: 9 (Config, Logger, RateLimiter, ValidationEngine, SynthesisEngine,
+  BaseAgent, ClaudeAgent, GeminiAgent, CursorAgent, Orchestrator)
 - CLI Flags: 21 (8 new in Phase 3)
 - Configuration Sections: 9 (synthesis, streaming added in Phase 3)
 
@@ -949,6 +953,76 @@ stateDiagram-v2
 - `bootstrap.sh` initializes state based on flags and detection
 - `services.yml` persists state across sessions
 - `bootstrap.sh --reconfigure` allows state changes without reinstall
+
+---
+
+## Issue Management Architecture
+
+Shows the two issue management commands and how they interact with different platforms.
+
+```mermaid
+%%{init: {'theme':'neutral'}}%%
+flowchart TB
+    classDef input fill:#f0f9ff,stroke:#0284c7,color:#0c4a6e
+    classDef process fill:#f0fdf4,stroke:#16a34a,color:#14532d
+    classDef output fill:#fef3c7,stroke:#d97706,color:#78350f
+    classDef platform fill:#f3e8ff,stroke:#9333ea,color:#581c87
+    classDef agent fill:#3b82f6,stroke:#1d4ed8,color:#fff
+
+    USER["User"]:::input
+
+    subgraph "Issue Commands"
+        PRIORITIZE["/issue-prioritize<br/>Read-only ranking"]:::process
+        TRIAGE["/issue-triage<br/>Backlog hygiene"]:::process
+    end
+
+    subgraph "Platform Detection"
+        DETECT["git_platform.sh"]:::process
+        GH["GitHub (gh)"]:::platform
+        GL["GitLab (glab)"]:::platform
+        LIN["Linear (linear_ops.sh)"]:::platform
+        DETECT --> GH
+        DETECT --> GL
+        DETECT --> LIN
+    end
+
+    subgraph "Issue Prioritization Flow"
+        FETCH["Fetch Open Issues"]:::process
+        FILTER["Filter Excluded Labels"]:::process
+        HEURISTIC["Heuristic Pre-Scoring<br/>Impact × 3 + Urgency × 2<br/>+ Readiness × 2 - Risk"]:::process
+        AGENT_REFINE["Agent-Refined Scoring<br/>(top 5-7 only)"]:::agent
+        RANK["Rank & Tiebreak"]:::process
+        REPORT["Prioritization Report"]:::output
+        FETCH --> FILTER --> HEURISTIC --> AGENT_REFINE --> RANK --> REPORT
+    end
+
+    subgraph "Issue Triage Flow"
+        FETCH_LIN["Fetch Linear Issues"]:::process
+        DUP["Duplicate Detection<br/>Fuzzy title matching"]:::process
+        STALE["Staleness Detection<br/>File refs + inactivity"]:::process
+        PRI_VAL["Priority Validation<br/>Agent consensus"]:::agent
+        TRIAGE_REPORT["Triage Report + Actions"]:::output
+        FETCH_LIN --> DUP --> STALE --> PRI_VAL --> TRIAGE_REPORT
+    end
+
+    USER --> PRIORITIZE
+    USER --> TRIAGE
+    PRIORITIZE --> DETECT
+    GH --> FETCH
+    GL --> FETCH
+    LIN --> FETCH
+    TRIAGE --> FETCH_LIN
+    LIN --> FETCH_LIN
+```
+
+**Key differences**:
+
+- **issue-prioritize**: Multi-platform (GitHub, GitLab, Linear), read-only, scoring-focused
+- **issue-triage**: Linear-only, performs mutations (mark duplicates, close stale), hygiene-focused
+
+**Scoring formula**: `Priority Score = (Impact × 3) + (Urgency × 2) + (Readiness × 2) - Risk`
+
+**Tiebreakers**: bugs > features, unblockers > isolated, planned > unplanned, older > newer
 
 ---
 

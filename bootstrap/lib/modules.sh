@@ -3,10 +3,15 @@
 # Extensibility hooks for bootstrap.sh. Modules can register functions
 # against lifecycle hook names.
 
+# shellcheck disable=SC2034
 declare -a BOOTSTRAP_HOOKS_AFTER_CONFIG_LOAD=()
+# shellcheck disable=SC2034
 declare -a BOOTSTRAP_HOOKS_BEFORE_INSTALL=()
+# shellcheck disable=SC2034
 declare -a BOOTSTRAP_HOOKS_AFTER_DEPLOY=()
+# shellcheck disable=SC2034
 declare -a BOOTSTRAP_HOOKS_AFTER_AUTH=()
+# shellcheck disable=SC2034
 declare -a BOOTSTRAP_HOOKS_AFTER_VERIFY=()
 
 register_bootstrap_hook() {
@@ -67,7 +72,7 @@ run_bootstrap_hook() {
             ;;
     esac
 
-    eval "funcs=(\"\${$var_name[@]}\")"
+    eval "funcs=(\"\${${var_name}[@]}\")"
     for func in "${funcs[@]}"; do
         if declare -F "$func" > /dev/null; then
             print_step "Running module hook ($hook): $func"

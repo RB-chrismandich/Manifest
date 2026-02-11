@@ -35,7 +35,7 @@ else
     OUTPUT_DIR="$PROJECT_ROOT/.agent_outputs"
     mkdir -p "$OUTPUT_DIR" 2> /dev/null || true
     STATE_PATH_FALLBACK=true
-    STATE_PATH_FALLBACK_REASON="~/.manifest state path is not writable"
+    STATE_PATH_FALLBACK_REASON="$HOME/.manifest state path is not writable"
 fi
 
 # Route temp files/directories to ~/.manifest/tmp when possible.

@@ -204,7 +204,9 @@ Required CLI tools (install those you want to use):
 | `.claude/scripts/parallel_agent.sh` | Bash script that runs agents in parallel with consensus scoring |
 | `.claude/scripts/git_platform.sh` | Platform detection script (github, gitlab, git) |
 | `.claude/scripts/git_ops.sh` | Platform-agnostic Git operations wrapper (issue/PR management) |
+| `.claude/scripts/linear_ops.sh` | Linear API wrapper for issue management (GraphQL) |
 | `.claude/config/command_config.yml` | Thresholds, tool policies, model selection, error recovery |
+| `.claude/config/linear_triage.yml` | Linear triage scoring, duplicate detection, staleness thresholds |
 | `.claude/config/validation_criteria.yml` | Tier 1 (critical) and Tier 2 (quality) validation rules |
 | `AGENTS.md` | AI agent instructions for all platforms (Cursor, Claude, Gemini, Codex) |
 
@@ -220,6 +222,8 @@ The following slash commands are available in Claude Code:
 | `/docs-diagrams` | Generate Mermaid architecture diagrams | CONDITIONAL (5+ modules) |
 | `/docs-improve` | Diataxis documentation framework analysis | CONDITIONAL (>500 lines) |
 | `/docs-readme` | Improve README documentation | NO |
+| `/issue-prioritize` | Fetch and rank open issues by impact/urgency/readiness/risk (GitHub/GitLab/Linear) | CONDITIONAL (top candidates) |
+| `/issue-triage` | Linear issue audit: duplicates, staleness, priority validation | CONDITIONAL (scenario-based) |
 | `/plan-manage` | Plan lifecycle with parallel agent orchestration for create/review | CONDITIONAL |
 
 ## Testing Changes

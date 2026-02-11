@@ -117,15 +117,16 @@ check_python() {
         fi
 
         # Get full version
-        local version=$($py_cmd --version 2>&1 | awk '{print $2}')
+        local version
+        version=$($py_cmd --version 2>&1 | awk '{print $2}')
         if [[ -z "$version" ]]; then
             continue
         fi
 
         # Parse major.minor
-        local major=$(echo "$version" | cut -d. -f1)
-        local minor=$(echo "$version" | cut -d. -f2)
-        local patch=$(echo "$version" | cut -d. -f3)
+        local major minor
+        major=$(echo "$version" | cut -d. -f1)
+        minor=$(echo "$version" | cut -d. -f2)
 
         # Skip Python 2.x
         if [[ "$major" -lt 3 ]]; then

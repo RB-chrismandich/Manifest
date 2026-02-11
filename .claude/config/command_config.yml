@@ -142,6 +142,38 @@ tool_policies:
     parallel_agents: always
     validation_tier: 1
 
+  issue-triage:
+    allowed:
+      - Read
+      - Glob
+      - Grep
+      - Bash      # linear_ops.sh, parallel_agent.sh, jq
+      - Task      # Parallel verification for duplicates/staleness
+      - AskUserQuestion  # User confirmation for actions
+    forbidden:
+      - Write
+      - Edit      # Read-only analysis; mutations via linear_ops.sh only
+    parallel_agents: conditional
+    trigger_condition: scenario_based
+    validation_tier: 2
+    mcp_servers:
+      - linear    # Primary: Linear MCP for issue operations
+
+  issue-prioritize:
+    allowed:
+      - Read
+      - Glob
+      - Grep
+      - Bash      # gh, glab, linear_ops.sh, parallel_agent.sh, jq, python3
+      - Task      # Parallel agent scoring for top candidates
+      - AskUserQuestion  # Clarify platform or project context
+    forbidden:
+      - Write
+      - Edit      # Strictly read-only — no file or issue mutations
+    parallel_agents: conditional
+    trigger_condition: top_candidates_scoring
+    validation_tier: 2
+
 # Error recovery strategies
 error_recovery:
   timeout_seconds: 120
@@ -234,6 +266,18 @@ task_model_defaults:
     claude: haiku
     gemini: flash
     reason: "Quick queries use lightest models for speed"
+
+  issue_triage:
+    cursor: flash
+    claude: sonnet
+    gemini: flash
+    reason: "Balanced capability for semantic analysis"
+
+  issue_prioritize:
+    cursor: flash
+    claude: sonnet
+    gemini: flash
+    reason: "Balanced capability for scoring refinement"
 
 # Credit exhaustion fallback chains
 credit_fallback:

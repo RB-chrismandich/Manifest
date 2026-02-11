@@ -72,7 +72,7 @@ cd /Users/charlemagne/Documents/GitHub/Manifest
 
 **Expected output**:
 
-```
+```text
 → Checking for Python...
 ✓ Python is installed (3.14.0)
 ℹ Using: /usr/local/bin/python3.14

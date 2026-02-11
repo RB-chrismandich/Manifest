@@ -2,7 +2,7 @@
 
 > Parallel LLM agent orchestration framework for Claude Code, Cursor IDE, Gemini CLI, and Codex CLI
 
-**Last Updated**: 2026-02-10 (Phase 3 Python implementation)
+**Last Updated**: 2026-02-11 (Added issue-prioritize and issue-triage commands)
 
 Manifest is a configuration repository that deploys a sophisticated parallel agent
 orchestration system to `~/.claude/`, `~/.cursor/`, `~/.gemini/`, and `~/.codex/`, enabling Claude Code,
@@ -44,7 +44,8 @@ python3 ~/.claude/scripts/parallel_agent.py --json "Test connection"
 - **Parallel Agent Orchestration**: Run 2-3 AI agents simultaneously (Cursor, Gemini, Claude) with real-time streaming display
 - **Phase 3 Python Implementation** (NEW): Production-grade async agent with logging, validation, synthesis, and streaming
 - **Comprehensive Logging**: Structured JSON logs with correlation IDs, rotation (10MB, 5 backups), performance metrics
-- **Full Validation Engine**: Tier 1 (critical: security, errors, breaking changes) + Tier 2 (quality: bugs, performance, tests)
+- **Full Validation Engine**: Tier 1 (critical: security, errors, breaking changes)
+  \+ Tier 2 (quality: bugs, performance, tests)
 - **Automatic Synthesis**: Disagreement resolution when consensus < 50% using Claude Sonnet
 - **Streaming Responses**: Real-time Rich Live display with progressive updates (4 updates/sec)
 - **Consensus Scoring**: Variance-based algorithm calculates agreement (≥80% = high confidence, <50% = escalate + synthesis)
@@ -87,6 +88,9 @@ Mermaid flowcharts showing bootstrap, execution, validation, and consensus flows
 | `/docs-diagrams` | Generate Mermaid architecture flowcharts and sequence diagrams | CONDITIONAL (≥5 imports) | Tier 2 |
 | `/docs-improve` | Analyze docs against Diataxis framework (tutorials, how-tos, reference, explanation) | CONDITIONAL (≥500 lines) | Tier 2 |
 | `/docs-readme` | Improve README structure and content following best practices | NEVER | Tier 2 |
+| `/issue-prioritize` | Fetch and rank open issues by impact, urgency, readiness, risk (GitHub/GitLab/Linear) | CONDITIONAL (top candidates) | Tier 2 |
+| `/issue-triage` | Linear issue audit: duplicates, staleness, priority validation | CONDITIONAL (scenario-based) | Tier 2 |
+| `/plan-manage` | Plan lifecycle: create, review, execute, archive, abandon | CONDITIONAL | Tier 2 |
 
 ---
 
@@ -112,7 +116,7 @@ Mermaid flowcharts showing bootstrap, execution, validation, and consensus flows
 |----------|---------|----------|--------------|
 | [Getting Started](docs/GETTING_STARTED.md) | First-time setup walkthrough with verification steps | New users | 10 min |
 | [Configuration](docs/CONFIGURATION.md) | All configuration options, YAML reference, environment variables | Operators | 15 min |
-| [Architecture Diagrams](docs/ARCHITECTURE_DIAGRAMS.md) | Visual system documentation with 9 Mermaid diagrams | Developers | 20 min |
+| [Architecture Diagrams](docs/ARCHITECTURE_DIAGRAMS.md) | Visual system documentation with 11 Mermaid diagrams | Developers | 20 min |
 | [Troubleshooting](docs/TROUBLESHOOTING.md) | Common problems, error messages, solutions | All users | 10 min |
 | [AGENTS.md](AGENTS.md) | AI agent instructions (Cursor, Claude, Gemini, Codex) | AI assistants | 8 min |
 | [CLAUDE.md](CLAUDE.md) | Claude Code-specific project context | AI assistants | 8 min |
@@ -141,7 +145,7 @@ Manifest/
 ├── AGENTS.md                        # AI agent instructions (all platforms)
 ├── .claude/                         # Configuration deployed to ~/.claude/
 │   ├── CLAUDE.md                    # Orchestration guide
-│   ├── commands/                    # Slash commands (refactor-python, docs-diagrams, etc.)
+│   ├── commands/                    # Slash commands (refactor-python, issue-prioritize, etc.)
 │   ├── skills/                      # Canonical shared skill library (source of truth)
 │   ├── prompts/                     # Agent orchestration templates
 │   │   ├── preflight_analysis.md    # Pre-flight review criteria
@@ -151,9 +155,14 @@ Manifest/
 │   │   ├── services.yml             # Agent enable/disable states
 │   │   ├── mcp_servers.yml          # Default MCP server registry (OAuth-capable endpoints)
 │   │   ├── command_config.yml       # Tool policies, thresholds, model selection
-│   │   └── validation_criteria.yml  # Tier 1/2 validation rules
+│   │   ├── validation_criteria.yml  # Tier 1/2 validation rules
+│   │   └── linear_triage.yml        # Linear triage scoring and thresholds
 │   └── scripts/
-│       └── parallel_agent.sh        # Core orchestration engine
+│       ├── parallel_agent.sh        # Core orchestration engine (Bash)
+│       ├── parallel_agent.py        # Core orchestration engine (Python, Phase 3)
+│       ├── git_platform.sh          # Git platform detection (GitHub/GitLab/git)
+│       ├── git_ops.sh               # Platform-agnostic Git operations wrapper
+│       └── linear_ops.sh            # Linear API wrapper (GraphQL)
 ├── .cursor/                         # Cursor IDE configuration (mirrors .claude/)
 │   ├── rules/                       # Cursor rules (.mdc) adapted from commands
 │   │   ├── orchestration.mdc        # Always-on orchestration guide
@@ -177,6 +186,8 @@ Manifest/
 │   │   ├── docs-improve.toml       # Diataxis documentation
 │   │   ├── docs-readme.toml        # README improvement
 │   │   ├── plan-manage.toml        # Plan lifecycle
+│   │   ├── issue-prioritize.toml  # Issue prioritization
+│   │   ├── issue-triage.toml      # Issue triage
 │   │   └── checkpoint.toml         # Context checkpoint
 │   ├── settings.json               # Gemini settings (includes MCP server defaults)
 │   ├── skills -> ../.claude/skills/    # Shared skills symlink (single source of truth)

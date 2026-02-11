@@ -229,3 +229,65 @@ command_overrides:
         file_lines: 500
         function_count: 10
         class_count: 5
+
+  issue-triage:
+    tier1_required: false
+    tier2_required: true
+    tier2_checks:
+      - decision_consistency
+      - false_positive_avoidance
+      - label_accuracy
+    tier2_threshold: 0.70
+    consensus_threshold: 0.75
+    parallel_agents_condition:
+      type: scenario_based
+      scenarios:
+        duplicate_detection:
+          title_similarity_range: [0.70, 0.85]
+          model_tier: mini
+        staleness_with_context:
+          has_planned_label: true
+          file_missing_ratio: ">0.5"
+          model_tier: flash
+        priority_scoring:
+          impact_variance: ">2"
+          multi_component: true
+          model_tier: flash
+
+# Extended tier2 checks for specialized commands
+tier2_extended:
+  decision_consistency:
+    weight: 0.35
+    description: "Recommendations align with evidence"
+    checks:
+      - id: evidence_based_closure
+        description: "Issue closures cite concrete evidence"
+        severity: high
+      - id: confidence_matches_action
+        description: "Action severity matches confidence score"
+        severity: medium
+
+  false_positive_avoidance:
+    weight: 0.35
+    description: "Conservative approach to closures"
+    checks:
+      - id: respect_planned_label
+        description: "Never auto-close issues with 'planned' label"
+        severity: critical
+      - id: high_confidence_threshold
+        description: "Only auto-close duplicates with ≥85% consensus"
+        severity: high
+      - id: verify_file_deletion
+        description: "Verify files are truly deleted before marking stale"
+        severity: high
+
+  label_accuracy:
+    weight: 0.30
+    description: "Label changes accurately reflect content"
+    checks:
+      - id: correct_issue_type
+        description: "bug/feature labels match description"
+        severity: medium
+      - id: component_labels_match
+        description: "Component labels match file references"
+        severity: low
