@@ -2,7 +2,7 @@
 
 > Building custom commands for Claude Code with Manifest
 
-**Last Updated**: 2026-02-04
+**Last Updated**: 2026-02-11
 **Audience**: Command developers, advanced users
 **Prerequisites**: Manifest installed, basic understanding of Markdown and Bash
 
@@ -10,14 +10,94 @@
 
 ## Table of Contents
 
-1. [What Are Commands](#what-are-commands)
-2. [Command Structure](#command-structure)
-3. [Command Patterns](#command-patterns)
-4. [Building State Machine Commands](#building-state-machine-commands)
-5. [Parallel Agent Integration](#parallel-agent-integration)
-6. [Error Handling](#error-handling)
-7. [Testing Commands](#testing-commands)
-8. [Examples](#examples)
+1. [Built-in Commands](#built-in-commands)
+2. [What Are Commands](#what-are-commands)
+3. [Command Structure](#command-structure)
+4. [Command Patterns](#command-patterns)
+5. [Building State Machine Commands](#building-state-machine-commands)
+6. [Parallel Agent Integration](#parallel-agent-integration)
+7. [Error Handling](#error-handling)
+8. [Testing Commands](#testing-commands)
+9. [Examples](#examples)
+
+---
+
+## Built-in Commands
+
+Manifest ships with 12 commands and 13 skills (1 auto-triggered).
+
+| Command | Description | Parallel Agents |
+|---------|-------------|-----------------|
+| `/project-commit` | Full commit pipeline: docs, pull, pre-commits, commit, push | CONDITIONAL |
+| `/docs-readme` | Improve README documentation | NO |
+| `/docs-diagrams` | Generate Mermaid architecture diagrams | CONDITIONAL |
+| `/docs-improve` | Diataxis documentation framework analysis | CONDITIONAL |
+| `/refactor-python` | Python codebase security and quality analysis | ALWAYS |
+| `/refactor-shell` | Bash/Shell script security and quality analysis | ALWAYS |
+| `/issue-triage` | Linear issue audit: duplicates, staleness, priority validation | CONDITIONAL |
+| `/issue-prioritize` | Score and rank open issues by impact/urgency/readiness/risk | CONDITIONAL |
+| `/plan-manage` | Plan lifecycle with parallel agent orchestration | CONDITIONAL |
+| `/checkpoint` | Create compact checkpoint summary when context is high | NO |
+| `/health-check` | Verify CLI tools, auth, config syntax, MCP, symlinks | NO |
+| `/sync-configs` | Detect cross-platform config drift and broken symlinks | NO |
+
+The `code-quality` skill auto-triggers on security-sensitive code, large files (>500 lines),
+or complex files (>10 functions or >5 classes).
+
+---
+
+## Label Management
+
+Issue labels are defined in a central registry at `.claude/config/labels.yml` and synced
+across GitHub, GitLab, and Linear.
+
+### Canonical Labels
+
+| Label | Color | Hex | Description |
+|-------|-------|-----|-------------|
+| `planned` | Blue | `#1D76DB` | Implementation plan exists for this issue |
+| `in-progress` | Yellow | `#FBCA04` | Implementation is actively underway |
+| `needs-review` | Orange | `#E3A21A` | Requires human review before completion |
+| `done` | Green | `#0E8A16` | Implementation complete and validated |
+| `follow-up` | Lavender | `#D4C5F9` | Spawned from another issue during implementation |
+
+**Deprecated**: `processed` — use `done` instead (same color and purpose).
+
+### Syncing Labels
+
+```bash
+# Dry-run — see what would be created
+~/.claude/scripts/label_sync.sh --dry-run
+
+# Sync all labels to the current Git platform (GitHub or GitLab)
+~/.claude/scripts/label_sync.sh
+
+# Sync only to Linear
+~/.claude/scripts/label_sync.sh --platform linear --team ENG
+
+# Validate without creating
+~/.claude/scripts/label_sync.sh --validate
+
+# Via git_ops.sh wrapper
+~/.claude/scripts/git_ops.sh label-sync
+~/.claude/scripts/git_ops.sh label-sync --dry-run
+```
+
+### Managing Labels
+
+```bash
+# List labels on current platform
+~/.claude/scripts/git_ops.sh label-list
+
+# Create a single label on current platform
+~/.claude/scripts/git_ops.sh label-create "my-label" --color "FF0000" --description "My label"
+
+# Create a label in Linear
+~/.claude/scripts/linear_ops.sh label-create --name "my-label" --color "FF0000" --team ENG
+
+# List labels in Linear
+~/.claude/scripts/linear_ops.sh label-list --team ENG
+```
 
 ---
 

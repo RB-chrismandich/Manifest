@@ -248,3 +248,24 @@ After the pipeline completes (or stops), provide a summary:
 **Branch**: <branch-name>
 **Files changed**: <count>
 ```
+
+---
+
+## Learning Capture (Optional)
+
+After the pipeline completes, if pre-commit checks failed and were fixed during Phase 3,
+capture the failure patterns for the knowledge base:
+
+1. For each pre-commit hook that failed:
+   - Record the hook name, failure reason, and fix applied
+   - Run:
+
+     ```bash
+     ~/.claude/scripts/learning_capture.sh add \
+       --category antipattern --language <detected> \
+       --title "Pre-commit: <hook> failure" \
+       --description "<what failed and how it was fixed>" \
+       --source project-commit --confidence medium
+     ```
+
+2. This step is **non-blocking** -- failures in learning capture should not affect the commit pipeline.

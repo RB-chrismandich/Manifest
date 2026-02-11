@@ -428,45 +428,75 @@ These integrate with the parallel agent orchestration framework.
 
 ### Available Commands
 
-| Command | File | Description | Parallel Agents |
-|---------|------|-------------|-----------------|
-| `/project-commit` | `project-commit.toml` | Full commit pipeline: docs, pull, pre-commits, commit, push | CONDITIONAL (Phase 3) |
-| `/refactor-python` | `refactor-python.toml` | Python codebase security and quality analysis | ALWAYS |
-| `/refactor-shell` | `refactor-shell.toml` | Bash/Shell script security and quality analysis | ALWAYS |
-| `/docs-readme` | `docs-readme.toml` | Improve README documentation | NO |
-| `/docs-diagrams` | `docs-diagrams.toml` | Generate Mermaid architecture diagrams | CONDITIONAL (5+ modules) |
-| `/docs-improve` | `docs-improve.toml` | Diataxis documentation framework analysis | CONDITIONAL (>500 lines) |
-| `/plan-manage` | `plan-manage.toml` | Plan lifecycle with parallel agent orchestration for create/review | CONDITIONAL |
-| `/checkpoint` | `checkpoint.toml` | Save context checkpoint for session continuity | NO |
+| Command | Description | Parallel Agents |
+|---------|-------------|-----------------|
+| `/project-commit` | Full commit pipeline: docs, pull, pre-commits, commit, push | CONDITIONAL |
+| `/refactor-python` | Python codebase security and quality analysis | ALWAYS |
+| `/refactor-go` | Go codebase security and quality analysis | ALWAYS |
+| `/refactor-node` | Node.js/TypeScript security and quality analysis | ALWAYS |
+| `/refactor-terraform` | Terraform IaC security and modularity analysis | ALWAYS |
+| `/refactor-shell` | Bash/Shell script security and quality analysis | ALWAYS |
+| `/scaffold` | Initialize new project with quality gates and Manifest integration | NO |
+| `/verify` | Run linters, tests, and security scans in parallel | CONDITIONAL |
+| `/ci-setup` | Configure CI/CD pipelines for target repository | NO |
+| `/ux-review` | UX/accessibility/performance audit | NO |
+| `/a11y-audit` | WCAG 2.2 AA accessibility audit | NO |
+| `/performance-check` | Core Web Vitals and bundle analysis | NO |
+| `/docs-readme` | Improve README documentation | NO |
+| `/docs-diagrams` | Generate Mermaid architecture diagrams | CONDITIONAL |
+| `/docs-improve` | Diataxis documentation framework analysis | CONDITIONAL |
+| `/plan-manage` | Plan lifecycle with parallel agent orchestration | CONDITIONAL |
+| `/issue-triage` | Linear issue audit with duplicate detection | CONDITIONAL |
+| `/issue-prioritize` | Score and rank open issues by impact | CONDITIONAL |
+| `/health-check` | Verify CLI tools, auth, config, MCP, symlinks | NO |
+| `/sync-configs` | Detect cross-platform config drift | NO |
+| `/learning-loop` | Capture structured lessons learned | NO |
+| `/dashboard` | Visualize agent efficiency metrics | NO |
+| `/checkpoint` | Save context checkpoint for session continuity | NO |
 
 ### Command Usage
 
 Commands are TOML-based slash commands invoked in Gemini CLI:
 
 ```bash
-# Full commit pipeline with documentation generation
+# Code analysis (language-specific)
+/refactor-python src/
+/refactor-go cmd/
+/refactor-node src/
+/refactor-terraform infra/
+/refactor-shell scripts/
+
+# Project setup and CI
+/scaffold python my-project
+/ci-setup
+/verify
+
+# UX and accessibility
+/ux-review src/components/
+/a11y-audit src/templates/
+/performance-check
+
+# Documentation
+/docs-readme
+/docs-diagrams docs/ARCHITECTURE_DIAGRAMS.md
+/docs-improve docs/
+
+# Commit pipeline
 /project-commit "Add new feature"
 /project-commit  # Auto-generate commit message
 
-# Comprehensive Python refactoring analysis
-/refactor-python src/
+# Issue management
+/issue-triage
+/issue-prioritize
 
-# Shell script security and quality analysis
-/refactor-shell scripts/
-
-# Generate architecture diagrams
-/docs-diagrams docs/ARCHITECTURE_DIAGRAMS.md
-
-# Improve README documentation
-/docs-readme
-
-# Analyze documentation against Diataxis framework
-/docs-improve docs/
-
-# Manage implementation plans
+# Plan management
 /plan-manage
 
-# Save a context checkpoint
+# Environment and learning
+/health-check
+/sync-configs
+/learning-loop
+/dashboard
 /checkpoint
 ```
 
@@ -507,17 +537,31 @@ operate from identical orchestration rules.
 ```text
 ~/.gemini/
 ├── GEMINI.md                        # This orchestration guide
-├── commands/                        # TOML slash commands
+├── commands/                        # TOML slash commands (23)
 │   ├── project-commit.toml
 │   ├── refactor-python.toml
+│   ├── refactor-go.toml
+│   ├── refactor-node.toml
+│   ├── refactor-terraform.toml
 │   ├── refactor-shell.toml
+│   ├── scaffold.toml
+│   ├── verify.toml
+│   ├── ci-setup.toml
+│   ├── ux-review.toml
+│   ├── a11y-audit.toml
+│   ├── performance-check.toml
 │   ├── docs-diagrams.toml
 │   ├── docs-improve.toml
 │   ├── docs-readme.toml
 │   ├── plan-manage.toml
+│   ├── issue-triage.toml
+│   ├── issue-prioritize.toml
+│   ├── health-check.toml
+│   ├── sync-configs.toml
+│   ├── learning-loop.toml
+│   ├── dashboard.toml
 │   └── checkpoint.toml
-├── skills/
-│   └── ...                          # Symlinked shared skills from ~/.claude/skills/
+├── skills/ -> ~/.claude/skills/     # Symlinked shared skills (25+)
 ├── prompts/ -> ~/.claude/prompts/   # Symlinked shared templates
 ├── config/ -> ~/.claude/config/     # Symlinked shared configs
 ├── scripts/ -> ~/.claude/scripts/   # Symlinked shared scripts

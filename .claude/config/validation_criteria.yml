@@ -170,9 +170,9 @@ command_overrides:
     tier2_threshold: 0.80
     consensus_threshold: 0.80
     consensus_action:
-      high: auto_proceed        # >=80%: Use unified recommendation
-      medium: show_disagreements # 50-79%: Highlight to user
-      low: block_and_escalate    # <50%: Human review required
+      high: auto_proceed         # >=80%: Use unified recommendation
+      medium: show_disagreements  # 50-79%: Highlight to user
+      low: block_and_escalate     # <50%: Human review required
 
   docs-readme:
     tier1_required: false
@@ -207,9 +207,9 @@ command_overrides:
     tier2_threshold: 0.70
     consensus_threshold: 0.75
     consensus_action:
-      high: auto_proceed        # >=75%: Use unified recommendation
-      medium: show_disagreements # 50-74%: Highlight to user
-      low: block_and_escalate    # <50%: Human review required
+      high: auto_proceed         # >=75%: Use unified recommendation
+      medium: show_disagreements  # 50-74%: Highlight to user
+      low: block_and_escalate     # <50%: Human review required
 
   code-quality:  # Skill (auto-triggered)
     tier1_required: true

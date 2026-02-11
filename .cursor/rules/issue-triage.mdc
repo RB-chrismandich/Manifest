@@ -1,0 +1,14 @@
+---
+description: "Comprehensive Linear issue audit: validate prioritization, identify duplicates and overlapping issues, detect stale/obsolete issues, produce clean actionable backlog"
+globs: ".claude/skills/issue-triage/**"
+alwaysApply: false
+---
+
+# issue-triage
+
+Comprehensive Linear issue audit: validate prioritization, identify duplicates and overlapping issues, detect stale/obsolete issues, produce clean actionable backlog
+
+<!-- Auto-generated from .claude/skills/issue-triage/SKILL.md -->
+<!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
+
+Refer to `.cursor/skills/issue-triage/SKILL.md` for the full skill definition.

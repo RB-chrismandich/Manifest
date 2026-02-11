@@ -98,7 +98,7 @@ For each candidate, record: `title`, `origin`, `body_text`, `context`.
 #### For NEEDS-REVIEW verdicts
 
 ```bash
-~/.claude/scripts/git_ops.sh label-create "needs-review" --description "Implementation complete but requires human review" --color "FBCA04" -R {owner}/{repo} 2>/dev/null || true
+~/.claude/scripts/git_ops.sh label-create "needs-review" --description "Requires human review before completion" --color "E3A21A" -R {owner}/{repo} 2>/dev/null || true
 ~/.claude/scripts/git_ops.sh issue-edit <NUMBER> --add-label "needs-review" -R {owner}/{repo}
 ```
 
@@ -109,7 +109,7 @@ If any candidates were classified as `needs-creation` in step 2c-iii, create fol
 1. **Ensure the `follow-up` label exists**:
 
    ```bash
-   ~/.claude/scripts/git_ops.sh label-create "follow-up" --description "Follow-up item from a processed issue" --color "D4C5F9" -R {owner}/{repo} 2>/dev/null || true
+   ~/.claude/scripts/git_ops.sh label-create "follow-up" --description "Spawned from another issue during implementation" --color "D4C5F9" -R {owner}/{repo} 2>/dev/null || true
    ```
 
 2. **Create each follow-up issue** using the standardized template:

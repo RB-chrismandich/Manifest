@@ -1,0 +1,237 @@
+name: Manifest CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Lint & Validate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # --- ShellCheck ---
+
+      - name: Install shellcheck
+        run: sudo apt-get update && sudo apt-get install -y shellcheck
+
+      - name: ShellCheck - .claude/scripts/
+        run: shellcheck .claude/scripts/*.sh
+
+      - name: ShellCheck - bootstrap/
+        run: |
+          shellcheck bootstrap.sh
+          shellcheck bootstrap/lib/*.sh
+
+      # --- yamllint ---
+
+      - name: Install yamllint
+        run: pip install yamllint
+
+      - name: yamllint - .claude/config/
+        run: yamllint -d relaxed .claude/config/*.yml
+
+      # --- markdownlint ---
+
+      - name: markdownlint - key docs
+        uses: DavidAnson/markdownlint-cli2-action@v19
+        with:
+          globs: |
+            AGENTS.md
+            CLAUDE.md
+            README.md
+            docs/*.md
+
+      # --- YAML validation with Python ---
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Validate YAML configs with Python
+        run: |
+          exit_code=0
+          for f in .claude/config/*.yml; do
+            echo "Validating $f ..."
+            python3 -c "import yaml; yaml.safe_load(open('$f'))" || exit_code=1
+          done
+          if [ "$exit_code" -ne 0 ]; then
+            echo "YAML validation failed"
+          else
+            echo "All YAML configs valid"
+          fi
+          exit $exit_code
+
+  test:
+    name: Test
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # --- Bats tests ---
+
+      - name: Install bats-core and helpers from npm
+        run: npm install bats bats-support bats-assert
+
+      - name: Set up test_helper directory
+        run: |
+          mkdir -p tests/test_helper
+          ln -s ../../node_modules/bats-support tests/test_helper/bats-support
+          ln -s ../../node_modules/bats-assert tests/test_helper/bats-assert
+
+      - name: Run bats tests
+        run: ./node_modules/.bin/bats tests/bats/
+
+      # --- Python tests ---
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install pytest
+        run: pip install pytest
+
+      - name: Run Python tests (if any exist)
+        run: |
+          if [ -d tests/python ] && find tests/python -name '*.py' | grep -q .; then
+            pytest tests/python/ -v
+          else
+            echo "No Python tests found in tests/python/ - skipping"
+          fi
+
+  validate:
+    name: Validate Structure
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Verify symlinks are intact
+        run: |
+          echo "Checking symlinks..."
+          ERRORS=0
+
+          check_symlink() {
+            local link="$1"
+            local expected_target="$2"
+            if [ ! -L "$link" ]; then
+              echo "FAIL: $link is not a symlink"
+              ERRORS=$((ERRORS + 1))
+            else
+              actual=$(readlink "$link")
+              if [ "$actual" != "$expected_target" ]; then
+                echo "FAIL: $link -> $actual (expected $expected_target)"
+                ERRORS=$((ERRORS + 1))
+              else
+                echo "OK: $link -> $actual"
+              fi
+            fi
+          }
+
+          # .cursor symlinks
+          check_symlink ".cursor/scripts"  "../.claude/scripts"
+          check_symlink ".cursor/config"   "../.claude/config"
+          check_symlink ".cursor/prompts"  "../.claude/prompts"
+          check_symlink ".cursor/.plans"   "../.claude/.plans"
+          check_symlink ".cursor/skills"   "../.claude/skills"
+
+          # .gemini symlinks
+          check_symlink ".gemini/scripts"  "../.claude/scripts"
+          check_symlink ".gemini/config"   "../.claude/config"
+          check_symlink ".gemini/prompts"  "../.claude/prompts"
+          check_symlink ".gemini/.plans"   "../.claude/.plans"
+          check_symlink ".gemini/skills"   "../.claude/skills"
+
+          # .codex symlinks
+          check_symlink ".codex/AGENTS.md" "../AGENTS.md"
+          check_symlink ".codex/commands"  "../.claude/commands"
+          check_symlink ".codex/scripts"   "../.claude/scripts"
+          check_symlink ".codex/config"    "../.claude/config"
+          check_symlink ".codex/prompts"   "../.claude/prompts"
+          check_symlink ".codex/.plans"    "../.claude/.plans"
+          check_symlink ".codex/skills"    "../.claude/skills"
+
+          if [ "$ERRORS" -gt 0 ]; then
+            echo ""
+            echo "$ERRORS symlink(s) broken or missing"
+            exit 1
+          fi
+          echo ""
+          echo "All symlinks intact"
+
+      - name: Validate parallel_agent.sh syntax
+        run: bash -n .claude/scripts/parallel_agent.sh
+
+      - name: Validate all shell scripts syntax
+        run: |
+          echo "Validating shell script syntax with bash -n..."
+          ERRORS=0
+
+          for f in .claude/scripts/*.sh bootstrap.sh bootstrap/lib/*.sh; do
+            if bash -n "$f" 2>/dev/null; then
+              echo "OK: $f"
+            else
+              echo "FAIL: $f"
+              bash -n "$f"
+              ERRORS=$((ERRORS + 1))
+            fi
+          done
+
+          if [ "$ERRORS" -gt 0 ]; then
+            echo ""
+            echo "$ERRORS script(s) have syntax errors"
+            exit 1
+          fi
+          echo ""
+          echo "All shell scripts pass syntax check"
+
+      - name: Count and verify skills, commands, scripts
+        run: |
+          echo "=== Skills ==="
+          SKILL_COUNT=$(find .claude/skills -name 'SKILL.md' | wc -l | tr -d ' ')
+          echo "Found $SKILL_COUNT skills:"
+          find .claude/skills -name 'SKILL.md' | sed 's|/SKILL.md||;s|.claude/skills/||' | sort | sed 's/^/  /'
+          echo ""
+
+          echo "=== Commands ==="
+          COMMAND_COUNT=$(find .claude/commands -name '*.md' | wc -l | tr -d ' ')
+          echo "Found $COMMAND_COUNT commands:"
+          find .claude/commands -name '*.md' -printf '%f\n' | sed 's/.md$//' | sort | sed 's/^/  /'
+          echo ""
+
+          echo "=== Scripts ==="
+          SCRIPT_COUNT=$(find .claude/scripts -name '*.sh' | wc -l | tr -d ' ')
+          echo "Found $SCRIPT_COUNT scripts:"
+          find .claude/scripts -name '*.sh' -printf '%f\n' | sort | sed 's/^/  /'
+          echo ""
+
+          # Verify minimum expected counts
+          if [ "$SKILL_COUNT" -lt 1 ]; then
+            echo "FAIL: Expected at least 1 skill, found $SKILL_COUNT"
+            exit 1
+          fi
+          if [ "$COMMAND_COUNT" -lt 1 ]; then
+            echo "FAIL: Expected at least 1 command, found $COMMAND_COUNT"
+            exit 1
+          fi
+          if [ "$SCRIPT_COUNT" -lt 1 ]; then
+            echo "FAIL: Expected at least 1 script, found $SCRIPT_COUNT"
+            exit 1
+          fi
+
+          echo "Structure validation passed: $SKILL_COUNT skills, $COMMAND_COUNT commands, $SCRIPT_COUNT scripts"

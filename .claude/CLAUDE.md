@@ -445,10 +445,16 @@ These integrate with the parallel agent orchestration framework.
 |---------|-------------|-----------------|
 | `/project-commit` | Full commit pipeline: docs, pull, pre-commits, commit, push | CONDITIONAL (Phase 3) |
 | `/docs-readme` | Improve README documentation | NO |
-| `/refactor-python` | Python codebase security and quality analysis | ALWAYS |
 | `/docs-diagrams` | Generate Mermaid architecture diagrams | CONDITIONAL (5+ modules) |
 | `/docs-improve` | Diataxis documentation framework analysis | CONDITIONAL (>500 lines) |
+| `/refactor-python` | Python codebase security and quality analysis | ALWAYS |
+| `/refactor-shell` | Bash/Shell script security and quality analysis | ALWAYS |
+| `/issue-triage` | Linear issue audit: duplicates, staleness, priority validation | CONDITIONAL |
+| `/issue-prioritize` | Score and rank open issues by impact/urgency/readiness/risk | CONDITIONAL |
 | `/plan-manage` | Plan lifecycle with parallel agent orchestration for create/review | CONDITIONAL |
+| `/checkpoint` | Create compact checkpoint summary when context usage is high | NO |
+| `/health-check` | Verify CLI tools, auth, config syntax, MCP, symlinks | NO |
+| `/sync-configs` | Detect cross-platform config drift and broken symlinks | NO |
 
 ### Command Usage
 
@@ -457,17 +463,25 @@ These integrate with the parallel agent orchestration framework.
 /project-commit "Add new feature"
 /project-commit  # Auto-generate commit message
 
-# Comprehensive Python refactoring analysis
+# Code analysis
 /refactor-python src/
+/refactor-shell .claude/scripts/
 
-# Generate architecture diagrams
+# Documentation
 /docs-diagrams docs/ARCHITECTURE_DIAGRAMS.md
-
-# Improve README documentation
 /docs-readme
-
-# Analyze documentation against Diataxis framework
 /docs-improve docs/
+
+# Issue management
+/issue-triage                # Audit Linear backlog
+/issue-prioritize            # Rank open issues by impact
+
+# Plan management
+/plan-manage create #42      # Create plan from issue
+/plan-manage execute #42     # Execute plan deliverables
+
+# Context management
+/checkpoint                  # Save session state when context is high
 ```
 
 ### Auto-Triggered Skill
@@ -587,30 +601,58 @@ All arguments are passed through to the underlying CLI tool (`gh` or `glab`).
 ```text
 ~/.claude/
 ├── CLAUDE.md                        # This orchestration guide
-├── commands/                        # User-invoked commands
-│   ├── docs-readme.md
-│   ├── refactor-python.md
+├── commands/                        # User-invoked slash commands (12)
+│   ├── checkpoint.md
 │   ├── docs-diagrams.md
-│   └── docs-improve.md
-├── skills/
-│   └── code-quality/
-│       └── SKILL.md                 # Auto-triggered quality/security skill
+│   ├── docs-improve.md
+│   ├── docs-readme.md
+│   ├── health-check.md
+│   ├── issue-prioritize.md
+│   ├── issue-triage.md
+│   ├── plan-manage.md
+│   ├── project-commit.md
+│   ├── refactor-python.md
+│   ├── refactor-shell.md
+│   └── sync-configs.md
+├── skills/                          # Canonical skill library (13)
+│   ├── checkpoint/SKILL.md
+│   ├── code-quality/SKILL.md       # Auto-triggered quality/security
+│   ├── docs-diagrams/SKILL.md
+│   ├── docs-improve/SKILL.md
+│   ├── docs-readme/SKILL.md
+│   ├── health-check/SKILL.md
+│   ├── issue-prioritize/SKILL.md
+│   ├── issue-triage/SKILL.md
+│   ├── plan-manage/SKILL.md
+│   ├── project-commit/SKILL.md
+│   ├── refactor-python/SKILL.md
+│   ├── refactor-shell/SKILL.md
+│   └── sync-configs/SKILL.md
 ├── prompts/
+│   ├── context_monitor.md
 │   ├── preflight_analysis.md
 │   ├── synthesis.md
+│   ├── triage_synthesis.md
 │   └── validation.md
 ├── config/
 │   ├── command_config.yml
+│   ├── linear_triage.yml
+│   ├── mcp_servers.yml
+│   ├── parallel_agent.yml           # Canonical model tiers source
+│   ├── services.yml
 │   └── validation_criteria.yml
-├── .plans/                         # Plan management
-│   ├── .archive/                   # Completed plans
-│   ├── .abandoned/                 # Stale/abandoned plans
-│   ├── TEMPLATE.md                 # Plan template
-│   └── README.md                   # Quick reference
+├── .plans/                          # Plan management
+│   ├── .archive/                    # Completed plans
+│   ├── .abandoned/                  # Stale/abandoned plans
+│   ├── TEMPLATE.md
+│   └── README.md
 └── scripts/
-    ├── parallel_agent.sh
-    ├── git_platform.sh         # Platform detection
-    └── git_ops.sh              # Platform-agnostic operations
+    ├── parallel_agent.sh            # Main parallel agent orchestrator
+    ├── parallel_agent.py            # Python parallel agent (Phase 3)
+    ├── generate_cursor_rules.sh     # Regenerate .cursor/rules from SKILL.md
+    ├── git_platform.sh              # Platform detection
+    ├── git_ops.sh                   # Platform-agnostic Git operations
+    └── linear_ops.sh                # Linear API operations
 ```
 
 ---

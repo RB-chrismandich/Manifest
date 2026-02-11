@@ -1,17 +1,4 @@
 {
-  "mcpServers": {
-    "Sentry": {
-      "url": "https://mcp.sentry.dev/mcp"
-    },
-    "context7": {
-      "command": "npx",
-      "args": ["-y", "mcp-remote", "https://mcp.context7.com/mcp/oauth"]
-    },
-    "linear": {
-      "command": "npx",
-      "args": ["-y", "mcp-remote", "https://mcp.linear.app/sse"]
-    }
-  },
   "permissions": {
     "allow": [
       "Bash(~/.claude/scripts/parallel_agent.sh:*)",
@@ -40,7 +27,29 @@
       "Bash(gh api:*)",
       "Bash(glab issue note:*)",
       "Bash(gh issue view:*)",
-      "Bash(gh issue edit:*)"
+      "Bash(gh issue edit:*)",
+      "Bash(~/.claude/scripts/git_ops.sh:*)"
     ]
+  },
+  "mcpServers": {
+    "sentry": {
+      "url": "https://mcp.sentry.dev/mcp"
+    },
+    "context7": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "mcp-remote",
+        "https://mcp.context7.com/mcp/oauth"
+      ]
+    },
+    "linear": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "mcp-remote",
+        "https://mcp.linear.app/mcp"
+      ]
+    }
   }
 }

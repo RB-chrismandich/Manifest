@@ -12,7 +12,7 @@ thresholds:
   skill_file_lines: 500           # File > 500 lines
   skill_function_count: 10        # > 10 functions per file
   skill_class_count: 5            # > 5 classes per file
-  skill_cyclomatic_complexity: 15 # Cyclomatic complexity > 15
+  skill_cyclomatic_complexity: 15  # Cyclomatic complexity > 15
 
 # Security patterns that trigger code-quality skill
 security_patterns:
@@ -44,18 +44,18 @@ security_patterns:
   - escape
   - filter
 
-# Consensus thresholds for parallel agent decisions
+# Consensus thresholds for parallel agent decisions (float 0.0-1.0)
 consensus:
-  high: 80      # >=80%: Auto-proceed with unified recommendation
-  medium: 50    # 50-79%: Highlight disagreements to user
-  low: 0        # <50%: Block and escalate for human review
+  high: 0.80    # >=80%: Auto-proceed with unified recommendation
+  medium: 0.50  # 50-79%: Highlight disagreements to user
+  low: 0.0      # <50%: Block and escalate for human review
 
 # Prioritization hierarchy for synthesis (in order)
 synthesis_priority:
   - security        # Security issues always first
   - correctness     # Functional bugs
   - performance     # Performance issues
-  - maintainability # Code quality
+  - maintainability  # Code quality
   - style           # Formatting and style
 
 # Tool policies per command
@@ -174,6 +174,32 @@ tool_policies:
     trigger_condition: top_candidates_scoring
     validation_tier: 2
 
+  health-check:
+    allowed:
+      - Read
+      - Glob
+      - Grep
+      - Bash      # CLI version checks, auth status, curl, stat, test
+    forbidden:
+      - Write
+      - Edit      # Read-only diagnostic
+      - Task
+    parallel_agents: never
+    validation_tier: 2
+
+  sync-configs:
+    allowed:
+      - Read
+      - Glob
+      - Grep
+      - Bash      # stat, readlink, diff
+    forbidden:
+      - Write
+      - Edit      # Read-only diagnostic
+      - Task
+    parallel_agents: never
+    validation_tier: 2
+
 # Error recovery strategies
 error_recovery:
   timeout_seconds: 120
@@ -208,31 +234,9 @@ parallel_agent:
     analyze: --analyze
     prompt: ""  # Generic prompt mode
 
-# Model selection configuration
-# Model IDs mirror parallel_agent.sh env var defaults (the script is the canonical source)
-model_selection:
-  # Cursor Agent model tiers
-  cursor:
-    tiers:
-      mini: gpt-5.1-codex-mini   # Lightweight, fast, cheap
-      flash: gpt-5.1-codex       # Balanced performance
-      advanced: gpt-5.2          # Maximum capability
-    default: auto                 # Let Cursor auto-select
-
-  # Claude CLI model tiers
-  claude:
-    tiers:
-      haiku: haiku             # Fast, economical
-      sonnet: sonnet           # Balanced (recommended)
-      opus: opus               # Maximum capability
-    default: sonnet
-
-  # Gemini CLI model tiers (for reference)
-  gemini:
-    tiers:
-      flash: gemini-3-flash-preview  # Fast
-      pro: gemini-3-pro-preview      # Advanced
-    default: flash
+# Model selection
+# Canonical model tier definitions (IDs and fallback chains) are in parallel_agent.yml.
+# This section only contains task-based routing logic (which tier to use per task type).
 
 # Task-based model defaults (used by orchestrator)
 # The orchestrating agent (Claude) selects models based on task type
@@ -280,18 +284,5 @@ task_model_defaults:
     reason: "Balanced capability for scoring refinement"
 
 # Credit exhaustion fallback chains
-credit_fallback:
-  cursor:
-    chain:
-      - advanced
-      - flash
-      - mini
-      - auto
-    final_fallback: auto
-
-  claude:
-    chain:
-      - opus
-      - sonnet
-      - haiku
-    final_fallback: haiku
+# Canonical fallback definitions are in parallel_agent.yml (credit_fallback section).
+# The parallel_agent.sh script reads those values at runtime.

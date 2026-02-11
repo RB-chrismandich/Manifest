@@ -1,0 +1,38 @@
+{
+  "timestamp": "20260211_120000",
+  "mode": "review",
+  "prompt": "Test review prompt",
+  "agents": {
+    "cursor": {
+      "status": "complete",
+      "validated": true,
+      "model": "gpt-5.1-codex",
+      "credit_fallback": false,
+      "output": "Mock cursor output: Code review complete. No critical issues found. Suggested improvements: add input validation on line 42, consider error handling for edge cases."
+    },
+    "gemini": {
+      "status": "complete",
+      "validated": true,
+      "model": "gemini-3-flash-preview",
+      "output": "Mock gemini output: Review analysis complete. The code follows best practices. Recommendations: improve error handling, add input validation, consider performance optimization for the inner loop."
+    },
+    "claude": {
+      "status": "complete",
+      "validated": true,
+      "model": "sonnet",
+      "credit_fallback": false,
+      "output": "Mock claude output: Comprehensive review findings. Security: no vulnerabilities detected. Quality: proper error handling present. Suggestions: add input validation, improve test coverage."
+    }
+  },
+  "output_files": {
+    "cursor": "/tmp/test_outputs/cursor_20260211_120000.txt",
+    "gemini": "/tmp/test_outputs/gemini_20260211_120000.txt",
+    "claude": "/tmp/test_outputs/claude_20260211_120000.txt",
+    "summary": "/tmp/test_outputs/summary_20260211_120000.md"
+  },
+  "cross_verification": {
+    "consensus_score": 85,
+    "confidence": "high",
+    "agent_count": 3
+  }
+}

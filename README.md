@@ -1,8 +1,10 @@
 # Manifest
 
+[![Manifest CI](https://github.com/ReefBytes/Manifest/actions/workflows/ci.yml/badge.svg)](https://github.com/ReefBytes/Manifest/actions/workflows/ci.yml)
+
 > Parallel LLM agent orchestration framework for Claude Code, Cursor IDE, Gemini CLI, and Codex CLI
 
-**Last Updated**: 2026-02-11 (Added issue-prioritize and issue-triage commands)
+**Last Updated**: 2026-02-11 (Added unified label management across GitHub, GitLab, and Linear)
 
 Manifest is a configuration repository that deploys a sophisticated parallel agent
 orchestration system to `~/.claude/`, `~/.cursor/`, `~/.gemini/`, and `~/.codex/`, enabling Claude Code,
@@ -52,6 +54,7 @@ python3 ~/.claude/scripts/parallel_agent.py --json "Test connection"
 - **Intelligent Model Selection**: Task-based routing (security→opus/gpt-5.2, review→sonnet/gpt-5.1-codex, quick→haiku/mini)
 - **Credit Exhaustion Fallback**: Automatic detection and retry with cheaper models (opus→sonnet→haiku)
 - **Cross-Platform**: Native support for macOS (Intel/Apple Silicon) and 5 major Linux distributions
+- **Unified Label Management**: Canonical label registry with sync across GitHub, GitLab, and Linear
 - **Production Templates**: Pre-configured permission templates for Django, Express, Go microservices, Python monorepos
 
 ---
@@ -116,7 +119,7 @@ Mermaid flowcharts showing bootstrap, execution, validation, and consensus flows
 |----------|---------|----------|--------------|
 | [Getting Started](docs/GETTING_STARTED.md) | First-time setup walkthrough with verification steps | New users | 10 min |
 | [Configuration](docs/CONFIGURATION.md) | All configuration options, YAML reference, environment variables | Operators | 15 min |
-| [Architecture Diagrams](docs/ARCHITECTURE_DIAGRAMS.md) | Visual system documentation with 11 Mermaid diagrams | Developers | 20 min |
+| [Architecture Diagrams](docs/ARCHITECTURE_DIAGRAMS.md) | Visual system documentation with 13 Mermaid diagrams | Developers | 20 min |
 | [Troubleshooting](docs/TROUBLESHOOTING.md) | Common problems, error messages, solutions | All users | 10 min |
 | [AGENTS.md](AGENTS.md) | AI agent instructions (Cursor, Claude, Gemini, Codex) | AI assistants | 8 min |
 | [CLAUDE.md](CLAUDE.md) | Claude Code-specific project context | AI assistants | 8 min |
@@ -156,13 +159,15 @@ Manifest/
 │   │   ├── mcp_servers.yml          # Default MCP server registry (OAuth-capable endpoints)
 │   │   ├── command_config.yml       # Tool policies, thresholds, model selection
 │   │   ├── validation_criteria.yml  # Tier 1/2 validation rules
-│   │   └── linear_triage.yml        # Linear triage scoring and thresholds
+│   │   ├── linear_triage.yml        # Linear triage scoring and thresholds
+│   │   └── labels.yml               # Canonical label registry (GitHub, GitLab, Linear)
 │   └── scripts/
 │       ├── parallel_agent.sh        # Core orchestration engine (Bash)
 │       ├── parallel_agent.py        # Core orchestration engine (Python, Phase 3)
 │       ├── git_platform.sh          # Git platform detection (GitHub/GitLab/git)
 │       ├── git_ops.sh               # Platform-agnostic Git operations wrapper
-│       └── linear_ops.sh            # Linear API wrapper (GraphQL)
+│       ├── linear_ops.sh            # Linear API wrapper (GraphQL)
+│       └── label_sync.sh            # Label provisioning across platforms
 ├── .cursor/                         # Cursor IDE configuration (mirrors .claude/)
 │   ├── rules/                       # Cursor rules (.mdc) adapted from commands
 │   │   ├── orchestration.mdc        # Always-on orchestration guide

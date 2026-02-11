@@ -1,0 +1,172 @@
+# Language Profiles — Centralized tool configuration per language
+#
+# Used by: scaffold, refactor-*, verify, ci-setup skills
+# Each language defines its recommended linters, test runners, build tools,
+# security scanners, and package managers for 2026 best practices.
+
+python:
+  version: ">=3.12"
+  package_manager:
+    recommended: uv
+    alternatives: [pip, poetry, pdm]
+  linter:
+    tool: ruff
+    config_file: pyproject.toml
+    rule_sets: [E, W, F, I, B, C4, UP, S, D, PT, SIM, TCH, ASYNC]
+  formatter:
+    tool: ruff format
+    config_file: pyproject.toml
+  type_checker:
+    tool: pyright
+    mode: strict
+    config_file: pyproject.toml
+    alternatives: [mypy]
+  test_runner:
+    tool: pytest
+    config_file: pyproject.toml
+    coverage_tool: pytest-cov
+    coverage_threshold: 80
+  security_scanner:
+    tool: bandit
+    config_file: pyproject.toml
+    alternatives: [safety, pip-audit]
+  pre_commit_hooks:
+    - repo: https://github.com/astral-sh/ruff-pre-commit
+      hooks: [ruff, ruff-format]
+    - repo: https://github.com/PyCQA/bandit
+      hooks: [bandit]
+  file_patterns: ["*.py", "pyproject.toml", "requirements*.txt"]
+
+go:
+  version: ">=1.23"
+  package_manager:
+    recommended: go modules
+  linter:
+    tool: golangci-lint
+    config_file: .golangci.yml
+    enabled_linters:
+      - errcheck
+      - gosimple
+      - govet
+      - ineffassign
+      - staticcheck
+      - gosec
+      - gocritic
+      - errorlint
+      - gocyclo
+      - nestif
+      - prealloc
+      - unconvert
+      - unparam
+  formatter:
+    tool: gofmt
+    alternatives: [goimports, gofumpt]
+  type_checker:
+    tool: go vet  # built-in
+  test_runner:
+    tool: go test
+    flags: [-race, -cover, -count=1]
+    coverage_tool: go tool cover
+    coverage_threshold: 80
+  security_scanner:
+    tool: gosec
+    alternatives: [govulncheck]
+  pre_commit_hooks:
+    - repo: https://github.com/golangci/golangci-lint
+      hooks: [golangci-lint]
+    - repo: https://github.com/dnephin/pre-commit-golang
+      hooks: [go-vet, go-build]
+  file_patterns: ["*.go", "go.mod", "go.sum"]
+
+node:
+  version: ">=20"
+  package_manager:
+    recommended: npm
+    alternatives: [pnpm, yarn, bun]
+  linter:
+    tool: eslint
+    config_format: flat  # eslint.config.js (ESLint 9+)
+    config_file: eslint.config.js
+    presets:
+      - "@eslint/js recommended"
+      - "typescript-eslint strictTypeChecked"
+      - "typescript-eslint stylisticTypeChecked"
+  formatter:
+    tool: prettier
+    config_file: .prettierrc
+  type_checker:
+    tool: tsc
+    mode: strict
+    config_file: tsconfig.json
+  test_runner:
+    tool: vitest
+    config_file: vitest.config.ts
+    coverage_tool: "@vitest/coverage-v8"
+    coverage_threshold: 80
+    alternatives: [jest]
+  security_scanner:
+    tool: npm audit
+    alternatives: [snyk]
+  pre_commit_hooks:
+    - repo: https://github.com/pre-commit/mirrors-eslint
+      hooks: [eslint]
+    - repo: https://github.com/pre-commit/mirrors-prettier
+      hooks: [prettier]
+  file_patterns: ["*.js", "*.ts", "*.jsx", "*.tsx", "package.json"]
+
+terraform:
+  version: ">=1.9"
+  package_manager:
+    recommended: terraform init
+    alternatives: [tofu init]
+  linter:
+    tool: tflint
+    config_file: .tflint.hcl
+    plugins:
+      - terraform (recommended preset)
+      - aws
+      - azurerm
+      - google
+  formatter:
+    tool: terraform fmt
+    alternatives: [tofu fmt]
+  type_checker:
+    tool: terraform validate
+  test_runner:
+    tool: terraform test
+    alternatives: [terratest]
+  security_scanner:
+    tool: tfsec
+    alternatives: [checkov, trivy]
+  policy_engine:
+    tool: OPA/Rego
+    alternatives: [Sentinel]
+  pre_commit_hooks:
+    - repo: https://github.com/antonbabenko/pre-commit-terraform
+      hooks: [terraform_fmt, terraform_validate, terraform_tflint, terraform_tfsec]
+  file_patterns: ["*.tf", "*.tfvars", "*.hcl"]
+
+shell:
+  linter:
+    tool: shellcheck
+    config_file: .shellcheckrc
+    severity: warning
+  formatter:
+    tool: shfmt
+    flags: [-i, "2", -ci, -bn]
+  test_runner:
+    tool: bats-core
+    config_file: null
+    coverage_tool: null
+  security_scanner:
+    tool: shellcheck  # overlaps with linter for shell
+    checks:
+      - SC2086  # Double-quote to prevent word splitting
+      - SC2091  # Remove surrounding $() to avoid executing output
+      - SC2046  # Quote to prevent word splitting on command substitution
+  pre_commit_hooks:
+    - repo: https://github.com/shellcheck-py/shellcheck-py
+      hooks: [shellcheck]
+    - repo: https://github.com/scop/pre-commit-shfmt
+      hooks: [shfmt]
+  file_patterns: ["*.sh", "*.bash", "Makefile"]

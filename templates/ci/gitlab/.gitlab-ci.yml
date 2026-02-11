@@ -1,0 +1,334 @@
+# GitLab CI: Multi-Language Pipeline
+# Runs conditional jobs based on changed files using rules:changes.
+# Supports: Python, Go, Node.js/TypeScript, Terraform
+#
+# Usage: Copy to .gitlab-ci.yml in your target repository.
+# Customize stages, versions, and rules as needed.
+
+stages:
+  - detect
+  - lint
+  - test
+  - security
+  - build
+  - release
+
+# ---------------------------------------------------------------------------
+# Global defaults
+# ---------------------------------------------------------------------------
+default:
+  interruptible: true
+
+variables:
+  # Python
+  PYTHON_DEFAULT_VERSION: "3.13"
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+  # Go
+  GO_DEFAULT_VERSION: "1.23"
+  GOPATH: "$CI_PROJECT_DIR/.cache/go"
+  GOMODCACHE: "$CI_PROJECT_DIR/.cache/go/pkg/mod"
+  # Node.js
+  NODE_DEFAULT_VERSION: "22"
+  NPM_CONFIG_CACHE: "$CI_PROJECT_DIR/.cache/npm"
+  # Terraform
+  TF_IN_AUTOMATION: "true"
+
+# Shared cache templates
+.python-cache: &python-cache
+  cache:
+    key: python-${CI_COMMIT_REF_SLUG}
+    paths:
+      - .cache/pip
+      - .venv/
+
+.go-cache: &go-cache
+  cache:
+    key: go-${CI_COMMIT_REF_SLUG}
+    paths:
+      - .cache/go/
+
+.node-cache: &node-cache
+  cache:
+    key: node-${CI_COMMIT_REF_SLUG}
+    paths:
+      - .cache/npm
+      - node_modules/
+
+# ---------------------------------------------------------------------------
+# Python jobs
+# ---------------------------------------------------------------------------
+python:lint:
+  stage: lint
+  image: python:${PYTHON_DEFAULT_VERSION}-slim
+  <<: *python-cache
+  rules:
+    - changes:
+        - "**/*.py"
+        - pyproject.toml
+        - setup.cfg
+        - "requirements*.txt"
+  before_script:
+    - pip install --upgrade pip ruff mypy
+    - |
+      if [ -f pyproject.toml ]; then
+        pip install -e ".[dev]" 2>/dev/null || pip install -e . || true
+      elif [ -f requirements.txt ]; then
+        pip install -r requirements.txt || true
+      fi
+  script:
+    - ruff check .
+    - ruff format --check .
+    - mypy . --ignore-missing-imports || true
+
+python:test:
+  stage: test
+  image: python:${PYTHON_DEFAULT_VERSION}-slim
+  <<: *python-cache
+  rules:
+    - changes:
+        - "**/*.py"
+        - pyproject.toml
+        - setup.cfg
+        - "requirements*.txt"
+  before_script:
+    - pip install --upgrade pip pytest pytest-cov
+    - |
+      if [ -f pyproject.toml ]; then
+        pip install -e ".[dev]" 2>/dev/null || pip install -e . || true
+      elif [ -f requirements.txt ]; then
+        pip install -r requirements.txt || true
+      fi
+  script:
+    - pytest --cov --cov-report=xml --cov-report=term-missing -q
+  artifacts:
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage.xml
+  coverage: '/(?i)total.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
+  parallel:
+    matrix:
+      - PYTHON_VERSION: ["3.11", "3.12", "3.13"]
+
+# ---------------------------------------------------------------------------
+# Go jobs
+# ---------------------------------------------------------------------------
+go:lint:
+  stage: lint
+  image: golang:${GO_DEFAULT_VERSION}
+  <<: *go-cache
+  rules:
+    - changes:
+        - "**/*.go"
+        - go.mod
+        - go.sum
+  script:
+    - go vet ./...
+    - go install honnef.co/go/tools/cmd/staticcheck@latest
+    - staticcheck ./...
+
+go:test:
+  stage: test
+  image: golang:${GO_DEFAULT_VERSION}
+  <<: *go-cache
+  rules:
+    - changes:
+        - "**/*.go"
+        - go.mod
+        - go.sum
+  script:
+    - go test -race -coverprofile=coverage.out -covermode=atomic ./...
+    - go tool cover -func=coverage.out
+  artifacts:
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage.out
+  parallel:
+    matrix:
+      - GO_VERSION: ["1.22", "1.23"]
+
+# ---------------------------------------------------------------------------
+# Node.js jobs
+# ---------------------------------------------------------------------------
+node:lint:
+  stage: lint
+  image: node:${NODE_DEFAULT_VERSION}-slim
+  <<: *node-cache
+  rules:
+    - changes:
+        - "**/*.ts"
+        - "**/*.tsx"
+        - "**/*.js"
+        - "**/*.jsx"
+        - package.json
+        - "package-lock.json"
+        - "pnpm-lock.yaml"
+        - "yarn.lock"
+        - "bun.lock"
+  before_script:
+    - |
+      if [ -f pnpm-lock.yaml ]; then
+        npm install -g pnpm && pnpm install --frozen-lockfile
+      elif [ -f yarn.lock ]; then
+        npm install -g yarn && yarn install --frozen-lockfile
+      else
+        npm ci
+      fi
+  script:
+    - npm run lint || true
+    - npm run typecheck || npx tsc --noEmit || true
+
+node:test:
+  stage: test
+  image: node:${NODE_DEFAULT_VERSION}-slim
+  <<: *node-cache
+  rules:
+    - changes:
+        - "**/*.ts"
+        - "**/*.tsx"
+        - "**/*.js"
+        - "**/*.jsx"
+        - package.json
+        - "package-lock.json"
+        - "pnpm-lock.yaml"
+        - "yarn.lock"
+        - "bun.lock"
+  before_script:
+    - |
+      if [ -f pnpm-lock.yaml ]; then
+        npm install -g pnpm && pnpm install --frozen-lockfile
+      elif [ -f yarn.lock ]; then
+        npm install -g yarn && yarn install --frozen-lockfile
+      else
+        npm ci
+      fi
+  script:
+    - npm run test -- --coverage || npm run test || true
+  artifacts:
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage/cobertura-coverage.xml
+  parallel:
+    matrix:
+      - NODE_VERSION: ["20", "22"]
+
+node:build:
+  stage: build
+  image: node:${NODE_DEFAULT_VERSION}-slim
+  <<: *node-cache
+  rules:
+    - changes:
+        - "**/*.ts"
+        - "**/*.tsx"
+        - "**/*.js"
+        - "**/*.jsx"
+        - package.json
+  before_script:
+    - |
+      if [ -f pnpm-lock.yaml ]; then
+        npm install -g pnpm && pnpm install --frozen-lockfile
+      elif [ -f yarn.lock ]; then
+        npm install -g yarn && yarn install --frozen-lockfile
+      else
+        npm ci
+      fi
+  script:
+    - npm run build || true
+  artifacts:
+    paths:
+      - dist/
+      - build/
+    expire_in: 1 hour
+
+# ---------------------------------------------------------------------------
+# Terraform jobs
+# ---------------------------------------------------------------------------
+terraform:validate:
+  stage: lint
+  image:
+    name: hashicorp/terraform:latest
+    entrypoint: [""]
+  rules:
+    - changes:
+        - "**/*.tf"
+        - "**/*.tfvars"
+        - ".terraform.lock.hcl"
+  script:
+    - terraform fmt -check -recursive
+    - |
+      for dir in $(find . -name '*.tf' -not -path '*/.terraform/*' -exec dirname {} \; | sort -u); do
+        echo "Validating $dir"
+        cd "$dir"
+        terraform init -backend=false
+        terraform validate
+        cd "$CI_PROJECT_DIR"
+      done
+
+# ---------------------------------------------------------------------------
+# Security jobs
+# ---------------------------------------------------------------------------
+dependency-audit:
+  stage: security
+  image: python:${PYTHON_DEFAULT_VERSION}-slim
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH == "main"'
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+  script:
+    - |
+      # Python audit
+      if [ -f requirements.txt ] || [ -f pyproject.toml ]; then
+        pip install pip-audit
+        pip-audit --desc 2>/dev/null || true
+      fi
+    - |
+      # Node.js audit
+      if [ -f package-lock.json ]; then
+        apt-get update -qq && apt-get install -y -qq nodejs npm >/dev/null 2>&1
+        npm audit --omit=dev || true
+      fi
+  allow_failure: true
+
+secret-scan:
+  stage: security
+  image: zricethezav/gitleaks:latest
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH == "main"'
+  script:
+    - gitleaks detect --source . --verbose
+
+sast:
+  stage: security
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH == "main"'
+  variables:
+    SAST_EXCLUDED_PATHS: "vendor,node_modules,.cache"
+  include:
+    - template: Security/SAST.gitlab-ci.yml
+
+# ---------------------------------------------------------------------------
+# Release job — triggered only on tags
+# ---------------------------------------------------------------------------
+release:
+  stage: release
+  image: registry.gitlab.com/gitlab-org/release-cli:latest
+  rules:
+    - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+/'
+  script:
+    - |
+      echo "Generating release notes for $CI_COMMIT_TAG..."
+      prev_tag=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+      if [ -n "$prev_tag" ]; then
+        range="${prev_tag}..${CI_COMMIT_TAG}"
+      else
+        range="HEAD"
+      fi
+      git log "$range" --pretty=format:"- %s (%h)" --no-merges > /tmp/release_notes.txt
+  release:
+    tag_name: $CI_COMMIT_TAG
+    name: "Release $CI_COMMIT_TAG"
+    description: /tmp/release_notes.txt

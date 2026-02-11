@@ -1,0 +1,334 @@
+# GitHub Actions: Multi-Language CI Pipeline
+# Runs conditional jobs based on which files changed in the PR/push.
+# Supports: Python, Go, Node.js/TypeScript, Terraform
+#
+# Usage: Copy to .github/workflows/ci.yml in your target repository.
+# Customize the matrix, versions, and paths filters as needed.
+
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+# ---------------------------------------------------------------------------
+# Path filters — determine which language jobs to run
+# ---------------------------------------------------------------------------
+jobs:
+  changes:
+    name: Detect changes
+    runs-on: ubuntu-latest
+    outputs:
+      python: ${{ steps.filter.outputs.python }}
+      go: ${{ steps.filter.outputs.go }}
+      node: ${{ steps.filter.outputs.node }}
+      terraform: ${{ steps.filter.outputs.terraform }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            python:
+              - '**/*.py'
+              - 'pyproject.toml'
+              - 'setup.cfg'
+              - 'requirements*.txt'
+              - 'Pipfile*'
+              - 'poetry.lock'
+            go:
+              - '**/*.go'
+              - 'go.mod'
+              - 'go.sum'
+            node:
+              - '**/*.ts'
+              - '**/*.tsx'
+              - '**/*.js'
+              - '**/*.jsx'
+              - 'package.json'
+              - 'package-lock.json'
+              - 'pnpm-lock.yaml'
+              - 'yarn.lock'
+              - 'bun.lock'
+            terraform:
+              - '**/*.tf'
+              - '**/*.tfvars'
+              - '.terraform.lock.hcl'
+
+  # ---------------------------------------------------------------------------
+  # Python
+  # ---------------------------------------------------------------------------
+  python:
+    name: Python ${{ matrix.python-version }}
+    needs: changes
+    if: needs.changes.outputs.python == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.11', '3.12', '3.13']
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: pip-${{ runner.os }}-${{ matrix.python-version }}-${{ hashFiles('**/requirements*.txt', '**/pyproject.toml') }}
+          restore-keys: |
+            pip-${{ runner.os }}-${{ matrix.python-version }}-
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f pyproject.toml ]; then
+            pip install -e ".[dev]" 2>/dev/null || pip install -e .
+          elif [ -f requirements.txt ]; then
+            pip install -r requirements.txt
+          fi
+          pip install ruff mypy pytest pytest-cov
+
+      - name: Lint (ruff)
+        run: |
+          ruff check .
+          ruff format --check .
+
+      - name: Type check (mypy)
+        run: mypy . --ignore-missing-imports || true
+
+      - name: Test
+        run: pytest --cov --cov-report=xml --cov-report=term-missing -q
+
+      - name: Upload coverage
+        if: matrix.python-version == '3.13'
+        uses: codecov/codecov-action@v5
+        with:
+          files: coverage.xml
+          flags: python
+        continue-on-error: true
+
+  # ---------------------------------------------------------------------------
+  # Go
+  # ---------------------------------------------------------------------------
+  go:
+    name: Go ${{ matrix.go-version }}
+    needs: changes
+    if: needs.changes.outputs.go == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        go-version: ['1.22', '1.23']
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go ${{ matrix.go-version }}
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go-version }}
+
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: go-${{ runner.os }}-${{ matrix.go-version }}-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            go-${{ runner.os }}-${{ matrix.go-version }}-
+
+      - name: Download modules
+        run: go mod download
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Lint (staticcheck)
+        uses: dominikh/staticcheck-action@v1
+        with:
+          version: latest
+          install-go: false
+
+      - name: Test
+        run: go test -race -coverprofile=coverage.out -covermode=atomic ./...
+
+      - name: Upload coverage
+        if: matrix.go-version == '1.23'
+        uses: codecov/codecov-action@v5
+        with:
+          files: coverage.out
+          flags: go
+        continue-on-error: true
+
+  # ---------------------------------------------------------------------------
+  # Node.js / TypeScript
+  # ---------------------------------------------------------------------------
+  node:
+    name: Node.js ${{ matrix.node-version }}
+    needs: changes
+    if: needs.changes.outputs.node == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: ['20', '22']
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Detect package manager
+        id: pm
+        run: |
+          if [ -f bun.lock ]; then
+            echo "manager=bun" >> "$GITHUB_OUTPUT"
+            echo "install=bun install --frozen-lockfile" >> "$GITHUB_OUTPUT"
+            echo "run=bun run" >> "$GITHUB_OUTPUT"
+          elif [ -f pnpm-lock.yaml ]; then
+            echo "manager=pnpm" >> "$GITHUB_OUTPUT"
+            echo "install=pnpm install --frozen-lockfile" >> "$GITHUB_OUTPUT"
+            echo "run=pnpm run" >> "$GITHUB_OUTPUT"
+          elif [ -f yarn.lock ]; then
+            echo "manager=yarn" >> "$GITHUB_OUTPUT"
+            echo "install=yarn install --frozen-lockfile" >> "$GITHUB_OUTPUT"
+            echo "run=yarn" >> "$GITHUB_OUTPUT"
+          else
+            echo "manager=npm" >> "$GITHUB_OUTPUT"
+            echo "install=npm ci" >> "$GITHUB_OUTPUT"
+            echo "run=npm run" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: Install pnpm
+        if: steps.pm.outputs.manager == 'pnpm'
+        uses: pnpm/action-setup@v4
+
+      - name: Install bun
+        if: steps.pm.outputs.manager == 'bun'
+        uses: oven-sh/setup-bun@v2
+
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            node_modules
+            ~/.npm
+            ~/.pnpm-store
+            ~/.bun/install/cache
+          key: >-
+            node-${{ runner.os }}-${{ matrix.node-version }}-${{
+            steps.pm.outputs.manager }}-${{ hashFiles(
+            '**/package-lock.json', '**/pnpm-lock.yaml',
+            '**/yarn.lock', '**/bun.lock') }}
+          restore-keys: |
+            node-${{ runner.os }}-${{ matrix.node-version }}-${{ steps.pm.outputs.manager }}-
+
+      - name: Install dependencies
+        run: ${{ steps.pm.outputs.install }}
+
+      - name: Lint
+        run: ${{ steps.pm.outputs.run }} lint || true
+
+      - name: Type check
+        run: ${{ steps.pm.outputs.run }} typecheck || ${{ steps.pm.outputs.run }} tsc --noEmit || true
+
+      - name: Test
+        run: ${{ steps.pm.outputs.run }} test -- --coverage || ${{ steps.pm.outputs.run }} test || true
+
+      - name: Build
+        run: ${{ steps.pm.outputs.run }} build || true
+
+  # ---------------------------------------------------------------------------
+  # Terraform
+  # ---------------------------------------------------------------------------
+  terraform:
+    name: Terraform validate
+    needs: changes
+    if: needs.changes.outputs.terraform == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
+      - name: Format check
+        run: terraform fmt -check -recursive
+
+      - name: Find Terraform directories
+        id: dirs
+        run: |
+          dirs=$(find . -name '*.tf' -not -path '*/.terraform/*' -exec dirname {} \; | sort -u)
+          echo "dirs<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$dirs" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+
+      - name: Init and validate
+        run: |
+          while IFS= read -r dir; do
+            echo "::group::$dir"
+            cd "$dir"
+            terraform init -backend=false
+            terraform validate
+            cd "$GITHUB_WORKSPACE"
+            echo "::endgroup::"
+          done <<< "${{ steps.dirs.outputs.dirs }}"
+
+      - name: TFLint
+        uses: terraform-linters/setup-tflint@v4
+      - run: tflint --recursive --format compact
+
+  # ---------------------------------------------------------------------------
+  # Gate — aggregates all conditional jobs for branch protection
+  # ---------------------------------------------------------------------------
+  ci-gate:
+    name: CI gate
+    if: always()
+    needs: [changes, python, go, node, terraform]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Evaluate results
+        run: |
+          results=()
+
+          # Only check jobs that were supposed to run
+          if [[ "${{ needs.changes.outputs.python }}" == "true" ]]; then
+            results+=("${{ needs.python.result }}")
+          fi
+          if [[ "${{ needs.changes.outputs.go }}" == "true" ]]; then
+            results+=("${{ needs.go.result }}")
+          fi
+          if [[ "${{ needs.changes.outputs.node }}" == "true" ]]; then
+            results+=("${{ needs.node.result }}")
+          fi
+          if [[ "${{ needs.changes.outputs.terraform }}" == "true" ]]; then
+            results+=("${{ needs.terraform.result }}")
+          fi
+
+          for r in "${results[@]}"; do
+            if [[ "$r" == "failure" || "$r" == "cancelled" ]]; then
+              echo "::error::CI failed — at least one required job did not pass ($r)"
+              exit 1
+            fi
+          done
+
+          echo "All required CI jobs passed (or were skipped)."

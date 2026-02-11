@@ -1,0 +1,199 @@
+# GitHub Actions: Security Pipeline
+# Runs dependency audits, secret scanning, and SAST on every PR and weekly.
+#
+# Usage: Copy to .github/workflows/security.yml in your target repository.
+
+name: Security
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main, develop]
+  schedule:
+    # Run weekly on Monday at 06:00 UTC
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+  pull-requests: read
+
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Dependency audit — check for known vulnerabilities in dependencies
+  # ---------------------------------------------------------------------------
+  dependency-audit:
+    name: Dependency audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # -- Python --
+      - name: Audit Python dependencies
+        if: hashFiles('**/requirements*.txt', '**/pyproject.toml', '**/Pipfile.lock') != ''
+        run: |
+          pip install pip-audit
+          if [ -f requirements.txt ]; then
+            pip-audit -r requirements.txt --desc --fix --dry-run || true
+          fi
+          if [ -f pyproject.toml ]; then
+            pip-audit --desc || true
+          fi
+
+      # -- Node.js --
+      - name: Audit Node.js dependencies
+        if: hashFiles('**/package-lock.json', '**/yarn.lock', '**/pnpm-lock.yaml') != ''
+        run: |
+          if [ -f package-lock.json ]; then
+            npm audit --omit=dev || true
+          elif [ -f yarn.lock ]; then
+            npx yarn-audit-fix --dry-run || yarn audit || true
+          elif [ -f pnpm-lock.yaml ]; then
+            npx pnpm audit || true
+          fi
+
+      # -- Go --
+      - name: Audit Go dependencies
+        if: hashFiles('**/go.sum') != ''
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          govulncheck ./... || true
+
+      # -- Terraform --
+      - name: Audit Terraform providers
+        if: hashFiles('**/.terraform.lock.hcl') != ''
+        run: |
+          # Check for known vulnerable provider versions
+          echo "Terraform provider lock found — review .terraform.lock.hcl for pinned versions."
+
+  # ---------------------------------------------------------------------------
+  # Secret scanning — detect leaked credentials and tokens
+  # ---------------------------------------------------------------------------
+  secret-scan:
+    name: Secret scanning
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: TruffleHog (deep history scan)
+        uses: trufflesecurity/trufflehog@main
+        with:
+          extra_args: --only-verified
+
+      - name: Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
+        continue-on-error: true
+
+  # ---------------------------------------------------------------------------
+  # SAST — static application security testing
+  # ---------------------------------------------------------------------------
+  sast:
+    name: SAST
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # CodeQL for compiled/interpreted language analysis
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ env.CODEQL_LANGUAGES }}
+          queries: +security-extended
+        env:
+          # Auto-detect languages; override in your repo if needed
+          CODEQL_LANGUAGES: >-
+            ${{
+              (hashFiles('**/*.py') != '' && 'python') ||
+              (hashFiles('**/*.go') != '' && 'go') ||
+              (hashFiles('**/*.js', '**/*.ts') != '' && 'javascript-typescript') ||
+              'python'
+            }}
+
+      - name: Build (if required)
+        uses: github/codeql-action/autobuild@v3
+
+      - name: Run CodeQL analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: /language:${{ env.CODEQL_LANGUAGES }}
+
+      # Semgrep for additional pattern-based scanning
+      - name: Semgrep SAST
+        uses: semgrep/semgrep-action@v1
+        with:
+          config: >-
+            p/default
+            p/owasp-top-ten
+            p/ci
+          generateSarif: '1'
+        env:
+          SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
+        continue-on-error: true
+
+      - name: Upload Semgrep SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: semgrep.sarif
+        continue-on-error: true
+
+  # ---------------------------------------------------------------------------
+  # License compliance — check for problematic licenses
+  # ---------------------------------------------------------------------------
+  license-check:
+    name: License compliance
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check Python licenses
+        if: hashFiles('**/requirements*.txt', '**/pyproject.toml') != ''
+        run: |
+          pip install pip-licenses
+          pip-licenses --fail-on="GPL-3.0;AGPL-3.0" --allow-only="MIT;Apache-2.0;BSD-2-Clause;BSD-3-Clause;ISC;PSF-2.0;MPL-2.0" || true
+
+      - name: Check Node.js licenses
+        if: hashFiles('**/package.json') != ''
+        run: |
+          npx license-checker --failOn "GPL-3.0;AGPL-3.0" --summary || true
+
+  # ---------------------------------------------------------------------------
+  # Security gate
+  # ---------------------------------------------------------------------------
+  security-gate:
+    name: Security gate
+    if: always()
+    needs: [dependency-audit, secret-scan, sast, license-check]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Evaluate results
+        run: |
+          # Secret scanning failures are blocking
+          if [[ "${{ needs.secret-scan.result }}" == "failure" ]]; then
+            echo "::error::Secret scanning detected issues — review and remediate before merging."
+            exit 1
+          fi
+
+          # SAST failures are blocking
+          if [[ "${{ needs.sast.result }}" == "failure" ]]; then
+            echo "::error::SAST detected security issues — review findings before merging."
+            exit 1
+          fi
+
+          # Dependency audit is advisory (continue-on-error jobs)
+          if [[ "${{ needs.dependency-audit.result }}" == "failure" ]]; then
+            echo "::warning::Dependency audit found vulnerabilities — review recommended."
+          fi
+
+          echo "Security checks completed."

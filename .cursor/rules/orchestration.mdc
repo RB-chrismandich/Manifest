@@ -163,13 +163,41 @@ When agents disagree, synthesize by:
 | Rule | Description | Parallel Agents |
 |------|-------------|-----------------|
 | @project-commit | Full commit pipeline | CONDITIONAL |
-| @docs-readme | Improve README documentation | NO |
 | @refactor-python | Python security and quality analysis | ALWAYS |
+| @refactor-go | Go security and quality analysis | ALWAYS |
+| @refactor-node | Node.js/TypeScript security and quality analysis | ALWAYS |
+| @refactor-terraform | Terraform IaC security and modularity analysis | ALWAYS |
 | @refactor-shell | Shell script security and quality analysis | ALWAYS |
+| @scaffold | Initialize new project with quality gates | NO |
+| @verify | Run linters, tests, and security scans | CONDITIONAL |
+| @ci-setup | Configure CI/CD pipelines | NO |
+| @ux-review | UX/accessibility audit | NO |
+| @a11y-audit | WCAG 2.2 AA accessibility audit | NO |
+| @performance-check | Core Web Vitals and bundle analysis | NO |
+| @docs-readme | Improve README documentation | NO |
 | @docs-diagrams | Generate Mermaid architecture diagrams | CONDITIONAL |
 | @docs-improve | Diataxis documentation framework analysis | CONDITIONAL |
 | @plan-manage | Plan lifecycle management | CONDITIONAL |
+| @health-check | Verify CLI tools, auth, config, symlinks | NO |
+| @sync-configs | Detect cross-platform config drift | NO |
+| @learning-loop | Capture structured lessons learned | NO |
+| @dashboard | Visualize agent efficiency metrics | NO |
+| @checkpoint | Save context checkpoint | NO |
 | @code-quality | Auto-triggered code quality checks | AUTO |
+
+---
+
+## Context Window Monitoring
+
+When working on large tasks, monitor context usage to avoid hitting limits:
+
+- **Below 60%**: Normal operation — no special action needed
+- **60-80%**: Consider summarizing completed work before continuing
+- **80-95%**: Use `/checkpoint` to create a compact summary
+- **Above 95%**: Stop and save state; recommend starting a new session
+
+The `context_monitor.md` prompt template provides structured guidance for
+context-aware behavior during long sessions.
 
 ---
 
@@ -181,6 +209,8 @@ All configuration is symlinked from `.claude/`:
 |------|---------|
 | `config/command_config.yml` | Thresholds, tool policies, error recovery |
 | `config/validation_criteria.yml` | Tier 1/Tier 2 validation rules |
+| `config/language_profiles.yml` | Per-language linter, test, security tool configs |
+| `config/parallel_agent.yml` | Canonical model tier definitions |
 | `prompts/preflight_analysis.md` | Pre-flight analysis template |
 | `prompts/synthesis.md` | Agent disagreement synthesis template |
 | `prompts/validation.md` | Validation criteria template |

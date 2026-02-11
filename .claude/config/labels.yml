@@ -1,0 +1,37 @@
+# labels.yml - Canonical label registry for issue management
+#
+# Single source of truth for labels used across GitHub, GitLab, and Linear.
+# Run `label_sync.sh` to ensure all labels exist in each platform.
+#
+# Color format: 6-digit hex without leading '#'
+
+labels:
+  - name: planned
+    color: "1D76DB"
+    description: "Implementation plan exists for this issue"
+    platforms: [github, gitlab, linear]
+
+  - name: in-progress
+    color: "FBCA04"
+    description: "Implementation is actively underway"
+    platforms: [github, gitlab, linear]
+
+  - name: needs-review
+    color: "E3A21A"
+    description: "Requires human review before completion"
+    platforms: [github, gitlab, linear]
+
+  - name: done
+    color: "0E8A16"
+    description: "Implementation complete and validated"
+    platforms: [github, gitlab, linear]
+
+  - name: follow-up
+    color: "D4C5F9"
+    description: "Spawned from another issue during implementation"
+    platforms: [github, gitlab, linear]
+
+deprecated:
+  - name: processed
+    replacement: done
+    reason: "Redundant with 'done' — same color and purpose"
