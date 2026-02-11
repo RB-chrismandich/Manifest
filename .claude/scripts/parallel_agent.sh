@@ -94,6 +94,11 @@ cleanup() {
         tput cnorm 2> /dev/null || true
     fi
 
+    # Kill sleep coproc if exists (global var from monitor_agents)
+    if [[ -n "$SLEEP_PROC_PID" ]]; then
+        kill "$SLEEP_PROC_PID" 2>/dev/null || true
+    fi
+
     # Kill background processes if they exist
     if [[ -n "${pids[*]}" ]]; then
         for pid in "${pids[@]}"; do
@@ -1375,6 +1380,21 @@ monitor_agents() {
     local spin_idx=0
     local start_seconds=$SECONDS
 
+    # Optimization: Use coproc + read -t for sub-second sleep without forks (Bash 4+)
+    local sleep_fd=""
+    local sleep_pid=""
+    if ((BASH_VERSINFO[0] >= 4)); then
+        # Use eval to hide coproc syntax from older Bash versions
+        # Starts a background process that does nothing but sleep forever
+        # Use seconds for portability (BSD sleep doesn't support 'd')
+        eval "coproc SLEEP_PROC { while :; do sleep 31536000; done; }" 2>/dev/null || true
+        # Verify coproc started successfully
+        if [[ -n "$SLEEP_PROC_PID" ]]; then
+            sleep_fd=${SLEEP_PROC[0]}
+            sleep_pid=$SLEEP_PROC_PID
+        fi
+    fi
+
     # Track states locally
     local agent_states=()
     for i in "${!pids[@]}"; do agent_states[i]="running"; done
@@ -1461,9 +1481,22 @@ monitor_agents() {
         if $running; then
             # \r to start, \033[K to clear line
             printf "\r${BOLD}Waiting for agents (%s):${NC}%b\033[K" "$time_str" "$status_line"
-            sleep 0.1
+
+            if [[ -n "$sleep_fd" ]]; then
+                # Optimized: Use read -t with 0 bytes to wait for timeout without consuming input
+                # Bash 4+ read supports fractional timeout and builtin execution (no fork)
+                read -t 0.1 -u "$sleep_fd" 2>/dev/null || true
+            else
+                # Fallback: fork sleep command
+                sleep 0.1
+            fi
         fi
     done
+
+    # Cleanup sleep optimization process
+    if [[ -n "$sleep_pid" ]]; then
+        kill "$sleep_pid" 2>/dev/null || true
+    fi
 
     # Final state
     local elapsed=$((SECONDS - start_seconds))
