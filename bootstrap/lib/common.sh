@@ -58,23 +58,48 @@ command_exists() {
 run_with_spinner() {
     local cmd="$1"
     local msg="${2:-Working}"
-    local pid
-    local spin='-\|/'
-    local i=0
 
-    eval "$cmd" &
-    pid=$!
+    # Run in subshell to isolate trap handling
+    (
+        local pid
+        local i=0
+        local temp_log
+        temp_log=$(mktemp)
+        local spinner_chars=('⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏')
 
-    while kill -0 "$pid" 2> /dev/null; do
-        i=$(((i + 1) % 4))
-        printf "\r${CYAN}${spin:$i:1}${NC} %s..." "$msg"
-        sleep 0.2
-    done
+        # Hide cursor
+        tput civis
 
-    wait "$pid"
-    local exit_code=$?
-    printf "\r\033[K"
-    return $exit_code
+        # Run command in background, redirecting output
+        eval "$cmd" > "$temp_log" 2>&1 &
+        pid=$!
+
+        trap "tput cnorm; rm -f '$temp_log'" EXIT INT TERM
+
+        while kill -0 "$pid" 2> /dev/null; do
+            i=$(((i + 1) % 10))
+            printf "\r${CYAN}${spinner_chars[$i]}${NC} %s..." "$msg"
+            sleep 0.1
+        done
+
+        wait "$pid"
+        local exit_code=$?
+
+        # Clear line
+        printf "\r\033[K"
+
+        if [ $exit_code -eq 0 ]; then
+            echo -e "${GREEN}✓${NC} $msg"
+        else
+            echo -e "${RED}✗${NC} $msg (Failed)"
+            if [[ -s "$temp_log" ]]; then
+                echo -e "${RED}Error log:${NC}"
+                tail -n 10 "$temp_log" | sed 's/^/  /'
+            fi
+        fi
+
+        return $exit_code
+    )
 }
 
 # Create/recreate a symlink at link_path pointing to target

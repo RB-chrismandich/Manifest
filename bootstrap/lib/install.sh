@@ -37,8 +37,7 @@ install_package_manager() {
 
         if command_exists brew; then
             print_success "Homebrew is installed"
-            print_step "Updating Homebrew..."
-            brew update --quiet
+            run_with_spinner "brew update --quiet" "Updating Homebrew"
         else
             print_warning "Homebrew not found"
             if prompt_yes_no "Install Homebrew?"; then
@@ -218,8 +217,8 @@ install_python_dependencies() {
     print_info "Using: $python_cmd"
 
     # Try to install with --user flag and prefer binary wheels
-    if $python_cmd -m pip install --user --prefer-binary -q -r "$requirements_file" 2>&1; then
-        print_success "Python dependencies installed"
+    if run_with_spinner "\"$python_cmd\" -m pip install --user --prefer-binary -q -r \"$requirements_file\"" "Installing Python dependencies"; then
+        : # Success message handled by spinner
     else
         print_warning "Failed to install Python dependencies"
         print_info "Some packages may require compilation or may not support this Python version"
