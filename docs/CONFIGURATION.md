@@ -511,10 +511,10 @@ exemptions:
 ```bash
 # 1. Copy template for your framework
 cp templates/validation-overrides/django-security.yml \
-   .claude/config/validation_overrides.yml
+   configs/claude/config/validation_overrides.yml
 
 # 2. Customize for your project
-vim .claude/config/validation_overrides.yml
+vim configs/claude/config/validation_overrides.yml
 
 # 3. Test validation
 ~/.claude/scripts/parallel_agent.sh --validate --review path/to/file.py

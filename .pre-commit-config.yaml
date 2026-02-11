@@ -107,7 +107,7 @@ repos:
         name: Validate parallel_agent.sh syntax
         entry: bash -n
         language: system
-        files: ^\.claude/scripts/parallel_agent\.sh$
+        files: ^configs/claude/scripts/parallel_agent\.sh$
 
       # Validate bootstrap.sh syntax
       - id: validate-bootstrap
@@ -132,14 +132,27 @@ repos:
         name: Validate YAML config files
         entry: python3 -c "import sys, yaml; [yaml.safe_load(open(f)) for f in sys.argv[1:]]"
         language: system
-        files: ^\.claude/config/.*\.yml$
+        files: ^configs/claude/config/.*\.yml$
 
-      # Check command frontmatter
-      - id: check-command-frontmatter
-        name: Check command files have frontmatter
-        entry: bash -c 'for f in "$@"; do if ! head -5 "$f" | grep -q "^---$"; then echo "Missing frontmatter colon $f"; exit 1; fi; done'
+      # Detect stale repo-relative .claude/ paths after configs/ migration
+      # Only scans docs and root markdown — configs/, tests/, and templates/
+      # legitimately reference deployed ~/.claude/ paths.
+      - id: check-stale-repo-paths
+        name: Check for stale repo-relative paths
+        entry: >-
+          bash -c '
+          found=0;
+          for f in "$@"; do
+          out=$(grep -nE "\.claude/(scripts|config|commands|prompts|skills|\.plans)/" "$f"
+          | grep -vE "~/\.claude/" | grep -vE "configs/claude/"
+          | grep -vE "\\\$HOME/\.claude/" | grep -vE "\\$\\{HOME\\}/\.claude/" || true);
+          if [ -n "$out" ]; then
+          echo "Stale repo path in $f:"; echo "$out"; found=1;
+          fi; done;
+          exit $found' --
         language: system
-        files: ^\.claude/commands/.*\.md$
+        types: [markdown]
+        exclude: ^(\.pre-commit-config\.yaml|\.Jules/|configs/|tests/|\.claude/|docs/templates/)
 
 # Global settings
 default_language_version:

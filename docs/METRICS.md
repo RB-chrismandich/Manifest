@@ -14,7 +14,7 @@
 This dashboard provides visibility into the operational health of the parallel
 agent orchestration system. All tables start empty (headers only) and are
 populated automatically by the `/dashboard` skill, which reads from
-`.agent_outputs/` logs and `.claude/config/` data files.
+`.agent_outputs/` logs and `~/.claude/config/` data files.
 
 ---
 

@@ -1106,4 +1106,4 @@ flowchart TB
 - [docs/GETTING_STARTED.md](GETTING_STARTED.md) - First-time setup walkthrough
 - [docs/CONFIGURATION.md](CONFIGURATION.md) - Complete configuration reference
 - [docs/TROUBLESHOOTING.md](TROUBLESHOOTING.md) - Common problems and solutions
-- [.claude/.plans/README.md](../.claude/.plans/README.md) - Plan management quick reference
+- [configs/claude/.plans/README.md](../configs/claude/.plans/README.md) - Plan management quick reference

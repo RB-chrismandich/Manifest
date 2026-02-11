@@ -184,5 +184,5 @@ See [CONTRIBUTING.md](../CONTRIBUTING.md) for detailed guidelines.
 
 - **Main Repository**: [../README.md](../README.md)
 - **Bootstrap Script**: [../bootstrap.sh](../bootstrap.sh)
-- **Orchestration Script**: [../.claude/scripts/parallel_agent.sh](../.claude/scripts/parallel_agent.sh)
-- **Configuration Files**: [../.claude/config/](../.claude/config/)
+- **Orchestration Script**: [../configs/claude/scripts/parallel_agent.sh](../configs/claude/scripts/parallel_agent.sh)
+- **Configuration Files**: [../configs/claude/config/](../configs/claude/config/)
