@@ -2,6 +2,12 @@
 
 # Shared helpers for bootstrap.sh. This file is sourced, not executed.
 
+# Ensure cursor is restored on exit
+cleanup_cursor() {
+    tput cnorm 2>/dev/null || true
+}
+trap cleanup_cursor EXIT INT TERM
+
 print_header() {
     echo ""
     echo -e "${BOLD}${BLUE}══════════════════════════════════════════════════════════════${NC}"
@@ -59,21 +65,50 @@ run_with_spinner() {
     local cmd="$1"
     local msg="${2:-Working}"
     local pid
-    local spin='-\|/'
     local i=0
+    local spin=('⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏')
+    local temp_log
 
-    eval "$cmd" &
+    # Use mktemp if available, otherwise fallback to a local temp file
+    if command -v mktemp &> /dev/null; then
+        temp_log=$(mktemp)
+    else
+        temp_log="/tmp/spinner_log_$$"
+    fi
+
+    # Run command in background, redirect output to temp file
+    eval "$cmd" > "$temp_log" 2>&1 &
     pid=$!
 
+    # Hide cursor
+    tput civis 2>/dev/null || true
+
     while kill -0 "$pid" 2> /dev/null; do
-        i=$(((i + 1) % 4))
-        printf "\r${CYAN}${spin:$i:1}${NC} %s..." "$msg"
-        sleep 0.2
+        i=$(((i + 1) % ${#spin[@]}))
+        printf "\r${CYAN}${spin[$i]}${NC} %s..." "$msg"
+        sleep 0.1
     done
 
     wait "$pid"
     local exit_code=$?
+
+    # Restore cursor
+    tput cnorm 2>/dev/null || true
+
+    # Clear line
     printf "\r\033[K"
+
+    if [ $exit_code -eq 0 ]; then
+        printf "${GREEN}✔${NC} %s\n" "$msg"
+    else
+        printf "${RED}✘${NC} %s (failed)\n" "$msg"
+        if [[ -s "$temp_log" ]]; then
+            echo -e "${RED}Error details:${NC}"
+            tail -n 10 "$temp_log" | sed 's/^/  /'
+        fi
+    fi
+
+    rm -f "$temp_log"
     return $exit_code
 }
 
