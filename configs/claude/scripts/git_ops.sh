@@ -220,7 +220,36 @@ case "${platform}" in
                 ;;
             pr-create)
                 # GitLab uses 'mr' (merge request) instead of 'pr'
-                glab mr create "$@"
+                # Translate GitHub-style flags to GitLab equivalents
+                _translate_pr_flags() {
+                    local -a mr_args=()
+                    while [[ $# -gt 0 ]]; do
+                        case "$1" in
+                            --body)
+                                mr_args+=(--description "$2")
+                                shift 2
+                                ;;
+                            --body=*)
+                                mr_args+=(--description "${1#--body=}")
+                                shift
+                                ;;
+                            --base)
+                                mr_args+=(--target-branch "$2")
+                                shift 2
+                                ;;
+                            --base=*)
+                                mr_args+=(--target-branch "${1#--base=}")
+                                shift
+                                ;;
+                            *)
+                                mr_args+=("$1")
+                                shift
+                                ;;
+                        esac
+                    done
+                    glab mr create "${mr_args[@]}"
+                }
+                _translate_pr_flags "$@"
                 ;;
             pr-view)
                 glab mr view "$@"
