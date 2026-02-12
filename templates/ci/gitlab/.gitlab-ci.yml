@@ -161,7 +161,7 @@ go:security:
 # ---------------------------------------------------------------------------
 node:lint:
   stage: lint
-  image: node:22-slim
+  image: node:24-slim
   extends: .node_changes
   cache:
     key: node-$CI_COMMIT_REF_SLUG
@@ -175,7 +175,7 @@ node:lint:
 
 node:test:
   stage: test
-  image: node:22-slim
+  image: node:24-slim
   extends: .node_changes
   cache:
     key: node-$CI_COMMIT_REF_SLUG
@@ -195,7 +195,7 @@ node:test:
 
 node:security:
   stage: security
-  image: node:22-slim
+  image: node:24-slim
   extends: .node_changes
   before_script:
     - npm ci || yarn install --frozen-lockfile || true
