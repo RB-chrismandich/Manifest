@@ -62,7 +62,7 @@ variables:
 # ---------------------------------------------------------------------------
 python:lint:
   stage: lint
-  image: python:3.13-slim
+  image: python:3.14-slim
   extends: .python_changes
   cache:
     key: pip-$CI_COMMIT_REF_SLUG
@@ -76,7 +76,7 @@ python:lint:
 
 python:test:
   stage: test
-  image: python:3.13-slim
+  image: python:3.14-slim
   extends: .python_changes
   cache:
     key: pip-$CI_COMMIT_REF_SLUG
@@ -101,7 +101,7 @@ python:test:
 
 python:security:
   stage: security
-  image: python:3.13-slim
+  image: python:3.14-slim
   extends: .python_changes
   before_script:
     - pip install --upgrade pip bandit pip-audit
