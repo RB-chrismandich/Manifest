@@ -40,7 +40,7 @@ Use these MCP servers by default when their domain context matches the task:
 
 This repository manages AI agent configurations for deployment to `~/.claude/` (and mirrored
 to `~/.cursor/`, `~/.gemini/`, and `~/.codex/`) on target machines. It contains orchestration guides,
-commands/rules, skills, prompts, and scripts that enable parallel LLM agent coordination
+skills, prompts, and scripts that enable parallel LLM agent coordination
 (Cursor, Gemini CLI, Claude CLI, Codex CLI).
 
 ## Repository Structure
@@ -202,109 +202,83 @@ Required CLI tools (install those you want to use):
 | `configs/claude/config/command_config.yml` | Thresholds, tool policies, model selection, error recovery |
 | `configs/claude/config/validation_criteria.yml` | Tier 1 (critical) and Tier 2 (quality) validation rules |
 
-## Available Commands / Rules
+## Available Skills
 
-### Claude Code Commands
+All agents share the same skill library from `configs/claude/skills/` (25 skills).
+Skills are invoked as slash commands (e.g., `/refactor-python src/`).
 
-| Command | Description | Parallel Agents |
-|---------|-------------|-----------------|
-| `/project-commit` | Full commit pipeline: docs, pull, pre-commits, commit, push | CONDITIONAL |
-| `/refactor-python` | Python codebase security and quality analysis | ALWAYS |
-| `/refactor-go` | Go codebase security and quality analysis | ALWAYS |
-| `/refactor-node` | Node.js/TypeScript security and quality analysis | ALWAYS |
-| `/refactor-terraform` | Terraform IaC security and modularity analysis | ALWAYS |
-| `/refactor-shell` | Bash/Shell script security and quality analysis | ALWAYS |
-| `/scaffold` | Initialize new project with quality gates and Manifest integration | NO |
-| `/verify` | Run linters, tests, and security scans in parallel | CONDITIONAL |
-| `/ci-setup` | Configure CI/CD pipelines for target repository | NO |
-| `/ux-review` | UX/accessibility/performance audit | NO |
+### Skill Reference
+
+| Skill | Description | Parallel Agents |
+|-------|-------------|-----------------|
 | `/a11y-audit` | WCAG 2.2 AA accessibility audit | NO |
-| `/performance-check` | Core Web Vitals and bundle analysis | NO |
+| `/antipattern-detect` | Detect codebase antipatterns and suggest fixes | NO |
+| `/checkpoint` | Save context checkpoint for session continuity | NO |
+| `/ci-setup` | Configure CI/CD pipelines for target repository | NO |
+| `/code-quality` | Auto-triggered security and quality checks | AUTO |
+| `/dashboard` | Visualize agent efficiency metrics | NO |
 | `/docs-diagrams` | Generate Mermaid architecture diagrams | CONDITIONAL |
 | `/docs-improve` | Diataxis documentation framework analysis | CONDITIONAL |
 | `/docs-readme` | Improve README documentation | NO |
-| `/plan-manage` | Plan lifecycle with parallel agent orchestration | CONDITIONAL |
-| `/issue-triage` | Linear issue audit with duplicate detection | CONDITIONAL |
-| `/issue-prioritize` | Score and rank open issues by impact | CONDITIONAL |
 | `/health-check` | Verify CLI tools, auth, config, MCP, symlinks | NO |
-| `/sync-configs` | Detect cross-platform config drift | NO |
+| `/issue-prioritize` | Score and rank open issues by impact | CONDITIONAL |
+| `/issue-triage` | Linear issue audit with duplicate detection | CONDITIONAL |
 | `/learning-loop` | Capture structured lessons learned | NO |
-| `/dashboard` | Visualize agent efficiency metrics | NO |
-| `/checkpoint` | Save context checkpoint for session continuity | NO |
+| `/performance-check` | Core Web Vitals and bundle analysis | NO |
+| `/plan-manage` | Plan lifecycle with parallel agent orchestration | CONDITIONAL |
+| `/project-commit` | Full commit pipeline: docs, pull, pre-commits, commit, push | CONDITIONAL |
+| `/refactor-go` | Go codebase security and quality analysis | ALWAYS |
+| `/refactor-node` | Node.js/TypeScript security and quality analysis | ALWAYS |
+| `/refactor-python` | Python codebase security and quality analysis | ALWAYS |
+| `/refactor-shell` | Bash/Shell script security and quality analysis | ALWAYS |
+| `/refactor-terraform` | Terraform IaC security and modularity analysis | ALWAYS |
+| `/scaffold` | Initialize new project with quality gates and Manifest integration | NO |
+| `/sync-configs` | Detect cross-platform config drift | NO |
+| `/ux-review` | UX/accessibility/performance audit | NO |
+| `/verify` | Run linters, tests, and security scans in parallel | CONDITIONAL |
 
 ### Cursor Rules
 
 All Cursor rules are auto-generated from SKILL.md files using `generate_cursor_rules.sh`.
+Each skill produces a corresponding `.mdc` rule in `configs/cursor/rules/`.
 
 | Rule | Description |
 |------|-------------|
 | `orchestration` | Parallel agent orchestration guide (always-on) |
+| `a11y-audit` | WCAG 2.2 AA accessibility audit |
+| `antipattern-detect` | Codebase antipattern detection |
+| `checkpoint` | Context checkpoint |
+| `ci-setup` | CI/CD pipeline configuration |
 | `code-quality` | Auto-triggered security/quality checks |
-| `refactor-python` | Python analysis |
+| `dashboard` | Efficiency metrics |
+| `docs-diagrams` | Mermaid diagram generation |
+| `docs-improve` | Diataxis documentation |
+| `docs-readme` | README improvement |
+| `health-check` | Environment health check |
+| `issue-prioritize` | Issue prioritization |
+| `issue-triage` | Linear issue triage |
+| `learning-loop` | Lessons learned capture |
+| `performance-check` | Performance analysis |
+| `plan-manage` | Plan lifecycle |
+| `project-commit` | Commit pipeline |
 | `refactor-go` | Go analysis |
 | `refactor-node` | Node.js/TypeScript analysis |
-| `refactor-terraform` | Terraform IaC analysis |
+| `refactor-python` | Python analysis |
 | `refactor-shell` | Shell analysis |
+| `refactor-terraform` | Terraform IaC analysis |
 | `scaffold` | Project scaffolding |
-| `verify` | Linter/test/security scan runner |
-| `ci-setup` | CI/CD pipeline configuration |
-| `ux-review` | UX/accessibility audit |
-| `a11y-audit` | WCAG 2.2 AA accessibility audit |
-| `performance-check` | Performance analysis |
-| `docs-readme` | README improvement |
-| `docs-improve` | Diataxis documentation |
-| `docs-diagrams` | Mermaid diagram generation |
-| `project-commit` | Commit pipeline |
-| `plan-manage` | Plan lifecycle |
-| `issue-triage` | Linear issue triage |
-| `issue-prioritize` | Issue prioritization |
-| `health-check` | Environment health check |
 | `sync-configs` | Config drift detection |
-| `learning-loop` | Lessons learned capture |
-| `dashboard` | Efficiency metrics |
-| `checkpoint` | Context checkpoint |
+| `ux-review` | UX/accessibility audit |
+| `verify` | Linter/test/security scan runner |
 
-### Gemini CLI Commands
+### Platform-Specific Notes
 
-| Command | Description | Parallel Agents |
-|---------|-------------|-----------------|
-| `/project-commit` | Full commit pipeline: docs, pull, pre-commits, commit, push | CONDITIONAL |
-| `/refactor-python` | Python codebase security and quality analysis | ALWAYS |
-| `/refactor-go` | Go codebase security and quality analysis | ALWAYS |
-| `/refactor-node` | Node.js/TypeScript security and quality analysis | ALWAYS |
-| `/refactor-terraform` | Terraform IaC security and modularity analysis | ALWAYS |
-| `/refactor-shell` | Bash/Shell script security and quality analysis | ALWAYS |
-| `/scaffold` | Initialize new project with quality gates | NO |
-| `/verify` | Run linters, tests, and security scans | CONDITIONAL |
-| `/ci-setup` | Configure CI/CD pipelines | NO |
-| `/ux-review` | UX/accessibility audit | NO |
-| `/a11y-audit` | WCAG 2.2 AA accessibility audit | NO |
-| `/performance-check` | Core Web Vitals and bundle analysis | NO |
-| `/docs-diagrams` | Generate Mermaid architecture diagrams | CONDITIONAL |
-| `/docs-improve` | Diataxis documentation framework analysis | CONDITIONAL |
-| `/docs-readme` | Improve README documentation | NO |
-| `/plan-manage` | Plan lifecycle with parallel agent orchestration | CONDITIONAL |
-| `/issue-triage` | Linear issue audit with duplicate detection | CONDITIONAL |
-| `/issue-prioritize` | Score and rank open issues by impact | CONDITIONAL |
-| `/health-check` | Verify CLI tools, auth, config, MCP, symlinks | NO |
-| `/sync-configs` | Detect cross-platform config drift | NO |
-| `/learning-loop` | Capture structured lessons learned | NO |
-| `/dashboard` | Visualize agent efficiency metrics | NO |
-| `/checkpoint` | Context checkpoint for session continuity | NO |
+Skills are shared across all platforms via symlinks from `configs/claude/skills/`:
 
-### Shared Skills
-
-Shared skills are canonical in `configs/claude/skills/` and symlinked to:
-
-- `~/.cursor/skills`
-- `~/.gemini/skills`
-- `~/.codex/skills`
-
-Current skills: `code-quality`, `project-commit`, `refactor-python`, `refactor-go`,
-`refactor-node`, `refactor-terraform`, `refactor-shell`, `scaffold`, `verify`, `ci-setup`,
-`ux-review`, `a11y-audit`, `performance-check`, `docs-diagrams`, `docs-improve`, `docs-readme`,
-`plan-manage`, `issue-triage`, `issue-prioritize`, `health-check`, `sync-configs`,
-`learning-loop`, `dashboard`, `antipattern-detect`, `checkpoint`.
+- **Claude Code**: Skills loaded from `~/.claude/skills/`
+- **Cursor**: Rules auto-generated from skills into `~/.cursor/rules/` (`.mdc` files)
+- **Gemini CLI**: Skills loaded from `~/.gemini/skills/` (symlink to `~/.claude/skills/`)
+- **Codex CLI**: Skills loaded from `~/.codex/skills/` (symlink to `~/.claude/skills/`)
 
 ## Parallel Agent Orchestration
 

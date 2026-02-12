@@ -178,6 +178,9 @@ When agents disagree, synthesize by:
 | @docs-diagrams | Generate Mermaid architecture diagrams | CONDITIONAL |
 | @docs-improve | Diataxis documentation framework analysis | CONDITIONAL |
 | @plan-manage | Plan lifecycle management | CONDITIONAL |
+| @issue-triage | Linear issue audit with duplicate detection | CONDITIONAL |
+| @issue-prioritize | Score and rank open issues by impact | CONDITIONAL |
+| @antipattern-detect | Detect codebase antipatterns and suggest fixes | NO |
 | @health-check | Verify CLI tools, auth, config, symlinks | NO |
 | @sync-configs | Detect cross-platform config drift | NO |
 | @learning-loop | Capture structured lessons learned | NO |

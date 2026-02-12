@@ -4,11 +4,11 @@ This document defines how Gemini should leverage parallel LLM agents
 (Gemini, Cursor, Claude CLI) for cross-verification, planning, and validation.
 
 **Symlink Strategy**: The `.gemini/` directory shares most assets with `.claude/`
-via symlinks. Prompts, configuration, scripts, plans, and the code-quality skill
-all point back to their canonical locations under `~/.claude/`. Only this guide
-(`GEMINI.md`), the TOML-based slash commands, and `settings.json` are
-Gemini-specific. This avoids duplication and ensures both agents always operate
-from the same orchestration rules and validation criteria.
+via symlinks. Prompts, configuration, scripts, plans, and all skills
+point back to their canonical locations under `~/.claude/`. Only this guide
+(`GEMINI.md`) and `settings.json` are Gemini-specific. This avoids duplication
+and ensures both agents always operate from the same orchestration rules and
+validation criteria.
 
 ## Parallel Agent Script
 
@@ -437,42 +437,44 @@ Orchestrator:
 
 ---
 
-## Native Commands
+## Skills
 
 Gemini CLI discovers skills from `~/.gemini/skills/` (symlinked from `~/.claude/skills/`).
 These integrate with the parallel agent orchestration framework.
 
-### Available Commands
+### Available Skills
 
-| Command | Description | Parallel Agents |
-|---------|-------------|-----------------|
-| `/project-commit` | Full commit pipeline: docs, pull, pre-commits, commit, push | CONDITIONAL |
-| `/refactor-python` | Python codebase security and quality analysis | ALWAYS |
-| `/refactor-go` | Go codebase security and quality analysis | ALWAYS |
-| `/refactor-node` | Node.js/TypeScript security and quality analysis | ALWAYS |
-| `/refactor-terraform` | Terraform IaC security and modularity analysis | ALWAYS |
-| `/refactor-shell` | Bash/Shell script security and quality analysis | ALWAYS |
-| `/scaffold` | Initialize new project with quality gates and Manifest integration | NO |
-| `/verify` | Run linters, tests, and security scans in parallel | CONDITIONAL |
-| `/ci-setup` | Configure CI/CD pipelines for target repository | NO |
-| `/ux-review` | UX/accessibility/performance audit | NO |
+| Skill | Description | Parallel Agents |
+|-------|-------------|-----------------|
 | `/a11y-audit` | WCAG 2.2 AA accessibility audit | NO |
-| `/performance-check` | Core Web Vitals and bundle analysis | NO |
-| `/docs-readme` | Improve README documentation | NO |
+| `/antipattern-detect` | Detect codebase antipatterns and suggest fixes | NO |
+| `/checkpoint` | Save context checkpoint for session continuity | NO |
+| `/ci-setup` | Configure CI/CD pipelines for target repository | NO |
+| `/code-quality` | Auto-triggered security and quality checks | AUTO |
+| `/dashboard` | Visualize agent efficiency metrics | NO |
 | `/docs-diagrams` | Generate Mermaid architecture diagrams | CONDITIONAL |
 | `/docs-improve` | Diataxis documentation framework analysis | CONDITIONAL |
-| `/plan-manage` | Plan lifecycle with parallel agent orchestration | CONDITIONAL |
-| `/issue-triage` | Linear issue audit with duplicate detection | CONDITIONAL |
-| `/issue-prioritize` | Score and rank open issues by impact | CONDITIONAL |
+| `/docs-readme` | Improve README documentation | NO |
 | `/health-check` | Verify CLI tools, auth, config, MCP, symlinks | NO |
-| `/sync-configs` | Detect cross-platform config drift | NO |
+| `/issue-prioritize` | Score and rank open issues by impact | CONDITIONAL |
+| `/issue-triage` | Linear issue audit with duplicate detection | CONDITIONAL |
 | `/learning-loop` | Capture structured lessons learned | NO |
-| `/dashboard` | Visualize agent efficiency metrics | NO |
-| `/checkpoint` | Save context checkpoint for session continuity | NO |
+| `/performance-check` | Core Web Vitals and bundle analysis | NO |
+| `/plan-manage` | Plan lifecycle with parallel agent orchestration | CONDITIONAL |
+| `/project-commit` | Full commit pipeline: docs, pull, pre-commits, commit, push | CONDITIONAL |
+| `/refactor-go` | Go codebase security and quality analysis | ALWAYS |
+| `/refactor-node` | Node.js/TypeScript security and quality analysis | ALWAYS |
+| `/refactor-python` | Python codebase security and quality analysis | ALWAYS |
+| `/refactor-shell` | Bash/Shell script security and quality analysis | ALWAYS |
+| `/refactor-terraform` | Terraform IaC security and modularity analysis | ALWAYS |
+| `/scaffold` | Initialize new project with quality gates and Manifest integration | NO |
+| `/sync-configs` | Detect cross-platform config drift | NO |
+| `/ux-review` | UX/accessibility/performance audit | NO |
+| `/verify` | Run linters, tests, and security scans in parallel | CONDITIONAL |
 
-### Command Usage
+### Skill Usage
 
-Commands are TOML-based slash commands invoked in Gemini CLI:
+Skills are invoked as slash commands in Gemini CLI:
 
 ```bash
 # Code analysis (language-specific)

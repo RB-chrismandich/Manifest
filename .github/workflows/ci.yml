@@ -148,23 +148,19 @@ jobs:
           check_symlink "configs/cursor/config"   "../claude/config"
           check_symlink "configs/cursor/prompts"  "../claude/prompts"
           check_symlink "configs/cursor/.plans"   "../claude/.plans"
-          check_symlink "configs/cursor/skills"   "../claude/skills"
 
           # configs/gemini symlinks
           check_symlink "configs/gemini/scripts"  "../claude/scripts"
           check_symlink "configs/gemini/config"   "../claude/config"
           check_symlink "configs/gemini/prompts"  "../claude/prompts"
           check_symlink "configs/gemini/.plans"   "../claude/.plans"
-          check_symlink "configs/gemini/skills"   "../claude/skills"
 
           # configs/codex symlinks
           check_symlink "configs/codex/AGENTS.md" "../../AGENTS.md"
-          check_symlink "configs/codex/commands"  "../claude/commands"
           check_symlink "configs/codex/scripts"   "../claude/scripts"
           check_symlink "configs/codex/config"    "../claude/config"
           check_symlink "configs/codex/prompts"   "../claude/prompts"
           check_symlink "configs/codex/.plans"    "../claude/.plans"
-          check_symlink "configs/codex/skills"    "../claude/skills"
 
           if [ "$ERRORS" -gt 0 ]; then
             echo ""
@@ -200,7 +196,7 @@ jobs:
           echo ""
           echo "All shell scripts pass syntax check"
 
-      - name: Count and verify skills, commands, scripts
+      - name: Count and verify skills and scripts
         run: |
           echo "=== Skills ==="
           SKILL_COUNT=$(find configs/claude/skills -name 'SKILL.md' | wc -l | tr -d ' ')
@@ -208,25 +204,15 @@ jobs:
           find configs/claude/skills -name 'SKILL.md' | sed 's|/SKILL.md||;s|configs/claude/skills/||' | sort | sed 's/^/  /'
           echo ""
 
-          echo "=== Commands ==="
-          COMMAND_COUNT=$(find configs/claude/commands -name '*.md' | wc -l | tr -d ' ')
-          echo "Found $COMMAND_COUNT commands:"
-          find configs/claude/commands -name '*.md' -printf '%f\n' | sed 's/.md$//' | sort | sed 's/^/  /'
-          echo ""
-
           echo "=== Scripts ==="
           SCRIPT_COUNT=$(find configs/claude/scripts -name '*.sh' | wc -l | tr -d ' ')
           echo "Found $SCRIPT_COUNT scripts:"
-          find configs/claude/scripts -name '*.sh' -printf '%f\n' | sort | sed 's/^/  /'
+          find configs/claude/scripts -name '*.sh' | sort | sed 's|configs/claude/scripts/||;s/^/  /'
           echo ""
 
           # Verify minimum expected counts
-          if [ "$SKILL_COUNT" -lt 1 ]; then
-            echo "FAIL: Expected at least 1 skill, found $SKILL_COUNT"
-            exit 1
-          fi
-          if [ "$COMMAND_COUNT" -lt 1 ]; then
-            echo "FAIL: Expected at least 1 command, found $COMMAND_COUNT"
+          if [ "$SKILL_COUNT" -lt 10 ]; then
+            echo "FAIL: Expected at least 10 skills, found $SKILL_COUNT"
             exit 1
           fi
           if [ "$SCRIPT_COUNT" -lt 1 ]; then
@@ -234,4 +220,4 @@ jobs:
             exit 1
           fi
 
-          echo "Structure validation passed: $SKILL_COUNT skills, $COMMAND_COUNT commands, $SCRIPT_COUNT scripts"
+          echo "Structure validation passed: $SKILL_COUNT skills, $SCRIPT_COUNT scripts"
