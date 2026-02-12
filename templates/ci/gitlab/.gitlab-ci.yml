@@ -131,7 +131,7 @@ go:lint:
 
 go:test:
   stage: test
-  image: golang:1.23
+  image: golang:1.26
   extends: .go_changes
   cache:
     key: go-$CI_COMMIT_REF_SLUG
@@ -149,7 +149,7 @@ go:test:
 
 go:security:
   stage: security
-  image: golang:1.23
+  image: golang:1.26
   extends: .go_changes
   script:
     - go install golang.org/x/vuln/cmd/govulncheck@latest
