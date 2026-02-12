@@ -26,6 +26,9 @@ rate_limits:
   cursor:
     requests_per_minute: 100
     burst_size: 10
+  codex:
+    requests_per_minute: 100
+    burst_size: 10
 
 # Model tier mappings
 model_tiers:
@@ -40,6 +43,10 @@ model_tiers:
     mini: "gpt-5.1-codex-mini"
     flash: "gpt-5.1-codex"
     advanced: "gpt-5.2"
+  codex:
+    mini: "o4-mini"
+    flash: "o3"
+    advanced: "o3-pro"
 
 # Timeout configuration (seconds)
 timeouts:
@@ -87,6 +94,10 @@ credit_fallback:
   gemini:
     - pro
     - flash
+  codex:
+    - advanced
+    - flash
+    - mini
 
 # Logging configuration
 logging:

@@ -29,11 +29,13 @@ sys.path.insert(0, SCRIPTS_DIR)
 
 from parallel_agent import (  # noqa: E402
     Config,
+    ServiceConfig,
     Logger,
     RateLimiter,
     ValidationEngine,
     SynthesisEngine,
     BaseAgent,
+    CodexAgent,
     Orchestrator,
 )
 
@@ -556,3 +558,143 @@ class TestJSONOutputFormat:
         assert "confidence" in cv
         assert "agent_count" in cv
         assert isinstance(cv["consensus_score"], int)
+
+
+# ---------------------------------------------------------------------------
+# ServiceConfig tests
+# ---------------------------------------------------------------------------
+
+
+class TestServiceConfig:
+    """Test the ServiceConfig class for services.yml loading."""
+
+    def test_defaults_when_file_missing(self, tmp_path):
+        """ServiceConfig falls back to all-enabled defaults."""
+        sc = ServiceConfig(config_path=str(tmp_path / "nonexistent.yml"))
+        assert sc.is_enabled("claude") is True
+        assert sc.is_enabled("gemini") is True
+        assert sc.is_enabled("cursor") is True
+        assert sc.is_enabled("codex") is True
+
+    def test_minimum_agents_default(self, tmp_path):
+        """Default minimum_agents is 2."""
+        sc = ServiceConfig(config_path=str(tmp_path / "nonexistent.yml"))
+        assert sc.minimum_agents == 2
+
+    def test_is_enabled_from_yaml(self, tmp_path):
+        """ServiceConfig reads enabled state from YAML."""
+        yaml_content = (
+            "services:\n"
+            "  claude:\n"
+            "    enabled: true\n"
+            "  gemini:\n"
+            "    enabled: false\n"
+            "  cursor:\n"
+            "    enabled: true\n"
+            "  codex:\n"
+            "    enabled: false\n"
+            "minimum_agents: 3\n"
+        )
+        config_file = tmp_path / "services.yml"
+        config_file.write_text(yaml_content)
+
+        sc = ServiceConfig(config_path=str(config_file))
+        assert sc.is_enabled("claude") is True
+        assert sc.is_enabled("gemini") is False
+        assert sc.is_enabled("cursor") is True
+        assert sc.is_enabled("codex") is False
+        assert sc.minimum_agents == 3
+
+    def test_check_minimum_agents_ok(self, tmp_path):
+        """No warning when agent count meets minimum."""
+        sc = ServiceConfig(config_path=str(tmp_path / "nonexistent.yml"))
+        assert sc.check_minimum_agents(2) is None
+        assert sc.check_minimum_agents(3) is None
+
+    def test_check_minimum_agents_warning(self, tmp_path):
+        """Warning returned when agent count is below minimum."""
+        sc = ServiceConfig(config_path=str(tmp_path / "nonexistent.yml"))
+        warning = sc.check_minimum_agents(1)
+        assert warning is not None
+        assert "1 agent" in warning
+
+    def test_unknown_service_defaults_enabled(self, tmp_path):
+        """Unknown service names default to enabled."""
+        sc = ServiceConfig(config_path=str(tmp_path / "nonexistent.yml"))
+        assert sc.is_enabled("unknown_agent") is True
+
+
+# ---------------------------------------------------------------------------
+# CodexAgent tests
+# ---------------------------------------------------------------------------
+
+
+class TestCodexAgent:
+    """Test the CodexAgent class."""
+
+    def test_resolve_model_auto(self, tmp_path):
+        """Auto tier resolves to None (let codex choose)."""
+        config = Config(config_path=str(tmp_path / "nonexistent.yml"))
+        limiter = RateLimiter()
+        agent = CodexAgent("auto", 60, limiter, config=config)
+        assert agent.model_name is None
+
+    def test_resolve_model_named_tier(self, tmp_path):
+        """Named tier resolves to correct model from config."""
+        config = Config(config_path=str(tmp_path / "nonexistent.yml"))
+        limiter = RateLimiter()
+        agent = CodexAgent("mini", 60, limiter, config=config)
+        assert agent.model_name == "o4-mini"
+
+    def test_resolve_model_custom(self, tmp_path):
+        """Custom model name passes through as-is."""
+        config = Config(config_path=str(tmp_path / "nonexistent.yml"))
+        limiter = RateLimiter()
+        agent = CodexAgent("custom-model-123", 60, limiter, config=config)
+        assert agent.model_name == "custom-model-123"
+
+    @pytest.mark.asyncio
+    async def test_execute_missing_codex(self, tmp_path, monkeypatch):
+        """CodexAgent returns 'missing' status when codex is not installed."""
+        import shutil
+
+        config = Config(config_path=str(tmp_path / "nonexistent.yml"))
+        limiter = RateLimiter()
+        agent = CodexAgent("auto", 60, limiter, config=config)
+
+        # Mock shutil.which to return None
+        monkeypatch.setattr(shutil, "which", lambda cmd: None)
+        result = await agent._execute_impl("test prompt", "prompt")
+        assert result["status"] == "missing"
+
+
+# ---------------------------------------------------------------------------
+# Default config codex entries tests
+# ---------------------------------------------------------------------------
+
+
+class TestDefaultConfigCodex:
+    """Test that default config includes codex entries."""
+
+    def test_default_config_has_codex_rate_limits(self, tmp_path):
+        """Default config includes codex rate limits."""
+        config = Config(config_path=str(tmp_path / "nonexistent.yml"))
+        codex_rl = config.get("rate_limits.codex")
+        assert codex_rl is not None
+        assert codex_rl["requests_per_minute"] == 100
+
+    def test_default_config_has_codex_model_tiers(self, tmp_path):
+        """Default config includes codex model tier mappings."""
+        config = Config(config_path=str(tmp_path / "nonexistent.yml"))
+        tiers = config.get("model_tiers.codex")
+        assert tiers is not None
+        assert "mini" in tiers
+        assert "flash" in tiers
+        assert "advanced" in tiers
+
+    def test_default_config_has_codex_credit_fallback(self, tmp_path):
+        """Default config includes codex credit fallback chain."""
+        config = Config(config_path=str(tmp_path / "nonexistent.yml"))
+        fallback = config.get("credit_fallback.codex")
+        assert fallback is not None
+        assert fallback == ["advanced", "flash", "mini"]

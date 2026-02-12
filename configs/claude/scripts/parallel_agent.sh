@@ -1,5 +1,20 @@
 #!/bin/bash
-# Parallel Agent Orchestration Script
+# ┌──────────────────────────────────────────────────────────────────────┐
+# │  DEPRECATED: This shell script is superseded by parallel_agent.py   │
+# │  Use instead:                                                       │
+# │    python3 ~/.claude/scripts/parallel_agent.py [args...]            │
+# │                                                                     │
+# │  The Python implementation has full feature parity plus:            │
+# │  - Async execution with streaming output                           │
+# │  - Codex agent support (--codex-only, --codex-model, --no-codex)   │
+# │  - services.yml integration                                        │
+# │  - Synthesis engine for low-consensus results                      │
+# │  - Rate limiting and structured logging                            │
+# │                                                                     │
+# │  This script will be removed in a future release.                  │
+# └──────────────────────────────────────────────────────────────────────┘
+#
+# Parallel Agent Orchestration Script (DEPRECATED)
 # Uses Cursor Agent, Gemini CLI, Claude CLI, and Codex CLI in parallel
 #
 # Usage:

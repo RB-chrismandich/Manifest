@@ -2,7 +2,7 @@
 
 > Complete documentation index for the Manifest parallel agent orchestration framework
 
-**Last Updated**: 2026-02-05
+**Last Updated**: 2026-02-11
 
 ---
 

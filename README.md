@@ -4,7 +4,7 @@
 
 > Parallel LLM agent orchestration framework for Claude Code, Cursor IDE, Gemini CLI, and Codex CLI
 
-**Last Updated**: 2026-02-11 (Added unified label management across GitHub, GitLab, and Linear)
+**Last Updated**: 2026-02-11 (Python parallel agent feature parity — Codex agent, ServiceConfig, CLI flags)
 
 Manifest is a configuration repository that deploys a sophisticated parallel agent
 orchestration system to `~/.claude/`, `~/.cursor/`, `~/.gemini/`, and `~/.codex/`, enabling Claude Code,
@@ -43,7 +43,8 @@ python3 ~/.claude/scripts/parallel_agent.py --json "Test connection"
 
 ## Features
 
-- **Parallel Agent Orchestration**: Run 2-3 AI agents simultaneously (Cursor, Gemini, Claude) with real-time streaming display
+- **Parallel Agent Orchestration**: Run 2-4 AI agents simultaneously
+  (Cursor, Gemini, Claude, Codex) with real-time streaming display
 - **Phase 3 Python Implementation** (NEW): Production-grade async agent with logging, validation, synthesis, and streaming
 - **Comprehensive Logging**: Structured JSON logs with correlation IDs, rotation (10MB, 5 backups), performance metrics
 - **Full Validation Engine**: Tier 1 (critical: security, errors, breaking changes)
@@ -62,14 +63,15 @@ python3 ~/.claude/scripts/parallel_agent.py --json "Test connection"
 ## Architecture
 
 ```text
-User → Claude Code → /command → parallel_agent.sh
+User → Claude Code → /command → parallel_agent.sh / parallel_agent.py
                                       ↓
-                    ┌─────────────────┼─────────────────┐
-                    ↓                 ↓                 ↓
-              Cursor Agent      Gemini CLI       Claude CLI
-              (IDE Context)   (Broad Knowledge) (Deep Reasoning)
-                    ↓                 ↓                 ↓
-                    └─────────────────┼─────────────────┘
+                    ┌────────────┬────┼────┬────────────┐
+                    ↓            ↓         ↓            ↓
+              Cursor Agent  Gemini CLI  Claude CLI  Codex CLI
+              (IDE Context) (Broad      (Deep       (Terminal
+                            Knowledge)  Reasoning)   Coding)
+                    ↓            ↓         ↓            ↓
+                    └────────────┴────┼────┴────────────┘
                                       ↓
                             Synthesis & Validation
                                       ↓
