@@ -1,0 +1,4 @@
+## 2026-02-12 - TOCTOU in File Creation
+**Vulnerability:** Changing file permissions with `chmod` after creating a file (e.g., with `touch` or redirection) introduces a race condition (Time-of-Check-to-Time-of-Use). During the window between creation and permission change, the file may be accessible with default permissions (often 644), allowing unauthorized read access to sensitive data like API keys.
+**Learning:** Shell scripts typically inherit the user's `umask` (often 022), making files world-readable by default. Security-critical operations must explicitly manage permissions at the moment of creation, not after.
+**Prevention:** Use `umask 077` within a subshell `( umask 077; command > file )` to ensure files are created with restricted permissions (600 or 700) atomically. Alternatively, use `install -m 600 /dev/null file` before writing to it.
