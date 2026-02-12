@@ -4,7 +4,8 @@
 
 **Last Updated**: 2026-01-27
 **Audience**: All users
-**Quick Help**: Most issues are fixed by checking service configuration and verifying CLI installations
+**Quick Help**: Most issues are fixed by checking service configuration and
+verifying CLI installations
 
 ---
 
@@ -349,8 +350,9 @@ cursor: command not found
 
 **Solution:**
 
-Cursor is a desktop application, not a CLI tool. The Manifest integration expects Cursor
-to be installed but doesn't directly invoke it via command line in the current implementation.
+Cursor is a desktop application, not a CLI tool. The Manifest integration expects
+Cursor to be installed but doesn't directly invoke it via command line in the
+current implementation.
 
 **Workaround:**
 
@@ -620,8 +622,8 @@ claude auth status
 gemini auth status
 
 # Check API key environment variables (if set)
-echo $ANTHROPIC_API_KEY
-echo $GEMINI_API_KEY
+echo "$ANTHROPIC_API_KEY"
+echo "$GEMINI_API_KEY"
 ```
 
 ### Test Individual Agents
