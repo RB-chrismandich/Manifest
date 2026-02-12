@@ -2,7 +2,7 @@
 
 > Step-by-step guide to installing and using the Manifest parallel agent orchestration framework
 
-**Last Updated**: 2026-01-27
+**Last Updated**: 2026-02-11
 **Audience**: New users
 **Prerequisites**: macOS 10.15+ or Linux, internet connection
 **Estimated Time**: 10-15 minutes
@@ -27,6 +27,7 @@ Manifest deploys a parallel LLM agent orchestration system that enables Claude C
 - **Cursor Agent**: IDE-integrated context and code analysis
 - **Gemini CLI**: Broad knowledge and creative solutions
 - **Claude CLI**: Deep reasoning and security analysis
+- **Codex CLI**: Terminal-based coding agent with sandbox execution
 
 These agents run in parallel, analyze the same task from different perspectives,
 and their outputs are synthesized with consensus scoring to provide higher-quality
@@ -276,6 +277,8 @@ services:
     enabled: true  # Enable/disable Gemini CLI
   cursor:
     enabled: true  # Enable/disable Cursor Agent
+  codex:
+    enabled: true  # Enable/disable Codex CLI
   git_cli:
     github:
       enabled: auto  # auto | true | false (auto-detect if installed)
@@ -316,11 +319,11 @@ Choose models based on task complexity:
 
 **Model tiers:**
 
-| Tier | Cursor | Claude | Gemini | Use For |
-|------|--------|--------|--------|---------|
-| Lightweight | gpt-5.1-codex-mini | haiku | - | Quick questions |
-| Balanced | gpt-5.1-codex | sonnet | gemini-3-flash | Code review |
-| Maximum | gpt-5.2 | opus | gemini-3-pro | Security analysis |
+| Tier | Cursor | Claude | Gemini | Codex | Use For |
+|------|--------|--------|--------|-------|---------|
+| Lightweight | gpt-5.1-codex-mini | haiku | - | o4-mini | Quick questions |
+| Balanced | gpt-5.1-codex | sonnet | gemini-3-flash | o3 | Code review |
+| Maximum | gpt-5.2 | opus | gemini-3-pro | o3-pro | Security analysis |
 
 **See**: [Configuration Guide](CONFIGURATION.md) for all options
 

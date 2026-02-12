@@ -2,7 +2,7 @@
 
 > Visual documentation of the Manifest parallel LLM agent orchestration framework
 
-**Last Updated**: 2026-02-11 (Added Label Management Architecture diagram)
+**Last Updated**: 2026-02-11
 **Project**: Manifest - AI Agent Orchestration Framework
 
 ---
@@ -10,7 +10,7 @@
 ## Table of Contents
 
 1. [Application Architecture](#application-architecture)
-2. [Python Parallel Agent Architecture (Phase 3)](#python-parallel-agent-architecture-phase-3)
+2. [Python Parallel Agent Architecture](#python-parallel-agent-architecture)
 3. [Git Platform Detection & Operations](#git-platform-detection--operations)
 4. [Bootstrap Installation Flow](#bootstrap-installation-flow)
 5. [Parallel Agent Execution Flow](#parallel-agent-execution-flow)
@@ -68,6 +68,7 @@ flowchart TB
         GEMINI["Gemini CLI"]:::external
         CURSOR["Cursor Agent"]:::external
         CLAUDE_API["Claude API"]:::external
+        CODEX["Codex CLI"]:::external
         GH["GitHub CLI (gh)"]:::external
         GLAB["GitLab CLI (glab)"]:::external
     end
@@ -86,6 +87,7 @@ flowchart TB
     PARALLEL_PY --> GEMINI
     PARALLEL_PY --> CURSOR
     PARALLEL_PY --> CLAUDE_API
+    PARALLEL_PY --> CODEX
     SERVICES -.->|config| PARALLEL_BASH
     SERVICES -.->|config| PARALLEL_PY
     COMMAND_CFG -.->|thresholds| PARALLEL_BASH
@@ -97,17 +99,18 @@ flowchart TB
 
 - **bootstrap.sh**: Automated installation and configuration deployment with Python version detection
 - **Git Platform Scripts**: Platform-agnostic Git operations (GitHub/GitLab/plain git)
-- **parallel_agent.sh**: Bash orchestrator for multiple LLM agents (legacy)
-- **parallel_agent.py**: Python orchestrator with Phase 3 features (logging, validation, synthesis, streaming)
+- **parallel_agent.sh**: Bash orchestrator for multiple LLM agents (deprecated — use parallel_agent.py)
+- **parallel_agent.py**: Python orchestrator with full feature parity
+  (logging, validation, synthesis, streaming, Codex agent, services.yml)
 - **Configuration Layer**: YAML files controlling behavior, validation rules, and Phase 3 features
 - **Agent Services**: External LLM and Git hosting CLIs
 
 ---
 
-## Python Parallel Agent Architecture (Phase 3)
+## Python Parallel Agent Architecture
 
-Detailed architecture of the Python parallel agent implementation with Phase 3 features:
-comprehensive logging, full validation, synthesis, streaming, and dual package support.
+Detailed architecture of the Python parallel agent implementation with full feature parity:
+comprehensive logging, validation, synthesis, streaming, Codex agent, and services.yml integration.
 
 ```mermaid
 %%{init: {'theme':'neutral'}}%%
@@ -124,6 +127,7 @@ flowchart TB
         MAIN["main()"]:::active
         LOGGER["Logger<br/>(correlation IDs, rotation)"]:::active
         CONFIG["Config<br/>(YAML loader)"]:::config
+        SVC_CFG["ServiceConfig<br/>(services.yml)"]:::config
         ORCH["Orchestrator"]:::active
     end
 
@@ -131,10 +135,11 @@ flowchart TB
         BASE["BaseAgent<br/>(rate limiting, timeout, fallback)"]:::active
         CLAUDE_AG["ClaudeAgent<br/>(streaming support)"]:::active
         GEMINI_AG["GeminiAgent<br/>(dual package support)"]:::active
-        CURSOR_AG["CursorAgent<br/>(subprocess)"]:::pending
+        CURSOR_AG["CursorAgent<br/>(subprocess)"]:::active
+        CODEX_AG["CodexAgent<br/>(subprocess, codex exec)"]:::active
     end
 
-    subgraph "Phase 3 Features"
+    subgraph "Engine Features"
         VALIDATE["ValidationEngine<br/>(Tier 1 + Tier 2)"]:::active
         SYNTH["SynthesisEngine<br/>(disagreement resolution)"]:::active
         STREAM["Streaming Display<br/>(Rich Live)"]:::active
@@ -145,10 +150,12 @@ flowchart TB
         ANTHROPIC["Anthropic API<br/>(Claude)"]:::external
         GOOGLE["Google Gemini API<br/>(OAuth/API key)"]:::external
         CURSOR_CLI["Cursor CLI"]:::external
+        CODEX_CLI["Codex CLI"]:::external
     end
 
     subgraph "Configuration Files"
-        PA_YML["parallel_agent.yml<br/>(synthesis, streaming)"]:::config
+        PA_YML["parallel_agent.yml<br/>(models, synthesis, streaming)"]:::config
+        SVC_YML["services.yml<br/>(agent toggles)"]:::config
         VAL_YML["validation_criteria.yml<br/>(tier1/tier2 rules)"]:::config
         SYNTH_MD["synthesis.md<br/>(prompt template)"]:::config
     end
@@ -161,9 +168,11 @@ flowchart TB
 
     USER --> MAIN
     MAIN --> CONFIG
+    MAIN --> SVC_CFG
     MAIN --> LOGGER
     MAIN --> ORCH
     CONFIG -.->|load| PA_YML
+    SVC_CFG -.->|load| SVC_YML
     LOGGER -.->|write| LOGS
 
     ORCH --> VALIDATE
@@ -175,10 +184,12 @@ flowchart TB
     BASE --> CLAUDE_AG
     BASE --> GEMINI_AG
     BASE --> CURSOR_AG
+    BASE --> CODEX_AG
 
     CLAUDE_AG --> ANTHROPIC
     GEMINI_AG --> GOOGLE
     CURSOR_AG --> CURSOR_CLI
+    CODEX_AG --> CODEX_CLI
 
     VALIDATE -.->|load| VAL_YML
     SYNTH -.->|load| SYNTH_MD
@@ -190,8 +201,9 @@ flowchart TB
     STREAM -.->|display| USER
 ```
 
-**Phase 3 Components**:
+**Components**:
 
+- **ServiceConfig**: Reads `services.yml` for agent enable/disable state, minimum agent validation
 - **Logger**: Structured JSON logging with correlation IDs (`YYYYMMDD_HHMMSS_PID`),
   rotating file handler (10MB, 5 backups), performance metrics
 - **ValidationEngine**:
@@ -201,24 +213,25 @@ flowchart TB
 - **SynthesisEngine**: Automatic disagreement resolution when consensus < 50%, uses Claude Sonnet with synthesis.md template
 - **Streaming**: Real-time Rich Live display with progressive updates (4 updates/sec, 500 char truncation)
 - **RateLimiter**: Token bucket algorithm with burst support and adaptive backoff
+- **CodexAgent**: Subprocess-based agent using `codex exec` with `--output-last-message` for reliable output capture
 - **Dual Package Support**: google-genai (new) with fallback to google-generativeai (legacy), unified interface
 
 **Execution Flow**:
 
-1. **Initialization**: Load config, create logger with correlation ID, set up rate limiters
-2. **Agent Execution**: Run Claude/Gemini/Cursor in parallel with streaming or progress display
-3. **Consensus**: Calculate consensus score using keyword-based analysis
-4. **Synthesis**: If consensus < 50%, trigger SynthesisEngine for unified recommendation
-5. **Validation**: Run ValidationEngine if `--validate` flag set
-6. **Output**: Write structured logs, JSON results, markdown summary
+1. **Initialization**: Load config + services.yml, create logger with correlation ID, set up rate limiters
+2. **Agent Selection**: services.yml state -> `--*-only` exclusive flags -> `--no-*` overrides -> minimum agent check
+3. **Agent Execution**: Run Claude/Gemini/Cursor/Codex in parallel with streaming or progress display
+4. **Consensus**: Calculate consensus score using keyword-based analysis
+5. **Synthesis**: If consensus < 50%, trigger SynthesisEngine for unified recommendation
+6. **Validation**: Run ValidationEngine if `--validate` flag set
+7. **Output**: Write structured logs, JSON results (with duration), markdown summary (sandbox-aware fallback)
 
 **Statistics**:
 
-- Lines: 1,616 (vs 634 in Phase 2, +155%)
-- Classes: 9 (Config, Logger, RateLimiter, ValidationEngine, SynthesisEngine,
-  BaseAgent, ClaudeAgent, GeminiAgent, CursorAgent, Orchestrator)
-- CLI Flags: 21 (8 new in Phase 3)
-- Configuration Sections: 9 (synthesis, streaming added in Phase 3)
+- Classes: 11 (Config, ServiceConfig, Logger, RateLimiter, ValidationEngine, SynthesisEngine,
+  BaseAgent, ClaudeAgent, GeminiAgent, CursorAgent, CodexAgent, Orchestrator)
+- CLI Flags: 27 (--codex-only, --codex-model, --no-cursor, --no-gemini, --no-codex, --status added)
+- Agents: 4 (Claude, Gemini, Cursor, Codex)
 
 ---
 
@@ -435,6 +448,7 @@ flowchart TB
         GEMINI_EXEC["Gemini CLI<br/>(gemini-3-flash/pro)"]:::process
         CURSOR_EXEC["Cursor Agent<br/>(gpt-5.1/5.2)"]:::process
         CLAUDE_EXEC["Claude CLI<br/>(haiku/sonnet/opus)"]:::process
+        CODEX_EXEC["Codex CLI<br/>(o4-mini/o3/o3-pro)"]:::process
     end
 
     COLLECT["Collect Outputs<br/>(with retry + fallback)"]:::process
@@ -467,10 +481,12 @@ flowchart TB
     CHECK_SERVICES --> GEMINI_EXEC
     CHECK_SERVICES --> CURSOR_EXEC
     CHECK_SERVICES --> CLAUDE_EXEC
+    CHECK_SERVICES --> CODEX_EXEC
 
     GEMINI_EXEC --> COLLECT
     CURSOR_EXEC --> COLLECT
     CLAUDE_EXEC --> COLLECT
+    CODEX_EXEC --> COLLECT
 
     COLLECT --> VERIFY_FILES
     VERIFY_FILES -->|No| FILE_ERROR
@@ -748,6 +764,12 @@ gpt-5.2 (advanced) → gpt-5.1-codex (flash) → gpt-5.1-codex-mini (mini) → a
 opus → sonnet → haiku
 ```
 
+**Codex Fallback Chain**:
+
+```text
+o3-pro (advanced) → o3 (flash) → o4-mini (mini)
+```
+
 **Error Detection**:
 The script parses stderr for patterns:
 
@@ -771,7 +793,7 @@ flowchart LR
     BOOTSTRAP["bootstrap.sh"]:::process
 
     subgraph "Configuration Files"
-        SERVICES["services.yml<br/>(Claude, Gemini, Cursor,<br/>GitHub CLI, GitLab CLI)"]:::config
+        SERVICES["services.yml<br/>(Claude, Gemini, Cursor, Codex,<br/>GitHub CLI, GitLab CLI)"]:::config
         COMMAND_CFG["command_config.yml<br/>(Thresholds, Tool Policies,<br/>Model Selection)"]:::config
         VALIDATION["validation_criteria.yml<br/>(Tier 1/2 Criteria,<br/>Command Overrides)"]:::config
     end

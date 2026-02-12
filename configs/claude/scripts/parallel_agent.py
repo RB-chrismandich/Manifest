@@ -22,7 +22,6 @@ from logging.handlers import RotatingFileHandler
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Any
-import subprocess
 import re
 
 try:
@@ -93,6 +92,7 @@ class Config:
                 "claude": {"requests_per_minute": 60, "burst_size": 5},
                 "gemini": {"requests_per_minute": 30, "burst_size": 3},
                 "cursor": {"requests_per_minute": 100, "burst_size": 10},
+                "codex": {"requests_per_minute": 100, "burst_size": 10},
             },
             "timeouts": {"default": 120, "review": 600},
             "model_tiers": {
@@ -105,6 +105,17 @@ class Config:
                     "flash": "gemini-3-flash-preview",
                     "pro": "gemini-3-pro-preview",
                 },
+                "codex": {
+                    "mini": "o4-mini",
+                    "flash": "o3",
+                    "advanced": "o3-pro",
+                },
+            },
+            "credit_fallback": {
+                "claude": ["opus", "sonnet", "haiku"],
+                "cursor": ["advanced", "flash", "mini"],
+                "gemini": ["pro", "flash"],
+                "codex": ["advanced", "flash", "mini"],
             },
             "validation": {"consensus_threshold": {"high": 0.80, "medium": 0.50}},
         }
@@ -119,6 +130,55 @@ class Config:
             else:
                 return default
         return value if value is not None else default
+
+
+class ServiceConfig:
+    """Service configuration manager reading from services.yml"""
+
+    def __init__(self, config_path: Optional[str] = None):
+        if config_path is None:
+            config_path = os.path.expanduser("~/.claude/config/services.yml")
+        self.config_path = config_path
+        self._data = self._load()
+
+    def _load(self) -> Dict:
+        """Load services.yml or return all-enabled defaults."""
+        if os.path.exists(self.config_path):
+            with open(self.config_path, "r") as f:
+                data = yaml.safe_load(f) or {}
+                return data
+        # All-enabled defaults when file is missing
+        return {
+            "services": {
+                "claude": {"enabled": True},
+                "gemini": {"enabled": True},
+                "cursor": {"enabled": True},
+                "codex": {"enabled": True},
+            },
+            "minimum_agents": 2,
+        }
+
+    def is_enabled(self, service_name: str) -> bool:
+        """Check if a service is enabled in services.yml."""
+        services = self._data.get("services", {})
+        svc = services.get(service_name, {})
+        return bool(svc.get("enabled", True))
+
+    @property
+    def minimum_agents(self) -> int:
+        """Minimum agents required for parallel orchestration."""
+        return int(self._data.get("minimum_agents", 2))
+
+    def check_minimum_agents(self, count: int) -> Optional[str]:
+        """Return a warning message if count < minimum, else None."""
+        minimum = self.minimum_agents
+        if count < minimum:
+            return (
+                f"Warning: Only {count} agent(s) enabled, "
+                f"minimum recommended is {minimum}. "
+                f"Parallel orchestration may produce lower-confidence results."
+            )
+        return None
 
 
 class Logger:
@@ -1172,11 +1232,115 @@ class CursorAgent(BaseAgent):
 
     def _check_cursor_available(self) -> bool:
         """Check if cursor CLI is available"""
+        import shutil
+
+        return shutil.which("cursor") is not None
+
+
+class CodexAgent(BaseAgent):
+    """Codex agent using subprocess (shell out to codex CLI)"""
+
+    def __init__(
+        self,
+        model: str = "flash",
+        timeout: int = 120,
+        rate_limiter: RateLimiter = None,
+        config: Config = None,
+        logger: Optional[Logger] = None,
+        streaming: bool = False,
+        progress_callback=None,
+    ):
+        config = config or Config()
+        super().__init__(
+            "codex",
+            model,
+            timeout,
+            rate_limiter,
+            config,
+            logger,
+            streaming,
+            progress_callback,
+        )
+        self.model_name = self._resolve_model(model)
+
+    def _resolve_model(self, tier: str) -> Optional[str]:
+        """Resolve model tier to full model name. Returns None for 'auto'."""
+        if tier == "auto":
+            return None
+        resolved = self.config.get(f"model_tiers.codex.{tier}")
+        return resolved if resolved else tier
+
+    async def _execute_impl(self, prompt: str, mode: str) -> Dict:
+        """Execute codex CLI via subprocess"""
+        import shutil
+        import tempfile
+
+        if not shutil.which("codex"):
+            return {
+                "status": "missing",
+                "error": "codex command not found",
+                "output": "",
+            }
+
+        # Create temp file for --output-last-message
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".txt", delete=False, prefix="codex_out_"
+        ) as tmp:
+            output_file = tmp.name
+
         try:
-            subprocess.run(["which", "cursor"], capture_output=True, check=True)
-            return True
-        except subprocess.CalledProcessError:
-            return False
+            cmd = [
+                "codex",
+                "exec",
+                "--full-auto",
+                "--color",
+                "never",
+                "--output-last-message",
+                output_file,
+            ]
+
+            if self.model_name:
+                cmd.extend(["--model", self.model_name])
+
+            cmd.append(prompt)
+
+            proc = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+
+            stdout, stderr = await proc.communicate()
+
+            # Output priority: file > stdout > stderr
+            output = ""
+            if os.path.exists(output_file):
+                with open(output_file, "r") as f:
+                    output = f.read().strip()
+
+            if not output:
+                output = stdout.decode("utf-8", errors="ignore").strip()
+
+            if not output and proc.returncode != 0:
+                return {
+                    "status": "failed",
+                    "error": stderr.decode("utf-8", errors="ignore"),
+                    "output": "",
+                    "model": self.model_name or "auto",
+                }
+
+            return {
+                "status": "complete",
+                "output": output,
+                "model": self.model_name or "auto",
+                "validated": False,
+            }
+        finally:
+            # Cleanup temp file
+            try:
+                os.unlink(output_file)
+            except OSError:
+                pass
 
 
 class Orchestrator:
@@ -1246,10 +1410,16 @@ class Orchestrator:
             if self.logger:
                 self.logger.info(f"Validation verdict: {validation_result['verdict']}")
 
+        total_duration = round(time.time() - start_time, 2)
+        minutes, seconds = divmod(int(total_duration), 60)
+        duration_formatted = f"{minutes}m{seconds:02d}s" if minutes else f"{seconds}s"
+
         result = {
             "timestamp": timestamp,
             "mode": mode,
             "prompt": prompt,
+            "duration_seconds": total_duration,
+            "duration_formatted": duration_formatted,
             "agents": agent_results,
             "cross_verification": consensus,
             "validation": validation_result,
@@ -1438,6 +1608,38 @@ class Orchestrator:
         validator = ValidationEngine(self.config, self.logger)
         return validator.validate(results, consensus, mode, command)
 
+    def _resolve_output_dir(self, custom_output_dir: Optional[str] = None) -> Path:
+        """Resolve output directory with sandbox-aware fallback.
+
+        Tries directories in order:
+        1. custom_output_dir (if provided via --output)
+        2. ~/.claude/.agent_outputs (default from config)
+        3. /tmp/.claude_agent_outputs_{pid} (fallback on permission error)
+        """
+        if custom_output_dir:
+            return Path(custom_output_dir).expanduser()
+
+        default_dir = Path(
+            self.config.get("output.directory", "~/.claude/.agent_outputs")
+        ).expanduser()
+
+        try:
+            default_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
+            return default_dir
+        except (OSError, PermissionError) as e:
+            fallback = Path(f"/tmp/.claude_agent_outputs_{os.getpid()}")
+            if self.logger:
+                self.logger.warning(
+                    f"Cannot write to {default_dir}: {e}. "
+                    f"Falling back to {fallback}"
+                )
+            print(
+                f"  Warning: Cannot write to {default_dir}, "
+                f"using fallback: {fallback}",
+                file=sys.stderr,
+            )
+            return fallback
+
     async def _write_output_files(
         self,
         result: Dict,
@@ -1445,11 +1647,8 @@ class Orchestrator:
         custom_output_dir: Optional[str] = None,
         full_output: bool = True,
     ) -> Dict:
-        """Write output files to disk"""
-        output_dir = Path(
-            custom_output_dir
-            or self.config.get("output.directory", "~/.claude/.agent_outputs")
-        ).expanduser()
+        """Write output files to disk with sandbox-aware fallback"""
+        output_dir = self._resolve_output_dir(custom_output_dir)
         output_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
 
         output_files = {}
@@ -1625,6 +1824,47 @@ async def check_credits(config: Config, logger: Optional[Logger] = None) -> Dict
     # Cursor (no API to check, assume available)
     results["cursor"] = {"status": "assumed_available"}
 
+    # Codex credit check
+    import shutil
+
+    if shutil.which("codex"):
+        try:
+            proc = await asyncio.wait_for(
+                asyncio.create_subprocess_exec(
+                    "codex",
+                    "exec",
+                    "--full-auto",
+                    "--model",
+                    "o4-mini",
+                    "respond with OK",
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                ),
+                timeout=15,
+            )
+            stdout, stderr = await proc.communicate()
+            error_output = stderr.decode("utf-8", errors="ignore").lower()
+
+            if any(
+                p in error_output
+                for p in ("quota", "credit", "rate limit", "429", "unauthorized")
+            ):
+                results["codex"] = {
+                    "status": "quota_exceeded",
+                    "error": stderr.decode("utf-8", errors="ignore"),
+                }
+            elif proc.returncode == 0:
+                results["codex"] = {"status": "available"}
+            else:
+                results["codex"] = {
+                    "status": "error",
+                    "error": stderr.decode("utf-8", errors="ignore"),
+                }
+        except (asyncio.TimeoutError, Exception) as e:
+            results["codex"] = {"status": "error", "error": str(e)}
+    else:
+        results["codex"] = {"status": "not_installed"}
+
     return results
 
 
@@ -1659,26 +1899,52 @@ async def main():
         help="Enable synthesis for low consensus",
     )
     parser.add_argument(
-        "--timeout", type=int, default=120, help="Timeout per agent (seconds)"
+        "--timeout",
+        type=int,
+        default=None,
+        help="Timeout per agent (seconds). Defaults: review=600, analyze=900, improve=300, prompt=600",
     )
     parser.add_argument("--claude-model", default="sonnet", help="Claude model tier")
     parser.add_argument("--gemini-model", default="flash", help="Gemini model tier")
     parser.add_argument("--cursor-model", default="flash", help="Cursor model tier")
+    parser.add_argument("--codex-model", default="auto", help="Codex model tier")
     parser.add_argument("--claude-only", action="store_true", help="Run only Claude")
     parser.add_argument("--gemini-only", action="store_true", help="Run only Gemini")
     parser.add_argument("--cursor-only", action="store_true", help="Run only Cursor")
+    parser.add_argument("--codex-only", action="store_true", help="Run only Codex")
     parser.add_argument("--no-claude", action="store_true", help="Disable Claude agent")
+    parser.add_argument("--no-cursor", action="store_true", help="Disable Cursor agent")
+    parser.add_argument("--no-gemini", action="store_true", help="Disable Gemini agent")
+    parser.add_argument("--no-codex", action="store_true", help="Disable Codex agent")
+    parser.add_argument(
+        "--status",
+        action="store_true",
+        help="Check agent status (delegates to check_status.sh)",
+    )
 
     args = parser.parse_args()
 
     # Load configuration
     config = Config()
 
+    # Load service configuration
+    services = ServiceConfig()
+
     # Create logger
     logger = Logger(config)
     logger.set_correlation_id(
         f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{os.getpid()}"
     )
+
+    # Status check mode — delegate to check_status.sh
+    if args.status:
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        status_script = os.path.join(script_dir, "check_status.sh")
+        if os.path.exists(status_script):
+            os.execv("/bin/bash", ["/bin/bash", status_script])
+        else:
+            print(f"Error: {status_script} not found", file=sys.stderr)
+            sys.exit(1)
 
     # Credit check mode
     if args.check_credits:
@@ -1694,19 +1960,12 @@ async def main():
     if args.review:
         mode = "review"
         prompt = f"Review this file for code quality, security, and best practices: {args.review}"
-        # Override timeout if default
-        if args.timeout == 120:
-            args.timeout = config.get("timeouts.review", 600)
     elif args.analyze:
         mode = "analyze"
         prompt = f"Analyze this file for bugs and security issues: {args.analyze}"
-        if args.timeout == 120:
-            args.timeout = config.get("timeouts.analyze", 900)
     elif args.improve:
         mode = "improve"
         prompt = f"Review and improve this observation YAML: {args.improve}"
-        if args.timeout == 120:
-            args.timeout = config.get("timeouts.improve", 300)
     elif args.prompt:
         mode = "prompt"
         prompt = args.prompt
@@ -1714,23 +1973,66 @@ async def main():
         parser.print_help()
         sys.exit(1)
 
+    # Resolve timeout: explicit flag wins, then mode-based default from config
+    if args.timeout is not None:
+        timeout = args.timeout
+    else:
+        mode_timeouts = {
+            "review": config.get("timeouts.review", 600),
+            "analyze": config.get("timeouts.analyze", 900),
+            "improve": config.get("timeouts.improve", 300),
+            "prompt": config.get("timeouts.default", 600),
+        }
+        timeout = mode_timeouts.get(mode, 600)
+
     # Create rate limiters
     claude_limiter = RateLimiter(**config.get("rate_limits.claude", {}))
     gemini_limiter = RateLimiter(**config.get("rate_limits.gemini", {}))
     cursor_limiter = RateLimiter(**config.get("rate_limits.cursor", {}))
+    codex_limiter = RateLimiter(**config.get("rate_limits.codex", {}))
 
     # Determine streaming mode
     streaming = not args.no_stream and config.get("streaming.enabled", True)
 
-    # Create agents
+    # --- Agent selection logic ---
+    # 1. Start with services.yml enabled state
+    enabled = {
+        "claude": services.is_enabled("claude"),
+        "gemini": services.is_enabled("gemini"),
+        "cursor": services.is_enabled("cursor"),
+        "codex": services.is_enabled("codex"),
+    }
+
+    # 2. Apply --*-only flags (exclusive: if any set, only those run)
+    only_flags = {
+        "claude": args.claude_only,
+        "gemini": args.gemini_only,
+        "cursor": args.cursor_only,
+        "codex": args.codex_only,
+    }
+    if any(only_flags.values()):
+        for agent_name in enabled:
+            enabled[agent_name] = only_flags[agent_name]
+
+    # 3. Apply --no-* overrides (always win)
+    if args.no_claude:
+        enabled["claude"] = False
+    if args.no_gemini:
+        enabled["gemini"] = False
+    if args.no_cursor:
+        enabled["cursor"] = False
+    if args.no_codex:
+        enabled["codex"] = False
+
+    # Build agents list
     agents = []
 
-    if not args.gemini_only and not args.cursor_only and not args.no_claude:
+    if enabled["claude"]:
         if HAS_ANTHROPIC:
             agents.append(
                 ClaudeAgent(
                     args.claude_model,
-                    args.timeout,
+                    timeout,
                     claude_limiter,
                     config=config,
                     logger=logger,
@@ -1744,12 +2046,12 @@ async def main():
             )
             logger.warning("Anthropic package not installed")
 
-    if not args.claude_only and not args.cursor_only:
+    if enabled["gemini"]:
         if HAS_GENAI:
             agents.append(
                 GeminiAgent(
                     args.gemini_model,
-                    args.timeout,
+                    timeout,
                     gemini_limiter,
                     config=config,
                     logger=logger,
@@ -1763,11 +2065,11 @@ async def main():
             )
             logger.warning("Google Generative AI package not installed")
 
-    if not args.claude_only and not args.gemini_only:
+    if enabled["cursor"]:
         agents.append(
             CursorAgent(
                 args.cursor_model,
-                args.timeout,
+                timeout,
                 cursor_limiter,
                 config=config,
                 logger=logger,
@@ -1775,9 +2077,27 @@ async def main():
             )
         )
 
+    if enabled["codex"]:
+        agents.append(
+            CodexAgent(
+                args.codex_model,
+                timeout,
+                codex_limiter,
+                config=config,
+                logger=logger,
+                streaming=streaming,
+            )
+        )
+
+    # Check minimum agents
+    min_warning = services.check_minimum_agents(len(agents))
+    if min_warning:
+        print(min_warning, file=sys.stderr)
+        logger.warning(min_warning)
+
     if not agents:
         print(
-            "Error: No agents available. Install dependencies: pip install -r requirements.txt",
+            "Error: No agents available. Check services.yml or install dependencies.",
             file=sys.stderr,
         )
         logger.error("No agents available")

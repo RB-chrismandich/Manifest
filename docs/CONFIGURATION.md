@@ -2,7 +2,7 @@
 
 > Comprehensive reference for all Manifest configuration options
 
-**Last Updated**: 2026-01-27
+**Last Updated**: 2026-02-11
 **Audience**: System operators, advanced users
 **Prerequisites**: Manifest installed via bootstrap.sh or manually
 
@@ -83,6 +83,17 @@ services:
       - mini     # Lightweight
       - flash    # Balanced (default)
       - advanced # Maximum capability
+
+  # Codex CLI - OpenAI terminal coding agent
+  codex:
+    enabled: true
+    command: codex
+    description: "Terminal coding assistant for codebase edits and automation"
+    model_tiers:
+      - mini     # Lightweight (o4-mini)
+      - flash    # Balanced (o3, default)
+      - advanced # Maximum capability (o3-pro)
+      - auto     # Use Codex config default model
 
   # Git CLI tools - Platform-specific Git hosting integrations
   git_cli:
@@ -713,15 +724,20 @@ export CHECK_CREDITS_PREFLIGHT="true"
 --cursor-only          # Run only Cursor Agent
 --gemini-only          # Run only Gemini CLI
 --claude-only          # Run only Claude CLI
---no-claude            # Disable Claude CLI (run Cursor + Gemini)
+--codex-only           # Run only Codex CLI
+--no-claude            # Disable Claude CLI
+--no-cursor            # Disable Cursor Agent
+--no-gemini            # Disable Gemini CLI
+--no-codex             # Disable Codex CLI
 ```
 
 ### Model Selection
 
 ```bash
---cursor-model <tier>  # Cursor model: mini, flash, advanced, auto (default: auto)
+--cursor-model <tier>  # Cursor model: mini, flash, advanced, auto (default: flash)
 --claude-model <tier>  # Claude model: haiku, sonnet, opus (default: sonnet)
 --gemini-model <tier>  # Gemini model: flash, pro (default: flash)
+--codex-model <tier>   # Codex model: mini, flash, advanced, auto (default: auto)
 ```
 
 ### Execution Modes
