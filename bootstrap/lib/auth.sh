@@ -278,10 +278,8 @@ setup_manifest_state_dirs() {
         "$MANIFEST_STATE_DIR/codex/sessions"
     )
 
-    for dir in "${state_dirs[@]}"; do
-        mkdir -p "$dir"
-        chmod 700 "$dir" 2> /dev/null || true
-    done
+    mkdir -p "${state_dirs[@]}"
+    chmod 700 "${state_dirs[@]}" 2> /dev/null || true
 
     print_success "State directories ready under $MANIFEST_STATE_DIR (including codex/sessions)"
 }
