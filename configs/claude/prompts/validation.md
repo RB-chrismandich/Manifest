@@ -68,29 +68,44 @@ Apply these additional checks based on the detected language(s) in the changeset
 ### Go
 
 - [ ] Errors checked — no `_ :=` ignoring error returns
+- [ ] No bare returns from error checks — always return the error or wrap it
 - [ ] No goroutine leaks — goroutines have cancellation via context or done channels
+- [ ] Goroutine lifecycle managed — use `sync.WaitGroup`, `errgroup`, or explicit shutdown signals
 - [ ] Race conditions — shared state protected by mutex or channels
 - [ ] `defer` used for resource cleanup (file handles, locks, connections)
 - [ ] Input validation on exported functions
-- [ ] `context.Context` propagated through call chains
+- [ ] `context.Context` propagated through call chains (first parameter by convention)
+- [ ] `context.Context` not stored in structs — pass explicitly to functions
+- [ ] `go vet` compliance — no composite literal issues, printf format mismatches, or unreachable code
+- [ ] `go vet` shadow check — no unintended variable shadowing in nested scopes
 
 ### Node.js / TypeScript
 
 - [ ] TypeScript strict mode enabled (`strict: true` in tsconfig)
 - [ ] No `any` type — use specific types or `unknown` with type guards
 - [ ] Async/await used instead of raw callbacks (no callback hell)
-- [ ] No prototype pollution vectors (`Object.assign` on user input)
+- [ ] Async/await error handling — all `await` calls wrapped in try/catch or `.catch()`
+- [ ] No unhandled promise rejections — reject handlers or global handlers configured
+- [ ] No prototype pollution vectors (`Object.assign` on user input, `__proto__` access)
+- [ ] No `Object.assign({}, userInput)` or spread of untrusted objects without sanitization
 - [ ] Dependencies audited — no known vulnerabilities (`npm audit`)
+- [ ] No `require()` of user-controlled paths (path traversal risk)
 - [ ] Event listeners cleaned up to prevent memory leaks
+- [ ] Stream backpressure handled — no unbounded memory growth on writable streams
 
 ### Terraform
 
 - [ ] No hardcoded secrets in `.tf` files or `terraform.tfvars`
+- [ ] No hardcoded provider credentials — use environment variables, IAM roles, or vault
 - [ ] IAM policies follow least privilege (no `*` actions or resources)
 - [ ] Security groups do not allow `0.0.0.0/0` ingress on sensitive ports
 - [ ] `sensitive = true` set on outputs containing secrets
 - [ ] Remote state backend configured with encryption and locking
+- [ ] State file not stored in version control — `.gitignore` includes `*.tfstate`
 - [ ] Provider and module versions pinned with constraints
+- [ ] Module sources pinned to specific versions or commit SHAs (no floating `ref=main`)
+- [ ] Variable validation blocks present for variables with constrained values
+- [ ] `validation { condition = ... }` used on input variables where applicable
 
 ### Shell / Bash
 

@@ -59,7 +59,10 @@ if [[ $# -eq 0 ]]; then
     echo "  pr-create          Create pull/merge request" >&2
     echo "  pr-view N          View PR/MR N" >&2
     echo "  pr-list            List PRs/MRs" >&2
-    echo "  pr-review N        Review/approve PR/MR N" >&2
+    echo "  pr-review N        Review PR/MR N (pass --approve/--comment/--request-changes)" >&2
+    echo "  pr-approve N       Approve PR/MR N (shortcut for pr-review --approve)" >&2
+    echo "  pr-diff N          View PR/MR N diff" >&2
+    echo "  pr-checks N        View CI status for PR/MR N" >&2
     echo "  pr-merge N         Merge PR/MR N" >&2
     echo "  release-create     Create a release" >&2
     echo "  release-list       List releases" >&2
@@ -133,6 +136,15 @@ case "${platform}" in
                 ;;
             pr-review)
                 gh pr review "$@"
+                ;;
+            pr-approve)
+                gh pr review --approve "$@"
+                ;;
+            pr-diff)
+                gh pr diff "$@"
+                ;;
+            pr-checks)
+                gh pr checks "$@"
                 ;;
             pr-merge)
                 gh pr merge "$@"
@@ -217,8 +229,20 @@ case "${platform}" in
                 glab mr list "$@"
                 ;;
             pr-review)
-                # GitLab uses 'mr approve' instead of 'pr review'
+                # GitLab uses 'mr approve' for review approval
                 glab mr approve "$@"
+                ;;
+            pr-approve)
+                glab mr approve "$@"
+                ;;
+            pr-diff)
+                glab mr diff "$@"
+                ;;
+            pr-checks)
+                # GitLab: show pipeline status for MR
+                mr_num="$1"
+                shift
+                glab ci view "$@" 2> /dev/null || glab mr view "${mr_num}" --web
                 ;;
             pr-merge)
                 glab mr merge "$@"

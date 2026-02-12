@@ -797,6 +797,127 @@ cmd_create_sub_issue() {
     fi
 }
 
+# Subcommand: list-sub-issues
+# Lists child issues of a parent issue.
+cmd_list_sub_issues() {
+    local identifier=""
+    local json_output=false
+
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --json)
+                json_output=true
+                shift
+                ;;
+            *)
+                identifier="$1"
+                shift
+                ;;
+        esac
+    done
+
+    [[ -z "$identifier" ]] && error "Usage: list-sub-issues IDENTIFIER [--json]"
+
+    local query='query($id: String!) {
+        issue(id: $id) {
+            children {
+                nodes {
+                    id
+                    identifier
+                    title
+                    state { name }
+                    priority
+                    assignee { name }
+                }
+            }
+        }
+    }'
+
+    local variables
+    variables=$(jq -nc --arg id "$identifier" '{id: $id}')
+    local result
+    result=$(graphql_query "$query" "$variables")
+
+    if [[ $(echo "$result" | jq -r '.data.issue') != "null" ]]; then
+        if $json_output; then
+            echo "$result" | jq -c '.data.issue.children.nodes'
+        else
+            local count
+            count=$(echo "$result" | jq '.data.issue.children.nodes | length')
+            echo "Sub-issues of $identifier ($count total):"
+            echo "$result" | jq -r '.data.issue.children.nodes[] | "\(.identifier)\t\(.state.name)\tP\(.priority)\t\(.title)\t\(.assignee.name // "unassigned")"'
+        fi
+    else
+        error "Issue not found: $identifier"
+    fi
+}
+
+# Subcommand: add-attachment
+# Adds a URL attachment to an issue (link, document, etc.).
+cmd_add_attachment() {
+    local identifier=""
+    local url=""
+    local title=""
+
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --identifier)
+                identifier="$2"
+                shift 2
+                ;;
+            --url)
+                url="$2"
+                shift 2
+                ;;
+            --title)
+                title="$2"
+                shift 2
+                ;;
+            *) error "Unknown option: $1" ;;
+        esac
+    done
+
+    [[ -z "$identifier" ]] && error "--identifier required"
+    [[ -z "$url" ]] && error "--url required"
+    [[ -z "$title" ]] && title="$url"
+
+    # Resolve issue ID
+    local issue_data
+    issue_data=$(cmd_issue_view "$identifier")
+    local issue_id
+    issue_id=$(echo "$issue_data" | jq -r '.id')
+    [[ -z "$issue_id" || "$issue_id" == "null" ]] && error "Issue not found: $identifier"
+
+    local query='mutation($url: String!, $title: String!, $issueId: String!) {
+        attachmentCreate(input: {url: $url, title: $title, issueId: $issueId}) {
+            success
+            attachment {
+                id
+                title
+                url
+            }
+        }
+    }'
+
+    local variables
+    variables=$(jq -nc \
+        --arg url "$url" \
+        --arg title "$title" \
+        --arg issueId "$issue_id" \
+        '{url: $url, title: $title, issueId: $issueId}')
+    local result
+    result=$(graphql_query "$query" "$variables")
+
+    if [[ $(echo "$result" | jq -r '.data.attachmentCreate.success') == "true" ]]; then
+        success "Attached \"$title\" to $identifier"
+        echo "$result" | jq -c '.data.attachmentCreate.attachment'
+    else
+        local errors
+        errors=$(echo "$result" | jq -r '.errors // empty')
+        error "Failed to add attachment: ${errors:-unknown error}"
+    fi
+}
+
 # Subcommand: list-cycles
 # Lists active cycles (sprints) for a team, optionally including completed ones
 cmd_list_cycles() {
@@ -1095,6 +1216,8 @@ Subcommands:
   issue-close IDENTIFIER [--comment \"...\"]
   issue-mark-duplicate IDENTIFIER --duplicate-of PARENT_ID
   create-sub-issue --parent IDENTIFIER --title \"...\" [--description \"...\"] [--priority N] [--state STATE]
+  list-sub-issues IDENTIFIER [--json]
+  add-attachment --identifier IDENTIFIER --url URL [--title \"...\"]
   list-cycles --team TEAM_KEY [--include-completed] [--json]
   add-comment --identifier IDENTIFIER --body \"...\" [--reply-to COMMENT_ID] [--json]
   transition-state --identifier IDENTIFIER --state STATE [--comment \"...\"] [--force]
@@ -1116,6 +1239,8 @@ Subcommands:
         issue-close) cmd_issue_close "$@" ;;
         issue-mark-duplicate) cmd_issue_mark_duplicate "$@" ;;
         create-sub-issue) cmd_create_sub_issue "$@" ;;
+        list-sub-issues) cmd_list_sub_issues "$@" ;;
+        add-attachment) cmd_add_attachment "$@" ;;
         list-cycles) cmd_list_cycles "$@" ;;
         add-comment) cmd_add_comment "$@" ;;
         transition-state) cmd_transition_state "$@" ;;
