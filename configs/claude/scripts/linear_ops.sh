@@ -76,6 +76,7 @@ graphql_query() {
 get_team_id() {
     local team_key="$1"
 
+    # shellcheck disable=SC2016
     local query='query($filter: TeamFilter) {
         teams(filter: $filter) {
             nodes {
@@ -98,6 +99,7 @@ get_state_id() {
     local team_id="$1"
     local state_name="$2"
 
+    # shellcheck disable=SC2016
     local query='query($filter: WorkflowStateFilter) {
         workflowStates(filter: $filter) {
             nodes {
@@ -158,6 +160,7 @@ cmd_team_states() {
     team_id=$(get_team_id "$team_key")
     [[ -z "$team_id" ]] && error "Team not found: $team_key"
 
+    # shellcheck disable=SC2016
     local query='query($teamId: String!) {
         workflowStates(filter: {team: {id: {eq: $teamId}}}) {
             nodes {
@@ -228,6 +231,7 @@ cmd_issue_list() {
         filter=$(echo "$filter" | jq --argjson pri "$priority" '. + {priority: {eq: $pri}}')
     fi
 
+    # shellcheck disable=SC2016
     local query='query($filter: IssueFilter, $first: Int) {
         issues(filter: $filter, first: $first, orderBy: updatedAt) {
             nodes {
@@ -284,6 +288,7 @@ cmd_issue_list() {
 cmd_issue_view() {
     local identifier="$1"
 
+    # shellcheck disable=SC2016
     local query='query($identifier: String!) {
         issue(filter: {identifier: {eq: $identifier}}) {
             id
@@ -392,6 +397,7 @@ cmd_issue_update() {
         input=$(echo "$input" | jq --argjson pri "$priority" '. + {priority: $pri}')
     fi
 
+    # shellcheck disable=SC2016
     local query='mutation($id: String!, $input: IssueUpdateInput!) {
         issueUpdate(id: $id, input: $input) {
             success
@@ -440,6 +446,7 @@ cmd_issue_comment() {
     issue_id=$(echo "$issue_data" | jq -r '.id')
     [[ -z "$issue_id" ]] && error "Issue not found: $identifier"
 
+    # shellcheck disable=SC2016
     local query='mutation($issueId: String!, $body: String!) {
         commentCreate(input: {issueId: $issueId, body: $body}) {
             success
@@ -492,6 +499,7 @@ cmd_issue_close() {
     [[ -z "$state_id" ]] && error "Canceled state not found for team"
 
     # Update to canceled state
+    # shellcheck disable=SC2016
     local query='mutation($id: String!, $input: IssueUpdateInput!) {
         issueUpdate(id: $id, input: $input) {
             success
@@ -544,6 +552,7 @@ cmd_issue_mark_duplicate() {
     parent_id=$(echo "$parent_data" | jq -r '.id')
 
     # Create "duplicates" relation
+    # shellcheck disable=SC2016
     local query='mutation($issueId: String!, $relatedIssueId: String!) {
         issueRelationCreate(input: {issueId: $issueId, relatedIssueId: $relatedIssueId, type: "duplicate"}) {
             success
@@ -585,6 +594,7 @@ cmd_label_list() {
         filter=$(echo "$filter" | jq --arg tid "$team_id" '. + {team: {id: {eq: $tid}}}')
     fi
 
+    # shellcheck disable=SC2016
     local query='query($filter: IssueLabelFilter) {
         issueLabels(filter: $filter) {
             nodes {
@@ -662,6 +672,7 @@ cmd_label_create() {
         input=$(echo "$input" | jq --arg tid "$team_id" '. + {teamId: $tid}')
     fi
 
+    # shellcheck disable=SC2016
     local query='mutation($input: IssueLabelCreateInput!) {
         issueLabelCreate(input: $input) {
             success
@@ -765,6 +776,7 @@ cmd_create_sub_issue() {
         input=$(echo "$input" | jq --arg sid "$state_id" '. + {stateId: $sid}')
     fi
 
+    # shellcheck disable=SC2016
     local query='mutation($input: IssueCreateInput!) {
         issueCreate(input: $input) {
             success
@@ -818,6 +830,7 @@ cmd_list_sub_issues() {
 
     [[ -z "$identifier" ]] && error "Usage: list-sub-issues IDENTIFIER [--json]"
 
+    # shellcheck disable=SC2016
     local query='query($id: String!) {
         issue(id: $id) {
             children {
@@ -888,6 +901,7 @@ cmd_add_attachment() {
     issue_id=$(echo "$issue_data" | jq -r '.id')
     [[ -z "$issue_id" || "$issue_id" == "null" ]] && error "Issue not found: $identifier"
 
+    # shellcheck disable=SC2016
     local query='mutation($url: String!, $title: String!, $issueId: String!) {
         attachmentCreate(input: {url: $url, title: $title, issueId: $issueId}) {
             success
@@ -957,6 +971,7 @@ cmd_list_cycles() {
         filter=$(jq -nc --arg tid "$team_id" '{team: {id: {eq: $tid}}, isActive: {eq: true}}')
     fi
 
+    # shellcheck disable=SC2016
     local query='query($filter: CycleFilter) {
         cycles(filter: $filter, orderBy: createdAt) {
             nodes {
@@ -1041,6 +1056,7 @@ cmd_add_comment() {
         input=$(echo "$input" | jq --arg pid "$parent_comment_id" '. + {parentId: $pid}')
     fi
 
+    # shellcheck disable=SC2016
     local query='mutation($input: CommentCreateInput!) {
         commentCreate(input: $input) {
             success
@@ -1134,6 +1150,7 @@ cmd_transition_state() {
     [[ -z "$target_state_id" ]] && error "State not found: $target_state (team: $(echo "$issue_data" | jq -r '.team.key'))"
 
     # Get target state type for transition validation
+    # shellcheck disable=SC2016
     local target_state_query='query($filter: WorkflowStateFilter) {
         workflowStates(filter: $filter) {
             nodes {
@@ -1167,6 +1184,7 @@ cmd_transition_state() {
     fi
 
     # Perform the state transition
+    # shellcheck disable=SC2016
     local mutation='mutation($id: String!, $input: IssueUpdateInput!) {
         issueUpdate(id: $id, input: $input) {
             success
