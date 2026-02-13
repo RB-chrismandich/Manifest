@@ -80,6 +80,7 @@ fast_sleep() {
     if [[ "$_FAST_SLEEP_FD" != "-1" ]]; then
         # Use read -t on the pipe. Pipe has no data, so it times out.
         # This avoids spawning a 'sleep' process.
+        # shellcheck disable=SC2162
         read -t "$duration" -u "$_FAST_SLEEP_FD" 2>/dev/null || true
     else
         # Fallback for Bash 3.2 (macOS) or if coproc failed
