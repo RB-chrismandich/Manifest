@@ -53,6 +53,40 @@ command_exists() {
     command -v "$1" &> /dev/null
 }
 
+# Optimized sleep using read -t and coproc (Bash 4+) to avoid fork overhead
+_init_fast_sleep() {
+    # Check for Bash 4+ and coproc support
+    if [[ "${BASH_VERSINFO[0]}" -ge 4 ]]; then
+        # Use eval to prevent syntax errors on older Bash versions
+        # Use read -t instead of sleep so it auto-terminates when the pipe closes (parent exit)
+        eval "coproc _SLEEP_PROC { read -t 31536000; }" 2>/dev/null
+        # Get the file descriptor from the coproc array
+        eval "_FAST_SLEEP_FD=\${_SLEEP_PROC[0]}"
+    fi
+}
+
+fast_sleep() {
+    local duration="$1"
+
+    # Lazy init
+    if [[ -z "$_FAST_SLEEP_FD" ]]; then
+        _init_fast_sleep
+        # Mark as initialized to -1 if failed or not supported, to avoid retry
+        if [[ -z "$_FAST_SLEEP_FD" ]]; then
+            _FAST_SLEEP_FD="-1"
+        fi
+    fi
+
+    if [[ "$_FAST_SLEEP_FD" != "-1" ]]; then
+        # Use read -t on the pipe. Pipe has no data, so it times out.
+        # This avoids spawning a 'sleep' process.
+        read -t "$duration" -u "$_FAST_SLEEP_FD" 2>/dev/null || true
+    else
+        # Fallback for Bash 3.2 (macOS) or if coproc failed
+        sleep "$duration"
+    fi
+}
+
 # Show a spinner while a command runs
 # Usage: run_with_spinner "command args" "Loading message"
 run_with_spinner() {
@@ -68,7 +102,7 @@ run_with_spinner() {
     while kill -0 "$pid" 2> /dev/null; do
         i=$(((i + 1) % 4))
         printf "\r${CYAN}${spin:$i:1}${NC} %s..." "$msg"
-        sleep 0.2
+        fast_sleep 0.2
     done
 
     wait "$pid"
