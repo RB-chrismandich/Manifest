@@ -1209,6 +1209,7 @@ class CursorAgent(BaseAgent):
             "cursor",
             "--model",
             self.model_name,
+            "--",
             prompt,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
