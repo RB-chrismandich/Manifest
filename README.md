@@ -6,13 +6,14 @@
 
 **Last Updated**: 2026-02-11 (Python parallel agent feature parity — Codex agent, ServiceConfig, CLI flags)
 
-Manifest is a configuration repository that deploys a sophisticated parallel agent
-orchestration system to `~/.claude/`, `~/.cursor/`, `~/.gemini/`, and `~/.codex/`, enabling Claude Code,
-Cursor IDE, Gemini CLI, and Codex CLI to share guides, skills, prompts, and scripts while leveraging
-multiple AI agents for cross-verification, consensus scoring, and enhanced code analysis.
+Manifest is a configuration repository that deploys a sophisticated parallel
+agent orchestration system to `~/.claude/`, `~/.cursor/`, `~/.gemini/`, and
+`~/.codex/`, enabling Claude Code, Cursor IDE, Gemini CLI, and Codex CLI to
+share guides, skills, prompts, and scripts while leveraging multiple AI agents
+for cross-verification, consensus scoring, and enhanced code analysis.
 
-**Core Capabilities**: Multi-agent orchestration | Consensus scoring | Model fallback
-| Two-tier validation | Production-grade templates
+**Core Capabilities**: Multi-agent orchestration | Consensus scoring | Model
+fallback | Two-tier validation | Production-grade templates
 
 ---
 
@@ -45,18 +46,28 @@ python3 ~/.claude/scripts/parallel_agent.py --json "Test connection"
 
 - **Parallel Agent Orchestration**: Run 2-4 AI agents simultaneously
   (Cursor, Gemini, Claude, Codex) with real-time streaming display
-- **Phase 3 Python Implementation** (NEW): Production-grade async agent with logging, validation, synthesis, and streaming
-- **Comprehensive Logging**: Structured JSON logs with correlation IDs, rotation (10MB, 5 backups), performance metrics
+- **Phase 3 Python Implementation** (NEW): Production-grade async agent with
+  logging, validation, synthesis, and streaming
+- **Comprehensive Logging**: Structured JSON logs with correlation IDs, rotation
+  (10MB, 5 backups), performance metrics
 - **Full Validation Engine**: Tier 1 (critical: security, errors, breaking changes)
   \+ Tier 2 (quality: bugs, performance, tests)
-- **Automatic Synthesis**: Disagreement resolution when consensus < 50% using Claude Sonnet
-- **Streaming Responses**: Real-time Rich Live display with progressive updates (4 updates/sec)
-- **Consensus Scoring**: Variance-based algorithm calculates agreement (≥80% = high confidence, <50% = escalate + synthesis)
-- **Intelligent Model Selection**: Task-based routing (security→opus/gpt-5.2, review→sonnet/gpt-5.1-codex, quick→haiku/mini)
-- **Credit Exhaustion Fallback**: Automatic detection and retry with cheaper models (opus→sonnet→haiku)
-- **Cross-Platform**: Native support for macOS (Intel/Apple Silicon) and 5 major Linux distributions
-- **Unified Label Management**: Canonical label registry with sync across GitHub, GitLab, and Linear
-- **Production Templates**: Pre-configured permission templates for Django, Express, Go microservices, Python monorepos
+- **Automatic Synthesis**: Disagreement resolution when consensus < 50% using
+  Claude Sonnet
+- **Streaming Responses**: Real-time Rich Live display with progressive updates
+  (4 updates/sec)
+- **Consensus Scoring**: Variance-based algorithm calculates agreement
+  (≥80% = high confidence, <50% = escalate + synthesis)
+- **Intelligent Model Selection**: Task-based routing (security→opus/gpt-5.2,
+  review→sonnet/gpt-5.1-codex, quick→haiku/mini)
+- **Credit Exhaustion Fallback**: Automatic detection and retry with cheaper
+  models (opus→sonnet→haiku)
+- **Cross-Platform**: Native support for macOS (Intel/Apple Silicon) and 5
+  major Linux distributions
+- **Unified Label Management**: Canonical label registry with sync across
+  GitHub, GitLab, and Linear
+- **Production Templates**: Pre-configured permission templates for Django,
+  Express, Go microservices, Python monorepos
 
 ---
 
@@ -87,15 +98,15 @@ Mermaid flowcharts showing bootstrap, execution, validation, and consensus flows
 
 | Command | Description | Parallel Agents | Validation |
 |---------|-------------|-----------------|------------|
-| `/project-commit` | Full commit pipeline: regenerate docs, pull latest, run pre-commits, commit, push | CONDITIONAL (Phase 3) | Tier 1 + Tier 2 |
-| `/refactor-python` | Python security, architecture, code quality analysis | ALWAYS | Tier 1 + Tier 2 (≥0.80) |
-| `/refactor-shell` | Bash/Shell script security and quality with shellcheck | ALWAYS | Tier 1 + Tier 2 (≥0.70) |
-| `/docs-diagrams` | Generate Mermaid architecture flowcharts and sequence diagrams | CONDITIONAL (≥5 imports) | Tier 2 |
-| `/docs-improve` | Analyze docs against Diataxis framework (tutorials, how-tos, reference, explanation) | CONDITIONAL (≥500 lines) | Tier 2 |
-| `/docs-readme` | Improve README structure and content following best practices | NEVER | Tier 2 |
-| `/issue-prioritize` | Fetch and rank open issues by impact, urgency, readiness, risk (GitHub/GitLab/Linear) | CONDITIONAL (top candidates) | Tier 2 |
-| `/issue-triage` | Linear issue audit: duplicates, staleness, priority validation | CONDITIONAL (scenario-based) | Tier 2 |
-| `/plan-manage` | Plan lifecycle: create, review, execute, archive, abandon | CONDITIONAL | Tier 2 |
+| `/project-commit` | Commit pipeline: docs, pull, pre-commit, push | CONDITIONAL | Tier 1/2 |
+| `/refactor-python` | Python security, architecture, quality analysis | ALWAYS | Tier 1/2 (≥0.8) |
+| `/refactor-shell` | Bash/Shell script security/quality (shellcheck) | ALWAYS | Tier 1/2 (≥0.7) |
+| `/docs-diagrams` | Generate Mermaid architecture/sequence diagrams | CONDITIONAL | Tier 2 |
+| `/docs-improve` | Analyze docs against Diataxis framework | CONDITIONAL | Tier 2 |
+| `/docs-readme` | Improve README structure and content | NEVER | Tier 2 |
+| `/issue-prioritize` | Fetch and rank open issues by impact/urgency | CONDITIONAL | Tier 2 |
+| `/issue-triage` | Linear issue audit: duplicates, staleness, priority | CONDITIONAL | Tier 2 |
+| `/plan-manage` | Plan lifecycle: create, review, execute, archive | CONDITIONAL | Tier 2 |
 
 ---
 
@@ -119,12 +130,12 @@ Mermaid flowcharts showing bootstrap, execution, validation, and consensus flows
 
 | Document | Purpose | Audience | Reading Time |
 |----------|---------|----------|--------------|
-| [Getting Started](docs/GETTING_STARTED.md) | First-time setup walkthrough with verification steps | New users | 10 min |
-| [Configuration](docs/CONFIGURATION.md) | All configuration options, YAML reference, environment variables | Operators | 15 min |
-| [Architecture Diagrams](docs/ARCHITECTURE_DIAGRAMS.md) | Visual system documentation with 13 Mermaid diagrams | Developers | 20 min |
-| [Troubleshooting](docs/TROUBLESHOOTING.md) | Common problems, error messages, solutions | All users | 10 min |
-| [AGENTS.md](AGENTS.md) | AI agent instructions (Cursor, Claude, Gemini, Codex) | AI assistants | 8 min |
-| [CLAUDE.md](CLAUDE.md) | Claude Code-specific project context | AI assistants | 8 min |
+| [Getting Started](docs/GETTING_STARTED.md) | Setup walkthrough and verify | New users | 10m |
+| [Configuration](docs/CONFIGURATION.md) | Options, YAML, env vars | Operators | 15m |
+| [Architecture](docs/ARCHITECTURE_DIAGRAMS.md) | Visual system diagrams | Developers | 20m |
+| [Troubleshooting](docs/TROUBLESHOOTING.md) | Problems, errors, solutions | All users | 10m |
+| [AGENTS.md](AGENTS.md) | AI agent instructions | AI assistants | 8m |
+| [CLAUDE.md](CLAUDE.md) | Claude Code project context | AI assistants | 8m |
 
 **Full documentation index**: [docs/README.md](docs/README.md) • **Quick ref**: [Commands](docs/COMMANDS.md)
 

@@ -12,7 +12,7 @@
 ## Executive Summary
 
 | Category | Score | Issues | Critical |
-|----------|-------|--------|----------|
+| :--- | :--- | :--- | :--- |
 | Security | 25/30 | 0 | No |
 | Error Handling | 18/20 | 8 | No |
 | Code Quality | 16/20 | 10 | No |
@@ -31,7 +31,7 @@
 ## Scripts Analyzed
 
 | Script | Lines | Issues | Severity Distribution |
-|--------|-------|--------|----------------------|
+| :--- | :--- | :--- | :--- |
 | bootstrap.sh | 1,200+ | 15 | 0 critical, 0 high, 8 warning, 7 info/style |
 | parallel_agent.sh | 1,038 | 8 | 0 critical, 0 high, 6 warning, 2 style |
 | **Total** | **2,238+** | **23** | **14 warnings, 9 info/style** |
@@ -43,6 +43,7 @@
 ### bootstrap.sh Issues
 
 #### SC2155: Declare and assign separately (8 occurrences)
+
 **Severity:** Warning | **Risk:** Low | **Effort:** Minimal
 
 **Locations:**
@@ -80,6 +81,7 @@ if [[ "$var" == "expected" ]]; then
 **Fix:** Either use the variable or remove it. Verify if it's intended for future use.
 
 #### SC2129: Consider consolidating redirects (1 occurrence)
+
 **Severity:** Style | **Risk:** Low | **Effort:** Minimal
 
 **Location:** Line 776: Multiple `echo "" >> "$shell_profile"`
@@ -169,14 +171,17 @@ echo "${file#"$HOME"/}"
 ### command_config.yml Issues
 
 **Errors (3):**
+
 - Line 8: Line too long (86 characters, limit 80)
 - Line 9: Line too long (84 characters, limit 80)
 
 **Warnings (2):**
+
 - Line 6: Missing document start marker `---`
 - Lines 15, 58: Comments need 2 spaces before them (has 1)
 
 **Sample violations:**
+
 ```yaml
 # Line 8 (86 chars - too long)
   improve_docs_lines: 500         # Trigger parallel agents when total doc lines > 500
@@ -188,15 +193,18 @@ echo "${file#"$HOME"/}"
 ### services.yml Issues
 
 **Errors (1):**
+
 - Line 47: Line too long (89 characters, limit 80)
 
 **Warnings (2):**
+
 - Line 8: Missing document start marker `---`
 - Line 39: Comment needs 2 spaces before it
 
 ### validation_criteria.yml Issues
 
 **Warnings (2):**
+
 - Line 4: Missing document start marker `---`
 - Line 174: Comment needs 2 spaces before it
 
@@ -207,26 +215,26 @@ echo "${file#"$HOME"/}"
 ### Quick Wins (Low Risk + Minimal Effort)
 
 | ID | Issue | Location | Effort | Risk |
-|----|-------|----------|--------|------|
+| :--- | :--- | :--- | :--- | :--- |
 | QA-001 | Add `.yamllint` config | Root | Minimal | Low |
 | QA-002 | Add `.editorconfig` | Root | Minimal | Low |
 | QA-003 | Consolidate redirects (SC2129) | Multiple | Minimal | Low |
-| QA-004 | Quote pattern expansions (SC2295) | bootstrap.sh:870,893,895 | Minimal | Low |
+| QA-004 | Quote pattern expansions (SC2295) | bootstrap.sh:870... | Minimal | Low |
 | QA-005 | Remove unused DISTRO var (SC2034) | bootstrap.sh:57 | Minimal | Low |
 
 ### Planned (Medium Risk/Effort)
 
 | ID | Issue | Location | Effort | Risk |
-|----|-------|----------|--------|------|
-| EH-001 | Separate declare/assign (SC2155) | bootstrap.sh (8 places) | Medium | Medium |
-| EH-002 | Separate declare/assign (SC2155) | parallel_agent.sh (6 places) | Medium | Medium |
-| YML-001 | Fix line length violations | YAML files (3 places) | Minimal | Low |
-| YML-002 | Add document start markers | YAML files (3 places) | Minimal | Low |
+| :--- | :--- | :--- | :--- | :--- |
+| EH-001 | Separate declare/assign (SC2155) | bootstrap.sh (8) | Medium | Medium |
+| EH-002 | Separate declare/assign (SC2155) | parallel_agent.sh (6) | Medium | Medium |
+| YML-001 | Fix line length violations | YAML files (3) | Minimal | Low |
+| YML-002 | Add document start markers | YAML files (3) | Minimal | Low |
 
 ### Strategic (Long-term Improvements)
 
 | ID | Issue | Location | Effort | Risk |
-|----|-------|----------|--------|------|
+| :--- | :--- | :--- | :--- | :--- |
 | TEST-001 | Add BATS unit tests | tests/ | High | Low |
 | CI-001 | Add GitHub Actions CI | .github/workflows/ | Medium | Low |
 | DOC-001 | Add function documentation | All scripts | Medium | Low |
@@ -339,6 +347,7 @@ echo "${file#"$HOME"/}"
 ## Configuration Files Created
 
 ### .pre-commit-config.yaml
+
 - ShellCheck validation (warnings and above)
 - YAML linting with custom rules
 - Markdown linting with auto-fix
@@ -346,12 +355,14 @@ echo "${file#"$HOME"/}"
 - Secret detection
 
 ### .yamllint
+
 - Line length: 120 characters (more practical than 80)
 - Document start: disabled (not needed for config files)
 - Comment spacing: 1 space minimum (more readable)
 - Truthy values: allow true/false/yes/no
 
 ### .editorconfig
+
 - Consistent indentation across file types
 - Shell: 4 spaces
 - YAML: 2 spaces
@@ -363,29 +374,38 @@ echo "${file#"$HOME"/}"
 ## False Positives and Non-Issues
 
 ### SC1091: Not following /etc/os-release
-**Not a problem** - This is a system file that ShellCheck can't analyze. It's safe to source.
+
+**Not a problem** - This is a system file that ShellCheck can't analyze. It's
+safe to source.
 
 ### Unquoted variables in specific contexts
-The scripts properly quote variables in contexts where word splitting matters. Cases like `$?` and `$#` don't need quoting.
+
+The scripts properly quote variables in contexts where word splitting matters.
+Cases like `$?` and `$#` don't need quoting.
 
 ### set -e usage
-Scripts use `set -e` appropriately. The SC2155 issues are about masking return values within that context, not about error handling being absent.
+
+Scripts use `set -e` appropriately. The SC2155 issues are about masking return
+values within that context, not about error handling being absent.
 
 ---
 
 ## Compliance Status
 
 ### ShellCheck Compliance
+
 - **Current:** 23 issues (14 warnings, 9 info/style)
 - **Target:** 0 warnings, <5 info/style
 - **Status:** 🟡 Partially Compliant (84/100)
 
 ### YAML Compliance
+
 - **Current:** 3 errors, 6 warnings
 - **Target:** 0 errors, 0 warnings
 - **Status:** 🟡 Partially Compliant
 
 ### Pre-commit Hooks
+
 - **Status:** ✅ Configured (not yet installed)
 - **Next Step:** Run `pre-commit install` to activate
 
