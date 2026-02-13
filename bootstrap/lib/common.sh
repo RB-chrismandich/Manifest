@@ -2,6 +2,33 @@
 
 # Shared helpers for bootstrap.sh. This file is sourced, not executed.
 
+# Set colors if not already defined (allows standalone usage)
+# shellcheck disable=SC2034
+RED="${RED:-\033[0;31m}"
+# shellcheck disable=SC2034
+GREEN="${GREEN:-\033[0;32m}"
+# shellcheck disable=SC2034
+BLUE="${BLUE:-\033[0;34m}"
+# shellcheck disable=SC2034
+YELLOW="${YELLOW:-\033[1;33m}"
+# shellcheck disable=SC2034
+CYAN="${CYAN:-\033[0;36m}"
+# shellcheck disable=SC2034
+BOLD="${BOLD:-\033[1m}"
+# shellcheck disable=SC2034
+NC="${NC:-\033[0m}" # No Color
+
+# Check for NO_COLOR or non-interactive shell to disable colors
+if [[ -n "${NO_COLOR:-}" ]] || [[ ! -t 1 ]]; then
+    RED=""
+    GREEN=""
+    BLUE=""
+    YELLOW=""
+    CYAN=""
+    BOLD=""
+    NC=""
+fi
+
 print_header() {
     echo ""
     echo -e "${BOLD}${BLUE}══════════════════════════════════════════════════════════════${NC}"
@@ -62,19 +89,53 @@ run_with_spinner() {
     local spin='-\|/'
     local i=0
 
-    eval "$cmd" &
-    pid=$!
+    # If NO_COLOR is set or not a TTY, just run command without spinner
+    if [[ -n "${NO_COLOR:-}" ]] || [[ ! -t 1 ]]; then
+        echo -e "${CYAN}→${NC} ${msg}..."
+        eval "$cmd"
+        local exit_code=$?
+        if [[ $exit_code -eq 0 ]]; then
+            echo -e "${GREEN}✓ Done${NC}"
+        else
+            echo -e "${RED}✗ Failed${NC}"
+        fi
+        return $exit_code
+    fi
 
-    while kill -0 "$pid" 2> /dev/null; do
-        i=$(((i + 1) % 4))
-        printf "\r${CYAN}${spin:$i:1}${NC} %s..." "$msg"
-        sleep 0.2
-    done
+    # Use a subshell for trap to avoid overwriting global traps
+    (
+        # Trap to restore cursor if script is interrupted
+        trap 'tput cnorm 2>/dev/null' EXIT INT TERM
 
-    wait "$pid"
-    local exit_code=$?
-    printf "\r\033[K"
-    return $exit_code
+        # Hide cursor
+        tput civis 2>/dev/null
+
+        eval "$cmd" &
+        pid=$!
+
+        while kill -0 "$pid" 2> /dev/null; do
+            i=$(((i + 1) % 4))
+            printf "\r${CYAN}${spin:$i:1}${NC} %s..." "$msg"
+            sleep 0.1
+        done
+
+        wait "$pid"
+        exit_code=$?
+
+        # Clear line
+        printf "\r\033[K"
+
+        if [[ $exit_code -eq 0 ]]; then
+            printf "${GREEN}✓${NC} %s\n" "$msg"
+        else
+            printf "${RED}✗${NC} %s (failed)\n" "$msg"
+        fi
+
+        # Restore cursor
+        tput cnorm 2>/dev/null
+        exit $exit_code
+    )
+    return $?
 }
 
 # Create/recreate a symlink at link_path pointing to target
