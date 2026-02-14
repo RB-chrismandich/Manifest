@@ -22,7 +22,8 @@
       "Bash(gh pr:*)",
       "Bash(gh api:*)",
       "WebSearch",
-      "Bash(wc:*)"
+      "Bash(wc:*)",
+      "Bash(codex mcp list:*)"
     ]
   }
 }
