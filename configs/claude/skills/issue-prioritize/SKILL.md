@@ -13,7 +13,7 @@ report. Works with GitHub, GitLab, and Linear. **Read-only** — never modifies 
 ## Purpose
 
 1. Fetch open issues from the detected (or specified) platform
-2. Filter out already-triaged issues (configurable exclude label)
+2. Filter to issues with the `future` label by default (use `--all` for all open issues)
 3. Score each issue on Impact, Urgency, Readiness, and Risk (1–5 each)
 4. Rank by weighted formula with tiebreakers
 5. Optionally validate top candidates against the codebase
@@ -24,7 +24,7 @@ report. Works with GitHub, GitLab, and Linear. **Read-only** — never modifies 
 ```bash
 /issue-prioritize [--repo OWNER/REPO] [--platform github|gitlab|linear]
                   [--team TEAM] [--limit N] [--top N]
-                  [--exclude-label LABEL] [--project-context FILE]
+                  [--label LABEL] [--all] [--project-context FILE]
 ```
 
 | Argument | Description | Default |
@@ -34,7 +34,8 @@ report. Works with GitHub, GitLab, and Linear. **Read-only** — never modifies 
 | `--team TEAM` | Linear team key filter | all teams |
 | `--limit N` | Max issues to fetch | 100 |
 | `--top N` | How many top issues to report | 5 |
-| `--exclude-label LABEL` | Skip issues with this label | `processed` |
+| `--label LABEL` | Only include issues with this label | `future` |
+| `--all` | Include all open issues (ignore label filter) | false |
 | `--project-context FILE` | Markdown/YAML file with project-specific context | none |
 
 ## Prerequisites
@@ -103,9 +104,12 @@ Fetch issues using the appropriate platform CLI. Normalize output to a common JS
 REPO_FLAG=""
 [[ -n "$REPO_ARG" ]] && REPO_FLAG="-R $REPO_ARG"
 
+LABEL_FLAG=""
+[[ "$FILTER_ALL" != true && -n "$FILTER_LABEL" ]] && LABEL_FLAG="--label $FILTER_LABEL"
+
 gh issue list --state open --limit "$LIMIT" \
     --json number,title,labels,createdAt,updatedAt,body,comments,assignees \
-    $REPO_FLAG > "$TEMP_DIR/raw_issues.json"
+    $REPO_FLAG $LABEL_FLAG > "$TEMP_DIR/raw_issues.json"
 ```
 
 #### GitLab
@@ -114,9 +118,12 @@ gh issue list --state open --limit "$LIMIT" \
 REPO_FLAG=""
 [[ -n "$REPO_ARG" ]] && REPO_FLAG="--repo $REPO_ARG"
 
+LABEL_FLAG=""
+[[ "$FILTER_ALL" != true && -n "$FILTER_LABEL" ]] && LABEL_FLAG="--label $FILTER_LABEL"
+
 glab issue list --state opened --per-page "$LIMIT" \
     --output-format json \
-    $REPO_FLAG > "$TEMP_DIR/raw_issues.json"
+    $REPO_FLAG $LABEL_FLAG > "$TEMP_DIR/raw_issues.json"
 ```
 
 #### Linear
@@ -125,14 +132,20 @@ glab issue list --state opened --per-page "$LIMIT" \
 TEAM_FLAG=""
 [[ -n "$TEAM_ARG" ]] && TEAM_FLAG="--team $TEAM_ARG"
 
+LABEL_FLAG=""
+[[ "$FILTER_ALL" != true && -n "$FILTER_LABEL" ]] && LABEL_FLAG="--label $FILTER_LABEL"
+
 ~/.claude/scripts/linear_ops.sh issue-list \
     --limit "$LIMIT" \
-    --json $TEAM_FLAG > "$TEMP_DIR/raw_issues.json"
+    --json $TEAM_FLAG $LABEL_FLAG > "$TEMP_DIR/raw_issues.json"
 ```
 
-### Step 3: Normalize and Filter
+### Step 3: Normalize
 
-Normalize all platform outputs to a common schema and filter out excluded labels.
+Normalize all platform outputs to a common schema.
+
+Label filtering is handled at fetch time (Step 2) via `--label`. If `--all` is set,
+all open issues are fetched without a label filter.
 
 ```python
 #!/usr/bin/env python3
@@ -142,9 +155,8 @@ import sys
 from datetime import datetime, timezone
 
 platform = sys.argv[1]
-exclude_label = sys.argv[2] if len(sys.argv) > 2 else "processed"
 
-with open(sys.argv[3]) as f:
+with open(sys.argv[2]) as f:
     raw = json.load(f)
 
 issues = []
@@ -191,10 +203,6 @@ for item in raw:
             "platform": "linear",
         }
     else:
-        continue
-
-    # Filter out excluded label
-    if exclude_label.lower() in [l.lower() for l in issue["labels"]]:
         continue
 
     issues.append(issue)
@@ -531,11 +539,19 @@ Produce the final prioritization report in markdown format.
 TOTAL_COUNT=$(jq 'length' "$TEMP_DIR/issues.json")
 REPORT_DATE=$(date -u +"%Y-%m-%d %H:%M UTC")
 
-cat << 'REPORT_HEADER'
+LABEL_NOTE=""
+if [[ "$FILTER_ALL" == true ]]; then
+    LABEL_NOTE="all open issues"
+else
+    LABEL_NOTE="label: \`$FILTER_LABEL\`"
+fi
+
+cat << REPORT_HEADER
 # Issue Prioritization Report
 
 **Generated**: $REPORT_DATE
 **Platform**: $PLATFORM
+**Filter**: $LABEL_NOTE
 **Open Issues Analyzed**: $TOTAL_COUNT
 REPORT_HEADER
 
@@ -703,8 +719,14 @@ When scores are equal, prefer:
 ## Example Usage
 
 ```bash
-# Prioritize issues for current GitHub repo
+# Prioritize issues labeled 'future' (default)
 /issue-prioritize
+
+# Prioritize ALL open issues (ignore label filter)
+/issue-prioritize --all
+
+# Filter by a different label instead of 'future'
+/issue-prioritize --label "enhancement"
 
 # Prioritize a specific GitHub repo
 /issue-prioritize --repo ReefBytes/cookedbooks --limit 200
@@ -714,9 +736,6 @@ When scores are equal, prefer:
 
 # Prioritize Linear issues for a specific team
 /issue-prioritize --platform linear --team ENG --top 10
-
-# Exclude a custom label
-/issue-prioritize --exclude-label "wontfix"
 
 # GitLab repo prioritization
 /issue-prioritize --platform gitlab --repo mygroup/myproject
