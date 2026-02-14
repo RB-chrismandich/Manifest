@@ -7,3 +7,8 @@
 **Vulnerability:** The script `.claude/scripts/parallel_agent.sh` used `eval` to process configuration values parsed from `services.yml`. If the configuration file (located in the user's home directory) was modified by an attacker, it could lead to arbitrary command execution within the context of the script.
 **Learning:** Using `eval` on data derived from external files, even if partially sanitized by `awk`, is risky and hard to audit. It creates a direct path for code injection if the sanitization logic is flawed or bypassed.
 **Prevention:** Replace `eval` with a `while read` loop that iterates over the parsed output. Use strict matching (e.g., `case "$key" in ...`) to whitelist allowed variables and assign values safely, preventing execution of arbitrary commands.
+
+## 2026-02-12 - TOCTOU Race Condition in Secret File Creation
+**Vulnerability:** The `bootstrap/lib/auth.sh` script created sensitive configuration files using `touch`, `chmod`, then `echo` redirection. This creates a Time-of-Check-to-Time-of-Use (TOCTOU) window where the file exists with default permissions (potentially world-readable) before `chmod 600` is applied.
+**Learning:** Even short windows of insecure permissions can be exploited in multi-user environments or by automated scanners.
+**Prevention:** Use atomic file creation with restricted permissions: `(umask 077; echo "content" > file)`. This ensures the file is created with 0600 permissions from the start, eliminating the race condition.
