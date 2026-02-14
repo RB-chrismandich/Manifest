@@ -1490,6 +1490,7 @@ monitor_agents() {
     local time_str
     time_str=$(printf "%02d:%02d" $minutes $seconds)
 
+    # shellcheck disable=SC2059
     printf "\r${BOLD}Agents completed (%s):${NC}%b\033[K\n" "$time_str" "$status_line"
 
     # Restore cursor
@@ -1579,6 +1580,7 @@ print_results_table() {
     if [[ "$VALIDATE" == true ]]; then
         printf " | %-10s" "Validation"
     fi
+    # shellcheck disable=SC2059
     printf "${NC}\n"
 
     printf "%s\n" "-----------|------------|----------------------$(if [[ "$VALIDATE" == true ]]; then echo "-|------------"; fi)"
