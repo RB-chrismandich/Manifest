@@ -61,19 +61,51 @@ run_with_spinner() {
     local pid
     local spin='-\|/'
     local i=0
+    local temp_log
 
-    eval "$cmd" &
+    # Create temporary log file securely
+    temp_log=$(mktemp)
+
+    # Check for NO_COLOR or non-interactive shell or dumb terminal
+    if [[ -n "${NO_COLOR:-}" ]] || [[ "${TERM:-dumb}" == "dumb" ]] || [[ ! -t 1 ]]; then
+        echo -n "$msg..."
+        eval "$cmd" > "$temp_log" 2>&1
+        local exit_code=$?
+        if [[ $exit_code -eq 0 ]]; then
+            echo " Done"
+        else
+            echo " Failed"
+            cat "$temp_log"
+        fi
+        rm -f "$temp_log"
+        return $exit_code
+    fi
+
+    # Interactive mode with spinner
+    eval "$cmd" > "$temp_log" 2>&1 &
     pid=$!
+
+    # Hide cursor
+    tput civis 2>/dev/null || true
 
     while kill -0 "$pid" 2> /dev/null; do
         i=$(((i + 1) % 4))
         printf "\r${CYAN}${spin:$i:1}${NC} %s..." "$msg"
-        sleep 0.2
+        sleep 0.1
     done
 
     wait "$pid"
     local exit_code=$?
+
+    # Restore cursor and clear line
+    tput cnorm 2>/dev/null || true
     printf "\r\033[K"
+
+    if [[ $exit_code -ne 0 ]]; then
+        cat "$temp_log"
+    fi
+
+    rm -f "$temp_log"
     return $exit_code
 }
 

@@ -29,18 +29,34 @@
 set -e
 
 # Colors for output (used in sourced libs via echo -e)
-# shellcheck disable=SC2034
-RED='\033[0;31m'
-# shellcheck disable=SC2034
-GREEN='\033[0;32m'
-# shellcheck disable=SC2034
-BLUE='\033[0;34m'
-# shellcheck disable=SC2034
-YELLOW='\033[1;33m'
-# shellcheck disable=SC2034
-CYAN='\033[0;36m'
-BOLD='\033[1m'
-NC='\033[0m' # No Color
+# Respect NO_COLOR, non-interactive shells, and dumb terminals
+if [[ -z "${NO_COLOR:-}" ]] && [[ "${TERM:-dumb}" != "dumb" ]] && [[ -t 1 ]]; then
+    # shellcheck disable=SC2034
+    RED='\033[0;31m'
+    # shellcheck disable=SC2034
+    GREEN='\033[0;32m'
+    # shellcheck disable=SC2034
+    BLUE='\033[0;34m'
+    # shellcheck disable=SC2034
+    YELLOW='\033[1;33m'
+    # shellcheck disable=SC2034
+    CYAN='\033[0;36m'
+    BOLD='\033[1m'
+    NC='\033[0m' # No Color
+else
+    # shellcheck disable=SC2034
+    RED=''
+    # shellcheck disable=SC2034
+    GREEN=''
+    # shellcheck disable=SC2034
+    BLUE=''
+    # shellcheck disable=SC2034
+    YELLOW=''
+    # shellcheck disable=SC2034
+    CYAN=''
+    BOLD=''
+    NC=''
+fi
 
 # Script directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
