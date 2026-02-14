@@ -31,6 +31,23 @@ Your goals:
 
 ## Instructions
 
+### Step 0: Consult Knowledge Base
+
+Before starting analysis, check for known patterns relevant to this codebase:
+
+```bash
+~/.claude/scripts/learning_capture.sh query --language terraform --format llm
+```
+
+If the knowledge base contains relevant antipatterns or insights for Terraform/OpenTofu:
+
+- Include them as additional check items in your analysis
+- Flag any occurrences of known antipatterns with their KB ID (e.g., ANTI-001)
+- Note if a known antipattern has been resolved
+
+This step is **non-blocking** — if the knowledge base is empty or the query fails,
+proceed with the standard analysis.
+
 ### Step 1: Read Project Standards
 
 - Read README.md, CLAUDE.md for project context

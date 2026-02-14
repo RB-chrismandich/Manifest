@@ -217,6 +217,31 @@ repos:
 
 ---
 
+## Phase 4.5: Browser Test Scaffolding (Node.js Web Projects)
+
+For Node.js projects that include a web framework (detected via `next`, `vite`, `remix`,
+`nuxt`, `astro`, `gatsby`, or `sveltekit` in `package.json` dependencies):
+
+1. **Create `tests/browser/` directory** with a starter smoke test:
+
+   ```bash
+   mkdir -p tests/browser
+   cp ~/.claude/skills/browser-test/templates/smoke-test.yaml tests/browser/smoke-test.yaml
+   ```
+
+2. **Add a note to the summary** suggesting optional browser-use installation:
+
+   ```text
+   Browser testing (optional):
+     pip install browser-use
+     ~/.claude/scripts/browser_test.sh run-all tests/browser/
+   ```
+
+This phase is **non-blocking** — only suggests, does not require installation.
+Skip silently if no web framework is detected.
+
+---
+
 ## Phase 5: Manifest Agent Integration
 
 Add Manifest agent configuration to the project so that `.claude/`, `.cursor/`,

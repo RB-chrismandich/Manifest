@@ -2,7 +2,7 @@
 
 > Visual documentation of the Manifest parallel LLM agent orchestration framework
 
-**Last Updated**: 2026-02-11
+**Last Updated**: 2026-02-13
 **Project**: Manifest - AI Agent Orchestration Framework
 
 ---
@@ -595,7 +595,8 @@ flowchart LR
 **Command Types**:
 
 - **ALWAYS Parallel**: `/refactor-python`, `/refactor-shell` (security-sensitive)
-- **CONDITIONAL**: `/docs-diagrams` (5+ modules), `/plan-manage` (complex planning)
+- **CONDITIONAL**: `/docs-diagrams` (5+ modules), `/plan-manage` (complex planning),
+  `/browser-test` (critical flows, 3+ tests)
 - **NEVER Parallel**: `/docs-readme` (straightforward documentation)
 
 ---

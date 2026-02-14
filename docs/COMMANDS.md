@@ -24,7 +24,7 @@
 
 ## Built-in Commands
 
-Manifest ships with 12 commands and 13 skills (1 auto-triggered).
+Manifest ships with 13 commands and 14 skills (1 auto-triggered).
 
 | Command | Description | Parallel Agents |
 |---------|-------------|-----------------|
@@ -37,6 +37,7 @@ Manifest ships with 12 commands and 13 skills (1 auto-triggered).
 | `/issue-triage` | Linear issue audit: duplicates, staleness, priority validation | CONDITIONAL |
 | `/issue-prioritize` | Score and rank open issues by impact/urgency/readiness/risk | CONDITIONAL |
 | `/plan-manage` | Plan lifecycle with parallel agent orchestration | CONDITIONAL |
+| `/browser-test` | AI-powered E2E browser testing via browser-use YAML test prompts | CONDITIONAL |
 | `/checkpoint` | Create compact checkpoint summary when context is high | NO |
 | `/health-check` | Verify CLI tools, auth, config syntax, MCP, symlinks | NO |
 | `/sync-configs` | Detect cross-platform config drift and broken symlinks | NO |

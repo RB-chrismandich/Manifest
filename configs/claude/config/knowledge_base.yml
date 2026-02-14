@@ -12,22 +12,127 @@
 # Confidence levels: high, medium, low
 # Languages: python, go, typescript, javascript, bash, terraform, yaml, general
 
-entries: []
-# Example entry:
-# - id: KB-001
-#   title: "Use ruff instead of flake8+black+isort"
-#   category: tool_discovery
-#   language: python
-#   description: >
-#     ruff replaces multiple Python linters and formatters (flake8, black, isort,
-#     pyflakes, pycodestyle) in a single Rust-based tool. It is 10-100x faster
-#     and supports auto-fix for most rules. Migrate by adding a [tool.ruff]
-#     section to pyproject.toml and removing legacy tool configs.
-#   tags: [linting, formatting, migration, performance]
-#   confidence: high
-#   created: 2026-02-11
-#   last_seen: 2026-02-11
-#   occurrences: 1
-#   source: refactor-python
-#   references:
-#     - https://docs.astral.sh/ruff/
+entries:
+  - id: ANTI-001
+    title: "Unquoted variable expansion in shell commands"
+    category: antipattern
+    language: bash
+    description: >
+      User-controlled values passed to bash -c, eval, or unquoted in command strings
+      cause command injection (CWE-78). Always quote variables; use arrays for command
+      arguments; avoid bash -c with interpolated strings.
+    tags: [security, injection, shellcheck, SC2086]
+    confidence: high
+    created: 2026-01-01
+    last_seen: 2026-02-11
+    occurrences: 8
+    source: antipattern-detect
+
+  - id: ANTI-002
+    title: "Insecure temporary file/directory creation"
+    category: antipattern
+    language: bash
+    description: >
+      Using predictable temp paths or mkdir without mktemp enables symlink attacks
+      (CWE-377). Always use mktemp -d with templates; set umask 0077; use trap for
+      cleanup.
+    tags: [security, temp-files, CWE-377, mktemp]
+    confidence: high
+    created: 2026-01-15
+    last_seen: 2026-02-05
+    occurrences: 3
+    source: antipattern-detect
+
+  - id: ANTI-003
+    title: "Stale file-path references in pre-commit hooks"
+    category: antipattern
+    language: yaml
+    description: >
+      Local pre-commit hooks reference old directory paths after refactors, causing
+      hooks to silently never match any files. Update all path patterns in
+      .pre-commit-config.yaml as part of every directory restructuring; add a CI check
+      that validates hook file patterns match existing paths.
+    tags: [architecture, pre-commit, file-paths, refactoring]
+    confidence: high
+    created: 2026-02-11
+    last_seen: 2026-02-11
+    occurrences: 3
+    source: antipattern-detect
+
+  - id: ANTI-004
+    title: "Markdown table column style violations (MD060)"
+    category: antipattern
+    language: markdown
+    description: >
+      Tables use compact pipe style (no spaces around pipes in separator rows) which
+      violates markdownlint MD060. Not auto-fixable by --fix. Either add MD060: false
+      to .markdownlintrc or reformat all table separator rows.
+    tags: [naming, markdownlint, MD060, formatting]
+    confidence: low
+    created: 2026-01-01
+    last_seen: 2026-02-11
+    occurrences: 902
+    source: antipattern-detect
+
+  - id: ANTI-005
+    title: "Documentation path drift after directory moves"
+    category: antipattern
+    language: markdown
+    description: >
+      After moving files to new directories, documentation references to old paths
+      remain stale across multiple files. Create a checklist or script that greps for
+      old path prefixes after any directory restructuring commit.
+    tags: [architecture, documentation, refactoring, stale-paths]
+    confidence: medium
+    created: 2026-02-11
+    last_seen: 2026-02-11
+    occurrences: 9
+    source: antipattern-detect
+
+  - id: TD-001
+    title: "Use ruff instead of flake8+black+isort"
+    category: tool_discovery
+    language: python
+    description: >
+      Ruff is a single, fast Rust-based linter and formatter that replaces flake8,
+      isort, pycodestyle, and several other Python tools. Significantly faster and
+      supports auto-fix for most rules.
+    tags: [linting, formatting, migration, performance]
+    confidence: high
+    created: 2026-02-11
+    last_seen: 2026-02-11
+    occurrences: 1
+    source: refactor-python
+    references:
+      - https://docs.astral.sh/ruff/
+
+  - id: CI-001
+    title: "MD060 rule requires explicit decision"
+    category: config_insight
+    language: yaml
+    description: >
+      The MD060 (table-column-style) rule is enabled by default and triggers 902
+      violations across 48 files. Since --fix cannot auto-fix this rule, either disable
+      it in .markdownlintrc or reformat all tables. A decision should be made and
+      documented.
+    tags: [markdownlint, MD060, configuration, decision]
+    confidence: high
+    created: 2026-02-11
+    last_seen: 2026-02-11
+    occurrences: 1
+    source: antipattern-detect
+
+  - id: CI-002
+    title: "Local hook file patterns must be updated on directory moves"
+    category: config_insight
+    language: yaml
+    description: >
+      Pre-commit local hooks use files: regex patterns that are not validated against
+      the actual file tree. After directory restructuring, hooks can silently stop
+      matching. Validate patterns after every rename.
+    tags: [pre-commit, configuration, hooks, validation]
+    confidence: high
+    created: 2026-02-11
+    last_seen: 2026-02-11
+    occurrences: 1
+    source: antipattern-detect

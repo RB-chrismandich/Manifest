@@ -56,6 +56,15 @@ Activate when file metrics exceed thresholds:
 
 When triggered, this skill:
 
+0. **Consults knowledge base** for known issues in the detected language:
+
+   ```bash
+   ~/.claude/scripts/learning_capture.sh query --language <detected-language> --format llm
+   ```
+
+   If relevant entries exist, include them as additional check items. This is
+   **non-blocking** — skip if the query fails or returns empty.
+
 1. **Scans the file** for security patterns and complexity metrics
 2. **Invokes parallel agents** for cross-verification:
 

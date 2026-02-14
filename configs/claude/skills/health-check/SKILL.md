@@ -124,7 +124,24 @@ print(f'{len(labels)} labels validated')
 
 Report: valid (N labels) or error details.
 
-### 7. Script Executability
+### 7. Browser-Use Availability (Info)
+
+Check if browser-use is available for E2E testing:
+
+```bash
+# Check CLI
+command -v browser-use &>/dev/null && browser-use --version 2>/dev/null
+
+# Check Python module
+python3 -c "import browser_use; print(browser_use.__version__)" 2>/dev/null
+```
+
+Report: installed (with version) or not installed.
+
+This check is **informational only** — browser-use is an optional tool.
+Report as `info` (not `fail`) when missing.
+
+### 8. Script Executability
 
 Verify all scripts in `.claude/scripts/` are executable:
 

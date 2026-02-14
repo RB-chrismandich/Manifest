@@ -255,6 +255,22 @@ tool_policies:
     parallel_agents: never
     validation_tier: 2
 
+  browser-test:  # skill
+    allowed:
+      - Read
+      - Glob
+      - Grep
+      - Bash      # browser_test.sh, browser-use CLI, python3
+    forbidden:
+      - Write
+      - Edit      # Test execution only — does not modify source
+    parallel_agents: conditional
+    trigger_condition: critical_user_flows OR test_files >= 3
+    validation_tier: 2
+    mcp_servers:
+      - context7   # browser-use library documentation
+      - deepwiki   # browser-use internals and API contracts
+
   sync-configs:
     allowed:
       - Read
