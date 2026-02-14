@@ -2,6 +2,9 @@
 # linear_ops.sh - Linear MCP wrapper for platform-agnostic issue operations
 # Usage: linear_ops.sh <subcommand> [args...]
 
+# GraphQL queries use '$' for variables which shellcheck warns about in single quotes
+# shellcheck disable=SC2016
+
 set -euo pipefail
 
 # Colors for output
@@ -66,6 +69,7 @@ graphql_query() {
         check_auth
     fi
 
+    # shellcheck disable=SC2016
     curl -s -X POST https://api.linear.app/graphql \
         -H "Authorization: Bearer ${LINEAR_API_KEY}" \
         -H "Content-Type: application/json" \
