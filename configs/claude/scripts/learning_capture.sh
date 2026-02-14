@@ -8,6 +8,7 @@
 #   query      Search existing entries by category, language, or tag
 #   stats      Print summary statistics of the knowledge base
 #   increment  Bump occurrences count for an existing entry by ID
+#   sync-docs  Regenerate docs/KNOWLEDGE_BASE.md from knowledge_base.yml
 #
 # Examples:
 #   learning_capture.sh add --title "Use ruff" --category tool_discovery \
@@ -49,6 +50,7 @@ SUBCOMMANDS:
   query        Search existing entries
   stats        Print summary statistics
   increment    Bump occurrences count for an entry
+  sync-docs    Regenerate docs/KNOWLEDGE_BASE.md from YAML
 
 ADD OPTIONS:
   --title <text>        (required) Short title for the entry
@@ -63,6 +65,7 @@ QUERY OPTIONS:
   --category <cat>      Filter by category
   --language <lang>     Filter by language
   --tag <tag>           Filter by tag
+  --format <fmt>        Output format: text (default) or llm (markdown, no colors)
 
 INCREMENT:
   learning_capture.sh increment <ID>
@@ -280,7 +283,7 @@ PYTHON
 # --- Subcommand: query ------------------------------------------------
 
 cmd_query() {
-    local filter_category="" filter_language="" filter_tag=""
+    local filter_category="" filter_language="" filter_tag="" format="text"
 
     while [[ $# -gt 0 ]]; do
         case "$1" in
@@ -296,6 +299,10 @@ cmd_query() {
                 filter_tag="$2"
                 shift 2
                 ;;
+            --format)
+                format="$2"
+                shift 2
+                ;;
             *)
                 error_msg "Unknown option for query: $1"
                 return 1
@@ -303,7 +310,7 @@ cmd_query() {
         esac
     done
 
-    python3 - "$KNOWLEDGE_BASE_FILE" "$filter_category" "$filter_language" "$filter_tag" << 'PYTHON'
+    python3 - "$KNOWLEDGE_BASE_FILE" "$filter_category" "$filter_language" "$filter_tag" "$format" << 'PYTHON'
 import sys
 import yaml
 
@@ -311,6 +318,7 @@ kb_file = sys.argv[1]
 filter_cat = sys.argv[2]
 filter_lang = sys.argv[3]
 filter_tag = sys.argv[4]
+output_format = sys.argv[5]
 
 with open(kb_file, "r") as f:
     kb = yaml.safe_load(f) or {}
@@ -318,6 +326,8 @@ with open(kb_file, "r") as f:
 entries = kb.get("entries", []) or []
 
 if not entries:
+    if output_format == "llm":
+        sys.exit(0)
     print("No entries in knowledge base.")
     sys.exit(0)
 
@@ -334,28 +344,69 @@ for entry in entries:
     matched.append(entry)
 
 if not matched:
+    if output_format == "llm":
+        sys.exit(0)
     print("No matching entries found.")
     sys.exit(0)
 
-print(f"Found {len(matched)} matching entries:\n")
-for e in matched:
-    print(f"  [{e.get('id', '?')}] {e.get('title', 'Untitled')}")
-    print(f"    Category: {e.get('category', '?')} | Language: {e.get('language', '?')} | Confidence: {e.get('confidence', '?')}")
-    desc = e.get("description", "")
-    if desc:
-        # Truncate long descriptions
-        short = desc.strip().replace("\n", " ")[:120]
-        if len(desc.strip()) > 120:
-            short += "..."
-        print(f"    Description: {short}")
-    tags = e.get("tags", [])
-    if tags:
-        print(f"    Tags: {', '.join(tags)}")
-    print(f"    Occurrences: {e.get('occurrences', 1)} | Last seen: {e.get('last_seen', '?')}")
-    source = e.get("source")
-    if source:
-        print(f"    Source: {source}")
-    print()
+# Sort: high confidence first, then by most recent last_seen
+conf_order = {"high": 0, "medium": 1, "low": 2}
+matched.sort(key=lambda e: (conf_order.get(e.get("confidence", "low"), 3), str(e.get("last_seen", ""))))
+
+# Cap at 10 entries for LLM format
+if output_format == "llm":
+    matched = matched[:10]
+
+if output_format == "llm":
+    # LLM-optimized markdown output (no ANSI colors)
+    lang_label = filter_lang if filter_lang else "all languages"
+    print(f"## Known Issues: {lang_label}\n")
+
+    # Group by category
+    groups = {}
+    for e in matched:
+        cat = e.get("category", "unknown")
+        groups.setdefault(cat, []).append(e)
+
+    cat_labels = {
+        "antipattern": "Antipatterns",
+        "pattern": "Patterns",
+        "tool_discovery": "Tool Discoveries",
+        "config_insight": "Config Insights",
+    }
+
+    for cat_key in ["antipattern", "pattern", "tool_discovery", "config_insight"]:
+        items = groups.get(cat_key, [])
+        if not items:
+            continue
+        print(f"### {cat_labels.get(cat_key, cat_key)}\n")
+        for e in items:
+            eid = e.get("id", "?")
+            conf = e.get("confidence", "?")
+            title = e.get("title", "Untitled")
+            desc = e.get("description", "").strip().replace("\n", " ")[:150]
+            print(f"- **{eid}** ({conf}): {title} — {desc}")
+        print()
+else:
+    # Default text output
+    print(f"Found {len(matched)} matching entries:\n")
+    for e in matched:
+        print(f"  [{e.get('id', '?')}] {e.get('title', 'Untitled')}")
+        print(f"    Category: {e.get('category', '?')} | Language: {e.get('language', '?')} | Confidence: {e.get('confidence', '?')}")
+        desc = e.get("description", "")
+        if desc:
+            short = desc.strip().replace("\n", " ")[:120]
+            if len(desc.strip()) > 120:
+                short += "..."
+            print(f"    Description: {short}")
+        tags = e.get("tags", [])
+        if tags:
+            print(f"    Tags: {', '.join(tags)}")
+        print(f"    Occurrences: {e.get('occurrences', 1)} | Last seen: {e.get('last_seen', '?')}")
+        source = e.get("source")
+        if source:
+            print(f"    Source: {source}")
+        print()
 PYTHON
 }
 
@@ -472,6 +523,187 @@ PYTHON
     fi
 }
 
+# --- Subcommand: sync-docs --------------------------------------------
+
+cmd_sync_docs() {
+    # Find the docs directory relative to the knowledge base or repo root
+    local docs_dir=""
+    local repo_root=""
+
+    # Try git root first
+    if repo_root=$(git rev-parse --show-toplevel 2> /dev/null); then
+        docs_dir="${repo_root}/docs"
+    elif [[ -d "docs" ]]; then
+        docs_dir="docs"
+    else
+        error_msg "Cannot find docs/ directory. Run from a git repository or a directory with docs/."
+        return 1
+    fi
+
+    mkdir -p "$docs_dir"
+    local output_file="${docs_dir}/KNOWLEDGE_BASE.md"
+
+    python3 - "$KNOWLEDGE_BASE_FILE" "$output_file" << 'PYTHON'
+import sys
+import yaml
+from datetime import datetime
+
+kb_file = sys.argv[1]
+output_file = sys.argv[2]
+
+with open(kb_file, "r") as f:
+    kb = yaml.safe_load(f) or {}
+
+entries = kb.get("entries", []) or []
+now = datetime.now().astimezone().isoformat(timespec="seconds")
+
+# Group entries by category
+groups = {}
+for e in entries:
+    cat = e.get("category", "unknown")
+    groups.setdefault(cat, []).append(e)
+
+cat_config = [
+    ("pattern", "Patterns", "Recommended patterns discovered through development and cross-agent consensus.",
+     ["ID", "Language", "Title", "Category", "Description"]),
+    ("antipattern", "Antipatterns",
+     "Detected antipatterns that should be avoided. Each entry includes the context in\nwhich it was found and the recommended alternative.",
+     ["ID", "Language", "Title", "Category", "Severity", "Occurrences", "Description", "Alternative"]),
+    ("tool_discovery", "Tool Discoveries", "New or better tooling identified during development.",
+     ["ID", "Tool", "Replaces", "Category", "Description"]),
+    ("config_insight", "Configuration Insights", "Lessons learned about configuration, thresholds, and environment setup.",
+     ["ID", "Area", "Title", "Description"]),
+]
+
+lines = []
+lines.append("# Knowledge Base — Captured Learnings & Best Practices")
+lines.append("")
+lines.append("> **AUTO-GENERATED** from `configs/claude/config/knowledge_base.yml`.")
+lines.append("> Do not edit this file directly — run `learning_capture.sh sync-docs` to regenerate.")
+lines.append("")
+lines.append(f"**Last Updated**: {now}")
+lines.append("**Source**: `configs/claude/config/knowledge_base.yml` (machine-readable source of truth)")
+lines.append("**Managed by**: `learning-loop` skill, `antipattern-detect` skill")
+lines.append("")
+lines.append("---")
+lines.append("")
+lines.append("## Overview")
+lines.append("")
+lines.append("This knowledge base is auto-generated from")
+lines.append("`configs/claude/config/knowledge_base.yml` (the machine-readable source of truth).")
+lines.append("Entries are captured by the `learning-loop` skill and `antipattern-detect` skill.")
+lines.append("To add entries, use `learning_capture.sh add` or the `/learning-loop` skill.")
+lines.append("")
+lines.append("## How to Contribute")
+lines.append("")
+lines.append("| Action | Command | Description |")
+lines.append("| ------ | ------- | ----------- |")
+lines.append("| Capture a new learning | `/learning-loop` | Records a pattern, tool discovery, or config insight |")
+lines.append("| Detect antipatterns | `/antipattern-detect` | Analyzes recent code for known antipatterns |")
+lines.append("| Regenerate this file | `learning_capture.sh sync-docs` | Rebuilds from YAML source of truth |")
+lines.append("")
+lines.append("### Categories")
+lines.append("")
+lines.append("| Category | Description | Example |")
+lines.append("| -------- | ----------- | ------- |")
+lines.append('| Pattern | Recommended coding patterns | "Use ruff instead of flake8+black+isort" |')
+lines.append('| Antipattern | Detected issues to avoid | "Bare except clauses hide real errors" |')
+lines.append('| Tool Discovery | New/better tooling | "golangci-lint replaces individual Go linters" |')
+lines.append('| Config Insight | Configuration tips | "ESLint flat config requires eslint.config.js" |')
+lines.append("")
+lines.append("### Confidence Levels")
+lines.append("")
+lines.append("- **High**: Confirmed across multiple occurrences or from authoritative sources")
+lines.append("- **Medium**: Observed once with strong evidence")
+lines.append("- **Low**: Preliminary observation, needs more data")
+lines.append("")
+lines.append("---")
+
+for cat_key, cat_title, cat_desc, _ in cat_config:
+    items = groups.get(cat_key, [])
+    lines.append("")
+    lines.append(f"## {cat_title}")
+    lines.append("")
+    lines.append(cat_desc)
+    lines.append("")
+
+    if not items:
+        lines.append("_No entries yet._")
+        lines.append("")
+        lines.append("---")
+        continue
+
+    # Summary table
+    if cat_key == "antipattern":
+        lines.append("| ID | Language | Title | Severity | Occurrences | Description |")
+        lines.append("| -- | -------- | ----- | -------- | ----------- | ----------- |")
+        for e in items:
+            desc_short = e.get("description", "").strip().replace("\n", " ")[:100]
+            sev = e.get("confidence", "medium")  # use confidence as severity proxy
+            lines.append(f"| {e['id']} | {e.get('language', '?')} | {e.get('title', '?')} | {sev} | {e.get('occurrences', 1)} | {desc_short} |")
+    elif cat_key == "pattern":
+        lines.append("| ID | Language | Title | Confidence | Description |")
+        lines.append("| -- | -------- | ----- | ---------- | ----------- |")
+        for e in items:
+            desc_short = e.get("description", "").strip().replace("\n", " ")[:100]
+            lines.append(f"| {e['id']} | {e.get('language', '?')} | {e.get('title', '?')} | {e.get('confidence', '?')} | {desc_short} |")
+    elif cat_key == "tool_discovery":
+        lines.append("| ID | Language | Title | Confidence | Description |")
+        lines.append("| -- | -------- | ----- | ---------- | ----------- |")
+        for e in items:
+            desc_short = e.get("description", "").strip().replace("\n", " ")[:100]
+            lines.append(f"| {e['id']} | {e.get('language', '?')} | {e.get('title', '?')} | {e.get('confidence', '?')} | {desc_short} |")
+    elif cat_key == "config_insight":
+        lines.append("| ID | Language | Title | Description |")
+        lines.append("| -- | -------- | ----- | ----------- |")
+        for e in items:
+            desc_short = e.get("description", "").strip().replace("\n", " ")[:100]
+            lines.append(f"| {e['id']} | {e.get('language', '?')} | {e.get('title', '?')} | {desc_short} |")
+
+    # Detailed entries for antipatterns
+    if cat_key == "antipattern":
+        lines.append("")
+        for e in items:
+            lines.append(f"### {e['id']}: {e.get('title', 'Untitled')}")
+            lines.append("")
+            lines.append(f"- **Category**: {e.get('category', '?')}")
+            lines.append(f"- **Language**: {e.get('language', '?')}")
+            lines.append(f"- **Severity**: {e.get('confidence', '?')}")
+            lines.append(f"- **Occurrences**: {e.get('occurrences', 1)}")
+            lines.append(f"- **First seen**: {e.get('created', '?')}")
+            lines.append(f"- **Last seen**: {e.get('last_seen', '?')}")
+            lines.append("")
+            desc = e.get("description", "").strip()
+            lines.append(f"**Problem**: {desc}")
+            lines.append("")
+            tags = e.get("tags", [])
+            if tags:
+                lines.append(f"**Tags**: {', '.join(tags)}")
+                lines.append("")
+
+    lines.append("---")
+
+# References section
+lines.append("")
+lines.append("## References")
+lines.append("")
+lines.append("- **Machine-readable source**: [`configs/claude/config/knowledge_base.yml`](../configs/claude/config/knowledge_base.yml)")
+lines.append("- **Learning loop skill**: [`configs/claude/skills/learning-loop/`](../configs/claude/skills/learning-loop/)")
+lines.append("- **Antipattern detection skill**: [`configs/claude/skills/antipattern-detect/`](../configs/claude/skills/antipattern-detect/)")
+lines.append("- **Sync command**: `~/.claude/scripts/learning_capture.sh sync-docs`")
+lines.append("")
+
+with open(output_file, "w") as f:
+    f.write("\n".join(lines))
+
+print(f"Regenerated {output_file} with {len(entries)} entries.")
+PYTHON
+
+    if [[ $? -eq 0 ]]; then
+        success_msg "docs/KNOWLEDGE_BASE.md regenerated from YAML source of truth"
+    fi
+}
+
 # --- Main dispatch ----------------------------------------------------
 
 main() {
@@ -488,6 +720,7 @@ main() {
         query) cmd_query "$@" ;;
         stats) cmd_stats "$@" ;;
         increment) cmd_increment "$@" ;;
+        sync-docs) cmd_sync_docs "$@" ;;
         help | --help | -h)
             usage
             exit 0

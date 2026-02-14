@@ -1,0 +1,11 @@
+# Smoke Test — Homepage verification
+# Copy to tests/browser/smoke-test.yaml and update the URL for your project.
+
+task: "Navigate to the homepage, verify the page loads without errors, and check for primary navigation elements"
+judge_context:
+  - "The page must load without JavaScript errors"
+  - "The main navigation must be visible"
+  - "The page title must match the app name"
+max_steps: 10
+url: "http://localhost:3000"
+tags: [smoke, homepage]

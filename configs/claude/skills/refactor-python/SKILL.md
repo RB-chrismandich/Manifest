@@ -37,6 +37,23 @@ You are a Senior Principal Security Software Engineer analyzing a production Pyt
 
 ## Instructions
 
+### Step 0: Consult Knowledge Base
+
+Before starting analysis, check for known patterns relevant to this codebase:
+
+```bash
+~/.claude/scripts/learning_capture.sh query --language python --format llm
+```
+
+If the knowledge base contains relevant antipatterns or insights for Python:
+
+- Include them as additional check items in your analysis
+- Flag any occurrences of known antipatterns with their KB ID (e.g., ANTI-001)
+- Note if a known antipattern has been resolved
+
+This step is **non-blocking** — if the knowledge base is empty or the query fails,
+proceed with the standard analysis.
+
 ### Step 1: Read Project Standards and Configuration
 
 - Read AGENTS.md, CLAUDE.md for project context

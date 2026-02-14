@@ -67,7 +67,17 @@ Do **not** invoke slash commands in this pipeline. Execute the equivalent workfl
      configuration, usage/workflow, troubleshooting, and testing.
    - Validate all links and code blocks (language-tagged), and align claims with actual codebase behavior.
 
-After all three complete, run `git status` to confirm documentation files were modified.
+4. **Regenerate knowledge base docs**
+
+   ```bash
+   ~/.claude/scripts/learning_capture.sh sync-docs
+   ```
+
+   This regenerates `docs/KNOWLEDGE_BASE.md` from the YAML source of truth
+   (`~/.claude/config/knowledge_base.yml`). Non-blocking — skip if the script
+   is not available or fails.
+
+After all four complete, run `git status` to confirm documentation files were modified.
 
 ---
 

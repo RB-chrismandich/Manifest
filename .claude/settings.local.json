@@ -21,7 +21,8 @@
       "Bash(gh issue:*)",
       "Bash(gh pr:*)",
       "Bash(gh api:*)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(wc:*)"
     ]
   }
 }

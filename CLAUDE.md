@@ -230,6 +230,7 @@ The following slash commands are available in Claude Code:
 | `/issue-prioritize` | Fetch and rank open issues by impact/urgency/readiness/risk (GitHub/GitLab/Linear) | CONDITIONAL (top candidates) |
 | `/issue-triage` | Linear issue audit: duplicates, staleness, priority validation | CONDITIONAL (scenario-based) |
 | `/plan-manage` | Plan lifecycle with parallel agent orchestration for create/review | CONDITIONAL |
+| `/browser-test` | AI-powered E2E browser testing via browser-use YAML test prompts | CONDITIONAL |
 
 ## Testing Changes
 

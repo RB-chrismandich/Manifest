@@ -18,6 +18,24 @@ and produces a unified report.
 
 ---
 
+## Phase 0: Consult Knowledge Base
+
+After detecting the project language (Phase 1), check for known issues:
+
+```bash
+~/.claude/scripts/learning_capture.sh query --language <detected-language> --format llm
+```
+
+If the knowledge base contains relevant antipatterns or insights:
+
+- Note them in the final report under a "Known Issues" section
+- Flag any linter/test failures that match known antipatterns with their KB ID
+
+This phase is **non-blocking** — if the knowledge base is empty or the query fails,
+proceed with the standard verification.
+
+---
+
 ## Phase 1: Language Detection
 
 Scan the target directory for indicator files to determine the language(s) in use.
@@ -63,6 +81,31 @@ per tool.
 <security_command> > /tmp/verify_security.out 2>&1 &
 wait
 ```
+
+---
+
+## Phase 3.5: Browser Tests (Optional)
+
+After the standard lint/test/security scans complete, check for browser-use E2E tests:
+
+1. **Detect test directory**: Check if `tests/browser/` exists and contains `*.yaml` or `*.yml` files.
+2. **Check tool availability**: Run `command -v browser-use` or `python3 -c "import browser_use"`.
+3. **If both exist**: Execute browser tests via the wrapper:
+
+   ```bash
+   ~/.claude/scripts/browser_test.sh run-all tests/browser/ --timeout 120
+   ```
+
+4. **If `tests/browser/` exists but browser-use is not installed**: Record as `skip` with message:
+
+   ```text
+   Browser tests: skip — browser-use not installed (pip install browser-use)
+   ```
+
+5. **If `tests/browser/` does not exist**: Skip silently (do not report).
+
+Add browser test results to the Phase 4 classification and Phase 5 report table as a
+`Browser` category row alongside Lint, Test, and Security.
 
 ---
 

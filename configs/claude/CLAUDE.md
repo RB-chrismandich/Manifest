@@ -468,6 +468,7 @@ These integrate with the parallel agent orchestration framework.
 | `/issue-triage` | Linear issue audit: duplicates, staleness, priority validation | CONDITIONAL |
 | `/issue-prioritize` | Score and rank open issues by impact/urgency/readiness/risk | CONDITIONAL |
 | `/plan-manage` | Plan lifecycle with parallel agent orchestration for create/review | CONDITIONAL |
+| `/browser-test` | AI-powered E2E browser testing via browser-use YAML test prompts | CONDITIONAL |
 | `/checkpoint` | Create compact checkpoint summary when context usage is high | NO |
 | `/health-check` | Verify CLI tools, auth, config syntax, MCP, symlinks | NO |
 | `/sync-configs` | Detect cross-platform config drift and broken symlinks | NO |
