@@ -259,7 +259,8 @@ python3 -c "import yaml; yaml.safe_load(open('configs/claude/config/validation_c
 Issue labels are managed centrally in `configs/claude/config/labels.yml` and synced across
 GitHub, GitLab, and Linear via `label_sync.sh`.
 
-**Labels**: `planned` (blue), `in-progress` (yellow), `needs-review` (orange), `done` (green), `follow-up` (lavender)
+**Labels**: `planned` (blue), `in-progress` (yellow), `needs-review` (orange), `done` (green),
+`follow-up` (lavender), `future` (green)
 
 ```bash
 # Sync all labels to the current platform

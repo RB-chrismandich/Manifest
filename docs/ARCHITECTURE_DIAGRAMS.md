@@ -1110,6 +1110,7 @@ flowchart TB
 | `needs-review` | `#E3A21A` (Orange) | GitHub, GitLab, Linear | /issue-triage |
 | `done` | `#0E8A16` (Green) | GitHub, GitLab, Linear | /plan-manage execute |
 | `follow-up` | `#D4C5F9` (Lavender) | GitHub, GitLab, Linear | /issue-triage |
+| `future` | `#C2E0C6` (Green) | GitHub, GitLab, Linear | /issue-prioritize |
 
 **Deprecated**: `processed` (replaced by `done`)
 

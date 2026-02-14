@@ -31,6 +31,11 @@ labels:
     description: "Spawned from another issue during implementation"
     platforms: [github, gitlab, linear]
 
+  - name: future
+    color: "C2E0C6"
+    description: "Queued for future prioritization and scheduling"
+    platforms: [github, gitlab, linear]
+
 deprecated:
   - name: processed
     replacement: done

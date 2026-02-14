@@ -61,7 +61,7 @@ Consider your current project phase when scoring:
 
 **Replace `{owner}/{repo}` with your repository.**
 
-**Filter out issues with the `processed` label** before analysis. These have already been triaged and implemented.
+**Filter to issues with the `future` label** by default. Pass `--all` to include all open issues.
 
 If there are fewer than 5 remaining open issues, note this and rank all of them.
 

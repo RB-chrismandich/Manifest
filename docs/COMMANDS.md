@@ -61,6 +61,7 @@ across GitHub, GitLab, and Linear.
 | `needs-review` | Orange | `#E3A21A` | Requires human review before completion |
 | `done` | Green | `#0E8A16` | Implementation complete and validated |
 | `follow-up` | Lavender | `#D4C5F9` | Spawned from another issue during implementation |
+| `future` | Green | `#C2E0C6` | Queued for future prioritization and scheduling |
 
 **Deprecated**: `processed` — use `done` instead (same color and purpose).
 
