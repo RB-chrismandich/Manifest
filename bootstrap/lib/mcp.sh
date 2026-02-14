@@ -145,6 +145,74 @@ prompt_mcp_selection() {
 }
 
 # ---------------------------------------------------------------------------
+# Skip-if-configured checks
+# ---------------------------------------------------------------------------
+
+# Check if a CLI-based MCP server is already registered with the expected URL.
+# Works for Claude and Gemini (both use "name: url (transport) - status" format).
+# Returns 0 if configured, 1 otherwise (including on any error).
+is_cli_mcp_present() {
+    local cli="$1"
+    local name="$2"
+    local url="$3"
+
+    # Unset CLAUDECODE to allow `claude mcp list` to run even if bootstrap is
+    # invoked from inside a Claude Code terminal (rare but possible).
+    local output
+    output=$(CLAUDECODE='' "$cli" mcp list 2> /dev/null) || return 1
+    [[ -z "$output" ]] && return 1
+
+    # Match a line that contains both the server name and the URL.
+    echo "$output" | grep -F "$name" | grep -qF "$url"
+}
+
+# Check if a Codex MCP server is already registered with the expected URL.
+# Codex uses a tabular format: "name  url  ..."
+is_codex_mcp_present() {
+    local name="$1"
+    local url="$2"
+
+    local output
+    output=$(codex mcp list 2> /dev/null) || return 1
+    [[ -z "$output" ]] && return 1
+
+    echo "$output" | grep -F "$name" | grep -qF "$url"
+}
+
+# Check if Cursor mcp.json already has all selected servers with correct URLs.
+# Returns 0 if every selected server is present with the right URL.
+is_cursor_mcp_current() {
+    local mcp_file="$1"
+
+    [[ -f "$mcp_file" ]] || return 1
+
+    # Prefer jq for reliable JSON parsing
+    if command_exists jq; then
+        local idx name url current_url
+        for idx in "${MCP_SELECTED_INDICES[@]}"; do
+            name="${MCP_SERVER_NAMES[$idx]}"
+            url="${MCP_SERVER_URLS[$idx]}"
+            current_url=$(jq -r --arg n "$name" '.mcpServers[$n].url // empty' "$mcp_file" 2> /dev/null)
+            if [[ "$current_url" != "$url" ]]; then
+                return 1
+            fi
+        done
+        return 0
+    fi
+
+    # Fallback: grep for each server's URL in the file
+    local idx name url
+    for idx in "${MCP_SELECTED_INDICES[@]}"; do
+        name="${MCP_SERVER_NAMES[$idx]}"
+        url="${MCP_SERVER_URLS[$idx]}"
+        if ! grep -qF "$url" "$mcp_file" 2> /dev/null; then
+            return 1
+        fi
+    done
+    return 0
+}
+
+# ---------------------------------------------------------------------------
 # Cursor MCP config writer (dynamic)
 # ---------------------------------------------------------------------------
 
@@ -154,6 +222,12 @@ prompt_mcp_selection() {
 configure_cursor_mcp_config() {
     local cursor_mcp_file="$CURSOR_TARGET_DIR/mcp.json"
     mkdir -p "$CURSOR_TARGET_DIR"
+
+    # Skip if mcp.json already contains all selected servers with correct URLs
+    if is_cursor_mcp_current "$cursor_mcp_file"; then
+        print_info "Cursor MCP already configured (skipped)"
+        return 0
+    fi
 
     # Build JSON dynamically from selected servers
     local json_entries=""
@@ -183,7 +257,7 @@ EOF
 }
 
 # ---------------------------------------------------------------------------
-# Per-agent installers (unchanged)
+# Per-agent installers
 # ---------------------------------------------------------------------------
 
 # Fallback writer for Gemini MCP server entries.
@@ -226,6 +300,12 @@ install_claude_mcp_server() {
     local url="$2"
     local transport="${3:-http}"
 
+    # Skip if already configured with the correct URL (preserves existing auth)
+    if is_cli_mcp_present claude "$name" "$url"; then
+        print_info "Claude MCP already configured: $name (skipped)"
+        return 0
+    fi
+
     # Remove existing definitions across scopes to avoid name collisions.
     claude mcp remove "$name" > /dev/null 2>&1 || true
     claude mcp remove --scope "$CLAUDE_MCP_SCOPE" "$name" > /dev/null 2>&1 || true
@@ -243,6 +323,12 @@ install_gemini_mcp_server() {
     local name="$1"
     local url="$2"
     local transport="${3:-http}"
+
+    # Skip if already configured with the correct URL (preserves existing auth)
+    if is_cli_mcp_present gemini "$name" "$url"; then
+        print_info "Gemini MCP already configured: $name (skipped)"
+        return 0
+    fi
 
     # Remove existing definitions across scopes to avoid name collisions.
     gemini mcp remove --scope user "$name" > /dev/null 2>&1 || true
@@ -266,6 +352,12 @@ install_gemini_mcp_server() {
 install_codex_mcp_server() {
     local name="$1"
     local url="$2"
+
+    # Skip if already configured with the correct URL (preserves existing auth)
+    if is_codex_mcp_present "$name" "$url"; then
+        print_info "Codex MCP already configured: $name (skipped)"
+        return 0
+    fi
 
     codex mcp remove "$name" > /dev/null 2>&1 || true
     if codex mcp add "$name" --url "$url" > /dev/null 2>&1; then
