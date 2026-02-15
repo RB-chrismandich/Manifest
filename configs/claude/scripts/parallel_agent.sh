@@ -24,6 +24,16 @@
 
 set -e
 
+# Global shellcheck disables
+# SC2016: $variables inside single quotes are intended for bash -c arguments
+# shellcheck disable=SC2016
+# SC2129: Grouped redirects preferred but individual ones are cleaner here
+# shellcheck disable=SC2129
+# SC2059: Printf format string warning (variables in format)
+# shellcheck disable=SC2059
+# SC2004: $ prefix in arithmetic variables (style preference)
+# shellcheck disable=SC2004
+
 # Security: Ensure all created files are only readable by the owner
 umask 0077
 
