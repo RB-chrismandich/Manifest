@@ -2,11 +2,11 @@
 # linear_ops.sh - Linear MCP wrapper for platform-agnostic issue operations
 # Usage: linear_ops.sh <subcommand> [args...]
 
-set -euo pipefail
-
 # Global shellcheck disables
 # SC2016: GraphQL queries use $variables inside single quotes (intended behavior)
 # shellcheck disable=SC2016
+
+set -euo pipefail
 
 # Colors for output
 RED='\033[0;31m'

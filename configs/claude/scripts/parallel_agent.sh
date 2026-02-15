@@ -22,8 +22,6 @@
 #   ./scripts/parallel_agent.sh --analyze "path/to/file.py"
 #   ./scripts/parallel_agent.sh --cursor-model advanced --claude-model opus --review file.py
 
-set -e
-
 # Global shellcheck disables
 # SC2016: $variables inside single quotes are intended for bash -c arguments
 # shellcheck disable=SC2016
@@ -33,6 +31,8 @@ set -e
 # shellcheck disable=SC2059
 # SC2004: $ prefix in arithmetic variables (style preference)
 # shellcheck disable=SC2004
+
+set -e
 
 # Security: Ensure all created files are only readable by the owner
 umask 0077
