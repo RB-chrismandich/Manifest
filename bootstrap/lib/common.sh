@@ -58,24 +58,51 @@ command_exists() {
 run_with_spinner() {
     local cmd="$1"
     local msg="${2:-Working}"
-    local pid
+
+    # Check for non-interactive or dumb terminal or NO_COLOR
+    if [[ ! -t 1 ]] || [[ "$TERM" == "dumb" ]] || [[ -n "${NO_COLOR:-}" ]]; then
+        echo "$msg..."
+        eval "$cmd"
+        return $?
+    fi
+
+    local temp_log
+    temp_log=$(mktemp)
+
+    # Hide cursor
+    tput civis 2>/dev/null
+
+    eval "$cmd" > "$temp_log" 2>&1 &
+    local pid=$!
     local spin='-\|/'
     local i=0
-
-    eval "$cmd" &
-    pid=$!
 
     while kill -0 "$pid" 2> /dev/null; do
         i=$(((i + 1) % 4))
         printf "\r${CYAN}${spin:$i:1}${NC} %s..." "$msg"
-        sleep 0.2
+        sleep 0.1
     done
 
     wait "$pid"
     local exit_code=$?
+
+    # Restore cursor
+    tput cnorm 2>/dev/null
+
+    # Clear the spinner line
     printf "\r\033[K"
+
+    if [ $exit_code -ne 0 ]; then
+        print_error "Command failed: $cmd"
+        cat "$temp_log"
+    fi
+
+    rm -f "$temp_log"
     return $exit_code
 }
+
+# Ensure cursor is restored on exit/interrupt
+trap 'tput cnorm 2>/dev/null' EXIT INT TERM
 
 # Create/recreate a symlink at link_path pointing to target
 create_symlink() {
