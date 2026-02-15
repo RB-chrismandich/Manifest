@@ -51,7 +51,7 @@ vim ~/.claude/config/validation_criteria.yml
 
 Controls which AI agents are enabled for parallel orchestration.
 
-### Structure
+### Structure Overview
 
 ```yaml
 services:
@@ -114,7 +114,7 @@ minimum_agents: 2
 
 # Fallback behavior when enabled services are unavailable
 fallback:
-  strategy: continue_with_available  # Options: continue_with_available, abort, warn_user
+  strategy: continue_with_available  # Options: continue_with_available, abort
   warn_threshold: 1  # Warn if only this many agents available
 ```
 
@@ -180,8 +180,8 @@ Defines behavior for each slash command.
 ```yaml
 thresholds:
   # Documentation commands
-  improve_docs_lines: 500         # Trigger parallel agents when total doc lines > 500
-  generate_diagrams_modules: 5    # Trigger when analyzing 5+ unique imports/modules
+  improve_docs_lines: 500         # Trigger parallel agents when > 500 lines
+  generate_diagrams_modules: 5    # Trigger when analyzing 5+ unique imports
 
   # Code quality skill auto-triggers
   skill_file_lines: 500           # File > 500 lines
@@ -199,7 +199,7 @@ consensus:
   low: 0        # <50%: Block and escalate for human review
 ```
 
-**Example**: If 2 of 3 agents agree → 67% consensus → medium confidence → disagreements highlighted
+**Example**: If 2 of 3 agents agree → 67% consensus → medium confidence
 
 ### Tool Policies
 
@@ -237,7 +237,7 @@ tool_policies:
 - `never`: Never run parallel agents (single-agent mode)
 - `conditional`: Run based on trigger_condition
 
-### Model Selection Defaults
+### CLI Model Selection Defaults
 
 ```yaml
 task_model_defaults:
@@ -428,7 +428,8 @@ command_overrides:
 
 ### Project-Specific Validation Overrides
 
-Create project-specific validation rules by adding a `validation_overrides.yml` file to your
+Create project-specific validation rules by adding a `validation_overrides.yml`
+file to your
 project's `configs/claude/config/` directory.
 This extends the base validation criteria with domain-specific checks.
 
@@ -495,7 +496,7 @@ exemptions:
 - SECRET_KEY from environment
 - Migration safety (reversibility, backwards compatibility)
 
-**Express.js/Node.js Projects**: See `templates/validation-overrides/express-security.yml`
+**Express.js**: See `templates/validation-overrides/express-security.yml`
 
 - Input validation (Joi, Zod schemas)
 - SQL injection prevention (parameterized queries)
@@ -503,7 +504,7 @@ exemptions:
 - Helmet.js security headers
 - Rate limiting on sensitive endpoints
 
-**Go Projects**: See `templates/validation-overrides/go-security.yml` (coming soon)
+**Go Projects**: See `templates/validation-overrides/go-security.yml`
 
 - SQL injection (database/sql parameterized queries)
 - Path traversal prevention
@@ -594,7 +595,8 @@ Overall: NEEDS_REVIEW (tier1 pass, tier2: 0.55)
 
 #### Best Practices
 
-1. **Start with a template**: Use framework examples from `templates/validation-overrides/`
+1. **Start with a template**: Use framework examples from
+   `templates/validation-overrides/`
 2. **Document your checks**: Clear descriptions help team understand violations
 3. **Use exemptions wisely**: Tests and generated files often need exemptions
 4. **Test incrementally**: Add one check at a time, verify it works
@@ -731,13 +733,13 @@ export CHECK_CREDITS_PREFLIGHT="true"
 --no-codex             # Disable Codex CLI
 ```
 
-### Model Selection
+### CLI Model Selection
 
 ```bash
---cursor-model <tier>  # Cursor model: mini, flash, advanced, auto (default: flash)
+--cursor-model <tier>  # Cursor model: mini, flash, advanced, auto
 --claude-model <tier>  # Claude model: haiku, sonnet, opus (default: sonnet)
 --gemini-model <tier>  # Gemini model: flash, pro (default: flash)
---codex-model <tier>   # Codex model: mini, flash, advanced, auto (default: auto)
+--codex-model <tier>   # Codex model: mini, flash, advanced, auto
 ```
 
 ### Execution Modes
@@ -754,7 +756,7 @@ export CHECK_CREDITS_PREFLIGHT="true"
 --json                 # Output results in JSON format
 --full-output          # Include complete agent outputs (no truncation)
 --validate             # Check outputs against success criteria
---output <dir>         # Custom output directory (default: ~/.claude/.agent_outputs)
+--output <dir>         # Custom output directory
 ```
 
 ### Runtime Options
