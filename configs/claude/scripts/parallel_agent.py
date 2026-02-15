@@ -281,6 +281,27 @@ class RateLimiter:
 class ValidationEngine:
     """Validates agent outputs against tiered criteria"""
 
+    # Pre-compiled regex patterns for better performance
+    SECRET_PATTERNS = [
+        re.compile(r'api[_-]?key\s*=\s*["\'][^"\']+["\']', re.IGNORECASE),
+        re.compile(r'password\s*=\s*["\'][^"\']+["\']', re.IGNORECASE),
+        re.compile(r'secret\s*=\s*["\'][^"\']+["\']', re.IGNORECASE),
+        re.compile(r'token\s*=\s*["\'][^"\']+["\']', re.IGNORECASE),
+    ]
+
+    SQL_PATTERNS = [
+        re.compile(r'execute\s*\(\s*["\'].*\+', re.IGNORECASE),
+        re.compile(r'query\s*\(\s*["\'].*\+', re.IGNORECASE),
+    ]
+
+    CMD_PATTERNS = [
+        re.compile(r"exec\s*\(.*user.*\)", re.IGNORECASE),
+        re.compile(r"system\s*\(.*input.*\)", re.IGNORECASE),
+        re.compile(r"shell_exec", re.IGNORECASE),
+    ]
+
+    BARE_EXCEPT_PATTERN = re.compile(r"except\s*:", re.IGNORECASE)
+
     def __init__(self, config: Config, logger: Optional["Logger"] = None):
         self.config = config
         self.logger = logger
@@ -423,38 +444,25 @@ class ValidationEngine:
             if result.get("status") != "complete":
                 continue
 
-            output = result.get("output", "").lower()
+            output = result.get("output", "")  # Keep case for regex (compiled with IGNORECASE)
 
             # Check for hardcoded secrets
-            secret_patterns = [
-                r'api[_-]?key\s*=\s*["\'][^"\']+["\']',
-                r'password\s*=\s*["\'][^"\']+["\']',
-                r'secret\s*=\s*["\'][^"\']+["\']',
-                r'token\s*=\s*["\'][^"\']+["\']',
-            ]
-
-            for pattern in secret_patterns:
-                if re.search(pattern, output, re.IGNORECASE):
+            for pattern in self.SECRET_PATTERNS:
+                if pattern.search(output):
                     issues.append(f"[{agent_name}] Potential hardcoded secret detected")
                     break
 
             # Check for SQL injection patterns
-            sql_patterns = [r'execute\s*\(\s*["\'].*\+', r'query\s*\(\s*["\'].*\+']
-            for pattern in sql_patterns:
-                if re.search(pattern, output, re.IGNORECASE):
+            for pattern in self.SQL_PATTERNS:
+                if pattern.search(output):
                     issues.append(
                         f"[{agent_name}] Potential SQL injection vulnerability"
                     )
                     break
 
             # Check for command injection patterns
-            cmd_patterns = [
-                r"exec\s*\(.*user.*\)",
-                r"system\s*\(.*input.*\)",
-                r"shell_exec",
-            ]
-            for pattern in cmd_patterns:
-                if re.search(pattern, output, re.IGNORECASE):
+            for pattern in self.CMD_PATTERNS:
+                if pattern.search(output):
                     issues.append(
                         f"[{agent_name}] Potential command injection vulnerability"
                     )
@@ -470,14 +478,19 @@ class ValidationEngine:
             if result.get("status") != "complete":
                 continue
 
-            output = result.get("output", "").lower()
+            output = result.get("output", "")
+            output_lower = output.lower()
 
             # Check for silent failures
-            if "pass" in output and "except" in output and "logging" not in output:
+            if (
+                "pass" in output_lower
+                and "except" in output_lower
+                and "logging" not in output_lower
+            ):
                 issues.append(f"[{agent_name}] Potential silent failure detected")
 
             # Check for bare except clauses
-            if re.search(r"except\s*:", output):
+            if self.BARE_EXCEPT_PATTERN.search(output):
                 issues.append(f"[{agent_name}] Bare except clause detected")
 
         return {"passed": len(issues) == 0, "issues": issues}
@@ -492,12 +505,13 @@ class ValidationEngine:
             if result.get("status") != "complete":
                 continue
 
-            output = result.get("output", "").lower()
+            output = result.get("output", "")
+            output_lower = output.lower()
 
             # Check for removed/renamed functions without deprecation
             if (
-                "removed" in output or "renamed" in output
-            ) and "deprecated" not in output:
+                "removed" in output_lower or "renamed" in output_lower
+            ) and "deprecated" not in output_lower:
                 issues.append(
                     f"[{agent_name}] Potential breaking change without deprecation warning"
                 )
@@ -681,6 +695,9 @@ class ValidationEngine:
 class SynthesisEngine:
     """Handles synthesis when agents disagree"""
 
+    # Pre-compiled regex for JSON extraction
+    JSON_BLOCK_PATTERN = re.compile(r"```json\s*\n(.*?)\n```", re.DOTALL)
+
     def __init__(self, config: Config, logger: Optional["Logger"] = None):
         self.config = config
         self.logger = logger
@@ -753,7 +770,7 @@ class SynthesisEngine:
             # Parse JSON response
             synthesis_text = response.content[0].text
             # Extract JSON from markdown code blocks if present
-            json_match = re.search(r"```json\s*\n(.*?)\n```", synthesis_text, re.DOTALL)
+            json_match = self.JSON_BLOCK_PATTERN.search(synthesis_text)
             if json_match:
                 synthesis_text = json_match.group(1)
 
