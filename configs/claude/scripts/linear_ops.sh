@@ -2,6 +2,7 @@
 # linear_ops.sh - Linear MCP wrapper for platform-agnostic issue operations
 # Usage: linear_ops.sh <subcommand> [args...]
 
+# shellcheck disable=SC2016
 set -euo pipefail
 
 # Colors for output
@@ -25,7 +26,6 @@ success() {
 }
 
 # Check if Linear MCP is configured
-# shellcheck disable=SC2016
 check_linear_mcp() {
     # Check if Linear is in MCP servers config
     if [[ -f ~/.claude/config/mcp_servers.yml ]]; then
