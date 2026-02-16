@@ -10,6 +10,8 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
+# shellcheck disable=SC2016
+
 # Error handling
 error() {
     echo -e "${RED}Error: $1${NC}" >&2
