@@ -58,22 +58,51 @@ command_exists() {
 run_with_spinner() {
     local cmd="$1"
     local msg="${2:-Working}"
+
+    # If not interactive or NO_COLOR set, just run the command
+    if [[ ! -t 1 ]] || [[ -n "${NO_COLOR:-}" ]] || [[ "${TERM:-}" == "dumb" ]]; then
+        print_step "$msg..."
+        eval "$cmd"
+        return $?
+    fi
+
     local pid
     local spin='-\|/'
     local i=0
+    local temp_log
+    temp_log=$(mktemp)
 
-    eval "$cmd" &
+    # Run command in background, redirecting output to temp file
+    # We use a subshell and trap to ensure cleanup if killed
+    (eval "$cmd") > "$temp_log" 2>&1 &
     pid=$!
 
+    # Hide cursor
+    tput civis 2>/dev/null || printf "\033[?25l"
+
+    # Spin while process is running
     while kill -0 "$pid" 2> /dev/null; do
         i=$(((i + 1) % 4))
-        printf "\r${CYAN}${spin:$i:1}${NC} %s..." "$msg"
-        sleep 0.2
+        printf "\r${CYAN}%s${NC} %s..." "${spin:$i:1}" "$msg"
+        sleep 0.1
     done
 
     wait "$pid"
     local exit_code=$?
+
+    # Restore cursor and clear line
+    tput cnorm 2>/dev/null || printf "\033[?25h"
     printf "\r\033[K"
+
+    if [ $exit_code -eq 0 ]; then
+        print_success "$msg"
+    else
+        print_error "$msg failed"
+        echo -e "${RED}Error log:${NC}"
+        cat "$temp_log"
+    fi
+
+    rm -f "$temp_log"
     return $exit_code
 }
 
