@@ -25,6 +25,7 @@ success() {
 }
 
 # Check if Linear MCP is configured
+# shellcheck disable=SC2016
 check_linear_mcp() {
     # Check if Linear is in MCP servers config
     if [[ -f ~/.claude/config/mcp_servers.yml ]]; then
