@@ -1,6 +1,7 @@
 # Troubleshooting Guide
 
-> Common problems and solutions for the Manifest parallel agent orchestration framework
+> Common problems and solutions for the Manifest parallel agent orchestration
+> framework
 
 **Last Updated**: 2026-01-27
 **Audience**: All users
