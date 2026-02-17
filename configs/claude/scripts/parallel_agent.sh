@@ -904,7 +904,7 @@ run_gemini() {
     # (e.g., GEMINI.md orchestration guide) which can cause Gemini to
     # "investigate the environment" instead of answering the prompt.
     run_with_retry "Gemini CLI" "$GEMINI_OUTPUT_FILE" bash -c \
-        'cd "$(mktemp -d)" && gemini --output-format text --model "$1" -p "" "${@:2}" < "$0"' \
+        'tmp_dir=$(mktemp -d); trap "rm -rf \"$tmp_dir\"" EXIT; cd "$tmp_dir" && gemini --output-format text --model "$1" -p "" "${@:2}" < "$0"' \
         "$GEMINI_PROMPT_FILE" "$GEMINI_MODEL" "${include_args[@]}"
 }
 
