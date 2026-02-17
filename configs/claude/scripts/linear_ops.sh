@@ -59,6 +59,7 @@ Get an API key from: https://linear.app/settings/api"
 
 # Execute GraphQL query via Linear API
 graphql_query() {
+    # shellcheck disable=SC2016
     local query="$1"
     local variables="${2:-{}}"
 
