@@ -37,8 +37,7 @@ install_package_manager() {
 
         if command_exists brew; then
             print_success "Homebrew is installed"
-            print_step "Updating Homebrew..."
-            brew update --quiet
+            run_with_spinner "brew update" "Updating Homebrew"
         else
             print_warning "Homebrew not found"
             if prompt_yes_no "Install Homebrew?"; then
@@ -218,7 +217,8 @@ install_python_dependencies() {
     print_info "Using: $python_cmd"
 
     # Try to install with --user flag and prefer binary wheels
-    if $python_cmd -m pip install --user --prefer-binary -q -r "$requirements_file" 2>&1; then
+    # Using run_with_spinner to show activity and capture output
+    if run_with_spinner "$python_cmd -m pip install --user --prefer-binary -r \"$requirements_file\"" "Installing Python packages"; then
         print_success "Python dependencies installed"
     else
         print_warning "Failed to install Python dependencies"
@@ -241,9 +241,11 @@ install_node() {
 
         if [[ "$PLATFORM" == "macos" ]]; then
             if command_exists brew && prompt_yes_no "Install Node.js via Homebrew?"; then
-                print_step "Installing Node.js..."
-                brew install node
-                print_success "Node.js installed"
+                if run_with_spinner "brew install node" "Installing Node.js"; then
+                    print_success "Node.js installed"
+                else
+                    print_error "Failed to install Node.js"
+                fi
             else
                 print_warning "Please install Node.js manually from https://nodejs.org"
             fi
@@ -324,9 +326,12 @@ install_claude() {
 
         if prompt_yes_no "Install Claude Code CLI via npm?"; then
             if command_exists npm; then
-                print_step "Installing Claude Code CLI..."
-                npm install -g @anthropic-ai/claude-code
-                print_success "Claude Code CLI installed"
+                if run_with_spinner "npm install -g @anthropic-ai/claude-code" "Installing Claude Code CLI"; then
+                    print_success "Claude Code CLI installed"
+                else
+                    print_error "Failed to install Claude Code CLI"
+                    return 1
+                fi
             else
                 print_error "npm not found. Please install Node.js first."
                 return 1
@@ -361,9 +366,12 @@ install_gemini() {
 
         if prompt_yes_no "Install Gemini CLI via npm?"; then
             if command_exists npm; then
-                print_step "Installing Gemini CLI..."
-                npm install -g @google/gemini-cli
-                print_success "Gemini CLI installed"
+                if run_with_spinner "npm install -g @google/gemini-cli" "Installing Gemini CLI"; then
+                    print_success "Gemini CLI installed"
+                else
+                    print_error "Failed to install Gemini CLI"
+                    return 1
+                fi
             else
                 print_error "npm not found. Please install Node.js first."
                 return 1
@@ -403,9 +411,12 @@ install_codex() {
 
         if prompt_yes_no "Install Codex CLI via npm?"; then
             if command_exists npm; then
-                print_step "Installing Codex CLI..."
-                npm install -g @openai/codex
-                print_success "Codex CLI installed"
+                if run_with_spinner "npm install -g @openai/codex" "Installing Codex CLI"; then
+                    print_success "Codex CLI installed"
+                else
+                    print_error "Failed to install Codex CLI"
+                    return 1
+                fi
             else
                 print_error "npm not found. Please install Node.js first."
                 return 1
@@ -475,9 +486,11 @@ install_github_cli() {
             case "$PLATFORM" in
                 macos)
                     if command_exists brew; then
-                        print_step "Installing GitHub CLI via Homebrew..."
-                        brew install gh
-                        print_success "GitHub CLI installed"
+                        if run_with_spinner "brew install gh" "Installing GitHub CLI"; then
+                            print_success "GitHub CLI installed"
+                        else
+                            print_error "Failed to install GitHub CLI"
+                        fi
                     else
                         print_error "Homebrew not found. Please install Homebrew first."
                         return 1
@@ -572,9 +585,11 @@ install_gitlab_cli() {
             case "$PLATFORM" in
                 macos)
                     if command_exists brew; then
-                        print_step "Installing GitLab CLI via Homebrew..."
-                        brew install glab
-                        print_success "GitLab CLI installed"
+                        if run_with_spinner "brew install glab" "Installing GitLab CLI"; then
+                            print_success "GitLab CLI installed"
+                        else
+                            print_error "Failed to install GitLab CLI"
+                        fi
                     else
                         print_error "Homebrew not found. Please install Homebrew first."
                         return 1
@@ -653,9 +668,11 @@ check_jq() {
             case "$PLATFORM" in
                 macos)
                     if command_exists brew; then
-                        print_step "Installing jq via Homebrew..."
-                        brew install jq
-                        print_success "jq installed"
+                        if run_with_spinner "brew install jq" "Installing jq"; then
+                            print_success "jq installed"
+                        else
+                            print_error "Failed to install jq"
+                        fi
                     else
                         print_error "Homebrew not found."
                         return 1

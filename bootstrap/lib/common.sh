@@ -2,6 +2,9 @@
 
 # Shared helpers for bootstrap.sh. This file is sourced, not executed.
 
+# Ensure cursor is restored on exit or interruption
+trap 'tput cnorm 2>/dev/null' EXIT INT TERM
+
 print_header() {
     echo ""
     echo -e "${BOLD}${BLUE}══════════════════════════════════════════════════════════════${NC}"
@@ -61,19 +64,47 @@ run_with_spinner() {
     local pid
     local spin='-\|/'
     local i=0
+    local log_file
 
-    eval "$cmd" &
+    # Create secure temporary file for output capture
+    log_file=$(mktemp) || return 1
+
+    # Hide cursor if possible
+    tput civis 2>/dev/null
+
+    # Run command in background, redirecting both stdout and stderr to log file
+    eval "$cmd" > "$log_file" 2>&1 &
     pid=$!
 
+    # Spin loop while process is running
     while kill -0 "$pid" 2> /dev/null; do
         i=$(((i + 1) % 4))
-        printf "\r${CYAN}${spin:$i:1}${NC} %s..." "$msg"
-        sleep 0.2
+        # Use %b to interpret color codes correctly
+        printf "\r%b%s%b %s..." "$CYAN" "${spin:$i:1}" "$NC" "$msg"
+        sleep 0.1
     done
 
+    # Wait for completion and capture exit code
     wait "$pid"
     local exit_code=$?
+
+    # Clear the line
     printf "\r\033[K"
+
+    # Restore cursor
+    tput cnorm 2>/dev/null
+
+    # If command failed, show error and output
+    if [ $exit_code -ne 0 ]; then
+        print_error "Command failed: $cmd"
+        if [ -s "$log_file" ]; then
+            echo -e "${RED}Output:${NC}"
+            cat "$log_file"
+        fi
+    fi
+
+    # Cleanup
+    rm -f "$log_file"
     return $exit_code
 }
 
