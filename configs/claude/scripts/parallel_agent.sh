@@ -1575,11 +1575,11 @@ print_results_table() {
 
     # Table Header
     # Agent (10) | Status (10) | Model (20) | Validation (10)
-    printf "${BOLD}%-10s | %-10s | %-20s" "Agent" "Status" "Model"
+    printf "%b%-10s | %-10s | %-20s" "${BOLD}" "Agent" "Status" "Model"
     if [[ "$VALIDATE" == true ]]; then
         printf " | %-10s" "Validation"
     fi
-    printf "${NC}\n"
+    printf "%b\n" "${NC}"
 
     printf "%s\n" "-----------|------------|----------------------$(if [[ "$VALIDATE" == true ]]; then echo "-|------------"; fi)"
 
@@ -1602,7 +1602,7 @@ print_results_table() {
             model="$model (fallback)"
         fi
 
-        printf "%-10s | ${color}%-10s${NC} | %-20s" "Cursor" "$status" "$model"
+        printf "%-10s | %b%-10s%b | %-20s" "Cursor" "${color}" "$status" "${NC}" "$model"
 
         if [[ "$VALIDATE" == true ]]; then
             if [[ "$CURSOR_VAL_RESULT" -eq 0 ]]; then
@@ -1634,7 +1634,7 @@ print_results_table() {
             color="${RED}"
         fi
 
-        printf "%-10s | ${color}%-10s${NC} | %-20s" "Gemini" "$status" "$model"
+        printf "%-10s | %b%-10s%b | %-20s" "Gemini" "${color}" "$status" "${NC}" "$model"
 
         if [[ "$VALIDATE" == true ]]; then
             if [[ "$GEMINI_VAL_RESULT" -eq 0 ]]; then
@@ -1670,7 +1670,7 @@ print_results_table() {
             model="$model (fallback)"
         fi
 
-        printf "%-10s | ${color}%-10s${NC} | %-20s" "Claude" "$status" "$model"
+        printf "%-10s | %b%-10s%b | %-20s" "Claude" "${color}" "$status" "${NC}" "$model"
 
         if [[ "$VALIDATE" == true ]]; then
             if [[ "$CLAUDE_VAL_RESULT" -eq 0 ]]; then
@@ -1715,7 +1715,7 @@ print_results_table() {
             model="$model (fallback)"
         fi
 
-        printf "%-10s | ${color}%-10s${NC} | %-20s" "Codex" "$status" "$model"
+        printf "%-10s | %b%-10s%b | %-20s" "Codex" "${color}" "$status" "${NC}" "$model"
 
         if [[ "$VALIDATE" == true ]]; then
             if [[ "$CODEX_VAL_RESULT" -eq 0 ]]; then
