@@ -10,6 +10,7 @@ check_platform() {
         linux)
             local version=""
             if [[ -f /etc/os-release ]]; then
+                # shellcheck disable=SC1091
                 . /etc/os-release
                 version="$PRETTY_NAME"
             else
@@ -263,10 +264,10 @@ install_node() {
                             sudo apt-get install -y nodejs npm
                             ;;
                         dnf)
-                            sudo dnf install -y nodejs npm
+                            sudo "$PKG_MANAGER" install -y nodejs npm
                             ;;
                         yum)
-                            sudo yum install -y nodejs npm
+                            sudo "$PKG_MANAGER" install -y nodejs npm
                             ;;
                         pacman)
                             sudo pacman -S --noconfirm nodejs npm
