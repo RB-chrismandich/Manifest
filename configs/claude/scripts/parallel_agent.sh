@@ -903,9 +903,10 @@ run_gemini() {
     # Run from a temp directory to avoid loading project-level .gemini/ settings
     # (e.g., GEMINI.md orchestration guide) which can cause Gemini to
     # "investigate the environment" instead of answering the prompt.
+    # shellcheck disable=SC2016
     run_with_retry "Gemini CLI" "$GEMINI_OUTPUT_FILE" bash -c \
         'cd "$(mktemp -d)" && gemini --output-format text --model "$1" -p "" "${@:2}" < "$0"' \
-        "$GEMINI_PROMPT_FILE" "$GEMINI_MODEL" "${include_args[@]}" # shellcheck disable=SC2016
+        "$GEMINI_PROMPT_FILE" "$GEMINI_MODEL" "${include_args[@]}"
 }
 
 # Run Claude CLI with model selection
@@ -921,10 +922,11 @@ run_claude() {
     echo -e "${BLUE}[Claude CLI]${NC} Starting with model: $CLAUDE_MODEL..."
 
     # Claude CLI: use input redirection (saves cat process)
+    # shellcheck disable=SC2016
     if ! run_with_retry_capture_stderr "Claude CLI" "$CLAUDE_OUTPUT_FILE" "$CLAUDE_STDERR_FILE" \
         bash -c 'claude --print --output-format text --model "$1" --append-system-prompt "$2" < "$0"' \
         "$CLAUDE_PROMPT_FILE" "$CLAUDE_MODEL" \
-        "You are a code analysis agent in a parallel orchestration system. Rules: Do NOT use emojis. Do NOT claim to have read files or performed actions you did not actually perform. Keep responses concise and technical. Report only findings from actual analysis of the provided content."; then # shellcheck disable=SC2016
+        "You are a code analysis agent in a parallel orchestration system. Rules: Do NOT use emojis. Do NOT claim to have read files or performed actions you did not actually perform. Keep responses concise and technical. Report only findings from actual analysis of the provided content."; then
 
         # Check for credit exhaustion
         if check_credit_exhaustion "$CLAUDE_STDERR_FILE" "Claude"; then
@@ -933,10 +935,11 @@ run_claude() {
             CLAUDE_MODEL="haiku"
 
             # Retry with haiku (cheapest model)
+            # shellcheck disable=SC2016
             run_with_retry "Claude CLI (fallback)" "$CLAUDE_OUTPUT_FILE" \
                 bash -c 'claude --print --output-format text --model haiku --append-system-prompt "$1" < "$0"' \
                 "$CLAUDE_PROMPT_FILE" \
-                "You are a code analysis agent in a parallel orchestration system. Rules: Do NOT use emojis. Do NOT claim to have read files or performed actions you did not actually perform. Keep responses concise and technical. Report only findings from actual analysis of the provided content." # shellcheck disable=SC2016
+                "You are a code analysis agent in a parallel orchestration system. Rules: Do NOT use emojis. Do NOT claim to have read files or performed actions you did not actually perform. Keep responses concise and technical. Report only findings from actual analysis of the provided content."
         fi
     fi
 }
