@@ -61,19 +61,46 @@ run_with_spinner() {
     local pid
     local spin='-\|/'
     local i=0
+    local log_file
 
-    eval "$cmd" &
+    # Create secure temp file
+    log_file=$(mktemp) || return 1
+
+    # Check for non-interactive mode or dumb terminal or NO_COLOR
+    if [[ ! -t 1 ]] || [[ "$TERM" == "dumb" ]] || [[ -n "$NO_COLOR" ]]; then
+        echo -e "${CYAN}→${NC} $msg..."
+        eval "$cmd"
+        local exit_code=$?
+        rm -f "$log_file"
+        return $exit_code
+    fi
+
+    # Run command in background, redirecting output to log file
+    eval "$cmd" > "$log_file" 2>&1 &
     pid=$!
 
+    # Spinner loop
     while kill -0 "$pid" 2> /dev/null; do
         i=$(((i + 1) % 4))
         printf "\r${CYAN}${spin:$i:1}${NC} %s..." "$msg"
-        sleep 0.2
+        sleep 0.1
     done
 
     wait "$pid"
     local exit_code=$?
+
+    # Clear line
     printf "\r\033[K"
+
+    if [[ $exit_code -eq 0 ]]; then
+        rm -f "$log_file"
+    else
+        # On failure, print the output
+        echo -e "${RED}Command failed:${NC}"
+        cat "$log_file"
+        rm -f "$log_file"
+    fi
+
     return $exit_code
 }
 
