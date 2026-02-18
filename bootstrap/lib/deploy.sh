@@ -116,6 +116,7 @@ deploy_cursor_configs() {
 
     # Create .cursor directory structure
     mkdir -p "$CURSOR_TARGET_DIR/rules"
+    chmod 700 "$CURSOR_TARGET_DIR"
 
     # Copy .mdc rule files
     if [[ -d "$cursor_source_dir/rules" ]]; then
@@ -149,6 +150,7 @@ deploy_gemini_configs() {
 
     # Create .gemini directory structure
     mkdir -p "$GEMINI_TARGET_DIR"
+    chmod 700 "$GEMINI_TARGET_DIR"
 
     # Copy GEMINI.md
     if [[ -f "$gemini_source_dir/GEMINI.md" ]]; then
@@ -179,6 +181,7 @@ deploy_codex_configs() {
 
     # Create ~/.codex if needed but never wipe it (contains auth/history/session data)
     mkdir -p "$CODEX_TARGET_DIR"
+    chmod 700 "$CODEX_TARGET_DIR"
 
     # Prefer repo-specific Codex guide if available; fallback to AGENTS.md at repo root
     if [[ -f "$SCRIPT_DIR/configs/codex/AGENTS.md" ]]; then
