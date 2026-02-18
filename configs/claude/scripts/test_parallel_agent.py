@@ -9,6 +9,19 @@ Or: python3 test_parallel_agent.py
 import asyncio
 import sys
 from pathlib import Path
+from unittest.mock import MagicMock
+
+# Mock dependencies required by parallel_agent.py
+sys.modules["yaml"] = MagicMock()
+sys.modules["rich"] = MagicMock()
+sys.modules["rich.console"] = MagicMock()
+sys.modules["rich.table"] = MagicMock()
+sys.modules["rich.progress"] = MagicMock()
+sys.modules["rich.live"] = MagicMock()
+sys.modules["rich.panel"] = MagicMock()
+sys.modules["anthropic"] = MagicMock()
+sys.modules["google"] = MagicMock()
+sys.modules["google.genai"] = MagicMock()
 
 try:
     import pytest
