@@ -1757,8 +1757,7 @@ print_results_table() {
 
     echo "Duration : $DURATION_FORMATTED"
     echo "Results  : $OUTPUT_DIR"
-    # shellcheck disable=SC2059
-    printf "${NC}\n"
+    printf '%b\n' "${NC}"
 }
 
 # Main execution
