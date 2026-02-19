@@ -1587,7 +1587,7 @@ print_results_table() {
     if [[ "$VALIDATE" == true ]]; then
         printf " | %-10s" "Validation"
     fi
-    printf "${NC}\n"
+    printf '%b\n' "${NC}"
 
     printf "%s\n" "-----------|------------|----------------------$(if [[ "$VALIDATE" == true ]]; then echo "-|------------"; fi)"
 
