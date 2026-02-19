@@ -3,13 +3,16 @@
 > Repository context and guidance for AI coding agents (Cursor, Claude Code, Gemini, Codex, etc.)
 
 **Last Updated**: 2026-02-11
-**Audience**: AI assistants (Cursor Agent, Claude Code, Gemini CLI, Codex CLI), contributors
-**Purpose**: Provide AI agents with repository structure, deployment process, and testing guidelines
+**Audience**: AI assistants (Cursor Agent, Claude Code, Gemini CLI, Codex CLI),
+  contributors
+**Purpose**: Provide AI agents with repository structure, deployment process,
+  and testing guidelines
 
 ---
 
-This file provides guidance to AI coding agents when working with code in this repository.
-It follows the [AGENTS.md standard](https://agents.md/) for unified coding agent instructions.
+This file provides guidance to AI coding agents when working with code in this
+repository. It follows the [AGENTS.md standard](https://agents.md/) for unified
+coding agent instructions.
 
 ## MCP Default Policy
 
@@ -29,8 +32,8 @@ Use these MCP servers by default when their domain context matches the task:
   documentation.
 - **Google Dev Docs MCP**: official Google platform documentation (Firebase,
   Cloud, Android, Maps) when working with Google services.
-- **Atlassian MCP**: Jira issues, Confluence pages, and Compass components when
-  the project uses Atlassian tools.
+- **Atlassian MCP**: Jira issues, Confluence pages, and Compass components
+  when the project uses Atlassian tools.
 - **Apify MCP**: web scraping, data extraction, and crawling tasks that require
   fetching structured data from external websites.
 - **OpenTofu MCP**: OpenTofu/Terraform registry lookups, provider and module
@@ -38,10 +41,11 @@ Use these MCP servers by default when their domain context matches the task:
 
 ## Repository Purpose
 
-This repository manages AI agent configurations for deployment to `~/.claude/` (and mirrored
-to `~/.cursor/`, `~/.gemini/`, and `~/.codex/`) on target machines. It contains orchestration guides,
-skills, prompts, and scripts that enable parallel LLM agent coordination
-(Cursor, Gemini CLI, Claude CLI, Codex CLI).
+This repository manages AI agent configurations for deployment to `~/.claude/`
+(and mirrored to `~/.cursor/`, `~/.gemini/`, and `~/.codex/`) on target
+machines. It contains orchestration guides, skills, prompts, and scripts that
+enable parallel LLM agent coordination (Cursor, Gemini CLI, Claude CLI,
+Codex CLI).
 
 ## Repository Structure
 
@@ -276,21 +280,27 @@ Each skill produces a corresponding `.mdc` rule in `configs/cursor/rules/`.
 Skills are shared across all platforms via symlinks from `configs/claude/skills/`:
 
 - **Claude Code**: Skills loaded from `~/.claude/skills/`
-- **Cursor**: Rules auto-generated from skills into `~/.cursor/rules/` (`.mdc` files)
-- **Gemini CLI**: Skills loaded from `~/.gemini/skills/` (symlink to `~/.claude/skills/`)
-- **Codex CLI**: Skills loaded from `~/.codex/skills/` (symlink to `~/.claude/skills/`)
+- **Cursor**: Rules auto-generated from skills into `~/.cursor/rules/`
+  (`.mdc` files)
+- **Gemini CLI**: Skills loaded from `~/.gemini/skills/`
+  (symlink to `~/.claude/skills/`)
+- **Codex CLI**: Skills loaded from `~/.codex/skills/`
+  (symlink to `~/.claude/skills/`)
 
 ## Parallel Agent Orchestration
 
-All agents share the same orchestration script at `configs/claude/scripts/parallel_agent.sh`.
+All agents share the same orchestration script at
+`configs/claude/scripts/parallel_agent.sh`.
 
 ```bash
 # Basic code review (all 3 agents)
-~/.claude/scripts/parallel_agent.sh --json --timeout 600 --review /absolute/path/to/file
+~/.claude/scripts/parallel_agent.sh --json --timeout 600 \
+  --review /absolute/path/to/file
 
 # Security analysis with maximum capability models
-~/.claude/scripts/parallel_agent.sh --json --full-output --validate --timeout 900 \
-  --cursor-model advanced --claude-model opus --analyze /absolute/path/to/file
+~/.claude/scripts/parallel_agent.sh --json --full-output --validate \
+  --timeout 900 --cursor-model advanced --claude-model opus \
+  --analyze /absolute/path/to/file
 ```
 
 ### Consensus Thresholds
@@ -321,8 +331,10 @@ python3 -c "import yaml; yaml.safe_load(open('configs/claude/config/validation_c
 
 ## Plan Management
 
-Implementation plans are tracked in `configs/claude/.plans/` (symlinked at `configs/cursor/.plans/`,
-`configs/gemini/.plans/`, and `configs/codex/.plans/`) as date-prefixed markdown files (`YYYYMMDD-description.md`).
+Implementation plans are tracked in `configs/claude/.plans/` (symlinked at
+`configs/cursor/.plans/`, `configs/gemini/.plans/`, and
+`configs/codex/.plans/`) as date-prefixed markdown files
+(`YYYYMMDD-description.md`).
 
 Lifecycle: `CREATE -> ACTIVE -> COMPLETED (.archive/) or ABANDONED (.abandoned/)`
 
@@ -330,20 +342,24 @@ Lifecycle: `CREATE -> ACTIVE -> COMPLETED (.archive/) or ABANDONED (.abandoned/)
 
 ### Adding a Claude Code Skill
 
-1. Create a `SKILL.md` file in `configs/claude/skills/my-skill/` (e.g., `configs/claude/skills/my-skill/SKILL.md`)
+1. Create a `SKILL.md` file in `configs/claude/skills/my-skill/`
+   (e.g., `configs/claude/skills/my-skill/SKILL.md`)
 2. Add tool policies to `configs/claude/config/command_config.yml`
-3. Skills are automatically available in Claude Code after deploying via bootstrap
+3. Skills are automatically available in Claude Code after deploying via
+   bootstrap
 
 ### Adding a Cursor Rule
 
 1. Create an `.mdc` file in `configs/cursor/rules/` (e.g., `my-rule.mdc`)
 2. Add YAML frontmatter with `description`, `globs`, and `alwaysApply`
-3. Rule auto-attaches when files matching `globs` are referenced (after deploying)
+3. Rule auto-attaches when files matching `globs` are referenced
+   (after deploying)
 
 ### Adding a Gemini CLI Skill
 
-Gemini CLI uses the shared skills from `configs/claude/skills/` (symlinked at `~/.gemini/skills`).
-To add a new skill, follow the Claude Code skill instructions above.
+Gemini CLI uses the shared skills from `configs/claude/skills/`
+(symlinked at `~/.gemini/skills`). To add a new skill, follow the Claude Code
+skill instructions above.
 
 ---
 
@@ -352,7 +368,11 @@ To add a new skill, follow the Claude Code skill instructions above.
 - [README.md](README.md) - Project overview and quick start
 - [CLAUDE.md](CLAUDE.md) - Claude Code-specific project instructions
 - [docs/README.md](docs/README.md) - Documentation hub
-- [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md) - First-time setup walkthrough
-- [docs/CONFIGURATION.md](docs/CONFIGURATION.md) - Complete configuration reference
-- [docs/ARCHITECTURE_DIAGRAMS.md](docs/ARCHITECTURE_DIAGRAMS.md) - Visual system documentation
-- [configs/claude/.plans/README.md](configs/claude/.plans/README.md) - Plan management quick reference
+- [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md) - First-time setup
+  walkthrough
+- [docs/CONFIGURATION.md](docs/CONFIGURATION.md) - Complete configuration
+  reference
+- [docs/ARCHITECTURE_DIAGRAMS.md](docs/ARCHITECTURE_DIAGRAMS.md) - Visual
+  system documentation
+- [configs/claude/.plans/README.md](configs/claude/.plans/README.md) - Plan
+  management quick reference

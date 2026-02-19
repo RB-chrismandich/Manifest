@@ -1,10 +1,12 @@
 # Troubleshooting Guide
 
-> Common problems and solutions for the Manifest parallel agent orchestration framework
+> Common problems and solutions for the Manifest parallel agent orchestration
+> framework
 
 **Last Updated**: 2026-01-27
 **Audience**: All users
-**Quick Help**: Most issues are fixed by checking service configuration and verifying CLI installations
+**Quick Help**: Most issues are fixed by checking service configuration and
+verifying CLI installations
 
 ---
 
@@ -54,7 +56,8 @@ Error: Homebrew installation failed
 
 ```bash
 # Install Homebrew manually
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+/bin/bash -c \
+  "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 
 # Re-run bootstrap
 ./bootstrap.sh --skip-install
@@ -169,7 +172,8 @@ gemini --version
 
 **Causes:**
 
-1. **Authentication failure** → See [Authentication Issues](#authentication-issues)
+1. **Authentication failure** → See
+   [Authentication Issues](#authentication-issues)
 2. **Quota exceeded** → Wait or use cheaper models
 3. **Timeout** → Increase timeout with `--timeout 900`
 
@@ -198,7 +202,8 @@ gemini auth status
 
 ```text
 Warning: Codex runtime unavailable, disabling Codex agent
-Reason: Session directory is not writable: /Users/<user>/.manifest/codex/sessions
+Reason: Session directory is not writable:
+  /Users/<user>/.manifest/codex/sessions
 ```
 
 **Why this happens:**
@@ -223,10 +228,12 @@ export CODEX_HOME="$HOME/.manifest/custom-codex-state"
 
 # 3) Re-run status or orchestration
 ~/.claude/scripts/parallel_agent.sh --status
-~/.claude/scripts/parallel_agent.sh --codex-only --codex-model advanced "Quick test"
+~/.claude/scripts/parallel_agent.sh --codex-only --codex-model advanced \
+  "Quick test"
 ```
 
-**Tradeoff:** This avoids permission issues but uses a separate Codex state/config history path.
+**Tradeoff:** This avoids permission issues but uses a separate Codex
+state/config history path.
 
 ---
 
@@ -349,8 +356,9 @@ cursor: command not found
 
 **Solution:**
 
-Cursor is a desktop application, not a CLI tool. The Manifest integration expects Cursor
-to be installed but doesn't directly invoke it via command line in the current implementation.
+Cursor is a desktop application, not a CLI tool. The Manifest integration
+expects Cursor to be installed but doesn't directly invoke it via command line
+in the current implementation.
 
 **Workaround:**
 
@@ -559,7 +567,8 @@ mkdir -p ~/.manifest/orchestration/outputs
 chmod 700 ~/.manifest/orchestration/outputs
 
 # Specify custom output directory
-~/.claude/scripts/parallel_agent.sh --output ~/.manifest/orchestration/outputs "Task"
+~/.claude/scripts/parallel_agent.sh --output ~/.manifest/orchestration/outputs \
+  "Task"
 ```
 
 ---
@@ -694,7 +703,8 @@ curl -I https://registry.npmjs.org
 2. **Run with verbose output:**
 
    ```bash
-   ~/.claude/scripts/parallel_agent.sh --json --full-output "Test" 2>&1 | tee debug.log
+   ~/.claude/scripts/parallel_agent.sh --json --full-output "Test" 2>&1 | \
+     tee debug.log
    ```
 
 3. **Check GitHub Issues:**
