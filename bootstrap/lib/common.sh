@@ -86,7 +86,6 @@ run_with_spinner() {
     else
         # Non-interactive mode: just print message and wait
         echo "Running: $msg"
-        wait "$pid"
     fi
 
     wait "$pid"
