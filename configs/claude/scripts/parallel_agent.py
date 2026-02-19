@@ -281,6 +281,21 @@ class RateLimiter:
 class ValidationEngine:
     """Validates agent outputs against tiered criteria"""
 
+    # Pre-compiled regex patterns for performance
+    SECRET_PATTERN = re.compile(
+        r'(?:api[_-]?key|password|secret|token)\s*=\s*["\'][^"\']+["\']',
+        re.IGNORECASE,
+    )
+    SQL_PATTERN = re.compile(
+        r'(?:execute|query)\s*\(\s*["\'].*\+',
+        re.IGNORECASE,
+    )
+    CMD_PATTERN = re.compile(
+        r'(?:exec\s*\(.*user.*\)|system\s*\(.*input.*\)|shell_exec)',
+        re.IGNORECASE,
+    )
+    BARE_EXCEPT_PATTERN = re.compile(r"except\s*:", re.IGNORECASE)
+
     def __init__(self, config: Config, logger: Optional["Logger"] = None):
         self.config = config
         self.logger = logger
@@ -307,6 +322,11 @@ class ValidationEngine:
         command: Optional[str] = None,
     ) -> Dict:
         """Validate results against tier1 and tier2 criteria"""
+        # Pre-compute lowercased outputs to avoid repeated .lower() calls
+        for result in agent_results.values():
+            if result.get("status") == "complete" and "output" in result:
+                result["output_lower"] = result["output"].lower()
+
         # Get command-specific overrides
         overrides = {}
         if command and "command_overrides" in self.criteria:
@@ -423,42 +443,24 @@ class ValidationEngine:
             if result.get("status") != "complete":
                 continue
 
-            output = result.get("output", "").lower()
+            # Use pre-computed lowercased output
+            output = result.get("output_lower", "")
+            if not output and "output" in result:
+                output = result["output"].lower()
 
             # Check for hardcoded secrets
-            secret_patterns = [
-                r'api[_-]?key\s*=\s*["\'][^"\']+["\']',
-                r'password\s*=\s*["\'][^"\']+["\']',
-                r'secret\s*=\s*["\'][^"\']+["\']',
-                r'token\s*=\s*["\'][^"\']+["\']',
-            ]
-
-            for pattern in secret_patterns:
-                if re.search(pattern, output, re.IGNORECASE):
-                    issues.append(f"[{agent_name}] Potential hardcoded secret detected")
-                    break
+            if self.SECRET_PATTERN.search(output):
+                issues.append(f"[{agent_name}] Potential hardcoded secret detected")
 
             # Check for SQL injection patterns
-            sql_patterns = [r'execute\s*\(\s*["\'].*\+', r'query\s*\(\s*["\'].*\+']
-            for pattern in sql_patterns:
-                if re.search(pattern, output, re.IGNORECASE):
-                    issues.append(
-                        f"[{agent_name}] Potential SQL injection vulnerability"
-                    )
-                    break
+            if self.SQL_PATTERN.search(output):
+                issues.append(f"[{agent_name}] Potential SQL injection vulnerability")
 
             # Check for command injection patterns
-            cmd_patterns = [
-                r"exec\s*\(.*user.*\)",
-                r"system\s*\(.*input.*\)",
-                r"shell_exec",
-            ]
-            for pattern in cmd_patterns:
-                if re.search(pattern, output, re.IGNORECASE):
-                    issues.append(
-                        f"[{agent_name}] Potential command injection vulnerability"
-                    )
-                    break
+            if self.CMD_PATTERN.search(output):
+                issues.append(
+                    f"[{agent_name}] Potential command injection vulnerability"
+                )
 
         return {"passed": len(issues) == 0, "issues": issues}
 
@@ -470,14 +472,17 @@ class ValidationEngine:
             if result.get("status") != "complete":
                 continue
 
-            output = result.get("output", "").lower()
+            # Use pre-computed lowercased output
+            output = result.get("output_lower", "")
+            if not output and "output" in result:
+                output = result["output"].lower()
 
             # Check for silent failures
             if "pass" in output and "except" in output and "logging" not in output:
                 issues.append(f"[{agent_name}] Potential silent failure detected")
 
             # Check for bare except clauses
-            if re.search(r"except\s*:", output):
+            if self.BARE_EXCEPT_PATTERN.search(output):
                 issues.append(f"[{agent_name}] Bare except clause detected")
 
         return {"passed": len(issues) == 0, "issues": issues}
@@ -492,7 +497,10 @@ class ValidationEngine:
             if result.get("status") != "complete":
                 continue
 
-            output = result.get("output", "").lower()
+            # Use pre-computed lowercased output
+            output = result.get("output_lower", "")
+            if not output and "output" in result:
+                output = result["output"].lower()
 
             # Check for removed/renamed functions without deprecation
             if (
@@ -575,14 +583,17 @@ class ValidationEngine:
             if result.get("status") != "complete":
                 continue
 
-            output = result.get("output", "")
+            # Use pre-computed lowercased output
+            output = result.get("output_lower", "")
+            if not output and "output" in result:
+                output = result["output"].lower()
 
             # Check for null reference issues
-            if "null" in output.lower() or "undefined" in output.lower():
+            if "null" in output or "undefined" in output:
                 concerns.append(f"[{agent_name}] Potential null/undefined reference")
 
             # Check for race conditions
-            if "race" in output.lower() or "concurrent" in output.lower():
+            if "race" in output or "concurrent" in output:
                 concerns.append(f"[{agent_name}] Potential race condition mentioned")
 
         # Score inversely proportional to concerns
@@ -598,7 +609,10 @@ class ValidationEngine:
             if result.get("status") != "complete":
                 continue
 
-            output = result.get("output", "").lower()
+            # Use pre-computed lowercased output
+            output = result.get("output_lower", "")
+            if not output and "output" in result:
+                output = result["output"].lower()
 
             # Check for O(n²) complexity mentions
             if "o(n" in output and ("²" in output or "^2" in output or "n)" in output):
@@ -622,7 +636,10 @@ class ValidationEngine:
             if result.get("status") != "complete":
                 continue
 
-            output = result.get("output", "").lower()
+            # Use pre-computed lowercased output
+            output = result.get("output_lower", "")
+            if not output and "output" in result:
+                output = result["output"].lower()
 
             # Check for complexity mentions
             if "complex" in output or "complicated" in output:
@@ -644,7 +661,10 @@ class ValidationEngine:
             if result.get("status") != "complete":
                 continue
 
-            output = result.get("output", "").lower()
+            # Use pre-computed lowercased output
+            output = result.get("output_lower", "")
+            if not output and "output" in result:
+                output = result["output"].lower()
 
             # Check for missing tests mentions
             if "no test" in output or "missing test" in output:
@@ -680,6 +700,9 @@ class ValidationEngine:
 
 class SynthesisEngine:
     """Handles synthesis when agents disagree"""
+
+    # Pre-compiled regex for JSON extraction
+    JSON_BLOCK_PATTERN = re.compile(r"```json\s*\n(.*?)\n```", re.DOTALL)
 
     def __init__(self, config: Config, logger: Optional["Logger"] = None):
         self.config = config
@@ -753,7 +776,7 @@ class SynthesisEngine:
             # Parse JSON response
             synthesis_text = response.content[0].text
             # Extract JSON from markdown code blocks if present
-            json_match = re.search(r"```json\s*\n(.*?)\n```", synthesis_text, re.DOTALL)
+            json_match = self.JSON_BLOCK_PATTERN.search(synthesis_text)
             if json_match:
                 synthesis_text = json_match.group(1)
 
