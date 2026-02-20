@@ -233,6 +233,7 @@ configure_shell_profile_state() {
             ;;
     esac
 
+    # shellcheck disable=SC2016
     local export_line='export MANIFEST_STATE_ROOT="${MANIFEST_STATE_ROOT:-$HOME/.manifest}"'
     # shellcheck disable=SC2034
     SHELL_PROFILE_FILE="$profile_file"
