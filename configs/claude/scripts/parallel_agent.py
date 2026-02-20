@@ -281,6 +281,27 @@ class RateLimiter:
 class ValidationEngine:
     """Validates agent outputs against tiered criteria"""
 
+    # Pre-compiled regex patterns to improve performance
+    SECRET_PATTERNS = [
+        re.compile(r'api[_-]?key\s*=\s*["\'][^"\']+["\']', re.IGNORECASE),
+        re.compile(r'password\s*=\s*["\'][^"\']+["\']', re.IGNORECASE),
+        re.compile(r'secret\s*=\s*["\'][^"\']+["\']', re.IGNORECASE),
+        re.compile(r'token\s*=\s*["\'][^"\']+["\']', re.IGNORECASE),
+    ]
+
+    SQL_PATTERNS = [
+        re.compile(r'execute\s*\(\s*["\'].*\+', re.IGNORECASE),
+        re.compile(r'query\s*\(\s*["\'].*\+', re.IGNORECASE),
+    ]
+
+    CMD_PATTERNS = [
+        re.compile(r"exec\s*\(.*user.*\)", re.IGNORECASE),
+        re.compile(r"system\s*\(.*input.*\)", re.IGNORECASE),
+        re.compile(r"shell_exec", re.IGNORECASE),
+    ]
+
+    BARE_EXCEPT_PATTERN = re.compile(r"except\s*:", re.IGNORECASE)
+
     def __init__(self, config: Config, logger: Optional["Logger"] = None):
         self.config = config
         self.logger = logger
@@ -312,11 +333,18 @@ class ValidationEngine:
         if command and "command_overrides" in self.criteria:
             overrides = self.criteria["command_overrides"].get(command, {})
 
+        # Pre-compute lowercased outputs for complete agents to avoid repeated .lower() calls
+        outputs_lower = {
+            name: res.get("output", "").lower()
+            for name, res in agent_results.items()
+            if res.get("status") == "complete"
+        }
+
         # Tier 1 validation (critical)
-        tier1_result = self._validate_tier1(agent_results, consensus, overrides)
+        tier1_result = self._validate_tier1(outputs_lower, consensus, overrides)
 
         # Tier 2 validation (quality)
-        tier2_result = self._validate_tier2(agent_results, overrides)
+        tier2_result = self._validate_tier2(outputs_lower, overrides)
 
         # Compute overall verdict
         verdict = self._compute_verdict(tier1_result, tier2_result, overrides)
@@ -329,7 +357,7 @@ class ValidationEngine:
         }
 
     def _validate_tier1(
-        self, agent_results: Dict, consensus: Dict, overrides: Dict
+        self, outputs_lower: Dict[str, str], consensus: Dict, overrides: Dict
     ) -> Dict:
         """Validate Tier 1 (critical) criteria"""
         criteria = self.criteria.get("tier1", {})
@@ -363,7 +391,7 @@ class ValidationEngine:
         # Security checks
         if "security" in criteria:
             weight = criteria["security"]["weight"]
-            security_result = self._check_security(agent_results, criteria["security"])
+            security_result = self._check_security(outputs_lower, criteria["security"])
             checks["security"] = security_result
             checks["security"]["weight"] = weight
 
@@ -377,7 +405,7 @@ class ValidationEngine:
         if "error_handling" in criteria:
             weight = criteria["error_handling"]["weight"]
             error_result = self._check_error_handling(
-                agent_results, criteria["error_handling"]
+                outputs_lower, criteria["error_handling"]
             )
             checks["error_handling"] = error_result
             checks["error_handling"]["weight"] = weight
@@ -392,7 +420,7 @@ class ValidationEngine:
         if "breaking_changes" in criteria:
             weight = criteria["breaking_changes"]["weight"]
             breaking_result = self._check_breaking_changes(
-                agent_results, criteria["breaking_changes"]
+                outputs_lower, criteria["breaking_changes"]
             )
             checks["breaking_changes"] = breaking_result
             checks["breaking_changes"]["weight"] = weight
@@ -414,47 +442,31 @@ class ValidationEngine:
             "failures": failures,
         }
 
-    def _check_security(self, agent_results: Dict, security_criteria: Dict) -> Dict:
+    def _check_security(
+        self, outputs_lower: Dict[str, str], security_criteria: Dict
+    ) -> Dict:
         """Check for security issues"""
         issues = []
         _keywords = security_criteria.get("keywords", [])
 
-        for agent_name, result in agent_results.items():
-            if result.get("status") != "complete":
-                continue
-
-            output = result.get("output", "").lower()
-
+        for agent_name, output in outputs_lower.items():
             # Check for hardcoded secrets
-            secret_patterns = [
-                r'api[_-]?key\s*=\s*["\'][^"\']+["\']',
-                r'password\s*=\s*["\'][^"\']+["\']',
-                r'secret\s*=\s*["\'][^"\']+["\']',
-                r'token\s*=\s*["\'][^"\']+["\']',
-            ]
-
-            for pattern in secret_patterns:
-                if re.search(pattern, output, re.IGNORECASE):
+            for pattern in self.SECRET_PATTERNS:
+                if pattern.search(output):
                     issues.append(f"[{agent_name}] Potential hardcoded secret detected")
                     break
 
             # Check for SQL injection patterns
-            sql_patterns = [r'execute\s*\(\s*["\'].*\+', r'query\s*\(\s*["\'].*\+']
-            for pattern in sql_patterns:
-                if re.search(pattern, output, re.IGNORECASE):
+            for pattern in self.SQL_PATTERNS:
+                if pattern.search(output):
                     issues.append(
                         f"[{agent_name}] Potential SQL injection vulnerability"
                     )
                     break
 
             # Check for command injection patterns
-            cmd_patterns = [
-                r"exec\s*\(.*user.*\)",
-                r"system\s*\(.*input.*\)",
-                r"shell_exec",
-            ]
-            for pattern in cmd_patterns:
-                if re.search(pattern, output, re.IGNORECASE):
+            for pattern in self.CMD_PATTERNS:
+                if pattern.search(output):
                     issues.append(
                         f"[{agent_name}] Potential command injection vulnerability"
                     )
@@ -462,38 +474,30 @@ class ValidationEngine:
 
         return {"passed": len(issues) == 0, "issues": issues}
 
-    def _check_error_handling(self, agent_results: Dict, error_criteria: Dict) -> Dict:
+    def _check_error_handling(
+        self, outputs_lower: Dict[str, str], error_criteria: Dict
+    ) -> Dict:
         """Check for proper error handling"""
         issues = []
 
-        for agent_name, result in agent_results.items():
-            if result.get("status") != "complete":
-                continue
-
-            output = result.get("output", "").lower()
-
+        for agent_name, output in outputs_lower.items():
             # Check for silent failures
             if "pass" in output and "except" in output and "logging" not in output:
                 issues.append(f"[{agent_name}] Potential silent failure detected")
 
             # Check for bare except clauses
-            if re.search(r"except\s*:", output):
+            if self.BARE_EXCEPT_PATTERN.search(output):
                 issues.append(f"[{agent_name}] Bare except clause detected")
 
         return {"passed": len(issues) == 0, "issues": issues}
 
     def _check_breaking_changes(
-        self, agent_results: Dict, breaking_criteria: Dict
+        self, outputs_lower: Dict[str, str], breaking_criteria: Dict
     ) -> Dict:
         """Check for breaking changes"""
         issues = []
 
-        for agent_name, result in agent_results.items():
-            if result.get("status") != "complete":
-                continue
-
-            output = result.get("output", "").lower()
-
+        for agent_name, output in outputs_lower.items():
             # Check for removed/renamed functions without deprecation
             if (
                 "removed" in output or "renamed" in output
@@ -504,7 +508,9 @@ class ValidationEngine:
 
         return {"passed": len(issues) == 0, "issues": issues}
 
-    def _validate_tier2(self, agent_results: Dict, overrides: Dict) -> Dict:
+    def _validate_tier2(
+        self, outputs_lower: Dict[str, str], overrides: Dict
+    ) -> Dict:
         """Validate Tier 2 (quality) criteria"""
         criteria = self.criteria.get("tier2", {})
         checks = {}
@@ -515,7 +521,7 @@ class ValidationEngine:
         # Bug detection
         if "bug_detection" in criteria:
             weight = criteria["bug_detection"]["weight"]
-            bug_result = self._check_bugs(agent_results, criteria["bug_detection"])
+            bug_result = self._check_bugs(outputs_lower, criteria["bug_detection"])
             checks["bug_detection"] = bug_result
             checks["bug_detection"]["weight"] = weight
 
@@ -527,7 +533,7 @@ class ValidationEngine:
         if "performance" in criteria:
             weight = criteria["performance"]["weight"]
             perf_result = self._check_performance(
-                agent_results, criteria["performance"]
+                outputs_lower, criteria["performance"]
             )
             checks["performance"] = perf_result
             checks["performance"]["weight"] = weight
@@ -540,7 +546,7 @@ class ValidationEngine:
         if "maintainability" in criteria:
             weight = criteria["maintainability"]["weight"]
             maint_result = self._check_maintainability(
-                agent_results, criteria["maintainability"]
+                outputs_lower, criteria["maintainability"]
             )
             checks["maintainability"] = maint_result
             checks["maintainability"]["weight"] = weight
@@ -553,7 +559,7 @@ class ValidationEngine:
         if "test_coverage" in criteria:
             weight = criteria["test_coverage"]["weight"]
             test_result = self._check_test_coverage(
-                agent_results, criteria["test_coverage"]
+                outputs_lower, criteria["test_coverage"]
             )
             checks["test_coverage"] = test_result
             checks["test_coverage"]["weight"] = weight
@@ -566,23 +572,20 @@ class ValidationEngine:
 
         return {"score": final_score, "checks": checks, "concerns": concerns}
 
-    def _check_bugs(self, agent_results: Dict, bug_criteria: Dict) -> Dict:
+    def _check_bugs(
+        self, outputs_lower: Dict[str, str], bug_criteria: Dict
+    ) -> Dict:
         """Check for common bug patterns"""
         concerns = []
         _patterns = bug_criteria.get("patterns", [])
 
-        for agent_name, result in agent_results.items():
-            if result.get("status") != "complete":
-                continue
-
-            output = result.get("output", "")
-
+        for agent_name, output in outputs_lower.items():
             # Check for null reference issues
-            if "null" in output.lower() or "undefined" in output.lower():
+            if "null" in output or "undefined" in output:
                 concerns.append(f"[{agent_name}] Potential null/undefined reference")
 
             # Check for race conditions
-            if "race" in output.lower() or "concurrent" in output.lower():
+            if "race" in output or "concurrent" in output:
                 concerns.append(f"[{agent_name}] Potential race condition mentioned")
 
         # Score inversely proportional to concerns
@@ -590,16 +593,13 @@ class ValidationEngine:
 
         return {"score": score, "concerns": concerns}
 
-    def _check_performance(self, agent_results: Dict, perf_criteria: Dict) -> Dict:
+    def _check_performance(
+        self, outputs_lower: Dict[str, str], perf_criteria: Dict
+    ) -> Dict:
         """Check for performance anti-patterns"""
         concerns = []
 
-        for agent_name, result in agent_results.items():
-            if result.get("status") != "complete":
-                continue
-
-            output = result.get("output", "").lower()
-
+        for agent_name, output in outputs_lower.items():
             # Check for O(n²) complexity mentions
             if "o(n" in output and ("²" in output or "^2" in output or "n)" in output):
                 concerns.append(
@@ -614,16 +614,13 @@ class ValidationEngine:
 
         return {"score": score, "concerns": concerns}
 
-    def _check_maintainability(self, agent_results: Dict, maint_criteria: Dict) -> Dict:
+    def _check_maintainability(
+        self, outputs_lower: Dict[str, str], maint_criteria: Dict
+    ) -> Dict:
         """Check for maintainability issues"""
         concerns = []
 
-        for agent_name, result in agent_results.items():
-            if result.get("status") != "complete":
-                continue
-
-            output = result.get("output", "").lower()
-
+        for agent_name, output in outputs_lower.items():
             # Check for complexity mentions
             if "complex" in output or "complicated" in output:
                 concerns.append(f"[{agent_name}] Complexity concerns noted")
@@ -636,16 +633,13 @@ class ValidationEngine:
 
         return {"score": score, "concerns": concerns}
 
-    def _check_test_coverage(self, agent_results: Dict, test_criteria: Dict) -> Dict:
+    def _check_test_coverage(
+        self, outputs_lower: Dict[str, str], test_criteria: Dict
+    ) -> Dict:
         """Check for test coverage"""
         concerns = []
 
-        for agent_name, result in agent_results.items():
-            if result.get("status") != "complete":
-                continue
-
-            output = result.get("output", "").lower()
-
+        for agent_name, output in outputs_lower.items():
             # Check for missing tests mentions
             if "no test" in output or "missing test" in output:
                 concerns.append(f"[{agent_name}] Missing test coverage noted")

@@ -181,13 +181,10 @@ class TestValidationEngine:
         config = self._make_config(tmp_path)
         validator = ValidationEngine(config)
 
-        results = {
-            "claude": {
-                "status": "complete",
-                "output": 'Found api_key = "sk-secret-12345" in source',
-            }
+        outputs_lower = {
+            "claude": 'found api_key = "sk-secret-12345" in source'
         }
-        check = validator._check_security(results, {})
+        check = validator._check_security(outputs_lower, {})
         assert not check["passed"]
         assert len(check["issues"]) > 0
 
@@ -196,13 +193,10 @@ class TestValidationEngine:
         config = self._make_config(tmp_path)
         validator = ValidationEngine(config)
 
-        results = {
-            "claude": {
-                "status": "complete",
-                "output": "Code uses environment variables for all secrets.",
-            }
+        outputs_lower = {
+            "claude": "code uses environment variables for all secrets."
         }
-        check = validator._check_security(results, {})
+        check = validator._check_security(outputs_lower, {})
         assert check["passed"]
         assert len(check["issues"]) == 0
 
@@ -211,13 +205,10 @@ class TestValidationEngine:
         config = self._make_config(tmp_path)
         validator = ValidationEngine(config)
 
-        results = {
-            "gemini": {
-                "status": "complete",
-                "output": "Found bare except: clause on line 42",
-            }
+        outputs_lower = {
+            "gemini": "found bare except: clause on line 42"
         }
-        check = validator._check_error_handling(results, {})
+        check = validator._check_error_handling(outputs_lower, {})
         assert not check["passed"]
         assert any("except" in issue.lower() for issue in check["issues"])
 
@@ -226,13 +217,10 @@ class TestValidationEngine:
         config = self._make_config(tmp_path)
         validator = ValidationEngine(config)
 
-        results = {
-            "cursor": {
-                "status": "complete",
-                "output": "Warning: potential null reference on line 55",
-            }
+        outputs_lower = {
+            "cursor": "warning: potential null reference on line 55"
         }
-        check = validator._check_bugs(results, {})
+        check = validator._check_bugs(outputs_lower, {})
         assert check["score"] < 1.0
         assert len(check["concerns"]) > 0
 
@@ -241,13 +229,10 @@ class TestValidationEngine:
         config = self._make_config(tmp_path)
         validator = ValidationEngine(config)
 
-        results = {
-            "claude": {
-                "status": "complete",
-                "output": "This nested loop results in O(n^2) complexity",
-            }
+        outputs_lower = {
+            "claude": "this nested loop results in o(n^2) complexity"
         }
-        check = validator._check_performance(results, {})
+        check = validator._check_performance(outputs_lower, {})
         assert check["score"] < 1.0
 
     def test_verdict_approved(self, tmp_path):
@@ -297,14 +282,12 @@ class TestValidationEngine:
         config = self._make_config(tmp_path)
         validator = ValidationEngine(config)
 
-        results = {
-            "claude": {
-                "status": "failed",
-                "output": 'api_key = "secret"',  # Would trigger if status were complete
-            }
-        }
-        check = validator._check_security(results, {})
-        # Failed agent should be skipped, so no issues detected
+        # Simulating that only complete agents are passed to check methods
+        # In real execution, validate() filters incomplete agents before calling _check_*
+        outputs_lower = {}
+
+        check = validator._check_security(outputs_lower, {})
+        # Failed agent should be skipped (not present in outputs_lower), so no issues detected
         assert check["passed"]
 
 
