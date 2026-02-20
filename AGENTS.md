@@ -3,13 +3,14 @@
 > Repository context and guidance for AI coding agents (Cursor, Claude Code, Gemini, Codex, etc.)
 
 **Last Updated**: 2026-02-11
-**Audience**: AI assistants (Cursor Agent, Claude Code, Gemini CLI, Codex CLI), contributors
-**Purpose**: Provide AI agents with repository structure, deployment process, and testing guidelines
+**Audience**: AI assistants (Cursor, Claude Code, Gemini, Codex), contributors
+**Purpose**: Provide AI agents with repo structure, deployment, and testing guide
 
 ---
 
-This file provides guidance to AI coding agents when working with code in this repository.
-It follows the [AGENTS.md standard](https://agents.md/) for unified coding agent instructions.
+This file provides guidance to AI coding agents when working with code in this
+repository. It follows the [AGENTS.md standard](https://agents.md/) for unified
+coding agent instructions.
 
 ## MCP Default Policy
 
@@ -38,10 +39,10 @@ Use these MCP servers by default when their domain context matches the task:
 
 ## Repository Purpose
 
-This repository manages AI agent configurations for deployment to `~/.claude/` (and mirrored
-to `~/.cursor/`, `~/.gemini/`, and `~/.codex/`) on target machines. It contains orchestration guides,
-skills, prompts, and scripts that enable parallel LLM agent coordination
-(Cursor, Gemini CLI, Claude CLI, Codex CLI).
+This repository manages AI agent configurations for deployment to `~/.claude/`
+(and mirrored to `~/.cursor/`, `~/.gemini/`, and `~/.codex/`) on target
+machines. It contains orchestration guides, skills, prompts, and scripts that
+enable parallel LLM agent coordination (Cursor, Gemini CLI, Claude CLI, Codex).
 
 ## Repository Structure
 
@@ -57,7 +58,7 @@ configs/                             # Deployment source configs (deployed to ~/
 │   ├── settings.local.json          # Default permissions and MCP server config
 │   └── scripts/parallel_agent.sh    # Main parallel agent orchestration script
 ├── cursor/                          # → ~/.cursor/ (Cursor IDE configuration)
-│   ├── rules/                       # Cursor rules (.mdc) — auto-generated from SKILL.md
+│   ├── rules/                       # Cursor rules (.mdc) — from SKILL.md
 │   ├── mcp.json                     # Cursor MCP server defaults
 │   ├── scripts -> ../claude/scripts # Symlink to shared scripts
 │   ├── config -> ../claude/config   # Symlink to shared configs
@@ -66,7 +67,7 @@ configs/                             # Deployment source configs (deployed to ~/
 │   └── .plans -> ../claude/.plans   # Symlink to shared plans
 ├── gemini/                          # → ~/.gemini/ (Gemini CLI configuration)
 │   ├── GEMINI.md                    # Orchestration guide for Gemini CLI
-│   ├── settings.json                # Gemini settings (includes MCP server defaults)
+│   ├── settings.json                # Gemini settings (+ MCP server defaults)
 │   ├── scripts -> ../claude/scripts # Symlink to shared scripts
 │   ├── config -> ../claude/config   # Symlink to shared configs
 │   ├── prompts -> ../claude/prompts # Symlink to shared prompts
@@ -199,8 +200,8 @@ Required CLI tools (install those you want to use):
 | `configs/gemini/GEMINI.md` | Main orchestration guide for Gemini CLI |
 | `configs/codex/AGENTS.md` | Main orchestration guide for Codex CLI |
 | `configs/claude/scripts/parallel_agent.sh` | Bash script that runs agents in parallel with consensus scoring |
-| `configs/claude/config/command_config.yml` | Thresholds, tool policies, model selection, error recovery |
-| `configs/claude/config/validation_criteria.yml` | Tier 1 (critical) and Tier 2 (quality) validation rules |
+| `configs/claude/config/command_config.yml` | Thresholds, tool policies, models |
+| `configs/claude/config/validation_criteria.yml` | Tier 1 & 2 validation rules |
 
 ## Available Skills
 
