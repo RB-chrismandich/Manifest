@@ -1,10 +1,10 @@
 #!/bin/bash
+# shellcheck disable=SC2016
 # linear_ops.sh - Linear MCP wrapper for platform-agnostic issue operations
 # Usage: linear_ops.sh <subcommand> [args...]
 
 set -euo pipefail
 
-# shellcheck disable=SC2016
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'

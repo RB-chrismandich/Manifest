@@ -1574,6 +1574,7 @@ create_summary() {
 
 # Print results table
 print_results_table() {
+    # shellcheck disable=SC2059
     printf "${BLUE}=== Execution Summary ===${NC}\n"
     echo ""
     if [[ "$MODE" == "analyze" || "$MODE" == "review" ]]; then
@@ -1587,6 +1588,7 @@ print_results_table() {
     if [[ "$VALIDATE" == true ]]; then
         printf " | %-10s" "Validation"
     fi
+    # shellcheck disable=SC2059
     printf "${NC}\n"
 
     printf "%s\n" "-----------|------------|----------------------$(if [[ "$VALIDATE" == true ]]; then echo "-|------------"; fi)"
