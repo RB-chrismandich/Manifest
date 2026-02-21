@@ -1502,19 +1502,21 @@ monitor_agents() {
 create_summary() {
     local summary_file="$SUMMARY_FILE"
 
-    echo "# Parallel Agent Results - $TIMESTAMP" > "$summary_file"
-    echo "" >> "$summary_file"
-    echo "**Mode:** $MODE" >> "$summary_file"
-    echo "**Duration:** $DURATION_FORMATTED" >> "$summary_file"
-    echo "**Prompt/Target:** ${PROMPT:-$TARGET}" >> "$summary_file"
+    {
+        echo "# Parallel Agent Results - $TIMESTAMP"
+        echo ""
+        echo "**Mode:** $MODE"
+        echo "**Duration:** $DURATION_FORMATTED"
+        echo "**Prompt/Target:** ${PROMPT:-$TARGET}"
 
-    if [[ "$CROSS_VERIFY_RAN" == true ]]; then
-        local bar
-        bar=$(draw_bar $CONSENSUS_SCORE)
-        echo "**Consensus:** $CONSENSUS_SCORE% \`$bar\`" >> "$summary_file"
-    fi
+        if [[ "$CROSS_VERIFY_RAN" == true ]]; then
+            local bar
+            bar=$(draw_bar $CONSENSUS_SCORE)
+            echo "**Consensus:** $CONSENSUS_SCORE% \`$bar\`"
+        fi
 
-    echo "" >> "$summary_file"
+        echo ""
+    } > "$summary_file"
 
     if [[ -f "$CURSOR_OUTPUT_FILE" ]]; then
         {
