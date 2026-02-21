@@ -59,21 +59,53 @@ run_with_spinner() {
     local cmd="$1"
     local msg="${2:-Working}"
     local pid
-    local spin='-\|/'
+    local spin='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
+    local char_width=${#spin}
     local i=0
+    local log_file
 
-    eval "$cmd" &
+    log_file=$(mktemp)
+
+    # Hide cursor
+    tput civis 2>/dev/null
+
+    # Run command in background, redirecting output to log file
+    # We use eval to execute the command string safely
+    eval "$cmd" > "$log_file" 2>&1 &
     pid=$!
 
+    # Trap interrupts to cleanup
+    trap "kill $pid 2>/dev/null; rm -f '$log_file'; tput cnorm 2>/dev/null; return 1" SIGINT SIGTERM
+
     while kill -0 "$pid" 2> /dev/null; do
-        i=$(((i + 1) % 4))
-        printf "\r${CYAN}${spin:$i:1}${NC} %s..." "$msg"
-        sleep 0.2
+        i=$(((i + 1) % char_width))
+        printf "\r${CYAN}%s${NC} %s..." "${spin:$i:1}" "$msg"
+        sleep 0.1
     done
 
     wait "$pid"
     local exit_code=$?
+
+    # Restore cursor
+    tput cnorm 2>/dev/null
+    # Clear trap
+    trap - SIGINT SIGTERM
+
+    # Clear the spinner line
     printf "\r\033[K"
+
+    if [ $exit_code -eq 0 ]; then
+        printf "${GREEN}✓${NC} %s\n" "$msg"
+    else
+        printf "${RED}✗${NC} %s\n" "$msg"
+        # Print the output on failure
+        if [ -s "$log_file" ]; then
+            echo -e "${RED}Error output:${NC}"
+            cat "$log_file"
+        fi
+    fi
+
+    rm -f "$log_file"
     return $exit_code
 }
 
