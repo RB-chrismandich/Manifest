@@ -1209,6 +1209,7 @@ class CursorAgent(BaseAgent):
             "cursor",
             "--model",
             self.model_name,
+            "--",
             prompt,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
@@ -1302,6 +1303,7 @@ class CodexAgent(BaseAgent):
             if self.model_name:
                 cmd.extend(["--model", self.model_name])
 
+            cmd.append("--")
             cmd.append(prompt)
 
             proc = await asyncio.create_subprocess_exec(
