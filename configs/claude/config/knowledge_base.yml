@@ -48,9 +48,10 @@ entries:
     category: antipattern
     language: yaml
     description: >
-      Local pre-commit hooks reference old directory paths after refactors, causing
-      hooks to silently never match any files. Update all path patterns in
-      .pre-commit-config.yaml as part of every directory restructuring; add a CI check
+      Local pre-commit hooks reference old directory paths after refactors,
+      causing hooks to silently never match any files. Update all path patterns
+      in .pre-commit-config.yaml as part of every directory restructuring; add a
+      CI check
       that validates hook file patterns match existing paths.
     tags: [architecture, pre-commit, file-paths, refactoring]
     confidence: high
