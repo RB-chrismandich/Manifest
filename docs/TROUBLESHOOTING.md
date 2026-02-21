@@ -4,7 +4,8 @@
 
 **Last Updated**: 2026-01-27
 **Audience**: All users
-**Quick Help**: Most issues are fixed by checking service configuration and verifying CLI installations
+**Quick Help**: Most issues are fixed by checking service configuration and
+verifying CLI installations
 
 ---
 
