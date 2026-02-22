@@ -1,358 +1,226 @@
-# AGENTS.md
+# Manifest
 
-> Repository context and guidance for AI coding agents (Cursor, Claude Code, Gemini, Codex, etc.)
+> Repository context and guidance for AI coding agents (Cursor, Claude Code,
+> Gemini, Codex, etc.)
 
-**Last Updated**: 2026-02-11
-**Audience**: AI assistants (Cursor Agent, Claude Code, Gemini CLI, Codex CLI), contributors
-**Purpose**: Provide AI agents with repository structure, deployment process, and testing guidelines
+**Audience**: AI assistants (Cursor Agent, Claude Code, Gemini CLI, Codex CLI),
+contributors
+**Purpose**: Provide AI agents with repository structure, deployment process,
+and testing guidelines
 
----
+This file provides guidance to AI coding agents when working with code in this
+repository. It follows the [AGENTS.md standard](https://agents.md/) for unified
+coding agent instructions.
 
-This file provides guidance to AI coding agents when working with code in this repository.
-It follows the [AGENTS.md standard](https://agents.md/) for unified coding agent instructions.
+## Repository Overview
 
-## MCP Default Policy
+Manifest is a **Parallel Agent Orchestration Framework** that enables multiple
+AI models (Cursor, Claude 3.7 Sonnet, Gemini 2.0 Flash, OpenAI o3-mini) to work
+together on coding tasks. It provides a unified configuration layer that deploys
+consistent skills, prompts, and settings across different AI tools.
 
-Use these MCP servers by default when their domain context matches the task:
+### Core Architecture
 
-- **Context7 MCP**: library/API documentation, code generation, setup steps,
-  and configuration guidance.
-- **Sentry MCP**: production/runtime error investigation, stack traces, issue
-  triage, and release regression analysis.
-- **Linear MCP**: issue requirements, acceptance criteria, project context, and
-  implementation planning.
-- **Semgrep CLI**: local SAST scanning, vulnerability detection, supply-chain
-  and secrets checks during code review and refactoring (`semgrep scan`).
-- **DeepWiki MCP**: understanding unfamiliar repositories, dependency internals,
-  and upstream API contracts.
-- **Glean MCP**: internal team knowledge, runbooks, ADRs, and company-specific
-  documentation.
-- **Google Dev Docs MCP**: official Google platform documentation (Firebase,
-  Cloud, Android, Maps) when working with Google services.
-- **Atlassian MCP**: Jira issues, Confluence pages, and Compass components when
-  the project uses Atlassian tools.
-- **Apify MCP**: web scraping, data extraction, and crawling tasks that require
-  fetching structured data from external websites.
-- **OpenTofu MCP**: OpenTofu/Terraform registry lookups, provider and module
-  documentation, resource and datasource reference for Infrastructure as Code.
-
-## Repository Purpose
-
-This repository manages AI agent configurations for deployment to `~/.claude/` (and mirrored
-to `~/.cursor/`, `~/.gemini/`, and `~/.codex/`) on target machines. It contains orchestration guides,
-skills, prompts, and scripts that enable parallel LLM agent coordination
-(Cursor, Gemini CLI, Claude CLI, Codex CLI).
-
-## Repository Structure
+This repository manages AI agent configurations for deployment to `~/.claude/`
+(and mirrored to `~/.cursor/`, `~/.gemini/`, and `~/.codex/`) on target
+machines. It contains orchestration guides, skills, prompts, and scripts that
+enable a multi-agent workflow.
 
 ```text
-configs/                             # Deployment source configs (deployed to ~/ via bootstrap.sh)
-├── claude/                          # → ~/.claude/ (primary configuration)
-│   ├── CLAUDE.md                    # Orchestration guide
-│   ├── skills/                      # Canonical shared skill library (source of truth)
-│   ├── prompts/                     # Agent orchestration prompt templates
+Manifest/
+├── README.md                        # Human-readable documentation
+├── AGENTS.md                        # AI-readable documentation (this file)
+├── CLAUDE.md                        # Claude-specific project context
+├── configs/                         # Deployment source configs
+│   ├── claude/                      # Primary config source (canonical)
+│   │   ├── CLAUDE.md                # Developer guide for this repo
+│   ├── skills/                      # Canonical shared skill library
+│   ├── prompts/                     # Shared prompts (orchestration, synthesis)
 │   ├── config/                      # YAML configuration files
-│   │   └── mcp_servers.yml          # Default MCP server registry (OAuth-capable)
-│   ├── .plans/                      # Plan management (template, archive, abandoned)
-│   ├── settings.local.json          # Default permissions and MCP server config
-│   └── scripts/parallel_agent.sh    # Main parallel agent orchestration script
-├── cursor/                          # → ~/.cursor/ (Cursor IDE configuration)
-│   ├── rules/                       # Cursor rules (.mdc) — auto-generated from SKILL.md
-│   ├── mcp.json                     # Cursor MCP server defaults
-│   ├── scripts -> ../claude/scripts # Symlink to shared scripts
-│   ├── config -> ../claude/config   # Symlink to shared configs
-│   ├── prompts -> ../claude/prompts # Symlink to shared prompts
-│   ├── skills -> ../claude/skills   # Shared skills symlink
-│   └── .plans -> ../claude/.plans   # Symlink to shared plans
-├── gemini/                          # → ~/.gemini/ (Gemini CLI configuration)
-│   ├── GEMINI.md                    # Orchestration guide for Gemini CLI
-│   ├── settings.json                # Gemini settings (includes MCP server defaults)
-│   ├── scripts -> ../claude/scripts # Symlink to shared scripts
-│   ├── config -> ../claude/config   # Symlink to shared configs
-│   ├── prompts -> ../claude/prompts # Symlink to shared prompts
-│   ├── skills -> ../claude/skills   # Shared skills symlink
-│   └── .plans -> ../claude/.plans   # Symlink to shared plans
-└── codex/                           # → ~/.codex/ (Codex CLI configuration)
-    ├── AGENTS.md -> ../../AGENTS.md # Codex guide (repo-level instructions)
-    ├── scripts -> ../claude/scripts # Symlink to shared scripts
-    ├── config -> ../claude/config   # Symlink to shared configs
-    ├── prompts -> ../claude/prompts # Symlink to shared prompts
-    ├── skills -> ../claude/skills   # Shared skills symlink
-    └── .plans -> ../claude/.plans   # Symlink to shared plans
-
-.claude/                             # Repo-specific config (minimal — does NOT override sessions)
-├── CLAUDE.md                        # Developer guide for working in this repo
-└── settings.local.json              # Repo-relevant permissions only
-
-templates/                           # Project scaffolding templates
-├── scaffold/
-│   ├── python/                      # pyproject.toml, .pre-commit-config.yaml
-│   ├── go/                          # go.mod, Makefile, .golangci.yml
-│   ├── node/                        # package.json, tsconfig.json, eslint.config.js
-│   └── terraform/                   # main.tf, versions.tf, .tflint.hcl
-
-bootstrap.sh                         # macOS/Linux bootstrap script
-bootstrap/                           # Modular bootstrap libraries + hookable modules
-├── lib/                             # Shared bootstrap logic split by concern
-│   ├── common.sh                    # Shared output/prompts/symlink helpers
-│   ├── modules.sh                   # Hook registry + module loader
-│   ├── platform.sh                  # Platform detection + timeout/browser helpers
-│   ├── config.sh                    # Argument parsing + services config helpers
-│   ├── install.sh                   # CLI install routines
-│   ├── auth.sh                      # Authentication + state setup routines
-│   ├── deploy.sh                    # Deploy/verify/summary routines
-│   └── mcp.sh                       # MCP configuration/install routines
-└── modules/README.md                # How to add custom bootstrap extensions
-AGENTS.md                            # This file (AI agent instructions)
-CLAUDE.md                            # Claude Code-specific project instructions
+│   │   └── mcp_servers.yml          # Default MCP server registry
+│   ├── .plans/                      # Plan management (template, archive)
+│   ├── scripts/                     # Orchestration scripts (parallel_agent.py)
+│   └── settings.local.json          # Default permissions
+│   ├── cursor/                      # Cursor-specific config
+│   │   ├── rules/                   # Cursor rules (.mdc) — auto-generated
+│   │   └── mcp.json                 # Cursor MCP settings
+│   ├── gemini/                      # Gemini-specific config
+│   │   ├── GEMINI.md                # Orchestration guide for Gemini
+│   │   ├── settings.json            # Gemini settings (includes MCP defaults)
+│   │   └── (symlinks to ../claude/) # Scripts, skills, prompts mirrored
+│   └── codex/                       # Codex-specific config
+│       ├── AGENTS.md                # Codex guide (symlink to AGENTS.md)
+│       └── (symlinks to ../claude/) # Scripts, skills, prompts mirrored
+├── .claude/                         # Repo-specific config (minimal)
+│   ├── CLAUDE.md                    # Project context for Manifest itself
+│   ├── settings.local.json          # Repo permissions
+│   ├── .plans/                      # Repo-specific plans
+│   ├── node/                        # package.json, tsconfig.json
+│   └── scripts/                     # Repo-specific scripts
+├── bootstrap.sh                     # Main entry point (calls lib/*.sh)
+└── bootstrap/                       # Modular bootstrap libraries
+    ├── lib/
+    │   ├── common.sh                # Shared bootstrap helpers
+    │   ├── modules.sh               # Module loader + hooks
+    │   ├── platform.sh              # Platform detection
+    │   ├── config.sh                # Argument parsing
+    │   ├── install.sh               # CLI installation routines
+    │   ├── auth.sh                  # Authentication routines
+    │   ├── deploy.sh                # Deployment routines
+    │   └── mcp.sh                   # MCP routines
 ```
 
-## Bootstrap (macOS / Linux)
+## Setup & Deployment
 
-The `bootstrap.sh` script automates installation, deployment, and authentication.
+The `bootstrap.sh` script automates installation, deployment, and
+authentication. It ensures all agents have the correct configuration, skills,
+and permissions.
 
-**Supported platforms:**
-
-- macOS (Intel and Apple Silicon)
-- Linux (Debian/Ubuntu, RHEL/Fedora, Arch, openSUSE)
-
-### Quick Start
+### Common Commands
 
 ```bash
-# Full setup with all services
+# Standard deployment (safe, idempotent)
 ./bootstrap.sh
 
-# Setup with specific services disabled
-./bootstrap.sh --disable-cursor
-./bootstrap.sh --disable-gemini --disable-cursor
+# Install specific components
+./bootstrap.sh --enable-cursor --disable-gemini
 
-# Skip interactive prompts
-./bootstrap.sh --skip-auth --force
+# Full reconfiguration (interactive)
+./bootstrap.sh --reconfigure
 
-# Configure MCP servers (interactive per-server selection)
+# Install MCP servers
 ./bootstrap.sh --install-mcp
+
+# Advanced flags
+--install-mcp                        # Configure MCP servers (interactive)
+--reconfigure                        # Force reconfiguration of services
+--force                              # Skip confirmations
+--verbose                            # Enable debug logging
 ```
 
-### Service Toggles
+## Agent Orchestration
 
-```bash
---enable-claude / --disable-claude   # Claude CLI (default: enabled)
---enable-gemini / --disable-gemini   # Gemini CLI (default: enabled)
---enable-cursor / --disable-cursor   # Cursor agent (default: enabled)
---enable-codex / --disable-codex     # Codex CLI (default: enabled)
---enable-gh / --disable-gh           # GitHub CLI (default: auto-detect)
---enable-glab / --disable-glab       # GitLab CLI (default: auto-detect)
---install-mcp                        # Configure MCP servers (interactive per-server selection)
-```
+Manifest uses a **Parallel Agent Architecture** where tasks are distributed
+across multiple models.
 
-## Manual Deployment
+### Key Components
 
-If not using bootstrap.sh, copy the configuration directories manually:
+| Component | Description |
+|-----------|-------------|
+| `configs/cursor/rules/orchestration.mdc` | Main Cursor orchestration guide |
+| `configs/gemini/GEMINI.md` | Main Gemini orchestration guide |
+| `configs/claude/CLAUDE.md` | Main Claude orchestration guide |
+| `configs/claude/scripts/parallel_agent.sh` | Parallel agent script |
+| `configs/claude/config/command_config.yml` | Thresholds, policies, models |
+| `configs/claude/config/validation_criteria.yml` | Validation rules |
 
-```bash
-# Deploy Claude Code configuration
-cp -r configs/claude/* ~/.claude/
-cp -r configs/claude/.[!.]* ~/.claude/ 2>/dev/null || true
-chmod +x ~/.claude/scripts/*.sh
+### Skills Library
 
-# Deploy Cursor configuration (optional)
-mkdir -p ~/.cursor/rules
-cp configs/cursor/rules/*.mdc ~/.cursor/rules/
-cp configs/cursor/mcp.json ~/.cursor/mcp.json
-ln -sf ~/.claude/scripts ~/.cursor/scripts
-ln -sf ~/.claude/config ~/.cursor/config
-ln -sf ~/.claude/prompts ~/.cursor/prompts
-ln -sf ~/.claude/.plans ~/.cursor/.plans
-ln -sf ~/.claude/skills ~/.cursor/skills
+All agents share the same skill library from `configs/claude/skills/` (25
+skills). Skills are exposed differently per platform:
 
-# Deploy Gemini configuration (optional)
-cp configs/gemini/GEMINI.md ~/.gemini/
-cp configs/gemini/settings.json ~/.gemini/settings.json
-ln -sf ~/.claude/scripts ~/.gemini/scripts
-ln -sf ~/.claude/config ~/.gemini/config
-ln -sf ~/.claude/prompts ~/.gemini/prompts
-ln -sf ~/.claude/.plans ~/.gemini/.plans
-ln -sf ~/.claude/skills ~/.gemini/skills
+**Key Skills:**
 
-# Deploy Codex configuration (optional)
-cp AGENTS.md ~/.codex/AGENTS.md
-ln -sf ~/.claude/scripts ~/.codex/scripts
-ln -sf ~/.claude/config ~/.codex/config
-ln -sf ~/.claude/prompts ~/.codex/prompts
-ln -sf ~/.claude/.plans ~/.codex/.plans
-ln -sf ~/.claude/skills ~/.codex/skills
-```
-
-Required CLI tools (install those you want to use):
-
-- `claude` - `npm install -g @anthropic-ai/claude-code`
-- `gemini` - `npm install -g @google/gemini-cli`
-- `cursor` - Download from <https://cursor.sh>
-- `codex` - `npm install -g @openai/codex`
-
-## Key Files
-
-| File | Purpose |
-|------|---------|
-| `configs/claude/CLAUDE.md` | Main orchestration guide for Claude Code |
-| `configs/cursor/rules/orchestration.mdc` | Main orchestration guide for Cursor (always-on rule) |
-| `configs/gemini/GEMINI.md` | Main orchestration guide for Gemini CLI |
-| `configs/codex/AGENTS.md` | Main orchestration guide for Codex CLI |
-| `configs/claude/scripts/parallel_agent.sh` | Bash script that runs agents in parallel with consensus scoring |
-| `configs/claude/config/command_config.yml` | Thresholds, tool policies, model selection, error recovery |
-| `configs/claude/config/validation_criteria.yml` | Tier 1 (critical) and Tier 2 (quality) validation rules |
-
-## Available Skills
-
-All agents share the same skill library from `configs/claude/skills/` (25 skills).
-Skills are invoked as slash commands (e.g., `/refactor-python src/`).
-
-### Skill Reference
-
-| Skill | Description | Parallel Agents |
-|-------|-------------|-----------------|
-| `/a11y-audit` | WCAG 2.2 AA accessibility audit | NO |
-| `/antipattern-detect` | Detect codebase antipatterns and suggest fixes | NO |
-| `/checkpoint` | Save context checkpoint for session continuity | NO |
-| `/ci-setup` | Configure CI/CD pipelines for target repository | NO |
-| `/code-quality` | Auto-triggered security and quality checks | AUTO |
-| `/dashboard` | Visualize agent efficiency metrics | NO |
+| Command | Description | Parallel Agents |
+|---------|-------------|-----------------|
+| `/plan-manage` | Plan lifecycle with parallel orchestration | CONDITIONAL |
+| `/project-commit` | Full commit pipeline: docs, push | CONDITIONAL |
+| `/issue-triage` | Linear issue audit: duplicates, priority | CONDITIONAL |
+| `/issue-prioritize` | Score and rank open issues | CONDITIONAL |
 | `/docs-diagrams` | Generate Mermaid architecture diagrams | CONDITIONAL |
 | `/docs-improve` | Diataxis documentation framework analysis | CONDITIONAL |
-| `/docs-readme` | Improve README documentation | NO |
-| `/health-check` | Verify CLI tools, auth, config, MCP, symlinks | NO |
-| `/issue-prioritize` | Score and rank open issues by impact | CONDITIONAL |
-| `/issue-triage` | Linear issue audit with duplicate detection | CONDITIONAL |
-| `/learning-loop` | Capture structured lessons learned | NO |
-| `/performance-check` | Core Web Vitals and bundle analysis | NO |
-| `/plan-manage` | Plan lifecycle with parallel agent orchestration | CONDITIONAL |
-| `/project-commit` | Full commit pipeline: docs, pull, pre-commits, commit, push | CONDITIONAL |
-| `/refactor-go` | Go codebase security and quality analysis | ALWAYS |
-| `/refactor-node` | Node.js/TypeScript security and quality analysis | ALWAYS |
-| `/refactor-python` | Python codebase security and quality analysis | ALWAYS |
-| `/refactor-shell` | Bash/Shell script security and quality analysis | ALWAYS |
-| `/refactor-terraform` | Terraform IaC security and modularity analysis | ALWAYS |
-| `/scaffold` | Initialize new project with quality gates and Manifest integration | NO |
-| `/sync-configs` | Detect cross-platform config drift | NO |
-| `/ux-review` | UX/accessibility/performance audit | NO |
-| `/verify` | Run linters, tests, and security scans in parallel | CONDITIONAL |
+| `/refactor-terraform` | Terraform IaC security analysis | ALWAYS |
+| `/scaffold` | Initialize new project with quality gates | NO |
 
-### Cursor Rules
+## Development Guidelines
 
-All Cursor rules are auto-generated from SKILL.md files using `generate_cursor_rules.sh`.
-Each skill produces a corresponding `.mdc` rule in `configs/cursor/rules/`.
+When modifying this repository, follow these rules:
 
-| Rule | Description |
-|------|-------------|
-| `orchestration` | Parallel agent orchestration guide (always-on) |
-| `a11y-audit` | WCAG 2.2 AA accessibility audit |
-| `antipattern-detect` | Codebase antipattern detection |
-| `checkpoint` | Context checkpoint |
-| `ci-setup` | CI/CD pipeline configuration |
-| `code-quality` | Auto-triggered security/quality checks |
-| `dashboard` | Efficiency metrics |
-| `docs-diagrams` | Mermaid diagram generation |
-| `docs-improve` | Diataxis documentation |
-| `docs-readme` | README improvement |
-| `health-check` | Environment health check |
-| `issue-prioritize` | Issue prioritization |
-| `issue-triage` | Linear issue triage |
-| `learning-loop` | Lessons learned capture |
-| `performance-check` | Performance analysis |
-| `plan-manage` | Plan lifecycle |
-| `project-commit` | Commit pipeline |
-| `refactor-go` | Go analysis |
-| `refactor-node` | Node.js/TypeScript analysis |
-| `refactor-python` | Python analysis |
-| `refactor-shell` | Shell analysis |
-| `refactor-terraform` | Terraform IaC analysis |
-| `scaffold` | Project scaffolding |
-| `sync-configs` | Config drift detection |
-| `ux-review` | UX/accessibility audit |
-| `verify` | Linter/test/security scan runner |
+1.  **Single Source of Truth**: Edit skills in `configs/claude/skills/`. Do NOT
+    edit platform-specific copies (e.g., `~/.cursor/rules/`).
+2.  **Idempotency**: All scripts (especially `bootstrap.sh`) must be safe to
+    run multiple times.
+3.  **Cross-Platform**: Support macOS (Darwin) and Linux
+    (Debian/RHEL/Arch/Suse). Use `bootstrap/lib/platform.sh` helpers.
+4.  **Parallel Execution**: Test changes with `parallel_agent.py` to ensure
+    consensus scoring works.
 
-### Platform-Specific Notes
+### Editing Cursor Rules
 
-Skills are shared across all platforms via symlinks from `configs/claude/skills/`:
+All Cursor rules are auto-generated from SKILL.md files using
+`generate_cursor_rules.sh`. Do NOT edit `.mdc` files in `configs/cursor/rules/`
+directly. Edit the source `SKILL.md` instead.
 
-- **Claude Code**: Skills loaded from `~/.claude/skills/`
-- **Cursor**: Rules auto-generated from skills into `~/.cursor/rules/` (`.mdc` files)
-- **Gemini CLI**: Skills loaded from `~/.gemini/skills/` (symlink to `~/.claude/skills/`)
-- **Codex CLI**: Skills loaded from `~/.codex/skills/` (symlink to `~/.claude/skills/`)
+### Symlink Strategy
 
-## Parallel Agent Orchestration
+Skills are shared across all platforms via symlinks from
+`configs/claude/skills/`:
 
-All agents share the same orchestration script at `configs/claude/scripts/parallel_agent.sh`.
+- **Claude Code**: Loaded directly from `~/.claude/skills/`
+- **Cursor**: Rules auto-generated into `~/.cursor/rules/` (`.mdc` files)
+- **Gemini CLI**: Skills loaded from `~/.gemini/skills/` (symlinked)
+- **Codex CLI**: Skills loaded from `~/.codex/skills/` (symlinked)
+
+## Testing
+
+### Parallel Agent Script
+
+All agents share the same orchestration script at
+`configs/claude/scripts/parallel_agent.sh`. This script runs agents in parallel
+and calculates consensus.
 
 ```bash
-# Basic code review (all 3 agents)
-~/.claude/scripts/parallel_agent.sh --json --timeout 600 --review /absolute/path/to/file
+# Run review on a file with 10 minute timeout
+~/.claude/scripts/parallel_agent.sh --json --timeout 600 \
+  --review /absolute/path/to/file
 
-# Security analysis with maximum capability models
-~/.claude/scripts/parallel_agent.sh --json --full-output --validate --timeout 900 \
-  --cursor-model advanced --claude-model opus --analyze /absolute/path/to/file
+# Run analysis with validation
+~/.claude/scripts/parallel_agent.sh --json --full-output --validate \
+  --timeout 900 --analyze /absolute/path/to/file
 ```
 
-### Consensus Thresholds
+### Config Validation
 
-- `>=80%`: High confidence - auto-proceed
-- `50-79%`: Medium confidence - highlight disagreements
-- `<50%`: Low confidence - escalate for human review
-
-### Validation Verdicts
-
-- `APPROVED`: Tier 1 passes, Tier 2 score >= 0.60
-- `NEEDS_REVIEW`: Tier 1 passes, Tier 2 score < 0.60
-- `BLOCKED`: Any Tier 1 check fails
-
-## Testing Changes
+Validate YAML configuration files:
 
 ```bash
-# Test parallel agent script
-configs/claude/scripts/parallel_agent.sh --json "Test prompt"
-
-# Test specific mode
-configs/claude/scripts/parallel_agent.sh --json --review /path/to/file
-
-# Validate YAML configs
-python3 -c "import yaml; yaml.safe_load(open('configs/claude/config/command_config.yml'))"
-python3 -c "import yaml; yaml.safe_load(open('configs/claude/config/validation_criteria.yml'))"
+python3 -c "import yaml; \
+  yaml.safe_load(open('configs/claude/config/command_config.yml'))"
+python3 -c "import yaml; \
+  yaml.safe_load(open('configs/claude/config/validation_criteria.yml'))"
 ```
 
 ## Plan Management
 
-Implementation plans are tracked in `configs/claude/.plans/` (symlinked at `configs/cursor/.plans/`,
-`configs/gemini/.plans/`, and `configs/codex/.plans/`) as date-prefixed markdown files (`YYYYMMDD-description.md`).
+Implementation plans are tracked in `configs/claude/.plans/` (symlinked at
+`configs/cursor/.plans/`, `configs/gemini/.plans/`, and `configs/codex/.plans/`)
+as date-prefixed markdown files (`YYYYMMDD-description.md`).
 
-Lifecycle: `CREATE -> ACTIVE -> COMPLETED (.archive/) or ABANDONED (.abandoned/)`
+Lifecycle: `CREATE` -> `ACTIVE` -> `COMPLETED` (.archive/) or `ABANDONED`
 
-## Adding New Configuration
+## Creating New Skills
 
-### Adding a Claude Code Skill
+To add a new capability:
 
-1. Create a `SKILL.md` file in `configs/claude/skills/my-skill/` (e.g., `configs/claude/skills/my-skill/SKILL.md`)
-2. Add tool policies to `configs/claude/config/command_config.yml`
-3. Skills are automatically available in Claude Code after deploying via bootstrap
+1. Create a `SKILL.md` file in `configs/claude/skills/my-skill/`
+2. Define `description`, `globs`, and `instructions` in the frontmatter
+3. Skills are automatically available in Claude Code after deploying
 
-### Adding a Cursor Rule
+**For Cursor:**
 
-1. Create an `.mdc` file in `configs/cursor/rules/` (e.g., `my-rule.mdc`)
-2. Add YAML frontmatter with `description`, `globs`, and `alwaysApply`
-3. Rule auto-attaches when files matching `globs` are referenced (after deploying)
+1. Ensure the skill has a valid `SKILL.md`
+2. Run `./bootstrap.sh` to regenerate Cursor rules
+3. Rule auto-attaches when files matching `globs` are referenced
 
-### Adding a Gemini CLI Skill
+**For Gemini:**
 
-Gemini CLI uses the shared skills from `configs/claude/skills/` (symlinked at `~/.gemini/skills`).
-To add a new skill, follow the Claude Code skill instructions above.
+Gemini CLI uses the shared skills from `configs/claude/skills/` (symlinked at
+`~/.gemini/skills`). Orchestration is handled via `~/.gemini/GEMINI.md`
+system instructions.
 
----
+## Documentation Index
 
-## Related Documents
-
-- [README.md](README.md) - Project overview and quick start
-- [CLAUDE.md](CLAUDE.md) - Claude Code-specific project instructions
-- [docs/README.md](docs/README.md) - Documentation hub
-- [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md) - First-time setup walkthrough
-- [docs/CONFIGURATION.md](docs/CONFIGURATION.md) - Complete configuration reference
-- [docs/ARCHITECTURE_DIAGRAMS.md](docs/ARCHITECTURE_DIAGRAMS.md) - Visual system documentation
-- [configs/claude/.plans/README.md](configs/claude/.plans/README.md) - Plan management quick reference
+- [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md) - Setup walkthrough
+- [docs/CONFIGURATION.md](docs/CONFIGURATION.md) - Configuration reference
+- [docs/ARCHITECTURE_DIAGRAMS.md](docs/ARCHITECTURE_DIAGRAMS.md) - Visual docs
+- [configs/claude/.plans/README.md](configs/claude/.plans/README.md) - Plans
