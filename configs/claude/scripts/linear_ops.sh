@@ -4,6 +4,9 @@
 
 set -euo pipefail
 
+# GraphQL queries use single quotes but contain $variables that are expanded by jq, not bash.
+# shellcheck disable=SC2016
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
