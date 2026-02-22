@@ -28,6 +28,9 @@
 
 set -e
 
+# Restore cursor on exit
+trap 'tput cnorm 2>/dev/null' EXIT
+
 # Colors for output (used in sourced libs via echo -e)
 # shellcheck disable=SC2034
 RED='\033[0;31m'

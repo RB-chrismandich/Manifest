@@ -59,21 +59,39 @@ run_with_spinner() {
     local cmd="$1"
     local msg="${2:-Working}"
     local pid
-    local spin='-\|/'
+    local spin='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
     local i=0
 
-    eval "$cmd" &
+    local temp_log
+    temp_log=$(mktemp)
+
+    tput civis 2>/dev/null
+
+    # Run command
+    eval "$cmd" > "$temp_log" 2>&1 &
     pid=$!
 
     while kill -0 "$pid" 2> /dev/null; do
-        i=$(((i + 1) % 4))
+        i=$(((i + 1) % 10))
         printf "\r${CYAN}${spin:$i:1}${NC} %s..." "$msg"
-        sleep 0.2
+        sleep 0.1
     done
 
     wait "$pid"
     local exit_code=$?
+
     printf "\r\033[K"
+    tput cnorm 2>/dev/null
+
+    if [ $exit_code -eq 0 ]; then
+        print_success "$msg"
+    else
+        print_error "$msg failed"
+        echo -e "${RED}Error Output:${NC}"
+        tail -n 20 "$temp_log"
+    fi
+
+    rm -f "$temp_log"
     return $exit_code
 }
 
