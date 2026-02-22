@@ -281,6 +281,25 @@ class RateLimiter:
 class ValidationEngine:
     """Validates agent outputs against tiered criteria"""
 
+    # Pre-compiled regex patterns for performance
+    SECRET_PATTERNS = [
+        re.compile(r'api[_-]?key\s*=\s*["\'][^"\']+["\']', re.IGNORECASE),
+        re.compile(r'password\s*=\s*["\'][^"\']+["\']', re.IGNORECASE),
+        re.compile(r'secret\s*=\s*["\'][^"\']+["\']', re.IGNORECASE),
+        re.compile(r'token\s*=\s*["\'][^"\']+["\']', re.IGNORECASE),
+    ]
+
+    SQL_PATTERNS = [
+        re.compile(r'execute\s*\(\s*["\'].*\+', re.IGNORECASE),
+        re.compile(r'query\s*\(\s*["\'].*\+', re.IGNORECASE),
+    ]
+
+    CMD_PATTERNS = [
+        re.compile(r"exec\s*\(.*user.*\)", re.IGNORECASE),
+        re.compile(r"system\s*\(.*input.*\)", re.IGNORECASE),
+        re.compile(r"shell_exec", re.IGNORECASE),
+    ]
+
     def __init__(self, config: Config, logger: Optional["Logger"] = None):
         self.config = config
         self.logger = logger
@@ -423,38 +442,27 @@ class ValidationEngine:
             if result.get("status") != "complete":
                 continue
 
-            output = result.get("output", "").lower()
+            output = result.get("output_lower")
+            if output is None:
+                output = result.get("output", "").lower()
 
             # Check for hardcoded secrets
-            secret_patterns = [
-                r'api[_-]?key\s*=\s*["\'][^"\']+["\']',
-                r'password\s*=\s*["\'][^"\']+["\']',
-                r'secret\s*=\s*["\'][^"\']+["\']',
-                r'token\s*=\s*["\'][^"\']+["\']',
-            ]
-
-            for pattern in secret_patterns:
-                if re.search(pattern, output, re.IGNORECASE):
+            for pattern in self.SECRET_PATTERNS:
+                if pattern.search(output):
                     issues.append(f"[{agent_name}] Potential hardcoded secret detected")
                     break
 
             # Check for SQL injection patterns
-            sql_patterns = [r'execute\s*\(\s*["\'].*\+', r'query\s*\(\s*["\'].*\+']
-            for pattern in sql_patterns:
-                if re.search(pattern, output, re.IGNORECASE):
+            for pattern in self.SQL_PATTERNS:
+                if pattern.search(output):
                     issues.append(
                         f"[{agent_name}] Potential SQL injection vulnerability"
                     )
                     break
 
             # Check for command injection patterns
-            cmd_patterns = [
-                r"exec\s*\(.*user.*\)",
-                r"system\s*\(.*input.*\)",
-                r"shell_exec",
-            ]
-            for pattern in cmd_patterns:
-                if re.search(pattern, output, re.IGNORECASE):
+            for pattern in self.CMD_PATTERNS:
+                if pattern.search(output):
                     issues.append(
                         f"[{agent_name}] Potential command injection vulnerability"
                     )
@@ -470,7 +478,9 @@ class ValidationEngine:
             if result.get("status") != "complete":
                 continue
 
-            output = result.get("output", "").lower()
+            output = result.get("output_lower")
+            if output is None:
+                output = result.get("output", "").lower()
 
             # Check for silent failures
             if "pass" in output and "except" in output and "logging" not in output:
@@ -492,7 +502,9 @@ class ValidationEngine:
             if result.get("status") != "complete":
                 continue
 
-            output = result.get("output", "").lower()
+            output = result.get("output_lower")
+            if output is None:
+                output = result.get("output", "").lower()
 
             # Check for removed/renamed functions without deprecation
             if (
@@ -575,14 +587,16 @@ class ValidationEngine:
             if result.get("status") != "complete":
                 continue
 
-            output = result.get("output", "")
+            output = result.get("output_lower")
+            if output is None:
+                output = result.get("output", "").lower()
 
             # Check for null reference issues
-            if "null" in output.lower() or "undefined" in output.lower():
+            if "null" in output or "undefined" in output:
                 concerns.append(f"[{agent_name}] Potential null/undefined reference")
 
             # Check for race conditions
-            if "race" in output.lower() or "concurrent" in output.lower():
+            if "race" in output or "concurrent" in output:
                 concerns.append(f"[{agent_name}] Potential race condition mentioned")
 
         # Score inversely proportional to concerns
@@ -598,7 +612,9 @@ class ValidationEngine:
             if result.get("status") != "complete":
                 continue
 
-            output = result.get("output", "").lower()
+            output = result.get("output_lower")
+            if output is None:
+                output = result.get("output", "").lower()
 
             # Check for O(n²) complexity mentions
             if "o(n" in output and ("²" in output or "^2" in output or "n)" in output):
@@ -622,7 +638,9 @@ class ValidationEngine:
             if result.get("status") != "complete":
                 continue
 
-            output = result.get("output", "").lower()
+            output = result.get("output_lower")
+            if output is None:
+                output = result.get("output", "").lower()
 
             # Check for complexity mentions
             if "complex" in output or "complicated" in output:
@@ -644,7 +662,9 @@ class ValidationEngine:
             if result.get("status") != "complete":
                 continue
 
-            output = result.get("output", "").lower()
+            output = result.get("output_lower")
+            if output is None:
+                output = result.get("output", "").lower()
 
             # Check for missing tests mentions
             if "no test" in output or "missing test" in output:
@@ -1383,6 +1403,11 @@ class Orchestrator:
         else:
             agent_results = await self._execute_without_streaming(prompt, mode)
 
+        # Pre-compute lowercased output for validation efficiency
+        for result in agent_results.values():
+            if result.get("status") == "complete" and "output" in result:
+                result["output_lower"] = result["output"].lower()
+
         # Calculate consensus
         consensus = self._calculate_consensus(agent_results)
 
@@ -1555,8 +1580,9 @@ class Orchestrator:
 
     def _calculate_consensus(self, results: Dict) -> Dict:
         """Calculate cross-verification consensus score"""
+        # Use pre-computed lowercased output if available
         outputs = [
-            r.get("output", "")
+            r.get("output_lower") or r.get("output", "").lower()
             for r in results.values()
             if r.get("status") == "complete"
         ]
@@ -1574,7 +1600,7 @@ class Orchestrator:
         word_counts = {}
 
         for output in outputs:
-            words = set(word.lower() for word in output.split() if len(word) > 4)
+            words = set(word for word in output.split() if len(word) > 4)
             all_words.update(words)
             for word in words:
                 word_counts[word] = word_counts.get(word, 0) + 1
