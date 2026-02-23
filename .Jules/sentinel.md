@@ -7,3 +7,8 @@
 **Vulnerability:** The script `.claude/scripts/parallel_agent.sh` used `eval` to process configuration values parsed from `services.yml`. If the configuration file (located in the user's home directory) was modified by an attacker, it could lead to arbitrary command execution within the context of the script.
 **Learning:** Using `eval` on data derived from external files, even if partially sanitized by `awk`, is risky and hard to audit. It creates a direct path for code injection if the sanitization logic is flawed or bypassed.
 **Prevention:** Replace `eval` with a `while read` loop that iterates over the parsed output. Use strict matching (e.g., `case "$key" in ...`) to whitelist allowed variables and assign values safely, preventing execution of arbitrary commands.
+
+## 2026-02-12 - Insecure File Permissions Race Condition (TOCTOU)
+**Vulnerability:** The bootstrap scripts (`bootstrap/lib/auth.sh`, `bootstrap/lib/mcp.sh`) created sensitive configuration files using `touch` or `cat >` followed by `chmod 600`. This creates a window of time where the file exists with default permissions (potentially world-readable) before being secured.
+**Learning:** Standard shell redirections (`>`) respect the user's `umask`, which is often `022` (readable by others). `chmod` after creation leaves a race condition window.
+**Prevention:** Use `(umask 077; command > file)` in a subshell to atomically set restricted permissions upon file creation. Alternatively, use `mktemp` which guarantees 0600 permissions by default.
