@@ -905,7 +905,7 @@ run_gemini() {
     # "investigate the environment" instead of answering the prompt.
     # shellcheck disable=SC2016
     run_with_retry "Gemini CLI" "$GEMINI_OUTPUT_FILE" bash -c \
-        'trap "rm -rf \"\$PWD\"" EXIT; cd "$(mktemp -d)" && gemini --output-format text --model "$1" -p "" "${@:2}" < "$0"' \
+        'd=$(mktemp -d); trap "rm -rf \"\$d\"" EXIT; cd "\$d" && gemini --output-format text --model "$1" -p "" "${@:2}" < "$0"' \
         "$GEMINI_PROMPT_FILE" "$GEMINI_MODEL" "${include_args[@]}"
 }
 
@@ -1519,13 +1519,15 @@ create_summary() {
     echo "" >> "$summary_file"
 
     if [[ -f "$CURSOR_OUTPUT_FILE" ]]; then
-        echo "## Cursor Agent Output" >> "$summary_file"
-        [[ -n "$CURSOR_MODEL" ]] && echo "**Model:** $CURSOR_MODEL" >> "$summary_file"
-        [[ "$CURSOR_CREDIT_FALLBACK" == true ]] && echo "**Note:** Used fallback mode due to credit exhaustion" >> "$summary_file"
-        echo '```' >> "$summary_file"
-        get_output_content "$CURSOR_OUTPUT_FILE" >> "$summary_file"
-        echo '```' >> "$summary_file"
-        echo "" >> "$summary_file"
+        {
+            echo "## Cursor Agent Output"
+            [[ -n "$CURSOR_MODEL" ]] && echo "**Model:** $CURSOR_MODEL"
+            [[ "$CURSOR_CREDIT_FALLBACK" == true ]] && echo "**Note:** Used fallback mode due to credit exhaustion"
+            echo '```'
+            get_output_content "$CURSOR_OUTPUT_FILE"
+            echo '```'
+            echo ""
+        } >> "$summary_file"
     fi
 
     if [[ -f "$GEMINI_OUTPUT_FILE" ]]; then
