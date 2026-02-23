@@ -37,8 +37,7 @@ install_package_manager() {
 
         if command_exists brew; then
             print_success "Homebrew is installed"
-            print_step "Updating Homebrew..."
-            brew update --quiet
+            run_with_spinner "brew update" "Updating Homebrew"
         else
             print_warning "Homebrew not found"
             if prompt_yes_no "Install Homebrew?"; then
@@ -72,8 +71,8 @@ install_package_manager() {
             case "$PKG_MANAGER" in
                 apt)
                     if prompt_yes_no "Update apt package lists?"; then
-                        print_step "Updating package lists..."
-                        sudo apt-get update -qq
+                        sudo -v
+                        run_with_spinner "sudo apt-get update" "Updating package lists"
                     fi
                     ;;
                 dnf | yum)
@@ -81,8 +80,8 @@ install_package_manager() {
                     ;;
                 pacman)
                     if prompt_yes_no "Sync pacman database?"; then
-                        print_step "Syncing database..."
-                        sudo pacman -Sy --noconfirm
+                        sudo -v
+                        run_with_spinner "sudo pacman -Sy --noconfirm" "Syncing database"
                     fi
                     ;;
             esac
@@ -218,8 +217,8 @@ install_python_dependencies() {
     print_info "Using: $python_cmd"
 
     # Try to install with --user flag and prefer binary wheels
-    if $python_cmd -m pip install --user --prefer-binary -q -r "$requirements_file" 2>&1; then
-        print_success "Python dependencies installed"
+    if run_with_spinner "$python_cmd -m pip install --user --prefer-binary -r \"$requirements_file\"" "Installing Python dependencies"; then
+        :
     else
         print_warning "Failed to install Python dependencies"
         print_info "Some packages may require compilation or may not support this Python version"
@@ -324,9 +323,7 @@ install_claude() {
 
         if prompt_yes_no "Install Claude Code CLI via npm?"; then
             if command_exists npm; then
-                print_step "Installing Claude Code CLI..."
-                npm install -g @anthropic-ai/claude-code
-                print_success "Claude Code CLI installed"
+                run_with_spinner "npm install -g @anthropic-ai/claude-code" "Installing Claude Code CLI"
             else
                 print_error "npm not found. Please install Node.js first."
                 return 1
@@ -361,9 +358,7 @@ install_gemini() {
 
         if prompt_yes_no "Install Gemini CLI via npm?"; then
             if command_exists npm; then
-                print_step "Installing Gemini CLI..."
-                npm install -g @google/gemini-cli
-                print_success "Gemini CLI installed"
+                run_with_spinner "npm install -g @google/gemini-cli" "Installing Gemini CLI"
             else
                 print_error "npm not found. Please install Node.js first."
                 return 1
@@ -403,9 +398,7 @@ install_codex() {
 
         if prompt_yes_no "Install Codex CLI via npm?"; then
             if command_exists npm; then
-                print_step "Installing Codex CLI..."
-                npm install -g @openai/codex
-                print_success "Codex CLI installed"
+                run_with_spinner "npm install -g @openai/codex" "Installing Codex CLI"
             else
                 print_error "npm not found. Please install Node.js first."
                 return 1
@@ -475,9 +468,7 @@ install_github_cli() {
             case "$PLATFORM" in
                 macos)
                     if command_exists brew; then
-                        print_step "Installing GitHub CLI via Homebrew..."
-                        brew install gh
-                        print_success "GitHub CLI installed"
+                        run_with_spinner "brew install gh" "Installing GitHub CLI via Homebrew"
                     else
                         print_error "Homebrew not found. Please install Homebrew first."
                         return 1
@@ -486,19 +477,16 @@ install_github_cli() {
                 linux)
                     case "$PKG_MANAGER" in
                         apt)
-                            print_step "Installing GitHub CLI via apt..."
-                            sudo apt update && sudo apt install -y gh
-                            print_success "GitHub CLI installed"
+                            sudo -v
+                            run_with_spinner "sudo apt update && sudo apt install -y gh" "Installing GitHub CLI via apt"
                             ;;
                         dnf | yum)
-                            print_step "Installing GitHub CLI via $PKG_MANAGER..."
-                            sudo "$PKG_MANAGER" install -y gh
-                            print_success "GitHub CLI installed"
+                            sudo -v
+                            run_with_spinner "sudo $PKG_MANAGER install -y gh" "Installing GitHub CLI via $PKG_MANAGER"
                             ;;
                         pacman)
-                            print_step "Installing GitHub CLI via pacman..."
-                            sudo pacman -S --noconfirm github-cli
-                            print_success "GitHub CLI installed"
+                            sudo -v
+                            run_with_spinner "sudo pacman -S --noconfirm github-cli" "Installing GitHub CLI via pacman"
                             ;;
                         *)
                             print_error "Package manager not supported. Please install manually: https://cli.github.com/manual/installation"
@@ -572,9 +560,7 @@ install_gitlab_cli() {
             case "$PLATFORM" in
                 macos)
                     if command_exists brew; then
-                        print_step "Installing GitLab CLI via Homebrew..."
-                        brew install glab
-                        print_success "GitLab CLI installed"
+                        run_with_spinner "brew install glab" "Installing GitLab CLI via Homebrew"
                     else
                         print_error "Homebrew not found. Please install Homebrew first."
                         return 1
@@ -583,19 +569,16 @@ install_gitlab_cli() {
                 linux)
                     case "$PKG_MANAGER" in
                         apt)
-                            print_step "Installing GitLab CLI via apt..."
-                            sudo apt update && sudo apt install -y glab
-                            print_success "GitLab CLI installed"
+                            sudo -v
+                            run_with_spinner "sudo apt update && sudo apt install -y glab" "Installing GitLab CLI via apt"
                             ;;
                         dnf | yum)
-                            print_step "Installing GitLab CLI via $PKG_MANAGER..."
-                            sudo "$PKG_MANAGER" install -y glab
-                            print_success "GitLab CLI installed"
+                            sudo -v
+                            run_with_spinner "sudo $PKG_MANAGER install -y glab" "Installing GitLab CLI via $PKG_MANAGER"
                             ;;
                         pacman)
-                            print_step "Installing GitLab CLI via pacman..."
-                            sudo pacman -S --noconfirm glab
-                            print_success "GitLab CLI installed"
+                            sudo -v
+                            run_with_spinner "sudo pacman -S --noconfirm glab" "Installing GitLab CLI via pacman"
                             ;;
                         *)
                             print_error "Package manager not supported. Please install manually: https://gitlab.com/gitlab-org/cli"
@@ -653,9 +636,7 @@ check_jq() {
             case "$PLATFORM" in
                 macos)
                     if command_exists brew; then
-                        print_step "Installing jq via Homebrew..."
-                        brew install jq
-                        print_success "jq installed"
+                        run_with_spinner "brew install jq" "Installing jq via Homebrew"
                     else
                         print_error "Homebrew not found."
                         return 1
@@ -664,24 +645,20 @@ check_jq() {
                 linux)
                     case "$PKG_MANAGER" in
                         apt)
-                            print_step "Installing jq via apt..."
-                            sudo apt update && sudo apt install -y jq
-                            print_success "jq installed"
+                            sudo -v
+                            run_with_spinner "sudo apt update && sudo apt install -y jq" "Installing jq via apt"
                             ;;
                         dnf | yum)
-                            print_step "Installing jq via $PKG_MANAGER..."
-                            sudo "$PKG_MANAGER" install -y jq
-                            print_success "jq installed"
+                            sudo -v
+                            run_with_spinner "sudo $PKG_MANAGER install -y jq" "Installing jq via $PKG_MANAGER"
                             ;;
                         pacman)
-                            print_step "Installing jq via pacman..."
-                            sudo pacman -S --noconfirm jq
-                            print_success "jq installed"
+                            sudo -v
+                            run_with_spinner "sudo pacman -S --noconfirm jq" "Installing jq via pacman"
                             ;;
                         zypper)
-                            print_step "Installing jq via zypper..."
-                            sudo zypper install -y jq
-                            print_success "jq installed"
+                            sudo -v
+                            run_with_spinner "sudo zypper install -y jq" "Installing jq via zypper"
                             ;;
                         *)
                             print_error "Package manager not supported."
