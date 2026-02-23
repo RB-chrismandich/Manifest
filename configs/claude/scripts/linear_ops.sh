@@ -35,6 +35,8 @@ check_linear_mcp() {
     return 1
 }
 
+# shellcheck disable=SC2016
+
 # Check authentication
 check_auth() {
     # Try Linear MCP first
