@@ -31,7 +31,7 @@
 ## Scripts Analyzed
 
 | Script | Lines | Issues | Severity Distribution |
-|--------|-------|--------|----------------------|
+|---|---|---|---|
 | bootstrap.sh | 1,200+ | 15 | 0 critical, 0 high, 8 warning, 7 info/style |
 | parallel_agent.sh | 1,038 | 8 | 0 critical, 0 high, 6 warning, 2 style |
 | **Total** | **2,238+** | **23** | **14 warnings, 9 info/style** |
@@ -207,7 +207,7 @@ echo "${file#"$HOME"/}"
 ### Quick Wins (Low Risk + Minimal Effort)
 
 | ID | Issue | Location | Effort | Risk |
-|----|-------|----------|--------|------|
+|---|---|---|---|---|
 | QA-001 | Add `.yamllint` config | Root | Minimal | Low |
 | QA-002 | Add `.editorconfig` | Root | Minimal | Low |
 | QA-003 | Consolidate redirects (SC2129) | Multiple | Minimal | Low |
@@ -217,7 +217,7 @@ echo "${file#"$HOME"/}"
 ### Planned (Medium Risk/Effort)
 
 | ID | Issue | Location | Effort | Risk |
-|----|-------|----------|--------|------|
+|---|---|---|---|---|
 | EH-001 | Separate declare/assign (SC2155) | bootstrap.sh (8 places) | Medium | Medium |
 | EH-002 | Separate declare/assign (SC2155) | parallel_agent.sh (6 places) | Medium | Medium |
 | YML-001 | Fix line length violations | YAML files (3 places) | Minimal | Low |
@@ -226,7 +226,7 @@ echo "${file#"$HOME"/}"
 ### Strategic (Long-term Improvements)
 
 | ID | Issue | Location | Effort | Risk |
-|----|-------|----------|--------|------|
+|---|---|---|---|---|
 | TEST-001 | Add BATS unit tests | tests/ | High | Low |
 | CI-001 | Add GitHub Actions CI | .github/workflows/ | Medium | Low |
 | DOC-001 | Add function documentation | All scripts | Medium | Low |

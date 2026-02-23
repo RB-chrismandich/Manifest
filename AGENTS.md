@@ -1,14 +1,18 @@
 # AGENTS.md
 
-> Repository context and guidance for AI coding agents (Cursor, Claude Code, Gemini, Codex, etc.)
+> Repository context and guidance for AI coding agents (Cursor, Claude Code,
+> Gemini, Codex, etc.)
 
 **Last Updated**: 2026-02-11
-**Audience**: AI assistants (Cursor Agent, Claude Code, Gemini CLI, Codex CLI), contributors
-**Purpose**: Provide AI agents with repository structure, deployment process, and testing guidelines
+**Audience**: AI assistants (Cursor Agent, Claude Code, Gemini CLI, Codex CLI),
+contributors
+**Purpose**: Provide AI agents with repository structure, deployment process, and
+testing guidelines
 
 ---
 
-This file provides guidance to AI coding agents when working with code in this repository.
+This file provides guidance to AI coding agents when working with code in this
+repository.
 It follows the [AGENTS.md standard](https://agents.md/) for unified coding agent instructions.
 
 ## MCP Default Policy
@@ -29,19 +33,20 @@ Use these MCP servers by default when their domain context matches the task:
   documentation.
 - **Google Dev Docs MCP**: official Google platform documentation (Firebase,
   Cloud, Android, Maps) when working with Google services.
-- **Atlassian MCP**: Jira issues, Confluence pages, and Compass components when
-  the project uses Atlassian tools.
-- **Apify MCP**: web scraping, data extraction, and crawling tasks that require
-  fetching structured data from external websites.
+- **Atlassian MCP**: Jira issues, Confluence pages, and Compass components
+  when the project uses Atlassian tools.
+- **Apify MCP**: web scraping, data extraction, and crawling tasks that
+  require fetching structured data from external websites.
 - **OpenTofu MCP**: OpenTofu/Terraform registry lookups, provider and module
   documentation, resource and datasource reference for Infrastructure as Code.
 
 ## Repository Purpose
 
-This repository manages AI agent configurations for deployment to `~/.claude/` (and mirrored
-to `~/.cursor/`, `~/.gemini/`, and `~/.codex/`) on target machines. It contains orchestration guides,
-skills, prompts, and scripts that enable parallel LLM agent coordination
-(Cursor, Gemini CLI, Claude CLI, Codex CLI).
+This repository manages AI agent configurations for deployment to `~/.claude/`
+(and mirrored to `~/.cursor/`, `~/.gemini/`, and `~/.codex/`) on target
+machines. It contains orchestration guides, skills, prompts, and scripts that
+enable parallel LLM agent coordination (Cursor, Gemini CLI, Claude CLI,
+Codex CLI).
 
 ## Repository Structure
 
@@ -53,7 +58,7 @@ configs/                             # Deployment source configs (deployed to ~/
 │   ├── prompts/                     # Agent orchestration prompt templates
 │   ├── config/                      # YAML configuration files
 │   │   └── mcp_servers.yml          # Default MCP server registry (OAuth-capable)
-│   ├── .plans/                      # Plan management (template, archive, abandoned)
+│   ├── .plans/                      # Plan management (template, archive...)
 │   ├── settings.local.json          # Default permissions and MCP server config
 │   └── scripts/parallel_agent.sh    # Main parallel agent orchestration script
 ├── cursor/                          # → ~/.cursor/ (Cursor IDE configuration)

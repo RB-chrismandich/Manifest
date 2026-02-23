@@ -18,9 +18,9 @@ entries:
     category: antipattern
     language: bash
     description: >
-      User-controlled values passed to bash -c, eval, or unquoted in command strings
-      cause command injection (CWE-78). Always quote variables; use arrays for command
-      arguments; avoid bash -c with interpolated strings.
+      User-controlled values passed to bash -c, eval, or unquoted in command
+      strings cause command injection (CWE-78). Always quote variables; use
+      arrays for command arguments; avoid bash -c with interpolated strings.
     tags: [security, injection, shellcheck, SC2086]
     confidence: high
     created: 2026-01-01
@@ -33,9 +33,9 @@ entries:
     category: antipattern
     language: bash
     description: >
-      Using predictable temp paths or mkdir without mktemp enables symlink attacks
-      (CWE-377). Always use mktemp -d with templates; set umask 0077; use trap for
-      cleanup.
+      Using predictable temp paths or mkdir without mktemp enables symlink
+      attacks (CWE-377). Always use mktemp -d with templates; set umask 0077;
+      use trap for cleanup.
     tags: [security, temp-files, CWE-377, mktemp]
     confidence: high
     created: 2026-01-15
@@ -48,10 +48,10 @@ entries:
     category: antipattern
     language: yaml
     description: >
-      Local pre-commit hooks reference old directory paths after refactors, causing
-      hooks to silently never match any files. Update all path patterns in
-      .pre-commit-config.yaml as part of every directory restructuring; add a CI check
-      that validates hook file patterns match existing paths.
+      Local pre-commit hooks reference old directory paths after refactors,
+      causing hooks to silently never match any files. Update all path patterns
+      in .pre-commit-config.yaml as part of every directory restructuring;
+      add a CI check that validates hook file patterns match existing paths.
     tags: [architecture, pre-commit, file-paths, refactoring]
     confidence: high
     created: 2026-02-11
@@ -64,9 +64,9 @@ entries:
     category: antipattern
     language: markdown
     description: >
-      Tables use compact pipe style (no spaces around pipes in separator rows) which
-      violates markdownlint MD060. Not auto-fixable by --fix. Either add MD060: false
-      to .markdownlintrc or reformat all table separator rows.
+      Tables use compact pipe style (no spaces around pipes in separator rows)
+      which violates markdownlint MD060. Not auto-fixable by --fix. Either add
+      MD060: false to .markdownlintrc or reformat all table separator rows.
     tags: [naming, markdownlint, MD060, formatting]
     confidence: low
     created: 2026-01-01
@@ -79,9 +79,9 @@ entries:
     category: antipattern
     language: markdown
     description: >
-      After moving files to new directories, documentation references to old paths
-      remain stale across multiple files. Create a checklist or script that greps for
-      old path prefixes after any directory restructuring commit.
+      After moving files to new directories, documentation references to old
+      paths remain stale across multiple files. Create a checklist or script
+      that greps for old path prefixes after any directory restructuring commit.
     tags: [architecture, documentation, refactoring, stale-paths]
     confidence: medium
     created: 2026-02-11

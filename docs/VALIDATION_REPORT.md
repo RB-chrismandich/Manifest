@@ -15,7 +15,7 @@ All components of the shell script quality infrastructure have been validated en
 **Overall Status:** ✅ **PASSED** (8/8 components working)
 
 | Component | Status | Notes |
-|-----------|--------|-------|
+|---|---|---|
 | ShellCheck Installation | ✅ PASSED | v0.11.0 installed and working |
 | yamllint Installation | ✅ PASSED | v1.37.1 installed and working |
 | YAML Configuration | ✅ PASSED | All 5 config files valid |
