@@ -54,27 +54,60 @@ command_exists() {
 }
 
 # Show a spinner while a command runs
-# Usage: run_with_spinner "command args" "Loading message"
+# Usage: run_with_spinner "Loading message" command args...
 run_with_spinner() {
-    local cmd="$1"
-    local msg="${2:-Working}"
+    local msg="$1"
+    shift
+    local cmd=("$@")
     local pid
-    local spin='-\|/'
+    local spin='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
+    local char_width=${#spin}
     local i=0
+    local log_file
 
-    eval "$cmd" &
+    # Check if we are in an interactive shell or have tput capabilities
+    if ! [ -t 1 ] || ! command -v tput &>/dev/null; then
+        # Fallback for non-interactive: just run the command
+        echo "$msg..."
+        "${cmd[@]}"
+        return $?
+    fi
+
+    log_file=$(mktemp)
+
+    # Hide cursor
+    tput civis 2>/dev/null
+
+    # Run command in background, redirecting output to log file
+    "${cmd[@]}" > "$log_file" 2>&1 &
     pid=$!
 
+    # Spin while process is running
     while kill -0 "$pid" 2> /dev/null; do
-        i=$(((i + 1) % 4))
+        i=$(((i + 1) % char_width))
         printf "\r${CYAN}${spin:$i:1}${NC} %s..." "$msg"
-        sleep 0.2
+        sleep 0.1
     done
 
     wait "$pid"
     local exit_code=$?
+
+    # Restore cursor
+    tput cnorm 2>/dev/null
+
+    # Clear line
     printf "\r\033[K"
-    return $exit_code
+
+    if [ $exit_code -eq 0 ]; then
+        rm -f "$log_file"
+        return 0
+    else
+        # Print error message and log file content
+        print_error "Command failed: $msg"
+        cat "$log_file"
+        rm -f "$log_file"
+        return $exit_code
+    fi
 }
 
 # Create/recreate a symlink at link_path pointing to target

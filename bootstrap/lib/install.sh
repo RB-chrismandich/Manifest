@@ -37,8 +37,7 @@ install_package_manager() {
 
         if command_exists brew; then
             print_success "Homebrew is installed"
-            print_step "Updating Homebrew..."
-            brew update --quiet
+            run_with_spinner "Updating Homebrew" brew update --quiet
         else
             print_warning "Homebrew not found"
             if prompt_yes_no "Install Homebrew?"; then
@@ -214,11 +213,10 @@ install_python_dependencies() {
         return 0
     fi
 
-    print_step "Installing Python dependencies for parallel_agent.py..."
     print_info "Using: $python_cmd"
 
     # Try to install with --user flag and prefer binary wheels
-    if $python_cmd -m pip install --user --prefer-binary -q -r "$requirements_file" 2>&1; then
+    if run_with_spinner "Installing Python dependencies for parallel_agent.py" "$python_cmd" -m pip install --user --prefer-binary -q -r "$requirements_file"; then
         print_success "Python dependencies installed"
     else
         print_warning "Failed to install Python dependencies"
@@ -324,9 +322,9 @@ install_claude() {
 
         if prompt_yes_no "Install Claude Code CLI via npm?"; then
             if command_exists npm; then
-                print_step "Installing Claude Code CLI..."
-                npm install -g @anthropic-ai/claude-code
-                print_success "Claude Code CLI installed"
+                if run_with_spinner "Installing Claude Code CLI" npm install -g @anthropic-ai/claude-code; then
+                    print_success "Claude Code CLI installed"
+                fi
             else
                 print_error "npm not found. Please install Node.js first."
                 return 1
@@ -361,9 +359,9 @@ install_gemini() {
 
         if prompt_yes_no "Install Gemini CLI via npm?"; then
             if command_exists npm; then
-                print_step "Installing Gemini CLI..."
-                npm install -g @google/gemini-cli
-                print_success "Gemini CLI installed"
+                if run_with_spinner "Installing Gemini CLI" npm install -g @google/gemini-cli; then
+                    print_success "Gemini CLI installed"
+                fi
             else
                 print_error "npm not found. Please install Node.js first."
                 return 1
@@ -403,9 +401,9 @@ install_codex() {
 
         if prompt_yes_no "Install Codex CLI via npm?"; then
             if command_exists npm; then
-                print_step "Installing Codex CLI..."
-                npm install -g @openai/codex
-                print_success "Codex CLI installed"
+                if run_with_spinner "Installing Codex CLI" npm install -g @openai/codex; then
+                    print_success "Codex CLI installed"
+                fi
             else
                 print_error "npm not found. Please install Node.js first."
                 return 1
