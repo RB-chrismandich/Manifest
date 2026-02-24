@@ -46,6 +46,7 @@ for skill_dir in "$SKILLS_DIR"/*/; do
     if head -1 "$skill_file" | grep -q '^---'; then
         front_matter=$(sed -n '2,/^---$/p' "$skill_file" | sed '$d')
         desc_line=$(echo "$front_matter" | grep '^description:' | head -1)
+        # shellcheck disable=SC2001
         desc_value=$(echo "$desc_line" | sed 's/^description:[[:space:]]*//')
 
         if [[ "$desc_value" == "|" || "$desc_value" == "|-" || -z "$desc_value" ]]; then
