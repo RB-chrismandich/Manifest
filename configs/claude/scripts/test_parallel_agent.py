@@ -90,8 +90,9 @@ class TestValidationEngine:
             }
         }
         _consensus = {"consensus_score": 85}
+        processed_outputs = {"claude": results["claude"]["output"].lower()}
 
-        tier1_result = validator._check_security(results, {})
+        tier1_result = validator._check_security(results, {}, processed_outputs)
         # Should detect hardcoded secret
         assert not tier1_result["passed"]
         assert len(tier1_result["issues"]) > 0
@@ -108,8 +109,9 @@ class TestValidationEngine:
             }
         }
         _consensus = {"consensus_score": 85}
+        processed_outputs = {"claude": results["claude"]["output"].lower()}
 
-        tier1_result = validator._check_security(results, {})
+        tier1_result = validator._check_security(results, {}, processed_outputs)
         # Should pass
         assert tier1_result["passed"]
         assert len(tier1_result["issues"]) == 0
@@ -125,8 +127,9 @@ class TestValidationEngine:
                 "output": "Warning: potential null reference issue detected",
             }
         }
+        processed_outputs = {"claude": results["claude"]["output"].lower()}
 
-        tier2_result = validator._check_bugs(results, {})
+        tier2_result = validator._check_bugs(results, {}, processed_outputs)
         # Should have concerns
         assert tier2_result["score"] < 1.0
         assert len(tier2_result["concerns"]) > 0
