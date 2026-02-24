@@ -1502,22 +1502,22 @@ monitor_agents() {
 create_summary() {
     local summary_file="$SUMMARY_FILE"
 
-    echo "# Parallel Agent Results - $TIMESTAMP" > "$summary_file"
-    echo "" >> "$summary_file"
-    echo "**Mode:** $MODE" >> "$summary_file"
-    echo "**Duration:** $DURATION_FORMATTED" >> "$summary_file"
-    echo "**Prompt/Target:** ${PROMPT:-$TARGET}" >> "$summary_file"
+    {
+        echo "# Parallel Agent Results - $TIMESTAMP"
+        echo ""
+        echo "**Mode:** $MODE"
+        echo "**Duration:** $DURATION_FORMATTED"
+        echo "**Prompt/Target:** ${PROMPT:-$TARGET}"
 
-    if [[ "$CROSS_VERIFY_RAN" == true ]]; then
-        local bar
-        bar=$(draw_bar $CONSENSUS_SCORE)
-        echo "**Consensus:** $CONSENSUS_SCORE% \`$bar\`" >> "$summary_file"
-    fi
+        if [[ "$CROSS_VERIFY_RAN" == true ]]; then
+            local bar
+            bar=$(draw_bar $CONSENSUS_SCORE)
+            echo "**Consensus:** $CONSENSUS_SCORE% \`$bar\`"
+        fi
 
-    echo "" >> "$summary_file"
+        echo ""
 
-    if [[ -f "$CURSOR_OUTPUT_FILE" ]]; then
-        {
+        if [[ -f "$CURSOR_OUTPUT_FILE" ]]; then
             echo "## Cursor Agent Output"
             [[ -n "$CURSOR_MODEL" ]] && echo "**Model:** $CURSOR_MODEL"
             [[ "$CURSOR_CREDIT_FALLBACK" == true ]] && echo "**Note:** Used fallback mode due to credit exhaustion"
@@ -1525,21 +1525,17 @@ create_summary() {
             get_output_content "$CURSOR_OUTPUT_FILE"
             echo '```'
             echo ""
-        } >> "$summary_file"
-    fi
+        fi
 
-    if [[ -f "$GEMINI_OUTPUT_FILE" ]]; then
-        {
+        if [[ -f "$GEMINI_OUTPUT_FILE" ]]; then
             echo "## Gemini CLI Output"
             echo '```'
             get_output_content "$GEMINI_OUTPUT_FILE"
             echo '```'
             echo ""
-        } >> "$summary_file"
-    fi
+        fi
 
-    if [[ -f "$CLAUDE_OUTPUT_FILE" ]]; then
-        {
+        if [[ -f "$CLAUDE_OUTPUT_FILE" ]]; then
             echo "## Claude CLI Output"
             [[ -n "$CLAUDE_MODEL" ]] && echo "**Model:** $CLAUDE_MODEL"
             [[ "$CLAUDE_CREDIT_FALLBACK" == true ]] && echo "**Note:** Used fallback mode due to credit exhaustion"
@@ -1547,11 +1543,9 @@ create_summary() {
             get_output_content "$CLAUDE_OUTPUT_FILE"
             echo '```'
             echo ""
-        } >> "$summary_file"
-    fi
+        fi
 
-    if [[ -f "$CODEX_OUTPUT_FILE" ]]; then
-        {
+        if [[ -f "$CODEX_OUTPUT_FILE" ]]; then
             echo "## Codex CLI Output"
             [[ -n "$CODEX_MODEL" ]] && echo "**Model:** $CODEX_MODEL (tier: $CODEX_MODEL_TIER)"
             [[ "$CODEX_CREDIT_FALLBACK" == true ]] && echo "**Note:** Used default model due to credit exhaustion"
@@ -1559,8 +1553,8 @@ create_summary() {
             get_output_content "$CODEX_OUTPUT_FILE"
             echo '```'
             echo ""
-        } >> "$summary_file"
-    fi
+        fi
+    } > "$summary_file"
 
     echo -e "${GREEN}Summary:${NC} $summary_file"
 
