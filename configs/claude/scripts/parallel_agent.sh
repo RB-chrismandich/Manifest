@@ -18,6 +18,7 @@
 # Uses Cursor Agent, Gemini CLI, Claude CLI, and Codex CLI in parallel
 #
 # Usage:
+# shellcheck disable=SC2016
 #   ./scripts/parallel_agent.sh "Your task description"
 #   ./scripts/parallel_agent.sh --analyze "path/to/file.py"
 #   ./scripts/parallel_agent.sh --cursor-model advanced --claude-model opus --review file.py
@@ -1462,10 +1463,13 @@ monitor_agents() {
                     code=$?
                     set -e
                     if [[ $code -eq 0 ]]; then
+                        # shellcheck disable=SC2004
                         agent_states[$i]="${GREEN}✔${NC}"
                     else
+                        # shellcheck disable=SC2004
                         agent_states[$i]="${RED}✘${NC}"
                     fi
+                    # shellcheck disable=SC2004
                     status_line="$status_line $display_name [${agent_states[$i]}]"
                 fi
             else
@@ -1499,57 +1503,59 @@ monitor_agents() {
 create_summary() {
     local summary_file="$SUMMARY_FILE"
 
-    echo "# Parallel Agent Results - $TIMESTAMP" > "$summary_file"
-    echo "" >> "$summary_file"
-    echo "**Mode:** $MODE" >> "$summary_file"
-    echo "**Duration:** $DURATION_FORMATTED" >> "$summary_file"
-    echo "**Prompt/Target:** ${PROMPT:-$TARGET}" >> "$summary_file"
+    {
+        echo "# Parallel Agent Results - $TIMESTAMP"
+        echo ""
+        echo "**Mode:** $MODE"
+        echo "**Duration:** $DURATION_FORMATTED"
+        echo "**Prompt/Target:** ${PROMPT:-$TARGET}"
 
-    if [[ "$CROSS_VERIFY_RAN" == true ]]; then
-        local bar
-        bar=$(draw_bar $CONSENSUS_SCORE)
-        echo "**Consensus:** $CONSENSUS_SCORE% \`$bar\`" >> "$summary_file"
-    fi
+        if [[ "$CROSS_VERIFY_RAN" == true ]]; then
+            local bar
+            bar=$(draw_bar $CONSENSUS_SCORE)
+            echo "**Consensus:** $CONSENSUS_SCORE% \`$bar\`"
+        fi
 
-    echo "" >> "$summary_file"
+        echo ""
 
-    if [[ -f "$CURSOR_OUTPUT_FILE" ]]; then
-        echo "## Cursor Agent Output" >> "$summary_file"
-        [[ -n "$CURSOR_MODEL" ]] && echo "**Model:** $CURSOR_MODEL" >> "$summary_file"
-        [[ "$CURSOR_CREDIT_FALLBACK" == true ]] && echo "**Note:** Used fallback mode due to credit exhaustion" >> "$summary_file"
-        echo '```' >> "$summary_file"
-        get_output_content "$CURSOR_OUTPUT_FILE" >> "$summary_file"
-        echo '```' >> "$summary_file"
-        echo "" >> "$summary_file"
-    fi
+        if [[ -f "$CURSOR_OUTPUT_FILE" ]]; then
+            echo "## Cursor Agent Output"
+            [[ -n "$CURSOR_MODEL" ]] && echo "**Model:** $CURSOR_MODEL"
+            [[ "$CURSOR_CREDIT_FALLBACK" == true ]] && echo "**Note:** Used fallback mode due to credit exhaustion"
+            echo '```'
+            get_output_content "$CURSOR_OUTPUT_FILE"
+            echo '```'
+            echo ""
+        fi
 
-    if [[ -f "$GEMINI_OUTPUT_FILE" ]]; then
-        echo "## Gemini CLI Output" >> "$summary_file"
-        echo '```' >> "$summary_file"
-        get_output_content "$GEMINI_OUTPUT_FILE" >> "$summary_file"
-        echo '```' >> "$summary_file"
-        echo "" >> "$summary_file"
-    fi
+        if [[ -f "$GEMINI_OUTPUT_FILE" ]]; then
+            echo "## Gemini CLI Output"
+            echo '```'
+            get_output_content "$GEMINI_OUTPUT_FILE"
+            echo '```'
+            echo ""
+        fi
 
-    if [[ -f "$CLAUDE_OUTPUT_FILE" ]]; then
-        echo "## Claude CLI Output" >> "$summary_file"
-        [[ -n "$CLAUDE_MODEL" ]] && echo "**Model:** $CLAUDE_MODEL" >> "$summary_file"
-        [[ "$CLAUDE_CREDIT_FALLBACK" == true ]] && echo "**Note:** Used fallback mode due to credit exhaustion" >> "$summary_file"
-        echo '```' >> "$summary_file"
-        get_output_content "$CLAUDE_OUTPUT_FILE" >> "$summary_file"
-        echo '```' >> "$summary_file"
-        echo "" >> "$summary_file"
-    fi
+        if [[ -f "$CLAUDE_OUTPUT_FILE" ]]; then
+            echo "## Claude CLI Output"
+            [[ -n "$CLAUDE_MODEL" ]] && echo "**Model:** $CLAUDE_MODEL"
+            [[ "$CLAUDE_CREDIT_FALLBACK" == true ]] && echo "**Note:** Used fallback mode due to credit exhaustion"
+            echo '```'
+            get_output_content "$CLAUDE_OUTPUT_FILE"
+            echo '```'
+            echo ""
+        fi
 
-    if [[ -f "$CODEX_OUTPUT_FILE" ]]; then
-        echo "## Codex CLI Output" >> "$summary_file"
-        [[ -n "$CODEX_MODEL" ]] && echo "**Model:** $CODEX_MODEL (tier: $CODEX_MODEL_TIER)" >> "$summary_file"
-        [[ "$CODEX_CREDIT_FALLBACK" == true ]] && echo "**Note:** Used default model due to credit exhaustion" >> "$summary_file"
-        echo '```' >> "$summary_file"
-        get_output_content "$CODEX_OUTPUT_FILE" >> "$summary_file"
-        echo '```' >> "$summary_file"
-        echo "" >> "$summary_file"
-    fi
+        if [[ -f "$CODEX_OUTPUT_FILE" ]]; then
+            echo "## Codex CLI Output"
+            [[ -n "$CODEX_MODEL" ]] && echo "**Model:** $CODEX_MODEL (tier: $CODEX_MODEL_TIER)"
+            [[ "$CODEX_CREDIT_FALLBACK" == true ]] && echo "**Note:** Used default model due to credit exhaustion"
+            echo '```'
+            get_output_content "$CODEX_OUTPUT_FILE"
+            echo '```'
+            echo ""
+        fi
+    } > "$summary_file"
 
     echo -e "${GREEN}Summary:${NC} $summary_file"
 
@@ -1739,7 +1745,8 @@ print_results_table() {
             score_color="${YELLOW}"
         else score_color="${RED}"; fi
 
-        echo -e "Consensus: ${score_color}${CONSENSUS_SCORE}%${NC} $bar"
+        # shellcheck disable=SC2059
+        printf "Consensus: ${score_color}${CONSENSUS_SCORE}%%${NC} $bar\n"
     fi
 
     echo "Duration : $DURATION_FORMATTED"
