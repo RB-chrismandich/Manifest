@@ -1580,6 +1580,7 @@ print_results_table() {
     if [[ "$VALIDATE" == true ]]; then
         printf " | %-10s" "Validation"
     fi
+    # shellcheck disable=SC2059
     printf "${NC}\n"
 
     printf "%s\n" "-----------|------------|----------------------$(if [[ "$VALIDATE" == true ]]; then echo "-|------------"; fi)"
