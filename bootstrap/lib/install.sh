@@ -10,6 +10,7 @@ check_platform() {
         linux)
             local version=""
             if [[ -f /etc/os-release ]]; then
+                # shellcheck disable=SC1091
                 . /etc/os-release
                 version="$PRETTY_NAME"
             else
@@ -258,6 +259,7 @@ install_node() {
                 1)
                     print_step "Installing Node.js via $PKG_MANAGER..."
                     sudo -v
+                    # shellcheck disable=SC2086
                     case "$PKG_MANAGER" in
                         apt)
                             run_with_spinner "Installing Node.js" sudo apt-get install -y nodejs npm
