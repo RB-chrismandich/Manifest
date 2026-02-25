@@ -245,14 +245,13 @@ configure_cursor_mcp_config() {
         json_entries+=$'\n'"    \"${name}\": {"$'\n'"      \"url\": \"${url}\""$'\n'"    }"
     done
 
-    cat > "$cursor_mcp_file" << EOF
+    cat << EOF | write_file_securely "$cursor_mcp_file"
 {
   "mcpServers": {${json_entries}
   }
 }
 EOF
 
-    chmod 600 "$cursor_mcp_file" 2> /dev/null || true
     print_success "Configured Cursor MCP servers in $cursor_mcp_file"
 }
 

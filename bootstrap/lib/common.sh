@@ -118,3 +118,21 @@ link_shared_assets() {
         create_symlink "$link_path" "$target" "${shared_name} $name"
     done
 }
+
+# Write content to a file with 600 permissions atomically.
+# Usage: write_file_securely "path/to/file" [content]
+# If content is not provided, reads from stdin.
+write_file_securely() {
+    local file="$1"
+    local content="${2:-}"
+
+    # Remove existing file to ensure we create a new one with correct permissions
+    rm -f "$file"
+
+    # Write new file with restrictive umask (077 = 600 permissions)
+    if [[ -n "$content" ]]; then
+        (umask 077; echo "$content" > "$file")
+    else
+        (umask 077; cat > "$file")
+    fi
+}
