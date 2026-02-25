@@ -54,26 +54,48 @@ command_exists() {
 }
 
 # Show a spinner while a command runs
-# Usage: run_with_spinner "command args" "Loading message"
+# Usage: run_with_spinner "Loading message" command args...
 run_with_spinner() {
-    local cmd="$1"
-    local msg="${2:-Working}"
+    local msg="$1"
+    shift
     local pid
     local spin='-\|/'
     local i=0
+    local temp_log
 
-    eval "$cmd" &
+    # Create temporary log file for capturing output
+    temp_log=$(mktemp)
+
+    # Hide cursor and ensure it's restored on exit
+    printf "\033[?25l"
+    trap 'printf "\033[?25h"; rm -f "$temp_log"' EXIT
+
+    # Run command in background, redirecting output to log file
+    "$@" > "$temp_log" 2>&1 &
     pid=$!
 
+    # Spin while process is running
     while kill -0 "$pid" 2> /dev/null; do
         i=$(((i + 1) % 4))
         printf "\r${CYAN}${spin:$i:1}${NC} %s..." "$msg"
-        sleep 0.2
+        sleep 0.1
     done
 
     wait "$pid"
     local exit_code=$?
+
+    # Restore cursor and clear line
+    printf "\033[?25h"
     printf "\r\033[K"
+    trap - EXIT
+
+    # If command failed, show the output
+    if [ $exit_code -ne 0 ]; then
+        print_error "Command failed: $*"
+        cat "$temp_log"
+    fi
+
+    rm -f "$temp_log"
     return $exit_code
 }
 

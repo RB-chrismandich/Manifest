@@ -37,8 +37,7 @@ install_package_manager() {
 
         if command_exists brew; then
             print_success "Homebrew is installed"
-            print_step "Updating Homebrew..."
-            brew update --quiet
+            run_with_spinner "Updating Homebrew" brew update --quiet
         else
             print_warning "Homebrew not found"
             if prompt_yes_no "Install Homebrew?"; then
@@ -72,8 +71,8 @@ install_package_manager() {
             case "$PKG_MANAGER" in
                 apt)
                     if prompt_yes_no "Update apt package lists?"; then
-                        print_step "Updating package lists..."
-                        sudo apt-get update -qq
+                        sudo -v
+                        run_with_spinner "Updating package lists" sudo apt-get update -qq
                     fi
                     ;;
                 dnf | yum)
@@ -81,8 +80,8 @@ install_package_manager() {
                     ;;
                 pacman)
                     if prompt_yes_no "Sync pacman database?"; then
-                        print_step "Syncing database..."
-                        sudo pacman -Sy --noconfirm
+                        sudo -v
+                        run_with_spinner "Syncing database" sudo pacman -Sy --noconfirm
                     fi
                     ;;
             esac
@@ -218,7 +217,7 @@ install_python_dependencies() {
     print_info "Using: $python_cmd"
 
     # Try to install with --user flag and prefer binary wheels
-    if $python_cmd -m pip install --user --prefer-binary -q -r "$requirements_file" 2>&1; then
+    if run_with_spinner "Installing Python dependencies" "$python_cmd" -m pip install --user --prefer-binary -q -r "$requirements_file"; then
         print_success "Python dependencies installed"
     else
         print_warning "Failed to install Python dependencies"
@@ -241,8 +240,7 @@ install_node() {
 
         if [[ "$PLATFORM" == "macos" ]]; then
             if command_exists brew && prompt_yes_no "Install Node.js via Homebrew?"; then
-                print_step "Installing Node.js..."
-                brew install node
+                run_with_spinner "Installing Node.js" brew install node
                 print_success "Node.js installed"
             else
                 print_warning "Please install Node.js manually from https://nodejs.org"
@@ -259,21 +257,22 @@ install_node() {
             case $node_choice in
                 1)
                     print_step "Installing Node.js via $PKG_MANAGER..."
+                    sudo -v
                     case "$PKG_MANAGER" in
                         apt)
-                            sudo apt-get install -y nodejs npm
+                            run_with_spinner "Installing Node.js" sudo apt-get install -y nodejs npm
                             ;;
                         dnf)
-                            sudo dnf install -y nodejs npm
+                            run_with_spinner "Installing Node.js" sudo dnf install -y nodejs npm
                             ;;
                         yum)
-                            sudo yum install -y nodejs npm
+                            run_with_spinner "Installing Node.js" sudo yum install -y nodejs npm
                             ;;
                         pacman)
-                            sudo pacman -S --noconfirm nodejs npm
+                            run_with_spinner "Installing Node.js" sudo pacman -S --noconfirm nodejs npm
                             ;;
                         zypper)
-                            sudo zypper install -y nodejs npm
+                            run_with_spinner "Installing Node.js" sudo zypper install -y nodejs npm
                             ;;
                         *)
                             print_error "Package manager not supported for Node.js installation"
@@ -324,8 +323,7 @@ install_claude() {
 
         if prompt_yes_no "Install Claude Code CLI via npm?"; then
             if command_exists npm; then
-                print_step "Installing Claude Code CLI..."
-                npm install -g @anthropic-ai/claude-code
+                run_with_spinner "Installing Claude Code CLI" npm install -g @anthropic-ai/claude-code
                 print_success "Claude Code CLI installed"
             else
                 print_error "npm not found. Please install Node.js first."
@@ -361,8 +359,7 @@ install_gemini() {
 
         if prompt_yes_no "Install Gemini CLI via npm?"; then
             if command_exists npm; then
-                print_step "Installing Gemini CLI..."
-                npm install -g @google/gemini-cli
+                run_with_spinner "Installing Gemini CLI" npm install -g @google/gemini-cli
                 print_success "Gemini CLI installed"
             else
                 print_error "npm not found. Please install Node.js first."
@@ -403,8 +400,7 @@ install_codex() {
 
         if prompt_yes_no "Install Codex CLI via npm?"; then
             if command_exists npm; then
-                print_step "Installing Codex CLI..."
-                npm install -g @openai/codex
+                run_with_spinner "Installing Codex CLI" npm install -g @openai/codex
                 print_success "Codex CLI installed"
             else
                 print_error "npm not found. Please install Node.js first."
@@ -475,8 +471,7 @@ install_github_cli() {
             case "$PLATFORM" in
                 macos)
                     if command_exists brew; then
-                        print_step "Installing GitHub CLI via Homebrew..."
-                        brew install gh
+                        run_with_spinner "Installing GitHub CLI" brew install gh
                         print_success "GitHub CLI installed"
                     else
                         print_error "Homebrew not found. Please install Homebrew first."
@@ -484,20 +479,18 @@ install_github_cli() {
                     fi
                     ;;
                 linux)
+                    sudo -v
                     case "$PKG_MANAGER" in
                         apt)
-                            print_step "Installing GitHub CLI via apt..."
-                            sudo apt update && sudo apt install -y gh
+                            run_with_spinner "Installing GitHub CLI" bash -c "sudo apt update && sudo apt install -y gh"
                             print_success "GitHub CLI installed"
                             ;;
                         dnf | yum)
-                            print_step "Installing GitHub CLI via $PKG_MANAGER..."
-                            sudo "$PKG_MANAGER" install -y gh
+                            run_with_spinner "Installing GitHub CLI" sudo "$PKG_MANAGER" install -y gh
                             print_success "GitHub CLI installed"
                             ;;
                         pacman)
-                            print_step "Installing GitHub CLI via pacman..."
-                            sudo pacman -S --noconfirm github-cli
+                            run_with_spinner "Installing GitHub CLI" sudo pacman -S --noconfirm github-cli
                             print_success "GitHub CLI installed"
                             ;;
                         *)
@@ -572,8 +565,7 @@ install_gitlab_cli() {
             case "$PLATFORM" in
                 macos)
                     if command_exists brew; then
-                        print_step "Installing GitLab CLI via Homebrew..."
-                        brew install glab
+                        run_with_spinner "Installing GitLab CLI" brew install glab
                         print_success "GitLab CLI installed"
                     else
                         print_error "Homebrew not found. Please install Homebrew first."
@@ -581,20 +573,18 @@ install_gitlab_cli() {
                     fi
                     ;;
                 linux)
+                    sudo -v
                     case "$PKG_MANAGER" in
                         apt)
-                            print_step "Installing GitLab CLI via apt..."
-                            sudo apt update && sudo apt install -y glab
+                            run_with_spinner "Installing GitLab CLI" bash -c "sudo apt update && sudo apt install -y glab"
                             print_success "GitLab CLI installed"
                             ;;
                         dnf | yum)
-                            print_step "Installing GitLab CLI via $PKG_MANAGER..."
-                            sudo "$PKG_MANAGER" install -y glab
+                            run_with_spinner "Installing GitLab CLI" sudo "$PKG_MANAGER" install -y glab
                             print_success "GitLab CLI installed"
                             ;;
                         pacman)
-                            print_step "Installing GitLab CLI via pacman..."
-                            sudo pacman -S --noconfirm glab
+                            run_with_spinner "Installing GitLab CLI" sudo pacman -S --noconfirm glab
                             print_success "GitLab CLI installed"
                             ;;
                         *)
@@ -653,8 +643,7 @@ check_jq() {
             case "$PLATFORM" in
                 macos)
                     if command_exists brew; then
-                        print_step "Installing jq via Homebrew..."
-                        brew install jq
+                        run_with_spinner "Installing jq" brew install jq
                         print_success "jq installed"
                     else
                         print_error "Homebrew not found."
@@ -662,25 +651,22 @@ check_jq() {
                     fi
                     ;;
                 linux)
+                    sudo -v
                     case "$PKG_MANAGER" in
                         apt)
-                            print_step "Installing jq via apt..."
-                            sudo apt update && sudo apt install -y jq
+                            run_with_spinner "Installing jq" bash -c "sudo apt update && sudo apt install -y jq"
                             print_success "jq installed"
                             ;;
                         dnf | yum)
-                            print_step "Installing jq via $PKG_MANAGER..."
-                            sudo "$PKG_MANAGER" install -y jq
+                            run_with_spinner "Installing jq" sudo "$PKG_MANAGER" install -y jq
                             print_success "jq installed"
                             ;;
                         pacman)
-                            print_step "Installing jq via pacman..."
-                            sudo pacman -S --noconfirm jq
+                            run_with_spinner "Installing jq" sudo pacman -S --noconfirm jq
                             print_success "jq installed"
                             ;;
                         zypper)
-                            print_step "Installing jq via zypper..."
-                            sudo zypper install -y jq
+                            run_with_spinner "Installing jq" sudo zypper install -y jq
                             print_success "jq installed"
                             ;;
                         *)
