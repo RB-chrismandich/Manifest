@@ -218,8 +218,9 @@ install_python_dependencies() {
     print_info "Using: $python_cmd"
 
     # Try to install with --user flag and prefer binary wheels
-    if $python_cmd -m pip install --user --prefer-binary -q -r "$requirements_file" 2>&1; then
-        print_success "Python dependencies installed"
+    local install_cmd="$python_cmd -m pip install --user --prefer-binary -q -r \"$requirements_file\""
+    if run_with_spinner "$install_cmd" "Installing Python dependencies"; then
+        :
     else
         print_warning "Failed to install Python dependencies"
         print_info "Some packages may require compilation or may not support this Python version"
