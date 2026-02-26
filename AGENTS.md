@@ -38,10 +38,11 @@ Use these MCP servers by default when their domain context matches the task:
 
 ## Repository Purpose
 
-This repository manages AI agent configurations for deployment to `~/.claude/` (and mirrored
-to `~/.cursor/`, `~/.gemini/`, and `~/.codex/`) on target machines. It contains orchestration guides,
-skills, prompts, and scripts that enable parallel LLM agent coordination
-(Cursor, Gemini CLI, Claude CLI, Codex CLI).
+This repository manages AI agent configurations for deployment to `~/.claude/`
+(and mirrored to `~/.cursor/`, `~/.gemini/`, and `~/.codex/`) on target
+machines. It contains orchestration guides, skills, prompts, and scripts that
+enable parallel LLM agent coordination (Cursor, Gemini CLI, Claude CLI, Codex
+CLI).
 
 ## Repository Structure
 
@@ -194,13 +195,15 @@ Required CLI tools (install those you want to use):
 
 | File | Purpose |
 |------|---------|
+| File | Purpose |
+|------|---------|
 | `configs/claude/CLAUDE.md` | Main orchestration guide for Claude Code |
 | `configs/cursor/rules/orchestration.mdc` | Main orchestration guide for Cursor (always-on rule) |
 | `configs/gemini/GEMINI.md` | Main orchestration guide for Gemini CLI |
 | `configs/codex/AGENTS.md` | Main orchestration guide for Codex CLI |
-| `configs/claude/scripts/parallel_agent.sh` | Bash script that runs agents in parallel with consensus scoring |
-| `configs/claude/config/command_config.yml` | Thresholds, tool policies, model selection, error recovery |
-| `configs/claude/config/validation_criteria.yml` | Tier 1 (critical) and Tier 2 (quality) validation rules |
+| `configs/claude/scripts/parallel_agent.sh` | Bash script that runs agents in parallel |
+| `configs/claude/config/command_config.yml` | Thresholds, tool policies, model selection |
+| `configs/claude/config/validation_criteria.yml` | Tier 1 (critical) and Tier 2 validation |
 
 ## Available Skills
 
