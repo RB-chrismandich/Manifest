@@ -1,4 +1,5 @@
 #!/bin/bash
+# shellcheck disable=SC2016
 # ┌──────────────────────────────────────────────────────────────────────┐
 # │  DEPRECATED: This shell script is superseded by parallel_agent.py   │
 # │  Use instead:                                                       │
@@ -23,8 +24,6 @@
 #   ./scripts/parallel_agent.sh --cursor-model advanced --claude-model opus --review file.py
 
 set -e
-
-# shellcheck disable=SC2016
 
 # Security: Ensure all created files are only readable by the owner
 umask 0077
