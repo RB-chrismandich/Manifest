@@ -93,6 +93,41 @@ create_symlink() {
     print_success "Symlinked $link_path -> $target"
 }
 
+# Write content to a file with secure permissions (600).
+# Usage: write_file_securely "path/to/file" "content"
+# If content is not provided, reads from stdin.
+write_file_securely() {
+    local file="$1"
+    local content="${2:-}"
+    local dir
+    dir=$(dirname "$file")
+
+    # Ensure directory exists with secure permissions
+    if [[ ! -d "$dir" ]]; then
+        mkdir -p "$dir"
+        chmod 700 "$dir"
+    fi
+
+    # Remove existing file to ensure we create a new one with correct permissions
+    rm -f "$file"
+
+    # Use subshell to restrict umask only for this operation
+    (
+        umask 077
+        if [[ -n "$content" ]]; then
+             printf '%s\n' "$content" > "$file"
+        else
+             cat > "$file"
+        fi
+    )
+
+    if [[ -f "$file" ]]; then
+        return 0
+    else
+        return 1
+    fi
+}
+
 # Link shared directories from ~/.claude into another config directory.
 # Third arg `include_skills=true` also links the shared skills directory.
 link_shared_assets() {
