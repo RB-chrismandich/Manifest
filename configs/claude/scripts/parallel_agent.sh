@@ -24,6 +24,8 @@
 
 set -e
 
+# shellcheck disable=SC2016
+
 # Security: Ensure all created files are only readable by the owner
 umask 0077
 
@@ -1462,11 +1464,11 @@ monitor_agents() {
                     code=$?
                     set -e
                     if [[ $code -eq 0 ]]; then
-                        agent_states[$i]="${GREEN}✔${NC}"
+                        agent_states[i]="${GREEN}✔${NC}"
                     else
-                        agent_states[$i]="${RED}✘${NC}"
+                        agent_states[i]="${RED}✘${NC}"
                     fi
-                    status_line="$status_line $display_name [${agent_states[$i]}]"
+                    status_line="$status_line $display_name [${agent_states[i]}]"
                 fi
             else
                 status_line="$status_line $display_name [$state]"
@@ -1499,57 +1501,59 @@ monitor_agents() {
 create_summary() {
     local summary_file="$SUMMARY_FILE"
 
-    echo "# Parallel Agent Results - $TIMESTAMP" > "$summary_file"
-    echo "" >> "$summary_file"
-    echo "**Mode:** $MODE" >> "$summary_file"
-    echo "**Duration:** $DURATION_FORMATTED" >> "$summary_file"
-    echo "**Prompt/Target:** ${PROMPT:-$TARGET}" >> "$summary_file"
+    {
+        echo "# Parallel Agent Results - $TIMESTAMP"
+        echo ""
+        echo "**Mode:** $MODE"
+        echo "**Duration:** $DURATION_FORMATTED"
+        echo "**Prompt/Target:** ${PROMPT:-$TARGET}"
 
-    if [[ "$CROSS_VERIFY_RAN" == true ]]; then
-        local bar
-        bar=$(draw_bar $CONSENSUS_SCORE)
-        echo "**Consensus:** $CONSENSUS_SCORE% \`$bar\`" >> "$summary_file"
-    fi
+        if [[ "$CROSS_VERIFY_RAN" == true ]]; then
+            local bar
+            bar=$(draw_bar $CONSENSUS_SCORE)
+            echo "**Consensus:** $CONSENSUS_SCORE% \`$bar\`"
+        fi
 
-    echo "" >> "$summary_file"
+        echo ""
 
-    if [[ -f "$CURSOR_OUTPUT_FILE" ]]; then
-        echo "## Cursor Agent Output" >> "$summary_file"
-        [[ -n "$CURSOR_MODEL" ]] && echo "**Model:** $CURSOR_MODEL" >> "$summary_file"
-        [[ "$CURSOR_CREDIT_FALLBACK" == true ]] && echo "**Note:** Used fallback mode due to credit exhaustion" >> "$summary_file"
-        echo '```' >> "$summary_file"
-        get_output_content "$CURSOR_OUTPUT_FILE" >> "$summary_file"
-        echo '```' >> "$summary_file"
-        echo "" >> "$summary_file"
-    fi
+        if [[ -f "$CURSOR_OUTPUT_FILE" ]]; then
+            echo "## Cursor Agent Output"
+            [[ -n "$CURSOR_MODEL" ]] && echo "**Model:** $CURSOR_MODEL"
+            [[ "$CURSOR_CREDIT_FALLBACK" == true ]] && echo "**Note:** Used fallback mode due to credit exhaustion"
+            echo '```'
+            get_output_content "$CURSOR_OUTPUT_FILE"
+            echo '```'
+            echo ""
+        fi
 
-    if [[ -f "$GEMINI_OUTPUT_FILE" ]]; then
-        echo "## Gemini CLI Output" >> "$summary_file"
-        echo '```' >> "$summary_file"
-        get_output_content "$GEMINI_OUTPUT_FILE" >> "$summary_file"
-        echo '```' >> "$summary_file"
-        echo "" >> "$summary_file"
-    fi
+        if [[ -f "$GEMINI_OUTPUT_FILE" ]]; then
+            echo "## Gemini CLI Output"
+            echo '```'
+            get_output_content "$GEMINI_OUTPUT_FILE"
+            echo '```'
+            echo ""
+        fi
 
-    if [[ -f "$CLAUDE_OUTPUT_FILE" ]]; then
-        echo "## Claude CLI Output" >> "$summary_file"
-        [[ -n "$CLAUDE_MODEL" ]] && echo "**Model:** $CLAUDE_MODEL" >> "$summary_file"
-        [[ "$CLAUDE_CREDIT_FALLBACK" == true ]] && echo "**Note:** Used fallback mode due to credit exhaustion" >> "$summary_file"
-        echo '```' >> "$summary_file"
-        get_output_content "$CLAUDE_OUTPUT_FILE" >> "$summary_file"
-        echo '```' >> "$summary_file"
-        echo "" >> "$summary_file"
-    fi
+        if [[ -f "$CLAUDE_OUTPUT_FILE" ]]; then
+            echo "## Claude CLI Output"
+            [[ -n "$CLAUDE_MODEL" ]] && echo "**Model:** $CLAUDE_MODEL"
+            [[ "$CLAUDE_CREDIT_FALLBACK" == true ]] && echo "**Note:** Used fallback mode due to credit exhaustion"
+            echo '```'
+            get_output_content "$CLAUDE_OUTPUT_FILE"
+            echo '```'
+            echo ""
+        fi
 
-    if [[ -f "$CODEX_OUTPUT_FILE" ]]; then
-        echo "## Codex CLI Output" >> "$summary_file"
-        [[ -n "$CODEX_MODEL" ]] && echo "**Model:** $CODEX_MODEL (tier: $CODEX_MODEL_TIER)" >> "$summary_file"
-        [[ "$CODEX_CREDIT_FALLBACK" == true ]] && echo "**Note:** Used default model due to credit exhaustion" >> "$summary_file"
-        echo '```' >> "$summary_file"
-        get_output_content "$CODEX_OUTPUT_FILE" >> "$summary_file"
-        echo '```' >> "$summary_file"
-        echo "" >> "$summary_file"
-    fi
+        if [[ -f "$CODEX_OUTPUT_FILE" ]]; then
+            echo "## Codex CLI Output"
+            [[ -n "$CODEX_MODEL" ]] && echo "**Model:** $CODEX_MODEL (tier: $CODEX_MODEL_TIER)"
+            [[ "$CODEX_CREDIT_FALLBACK" == true ]] && echo "**Note:** Used default model due to credit exhaustion"
+            echo '```'
+            get_output_content "$CODEX_OUTPUT_FILE"
+            echo '```'
+            echo ""
+        fi
+    } > "$summary_file"
 
     echo -e "${GREEN}Summary:${NC} $summary_file"
 
@@ -1570,11 +1574,11 @@ print_results_table() {
 
     # Table Header
     # Agent (10) | Status (10) | Model (20) | Validation (10)
-    printf "${BOLD}%-10s | %-10s | %-20s" "Agent" "Status" "Model"
+    printf "%s%-10s | %-10s | %-20s" "${BOLD}" "Agent" "Status" "Model"
     if [[ "$VALIDATE" == true ]]; then
         printf " | %-10s" "Validation"
     fi
-    printf "${NC}\n"
+    printf "%s\n" "${NC}"
 
     printf "%s\n" "-----------|------------|----------------------$(if [[ "$VALIDATE" == true ]]; then echo "-|------------"; fi)"
 
@@ -1597,7 +1601,7 @@ print_results_table() {
             model="$model (fallback)"
         fi
 
-        printf "%-10s | ${color}%-10s${NC} | %-20s" "Cursor" "$status" "$model"
+        printf "%-10s | %s%-10s%s | %-20s" "Cursor" "${color}" "$status" "${NC}" "$model"
 
         if [[ "$VALIDATE" == true ]]; then
             if [[ "$CURSOR_VAL_RESULT" -eq 0 ]]; then
@@ -1629,7 +1633,7 @@ print_results_table() {
             color="${RED}"
         fi
 
-        printf "%-10s | ${color}%-10s${NC} | %-20s" "Gemini" "$status" "$model"
+        printf "%-10s | %s%-10s%s | %-20s" "Gemini" "${color}" "$status" "${NC}" "$model"
 
         if [[ "$VALIDATE" == true ]]; then
             if [[ "$GEMINI_VAL_RESULT" -eq 0 ]]; then
@@ -1665,7 +1669,7 @@ print_results_table() {
             model="$model (fallback)"
         fi
 
-        printf "%-10s | ${color}%-10s${NC} | %-20s" "Claude" "$status" "$model"
+        printf "%-10s | %s%-10s%s | %-20s" "Claude" "${color}" "$status" "${NC}" "$model"
 
         if [[ "$VALIDATE" == true ]]; then
             if [[ "$CLAUDE_VAL_RESULT" -eq 0 ]]; then
@@ -1710,7 +1714,7 @@ print_results_table() {
             model="$model (fallback)"
         fi
 
-        printf "%-10s | ${color}%-10s${NC} | %-20s" "Codex" "$status" "$model"
+        printf "%-10s | %s%-10s%s | %-20s" "Codex" "${color}" "$status" "${NC}" "$model"
 
         if [[ "$VALIDATE" == true ]]; then
             if [[ "$CODEX_VAL_RESULT" -eq 0 ]]; then
