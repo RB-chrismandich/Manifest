@@ -1,11 +1,9 @@
 #!/bin/bash
+# shellcheck disable=SC2016
 # linear_ops.sh - Linear MCP wrapper for platform-agnostic issue operations
 # Usage: linear_ops.sh <subcommand> [args...]
 
 set -euo pipefail
-
-# Disable shellcheck for SC2016 as this script uses single quotes for GraphQL queries containing $vars
-# shellcheck disable=SC2016
 
 # Colors for output
 RED='\033[0;31m'
