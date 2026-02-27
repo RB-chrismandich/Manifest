@@ -4,6 +4,9 @@
 
 set -euo pipefail
 
+# Disable shellcheck for SC2016 as this script uses single quotes for GraphQL queries containing $vars
+# shellcheck disable=SC2016
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
