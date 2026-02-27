@@ -145,4 +145,7 @@ write_file_securely() {
             cat > "$filepath"
         fi
     )
+    # Explicitly set permissions to cover the case where the file already existed
+    # with looser permissions (umask only affects creation).
+    chmod 600 "$filepath"
 }
