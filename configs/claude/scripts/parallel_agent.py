@@ -281,6 +281,27 @@ class RateLimiter:
 class ValidationEngine:
     """Validates agent outputs against tiered criteria"""
 
+    # Pre-compiled regex patterns for performance
+    SECRET_PATTERNS = [
+        re.compile(r'api[_-]?key\s*=\s*["\'][^"\']+["\']', re.IGNORECASE),
+        re.compile(r'password\s*=\s*["\'][^"\']+["\']', re.IGNORECASE),
+        re.compile(r'secret\s*=\s*["\'][^"\']+["\']', re.IGNORECASE),
+        re.compile(r'token\s*=\s*["\'][^"\']+["\']', re.IGNORECASE),
+    ]
+
+    SQL_PATTERNS = [
+        re.compile(r'execute\s*\(\s*["\'].*\+', re.IGNORECASE),
+        re.compile(r'query\s*\(\s*["\'].*\+', re.IGNORECASE),
+    ]
+
+    CMD_PATTERNS = [
+        re.compile(r"exec\s*\(.*user.*\)", re.IGNORECASE),
+        re.compile(r"system\s*\(.*input.*\)", re.IGNORECASE),
+        re.compile(r"shell_exec", re.IGNORECASE),
+    ]
+
+    BARE_EXCEPT_PATTERN = re.compile(r"except\s*:", re.IGNORECASE)
+
     def __init__(self, config: Config, logger: Optional["Logger"] = None):
         self.config = config
         self.logger = logger
@@ -312,11 +333,19 @@ class ValidationEngine:
         if command and "command_overrides" in self.criteria:
             overrides = self.criteria["command_overrides"].get(command, {})
 
+        # Pre-process agent results (compute lowercased output once)
+        processed_results = {}
+        for name, result in agent_results.items():
+            processed_results[name] = {
+                **result,
+                "output_lower": result.get("output", "").lower(),
+            }
+
         # Tier 1 validation (critical)
-        tier1_result = self._validate_tier1(agent_results, consensus, overrides)
+        tier1_result = self._validate_tier1(processed_results, consensus, overrides)
 
         # Tier 2 validation (quality)
-        tier2_result = self._validate_tier2(agent_results, overrides)
+        tier2_result = self._validate_tier2(processed_results, overrides)
 
         # Compute overall verdict
         verdict = self._compute_verdict(tier1_result, tier2_result, overrides)
@@ -423,38 +452,27 @@ class ValidationEngine:
             if result.get("status") != "complete":
                 continue
 
-            output = result.get("output", "").lower()
+            # Use pre-computed lower output
+            output = result.get("output", "")  # Keep original for regex
+            # Although patterns are IGNORECASE, some checks might use 'in' on lower
 
             # Check for hardcoded secrets
-            secret_patterns = [
-                r'api[_-]?key\s*=\s*["\'][^"\']+["\']',
-                r'password\s*=\s*["\'][^"\']+["\']',
-                r'secret\s*=\s*["\'][^"\']+["\']',
-                r'token\s*=\s*["\'][^"\']+["\']',
-            ]
-
-            for pattern in secret_patterns:
-                if re.search(pattern, output, re.IGNORECASE):
+            for pattern in self.SECRET_PATTERNS:
+                if pattern.search(output):
                     issues.append(f"[{agent_name}] Potential hardcoded secret detected")
                     break
 
             # Check for SQL injection patterns
-            sql_patterns = [r'execute\s*\(\s*["\'].*\+', r'query\s*\(\s*["\'].*\+']
-            for pattern in sql_patterns:
-                if re.search(pattern, output, re.IGNORECASE):
+            for pattern in self.SQL_PATTERNS:
+                if pattern.search(output):
                     issues.append(
                         f"[{agent_name}] Potential SQL injection vulnerability"
                     )
                     break
 
             # Check for command injection patterns
-            cmd_patterns = [
-                r"exec\s*\(.*user.*\)",
-                r"system\s*\(.*input.*\)",
-                r"shell_exec",
-            ]
-            for pattern in cmd_patterns:
-                if re.search(pattern, output, re.IGNORECASE):
+            for pattern in self.CMD_PATTERNS:
+                if pattern.search(output):
                     issues.append(
                         f"[{agent_name}] Potential command injection vulnerability"
                     )
@@ -470,14 +488,19 @@ class ValidationEngine:
             if result.get("status") != "complete":
                 continue
 
-            output = result.get("output", "").lower()
+            output_lower = result.get("output_lower", "")
+            output = result.get("output", "")
 
             # Check for silent failures
-            if "pass" in output and "except" in output and "logging" not in output:
+            if (
+                "pass" in output_lower
+                and "except" in output_lower
+                and "logging" not in output_lower
+            ):
                 issues.append(f"[{agent_name}] Potential silent failure detected")
 
             # Check for bare except clauses
-            if re.search(r"except\s*:", output):
+            if self.BARE_EXCEPT_PATTERN.search(output):
                 issues.append(f"[{agent_name}] Bare except clause detected")
 
         return {"passed": len(issues) == 0, "issues": issues}
@@ -492,12 +515,12 @@ class ValidationEngine:
             if result.get("status") != "complete":
                 continue
 
-            output = result.get("output", "").lower()
+            output_lower = result.get("output_lower", "")
 
             # Check for removed/renamed functions without deprecation
             if (
-                "removed" in output or "renamed" in output
-            ) and "deprecated" not in output:
+                "removed" in output_lower or "renamed" in output_lower
+            ) and "deprecated" not in output_lower:
                 issues.append(
                     f"[{agent_name}] Potential breaking change without deprecation warning"
                 )
@@ -575,14 +598,14 @@ class ValidationEngine:
             if result.get("status") != "complete":
                 continue
 
-            output = result.get("output", "")
+            output_lower = result.get("output_lower", "")
 
             # Check for null reference issues
-            if "null" in output.lower() or "undefined" in output.lower():
+            if "null" in output_lower or "undefined" in output_lower:
                 concerns.append(f"[{agent_name}] Potential null/undefined reference")
 
             # Check for race conditions
-            if "race" in output.lower() or "concurrent" in output.lower():
+            if "race" in output_lower or "concurrent" in output_lower:
                 concerns.append(f"[{agent_name}] Potential race condition mentioned")
 
         # Score inversely proportional to concerns
@@ -598,16 +621,20 @@ class ValidationEngine:
             if result.get("status") != "complete":
                 continue
 
-            output = result.get("output", "").lower()
+            output_lower = result.get("output_lower", "")
 
             # Check for O(n²) complexity mentions
-            if "o(n" in output and ("²" in output or "^2" in output or "n)" in output):
+            if "o(n" in output_lower and (
+                "²" in output_lower or "^2" in output_lower or "n)" in output_lower
+            ):
                 concerns.append(
                     f"[{agent_name}] Quadratic or worse complexity detected"
                 )
 
             # Check for N+1 patterns
-            if "n+1" in output or ("query" in output and "loop" in output):
+            if "n+1" in output_lower or (
+                "query" in output_lower and "loop" in output_lower
+            ):
                 concerns.append(f"[{agent_name}] Potential N+1 query pattern")
 
         score = max(0, 1.0 - (len(concerns) * 0.25))
@@ -622,14 +649,14 @@ class ValidationEngine:
             if result.get("status") != "complete":
                 continue
 
-            output = result.get("output", "").lower()
+            output_lower = result.get("output_lower", "")
 
             # Check for complexity mentions
-            if "complex" in output or "complicated" in output:
+            if "complex" in output_lower or "complicated" in output_lower:
                 concerns.append(f"[{agent_name}] Complexity concerns noted")
 
             # Check for unclear naming
-            if "unclear" in output or "confusing" in output:
+            if "unclear" in output_lower or "confusing" in output_lower:
                 concerns.append(f"[{agent_name}] Naming or structure concerns")
 
         score = max(0, 1.0 - (len(concerns) * 0.2))
@@ -644,14 +671,14 @@ class ValidationEngine:
             if result.get("status") != "complete":
                 continue
 
-            output = result.get("output", "").lower()
+            output_lower = result.get("output_lower", "")
 
             # Check for missing tests mentions
-            if "no test" in output or "missing test" in output:
+            if "no test" in output_lower or "missing test" in output_lower:
                 concerns.append(f"[{agent_name}] Missing test coverage noted")
 
             # Check for untested edge cases
-            if "edge case" in output and "test" in output:
+            if "edge case" in output_lower and "test" in output_lower:
                 concerns.append(f"[{agent_name}] Edge case test coverage concerns")
 
         score = max(0, 1.0 - (len(concerns) * 0.3))

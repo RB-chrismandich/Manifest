@@ -119,10 +119,12 @@ class TestValidationEngine:
         config = Config()
         validator = ValidationEngine(config)
 
+        output = "Warning: potential null reference issue detected"
         results = {
             "claude": {
                 "status": "complete",
-                "output": "Warning: potential null reference issue detected",
+                "output": output,
+                "output_lower": output.lower(),
             }
         }
 
