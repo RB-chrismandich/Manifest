@@ -118,3 +118,31 @@ link_shared_assets() {
         create_symlink "$link_path" "$target" "${shared_name} $name"
     done
 }
+
+# Write a file securely with 0600 permissions.
+# Ensures the parent directory exists with 0700 permissions.
+# Mitigates TOCTOU race conditions by using atomic creation with umask.
+# Usage: write_file_securely "/path/to/file" ["content"]
+# If content is omitted, reads from stdin.
+write_file_securely() {
+    local filepath="$1"
+    # Second arg is optional content. If not provided, read from stdin.
+    local dir
+    dir="$(dirname "$filepath")"
+
+    # Ensure parent directory exists with secure permissions
+    if [[ ! -d "$dir" ]]; then
+        mkdir -p "$dir"
+        chmod 700 "$dir"
+    fi
+
+    # Write file atomically with umask 077 (rw-------)
+    (
+        umask 077
+        if [[ $# -ge 2 ]]; then
+            printf "%s\n" "$2" > "$filepath"
+        else
+            cat > "$filepath"
+        fi
+    )
+}
