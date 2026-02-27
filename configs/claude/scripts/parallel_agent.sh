@@ -1575,11 +1575,12 @@ print_results_table() {
 
     # Table Header
     # Agent (10) | Status (10) | Model (20) | Validation (10)
+    # shellcheck disable=SC2059
     printf "${BOLD}%-10s | %-10s | %-20s" "Agent" "Status" "Model"
     if [[ "$VALIDATE" == true ]]; then
         printf " | %-10s" "Validation"
     fi
-    printf "${NC}\n"
+    printf "%s\n" "${NC}"
 
     printf "%s\n" "-----------|------------|----------------------$(if [[ "$VALIDATE" == true ]]; then echo "-|------------"; fi)"
 
