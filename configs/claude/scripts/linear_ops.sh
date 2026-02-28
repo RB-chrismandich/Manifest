@@ -1,4 +1,5 @@
 #!/bin/bash
+# shellcheck disable=SC2016
 # linear_ops.sh - Linear MCP wrapper for platform-agnostic issue operations
 # Usage: linear_ops.sh <subcommand> [args...]
 
@@ -76,6 +77,7 @@ graphql_query() {
 get_team_id() {
     local team_key="$1"
 
+    # shellcheck disable=SC2016
     local query='query($filter: TeamFilter) {
         teams(filter: $filter) {
             nodes {
