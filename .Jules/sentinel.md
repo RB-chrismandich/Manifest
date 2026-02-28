@@ -7,3 +7,8 @@
 **Vulnerability:** The script `.claude/scripts/parallel_agent.sh` used `eval` to process configuration values parsed from `services.yml`. If the configuration file (located in the user's home directory) was modified by an attacker, it could lead to arbitrary command execution within the context of the script.
 **Learning:** Using `eval` on data derived from external files, even if partially sanitized by `awk`, is risky and hard to audit. It creates a direct path for code injection if the sanitization logic is flawed or bypassed.
 **Prevention:** Replace `eval` with a `while read` loop that iterates over the parsed output. Use strict matching (e.g., `case "$key" in ...`) to whitelist allowed variables and assign values safely, preventing execution of arbitrary commands.
+
+## 2026-02-28 - Command Injection Fix in parallel_agent.sh
+**Vulnerability:** Similar to the previous finding, `configs/claude/scripts/parallel_agent.sh` contained an unsafe `eval "$config_settings"` execution for parsing the YAML configuration `services.yml`.
+**Learning:** Using `eval` on dynamically generated strings from external files is dangerous, even if generating assignments via awk.
+**Prevention:** Refactored the parsing block to use a `while read` loop combined with `case` to directly and securely assign values to target shell variables, entirely avoiding the use of `eval`.
