@@ -59,22 +59,41 @@ run_with_spinner() {
     local cmd="$1"
     local msg="${2:-Working}"
     local pid
-    local spin='-\|/'
+    local spin_chars=("⠋" "⠙" "⠹" "⠸" "⠼" "⠴" "⠦" "⠧" "⠇" "⠏")
     local i=0
+    local log_file
+    log_file="$(mktemp)"
 
-    eval "$cmd" &
-    pid=$!
+    # Use a subshell to avoid polluting the parent trap, ensuring cleanup on interrupt
+    (
+        trap 'tput cnorm 2>/dev/null || true; rm -f "$log_file"; kill "$pid" 2>/dev/null || true; exit 1' INT TERM
 
-    while kill -0 "$pid" 2> /dev/null; do
-        i=$(((i + 1) % 4))
-        printf "\r${CYAN}${spin:$i:1}${NC} %s..." "$msg"
-        sleep 0.2
-    done
+        tput civis 2>/dev/null || true
 
-    wait "$pid"
-    local exit_code=$?
-    printf "\r\033[K"
-    return $exit_code
+        eval "$cmd" > "$log_file" 2>&1 &
+        pid=$!
+
+        while kill -0 "$pid" 2> /dev/null; do
+            i=$(((i + 1) % 10))
+            printf "\r${CYAN}%s${NC} %s..." "${spin_chars[i]}" "$msg"
+            sleep 0.1
+        done
+
+        wait "$pid"
+        local exit_code=$?
+        tput cnorm 2>/dev/null || true
+
+        printf "\r\033[K"
+        if [[ $exit_code -eq 0 ]]; then
+            printf "${GREEN}✓${NC} %s\n" "$msg"
+            rm -f "$log_file"
+        else
+            printf "${RED}✗${NC} %s\n" "$msg"
+            cat "$log_file"
+            rm -f "$log_file"
+        fi
+        exit "$exit_code"
+    )
 }
 
 # Create/recreate a symlink at link_path pointing to target
