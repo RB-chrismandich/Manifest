@@ -116,20 +116,20 @@ proceed with the standard analysis.
 
 ## Effort Classification
 
-| Level | Time | Scope | Examples |
-|-------|------|-------|----------|
-| **Minimal** | <1 hour | Single resource | Add tags, fix variable description, add sensitive flag |
-| **Medium** | 2-8 hours | Module refactor | Extract module, add validation, fix IAM policy |
-| **High** | 1-3 days | Architectural | State migration, module restructure, add testing |
+| Level       | Time      | Scope           | Examples                                               |
+| ----------- | --------- | --------------- | ------------------------------------------------------ |
+| **Minimal** | <1 hour   | Single resource | Add tags, fix variable description, add sensitive flag |
+| **Medium**  | 2-8 hours | Module refactor | Extract module, add validation, fix IAM policy         |
+| **High**    | 1-3 days  | Architectural   | State migration, module restructure, add testing       |
 
 ## Risk Classification
 
-| Level | Impact | Testing Required | Examples |
-|-------|--------|------------------|----------|
-| **Low** | No infra change | `terraform plan` | Add descriptions, tags, locals |
-| **Medium** | Non-destructive change | Plan review | Add variables, outputs, lifecycle rules |
-| **High** | Resource modification | Staging first | Change IAM, security groups, encryption |
-| **Critical** | Destructive/Security | Full DR test | State migration, access control, secrets |
+| Level        | Impact                 | Testing Required | Examples                                 |
+| ------------ | ---------------------- | ---------------- | ---------------------------------------- |
+| **Low**      | No infra change        | `terraform plan` | Add descriptions, tags, locals           |
+| **Medium**   | Non-destructive change | Plan review      | Add variables, outputs, lifecycle rules  |
+| **High**     | Resource modification  | Staging first    | Change IAM, security groups, encryption  |
+| **Critical** | Destructive/Security   | Full DR test     | State migration, access control, secrets |
 
 ---
 
@@ -146,22 +146,25 @@ proceed with the standard analysis.
 
 ## Executive Summary
 
-| Category | Score | Issues | Critical |
-|----------|-------|--------|----------|
-| Security | XX/30 | N | Y/N |
-| Module Quality | XX/20 | N | Y/N |
-| State Management | XX/15 | N | Y/N |
-| Code Quality | XX/15 | N | Y/N |
-| Testing | XX/10 | N | Y/N |
-| Documentation | XX/10 | N | Y/N |
+| Category         | Score | Issues | Critical |
+| ---------------- | ----- | ------ | -------- |
+| Security         | XX/30 | N      | Y/N      |
+| Module Quality   | XX/20 | N      | Y/N      |
+| State Management | XX/15 | N      | Y/N      |
+| Code Quality     | XX/15 | N      | Y/N      |
+| Testing          | XX/10 | N      | Y/N      |
+| Documentation    | XX/10 | N      | Y/N      |
 
 ## Priority Matrix
+
 [Immediate / Quick Wins / Planned / Strategic]
 
 ## Detailed Findings
+
 [Per finding with blast radius assessment]
 
 ## Recommendations
+
 [Immediate / Short Term / Long Term]
 ```
 

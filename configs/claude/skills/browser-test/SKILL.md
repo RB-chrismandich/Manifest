@@ -29,12 +29,12 @@ actual runtime browser validation.
 
 This skill suggests creating or updating browser tests when it detects:
 
-| Change Type | Detection | Example |
-|-------------|-----------|---------|
-| New page/route | New file in `pages/`, `app/`, `routes/` | `app/settings/page.tsx` |
-| New API resolver | New GraphQL resolver or REST endpoint | `resolvers.ts` changes |
-| Auth changes | Files matching `auth`, `login`, `session` | `middleware/auth.ts` |
-| Form additions | New `<form>` elements or form handlers | `components/checkout-form.tsx` |
+| Change Type      | Detection                                 | Example                        |
+| ---------------- | ----------------------------------------- | ------------------------------ |
+| New page/route   | New file in `pages/`, `app/`, `routes/`   | `app/settings/page.tsx`        |
+| New API resolver | New GraphQL resolver or REST endpoint     | `resolvers.ts` changes         |
+| Auth changes     | Files matching `auth`, `login`, `session` | `middleware/auth.ts`           |
+| Form additions   | New `<form>` elements or form handlers    | `components/checkout-form.tsx` |
 
 When auto-triggered, suggest test prompts inline without blocking workflow.
 
@@ -97,13 +97,13 @@ find tests/browser/ -name "*.yaml" -o -name "*.yml" | sort
 
 For each file, validate the schema:
 
-| Field | Required | Type | Description |
-|-------|----------|------|-------------|
-| `task` | Yes | string | Natural language task for the browser agent |
-| `judge_context` | Yes | list[string] | Success criteria for evaluation |
-| `max_steps` | No | int (default: 15) | Maximum agent steps |
-| `url` | No | string | Starting URL (overrides task navigation) |
-| `tags` | No | list[string] | Categorization tags (smoke, auth, crud, a11y) |
+| Field           | Required | Type              | Description                                   |
+| --------------- | -------- | ----------------- | --------------------------------------------- |
+| `task`          | Yes      | string            | Natural language task for the browser agent   |
+| `judge_context` | Yes      | list[string]      | Success criteria for evaluation               |
+| `max_steps`     | No       | int (default: 15) | Maximum agent steps                           |
+| `url`           | No       | string            | Starting URL (overrides task navigation)      |
+| `tags`          | No       | list[string]      | Categorization tags (smoke, auth, crud, a11y) |
 
 Report invalid YAML files with specific validation errors.
 
@@ -159,15 +159,16 @@ Generate a structured report:
 
 ### Results
 
-| Test | Status | Steps | Duration | Summary |
-|------|--------|-------|----------|---------|
-| smoke-test.yaml | pass | 5/10 | 12s | Homepage loaded, nav visible |
-| auth-flow.yaml | fail | 15/15 | 45s | Login button not found |
-| checkout.yaml | skip | - | - | browser-use not installed |
+| Test            | Status | Steps | Duration | Summary                      |
+| --------------- | ------ | ----- | -------- | ---------------------------- |
+| smoke-test.yaml | pass   | 5/10  | 12s      | Homepage loaded, nav visible |
+| auth-flow.yaml  | fail   | 15/15 | 45s      | Login button not found       |
+| checkout.yaml   | skip   | -     | -        | browser-use not installed    |
 
 ### Failures
 
 #### auth-flow.yaml
+
 - **Task**: Navigate to login page, enter credentials, verify dashboard
 - **Failed at step**: 8 — Could not find login button
 - **Judge context**: "User must reach the dashboard after login"
@@ -186,11 +187,11 @@ Generate a structured report:
 
 This skill uses parallel agents **conditionally**:
 
-| Trigger | Reason |
-|---------|--------|
+| Trigger                             | Reason                           |
+| ----------------------------------- | -------------------------------- |
 | Critical user flows (auth, payment) | Cross-verify test prompt quality |
-| 3+ test files in a single run | Validate coverage completeness |
-| Test failures on critical paths | Get multiple perspectives on fix |
+| 3+ test files in a single run       | Validate coverage completeness   |
+| Test failures on critical paths     | Get multiple perspectives on fix |
 
 When triggered:
 
@@ -241,14 +242,14 @@ tags: [smoke, homepage]
 
 ### Common Test Categories
 
-| Tag | Purpose | Example |
-|-----|---------|---------|
-| `smoke` | Basic page load and navigation | Homepage renders, nav works |
-| `auth` | Authentication flows | Login, logout, session persistence |
-| `crud` | Create/read/update/delete operations | Add item, edit, delete |
-| `form` | Form submissions and validation | Submit form, check validation errors |
-| `a11y` | Runtime accessibility checks | Keyboard navigation, screen reader |
-| `perf` | Performance measurement | Page load time, interaction delay |
+| Tag     | Purpose                              | Example                              |
+| ------- | ------------------------------------ | ------------------------------------ |
+| `smoke` | Basic page load and navigation       | Homepage renders, nav works          |
+| `auth`  | Authentication flows                 | Login, logout, session persistence   |
+| `crud`  | Create/read/update/delete operations | Add item, edit, delete               |
+| `form`  | Form submissions and validation      | Submit form, check validation errors |
+| `a11y`  | Runtime accessibility checks         | Keyboard navigation, screen reader   |
+| `perf`  | Performance measurement              | Page load time, interaction delay    |
 
 ---
 

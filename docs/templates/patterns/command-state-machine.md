@@ -66,7 +66,7 @@ Each phase has:
 
 **Template**:
 
-```markdown
+````markdown
 ## Command Phases
 
 Execute these phases **in order**. Each phase must succeed before proceeding to the next. If a phase fails, attempt to fix the issue up to **N times** before stopping and reporting the failure to the user.
@@ -76,23 +76,27 @@ Execute these phases **in order**. Each phase must succeed before proceeding to 
 [Description of what this phase does]
 
 **Success Criteria**:
+
 - [ ] [Criterion 1]
 - [ ] [Criterion 2]
 
 **On Failure**:
+
 - [Action to take]
 - [Retry policy]
 
 **Example**:
+
 ```bash
 [command to run]
 ```
+````
 
 ### Phase 2: [Next Phase]
 
 [...]
 
-```
+````
 
 ---
 
@@ -104,7 +108,7 @@ Execute these phases **in order**. Each phase must succeed before proceeding to 
 **On Failure**:
 - Retry up to 2 times with 5-second delay
 - If still failing, report error and stop
-```
+````
 
 **Implementation Pattern**:
 
@@ -128,6 +132,7 @@ done
 
 ```markdown
 **On Failure**:
+
 - If network error: Retry once after 10s
 - If validation error: Fix issue and retry (max 2x)
 - If fatal error: Stop immediately
@@ -156,6 +161,7 @@ fi
 
 ```markdown
 **On Failure**:
+
 - Show error details
 - Ask user: "Retry? Skip? Abort?"
 - Proceed based on user choice
@@ -165,6 +171,7 @@ fi
 
 ```markdown
 Use AskUserQuestion tool:
+
 - Question: "Phase 2 failed with error: $ERROR. What would you like to do?"
 - Options:
   - "Retry phase 2" (attempt again)
@@ -178,6 +185,7 @@ Use AskUserQuestion tool:
 
 ```markdown
 **On Failure**:
+
 - Roll back phase 2 changes
 - Restore phase 1 state
 - Report rollback status
@@ -204,6 +212,7 @@ fi
 
 ```markdown
 **Success Criteria**:
+
 - [ ] Command exits with code 0
 ```
 
@@ -221,6 +230,7 @@ fi
 
 ```markdown
 **Success Criteria**:
+
 - [ ] Output file exists and is non-empty
 - [ ] Output contains "SUCCESS" marker
 ```
@@ -239,6 +249,7 @@ fi
 
 ```markdown
 **Success Criteria**:
+
 - [ ] All tests pass (pytest exit code 0)
 - [ ] Coverage >= 80%
 - [ ] No linting errors
@@ -266,6 +277,7 @@ fi
 
 ```markdown
 **Success Criteria**:
+
 - [ ] Parallel agent consensus >= 80%
 ```
 
@@ -291,13 +303,13 @@ At the end of command execution, provide a summary table:
 ```markdown
 ## [Command Name] Summary
 
-| Phase | Status | Duration | Notes |
-|-------|--------|----------|-------|
-| 1. Preparation | ✅ pass | 2s | All files readable |
-| 2. Validation | ✅ pass | 15s | Consensus: 85% |
-| 3. Execution | ❌ fail | 8s | Network timeout (attempt 2/2) |
-| 4. Verification | ⏭️ skipped | - | Previous phase failed |
-| 5. Cleanup | ✅ pass | 1s | Temp files removed |
+| Phase           | Status     | Duration | Notes                         |
+| --------------- | ---------- | -------- | ----------------------------- |
+| 1. Preparation  | ✅ pass    | 2s       | All files readable            |
+| 2. Validation   | ✅ pass    | 15s      | Consensus: 85%                |
+| 3. Execution    | ❌ fail    | 8s       | Network timeout (attempt 2/2) |
+| 4. Verification | ⏭️ skipped | -        | Previous phase failed         |
+| 5. Cleanup      | ✅ pass    | 1s       | Temp files removed            |
 
 **Overall**: FAILED (Phase 3)
 **Total Duration**: 26s
@@ -416,12 +428,13 @@ Phase 4: Commit Changes (or Rollback)
 
 Some phases may be optional based on context:
 
-```markdown
+````markdown
 ### Phase 3: Optional Code Generation
 
 **Conditions**: Only run if project contains Protobuf files
 
 **Detection**:
+
 ```bash
 if find . -name "*.proto" | grep -q .; then
   echo "Protobuf files detected, running code generation..."
@@ -430,6 +443,7 @@ else
   echo "No Protobuf files, skipping code generation"
 fi
 ```
+````
 
 ---
 
@@ -437,12 +451,13 @@ fi
 
 Some phases can run in parallel:
 
-```markdown
+````markdown
 ### Phase 2: Parallel Testing
 
 Run unit tests and integration tests in parallel:
 
 **Implementation**:
+
 ```bash
 # Start both in background
 pytest tests/unit/ > unit_results.txt 2>&1 &
@@ -465,6 +480,7 @@ else
   phase_passed=false
 fi
 ```
+````
 
 ---
 
@@ -500,6 +516,7 @@ Make it clear when/why command stops:
 
 ```markdown
 **Exit Points**:
+
 - Phase 2 fails after 2 retries → Exit code 2
 - Phase 4 validation fails → Exit code 4
 - User aborts during Phase 3 → Exit code 130
@@ -519,12 +536,13 @@ Some commands can partially succeed:
 
 State machine commands often use parallel agents for validation phases:
 
-```markdown
+````markdown
 ### Phase 3: Cross-Verify Changes
 
 **Parallel Agent Integration**: CONDITIONAL (only if >100 lines changed)
 
 **Implementation**:
+
 ```bash
 lines_changed=$(git diff --stat | tail -1 | awk '{print $4}')
 
@@ -546,6 +564,7 @@ else
   phase_passed=true
 fi
 ```
+````
 
 ---
 

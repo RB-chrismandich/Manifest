@@ -27,13 +27,13 @@ usage over time.
 
 Scan `~/.claude/.agent_outputs/` for result files:
 
-| File Pattern | Data Source |
-|-------------|-------------|
+| File Pattern     | Data Source                    |
+| ---------------- | ------------------------------ |
 | `results_*.json` | JSON output from `--json` runs |
-| `summary_*.md` | Markdown summaries |
-| `cursor_*.txt` | Raw Cursor agent output |
-| `gemini_*.txt` | Raw Gemini agent output |
-| `claude_*.txt` | Raw Claude agent output |
+| `summary_*.md`   | Markdown summaries             |
+| `cursor_*.txt`   | Raw Cursor agent output        |
+| `gemini_*.txt`   | Raw Gemini agent output        |
+| `claude_*.txt`   | Raw Claude agent output        |
 
 Parse timestamps from filenames (`YYYYMMDD_HHMMSS`) to filter by date range.
 
@@ -50,16 +50,16 @@ Run parallel_agent.sh with --json to generate trackable data.
 
 From each `results_*.json`, extract:
 
-| Metric | JSON Path | Type |
-|--------|-----------|------|
-| Mode | `.mode` | categorical |
-| Agent status | `.agents.{name}.status` | categorical |
-| Agent model | `.agents.{name}.model` | categorical |
-| Credit fallback | `.agents.{name}.credit_fallback` | boolean |
-| Consensus score | `.cross_verification.consensus_score` | numeric |
-| Confidence level | `.cross_verification.confidence` | categorical |
-| Agent count | `.cross_verification.agent_count` | numeric |
-| Validation pass | `.agents.{name}.validated` | boolean |
+| Metric           | JSON Path                             | Type        |
+| ---------------- | ------------------------------------- | ----------- |
+| Mode             | `.mode`                               | categorical |
+| Agent status     | `.agents.{name}.status`               | categorical |
+| Agent model      | `.agents.{name}.model`                | categorical |
+| Credit fallback  | `.agents.{name}.credit_fallback`      | boolean     |
+| Consensus score  | `.cross_verification.consensus_score` | numeric     |
+| Confidence level | `.cross_verification.confidence`      | categorical |
+| Agent count      | `.cross_verification.agent_count`     | numeric     |
+| Validation pass  | `.agents.{name}.validated`            | boolean     |
 
 ---
 
@@ -69,41 +69,41 @@ Compute the following aggregate metrics:
 
 ### Task Metrics
 
-| Metric | Computation |
-|--------|-------------|
-| Total runs | Count of result files in range |
-| Runs per day | Total / days in range |
+| Metric            | Computation                             |
+| ----------------- | --------------------------------------- |
+| Total runs        | Count of result files in range          |
+| Runs per day      | Total / days in range                   |
 | Mode distribution | Count by mode (review, analyze, prompt) |
 
 ### Agent Metrics
 
-| Metric | Computation |
-|--------|-------------|
-| Availability rate | `complete / (complete + failed + missing)` per agent |
-| Failure rate | `failed / total` per agent |
-| Credit fallback rate | `credit_fallback=true / total` per agent |
-| Model distribution | Count by model tier per agent |
+| Metric               | Computation                                          |
+| -------------------- | ---------------------------------------------------- |
+| Availability rate    | `complete / (complete + failed + missing)` per agent |
+| Failure rate         | `failed / total` per agent                           |
+| Credit fallback rate | `credit_fallback=true / total` per agent             |
+| Model distribution   | Count by model tier per agent                        |
 
 ### Consensus Metrics
 
-| Metric | Computation |
-|--------|-------------|
-| Mean consensus | Average consensus score |
-| High confidence % | Runs with confidence=high / total |
+| Metric              | Computation                         |
+| ------------------- | ----------------------------------- |
+| Mean consensus      | Average consensus score             |
+| High confidence %   | Runs with confidence=high / total   |
 | Medium confidence % | Runs with confidence=medium / total |
-| Low confidence % | Runs with confidence=low / total |
+| Low confidence %    | Runs with confidence=low / total    |
 
 ### Error Patterns
 
 Scan agent output files for common error patterns:
 
-| Pattern | Regex |
-|---------|-------|
-| Timeout | `timeout\|timed out\|exceeded` |
-| Auth failure | `auth\|unauthorized\|401\|403` |
-| Rate limit | `rate.limit\|quota\|429\|too many requests` |
-| Not found | `not found\|404\|no such` |
-| Credit exhaustion | `credit\|billing\|exceeded.*limit` |
+| Pattern           | Regex                                       |
+| ----------------- | ------------------------------------------- |
+| Timeout           | `timeout\|timed out\|exceeded`              |
+| Auth failure      | `auth\|unauthorized\|401\|403`              |
+| Rate limit        | `rate.limit\|quota\|429\|too many requests` |
+| Not found         | `not found\|404\|no such`                   |
+| Credit exhaustion | `credit\|billing\|exceeded.*limit`          |
 
 ---
 
@@ -118,50 +118,51 @@ Scan agent output files for common error patterns:
 
 ### Task Distribution
 
-| Mode | Count | % |
-|------|-------|---|
-| review | 15 | 50% |
-| analyze | 8 | 27% |
-| prompt | 7 | 23% |
+| Mode    | Count | %   |
+| ------- | ----- | --- |
+| review  | 15    | 50% |
+| analyze | 8     | 27% |
+| prompt  | 7     | 23% |
 
 ### Agent Availability
 
-| Agent | Available | Failed | Missing | Availability |
-|-------|-----------|--------|---------|-------------|
-| Cursor | 25 | 3 | 2 | 83% |
-| Gemini | 28 | 1 | 1 | 93% |
-| Claude | 27 | 2 | 1 | 90% |
+| Agent  | Available | Failed | Missing | Availability |
+| ------ | --------- | ------ | ------- | ------------ |
+| Cursor | 25        | 3      | 2       | 83%          |
+| Gemini | 28        | 1      | 1       | 93%          |
+| Claude | 27        | 2      | 1       | 90%          |
 
 ### Model Usage
 
-| Agent | Model | Count | Fallbacks |
-|-------|-------|-------|-----------|
-| Cursor | auto | 18 | 0 |
-| Cursor | gpt-5.1-codex | 8 | 2 |
-| Claude | sonnet | 20 | 0 |
-| Claude | haiku | 5 | 3 |
-| Claude | opus | 5 | 0 |
+| Agent  | Model         | Count | Fallbacks |
+| ------ | ------------- | ----- | --------- |
+| Cursor | auto          | 18    | 0         |
+| Cursor | gpt-5.1-codex | 8     | 2         |
+| Claude | sonnet        | 20    | 0         |
+| Claude | haiku         | 5     | 3         |
+| Claude | opus          | 5     | 0         |
 
 ### Consensus Trends
 
-| Metric | Value |
-|--------|-------|
-| Mean consensus score | 78% |
-| High confidence runs | 60% |
-| Medium confidence runs | 30% |
-| Low confidence runs | 10% |
+| Metric                 | Value |
+| ---------------------- | ----- |
+| Mean consensus score   | 78%   |
+| High confidence runs   | 60%   |
+| Medium confidence runs | 30%   |
+| Low confidence runs    | 10%   |
 
 ### Error Patterns
 
-| Pattern | Occurrences | Most Affected Agent |
-|---------|-------------|-------------------|
-| Timeout | 3 | Cursor |
-| Rate limit | 2 | Gemini |
-| Credit exhaustion | 1 | Claude |
+| Pattern           | Occurrences | Most Affected Agent |
+| ----------------- | ----------- | ------------------- |
+| Timeout           | 3           | Cursor              |
+| Rate limit        | 2           | Gemini              |
+| Credit exhaustion | 1           | Claude              |
 
 ### Recommendations
 
 Based on the data:
+
 - {actionable insight 1}
 - {actionable insight 2}
 - {actionable insight 3}

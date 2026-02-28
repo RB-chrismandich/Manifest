@@ -16,7 +16,7 @@ sub-agents, parallel tools, and complex workflows.
 
 ## Template Structure
 
-```markdown
+````markdown
 # Role: [Your Role Title]
 
 ## Objective
@@ -35,18 +35,18 @@ Process [WHAT] into [DESIRED OUTCOME]. You act as the Orchestrator, coordinating
 
 ### Component Map
 
-| Component | Language | Responsibility |
-|-----------|----------|----------------|
-| Component A | Language | Description |
-| Component B | Language | Description |
+| Component   | Language | Responsibility |
+| ----------- | -------- | -------------- |
+| Component A | Language | Description    |
+| Component B | Language | Description    |
 
 ### Data Flow
 
 ```text
 
 [ASCII diagram or description of how data flows through the system]
-
 ```
+````
 
 ### Key Constraints
 
@@ -61,11 +61,13 @@ Process [WHAT] into [DESIRED OUTCOME]. You act as the Orchestrator, coordinating
 ### Step 1: Analysis & Planning
 
 1. [First analysis step]
-2. [Run parallel agents if needed]:
+2. [Run parallel agents if needed]: ```bash
 
-   ```bash
    ~/.claude/scripts/parallel_agent.sh --json --timeout 600 \
-     --analyze "[ANALYSIS TASK]"
+    --analyze "[ANALYSIS TASK]"
+
+   ```
+
    ```
 
 3. [Break down into subtasks]
@@ -114,15 +116,15 @@ Once all tests pass:
 
 ### [Components/Services] with Dedicated Agents
 
-| Component | Language | Agent File | Scope |
-|-----------|----------|-----------|-------|
+| Component       | Language | Agent File          | Scope       |
+| --------------- | -------- | ------------------- | ----------- |
 | **Component A** | Language | `path/to/agents.md` | Description |
 | **Component B** | Language | `path/to/agents.md` | Description |
 
 ### Standards Reference
 
-| Language | Standards File |
-|----------|---------------|
+| Language   | Standards File                |
+| ---------- | ----------------------------- |
 | Language A | `docs/standards/STANDARDS.md` |
 | Language B | `docs/standards/STANDARDS.md` |
 
@@ -150,7 +152,7 @@ When changes span multiple components, follow this checklist:
 
 [Prompt for user to provide input]
 
-```text
+````text
 
 ---
 
@@ -193,7 +195,7 @@ Run through a simple multi-component change to validate your orchestration logic
 ```bash
 # Example test
 echo "Test orchestration with a simple cross-component change"
-```
+````
 
 ---
 

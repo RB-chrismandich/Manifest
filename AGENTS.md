@@ -1,15 +1,16 @@
 # AGENTS.md
 
-> Repository context and guidance for AI coding agents (Cursor, Claude Code, Gemini, Codex, etc.)
+> Repository context and guidance for AI coding agents (Cursor, Claude, etc.)
 
 **Last Updated**: 2026-02-11
-**Audience**: AI assistants (Cursor Agent, Claude Code, Gemini CLI, Codex CLI), contributors
-**Purpose**: Provide AI agents with repository structure, deployment process, and testing guidelines
+**Audience**: AI assistants (Cursor, Claude Code, Gemini CLI), contributors
+**Purpose**: Provide AI agents with repository structure and guidelines
 
 ---
 
-This file provides guidance to AI coding agents when working with code in this repository.
-It follows the [AGENTS.md standard](https://agents.md/) for unified coding agent instructions.
+This file provides guidance to AI coding agents when working with code in this
+repository. It follows the [AGENTS.md standard](https://agents.md/) for
+unified coding agent instructions.
 
 ## MCP Default Policy
 
@@ -38,41 +39,41 @@ Use these MCP servers by default when their domain context matches the task:
 
 ## Repository Purpose
 
-This repository manages AI agent configurations for deployment to `~/.claude/` (and mirrored
-to `~/.cursor/`, `~/.gemini/`, and `~/.codex/`) on target machines. It contains orchestration guides,
-skills, prompts, and scripts that enable parallel LLM agent coordination
-(Cursor, Gemini CLI, Claude CLI, Codex CLI).
+This repository manages AI agent configurations for deployment to `~/.claude/`
+(and mirrored to `~/.cursor/`, `~/.gemini/`, and `~/.codex/`) on target
+machines. It contains orchestration guides, skills, prompts, and scripts that
+enable parallel LLM agent coordination (Cursor, Gemini CLI, Claude, Codex).
 
 ## Repository Structure
 
 ```text
-configs/                             # Deployment source configs (deployed to ~/ via bootstrap.sh)
+configs/                             # Deployment source configs
 ├── claude/                          # → ~/.claude/ (primary configuration)
 │   ├── CLAUDE.md                    # Orchestration guide
-│   ├── skills/                      # Canonical shared skill library (source of truth)
+│   ├── skills/                      # Canonical shared skill library
 │   ├── prompts/                     # Agent orchestration prompt templates
 │   ├── config/                      # YAML configuration files
-│   │   └── mcp_servers.yml          # Default MCP server registry (OAuth-capable)
-│   ├── .plans/                      # Plan management (template, archive, abandoned)
-│   ├── settings.local.json          # Default permissions and MCP server config
-│   └── scripts/parallel_agent.sh    # Main parallel agent orchestration script
+│   │   └── mcp_servers.yml          # Default MCP server registry
+│   ├── .plans/                      # Plan management
+│   ├── settings.local.json          # Default permissions and MCP config
+│   └── scripts/parallel_agent.sh    # Main parallel orchestration script
 ├── cursor/                          # → ~/.cursor/ (Cursor IDE configuration)
-│   ├── rules/                       # Cursor rules (.mdc) — auto-generated from SKILL.md
+│   ├── rules/                       # Cursor rules (.mdc)
 │   ├── mcp.json                     # Cursor MCP server defaults
 │   ├── scripts -> ../claude/scripts # Symlink to shared scripts
 │   ├── config -> ../claude/config   # Symlink to shared configs
 │   ├── prompts -> ../claude/prompts # Symlink to shared prompts
 │   ├── skills -> ../claude/skills   # Shared skills symlink
 │   └── .plans -> ../claude/.plans   # Symlink to shared plans
-├── gemini/                          # → ~/.gemini/ (Gemini CLI configuration)
+├── gemini/                          # → ~/.gemini/ (Gemini CLI config)
 │   ├── GEMINI.md                    # Orchestration guide for Gemini CLI
-│   ├── settings.json                # Gemini settings (includes MCP server defaults)
+│   ├── settings.json                # Gemini settings
 │   ├── scripts -> ../claude/scripts # Symlink to shared scripts
 │   ├── config -> ../claude/config   # Symlink to shared configs
 │   ├── prompts -> ../claude/prompts # Symlink to shared prompts
 │   ├── skills -> ../claude/skills   # Shared skills symlink
 │   └── .plans -> ../claude/.plans   # Symlink to shared plans
-└── codex/                           # → ~/.codex/ (Codex CLI configuration)
+└── codex/                           # → ~/.codex/ (Codex CLI config)
     ├── AGENTS.md -> ../../AGENTS.md # Codex guide (repo-level instructions)
     ├── scripts -> ../claude/scripts # Symlink to shared scripts
     ├── config -> ../claude/config   # Symlink to shared configs
@@ -80,7 +81,7 @@ configs/                             # Deployment source configs (deployed to ~/
     ├── skills -> ../claude/skills   # Shared skills symlink
     └── .plans -> ../claude/.plans   # Symlink to shared plans
 
-.claude/                             # Repo-specific config (minimal — does NOT override sessions)
+.claude/                             # Repo-specific config (minimal)
 ├── CLAUDE.md                        # Developer guide for working in this repo
 └── settings.local.json              # Repo-relevant permissions only
 
@@ -142,7 +143,7 @@ The `bootstrap.sh` script automates installation, deployment, and authentication
 --enable-codex / --disable-codex     # Codex CLI (default: enabled)
 --enable-gh / --disable-gh           # GitHub CLI (default: auto-detect)
 --enable-glab / --disable-glab       # GitLab CLI (default: auto-detect)
---install-mcp                        # Configure MCP servers (interactive per-server selection)
+--install-mcp                        # Configure MCP servers (interactive)
 ```
 
 ## Manual Deployment
@@ -192,15 +193,15 @@ Required CLI tools (install those you want to use):
 
 ## Key Files
 
-| File | Purpose |
-|------|---------|
-| `configs/claude/CLAUDE.md` | Main orchestration guide for Claude Code |
-| `configs/cursor/rules/orchestration.mdc` | Main orchestration guide for Cursor (always-on rule) |
-| `configs/gemini/GEMINI.md` | Main orchestration guide for Gemini CLI |
-| `configs/codex/AGENTS.md` | Main orchestration guide for Codex CLI |
-| `configs/claude/scripts/parallel_agent.sh` | Bash script that runs agents in parallel with consensus scoring |
-| `configs/claude/config/command_config.yml` | Thresholds, tool policies, model selection, error recovery |
-| `configs/claude/config/validation_criteria.yml` | Tier 1 (critical) and Tier 2 (quality) validation rules |
+| File                                            | Purpose                                                         |
+| ----------------------------------------------- | --------------------------------------------------------------- |
+| `configs/claude/CLAUDE.md`                      | Main orchestration guide for Claude Code                        |
+| `configs/cursor/rules/orchestration.mdc`        | Main orchestration guide for Cursor (always-on rule)            |
+| `configs/gemini/GEMINI.md`                      | Main orchestration guide for Gemini CLI                         |
+| `configs/codex/AGENTS.md`                       | Main orchestration guide for Codex CLI                          |
+| `configs/claude/scripts/parallel_agent.sh`      | Bash script that runs agents in parallel with consensus scoring |
+| `configs/claude/config/command_config.yml`      | Thresholds, tool policies, model selection, error recovery      |
+| `configs/claude/config/validation_criteria.yml` | Tier 1 (critical) and Tier 2 (quality) validation rules         |
 
 ## Available Skills
 
@@ -209,67 +210,67 @@ Skills are invoked as slash commands (e.g., `/refactor-python src/`).
 
 ### Skill Reference
 
-| Skill | Description | Parallel Agents |
-|-------|-------------|-----------------|
-| `/a11y-audit` | WCAG 2.2 AA accessibility audit | NO |
-| `/antipattern-detect` | Detect codebase antipatterns and suggest fixes | NO |
-| `/checkpoint` | Save context checkpoint for session continuity | NO |
-| `/ci-setup` | Configure CI/CD pipelines for target repository | NO |
-| `/code-quality` | Auto-triggered security and quality checks | AUTO |
-| `/dashboard` | Visualize agent efficiency metrics | NO |
-| `/docs-diagrams` | Generate Mermaid architecture diagrams | CONDITIONAL |
-| `/docs-improve` | Diataxis documentation framework analysis | CONDITIONAL |
-| `/docs-readme` | Improve README documentation | NO |
-| `/health-check` | Verify CLI tools, auth, config, MCP, symlinks | NO |
-| `/issue-prioritize` | Score and rank open issues by impact | CONDITIONAL |
-| `/issue-triage` | Linear issue audit with duplicate detection | CONDITIONAL |
-| `/learning-loop` | Capture structured lessons learned | NO |
-| `/performance-check` | Core Web Vitals and bundle analysis | NO |
-| `/plan-manage` | Plan lifecycle with parallel agent orchestration | CONDITIONAL |
-| `/project-commit` | Full commit pipeline: docs, pull, pre-commits, commit, push | CONDITIONAL |
-| `/refactor-go` | Go codebase security and quality analysis | ALWAYS |
-| `/refactor-node` | Node.js/TypeScript security and quality analysis | ALWAYS |
-| `/refactor-python` | Python codebase security and quality analysis | ALWAYS |
-| `/refactor-shell` | Bash/Shell script security and quality analysis | ALWAYS |
-| `/refactor-terraform` | Terraform IaC security and modularity analysis | ALWAYS |
-| `/scaffold` | Initialize new project with quality gates and Manifest integration | NO |
-| `/sync-configs` | Detect cross-platform config drift | NO |
-| `/ux-review` | UX/accessibility/performance audit | NO |
-| `/verify` | Run linters, tests, and security scans in parallel | CONDITIONAL |
+| Skill                 | Description                                                        | Parallel Agents |
+| --------------------- | ------------------------------------------------------------------ | --------------- |
+| `/a11y-audit`         | WCAG 2.2 AA accessibility audit                                    | NO              |
+| `/antipattern-detect` | Detect codebase antipatterns and suggest fixes                     | NO              |
+| `/checkpoint`         | Save context checkpoint for session continuity                     | NO              |
+| `/ci-setup`           | Configure CI/CD pipelines for target repository                    | NO              |
+| `/code-quality`       | Auto-triggered security and quality checks                         | AUTO            |
+| `/dashboard`          | Visualize agent efficiency metrics                                 | NO              |
+| `/docs-diagrams`      | Generate Mermaid architecture diagrams                             | CONDITIONAL     |
+| `/docs-improve`       | Diataxis documentation framework analysis                          | CONDITIONAL     |
+| `/docs-readme`        | Improve README documentation                                       | NO              |
+| `/health-check`       | Verify CLI tools, auth, config, MCP, symlinks                      | NO              |
+| `/issue-prioritize`   | Score and rank open issues by impact                               | CONDITIONAL     |
+| `/issue-triage`       | Linear issue audit with duplicate detection                        | CONDITIONAL     |
+| `/learning-loop`      | Capture structured lessons learned                                 | NO              |
+| `/performance-check`  | Core Web Vitals and bundle analysis                                | NO              |
+| `/plan-manage`        | Plan lifecycle with parallel agent orchestration                   | CONDITIONAL     |
+| `/project-commit`     | Full commit pipeline: docs, pull, pre-commits, commit, push        | CONDITIONAL     |
+| `/refactor-go`        | Go codebase security and quality analysis                          | ALWAYS          |
+| `/refactor-node`      | Node.js/TypeScript security and quality analysis                   | ALWAYS          |
+| `/refactor-python`    | Python codebase security and quality analysis                      | ALWAYS          |
+| `/refactor-shell`     | Bash/Shell script security and quality analysis                    | ALWAYS          |
+| `/refactor-terraform` | Terraform IaC security and modularity analysis                     | ALWAYS          |
+| `/scaffold`           | Initialize new project with quality gates and Manifest integration | NO              |
+| `/sync-configs`       | Detect cross-platform config drift                                 | NO              |
+| `/ux-review`          | UX/accessibility/performance audit                                 | NO              |
+| `/verify`             | Run linters, tests, and security scans in parallel                 | CONDITIONAL     |
 
 ### Cursor Rules
 
 All Cursor rules are auto-generated from SKILL.md files using `generate_cursor_rules.sh`.
 Each skill produces a corresponding `.mdc` rule in `configs/cursor/rules/`.
 
-| Rule | Description |
-|------|-------------|
-| `orchestration` | Parallel agent orchestration guide (always-on) |
-| `a11y-audit` | WCAG 2.2 AA accessibility audit |
-| `antipattern-detect` | Codebase antipattern detection |
-| `checkpoint` | Context checkpoint |
-| `ci-setup` | CI/CD pipeline configuration |
-| `code-quality` | Auto-triggered security/quality checks |
-| `dashboard` | Efficiency metrics |
-| `docs-diagrams` | Mermaid diagram generation |
-| `docs-improve` | Diataxis documentation |
-| `docs-readme` | README improvement |
-| `health-check` | Environment health check |
-| `issue-prioritize` | Issue prioritization |
-| `issue-triage` | Linear issue triage |
-| `learning-loop` | Lessons learned capture |
-| `performance-check` | Performance analysis |
-| `plan-manage` | Plan lifecycle |
-| `project-commit` | Commit pipeline |
-| `refactor-go` | Go analysis |
-| `refactor-node` | Node.js/TypeScript analysis |
-| `refactor-python` | Python analysis |
-| `refactor-shell` | Shell analysis |
-| `refactor-terraform` | Terraform IaC analysis |
-| `scaffold` | Project scaffolding |
-| `sync-configs` | Config drift detection |
-| `ux-review` | UX/accessibility audit |
-| `verify` | Linter/test/security scan runner |
+| Rule                 | Description                                    |
+| -------------------- | ---------------------------------------------- |
+| `orchestration`      | Parallel agent orchestration guide (always-on) |
+| `a11y-audit`         | WCAG 2.2 AA accessibility audit                |
+| `antipattern-detect` | Codebase antipattern detection                 |
+| `checkpoint`         | Context checkpoint                             |
+| `ci-setup`           | CI/CD pipeline configuration                   |
+| `code-quality`       | Auto-triggered security/quality checks         |
+| `dashboard`          | Efficiency metrics                             |
+| `docs-diagrams`      | Mermaid diagram generation                     |
+| `docs-improve`       | Diataxis documentation                         |
+| `docs-readme`        | README improvement                             |
+| `health-check`       | Environment health check                       |
+| `issue-prioritize`   | Issue prioritization                           |
+| `issue-triage`       | Linear issue triage                            |
+| `learning-loop`      | Lessons learned capture                        |
+| `performance-check`  | Performance analysis                           |
+| `plan-manage`        | Plan lifecycle                                 |
+| `project-commit`     | Commit pipeline                                |
+| `refactor-go`        | Go analysis                                    |
+| `refactor-node`      | Node.js/TypeScript analysis                    |
+| `refactor-python`    | Python analysis                                |
+| `refactor-shell`     | Shell analysis                                 |
+| `refactor-terraform` | Terraform IaC analysis                         |
+| `scaffold`           | Project scaffolding                            |
+| `sync-configs`       | Config drift detection                         |
+| `ux-review`          | UX/accessibility audit                         |
+| `verify`             | Linter/test/security scan runner               |
 
 ### Platform-Specific Notes
 
@@ -286,11 +287,13 @@ All agents share the same orchestration script at `configs/claude/scripts/parall
 
 ```bash
 # Basic code review (all 3 agents)
-~/.claude/scripts/parallel_agent.sh --json --timeout 600 --review /absolute/path/to/file
+~/.claude/scripts/parallel_agent.sh --json --timeout 600 \
+  --review /absolute/path/to/file
 
 # Security analysis with maximum capability models
-~/.claude/scripts/parallel_agent.sh --json --full-output --validate --timeout 900 \
-  --cursor-model advanced --claude-model opus --analyze /absolute/path/to/file
+~/.claude/scripts/parallel_agent.sh --json --full-output --validate \
+  --timeout 900 --cursor-model advanced --claude-model opus \
+  --analyze /absolute/path/to/file
 ```
 
 ### Consensus Thresholds
@@ -321,10 +324,11 @@ python3 -c "import yaml; yaml.safe_load(open('configs/claude/config/validation_c
 
 ## Plan Management
 
-Implementation plans are tracked in `configs/claude/.plans/` (symlinked at `configs/cursor/.plans/`,
-`configs/gemini/.plans/`, and `configs/codex/.plans/`) as date-prefixed markdown files (`YYYYMMDD-description.md`).
+Implementation plans are tracked in `configs/claude/.plans/` (symlinked to
+`configs/cursor/.plans/`, `configs/gemini/.plans/`, and `configs/codex/.plans/`)
+as date-prefixed markdown files (`YYYYMMDD-description.md`).
 
-Lifecycle: `CREATE -> ACTIVE -> COMPLETED (.archive/) or ABANDONED (.abandoned/)`
+Lifecycle: `CREATE` -> `ACTIVE` -> `COMPLETED` (`.archive/`) or `ABANDONED`
 
 ## Adding New Configuration
 
@@ -352,7 +356,7 @@ To add a new skill, follow the Claude Code skill instructions above.
 - [README.md](README.md) - Project overview and quick start
 - [CLAUDE.md](CLAUDE.md) - Claude Code-specific project instructions
 - [docs/README.md](docs/README.md) - Documentation hub
-- [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md) - First-time setup walkthrough
-- [docs/CONFIGURATION.md](docs/CONFIGURATION.md) - Complete configuration reference
-- [docs/ARCHITECTURE_DIAGRAMS.md](docs/ARCHITECTURE_DIAGRAMS.md) - Visual system documentation
-- [configs/claude/.plans/README.md](configs/claude/.plans/README.md) - Plan management quick reference
+- [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md) - First-time setup guide
+- [docs/CONFIGURATION.md](docs/CONFIGURATION.md) - Configuration reference
+- [docs/ARCHITECTURE_DIAGRAMS.md](docs/ARCHITECTURE_DIAGRAMS.md) - Diagrams
+- [configs/claude/.plans/README.md](configs/claude/.plans/README.md) - Plans

@@ -43,13 +43,13 @@ Comprehensive Linear issue audit with duplicate detection, staleness analysis, a
 
 ## Arguments
 
-| Argument | Description | Default |
-|----------|-------------|---------|
-| `--dry-run` | Analysis only, no mutations | false |
-| `--close-stale` | Auto-cancel stale issues | false (requires explicit flag) |
-| `--team TEAM` | Filter by team key | all teams |
-| `--priority N` | Filter by priority (0-4) | all priorities |
-| `--limit N` | Max issues to analyze | 500 |
+| Argument        | Description                 | Default                        |
+| --------------- | --------------------------- | ------------------------------ |
+| `--dry-run`     | Analysis only, no mutations | false                          |
+| `--close-stale` | Auto-cancel stale issues    | false (requires explicit flag) |
+| `--team TEAM`   | Filter by team key          | all teams                      |
+| `--priority N`  | Filter by priority (0-4)    | all priorities                 |
+| `--limit N`     | Max issues to analyze       | 500                            |
 
 ## Safety Rules
 
@@ -148,14 +148,14 @@ Edit `~/.claude/config/linear_triage.yml` to customize:
 
 ## Files
 
-| File | Purpose |
-|------|---------|
-| `SKILL.md` | Main skill implementation |
-| `~/.claude/scripts/linear_ops.sh` | Linear MCP wrapper |
-| `~/.claude/config/linear_triage.yml` | Configuration |
+| File                                    | Purpose                      |
+| --------------------------------------- | ---------------------------- |
+| `SKILL.md`                              | Main skill implementation    |
+| `~/.claude/scripts/linear_ops.sh`       | Linear MCP wrapper           |
+| `~/.claude/config/linear_triage.yml`    | Configuration                |
 | `~/.claude/prompts/triage_synthesis.md` | Agent disagreement synthesis |
-| `~/.claude/commands/issue-triage.md` | Claude command wrapper |
-| `.gemini/commands/issue-triage.toml` | Gemini command wrapper |
+| `~/.claude/commands/issue-triage.md`    | Claude command wrapper       |
+| `.gemini/commands/issue-triage.toml`    | Gemini command wrapper       |
 
 ## See Also
 

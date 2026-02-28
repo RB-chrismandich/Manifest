@@ -27,16 +27,16 @@ report. Works with GitHub, GitLab, and Linear. **Read-only** — never modifies 
                   [--label LABEL] [--all] [--project-context FILE]
 ```
 
-| Argument | Description | Default |
-|----------|-------------|---------|
-| `--repo OWNER/REPO` | Target repository (GitHub/GitLab only) | current repo |
-| `--platform github\|gitlab\|linear` | Force platform | auto-detect |
-| `--team TEAM` | Linear team key filter | all teams |
-| `--limit N` | Max issues to fetch | 100 |
-| `--top N` | How many top issues to report | 5 |
-| `--label LABEL` | Only include issues with this label | `future` |
-| `--all` | Include all open issues (ignore label filter) | false |
-| `--project-context FILE` | Markdown/YAML file with project-specific context | none |
+| Argument                            | Description                                      | Default      |
+| ----------------------------------- | ------------------------------------------------ | ------------ |
+| `--repo OWNER/REPO`                 | Target repository (GitHub/GitLab only)           | current repo |
+| `--platform github\|gitlab\|linear` | Force platform                                   | auto-detect  |
+| `--team TEAM`                       | Linear team key filter                           | all teams    |
+| `--limit N`                         | Max issues to fetch                              | 100          |
+| `--top N`                           | How many top issues to report                    | 5            |
+| `--label LABEL`                     | Only include issues with this label              | `future`     |
+| `--all`                             | Include all open issues (ignore label filter)    | false        |
+| `--project-context FILE`            | Markdown/YAML file with project-specific context | none         |
 
 ## Prerequisites
 
@@ -651,17 +651,17 @@ Report the prioritization report to the user. **Do not begin implementing any is
 
 Parallel agents are used sparingly — only for the top candidates:
 
-| Step | Agents | Purpose |
-|------|--------|---------|
+| Step   | Agents       | Purpose                               |
+| ------ | ------------ | ------------------------------------- |
 | Step 5 | flash/sonnet | Refine scoring for top 5-7 candidates |
 
 **Model selection** (balanced — not security-critical):
 
-| Agent | Model | Reason |
-|-------|-------|--------|
-| Cursor | flash | Good reasoning for scoring |
-| Claude | sonnet | Balanced analysis |
-| Gemini | flash | Diverse perspective |
+| Agent  | Model  | Reason                     |
+| ------ | ------ | -------------------------- |
+| Cursor | flash  | Good reasoning for scoring |
+| Claude | sonnet | Balanced analysis          |
+| Gemini | flash  | Diverse perspective        |
 
 If agents fail or time out, the heuristic scores from Step 4 are used as-is.
 

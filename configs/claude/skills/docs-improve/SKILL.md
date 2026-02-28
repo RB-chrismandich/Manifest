@@ -29,12 +29,12 @@ You are a documentation expert improving project documentation. Your goals are t
 
 Organize documentation into four quadrants based on user needs:
 
-| Type | Orientation | Purpose | Example |
-|------|-------------|---------|---------|
-| **Tutorials** | Learning | Step-by-step lessons for beginners | "Your First Feature" |
-| **How-to Guides** | Problem-solving | Steps to achieve specific goals | "How to Configure X" |
-| **Reference** | Information | Technical specifications | "API Reference" |
-| **Explanation** | Understanding | Conceptual background | "Architecture Overview" |
+| Type              | Orientation     | Purpose                            | Example                 |
+| ----------------- | --------------- | ---------------------------------- | ----------------------- |
+| **Tutorials**     | Learning        | Step-by-step lessons for beginners | "Your First Feature"    |
+| **How-to Guides** | Problem-solving | Steps to achieve specific goals    | "How to Configure X"    |
+| **Reference**     | Information     | Technical specifications           | "API Reference"         |
+| **Explanation**   | Understanding   | Conceptual background              | "Architecture Overview" |
 
 ## Instructions
 
@@ -43,24 +43,24 @@ Organize documentation into four quadrants based on user needs:
 Read all documentation files:
 
 - Core documentation: README.md, AGENTS.md, CONTRIBUTING.md, CHANGELOG.md
-- Docs directory: Glob docs/**/*.md
+- Docs directory: Glob docs/\*_/_.md
 - Config documentation: config/README.md
 
 ### Step 2: Evaluate Against Required Documents
 
 **Essential Documents**:
 
-| Document | Priority | Purpose | Audience |
-|----------|----------|---------|----------|
-| `README.md` | Critical | Project overview, quick start | All |
-| `AGENTS.md` | Critical | AI assistant context | AI/Contributors |
-| `docs/README.md` | High | Documentation index/hub | All |
-| `docs/GETTING_STARTED.md` | High | First-time user guide | New users |
-| `docs/CONFIGURATION.md` | High | All config options | Operators |
-| `docs/ARCHITECTURE.md` | Medium | System design | Developers |
-| `docs/TROUBLESHOOTING.md` | Medium | Common problems/solutions | Operators |
-| `CONTRIBUTING.md` | Medium | How to contribute | Contributors |
-| `CHANGELOG.md` | Low | Version history | All |
+| Document                  | Priority | Purpose                       | Audience        |
+| ------------------------- | -------- | ----------------------------- | --------------- |
+| `README.md`               | Critical | Project overview, quick start | All             |
+| `AGENTS.md`               | Critical | AI assistant context          | AI/Contributors |
+| `docs/README.md`          | High     | Documentation index/hub       | All             |
+| `docs/GETTING_STARTED.md` | High     | First-time user guide         | New users       |
+| `docs/CONFIGURATION.md`   | High     | All config options            | Operators       |
+| `docs/ARCHITECTURE.md`    | Medium   | System design                 | Developers      |
+| `docs/TROUBLESHOOTING.md` | Medium   | Common problems/solutions     | Operators       |
+| `CONTRIBUTING.md`         | Medium   | How to contribute             | Contributors    |
+| `CHANGELOG.md`            | Low      | Version history               | All             |
 
 ### Step 3: Quality Assessment
 
@@ -99,14 +99,14 @@ For each document, check:
 
 Score documentation on a 100-point scale:
 
-| Factor | Weight | Measurement |
-|--------|--------|-------------|
-| Required docs present | 30% | Count present / total required |
-| No broken links | 20% | Percentage of valid links |
-| Consistent formatting | 15% | Passes automated checks |
-| Has code examples | 15% | Docs with examples / total docs |
-| Up-to-date markers | 10% | Docs with "Last Updated" / total |
-| Cross-referenced | 10% | Docs with "Related" section / total |
+| Factor                | Weight | Measurement                         |
+| --------------------- | ------ | ----------------------------------- |
+| Required docs present | 30%    | Count present / total required      |
+| No broken links       | 20%    | Percentage of valid links           |
+| Consistent formatting | 15%    | Passes automated checks             |
+| Has code examples     | 15%    | Docs with examples / total docs     |
+| Up-to-date markers    | 10%    | Docs with "Last Updated" / total    |
+| Cross-referenced      | 10%    | Docs with "Related" section / total |
 
 ### Step 5: Generate Improvements
 
@@ -219,9 +219,9 @@ For each document that needs creation or significant updates, provide the full c
 
 ## Audience-Specific Language
 
-| Audience | Tone | Detail Level | Focus |
-|----------|------|--------------|-------|
-| Engineers | Direct | Technical | Core functionality |
-| Developers | Technical | In-depth | Architecture and APIs |
-| Operators | Direct | Practical | Config and troubleshooting |
-| Contributors | Collaborative | Process-oriented | Standards and workflow |
+| Audience     | Tone          | Detail Level     | Focus                      |
+| ------------ | ------------- | ---------------- | -------------------------- |
+| Engineers    | Direct        | Technical        | Core functionality         |
+| Developers   | Technical     | In-depth         | Architecture and APIs      |
+| Operators    | Direct        | Practical        | Config and troubleshooting |
+| Contributors | Collaborative | Process-oriented | Standards and workflow     |

@@ -23,8 +23,8 @@ populated automatically by the `/dashboard` skill, which reads from
 Performance metrics per agent across all orchestrated tasks.
 
 | Agent | Tasks Run | Success Rate | Avg Duration | Credit Usage |
-|-------|-----------|--------------|--------------|--------------|
-| | | | | |
+| ----- | --------- | ------------ | ------------ | ------------ |
+|       |           |              |              |              |
 
 ---
 
@@ -32,11 +32,11 @@ Performance metrics per agent across all orchestrated tasks.
 
 Distribution of cross-verification consensus scores across all orchestrated runs.
 
-| Range | Label | Count | Percentage |
-|-------|-------|-------|------------|
-| >= 80% | High confidence | | |
-| 50-79% | Medium confidence | | |
-| < 50% | Low confidence | | |
+| Range  | Label             | Count | Percentage |
+| ------ | ----------------- | ----- | ---------- |
+| >= 80% | High confidence   |       |            |
+| 50-79% | Medium confidence |       |            |
+| < 50%  | Low confidence    |       |            |
 
 **Interpretation**:
 
@@ -51,8 +51,8 @@ Distribution of cross-verification consensus scores across all orchestrated runs
 Recurring errors observed across agent runs and CI pipelines.
 
 | Pattern | Frequency | Last Seen | Resolution |
-|---------|-----------|-----------|------------|
-| | | | |
+| ------- | --------- | --------- | ---------- |
+|         |           |           |            |
 
 ---
 
@@ -60,12 +60,12 @@ Recurring errors observed across agent runs and CI pipelines.
 
 Volume of knowledge base entries by category over time.
 
-| Category | Total Entries | Last 7 Days | Last 30 Days |
-|----------|---------------|-------------|--------------|
-| Patterns | | | |
-| Antipatterns | | | |
-| Tool Discoveries | | | |
-| Configuration Insights | | | |
+| Category               | Total Entries | Last 7 Days | Last 30 Days |
+| ---------------------- | ------------- | ----------- | ------------ |
+| Patterns               |               |             |              |
+| Antipatterns           |               |             |              |
+| Tool Discoveries       |               |             |              |
+| Configuration Insights |               |             |              |
 
 ---
 
@@ -73,11 +73,11 @@ Volume of knowledge base entries by category over time.
 
 Breakdown of model tiers selected for orchestrated tasks.
 
-| Tier | Cursor Model | Claude Model | Gemini Model | Usage Count |
-|------|--------------|--------------|--------------|-------------|
-| mini / haiku | gpt-5.1-codex-mini | haiku | -- | |
-| flash / sonnet | gpt-5.1-codex | sonnet | gemini-3-flash-preview | |
-| advanced / opus / pro | gpt-5.2 | opus | gemini-3-pro-preview | |
+| Tier                  | Cursor Model       | Claude Model | Gemini Model           | Usage Count |
+| --------------------- | ------------------ | ------------ | ---------------------- | ----------- |
+| mini / haiku          | gpt-5.1-codex-mini | haiku        | --                     |             |
+| flash / sonnet        | gpt-5.1-codex      | sonnet       | gemini-3-flash-preview |             |
+| advanced / opus / pro | gpt-5.2            | opus         | gemini-3-pro-preview   |             |
 
 ---
 

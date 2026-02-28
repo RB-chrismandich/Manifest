@@ -18,20 +18,20 @@ To add entries, use `learning_capture.sh add` or the `/learning-loop` skill.
 
 ## How to Contribute
 
-| Action | Command | Description |
-| ------ | ------- | ----------- |
-| Capture a new learning | `/learning-loop` | Records a pattern, tool discovery, or config insight |
-| Detect antipatterns | `/antipattern-detect` | Analyzes recent code for known antipatterns |
-| Regenerate this file | `learning_capture.sh sync-docs` | Rebuilds from YAML source of truth |
+| Action                 | Command                         | Description                                          |
+| ---------------------- | ------------------------------- | ---------------------------------------------------- |
+| Capture a new learning | `/learning-loop`                | Records a pattern, tool discovery, or config insight |
+| Detect antipatterns    | `/antipattern-detect`           | Analyzes recent code for known antipatterns          |
+| Regenerate this file   | `learning_capture.sh sync-docs` | Rebuilds from YAML source of truth                   |
 
 ### Categories
 
-| Category | Description | Example |
-| -------- | ----------- | ------- |
-| Pattern | Recommended coding patterns | "Use ruff instead of flake8+black+isort" |
-| Antipattern | Detected issues to avoid | "Bare except clauses hide real errors" |
-| Tool Discovery | New/better tooling | "golangci-lint replaces individual Go linters" |
-| Config Insight | Configuration tips | "ESLint flat config requires eslint.config.js" |
+| Category       | Description                 | Example                                        |
+| -------------- | --------------------------- | ---------------------------------------------- |
+| Pattern        | Recommended coding patterns | "Use ruff instead of flake8+black+isort"       |
+| Antipattern    | Detected issues to avoid    | "Bare except clauses hide real errors"         |
+| Tool Discovery | New/better tooling          | "golangci-lint replaces individual Go linters" |
+| Config Insight | Configuration tips          | "ESLint flat config requires eslint.config.js" |
 
 ### Confidence Levels
 
@@ -54,13 +54,13 @@ _No entries yet._
 Detected antipatterns that should be avoided. Each entry includes the context in
 which it was found and the recommended alternative.
 
-| ID | Language | Title | Severity | Occurrences | Description |
-| -- | -------- | ----- | -------- | ----------- | ----------- |
-| ANTI-001 | bash | Unquoted variable expansion in shell commands | high | 8 | User-controlled values passed to bash -c, eval, or unquoted in command strings cause command injecti |
-| ANTI-002 | bash | Insecure temporary file/directory creation | high | 3 | Using predictable temp paths or mkdir without mktemp enables symlink attacks (CWE-377). Always use m |
-| ANTI-003 | yaml | Stale file-path references in pre-commit hooks | high | 3 | Local pre-commit hooks reference old directory paths after refactors, causing hooks to silently neve |
-| ANTI-004 | markdown | Markdown table column style violations (MD060) | low | 902 | Tables use compact pipe style (no spaces around pipes in separator rows) which violates markdownlint |
-| ANTI-005 | markdown | Documentation path drift after directory moves | medium | 9 | After moving files to new directories, documentation references to old paths remain stale across mul |
+| ID       | Language | Title                                          | Severity | Occurrences | Description                                                                                          |
+| -------- | -------- | ---------------------------------------------- | -------- | ----------- | ---------------------------------------------------------------------------------------------------- |
+| ANTI-001 | bash     | Unquoted variable expansion in shell commands  | high     | 8           | User-controlled values passed to bash -c, eval, or unquoted in command strings cause command injecti |
+| ANTI-002 | bash     | Insecure temporary file/directory creation     | high     | 3           | Using predictable temp paths or mkdir without mktemp enables symlink attacks (CWE-377). Always use m |
+| ANTI-003 | yaml     | Stale file-path references in pre-commit hooks | high     | 3           | Local pre-commit hooks reference old directory paths after refactors, causing hooks to silently neve |
+| ANTI-004 | markdown | Markdown table column style violations (MD060) | low      | 902         | Tables use compact pipe style (no spaces around pipes in separator rows) which violates markdownlint |
+| ANTI-005 | markdown | Documentation path drift after directory moves | medium   | 9           | After moving files to new directories, documentation references to old paths remain stale across mul |
 
 ### ANTI-001: Unquoted variable expansion in shell commands
 
@@ -144,19 +144,21 @@ for old path prefixes after any directory restructuring commit.
 
 New or better tooling identified during development.
 
-| ID | Language | Title | Confidence | Description |
-| -- | -------- | ----- | ---------- | ----------- |
-| TD-001 | python | Use ruff instead of flake8+black+isort | high | Single Rust-based linter replacing flake8+isort+pycodestyle |
+| ID     | Language | Title                                  | Confidence | Description                                                 |
+| ------ | -------- | -------------------------------------- | ---------- | ----------------------------------------------------------- |
+| TD-001 | python   | Use ruff instead of flake8+black+isort | high       | Single Rust-based linter replacing flake8+isort+pycodestyle |
+
 ---
 
 ## Configuration Insights
 
 Lessons learned about configuration, thresholds, and environment setup.
 
-| ID | Language | Title | Description |
-| -- | -------- | ----- | ----------- |
-| CI-001 | yaml | MD060 rule requires explicit decision | MD060 triggers 902+ violations; disable or reformat tables |
-| CI-002 | yaml | Local hook file patterns must be updated on moves | Pre-commit local hooks use file patterns not validated on moves |
+| ID     | Language | Title                                             | Description                                                     |
+| ------ | -------- | ------------------------------------------------- | --------------------------------------------------------------- |
+| CI-001 | yaml     | MD060 rule requires explicit decision             | MD060 triggers 902+ violations; disable or reformat tables      |
+| CI-002 | yaml     | Local hook file patterns must be updated on moves | Pre-commit local hooks use file patterns not validated on moves |
+
 ---
 
 ## References

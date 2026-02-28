@@ -27,7 +27,7 @@ Read these files to understand the project:
 
 - Read existing documentation: README.md, AGENTS.md, CLAUDE.md
 - Check for dependencies: requirements.txt, package.json, pyproject.toml
-- Scan key directories with Glob: src/**/*.py, lib/**/*.ts, tests/**/*
+- Scan key directories with Glob: src/**/\*.py, lib/**/_.ts, tests/\*\*/_
 
 ### Step 2: Analyze Current README State
 
@@ -106,17 +106,17 @@ Before finalizing:
 
 ## Standard README Sections
 
-| Section | Purpose | Source Files |
-|---------|---------|--------------|
-| Title & Description | Project identity | AGENTS.md, main module docstring |
-| Key Features | Capability overview | src/ analysis |
-| Quick Start | Get running fast | Setup scripts |
-| Requirements | Prerequisites | requirements.txt, package.json |
-| Project Structure | Code organization | Directory tree |
-| Configuration | All options | config/ files |
-| Usage/Workflow | How it works | main entry point |
-| Troubleshooting | Common issues | Error handling code |
-| Testing | Run tests | tests/ directory |
+| Section             | Purpose             | Source Files                     |
+| ------------------- | ------------------- | -------------------------------- |
+| Title & Description | Project identity    | AGENTS.md, main module docstring |
+| Key Features        | Capability overview | src/ analysis                    |
+| Quick Start         | Get running fast    | Setup scripts                    |
+| Requirements        | Prerequisites       | requirements.txt, package.json   |
+| Project Structure   | Code organization   | Directory tree                   |
+| Configuration       | All options         | config/ files                    |
+| Usage/Workflow      | How it works        | main entry point                 |
+| Troubleshooting     | Common issues       | Error handling code              |
+| Testing             | Run tests           | tests/ directory                 |
 
 ## Formatting Standards
 

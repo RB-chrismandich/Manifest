@@ -21,9 +21,9 @@ Replace the placeholders with your project's architecture and component map:
 
 ### Component/Service Map
 
-| Component | Language | Responsibility |
-|-----------|----------|----------------|
-| [Name] | [Lang] | [Brief description] |
+| Component | Language | Responsibility      |
+| --------- | -------- | ------------------- |
+| [Name]    | [Lang]   | [Brief description] |
 ```
 
 ### Prioritization Weights (Optional)
@@ -113,7 +113,7 @@ For each open issue, classify it along these dimensions:
 
 ### Step 3: Score and Rank
 
-**Priority Score** = (Impact *3) + (Urgency* 2) + (Readiness *2) - (Risk* 1)
+**Priority Score** = (Impact _3) + (Urgency_ 2) + (Readiness _2) - (Risk_ 1)
 
 Higher score = higher priority.
 
@@ -152,6 +152,7 @@ Format the output as:
 ## Top 5 Recommended Issues
 
 ### 1. #[number] — [title]
+
 - **Type**: [type] | **Score**: [score]
 - **Impact**: [1-5] | **Urgency**: [1-5] | **Readiness**: [1-5] | **Risk**: [1-5]
 - **Components**: [affected components]
@@ -164,12 +165,12 @@ Format the output as:
 ## Scoring Summary
 
 | Rank | Issue | Type | Impact | Urgency | Readiness | Risk | Score |
-|------|-------|------|--------|---------|-----------|------|-------|
-| 1 | #NNN | ... | ... | ... | ... | ... | ... |
-| 2 | #NNN | ... | ... | ... | ... | ... | ... |
-| 3 | #NNN | ... | ... | ... | ... | ... | ... |
-| 4 | #NNN | ... | ... | ... | ... | ... | ... |
-| 5 | #NNN | ... | ... | ... | ... | ... | ... |
+| ---- | ----- | ---- | ------ | ------- | --------- | ---- | ----- |
+| 1    | #NNN  | ...  | ...    | ...     | ...       | ...  | ...   |
+| 2    | #NNN  | ...  | ...    | ...     | ...       | ...  | ...   |
+| 3    | #NNN  | ...  | ...    | ...     | ...       | ...  | ...   |
+| 4    | #NNN  | ...  | ...    | ...     | ...       | ...  | ...   |
+| 5    | #NNN  | ...  | ...    | ...     | ...       | ...  | ...   |
 
 ## Honorable Mentions
 
@@ -210,7 +211,7 @@ For complex scoring decisions, use parallel agents:
 
 Use consensus across agents to validate your scoring:
 
-- >= 80% agreement: Confident in score
+- > = 80% agreement: Confident in score
 - 50-79% agreement: Note scoring variance in report
 - < 50% agreement: Escalate issue for human review
 

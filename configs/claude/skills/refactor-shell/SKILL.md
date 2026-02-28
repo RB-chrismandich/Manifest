@@ -73,14 +73,14 @@ shellcheck --severity=info script.sh
 
 **Key ShellCheck Codes to Prioritize:**
 
-| Code | Severity | Issue |
-|------|----------|-------|
+| Code   | Severity | Issue                                        |
+| ------ | -------- | -------------------------------------------- |
 | SC2086 | Critical | Unquoted variable expansion (injection risk) |
-| SC2046 | Critical | Quote word splitting in `$(cmd)` |
-| SC2162 | High | Read without -r (backslash handling) |
-| SC2164 | High | `cd` without checking if it succeeded |
-| SC2155 | Medium | Declare and assign separately |
-| SC2034 | Low | Variable appears unused |
+| SC2046 | Critical | Quote word splitting in `$(cmd)`             |
+| SC2162 | High     | Read without -r (backslash handling)         |
+| SC2164 | High     | `cd` without checking if it succeeded        |
+| SC2155 | Medium   | Declare and assign separately                |
+| SC2034 | Low      | Variable appears unused                      |
 
 ### Step 3: Security Pattern Analysis
 
@@ -163,20 +163,20 @@ local var="value"  # Function-scoped variables
 
 ## Effort Classification
 
-| Level | Time | Scope | Examples |
-|-------|------|-------|----------|
-| **Minimal** | <30 min | Single-line fixes | Quote variable, add `readonly`, fix shebang |
-| **Medium** | 1-4 hours | Function refactor | Add error handling, break up long function |
-| **High** | 1-2 days | Architectural | Rewrite with proper structure, add tests |
+| Level       | Time      | Scope             | Examples                                    |
+| ----------- | --------- | ----------------- | ------------------------------------------- |
+| **Minimal** | <30 min   | Single-line fixes | Quote variable, add `readonly`, fix shebang |
+| **Medium**  | 1-4 hours | Function refactor | Add error handling, break up long function  |
+| **High**    | 1-2 days  | Architectural     | Rewrite with proper structure, add tests    |
 
 ## Risk Classification
 
-| Level | Impact | Testing Required | Examples |
-|-------|--------|------------------|----------|
-| **Low** | No behavior change | None | Add comments, rename variables |
-| **Medium** | Internal changes | Manual testing | Add error checks, refactor helpers |
-| **High** | Logic changes | Integration tests | Fix command injection, change flow |
-| **Critical** | Security/Breaking | Full regression | Fix injection, remove dangerous commands |
+| Level        | Impact             | Testing Required  | Examples                                 |
+| ------------ | ------------------ | ----------------- | ---------------------------------------- |
+| **Low**      | No behavior change | None              | Add comments, rename variables           |
+| **Medium**   | Internal changes   | Manual testing    | Add error checks, refactor helpers       |
+| **High**     | Logic changes      | Integration tests | Fix command injection, change flow       |
+| **Critical** | Security/Breaking  | Full regression   | Fix injection, remove dangerous commands |
 
 ---
 
@@ -195,25 +195,26 @@ local var="value"  # Function-scoped variables
 
 ## Executive Summary
 
-| Category | Score | Issues | Critical |
-|----------|-------|--------|----------|
-| Security | XX/30 | N | Y/N |
-| Error Handling | XX/20 | N | Y/N |
-| Code Quality | XX/20 | N | Y/N |
-| Documentation | XX/15 | N | Y/N |
-| Best Practices | XX/15 | N | Y/N |
+| Category       | Score | Issues | Critical |
+| -------------- | ----- | ------ | -------- |
+| Security       | XX/30 | N      | Y/N      |
+| Error Handling | XX/20 | N      | Y/N      |
+| Code Quality   | XX/20 | N      | Y/N      |
+| Documentation  | XX/15 | N      | Y/N      |
+| Best Practices | XX/15 | N      | Y/N      |
 
 **Key Findings:**
+
 - [1-3 sentence summary of most critical issues]
 
 ---
 
 ## Scripts Analyzed
 
-| Script | Lines | Functions | Issues | Score |
-|--------|-------|-----------|--------|-------|
-| bootstrap.sh | 1000 | 15 | 12 | 75/100 |
-| parallel_agent.sh | 1038 | 20 | 8 | 85/100 |
+| Script            | Lines | Functions | Issues | Score  |
+| ----------------- | ----- | --------- | ------ | ------ |
+| bootstrap.sh      | 1000  | 15        | 12     | 75/100 |
+| parallel_agent.sh | 1038  | 20        | 8      | 85/100 |
 
 ---
 
@@ -221,15 +222,15 @@ local var="value"  # Function-scoped variables
 
 ### Immediate (Critical Risk - Any Effort)
 
-| ID | Issue | Location | Effort | Risk |
-|----|-------|----------|--------|------|
+| ID      | Issue                       | Location           | Effort  | Risk     |
+| ------- | --------------------------- | ------------------ | ------- | -------- |
 | SEC-001 | Unquoted variable expansion | `bootstrap.sh:123` | Minimal | Critical |
 
 ### Quick Wins (Low Risk + Minimal Effort)
 
-| ID | Issue | Location | Effort | Risk |
-|----|-------|----------|--------|------|
-| QA-001 | Add `set -euo pipefail` | `bootstrap.sh:1` | Minimal | Low |
+| ID     | Issue                   | Location         | Effort  | Risk |
+| ------ | ----------------------- | ---------------- | ------- | ---- |
+| QA-001 | Add `set -euo pipefail` | `bootstrap.sh:1` | Minimal | Low  |
 
 ### Planned (Medium Risk/Effort)
 
@@ -246,10 +247,12 @@ local var="value"  # Function-scoped variables
 ### bootstrap.sh
 
 #### SEC-001: Unquoted Variable Expansion [CRITICAL]
+
 - **Location:** Line 123
 - **Risk:** Critical
 - **Effort:** Minimal
 - **Current Code:**
+
   ```bash
   cd $TARGET_DIR
   ```
@@ -290,24 +293,24 @@ local var="value"  # Function-scoped variables
 
 ### Critical Issues (Must Fix)
 
-| Code | Count | Description |
-|------|-------|-------------|
-| SC2086 | 5 | Unquoted variable expansion |
-| SC2046 | 2 | Word splitting in command substitution |
+| Code   | Count | Description                            |
+| ------ | ----- | -------------------------------------- |
+| SC2086 | 5     | Unquoted variable expansion            |
+| SC2046 | 2     | Word splitting in command substitution |
 
 ### High Priority
 
-| Code | Count | Description |
-|------|-------|-------------|
-| SC2164 | 3 | cd without error check |
-| SC2155 | 8 | Declare and assign separately |
+| Code   | Count | Description                   |
+| ------ | ----- | ----------------------------- |
+| SC2164 | 3     | cd without error check        |
+| SC2155 | 8     | Declare and assign separately |
 
 ### Medium Priority
 
-| Code | Count | Description |
-|------|-------|-------------|
-| SC2034 | 1 | Variable appears unused |
-| SC2129 | 5 | Consolidate redirects |
+| Code   | Count | Description             |
+| ------ | ----- | ----------------------- |
+| SC2034 | 1     | Variable appears unused |
+| SC2129 | 5     | Consolidate redirects   |
 
 ---
 
@@ -330,7 +333,6 @@ local var="value"  # Function-scoped variables
 - [ ] Achieve zero ShellCheck warnings
 - [ ] Add structured logging
 - [ ] Implement debug mode
-
 ````
 
 ---

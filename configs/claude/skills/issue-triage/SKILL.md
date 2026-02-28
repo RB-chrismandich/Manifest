@@ -25,13 +25,13 @@ This skill performs comprehensive issue triage by:
 /issue-triage [--dry-run] [--close-stale] [--team TEAM] [--priority N] [--limit N]
 ```
 
-| Argument | Description | Default |
-|----------|-------------|---------|
-| `--dry-run` | Analysis only, no mutations | false |
-| `--close-stale` | Auto-cancel stale issues (requires explicit flag) | false |
-| `--team TEAM` | Filter by team key (e.g., "ENG", "PRODUCT") | all teams |
-| `--priority N` | Filter by priority (0-4) | all priorities |
-| `--limit N` | Max issues to analyze | 500 |
+| Argument        | Description                                       | Default        |
+| --------------- | ------------------------------------------------- | -------------- |
+| `--dry-run`     | Analysis only, no mutations                       | false          |
+| `--close-stale` | Auto-cancel stale issues (requires explicit flag) | false          |
+| `--team TEAM`   | Filter by team key (e.g., "ENG", "PRODUCT")       | all teams      |
+| `--priority N`  | Filter by priority (0-4)                          | all priorities |
+| `--limit N`     | Max issues to analyze                             | 500            |
 
 ## Prerequisites
 

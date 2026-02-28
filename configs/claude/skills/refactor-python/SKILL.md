@@ -130,20 +130,20 @@ Scan for these patterns:
 
 ## Effort Classification
 
-| Level | Time | Scope | Examples |
-|-------|------|-------|----------|
-| **Minimal** | 1-2 hours | Single file, config only | Add docstring, extract constant, add type hint |
-| **Medium** | 2-8 hours | Multi-file refactor | Create Pydantic model, add unit tests, fix injection |
-| **High** | 1-3 days | Architectural | Dependency injection, full mypy compliance, break up God class |
+| Level       | Time      | Scope                    | Examples                                                       |
+| ----------- | --------- | ------------------------ | -------------------------------------------------------------- |
+| **Minimal** | 1-2 hours | Single file, config only | Add docstring, extract constant, add type hint                 |
+| **Medium**  | 2-8 hours | Multi-file refactor      | Create Pydantic model, add unit tests, fix injection           |
+| **High**    | 1-3 days  | Architectural            | Dependency injection, full mypy compliance, break up God class |
 
 ## Risk Classification
 
-| Level | Impact | Testing Required | Examples |
-|-------|--------|------------------|----------|
-| **Low** | No runtime change | None | Add config file, documentation, type hints |
-| **Medium** | Internal changes | Unit tests | Refactor helper functions, add validation |
-| **High** | API/signature changes | Integration tests | Change public interfaces, modify providers |
-| **Critical** | Security/Breaking | Full regression | Fix injection, remove hardcoded credentials |
+| Level        | Impact                | Testing Required  | Examples                                    |
+| ------------ | --------------------- | ----------------- | ------------------------------------------- |
+| **Low**      | No runtime change     | None              | Add config file, documentation, type hints  |
+| **Medium**   | Internal changes      | Unit tests        | Refactor helper functions, add validation   |
+| **High**     | API/signature changes | Integration tests | Change public interfaces, modify providers  |
+| **Critical** | Security/Breaking     | Full regression   | Fix injection, remove hardcoded credentials |
 
 ---
 
@@ -161,17 +161,18 @@ Scan for these patterns:
 
 ## Executive Summary
 
-| Category | Score | Issues | Critical |
-|----------|-------|--------|----------|
-| Security | XX/25 | N | Y/N |
-| Code Quality | XX/20 | N | Y/N |
-| Architecture | XX/15 | N | Y/N |
-| Type Safety | XX/15 | N | Y/N |
-| Documentation | XX/10 | N | Y/N |
-| Testing | XX/10 | N | Y/N |
-| Dependencies | XX/5 | N | Y/N |
+| Category      | Score | Issues | Critical |
+| ------------- | ----- | ------ | -------- |
+| Security      | XX/25 | N      | Y/N      |
+| Code Quality  | XX/20 | N      | Y/N      |
+| Architecture  | XX/15 | N      | Y/N      |
+| Type Safety   | XX/15 | N      | Y/N      |
+| Documentation | XX/10 | N      | Y/N      |
+| Testing       | XX/10 | N      | Y/N      |
+| Dependencies  | XX/5  | N      | Y/N      |
 
 **Key Findings:**
+
 - [1-3 sentence summary of most critical issues]
 
 ---
@@ -179,19 +180,23 @@ Scan for these patterns:
 ## Priority Matrix
 
 ### Immediate (Critical Risk - Any Effort)
-| ID | Issue | Location | Effort | Risk |
-|----|-------|----------|--------|------|
+
+| ID      | Issue                       | Location      | Effort | Risk     |
+| ------- | --------------------------- | ------------- | ------ | -------- |
 | SEC-001 | SQL injection via f-strings | `file.py:XXX` | Medium | Critical |
 
 ### Quick Wins (Low Risk + Minimal Effort)
-| ID | Issue | Location | Effort | Risk |
-|----|-------|----------|--------|------|
-| TS-001 | Add mypy configuration | Root | Minimal | Low |
+
+| ID     | Issue                  | Location | Effort  | Risk |
+| ------ | ---------------------- | -------- | ------- | ---- |
+| TS-001 | Add mypy configuration | Root     | Minimal | Low  |
 
 ### Planned (Medium Risk/Effort)
+
 [Table of medium priority items]
 
 ### Strategic (High Effort)
+
 [Table of long-term items]
 
 ---
@@ -205,14 +210,17 @@ Scan for these patterns:
 ## Recommendations
 
 ### Immediate (This Sprint)
+
 - [ ] Fix SEC-001: ...
 - [ ] Create pyproject.toml with Ruff/Mypy configuration
 
 ### Short Term (Next 2 Sprints)
+
 - [ ] Add pre-commit hooks
 - [ ] Add Pydantic models for API responses
 
 ### Long Term (Roadmap)
+
 - [ ] Achieve 80%+ test coverage
 ```
 

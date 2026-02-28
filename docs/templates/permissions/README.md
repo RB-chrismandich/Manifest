@@ -10,12 +10,12 @@
 
 ## Available Presets
 
-| Preset | Project Type | Use Case |
-|--------|--------------|----------|
-| `django-web-app.json` | Django Web Application | Python web development with PostgreSQL |
-| `express-api.json` | Express.js/Node.js API | JavaScript/TypeScript backend development |
-| `go-microservices.json` | Go Microservices | Go services with gRPC, Kubernetes (read-only) |
-| `python-monorepo.json` | Python Monorepo | Multi-package Python projects with Poetry |
+| Preset                  | Project Type           | Use Case                                      |
+| ----------------------- | ---------------------- | --------------------------------------------- |
+| `django-web-app.json`   | Django Web Application | Python web development with PostgreSQL        |
+| `express-api.json`      | Express.js/Node.js API | JavaScript/TypeScript backend development     |
+| `go-microservices.json` | Go Microservices       | Go services with gRPC, Kubernetes (read-only) |
+| `python-monorepo.json`  | Python Monorepo        | Multi-package Python projects with Poetry     |
 
 ---
 
@@ -91,11 +91,7 @@ Commands in the `deny` array are explicitly blocked:
 ```json
 {
   "permissions": {
-    "deny": [
-      "Bash(rm -rf:*)",
-      "Bash(sudo:*)",
-      "Bash(pip install:*)"
-    ]
+    "deny": ["Bash(rm -rf:*)", "Bash(sudo:*)", "Bash(pip install:*)"]
   }
 }
 ```

@@ -30,9 +30,9 @@ Replace the placeholders with your project's architecture and service map:
 
 ### Service/Component Map
 
-| Component | Language | Responsibility |
-|-----------|----------|----------------|
-| [Name] | [Lang] | [Brief description] |
+| Component | Language | Responsibility      |
+| --------- | -------- | ------------------- |
+| [Name]    | [Lang]   | [Brief description] |
 ```
 
 **Tip**: If you don't have services, list major modules, packages, or functional areas instead.
@@ -133,7 +133,7 @@ For each stale issue, record:
 
 Score each non-stale issue using the prioritization framework:
 
-**Priority Score** = (Impact *3) + (Urgency* 2) + (Readiness *2) - (Risk* 1)
+**Priority Score** = (Impact _3) + (Urgency_ 2) + (Readiness _2) - (Risk_ 1)
 
 Where:
 
@@ -247,31 +247,31 @@ Present a comprehensive report:
 
 ## Summary
 
-| Category | Count |
-|----------|-------|
-| Total open issues | N |
-| Duplicates found | N |
-| Stale issues | N |
-| Overlapping (batchable) | N |
-| Prioritization issues | N |
-| Actions taken | N |
+| Category                | Count |
+| ----------------------- | ----- |
+| Total open issues       | N     |
+| Duplicates found        | N     |
+| Stale issues            | N     |
+| Overlapping (batchable) | N     |
+| Prioritization issues   | N     |
+| Actions taken           | N     |
 
 ## Duplicates
 
-| Issue A | Issue B | Confidence | Action |
-|---------|---------|------------|--------|
-| #NNN — Title | #NNN — Title | High | Closed #B as dup |
+| Issue A      | Issue B      | Confidence | Action           |
+| ------------ | ------------ | ---------- | ---------------- |
+| #NNN — Title | #NNN — Title | High       | Closed #B as dup |
 
 ## Stale Issues
 
-| Issue | Reason | Confidence | Action |
-|-------|--------|------------|--------|
-| #NNN — Title | References deleted file X | High | Closed / Flagged |
+| Issue        | Reason                    | Confidence | Action           |
+| ------------ | ------------------------- | ---------- | ---------------- |
+| #NNN — Title | References deleted file X | High       | Closed / Flagged |
 
 ## Overlapping Issues (Batch Candidates)
 
-| Cluster | Issues | Shared Scope | Recommendation |
-|---------|--------|-------------|----------------|
+| Cluster               | Issues | Shared Scope                      | Recommendation       |
+| --------------------- | ------ | --------------------------------- | -------------------- |
 | [Component] [feature] | #A, #B | Both add [feature] to [component] | Batch into single PR |
 
 ## Prioritization
@@ -279,22 +279,22 @@ Present a comprehensive report:
 ### Current Priority Order (by score)
 
 | Rank | Issue | Type | Impact | Urgency | Ready | Risk | Score | Labels |
-|------|-------|------|--------|---------|-------|------|-------|--------|
-| 1 | #NNN | ... | ... | ... | ... | ... | ... | ... |
+| ---- | ----- | ---- | ------ | ------- | ----- | ---- | ----- | ------ |
+| 1    | #NNN  | ...  | ...    | ...     | ...   | ...  | ...   | ...    |
 
 ### Prioritization Issues Found
 
-| Issue | Problem | Recommendation |
-|-------|---------|----------------|
-| #NNN | Has `planned` but no plan in comments | Remove `planned` or run `/plan-issue` |
+| Issue | Problem                               | Recommendation                        |
+| ----- | ------------------------------------- | ------------------------------------- |
+| #NNN  | Has `planned` but no plan in comments | Remove `planned` or run `/plan-issue` |
 
 ## Issue Backlog by Component
 
-| Component | Open Issues | Planned | Needs Planning |
-|-----------|-------------|---------|----------------|
-| [Component A] | 3 | 1 | 2 |
-| [Component B] | 2 | 0 | 2 |
-| ... | ... | ... | ... |
+| Component     | Open Issues | Planned | Needs Planning |
+| ------------- | ----------- | ------- | -------------- |
+| [Component A] | 3           | 1       | 2              |
+| [Component B] | 2           | 0       | 2              |
+| ...           | ...         | ...     | ...            |
 
 ## Recommended Next Actions
 
@@ -304,11 +304,11 @@ Present a comprehensive report:
 
 ## Actions Taken in This Run
 
-| Action | Issue | Detail |
-|--------|-------|--------|
-| Closed as duplicate | #NNN | Duplicate of #NNN |
-| Added label | #NNN | Added `enhancement` |
-| Linked issues | #NNN, #NNN | Posted related-issue comments |
+| Action              | Issue      | Detail                        |
+| ------------------- | ---------- | ----------------------------- |
+| Closed as duplicate | #NNN       | Duplicate of #NNN             |
+| Added label         | #NNN       | Added `enhancement`           |
+| Linked issues       | #NNN, #NNN | Posted related-issue comments |
 ```
 
 ---
@@ -339,7 +339,7 @@ For complex decision-making (e.g., determining if two issues truly duplicate), u
 
 Use parallel agent consensus to increase confidence in closure decisions:
 
-- >= 80% consensus: HIGH confidence
+- > = 80% consensus: HIGH confidence
 - 50-79% consensus: MEDIUM confidence
 - < 50% consensus: LOW confidence (recommend only, don't act)
 

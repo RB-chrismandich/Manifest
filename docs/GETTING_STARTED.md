@@ -146,9 +146,9 @@ Run a simple test to verify all agents are working:
   "timestamp": "20260127_123456",
   "mode": "prompt",
   "agents": {
-    "cursor": {"status": "complete", "output": "..."},
-    "gemini": {"status": "complete", "output": "..."},
-    "claude": {"status": "complete", "output": "..."}
+    "cursor": { "status": "complete", "output": "..." },
+    "gemini": { "status": "complete", "output": "..." },
+    "claude": { "status": "complete", "output": "..." }
   },
   "cross_verification": {
     "consensus_score": 100,
@@ -272,18 +272,18 @@ Services are configured in `~/.claude/config/services.yml`:
 ```yaml
 services:
   claude:
-    enabled: true  # Enable/disable Claude CLI
+    enabled: true # Enable/disable Claude CLI
   gemini:
-    enabled: true  # Enable/disable Gemini CLI
+    enabled: true # Enable/disable Gemini CLI
   cursor:
-    enabled: true  # Enable/disable Cursor Agent
+    enabled: true # Enable/disable Cursor Agent
   codex:
-    enabled: true  # Enable/disable Codex CLI
+    enabled: true # Enable/disable Codex CLI
   git_cli:
     github:
-      enabled: auto  # auto | true | false (auto-detect if installed)
+      enabled: auto # auto | true | false (auto-detect if installed)
     gitlab:
-      enabled: auto  # auto | true | false (auto-detect if installed)
+      enabled: auto # auto | true | false (auto-detect if installed)
 ```
 
 **Reconfigure after initial setup:**
@@ -319,11 +319,11 @@ Choose models based on task complexity:
 
 **Model tiers:**
 
-| Tier | Cursor | Claude | Gemini | Codex | Use For |
-|------|--------|--------|--------|-------|---------|
-| Lightweight | gpt-5.1-codex-mini | haiku | - | o4-mini | Quick questions |
-| Balanced | gpt-5.1-codex | sonnet | gemini-3-flash | o3 | Code review |
-| Maximum | gpt-5.2 | opus | gemini-3-pro | o3-pro | Security analysis |
+| Tier        | Cursor             | Claude | Gemini         | Codex   | Use For           |
+| ----------- | ------------------ | ------ | -------------- | ------- | ----------------- |
+| Lightweight | gpt-5.1-codex-mini | haiku  | -              | o4-mini | Quick questions   |
+| Balanced    | gpt-5.1-codex      | sonnet | gemini-3-flash | o3      | Code review       |
+| Maximum     | gpt-5.2            | opus   | gemini-3-pro   | o3-pro  | Security analysis |
 
 **See**: [Configuration Guide](CONFIGURATION.md) for all options
 

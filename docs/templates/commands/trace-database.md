@@ -44,6 +44,7 @@ Define your database setup:
 **Schema Pattern**: [Schema-per-service, Shared database, Database-per-service]
 
 Examples:
+
 - Schema-per-service: Each service has its own PostgreSQL schema
 - Shared database: All services share one database with prefixed tables
 - Database-per-service: Each service has its own isolated database
@@ -57,6 +58,7 @@ Where are database schemas defined?
 **Schema Definitions**: [Path pattern]
 
 Examples:
+
 - `services/*/migrations/*.sql` - Migration files per service
 - `prisma/schema.prisma` - Prisma schema file
 - `models/*.py` - Django/SQLAlchemy models
@@ -73,14 +75,16 @@ How does code interact with the database?
 **Query Patterns**:
 
 Examples (raw SQL):
+
 - `db.query("SELECT * FROM users WHERE ...")`
 - `conn.exec("INSERT INTO ...")`
 
 Examples (ORM):
-- `User.objects.filter(...)`  (Django)
-- `prisma.user.findMany(...)`  (Prisma)
-- `userRepository.find(...)`  (TypeORM)
-- `User.query().where(...)`  (Objection.js)
+
+- `User.objects.filter(...)` (Django)
+- `prisma.user.findMany(...)` (Prisma)
+- `userRepository.find(...)` (TypeORM)
+- `User.query().where(...)` (Objection.js)
 ```
 
 ### Schema Naming Convention (Required)
@@ -91,6 +95,7 @@ How are schemas/tables named?
 **Naming Pattern**: [Convention used]
 
 Examples:
+
 - `service_tablename` (e.g., `orders_orders`, `users_profiles`)
 - `schema.table` (e.g., `orders.orders`, `users.profiles`)
 - `TableName` (e.g., `Orders`, `Users`)
@@ -223,33 +228,33 @@ Produce a comprehensive table-level access report:
 ```markdown
 ## Database Access Catalog
 
-| Table | Owner Service | Read By | Write By | Schema File | Notes |
-|-------|--------------|---------|----------|-------------|-------|
-| users.users | Users Service | Users, Orders, Analytics | Users | users/migrations/001_users.sql | - |
-| orders.orders | Orders Service | Orders, Analytics | Orders | orders/migrations/001_orders.sql | - |
-| inventory.items | Inventory Service | Inventory, Orders | Inventory | inventory/migrations/001_items.sql | Orders reads for display |
+| Table           | Owner Service     | Read By                  | Write By  | Schema File                        | Notes                    |
+| --------------- | ----------------- | ------------------------ | --------- | ---------------------------------- | ------------------------ |
+| users.users     | Users Service     | Users, Orders, Analytics | Users     | users/migrations/001_users.sql     | -                        |
+| orders.orders   | Orders Service    | Orders, Analytics        | Orders    | orders/migrations/001_orders.sql   | -                        |
+| inventory.items | Inventory Service | Inventory, Orders        | Inventory | inventory/migrations/001_items.sql | Orders reads for display |
 
 ## Schema Boundary Violations
 
-| Violation | Table | Owner | Violator | Severity | Recommendation |
-|-----------|-------|-------|----------|----------|----------------|
-| Cross-schema write | orders.orders | Orders | Inventory | HIGH | Inventory should call Orders API |
-| Cross-schema read | users.users | Users | Orders | MEDIUM | Consider caching or Users API |
+| Violation          | Table         | Owner  | Violator  | Severity | Recommendation                   |
+| ------------------ | ------------- | ------ | --------- | -------- | -------------------------------- |
+| Cross-schema write | orders.orders | Orders | Inventory | HIGH     | Inventory should call Orders API |
+| Cross-schema read  | users.users   | Users  | Orders    | MEDIUM   | Consider caching or Users API    |
 
 ## Performance Anti-Patterns
 
-| Pattern | Location | Table | Severity | Recommendation |
-|---------|----------|-------|----------|----------------|
-| N+1 queries | orders/handlers.py:45 | orders.orders | HIGH | Use JOIN or eager loading |
-| Missing index | users.users.email | users.users | MEDIUM | Add index on email column |
+| Pattern       | Location              | Table         | Severity | Recommendation            |
+| ------------- | --------------------- | ------------- | -------- | ------------------------- |
+| N+1 queries   | orders/handlers.py:45 | orders.orders | HIGH     | Use JOIN or eager loading |
+| Missing index | users.users.email     | users.users   | MEDIUM   | Add index on email column |
 
 ## Table Access Summary
 
-| Service | Tables Owned | Tables Read (Own) | Tables Read (Other) | Tables Written (Own) | Tables Written (Other) |
-|---------|--------------|-------------------|---------------------|---------------------|------------------------|
-| Users | 2 | 2 | 0 | 2 | 0 |
-| Orders | 3 | 3 | 2 (users.users, inventory.items) | 3 | 0 |
-| Inventory | 1 | 1 | 1 (orders.orders) | 1 | 1 (orders.orders) ⚠️ |
+| Service   | Tables Owned | Tables Read (Own) | Tables Read (Other)              | Tables Written (Own) | Tables Written (Other) |
+| --------- | ------------ | ----------------- | -------------------------------- | -------------------- | ---------------------- |
+| Users     | 2            | 2                 | 0                                | 2                    | 0                      |
+| Orders    | 3            | 3                 | 2 (users.users, inventory.items) | 3                    | 0                      |
+| Inventory | 1            | 1                 | 1 (orders.orders)                | 1                    | 1 (orders.orders) ⚠️   |
 
 ⚠️ = Schema boundary violation
 ```
@@ -298,6 +303,7 @@ graph TD
 ```
 
 **Legend**:
+
 - **Solid arrow**: Service owns schema
 - **Dashed arrow**: Read access
 - **Bold arrow**: Write access
@@ -356,7 +362,7 @@ For complex queries or ambiguous patterns, use parallel agents:
 
 Use consensus to validate:
 
-- >= 80%: Confident this is a database access
+- > = 80%: Confident this is a database access
 - 50-79%: Likely but needs verification
 - < 50%: Ambiguous, flag for human review
 
@@ -445,6 +451,7 @@ This helps catch:
 **ORM**: SQLAlchemy (Python)
 
 **Query Patterns**:
+
 - Writes: `session.add(<model>)`, `session.query(<Model>).update(...)`
 - Reads: `session.query(<Model>).filter(...)`
 
@@ -462,6 +469,7 @@ This helps catch:
 **ORM**: Prisma (Node.js/TypeScript)
 
 **Query Patterns**:
+
 - Writes: `prisma.<model>.create(...)`, `prisma.<model>.update(...)`
 - Reads: `prisma.<model>.findMany(...)`, `prisma.<model>.findUnique(...)`
 
@@ -479,6 +487,7 @@ This helps catch:
 **ORM**: Mongoose (Node.js)
 
 **Query Patterns**:
+
 - Writes: `Model.create(...)`, `Model.updateOne(...)`
 - Reads: `Model.find(...)`, `Model.findById(...)`
 

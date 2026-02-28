@@ -333,7 +333,7 @@ op.drop_column('users', 'age')
 skills:
   database-migration-guard:
     enabled: true
-    large_table_threshold: 100000  # Rows
+    large_table_threshold: 100000 # Rows
     require_concurrent_indexes: true
     require_rollback: true
 ```

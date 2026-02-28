@@ -123,8 +123,14 @@ Return **valid JSON** with the following structure:
     "Caveat 2: One agent noted recent comment activity"
   ],
   "agent_agreement": {
-    "areas_of_consensus": ["All agree issue is inactive", "All agree files are deleted"],
-    "areas_of_disagreement": ["Whether 'planned' label is still valid", "Urgency of closure"]
+    "areas_of_consensus": [
+      "All agree issue is inactive",
+      "All agree files are deleted"
+    ],
+    "areas_of_disagreement": [
+      "Whether 'planned' label is still valid",
+      "Urgency of closure"
+    ]
   },
   "escalate_to_user": false,
   "recommended_next_steps": [
@@ -161,7 +167,7 @@ Before finalizing your synthesis, verify:
   "unified_recommendation": {
     "action": "mark_duplicate",
     "target_issue": "ENG-124",
-    "parameters": {"duplicate_of": "ENG-100"}
+    "parameters": { "duplicate_of": "ENG-100" }
   },
   "confidence": "high",
   "consensus_score": 95,
@@ -192,9 +198,15 @@ Before finalizing your synthesis, verify:
   "consensus_score": 66,
   "requires_user_approval": true,
   "reasoning": "Issue meets staleness criteria but has 'planned' label. Conservative approach: flag for human review.",
-  "caveats": ["Gemini correctly identified protected label", "Files are confirmed deleted"],
+  "caveats": [
+    "Gemini correctly identified protected label",
+    "Files are confirmed deleted"
+  ],
   "escalate_to_user": true,
-  "recommended_next_steps": ["Verify if 'planned' work is still roadmapped", "Consider removing label if no longer planned"]
+  "recommended_next_steps": [
+    "Verify if 'planned' work is still roadmapped",
+    "Consider removing label if no longer planned"
+  ]
 }
 ```
 
@@ -213,15 +225,21 @@ Before finalizing your synthesis, verify:
   "unified_recommendation": {
     "action": "update_priority",
     "target_issue": "ENG-300",
-    "parameters": {"new_priority": 2}
+    "parameters": { "new_priority": 2 }
   },
   "confidence": "medium",
   "consensus_score": 60,
   "requires_user_approval": true,
   "reasoning": "Security mention by Cursor requires elevated priority. Using median (P2) given disagreement variance.",
-  "caveats": ["Cursor sees critical security issue", "Gemini disagrees on user impact"],
+  "caveats": [
+    "Cursor sees critical security issue",
+    "Gemini disagrees on user impact"
+  ],
   "escalate_to_user": true,
-  "recommended_next_steps": ["Security team review to determine true severity", "Update description with threat model"]
+  "recommended_next_steps": [
+    "Security team review to determine true severity",
+    "Update description with threat model"
+  ]
 }
 ```
 

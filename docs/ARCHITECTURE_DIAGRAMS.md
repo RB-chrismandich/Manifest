@@ -288,12 +288,12 @@ flowchart LR
 
 **Subcommand Mapping**:
 
-| Generic | GitHub (gh) | GitLab (glab) |
-|---------|-------------|---------------|
-| issue-comment | gh issue comment | glab issue note |
-| issue-edit | gh issue edit | glab issue update |
-| pr-create | gh pr create | glab mr create |
-| pr-view | gh pr view | glab mr view |
+| Generic       | GitHub (gh)      | GitLab (glab)     |
+| ------------- | ---------------- | ----------------- |
+| issue-comment | gh issue comment | glab issue note   |
+| issue-edit    | gh issue edit    | glab issue update |
+| pr-create     | gh pr create     | glab mr create    |
+| pr-view       | gh pr view       | glab mr view      |
 
 ---
 
@@ -675,10 +675,10 @@ Commands can override default thresholds in `validation_criteria.yml`:
 command_overrides:
   refactor-python:
     tier1:
-      security_issues: 0.5  # Higher weight for Python security
+      security_issues: 0.5 # Higher weight for Python security
   project-commit:
     tier2:
-      test_coverage: 0.0    # Don't require tests for commits
+      test_coverage: 0.0 # Don't require tests for commits
 ```
 
 ---
@@ -839,7 +839,7 @@ services:
     command: cursor
   git_cli:
     github:
-      enabled: auto  # auto-detect
+      enabled: auto # auto-detect
       command: gh
     gitlab:
       enabled: auto
@@ -917,7 +917,7 @@ Given 3 agents with these findings:
   - B: Gemini + Cursor ✓
   - C: Gemini + Claude ✓
 - Agreement count: **3**
-- **Consensus Score**: 3/6 * 100 = **50%** (MEDIUM)
+- **Consensus Score**: 3/6 \* 100 = **50%** (MEDIUM)
 
 **Action**: Show disagreements (D, E, F are unique to single agents), recommend user review.
 
@@ -1103,14 +1103,14 @@ flowchart TB
 
 **Canonical Labels** (5 labels, 3 platforms):
 
-| Label | Color | Platforms | Used By |
-|-------|-------|-----------|---------|
-| `planned` | `#1D76DB` (Blue) | GitHub, GitLab, Linear | /plan-manage create |
-| `in-progress` | `#FBCA04` (Yellow) | GitHub, GitLab, Linear | /plan-manage execute |
-| `needs-review` | `#E3A21A` (Orange) | GitHub, GitLab, Linear | /issue-triage |
-| `done` | `#0E8A16` (Green) | GitHub, GitLab, Linear | /plan-manage execute |
-| `follow-up` | `#D4C5F9` (Lavender) | GitHub, GitLab, Linear | /issue-triage |
-| `future` | `#C2E0C6` (Green) | GitHub, GitLab, Linear | /issue-prioritize |
+| Label          | Color                | Platforms              | Used By              |
+| -------------- | -------------------- | ---------------------- | -------------------- |
+| `planned`      | `#1D76DB` (Blue)     | GitHub, GitLab, Linear | /plan-manage create  |
+| `in-progress`  | `#FBCA04` (Yellow)   | GitHub, GitLab, Linear | /plan-manage execute |
+| `needs-review` | `#E3A21A` (Orange)   | GitHub, GitLab, Linear | /issue-triage        |
+| `done`         | `#0E8A16` (Green)    | GitHub, GitLab, Linear | /plan-manage execute |
+| `follow-up`    | `#D4C5F9` (Lavender) | GitHub, GitLab, Linear | /issue-triage        |
+| `future`       | `#C2E0C6` (Green)    | GitHub, GitLab, Linear | /issue-prioritize    |
 
 **Deprecated**: `processed` (replaced by `done`)
 

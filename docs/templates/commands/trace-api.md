@@ -52,25 +52,31 @@ Where are API contracts defined?
 
 ```markdown
 **REST**:
+
 - OpenAPI/Swagger specs: `[path pattern]`
 - Route definitions: `[path pattern]`
 
 Examples:
+
 - `docs/openapi.yaml`
 - `src/routes/*.ts`
 - `@app.route("/api/endpoint")` decorators
 
 **gRPC**:
+
 - Protocol Buffer service definitions: `[path pattern]`
 
 Examples:
+
 - `proto/**/*.proto`
 - `libs/schema/services/*.proto`
 
 **GraphQL**:
+
 - Schema definitions: `[path pattern]`
 
 Examples:
+
 - `schema.graphql`
 - `src/graphql/**/*.graphql`
 - `@ObjectType()` / `@Query()` decorators
@@ -84,6 +90,7 @@ How to identify which service owns an API:
 **Service Structure**: [How services are organized]
 
 Examples:
+
 - `services/<service-name>/` - One directory per service
 - `apps/<service-name>/` - Nx/monorepo structure
 - `src/` - Monolith with internal modules
@@ -95,24 +102,30 @@ How to identify API clients in code:
 
 ```markdown
 **REST Clients**:
+
 - [Pattern to search for]
 
 Examples:
+
 - `axios.get("/api/endpoint")`
 - `fetch("https://service/api/endpoint")`
 - `http.Get(url)`
 
 **gRPC Clients**:
+
 - [Pattern to search for]
 
 Examples:
+
 - `client.GetUser(ctx, req)`
 - `new UserServiceClient(...)`
 
 **GraphQL Clients**:
+
 - [Pattern to search for]
 
 Examples:
+
 - `useQuery(GET_USER_QUERY)`
 - `client.query({ query: GET_USER })`
 ```
@@ -281,44 +294,44 @@ Produce a comprehensive API catalog:
 ```markdown
 ## REST API Catalog
 
-| Endpoint | Method | Provider | Consumer(s) | Auth Required | Request/Response |
-|----------|--------|----------|-------------|---------------|------------------|
-| /api/users/:id | GET | Users Service | Web Frontend, Orders Service | Yes (JWT) | User schema |
-| /api/orders | POST | Orders Service | Web Frontend | Yes (JWT) | Order schema |
-| ... | ... | ... | ... | ... | ... |
+| Endpoint       | Method | Provider       | Consumer(s)                  | Auth Required | Request/Response |
+| -------------- | ------ | -------------- | ---------------------------- | ------------- | ---------------- |
+| /api/users/:id | GET    | Users Service  | Web Frontend, Orders Service | Yes (JWT)     | User schema      |
+| /api/orders    | POST   | Orders Service | Web Frontend                 | Yes (JWT)     | Order schema     |
+| ...            | ...    | ...            | ...                          | ...           | ...              |
 
 ## gRPC API Catalog
 
-| Service | Method | Provider | Consumer(s) | Streaming | Proto Location |
-|---------|--------|----------|-------------|-----------|----------------|
-| UserService | GetUser | Users Service | Orders, Notifications | No | proto/users.proto |
-| OrderService | StreamOrders | Orders Service | Analytics | Server streaming | proto/orders.proto |
-| ... | ... | ... | ... | ... | ... |
+| Service      | Method       | Provider       | Consumer(s)           | Streaming        | Proto Location     |
+| ------------ | ------------ | -------------- | --------------------- | ---------------- | ------------------ |
+| UserService  | GetUser      | Users Service  | Orders, Notifications | No               | proto/users.proto  |
+| OrderService | StreamOrders | Orders Service | Analytics             | Server streaming | proto/orders.proto |
+| ...          | ...          | ...            | ...                   | ...              | ...                |
 
 ## GraphQL API Catalog
 
-| Type | Field | Provider | Consumer(s) | Resolver | Returns |
-|------|-------|----------|-------------|----------|---------|
-| Query | user(id: ID!) | API Service | Web Frontend | users.resolver.ts | User |
-| Mutation | createOrder | API Service | Web Frontend | orders.resolver.ts | Order |
-| ... | ... | ... | ... | ... | ... |
+| Type     | Field         | Provider    | Consumer(s)  | Resolver           | Returns |
+| -------- | ------------- | ----------- | ------------ | ------------------ | ------- |
+| Query    | user(id: ID!) | API Service | Web Frontend | users.resolver.ts  | User    |
+| Mutation | createOrder   | API Service | Web Frontend | orders.resolver.ts | Order   |
+| ...      | ...           | ...         | ...          | ...                | ...     |
 
 ## Orphaned APIs
 
-| API | Provider | Reason |
-|-----|----------|--------|
+| API        | Provider  | Reason           |
+| ---------- | --------- | ---------------- |
 | [Endpoint] | [Service] | No clients found |
 
 ## Missing Implementations
 
-| API | Client | Reason |
-|-----|--------|--------|
+| API        | Client    | Reason          |
+| ---------- | --------- | --------------- |
 | [Endpoint] | [Service] | No server found |
 
 ## Circular Dependencies
 
-| Cycle | Services Involved |
-|-------|------------------|
+| Cycle                                      | Services Involved |
+| ------------------------------------------ | ----------------- |
 | /api/orders → /api/inventory → /api/orders | Orders, Inventory |
 ```
 
@@ -354,6 +367,7 @@ graph LR
 ```
 
 **Legend**:
+
 - **Rectangle nodes**: Services
 - **Arrows with labels**: API calls (protocol + endpoint/method)
 - **Red nodes**: Involved in circular dependencies

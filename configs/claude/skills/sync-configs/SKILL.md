@@ -21,23 +21,23 @@ Verify all expected symlinks exist and point to valid targets.
 
 **Expected symlinks** (from repo root):
 
-| Platform | Symlink | Target |
-|----------|---------|--------|
-| Cursor | `.cursor/scripts` | `../.claude/scripts` |
-| Cursor | `.cursor/config` | `../.claude/config` |
-| Cursor | `.cursor/prompts` | `../.claude/prompts` |
-| Cursor | `.cursor/skills` | `../.claude/skills` |
-| Cursor | `.cursor/.plans` | `../.claude/.plans` |
-| Gemini | `.gemini/scripts` | `../.claude/scripts` |
-| Gemini | `.gemini/config` | `../.claude/config` |
-| Gemini | `.gemini/prompts` | `../.claude/prompts` |
-| Gemini | `.gemini/skills` | `../.claude/skills` |
-| Gemini | `.gemini/.plans` | `../.claude/.plans` |
-| Codex | `.codex/scripts` | `../.claude/scripts` |
-| Codex | `.codex/config` | `../.claude/config` |
-| Codex | `.codex/prompts` | `../.claude/prompts` |
-| Codex | `.codex/skills` | `../.claude/skills` |
-| Codex | `.codex/.plans` | `../.claude/.plans` |
+| Platform | Symlink           | Target               |
+| -------- | ----------------- | -------------------- |
+| Cursor   | `.cursor/scripts` | `../.claude/scripts` |
+| Cursor   | `.cursor/config`  | `../.claude/config`  |
+| Cursor   | `.cursor/prompts` | `../.claude/prompts` |
+| Cursor   | `.cursor/skills`  | `../.claude/skills`  |
+| Cursor   | `.cursor/.plans`  | `../.claude/.plans`  |
+| Gemini   | `.gemini/scripts` | `../.claude/scripts` |
+| Gemini   | `.gemini/config`  | `../.claude/config`  |
+| Gemini   | `.gemini/prompts` | `../.claude/prompts` |
+| Gemini   | `.gemini/skills`  | `../.claude/skills`  |
+| Gemini   | `.gemini/.plans`  | `../.claude/.plans`  |
+| Codex    | `.codex/scripts`  | `../.claude/scripts` |
+| Codex    | `.codex/config`   | `../.claude/config`  |
+| Codex    | `.codex/prompts`  | `../.claude/prompts` |
+| Codex    | `.codex/skills`   | `../.claude/skills`  |
+| Codex    | `.codex/.plans`   | `../.claude/.plans`  |
 
 For each symlink:
 

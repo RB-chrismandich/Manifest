@@ -17,7 +17,7 @@ Executes: `~/.claude/scripts/parallel_agent.sh --json --full-output --validate -
 
 Consensus scoring:
 
-- >=80%: Auto-proceed with unified recommendation
+- > =80%: Auto-proceed with unified recommendation
 - 50-79%: Highlight disagreements to user
 - <50%: Escalate for human review
 
@@ -141,20 +141,20 @@ linters:
 
 ## Effort Classification
 
-| Level | Time | Scope | Examples |
-|-------|------|-------|----------|
-| **Minimal** | <1 hour | Single file | Add error check, fix naming, add doc comment |
-| **Medium** | 2-8 hours | Multi-file | Refactor package, add tests, fix concurrency |
-| **High** | 1-3 days | Architectural | Restructure modules, add interfaces, break God packages |
+| Level       | Time      | Scope         | Examples                                                |
+| ----------- | --------- | ------------- | ------------------------------------------------------- |
+| **Minimal** | <1 hour   | Single file   | Add error check, fix naming, add doc comment            |
+| **Medium**  | 2-8 hours | Multi-file    | Refactor package, add tests, fix concurrency            |
+| **High**    | 1-3 days  | Architectural | Restructure modules, add interfaces, break God packages |
 
 ## Risk Classification
 
-| Level | Impact | Testing Required | Examples |
-|-------|--------|------------------|----------|
-| **Low** | No behavior change | None | Add docs, rename internal var |
-| **Medium** | Internal changes | Unit tests | Refactor helpers, add validation |
-| **High** | API/signature changes | Integration tests | Change exported interfaces |
-| **Critical** | Security/Breaking | Full regression | Fix injection, race conditions |
+| Level        | Impact                | Testing Required  | Examples                         |
+| ------------ | --------------------- | ----------------- | -------------------------------- |
+| **Low**      | No behavior change    | None              | Add docs, rename internal var    |
+| **Medium**   | Internal changes      | Unit tests        | Refactor helpers, add validation |
+| **High**     | API/signature changes | Integration tests | Change exported interfaces       |
+| **Critical** | Security/Breaking     | Full regression   | Fix injection, race conditions   |
 
 ---
 
@@ -172,34 +172,40 @@ linters:
 
 ## Executive Summary
 
-| Category | Score | Issues | Critical |
-|----------|-------|--------|----------|
-| Security | XX/25 | N | Y/N |
-| Concurrency | XX/15 | N | Y/N |
-| Error Handling | XX/15 | N | Y/N |
-| Code Quality | XX/15 | N | Y/N |
-| Architecture | XX/15 | N | Y/N |
-| Testing | XX/10 | N | Y/N |
-| Documentation | XX/5 | N | Y/N |
+| Category       | Score | Issues | Critical |
+| -------------- | ----- | ------ | -------- |
+| Security       | XX/25 | N      | Y/N      |
+| Concurrency    | XX/15 | N      | Y/N      |
+| Error Handling | XX/15 | N      | Y/N      |
+| Code Quality   | XX/15 | N      | Y/N      |
+| Architecture   | XX/15 | N      | Y/N      |
+| Testing        | XX/10 | N      | Y/N      |
+| Documentation  | XX/5  | N      | Y/N      |
 
 ## Priority Matrix
 
 ### Immediate (Critical Risk)
+
 [Table of critical items]
 
 ### Quick Wins (Low Risk + Minimal Effort)
+
 [Table of quick wins]
 
 ### Planned (Medium Risk/Effort)
+
 [Table of medium items]
 
 ### Strategic (High Effort)
+
 [Table of long-term items]
 
 ## Detailed Findings
+
 [For each: Category, Severity, Location, Current Code, Issue, Fix]
 
 ## Recommendations
+
 [Grouped by timeframe: Immediate, Short Term, Long Term]
 ```
 

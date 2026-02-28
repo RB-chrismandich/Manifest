@@ -63,43 +63,43 @@ validation criteria.
 
 ### Options
 
-| Option | Description |
-|--------|-------------|
-| `--json` | Output JSON for programmatic parsing |
-| `--full-output` | Include complete agent outputs (no truncation) |
-| `--validate` | Check outputs against success criteria |
-| `--review <file>` | Code review mode |
-| `--analyze <file>` | Bug/security analysis mode |
-| `--improve <file>` | Improve observation YAML mode |
-| `--cursor-only` | Run only Cursor Agent |
-| `--gemini-only` | Run only Gemini CLI |
-| `--claude-only` | Run only Claude CLI |
-| `--no-claude` | Disable Claude CLI (enabled by default) |
+| Option                  | Description                                               |
+| ----------------------- | --------------------------------------------------------- |
+| `--json`                | Output JSON for programmatic parsing                      |
+| `--full-output`         | Include complete agent outputs (no truncation)            |
+| `--validate`            | Check outputs against success criteria                    |
+| `--review <file>`       | Code review mode                                          |
+| `--analyze <file>`      | Bug/security analysis mode                                |
+| `--improve <file>`      | Improve observation YAML mode                             |
+| `--cursor-only`         | Run only Cursor Agent                                     |
+| `--gemini-only`         | Run only Gemini CLI                                       |
+| `--claude-only`         | Run only Claude CLI                                       |
+| `--no-claude`           | Disable Claude CLI (enabled by default)                   |
 | `--cursor-model <tier>` | Cursor model: mini, flash, advanced, auto (default: auto) |
-| `--claude-model <tier>` | Claude model: haiku, sonnet, opus (default: sonnet) |
-| `--check-credits` | Run pre-flight credit check |
-| `--timeout <sec>` | Timeout per agent (default: 120) |
-| `--output <dir>` | Custom output directory |
+| `--claude-model <tier>` | Claude model: haiku, sonnet, opus (default: sonnet)       |
+| `--check-credits`       | Run pre-flight credit check                               |
+| `--timeout <sec>`       | Timeout per agent (default: 120)                          |
+| `--output <dir>`        | Custom output directory                                   |
 
 ### Model Selection
 
 The orchestrating agent selects models based on task complexity:
 
-| Task Type | Cursor | Claude | Gemini | Reason |
-|-----------|--------|--------|--------|--------|
-| Security | advanced | opus | pro | Maximum capability for critical code |
-| Review | flash | sonnet | flash | Balanced performance/cost |
-| Analyze | flash | sonnet | flash | Good reasoning without opus cost |
-| Improve | mini | haiku | flash | Lighter models for suggestions |
-| Quick | mini | haiku | flash | Speed for simple queries |
+| Task Type | Cursor   | Claude | Gemini | Reason                               |
+| --------- | -------- | ------ | ------ | ------------------------------------ |
+| Security  | advanced | opus   | pro    | Maximum capability for critical code |
+| Review    | flash    | sonnet | flash  | Balanced performance/cost            |
+| Analyze   | flash    | sonnet | flash  | Good reasoning without opus cost     |
+| Improve   | mini     | haiku  | flash  | Lighter models for suggestions       |
+| Quick     | mini     | haiku  | flash  | Speed for simple queries             |
 
 **Model Tier Mappings:**
 
-| Tier | Cursor | Claude | Gemini |
-|------|--------|--------|--------|
-| mini/haiku | gpt-5.1-codex-mini | haiku | - |
-| flash/sonnet | gpt-5.1-codex | sonnet | gemini-3-flash-preview |
-| advanced/opus/pro | gpt-5.2 | opus | gemini-3-pro-preview |
+| Tier              | Cursor             | Claude | Gemini                 |
+| ----------------- | ------------------ | ------ | ---------------------- |
+| mini/haiku        | gpt-5.1-codex-mini | haiku  | -                      |
+| flash/sonnet      | gpt-5.1-codex      | sonnet | gemini-3-flash-preview |
+| advanced/opus/pro | gpt-5.2            | opus   | gemini-3-pro-preview   |
 
 ### Credit Exhaustion Fallback
 
@@ -157,15 +157,15 @@ Detection methods:
 
 ### Environment Variables
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `GEMINI_INCLUDE_DIRS` | Colon-separated directories for Gemini | `$(pwd):~/.claude:~/.gemini` |
-| `CURSOR_MODEL_MINI` | Model name for 'mini' tier | `gpt-5.1-codex-mini` |
-| `CURSOR_MODEL_FLASH` | Model name for 'flash' tier | `gpt-5.1-codex` |
-| `CURSOR_MODEL_ADVANCED` | Model name for 'advanced' tier | `gpt-5.2` |
-| `GEMINI_MODEL_FLASH` | Model name for 'flash' tier | `gemini-3-flash-preview` |
-| `GEMINI_MODEL_PRO` | Model name for 'pro' tier | `gemini-3-pro-preview` |
-| `CHECK_CREDITS_PREFLIGHT` | Enable pre-flight credit check | `false` |
+| Variable                  | Description                            | Default                      |
+| ------------------------- | -------------------------------------- | ---------------------------- |
+| `GEMINI_INCLUDE_DIRS`     | Colon-separated directories for Gemini | `$(pwd):~/.claude:~/.gemini` |
+| `CURSOR_MODEL_MINI`       | Model name for 'mini' tier             | `gpt-5.1-codex-mini`         |
+| `CURSOR_MODEL_FLASH`      | Model name for 'flash' tier            | `gpt-5.1-codex`              |
+| `CURSOR_MODEL_ADVANCED`   | Model name for 'advanced' tier         | `gpt-5.2`                    |
+| `GEMINI_MODEL_FLASH`      | Model name for 'flash' tier            | `gemini-3-flash-preview`     |
+| `GEMINI_MODEL_PRO`        | Model name for 'pro' tier              | `gemini-3-pro-preview`       |
+| `CHECK_CREDITS_PREFLIGHT` | Enable pre-flight credit check         | `false`                      |
 
 ---
 
@@ -248,21 +248,21 @@ Use agents for their strengths:
 
 ### Tier 1: Critical (Always Check)
 
-| Criterion | Weight | Description |
-|-----------|--------|-------------|
-| Cross-Verification | 0.3 | Multiple agents agree on key findings |
-| Security Issues | 0.3 | No injection, XSS, auth bypass, secrets |
-| Error Handling | 0.2 | Proper exceptions, no silent failures |
-| Breaking Changes | 0.2 | API compatibility, data migrations |
+| Criterion          | Weight | Description                             |
+| ------------------ | ------ | --------------------------------------- |
+| Cross-Verification | 0.3    | Multiple agents agree on key findings   |
+| Security Issues    | 0.3    | No injection, XSS, auth bypass, secrets |
+| Error Handling     | 0.2    | Proper exceptions, no silent failures   |
+| Breaking Changes   | 0.2    | API compatibility, data migrations      |
 
 ### Tier 2: Standard (Code Quality)
 
-| Criterion | Weight | Description |
-|-----------|--------|-------------|
-| Bug Detection | 0.25 | Logic errors, off-by-one, null refs |
-| Performance | 0.25 | No O(n^2), memory leaks |
-| Maintainability | 0.25 | Clear naming, reasonable complexity |
-| Test Coverage | 0.25 | Changes have corresponding tests |
+| Criterion       | Weight | Description                         |
+| --------------- | ------ | ----------------------------------- |
+| Bug Detection   | 0.25   | Logic errors, off-by-one, null refs |
+| Performance     | 0.25   | No O(n^2), memory leaks             |
+| Maintainability | 0.25   | Clear naming, reasonable complexity |
+| Test Coverage   | 0.25   | Changes have corresponding tests    |
 
 ---
 
@@ -380,7 +380,7 @@ Return JSON with `consensus_score`, `disagreements`, `unified_recommendation`.
 
 **Consensus Thresholds**:
 
-- >=80%: High confidence - proceed with unified recommendation
+- > =80%: High confidence - proceed with unified recommendation
 - 50-79%: Medium confidence - highlight disagreements to user
 - <50%: Low confidence - escalate for human review
 
@@ -400,11 +400,11 @@ Return JSON with `tier1` results, `tier2` results, `overall_verdict`.
 
 ### Configuration Files
 
-| File | Purpose |
-|------|---------|
-| `~/.claude/prompts/preflight_analysis.md` | Pre-flight analysis prompt template |
-| `~/.claude/prompts/synthesis.md` | Disagreement synthesis prompt template |
-| `~/.claude/prompts/validation.md` | Validation criteria prompt template |
+| File                                       | Purpose                                  |
+| ------------------------------------------ | ---------------------------------------- |
+| `~/.claude/prompts/preflight_analysis.md`  | Pre-flight analysis prompt template      |
+| `~/.claude/prompts/synthesis.md`           | Disagreement synthesis prompt template   |
+| `~/.claude/prompts/validation.md`          | Validation criteria prompt template      |
 | `~/.claude/config/validation_criteria.yml` | Detailed validation rules and thresholds |
 
 All of the above are accessible via symlinks under `~/.gemini/prompts/` and
@@ -444,33 +444,33 @@ These integrate with the parallel agent orchestration framework.
 
 ### Available Skills
 
-| Skill | Description | Parallel Agents |
-|-------|-------------|-----------------|
-| `/a11y-audit` | WCAG 2.2 AA accessibility audit | NO |
-| `/antipattern-detect` | Detect codebase antipatterns and suggest fixes | NO |
-| `/checkpoint` | Save context checkpoint for session continuity | NO |
-| `/ci-setup` | Configure CI/CD pipelines for target repository | NO |
-| `/code-quality` | Auto-triggered security and quality checks | AUTO |
-| `/dashboard` | Visualize agent efficiency metrics | NO |
-| `/docs-diagrams` | Generate Mermaid architecture diagrams | CONDITIONAL |
-| `/docs-improve` | Diataxis documentation framework analysis | CONDITIONAL |
-| `/docs-readme` | Improve README documentation | NO |
-| `/health-check` | Verify CLI tools, auth, config, MCP, symlinks | NO |
-| `/issue-prioritize` | Score and rank open issues by impact | CONDITIONAL |
-| `/issue-triage` | Linear issue audit with duplicate detection | CONDITIONAL |
-| `/learning-loop` | Capture structured lessons learned | NO |
-| `/performance-check` | Core Web Vitals and bundle analysis | NO |
-| `/plan-manage` | Plan lifecycle with parallel agent orchestration | CONDITIONAL |
-| `/project-commit` | Full commit pipeline: docs, pull, pre-commits, commit, push | CONDITIONAL |
-| `/refactor-go` | Go codebase security and quality analysis | ALWAYS |
-| `/refactor-node` | Node.js/TypeScript security and quality analysis | ALWAYS |
-| `/refactor-python` | Python codebase security and quality analysis | ALWAYS |
-| `/refactor-shell` | Bash/Shell script security and quality analysis | ALWAYS |
-| `/refactor-terraform` | Terraform IaC security and modularity analysis | ALWAYS |
-| `/scaffold` | Initialize new project with quality gates and Manifest integration | NO |
-| `/sync-configs` | Detect cross-platform config drift | NO |
-| `/ux-review` | UX/accessibility/performance audit | NO |
-| `/verify` | Run linters, tests, and security scans in parallel | CONDITIONAL |
+| Skill                 | Description                                                        | Parallel Agents |
+| --------------------- | ------------------------------------------------------------------ | --------------- |
+| `/a11y-audit`         | WCAG 2.2 AA accessibility audit                                    | NO              |
+| `/antipattern-detect` | Detect codebase antipatterns and suggest fixes                     | NO              |
+| `/checkpoint`         | Save context checkpoint for session continuity                     | NO              |
+| `/ci-setup`           | Configure CI/CD pipelines for target repository                    | NO              |
+| `/code-quality`       | Auto-triggered security and quality checks                         | AUTO            |
+| `/dashboard`          | Visualize agent efficiency metrics                                 | NO              |
+| `/docs-diagrams`      | Generate Mermaid architecture diagrams                             | CONDITIONAL     |
+| `/docs-improve`       | Diataxis documentation framework analysis                          | CONDITIONAL     |
+| `/docs-readme`        | Improve README documentation                                       | NO              |
+| `/health-check`       | Verify CLI tools, auth, config, MCP, symlinks                      | NO              |
+| `/issue-prioritize`   | Score and rank open issues by impact                               | CONDITIONAL     |
+| `/issue-triage`       | Linear issue audit with duplicate detection                        | CONDITIONAL     |
+| `/learning-loop`      | Capture structured lessons learned                                 | NO              |
+| `/performance-check`  | Core Web Vitals and bundle analysis                                | NO              |
+| `/plan-manage`        | Plan lifecycle with parallel agent orchestration                   | CONDITIONAL     |
+| `/project-commit`     | Full commit pipeline: docs, pull, pre-commits, commit, push        | CONDITIONAL     |
+| `/refactor-go`        | Go codebase security and quality analysis                          | ALWAYS          |
+| `/refactor-node`      | Node.js/TypeScript security and quality analysis                   | ALWAYS          |
+| `/refactor-python`    | Python codebase security and quality analysis                      | ALWAYS          |
+| `/refactor-shell`     | Bash/Shell script security and quality analysis                    | ALWAYS          |
+| `/refactor-terraform` | Terraform IaC security and modularity analysis                     | ALWAYS          |
+| `/scaffold`           | Initialize new project with quality gates and Manifest integration | NO              |
+| `/sync-configs`       | Detect cross-platform config drift                                 | NO              |
+| `/ux-review`          | UX/accessibility/performance audit                                 | NO              |
+| `/verify`             | Run linters, tests, and security scans in parallel                 | CONDITIONAL     |
 
 ### Skill Usage
 
@@ -538,13 +538,13 @@ When triggered, it provides inline feedback without blocking user workflow.
 All configuration is symlinked from `~/.claude/` to ensure both Claude and Gemini
 operate from identical orchestration rules.
 
-| File | Purpose |
-|------|---------|
-| `~/.claude/config/command_config.yml` | Thresholds, tool policies, error recovery |
+| File                                       | Purpose                                               |
+| ------------------------------------------ | ----------------------------------------------------- |
+| `~/.claude/config/command_config.yml`      | Thresholds, tool policies, error recovery             |
 | `~/.claude/config/validation_criteria.yml` | Tier 1/Tier 2 validation rules with command overrides |
-| `~/.claude/prompts/preflight_analysis.md` | Pre-flight analysis template |
-| `~/.claude/prompts/synthesis.md` | Agent disagreement synthesis template |
-| `~/.claude/prompts/validation.md` | Validation criteria template |
+| `~/.claude/prompts/preflight_analysis.md`  | Pre-flight analysis template                          |
+| `~/.claude/prompts/synthesis.md`           | Agent disagreement synthesis template                 |
+| `~/.claude/prompts/validation.md`          | Validation criteria template                          |
 
 > Accessible locally via `~/.gemini/config/` and `~/.gemini/prompts/` symlinks.
 

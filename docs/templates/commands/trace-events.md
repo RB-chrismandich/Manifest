@@ -45,6 +45,7 @@ Define your event infrastructure:
 **Topic/Exchange Pattern**: [How topics/exchanges are named]
 
 Examples:
+
 - RabbitMQ: Exchange per domain, routing keys for event types
 - Kafka: Topics per event type
 - AWS SNS/SQS: SNS topics with SQS subscriptions
@@ -58,6 +59,7 @@ Where are event schemas defined in your codebase?
 **Schema Location**: [Path pattern to event definitions]
 
 Examples:
+
 - `libs/events/` - Shared event library
 - `services/*/events/` - Per-service event definitions
 - `proto/events/` - Protocol Buffer definitions
@@ -72,6 +74,7 @@ How are events named?
 **Naming Pattern**: [Convention used]
 
 Examples:
+
 - Domain.Entity.Action (e.g., `Orders.Order.Created`)
 - entity.action (e.g., `order.created`)
 - SCREAMING_SNAKE_CASE (e.g., `ORDER_CREATED`)
@@ -86,6 +89,7 @@ How to identify publishers and consumers in code:
 **Publisher Patterns**: [Code patterns for publishing]
 
 Examples:
+
 - `eventBus.publish("EventName", data)`
 - `producer.send({ topic: "EventName", ... })`
 - `rabbitMQ.publish(exchange, routingKey, message)`
@@ -93,6 +97,7 @@ Examples:
 **Consumer Patterns**: [Code patterns for consuming]
 
 Examples:
+
 - `@Subscribe("EventName")`
 - `eventBus.on("EventName", handler)`
 - `consumer.subscribe("topic", handler)`
@@ -201,36 +206,36 @@ Produce a comprehensive event catalog table:
 ```markdown
 ## Event Catalog
 
-| Event Name | Version | Publisher(s) | Consumer(s) | Schema Location | Cascades To |
-|------------|---------|--------------|-------------|----------------|-------------|
-| OrderCreated | v2 | Orders Service | Inventory, Notifications | `proto/orders.proto` | InventoryReserved, OrderNotificationSent |
-| OrderPaid | v1 | Payments Service | Orders, Analytics | `proto/payments.proto` | OrderFulfilled |
-| ... | ... | ... | ... | ... | ... |
+| Event Name   | Version | Publisher(s)     | Consumer(s)              | Schema Location        | Cascades To                              |
+| ------------ | ------- | ---------------- | ------------------------ | ---------------------- | ---------------------------------------- |
+| OrderCreated | v2      | Orders Service   | Inventory, Notifications | `proto/orders.proto`   | InventoryReserved, OrderNotificationSent |
+| OrderPaid    | v1      | Payments Service | Orders, Analytics        | `proto/payments.proto` | OrderFulfilled                           |
+| ...          | ...     | ...              | ...                      | ...                    | ...                                      |
 
 ### Orphaned Events
 
-| Event Name | Publisher | Reason |
-|------------|-----------|--------|
+| Event Name  | Publisher | Reason             |
+| ----------- | --------- | ------------------ |
 | [EventName] | [Service] | No consumers found |
 
 ### Ghost Consumers
 
-| Event Name | Consumer | Reason |
-|------------|----------|--------|
+| Event Name  | Consumer  | Reason              |
+| ----------- | --------- | ------------------- |
 | [EventName] | [Service] | No publishers found |
 
 ### Event Chains
 
-| Trigger Event | Intermediate Consumer | Cascading Event(s) |
-|---------------|----------------------|-------------------|
-| OrderCreated | Inventory Service | InventoryReserved |
-| InventoryReserved | Orders Service | OrderConfirmed |
+| Trigger Event     | Intermediate Consumer | Cascading Event(s) |
+| ----------------- | --------------------- | ------------------ |
+| OrderCreated      | Inventory Service     | InventoryReserved  |
+| InventoryReserved | Orders Service        | OrderConfirmed     |
 
 ### Event Cycles Detected
 
-| Cycle | Components Involved |
-|-------|---------------------|
-| OrderCreated → InventoryReserved → OrderCreated | Orders, Inventory |
+| Cycle                                           | Components Involved |
+| ----------------------------------------------- | ------------------- |
+| OrderCreated → InventoryReserved → OrderCreated | Orders, Inventory   |
 ```
 
 ### Step 7: Generate Topology Diagram
@@ -333,7 +338,7 @@ For complex event chains or ambiguous code patterns, use parallel agents:
 
 Use consensus to validate:
 
-- >= 80%: Confident this is a publisher/consumer
+- > = 80%: Confident this is a publisher/consumer
 - 50-79%: Likely but needs verification
 - < 50%: Ambiguous, flag for human review
 
@@ -426,9 +431,11 @@ jobs:
 **Naming Pattern**: Domain.Entity.Action (e.g., `orders.Order.Created`)
 
 **Publisher Patterns**:
+
 - `rabbitMQ.Publish(exchange, routingKey, protoMessage)`
 
 **Consumer Patterns**:
+
 - `rabbitMQ.Subscribe(exchange, routingKey, handler)`
 ```
 
@@ -444,9 +451,11 @@ jobs:
 **Naming Pattern**: PascalCase (e.g., `OrderCreated`)
 
 **Publisher Patterns**:
+
 - `sns.publish({ TopicArn: ..., Message: JSON.stringify(event) })`
 
 **Consumer Patterns**:
+
 - SQS queue subscriptions defined in `infrastructure/sqs-subscriptions.yml`
 - `sqs.receiveMessage({ QueueUrl: ... })` in consumer code
 ```
@@ -463,9 +472,11 @@ jobs:
 **Naming Pattern**: dot.case (e.g., `orders.created`)
 
 **Publisher Patterns**:
+
 - `producer.send({ topic: "orders.created", messages: [...] })`
 
 **Consumer Patterns**:
+
 - `consumer.subscribe({ topics: ["orders.created"] })`
 ```
 

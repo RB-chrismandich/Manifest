@@ -21,9 +21,9 @@ Before using this command, customize the following sections for your project:
 
 ### Component/Service Map
 
-| Component | Language | Responsibility |
-|-----------|----------|----------------|
-| [Name] | [Lang] | [Brief description] |
+| Component | Language | Responsibility      |
+| --------- | -------- | ------------------- |
+| [Name]    | [Lang]   | [Brief description] |
 ```
 
 ### Key Constraints (Required)
@@ -61,9 +61,9 @@ npm run lint
 If your project has per-component agent files:
 
 ```markdown
-| Component | Agent File | Scope |
-|-----------|-----------|-------|
-| [Name] | `[path]/AGENTS.md` | [What it covers] |
+| Component | Agent File         | Scope            |
+| --------- | ------------------ | ---------------- |
+| [Name]    | `[path]/AGENTS.md` | [What it covers] |
 ```
 
 ---
@@ -89,6 +89,7 @@ Before planning or implementing anything, verify that the issue has been through
 2. **Check for `planned` label**:
    - If the issue **has** the `planned` label → proceed to step 3
    - If the issue **does not** have the `planned` label → **HARD STOP**. Report to the user:
+
      > This issue has not been planned yet. Run `/plan-issue $ARGUMENTS` first to generate an implementation plan, then re-run `/process-issue $ARGUMENTS`.
 
      Do not proceed. Do not implement anything. Stop here.
@@ -120,7 +121,7 @@ Before planning or implementing anything, verify that the issue has been through
    - The item text
    - Whether it's in the issue **body** or a **comment** (and if a comment, its `comment_id` — available from the API response)
    - Its current checked/unchecked state
-   Each checklist item becomes a trackable deliverable that must be addressed during implementation. If neither the body nor comments contain checklists, note this and proceed — the implementation summary will still be posted.
+     Each checklist item becomes a trackable deliverable that must be addressed during implementation. If neither the body nor comments contain checklists, note this and proceed — the implementation summary will still be posted.
 3. **Cross-reference checklists with the plan**: Map each checklist item to the relevant task(s) in the implementation plan extracted in Step 0.5. This ensures no acceptance criteria are missed during implementation.
 4. **Validate the plan against current codebase state**: Run a quick sanity check — do the files referenced in the plan still exist? Have they changed significantly since the plan was created? If the plan references files that no longer exist or have been substantially modified, warn the user that the plan may be stale and suggest re-running `/plan-issue`.
 5. Use the **Implementation Order** from the plan to produce the per-component task breakdown. Only run a cross-component impact analysis if the plan lacks an Implementation Order section:
@@ -213,11 +214,11 @@ gh api repos/{owner}/{repo}/issues/comments/{comment_id} -X PATCH --field body="
 
 Based on Step 4 consensus and test results:
 
-| Condition | Label | Meaning |
-|-----------|-------|---------|
-| All tests pass AND consensus >= 80% | `processed` | Fully implemented, validated, ready to merge |
-| Tests pass but consensus 50-79%, OR minor items unresolved | `needs-review` | Implemented but requires human review |
-| Any test failure, consensus < 50%, or blocked items | `needs-review` | Partial implementation, issues documented |
+| Condition                                                  | Label          | Meaning                                      |
+| ---------------------------------------------------------- | -------------- | -------------------------------------------- |
+| All tests pass AND consensus >= 80%                        | `processed`    | Fully implemented, validated, ready to merge |
+| Tests pass but consensus 50-79%, OR minor items unresolved | `needs-review` | Implemented but requires human review        |
+| Any test failure, consensus < 50%, or blocked items        | `needs-review` | Partial implementation, issues documented    |
 
 #### 5c. Build the checklist status report
 
@@ -226,10 +227,10 @@ If the issue body or comments contained checklists (extracted in Step 1), produc
 ```markdown
 ### Checklist Status
 
-| # | Source | Item | Status | Notes |
-|---|--------|------|--------|-------|
-| 1 | Body | [original checklist item text] | ✅ Done / ⚠️ Partial / ❌ Blocked | [brief explanation or commit ref] |
-| 2 | Comment #123 | [original checklist item text] | ✅ Done / ⚠️ Partial / ❌ Blocked | [brief explanation] |
+| #   | Source       | Item                           | Status                            | Notes                             |
+| --- | ------------ | ------------------------------ | --------------------------------- | --------------------------------- |
+| 1   | Body         | [original checklist item text] | ✅ Done / ⚠️ Partial / ❌ Blocked | [brief explanation or commit ref] |
+| 2   | Comment #123 | [original checklist item text] | ✅ Done / ⚠️ Partial / ❌ Blocked | [brief explanation]               |
 ```
 
 - **✅ Done**: Fully implemented and tested

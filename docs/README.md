@@ -19,32 +19,32 @@
 
 ### For New Users
 
-| Document | Description | Estimated Time |
-|----------|-------------|----------------|
-| [Getting Started](GETTING_STARTED.md) | First-time setup walkthrough | 10 minutes |
-| [Architecture Diagrams](ARCHITECTURE_DIAGRAMS.md) | Visual overview of the system | 5 minutes |
+| Document                                          | Description                   | Estimated Time |
+| ------------------------------------------------- | ----------------------------- | -------------- |
+| [Getting Started](GETTING_STARTED.md)             | First-time setup walkthrough  | 10 minutes     |
+| [Architecture Diagrams](ARCHITECTURE_DIAGRAMS.md) | Visual overview of the system | 5 minutes      |
 
 ### For Operators
 
-| Document | Description | Use When |
-|----------|-------------|----------|
-| [Configuration](CONFIGURATION.md) | All configuration options and examples | Customizing behavior |
-| [Troubleshooting](TROUBLESHOOTING.md) | Common problems and solutions | Something isn't working |
+| Document                              | Description                            | Use When                |
+| ------------------------------------- | -------------------------------------- | ----------------------- |
+| [Configuration](CONFIGURATION.md)     | All configuration options and examples | Customizing behavior    |
+| [Troubleshooting](TROUBLESHOOTING.md) | Common problems and solutions          | Something isn't working |
 
 ### For Developers
 
-| Document | Description | Use When |
-|----------|-------------|----------|
-| [Architecture Diagrams](ARCHITECTURE_DIAGRAMS.md) | System design and data flows | Understanding internals |
-| [CLAUDE.md](../CLAUDE.md) | Repository context and structure | Contributing code |
-| [.claude/CLAUDE.md](../.claude/CLAUDE.md) | Orchestration guide (deployed version) | Deep dive into orchestration |
+| Document                                          | Description                            | Use When                     |
+| ------------------------------------------------- | -------------------------------------- | ---------------------------- |
+| [Architecture Diagrams](ARCHITECTURE_DIAGRAMS.md) | System design and data flows           | Understanding internals      |
+| [CLAUDE.md](../CLAUDE.md)                         | Repository context and structure       | Contributing code            |
+| [.claude/CLAUDE.md](../.claude/CLAUDE.md)         | Orchestration guide (deployed version) | Deep dive into orchestration |
 
 ### For Contributors
 
-| Document | Description | Use When |
-|----------|-------------|----------|
+| Document                              | Description             | Use When              |
+| ------------------------------------- | ----------------------- | --------------------- |
 | [CONTRIBUTING.md](../CONTRIBUTING.md) | Contribution guidelines | Before submitting PRs |
-| [CHANGELOG.md](../CHANGELOG.md) | Version history | Tracking changes |
+| [CHANGELOG.md](../CHANGELOG.md)       | Version history         | Tracking changes      |
 
 ---
 
@@ -52,35 +52,35 @@
 
 ### Core Documentation
 
-| File | Description | Last Updated | Status |
-|------|-------------|--------------|--------|
-| [README.md](../README.md) | Project overview and quick start | 2026-01-27 | ✅ |
-| [CLAUDE.md](../CLAUDE.md) | AI assistant context for the repository | - | ⚠️ Needs update metadata |
-| [CONTRIBUTING.md](../CONTRIBUTING.md) | How to contribute to the project | - | 📝 To be created |
-| [CHANGELOG.md](../CHANGELOG.md) | Version history and release notes | - | 📝 To be created |
+| File                                  | Description                             | Last Updated | Status                   |
+| ------------------------------------- | --------------------------------------- | ------------ | ------------------------ |
+| [README.md](../README.md)             | Project overview and quick start        | 2026-01-27   | ✅                       |
+| [CLAUDE.md](../CLAUDE.md)             | AI assistant context for the repository | -            | ⚠️ Needs update metadata |
+| [CONTRIBUTING.md](../CONTRIBUTING.md) | How to contribute to the project        | -            | 📝 To be created         |
+| [CHANGELOG.md](../CHANGELOG.md)       | Version history and release notes       | -            | 📝 To be created         |
 
 ### User Documentation
 
-| File | Description | Last Updated | Status |
-|------|-------------|--------------|--------|
-| [GETTING_STARTED.md](GETTING_STARTED.md) | First-time user guide | 2026-01-27 | ✅ |
-| [CONFIGURATION.md](CONFIGURATION.md) | Configuration reference | 2026-01-27 | ✅ |
-| [TROUBLESHOOTING.md](TROUBLESHOOTING.md) | Common issues and solutions | 2026-01-27 | ✅ |
+| File                                     | Description                 | Last Updated | Status |
+| ---------------------------------------- | --------------------------- | ------------ | ------ |
+| [GETTING_STARTED.md](GETTING_STARTED.md) | First-time user guide       | 2026-01-27   | ✅     |
+| [CONFIGURATION.md](CONFIGURATION.md)     | Configuration reference     | 2026-01-27   | ✅     |
+| [TROUBLESHOOTING.md](TROUBLESHOOTING.md) | Common issues and solutions | 2026-01-27   | ✅     |
 
 ### Technical Documentation
 
-| File | Description | Last Updated | Status |
-|------|-------------|--------------|--------|
-| [ARCHITECTURE_DIAGRAMS.md](ARCHITECTURE_DIAGRAMS.md) | Visual system documentation | 2026-01-27 | ✅ |
+| File                                                 | Description                 | Last Updated | Status |
+| ---------------------------------------------------- | --------------------------- | ------------ | ------ |
+| [ARCHITECTURE_DIAGRAMS.md](ARCHITECTURE_DIAGRAMS.md) | Visual system documentation | 2026-01-27   | ✅     |
 
 ### Internal Documentation
 
-| File | Description | Purpose |
-|------|-------------|---------|
-| [configs/claude/CLAUDE.md](../configs/claude/CLAUDE.md) | Orchestration guide (deployed to ~/.claude/) | AI agent coordination |
-| [configs/claude/skills/\*/SKILL.md](../configs/claude/skills/) | Skill definitions (slash commands) | Command behavior |
-| [configs/claude/prompts/\*.md](../configs/claude/prompts/) | Agent orchestration templates | Synthesis and validation |
-| [configs/claude/skills/code-quality/SKILL.md](../configs/claude/skills/code-quality/SKILL.md) | Auto-triggered code quality skill | Security/quality checks |
+| File                                                                                          | Description                                  | Purpose                  |
+| --------------------------------------------------------------------------------------------- | -------------------------------------------- | ------------------------ |
+| [configs/claude/CLAUDE.md](../configs/claude/CLAUDE.md)                                       | Orchestration guide (deployed to ~/.claude/) | AI agent coordination    |
+| [configs/claude/skills/\*/SKILL.md](../configs/claude/skills/)                                | Skill definitions (slash commands)           | Command behavior         |
+| [configs/claude/prompts/\*.md](../configs/claude/prompts/)                                    | Agent orchestration templates                | Synthesis and validation |
+| [configs/claude/skills/code-quality/SKILL.md](../configs/claude/skills/code-quality/SKILL.md) | Auto-triggered code quality skill            | Security/quality checks  |
 
 ---
 
@@ -104,7 +104,7 @@ Every user-facing document MUST include:
 # All code blocks MUST specify language
 services:
   claude:
-    enabled: true  # Good: syntax highlighting works
+    enabled: true # Good: syntax highlighting works
 ```
 
 ### Link Standards

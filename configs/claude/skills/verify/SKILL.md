@@ -41,12 +41,12 @@ proceed with the standard verification.
 Scan the target directory for indicator files to determine the language(s) in use.
 Run checks for every detected language.
 
-| Language | Indicator Files |
-|----------|----------------|
-| Python | `pyproject.toml`, `setup.py`, `requirements.txt`, `*.py` |
-| Go | `go.mod`, `go.sum`, `*.go` |
-| Node | `package.json`, `tsconfig.json`, `*.ts`, `*.js` |
-| Terraform | `*.tf`, `*.tfvars` |
+| Language  | Indicator Files                                          |
+| --------- | -------------------------------------------------------- |
+| Python    | `pyproject.toml`, `setup.py`, `requirements.txt`, `*.py` |
+| Go        | `go.mod`, `go.sum`, `*.go`                               |
+| Node      | `package.json`, `tsconfig.json`, `*.ts`, `*.js`          |
+| Terraform | `*.tf`, `*.tfvars`                                       |
 
 If no language is detected, report an error and stop.
 
@@ -56,11 +56,11 @@ If no language is detected, report an error and stop.
 
 Based on the detected language, select the tools for each gate category.
 
-| Category | Python | Go | Node | Terraform |
-|----------|--------|----|------|-----------|
-| **Lint** | `ruff check .` | `golangci-lint run` | `npx eslint .` | `tflint` |
-| **Test** | `pytest --tb=short -q` | `go test ./...` | `npx vitest run` | `terraform validate` |
-| **Security** | `bandit -r . -q` | `gosec ./...` | `npm audit --audit-level=moderate` | `tfsec .` |
+| Category     | Python                 | Go                  | Node                               | Terraform            |
+| ------------ | ---------------------- | ------------------- | ---------------------------------- | -------------------- |
+| **Lint**     | `ruff check .`         | `golangci-lint run` | `npx eslint .`                     | `tflint`             |
+| **Test**     | `pytest --tb=short -q` | `go test ./...`     | `npx vitest run`                   | `terraform validate` |
+| **Security** | `bandit -r . -q`       | `gosec ./...`       | `npm audit --audit-level=moderate` | `tfsec .`            |
 
 Before running a tool, verify it is installed with `command -v <tool>`. If a tool
 is missing, record its category as `skip` with a message explaining which tool to
@@ -113,13 +113,13 @@ Add browser test results to the Phase 4 classification and Phase 5 report table 
 
 Classify each category result:
 
-| Exit Code | Classification | Meaning |
-|-----------|---------------|---------|
-| 0 | **pass** | No issues found |
-| 1 | **warn** | Issues found but non-blocking (lint warnings, low-severity findings) |
-| 2+ | **fail** | Critical issues (test failures, high-severity vulnerabilities) |
-| timeout | **fail** | Tool exceeded 120s timeout |
-| skip | **skip** | Tool not installed |
+| Exit Code | Classification | Meaning                                                              |
+| --------- | -------------- | -------------------------------------------------------------------- |
+| 0         | **pass**       | No issues found                                                      |
+| 1         | **warn**       | Issues found but non-blocking (lint warnings, low-severity findings) |
+| 2+        | **fail**       | Critical issues (test failures, high-severity vulnerabilities)       |
+| timeout   | **fail**       | Tool exceeded 120s timeout                                           |
+| skip      | **skip**       | Tool not installed                                                   |
 
 For security scans, further classify by severity:
 
@@ -140,21 +140,24 @@ For security scans, further classify by severity:
 
 ### Results
 
-| Category | Tool | Status | Summary |
-|----------|------|--------|---------|
-| Lint | ruff | pass | 0 issues |
-| Test | pytest | fail | 3 failed, 42 passed |
-| Security | bandit | warn | 2 medium-severity findings |
+| Category | Tool   | Status | Summary                    |
+| -------- | ------ | ------ | -------------------------- |
+| Lint     | ruff   | pass   | 0 issues                   |
+| Test     | pytest | fail   | 3 failed, 42 passed        |
+| Security | bandit | warn   | 2 medium-severity findings |
 
 ### Details
 
 #### Lint
+
 {trimmed lint output -- first 50 lines}
 
 #### Test
+
 {trimmed test output -- first 50 lines}
 
 #### Security
+
 {trimmed security output -- first 50 lines}
 
 ### Verdict

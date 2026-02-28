@@ -411,13 +411,13 @@ After all phases complete (or fail), provide a summary:
 ```markdown
 ## Deployment Pipeline Summary
 
-| Phase | Status | Duration | Notes |
-|-------|--------|----------|-------|
-| 1. Run Tests | ✅ pass | 2m 15s | Coverage: 87% |
-| 2. Build Artifacts | ✅ pass | 3m 42s | Image: myapp:staging-abc123 |
-| 3. Validate Plan | ✅ pass | 1m 8s | Consensus: 92% |
-| 4. Deploy | ✅ pass | 45s | Rollout complete |
-| 5. Verify | ⚠️ warn | 32s | 1 endpoint slow to respond |
+| Phase              | Status  | Duration | Notes                       |
+| ------------------ | ------- | -------- | --------------------------- |
+| 1. Run Tests       | ✅ pass | 2m 15s   | Coverage: 87%               |
+| 2. Build Artifacts | ✅ pass | 3m 42s   | Image: myapp:staging-abc123 |
+| 3. Validate Plan   | ✅ pass | 1m 8s    | Consensus: 92%              |
+| 4. Deploy          | ✅ pass | 45s      | Rollout complete            |
+| 5. Verify          | ⚠️ warn | 32s      | 1 endpoint slow to respond  |
 
 **Overall**: SUCCESS (with warnings)
 **Environment**: staging
@@ -426,6 +426,7 @@ After all phases complete (or fail), provide a summary:
 **Deployed At**: 2026-02-04 18:45:23 UTC
 
 **Post-Deployment Notes**:
+
 - Endpoint /api/reports slow (2.1s response)
 - Recommend monitoring for 30 minutes
 - Rollback command: kubectl rollout undo deployment/myapp -n staging
@@ -522,15 +523,17 @@ npm test -- --coverage --coverageThreshold='{"global":{"lines":80}}'
 
 Add as Phase 2.5 (between Build and Validate):
 
-```markdown
+````markdown
 ## Phase 2.5: Run Database Migrations
 
 **Success Criteria**:
+
 - [ ] Migrations run successfully
 - [ ] No data loss
 - [ ] Backwards compatible (old code still works)
 
 **Implementation**:
+
 ```bash
 # Django
 python manage.py migrate --no-input
@@ -541,8 +544,9 @@ alembic upgrade head
 # Go migrate
 migrate -path ./migrations -database "$DATABASE_URL" up
 ```
+````
 
-```
+````
 
 ---
 
@@ -574,7 +578,7 @@ jobs:
       - name: Deploy to Staging
         run: |
           claude run /full-deployment-pipeline staging
-```
+````
 
 ---
 

@@ -131,7 +131,7 @@ npm --version
 ```json
 {
   "agents": {
-    "claude": {"status": "missing"}
+    "claude": { "status": "missing" }
   }
 }
 ```
@@ -162,7 +162,7 @@ gemini --version
 ```json
 {
   "agents": {
-    "claude": {"status": "failed", "output": "Error: ..."}
+    "claude": { "status": "failed", "output": "Error: ..." }
   }
 }
 ```

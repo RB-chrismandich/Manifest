@@ -57,17 +57,17 @@ mv ~/.claude/settings.json.new ~/.claude/settings.json
 
 **Included Permissions** (200+ safe commands):
 
-| Category | Examples | Risk Level |
-|----------|----------|------------|
-| Web Access | WebFetch (GitHub, docs, npm, AWS), WebSearch | Low - Read-only |
-| File Operations | Read, ls, cat, head, tail, grep, find | Low - Read-only |
-| Git Operations | status, diff, log, fetch, pull, add, checkout | Low - Local only |
-| GitHub CLI | issue/pr view, repo view, run view | Low - Read-only |
-| Python Tools | pytest, mypy, ruff, bandit, pip list/show | Low - Analysis |
-| Pre-commit | pre-commit run --all-files | Low - Local checks |
-| Docker | ps, images, logs, stats | Low - Inspection |
-| AWS | Read-only describe/list operations | Low - No modifications |
-| Parallel Agents | ~/.claude/scripts/parallel_agent.sh | Low - Analysis |
+| Category        | Examples                                      | Risk Level             |
+| --------------- | --------------------------------------------- | ---------------------- |
+| Web Access      | WebFetch (GitHub, docs, npm, AWS), WebSearch  | Low - Read-only        |
+| File Operations | Read, ls, cat, head, tail, grep, find         | Low - Read-only        |
+| Git Operations  | status, diff, log, fetch, pull, add, checkout | Low - Local only       |
+| GitHub CLI      | issue/pr view, repo view, run view            | Low - Read-only        |
+| Python Tools    | pytest, mypy, ruff, bandit, pip list/show     | Low - Analysis         |
+| Pre-commit      | pre-commit run --all-files                    | Low - Local checks     |
+| Docker          | ps, images, logs, stats                       | Low - Inspection       |
+| AWS             | Read-only describe/list operations            | Low - No modifications |
+| Parallel Agents | ~/.claude/scripts/parallel_agent.sh           | Low - Analysis         |
 
 **Excluded** (requires prompt):
 
@@ -322,13 +322,15 @@ These templates integrate with Manifest's core features:
 
 Use in custom commands:
 
-```markdown
+````markdown
 ## Phase 3: Validation
 
 Run validation with overrides:
+
 ```bash
 ~/.claude/scripts/parallel_agent.sh --validate --review $CHANGED_FILE
 ```
+````
 
 ```text
 
@@ -370,3 +372,4 @@ To add a new template:
 ## License
 
 Same as Manifest project (see root LICENSE file)
+```

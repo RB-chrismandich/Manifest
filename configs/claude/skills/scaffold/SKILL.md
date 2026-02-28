@@ -24,12 +24,12 @@ and Manifest agent integration out of the box.
 If a language argument is provided, use it directly. Otherwise, detect the language
 by scanning the current directory for indicator files:
 
-| Language | Indicator Files |
-|----------|----------------|
-| Python | `pyproject.toml`, `setup.py`, `setup.cfg`, `requirements.txt`, `*.py` |
-| Go | `go.mod`, `go.sum`, `*.go` |
-| Node | `package.json`, `tsconfig.json`, `*.ts`, `*.js` |
-| Terraform | `*.tf`, `*.tfvars`, `terraform.tfstate` |
+| Language  | Indicator Files                                                       |
+| --------- | --------------------------------------------------------------------- |
+| Python    | `pyproject.toml`, `setup.py`, `setup.cfg`, `requirements.txt`, `*.py` |
+| Go        | `go.mod`, `go.sum`, `*.go`                                            |
+| Node      | `package.json`, `tsconfig.json`, `*.ts`, `*.js`                       |
+| Terraform | `*.tf`, `*.tfvars`, `terraform.tfstate`                               |
 
 **Priority**: If multiple languages are detected, ask the user to specify which one.
 If no language is detected and none was provided, stop and report:
@@ -70,10 +70,10 @@ For each language, copy and process the following files:
 
 ### Python
 
-| Template | Destination | Processing |
-|----------|-------------|------------|
-| `templates/scaffold/python/pyproject.toml` | `pyproject.toml` | Replace `__PROJECT_NAME__` with project name |
-| `templates/scaffold/python/.pre-commit-config.yaml` | `.pre-commit-config.yaml` | Copy as-is |
+| Template                                            | Destination               | Processing                                   |
+| --------------------------------------------------- | ------------------------- | -------------------------------------------- |
+| `templates/scaffold/python/pyproject.toml`          | `pyproject.toml`          | Replace `__PROJECT_NAME__` with project name |
+| `templates/scaffold/python/.pre-commit-config.yaml` | `.pre-commit-config.yaml` | Copy as-is                                   |
 
 Create these additional files if they do not exist:
 
@@ -84,11 +84,11 @@ Create these additional files if they do not exist:
 
 ### Go
 
-| Template | Destination | Processing |
-|----------|-------------|------------|
-| `templates/scaffold/go/go.mod.tmpl` | `go.mod` | Replace `__MODULE_PATH__` with module path |
-| `templates/scaffold/go/Makefile` | `Makefile` | Copy as-is |
-| `templates/scaffold/go/.golangci.yml` | `.golangci.yml` | Copy as-is |
+| Template                              | Destination     | Processing                                 |
+| ------------------------------------- | --------------- | ------------------------------------------ |
+| `templates/scaffold/go/go.mod.tmpl`   | `go.mod`        | Replace `__MODULE_PATH__` with module path |
+| `templates/scaffold/go/Makefile`      | `Makefile`      | Copy as-is                                 |
+| `templates/scaffold/go/.golangci.yml` | `.golangci.yml` | Copy as-is                                 |
 
 Create these additional files if they do not exist:
 
@@ -98,11 +98,11 @@ Create these additional files if they do not exist:
 
 ### Node
 
-| Template | Destination | Processing |
-|----------|-------------|------------|
-| `templates/scaffold/node/package.json.tmpl` | `package.json` | Replace `__PROJECT_NAME__` with project name |
-| `templates/scaffold/node/tsconfig.json` | `tsconfig.json` | Copy as-is |
-| `templates/scaffold/node/eslint.config.js` | `eslint.config.js` | Copy as-is |
+| Template                                    | Destination        | Processing                                   |
+| ------------------------------------------- | ------------------ | -------------------------------------------- |
+| `templates/scaffold/node/package.json.tmpl` | `package.json`     | Replace `__PROJECT_NAME__` with project name |
+| `templates/scaffold/node/tsconfig.json`     | `tsconfig.json`    | Copy as-is                                   |
+| `templates/scaffold/node/eslint.config.js`  | `eslint.config.js` | Copy as-is                                   |
 
 Create these additional files if they do not exist:
 
@@ -112,11 +112,11 @@ Create these additional files if they do not exist:
 
 ### Terraform
 
-| Template | Destination | Processing |
-|----------|-------------|------------|
-| `templates/scaffold/terraform/main.tf.tmpl` | `main.tf` | Replace `__PROJECT_NAME__` with project name |
-| `templates/scaffold/terraform/.tflint.hcl` | `.tflint.hcl` | Copy as-is |
-| `templates/scaffold/terraform/versions.tf.tmpl` | `versions.tf` | Copy as-is (no substitution needed) |
+| Template                                        | Destination   | Processing                                   |
+| ----------------------------------------------- | ------------- | -------------------------------------------- |
+| `templates/scaffold/terraform/main.tf.tmpl`     | `main.tf`     | Replace `__PROJECT_NAME__` with project name |
+| `templates/scaffold/terraform/.tflint.hcl`      | `.tflint.hcl` | Copy as-is                                   |
+| `templates/scaffold/terraform/versions.tf.tmpl` | `versions.tf` | Copy as-is (no substitution needed)          |
 
 Create these additional files if they do not exist:
 
@@ -284,23 +284,23 @@ After scaffolding is complete, output a summary in this format:
 
 ### Files Created
 
-| File | Status |
-|------|--------|
-| pyproject.toml | Created |
-| .pre-commit-config.yaml | Created |
-| src/my_project/__init__.py | Created |
-| tests/test_placeholder.py | Created |
+| File                        | Status           |
+| --------------------------- | ---------------- |
+| pyproject.toml              | Created          |
+| .pre-commit-config.yaml     | Created          |
+| src/my_project/**init**.py  | Created          |
+| tests/test_placeholder.py   | Created          |
 | .claude/settings.local.json | Skipped (exists) |
 
 ### Quality Gates Configured
 
-| Tool | Purpose | Config |
-|------|---------|--------|
-| ruff | Linting + formatting | pyproject.toml [tool.ruff] |
-| pytest | Testing | pyproject.toml [tool.pytest] |
-| mypy | Type checking | pyproject.toml [tool.mypy] |
-| pre-commit | Git hooks | .pre-commit-config.yaml |
-| gitleaks | Secret scanning | .pre-commit-config.yaml |
+| Tool       | Purpose              | Config                       |
+| ---------- | -------------------- | ---------------------------- |
+| ruff       | Linting + formatting | pyproject.toml [tool.ruff]   |
+| pytest     | Testing              | pyproject.toml [tool.pytest] |
+| mypy       | Type checking        | pyproject.toml [tool.mypy]   |
+| pre-commit | Git hooks            | .pre-commit-config.yaml      |
+| gitleaks   | Secret scanning      | .pre-commit-config.yaml      |
 
 ### Next Steps
 

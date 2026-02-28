@@ -31,7 +31,7 @@ When context usage exceeds the threshold (default 95%), create a compressed summ
 
 Parse the most recent system warning for token usage:
 
-```text
+````text
 Token usage: X/200000; Y remaining
 ```text
 
@@ -263,3 +263,4 @@ This command should be **auto-invoked** when:
 - Memory system: `~/.claude/memory/MEMORY.md`
 - Project memory: `~/.claude/projects/.../memory/MEMORY.md`
 - Scratchpad directory: Session-specific temp storage
+````

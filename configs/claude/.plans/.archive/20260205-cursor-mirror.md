@@ -59,8 +59,8 @@ duplicate configuration.
 
 - [x] **4.1** Update `bootstrap.sh` to deploy `.cursor/` alongside `.claude/` (auto-deploys with rules + symlinks)
 - [x] **4.2** ~~Add `--enable-cursor-config` / `--disable-cursor-config` flags~~
-  — Simplified: Cursor config always deploys alongside Claude
-  (no separate toggle needed since it's lightweight)
+      — Simplified: Cursor config always deploys alongside Claude
+      (no separate toggle needed since it's lightweight)
 
 ### Phase 5: Documentation
 
@@ -69,26 +69,26 @@ duplicate configuration.
 
 ## Related Files
 
-| File | Change |
-|------|--------|
-| `.cursor/` (new dir) | Create entire directory structure |
-| `.cursor/scripts` | Symlink → `../.claude/scripts/` |
-| `.cursor/config` | Symlink → `../.claude/config/` |
-| `.cursor/prompts` | Symlink → `../.claude/prompts/` |
-| `.cursor/.plans` | Symlink → `../.claude/.plans/` |
-| `.cursor/rules/orchestration.mdc` | New file — adapted from `.claude/CLAUDE.md` |
-| `.cursor/rules/code-quality.mdc` | New file — adapted from `.claude/skills/code-quality/SKILL.md` |
-| `.cursor/rules/refactor-python.mdc` | New file — adapted from `.claude/commands/refactor-python.md` |
-| `.cursor/rules/refactor-shell.mdc` | New file — adapted from `.claude/commands/refactor-shell.md` |
-| `.cursor/rules/docs-readme.mdc` | New file — adapted from `.claude/commands/docs-readme.md` |
-| `.cursor/rules/docs-improve.mdc` | New file — adapted from `.claude/commands/docs-improve.md` |
-| `.cursor/rules/docs-diagrams.mdc` | New file — adapted from `.claude/commands/docs-diagrams.md` |
-| `.cursor/rules/project-commit.mdc` | New file — adapted from `.claude/commands/project-commit.md` |
-| `.cursor/rules/plan-manage.mdc` | New file — adapted from `.claude/commands/plan-manage.md` |
-| `AGENTS.md` | New file — project instructions for Cursor |
-| `bootstrap.sh` | Add `.cursor/` deployment support |
-| `CLAUDE.md` (project root) | Document `.cursor/` mirror |
-| `README.md` | Mention Cursor compatibility |
+| File                                | Change                                                         |
+| ----------------------------------- | -------------------------------------------------------------- |
+| `.cursor/` (new dir)                | Create entire directory structure                              |
+| `.cursor/scripts`                   | Symlink → `../.claude/scripts/`                                |
+| `.cursor/config`                    | Symlink → `../.claude/config/`                                 |
+| `.cursor/prompts`                   | Symlink → `../.claude/prompts/`                                |
+| `.cursor/.plans`                    | Symlink → `../.claude/.plans/`                                 |
+| `.cursor/rules/orchestration.mdc`   | New file — adapted from `.claude/CLAUDE.md`                    |
+| `.cursor/rules/code-quality.mdc`    | New file — adapted from `.claude/skills/code-quality/SKILL.md` |
+| `.cursor/rules/refactor-python.mdc` | New file — adapted from `.claude/commands/refactor-python.md`  |
+| `.cursor/rules/refactor-shell.mdc`  | New file — adapted from `.claude/commands/refactor-shell.md`   |
+| `.cursor/rules/docs-readme.mdc`     | New file — adapted from `.claude/commands/docs-readme.md`      |
+| `.cursor/rules/docs-improve.mdc`    | New file — adapted from `.claude/commands/docs-improve.md`     |
+| `.cursor/rules/docs-diagrams.mdc`   | New file — adapted from `.claude/commands/docs-diagrams.md`    |
+| `.cursor/rules/project-commit.mdc`  | New file — adapted from `.claude/commands/project-commit.md`   |
+| `.cursor/rules/plan-manage.mdc`     | New file — adapted from `.claude/commands/plan-manage.md`      |
+| `AGENTS.md`                         | New file — project instructions for Cursor                     |
+| `bootstrap.sh`                      | Add `.cursor/` deployment support                              |
+| `CLAUDE.md` (project root)          | Document `.cursor/` mirror                                     |
+| `README.md`                         | Mention Cursor compatibility                                   |
 
 ## Implementation Notes
 
@@ -125,7 +125,6 @@ description: Analyze Python codebase for security
 allowed-tools: Read, Glob, Grep
 argument-hint: [file-or-directory]
 ---
-
 # Cursor rule frontmatter:
 ---
 description: "Analyze Python codebase for security, architecture, and code quality"
@@ -177,8 +176,8 @@ The body text is preserved with minor adjustments:
 
 ## Log
 
-| Date | Entry |
-|------|-------|
+| Date       | Entry                                                                                                                                                                             |
+| ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 2026-02-05 | Plan created. Parallel agents: Gemini only (Cursor CLI missing, Claude CLI disabled with --no-claude). Synthesized with Explore agent codebase analysis and Cursor docs research. |
-| 2026-02-05 | All deliverables completed. 4 symlinks, 9 .mdc rules, AGENTS.md, bootstrap.sh updated, CLAUDE.md and README.md updated. Ready for archive. |
-| 2026-02-05 | Cross-referenced with gemini-mirror plan. All phases complete. |
+| 2026-02-05 | All deliverables completed. 4 symlinks, 9 .mdc rules, AGENTS.md, bootstrap.sh updated, CLAUDE.md and README.md updated. Ready for archive.                                        |
+| 2026-02-05 | Cross-referenced with gemini-mirror plan. All phases complete.                                                                                                                    |

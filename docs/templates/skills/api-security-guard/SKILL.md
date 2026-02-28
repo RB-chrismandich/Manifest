@@ -93,10 +93,10 @@ class CreateUserRequest(BaseModel):
 
 ```javascript
 // JavaScript/Express with Joi
-const Joi = require('joi');
+const Joi = require("joi");
 const schema = Joi.object({
   email: Joi.string().email().required(),
-  age: Joi.number().integer().min(0).max(120).required()
+  age: Joi.number().integer().min(0).max(120).required(),
 });
 const { error, value } = schema.validate(req.body);
 ```
@@ -132,15 +132,15 @@ class UserViewSet(viewsets.ModelViewSet):
 
 ```javascript
 // JavaScript/Express
-const requireAuth = require('./middleware/auth');
-app.post('/api/users', requireAuth, createUserHandler);
+const requireAuth = require("./middleware/auth");
+app.post("/api/users", requireAuth, createUserHandler);
 ```
 
 **Bad patterns**:
 
 ```javascript
 // NO authentication!
-app.post('/api/users/:id/delete', async (req, res) => {
+app.post("/api/users/:id/delete", async (req, res) => {
   await User.deleteOne({ _id: req.params.id });
   // Anyone can delete any user!
 });
@@ -168,7 +168,7 @@ def get_user_profile(request, user_id):
 
 ```javascript
 // JavaScript - Filter by authenticated user
-app.get('/api/orders', requireAuth, async (req, res) => {
+app.get("/api/orders", requireAuth, async (req, res) => {
   const orders = await Order.find({ userId: req.user.id });
   // Only return orders belonging to authenticated user
 });
@@ -178,7 +178,7 @@ app.get('/api/orders', requireAuth, async (req, res) => {
 
 ```javascript
 // IDOR vulnerability!
-app.get('/api/orders/:id', requireAuth, async (req, res) => {
+app.get("/api/orders/:id", requireAuth, async (req, res) => {
   const order = await Order.findById(req.params.id);
   // No ownership check! Any authenticated user can see any order
 });
@@ -205,15 +205,15 @@ Verify that high-risk endpoints have rate limits:
 
 ```javascript
 // Express with express-rate-limit
-const rateLimit = require('express-rate-limit');
+const rateLimit = require("express-rate-limit");
 
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 5, // 5 requests per window
-  message: 'Too many login attempts, please try again later'
+  message: "Too many login attempts, please try again later",
 });
 
-app.post('/auth/login', loginLimiter, loginHandler);
+app.post("/auth/login", loginLimiter, loginHandler);
 ```
 
 ```python
@@ -254,10 +254,10 @@ def transfer_money(request):
 
 ```javascript
 // Express with csurf
-const csrf = require('csurf');
+const csrf = require("csurf");
 const csrfProtection = csrf({ cookie: true });
 
-app.post('/transfer', csrfProtection, transferHandler);
+app.post("/transfer", csrfProtection, transferHandler);
 ```
 
 **Check**:
@@ -282,10 +282,10 @@ cursor.execute("SELECT * FROM users WHERE email = %s", [email])  # Safe
 
 ```javascript
 // JavaScript - Parameterized query
-const user = await User.findOne({ email: email });  // Mongoose - safe
+const user = await User.findOne({ email: email }); // Mongoose - safe
 
 // Or with raw SQL
-db.query('SELECT * FROM users WHERE email = ?', [email]);  // Safe
+db.query("SELECT * FROM users WHERE email = ?", [email]); // Safe
 ```
 
 **Bad patterns**:

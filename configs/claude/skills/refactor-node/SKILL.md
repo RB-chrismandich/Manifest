@@ -48,7 +48,7 @@ proceed with the standard analysis.
 
 ### Step 1: Read Project Standards
 
-- Read package.json, tsconfig.json, .eslintrc.*or eslint.config.*, .prettierrc
+- Read package.json, tsconfig.json, .eslintrc._or eslint.config._, .prettierrc
 - Check for existing tooling: Vitest/Jest, ESLint flat config, Prettier, Biome
 - Inspect dependency tree for known vulnerabilities: `npm audit --json`
 - Check Node.js engine requirements and ECMAScript target
@@ -116,20 +116,20 @@ proceed with the standard analysis.
 
 ## Effort Classification
 
-| Level | Time | Scope | Examples |
-|-------|------|-------|----------|
-| **Minimal** | <1 hour | Single file | Add type annotation, fix lint, update import |
-| **Medium** | 2-8 hours | Multi-file | Add validation schema, refactor module, add tests |
-| **High** | 1-3 days | Architectural | Migrate CJS to ESM, add DI, restructure modules |
+| Level       | Time      | Scope         | Examples                                          |
+| ----------- | --------- | ------------- | ------------------------------------------------- |
+| **Minimal** | <1 hour   | Single file   | Add type annotation, fix lint, update import      |
+| **Medium**  | 2-8 hours | Multi-file    | Add validation schema, refactor module, add tests |
+| **High**    | 1-3 days  | Architectural | Migrate CJS to ESM, add DI, restructure modules   |
 
 ## Risk Classification
 
-| Level | Impact | Testing Required | Examples |
-|-------|--------|------------------|----------|
-| **Low** | No behavior change | None | Add types, rename, add docs |
-| **Medium** | Internal changes | Unit tests | Refactor helpers, add validation |
-| **High** | API changes | Integration tests | Change exports, modify interfaces |
-| **Critical** | Security/Breaking | Full regression | Fix injection, patch dependency |
+| Level        | Impact             | Testing Required  | Examples                          |
+| ------------ | ------------------ | ----------------- | --------------------------------- |
+| **Low**      | No behavior change | None              | Add types, rename, add docs       |
+| **Medium**   | Internal changes   | Unit tests        | Refactor helpers, add validation  |
+| **High**     | API changes        | Integration tests | Change exports, modify interfaces |
+| **Critical** | Security/Breaking  | Full regression   | Fix injection, patch dependency   |
 
 ---
 
@@ -145,23 +145,26 @@ proceed with the standard analysis.
 
 ## Executive Summary
 
-| Category | Score | Issues | Critical |
-|----------|-------|--------|----------|
-| Security | XX/25 | N | Y/N |
-| TypeScript | XX/15 | N | Y/N |
-| Code Quality | XX/20 | N | Y/N |
-| Architecture | XX/15 | N | Y/N |
-| Dependencies | XX/10 | N | Y/N |
-| Testing | XX/10 | N | Y/N |
-| Documentation | XX/5 | N | Y/N |
+| Category      | Score | Issues | Critical |
+| ------------- | ----- | ------ | -------- |
+| Security      | XX/25 | N      | Y/N      |
+| TypeScript    | XX/15 | N      | Y/N      |
+| Code Quality  | XX/20 | N      | Y/N      |
+| Architecture  | XX/15 | N      | Y/N      |
+| Dependencies  | XX/10 | N      | Y/N      |
+| Testing       | XX/10 | N      | Y/N      |
+| Documentation | XX/5  | N      | Y/N      |
 
 ## Priority Matrix
+
 [Immediate / Quick Wins / Planned / Strategic]
 
 ## Detailed Findings
+
 [Per finding: Category, Severity, Location, Code, Issue, Fix]
 
 ## Recommendations
+
 [Immediate / Short Term / Long Term]
 ```
 
@@ -204,7 +207,7 @@ export default tseslint.config(
         projectService: true,
       },
     },
-  }
+  },
 );
 ```
 

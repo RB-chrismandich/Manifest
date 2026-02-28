@@ -24,8 +24,8 @@ _Why is this work needed? Link to related issues, conversations, or prior plans.
 
 ## Related Files
 
-| File | Change |
-|------|--------|
+| File           | Change                |
+| -------------- | --------------------- |
 | `path/to/file` | Description of change |
 
 ## Implementation Notes
@@ -44,6 +44,6 @@ _Key decisions, approach details, or constraints worth documenting._
 
 ## Log
 
-| Date | Entry |
-|------|-------|
+| Date       | Entry        |
+| ---------- | ------------ |
 | YYYY-MM-DD | Plan created |

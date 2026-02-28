@@ -23,16 +23,16 @@ without duplicating content unnecessarily.
 
 ### Key Format Differences
 
-| Component | Claude Code | Gemini CLI | Symlink? |
-|-----------|------------|------------|----------|
-| Context file | `CLAUDE.md` (Markdown) | `GEMINI.md` (Markdown) | NO - needs rename + minor adaptation |
-| Commands | `commands/*.md` (Markdown with YAML frontmatter) | `commands/*.toml` (TOML format) | NO - different format entirely |
-| Skills | `skills/*/SKILL.md` | `skills/*/SKILL.md` | YES - identical convention |
-| Config YAML | `config/*.yml` | N/A (uses `settings.json`) | PARTIAL - YAML files are agent-agnostic reference data |
-| Prompts | `prompts/*.md` | Referenced from GEMINI.md | YES - agent-agnostic templates |
-| Scripts | `scripts/*.sh` | Referenced by path | YES - already supports all agents |
-| Plans | `.plans/` | `.plans/` | YES - agent-agnostic management |
-| Settings | `settings.local.json` | `settings.json` | NO - different schema |
+| Component    | Claude Code                                      | Gemini CLI                      | Symlink?                                               |
+| ------------ | ------------------------------------------------ | ------------------------------- | ------------------------------------------------------ |
+| Context file | `CLAUDE.md` (Markdown)                           | `GEMINI.md` (Markdown)          | NO - needs rename + minor adaptation                   |
+| Commands     | `commands/*.md` (Markdown with YAML frontmatter) | `commands/*.toml` (TOML format) | NO - different format entirely                         |
+| Skills       | `skills/*/SKILL.md`                              | `skills/*/SKILL.md`             | YES - identical convention                             |
+| Config YAML  | `config/*.yml`                                   | N/A (uses `settings.json`)      | PARTIAL - YAML files are agent-agnostic reference data |
+| Prompts      | `prompts/*.md`                                   | Referenced from GEMINI.md       | YES - agent-agnostic templates                         |
+| Scripts      | `scripts/*.sh`                                   | Referenced by path              | YES - already supports all agents                      |
+| Plans        | `.plans/`                                        | `.plans/`                       | YES - agent-agnostic management                        |
+| Settings     | `settings.local.json`                            | `settings.json`                 | NO - different schema                                  |
 
 ## Deliverables
 
@@ -40,14 +40,14 @@ without duplicating content unnecessarily.
 
 - [x] **1.1** Create `.gemini/` directory structure in the repo
 - [x] **1.2** Symlink `prompts/` directory: `.gemini/prompts/ -> ../claude/prompts/`
-  (all 4 prompt templates are agent-agnostic)
+      (all 4 prompt templates are agent-agnostic)
 - [x] **1.3** Symlink `scripts/` directory: `.gemini/scripts/ -> ../.claude/scripts/`
-  (parallel_agent.sh already supports Gemini)
+      (parallel_agent.sh already supports Gemini)
 - [x] **1.4** Symlink `.plans/` directory: `.gemini/.plans/ -> ../.claude/.plans/` (shared plan management)
 - [x] **1.5** Symlink `skills/code-quality/SKILL.md`: `.gemini/skills/code-quality/SKILL.md -> ../../../.claude/skills/code-quality/SKILL.md`
 - [x] **1.6** Symlink `config/` YAML files: `.gemini/config/ -> ../.claude/config/`
-  (command_config.yml, validation_criteria.yml, services.yml are agent-agnostic
-  reference data)
+      (command_config.yml, validation_criteria.yml, services.yml are agent-agnostic
+      reference data)
 
 ### Phase 2: GEMINI.md (Context File)
 
@@ -83,7 +83,7 @@ instruction text.
 ### Phase 5: Bootstrap Integration
 
 - [x] **5.1** Update `bootstrap.sh` to also deploy `.gemini/` contents to `~/.gemini/`
-  - Copy non-symlinked files (GEMINI.md, commands/*.toml, settings.json)
+  - Copy non-symlinked files (GEMINI.md, commands/\*.toml, settings.json)
   - Resolve symlinks and copy target files for deployment (symlinks are repo-internal)
   - Preserve existing `~/.gemini/` auth files (oauth_creds.json, google_accounts.json, etc.)
 
@@ -95,19 +95,19 @@ instruction text.
 
 ## Related Files
 
-| File | Change |
-|------|--------|
-| `.gemini/GEMINI.md` | CREATE - Adapted orchestration guide |
-| `.gemini/commands/*.toml` | CREATE (x8) - TOML conversions of Claude commands |
-| `.gemini/settings.json` | CREATE - Project Gemini CLI settings |
-| `.gemini/prompts/` | SYMLINK -> `../.claude/prompts/` |
-| `.gemini/scripts/` | SYMLINK -> `../.claude/scripts/` |
-| `.gemini/.plans/` | SYMLINK -> `../.claude/.plans/` |
-| `.gemini/config/` | SYMLINK -> `../.claude/config/` |
+| File                                   | Change                                                     |
+| -------------------------------------- | ---------------------------------------------------------- |
+| `.gemini/GEMINI.md`                    | CREATE - Adapted orchestration guide                       |
+| `.gemini/commands/*.toml`              | CREATE (x8) - TOML conversions of Claude commands          |
+| `.gemini/settings.json`                | CREATE - Project Gemini CLI settings                       |
+| `.gemini/prompts/`                     | SYMLINK -> `../.claude/prompts/`                           |
+| `.gemini/scripts/`                     | SYMLINK -> `../.claude/scripts/`                           |
+| `.gemini/.plans/`                      | SYMLINK -> `../.claude/.plans/`                            |
+| `.gemini/config/`                      | SYMLINK -> `../.claude/config/`                            |
 | `.gemini/skills/code-quality/SKILL.md` | SYMLINK -> `../../../.claude/skills/code-quality/SKILL.md` |
-| `bootstrap.sh` | MODIFY - Add `.gemini/` deployment |
-| `CLAUDE.md` (root) | MODIFY - Update repo structure |
-| `README.md` | MODIFY - Document `.gemini/` |
+| `bootstrap.sh`                         | MODIFY - Add `.gemini/` deployment                         |
+| `CLAUDE.md` (root)                     | MODIFY - Update repo structure                             |
+| `README.md`                            | MODIFY - Document `.gemini/`                               |
 
 ## Implementation Notes
 
@@ -179,8 +179,8 @@ Shell commands can be embedded via !{command} syntax.
 
 ## Log
 
-| Date | Entry |
-|------|-------|
+| Date       | Entry                                                                                                                                                                                                                                                                                                             |
+| ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 2026-02-05 | Plan created via /plan-manage create. Single-agent planning (structural task, not security-critical). Explored .claude/ structure (25+ files), researched Gemini CLI config system (GEMINI.md, TOML commands, settings.json, skills). Identified 6 symlinkable components and 3 that require Gemini-native files. |
-| 2026-02-05 | Cross-referenced with cursor-mirror plan. Cursor plan already fully implemented (Phases 1-5 complete). Beginning Gemini implementation. |
-| 2026-02-05 | All 19 deliverables completed. 5 symlinks + 1 file symlink, GEMINI.md, 8 TOML commands, settings.json, bootstrap.sh updated, CLAUDE.md/AGENTS.md/README.md updated. Moving to archive. |
+| 2026-02-05 | Cross-referenced with cursor-mirror plan. Cursor plan already fully implemented (Phases 1-5 complete). Beginning Gemini implementation.                                                                                                                                                                           |
+| 2026-02-05 | All 19 deliverables completed. 5 symlinks + 1 file symlink, GEMINI.md, 8 TOML commands, settings.json, bootstrap.sh updated, CLAUDE.md/AGENTS.md/README.md updated. Moving to archive.                                                                                                                            |

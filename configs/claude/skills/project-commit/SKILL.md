@@ -95,8 +95,8 @@ After all four complete, run `git status` to confirm documentation files were mo
    - For each conflicted file:
      a. Read the file to understand the conflict markers
      b. Resolve the conflict by keeping both changes where possible, preferring the
-        incoming (remote) change for non-functional conflicts (formatting, docs)
-        and the local change for functional code
+     incoming (remote) change for non-functional conflicts (formatting, docs)
+     and the local change for functional code
      c. Stage the resolved file with `git add <file>`
    - Continue the rebase: `git rebase --continue`
    - If conflicts cannot be auto-resolved, **stop and ask the user** for guidance using AskUserQuestion

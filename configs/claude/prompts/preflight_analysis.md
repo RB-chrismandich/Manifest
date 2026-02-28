@@ -178,12 +178,12 @@ Return ONLY the following JSON object. Do not include commentary outside the JSO
 
 ## Decision Matrix
 
-| Criteria Triggered | Confidence | Decision |
-|--------------------|------------|----------|
-| Any security criterion (Step 1) | Any | REVIEW (use security model tier) |
-| Any language-specific trigger (Step 5) | Any | REVIEW (use security model tier) |
-| Architectural + >200 lines | >= 0.70 | REVIEW (use review model tier) |
-| Critical logic only | >= 0.70 | REVIEW (use analyze model tier) |
-| Scope only (>200 lines) | >= 0.70 | REVIEW (use review model tier) |
-| None triggered | >= 0.80 | SKIP review |
-| None triggered | < 0.80 | REVIEW (insufficient confidence to skip) |
+| Criteria Triggered                     | Confidence | Decision                                 |
+| -------------------------------------- | ---------- | ---------------------------------------- |
+| Any security criterion (Step 1)        | Any        | REVIEW (use security model tier)         |
+| Any language-specific trigger (Step 5) | Any        | REVIEW (use security model tier)         |
+| Architectural + >200 lines             | >= 0.70    | REVIEW (use review model tier)           |
+| Critical logic only                    | >= 0.70    | REVIEW (use analyze model tier)          |
+| Scope only (>200 lines)                | >= 0.70    | REVIEW (use review model tier)           |
+| None triggered                         | >= 0.80    | SKIP review                              |
+| None triggered                         | < 0.80     | REVIEW (insufficient confidence to skip) |

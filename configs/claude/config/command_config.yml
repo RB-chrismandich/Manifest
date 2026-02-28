@@ -5,8 +5,8 @@
 # Parallel agent trigger thresholds (configurable)
 thresholds:
   # Documentation commands
-  docs_improve_lines: 500         # Trigger parallel agents when total doc lines > 500
-  docs_diagrams_modules: 5       # Trigger when analyzing 5+ unique imports/modules
+  docs_improve_lines: 500         # Trigger when total doc lines > 500
+  docs_diagrams_modules: 5       # Trigger when analyzing 5+ unique modules
 
   # Code quality skill auto-triggers
   skill_file_lines: 500           # File > 500 lines
@@ -181,7 +181,9 @@ tool_policies:
       - Task   # Synthesis agent on disagreement
     forbidden: []
     parallel_agents: conditional
-    trigger_condition: security OR architecture OR scope >= 3 files OR critical_logic OR issue_execute_review
+    trigger_condition: >
+      security OR architecture OR scope >= 3 files OR critical_logic
+      OR issue_execute_review
     validation_tier: 2
     mcp_servers:
       - deepwiki   # Research external deps and upstream APIs during planning
@@ -319,8 +321,9 @@ parallel_agent:
     prompt: ""  # Generic prompt mode
 
 # Model selection
-# Canonical model tier definitions (IDs and fallback chains) are in parallel_agent.yml.
-# This section only contains task-based routing logic (which tier to use per task type).
+# Canonical model tier definitions (IDs and fallback chains)
+# are in parallel_agent.yml. This section only contains task-based
+# routing logic (which tier to use per task type).
 
 # Task-based model defaults (used by orchestrator)
 # The orchestrating agent (Claude) selects models based on task type
@@ -368,5 +371,6 @@ task_model_defaults:
     reason: "Balanced capability for scoring refinement"
 
 # Credit exhaustion fallback chains
-# Canonical fallback definitions are in parallel_agent.yml (credit_fallback section).
+# Canonical fallback definitions are in parallel_agent.yml
+# (credit_fallback section).
 # The parallel_agent.sh script reads those values at runtime.

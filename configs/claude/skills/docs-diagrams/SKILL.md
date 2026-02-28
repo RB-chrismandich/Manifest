@@ -86,12 +86,12 @@ flowchart LR
     classDef external fill:#3b82f6,stroke:#1d4ed8,color:#fff
 ```
 
-| Class | Color | Usage |
-|-------|-------|-------|
-| `active` | Green | Active/healthy components |
-| `pending` | Yellow | In-progress states |
-| `error` | Red | Error/failed states |
-| `external` | Blue | External services |
+| Class      | Color  | Usage                     |
+| ---------- | ------ | ------------------------- |
+| `active`   | Green  | Active/healthy components |
+| `pending`  | Yellow | In-progress states        |
+| `error`    | Red    | Error/failed states       |
+| `external` | Blue   | External services         |
 
 ### Step 4: Document Structure
 
@@ -105,11 +105,13 @@ flowchart LR
 ---
 
 ## Table of Contents
+
 [Links to all diagrams]
 
 ---
 
 ## Application Architecture
+
 [Description]
 [Mermaid diagram]
 [Key components explained]
@@ -121,6 +123,7 @@ flowchart LR
 ---
 
 ## Related Documents
+
 - [AGENTS.md](../AGENTS.md) - Project context
 - [Related Doc](path/to/doc.md) - Brief description
 ```

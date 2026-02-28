@@ -36,21 +36,21 @@ disagreement it is), then by **domain category** (what area it concerns).
 
 #### Disagreement Types
 
-| Type | Description | Resolution Strategy |
-|------|-------------|---------------------|
-| **Factual** | Agents disagree on verifiable facts: API behavior, language semantics, tool capabilities, documented behavior | **Verify**: Check official documentation, language specs, or source code. The verifiably correct agent wins. If unverifiable in this context, flag for human verification and note which claim to check. |
-| **Methodological** | Agents agree on the problem but propose different approaches or solutions | **Compare**: Evaluate each approach on safety, correctness, maintainability, and alignment with project conventions. Select the approach that scores highest, or synthesize a hybrid if compatible. Document why the chosen approach is preferred. |
-| **Scope** | Agents cover different aspects -- one finds issues the others missed, or one analyzes more deeply in a narrower area | **Merge**: This is not a true conflict. Combine all unique findings into the unified recommendation. Credit each agent for its unique contributions. Only flag as a disagreement if the findings contradict each other. |
+| Type               | Description                                                                                                          | Resolution Strategy                                                                                                                                                                                                                                |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Factual**        | Agents disagree on verifiable facts: API behavior, language semantics, tool capabilities, documented behavior        | **Verify**: Check official documentation, language specs, or source code. The verifiably correct agent wins. If unverifiable in this context, flag for human verification and note which claim to check.                                           |
+| **Methodological** | Agents agree on the problem but propose different approaches or solutions                                            | **Compare**: Evaluate each approach on safety, correctness, maintainability, and alignment with project conventions. Select the approach that scores highest, or synthesize a hybrid if compatible. Document why the chosen approach is preferred. |
+| **Scope**          | Agents cover different aspects -- one finds issues the others missed, or one analyzes more deeply in a narrower area | **Merge**: This is not a true conflict. Combine all unique findings into the unified recommendation. Credit each agent for its unique contributions. Only flag as a disagreement if the findings contradict each other.                            |
 
 #### Domain Categories
 
-| Category | Description | Additional Resolution Notes |
-|----------|-------------|----------------------------|
-| **Security** | Security implications or mitigations | Always take the more conservative (safer) position regardless of evidence score |
-| **Architectural** | Design patterns, module structure, system boundaries | Evaluate trade-offs; present options to user if impact is significant |
-| **Correctness** | Logic errors, bugs, incorrect behavior | Prefer the agent that cites specific code paths and edge cases |
-| **Performance** | Performance impact or optimization approach | Prefer measurable evidence; note if benchmarking is needed |
-| **Stylistic** | Code style, naming, formatting, or preference | Defer to project conventions; if none exist, note as low-priority |
+| Category          | Description                                          | Additional Resolution Notes                                                     |
+| ----------------- | ---------------------------------------------------- | ------------------------------------------------------------------------------- |
+| **Security**      | Security implications or mitigations                 | Always take the more conservative (safer) position regardless of evidence score |
+| **Architectural** | Design patterns, module structure, system boundaries | Evaluate trade-offs; present options to user if impact is significant           |
+| **Correctness**   | Logic errors, bugs, incorrect behavior               | Prefer the agent that cites specific code paths and edge cases                  |
+| **Performance**   | Performance impact or optimization approach          | Prefer measurable evidence; note if benchmarking is needed                      |
+| **Stylistic**     | Code style, naming, formatting, or preference        | Defer to project conventions; if none exist, note as low-priority               |
 
 ### Step 3: Weighted Evidence Evaluation
 
@@ -81,14 +81,14 @@ each kind of conflict.
 
 #### Dimension Weights by Disagreement Type
 
-| Dimension | Factual | Methodological | Scope |
-|-----------|---------|----------------|-------|
-| Specificity | **x2** | x1 | x1 |
-| Reasoning depth | x1 | **x2** | x1 |
-| Confidence signal | x1 | x1 | x1 |
-| Consistency | x1 | x1 | **x2** |
+| Dimension         | Factual | Methodological | Scope  |
+| ----------------- | ------- | -------------- | ------ |
+| Specificity       | **x2**  | x1             | x1     |
+| Reasoning depth   | x1      | **x2**         | x1     |
+| Confidence signal | x1      | x1             | x1     |
+| Consistency       | x1      | x1             | **x2** |
 
-**Weighted score** = (specificity *weight) + (reasoning* weight) + (confidence *weight) + (consistency* weight).
+**Weighted score** = (specificity _weight) + (reasoning_ weight) + (confidence _weight) + (consistency_ weight).
 Maximum possible score varies by type (Factual: 13, Methodological: 13, Scope: 12).
 
 The higher-scoring position is preferred, with these overrides:
@@ -136,17 +136,26 @@ Return ONLY the following JSON object. Do not include commentary outside the JSO
       "claude_position": "Use try-catch for external calls, Result for internal",
       "evidence_scores": {
         "gemini": {
-          "specificity": 2, "reasoning": 2, "confidence_signal": 1, "consistency": 1,
+          "specificity": 2,
+          "reasoning": 2,
+          "confidence_signal": 1,
+          "consistency": 1,
           "weights_applied": "methodological",
           "weighted_total": 7
         },
         "cursor": {
-          "specificity": 1, "reasoning": 2, "confidence_signal": 2, "consistency": 2,
+          "specificity": 1,
+          "reasoning": 2,
+          "confidence_signal": 2,
+          "consistency": 2,
           "weights_applied": "methodological",
           "weighted_total": 8
         },
         "claude": {
-          "specificity": 3, "reasoning": 3, "confidence_signal": 2, "consistency": 2,
+          "specificity": 3,
+          "reasoning": 3,
+          "confidence_signal": 2,
+          "consistency": 2,
           "weights_applied": "methodological",
           "weighted_total": 12
         }
@@ -166,9 +175,30 @@ Return ONLY the following JSON object. Do not include commentary outside the JSO
       "cursor_position": "Validates query params and headers",
       "claude_position": "Validates query params, headers, and request body",
       "evidence_scores": {
-        "gemini": {"specificity": 1, "reasoning": 1, "confidence_signal": 1, "consistency": 1, "weights_applied": "scope", "weighted_total": 5},
-        "cursor": {"specificity": 2, "reasoning": 2, "confidence_signal": 1, "consistency": 2, "weights_applied": "scope", "weighted_total": 8},
-        "claude": {"specificity": 3, "reasoning": 3, "confidence_signal": 2, "consistency": 2, "weights_applied": "scope", "weighted_total": 12}
+        "gemini": {
+          "specificity": 1,
+          "reasoning": 1,
+          "confidence_signal": 1,
+          "consistency": 1,
+          "weights_applied": "scope",
+          "weighted_total": 5
+        },
+        "cursor": {
+          "specificity": 2,
+          "reasoning": 2,
+          "confidence_signal": 1,
+          "consistency": 2,
+          "weights_applied": "scope",
+          "weighted_total": 8
+        },
+        "claude": {
+          "specificity": 3,
+          "reasoning": 3,
+          "confidence_signal": 2,
+          "consistency": 2,
+          "weights_applied": "scope",
+          "weighted_total": 12
+        }
       },
       "resolution": "Validate all input surfaces: query params, headers, and request body",
       "preferred_agent": "claude",
@@ -179,7 +209,9 @@ Return ONLY the following JSON object. Do not include commentary outside the JSO
   "scope_contributions": {
     "gemini_unique_findings": ["Found deprecated API usage in utils.py"],
     "cursor_unique_findings": ["Identified missing null check in parser.go:88"],
-    "claude_unique_findings": ["Flagged race condition in worker pool initialization"]
+    "claude_unique_findings": [
+      "Flagged race condition in worker pool initialization"
+    ]
   },
   "unified_recommendation": "Final synthesized guidance combining the best of all analyses",
   "caveats": [
@@ -188,9 +220,21 @@ Return ONLY the following JSON object. Do not include commentary outside the JSO
   ],
   "confidence": 0.85,
   "action_items": [
-    {"priority": "high", "action": "Fix SQL injection in auth.py:42", "source_agents": ["gemini", "claude"]},
-    {"priority": "medium", "action": "Refactor error handling in service layer", "source_agents": ["claude"]},
-    {"priority": "low", "action": "Consider renaming variables for clarity", "source_agents": ["cursor"]}
+    {
+      "priority": "high",
+      "action": "Fix SQL injection in auth.py:42",
+      "source_agents": ["gemini", "claude"]
+    },
+    {
+      "priority": "medium",
+      "action": "Refactor error handling in service layer",
+      "source_agents": ["claude"]
+    },
+    {
+      "priority": "low",
+      "action": "Consider renaming variables for clarity",
+      "source_agents": ["cursor"]
+    }
   ]
 }
 ```

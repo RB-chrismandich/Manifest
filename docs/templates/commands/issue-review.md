@@ -59,11 +59,11 @@ Record:
 
 #### 2b. Determine Verdict
 
-| Condition | Verdict | Action |
-|-----------|---------|--------|
-| All checklist items are checked (`- [x]`) | **CLOSE** | Close the issue |
-| No checklists found in body or comments | **CLOSE** | Close the issue (no acceptance criteria to fail) |
-| Any unchecked items remain (`- [ ]`) | **NEEDS-REVIEW** | Add `needs-review` label |
+| Condition                                 | Verdict          | Action                                           |
+| ----------------------------------------- | ---------------- | ------------------------------------------------ |
+| All checklist items are checked (`- [x]`) | **CLOSE**        | Close the issue                                  |
+| No checklists found in body or comments   | **CLOSE**        | Close the issue (no acceptance criteria to fail) |
+| Any unchecked items remain (`- [ ]`)      | **NEEDS-REVIEW** | Add `needs-review` label                         |
 
 #### 2c. Detect follow-up items and check for existing follow-ups
 
@@ -161,15 +161,16 @@ Present a summary table to the user:
 ```markdown
 ## Processed Issues Audit
 
-| # | Title | Checklist | Follow-ups | Verdict | Action Taken |
-|---|-------|-----------|------------|---------|-------------|
-| 123 | Feature X | 5/5 checked | 0 exist, 0 created | CLOSE | Closed |
-| 124 | Feature Y | 3/7 checked | 2 exist, 1 created | NEEDS-REVIEW | Labeled needs-review |
-| 125 | Bug fix Z | No checklist | 0 exist, 0 created | CLOSE | Closed |
+| #   | Title     | Checklist    | Follow-ups         | Verdict      | Action Taken         |
+| --- | --------- | ------------ | ------------------ | ------------ | -------------------- |
+| 123 | Feature X | 5/5 checked  | 0 exist, 0 created | CLOSE        | Closed               |
+| 124 | Feature Y | 3/7 checked  | 2 exist, 1 created | NEEDS-REVIEW | Labeled needs-review |
+| 125 | Bug fix Z | No checklist | 0 exist, 0 created | CLOSE        | Closed               |
 
 ### Issues Needing Attention
 
 **#124 — Feature Y** (4 unchecked items):
+
 - [ ] Item A (body)
 - [ ] Item B (comment #456)
 - [ ] Item C (comment #456)
@@ -178,6 +179,7 @@ Present a summary table to the user:
 ### Follow-up Issues
 
 **From #124 — Feature Y**:
+
 - Already existed: #130 — Follow-up: Add validation for edge case, #131 — Follow-up: Update docs
 - Created in this audit: #140 — Follow-up: Handle blocked integration test
 ```

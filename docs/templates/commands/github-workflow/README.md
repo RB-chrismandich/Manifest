@@ -37,13 +37,13 @@ These commands form a complete issue management workflow:
 
 ## Command Descriptions
 
-| Command | Purpose | Typical Frequency | Duration |
-|---------|---------|------------------|----------|
-| `issue-triage` | Clean up backlog, identify duplicates/stale issues | Weekly | 15-30 min |
-| `issue-prioritize` | Rank top 5 issues to work on next | Weekly | 5-10 min |
-| `issue-plan` | Create implementation plan for a specific issue | Per issue | 10-20 min |
-| `issue-process` | Implement, test, and validate an issue end-to-end | Per issue | 30-120 min |
-| `issue-review` | Audit processed issues, close complete ones | Daily/Weekly | 5-15 min |
+| Command            | Purpose                                            | Typical Frequency | Duration   |
+| ------------------ | -------------------------------------------------- | ----------------- | ---------- |
+| `issue-triage`     | Clean up backlog, identify duplicates/stale issues | Weekly            | 15-30 min  |
+| `issue-prioritize` | Rank top 5 issues to work on next                  | Weekly            | 5-10 min   |
+| `issue-plan`       | Create implementation plan for a specific issue    | Per issue         | 10-20 min  |
+| `issue-process`    | Implement, test, and validate an issue end-to-end  | Per issue         | 30-120 min |
+| `issue-review`     | Audit processed issues, close complete ones        | Daily/Weekly      | 5-15 min   |
 
 ---
 
@@ -78,9 +78,9 @@ Replace placeholders with your actual project details:
 
 ### Component/Service Map
 
-| Component | Language | Responsibility |
-|-----------|----------|----------------|
-| [Name] | [Lang] | [Brief description] |
+| Component | Language | Responsibility      |
+| --------- | -------- | ------------------- |
+| [Name]    | [Lang]   | [Brief description] |
 ```
 
 #### Repository Path (All Commands)
@@ -360,12 +360,12 @@ Issues progress through labeled states:
 
 All commands integrate with `~/.claude/scripts/parallel_agent.sh` for cross-verification:
 
-| Command | Use Case | Consensus Threshold |
-|---------|----------|---------------------|
-| `issue-triage` | Duplicate detection | >= 80% = HIGH confidence to close |
-| `issue-prioritize` | Scoring validation | >= 80% = confident in score |
-| `issue-plan` | Plan validation | >= 80% = HIGH confidence, 50-79% = MEDIUM (note disagreements), < 50% = LOW (add warning) |
-| `issue-process` | Code validation | >= 80% = status "processed", 50-79% = status "needs-review" |
+| Command            | Use Case            | Consensus Threshold                                                                       |
+| ------------------ | ------------------- | ----------------------------------------------------------------------------------------- |
+| `issue-triage`     | Duplicate detection | >= 80% = HIGH confidence to close                                                         |
+| `issue-prioritize` | Scoring validation  | >= 80% = confident in score                                                               |
+| `issue-plan`       | Plan validation     | >= 80% = HIGH confidence, 50-79% = MEDIUM (note disagreements), < 50% = LOW (add warning) |
+| `issue-process`    | Code validation     | >= 80% = status "processed", 50-79% = status "needs-review"                               |
 
 **Setup**: Ensure `~/.claude/scripts/parallel_agent.sh` is installed and configured. See [README.md](../../README.md) for setup instructions.
 
@@ -382,12 +382,12 @@ All commands integrate with `~/.claude/scripts/parallel_agent.sh` for cross-veri
 
 ### Component Map
 
-| Component | Language | Responsibility |
-|-----------|----------|----------------|
-| Web | Python | Django views, templates, forms |
-| API | Python | Django REST Framework endpoints |
-| Tasks | Python | Celery background tasks |
-| Admin | Python | Django admin customizations |
+| Component | Language | Responsibility                  |
+| --------- | -------- | ------------------------------- |
+| Web       | Python   | Django views, templates, forms  |
+| API       | Python   | Django REST Framework endpoints |
+| Tasks     | Python   | Celery background tasks         |
+| Admin     | Python   | Django admin customizations     |
 
 ### Key Constraints
 
@@ -406,12 +406,12 @@ All commands integrate with `~/.claude/scripts/parallel_agent.sh` for cross-veri
 
 ### Component Map
 
-| Component | Language | Responsibility |
-|-----------|----------|----------------|
-| Auth | Go | Authentication, JWT tokens |
-| Users | Go | User profile management |
-| Orders | Node.js | Order processing, gRPC API |
-| Notifications | Node.js | Event-driven notification consumer |
+| Component     | Language | Responsibility                     |
+| ------------- | -------- | ---------------------------------- |
+| Auth          | Go       | Authentication, JWT tokens         |
+| Users         | Go       | User profile management            |
+| Orders        | Node.js  | Order processing, gRPC API         |
+| Notifications | Node.js  | Event-driven notification consumer |
 
 ### Key Constraints
 
@@ -430,12 +430,12 @@ All commands integrate with `~/.claude/scripts/parallel_agent.sh` for cross-veri
 
 ### Component Map
 
-| Component | Language | Responsibility |
-|-----------|----------|----------------|
-| Components | TypeScript | Reusable UI components |
-| Pages | TypeScript | Next.js page routes |
-| Hooks | TypeScript | Custom React hooks |
-| GraphQL | TypeScript | Apollo Client queries/mutations |
+| Component  | Language   | Responsibility                  |
+| ---------- | ---------- | ------------------------------- |
+| Components | TypeScript | Reusable UI components          |
+| Pages      | TypeScript | Next.js page routes             |
+| Hooks      | TypeScript | Custom React hooks              |
+| GraphQL    | TypeScript | Apollo Client queries/mutations |
 
 ### Key Constraints
 
@@ -607,7 +607,7 @@ Run issue-review as a CI job:
 name: Issue Audit
 on:
   schedule:
-    - cron: '0 9 * * 1'  # Every Monday at 9am
+    - cron: "0 9 * * 1" # Every Monday at 9am
 jobs:
   audit:
     runs-on: ubuntu-latest

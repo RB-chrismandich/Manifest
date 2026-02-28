@@ -24,12 +24,12 @@ existing entries by language, tool, or category.
 
 ## Phase 1: Mode Detection
 
-| Argument | Action |
-|----------|--------|
-| (empty) or `capture` | Begin structured capture flow |
-| `query <term>` | Search knowledge base for matching entries |
-| `list [category]` | List entries, filter by category if provided |
-| `stats` | Show entry counts by category, language, recency |
+| Argument             | Action                                           |
+| -------------------- | ------------------------------------------------ |
+| (empty) or `capture` | Begin structured capture flow                    |
+| `query <term>`       | Search knowledge base for matching entries       |
+| `list [category]`    | List entries, filter by category if provided     |
+| `stats`              | Show entry counts by category, language, recency |
 
 ---
 
@@ -39,22 +39,22 @@ When capturing a new learning, gather the following fields:
 
 ### Required Fields
 
-| Field | Description | Example |
-|-------|-------------|---------|
-| `title` | Short descriptive title | "Ruff replaces flake8+isort+black" |
-| `category` | One of: `pattern`, `antipattern`, `tool-discovery`, `config-insight` | `tool-discovery` |
-| `language` | Language/ecosystem (or `general`) | `python` |
-| `description` | 1-3 sentence explanation | "Ruff is a single tool that replaces..." |
+| Field         | Description                                                          | Example                                  |
+| ------------- | -------------------------------------------------------------------- | ---------------------------------------- |
+| `title`       | Short descriptive title                                              | "Ruff replaces flake8+isort+black"       |
+| `category`    | One of: `pattern`, `antipattern`, `tool-discovery`, `config-insight` | `tool-discovery`                         |
+| `language`    | Language/ecosystem (or `general`)                                    | `python`                                 |
+| `description` | 1-3 sentence explanation                                             | "Ruff is a single tool that replaces..." |
 
 ### Optional Fields
 
-| Field | Description | Example |
-|-------|-------------|---------|
-| `tags` | Searchable keywords | `[linting, formatting, migration]` |
-| `tool` | Specific tool involved | `ruff` |
-| `source` | Where this was learned | `task-42`, `pr-review`, `debugging` |
-| `confidence` | How proven is this (high/medium/low) | `high` |
-| `example` | Brief code/config example | `ruff check --fix .` |
+| Field        | Description                          | Example                             |
+| ------------ | ------------------------------------ | ----------------------------------- |
+| `tags`       | Searchable keywords                  | `[linting, formatting, migration]`  |
+| `tool`       | Specific tool involved               | `ruff`                              |
+| `source`     | Where this was learned               | `task-42`, `pr-review`, `debugging` |
+| `confidence` | How proven is this (high/medium/low) | `high`                              |
+| `example`    | Brief code/config example            | `ruff check --fix .`                |
 
 ### Context Inference
 
@@ -122,14 +122,15 @@ When querying, search across these fields: `title`, `description`, `tags`, `tool
 **Query**: {search-term}
 **Matches**: {count}
 
-| ID | Category | Title | Language | Confidence |
-|----|----------|-------|----------|------------|
-| 20260211-001 | tool-discovery | Ruff replaces flake8+isort+black | python | high |
-| 20260210-003 | pattern | Use ruff in pre-commit hooks | python | high |
+| ID           | Category       | Title                            | Language | Confidence |
+| ------------ | -------------- | -------------------------------- | -------- | ---------- |
+| 20260211-001 | tool-discovery | Ruff replaces flake8+isort+black | python   | high       |
+| 20260210-003 | pattern        | Use ruff in pre-commit hooks     | python   | high       |
 
 ### Details
 
 #### 20260211-001: Ruff replaces flake8+isort+black
+
 - **Category**: tool-discovery
 - **Language**: python
 - **Description**: Ruff is a single Rust-based tool that replaces flake8, isort, and black.
@@ -145,19 +146,19 @@ When querying, search across these fields: `title`, `description`, `tags`, `tool
 **Total entries**: {count}
 **Date range**: {oldest} to {newest}
 
-| Category | Count |
-|----------|-------|
-| pattern | 12 |
-| antipattern | 8 |
-| tool-discovery | 5 |
-| config-insight | 3 |
+| Category       | Count |
+| -------------- | ----- |
+| pattern        | 12    |
+| antipattern    | 8     |
+| tool-discovery | 5     |
+| config-insight | 3     |
 
 | Language | Count |
-|----------|-------|
-| python | 10 |
-| go | 6 |
-| node | 5 |
-| general | 7 |
+| -------- | ----- |
+| python   | 10    |
+| go       | 6     |
+| node     | 5     |
+| general  | 7     |
 ```
 
 ---

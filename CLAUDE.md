@@ -198,39 +198,39 @@ Required CLI tools (install those you want to use):
 
 ## Key Files
 
-| File | Purpose |
-|------|---------|
-| `configs/claude/CLAUDE.md` | Main orchestration guide - defines how Claude leverages parallel agents |
-| `configs/cursor/rules/orchestration.mdc` | Main orchestration guide for Cursor (always-on rule) |
-| `configs/gemini/GEMINI.md` | Main orchestration guide for Gemini CLI |
-| `configs/codex/AGENTS.md` | Main orchestration guide for Codex CLI |
-| `configs/claude/scripts/parallel_agent.sh` | Bash script that runs agents in parallel with consensus scoring |
-| `configs/claude/scripts/git_platform.sh` | Platform detection script (github, gitlab, git) |
-| `configs/claude/scripts/git_ops.sh` | Platform-agnostic Git operations wrapper (issue/PR management) |
-| `configs/claude/scripts/linear_ops.sh` | Linear API wrapper for issue management (GraphQL) |
-| `configs/claude/config/command_config.yml` | Thresholds, tool policies, model selection, error recovery |
-| `configs/claude/config/linear_triage.yml` | Linear triage scoring, duplicate detection, staleness thresholds |
-| `configs/claude/config/validation_criteria.yml` | Tier 1 (critical) and Tier 2 (quality) validation rules |
-| `configs/claude/config/labels.yml` | Canonical label registry for GitHub, GitLab, and Linear |
-| `configs/claude/scripts/label_sync.sh` | Label sync script — reads registry, provisions labels across platforms |
-| `AGENTS.md` | AI agent instructions for all platforms (Cursor, Claude, Gemini, Codex) |
+| File                                            | Purpose                                                                 |
+| ----------------------------------------------- | ----------------------------------------------------------------------- |
+| `configs/claude/CLAUDE.md`                      | Main orchestration guide - defines how Claude leverages parallel agents |
+| `configs/cursor/rules/orchestration.mdc`        | Main orchestration guide for Cursor (always-on rule)                    |
+| `configs/gemini/GEMINI.md`                      | Main orchestration guide for Gemini CLI                                 |
+| `configs/codex/AGENTS.md`                       | Main orchestration guide for Codex CLI                                  |
+| `configs/claude/scripts/parallel_agent.sh`      | Bash script that runs agents in parallel with consensus scoring         |
+| `configs/claude/scripts/git_platform.sh`        | Platform detection script (github, gitlab, git)                         |
+| `configs/claude/scripts/git_ops.sh`             | Platform-agnostic Git operations wrapper (issue/PR management)          |
+| `configs/claude/scripts/linear_ops.sh`          | Linear API wrapper for issue management (GraphQL)                       |
+| `configs/claude/config/command_config.yml`      | Thresholds, tool policies, model selection, error recovery              |
+| `configs/claude/config/linear_triage.yml`       | Linear triage scoring, duplicate detection, staleness thresholds        |
+| `configs/claude/config/validation_criteria.yml` | Tier 1 (critical) and Tier 2 (quality) validation rules                 |
+| `configs/claude/config/labels.yml`              | Canonical label registry for GitHub, GitLab, and Linear                 |
+| `configs/claude/scripts/label_sync.sh`          | Label sync script — reads registry, provisions labels across platforms  |
+| `AGENTS.md`                                     | AI agent instructions for all platforms (Cursor, Claude, Gemini, Codex) |
 
 ## Available Commands
 
 The following slash commands are available in Claude Code:
 
-| Command | Description | Parallel Agents |
-|---------|-------------|-----------------|
-| `/project-commit` | Full commit pipeline: docs, pull, pre-commits, commit, push | CONDITIONAL (Phase 3) |
-| `/refactor-python` | Python codebase security and quality analysis | ALWAYS |
-| `/refactor-shell` | Bash/Shell script security and quality analysis | ALWAYS |
-| `/docs-diagrams` | Generate Mermaid architecture diagrams | CONDITIONAL (5+ modules) |
-| `/docs-improve` | Diataxis documentation framework analysis | CONDITIONAL (>500 lines) |
-| `/docs-readme` | Improve README documentation | NO |
+| Command             | Description                                                                        | Parallel Agents              |
+| ------------------- | ---------------------------------------------------------------------------------- | ---------------------------- |
+| `/project-commit`   | Full commit pipeline: docs, pull, pre-commits, commit, push                        | CONDITIONAL (Phase 3)        |
+| `/refactor-python`  | Python codebase security and quality analysis                                      | ALWAYS                       |
+| `/refactor-shell`   | Bash/Shell script security and quality analysis                                    | ALWAYS                       |
+| `/docs-diagrams`    | Generate Mermaid architecture diagrams                                             | CONDITIONAL (5+ modules)     |
+| `/docs-improve`     | Diataxis documentation framework analysis                                          | CONDITIONAL (>500 lines)     |
+| `/docs-readme`      | Improve README documentation                                                       | NO                           |
 | `/issue-prioritize` | Fetch and rank open issues by impact/urgency/readiness/risk (GitHub/GitLab/Linear) | CONDITIONAL (top candidates) |
-| `/issue-triage` | Linear issue audit: duplicates, staleness, priority validation | CONDITIONAL (scenario-based) |
-| `/plan-manage` | Plan lifecycle with parallel agent orchestration for create/review | CONDITIONAL |
-| `/browser-test` | AI-powered E2E browser testing via browser-use YAML test prompts | CONDITIONAL |
+| `/issue-triage`     | Linear issue audit: duplicates, staleness, priority validation                     | CONDITIONAL (scenario-based) |
+| `/plan-manage`      | Plan lifecycle with parallel agent orchestration for create/review                 | CONDITIONAL                  |
+| `/browser-test`     | AI-powered E2E browser testing via browser-use YAML test prompts                   | CONDITIONAL                  |
 
 ## Testing Changes
 

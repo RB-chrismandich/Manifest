@@ -61,13 +61,13 @@ python3 -c "import yaml; yaml.safe_load(open('configs/claude/config/command_conf
 
 ## Key Paths (in this repo)
 
-| What | Path |
-|------|------|
-| Orchestration guide | `configs/claude/CLAUDE.md` |
-| Skills (slash commands) | `configs/claude/skills/` |
-| Scripts | `configs/claude/scripts/` |
-| Config files | `configs/claude/config/` |
-| Cursor rules | `configs/cursor/rules/` |
-| Gemini guide | `configs/gemini/GEMINI.md` |
-| Bootstrap | `bootstrap.sh` + `bootstrap/lib/` |
-| Tests | `tests/bats/`, `tests/python/` |
+| What                    | Path                              |
+| ----------------------- | --------------------------------- |
+| Orchestration guide     | `configs/claude/CLAUDE.md`        |
+| Skills (slash commands) | `configs/claude/skills/`          |
+| Scripts                 | `configs/claude/scripts/`         |
+| Config files            | `configs/claude/config/`          |
+| Cursor rules            | `configs/cursor/rules/`           |
+| Gemini guide            | `configs/gemini/GEMINI.md`        |
+| Bootstrap               | `bootstrap.sh` + `bootstrap/lib/` |
+| Tests                   | `tests/bats/`, `tests/python/`    |

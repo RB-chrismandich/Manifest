@@ -18,13 +18,13 @@ from the YAML by `learning_capture.sh sync-docs`.
 
 Activate when any of the following are detected in the current session:
 
-| Trigger | Detection Method |
-|---------|-----------------|
-| Lint failure | Exit code != 0 from ruff, eslint, golangci-lint, tflint |
-| Test failure | Exit code != 0 from pytest, go test, vitest, terratest |
-| Security finding | Any finding from bandit, gosec, npm audit, tfsec |
-| Repeated pattern | Same issue type seen 3+ times across files |
-| Code review feedback | Parallel agent consensus flags a recurring concern |
+| Trigger              | Detection Method                                        |
+| -------------------- | ------------------------------------------------------- |
+| Lint failure         | Exit code != 0 from ruff, eslint, golangci-lint, tflint |
+| Test failure         | Exit code != 0 from pytest, go test, vitest, terratest  |
+| Security finding     | Any finding from bandit, gosec, npm audit, tfsec        |
+| Repeated pattern     | Same issue type seen 3+ times across files              |
+| Code review feedback | Parallel agent consensus flags a recurring concern      |
 
 ---
 
@@ -43,16 +43,16 @@ Gather from the current session:
 
 Classify each failure into an antipattern category:
 
-| Category | Examples |
-|----------|---------|
-| `security` | Hardcoded secrets, SQL injection, unsafe deserialization |
+| Category         | Examples                                                   |
+| ---------------- | ---------------------------------------------------------- |
+| `security`       | Hardcoded secrets, SQL injection, unsafe deserialization   |
 | `error-handling` | Bare exceptions, silent failures, missing error boundaries |
-| `performance` | N+1 queries, unbounded loops, missing pagination |
-| `type-safety` | Missing type hints, `any` overuse, unchecked casts |
-| `testing` | Missing edge cases, brittle assertions, test pollution |
-| `architecture` | Circular imports, god classes, tight coupling |
-| `naming` | Misleading names, inconsistent conventions, abbreviations |
-| `duplication` | Copy-paste code, reimplemented stdlib, redundant logic |
+| `performance`    | N+1 queries, unbounded loops, missing pagination           |
+| `type-safety`    | Missing type hints, `any` overuse, unchecked casts         |
+| `testing`        | Missing edge cases, brittle assertions, test pollution     |
+| `architecture`   | Circular imports, god classes, tight coupling              |
+| `naming`         | Misleading names, inconsistent conventions, abbreviations  |
+| `duplication`    | Copy-paste code, reimplemented stdlib, redundant logic     |
 
 ### Step 3: Deduplication
 
@@ -124,11 +124,11 @@ This skill follows the same non-blocking pattern as `code-quality`:
 
 This skill complements other skills:
 
-| Skill | Relationship |
-|-------|-------------|
-| `code-quality` | Feeds security/quality findings into antipattern detection |
-| `learning-loop` | Shares knowledge_base.yml as the common data store |
-| `verify` | Lint/test failures trigger antipattern analysis |
+| Skill           | Relationship                                               |
+| --------------- | ---------------------------------------------------------- |
+| `code-quality`  | Feeds security/quality findings into antipattern detection |
+| `learning-loop` | Shares knowledge_base.yml as the common data store         |
+| `verify`        | Lint/test failures trigger antipattern analysis            |
 
 When both `code-quality` and `antipattern-detect` trigger:
 

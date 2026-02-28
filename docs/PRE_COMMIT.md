@@ -59,7 +59,7 @@ pip3 install pre-commit --user
 - **validate-parallel-agent**: Bash syntax check for parallel_agent.sh
 - **validate-bootstrap**: Bash syntax check for bootstrap.sh
 - **check-credentials**: Search for hardcoded API keys
-- **validate-yaml-configs**: Validate configs/claude/config/*.yml files
+- **validate-yaml-configs**: Validate configs/claude/config/\*.yml files
 - **check-stale-repo-paths**: Detect stale repo-relative `.claude/` paths in docs
 
 ## Running Manually
@@ -86,11 +86,11 @@ git commit --no-verify -m "Emergency fix"
 
 ## Configuration Files
 
-| File | Purpose |
-|------|---------|
-| `.pre-commit-config.yaml` | Main pre-commit configuration |
-| `.markdownlintrc` | Markdown linting rules |
-| `.gitleaks.toml` | Secret detection configuration |
+| File                      | Purpose                        |
+| ------------------------- | ------------------------------ |
+| `.pre-commit-config.yaml` | Main pre-commit configuration  |
+| `.markdownlintrc`         | Markdown linting rules         |
+| `.gitleaks.toml`          | Secret detection configuration |
 
 ## Troubleshooting
 

@@ -26,21 +26,21 @@
 
 Manifest ships with 13 commands and 14 skills (1 auto-triggered).
 
-| Command | Description | Parallel Agents |
-|---------|-------------|-----------------|
-| `/project-commit` | Full commit pipeline: docs, pull, pre-commits, commit, push | CONDITIONAL |
-| `/docs-readme` | Improve README documentation | NO |
-| `/docs-diagrams` | Generate Mermaid architecture diagrams | CONDITIONAL |
-| `/docs-improve` | Diataxis documentation framework analysis | CONDITIONAL |
-| `/refactor-python` | Python codebase security and quality analysis | ALWAYS |
-| `/refactor-shell` | Bash/Shell script security and quality analysis | ALWAYS |
-| `/issue-triage` | Linear issue audit: duplicates, staleness, priority validation | CONDITIONAL |
-| `/issue-prioritize` | Score and rank open issues by impact/urgency/readiness/risk | CONDITIONAL |
-| `/plan-manage` | Plan lifecycle with parallel agent orchestration | CONDITIONAL |
-| `/browser-test` | AI-powered E2E browser testing via browser-use YAML test prompts | CONDITIONAL |
-| `/checkpoint` | Create compact checkpoint summary when context is high | NO |
-| `/health-check` | Verify CLI tools, auth, config syntax, MCP, symlinks | NO |
-| `/sync-configs` | Detect cross-platform config drift and broken symlinks | NO |
+| Command             | Description                                                      | Parallel Agents |
+| ------------------- | ---------------------------------------------------------------- | --------------- |
+| `/project-commit`   | Full commit pipeline: docs, pull, pre-commits, commit, push      | CONDITIONAL     |
+| `/docs-readme`      | Improve README documentation                                     | NO              |
+| `/docs-diagrams`    | Generate Mermaid architecture diagrams                           | CONDITIONAL     |
+| `/docs-improve`     | Diataxis documentation framework analysis                        | CONDITIONAL     |
+| `/refactor-python`  | Python codebase security and quality analysis                    | ALWAYS          |
+| `/refactor-shell`   | Bash/Shell script security and quality analysis                  | ALWAYS          |
+| `/issue-triage`     | Linear issue audit: duplicates, staleness, priority validation   | CONDITIONAL     |
+| `/issue-prioritize` | Score and rank open issues by impact/urgency/readiness/risk      | CONDITIONAL     |
+| `/plan-manage`      | Plan lifecycle with parallel agent orchestration                 | CONDITIONAL     |
+| `/browser-test`     | AI-powered E2E browser testing via browser-use YAML test prompts | CONDITIONAL     |
+| `/checkpoint`       | Create compact checkpoint summary when context is high           | NO              |
+| `/health-check`     | Verify CLI tools, auth, config syntax, MCP, symlinks             | NO              |
+| `/sync-configs`     | Detect cross-platform config drift and broken symlinks           | NO              |
 
 The `code-quality` skill auto-triggers on security-sensitive code, large files (>500 lines),
 or complex files (>10 functions or >5 classes).
@@ -54,14 +54,14 @@ across GitHub, GitLab, and Linear.
 
 ### Canonical Labels
 
-| Label | Color | Hex | Description |
-|-------|-------|-----|-------------|
-| `planned` | Blue | `#1D76DB` | Implementation plan exists for this issue |
-| `in-progress` | Yellow | `#FBCA04` | Implementation is actively underway |
-| `needs-review` | Orange | `#E3A21A` | Requires human review before completion |
-| `done` | Green | `#0E8A16` | Implementation complete and validated |
-| `follow-up` | Lavender | `#D4C5F9` | Spawned from another issue during implementation |
-| `future` | Green | `#C2E0C6` | Queued for future prioritization and scheduling |
+| Label          | Color    | Hex       | Description                                      |
+| -------------- | -------- | --------- | ------------------------------------------------ |
+| `planned`      | Blue     | `#1D76DB` | Implementation plan exists for this issue        |
+| `in-progress`  | Yellow   | `#FBCA04` | Implementation is actively underway              |
+| `needs-review` | Orange   | `#E3A21A` | Requires human review before completion          |
+| `done`         | Green    | `#0E8A16` | Implementation complete and validated            |
+| `follow-up`    | Lavender | `#D4C5F9` | Spawned from another issue during implementation |
+| `future`       | Green    | `#C2E0C6` | Queued for future prioritization and scheduling  |
 
 **Deprecated**: `processed` — use `done` instead (same color and purpose).
 
@@ -149,25 +149,25 @@ Usage examples...
 
 ### Frontmatter Fields
 
-| Field | Required | Description |
-|-------|----------|-------------|
-| `description` | Yes | Short description (appears in command list) |
-| `allowed-tools` | Yes | Comma-separated list of tools Claude can use |
-| `argument-hint` | No | Hint about expected arguments |
+| Field           | Required | Description                                  |
+| --------------- | -------- | -------------------------------------------- |
+| `description`   | Yes      | Short description (appears in command list)  |
+| `allowed-tools` | Yes      | Comma-separated list of tools Claude can use |
+| `argument-hint` | No       | Hint about expected arguments                |
 
 ### Allowed Tools
 
-| Tool | Purpose |
-|------|---------|
-| `Bash` | Run shell commands (git, docker, npm, etc.) |
-| `Read` | Read file contents |
-| `Glob` | Find files by pattern |
-| `Grep` | Search file contents |
-| `Edit` | Modify files |
-| `Write` | Create new files |
-| `Task` | Spawn sub-agents |
-| `AskUserQuestion` | Ask user for input during execution |
-| `Skill` | Invoke other skills/commands |
+| Tool              | Purpose                                     |
+| ----------------- | ------------------------------------------- |
+| `Bash`            | Run shell commands (git, docker, npm, etc.) |
+| `Read`            | Read file contents                          |
+| `Glob`            | Find files by pattern                       |
+| `Grep`            | Search file contents                        |
+| `Edit`            | Modify files                                |
+| `Write`           | Create new files                            |
+| `Task`            | Spawn sub-agents                            |
+| `AskUserQuestion` | Ask user for input during execution         |
+| `Skill`           | Invoke other skills/commands                |
 
 ---
 
@@ -302,14 +302,17 @@ Execute these phases **in order**. Each phase must succeed before proceeding to 
 ### Phase 1: [Name]
 
 **Success Criteria**:
+
 - [ ] Criterion 1
 - [ ] Criterion 2
 
 **On Failure**:
+
 - Retry up to N times
 - If still failing: [action]
 
 **Implementation**:
+
 ```bash
 # Command to run
 ```
@@ -317,7 +320,6 @@ Execute these phases **in order**. Each phase must succeed before proceeding to 
 ### Phase 2: [Next Phase]
 
 [...]
-
 ````
 
 ### Key Components
@@ -447,6 +449,7 @@ Commands can use parallel agents for cross-verification and consensus scoring.
 This command [ALWAYS|CONDITIONALLY|NEVER] uses parallel agents.
 
 When triggered, execute:
+
 ```bash
 ~/.claude/scripts/parallel_agent.sh --json --full-output --validate --timeout 600 \
   --cursor-model [mini|flash|advanced] --claude-model [haiku|sonnet|opus] \
@@ -455,19 +458,18 @@ When triggered, execute:
 
 Consensus scoring:
 
-- >=80%: Auto-proceed with unified recommendation
+- > =80%: Auto-proceed with unified recommendation
 - 50-79%: Highlight disagreements to user
 - <50%: Block and escalate for human review
-
 ````
 
 ### Model Selection
 
-| Task Criticality | Cursor Model | Claude Model | Gemini Model |
-|-----------------|--------------|--------------|--------------|
-| Critical (security, production) | `advanced` | `opus` | `pro` |
-| Standard (code review, analysis) | `flash` | `sonnet` | `flash` |
-| Light (suggestions, quick checks) | `mini` | `haiku` | `flash` |
+| Task Criticality                  | Cursor Model | Claude Model | Gemini Model |
+| --------------------------------- | ------------ | ------------ | ------------ |
+| Critical (security, production)   | `advanced`   | `opus`       | `pro`        |
+| Standard (code review, analysis)  | `flash`      | `sonnet`     | `flash`      |
+| Light (suggestions, quick checks) | `mini`       | `haiku`      | `flash`      |
 
 ### Parsing Results
 
@@ -561,28 +563,29 @@ Use AskUserQuestion tool to ask user for input:
 
 ```json
 {
-  "questions": [{
-    "question": "Operation failed. What would you like to do?",
-    "header": "Error",
-    "multiSelect": false,
-    "options": [
-      {
-        "label": "Retry",
-        "description": "Attempt the operation again"
-      },
-      {
-        "label": "Skip",
-        "description": "Skip this step and continue"
-      },
-      {
-        "label": "Abort",
-        "description": "Stop the command execution"
-      }
-    ]
-  }]
+  "questions": [
+    {
+      "question": "Operation failed. What would you like to do?",
+      "header": "Error",
+      "multiSelect": false,
+      "options": [
+        {
+          "label": "Retry",
+          "description": "Attempt the operation again"
+        },
+        {
+          "label": "Skip",
+          "description": "Skip this step and continue"
+        },
+        {
+          "label": "Abort",
+          "description": "Stop the command execution"
+        }
+      ]
+    }
+  ]
 }
 ```
-
 ````
 
 ---
@@ -674,7 +677,6 @@ echo "| HACK | $hack_count |"
 echo ""
 echo "**Total**: $((todo_count + fixme_count + hack_count))"
 ```
-
 ````
 
 ---
@@ -706,6 +708,7 @@ Create a feature branch following team naming conventions.
 4. Create branch with naming convention
 
 **Current branch check**:
+
 ```bash
 current_branch=$(git branch --show-current)
 if [[ "$current_branch" != "main" && "$current_branch" != "master" ]]; then
@@ -736,7 +739,6 @@ branch_name="${feature_type}/$(echo "$feature_desc" | tr '[:upper:]' '[:lower:]'
 git checkout -b "$branch_name"
 echo "✅ Created branch: $branch_name"
 ```
-
 ````
 
 ---
@@ -930,5 +932,4 @@ Expected output:
 
 - [Related command 1]
 - [Related command 2]
-
 ````

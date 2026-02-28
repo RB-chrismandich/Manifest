@@ -23,9 +23,9 @@ Replace the placeholders with your project's architecture:
 
 ### Component/Service Map
 
-| Component | Language | Responsibility |
-|-----------|----------|----------------|
-| [Name] | [Lang] | [Brief description] |
+| Component | Language | Responsibility      |
+| --------- | -------- | ------------------- |
+| [Name]    | [Lang]   | [Brief description] |
 ```
 
 ### Key Constraints (Required)
@@ -52,9 +52,9 @@ Document your project's architectural constraints that implementations must resp
 If your project has per-component agent files (AGENTS.md), list them:
 
 ```markdown
-| Component | Agent File | Scope |
-|-----------|-----------|-------|
-| [Name] | `[path]/AGENTS.md` | [What it covers] |
+| Component | Agent File         | Scope            |
+| --------- | ------------------ | ---------------- |
+| [Name]    | `[path]/AGENTS.md` | [What it covers] |
 ```
 
 ### Standards Files (Optional)
@@ -62,9 +62,9 @@ If your project has per-component agent files (AGENTS.md), list them:
 If your project has coding standards documents:
 
 ```markdown
-| Language | Standards File |
-|----------|---------------|
-| [Lang] | `docs/standards/[lang]/STANDARDS.md` |
+| Language | Standards File                       |
+| -------- | ------------------------------------ |
+| [Lang]   | `docs/standards/[lang]/STANDARDS.md` |
 ```
 
 ---
@@ -130,23 +130,23 @@ If you catch yourself about to write code or modify a file, STOP immediately. Yo
 1. Map the issue requirements against your Component Map.
 2. Classify the issue type to guide component identification:
 
-   | Issue Type | Typically Affects |
-   |-----------|-------------------|
-   | Frontend-only (UI, UX, styling) | Web/Mobile components |
-   | New data field end-to-end | Data layer, API, Frontend |
-   | New external integration | Integration layer, Data layer |
-   | Algorithm/logic change | Core logic components |
-   | API schema change | API, Clients/Consumers |
-   | New event type | Publisher, all consumers |
-   | Infrastructure/config | Infrastructure files, potentially all components |
+   | Issue Type                      | Typically Affects                                |
+   | ------------------------------- | ------------------------------------------------ |
+   | Frontend-only (UI, UX, styling) | Web/Mobile components                            |
+   | New data field end-to-end       | Data layer, API, Frontend                        |
+   | New external integration        | Integration layer, Data layer                    |
+   | Algorithm/logic change          | Core logic components                            |
+   | API schema change               | API, Clients/Consumers                           |
+   | New event type                  | Publisher, all consumers                         |
+   | Infrastructure/config           | Infrastructure files, potentially all components |
 
    **Customize this table for your architecture.**
 
 3. Produce an impact table:
 
-   | Component | Affected? | Why | Impact Level |
-   |-----------|-----------|-----|-------------|
-   | (each component) | Yes/No | Brief reason | High/Medium/Low/None |
+   | Component        | Affected? | Why          | Impact Level         |
+   | ---------------- | --------- | ------------ | -------------------- |
+   | (each component) | Yes/No    | Brief reason | High/Medium/Low/None |
 
 ---
 
@@ -195,8 +195,8 @@ Structure the plan using this template. Include only sections that are relevant 
 ## Current State → Proposed State
 
 | Aspect | Current | Proposed |
-|--------|---------|----------|
-| ... | ... | ... |
+| ------ | ------- | -------- |
+| ...    | ...     | ...      |
 
 ## Design Rationale
 
@@ -207,23 +207,25 @@ Structure the plan using this template. Include only sections that are relevant 
 (Include only if parallel agent consensus < 100%)
 
 | Topic | Agent A | Agent B | Resolution |
-|-------|---------|---------|------------|
-| ... | ... | ... | ... |
+| ----- | ------- | ------- | ---------- |
+| ...   | ...     | ...     | ...        |
 
 ## Affected Components
 
 | Component | Impact Level | Changes Required |
-|-----------|-------------|-----------------|
-| ... | ... | ... |
+| --------- | ------------ | ---------------- |
+| ...       | ...          | ...              |
 
 ## File Changes
 
 ### New Files
+
 - `path/to/new/file.ext` — [Purpose]
   - [Key implementation detail]
   - [Key implementation detail]
 
 ### Modified Files
+
 - `path/to/existing/file.ext` — [What changes]
   - [Specific change 1]
   - [Specific change 2]

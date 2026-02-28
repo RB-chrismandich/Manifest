@@ -47,12 +47,12 @@ platform=$(~/.claude/scripts/git_platform.sh 2>/dev/null || echo "github")
 
 Scan the project root for language indicators. Check for the presence of:
 
-| Language   | Indicators                                                         |
-|------------|--------------------------------------------------------------------|
+| Language   | Indicators                                                            |
+| ---------- | --------------------------------------------------------------------- |
 | Python     | `*.py`, `pyproject.toml`, `setup.cfg`, `requirements*.txt`, `Pipfile` |
-| Go         | `*.go`, `go.mod`, `go.sum`                                        |
-| Node.js/TS | `*.ts`, `*.tsx`, `*.js`, `*.jsx`, `package.json`                   |
-| Terraform  | `*.tf`, `*.tfvars`, `.terraform.lock.hcl`                          |
+| Go         | `*.go`, `go.mod`, `go.sum`                                            |
+| Node.js/TS | `*.ts`, `*.tsx`, `*.js`, `*.jsx`, `package.json`                      |
+| Terraform  | `*.tf`, `*.tfvars`, `.terraform.lock.hcl`                             |
 
 Record which languages are detected. At least one must be found.
 
@@ -129,23 +129,23 @@ add a browser test job to the CI pipeline:
 **GitHub Actions** — add after the test job:
 
 ```yaml
-  browser-tests:
-    runs-on: ubuntu-latest
-    needs: [test]
-    if: hashFiles('tests/browser/*.yaml') != '' || hashFiles('tests/browser/*.yml') != ''
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - name: Install browser-use
-        run: pip install browser-use
-      - name: Install browser dependencies
-        run: npx playwright install --with-deps chromium
-      - name: Run browser tests
-        run: |
-          chmod +x ~/.claude/scripts/browser_test.sh 2>/dev/null || true
-          python3 -m browser_use run tests/browser/ --headless || true
+browser-tests:
+  runs-on: ubuntu-latest
+  needs: [test]
+  if: hashFiles('tests/browser/*.yaml') != '' || hashFiles('tests/browser/*.yml') != ''
+  steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+    - name: Install browser-use
+      run: pip install browser-use
+    - name: Install browser dependencies
+      run: npx playwright install --with-deps chromium
+    - name: Run browser tests
+      run: |
+        chmod +x ~/.claude/scripts/browser_test.sh 2>/dev/null || true
+        python3 -m browser_use run tests/browser/ --headless || true
 ```
 
 **GitLab CI** — add after the test stage:

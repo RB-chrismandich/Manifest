@@ -43,7 +43,7 @@ Accepts a text description **or** an issue number (`42` / `#42`).
    a. Fetch the issue via `~/.claude/scripts/git_ops.sh issue-view N`.
    b. Extract the issue title and body.
    c. **Posting disposition**: If the issue body is <200 characters or contains no markdown headings (`##`),
-      the plan will replace the issue body later (Step 3a). Otherwise, the plan will be posted as a comment.
+   the plan will replace the issue body later (Step 3a). Otherwise, the plan will be posted as a comment.
    d. Use the issue title + body as the task description for subsequent steps.
 2. If the argument is plain text, use it directly as the description (existing behavior).
 
@@ -194,13 +194,13 @@ If the plan has an `**Issue**: #N` field or was resolved from an issue number:
    b. Set task status to `in_progress` (TaskUpdate).
    c. Read the **Related Files** and **Implementation Notes** sections for context.
    d. Implement the deliverable:
-      - Use Read, Glob, Grep to understand current code.
-      - Use Edit or Write to make changes.
-      - Use Bash for any shell operations (tests, builds, etc.).
-   e. After implementation, check off the deliverable (`- [x]`) in the plan file (Edit).
-   f. Set task status to `completed` (TaskUpdate).
-   g. **Issue-linked only**: Update the progress comment via
-      `~/.claude/scripts/git_ops.sh issue-comment-edit-last N --body "<updated-table>"`
+   - Use Read, Glob, Grep to understand current code.
+   - Use Edit or Write to make changes.
+   - Use Bash for any shell operations (tests, builds, etc.).
+     e. After implementation, check off the deliverable (`- [x]`) in the plan file (Edit).
+     f. Set task status to `completed` (TaskUpdate).
+     g. **Issue-linked only**: Update the progress comment via
+     `~/.claude/scripts/git_ops.sh issue-comment-edit-last N --body "<updated-table>"`
 
 **Error handling**: If a deliverable fails, keep its task as `in_progress`, log the failure
 in the plan's **Log** section, and ask the user how to proceed (skip, retry, or abort).
@@ -252,22 +252,22 @@ If the plan is linked to an issue:
 
 ## Parallel Agent Trigger Criteria
 
-| Action | Parallel Agents | Trigger |
-|--------|----------------|---------|
-| `create` | CONDITIONAL | Security, architecture, 3+ files, critical logic |
-| `execute` | CONDITIONAL | Post-execution review for issue-linked plans |
-| `review` | CONDITIONAL | Stale plans (7+ days) being re-evaluated |
-| `list` | NEVER | Read-only metadata scan |
-| `archive` | NEVER | File move only |
-| `abandon` | NEVER | File move only |
+| Action    | Parallel Agents | Trigger                                          |
+| --------- | --------------- | ------------------------------------------------ |
+| `create`  | CONDITIONAL     | Security, architecture, 3+ files, critical logic |
+| `execute` | CONDITIONAL     | Post-execution review for issue-linked plans     |
+| `review`  | CONDITIONAL     | Stale plans (7+ days) being re-evaluated         |
+| `list`    | NEVER           | Read-only metadata scan                          |
+| `archive` | NEVER           | File move only                                   |
+| `abandon` | NEVER           | File move only                                   |
 
 **Model selection for planning** (balanced — not security-critical):
 
-| Agent | Model | Reason |
-|-------|-------|--------|
-| Cursor | flash | Good reasoning for architectural proposals |
-| Claude | sonnet | Balanced planning capability |
-| Gemini | flash | Broad knowledge for diverse approaches |
+| Agent  | Model  | Reason                                     |
+| ------ | ------ | ------------------------------------------ |
+| Cursor | flash  | Good reasoning for architectural proposals |
+| Claude | sonnet | Balanced planning capability               |
+| Gemini | flash  | Broad knowledge for diverse approaches     |
 
 ---
 

@@ -85,18 +85,18 @@ Mermaid flowcharts showing bootstrap, execution, validation, and consensus flows
 
 ## Available Commands
 
-| Command | Description | Parallel Agents | Validation |
-|---------|-------------|-----------------|------------|
-| `/project-commit` | Full commit pipeline: regenerate docs, pull latest, run pre-commits, commit, push | CONDITIONAL (Phase 3) | Tier 1 + Tier 2 |
-| `/refactor-python` | Python security, architecture, code quality analysis | ALWAYS | Tier 1 + Tier 2 (≥0.80) |
-| `/refactor-shell` | Bash/Shell script security and quality with shellcheck | ALWAYS | Tier 1 + Tier 2 (≥0.70) |
-| `/docs-diagrams` | Generate Mermaid architecture flowcharts and sequence diagrams | CONDITIONAL (≥5 imports) | Tier 2 |
-| `/docs-improve` | Analyze docs against Diataxis framework (tutorials, how-tos, reference, explanation) | CONDITIONAL (≥500 lines) | Tier 2 |
-| `/docs-readme` | Improve README structure and content following best practices | NEVER | Tier 2 |
-| `/issue-prioritize` | Fetch and rank open issues by impact, urgency, readiness, risk (GitHub/GitLab/Linear) | CONDITIONAL (top candidates) | Tier 2 |
-| `/issue-triage` | Linear issue audit: duplicates, staleness, priority validation | CONDITIONAL (scenario-based) | Tier 2 |
-| `/plan-manage` | Plan lifecycle: create, review, execute, archive, abandon | CONDITIONAL | Tier 2 |
-| `/browser-test` | AI-powered E2E browser testing via browser-use YAML test prompts | CONDITIONAL | Tier 2 |
+| Command             | Description                                                                           | Parallel Agents              | Validation              |
+| ------------------- | ------------------------------------------------------------------------------------- | ---------------------------- | ----------------------- |
+| `/project-commit`   | Full commit pipeline: regenerate docs, pull latest, run pre-commits, commit, push     | CONDITIONAL (Phase 3)        | Tier 1 + Tier 2         |
+| `/refactor-python`  | Python security, architecture, code quality analysis                                  | ALWAYS                       | Tier 1 + Tier 2 (≥0.80) |
+| `/refactor-shell`   | Bash/Shell script security and quality with shellcheck                                | ALWAYS                       | Tier 1 + Tier 2 (≥0.70) |
+| `/docs-diagrams`    | Generate Mermaid architecture flowcharts and sequence diagrams                        | CONDITIONAL (≥5 imports)     | Tier 2                  |
+| `/docs-improve`     | Analyze docs against Diataxis framework (tutorials, how-tos, reference, explanation)  | CONDITIONAL (≥500 lines)     | Tier 2                  |
+| `/docs-readme`      | Improve README structure and content following best practices                         | NEVER                        | Tier 2                  |
+| `/issue-prioritize` | Fetch and rank open issues by impact, urgency, readiness, risk (GitHub/GitLab/Linear) | CONDITIONAL (top candidates) | Tier 2                  |
+| `/issue-triage`     | Linear issue audit: duplicates, staleness, priority validation                        | CONDITIONAL (scenario-based) | Tier 2                  |
+| `/plan-manage`      | Plan lifecycle: create, review, execute, archive, abandon                             | CONDITIONAL                  | Tier 2                  |
+| `/browser-test`     | AI-powered E2E browser testing via browser-use YAML test prompts                      | CONDITIONAL                  | Tier 2                  |
 
 ---
 
@@ -118,14 +118,14 @@ Mermaid flowcharts showing bootstrap, execution, validation, and consensus flows
 
 ## Documentation
 
-| Document | Purpose | Audience | Reading Time |
-|----------|---------|----------|--------------|
-| [Getting Started](docs/GETTING_STARTED.md) | First-time setup walkthrough with verification steps | New users | 10 min |
-| [Configuration](docs/CONFIGURATION.md) | All configuration options, YAML reference, environment variables | Operators | 15 min |
-| [Architecture Diagrams](docs/ARCHITECTURE_DIAGRAMS.md) | Visual system documentation with 13 Mermaid diagrams | Developers | 20 min |
-| [Troubleshooting](docs/TROUBLESHOOTING.md) | Common problems, error messages, solutions | All users | 10 min |
-| [AGENTS.md](AGENTS.md) | AI agent instructions (Cursor, Claude, Gemini, Codex) | AI assistants | 8 min |
-| [CLAUDE.md](CLAUDE.md) | Claude Code-specific project context | AI assistants | 8 min |
+| Document                                               | Purpose                                                          | Audience      | Reading Time |
+| ------------------------------------------------------ | ---------------------------------------------------------------- | ------------- | ------------ |
+| [Getting Started](docs/GETTING_STARTED.md)             | First-time setup walkthrough with verification steps             | New users     | 10 min       |
+| [Configuration](docs/CONFIGURATION.md)                 | All configuration options, YAML reference, environment variables | Operators     | 15 min       |
+| [Architecture Diagrams](docs/ARCHITECTURE_DIAGRAMS.md) | Visual system documentation with 13 Mermaid diagrams             | Developers    | 20 min       |
+| [Troubleshooting](docs/TROUBLESHOOTING.md)             | Common problems, error messages, solutions                       | All users     | 10 min       |
+| [AGENTS.md](AGENTS.md)                                 | AI agent instructions (Cursor, Claude, Gemini, Codex)            | AI assistants | 8 min        |
+| [CLAUDE.md](CLAUDE.md)                                 | Claude Code-specific project context                             | AI assistants | 8 min        |
 
 **Full documentation index**: [docs/README.md](docs/README.md) • **Quick ref**: [Commands](docs/COMMANDS.md)
 

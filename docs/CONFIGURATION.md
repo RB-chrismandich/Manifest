@@ -25,11 +25,11 @@
 
 All configuration files are located in `~/.claude/config/`:
 
-| File | Purpose | Format |
-|------|---------|--------|
-| `services.yml` | Agent enable/disable states | YAML |
-| `command_config.yml` | Tool policies, thresholds, model defaults | YAML |
-| `validation_criteria.yml` | Tier 1/2 security and quality rules | YAML |
+| File                      | Purpose                                   | Format |
+| ------------------------- | ----------------------------------------- | ------ |
+| `services.yml`            | Agent enable/disable states               | YAML   |
+| `command_config.yml`      | Tool policies, thresholds, model defaults | YAML   |
+| `validation_criteria.yml` | Tier 1/2 security and quality rules       | YAML   |
 
 ### File Locations
 
@@ -57,13 +57,13 @@ Controls which AI agents are enabled for parallel orchestration.
 services:
   # Claude Code CLI - Anthropic's AI assistant
   claude:
-    enabled: true  # Set to false to disable
+    enabled: true # Set to false to disable
     command: claude
     description: "Deep reasoning, security analysis, complex logic"
     model_tiers:
-      - haiku    # Fast, economical
-      - sonnet   # Balanced (default)
-      - opus     # Maximum capability
+      - haiku # Fast, economical
+      - sonnet # Balanced (default)
+      - opus # Maximum capability
 
   # Gemini CLI - Google's AI assistant
   gemini:
@@ -71,8 +71,8 @@ services:
     command: gemini
     description: "Broad knowledge, creative solutions, research"
     model_tiers:
-      - flash    # Fast (default)
-      - pro      # Advanced
+      - flash # Fast (default)
+      - pro # Advanced
 
   # Cursor Agent - IDE-integrated AI
   cursor:
@@ -80,8 +80,8 @@ services:
     command: cursor
     description: "IDE-integrated context, code-specific analysis"
     model_tiers:
-      - mini     # Lightweight
-      - flash    # Balanced (default)
+      - mini # Lightweight
+      - flash # Balanced (default)
       - advanced # Maximum capability
 
   # Codex CLI - OpenAI terminal coding agent
@@ -90,32 +90,32 @@ services:
     command: codex
     description: "Terminal coding assistant for codebase edits and automation"
     model_tiers:
-      - mini     # Lightweight (o4-mini)
-      - flash    # Balanced (o3, default)
+      - mini # Lightweight (o4-mini)
+      - flash # Balanced (o3, default)
       - advanced # Maximum capability (o3-pro)
-      - auto     # Use Codex config default model
+      - auto # Use Codex config default model
 
   # Git CLI tools - Platform-specific Git hosting integrations
   git_cli:
     github:
-      enabled: auto  # auto | true | false (default: auto-detect)
+      enabled: auto # auto | true | false (default: auto-detect)
       command: gh
       description: "GitHub CLI for issue/PR management"
     gitlab:
-      enabled: auto  # auto | true | false (default: auto-detect)
+      enabled: auto # auto | true | false (default: auto-detect)
       command: glab
       description: "GitLab CLI for issue/MR management"
     detection:
-      platform: auto  # auto | github | gitlab | git
-      remote: origin  # overridable via MANIFEST_GIT_REMOTE
+      platform: auto # auto | github | gitlab | git
+      remote: origin # overridable via MANIFEST_GIT_REMOTE
 
 # Minimum agents required for parallel orchestration
 minimum_agents: 2
 
 # Fallback behavior when enabled services are unavailable
 fallback:
-  strategy: continue_with_available  # Options: continue_with_available, abort, warn_user
-  warn_threshold: 1  # Warn if only this many agents available
+  strategy: continue_with_available # Options: continue_with_available, abort, warn_user
+  warn_threshold: 1 # Warn if only this many agents available
 ```
 
 ### Enabling/Disabling Services
@@ -180,13 +180,13 @@ Defines behavior for each slash command.
 ```yaml
 thresholds:
   # Documentation commands
-  improve_docs_lines: 500         # Trigger parallel agents when total doc lines > 500
-  generate_diagrams_modules: 5    # Trigger when analyzing 5+ unique imports/modules
+  improve_docs_lines: 500 # Trigger parallel agents when total doc lines > 500
+  generate_diagrams_modules: 5 # Trigger when analyzing 5+ unique imports/modules
 
   # Code quality skill auto-triggers
-  skill_file_lines: 500           # File > 500 lines
-  skill_function_count: 10        # > 10 functions per file
-  skill_class_count: 5            # > 5 classes per file
+  skill_file_lines: 500 # File > 500 lines
+  skill_function_count: 10 # > 10 functions per file
+  skill_class_count: 5 # > 5 classes per file
   skill_cyclomatic_complexity: 15 # Cyclomatic complexity > 15
 ```
 
@@ -194,9 +194,9 @@ thresholds:
 
 ```yaml
 consensus:
-  high: 80      # >=80%: Auto-proceed with unified recommendation
-  medium: 50    # 50-79%: Highlight disagreements to user
-  low: 0        # <50%: Block and escalate for human review
+  high: 80 # >=80%: Auto-proceed with unified recommendation
+  medium: 50 # 50-79%: Highlight disagreements to user
+  low: 0 # <50%: Block and escalate for human review
 ```
 
 **Example**: If 2 of 3 agents agree → 67% consensus → medium confidence → disagreements highlighted
@@ -215,7 +215,7 @@ tool_policies:
     forbidden:
       - Bash
       - Write
-      - Edit  # Read-only analysis
+      - Edit # Read-only analysis
     parallel_agents: always
     validation_tier: 1
 
@@ -272,17 +272,17 @@ task_model_defaults:
 credit_fallback:
   cursor:
     chain:
-      - advanced       # Try gpt-5.2 first
-      - flash          # Fall back to gpt-5.1-codex
-      - mini           # Fall back to gpt-5.1-codex-mini
-      - auto           # Final fallback: let Cursor decide
+      - advanced # Try gpt-5.2 first
+      - flash # Fall back to gpt-5.1-codex
+      - mini # Fall back to gpt-5.1-codex-mini
+      - auto # Final fallback: let Cursor decide
     final_fallback: auto
 
   claude:
     chain:
-      - opus           # Try opus first
-      - sonnet         # Fall back to sonnet
-      - haiku          # Final fallback
+      - opus # Try opus first
+      - sonnet # Fall back to sonnet
+      - haiku # Final fallback
     final_fallback: haiku
 ```
 
@@ -385,7 +385,7 @@ tier2:
 
 ```yaml
 scoring:
-  tier1_pass_threshold: 1.0  # All tier1 checks must pass
+  tier1_pass_threshold: 1.0 # All tier1 checks must pass
   tier2_acceptable_threshold: 0.60
 
   verdicts:
@@ -417,7 +417,7 @@ command_overrides:
       - breaking_changes
       - cross_verification
     tier2_required: true
-    tier2_threshold: 0.80  # Higher threshold for refactoring
+    tier2_threshold: 0.80 # Higher threshold for refactoring
     consensus_threshold: 0.80
 
   docs-diagrams:
@@ -539,33 +539,33 @@ vim configs/claude/config/validation_overrides.yml
 
 ```yaml
 patterns:
-  - "jwt.verify"           # Must contain this string
-  - "authenticate"         # Or this string
+  - "jwt.verify" # Must contain this string
+  - "authenticate" # Or this string
 ```
 
 **Regex patterns**:
 
 ```yaml
 patterns:
-  - "\\$\\{.*\\}.*SELECT"  # Template literal in SQL (bad)
-  - "req\\.body\\["        # Direct req.body access (bad)
+  - "\\$\\{.*\\}.*SELECT" # Template literal in SQL (bad)
+  - "req\\.body\\[" # Direct req.body access (bad)
 ```
 
 **Context-aware patterns**:
 
 ```yaml
 patterns:
-  - "current_version"      # Must contain this...
-context: "UpdateTransaction"  # ...within this context
+  - "current_version" # Must contain this...
+context: "UpdateTransaction" # ...within this context
 ```
 
 **Good vs Bad patterns**:
 
 ```yaml
 patterns_good:
-  - "cursor.execute.*%s"   # Parameterized query (good)
+  - "cursor.execute.*%s" # Parameterized query (good)
 patterns_bad:
-  - "cursor.execute.*f\""  # f-string in SQL (bad)
+  - 'cursor.execute.*f"' # f-string in SQL (bad)
 ```
 
 #### Validation Output
@@ -629,27 +629,27 @@ Overall: NEEDS_REVIEW (tier1 pass, tier2: 0.55)
 
 #### Cursor Models
 
-| Tier | Model Name | Use Case | Cost |
-|------|------------|----------|------|
-| `mini` | gpt-5.1-codex-mini | Quick queries | Lowest |
-| `flash` | gpt-5.1-codex | Code review (default) | Medium |
-| `advanced` | gpt-5.2 | Security analysis | Highest |
-| `auto` | (Cursor decides) | Let Cursor optimize | Variable |
+| Tier       | Model Name         | Use Case              | Cost     |
+| ---------- | ------------------ | --------------------- | -------- |
+| `mini`     | gpt-5.1-codex-mini | Quick queries         | Lowest   |
+| `flash`    | gpt-5.1-codex      | Code review (default) | Medium   |
+| `advanced` | gpt-5.2            | Security analysis     | Highest  |
+| `auto`     | (Cursor decides)   | Let Cursor optimize   | Variable |
 
 #### Claude Models
 
-| Tier | Model Name | Use Case | Cost |
-|------|------------|----------|------|
-| `haiku` | haiku | Quick queries | Lowest |
-| `sonnet` | sonnet | Code review (default) | Medium |
-| `opus` | opus | Security analysis | Highest |
+| Tier     | Model Name | Use Case              | Cost    |
+| -------- | ---------- | --------------------- | ------- |
+| `haiku`  | haiku      | Quick queries         | Lowest  |
+| `sonnet` | sonnet     | Code review (default) | Medium  |
+| `opus`   | opus       | Security analysis     | Highest |
 
 #### Gemini Models
 
-| Tier | Model Name | Use Case | Cost |
-|------|------------|----------|------|
-| `flash` | gemini-3-flash-preview | General use (default) | Lower |
-| `pro` | gemini-3-pro-preview | Complex analysis | Higher |
+| Tier    | Model Name             | Use Case              | Cost   |
+| ------- | ---------------------- | --------------------- | ------ |
+| `flash` | gemini-3-flash-preview | General use (default) | Lower  |
+| `pro`   | gemini-3-pro-preview   | Complex analysis      | Higher |
 
 ### Selecting Models
 

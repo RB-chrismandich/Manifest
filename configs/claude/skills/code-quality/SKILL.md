@@ -45,12 +45,12 @@ Activate when code contains any of these patterns:
 
 Activate when file metrics exceed thresholds:
 
-| Metric | Threshold | Rationale |
-|--------|-----------|-----------|
-| File lines | >500 | God class indicator |
-| Function count | >10 | Single responsibility violation |
-| Class count | >5 | Module doing too much |
-| Cyclomatic complexity | >15 | Hard to test/maintain |
+| Metric                | Threshold | Rationale                       |
+| --------------------- | --------- | ------------------------------- |
+| File lines            | >500      | God class indicator             |
+| Function count        | >10       | Single responsibility violation |
+| Class count           | >5        | Module doing too much           |
+| Cyclomatic complexity | >15       | Hard to test/maintain           |
 
 ## Behavior
 
@@ -79,24 +79,24 @@ When triggered, this skill:
 
 ### Security Checks
 
-| Check | Severity | Pattern |
-|-------|----------|---------|
-| Hardcoded secrets | Critical | `password =`, `secret =`, `api_key =` |
-| SQL injection | Critical | f-strings in SQL queries |
-| Command injection | Critical | User input in `subprocess`, `os.system` |
-| Unsafe deserialization | Critical | `pickle.load`, `yaml.load` (not safe_load) |
-| Bare exceptions | High | `except:` without specific exception |
-| Missing input validation | High | External data used without validation |
+| Check                    | Severity | Pattern                                    |
+| ------------------------ | -------- | ------------------------------------------ |
+| Hardcoded secrets        | Critical | `password =`, `secret =`, `api_key =`      |
+| SQL injection            | Critical | f-strings in SQL queries                   |
+| Command injection        | Critical | User input in `subprocess`, `os.system`    |
+| Unsafe deserialization   | Critical | `pickle.load`, `yaml.load` (not safe_load) |
+| Bare exceptions          | High     | `except:` without specific exception       |
+| Missing input validation | High     | External data used without validation      |
 
 ### Quality Checks
 
-| Check | Severity | Pattern |
-|-------|----------|---------|
-| God class | Medium | File >500 lines |
-| Long function | Medium | Function >100 lines |
-| Too many parameters | Low | Function with >5 parameters |
-| Missing type hints | Low | Function without return type |
-| Magic numbers | Low | Unexplained numeric literals |
+| Check               | Severity | Pattern                      |
+| ------------------- | -------- | ---------------------------- |
+| God class           | Medium   | File >500 lines              |
+| Long function       | Medium   | Function >100 lines          |
+| Too many parameters | Low      | Function with >5 parameters  |
+| Missing type hints  | Low      | Function without return type |
+| Magic numbers       | Low      | Unexplained numeric literals |
 
 ## Output Format
 
@@ -110,18 +110,20 @@ When triggered, report findings in this format:
 
 ### Findings
 
-| Severity | Issue | Location | Recommendation |
-|----------|-------|----------|----------------|
-| Critical | Hardcoded API key | Line 45 | Move to environment variable |
-| High | Bare exception | Line 112 | Catch specific exception |
-| Medium | Long function | Lines 200-350 | Extract helper methods |
+| Severity | Issue             | Location      | Recommendation               |
+| -------- | ----------------- | ------------- | ---------------------------- |
+| Critical | Hardcoded API key | Line 45       | Move to environment variable |
+| High     | Bare exception    | Line 112      | Catch specific exception     |
+| Medium   | Long function     | Lines 200-350 | Extract helper methods       |
 
 ### Summary
+
 - Critical: X issues (must fix before merge)
 - High: X issues (should fix soon)
 - Medium: X issues (refactor when possible)
 
 ### Parallel Agent Consensus
+
 - Gemini: [Key finding]
 - Cursor: [Key finding]
 - Consensus: XX% (HIGH/MEDIUM/LOW)
