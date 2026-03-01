@@ -1,4 +1,6 @@
 #!/bin/bash
+# shellcheck disable=SC2129
+# shellcheck disable=SC2016
 # ┌──────────────────────────────────────────────────────────────────────┐
 # │  DEPRECATED: This shell script is superseded by parallel_agent.py   │
 # │  Use instead:                                                       │
@@ -1462,9 +1464,9 @@ monitor_agents() {
                     code=$?
                     set -e
                     if [[ $code -eq 0 ]]; then
-                        agent_states[$i]="${GREEN}✔${NC}"
+                        agent_states[i]="${GREEN}✔${NC}"
                     else
-                        agent_states[$i]="${RED}✘${NC}"
+                        agent_states[i]="${RED}✘${NC}"
                     fi
                     status_line="$status_line $display_name [${agent_states[$i]}]"
                 fi
@@ -1574,7 +1576,7 @@ print_results_table() {
     if [[ "$VALIDATE" == true ]]; then
         printf " | %-10s" "Validation"
     fi
-    printf "${NC}\n"
+    printf "%b\n" "${NC}"
 
     printf "%s\n" "-----------|------------|----------------------$(if [[ "$VALIDATE" == true ]]; then echo "-|------------"; fi)"
 
