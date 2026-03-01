@@ -90,11 +90,8 @@ setup_gemini_auth() {
                 # Escape single quotes to prevent injection
                 local safe_key="${api_key//\'/\'\\\'\'}"
 
-                # Create file with restrictive permissions
-                touch "$env_file"
-                chmod 600 "$env_file"
-
-                echo "export GEMINI_API_KEY='$safe_key'" > "$env_file"
+                # Create file securely to prevent TOCTOU race conditions
+                write_file_securely "$env_file" "export GEMINI_API_KEY='$safe_key'"
                 print_success "API key saved to $env_file (mode 600)"
 
                 # Source it for current session

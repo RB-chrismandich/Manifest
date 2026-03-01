@@ -7,3 +7,8 @@
 **Vulnerability:** The script `.claude/scripts/parallel_agent.sh` used `eval` to process configuration values parsed from `services.yml`. If the configuration file (located in the user's home directory) was modified by an attacker, it could lead to arbitrary command execution within the context of the script.
 **Learning:** Using `eval` on data derived from external files, even if partially sanitized by `awk`, is risky and hard to audit. It creates a direct path for code injection if the sanitization logic is flawed or bypassed.
 **Prevention:** Replace `eval` with a `while read` loop that iterates over the parsed output. Use strict matching (e.g., `case "$key" in ...`) to whitelist allowed variables and assign values safely, preventing execution of arbitrary commands.
+
+## 2026-03-01 - TOCTOU Race Condition on Sensitive File Creation
+**Vulnerability:** Shell scripts using `touch file` followed by `chmod 600 file` or simply `echo "secret" > file` and then `chmod` create a small time window where a sensitive file is created with default permissions (often `644`) before it is restricted to `600`. During this window, other users on the system could potentially read the contents (Time-of-Check to Time-of-Use race condition).
+**Learning:** Creating sensitive files like credentials, API keys, or configurations requires atomic permission setting. The moment the file is written to the disk, it must already be appropriately restricted.
+**Prevention:** Implement a helper function like `write_file_securely` using a subshell and `umask 077` to write to a temporary file first, and then move it atomically to the destination. For example: `(umask 077; echo "secret" > file.tmp); mv file.tmp file; chmod 600 file`.

@@ -53,6 +53,33 @@ command_exists() {
     command -v "$1" &> /dev/null
 }
 
+# Write a file securely by atomically setting restrictive permissions (0600)
+# to prevent Time-of-Check to Time-of-Use (TOCTOU) race conditions when writing
+# sensitive data (like API keys or configuration files).
+# Usage: write_file_securely "/path/to/dest" ["content"]
+# If content is omitted, it reads from stdin.
+write_file_securely() {
+    local dest="$1"
+    local temp_dest="${dest}.tmp.$$"
+
+    # Run in a subshell so we don't change the parent's umask
+    (
+        umask 077
+        if [[ $# -ge 2 ]]; then
+            # Use printf instead of echo to prevent format string vulnerabilities
+            printf '%s\n' "$2" > "$temp_dest"
+        else
+            cat > "$temp_dest"
+        fi
+    )
+
+    # Atomically replace the destination file
+    mv "$temp_dest" "$dest"
+
+    # Explicitly enforce permissions
+    chmod 600 "$dest"
+}
+
 # Show a spinner while a command runs
 # Usage: run_with_spinner "command args" "Loading message"
 run_with_spinner() {
