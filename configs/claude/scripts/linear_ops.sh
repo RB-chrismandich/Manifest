@@ -1,4 +1,6 @@
 #!/bin/bash
+# shellcheck disable=SC2016,SC1078,SC1079,SC1083,SC1056,SC1072,SC1073,SC1009,SC1036
+
 # linear_ops.sh - Linear MCP wrapper for platform-agnostic issue operations
 # Usage: linear_ops.sh <subcommand> [args...]
 
@@ -284,7 +286,7 @@ cmd_issue_list() {
 cmd_issue_view() {
     local identifier="$1"
 
-    local query='query($identifier: String!) {
+    local query="'query($identifier: String!) {
         issue(filter: {identifier: {eq: $identifier}}) {
             id
             identifier
@@ -392,7 +394,7 @@ cmd_issue_update() {
         input=$(echo "$input" | jq --argjson pri "$priority" '. + {priority: $pri}')
     fi
 
-    local query='mutation($id: String!, $input: IssueUpdateInput!) {
+    local query="'mutation($id: String!, $input: IssueUpdateInput!) {
         issueUpdate(id: $id, input: $input) {
             success
             issue {
@@ -440,7 +442,7 @@ cmd_issue_comment() {
     issue_id=$(echo "$issue_data" | jq -r '.id')
     [[ -z "$issue_id" ]] && error "Issue not found: $identifier"
 
-    local query='mutation($issueId: String!, $body: String!) {
+    local query="'mutation($issueId: String!, $body: String!) {
         commentCreate(input: {issueId: $issueId, body: $body}) {
             success
             comment {
@@ -492,7 +494,7 @@ cmd_issue_close() {
     [[ -z "$state_id" ]] && error "Canceled state not found for team"
 
     # Update to canceled state
-    local query='mutation($id: String!, $input: IssueUpdateInput!) {
+    local query="'mutation($id: String!, $input: IssueUpdateInput!) {
         issueUpdate(id: $id, input: $input) {
             success
         }
@@ -544,7 +546,7 @@ cmd_issue_mark_duplicate() {
     parent_id=$(echo "$parent_data" | jq -r '.id')
 
     # Create "duplicates" relation
-    local query='mutation($issueId: String!, $relatedIssueId: String!) {
+    local query="'mutation($issueId: String!, $relatedIssueId: String!) {
         issueRelationCreate(input: {issueId: $issueId, relatedIssueId: $relatedIssueId, type: "duplicate"}) {
             success
         }
@@ -585,7 +587,7 @@ cmd_label_list() {
         filter=$(echo "$filter" | jq --arg tid "$team_id" '. + {team: {id: {eq: $tid}}}')
     fi
 
-    local query='query($filter: IssueLabelFilter) {
+    local query="'query($filter: IssueLabelFilter) {
         issueLabels(filter: $filter) {
             nodes {
                 id
@@ -662,7 +664,7 @@ cmd_label_create() {
         input=$(echo "$input" | jq --arg tid "$team_id" '. + {teamId: $tid}')
     fi
 
-    local query='mutation($input: IssueLabelCreateInput!) {
+    local query="'mutation($input: IssueLabelCreateInput!) {
         issueLabelCreate(input: $input) {
             success
             issueLabel {
@@ -765,7 +767,7 @@ cmd_create_sub_issue() {
         input=$(echo "$input" | jq --arg sid "$state_id" '. + {stateId: $sid}')
     fi
 
-    local query='mutation($input: IssueCreateInput!) {
+    local query="'mutation($input: IssueCreateInput!) {
         issueCreate(input: $input) {
             success
             issue {
@@ -818,7 +820,7 @@ cmd_list_sub_issues() {
 
     [[ -z "$identifier" ]] && error "Usage: list-sub-issues IDENTIFIER [--json]"
 
-    local query='query($id: String!) {
+    local query="'query($id: String!) {
         issue(id: $id) {
             children {
                 nodes {
@@ -888,7 +890,7 @@ cmd_add_attachment() {
     issue_id=$(echo "$issue_data" | jq -r '.id')
     [[ -z "$issue_id" || "$issue_id" == "null" ]] && error "Issue not found: $identifier"
 
-    local query='mutation($url: String!, $title: String!, $issueId: String!) {
+    local query="'mutation($url: String!, $title: String!, $issueId: String!) {
         attachmentCreate(input: {url: $url, title: $title, issueId: $issueId}) {
             success
             attachment {
@@ -957,7 +959,7 @@ cmd_list_cycles() {
         filter=$(jq -nc --arg tid "$team_id" '{team: {id: {eq: $tid}}, isActive: {eq: true}}')
     fi
 
-    local query='query($filter: CycleFilter) {
+    local query="'query($filter: CycleFilter) {
         cycles(filter: $filter, orderBy: createdAt) {
             nodes {
                 id
@@ -1041,7 +1043,7 @@ cmd_add_comment() {
         input=$(echo "$input" | jq --arg pid "$parent_comment_id" '. + {parentId: $pid}')
     fi
 
-    local query='mutation($input: CommentCreateInput!) {
+    local query="'mutation($input: CommentCreateInput!) {
         commentCreate(input: $input) {
             success
             comment {
