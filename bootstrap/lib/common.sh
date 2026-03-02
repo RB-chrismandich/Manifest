@@ -59,21 +59,46 @@ run_with_spinner() {
     local cmd="$1"
     local msg="${2:-Working}"
     local pid
-    local spin='-\|/'
+    local tmp_log
+    tmp_log=$(mktemp "${TMPDIR:-/tmp}/spinner_XXXXXX.log")
+    local spin='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
     local i=0
 
-    eval "$cmd" &
+    # Hide cursor and ensure cleanup on interrupt
+    tput civis 2>/dev/null || true
+    # Note: Global exit trap in bootstrap.sh handles cleanup, but we also clean up
+    # immediately here to avoid clutter and restore cursor if interrupted locally.
+    # To satisfy memory constraints about avoiding local traps that conflict:
+    # We will just ensure tput cnorm runs at the end. The global EXIT trap
+    # should be relied upon if the entire script exits abruptly, but we'll
+    # do a best-effort here.
+
+    eval "$cmd" > "$tmp_log" 2>&1 &
     pid=$!
 
     while kill -0 "$pid" 2> /dev/null; do
-        i=$(((i + 1) % 4))
-        printf "\r${CYAN}${spin:$i:1}${NC} %s..." "$msg"
-        sleep 0.2
+        # Using string replacement with awk to correctly extract multibyte characters
+        local char
+        char=$(awk "BEGIN {print substr(\"$spin\", $((i + 1)), 1)}")
+        printf "\r${CYAN}%s${NC} %s..." "$char" "$msg"
+        i=$(( (i + 1) % 10 ))
+        sleep 0.1
     done
 
     wait "$pid"
     local exit_code=$?
-    printf "\r\033[K"
+
+    # Show cursor
+    tput cnorm 2>/dev/null || true
+
+    if [ $exit_code -eq 0 ]; then
+        printf "\r\033[K${GREEN}✓${NC} %s\n" "$msg"
+    else
+        printf "\r\033[K${RED}✗${NC} %s\n" "$msg"
+        cat "$tmp_log" 2>/dev/null || true
+    fi
+    rm -f "$tmp_log" 2>/dev/null || true
+
     return $exit_code
 }
 
