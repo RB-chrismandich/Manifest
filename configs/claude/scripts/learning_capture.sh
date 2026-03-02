@@ -699,9 +699,8 @@ with open(output_file, "w") as f:
 print(f"Regenerated {output_file} with {len(entries)} entries.")
 PYTHON
 
-    if [[ $? -eq 0 ]]; then
-        success_msg "docs/KNOWLEDGE_BASE.md regenerated from YAML source of truth"
-    fi
+    # Script execution has already been handled, if it reached here and `set -e` is true, it succeeded
+    success_msg "docs/KNOWLEDGE_BASE.md regenerated from YAML source of truth"
 }
 
 # --- Main dispatch ----------------------------------------------------
