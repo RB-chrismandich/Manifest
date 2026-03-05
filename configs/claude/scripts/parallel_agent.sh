@@ -1,4 +1,5 @@
 #!/bin/bash
+# shellcheck disable=SC2016,SC2129
 # ┌──────────────────────────────────────────────────────────────────────┐
 # │  DEPRECATED: This shell script is superseded by parallel_agent.py   │
 # │  Use instead:                                                       │
@@ -1414,7 +1415,7 @@ monitor_agents() {
         for i in "${!pids[@]}"; do
             local pid=${pids[$i]}
             local name=${agent_names[$i]}
-            local state=${agent_states[$i]}
+            local state=${agent_states[i]}
 
             local name_color="${NC}"
             if [[ "$name" == "Cursor" ]]; then name_color="${CYAN}"; fi
@@ -1462,11 +1463,11 @@ monitor_agents() {
                     code=$?
                     set -e
                     if [[ $code -eq 0 ]]; then
-                        agent_states[$i]="${GREEN}✔${NC}"
+                        agent_states[i]="${GREEN}✔${NC}"
                     else
-                        agent_states[$i]="${RED}✘${NC}"
+                        agent_states[i]="${RED}✘${NC}"
                     fi
-                    status_line="$status_line $display_name [${agent_states[$i]}]"
+                    status_line="$status_line $display_name [${agent_states[i]}]"
                 fi
             else
                 status_line="$status_line $display_name [$state]"
@@ -1574,7 +1575,7 @@ print_results_table() {
     if [[ "$VALIDATE" == true ]]; then
         printf " | %-10s" "Validation"
     fi
-    printf "${NC}\n"
+    printf "%b\n" "${NC}"
 
     printf "%s\n" "-----------|------------|----------------------$(if [[ "$VALIDATE" == true ]]; then echo "-|------------"; fi)"
 
