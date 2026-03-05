@@ -2,6 +2,28 @@
 
 # Shared helpers for bootstrap.sh. This file is sourced, not executed.
 
+# Write content to a file securely (atomic, restricted permissions)
+# Prevents Time-of-Check to Time-of-Use (TOCTOU) vulnerabilities
+# Usage: write_file_securely "/path/to/dest" ["content string"]
+# If content string is omitted, reads from stdin
+write_file_securely() {
+    local dest="$1"
+    local content="${2:-}"
+    local tmp_file
+
+    # Use umask 077 in a subshell to ensure temp file is created with 600 permissions
+    (
+        umask 077
+        tmp_file="$(mktemp "${TMPDIR:-/tmp}/secure_write.XXXXXX")"
+        if [[ $# -ge 2 ]]; then
+            printf "%s" "$content" > "$tmp_file"
+        else
+            cat > "$tmp_file"
+        fi
+        mv "$tmp_file" "$dest"
+    )
+}
+
 print_header() {
     echo ""
     echo -e "${BOLD}${BLUE}══════════════════════════════════════════════════════════════${NC}"

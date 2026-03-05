@@ -245,14 +245,13 @@ configure_cursor_mcp_config() {
         json_entries+=$'\n'"    \"${name}\": {"$'\n'"      \"url\": \"${url}\""$'\n'"    }"
     done
 
-    cat > "$cursor_mcp_file" << EOF
+    write_file_securely "$cursor_mcp_file" << EOF
 {
   "mcpServers": {${json_entries}
   }
 }
 EOF
 
-    chmod 600 "$cursor_mcp_file" 2> /dev/null || true
     print_success "Configured Cursor MCP servers in $cursor_mcp_file"
 }
 
@@ -267,7 +266,6 @@ ensure_gemini_mcp_server_in_settings() {
     local url="$2"
     local transport="${3:-http}"
     local settings_file="$GEMINI_TARGET_DIR/settings.json"
-    local tmp_file=""
 
     mkdir -p "$GEMINI_TARGET_DIR"
     if [[ ! -f "$settings_file" ]]; then
@@ -278,19 +276,17 @@ ensure_gemini_mcp_server_in_settings() {
         return 1
     fi
 
-    tmp_file="$(mktemp "${TMPDIR:-/tmp}/gemini-mcp.XXXXXX")"
-    if jq \
+    local jq_output
+    if jq_output=$(jq \
         --arg name "$name" \
         --arg url "$url" \
         --arg transport "$transport" \
         '.mcpServers = (.mcpServers // {}) | .mcpServers[$name] = {"url": $url, "type": $transport}' \
-        "$settings_file" > "$tmp_file"; then
-        mv "$tmp_file" "$settings_file"
-        chmod 600 "$settings_file" 2> /dev/null || true
+        "$settings_file"); then
+        write_file_securely "$settings_file" "$jq_output
+"
         return 0
     fi
-
-    rm -f "$tmp_file"
     return 1
 }
 
