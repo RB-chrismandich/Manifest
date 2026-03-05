@@ -56,25 +56,51 @@ command_exists() {
 # Show a spinner while a command runs
 # Usage: run_with_spinner "command args" "Loading message"
 run_with_spinner() {
-    local cmd="$1"
-    local msg="${2:-Working}"
-    local pid
-    local spin='-\|/'
-    local i=0
+    (
+        local cmd="$1"
+        local msg="${2:-Working}"
+        local pid
+        local spin=("⠋" "⠙" "⠹" "⠸" "⠼" "⠴" "⠦" "⠧")
+        local i=0
+        local log_file
 
-    eval "$cmd" &
-    pid=$!
+        log_file=$(mktemp "${TMPDIR:-/tmp}/spinner_XXXXXX.log")
 
-    while kill -0 "$pid" 2> /dev/null; do
-        i=$(((i + 1) % 4))
-        printf "\r${CYAN}${spin:$i:1}${NC} %s..." "$msg"
-        sleep 0.2
-    done
+        # Clean up log and restore cursor on exit/interrupt within subshell
+        trap 'tput cnorm 2>/dev/null || true; rm -f "$log_file"; exit 1' INT TERM
 
-    wait "$pid"
-    local exit_code=$?
-    printf "\r\033[K"
-    return $exit_code
+        # Hide cursor
+        tput civis 2>/dev/null || true
+
+        eval "$cmd" > "$log_file" 2>&1 &
+        pid=$!
+
+        while kill -0 "$pid" 2> /dev/null; do
+            i=$(((i + 1) % ${#spin[@]}))
+            printf "\r${CYAN}%b${NC} %s..." "${spin[i]}" "$msg"
+            sleep 0.1
+        done
+
+        wait "$pid"
+        local exit_code=$?
+
+        # Restore cursor
+        tput cnorm 2>/dev/null || true
+
+        # Clear line
+        printf "\r\033[K"
+
+        if [[ $exit_code -eq 0 ]]; then
+            echo -e "${GREEN}✓${NC} $msg"
+        else
+            echo -e "${RED}✗${NC} $msg"
+            echo -e "${YELLOW}Output from failed command:${NC}"
+            cat "$log_file"
+        fi
+
+        rm -f "$log_file"
+        exit "$exit_code"
+    )
 }
 
 # Create/recreate a symlink at link_path pointing to target
