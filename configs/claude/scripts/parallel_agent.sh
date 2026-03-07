@@ -260,9 +260,11 @@ load_services_config() {
     if [[ -n "$config_settings" ]]; then
         while IFS='=' read -r key value; do
             case "$key" in
-                RUN_CLAUDE|RUN_GEMINI|RUN_CURSOR|RUN_CODEX|MIN_AGENTS)
-                    declare -g "$key=$value"
-                    ;;
+                RUN_CLAUDE) RUN_CLAUDE="$value" ;;
+                RUN_GEMINI) RUN_GEMINI="$value" ;;
+                RUN_CURSOR) RUN_CURSOR="$value" ;;
+                RUN_CODEX)  RUN_CODEX="$value" ;;
+                MIN_AGENTS) MIN_AGENTS="$value" ;;
             esac
         done <<< "$config_settings"
     fi

@@ -222,9 +222,12 @@ parse_services_config() {
         if [[ -n "$config_settings" ]]; then
             while IFS='=' read -r key value; do
                 case "$key" in
-                    FILE_CLAUDE|FILE_GEMINI|FILE_CURSOR|FILE_CODEX|FILE_GH|FILE_GLAB)
-                        declare -g "$key=$value"
-                        ;;
+                    FILE_CLAUDE) FILE_CLAUDE="$value" ;;
+                    FILE_GEMINI) FILE_GEMINI="$value" ;;
+                    FILE_CURSOR) FILE_CURSOR="$value" ;;
+                    FILE_CODEX)  FILE_CODEX="$value" ;;
+                    FILE_GH)     FILE_GH="$value" ;;
+                    FILE_GLAB)   FILE_GLAB="$value" ;;
                 esac
             done <<< "$config_settings"
         fi
