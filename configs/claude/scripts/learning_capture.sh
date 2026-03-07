@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC2181
 # learning_capture.sh - Structured learning ingestion and knowledge base updates
 #
 # Usage: learning_capture.sh <subcommand> [options]
@@ -699,6 +700,7 @@ with open(output_file, "w") as f:
 print(f"Regenerated {output_file} with {len(entries)} entries.")
 PYTHON
 
+    # Capture exit status from Python script above
     if [[ $? -eq 0 ]]; then
         success_msg "docs/KNOWLEDGE_BASE.md regenerated from YAML source of truth"
     fi
