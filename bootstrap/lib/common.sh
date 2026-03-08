@@ -58,23 +58,42 @@ command_exists() {
 run_with_spinner() {
     local cmd="$1"
     local msg="${2:-Working}"
-    local pid
-    local spin='-\|/'
-    local i=0
 
-    eval "$cmd" &
-    pid=$!
+    (
+        tput civis 2>/dev/null || true
 
-    while kill -0 "$pid" 2> /dev/null; do
-        i=$(((i + 1) % 4))
-        printf "\r${CYAN}${spin:$i:1}${NC} %s..." "$msg"
-        sleep 0.2
-    done
+        local tmp_log
+        tmp_log=$(mktemp "${TMPDIR:-/tmp}/log_XXXXXX")
 
-    wait "$pid"
-    local exit_code=$?
-    printf "\r\033[K"
-    return $exit_code
+        eval "$cmd" >"$tmp_log" 2>&1 &
+        local pid=$!
+
+        trap 'kill -9 '"$pid"' 2>/dev/null || true; rm -f '"$tmp_log"'; tput cnorm 2>/dev/null || true; kill -s TERM $$; exit 130' INT TERM
+
+        local spin=("⠋" "⠙" "⠹" "⠸" "⠼" "⠴" "⠦" "⠧" "⠇" "⠏")
+        local spin_len=${#spin[@]}
+        local i=0
+
+        while kill -0 "$pid" 2>/dev/null; do
+            printf "\r${CYAN}%s${NC} %s..." "${spin[i]}" "$msg"
+            i=$(((i + 1) % spin_len))
+            sleep 0.1
+        done
+
+        wait "$pid"
+        local exit_code=$?
+
+        printf "\r\033[K"
+
+        if [[ $exit_code -ne 0 ]]; then
+            cat "$tmp_log" >&2
+        fi
+
+        rm -f "$tmp_log"
+        tput cnorm 2>/dev/null || true
+
+        exit "$exit_code"
+    )
 }
 
 # Create/recreate a symlink at link_path pointing to target
