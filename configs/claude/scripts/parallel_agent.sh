@@ -22,6 +22,7 @@
 #   ./scripts/parallel_agent.sh --analyze "path/to/file.py"
 #   ./scripts/parallel_agent.sh --cursor-model advanced --claude-model opus --review file.py
 
+# shellcheck disable=SC2016,SC2059,SC2004,SC2129
 set -e
 
 # Security: Ensure all created files are only readable by the owner

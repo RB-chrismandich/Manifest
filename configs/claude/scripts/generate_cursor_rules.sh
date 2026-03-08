@@ -4,6 +4,7 @@
 #
 # Usage: generate_cursor_rules.sh [--dry-run] [--verbose]
 
+# shellcheck disable=SC2001
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"

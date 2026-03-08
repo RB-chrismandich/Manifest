@@ -17,6 +17,7 @@
 #   learning_capture.sh stats
 #   learning_capture.sh increment KB-003
 
+# shellcheck disable=SC2181
 set -euo pipefail
 
 # --- Colors -----------------------------------------------------------
