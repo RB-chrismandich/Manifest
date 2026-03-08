@@ -18,6 +18,7 @@ import sys
 import time
 import argparse
 import logging
+import collections
 from logging.handlers import RotatingFileHandler
 from datetime import datetime
 from pathlib import Path
@@ -1571,13 +1572,13 @@ class Orchestrator:
         # Simple keyword-based consensus (placeholder for more sophisticated analysis)
         # Count common significant words (>4 chars) across outputs
         all_words = set()
-        word_counts = {}
+        word_counts = collections.Counter()
 
         for output in outputs:
-            words = set(word.lower() for word in output.split() if len(word) > 4)
+            # Set comprehension is significantly faster than set() constructor
+            words = {word.lower() for word in output.split() if len(word) > 4}
             all_words.update(words)
-            for word in words:
-                word_counts[word] = word_counts.get(word, 0) + 1
+            word_counts.update(words)
 
         # Calculate consensus as % of words appearing in multiple outputs
         if not all_words:
