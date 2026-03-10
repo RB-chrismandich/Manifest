@@ -238,26 +238,34 @@ load_services_config() {
         /^[[:space:]]*cursor:/ { section="cursor" }
         /^[[:space:]]*codex:/ { section="codex" }
         /^[[:space:]]*enabled:[[:space:]]*true/ {
-            if (section == "claude") print "RUN_CLAUDE=true;"
-            if (section == "gemini") print "RUN_GEMINI=true;"
-            if (section == "cursor") print "RUN_CURSOR=true;"
-            if (section == "codex") print "RUN_CODEX=true;"
+            if (section == "claude") print "RUN_CLAUDE=true"
+            if (section == "gemini") print "RUN_GEMINI=true"
+            if (section == "cursor") print "RUN_CURSOR=true"
+            if (section == "codex") print "RUN_CODEX=true"
         }
         /^[[:space:]]*enabled:[[:space:]]*false/ {
-            if (section == "claude") print "RUN_CLAUDE=false;"
-            if (section == "gemini") print "RUN_GEMINI=false;"
-            if (section == "cursor") print "RUN_CURSOR=false;"
-            if (section == "codex") print "RUN_CODEX=false;"
+            if (section == "claude") print "RUN_CLAUDE=false"
+            if (section == "gemini") print "RUN_GEMINI=false"
+            if (section == "cursor") print "RUN_CURSOR=false"
+            if (section == "codex") print "RUN_CODEX=false"
         }
         /^[[:space:]]*minimum_agents:[[:space:]]*[0-9]+/ {
             if (match($0, /[0-9]+/)) {
-                print "MIN_AGENTS=" substr($0, RSTART, RLENGTH) ";"
+                print "MIN_AGENTS=" substr($0, RSTART, RLENGTH)
             }
         }
     ' "$SERVICES_CONFIG")
 
     if [[ -n "$config_settings" ]]; then
-        eval "$config_settings"
+        while IFS='=' read -r key value; do
+            case "$key" in
+                RUN_CLAUDE) RUN_CLAUDE="$value" ;;
+                RUN_GEMINI) RUN_GEMINI="$value" ;;
+                RUN_CURSOR) RUN_CURSOR="$value" ;;
+                RUN_CODEX) RUN_CODEX="$value" ;;
+                MIN_AGENTS) MIN_AGENTS="$value" ;;
+            esac
+        done <<< "$config_settings"
     fi
 
     # Check minimum agents requirement

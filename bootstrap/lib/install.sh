@@ -288,7 +288,7 @@ install_node() {
                         sudo apt-get install -y nodejs
                     elif [[ "$PKG_MANAGER" == "dnf" || "$PKG_MANAGER" == "yum" ]]; then
                         curl -fsSL https://rpm.nodesource.com/setup_lts.x | sudo bash -
-                        sudo $PKG_MANAGER install -y nodejs
+                        sudo "$PKG_MANAGER" install -y nodejs
                     else
                         print_warning "NodeSource not available for $PKG_MANAGER"
                         print_info "Please install Node.js manually from https://nodejs.org"
