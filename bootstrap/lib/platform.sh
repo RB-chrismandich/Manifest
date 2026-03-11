@@ -12,7 +12,6 @@ detect_platform() {
             PLATFORM="linux"
             # Detect Linux distribution
             if [[ -f /etc/os-release ]]; then
-                # shellcheck disable=SC1091
                 . /etc/os-release
                 DISTRO="$ID"
             elif [[ -f /etc/debian_version ]]; then
