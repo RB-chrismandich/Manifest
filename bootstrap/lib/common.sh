@@ -71,7 +71,8 @@ run_with_spinner() {
         eval "$cmd" > "$temp_log" 2>&1 &
         pid=$!
 
-        trap 'tput cnorm 2>/dev/null || true; rm -f "'"$temp_log"'"; kill -9 "'"$pid"'" 2>/dev/null || true; kill -s TERM $$; exit 130' INT TERM
+        trap 'tput cnorm 2>/dev/null || true; rm -f "'"$temp_log"'"' EXIT
+        trap 'kill -9 "'"$pid"'" 2>/dev/null || true; kill -s TERM $$; exit 130' INT TERM
 
         while kill -0 "$pid" 2>/dev/null; do
             printf "\r${CYAN}%s${NC} %s..." "${spin[i]}" "$msg"
@@ -79,17 +80,15 @@ run_with_spinner() {
             sleep 0.1
         done
 
-        wait "$pid"
-        local exit_code=$?
+        local exit_code=0
+        wait "$pid" || exit_code=$?
 
-        tput cnorm 2>/dev/null || true
         printf "\r\033[K"
 
         if [ $exit_code -ne 0 ]; then
             cat "$temp_log" >&2
         fi
 
-        rm -f "$temp_log"
         exit "$exit_code"
     )
 }
