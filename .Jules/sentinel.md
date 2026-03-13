@@ -7,3 +7,8 @@
 **Vulnerability:** The script `.claude/scripts/parallel_agent.sh` used `eval` to process configuration values parsed from `services.yml`. If the configuration file (located in the user's home directory) was modified by an attacker, it could lead to arbitrary command execution within the context of the script.
 **Learning:** Using `eval` on data derived from external files, even if partially sanitized by `awk`, is risky and hard to audit. It creates a direct path for code injection if the sanitization logic is flawed or bypassed.
 **Prevention:** Replace `eval` with a `while read` loop that iterates over the parsed output. Use strict matching (e.g., `case "$key" in ...`) to whitelist allowed variables and assign values safely, preventing execution of arbitrary commands.
+
+## 2026-03-13 - Insecure Temporary Directory Creation in Python (CWE-377)
+**Vulnerability:** The Python script `parallel_agent.py` used a predictable PID-based naming convention (`/tmp/.claude_agent_outputs_{os.getpid()}`) for its fallback output directory.
+**Learning:** Python scripts using predictable names in shared directories like `/tmp` are vulnerable to symlink attacks, similar to bash scripts. An attacker could pre-create a symlink to hijack permissions or files when `.mkdir(parents=True, exist_ok=True, mode=0o700)` is called.
+**Prevention:** Always use `tempfile.mkdtemp()` (or `tempfile.NamedTemporaryFile`) to create temporary directories/files in Python. It guarantees a unique name, creates it atomically, and sets safe permissions securely.

@@ -523,7 +523,7 @@ flowchart TB
 When running in sandboxed environments (e.g., Task subagents):
 
 1. Script tests if `~/.claude/.agent_outputs` is writable
-2. Falls back to `/tmp/.claude_agent_outputs_$$` if restricted
+2. Falls back to secure temporary directory if restricted
 3. Verifies output files exist after agents complete
 4. Exit code 13 if no files created (with helpful error message)
 

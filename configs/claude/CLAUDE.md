@@ -75,7 +75,7 @@ This document defines how Claude should leverage parallel LLM agents
 
 **Note on Sandboxed Environments**: When running from Task subagents or other sandboxed
 contexts, the script automatically detects write permission issues and falls back to
-`/tmp/.claude_agent_outputs_$$`. If you encounter file creation errors, manually specify
+a secure temporary directory created via `mktemp -d` or `mkdtemp`. If you encounter file creation errors, manually specify
 an output directory with `--output /tmp/agent_outputs`.
 
 ### Model Selection

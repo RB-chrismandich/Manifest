@@ -16,6 +16,7 @@ import json
 import os
 import sys
 import time
+import tempfile
 import argparse
 import logging
 from logging.handlers import RotatingFileHandler
@@ -1614,7 +1615,7 @@ class Orchestrator:
         Tries directories in order:
         1. custom_output_dir (if provided via --output)
         2. ~/.claude/.agent_outputs (default from config)
-        3. /tmp/.claude_agent_outputs_{pid} (fallback on permission error)
+        3. Secure temporary directory via mkdtemp (fallback on permission error)
         """
         if custom_output_dir:
             return Path(custom_output_dir).expanduser()
@@ -1627,7 +1628,9 @@ class Orchestrator:
             default_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
             return default_dir
         except (OSError, PermissionError) as e:
-            fallback = Path(f"/tmp/.claude_agent_outputs_{os.getpid()}")
+            # SECURITY: Use tempfile.mkdtemp to prevent symlink attacks (CWE-377)
+            # Predictable paths in /tmp like /tmp/.claude_agent_outputs_{pid} are vulnerable.
+            fallback = Path(tempfile.mkdtemp(prefix=".claude_agent_outputs_"))
             if self.logger:
                 self.logger.warning(
                     f"Cannot write to {default_dir}: {e}. "
