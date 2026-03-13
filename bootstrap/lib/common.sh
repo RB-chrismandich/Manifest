@@ -56,25 +56,45 @@ command_exists() {
 # Show a spinner while a command runs
 # Usage: run_with_spinner "command args" "Loading message"
 run_with_spinner() {
-    local cmd="$1"
-    local msg="${2:-Working}"
-    local pid
-    local spin='-\|/'
-    local i=0
+    (
+        local cmd="$1"
+        local msg="${2:-Working}"
+        local spin=("⠋" "⠙" "⠹" "⠸" "⠼" "⠴" "⠦" "⠧" "⠇" "⠏")
 
-    eval "$cmd" &
-    pid=$!
+        # Secure temp file for background output
+        local temp_log
+        temp_log=$(mktemp "${TMPDIR:-/tmp}/log_XXXXXX")
 
-    while kill -0 "$pid" 2> /dev/null; do
-        i=$(((i + 1) % 4))
-        printf "\r${CYAN}${spin:$i:1}${NC} %s..." "$msg"
-        sleep 0.2
-    done
+        # Hide cursor
+        tput civis 2> /dev/null || true
 
-    wait "$pid"
-    local exit_code=$?
-    printf "\r\033[K"
-    return $exit_code
+        # Start command in background
+        eval "$cmd" > "$temp_log" 2>&1 &
+        local pid=$!
+
+        # Trap cleanup
+        trap 'tput cnorm 2> /dev/null || true; rm -f "'"$temp_log"'"' EXIT
+        trap 'kill -s TERM '"$pid"' 2>/dev/null; kill -s TERM $$; exit 130' INT TERM
+
+        local i=0
+        local num_frames=${#spin[@]}
+        while kill -0 "$pid" 2> /dev/null; do
+            printf "\r${CYAN}%s${NC} %s..." "${spin[i]}" "$msg"
+            ((i = (i + 1) % num_frames)) || true
+            sleep 0.1
+        done
+
+        local exit_code=0
+        wait "$pid" || exit_code=$?
+
+        printf "\r\033[K"
+
+        if [[ $exit_code -ne 0 ]]; then
+            cat "$temp_log" >&2
+        fi
+
+        exit "$exit_code"
+    )
 }
 
 # Create/recreate a symlink at link_path pointing to target
