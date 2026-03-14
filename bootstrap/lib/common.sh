@@ -68,7 +68,7 @@ run_with_spinner() {
         eval "$cmd" >"$temp_log" 2>&1 &
         local pid=$!
 
-        trap 'kill -s TERM '"$pid"' 2>/dev/null || true; tput cnorm 2>/dev/null || true; rm -f "'"$temp_log"'"; kill -s TERM $$; exit 130' INT TERM
+        trap 'kill -s TERM '"$pid"' 2>/dev/null || true; tput cnorm 2>/dev/null || true; rm -f "'"$temp_log"'"; exit 130' INT TERM
         trap 'tput cnorm 2>/dev/null || true; rm -f "'"$temp_log"'"' EXIT
 
         local spin=("⠋" "⠙" "⠹" "⠸" "⠼" "⠴" "⠦" "⠧" "⠇" "⠏")
