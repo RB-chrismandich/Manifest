@@ -1,7 +1,7 @@
-## 2026-02-06 - Insecure Temporary Directory Creation (CWE-377)
-**Vulnerability:** The script `.claude/scripts/parallel_agent.sh` used a predictable PID-based naming convention (`/tmp/.claude_agent_outputs_$$`) for its fallback output directory.
-**Learning:** Shell scripts using predictable names in shared directories like `/tmp` are vulnerable to symlink attacks. An attacker can pre-create a symlink with the predicted name pointing to a sensitive file or directory (e.g., `/etc/passwd` or a user's home directory). When the script executes `mkdir -p` (which follows symlinks) and then `chmod 700`, it changes the permissions of the target file/directory, leading to local privilege escalation or data loss.
-**Prevention:** Always use `mktemp -d` to create temporary directories. It guarantees a unique name and sets safe permissions atomically (0700). For cross-platform support (Linux/macOS), handle both template arguments (Linux: `mktemp -d template.XXXXXX`) and the `-t` flag (macOS: `mktemp -d -t prefix`).
+## 2026-02-06 - Insecure Temporary Directory Creation in Python (CWE-377)
+**Vulnerability:** The Python script `configs/claude/scripts/parallel_agent.py` used a predictable PID-based naming convention (`/tmp/.claude_agent_outputs_{os.getpid()}`) for its fallback output directory in the `_resolve_output_dir` function.
+**Learning:** Python scripts using predictable names in shared directories like `/tmp` are vulnerable to symlink attacks. If an attacker pre-creates a symlink with the predicted name, actions like `mkdir` could follow the symlink and alter permissions of sensitive files, potentially leading to privilege escalation or data loss.
+**Prevention:** Always use `tempfile.mkdtemp()` or `tempfile.NamedTemporaryFile()` to create temporary files or directories in Python. These functions guarantee a unique name, create the resource atomically, and set safe, restricted permissions, preventing symlink vulnerabilities.
 
 ## 2026-02-06 - Command Injection via Config Parsing (eval)
 **Vulnerability:** The script `.claude/scripts/parallel_agent.sh` used `eval` to process configuration values parsed from `services.yml`. If the configuration file (located in the user's home directory) was modified by an attacker, it could lead to arbitrary command execution within the context of the script.
