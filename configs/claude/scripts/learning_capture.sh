@@ -543,6 +543,7 @@ cmd_sync_docs() {
     mkdir -p "$docs_dir"
     local output_file="${docs_dir}/KNOWLEDGE_BASE.md"
 
+    # shellcheck disable=SC2181
     python3 - "$KNOWLEDGE_BASE_FILE" "$output_file" << 'PYTHON'
 import sys
 import yaml
@@ -699,6 +700,7 @@ with open(output_file, "w") as f:
 print(f"Regenerated {output_file} with {len(entries)} entries.")
 PYTHON
 
+    # shellcheck disable=SC2181
     if [[ $? -eq 0 ]]; then
         success_msg "docs/KNOWLEDGE_BASE.md regenerated from YAML source of truth"
     fi
