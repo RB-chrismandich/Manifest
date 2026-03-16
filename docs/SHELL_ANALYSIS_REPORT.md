@@ -68,7 +68,8 @@ var=$(command) || { echo "Command failed"; return 1; }
 if [[ "$var" == "expected" ]]; then
 ```
 
-**Why it matters:** If `command` fails, the error is hidden and `var` is set to empty string, potentially causing logic errors downstream.
+**Why it matters:** If `command` fails, the error is hidden and `var` is set to empty string,
+potentially causing logic errors downstream.
 
 #### SC2034: Variable appears unused (1 occurrence)
 **Severity:** Warning | **Risk:** Low | **Effort:** Minimal
@@ -369,7 +370,8 @@ echo "${file#"$HOME"/}"
 The scripts properly quote variables in contexts where word splitting matters. Cases like `$?` and `$#` don't need quoting.
 
 ### set -e usage
-Scripts use `set -e` appropriately. The SC2155 issues are about masking return values within that context, not about error handling being absent.
+Scripts use `set -e` appropriately. The SC2155 issues are about masking return
+values within that context, not about error handling being absent.
 
 ---
 
