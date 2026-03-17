@@ -37,10 +37,10 @@ jobs:
       # --- yamllint ---
 
       - name: Install yamllint
-        run: pip install yamllint
+        run: pip install yamllint pyyaml
 
       - name: yamllint - configs/claude/config/
-        run: yamllint -d relaxed configs/claude/config/*.yml
+        run: yamllint -c .yamllint configs/claude/config/*.yml
 
       # --- markdownlint ---
 
