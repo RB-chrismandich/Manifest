@@ -440,7 +440,7 @@ flowchart TB
 
     SANDBOX_CHECK{"Output Dir<br/>Writable?"}:::decision
     DEFAULT_DIR["Use ~/.claude/.agent_outputs"]:::process
-    FALLBACK_DIR["Fallback to /tmp/.claude_agent_outputs_$$"]:::warning
+    FALLBACK_DIR["Fallback to mkdtemp"]:::warning
 
     CHECK_SERVICES{"Check<br/>services.yml"}:::decision
 
@@ -523,7 +523,7 @@ flowchart TB
 When running in sandboxed environments (e.g., Task subagents):
 
 1. Script tests if `~/.claude/.agent_outputs` is writable
-2. Falls back to `/tmp/.claude_agent_outputs_$$` if restricted
+2. Falls back to a secure temporary directory via `mkdtemp` if restricted
 3. Verifies output files exist after agents complete
 4. Exit code 13 if no files created (with helpful error message)
 

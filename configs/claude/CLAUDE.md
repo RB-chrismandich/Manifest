@@ -75,8 +75,9 @@ This document defines how Claude should leverage parallel LLM agents
 
 **Note on Sandboxed Environments**: When running from Task subagents or other sandboxed
 contexts, the script automatically detects write permission issues and falls back to
-`/tmp/.claude_agent_outputs_$$`. If you encounter file creation errors, manually specify
-an output directory with `--output /tmp/agent_outputs`.
+a dynamically generated secure temporary directory (e.g. via `mkdtemp`). If you
+encounter file creation errors, manually specify an output directory with
+`--output /tmp/agent_outputs`.
 
 ### Model Selection
 
@@ -570,6 +571,7 @@ commands to `gh` (GitHub), `glab` (GitLab), or warns if neither is available.
 ```
 
 **Subcommands**:
+
 | Subcommand | GitHub (`gh`) | GitLab (`glab`) | Plain git |
 |------------|---------------|-----------------|-----------|
 | `issue-view N` | `gh issue view N` | `glab issue view N` | warn |
