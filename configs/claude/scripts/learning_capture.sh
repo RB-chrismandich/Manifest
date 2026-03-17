@@ -543,7 +543,7 @@ cmd_sync_docs() {
     mkdir -p "$docs_dir"
     local output_file="${docs_dir}/KNOWLEDGE_BASE.md"
 
-    python3 - "$KNOWLEDGE_BASE_FILE" "$output_file" << 'PYTHON'
+    if python3 - "$KNOWLEDGE_BASE_FILE" "$output_file" << 'PYTHON'
 import sys
 import yaml
 from datetime import datetime
@@ -698,8 +698,7 @@ with open(output_file, "w") as f:
 
 print(f"Regenerated {output_file} with {len(entries)} entries.")
 PYTHON
-
-    if [[ $? -eq 0 ]]; then
+then
         success_msg "docs/KNOWLEDGE_BASE.md regenerated from YAML source of truth"
     fi
 }
