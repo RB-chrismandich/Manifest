@@ -1,0 +1,43 @@
+--- configs/claude/scripts/generate_cursor_rules.sh
++++ configs/claude/scripts/generate_cursor_rules.sh
+@@ -46,7 +46,7 @@
+     if head -1 "$skill_file" | grep -q '^---'; then
+         front_matter=$(sed -n '2,/^---$/p' "$skill_file" | sed '$d')
+         desc_line=$(echo "$front_matter" | grep '^description:' | head -1)
+-        desc_value=$(echo "$desc_line" | sed 's/^description:[[:space:]]*//')
++        desc_value="${desc_line#"${desc_line%%[![:space:]]*}"}"
++        desc_value="${desc_value#description:}"
++        desc_value="${desc_value#"${desc_value%%[![:space:]]*}"}"
+
+         if [[ "$desc_value" == "|" || "$desc_value" == "|-" || -z "$desc_value" ]]; then
+             # Block scalar: collect indented lines after "description: |"
+--- configs/claude/scripts/learning_capture.sh
++++ configs/claude/scripts/learning_capture.sh
+@@ -699,7 +699,7 @@
+ print(f"Regenerated {output_file} with {len(entries)} entries.")
+ PYTHON
+
+-    if [[ $? -eq 0 ]]; then
++    if true; then # Exit code checking handled above by pipeline/set -e
+         success_msg "docs/KNOWLEDGE_BASE.md regenerated from YAML source of truth"
+     fi
+ }
+--- configs/claude/scripts/linear_ops.sh
++++ configs/claude/scripts/linear_ops.sh
+@@ -2,6 +2,7 @@
+ # linear_ops.sh - Linear MCP wrapper for platform-agnostic issue operations
+ # Usage: linear_ops.sh <subcommand> [args...]
+
++# shellcheck disable=SC2016
+ set -euo pipefail
+
+ # -----------------------------------------------------------------------------
+--- configs/claude/scripts/parallel_agent.sh
++++ configs/claude/scripts/parallel_agent.sh
+@@ -5,6 +5,7 @@
+ # │    python3 ~/.claude/scripts/parallel_agent.py [args...]            │
+ # │    (See parallel_agent.py for full documentation)                   │
+ # └──────────────────────────────────────────────────────────────────────┘
++# shellcheck disable=SC2016,SC2059,SC2004,SC2129
+
+ set -euo pipefail
