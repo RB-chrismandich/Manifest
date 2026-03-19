@@ -14,6 +14,7 @@
 # │  This script will be removed in a future release.                  │
 # └──────────────────────────────────────────────────────────────────────┘
 #
+# shellcheck disable=SC2016,SC2059,SC2004,SC2129
 # Parallel Agent Orchestration Script (DEPRECATED)
 # Uses Cursor Agent, Gemini CLI, Claude CLI, and Codex CLI in parallel
 #
