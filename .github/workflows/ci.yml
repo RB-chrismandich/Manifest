@@ -40,18 +40,19 @@ jobs:
         run: pip install yamllint
 
       - name: yamllint - configs/claude/config/
-        run: yamllint -d relaxed configs/claude/config/*.yml
+        run: yamllint -c .yamllint configs/claude/config/*.yml
 
       # --- markdownlint ---
 
       - name: markdownlint - key docs
-        uses: DavidAnson/markdownlint-cli2-action@v22
+        uses: DavidAnson/markdownlint-cli2-action@v18
         with:
           globs: |
             AGENTS.md
             CLAUDE.md
             README.md
             docs/*.md
+          config: .markdownlintrc
 
       # --- YAML validation with Python ---
 
@@ -62,6 +63,7 @@ jobs:
 
       - name: Validate YAML configs with Python
         run: |
+          pip install pyyaml
           exit_code=0
           for f in configs/claude/config/*.yml; do
             echo "Validating $f ..."
