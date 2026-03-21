@@ -58,23 +58,47 @@ command_exists() {
 run_with_spinner() {
     local cmd="$1"
     local msg="${2:-Working}"
-    local pid
-    local spin='-\|/'
-    local i=0
+    (
+        local exit_code=0
+        local temp_log
+        temp_log=$(mktemp)
+        local pid
 
-    eval "$cmd" &
-    pid=$!
+        tput civis 2>/dev/null || true
 
-    while kill -0 "$pid" 2> /dev/null; do
-        i=$(((i + 1) % 4))
-        printf "\r${CYAN}${spin:$i:1}${NC} %s..." "$msg"
-        sleep 0.2
-    done
+        # shellcheck disable=SC2317
+        cleanup() {
+            tput cnorm 2>/dev/null || true
+            rm -f "$temp_log"
+            if [[ -n "${pid:-}" ]]; then
+                kill -s TERM "$pid" 2>/dev/null || true
+            fi
+        }
 
-    wait "$pid"
-    local exit_code=$?
-    printf "\r\033[K"
-    return $exit_code
+        trap 'cleanup; exit 130' INT TERM
+        trap cleanup EXIT
+
+        eval "$cmd" >"$temp_log" 2>&1 &
+        pid=$!
+
+        local spin=('⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏')
+        local i=0
+
+        while kill -0 "$pid" 2>/dev/null; do
+            printf "\r\033[K${CYAN}%s${NC} %s..." "${spin[i]}" "$msg"
+            i=$(( (i + 1) % 10 ))
+            sleep 0.1
+        done
+
+        wait "$pid" || exit_code=$?
+        printf "\r\033[K"
+
+        if (( exit_code != 0 )); then
+            cat "$temp_log" >&2
+        fi
+
+        exit "$exit_code"
+    )
 }
 
 # Create/recreate a symlink at link_path pointing to target
