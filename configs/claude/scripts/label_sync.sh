@@ -37,8 +37,10 @@ FAILED=0
 
 # --- Argument parsing ---
 
+# --- Argument parsing ---
+
 while [[ $# -gt 0 ]]; do
-    case $1 in
+    case "$1" in
         --dry-run)
             DRY_RUN=true
             shift
@@ -63,11 +65,11 @@ while [[ $# -gt 0 ]]; do
             echo "Usage: label_sync.sh [options]"
             echo ""
             echo "Options:"
-            echo "  --dry-run          Show what would be created"
-            echo "  --platform <name>  Only sync to: github, gitlab, or linear"
+            echo "  --dry-run          Show what would be created without making changes"
+            echo "  --platform <name>  Only sync to specific platform (github|gitlab|linear)"
             echo "  --team <key>       Linear team key for team-scoped labels"
-            echo "  --config <path>    Path to labels.yml"
-            echo "  --validate         Only report missing labels, don't create"
+            echo "  --config <path>    Path to labels.yml (default: auto-detect)"
+            echo "  --validate         Only validate — report missing labels, don't create"
             exit 0
             ;;
         *)
@@ -153,16 +155,16 @@ sync_git_label() {
 
     if [[ "$DRY_RUN" == "true" ]] || [[ "$VALIDATE_ONLY" == "true" ]]; then
         echo -e "  ${BLUE}[dry-run]${NC} Would create: ${name} (${color}) on git platform"
-        ((SKIPPED++))
+        ((SKIPPED++)) || true
         return 0
     fi
 
     if bash "${SCRIPT_DIR}/git_ops.sh" label-create "$name" --color "$color" --description "$description" --force 2> /dev/null; then
         echo -e "  ${GREEN}[created]${NC} ${name} (${color})"
-        ((CREATED++))
+        ((CREATED++)) || true
     else
         echo -e "  ${YELLOW}[exists]${NC} ${name} (${color})"
-        ((SKIPPED++))
+        ((SKIPPED++)) || true
     fi
 }
 
@@ -180,16 +182,16 @@ sync_linear_label() {
 
     if [[ "$DRY_RUN" == "true" ]] || [[ "$VALIDATE_ONLY" == "true" ]]; then
         echo -e "  ${BLUE}[dry-run]${NC} Would create: ${name} (${color}) on Linear"
-        ((SKIPPED++))
+        ((SKIPPED++)) || true
         return 0
     fi
 
     if bash "${SCRIPT_DIR}/linear_ops.sh" label-create --name "$name" --color "$color" --description "$description" "${team_args[@]}" 2> /dev/null; then
         echo -e "  ${GREEN}[created]${NC} ${name} (${color}) on Linear"
-        ((CREATED++))
+        ((CREATED++)) || true
     else
         echo -e "  ${YELLOW}[exists]${NC} ${name} (${color}) on Linear"
-        ((SKIPPED++))
+        ((SKIPPED++)) || true
     fi
 }
 
