@@ -1,6 +1,7 @@
 #!/bin/bash
 # linear_ops.sh - Linear MCP wrapper for platform-agnostic issue operations
 # Usage: linear_ops.sh <subcommand> [args...]
+# shellcheck disable=SC2016
 
 set -euo pipefail
 
