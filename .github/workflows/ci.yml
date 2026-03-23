@@ -44,10 +44,13 @@ jobs:
 
       # --- markdownlint ---
 
+      - name: Copy markdownlint config
+        run: cp .markdownlintrc .markdownlint-cli2.jsonc
+
       - name: markdownlint - key docs
         uses: DavidAnson/markdownlint-cli2-action@v18
         with:
-          config: .markdownlintrc
+          config: .markdownlint-cli2.jsonc
           globs: |
             AGENTS.md
             CLAUDE.md
