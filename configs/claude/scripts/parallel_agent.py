@@ -15,6 +15,7 @@ import asyncio
 import json
 import os
 import sys
+import tempfile
 import time
 import argparse
 import logging
@@ -1627,7 +1628,7 @@ class Orchestrator:
             default_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
             return default_dir
         except (OSError, PermissionError) as e:
-            fallback = Path(f"/tmp/.claude_agent_outputs_{os.getpid()}")
+            fallback = Path(tempfile.mkdtemp(prefix=".claude_agent_outputs_"))
             if self.logger:
                 self.logger.warning(
                     f"Cannot write to {default_dir}: {e}. "
