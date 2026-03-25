@@ -699,7 +699,10 @@ with open(output_file, "w") as f:
 print(f"Regenerated {output_file} with {len(entries)} entries.")
 PYTHON
 
+    # shellcheck disable=SC2181
     if [[ $? -eq 0 ]]; then
+
+
         success_msg "docs/KNOWLEDGE_BASE.md regenerated from YAML source of truth"
     fi
 }
