@@ -58,23 +58,52 @@ command_exists() {
 run_with_spinner() {
     local cmd="$1"
     local msg="${2:-Working}"
-    local pid
-    local spin='-\|/'
-    local i=0
+    local has_tput=false
 
-    eval "$cmd" &
-    pid=$!
+    if command -v tput &> /dev/null; then
+        has_tput=true
+    fi
 
-    while kill -0 "$pid" 2> /dev/null; do
-        i=$(((i + 1) % 4))
-        printf "\r${CYAN}${spin:$i:1}${NC} %s..." "$msg"
-        sleep 0.2
-    done
+    (
+        # shellcheck disable=SC2317
+        cleanup_spinner() {
+            if $has_tput; then
+                tput cnorm 2> /dev/null || true
+            fi
+            printf "\r\033[K"
+        }
 
-    wait "$pid"
-    local exit_code=$?
-    printf "\r\033[K"
-    return $exit_code
+        # shellcheck disable=SC2317
+        handle_interrupt() {
+            cleanup_spinner
+            kill -s TERM "$pid" 2>/dev/null || true
+            exit 130
+        }
+
+        trap 'handle_interrupt' INT TERM
+        trap 'cleanup_spinner' EXIT
+
+        if $has_tput; then
+            tput civis 2> /dev/null || true
+        fi
+
+        local spinner=('⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏')
+        local spin_idx=0
+
+        eval "$cmd" &
+        local pid=$!
+
+        while kill -0 "$pid" 2> /dev/null; do
+            local spin_char="${spinner[$spin_idx]}"
+            spin_idx=$(((spin_idx + 1) % ${#spinner[@]}))
+            printf "\r${CYAN}${spin_char}${NC} %s..." "$msg"
+            sleep 0.1
+        done
+
+        wait "$pid"
+        exit $?
+    )
+    return $?
 }
 
 # Create/recreate a symlink at link_path pointing to target
