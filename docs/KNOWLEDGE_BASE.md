@@ -147,6 +147,7 @@ New or better tooling identified during development.
 | ID | Language | Title | Confidence | Description |
 | -- | -------- | ----- | ---------- | ----------- |
 | TD-001 | python | Use ruff instead of flake8+black+isort | high | Single Rust-based linter replacing flake8+isort+pycodestyle |
+
 ---
 
 ## Configuration Insights
@@ -157,6 +158,7 @@ Lessons learned about configuration, thresholds, and environment setup.
 | -- | -------- | ----- | ----------- |
 | CI-001 | yaml | MD060 rule requires explicit decision | MD060 triggers 902+ violations; disable or reformat tables |
 | CI-002 | yaml | Local hook file patterns must be updated on moves | Pre-commit local hooks use file patterns not validated on moves |
+
 ---
 
 ## References

@@ -40,13 +40,17 @@ jobs:
         run: pip install yamllint
 
       - name: yamllint - configs/claude/config/
-        run: yamllint -d relaxed configs/claude/config/*.yml
+        run: yamllint -c .yamllint configs/claude/config/*.yml
 
       # --- markdownlint ---
+
+      - name: Prepare markdownlint config
+        run: cp .markdownlintrc .markdownlint-cli2.jsonc
 
       - name: markdownlint - key docs
         uses: DavidAnson/markdownlint-cli2-action@v22
         with:
+          config: ".markdownlint-cli2.jsonc"
           globs: |
             AGENTS.md
             CLAUDE.md

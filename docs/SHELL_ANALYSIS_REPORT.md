@@ -21,6 +21,7 @@
 | **Total** | **84/100** | **23** | **No** |
 
 **Key Findings:**
+
 - No critical security vulnerabilities detected (no unquoted dangerous expansions, no eval misuse)
 - 8 instances of SC2155 (declare/assign separately) - affects error detection
 - YAML files exceed 80-character line length limit in several places
@@ -43,9 +44,11 @@
 ### bootstrap.sh Issues
 
 #### SC2155: Declare and assign separately (8 occurrences)
+
 **Severity:** Warning | **Risk:** Low | **Effort:** Minimal
 
 **Locations:**
+
 - Line 265: `local claude_enabled=$(grep ...)`
 - Line 270: `local gemini_enabled=$(grep ...)`
 - Line 275: `local cursor_enabled=$(grep ...)`
@@ -56,21 +59,25 @@
 **Issue:** Declaring and assigning in one line masks the return value of the command.
 
 **Current Pattern:**
+
 ```bash
 local var=$(command)
 if [[ "$var" == "expected" ]]; then
 ```
 
 **Recommended Fix:**
+
 ```bash
 local var
 var=$(command) || { echo "Command failed"; return 1; }
 if [[ "$var" == "expected" ]]; then
 ```
 
-**Why it matters:** If `command` fails, the error is hidden and `var` is set to empty string, potentially causing logic errors downstream.
+**Why it matters:** If `command` fails, the error is hidden and `var` is set
+to empty string, potentially causing logic errors downstream.
 
 #### SC2034: Variable appears unused (1 occurrence)
+
 **Severity:** Warning | **Risk:** Low | **Effort:** Minimal
 
 **Location:** Line 57: `DISTRO="rhel"`
@@ -80,11 +87,13 @@ if [[ "$var" == "expected" ]]; then
 **Fix:** Either use the variable or remove it. Verify if it's intended for future use.
 
 #### SC2129: Consider consolidating redirects (1 occurrence)
+
 **Severity:** Style | **Risk:** Low | **Effort:** Minimal
 
 **Location:** Line 776: Multiple `echo "" >> "$shell_profile"`
 
 **Current Pattern:**
+
 ```bash
 echo "" >> "$shell_profile"
 echo "# Added by bootstrap" >> "$shell_profile"
@@ -92,6 +101,7 @@ echo "export PATH=..." >> "$shell_profile"
 ```
 
 **Recommended Fix:**
+
 ```bash
 {
     echo ""
@@ -103,19 +113,23 @@ echo "export PATH=..." >> "$shell_profile"
 **Why it matters:** More efficient (opens file once) and easier to read.
 
 #### SC2295: Quote expansions inside ${..} patterns (3 occurrences)
+
 **Severity:** Info | **Risk:** Low | **Effort:** Minimal
 
 **Locations:**
+
 - Line 870: `${file#$HOME/}`
 - Line 893: `${file#$HOME/}`
 - Line 895: `${file#$HOME/}`
 
 **Current Pattern:**
+
 ```bash
 echo "${file#$HOME/}"
 ```
 
 **Recommended Fix:**
+
 ```bash
 echo "${file#"$HOME"/}"
 ```
@@ -123,15 +137,18 @@ echo "${file#"$HOME"/}"
 **Why it matters:** Prevents pattern matching issues when HOME contains special characters.
 
 #### SC1091: Not following external files (2 occurrences)
+
 **Severity:** Info | **Risk:** None | **Effort:** N/A
 
 **Locations:**
+
 - Line 52: `. /etc/os-release`
 - Line 351: `. /etc/os-release`
 
 **Issue:** ShellCheck can't follow external files to check them.
 
 **Fix:** Not needed - this is expected for system files. Can suppress with:
+
 ```bash
 # shellcheck source=/dev/null
 . /etc/os-release
@@ -142,9 +159,11 @@ echo "${file#"$HOME"/}"
 ### parallel_agent.sh Issues
 
 #### SC2155: Declare and assign separately (6 occurrences)
+
 **Severity:** Warning | **Risk:** Low | **Effort:** Minimal
 
 **Locations:**
+
 - Line 110: `local claude_section=$(sed ...)`
 - Line 118: `local gemini_section=$(sed ...)`
 - Line 126: `local cursor_section=$(sed ...)`
@@ -155,9 +174,11 @@ echo "${file#"$HOME"/}"
 **Same issue as bootstrap.sh** - masks return values.
 
 #### SC2129: Consider consolidating redirects (3 occurrences)
+
 **Severity:** Style | **Risk:** Low | **Effort:** Minimal
 
 **Locations:**
+
 - Lines 905, 917, 928, 941: Multiple redirects to `$summary_file`
 
 **Same issue as bootstrap.sh** - consolidate with `{ ... } >> file` pattern.
@@ -169,14 +190,17 @@ echo "${file#"$HOME"/}"
 ### command_config.yml Issues
 
 **Errors (3):**
+
 - Line 8: Line too long (86 characters, limit 80)
 - Line 9: Line too long (84 characters, limit 80)
 
 **Warnings (2):**
+
 - Line 6: Missing document start marker `---`
 - Lines 15, 58: Comments need 2 spaces before them (has 1)
 
 **Sample violations:**
+
 ```yaml
 # Line 8 (86 chars - too long)
   improve_docs_lines: 500         # Trigger parallel agents when total doc lines > 500
@@ -188,15 +212,18 @@ echo "${file#"$HOME"/}"
 ### services.yml Issues
 
 **Errors (1):**
+
 - Line 47: Line too long (89 characters, limit 80)
 
 **Warnings (2):**
+
 - Line 8: Missing document start marker `---`
 - Line 39: Comment needs 2 spaces before it
 
 ### validation_criteria.yml Issues
 
 **Warnings (2):**
+
 - Line 4: Missing document start marker `---`
 - Line 174: Comment needs 2 spaces before it
 
@@ -238,6 +265,7 @@ echo "${file#"$HOME"/}"
 ### Immediate Actions (This Week)
 
 **✅ COMPLETED:**
+
 1. ✅ Install ShellCheck (v0.11.0)
 2. ✅ Install yamllint (v1.37.1)
 3. ✅ Create `.pre-commit-config.yaml`
@@ -246,13 +274,16 @@ echo "${file#"$HOME"/}"
 6. ✅ Create `/refactor-shell` command
 
 **TODO:**
+
 1. Install pre-commit hooks:
+
    ```bash
    pip install pre-commit
    pre-commit install
    ```
 
 2. Run pre-commit on all files:
+
    ```bash
    pre-commit run --all-files
    ```
@@ -270,6 +301,7 @@ echo "${file#"$HOME"/}"
    - Fix comment spacing
 
 3. **Add shellcheck directives**
+
    ```bash
    # At top of scripts that source external files
    # shellcheck source=/dev/null
@@ -279,6 +311,7 @@ echo "${file#"$HOME"/}"
 ### Long Term (Roadmap)
 
 1. **Add unit testing with BATS**
+
    ```bash
    # Install BATS
    npm install -g bats
@@ -299,6 +332,7 @@ echo "${file#"$HOME"/}"
    ```
 
 2. **Add GitHub Actions CI**
+
    ```yaml
    # .github/workflows/quality.yml
    name: Code Quality
@@ -327,6 +361,7 @@ echo "${file#"$HOME"/}"
    - Support log levels via environment variable
 
 4. **Add debug mode**
+
    ```bash
    # Add to scripts
    if [[ "${DEBUG:-false}" == "true" ]]; then
@@ -339,6 +374,7 @@ echo "${file#"$HOME"/}"
 ## Configuration Files Created
 
 ### .pre-commit-config.yaml
+
 - ShellCheck validation (warnings and above)
 - YAML linting with custom rules
 - Markdown linting with auto-fix
@@ -346,12 +382,14 @@ echo "${file#"$HOME"/}"
 - Secret detection
 
 ### .yamllint
+
 - Line length: 120 characters (more practical than 80)
 - Document start: disabled (not needed for config files)
 - Comment spacing: 1 space minimum (more readable)
 - Truthy values: allow true/false/yes/no
 
 ### .editorconfig
+
 - Consistent indentation across file types
 - Shell: 4 spaces
 - YAML: 2 spaces
@@ -363,29 +401,36 @@ echo "${file#"$HOME"/}"
 ## False Positives and Non-Issues
 
 ### SC1091: Not following /etc/os-release
+
 **Not a problem** - This is a system file that ShellCheck can't analyze. It's safe to source.
 
 ### Unquoted variables in specific contexts
+
 The scripts properly quote variables in contexts where word splitting matters. Cases like `$?` and `$#` don't need quoting.
 
 ### set -e usage
-Scripts use `set -e` appropriately. The SC2155 issues are about masking return values within that context, not about error handling being absent.
+
+Scripts use `set -e` appropriately. The SC2155 issues are about masking return
+values within that context, not about error handling being absent.
 
 ---
 
 ## Compliance Status
 
 ### ShellCheck Compliance
+
 - **Current:** 23 issues (14 warnings, 9 info/style)
 - **Target:** 0 warnings, <5 info/style
 - **Status:** 🟡 Partially Compliant (84/100)
 
 ### YAML Compliance
+
 - **Current:** 3 errors, 6 warnings
 - **Target:** 0 errors, 0 warnings
 - **Status:** 🟡 Partially Compliant
 
 ### Pre-commit Hooks
+
 - **Status:** ✅ Configured (not yet installed)
 - **Next Step:** Run `pre-commit install` to activate
 
@@ -396,6 +441,7 @@ Scripts use `set -e` appropriately. The SC2155 issues are about masking return v
 ### Manual Testing Checklist
 
 Before deploying changes:
+
 - [ ] Test bootstrap.sh on clean macOS system
 - [ ] Test bootstrap.sh on clean Ubuntu system
 - [ ] Test parallel_agent.sh with all agents
@@ -405,6 +451,7 @@ Before deploying changes:
 ### Automated Testing
 
 Create BATS tests for:
+
 - Platform detection logic
 - Service configuration parsing
 - Model selection logic
