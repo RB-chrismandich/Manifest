@@ -1,5 +1,4 @@
 #!/bin/bash
-# shellcheck disable=SC2001
 # Generate Cursor .mdc rule files from canonical SKILL.md sources.
 # Prevents drift between .claude/skills/ and .cursor/rules/.
 #

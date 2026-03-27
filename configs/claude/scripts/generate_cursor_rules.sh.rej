@@ -1,0 +1,8 @@
+--- configs/claude/scripts/generate_cursor_rules.sh
++++ configs/claude/scripts/generate_cursor_rules.sh
+@@ -1,4 +1,5 @@
+ #!/bin/bash
++# shellcheck disable=SC2001
+
+ # Directory containing rule generation scripts
+ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
