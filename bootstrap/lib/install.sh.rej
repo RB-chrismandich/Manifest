@@ -1,0 +1,6 @@
+--- bootstrap/lib/install.sh
++++ bootstrap/lib/install.sh
+@@ -1,3 +1,4 @@
++# shellcheck disable=SC1091,SC2086
+ # Module: Dependency Installation
+ # Handles OS-level and CLI package installation

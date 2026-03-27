@@ -198,38 +198,29 @@ parse_services_config() {
             /^[[:space:]]*github:/ { if (section == "git_cli") subsection="github" }
             /^[[:space:]]*gitlab:/ { if (section == "git_cli") subsection="gitlab" }
             /^[[:space:]]*enabled:[[:space:]]*true/ {
-                if (section == "claude") print "FILE_CLAUDE true"
-                if (section == "gemini") print "FILE_GEMINI true"
-                if (section == "cursor") print "FILE_CURSOR true"
-                if (section == "codex") print "FILE_CODEX true"
-                if (section == "git_cli" && subsection == "github") print "FILE_GH true"
-                if (section == "git_cli" && subsection == "gitlab") print "FILE_GLAB true"
+                if (section == "claude") print "FILE_CLAUDE=true;"
+                if (section == "gemini") print "FILE_GEMINI=true;"
+                if (section == "cursor") print "FILE_CURSOR=true;"
+                if (section == "codex") print "FILE_CODEX=true;"
+                if (section == "git_cli" && subsection == "github") print "FILE_GH=true;"
+                if (section == "git_cli" && subsection == "gitlab") print "FILE_GLAB=true;"
             }
             /^[[:space:]]*enabled:[[:space:]]*false/ {
-                if (section == "claude") print "FILE_CLAUDE false"
-                if (section == "gemini") print "FILE_GEMINI false"
-                if (section == "cursor") print "FILE_CURSOR false"
-                if (section == "codex") print "FILE_CODEX false"
-                if (section == "git_cli" && subsection == "github") print "FILE_GH false"
-                if (section == "git_cli" && subsection == "gitlab") print "FILE_GLAB false"
+                if (section == "claude") print "FILE_CLAUDE=false;"
+                if (section == "gemini") print "FILE_GEMINI=false;"
+                if (section == "cursor") print "FILE_CURSOR=false;"
+                if (section == "codex") print "FILE_CODEX=false;"
+                if (section == "git_cli" && subsection == "github") print "FILE_GH=false;"
+                if (section == "git_cli" && subsection == "gitlab") print "FILE_GLAB=false;"
             }
             /^[[:space:]]*enabled:[[:space:]]*auto/ {
-                if (section == "git_cli" && subsection == "github") print "FILE_GH auto"
-                if (section == "git_cli" && subsection == "gitlab") print "FILE_GLAB auto"
+                if (section == "git_cli" && subsection == "github") print "FILE_GH=auto;"
+                if (section == "git_cli" && subsection == "gitlab") print "FILE_GLAB=auto;"
             }
         ' "$SERVICES_CONFIG")
 
         if [[ -n "$config_settings" ]]; then
-            while read -r key val; do
-                case "$key" in
-                    FILE_CLAUDE) FILE_CLAUDE="$val" ;;
-                    FILE_GEMINI) FILE_GEMINI="$val" ;;
-                    FILE_CURSOR) FILE_CURSOR="$val" ;;
-                    FILE_CODEX) FILE_CODEX="$val" ;;
-                    FILE_GH) FILE_GH="$val" ;;
-                    FILE_GLAB) FILE_GLAB="$val" ;;
-                esac
-            done <<< "$config_settings"
+            eval "$config_settings"
         fi
     fi
 }
