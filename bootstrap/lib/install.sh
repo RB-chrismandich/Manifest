@@ -10,6 +10,7 @@ check_platform() {
         linux)
             local version=""
             if [[ -f /etc/os-release ]]; then
+                # shellcheck disable=SC1091
                 . /etc/os-release
                 version="$PRETTY_NAME"
             else
