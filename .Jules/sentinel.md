@@ -7,3 +7,9 @@
 **Vulnerability:** The script `.claude/scripts/parallel_agent.sh` used `eval` to process configuration values parsed from `services.yml`. If the configuration file (located in the user's home directory) was modified by an attacker, it could lead to arbitrary command execution within the context of the script.
 **Learning:** Using `eval` on data derived from external files, even if partially sanitized by `awk`, is risky and hard to audit. It creates a direct path for code injection if the sanitization logic is flawed or bypassed.
 **Prevention:** Replace `eval` with a `while read` loop that iterates over the parsed output. Use strict matching (e.g., `case "$key" in ...`) to whitelist allowed variables and assign values safely, preventing execution of arbitrary commands.
+
+## 2026-02-12 - Prevent Command Injection During Config Parsing (Quote Stripping)
+
+**Vulnerability:** Command injection vulnerability (CWE-78) via `eval` used to parse the YAML configuration file (`services.yml`) in `bootstrap.sh`. Additionally, `eval` normally consumes quotes, so replacing it requires manually stripping quotes from variable assignments to prevent functional regressions.
+**Learning:** Parsing configurations via shell `eval` is dangerous. When refactoring it to a secure `while read` loop, you must account for how `eval` handled quotes; otherwise, literal quote characters will be assigned to the variables, breaking downstream logic.
+**Prevention:** Avoid `eval` entirely. Use a secure `while read -r line; do case "$line" in ... esac; done <<< "$config_string"` loop to explicitly whitelist allowed configuration variables. Ensure to strip quotation marks using parameter expansion (e.g., `VAR="${VAR%\"}"; VAR="${VAR#\"}"`) to match the expected behavior.
