@@ -40,9 +40,12 @@ jobs:
         run: pip install yamllint
 
       - name: yamllint - configs/claude/config/
-        run: yamllint -d relaxed configs/claude/config/*.yml
+        run: yamllint -c .yamllint configs/claude/config/*.yml
 
       # --- markdownlint ---
+
+      - name: Copy markdownlint config
+        run: cp .markdownlintrc .markdownlint-cli2.jsonc
 
       - name: markdownlint - key docs
         uses: DavidAnson/markdownlint-cli2-action@v22
@@ -52,6 +55,7 @@ jobs:
             CLAUDE.md
             README.md
             docs/*.md
+          config: .markdownlint-cli2.jsonc
 
       # --- YAML validation with Python ---
 
