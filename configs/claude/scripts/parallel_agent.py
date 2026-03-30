@@ -23,6 +23,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Any
 import re
+import itertools
+from collections import Counter
 
 try:
     import yaml
@@ -1570,14 +1572,14 @@ class Orchestrator:
 
         # Simple keyword-based consensus (placeholder for more sophisticated analysis)
         # Count common significant words (>4 chars) across outputs
-        all_words = set()
-        word_counts = {}
+        # ⚡ Bolt Optimization: Replace manual loops with C-optimized itertools and collections.Counter
+        words_per_output = [
+            {word.lower() for word in output.split() if len(word) > 4}
+            for output in outputs
+        ]
 
-        for output in outputs:
-            words = set(word.lower() for word in output.split() if len(word) > 4)
-            all_words.update(words)
-            for word in words:
-                word_counts[word] = word_counts.get(word, 0) + 1
+        all_words = set().union(*words_per_output) if words_per_output else set()
+        word_counts = Counter(itertools.chain.from_iterable(words_per_output))
 
         # Calculate consensus as % of words appearing in multiple outputs
         if not all_words:
