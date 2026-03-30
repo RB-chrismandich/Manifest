@@ -45,10 +45,15 @@ jobs:
       # --- markdownlint ---
 
       - name: Prepare markdownlint config
-        run: cp .markdownlintrc .markdownlint-cli2.jsonc
+        run: |
+          echo '{"config": ' > .markdownlint-cli2.jsonc
+          cat .markdownlintrc >> .markdownlint-cli2.jsonc
+          echo '}' >> .markdownlint-cli2.jsonc
 
       - name: markdownlint - key docs
         uses: DavidAnson/markdownlint-cli2-action@v22
+        env:
+          FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
         with:
           config: .markdownlint-cli2.jsonc
           globs: |
