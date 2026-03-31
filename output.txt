@@ -1,7 +1,0 @@
-[0;34mLabel Sync[0m
-Registry: /tmp/label_sync_test.rJ30Z1/config/labels.yml
-
-Found 1 labels in registry
-
-[0;32mLabel:[0m planned
-  [0;34m[dry-run][0m Would create: planned (1D76DB) on git platform
