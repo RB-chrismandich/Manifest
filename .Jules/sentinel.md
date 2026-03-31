@@ -1,3 +1,5 @@
+# Sentinel's Journal
+
 ## 2026-02-06 - Insecure Temporary Directory Creation (CWE-377)
 **Vulnerability:** The script `.claude/scripts/parallel_agent.sh` used a predictable PID-based naming convention (`/tmp/.claude_agent_outputs_$$`) for its fallback output directory.
 **Learning:** Shell scripts using predictable names in shared directories like `/tmp` are vulnerable to symlink attacks. An attacker can pre-create a symlink with the predicted name pointing to a sensitive file or directory (e.g., `/etc/passwd` or a user's home directory). When the script executes `mkdir -p` (which follows symlinks) and then `chmod 700`, it changes the permissions of the target file/directory, leading to local privilege escalation or data loss.

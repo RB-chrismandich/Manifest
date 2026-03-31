@@ -570,6 +570,7 @@ commands to `gh` (GitHub), `glab` (GitLab), or warns if neither is available.
 ```
 
 **Subcommands**:
+
 | Subcommand | GitHub (`gh`) | GitLab (`glab`) | Plain git |
 |------------|---------------|-----------------|-----------|
 | `issue-view N` | `gh issue view N` | `glab issue view N` | warn |
