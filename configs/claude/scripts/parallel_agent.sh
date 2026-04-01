@@ -1,11 +1,11 @@
 #!/bin/bash
+# shellcheck disable=SC2016,SC2059,SC2004,SC2129
+
 # ┌──────────────────────────────────────────────────────────────────────┐
 # │  DEPRECATED: This shell script is superseded by parallel_agent.py   │
 # │  Use instead:                                                       │
 # │    python3 ~/.claude/scripts/parallel_agent.py [args...]            │
 # │                                                                     │
-# shellcheck disable=SC2016,SC2059,SC2004,SC2129
-
 # │  The Python implementation has full feature parity plus:            │
 # │  - Async execution with streaming output                           │
 # │  - Codex agent support (--codex-only, --codex-model, --no-codex)   │
