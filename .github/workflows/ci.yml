@@ -40,18 +40,31 @@ jobs:
         run: pip install yamllint
 
       - name: yamllint - configs/claude/config/
-        run: yamllint -d relaxed configs/claude/config/*.yml
+        run: yamllint -c .yamllint configs/claude/config/*.yml
 
       # --- markdownlint ---
 
+      - name: Create markdownlint config
+        run: |
+          echo '{"config": ' > .markdownlint-cli2.jsonc
+          cat .markdownlintrc >> .markdownlint-cli2.jsonc
+          echo '}' >> .markdownlint-cli2.jsonc
+
       - name: markdownlint - key docs
-        uses: DavidAnson/markdownlint-cli2-action@v22
+        uses: DavidAnson/markdownlint-cli2-action@v19
+        env:
+          FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
         with:
+          config: .markdownlint-cli2.jsonc
           globs: |
             AGENTS.md
             CLAUDE.md
             README.md
             docs/*.md
+
+      - name: Cleanup markdownlint config
+        run: rm -f .markdownlint-cli2.jsonc
+        if: always()
 
       # --- YAML validation with Python ---
 
