@@ -220,7 +220,27 @@ parse_services_config() {
         ' "$SERVICES_CONFIG")
 
         if [[ -n "$config_settings" ]]; then
-            eval "$config_settings"
+            while read -r line; do
+                if [[ -z "$line" ]]; then continue; fi
+                # Split line into variable name and value
+                local var_name="${line%%=*}"
+                local var_value="${line#*=}"
+
+                # Strip trailing semicolon and any quotes
+                var_value="${var_value%;}"
+                var_value="${var_value%\"}"
+                var_value="${var_value#\"}"
+
+                case "$var_name" in
+                    FILE_CLAUDE) FILE_CLAUDE="$var_value" ;;
+                    FILE_GEMINI) FILE_GEMINI="$var_value" ;;
+                    FILE_CURSOR) FILE_CURSOR="$var_value" ;;
+                    FILE_CODEX) FILE_CODEX="$var_value" ;;
+                    FILE_GH) FILE_GH="$var_value" ;;
+                    FILE_GLAB) FILE_GLAB="$var_value" ;;
+                    *) ;; # Ignore any unauthorized variables
+                esac
+            done <<< "$config_settings"
         fi
     fi
 }
