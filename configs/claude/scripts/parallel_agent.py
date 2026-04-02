@@ -18,6 +18,8 @@ import sys
 import time
 import argparse
 import logging
+from collections import Counter
+from itertools import chain
 from logging.handlers import RotatingFileHandler
 from datetime import datetime
 from pathlib import Path
@@ -1570,14 +1572,9 @@ class Orchestrator:
 
         # Simple keyword-based consensus (placeholder for more sophisticated analysis)
         # Count common significant words (>4 chars) across outputs
-        all_words = set()
-        word_counts = {}
-
-        for output in outputs:
-            words = set(word.lower() for word in output.split() if len(word) > 4)
-            all_words.update(words)
-            for word in words:
-                word_counts[word] = word_counts.get(word, 0) + 1
+        word_sets = [set(word.lower() for word in output.split() if len(word) > 4) for output in outputs]
+        all_words = set.union(*word_sets) if word_sets else set()
+        word_counts = Counter(chain.from_iterable(word_sets))
 
         # Calculate consensus as % of words appearing in multiple outputs
         if not all_words:
@@ -1640,50 +1637,33 @@ class Orchestrator:
             )
             return fallback
 
-    async def _write_output_files(
-        self,
-        result: Dict,
-        timestamp: str,
-        custom_output_dir: Optional[str] = None,
-        full_output: bool = True,
-    ) -> Dict:
-        """Write output files to disk with sandbox-aware fallback"""
-        output_dir = self._resolve_output_dir(custom_output_dir)
-        output_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
+    def _write_agent_output(self, output_file: Path, agent_name: str, agent_result: Dict, full_output: bool):
+        """Helper to write individual agent output to disk"""
+        with open(output_file, "w") as f:
+            f.write(f"Agent: {agent_name}\n")
+            f.write(f"Status: {agent_result.get('status')}\n")
+            f.write(f"Model: {agent_result.get('model', 'N/A')}\n")
+            f.write(f"Duration: {agent_result.get('duration_seconds')}s\n")
+            if agent_result.get("credit_fallback"):
+                f.write("Credit Fallback: Yes\n")
+            f.write("\n--- Output ---\n\n")
 
-        output_files = {}
+            output_text = agent_result.get("output", agent_result.get("error", ""))
+            if full_output:
+                f.write(output_text)
+            else:
+                # Truncate to first 1000 chars if not full output
+                f.write(output_text[:1000])
+                if len(output_text) > 1000:
+                    f.write("\n\n... [truncated] ...")
 
-        # Write individual agent outputs
-        for agent_name, agent_result in result["agents"].items():
-            output_file = output_dir / f"{agent_name}_{timestamp}.txt"
-            with open(output_file, "w") as f:
-                f.write(f"Agent: {agent_name}\n")
-                f.write(f"Status: {agent_result.get('status')}\n")
-                f.write(f"Model: {agent_result.get('model', 'N/A')}\n")
-                f.write(f"Duration: {agent_result.get('duration_seconds')}s\n")
-                if agent_result.get("credit_fallback"):
-                    f.write("Credit Fallback: Yes\n")
-                f.write("\n--- Output ---\n\n")
-
-                output_text = agent_result.get("output", agent_result.get("error", ""))
-                if full_output:
-                    f.write(output_text)
-                else:
-                    # Truncate to first 1000 chars if not full output
-                    f.write(output_text[:1000])
-                    if len(output_text) > 1000:
-                        f.write("\n\n... [truncated] ...")
-
-            output_files[agent_name] = str(output_file)
-
-        # Write JSON results
-        json_file = output_dir / f"results_{timestamp}.json"
+    def _write_json_results(self, json_file: Path, result: Dict):
+        """Helper to write json results"""
         with open(json_file, "w") as f:
             json.dump(result, f, indent=2)
-        output_files["json"] = str(json_file)
 
-        # Write markdown summary
-        md_file = output_dir / f"summary_{timestamp}.md"
+    def _write_markdown_summary(self, md_file: Path, timestamp: str, result: Dict):
+        """Helper to write markdown summary"""
         with open(md_file, "w") as f:
             f.write("# Parallel Agent Results\n\n")
             f.write(f"**Timestamp**: {timestamp}\n")
@@ -1713,6 +1693,33 @@ class Orchestrator:
                     f.write(f"- **Error**: {agent_result['error']}\n")
                 f.write("\n")
 
+    async def _write_output_files(
+        self,
+        result: Dict,
+        timestamp: str,
+        custom_output_dir: Optional[str] = None,
+        full_output: bool = True,
+    ) -> Dict:
+        """Write output files to disk with sandbox-aware fallback"""
+        output_dir = self._resolve_output_dir(custom_output_dir)
+        await asyncio.to_thread(output_dir.mkdir, parents=True, exist_ok=True, mode=0o700)
+
+        output_files = {}
+
+        # Write individual agent outputs
+        for agent_name, agent_result in result["agents"].items():
+            output_file = output_dir / f"{agent_name}_{timestamp}.txt"
+            await asyncio.to_thread(self._write_agent_output, output_file, agent_name, agent_result, full_output)
+            output_files[agent_name] = str(output_file)
+
+        # Write JSON results
+        json_file = output_dir / f"results_{timestamp}.json"
+        await asyncio.to_thread(self._write_json_results, json_file, result)
+        output_files["json"] = str(json_file)
+
+        # Write markdown summary
+        md_file = output_dir / f"summary_{timestamp}.md"
+        await asyncio.to_thread(self._write_markdown_summary, md_file, timestamp, result)
         output_files["summary"] = str(md_file)
 
         return output_files
