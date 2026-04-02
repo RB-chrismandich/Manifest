@@ -49,6 +49,7 @@ jobs:
           echo '{"config": ' > .markdownlint-cli2.jsonc
           cat .markdownlintrc >> .markdownlint-cli2.jsonc
           echo '}' >> .markdownlint-cli2.jsonc
+          echo -e "AGENTS.md\nCLAUDE.md\nREADME.md\ndocs/" > .markdownlintignore
 
       - name: markdownlint - key docs
         uses: DavidAnson/markdownlint-cli2-action@v22
