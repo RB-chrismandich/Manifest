@@ -1478,11 +1478,11 @@ monitor_agents() {
                     code=$?
                     set -e
                     if [[ $code -eq 0 ]]; then
-                        agent_states[$i]="${GREEN}✔${NC}"
+                        agent_states[i]="${GREEN}✔${NC}"
                     else
-                        agent_states[$i]="${RED}✘${NC}"
+                        agent_states[i]="${RED}✘${NC}"
                     fi
-                    status_line="$status_line $display_name [${agent_states[$i]}]"
+                    status_line="$status_line $display_name [${agent_states[i]}]"
                 fi
             else
                 status_line="$status_line $display_name [$state]"
