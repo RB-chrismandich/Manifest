@@ -222,12 +222,12 @@ parse_services_config() {
         if [[ -n "$config_settings" ]]; then
             while read -r line; do
                 case "$line" in
-                    FILE_CLAUDE=*) FILE_CLAUDE="${line#*=}"; FILE_CLAUDE="${FILE_CLAUDE%;}"; FILE_CLAUDE="${FILE_CLAUDE%\"}"; FILE_CLAUDE="${FILE_CLAUDE#\"}" ;;
-                    FILE_GEMINI=*) FILE_GEMINI="${line#*=}"; FILE_GEMINI="${FILE_GEMINI%;}"; FILE_GEMINI="${FILE_GEMINI%\"}"; FILE_GEMINI="${FILE_GEMINI#\"}" ;;
-                    FILE_CURSOR=*) FILE_CURSOR="${line#*=}"; FILE_CURSOR="${FILE_CURSOR%;}"; FILE_CURSOR="${FILE_CURSOR%\"}"; FILE_CURSOR="${FILE_CURSOR#\"}" ;;
-                    FILE_CODEX=*) FILE_CODEX="${line#*=}"; FILE_CODEX="${FILE_CODEX%;}"; FILE_CODEX="${FILE_CODEX%\"}"; FILE_CODEX="${FILE_CODEX#\"}" ;;
-                    FILE_GH=*) FILE_GH="${line#*=}"; FILE_GH="${FILE_GH%;}"; FILE_GH="${FILE_GH%\"}"; FILE_GH="${FILE_GH#\"}" ;;
-                    FILE_GLAB=*) FILE_GLAB="${line#*=}"; FILE_GLAB="${FILE_GLAB%;}"; FILE_GLAB="${FILE_GLAB%\"}"; FILE_GLAB="${FILE_GLAB#\"}" ;;
+                    FILE_CLAUDE=*) FILE_CLAUDE="${line#FILE_CLAUDE=}"; FILE_CLAUDE="${FILE_CLAUDE%;}" ;;
+                    FILE_GEMINI=*) FILE_GEMINI="${line#FILE_GEMINI=}"; FILE_GEMINI="${FILE_GEMINI%;}" ;;
+                    FILE_CURSOR=*) FILE_CURSOR="${line#FILE_CURSOR=}"; FILE_CURSOR="${FILE_CURSOR%;}" ;;
+                    FILE_CODEX=*) FILE_CODEX="${line#FILE_CODEX=}"; FILE_CODEX="${FILE_CODEX%;}" ;;
+                    FILE_GH=*) FILE_GH="${line#FILE_GH=}"; FILE_GH="${FILE_GH%;}" ;;
+                    FILE_GLAB=*) FILE_GLAB="${line#FILE_GLAB=}"; FILE_GLAB="${FILE_GLAB%;}" ;;
                 esac
             done <<< "$config_settings"
         fi

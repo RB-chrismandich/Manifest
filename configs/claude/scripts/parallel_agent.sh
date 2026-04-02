@@ -259,11 +259,11 @@ load_services_config() {
     if [[ -n "$config_settings" ]]; then
         while read -r line; do
             case "$line" in
-                RUN_CLAUDE=*) RUN_CLAUDE="${line#*=}"; RUN_CLAUDE="${RUN_CLAUDE%;}"; RUN_CLAUDE="${RUN_CLAUDE%\"}"; RUN_CLAUDE="${RUN_CLAUDE#\"}" ;;
-                RUN_GEMINI=*) RUN_GEMINI="${line#*=}"; RUN_GEMINI="${RUN_GEMINI%;}"; RUN_GEMINI="${RUN_GEMINI%\"}"; RUN_GEMINI="${RUN_GEMINI#\"}" ;;
-                RUN_CURSOR=*) RUN_CURSOR="${line#*=}"; RUN_CURSOR="${RUN_CURSOR%;}"; RUN_CURSOR="${RUN_CURSOR%\"}"; RUN_CURSOR="${RUN_CURSOR#\"}" ;;
-                RUN_CODEX=*) RUN_CODEX="${line#*=}"; RUN_CODEX="${RUN_CODEX%;}"; RUN_CODEX="${RUN_CODEX%\"}"; RUN_CODEX="${RUN_CODEX#\"}" ;;
-                MIN_AGENTS=*) MIN_AGENTS="${line#*=}"; MIN_AGENTS="${MIN_AGENTS%;}"; MIN_AGENTS="${MIN_AGENTS%\"}"; MIN_AGENTS="${MIN_AGENTS#\"}" ;;
+                RUN_CLAUDE=*) RUN_CLAUDE="${line#RUN_CLAUDE=}"; RUN_CLAUDE="${RUN_CLAUDE%;}" ;;
+                RUN_GEMINI=*) RUN_GEMINI="${line#RUN_GEMINI=}"; RUN_GEMINI="${RUN_GEMINI%;}" ;;
+                RUN_CURSOR=*) RUN_CURSOR="${line#RUN_CURSOR=}"; RUN_CURSOR="${RUN_CURSOR%;}" ;;
+                RUN_CODEX=*) RUN_CODEX="${line#RUN_CODEX=}"; RUN_CODEX="${RUN_CODEX%;}" ;;
+                MIN_AGENTS=*) MIN_AGENTS="${line#MIN_AGENTS=}"; MIN_AGENTS="${MIN_AGENTS%;}" ;;
             esac
         done <<< "$config_settings"
     fi
