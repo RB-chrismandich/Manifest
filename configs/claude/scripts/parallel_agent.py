@@ -1870,57 +1870,84 @@ async def check_credits(config: Config, logger: Optional[Logger] = None) -> Dict
 
 async def main():
     """Main entry point"""
-    parser = argparse.ArgumentParser(description="Parallel Agent Orchestrator")
-    parser.add_argument("prompt", nargs="?", help="Prompt to send to agents")
-    parser.add_argument("--json", action="store_true", help="Output JSON format")
-    parser.add_argument("--validate", action="store_true", help="Validate results")
-    parser.add_argument("--review", metavar="FILE", help="Code review mode")
-    parser.add_argument("--analyze", metavar="FILE", help="Bug/security analysis mode")
-    parser.add_argument(
+    parser = argparse.ArgumentParser(
+        description="Parallel Agent Orchestrator",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # Basic prompt using all enabled agents
+  parallel_agent.py "What is the capital of France?"
+
+  # Code review using specific agents
+  parallel_agent.py --review src/main.py --claude-only --claude-model opus
+
+  # Security analysis with JSON output
+  parallel_agent.py --analyze src/auth.py --json
+
+  # Pre-flight check
+  parallel_agent.py --check-credits
+"""
+    )
+
+    mode_group = parser.add_argument_group("Mode Options")
+    mode_group.add_argument("prompt", nargs="?", help="Prompt to send to agents")
+    mode_group.add_argument("--review", metavar="FILE", help="Code review mode")
+    mode_group.add_argument("--analyze", metavar="FILE", help="Bug/security analysis mode")
+    mode_group.add_argument(
         "--improve", metavar="FILE", help="Improve observation YAML mode"
     )
-    parser.add_argument(
-        "--check-credits", action="store_true", help="Pre-flight credit check"
-    )
-    parser.add_argument("--output", metavar="DIR", help="Custom output directory")
-    parser.add_argument(
+
+    output_group = parser.add_argument_group("Output Options")
+    output_group.add_argument("--json", action="store_true", help="Output JSON format")
+    output_group.add_argument("--output", metavar="DIR", help="Custom output directory")
+    output_group.add_argument(
         "--full-output",
         action="store_true",
         default=True,
         help="Include complete outputs",
     )
-    parser.add_argument(
+    output_group.add_argument(
         "--no-stream", action="store_true", help="Disable streaming output"
     )
-    parser.add_argument(
+
+    exec_group = parser.add_argument_group("Execution Options")
+    exec_group.add_argument("--validate", action="store_true", help="Validate results")
+    exec_group.add_argument(
         "--synthesize",
         action="store_true",
         default=True,
         help="Enable synthesis for low consensus",
     )
-    parser.add_argument(
+    exec_group.add_argument(
         "--timeout",
         type=int,
         default=None,
         help="Timeout per agent (seconds). Defaults: review=600, analyze=900, improve=300, prompt=600",
     )
-    parser.add_argument("--claude-model", default="sonnet", help="Claude model tier")
-    parser.add_argument("--gemini-model", default="flash", help="Gemini model tier")
-    parser.add_argument("--cursor-model", default="flash", help="Cursor model tier")
-    parser.add_argument("--codex-model", default="auto", help="Codex model tier")
-    parser.add_argument("--claude-only", action="store_true", help="Run only Claude")
-    parser.add_argument("--gemini-only", action="store_true", help="Run only Gemini")
-    parser.add_argument("--cursor-only", action="store_true", help="Run only Cursor")
-    parser.add_argument("--codex-only", action="store_true", help="Run only Codex")
-    parser.add_argument("--no-claude", action="store_true", help="Disable Claude agent")
-    parser.add_argument("--no-cursor", action="store_true", help="Disable Cursor agent")
-    parser.add_argument("--no-gemini", action="store_true", help="Disable Gemini agent")
-    parser.add_argument("--no-codex", action="store_true", help="Disable Codex agent")
-    parser.add_argument(
+    exec_group.add_argument(
+        "--check-credits", action="store_true", help="Pre-flight credit check"
+    )
+    exec_group.add_argument(
         "--status",
         action="store_true",
         help="Check agent status (delegates to check_status.sh)",
     )
+
+    agent_group = parser.add_argument_group("Agent Selection")
+    agent_group.add_argument("--claude-only", action="store_true", help="Run only Claude")
+    agent_group.add_argument("--gemini-only", action="store_true", help="Run only Gemini")
+    agent_group.add_argument("--cursor-only", action="store_true", help="Run only Cursor")
+    agent_group.add_argument("--codex-only", action="store_true", help="Run only Codex")
+    agent_group.add_argument("--no-claude", action="store_true", help="Disable Claude agent")
+    agent_group.add_argument("--no-cursor", action="store_true", help="Disable Cursor agent")
+    agent_group.add_argument("--no-gemini", action="store_true", help="Disable Gemini agent")
+    agent_group.add_argument("--no-codex", action="store_true", help="Disable Codex agent")
+
+    model_group = parser.add_argument_group("Model Selection")
+    model_group.add_argument("--claude-model", default="sonnet", help="Claude model tier")
+    model_group.add_argument("--gemini-model", default="flash", help="Gemini model tier")
+    model_group.add_argument("--cursor-model", default="flash", help="Cursor model tier")
+    model_group.add_argument("--codex-model", default="auto", help="Codex model tier")
 
     args = parser.parse_args()
 
