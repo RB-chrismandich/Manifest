@@ -1,5 +1,5 @@
 #!/bin/bash
-# shellcheck disable=SC2034,SC1091
+# shellcheck disable=SC2034
 
 # Platform/runtime detection helpers for bootstrap.sh. This file is sourced, not executed.
 

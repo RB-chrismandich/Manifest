@@ -9,14 +9,12 @@ with the builtin `$SECONDS` variable eliminates this overhead.
 **Action:** Always prefer shell builtins (like `$SECONDS` for elapsed time) over
 external commands inside loops.
 
-## 2026-04-03 - Optimize loop counting in Python
+## 2026-04-03 - Offload Blocking I/O
 
-**Learning:** Replacing manual dictionary counting loops with
-`collections.Counter` combined with `itertools.chain.from_iterable()`,
-utilizing set comprehensions, and unpacking lists into `set.union(*iterable)`
-yields up to a ~15-20% performance improvement by leveraging optimized
-C-backend operations.
+**Learning:** In async contexts (Python 3.9+), use `asyncio.to_thread()` to
+offload blocking I/O operations like `json.dump`, `open().write()`, or
+`Path.mkdir()` to a separate thread. This prevents blocking the event loop and
+significantly reduces lag in high-concurrency scripts like `parallel_agent.py`.
 
-**Action:** Always prefer C-backed standard library utilities like
-`collections.Counter` and `itertools` over manual dictionary iterations for
-bulk counting operations.
+**Action:** Always wrap synchronous disk or network operations in
+`asyncio.to_thread` when executing inside an `async def` function.
