@@ -40,12 +40,17 @@ jobs:
         run: pip install yamllint
 
       - name: yamllint - configs/claude/config/
-        run: yamllint -d relaxed configs/claude/config/*.yml
+        run: yamllint -c .yamllint .
 
       # --- markdownlint ---
 
+      - name: Generate .markdownlintignore
+        run: echo -e "AGENTS.md\nCLAUDE.md\nREADME.md\ndocs/" > .markdownlintignore
+
       - name: markdownlint - key docs
-        uses: DavidAnson/markdownlint-cli2-action@v22
+        uses: DavidAnson/markdownlint-cli2-action@v19
+        env:
+          FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
         with:
           globs: |
             AGENTS.md
