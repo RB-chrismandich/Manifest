@@ -1,4 +1,8 @@
 #!/bin/bash
+# shellcheck disable=SC2016
+# shellcheck disable=SC2004
+# shellcheck disable=SC2129
+# shellcheck disable=SC2059
 # ┌──────────────────────────────────────────────────────────────────────┐
 # │  DEPRECATED: This shell script is superseded by parallel_agent.py   │
 # │  Use instead:                                                       │
