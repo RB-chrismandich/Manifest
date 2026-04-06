@@ -1,5 +1,4 @@
 #!/bin/bash
-# shellcheck disable=SC1091,SC2016,SC2086
 # Bootstrap script for AI Agent Support Framework
 # Installs dependencies, deploys configurations, and sets up authentication
 # Supports: macOS (Intel/Apple Silicon) and Linux (Debian/Ubuntu, RHEL/Fedora, Arch)

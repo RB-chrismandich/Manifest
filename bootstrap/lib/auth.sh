@@ -1,5 +1,4 @@
 #!/bin/bash
-# shellcheck disable=SC1091,SC2016,SC2086
 
 # Authentication and state helpers for bootstrap.sh. This file is sourced, not executed.
 
