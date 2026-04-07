@@ -1870,57 +1870,59 @@ async def check_credits(config: Config, logger: Optional[Logger] = None) -> Dict
 
 async def main():
     """Main entry point"""
-    parser = argparse.ArgumentParser(description="Parallel Agent Orchestrator")
+    parser = argparse.ArgumentParser(
+        description="Parallel Agent Orchestrator",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # Basic usage with all enabled agents
+  python parallel_agent.py "Explain quantum computing simply"
+
+  # Review a specific file with advanced models
+  python parallel_agent.py --review src/auth.py --claude-model opus --cursor-model advanced
+
+  # Run only specific agents
+  python parallel_agent.py --claude-only --gemini-only "Compare these two frameworks"
+
+  # Output as JSON for programmatic consumption
+  python parallel_agent.py --json "Generate a test suite"
+"""
+    )
     parser.add_argument("prompt", nargs="?", help="Prompt to send to agents")
-    parser.add_argument("--json", action="store_true", help="Output JSON format")
-    parser.add_argument("--validate", action="store_true", help="Validate results")
-    parser.add_argument("--review", metavar="FILE", help="Code review mode")
-    parser.add_argument("--analyze", metavar="FILE", help="Bug/security analysis mode")
-    parser.add_argument(
-        "--improve", metavar="FILE", help="Improve observation YAML mode"
-    )
-    parser.add_argument(
-        "--check-credits", action="store_true", help="Pre-flight credit check"
-    )
-    parser.add_argument("--output", metavar="DIR", help="Custom output directory")
-    parser.add_argument(
-        "--full-output",
-        action="store_true",
-        default=True,
-        help="Include complete outputs",
-    )
-    parser.add_argument(
-        "--no-stream", action="store_true", help="Disable streaming output"
-    )
-    parser.add_argument(
-        "--synthesize",
-        action="store_true",
-        default=True,
-        help="Enable synthesis for low consensus",
-    )
-    parser.add_argument(
-        "--timeout",
-        type=int,
-        default=None,
-        help="Timeout per agent (seconds). Defaults: review=600, analyze=900, improve=300, prompt=600",
-    )
-    parser.add_argument("--claude-model", default="sonnet", help="Claude model tier")
-    parser.add_argument("--gemini-model", default="flash", help="Gemini model tier")
-    parser.add_argument("--cursor-model", default="flash", help="Cursor model tier")
-    parser.add_argument("--codex-model", default="auto", help="Codex model tier")
-    parser.add_argument("--claude-only", action="store_true", help="Run only Claude")
-    parser.add_argument("--gemini-only", action="store_true", help="Run only Gemini")
-    parser.add_argument("--cursor-only", action="store_true", help="Run only Cursor")
-    parser.add_argument("--codex-only", action="store_true", help="Run only Codex")
-    parser.add_argument("--no-claude", action="store_true", help="Disable Claude agent")
-    parser.add_argument("--no-cursor", action="store_true", help="Disable Cursor agent")
-    parser.add_argument("--no-gemini", action="store_true", help="Disable Gemini agent")
-    parser.add_argument("--no-codex", action="store_true", help="Disable Codex agent")
-    parser.add_argument(
-        "--status",
-        action="store_true",
-        help="Check agent status (delegates to check_status.sh)",
-    )
+
+    mode_group = parser.add_argument_group("Execution Modes")
+    mode_group.add_argument("--review", metavar="FILE", help="Code review mode")
+    mode_group.add_argument("--analyze", metavar="FILE", help="Bug/security analysis mode")
+    mode_group.add_argument("--improve", metavar="FILE", help="Improve observation YAML mode")
+    mode_group.add_argument("--check-credits", action="store_true", help="Pre-flight credit check")
+    mode_group.add_argument("--status", action="store_true", help="Check agent status (delegates to check_status.sh)")
+
+    output_group = parser.add_argument_group("Output Options")
+    output_group.add_argument("--json", action="store_true", help="Output JSON format")
+    output_group.add_argument("--output", metavar="DIR", help="Custom output directory")
+    output_group.add_argument("--full-output", action="store_true", default=True, help="Include complete outputs")
+    output_group.add_argument("--no-stream", action="store_true", help="Disable streaming output")
+
+    config_group = parser.add_argument_group("Configuration")
+    config_group.add_argument("--validate", action="store_true", help="Validate results")
+    config_group.add_argument("--synthesize", action="store_true", default=True, help="Enable synthesis for low consensus")
+    config_group.add_argument("--timeout", type=int, default=None, help="Timeout per agent (seconds). Defaults: review=600, analyze=900, improve=300, prompt=600")
+
+    model_group = parser.add_argument_group("Model Selection")
+    model_group.add_argument("--claude-model", default="sonnet", help="Claude model tier")
+    model_group.add_argument("--gemini-model", default="flash", help="Gemini model tier")
+    model_group.add_argument("--cursor-model", default="flash", help="Cursor model tier")
+    model_group.add_argument("--codex-model", default="auto", help="Codex model tier")
+
+    agent_group = parser.add_argument_group("Agent Selection")
+    agent_group.add_argument("--claude-only", action="store_true", help="Run only Claude")
+    agent_group.add_argument("--gemini-only", action="store_true", help="Run only Gemini")
+    agent_group.add_argument("--cursor-only", action="store_true", help="Run only Cursor")
+    agent_group.add_argument("--codex-only", action="store_true", help="Run only Codex")
+    agent_group.add_argument("--no-claude", action="store_true", help="Disable Claude agent")
+    agent_group.add_argument("--no-cursor", action="store_true", help="Disable Cursor agent")
+    agent_group.add_argument("--no-gemini", action="store_true", help="Disable Gemini agent")
+    agent_group.add_argument("--no-codex", action="store_true", help="Disable Codex agent")
 
     args = parser.parse_args()
 
