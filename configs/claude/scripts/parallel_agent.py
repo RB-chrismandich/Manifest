@@ -1647,7 +1647,25 @@ class Orchestrator:
         custom_output_dir: Optional[str] = None,
         full_output: bool = True,
     ) -> Dict:
-        """Write output files to disk with sandbox-aware fallback"""
+        """Write output files to disk with sandbox-aware fallback.
+        Offloads blocking I/O to a thread to prevent event loop lag.
+        """
+        return await asyncio.to_thread(
+            self._write_output_files_sync,
+            result,
+            timestamp,
+            custom_output_dir,
+            full_output
+        )
+
+    def _write_output_files_sync(
+        self,
+        result: Dict,
+        timestamp: str,
+        custom_output_dir: Optional[str] = None,
+        full_output: bool = True,
+    ) -> Dict:
+        """Synchronous implementation of output file writing"""
         output_dir = self._resolve_output_dir(custom_output_dir)
         output_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
 
