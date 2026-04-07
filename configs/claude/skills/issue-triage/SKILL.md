@@ -77,14 +77,7 @@ EOF
 }
 
 # Source config as environment variables
-while IFS='=' read -r key val; do
-    [[ -z "$key" ]] && continue
-    case "$key" in
-        DUP_TITLE_HIGH|DUP_TITLE_MEDIUM|STALENESS_DAYS|FILE_MISSING_THRESHOLD|CONSENSUS_HIGH|CONSENSUS_MEDIUM)
-            printf -v "$key" "%s" "$val"
-            ;;
-    esac
-done <<< "$(read_config)"
+eval "$(read_config)"
 
 echo "Configuration loaded: DUP_TITLE_HIGH=$DUP_TITLE_HIGH, STALENESS_DAYS=$STALENESS_DAYS"
 ```

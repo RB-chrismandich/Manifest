@@ -1,5 +1,4 @@
 #!/bin/bash
-# shellcheck disable=SC2016
 # ┌──────────────────────────────────────────────────────────────────────┐
 # │  DEPRECATED: This shell script is superseded by parallel_agent.py   │
 # │  Use instead:                                                       │
@@ -258,15 +257,7 @@ load_services_config() {
     ' "$SERVICES_CONFIG")
 
     if [[ -n "$config_settings" ]]; then
-        while IFS='=' read -r key val; do
-            [[ -z "$key" ]] && continue
-            val="${val%;}"
-            case "$key" in
-                RUN_CLAUDE|RUN_GEMINI|RUN_CURSOR|RUN_CODEX|MIN_AGENTS)
-                    printf -v "$key" "%s" "$val"
-                    ;;
-            esac
-        done <<< "$config_settings"
+        eval "$config_settings"
     fi
 
     # Check minimum agents requirement
@@ -1471,11 +1462,11 @@ monitor_agents() {
                     code=$?
                     set -e
                     if [[ $code -eq 0 ]]; then
-                        agent_states[i]="${GREEN}✔${NC}"
+                        agent_states[$i]="${GREEN}✔${NC}"
                     else
-                        agent_states[i]="${RED}✘${NC}"
+                        agent_states[$i]="${RED}✘${NC}"
                     fi
-                    status_line="$status_line $display_name [${agent_states[i]}]"
+                    status_line="$status_line $display_name [${agent_states[$i]}]"
                 fi
             else
                 status_line="$status_line $display_name [$state]"
@@ -1508,59 +1499,57 @@ monitor_agents() {
 create_summary() {
     local summary_file="$SUMMARY_FILE"
 
-    {
-        echo "# Parallel Agent Results - $TIMESTAMP"
-        echo ""
-        echo "**Mode:** $MODE"
-        echo "**Duration:** $DURATION_FORMATTED"
-        echo "**Prompt/Target:** ${PROMPT:-$TARGET}"
+    echo "# Parallel Agent Results - $TIMESTAMP" > "$summary_file"
+    echo "" >> "$summary_file"
+    echo "**Mode:** $MODE" >> "$summary_file"
+    echo "**Duration:** $DURATION_FORMATTED" >> "$summary_file"
+    echo "**Prompt/Target:** ${PROMPT:-$TARGET}" >> "$summary_file"
 
-        if [[ "$CROSS_VERIFY_RAN" == true ]]; then
-            local bar
-            bar=$(draw_bar "$CONSENSUS_SCORE")
-            echo "**Consensus:** $CONSENSUS_SCORE% \`$bar\`"
-        fi
+    if [[ "$CROSS_VERIFY_RAN" == true ]]; then
+        local bar
+        bar=$(draw_bar $CONSENSUS_SCORE)
+        echo "**Consensus:** $CONSENSUS_SCORE% \`$bar\`" >> "$summary_file"
+    fi
 
-        echo ""
+    echo "" >> "$summary_file"
 
-        if [[ -f "$CURSOR_OUTPUT_FILE" ]]; then
-            echo "## Cursor Agent Output"
-            [[ -n "$CURSOR_MODEL" ]] && echo "**Model:** $CURSOR_MODEL"
-            [[ "$CURSOR_CREDIT_FALLBACK" == true ]] && echo "**Note:** Used fallback mode due to credit exhaustion"
-            echo '```'
-            get_output_content "$CURSOR_OUTPUT_FILE"
-            echo '```'
-            echo ""
-        fi
+    if [[ -f "$CURSOR_OUTPUT_FILE" ]]; then
+        echo "## Cursor Agent Output" >> "$summary_file"
+        [[ -n "$CURSOR_MODEL" ]] && echo "**Model:** $CURSOR_MODEL" >> "$summary_file"
+        [[ "$CURSOR_CREDIT_FALLBACK" == true ]] && echo "**Note:** Used fallback mode due to credit exhaustion" >> "$summary_file"
+        echo '```' >> "$summary_file"
+        get_output_content "$CURSOR_OUTPUT_FILE" >> "$summary_file"
+        echo '```' >> "$summary_file"
+        echo "" >> "$summary_file"
+    fi
 
-        if [[ -f "$GEMINI_OUTPUT_FILE" ]]; then
-            echo "## Gemini CLI Output"
-            echo '```'
-            get_output_content "$GEMINI_OUTPUT_FILE"
-            echo '```'
-            echo ""
-        fi
+    if [[ -f "$GEMINI_OUTPUT_FILE" ]]; then
+        echo "## Gemini CLI Output" >> "$summary_file"
+        echo '```' >> "$summary_file"
+        get_output_content "$GEMINI_OUTPUT_FILE" >> "$summary_file"
+        echo '```' >> "$summary_file"
+        echo "" >> "$summary_file"
+    fi
 
-        if [[ -f "$CLAUDE_OUTPUT_FILE" ]]; then
-            echo "## Claude CLI Output"
-            [[ -n "$CLAUDE_MODEL" ]] && echo "**Model:** $CLAUDE_MODEL"
-            [[ "$CLAUDE_CREDIT_FALLBACK" == true ]] && echo "**Note:** Used fallback mode due to credit exhaustion"
-            echo '```'
-            get_output_content "$CLAUDE_OUTPUT_FILE"
-            echo '```'
-            echo ""
-        fi
+    if [[ -f "$CLAUDE_OUTPUT_FILE" ]]; then
+        echo "## Claude CLI Output" >> "$summary_file"
+        [[ -n "$CLAUDE_MODEL" ]] && echo "**Model:** $CLAUDE_MODEL" >> "$summary_file"
+        [[ "$CLAUDE_CREDIT_FALLBACK" == true ]] && echo "**Note:** Used fallback mode due to credit exhaustion" >> "$summary_file"
+        echo '```' >> "$summary_file"
+        get_output_content "$CLAUDE_OUTPUT_FILE" >> "$summary_file"
+        echo '```' >> "$summary_file"
+        echo "" >> "$summary_file"
+    fi
 
-        if [[ -f "$CODEX_OUTPUT_FILE" ]]; then
-            echo "## Codex CLI Output"
-            [[ -n "$CODEX_MODEL" ]] && echo "**Model:** $CODEX_MODEL (tier: $CODEX_MODEL_TIER)"
-            [[ "$CODEX_CREDIT_FALLBACK" == true ]] && echo "**Note:** Used default model due to credit exhaustion"
-            echo '```'
-            get_output_content "$CODEX_OUTPUT_FILE"
-            echo '```'
-            echo ""
-        fi
-    } > "$summary_file"
+    if [[ -f "$CODEX_OUTPUT_FILE" ]]; then
+        echo "## Codex CLI Output" >> "$summary_file"
+        [[ -n "$CODEX_MODEL" ]] && echo "**Model:** $CODEX_MODEL (tier: $CODEX_MODEL_TIER)" >> "$summary_file"
+        [[ "$CODEX_CREDIT_FALLBACK" == true ]] && echo "**Note:** Used default model due to credit exhaustion" >> "$summary_file"
+        echo '```' >> "$summary_file"
+        get_output_content "$CODEX_OUTPUT_FILE" >> "$summary_file"
+        echo '```' >> "$summary_file"
+        echo "" >> "$summary_file"
+    fi
 
     echo -e "${GREEN}Summary:${NC} $summary_file"
 
@@ -1585,7 +1574,7 @@ print_results_table() {
     if [[ "$VALIDATE" == true ]]; then
         printf " | %-10s" "Validation"
     fi
-    printf "%b\n" "${NC}"
+    printf "${NC}\n"
 
     printf "%s\n" "-----------|------------|----------------------$(if [[ "$VALIDATE" == true ]]; then echo "-|------------"; fi)"
 
