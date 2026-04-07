@@ -257,7 +257,15 @@ load_services_config() {
     ' "$SERVICES_CONFIG")
 
     if [[ -n "$config_settings" ]]; then
-        eval "$config_settings"
+        while IFS='=' read -r key val; do
+            [[ -z "$key" ]] && continue
+            val="${val%;}"
+            case "$key" in
+                RUN_CLAUDE|RUN_GEMINI|RUN_CURSOR|RUN_CODEX|MIN_AGENTS)
+                    printf -v "$key" "%s" "$val"
+                    ;;
+            esac
+        done <<< "$config_settings"
     fi
 
     # Check minimum agents requirement
