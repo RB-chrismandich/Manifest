@@ -5,8 +5,8 @@
 # Parallel agent trigger thresholds (configurable)
 thresholds:
   # Documentation commands
-  docs_improve_lines: 500         # Trigger parallel agents when total doc lines > 500
-  docs_diagrams_modules: 5       # Trigger when analyzing 5+ unique imports/modules
+  docs_improve_lines: 500         # Trigger parallel agents when total doc > 500
+  docs_diagrams_modules: 5       # Trigger when analyzing 5+ unique imports
 
   # Code quality skill auto-triggers
   skill_file_lines: 500           # File > 500 lines
@@ -166,7 +166,7 @@ tool_policies:
     parallel_agents: always
     validation_tier: 1
     mcp_servers:
-      - opentofu   # OpenTofu registry, provider/module docs, resource reference
+      - opentofu   # OpenTofu registry, provider docs, resource reference
     security_cli:
       - semgrep    # Local SAST scanning via CLI (requires Bash)
 
@@ -181,10 +181,11 @@ tool_policies:
       - Task   # Synthesis agent on disagreement
     forbidden: []
     parallel_agents: conditional
-    trigger_condition: security OR architecture OR scope >= 3 files OR critical_logic OR issue_execute_review
+    trigger_condition: security OR architecture OR scope >= 3 files OR
+      critical_logic OR issue_execute_review
     validation_tier: 2
     mcp_servers:
-      - deepwiki   # Research external deps and upstream APIs during planning
+      - deepwiki   # Research external deps and APIs during planning
       - linear     # Issue context and acceptance criteria
       - atlassian  # Jira/Confluence context when project uses Atlassian
       - glean      # Internal team knowledge, runbooks, ADRs
@@ -222,14 +223,14 @@ tool_policies:
     validation_tier: 2
     mcp_servers:
       - linear      # Primary: Linear MCP for issue operations
-      - atlassian   # Alternative: Jira issues when project uses Atlassian
+      - atlassian   # Jira issues when project uses Atlassian
 
   issue-prioritize:
     allowed:
       - Read
       - Glob
       - Grep
-      - Bash      # gh, glab, linear_ops.sh, parallel_agent.sh, jq, python3
+      - Bash      # gh, glab, linear_ops.sh, parallel_agent.sh, jq
       - Task      # Parallel agent scoring for top candidates
       - AskUserQuestion  # Clarify platform or project context
     forbidden:
@@ -240,7 +241,7 @@ tool_policies:
     validation_tier: 2
     mcp_servers:
       - linear      # Primary: Linear issue data
-      - atlassian   # Alternative: Jira issues when project uses Atlassian
+      - atlassian   # Jira issues when project uses Atlassian
 
   health-check:
     allowed:
@@ -288,11 +289,11 @@ tool_policies:
 error_recovery:
   timeout_seconds: 120
   max_retries: 1
-  fallback_strategy: single_agent  # Options: single_agent, warn_user, abort
+  fallback_strategy: single_agent  # Options: single_agent, warn, abort
 
   on_timeout:
     action: retry_once_then_fallback
-    message: "Parallel agents timed out, falling back to single-agent analysis"
+    message: "Agents timed out, falling back to single-agent analysis"
 
   on_one_agent_fails:
     action: continue_with_available
@@ -319,8 +320,8 @@ parallel_agent:
     prompt: ""  # Generic prompt mode
 
 # Model selection
-# Canonical model tier definitions (IDs and fallback chains) are in parallel_agent.yml.
-# This section only contains task-based routing logic (which tier to use per task type).
+# Canonical model tier definitions (IDs and fallbacks) are in parallel_agent.yml.
+# This section only contains task-based routing logic (tier per task type).
 
 # Task-based model defaults (used by orchestrator)
 # The orchestrating agent (Claude) selects models based on task type
@@ -368,5 +369,5 @@ task_model_defaults:
     reason: "Balanced capability for scoring refinement"
 
 # Credit exhaustion fallback chains
-# Canonical fallback definitions are in parallel_agent.yml (credit_fallback section).
+# Canonical fallbacks are in parallel_agent.yml (credit_fallback section).
 # The parallel_agent.sh script reads those values at runtime.
