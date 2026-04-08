@@ -281,6 +281,25 @@ class RateLimiter:
 class ValidationEngine:
     """Validates agent outputs against tiered criteria"""
 
+    # Pre-compiled regex patterns for security checks to optimize performance
+    _SECRET_PATTERNS = [
+        re.compile(r'api[_-]?key\s*=\s*["\'][^"\']+["\']', re.IGNORECASE),
+        re.compile(r'password\s*=\s*["\'][^"\']+["\']', re.IGNORECASE),
+        re.compile(r'secret\s*=\s*["\'][^"\']+["\']', re.IGNORECASE),
+        re.compile(r'token\s*=\s*["\'][^"\']+["\']', re.IGNORECASE),
+    ]
+
+    _SQL_PATTERNS = [
+        re.compile(r'execute\s*\(\s*["\'].*\+', re.IGNORECASE),
+        re.compile(r'query\s*\(\s*["\'].*\+', re.IGNORECASE),
+    ]
+
+    _CMD_PATTERNS = [
+        re.compile(r"exec\s*\(.*user.*\)", re.IGNORECASE),
+        re.compile(r"system\s*\(.*input.*\)", re.IGNORECASE),
+        re.compile(r"shell_exec", re.IGNORECASE),
+    ]
+
     def __init__(self, config: Config, logger: Optional["Logger"] = None):
         self.config = config
         self.logger = logger
@@ -417,7 +436,6 @@ class ValidationEngine:
     def _check_security(self, agent_results: Dict, security_criteria: Dict) -> Dict:
         """Check for security issues"""
         issues = []
-        _keywords = security_criteria.get("keywords", [])
 
         for agent_name, result in agent_results.items():
             if result.get("status") != "complete":
@@ -426,35 +444,22 @@ class ValidationEngine:
             output = result.get("output", "").lower()
 
             # Check for hardcoded secrets
-            secret_patterns = [
-                r'api[_-]?key\s*=\s*["\'][^"\']+["\']',
-                r'password\s*=\s*["\'][^"\']+["\']',
-                r'secret\s*=\s*["\'][^"\']+["\']',
-                r'token\s*=\s*["\'][^"\']+["\']',
-            ]
-
-            for pattern in secret_patterns:
-                if re.search(pattern, output, re.IGNORECASE):
+            for pattern in self._SECRET_PATTERNS:
+                if pattern.search(output):
                     issues.append(f"[{agent_name}] Potential hardcoded secret detected")
                     break
 
             # Check for SQL injection patterns
-            sql_patterns = [r'execute\s*\(\s*["\'].*\+', r'query\s*\(\s*["\'].*\+']
-            for pattern in sql_patterns:
-                if re.search(pattern, output, re.IGNORECASE):
+            for pattern in self._SQL_PATTERNS:
+                if pattern.search(output):
                     issues.append(
                         f"[{agent_name}] Potential SQL injection vulnerability"
                     )
                     break
 
             # Check for command injection patterns
-            cmd_patterns = [
-                r"exec\s*\(.*user.*\)",
-                r"system\s*\(.*input.*\)",
-                r"shell_exec",
-            ]
-            for pattern in cmd_patterns:
-                if re.search(pattern, output, re.IGNORECASE):
+            for pattern in self._CMD_PATTERNS:
+                if pattern.search(output):
                     issues.append(
                         f"[{agent_name}] Potential command injection vulnerability"
                     )
@@ -569,7 +574,6 @@ class ValidationEngine:
     def _check_bugs(self, agent_results: Dict, bug_criteria: Dict) -> Dict:
         """Check for common bug patterns"""
         concerns = []
-        _patterns = bug_criteria.get("patterns", [])
 
         for agent_name, result in agent_results.items():
             if result.get("status") != "complete":
