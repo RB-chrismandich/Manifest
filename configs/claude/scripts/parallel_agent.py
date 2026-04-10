@@ -417,7 +417,6 @@ class ValidationEngine:
     def _check_security(self, agent_results: Dict, security_criteria: Dict) -> Dict:
         """Check for security issues"""
         issues = []
-        _keywords = security_criteria.get("keywords", [])
 
         for agent_name, result in agent_results.items():
             if result.get("status") != "complete":
@@ -569,7 +568,6 @@ class ValidationEngine:
     def _check_bugs(self, agent_results: Dict, bug_criteria: Dict) -> Dict:
         """Check for common bug patterns"""
         concerns = []
-        _patterns = bug_criteria.get("patterns", [])
 
         for agent_name, result in agent_results.items():
             if result.get("status") != "complete":
@@ -1443,9 +1441,7 @@ class Orchestrator:
             TextColumn("[progress.description]{task.description}"),
             console=self.console,
         ) as progress:
-            _task = progress.add_task(
-                f"Running {len(self.agents)} agents...", total=None
-            )
+            progress.add_task(f"Running {len(self.agents)} agents...", total=None)
 
             results = await asyncio.gather(
                 *[agent.execute(prompt, mode) for agent in self.agents],
@@ -1649,12 +1645,18 @@ class Orchestrator:
     ) -> Dict:
         """Write output files to disk with sandbox-aware fallback"""
         output_dir = self._resolve_output_dir(custom_output_dir)
-        output_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
+
+        # ⚡ Bolt: Offloading blocking I/O (like mkdir, json.dump, open().write)
+        # to separate threads prevents blocking the main async event loop.
+        # Impact: Significantly improves concurrency when handling many agents
+        # and finalization speed.
+        await asyncio.to_thread(
+            output_dir.mkdir, parents=True, exist_ok=True, mode=0o700
+        )
 
         output_files = {}
 
-        # Write individual agent outputs
-        for agent_name, agent_result in result["agents"].items():
+        def write_agent_output(agent_name: str, agent_result: Dict) -> tuple:
             output_file = output_dir / f"{agent_name}_{timestamp}.txt"
             with open(output_file, "w") as f:
                 f.write(f"Agent: {agent_name}\n")
@@ -1673,47 +1675,61 @@ class Orchestrator:
                     f.write(output_text[:1000])
                     if len(output_text) > 1000:
                         f.write("\n\n... [truncated] ...")
+            return (agent_name, str(output_file))
 
-            output_files[agent_name] = str(output_file)
+        def write_json_results() -> tuple:
+            json_file = output_dir / f"results_{timestamp}.json"
+            with open(json_file, "w") as f:
+                json.dump(result, f, indent=2)
+            return ("json", str(json_file))
 
-        # Write JSON results
-        json_file = output_dir / f"results_{timestamp}.json"
-        with open(json_file, "w") as f:
-            json.dump(result, f, indent=2)
-        output_files["json"] = str(json_file)
+        def write_md_summary() -> tuple:
+            md_file = output_dir / f"summary_{timestamp}.md"
+            with open(md_file, "w") as f:
+                f.write("# Parallel Agent Results\n\n")
+                f.write(f"**Timestamp**: {timestamp}\n")
+                f.write(f"**Mode**: {result['mode']}\n")
+                f.write(f"**Prompt**: {result['prompt']}\n\n")
 
-        # Write markdown summary
-        md_file = output_dir / f"summary_{timestamp}.md"
-        with open(md_file, "w") as f:
-            f.write("# Parallel Agent Results\n\n")
-            f.write(f"**Timestamp**: {timestamp}\n")
-            f.write(f"**Mode**: {result['mode']}\n")
-            f.write(f"**Prompt**: {result['prompt']}\n\n")
+                f.write("## Cross-Verification\n\n")
+                consensus = result["cross_verification"]
+                f.write(f"- **Consensus Score**: {consensus['consensus_score']}%\n")
+                f.write(f"- **Confidence**: {consensus['confidence'].upper()}\n")
+                f.write(f"- **Agent Count**: {consensus['agent_count']}\n\n")
 
-            f.write("## Cross-Verification\n\n")
-            consensus = result["cross_verification"]
-            f.write(f"- **Consensus Score**: {consensus['consensus_score']}%\n")
-            f.write(f"- **Confidence**: {consensus['confidence'].upper()}\n")
-            f.write(f"- **Agent Count**: {consensus['agent_count']}\n\n")
+                if result.get("validation"):
+                    f.write("## Validation\n\n")
+                    f.write(f"- **Verdict**: {result['validation']['verdict']}\n\n")
 
-            if result.get("validation"):
-                f.write("## Validation\n\n")
-                f.write(f"- **Verdict**: {result['validation']['verdict']}\n\n")
+                f.write("## Agent Results\n\n")
+                for agent_name, agent_result in result["agents"].items():
+                    status_icon = (
+                        "✓" if agent_result.get("status") == "complete" else "✗"
+                    )
+                    f.write(f"### {status_icon} {agent_name.title()}\n\n")
+                    f.write(f"- **Status**: {agent_result.get('status')}\n")
+                    f.write(f"- **Model**: {agent_result.get('model', 'N/A')}\n")
+                    f.write(
+                        f"- **Duration**: {agent_result.get('duration_seconds')}s\n"
+                    )
+                    if agent_result.get("credit_fallback"):
+                        f.write("- **Credit Fallback**: Used\n")
+                    if agent_result.get("error"):
+                        f.write(f"- **Error**: {agent_result['error']}\n")
+                    f.write("\n")
+            return ("summary", str(md_file))
 
-            f.write("## Agent Results\n\n")
-            for agent_name, agent_result in result["agents"].items():
-                status_icon = "✓" if agent_result.get("status") == "complete" else "✗"
-                f.write(f"### {status_icon} {agent_name.title()}\n\n")
-                f.write(f"- **Status**: {agent_result.get('status')}\n")
-                f.write(f"- **Model**: {agent_result.get('model', 'N/A')}\n")
-                f.write(f"- **Duration**: {agent_result.get('duration_seconds')}s\n")
-                if agent_result.get("credit_fallback"):
-                    f.write("- **Credit Fallback**: Used\n")
-                if agent_result.get("error"):
-                    f.write(f"- **Error**: {agent_result['error']}\n")
-                f.write("\n")
+        tasks = [
+            asyncio.to_thread(write_agent_output, agent_name, agent_result)
+            for agent_name, agent_result in result["agents"].items()
+        ]
+        tasks.append(asyncio.to_thread(write_json_results))
+        tasks.append(asyncio.to_thread(write_md_summary))
 
-        output_files["summary"] = str(md_file)
+        results = await asyncio.gather(*tasks)
+
+        for key, filepath in results:
+            output_files[key] = filepath
 
         return output_files
 
