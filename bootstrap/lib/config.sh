@@ -220,7 +220,16 @@ parse_services_config() {
         ' "$SERVICES_CONFIG")
 
         if [[ -n "$config_settings" ]]; then
-            eval "$config_settings"
+            while IFS='=' read -r var val; do
+                if [[ -n "$var" ]]; then
+                    val="${val%;}"
+                    case "$var" in
+                        FILE_CLAUDE|FILE_GEMINI|FILE_CURSOR|FILE_CODEX|FILE_GH|FILE_GLAB)
+                            printf -v "$var" "%s" "$val"
+                            ;;
+                    esac
+                fi
+            done <<< "$config_settings"
         fi
     fi
 }

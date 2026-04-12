@@ -1,4 +1,5 @@
 #!/bin/bash
+# shellcheck disable=SC2016,SC2059,SC2004,SC2129
 # ┌──────────────────────────────────────────────────────────────────────┐
 # │  DEPRECATED: This shell script is superseded by parallel_agent.py   │
 # │  Use instead:                                                       │
@@ -257,7 +258,16 @@ load_services_config() {
     ' "$SERVICES_CONFIG")
 
     if [[ -n "$config_settings" ]]; then
-        eval "$config_settings"
+        while IFS='=' read -r var val; do
+            if [[ -n "$var" ]]; then
+                val="${val%;}"
+                case "$var" in
+                    RUN_CLAUDE|RUN_GEMINI|RUN_CURSOR|RUN_CODEX|MIN_AGENTS)
+                        printf -v "$var" "%s" "$val"
+                        ;;
+                esac
+            fi
+        done <<< "$config_settings"
     fi
 
     # Check minimum agents requirement
