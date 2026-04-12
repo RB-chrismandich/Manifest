@@ -61,19 +61,45 @@ run_with_spinner() {
     local pid
     local spin='-\|/'
     local i=0
+    local exit_code=0
 
-    eval "$cmd" &
-    pid=$!
+    # Hide cursor
+    tput civis 2> /dev/null || true
 
-    while kill -0 "$pid" 2> /dev/null; do
-        i=$(((i + 1) % 4))
-        printf "\r${CYAN}${spin:$i:1}${NC} %s..." "$msg"
-        sleep 0.2
-    done
+    # Redirect output to prevent interleaved output breaking the spinner
+    local tmp_log
+    tmp_log="$(mktemp -t spinner.XXXXXX)"
 
-    wait "$pid"
-    local exit_code=$?
-    printf "\r\033[K"
+    # Run in a subshell with a trap to ensure cursor is restored on Ctrl+C
+    (
+        trap 'tput cnorm 2> /dev/null || true; rm -f "$tmp_log"' EXIT
+
+        eval "$cmd" > "$tmp_log" 2>&1 &
+        pid=$!
+
+        while kill -0 "$pid" 2> /dev/null; do
+            i=$(((i + 1) % 4))
+            printf "\r${CYAN}${spin:$i:1}${NC} %s..." "$msg"
+            sleep 0.2
+        done
+
+        wait "$pid" || exit_code=$?
+
+        # Clear spinner line
+        printf "\r\033[K"
+
+        # Print output only if command failed
+        if [[ $exit_code -ne 0 ]] && [[ -s "$tmp_log" ]]; then
+            cat "$tmp_log"
+        fi
+
+        exit "$exit_code"
+    )
+    exit_code=$?
+
+    # Restore cursor in the parent shell as well just in case
+    tput cnorm 2> /dev/null || true
+
     return $exit_code
 }
 
