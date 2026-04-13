@@ -78,6 +78,7 @@ run_with_spinner() {
 
         while kill -0 "$pid" 2> /dev/null; do
             i=$(((i + 1) % 4))
+            # shellcheck disable=SC2059
             printf "\r${CYAN}${spin:$i:1}${NC} %s..." "$msg"
             sleep 0.2
         done
