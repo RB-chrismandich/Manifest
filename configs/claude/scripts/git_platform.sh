@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC2001,SC2181,SC2016,SC2004,SC2129,SC2059
 # git_platform.sh - Detect Git hosting platform from remote URL
 #
 # Usage: git_platform.sh [remote_name]

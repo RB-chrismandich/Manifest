@@ -1650,9 +1650,7 @@ class Orchestrator:
         """Write output files to disk with sandbox-aware fallback"""
         output_dir = self._resolve_output_dir(custom_output_dir)
         # Offload blocking I/O to thread
-        await asyncio.to_thread(
-            output_dir.mkdir, parents=True, exist_ok=True, mode=0o700
-        )
+        await asyncio.to_thread(output_dir.mkdir, parents=True, exist_ok=True, mode=0o700)
 
         output_files = {}
 
@@ -1703,15 +1701,11 @@ class Orchestrator:
 
                 f.write("## Agent Results\n\n")
                 for agent_name, agent_result in result["agents"].items():
-                    status_icon = (
-                        "✓" if agent_result.get("status") == "complete" else "✗"
-                    )
+                    status_icon = "✓" if agent_result.get("status") == "complete" else "✗"
                     f.write(f"### {status_icon} {agent_name.title()}\n\n")
                     f.write(f"- **Status**: {agent_result.get('status')}\n")
                     f.write(f"- **Model**: {agent_result.get('model', 'N/A')}\n")
-                    f.write(
-                        f"- **Duration**: {agent_result.get('duration_seconds')}s\n"
-                    )
+                    f.write(f"- **Duration**: {agent_result.get('duration_seconds')}s\n")
                     if agent_result.get("credit_fallback"):
                         f.write("- **Credit Fallback**: Used\n")
                     if agent_result.get("error"):

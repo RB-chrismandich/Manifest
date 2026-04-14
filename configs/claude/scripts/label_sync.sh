@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC2001,SC2181,SC2016,SC2004,SC2129,SC2059
 # label_sync.sh - Sync labels from labels.yml registry to GitHub, GitLab, and Linear
 #
 # Reads the canonical label registry and ensures all labels exist in each platform.
