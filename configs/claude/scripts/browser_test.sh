@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-# shellcheck disable=SC2001,SC2181,SC2016,SC2004,SC2129,SC2059
 # browser_test.sh - Wrapper for browser-use E2E test execution
 #
 # Usage: browser_test.sh <subcommand> [options]

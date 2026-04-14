@@ -1,5 +1,4 @@
 #!/bin/bash
-# shellcheck disable=SC2001,SC2181,SC2016,SC2004,SC2129,SC2059
 # System Health Check for Parallel Agent Orchestration
 # Usage: ./check_status.sh [--verbose]
 

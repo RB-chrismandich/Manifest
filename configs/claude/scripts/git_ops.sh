@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-# shellcheck disable=SC2001,SC2181,SC2016,SC2004,SC2129,SC2059
 # git_ops.sh - Platform-agnostic Git operations wrapper
 #
 # Routes Git operations (issue/PR management) to the appropriate CLI tool:
