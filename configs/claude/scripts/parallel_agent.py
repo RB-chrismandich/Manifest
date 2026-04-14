@@ -1649,12 +1649,14 @@ class Orchestrator:
     ) -> Dict:
         """Write output files to disk with sandbox-aware fallback"""
         output_dir = self._resolve_output_dir(custom_output_dir)
-        output_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
+        # Offload blocking I/O to thread
+        await asyncio.to_thread(
+            output_dir.mkdir, parents=True, exist_ok=True, mode=0o700
+        )
 
         output_files = {}
 
-        # Write individual agent outputs
-        for agent_name, agent_result in result["agents"].items():
+        def write_agent(agent_name, agent_result):
             output_file = output_dir / f"{agent_name}_{timestamp}.txt"
             with open(output_file, "w") as f:
                 f.write(f"Agent: {agent_name}\n")
@@ -1673,47 +1675,59 @@ class Orchestrator:
                     f.write(output_text[:1000])
                     if len(output_text) > 1000:
                         f.write("\n\n... [truncated] ...")
+            return agent_name, str(output_file)
 
-            output_files[agent_name] = str(output_file)
+        def write_json():
+            json_file = output_dir / f"results_{timestamp}.json"
+            with open(json_file, "w") as f:
+                json.dump(result, f, indent=2)
+            return "json", str(json_file)
 
-        # Write JSON results
-        json_file = output_dir / f"results_{timestamp}.json"
-        with open(json_file, "w") as f:
-            json.dump(result, f, indent=2)
-        output_files["json"] = str(json_file)
+        def write_md():
+            md_file = output_dir / f"summary_{timestamp}.md"
+            with open(md_file, "w") as f:
+                f.write("# Parallel Agent Results\n\n")
+                f.write(f"**Timestamp**: {timestamp}\n")
+                f.write(f"**Mode**: {result['mode']}\n")
+                f.write(f"**Prompt**: {result['prompt']}\n\n")
 
-        # Write markdown summary
-        md_file = output_dir / f"summary_{timestamp}.md"
-        with open(md_file, "w") as f:
-            f.write("# Parallel Agent Results\n\n")
-            f.write(f"**Timestamp**: {timestamp}\n")
-            f.write(f"**Mode**: {result['mode']}\n")
-            f.write(f"**Prompt**: {result['prompt']}\n\n")
+                f.write("## Cross-Verification\n\n")
+                consensus = result["cross_verification"]
+                f.write(f"- **Consensus Score**: {consensus['consensus_score']}%\n")
+                f.write(f"- **Confidence**: {consensus['confidence'].upper()}\n")
+                f.write(f"- **Agent Count**: {consensus['agent_count']}\n\n")
 
-            f.write("## Cross-Verification\n\n")
-            consensus = result["cross_verification"]
-            f.write(f"- **Consensus Score**: {consensus['consensus_score']}%\n")
-            f.write(f"- **Confidence**: {consensus['confidence'].upper()}\n")
-            f.write(f"- **Agent Count**: {consensus['agent_count']}\n\n")
+                if result.get("validation"):
+                    f.write("## Validation\n\n")
+                    f.write(f"- **Verdict**: {result['validation']['verdict']}\n\n")
 
-            if result.get("validation"):
-                f.write("## Validation\n\n")
-                f.write(f"- **Verdict**: {result['validation']['verdict']}\n\n")
+                f.write("## Agent Results\n\n")
+                for agent_name, agent_result in result["agents"].items():
+                    status_icon = (
+                        "✓" if agent_result.get("status") == "complete" else "✗"
+                    )
+                    f.write(f"### {status_icon} {agent_name.title()}\n\n")
+                    f.write(f"- **Status**: {agent_result.get('status')}\n")
+                    f.write(f"- **Model**: {agent_result.get('model', 'N/A')}\n")
+                    f.write(
+                        f"- **Duration**: {agent_result.get('duration_seconds')}s\n"
+                    )
+                    if agent_result.get("credit_fallback"):
+                        f.write("- **Credit Fallback**: Used\n")
+                    if agent_result.get("error"):
+                        f.write(f"- **Error**: {agent_result['error']}\n")
+                    f.write("\n")
+            return "summary", str(md_file)
 
-            f.write("## Agent Results\n\n")
-            for agent_name, agent_result in result["agents"].items():
-                status_icon = "✓" if agent_result.get("status") == "complete" else "✗"
-                f.write(f"### {status_icon} {agent_name.title()}\n\n")
-                f.write(f"- **Status**: {agent_result.get('status')}\n")
-                f.write(f"- **Model**: {agent_result.get('model', 'N/A')}\n")
-                f.write(f"- **Duration**: {agent_result.get('duration_seconds')}s\n")
-                if agent_result.get("credit_fallback"):
-                    f.write("- **Credit Fallback**: Used\n")
-                if agent_result.get("error"):
-                    f.write(f"- **Error**: {agent_result['error']}\n")
-                f.write("\n")
+        # Execute file writes concurrently to prevent event loop blocking
+        tasks = [
+            asyncio.to_thread(write_agent, name, res)
+            for name, res in result["agents"].items()
+        ]
+        tasks.extend([asyncio.to_thread(write_json), asyncio.to_thread(write_md)])
 
-        output_files["summary"] = str(md_file)
+        for key, path in await asyncio.gather(*tasks):
+            output_files[key] = path
 
         return output_files
 
