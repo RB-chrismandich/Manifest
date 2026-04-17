@@ -55,27 +55,39 @@ command_exists() {
 
 # Show a spinner while a command runs
 # Usage: run_with_spinner "command args" "Loading message"
-run_with_spinner() {
+run_with_spinner() (
     local cmd="$1"
     local msg="${2:-Working}"
     local pid
-    local spin='-\|/'
+    local spinner=('⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏')
     local i=0
+    local log_file
 
-    eval "$cmd" &
+    log_file="$(mktemp -t spinner.XXXXXX)"
+
+    tput civis 2>/dev/null || true
+    trap 'tput cnorm 2>/dev/null || true; rm -f "$log_file"' EXIT
+
+    eval "$cmd" > "$log_file" 2>&1 &
     pid=$!
 
     while kill -0 "$pid" 2> /dev/null; do
-        i=$(((i + 1) % 4))
-        printf "\r${CYAN}${spin:$i:1}${NC} %s..." "$msg"
-        sleep 0.2
+        local spin_char="${spinner[$i]}"
+        printf "\r${CYAN}%s${NC} %s..." "$spin_char" "$msg"
+        i=$(((i + 1) % ${#spinner[@]}))
+        sleep 0.1
     done
 
     wait "$pid"
     local exit_code=$?
     printf "\r\033[K"
-    return $exit_code
-}
+
+    if [ "$exit_code" -ne 0 ]; then
+        cat "$log_file"
+    fi
+
+    exit "$exit_code"
+)
 
 # Create/recreate a symlink at link_path pointing to target
 create_symlink() {
