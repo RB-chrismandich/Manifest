@@ -1,4 +1,5 @@
 #!/bin/bash
+# shellcheck disable=SC2016,SC2004,SC2129,SC2059
 # ┌──────────────────────────────────────────────────────────────────────┐
 # │  DEPRECATED: This shell script is superseded by parallel_agent.py   │
 # │  Use instead:                                                       │
@@ -238,26 +239,38 @@ load_services_config() {
         /^[[:space:]]*cursor:/ { section="cursor" }
         /^[[:space:]]*codex:/ { section="codex" }
         /^[[:space:]]*enabled:[[:space:]]*true/ {
-            if (section == "claude") print "RUN_CLAUDE=true;"
-            if (section == "gemini") print "RUN_GEMINI=true;"
-            if (section == "cursor") print "RUN_CURSOR=true;"
-            if (section == "codex") print "RUN_CODEX=true;"
+            if (section == "claude") print "RUN_CLAUDE=true"
+            if (section == "gemini") print "RUN_GEMINI=true"
+            if (section == "cursor") print "RUN_CURSOR=true"
+            if (section == "codex") print "RUN_CODEX=true"
         }
         /^[[:space:]]*enabled:[[:space:]]*false/ {
-            if (section == "claude") print "RUN_CLAUDE=false;"
-            if (section == "gemini") print "RUN_GEMINI=false;"
-            if (section == "cursor") print "RUN_CURSOR=false;"
-            if (section == "codex") print "RUN_CODEX=false;"
+            if (section == "claude") print "RUN_CLAUDE=false"
+            if (section == "gemini") print "RUN_GEMINI=false"
+            if (section == "cursor") print "RUN_CURSOR=false"
+            if (section == "codex") print "RUN_CODEX=false"
         }
         /^[[:space:]]*minimum_agents:[[:space:]]*[0-9]+/ {
             if (match($0, /[0-9]+/)) {
-                print "MIN_AGENTS=" substr($0, RSTART, RLENGTH) ";"
+                print "MIN_AGENTS=" substr($0, RSTART, RLENGTH)
             }
         }
     ' "$SERVICES_CONFIG")
 
     if [[ -n "$config_settings" ]]; then
-        eval "$config_settings"
+        while IFS= read -r line; do
+            case "$line" in
+                RUN_CLAUDE=true) RUN_CLAUDE=true ;;
+                RUN_CLAUDE=false) RUN_CLAUDE=false ;;
+                RUN_GEMINI=true) RUN_GEMINI=true ;;
+                RUN_GEMINI=false) RUN_GEMINI=false ;;
+                RUN_CURSOR=true) RUN_CURSOR=true ;;
+                RUN_CURSOR=false) RUN_CURSOR=false ;;
+                RUN_CODEX=true) RUN_CODEX=true ;;
+                RUN_CODEX=false) RUN_CODEX=false ;;
+                MIN_AGENTS=*) MIN_AGENTS="${line#MIN_AGENTS=}" ;;
+            esac
+        done <<< "$config_settings"
     fi
 
     # Check minimum agents requirement
