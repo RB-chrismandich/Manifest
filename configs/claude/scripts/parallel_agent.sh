@@ -66,7 +66,7 @@ else
 fi
 
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-START_TIME=$(date +%s)
+START_TIME=$SECONDS
 
 # macOS compatibility: use gtimeout if available, otherwise no timeout
 TIMEOUT_CMD=""
@@ -1927,7 +1927,9 @@ main() {
     fi
 
     # Calculate duration
-    END_TIME=$(date +%s)
+    # Optimization: Use $SECONDS built-in instead of `date +%s` to prevent subshell/fork overhead
+    # Impact: Saves ~2-5ms per invocation, reducing total script duration.
+    END_TIME=$SECONDS
     DURATION_SECONDS=$((END_TIME - START_TIME))
     DURATION_FORMATTED=$(format_duration "$DURATION_SECONDS")
 
