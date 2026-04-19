@@ -1,0 +1,24 @@
+--- bootstrap/lib/auth.sh
++++ bootstrap/lib/auth.sh
+@@ -1,5 +1,6 @@
+ #!/bin/bash
++# shellcheck disable=SC2016
+
+ # Authentication and state helpers for bootstrap.sh. This file is sourced, not executed.
+
+--- a/bootstrap/lib/install.sh
++++ b/bootstrap/lib/install.sh
+@@ -1,5 +1,6 @@
+ #!/bin/bash
++# shellcheck disable=SC1091,SC2086
+
+ # Install and platform helpers for bootstrap.sh. This file is sourced, not executed.
+
+--- a/bootstrap/lib/platform.sh
++++ b/bootstrap/lib/platform.sh
+@@ -1,5 +1,5 @@
+ #!/bin/bash
+-# shellcheck disable=SC2034
++# shellcheck disable=SC2034,SC1091
+
+ # Platform/runtime detection helpers for bootstrap.sh. This file is sourced, not executed.
