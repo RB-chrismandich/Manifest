@@ -78,7 +78,8 @@ run_with_spinner() {
             sleep 0.2
         done
 
-        wait "$pid" && local exit_code=0 || local exit_code=$?
+        local exit_code=0
+        wait "$pid" || exit_code=$?
         printf "\r\033[K"
 
         if [[ "$exit_code" -ne 0 ]]; then
