@@ -61,14 +61,13 @@ run_with_spinner() {
 
     (
         tput civis 2> /dev/null || true
-        trap 'tput cnorm 2> /dev/null || true' EXIT
+        local log_file
+        log_file="$(mktemp -t script.XXXXXX)"
+        trap 'tput cnorm 2> /dev/null || true; rm -f "$log_file"' EXIT
 
         local pid
         local spin='-\|/'
         local i=0
-
-        local log_file
-        log_file="$(mktemp -t script.XXXXXX)"
 
         eval "$cmd" > "$log_file" 2>&1 &
         pid=$!
@@ -79,14 +78,12 @@ run_with_spinner() {
             sleep 0.2
         done
 
-        wait "$pid"
-        local exit_code=$?
+        wait "$pid" && local exit_code=0 || local exit_code=$?
         printf "\r\033[K"
 
         if [[ "$exit_code" -ne 0 ]]; then
             cat "$log_file"
         fi
-        rm -f "$log_file"
 
         exit "$exit_code"
     )
