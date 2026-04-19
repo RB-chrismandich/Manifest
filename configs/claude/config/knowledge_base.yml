@@ -18,8 +18,8 @@ entries:
     category: antipattern
     language: bash
     description: >
-      User-controlled values passed to bash -c, eval, or unquoted in command strings
-      cause command injection (CWE-78). Always quote variables; use arrays for command
+      User-controlled values passed to bash -c, eval, or unquoted strings
+      cause command injection. Always quote variables; use arrays for command
       arguments; avoid bash -c with interpolated strings.
     tags: [security, injection, shellcheck, SC2086]
     confidence: high
@@ -33,8 +33,8 @@ entries:
     category: antipattern
     language: bash
     description: >
-      Using predictable temp paths or mkdir without mktemp enables symlink attacks
-      (CWE-377). Always use mktemp -d with templates; set umask 0077; use trap for
+      Using predictable paths or mkdir without mktemp enables symlink attacks.
+      Always use mktemp -d with templates; set umask 0077; use trap for
       cleanup.
     tags: [security, temp-files, CWE-377, mktemp]
     confidence: high

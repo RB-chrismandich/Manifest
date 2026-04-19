@@ -1,0 +1,11 @@
+--- .github/workflows/ci.yml
++++ .github/workflows/ci.yml
+@@ -46,6 +46,8 @@
+
+       - name: markdownlint - key docs
+         uses: DavidAnson/markdownlint-cli2-action@v22
++        env:
++          FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+         with:
+           globs: |
+             AGENTS.md
