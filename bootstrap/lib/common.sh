@@ -58,23 +58,31 @@ command_exists() {
 run_with_spinner() {
     local cmd="$1"
     local msg="${2:-Working}"
-    local pid
-    local spin='-\|/'
-    local i=0
+    (
+        tput civis 2>/dev/null || true
+        local log_file
+        log_file="$(mktemp -t spinner.XXXXXX)"
+        trap 'tput cnorm 2>/dev/null || true; rm -f "$log_file"' EXIT
 
-    eval "$cmd" &
-    pid=$!
+        eval "$cmd" >"$log_file" 2>&1 &
+        local pid=$!
+        local spin='-\|/'
+        local i=0
 
-    while kill -0 "$pid" 2> /dev/null; do
-        i=$(((i + 1) % 4))
-        printf "\r${CYAN}${spin:$i:1}${NC} %s..." "$msg"
-        sleep 0.2
-    done
+        while kill -0 "$pid" 2> /dev/null; do
+            i=$(((i + 1) % 4))
+            printf "\r${CYAN}${spin:$i:1}${NC} %s..." "$msg"
+            sleep 0.2
+        done
 
-    wait "$pid"
-    local exit_code=$?
-    printf "\r\033[K"
-    return $exit_code
+        local exit_code=0
+        wait "$pid" || exit_code=$?
+        printf "\r\033[K"
+        if [ "$exit_code" -ne 0 ]; then
+            cat "$log_file"
+        fi
+        exit "$exit_code"
+    )
 }
 
 # Create/recreate a symlink at link_path pointing to target
