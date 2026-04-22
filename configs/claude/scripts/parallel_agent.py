@@ -26,6 +26,10 @@ import re
 
 try:
     import yaml
+    try:
+        from yaml import CSafeLoader as YamlLoader
+    except ImportError:
+        from yaml import SafeLoader as YamlLoader
     from rich.console import Console
     from rich.table import Table
     from rich.progress import Progress, SpinnerColumn, TextColumn
@@ -83,7 +87,7 @@ class Config:
             return self._default_config()
 
         with open(self.config_path, "r") as f:
-            return yaml.safe_load(f)
+            return yaml.load(f, Loader=YamlLoader)
 
     def _default_config(self) -> Dict:
         """Default configuration if file doesn't exist"""
@@ -145,7 +149,7 @@ class ServiceConfig:
         """Load services.yml or return all-enabled defaults."""
         if os.path.exists(self.config_path):
             with open(self.config_path, "r") as f:
-                data = yaml.safe_load(f) or {}
+                data = yaml.load(f, Loader=YamlLoader) or {}
                 return data
         # All-enabled defaults when file is missing
         return {
@@ -297,7 +301,7 @@ class ValidationEngine:
             return {}
 
         with open(criteria_path, "r") as f:
-            return yaml.safe_load(f)
+            return yaml.load(f, Loader=YamlLoader)
 
     def validate(
         self,
