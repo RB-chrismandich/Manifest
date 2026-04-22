@@ -421,7 +421,6 @@ class ValidationEngine:
     def _check_security(self, agent_results: Dict, security_criteria: Dict) -> Dict:
         """Check for security issues"""
         issues = []
-        _keywords = security_criteria.get("keywords", [])
 
         for agent_name, result in agent_results.items():
             if result.get("status") != "complete":
@@ -573,7 +572,6 @@ class ValidationEngine:
     def _check_bugs(self, agent_results: Dict, bug_criteria: Dict) -> Dict:
         """Check for common bug patterns"""
         concerns = []
-        _patterns = bug_criteria.get("patterns", [])
 
         for agent_name, result in agent_results.items():
             if result.get("status") != "complete":
@@ -1450,6 +1448,7 @@ class Orchestrator:
             _task = progress.add_task(
                 f"Running {len(self.agents)} agents...", total=None
             )
+            _ = _task
 
             results = await asyncio.gather(
                 *[agent.execute(prompt, mode) for agent in self.agents],
