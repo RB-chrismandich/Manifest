@@ -1,4 +1,5 @@
 #!/bin/bash
+# shellcheck disable=SC2001,SC2004,SC2016,SC2059,SC2129,SC2181
 # linear_ops.sh - Linear MCP wrapper for platform-agnostic issue operations
 # Usage: linear_ops.sh <subcommand> [args...]
 
