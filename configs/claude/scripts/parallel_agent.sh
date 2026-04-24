@@ -257,7 +257,21 @@ load_services_config() {
     ' "$SERVICES_CONFIG")
 
     if [[ -n "$config_settings" ]]; then
-        eval "$config_settings"
+        while IFS=';' read -ra settings; do
+            for setting in "${settings[@]}"; do
+                case "$setting" in
+                    RUN_CLAUDE=true) RUN_CLAUDE=true ;;
+                    RUN_CLAUDE=false) RUN_CLAUDE=false ;;
+                    RUN_GEMINI=true) RUN_GEMINI=true ;;
+                    RUN_GEMINI=false) RUN_GEMINI=false ;;
+                    RUN_CURSOR=true) RUN_CURSOR=true ;;
+                    RUN_CURSOR=false) RUN_CURSOR=false ;;
+                    RUN_CODEX=true) RUN_CODEX=true ;;
+                    RUN_CODEX=false) RUN_CODEX=false ;;
+                    MIN_AGENTS=*) MIN_AGENTS="${setting#MIN_AGENTS=}" ;;
+                esac
+            done
+        done <<< "$config_settings"
     fi
 
     # Check minimum agents requirement

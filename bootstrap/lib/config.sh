@@ -220,7 +220,26 @@ parse_services_config() {
         ' "$SERVICES_CONFIG")
 
         if [[ -n "$config_settings" ]]; then
-            eval "$config_settings"
+            while IFS=';' read -ra settings; do
+                for setting in "${settings[@]}"; do
+                    case "$setting" in
+                        FILE_CLAUDE=true) FILE_CLAUDE=true ;;
+                        FILE_CLAUDE=false) FILE_CLAUDE=false ;;
+                        FILE_GEMINI=true) FILE_GEMINI=true ;;
+                        FILE_GEMINI=false) FILE_GEMINI=false ;;
+                        FILE_CURSOR=true) FILE_CURSOR=true ;;
+                        FILE_CURSOR=false) FILE_CURSOR=false ;;
+                        FILE_CODEX=true) FILE_CODEX=true ;;
+                        FILE_CODEX=false) FILE_CODEX=false ;;
+                        FILE_GH=true) FILE_GH=true ;;
+                        FILE_GH=false) FILE_GH=false ;;
+                        FILE_GH=auto) FILE_GH=auto ;;
+                        FILE_GLAB=true) FILE_GLAB=true ;;
+                        FILE_GLAB=false) FILE_GLAB=false ;;
+                        FILE_GLAB=auto) FILE_GLAB=auto ;;
+                    esac
+                done
+            done <<< "$config_settings"
         fi
     fi
 }
