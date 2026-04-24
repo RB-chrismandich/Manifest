@@ -1,4 +1,5 @@
 #!/bin/bash
+# shellcheck disable=SC1091,SC2016,SC2086
 
 # Extensibility hooks for bootstrap.sh. Modules can register functions
 # against lifecycle hook names.
