@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # learning_capture.sh - Structured learning ingestion and knowledge base updates
+# shellcheck disable=SC2181
 #
 # Usage: learning_capture.sh <subcommand> [options]
 #
