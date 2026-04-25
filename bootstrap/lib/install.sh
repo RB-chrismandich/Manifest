@@ -1,5 +1,6 @@
 #!/bin/bash
 
+# shellcheck disable=SC1091,SC2086
 # Install and platform helpers for bootstrap.sh. This file is sourced, not executed.
 
 check_platform() {
