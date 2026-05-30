@@ -31,6 +31,9 @@ ENV/
 .DS_Store
 Thumbs.db
 
+# Node (bats test runner installed via npm in CI / locally)
+node_modules/
+
 # Logs
 *.log
 
