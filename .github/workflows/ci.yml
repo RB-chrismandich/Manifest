@@ -103,8 +103,10 @@ jobs:
         with:
           python-version: "3.14"
 
-      - name: Install pytest
-        run: pip install pytest pytest-asyncio
+      - name: Install pytest and parallel_agent runtime deps
+        # parallel_agent.py hard-imports yaml + rich (sys.exit(1) otherwise);
+        # asyncio-throttle backs RateLimiter. API SDKs are optional/graceful.
+        run: pip install pytest pytest-asyncio pyyaml rich asyncio-throttle
 
       - name: Run Python tests (if any exist)
         run: |
