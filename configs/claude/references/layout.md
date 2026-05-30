@@ -17,7 +17,7 @@
 ```text
 ~/.claude/
 ├── CLAUDE.md                        # This orchestration guide
-├── skills/                          # Canonical skill library (13)
+├── skills/                          # Skill library (28; source: .skillshare/skills/)
 │   ├── checkpoint/SKILL.md
 │   ├── code-quality/SKILL.md       # Auto-triggered quality/security
 │   ├── docs-diagrams/SKILL.md

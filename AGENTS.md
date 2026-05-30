@@ -49,7 +49,7 @@ skills, prompts, and scripts that enable parallel LLM agent coordination
 configs/                             # Deployment source configs (deployed to ~/ via bootstrap.sh)
 ├── claude/                          # → ~/.claude/ (primary configuration)
 │   ├── CLAUDE.md                    # Orchestration guide
-│   ├── skills/                      # Canonical shared skill library (source of truth)
+│   ├── skills/                      # → ../../.skillshare/skills (symlink; source of truth)
 │   ├── prompts/                     # Agent orchestration prompt templates
 │   ├── config/                      # YAML configuration files
 │   │   └── mcp_servers.yml          # Default MCP server registry (OAuth-capable)
@@ -204,7 +204,8 @@ Required CLI tools (install those you want to use):
 
 ## Available Skills
 
-All agents share the same skill library from `configs/claude/skills/` (25 skills).
+All agents share the same skill library from `.skillshare/skills/` (28 skills;
+exposed via the `configs/claude/skills/` symlink).
 Skills are invoked as slash commands (e.g., `/refactor-python src/`).
 
 ### Skill Reference
@@ -330,7 +331,8 @@ Lifecycle: `CREATE -> ACTIVE -> COMPLETED (.archive/) or ABANDONED (.abandoned/)
 
 ### Adding a Claude Code Skill
 
-1. Create a `SKILL.md` file in `configs/claude/skills/my-skill/` (e.g., `configs/claude/skills/my-skill/SKILL.md`)
+1. Create a `SKILL.md` file in `.skillshare/skills/my-skill/` (the source of
+   truth; `configs/claude/skills/` is a compat symlink to it)
 2. Add tool policies to `configs/claude/config/command_config.yml`
 3. Skills are automatically available in Claude Code after deploying via bootstrap
 

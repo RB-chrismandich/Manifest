@@ -47,7 +47,7 @@ that enable parallel LLM agent coordination (Cursor, Gemini CLI, Claude CLI).
 configs/                             # Deployment source configs (deployed to ~/ via bootstrap.sh)
 ├── claude/                          # → ~/.claude/ (primary configuration)
 │   ├── CLAUDE.md                    # Orchestration guide
-│   ├── skills/                      # Canonical shared skill library (source of truth)
+│   ├── skills/                      # → ../../.skillshare/skills (symlink; source of truth)
 │   ├── prompts/                     # Agent orchestration prompt templates
 │   ├── config/                      # YAML configuration files
 │   │   └── mcp_servers.yml          # Default MCP server registry (OAuth-capable)
@@ -277,8 +277,9 @@ See [docs/COMMANDS.md](docs/COMMANDS.md#label-management) for full label referen
 
 ## Adding New Skills
 
-1. Create a skill directory in `configs/claude/skills/` with a `SKILL.md`
-   (e.g., `configs/claude/skills/my-skill/SKILL.md`) containing `name` and `description` frontmatter
+1. Create a skill directory in `.skillshare/skills/` (the source of truth) with a
+   `SKILL.md` — e.g. `.skillshare/skills/my-skill/SKILL.md` — containing `name` and
+   `description` frontmatter. (`configs/claude/skills/` is a compat symlink to it.)
 2. Add tool policies to `configs/claude/config/command_config.yml` under `tool_policies`
 3. If needed, add validation overrides to `configs/claude/config/validation_criteria.yml`
 
