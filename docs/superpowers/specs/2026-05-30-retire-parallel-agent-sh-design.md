@@ -89,14 +89,18 @@ mean falsifying a dated report.
   coverage is ported — the bats suite tested only `.sh` arg parsing, which no
   longer exists.
 
-### 3. CI (`.github/workflows/ci.yml`)
+### 3. CI + pre-commit
 
-- Remove the `Validate parallel_agent.sh syntax` step (`bash -n
-  configs/claude/scripts/parallel_agent.sh`).
-- Leave the generic `bash -n configs/claude/scripts/*.sh` loop and the skill/
-  script counts unchanged — they adjust automatically (script count drops by 1,
-  still ≥ 1).
-- Keep `shellcheck -S warning` (per Decisions).
+- `.github/workflows/ci.yml`: remove the `Validate parallel_agent.sh syntax`
+  step (`bash -n configs/claude/scripts/parallel_agent.sh`). Leave the generic
+  `bash -n configs/claude/scripts/*.sh` loop and the skill/script counts
+  unchanged — they adjust automatically (script count drops by 1, still ≥ 1).
+  Keep `shellcheck -S warning` (per Decisions).
+- `.pre-commit-config.yaml`: **remove the live hook** `Validate parallel_agent.sh
+  syntax` (`files: ^configs/claude/scripts/parallel_agent\.sh$`, lines ~105-110)
+  — it targets the deleted file and would become dead config. PR notes should
+  remind contributors to run `pre-commit clean && pre-commit install` if a
+  cached hook env trips post-merge.
 
 ### 4. bootstrap
 
@@ -115,6 +119,14 @@ mean falsifying a dated report.
 - Reverting `shellcheck -S warning` to strict (kept by decision).
 - Fixing the `.py` itself, adding `--include-directories`, or any `.py` behavior
   change (it is already the maintained drop-in).
+- **A bespoke `--include-directories` deprecation/removal handler in
+  `parallel_agent.py` — declined.** It is used by 0 consumers; argparse already
+  emits a clear `error: unrecognized arguments: --include-directories`; and
+  touching `.py` is out of scope. If real external demand surfaces, handle it
+  upstream in `.py`, not as part of this retirement.
+- Native Windows direct-invocation support — N/A: the repo's `bootstrap.sh`
+  targets macOS/Linux only, so the `#!/usr/bin/env python3` shebang invocation
+  is sufficient. (Windows users would prepend `python`, same as any shebang.)
 - The other deferred follow-ups (`.metadata.json`, pytest `asyncio_mode`).
 
 ## Risks & Mitigations
@@ -123,7 +135,8 @@ mean falsifying a dated report.
 |------|------------|
 | A live consumer used a `.sh`-only flag (`--include-directories`) | Verified: 0 skills/docs use it. Grep confirms before deletion. |
 | Direct `.py` invocation fails if `+x` lost or `python3` absent | bootstrap already `chmod +x`s scripts and installs Python (required); `.py` has a shebang. Verified by sandbox e2e. |
-| A `parallel_agent.sh` reference is missed | Final `grep -rn parallel_agent.sh .` must return zero hits (success criterion). |
+| A `parallel_agent.sh` reference is missed | Final `grep -rn parallel_agent.sh .` returns hits **only** in the listed historical records (§1) — zero in live/instructional files. Also run a looser, case-insensitive `grep -rniE "parallel.agent\.(sh\|py)"` to catch typos/hyphen variants (verified: no `parallel-agent.sh` form exists today). |
+| `.py` needs `yaml`/`rich`/`asyncio-throttle`; direct shebang uses PATH `python3` | bootstrap installs them via `python3 -m pip install --user -r requirements.txt` into the detected `python3` (user site-packages, cwd-independent — no venv needed). If a user's *active* venv shadows that `python3` without the deps, `.py` already exits with a clear `pip install -r requirements.txt` message. No invocation change. |
 | Deleting `parallel_agent.bats` loses coverage | It only tested the deleted `.sh`; `.py` retains 54 pytest cases. |
 | CI structure-count or syntax step breaks on the missing file | Remove the dedicated `.sh` syntax step; the generic loop globs remaining `*.sh`. |
 | `deploy.sh` `verify_installation` still asserts `parallel_agent.sh` exists → bootstrap "verify" fails | Update that required-file entry to `.py` (§4). |
@@ -132,7 +145,8 @@ mean falsifying a dated report.
 
 1. `grep -rn "parallel_agent\.sh" .` (excluding `.git`) returns hits **only** in
    the explicitly-listed historical records (§1); zero in live/instructional
-   files.
+   files. A looser `grep -rniE "parallel.agent\.sh"` surfaces no typo/hyphen
+   variants.
 2. `configs/claude/scripts/parallel_agent.sh` and `tests/bats/parallel_agent.bats`
    are deleted.
 3. All live consumers invoke `parallel_agent.py` (skills, CI, pre-commit,
