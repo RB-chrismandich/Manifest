@@ -102,13 +102,6 @@ repos:
   # Custom checks
   - repo: local
     hooks:
-      # Validate parallel_agent.sh syntax
-      - id: validate-parallel-agent
-        name: Validate parallel_agent.sh syntax
-        entry: bash -n
-        language: system
-        files: ^configs/claude/scripts/parallel_agent\.sh$
-
       # Validate bootstrap.sh syntax
       - id: validate-bootstrap
         name: Validate bootstrap.sh syntax
