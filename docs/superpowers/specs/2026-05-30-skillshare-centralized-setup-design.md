@@ -26,6 +26,9 @@ supply-chain layer Manifest's bash bootstrap will never have. Its `sync`
 fan-out, so:
 
 - skillshare is the **source of truth + supply-chain** layer.
+- External skills (e.g. `runkids/ai-hooks-integration`) are pulled via
+  `skillshare install <repo>`, audited, tracked for updates, and synced
+  alongside the hand-authored skills (§7).
 - `skillshare sync` is the **preferred** deployment step.
 - bootstrap's existing **symlink deploy remains a fallback**, so skillshare is
   an enhancement, **never a single point of failure**. A fresh machine without
@@ -185,12 +188,49 @@ skillshare still ends up fully configured.
 `.skillshare/agents/` stays empty. Manifest has no agents directory today;
 adding agent distribution is deferred until there are agents to distribute.
 
+### 7. External tracked skill: `ai-hooks-integration`
+
+The first concrete exercise of skillshare's package-manager role. `runkids/ai-hooks-integration`
+is itself a skill (same author) that manages lifecycle hooks across AI tools
+(Claude `~/.claude/settings.json`, Gemini `~/.gemini/settings.json`, Cursor
+`~/.cursor/hooks.json`, OpenCode plugins). It ships `scripts/install_all.py` to
+wire a given hook command into all supported tools at once. Requires Python 3.9+.
+
+**Scope here:** install it as a *tracked external skill* and sync it — make it
+available in the library, wired in when a repo needs it. Do **not** bind a
+specific hook command yet (none specified; that is deferred until there is a
+concrete hook to deploy).
+
+```bash
+skillshare install github.com/runkids/ai-hooks-integration   # audited on install
+skillshare sync                                              # fan out like any skill
+```
+
+- **Audited on install.** `block_threshold: CRITICAL` in `config.yaml` gates the
+  install; an external skill that trips a CRITICAL finding is blocked.
+- **Tracked vs local.** It lands in `.skillshare/skills/ai-hooks-integration` as
+  a skill *tracked to its upstream repo* (updatable via `skillshare check` /
+  `skillshare update`), coexisting with the 27 hand-authored *local* skills. Both
+  are committed to Manifest.
+- **Coverage gap (recorded).** It supports Claude / Gemini / Cursor / OpenCode —
+  **not** Copilot, Codex, or Antigravity. Its hook coverage is narrower than our
+  skill-sync target set; that is expected, not a defect.
+- **Settings overlap (recorded).** It edits `~/.claude/settings.json`; Manifest
+  deploys `~/.claude/settings.local.json`. Different files, but both are Claude
+  settings — we rely on its documented idempotent merge and verify no clobber.
+- **Hook wiring deferred (runbook).** When a hook is needed:
+  `~/.claude/skills/ai-hooks-integration/scripts/install_all.py --command <path> --name <name>`
+  (preview with `--dry-run`; remove with `remove_all.py`). Not run during setup.
+
 ## Out of Scope
 
 - skillshare hubs, web UI (`ui`), TUI mode.
 - skillshare's native git `push`/`pull` (Manifest git covers it).
 - Agent distribution.
 - Migrating away from `bootstrap.sh` (it stays; skillshare slots into it).
+- Wiring a concrete hook command via `ai-hooks-integration`'s `install_all.py`
+  (the skill is installed/synced; binding a specific hook is deferred until one
+  is specified — §7).
 
 ## Risks & Mitigations
 
@@ -205,6 +245,9 @@ adding agent distribution is deferred until there are agents to distribute.
 | `cp -R configs/claude/*` copies the relative skills symlink into `~/.claude/`, producing a broken link (`~/.skillshare/skills` does not exist) | Exclude `skills` from `deploy_configs`'s generic copy; deploy skills via a dedicated step that sources the physical `.skillshare/skills/` (§4). |
 | Tool symlinks or `[ -d ~/.claude/skills ]` guards created before the skills dir exists | Unconditional `mkdir -p ~/.claude/skills` baseline before symlinks and before `skillshare sync` (§4). |
 | CI/CD or linting on bare environments (no skillshare, may not traverse symlinks) | All validation/automation reads the physical `.skillshare/skills/`; `configs/claude/skills` is a backward-compat layer only. Shell globs are symlink-safe; `find`/`os.walk` callers must use `-L`/`followlinks` or target the physical dir. |
+| `ai-hooks-integration` edits `~/.claude/settings.json`, which could clobber Manifest's settings | Different file from Manifest's `settings.local.json`; rely on its documented idempotent merge and verify (`--dry-run`) before any real hook wiring. Hook wiring is deferred (§7), so no edit happens during setup. |
+| `ai-hooks-integration` needs Python 3.9+ on the host | bootstrap already installs Node/tooling; add a Python 3.9+ check before any `install_all.py` use. Install of the skill itself does not require running it. |
+| External skill trips the audit (or upstream changes maliciously on update) | `block_threshold: CRITICAL` blocks install/update of a flagged skill; `skillshare check` surfaces upstream changes before `update` applies them. |
 
 ## Success Criteria
 
@@ -221,5 +264,9 @@ adding agent distribution is deferred until there are agents to distribute.
    `~/.claude/skills` contains real directories (no broken symlink).
 6. **Ordering verified:** on a clean run, `~/.claude/skills` exists before any
    tool symlink is created; `~/.antigravity/skills` resolves to it.
-7. `git status` is clean of unintended deletions; existing tests
+7. **External skill verified:** `skillshare install github.com/runkids/ai-hooks-integration`
+   passes audit, lands in `.skillshare/skills/ai-hooks-integration` as a tracked
+   skill, is committed, and appears in targets after `skillshare sync`. No hook
+   is wired (deferred).
+8. `git status` is clean of unintended deletions; existing tests
    (`bats tests/bats/`, `pytest tests/python/`) still pass.
