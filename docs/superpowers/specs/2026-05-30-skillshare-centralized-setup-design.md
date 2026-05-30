@@ -86,32 +86,35 @@ Manifest's existing pattern: `~/.claude/skills` is the **one real location** on
 a machine; other tools read it via per-tool symlinks created by bootstrap. We
 extend that rather than copying six duplicate trees.
 
-- **skillshare copy target — `claude` → `~/.claude/skills`** (the canonical
-  machine location; absolute/home-relative so it works on any machine).
+> **Tooling constraint (verified 2026-05-30):** skillshare does **not** expand
+> `~` or env vars in a target `skills.path`. A dry-run with `path: ~/.claude/skills`
+> creates a literal `~` directory under the repo
+> (`/tmp/ss_test.../~/.claude/skills`). An absolute path *works* but is
+> user/machine-specific, so it cannot live in a committed, replicated
+> `config.yaml`. **Conclusion:** skillshare cannot portably deploy to home. The
+> home deploy is therefore owned by **bootstrap**, not skillshare. skillshare is
+> used only for project-relative targets (Copilot) plus the supply-chain
+> lifecycle.
+
+- **bootstrap copies the physical `.skillshare/skills/` → `~/.claude/skills`**
+  (the canonical machine location). No skillshare home target; no `~`-expansion
+  dependency; works identically on every machine/user.
 - **bootstrap-created symlinks** → `~/.claude/skills`:
   - `~/.cursor/skills` (already)
   - `~/.gemini/skills` (already)
   - `~/.codex/skills` (already)
   - `~/.antigravity/skills` (**new** — add to bootstrap symlink set)
-- **skillshare copy target — `copilot`** → Copilot's real skills dir. Copilot
-  does not follow the `~/.claude/skills` symlink convention, so it gets its own
-  copy target. Exact path to be confirmed against Copilot CLI docs during
-  implementation (project-mode default is `.github/skills`; the global/home
-  equivalent will be verified before wiring).
-  - **If Copilot resolves skills project-scoped only** (its ecosystem leans on
-    the active workspace's `.github/skills` rather than a home dir), keep the
-    `copilot` target pointed at the repo-local `.github/skills`. **Implication:**
-    Copilot then sees these skills only while working *inside the Manifest
-    clone*, not machine-globally. Acceptable tool limitation; recorded here so
-    it is a known constraint, not a surprise.
-  - **If a global Copilot footprint is required and Copilot honors a symlinked
-    dir** (version-dependent), prefer **symlinking** Copilot's expected path to
-    `~/.claude/skills` over a second copy — that keeps Copilot on the
-    single-source-of-truth fan-out and drops the need for a `copilot` copy
-    target. Decide at implementation time based on the installed Copilot version.
+- **skillshare sync target — `copilot` → `.github/skills`** (project-relative;
+  Copilot is project-scoped, so a repo-relative path is correct *and* portable —
+  no `~` needed). **Implication:** Copilot sees these skills while working
+  *inside the Manifest clone*. Acceptable, recorded constraint. If skillshare is
+  absent, Copilot's project skills simply aren't synced (Copilot is optional and
+  project-scoped) — home deploy is unaffected.
 
-Net: skillshare manages two real copy destinations (`claude`, `copilot`);
-Cursor/Gemini/Codex/Antigravity get the same skills for free via symlink.
+Net: **bootstrap** owns the one real home copy (`~/.claude/skills`) +
+Cursor/Gemini/Codex/Antigravity symlinks. **skillshare** owns the project-scoped
+Copilot sync (`.github/skills`) and the supply-chain lifecycle. No tool writes a
+duplicate home tree, and nothing depends on skillshare expanding `~`.
 
 ### 3. Commit the skillshare config
 
@@ -123,88 +126,93 @@ Cursor/Gemini/Codex/Antigravity get the same skills for free via symlink.
   committed `config.yaml` is central Manifest skill infrastructure — edit it
   only when intentionally changing the shared setup, to avoid per-clone drift.
 
-### 4. bootstrap integration (phased, with fallback)
+### 4. bootstrap integration (phased)
 
-Rolled out in two steps so the migration is verified before bootstrap's deploy
-path changes, and structured so skillshare is never load-bearing.
+bootstrap is the **sole home deployer** (skillshare cannot portably target home —
+see §2 constraint). skillshare never writes `~/.claude/skills`, so there is no
+"skillshare-vs-fallback" branch for home deploy: bootstrap *always* copies the
+physical `.skillshare/skills/`. skillshare's `sync` is invoked separately, only
+to populate the project-relative Copilot target, and only when present.
 
-**Step A — prove sync standalone.** Migrate, fix targets/config, and verify
-`skillshare sync` correctly populates `~/.claude/skills` by hand on this
-machine. bootstrap is unchanged in this step. Runbook (note: `skillshare init`
-is **already done** — do NOT re-init, it can reset `config.yaml`):
+**Step A — prove the pieces by hand.** Migrate, fix targets/config, and verify
+deployment on this machine before bootstrap changes. Runbook (note: `skillshare
+init` is **already done** — do NOT re-init, it can reset `config.yaml`):
 
 1. **Migrate** — move the 27 dirs into `.skillshare/skills/`; create the
    relative symlink; verify with `ls -l configs/claude/skills` showing
    `-> ../../.skillshare/skills`.
-2. **Config** — set `targets` and un-ignore `config.yaml`.
-3. **Dry run** — `skillshare sync --dry-run` to preview exactly which files go
-   where, before touching `~/.claude/skills`.
-4. **Sync** — `skillshare sync`; confirm 27 real dirs in `~/.claude/skills`.
+2. **Config** — set `copilot` target to project-relative `.github/skills`;
+   un-ignore `config.yaml`.
+3. **Copilot dry run** — `skillshare sync --dry-run`; confirm it writes the
+   repo-relative `.github/skills` (and NOT a literal `~`).
+4. **Copilot sync** — `skillshare sync`; confirm `.github/skills` populated.
 5. **External skill** — `skillshare install github.com/runkids/ai-hooks-integration`
    (audit gate), then `skillshare sync` again to include it.
+6. **Home deploy by hand** — `cp -R .skillshare/skills/. ~/.claude/skills/`;
+   confirm 28 real dirs (27 + ai-hooks-integration) in `~/.claude/skills`.
 
-**Step B — delegate-when-present, fall back otherwise.** Once sync is proven,
-bootstrap's skill-deploy becomes:
+**Step B — wire bootstrap.** Once the pieces are proven, bootstrap's
+`deploy_configs` becomes:
 
 ```
-# Baseline (always, before symlinks and before sync):
-mkdir -p ~/.claude/skills
+# 1. Generic config copy, EXCLUDING skills (the relative symlink must not be
+#    copied verbatim — see below). Replaces `cp -R "$source_dir"/*`.
+rsync -av --exclude 'skills' "$source_dir"/ "$TARGET_DIR"/
 
-# Skills are EXCLUDED from the generic `cp -R configs/claude/* ~/.claude/`
-# (deploy.sh:69) so the relative skills symlink is never copied verbatim.
-if skillshare is installed and .skillshare/config.yaml exists:
-    skillshare sync                                  # preferred path
-else:
-    cp -R .skillshare/skills/. ~/.claude/skills/      # fallback: PHYSICAL dir
+# 2. Home skills deploy — ALWAYS bootstrap, ALWAYS from the physical dir.
+mkdir -p "$TARGET_DIR/skills"
+rsync -av --delete "$SCRIPT_DIR/.skillshare/skills/" "$TARGET_DIR/skills/"
 
-# Per-tool symlinks (created AFTER ~/.claude/skills exists):
-~/.cursor/skills  -> ~/.claude/skills   (existing)
-~/.gemini/skills  -> ~/.claude/skills   (existing)
-~/.codex/skills   -> ~/.claude/skills   (existing)
+# 3. Tool symlinks (run AFTER ~/.claude/skills exists, else create_symlink skips):
+#    cursor/gemini/codex already via link_shared_assets; add antigravity.
 ~/.antigravity/skills -> ~/.claude/skills   (NEW)
+
+# 4. Project-scoped Copilot sync — only when skillshare is present:
+if command -v skillshare >/dev/null && [ -f .skillshare/config.yaml ]; then
+    skillshare sync     # populates .github/skills; no effect on home deploy
+fi
 ```
 
-Key constraints surfaced by code review:
+Key constraints:
 
 - **Carve skills out of the generic copy.** `deploy.sh:69` runs
   `cp -R "$source_dir"/* "$TARGET_DIR/"`. With `configs/claude/skills` as a
   *relative* symlink (`../../.skillshare/skills`), `cp -R` copies the **symlink
   itself** into `~/.claude/`, where it resolves to a non-existent
   `~/.skillshare/skills` — a guaranteed broken link on both BSD and GNU cp.
-  `deploy_configs` MUST exclude `skills` from the generic copy in BOTH the
-  skillshare-present and fallback paths. **Preferred mechanism:** switch the
-  generic copy to `rsync -av --exclude 'skills' "$source_dir"/ "$TARGET_DIR"/`.
-  `deploy.sh` already uses `rsync -av --ignore-existing` (line 42), so this is
-  consistent with the file's idiom and excludes `skills` cleanly without
-  glob-filtering a `cp -R`.
-- **Fallback sources the physical dir.** The fallback copies from
-  `.skillshare/skills/` directly (not via the compat symlink), so it works even
-  if the symlink layer is mishandled by the host toolchain.
-- **Strict ordering.** `mkdir -p ~/.claude/skills` is an unconditional baseline
-  that runs *before* any tool symlink and *before* `skillshare sync`, so
-  symlink targets and `[ -d ~/.claude/skills ]` guards never see a missing dir.
-- bootstrap **does not hard-require** skillshare and does not auto-install it as
-  a blocker. It may *offer* to install it (Homebrew: `brew install skillshare`),
-  but a missing skillshare only drops to the fallback with a clear notice.
-- bootstrap adds the `~/.antigravity/skills → ~/.claude/skills` symlink to its
-  existing per-tool symlink routine (needed by both paths).
-- Net behavior is identical whether or not skillshare is present: all 27 skills
-  land in `~/.claude/skills` and fan out via symlink.
+  Switching the generic copy to `rsync -av --exclude 'skills'` removes the
+  symlink from the copy entirely; `deploy.sh` already uses `rsync -av
+  --ignore-existing` (line 42), so this is consistent with the file's idiom.
+- **Home deploy always sources the physical dir.** Step 2 copies from
+  `$SCRIPT_DIR/.skillshare/skills/` directly (never via the compat symlink), so
+  it is robust regardless of host symlink handling and independent of skillshare.
+- **Strict ordering.** `mkdir -p "$TARGET_DIR/skills"` + the physical copy run
+  *before* `link_shared_assets`, because `create_symlink` (common.sh:103) skips
+  with a warning when its target does not exist — so the tool symlinks would be
+  silently dropped if `~/.claude/skills` were not populated first.
+- **skillshare is never load-bearing.** It is not required, not auto-installed
+  as a blocker; bootstrap may *offer* `brew install skillshare`. If absent, home
+  deploy is unaffected and only the project-scoped Copilot sync is skipped (with
+  a notice).
+- The same merge-mode path (`deploy.sh:42`, option 2) must apply the identical
+  skills carve-out + physical home copy so merge installs behave consistently.
 
 ### 5. Multi-machine flow
 
 ```
 git clone <Manifest remote>
 cd Manifest
-./bootstrap.sh        # installs CLIs, deploys configs, creates per-tool
-                      # symlinks, then `skillshare sync` if present else
-                      # falls back to symlink deploy
+./bootstrap.sh        # installs CLIs, deploys configs (skills excluded from the
+                      # generic copy), copies .skillshare/skills/ -> ~/.claude/skills,
+                      # creates per-tool symlinks, then `skillshare sync` (Copilot)
+                      # if skillshare is present
 ```
 
 The Manifest git remote IS the central repo. skillshare's own `push`/`pull`
 git-remote feature is **not** used — normal Manifest git handles replication.
-Because deployment falls back to symlinks, a machine that never installs
-skillshare still ends up fully configured.
+Because bootstrap owns the home copy directly, a machine that never installs
+skillshare still ends up fully configured (only project-scoped Copilot sync is
+skipped).
 
 ### 6. Agents — out of scope (YAGNI)
 
@@ -268,8 +276,9 @@ skillshare sync                                              # fan out like any 
 | Risk | Mitigation |
 |------|------------|
 | skillshare doesn't follow the `configs/claude/skills` symlink when reading source | Source is `.skillshare/skills/` (real dir); the symlink is only for backward-compat *consumers*, not skillshare's source. No risk to skillshare. |
-| `cp -r configs/claude/*` in bootstrap follows the symlink and double-deploys skills | bootstrap's skill deploy is gated: `skillshare sync` when present, else the existing symlink deploy — never both (§4). |
-| Copilot/Antigravity real skills-dir path unknown | Verify against each tool's docs before wiring; project default `.github/skills` is the known-good fallback for Copilot. |
+| skillshare can't portably target `~/.claude/skills` (no `~` expansion; absolute paths aren't replicable) | bootstrap owns the home copy directly from physical `.skillshare/skills/`; skillshare only handles the project-relative Copilot target (§2, §4). Verified by dry-run 2026-05-30. |
+| `cp -r configs/claude/*` copies the skills symlink and breaks it | Generic copy switched to `rsync -av --exclude 'skills'`; home skills copied separately from the physical dir (§4). |
+| Antigravity real skills-dir path unknown | Antigravity rides the symlink (`~/.antigravity/skills -> ~/.claude/skills`); if Antigravity expects a different path, adjust the symlink target name only. |
 | `config.yaml` re-managed by skillshare and re-added to `.gitignore` on upgrade | Note in repo docs; re-check `.skillshare/.gitignore` after `skillshare upgrade`. |
 | Fresh machine lacks `skillshare` binary | Non-blocking: bootstrap drops to the symlink fallback and deploys skills anyway; skillshare stays optional. |
 | Pre-1.0 tool (v0.19, single maintainer) breaks or changes behavior | skillshare is an enhancement layer, not load-bearing; the fallback deploy keeps machines working independent of skillshare. |
@@ -282,22 +291,25 @@ skillshare sync                                              # fan out like any 
 
 ## Success Criteria
 
-1. `skillshare status` shows 27 skills in source and `claude`/`copilot` targets
-   pointing at live tool dirs.
-2. `skillshare sync` populates `~/.claude/skills` with all 27 skills; Cursor,
-   Gemini, Codex, Antigravity see them via symlink.
+1. `skillshare status` shows the migrated skills in source and the `copilot`
+   target pointing at project-relative `.github/skills`.
+2. **bootstrap home deploy:** `./bootstrap.sh` copies `.skillshare/skills/` →
+   `~/.claude/skills` (real dirs, no broken symlink); Cursor, Gemini, Codex,
+   Antigravity see them via symlink.
 3. `configs/claude/skills` resolves (symlink) and all existing references /
    `generate_cursor_rules.sh` still work.
 4. `config.yaml` is committed; a fresh clone + `./bootstrap.sh` reproduces the
-   full setup with skills in every tool.
-5. **Fallback verified:** with `skillshare` absent (or PATH-hidden),
-   `./bootstrap.sh` deploys all 27 skills via the physical-dir copy path, and
-   `~/.claude/skills` contains real directories (no broken symlink).
-6. **Ordering verified:** on a clean run, `~/.claude/skills` exists before any
-   tool symlink is created; `~/.antigravity/skills` resolves to it.
-7. **External skill verified:** `skillshare install github.com/runkids/ai-hooks-integration`
+   full setup with skills in `~/.claude/skills` and fan-out symlinks.
+5. **skillshare-absent verified:** with `skillshare` absent (or PATH-hidden),
+   `./bootstrap.sh` still deploys all skills to `~/.claude/skills` via the
+   physical-dir copy; only the project-scoped Copilot sync is skipped.
+6. **Ordering verified:** on a clean run, `~/.claude/skills` is populated before
+   any tool symlink is created; `~/.antigravity/skills` resolves to it.
+7. **Copilot sync verified:** `skillshare sync` writes the repo-relative
+   `.github/skills` (no literal `~` dir created).
+8. **External skill verified:** `skillshare install github.com/runkids/ai-hooks-integration`
    passes audit, lands in `.skillshare/skills/ai-hooks-integration` as a tracked
-   skill, is committed, and appears in targets after `skillshare sync`. No hook
-   is wired (deferred).
-8. `git status` is clean of unintended deletions; existing tests
+   skill, is committed, and is included in the home deploy. No hook is wired
+   (deferred).
+9. `git status` is clean of unintended deletions; existing tests
    (`bats tests/bats/`, `pytest tests/python/`) still pass.
