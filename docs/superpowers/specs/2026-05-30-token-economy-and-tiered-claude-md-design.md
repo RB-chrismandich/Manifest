@@ -36,15 +36,14 @@ Invoked as `/token-economy`. On invoke, Claude adopts the following constraints
 1. **Zero filler.** No preambles ("Sure!", "Here's the…"), no post-hoc
    restating of what the code does, no closing summaries unless asked. Lead with
    the result.
-2. **Tool-aware surgical edits.** This is environment-dependent — the skill
-   states both:
-   - *Agentic tools (Claude Code, Cursor, etc.):* use the native targeted-edit
-     tool (Edit / string replacement). Do **not** hand-write unified diffs —
-     emitting diff text for a tool that applies edits directly is wasted
-     round-trips ("theater").
-   - *Chat / API / no-edit-tool contexts:* emit minimal unified diffs or
-     targeted line-replacement snippets; never reprint a whole file for a small
-     change.
+2. **Surgical edits, stated by capability (not by environment name).** Phrasing
+   the rule as "if you're in Claude Code… else if API…" makes the model
+   self-reflect on its environment and risks misfiring in terse mode. State it
+   by the capability the model actually controls — its output representation:
+   > *Do not emit text-based diffs or full-file rewrites when a programmatic
+   > file-editing tool is available. If text output is your only option, emit
+   > the minimum line-replacement snippet required — never reprint a whole file
+   > for a small change.*
 3. **Clarification gate.** If an implementation detail is genuinely ambiguous,
    ask one targeted question before generating code — don't guess and produce
    throwaway output.
@@ -58,7 +57,14 @@ Invoked as `/token-economy`. On invoke, Claude adopts the following constraints
   baseline context cost at zero for normal sessions.
 - Ports to Cursor/Gemini/Codex automatically (skills sync/symlink already built
   in this PR's predecessor work).
-- Not enforced by hooks; it is behavioral guidance Claude follows after invoke.
+- **Persistence caveat (documented in the skill).** A skill's text enters
+  context only once, at invoke. It cannot self-inject into later turns, so in a
+  long session the invocation can scroll out of the active window and Claude
+  reverts to default verbosity. The SKILL.md must state plainly: *re-invoke
+  `/token-economy` if the session grows past ~30k tokens or you notice verbosity
+  returning.* True always-on persistence would require a hook (e.g. via
+  `ai-hooks-integration`) — noted as a future option, explicitly out of scope
+  here (no hook enforcement).
 
 ## Deliverable B — Tiered `configs/claude/CLAUDE.md`
 
@@ -71,7 +77,7 @@ on-demand reference files. bootstrap already deploys `configs/claude/*`
 | Section | Current lines | Why it stays |
 |---------|---------------|--------------|
 | Title + intro | 1–5 | Orientation |
-| Parallel Agent Script → Quick Usage (trimmed to the 4 examples) | 6–55 | Core invocation, used constantly |
+| Parallel Agent Script → Quick Usage (trimmed to **single-line** examples) | 6–55 | Core invocation, used constantly — multi-line/commented examples move to `references/parallel-agent.md` to protect the line budget |
 | Proactive Decision Framework (ALWAYS / CONSIDER / SKIP) | 169–210 | Behavioral decision rules |
 | Validation Criteria (Tier 1 / Tier 2 tables) | 244–265 | Decision-critical thresholds/verdicts |
 | Skills (Available table, Command Usage, Auto-Triggered) | 453–517 | Skill index — always relevant |
@@ -89,13 +95,15 @@ on-demand reference files. bootstrap already deploys `configs/claude/*`
 ### Reference Index (added to core)
 A short section listing each reference file with a one-line "read this when…"
 trigger, e.g.:
+Use **action-verb / error-state triggers** (not bland descriptions) so the
+semantic match fires a `Read` exactly when a task or failure hits:
 ```markdown
 ## Reference Index
-Read these on demand (they are NOT auto-loaded):
-- `~/.claude/references/parallel-agent.md` — full flags, model tiers, JSON schema, env vars
-- `~/.claude/references/orchestration.md` — multi-agent review workflow, synthesis, validation phases
-- `~/.claude/references/git-platform.md` — platform detection + git_ops subcommands
-- `~/.claude/references/layout.md` — ~/.claude file tree + config file map
+Read on demand (NOT auto-loaded). You MUST read the reference before related tasks:
+- `~/.claude/references/parallel-agent.md` — Read for flag specs, JSON schema validation, or resolving Credit Exhaustion.
+- `~/.claude/references/orchestration.md`  — Read when running multi-agent validation or debugging cross-verification failures.
+- `~/.claude/references/git-platform.md`   — Read when automating PRs, branch detection, or git_ops failures.
+- `~/.claude/references/layout.md`          — Read when modifying config trees or mapping file locations.
 ```
 
 ### Mechanics & caveat
@@ -122,6 +130,8 @@ Read these on demand (they are NOT auto-loaded):
 | Skill instructs diff-output inside Claude Code (theater) | Tool-aware wording in the skill (agentic → Edit tool; chat → diffs) |
 | Skill encourages context starvation → error loops | Explicit "balanced ingestion, not starvation" constraint |
 | Other tools' guides drift from Claude's after restructure | Recorded as out-of-scope follow-up; `sync-configs`/`health-check` skills already surface drift |
+| Split `references/*.md` lint-fail: orphaned `###` without a parent heading (MD001) or broken intra-doc links | Each reference file opens with an H1 title; promote/nest moved subheadings so heading levels increment correctly; re-point any moved relative links. Run markdownlint on the new files (the repo's markdownlint pipeline was just repaired) |
+| `references/` subdir not deployed, or dest missing | `rsync -a` (deploy.sh:76) recurses and creates dest subdirs; `deploy_configs` already `mkdir -p`s the target. Verified by the sandbox e2e (success criterion 4) rather than a code change |
 
 ## Success Criteria
 1. `/token-economy` skill exists in `.skillshare/skills/token-economy/`, has valid
@@ -136,4 +146,8 @@ Read these on demand (they are NOT auto-loaded):
    `~/.claude/references/*.md`.
 5. Skill syncs to targets (`.github/skills/token-economy` after `skillshare sync`).
 6. Existing tests still pass (`bats tests/bats/`, `pytest tests/python/`); lint
-   clean (markdownlint on the new/edited `.md` under the repo's config).
+   clean — **markdownlint passes on `CLAUDE.md` and every new `references/*.md`**
+   (each opens with an H1, no orphaned heading-level jumps).
+7. The `token-economy` SKILL.md states the surgical rule by capability and
+   includes the re-invoke persistence caveat; the core Reference Index uses
+   action-verb/error-state triggers.
