@@ -104,6 +104,11 @@ extend that rather than copying six duplicate trees.
     Copilot then sees these skills only while working *inside the Manifest
     clone*, not machine-globally. Acceptable tool limitation; recorded here so
     it is a known constraint, not a surprise.
+  - **If a global Copilot footprint is required and Copilot honors a symlinked
+    dir** (version-dependent), prefer **symlinking** Copilot's expected path to
+    `~/.claude/skills` over a second copy — that keeps Copilot on the
+    single-source-of-truth fan-out and drops the need for a `copilot` copy
+    target. Decide at implementation time based on the installed Copilot version.
 
 Net: skillshare manages two real copy destinations (`claude`, `copilot`);
 Cursor/Gemini/Codex/Antigravity get the same skills for free via symlink.
@@ -114,6 +119,9 @@ Cursor/Gemini/Codex/Antigravity get the same skills for free via symlink.
   target definitions are committed and replicate to every clone. Keep `logs/`,
   `trash/`, `backups/` ignored.
 - Commit `config.yaml` and the populated `.skillshare/skills/` tree.
+- **Drift guard (docs).** Add a note to the repo's contributor docs that
+  committed `config.yaml` is central Manifest skill infrastructure — edit it
+  only when intentionally changing the shared setup, to avoid per-clone drift.
 
 ### 4. bootstrap integration (phased, with fallback)
 
@@ -122,7 +130,18 @@ path changes, and structured so skillshare is never load-bearing.
 
 **Step A — prove sync standalone.** Migrate, fix targets/config, and verify
 `skillshare sync` correctly populates `~/.claude/skills` by hand on this
-machine. bootstrap is unchanged in this step.
+machine. bootstrap is unchanged in this step. Runbook (note: `skillshare init`
+is **already done** — do NOT re-init, it can reset `config.yaml`):
+
+1. **Migrate** — move the 27 dirs into `.skillshare/skills/`; create the
+   relative symlink; verify with `ls -l configs/claude/skills` showing
+   `-> ../../.skillshare/skills`.
+2. **Config** — set `targets` and un-ignore `config.yaml`.
+3. **Dry run** — `skillshare sync --dry-run` to preview exactly which files go
+   where, before touching `~/.claude/skills`.
+4. **Sync** — `skillshare sync`; confirm 27 real dirs in `~/.claude/skills`.
+5. **External skill** — `skillshare install github.com/runkids/ai-hooks-integration`
+   (audit gate), then `skillshare sync` again to include it.
 
 **Step B — delegate-when-present, fall back otherwise.** Once sync is proven,
 bootstrap's skill-deploy becomes:
@@ -153,7 +172,11 @@ Key constraints surfaced by code review:
   itself** into `~/.claude/`, where it resolves to a non-existent
   `~/.skillshare/skills` — a guaranteed broken link on both BSD and GNU cp.
   `deploy_configs` MUST exclude `skills` from the generic copy in BOTH the
-  skillshare-present and fallback paths.
+  skillshare-present and fallback paths. **Preferred mechanism:** switch the
+  generic copy to `rsync -av --exclude 'skills' "$source_dir"/ "$TARGET_DIR"/`.
+  `deploy.sh` already uses `rsync -av --ignore-existing` (line 42), so this is
+  consistent with the file's idiom and excludes `skills` cleanly without
+  glob-filtering a `cp -R`.
 - **Fallback sources the physical dir.** The fallback copies from
   `.skillshare/skills/` directly (not via the compat symlink), so it works even
   if the symlink layer is mishandled by the host toolchain.
@@ -221,6 +244,14 @@ skillshare sync                                              # fan out like any 
 - **Hook wiring deferred (runbook).** When a hook is needed:
   `~/.claude/skills/ai-hooks-integration/scripts/install_all.py --command <path> --name <name>`
   (preview with `--dry-run`; remove with `remove_all.py`). Not run during setup.
+  Gate this step (NOT bootstrap's critical path — installing/syncing the skill
+  runs no Python) with a Python 3.9+ pre-flight check:
+
+  ```bash
+  if ! python3 -c "import sys; sys.exit(0 if sys.version_info >= (3, 9) else 1)"; then
+    echo "ai-hooks-integration hook wiring requires Python 3.9+ — skipping."
+  fi
+  ```
 
 ## Out of Scope
 
