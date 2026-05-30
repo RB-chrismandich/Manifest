@@ -52,6 +52,7 @@ deploy_configs() {
                     deploy_cursor_configs
                     deploy_gemini_configs
                     deploy_codex_configs
+                    deploy_antigravity_configs
                     return 0
                     ;;
                 3 | *)
@@ -102,6 +103,9 @@ deploy_configs() {
 
     # Deploy Codex configuration
     deploy_codex_configs
+
+    # Deploy Antigravity configuration
+    deploy_antigravity_configs
 
     # List deployed files
     echo ""
@@ -204,6 +208,15 @@ deploy_codex_configs() {
     link_shared_assets "$CODEX_TARGET_DIR" "Codex" "true"
 
     print_success "Codex configuration deployed to $CODEX_TARGET_DIR"
+}
+
+# Deploy Antigravity configuration (skills symlink only — Antigravity reads
+# ~/.antigravity/skills; it shares the single source of truth via symlink).
+deploy_antigravity_configs() {
+    print_step "Deploying Antigravity configuration..."
+    mkdir -p "$ANTIGRAVITY_TARGET_DIR"
+    create_symlink "$ANTIGRAVITY_TARGET_DIR/skills" "$TARGET_DIR/skills" "Antigravity skills"
+    print_success "Antigravity configuration deployed to $ANTIGRAVITY_TARGET_DIR"
 }
 
 # Verify installation

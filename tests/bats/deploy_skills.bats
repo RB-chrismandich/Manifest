@@ -82,3 +82,18 @@ teardown() {
     run find "$SANDBOX" -name '~' -maxdepth 6
     assert_output ""
 }
+
+@test "deploy_antigravity_configs symlinks ~/.antigravity/skills to claude skills" {
+    export TARGET_DIR="$SANDBOX/home/.claude"
+    export ANTIGRAVITY_TARGET_DIR="$SANDBOX/home/.antigravity"
+    mkdir -p "$TARGET_DIR/skills/demo"
+
+    # shellcheck disable=SC1090
+    source "$REPO_ROOT/bootstrap/lib/deploy.sh"
+
+    run deploy_antigravity_configs
+    assert_success
+
+    [ -L "$ANTIGRAVITY_TARGET_DIR/skills" ]
+    [ -d "$ANTIGRAVITY_TARGET_DIR/skills/demo" ]
+}
