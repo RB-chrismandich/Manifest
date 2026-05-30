@@ -120,18 +120,20 @@ link_shared_assets() {
 }
 
 # Deploy skills into a tool's real skills dir from the PHYSICAL skillshare source.
-# Always sources the real .skillshare/skills dir (never the compat symlink) and
-# prunes removed skills so the destination mirrors the source of truth.
+# Always sources the real .skillshare/skills dir (never the compat symlink).
+# Additive on purpose (no --delete): ~/.claude/skills can legitimately hold
+# skills installed by other tools/plugins (e.g. externally-installed dirs or
+# symlinks); pruning them would silently destroy user/third-party content.
 deploy_home_skills() {
     local src="$1"
     local dest="$2"
 
     if [[ ! -d "$src" ]]; then
-        print_warning "Skill source not found: $src"
+        print_error "Skill source not found: $src"
         return 1
     fi
 
     mkdir -p "$dest"
-    rsync -a --delete "$src"/ "$dest"/
+    rsync -a "$src"/ "$dest"/
     print_success "Deployed skills: $src -> $dest"
 }

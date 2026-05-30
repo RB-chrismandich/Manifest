@@ -30,16 +30,19 @@ teardown() {
     assert_equal "$(cat "$SANDBOX/dest/demo-skill/SKILL.md")" "body"
 }
 
-@test "deploy_home_skills prunes skills removed from source" {
-    mkdir -p "$SANDBOX/src/keep" "$SANDBOX/dest/stale"
+@test "deploy_home_skills preserves externally-managed dest content (no --delete)" {
+    # ~/.claude/skills can hold skills from other tools/plugins; deploy must be
+    # additive and NOT prune dest entries that are absent from the source.
+    mkdir -p "$SANDBOX/src/keep" "$SANDBOX/dest/external"
     echo k > "$SANDBOX/src/keep/SKILL.md"
-    echo s > "$SANDBOX/dest/stale/SKILL.md"
+    echo e > "$SANDBOX/dest/external/SKILL.md"
 
     run deploy_home_skills "$SANDBOX/src" "$SANDBOX/dest"
     assert_success
 
-    [ -d "$SANDBOX/dest/keep" ]
-    [ ! -e "$SANDBOX/dest/stale" ]
+    [ -d "$SANDBOX/dest/keep" ]      # source skill deployed
+    [ -d "$SANDBOX/dest/external" ]  # foreign skill NOT pruned
+    assert_equal "$(cat "$SANDBOX/dest/external/SKILL.md")" "e"
 }
 
 @test "deploy_home_skills fails clearly when source missing" {
