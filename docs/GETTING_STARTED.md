@@ -102,7 +102,7 @@ npm install -g @google/gemini-cli
 
 # 4. Deploy configuration
 cp -r .claude/* ~/.claude/
-chmod +x ~/.claude/scripts/*.sh
+chmod +x ~/.claude/scripts/*.sh ~/.claude/scripts/parallel_agent.py
 
 # 5. Configure services (see Configuration section)
 ```

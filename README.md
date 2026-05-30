@@ -29,11 +29,8 @@ cd Manifest
 # Optional: configure MCP servers (interactive per-server selection)
 ./bootstrap.sh --install-mcp
 
-# Verify installation (Bash version)
+# Verify installation
 ~/.claude/scripts/parallel_agent.py --json "Test connection"
-
-# Or use Python version (Phase 3, recommended)
-python3 ~/.claude/scripts/parallel_agent.py --json "Test connection"
 ```
 
 ⏱️ **Time to setup**: ~5 minutes | 💻 **Platforms**: macOS (Intel/Apple Silicon), Linux (Debian, RHEL, Arch, openSUSE)
@@ -63,7 +60,7 @@ python3 ~/.claude/scripts/parallel_agent.py --json "Test connection"
 ## Architecture
 
 ```text
-User → Claude Code → /command → parallel_agent.py / parallel_agent.py
+User → Claude Code → /command → parallel_agent.py
                                       ↓
                     ┌────────────┬────┼────┬────────────┐
                     ↓            ↓         ↓            ↓
@@ -161,7 +158,6 @@ Manifest/
 │   │   │   ├── validation_criteria.yml # Tier 1/2 validation rules
 │   │   │   └── labels.yml           # Canonical label registry
 │   │   ├── scripts/                 # Orchestration scripts
-│   │   │   ├── parallel_agent.py    # Core orchestration engine (Bash)
 │   │   │   ├── parallel_agent.py    # Core orchestration engine (Python)
 │   │   │   ├── git_platform.sh      # Git platform detection
 │   │   │   ├── git_ops.sh           # Platform-agnostic Git operations

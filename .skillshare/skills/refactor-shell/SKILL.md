@@ -213,7 +213,7 @@ local var="value"  # Function-scoped variables
 | Script | Lines | Functions | Issues | Score |
 |--------|-------|-----------|--------|-------|
 | bootstrap.sh | 1000 | 15 | 12 | 75/100 |
-| parallel_agent.py | 1038 | 20 | 8 | 85/100 |
+| git_ops.sh | 1038 | 20 | 8 | 85/100 |
 
 ---
 

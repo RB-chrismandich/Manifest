@@ -31,8 +31,10 @@ drop-in.
 - **Invocation:** direct — `~/.claude/scripts/parallel_agent.py ARGS` (the file
   is executable with a `#!/usr/bin/env python3` shebang). Closest 1:1 swap to the
   old `.sh` calls; matches how the repo invokes its other scripts directly.
-- **Reference breadth:** repoint **all 66** references (incl. `docs/` and
-  `docs/templates/`) for a clean cut — no `parallel_agent.sh` string survives.
+- **Reference breadth:** repoint **all live/instructional** references (incl.
+  `docs/` and `docs/templates/`). Historical/dated records (§1) are left factual,
+  so `parallel_agent.sh` still appears there by design — "no string survives" is
+  scoped to live/instructional files, not the historical set.
 - **shellcheck:** **keep `-S warning`** (do NOT revert to strict). At default
   severity, 6 other scripts carry ~24 cosmetic findings — 18 of them intentional
   `SC2016` single-quotes in `linear_ops.sh` (literal `$` for `jq`/GraphQL).

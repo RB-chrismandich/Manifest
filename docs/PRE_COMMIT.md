@@ -56,7 +56,6 @@ pip3 install pre-commit --user
 
 ### Custom Checks
 
-- **validate-parallel-agent**: Bash syntax check for parallel_agent.py
 - **validate-bootstrap**: Bash syntax check for bootstrap.sh
 - **check-credentials**: Search for hardcoded API keys
 - **validate-yaml-configs**: Validate configs/claude/config/*.yml files

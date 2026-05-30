@@ -158,7 +158,7 @@ If not using bootstrap.sh, copy the configuration directories manually:
 # Deploy Claude Code configuration
 cp -r configs/claude/* ~/.claude/
 cp -r configs/claude/.[!.]* ~/.claude/ 2>/dev/null || true
-chmod +x ~/.claude/scripts/*.sh
+chmod +x ~/.claude/scripts/*.sh ~/.claude/scripts/parallel_agent.py
 
 # Deploy Cursor configuration (optional)
 mkdir -p ~/.cursor/rules
@@ -204,7 +204,7 @@ Required CLI tools (install those you want to use):
 | `configs/cursor/rules/orchestration.mdc` | Main orchestration guide for Cursor (always-on rule) |
 | `configs/gemini/GEMINI.md` | Main orchestration guide for Gemini CLI |
 | `configs/codex/AGENTS.md` | Main orchestration guide for Codex CLI |
-| `configs/claude/scripts/parallel_agent.py` | Bash script that runs agents in parallel with consensus scoring |
+| `configs/claude/scripts/parallel_agent.py` | Python script that runs agents in parallel with consensus scoring |
 | `configs/claude/scripts/git_platform.sh` | Platform detection script (github, gitlab, git) |
 | `configs/claude/scripts/git_ops.sh` | Platform-agnostic Git operations wrapper (issue/PR management) |
 | `configs/claude/scripts/linear_ops.sh` | Linear API wrapper for issue management (GraphQL) |
