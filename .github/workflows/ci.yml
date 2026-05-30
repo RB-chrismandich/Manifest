@@ -84,17 +84,14 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
+        with:
+          # bats-support / bats-assert under tests/test_helper are git submodules
+          submodules: true
 
-      # --- Bats tests ---
+      # --- Bats tests (helpers provided by the submodules above) ---
 
-      - name: Install bats-core and helpers from npm
-        run: npm install bats bats-support bats-assert
-
-      - name: Set up test_helper directory
-        run: |
-          mkdir -p tests/test_helper
-          ln -s ../../node_modules/bats-support tests/test_helper/bats-support
-          ln -s ../../node_modules/bats-assert tests/test_helper/bats-assert
+      - name: Install bats
+        run: npm install bats
 
       - name: Run bats tests
         run: ./node_modules/.bin/bats tests/bats/
