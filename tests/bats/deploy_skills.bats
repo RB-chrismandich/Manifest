@@ -47,3 +47,38 @@ teardown() {
     assert_failure
     assert_output --partial "not found"
 }
+
+@test "deploy_configs (fresh) puts real skill dirs in TARGET and no '~' junk" {
+    # Arrange an isolated TARGET and stub the heavy secondary deploys.
+    export SCRIPT_DIR="$REPO_ROOT"
+    export TARGET_DIR="$SANDBOX/home/.claude"
+    export CURSOR_TARGET_DIR="$SANDBOX/home/.cursor"
+    export GEMINI_TARGET_DIR="$SANDBOX/home/.gemini"
+    export CODEX_TARGET_DIR="$SANDBOX/home/.codex"
+    export ANTIGRAVITY_TARGET_DIR="$SANDBOX/home/.antigravity"
+    export MANIFEST_OUTPUT_DIR="$SANDBOX/home/.manifest/outputs"
+    export FORCE=true
+
+    # shellcheck disable=SC1090
+    source "$REPO_ROOT/bootstrap/lib/deploy.sh"
+
+    # Isolate: stub secondary routines that need network/CLIs/other configs.
+    write_services_config() { :; }
+    deploy_cursor_configs() { :; }
+    deploy_gemini_configs() { :; }
+    deploy_codex_configs() { :; }
+    deploy_antigravity_configs() { :; }
+    sync_skillshare_targets() { :; }
+
+    run deploy_configs
+    assert_success
+
+    # Real skill dirs landed (sampled), and skills is NOT a symlink.
+    [ -d "$TARGET_DIR/skills/code-quality" ]
+    [ ! -L "$TARGET_DIR/skills" ]
+    # The compat symlink was never copied verbatim into the home dir.
+    [ ! -e "$TARGET_DIR/skills/skills" ]
+    # No literal tilde dir created anywhere under the sandbox.
+    run find "$SANDBOX" -name '~' -maxdepth 6
+    assert_output ""
+}

@@ -38,8 +38,10 @@ deploy_configs() {
                     ;;
                 2)
                     print_step "Merging configurations..."
-                    # Merge mode - copy only new files
-                    rsync -av --ignore-existing "$source_dir/" "$TARGET_DIR/"
+                    # Merge mode - copy only new files (skills handled separately
+                    # below; the skills compat symlink must not be copied verbatim)
+                    rsync -av --ignore-existing --exclude 'skills' "$source_dir/" "$TARGET_DIR/"
+                    deploy_home_skills "$SCRIPT_DIR/.skillshare/skills" "$TARGET_DIR/skills"
                     print_success "Configurations merged"
                     # Still write services config
                     write_services_config
@@ -66,9 +68,16 @@ deploy_configs() {
     chmod 700 "$TARGET_DIR"
 
     print_step "Copying configuration files..."
-    cp -R "$source_dir"/* "$TARGET_DIR/"
+    # Copy everything EXCEPT skills (skills is a symlink -> .skillshare/skills;
+    # copying it verbatim would create a broken link in ~/.claude). rsync mirrors
+    # deploy.sh's existing idiom (merge path below).
+    rsync -a --exclude 'skills' "$source_dir"/ "$TARGET_DIR/"
     # Copy dot-prefixed directories (e.g. .plans/) that the glob above skips
     cp -R "$source_dir"/.[!.]* "$TARGET_DIR/" 2> /dev/null || true
+
+    # Deploy skills from the PHYSICAL skillshare source into ~/.claude/skills.
+    # Must run before link_shared_assets (create_symlink skips missing targets).
+    deploy_home_skills "$SCRIPT_DIR/.skillshare/skills" "$TARGET_DIR/skills"
 
     # Make scripts executable
     if [[ -d "$TARGET_DIR/scripts" ]]; then
