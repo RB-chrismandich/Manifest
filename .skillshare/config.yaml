@@ -1,0 +1,11 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/runkids/skillshare/main/schemas/project-config.schema.json
+# Home deploy (~/.claude/skills + tool symlinks) is owned by bootstrap.sh, NOT
+# skillshare: skillshare does not expand ~ in target paths (verified 2026-05-30).
+# skillshare here only handles the project-scoped Copilot target + supply chain.
+targets:
+  - name: copilot
+    skills:
+      path: .github/skills
+      mode: copy
+audit:
+  block_threshold: CRITICAL
