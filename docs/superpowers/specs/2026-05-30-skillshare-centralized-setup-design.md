@@ -64,6 +64,19 @@ fresh clone.
 - `README.md` currently inside `configs/claude/skills/` moves with the skills
   into `.skillshare/skills/`.
 
+**Consumer traversal rule (post-symlink).** The `configs/claude/skills` symlink
+exists for backward-compat with human-facing references only. Automation must
+read the **physical** `.skillshare/skills/`:
+
+- **Shell globbing is safe** through the symlink. Verified: `generate_cursor_rules.sh:34`
+  uses `for skill_dir in "$SKILLS_DIR"/*/` — pathname expansion resolves through
+  the `skills` symlink into `.skillshare/skills/` with no `-L` needed. No change
+  required to that script.
+- **`find <path>` and Python `os.walk(<path>)` are NOT safe** over a symlinked
+  start dir without `-L` / `followlinks=True`. Repo grep found no such traversal
+  of the skills dir today (other references are markdown/echo strings), but new
+  automation MUST target `.skillshare/skills/` directly or pass `-L`.
+
 ### 2. Targets honor Manifest's symlink architecture
 
 Manifest's existing pattern: `~/.claude/skills` is the **one real location** on
@@ -82,6 +95,12 @@ extend that rather than copying six duplicate trees.
   copy target. Exact path to be confirmed against Copilot CLI docs during
   implementation (project-mode default is `.github/skills`; the global/home
   equivalent will be verified before wiring).
+  - **If Copilot resolves skills project-scoped only** (its ecosystem leans on
+    the active workspace's `.github/skills` rather than a home dir), keep the
+    `copilot` target pointed at the repo-local `.github/skills`. **Implication:**
+    Copilot then sees these skills only while working *inside the Manifest
+    clone*, not machine-globally. Acceptable tool limitation; recorded here so
+    it is a known constraint, not a surprise.
 
 Net: skillshare manages two real copy destinations (`claude`, `copilot`);
 Cursor/Gemini/Codex/Antigravity get the same skills for free via symlink.
@@ -106,20 +125,45 @@ machine. bootstrap is unchanged in this step.
 bootstrap's skill-deploy becomes:
 
 ```
-if skillshare is installed and `.skillshare/config.yaml` exists:
-    run `skillshare sync`        # preferred path
+# Baseline (always, before symlinks and before sync):
+mkdir -p ~/.claude/skills
+
+# Skills are EXCLUDED from the generic `cp -R configs/claude/* ~/.claude/`
+# (deploy.sh:69) so the relative skills symlink is never copied verbatim.
+if skillshare is installed and .skillshare/config.yaml exists:
+    skillshare sync                                  # preferred path
 else:
-    existing symlink/copy deploy  # unchanged fallback — skills still land
+    cp -R .skillshare/skills/. ~/.claude/skills/      # fallback: PHYSICAL dir
+
+# Per-tool symlinks (created AFTER ~/.claude/skills exists):
+~/.cursor/skills  -> ~/.claude/skills   (existing)
+~/.gemini/skills  -> ~/.claude/skills   (existing)
+~/.codex/skills   -> ~/.claude/skills   (existing)
+~/.antigravity/skills -> ~/.claude/skills   (NEW)
 ```
 
+Key constraints surfaced by code review:
+
+- **Carve skills out of the generic copy.** `deploy.sh:69` runs
+  `cp -R "$source_dir"/* "$TARGET_DIR/"`. With `configs/claude/skills` as a
+  *relative* symlink (`../../.skillshare/skills`), `cp -R` copies the **symlink
+  itself** into `~/.claude/`, where it resolves to a non-existent
+  `~/.skillshare/skills` — a guaranteed broken link on both BSD and GNU cp.
+  `deploy_configs` MUST exclude `skills` from the generic copy in BOTH the
+  skillshare-present and fallback paths.
+- **Fallback sources the physical dir.** The fallback copies from
+  `.skillshare/skills/` directly (not via the compat symlink), so it works even
+  if the symlink layer is mishandled by the host toolchain.
+- **Strict ordering.** `mkdir -p ~/.claude/skills` is an unconditional baseline
+  that runs *before* any tool symlink and *before* `skillshare sync`, so
+  symlink targets and `[ -d ~/.claude/skills ]` guards never see a missing dir.
 - bootstrap **does not hard-require** skillshare and does not auto-install it as
   a blocker. It may *offer* to install it (Homebrew: `brew install skillshare`),
   but a missing skillshare only drops to the fallback with a clear notice.
 - bootstrap adds the `~/.antigravity/skills → ~/.claude/skills` symlink to its
   existing per-tool symlink routine (needed by both paths).
-- The fallback continues to deploy the same skills (now sourced via the
-  `configs/claude/skills` → `.skillshare/skills` symlink), so behavior is
-  identical whether or not skillshare is present.
+- Net behavior is identical whether or not skillshare is present: all 27 skills
+  land in `~/.claude/skills` and fan out via symlink.
 
 ### 5. Multi-machine flow
 
@@ -158,6 +202,9 @@ adding agent distribution is deferred until there are agents to distribute.
 | `config.yaml` re-managed by skillshare and re-added to `.gitignore` on upgrade | Note in repo docs; re-check `.skillshare/.gitignore` after `skillshare upgrade`. |
 | Fresh machine lacks `skillshare` binary | Non-blocking: bootstrap drops to the symlink fallback and deploys skills anyway; skillshare stays optional. |
 | Pre-1.0 tool (v0.19, single maintainer) breaks or changes behavior | skillshare is an enhancement layer, not load-bearing; the fallback deploy keeps machines working independent of skillshare. |
+| `cp -R configs/claude/*` copies the relative skills symlink into `~/.claude/`, producing a broken link (`~/.skillshare/skills` does not exist) | Exclude `skills` from `deploy_configs`'s generic copy; deploy skills via a dedicated step that sources the physical `.skillshare/skills/` (§4). |
+| Tool symlinks or `[ -d ~/.claude/skills ]` guards created before the skills dir exists | Unconditional `mkdir -p ~/.claude/skills` baseline before symlinks and before `skillshare sync` (§4). |
+| CI/CD or linting on bare environments (no skillshare, may not traverse symlinks) | All validation/automation reads the physical `.skillshare/skills/`; `configs/claude/skills` is a backward-compat layer only. Shell globs are symlink-safe; `find`/`os.walk` callers must use `-L`/`followlinks` or target the physical dir. |
 
 ## Success Criteria
 
@@ -170,6 +217,9 @@ adding agent distribution is deferred until there are agents to distribute.
 4. `config.yaml` is committed; a fresh clone + `./bootstrap.sh` reproduces the
    full setup with skills in every tool.
 5. **Fallback verified:** with `skillshare` absent (or PATH-hidden),
-   `./bootstrap.sh` still deploys all 27 skills via the symlink path.
-6. `git status` is clean of unintended deletions; existing tests
+   `./bootstrap.sh` deploys all 27 skills via the physical-dir copy path, and
+   `~/.claude/skills` contains real directories (no broken symlink).
+6. **Ordering verified:** on a clean run, `~/.claude/skills` exists before any
+   tool symlink is created; `~/.antigravity/skills` resolves to it.
+7. `git status` is clean of unintended deletions; existing tests
    (`bats tests/bats/`, `pytest tests/python/`) still pass.
