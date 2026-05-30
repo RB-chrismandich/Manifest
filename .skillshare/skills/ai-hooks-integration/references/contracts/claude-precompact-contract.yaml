@@ -1,0 +1,17 @@
+name: claude-precompact
+event: PreCompact
+matcher: manual|auto
+hook_types: [command]
+can_block: false
+
+input:
+  session_id: string
+  transcript_path: string
+  cwd: string
+  permission_mode: string
+  hook_event_name: "PreCompact"
+  trigger: string              # manual|auto
+  custom_instructions: string  # user's /compact input (empty for auto)
+
+output:
+  # No decision control; advisory only

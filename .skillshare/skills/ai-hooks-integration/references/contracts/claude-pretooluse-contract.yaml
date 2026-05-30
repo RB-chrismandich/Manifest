@@ -1,0 +1,72 @@
+name: claude-pretooluse
+event: PreToolUse
+matcher: tool name regex (Bash, Edit|Write, mcp__.*__write.*, *)
+hook_types: [command, http, prompt, agent]
+can_block: true
+
+input:
+  session_id: string
+  transcript_path: string
+  cwd: string
+  permission_mode: string  # default|plan|acceptEdits|dontAsk|bypassPermissions
+  hook_event_name: "PreToolUse"
+  tool_name: string        # Bash, Edit, Write, Read, Glob, Grep, Agent, WebFetch, WebSearch, mcp__*
+  tool_input: object       # varies by tool (see tool_input_variants)
+  tool_use_id: string
+
+tool_input_variants:
+  Bash:
+    command: string
+    description: string?
+    timeout: number?
+    run_in_background: boolean?
+  Write:
+    file_path: string
+    content: string
+  Edit:
+    file_path: string
+    old_string: string
+    new_string: string
+    replace_all: boolean?
+  Read:
+    file_path: string
+    offset: number?
+    limit: number?
+  Glob:
+    pattern: string
+    path: string?
+  Grep:
+    pattern: string
+    path: string?
+    glob: string?
+    output_mode: string?  # content|files_with_matches|count
+    -i: boolean?
+    multiline: boolean?
+  WebFetch:
+    url: string
+    prompt: string
+  WebSearch:
+    query: string
+    allowed_domains: string[]?
+    blocked_domains: string[]?
+  Agent:
+    prompt: string
+    description: string
+    subagent_type: string
+    model: string?
+
+output:
+  hookSpecificOutput:
+    hookEventName: "PreToolUse"
+    permissionDecision: allow|deny|ask
+    permissionDecisionReason: string?
+    updatedInput: object?          # modify tool input before execution
+    additionalContext: string?     # added to Claude's context
+  # OR exit code 2 + stderr to block
+
+notes:
+  - permissionDecision "allow" bypasses permission system
+  - permissionDecision "deny" prevents tool call; reason shown to Claude
+  - permissionDecision "ask" prompts user to confirm
+  - updatedInput replaces tool_input fields before execution
+  - DEPRECATED: top-level decision/reason and modifiedToolInput; use hookSpecificOutput

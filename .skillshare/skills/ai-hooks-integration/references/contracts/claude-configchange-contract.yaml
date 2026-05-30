@@ -1,0 +1,22 @@
+name: claude-configchange
+event: ConfigChange
+matcher: source (user_settings|project_settings|local_settings|policy_settings|skills)
+hook_types: [command]
+can_block: true (except policy_settings)
+
+input:
+  session_id: string
+  transcript_path: string
+  cwd: string
+  permission_mode: string
+  hook_event_name: "ConfigChange"
+  source: string               # user_settings|project_settings|local_settings|policy_settings|skills
+  file_path: string?           # path to changed file
+
+output:
+  decision: "block"?
+  reason: string?
+
+notes:
+  - policy_settings changes CANNOT be blocked (hooks still fire for audit)
+  - Block prevents new settings from being applied to running session

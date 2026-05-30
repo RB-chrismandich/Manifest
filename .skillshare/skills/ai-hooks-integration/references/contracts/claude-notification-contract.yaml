@@ -1,0 +1,20 @@
+name: claude-notification
+event: Notification
+matcher: permission_prompt|idle_prompt|auth_success|elicitation_dialog
+hook_types: [command]
+can_block: false
+
+input:
+  session_id: string
+  transcript_path: string
+  cwd: string
+  permission_mode: string
+  hook_event_name: "Notification"
+  message: string
+  title: string?
+  notification_type: string    # permission_prompt|idle_prompt|auth_success|elicitation_dialog
+
+output:
+  hookSpecificOutput:
+    hookEventName: "Notification"
+    additionalContext: string?

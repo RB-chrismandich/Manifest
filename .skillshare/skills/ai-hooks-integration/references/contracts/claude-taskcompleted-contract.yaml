@@ -1,0 +1,25 @@
+name: claude-taskcompleted
+event: TaskCompleted
+matcher: none
+hook_types: [command, http, prompt, agent]
+can_block: true (exit 2)
+
+input:
+  session_id: string
+  transcript_path: string
+  cwd: string
+  permission_mode: string
+  hook_event_name: "TaskCompleted"
+  task_id: string
+  task_subject: string
+  task_description: string?
+  teammate_name: string?       # if from agent team
+  team_name: string?
+
+output:
+  # exit 2 → stderr as feedback, task not completed
+  # exit 0 → task marked completed
+
+notes:
+  - Fires when TaskUpdate marks task completed OR teammate finishes with in-progress tasks
+  - Use for enforcing completion criteria (tests, lint)
