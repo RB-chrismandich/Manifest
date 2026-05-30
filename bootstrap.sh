@@ -148,7 +148,7 @@ run_reconfigure() {
 
         print_success "Services reconfigured"
         echo ""
-        print_info "The parallel_agent.sh script will use these settings on next run"
+        print_info "The parallel_agent.py script will use these settings on next run"
     else
         print_info "Reconfiguration cancelled"
     fi

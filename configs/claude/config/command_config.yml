@@ -175,7 +175,7 @@ tool_policies:
       - Read
       - Glob
       - Grep
-      - Bash   # parallel_agent.sh, git_ops.sh, mv, date
+      - Bash   # parallel_agent.py, git_ops.sh, mv, date
       - Write  # Creating new plans from template
       - Edit   # Checking off deliverables during execute
       - Task   # Synthesis agent on disagreement
@@ -211,7 +211,7 @@ tool_policies:
       - Read
       - Glob
       - Grep
-      - Bash      # linear_ops.sh, parallel_agent.sh, jq
+      - Bash      # linear_ops.sh, parallel_agent.py, jq
       - Task      # Parallel verification for duplicates/staleness
       - AskUserQuestion  # User confirmation for actions
     forbidden:
@@ -229,7 +229,7 @@ tool_policies:
       - Read
       - Glob
       - Grep
-      - Bash      # gh, glab, linear_ops.sh, parallel_agent.sh, jq, python3
+      - Bash      # gh, glab, linear_ops.sh, parallel_agent.py, jq, python3
       - Task      # Parallel agent scoring for top candidates
       - AskUserQuestion  # Clarify platform or project context
     forbidden:
@@ -319,7 +319,7 @@ error_recovery:
 
 # Parallel agent script configuration
 parallel_agent:
-  script_path: ~/.claude/scripts/parallel_agent.sh
+  script_path: ~/.claude/scripts/parallel_agent.py
   output_dir: ~/.claude/.agent_outputs
   default_options:
     - --json
@@ -380,4 +380,4 @@ task_model_defaults:
 
 # Credit exhaustion fallback chains
 # Canonical fallback definitions are in parallel_agent.yml (credit_fallback section).
-# The parallel_agent.sh script reads those values at runtime.
+# The parallel_agent.py script reads those values at runtime.

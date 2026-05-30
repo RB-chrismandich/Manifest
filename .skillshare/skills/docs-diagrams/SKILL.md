@@ -13,7 +13,7 @@ workflow, data flows, and integration architecture.
 ## Parallel Agent Integration
 
 This command uses parallel agents CONDITIONALLY when analyzing 5+ unique imports/modules.
-When triggered, executes: `~/.claude/scripts/parallel_agent.sh --json --validate`
+When triggered, executes: `~/.claude/scripts/parallel_agent.py --json --validate`
 
 ## Task
 

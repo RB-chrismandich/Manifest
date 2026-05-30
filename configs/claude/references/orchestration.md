@@ -40,7 +40,7 @@ Use agents for their strengths:
 
 ```bash
 # Get multi-agent review of proposed changes
-~/.claude/scripts/parallel_agent.sh --json --validate \
+~/.claude/scripts/parallel_agent.py --json --validate \
   "Review this planned change: [description]. Files affected: [list]"
 ```
 
@@ -48,14 +48,14 @@ Use agents for their strengths:
 
 ```bash
 # Validate the implementation (use absolute path, 10 min timeout)
-~/.claude/scripts/parallel_agent.sh --json --validate --timeout 600 --review /absolute/path/to/modified_file
+~/.claude/scripts/parallel_agent.py --json --validate --timeout 600 --review /absolute/path/to/modified_file
 ```
 
 ### For Complex Decisions
 
 ```bash
 # Get diverse perspectives
-~/.claude/scripts/parallel_agent.sh --json --full-output \
+~/.claude/scripts/parallel_agent.py --json --full-output \
   "Evaluate these approaches for [problem]: Option A: ... Option B: ..."
 ```
 
@@ -81,7 +81,7 @@ When modifying code, Claude acts as an orchestrator that spawns Task subagents f
 ├─────────────────────────────────────────────────────────────────┤
 │  1. Receive code modification task                               │
 │  2. Task(Explore) → Pre-flight analysis                          │
-│  3. If criteria met → Bash: parallel_agent.sh --json --validate  │
+│  3. If criteria met → Bash: parallel_agent.py --json --validate  │
 │  4. Parse JSON output from agents                                │
 │  5. If disagreement → Task(general-purpose) → Synthesis          │
 │  6. Task(general-purpose) → Validation against criteria          │
@@ -115,7 +115,7 @@ If pre-flight triggers review, execute:
 
 ```bash
 # Always use absolute paths and large timeout for file arguments
-~/.claude/scripts/parallel_agent.sh --json --full-output --validate --timeout 600 --review /absolute/path/to/file
+~/.claude/scripts/parallel_agent.py --json --full-output --validate --timeout 600 --review /absolute/path/to/file
 ```
 
 Parse the JSON output to extract:
@@ -185,7 +185,7 @@ Claude (Orchestrator):
   1. Spawns Task(Explore) for pre-flight analysis
      → Returns: {needs_parallel_review: true, reason: "Authentication logic", confidence: 0.95}
 
-  2. Executes: ~/.claude/scripts/parallel_agent.sh --json --validate --timeout 600 \
+  2. Executes: ~/.claude/scripts/parallel_agent.py --json --validate --timeout 600 \
        --cursor-model advanced --claude-model opus --review "$(pwd)/src/middleware/auth.js"
      → Gemini: "Use JWT with refresh tokens, add rate limiting"
      → Cursor: "Use JWT with session fallback, add CSRF protection"

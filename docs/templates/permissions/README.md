@@ -405,7 +405,7 @@ jq '.permissions.allow | length' .claude/settings.local.json
       "Bash(docker compose:*)",
       "Bash(git:*)",
       "Bash(gh:*)",
-      "Bash(~/.claude/scripts/parallel_agent.sh:*)",
+      "Bash(~/.claude/scripts/parallel_agent.py:*)",
       "WebSearch",
       "WebFetch(domain:docs.djangoproject.com)"
     ]

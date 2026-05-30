@@ -270,7 +270,7 @@ fi
 ```
 
 ```bash
-result=$(~/.claude/scripts/parallel_agent.sh --json --validate --review "$file")
+result=$(~/.claude/scripts/parallel_agent.py --json --validate --review "$file")
 consensus=$(echo "$result" | jq -r '.cross_verification.consensus_score')
 
 if [[ $consensus -ge 80 ]]; then
@@ -529,7 +529,7 @@ State machine commands often use parallel agents for validation phases:
 lines_changed=$(git diff --stat | tail -1 | awk '{print $4}')
 
 if [[ $lines_changed -gt 100 ]]; then
-  result=$(~/.claude/scripts/parallel_agent.sh --json --validate \
+  result=$(~/.claude/scripts/parallel_agent.py --json --validate \
     --timeout 600 --review "$changed_file")
 
   consensus=$(echo "$result" | jq -r '.cross_verification.consensus_score')

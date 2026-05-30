@@ -108,7 +108,7 @@
       "// ============================================",
       "// Manifest Parallel Agent",
       "// ============================================",
-      "Bash(~/.claude/scripts/parallel_agent.sh:*)",
+      "Bash(~/.claude/scripts/parallel_agent.py:*)",
 
       "// ============================================",
       "// Web Search & Fetch (for documentation)",

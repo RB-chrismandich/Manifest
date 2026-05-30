@@ -263,7 +263,7 @@ gh label create "follow-up" --description "Follow-up from processed issue" --col
 
 **Output**: Detailed plan posted to issue (replaces body if empty, adds comment if body exists).
 
-**Parallel Agent Integration**: Validates plan with `~/.claude/scripts/parallel_agent.sh` for consensus scoring.
+**Parallel Agent Integration**: Validates plan with `~/.claude/scripts/parallel_agent.py` for consensus scoring.
 
 ---
 
@@ -358,7 +358,7 @@ Issues progress through labeled states:
 
 ## Integration with Parallel Agents
 
-All commands integrate with `~/.claude/scripts/parallel_agent.sh` for cross-verification:
+All commands integrate with `~/.claude/scripts/parallel_agent.py` for cross-verification:
 
 | Command | Use Case | Consensus Threshold |
 |---------|----------|---------------------|
@@ -367,7 +367,7 @@ All commands integrate with `~/.claude/scripts/parallel_agent.sh` for cross-veri
 | `issue-plan` | Plan validation | >= 80% = HIGH confidence, 50-79% = MEDIUM (note disagreements), < 50% = LOW (add warning) |
 | `issue-process` | Code validation | >= 80% = status "processed", 50-79% = status "needs-review" |
 
-**Setup**: Ensure `~/.claude/scripts/parallel_agent.sh` is installed and configured. See [README.md](../../README.md) for setup instructions.
+**Setup**: Ensure `~/.claude/scripts/parallel_agent.py` is installed and configured. See [README.md](../../README.md) for setup instructions.
 
 ---
 
@@ -526,13 +526,13 @@ cp templates/commands/issue-triage.md .claude/commands/
 
 ### Issue: Parallel agent script not found
 
-**Symptom**: Commands report "parallel_agent.sh not available"
+**Symptom**: Commands report "parallel_agent.py not available"
 
 **Solution**: Install the parallel agent script:
 
 ```bash
-cp .claude/scripts/parallel_agent.sh ~/.claude/scripts/
-chmod +x ~/.claude/scripts/parallel_agent.sh
+cp .claude/scripts/parallel_agent.py ~/.claude/scripts/
+chmod +x ~/.claude/scripts/parallel_agent.py
 ```
 
 ### Issue: GitHub CLI not authenticated

@@ -102,7 +102,7 @@ npm install -g @google/gemini-cli
 
 # 4. Deploy configuration
 cp -r .claude/* ~/.claude/
-chmod +x ~/.claude/scripts/*.sh
+chmod +x ~/.claude/scripts/*.sh ~/.claude/scripts/parallel_agent.py
 
 # 5. Configure services (see Configuration section)
 ```
@@ -116,7 +116,7 @@ chmod +x ~/.claude/scripts/*.sh
 Check that the parallel agent script is accessible:
 
 ```bash
-~/.claude/scripts/parallel_agent.sh --help
+~/.claude/scripts/parallel_agent.py --help
 ```
 
 **Expected output:**
@@ -125,9 +125,9 @@ Check that the parallel agent script is accessible:
 Parallel Agent Orchestration
 
 Usage:
-  ./parallel_agent.sh <prompt>
-  ./parallel_agent.sh --analyze <file>
-  ./parallel_agent.sh --review <file>
+  ./parallel_agent.py <prompt>
+  ./parallel_agent.py --analyze <file>
+  ./parallel_agent.py --review <file>
 ...
 ```
 
@@ -136,7 +136,7 @@ Usage:
 Run a simple test to verify all agents are working:
 
 ```bash
-~/.claude/scripts/parallel_agent.sh --json "What is 2+2?"
+~/.claude/scripts/parallel_agent.py --json "What is 2+2?"
 ```
 
 **Expected output:**
@@ -168,13 +168,13 @@ See [Troubleshooting](TROUBLESHOOTING.md) for solutions.
 
 ```bash
 # Test Claude CLI only
-~/.claude/scripts/parallel_agent.sh --claude-only "Hello"
+~/.claude/scripts/parallel_agent.py --claude-only "Hello"
 
 # Test Gemini CLI only
-~/.claude/scripts/parallel_agent.sh --gemini-only "Hello"
+~/.claude/scripts/parallel_agent.py --gemini-only "Hello"
 
 # Test Cursor Agent only (if installed)
-~/.claude/scripts/parallel_agent.sh --cursor-only "Hello"
+~/.claude/scripts/parallel_agent.py --cursor-only "Hello"
 ```
 
 ---
@@ -246,19 +246,19 @@ Improves README.md documentation following best practices.
 **Markdown (default):**
 
 ```bash
-~/.claude/scripts/parallel_agent.sh "Review this code"
+~/.claude/scripts/parallel_agent.py "Review this code"
 ```
 
 **JSON (for programmatic parsing):**
 
 ```bash
-~/.claude/scripts/parallel_agent.sh --json "Review this code"
+~/.claude/scripts/parallel_agent.py --json "Review this code"
 ```
 
 **Full output (no truncation):**
 
 ```bash
-~/.claude/scripts/parallel_agent.sh --json --full-output "Review this code"
+~/.claude/scripts/parallel_agent.py --json --full-output "Review this code"
 ```
 
 ---
@@ -305,13 +305,13 @@ Choose models based on task complexity:
 
 ```bash
 # Security analysis (use most powerful models)
-~/.claude/scripts/parallel_agent.sh \
+~/.claude/scripts/parallel_agent.py \
   --cursor-model advanced \
   --claude-model opus \
   --review auth.py
 
 # Quick queries (use lightweight models)
-~/.claude/scripts/parallel_agent.sh \
+~/.claude/scripts/parallel_agent.py \
   --cursor-model mini \
   --claude-model haiku \
   "Quick question"
@@ -360,7 +360,7 @@ If you encounter issues:
 
 1. Check [Troubleshooting Guide](TROUBLESHOOTING.md)
 2. Verify service configuration: `cat ~/.claude/config/services.yml`
-3. Test individual agents: `~/.claude/scripts/parallel_agent.sh --claude-only "test"`
+3. Test individual agents: `~/.claude/scripts/parallel_agent.py --claude-only "test"`
 
 ### For Advanced Usage
 
@@ -377,16 +377,16 @@ If you encounter issues:
 
 ```bash
 # Test all agents
-~/.claude/scripts/parallel_agent.sh --json "Test"
+~/.claude/scripts/parallel_agent.py --json "Test"
 
 # Use specific models
-~/.claude/scripts/parallel_agent.sh --cursor-model advanced --claude-model opus "Task"
+~/.claude/scripts/parallel_agent.py --cursor-model advanced --claude-model opus "Task"
 
 # Run single agent
-~/.claude/scripts/parallel_agent.sh --claude-only "Question"
+~/.claude/scripts/parallel_agent.py --claude-only "Question"
 
 # Analyze a file
-~/.claude/scripts/parallel_agent.sh --review file.py
+~/.claude/scripts/parallel_agent.py --review file.py
 
 # Reconfigure services
 ./bootstrap.sh --reconfigure --disable-cursor

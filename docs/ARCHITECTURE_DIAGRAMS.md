@@ -58,8 +58,7 @@ flowchart TB
 
     subgraph "Orchestration Layer"
         CLAUDE_CLI
-        PARALLEL_BASH["parallel_agent.sh<br/>(Bash)"]:::process
-        PARALLEL_PY["parallel_agent.py<br/>(Python Phase 3)"]:::process
+        PARALLEL_PY["parallel_agent.py"]:::process
         GIT_PLATFORM["git_platform.sh"]:::process
         GIT_OPS["git_ops.sh"]:::process
     end
@@ -76,21 +75,16 @@ flowchart TB
     USER --> BOOTSTRAP
     BOOTSTRAP --> SERVICES
     USER --> CLAUDE_CLI
-    CLAUDE_CLI --> PARALLEL_BASH
     CLAUDE_CLI --> PARALLEL_PY
     CLAUDE_CLI --> GIT_OPS
     GIT_OPS --> GIT_PLATFORM
     GIT_PLATFORM -.->|github| GH
     GIT_PLATFORM -.->|gitlab| GLAB
-    PARALLEL_BASH --> GEMINI
-    PARALLEL_BASH --> CURSOR
     PARALLEL_PY --> GEMINI
     PARALLEL_PY --> CURSOR
     PARALLEL_PY --> CLAUDE_API
     PARALLEL_PY --> CODEX
-    SERVICES -.->|config| PARALLEL_BASH
     SERVICES -.->|config| PARALLEL_PY
-    COMMAND_CFG -.->|thresholds| PARALLEL_BASH
     COMMAND_CFG -.->|thresholds| PARALLEL_PY
     VALIDATION_CFG -.->|criteria| PARALLEL_PY
 ```
@@ -99,7 +93,6 @@ flowchart TB
 
 - **bootstrap.sh**: Automated installation and configuration deployment with Python version detection
 - **Git Platform Scripts**: Platform-agnostic Git operations (GitHub/GitLab/plain git)
-- **parallel_agent.sh**: Bash orchestrator for multiple LLM agents (deprecated — use parallel_agent.py)
 - **parallel_agent.py**: Python orchestrator with full feature parity
   (logging, validation, synthesis, streaming, Codex agent, services.yml)
 - **Configuration Layer**: YAML files controlling behavior, validation rules, and Phase 3 features
@@ -565,7 +558,7 @@ flowchart LR
 
     subgraph "Execution"
         SINGLE["Single Agent Execution"]:::process
-        PARALLEL["Parallel Agent Execution<br/>(parallel_agent.sh)"]:::external
+        PARALLEL["Parallel Agent Execution<br/>(parallel_agent.py)"]:::external
     end
 
     subgraph "Post-Processing"
@@ -803,7 +796,7 @@ flowchart LR
     PARSE_COMMAND["Load Command Config<br/>(YAML parser)"]:::process
     PARSE_VALID["Load Validation Rules<br/>(YAML parser)"]:::process
 
-    PARALLEL["parallel_agent.sh"]:::process
+    PARALLEL["parallel_agent.py"]:::process
     COMMANDS["Command Execution"]:::process
     VALIDATORS["Validation Agents"]:::process
 

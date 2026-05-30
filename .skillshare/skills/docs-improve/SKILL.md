@@ -13,7 +13,7 @@ documentation best practices and the Diataxis framework.
 ## Parallel Agent Integration
 
 This command uses parallel agents CONDITIONALLY when total documentation lines > 500.
-When triggered, executes: `~/.claude/scripts/parallel_agent.sh --json --validate`
+When triggered, executes: `~/.claude/scripts/parallel_agent.py --json --validate`
 
 ## Task
 

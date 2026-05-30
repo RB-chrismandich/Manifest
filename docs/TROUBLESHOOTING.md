@@ -181,10 +181,10 @@ claude auth status
 gemini auth status
 
 # Try with longer timeout
-~/.claude/scripts/parallel_agent.sh --timeout 900 "Task"
+~/.claude/scripts/parallel_agent.py --timeout 900 "Task"
 
 # Try with cheaper models
-~/.claude/scripts/parallel_agent.sh \
+~/.claude/scripts/parallel_agent.py \
   --claude-model haiku \
   --cursor-model mini \
   "Task"
@@ -222,8 +222,8 @@ mkdir -p ~/.manifest/custom-codex-state
 export CODEX_HOME="$HOME/.manifest/custom-codex-state"
 
 # 3) Re-run status or orchestration
-~/.claude/scripts/parallel_agent.sh --status
-~/.claude/scripts/parallel_agent.sh --codex-only --codex-model advanced "Quick test"
+~/.claude/scripts/parallel_agent.py --status
+~/.claude/scripts/parallel_agent.py --codex-only --codex-model advanced "Quick test"
 ```
 
 **Tradeoff:** This avoids permission issues but uses a separate Codex state/config history path.
@@ -243,7 +243,7 @@ Error: No agents available to run
 
 ```bash
 # 1. Check system status (recommended)
-~/.claude/scripts/parallel_agent.sh --status
+~/.claude/scripts/parallel_agent.py --status
 
 # 2. Check service configuration
 cat ~/.claude/config/services.yml
@@ -256,7 +256,7 @@ vim ~/.claude/config/services.yml
 # Change enabled: false → enabled: true
 
 # 5. Verify the fix
-~/.claude/scripts/parallel_agent.sh --json 'Hello from all agents'
+~/.claude/scripts/parallel_agent.py --json 'Hello from all agents'
 ```
 
 ---
@@ -272,10 +272,10 @@ vim ~/.claude/config/services.yml
 ```bash
 # Check for --*-only flags
 # BAD: Only runs Claude
-~/.claude/scripts/parallel_agent.sh --claude-only "Task"
+~/.claude/scripts/parallel_agent.py --claude-only "Task"
 
 # GOOD: Runs all enabled agents
-~/.claude/scripts/parallel_agent.sh "Task"
+~/.claude/scripts/parallel_agent.py "Task"
 
 # Check services.yml for disabled agents
 cat ~/.claude/config/services.yml
@@ -359,7 +359,7 @@ to be installed but doesn't directly invoke it via command line in the current i
 ./bootstrap.sh --reconfigure --disable-cursor
 
 # Or use --no-cursor flag
-~/.claude/scripts/parallel_agent.sh --no-claude "Task"
+~/.claude/scripts/parallel_agent.py --no-claude "Task"
 ```
 
 **Note:** Cursor integration may be implemented differently in your environment.
@@ -431,7 +431,7 @@ exit
 cat ~/.claude/config/services.yml
 
 # Run without CLI flag overrides
-~/.claude/scripts/parallel_agent.sh "Task"
+~/.claude/scripts/parallel_agent.py "Task"
 ```
 
 ---
@@ -450,10 +450,10 @@ Error: Agent timed out after 600 seconds
 
 ```bash
 # Increase timeout (up to 10 minutes recommended)
-~/.claude/scripts/parallel_agent.sh --timeout 900 "Task"
+~/.claude/scripts/parallel_agent.py --timeout 900 "Task"
 
 # Use lighter models for faster response
-~/.claude/scripts/parallel_agent.sh \
+~/.claude/scripts/parallel_agent.py \
   --cursor-model mini \
   --claude-model haiku \
   "Task"
@@ -471,13 +471,13 @@ Error: Agent timed out after 600 seconds
 
 ```bash
 # Use balanced models
-~/.claude/scripts/parallel_agent.sh \
+~/.claude/scripts/parallel_agent.py \
   --cursor-model flash \
   --claude-model sonnet \
   "Task"
 
 # Or use single agent for quick tasks
-~/.claude/scripts/parallel_agent.sh --claude-only "Quick question"
+~/.claude/scripts/parallel_agent.py --claude-only "Quick question"
 ```
 
 ---
@@ -515,13 +515,13 @@ vim ~/.claude/config/command_config.yml
 
 ```bash
 # Use --json flag explicitly
-~/.claude/scripts/parallel_agent.sh --json "Task" | jq .
+~/.claude/scripts/parallel_agent.py --json "Task" | jq .
 
 # Check output files directly
 cat ~/.manifest/orchestration/outputs/results_*.json
 
 # Validate JSON
-~/.claude/scripts/parallel_agent.sh --json "Task" | python3 -m json.tool
+~/.claude/scripts/parallel_agent.py --json "Task" | python3 -m json.tool
 ```
 
 ---
@@ -534,7 +534,7 @@ cat ~/.manifest/orchestration/outputs/results_*.json
 
 ```bash
 # Use --full-output to disable truncation
-~/.claude/scripts/parallel_agent.sh --json --full-output "Task"
+~/.claude/scripts/parallel_agent.py --json --full-output "Task"
 
 # Check output files for complete responses
 cat ~/.manifest/claude/outputs/claude_*.txt
@@ -559,7 +559,7 @@ mkdir -p ~/.manifest/orchestration/outputs
 chmod 700 ~/.manifest/orchestration/outputs
 
 # Specify custom output directory
-~/.claude/scripts/parallel_agent.sh --output ~/.manifest/orchestration/outputs "Task"
+~/.claude/scripts/parallel_agent.py --output ~/.manifest/orchestration/outputs "Task"
 ```
 
 ---
@@ -572,7 +572,7 @@ Run the automated health check to see your system status:
 
 ```bash
 # Quick check
-~/.claude/scripts/parallel_agent.sh --status
+~/.claude/scripts/parallel_agent.py --status
 
 # Or directly
 ~/.claude/scripts/check_status.sh
@@ -593,7 +593,7 @@ This checks:
 
 ```bash
 # Verify script exists
-ls -la ~/.claude/scripts/parallel_agent.sh
+ls -la ~/.claude/scripts/parallel_agent.py
 
 # Verify configuration files
 ls -la ~/.claude/config/
@@ -628,13 +628,13 @@ echo $GEMINI_API_KEY
 
 ```bash
 # Test Claude CLI
-~/.claude/scripts/parallel_agent.sh --claude-only "What is 2+2?"
+~/.claude/scripts/parallel_agent.py --claude-only "What is 2+2?"
 
 # Test Gemini CLI
-~/.claude/scripts/parallel_agent.sh --gemini-only "What is 2+2?"
+~/.claude/scripts/parallel_agent.py --gemini-only "What is 2+2?"
 
 # Test Cursor (if applicable)
-~/.claude/scripts/parallel_agent.sh --cursor-only "What is 2+2?"
+~/.claude/scripts/parallel_agent.py --cursor-only "What is 2+2?"
 ```
 
 ### View Configuration
@@ -694,7 +694,7 @@ curl -I https://registry.npmjs.org
 2. **Run with verbose output:**
 
    ```bash
-   ~/.claude/scripts/parallel_agent.sh --json --full-output "Test" 2>&1 | tee debug.log
+   ~/.claude/scripts/parallel_agent.py --json --full-output "Test" 2>&1 | tee debug.log
    ```
 
 3. **Check GitHub Issues:**

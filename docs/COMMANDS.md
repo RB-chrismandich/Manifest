@@ -448,7 +448,7 @@ This command [ALWAYS|CONDITIONALLY|NEVER] uses parallel agents.
 
 When triggered, execute:
 ```bash
-~/.claude/scripts/parallel_agent.sh --json --full-output --validate --timeout 600 \
+~/.claude/scripts/parallel_agent.py --json --full-output --validate --timeout 600 \
   --cursor-model [mini|flash|advanced] --claude-model [haiku|sonnet|opus] \
   [--analyze|--review] "[prompt or file path]"
 ```
@@ -473,7 +473,7 @@ Consensus scoring:
 
 ```bash
 # Run parallel agents
-result=$(~/.claude/scripts/parallel_agent.sh --json --validate --review "$file")
+result=$(~/.claude/scripts/parallel_agent.py --json --validate --review "$file")
 
 # Extract consensus score
 consensus=$(echo "$result" | jq -r '.cross_verification.consensus_score')
