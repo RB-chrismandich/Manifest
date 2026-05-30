@@ -13,7 +13,7 @@ This rule defines how the Cursor agent should leverage parallel LLM agents
 
 ## Parallel Agent Script
 
-**Location**: `~/.claude/scripts/parallel_agent.sh` (symlinked at `.cursor/scripts/`)
+**Location**: `~/.claude/scripts/parallel_agent.py` (symlinked at `.cursor/scripts/`)
 
 ### Quick Usage
 
@@ -30,14 +30,14 @@ This rule defines how the Cursor agent should leverage parallel LLM agents
 
 ```bash
 # Basic code review with JSON output (all 3 agents, 10 min timeout)
-~/.claude/scripts/parallel_agent.sh --json --timeout 600 --review /absolute/path/to/file
+~/.claude/scripts/parallel_agent.py --json --timeout 600 --review /absolute/path/to/file
 
 # Full analysis with validation and model selection (15 min timeout)
-~/.claude/scripts/parallel_agent.sh --json --full-output --validate --timeout 900 \
+~/.claude/scripts/parallel_agent.py --json --full-output --validate --timeout 900 \
   --cursor-model advanced --claude-model opus --analyze /absolute/path/to/file
 
 # Generic prompt to all agents
-~/.claude/scripts/parallel_agent.sh --json "Your question here"
+~/.claude/scripts/parallel_agent.py --json "Your question here"
 ```
 
 ### Options
@@ -145,14 +145,14 @@ When agents disagree, synthesize by:
 ### Before Making Changes
 
 ```bash
-~/.claude/scripts/parallel_agent.sh --json --validate \
+~/.claude/scripts/parallel_agent.py --json --validate \
   "Review this planned change: [description]. Files affected: [list]"
 ```
 
 ### After Making Changes
 
 ```bash
-~/.claude/scripts/parallel_agent.sh --json --validate --timeout 600 \
+~/.claude/scripts/parallel_agent.py --json --validate --timeout 600 \
   --review /absolute/path/to/modified_file
 ```
 

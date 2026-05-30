@@ -184,7 +184,7 @@
       "Bash(shfmt:*)",
       "Bash(yamllint:*)",
       "Bash(markdownlint:*)",
-      "Bash(~/.claude/scripts/parallel_agent.sh:*)",
+      "Bash(~/.claude/scripts/parallel_agent.py:*)",
       "Bash(chmod +x:*)",
       "Bash(source:*)",
       "Bash(export:*)",

@@ -250,7 +250,7 @@ echo ""
 # Quick test option
 if [[ $working_agents -ge 1 ]]; then
     echo -e "${BOLD}Quick Test:${NC}"
-    echo -e "  ~/.claude/scripts/parallel_agent.sh --json 'What is 2+2?'"
+    echo -e "  ~/.claude/scripts/parallel_agent.py --json 'What is 2+2?'"
     echo ""
 fi
 

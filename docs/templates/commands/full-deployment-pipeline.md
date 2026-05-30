@@ -159,7 +159,7 @@ Use parallel agents to validate the deployment plan and detect potential issues.
 Execute:
 
 ```bash
-~/.claude/scripts/parallel_agent.sh --json --full-output --validate --timeout 600 \
+~/.claude/scripts/parallel_agent.py --json --full-output --validate --timeout 600 \
   --cursor-model flash --claude-model sonnet \
   "Validate deployment plan for $ENVIRONMENT:
    - Version: $VERSION
@@ -189,7 +189,7 @@ echo "Validating deployment plan with parallel agents..."
 CHANGES=$(git log --oneline HEAD~5..HEAD | head -5)
 
 # Run parallel agent validation
-VALIDATION_RESULT=$(~/.claude/scripts/parallel_agent.sh --json --validate --timeout 600 \
+VALIDATION_RESULT=$(~/.claude/scripts/parallel_agent.py --json --validate --timeout 600 \
   --cursor-model flash --claude-model sonnet \
   "Validate deployment plan for $ENVIRONMENT:
    Version: $VERSION

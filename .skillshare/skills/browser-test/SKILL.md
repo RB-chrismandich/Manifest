@@ -195,7 +195,7 @@ This skill uses parallel agents **conditionally**:
 When triggered:
 
 ```bash
-~/.claude/scripts/parallel_agent.sh --json --validate --timeout 600 \
+~/.claude/scripts/parallel_agent.py --json --validate --timeout 600 \
   --cursor-model flash --claude-model sonnet \
   "Review these browser test definitions for completeness and correctness: <YAML_CONTENTS>"
 ```

@@ -53,7 +53,7 @@ configs/                             # Deployment source configs (deployed to ~/
 │   │   └── mcp_servers.yml          # Default MCP server registry (OAuth-capable)
 │   ├── .plans/                      # Plan management (template, archive, abandoned)
 │   ├── settings.local.json          # Default permissions and MCP server config
-│   └── scripts/parallel_agent.sh    # Main parallel agent orchestration script
+│   └── scripts/parallel_agent.py    # Main parallel agent orchestration script
 ├── cursor/                          # → ~/.cursor/ (Cursor IDE configuration)
 │   ├── rules/                       # Cursor rules (.mdc) adapted from commands/skills
 │   ├── mcp.json                     # Cursor MCP server defaults
@@ -204,7 +204,7 @@ Required CLI tools (install those you want to use):
 | `configs/cursor/rules/orchestration.mdc` | Main orchestration guide for Cursor (always-on rule) |
 | `configs/gemini/GEMINI.md` | Main orchestration guide for Gemini CLI |
 | `configs/codex/AGENTS.md` | Main orchestration guide for Codex CLI |
-| `configs/claude/scripts/parallel_agent.sh` | Bash script that runs agents in parallel with consensus scoring |
+| `configs/claude/scripts/parallel_agent.py` | Bash script that runs agents in parallel with consensus scoring |
 | `configs/claude/scripts/git_platform.sh` | Platform detection script (github, gitlab, git) |
 | `configs/claude/scripts/git_ops.sh` | Platform-agnostic Git operations wrapper (issue/PR management) |
 | `configs/claude/scripts/linear_ops.sh` | Linear API wrapper for issue management (GraphQL) |
@@ -238,13 +238,13 @@ Test the parallel agent script locally:
 
 ```bash
 # Test with all agents
-configs/claude/scripts/parallel_agent.sh --json "Test prompt"
+configs/claude/scripts/parallel_agent.py --json "Test prompt"
 
 # Test specific mode
-configs/claude/scripts/parallel_agent.sh --json --review /path/to/file
+configs/claude/scripts/parallel_agent.py --json --review /path/to/file
 
 # Test with single agent
-configs/claude/scripts/parallel_agent.sh --cursor-only "Test prompt"
+configs/claude/scripts/parallel_agent.py --cursor-only "Test prompt"
 ```
 
 Validate YAML configuration syntax:

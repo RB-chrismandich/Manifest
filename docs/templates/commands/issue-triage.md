@@ -333,7 +333,7 @@ Present a comprehensive report:
 For complex decision-making (e.g., determining if two issues truly duplicate), use parallel agents:
 
 ```bash
-~/.claude/scripts/parallel_agent.sh --json --timeout 300 \
+~/.claude/scripts/parallel_agent.py --json --timeout 300 \
   "Are issues #A and #B duplicates? Issue A: [summary]. Issue B: [summary]."
 ```
 

@@ -89,7 +89,7 @@ Before doing anything else, run `/compact` to summarize and free up context spac
 
 - Read files (Read, Glob, Grep tools)
 - Run Git CLI commands to read/write issues (GitHub/GitLab)
-- Run `~/.claude/scripts/parallel_agent.sh` for validation
+- Run `~/.claude/scripts/parallel_agent.py` for validation
 - Spawn read-only Task sub-agents (Explore type only)
 
 If you catch yourself about to write code or modify a file, STOP immediately. Your only deliverable is a plan posted to the GitHub issue.
@@ -289,13 +289,13 @@ Structure the plan using this template. Include only sections that are relevant 
 1. Run parallel agent validation:
 
    ```bash
-   ~/.claude/scripts/parallel_agent.sh --json --full-output --validate --timeout 600 \
+   ~/.claude/scripts/parallel_agent.py --json --full-output --validate --timeout 600 \
      "Review this implementation plan for issue #[NUMBER]: [PLAN_SUMMARY].
       Evaluate: completeness, component coverage, architectural correctness, implementability,
       missing edge cases, and whether the implementation order respects dependencies."
    ```
 
-2. If `parallel_agent.sh` is not available or fails, note that validation was skipped and proceed.
+2. If `parallel_agent.py` is not available or fails, note that validation was skipped and proceed.
 
 3. Evaluate consensus:
    - **>= 80%**: High confidence — proceed with the plan as-is

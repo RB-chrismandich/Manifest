@@ -400,7 +400,7 @@ Output the API catalog and topology in the requested format:
 For complex or ambiguous API patterns, use parallel agents:
 
 ```bash
-~/.claude/scripts/parallel_agent.sh --json --timeout 300 \
+~/.claude/scripts/parallel_agent.py --json --timeout 300 \
   "Is this code calling an API? [CODE_SNIPPET]. What API and what service?"
 ```
 

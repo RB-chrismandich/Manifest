@@ -56,7 +56,7 @@ pip3 install pre-commit --user
 
 ### Custom Checks
 
-- **validate-parallel-agent**: Bash syntax check for parallel_agent.sh
+- **validate-parallel-agent**: Bash syntax check for parallel_agent.py
 - **validate-bootstrap**: Bash syntax check for bootstrap.sh
 - **check-credentials**: Search for hardcoded API keys
 - **validate-yaml-configs**: Validate configs/claude/config/*.yml files
@@ -72,7 +72,7 @@ pip3 install pre-commit --user
 ~/Library/Python/3.9/bin/pre-commit run shellcheck --all-files
 
 # Run on specific files
-~/Library/Python/3.9/bin/pre-commit run --files bootstrap.sh configs/claude/scripts/parallel_agent.sh
+~/Library/Python/3.9/bin/pre-commit run --files bootstrap.sh configs/claude/scripts/parallel_agent.py
 ```
 
 ## Bypassing Hooks (Not Recommended)

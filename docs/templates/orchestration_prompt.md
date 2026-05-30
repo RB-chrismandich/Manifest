@@ -64,7 +64,7 @@ Process [WHAT] into [DESIRED OUTCOME]. You act as the Orchestrator, coordinating
 2. [Run parallel agents if needed]:
 
    ```bash
-   ~/.claude/scripts/parallel_agent.sh --json --timeout 600 \
+   ~/.claude/scripts/parallel_agent.py --json --timeout 600 \
      --analyze "[ANALYSIS TASK]"
    ```
 
@@ -99,7 +99,7 @@ Once all tests pass:
 1. Run parallel agent validation on each modified file:
 
    ```bash
-   ~/.claude/scripts/parallel_agent.sh --json --validate --timeout 600 \
+   ~/.claude/scripts/parallel_agent.py --json --validate --timeout 600 \
      --review /absolute/path/to/modified_file
    ```
 

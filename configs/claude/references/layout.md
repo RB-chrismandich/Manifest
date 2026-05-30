@@ -50,7 +50,7 @@
 │   ├── TEMPLATE.md
 │   └── README.md
 └── scripts/
-    ├── parallel_agent.sh            # Main parallel agent orchestrator
+    ├── parallel_agent.py            # Main parallel agent orchestrator
     ├── parallel_agent.py            # Python parallel agent (Phase 3)
     ├── generate_cursor_rules.sh     # Regenerate .cursor/rules from SKILL.md
     ├── git_platform.sh              # Platform detection

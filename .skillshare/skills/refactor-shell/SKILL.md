@@ -14,7 +14,7 @@ with prioritized recommendations.
 ## Parallel Agent Integration
 
 This command ALWAYS uses parallel agents (security-critical).
-Executes: `~/.claude/scripts/parallel_agent.sh --json --full-output --validate`
+Executes: `~/.claude/scripts/parallel_agent.py --json --full-output --validate`
 
 Consensus scoring:
 
@@ -213,7 +213,7 @@ local var="value"  # Function-scoped variables
 | Script | Lines | Functions | Issues | Score |
 |--------|-------|-----------|--------|-------|
 | bootstrap.sh | 1000 | 15 | 12 | 75/100 |
-| parallel_agent.sh | 1038 | 20 | 8 | 85/100 |
+| parallel_agent.py | 1038 | 20 | 8 | 85/100 |
 
 ---
 

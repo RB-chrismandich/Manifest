@@ -1,7 +1,7 @@
 {
   "permissions": {
     "allow": [
-      "Bash(~/.claude/scripts/parallel_agent.sh:*)",
+      "Bash(~/.claude/scripts/parallel_agent.py:*)",
       "Bash(~/.claude/scripts/git_ops.sh:*)",
       "Bash(~/.claude/scripts/label_sync.sh:*)",
       "Bash(~/.claude/scripts/linear_ops.sh:*)",

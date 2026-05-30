@@ -5,7 +5,7 @@ This document defines how Claude should leverage parallel LLM agents
 
 ## Parallel Agent Script
 
-**Location**: `~/.claude/scripts/parallel_agent.sh`
+**Location**: `~/.claude/scripts/parallel_agent.py`
 
 ### Quick Usage
 
@@ -40,16 +40,16 @@ This document defines how Claude should leverage parallel LLM agents
 
 ```bash
 # Basic code review with JSON output (all 3 agents, 10 min timeout)
-~/.claude/scripts/parallel_agent.sh --json --timeout 600 --review /absolute/path/to/file
+~/.claude/scripts/parallel_agent.py --json --timeout 600 --review /absolute/path/to/file
 
 # Generic prompt to all agents
-~/.claude/scripts/parallel_agent.sh --json "Your question here"
+~/.claude/scripts/parallel_agent.py --json "Your question here"
 
 # Quick query with lightweight models
-~/.claude/scripts/parallel_agent.sh --cursor-model mini --claude-model haiku "Quick question"
+~/.claude/scripts/parallel_agent.py --cursor-model mini --claude-model haiku "Quick question"
 
 # Full analysis with validation and model selection (15 min timeout)
-~/.claude/scripts/parallel_agent.sh --json --full-output --validate --timeout 900 --cursor-model advanced --claude-model opus --analyze /absolute/path/to/file
+~/.claude/scripts/parallel_agent.py --json --full-output --validate --timeout 900 --cursor-model advanced --claude-model opus --analyze /absolute/path/to/file
 ```
 
 ## Reference Index

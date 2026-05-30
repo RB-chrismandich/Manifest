@@ -3,7 +3,7 @@
 # Controls which AI agents are enabled for parallel orchestration.
 #
 # To reconfigure: ./bootstrap.sh --reconfigure [--enable|--disable]-<service>
-# Or edit this file directly and restart parallel_agent.sh
+# Or edit this file directly and restart parallel_agent.py
 
 # Available tier names are listed per service below.
 # For full model ID mappings, see parallel_agent.yml (model_tiers section).

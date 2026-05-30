@@ -77,7 +77,7 @@ tests/
 │   ├── git_platform.bats       # Tests for git_platform.sh
 │   ├── git_ops.bats            # Tests for git_ops.sh
 │   ├── linear_ops.bats         # Tests for linear_ops.sh
-│   └── parallel_agent.bats     # Tests for parallel_agent.sh
+│   └── parallel_agent.bats     # Tests for parallel_agent.py
 ├── python/                     # Python test files (future)
 │   └── .gitkeep
 └── fixtures/                   # Shared test fixtures (future)
