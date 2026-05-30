@@ -45,6 +45,19 @@ teardown() {
     assert_equal "$(cat "$SANDBOX/dest/external/SKILL.md")" "e"
 }
 
+@test "deploy_home_skills converts a stray symlink dest into a real dir" {
+    mkdir -p "$SANDBOX/src/demo" "$SANDBOX/elsewhere"
+    echo d > "$SANDBOX/src/demo/SKILL.md"
+    ln -s "$SANDBOX/elsewhere" "$SANDBOX/dest"   # dest starts as a symlink
+
+    run deploy_home_skills "$SANDBOX/src" "$SANDBOX/dest"
+    assert_success
+
+    [ ! -L "$SANDBOX/dest" ]              # symlink replaced by a real dir
+    [ -d "$SANDBOX/dest/demo" ]           # content deployed into the real dir
+    [ ! -e "$SANDBOX/elsewhere/demo" ]    # did NOT write through into old target
+}
+
 @test "deploy_home_skills fails clearly when source missing" {
     run deploy_home_skills "$SANDBOX/nonexistent" "$SANDBOX/dest"
     assert_failure
@@ -82,7 +95,7 @@ teardown() {
     # The compat symlink was never copied verbatim into the home dir.
     [ ! -e "$TARGET_DIR/skills/skills" ]
     # No literal tilde dir created anywhere under the sandbox.
-    run find "$SANDBOX" -name '~' -maxdepth 6
+    run find "$SANDBOX" -maxdepth 6 -name '~'
     assert_output ""
 }
 

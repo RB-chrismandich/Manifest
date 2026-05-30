@@ -133,6 +133,9 @@ deploy_home_skills() {
         return 1
     fi
 
+    # If dest is a stray symlink (e.g. from an older install that copied the
+    # compat symlink), drop it so we deploy into a real directory, not its target.
+    [[ -L "$dest" ]] && rm -f "$dest"
     mkdir -p "$dest"
     rsync -a "$src"/ "$dest"/
     print_success "Deployed skills: $src -> $dest"
