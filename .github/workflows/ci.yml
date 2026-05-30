@@ -26,13 +26,15 @@ jobs:
       - name: Install shellcheck
         run: sudo apt-get update && sudo apt-get install -y shellcheck
 
+      # -S warning: fail on real warnings/errors, not cosmetic info/style notes
+      # (e.g. SC2129 grouped-redirect suggestions). Keeps CI signal meaningful.
       - name: ShellCheck - configs/claude/scripts/
-        run: shellcheck configs/claude/scripts/*.sh
+        run: shellcheck -S warning configs/claude/scripts/*.sh
 
       - name: ShellCheck - bootstrap/
         run: |
-          shellcheck bootstrap.sh
-          shellcheck bootstrap/lib/*.sh
+          shellcheck -S warning bootstrap.sh
+          shellcheck -S warning bootstrap/lib/*.sh
 
       # --- yamllint ---
 
