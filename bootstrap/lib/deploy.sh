@@ -53,6 +53,7 @@ deploy_configs() {
                     deploy_gemini_configs
                     deploy_codex_configs
                     deploy_antigravity_configs
+                    sync_skillshare_targets
                     return 0
                     ;;
                 3 | *)
@@ -106,6 +107,9 @@ deploy_configs() {
 
     # Deploy Antigravity configuration
     deploy_antigravity_configs
+
+    # Project-scoped Copilot sync (non-blocking)
+    sync_skillshare_targets
 
     # List deployed files
     echo ""
@@ -217,6 +221,25 @@ deploy_antigravity_configs() {
     mkdir -p "$ANTIGRAVITY_TARGET_DIR"
     create_symlink "$ANTIGRAVITY_TARGET_DIR/skills" "$TARGET_DIR/skills" "Antigravity skills"
     print_success "Antigravity configuration deployed to $ANTIGRAVITY_TARGET_DIR"
+}
+
+# Project-scoped Copilot sync via skillshare. Non-blocking: skillshare is an
+# enhancement, never load-bearing. Home deploy already happened in deploy_configs.
+sync_skillshare_targets() {
+    if ! command -v skillshare > /dev/null 2>&1; then
+        print_info "skillshare not installed — skipping project-scoped Copilot sync"
+        return 0
+    fi
+    if [[ ! -f "$SCRIPT_DIR/.skillshare/config.yaml" ]]; then
+        print_info "No .skillshare/config.yaml — skipping skillshare sync"
+        return 0
+    fi
+    print_step "Syncing skillshare project targets (Copilot)..."
+    if (cd "$SCRIPT_DIR" && skillshare sync); then
+        print_success "skillshare project targets synced"
+    else
+        print_warning "skillshare sync failed (non-fatal) — home deploy unaffected"
+    fi
 }
 
 # Verify installation
