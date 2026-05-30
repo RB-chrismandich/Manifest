@@ -70,19 +70,19 @@ Detection methods:
   "agents": {
     "cursor": {
       "status": "complete|missing|failed",
-      "validated": true,
+      "validated": true|false,
       "model": "gpt-5.1-codex|auto",
       "credit_fallback": false,
       "output": "Agent response..."
     },
     "gemini": {
       "status": "complete|missing|failed",
-      "validated": true,
+      "validated": true|false,
       "output": "Agent response..."
     },
     "claude": {
       "status": "complete|missing|failed",
-      "validated": true,
+      "validated": true|false,
       "model": "sonnet|haiku|opus",
       "credit_fallback": false,
       "output": "Agent response..."
