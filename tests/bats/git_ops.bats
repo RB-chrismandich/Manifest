@@ -47,6 +47,19 @@ STUB
     chmod +x "$MOCK_BIN/$cmd_name"
 }
 
+# Build a curated bin dir containing only the tools the script needs (bash,
+# git, dirname) and NOT gh/glab. Needed because CI runners (GitHub Actions)
+# ship gh in /usr/bin, so a broad PATH like /usr/bin:/bin can't simulate its
+# absence. Echoes the dir path; caller is responsible for cleanup.
+make_clean_bin() {
+    local clean_bin
+    clean_bin=$(mktemp -d "$BATS_TMPDIR/git_ops_clean.XXXXXX")
+    ln -s "$(command -v bash)" "$clean_bin/bash"
+    ln -s "$(command -v git)" "$clean_bin/git"
+    ln -s "$(command -v dirname)" "$clean_bin/dirname"
+    echo "$clean_bin"
+}
+
 # --- No arguments tests ---
 
 @test "shows usage when no subcommand provided" {
@@ -225,11 +238,10 @@ STUB
 
 @test "fails when gh CLI is not installed for GitHub remote" {
     cd "$TEST_REPO" || return 1
-    # Do not create gh stub -- ensure it is not in PATH
-    # Remove any existing gh from MOCK_BIN
-    rm -f "$MOCK_BIN/gh"
-    # Use a subshell with restricted PATH (keep /usr/bin:/bin for system tools)
-    run env PATH="$MOCK_BIN:/usr/bin:/bin" bash "$SCRIPT_UNDER_TEST" issue-view 1
+    local clean_bin
+    clean_bin=$(make_clean_bin)
+    run env PATH="$MOCK_BIN:$clean_bin" bash "$SCRIPT_UNDER_TEST" issue-view 1
+    rm -rf "$clean_bin"
     assert_failure
     assert_output --partial "CLI not found"
 }
@@ -237,8 +249,10 @@ STUB
 @test "fails when glab CLI is not installed for GitLab remote" {
     cd "$TEST_REPO" || return 1
     git remote set-url origin "https://gitlab.com/user/repo.git"
-    rm -f "$MOCK_BIN/glab"
-    run env PATH="$MOCK_BIN:/usr/bin:/bin" bash "$SCRIPT_UNDER_TEST" issue-view 1
+    local clean_bin
+    clean_bin=$(make_clean_bin)
+    run env PATH="$MOCK_BIN:$clean_bin" bash "$SCRIPT_UNDER_TEST" issue-view 1
+    rm -rf "$clean_bin"
     assert_failure
     assert_output --partial "CLI not found"
 }

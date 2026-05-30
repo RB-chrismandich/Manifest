@@ -1,0 +1,30 @@
+name: claude-sessionstart
+event: SessionStart
+matcher: startup|resume|clear|compact
+hook_types: [command]
+can_block: false
+
+input:
+  session_id: string
+  transcript_path: string
+  cwd: string
+  permission_mode: string
+  hook_event_name: "SessionStart"
+  source: string               # startup|resume|clear|compact
+  model: string                # e.g. "claude-sonnet-4-6"
+  agent_type: string?          # present when claude --agent <name>
+
+output:
+  # Plain text stdout → added as context for Claude
+  # OR JSON:
+  hookSpecificOutput:
+    hookEventName: "SessionStart"
+    additionalContext: string?
+
+env:
+  CLAUDE_ENV_FILE: string      # write 'export KEY=VAL' to persist env vars for session
+
+notes:
+  - Runs on every session; keep fast
+  - Plain stdout and additionalContext both add context for Claude
+  - Use $CLAUDE_ENV_FILE for env vars available in all subsequent Bash calls

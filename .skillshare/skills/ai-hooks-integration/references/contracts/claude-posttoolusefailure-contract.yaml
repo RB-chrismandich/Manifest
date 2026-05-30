@@ -1,0 +1,22 @@
+name: claude-posttoolusefailure
+event: PostToolUseFailure
+matcher: tool name regex
+hook_types: [command, http, prompt, agent]
+can_block: false
+
+input:
+  session_id: string
+  transcript_path: string
+  cwd: string
+  permission_mode: string
+  hook_event_name: "PostToolUseFailure"
+  tool_name: string
+  tool_input: object
+  tool_use_id: string
+  error: string                # what went wrong
+  is_interrupt: boolean?       # user interrupted
+
+output:
+  hookSpecificOutput:
+    hookEventName: "PostToolUseFailure"
+    additionalContext: string?  # extra context for Claude about the failure

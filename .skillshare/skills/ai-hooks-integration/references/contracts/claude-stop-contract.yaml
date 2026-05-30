@@ -1,0 +1,23 @@
+name: claude-stop
+event: Stop
+matcher: none (fires on every stop)
+hook_types: [command, http, prompt, agent]
+can_block: true
+
+input:
+  session_id: string
+  transcript_path: string
+  cwd: string
+  permission_mode: string
+  hook_event_name: "Stop"
+  stop_hook_active: boolean    # true if already continuing from a stop hook
+  last_assistant_message: string  # Claude's final response text
+
+output:
+  decision: "block"?           # prevents Claude from stopping
+  reason: string?              # required when block; tells Claude why to continue
+
+notes:
+  - Check stop_hook_active to prevent infinite loops
+  - SubagentStop uses same decision format
+  - Does not fire on user interrupt

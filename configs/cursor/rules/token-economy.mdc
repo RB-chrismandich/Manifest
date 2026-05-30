@@ -1,0 +1,14 @@
+---
+description: "Switch the current session into terse, surgical, clarify-first mode to cut token usage. Invoke when responses are verbose, during long refactors, or to conserve budget. Opt-in session mutator — re-invoke if it wears off."
+globs: ".claude/skills/token-economy/**"
+alwaysApply: false
+---
+
+# token-economy
+
+Switch the current session into terse, surgical, clarify-first mode to cut token usage. Invoke when responses are verbose, during long refactors, or to conserve budget. Opt-in session mutator — re-invoke if it wears off.
+
+<!-- Auto-generated from .claude/skills/token-economy/SKILL.md -->
+<!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
+
+Refer to `.cursor/skills/token-economy/SKILL.md` for the full skill definition.

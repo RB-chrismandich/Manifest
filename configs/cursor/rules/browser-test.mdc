@@ -1,0 +1,14 @@
+---
+description: "Create, update, and manage browser-use YAML test prompts for E2E browser testing. Analyzes code changes to generate targeted test definitions. Auto-triggers when new frontend pages, API resolvers, or user-facing features are added."
+globs: ".claude/skills/browser-test/**"
+alwaysApply: false
+---
+
+# browser-test
+
+Create, update, and manage browser-use YAML test prompts for E2E browser testing. Analyzes code changes to generate targeted test definitions. Auto-triggers when new frontend pages, API resolvers, or user-facing features are added.
+
+<!-- Auto-generated from .claude/skills/browser-test/SKILL.md -->
+<!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
+
+Refer to `.cursor/skills/browser-test/SKILL.md` for the full skill definition.

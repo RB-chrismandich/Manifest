@@ -38,8 +38,10 @@ deploy_configs() {
                     ;;
                 2)
                     print_step "Merging configurations..."
-                    # Merge mode - copy only new files
-                    rsync -av --ignore-existing "$source_dir/" "$TARGET_DIR/"
+                    # Merge mode - copy only new files (skills handled separately
+                    # below; the skills compat symlink must not be copied verbatim)
+                    rsync -av --ignore-existing --exclude '/skills' "$source_dir/" "$TARGET_DIR/"
+                    deploy_home_skills "$SCRIPT_DIR/.skillshare/skills" "$TARGET_DIR/skills"
                     print_success "Configurations merged"
                     # Still write services config
                     write_services_config
@@ -50,6 +52,8 @@ deploy_configs() {
                     deploy_cursor_configs
                     deploy_gemini_configs
                     deploy_codex_configs
+                    deploy_antigravity_configs
+                    sync_skillshare_targets
                     return 0
                     ;;
                 3 | *)
@@ -66,9 +70,16 @@ deploy_configs() {
     chmod 700 "$TARGET_DIR"
 
     print_step "Copying configuration files..."
-    cp -R "$source_dir"/* "$TARGET_DIR/"
+    # Copy everything EXCEPT skills (skills is a symlink -> .skillshare/skills;
+    # copying it verbatim would create a broken link in ~/.claude). rsync mirrors
+    # deploy.sh's existing idiom (merge path below).
+    rsync -a --exclude '/skills' "$source_dir"/ "$TARGET_DIR/"
     # Copy dot-prefixed directories (e.g. .plans/) that the glob above skips
     cp -R "$source_dir"/.[!.]* "$TARGET_DIR/" 2> /dev/null || true
+
+    # Deploy skills from the PHYSICAL skillshare source into ~/.claude/skills.
+    # Must run before link_shared_assets (create_symlink skips missing targets).
+    deploy_home_skills "$SCRIPT_DIR/.skillshare/skills" "$TARGET_DIR/skills"
 
     # Make scripts executable
     if [[ -d "$TARGET_DIR/scripts" ]]; then
@@ -93,6 +104,12 @@ deploy_configs() {
 
     # Deploy Codex configuration
     deploy_codex_configs
+
+    # Deploy Antigravity configuration
+    deploy_antigravity_configs
+
+    # Project-scoped Copilot sync (non-blocking)
+    sync_skillshare_targets
 
     # List deployed files
     echo ""
@@ -195,6 +212,34 @@ deploy_codex_configs() {
     link_shared_assets "$CODEX_TARGET_DIR" "Codex" "true"
 
     print_success "Codex configuration deployed to $CODEX_TARGET_DIR"
+}
+
+# Deploy Antigravity configuration (skills symlink only — Antigravity reads
+# ~/.antigravity/skills; it shares the single source of truth via symlink).
+deploy_antigravity_configs() {
+    print_step "Deploying Antigravity configuration..."
+    mkdir -p "$ANTIGRAVITY_TARGET_DIR"
+    create_symlink "$ANTIGRAVITY_TARGET_DIR/skills" "$TARGET_DIR/skills" "Antigravity skills"
+    print_success "Antigravity configuration deployed to $ANTIGRAVITY_TARGET_DIR"
+}
+
+# Project-scoped Copilot sync via skillshare. Non-blocking: skillshare is an
+# enhancement, never load-bearing. Home deploy already happened in deploy_configs.
+sync_skillshare_targets() {
+    if ! command -v skillshare > /dev/null 2>&1; then
+        print_info "skillshare not installed — skipping project-scoped Copilot sync"
+        return 0
+    fi
+    if [[ ! -f "$SCRIPT_DIR/.skillshare/config.yaml" ]]; then
+        print_info "No .skillshare/config.yaml — skipping skillshare sync"
+        return 0
+    fi
+    print_step "Syncing skillshare project targets (Copilot)..."
+    if (cd "$SCRIPT_DIR" && skillshare sync); then
+        print_success "skillshare project targets synced"
+    else
+        print_warning "skillshare sync failed (non-fatal) — home deploy unaffected"
+    fi
 }
 
 # Verify installation

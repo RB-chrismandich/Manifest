@@ -1,0 +1,24 @@
+name: claude-teammateidle
+event: TeammateIdle
+matcher: none
+hook_types: [command]
+can_block: true (exit 2 only)
+
+input:
+  session_id: string
+  transcript_path: string
+  cwd: string
+  permission_mode: string
+  hook_event_name: "TeammateIdle"
+  teammate_name: string
+  team_name: string
+
+output:
+  # Exit code only, no JSON decision
+  # exit 0 → allow idle
+  # exit 2 → stderr sent as feedback, teammate continues
+
+notes:
+  - Agent teams feature
+  - No JSON decision control
+  - Use for quality gates before teammate stops

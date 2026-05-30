@@ -26,13 +26,15 @@ jobs:
       - name: Install shellcheck
         run: sudo apt-get update && sudo apt-get install -y shellcheck
 
+      # -S warning: fail on real warnings/errors, not cosmetic info/style notes
+      # (e.g. SC2129 grouped-redirect suggestions). Keeps CI signal meaningful.
       - name: ShellCheck - configs/claude/scripts/
-        run: shellcheck configs/claude/scripts/*.sh
+        run: shellcheck -S warning configs/claude/scripts/*.sh
 
       - name: ShellCheck - bootstrap/
         run: |
-          shellcheck bootstrap.sh
-          shellcheck bootstrap/lib/*.sh
+          shellcheck -S warning bootstrap.sh
+          shellcheck -S warning bootstrap/lib/*.sh
 
       # --- yamllint ---
 
@@ -62,6 +64,7 @@ jobs:
 
       - name: Validate YAML configs with Python
         run: |
+          pip install pyyaml
           exit_code=0
           for f in configs/claude/config/*.yml; do
             echo "Validating $f ..."
@@ -81,17 +84,14 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
+        with:
+          # bats-support / bats-assert under tests/test_helper are git submodules
+          submodules: true
 
-      # --- Bats tests ---
+      # --- Bats tests (helpers provided by the submodules above) ---
 
-      - name: Install bats-core and helpers from npm
-        run: npm install bats bats-support bats-assert
-
-      - name: Set up test_helper directory
-        run: |
-          mkdir -p tests/test_helper
-          ln -s ../../node_modules/bats-support tests/test_helper/bats-support
-          ln -s ../../node_modules/bats-assert tests/test_helper/bats-assert
+      - name: Install bats
+        run: npm install bats
 
       - name: Run bats tests
         run: ./node_modules/.bin/bats tests/bats/
@@ -103,8 +103,10 @@ jobs:
         with:
           python-version: "3.14"
 
-      - name: Install pytest
-        run: pip install pytest
+      - name: Install pytest and parallel_agent runtime deps
+        # parallel_agent.py hard-imports yaml + rich (sys.exit(1) otherwise);
+        # asyncio-throttle backs RateLimiter. API SDKs are optional/graceful.
+        run: pip install pytest pytest-asyncio pyyaml rich asyncio-throttle
 
       - name: Run Python tests (if any exist)
         run: |
@@ -142,6 +144,9 @@ jobs:
               fi
             fi
           }
+
+          # configs/claude skills source-of-truth symlink (-> .skillshare/skills)
+          check_symlink "configs/claude/skills"   "../../.skillshare/skills"
 
           # configs/cursor symlinks
           check_symlink "configs/cursor/scripts"  "../claude/scripts"
@@ -199,9 +204,11 @@ jobs:
       - name: Count and verify skills and scripts
         run: |
           echo "=== Skills ==="
-          SKILL_COUNT=$(find configs/claude/skills -name 'SKILL.md' | wc -l | tr -d ' ')
+          # -L follows the configs/claude/skills symlink into .skillshare/skills
+          # (the source of truth). Without -L, find does not traverse the symlink.
+          SKILL_COUNT=$(find -L configs/claude/skills -name 'SKILL.md' | wc -l | tr -d ' ')
           echo "Found $SKILL_COUNT skills:"
-          find configs/claude/skills -name 'SKILL.md' | sed 's|/SKILL.md||;s|configs/claude/skills/||' | sort | sed 's/^/  /'
+          find -L configs/claude/skills -name 'SKILL.md' | sed 's|/SKILL.md||;s|configs/claude/skills/||' | sort | sed 's/^/  /'
           echo ""
 
           echo "=== Scripts ==="

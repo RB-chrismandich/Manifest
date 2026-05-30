@@ -1,0 +1,35 @@
+name: claude-worktree
+events: [WorktreeCreate, WorktreeRemove]
+hook_types: [command]
+
+WorktreeCreate:
+  matcher: none
+  can_block: true (non-zero exit)
+  input:
+    session_id: string
+    transcript_path: string
+    cwd: string
+    hook_event_name: "WorktreeCreate"
+    name: string               # slug identifier (e.g., "feature-auth", "bold-oak-a3f2")
+  output:
+    # stdout = absolute path to created worktree directory
+    # Non-zero exit = creation fails
+  notes:
+    - Replaces default git worktree behavior
+    - Use for non-git VCS (SVN, Perforce, Mercurial)
+    - Redirect other output to stderr
+
+WorktreeRemove:
+  matcher: none
+  can_block: false
+  input:
+    session_id: string
+    transcript_path: string
+    cwd: string
+    hook_event_name: "WorktreeRemove"
+    worktree_path: string      # absolute path from WorktreeCreate
+  output:
+    # No decision control; cleanup only
+  notes:
+    - Pair with WorktreeCreate for non-git VCS cleanup
+    - Failures logged in debug mode only

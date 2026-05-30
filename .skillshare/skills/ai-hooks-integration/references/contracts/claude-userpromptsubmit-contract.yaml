@@ -1,0 +1,27 @@
+name: claude-userpromptsubmit
+event: UserPromptSubmit
+matcher: none (fires on every prompt)
+hook_types: [command, http, prompt, agent]
+can_block: true
+
+input:
+  session_id: string
+  transcript_path: string
+  cwd: string
+  permission_mode: string
+  hook_event_name: "UserPromptSubmit"
+  prompt: string               # user's submitted prompt text
+
+output:
+  # Plain text stdout → added as context
+  # OR JSON:
+  decision: "block"?           # prevents prompt processing, erases prompt
+  reason: string?              # shown to user when blocked
+  hookSpecificOutput:
+    hookEventName: "UserPromptSubmit"
+    additionalContext: string?  # added to Claude's context
+
+notes:
+  - Plain text stdout is shown as hook output in transcript
+  - additionalContext is added more discretely
+  - exit 2 also blocks prompt processing

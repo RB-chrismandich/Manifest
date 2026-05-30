@@ -284,6 +284,17 @@ tool_policies:
     parallel_agents: never
     validation_tier: 2
 
+  token-economy:
+    allowed:
+      - Read
+      - Glob
+      - Grep
+    forbidden:
+      - Bash
+      - Write
+    parallel_agents: never
+    validation_tier: 2
+
 # Error recovery strategies
 error_recovery:
   timeout_seconds: 120

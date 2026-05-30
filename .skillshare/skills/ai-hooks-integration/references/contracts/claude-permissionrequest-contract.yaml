@@ -1,0 +1,30 @@
+name: claude-permissionrequest
+event: PermissionRequest
+matcher: tool name regex (same as PreToolUse)
+hook_types: [command, http, prompt, agent]
+can_block: true
+
+input:
+  session_id: string
+  transcript_path: string
+  cwd: string
+  permission_mode: string
+  hook_event_name: "PermissionRequest"
+  tool_name: string
+  tool_input: object
+  permission_suggestions: array?  # [{type: "toolAlwaysAllow", tool: "Bash"}, ...]
+
+output:
+  hookSpecificOutput:
+    hookEventName: "PermissionRequest"
+    decision:
+      behavior: allow|deny
+      updatedInput: object?          # for allow: modify tool input
+      updatedPermissions: array?     # for allow: apply permission rules
+      message: string?               # for deny: shown to Claude
+      interrupt: boolean?            # for deny: stop Claude
+
+notes:
+  - Fires when permission dialog is about to be shown
+  - Unlike PreToolUse, fires only when permission is needed
+  - updatedPermissions equivalent to user selecting "always allow" option

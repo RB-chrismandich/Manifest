@@ -1,0 +1,140 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Claude Code hooks",
+  "description": "Schema for Claude Code hooks configuration (2026-03 / 17 events, 4 hook types)",
+  "type": "object",
+  "definitions": {
+    "commandHook": {
+      "type": "object",
+      "properties": {
+        "type": { "const": "command" },
+        "command": { "type": "string", "description": "Shell command to execute" },
+        "timeout": { "type": "number", "description": "Seconds before canceling (default: 600)" },
+        "async": { "type": "boolean", "description": "Run in background without blocking (command only)" },
+        "statusMessage": { "type": "string", "description": "Custom spinner message while hook runs" },
+        "once": { "type": "boolean", "description": "Run only once per session then removed (skills only)" }
+      },
+      "required": ["type", "command"]
+    },
+    "httpHook": {
+      "type": "object",
+      "properties": {
+        "type": { "const": "http" },
+        "url": { "type": "string", "format": "uri", "description": "URL to POST the hook input JSON to" },
+        "headers": {
+          "type": "object",
+          "additionalProperties": { "type": "string" },
+          "description": "HTTP headers; values support $VAR_NAME interpolation from allowedEnvVars"
+        },
+        "allowedEnvVars": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Env var names that may be interpolated into header values"
+        },
+        "timeout": { "type": "number", "description": "Seconds before canceling (default: 600)" },
+        "statusMessage": { "type": "string" },
+        "once": { "type": "boolean" }
+      },
+      "required": ["type", "url"]
+    },
+    "promptHook": {
+      "type": "object",
+      "properties": {
+        "type": { "const": "prompt" },
+        "prompt": { "type": "string", "description": "Prompt text; $ARGUMENTS is replaced with hook input JSON" },
+        "model": { "type": "string", "description": "Model to use (default: fast model)" },
+        "timeout": { "type": "number", "description": "Seconds (default: 30)" },
+        "statusMessage": { "type": "string" },
+        "once": { "type": "boolean" }
+      },
+      "required": ["type", "prompt"]
+    },
+    "agentHook": {
+      "type": "object",
+      "properties": {
+        "type": { "const": "agent" },
+        "prompt": { "type": "string", "description": "Prompt for the subagent; $ARGUMENTS is replaced with hook input JSON" },
+        "model": { "type": "string", "description": "Model to use (default: fast model)" },
+        "timeout": { "type": "number", "description": "Seconds (default: 60)" },
+        "statusMessage": { "type": "string" },
+        "once": { "type": "boolean" }
+      },
+      "required": ["type", "prompt"]
+    },
+    "hookHandler": {
+      "oneOf": [
+        { "$ref": "#/definitions/commandHook" },
+        { "$ref": "#/definitions/httpHook" },
+        { "$ref": "#/definitions/promptHook" },
+        { "$ref": "#/definitions/agentHook" }
+      ]
+    },
+    "commandOnlyHandler": {
+      "$ref": "#/definitions/commandHook",
+      "description": "Only command hooks are supported for this event"
+    },
+    "allTypesHandler": {
+      "$ref": "#/definitions/hookHandler",
+      "description": "Supports command, http, prompt, and agent hook types"
+    },
+    "hookEntryWithMatcher": {
+      "type": "object",
+      "properties": {
+        "matcher": { "type": "string", "description": "Regex pattern to filter when hook fires" },
+        "hooks": { "type": "array", "items": { "$ref": "#/definitions/hookHandler" } }
+      },
+      "required": ["hooks"]
+    },
+    "hookEntryWithoutMatcher": {
+      "type": "object",
+      "properties": {
+        "hooks": { "type": "array", "items": { "$ref": "#/definitions/hookHandler" } }
+      },
+      "required": ["hooks"]
+    },
+    "commandOnlyEntryWithMatcher": {
+      "type": "object",
+      "properties": {
+        "matcher": { "type": "string" },
+        "hooks": { "type": "array", "items": { "$ref": "#/definitions/commandHook" } }
+      },
+      "required": ["hooks"]
+    },
+    "commandOnlyEntryWithoutMatcher": {
+      "type": "object",
+      "properties": {
+        "hooks": { "type": "array", "items": { "$ref": "#/definitions/commandHook" } }
+      },
+      "required": ["hooks"]
+    }
+  },
+  "properties": {
+    "hooks": {
+      "type": "object",
+      "properties": {
+        "SessionStart":       { "type": "array", "items": { "$ref": "#/definitions/commandOnlyEntryWithMatcher" }, "description": "Matchers: startup, resume, clear, compact" },
+        "UserPromptSubmit":   { "type": "array", "items": { "$ref": "#/definitions/hookEntryWithoutMatcher" }, "description": "No matcher support; all types" },
+        "PreToolUse":         { "type": "array", "items": { "$ref": "#/definitions/hookEntryWithMatcher" }, "description": "Matcher: tool name regex" },
+        "PermissionRequest":  { "type": "array", "items": { "$ref": "#/definitions/hookEntryWithMatcher" }, "description": "Matcher: tool name regex" },
+        "PostToolUse":        { "type": "array", "items": { "$ref": "#/definitions/hookEntryWithMatcher" }, "description": "Matcher: tool name regex" },
+        "PostToolUseFailure": { "type": "array", "items": { "$ref": "#/definitions/hookEntryWithMatcher" }, "description": "Matcher: tool name regex" },
+        "Notification":       { "type": "array", "items": { "$ref": "#/definitions/commandOnlyEntryWithMatcher" }, "description": "Matchers: permission_prompt, idle_prompt, auth_success, elicitation_dialog" },
+        "SubagentStart":      { "type": "array", "items": { "$ref": "#/definitions/commandOnlyEntryWithMatcher" }, "description": "Matcher: agent type name" },
+        "SubagentStop":       { "type": "array", "items": { "$ref": "#/definitions/hookEntryWithMatcher" }, "description": "Matcher: agent type name; all types" },
+        "Stop":               { "type": "array", "items": { "$ref": "#/definitions/hookEntryWithoutMatcher" }, "description": "No matcher; all types" },
+        "TeammateIdle":       { "type": "array", "items": { "$ref": "#/definitions/commandOnlyEntryWithoutMatcher" }, "description": "No matcher; command only; exit 2 to block" },
+        "TaskCompleted":      { "type": "array", "items": { "$ref": "#/definitions/hookEntryWithoutMatcher" }, "description": "No matcher; all types; exit 2 to block" },
+        "ConfigChange":       { "type": "array", "items": { "$ref": "#/definitions/commandOnlyEntryWithMatcher" }, "description": "Matchers: user_settings, project_settings, local_settings, policy_settings, skills" },
+        "WorktreeCreate":     { "type": "array", "items": { "$ref": "#/definitions/commandOnlyEntryWithoutMatcher" }, "description": "No matcher; command only; stdout = worktree path" },
+        "WorktreeRemove":     { "type": "array", "items": { "$ref": "#/definitions/commandOnlyEntryWithoutMatcher" }, "description": "No matcher; command only; no decision control" },
+        "PreCompact":         { "type": "array", "items": { "$ref": "#/definitions/commandOnlyEntryWithMatcher" }, "description": "Matchers: manual, auto" },
+        "SessionEnd":         { "type": "array", "items": { "$ref": "#/definitions/commandOnlyEntryWithMatcher" }, "description": "Matchers: clear, logout, prompt_input_exit, bypass_permissions_disabled, other" }
+      },
+      "additionalProperties": false
+    },
+    "disableAllHooks": {
+      "type": "boolean",
+      "description": "Temporarily disable all hooks without removing them"
+    }
+  }
+}

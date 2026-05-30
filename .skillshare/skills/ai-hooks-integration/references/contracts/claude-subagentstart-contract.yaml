@@ -1,0 +1,19 @@
+name: claude-subagentstart
+event: SubagentStart
+matcher: agent type (Bash, Explore, Plan, or custom agent names)
+hook_types: [command]
+can_block: false
+
+input:
+  session_id: string
+  transcript_path: string
+  cwd: string
+  permission_mode: string
+  hook_event_name: "SubagentStart"
+  agent_id: string
+  agent_type: string           # Bash, Explore, Plan, or custom
+
+output:
+  hookSpecificOutput:
+    hookEventName: "SubagentStart"
+    additionalContext: string?  # injected into subagent context
