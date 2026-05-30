@@ -175,9 +175,6 @@ jobs:
           echo ""
           echo "All symlinks intact"
 
-      - name: Validate parallel_agent.sh syntax
-        run: bash -n configs/claude/scripts/parallel_agent.sh
-
       - name: Validate all shell scripts syntax
         run: |
           echo "Validating shell script syntax with bash -n..."

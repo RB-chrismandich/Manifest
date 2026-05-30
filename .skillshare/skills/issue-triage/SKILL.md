@@ -38,7 +38,7 @@ This skill performs comprehensive issue triage by:
 1. **Linear MCP configured** in `~/.claude/config/mcp_servers.yml` OR
 2. **Linear API key** in `~/.config/linear/token`
 3. **Tools installed**: `jq`, `python3`
-4. **Scripts available**: `~/.claude/scripts/linear_ops.sh`, `~/.claude/scripts/parallel_agent.sh`
+4. **Scripts available**: `~/.claude/scripts/linear_ops.sh`, `~/.claude/scripts/parallel_agent.py`
 5. **Config loaded**: `~/.claude/config/linear_triage.yml`
 
 ## Workflow
@@ -277,7 +277,7 @@ jq -c '.[] | select(.needs_agent_review == true)' "$DUPLICATES_FILE" | while rea
         '.[] | select(.identifier == $id) | .description // ""' "$TEMP_DIR/issues_parsed.json")
 
     # Call parallel agents for consensus
-    consensus=$(~/.claude/scripts/parallel_agent.sh --json --timeout 300 \
+    consensus=$(~/.claude/scripts/parallel_agent.py --json --timeout 300 \
         --cursor-model mini --claude-model haiku \
         "Are these Linear issues duplicates?
 
@@ -424,7 +424,7 @@ validate_priorities() {
         current_priority=$(echo "$issue" | jq -r '.priority')
 
         # Call parallel agents for priority scoring
-        consensus=$(~/.claude/scripts/parallel_agent.sh --json --timeout 300 \
+        consensus=$(~/.claude/scripts/parallel_agent.py --json --timeout 300 \
             --cursor-model flash --claude-model sonnet \
             "Score this Linear issue for prioritization:
 

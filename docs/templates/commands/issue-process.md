@@ -126,7 +126,7 @@ Before planning or implementing anything, verify that the issue has been through
 5. Use the **Implementation Order** from the plan to produce the per-component task breakdown. Only run a cross-component impact analysis if the plan lacks an Implementation Order section:
 
    ```bash
-   ~/.claude/scripts/parallel_agent.sh --json --timeout 600 \
+   ~/.claude/scripts/parallel_agent.py --json --timeout 600 \
      --analyze "Analyze impact of: [ISSUE_SUMMARY]. Components: [AFFECTED_COMPONENTS]"
    ```
 
@@ -165,7 +165,7 @@ Once all tests pass:
 1. Run parallel agent validation on each modified file:
 
    ```bash
-   ~/.claude/scripts/parallel_agent.sh --json --validate --timeout 600 \
+   ~/.claude/scripts/parallel_agent.py --json --validate --timeout 600 \
      --review /absolute/path/to/modified_file
    ```
 

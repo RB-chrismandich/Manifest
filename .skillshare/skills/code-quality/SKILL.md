@@ -69,7 +69,7 @@ When triggered, this skill:
 2. **Invokes parallel agents** for cross-verification:
 
    ```bash
-   ~/.claude/scripts/parallel_agent.sh --json --validate --analyze <file>
+   ~/.claude/scripts/parallel_agent.py --json --validate --analyze <file>
    ```
 
 3. **Reports findings inline** without blocking user workflow

@@ -42,7 +42,7 @@ Do **not** invoke slash commands in this pipeline. Execute the equivalent workfl
    - Use traffic-light classes (`active`, `pending`, `error`, `external`) and keep Mermaid compatible:
      no class assignment on subgraphs, avoid unstable diagram types, avoid syntax-breaking labels.
    - If analyzing 5+ unique imports/modules, run:
-     `~/.claude/scripts/parallel_agent.sh --json --validate`
+     `~/.claude/scripts/parallel_agent.py --json --validate`
      and incorporate findings before finalizing.
 
 2. **Improve documentation**
@@ -57,7 +57,7 @@ Do **not** invoke slash commands in this pipeline. Execute the equivalent workfl
      code block language tags, broken links, and stale placeholders.
    - Compute/update a documentation health score summary.
    - If total documentation lines > 500, run:
-     `~/.claude/scripts/parallel_agent.sh --json --validate`
+     `~/.claude/scripts/parallel_agent.py --json --validate`
      and incorporate findings before finalizing.
 
 3. **Improve README**

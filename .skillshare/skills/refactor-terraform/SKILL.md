@@ -14,7 +14,7 @@ refactoring report with prioritized recommendations.
 ## Parallel Agent Integration
 
 This command ALWAYS uses parallel agents (security-critical).
-Executes: `~/.claude/scripts/parallel_agent.sh --json --full-output --validate --analyze`
+Executes: `~/.claude/scripts/parallel_agent.py --json --full-output --validate --analyze`
 
 ## Task
 

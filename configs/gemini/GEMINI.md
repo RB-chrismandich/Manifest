@@ -12,8 +12,8 @@ validation criteria.
 
 ## Parallel Agent Script
 
-**Location**: `~/.claude/scripts/parallel_agent.sh`
-(accessed via symlink at `~/.gemini/scripts/parallel_agent.sh`)
+**Location**: `~/.claude/scripts/parallel_agent.py`
+(accessed via symlink at `~/.gemini/scripts/parallel_agent.py`)
 
 ### Quick Usage
 
@@ -48,17 +48,17 @@ validation criteria.
 
 ```bash
 # Basic code review with JSON output (all 3 agents, 10 min timeout)
-~/.claude/scripts/parallel_agent.sh --json --timeout 600 --review /absolute/path/to/file
+~/.claude/scripts/parallel_agent.py --json --timeout 600 --review /absolute/path/to/file
 
 # Full analysis with validation and model selection (15 min timeout)
-~/.claude/scripts/parallel_agent.sh --json --full-output --validate --timeout 900 \
+~/.claude/scripts/parallel_agent.py --json --full-output --validate --timeout 900 \
   --cursor-model advanced --claude-model opus --analyze /absolute/path/to/file
 
 # Generic prompt to all agents
-~/.claude/scripts/parallel_agent.sh --json "Your question here"
+~/.claude/scripts/parallel_agent.py --json "Your question here"
 
 # Quick query with lightweight models
-~/.claude/scripts/parallel_agent.sh --cursor-model mini --claude-model haiku "Quick question"
+~/.claude/scripts/parallel_agent.py --cursor-model mini --claude-model haiku "Quick question"
 ```
 
 ### Options
@@ -272,7 +272,7 @@ Use agents for their strengths:
 
 ```bash
 # Get multi-agent review of proposed changes
-~/.claude/scripts/parallel_agent.sh --json --validate \
+~/.claude/scripts/parallel_agent.py --json --validate \
   "Review this planned change: [description]. Files affected: [list]"
 ```
 
@@ -280,14 +280,14 @@ Use agents for their strengths:
 
 ```bash
 # Validate the implementation (use absolute path, 10 min timeout)
-~/.claude/scripts/parallel_agent.sh --json --validate --timeout 600 --review /absolute/path/to/modified_file
+~/.claude/scripts/parallel_agent.py --json --validate --timeout 600 --review /absolute/path/to/modified_file
 ```
 
 ### For Complex Decisions
 
 ```bash
 # Get diverse perspectives
-~/.claude/scripts/parallel_agent.sh --json --full-output \
+~/.claude/scripts/parallel_agent.py --json --full-output \
   "Evaluate these approaches for [problem]: Option A: ... Option B: ..."
 ```
 
@@ -331,7 +331,7 @@ When modifying code, the orchestrating agent spawns subagents for analysis, synt
 +---------------------------------------------------------------+
 |  1. Receive code modification task                              |
 |  2. Pre-flight analysis                                         |
-|  3. If criteria met -> Bash: parallel_agent.sh --json --validate|
+|  3. If criteria met -> Bash: parallel_agent.py --json --validate|
 |  4. Parse JSON output from agents                               |
 |  5. If disagreement -> Synthesis                                |
 |  6. Validation against criteria                                 |
@@ -360,7 +360,7 @@ If pre-flight triggers review, execute:
 
 ```bash
 # Always use absolute paths and large timeout for file arguments
-~/.claude/scripts/parallel_agent.sh --json --full-output --validate --timeout 600 --review /absolute/path/to/file
+~/.claude/scripts/parallel_agent.py --json --full-output --validate --timeout 600 --review /absolute/path/to/file
 ```
 
 Parse the JSON output to extract:
@@ -419,7 +419,7 @@ Orchestrator:
   1. Pre-flight analysis
      -> Returns: {needs_parallel_review: true, reason: "Authentication logic", confidence: 0.95}
 
-  2. Executes: ~/.claude/scripts/parallel_agent.sh --json --validate --timeout 600 \
+  2. Executes: ~/.claude/scripts/parallel_agent.py --json --validate --timeout 600 \
        --cursor-model advanced --claude-model opus --review "$(pwd)/src/middleware/auth.js"
      -> Gemini: "Use JWT with refresh tokens, add rate limiting"
      -> Cursor: "Use JWT with session fallback, add CSRF protection"

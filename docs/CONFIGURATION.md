@@ -152,10 +152,10 @@ services:
 
 ```bash
 # Temporarily disable Claude for this run only
-~/.claude/scripts/parallel_agent.sh --no-claude "Task"
+~/.claude/scripts/parallel_agent.py --no-claude "Task"
 
 # Run only Cursor Agent
-~/.claude/scripts/parallel_agent.sh --cursor-only "Task"
+~/.claude/scripts/parallel_agent.py --cursor-only "Task"
 ```
 
 ### Service Validation
@@ -528,7 +528,7 @@ cp templates/validation-overrides/django-security.yml \
 vim configs/claude/config/validation_overrides.yml
 
 # 3. Test validation
-~/.claude/scripts/parallel_agent.sh --validate --review path/to/file.py
+~/.claude/scripts/parallel_agent.py --validate --review path/to/file.py
 
 # 4. Adjust thresholds or exemptions as needed
 ```
@@ -657,13 +657,13 @@ Overall: NEEDS_REVIEW (tier1 pass, tier2: 0.55)
 
 ```bash
 # Use advanced models for security-critical code
-~/.claude/scripts/parallel_agent.sh \
+~/.claude/scripts/parallel_agent.py \
   --cursor-model advanced \
   --claude-model opus \
   --review auth.py
 
 # Use lightweight models for quick questions
-~/.claude/scripts/parallel_agent.sh \
+~/.claude/scripts/parallel_agent.py \
   --cursor-model mini \
   --claude-model haiku \
   "What is this function doing?"
@@ -676,7 +676,7 @@ export CURSOR_MODEL_ADVANCED="gpt-5.2"
 export CURSOR_MODEL_FLASH="gpt-5.1-codex"
 export CURSOR_MODEL_MINI="gpt-5.1-codex-mini"
 
-~/.claude/scripts/parallel_agent.sh --cursor-model advanced "Task"
+~/.claude/scripts/parallel_agent.py --cursor-model advanced "Task"
 ```
 
 **Via command_config.yml** (see task_model_defaults above)
@@ -784,13 +784,13 @@ Configuration values are resolved in this order (highest to lowest priority):
    - `~/.claude/config/command_config.yml`
 
 4. **Hardcoded Defaults** (lowest priority)
-   - Built into `parallel_agent.sh`
+   - Built into `parallel_agent.py`
 
 **Example Resolution:**
 
 ```bash
 # Command
-~/.claude/scripts/parallel_agent.sh --cursor-model flash --timeout 300 "Task"
+~/.claude/scripts/parallel_agent.py --cursor-model flash --timeout 300 "Task"
 
 # services.yml says cursor disabled, but --cursor-model enables it
 # command_config.yml says timeout=600, but --timeout overrides to 300
@@ -804,7 +804,7 @@ Configuration values are resolved in this order (highest to lowest priority):
 ### Example 1: Lightweight Security Scan
 
 ```bash
-~/.claude/scripts/parallel_agent.sh \
+~/.claude/scripts/parallel_agent.py \
   --cursor-model mini \
   --claude-model haiku \
   --timeout 120 \
@@ -820,7 +820,7 @@ Configuration values are resolved in this order (highest to lowest priority):
 ### Example 2: Deep Security Analysis
 
 ```bash
-~/.claude/scripts/parallel_agent.sh \
+~/.claude/scripts/parallel_agent.py \
   --cursor-model advanced \
   --claude-model opus \
   --gemini-model pro \
@@ -840,7 +840,7 @@ Configuration values are resolved in this order (highest to lowest priority):
 ### Example 3: Single Agent with Custom Output
 
 ```bash
-~/.claude/scripts/parallel_agent.sh \
+~/.claude/scripts/parallel_agent.py \
   --claude-only \
   --claude-model sonnet \
   --json \

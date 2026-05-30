@@ -67,7 +67,7 @@ mv ~/.claude/settings.json.new ~/.claude/settings.json
 | Pre-commit | pre-commit run --all-files | Low - Local checks |
 | Docker | ps, images, logs, stats | Low - Inspection |
 | AWS | Read-only describe/list operations | Low - No modifications |
-| Parallel Agents | ~/.claude/scripts/parallel_agent.sh | Low - Analysis |
+| Parallel Agents | ~/.claude/scripts/parallel_agent.py | Low - Analysis |
 
 **Excluded** (requires prompt):
 
@@ -306,7 +306,7 @@ These templates integrate with Manifest's core features:
 
 ```bash
 # Use in orchestration prompts
-~/.claude/scripts/parallel_agent.sh --json --timeout 600 \
+~/.claude/scripts/parallel_agent.py --json --timeout 600 \
   --analyze "Check cross-service impact of migration"
 ```
 
@@ -314,7 +314,7 @@ These templates integrate with Manifest's core features:
 
 ```bash
 # Validate with custom overrides
-~/.claude/scripts/parallel_agent.sh --json --validate \
+~/.claude/scripts/parallel_agent.py --json --validate \
   --review /absolute/path/to/file
 ```
 
@@ -327,7 +327,7 @@ Use in custom commands:
 
 Run validation with overrides:
 ```bash
-~/.claude/scripts/parallel_agent.sh --validate --review $CHANGED_FILE
+~/.claude/scripts/parallel_agent.py --validate --review $CHANGED_FILE
 ```
 
 ```text

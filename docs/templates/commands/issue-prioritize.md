@@ -203,7 +203,7 @@ Report the prioritized list to the user. Do not begin implementing any issues.
 For complex scoring decisions, use parallel agents:
 
 ```bash
-~/.claude/scripts/parallel_agent.sh --json --timeout 300 \
+~/.claude/scripts/parallel_agent.py --json --timeout 300 \
   "Score this issue for a [project phase] project: [issue summary].
    Rate Impact (1-5), Urgency (1-5), Readiness (1-5), Risk (1-5)."
 ```

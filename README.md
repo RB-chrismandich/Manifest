@@ -29,11 +29,8 @@ cd Manifest
 # Optional: configure MCP servers (interactive per-server selection)
 ./bootstrap.sh --install-mcp
 
-# Verify installation (Bash version)
-~/.claude/scripts/parallel_agent.sh --json "Test connection"
-
-# Or use Python version (Phase 3, recommended)
-python3 ~/.claude/scripts/parallel_agent.py --json "Test connection"
+# Verify installation
+~/.claude/scripts/parallel_agent.py --json "Test connection"
 ```
 
 ⏱️ **Time to setup**: ~5 minutes | 💻 **Platforms**: macOS (Intel/Apple Silicon), Linux (Debian, RHEL, Arch, openSUSE)
@@ -63,7 +60,7 @@ python3 ~/.claude/scripts/parallel_agent.py --json "Test connection"
 ## Architecture
 
 ```text
-User → Claude Code → /command → parallel_agent.sh / parallel_agent.py
+User → Claude Code → /command → parallel_agent.py
                                       ↓
                     ┌────────────┬────┼────┬────────────┐
                     ↓            ↓         ↓            ↓
@@ -161,7 +158,6 @@ Manifest/
 │   │   │   ├── validation_criteria.yml # Tier 1/2 validation rules
 │   │   │   └── labels.yml           # Canonical label registry
 │   │   ├── scripts/                 # Orchestration scripts
-│   │   │   ├── parallel_agent.sh    # Core orchestration engine (Bash)
 │   │   │   ├── parallel_agent.py    # Core orchestration engine (Python)
 │   │   │   ├── git_platform.sh      # Git platform detection
 │   │   │   ├── git_ops.sh           # Platform-agnostic Git operations
@@ -221,13 +217,13 @@ Manifest/
 
 ```bash
 # Use advanced models for security analysis
-~/.claude/scripts/parallel_agent.sh \
+~/.claude/scripts/parallel_agent.py \
   --cursor-model advanced \
   --claude-model opus \
   --review auth.py
 
 # Use lightweight models for quick queries
-~/.claude/scripts/parallel_agent.sh \
+~/.claude/scripts/parallel_agent.py \
   --cursor-model mini \
   --claude-model haiku \
   "Quick question"
@@ -259,7 +255,7 @@ which claude gemini cursor codex
 **Codex fails with session permission errors:**
 
 ```bash
-# Symptom from parallel_agent.sh/check_status.sh:
+# Symptom from parallel_agent.py/check_status.sh:
 # "Codex session storage not writable: ~/.manifest/codex/sessions"
 
 # Preferred fix (restore ownership/permissions)
@@ -273,7 +269,7 @@ mkdir -p ~/.manifest/custom-codex-state
 export CODEX_HOME="$HOME/.manifest/custom-codex-state"
 
 # Then run orchestration as normal
-~/.claude/scripts/parallel_agent.sh --codex-only --codex-model advanced "Quick test"
+~/.claude/scripts/parallel_agent.py --codex-only --codex-model advanced "Quick test"
 ```
 
 **See**: [Troubleshooting Guide](docs/TROUBLESHOOTING.md) for 15+ common issues with solutions

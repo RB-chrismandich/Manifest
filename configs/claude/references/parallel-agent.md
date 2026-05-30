@@ -1,7 +1,7 @@
 # Parallel Agent Reference
 
 > Full flags, model tiers, credit fallback, JSON schema, env vars, and output
-> location for `~/.claude/scripts/parallel_agent.sh`. Referenced from CLAUDE.md.
+> location for `~/.claude/scripts/parallel_agent.py`. Referenced from CLAUDE.md.
 
 ## Options
 

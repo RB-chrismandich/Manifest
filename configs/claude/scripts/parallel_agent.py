@@ -2,7 +2,7 @@
 """
 Parallel Agent Orchestrator (Python Implementation)
 
-This is a Python rewrite of parallel_agent.sh with improved async handling,
+This is the parallel agent orchestrator with async handling,
 rate limiting, and API client integration.
 
 Usage:

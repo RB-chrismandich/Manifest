@@ -253,7 +253,7 @@ verify_installation() {
 
     local required_files=(
         "$TARGET_DIR/CLAUDE.md"
-        "$TARGET_DIR/scripts/parallel_agent.sh"
+        "$TARGET_DIR/scripts/parallel_agent.py"
         "$TARGET_DIR/scripts/git_platform.sh"
         "$TARGET_DIR/scripts/git_ops.sh"
         "$TARGET_DIR/config/command_config.yml"
@@ -538,11 +538,11 @@ print_summary() {
     echo "  Add an alias to run 'manifest' from anywhere (optional):"
     echo ""
     if [[ "$SHELL" == *"zsh"* ]]; then
-        echo -e "  ${CYAN}echo 'alias manifest=\"~/.claude/scripts/parallel_agent.sh\"' >> ~/.zshrc && source ~/.zshrc${NC}"
+        echo -e "  ${CYAN}echo 'alias manifest=\"~/.claude/scripts/parallel_agent.py\"' >> ~/.zshrc && source ~/.zshrc${NC}"
     elif [[ "$SHELL" == *"bash"* ]]; then
-        echo -e "  ${CYAN}echo 'alias manifest=\"~/.claude/scripts/parallel_agent.sh\"' >> ~/.bashrc && source ~/.bashrc${NC}"
+        echo -e "  ${CYAN}echo 'alias manifest=\"~/.claude/scripts/parallel_agent.py\"' >> ~/.bashrc && source ~/.bashrc${NC}"
     else
-        echo -e "  ${CYAN}alias manifest=\"~/.claude/scripts/parallel_agent.sh\"${NC}"
+        echo -e "  ${CYAN}alias manifest=\"~/.claude/scripts/parallel_agent.py\"${NC}"
         echo "  (Add to your shell profile)"
     fi
     if [[ -n "${SHELL_PROFILE_FILE:-}" ]]; then
@@ -555,10 +555,10 @@ print_summary() {
     echo -e "${BOLD}Quick Start:${NC}"
     echo ""
     echo "  # Test parallel agents (uses enabled services only)"
-    echo "  ~/.claude/scripts/parallel_agent.sh --json 'Hello from all agents'"
+    echo "  ~/.claude/scripts/parallel_agent.py --json 'Hello from all agents'"
     echo ""
     echo "  # Code review with enabled agents"
-    echo "  ~/.claude/scripts/parallel_agent.sh --json --review /path/to/file.py"
+    echo "  ~/.claude/scripts/parallel_agent.py --json --review /path/to/file.py"
     echo ""
     echo "  # Use Claude Code commands"
     echo "  claude  # Start Claude Code CLI"

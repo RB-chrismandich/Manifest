@@ -57,7 +57,8 @@ bats tests/bats/
 bats tests/bats/git_platform.bats
 bats tests/bats/git_ops.bats
 bats tests/bats/linear_ops.bats
-bats tests/bats/parallel_agent.bats
+bats tests/bats/label_sync.bats
+bats tests/bats/deploy_skills.bats
 
 # Run with verbose output
 bats --verbose-run tests/bats/
@@ -77,7 +78,8 @@ tests/
 │   ├── git_platform.bats       # Tests for git_platform.sh
 │   ├── git_ops.bats            # Tests for git_ops.sh
 │   ├── linear_ops.bats         # Tests for linear_ops.sh
-│   └── parallel_agent.bats     # Tests for parallel_agent.sh
+│   ├── label_sync.bats         # Tests for label_sync.sh
+│   └── deploy_skills.bats      # Tests for bootstrap skills deploy
 ├── python/                     # Python test files (future)
 │   └── .gitkeep
 └── fixtures/                   # Shared test fixtures (future)

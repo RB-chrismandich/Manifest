@@ -170,7 +170,7 @@ Report: executable or not executable.
 | Symlinks | .cursor/scripts | pass | Intact |
 | Symlinks | .gemini/config | fail | Broken |
 | Labels | labels.yml | pass | 5 labels validated |
-| Scripts | parallel_agent.sh | pass | Executable |
+| Scripts | parallel_agent.py | pass | Executable |
 
 ### Summary
 
