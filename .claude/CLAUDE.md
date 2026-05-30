@@ -31,6 +31,26 @@ tests/                    # Bats + pytest test suites
 docs/                     # Project documentation
 ```
 
+## Skill Management (skillshare)
+
+Skills physically live in `.skillshare/skills/` (the source of truth, managed by
+`skillshare`). `configs/claude/skills` is a backward-compat **symlink** to it —
+do not replace it with a real directory.
+
+- **Home deploy** (`~/.claude/skills` + Cursor/Gemini/Codex/Antigravity symlinks)
+  is owned by `bootstrap.sh` (`deploy_home_skills` copies the physical
+  `.skillshare/skills/` → `~/.claude/skills`). skillshare cannot expand `~`, so
+  it is NOT the home deployer.
+- **skillshare** owns the project-scoped Copilot target (`.github/skills`) and the
+  supply-chain lifecycle: `skillshare install <repo>`, `audit`, `check`, `update`.
+- `.skillshare/config.yaml` is **committed** (central infra) — edit it only when
+  intentionally changing the shared setup, to avoid per-clone drift. skillshare
+  may re-add ignore entries on `install`/`upgrade`; re-check `.skillshare/.gitignore`
+  so committed skills (e.g. `ai-hooks-integration`) stay tracked.
+- Automation must read the physical `.skillshare/skills/`; shell globs are
+  symlink-safe, but `find`/`os.walk` over `configs/claude/skills` need
+  `-L`/`followlinks`.
+
 ## Common Tasks
 
 ### Deploy to your home directory

@@ -1,0 +1,14 @@
+---
+description: "Integrate lifecycle hooks across AI coding tools (Claude Code, Gemini CLI, Cursor, OpenCode) and any CLI. Use when: (1) installing/removing hooks, (2) creating OpenCode plugins, (3) setting up auto-formatting, testing, notifications, security policies, (4) wrapping CLI tools without hooks API. Triggers on: "add hook", "install hook", "hook integration", "PreToolUse", "PostToolUse", "PermissionRequest", "PostToolUseFailure", "SubagentStart", "SubagentStop", "TeammateIdle", "TaskCompleted", "ConfigChange", "WorktreeCreate", "WorktreeRemove", "PreCompact", "beforeShellExecution", "auto-format", "notify on complete", "wrap CLI", "intercept command", "HTTP hook", "prompt hook", "agent hook", "async hook"."
+globs: ".claude/skills/ai-hooks-integration/**"
+alwaysApply: false
+---
+
+# ai-hooks-integration
+
+Integrate lifecycle hooks across AI coding tools (Claude Code, Gemini CLI, Cursor, OpenCode) and any CLI. Use when: (1) installing/removing hooks, (2) creating OpenCode plugins, (3) setting up auto-formatting, testing, notifications, security policies, (4) wrapping CLI tools without hooks API. Triggers on: "add hook", "install hook", "hook integration", "PreToolUse", "PostToolUse", "PermissionRequest", "PostToolUseFailure", "SubagentStart", "SubagentStop", "TeammateIdle", "TaskCompleted", "ConfigChange", "WorktreeCreate", "WorktreeRemove", "PreCompact", "beforeShellExecution", "auto-format", "notify on complete", "wrap CLI", "intercept command", "HTTP hook", "prompt hook", "agent hook", "async hook".
+
+<!-- Auto-generated from .claude/skills/ai-hooks-integration/SKILL.md -->
+<!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
+
+Refer to `.cursor/skills/ai-hooks-integration/SKILL.md` for the full skill definition.

@@ -1,0 +1,11 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/runkids/skillshare/main/schemas/project-config.schema.json
+targets:
+  - name: copilot
+    skills:
+      path: .github/skills
+      mode: copy
+skills:
+  - name: ai-hooks-integration
+    source: github.com/runkids/ai-hooks-integration/skills/ai-hooks-integration
+audit:
+  block_threshold: CRITICAL

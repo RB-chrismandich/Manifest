@@ -1,0 +1,26 @@
+name: claude-subagentstop
+event: SubagentStop
+matcher: agent type (same as SubagentStart)
+hook_types: [command, http, prompt, agent]
+can_block: true
+
+input:
+  session_id: string
+  transcript_path: string
+  cwd: string
+  permission_mode: string
+  hook_event_name: "SubagentStop"
+  stop_hook_active: boolean
+  agent_id: string
+  agent_type: string
+  agent_transcript_path: string   # subagent's own transcript
+  last_assistant_message: string  # subagent's final response
+
+output:
+  # Same as Stop:
+  decision: "block"?
+  reason: string?
+
+notes:
+  - transcript_path is main session; agent_transcript_path is subagent's
+  - Uses same decision format as Stop hooks

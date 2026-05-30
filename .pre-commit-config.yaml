@@ -47,7 +47,7 @@ repos:
     rev: v0.39.0
     hooks:
       - id: markdownlint
-        args: ['--fix']
+        args: ['--fix', '--config', '.markdownlint.jsonc']
         exclude: ^(\.Jules/|docs/templates/|docs/SHELL_ANALYSIS_REPORT\.md|docs/VALIDATION_REPORT\.md)
 
   # YAML linting

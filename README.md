@@ -152,7 +152,7 @@ Manifest/
 ├── configs/                         # Deployment source configs (deployed to ~/ via bootstrap)
 │   ├── claude/                      # → ~/.claude/ (primary configuration)
 │   │   ├── CLAUDE.md                # Orchestration guide
-│   │   ├── skills/                  # Canonical shared skill library + slash commands (source of truth)
+│   │   ├── skills/                  # → ../../.skillshare/skills (symlink; source of truth)
 │   │   ├── prompts/                 # Agent orchestration templates
 │   │   ├── config/                  # YAML configuration files
 │   │   │   ├── services.yml         # Agent enable/disable states

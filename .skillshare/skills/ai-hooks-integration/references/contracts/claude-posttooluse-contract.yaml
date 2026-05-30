@@ -1,0 +1,29 @@
+name: claude-posttooluse
+event: PostToolUse
+matcher: tool name regex
+hook_types: [command, http, prompt, agent]
+can_block: false  # tool already ran; feedback only
+
+input:
+  session_id: string
+  transcript_path: string
+  cwd: string
+  permission_mode: string
+  hook_event_name: "PostToolUse"
+  tool_name: string
+  tool_input: object
+  tool_response: object
+  tool_use_id: string
+
+output:
+  decision: "block"?           # prompts Claude with reason
+  reason: string?              # shown to Claude when decision=block
+  hookSpecificOutput:
+    hookEventName: "PostToolUse"
+    additionalContext: string?
+    updatedMCPToolOutput: any?  # MCP tools only: replaces tool output
+
+notes:
+  - Tool has already executed; cannot prevent it
+  - decision "block" sends feedback to Claude, not actually blocking
+  - updatedMCPToolOutput only works for MCP server tools
