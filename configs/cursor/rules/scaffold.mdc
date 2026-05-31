@@ -12,3 +12,4 @@ Initialize new projects with language-specific quality gates, linting configs, t
 <!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
 
 Refer to `.cursor/skills/scaffold/SKILL.md` for the full skill definition.
+

@@ -12,3 +12,4 @@ Manage plan lifecycle in .claude/.plans with create, review, execute, archive, a
 <!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
 
 Refer to `.cursor/skills/plan-manage/SKILL.md` for the full skill definition.
+

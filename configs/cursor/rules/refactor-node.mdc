@@ -12,3 +12,4 @@ Perform security, architecture, and quality analysis for Node.js/TypeScript code
 <!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
 
 Refer to `.cursor/skills/refactor-node/SKILL.md` for the full skill definition.
+
