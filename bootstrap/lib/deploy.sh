@@ -54,6 +54,7 @@ deploy_configs() {
                     deploy_codex_configs
                     deploy_antigravity_configs
                     sync_skillshare_targets
+                    deploy_sync_skills
                     return 0
                     ;;
                 3 | *)
@@ -110,6 +111,9 @@ deploy_configs() {
 
     # Project-scoped Copilot sync (non-blocking)
     sync_skillshare_targets
+
+    # Deploy sync-skills CLI
+    deploy_sync_skills
 
     # List deployed files
     echo ""
@@ -240,6 +244,29 @@ sync_skillshare_targets() {
     else
         print_warning "skillshare sync failed (non-fatal) — home deploy unaffected"
     fi
+}
+
+# Deploy sync-skills CLI to ~/.local/bin/ and ensure it is on PATH.
+# Depends on SHELL_PROFILE_FILE being set by configure_shell_profile_state.
+deploy_sync_skills() {
+    print_step "Deploying sync-skills CLI..."
+    mkdir -p "$HOME/.local/bin"
+    cp "$SCRIPT_DIR/configs/claude/scripts/sync-skills.sh" "$HOME/.local/bin/sync-skills"
+    chmod +x "$HOME/.local/bin/sync-skills"
+
+    if ! grep -Eq '\.local/bin' "$SHELL_PROFILE_FILE" 2>/dev/null; then
+        {
+            echo ""
+            echo "# User-installed tools (managed by bootstrap.sh)"
+            echo 'export PATH="$HOME/.local/bin:$PATH"'
+        } >> "$SHELL_PROFILE_FILE"
+    fi
+
+    # Update PATH for the current bootstrap session (PATH Catch-22: profile not
+    # sourced until next terminal open, but the user may run sync-skills right away).
+    export PATH="$HOME/.local/bin:$PATH"
+
+    print_success "Deployed sync-skills to $HOME/.local/bin/sync-skills"
 }
 
 # Verify installation

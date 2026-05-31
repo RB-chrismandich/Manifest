@@ -1958,12 +1958,21 @@ async def main():
     command = None
 
     if args.review:
+        if not Path(args.review).exists():
+            print(f"Error: file not found: {args.review}", file=sys.stderr)
+            sys.exit(1)
         mode = "review"
         prompt = f"Review this file for code quality, security, and best practices: {args.review}"
     elif args.analyze:
+        if not Path(args.analyze).exists():
+            print(f"Error: file not found: {args.analyze}", file=sys.stderr)
+            sys.exit(1)
         mode = "analyze"
         prompt = f"Analyze this file for bugs and security issues: {args.analyze}"
     elif args.improve:
+        if not Path(args.improve).exists():
+            print(f"Error: file not found: {args.improve}", file=sys.stderr)
+            sys.exit(1)
         mode = "improve"
         prompt = f"Review and improve this observation YAML: {args.improve}"
     elif args.prompt:
