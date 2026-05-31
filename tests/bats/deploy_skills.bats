@@ -152,3 +152,51 @@ STUB
     assert_success
     assert_output --partial "skipping"
 }
+
+# ── configure_shell_profile_state — MANIFEST_ROOT ───────────────────────────
+
+@test "configure_shell_profile_state writes MANIFEST_ROOT to shell profile" {
+    local fake_home="$SANDBOX/home"
+    mkdir -p "$fake_home"
+    export HOME="$fake_home"
+    export SHELL="/bin/bash"
+    export PLATFORM="linux"
+    export SCRIPT_DIR="/fake/manifest/path"
+
+    print_step()    { :; }
+    print_success() { :; }
+    print_info()    { :; }
+    print_warning() { :; }
+    print_error()   { :; }
+
+    # shellcheck disable=SC1090
+    source "$REPO_ROOT/bootstrap/lib/auth.sh"
+    configure_shell_profile_state
+
+    grep -q 'export MANIFEST_ROOT=' "$fake_home/.bashrc"
+    grep -q '/fake/manifest/path' "$fake_home/.bashrc"
+}
+
+@test "configure_shell_profile_state updates MANIFEST_ROOT on re-run with no duplicate lines" {
+    local fake_home="$SANDBOX/home"
+    mkdir -p "$fake_home"
+    echo 'export MANIFEST_ROOT="/old/path"' > "$fake_home/.bashrc"
+    export HOME="$fake_home"
+    export SHELL="/bin/bash"
+    export PLATFORM="linux"
+    export SCRIPT_DIR="/new/path"
+
+    print_step()    { :; }
+    print_success() { :; }
+    print_info()    { :; }
+    print_warning() { :; }
+    print_error()   { :; }
+
+    # shellcheck disable=SC1090
+    source "$REPO_ROOT/bootstrap/lib/auth.sh"
+    configure_shell_profile_state
+
+    run grep -c 'export MANIFEST_ROOT=' "$fake_home/.bashrc"
+    assert_output "1"
+    grep -q '/new/path' "$fake_home/.bashrc"
+}

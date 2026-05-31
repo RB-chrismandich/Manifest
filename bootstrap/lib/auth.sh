@@ -252,6 +252,19 @@ configure_shell_profile_state() {
         } >> "$profile_file"
         print_success "Added MANIFEST_STATE_ROOT export to $profile_file"
     fi
+
+    # Write MANIFEST_ROOT — always update in case bootstrap is re-run from a new path.
+    # Cross-platform safe: avoids sed -i BSD/GNU incompatibility on macOS.
+    if [[ -f "$profile_file" ]]; then
+        grep -v 'export MANIFEST_ROOT=' "$profile_file" > "${profile_file}.tmp" || true
+        mv "${profile_file}.tmp" "$profile_file"
+    fi
+    {
+        echo ""
+        echo "# Manifest repository root (managed by bootstrap.sh)"
+        echo "export MANIFEST_ROOT=\"$SCRIPT_DIR\""
+    } >> "$profile_file"
+    print_success "Updated MANIFEST_ROOT in $profile_file"
 }
 
 # Prepare shared runtime state directories under ~/.manifest
