@@ -57,7 +57,8 @@ teardown() {
 }
 
 @test "runs rsync to ~/.claude/skills/ when skillshare is absent" {
-    # Use minimal PATH that excludes system skillshare
+    # Use restricted PATH that excludes Homebrew (/usr/local/bin, /opt/homebrew/bin)
+    # to ensure skillshare is not found and the "not installed" path is tested
     PATH="$MOCK_BIN:/usr/bin:/bin" run bash "$SCRIPT"
     assert_success
     assert_output --partial "skillshare not installed"
