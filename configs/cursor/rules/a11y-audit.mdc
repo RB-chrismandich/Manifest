@@ -12,3 +12,4 @@ Focused accessibility audit against WCAG 2.2 AA standards. Checks ARIA best prac
 <!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
 
 Refer to `.cursor/skills/a11y-audit/SKILL.md` for the full skill definition.
+

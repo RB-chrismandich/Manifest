@@ -12,3 +12,4 @@ Create, update, and manage browser-use YAML test prompts for E2E browser testing
 <!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
 
 Refer to `.cursor/skills/browser-test/SKILL.md` for the full skill definition.
+

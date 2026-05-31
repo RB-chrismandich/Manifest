@@ -12,3 +12,4 @@ Configure CI/CD pipelines for a target repository based on detected languages, p
 <!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
 
 Refer to `.cursor/skills/ci-setup/SKILL.md` for the full skill definition.
+

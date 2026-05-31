@@ -12,3 +12,4 @@ Auto-trigger when detecting security-sensitive code (auth, crypto, secrets, inpu
 <!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
 
 Refer to `.cursor/skills/code-quality/SKILL.md` for the full skill definition.
+

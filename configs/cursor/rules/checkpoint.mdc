@@ -12,3 +12,4 @@ Create a compact checkpoint summary of the current session so work can continue 
 <!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
 
 Refer to `.cursor/skills/checkpoint/SKILL.md` for the full skill definition.
+

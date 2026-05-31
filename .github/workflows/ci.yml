@@ -225,3 +225,14 @@ jobs:
           fi
 
           echo "Structure validation passed: $SKILL_COUNT skills, $SCRIPT_COUNT scripts"
+
+      - name: Verify Cursor rules are up-to-date with skills
+        run: |
+          bash configs/claude/scripts/generate_cursor_rules.sh
+          if ! git diff --exit-code configs/cursor/rules/; then
+            echo ""
+            echo "FAIL: Cursor rules are out of sync with skills."
+            echo "Run 'configs/claude/scripts/generate_cursor_rules.sh' and commit the result."
+            exit 1
+          fi
+          echo "Cursor rules are up-to-date"

@@ -1,6 +1,15 @@
 #!/bin/bash
-# System Health Check for Parallel Agent Orchestration
+# Parallel Agent Orchestration Readiness Check
 # Usage: ./check_status.sh [--verbose]
+#
+# Scope: services.yml enabled agents, CLI availability, auth, Codex session
+#        storage, and Manifest state directories.  Reports whether the system
+#        has enough agents ready for parallel orchestration.
+#
+# Also invoked by: parallel_agent.py --status
+#
+# For full environment audit (MCP, symlinks, config syntax, labels):
+#   use the /health-check skill in Claude Code.
 
 # Colors
 GREEN='\033[0;32m'

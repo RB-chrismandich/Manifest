@@ -12,3 +12,4 @@ Visualize agent efficiency metrics: task completion rates, common error patterns
 <!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
 
 Refer to `.cursor/skills/dashboard/SKILL.md` for the full skill definition.
+

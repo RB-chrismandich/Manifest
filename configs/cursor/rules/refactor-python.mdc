@@ -12,3 +12,4 @@ Perform security, architecture, and quality analysis for Python codebases and re
 <!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
 
 Refer to `.cursor/skills/refactor-python/SKILL.md` for the full skill definition.
+

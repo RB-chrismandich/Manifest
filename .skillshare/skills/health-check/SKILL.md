@@ -10,6 +10,11 @@ description: |
 Run a comprehensive diagnostic of the Manifest agent environment to detect
 misconfiguration, missing tools, broken symlinks, or authentication issues.
 
+> **Scope note:** This skill covers config syntax, MCP connectivity, symlinks,
+> labels, and script executability. For a quick terminal check of parallel
+> orchestration readiness (enabled agents, state directories), run:
+> `~/.claude/scripts/check_status.sh` (also available as `parallel_agent.py --status`).
+
 ## Checks
 
 Execute each check category below. Collect results into a summary table.
