@@ -85,6 +85,7 @@ teardown() {
     deploy_codex_configs() { :; }
     deploy_antigravity_configs() { :; }
     sync_skillshare_targets() { :; }
+    deploy_sync_skills() { :; }
 
     run deploy_configs
     assert_success
@@ -198,4 +199,74 @@ STUB
     run grep -c 'export MANIFEST_ROOT=' "$fake_home/.bashrc"
     assert_output "1"
     grep -q '/new/path' "$fake_home/.bashrc"
+}
+
+# ── deploy_sync_skills ───────────────────────────────────────────────────────
+
+@test "deploy_sync_skills copies script to ~/.local/bin/sync-skills and makes it executable" {
+    local fake_home="$SANDBOX/home"
+    export HOME="$fake_home"
+    mkdir -p "$fake_home"
+    local fake_profile="$SANDBOX/profile"
+    touch "$fake_profile"
+    export SHELL_PROFILE_FILE="$fake_profile"
+    export SCRIPT_DIR="$REPO_ROOT"
+
+    print_step()    { :; }
+    print_success() { :; }
+    print_info()    { :; }
+
+    # shellcheck disable=SC1090
+    source "$REPO_ROOT/bootstrap/lib/deploy.sh"
+
+    run deploy_sync_skills
+    assert_success
+
+    [ -f "$fake_home/.local/bin/sync-skills" ]
+    [ -x "$fake_home/.local/bin/sync-skills" ]
+}
+
+@test "deploy_sync_skills adds ~/.local/bin to PATH in shell profile" {
+    local fake_home="$SANDBOX/home"
+    export HOME="$fake_home"
+    mkdir -p "$fake_home"
+    local fake_profile="$SANDBOX/profile"
+    touch "$fake_profile"
+    export SHELL_PROFILE_FILE="$fake_profile"
+    export SCRIPT_DIR="$REPO_ROOT"
+
+    print_step()    { :; }
+    print_success() { :; }
+    print_info()    { :; }
+
+    # shellcheck disable=SC1090
+    source "$REPO_ROOT/bootstrap/lib/deploy.sh"
+
+    run deploy_sync_skills
+    assert_success
+
+    grep -q ".local/bin" "$fake_profile"
+}
+
+@test "deploy_sync_skills PATH entry is idempotent on re-run" {
+    local fake_home="$SANDBOX/home"
+    export HOME="$fake_home"
+    mkdir -p "$fake_home"
+    local fake_profile="$SANDBOX/profile"
+    touch "$fake_profile"
+    export SHELL_PROFILE_FILE="$fake_profile"
+    export SCRIPT_DIR="$REPO_ROOT"
+
+    print_step()    { :; }
+    print_success() { :; }
+    print_info()    { :; }
+
+    # shellcheck disable=SC1090
+    source "$REPO_ROOT/bootstrap/lib/deploy.sh"
+
+    deploy_sync_skills
+    deploy_sync_skills  # second run — must not duplicate the PATH line
+
+    run grep -c ".local/bin" "$fake_profile"
+    assert_output "1"
 }
