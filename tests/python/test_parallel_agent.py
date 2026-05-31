@@ -698,3 +698,52 @@ class TestDefaultConfigCodex:
         fallback = config.get("credit_fallback.codex")
         assert fallback is not None
         assert fallback == ["advanced", "flash", "mini"]
+
+
+# ---------------------------------------------------------------------------
+# File existence validation tests (--review / --analyze / --improve)
+# ---------------------------------------------------------------------------
+
+
+class TestFileExistenceValidation:
+    """Test that --review, --analyze, and --improve fail fast on missing files."""
+
+    SCRIPT = str(REPO_ROOT / "configs" / "claude" / "scripts" / "parallel_agent.py")
+
+    def _run(self, flag: str, path: str):
+        import subprocess
+        return subprocess.run(
+            [sys.executable, self.SCRIPT, flag, path],
+            capture_output=True,
+            text=True,
+        )
+
+    def test_review_nonexistent_file_exits_nonzero(self, tmp_path):
+        """--review with a missing file must exit 1 before contacting any agent."""
+        result = self._run("--review", str(tmp_path / "missing.py"))
+        assert result.returncode == 1
+
+    def test_review_nonexistent_file_prints_error(self, tmp_path):
+        """--review with a missing file must print an error message to stderr."""
+        result = self._run("--review", str(tmp_path / "missing.py"))
+        assert "file not found" in result.stderr.lower() or "error" in result.stderr.lower()
+
+    def test_analyze_nonexistent_file_exits_nonzero(self, tmp_path):
+        """--analyze with a missing file must exit 1 before contacting any agent."""
+        result = self._run("--analyze", str(tmp_path / "missing.py"))
+        assert result.returncode == 1
+
+    def test_analyze_nonexistent_file_prints_error(self, tmp_path):
+        """--analyze with a missing file must print an error message to stderr."""
+        result = self._run("--analyze", str(tmp_path / "missing.py"))
+        assert "file not found" in result.stderr.lower() or "error" in result.stderr.lower()
+
+    def test_improve_nonexistent_file_exits_nonzero(self, tmp_path):
+        """--improve with a missing file must exit 1 before contacting any agent."""
+        result = self._run("--improve", str(tmp_path / "missing.py"))
+        assert result.returncode == 1
+
+    def test_improve_nonexistent_file_prints_error(self, tmp_path):
+        """--improve with a missing file must print an error message to stderr."""
+        result = self._run("--improve", str(tmp_path / "missing.py"))
+        assert "file not found" in result.stderr.lower() or "error" in result.stderr.lower()

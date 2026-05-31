@@ -231,6 +231,7 @@ The following slash commands are available in Claude Code:
 | `/issue-triage` | Linear issue audit: duplicates, staleness, priority validation | CONDITIONAL (scenario-based) |
 | `/plan-manage` | Plan lifecycle with parallel agent orchestration for create/review | CONDITIONAL |
 | `/browser-test` | AI-powered E2E browser testing via browser-use YAML test prompts | CONDITIONAL |
+| `sync-skills` | Sync .skillshare/skills/ to all home targets (daily skill dev workflow) | NO |
 
 ## Testing Changes
 
