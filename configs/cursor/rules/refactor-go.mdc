@@ -12,3 +12,4 @@ Perform security, architecture, and quality analysis for Go codebases and return
 <!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
 
 Refer to `.cursor/skills/refactor-go/SKILL.md` for the full skill definition.
+

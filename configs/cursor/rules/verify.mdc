@@ -12,3 +12,4 @@ Run linters, unit tests, and security scans in parallel for a target project. Au
 <!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
 
 Refer to `.cursor/skills/verify/SKILL.md` for the full skill definition.
+

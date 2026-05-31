@@ -149,6 +149,7 @@ These integrate with the parallel agent orchestration framework.
 | `/checkpoint` | Create compact checkpoint summary when context usage is high | NO |
 | `/health-check` | Verify CLI tools, auth, config syntax, MCP, symlinks | NO |
 | `/sync-configs` | Detect cross-platform config drift and broken symlinks | NO |
+| `/sync-skills` | Sync .skillshare/skills/ to all home targets (daily skill dev workflow) | NO |
 
 ### Command Usage
 
@@ -176,6 +177,9 @@ These integrate with the parallel agent orchestration framework.
 
 # Context management
 /checkpoint                  # Save session state when context is high
+
+# Skill sync (daily dev workflow)
+sync-skills                  # Push .skillshare/skills/ changes to all home targets
 ```
 
 ### Auto-Triggered Skill

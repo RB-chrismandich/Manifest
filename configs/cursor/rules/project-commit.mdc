@@ -12,3 +12,4 @@ Run the end-to-end commit pipeline: docs refresh, sync with remote, checks, stag
 <!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
 
 Refer to `.cursor/skills/project-commit/SKILL.md` for the full skill definition.
+

@@ -12,3 +12,4 @@ Switch the current session into terse, surgical, clarify-first mode to cut token
 <!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
 
 Refer to `.cursor/skills/token-economy/SKILL.md` for the full skill definition.
+

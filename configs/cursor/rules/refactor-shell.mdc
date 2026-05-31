@@ -12,3 +12,4 @@ Perform security and quality analysis for Bash/Shell scripts and produce a prior
 <!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
 
 Refer to `.cursor/skills/refactor-shell/SKILL.md` for the full skill definition.
+

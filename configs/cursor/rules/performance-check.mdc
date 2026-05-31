@@ -12,3 +12,4 @@ Frontend performance audit: bundle size analysis, Core Web Vitals targets, lazy 
 <!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
 
 Refer to `.cursor/skills/performance-check/SKILL.md` for the full skill definition.
+
