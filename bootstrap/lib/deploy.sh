@@ -254,7 +254,7 @@ deploy_sync_skills() {
     cp "$SCRIPT_DIR/configs/claude/scripts/sync-skills.sh" "$HOME/.local/bin/sync-skills"
     chmod +x "$HOME/.local/bin/sync-skills"
 
-    if ! grep -Fq 'export PATH="$HOME/.local/bin:$PATH"' "$SHELL_PROFILE_FILE" 2>/dev/null; then
+    if ! grep -Eq '\.local/bin' "$SHELL_PROFILE_FILE" 2>/dev/null; then
         {
             echo ""
             echo "# User-installed tools (managed by bootstrap.sh)"

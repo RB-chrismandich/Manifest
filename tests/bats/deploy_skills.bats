@@ -267,6 +267,6 @@ STUB
     deploy_sync_skills
     deploy_sync_skills  # second run — must not duplicate the PATH line
 
-    run grep -c ".local/bin" "$fake_profile"
+    run grep -c 'export PATH="$HOME/.local/bin:$PATH"' "$fake_profile"
     assert_output "1"
 }
