@@ -173,8 +173,7 @@ STUB
     source "$REPO_ROOT/bootstrap/lib/auth.sh"
     configure_shell_profile_state
 
-    grep -q 'export MANIFEST_ROOT=' "$fake_home/.bashrc"
-    grep -q '/fake/manifest/path' "$fake_home/.bashrc"
+    grep -q 'export MANIFEST_ROOT="/fake/manifest/path"' "$fake_home/.bashrc"
 }
 
 @test "configure_shell_profile_state updates MANIFEST_ROOT on re-run with no duplicate lines" {

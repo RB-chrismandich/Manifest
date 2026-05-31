@@ -256,8 +256,11 @@ configure_shell_profile_state() {
     # Write MANIFEST_ROOT — always update in case bootstrap is re-run from a new path.
     # Cross-platform safe: avoids sed -i BSD/GNU incompatibility on macOS.
     if [[ -f "$profile_file" ]]; then
-        grep -v 'export MANIFEST_ROOT=' "$profile_file" > "${profile_file}.tmp" || true
-        mv "${profile_file}.tmp" "$profile_file"
+        if grep -v 'export MANIFEST_ROOT=' "$profile_file" > "${profile_file}.tmp" 2>/dev/null; then
+            mv "${profile_file}.tmp" "$profile_file"
+        else
+            rm -f "${profile_file}.tmp"
+        fi
     fi
     {
         echo ""
