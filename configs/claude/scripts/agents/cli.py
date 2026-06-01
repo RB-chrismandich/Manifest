@@ -99,7 +99,8 @@ async def main():
 
     # Status check mode — delegate to check_status.sh
     if args.status:
-        script_dir = os.path.dirname(os.path.abspath(__file__))
+        # Go up one level from agents/ to scripts/ to find sibling scripts
+        script_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         status_script = os.path.join(script_dir, "check_status.sh")
         if os.path.exists(status_script):
             os.execv("/bin/bash", ["/bin/bash", status_script])
