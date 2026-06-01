@@ -2,7 +2,7 @@
 
 > Visual documentation of the Manifest parallel LLM agent orchestration framework
 
-**Last Updated**: 2026-02-13
+**Last Updated**: 2026-05-31
 **Project**: Manifest - AI Agent Orchestration Framework
 
 ---
@@ -11,17 +11,18 @@
 
 1. [Application Architecture](#application-architecture)
 2. [Python Parallel Agent Architecture](#python-parallel-agent-architecture)
-3. [Git Platform Detection & Operations](#git-platform-detection--operations)
-4. [Bootstrap Installation Flow](#bootstrap-installation-flow)
-5. [Parallel Agent Execution Flow](#parallel-agent-execution-flow)
-6. [Skill Processing Architecture](#skill-processing-architecture)
-7. [Validation Pipeline](#validation-pipeline)
-8. [Model Selection & Credit Fallback](#model-selection--credit-fallback)
-9. [Configuration Layer](#configuration-layer)
-10. [Cross-Verification Consensus](#cross-verification-consensus)
-11. [Service State Management](#service-state-management)
-12. [Issue Management Architecture](#issue-management-architecture)
-13. [Label Management Architecture](#label-management-architecture)
+3. [agents/ Package Module Dependency Graph](#agents-package-module-dependency-graph)
+4. [Git Platform Detection & Operations](#git-platform-detection--operations)
+5. [Bootstrap Installation Flow](#bootstrap-installation-flow)
+6. [Parallel Agent Execution Flow](#parallel-agent-execution-flow)
+7. [Skill Processing Architecture](#skill-processing-architecture)
+8. [Validation Pipeline](#validation-pipeline)
+9. [Model Selection & Credit Fallback](#model-selection--credit-fallback)
+10. [Configuration Layer](#configuration-layer)
+11. [Cross-Verification Consensus](#cross-verification-consensus)
+12. [Service State Management](#service-state-management)
+13. [Issue Management Architecture](#issue-management-architecture)
+14. [Label Management Architecture](#label-management-architecture)
 
 ---
 
@@ -59,6 +60,7 @@ flowchart TB
     subgraph "Orchestration Layer"
         CLAUDE_CLI
         PARALLEL_PY["parallel_agent.py"]:::process
+        AGENTS_PKG["agents/ package\n(cli · orchestrator · runners\nconfig · synthesis · validation)"]:::process
         GIT_PLATFORM["git_platform.sh"]:::process
         GIT_OPS["git_ops.sh"]:::process
     end
@@ -76,6 +78,7 @@ flowchart TB
     BOOTSTRAP --> SERVICES
     USER --> CLAUDE_CLI
     CLAUDE_CLI --> PARALLEL_PY
+    PARALLEL_PY --> AGENTS_PKG
     CLAUDE_CLI --> GIT_OPS
     GIT_OPS --> GIT_PLATFORM
     GIT_PLATFORM -.->|github| GH
@@ -102,8 +105,8 @@ flowchart TB
 
 ## Python Parallel Agent Architecture
 
-Detailed architecture of the Python parallel agent implementation with full feature parity:
-comprehensive logging, validation, synthesis, streaming, Codex agent, and services.yml integration.
+Architecture of the modular `agents/` package. `parallel_agent.py` is now a thin entry point;
+all logic lives in six focused modules: `cli`, `orchestrator`, `runners`, `config`, `synthesis`, `validation`.
 
 ```mermaid
 %%{init: {'theme':'neutral'}}%%
@@ -116,15 +119,23 @@ flowchart TB
 
     USER["User/Claude CLI"]:::external
 
-    subgraph "Main Orchestrator"
+    subgraph "agents/cli.py"
         MAIN["main()"]:::active
+    end
+
+    subgraph "agents/config.py"
         LOGGER["Logger<br/>(correlation IDs, rotation)"]:::active
         CONFIG["Config<br/>(YAML loader)"]:::config
         SVC_CFG["ServiceConfig<br/>(services.yml)"]:::config
-        ORCH["Orchestrator"]:::active
+        LIMITER["RateLimiter<br/>(token bucket)"]:::active
     end
 
-    subgraph "Agent Execution"
+    subgraph "agents/orchestrator.py"
+        ORCH["Orchestrator"]:::active
+        STREAM["Streaming Display<br/>(Rich Live)"]:::active
+    end
+
+    subgraph "agents/runners.py"
         BASE["BaseAgent<br/>(rate limiting, timeout, fallback)"]:::active
         CLAUDE_AG["ClaudeAgent<br/>(streaming support)"]:::active
         GEMINI_AG["GeminiAgent<br/>(dual package support)"]:::active
@@ -132,11 +143,9 @@ flowchart TB
         CODEX_AG["CodexAgent<br/>(subprocess, codex exec)"]:::active
     end
 
-    subgraph "Engine Features"
+    subgraph "agents/validation.py + synthesis.py"
         VALIDATE["ValidationEngine<br/>(Tier 1 + Tier 2)"]:::active
         SYNTH["SynthesisEngine<br/>(disagreement resolution)"]:::active
-        STREAM["Streaming Display<br/>(Rich Live)"]:::active
-        LIMITER["RateLimiter<br/>(token bucket)"]:::active
     end
 
     subgraph "External APIs"
@@ -221,10 +230,70 @@ flowchart TB
 
 **Statistics**:
 
+- Modules: 6 (`config`, `runners`, `synthesis`, `validation`, `orchestrator`, `cli`) + `__init__`
 - Classes: 11 (Config, ServiceConfig, Logger, RateLimiter, ValidationEngine, SynthesisEngine,
   BaseAgent, ClaudeAgent, GeminiAgent, CursorAgent, CodexAgent, Orchestrator)
-- CLI Flags: 27 (--codex-only, --codex-model, --no-cursor, --no-gemini, --no-codex, --status added)
+- CLI Flags: 27 (argparse in `agents/cli.py`)
 - Agents: 4 (Claude, Gemini, Cursor, Codex)
+- Total lines: ~2,400 across package (~27-line entry point)
+
+---
+
+## agents/ Package Module Dependency Graph
+
+Import dependency graph of the `agents/` package (PR #260). Arrows point from depended-upon
+module to dependant — `config.py` is the shared foundation with zero local deps; `cli.py` has
+the highest fan-in and wires all modules together.
+
+```mermaid
+%%{init: {'theme':'neutral'}}%%
+flowchart LR
+    classDef foundation fill:#f3e8ff,stroke:#9333ea,color:#581c87
+    classDef mid fill:#f0fdf4,stroke:#16a34a,color:#14532d
+    classDef top fill:#dbeafe,stroke:#2563eb,color:#1e3a8a
+    classDef entry fill:#f0f9ff,stroke:#0284c7,color:#0c4a6e
+
+    CONFIG["config.py\nConfig · Logger\nRateLimiter · ServiceConfig"]:::foundation
+
+    RUNNERS["runners.py\nBaseAgent · ClaudeAgent\nGeminiAgent · CursorAgent\nCodexAgent"]:::mid
+
+    SYNTHESIS["synthesis.py\nSynthesisEngine"]:::mid
+
+    VALIDATION["validation.py\nValidationEngine"]:::mid
+
+    ORCHESTRATOR["orchestrator.py\nOrchestrator"]:::top
+
+    CLI["cli.py\nmain() · argparse"]:::top
+
+    ENTRY["parallel_agent.py\n(entry point, 27 lines)"]:::entry
+
+    CONFIG --> RUNNERS
+    CONFIG --> SYNTHESIS
+    CONFIG --> VALIDATION
+    CONFIG --> ORCHESTRATOR
+    RUNNERS --> ORCHESTRATOR
+    SYNTHESIS --> ORCHESTRATOR
+    VALIDATION --> ORCHESTRATOR
+    CONFIG --> CLI
+    RUNNERS --> CLI
+    ORCHESTRATOR --> CLI
+    CLI --> ENTRY
+```
+
+**Module responsibilities**:
+
+| Module | Responsibility | Deps |
+|--------|---------------|------|
+| `config.py` | Config, Logger, RateLimiter, ServiceConfig, optional SDK guards | stdlib, yaml |
+| `runners.py` | All four agent classes + BaseAgent | config |
+| `synthesis.py` | SynthesisEngine — disagreement resolution | config |
+| `validation.py` | ValidationEngine — Tier 1/2 criteria | config |
+| `orchestrator.py` | Parallel execution, consensus scoring, Rich streaming | config, runners, synthesis, validation |
+| `cli.py` | Argparse, `main()`, agent wiring | config, runners, orchestrator |
+| `parallel_agent.py` | `asyncio.run(main())` entry point | cli |
+
+**Design principle**: Dependency arrows flow strictly bottom-up. No circular imports.
+`config.py` is independently testable; `orchestrator.py` is testable without `cli.py`.
 
 ---
 

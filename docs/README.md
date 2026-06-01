@@ -2,7 +2,7 @@
 
 > Complete documentation index for the Manifest parallel agent orchestration framework
 
-**Last Updated**: 2026-02-11
+**Last Updated**: 2026-05-31
 
 ---
 
@@ -55,9 +55,9 @@
 | File | Description | Last Updated | Status |
 |------|-------------|--------------|--------|
 | [README.md](../README.md) | Project overview and quick start | 2026-01-27 | ✅ |
-| [CLAUDE.md](../CLAUDE.md) | AI assistant context for the repository | - | ⚠️ Needs update metadata |
-| [CONTRIBUTING.md](../CONTRIBUTING.md) | How to contribute to the project | - | 📝 To be created |
-| [CHANGELOG.md](../CHANGELOG.md) | Version history and release notes | - | 📝 To be created |
+| [CLAUDE.md](../CLAUDE.md) | AI assistant context for the repository | 2026-02-11 | ✅ |
+| [CONTRIBUTING.md](../CONTRIBUTING.md) | How to contribute to the project | 2026-05-31 | ✅ |
+| [CHANGELOG.md](../CHANGELOG.md) | Version history and release notes | 2026-05-31 | ✅ |
 
 ### User Documentation
 
@@ -150,21 +150,20 @@ services:
 
 ## Documentation Health
 
-**Current Score**: 52/100
+**Current Score**: 74/100
 
 **Areas for Improvement**:
 
-- ⚠️ Missing "Last Updated" dates on 50% of core docs
-- ⚠️ Limited cross-referencing between documents
-- ⚠️ No CONTRIBUTING.md or CHANGELOG.md yet
+- ⚠️ "Last Updated" dates across user docs are stale (last updated 2026-02-11)
+- ⚠️ `agents/` package (PR #260) not yet reflected in user-facing architecture docs
+- ⚠️ Template docs (`docs/templates/`) have several broken relative links
 
 **Recent Additions**:
 
-- ✅ 2026-01-27: Added README.md
-- ✅ 2026-01-27: Added GETTING_STARTED.md
-- ✅ 2026-01-27: Added CONFIGURATION.md
-- ✅ 2026-01-27: Added TROUBLESHOOTING.md
-- ✅ 2026-01-27: Added this documentation hub
+- ✅ 2026-05-31: Added CONTRIBUTING.md and CHANGELOG.md
+- ✅ 2026-05-31: Added `sync-skills` CLI to COMMANDS.md
+- ✅ 2026-05-01: Modularized `parallel_agent.py` into `agents/` package (#260)
+- ✅ 2026-01-27: Added README.md, GETTING_STARTED.md, CONFIGURATION.md, TROUBLESHOOTING.md
 
 ---
 
