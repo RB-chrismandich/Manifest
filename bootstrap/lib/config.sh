@@ -26,6 +26,7 @@ set_bootstrap_defaults() {
     ENABLE_GEMINI=true
     ENABLE_CURSOR=true
     ENABLE_CODEX=true
+    ENABLE_ANTIGRAVITY=true
     ENABLE_GH="auto"
     ENABLE_GLAB="auto"
 
@@ -34,6 +35,7 @@ set_bootstrap_defaults() {
     GEMINI_SET=false
     CURSOR_SET=false
     CODEX_SET=false
+    ANTIGRAVITY_SET=false
     GH_SET=false
     GLAB_SET=false
 }
@@ -55,6 +57,8 @@ print_bootstrap_help() {
     echo "  --disable-cursor    Disable Cursor agent"
     echo "  --enable-codex      Enable Codex CLI (default: enabled)"
     echo "  --disable-codex     Disable Codex CLI"
+    echo "  --enable-antigravity   Enable Antigravity IDE (default: enabled)"
+    echo "  --disable-antigravity  Disable Antigravity IDE"
     echo "  --enable-gh         Enable GitHub CLI (default: auto-detect)"
     echo "  --disable-gh        Disable GitHub CLI"
     echo "  --enable-glab       Enable GitLab CLI (default: auto-detect)"
@@ -120,6 +124,16 @@ parse_bootstrap_args() {
                 CODEX_SET=true
                 shift
                 ;;
+            --enable-antigravity)
+                ENABLE_ANTIGRAVITY=true
+                ANTIGRAVITY_SET=true
+                shift
+                ;;
+            --disable-antigravity)
+                ENABLE_ANTIGRAVITY=false
+                ANTIGRAVITY_SET=true
+                shift
+                ;;
             --enable-gh)
                 ENABLE_GH=true
                 GH_SET=true
@@ -183,6 +197,7 @@ parse_services_config() {
     FILE_GEMINI=""
     FILE_CURSOR=""
     FILE_CODEX=""
+    FILE_ANTIGRAVITY=""
     FILE_GH=""
     FILE_GLAB=""
 
@@ -194,6 +209,7 @@ parse_services_config() {
             /^[[:space:]]*gemini:/ { section="gemini"; subsection="" }
             /^[[:space:]]*cursor:/ { section="cursor"; subsection="" }
             /^[[:space:]]*codex:/ { section="codex"; subsection="" }
+            /^[[:space:]]*antigravity:/ { section="antigravity"; subsection="" }
             /^[[:space:]]*git_cli:/ { section="git_cli"; subsection="" }
             /^[[:space:]]*github:/ { if (section == "git_cli") subsection="github" }
             /^[[:space:]]*gitlab:/ { if (section == "git_cli") subsection="gitlab" }
@@ -202,6 +218,7 @@ parse_services_config() {
                 if (section == "gemini") print "FILE_GEMINI=true;"
                 if (section == "cursor") print "FILE_CURSOR=true;"
                 if (section == "codex") print "FILE_CODEX=true;"
+                if (section == "antigravity") print "FILE_ANTIGRAVITY=true;"
                 if (section == "git_cli" && subsection == "github") print "FILE_GH=true;"
                 if (section == "git_cli" && subsection == "gitlab") print "FILE_GLAB=true;"
             }
@@ -210,6 +227,7 @@ parse_services_config() {
                 if (section == "gemini") print "FILE_GEMINI=false;"
                 if (section == "cursor") print "FILE_CURSOR=false;"
                 if (section == "codex") print "FILE_CODEX=false;"
+                if (section == "antigravity") print "FILE_ANTIGRAVITY=false;"
                 if (section == "git_cli" && subsection == "github") print "FILE_GH=false;"
                 if (section == "git_cli" && subsection == "gitlab") print "FILE_GLAB=false;"
             }
@@ -247,6 +265,10 @@ load_existing_config() {
 
         if [[ "$CODEX_SET" == false && -n "$FILE_CODEX" ]]; then
             ENABLE_CODEX=$FILE_CODEX
+        fi
+
+        if [[ "$ANTIGRAVITY_SET" == false && -n "$FILE_ANTIGRAVITY" ]]; then
+            ENABLE_ANTIGRAVITY=$FILE_ANTIGRAVITY
         fi
 
         if [[ "$GH_SET" == false && -n "$FILE_GH" ]]; then
@@ -321,6 +343,12 @@ services:
     auth:
       - OPENAI_API_KEY
       - ~/.codex/auth.json
+
+  # Antigravity IDE - VS Code fork with Claude Code extension
+  # Install: Download from https://antigravity.sh
+  antigravity:
+    enabled: $ENABLE_ANTIGRAVITY
+    description: "VS Code-fork IDE; inherits ~/.claude/ config via Claude Code extension"
 
   # Git CLI tools - Platform-specific Git hosting integrations
   git_cli:
