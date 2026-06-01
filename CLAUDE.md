@@ -120,6 +120,7 @@ The `bootstrap.sh` script automates installation, deployment, and authentication
 --enable-gemini / --disable-gemini   # Gemini CLI (default: enabled)
 --enable-cursor / --disable-cursor   # Cursor agent (default: enabled)
 --enable-codex / --disable-codex     # Codex CLI (default: enabled)
+--enable-antigravity / --disable-antigravity   # Antigravity IDE (default: enabled)
 --enable-gh / --disable-gh           # GitHub CLI (default: auto-detect)
 --enable-glab / --disable-glab       # GitLab CLI (default: auto-detect)
 --install-mcp                        # Configure MCP servers (interactive per-server selection)
@@ -189,6 +190,14 @@ ln -sf ~/.claude/config ~/.codex/config
 ln -sf ~/.claude/prompts ~/.codex/prompts
 ln -sf ~/.claude/.plans ~/.codex/.plans
 ln -sf ~/.claude/skills ~/.codex/skills
+
+# Deploy Antigravity configuration (optional)
+mkdir -p ~/.antigravity
+ln -sf ~/.claude/scripts ~/.antigravity/scripts
+ln -sf ~/.claude/config ~/.antigravity/config
+ln -sf ~/.claude/prompts ~/.antigravity/prompts
+ln -sf ~/.claude/skills ~/.antigravity/skills
+ln -sf ~/.claude/.plans ~/.antigravity/.plans
 ```
 
 Required CLI tools (install those you want to use):
