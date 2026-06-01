@@ -150,6 +150,10 @@ These integrate with the parallel agent orchestration framework.
 | `/health-check` | Verify CLI tools, auth, config syntax, MCP, symlinks | NO |
 | `/sync-configs` | Detect cross-platform config drift and broken symlinks | NO |
 | `/sync-skills` | Sync .skillshare/skills/ to all home targets (daily skill dev workflow) | NO |
+| `/version-pin` | Enforce specific, hashed version pins in dependency files | ALWAYS (Tier 1) |
+| `/docs-all` | Run docs-readme/docs-diagrams/docs-improve as sub-agents in one pass | NO |
+| `/pr-review` | Review all open PRs, recommend disposition per PR (analysis-only) | NO |
+| `/branch-clean` | Prune merged/gone/stale branches safely (dry-run, local-only) | CONDITIONAL |
 
 ### Command Usage
 
@@ -180,6 +184,14 @@ These integrate with the parallel agent orchestration framework.
 
 # Skill sync (daily dev workflow)
 sync-skills                  # Push .skillshare/skills/ changes to all home targets
+
+# Dependency / repo hygiene
+/version-pin requirements.txt          # Pin to specific version + hash (auto-fix)
+/version-pin requirements.txt --check  # Warn-only (the save-hook mode)
+/docs-all                              # Refresh all docs via sub-agents in one pass
+/pr-review                             # Triage all open PRs (analysis-only)
+/branch-clean                          # Preview prunable branches (dry-run)
+/branch-clean --apply                  # Delete local candidates (with confirmation)
 ```
 
 ### Auto-Triggered Skill

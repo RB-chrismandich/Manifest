@@ -254,6 +254,47 @@ command_overrides:
           multi_component: true
           model_tier: flash
 
+  version-pin:
+    # Security-sensitive supply-chain change → full Tier 1 gate (Constitution II)
+    tier1_required: true
+    tier1_checks:
+      - security
+      - error_handling
+      - breaking_changes
+      - cross_verification
+    tier2_required: true
+    tier2_threshold: 0.70
+    consensus_threshold: 0.80
+    parallel_agents: true
+
+  docs-all:
+    tier1_required: false
+    tier2_required: true
+    tier2_checks:
+      - maintainability
+    parallel_agents: false
+
+  pr-review:
+    tier1_required: false
+    tier2_required: true
+    tier2_checks:
+      - maintainability
+    parallel_agents: false
+
+  branch-clean:
+    # Dry-run is advisory; the destructive --apply path requires the Tier 1 gate
+    tier1_required: true
+    tier1_checks:
+      - error_handling
+      - breaking_changes
+    tier2_required: true
+    tier2_checks:
+      - maintainability
+    tier2_threshold: 0.60
+    parallel_agents_condition:
+      type: destructive_flag
+      flag: "--apply"
+
 # Extended tier2 checks for specialized commands
 tier2_extended:
   decision_consistency:
