@@ -24,7 +24,7 @@
 
 ## Built-in Commands
 
-Manifest ships with 13 commands and 14 skills (1 auto-triggered).
+Manifest ships with 13 slash commands, 1 CLI tool, and 14 skills (1 auto-triggered).
 
 | Command | Description | Parallel Agents |
 |---------|-------------|-----------------|
@@ -41,6 +41,12 @@ Manifest ships with 13 commands and 14 skills (1 auto-triggered).
 | `/checkpoint` | Create compact checkpoint summary when context is high | NO |
 | `/health-check` | Verify CLI tools, auth, config syntax, MCP, symlinks | NO |
 | `/sync-configs` | Detect cross-platform config drift and broken symlinks | NO |
+
+**CLI tool** (installed to `~/.local/bin/`):
+
+| Tool | Description |
+|------|-------------|
+| `sync-skills` | Sync `.skillshare/skills/` to all home targets; uses `MANIFEST_ROOT` env var |
 
 The `code-quality` skill auto-triggers on security-sensitive code, large files (>500 lines),
 or complex files (>10 functions or >5 classes).
@@ -273,7 +279,7 @@ Usage examples...
 
 ## Building State Machine Commands
 
-**Pattern Documentation**: See [Command State Machine Pattern](../templates/patterns/command-state-machine.md)
+**Pattern Documentation**: See [Command State Machine Pattern](templates/patterns/command-state-machine.md)
 
 State machine commands structure complex operations as sequential phases with
 validation gates, error recovery, and progress tracking.
@@ -793,9 +799,9 @@ Complete 5-phase deployment with:
 
 ## Related Documentation
 
-- [Command State Machine Pattern](../templates/patterns/command-state-machine.md) - Detailed pattern guide
-- [Full Deployment Pipeline](../templates/commands/full-deployment-pipeline.md) - Complete example
-- [GitHub Workflow Commands](../templates/github-workflow/) - Issue management commands
+- [Command State Machine Pattern](templates/patterns/command-state-machine.md) - Detailed pattern guide
+- [Full Deployment Pipeline](templates/commands/full-deployment-pipeline.md) - Complete example
+- [GitHub Workflow Commands](templates/commands/github-workflow/) - Issue management commands
 - [Configuration Guide](./CONFIGURATION.md) - Parallel agent settings
 - [Troubleshooting](./TROUBLESHOOTING.md) - Common command issues
 
