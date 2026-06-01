@@ -27,17 +27,11 @@ REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 SCRIPTS_DIR = str(REPO_ROOT / "configs" / "claude" / "scripts")
 sys.path.insert(0, SCRIPTS_DIR)
 
-from parallel_agent import (  # noqa: E402
-    Config,
-    ServiceConfig,
-    Logger,
-    RateLimiter,
-    ValidationEngine,
-    SynthesisEngine,
-    BaseAgent,
-    CodexAgent,
-    Orchestrator,
-)
+from agents.config import Config, ServiceConfig, Logger, RateLimiter  # noqa: E402
+from agents.validation import ValidationEngine  # noqa: E402
+from agents.synthesis import SynthesisEngine  # noqa: E402
+from agents.runners import BaseAgent, CodexAgent  # noqa: E402
+from agents.orchestrator import Orchestrator  # noqa: E402
 
 
 # ---------------------------------------------------------------------------

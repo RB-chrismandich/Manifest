@@ -330,4 +330,5 @@ approaches), review stale plans, or archive/abandon completed work.
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
+at `specs/001-modularize-parallel-agent/plan.md`
 <!-- SPECKIT END -->

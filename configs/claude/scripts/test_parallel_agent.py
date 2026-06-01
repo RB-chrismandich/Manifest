@@ -29,13 +29,9 @@ except ImportError:
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent))
 
-from parallel_agent import (
-    Config,
-    Logger,
-    ValidationEngine,
-    SynthesisEngine,
-    RateLimiter,
-)
+from agents.config import Config, Logger, RateLimiter
+from agents.validation import ValidationEngine
+from agents.synthesis import SynthesisEngine
 
 
 class TestLogger:

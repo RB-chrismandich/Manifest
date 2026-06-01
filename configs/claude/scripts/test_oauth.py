@@ -207,7 +207,7 @@ def test_parallel_agent_import():
         script_dir = Path(__file__).parent
         sys.path.insert(0, str(script_dir))
 
-        from parallel_agent import Config, RateLimiter
+        from agents.config import Config, RateLimiter
 
         print_success("All classes import successfully")
 
@@ -236,13 +236,8 @@ def test_agent_creation(verbose=False):
     script_dir = Path(__file__).parent
     sys.path.insert(0, str(script_dir))
 
-    from parallel_agent import (
-        ClaudeAgent,
-        GeminiAgent,
-        CursorAgent,
-        RateLimiter,
-        Config,
-    )
+    from agents.config import Config, RateLimiter
+    from agents.runners import ClaudeAgent, GeminiAgent, CursorAgent
 
     config = Config()
     limiter = RateLimiter()
