@@ -42,7 +42,8 @@ cd Manifest
 
 - **Parallel Agent Orchestration**: Run 2-4 AI agents simultaneously
   (Cursor, Gemini, Claude, Codex) with real-time streaming display
-- **Modular `agents/` Package**: `parallel_agent.py` backed by `agents/` subpackage — `cli.py`, `config.py`, `orchestrator.py`, `runners.py`, `synthesis.py`, `validation.py`
+- **Modular `agents/` Package**: `parallel_agent.py` backed by `agents/` subpackage —
+  `cli.py`, `config.py`, `orchestrator.py`, `runners.py`, `synthesis.py`, `validation.py`
 - **Comprehensive Logging**: Structured JSON logs with correlation IDs, rotation (10MB, 5 backups), performance metrics
 - **Full Validation Engine**: Tier 1 (critical: security, errors, breaking changes)
   \+ Tier 2 (quality: bugs, performance, tests)
