@@ -120,16 +120,19 @@ run_reconfigure() {
         local old_gemini=${FILE_GEMINI:-unknown}
         local old_cursor=${FILE_CURSOR:-unknown}
         local old_codex=${FILE_CODEX:-unknown}
+        local old_antigravity=${FILE_ANTIGRAVITY:-unknown}
 
-        echo "  Claude:  $old_claude → $ENABLE_CLAUDE"
-        echo "  Gemini:  $old_gemini → $ENABLE_GEMINI"
-        echo "  Cursor:  $old_cursor → $ENABLE_CURSOR"
-        echo "  Codex:   $old_codex → $ENABLE_CODEX"
+        echo "  Claude:      $old_claude → $ENABLE_CLAUDE"
+        echo "  Gemini:      $old_gemini → $ENABLE_GEMINI"
+        echo "  Cursor:      $old_cursor → $ENABLE_CURSOR"
+        echo "  Codex:       $old_codex → $ENABLE_CODEX"
+        echo "  Antigravity: $old_antigravity → $ENABLE_ANTIGRAVITY"
     else
-        echo "  Claude:  (new) → $ENABLE_CLAUDE"
-        echo "  Gemini:  (new) → $ENABLE_GEMINI"
-        echo "  Cursor:  (new) → $ENABLE_CURSOR"
-        echo "  Codex:   (new) → $ENABLE_CODEX"
+        echo "  Claude:      (new) → $ENABLE_CLAUDE"
+        echo "  Gemini:      (new) → $ENABLE_GEMINI"
+        echo "  Cursor:      (new) → $ENABLE_CURSOR"
+        echo "  Codex:       (new) → $ENABLE_CODEX"
+        echo "  Antigravity: (new) → $ENABLE_ANTIGRAVITY"
     fi
     echo ""
 
@@ -178,6 +181,7 @@ main() {
     echo "  Gemini CLI:  $(if [[ "$ENABLE_GEMINI" == true ]]; then echo "enabled"; else echo "disabled"; fi)"
     echo "  Cursor:      $(if [[ "$ENABLE_CURSOR" == true ]]; then echo "enabled"; else echo "disabled"; fi)"
     echo "  Codex CLI:   $(if [[ "$ENABLE_CODEX" == true ]]; then echo "enabled"; else echo "disabled"; fi)"
+    echo "  Antigravity: $(if [[ "$ENABLE_ANTIGRAVITY" == true ]]; then echo "enabled"; else echo "disabled"; fi)"
     echo ""
 
     if ! prompt_yes_no "Continue with setup?"; then
