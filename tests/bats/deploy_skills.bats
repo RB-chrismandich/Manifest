@@ -115,6 +115,37 @@ teardown() {
     [ -d "$ANTIGRAVITY_TARGET_DIR/skills/demo" ]
 }
 
+@test "deploy_antigravity_configs is idempotent — second run leaves symlink intact" {
+    export TARGET_DIR="$SANDBOX/home/.claude"
+    export ANTIGRAVITY_TARGET_DIR="$SANDBOX/home/.antigravity"
+    mkdir -p "$TARGET_DIR/skills/demo"
+
+    # shellcheck disable=SC1090
+    source "$REPO_ROOT/bootstrap/lib/deploy.sh"
+
+    deploy_antigravity_configs          # first run
+    run deploy_antigravity_configs      # second run — must not fail
+    assert_success
+
+    [ -L "$ANTIGRAVITY_TARGET_DIR/skills" ]
+    [ -d "$ANTIGRAVITY_TARGET_DIR/skills/demo" ]
+}
+
+@test "deploy_antigravity_configs skills symlink target is resolvable" {
+    export TARGET_DIR="$SANDBOX/home/.claude"
+    export ANTIGRAVITY_TARGET_DIR="$SANDBOX/home/.antigravity"
+    mkdir -p "$TARGET_DIR/skills/demo"
+
+    # shellcheck disable=SC1090
+    source "$REPO_ROOT/bootstrap/lib/deploy.sh"
+    deploy_antigravity_configs
+
+    local link_target
+    link_target=$(readlink -f "$ANTIGRAVITY_TARGET_DIR/skills" 2>/dev/null || true)
+    [ -e "$link_target" ] || (echo "Symlink target not resolvable: $link_target" && false)
+    [ -d "$link_target" ]
+}
+
 @test "sync_skillshare_targets runs skillshare sync when present" {
     export SCRIPT_DIR="$SANDBOX/repo"
     mkdir -p "$SCRIPT_DIR/.skillshare"
