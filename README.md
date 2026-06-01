@@ -2,13 +2,13 @@
 
 [![Manifest CI](https://github.com/ReefBytes/Manifest/actions/workflows/ci.yml/badge.svg)](https://github.com/ReefBytes/Manifest/actions/workflows/ci.yml)
 
-> Parallel LLM agent orchestration framework for Claude Code, Cursor IDE, Gemini CLI, and Codex CLI
+> Parallel LLM agent orchestration framework for Claude Code, Cursor IDE, Gemini CLI, Codex CLI, and Antigravity IDE
 
 **Last Updated**: 2026-05-31
 
 Manifest is a configuration repository that deploys a sophisticated parallel agent
-orchestration system to `~/.claude/`, `~/.cursor/`, `~/.gemini/`, and `~/.codex/`, enabling Claude Code,
-Cursor IDE, Gemini CLI, and Codex CLI to share guides, skills, prompts, and scripts while leveraging
+orchestration system to `~/.claude/`, `~/.cursor/`, `~/.gemini/`, `~/.codex/`, and `~/.antigravity/`, enabling Claude Code,
+Cursor IDE, Gemini CLI, Codex CLI, and Antigravity IDE to share guides, skills, prompts, and scripts while leveraging
 multiple AI agents for cross-verification, consensus scoring, and enhanced code analysis.
 
 **Core Capabilities**: Multi-agent orchestration | Consensus scoring | Model fallback
