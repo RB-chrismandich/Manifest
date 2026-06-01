@@ -62,8 +62,10 @@ configs/                             # Deployment source configs (deployed to ~/
 │   ├── GEMINI.md                    # Orchestration guide for Gemini
 │   ├── settings.json                # Gemini settings (includes MCP server defaults)
 │   └── (symlinks to ../claude/)     # scripts, config, prompts, skills, .plans
-└── codex/                           # → ~/.codex/ (Codex CLI configuration)
-    ├── AGENTS.md -> ../../AGENTS.md # Codex guide
+├── codex/                           # → ~/.codex/ (Codex CLI configuration)
+│   ├── AGENTS.md -> ../../AGENTS.md # Codex guide
+│   └── (symlinks to ../claude/)     # scripts, config, prompts, skills, .plans
+└── antigravity/                     # → ~/.antigravity/ (Antigravity IDE)
     └── (symlinks to ../claude/)     # scripts, config, prompts, skills, .plans
 
 .claude/                             # Repo-specific config only (does NOT override active sessions)
