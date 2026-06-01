@@ -4,7 +4,7 @@
 
 > Parallel LLM agent orchestration framework for Claude Code, Cursor IDE, Gemini CLI, and Codex CLI
 
-**Last Updated**: 2026-02-11 (Python parallel agent feature parity — Codex agent, ServiceConfig, CLI flags)
+**Last Updated**: 2026-05-31
 
 Manifest is a configuration repository that deploys a sophisticated parallel agent
 orchestration system to `~/.claude/`, `~/.cursor/`, `~/.gemini/`, and `~/.codex/`, enabling Claude Code,
@@ -42,7 +42,7 @@ cd Manifest
 
 - **Parallel Agent Orchestration**: Run 2-4 AI agents simultaneously
   (Cursor, Gemini, Claude, Codex) with real-time streaming display
-- **Phase 3 Python Implementation** (NEW): Production-grade async agent with logging, validation, synthesis, and streaming
+- **Modular `agents/` Package**: `parallel_agent.py` backed by `agents/` subpackage — `cli.py`, `config.py`, `orchestrator.py`, `runners.py`, `synthesis.py`, `validation.py`
 - **Comprehensive Logging**: Structured JSON logs with correlation IDs, rotation (10MB, 5 backups), performance metrics
 - **Full Validation Engine**: Tier 1 (critical: security, errors, breaking changes)
   \+ Tier 2 (quality: bugs, performance, tests)
@@ -84,7 +84,7 @@ Mermaid flowcharts showing bootstrap, execution, validation, and consensus flows
 
 | Command | Description | Parallel Agents | Validation |
 |---------|-------------|-----------------|------------|
-| `/project-commit` | Full commit pipeline: regenerate docs, pull latest, run pre-commits, commit, push | CONDITIONAL (Phase 3) | Tier 1 + Tier 2 |
+| `/project-commit` | Full commit pipeline: regenerate docs, pull latest, run pre-commits, commit, push | CONDITIONAL | Tier 1 + Tier 2 |
 | `/refactor-python` | Python security, architecture, code quality analysis | ALWAYS | Tier 1 + Tier 2 (≥0.80) |
 | `/refactor-shell` | Bash/Shell script security and quality with shellcheck | ALWAYS | Tier 1 + Tier 2 (≥0.70) |
 | `/docs-diagrams` | Generate Mermaid architecture flowcharts and sequence diagrams | CONDITIONAL (≥5 imports) | Tier 2 |
@@ -94,6 +94,12 @@ Mermaid flowcharts showing bootstrap, execution, validation, and consensus flows
 | `/issue-triage` | Linear issue audit: duplicates, staleness, priority validation | CONDITIONAL (scenario-based) | Tier 2 |
 | `/plan-manage` | Plan lifecycle: create, review, execute, archive, abandon | CONDITIONAL | Tier 2 |
 | `/browser-test` | AI-powered E2E browser testing via browser-use YAML test prompts | CONDITIONAL | Tier 2 |
+
+**CLI tools** (installed to `~/.local/bin/`):
+
+| Tool | Description |
+|------|-------------|
+| `sync-skills` | Sync `.skillshare/skills/` to all home targets; requires `MANIFEST_ROOT` env var |
 
 ---
 
@@ -111,6 +117,12 @@ Mermaid flowcharts showing bootstrap, execution, validation, and consensus flows
 - Node.js 18+ and npm
 - One or more of: Claude CLI, Gemini CLI, Cursor Agent, Codex CLI
 
+**For `parallel_agent.py` (Python agent):**
+
+- Python 3.9+ (3.12+ recommended, auto-detected by bootstrap)
+- Install deps: `pip install -r configs/claude/scripts/requirements.txt`
+- Key packages: `anthropic`, `google-genai`, `rich`, `pyyaml`, `aiohttp`
+
 ---
 
 ## Documentation
@@ -119,10 +131,12 @@ Mermaid flowcharts showing bootstrap, execution, validation, and consensus flows
 |----------|---------|----------|--------------|
 | [Getting Started](docs/GETTING_STARTED.md) | First-time setup walkthrough with verification steps | New users | 10 min |
 | [Configuration](docs/CONFIGURATION.md) | All configuration options, YAML reference, environment variables | Operators | 15 min |
-| [Architecture Diagrams](docs/ARCHITECTURE_DIAGRAMS.md) | Visual system documentation with 13 Mermaid diagrams | Developers | 20 min |
+| [Architecture Diagrams](docs/ARCHITECTURE_DIAGRAMS.md) | Visual system documentation with 14 Mermaid diagrams | Developers | 20 min |
 | [Troubleshooting](docs/TROUBLESHOOTING.md) | Common problems, error messages, solutions | All users | 10 min |
 | [AGENTS.md](AGENTS.md) | AI agent instructions (Cursor, Claude, Gemini, Codex) | AI assistants | 8 min |
 | [CLAUDE.md](CLAUDE.md) | Claude Code-specific project context | AI assistants | 8 min |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | Contribution guidelines, testing, commit conventions | Contributors | 5 min |
+| [CHANGELOG.md](CHANGELOG.md) | Version history and notable changes | All | 5 min |
 
 **Full documentation index**: [docs/README.md](docs/README.md) • **Quick ref**: [Commands](docs/COMMANDS.md)
 
@@ -158,10 +172,18 @@ Manifest/
 │   │   │   ├── validation_criteria.yml # Tier 1/2 validation rules
 │   │   │   └── labels.yml           # Canonical label registry
 │   │   ├── scripts/                 # Orchestration scripts
-│   │   │   ├── parallel_agent.py    # Core orchestration engine (Python)
+│   │   │   ├── parallel_agent.py    # Entry point shim (delegates to agents/)
+│   │   │   ├── agents/              # Modular orchestration package
+│   │   │   │   ├── cli.py           # Argparse + main() coroutine
+│   │   │   │   ├── orchestrator.py  # Parallel execution + consensus scoring
+│   │   │   │   ├── runners.py       # Agent classes (Claude/Gemini/Cursor/Codex)
+│   │   │   │   ├── config.py        # Config, Logger, RateLimiter, ServiceConfig
+│   │   │   │   ├── synthesis.py     # Disagreement resolution engine
+│   │   │   │   └── validation.py    # Tier 1/2 validation engine
 │   │   │   ├── git_platform.sh      # Git platform detection
 │   │   │   ├── git_ops.sh           # Platform-agnostic Git operations
 │   │   │   ├── linear_ops.sh        # Linear API wrapper (GraphQL)
+│   │   │   ├── sync-skills.sh       # Skill deployment to home targets
 │   │   │   └── label_sync.sh        # Label provisioning across platforms
 │   │   └── settings.local.json      # Default permissions + MCP servers
 │   ├── cursor/                      # → ~/.cursor/ (Cursor IDE)
@@ -178,18 +200,25 @@ Manifest/
 ├── .claude/                         # Repo-specific config only (does NOT override sessions)
 │   ├── CLAUDE.md                    # Developer guide for working in this repo
 │   └── settings.local.json          # Repo-relevant permissions only
-├── templates/                       # Production-grade permission templates
-│   ├── settings-low-risk.json       # Low-risk auto-executable permissions
-│   └── permissions/
-│       ├── django-web-app.json      # Django web application
-│       ├── express-api.json         # Express.js API
-│       ├── go-microservices.json    # Go microservices
-│       └── python-monorepo.json     # Python monorepo
+├── templates/                       # Starter templates for CI and project scaffolding
+│   ├── ci/                          # CI configuration templates
+│   │   ├── github/                  # GitHub Actions workflow templates
+│   │   └── gitlab/                  # GitLab CI pipeline templates
+│   └── scaffold/                    # Project scaffolding templates
+│       ├── go/                      # Go project starter
+│       ├── node/                    # Node.js project starter
+│       ├── python/                  # Python project starter
+│       └── terraform/               # Terraform project starter
+├── .skillshare/                     # Skill source of truth (managed by skillshare)
+│   └── skills/                      # 29 skills deployed to ~/.claude/skills/ by bootstrap
+├── tests/                           # Test suites
+│   ├── python/                      # pytest tests for parallel_agent and agents/
+│   └── bats/                        # Bats shell tests for bootstrap and scripts
 └── docs/
     ├── README.md                    # Documentation hub
     ├── GETTING_STARTED.md           # First-time setup walkthrough
     ├── CONFIGURATION.md             # Complete config reference
-    ├── ARCHITECTURE_DIAGRAMS.md     # Mermaid system diagrams
+    ├── ARCHITECTURE_DIAGRAMS.md     # Mermaid system diagrams (14 diagrams)
     ├── TROUBLESHOOTING.md           # Common issues and solutions
     └── COMMANDS.md                  # Command reference
 ```
@@ -273,6 +302,27 @@ export CODEX_HOME="$HOME/.manifest/custom-codex-state"
 ```
 
 **See**: [Troubleshooting Guide](docs/TROUBLESHOOTING.md) for 15+ common issues with solutions
+
+---
+
+## Testing
+
+```bash
+# Python tests (128 tests covering agents/ package and parallel_agent.py)
+pytest tests/python/ -q
+
+# Shell tests (117 Bats tests covering bootstrap and scripts)
+npx bats tests/bats/
+
+# Lint shell scripts
+shellcheck configs/claude/scripts/*.sh bootstrap.sh bootstrap/lib/*.sh
+
+# Validate YAML configs
+yamllint configs/claude/config/*.yml
+python3 -c "import yaml; yaml.safe_load(open('configs/claude/config/command_config.yml'))"
+```
+
+CI runs on every push via GitHub Actions (`.github/workflows/ci.yml`).
 
 ---
 

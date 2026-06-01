@@ -1,0 +1,82 @@
+# Contributing to Manifest
+
+> Guidelines for contributing to the Manifest parallel agent orchestration framework
+
+**Last Updated**: 2026-05-31
+**Audience**: Contributors
+
+---
+
+## Getting Started
+
+1. Fork the repository and clone your fork
+2. Run `./bootstrap.sh` to set up your local environment
+3. Run the test suite to verify everything passes:
+
+```bash
+# Python tests
+pytest tests/python/ -q
+
+# Shell tests
+npx bats tests/bats/
+```
+
+## Development Workflow
+
+### Making Changes
+
+- Work on a feature branch from `main`
+- Keep commits focused and well-described
+- Run `shellcheck` on any modified shell scripts:
+
+```bash
+shellcheck configs/claude/scripts/*.sh bootstrap.sh bootstrap/lib/*.sh
+```
+
+- Validate YAML configs after editing:
+
+```bash
+yamllint configs/claude/config/*.yml
+python3 -c "import yaml; yaml.safe_load(open('configs/claude/config/command_config.yml'))"
+```
+
+### Testing
+
+All changes to `configs/claude/scripts/` require corresponding tests in `tests/python/` or `tests/bats/`.
+The CI requires a minimum of 100 tests passing — do not reduce coverage.
+
+### Skills
+
+New skills go in `.skillshare/skills/<skill-name>/SKILL.md`. See [.claude/CLAUDE.md](.claude/CLAUDE.md)
+for the skillshare architecture and how skills are deployed.
+
+### Commit Messages
+
+Follow [Conventional Commits](https://www.conventionalcommits.org/):
+
+```
+feat: add new command
+fix: correct broken link in docs
+refactor: split module into subpackage
+docs: update getting started guide
+```
+
+## Pull Requests
+
+- Target the `main` branch
+- Include a clear description of what changed and why
+- Reference related issues with `Closes #N` or `Relates to #N`
+- Ensure CI is green before requesting review
+
+## Documentation
+
+When adding features, update the relevant docs in `docs/` and the `Last Updated` date.
+See [docs/README.md](docs/README.md) for documentation standards.
+
+---
+
+## Related Documents
+
+- [CLAUDE.md](CLAUDE.md) — Repository context and structure
+- [docs/README.md](docs/README.md) — Documentation hub
+- [.claude/CLAUDE.md](.claude/CLAUDE.md) — Developer guide for working in this repo
