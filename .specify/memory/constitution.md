@@ -1,50 +1,147 @@
-# [PROJECT_NAME] Constitution
-<!-- Example: Spec Constitution, TaskFlow Constitution, etc. -->
+<!--
+SYNC IMPACT REPORT
+==================
+Version change: template → 1.0.0
+Modified principles: N/A (initial ratification — all principles are new)
+Added sections:
+  - Core Principles (5 principles)
+  - Quality Gates
+  - Development Workflow
+  - Governance
+Removed sections: N/A (template placeholders cleared)
+Templates requiring updates:
+  - .specify/templates/plan-template.md ✅ Constitution Check section already generically aligned
+  - .specify/templates/spec-template.md ✅ No constitution-specific mandatory sections affected
+  - .specify/templates/tasks-template.md ✅ Test-optional stance aligns with Tier 2 advisory gate
+  - .specify/templates/constitution-template.md ✅ Source template (not modified)
+Follow-up TODOs: None — all placeholders resolved.
+-->
+
+# Manifest Constitution
 
 ## Core Principles
 
-### [PRINCIPLE_1_NAME]
-<!-- Example: I. Library-First -->
-[PRINCIPLE_1_DESCRIPTION]
-<!-- Example: Every feature starts as a standalone library; Libraries must be self-contained, independently testable, documented; Clear purpose required - no organizational-only libraries -->
+### I. Configuration-as-Code
 
-### [PRINCIPLE_2_NAME]
-<!-- Example: II. CLI Interface -->
-[PRINCIPLE_2_DESCRIPTION]
-<!-- Example: Every library exposes functionality via CLI; Text in/out protocol: stdin/args → stdout, errors → stderr; Support JSON + human-readable formats -->
+All agent configurations, skills, orchestration rules, and prompt templates MUST be
+version-controlled in `configs/` and deployed reproducibly via `bootstrap.sh`. Manual
+edits to deployed files in `~/.claude/`, `~/.cursor/`, `~/.gemini/`, or `~/.codex/` are
+prohibited; the repository is the authoritative source of truth. Configuration drift MUST
+be detected and corrected via `./bootstrap.sh --reconfigure`.
 
-### [PRINCIPLE_3_NAME]
-<!-- Example: III. Test-First (NON-NEGOTIABLE) -->
-[PRINCIPLE_3_DESCRIPTION]
-<!-- Example: TDD mandatory: Tests written → User approved → Tests fail → Then implement; Red-Green-Refactor cycle strictly enforced -->
+**Rationale**: Reproducible deployments prevent environment-specific failures and ensure
+every contributor operates from a consistent, auditable baseline regardless of machine
+state.
 
-### [PRINCIPLE_4_NAME]
-<!-- Example: IV. Integration Testing -->
-[PRINCIPLE_4_DESCRIPTION]
-<!-- Example: Focus areas requiring integration tests: New library contract tests, Contract changes, Inter-service communication, Shared schemas -->
+### II. Parallel Agent Orchestration
 
-### [PRINCIPLE_5_NAME]
-<!-- Example: V. Observability, VI. Versioning & Breaking Changes, VII. Simplicity -->
-[PRINCIPLE_5_DESCRIPTION]
-<!-- Example: Text I/O ensures debuggability; Structured logging required; Or: MAJOR.MINOR.BUILD format; Or: Start simple, YAGNI principles -->
+Security-sensitive code changes (authentication, cryptography, secrets handling, input
+validation), architectural decisions, and modifications exceeding 200 lines MUST be
+cross-verified by two or more parallel agents before merge. Single-agent review is
+insufficient for Tier 1 concerns. `parallel_agent.py` is the canonical tool for
+orchestrating multi-agent validation; ad-hoc single-model reviews do not satisfy this
+gate.
 
-## [SECTION_2_NAME]
-<!-- Example: Additional Constraints, Security Requirements, Performance Standards, etc. -->
+**Rationale**: Cross-verification surfaces blind spots that a single model misses;
+consensus scoring provides a quantified confidence signal for human escalation decisions.
 
-[SECTION_2_CONTENT]
-<!-- Example: Technology stack requirements, compliance standards, deployment policies, etc. -->
+### III. Consensus-Driven Decisions
 
-## [SECTION_3_NAME]
-<!-- Example: Development Workflow, Review Process, Quality Gates, etc. -->
+All parallel agent outputs MUST be evaluated against defined thresholds:
 
-[SECTION_3_CONTENT]
-<!-- Example: Code review requirements, testing gates, deployment approval process, etc. -->
+- ≥80% agreement → auto-proceed (high confidence)
+- 50–79% agreement → surface disagreements for human review (medium confidence)
+- <50% agreement → block and trigger synthesis via Claude Sonnet (low confidence)
+
+Automated gate decisions MUST reference these thresholds. Bypassing consensus scoring
+requires documented justification in the PR description.
+
+**Rationale**: Quantified consensus prevents false confidence while reducing unnecessary
+human escalation for routine, low-risk changes.
+
+### IV. Skill-First Extensibility
+
+New capabilities MUST be implemented as discrete, self-contained skills in
+`.skillshare/skills/<skill-name>/SKILL.md` with `name` and `description` frontmatter.
+Skills MUST be independently invocable via `/skill-name` in Claude Code. Expanding
+`parallel_agent.py` or other core scripts to absorb new behaviors is prohibited when a
+skill is sufficient.
+
+**Rationale**: Composable skills enable independent testing, per-platform deployment, and
+targeted updates without risk to the core orchestration engine.
+
+### V. Bootstrap Reproducibility
+
+`bootstrap.sh` MUST produce identical deployments regardless of starting machine state.
+All installation and configuration steps MUST be idempotent. Non-idempotent operations
+(e.g., `git init`, credential writes) MUST be guarded by existence checks. The script
+MUST exit non-zero on any unrecoverable failure rather than continuing in a degraded
+state.
+
+**Rationale**: Idempotent bootstrapping is the contract that makes this repository a
+reliable configuration distribution mechanism across diverse machines and contributors.
+
+## Quality Gates
+
+All pull requests are subject to a two-tier validation process enforced via parallel
+agent review:
+
+**Tier 1 — Blocking (all must pass)**:
+- Cross-verification: multiple agents agree on key findings
+- Security: no injection, XSS, auth bypass, or secrets exposure
+- Error handling: proper exceptions with no silent failures
+- Breaking changes: API compatibility and data migration safety verified
+
+**Tier 2 — Advisory (score ≥0.60 required for APPROVED verdict)**:
+- Bug detection: logic errors, off-by-one, null references
+- Performance: no O(n²) loops or memory leaks in hot paths
+- Maintainability: clear naming, reasonable cyclomatic complexity
+- Test coverage: changes include corresponding tests
+
+**Verdicts**:
+- `APPROVED`: Tier 1 passes AND Tier 2 score ≥ 0.60
+- `NEEDS_REVIEW`: Tier 1 passes AND Tier 2 score < 0.60
+- `BLOCKED`: Any Tier 1 check fails
+
+## Development Workflow
+
+**Testing**: All shell changes MUST pass `bats tests/bats/`. All Python changes MUST pass
+`pytest tests/python/`. Lint with `shellcheck` (shell scripts) and `yamllint` (YAML
+configs) before opening a PR.
+
+**Skills**: New skills are added to `.skillshare/skills/` (source of truth). The path
+`configs/claude/skills/` is a backward-compatibility symlink and MUST NOT be replaced
+with a real directory. Home deployment (`~/.claude/skills`) is managed by `bootstrap.sh`;
+skillshare manages project-scoped targets (`.github/skills`).
+
+**Plans**: Implementation plans live in `configs/claude/.plans/` as
+`YYYYMMDD-description.md`. Plans follow the lifecycle CREATE → ACTIVE → COMPLETED
+(`.archive/`) or ABANDONED (`.abandoned/`). Plans untouched for 7+ days MUST be reviewed
+and either updated, completed, or abandoned.
+
+**PRs**: Each PR MUST include a constitution compliance check for Tier 1 gates.
+Complexity violations introduced by the PR MUST be justified in the plan's Complexity
+Tracking table. Use `/plan-manage` for orchestrated plan creation and review.
 
 ## Governance
-<!-- Example: Constitution supersedes all other practices; Amendments require documentation, approval, migration plan -->
 
-[GOVERNANCE_RULES]
-<!-- Example: All PRs/reviews must verify compliance; Complexity must be justified; Use [GUIDANCE_FILE] for runtime development guidance -->
+This constitution supersedes all other development guidelines for the Manifest
+repository. Conflicts between this document and README, CLAUDE.md, or other guides are
+resolved in favor of the constitution.
 
-**Version**: [CONSTITUTION_VERSION] | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]
-<!-- Example: Version: 2.1.1 | Ratified: 2025-06-13 | Last Amended: 2025-07-16 -->
+**Amendment procedure**: Amendments require a PR with documented rationale, a semantic
+version bump per the policy below, and review by at least one repository maintainer.
+`LAST_AMENDED_DATE` MUST be updated to the merge date.
+
+**Versioning policy**:
+- MAJOR: backward-incompatible governance changes — principle removals or redefinitions
+- MINOR: new principle or section added, or materially expanded guidance
+- PATCH: clarifications, wording fixes, non-semantic refinements
+
+**Compliance review**: All PRs MUST verify adherence to Tier 1 quality gates. Annual
+review of all principles is RECOMMENDED to ensure alignment with project evolution.
+
+**Runtime guidance**: Use `configs/claude/CLAUDE.md` for session-level development
+guidance; it is the deployed document that governs active Claude Code sessions.
+
+**Version**: 1.0.0 | **Ratified**: 2026-05-31 | **Last Amended**: 2026-05-31

@@ -1,0 +1,172 @@
+#!/usr/bin/env python3
+"""Per-module unit tests for agents.config.
+
+Tests Config, ServiceConfig, Logger, and RateLimiter in isolation.
+No external agent connections required.
+"""
+
+import asyncio
+import sys
+from pathlib import Path
+
+import pytest
+import yaml
+
+REPO_ROOT = Path(__file__).resolve().parent.parent.parent.parent
+SCRIPTS_DIR = str(REPO_ROOT / "configs" / "claude" / "scripts")
+sys.path.insert(0, SCRIPTS_DIR)
+
+from agents.config import Config, Logger, RateLimiter, ServiceConfig
+
+
+# ---------------------------------------------------------------------------
+# Config
+# ---------------------------------------------------------------------------
+
+
+class TestConfig:
+    def test_default_config_when_file_missing(self, tmp_path):
+        config = Config(config_path=str(tmp_path / "nonexistent.yml"))
+        assert isinstance(config.config, dict)
+        assert "rate_limits" in config.config
+        assert "model_tiers" in config.config
+
+    def test_default_config_has_claude_tiers(self, tmp_path):
+        config = Config(config_path=str(tmp_path / "none.yml"))
+        assert "haiku" in config.config["model_tiers"]["claude"]
+        assert "sonnet" in config.config["model_tiers"]["claude"]
+        assert "opus" in config.config["model_tiers"]["claude"]
+
+    def test_default_config_has_gemini_tiers(self, tmp_path):
+        config = Config(config_path=str(tmp_path / "none.yml"))
+        assert "flash" in config.config["model_tiers"]["gemini"]
+        assert "pro" in config.config["model_tiers"]["gemini"]
+
+    def test_get_dot_notation(self, tmp_path):
+        config = Config(config_path=str(tmp_path / "none.yml"))
+        result = config.get("model_tiers.claude.haiku")
+        assert result == "claude-haiku-4-5-20251001"
+
+    def test_get_returns_default_for_missing_key(self, tmp_path):
+        config = Config(config_path=str(tmp_path / "none.yml"))
+        result = config.get("nonexistent.key", "fallback")
+        assert result == "fallback"
+
+    def test_get_returns_none_when_no_default(self, tmp_path):
+        config = Config(config_path=str(tmp_path / "none.yml"))
+        result = config.get("nonexistent.key")
+        assert result is None
+
+    def test_load_from_yaml_file(self, tmp_path):
+        config_file = tmp_path / "config.yml"
+        config_file.write_text(
+            "rate_limits:\n  claude:\n    requests_per_minute: 30\n"
+        )
+        config = Config(config_path=str(config_file))
+        assert config.get("rate_limits.claude.requests_per_minute") == 30
+
+    def test_default_timeouts(self, tmp_path):
+        config = Config(config_path=str(tmp_path / "none.yml"))
+        assert config.get("timeouts.default") == 120
+        assert config.get("timeouts.review") == 600
+
+    def test_default_consensus_thresholds(self, tmp_path):
+        config = Config(config_path=str(tmp_path / "none.yml"))
+        thresholds = config.get("validation.consensus_threshold")
+        assert thresholds["high"] == 0.80
+        assert thresholds["medium"] == 0.50
+
+
+# ---------------------------------------------------------------------------
+# ServiceConfig
+# ---------------------------------------------------------------------------
+
+
+class TestServiceConfig:
+    def test_defaults_when_file_missing(self, tmp_path):
+        svc = ServiceConfig(config_path=str(tmp_path / "none.yml"))
+        assert svc.is_enabled("claude") is True
+        assert svc.is_enabled("gemini") is True
+
+    def test_minimum_agents_default(self, tmp_path):
+        svc = ServiceConfig(config_path=str(tmp_path / "none.yml"))
+        assert svc.minimum_agents == 2
+
+    def test_is_enabled_from_yaml(self, tmp_path):
+        cfg = tmp_path / "services.yml"
+        cfg.write_text("services:\n  claude:\n    enabled: false\n")
+        svc = ServiceConfig(config_path=str(cfg))
+        assert svc.is_enabled("claude") is False
+
+    def test_check_minimum_agents_ok(self, tmp_path):
+        svc = ServiceConfig(config_path=str(tmp_path / "none.yml"))
+        assert svc.check_minimum_agents(2) is None
+
+    def test_check_minimum_agents_warning(self, tmp_path):
+        svc = ServiceConfig(config_path=str(tmp_path / "none.yml"))
+        warning = svc.check_minimum_agents(1)
+        assert warning is not None
+        assert "Warning" in warning
+
+    def test_unknown_service_defaults_enabled(self, tmp_path):
+        svc = ServiceConfig(config_path=str(tmp_path / "none.yml"))
+        assert svc.is_enabled("unknown_service") is True
+
+
+# ---------------------------------------------------------------------------
+# Logger
+# ---------------------------------------------------------------------------
+
+
+class TestLogger:
+    def test_logger_creation(self, tmp_path):
+        config = Config(config_path=str(tmp_path / "none.yml"))
+        logger = Logger(config)
+        assert logger is not None
+
+    def test_correlation_id(self, tmp_path):
+        config = Config(config_path=str(tmp_path / "none.yml"))
+        logger = Logger(config)
+        logger.set_correlation_id("test-123")
+        assert logger.correlation_id == "test-123"
+
+    def test_logging_methods_do_not_raise(self, tmp_path):
+        config = Config(config_path=str(tmp_path / "none.yml"))
+        logger = Logger(config)
+        logger.info("info message")
+        logger.warning("warning message")
+        logger.error("error message")
+        logger.debug("debug message")
+
+
+# ---------------------------------------------------------------------------
+# RateLimiter
+# ---------------------------------------------------------------------------
+
+
+class TestRateLimiter:
+    def test_creation_with_defaults(self):
+        limiter = RateLimiter()
+        assert limiter.rpm == 60
+        assert limiter.burst_size == 5
+        assert limiter.tokens == 5
+
+    def test_creation_with_custom_values(self):
+        limiter = RateLimiter(requests_per_minute=30, burst_size=3)
+        assert limiter.rpm == 30
+        assert limiter.burst_size == 3
+
+    def test_acquire_decrements_tokens(self):
+        limiter = RateLimiter(burst_size=5)
+        asyncio.run(limiter.acquire())
+        assert limiter.tokens == 4
+
+    def test_acquire_all_tokens(self):
+        limiter = RateLimiter(burst_size=3)
+        for _ in range(3):
+            asyncio.run(limiter.acquire())
+        assert limiter.tokens == 0
+
+    def test_ignores_extra_kwargs(self):
+        limiter = RateLimiter(tokens_per_minute=1000, unknown_param="value")
+        assert limiter.rpm == 60
