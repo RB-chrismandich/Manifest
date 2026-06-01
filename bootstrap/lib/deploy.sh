@@ -515,6 +515,22 @@ print_summary() {
     else
         echo -e "  ${RED}✗${NC} codex (disabled)"
     fi
+
+    if [[ "$ENABLE_ANTIGRAVITY" == true ]]; then
+        local antigravity_found=false
+        if [[ "$PLATFORM" == "macos" ]]; then
+            if [[ -d "/Applications/Antigravity.app" ]] || [[ -d "/Applications/Antigravity IDE.app" ]]; then
+                antigravity_found=true
+            fi
+        fi
+        if [[ "$antigravity_found" == true ]]; then
+            echo -e "  ${GREEN}✓${NC} antigravity (enabled, installed)"
+        else
+            echo -e "  ${YELLOW}○${NC} antigravity (enabled, not installed)"
+        fi
+    else
+        echo -e "  ${RED}✗${NC} antigravity (disabled)"
+    fi
     echo ""
 
     echo -e "${BOLD}Authentication Commands:${NC}"
