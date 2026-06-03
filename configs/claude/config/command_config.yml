@@ -339,7 +339,16 @@ tool_policies:
     validation_tier: 1
 
 # Version-pinning rule set (consumed by scripts/version_pin.sh).
-# Maps file globs to an ecosystem, its native resolver command, and hash form.
+# Maps file globs to an ecosystem and hash form. Notes on the fields:
+#   ecosystem   - selects the parser AND the native resolver inside the script
+#                 (pip -> pip/pip-compile, docker -> docker manifest inspect).
+#   hash        - ENFORCED: required|digest mean a missing hash/digest makes the
+#                 entry 'unresolved' (file left untouched); optional|none allow a
+#                 version-only pin.
+#   resolve_cmd - ADVISORY only: documents which native tool the ecosystem uses.
+#                 The script maps ecosystem->tool internally; editing resolve_cmd
+#                 does not change behavior (override resolution via
+#                 VERSION_PIN_RESOLVER instead).
 version_pin:
   bypass_marker: "version-pin:ignore"
   rules:

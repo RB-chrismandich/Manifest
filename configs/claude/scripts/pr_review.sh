@@ -121,8 +121,11 @@ main() {
     if [[ -n "${PR_REVIEW_FETCH:-}" ]]; then
         data="$("$PR_REVIEW_FETCH" "$platform")" || { err "fetch override failed"; exit 2; }
     else
-        if ! data="$(default_fetch "$platform")"; then
-            rc=$?
+        # Capture the real exit code (a negated `if` would mask it as 0).
+        set +e
+        data="$(default_fetch "$platform")"; rc=$?
+        set -e
+        if [[ $rc -ne 0 ]]; then
             [[ $rc -eq 3 ]] && err "cannot enumerate PRs — is the platform CLI installed and authenticated?"
             exit 2
         fi

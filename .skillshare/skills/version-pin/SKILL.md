@@ -51,8 +51,11 @@ types and their resolvers are defined in the `version_pin` block of
    - `compliant` — already pinned with a hash (left unchanged).
    - `bypassed` — carries the bypass marker (left byte-for-byte unchanged).
    - `unresolved` — version/hash could not be resolved (non-fatal warning; file
-     untouched). Common causes: missing native tool, offline, or a mutable
-     `latest` tag with no inferable version (supply `--requested`).
+     untouched). Common causes: missing native tool, offline, or a required
+     hash/digest that could not be obtained (the file is left as-is rather than
+     pinned without integrity). A mutable `latest` Docker tag is pinned **by
+     digest** (tag preserved, e.g. `postgres:latest@sha256:…`); pass
+     `--requested name=VERSION` to also pin a specific version label.
 
 3. **Apply or confirm.** On-demand runs already rewrote the file. If you ran
    `--check`, re-run without `--check` (or with `--requested` as needed) to apply.

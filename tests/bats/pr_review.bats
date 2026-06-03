@@ -94,3 +94,11 @@ EOF
     assert_failure
     assert_equal "$status" 2
 }
+
+@test "missing platform CLI reports an enumeration error (not a clean queue)" {
+    unset PR_REVIEW_FETCH
+    # PATH without gh/glab: default_fetch should fail and surface the auth/CLI hint.
+    run env PATH="/usr/bin:/bin" "$SCRIPT" --platform github
+    assert_failure
+    assert_output --partial "cannot enumerate PRs"
+}

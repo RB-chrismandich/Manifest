@@ -127,6 +127,8 @@ delete_local() {
     git branch -d "$1" >/dev/null 2>&1
 }
 delete_remote() {
+    # Nothing to delete if the remote ref is already absent (not a failure).
+    git ls-remote --exit-code --heads origin "$1" >/dev/null 2>&1 || return 0
     git push origin --delete "$1" >/dev/null 2>&1
 }
 
@@ -176,12 +178,18 @@ main() {
     local i deleted=0 failed=0
     for ((i=0; i<total; i++)); do
         local b="${names[$i]}" ok=true
-        if delete_local "$b"; then :; else ok=false; fi
-        if $INCLUDE_REMOTE; then delete_remote "$b" || ok=false; fi
+        # Gate remote deletion on a successful local safe-delete: if `git branch
+        # -d` refuses (unmerged), never delete the remote (which could still hold
+        # unmerged commits). Local safe-delete is the safety check.
+        if delete_local "$b"; then
+            if $INCLUDE_REMOTE && ! delete_remote "$b"; then ok=false; fi
+        else
+            ok=false
+        fi
         if $ok; then
             deleted=$((deleted+1)); $JSON_OUT || echo "  deleted  $b"
         else
-            failed=$((failed+1)); $JSON_OUT || echo "  FAILED   $b (unmerged or remote error)"
+            failed=$((failed+1)); $JSON_OUT || echo "  FAILED   $b (unmerged locally, or remote error; remote left intact)"
         fi
     done
     $JSON_OUT || echo "Summary: $total candidates; applied: $deleted deleted, $failed failed."

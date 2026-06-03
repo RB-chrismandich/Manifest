@@ -142,3 +142,66 @@ EOF
     assert_output --partial "no applicable rules"
     refute_output --partial " -> "
 }
+
+@test "pip: extras and environment markers are preserved on rewrite" {
+    printf 'requests[socks]>=2 ; python_version < "3.12"\n' > "$SANDBOX/requirements.txt"
+    run "$SCRIPT" "$SANDBOX/requirements.txt"
+    assert_success
+    run cat "$SANDBOX/requirements.txt"
+    assert_output 'requests[socks]==2.31.0; python_version < "3.12" --hash=sha256:abc123'
+}
+
+@test "pip: hash required but unobtainable -> unresolved, file untouched" {
+    cat > "$SANDBOX/nohash.sh" <<'EOF'
+#!/usr/bin/env bash
+[[ "$1" == pip ]] && printf '%s\t\n' "2.31.0" || exit 1
+EOF
+    chmod +x "$SANDBOX/nohash.sh"
+    export VERSION_PIN_RESOLVER="$SANDBOX/nohash.sh"
+    printf 'flask\n' > "$SANDBOX/requirements.txt"
+    run "$SCRIPT" "$SANDBOX/requirements.txt"
+    assert_success
+    assert_output --partial "unresolved"
+    assert_output --partial "requires one"
+    run cat "$SANDBOX/requirements.txt"
+    assert_output "flask"
+}
+
+@test "dockerfile: FROM --platform flag and AS stage are preserved" {
+    printf 'FROM --platform=linux/amd64 node:20 AS build\n' > "$SANDBOX/Dockerfile"
+    run "$SCRIPT" "$SANDBOX/Dockerfile"
+    assert_success
+    run cat "$SANDBOX/Dockerfile"
+    assert_output "FROM --platform=linux/amd64 node:20@sha256:dead AS build"
+}
+
+@test "docker: registry host:port is not mistaken for a tag" {
+    printf 'services:\n  app:\n    image: registry.internal:5000/team/app:1.2\n' > "$SANDBOX/docker-compose.yaml"
+    run "$SCRIPT" "$SANDBOX/docker-compose.yaml"
+    assert_success
+    run cat "$SANDBOX/docker-compose.yaml"
+    assert_output --partial "image: registry.internal:5000/team/app:1.2@sha256:dead"
+}
+
+@test "docker: digest required but empty -> unresolved, file untouched" {
+    cat > "$SANDBOX/nodigest.sh" <<'EOF'
+#!/usr/bin/env bash
+[[ "$1" == docker ]] && printf '%s\t\n' "1.0" || exit 1
+EOF
+    chmod +x "$SANDBOX/nodigest.sh"
+    export VERSION_PIN_RESOLVER="$SANDBOX/nodigest.sh"
+    printf 'services:\n  app:\n    image: redis:7\n' > "$SANDBOX/docker-compose.yaml"
+    run "$SCRIPT" "$SANDBOX/docker-compose.yaml"
+    assert_success
+    assert_output --partial "unresolved"
+    run cat "$SANDBOX/docker-compose.yaml"
+    assert_output --partial "image: redis:7"
+}
+
+@test "directory scan is config-driven (finds recognized files in a tree)" {
+    mkdir -p "$SANDBOX/sub"
+    printf 'requests\n' > "$SANDBOX/sub/requirements.txt"
+    run "$SCRIPT" "$SANDBOX" --check
+    assert_failure
+    assert_output --partial "sub/requirements.txt"
+}

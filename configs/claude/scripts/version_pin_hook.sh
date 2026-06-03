@@ -15,13 +15,17 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Extract tool_input.file_path from the PostToolUse payload (empty if absent).
+# Extract the edited file path from the PostToolUse payload (empty if absent).
+# Prefer .tool_input.file_path, fall back to a top-level .file_path — payload
+# shape varies across Claude Code versions / tools (mirrors ai-hooks-integration:
+# `.tool_input.file_path // .file_path`).
 file="$(python3 -c 'import json,sys
 try:
     d = json.load(sys.stdin)
 except Exception:
     print(""); sys.exit(0)
-print((d.get("tool_input") or {}).get("file_path","") or "")' 2>/dev/null || true)"
+ti = d.get("tool_input") or {}
+print(ti.get("file_path") or d.get("file_path") or "")' 2>/dev/null || true)"
 
 [[ -n "$file" && -f "$file" ]] || exit 0
 

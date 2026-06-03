@@ -97,6 +97,25 @@ teardown() {
     assert_output --partial "stale-spike"
 }
 
+@test "remote deletion is gated on a successful local safe-delete" {
+    # A stale branch with a remote ref, then a further local-only commit so it is
+    # unmerged vs its upstream -> `git branch -d` refuses it. With --include-remote
+    # the failed local safe-delete must leave the remote branch intact.
+    GIT_AUTHOR_DATE="2020-01-01T00:00:00" GIT_COMMITTER_DATE="2020-01-01T00:00:00" \
+        git checkout -q -b stale-remote
+    GIT_AUTHOR_DATE="2020-01-01T00:00:00" GIT_COMMITTER_DATE="2020-01-01T00:00:00" \
+        git commit -q --allow-empty -m "pushed work"
+    git push -q -u origin stale-remote
+    GIT_AUTHOR_DATE="2020-01-02T00:00:00" GIT_COMMITTER_DATE="2020-01-02T00:00:00" \
+        git commit -q --allow-empty -m "local-only ahead"
+    git checkout -q main
+    run "$SCRIPT" --default main --protect 'release/*' --stale-days 90 --apply --yes --include-remote
+    assert_success
+    assert_output --partial "FAILED   stale-remote"
+    run git ls-remote --heads origin stale-remote
+    assert_output --partial "stale-remote"
+}
+
 @test "--json emits candidates with reasons" {
     run "$SCRIPT" --default main --protect 'release/*' --json
     assert_success
