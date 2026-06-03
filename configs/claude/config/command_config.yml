@@ -295,6 +295,100 @@ tool_policies:
     parallel_agents: never
     validation_tier: 2
 
+  version-pin:
+    allowed:
+      - Read
+      - Glob
+      - Grep
+      - Bash   # Invokes native package managers (pip, docker, npm) to resolve versions/hashes
+      - Edit
+      - Write  # Rewrites loose pins in place on explicit (on-demand) invocation
+    parallel_agents: always   # Security-sensitive supply-chain change (Constitution II)
+    validation_tier: 1
+
+  docs-all:
+    allowed:
+      - Read
+      - Glob
+      - Grep
+      - Task   # Dispatches docs-readme / docs-diagrams / docs-improve as sub-agents
+    forbidden:
+      - Bash
+    parallel_agents: conditional
+    validation_tier: 2
+
+  pr-review:
+    allowed:
+      - Read
+      - Glob
+      - Grep
+      - Bash   # Wraps git_ops.sh / gh / glab (read-only enumeration)
+    forbidden:
+      - Write
+      - Edit   # Analysis-only by default (FR-014)
+    parallel_agents: never
+    validation_tier: 2
+
+  branch-clean:
+    allowed:
+      - Read
+      - Glob
+      - Grep
+      - Bash   # git plumbing; branch deletion only on --apply
+    parallel_agents: conditional   # Tier 1 on the destructive --apply path
+    validation_tier: 1
+
+# Version-pinning rule set (consumed by scripts/version_pin.sh).
+# Maps file globs to an ecosystem and hash form. Notes on the fields:
+#   ecosystem   - selects the parser AND the native resolver inside the script
+#                 (pip -> pip/pip-compile, docker -> docker manifest inspect).
+#   hash        - ENFORCED: required|digest mean a missing hash/digest makes the
+#                 entry 'unresolved' (file left untouched); optional|none allow a
+#                 version-only pin.
+#   resolve_cmd - ADVISORY only: documents which native tool the ecosystem uses.
+#                 The script maps ecosystem->tool internally; editing resolve_cmd
+#                 does not change behavior (override resolution via
+#                 VERSION_PIN_RESOLVER instead).
+version_pin:
+  bypass_marker: "version-pin:ignore"
+  rules:
+    - id: pip-requirements
+      match: ["requirements.txt", "requirements*.txt"]
+      ecosystem: pip
+      resolve_cmd: "pip-compile --generate-hashes"
+      hash: required
+    - id: docker-compose
+      match: ["docker-compose.yml", "docker-compose.yaml", "compose.yml", "compose.yaml"]
+      ecosystem: docker
+      resolve_cmd: "docker manifest inspect"
+      hash: digest
+    - id: dockerfile
+      match: ["Dockerfile", "Dockerfile.*", "*.Dockerfile"]
+      ecosystem: docker
+      resolve_cmd: "docker manifest inspect"
+      hash: digest
+      # Extensible: add a rule above + a matching parser in version_pin.sh to
+      # cover more ecosystems, e.g.:
+      #   - id: npm-package
+      #     match: ["package.json"]
+      #     ecosystem: npm
+      #     resolve_cmd: "npm view"
+      #     hash: optional
+      #   - id: github-actions
+      #     match: [".github/workflows/*.yml"]
+      #     ecosystem: gha
+      #     resolve_cmd: "git ls-remote"
+      #     hash: required   # mutable ref -> full commit SHA
+
+# Branch-cleaner policy (consumed by scripts/branch_clean.sh).
+branch_clean:
+  stale_days: 90
+  protected:
+    - main
+    - master
+    - "release/*"
+    - "hotfix/*"
+
 # Error recovery strategies
 error_recovery:
   timeout_seconds: 120
