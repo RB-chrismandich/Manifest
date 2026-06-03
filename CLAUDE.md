@@ -242,6 +242,10 @@ The following slash commands are available in Claude Code:
 | `/issue-triage` | Linear issue audit: duplicates, staleness, priority validation | CONDITIONAL (scenario-based) |
 | `/plan-manage` | Plan lifecycle with parallel agent orchestration for create/review | CONDITIONAL |
 | `/browser-test` | AI-powered E2E browser testing via browser-use YAML test prompts | CONDITIONAL |
+| `/version-pin` | Enforce specific, hashed version pins in dependency files (auto-fix on demand, warn-only hook) | ALWAYS (Tier 1) |
+| `/docs-all` | Run docs-readme/docs-diagrams/docs-improve as sub-agents in one pass | NO |
+| `/pr-review` | Review all open PRs and recommend a disposition per PR (analysis-only) | NO |
+| `/branch-clean` | Prune merged/gone/stale branches safely (dry-run by default, local-only) | CONDITIONAL (--apply) |
 | `sync-skills` | Sync .skillshare/skills/ to all home targets (daily skill dev workflow) | NO |
 
 ## Testing Changes
@@ -341,5 +345,5 @@ approaches), review stale plans, or archive/abandon completed work.
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at `specs/001-modularize-parallel-agent/plan.md`
+at `specs/002-new-agent-skills/plan.md`
 <!-- SPECKIT END -->

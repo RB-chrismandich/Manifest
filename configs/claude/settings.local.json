@@ -5,6 +5,10 @@
       "Bash(~/.claude/scripts/git_ops.sh:*)",
       "Bash(~/.claude/scripts/label_sync.sh:*)",
       "Bash(~/.claude/scripts/linear_ops.sh:*)",
+      "Bash(~/.claude/scripts/version_pin.sh:*)",
+      "Bash(~/.claude/scripts/version_pin_hook.sh:*)",
+      "Bash(~/.claude/scripts/pr_review.sh:*)",
+      "Bash(~/.claude/scripts/branch_clean.sh:*)",
       "Bash(shellcheck:*)",
       "Bash(python3:*)",
       "Bash(pip3 install:*)",
@@ -24,6 +28,19 @@
       "WebFetch(domain:github.com)",
       "WebFetch(domain:gist.github.com)",
       "WebFetch(domain:docs.github.com)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/scripts/version_pin_hook.sh"
+          }
+        ]
+      }
     ]
   },
   "mcpServers": {

@@ -41,6 +41,10 @@ Manifest ships with 13 slash commands, 1 CLI tool, and 14 skills (1 auto-trigger
 | `/checkpoint` | Create compact checkpoint summary when context is high | NO |
 | `/health-check` | Verify CLI tools, auth, config syntax, MCP, symlinks | NO |
 | `/sync-configs` | Detect cross-platform config drift and broken symlinks | NO |
+| `/version-pin` | Enforce specific, hashed version pins in dependency files (auto-fix on demand; warn-only save hook) | ALWAYS (Tier 1) |
+| `/docs-all` | Run docs-readme/docs-diagrams/docs-improve as sub-agents in one pass | NO |
+| `/pr-review` | Review all open PRs and recommend a disposition per PR (analysis-only) | NO |
+| `/branch-clean` | Prune merged/gone/stale branches safely (dry-run by default, local-only) | CONDITIONAL (--apply) |
 
 **CLI tool** (installed to `~/.local/bin/`):
 
