@@ -25,6 +25,13 @@ restore_runtime_state() {
         excludes+=("--exclude=/$(basename "$entry")")
     done
 
+    # .agent_outputs is recreated below as a symlink into $MANIFEST_OUTPUT_DIR
+    # (under ~/.manifest, outside ~/.claude and therefore never part of the
+    # backup). Restoring it here is wasted work — create_symlink rm -rf's it
+    # moments later — and would be slow if the backup holds a large legacy
+    # outputs directory. The authoritative outputs were never moved, so skip it.
+    excludes+=("--exclude=/.agent_outputs")
+
     print_step "Restoring runtime state (plugins, sessions, settings.json, history) from backup"
     # -a preserves symlinks and attributes; trailing slashes copy contents.
     rsync -a "${excludes[@]}" "$backup_dir"/ "$target_dir"/

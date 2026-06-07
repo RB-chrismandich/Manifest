@@ -108,6 +108,19 @@ teardown() {
     [ -f "$TGT/plugins/installed_plugins.json" ]     # runtime still restored
 }
 
+@test "restore_runtime_state excludes .agent_outputs (recreated as a symlink later)" {
+    # .agent_outputs is rebuilt by create_symlink into $MANIFEST_OUTPUT_DIR, so
+    # restoring it from the backup is wasted/expensive work that gets wiped.
+    mkdir -p "$BK/.agent_outputs/big"
+    echo out > "$BK/.agent_outputs/big/run.log"
+
+    run restore_runtime_state "$BK" "$TGT" "$SRC"
+    assert_success
+
+    [ ! -e "$TGT/.agent_outputs" ]                   # NOT restored
+    [ -f "$TGT/plugins/installed_plugins.json" ]     # other runtime still restored
+}
+
 @test "restore_runtime_state preserves runtime dirs whose name matches a top-level owned name" {
     # Leading-'/' anchoring must only drop TOP-LEVEL owned entries, never a
     # nested path like plugins/config/ that happens to share the name 'config'.
