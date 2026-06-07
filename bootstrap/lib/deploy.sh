@@ -269,12 +269,14 @@ deploy_codex_configs() {
     print_success "Codex configuration deployed to $CODEX_TARGET_DIR"
 }
 
-# Deploy Antigravity configuration (skills symlink only — Antigravity reads
-# ~/.antigravity/skills; it shares the single source of truth via symlink).
+# Deploy Antigravity configuration (mirrors .claude with symlinks, matching
+# Cursor/Gemini/Codex). Antigravity shares the single source of truth in
+# ~/.claude via symlinks for scripts, config, prompts, skills, and .plans.
 deploy_antigravity_configs() {
     print_step "Deploying Antigravity configuration..."
     mkdir -p "$ANTIGRAVITY_TARGET_DIR"
-    create_symlink "$ANTIGRAVITY_TARGET_DIR/skills" "$TARGET_DIR/skills" "Antigravity skills"
+    # Link shared assets from ~/.claude to avoid duplicate copies, including shared skills.
+    link_shared_assets "$ANTIGRAVITY_TARGET_DIR" "Antigravity" "true"
     print_success "Antigravity configuration deployed to $ANTIGRAVITY_TARGET_DIR"
 }
 
