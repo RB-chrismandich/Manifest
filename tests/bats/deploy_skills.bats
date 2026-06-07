@@ -100,10 +100,11 @@ teardown() {
     assert_output ""
 }
 
-@test "deploy_antigravity_configs symlinks ~/.antigravity/skills to claude skills" {
+@test "deploy_antigravity_configs symlinks all 5 shared assets to claude" {
     export TARGET_DIR="$SANDBOX/home/.claude"
     export ANTIGRAVITY_TARGET_DIR="$SANDBOX/home/.antigravity"
-    mkdir -p "$TARGET_DIR/skills/demo"
+    mkdir -p "$TARGET_DIR/skills/demo" "$TARGET_DIR/scripts" \
+        "$TARGET_DIR/config" "$TARGET_DIR/prompts" "$TARGET_DIR/.plans"
 
     # shellcheck disable=SC1090
     source "$REPO_ROOT/bootstrap/lib/deploy.sh"
@@ -111,14 +112,18 @@ teardown() {
     run deploy_antigravity_configs
     assert_success
 
-    [ -L "$ANTIGRAVITY_TARGET_DIR/skills" ]
+    # All five shared assets are symlinked (mirrors Cursor/Gemini/Codex).
+    for link in skills scripts config prompts .plans; do
+        [ -L "$ANTIGRAVITY_TARGET_DIR/$link" ]
+    done
     [ -d "$ANTIGRAVITY_TARGET_DIR/skills/demo" ]
 }
 
-@test "deploy_antigravity_configs is idempotent — second run leaves symlink intact" {
+@test "deploy_antigravity_configs is idempotent — second run leaves symlinks intact" {
     export TARGET_DIR="$SANDBOX/home/.claude"
     export ANTIGRAVITY_TARGET_DIR="$SANDBOX/home/.antigravity"
-    mkdir -p "$TARGET_DIR/skills/demo"
+    mkdir -p "$TARGET_DIR/skills/demo" "$TARGET_DIR/scripts" \
+        "$TARGET_DIR/config" "$TARGET_DIR/prompts" "$TARGET_DIR/.plans"
 
     # shellcheck disable=SC1090
     source "$REPO_ROOT/bootstrap/lib/deploy.sh"
@@ -127,7 +132,9 @@ teardown() {
     run deploy_antigravity_configs      # second run — must not fail
     assert_success
 
-    [ -L "$ANTIGRAVITY_TARGET_DIR/skills" ]
+    for link in skills scripts config prompts .plans; do
+        [ -L "$ANTIGRAVITY_TARGET_DIR/$link" ]
+    done
     [ -d "$ANTIGRAVITY_TARGET_DIR/skills/demo" ]
 }
 
