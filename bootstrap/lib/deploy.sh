@@ -2,11 +2,50 @@
 
 # Deployment, verification, and summary helpers for bootstrap.sh. This file is sourced, not executed.
 
+# Restore user/runtime state from a "Backup and replace" backup.
+#
+# The repo only owns the contents of configs/claude (CLAUDE.md, config/,
+# scripts/, skills/, …). Everything else under ~/.claude is user/runtime state
+# created by Claude Code at runtime — installed plugins, chat sessions, task and
+# command history, the user's own settings.json, credentials, MCP auth caches,
+# and plugin data dirs (.remember, .superpowers, …). The "Backup and replace"
+# path moves the entire live directory into a timestamped backup, so this helper
+# copies that runtime state back into the freshly created target. Repo-owned
+# entries are excluded so the redeploy below provides the authoritative copy.
+restore_runtime_state() {
+    local backup_dir="$1" target_dir="$2" source_dir="$3"
+    [[ -d "$backup_dir" ]] || return 0
+
+    # Build rsync excludes from the repo-owned entries (top level of source_dir,
+    # including dotfiles like .plans). These are redeployed, so the fresh config
+    # wins; everything else in the backup is runtime state and is restored.
+    local excludes=() entry
+    for entry in "$source_dir"/* "$source_dir"/.[!.]*; do
+        [[ -e "$entry" || -L "$entry" ]] || continue
+        excludes+=("--exclude=/$(basename "$entry")")
+    done
+
+    # .agent_outputs is recreated below as a symlink into $MANIFEST_OUTPUT_DIR
+    # (under ~/.manifest, outside ~/.claude and therefore never part of the
+    # backup). Restoring it here is wasted work — create_symlink rm -rf's it
+    # moments later — and would be slow if the backup holds a large legacy
+    # outputs directory. The authoritative outputs were never moved, so skip it.
+    excludes+=("--exclude=/.agent_outputs")
+
+    print_step "Restoring runtime state (plugins, sessions, settings.json, history) from backup"
+    # -a preserves symlinks and attributes; trailing slashes copy contents.
+    rsync -a "${excludes[@]}" "$backup_dir"/ "$target_dir"/
+    print_success "Runtime state restored (repo-owned config redeployed fresh)"
+}
+
 # Deploy configuration files
 deploy_configs() {
     print_header "Deploying Configuration Files"
 
     local source_dir="$SCRIPT_DIR/configs/claude"
+    # Set by the "Backup and replace" path so the main copy path can restore
+    # user/runtime state (plugins, sessions, settings.json, …) from the backup.
+    local restore_from=""
 
     if [[ ! -d "$source_dir" ]]; then
         print_error "Source directory not found: $source_dir"
@@ -34,6 +73,10 @@ deploy_configs() {
                     backup_dir="$TARGET_DIR.backup.$(date +%Y%m%d_%H%M%S)"
                     print_step "Backing up to $backup_dir"
                     mv "$TARGET_DIR" "$backup_dir"
+                    # Remember the backup so the main copy path can restore
+                    # runtime state (plugins, sessions, settings.json) that the
+                    # mv just moved out of the live directory.
+                    restore_from="$backup_dir"
                     print_success "Backup created"
                     ;;
                 2)
@@ -69,6 +112,14 @@ deploy_configs() {
     print_step "Creating $TARGET_DIR"
     mkdir -p "$TARGET_DIR"
     chmod 700 "$TARGET_DIR"
+
+    # When "Backup and replace" moved the live directory aside, restore the
+    # user/runtime state (installed plugins, chat sessions, history, the user's
+    # own settings.json, etc.) before redeploying repo-owned config. Without
+    # this, a clean replace orphans that state into the backup directory.
+    if [[ -n "$restore_from" ]]; then
+        restore_runtime_state "$restore_from" "$TARGET_DIR" "$source_dir"
+    fi
 
     print_step "Copying configuration files..."
     # Copy everything EXCEPT skills (skills is a symlink -> .skillshare/skills;
