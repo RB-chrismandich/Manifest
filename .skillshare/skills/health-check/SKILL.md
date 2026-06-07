@@ -95,7 +95,15 @@ Verify all cross-platform symlinks are intact:
 .codex/prompts   → ../.claude/prompts
 .codex/skills    → ../.claude/skills
 .codex/.plans    → ../.claude/.plans
+.antigravity/scripts → ../.claude/scripts
+.antigravity/config  → ../.claude/config
+.antigravity/prompts → ../.claude/prompts
+.antigravity/skills  → ../.claude/skills
+.antigravity/.plans  → ../.claude/.plans
 ```
+
+Only check symlinks for services marked `enabled: true` in
+`.claude/config/services.yml` (e.g. skip `.cursor`/`.codex` when disabled).
 
 For each: check if symlink exists and target is valid.
 
