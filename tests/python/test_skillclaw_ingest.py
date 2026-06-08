@@ -28,3 +28,17 @@ def test_normalize_block_list_keeps_text_thinking_tooluse():
 def test_normalize_drops_empty_thinking():
     blocks = ing.normalize_content([{"type": "thinking", "thinking": "", "signature": "X"}])
     assert blocks == []
+
+
+def test_normalize_structured_tool_result_truncation_is_accurate():
+    # Non-string tool_result content must be JSON-serialized then truncated by
+    # _truncate (not pre-sliced), so the truncated flag + tail marker stay honest.
+    big = {"rows": ["y" * 1000]}
+    blocks = ing.normalize_content(
+        [{"type": "tool_result", "content": big, "is_error": False}],
+        max_tool_output_chars=500,
+    )
+    tr = blocks[0]
+    assert tr["kind"] == "tool_result"
+    assert tr["truncated"] is True
+    assert "truncated" in tr["output"]

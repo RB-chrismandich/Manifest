@@ -52,7 +52,7 @@ def normalize_content(content, max_tool_output_chars: int = DEFAULT_MAX_TOOL_OUT
         elif bt == "tool_result":
             raw = block.get("content", "")
             if not isinstance(raw, str):
-                raw = json.dumps(raw)[:max_tool_output_chars]
+                raw = json.dumps(raw)
             text, truncated = _truncate(raw, max_tool_output_chars)
             out.append({"kind": "tool_result", "output": text,
                         "is_error": bool(block.get("is_error", False)),
