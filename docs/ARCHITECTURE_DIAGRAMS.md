@@ -2,7 +2,7 @@
 
 > Visual documentation of the Manifest parallel LLM agent orchestration framework
 
-**Last Updated**: 2026-05-31
+**Last Updated**: 2026-06-08
 **Project**: Manifest - AI Agent Orchestration Framework
 
 ---
@@ -23,6 +23,7 @@
 12. [Service State Management](#service-state-management)
 13. [Issue Management Architecture](#issue-management-architecture)
 14. [Label Management Architecture](#label-management-architecture)
+15. [SkillClaw Capture & Evolve Pipeline](#skillclaw-capture--evolve-pipeline)
 
 ---
 
@@ -74,6 +75,15 @@ flowchart TB
         GLAB["GitLab CLI (glab)"]:::external
     end
 
+    subgraph "SkillClaw Subsystem"
+        SKILLCLAW_PROXY["SkillClaw Proxy\n(capture daemon :8765)"]:::process
+        SKILLCLAW_SCRUB["skillclaw_scrub.py\n(secret redaction)"]:::process
+        SKILLCLAW_EVOLVE["skillclaw evolve\n(workflow mode)"]:::process
+        SKILLCLAW_PROMOTE["skillclaw_promote.sh\n(classify → PR)"]:::process
+        SKILLSHARE[".skillshare/skills/\n(committed library)"]:::config
+        SKILLCLAW_PROXY --> SKILLCLAW_SCRUB --> SKILLCLAW_EVOLVE --> SKILLCLAW_PROMOTE --> SKILLSHARE
+    end
+
     USER --> BOOTSTRAP
     BOOTSTRAP --> SERVICES
     USER --> CLAUDE_CLI
@@ -90,6 +100,8 @@ flowchart TB
     SERVICES -.->|config| PARALLEL_PY
     COMMAND_CFG -.->|thresholds| PARALLEL_PY
     VALIDATION_CFG -.->|criteria| PARALLEL_PY
+    CLAUDE_CLI -.->|fail-open wrapper| SKILLCLAW_PROXY
+    CODEX -.->|fail-open wrapper| SKILLCLAW_PROXY
 ```
 
 **Key Components**:
@@ -100,6 +112,8 @@ flowchart TB
   (logging, validation, synthesis, streaming, Codex agent, services.yml)
 - **Configuration Layer**: YAML files controlling behavior, validation rules, and Phase 3 features
 - **Agent Services**: External LLM and Git hosting CLIs
+- **SkillClaw Subsystem**: Capture proxy that intercepts CLI-agent traffic, scrubs secrets,
+  evolves captured patterns into skills, and opens a PR-gated review into `.skillshare/skills/`
 
 ---
 
@@ -407,6 +421,10 @@ flowchart TD
     OPEN_CURSOR["Open Cursor<br/>Download Page"]:::process
     SKIP_CURSOR["Skip Cursor"]:::skip
 
+    CHECK_SKILLCLAW{"SkillClaw<br/>Enabled?"}:::decision
+    INSTALL_SKILLCLAW["Install SkillClaw (pip)<br/>chmod 700 storage<br/>Write fail-open wrappers<br/>Install supervisor + start daemon"]:::process
+    SKIP_SKILLCLAW["Skip SkillClaw"]:::skip
+
     DEPLOY["Deploy Config Files<br/>(~/.claude, ~/.cursor, ~/.gemini)"]:::process
     WRITE_SERVICES["Write services.yml<br/>(with final toggles)"]:::process
 
@@ -461,8 +479,13 @@ flowchart TD
 
     CHECK_CURSOR -->|Yes| OPEN_CURSOR
     CHECK_CURSOR -->|No| SKIP_CURSOR
-    OPEN_CURSOR --> DEPLOY
-    SKIP_CURSOR --> DEPLOY
+    OPEN_CURSOR --> CHECK_SKILLCLAW
+    SKIP_CURSOR --> CHECK_SKILLCLAW
+
+    CHECK_SKILLCLAW -->|Yes| INSTALL_SKILLCLAW
+    CHECK_SKILLCLAW -->|No| SKIP_SKILLCLAW
+    INSTALL_SKILLCLAW --> DEPLOY
+    SKIP_SKILLCLAW --> DEPLOY
 
     DEPLOY --> WRITE_SERVICES
     WRITE_SERVICES --> AUTH_CLAUDE
@@ -479,6 +502,9 @@ flowchart TD
 - **Platform-Specific Install**: Uses appropriate package manager (brew/apt/dnf/pacman)
 - **Dependency Checking**: Verifies jq is installed (required for git_ops.sh JSON normalization)
 - **Service Toggles**: Writes final enabled/disabled state to services.yml
+- **SkillClaw (disabled by default)**: When `--enable-skillclaw` is passed, installs the
+  capture proxy, sets `chmod 700` on `~/.skillclaw/`, injects fail-open shell wrappers, and
+  installs a platform supervisor (launchd on macOS, systemd on Linux) for auto-restart
 
 ---
 
@@ -856,20 +882,24 @@ flowchart LR
     BOOTSTRAP["bootstrap.sh"]:::process
 
     subgraph "Configuration Files"
-        SERVICES["services.yml<br/>(Claude, Gemini, Cursor, Codex,<br/>GitHub CLI, GitLab CLI)"]:::config
+        SERVICES["services.yml<br/>(Claude, Gemini, Cursor, Codex,<br/>GitHub CLI, GitLab CLI, SkillClaw)"]:::config
         COMMAND_CFG["command_config.yml<br/>(Thresholds, Tool Policies,<br/>Model Selection)"]:::config
         VALIDATION["validation_criteria.yml<br/>(Tier 1/2 Criteria,<br/>Command Overrides)"]:::config
+        SKILLCLAW_CFG["skillclaw.yml<br/>(proxy port/host, storage root,<br/>capture agents, evolve provider,<br/>promotion branch/labels)"]:::config
     end
 
     PARSE_SERVICES["Parse Service Toggles<br/>(awk parser)"]:::process
     PARSE_COMMAND["Load Command Config<br/>(YAML parser)"]:::process
     PARSE_VALID["Load Validation Rules<br/>(YAML parser)"]:::process
+    PARSE_SC["Load SkillClaw Config<br/>(python3 + yaml)"]:::process
 
     PARALLEL["parallel_agent.py"]:::process
     COMMANDS["Command Execution"]:::process
     VALIDATORS["Validation Agents"]:::process
+    SKILLCLAW_RUNTIME["skillclaw_promote.sh\nskillclaw_scrub.py\nskillclaw setup"]:::process
 
     BOOTSTRAP --> SERVICES
+    BOOTSTRAP --> SKILLCLAW_CFG
     SERVICES --> PARSE_SERVICES
     PARSE_SERVICES --> PARALLEL
 
@@ -881,12 +911,16 @@ flowchart LR
     PARSE_VALID --> VALIDATORS
     PARSE_VALID --> PARALLEL
 
+    SKILLCLAW_CFG --> PARSE_SC
+    PARSE_SC --> SKILLCLAW_RUNTIME
+
     PARALLEL --> RESULT["Agent Outputs"]:::output
     COMMANDS --> RESULT
     VALIDATORS --> RESULT
+    SKILLCLAW_RUNTIME --> RESULT
 ```
 
-**services.yml Structure**:
+**services.yml Structure** (SkillClaw entry):
 
 ```yaml
 services:
@@ -899,6 +933,10 @@ services:
   cursor:
     enabled: true
     command: cursor
+  skillclaw:
+    enabled: false       # opt-in; enable with --enable-skillclaw
+    command: skillclaw
+    storage: ~/.skillclaw
   git_cli:
     github:
       enabled: auto  # auto-detect
@@ -913,10 +951,13 @@ services:
 
 **Key Features**:
 
-- **Service Toggles**: Enable/disable agents and Git CLIs
+- **Service Toggles**: Enable/disable agents and Git CLIs (including SkillClaw)
 - **Auto-Detection**: gh/glab default to `auto` (enable if installed)
 - **Nested Configuration**: git_cli section contains github/gitlab subsections
 - **Reconfigurable**: `bootstrap.sh --reconfigure` updates toggles without reinstall
+- **skillclaw.yml**: Controls proxy port (default 8765), `~/.skillclaw` storage layout,
+  which CLI agents get fail-open wrappers, evolve provider (local Ollama / cloud fallback),
+  and PR promotion settings (branch prefix, base branch, labels)
 
 ---
 
@@ -1181,6 +1222,86 @@ flowchart TB
 - `--dry-run`: Report what would be created without making changes
 - `--validate`: Alias for `--dry-run` (validation only)
 - `--platform <name>`: Restrict sync to a single platform (github, gitlab, linear)
+
+---
+
+## SkillClaw Capture & Evolve Pipeline
+
+How CLI-agent traffic is intercepted by the SkillClaw proxy, scrubbed for secrets,
+evolved into candidate skills, and promoted to the committed library via a PR-gated review.
+
+```mermaid
+%%{init: {'theme':'neutral'}}%%
+flowchart LR
+    classDef input fill:#f0f9ff,stroke:#0284c7,color:#0c4a6e
+    classDef process fill:#f0fdf4,stroke:#16a34a,color:#14532d
+    classDef decision fill:#fef3c7,stroke:#d97706,color:#78350f
+    classDef secure fill:#fee2e2,stroke:#dc2626,color:#7f1d1d
+    classDef config fill:#f3e8ff,stroke:#9333ea,color:#581c87
+    classDef output fill:#22c55e,stroke:#166534,color:#fff
+
+    subgraph "CLI Agent Layer"
+        CLAUDE_W["claude()\nfail-open wrapper"]:::process
+        CODEX_W["codex()\nfail-open wrapper"]:::process
+    end
+
+    HEALTH_CHECK{"SkillClaw\ndaemon up?\n(0.3s probe)"}:::decision
+    DIRECT["Direct to Provider\n(bypass)"]:::input
+
+    PROXY["SkillClaw Proxy\n:8765 (127.0.0.1 only)"]:::process
+    SESSIONS["~/.skillclaw/sessions/\n(chmod 700)"]:::secure
+
+    SCRUB["skillclaw_scrub.py\nRedact API keys,\nauth headers, tokens"]:::secure
+
+    EVOLVE["skillclaw evolve\n--mode workflow\n(local Ollama / cloud fallback)"]:::process
+    EVOLVED_LIB["~/.skillclaw/skills/\n(evolved candidates)"]:::process
+
+    PROMOTE["skillclaw_promote.sh\n--apply"]:::process
+
+    CLASSIFY["skillclaw_promote.py\nClassify NEW / CHANGED\nDrop invalid frontmatter"]:::process
+
+    GIT_BRANCH["git switch -c\nskillclaw/evolve-N-SHA"]:::process
+    PR["git_ops.sh pr-create\n(needs-review + follow-up labels)"]:::process
+
+    SKILLSHARE[".skillshare/skills/\n(committed library)"]:::output
+
+    CLAUDE_W --> HEALTH_CHECK
+    CODEX_W --> HEALTH_CHECK
+    HEALTH_CHECK -->|up| PROXY
+    HEALTH_CHECK -->|down| DIRECT
+
+    PROXY --> SESSIONS
+    SESSIONS --> SCRUB
+    SCRUB --> EVOLVE
+    EVOLVE --> EVOLVED_LIB
+    EVOLVED_LIB --> CLASSIFY
+    CLASSIFY --> PROMOTE
+    PROMOTE --> GIT_BRANCH
+    GIT_BRANCH --> PR
+    PR --> SKILLSHARE
+```
+
+**Pipeline Stages**:
+
+| Stage | Component | Description |
+|-------|-----------|-------------|
+| Capture | fail-open shell wrappers | Redirect `ANTHROPIC_BASE_URL` / `OPENAI_BASE_URL` to `127.0.0.1:8765`; bypass if daemon is down |
+| Storage | `~/.skillclaw/sessions/` | Session files stored with `chmod 700`; secrets honeypot — Tier 1 |
+| Scrub | `skillclaw_scrub.py` | Redacts `sk-ant-*`, `sk-proj-*`, bearer tokens, `x-api-key` headers before evolve/promote |
+| Evolve | `skillclaw evolve --mode workflow` | Deterministic pipeline mode; local Ollama (`qwen2.5-coder`) with `claude-haiku` cloud fallback |
+| Classify | `skillclaw_promote.py` | Compares evolved `~/.skillclaw/skills/` against committed library; emits NEW / CHANGED / UNCHANGED; drops skills with missing or malformed frontmatter |
+| Promote | `skillclaw_promote.sh --apply` | Idempotency check (one open `skillclaw/evolve-*` PR at a time); one commit per skill; opens review PR via `git_ops.sh` |
+| Review | GitHub/GitLab PR | Human review gate; each skill is an independent commit — revert to drop; merge deploys via `bootstrap.sh` skill sync |
+
+**Fail-open guarantee**: if the SkillClaw daemon is unreachable at invocation time
+(health probe capped at 0.3 s), wrappers call the CLI directly — agents are never blocked.
+
+**Key new skills**:
+
+- `/skill-evolve` — Preview or open a review PR for SkillClaw-evolved skills
+  (`skillclaw_promote.sh --apply`); dry-run by default
+- `/pass-cli` — Retrieve secrets from Proton Pass via `pass-cli` agent CLI;
+  handles session setup, vault/item discovery, and auto-recovery
 
 ---
 

@@ -154,6 +154,8 @@ These integrate with the parallel agent orchestration framework.
 | `/docs-all` | Run docs-readme/docs-diagrams/docs-improve as sub-agents in one pass | NO |
 | `/pr-review` | Review all open PRs, recommend disposition per PR (analysis-only) | NO |
 | `/branch-clean` | Prune merged/gone/stale branches safely (dry-run, local-only) | CONDITIONAL |
+| `/skill-evolve` | Promote SkillClaw-evolved skills into a review PR (dry-run default) | NO |
+| `/pass-cli` | Retrieve credentials from Proton Pass (auth is the user's step; PAT never stored) | NO |
 
 ### Command Usage
 

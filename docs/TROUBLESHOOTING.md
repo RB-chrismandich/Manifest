@@ -2,7 +2,7 @@
 
 > Common problems and solutions for the Manifest parallel agent orchestration framework
 
-**Last Updated**: 2026-01-27
+**Last Updated**: 2026-06-08
 **Audience**: All users
 **Quick Help**: Most issues are fixed by checking service configuration and verifying CLI installations
 
@@ -12,11 +12,12 @@
 
 1. [Installation Issues](#installation-issues)
 2. [Agent Execution Issues](#agent-execution-issues)
-3. [Authentication Issues](#authentication-issues)
-4. [Configuration Issues](#configuration-issues)
-5. [Performance Issues](#performance-issues)
-6. [Output Issues](#output-issues)
-7. [Diagnostic Commands](#diagnostic-commands)
+3. [SkillClaw Issues](#skillclaw-issues)
+4. [Authentication Issues](#authentication-issues)
+5. [Configuration Issues](#configuration-issues)
+6. [Performance Issues](#performance-issues)
+7. [Output Issues](#output-issues)
+8. [Diagnostic Commands](#diagnostic-commands)
 
 ---
 
@@ -279,6 +280,112 @@ vim ~/.claude/config/services.yml
 
 # Check services.yml for disabled agents
 cat ~/.claude/config/services.yml
+```
+
+---
+
+## SkillClaw Issues
+
+SkillClaw is opt-in and disabled by default. These issues only apply when
+`--enable-skillclaw` has been used.
+
+### Capture Not Working / Daemon Down
+
+**Symptom:** Agent calls succeed but sessions do not appear in `~/.skillclaw/sessions/`.
+
+**Diagnosis:**
+
+```bash
+curl -sf --max-time 0.3 http://127.0.0.1:8765/health && echo "daemon up" || echo "daemon down"
+```
+
+**What this means:** This is informational, not an outage. SkillClaw is **fail-open** — when
+the daemon is unreachable, `claude` and `codex` wrappers route directly to their providers.
+Agent work continues normally; sessions are simply not captured.
+
+**Fix:**
+
+```bash
+# Restart via your process supervisor, or re-enable through bootstrap
+./bootstrap.sh --enable-skillclaw
+```
+
+---
+
+### Temporarily Bypass Capture
+
+To skip capture for one shell session without disabling SkillClaw globally:
+
+```bash
+export SKILLCLAW_BYPASS=1
+```
+
+To fully revert SkillClaw (removes wrappers and stops the daemon):
+
+```bash
+./bootstrap.sh --disable-skillclaw
+```
+
+---
+
+### Wrapper Functions Missing
+
+**Symptom:** `claude` or `codex` bypass the proxy even though SkillClaw is enabled.
+
+**Diagnosis:**
+
+```bash
+grep "MANIFEST SKILLCLAW WRAPPERS" ~/.zshrc
+```
+
+If that returns nothing, the wrappers were not injected.
+
+**Fix:**
+
+```bash
+./bootstrap.sh --enable-skillclaw
+```
+
+Then open a new shell (or `source ~/.zshrc`) for the wrappers to take effect.
+
+---
+
+### Storage Permissions
+
+**Symptom:** Capture fails with a permission error on `~/.skillclaw/`.
+
+**Check:**
+
+```bash
+stat -c '%a' ~/.skillclaw 2>/dev/null || stat -f '%Lp' ~/.skillclaw
+```
+
+The directory must be `700`. If it is not:
+
+```bash
+chmod 700 ~/.skillclaw
+```
+
+---
+
+### Promote Opened No PR
+
+**Symptom:** Running `/skill-evolve` or `skillclaw_promote.sh` completes without opening a PR.
+
+**Cause:** Dry-run is the default. The script prints what it would do but does not push.
+
+**Fix:**
+
+```bash
+~/.claude/scripts/skillclaw_promote.sh --apply
+```
+
+If it still aborts with "open PR already exists":
+
+```bash
+# The script refuses to create a second PR while skillclaw/evolve-* is open.
+# Close or merge the existing PR first, or override:
+~/.claude/scripts/skillclaw_promote.sh --apply --force-new
 ```
 
 ---

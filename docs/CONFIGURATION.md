@@ -2,7 +2,7 @@
 
 > Comprehensive reference for all Manifest configuration options
 
-**Last Updated**: 2026-02-11
+**Last Updated**: 2026-06-08
 **Audience**: System operators, advanced users
 **Prerequisites**: Manifest installed via bootstrap.sh or manually
 
@@ -12,12 +12,13 @@
 
 1. [Configuration Files](#configuration-files)
 2. [Service Configuration](#service-configuration)
-3. [Command Configuration](#command-configuration)
-4. [Validation Criteria](#validation-criteria)
-5. [Model Selection](#model-selection)
-6. [Environment Variables](#environment-variables)
-7. [Command-Line Options](#command-line-options)
-8. [Override Precedence](#override-precedence)
+3. [SkillClaw Configuration (Optional)](#skillclaw-configuration-optional)
+4. [Command Configuration](#command-configuration)
+5. [Validation Criteria](#validation-criteria)
+6. [Model Selection](#model-selection)
+7. [Environment Variables](#environment-variables)
+8. [Command-Line Options](#command-line-options)
+9. [Override Precedence](#override-precedence)
 
 ---
 
@@ -30,6 +31,7 @@ All configuration files are located in `~/.claude/config/`:
 | `services.yml` | Agent enable/disable states | YAML |
 | `command_config.yml` | Tool policies, thresholds, model defaults | YAML |
 | `validation_criteria.yml` | Tier 1/2 security and quality rules | YAML |
+| `skillclaw.yml` | SkillClaw proxy, storage, capture, evolve, and promotion settings | YAML |
 
 ### File Locations
 
@@ -41,6 +43,7 @@ ls -la ~/.claude/config/
 vim ~/.claude/config/services.yml
 vim ~/.claude/config/command_config.yml
 vim ~/.claude/config/validation_criteria.yml
+vim ~/.claude/config/skillclaw.yml
 ```
 
 ---
@@ -166,6 +169,103 @@ The script validates services on startup:
 2. Parses enabled/disabled state for each service
 3. Verifies minimum agent count (default: 2)
 4. Warns if fewer agents than minimum are available
+
+---
+
+## SkillClaw Configuration (Optional)
+
+**File**: `~/.claude/config/skillclaw.yml`
+**Repo source**: `configs/claude/config/skillclaw.yml`
+
+SkillClaw is an **opt-in** local proxy that captures agent interactions, evolves skills with a
+local LLM, and opens review PRs. It is **disabled by default** and does not affect any agent
+behavior unless explicitly enabled.
+
+### Enabling and Disabling
+
+```bash
+# Enable SkillClaw (installs daemon + shell wrappers)
+./bootstrap.sh --enable-skillclaw
+
+# Disable SkillClaw (removes wrappers, stops daemon)
+./bootstrap.sh --disable-skillclaw
+
+# Reconfigure alongside other toggles
+./bootstrap.sh --reconfigure --enable-skillclaw --disable-cursor
+```
+
+When enabled, `services.yml` gains a `skillclaw:` stanza set to `enabled: true`.
+
+### What skillclaw.yml Configures
+
+```yaml
+# Proxy — local HTTP interception layer
+proxy:
+  host: 127.0.0.1
+  port: 8765            # All capture traffic passes through this port
+
+# Storage — session and evolved-skill data (chmod 700; secrets scrubbed before evolution)
+storage:
+  root: ~/.skillclaw    # Top-level store; created with mode 700
+  sessions: ~/.skillclaw/sessions
+  evolved: ~/.skillclaw/evolved
+
+# Capture — which agents are wired through the proxy
+# (gemini and cursor-agent are documented follow-ups; not yet wired)
+capture:
+  agents:
+    claude:
+      env: ANTHROPIC_BASE_URL   # Set to http://127.0.0.1:8765 when proxy is up
+    codex:
+      env: OPENAI_BASE_URL      # Set to http://127.0.0.1:8765/v1 when proxy is up
+      path: /v1
+
+# Evolution — how captured sessions are improved into new skill candidates
+evolve:
+  mode: workflow
+  provider:
+    primary:
+      base_url: http://127.0.0.1:11434/v1   # Local Ollama (preferred; no cloud cost)
+      model: qwen2.5-coder
+    fallback:
+      provider: anthropic
+      model: claude-haiku-4-5-20251001      # Cloud fallback when Ollama is unavailable
+
+# Promotion — how evolved skills become PRs
+promotion:
+  branch_prefix: skillclaw/evolve-
+  pr_base: main
+  pr_labels:
+    - needs-review
+    - follow-up
+```
+
+### Fail-Open Capture
+
+Shell wrapper functions replace the `claude` and `codex` commands. Before routing a call
+through the proxy, the wrapper probes the daemon's health endpoint:
+
+```bash
+curl -sf --max-time 0.3 http://127.0.0.1:8765/health
+```
+
+If the probe fails (daemon down, slow to start, etc.) the wrapper falls back to the real CLI
+binary directly — **agents are never blocked by a dead daemon**.
+
+To bypass capture for a single shell session without disabling SkillClaw globally:
+
+```bash
+export SKILLCLAW_BYPASS=1
+```
+
+### Promotion
+
+Evolved skills are promoted via `~/.claude/scripts/skillclaw_promote.sh` (also available as
+the `/skill-evolve` slash command). Dry-run is the default; pass `--apply` to open a PR.
+The script opens one review PR (one commit per skill) and aborts if an open
+`skillclaw/evolve-*` PR already exists — use `--force-new` to override.
+
+**Full design doc**: [docs/SKILLCLAW.md](SKILLCLAW.md)
 
 ---
 

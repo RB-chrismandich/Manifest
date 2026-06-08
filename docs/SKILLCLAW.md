@@ -1,5 +1,11 @@
 # SkillClaw Integration
 
+> PR-gated session capture that evolves reusable skills from your CLI-agent workflow
+
+**Last Updated**: 2026-06-08
+**Audience**: Operators, developers
+**Prerequisites**: Manifest installed (`./bootstrap.sh`)
+
 SkillClaw captures CLI-agent sessions through a local proxy and evolves reusable
 `SKILL.md` skills. In Manifest it is a **PR-gated proposer**: nothing reaches the
 committed `.skillshare/skills/` library without a merged PR.
@@ -46,3 +52,12 @@ Only one open `skillclaw/evolve-*` PR at a time (Option A); `--force-new` overri
   specific SDK rejects http.
 - **Evolve model defaults:** confirm the Ollama model + cloud fallback tier in `skillclaw.yml`.
 - **Shared team storage (S3/OSS)** and cross-device sync.
+
+---
+
+## Related Documents
+
+- [Commands Guide](COMMANDS.md) - Full command reference including `/skill-evolve`
+- [Architecture Diagrams](ARCHITECTURE_DIAGRAMS.md) - SkillClaw capture & evolve pipeline diagram
+- [Getting Started](GETTING_STARTED.md) - First-time Manifest setup
+- [README.md](../README.md) - Project overview and SkillClaw feature summary
