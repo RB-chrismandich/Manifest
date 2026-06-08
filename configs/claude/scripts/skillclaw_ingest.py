@@ -68,3 +68,35 @@ def normalize_content(content, max_tool_output_chars: int = DEFAULT_MAX_TOOL_OUT
                         "is_error": bool(block.get("is_error", False)),
                         "truncated": truncated})
     return out
+
+
+def parse_transcript(path: Path, max_tool_output_chars: int = DEFAULT_MAX_TOOL_OUTPUT) -> dict | None:
+    """Parse one transcript .jsonl into a session record, or None if no turns.
+
+    Defensive: skips unparseable lines (including a truncated trailing line from
+    a still-active session) rather than raising.
+    """
+    session_id = path.stem
+    cwd = git_branch = None
+    turns: list[dict] = []
+    with path.open(encoding="utf-8", errors="replace") as fh:
+        for line in fh:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                obj = json.loads(line)
+            except json.JSONDecodeError:
+                continue  # partial/corrupt line — skip
+            if obj.get("type") not in ("user", "assistant"):
+                continue
+            session_id = obj.get("sessionId", session_id)
+            cwd = obj.get("cwd", cwd)
+            git_branch = obj.get("gitBranch", git_branch)
+            msg = obj.get("message", {})
+            blocks = normalize_content(msg.get("content"), max_tool_output_chars)
+            if blocks:
+                turns.append({"role": msg.get("role", "?"), "blocks": blocks})
+    if not turns:
+        return None
+    return {"session_id": session_id, "cwd": cwd, "git_branch": git_branch, "turns": turns}

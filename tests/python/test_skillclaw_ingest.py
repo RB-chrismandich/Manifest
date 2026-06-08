@@ -1,4 +1,5 @@
 from pathlib import Path
+import json
 import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "configs/claude/scripts"))
@@ -67,3 +68,43 @@ def test_long_tool_use_input_values_are_truncated():
     assert tu["name"] == "Write"
     assert len(tu["input"]["content"]) < 600
     assert tu["input"]["file_path"] == "/a.txt"   # short values untouched
+
+
+def _write_jsonl(path, records):
+    path.write_text("\n".join(json.dumps(r) for r in records) + "\n")
+
+
+def test_parse_transcript_builds_session(tmp_path):
+    f = tmp_path / "sess-abc.jsonl"
+    _write_jsonl(f, [
+        {"type": "queue-operation", "operation": "enqueue"},   # noise, ignored
+        {"type": "user", "sessionId": "sess-abc", "cwd": "/repo", "gitBranch": "main",
+         "message": {"role": "user", "content": "fix the bug"}},
+        {"type": "assistant", "sessionId": "sess-abc",
+         "message": {"role": "assistant",
+                     "content": [{"type": "text", "text": "done"}]}},
+    ])
+    rec = ing.parse_transcript(f)
+    assert rec["session_id"] == "sess-abc"
+    assert rec["cwd"] == "/repo"
+    assert rec["git_branch"] == "main"
+    assert len(rec["turns"]) == 2
+    assert rec["turns"][0] == {"role": "user", "blocks": [{"kind": "text", "text": "fix the bug"}]}
+
+
+def test_parse_transcript_tolerates_partial_trailing_line(tmp_path):
+    f = tmp_path / "sess-x.jsonl"
+    f.write_text(
+        json.dumps({"type": "user", "sessionId": "sess-x",
+                    "message": {"role": "user", "content": "hi"}}) + "\n"
+        + '{"type":"assistant","message":{"role":"assist'   # truncated, no newline
+    )
+    rec = ing.parse_transcript(f)        # must not raise
+    assert rec["session_id"] == "sess-x"
+    assert len(rec["turns"]) == 1
+
+
+def test_parse_transcript_returns_none_when_no_turns(tmp_path):
+    f = tmp_path / "empty.jsonl"
+    _write_jsonl(f, [{"type": "queue-operation"}, {"type": "attachment"}])
+    assert ing.parse_transcript(f) is None
