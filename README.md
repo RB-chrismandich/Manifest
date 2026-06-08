@@ -4,7 +4,7 @@
 
 > Parallel LLM agent orchestration framework for Claude Code, Cursor IDE, Gemini CLI, Codex CLI, and Antigravity IDE
 
-**Last Updated**: 2026-05-31
+**Last Updated**: 2026-06-08
 
 Manifest is a configuration repository that deploys a sophisticated parallel agent
 orchestration system to `~/.claude/`, `~/.cursor/`, `~/.gemini/`, `~/.codex/`, and `~/.antigravity/`, enabling Claude Code,
@@ -55,6 +55,10 @@ cd Manifest
 - **Cross-Platform**: Native support for macOS (Intel/Apple Silicon) and 5 major Linux distributions
 - **Unified Label Management**: Canonical label registry with sync across GitHub, GitLab, and Linear
 - **Production Templates**: Pre-configured permission templates for Django, Express, Go microservices, Python monorepos
+- **SkillClaw Integration** (opt-in): Capture-proxy that records agent sessions and proposes evolved skills via PR.
+  Fail-open design keeps agents working even when the daemon is down; enable with `--enable-skillclaw`
+- **Proton Pass Credential Retrieval** (`/pass-cli`): Retrieve passwords, API keys, and tokens from Proton Pass
+  vaults without storing PATs in files or memory
 
 ---
 
@@ -95,6 +99,7 @@ Mermaid flowcharts showing bootstrap, execution, validation, and consensus flows
 | `/issue-triage` | Linear issue audit: duplicates, staleness, priority validation | CONDITIONAL (scenario-based) | Tier 2 |
 | `/plan-manage` | Plan lifecycle: create, review, execute, archive, abandon | CONDITIONAL | Tier 2 |
 | `/browser-test` | AI-powered E2E browser testing via browser-use YAML test prompts | CONDITIONAL | Tier 2 |
+| `/skill-evolve` | Promote SkillClaw-evolved skills into a review PR (dry-run by default) | NEVER | Tier 2 |
 
 **CLI tools** (installed to `~/.local/bin/`):
 
@@ -133,6 +138,7 @@ Mermaid flowcharts showing bootstrap, execution, validation, and consensus flows
 | [Getting Started](docs/GETTING_STARTED.md) | First-time setup walkthrough with verification steps | New users | 10 min |
 | [Configuration](docs/CONFIGURATION.md) | All configuration options, YAML reference, environment variables | Operators | 15 min |
 | [Architecture Diagrams](docs/ARCHITECTURE_DIAGRAMS.md) | Visual system documentation with 14 Mermaid diagrams | Developers | 20 min |
+| [SkillClaw](docs/SKILLCLAW.md) | PR-gated skill evolution via session capture proxy | Operators | 8 min |
 | [Troubleshooting](docs/TROUBLESHOOTING.md) | Common problems, error messages, solutions | All users | 10 min |
 | [AGENTS.md](AGENTS.md) | AI agent instructions (Cursor, Claude, Gemini, Codex) | AI assistants | 8 min |
 | [CLAUDE.md](CLAUDE.md) | Claude Code-specific project context | AI assistants | 8 min |
@@ -157,7 +163,8 @@ Manifest/
 │   │   ├── install.sh               # CLI installation routines
 │   │   ├── auth.sh                  # Authentication + state setup routines
 │   │   ├── deploy.sh                # Deployment/verification/summary routines
-│   │   └── mcp.sh                   # MCP installation/configuration routines
+│   │   ├── mcp.sh                   # MCP installation/configuration routines
+│   │   └── skillclaw.sh             # SkillClaw daemon install/enable/disable routines
 │   └── modules/README.md            # How to add custom bootstrap modules/hooks
 ├── CLAUDE.md                        # Claude Code project context
 ├── AGENTS.md                        # AI agent instructions (all platforms)
@@ -171,7 +178,8 @@ Manifest/
 │   │   │   ├── mcp_servers.yml      # Default MCP server registry
 │   │   │   ├── command_config.yml   # Tool policies, thresholds, model selection
 │   │   │   ├── validation_criteria.yml # Tier 1/2 validation rules
-│   │   │   └── labels.yml           # Canonical label registry
+│   │   │   ├── labels.yml           # Canonical label registry
+│   │   │   └── skillclaw.yml        # SkillClaw capture proxy + evolution config
 │   │   ├── scripts/                 # Orchestration scripts
 │   │   │   ├── parallel_agent.py    # Entry point shim (delegates to agents/)
 │   │   │   ├── agents/              # Modular orchestration package
@@ -185,7 +193,10 @@ Manifest/
 │   │   │   ├── git_ops.sh           # Platform-agnostic Git operations
 │   │   │   ├── linear_ops.sh        # Linear API wrapper (GraphQL)
 │   │   │   ├── sync-skills.sh       # Skill deployment to home targets
-│   │   │   └── label_sync.sh        # Label provisioning across platforms
+│   │   │   ├── label_sync.sh        # Label provisioning across platforms
+│   │   │   ├── skillclaw_scrub.py   # Redact API keys/auth headers from captured sessions
+│   │   │   ├── skillclaw_promote.py # Evolve captured sessions into candidate SKILL.md files
+│   │   │   └── skillclaw_promote.sh # CLI wrapper: dry-run preview or --apply to open a PR
 │   │   └── settings.local.json      # Default permissions + MCP servers
 │   ├── cursor/                      # → ~/.cursor/ (Cursor IDE)
 │   │   ├── rules/                   # Cursor rules (.mdc) adapted from skills
@@ -220,6 +231,7 @@ Manifest/
     ├── GETTING_STARTED.md           # First-time setup walkthrough
     ├── CONFIGURATION.md             # Complete config reference
     ├── ARCHITECTURE_DIAGRAMS.md     # Mermaid system diagrams (14 diagrams)
+    ├── SKILLCLAW.md                 # SkillClaw integration guide
     ├── TROUBLESHOOTING.md           # Common issues and solutions
     └── COMMANDS.md                  # Command reference
 ```
@@ -235,6 +247,9 @@ Manifest/
 ./bootstrap.sh --reconfigure --disable-cursor
 ./bootstrap.sh --reconfigure --enable-gemini --disable-claude
 ./bootstrap.sh --reconfigure --disable-codex
+
+# Enable SkillClaw session capture (opt-in; default: disabled)
+./bootstrap.sh --reconfigure --enable-skillclaw
 
 # Enable Git CLIs explicitly
 ./bootstrap.sh --reconfigure --enable-gh --enable-glab

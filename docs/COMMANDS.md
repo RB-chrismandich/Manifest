@@ -24,7 +24,7 @@
 
 ## Built-in Commands
 
-Manifest ships with 13 slash commands, 1 CLI tool, and 14 skills (1 auto-triggered).
+Manifest ships with 19 slash commands and 1 CLI tool (34 skills total, 1 auto-triggered).
 
 | Command | Description | Parallel Agents |
 |---------|-------------|-----------------|
@@ -45,6 +45,8 @@ Manifest ships with 13 slash commands, 1 CLI tool, and 14 skills (1 auto-trigger
 | `/docs-all` | Run docs-readme/docs-diagrams/docs-improve as sub-agents in one pass | NO |
 | `/pr-review` | Review all open PRs and recommend a disposition per PR (analysis-only) | NO |
 | `/branch-clean` | Prune merged/gone/stale branches safely (dry-run by default, local-only) | CONDITIONAL (--apply) |
+| `/skill-evolve` | Promote SkillClaw-evolved skills into a review PR (dry-run by default); requires SkillClaw enabled | NEVER |
+| `/pass-cli` | Retrieve credentials from Proton Pass vaults via `pass-cli` agent CLI | NEVER |
 
 **CLI tool** (installed to `~/.local/bin/`):
 
@@ -808,6 +810,7 @@ Complete 5-phase deployment with:
 - [GitHub Workflow Commands](templates/commands/github-workflow/) - Issue management commands
 - [Configuration Guide](./CONFIGURATION.md) - Parallel agent settings
 - [Troubleshooting](./TROUBLESHOOTING.md) - Common command issues
+- [SkillClaw](./SKILLCLAW.md) - Session capture, skill evolution, and `/skill-evolve` usage
 
 ---
 

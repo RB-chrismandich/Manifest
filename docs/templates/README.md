@@ -359,11 +359,11 @@ To add a new template:
 
 ## Related Documentation
 
-- [Main Documentation](../docs/README.md)
-- [Configuration Guide](../docs/CONFIGURATION.md)
-- [Skills Documentation](../.claude/skills/)
-- [Validation Criteria](../.claude/config/validation_criteria.yml)
-- [Parallel Agent Guide](../.claude/CLAUDE.md)
+- [Main Documentation](../README.md)
+- [Configuration Guide](../CONFIGURATION.md)
+- [Skills Documentation](../../.skillshare/skills/)
+- [Validation Criteria](../../configs/claude/config/validation_criteria.yml)
+- [Parallel Agent Guide](../../configs/claude/CLAUDE.md)
 
 ---
 

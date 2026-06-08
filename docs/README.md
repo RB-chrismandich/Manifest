@@ -2,7 +2,7 @@
 
 > Complete documentation index for the Manifest parallel agent orchestration framework
 
-**Last Updated**: 2026-05-31
+**Last Updated**: 2026-06-08
 
 ---
 
@@ -54,7 +54,7 @@
 
 | File | Description | Last Updated | Status |
 |------|-------------|--------------|--------|
-| [README.md](../README.md) | Project overview and quick start | 2026-01-27 | ✅ |
+| [README.md](../README.md) | Project overview and quick start | 2026-06-08 | ✅ |
 | [CLAUDE.md](../CLAUDE.md) | AI assistant context for the repository | 2026-02-11 | ✅ |
 | [CONTRIBUTING.md](../CONTRIBUTING.md) | How to contribute to the project | 2026-05-31 | ✅ |
 | [CHANGELOG.md](../CHANGELOG.md) | Version history and release notes | 2026-05-31 | ✅ |
@@ -71,7 +71,8 @@
 
 | File | Description | Last Updated | Status |
 |------|-------------|--------------|--------|
-| [ARCHITECTURE_DIAGRAMS.md](ARCHITECTURE_DIAGRAMS.md) | Visual system documentation | 2026-01-27 | ✅ |
+| [ARCHITECTURE_DIAGRAMS.md](ARCHITECTURE_DIAGRAMS.md) | Visual system documentation | 2026-06-08 | ✅ |
+| [SKILLCLAW.md](SKILLCLAW.md) | SkillClaw session-capture and skill-evolution guide | 2026-06-07 | ✅ |
 
 ### Internal Documentation
 
@@ -154,12 +155,17 @@ services:
 
 **Areas for Improvement**:
 
-- ⚠️ "Last Updated" dates across user docs are stale (last updated 2026-02-11)
-- ⚠️ `agents/` package (PR #260) not yet reflected in user-facing architecture docs
-- ⚠️ Template docs (`docs/templates/`) have several broken relative links
+- ⚠️ "Last Updated" dates across user docs are stale (GETTING_STARTED.md, CONFIGURATION.md,
+  TROUBLESHOOTING.md, COMMANDS.md still at 2026-01-27 / 2026-02-11)
+- ⚠️ Template docs (`docs/templates/`) have several broken relative links (point one level too deep)
+- ⚠️ `docs/COMMANDS.md` built-in command count and table are stale — missing `/skill-evolve` and `/pass-cli`
 
 **Recent Additions**:
 
+- ✅ 2026-06-07: Added SKILLCLAW.md — SkillClaw capture proxy and skill evolution guide
+- ✅ 2026-06-07: Added `/skill-evolve` skill (promote SkillClaw sessions into review PRs)
+- ✅ 2026-06-07: Added `/pass-cli` skill (Proton Pass credential retrieval)
+- ✅ 2026-06-07: Updated ARCHITECTURE_DIAGRAMS.md with SkillClaw pipeline diagram
 - ✅ 2026-05-31: Added CONTRIBUTING.md and CHANGELOG.md
 - ✅ 2026-05-31: Added `sync-skills` CLI to COMMANDS.md
 - ✅ 2026-05-01: Modularized `parallel_agent.py` into `agents/` package (#260)
