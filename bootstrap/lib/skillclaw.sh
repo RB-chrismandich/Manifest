@@ -57,8 +57,16 @@ configure_skillclaw() {
     print_step "Configuring SkillClaw (non-interactive)..."
     # `skillclaw setup` reads provider/model/storage flags; values come from skillclaw.yml.
     local port storage
-    port=$(python3 -c "import yaml; print(yaml.safe_load(open('$cfg'))['proxy']['port'])")
-    storage=$(python3 -c "import yaml,os; print(os.path.expanduser(yaml.safe_load(open('$cfg'))['storage']['root']))")
+    port=$(python3 - "$cfg" <<'PY'
+import sys, yaml
+print(yaml.safe_load(open(sys.argv[1]))["proxy"]["port"])
+PY
+)
+    storage=$(python3 - "$cfg" <<'PY'
+import sys, os, yaml
+print(os.path.expanduser(yaml.safe_load(open(sys.argv[1]))["storage"]["root"]))
+PY
+)
     if command -v skillclaw >/dev/null 2>&1; then
         skillclaw setup --non-interactive --port "$port" --storage "$storage" \
             || print_warning "skillclaw setup returned non-zero (continuing)"

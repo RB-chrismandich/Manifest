@@ -32,4 +32,9 @@ teardown() {
     local mode
     mode=$(stat -f '%Lp' "$SKILLCLAW_HOME" 2>/dev/null || stat -c '%a' "$SKILLCLAW_HOME")
     assert_equal "$mode" "700"
+    local smode kmode
+    smode=$(stat -f '%Lp' "$SKILLCLAW_HOME/sessions" 2>/dev/null || stat -c '%a' "$SKILLCLAW_HOME/sessions")
+    kmode=$(stat -f '%Lp' "$SKILLCLAW_HOME/skills" 2>/dev/null || stat -c '%a' "$SKILLCLAW_HOME/skills")
+    assert_equal "$smode" "700"
+    assert_equal "$kmode" "700"
 }
