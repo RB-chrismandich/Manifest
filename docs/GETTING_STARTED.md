@@ -2,7 +2,7 @@
 
 > Step-by-step guide to installing and using the Manifest parallel agent orchestration framework
 
-**Last Updated**: 2026-02-11
+**Last Updated**: 2026-06-08
 **Audience**: New users
 **Prerequisites**: macOS 10.15+ or Linux, internet connection
 **Estimated Time**: 10-15 minutes
@@ -368,6 +368,8 @@ If you encounter issues:
 - **Validation Rules**: Customize security/quality checks in `configs/claude/config/validation_criteria.yml`
 - **Model Fallbacks**: Configure credit exhaustion fallback chains
 - **Environment Variables**: Override defaults with `CURSOR_MODEL_ADVANCED`, `GEMINI_INCLUDE_DIRS`, etc.
+- **SkillClaw (opt-in)**: Capture agent sessions and evolve skills locally — enable with
+  `./bootstrap.sh --enable-skillclaw`. See [docs/SKILLCLAW.md](SKILLCLAW.md) for details.
 
 **See**: [Configuration Guide](CONFIGURATION.md) for advanced topics
 
