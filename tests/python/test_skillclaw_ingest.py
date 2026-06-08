@@ -42,3 +42,28 @@ def test_normalize_structured_tool_result_truncation_is_accurate():
     assert tr["kind"] == "tool_result"
     assert tr["truncated"] is True
     assert "truncated" in tr["output"]
+
+
+def test_tool_result_output_is_truncated():
+    big = "x" * 5000
+    blocks = ing.normalize_content(
+        [{"type": "tool_result", "content": big, "is_error": False}],
+        max_tool_output_chars=500,
+    )
+    tr = blocks[0]
+    assert tr["kind"] == "tool_result"
+    assert tr["truncated"] is True
+    assert len(tr["output"]) < 600           # 500 + marker, not 5000
+    assert "truncated" in tr["output"]
+
+
+def test_long_tool_use_input_values_are_truncated():
+    blocks = ing.normalize_content(
+        [{"type": "tool_use", "name": "Write",
+          "input": {"file_path": "/a.txt", "content": "y" * 5000}}],
+        max_tool_output_chars=500,
+    )
+    tu = blocks[0]
+    assert tu["name"] == "Write"
+    assert len(tu["input"]["content"]) < 600
+    assert tu["input"]["file_path"] == "/a.txt"   # short values untouched

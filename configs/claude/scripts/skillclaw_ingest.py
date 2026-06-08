@@ -47,8 +47,18 @@ def normalize_content(content, max_tool_output_chars: int = DEFAULT_MAX_TOOL_OUT
             if txt.strip():
                 out.append({"kind": "thinking", "text": txt})
         elif bt == "tool_use":
+            raw_input = block.get("input", {})
+            trimmed = {}
+            if isinstance(raw_input, dict):
+                for k, v in raw_input.items():
+                    if isinstance(v, str):
+                        trimmed[k] = _truncate(v, max_tool_output_chars)[0]
+                    else:
+                        trimmed[k] = v
+            else:
+                trimmed = raw_input
             out.append({"kind": "tool_use", "name": block.get("name", "?"),
-                        "input": block.get("input", {})})
+                        "input": trimmed})
         elif bt == "tool_result":
             raw = block.get("content", "")
             if not isinstance(raw, str):
