@@ -77,7 +77,23 @@ EOF
 }
 
 # Source config as environment variables
-eval "$(read_config)"
+config_string="$(read_config)"
+while IFS= read -r line; do
+    case "$line" in
+        DUP_TITLE_HIGH=*)
+            val="${line#*=}"; val="${val%\"}"; val="${val#\"}"; DUP_TITLE_HIGH="$val" ;;
+        DUP_TITLE_MEDIUM=*)
+            val="${line#*=}"; val="${val%\"}"; val="${val#\"}"; DUP_TITLE_MEDIUM="$val" ;;
+        STALENESS_DAYS=*)
+            val="${line#*=}"; val="${val%\"}"; val="${val#\"}"; STALENESS_DAYS="$val" ;;
+        FILE_MISSING_THRESHOLD=*)
+            val="${line#*=}"; val="${val%\"}"; val="${val#\"}"; FILE_MISSING_THRESHOLD="$val" ;;
+        CONSENSUS_HIGH=*)
+            val="${line#*=}"; val="${val%\"}"; val="${val#\"}"; CONSENSUS_HIGH="$val" ;;
+        CONSENSUS_MEDIUM=*)
+            val="${line#*=}"; val="${val%\"}"; val="${val#\"}"; CONSENSUS_MEDIUM="$val" ;;
+    esac
+done <<< "$config_string"
 
 echo "Configuration loaded: DUP_TITLE_HIGH=$DUP_TITLE_HIGH, STALENESS_DAYS=$STALENESS_DAYS"
 ```
