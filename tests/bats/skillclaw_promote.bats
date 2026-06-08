@@ -76,3 +76,11 @@ teardown() {
     run grep -c "pr-create" "$SKILLCLAW_PROMOTE_LOG"
     assert_output "0"
 }
+
+@test "skill-evolve SKILL.md has valid frontmatter and points at the script" {
+    local f="$REPO_ROOT/.skillshare/skills/skill-evolve/SKILL.md"
+    [ -f "$f" ]
+    head -1 "$f" | grep -q '^---$'
+    grep -q "^name: skill-evolve$" "$f"
+    grep -q "skillclaw_promote.sh" "$f"
+}
