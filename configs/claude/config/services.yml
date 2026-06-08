@@ -55,6 +55,15 @@ services:
       - OPENAI_API_KEY
       - ~/.codex/auth.json
 
+  # SkillClaw - auto-evolves SKILL.md skills from captured CLI-agent sessions
+  # Install: bash scripts/install_skillclaw.sh  (managed by bootstrap/lib/skillclaw.sh)
+  skillclaw:
+    enabled: false
+    command: skillclaw
+    description: "Captures CLI-agent sessions; evolves skills into review PRs (opt-in)"
+    proxy_port: 8765
+    storage: ~/.skillclaw
+
   # Git CLI tools - Platform-specific Git hosting integrations
   git_cli:
     github:

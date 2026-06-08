@@ -84,6 +84,7 @@ load_bootstrap_libs() {
         "auth.sh"
         "deploy.sh"
         "mcp.sh"
+        "skillclaw.sh"
     )
     local lib
     for lib in "${libs[@]}"; do
@@ -121,18 +122,21 @@ run_reconfigure() {
         local old_cursor=${FILE_CURSOR:-unknown}
         local old_codex=${FILE_CODEX:-unknown}
         local old_antigravity=${FILE_ANTIGRAVITY:-unknown}
+        local old_skillclaw=${FILE_SKILLCLAW:-unknown}
 
         echo "  Claude:      $old_claude → $ENABLE_CLAUDE"
         echo "  Gemini:      $old_gemini → $ENABLE_GEMINI"
         echo "  Cursor:      $old_cursor → $ENABLE_CURSOR"
         echo "  Codex:       $old_codex → $ENABLE_CODEX"
         echo "  Antigravity: $old_antigravity → $ENABLE_ANTIGRAVITY"
+        echo "  SkillClaw:   $old_skillclaw → $ENABLE_SKILLCLAW"
     else
         echo "  Claude:      (new) → $ENABLE_CLAUDE"
         echo "  Gemini:      (new) → $ENABLE_GEMINI"
         echo "  Cursor:      (new) → $ENABLE_CURSOR"
         echo "  Codex:       (new) → $ENABLE_CODEX"
         echo "  Antigravity: (new) → $ENABLE_ANTIGRAVITY"
+        echo "  SkillClaw:   (new) → $ENABLE_SKILLCLAW"
     fi
     echo ""
 
@@ -140,6 +144,7 @@ run_reconfigure() {
         setup_manifest_state_dirs
         configure_shell_profile_state
         write_services_config
+        skillclaw_apply_state
         if [[ "$INSTALL_MCP" == true ]]; then
             install_mcp_servers
         fi
@@ -182,6 +187,7 @@ main() {
     echo "  Cursor:      $(if [[ "$ENABLE_CURSOR" == true ]]; then echo "enabled"; else echo "disabled"; fi)"
     echo "  Codex CLI:   $(if [[ "$ENABLE_CODEX" == true ]]; then echo "enabled"; else echo "disabled"; fi)"
     echo "  Antigravity: $(if [[ "$ENABLE_ANTIGRAVITY" == true ]]; then echo "enabled"; else echo "disabled"; fi)"
+    echo "  SkillClaw:   $(if [[ "$ENABLE_SKILLCLAW" == true ]]; then echo "enabled"; else echo "disabled"; fi)"
     echo ""
 
     if ! prompt_yes_no "Continue with setup?"; then
@@ -210,6 +216,7 @@ main() {
         install_claude
         install_gemini
         install_codex
+        install_skillclaw
         install_github_cli
         install_gitlab_cli
         check_jq
@@ -221,6 +228,7 @@ main() {
     # Deploy configurations
     deploy_configs
     run_bootstrap_hook "after_deploy"
+    skillclaw_apply_state
 
     # Install Python dependencies for parallel_agent.py
     install_python_dependencies

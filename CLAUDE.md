@@ -121,6 +121,7 @@ The `bootstrap.sh` script automates installation, deployment, and authentication
 --enable-cursor / --disable-cursor   # Cursor agent (default: enabled)
 --enable-codex / --disable-codex     # Codex CLI (default: enabled)
 --enable-antigravity / --disable-antigravity   # Antigravity IDE (default: enabled)
+--enable-skillclaw / --disable-skillclaw   # SkillClaw session capture (default: disabled)
 --enable-gh / --disable-gh           # GitHub CLI (default: auto-detect)
 --enable-glab / --disable-glab       # GitLab CLI (default: auto-detect)
 --install-mcp                        # Configure MCP servers (interactive per-server selection)
@@ -247,6 +248,7 @@ The following slash commands are available in Claude Code:
 | `/pr-review` | Review all open PRs and recommend a disposition per PR (analysis-only) | NO |
 | `/branch-clean` | Prune merged/gone/stale branches safely (dry-run by default, local-only) | CONDITIONAL (--apply) |
 | `sync-skills` | Sync .skillshare/skills/ to all home targets (daily skill dev workflow) | NO |
+| `/skill-evolve` | Promote SkillClaw-evolved skills into a review PR (dry-run default) | NO |
 
 ## Testing Changes
 

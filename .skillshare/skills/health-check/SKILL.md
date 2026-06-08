@@ -164,6 +164,24 @@ Verify all scripts in `.claude/scripts/` are executable:
 
 Report: executable or not executable.
 
+## SkillClaw (if enabled)
+
+Only when `skillclaw.enabled: true` in `~/.claude/config/services.yml`:
+
+```bash
+# Daemon health (fail-open: a red here means capture is off, not that agents are broken)
+curl -sf --max-time 0.3 http://127.0.0.1:8765/health && echo "daemon: up" || echo "daemon: down"
+
+# Wrapper functions present in the shell profile
+grep -q "MANIFEST SKILLCLAW WRAPPERS" "${ZDOTDIR:-$HOME}/.zshrc" && echo "wrappers: present" || echo "wrappers: MISSING"
+
+# Storage locked down (must be 700)
+stat -f '%Lp' ~/.skillclaw 2>/dev/null || stat -c '%a' ~/.skillclaw
+```
+
+Report `daemon: down` as INFO (capture paused, agents unaffected), but
+`wrappers: MISSING` or storage perms != 700 as WARN.
+
 ## Output Format
 
 ```text
