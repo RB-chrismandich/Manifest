@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import shutil
 import sys
 from pathlib import Path
 
@@ -71,6 +72,7 @@ def main(argv: list[str]) -> int:
     ap.add_argument("evolved_dir")
     ap.add_argument("committed_dir")
     ap.add_argument("--skill", help="restrict to a single skill name")
+    ap.add_argument("--rejected-dir", help="copy invalid candidates here for inspection")
     args = ap.parse_args(argv)
 
     evolved = Path(args.evolved_dir).expanduser()
@@ -91,6 +93,13 @@ def main(argv: list[str]) -> int:
             promote.append(c)
         else:
             dropped.append({**c, "reason": reason})
+
+    if args.rejected_dir:
+        rej = Path(args.rejected_dir).expanduser()
+        for d in dropped:
+            dest = rej / d["name"]
+            dest.mkdir(parents=True, exist_ok=True)
+            shutil.copy(d["path"], dest / "SKILL.md")
 
     json.dump({"promote": promote, "dropped": dropped}, sys.stdout, indent=2)
     print()
