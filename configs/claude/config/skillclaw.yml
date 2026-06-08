@@ -16,15 +16,15 @@ storage:
 # gemini/cursor-agent are commented out pending base-URL-support verification (Task 12).
 capture:
   agents:
+    # gemini / cursor-agent: add an entry here only after verifying the CLI honors
+    # a base-URL override SkillClaw can serve, e.g.:
+    #   {name: gemini, env: OPENAI_BASE_URL, path: /v1}
     - name: claude
       env: ANTHROPIC_BASE_URL
       path: ""
     - name: codex
       env: OPENAI_BASE_URL
       path: /v1
-    # - name: gemini        # enable only after verifying base-URL support
-    #   env: OPENAI_BASE_URL
-    #   path: /v1
 
 evolve:
   mode: workflow              # fixed pipeline (deterministic); not "agent" mode

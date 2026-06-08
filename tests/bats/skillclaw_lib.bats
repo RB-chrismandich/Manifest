@@ -30,11 +30,14 @@ teardown() {
     [ -d "$SKILLCLAW_HOME/sessions" ]
     [ -d "$SKILLCLAW_HOME/skills" ]
     local mode
-    mode=$(stat -f '%Lp' "$SKILLCLAW_HOME" 2>/dev/null || stat -c '%a' "$SKILLCLAW_HOME")
+    # GNU-first: `stat -c` works on Linux and fails cleanly on macOS (BSD), which
+    # then falls back to `stat -f '%Lp'`. The reverse order is broken on Linux,
+    # where `stat -f` means --file-system and pollutes stdout.
+    mode=$(stat -c '%a' "$SKILLCLAW_HOME" 2>/dev/null || stat -f '%Lp' "$SKILLCLAW_HOME")
     assert_equal "$mode" "700"
     local smode kmode
-    smode=$(stat -f '%Lp' "$SKILLCLAW_HOME/sessions" 2>/dev/null || stat -c '%a' "$SKILLCLAW_HOME/sessions")
-    kmode=$(stat -f '%Lp' "$SKILLCLAW_HOME/skills" 2>/dev/null || stat -c '%a' "$SKILLCLAW_HOME/skills")
+    smode=$(stat -c '%a' "$SKILLCLAW_HOME/sessions" 2>/dev/null || stat -f '%Lp' "$SKILLCLAW_HOME/sessions")
+    kmode=$(stat -c '%a' "$SKILLCLAW_HOME/skills" 2>/dev/null || stat -f '%Lp' "$SKILLCLAW_HOME/skills")
     assert_equal "$smode" "700"
     assert_equal "$kmode" "700"
 }
