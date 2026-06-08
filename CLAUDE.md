@@ -249,6 +249,7 @@ The following slash commands are available in Claude Code:
 | `/branch-clean` | Prune merged/gone/stale branches safely (dry-run by default, local-only) | CONDITIONAL (--apply) |
 | `sync-skills` | Sync .skillshare/skills/ to all home targets (daily skill dev workflow) | NO |
 | `/skill-evolve` | Promote SkillClaw-evolved skills into a review PR (dry-run default) | NO |
+| `/pass-cli` | Retrieve credentials from Proton Pass vaults via `pass-cli` agent CLI | NO |
 
 ## Testing Changes
 
