@@ -83,3 +83,74 @@ def chunk_sessions(sessions: list[dict], token_budget: int) -> list[list[dict]]:
     if current:
         chunks.append(current)
     return chunks
+
+
+def subprocess_runner(prompt: str) -> str:
+    """Default runner: invoke headless `claude -p` (Max-backed)."""
+    proc = subprocess.run(["claude", "-p", prompt], capture_output=True, text=True)
+    if proc.returncode != 0:
+        raise RuntimeError(f"claude -p failed: {proc.stderr.strip()}")
+    return proc.stdout
+
+
+def write_candidates(candidates: list[dict], evolved_dir: Path) -> list[str]:
+    evolved_dir = Path(evolved_dir).expanduser()
+    written = []
+    for c in candidates:
+        d = evolved_dir / c["name"]
+        d.mkdir(parents=True, exist_ok=True)
+        (d / "SKILL.md").write_text(c["content"], encoding="utf-8")
+        written.append(c["name"])
+    return written
+
+
+def _committed_library_names(evolved_dir: Path) -> list[str]:
+    base = Path(evolved_dir).expanduser()
+    return sorted(p.parent.name for p in base.glob("*/SKILL.md")) if base.exists() else []
+
+
+def evolve(sessions_dir, evolved_dir, template_path, *,
+           token_budget=DEFAULT_TOKEN_BUDGET, runner=subprocess_runner) -> dict:
+    """Map-reduce sessions into SKILL.md candidates. Returns a summary dict."""
+    sessions = load_sessions(sessions_dir)
+    template = Path(template_path).expanduser().read_text(encoding="utf-8")
+    library = _committed_library_names(evolved_dir)
+    if not sessions:
+        return {"candidates": 0, "chunks": 0, "written": []}
+
+    chunks = chunk_sessions(sessions, token_budget)
+    mapped: list[dict] = []
+    for chunk in chunks:
+        out = runner(build_prompt(template, chunk, library))
+        mapped.extend(parse_candidates(out))
+
+    # reduce: dedupe by name (last write wins); a single chunk skips a 2nd call
+    if len(chunks) > 1 and mapped:
+        deduped = {}
+        for c in mapped:
+            deduped[c["name"]] = c
+        mapped = list(deduped.values())
+
+    written = write_candidates(mapped, evolved_dir)
+    return {"candidates": len(written), "chunks": len(chunks), "written": written}
+
+
+def main(argv: list[str]) -> int:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("sessions_dir")
+    ap.add_argument("evolved_dir")
+    ap.add_argument("--template", default="~/.claude/prompts/skillclaw_evolve.md")
+    ap.add_argument("--token-budget", type=int, default=DEFAULT_TOKEN_BUDGET)
+    args = ap.parse_args(argv)
+    try:
+        summary = evolve(args.sessions_dir, args.evolved_dir, args.template,
+                         token_budget=args.token_budget)
+    except (RuntimeError, FileNotFoundError) as e:
+        print(f"skillclaw_evolve: {e}", file=sys.stderr)
+        return 1
+    print(json.dumps(summary))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main(sys.argv[1:]))

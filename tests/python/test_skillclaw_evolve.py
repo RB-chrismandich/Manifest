@@ -1,4 +1,5 @@
 from pathlib import Path
+import json
 import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "configs/claude/scripts"))
@@ -50,3 +51,37 @@ def test_chunk_sessions_single_chunk_under_budget():
                  "turns": [{"role": "user", "blocks": [{"kind": "text", "text": "tiny"}]}]}]
     chunks = ev.chunk_sessions(sessions, token_budget=100_000)
     assert chunks == [sessions]
+
+
+def test_evolve_uses_injected_runner_and_writes(tmp_path):
+    sessions_dir = tmp_path / "sessions"
+    sessions_dir.mkdir()
+    (sessions_dir / "s1.json").write_text(json.dumps(
+        {"session_id": "s1", "turns": [
+            {"role": "user", "blocks": [{"kind": "text", "text": "deploy steps"}]}]}))
+    template = tmp_path / "tpl.md"
+    template.write_text("LIB {{LIBRARY}} SESS {{SESSIONS}}")
+    evolved = tmp_path / "evolved"
+
+    def fake_runner(prompt):
+        assert "deploy steps" in prompt
+        return ("~~~skill name=deploy-flow\n---\nname: deploy-flow\n"
+                "description: how to deploy\n---\n# Deploy\nstep 1\n~~~\n")
+
+    summary = ev.evolve(sessions_dir, evolved, template, token_budget=100_000,
+                        runner=fake_runner)
+    assert summary["candidates"] == 1
+    assert (evolved / "deploy-flow" / "SKILL.md").read_text().startswith("---")
+
+
+def test_evolve_empty_sessions_is_clean_noop(tmp_path):
+    sessions_dir = tmp_path / "sessions"
+    sessions_dir.mkdir()
+    template = tmp_path / "tpl.md"
+    template.write_text("{{LIBRARY}}{{SESSIONS}}")
+    evolved = tmp_path / "evolved"
+    calls = []
+    summary = ev.evolve(sessions_dir, evolved, template, token_budget=100_000,
+                        runner=lambda p: calls.append(p) or "NO_SKILLS")
+    assert summary["candidates"] == 0
+    assert calls == []                 # no sessions -> no model calls
