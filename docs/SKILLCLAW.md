@@ -2,7 +2,7 @@
 
 > PR-gated session capture that evolves reusable skills from your CLI-agent workflow
 
-**Last Updated**: 2026-06-07
+**Last Updated**: 2026-06-08
 **Audience**: Operators, developers
 **Prerequisites**: Manifest installed (`./bootstrap.sh`)
 

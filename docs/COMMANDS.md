@@ -2,7 +2,7 @@
 
 > Building custom commands for Claude Code with Manifest
 
-**Last Updated**: 2026-02-11
+**Last Updated**: 2026-06-08
 **Audience**: Command developers, advanced users
 **Prerequisites**: Manifest installed, basic understanding of Markdown and Bash
 

@@ -137,7 +137,7 @@ Mermaid flowcharts showing bootstrap, execution, validation, and consensus flows
 |----------|---------|----------|--------------|
 | [Getting Started](docs/GETTING_STARTED.md) | First-time setup walkthrough with verification steps | New users | 10 min |
 | [Configuration](docs/CONFIGURATION.md) | All configuration options, YAML reference, environment variables | Operators | 15 min |
-| [Architecture Diagrams](docs/ARCHITECTURE_DIAGRAMS.md) | Visual system documentation with 14 Mermaid diagrams | Developers | 20 min |
+| [Architecture Diagrams](docs/ARCHITECTURE_DIAGRAMS.md) | Visual system documentation with 15 Mermaid diagrams | Developers | 20 min |
 | [SkillClaw](docs/SKILLCLAW.md) | PR-gated skill evolution via session capture proxy | Operators | 8 min |
 | [Troubleshooting](docs/TROUBLESHOOTING.md) | Common problems, error messages, solutions | All users | 10 min |
 | [AGENTS.md](AGENTS.md) | AI agent instructions (Cursor, Claude, Gemini, Codex) | AI assistants | 8 min |
@@ -230,7 +230,7 @@ Manifest/
     ├── README.md                    # Documentation hub
     ├── GETTING_STARTED.md           # First-time setup walkthrough
     ├── CONFIGURATION.md             # Complete config reference
-    ├── ARCHITECTURE_DIAGRAMS.md     # Mermaid system diagrams (14 diagrams)
+    ├── ARCHITECTURE_DIAGRAMS.md     # Mermaid system diagrams (15 diagrams)
     ├── SKILLCLAW.md                 # SkillClaw integration guide
     ├── TROUBLESHOOTING.md           # Common issues and solutions
     └── COMMANDS.md                  # Command reference

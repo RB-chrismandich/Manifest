@@ -63,16 +63,16 @@
 
 | File | Description | Last Updated | Status |
 |------|-------------|--------------|--------|
-| [GETTING_STARTED.md](GETTING_STARTED.md) | First-time user guide | 2026-01-27 | ✅ |
-| [CONFIGURATION.md](CONFIGURATION.md) | Configuration reference | 2026-01-27 | ✅ |
-| [TROUBLESHOOTING.md](TROUBLESHOOTING.md) | Common issues and solutions | 2026-01-27 | ✅ |
+| [GETTING_STARTED.md](GETTING_STARTED.md) | First-time user guide | 2026-06-08 | ✅ |
+| [CONFIGURATION.md](CONFIGURATION.md) | Configuration reference | 2026-06-08 | ✅ |
+| [TROUBLESHOOTING.md](TROUBLESHOOTING.md) | Common issues and solutions | 2026-06-08 | ✅ |
 
 ### Technical Documentation
 
 | File | Description | Last Updated | Status |
 |------|-------------|--------------|--------|
 | [ARCHITECTURE_DIAGRAMS.md](ARCHITECTURE_DIAGRAMS.md) | Visual system documentation | 2026-06-08 | ✅ |
-| [SKILLCLAW.md](SKILLCLAW.md) | SkillClaw session-capture and skill-evolution guide | 2026-06-07 | ✅ |
+| [SKILLCLAW.md](SKILLCLAW.md) | SkillClaw session-capture and skill-evolution guide | 2026-06-08 | ✅ |
 
 ### Internal Documentation
 
@@ -151,17 +151,18 @@ services:
 
 ## Documentation Health
 
-**Current Score**: 74/100
+**Current Score**: 90/100
 
 **Areas for Improvement**:
 
-- ⚠️ "Last Updated" dates across user docs are stale (GETTING_STARTED.md, CONFIGURATION.md,
-  TROUBLESHOOTING.md, COMMANDS.md still at 2026-01-27 / 2026-02-11)
-- ⚠️ Template docs (`docs/templates/`) have several broken relative links (point one level too deep)
-- ⚠️ `docs/COMMANDS.md` built-in command count and table are stale — missing `/skill-evolve` and `/pass-cli`
+- No outstanding issues — the items previously tracked here (stale user-doc dates,
+  broken `docs/templates/` relative links, and missing `/skill-evolve` / `/pass-cli`
+  in `docs/COMMANDS.md`) were all resolved on 2026-06-08.
 
 **Recent Additions**:
 
+- ✅ 2026-06-08: Documentation refresh for SkillClaw + `/pass-cli` — README, architecture
+  diagrams, CONFIGURATION/TROUBLESHOOTING sections, and a Diataxis cross-link audit
 - ✅ 2026-06-07: Added SKILLCLAW.md — SkillClaw capture proxy and skill evolution guide
 - ✅ 2026-06-07: Added `/skill-evolve` skill (promote SkillClaw sessions into review PRs)
 - ✅ 2026-06-07: Added `/pass-cli` skill (Proton Pass credential retrieval)
