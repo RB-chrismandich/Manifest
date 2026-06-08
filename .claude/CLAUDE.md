@@ -50,6 +50,11 @@ do not replace it with a real directory.
 - Automation must read the physical `.skillshare/skills/`; shell globs are
   symlink-safe, but `find`/`os.walk` over `configs/claude/skills` need
   `-L`/`followlinks`.
+- **SkillClaw** (optional, opt-in via `./bootstrap.sh --enable-skillclaw`) is a *proposer*:
+  it evolves skills from captured CLI-agent sessions and opens review PRs into
+  `.skillshare/skills/` via `/skill-evolve`. It never writes the source of truth
+  directly. Capture is fail-open (a dead daemon degrades to direct-to-provider) and
+  storage is `chmod 700`. See `docs/SKILLCLAW.md`.
 
 ## Common Tasks
 
