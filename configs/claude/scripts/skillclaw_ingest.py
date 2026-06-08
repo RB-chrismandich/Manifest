@@ -100,3 +100,13 @@ def parse_transcript(path: Path, max_tool_output_chars: int = DEFAULT_MAX_TOOL_O
     if not turns:
         return None
     return {"session_id": session_id, "cwd": cwd, "git_branch": git_branch, "turns": turns}
+
+
+def within_window(mtime: float, now: float, window_days: int) -> bool:
+    """True if mtime falls within the last window_days from now."""
+    return (now - mtime) <= window_days * 86400
+
+
+def is_settled(mtime: float, now: float, settle_minutes: int) -> bool:
+    """True if the file has been idle long enough to be safely read."""
+    return (now - mtime) >= settle_minutes * 60

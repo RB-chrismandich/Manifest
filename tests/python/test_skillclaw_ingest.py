@@ -108,3 +108,16 @@ def test_parse_transcript_returns_none_when_no_turns(tmp_path):
     f = tmp_path / "empty.jsonl"
     _write_jsonl(f, [{"type": "queue-operation"}, {"type": "attachment"}])
     assert ing.parse_transcript(f) is None
+
+
+def test_within_window():
+    now = 1_000_000.0
+    day = 86400
+    assert ing.within_window(now - 5 * day, now, window_days=30) is True
+    assert ing.within_window(now - 40 * day, now, window_days=30) is False
+
+
+def test_is_settled():
+    now = 1_000_000.0
+    assert ing.is_settled(now - 600, now, settle_minutes=5) is True    # 10 min old
+    assert ing.is_settled(now - 60, now, settle_minutes=5) is False    # 1 min old
