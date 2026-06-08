@@ -114,3 +114,95 @@ codex()  { _skillclaw_run OPENAI_BASE_URL    "http://127.0.0.1:\${SKILLCLAW_PORT
 $SKILLCLAW_WRAP_END
 EOF
 }
+
+SKILLCLAW_PIDFILE="${SKILLCLAW_PIDFILE:-$SKILLCLAW_HOME/skillclaw.pid}"
+
+# start|stop|status for the capture daemon. Capture is lossy-by-design; a dead
+# daemon must never block agents (the wrappers already fail open).
+skillclaw_daemon() {
+    local action="${1:-status}"
+    case "$action" in
+        start)
+            command -v skillclaw >/dev/null 2>&1 || { print_error "skillclaw not installed"; return 1; }
+            skillclaw start --daemon --port "$SKILLCLAW_PORT" || return 1
+            print_success "SkillClaw daemon started on $SKILLCLAW_PORT"
+            ;;
+        stop)
+            skillclaw stop >/dev/null 2>&1 || true
+            print_info "SkillClaw daemon stopped"
+            ;;
+        status)
+            if [[ -f "$SKILLCLAW_PIDFILE" ]] && kill -0 "$(cat "$SKILLCLAW_PIDFILE")" 2>/dev/null; then
+                echo "running"
+                return 0
+            fi
+            echo "stopped"
+            return 1
+            ;;
+        *)
+            print_error "usage: skillclaw_daemon start|stop|status"
+            return 2
+            ;;
+    esac
+}
+
+# Emit a platform supervisor unit so a crashed daemon auto-restarts (§5.3).
+# $1 = platform (darwin|linux), $2 = output path.
+skillclaw_supervisor_unit() {
+    local platform="$1" out="$2"
+    local bin; bin="$(command -v skillclaw 2>/dev/null || echo skillclaw)"
+    mkdir -p "$(dirname "$out")"
+    case "$platform" in
+        darwin)
+            cat > "$out" << EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>com.manifest.skillclaw</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>$bin</string><string>start</string><string>--port</string><string>$SKILLCLAW_PORT</string>
+  </array>
+  <key>KeepAlive</key><true/>
+  <key>RunAtLoad</key><true/>
+</dict>
+</plist>
+EOF
+            ;;
+        linux)
+            cat > "$out" << EOF
+[Unit]
+Description=SkillClaw capture proxy
+[Service]
+ExecStart=$bin start --port $SKILLCLAW_PORT
+Restart=on-failure
+[Install]
+WantedBy=default.target
+EOF
+            ;;
+        *)
+            print_error "unknown platform: $platform"
+            return 1
+            ;;
+    esac
+}
+
+# Install + load the supervisor for the current platform (best-effort).
+skillclaw_install_supervisor() {
+    case "$(uname -s)" in
+        Darwin)
+            local plist="$HOME/Library/LaunchAgents/com.manifest.skillclaw.plist"
+            skillclaw_supervisor_unit darwin "$plist"
+            launchctl unload "$plist" >/dev/null 2>&1 || true
+            launchctl load "$plist" >/dev/null 2>&1 || print_warning "launchctl load failed (continuing)"
+            ;;
+        Linux)
+            local unit="$HOME/.config/systemd/user/skillclaw.service"
+            skillclaw_supervisor_unit linux "$unit"
+            systemctl --user daemon-reload >/dev/null 2>&1 || true
+            systemctl --user enable --now skillclaw.service >/dev/null 2>&1 \
+                || print_warning "systemctl enable failed (continuing)"
+            ;;
+    esac
+}

@@ -73,3 +73,24 @@ teardown() {
     run grep -c "MANIFEST SKILLCLAW WRAPPERS" "$profile"
     assert_output "0"
 }
+
+@test "skillclaw_daemon status reports stopped when no pid" {
+    export SKILLCLAW_PIDFILE="$SANDBOX/skillclaw.pid"
+    run skillclaw_daemon status
+    assert_failure
+    assert_output --partial "stopped"
+}
+
+@test "skillclaw_supervisor_unit emits launchd plist on darwin" {
+    run skillclaw_supervisor_unit darwin "$SANDBOX/out"
+    assert_success
+    [ -f "$SANDBOX/out" ]
+    grep -q "KeepAlive" "$SANDBOX/out"
+    grep -q "com.manifest.skillclaw" "$SANDBOX/out"
+}
+
+@test "skillclaw_supervisor_unit emits systemd unit on linux" {
+    run skillclaw_supervisor_unit linux "$SANDBOX/out"
+    assert_success
+    grep -q "Restart=on-failure" "$SANDBOX/out"
+}
