@@ -20,6 +20,12 @@ CFG="${SKILLCLAW_CONFIG:-${SCRIPT_DIR}/../config/skillclaw.yml}"
 
 EVOLVED="${SKILLCLAW_EVOLVED:-$HOME/.skillclaw/skills}"
 SESSIONS="${SKILLCLAW_SESSIONS:-$HOME/.skillclaw/sessions}"
+INGEST="${SCRIPT_DIR}/skillclaw_ingest.py"
+EVOLVE="${SCRIPT_DIR}/skillclaw_evolve.py"
+TEMPLATE="${SKILLCLAW_TEMPLATE:-${SCRIPT_DIR}/../prompts/skillclaw_evolve.md}"
+TRANSCRIPTS="${SKILLCLAW_TRANSCRIPTS:-$HOME/.claude/projects}"
+STATE="${SKILLCLAW_STATE:-$HOME/.skillclaw/.ingest-state.json}"
+REJECTED="${SKILLCLAW_REJECTED:-$HOME/.skillclaw/skills/rejected}"
 # Committed library: the physical skillshare source of truth. The deployed script
 # lives in ~/.claude/scripts, so locate the repo via MANIFEST_ROOT (exported by
 # bootstrap into the shell profile); fall back to repo-relative when run in-tree.
@@ -60,20 +66,25 @@ if [[ "$APPLY" == true && "$FORCE_NEW" == false ]]; then
     fi
 fi
 
-# 1. Scrub captured sessions (best-effort; never blocks).
+# 1. Ingest transcripts → sessions (passive; no proxy).
+if [[ "$DO_EVOLVE" == true ]]; then
+    python3 "$INGEST" "$TRANSCRIPTS" "$SESSIONS" --state "$STATE" >/dev/null 2>&1 \
+        || err "ingest returned non-zero (continuing)"
+fi
+
+# 2. Scrub captured sessions (best-effort; never blocks).
 if [[ -d "$SESSIONS" ]]; then
     python3 "${SCRIPT_DIR}/skillclaw_scrub.py" "$SESSIONS" >/dev/null 2>&1 || true
 fi
 
-# 2. Evolve (skip with --no-evolve; e.g. tests / re-run on existing library).
+# 3. Evolve (skip with --no-evolve).
 if [[ "$DO_EVOLVE" == true ]]; then
-    if command -v skillclaw >/dev/null 2>&1; then
-        skillclaw evolve --mode workflow >/dev/null 2>&1 || err "evolve returned non-zero (continuing)"
-    fi
+    python3 "$EVOLVE" "$SESSIONS" "$EVOLVED" --template "$TEMPLATE" \
+        || err "evolve returned non-zero (continuing)"
 fi
 
-# 3. Classify + validate.
-classify_args=("$EVOLVED" "$COMMITTED")
+# 4. Classify + validate.
+classify_args=("$EVOLVED" "$COMMITTED" --rejected-dir "$REJECTED")
 [[ -n "$SKILL" ]] && classify_args+=(--skill "$SKILL")
 classify_json="$(python3 "${SCRIPT_DIR}/skillclaw_promote.py" "${classify_args[@]}")"
 
@@ -89,6 +100,11 @@ for c in d["dropped"]:
     name=c["name"]; reason=c["reason"]
     print("  DROPPED   %s  (%s)" % (name, reason))
 '
+
+dropped_count="$(echo "$classify_json" | python3 -c 'import json,sys; print(len(json.load(sys.stdin)["dropped"]))')"
+if [[ "$dropped_count" -gt 0 ]]; then
+    err "Generated candidate(s), but ${dropped_count} failed schema validation. See ${REJECTED}"
+fi
 
 promote_names="$(echo "$classify_json" | python3 -c 'import json,sys; print(" ".join(c["name"] for c in json.load(sys.stdin)["promote"]))')"
 
