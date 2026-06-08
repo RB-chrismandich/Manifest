@@ -88,8 +88,6 @@ for c in d["promote"]:
 for c in d["dropped"]:
     name=c["name"]; reason=c["reason"]
     print("  DROPPED   %s  (%s)" % (name, reason))
-if not d["promote"]:
-    print("  (nothing to promote)")
 '
 
 promote_names="$(echo "$classify_json" | python3 -c 'import json,sys; print(" ".join(c["name"] for c in json.load(sys.stdin)["promote"]))')"
@@ -107,6 +105,11 @@ fi
 
 # 4. Stage a branch with one commit per skill, then open a PR.
 count="$(echo "$promote_names" | wc -w | tr -d ' ')"
+if [[ ! -d "$COMMITTED" ]]; then
+    err "committed skills dir not found: $COMMITTED"
+    err "set MANIFEST_ROOT (or SKILLCLAW_COMMITTED) to the repo's .skillshare/skills"
+    exit 2
+fi
 branch="${BRANCH_PREFIX}${count}-$(git rev-parse --short HEAD)"
 git switch -c "$branch"
 

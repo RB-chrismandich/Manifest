@@ -32,7 +32,8 @@ EOF
 #!/usr/bin/env bash
 case "$1" in
   rev-parse) echo "abc1234" ;;
-  switch|add|commit) : ;;
+  commit) echo "git-commit" >> "$SKILLCLAW_PROMOTE_LOG" ;;
+  switch|add) : ;;
   *) : ;;
 esac
 exit 0
@@ -62,6 +63,8 @@ teardown() {
     run bash "$SCRIPT" --apply --no-evolve
     assert_success
     run grep -c "pr-create" "$SKILLCLAW_PROMOTE_LOG"
+    assert_output "1"
+    run grep -c "git-commit" "$SKILLCLAW_PROMOTE_LOG"
     assert_output "1"
 }
 
