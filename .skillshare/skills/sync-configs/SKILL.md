@@ -107,6 +107,23 @@ for platform in .cursor .gemini .codex; do
 done
 ```
 
+### 6. SkillClaw Config Drift (if enabled)
+
+Only when `skillclaw.enabled: true` in `~/.claude/config/services.yml`.
+
+- `config/skillclaw.yml` — SkillClaw runtime config (port, storage, evolve provider,
+  promotion settings). Compare `configs/claude/config/skillclaw.yml` (source) against
+  the deployed `~/.claude/config/skillclaw.yml`; flag drift in port or storage root.
+
+```bash
+diff configs/claude/config/skillclaw.yml ~/.claude/config/skillclaw.yml 2>/dev/null \
+    && echo "skillclaw.yml: in sync" \
+    || echo "skillclaw.yml: DRIFT DETECTED"
+```
+
+Pay particular attention to `port` and `storage_root` fields — divergence there
+can cause the daemon and wrappers to disagree on where data lives.
+
 ## Output Format
 
 ```text
