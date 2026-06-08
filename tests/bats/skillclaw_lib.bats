@@ -94,3 +94,15 @@ teardown() {
     assert_success
     grep -q "Restart=on-failure" "$SANDBOX/out"
 }
+
+@test "skillclaw_apply_state disable removes wrappers and stops daemon" {
+    local profile="$SANDBOX/.zshrc"; touch "$profile"
+    export SHELL_PROFILE_FILE="$profile"
+    skillclaw_write_wrappers "$profile"
+    # stub daemon to avoid invoking real skillclaw
+    skillclaw_daemon() { echo "daemon $1"; }
+    ENABLE_SKILLCLAW=false run skillclaw_apply_state
+    assert_success
+    run grep -c "MANIFEST SKILLCLAW WRAPPERS" "$profile"
+    assert_output "0"
+}

@@ -206,3 +206,20 @@ skillclaw_install_supervisor() {
             ;;
     esac
 }
+
+# Apply the desired state based on ENABLE_SKILLCLAW. Called from bootstrap main.
+# Writes wrappers to SHELL_PROFILE_FILE (set by configure_shell_profile_state).
+skillclaw_apply_state() {
+    local profile="${SHELL_PROFILE_FILE:-$HOME/.zshrc}"
+    if [[ "${ENABLE_SKILLCLAW:-false}" == true ]]; then
+        configure_skillclaw
+        skillclaw_write_wrappers "$profile"
+        skillclaw_install_supervisor
+        skillclaw_daemon start || print_warning "Could not start SkillClaw daemon (wrappers fail open)"
+        print_success "SkillClaw enabled (capture via $profile)"
+    else
+        skillclaw_remove_wrappers "$profile"
+        skillclaw_daemon stop || true
+        print_info "SkillClaw disabled (wrappers removed)"
+    fi
+}
