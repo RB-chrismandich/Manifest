@@ -41,13 +41,15 @@ jobs:
       - name: Install yamllint
         run: pip install yamllint
 
+      # Use the repo's .yamllint (max-line 150, warning) rather than the built-in
+      # `relaxed` preset, which forces an 80-col limit the project does not adopt.
       - name: yamllint - configs/claude/config/
-        run: yamllint -d relaxed configs/claude/config/*.yml
+        run: yamllint configs/claude/config/*.yml
 
       # --- markdownlint ---
 
       - name: markdownlint - key docs
-        uses: DavidAnson/markdownlint-cli2-action@v22
+        uses: DavidAnson/markdownlint-cli2-action@v23
         with:
           globs: |
             AGENTS.md
