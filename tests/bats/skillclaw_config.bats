@@ -61,3 +61,17 @@ teardown() {
     parse_services_config
     assert_equal "$FILE_SKILLCLAW" "true"
 }
+
+@test "skillclaw.yml exists and has required keys" {
+    local f="$REPO_ROOT/configs/claude/config/skillclaw.yml"
+    [ -f "$f" ]
+    run python3 -c "import yaml,sys; c=yaml.safe_load(open('$f')); \
+        assert c['proxy']['port']==8765; \
+        assert c['storage']['root']=='~/.skillclaw'; \
+        assert c['evolve']['mode']=='workflow'; \
+        assert c['promotion']['branch_prefix']=='skillclaw/evolve-'; \
+        assert c['evolve']['provider']['primary']['base_url']; \
+        print('ok')"
+    assert_success
+    assert_output --partial "ok"
+}
