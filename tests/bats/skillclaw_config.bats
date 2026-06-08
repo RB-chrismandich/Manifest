@@ -36,6 +36,13 @@ teardown() {
     assert_equal "$SKILLCLAW_SET" "true"
 }
 
+@test "--disable-skillclaw sets the toggle off explicitly" {
+    set_bootstrap_defaults
+    parse_bootstrap_args --disable-skillclaw
+    assert_equal "$ENABLE_SKILLCLAW" "false"
+    assert_equal "$SKILLCLAW_SET" "true"
+}
+
 @test "write_services_config emits skillclaw section with enabled: false" {
     export ENABLE_CLAUDE=true ENABLE_GEMINI=true ENABLE_CURSOR=true ENABLE_CODEX=true
     export ENABLE_ANTIGRAVITY=true ENABLE_SKILLCLAW=false

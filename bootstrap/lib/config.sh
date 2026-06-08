@@ -61,6 +61,8 @@ print_bootstrap_help() {
     echo "  --disable-codex     Disable Codex CLI"
     echo "  --enable-antigravity   Enable Antigravity IDE (default: enabled)"
     echo "  --disable-antigravity  Disable Antigravity IDE"
+    echo "  --enable-skillclaw     Enable SkillClaw session capture (default: disabled)"
+    echo "  --disable-skillclaw    Disable SkillClaw session capture"
     echo "  --enable-gh         Enable GitHub CLI (default: auto-detect)"
     echo "  --disable-gh        Disable GitHub CLI"
     echo "  --enable-glab       Enable GitLab CLI (default: auto-detect)"
@@ -373,7 +375,7 @@ services:
   # SkillClaw - auto-evolves SKILL.md skills from captured CLI-agent sessions
   # Install: bash scripts/install_skillclaw.sh  (managed by bootstrap/lib/skillclaw.sh)
   skillclaw:
-    enabled: $ENABLE_SKILLCLAW
+    enabled: ${ENABLE_SKILLCLAW:-false}
     command: skillclaw
     description: "Captures CLI-agent sessions; evolves skills into review PRs (opt-in)"
     proxy_port: 8765
