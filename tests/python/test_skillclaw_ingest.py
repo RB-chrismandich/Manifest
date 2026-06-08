@@ -121,3 +121,47 @@ def test_is_settled():
     now = 1_000_000.0
     assert ing.is_settled(now - 600, now, settle_minutes=5) is True    # 10 min old
     assert ing.is_settled(now - 60, now, settle_minutes=5) is False    # 1 min old
+
+
+def _mk_transcript(d, name, mtime):
+    f = d / f"{name}.jsonl"
+    f.write_text(json.dumps({"type": "user", "sessionId": name,
+                             "message": {"role": "user", "content": "hi"}}) + "\n")
+    import os
+    os.utime(f, (mtime, mtime))
+    return f
+
+
+def test_ingest_writes_and_filters(tmp_path):
+    src = tmp_path / "projects" / "repo"
+    src.mkdir(parents=True)
+    out = tmp_path / "sessions"
+    state = tmp_path / ".state.json"
+    now = 1_000_000.0
+    _mk_transcript(src, "fresh", now - 3600)            # 1h old -> ingested
+    _mk_transcript(src, "stale", now - 50 * 86400)      # 50d old -> window-skipped
+    _mk_transcript(src, "active", now - 60)             # 1m old -> settle-skipped
+
+    summary = ing.ingest(tmp_path / "projects", out, state,
+                         window_days=30, settle_minutes=5,
+                         max_tool_output_chars=500, now=now)
+    assert summary["ingested"] == 1
+    assert summary["skipped_old"] == 1
+    assert summary["skipped_unsettled"] == 1
+    assert (out / "fresh.json").exists()
+
+
+def test_ingest_is_incremental(tmp_path):
+    src = tmp_path / "projects" / "repo"
+    src.mkdir(parents=True)
+    out = tmp_path / "sessions"
+    state = tmp_path / ".state.json"
+    now = 1_000_000.0
+    _mk_transcript(src, "one", now - 3600)
+    first = ing.ingest(tmp_path / "projects", out, state, window_days=30,
+                       settle_minutes=5, max_tool_output_chars=500, now=now)
+    assert first["ingested"] == 1
+    second = ing.ingest(tmp_path / "projects", out, state, window_days=30,
+                        settle_minutes=5, max_tool_output_chars=500, now=now)
+    assert second["ingested"] == 0
+    assert second["skipped_seen"] == 1
