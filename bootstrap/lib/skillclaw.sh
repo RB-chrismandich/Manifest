@@ -73,3 +73,44 @@ PY
     fi
     print_success "SkillClaw configured (port $port, storage $storage)"
 }
+
+SKILLCLAW_WRAP_BEGIN="# >>> MANIFEST SKILLCLAW WRAPPERS >>>"
+SKILLCLAW_WRAP_END="# <<< MANIFEST SKILLCLAW WRAPPERS <<<"
+
+# Remove any existing managed wrapper block from a profile file (idempotent).
+skillclaw_remove_wrappers() {
+    local profile="$1"
+    [[ -f "$profile" ]] || return 0
+    # Delete the inclusive marker block.
+    sed -e "/$SKILLCLAW_WRAP_BEGIN/,/$SKILLCLAW_WRAP_END/d" "$profile" > "${profile}.tmp" \
+        && mv "${profile}.tmp" "$profile"
+}
+
+# Write the fail-open runtime wrapper block. The health probe runs at INVOCATION
+# time (not shell init), capped at 0.3s, and degrades to direct-to-provider.
+skillclaw_write_wrappers() {
+    local profile="$1"
+    mkdir -p "$(dirname "$profile")"
+    touch "$profile"
+    skillclaw_remove_wrappers "$profile"
+    cat >> "$profile" << EOF
+$SKILLCLAW_WRAP_BEGIN
+# Managed by bootstrap/lib/skillclaw.sh — do not edit between these markers.
+export SKILLCLAW_PORT="\${SKILLCLAW_PORT:-$SKILLCLAW_PORT}"
+_skillclaw_up() {
+    curl -sf --max-time 0.3 "http://127.0.0.1:\${SKILLCLAW_PORT}/health" >/dev/null 2>&1
+}
+_skillclaw_run() {
+    # \$1=env var name, \$2=base url, rest=command
+    local var="\$1" url="\$2"; shift 2
+    if [ -z "\${SKILLCLAW_BYPASS:-}" ] && _skillclaw_up; then
+        env "\$var=\$url" "\$@"
+    else
+        "\$@"
+    fi
+}
+claude() { _skillclaw_run ANTHROPIC_BASE_URL "http://127.0.0.1:\${SKILLCLAW_PORT}" command claude "\$@"; }
+codex()  { _skillclaw_run OPENAI_BASE_URL    "http://127.0.0.1:\${SKILLCLAW_PORT}/v1" command codex "\$@"; }
+$SKILLCLAW_WRAP_END
+EOF
+}

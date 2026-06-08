@@ -38,3 +38,38 @@ teardown() {
     assert_equal "$smode" "700"
     assert_equal "$kmode" "700"
 }
+
+@test "skillclaw_write_wrappers writes a guarded, marker-delimited block" {
+    local profile="$SANDBOX/.zshrc"
+    touch "$profile"
+    run skillclaw_write_wrappers "$profile"
+    assert_success
+    grep -q ">>> MANIFEST SKILLCLAW WRAPPERS >>>" "$profile"
+    grep -q "<<< MANIFEST SKILLCLAW WRAPPERS <<<" "$profile"
+    grep -q "SKILLCLAW_BYPASS" "$profile"
+    grep -q "max-time 0.3" "$profile"
+    grep -q 'claude()' "$profile"
+    grep -q 'codex()' "$profile"
+    # No hard top-level export of the base URL (must be per-invocation):
+    run grep -E '^export ANTHROPIC_BASE_URL=' "$profile"
+    assert_failure
+}
+
+@test "skillclaw_write_wrappers is idempotent (single block on re-run)" {
+    local profile="$SANDBOX/.zshrc"
+    touch "$profile"
+    skillclaw_write_wrappers "$profile"
+    skillclaw_write_wrappers "$profile"
+    run grep -c ">>> MANIFEST SKILLCLAW WRAPPERS >>>" "$profile"
+    assert_output "1"
+}
+
+@test "skillclaw_remove_wrappers strips the block" {
+    local profile="$SANDBOX/.zshrc"
+    touch "$profile"
+    skillclaw_write_wrappers "$profile"
+    run skillclaw_remove_wrappers "$profile"
+    assert_success
+    run grep -c "MANIFEST SKILLCLAW WRAPPERS" "$profile"
+    assert_output "0"
+}
