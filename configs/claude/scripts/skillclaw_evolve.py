@@ -60,3 +60,26 @@ def build_prompt(template: str, sessions: list[dict], library_names: list[str]) 
 def parse_candidates(output: str) -> list[dict]:
     return [{"name": m.group("name").strip(), "content": m.group("body")}
             for m in _SKILL_RE.finditer(output)]
+
+
+def chunk_sessions(sessions: list[dict], token_budget: int) -> list[list[dict]]:
+    """Greedily pack sessions into chunks whose rendered size stays under budget.
+
+    A single session larger than the budget gets its own chunk (it cannot be
+    split further here; the renderer already truncated tool noise upstream).
+    """
+    if not sessions:
+        return []
+    chunks: list[list[dict]] = []
+    current: list[dict] = []
+    current_tokens = 0
+    for s in sessions:
+        cost = estimate_tokens(_render_session(s))
+        if current and current_tokens + cost > token_budget:
+            chunks.append(current)
+            current, current_tokens = [], 0
+        current.append(s)
+        current_tokens += cost
+    if current:
+        chunks.append(current)
+    return chunks
