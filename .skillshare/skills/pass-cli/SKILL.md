@@ -19,9 +19,15 @@ be re-printed with `pass-cli agent instructions`.
 
 ## Security rules (read first)
 
+- **Authentication is the end user's step — not the agent's.** Before doing anything
+  else, run `pass-cli info` to check for a live session. If it's **not** authenticated,
+  do **not** attempt login yourself: present the login steps (below) to the user, ask
+  them to run them, and wait for confirmation that `pass-cli info` succeeds before
+  proceeding. This keeps the PAT out of the agent/chat entirely.
 - **The Personal Access Token (PAT) is supplied by the user at runtime.** Never
-  hardcode, invent, commit, or store a PAT in files, skills, or memory. Pass it only
-  via the `PROTON_PASS_PERSONAL_ACCESS_TOKEN` environment variable on the login line.
+  hardcode, invent, commit, or store a PAT in files, skills, or memory. If the user
+  chooses to have the agent run login, pass the PAT only via the
+  `PROTON_PASS_PERSONAL_ACCESS_TOKEN` environment variable on the login line.
 - **Every read/write of an item requires a reason.** Set `PROTON_PASS_AGENT_REASON`
   to a brief, honest description of why you need that item/field on the same command.
 - **Don't echo secrets unnecessarily.** Retrieve the specific field you need
@@ -50,21 +56,31 @@ platform install steps, then re-check.
 
 ### 2. Ensure an active, isolated session
 
-```bash
-# Isolate this agent's session from any other pass-cli sessions
-export PROTON_PASS_SESSION_DIR="/tmp/pass-agent-<unique-name>"
+First check whether a session already exists (exit 0 + account details means yes):
 
-# Are we already logged in? (exit 0 + session details means yes)
+```bash
 pass-cli info
 ```
 
-If `info` shows an expired/absent session, log in with the user-provided PAT:
+**If already authenticated, skip ahead to step 3.**
+
+**If not authenticated, hand the login to the user.** Present these steps and ask
+them to run them (so the PAT never passes through the agent or chat history), then
+wait for them to confirm `pass-cli info` returns success:
 
 ```bash
-# The PAT comes from the user — do NOT store it anywhere.
-PROTON_PASS_PERSONAL_ACCESS_TOKEN="<paste-user-PAT-here>" pass-cli login
-pass-cli info   # verify you are logged in
+# 1) Isolate this session from other pass-cli sessions
+export PROTON_PASS_SESSION_DIR="/tmp/pass-agent-<unique-name>"
+
+# 2) Log in with your Personal Access Token
+PROTON_PASS_PERSONAL_ACCESS_TOKEN="<your-PAT>" pass-cli login
+
+# 3) Confirm
+pass-cli info
 ```
+
+Only run the login command yourself if the user has explicitly asked the agent to do
+so and has provided the PAT for that purpose — and even then, never store it.
 
 ### 3. Verify access to resources
 
