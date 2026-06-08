@@ -175,8 +175,8 @@ curl -sf --max-time 0.3 http://127.0.0.1:8765/health && echo "daemon: up" || ech
 # Wrapper functions present in the shell profile
 grep -q "MANIFEST SKILLCLAW WRAPPERS" "${ZDOTDIR:-$HOME}/.zshrc" && echo "wrappers: present" || echo "wrappers: MISSING"
 
-# Storage locked down (must be 700)
-stat -f '%Lp' ~/.skillclaw 2>/dev/null || stat -c '%a' ~/.skillclaw
+# Storage locked down (must be 700) — GNU-first so it works on Linux and macOS
+stat -c '%a' ~/.skillclaw 2>/dev/null || stat -f '%Lp' ~/.skillclaw
 ```
 
 Report `daemon: down` as INFO (capture paused, agents unaffected), but
