@@ -62,16 +62,12 @@ teardown() {
     assert_equal "$FILE_SKILLCLAW" "true"
 }
 
-@test "skillclaw.yml exists and has required keys" {
-    local f="$REPO_ROOT/configs/claude/config/skillclaw.yml"
-    [ -f "$f" ]
-    run python3 -c "import yaml,sys; c=yaml.safe_load(open('$f')); \
-        assert c['proxy']['port']==8765; \
-        assert c['storage']['root']=='~/.skillclaw'; \
-        assert c['evolve']['mode']=='workflow'; \
-        assert c['promotion']['branch_prefix']=='skillclaw/evolve-'; \
-        assert c['evolve']['provider']['primary']['base_url']; \
-        print('ok')"
-    assert_success
-    assert_output --partial "ok"
+@test "skillclaw.yml has no proxy or capture blocks" {
+    run python3 -c "import yaml; d=yaml.safe_load(open('$REPO_ROOT/configs/claude/config/skillclaw.yml')); assert 'proxy' not in d and 'capture' not in d"
+    [ "$status" -eq 0 ]
+}
+
+@test "skillclaw.yml defines ingest and claude-cli evolve engine" {
+    run python3 -c "import yaml; d=yaml.safe_load(open('$REPO_ROOT/configs/claude/config/skillclaw.yml')); assert d['ingest']['window_days']==30; assert d['evolve']['engine']=='claude-cli'; assert d['ingest']['settle_minutes']==5"
+    [ "$status" -eq 0 ]
 }
