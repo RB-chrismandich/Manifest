@@ -27,6 +27,7 @@ set_bootstrap_defaults() {
     ENABLE_CURSOR=true
     ENABLE_CODEX=true
     ENABLE_ANTIGRAVITY=true
+    ENABLE_SKILLCLAW=false
     ENABLE_GH="auto"
     ENABLE_GLAB="auto"
 
@@ -36,6 +37,7 @@ set_bootstrap_defaults() {
     CURSOR_SET=false
     CODEX_SET=false
     ANTIGRAVITY_SET=false
+    SKILLCLAW_SET=false
     GH_SET=false
     GLAB_SET=false
 }
@@ -134,6 +136,16 @@ parse_bootstrap_args() {
                 ANTIGRAVITY_SET=true
                 shift
                 ;;
+            --enable-skillclaw)
+                ENABLE_SKILLCLAW=true
+                SKILLCLAW_SET=true
+                shift
+                ;;
+            --disable-skillclaw)
+                ENABLE_SKILLCLAW=false
+                SKILLCLAW_SET=true
+                shift
+                ;;
             --enable-gh)
                 ENABLE_GH=true
                 GH_SET=true
@@ -198,6 +210,7 @@ parse_services_config() {
     FILE_CURSOR=""
     FILE_CODEX=""
     FILE_ANTIGRAVITY=""
+    FILE_SKILLCLAW=""
     FILE_GH=""
     FILE_GLAB=""
 
@@ -210,6 +223,7 @@ parse_services_config() {
             /^[[:space:]]*cursor:/ { section="cursor"; subsection="" }
             /^[[:space:]]*codex:/ { section="codex"; subsection="" }
             /^[[:space:]]*antigravity:/ { section="antigravity"; subsection="" }
+            /^[[:space:]]*skillclaw:/ { section="skillclaw"; subsection="" }
             /^[[:space:]]*git_cli:/ { section="git_cli"; subsection="" }
             /^[[:space:]]*github:/ { if (section == "git_cli") subsection="github" }
             /^[[:space:]]*gitlab:/ { if (section == "git_cli") subsection="gitlab" }
@@ -219,6 +233,7 @@ parse_services_config() {
                 if (section == "cursor") print "FILE_CURSOR=true;"
                 if (section == "codex") print "FILE_CODEX=true;"
                 if (section == "antigravity") print "FILE_ANTIGRAVITY=true;"
+                if (section == "skillclaw") print "FILE_SKILLCLAW=true;"
                 if (section == "git_cli" && subsection == "github") print "FILE_GH=true;"
                 if (section == "git_cli" && subsection == "gitlab") print "FILE_GLAB=true;"
             }
@@ -228,6 +243,7 @@ parse_services_config() {
                 if (section == "cursor") print "FILE_CURSOR=false;"
                 if (section == "codex") print "FILE_CODEX=false;"
                 if (section == "antigravity") print "FILE_ANTIGRAVITY=false;"
+                if (section == "skillclaw") print "FILE_SKILLCLAW=false;"
                 if (section == "git_cli" && subsection == "github") print "FILE_GH=false;"
                 if (section == "git_cli" && subsection == "gitlab") print "FILE_GLAB=false;"
             }
@@ -269,6 +285,10 @@ load_existing_config() {
 
         if [[ "$ANTIGRAVITY_SET" == false && -n "$FILE_ANTIGRAVITY" ]]; then
             ENABLE_ANTIGRAVITY=$FILE_ANTIGRAVITY
+        fi
+
+        if [[ "$SKILLCLAW_SET" == false && -n "$FILE_SKILLCLAW" ]]; then
+            ENABLE_SKILLCLAW=$FILE_SKILLCLAW
         fi
 
         if [[ "$GH_SET" == false && -n "$FILE_GH" ]]; then
@@ -349,6 +369,15 @@ services:
   antigravity:
     enabled: $ENABLE_ANTIGRAVITY
     description: "VS Code-fork IDE; inherits ~/.claude/ config via Claude Code extension"
+
+  # SkillClaw - auto-evolves SKILL.md skills from captured CLI-agent sessions
+  # Install: bash scripts/install_skillclaw.sh  (managed by bootstrap/lib/skillclaw.sh)
+  skillclaw:
+    enabled: $ENABLE_SKILLCLAW
+    command: skillclaw
+    description: "Captures CLI-agent sessions; evolves skills into review PRs (opt-in)"
+    proxy_port: 8765
+    storage: ~/.skillclaw
 
   # Git CLI tools - Platform-specific Git hosting integrations
   git_cli:
