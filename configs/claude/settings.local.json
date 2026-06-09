@@ -40,6 +40,15 @@
             "command": "~/.claude/scripts/version_pin_hook.sh"
           }
         ]
+      },
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/scripts/spec_review.sh --silent"
+          }
+        ]
       }
     ]
   },

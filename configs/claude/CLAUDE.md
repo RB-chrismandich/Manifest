@@ -156,6 +156,7 @@ These integrate with the parallel agent orchestration framework.
 | `/branch-clean` | Prune merged/gone/stale branches safely (dry-run, local-only) | CONDITIONAL |
 | `/skill-evolve` | Promote SkillClaw-evolved skills into a review PR (dry-run default) | NO |
 | `/pass-cli` | Retrieve credentials from Proton Pass (auth is the user's step; PAT never stored) | NO |
+| `/spec-review` | Independent Gemini cross-reference of spec/plan/tasks for internal consistency; on-demand or via fail-open PostToolUse save hook (content-hash debounced, detached); analysis-only; engine: `~/.claude/scripts/spec_review.sh` (`--spec/--plan/--tasks/--silent/--format`) | NO |
 
 ### Command Usage
 
