@@ -86,8 +86,14 @@ def chunk_sessions(sessions: list[dict], token_budget: int) -> list[list[dict]]:
 
 
 def subprocess_runner(prompt: str) -> str:
-    """Default runner: invoke headless `claude -p` (Max-backed)."""
-    proc = subprocess.run(["claude", "-p", prompt], capture_output=True, text=True)
+    """Default runner: invoke headless `claude -p` (Max-backed).
+
+    The prompt is fed via stdin, not as an argv argument, so large transcript
+    windows (a chunk can approach token_budget * 4 chars) never hit the OS
+    ARG_MAX "Argument list too long" limit (1 MB on macOS). `claude -p` reads the
+    prompt from stdin when no positional prompt is given.
+    """
+    proc = subprocess.run(["claude", "-p"], input=prompt, capture_output=True, text=True)
     if proc.returncode != 0:
         raise RuntimeError(f"claude -p failed: {proc.stderr.strip()}")
     return proc.stdout

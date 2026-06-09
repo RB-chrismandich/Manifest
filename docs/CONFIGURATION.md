@@ -238,10 +238,10 @@ promotion:
 
 ### How It Works
 
-1. **Ingest** (`skillclaw_ingest.sh`) scans `~/.claude/projects/**/*.jsonl` for transcripts
+1. **Ingest** (`skillclaw_ingest.py`) scans `~/.claude/projects/**/*.jsonl` for transcripts
    within the `window_days` window, skipping files still being written (`settle_minutes`).
    Tool output is truncated to `max_tool_output_chars` characters to reduce noise.
-2. **Evolve** (`skillclaw_evolve.sh`) runs `claude -p` in map-reduce mode against each
+2. **Evolve** (`skillclaw_evolve.py`) runs `claude -p` in map-reduce mode against each
    ingested session, staying under the `token_budget` threshold to avoid the 200 k context
    limit. Candidates that pass quality checks are written to `evolved/`; rejected ones go to
    `rejected/` for inspection.
