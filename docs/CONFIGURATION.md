@@ -31,7 +31,7 @@ All configuration files are located in `~/.claude/config/`:
 | `services.yml` | Agent enable/disable states | YAML |
 | `command_config.yml` | Tool policies, thresholds, model defaults | YAML |
 | `validation_criteria.yml` | Tier 1/2 security and quality rules | YAML |
-| `skillclaw.yml` | SkillClaw proxy, storage, capture, evolve, and promotion settings | YAML |
+| `skillclaw.yml` | SkillClaw storage, ingest, evolve, and promotion settings | YAML |
 
 ### File Locations
 
@@ -177,17 +177,20 @@ The script validates services on startup:
 **File**: `~/.claude/config/skillclaw.yml`
 **Repo source**: `configs/claude/config/skillclaw.yml`
 
-SkillClaw is an **opt-in** local proxy that captures agent interactions, evolves skills with a
-local LLM, and opens review PRs. It is **disabled by default** and does not affect any agent
-behavior unless explicitly enabled.
+SkillClaw is an **opt-in**, proxy-free skill evolution pipeline. It passively reads
+`~/.claude/projects/**/*.jsonl` transcripts (the same files Claude Code writes during
+normal sessions), evolves them into skill candidates using `claude -p` (Max-backed,
+no separate API key required), and opens review PRs. It is **disabled by default** and
+does not intercept any agent traffic — no daemon is started, no shell wrappers are
+installed, no `BASE_URL` environment variable is set.
 
 ### Enabling and Disabling
 
 ```bash
-# Enable SkillClaw (installs daemon + shell wrappers)
+# Enable SkillClaw (creates chmod-700 storage dirs; no daemon or wrappers)
 ./bootstrap.sh --enable-skillclaw
 
-# Disable SkillClaw (removes wrappers, stops daemon)
+# Disable SkillClaw
 ./bootstrap.sh --disable-skillclaw
 
 # Reconfigure alongside other toggles
@@ -198,38 +201,31 @@ When enabled, `services.yml` gains a `skillclaw:` stanza set to `enabled: true`.
 
 ### What skillclaw.yml Configures
 
-```yaml
-# Proxy — local HTTP interception layer
-proxy:
-  host: 127.0.0.1
-  port: 8765            # All capture traffic passes through this port
+`~/.claude/config/skillclaw.yml` is the **Manifest-owned** config. It is distinct from
+the vestigial upstream `~/.skillclaw/config.yaml` that older versions of the skillclaw
+tool may create.
 
+```yaml
 # Storage — session and evolved-skill data (chmod 700; secrets scrubbed before evolution)
 storage:
-  root: ~/.skillclaw    # Top-level store; created with mode 700
+  root: ~/.skillclaw
   sessions: ~/.skillclaw/sessions
-  evolved: ~/.skillclaw/evolved
+  evolved: ~/.skillclaw/skills
+  rejected: ~/.skillclaw/skills/rejected
+  state: ~/.skillclaw/.ingest-state.json
 
-# Capture — which agents are wired through the proxy
-# (gemini and cursor-agent are documented follow-ups; not yet wired)
-capture:
-  agents:
-    claude:
-      env: ANTHROPIC_BASE_URL   # Set to http://127.0.0.1:8765 when proxy is up
-    codex:
-      env: OPENAI_BASE_URL      # Set to http://127.0.0.1:8765/v1 when proxy is up
-      path: /v1
+# Ingest — how transcripts are read from ~/.claude/projects
+ingest:
+  transcripts_dir: ~/.claude/projects
+  window_days: 30              # only transcripts modified within the last 30 days
+  settle_minutes: 5            # skip files whose mtime is <5 min old (still being written)
+  max_tool_output_chars: 500   # truncate tool stdout/stderr incl. base64 blobs (noise control)
 
-# Evolution — how captured sessions are improved into new skill candidates
+# Evolve — how ingested sessions become skill candidates
 evolve:
-  mode: workflow
-  provider:
-    primary:
-      base_url: http://127.0.0.1:11434/v1   # Local Ollama (preferred; no cloud cost)
-      model: qwen2.5-coder
-    fallback:
-      provider: anthropic
-      model: claude-haiku-4-5-20251001      # Cloud fallback when Ollama is unavailable
+  engine: claude-cli            # `claude -p` headless, Max-backed; no separate API key
+  token_budget: 100000          # map-reduce chunk threshold; stays clear of 200k context limit
+  prompt_template: ~/.claude/prompts/skillclaw_evolve.md
 
 # Promotion — how evolved skills become PRs
 promotion:
@@ -240,23 +236,16 @@ promotion:
     - follow-up
 ```
 
-### Fail-Open Capture
+### How It Works
 
-Shell wrapper functions replace the `claude` and `codex` commands. Before routing a call
-through the proxy, the wrapper probes the daemon's health endpoint:
-
-```bash
-curl -sf --max-time 0.3 http://127.0.0.1:8765/health
-```
-
-If the probe fails (daemon down, slow to start, etc.) the wrapper falls back to the real CLI
-binary directly — **agents are never blocked by a dead daemon**.
-
-To bypass capture for a single shell session without disabling SkillClaw globally:
-
-```bash
-export SKILLCLAW_BYPASS=1
-```
+1. **Ingest** (`skillclaw_ingest.py`) scans `~/.claude/projects/**/*.jsonl` for transcripts
+   within the `window_days` window, skipping files still being written (`settle_minutes`).
+   Tool output is truncated to `max_tool_output_chars` characters to reduce noise.
+2. **Evolve** (`skillclaw_evolve.py`) runs `claude -p` in map-reduce mode against each
+   ingested session, staying under the `token_budget` threshold to avoid the 200 k context
+   limit. Candidates that pass quality checks are written to `evolved/`; rejected ones go to
+   `rejected/` for inspection.
+3. **Promote** (`skillclaw_promote.sh`, also `/skill-evolve`) opens one review PR per run.
 
 ### Promotion
 

@@ -289,64 +289,69 @@ cat ~/.claude/config/services.yml
 SkillClaw is opt-in and disabled by default. These issues only apply when
 `--enable-skillclaw` has been used.
 
-### Capture Not Working / Daemon Down
+### Evolve Produced No Candidates
 
-**Symptom:** Agent calls succeed but sessions do not appear in `~/.skillclaw/sessions/`.
+**Symptom:** `/skill-evolve` or `skillclaw_promote.sh` reports zero candidates.
 
-**Diagnosis:**
+**Diagnosis — check each step in order:**
+
+1. Confirm `claude -p` is reachable (requires a Claude Max subscription; no API key needed):
+
+   ```bash
+   echo "ping" | claude -p "Reply with pong"
+   ```
+
+2. Check whether ingest populated sessions:
+
+   ```bash
+   ls ~/.skillclaw/sessions/
+   ```
+
+   If empty, transcripts may not have been ingested yet. Run ingest manually and
+   verify that `~/.claude/projects/` contains `.jsonl` files:
+
+   ```bash
+   ls ~/.claude/projects/**/*.jsonl 2>/dev/null | head -5
+   ```
+
+3. Review `window_days` and `settle_minutes` in `~/.skillclaw/config.yml`. If
+   `settle_minutes` is larger than the age of your most recent session, that
+   session will be skipped until it has cooled down.
+
+**Fix:** Adjust the window/settle values, re-run ingest, then re-run evolve.
+
+---
+
+### Candidate Rejected During Promote
+
+**Symptom:** Promote logs a warning such as `WARN: candidate rejected — <reason>`.
+
+**Diagnosis:** Rejected candidates are preserved for inspection:
 
 ```bash
-curl -sf --max-time 0.3 http://127.0.0.1:8765/health && echo "daemon up" || echo "daemon down"
+ls ~/.skillclaw/skills/rejected/
 ```
 
-**What this means:** This is informational, not an outage. SkillClaw is **fail-open** — when
-the daemon is unreachable, `claude` and `codex` wrappers route directly to their providers.
-Agent work continues normally; sessions are simply not captured.
+Review the rejected skill file and the accompanying `*.reason` file (if present)
+to understand why it was filtered out (e.g. low confidence score, duplicate of an
+existing skill, scrub flagged a secret).
 
-**Fix:**
+**Fix:** Edit the candidate to address the rejection reason, then re-run:
 
 ```bash
-# Restart via your process supervisor, or re-enable through bootstrap
-./bootstrap.sh --enable-skillclaw
+~/.claude/scripts/skillclaw_promote.sh --apply
 ```
 
 ---
 
-### Temporarily Bypass Capture
+### Disable / Teardown SkillClaw
 
-To skip capture for one shell session without disabling SkillClaw globally:
-
-```bash
-export SKILLCLAW_BYPASS=1
-```
-
-To fully revert SkillClaw (removes wrappers and stops the daemon):
+To fully remove SkillClaw (strips any legacy shell-wrapper block and removes the
+retired launchd unit if present):
 
 ```bash
 ./bootstrap.sh --disable-skillclaw
 ```
-
----
-
-### Wrapper Functions Missing
-
-**Symptom:** `claude` or `codex` bypass the proxy even though SkillClaw is enabled.
-
-**Diagnosis:**
-
-```bash
-grep "MANIFEST SKILLCLAW WRAPPERS" ~/.zshrc
-```
-
-If that returns nothing, the wrappers were not injected.
-
-**Fix:**
-
-```bash
-./bootstrap.sh --enable-skillclaw
-```
-
-Then open a new shell (or `source ~/.zshrc`) for the wrappers to take effect.
 
 ---
 

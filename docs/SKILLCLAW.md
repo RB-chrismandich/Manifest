@@ -1,57 +1,92 @@
 # SkillClaw Integration
 
-> PR-gated session capture that evolves reusable skills from your CLI-agent workflow
+> PR-gated skill evolution from Claude Code transcripts — no proxy, no daemon
 
 **Last Updated**: 2026-06-08
 **Audience**: Operators, developers
 **Prerequisites**: Manifest installed (`./bootstrap.sh`)
 
-SkillClaw captures CLI-agent sessions through a local proxy and evolves reusable
-`SKILL.md` skills. In Manifest it is a **PR-gated proposer**: nothing reaches the
+SkillClaw distills reusable `SKILL.md` skills from your Claude Code session transcripts
+and proposes them as pull requests. It is a **PR-gated proposer**: nothing reaches the
 committed `.skillshare/skills/` library without a merged PR.
+
+SkillClaw is a set of Manifest-owned scripts. `~/.skillclaw/` is solely managed by
+this repo. The legacy upstream `~/.skillclaw/config.yaml` and `dashboard.db` are
+vestigial (left in place, never read) and must not be confused with the
+Manifest-owned config at `~/.claude/config/skillclaw.yml`.
 
 ## Enable / disable
 
 ```bash
-./bootstrap.sh --enable-skillclaw     # install, configure, write wrappers, start daemon
-./bootstrap.sh --disable-skillclaw    # remove wrappers, stop daemon (full revert)
+./bootstrap.sh --enable-skillclaw    # create chmod-700 storage; remove any legacy proxy install
+./bootstrap.sh --disable-skillclaw   # storage left intact; nothing running
 ```
 
-## How capture works (fail-open)
+Enabling SkillClaw only sets up storage and tears down any legacy proxy install left
+by a prior version. There is no daemon, no socket, and no shell wrapper to install.
 
-Shell **wrapper functions** (`claude`, `codex`) check the daemon's health at
-invocation time (300ms cap). If it's up, the agent is routed through
-`http://127.0.0.1:8765`; if it's down or `SKILLCLAW_BYPASS=1` is set, the agent talks
-to its provider directly, unchanged. The daemon is never in the critical path.
+## How capture works (passive)
 
-Capture is **lossy by design**: a crash drops the in-flight session (a supervisor
-restarts the daemon). Evolution is statistical over many sessions, so loss is noise.
+SkillClaw reads Claude Code's own `~/.claude/projects/**/*.jsonl` transcripts directly.
+Nothing sits inline between you and the provider — capture is **purely passive** and
+works natively with a Claude Max subscription (no API key required).
 
-## Promote evolved skills
+Key ingest parameters (from `~/.claude/config/skillclaw.yml`):
+
+- **`window_days: 30`** — only transcripts from the last 30 days are considered.
+- **`settle_minutes: 5`** — files whose mtime is newer than 5 minutes are skipped
+  to avoid reading sessions that are still being written.
+- **`max_tool_output_chars: 500`** — raw tool stdout/stderr (including base64
+  blobs) is truncated beyond this to control noise and token consumption.
+
+Incremental state is tracked in `~/.skillclaw/.ingest-state.json` so re-runs
+only process new content.
+
+## Evolve engine
+
+Skill candidates are distilled using `claude -p` in headless mode, backed by your
+Claude Max subscription (no API key, no OpenAI dependency). A **map-reduce** approach
+chunks the session corpus under the `token_budget` threshold (default `100000`) to
+stay well clear of the 200 k context limit.
+
+## Promote flow
 
 ```bash
-~/.claude/scripts/skillclaw_promote.sh            # evolve + preview (dry-run)
-~/.claude/scripts/skillclaw_promote.sh --no-evolve  # preview existing library only
-~/.claude/scripts/skillclaw_promote.sh --apply    # open ONE review PR (commit per skill)
+~/.claude/scripts/skillclaw_promote.sh             # ingest → scrub → evolve → classify (dry-run)
+~/.claude/scripts/skillclaw_promote.sh --no-evolve # classify existing evolved library only (dry-run)
+~/.claude/scripts/skillclaw_promote.sh --apply     # open ONE review PR (one commit per skill)
 ```
 
-Only one open `skillclaw/evolve-*` PR at a time (Option A); `--force-new` overrides.
+Pipeline stages:
+
+1. **Ingest** — reads `~/.claude/projects/**/*.jsonl` into `~/.skillclaw/sessions/`.
+2. **Scrub** — `skillclaw_scrub.py` redacts secrets before any content is evolved.
+3. **Evolve** — `skillclaw_evolve.py` produces `SKILL.md` candidates in `~/.skillclaw/skills/`.
+4. **Classify** — validates candidates; rejected ones are copied to `~/.skillclaw/skills/rejected/`
+   with a warning printed to stderr (never silently dropped).
+5. **PR gate** — `--apply` stages one branch with one commit per skill and opens a
+   single `skillclaw/evolve-*` PR against `main`.
+
+**Option A** (one open PR at a time): if an open `skillclaw/evolve-*` PR already
+exists, `--apply` aborts with a message. Review or merge it first, or pass
+`--force-new` to override.
+
+`/skill-evolve` is the Claude Code skill entry point for this flow.
 
 ## Security
 
-- Storage `~/.skillclaw/` is `chmod 700`.
-- `skillclaw_scrub.py` redacts API keys / auth headers from captured sessions before
-  evolution.
+- Storage `~/.skillclaw/` and its subdirectories (`sessions/`, `skills/`) are
+  `chmod 700` — set at enable time and re-enforced on each `skillclaw_apply_state` call.
+- `skillclaw_scrub.py` redacts API keys and auth headers from ingested sessions
+  before any content is passed to the evolve engine.
 
 ## Follow-ups (not in V1)
 
-- **gemini / cursor-agent capture:** add wrappers only after verifying each CLI honors a
-  base-URL override SkillClaw can serve (Anthropic + OpenAI CLIs are verified; Gemini was
-  not in SkillClaw's documented compatible-agent list).
-- **TLS:** http-localhost works for the verified CLIs; add local TLS termination only if a
-  specific SDK rejects http.
-- **Evolve model defaults:** confirm the Ollama model + cloud fallback tier in `skillclaw.yml`.
-- **Shared team storage (S3/OSS)** and cross-device sync.
+- **Non-Claude CLI capture** — codex, gemini, and cursor do not persist transcripts
+  to a known location; hook-based capture would be needed for those CLIs.
+- **Scheduled evolution** — run `skillclaw_promote.sh` automatically via launchd or cron.
+- **Project allowlist** — restrict ingestion to specific project paths for tighter scoping.
+- **Tiered local engine** — optional Ollama-backed evolve stage as a cheaper first pass.
 
 ---
 

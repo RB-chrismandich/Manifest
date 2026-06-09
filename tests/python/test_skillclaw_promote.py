@@ -55,3 +55,15 @@ def test_main_emits_promotable_json(tmp_path, capsys):
     payload = json.loads(capsys.readouterr().out)
     names = {c["name"] for c in payload["promote"]}
     assert "alpha" in names
+
+
+def test_rejected_candidates_are_copied_to_rejected_dir(tmp_path):
+    evolved = tmp_path / "evolved"
+    committed = tmp_path / "committed"
+    rejected = tmp_path / "rejected"
+    _skill(committed, "_", VALID)                       # committed dir exists
+    _skill(evolved, "broken", "# no frontmatter\n")     # invalid -> rejected
+    rc = promote.main([str(evolved), str(committed), "--rejected-dir", str(rejected)])
+    assert rc == 0
+    # the rejected SKILL.md must have been copied for inspection
+    assert (rejected / "broken" / "SKILL.md").exists()

@@ -372,13 +372,11 @@ services:
     enabled: $ENABLE_ANTIGRAVITY
     description: "VS Code-fork IDE; inherits ~/.claude/ config via Claude Code extension"
 
-  # SkillClaw - auto-evolves SKILL.md skills from captured CLI-agent sessions
-  # Install: bash scripts/install_skillclaw.sh  (managed by bootstrap/lib/skillclaw.sh)
+  # SkillClaw - evolves SKILL.md skills from Claude Code transcripts (proxy-free)
+  # Managed by bootstrap/lib/skillclaw.sh; no install, no daemon, no proxy.
   skillclaw:
     enabled: ${ENABLE_SKILLCLAW:-false}
-    command: skillclaw
-    description: "Captures CLI-agent sessions; evolves skills into review PRs (opt-in)"
-    proxy_port: 8765
+    description: "Evolves skills from transcripts into review PRs via /skill-evolve (opt-in)"
     storage: ~/.skillclaw
 
   # Git CLI tools - Platform-specific Git hosting integrations

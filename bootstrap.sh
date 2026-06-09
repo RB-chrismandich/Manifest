@@ -216,7 +216,6 @@ main() {
         install_claude
         install_gemini
         install_codex
-        install_skillclaw
         install_github_cli
         install_gitlab_cli
         check_jq

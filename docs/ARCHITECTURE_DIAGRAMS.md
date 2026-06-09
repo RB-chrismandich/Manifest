@@ -23,7 +23,7 @@
 12. [Service State Management](#service-state-management)
 13. [Issue Management Architecture](#issue-management-architecture)
 14. [Label Management Architecture](#label-management-architecture)
-15. [SkillClaw Capture & Evolve Pipeline](#skillclaw-capture--evolve-pipeline)
+15. [SkillClaw Passive Ingest & Evolve Pipeline](#skillclaw-passive-ingest--evolve-pipeline)
 
 ---
 
@@ -76,12 +76,12 @@ flowchart TB
     end
 
     subgraph "SkillClaw Subsystem"
-        SKILLCLAW_PROXY["SkillClaw Proxy\n(capture daemon :8765)"]:::process
+        SKILLCLAW_INGEST["skillclaw_ingest.py\n(normalize + window/settle\n+ incremental state)"]:::process
         SKILLCLAW_SCRUB["skillclaw_scrub.py\n(secret redaction)"]:::process
-        SKILLCLAW_EVOLVE["skillclaw evolve\n(workflow mode)"]:::process
-        SKILLCLAW_PROMOTE["skillclaw_promote.sh\n(classify → PR)"]:::process
+        SKILLCLAW_EVOLVE["skillclaw_evolve.py\n(map-reduce via claude -p)"]:::process
+        SKILLCLAW_PROMOTE["skillclaw_promote.sh\n(classify → reject-dir → PR)"]:::process
         SKILLSHARE[".skillshare/skills/\n(committed library)"]:::config
-        SKILLCLAW_PROXY --> SKILLCLAW_SCRUB --> SKILLCLAW_EVOLVE --> SKILLCLAW_PROMOTE --> SKILLSHARE
+        SKILLCLAW_INGEST --> SKILLCLAW_SCRUB --> SKILLCLAW_EVOLVE --> SKILLCLAW_PROMOTE --> SKILLSHARE
     end
 
     USER --> BOOTSTRAP
@@ -100,8 +100,7 @@ flowchart TB
     SERVICES -.->|config| PARALLEL_PY
     COMMAND_CFG -.->|thresholds| PARALLEL_PY
     VALIDATION_CFG -.->|criteria| PARALLEL_PY
-    CLAUDE_CLI -.->|fail-open wrapper| SKILLCLAW_PROXY
-    CODEX -.->|fail-open wrapper| SKILLCLAW_PROXY
+    CLAUDE_CLI -.->|transcripts| SKILLCLAW_INGEST
 ```
 
 **Key Components**:
@@ -112,8 +111,9 @@ flowchart TB
   (logging, validation, synthesis, streaming, Codex agent, services.yml)
 - **Configuration Layer**: YAML files controlling behavior, validation rules, and Phase 3 features
 - **Agent Services**: External LLM and Git hosting CLIs
-- **SkillClaw Subsystem**: Capture proxy that intercepts CLI-agent traffic, scrubs secrets,
-  evolves captured patterns into skills, and opens a PR-gated review into `.skillshare/skills/`
+- **SkillClaw Subsystem**: Passive transcript ingestion pipeline — reads existing Claude Code
+  session `.jsonl` files, scrubs secrets, distills candidate skills via `claude -p` (Max-backed
+  map-reduce), and opens a PR-gated review into `.skillshare/skills/`; no daemon, no proxy
 
 ---
 
@@ -422,7 +422,7 @@ flowchart TD
     SKIP_CURSOR["Skip Cursor"]:::skip
 
     CHECK_SKILLCLAW{"SkillClaw<br/>Enabled?"}:::decision
-    INSTALL_SKILLCLAW["Install SkillClaw (pip)<br/>chmod 700 storage<br/>Write fail-open wrappers<br/>Install supervisor + start daemon"]:::process
+    INSTALL_SKILLCLAW["Enable SkillClaw<br/>chmod 700 storage<br/>(transcript evolution; no daemon)"]:::process
     SKIP_SKILLCLAW["Skip SkillClaw"]:::skip
 
     DEPLOY["Deploy Config Files<br/>(~/.claude, ~/.cursor, ~/.gemini)"]:::process
@@ -502,9 +502,9 @@ flowchart TD
 - **Platform-Specific Install**: Uses appropriate package manager (brew/apt/dnf/pacman)
 - **Dependency Checking**: Verifies jq is installed (required for git_ops.sh JSON normalization)
 - **Service Toggles**: Writes final enabled/disabled state to services.yml
-- **SkillClaw (disabled by default)**: When `--enable-skillclaw` is passed, installs the
-  capture proxy, sets `chmod 700` on `~/.skillclaw/`, injects fail-open shell wrappers, and
-  installs a platform supervisor (launchd on macOS, systemd on Linux) for auto-restart
+- **SkillClaw (disabled by default)**: When `--enable-skillclaw` is passed, sets `chmod 700`
+  on `~/.skillclaw/` and enables the passive transcript-ingestion pipeline; no proxy, no daemon,
+  no supervisor required
 
 ---
 
@@ -885,7 +885,7 @@ flowchart LR
         SERVICES["services.yml<br/>(Claude, Gemini, Cursor, Codex,<br/>GitHub CLI, GitLab CLI, SkillClaw)"]:::config
         COMMAND_CFG["command_config.yml<br/>(Thresholds, Tool Policies,<br/>Model Selection)"]:::config
         VALIDATION["validation_criteria.yml<br/>(Tier 1/2 Criteria,<br/>Command Overrides)"]:::config
-        SKILLCLAW_CFG["skillclaw.yml<br/>(proxy port/host, storage root,<br/>capture agents, evolve provider,<br/>promotion branch/labels)"]:::config
+        SKILLCLAW_CFG["skillclaw.yml<br/>(storage root, window_days,<br/>settle_minutes, token_budget,<br/>evolve provider, promotion branch/labels)"]:::config
     end
 
     PARSE_SERVICES["Parse Service Toggles<br/>(awk parser)"]:::process
@@ -955,9 +955,9 @@ services:
 - **Auto-Detection**: gh/glab default to `auto` (enable if installed)
 - **Nested Configuration**: git_cli section contains github/gitlab subsections
 - **Reconfigurable**: `bootstrap.sh --reconfigure` updates toggles without reinstall
-- **skillclaw.yml**: Controls proxy port (default 8765), `~/.skillclaw` storage layout,
-  which CLI agents get fail-open wrappers, evolve provider (local Ollama / cloud fallback),
-  and PR promotion settings (branch prefix, base branch, labels)
+- **skillclaw.yml**: Controls `~/.skillclaw` storage layout, ingest knobs (`window_days`,
+  `settle_minutes`, `max_tool_output_chars`), evolve knobs (`token_budget`, `claude -p`
+  Max-backed runner), and PR promotion settings (branch prefix, base branch, labels)
 
 ---
 
@@ -1225,10 +1225,11 @@ flowchart TB
 
 ---
 
-## SkillClaw Capture & Evolve Pipeline
+## SkillClaw Passive Ingest & Evolve Pipeline
 
-How CLI-agent traffic is intercepted by the SkillClaw proxy, scrubbed for secrets,
-evolved into candidate skills, and promoted to the committed library via a PR-gated review.
+How existing Claude Code session transcripts are passively read, scrubbed for secrets,
+distilled into candidate skills, and promoted to the committed library via a PR-gated review.
+No proxy, no socket, no daemon — works with Claude Max out of the box.
 
 ```mermaid
 %%{init: {'theme':'neutral'}}%%
@@ -1240,42 +1241,32 @@ flowchart LR
     classDef config fill:#f3e8ff,stroke:#9333ea,color:#581c87
     classDef output fill:#22c55e,stroke:#166534,color:#fff
 
-    subgraph "CLI Agent Layer"
-        CLAUDE_W["claude()\nfail-open wrapper"]:::process
-        CODEX_W["codex()\nfail-open wrapper"]:::process
-    end
+    TRANSCRIPTS["~/.claude/projects/**/*.jsonl\n(Claude Code session transcripts\nalready on disk)"]:::input
 
-    HEALTH_CHECK{"SkillClaw\ndaemon up?\n(0.3s probe)"}:::decision
-    DIRECT["Direct to Provider\n(bypass)"]:::input
-
-    PROXY["SkillClaw Proxy\n:8765 (127.0.0.1 only)"]:::process
-    SESSIONS["~/.skillclaw/sessions/\n(chmod 700)"]:::secure
+    INGEST["skillclaw_ingest.py\nnormalize turns\nstrip tool-output noise\nwindow=30d / settle=5m\nincremental state file"]:::process
 
     SCRUB["skillclaw_scrub.py\nRedact API keys,\nauth headers, tokens"]:::secure
 
-    EVOLVE["skillclaw evolve\n--mode workflow\n(local Ollama / cloud fallback)"]:::process
+    EVOLVE["skillclaw_evolve.py\nmap-reduce via claude -p\n(Max-backed)\nchunks ≤ 100 000 tokens"]:::process
+
     EVOLVED_LIB["~/.skillclaw/skills/\n(evolved candidates)"]:::process
 
-    PROMOTE["skillclaw_promote.sh\n--apply"]:::process
+    CLASSIFY["skillclaw_promote.py\nClassify NEW / CHANGED\nDrop invalid frontmatter\nCopy rejected → rejected/"]:::decision
 
-    CLASSIFY["skillclaw_promote.py\nClassify NEW / CHANGED\nDrop invalid frontmatter"]:::process
+    PROMOTE["skillclaw_promote.sh\nPR-gate: one open\nskillclaw/evolve-* PR\nat a time"]:::process
 
     GIT_BRANCH["git switch -c\nskillclaw/evolve-N-SHA"]:::process
     PR["git_ops.sh pr-create\n(needs-review + follow-up labels)"]:::process
 
     SKILLSHARE[".skillshare/skills/\n(committed library)"]:::output
 
-    CLAUDE_W --> HEALTH_CHECK
-    CODEX_W --> HEALTH_CHECK
-    HEALTH_CHECK -->|up| PROXY
-    HEALTH_CHECK -->|down| DIRECT
-
-    PROXY --> SESSIONS
-    SESSIONS --> SCRUB
+    TRANSCRIPTS --> INGEST
+    INGEST --> SCRUB
     SCRUB --> EVOLVE
     EVOLVE --> EVOLVED_LIB
     EVOLVED_LIB --> CLASSIFY
-    CLASSIFY --> PROMOTE
+    CLASSIFY -->|accepted| PROMOTE
+    CLASSIFY -->|rejected| EVOLVED_LIB
     PROMOTE --> GIT_BRANCH
     GIT_BRANCH --> PR
     PR --> SKILLSHARE
@@ -1285,16 +1276,13 @@ flowchart LR
 
 | Stage | Component | Description |
 |-------|-----------|-------------|
-| Capture | fail-open shell wrappers | Redirect `ANTHROPIC_BASE_URL` / `OPENAI_BASE_URL` to `127.0.0.1:8765`; bypass if daemon is down |
-| Storage | `~/.skillclaw/sessions/` | Session files stored with `chmod 700`; secrets honeypot — Tier 1 |
+| Source | `~/.claude/projects/**/*.jsonl` | Claude Code writes session transcripts to disk automatically; SkillClaw reads them passively |
+| Ingest | `skillclaw_ingest.py` | Normalizes turns, strips tool-output noise (`max_tool_output_chars=500`), applies `window_days=30` + `settle_minutes=5` filters, tracks processed files via incremental state |
 | Scrub | `skillclaw_scrub.py` | Redacts `sk-ant-*`, `sk-proj-*`, bearer tokens, `x-api-key` headers before evolve/promote |
-| Evolve | `skillclaw evolve --mode workflow` | Deterministic pipeline mode; local Ollama (`qwen2.5-coder`) with `claude-haiku` cloud fallback |
-| Classify | `skillclaw_promote.py` | Compares evolved `~/.skillclaw/skills/` against committed library; emits NEW / CHANGED / UNCHANGED; drops skills with missing or malformed frontmatter |
-| Promote | `skillclaw_promote.sh --apply` | Idempotency check (one open `skillclaw/evolve-*` PR at a time); one commit per skill; opens review PR via `git_ops.sh` |
+| Evolve | `skillclaw_evolve.py` | Map-reduce via headless `claude -p` (Max-backed); greedily packs sessions into chunks under `token_budget=100 000`; reduce deduplicates by skill name |
+| Classify | `skillclaw_promote.py` | Compares evolved `~/.skillclaw/skills/` against committed library; emits NEW / CHANGED / UNCHANGED; drops skills with missing or malformed frontmatter; copies rejected candidates to `~/.skillclaw/skills/rejected/` |
+| Promote | `skillclaw_promote.sh` | Idempotency check (one open `skillclaw/evolve-*` PR at a time); one commit per skill; opens review PR via `git_ops.sh` |
 | Review | GitHub/GitLab PR | Human review gate; each skill is an independent commit — revert to drop; merge deploys via `bootstrap.sh` skill sync |
-
-**Fail-open guarantee**: if the SkillClaw daemon is unreachable at invocation time
-(health probe capped at 0.3 s), wrappers call the CLI directly — agents are never blocked.
 
 **Key new skills**:
 

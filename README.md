@@ -55,8 +55,9 @@ cd Manifest
 - **Cross-Platform**: Native support for macOS (Intel/Apple Silicon) and 5 major Linux distributions
 - **Unified Label Management**: Canonical label registry with sync across GitHub, GitLab, and Linear
 - **Production Templates**: Pre-configured permission templates for Django, Express, Go microservices, Python monorepos
-- **SkillClaw Integration** (opt-in): Capture-proxy that records agent sessions and proposes evolved skills via PR.
-  Fail-open design keeps agents working even when the daemon is down; enable with `--enable-skillclaw`
+- **SkillClaw Integration** (opt-in): Passively ingests Claude Code's own `~/.claude/projects/**/*.jsonl`
+  transcripts, runs a `claude -p` map-reduce evolve pass (Max subscription, no API key), and proposes
+  evolved skills via a review PR. No proxy, no daemon, no port. Enable with `--enable-skillclaw`
 - **Proton Pass Credential Retrieval** (`/pass-cli`): Retrieve passwords, API keys, and tokens from Proton Pass
   vaults without storing PATs in files or memory
 
@@ -138,7 +139,7 @@ Mermaid flowcharts showing bootstrap, execution, validation, and consensus flows
 | [Getting Started](docs/GETTING_STARTED.md) | First-time setup walkthrough with verification steps | New users | 10 min |
 | [Configuration](docs/CONFIGURATION.md) | All configuration options, YAML reference, environment variables | Operators | 15 min |
 | [Architecture Diagrams](docs/ARCHITECTURE_DIAGRAMS.md) | Visual system documentation with 15 Mermaid diagrams | Developers | 20 min |
-| [SkillClaw](docs/SKILLCLAW.md) | PR-gated skill evolution via session capture proxy | Operators | 8 min |
+| [SkillClaw](docs/SKILLCLAW.md) | PR-gated skill evolution via passive transcript ingestion | Operators | 8 min |
 | [Troubleshooting](docs/TROUBLESHOOTING.md) | Common problems, error messages, solutions | All users | 10 min |
 | [AGENTS.md](AGENTS.md) | AI agent instructions (Cursor, Claude, Gemini, Codex) | AI assistants | 8 min |
 | [CLAUDE.md](CLAUDE.md) | Claude Code-specific project context | AI assistants | 8 min |
@@ -164,7 +165,7 @@ Manifest/
 │   │   ├── auth.sh                  # Authentication + state setup routines
 │   │   ├── deploy.sh                # Deployment/verification/summary routines
 │   │   ├── mcp.sh                   # MCP installation/configuration routines
-│   │   └── skillclaw.sh             # SkillClaw daemon install/enable/disable routines
+│   │   └── skillclaw.sh             # SkillClaw ingest/evolve install/enable/disable routines
 │   └── modules/README.md            # How to add custom bootstrap modules/hooks
 ├── CLAUDE.md                        # Claude Code project context
 ├── AGENTS.md                        # AI agent instructions (all platforms)
@@ -179,7 +180,7 @@ Manifest/
 │   │   │   ├── command_config.yml   # Tool policies, thresholds, model selection
 │   │   │   ├── validation_criteria.yml # Tier 1/2 validation rules
 │   │   │   ├── labels.yml           # Canonical label registry
-│   │   │   └── skillclaw.yml        # SkillClaw capture proxy + evolution config
+│   │   │   └── skillclaw.yml        # SkillClaw ingest/evolve knobs + token budget config
 │   │   ├── scripts/                 # Orchestration scripts
 │   │   │   ├── parallel_agent.py    # Entry point shim (delegates to agents/)
 │   │   │   ├── agents/              # Modular orchestration package
