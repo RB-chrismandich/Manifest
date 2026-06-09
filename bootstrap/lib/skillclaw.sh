@@ -50,7 +50,9 @@ skillclaw_apply_state() {
     _skillclaw_remove_launchd
     if [[ "${ENABLE_SKILLCLAW:-false}" == true ]]; then
         mkdir -p "$SKILLCLAW_HOME/sessions" "$SKILLCLAW_HOME/skills"
-        chmod 700 "$SKILLCLAW_HOME" 2>/dev/null || true
+        # Tier-1 secrets honeypot: lock down the root AND subdirs (transcripts may
+        # transit sessions/ before scrubbing). Inherited umask is not enough.
+        chmod 700 "$SKILLCLAW_HOME" "$SKILLCLAW_HOME/sessions" "$SKILLCLAW_HOME/skills" 2>/dev/null || true
         print_success "SkillClaw enabled (transcript evolution; no daemon, no proxy)"
     else
         print_info "SkillClaw disabled (storage left intact; nothing running)"

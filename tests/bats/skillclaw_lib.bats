@@ -33,9 +33,13 @@ teardown() {
     [ -d "$SKILLCLAW_HOME" ]
     [ -d "$SKILLCLAW_HOME/sessions" ]
     [ -d "$SKILLCLAW_HOME/skills" ]
-    local mode
-    mode=$(stat -c '%a' "$SKILLCLAW_HOME" 2>/dev/null || stat -f '%Lp' "$SKILLCLAW_HOME")
-    assert_equal "$mode" "700"
+    # Tier-1 honeypot: root AND subdirs must be 700 (session data may be unscrubbed).
+    local d
+    for d in "$SKILLCLAW_HOME" "$SKILLCLAW_HOME/sessions" "$SKILLCLAW_HOME/skills"; do
+        local mode
+        mode=$(stat -c '%a' "$d" 2>/dev/null || stat -f '%Lp' "$d")
+        assert_equal "$mode" "700"
+    done
 }
 
 @test "skillclaw_remove_wrappers strips the marker block" {
@@ -73,8 +77,21 @@ PROF
 }
 
 @test "disable still removes any legacy wrapper block (clean teardown)" {
-    run grep -q 'skillclaw_remove_wrappers' "$REPO_ROOT/bootstrap/lib/skillclaw.sh"
-    [ "$status" -eq 0 ]
+    local profile="$SANDBOX/.zshrc"
+    export SHELL_PROFILE_FILE="$profile"
+    cat > "$profile" << 'PROF'
+# keep me
+# >>> MANIFEST SKILLCLAW WRAPPERS >>>
+claude() { echo proxy; }
+# <<< MANIFEST SKILLCLAW WRAPPERS <<<
+PROF
+    launchctl() { :; }
+    systemctl() { :; }
+    ENABLE_SKILLCLAW=false run skillclaw_apply_state
+    assert_success
+    run grep -c "MANIFEST SKILLCLAW WRAPPERS" "$profile"
+    assert_output "0"
+    grep -q "keep me" "$profile"
 }
 
 @test "apply_state enables transcript evolution without a daemon" {
