@@ -250,6 +250,7 @@ The following slash commands are available in Claude Code:
 | `sync-skills` | Sync .skillshare/skills/ to all home targets (daily skill dev workflow) | NO |
 | `/skill-evolve` | Promote SkillClaw-evolved skills into a review PR (dry-run default) | NO |
 | `/pass-cli` | Retrieve credentials from Proton Pass vaults via `pass-cli` agent CLI | NO |
+| `/spec-review` | Independent Gemini cross-reference of spec/plan/tasks for internal consistency; on-demand or via fail-open PostToolUse save hook (content-hash debounced, detached); analysis-only; engine: `~/.claude/scripts/spec_review.sh` (`--spec/--plan/--tasks/--silent/--format`) | NO |
 
 ## Testing Changes
 
