@@ -164,6 +164,7 @@ _silent_review_inline() {
     mkdir -p "$state"
     local arts=() line prompt raw
     while IFS= read -r line; do [[ -n "$line" ]] && arts+=("$line"); done < <(discover_artifacts "$root")
+    [[ "${#arts[@]}" -eq 0 ]] && return 0   # defensive: nothing to review (set -u safe)
     prompt="$(assemble_prompt "$SPEC_REVIEW_TEMPLATE" "${arts[@]}")"
     if ! raw="$(run_gemini "$prompt" 2>>"$state/error.log")"; then
         return 0   # fail-open: gemini failed, never block
@@ -178,13 +179,20 @@ run_silent() {
         return 0   # gate said skip (fewer than 2 artifacts / unchanged)
     fi
     mkdir -p "$state"
+    # Self-heal a stale lock left by a crashed prior run (older than 10 min), so a
+    # killed detached review can never permanently disable the hook.
+    if [[ -d "$state/.lock" ]] && find "$state/.lock" -maxdepth 0 -mmin +10 2>/dev/null | grep -q .; then
+        rmdir "$state/.lock" 2>/dev/null || true
+    fi
     # Single-flight lock: skip if a review is already in flight.
     if ! mkdir "$state/.lock" 2>/dev/null; then return 0; fi
+    # `|| true` after the review so an unexpected non-zero (disk full, etc.) never
+    # skips the lock release or breaks the fail-open contract.
     if [[ -n "$SPEC_REVIEW_NO_DETACH" ]]; then
-        _silent_review_inline "$root"; rmdir "$state/.lock" 2>/dev/null || true
+        _silent_review_inline "$root" || true; rmdir "$state/.lock" 2>/dev/null || true
     else
         # Detach so the agent loop never waits on gemini; release lock when done.
-        ( _silent_review_inline "$root"; rmdir "$state/.lock" 2>/dev/null || true ) >/dev/null 2>&1 &
+        ( _silent_review_inline "$root" || true; rmdir "$state/.lock" 2>/dev/null || true ) >/dev/null 2>&1 &
         disown 2>/dev/null || true
     fi
     return 0

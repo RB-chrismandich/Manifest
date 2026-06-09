@@ -211,3 +211,20 @@ STUB
     env $env bash "$SCRIPT" --silent "$SANDBOX"   # unchanged -> skip, no rewrite
     assert [ ! -f "$SANDBOX/.spec-review/feedback.md" ]
 }
+
+@test "silent mode self-heals a stale lock (older than 10 min)" {
+    _fake_gemini
+    mkdir -p "$SANDBOX/specs/001"
+    printf 's\n' > "$SANDBOX/specs/001/spec.md"
+    printf 'p\n' > "$SANDBOX/specs/001/plan.md"
+    mkdir -p "$SANDBOX/.spec-review/.lock"
+    # age the stale lock 20 minutes into the past
+    touch -t "$(date -v-20M +%Y%m%d%H%M 2>/dev/null || date -d '20 min ago' +%Y%m%d%H%M)" "$SANDBOX/.spec-review/.lock"
+    SPEC_REVIEW_GEMINI="$SANDBOX/gemini" SPEC_REVIEW_NO_DETACH=1 \
+        SPEC_REVIEW_STATE="$SANDBOX/.spec-review" \
+        SPEC_REVIEW_TEMPLATE="$REPO_ROOT/configs/claude/prompts/spec_review.md" \
+        run bash "$SCRIPT" --silent "$SANDBOX"
+    assert_success
+    assert [ -f "$SANDBOX/.spec-review/feedback.md" ]   # ran despite the stale lock
+    assert [ ! -d "$SANDBOX/.spec-review/.lock" ]        # lock released after run
+}
