@@ -1,43 +1,26 @@
-# SkillClaw runtime configuration
-# Consumed by bootstrap/lib/skillclaw.sh and scripts/skillclaw_*.{sh,py}.
-# This file is deployed to ~/.claude/config/skillclaw.yml.
-
-proxy:
-  port: 8765
-  host: 127.0.0.1
+# SkillClaw runtime configuration (proxy-free, transcript-fed).
+# Consumed by scripts/skillclaw_{ingest,evolve,promote}.{py,sh}.
+# Deployed to ~/.claude/config/skillclaw.yml. NOTE: distinct from the vestigial
+# upstream ~/.skillclaw/config.yaml — this file is the Manifest-owned source.
 
 storage:
-  root: ~/.skillclaw          # chmod 700 by bootstrap; holds session capture + evolved lib
+  root: ~/.skillclaw
   sessions: ~/.skillclaw/sessions
   evolved: ~/.skillclaw/skills
+  rejected: ~/.skillclaw/skills/rejected
+  state: ~/.skillclaw/.ingest-state.json
 
-# Which CLI agents get fail-open wrapper functions. Only agents whose SDK honors a
-# base-URL override that SkillClaw can serve. claude + codex are verified-supported;
-# gemini/cursor-agent are commented out pending base-URL-support verification (Task 12).
-capture:
-  agents:
-    # gemini / cursor-agent: add an entry here only after verifying the CLI honors
-    # a base-URL override SkillClaw can serve, e.g.:
-    #   {name: gemini, env: OPENAI_BASE_URL, path: /v1}
-    - name: claude
-      env: ANTHROPIC_BASE_URL
-      path: ""
-    - name: codex
-      env: OPENAI_BASE_URL
-      path: /v1
+ingest:
+  transcripts_dir: ~/.claude/projects
+  window_days: 30              # all projects, recent window
+  settle_minutes: 5           # skip files whose mtime is newer (still being written)
+  max_tool_output_chars: 500  # truncate raw tool stdout/stderr (incl. base64 blobs) beyond this
+  # allowlist: []             # optional future: restrict to project paths
 
 evolve:
-  mode: workflow              # fixed pipeline (deterministic); not "agent" mode
-  provider:
-    # Local-first: zero API cost, no rate limits. Falls back to cloud if unreachable.
-    primary:
-      kind: local
-      base_url: http://127.0.0.1:11434/v1   # Ollama OpenAI-compatible endpoint
-      model: qwen2.5-coder
-    fallback:
-      kind: cloud
-      provider: anthropic
-      model: claude-haiku-4-5-20251001
+  engine: claude-cli          # `claude -p` headless, Max-backed
+  token_budget: 100000        # map-reduce chunk threshold; stays clear of 200k limit
+  prompt_template: ~/.claude/prompts/skillclaw_evolve.md
 
 promotion:
   branch_prefix: skillclaw/evolve-

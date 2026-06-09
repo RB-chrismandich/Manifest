@@ -10,7 +10,8 @@
 # Usage: skillclaw_promote.sh [--apply] [--skill NAME] [--no-evolve] [--force-new]
 #
 # Env overrides (for tests): SKILLCLAW_EVOLVED, SKILLCLAW_COMMITTED,
-#   SKILLCLAW_SESSIONS, SKILLCLAW_GITOPS, SKILLCLAW_OPEN_PR.
+#   SKILLCLAW_SESSIONS, SKILLCLAW_GITOPS, SKILLCLAW_OPEN_PR, SKILLCLAW_TRANSCRIPTS,
+#   SKILLCLAW_STATE, SKILLCLAW_REJECTED, SKILLCLAW_TEMPLATE.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -20,6 +21,12 @@ CFG="${SKILLCLAW_CONFIG:-${SCRIPT_DIR}/../config/skillclaw.yml}"
 
 EVOLVED="${SKILLCLAW_EVOLVED:-$HOME/.skillclaw/skills}"
 SESSIONS="${SKILLCLAW_SESSIONS:-$HOME/.skillclaw/sessions}"
+INGEST="${SCRIPT_DIR}/skillclaw_ingest.py"
+EVOLVE="${SCRIPT_DIR}/skillclaw_evolve.py"
+TEMPLATE="${SKILLCLAW_TEMPLATE:-${SCRIPT_DIR}/../prompts/skillclaw_evolve.md}"
+TRANSCRIPTS="${SKILLCLAW_TRANSCRIPTS:-$HOME/.claude/projects}"
+STATE="${SKILLCLAW_STATE:-$HOME/.skillclaw/.ingest-state.json}"
+REJECTED="${SKILLCLAW_REJECTED:-$HOME/.skillclaw/skills/rejected}"
 # Committed library: the physical skillshare source of truth. The deployed script
 # lives in ~/.claude/scripts, so locate the repo via MANIFEST_ROOT (exported by
 # bootstrap into the shell profile); fall back to repo-relative when run in-tree.
@@ -60,37 +67,52 @@ if [[ "$APPLY" == true && "$FORCE_NEW" == false ]]; then
     fi
 fi
 
-# 1. Scrub captured sessions (best-effort; never blocks).
+# 1. Ingest transcripts → sessions (passive; no proxy).
+if [[ "$DO_EVOLVE" == true ]]; then
+    python3 "$INGEST" "$TRANSCRIPTS" "$SESSIONS" --state "$STATE" >/dev/null 2>&1 \
+        || err "ingest returned non-zero (continuing)"
+fi
+
+# 2. Scrub captured sessions (best-effort; never blocks).
 if [[ -d "$SESSIONS" ]]; then
     python3 "${SCRIPT_DIR}/skillclaw_scrub.py" "$SESSIONS" >/dev/null 2>&1 || true
 fi
 
-# 2. Evolve (skip with --no-evolve; e.g. tests / re-run on existing library).
+# 3. Evolve (skip with --no-evolve). Suppress its stdout summary (kept clean like
+# ingest); errors still surface on stderr and are reported below.
 if [[ "$DO_EVOLVE" == true ]]; then
-    if command -v skillclaw >/dev/null 2>&1; then
-        skillclaw evolve --mode workflow >/dev/null 2>&1 || err "evolve returned non-zero (continuing)"
-    fi
+    python3 "$EVOLVE" "$SESSIONS" "$EVOLVED" --template "$TEMPLATE" \
+        --committed-dir "$COMMITTED" >/dev/null \
+        || err "evolve returned non-zero (continuing)"
 fi
 
-# 3. Classify + validate.
-classify_args=("$EVOLVED" "$COMMITTED")
+# 4. Classify + validate. A crash here (empty/non-JSON output) must fail loudly,
+# not abort cryptically under `set -e`, so guard the capture explicitly.
+classify_args=("$EVOLVED" "$COMMITTED" --rejected-dir "$REJECTED")
 [[ -n "$SKILL" ]] && classify_args+=(--skill "$SKILL")
-classify_json="$(python3 "${SCRIPT_DIR}/skillclaw_promote.py" "${classify_args[@]}")"
+classify_json="$(python3 "${SCRIPT_DIR}/skillclaw_promote.py" "${classify_args[@]}")" \
+    || { err "classify failed (skillclaw_promote.py returned non-zero)"; exit 1; }
 
-# Print the human diff table.
+# Print the human diff table. The .get() defaults keep this resilient if the
+# JSON ever lacks a key rather than aborting the pipeline.
 echo "Evolved skill candidates:"
 echo "$classify_json" | python3 -c '
 import json,sys
 d=json.load(sys.stdin)
-for c in d["promote"]:
+for c in d.get("promote", []):
     status=c["status"]; name=c["name"]
     print("  %-9s %s" % (status, name))
-for c in d["dropped"]:
+for c in d.get("dropped", []):
     name=c["name"]; reason=c["reason"]
     print("  DROPPED   %s  (%s)" % (name, reason))
 '
 
-promote_names="$(echo "$classify_json" | python3 -c 'import json,sys; print(" ".join(c["name"] for c in json.load(sys.stdin)["promote"]))')"
+dropped_count="$(echo "$classify_json" | python3 -c 'import json,sys; print(len(json.load(sys.stdin).get("dropped", [])))')"
+if [[ "$dropped_count" -gt 0 ]]; then
+    err "Generated candidate(s), but ${dropped_count} failed schema validation. See ${REJECTED}"
+fi
+
+promote_names="$(echo "$classify_json" | python3 -c 'import json,sys; print(" ".join(c["name"] for c in json.load(sys.stdin).get("promote", [])))')"
 
 if [[ -z "$promote_names" ]]; then
     echo "Nothing to promote."
@@ -103,7 +125,7 @@ if [[ "$APPLY" != true ]]; then
     exit 0
 fi
 
-# 4. Stage a branch with one commit per skill, then open a PR.
+# 5. Stage a branch with one commit per skill, then open a PR.
 count="$(echo "$promote_names" | wc -w | tr -d ' ')"
 if [[ ! -d "$COMMITTED" ]]; then
     err "committed skills dir not found: $COMMITTED"

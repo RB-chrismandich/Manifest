@@ -84,3 +84,15 @@ teardown() {
     grep -q "^name: skill-evolve$" "$f"
     grep -q "skillclaw_promote.sh" "$f"
 }
+
+@test "promote runs ingest+evolve scripts instead of the skillclaw binary" {
+  run grep -E 'skillclaw_(ingest|evolve)\.py' "$REPO_ROOT/configs/claude/scripts/skillclaw_promote.sh"
+  [ "$status" -eq 0 ]
+  run grep -c 'skillclaw evolve --mode workflow' "$REPO_ROOT/configs/claude/scripts/skillclaw_promote.sh"
+  [ "$output" -eq 0 ]
+}
+
+@test "promote warns when candidates are rejected" {
+  run grep -Ei 'failed schema validation|rejected' "$REPO_ROOT/configs/claude/scripts/skillclaw_promote.sh"
+  [ "$status" -eq 0 ]
+}
