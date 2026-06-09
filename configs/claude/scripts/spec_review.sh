@@ -121,6 +121,29 @@ format_findings() {
     fi
 }
 
+# Stable combined-content hash of the given files.
+content_hash() {
+    cat "$@" 2>/dev/null | shasum | awk '{print $1}'
+}
+
+# Gating for silent/hook mode. Returns 0 (run) or 1 (skip, with reason on stdout).
+# Records the hash in $SPEC_REVIEW_STATE/.last-run only when it decides to run.
+should_run_silent() {
+    local root="${1:-.}" state="$SPEC_REVIEW_STATE"
+    local paths; paths=$(discover_artifacts "$root" | cut -f2)
+    local count; count=$(printf '%s\n' "$paths" | grep -c . || true)
+    if [[ "$count" -lt 2 ]]; then echo "skip: fewer than 2 artifacts"; return 1; fi
+    mkdir -p "$state"
+    local now prev="$state/.last-run"
+    # shellcheck disable=SC2086
+    now="$(content_hash $paths)"
+    if [[ -f "$prev" && "$(cat "$prev")" == "$now" ]]; then
+        echo "skip: unchanged"; return 1
+    fi
+    echo "$now" > "$prev"
+    return 0
+}
+
 main() {
     if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then usage; return 0; fi
     parse_args "$@" || return $?

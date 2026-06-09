@@ -123,3 +123,35 @@ STUB
     # the python3-wrapped branch must produce JSON that parses and round-trips
     echo "$output" | python3 -c 'import json,sys; d=json.load(sys.stdin); assert isinstance(d,list) and "CLARIFICATION" in d[0]'
 }
+
+@test "content_hash is stable for same content and differs on change" {
+    printf 'a\n' > "$SANDBOX/x.md"; printf 'b\n' > "$SANDBOX/y.md"
+    source "$SCRIPT"
+    h1="$(content_hash "$SANDBOX/x.md" "$SANDBOX/y.md")"
+    h2="$(content_hash "$SANDBOX/x.md" "$SANDBOX/y.md")"
+    [ "$h1" = "$h2" ]
+    printf 'b2\n' > "$SANDBOX/y.md"
+    h3="$(content_hash "$SANDBOX/x.md" "$SANDBOX/y.md")"
+    [ "$h1" != "$h3" ]
+}
+
+@test "should_run_silent skips when fewer than 2 artifacts" {
+    mkdir -p "$SANDBOX/specs/001"; : > "$SANDBOX/specs/001/spec.md"
+    source "$SCRIPT"
+    SPEC_REVIEW_STATE="$SANDBOX/.spec-review" run should_run_silent "$SANDBOX"
+    assert_failure
+    assert_output --partial "fewer than 2 artifacts"
+}
+
+@test "should_run_silent runs on first change, skips on unchanged hash" {
+    mkdir -p "$SANDBOX/specs/001"
+    printf 's\n' > "$SANDBOX/specs/001/spec.md"
+    printf 'p\n' > "$SANDBOX/specs/001/plan.md"
+    source "$SCRIPT"
+    export SPEC_REVIEW_STATE="$SANDBOX/.spec-review"
+    run should_run_silent "$SANDBOX"; assert_success          # first time: changed
+    run should_run_silent "$SANDBOX"; assert_failure          # unchanged hash
+    assert_output --partial "unchanged"
+    printf 'p2\n' > "$SANDBOX/specs/001/plan.md"
+    run should_run_silent "$SANDBOX"; assert_success          # changed again
+}
