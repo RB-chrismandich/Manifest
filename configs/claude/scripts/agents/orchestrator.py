@@ -142,6 +142,7 @@ class Orchestrator:
             SpinnerColumn(),
             TextColumn("[progress.description]{task.description}"),
             console=self.console,
+            transient=True,
         ) as progress:
             _task = progress.add_task(
                 f"Running {len(self.agents)} agents...", total=None
@@ -187,6 +188,7 @@ class Orchestrator:
                 self._build_streaming_layout(agent_panels),
                 refresh_per_second=self.config.get("streaming.refresh_rate", 4),
                 console=self.console,
+                transient=True,
             ) as live:
                 # Run agents in parallel
                 results = await asyncio.gather(
