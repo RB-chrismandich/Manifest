@@ -130,13 +130,15 @@ content_hash() {
 # Records the hash in $SPEC_REVIEW_STATE/.last-run only when it decides to run.
 should_run_silent() {
     local root="${1:-.}" state="$SPEC_REVIEW_STATE"
-    local paths; paths=$(discover_artifacts "$root" | cut -f2)
-    local count; count=$(printf '%s\n' "$paths" | grep -c . || true)
-    if [[ "$count" -lt 2 ]]; then echo "skip: fewer than 2 artifacts"; return 1; fi
+    # Collect paths into an array (bash 3.2-safe) so paths with spaces hash
+    # correctly and the count is exact (no printf/grep off-by-one).
+    local paths=() line
+    while IFS= read -r line; do [[ -n "$line" ]] && paths+=("$line"); done \
+        < <(discover_artifacts "$root" | cut -f2)
+    if [[ "${#paths[@]}" -lt 2 ]]; then echo "skip: fewer than 2 artifacts"; return 1; fi
     mkdir -p "$state"
     local now prev="$state/.last-run"
-    # shellcheck disable=SC2086
-    now="$(content_hash $paths)"
+    now="$(content_hash "${paths[@]}")"
     if [[ -f "$prev" && "$(cat "$prev")" == "$now" ]]; then
         echo "skip: unchanged"; return 1
     fi
