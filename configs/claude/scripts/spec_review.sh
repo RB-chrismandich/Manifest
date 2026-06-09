@@ -44,6 +44,32 @@ parse_args() {
     done
 }
 
+# Print "role\tpath" lines for discovered artifacts. speckit: spec/plan/tasks.md
+# (cwd or specs/<n>/). superpowers: newest *-design.md + newest plans/*.md (tasks
+# are embedded in the plan, so no tasks line). Newest = name sort (date-prefixed).
+discover_artifacts() {
+    local root="${1:-.}" sp pl
+    # speckit: specs/<n>/ first, then cwd
+    # shellcheck disable=SC2012  # ls used intentionally; files are date-prefixed, no special chars
+    sp=$(ls -1 "$root"/specs/*/spec.md 2>/dev/null | sort | tail -1 || true)
+    [[ -z "$sp" && -f "$root/spec.md" ]] && sp="$root/spec.md"
+    if [[ -n "$sp" ]]; then
+        local d; d="$(dirname "$sp")"
+        printf 'spec\t%s\n' "$sp"
+        [[ -f "$d/plan.md" ]]  && printf 'plan\t%s\n'  "$d/plan.md"
+        [[ -f "$d/tasks.md" ]] && printf 'tasks\t%s\n' "$d/tasks.md"
+        return 0
+    fi
+    # superpowers: newest design + newest plan (tasks embedded in plan)
+    # shellcheck disable=SC2012  # ls used intentionally; files are date-prefixed, no special chars
+    sp=$(ls -1 "$root"/docs/superpowers/specs/*-design.md 2>/dev/null | sort | tail -1 || true)
+    # shellcheck disable=SC2012  # ls used intentionally; files are date-prefixed, no special chars
+    pl=$(ls -1 "$root"/docs/superpowers/plans/*.md 2>/dev/null | sort | tail -1 || true)
+    [[ -n "$sp" ]] && printf 'spec\t%s\n' "$sp"
+    [[ -n "$pl" ]] && printf 'plan\t%s\n' "$pl"
+    return 0
+}
+
 main() {
     if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then usage; return 0; fi
     parse_args "$@" || return $?

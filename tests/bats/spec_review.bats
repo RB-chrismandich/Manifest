@@ -27,3 +27,34 @@ teardown() {
     run bash "$SCRIPT" --bogus
     assert_failure
 }
+
+@test "discover_artifacts finds speckit spec/plan/tasks in a specs dir" {
+    mkdir -p "$SANDBOX/specs/001-feature"
+    : > "$SANDBOX/specs/001-feature/spec.md"
+    : > "$SANDBOX/specs/001-feature/plan.md"
+    : > "$SANDBOX/specs/001-feature/tasks.md"
+    source "$SCRIPT"
+    run discover_artifacts "$SANDBOX"
+    assert_success
+    assert_output --partial "spec	$SANDBOX/specs/001-feature/spec.md"
+    assert_output --partial "plan	$SANDBOX/specs/001-feature/plan.md"
+    assert_output --partial "tasks	$SANDBOX/specs/001-feature/tasks.md"
+}
+
+@test "discover_artifacts finds superpowers design+plan (tasks embedded in plan)" {
+    mkdir -p "$SANDBOX/docs/superpowers/specs" "$SANDBOX/docs/superpowers/plans"
+    : > "$SANDBOX/docs/superpowers/specs/2026-06-08-thing-design.md"
+    : > "$SANDBOX/docs/superpowers/plans/2026-06-08-thing.md"
+    source "$SCRIPT"
+    run discover_artifacts "$SANDBOX"
+    assert_success
+    assert_output --partial "spec	$SANDBOX/docs/superpowers/specs/2026-06-08-thing-design.md"
+    assert_output --partial "plan	$SANDBOX/docs/superpowers/plans/2026-06-08-thing.md"
+    refute_output --partial "tasks	"
+}
+
+@test "discover_artifacts prints nothing when no artifacts exist" {
+    source "$SCRIPT"
+    run discover_artifacts "$SANDBOX"
+    assert_output ""
+}
