@@ -241,3 +241,20 @@ STUB
     run grep -E '^\.spec-review/?$' "$REPO_ROOT/.gitignore"
     assert_success
 }
+
+@test "settings.local.json registers the spec_review silent save hook" {
+    local s="$REPO_ROOT/configs/claude/settings.local.json"
+    run python3 -c "import json; d=json.load(open('$s')); cmds=[h['command'] for m in d['hooks']['PostToolUse'] for h in m['hooks']]; assert any('spec_review.sh' in c and '--silent' in c for c in cmds), cmds"
+    assert_success
+}
+
+@test "settings.local.json remains valid JSON" {
+    run python3 -c "import json; json.load(open('$REPO_ROOT/configs/claude/settings.local.json'))"
+    assert_success
+}
+
+@test "settings.local.json still has the pre-existing version_pin hook" {
+    local s="$REPO_ROOT/configs/claude/settings.local.json"
+    run python3 -c "import json; d=json.load(open('$s')); cmds=[h['command'] for m in d['hooks']['PostToolUse'] for h in m['hooks']]; assert any('version_pin' in c for c in cmds), cmds"
+    assert_success
+}
