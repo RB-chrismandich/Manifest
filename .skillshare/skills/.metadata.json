@@ -60,6 +60,12 @@
         "tests/test_merge_hooks.py": "sha256:f388af4a6d784c44dc5ad48c9b74f563e245679cdef8c877355ce705a4ac4d64",
         "tests/test_unified_hook.py": "sha256:9fefd16c450d4dce6e1227e658c55ad67224073df1fde1bc68e1c93c08347245"
       }
+    },
+    "meta-prompt-optimize": {
+      "source": "local",
+      "type": "skill",
+      "installed_at": "2026-06-09T19:58:04+00:00",
+      "version": "1.0.0"
     }
   }
 }
