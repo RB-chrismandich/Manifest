@@ -115,3 +115,11 @@ STUB
     run format_findings "NO_ISSUES" "json"
     assert_output --partial "[]"
 }
+
+@test "format_findings json wraps real findings as valid JSON (incl. special chars)" {
+    source "$SCRIPT"
+    run format_findings 'CLARIFICATION: a & b \slash "quote"' "json"
+    assert_success
+    # the python3-wrapped branch must produce JSON that parses and round-trips
+    echo "$output" | python3 -c 'import json,sys; d=json.load(sys.stdin); assert isinstance(d,list) and "CLARIFICATION" in d[0]'
+}
