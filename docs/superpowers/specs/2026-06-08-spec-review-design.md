@@ -38,7 +38,10 @@ catches blind spots that Claude-reviewing-Claude would miss.
 - No `agi` CLI / sub-command framework (does not exist; out of scope for a
   bash/Python/YAML config repo).
 - No background daemon or file-system watcher (the SkillClaw lesson: inline
-  daemons are fragile and rate-limit-prone).
+  daemons are fragile and rate-limit-prone). Note: the save hook's detached
+  `gemini` call is a **short-lived one-shot** process that exits when the review
+  finishes — not a persistent daemon. There is nothing to supervise, restart, or
+  health-check; if it dies, the next content change simply spawns a fresh one.
 - No multi-model consensus in V1 (Gemini-only; `parallel_agent.py` is a possible
   future engine swap, see Follow-ups).
 - No auto-editing / auto-fixing of artifacts.
@@ -71,7 +74,12 @@ One core engine script, two thin entry points:
 
 ### New
 
-- **`configs/claude/scripts/spec_review.sh`** — the engine.
+- **`configs/claude/scripts/spec_review.sh`** — the engine. **Front-end-agnostic
+  by construction:** it has no dependency on any caller, so the `/spec-review`
+  skill, the save hook, and any *future* CLI (e.g. a real `agi spec-review`) all
+  wrap this same script with zero rework. The skill is this ecosystem's unified
+  command surface and is already Antigravity-native (Antigravity inherits
+  `~/.claude/skills` via symlink), so no separate binary is invented.
   - **Flags:** `--spec FILE --plan FILE --tasks FILE` (explicit) OR auto-discover;
     `--silent` (hook mode); `--format tree|json` (default `tree`).
   - **Discovery (framework-agnostic):**
@@ -84,10 +92,14 @@ One core engine script, two thin entry points:
   - **Engine seam:** `gemini` is invoked through one function with an injectable
     override (`SPEC_REVIEW_GEMINI`, default `gemini`), so tests never touch the
     network or the user's Gemini quota.
-  - **Debounce (silent/hook mode):** a per-project cooldown file
-    (`.spec-review/.last-run`); skip if it ran within `cooldown_seconds`
-    (default 60) **and** skip when fewer than 2 artifacts exist (a lone file
-    cannot be cross-referenced). Bounds `gemini` call frequency with no daemon.
+  - **Debounce (silent/hook mode) — content-hash, not timestamp:** the gate is a
+    hash of the combined artifact contents (`cat <artifacts> | shasum`) written to
+    `.spec-review/.last-run`. Skip the run iff the hash is unchanged since last
+    time; run whenever content differs, **even seconds apart**. This avoids the
+    timestamp-cooldown race where a fast fix-up edit is suppressed and a now-stale
+    report lingers — a time window conflates "ran recently" with "nothing changed,"
+    while the hash tracks exactly what we care about. Also skip when fewer than 2
+    artifacts exist (a lone file cannot be cross-referenced). No daemon.
   - **Analysis-only:** reads artifacts; never writes to them.
 
 - **`configs/claude/prompts/spec_review.md`** — the distillation/critique prompt
@@ -104,11 +116,23 @@ One core engine script, two thin entry points:
   deploys to `~/.claude/settings.json` and already contains a `hooks` block), under
   a `PostToolUse` matcher for `Write|Edit`. The hook command runs
   `spec_review.sh --silent`, which itself filters to artifact paths (spec/plan/tasks
-  globs) and applies debounce — so the matcher stays broad and the script owns the
-  path logic. **Advisory and non-blocking.**
+  globs) and applies the hash debounce — so the matcher stays broad and the script
+  owns the path logic. **Advisory and non-blocking.**
+  - **Detached execution (must not stall the agent loop):** a synchronous hook that
+    blocked on a multi-second `gemini` call would add that latency after every
+    artifact save. So once the cheap synchronous gates pass (path match, `<2`
+    artifacts, hash unchanged, lock held), the actual `gemini` review is launched
+    **fully detached** — `nohup … &` with stdout → `.spec-review/feedback.md` and
+    stderr → `.spec-review/error.log` — and the hook returns immediately.
+  - **Lock file (overlap guard):** detaching reintroduces a concurrency race — two
+    saves in quick succession could spawn two `gemini` runs both writing
+    `feedback.md`. A lock file (`.spec-review/.lock`, acquired non-blockingly) makes
+    a new detached run a no-op while one is already in flight; combined with the
+    hash gate this bounds concurrency to one review at a time.
 
-- **`.gitignore`** — add `.spec-review/` so silent-mode `feedback.md` and the
-  `.last-run` cooldown file are never committed.
+- **`.gitignore`** — add `.spec-review/` so silent-mode runtime files
+  (`feedback.md`, the `.last-run` content hash, `.lock`, `error.log`) are never
+  committed.
 
 ### Output format
 
@@ -148,7 +172,9 @@ user's primary work**:
 - **bats `spec_review.bats`:**
   - speckit-layout discovery; superpowers-layout discovery (spec + plan with
     embedded tasks); no-artifacts case → clean exit.
-  - debounce: cooldown skip (ran < `cooldown_seconds` ago); `<2`-artifacts skip.
+  - debounce: **unchanged-hash skip** (same combined-content hash → no run);
+    **changed-hash run** (any content change → run, regardless of elapsed time);
+    `<2`-artifacts skip; lock-held → detached run becomes a no-op.
   - `gemini` mocked via the `SPEC_REVIEW_GEMINI` seam (a stub script) → no network.
   - tree formatting of a representative finding; `--format json` shape.
   - `--silent` writes `.spec-review/feedback.md` and prints one line.
@@ -162,7 +188,9 @@ user's primary work**:
 
 | Risk | Mitigation |
 |------|------------|
-| Save hook fires `gemini` too often (cost/rate limits) | Debounce cooldown file + `<2`-artifact skip; hook is opt-in |
+| Save hook fires `gemini` too often (cost/rate limits) | Content-hash debounce (runs only on real change) + `<2`-artifact skip + single-flight lock; hook is opt-in |
+| Hook blocks the agent loop on a slow `gemini` call | `gemini` runs fully detached (`nohup … &`); hook returns immediately |
+| Stale report after a fast fix-up edit | Hash debounce (not timestamp) — a content change always re-runs |
 | Hook blocks or breaks the user's Write/Edit | Advisory/non-blocking by construction; fail-open on every error path |
 | `gemini` not authed in headless/CI | Silent mode exits 0 with a logged note; on-demand gives a clear message |
 | Gemini returns non-structured prose | Tolerant parse: show raw under a warning, never crash |
