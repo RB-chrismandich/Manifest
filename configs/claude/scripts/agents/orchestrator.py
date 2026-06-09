@@ -272,19 +272,21 @@ class Orchestrator:
         # Count common significant words (>4 chars) across outputs
         # Performance optimization: collections.Counter is ~20% faster than manual
         # dict.get() updates with set merging due to C-level optimizations.
+        # Further optimization: set comprehension and direct length calculation
+        # reduces overhead and memory allocations.
         word_counts = Counter(
             word
             for output in outputs
-            for word in set(w.lower() for w in output.split() if len(w) > 4)
+            for word in {w for w in output.lower().split() if len(w) > 4}
         )
-        all_words = set(word_counts.keys())
+        total_words = len(word_counts)
 
         # Calculate consensus as % of words appearing in multiple outputs
-        if not all_words:
+        if not total_words:
             consensus_score = 0
         else:
             common_words = sum(1 for count in word_counts.values() if count > 1)
-            consensus_score = int((common_words / len(all_words)) * 100)
+            consensus_score = int((common_words / total_words) * 100)
 
         # Determine confidence level
         thresholds = self.config.get("validation.consensus_threshold", {})
