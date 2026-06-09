@@ -85,14 +85,18 @@ assemble_prompt() {
     done
     # Substitute {{ARTIFACTS}} inline: print lines before the marker, inject
     # artifact file contents, then continue with lines after the marker.
+    # Capture awk's status so the temp file is removed even on failure (set -e
+    # would otherwise abort before cleanup). bash 3.2-safe (no RETURN trap).
+    local rc=0
     awk -v artfile="$artfile" '
         /\{\{ARTIFACTS\}\}/ {
             while ((getline ln < artfile) > 0) print ln
             next
         }
         { print }
-    ' "$template"
+    ' "$template" || rc=$?
     rm -f "$artfile"
+    return "$rc"
 }
 
 main() {

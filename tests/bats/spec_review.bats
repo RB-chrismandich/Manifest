@@ -76,5 +76,6 @@ TAIL
     assert_output --partial "spec body here"
     assert_output --partial "=== PLAN: $SANDBOX/plan.md ==="
     assert_output --partial "plan body here"
+    assert_output --partial "TAIL"
     refute_output --partial "{{ARTIFACTS}}"
 }
