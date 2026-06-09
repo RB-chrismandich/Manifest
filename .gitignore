@@ -41,3 +41,6 @@ node_modules/
 *.tmp
 .tmp-*
 .tmp-*/
+
+# spec-review runtime (feedback, content-hash, lock, error log)
+.spec-review/
