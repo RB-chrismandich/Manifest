@@ -258,3 +258,27 @@ STUB
     run python3 -c "import json; d=json.load(open('$s')); cmds=[h['command'] for m in d['hooks']['PostToolUse'] for h in m['hooks']]; assert any('version_pin' in c for c in cmds), cmds"
     assert_success
 }
+
+@test "explicit --spec/--plan flags are used instead of auto-discovery" {
+    _fake_gemini
+    printf 's\n' > "$SANDBOX/myspec.md"
+    printf 'p\n' > "$SANDBOX/myplan.md"
+    # ROOT has no discoverable layout; only the explicit flags point at artifacts
+    SPEC_REVIEW_GEMINI="$SANDBOX/gemini" SPEC_REVIEW_TEMPLATE="$REPO_ROOT/configs/claude/prompts/spec_review.md" \
+        run bash "$SCRIPT" --spec "$SANDBOX/myspec.md" --plan "$SANDBOX/myplan.md" "$SANDBOX"
+    assert_success
+    assert_output --partial "CLARIFICATION REQUIRED: Migration"
+}
+
+@test "clean message includes the artifact count" {
+    # gemini stub that reports no issues
+    printf '#!/usr/bin/env bash\ncat >/dev/null\nprintf NO_ISSUES\n' > "$SANDBOX/gemini"
+    chmod +x "$SANDBOX/gemini"
+    mkdir -p "$SANDBOX/specs/001"
+    printf 's\n' > "$SANDBOX/specs/001/spec.md"
+    printf 'p\n' > "$SANDBOX/specs/001/plan.md"
+    SPEC_REVIEW_GEMINI="$SANDBOX/gemini" SPEC_REVIEW_TEMPLATE="$REPO_ROOT/configs/claude/prompts/spec_review.md" \
+        run bash "$SCRIPT" "$SANDBOX"
+    assert_success
+    assert_output --partial "No inconsistencies found across 2 artifacts"
+}

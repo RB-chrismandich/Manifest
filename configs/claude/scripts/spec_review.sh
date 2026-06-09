@@ -106,11 +106,18 @@ run_gemini() {
     printf '%s' "$prompt" | "$SPEC_REVIEW_GEMINI" -p "Cross-reference the artifacts above per the instructions; output only the specified blocks or NO_ISSUES."
 }
 
-# format_findings RAW FORMAT -> formatted output. NO_ISSUES -> clean message.
+# format_findings RAW FORMAT [COUNT] -> formatted output. NO_ISSUES -> clean
+# message (with the artifact count when COUNT is supplied).
 format_findings() {
-    local raw="$1" fmt="${2:-tree}"
+    local raw="$1" fmt="${2:-tree}" count="${3:-}"
     if [[ -z "${raw//[[:space:]]/}" || "$raw" == *NO_ISSUES* ]]; then
-        if [[ "$fmt" == "json" ]]; then echo "[]"; else echo "✓ No inconsistencies found."; fi
+        if [[ "$fmt" == "json" ]]; then
+            echo "[]"
+        elif [[ -n "$count" ]]; then
+            echo "✓ No inconsistencies found across ${count} artifacts."
+        else
+            echo "✓ No inconsistencies found."
+        fi
         return 0
     fi
     if [[ "$fmt" == "json" ]]; then
@@ -146,16 +153,29 @@ should_run_silent() {
     return 0
 }
 
-# review ROOT FORMAT -> discover, assemble, run gemini, format. Used on-demand.
+# Emit role<TAB>path lines from explicit --spec/--plan/--tasks if any were given,
+# else auto-discover under ROOT.
+resolve_artifacts() {
+    local root="${1:-.}"
+    if [[ -n "$SPEC" || -n "$PLAN" || -n "$TASKS" ]]; then
+        [[ -n "$SPEC" ]]  && printf 'spec\t%s\n'  "$SPEC"
+        [[ -n "$PLAN" ]]  && printf 'plan\t%s\n'  "$PLAN"
+        [[ -n "$TASKS" ]] && printf 'tasks\t%s\n' "$TASKS"
+        return 0
+    fi
+    discover_artifacts "$root"
+}
+
+# review ROOT FORMAT -> resolve, assemble, run gemini, format. Used on-demand.
 review() {
     local root="${1:-.}" fmt="${2:-tree}"
     local arts=() line
-    while IFS= read -r line; do [[ -n "$line" ]] && arts+=("$line"); done < <(discover_artifacts "$root")
+    while IFS= read -r line; do [[ -n "$line" ]] && arts+=("$line"); done < <(resolve_artifacts "$root")
     if [[ "${#arts[@]}" -eq 0 ]]; then echo "spec-review: nothing to review (no artifacts found)"; return 0; fi
     echo "[spec-review] Cross-referencing project artifacts with Gemini…"
     local prompt raw; prompt="$(assemble_prompt "$SPEC_REVIEW_TEMPLATE" "${arts[@]}")"
     raw="$(run_gemini "$prompt")"
-    format_findings "$raw" "$fmt"
+    format_findings "$raw" "$fmt" "${#arts[@]}"
 }
 
 # The actual review for hook mode, fail-open. Writes feedback.md atomically.

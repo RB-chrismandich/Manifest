@@ -83,7 +83,9 @@ One core engine script, two thin entry points:
   - **Flags:** `--spec FILE --plan FILE --tasks FILE` (explicit) OR auto-discover;
     `--silent` (hook mode); `--format tree|json` (default `tree`).
   - **Discovery (framework-agnostic):**
-    - *speckit:* `.specify/` or `specs/<NNN>-*/{spec,plan,tasks}.md`.
+    - *speckit:* `specs/<NNN>-*/{spec,plan,tasks}.md` (or `spec.md` in cwd). Note:
+      speckit's `.specify/` dir holds templates/memory/scripts, NOT the artifacts —
+      the spec/plan/tasks live under `specs/<NNN>/`, which is what we discover.
     - *superpowers:* `docs/superpowers/specs/*-design.md` (spec) +
       `docs/superpowers/plans/*.md` (plan, **with tasks embedded** — there is no
       separate `tasks.md`). The cross-reference for superpowers is therefore
@@ -120,7 +122,7 @@ One core engine script, two thin entry points:
   owns the path logic. **Advisory and non-blocking.**
   - **Detached execution (must not stall the agent loop):** a synchronous hook that
     blocked on a multi-second `gemini` call would add that latency after every
-    artifact save. So once the cheap synchronous gates pass (path match, `<2`
+    artifact save. So once the cheap synchronous gates pass (`<2`
     artifacts, hash unchanged, lock held), the actual `gemini` review is launched
     **fully detached** — `nohup … &` with stdout → `.spec-review/feedback.md` and
     stderr → `.spec-review/error.log` — and the hook returns immediately.
