@@ -79,3 +79,39 @@ TAIL
     assert_output --partial "TAIL"
     refute_output --partial "{{ARTIFACTS}}"
 }
+
+_fake_gemini() {  # writes a stub gemini onto PATH inside SANDBOX
+    cat > "$SANDBOX/gemini" <<'STUB'
+#!/usr/bin/env bash
+cat >/dev/null   # consume stdin
+printf '⚠️  CLARIFICATION REQUIRED: Migration\n   ├─ Location: plan vs tasks\n   ├─ The Gap: zero-downtime vs destructive\n   ├─ Recommended Direction: split into 3 tasks\n   └─ Reason Why: locking violates the constraint\n'
+STUB
+    chmod +x "$SANDBOX/gemini"
+}
+
+@test "run_gemini pipes prompt through the injectable seam" {
+    _fake_gemini
+    source "$SCRIPT"
+    SPEC_REVIEW_GEMINI="$SANDBOX/gemini" run run_gemini "any prompt"
+    assert_success
+    assert_output --partial "CLARIFICATION REQUIRED: Migration"
+}
+
+@test "format_findings tree passes structured findings through" {
+    source "$SCRIPT"
+    run format_findings "⚠️  CLARIFICATION REQUIRED: X" "tree"
+    assert_output --partial "CLARIFICATION REQUIRED: X"
+}
+
+@test "format_findings reports clean when gemini returns NO_ISSUES" {
+    source "$SCRIPT"
+    run format_findings "NO_ISSUES" "tree"
+    assert_success
+    assert_output --partial "No inconsistencies found"
+}
+
+@test "format_findings json emits a JSON array" {
+    source "$SCRIPT"
+    run format_findings "NO_ISSUES" "json"
+    assert_output --partial "[]"
+}

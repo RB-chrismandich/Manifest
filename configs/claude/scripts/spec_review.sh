@@ -99,6 +99,28 @@ assemble_prompt() {
     return "$rc"
 }
 
+# run_gemini PROMPT -> raw gemini output. stdin carries the prompt body; the -p
+# instruction is short. Errors propagate (caller decides fail-open vs surface).
+run_gemini() {
+    local prompt="$1"
+    printf '%s' "$prompt" | "$SPEC_REVIEW_GEMINI" -p "Cross-reference the artifacts above per the instructions; output only the specified blocks or NO_ISSUES."
+}
+
+# format_findings RAW FORMAT -> formatted output. NO_ISSUES -> clean message.
+format_findings() {
+    local raw="$1" fmt="${2:-tree}"
+    if [[ -z "${raw//[[:space:]]/}" || "$raw" == *NO_ISSUES* ]]; then
+        if [[ "$fmt" == "json" ]]; then echo "[]"; else echo "✓ No inconsistencies found."; fi
+        return 0
+    fi
+    if [[ "$fmt" == "json" ]]; then
+        # Minimal: wrap raw blocks as a single JSON string element (tolerant).
+        printf '[%s]\n' "$(printf '%s' "$raw" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))')"
+    else
+        printf '%s\n' "$raw"
+    fi
+}
+
 main() {
     if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then usage; return 0; fi
     parse_args "$@" || return $?
