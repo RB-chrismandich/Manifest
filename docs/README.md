@@ -163,7 +163,7 @@ services:
 
 - ✅ 2026-06-08: Documentation refresh for SkillClaw + `/pass-cli` — README, architecture
   diagrams, CONFIGURATION/TROUBLESHOOTING sections, and a Diataxis cross-link audit
-- ✅ 2026-06-07: Added SKILLCLAW.md — SkillClaw capture proxy and skill evolution guide
+- ✅ 2026-06-07: Added SKILLCLAW.md — SkillClaw passive-ingest transcript reader and skill evolution guide
 - ✅ 2026-06-07: Added `/skill-evolve` skill (promote SkillClaw sessions into review PRs)
 - ✅ 2026-06-07: Added `/pass-cli` skill (Proton Pass credential retrieval)
 - ✅ 2026-06-07: Updated ARCHITECTURE_DIAGRAMS.md with SkillClaw pipeline diagram
