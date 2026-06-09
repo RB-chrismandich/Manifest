@@ -70,6 +70,31 @@ discover_artifacts() {
     return 0
 }
 
+# assemble_prompt TEMPLATE "role\tpath"...  ->  full prompt on stdout
+assemble_prompt() {
+    local template="$1"; shift
+    local artfile line role path
+    artfile="$(mktemp)"
+    for line in "$@"; do
+        role="${line%%$'\t'*}"; path="${line#*$'\t'}"
+        {
+            printf '=== %s: %s ===\n' "$(printf '%s' "$role" | tr '[:lower:]' '[:upper:]')" "$path"
+            cat "$path"
+            printf '\n\n'
+        } >> "$artfile"
+    done
+    # Substitute {{ARTIFACTS}} inline: print lines before the marker, inject
+    # artifact file contents, then continue with lines after the marker.
+    awk -v artfile="$artfile" '
+        /\{\{ARTIFACTS\}\}/ {
+            while ((getline ln < artfile) > 0) print ln
+            next
+        }
+        { print }
+    ' "$template"
+    rm -f "$artfile"
+}
+
 main() {
     if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then usage; return 0; fi
     parse_args "$@" || return $?

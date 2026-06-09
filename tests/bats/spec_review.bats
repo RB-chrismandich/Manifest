@@ -58,3 +58,23 @@ teardown() {
     run discover_artifacts "$SANDBOX"
     assert_output ""
 }
+
+@test "assemble_prompt embeds template and role-labelled artifact contents" {
+    local tpl="$SANDBOX/tpl.md"; printf 'HEAD
+{{ARTIFACTS}}
+TAIL
+' > "$tpl"
+    printf 'spec body here
+' > "$SANDBOX/spec.md"
+    printf 'plan body here
+' > "$SANDBOX/plan.md"
+    source "$SCRIPT"
+    run assemble_prompt "$tpl" "spec	$SANDBOX/spec.md" "plan	$SANDBOX/plan.md"
+    assert_success
+    assert_output --partial "HEAD"
+    assert_output --partial "=== SPEC: $SANDBOX/spec.md ==="
+    assert_output --partial "spec body here"
+    assert_output --partial "=== PLAN: $SANDBOX/plan.md ==="
+    assert_output --partial "plan body here"
+    refute_output --partial "{{ARTIFACTS}}"
+}
