@@ -219,7 +219,7 @@ ingest:
   transcripts_dir: ~/.claude/projects
   window_days: 30              # only transcripts modified within the last 30 days
   settle_minutes: 5            # skip files whose mtime is <5 min old (still being written)
-  max_tool_output_chars: 500   # truncate tool stdout/stderr; drop base64 blobs (noise control)
+  max_tool_output_chars: 500   # truncate tool stdout/stderr incl. base64 blobs (noise control)
 
 # Evolve — how ingested sessions become skill candidates
 evolve:

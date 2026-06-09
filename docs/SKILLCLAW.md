@@ -36,8 +36,8 @@ Key ingest parameters (from `~/.claude/config/skillclaw.yml`):
 - **`window_days: 30`** — only transcripts from the last 30 days are considered.
 - **`settle_minutes: 5`** — files whose mtime is newer than 5 minutes are skipped
   to avoid reading sessions that are still being written.
-- **`max_tool_output_chars: 500`** — raw tool stdout/stderr is truncated and base64
-  blobs are dropped to control noise and token consumption.
+- **`max_tool_output_chars: 500`** — raw tool stdout/stderr (including base64
+  blobs) is truncated beyond this to control noise and token consumption.
 
 Incremental state is tracked in `~/.skillclaw/.ingest-state.json` so re-runs
 only process new content.

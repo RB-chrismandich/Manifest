@@ -104,17 +104,23 @@ def write_candidates(candidates: list[dict], evolved_dir: Path) -> list[str]:
     return written
 
 
-def _committed_library_names(evolved_dir: Path) -> list[str]:
-    base = Path(evolved_dir).expanduser()
+def _library_names(skills_dir: Path) -> list[str]:
+    """Skill directory names under a skills root (each holding a SKILL.md)."""
+    base = Path(skills_dir).expanduser()
     return sorted(p.parent.name for p in base.glob("*/SKILL.md")) if base.exists() else []
 
 
 def evolve(sessions_dir, evolved_dir, template_path, *,
-           token_budget=DEFAULT_TOKEN_BUDGET, runner=subprocess_runner) -> dict:
-    """Map-reduce sessions into SKILL.md candidates. Returns a summary dict."""
+           committed_dir=None, token_budget=DEFAULT_TOKEN_BUDGET, runner=subprocess_runner) -> dict:
+    """Map-reduce sessions into SKILL.md candidates. Returns a summary dict.
+
+    The prompt's "existing library" is the committed library (committed_dir) so
+    the model does not re-propose already-merged skills; it falls back to
+    evolved_dir only when no committed library is supplied.
+    """
     sessions = load_sessions(sessions_dir)
     template = Path(template_path).expanduser().read_text(encoding="utf-8")
-    library = _committed_library_names(evolved_dir)
+    library = _library_names(committed_dir if committed_dir is not None else evolved_dir)
     if not sessions:
         return {"candidates": 0, "chunks": 0, "written": []}
 
@@ -140,11 +146,13 @@ def main(argv: list[str]) -> int:
     ap.add_argument("sessions_dir")
     ap.add_argument("evolved_dir")
     ap.add_argument("--template", default="~/.claude/prompts/skillclaw_evolve.md")
+    ap.add_argument("--committed-dir",
+                    help="committed skill library shown to the model (avoids re-proposals)")
     ap.add_argument("--token-budget", type=int, default=DEFAULT_TOKEN_BUDGET)
     args = ap.parse_args(argv)
     try:
         summary = evolve(args.sessions_dir, args.evolved_dir, args.template,
-                         token_budget=args.token_budget)
+                         committed_dir=args.committed_dir, token_budget=args.token_budget)
     except (RuntimeError, FileNotFoundError) as e:
         print(f"skillclaw_evolve: {e}", file=sys.stderr)
         return 1

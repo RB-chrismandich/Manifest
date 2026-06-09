@@ -81,7 +81,8 @@ fi
 # 3. Evolve (skip with --no-evolve). Suppress its stdout summary (kept clean like
 # ingest); errors still surface on stderr and are reported below.
 if [[ "$DO_EVOLVE" == true ]]; then
-    python3 "$EVOLVE" "$SESSIONS" "$EVOLVED" --template "$TEMPLATE" >/dev/null \
+    python3 "$EVOLVE" "$SESSIONS" "$EVOLVED" --template "$TEMPLATE" \
+        --committed-dir "$COMMITTED" >/dev/null \
         || err "evolve returned non-zero (continuing)"
 fi
 
