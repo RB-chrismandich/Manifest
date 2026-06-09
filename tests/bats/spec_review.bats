@@ -228,3 +228,16 @@ STUB
     assert [ -f "$SANDBOX/.spec-review/feedback.md" ]   # ran despite the stale lock
     assert [ ! -d "$SANDBOX/.spec-review/.lock" ]        # lock released after run
 }
+
+@test "spec-review SKILL.md has valid frontmatter and points at the engine" {
+    local skill="$REPO_ROOT/.skillshare/skills/spec-review/SKILL.md"
+    assert [ -f "$skill" ]
+    run head -1 "$skill"; assert_output "---"
+    run grep -E '^name: spec-review' "$skill"; assert_success
+    run grep -E 'spec_review\.sh' "$skill"; assert_success
+}
+
+@test ".gitignore ignores the .spec-review runtime dir" {
+    run grep -E '^\.spec-review/?$' "$REPO_ROOT/.gitignore"
+    assert_success
+}
