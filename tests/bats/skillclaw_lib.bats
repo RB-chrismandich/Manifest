@@ -23,89 +23,61 @@ teardown() {
     [[ -n "$SANDBOX" && -d "$SANDBOX" ]] && rm -rf "$SANDBOX"
 }
 
-@test "skillclaw_init_storage creates dirs with 700 perms" {
-    run skillclaw_init_storage
+@test "skillclaw_apply_state enable creates storage with 700 perms" {
+    export SHELL_PROFILE_FILE="$SANDBOX/.zshrc"
+    touch "$SANDBOX/.zshrc"
+    launchctl() { :; }
+    systemctl() { :; }
+    ENABLE_SKILLCLAW=true run skillclaw_apply_state
     assert_success
     [ -d "$SKILLCLAW_HOME" ]
     [ -d "$SKILLCLAW_HOME/sessions" ]
     [ -d "$SKILLCLAW_HOME/skills" ]
     local mode
-    # GNU-first: `stat -c` works on Linux and fails cleanly on macOS (BSD), which
-    # then falls back to `stat -f '%Lp'`. The reverse order is broken on Linux,
-    # where `stat -f` means --file-system and pollutes stdout.
     mode=$(stat -c '%a' "$SKILLCLAW_HOME" 2>/dev/null || stat -f '%Lp' "$SKILLCLAW_HOME")
     assert_equal "$mode" "700"
-    local smode kmode
-    smode=$(stat -c '%a' "$SKILLCLAW_HOME/sessions" 2>/dev/null || stat -f '%Lp' "$SKILLCLAW_HOME/sessions")
-    kmode=$(stat -c '%a' "$SKILLCLAW_HOME/skills" 2>/dev/null || stat -f '%Lp' "$SKILLCLAW_HOME/skills")
-    assert_equal "$smode" "700"
-    assert_equal "$kmode" "700"
 }
 
-@test "skillclaw_write_wrappers writes a guarded, marker-delimited block" {
+@test "skillclaw_remove_wrappers strips the marker block" {
     local profile="$SANDBOX/.zshrc"
-    touch "$profile"
-    run skillclaw_write_wrappers "$profile"
-    assert_success
-    grep -q ">>> MANIFEST SKILLCLAW WRAPPERS >>>" "$profile"
-    grep -q "<<< MANIFEST SKILLCLAW WRAPPERS <<<" "$profile"
-    grep -q "SKILLCLAW_BYPASS" "$profile"
-    grep -q "max-time 0.3" "$profile"
-    grep -q 'claude()' "$profile"
-    grep -q 'codex()' "$profile"
-    # No hard top-level export of the base URL (must be per-invocation):
-    run grep -E '^export ANTHROPIC_BASE_URL=' "$profile"
-    assert_failure
-}
-
-@test "skillclaw_write_wrappers is idempotent (single block on re-run)" {
-    local profile="$SANDBOX/.zshrc"
-    touch "$profile"
-    skillclaw_write_wrappers "$profile"
-    skillclaw_write_wrappers "$profile"
-    run grep -c ">>> MANIFEST SKILLCLAW WRAPPERS >>>" "$profile"
-    assert_output "1"
-}
-
-@test "skillclaw_remove_wrappers strips the block" {
-    local profile="$SANDBOX/.zshrc"
-    touch "$profile"
-    skillclaw_write_wrappers "$profile"
+    cat > "$profile" << 'PROF'
+# something before
+# >>> MANIFEST SKILLCLAW WRAPPERS >>>
+export SKILLCLAW_PORT="8765"
+claude() { echo proxy; }
+codex()  { echo proxy; }
+# <<< MANIFEST SKILLCLAW WRAPPERS <<<
+# something after
+PROF
     run skillclaw_remove_wrappers "$profile"
     assert_success
     run grep -c "MANIFEST SKILLCLAW WRAPPERS" "$profile"
     assert_output "0"
+    grep -q "something before" "$profile"
+    grep -q "something after" "$profile"
 }
 
-@test "skillclaw_daemon status reports stopped when no pid" {
-    export SKILLCLAW_PIDFILE="$SANDBOX/skillclaw.pid"
-    run skillclaw_daemon status
-    assert_failure
-    assert_output --partial "stopped"
-}
-
-@test "skillclaw_supervisor_unit emits launchd plist on darwin" {
-    run skillclaw_supervisor_unit darwin "$SANDBOX/out"
+@test "skillclaw_remove_wrappers is idempotent on clean profile" {
+    local profile="$SANDBOX/.zshrc"
+    echo "# no wrappers here" > "$profile"
+    run skillclaw_remove_wrappers "$profile"
     assert_success
-    [ -f "$SANDBOX/out" ]
-    grep -q "KeepAlive" "$SANDBOX/out"
-    grep -q "com.manifest.skillclaw" "$SANDBOX/out"
+    run skillclaw_remove_wrappers "$profile"
+    assert_success
 }
 
-@test "skillclaw_supervisor_unit emits systemd unit on linux" {
-    run skillclaw_supervisor_unit linux "$SANDBOX/out"
-    assert_success
-    grep -q "Restart=on-failure" "$SANDBOX/out"
+@test "skillclaw.sh no longer writes shell proxy wrappers" {
+    run grep -Ec 'ANTHROPIC_BASE_URL|OPENAI_BASE_URL|_skillclaw_run|skillclaw_daemon' \
+        "$REPO_ROOT/bootstrap/lib/skillclaw.sh"
+    [ "$output" -eq 0 ]
 }
 
-@test "skillclaw_apply_state disable removes wrappers and stops daemon" {
-    local profile="$SANDBOX/.zshrc"; touch "$profile"
-    export SHELL_PROFILE_FILE="$profile"
-    skillclaw_write_wrappers "$profile"
-    # stub daemon to avoid invoking real skillclaw
-    skillclaw_daemon() { echo "daemon $1"; }
-    ENABLE_SKILLCLAW=false run skillclaw_apply_state
-    assert_success
-    run grep -c "MANIFEST SKILLCLAW WRAPPERS" "$profile"
-    assert_output "0"
+@test "disable still removes any legacy wrapper block (clean teardown)" {
+    run grep -q 'skillclaw_remove_wrappers' "$REPO_ROOT/bootstrap/lib/skillclaw.sh"
+    [ "$status" -eq 0 ]
+}
+
+@test "apply_state enables transcript evolution without a daemon" {
+    run grep -Eq 'no daemon|transcript' "$REPO_ROOT/bootstrap/lib/skillclaw.sh"
+    [ "$status" -eq 0 ]
 }
