@@ -146,9 +146,55 @@ should_run_silent() {
     return 0
 }
 
+# review ROOT FORMAT -> discover, assemble, run gemini, format. Used on-demand.
+review() {
+    local root="${1:-.}" fmt="${2:-tree}"
+    local arts=() line
+    while IFS= read -r line; do [[ -n "$line" ]] && arts+=("$line"); done < <(discover_artifacts "$root")
+    if [[ "${#arts[@]}" -eq 0 ]]; then echo "spec-review: nothing to review (no artifacts found)"; return 0; fi
+    echo "[spec-review] Cross-referencing project artifacts with Gemini…"
+    local prompt raw; prompt="$(assemble_prompt "$SPEC_REVIEW_TEMPLATE" "${arts[@]}")"
+    raw="$(run_gemini "$prompt")"
+    format_findings "$raw" "$fmt"
+}
+
+# The actual review for hook mode, fail-open. Writes feedback.md atomically.
+_silent_review_inline() {
+    local root="$1" state="$SPEC_REVIEW_STATE"
+    mkdir -p "$state"
+    local arts=() line prompt raw
+    while IFS= read -r line; do [[ -n "$line" ]] && arts+=("$line"); done < <(discover_artifacts "$root")
+    prompt="$(assemble_prompt "$SPEC_REVIEW_TEMPLATE" "${arts[@]}")"
+    if ! raw="$(run_gemini "$prompt" 2>>"$state/error.log")"; then
+        return 0   # fail-open: gemini failed, never block
+    fi
+    format_findings "$raw" "tree" > "$state/feedback.md.tmp" && mv "$state/feedback.md.tmp" "$state/feedback.md"
+}
+
+# Silent/hook entry: gate, single-flight lock, detach the gemini call.
+run_silent() {
+    local root="${1:-.}" state="$SPEC_REVIEW_STATE"
+    if ! should_run_silent "$root" >/dev/null; then
+        return 0   # gate said skip (fewer than 2 artifacts / unchanged)
+    fi
+    mkdir -p "$state"
+    # Single-flight lock: skip if a review is already in flight.
+    if ! mkdir "$state/.lock" 2>/dev/null; then return 0; fi
+    if [[ -n "$SPEC_REVIEW_NO_DETACH" ]]; then
+        _silent_review_inline "$root"; rmdir "$state/.lock" 2>/dev/null || true
+    else
+        # Detach so the agent loop never waits on gemini; release lock when done.
+        ( _silent_review_inline "$root"; rmdir "$state/.lock" 2>/dev/null || true ) >/dev/null 2>&1 &
+        disown 2>/dev/null || true
+    fi
+    return 0
+}
+
 main() {
     if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then usage; return 0; fi
     parse_args "$@" || return $?
+    if [[ "$SILENT" == true ]]; then run_silent "$ROOT"; return 0; fi
+    review "$ROOT" "$FORMAT"
 }
 
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then

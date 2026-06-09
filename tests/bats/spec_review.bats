@@ -155,3 +155,59 @@ STUB
     printf 'p2\n' > "$SANDBOX/specs/001/plan.md"
     run should_run_silent "$SANDBOX"; assert_success          # changed again
 }
+
+@test "on-demand review prints findings from the mocked gemini" {
+    _fake_gemini
+    mkdir -p "$SANDBOX/specs/001"
+    printf 's\n' > "$SANDBOX/specs/001/spec.md"
+    printf 'p\n' > "$SANDBOX/specs/001/plan.md"
+    SPEC_REVIEW_GEMINI="$SANDBOX/gemini" SPEC_REVIEW_TEMPLATE="$REPO_ROOT/configs/claude/prompts/spec_review.md" \
+        run bash "$SCRIPT" "$SANDBOX"
+    assert_success
+    assert_output --partial "CLARIFICATION REQUIRED: Migration"
+}
+
+@test "on-demand review on no artifacts exits 0 with nothing-to-review" {
+    run bash "$SCRIPT" "$SANDBOX"
+    assert_success
+    assert_output --partial "nothing to review"
+}
+
+@test "silent mode writes feedback file and exits 0 (inline via NO_DETACH)" {
+    _fake_gemini
+    mkdir -p "$SANDBOX/specs/001"
+    printf 's\n' > "$SANDBOX/specs/001/spec.md"
+    printf 'p\n' > "$SANDBOX/specs/001/plan.md"
+    SPEC_REVIEW_GEMINI="$SANDBOX/gemini" SPEC_REVIEW_NO_DETACH=1 \
+        SPEC_REVIEW_STATE="$SANDBOX/.spec-review" \
+        SPEC_REVIEW_TEMPLATE="$REPO_ROOT/configs/claude/prompts/spec_review.md" \
+        run bash "$SCRIPT" --silent "$SANDBOX"
+    assert_success
+    assert [ -f "$SANDBOX/.spec-review/feedback.md" ]
+    run cat "$SANDBOX/.spec-review/feedback.md"
+    assert_output --partial "CLARIFICATION REQUIRED: Migration"
+}
+
+@test "silent mode fails open: non-zero gemini still exits 0" {
+    printf '#!/usr/bin/env bash\nexit 3\n' > "$SANDBOX/gemini"; chmod +x "$SANDBOX/gemini"
+    mkdir -p "$SANDBOX/specs/001"
+    printf 's\n' > "$SANDBOX/specs/001/spec.md"
+    printf 'p\n' > "$SANDBOX/specs/001/plan.md"
+    SPEC_REVIEW_GEMINI="$SANDBOX/gemini" SPEC_REVIEW_NO_DETACH=1 \
+        SPEC_REVIEW_STATE="$SANDBOX/.spec-review" \
+        SPEC_REVIEW_TEMPLATE="$REPO_ROOT/configs/claude/prompts/spec_review.md" \
+        run bash "$SCRIPT" --silent "$SANDBOX"
+    assert_success
+}
+
+@test "silent mode is a no-op on unchanged content (second run)" {
+    _fake_gemini
+    mkdir -p "$SANDBOX/specs/001"
+    printf 's\n' > "$SANDBOX/specs/001/spec.md"
+    printf 'p\n' > "$SANDBOX/specs/001/plan.md"
+    local env="SPEC_REVIEW_GEMINI=$SANDBOX/gemini SPEC_REVIEW_NO_DETACH=1 SPEC_REVIEW_STATE=$SANDBOX/.spec-review SPEC_REVIEW_TEMPLATE=$REPO_ROOT/configs/claude/prompts/spec_review.md"
+    env $env bash "$SCRIPT" --silent "$SANDBOX"
+    rm -f "$SANDBOX/.spec-review/feedback.md"
+    env $env bash "$SCRIPT" --silent "$SANDBOX"   # unchanged -> skip, no rewrite
+    assert [ ! -f "$SANDBOX/.spec-review/feedback.md" ]
+}
