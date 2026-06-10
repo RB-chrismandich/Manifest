@@ -226,6 +226,35 @@ def render_status():
         return "no recent run"
 
 
+def trim(max_runs=MAX_RUNS):
+    """Keep only events for the most recent max_runs run_ids. Atomic. Fail-open."""
+    try:
+        path = _log_path()
+        if not path.exists():
+            return
+        lines = path.read_text(encoding="utf-8").splitlines()
+        order, seen = [], set()
+        for ln in lines:
+            try:
+                rid = json.loads(ln).get("run_id")
+            except ValueError:
+                continue
+            if rid not in seen:
+                seen.add(rid)
+                order.append(rid)
+        keep = set(order[-max_runs:])
+        kept = []
+        for ln in lines:
+            try:
+                if json.loads(ln).get("run_id") in keep:
+                    kept.append(ln)
+            except ValueError:
+                continue
+        _write_atomic(path, "\n".join(kept) + ("\n" if kept else ""))
+    except Exception:  # noqa: BLE001 - fail-open
+        return
+
+
 def compute_eta(chunks_done, chunks_total, elapsed_s):
     """Return (eta_s|None, label).
 

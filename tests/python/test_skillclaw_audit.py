@@ -166,3 +166,27 @@ def test_render_status_unknown_state_is_not_mislabeled_done(tmp_path, monkeypatc
     monkeypatch.setenv("SKILLCLAW_AUDIT_DIR", str(tmp_path))
     (tmp_path / "status.json").write_text('{"run_id": "r-1", "state": "aborted"}')
     assert audit.render_status() == "no recent run"
+
+
+def test_trim_keeps_only_recent_run_ids(tmp_path, monkeypatch):
+    monkeypatch.setenv("SKILLCLAW_AUDIT_DIR", str(tmp_path))
+    for i in range(5):
+        audit.log("run-%d" % i, "-", "run_start")
+    audit.trim(max_runs=2)
+    rids = {json.loads(ln)["run_id"]
+            for ln in (tmp_path / "promote.log").read_text().splitlines()}
+    assert rids == {"run-3", "run-4"}
+
+
+def test_trim_is_atomic_on_failure(tmp_path, monkeypatch):
+    monkeypatch.setenv("SKILLCLAW_AUDIT_DIR", str(tmp_path))
+    for i in range(3):
+        audit.log("run-%d" % i, "-", "run_start")
+    original = (tmp_path / "promote.log").read_text()
+
+    def boom(*a, **k):
+        raise OSError("simulated mid-trim crash")
+
+    monkeypatch.setattr(audit.os, "replace", boom)
+    audit.trim(max_runs=1)  # fail-open: swallows the error
+    assert (tmp_path / "promote.log").read_text() == original  # untouched
