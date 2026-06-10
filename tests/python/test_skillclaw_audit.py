@@ -178,6 +178,17 @@ def test_trim_keeps_only_recent_run_ids(tmp_path, monkeypatch):
     assert rids == {"run-3", "run-4"}
 
 
+def test_trim_clamps_nonpositive_max_runs_to_keep_recent_one(tmp_path, monkeypatch):
+    # max_runs <= 0 must not retain everything (order[-0:] == all); it clamps to 1.
+    monkeypatch.setenv("SKILLCLAW_AUDIT_DIR", str(tmp_path))
+    for i in range(3):
+        audit.log("run-%d" % i, "-", "run_start")
+    audit.trim(max_runs=0)
+    rids = {json.loads(ln)["run_id"]
+            for ln in (tmp_path / "promote.log").read_text().splitlines()}
+    assert rids == {"run-2"}
+
+
 def test_trim_is_atomic_on_failure(tmp_path, monkeypatch):
     monkeypatch.setenv("SKILLCLAW_AUDIT_DIR", str(tmp_path))
     for i in range(3):
