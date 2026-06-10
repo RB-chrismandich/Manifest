@@ -121,3 +121,37 @@ def test_run_error_sets_failed_state_and_stage(tmp_path, monkeypatch):
     audit.log(rid, "evolve", "run_error", message="boom")
     st = _read(tmp_path / "status.json")
     assert st["state"] == "failed" and st["error_stage"] == "evolve"
+
+
+def test_render_status_no_recent_run(tmp_path, monkeypatch):
+    monkeypatch.setenv("SKILLCLAW_AUDIT_DIR", str(tmp_path))
+    assert audit.render_status() == "no recent run"
+
+
+def test_render_status_running_evolve(tmp_path, monkeypatch):
+    monkeypatch.setenv("SKILLCLAW_AUDIT_DIR", str(tmp_path))
+    monkeypatch.setattr(audit, "_pid_alive", lambda pid: True)
+    rid = "20260609T230501Z-4821"
+    audit.log(rid, "-", "run_start")
+    audit.log(rid, "evolve", "stage_start", chunks=12)
+    audit.log(rid, "evolve", "chunk_done", i=4, total=12, chunk_seconds=15.0, elapsed_s=60)
+    out = audit.render_status()
+    assert "evolve" in out and "chunk 4/12" in out and "~2m left (est)" in out
+
+
+def test_render_status_stale_when_pid_dead(tmp_path, monkeypatch):
+    monkeypatch.setenv("SKILLCLAW_AUDIT_DIR", str(tmp_path))
+    monkeypatch.setattr(audit, "_pid_alive", lambda pid: False)
+    audit.log("20260609T230501Z-4821", "-", "run_start")
+    assert "stale" in audit.render_status()
+
+
+def test_render_status_done_summary(tmp_path, monkeypatch):
+    monkeypatch.setenv("SKILLCLAW_AUDIT_DIR", str(tmp_path))
+    rid = "20260609T230501Z-4821"
+    audit.log(rid, "-", "run_start")
+    audit.log(rid, "classify", "candidates", new=["a", "b", "c"], changed=[], dropped=[])
+    audit.log(rid, "promote", "pr_opened", url="https://x/pull/7")
+    audit.log(rid, "-", "run_end", state="done", total_seconds=252.4)
+    out = audit.render_status()
+    assert "done" in out and "3 candidates" in out and "PR https://x/pull/7" in out
