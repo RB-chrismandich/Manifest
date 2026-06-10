@@ -132,3 +132,29 @@ def test_evolve_multichunk_dedupes_candidates_by_name(tmp_path):
     assert summary["chunks"] >= 2
     assert summary["candidates"] == 1
     assert summary["written"] == ["dup"]
+
+
+def test_evolve_emits_chunk_events_to_status(tmp_path, monkeypatch):
+    monkeypatch.setenv("SKILLCLAW_AUDIT_DIR", str(tmp_path / "audit"))
+    sessions_dir = tmp_path / "sessions"
+    sessions_dir.mkdir()
+    big = "x" * 160_000  # ~40k tokens each -> 2 sessions force >=2 chunks at budget 50k
+    for i in range(2):
+        (sessions_dir / f"s{i}.json").write_text(json.dumps(
+            {"session_id": f"s{i}", "turns": [
+                {"role": "user", "blocks": [{"kind": "text", "text": big}]}]}))
+    template = tmp_path / "tpl.md"
+    template.write_text("{{LIBRARY}}{{SESSIONS}}")
+    evolved = tmp_path / "evolved"
+    out = "~~~skill name=dup\n---\nname: dup\ndescription: d\n---\n# Dup\nstep\n~~~\n"
+
+    ev.evolve(sessions_dir, evolved, template, token_budget=50_000,
+              runner=lambda p: out, run_id="20260609T230501Z-4821")
+
+    log_lines = (tmp_path / "audit" / "promote.log").read_text().splitlines()
+    events = [json.loads(ln)["event"] for ln in log_lines]
+    assert "stage_start" in events
+    assert events.count("chunk_done") >= 2
+    status = json.loads((tmp_path / "audit" / "status.json").read_text())
+    assert status["evolve"]["total"] >= 2
+    assert status["evolve"]["chunk"] == status["evolve"]["total"]  # last chunk recorded
