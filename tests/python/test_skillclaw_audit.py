@@ -190,3 +190,36 @@ def test_trim_is_atomic_on_failure(tmp_path, monkeypatch):
     monkeypatch.setattr(audit.os, "replace", boom)
     audit.trim(max_runs=1)  # fail-open: swallows the error
     assert (tmp_path / "promote.log").read_text() == original  # untouched
+
+
+def test_fail_open_on_unwritable_dir(tmp_path, monkeypatch):
+    # Point the audit dir *inside* a regular file so mkdir raises NotADirectoryError.
+    blocker = tmp_path / "blocker"
+    blocker.write_text("not a dir")
+    monkeypatch.setenv("SKILLCLAW_AUDIT_DIR", str(blocker / "sub"))
+    audit.log("run-x", "-", "run_start")          # must not raise
+    assert audit.render_status() == "no recent run"
+
+
+def test_storage_auto_inits_when_absent(tmp_path, monkeypatch):
+    target = tmp_path / "fresh" / "nested"        # does not exist yet
+    monkeypatch.setenv("SKILLCLAW_AUDIT_DIR", str(target))
+    audit.log("run-1", "-", "run_start")
+    assert (target / "promote.log").exists()
+    assert (target / "status.json").exists()
+
+
+def test_cli_log_parses_key_value_and_json(tmp_path, monkeypatch):
+    monkeypatch.setenv("SKILLCLAW_AUDIT_DIR", str(tmp_path))
+    rc = audit.main(["log", "run-1", "classify", "candidates",
+                     'new=["a","b"]', "dropped=[]", "changed=[]"])
+    assert rc == 0
+    status = json.loads((tmp_path / "status.json").read_text())
+    assert status["totals"]["candidates"] == 2
+
+
+def test_cli_status_and_trim(tmp_path, monkeypatch, capsys):
+    monkeypatch.setenv("SKILLCLAW_AUDIT_DIR", str(tmp_path))
+    assert audit.main(["status"]) == 0
+    assert capsys.readouterr().out.strip() == "no recent run"
+    assert audit.main(["trim", "--max-runs", "10"]) == 0   # no log yet -> no-op, rc 0

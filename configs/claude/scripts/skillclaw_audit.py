@@ -255,6 +255,43 @@ def trim(max_runs=MAX_RUNS):
         return
 
 
+def _parse_kv(pairs):
+    """Parse `key=value` argv pairs; JSON-decode each value, else keep the string."""
+    out = {}
+    for p in pairs:
+        if "=" not in p:
+            continue
+        k, v = p.split("=", 1)
+        try:
+            out[k] = json.loads(v)
+        except ValueError:
+            out[k] = v
+    return out
+
+
+def main(argv):
+    if not argv or argv[0] == "status":
+        print(render_status())
+        return 0
+    cmd, rest = argv[0], argv[1:]
+    if cmd == "trim":
+        mx = MAX_RUNS
+        if "--max-runs" in rest:
+            i = rest.index("--max-runs")
+            try:
+                mx = int(rest[i + 1])
+            except (IndexError, ValueError):
+                mx = MAX_RUNS
+        trim(mx)
+        return 0
+    if cmd == "log":
+        if len(rest) < 3:
+            return 0  # fail-open: a malformed call never errors the pipeline
+        log(rest[0], rest[1], rest[2], **_parse_kv(rest[3:]))
+        return 0
+    return 0  # unknown subcommand: fail-open
+
+
 def compute_eta(chunks_done, chunks_total, elapsed_s):
     """Return (eta_s|None, label).
 
@@ -271,3 +308,7 @@ def compute_eta(chunks_done, chunks_total, elapsed_s):
         return (eta_s, "~%dm left (est)" % max(1, round(eta_s / 60)))
     except (TypeError, ValueError):
         return (None, "estimating…")
+
+
+if __name__ == "__main__":
+    raise SystemExit(main(sys.argv[1:]))
