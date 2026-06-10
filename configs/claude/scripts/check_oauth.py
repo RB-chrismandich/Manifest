@@ -6,8 +6,8 @@ This script validates that authentication is properly configured
 for all agents without making expensive API calls.
 
 Usage:
-    python test_oauth.py
-    python test_oauth.py --verbose
+    python check_oauth.py
+    python check_oauth.py --verbose
 """
 
 import sys

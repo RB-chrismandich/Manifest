@@ -34,7 +34,7 @@ restore_runtime_state() {
 
     print_step "Restoring runtime state (plugins, sessions, settings.json, history) from backup"
     # -a preserves symlinks and attributes; trailing slashes copy contents.
-    rsync -a "${excludes[@]}" "$backup_dir"/ "$target_dir"/
+    rsync -a "${excludes[@]}" "$backup_dir"/ "$target_dir"/  # array-safe (unconditional += above)
     print_success "Runtime state restored (repo-owned config redeployed fresh)"
 }
 

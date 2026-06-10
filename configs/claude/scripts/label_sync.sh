@@ -110,13 +110,15 @@ find_labels_file() {
 
 parse_labels() {
     local file="$1"
+    # Path passed via argv, never interpolated into Python source (FR-009):
+    # a path containing quotes must be data, not code.
     python3 -c "
 import yaml, json, sys
-with open('$file') as f:
+with open(sys.argv[1]) as f:
     data = yaml.safe_load(f)
 labels = data.get('labels', [])
 json.dump(labels, sys.stdout)
-"
+" "$file"
 }
 
 # --- Detect current git platform ---
