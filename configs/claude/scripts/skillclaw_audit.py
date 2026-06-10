@@ -229,6 +229,12 @@ def render_status():
 def trim(max_runs=MAX_RUNS):
     """Keep only events for the most recent max_runs run_ids. Atomic. Fail-open."""
     try:
+        # Clamp to >=1 so a non-positive max_runs can never keep all/an unexpected
+        # slice via order[-max_runs:] (e.g. -0 == 0 would retain everything).
+        try:
+            max_runs = max(1, int(max_runs))
+        except (TypeError, ValueError):
+            max_runs = MAX_RUNS
         path = _log_path()
         if not path.exists():
             return
@@ -269,7 +275,7 @@ def _parse_kv(pairs):
     return out
 
 
-def main(argv):
+def main(argv: list[str]) -> int:
     if not argv or argv[0] == "status":
         print(render_status())
         return 0
