@@ -72,8 +72,10 @@ run_bootstrap_hook() {
             ;;
     esac
 
-    eval "funcs=(\"\${${var_name}[@]}\")"
-    for func in "${funcs[@]}"; do
+    # Guard inside the eval too: an EMPTY hook array would crash here under
+    # Bash 3.2 + set -u before the guarded loop below is ever reached.
+    eval "funcs=(\${${var_name}[@]+\"\${${var_name}[@]}\"})"
+    for func in ${funcs[@]+"${funcs[@]}"}; do
         if declare -F "$func" > /dev/null; then
             print_step "Running module hook ($hook): $func"
             "$func"
