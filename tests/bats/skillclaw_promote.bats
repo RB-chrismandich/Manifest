@@ -42,6 +42,8 @@ EOF
     export SKILLCLAW_GITOPS="$MOCK_BIN/git_ops.sh"
     export PATH="$MOCK_BIN:$PATH"
     export SKILLCLAW_PROMOTE_LOG="$SANDBOX/log"
+    export SKILLCLAW_AUDIT_DIR="$SANDBOX/skillclaw"
+    mkdir -p "$SKILLCLAW_AUDIT_DIR"
     : > "$SKILLCLAW_PROMOTE_LOG"
 }
 
@@ -95,4 +97,62 @@ teardown() {
 @test "promote warns when candidates are rejected" {
   run grep -Ei 'failed schema validation|rejected' "$REPO_ROOT/configs/claude/scripts/skillclaw_promote.sh"
   [ "$status" -eq 0 ]
+}
+
+@test "promote mints a run_id and records it in promote.log" {
+    run bash "$SCRIPT" --no-evolve
+    assert_success
+    run grep -c '"event": "run_start"' "$SKILLCLAW_AUDIT_DIR/promote.log"
+    assert_output "1"
+    run grep -Eq '"run_id": "[0-9]{8}T[0-9]{6}Z-[0-9]+"' "$SKILLCLAW_AUDIT_DIR/promote.log"
+    assert_success
+}
+
+@test "--status renders from a seeded status.json" {
+    cat > "$SKILLCLAW_AUDIT_DIR/status.json" << 'EOF'
+{"run_id":"20260609T230501Z-4821","state":"done","stage":"-",
+ "totals":{"ingested":12,"candidates":3,"dropped":0},
+ "pr_url":"https://example.test/pr/7","total_seconds":252}
+EOF
+    run bash "$SCRIPT" --status
+    assert_success
+    assert_output --partial "done"
+    assert_output --partial "3 candidates"
+    assert_output --partial "PR https://example.test/pr/7"
+}
+
+@test "stage transitions are logged as stage_start events" {
+    run bash "$SCRIPT" --no-evolve
+    assert_success
+    run grep -c '"event": "stage_start"' "$SKILLCLAW_AUDIT_DIR/promote.log"
+    [ "$output" -ge 1 ]
+}
+
+@test "finalization trap records run_error + failed status on mid-run interrupt" {
+    # Make `git switch` fail so --apply dies after run_start/stages -> trap fires.
+    cat > "$MOCK_BIN/git" << 'EOF'
+#!/usr/bin/env bash
+case "$1" in
+  rev-parse) echo "abc1234" ;;
+  switch) echo "boom" >&2; exit 1 ;;
+  *) : ;;
+esac
+exit 0
+EOF
+    chmod +x "$MOCK_BIN/git"
+    export SKILLCLAW_OPEN_PR=""
+    run bash "$SCRIPT" --apply --no-evolve
+    assert_failure
+    run grep -c '"event": "run_error"' "$SKILLCLAW_AUDIT_DIR/promote.log"
+    [ "$output" -ge 1 ]
+    run grep -q '"state": "failed"' "$SKILLCLAW_AUDIT_DIR/status.json"
+    assert_success
+}
+
+@test "unwritable audit path does not abort the run" {
+    # Point the audit dir inside a regular file -> every audit call fails open.
+    printf 'x' > "$SANDBOX/blocker"
+    export SKILLCLAW_AUDIT_DIR="$SANDBOX/blocker/sub"
+    run bash "$SCRIPT" --no-evolve
+    assert_success
 }
