@@ -87,6 +87,26 @@ def test_evolve_empty_sessions_is_clean_noop(tmp_path):
     assert calls == []                 # no sessions -> no model calls
 
 
+def test_evolve_empty_sessions_with_run_id_emits_stage_start(tmp_path, monkeypatch):
+    # Even with no sessions, a run_id must produce a stage_start so --status shows
+    # evolve ran (and skipped) instead of leaving a stale prior stage in status.json.
+    monkeypatch.setenv("SKILLCLAW_AUDIT_DIR", str(tmp_path / "audit"))
+    sessions_dir = tmp_path / "sessions"
+    sessions_dir.mkdir()
+    template = tmp_path / "tpl.md"
+    template.write_text("{{LIBRARY}}{{SESSIONS}}")
+    evolved = tmp_path / "evolved"
+    calls = []
+    summary = ev.evolve(sessions_dir, evolved, template, token_budget=100_000,
+                        runner=lambda p: calls.append(p) or "NO_SKILLS",
+                        run_id="20260609T230501Z-4821")
+    assert summary["candidates"] == 0
+    assert calls == []                 # no sessions -> still no model calls
+    status = json.loads((tmp_path / "audit" / "status.json").read_text())
+    assert status["stage"] == "evolve"
+    assert status["evolve"]["total"] == 0
+
+
 def test_evolve_shows_committed_library_not_output_dir(tmp_path):
     # The model must see the REAL committed library (so it doesn't re-propose
     # already-merged skills), not the evolved output dir.

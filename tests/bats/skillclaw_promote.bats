@@ -108,6 +108,15 @@ teardown() {
     assert_success
 }
 
+@test "run_start records real pipeline config (window_days/token_budget), not zeros" {
+    run bash "$SCRIPT" --no-evolve
+    assert_success
+    run grep '"event": "run_start"' "$SKILLCLAW_AUDIT_DIR/promote.log"
+    assert_output --partial '"window_days": 30'
+    assert_output --partial '"token_budget": 100000'
+    refute_output --partial '"window_days": 0'
+}
+
 @test "--status renders from a seeded status.json" {
     cat > "$SKILLCLAW_AUDIT_DIR/status.json" << 'EOF'
 {"run_id":"20260609T230501Z-4821","state":"done","stage":"-",
