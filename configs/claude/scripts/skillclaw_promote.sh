@@ -96,10 +96,15 @@ if [[ "$DO_EVOLVE" == true ]]; then
     CUR_STAGE="ingest"; _t0=$SECONDS
     echo "▸ ingest…"
     audit log "$run_id" ingest stage_start
-    python3 "$INGEST" "$TRANSCRIPTS" "$SESSIONS" --state "$STATE" \
-        --window-days "$WINDOW_DAYS" >/dev/null 2>&1 \
+    # Capture ingest's JSON summary (stdout) so stage_end carries the ingested
+    # count → status.json totals.ingested is populated for --status/troubleshooting.
+    ingest_json="$(python3 "$INGEST" "$TRANSCRIPTS" "$SESSIONS" --state "$STATE" \
+        --window-days "$WINDOW_DAYS" 2>/dev/null)" \
         || err "ingest returned non-zero (continuing)"
-    audit log "$run_id" ingest stage_end seconds=$((SECONDS - _t0))
+    ingested_count="$(printf '%s' "$ingest_json" \
+        | python3 -c 'import json,sys; print(int(json.load(sys.stdin).get("ingested",0)))' \
+        2>/dev/null || echo 0)"
+    audit log "$run_id" ingest stage_end seconds=$((SECONDS - _t0)) ingested="$ingested_count"
 fi
 
 # 2. Scrub captured sessions (best-effort; never blocks).
