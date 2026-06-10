@@ -156,3 +156,10 @@ EOF
     run bash "$SCRIPT" --no-evolve
     assert_success
 }
+
+@test "classify stage logs a stage_end with seconds" {
+    run bash "$SCRIPT" --no-evolve
+    assert_success
+    run grep -E '"stage": "classify".*"event": "stage_end"' "$SKILLCLAW_AUDIT_DIR/promote.log"
+    assert_success
+}

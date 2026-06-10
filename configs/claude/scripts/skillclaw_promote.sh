@@ -116,7 +116,7 @@ fi
 
 # 4. Classify + validate. A crash here (empty/non-JSON output) must fail loudly,
 # not abort cryptically under `set -e`, so guard the capture explicitly.
-CUR_STAGE="classify"; echo "▸ classify…"
+CUR_STAGE="classify"; _t0=$SECONDS; echo "▸ classify…"
 audit log "$run_id" classify stage_start
 classify_args=("$EVOLVED" "$COMMITTED" --rejected-dir "$REJECTED")
 [[ -n "$SKILL" ]] && classify_args+=(--skill "$SKILL")
@@ -149,6 +149,7 @@ new_json="$(echo "$classify_json" | python3 -c 'import json,sys; d=json.load(sys
 changed_json="$(echo "$classify_json" | python3 -c 'import json,sys; d=json.load(sys.stdin); print(json.dumps([c["name"] for c in d.get("promote",[]) if c.get("status")=="CHANGED"]))')"
 dropped_json="$(echo "$classify_json" | python3 -c 'import json,sys; d=json.load(sys.stdin); print(json.dumps([c["name"] for c in d.get("dropped",[])]))')"
 audit log "$run_id" classify candidates new="$new_json" changed="$changed_json" dropped="$dropped_json"
+audit log "$run_id" classify stage_end seconds=$((SECONDS - _t0))
 
 if [[ -z "$promote_names" ]]; then
     echo "Nothing to promote."
@@ -166,7 +167,7 @@ if [[ "$APPLY" != true ]]; then
 fi
 
 # 5. Stage a branch with one commit per skill, then open a PR.
-CUR_STAGE="promote"; echo "▸ promote…"
+CUR_STAGE="promote"; _t0=$SECONDS; echo "▸ promote…"
 audit log "$run_id" promote stage_start
 count="$(echo "$promote_names" | wc -w | tr -d ' ')"
 if [[ ! -d "$COMMITTED" ]]; then
@@ -193,6 +194,7 @@ pr_url="$("$GITOPS" pr-create --base "$PR_BASE" --head "$branch" \
     --label needs-review --label follow-up)"
 
 audit log "$run_id" promote pr_opened url="$pr_url"
+audit log "$run_id" promote stage_end seconds=$((SECONDS - _t0))
 echo "Opened review PR: $pr_url"
 RUN_DONE=true
 audit log "$run_id" "-" run_end state=done total_seconds=$SECONDS
