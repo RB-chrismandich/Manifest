@@ -80,19 +80,19 @@ TAIL
     refute_output --partial "{{ARTIFACTS}}"
 }
 
-_fake_gemini() {  # writes a stub gemini onto PATH inside SANDBOX
-    cat > "$SANDBOX/gemini" <<'STUB'
+_fake_reviewer() {  # writes a stub reviewer CLI named 'agy' into SANDBOX
+    cat > "$SANDBOX/agy" <<'STUB'
 #!/usr/bin/env bash
 cat >/dev/null   # consume stdin
 printf '⚠️  CLARIFICATION REQUIRED: Migration\n   ├─ Location: plan vs tasks\n   ├─ The Gap: zero-downtime vs destructive\n   ├─ Recommended Direction: split into 3 tasks\n   └─ Reason Why: locking violates the constraint\n'
 STUB
-    chmod +x "$SANDBOX/gemini"
+    chmod +x "$SANDBOX/agy"
 }
 
-@test "run_gemini pipes prompt through the injectable seam" {
-    _fake_gemini
+@test "run_reviewer pipes prompt through the injectable seam" {
+    _fake_reviewer
     source "$SCRIPT"
-    SPEC_REVIEW_GEMINI="$SANDBOX/gemini" run run_gemini "any prompt"
+    SPEC_REVIEW_CLI="$SANDBOX/agy" run run_reviewer "any prompt"
     assert_success
     assert_output --partial "CLARIFICATION REQUIRED: Migration"
 }
@@ -103,7 +103,7 @@ STUB
     assert_output --partial "CLARIFICATION REQUIRED: X"
 }
 
-@test "format_findings reports clean when gemini returns NO_ISSUES" {
+@test "format_findings reports clean when reviewer returns NO_ISSUES" {
     source "$SCRIPT"
     run format_findings "NO_ISSUES" "tree"
     assert_success
@@ -156,12 +156,12 @@ STUB
     run should_run_silent "$SANDBOX"; assert_success          # changed again
 }
 
-@test "on-demand review prints findings from the mocked gemini" {
-    _fake_gemini
+@test "on-demand review prints findings from the mocked reviewer" {
+    _fake_reviewer
     mkdir -p "$SANDBOX/specs/001"
     printf 's\n' > "$SANDBOX/specs/001/spec.md"
     printf 'p\n' > "$SANDBOX/specs/001/plan.md"
-    SPEC_REVIEW_GEMINI="$SANDBOX/gemini" SPEC_REVIEW_TEMPLATE="$REPO_ROOT/configs/claude/prompts/spec_review.md" \
+    SPEC_REVIEW_CLI="$SANDBOX/agy" SPEC_REVIEW_TEMPLATE="$REPO_ROOT/configs/claude/prompts/spec_review.md" \
         run bash "$SCRIPT" "$SANDBOX"
     assert_success
     assert_output --partial "CLARIFICATION REQUIRED: Migration"
@@ -174,11 +174,11 @@ STUB
 }
 
 @test "silent mode writes feedback file and exits 0 (inline via NO_DETACH)" {
-    _fake_gemini
+    _fake_reviewer
     mkdir -p "$SANDBOX/specs/001"
     printf 's\n' > "$SANDBOX/specs/001/spec.md"
     printf 'p\n' > "$SANDBOX/specs/001/plan.md"
-    SPEC_REVIEW_GEMINI="$SANDBOX/gemini" SPEC_REVIEW_NO_DETACH=1 \
+    SPEC_REVIEW_CLI="$SANDBOX/agy" SPEC_REVIEW_NO_DETACH=1 \
         SPEC_REVIEW_STATE="$SANDBOX/.spec-review" \
         SPEC_REVIEW_TEMPLATE="$REPO_ROOT/configs/claude/prompts/spec_review.md" \
         run bash "$SCRIPT" --silent "$SANDBOX"
@@ -188,12 +188,12 @@ STUB
     assert_output --partial "CLARIFICATION REQUIRED: Migration"
 }
 
-@test "silent mode fails open: non-zero gemini still exits 0" {
-    printf '#!/usr/bin/env bash\nexit 3\n' > "$SANDBOX/gemini"; chmod +x "$SANDBOX/gemini"
+@test "silent mode fails open: non-zero reviewer still exits 0" {
+    printf '#!/usr/bin/env bash\nexit 3\n' > "$SANDBOX/agy"; chmod +x "$SANDBOX/agy"
     mkdir -p "$SANDBOX/specs/001"
     printf 's\n' > "$SANDBOX/specs/001/spec.md"
     printf 'p\n' > "$SANDBOX/specs/001/plan.md"
-    SPEC_REVIEW_GEMINI="$SANDBOX/gemini" SPEC_REVIEW_NO_DETACH=1 \
+    SPEC_REVIEW_CLI="$SANDBOX/agy" SPEC_REVIEW_NO_DETACH=1 \
         SPEC_REVIEW_STATE="$SANDBOX/.spec-review" \
         SPEC_REVIEW_TEMPLATE="$REPO_ROOT/configs/claude/prompts/spec_review.md" \
         run bash "$SCRIPT" --silent "$SANDBOX"
@@ -201,11 +201,11 @@ STUB
 }
 
 @test "silent mode is a no-op on unchanged content (second run)" {
-    _fake_gemini
+    _fake_reviewer
     mkdir -p "$SANDBOX/specs/001"
     printf 's\n' > "$SANDBOX/specs/001/spec.md"
     printf 'p\n' > "$SANDBOX/specs/001/plan.md"
-    local env="SPEC_REVIEW_GEMINI=$SANDBOX/gemini SPEC_REVIEW_NO_DETACH=1 SPEC_REVIEW_STATE=$SANDBOX/.spec-review SPEC_REVIEW_TEMPLATE=$REPO_ROOT/configs/claude/prompts/spec_review.md"
+    local env="SPEC_REVIEW_CLI=$SANDBOX/agy SPEC_REVIEW_NO_DETACH=1 SPEC_REVIEW_STATE=$SANDBOX/.spec-review SPEC_REVIEW_TEMPLATE=$REPO_ROOT/configs/claude/prompts/spec_review.md"
     env $env bash "$SCRIPT" --silent "$SANDBOX"
     rm -f "$SANDBOX/.spec-review/feedback.md"
     env $env bash "$SCRIPT" --silent "$SANDBOX"   # unchanged -> skip, no rewrite
@@ -213,14 +213,14 @@ STUB
 }
 
 @test "silent mode self-heals a stale lock (older than 10 min)" {
-    _fake_gemini
+    _fake_reviewer
     mkdir -p "$SANDBOX/specs/001"
     printf 's\n' > "$SANDBOX/specs/001/spec.md"
     printf 'p\n' > "$SANDBOX/specs/001/plan.md"
     mkdir -p "$SANDBOX/.spec-review/.lock"
     # age the stale lock 20 minutes into the past
     touch -t "$(date -v-20M +%Y%m%d%H%M 2>/dev/null || date -d '20 min ago' +%Y%m%d%H%M)" "$SANDBOX/.spec-review/.lock"
-    SPEC_REVIEW_GEMINI="$SANDBOX/gemini" SPEC_REVIEW_NO_DETACH=1 \
+    SPEC_REVIEW_CLI="$SANDBOX/agy" SPEC_REVIEW_NO_DETACH=1 \
         SPEC_REVIEW_STATE="$SANDBOX/.spec-review" \
         SPEC_REVIEW_TEMPLATE="$REPO_ROOT/configs/claude/prompts/spec_review.md" \
         run bash "$SCRIPT" --silent "$SANDBOX"
@@ -260,25 +260,38 @@ STUB
 }
 
 @test "explicit --spec/--plan flags are used instead of auto-discovery" {
-    _fake_gemini
+    _fake_reviewer
     printf 's\n' > "$SANDBOX/myspec.md"
     printf 'p\n' > "$SANDBOX/myplan.md"
     # ROOT has no discoverable layout; only the explicit flags point at artifacts
-    SPEC_REVIEW_GEMINI="$SANDBOX/gemini" SPEC_REVIEW_TEMPLATE="$REPO_ROOT/configs/claude/prompts/spec_review.md" \
+    SPEC_REVIEW_CLI="$SANDBOX/agy" SPEC_REVIEW_TEMPLATE="$REPO_ROOT/configs/claude/prompts/spec_review.md" \
         run bash "$SCRIPT" --spec "$SANDBOX/myspec.md" --plan "$SANDBOX/myplan.md" "$SANDBOX"
     assert_success
     assert_output --partial "CLARIFICATION REQUIRED: Migration"
 }
 
 @test "clean message includes the artifact count" {
-    # gemini stub that reports no issues
-    printf '#!/usr/bin/env bash\ncat >/dev/null\nprintf NO_ISSUES\n' > "$SANDBOX/gemini"
-    chmod +x "$SANDBOX/gemini"
+    # reviewer stub that reports no issues
+    printf '#!/usr/bin/env bash\ncat >/dev/null\nprintf NO_ISSUES\n' > "$SANDBOX/agy"
+    chmod +x "$SANDBOX/agy"
     mkdir -p "$SANDBOX/specs/001"
     printf 's\n' > "$SANDBOX/specs/001/spec.md"
     printf 'p\n' > "$SANDBOX/specs/001/plan.md"
-    SPEC_REVIEW_GEMINI="$SANDBOX/gemini" SPEC_REVIEW_TEMPLATE="$REPO_ROOT/configs/claude/prompts/spec_review.md" \
+    SPEC_REVIEW_CLI="$SANDBOX/agy" SPEC_REVIEW_TEMPLATE="$REPO_ROOT/configs/claude/prompts/spec_review.md" \
         run bash "$SCRIPT" "$SANDBOX"
     assert_success
     assert_output --partial "No inconsistencies found across 2 artifacts"
+}
+
+@test "default reviewer is agy when SPEC_REVIEW_CLI is unset" {
+    # Put a stub named 'agy' on PATH; do NOT set SPEC_REVIEW_CLI.
+    _fake_reviewer                      # creates $SANDBOX/agy
+    mkdir -p "$SANDBOX/specs/001"
+    printf 's\n' > "$SANDBOX/specs/001/spec.md"
+    printf 'p\n' > "$SANDBOX/specs/001/plan.md"
+    PATH="$SANDBOX:$PATH" \
+        SPEC_REVIEW_TEMPLATE="$REPO_ROOT/configs/claude/prompts/spec_review.md" \
+        run bash "$SCRIPT" "$SANDBOX"
+    assert_success
+    assert_output --partial "CLARIFICATION REQUIRED: Migration"
 }
