@@ -153,13 +153,16 @@ def evolve(sessions_dir, evolved_dir, template_path, *,
 
     mapped: list[dict] = []
     start = time.monotonic()
+    prev_elapsed = 0.0
     for idx, chunk in enumerate(chunks, 1):
         out = runner(build_prompt(template, chunk, library))
         mapped.extend(parse_candidates(out))
         if audit_mod and run_id:
             elapsed = time.monotonic() - start
+            chunk_seconds = round(elapsed - prev_elapsed, 1)
+            prev_elapsed = elapsed
             audit_mod.log(run_id, "evolve", "chunk_done", i=idx, total=len(chunks),
-                          chunk_seconds=round(elapsed, 1), elapsed_s=round(elapsed, 1))
+                          chunk_seconds=chunk_seconds, elapsed_s=round(elapsed, 1))
             _, label = audit_mod.compute_eta(idx, len(chunks), elapsed)
             print("[skillclaw] evolve · chunk %d/%d · %s · %s"
                   % (idx, len(chunks), _fmt_elapsed(elapsed), label), file=sys.stderr)

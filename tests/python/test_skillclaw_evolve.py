@@ -158,3 +158,10 @@ def test_evolve_emits_chunk_events_to_status(tmp_path, monkeypatch):
     status = json.loads((tmp_path / "audit" / "status.json").read_text())
     assert status["evolve"]["total"] >= 2
     assert status["evolve"]["chunk"] == status["evolve"]["total"]  # last chunk recorded
+
+    chunk_events = [json.loads(ln) for ln in log_lines
+                    if json.loads(ln)["event"] == "chunk_done"]
+    for e in chunk_events:
+        assert e["chunk_seconds"] <= e["elapsed_s"] + 1e-9   # delta never exceeds cumulative
+    elapsed_values = [e["elapsed_s"] for e in chunk_events]
+    assert elapsed_values == sorted(elapsed_values)          # cumulative is monotonic
