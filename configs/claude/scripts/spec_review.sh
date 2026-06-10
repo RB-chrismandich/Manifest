@@ -7,7 +7,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SPEC_REVIEW_GEMINI="${SPEC_REVIEW_GEMINI:-gemini}"
+SPEC_REVIEW_CLI="${SPEC_REVIEW_CLI:-agy}"
 SPEC_REVIEW_TEMPLATE="${SPEC_REVIEW_TEMPLATE:-${SCRIPT_DIR}/../prompts/spec_review.md}"
 SPEC_REVIEW_STATE="${SPEC_REVIEW_STATE:-.spec-review}"
 SPEC_REVIEW_NO_DETACH="${SPEC_REVIEW_NO_DETACH:-}"
@@ -99,11 +99,11 @@ assemble_prompt() {
     return "$rc"
 }
 
-# run_gemini PROMPT -> raw gemini output. stdin carries the prompt body; the -p
+# run_reviewer PROMPT -> raw reviewer output. stdin carries the prompt body; the -p
 # instruction is short. Errors propagate (caller decides fail-open vs surface).
-run_gemini() {
+run_reviewer() {
     local prompt="$1"
-    printf '%s' "$prompt" | "$SPEC_REVIEW_GEMINI" -p "Cross-reference the artifacts above per the instructions; output only the specified blocks or NO_ISSUES."
+    printf '%s' "$prompt" | "$SPEC_REVIEW_CLI" -p "Cross-reference the artifacts above per the instructions; output only the specified blocks or NO_ISSUES."
 }
 
 # format_findings RAW FORMAT [COUNT] -> formatted output. NO_ISSUES -> clean
@@ -174,7 +174,7 @@ review() {
     if [[ "${#arts[@]}" -eq 0 ]]; then echo "spec-review: nothing to review (no artifacts found)"; return 0; fi
     echo "[spec-review] Cross-referencing project artifacts with Gemini…"
     local prompt raw; prompt="$(assemble_prompt "$SPEC_REVIEW_TEMPLATE" "${arts[@]}")"
-    raw="$(run_gemini "$prompt")"
+    raw="$(run_reviewer "$prompt")"
     format_findings "$raw" "$fmt" "${#arts[@]}"
 }
 
@@ -186,7 +186,7 @@ _silent_review_inline() {
     while IFS= read -r line; do [[ -n "$line" ]] && arts+=("$line"); done < <(discover_artifacts "$root")
     [[ "${#arts[@]}" -eq 0 ]] && return 0   # defensive: nothing to review (set -u safe)
     prompt="$(assemble_prompt "$SPEC_REVIEW_TEMPLATE" "${arts[@]}")"
-    if ! raw="$(run_gemini "$prompt" 2>>"$state/error.log")"; then
+    if ! raw="$(run_reviewer "$prompt" 2>>"$state/error.log")"; then
         return 0   # fail-open: gemini failed, never block
     fi
     format_findings "$raw" "tree" > "$state/feedback.md.tmp" && mv "$state/feedback.md.tmp" "$state/feedback.md"
