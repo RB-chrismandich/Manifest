@@ -3,23 +3,26 @@ name: skill-evolve
 description: |
   Turn SkillClaw's evolved skills into a reviewed PR into .skillshare/skills/.
   Dry-run by default (shows the diff table and makes no changes); --apply opens a
-  single review PR with one commit per skill. Requires the SkillClaw daemon
-  (enable via ./bootstrap.sh --enable-skillclaw). Never writes to the source of
-  truth directly — every change goes through PR review.
+  single review PR with one commit per skill. Requires SkillClaw enabled
+  (./bootstrap.sh --enable-skillclaw) and the claude CLI logged in (the evolve
+  engine). Never writes to the source of truth directly — every change goes
+  through PR review.
 ---
 
 # Evolve Skills (SkillClaw)
 
-Promote skills SkillClaw has evolved from captured CLI-agent sessions into the
-committed `.skillshare/skills/` library — gated behind PR review.
+Promote skills SkillClaw has evolved from your Claude Code session transcripts
+into the committed `.skillshare/skills/` library — gated behind PR review.
 
-Backed by `~/.claude/scripts/skillclaw_promote.sh`, which classifies evolved
-skills (NEW/CHANGED/UNCHANGED), drops any that fail `verify`/frontmatter checks,
-scrubs captured sessions of secrets, and opens one review PR per batch.
+Backed by `~/.claude/scripts/skillclaw_promote.sh`, which ingests your recent
+Claude Code transcripts (`~/.claude/projects/**/*.jsonl`), scrubs them of secrets,
+evolves `SKILL.md` candidates via `claude -p`, classifies them
+(NEW/CHANGED/UNCHANGED), drops any that fail frontmatter checks, and opens one
+review PR per batch. No proxy, no daemon — transcripts are read passively.
 
 ## When to use
 
-- After a stretch of work captured by the SkillClaw proxy, to harvest refined skills.
+- After a stretch of work, to harvest reusable skills from your recent Claude Code transcripts.
 - To review what SkillClaw would propose before committing anything (dry-run).
 
 ## Task
@@ -53,6 +56,9 @@ scrubs captured sessions of secrets, and opens one review PR per batch.
 
 ## Notes
 
-- If the daemon is down, capture simply didn't happen — fix it with
-  `/health-check` then `./bootstrap.sh --enable-skillclaw`. Nothing here mutates
-  `.skillshare/skills/` without a merged PR.
+- If evolve produces nothing, check that SkillClaw is enabled
+  (`./bootstrap.sh --enable-skillclaw`), the `claude` CLI is logged in, and there
+  are recent transcripts within the window (`window_days` in
+  `~/.claude/config/skillclaw.yml`). Rejected candidates land in
+  `~/.skillclaw/skills/rejected/`. Nothing here mutates `.skillshare/skills/`
+  without a merged PR.
