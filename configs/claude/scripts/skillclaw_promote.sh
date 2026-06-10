@@ -31,8 +31,19 @@ REJECTED="${SKILLCLAW_REJECTED:-$HOME/.skillclaw/skills/rejected}"
 # lives in ~/.claude/scripts, so locate the repo via MANIFEST_ROOT (exported by
 # bootstrap into the shell profile); fall back to repo-relative when run in-tree.
 COMMITTED="${SKILLCLAW_COMMITTED:-${MANIFEST_ROOT:-${SCRIPT_DIR}/../../..}/.skillshare/skills}"
+
+AUDIT="${SCRIPT_DIR}/skillclaw_audit.py"
+# Shared audit storage; evolve.py reads SKILLCLAW_AUDIT_DIR too (default ~/.skillclaw).
+export SKILLCLAW_AUDIT_DIR="${SKILLCLAW_AUDIT_DIR:-$HOME/.skillclaw}"
+audit() { python3 "$AUDIT" "$@" >/dev/null 2>&1 || true; }
+
 BRANCH_PREFIX="skillclaw/evolve-"
 PR_BASE="main"
+
+# Pipeline defaults — kept here so the audit log records the values the run
+# actually used (ingest's --window-days and evolve's --token-budget), not zeros.
+WINDOW_DAYS="${SKILLCLAW_WINDOW_DAYS:-30}"
+TOKEN_BUDGET="${SKILLCLAW_TOKEN_BUDGET:-100000}"
 
 APPLY=false; SKILL=""; DO_EVOLVE=true; FORCE_NEW=false
 
@@ -41,6 +52,7 @@ usage_error() { err "$*"; exit 2; }
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
+        --status) python3 "$AUDIT" status; exit 0 ;;
         --apply) APPLY=true; shift ;;
         --skill) [[ $# -ge 2 ]] || usage_error "--skill needs a name"; SKILL="$2"; shift 2 ;;
         --no-evolve) DO_EVOLVE=false; shift ;;
@@ -49,6 +61,18 @@ while [[ $# -gt 0 ]]; do
         *) usage_error "unexpected argument: $1" ;;
     esac
 done
+
+run_id="$(date -u +%Y%m%dT%H%M%SZ)-$$"
+RUN_DONE=false
+CUR_STAGE="startup"
+finalize() {
+    local ec=$?
+    if [[ "$RUN_DONE" != true ]]; then
+        audit log "$run_id" "$CUR_STAGE" run_error message="exit ${ec}"
+    fi
+}
+trap finalize EXIT
+audit log "$run_id" "-" run_start window_days="$WINDOW_DAYS" token_budget="$TOKEN_BUDGET" apply="$APPLY"
 
 # 0. Idempotency (Option A): one open evolve PR at a time.
 open_pr() {
@@ -69,25 +93,38 @@ fi
 
 # 1. Ingest transcripts → sessions (passive; no proxy).
 if [[ "$DO_EVOLVE" == true ]]; then
-    python3 "$INGEST" "$TRANSCRIPTS" "$SESSIONS" --state "$STATE" >/dev/null 2>&1 \
+    CUR_STAGE="ingest"; _t0=$SECONDS
+    echo "▸ ingest…"
+    audit log "$run_id" ingest stage_start
+    python3 "$INGEST" "$TRANSCRIPTS" "$SESSIONS" --state "$STATE" \
+        --window-days "$WINDOW_DAYS" >/dev/null 2>&1 \
         || err "ingest returned non-zero (continuing)"
+    audit log "$run_id" ingest stage_end seconds=$((SECONDS - _t0))
 fi
 
 # 2. Scrub captured sessions (best-effort; never blocks).
 if [[ -d "$SESSIONS" ]]; then
+    CUR_STAGE="scrub"; _t0=$SECONDS
+    echo "▸ scrub…"
+    audit log "$run_id" scrub stage_start
     python3 "${SCRIPT_DIR}/skillclaw_scrub.py" "$SESSIONS" >/dev/null 2>&1 || true
+    audit log "$run_id" scrub stage_end seconds=$((SECONDS - _t0))
 fi
 
-# 3. Evolve (skip with --no-evolve). Suppress its stdout summary (kept clean like
-# ingest); errors still surface on stderr and are reported below.
+# 3. Evolve (skip with --no-evolve). evolve.py logs its own stage_start/chunk_done.
 if [[ "$DO_EVOLVE" == true ]]; then
+    CUR_STAGE="evolve"
+    echo "▸ evolve…"
     python3 "$EVOLVE" "$SESSIONS" "$EVOLVED" --template "$TEMPLATE" \
-        --committed-dir "$COMMITTED" >/dev/null \
+        --committed-dir "$COMMITTED" --token-budget "$TOKEN_BUDGET" \
+        --run-id "$run_id" >/dev/null \
         || err "evolve returned non-zero (continuing)"
 fi
 
 # 4. Classify + validate. A crash here (empty/non-JSON output) must fail loudly,
 # not abort cryptically under `set -e`, so guard the capture explicitly.
+CUR_STAGE="classify"; _t0=$SECONDS; echo "▸ classify…"
+audit log "$run_id" classify stage_start
 classify_args=("$EVOLVED" "$COMMITTED" --rejected-dir "$REJECTED")
 [[ -n "$SKILL" ]] && classify_args+=(--skill "$SKILL")
 classify_json="$(python3 "${SCRIPT_DIR}/skillclaw_promote.py" "${classify_args[@]}")" \
@@ -114,18 +151,33 @@ fi
 
 promote_names="$(echo "$classify_json" | python3 -c 'import json,sys; print(" ".join(c["name"] for c in json.load(sys.stdin).get("promote", [])))')"
 
+# Structured candidate record (names only for promoted; dropped also carries its
+# schema-validation reason — never session content). The reason aids debugging and
+# matches the design doc's dropped-candidate schema ({name, reason}).
+new_json="$(echo "$classify_json" | python3 -c 'import json,sys; d=json.load(sys.stdin); print(json.dumps([c["name"] for c in d.get("promote",[]) if c.get("status")=="NEW"]))')"
+changed_json="$(echo "$classify_json" | python3 -c 'import json,sys; d=json.load(sys.stdin); print(json.dumps([c["name"] for c in d.get("promote",[]) if c.get("status")=="CHANGED"]))')"
+dropped_json="$(echo "$classify_json" | python3 -c 'import json,sys; d=json.load(sys.stdin); print(json.dumps([{"name": c["name"], "reason": c.get("reason", "")} for c in d.get("dropped",[])]))')"
+audit log "$run_id" classify candidates new="$new_json" changed="$changed_json" dropped="$dropped_json"
+audit log "$run_id" classify stage_end seconds=$((SECONDS - _t0))
+
 if [[ -z "$promote_names" ]]; then
     echo "Nothing to promote."
+    RUN_DONE=true
+    audit log "$run_id" "-" run_end state=done total_seconds=$SECONDS
     exit 0
 fi
 
 if [[ "$APPLY" != true ]]; then
     echo ""
     echo "Dry run — re-run with --apply to open a review PR."
+    RUN_DONE=true
+    audit log "$run_id" "-" run_end state=done total_seconds=$SECONDS
     exit 0
 fi
 
 # 5. Stage a branch with one commit per skill, then open a PR.
+CUR_STAGE="promote"; _t0=$SECONDS; echo "▸ promote…"
+audit log "$run_id" promote stage_start
 count="$(echo "$promote_names" | wc -w | tr -d ' ')"
 if [[ ! -d "$COMMITTED" ]]; then
     err "committed skills dir not found: $COMMITTED"
@@ -150,4 +202,9 @@ pr_url="$("$GITOPS" pr-create --base "$PR_BASE" --head "$branch" \
     --title "SkillClaw: evolve ${count} skill(s)" --body "$body" \
     --label needs-review --label follow-up)"
 
+audit log "$run_id" promote pr_opened url="$pr_url"
+audit log "$run_id" promote stage_end seconds=$((SECONDS - _t0))
 echo "Opened review PR: $pr_url"
+RUN_DONE=true
+audit log "$run_id" "-" run_end state=done total_seconds=$SECONDS
+audit trim
