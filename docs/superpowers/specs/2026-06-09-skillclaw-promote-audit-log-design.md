@@ -7,6 +7,11 @@
 **Date**: 2026-06-09
 **Status**: Approved (design) — pending implementation plan
 **Audience**: Manifest maintainers
+**Reviewed by**: `agy` (Antigravity CLI) independent design review — 7 findings
+(4 important, 3 minor) verified and incorporated: stateless ETA via cumulative
+`elapsed_s`, stale-`running` finalization (trap + pid-liveness), per-run status
+reset (no state bleed), atomic `trim`, `compute_eta` bounds guards, storage
+auto-init, and `${SCRIPT_DIR}`-relative invocation.
 
 ---
 
@@ -64,19 +69,34 @@ the shell orchestrator and the Python evolver write through it.
 
 - **`configs/claude/scripts/skillclaw_audit.py`** — the logger + status engine.
   - `log(run_id, stage, event, **fields)` — append one JSONL line to
-    `~/.skillclaw/promote.log` **and** merge the live `~/.skillclaw/status.json`.
+    `~/.skillclaw/promote.log` **and** update `~/.skillclaw/status.json`. A
+    `run_start` event — or any event whose `run_id` differs from the one currently
+    in `status.json` — **initializes a fresh status structure instead of merging**,
+    so a new run can never inherit the prior run's `pr_url`, totals, or evolve
+    metrics (no state bleed). All other events merge into the current run's snapshot.
   - `compute_eta(chunks_done, chunks_total, elapsed_s) -> (eta_s|None, label)` —
-    `i<2 → (None, "estimating…")`; `i≥2 → ((total-i)*elapsed/i, "~Nm left (est)")`.
+    returns `(None, "estimating…")` when inputs are insufficient or invalid
+    (`chunks_done < 2`, `chunks_total <= chunks_done`, or any non-positive), else
+    `((total-done)*elapsed/done, "~Nm left (est)")`. The guards prevent
+    negative/div-by-zero ETAs from corrupt or out-of-order status.
   - `render_status() -> str` — human one-glance summary for `--status`
-    (running / done / failed / none).
+    (running / done / failed / none). **Liveness:** if `state=="running"` but the
+    pid embedded in `run_id` is no longer alive, render as `stale` — a crash or
+    Ctrl-C that skipped finalization must never show as a phantom running run.
   - `trim(max_runs=50)` — keep only events for the most recent `max_runs`
-    `run_id`s in `promote.log`.
+    `run_id`s in `promote.log`. **Atomic:** writes filtered lines to
+    `promote.log.tmp` then `os.replace()` over `promote.log`, so an interrupt or
+    full disk during trim can't corrupt or lose the audit history.
+  - **Storage init:** ensures `~/.skillclaw/` exists (`mkdir -p` + `chmod 700`)
+    before writing, so a fresh install with no dir doesn't silently log nothing.
   - **Fail-open:** every public function wraps its I/O so an error (unwritable
-    dir, full disk, malformed merge) is swallowed and returns cleanly — it can
+    dir, full disk, malformed status) is swallowed and returns cleanly — it can
     never raise into the pipeline.
-  - CLI entry so the shell can call it: `skillclaw_audit.py log …`,
-    `skillclaw_audit.py status`, `skillclaw_audit.py trim`.
-  - Files created `chmod 600` under `~/.skillclaw/` (already `700`).
+  - CLI entry, **always invoked as `python3 "${SCRIPT_DIR}/skillclaw_audit.py"
+    <cmd>`** from promote.sh (matching the repo's `${SCRIPT_DIR}/skillclaw_*.py`
+    convention — never bare on `PATH`): `log …`, `status`, `trim`.
+  - `status.json` and `promote.log` written `chmod 600`; `status.json` via `.tmp`
+    + atomic rename (safe concurrent reads under `~/.skillclaw/`, already `700`).
 
 ### Modified
 
@@ -92,16 +112,24 @@ the shell orchestrator and the Python evolver write through it.
   - Pass `run_id` to `skillclaw_evolve.py`.
   - New **`--status`** flag → `skillclaw_audit.py status` and exit 0.
   - Call `skillclaw_audit.py trim` once per run.
+  - **Finalization trap:** install a `trap` on `EXIT`/`INT`/`TERM` that, if the run
+    hasn't already logged `run_end`, logs `run_error` (stage = wherever it died)
+    and finalizes `status.json` to `failed` — so a crash, Ctrl-C, or `set -e` exit
+    never leaves a phantom `running` status. (Complements the
+    `render_status` pid-liveness check as belt-and-suspenders.)
 
 - **`configs/claude/scripts/skillclaw_evolve.py`**
   - Accept `--run-id` (and audit path override for tests).
-  - In the existing map-reduce loop, after each chunk completes, record the
-    chunk's wall-clock seconds and call the audit logger with a `chunk_done`
-    event (`i`, `total`, `chunk_seconds`); the logger updates `status.json`
-    (stage=evolve, chunk i/N, elapsed, eta) and the evolver prints one live
-    progress line to stderr: `[skillclaw] evolve · chunk 4/12 · 1m00s · ~2m left (est)`.
-  - Time is real wall-clock (`time.monotonic()`); the evolver already has the
-    chunk list, so `total` is known up front.
+  - In the existing map-reduce loop, after each chunk completes, call the audit
+    logger with a `chunk_done` event carrying `i`, `total`, this chunk's
+    `chunk_seconds`, **and the cumulative `elapsed_s` since the evolve stage
+    started** (so the ETA is computed statelessly from the event itself, not from
+    re-deriving cumulative time inside the logger). The logger updates
+    `status.json` (stage=evolve, chunk i/N, elapsed, eta) and the evolver prints
+    one live progress line to stderr:
+    `[skillclaw] evolve · chunk 4/12 · 1m00s · ~2m left (est)`.
+  - Time is real wall-clock (`time.monotonic()`), accumulated across chunks; the
+    evolver already has the chunk list, so `total` is known up front.
 
 ## Artifact schemas
 
@@ -115,7 +143,7 @@ Event sequence per run:
 {"ts":"…","run_id":"…","stage":"ingest","event":"stage_start"}
 {"ts":"…","run_id":"…","stage":"ingest","event":"stage_end","ingested":12,"skipped":459,"seconds":3.1}
 {"ts":"…","run_id":"…","stage":"evolve","event":"stage_start","chunks":12}
-{"ts":"…","run_id":"…","stage":"evolve","event":"chunk_done","i":1,"total":12,"chunk_seconds":14.2}
+{"ts":"…","run_id":"…","stage":"evolve","event":"chunk_done","i":1,"total":12,"chunk_seconds":14.2,"elapsed_s":14.2}
 …
 {"ts":"…","run_id":"…","stage":"classify","event":"candidates","new":["a"],"changed":["b"],"dropped":[{"name":"c","reason":"…"}]}
 {"ts":"…","run_id":"…","stage":"promote","event":"pr_opened","url":"https://…/pull/NNN"}
@@ -165,16 +193,23 @@ while preserving a meaningful history. `status.json` is a single snapshot
 
 ## Testing
 
-- **pytest `test_skillclaw_audit.py`:** `log()` appends a JSONL line and merges
-  `status.json`; `compute_eta` (`i<2 → estimating…`; `i≥2 → (total-i)*elapsed/i`);
-  `render_status` (running / done / none); `trim` keeps only the last N run_ids;
-  **fail-open** (unwritable path → returns cleanly, no raise, pipeline-safe).
+- **pytest `test_skillclaw_audit.py`:** `log()` appends a JSONL line and updates
+  `status.json`; **`run_start`/changed-`run_id` resets the snapshot** (prior
+  `pr_url`/metrics do not bleed in); `compute_eta` (`done<2 → estimating…`;
+  `total<=done` or non-positive → `estimating…`; else `(total-done)*elapsed/done`);
+  `render_status` (running / done / none / **`stale` when the run_id pid is
+  dead**); `trim` keeps only the last N run_ids **and writes atomically** (a
+  simulated mid-trim failure leaves the original log intact); **storage init**
+  (`mkdir -p` + 700 when the dir is absent); **fail-open** (unwritable path →
+  returns cleanly, no raise, pipeline-safe).
 - **pytest `test_skillclaw_evolve.py` (extend):** with the injectable runner + a
   temp audit dir, the map-reduce loop emits one `chunk_done` per chunk and
   `status.json` reflects the correct `chunk`/`total`.
 - **bats `skillclaw_promote.bats` (extend):** `run_id` minted and present in
   `promote.log`; `--status` renders from a seeded `status.json`; stage events are
-  logged; an **unwritable audit path does not abort** the run (exit 0).
+  logged; the **finalization trap logs `run_error` + sets `status.json` failed**
+  on a simulated mid-run interrupt; an **unwritable audit path does not abort**
+  the run (exit 0).
 - **shellcheck** clean; `promote.log` lines and `status.json` are valid JSON.
 
 ## Risks & mitigations
@@ -185,6 +220,10 @@ while preserving a meaningful history. `status.json` is a single snapshot
 | ETA misleads on high per-chunk variance | Labeled `(est)`; suppressed (`estimating…`) until ≥2 chunks; only evolve predicts |
 | Log grows unbounded | `trim` to last ~50 runs each run |
 | Concurrent reads of `status.json` mid-write | Write to `status.json.tmp` then atomic `mv` (same pattern as spec-review feedback) |
+| Crash/Ctrl-C leaves a phantom `running` status | `trap` finalizes status on EXIT/INT/TERM + `render_status` pid-liveness check reports `stale` |
+| New run inherits prior run's status fields (state bleed) | `run_start` / changed `run_id` initializes a fresh `status.json`, never merges across runs |
+| `trim` rewrite corrupts the log on interrupt | Atomic `promote.log.tmp` + `os.replace()` |
+| `compute_eta` produces negative/div-zero on corrupt status | Guards: `done≥2`, `total>done`, all positive — else `estimating…` |
 | Secrets leaking into the log | Log records counts/names/timings/URLs only — never session content; evolve inputs are already scrubbed upstream |
 
 ## Follow-ups (not in V1)
