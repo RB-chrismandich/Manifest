@@ -10,6 +10,13 @@ All notable changes are documented here in reverse chronological order.
 
 ## [Unreleased]
 
+### Added
+- **SkillClaw promote audit log + live status/ETA** — new `skillclaw_audit.py`
+  writes an append-only `~/.skillclaw/promote.log` (JSONL history, self-trimmed to
+  ~50 runs) and a live `status.json` snapshot. `skillclaw_promote.sh --status`
+  reports where a run is and a rough ETA; the evolve stage prints per-chunk
+  progress. Fail-open: audit I/O never blocks a promote run.
+
 ## [2026-05]
 
 ### Added
