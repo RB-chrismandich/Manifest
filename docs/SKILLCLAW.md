@@ -73,6 +73,33 @@ exists, `--apply` aborts with a message. Review or merge it first, or pass
 
 `/skill-evolve` is the Claude Code skill entry point for this flow.
 
+## Audit log + live status
+
+Each `skillclaw_promote` run writes two best-effort artifacts under `~/.skillclaw/`
+(fail-open — audit I/O never aborts or delays a run):
+
+- **`promote.log`** — append-only JSONL audit history (one event per line:
+  `run_start`, `stage_start`/`stage_end`, `chunk_done`, `candidates`, `pr_opened`,
+  `run_end`/`run_error`). Self-trims to the most recent ~50 runs.
+- **`status.json`** — overwritten snapshot of the current/last run plus a rough,
+  explicitly-labeled ETA (only the evolve stage predicts, and only once ≥2 chunks
+  complete; before that it shows `estimating…`).
+
+During a run the evolve stage prints a live per-chunk line to stderr, e.g.
+`[skillclaw] evolve · chunk 4/12 · 1m00s · ~2m left (est)`.
+
+Query the latest run at any time:
+
+```bash
+skillclaw_promote.sh --status
+# run 20260609T2305 · evolve · chunk 4/12 · 1m00s elapsed · ~2m left (est)
+# last run: done · 3 candidates · PR https://…/pull/7 · 4m12s
+# no recent run
+```
+
+The log records counts, names, timings, and URLs only — never session content
+(evolve inputs are already scrubbed upstream).
+
 ## Security
 
 - Storage `~/.skillclaw/` and its subdirectories (`sessions/`, `skills/`) are
