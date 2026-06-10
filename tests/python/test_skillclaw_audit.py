@@ -223,3 +223,32 @@ def test_cli_status_and_trim(tmp_path, monkeypatch, capsys):
     assert audit.main(["status"]) == 0
     assert capsys.readouterr().out.strip() == "no recent run"
     assert audit.main(["trim", "--max-runs", "10"]) == 0   # no log yet -> no-op, rc 0
+
+
+def test_cli_log_bare_key_is_silently_dropped(tmp_path, monkeypatch):
+    # A field passed without `=` (e.g. `apply` instead of `apply=true`) is dropped,
+    # never raised — the shell must never get a nonzero from a typo'd audit call.
+    monkeypatch.setenv("SKILLCLAW_AUDIT_DIR", str(tmp_path))
+    rc = audit.main(["log", "run-1", "-", "run_start", "apply", "window_days=30"])
+    assert rc == 0
+    status = json.loads((tmp_path / "status.json").read_text())
+    assert status.get("config", {}).get("window_days") == 30   # good pair kept
+    assert "apply" not in status.get("config", {})             # bare key dropped
+
+
+def test_cli_trim_non_int_max_runs_falls_back(tmp_path, monkeypatch):
+    monkeypatch.setenv("SKILLCLAW_AUDIT_DIR", str(tmp_path))
+    for i in range(3):
+        audit.log("run-%d" % i, "-", "run_start")
+    rc = audit.main(["trim", "--max-runs", "notanint"])        # bad value -> default
+    assert rc == 0
+    rids = {json.loads(ln)["run_id"]
+            for ln in (tmp_path / "promote.log").read_text().splitlines()}
+    assert rids == {"run-0", "run-1", "run-2"}                 # default 50 keeps all
+
+
+def test_cli_log_with_too_few_args_is_noop(tmp_path, monkeypatch):
+    monkeypatch.setenv("SKILLCLAW_AUDIT_DIR", str(tmp_path))
+    rc = audit.main(["log", "run-1"])                          # <3 positional -> no-op
+    assert rc == 0
+    assert not (tmp_path / "promote.log").exists()             # nothing written
