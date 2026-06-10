@@ -23,3 +23,15 @@ def test_compute_eta_linear_projection():
     eta_s, label = audit.compute_eta(4, 12, 60)
     assert eta_s == 120
     assert label == "~2m left (est)"
+
+
+def test_compute_eta_sub_minute_rounds_up_to_one_minute():
+    # 3 of 4 chunks done in 4s -> eta 1.33s, intentionally labelled ~1m (rough).
+    eta_s, label = audit.compute_eta(3, 4, 4)
+    assert eta_s < 60
+    assert label == "~1m left (est)"
+
+
+def test_compute_eta_non_numeric_inputs_estimate_safely():
+    assert audit.compute_eta(None, 12, 60) == (None, "estimating…")
+    assert audit.compute_eta(4, "twelve", 60) == (None, "estimating…")
