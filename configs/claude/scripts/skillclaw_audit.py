@@ -56,14 +56,21 @@ def _ensure_storage() -> Path:
 
 
 def _write_atomic(path: Path, data: str) -> None:
-    """Write via a .tmp sibling + os.replace so concurrent reads never see a torn file."""
-    tmp = path.with_suffix(path.suffix + ".tmp")
-    tmp.write_text(data, encoding="utf-8")
+    """Write via a unique .tmp sibling + os.replace so concurrent readers never
+    see a torn file and two writers never collide on the same tmp name."""
+    tmp = path.parent / ("%s.%d.tmp" % (path.name, os.getpid()))
     try:
-        os.chmod(tmp, 0o600)
-    except OSError:
-        pass
-    os.replace(tmp, path)
+        tmp.write_text(data, encoding="utf-8")
+        try:
+            os.chmod(tmp, 0o600)
+        except OSError:
+            pass
+        os.replace(tmp, path)
+    finally:
+        try:
+            tmp.unlink()
+        except OSError:
+            pass
 
 
 def compute_eta(chunks_done, chunks_total, elapsed_s):
@@ -77,6 +84,8 @@ def compute_eta(chunks_done, chunks_total, elapsed_s):
         if chunks_done < 2 or chunks_total <= chunks_done or elapsed_s <= 0:
             return (None, "estimating…")
         eta_s = (chunks_total - chunks_done) * (elapsed_s / chunks_done)
+        # Deliberately minute-granular and rough: any sub-minute ETA rounds up to
+        # "~1m left (est)" — the label is an explicit estimate, not a countdown.
         return (eta_s, "~%dm left (est)" % max(1, round(eta_s / 60)))
     except (TypeError, ValueError):
         return (None, "estimating…")
