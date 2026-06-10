@@ -16,10 +16,25 @@ import json
 import re
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 DEFAULT_TOKEN_BUDGET = 100_000
 _SKILL_RE = re.compile(r"~~~skill name=(?P<name>[^\n]+)\n(?P<body>.*?)~~~", re.DOTALL)
+
+
+def _load_audit():
+    """Import the audit logger lazily; return None if unavailable (fail-open)."""
+    try:
+        import skillclaw_audit
+        return skillclaw_audit
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _fmt_elapsed(s: float) -> str:
+    s = int(round(s))
+    return "%dm%02ds" % (s // 60, s % 60) if s >= 60 else "%ds" % s
 
 
 def estimate_tokens(text: str) -> int:
@@ -117,7 +132,8 @@ def _library_names(skills_dir: Path) -> list[str]:
 
 
 def evolve(sessions_dir, evolved_dir, template_path, *,
-           committed_dir=None, token_budget=DEFAULT_TOKEN_BUDGET, runner=subprocess_runner) -> dict:
+           committed_dir=None, token_budget=DEFAULT_TOKEN_BUDGET, runner=subprocess_runner,
+           run_id=None, audit=None) -> dict:
     """Map-reduce sessions into SKILL.md candidates. Returns a summary dict.
 
     The prompt's "existing library" is the committed library (committed_dir) so
@@ -131,10 +147,22 @@ def evolve(sessions_dir, evolved_dir, template_path, *,
         return {"candidates": 0, "chunks": 0, "written": []}
 
     chunks = chunk_sessions(sessions, token_budget)
+    audit_mod = audit if audit is not None else (_load_audit() if run_id else None)
+    if audit_mod and run_id:
+        audit_mod.log(run_id, "evolve", "stage_start", chunks=len(chunks))
+
     mapped: list[dict] = []
-    for chunk in chunks:
+    start = time.monotonic()
+    for idx, chunk in enumerate(chunks, 1):
         out = runner(build_prompt(template, chunk, library))
         mapped.extend(parse_candidates(out))
+        if audit_mod and run_id:
+            elapsed = time.monotonic() - start
+            audit_mod.log(run_id, "evolve", "chunk_done", i=idx, total=len(chunks),
+                          chunk_seconds=round(elapsed, 1), elapsed_s=round(elapsed, 1))
+            _, label = audit_mod.compute_eta(idx, len(chunks), elapsed)
+            print("[skillclaw] evolve · chunk %d/%d · %s · %s"
+                  % (idx, len(chunks), _fmt_elapsed(elapsed), label), file=sys.stderr)
 
     # reduce: dedupe by name (last write wins); a single chunk skips a 2nd call
     if len(chunks) > 1 and mapped:
@@ -155,10 +183,13 @@ def main(argv: list[str]) -> int:
     ap.add_argument("--committed-dir",
                     help="committed skill library shown to the model (avoids re-proposals)")
     ap.add_argument("--token-budget", type=int, default=DEFAULT_TOKEN_BUDGET)
+    ap.add_argument("--run-id", default=None,
+                    help="audit run id; enables per-chunk status logging")
     args = ap.parse_args(argv)
     try:
         summary = evolve(args.sessions_dir, args.evolved_dir, args.template,
-                         committed_dir=args.committed_dir, token_budget=args.token_budget)
+                         committed_dir=args.committed_dir, token_budget=args.token_budget,
+                         run_id=args.run_id)
     except (RuntimeError, FileNotFoundError) as e:
         print(f"skillclaw_evolve: {e}", file=sys.stderr)
         return 1
