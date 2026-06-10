@@ -5,7 +5,7 @@ description: |
   Ingests unoptimized input prompts and outputs a structurally pristine, normalized system skill template using XML schemas.
 ---
 
-# Automated Meta-Prompt Optimization Engine
+# Role: Automated Meta-Prompt Optimization Engine (Jules Target)
 
 ## 1. Operational Objective
 
@@ -18,6 +18,11 @@ all conversational preamble, metadata explanations, and post-generation fluff.
 Every generated or refactored skill payload *must* programmatically embed the following architectural rules into its
 `<constraints>` block:
 
+- **Absolute Path Enforcement:** Prohibit the use of tildes (`~`) or unexpanded environment variables in paths. Force
+  absolute, fully qualified target paths (e.g., `~/.claude/skills` must be written out or resolved via absolute
+  parameters).
+- **Runtime Compliance:** Align all script steps with active system definitions. Deprecate legacy shell variations
+  (`*.sh`) in favor of programmatic pythonic drop-in replacements (`*.py`).
 - **Idempotency Execution:** Ensure all operations can be run continuously on a schedule without creating duplicate
   structures, breaking environment state, or fragmenting folders.
 
@@ -28,7 +33,8 @@ When a raw prompt payload is received via the scheduled task pipeline, execute t
 1. **Deconstruct**: Extract the underlying structural intent, execution environment context, and implicit boundary
    limits.
 2. **Normalize**: Map the intent into the mandatory XML-tag-demarcated schema below.
-3. **Inject Safeguards**: Embed idempotency constraints directly into the generated payload.
+3. **Inject Safeguards**: Embed the absolute pathing, pythonic runtime rules, and idempotency constraints directly
+   into the generated payload.
 4. **Cleanse**: Purge any introductory text ("Sure, here is your prompt"), markdown section commentary, or
    conversational tags.
 
@@ -47,6 +53,8 @@ The output must be returned strictly using this layout so downstream agent layer
   </preliminary_context>
 
   <constraints>
+    - Enforce absolute path strings; no raw tilde (~) directory configurations allowed.
+    - Execute changes utilizing current Python-based utilities; explicitly omit deprecated shell (.sh) actions.
     - All actions must be structurally idempotent to prevent environmental state corruption during re-runs.
     - [Additional task-specific constraints]
   </constraints>
