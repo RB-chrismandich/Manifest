@@ -182,6 +182,8 @@ def _fmt_secs(s):
         s = int(round(float(s)))
     except (TypeError, ValueError):
         return "?"
+    if s < 0:
+        return "?"
     return "%dm%02ds" % (s // 60, s % 60) if s >= 60 else "%ds" % s
 
 
@@ -209,15 +211,17 @@ def render_status():
             return "run %s · stale (no live process)" % short
         if state == FAILED:
             return "last run: failed · stage %s" % st.get("error_stage", "?")
-        tot = st.get("totals", {})
-        parts = ["last run: done"]
-        if tot.get("candidates") is not None:
-            parts.append("%s candidates" % tot["candidates"])
-        if st.get("pr_url"):
-            parts.append("PR %s" % st["pr_url"])
-        if st.get("total_seconds") is not None:
-            parts.append(_fmt_secs(st["total_seconds"]))
-        return " · ".join(parts)
+        if state == DONE:
+            tot = st.get("totals", {})
+            parts = ["last run: done"]
+            if tot.get("candidates") is not None:
+                parts.append("%s candidates" % tot["candidates"])
+            if st.get("pr_url"):
+                parts.append("PR %s" % st["pr_url"])
+            if st.get("total_seconds") is not None:
+                parts.append(_fmt_secs(st["total_seconds"]))
+            return " · ".join(parts)
+        return "no recent run"
     except Exception:  # noqa: BLE001 - fail-open
         return "no recent run"
 

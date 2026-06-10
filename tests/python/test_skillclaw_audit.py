@@ -155,3 +155,14 @@ def test_render_status_done_summary(tmp_path, monkeypatch):
     audit.log(rid, "-", "run_end", state="done", total_seconds=252.4)
     out = audit.render_status()
     assert "done" in out and "3 candidates" in out and "PR https://x/pull/7" in out
+
+
+def test_fmt_secs_negative_is_unknown():
+    assert audit._fmt_secs(-5) == "?"
+    assert audit._fmt_secs(None) == "?"
+
+
+def test_render_status_unknown_state_is_not_mislabeled_done(tmp_path, monkeypatch):
+    monkeypatch.setenv("SKILLCLAW_AUDIT_DIR", str(tmp_path))
+    (tmp_path / "status.json").write_text('{"run_id": "r-1", "state": "aborted"}')
+    assert audit.render_status() == "no recent run"
