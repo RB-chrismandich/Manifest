@@ -184,7 +184,9 @@ sync_linear_label() {
         return 0
     fi
 
-    if bash "${SCRIPT_DIR}/linear_ops.sh" label-create --name "$name" --color "$color" --description "$description" "${team_args[@]}" 2> /dev/null; then
+    # ${arr[@]+"${arr[@]}"} expands to nothing when the array is empty — required
+    # because macOS Bash 3.2 treats "${empty[@]}" as an unbound var under `set -u`.
+    if bash "${SCRIPT_DIR}/linear_ops.sh" label-create --name "$name" --color "$color" --description "$description" ${team_args[@]+"${team_args[@]}"} 2> /dev/null; then
         echo -e "  ${GREEN}[created]${NC} ${name} (${color}) on Linear"
         CREATED=$((CREATED + 1))
     else
