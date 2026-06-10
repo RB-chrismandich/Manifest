@@ -96,3 +96,4 @@ python3 -c "import yaml; yaml.safe_load(open('configs/claude/config/command_conf
 | Gemini guide | `configs/gemini/GEMINI.md` |
 | Bootstrap | `bootstrap.sh` + `bootstrap/lib/` |
 | Tests | `tests/bats/`, `tests/python/` |
+| Spec/plan systems map | `docs/SPEC-SYSTEMS.md` (speckit vs superpowers vs .plans vs .Jules) |

@@ -1,5 +1,10 @@
 # Shell Script Analysis Report
 
+> **[ARCHIVED 2026-06-10]** This report analyzes `parallel_agent.sh`, which was
+> retired in 2026-05 (PR #257) in favor of `parallel_agent.py`. Kept for
+> historical reference only — see `configs/claude/scripts/` for current tooling
+> and CI (`shellcheck` at warning severity) for live analysis.
+
 > Automated analysis of Bash scripts and YAML configuration files
 
 **Date:** 2026-01-27
