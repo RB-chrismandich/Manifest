@@ -143,13 +143,14 @@ def evolve(sessions_dir, evolved_dir, template_path, *,
     sessions = load_sessions(sessions_dir)
     template = Path(template_path).expanduser().read_text(encoding="utf-8")
     library = _library_names(committed_dir if committed_dir is not None else evolved_dir)
-    if not sessions:
-        return {"candidates": 0, "chunks": 0, "written": []}
-
     chunks = chunk_sessions(sessions, token_budget)
+    # Emit stage_start before the empty-sessions short-circuit so --status reflects
+    # that evolve ran (and skipped) rather than showing a stale prior stage.
     audit_mod = audit if audit is not None else (_load_audit() if run_id else None)
     if audit_mod and run_id:
         audit_mod.log(run_id, "evolve", "stage_start", chunks=len(chunks))
+    if not sessions:
+        return {"candidates": 0, "chunks": 0, "written": []}
 
     mapped: list[dict] = []
     start = time.monotonic()

@@ -40,6 +40,11 @@ audit() { python3 "$AUDIT" "$@" >/dev/null 2>&1 || true; }
 BRANCH_PREFIX="skillclaw/evolve-"
 PR_BASE="main"
 
+# Pipeline defaults — kept here so the audit log records the values the run
+# actually used (ingest's --window-days and evolve's --token-budget), not zeros.
+WINDOW_DAYS="${SKILLCLAW_WINDOW_DAYS:-30}"
+TOKEN_BUDGET="${SKILLCLAW_TOKEN_BUDGET:-100000}"
+
 APPLY=false; SKILL=""; DO_EVOLVE=true; FORCE_NEW=false
 
 err() { echo "skillclaw-promote: $*" >&2; }
@@ -67,7 +72,7 @@ finalize() {
     fi
 }
 trap finalize EXIT
-audit log "$run_id" "-" run_start window_days=0 token_budget=0 apply="$APPLY"
+audit log "$run_id" "-" run_start window_days="$WINDOW_DAYS" token_budget="$TOKEN_BUDGET" apply="$APPLY"
 
 # 0. Idempotency (Option A): one open evolve PR at a time.
 open_pr() {
@@ -91,7 +96,8 @@ if [[ "$DO_EVOLVE" == true ]]; then
     CUR_STAGE="ingest"; _t0=$SECONDS
     echo "▸ ingest…"
     audit log "$run_id" ingest stage_start
-    python3 "$INGEST" "$TRANSCRIPTS" "$SESSIONS" --state "$STATE" >/dev/null 2>&1 \
+    python3 "$INGEST" "$TRANSCRIPTS" "$SESSIONS" --state "$STATE" \
+        --window-days "$WINDOW_DAYS" >/dev/null 2>&1 \
         || err "ingest returned non-zero (continuing)"
     audit log "$run_id" ingest stage_end seconds=$((SECONDS - _t0))
 fi
@@ -110,7 +116,8 @@ if [[ "$DO_EVOLVE" == true ]]; then
     CUR_STAGE="evolve"
     echo "▸ evolve…"
     python3 "$EVOLVE" "$SESSIONS" "$EVOLVED" --template "$TEMPLATE" \
-        --committed-dir "$COMMITTED" --run-id "$run_id" >/dev/null \
+        --committed-dir "$COMMITTED" --token-budget "$TOKEN_BUDGET" \
+        --run-id "$run_id" >/dev/null \
         || err "evolve returned non-zero (continuing)"
 fi
 
@@ -144,10 +151,12 @@ fi
 
 promote_names="$(echo "$classify_json" | python3 -c 'import json,sys; print(" ".join(c["name"] for c in json.load(sys.stdin).get("promote", [])))')"
 
-# Structured candidate record (names only — never session content).
+# Structured candidate record (names only for promoted; dropped also carries its
+# schema-validation reason — never session content). The reason aids debugging and
+# matches the design doc's dropped-candidate schema ({name, reason}).
 new_json="$(echo "$classify_json" | python3 -c 'import json,sys; d=json.load(sys.stdin); print(json.dumps([c["name"] for c in d.get("promote",[]) if c.get("status")=="NEW"]))')"
 changed_json="$(echo "$classify_json" | python3 -c 'import json,sys; d=json.load(sys.stdin); print(json.dumps([c["name"] for c in d.get("promote",[]) if c.get("status")=="CHANGED"]))')"
-dropped_json="$(echo "$classify_json" | python3 -c 'import json,sys; d=json.load(sys.stdin); print(json.dumps([c["name"] for c in d.get("dropped",[])]))')"
+dropped_json="$(echo "$classify_json" | python3 -c 'import json,sys; d=json.load(sys.stdin); print(json.dumps([{"name": c["name"], "reason": c.get("reason", "")} for c in d.get("dropped",[])]))')"
 audit log "$run_id" classify candidates new="$new_json" changed="$changed_json" dropped="$dropped_json"
 audit log "$run_id" classify stage_end seconds=$((SECONDS - _t0))
 
