@@ -282,3 +282,16 @@ STUB
     assert_success
     assert_output --partial "No inconsistencies found across 2 artifacts"
 }
+
+@test "default reviewer is agy when SPEC_REVIEW_CLI is unset" {
+    # Put a stub named 'agy' on PATH; do NOT set SPEC_REVIEW_CLI.
+    _fake_reviewer                      # creates $SANDBOX/agy
+    mkdir -p "$SANDBOX/specs/001"
+    printf 's\n' > "$SANDBOX/specs/001/spec.md"
+    printf 'p\n' > "$SANDBOX/specs/001/plan.md"
+    PATH="$SANDBOX:$PATH" \
+        SPEC_REVIEW_TEMPLATE="$REPO_ROOT/configs/claude/prompts/spec_review.md" \
+        run bash "$SCRIPT" "$SANDBOX"
+    assert_success
+    assert_output --partial "CLARIFICATION REQUIRED: Migration"
+}
