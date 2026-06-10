@@ -18,7 +18,8 @@
 - `.skillshare/skills/spec-review/SKILL.md` — Gemini → Antigravity/`agy` (4 spots)
 - `docs/COMMANDS.md`, `CLAUDE.md`, `configs/claude/CLAUDE.md` — `/spec-review` row: "Gemini" → "Antigravity (`agy`)"
 
-No new files. No behavior change beyond which CLI is invoked.
+No new runtime files or engine components (this design + plan doc aside). No
+behavior change beyond which CLI is invoked.
 
 ---
 
