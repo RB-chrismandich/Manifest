@@ -156,6 +156,72 @@ def log(run_id, stage, event, **fields):
         return
 
 
+def _pid_from_run_id(run_id):
+    try:
+        return int(str(run_id).rsplit("-", 1)[1])
+    except (IndexError, ValueError):
+        return None
+
+
+def _pid_alive(pid):
+    if pid is None:
+        return False
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True   # exists but owned by another user
+    except OSError:
+        return False
+    return True
+
+
+def _fmt_secs(s):
+    try:
+        s = int(round(float(s)))
+    except (TypeError, ValueError):
+        return "?"
+    return "%dm%02ds" % (s // 60, s % 60) if s >= 60 else "%ds" % s
+
+
+def render_status():
+    """One-glance human summary for --status. Fail-open -> 'no recent run'."""
+    try:
+        st = _read_status()
+        if not st:
+            return "no recent run"
+        state = st.get("state")
+        run_id = st.get("run_id", "?")
+        short = str(run_id).split("-")[0][:13]
+        if state == RUNNING and not _pid_alive(_pid_from_run_id(run_id)):
+            state = STALE
+        if state == RUNNING:
+            ev = st.get("evolve") or {}
+            stage = st.get("stage", "?")
+            if stage == "evolve" and ev.get("total"):
+                return ("run %s · evolve · chunk %s/%s · %s elapsed · %s"
+                        % (short, ev.get("chunk"), ev.get("total"),
+                           _fmt_secs(ev.get("elapsed_s")),
+                           ev.get("eta_label", "estimating…")))
+            return "run %s · %s · running" % (short, stage)
+        if state == STALE:
+            return "run %s · stale (no live process)" % short
+        if state == FAILED:
+            return "last run: failed · stage %s" % st.get("error_stage", "?")
+        tot = st.get("totals", {})
+        parts = ["last run: done"]
+        if tot.get("candidates") is not None:
+            parts.append("%s candidates" % tot["candidates"])
+        if st.get("pr_url"):
+            parts.append("PR %s" % st["pr_url"])
+        if st.get("total_seconds") is not None:
+            parts.append(_fmt_secs(st["total_seconds"]))
+        return " · ".join(parts)
+    except Exception:  # noqa: BLE001 - fail-open
+        return "no recent run"
+
+
 def compute_eta(chunks_done, chunks_total, elapsed_s):
     """Return (eta_s|None, label).
 
