@@ -73,6 +73,86 @@ def _write_atomic(path: Path, data: str) -> None:
             pass
 
 
+def _read_status() -> dict:
+    try:
+        return json.loads(_status_path().read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+
+
+def _fresh_status(run_id: str) -> dict:
+    now = _now_iso()
+    return {
+        "run_id": run_id,
+        "started_at": now,
+        "updated_at": now,
+        "state": RUNNING,
+        "stage": "-",
+        "evolve": None,
+        "totals": {"ingested": None, "candidates": None, "dropped": None},
+        "pr_url": None,
+    }
+
+
+def _apply_event(status: dict, stage: str, event: str, fields: dict) -> dict:
+    status["updated_at"] = _now_iso()
+    if stage and stage != "-":
+        status["stage"] = stage
+    if event == "run_start":
+        cfg = status.setdefault("config", {})
+        for k in ("window_days", "token_budget", "apply"):
+            if k in fields:
+                cfg[k] = fields[k]
+    elif event == "stage_start" and stage == "evolve":
+        status["evolve"] = {"chunk": 0, "total": fields.get("chunks", 0),
+                            "elapsed_s": 0, "eta_s": None, "eta_label": "estimating…"}
+    elif event == "stage_end" and "ingested" in fields:
+        status["totals"]["ingested"] = fields["ingested"]
+    elif event == "chunk_done":
+        done, total = fields.get("i", 0), fields.get("total", 0)
+        elapsed = fields.get("elapsed_s", 0)
+        eta_s, label = compute_eta(done, total, elapsed)
+        status["evolve"] = {"chunk": done, "total": total, "elapsed_s": elapsed,
+                            "eta_s": eta_s, "eta_label": label}
+    elif event == "candidates":
+        new = fields.get("new") or []
+        changed = fields.get("changed") or []
+        dropped = fields.get("dropped") or []
+        status["totals"]["candidates"] = len(new) + len(changed)
+        status["totals"]["dropped"] = len(dropped)
+    elif event == "pr_opened":
+        status["pr_url"] = fields.get("url")
+    elif event == "run_end":
+        status["state"] = fields.get("state", DONE)
+        status["stage"] = "-"
+        status["total_seconds"] = fields.get("total_seconds")
+    elif event == "run_error":
+        status["state"] = FAILED
+        status["error_stage"] = stage
+        status["message"] = fields.get("message")
+    return status
+
+
+def log(run_id, stage, event, **fields):
+    """Append one JSONL audit line and update the live status snapshot. Fail-open."""
+    try:
+        _ensure_storage()
+        line = {"ts": _now_iso(), "run_id": run_id, "stage": stage, "event": event}
+        line.update(fields)
+        with _log_path().open("a", encoding="utf-8") as fh:
+            fh.write(json.dumps(line) + "\n")
+        try:
+            os.chmod(_log_path(), 0o600)
+        except OSError:
+            pass
+        current = _read_status()
+        if event == "run_start" or current.get("run_id") != run_id:
+            current = _fresh_status(run_id)
+        _write_atomic(_status_path(), json.dumps(_apply_event(current, stage, event, fields), indent=2))
+    except Exception:  # noqa: BLE001 - fail-open: never raise into the pipeline
+        return
+
+
 def compute_eta(chunks_done, chunks_total, elapsed_s):
     """Return (eta_s|None, label).
 
