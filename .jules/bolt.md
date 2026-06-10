@@ -1,0 +1,3 @@
+## 2025-03-02 - Optimize JSON decoding in loop filtering
+**Learning:** In Python, calling `json.loads()` multiple times on the same line across different iterations (like first extracting IDs, then filtering lines matching those IDs) introduces significant serialization overhead, especially on large log or data files.
+**Action:** When filtering log entries, parse the JSON string once per line, and cache the relevant extracted data (like an ID) alongside the original line string in a tuple during the initial pass. This allows subsequent filtering to use an O(1) membership check without duplicate decoding overhead.
