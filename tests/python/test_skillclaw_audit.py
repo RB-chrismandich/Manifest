@@ -76,3 +76,48 @@ def test_new_run_id_resets_snapshot_no_state_bleed(tmp_path, monkeypatch):
     assert status["run_id"] == "20260609T235959Z-2222"
     assert status["pr_url"] is None          # prior run's PR must not bleed in
     assert status["state"] == "running"
+
+
+def test_stage_end_ingested_recorded(tmp_path, monkeypatch):
+    monkeypatch.setenv("SKILLCLAW_AUDIT_DIR", str(tmp_path))
+    rid = "20260609T230501Z-4821"
+    audit.log(rid, "-", "run_start")
+    audit.log(rid, "ingest", "stage_end", ingested=12, seconds=3)
+    assert _read(tmp_path / "status.json")["totals"]["ingested"] == 12
+
+
+def test_candidates_counts_new_changed_and_dropped(tmp_path, monkeypatch):
+    monkeypatch.setenv("SKILLCLAW_AUDIT_DIR", str(tmp_path))
+    rid = "20260609T230501Z-4821"
+    audit.log(rid, "-", "run_start")
+    audit.log(rid, "classify", "candidates",
+              new=["a", "b"], changed=["c"], dropped=[{"name": "d", "reason": "x"}])
+    totals = _read(tmp_path / "status.json")["totals"]
+    assert totals["candidates"] == 3      # 2 new + 1 changed
+    assert totals["dropped"] == 1
+
+
+def test_pr_opened_sets_pr_url(tmp_path, monkeypatch):
+    monkeypatch.setenv("SKILLCLAW_AUDIT_DIR", str(tmp_path))
+    rid = "20260609T230501Z-4821"
+    audit.log(rid, "-", "run_start")
+    audit.log(rid, "promote", "pr_opened", url="https://x/pull/7")
+    assert _read(tmp_path / "status.json")["pr_url"] == "https://x/pull/7"
+
+
+def test_run_end_sets_state_and_total_seconds(tmp_path, monkeypatch):
+    monkeypatch.setenv("SKILLCLAW_AUDIT_DIR", str(tmp_path))
+    rid = "20260609T230501Z-4821"
+    audit.log(rid, "-", "run_start")
+    audit.log(rid, "-", "run_end", state="done", total_seconds=252.4)
+    st = _read(tmp_path / "status.json")
+    assert st["state"] == "done" and st["total_seconds"] == 252.4
+
+
+def test_run_error_sets_failed_state_and_stage(tmp_path, monkeypatch):
+    monkeypatch.setenv("SKILLCLAW_AUDIT_DIR", str(tmp_path))
+    rid = "20260609T230501Z-4821"
+    audit.log(rid, "-", "run_start")
+    audit.log(rid, "evolve", "run_error", message="boom")
+    st = _read(tmp_path / "status.json")
+    assert st["state"] == "failed" and st["error_stage"] == "evolve"

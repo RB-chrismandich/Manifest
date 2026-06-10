@@ -94,6 +94,7 @@ def _fresh_status(run_id: str) -> dict:
     }
 
 
+# Mutates `status` in place and returns it (caller passes a dict it does not retain).
 def _apply_event(status: dict, stage: str, event: str, fields: dict) -> dict:
     status["updated_at"] = _now_iso()
     if stage and stage != "-":
@@ -139,6 +140,8 @@ def log(run_id, stage, event, **fields):
         _ensure_storage()
         line = {"ts": _now_iso(), "run_id": run_id, "stage": stage, "event": event}
         line.update(fields)
+        # promote.log is the authoritative record; status.json is best-effort and
+        # may lag the log by one event if the process dies between the two writes.
         with _log_path().open("a", encoding="utf-8") as fh:
             fh.write(json.dumps(line) + "\n")
         try:
