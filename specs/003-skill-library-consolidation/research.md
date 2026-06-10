@@ -6,36 +6,36 @@
 All unknowns deferred from clarification are resolved below. Every decision is
 grounded in verified repo state (file:line evidence gathered during planning).
 
-## R1. Prune-on-deploy mechanism (FR-005a)
+## R1. Prune-on-deploy mechanism (FR-005a) — REVISED during implementation
 
-**Decision**: Add `--delete` to the `rsync -a` in `deploy_home_skills()`
-(`bootstrap/lib/common.sh:140`), making bootstrap's home deploy a full mirror
-of `.skillshare/skills/`.
+**Decision (revised)**: **Manifest-scoped pruning** in `deploy_home_skills()`
+(`bootstrap/lib/common.sh`): after the additive `rsync -a`, write a
+`.deployed-skills` manifest (top-level skill dir names) into the dest; on each
+deploy, remove dest skills that appear in the *previous* manifest but are no
+longer in the source. Skills never deployed by the tooling (external
+tools/plugins) are never touched.
 
-**Rationale**: `sync-skills.sh:21-23` *already* mirrors with
-`rsync -a --delete` to `~/.claude/skills` and all secondary targets — full
-mirroring is the established semantic; bootstrap is the outlier. Constitution
-Principle I (Configuration-as-Code) states deployed trees are tooling-owned and
-manual edits to them are prohibited, so mirror semantics are constitutionally
-correct.
+**Why revised**: the original decision (`rsync --delete` full mirror) was
+based on the premise that mirroring was the established semantic. Implementation
+surfaced a deliberate counter-test —
+`tests/bats/deploy_skills.bats: "deploy_home_skills preserves
+externally-managed dest content (no --delete)"` — proving bootstrap's additive
+behavior intentionally protects skills placed in `~/.claude/skills` by other
+tools/plugins. Full mirroring would break that test and violate FR-005a's
+safety bound ("MUST NOT touch files the tooling did not put there").
+Manifest-scoped pruning satisfies prune + safety bound + keeps the existing
+test green.
 
-**FR-005a safety bound interpretation**: "MUST NOT touch files the tooling did
-not put there" is satisfied at *directory scope*: pruning applies only inside
-the skills deploy directory (which both deployers fully own and one already
-mirrors); no other part of `~/.claude` (or other targets) is touched. A
-hand-added skill inside the skills dir is already deleted by any `sync-skills`
-run today — this change makes bootstrap consistent with that existing,
-constitution-aligned behavior. This interpretation is surfaced for reviewer
-sign-off in the PR description.
+**sync-skills.sh nuance**: `sync-skills.sh:21-23` full-mirrors with
+`rsync -a --delete` today (pre-existing; deletes external skills). Left
+unchanged in this feature — it already prunes (the FR-005a requirement), and
+narrowing its semantics is a behavior change beyond this feature's scope.
+The inconsistency (bootstrap = manifest-scoped, sync-skills = full mirror) is
+documented in the PR-1 description for reviewer decision.
 
-**Test**: new bats case in `tests/bats/deploy_skills.bats` — deploy, remove a
-skill from source, redeploy, assert it is gone from dest; plus a case asserting
-files *outside* the skills dir are untouched.
-
-**Alternatives considered**: manifest-based selective prune (track deployed
-names in a state file; delete only previously-deployed names). Rejected:
-more state to corrupt, diverges from sync-skills' existing semantic, and
-protects a workflow (hand-editing deploy targets) the constitution prohibits.
+**Test**: new bats cases — deploy → remove skill from source → redeploy →
+pruned; external (never-deployed) skill survives a pruning deploy;
+double-deploy is a no-op.
 
 ## R2. Evolve library prompt: name + description (FR-005)
 

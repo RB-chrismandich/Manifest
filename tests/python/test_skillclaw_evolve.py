@@ -133,6 +133,69 @@ def test_evolve_shows_committed_library_not_output_dir(tmp_path):
     assert "already-merged" in seen["prompt"]
 
 
+def test_library_prompt_includes_name_and_description(tmp_path):
+    # FR-005 / contracts/library-prompt.md: {{LIBRARY}} lines are
+    # "- <name> — <description>" so the model can match by purpose, not name.
+    sessions_dir = tmp_path / "sessions"
+    sessions_dir.mkdir()
+    (sessions_dir / "s1.json").write_text(json.dumps(
+        {"session_id": "s1", "turns": [
+            {"role": "user", "blocks": [{"kind": "text", "text": "do thing"}]}]}))
+    committed = tmp_path / "committed"
+    (committed / "fix-pr-comments").mkdir(parents=True)
+    (committed / "fix-pr-comments" / "SKILL.md").write_text(
+        "---\nname: fix-pr-comments\ndescription: Fetch, triage and resolve PR review comments.\n---\nbody\n")
+    template = tmp_path / "tpl.md"
+    template.write_text("LIB {{LIBRARY}} SESS {{SESSIONS}}")
+
+    seen = {}
+    ev.evolve(sessions_dir, tmp_path / "evolved", template, committed_dir=committed,
+              token_budget=100_000, runner=lambda p: seen.__setitem__("p", p) or "NO_SKILLS")
+    assert "- fix-pr-comments — Fetch, triage and resolve PR review comments." in seen["p"]
+
+
+def test_library_prompt_broken_frontmatter_falls_back_to_name_only(tmp_path):
+    # Fail-open: unparsable frontmatter yields a name-only line, never an error.
+    sessions_dir = tmp_path / "sessions"
+    sessions_dir.mkdir()
+    (sessions_dir / "s1.json").write_text(json.dumps(
+        {"session_id": "s1", "turns": [
+            {"role": "user", "blocks": [{"kind": "text", "text": "x"}]}]}))
+    committed = tmp_path / "committed"
+    (committed / "broken-skill").mkdir(parents=True)
+    (committed / "broken-skill" / "SKILL.md").write_text("no frontmatter here\n")
+    template = tmp_path / "tpl.md"
+    template.write_text("LIB {{LIBRARY}} SESS {{SESSIONS}}")
+
+    seen = {}
+    ev.evolve(sessions_dir, tmp_path / "evolved", template, committed_dir=committed,
+              token_budget=100_000, runner=lambda p: seen.__setitem__("p", p) or "NO_SKILLS")
+    assert "- broken-skill" in seen["p"]       # present, name-only
+    assert "- broken-skill —" not in seen["p"]
+
+
+def test_library_prompt_truncates_long_descriptions(tmp_path):
+    # Descriptions are flattened + truncated at 200 chars to bound prompt cost.
+    sessions_dir = tmp_path / "sessions"
+    sessions_dir.mkdir()
+    (sessions_dir / "s1.json").write_text(json.dumps(
+        {"session_id": "s1", "turns": [
+            {"role": "user", "blocks": [{"kind": "text", "text": "x"}]}]}))
+    committed = tmp_path / "committed"
+    (committed / "long-skill").mkdir(parents=True)
+    long_desc = "verbose " * 60   # ~480 chars, multi-word
+    (committed / "long-skill" / "SKILL.md").write_text(
+        f"---\nname: long-skill\ndescription: {long_desc}\n---\nbody\n")
+    template = tmp_path / "tpl.md"
+    template.write_text("LIB\n{{LIBRARY}}\nSESS {{SESSIONS}}")
+
+    seen = {}
+    ev.evolve(sessions_dir, tmp_path / "evolved", template, committed_dir=committed,
+              token_budget=100_000, runner=lambda p: seen.__setitem__("p", p) or "NO_SKILLS")
+    line = [ln for ln in seen["p"].splitlines() if ln.startswith("- long-skill")][0]
+    assert len(line) <= 220        # "- long-skill — " prefix + 200-char cap
+
+
 def test_evolve_multichunk_dedupes_candidates_by_name(tmp_path):
     sessions_dir = tmp_path / "sessions"
     sessions_dir.mkdir()

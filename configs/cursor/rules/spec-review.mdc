@@ -1,0 +1,15 @@
+---
+description: "Cross-reference a project's spec / plan / tasks artifacts for internal consistency using an independent model (Antigravity / `agy`), and surface structured remediation guidance (Location / Gap / Recommended Direction / Reason Why). Analysis-only — never edits artifacts. Works with both speckit (spec.md/plan.md/tasks.md) and superpowers (design + plan-with-embedded-tasks) layouts. Auto-discovers artifacts, or pass explicit paths."
+globs: ".claude/skills/spec-review/**"
+alwaysApply: false
+---
+
+# spec-review
+
+Cross-reference a project's spec / plan / tasks artifacts for internal consistency using an independent model (Antigravity / `agy`), and surface structured remediation guidance (Location / Gap / Recommended Direction / Reason Why). Analysis-only — never edits artifacts. Works with both speckit (spec.md/plan.md/tasks.md) and superpowers (design + plan-with-embedded-tasks) layouts. Auto-discovers artifacts, or pass explicit paths.
+
+<!-- Auto-generated from .claude/skills/spec-review/SKILL.md -->
+<!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
+
+Refer to `.cursor/skills/spec-review/SKILL.md` for the full skill definition.
+

@@ -6,6 +6,8 @@ description: Use when a feature branch is rooted on another unmerged branch (or 
 
 When a branch was cut from another not-yet-merged feature branch, a rebase onto main replays every intervening commit and produces spurious conflicts. Don't fight the rebase — re-home just your commits.
 
+If the mess comes from the branch's own commits having already merged (e.g. squash-merged) via another PR — not a stale base — use reset-reapply-clean-pr instead.
+
 1. Diagnose the base, don't assume it: `gh pr view <n> --json mergeable,mergeStateStatus,baseRefName` (look for CONFLICTING/DIRTY) and `git log --oneline origin/main..HEAD` (commits you didn't author = stale base).
 2. Identify the SHA(s) of only the commit(s) you actually intend to ship (`git log --oneline`).
 3. Abort any in-progress rebase: `git rebase --abort`.

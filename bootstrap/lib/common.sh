@@ -121,9 +121,10 @@ link_shared_assets() {
 
 # Deploy skills into a tool's real skills dir from the PHYSICAL skillshare source.
 # Always sources the real .skillshare/skills dir (never the compat symlink).
-# Additive on purpose (no --delete): ~/.claude/skills can legitimately hold
-# skills installed by other tools/plugins (e.g. externally-installed dirs or
-# symlinks); pruning them would silently destroy user/third-party content.
+# Manifest-scoped prune (FR-005a, specs/003): skills we previously deployed and
+# that have since been removed from the source of truth are pruned from dest,
+# but ~/.claude/skills can legitimately hold skills installed by other
+# tools/plugins — those are never in the manifest and are never touched.
 deploy_home_skills() {
     local src="$1"
     local dest="$2"
@@ -138,5 +139,35 @@ deploy_home_skills() {
     [[ -L "$dest" ]] && rm -f "$dest"
     mkdir -p "$dest"
     rsync -a "$src"/ "$dest"/
+
+    # Prune previously-deployed skills now absent from the source.
+    # Safety bounds: (a) an empty source (failed checkout / wrong path that
+    # still exists) must never mass-prune dest — require >=1 source skill;
+    # (b) manifest entries are validated as plain single-level names so a
+    # corrupted manifest can never drive rm -rf outside dest.
+    local manifest="$dest/.deployed-skills"
+    local src_count
+    src_count=$(find "$src" -mindepth 1 -maxdepth 1 -type d ! -name '.*' | wc -l | tr -d ' ')
+    if [[ -f "$manifest" && "$src_count" -gt 0 ]]; then
+        local name
+        while IFS= read -r name; do
+            case "$name" in
+                ''|*/*|.*|*..*) continue ;;   # empty, path-y, hidden, traversal -> never prune
+            esac
+            if [[ ! -d "$src/$name" && -d "$dest/$name" ]]; then
+                rm -rf "${dest:?}/${name}"
+                print_info "Pruned removed skill: $name"
+            fi
+        done < "$manifest"
+    fi
+    # Atomic manifest write: a failed subshell must not truncate the previous
+    # manifest (that would silently disable future pruning).
+    if (cd "$src" && find . -mindepth 1 -maxdepth 1 -type d ! -name '.*' \
+        | LC_ALL=C sort | sed 's|^\./||') > "$manifest.tmp"; then
+        mv "$manifest.tmp" "$manifest"
+    else
+        rm -f "$manifest.tmp"
+    fi
+
     print_success "Deployed skills: $src -> $dest"
 }
