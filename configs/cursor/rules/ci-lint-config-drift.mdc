@@ -1,0 +1,15 @@
+---
+description: "Diagnose lint/format failures that only appear in CI (pass locally) by finding where CI overrides the repo's committed linter config, then verify the fix at the annotation level"
+globs: ".claude/skills/ci-lint-config-drift/**"
+alwaysApply: false
+---
+
+# ci-lint-config-drift
+
+Diagnose lint/format failures that only appear in CI (pass locally) by finding where CI overrides the repo's committed linter config, then verify the fix at the annotation level
+
+<!-- Auto-generated from .claude/skills/ci-lint-config-drift/SKILL.md -->
+<!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
+
+Refer to `.cursor/skills/ci-lint-config-drift/SKILL.md` for the full skill definition.
+

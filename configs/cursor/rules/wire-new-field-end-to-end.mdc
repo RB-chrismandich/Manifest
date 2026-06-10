@@ -1,0 +1,15 @@
+---
+description: "Use when adding a field to a data model, snapshot row, or context object that a downstream component (LLM prompt, API response, report) is supposed to consume — verifies the population site exists, not just the schema."
+globs: ".claude/skills/wire-new-field-end-to-end/**"
+alwaysApply: false
+---
+
+# wire-new-field-end-to-end
+
+Use when adding a field to a data model, snapshot row, or context object that a downstream component (LLM prompt, API response, report) is supposed to consume — verifies the population site exists, not just the schema.
+
+<!-- Auto-generated from .claude/skills/wire-new-field-end-to-end/SKILL.md -->
+<!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
+
+Refer to `.cursor/skills/wire-new-field-end-to-end/SKILL.md` for the full skill definition.
+

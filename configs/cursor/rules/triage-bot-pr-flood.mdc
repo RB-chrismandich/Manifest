@@ -1,0 +1,15 @@
+---
+description: "Use when several machine-generated PRs (Copilot/Jules/Palette/Bolt-style bots) are open and need dispositioning — duplicates, redundant no-ops, and repo-contradicting changes."
+globs: ".claude/skills/triage-bot-pr-flood/**"
+alwaysApply: false
+---
+
+# triage-bot-pr-flood
+
+Use when several machine-generated PRs (Copilot/Jules/Palette/Bolt-style bots) are open and need dispositioning — duplicates, redundant no-ops, and repo-contradicting changes.
+
+<!-- Auto-generated from .claude/skills/triage-bot-pr-flood/SKILL.md -->
+<!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
+
+Refer to `.cursor/skills/triage-bot-pr-flood/SKILL.md` for the full skill definition.
+

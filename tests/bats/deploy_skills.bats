@@ -30,9 +30,9 @@ teardown() {
     assert_equal "$(cat "$SANDBOX/dest/demo-skill/SKILL.md")" "body"
 }
 
-@test "deploy_home_skills preserves externally-managed dest content (no --delete)" {
-    # ~/.claude/skills can hold skills from other tools/plugins; deploy must be
-    # additive and NOT prune dest entries that are absent from the source.
+@test "deploy_home_skills preserves externally-managed dest content (manifest-scoped prune)" {
+    # ~/.claude/skills can hold skills from other tools/plugins; pruning is
+    # scoped to the .deployed-skills manifest, so foreign entries survive.
     mkdir -p "$SANDBOX/src/keep" "$SANDBOX/dest/external"
     echo k > "$SANDBOX/src/keep/SKILL.md"
     echo e > "$SANDBOX/dest/external/SKILL.md"
@@ -43,6 +43,81 @@ teardown() {
     [ -d "$SANDBOX/dest/keep" ]      # source skill deployed
     [ -d "$SANDBOX/dest/external" ]  # foreign skill NOT pruned
     assert_equal "$(cat "$SANDBOX/dest/external/SKILL.md")" "e"
+}
+
+@test "deploy_home_skills prunes previously-deployed skills removed from source" {
+    # FR-005a: a skill deleted from the source of truth must disappear from the
+    # deploy target on the next deploy (no stale duplicates in live sessions).
+    mkdir -p "$SANDBOX/src/alpha" "$SANDBOX/src/beta"
+    echo a > "$SANDBOX/src/alpha/SKILL.md"
+    echo b > "$SANDBOX/src/beta/SKILL.md"
+    deploy_home_skills "$SANDBOX/src" "$SANDBOX/dest"
+    [ -d "$SANDBOX/dest/beta" ]
+
+    rm -rf "$SANDBOX/src/beta"                 # consolidation deletes beta
+    run deploy_home_skills "$SANDBOX/src" "$SANDBOX/dest"
+    assert_success
+
+    [ -d "$SANDBOX/dest/alpha" ]               # survivor intact
+    [ ! -d "$SANDBOX/dest/beta" ]              # absorbed skill pruned
+}
+
+@test "deploy_home_skills prune never touches skills it did not deploy" {
+    # FR-005a safety bound: external skills (never in the manifest) survive a
+    # deploy that prunes a removed source skill.
+    mkdir -p "$SANDBOX/src/alpha" "$SANDBOX/src/beta"
+    echo a > "$SANDBOX/src/alpha/SKILL.md"
+    echo b > "$SANDBOX/src/beta/SKILL.md"
+    deploy_home_skills "$SANDBOX/src" "$SANDBOX/dest"
+    mkdir -p "$SANDBOX/dest/hand-added"        # external, post-deploy
+    echo x > "$SANDBOX/dest/hand-added/SKILL.md"
+
+    rm -rf "$SANDBOX/src/beta"
+    run deploy_home_skills "$SANDBOX/src" "$SANDBOX/dest"
+    assert_success
+
+    [ ! -d "$SANDBOX/dest/beta" ]              # deployed+removed -> pruned
+    [ -d "$SANDBOX/dest/hand-added" ]          # never deployed -> untouched
+    assert_equal "$(cat "$SANDBOX/dest/hand-added/SKILL.md")" "x"
+}
+
+@test "deploy_home_skills empty source never mass-prunes previously deployed skills" {
+    # Cross-verification finding: an existing-but-empty src (failed checkout,
+    # wrong path) must not delete everything the manifest lists.
+    mkdir -p "$SANDBOX/src/alpha"
+    echo a > "$SANDBOX/src/alpha/SKILL.md"
+    deploy_home_skills "$SANDBOX/src" "$SANDBOX/dest"
+
+    rm -rf "$SANDBOX/src/alpha"                # src now exists but is empty
+    run deploy_home_skills "$SANDBOX/src" "$SANDBOX/dest"
+    assert_success
+    [ -d "$SANDBOX/dest/alpha" ]               # NOT mass-pruned
+}
+
+@test "deploy_home_skills ignores path-traversal entries in a corrupted manifest" {
+    mkdir -p "$SANDBOX/src/alpha" "$SANDBOX/outside"
+    echo a > "$SANDBOX/src/alpha/SKILL.md"
+    echo x > "$SANDBOX/outside/marker"
+    deploy_home_skills "$SANDBOX/src" "$SANDBOX/dest"
+    printf '../outside\n/etc\nalpha\n' > "$SANDBOX/dest/.deployed-skills"
+
+    run deploy_home_skills "$SANDBOX/src" "$SANDBOX/dest"
+    assert_success
+    [ -f "$SANDBOX/outside/marker" ]           # traversal entry never followed
+    [ -d "$SANDBOX/dest/alpha" ]               # valid, still-in-source entry kept
+}
+
+@test "deploy_home_skills double-deploy is an idempotent no-op" {
+    # Constitution V: a second consecutive run changes nothing.
+    mkdir -p "$SANDBOX/src/alpha"
+    echo a > "$SANDBOX/src/alpha/SKILL.md"
+    deploy_home_skills "$SANDBOX/src" "$SANDBOX/dest"
+    local before
+    before=$(find "$SANDBOX/dest" | sort)
+
+    run deploy_home_skills "$SANDBOX/src" "$SANDBOX/dest"
+    assert_success
+    assert_equal "$(find "$SANDBOX/dest" | sort)" "$before"
 }
 
 @test "deploy_home_skills converts a stray symlink dest into a real dir" {

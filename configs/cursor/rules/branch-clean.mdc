@@ -1,0 +1,15 @@
+---
+description: "Identify and safely prune stale git branches — merged into the default branch, tracking a deleted remote ([gone]), or stale beyond a threshold. Dry-run by default, local-only by default (remote deletion is opt-in), and never touches protected or currently checked-out branches."
+globs: ".claude/skills/branch-clean/**"
+alwaysApply: false
+---
+
+# branch-clean
+
+Identify and safely prune stale git branches — merged into the default branch, tracking a deleted remote ([gone]), or stale beyond a threshold. Dry-run by default, local-only by default (remote deletion is opt-in), and never touches protected or currently checked-out branches.
+
+<!-- Auto-generated from .claude/skills/branch-clean/SKILL.md -->
+<!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
+
+Refer to `.cursor/skills/branch-clean/SKILL.md` for the full skill definition.
+
