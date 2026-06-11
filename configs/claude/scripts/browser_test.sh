@@ -19,7 +19,6 @@
 set -euo pipefail
 
 # --- Colors -----------------------------------------------------------
-RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 CYAN='\033[0;36m'
@@ -68,7 +67,8 @@ EXAMPLES:
 USAGE
 }
 
-error_msg() { echo -e "${RED}Error: $1${RESET}" >&2; }
+err() { echo "browser-test: $*" >&2; }
+error_msg() { err "$1"; }
 success_msg() { echo -e "${GREEN}$1${RESET}"; }
 warn_msg() { echo -e "${YELLOW}$1${RESET}"; }
 info_msg() { echo -e "${CYAN}$1${RESET}"; }
@@ -87,10 +87,10 @@ check_browser_use() {
 
     error_msg "browser-use is not installed"
     echo "" >&2
-    echo "Install with:" >&2
-    echo "  pip install browser-use" >&2
-    echo "  # or" >&2
-    echo "  pipx install browser-use" >&2
+    err "Install with:"
+    err "  pip install browser-use"
+    err "  # or"
+    err "  pipx install browser-use"
     return 2
 }
 

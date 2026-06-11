@@ -84,6 +84,18 @@ yamllint configs/claude/config/*.yml
 python3 -c "import yaml; yaml.safe_load(open('configs/claude/config/command_config.yml'))"
 ```
 
+## Script Conventions (configs/claude/scripts/)
+
+- **Error output**: `err() { echo "<script-name>: $*" >&2; }` is canonical;
+  route all error/warning messages through it (helpers like `error_msg()` may
+  delegate to `err()`). Exempt: usage/help text, interactive prompts, blank
+  separator lines, and success/info status output. `bootstrap/lib/` keeps its
+  own `print_error()` family (specs/003 R7).
+- **`--help`**: every user-facing entry point script handles `--help`
+  (usage + flags, ≤15 lines, exit 0). Exempt with rationale (specs/003 R6):
+  `version_pin_hook.sh` (save-hook wrapper, not user-invoked) and
+  `git_platform.sh` (internal detection helper used by git_ops.sh).
+
 ## Key Paths (in this repo)
 
 | What | Path |

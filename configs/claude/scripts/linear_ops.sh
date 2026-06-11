@@ -5,19 +5,18 @@
 set -euo pipefail
 
 # Colors for output
-RED='\033[0;31m'
 GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
-# Error handling
+# Error handling (canonical err() convention; error() exits, warning() continues)
+err() { echo "linear-ops: $*" >&2; }
 error() {
-    echo -e "${RED}Error: $1${NC}" >&2
+    err "$1"
     exit 1
 }
 
 warning() {
-    echo -e "${YELLOW}Warning: $1${NC}" >&2
+    err "Warning: $1"
 }
 
 success() {
