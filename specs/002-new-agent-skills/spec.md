@@ -4,7 +4,7 @@
 
 **Created**: 2026-06-01
 
-**Status**: Draft
+**Status**: Delivered 2026-06
 
 **Input**: User description: "Add new skills to do the following: Skill: Enforce version pinning — specific version (avoid latest, recommended latest stable, or request version); ensure version pin also includes hash if supported; force it on specific file types / name as a hook (e.g. requirements.txt, docker-compose.yaml, common files that support version pinning). Skill: Create an all-in-one docs command that runs our existing DOCS in sub-agents in the appropriate order to support any order of precedency. Skill: GitHub PR Reviewer (review all open PRs, identify if they are needed...); GitHub/Git Branch Cleaner."
 
