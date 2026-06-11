@@ -247,7 +247,7 @@ case "${platform}" in
                                 ;;
                         esac
                     done
-                    glab mr create ${mr_args[@]+"${mr_args[@]}"}
+                    glab mr create "${mr_args[@]+"${mr_args[@]}"}"
                 }
                 _translate_pr_flags "$@"
                 ;;

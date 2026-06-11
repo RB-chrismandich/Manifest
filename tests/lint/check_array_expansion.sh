@@ -5,7 +5,7 @@
 # Rule: in any *.sh file, an expansion "${name[@]}" or "${name[*]}" is flagged
 # when the SAME file initializes that array as `name=()` (i.e. it can be empty
 # at expansion time), UNLESS:
-#   - the expansion uses the guard idiom  ${name[@]+"${name[@]}"}   , or
+#   - the expansion uses the guard idiom  "${name[@]+"${name[@]}"}"   , or
 #   - the line carries an inline `# array-safe` opt-out comment.
 #
 # Output: one `file:line: name` per finding; exit 1 if any, else 0.
@@ -54,7 +54,7 @@ scan_file() {
 }
 
 findings=""
-for f in ${files[@]+"${files[@]}"}; do
+for f in "${files[@]+"${files[@]}"}"; do
     [[ -f "$f" ]] || continue
     out="$(scan_file "$f")"
     [[ -n "$out" ]] && findings+="${out}"$'\n'
@@ -65,7 +65,7 @@ if [[ -n "$findings" ]]; then
     echo "$findings"
     count=$(printf '%s\n' "$findings" | wc -l | tr -d ' ')
     err "$count unsafe empty-array expansion(s) under set -u (Bash 3.2)."
-    err "Fix with \${arr[@]+\"\${arr[@]}\"} or append '# array-safe' if provably non-empty."
+    err "Fix with \"\${arr[@]+\"\${arr[@]}\"}\" or append '# array-safe' if provably non-empty."
     exit 1
 fi
 exit 0
