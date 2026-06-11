@@ -9,6 +9,8 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SPEC_REVIEW_CLI="${SPEC_REVIEW_CLI:-agy}"
+SPEC_REVIEW_MODEL="${SPEC_REVIEW_MODEL:-}"
+SPEC_REVIEW_CONFIG="${SPEC_REVIEW_CONFIG:-$HOME/.claude/config/parallel_agent.yml}"
 SPEC_REVIEW_TEMPLATE="${SPEC_REVIEW_TEMPLATE:-${SCRIPT_DIR}/../prompts/spec_review.md}"
 SPEC_REVIEW_STATE="${SPEC_REVIEW_STATE:-.spec-review}"
 SPEC_REVIEW_NO_DETACH="${SPEC_REVIEW_NO_DETACH:-}"
@@ -100,11 +102,44 @@ assemble_prompt() {
     return "$rc"
 }
 
+# resolve_review_model -> model name on stdout, or empty. Precedence:
+# explicit SPEC_REVIEW_MODEL env always wins; otherwise, only for the default
+# agy reviewer, fall back to model_tiers.antigravity.advanced from the shared
+# parallel_agent.yml registry (a non-agy CLI would reject agy model names).
+# Fail-open: any read/parse problem yields empty (reviewer uses its default).
+resolve_review_model() {
+    if [[ -n "$SPEC_REVIEW_MODEL" ]]; then
+        printf '%s' "$SPEC_REVIEW_MODEL"
+        return 0
+    fi
+    [[ "$SPEC_REVIEW_CLI" == "agy" ]] || return 0
+    [[ -f "$SPEC_REVIEW_CONFIG" ]] || return 0
+    python3 - "$SPEC_REVIEW_CONFIG" 2>/dev/null <<'PY' || true
+import sys
+
+import yaml
+
+try:
+    with open(sys.argv[1]) as f:
+        cfg = yaml.safe_load(f) or {}
+    model = (cfg.get("model_tiers") or {}).get("antigravity", {}).get("advanced", "")
+    if model:
+        print(model, end="")
+except Exception:
+    pass
+PY
+}
+
 # run_reviewer PROMPT -> raw reviewer output. stdin carries the prompt body; the -p
-# instruction is short. Errors propagate (caller decides fail-open vs surface).
+# instruction is short. Model comes from resolve_review_model (may be empty).
+# Errors propagate (caller decides fail-open vs surface).
 run_reviewer() {
-    local prompt="$1"
-    printf '%s' "$prompt" | "$SPEC_REVIEW_CLI" -p "Cross-reference the artifacts above per the instructions; output only the specified blocks or NO_ISSUES."
+    local prompt="$1" model
+    model="$(resolve_review_model)"
+    local cli_args=()
+    [[ -n "$model" ]] && cli_args+=(--model "$model")
+    cli_args+=(-p "Cross-reference the artifacts above per the instructions; output only the specified blocks or NO_ISSUES.")
+    printf '%s' "$prompt" | "$SPEC_REVIEW_CLI" "${cli_args[@]}"
 }
 
 # format_findings RAW FORMAT [COUNT] -> formatted output. NO_ISSUES -> clean
