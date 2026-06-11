@@ -32,6 +32,8 @@ if [[ -f "${HOME}/.claude/config/knowledge_base.yml" ]]; then
     KNOWLEDGE_BASE_FILE="${HOME}/.claude/config/knowledge_base.yml"
 elif [[ -f ".claude/config/knowledge_base.yml" ]]; then
     KNOWLEDGE_BASE_FILE=".claude/config/knowledge_base.yml"
+elif [[ "${1:-}" == "--help" || "${1:-}" == "-h" || "${1:-}" == "help" ]]; then
+    KNOWLEDGE_BASE_FILE=""   # --help must work without a KB (fresh clone / CI)
 else
     err "knowledge_base.yml not found in ~/.claude/config/ or .claude/config/"
     exit 1
