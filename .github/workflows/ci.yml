@@ -24,8 +24,12 @@ jobs:
 
       # --- ShellCheck ---
 
+      # Distro package = effectively pinned per runner image; record the
+      # version in the log so behavior changes are traceable (specs/003 FR-014).
       - name: Install shellcheck
-        run: sudo apt-get update && sudo apt-get install -y shellcheck
+        run: |
+          sudo apt-get update && sudo apt-get install -y shellcheck
+          shellcheck --version
 
       # -S warning: fail on real warnings/errors, not cosmetic info/style notes
       # (e.g. SC2129 grouped-redirect suggestions). Keeps CI signal meaningful.
@@ -44,8 +48,9 @@ jobs:
 
       # --- yamllint ---
 
+      # Pinned to match .pre-commit-config.yaml (specs/003 FR-014).
       - name: Install yamllint
-        run: pip install yamllint
+        run: pip install yamllint==1.35.1
 
       # Use the repo's .yamllint (max-line 150, warning) rather than the built-in
       # `relaxed` preset, which forces an 80-col limit the project does not adopt.
@@ -72,11 +77,11 @@ jobs:
 
       - name: Validate YAML configs with Python
         run: |
-          pip install pyyaml
+          pip install pyyaml==6.0.2
           exit_code=0
           for f in configs/claude/config/*.yml; do
             echo "Validating $f ..."
-            python3 -c "import yaml; yaml.safe_load(open('$f'))" || exit_code=1
+            python3 -c "import sys, yaml; yaml.safe_load(open(sys.argv[1]))" "$f" || exit_code=1
           done
           if [ "$exit_code" -ne 0 ]; then
             echo "YAML validation failed"
@@ -98,8 +103,16 @@ jobs:
 
       # --- Bats tests (helpers provided by the submodules above) ---
 
-      - name: Install bats
-        run: npm install bats
+      # Cache keyed on the pinned version string so a pin bump invalidates
+      # the cache (specs/003 FR-014 edge case).
+      - name: Cache bats install
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: bats-1.11.1-${{ runner.os }}
+
+      - name: Install bats (pinned)
+        run: npm install bats@1.11.1
 
       - name: Run bats tests
         run: ./node_modules/.bin/bats tests/bats/
@@ -110,11 +123,13 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: "3.14"
+          cache: pip
+          cache-dependency-path: tests/requirements-ci.txt
 
-      - name: Install pytest and parallel_agent runtime deps
+      - name: Install pytest and parallel_agent runtime deps (pinned)
         # parallel_agent.py hard-imports yaml + rich (sys.exit(1) otherwise);
         # asyncio-throttle backs RateLimiter. API SDKs are optional/graceful.
-        run: pip install pytest pytest-asyncio pyyaml rich asyncio-throttle
+        run: pip install -r tests/requirements-ci.txt
 
       - name: Run Python tests (if any exist)
         run: |
@@ -237,7 +252,11 @@ jobs:
       - name: Verify Cursor rules are up-to-date with skills
         run: |
           bash configs/claude/scripts/generate_cursor_rules.sh
-          if ! git diff --exit-code configs/cursor/rules/; then
+          # git diff misses brand-new (untracked) rule files — PR #285's 45
+          # skills shipped without rules and this check stayed green. Check
+          # the porcelain status (tracked changes AND untracked files).
+          if [ -n "$(git status --porcelain configs/cursor/rules/)" ]; then
+            git status --porcelain configs/cursor/rules/
             echo ""
             echo "FAIL: Cursor rules are out of sync with skills."
             echo "Run 'configs/claude/scripts/generate_cursor_rules.sh' and commit the result."

@@ -21,13 +21,14 @@ set_bootstrap_defaults() {
         GEMINI_MCP_SCOPE="user"
     fi
 
-    # Service toggles (default: all enabled, gh/glab auto-detect)
+    # Service toggles (default: all enabled, gh/glab auto-detect, browser-use disabled by default)
     ENABLE_CLAUDE=true
     ENABLE_GEMINI=true
     ENABLE_CURSOR=true
     ENABLE_CODEX=true
     ENABLE_ANTIGRAVITY=true
     ENABLE_SKILLCLAW=false
+    ENABLE_BROWSER_USE=false
     ENABLE_GH="auto"
     ENABLE_GLAB="auto"
 
@@ -38,6 +39,7 @@ set_bootstrap_defaults() {
     CODEX_SET=false
     ANTIGRAVITY_SET=false
     SKILLCLAW_SET=false
+    BROWSER_USE_SET=false
     GH_SET=false
     GLAB_SET=false
 }
@@ -63,6 +65,8 @@ print_bootstrap_help() {
     echo "  --disable-antigravity  Disable Antigravity IDE"
     echo "  --enable-skillclaw     Enable SkillClaw session capture (default: disabled)"
     echo "  --disable-skillclaw    Disable SkillClaw session capture"
+    echo "  --enable-browser-use   Enable browser-use E2E testing (default: disabled)"
+    echo "  --disable-browser-use  Disable browser-use E2E testing"
     echo "  --enable-gh         Enable GitHub CLI (default: auto-detect)"
     echo "  --disable-gh        Disable GitHub CLI"
     echo "  --enable-glab       Enable GitLab CLI (default: auto-detect)"
@@ -148,6 +152,16 @@ parse_bootstrap_args() {
                 SKILLCLAW_SET=true
                 shift
                 ;;
+            --enable-browser-use)
+                ENABLE_BROWSER_USE=true
+                BROWSER_USE_SET=true
+                shift
+                ;;
+            --disable-browser-use)
+                ENABLE_BROWSER_USE=false
+                BROWSER_USE_SET=true
+                shift
+                ;;
             --enable-gh)
                 ENABLE_GH=true
                 GH_SET=true
@@ -213,6 +227,7 @@ parse_services_config() {
     FILE_CODEX=""
     FILE_ANTIGRAVITY=""
     FILE_SKILLCLAW=""
+    FILE_BROWSER_USE=""
     FILE_GH=""
     FILE_GLAB=""
 
@@ -226,6 +241,7 @@ parse_services_config() {
             /^[[:space:]]*codex:/ { section="codex"; subsection="" }
             /^[[:space:]]*antigravity:/ { section="antigravity"; subsection="" }
             /^[[:space:]]*skillclaw:/ { section="skillclaw"; subsection="" }
+            /^[[:space:]]*browser_use:/ { section="browser_use"; subsection="" }
             /^[[:space:]]*git_cli:/ { section="git_cli"; subsection="" }
             /^[[:space:]]*github:/ { if (section == "git_cli") subsection="github" }
             /^[[:space:]]*gitlab:/ { if (section == "git_cli") subsection="gitlab" }
@@ -236,6 +252,7 @@ parse_services_config() {
                 if (section == "codex") print "FILE_CODEX=true;"
                 if (section == "antigravity") print "FILE_ANTIGRAVITY=true;"
                 if (section == "skillclaw") print "FILE_SKILLCLAW=true;"
+                if (section == "browser_use") print "FILE_BROWSER_USE=true;"
                 if (section == "git_cli" && subsection == "github") print "FILE_GH=true;"
                 if (section == "git_cli" && subsection == "gitlab") print "FILE_GLAB=true;"
             }
@@ -246,6 +263,7 @@ parse_services_config() {
                 if (section == "codex") print "FILE_CODEX=false;"
                 if (section == "antigravity") print "FILE_ANTIGRAVITY=false;"
                 if (section == "skillclaw") print "FILE_SKILLCLAW=false;"
+                if (section == "browser_use") print "FILE_BROWSER_USE=false;"
                 if (section == "git_cli" && subsection == "github") print "FILE_GH=false;"
                 if (section == "git_cli" && subsection == "gitlab") print "FILE_GLAB=false;"
             }
@@ -291,6 +309,10 @@ load_existing_config() {
 
         if [[ "$SKILLCLAW_SET" == false && -n "$FILE_SKILLCLAW" ]]; then
             ENABLE_SKILLCLAW=$FILE_SKILLCLAW
+        fi
+
+        if [[ "$BROWSER_USE_SET" == false && -n "$FILE_BROWSER_USE" ]]; then
+            ENABLE_BROWSER_USE=$FILE_BROWSER_USE
         fi
 
         if [[ "$GH_SET" == false && -n "$FILE_GH" ]]; then
@@ -378,6 +400,12 @@ services:
     enabled: ${ENABLE_SKILLCLAW:-false}
     description: "Evolves skills from transcripts into review PRs via /skill-evolve (opt-in)"
     storage: ~/.skillclaw
+
+  # browser-use - AI-powered E2E browser testing agent
+  browser_use:
+    enabled: ${ENABLE_BROWSER_USE:-false}
+    command: browser-use
+    description: "AI-powered E2E browser testing via browser-use"
 
   # Git CLI tools - Platform-specific Git hosting integrations
   git_cli:

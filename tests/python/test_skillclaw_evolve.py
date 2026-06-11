@@ -285,6 +285,17 @@ def test_evolve_emits_chunk_events_to_status(tmp_path, monkeypatch):
     assert elapsed_values == sorted(elapsed_values)          # cumulative is monotonic
 
 
+def test_chunk_timeout_cli_flag_overrides_env(monkeypatch, tmp_path):
+    # R3/T024: --chunk-timeout is the CLI override for SKILLCLAW_CHUNK_TIMEOUT.
+    # main() exports it to the env seam subprocess_runner already reads, and
+    # the flag wins over a pre-existing env value.
+    monkeypatch.setenv("SKILLCLAW_CHUNK_TIMEOUT", "5")
+    monkeypatch.setattr(ev, "evolve", lambda *a, **k: {"chunks": 0})
+    rc = ev.main([str(tmp_path), str(tmp_path), "--chunk-timeout", "7"])
+    assert rc == 0
+    assert ev._chunk_timeout() == 7
+
+
 def test_skill_description_block_scalar_drops_marker(tmp_path):
     # PR #289 review: a `description: |` block scalar must not leak the
     # literal |/>` marker into the rendered "name — description" line.

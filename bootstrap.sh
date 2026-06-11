@@ -123,6 +123,7 @@ run_reconfigure() {
         local old_codex=${FILE_CODEX:-unknown}
         local old_antigravity=${FILE_ANTIGRAVITY:-unknown}
         local old_skillclaw=${FILE_SKILLCLAW:-unknown}
+        local old_browser_use=${FILE_BROWSER_USE:-unknown}
 
         echo "  Claude:      $old_claude → $ENABLE_CLAUDE"
         echo "  Gemini:      $old_gemini → $ENABLE_GEMINI"
@@ -130,6 +131,7 @@ run_reconfigure() {
         echo "  Codex:       $old_codex → $ENABLE_CODEX"
         echo "  Antigravity: $old_antigravity → $ENABLE_ANTIGRAVITY"
         echo "  SkillClaw:   $old_skillclaw → $ENABLE_SKILLCLAW"
+        echo "  browser-use: $old_browser_use → $ENABLE_BROWSER_USE"
     else
         echo "  Claude:      (new) → $ENABLE_CLAUDE"
         echo "  Gemini:      (new) → $ENABLE_GEMINI"
@@ -137,6 +139,7 @@ run_reconfigure() {
         echo "  Codex:       (new) → $ENABLE_CODEX"
         echo "  Antigravity: (new) → $ENABLE_ANTIGRAVITY"
         echo "  SkillClaw:   (new) → $ENABLE_SKILLCLAW"
+        echo "  browser-use: (new) → $ENABLE_BROWSER_USE"
     fi
     echo ""
 
@@ -153,6 +156,7 @@ run_reconfigure() {
         # Install/update Python dependencies
         print_header "Updating Python Dependencies"
         install_python_dependencies
+        install_browser_use
 
         print_success "Services reconfigured"
         echo ""
@@ -188,6 +192,7 @@ main() {
     echo "  Codex CLI:   $(if [[ "$ENABLE_CODEX" == true ]]; then echo "enabled"; else echo "disabled"; fi)"
     echo "  Antigravity: $(if [[ "$ENABLE_ANTIGRAVITY" == true ]]; then echo "enabled"; else echo "disabled"; fi)"
     echo "  SkillClaw:   $(if [[ "$ENABLE_SKILLCLAW" == true ]]; then echo "enabled"; else echo "disabled"; fi)"
+    echo "  browser-use: $(if [[ "$ENABLE_BROWSER_USE" == true ]]; then echo "enabled"; else echo "disabled"; fi)"
     echo ""
 
     if ! prompt_yes_no "Continue with setup?"; then
@@ -231,6 +236,7 @@ main() {
 
     # Install Python dependencies for parallel_agent.py
     install_python_dependencies
+    install_browser_use
 
     # Configure default MCP servers when requested
     if [[ "$INSTALL_MCP" == true ]]; then
