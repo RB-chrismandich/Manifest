@@ -335,13 +335,13 @@ cmd_run_all() {
 
     for file in ${files[@]+"${files[@]}"}; do
         if run_single_test "$file" "$timeout" "$headless"; then
-            ((passed++))
+            passed=$((passed + 1))
         else
             local rc=$?
             if [[ $rc -eq 2 || $rc -eq 3 ]]; then
-                ((skipped++))
+                skipped=$((skipped + 1))
             else
-                ((failed++))
+                failed=$((failed + 1))
             fi
         fi
         echo ""
@@ -380,9 +380,9 @@ cmd_validate() {
 
     for file in ${files[@]+"${files[@]}"}; do
         if validate_yaml "$file"; then
-            ((valid++))
+            valid=$((valid + 1))
         else
-            ((invalid++))
+            invalid=$((invalid + 1))
         fi
     done
 
