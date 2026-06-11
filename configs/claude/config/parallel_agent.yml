@@ -119,6 +119,8 @@ credit_fallback:
 # (dropped atomically for tier "auto" — no dangling flags). {output_file} in
 # base_args triggers tempfile creation; output "file_then_stdout" reads it
 # with priority file > stdout > stderr-on-error.
+# prompt_args: how the prompt is passed (default: trailing positional {prompt}).
+# Use when the CLI takes the prompt as the value of a flag (e.g. agy --print).
 cli_agents:
   cursor:
     binary: cursor
@@ -133,8 +135,9 @@ cli_agents:
     output: file_then_stdout
   antigravity:
     binary: agy
-    base_args: ["--print"]
+    base_args: []
     model_args: ["--model", "{model}"]
+    prompt_args: ["--print", "{prompt}"]
     output: stdout
 
 # Logging configuration

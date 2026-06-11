@@ -157,11 +157,37 @@ class TestCLIAgentCommandAssembly:
         agent = CLIAgent("antigravity", model="flash",
                          rate_limiter=_make_limiter(), config=_make_config(tmp_path))
         cmd = agent._build_command("hello")
-        assert cmd[0] == "agy"
-        assert cmd[1] == "--print"
-        i = cmd.index("--model")
-        assert cmd[i + 1] == "Gemini 3.5 Flash (High)"
+        # agy takes --print as a flag whose VALUE is the prompt, so the correct
+        # shape is: agy --model <model> --print <prompt>
+        assert cmd == ["agy", "--model", "Gemini 3.5 Flash (High)", "--print", "hello"]
+
+    def test_default_prompt_args_is_trailing_positional(self, tmp_path):
+        # cursor and codex use the default prompt_args (trailing positional)
+        agent = CLIAgent("codex", model="auto",
+                         rate_limiter=_make_limiter(), config=_make_config(tmp_path))
+        cmd = agent._build_command("hello", output_file=str(tmp_path / "out.txt"))
         assert cmd[-1] == "hello"
+        assert "--print" not in cmd
+
+    def test_prompt_args_substitution_preserves_prompt_with_braces(self, tmp_path):
+        # A prompt containing {model} or {output_file} must NOT be template-substituted.
+        # Only the surrounding template text of a prompt_args entry is substituted;
+        # the prompt content itself is injected verbatim.
+        config = _make_config(tmp_path)
+        config.config["cli_agents"]["fake"] = {
+            "binary": "fakecli",
+            "base_args": [],
+            "model_args": ["--model", "{model}"],
+            "prompt_args": ["{prompt}"],
+            "output": "stdout",
+        }
+        config.config["model_tiers"]["fake"] = {"flash": "fake-model-1"}
+        agent = CLIAgent("fake", model="flash",
+                         rate_limiter=_make_limiter(), config=config)
+        raw_prompt = "use {model} and {output_file} literally"
+        cmd = agent._build_command(raw_prompt)
+        # The prompt must appear verbatim — no substitution inside its content.
+        assert cmd[-1] == raw_prompt
 
 
 class TestCLIAgentExecution:

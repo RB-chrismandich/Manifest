@@ -446,6 +446,7 @@ class CLIAgent(BaseAgent):
             )
         self.base_args = list(spec.get("base_args", []))
         self.model_args = list(spec.get("model_args", []))
+        self.prompt_args = list(spec.get("prompt_args", ["{prompt}"]))
         self.output_strategy = spec.get("output", "stdout")
         self.model_name = self._resolve_model(model)
 
@@ -457,16 +458,28 @@ class CLIAgent(BaseAgent):
         return resolved if resolved else tier
 
     def _build_command(self, prompt: str, output_file: Optional[str] = None) -> List[str]:
-        """Assemble argv: binary + base_args + optional model group + prompt.
+        """Assemble argv: binary + base_args + optional model group + prompt_args.
 
         model_args are appended only when a model is resolved — the group is
         dropped atomically, so an optional model can never leave a dangling flag.
+        prompt_args controls how the prompt is passed (default: trailing positional
+        {prompt}).  The prompt content itself is never template-substituted — only
+        the surrounding template text in a prompt_args entry is substituted, then
+        the raw prompt is spliced in via {prompt}.
         """
 
         def _subst(arg: str) -> str:
             arg = arg.replace("{output_file}", output_file or "")
             arg = arg.replace("{model}", self.model_name or "")
             return arg
+
+        def _subst_prompt(arg: str) -> str:
+            if "{prompt}" in arg:
+                # Split on the placeholder, substitute non-prompt placeholders in the
+                # surrounding template text only, then rejoin with the raw prompt —
+                # the prompt content itself is never template-substituted.
+                return prompt.join(_subst(piece) for piece in arg.split("{prompt}"))
+            return _subst(arg)
 
         cmd = [self.binary]
         for arg in self.base_args:
@@ -475,7 +488,7 @@ class CLIAgent(BaseAgent):
                 cmd.append(substituted)
         if self.model_name:
             cmd += [_subst(a) for a in self.model_args]
-        cmd.append(prompt)
+        cmd += [_subst_prompt(a) for a in self.prompt_args]
         return cmd
 
     def _collect_output(

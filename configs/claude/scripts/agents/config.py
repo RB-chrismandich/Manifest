@@ -137,8 +137,9 @@ class Config:
                 },
                 "antigravity": {
                     "binary": "agy",
-                    "base_args": ["--print"],
+                    "base_args": [],
                     "model_args": ["--model", "{model}"],
+                    "prompt_args": ["--print", "{prompt}"],
                     "output": "stdout",
                 },
             },
