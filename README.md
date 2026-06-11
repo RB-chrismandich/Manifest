@@ -40,8 +40,8 @@ cd Manifest
 
 ## Features
 
-- **Parallel Agent Orchestration**: Run 2-4 AI agents simultaneously
-  (Cursor, Gemini, Claude, Codex) with real-time streaming display
+- **Parallel Agent Orchestration**: Run 2-5 AI agents simultaneously
+  (Cursor, Gemini, Claude, Codex, Antigravity) with real-time streaming display
 - **Modular `agents/` Package**: `parallel_agent.py` backed by `agents/` subpackage —
   `cli.py`, `config.py`, `orchestrator.py`, `runners.py`, `synthesis.py`, `validation.py`
 - **Comprehensive Logging**: Structured JSON logs with correlation IDs, rotation (10MB, 5 backups), performance metrics
@@ -67,18 +67,18 @@ cd Manifest
 
 ```text
 User → Claude Code → /command → parallel_agent.py
-                                      ↓
-                    ┌────────────┬────┼────┬────────────┐
-                    ↓            ↓         ↓            ↓
-              Cursor Agent  Gemini CLI  Claude CLI  Codex CLI
-              (IDE Context) (Broad      (Deep       (Terminal
-                            Knowledge)  Reasoning)   Coding)
-                    ↓            ↓         ↓            ↓
-                    └────────────┴────┼────┴────────────┘
-                                      ↓
-                            Synthesis & Validation
-                                      ↓
-                                  JSON Output
+                                          ↓
+                    ┌──────────┬──────────┼──────────┬──────────┐
+                    ↓          ↓          ↓          ↓          ↓
+              Cursor Agent Gemini CLI Claude CLI Codex CLI  Antigravity
+              (IDE Context)(Broad     (Deep      (Terminal  (agy)
+                           Knowledge) Reasoning)  Coding)
+                    ↓          ↓          ↓          ↓          ↓
+                    └──────────┴──────────┼──────────┴──────────┘
+                                          ↓
+                              Synthesis & Validation
+                                          ↓
+                                      JSON Output
 ```
 
 **Visual Documentation**: [Architecture Diagrams](docs/ARCHITECTURE_DIAGRAMS.md) -

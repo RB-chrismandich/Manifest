@@ -93,9 +93,9 @@ services:
     command: codex
     description: "Terminal coding assistant for codebase edits and automation"
     model_tiers:
-      - mini     # Lightweight (o4-mini)
-      - flash    # Balanced (o3, default)
-      - advanced # Maximum capability (o3-pro)
+      - mini     # Lightweight (gpt-5.4-mini)
+      - flash    # Balanced (gpt-5.4, default)
+      - advanced # Maximum capability (gpt-5.5)
       - auto     # Use Codex config default model
 
   # Git CLI tools - Platform-specific Git hosting integrations
@@ -729,16 +729,37 @@ Overall: NEEDS_REVIEW (tier1 pass, tier2: 0.55)
 
 | Tier | Model Name | Use Case | Cost |
 |------|------------|----------|------|
-| `haiku` | haiku | Quick queries | Lowest |
-| `sonnet` | sonnet | Code review (default) | Medium |
-| `opus` | opus | Security analysis | Highest |
+| `haiku` | claude-haiku-4-5-20251001 | Quick queries | Lowest |
+| `sonnet` | claude-sonnet-4-6 | Code review (default) | Medium |
+| `opus` | claude-opus-4-8 | Security analysis | Higher |
+| `fable` | claude-fable-5 | Security tasks (default) | Highest |
 
 #### Gemini Models
 
 | Tier | Model Name | Use Case | Cost |
 |------|------------|----------|------|
-| `flash` | gemini-3-flash-preview | General use (default) | Lower |
-| `pro` | gemini-3-pro-preview | Complex analysis | Higher |
+| `flash` | gemini-3.5-flash | General use (default) | Lower |
+| `pro` | gemini-3.1-pro | Complex analysis | Higher |
+
+#### Codex Models
+
+| Tier | Model Name | Use Case | Cost |
+|------|------------|----------|------|
+| `mini` | gpt-5.4-mini | Quick queries | Lowest |
+| `flash` | gpt-5.4 | Code review (default) | Medium |
+| `advanced` | gpt-5.5 | Security analysis | Highest |
+
+#### Antigravity Models
+
+| Tier | Model Name | Use Case | Cost |
+|------|------------|----------|------|
+| `mini` | Gemini 3.5 Flash (Low) | Quick queries | Lowest |
+| `flash` | Gemini 3.5 Flash (High) | General use (default) | Medium |
+| `advanced` | Claude Opus 4.6 (Thinking) | Complex analysis | Highest |
+
+**Note**: Antigravity's catalog is managed by the `agy` CLI and may lag the direct
+API (e.g. Opus 4.6 vs 4.8). Run `agy models` to see the live model list, which is
+validated by `model_check.sh`.
 
 ### Selecting Models
 
@@ -792,8 +813,18 @@ export CURSOR_MODEL_FLASH="gpt-5.1-codex"
 export CURSOR_MODEL_ADVANCED="gpt-5.2"
 
 # Gemini models
-export GEMINI_MODEL_FLASH="gemini-3-flash-preview"
-export GEMINI_MODEL_PRO="gemini-3-pro-preview"
+export GEMINI_MODEL_FLASH="gemini-3.5-flash"
+export GEMINI_MODEL_PRO="gemini-3.1-pro"
+```
+
+### Spec Review Configuration
+
+```bash
+# Override the model used by spec_review.sh (default: gemini via agy)
+export SPEC_REVIEW_MODEL="gemini-3.1-pro"
+
+# Override the config file passed to spec_review.sh
+export SPEC_REVIEW_CONFIG="~/.claude/config/parallel_agent.yml"
 ```
 
 ### Feature Flags
@@ -802,6 +833,40 @@ export GEMINI_MODEL_PRO="gemini-3-pro-preview"
 # Enable pre-flight credit check before running agents
 export CHECK_CREDITS_PREFLIGHT="true"
 ```
+
+---
+
+## CLI Agent Command Configuration
+
+**File**: `configs/claude/config/parallel_agent.yml` — `cli_agents:` block
+
+Defines how `parallel_agent.py` invokes each CLI provider. Adding a CLI provider
+is configuration-only — define its command shape here plus `model_tiers`,
+`rate_limits`, and `credit_fallback` entries in the same file.
+
+```yaml
+cli_agents:
+  cursor:
+    binary: cursor
+    base_args: []
+    model_args: ["--model", "{model}"]
+    output: stdout
+  codex:
+    binary: codex
+    base_args: ["exec", "--full-auto", "--color", "never",
+                "--output-last-message", "{output_file}"]
+    model_args: ["--model", "{model}"]
+    output: file_then_stdout
+  antigravity:
+    binary: agy
+    base_args: ["--print"]
+    model_args: ["--model", "{model}"]
+    output: stdout
+```
+
+`output: file_then_stdout` reads the tempfile first, falling back to stdout;
+`output: stdout` streams directly. `{model}` and `{output_file}` are substitution
+tokens filled at runtime.
 
 ---
 
@@ -814,19 +879,22 @@ export CHECK_CREDITS_PREFLIGHT="true"
 --gemini-only          # Run only Gemini CLI
 --claude-only          # Run only Claude CLI
 --codex-only           # Run only Codex CLI
+--antigravity-only     # Run only Antigravity (agy)
 --no-claude            # Disable Claude CLI
 --no-cursor            # Disable Cursor Agent
 --no-gemini            # Disable Gemini CLI
 --no-codex             # Disable Codex CLI
+--no-antigravity       # Disable Antigravity for this run
 ```
 
 ### Model Selection
 
 ```bash
---cursor-model <tier>  # Cursor model: mini, flash, advanced, auto (default: flash)
---claude-model <tier>  # Claude model: haiku, sonnet, opus (default: sonnet)
---gemini-model <tier>  # Gemini model: flash, pro (default: flash)
---codex-model <tier>   # Codex model: mini, flash, advanced, auto (default: auto)
+--cursor-model <tier>       # Cursor model: mini, flash, advanced, auto (default: flash)
+--claude-model <tier>       # Claude model: haiku, sonnet, opus, fable (default: sonnet)
+--gemini-model <tier>       # Gemini model: flash, pro (default: flash)
+--codex-model <tier>        # Codex model: mini, flash, advanced, auto (default: auto)
+--antigravity-model <tier>  # Antigravity model: mini, flash, advanced (default: flash)
 ```
 
 ### Execution Modes

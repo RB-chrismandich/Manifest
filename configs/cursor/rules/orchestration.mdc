@@ -7,7 +7,7 @@ alwaysApply: true
 # Agent Orchestration Guide
 
 This rule defines how the Cursor agent should leverage parallel LLM agents
-(Gemini CLI, Cursor Agent, Claude CLI) for cross-verification, planning, and validation.
+(Gemini CLI, Cursor Agent, Claude CLI, Codex, Antigravity) for cross-verification, planning, and validation.
 
 <!-- Adapted from: .claude/CLAUDE.md -->
 
@@ -29,7 +29,7 @@ This rule defines how the Cursor agent should leverage parallel LLM agents
   project context, and implementation planning.
 
 ```bash
-# Basic code review with JSON output (all 3 agents, 10 min timeout)
+# Basic code review with JSON output (all 5 agents, 10 min timeout)
 ~/.claude/scripts/parallel_agent.py --json --timeout 600 --review /absolute/path/to/file
 
 # Full analysis with validation and model selection (15 min timeout)

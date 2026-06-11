@@ -73,11 +73,12 @@ Volume of knowledge base entries by category over time.
 
 Breakdown of model tiers selected for orchestrated tasks.
 
-| Tier | Cursor Model | Claude Model | Gemini Model | Usage Count |
-|------|--------------|--------------|--------------|-------------|
-| mini / haiku | gpt-5.1-codex-mini | haiku | -- | |
-| flash / sonnet | gpt-5.1-codex | sonnet | gemini-3-flash-preview | |
-| advanced / opus / pro | gpt-5.2 | opus | gemini-3-pro-preview | |
+| Tier | Cursor Model | Claude Model | Gemini Model | Codex Model | Antigravity Model | Usage Count |
+|------|--------------|--------------|--------------|-------------|-------------------|-------------|
+| mini / haiku | gpt-5.1-codex-mini | claude-haiku-4-5-20251001 | -- | gpt-5.4-mini | Gemini 3.5 Flash (Low) | |
+| flash / sonnet | gpt-5.1-codex | claude-sonnet-4-6 | gemini-3.5-flash | gpt-5.4 | Gemini 3.5 Flash (High) | |
+| advanced / opus / pro | gpt-5.2 | claude-opus-4-8 | gemini-3.1-pro | gpt-5.5 | Claude Opus 4.6 (Thinking) | |
+| fable (security) | -- | claude-fable-5 | -- | -- | -- | |
 
 ---
 

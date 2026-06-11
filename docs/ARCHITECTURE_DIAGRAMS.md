@@ -536,7 +536,7 @@ flowchart TB
         GEMINI_EXEC["Gemini CLI<br/>(gemini-3-flash/pro)"]:::process
         CURSOR_EXEC["Cursor Agent<br/>(gpt-5.1/5.2)"]:::process
         CLAUDE_EXEC["Claude CLI<br/>(haiku/sonnet/opus)"]:::process
-        CODEX_EXEC["Codex CLI<br/>(o4-mini/o3/o3-pro)"]:::process
+        CODEX_EXEC["Codex CLI<br/>(gpt-5.4-mini/gpt-5.4/gpt-5.5)"]:::process
     end
 
     COLLECT["Collect Outputs<br/>(with retry + fallback)"]:::process
@@ -850,13 +850,13 @@ gpt-5.2 (advanced) → gpt-5.1-codex (flash) → gpt-5.1-codex-mini (mini) → a
 **Claude Fallback Chain**:
 
 ```text
-opus → sonnet → haiku
+fable → opus → sonnet → haiku
 ```
 
 **Codex Fallback Chain**:
 
 ```text
-o3-pro (advanced) → o3 (flash) → o4-mini (mini)
+gpt-5.5 (advanced) → gpt-5.4 (flash) → gpt-5.4-mini (mini)
 ```
 
 **Error Detection**:
@@ -1006,7 +1006,7 @@ flowchart TD
 
 **Example Consensus Calculation**:
 
-Given 3 agents with these findings:
+Given 3 of 5 agents with these findings (Gemini, Cursor, Claude shown for brevity):
 
 - **Gemini**: [A, B, C, D]
 - **Cursor**: [A, B, E]
@@ -1016,7 +1016,7 @@ Given 3 agents with these findings:
 
 - Total unique findings: A, B, C, D, E, F = **6**
 - Agreements (2+ agents):
-  - A: all 3 agents ✓
+  - A: all 3 agents shown ✓
   - B: Gemini + Cursor ✓
   - C: Gemini + Claude ✓
 - Agreement count: **3**

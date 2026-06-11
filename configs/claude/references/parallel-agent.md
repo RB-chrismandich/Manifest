@@ -16,9 +16,13 @@
 | `--cursor-only` | Run only Cursor Agent |
 | `--gemini-only` | Run only Gemini CLI |
 | `--claude-only` | Run only Claude CLI |
+| `--codex-only` | Run only Codex CLI |
+| `--antigravity-only` | Run only Antigravity (agy) |
 | `--no-claude` | Disable Claude CLI (enabled by default) |
+| `--no-antigravity` | Disable Antigravity for this run |
 | `--cursor-model <tier>` | Cursor model: mini, flash, advanced, auto (default: auto) |
-| `--claude-model <tier>` | Claude model: haiku, sonnet, opus (default: sonnet) |
+| `--claude-model <tier>` | Claude model: haiku, sonnet, opus, fable (default: sonnet) |
+| `--antigravity-model <tier>` | Antigravity model: mini, flash, advanced (default: flash) |
 | `--check-credits` | Run pre-flight credit check |
 | `--timeout <sec>` | Timeout per agent (default: 120) |
 | `--output <dir>` | Custom output directory |
@@ -42,18 +46,26 @@ The orchestrating agent (Claude) selects models based on task complexity:
 
 **Model Tier Mappings:**
 
-| Tier | Cursor | Claude | Gemini |
-|------|--------|--------|--------|
-| mini/haiku | gpt-5.1-codex-mini | haiku | - |
-| flash/sonnet | gpt-5.1-codex | sonnet | gemini-3-flash-preview |
-| advanced/opus/pro | gpt-5.2 | opus | gemini-3-pro-preview |
+| Tier | Cursor | Claude | Gemini | Codex | Antigravity |
+|------|--------|--------|--------|-------|-------------|
+| mini/haiku | gpt-5.1-codex-mini | claude-haiku-4-5-20251001 | - | gpt-5.4-mini | Gemini 3.5 Flash (Low) |
+| flash/sonnet | gpt-5.1-codex | claude-sonnet-4-6 | gemini-3.5-flash | gpt-5.4 | Gemini 3.5 Flash (High) |
+| advanced/opus/pro | gpt-5.2 | claude-opus-4-8 | gemini-3.1-pro | gpt-5.5 | Claude Opus 4.6 (Thinking) |
+| fable (security) | - | claude-fable-5 | - | - | - |
+
+**Known correlation**: Antigravity serves Gemini/Claude model families also present via
+direct API; consensus scores can be inflated by same-family agreement, and agy's catalog
+may lag the direct API (e.g. Opus 4.6 vs 4.8) — `agy models` is its ground truth
+(checked by `model_check.sh`).
 
 ## Credit Exhaustion Fallback
 
 The script automatically detects credit/quota exhaustion and falls back:
 
 - **Cursor**: gpt-5.2 → gpt-5.1-codex → gpt-5.1-codex-mini → auto
-- **Claude**: opus → sonnet → haiku
+- **Claude**: fable → opus → sonnet → haiku
+- **Codex**: gpt-5.5 → gpt-5.4 → gpt-5.4-mini
+- **Antigravity**: advanced → flash → mini
 
 Detection methods:
 
@@ -97,7 +109,7 @@ Detection methods:
   "cross_verification": {
     "consensus_score": 85,
     "confidence": "high|medium|low",
-    "agent_count": 3
+    "agent_count": 5
   }
 }
 ```
@@ -110,8 +122,8 @@ Detection methods:
 | `CURSOR_MODEL_MINI` | Model name for 'mini' tier | `gpt-5.1-codex-mini` |
 | `CURSOR_MODEL_FLASH` | Model name for 'flash' tier | `gpt-5.1-codex` |
 | `CURSOR_MODEL_ADVANCED` | Model name for 'advanced' tier | `gpt-5.2` |
-| `GEMINI_MODEL_FLASH` | Model name for 'flash' tier | `gemini-3-flash-preview` |
-| `GEMINI_MODEL_PRO` | Model name for 'pro' tier | `gemini-3-pro-preview` |
+| `GEMINI_MODEL_FLASH` | Model name for 'flash' tier | `gemini-3.5-flash` |
+| `GEMINI_MODEL_PRO` | Model name for 'pro' tier | `gemini-3.1-pro` |
 | `CHECK_CREDITS_PREFLIGHT` | Enable pre-flight credit check | `false` |
 
 ## Output Location

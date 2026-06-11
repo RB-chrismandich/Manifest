@@ -39,7 +39,7 @@ Use these MCP servers by default when their domain context matches the task:
 
 This repository manages Claude Code agent configurations for deployment to `~/.claude/`
 on target machines. It contains orchestration guides, commands, skills, prompts, and scripts
-that enable parallel LLM agent coordination (Cursor, Gemini CLI, Claude CLI).
+that enable parallel LLM agent coordination (Cursor, Gemini CLI, Claude CLI, Codex, Antigravity).
 
 ## Repository Structure
 
@@ -84,7 +84,7 @@ bootstrap/                           # Modular bootstrap libraries + hookable mo
 │   ├── deploy.sh                    # Deploy/verify/summary routines
 │   └── mcp.sh                       # MCP configuration/install routines
 └── modules/README.md                # How to add custom bootstrap extensions
-AGENTS.md                            # AI agent instructions (Cursor, Claude, Gemini, Codex)
+AGENTS.md                            # AI agent instructions (Cursor, Claude, Gemini, Codex, Antigravity)
 ```
 
 ## Bootstrap (macOS / Linux)

@@ -1,7 +1,7 @@
 # Claude Orchestration Guide
 
 This document defines how Claude should leverage parallel LLM agents
-(Gemini, Cursor, Claude CLI) for cross-verification, planning, and validation.
+(Gemini, Cursor, Claude CLI, Codex, Antigravity) for cross-verification, planning, and validation.
 
 ## Parallel Agent Script
 
@@ -39,7 +39,7 @@ This document defines how Claude should leverage parallel LLM agents
   Infrastructure as Code.
 
 ```bash
-# Basic code review with JSON output (all 3 agents, 10 min timeout)
+# Basic code review with JSON output (all 5 agents, 10 min timeout)
 ~/.claude/scripts/parallel_agent.py --json --timeout 600 --review /absolute/path/to/file
 
 # Generic prompt to all agents
@@ -50,6 +50,9 @@ This document defines how Claude should leverage parallel LLM agents
 
 # Full analysis with validation and model selection (15 min timeout)
 ~/.claude/scripts/parallel_agent.py --json --full-output --validate --timeout 900 --cursor-model advanced --claude-model opus --analyze /absolute/path/to/file
+
+# Antigravity-only quick query
+~/.claude/scripts/parallel_agent.py --antigravity-only --antigravity-model flash "Quick question"
 ```
 
 ## Reference Index
