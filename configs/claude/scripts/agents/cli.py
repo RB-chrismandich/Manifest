@@ -245,17 +245,24 @@ async def main():
     }
     for provider in ("cursor", "codex"):
         if enabled[provider]:
-            agents.append(
-                CLIAgent(
-                    provider,
-                    cli_models[provider],
-                    timeout,
-                    cli_limiters[provider],
-                    config=config,
-                    logger=logger,
-                    streaming=streaming,
+            try:
+                agents.append(
+                    CLIAgent(
+                        provider,
+                        cli_models[provider],
+                        timeout,
+                        cli_limiters[provider],
+                        config=config,
+                        logger=logger,
+                        streaming=streaming,
+                    )
                 )
-            )
+            except ValueError as e:
+                print(
+                    f"Warning: skipping {provider} agent: {e}",
+                    file=sys.stderr,
+                )
+                logger.warning(f"Skipping {provider} agent: {e}")
 
     # Check minimum agents
     min_warning = services.check_minimum_agents(len(agents))
