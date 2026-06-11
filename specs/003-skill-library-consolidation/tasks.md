@@ -36,7 +36,7 @@
 ### Tests first (pin new behavior)
 
 - [ ] T002 [P] [US1] Add prune-on-deploy bats cases to tests/bats/deploy_skills.bats per contracts/prune-on-deploy.md: (a) deploy → remove skill from source → redeploy → gone from target, (b) file outside skills dir survives, (c) double-deploy is a no-op — expect FAIL until T003
-- [ ] T003 [US1] Add `--delete` to the `rsync -a` in `deploy_home_skills()` in bootstrap/lib/common.sh (R1); T002 now passes
+- [ ] T003 [US1] Implement manifest-scoped prune-on-deploy in `deploy_home_skills()` in bootstrap/lib/common.sh (R1): rsync copy + prune previously-deployed skills (tracked in a `.deployed-skills` manifest) now absent from source; externally-added skills preserved; empty-source/traversal safety bounds per contracts/prune-on-deploy.md; T002 now passes
 - [ ] T004 [P] [US1] Add library-prompt pytest cases to tests/python/test_skillclaw_evolve.py per contracts/library-prompt.md: name—description line present; broken-frontmatter → name-only (run succeeds); >200-char description truncated — expect FAIL until T005
 - [ ] T005 [US1] Implement description-aware library rendering in configs/claude/scripts/skillclaw_evolve.py (extend `_library_names` → `_library_entries`, flatten/truncate at 200 chars, fail-open per contract); T004 now passes
 - [ ] T006 [US1] Update library-section wording in configs/claude/prompts/skillclaw_evolve.md: "do NOT duplicate these skills — match by purpose, not just name; improvements go under the EXISTING name" (contracts/library-prompt.md rule 5)

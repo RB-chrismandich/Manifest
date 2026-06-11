@@ -143,8 +143,14 @@ def _skill_description(skill_md: Path):
         d = _DESC_LINE_RE.search(m.group(1))
         if not d:
             return None
+        raw = d.group(1)
+        # Block scalars (description: | / > with optional chomping/indent)
+        # put only the marker on the key line — drop it, keep the body.
+        first, _, rest = raw.partition("\n")
+        if re.fullmatch(r"[|>][+-]?\d*", first.strip()):
+            raw = rest
         # Flatten (multi-line YAML values included) and bound prompt cost.
-        desc = " ".join(d.group(1).split())
+        desc = " ".join(raw.split())
         return desc[:_DESC_MAX] if desc else None
     except OSError:
         return None

@@ -48,7 +48,7 @@ user story, P1 → P5.
 | II. Parallel Agent Orchestration | The consolidation PR rewrites >200 lines of skill content → cross-verify with parallel agents before merge (review gate noted in tasks). The P3 robustness PR touches security-adjacent quoting → same gate applies. |
 | III. Consensus-Driven Decisions | Standard thresholds apply to the parallel reviews above; no bypasses planned. |
 | IV. Skill-First Extensibility | Consolidation edits skills in `.skillshare/skills/` via PR; survivors keep valid `name`/`description` frontmatter and stay independently invocable. No core-script absorption of skill behavior. |
-| V. Bootstrap Reproducibility | `deploy_home_skills` gains `--delete` → *more* idempotent (converges to source). Bats coverage added for the new behavior. |
+| V. Bootstrap Reproducibility | `deploy_home_skills` gains manifest-scoped prune-on-deploy (removes only skills it previously deployed that left the source; externally-added skills preserved — see contracts/prune-on-deploy.md) → *more* idempotent (converges to source). Bats coverage added for the new behavior. |
 | Quality Gates | Each story-PR runs full bats + pytest + lint; Tier 1 security check covers the FR-009 quoting fixes. |
 
 **Violations**: none. Complexity Tracking table intentionally empty.
@@ -112,9 +112,9 @@ framing.
 ## Phase summaries
 
 - **Phase 0 (research.md)**: 14 decisions, all spec unknowns resolved with
-  file:line evidence — notably: prune = `rsync --delete` mirroring (matching
-  sync-skills' existing semantic, with the FR-005a safety bound interpreted at
-  directory scope and flagged for reviewer sign-off); evolve timeout 600s
+  file:line evidence — notably: prune = manifest-scoped prune-on-deploy
+  (`.deployed-skills` manifest; externally-added skills preserved, with the
+  FR-005a safety bounds per contracts/prune-on-deploy.md); evolve timeout 600s
   default; array guard = checker script in pre-commit + CI; 10 (not 3)
   scripts lack `--help`, 8 get it, 2 exempted; cluster math corrected to −12
   (81 → 69).
