@@ -20,19 +20,22 @@
 set -euo pipefail
 
 # --- Colors -----------------------------------------------------------
-RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 CYAN='\033[0;36m'
 RESET='\033[0m'
+
+err() { echo "learning-capture: $*" >&2; }
 
 # --- Knowledge base file location ------------------------------------
 if [[ -f "${HOME}/.claude/config/knowledge_base.yml" ]]; then
     KNOWLEDGE_BASE_FILE="${HOME}/.claude/config/knowledge_base.yml"
 elif [[ -f ".claude/config/knowledge_base.yml" ]]; then
     KNOWLEDGE_BASE_FILE=".claude/config/knowledge_base.yml"
+elif [[ "${1:-}" == "--help" || "${1:-}" == "-h" || "${1:-}" == "help" ]]; then
+    KNOWLEDGE_BASE_FILE=""   # --help must work without a KB (fresh clone / CI)
 else
-    echo -e "${RED}Error: knowledge_base.yml not found in ~/.claude/config/ or .claude/config/${RESET}" >&2
+    err "knowledge_base.yml not found in ~/.claude/config/ or .claude/config/"
     exit 1
 fi
 
@@ -87,9 +90,7 @@ EXAMPLES:
 USAGE
 }
 
-error_msg() {
-    echo -e "${RED}Error: $1${RESET}" >&2
-}
+error_msg() { err "$1"; }
 
 success_msg() {
     echo -e "${GREEN}$1${RESET}"
@@ -109,7 +110,7 @@ validate_category() {
         pattern | antipattern | tool_discovery | config_insight) return 0 ;;
         *)
             error_msg "Invalid category: $cat"
-            echo "  Valid categories: pattern, antipattern, tool_discovery, config_insight" >&2
+            err "  Valid categories: pattern, antipattern, tool_discovery, config_insight"
             return 1
             ;;
     esac
@@ -121,7 +122,7 @@ validate_confidence() {
         high | medium | low) return 0 ;;
         *)
             error_msg "Invalid confidence: $conf"
-            echo "  Valid levels: high, medium, low" >&2
+            err "  Valid levels: high, medium, low"
             return 1
             ;;
     esac

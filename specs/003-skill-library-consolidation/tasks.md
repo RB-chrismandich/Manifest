@@ -121,10 +121,10 @@
 **Independent test** (quickstart.md §US5): records/ ignored; no stale current-plan pointer; --help present on the 8 user-facing scripts.
 
 - [x] T036 [P] [US5] Add `records/` to .gitignore with comment `# local tool side-effect, origin unknown (not SkillClaw — see specs/003 research R10)`
-- [ ] T037 [P] [US5] Review specs/002-new-agent-skills/ deliverables (R11); if delivered mark plan.md/spec.md status "Delivered 2026-06"; confirm root CLAUDE.md SPECKIT pointer already repointed to 003 (done in planning) and remove any other stale "current plan" references
-- [ ] T038 [US5] err() convention sweep in configs/claude/scripts/*.sh: convert bare `echo ... >&2` / print_error uses to `err()` (bootstrap/lib/ exempt per clarification); document the convention + exemption in .claude/CLAUDE.md
-- [ ] T039 [US5] Add minimal `--help` (usage + flags, ≤15 lines) to the 8 user-facing scripts lacking it: branch_clean.sh, check_status.sh, git_ops.sh, linear_ops.sh, pr_review.sh, skillclaw_promote.sh, sync-skills.sh, version_pin.sh; document exemptions (version_pin_hook.sh, git_platform.sh) in .claude/CLAUDE.md (R6)
-- [ ] T040 [US5] Run quickstart.md §US5 + full gate; if the diff exceeds 200 lines (likely — 10-script sweep), run parallel-agent cross-verification per Constitution II; open PR-5
+- [x] T037 [P] [US5] Review specs/002-new-agent-skills/ deliverables (R11); if delivered mark plan.md/spec.md status "Delivered 2026-06"; confirm root CLAUDE.md SPECKIT pointer already repointed to 003 (done in planning) and remove any other stale "current plan" references
+- [x] T038 [US5] err() convention sweep in configs/claude/scripts/*.sh: convert bare `echo ... >&2` / print_error uses to `err()` (bootstrap/lib/ exempt per clarification); document the convention + exemption in .claude/CLAUDE.md
+- [x] T039 [US5] Add minimal `--help` (usage + flags, ≤15 lines) to the 8 user-facing scripts lacking it: branch_clean.sh, check_status.sh, git_ops.sh, linear_ops.sh, pr_review.sh, skillclaw_promote.sh, sync-skills.sh, version_pin.sh; document exemptions (version_pin_hook.sh, git_platform.sh) in .claude/CLAUDE.md (R6)
+- [x] T040 [US5] Run quickstart.md §US5 + full gate; if the diff exceeds 200 lines (likely — 10-script sweep), run parallel-agent cross-verification per Constitution II; open PR-5
 
 **Checkpoint**: hygiene complete.
 
