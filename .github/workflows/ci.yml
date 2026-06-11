@@ -3,8 +3,9 @@ name: Manifest CI
 on:
   push:
     branches: [main]
+  # No base-branch filter: stacked story-PRs (e.g. 003-us4 -> 003-us3) must
+  # run CI too, not only PRs that target main.
   pull_request:
-    branches: [main]
 
 permissions:
   contents: read
