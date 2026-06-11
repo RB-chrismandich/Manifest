@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Per-module unit tests for agents.runners.
 
-Tests BaseAgent and CodexAgent in isolation — no external agent connections required.
+Tests BaseAgent and CLIAgent in isolation — no external agent connections required.
 """
 
 import asyncio
@@ -15,7 +15,7 @@ SCRIPTS_DIR = str(REPO_ROOT / "configs" / "claude" / "scripts")
 sys.path.insert(0, SCRIPTS_DIR)
 
 from agents.config import Config, RateLimiter
-from agents.runners import BaseAgent, CLIAgent, CodexAgent
+from agents.runners import BaseAgent, CLIAgent
 
 
 def _make_config(tmp_path):
@@ -83,32 +83,6 @@ class TestBaseAgent:
         result = asyncio.run(agent.execute("hello"))
         assert result["status"] == "failed"
         assert "timeout" in result["error"]
-
-
-# ---------------------------------------------------------------------------
-# CodexAgent
-# ---------------------------------------------------------------------------
-
-
-class TestCodexAgent:
-    def test_resolve_model_auto(self, tmp_path):
-        agent = CodexAgent(model="auto", rate_limiter=_make_limiter(), config=_make_config(tmp_path))
-        assert agent.model_name is None
-
-    def test_resolve_model_named_tier(self, tmp_path):
-        agent = CodexAgent(model="mini", rate_limiter=_make_limiter(), config=_make_config(tmp_path))
-        assert agent.model_name == "o4-mini"
-
-    def test_resolve_model_custom(self, tmp_path):
-        agent = CodexAgent(model="o3", rate_limiter=_make_limiter(), config=_make_config(tmp_path))
-        assert agent.model_name == "o3"
-
-    def test_execute_missing_codex(self, tmp_path, monkeypatch):
-        import shutil
-        monkeypatch.setattr(shutil, "which", lambda _: None)
-        agent = CodexAgent(model="auto", rate_limiter=_make_limiter(), config=_make_config(tmp_path))
-        result = asyncio.run(agent.execute("test"))
-        assert result["status"] == "missing"
 
 
 # ---------------------------------------------------------------------------

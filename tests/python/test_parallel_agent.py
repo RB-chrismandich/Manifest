@@ -30,7 +30,7 @@ sys.path.insert(0, SCRIPTS_DIR)
 from agents.config import Config, ServiceConfig, Logger, RateLimiter  # noqa: E402
 from agents.validation import ValidationEngine  # noqa: E402
 from agents.synthesis import SynthesisEngine  # noqa: E402
-from agents.runners import BaseAgent, CodexAgent  # noqa: E402
+from agents.runners import BaseAgent, CLIAgent  # noqa: E402
 from agents.orchestrator import Orchestrator  # noqa: E402
 
 
@@ -624,39 +624,38 @@ class TestServiceConfig:
 
 
 class TestCodexAgent:
-    """Test the CodexAgent class."""
+    """Codex behavior through the generic CLIAgent (regression for the refactor)."""
 
     def test_resolve_model_auto(self, tmp_path):
         """Auto tier resolves to None (let codex choose)."""
         config = Config(config_path=str(tmp_path / "nonexistent.yml"))
         limiter = RateLimiter()
-        agent = CodexAgent("auto", 60, limiter, config=config)
+        agent = CLIAgent("codex", "auto", 60, limiter, config=config)
         assert agent.model_name is None
 
     def test_resolve_model_named_tier(self, tmp_path):
         """Named tier resolves to correct model from config."""
         config = Config(config_path=str(tmp_path / "nonexistent.yml"))
         limiter = RateLimiter()
-        agent = CodexAgent("mini", 60, limiter, config=config)
+        agent = CLIAgent("codex", "mini", 60, limiter, config=config)
         assert agent.model_name == "o4-mini"
 
     def test_resolve_model_custom(self, tmp_path):
         """Custom model name passes through as-is."""
         config = Config(config_path=str(tmp_path / "nonexistent.yml"))
         limiter = RateLimiter()
-        agent = CodexAgent("custom-model-123", 60, limiter, config=config)
+        agent = CLIAgent("codex", "custom-model-123", 60, limiter, config=config)
         assert agent.model_name == "custom-model-123"
 
     @pytest.mark.asyncio
     async def test_execute_missing_codex(self, tmp_path, monkeypatch):
-        """CodexAgent returns 'missing' status when codex is not installed."""
+        """Returns 'missing' status when codex is not installed."""
         import shutil
 
         config = Config(config_path=str(tmp_path / "nonexistent.yml"))
         limiter = RateLimiter()
-        agent = CodexAgent("auto", 60, limiter, config=config)
+        agent = CLIAgent("codex", "auto", 60, limiter, config=config)
 
-        # Mock shutil.which to return None
         monkeypatch.setattr(shutil, "which", lambda cmd: None)
         result = await agent._execute_impl("test prompt", "prompt")
         assert result["status"] == "missing"

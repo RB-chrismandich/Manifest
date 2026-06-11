@@ -23,8 +23,7 @@ from agents.orchestrator import Orchestrator, check_credits
 from agents.runners import (
     BaseAgent,
     ClaudeAgent,
-    CodexAgent,
-    CursorAgent,
+    CLIAgent,
     GeminiAgent,
 )
 
@@ -236,29 +235,27 @@ async def main():
             )
             logger.warning("Google Generative AI package not installed")
 
-    if enabled["cursor"]:
-        agents.append(
-            CursorAgent(
-                args.cursor_model,
-                timeout,
-                cursor_limiter,
-                config=config,
-                logger=logger,
-                streaming=streaming,
+    cli_limiters = {
+        "cursor": cursor_limiter,
+        "codex": codex_limiter,
+    }
+    cli_models = {
+        "cursor": args.cursor_model,
+        "codex": args.codex_model,
+    }
+    for provider in ("cursor", "codex"):
+        if enabled[provider]:
+            agents.append(
+                CLIAgent(
+                    provider,
+                    cli_models[provider],
+                    timeout,
+                    cli_limiters[provider],
+                    config=config,
+                    logger=logger,
+                    streaming=streaming,
+                )
             )
-        )
-
-    if enabled["codex"]:
-        agents.append(
-            CodexAgent(
-                args.codex_model,
-                timeout,
-                codex_limiter,
-                config=config,
-                logger=logger,
-                streaming=streaming,
-            )
-        )
 
     # Check minimum agents
     min_warning = services.check_minimum_agents(len(agents))

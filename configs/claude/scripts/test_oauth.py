@@ -237,7 +237,7 @@ def test_agent_creation(verbose=False):
     sys.path.insert(0, str(script_dir))
 
     from agents.config import Config, RateLimiter
-    from agents.runners import ClaudeAgent, GeminiAgent, CursorAgent
+    from agents.runners import ClaudeAgent, GeminiAgent, CLIAgent
 
     config = Config()
     limiter = RateLimiter()
@@ -277,15 +277,15 @@ def test_agent_creation(verbose=False):
         results["gemini"] = False
 
     # Test Cursor
-    print_info("Creating CursorAgent...")
+    print_info("Creating CLIAgent(cursor)...")
     try:
-        cursor = CursorAgent(
-            model="flash", timeout=10, rate_limiter=limiter, config=config
+        cursor = CLIAgent(
+            "cursor", model="flash", timeout=10, rate_limiter=limiter, config=config
         )
-        print_success(f"CursorAgent created (model: {cursor.model_name})")
+        print_success(f"CLIAgent(cursor) created (model: {cursor.model_name})")
         results["cursor"] = True
     except Exception as e:
-        print_warning(f"CursorAgent failed: {str(e)}")
+        print_warning(f"CLIAgent(cursor) failed: {str(e)}")
         results["cursor"] = False
 
     return all(
