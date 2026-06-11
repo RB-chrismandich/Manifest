@@ -554,7 +554,7 @@ async def check_credits(config: Config, logger: Optional[Logger] = None) -> Dict
                     "exec",
                     "--full-auto",
                     "--model",
-                    config.get("model_tiers.codex.mini", "o4-mini"),
+                    config.get("model_tiers.codex.mini", "gpt-5.4-mini"),
                     "respond with OK",
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE,

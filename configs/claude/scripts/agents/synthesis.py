@@ -76,7 +76,7 @@ class SynthesisEngine:
             client = AsyncAnthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
             model = self.config.get("synthesis.model", "sonnet")
             model_name = self.config.get(
-                f"model_tiers.claude.{model}", "claude-sonnet-4-5-20250929"
+                f"model_tiers.claude.{model}", "claude-sonnet-4-6"
             )
             timeout = self.config.get("synthesis.timeout", 300)
 

@@ -90,6 +90,8 @@ validation:
   tier2_weight: 0.25  # Bug detection, performance, maintainability
 
 # Credit fallback configuration
+# Fallback chains are ordered most→least expensive; on credit exhaustion an agent falls to the
+# next-cheaper tier after its starting tier (never up-chain).
 credit_fallback:
   claude:
     - fable
