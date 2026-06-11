@@ -133,6 +133,41 @@ def test_evolve_shows_committed_library_not_output_dir(tmp_path):
     assert "already-merged" in seen["prompt"]
 
 
+def test_subprocess_runner_timeout_raises_runtime_error(monkeypatch):
+    # FR-010: a hung `claude -p` must surface as the same RuntimeError shape the
+    # runner raises on non-zero exit, feeding promote.sh's fail-continue path.
+    monkeypatch.delenv("SKILLCLAW_CHUNK_TIMEOUT", raising=False)
+    import subprocess as sp
+
+    def fake_run(*a, **k):
+        assert k.get("timeout") == ev.DEFAULT_CHUNK_TIMEOUT
+        raise sp.TimeoutExpired(cmd=a[0], timeout=k["timeout"])
+
+    monkeypatch.setattr(ev.subprocess, "run", fake_run)
+    try:
+        ev.subprocess_runner("prompt")
+        assert False, "expected RuntimeError"
+    except RuntimeError as e:
+        assert "timed out" in str(e)
+
+
+def test_chunk_timeout_env_override(monkeypatch):
+    monkeypatch.setenv("SKILLCLAW_CHUNK_TIMEOUT", "5")
+    import subprocess as sp
+    seen = {}
+
+    def fake_run(*a, **k):
+        seen["timeout"] = k.get("timeout")
+        raise sp.TimeoutExpired(cmd=a[0], timeout=k["timeout"])
+
+    monkeypatch.setattr(ev.subprocess, "run", fake_run)
+    try:
+        ev.subprocess_runner("prompt")
+    except RuntimeError:
+        pass
+    assert seen["timeout"] == 5
+
+
 def test_library_prompt_includes_name_and_description(tmp_path):
     # FR-005 / contracts/library-prompt.md: {{LIBRARY}} lines are
     # "- <name> — <description>" so the model can match by purpose, not name.
