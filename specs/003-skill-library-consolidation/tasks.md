@@ -17,7 +17,7 @@
 
 **Purpose**: Confirm a green baseline so every story-PR diff is attributable.
 
-- [ ] T001 Verify baseline: run `bats tests/bats/ && python3 -m pytest tests/python/ -q && shellcheck configs/claude/scripts/*.sh bootstrap.sh bootstrap/lib/*.sh` from repo root; record pass in PR-1 description
+- [x] T001 Verify baseline: run `bats tests/bats/ && python3 -m pytest tests/python/ -q && shellcheck configs/claude/scripts/*.sh bootstrap.sh bootstrap/lib/*.sh` from repo root; record pass in PR-1 description
 
 ---
 
@@ -35,26 +35,26 @@
 
 ### Tests first (pin new behavior)
 
-- [ ] T002 [P] [US1] Add prune-on-deploy bats cases to tests/bats/deploy_skills.bats per contracts/prune-on-deploy.md: (a) deploy → remove skill from source → redeploy → gone from target, (b) file outside skills dir survives, (c) double-deploy is a no-op — expect FAIL until T003
-- [ ] T003 [US1] Implement manifest-scoped prune-on-deploy in `deploy_home_skills()` in bootstrap/lib/common.sh (R1): rsync copy + prune previously-deployed skills (tracked in a `.deployed-skills` manifest) now absent from source; externally-added skills preserved; empty-source/traversal safety bounds per contracts/prune-on-deploy.md; T002 now passes
-- [ ] T004 [P] [US1] Add library-prompt pytest cases to tests/python/test_skillclaw_evolve.py per contracts/library-prompt.md: name—description line present; broken-frontmatter → name-only (run succeeds); >200-char description truncated — expect FAIL until T005
-- [ ] T005 [US1] Implement description-aware library rendering in configs/claude/scripts/skillclaw_evolve.py (extend `_library_names` → `_library_entries`, flatten/truncate at 200 chars, fail-open per contract); T004 now passes
-- [ ] T006 [US1] Update library-section wording in configs/claude/prompts/skillclaw_evolve.md: "do NOT duplicate these skills — match by purpose, not just name; improvements go under the EXISTING name" (contracts/library-prompt.md rule 5)
+- [x] T002 [P] [US1] Add prune-on-deploy bats cases to tests/bats/deploy_skills.bats per contracts/prune-on-deploy.md: (a) deploy → remove skill from source → redeploy → gone from target, (b) file outside skills dir survives, (c) double-deploy is a no-op — expect FAIL until T003
+- [x] T003 [US1] Implement manifest-scoped pruning (`.deployed-skills`) in `deploy_home_skills()` in bootstrap/lib/common.sh (R1 as revised — blind `rsync --delete` would break the deliberate externally-managed-content guarantee); T002 now passes
+- [x] T004 [P] [US1] Add library-prompt pytest cases to tests/python/test_skillclaw_evolve.py per contracts/library-prompt.md: name—description line present; broken-frontmatter → name-only (run succeeds); >200-char description truncated — expect FAIL until T005
+- [x] T005 [US1] Implement description-aware library rendering in configs/claude/scripts/skillclaw_evolve.py (extend `_library_names` → `_library_entries`, flatten/truncate at 200 chars, fail-open per contract); T004 now passes
+- [x] T006 [US1] Update library-section wording in configs/claude/prompts/skillclaw_evolve.md: "do NOT duplicate these skills — match by purpose, not just name; improvements go under the EXISTING name" (contracts/library-prompt.md rule 5)
 
 ### Cluster merges (each [P] — disjoint file sets; follow contracts/merged-skill.md)
 
-- [ ] T007 [P] [US1] Merge PR-comments cluster: rewrite .skillshare/skills/address-pr-comments/SKILL.md to absorb address-pr-review-comments + address-review-comments (description covers inline comments, review bodies, issue-level discussion; `> Absorbed:` footer); `git rm -r` the two absorbed dirs
-- [ ] T008 [P] [US1] Merge session-memory cluster: fold any distinct content from session-memory-digest into .skillshare/skills/session-memory-compress/SKILL.md (both modes); `git rm -r` .skillshare/skills/session-memory-digest
-- [ ] T009 [P] [US1] Merge live-data cluster: rewrite .skillshare/skills/live-data-validation/SKILL.md with Smoke / Before-merge / After-green-tests subsections absorbing live-data-validation-before-merge, live-data-smoke-validation, real-data-validation-after-green-tests; `git rm -r` the three absorbed dirs
-- [ ] T010 [P] [US1] Create .skillshare/skills/verify-premise/SKILL.md with CLI-binary / API-schema / image-runtime subsections absorbing verify-cli-premise, verify-cli-premise-before-tooling, verify-tool-premise, verify-api-schema-before-trust, verify-image-runtime-contract; `git rm -r` the five absorbed dirs
-- [ ] T011 [P] [US1] Create .skillshare/skills/retire-component-cleanup/SKILL.md with daemon / tool-runtime / plugin-MCP subsections absorbing daemon-migration-verification, retire-migrated-tool-runtime, plugin-mcp-clean-removal; `git rm -r` the three absorbed dirs
-- [ ] T012 [P] [US1] Add mutual decision-anchor lines to .skillshare/skills/reset-reapply-clean-pr/SKILL.md and .skillshare/skills/clean-pr-from-stale-base/SKILL.md ("If <other root cause>, use <other> instead")
+- [x] T007 [P] [US1] Merge PR-comments cluster: rewrite .skillshare/skills/address-pr-comments/SKILL.md to absorb address-pr-review-comments + address-review-comments (description covers inline comments, review bodies, issue-level discussion; `> Absorbed:` footer); `git rm -r` the two absorbed dirs
+- [x] T008 [P] [US1] Merge session-memory cluster: fold any distinct content from session-memory-digest into .skillshare/skills/session-memory-compress/SKILL.md (both modes); `git rm -r` .skillshare/skills/session-memory-digest
+- [x] T009 [P] [US1] Merge live-data cluster: rewrite .skillshare/skills/live-data-validation/SKILL.md with Smoke / Before-merge / After-green-tests subsections absorbing live-data-validation-before-merge, live-data-smoke-validation, real-data-validation-after-green-tests; `git rm -r` the three absorbed dirs
+- [x] T010 [P] [US1] Create .skillshare/skills/verify-premise/SKILL.md with CLI-binary / API-schema / image-runtime subsections absorbing verify-cli-premise, verify-cli-premise-before-tooling, verify-tool-premise, verify-api-schema-before-trust, verify-image-runtime-contract; `git rm -r` the five absorbed dirs
+- [x] T011 [P] [US1] Create .skillshare/skills/retire-component-cleanup/SKILL.md with daemon / tool-runtime / plugin-MCP subsections absorbing daemon-migration-verification, retire-migrated-tool-runtime, plugin-mcp-clean-removal; `git rm -r` the three absorbed dirs
+- [x] T012 [P] [US1] Add mutual decision-anchor lines to .skillshare/skills/reset-reapply-clean-pr/SKILL.md and .skillshare/skills/clean-pr-from-stale-base/SKILL.md ("If <other root cause>, use <other> instead")
 
 ### Story verification & PR
 
-- [ ] T013 [US1] Repo-wide reference sweep for all 12 deleted names (quickstart.md §US1 loop); fix any hits outside specs/003-* and CHANGELOG; confirm skill count = 69
-- [ ] T014 [US1] Run quickstart.md §US1 + full gate (pre-commit, bats, pytest); regenerate cursor rules (`configs/claude/scripts/generate_cursor_rules.sh`) since skill set changed; commit
-- [ ] T015 [US1] Parallel-agent cross-verification of the consolidation diff (Constitution II — >200 lines of skill content): `~/.claude/scripts/parallel_agent.py --json --timeout 600 --review` on the changed SKILL.md files; address findings; open PR-1 with content-preservation table (per-cluster: variant → where its content landed) and the R1 directory-scope pruning interpretation for reviewer sign-off
+- [x] T013 [US1] Repo-wide reference sweep for all 14 deleted skill dirs (net −12 after 2 new survivors) (quickstart.md §US1 loop); fix any hits outside specs/003-* and CHANGELOG; confirm skill count = 69
+- [x] T014 [US1] Run quickstart.md §US1 + full gate (pre-commit, bats, pytest); regenerate cursor rules (`configs/claude/scripts/generate_cursor_rules.sh`) since skill set changed; commit
+- [x] T015 [US1] Parallel-agent cross-verification of the consolidation diff (Constitution II — >200 lines of skill content); address findings; open PR-1 with content-preservation table (per-cluster: variant → where its content landed) and the R1 directory-scope pruning interpretation for reviewer sign-off. *As executed*: `parallel_agent.py --review` was unavailable (its Claude/Gemini backends need the `anthropic`/`google-generativeai` SDKs + API keys; this machine uses OAuth CLIs), so the gate ran as two independent reviewers — Gemini CLI + an isolated Claude code-reviewer agent — with findings synthesized per the same consensus thresholds
 
 **Checkpoint**: PR-1 merged → library consolidated, pruning live, evolve dedup-hardened. MVP complete.
 
@@ -66,11 +66,11 @@
 
 **Independent test** (quickstart.md §US2): no "28 skills" hits; tables consistent; Unreleased clean; SPEC-SYSTEMS.md exists; cursor-rules drift check green.
 
-- [ ] T016 [US2] Update docs/COMMANDS.md as canonical: verify every row against `.skillshare/skills/*/SKILL.md` frontmatter and configs/claude/config/command_config.yml (post-US1 skill set), fix wording/flags (R6 note: /version-pin wording per docs/COMMANDS.md style)
-- [ ] T017 [US2] Unify the three mirror tables to match T016 exactly: root CLAUDE.md, AGENTS.md, configs/claude/CLAUDE.md; refresh their "Last Updated" stamps to change date; fix skill counts in AGENTS.md:207 and README.md (use `find .skillshare/skills -name SKILL.md | wc -l` result)
-- [ ] T018 [P] [US2] CHANGELOG.md: move shipped Unreleased items (promote audit log etc.) into a dated `[2026-06]` section; add entries for this feature's PRs as they land
-- [ ] T019 [P] [US2] Prepend archive banner to docs/SHELL_ANALYSIS_REPORT.md: `> [ARCHIVED 2026-06-10] Analyzes the retired parallel_agent.sh; superseded — see configs/claude/scripts/ for current tooling`
-- [ ] T020 [P] [US2] Create docs/SPEC-SYSTEMS.md per research R9 (roles of specs/+.specify/, docs/superpowers/, configs/claude/.plans/, .Jules/); link it from README.md, docs/README.md, and .claude/CLAUDE.md
+- [x] T016 [US2] Update docs/COMMANDS.md as canonical: verify every row against `.skillshare/skills/*/SKILL.md` frontmatter and configs/claude/config/command_config.yml (post-US1 skill set), fix wording/flags (R6 note: /version-pin wording per docs/COMMANDS.md style)
+- [x] T017 [US2] Unify the three mirror tables to match T016 exactly: root CLAUDE.md, AGENTS.md, configs/claude/CLAUDE.md; refresh their "Last Updated" stamps to change date; fix skill counts in AGENTS.md:207 and README.md (use `find .skillshare/skills -name SKILL.md | wc -l` result)
+- [x] T018 [P] [US2] CHANGELOG.md: move shipped Unreleased items (promote audit log etc.) into a dated `[2026-06]` section; add entries for this feature's PRs as they land
+- [x] T019 [P] [US2] Prepend archive banner to docs/SHELL_ANALYSIS_REPORT.md: `> [ARCHIVED 2026-06-10] Analyzes the retired parallel_agent.sh; superseded — see configs/claude/scripts/ for current tooling`
+- [x] T020 [P] [US2] Create docs/SPEC-SYSTEMS.md per research R9 (roles of specs/+.specify/, docs/superpowers/, configs/claude/.plans/, .Jules/); link it from README.md, docs/README.md, and .claude/CLAUDE.md
 - [ ] T021 [US2] Run quickstart.md §US2 + full gate; markdownlint clean; if the diff exceeds 200 lines (likely), run parallel-agent cross-verification (`~/.claude/scripts/parallel_agent.py --json --timeout 600 --review` on changed files) per Constitution II before opening PR-2
 
 **Checkpoint**: docs match reality; drift map published.
