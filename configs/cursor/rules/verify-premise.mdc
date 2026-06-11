@@ -1,0 +1,15 @@
+---
+description: "Use before designing or building anything on a load-bearing assumption — verify it actually exists and behaves as believed first. Triggers when a spec, skill, hook, parser, or config depends on a CLI/binary existing with assumed subcommands/flags, a tool capability or env var being consumed, an API response's path/fields/date semantics, or a container image's runtime contract (entrypoint, supported settings)."
+globs: ".claude/skills/verify-premise/**"
+alwaysApply: false
+---
+
+# verify-premise
+
+Use before designing or building anything on a load-bearing assumption — verify it actually exists and behaves as believed first. Triggers when a spec, skill, hook, parser, or config depends on a CLI/binary existing with assumed subcommands/flags, a tool capability or env var being consumed, an API response's path/fields/date semantics, or a container image's runtime contract (entrypoint, supported settings).
+
+<!-- Auto-generated from .claude/skills/verify-premise/SKILL.md -->
+<!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
+
+Refer to `.cursor/skills/verify-premise/SKILL.md` for the full skill definition.
+

@@ -6,7 +6,11 @@ You are distilling reusable Claude Code **skills** from real agent sessions.
 A skill is a `SKILL.md` file with YAML frontmatter (`name`, `description`) and a
 markdown body describing a repeatable procedure the agent should follow.
 
-## Existing skill library (do NOT duplicate these names unless improving them)
+## Existing skill library (name — description)
+
+Do NOT duplicate these skills — match by **purpose**, not just name. If a
+session shows an improvement to one of these workflows, propose it under the
+EXISTING skill's name (that updates it) rather than inventing a new variant.
 
 {{LIBRARY}}
 

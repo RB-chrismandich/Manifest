@@ -1,0 +1,15 @@
+---
+description: "Use when a deployed/live environment is missing expected state (symlinks, files, config) after a bootstrap/deploy — to decide whether it was an incomplete run or a deployer bug, fix the source of truth, and close the detector's blind spot."
+globs: ".claude/skills/deploy-drift-root-cause/**"
+alwaysApply: false
+---
+
+# deploy-drift-root-cause
+
+Use when a deployed/live environment is missing expected state (symlinks, files, config) after a bootstrap/deploy — to decide whether it was an incomplete run or a deployer bug, fix the source of truth, and close the detector's blind spot.
+
+<!-- Auto-generated from .claude/skills/deploy-drift-root-cause/SKILL.md -->
+<!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
+
+Refer to `.cursor/skills/deploy-drift-root-cause/SKILL.md` for the full skill definition.
+

@@ -125,10 +125,52 @@ def write_candidates(candidates: list[dict], evolved_dir: Path) -> list[str]:
     return written
 
 
+_DESC_MAX = 200
+_FRONTMATTER_RE = re.compile(r"\A---\s*\n(.*?)\n---", re.DOTALL)
+_DESC_LINE_RE = re.compile(r"^description:\s*(.+?)(?=\n\S|\Z)", re.MULTILINE | re.DOTALL)
+
+
+def _skill_description(skill_md: Path):
+    """Best-effort description from SKILL.md frontmatter; None on any failure.
+
+    Fail-open by design (contracts/library-prompt.md): a broken skill file
+    must never abort an evolve run — it just renders as a name-only line.
+    """
+    try:
+        m = _FRONTMATTER_RE.match(skill_md.read_text(encoding="utf-8"))
+        if not m:
+            return None
+        d = _DESC_LINE_RE.search(m.group(1))
+        if not d:
+            return None
+        raw = d.group(1)
+        # Block scalars (description: | / > with optional chomping/indent)
+        # put only the marker on the key line — drop it, keep the body.
+        first, _, rest = raw.partition("\n")
+        if re.fullmatch(r"[|>][+-]?\d*", first.strip()):
+            raw = rest
+        # Flatten (multi-line YAML values included) and bound prompt cost.
+        desc = " ".join(raw.split())
+        return desc[:_DESC_MAX] if desc else None
+    except OSError:
+        return None
+
+
 def _library_names(skills_dir: Path) -> list[str]:
-    """Skill directory names under a skills root (each holding a SKILL.md)."""
+    """Library entries under a skills root: 'name — description' per skill.
+
+    Descriptions let the model match by purpose (not just name) so absorbed/
+    deleted variants are not re-proposed under new names (FR-005). Falls back
+    to the bare name when no description is parsable.
+    """
     base = Path(skills_dir).expanduser()
-    return sorted(p.parent.name for p in base.glob("*/SKILL.md")) if base.exists() else []
+    if not base.exists():
+        return []
+    entries = []
+    for p in sorted(base.glob("*/SKILL.md")):
+        desc = _skill_description(p)
+        entries.append(f"{p.parent.name} — {desc}" if desc else p.parent.name)
+    return entries
 
 
 def evolve(sessions_dir, evolved_dir, template_path, *,

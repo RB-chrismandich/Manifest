@@ -6,6 +6,8 @@ description: When a feature branch's history is tangled with already-merged comm
 
 Trigger: a follow-up fix lives on a branch whose earlier commits were already squash-merged into main, so `git rebase origin/main` conflicts or the PR shows overlapping/duplicated history.
 
+If the mess comes from the branch being cut from a stale/unmerged base (not from already-merged commits), use clean-pr-from-stale-base instead.
+
 1. Confirm the situation: `git fetch origin` then `git log --oneline origin/main..<branch>` and `git log --oneline origin/main -5`. If the branch's "new" commits duplicate content already in main, a rebase will fight you.
 2. Capture the net change you actually want to keep (the file diffs from the follow-up fix) before touching history — read the relevant files or stash a diff.
 3. Reset the branch onto the merged base: `git reset --hard origin/main`. The branch now equals main; the tangled history is gone.
