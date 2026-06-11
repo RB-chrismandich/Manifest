@@ -62,7 +62,7 @@ check_api_provider() {
                 echo "SKIPPED: claude (no credentials)"
                 return 0
             fi
-            listing="$(curl -sf --max-time 10 https://api.anthropic.com/v1/models \
+            listing="$(curl -sf --connect-timeout 5 --max-time 10 https://api.anthropic.com/v1/models \
                 -H "x-api-key: $ANTHROPIC_API_KEY" \
                 -H "anthropic-version: 2023-06-01" 2>/dev/null)" || {
                 echo "SKIPPED: claude (models endpoint unreachable)"
@@ -74,7 +74,7 @@ check_api_provider() {
                 echo "SKIPPED: gemini (no credentials)"
                 return 0
             fi
-            listing="$(curl -sf --max-time 10 \
+            listing="$(curl -sf --connect-timeout 5 --max-time 10 \
                 "https://generativelanguage.googleapis.com/v1beta/models?key=$GOOGLE_API_KEY" 2>/dev/null)" || {
                 echo "SKIPPED: gemini (models endpoint unreachable)"
                 return 0

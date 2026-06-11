@@ -581,6 +581,12 @@ print_summary() {
         else
             echo -e "  ${YELLOW}○${NC} antigravity (enabled, not installed)"
         fi
+        if command -v agy >/dev/null 2>&1; then
+            echo -e "  ${GREEN}✓${NC} antigravity CLI (agy) installed"
+        else
+            echo -e "  ${YELLOW}○${NC} antigravity CLI (agy) not found — parallel-agent participation needs it"
+            echo -e "    ${BLUE}→${NC} Install via the Antigravity IDE, then run: agy install"
+        fi
     else
         echo -e "  ${RED}✗${NC} antigravity (disabled)"
     fi
