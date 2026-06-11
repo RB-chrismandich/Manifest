@@ -24,6 +24,8 @@ if [[ "$1" == "--verbose" ]]; then
     VERBOSE=true
 fi
 
+antigravity_enabled=""
+
 manifest_state_root="${MANIFEST_STATE_ROOT:-$HOME/.manifest}"
 manifest_tmp_dir="${MANIFEST_TMP_DIR:-$manifest_state_root/tmp}"
 claude_state_dir="${CLAUDE_STATE_DIR:-$manifest_state_root/claude}"
@@ -47,15 +49,17 @@ if [[ -f ~/.claude/config/services.yml ]]; then
     gemini_enabled=$(grep -A1 "^  gemini:" ~/.claude/config/services.yml | grep "enabled:" | awk '{print $2}')
     cursor_enabled=$(grep -A1 "^  cursor:" ~/.claude/config/services.yml | grep "enabled:" | awk '{print $2}')
     codex_enabled=$(grep -A1 "^  codex:" ~/.claude/config/services.yml | grep "enabled:" | awk '{print $2}')
+    antigravity_enabled=$(grep -A1 "^  antigravity:" ~/.claude/config/services.yml | grep "enabled:" | awk '{print $2}')
 
     enabled_count=0
     [[ "$claude_enabled" == "true" ]] && enabled_count=$((enabled_count + 1))
     [[ "$gemini_enabled" == "true" ]] && enabled_count=$((enabled_count + 1))
     [[ "$cursor_enabled" == "true" ]] && enabled_count=$((enabled_count + 1))
     [[ "$codex_enabled" == "true" ]] && enabled_count=$((enabled_count + 1))
+    [[ "$antigravity_enabled" == "true" ]] && enabled_count=$((enabled_count + 1))
 
     echo ""
-    echo -e "${BOLD}Enabled Services (${enabled_count}/4):${NC}"
+    echo -e "${BOLD}Enabled Services (${enabled_count}/5):${NC}"
 
     if [[ "$claude_enabled" == "true" ]]; then
         echo -e "  ${GREEN}✓${NC} Claude"
@@ -79,6 +83,12 @@ if [[ -f ~/.claude/config/services.yml ]]; then
         echo -e "  ${GREEN}✓${NC} Codex"
     else
         echo -e "  ${RED}✗${NC} Codex (disabled)"
+    fi
+
+    if [[ "$antigravity_enabled" == "true" ]]; then
+        echo -e "  ${GREEN}✓${NC} Antigravity"
+    else
+        echo -e "  ${RED}✗${NC} Antigravity (disabled)"
     fi
 
     if [[ $enabled_count -lt 2 ]]; then
@@ -148,6 +158,20 @@ else
     echo -e "  ${YELLOW}○${NC} Codex CLI not installed"
     if [[ "$VERBOSE" == true ]]; then
         echo -e "    ${BLUE}→${NC} Install: npm install -g @openai/codex"
+    fi
+fi
+
+antigravity_installed=false
+if command -v agy &> /dev/null; then
+    echo -e "  ${GREEN}✓${NC} Antigravity CLI (agy) installed"
+    antigravity_installed=true
+    if [[ "$VERBOSE" == true ]]; then
+        echo -e "    Location: $(which agy)"
+    fi
+else
+    echo -e "  ${YELLOW}○${NC} Antigravity CLI (agy) not installed (optional)"
+    if [[ "$VERBOSE" == true ]]; then
+        echo -e "    ${BLUE}→${NC} Install via the Antigravity IDE (agy install)"
     fi
 fi
 
@@ -233,6 +257,24 @@ fi
 
 echo ""
 
+# Model staleness (warn-only; full detail via model_check.sh directly)
+echo -e "${BOLD}Model Pins:${NC}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ -x "$SCRIPT_DIR/model_check.sh" ]]; then
+    while IFS= read -r line; do
+        case "$line" in
+            OK:*)          [[ "$VERBOSE" == true ]] && echo -e "  ${GREEN}✓${NC} ${line#OK: }" ;;
+            STALE:*)       echo -e "  ${YELLOW}⚠${NC}  ${line#STALE: }" ;;
+            SKIPPED:*)     [[ "$VERBOSE" == true ]] && echo -e "  ${YELLOW}○${NC} ${line#SKIPPED: }" ;;
+            UNSUPPORTED:*) [[ "$VERBOSE" == true ]] && echo -e "  ${YELLOW}○${NC} ${line#UNSUPPORTED: }" ;;
+        esac
+    done < <("$SCRIPT_DIR/model_check.sh")
+    echo -e "  ${GREEN}✓${NC} Model pin check complete (stale pins above, if any)"
+else
+    echo -e "  ${YELLOW}○${NC} model_check.sh not found — skipping"
+fi
+echo ""
+
 # Overall status
 echo -e "${BOLD}${BLUE}═══════════════════════════════════════════════════════${NC}"
 echo -e "${BOLD}Overall Status:${NC}"
@@ -242,6 +284,7 @@ working_agents=0
 [[ "$gemini_installed" == true && "$gemini_enabled" == "true" ]] && working_agents=$((working_agents + 1))
 [[ "$cursor_installed" == true && "$cursor_enabled" == "true" ]] && working_agents=$((working_agents + 1))
 [[ "$codex_installed" == true && "$codex_enabled" == "true" && "$codex_runtime_ready" == true ]] && working_agents=$((working_agents + 1))
+[[ "$antigravity_installed" == true && "$antigravity_enabled" == "true" ]] && working_agents=$((working_agents + 1))
 
 if [[ $working_agents -ge 2 ]]; then
     echo -e "  ${GREEN}✓${NC} System ready for parallel orchestration (${working_agents} agents available)"
