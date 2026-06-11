@@ -83,6 +83,9 @@ teardown() {
     for t in bash mkdir basename dirname cat grep sed date timeout; do
         p="$(command -v $t 2>/dev/null || true)"; [[ -n "$p" ]] && ln -s "$p" "$mock_bin/$t"
     done
+    # Unquoted heredoc on purpose: $(command -v python3) resolves NOW, while
+    # PATH is still full, embedding the real python3's absolute path — so the
+    # exec passthrough works under the restricted PATH on any host.
     cat > "$mock_bin/python3" <<EOF
 #!/usr/bin/env bash
 if [[ "\$*" == *"import browser_use"* ]]; then exit 1; fi

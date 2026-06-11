@@ -160,8 +160,10 @@ EOF
 
     run "$GEN"
     assert_success
-    # Current (buggy) counter output; files themselves are unchanged.
-    assert_output --partial "0 created, 2 updated, 0 unchanged"
+    # Accept the current (buggy) counter output OR the expected-after-fix one,
+    # so fixing the script's unchanged-detection doesn't break this test.
+    # Files themselves are unchanged either way (shasum below is the real pin).
+    assert_output --regexp "0 created, (2 updated, 0 unchanged|0 updated, 2 unchanged)"
     assert_equal "$(shasum "$RULES_DIR/alpha.mdc")" "$before_alpha"
     assert_equal "$(shasum "$RULES_DIR/beta.mdc")" "$before_beta"
 }
@@ -177,7 +179,8 @@ EOF
     make_skill alpha "Alpha revised"   # rewrite SKILL.md with new description
     run "$GEN"
     assert_success
-    assert_output --partial "0 created, 2 updated, 0 unchanged"  # BUG: should be 1 updated, 1 unchanged
+    # Current (buggy) form first; fixed form should report 1 updated, 1 unchanged.
+    assert_output --regexp "0 created, (2 updated, 0 unchanged|1 updated, 1 unchanged)"
 
     run cat "$RULES_DIR/alpha.mdc"
     assert_output --partial "Alpha revised"

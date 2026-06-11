@@ -48,7 +48,9 @@ teardown() {
     [[ -n "$SANDBOX" && -d "$SANDBOX" ]] && rm -rf "$SANDBOX"
 }
 
-# Helper: assert KB file is still parseable YAML and print entry count
+# Helper: assert KB file is still parseable YAML; optional $1 asserts the
+# entry count. The internal `run` replaces bats' $output/$status, so callers
+# must pass the expected count here rather than asserting after the call.
 assert_kb_valid_yaml() {
     run python3 -c "
 import yaml, sys
@@ -58,6 +60,9 @@ assert isinstance(kb, dict), 'KB root is not a mapping'
 print(len(kb.get('entries') or []))
 "
     assert_success
+    if [[ $# -gt 0 ]]; then
+        assert_output "$1"
+    fi
 }
 
 # --- Help / usage ---
@@ -139,8 +144,7 @@ print('entry ok')
         --language yaml \
         --description "Tricky chars: quotes ' \" and #hash should not corrupt YAML"
     assert_success
-    assert_kb_valid_yaml
-    assert_output "2"
+    assert_kb_valid_yaml 2
 }
 
 @test "add fails when required --title is missing" {
@@ -248,8 +252,7 @@ print(e['occurrences'], e['last_seen'])
 
 @test "KB file remains valid YAML after increment mutation" {
     bash "$SCRIPT" increment KB-001
-    assert_kb_valid_yaml
-    assert_output "1"
+    assert_kb_valid_yaml 1
 }
 
 @test "increment fails for non-existent ID" {
