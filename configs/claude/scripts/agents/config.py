@@ -77,8 +77,16 @@ class Config:
         """Default configuration if file doesn't exist"""
         return {
             "rate_limits": {
-                "claude": {"requests_per_minute": 60, "burst_size": 5},
-                "gemini": {"requests_per_minute": 30, "burst_size": 3},
+                "claude": {
+                    "requests_per_minute": 60,
+                    "tokens_per_minute": 160000,
+                    "burst_size": 5,
+                },
+                "gemini": {
+                    "requests_per_minute": 30,
+                    "tokens_per_minute": 32000,
+                    "burst_size": 3,
+                },
                 "cursor": {"requests_per_minute": 100, "burst_size": 10},
                 "codex": {"requests_per_minute": 100, "burst_size": 10},
                 "antigravity": {"requests_per_minute": 100, "burst_size": 10},
@@ -87,12 +95,13 @@ class Config:
             "model_tiers": {
                 "claude": {
                     "haiku": "claude-haiku-4-5-20251001",
-                    "sonnet": "claude-sonnet-4-5-20250929",
-                    "opus": "claude-opus-4-6",
+                    "sonnet": "claude-sonnet-4-6",
+                    "opus": "claude-opus-4-8",
+                    "fable": "claude-fable-5",
                 },
                 "gemini": {
-                    "flash": "gemini-3-flash-preview",
-                    "pro": "gemini-3-pro-preview",
+                    "flash": "gemini-3.5-flash",
+                    "pro": "gemini-3.1-pro",
                 },
                 "cursor": {
                     "mini": "gpt-5.1-codex-mini",
@@ -100,9 +109,9 @@ class Config:
                     "advanced": "gpt-5.2",
                 },
                 "codex": {
-                    "mini": "o4-mini",
-                    "flash": "o3",
-                    "advanced": "o3-pro",
+                    "mini": "gpt-5.4-mini",
+                    "flash": "gpt-5.4",
+                    "advanced": "gpt-5.5",
                 },
                 "antigravity": {
                     "mini": "Gemini 3.5 Flash (Low)",
@@ -134,7 +143,7 @@ class Config:
                 },
             },
             "credit_fallback": {
-                "claude": ["opus", "sonnet", "haiku"],
+                "claude": ["fable", "opus", "sonnet", "haiku"],
                 "cursor": ["advanced", "flash", "mini"],
                 "gemini": ["pro", "flash"],
                 "codex": ["advanced", "flash", "mini"],

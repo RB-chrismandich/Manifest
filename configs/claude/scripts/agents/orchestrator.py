@@ -482,7 +482,9 @@ async def check_credits(config: Config, logger: Optional[Logger] = None) -> Dict
                 # Make minimal call (haiku, 10 tokens)
                 await asyncio.wait_for(
                     client.messages.create(
-                        model="claude-haiku-4-5-20251001",
+                        model=config.get(
+                            "model_tiers.claude.haiku", "claude-haiku-4-5-20251001"
+                        ),
                         max_tokens=10,
                         messages=[{"role": "user", "content": "test"}],
                     ),
@@ -504,12 +506,15 @@ async def check_credits(config: Config, logger: Optional[Logger] = None) -> Dict
     if HAS_GENAI:
         try:
             api_key = os.environ.get("GOOGLE_API_KEY")
+            gemini_flash = config.get(
+                "model_tiers.gemini.flash", "gemini-3-flash-preview"
+            )
             if HAS_GENAI_NEW:
                 client = genai.Client(api_key=api_key) if api_key else genai.Client()
                 await asyncio.wait_for(
                     asyncio.to_thread(
                         client.models.generate_content,
-                        model="gemini-3-flash-preview",
+                        model=gemini_flash,
                         contents="test",
                     ),
                     timeout=10,
@@ -517,7 +522,7 @@ async def check_credits(config: Config, logger: Optional[Logger] = None) -> Dict
             else:
                 if api_key:
                     genai.configure(api_key=api_key)
-                model = genai.GenerativeModel("gemini-3-flash-preview")
+                model = genai.GenerativeModel(gemini_flash)
                 await asyncio.wait_for(
                     asyncio.to_thread(model.generate_content, "test"), timeout=10
                 )
@@ -549,7 +554,7 @@ async def check_credits(config: Config, logger: Optional[Logger] = None) -> Dict
                     "exec",
                     "--full-auto",
                     "--model",
-                    "o4-mini",
+                    config.get("model_tiers.codex.mini", "o4-mini"),
                     "respond with OK",
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE,

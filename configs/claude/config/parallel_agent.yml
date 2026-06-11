@@ -37,19 +37,20 @@ rate_limits:
 model_tiers:
   claude:
     haiku: "claude-haiku-4-5-20251001"
-    sonnet: "claude-sonnet-4-5-20250929"
-    opus: "claude-opus-4-6"
+    sonnet: "claude-sonnet-4-6"
+    opus: "claude-opus-4-8"
+    fable: "claude-fable-5"
   gemini:
-    flash: "gemini-3-flash-preview"
-    pro: "gemini-3-pro-preview"
+    flash: "gemini-3.5-flash"
+    pro: "gemini-3.1-pro"
   cursor:
     mini: "gpt-5.1-codex-mini"
     flash: "gpt-5.1-codex"
     advanced: "gpt-5.2"
   codex:
-    mini: "o4-mini"
-    flash: "o3"
-    advanced: "o3-pro"
+    mini: "gpt-5.4-mini"
+    flash: "gpt-5.4"
+    advanced: "gpt-5.5"
   antigravity:
     mini: "Gemini 3.5 Flash (Low)"
     flash: "Gemini 3.5 Flash (High)"
@@ -91,6 +92,7 @@ validation:
 # Credit fallback configuration
 credit_fallback:
   claude:
+    - fable
     - opus
     - sonnet
     - haiku

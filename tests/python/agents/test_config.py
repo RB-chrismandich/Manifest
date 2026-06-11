@@ -204,7 +204,7 @@ class TestCliAgentsConfig:
         with open(REPO_YAML) as f:
             repo = yaml.safe_load(f)
         defaults = Config(config_path=str(tmp_path / "none.yml")).config
-        for section in ("cli_agents", "model_tiers", "credit_fallback"):
+        for section in ("cli_agents", "model_tiers", "credit_fallback", "rate_limits"):
             assert repo[section] == defaults[section], (
                 f"{section} drifted between parallel_agent.yml and "
                 f"config.py _default_config()"
