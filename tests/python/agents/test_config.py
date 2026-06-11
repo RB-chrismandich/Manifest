@@ -176,8 +176,6 @@ class TestRateLimiter:
 # cli_agents config block
 # ---------------------------------------------------------------------------
 
-import yaml
-
 REPO_YAML = REPO_ROOT / "configs" / "claude" / "config" / "parallel_agent.yml"
 
 
@@ -188,6 +186,7 @@ class TestCliAgentsConfig:
             spec = config.get(f"cli_agents.{provider}")
             assert spec is not None, f"missing cli_agents.{provider}"
             assert "binary" in spec
+            assert "base_args" in spec
             assert "model_args" in spec
             assert spec.get("output") in ("stdout", "file_then_stdout")
 
