@@ -533,7 +533,7 @@ flowchart TB
     CHECK_SERVICES{"Check<br/>services.yml"}:::decision
 
     subgraph "Agent Execution (Parallel)"
-        GEMINI_EXEC["Gemini CLI<br/>(gemini-3-flash/pro)"]:::process
+        GEMINI_EXEC["Gemini CLI<br/>(gemini-3.5-flash / 3.1-pro)"]:::process
         CURSOR_EXEC["Cursor Agent<br/>(gpt-5.1/5.2)"]:::process
         CLAUDE_EXEC["Claude CLI<br/>(haiku/sonnet/opus)"]:::process
         CODEX_EXEC["Codex CLI<br/>(gpt-5.4-mini/gpt-5.4/gpt-5.5)"]:::process

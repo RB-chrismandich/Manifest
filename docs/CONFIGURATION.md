@@ -820,7 +820,7 @@ export GEMINI_MODEL_PRO="gemini-3.1-pro"
 ### Spec Review Configuration
 
 ```bash
-# Override the model used by spec_review.sh (default: gemini via agy)
+# Override the reviewer model (default: resolves model_tiers.antigravity.advanced via agy)
 export SPEC_REVIEW_MODEL="gemini-3.1-pro"
 
 # Override the config file passed to spec_review.sh

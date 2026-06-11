@@ -75,8 +75,8 @@ validation criteria.
 | `--gemini-only` | Run only Gemini CLI |
 | `--claude-only` | Run only Claude CLI |
 | `--no-claude` | Disable Claude CLI (enabled by default) |
-| `--cursor-model <tier>` | Cursor model: mini, flash, advanced, auto (default: auto) |
-| `--claude-model <tier>` | Claude model: haiku, sonnet, opus (default: sonnet) |
+| `--cursor-model <tier>` | Cursor model: mini, flash, advanced, auto (default: flash) |
+| `--claude-model <tier>` | Claude model: haiku, sonnet, opus, fable (default: sonnet) |
 | `--check-credits` | Run pre-flight credit check |
 | `--timeout <sec>` | Timeout per agent (default: 120) |
 | `--output <dir>` | Custom output directory |
@@ -107,7 +107,7 @@ The orchestrating agent selects models based on task complexity:
 The script automatically detects credit/quota exhaustion and falls back:
 
 - **Cursor**: gpt-5.2 → gpt-5.1-codex → gpt-5.1-codex-mini → auto
-- **Claude**: opus → sonnet → haiku
+- **Claude**: fable → opus → sonnet → haiku
 
 Detection methods:
 

@@ -20,7 +20,7 @@
 | `--antigravity-only` | Run only Antigravity (agy) |
 | `--no-claude` | Disable Claude CLI (enabled by default) |
 | `--no-antigravity` | Disable Antigravity for this run |
-| `--cursor-model <tier>` | Cursor model: mini, flash, advanced, auto (default: auto) |
+| `--cursor-model <tier>` | Cursor model: mini, flash, advanced, auto (default: flash) |
 | `--claude-model <tier>` | Claude model: haiku, sonnet, opus, fable (default: sonnet) |
 | `--antigravity-model <tier>` | Antigravity model: mini, flash, advanced (default: flash) |
 | `--check-credits` | Run pre-flight credit check |
