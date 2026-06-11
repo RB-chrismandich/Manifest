@@ -283,3 +283,15 @@ def test_evolve_emits_chunk_events_to_status(tmp_path, monkeypatch):
         assert e["chunk_seconds"] <= e["elapsed_s"] + 1e-9   # delta never exceeds cumulative
     elapsed_values = [e["elapsed_s"] for e in chunk_events]
     assert elapsed_values == sorted(elapsed_values)          # cumulative is monotonic
+
+
+def test_skill_description_block_scalar_drops_marker(tmp_path):
+    # PR #289 review: a `description: |` block scalar must not leak the
+    # literal |/>` marker into the rendered "name — description" line.
+    for marker in ("|", ">", "|-", ">+"):
+        p = tmp_path / "SKILL.md"
+        p.write_text(
+            "---\nname: a11y-audit\ndescription: %s\n  Focused accessibility audit\n"
+            "  against WCAG 2.2 AA standards.\n---\nbody\n" % marker)
+        desc = ev._skill_description(p)
+        assert desc == "Focused accessibility audit against WCAG 2.2 AA standards.", marker
