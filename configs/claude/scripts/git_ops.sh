@@ -29,18 +29,20 @@
 
 set -euo pipefail
 
+err() { echo "git-ops: $*" >&2; }
+
 # Get script directory for sourcing git_platform.sh
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Source platform detection
 if [[ ! -f "${SCRIPT_DIR}/git_platform.sh" ]]; then
-    echo "Error: git_platform.sh not found in ${SCRIPT_DIR}" >&2
+    err "git_platform.sh not found in ${SCRIPT_DIR}"
     exit 1
 fi
 
 # Detect platform
 if ! platform=$(bash "${SCRIPT_DIR}/git_platform.sh" 2>&1); then
-    echo "Error: Failed to detect Git platform: ${platform}" >&2
+    err "Failed to detect Git platform: ${platform}"
     exit 1
 fi
 
@@ -84,15 +86,15 @@ command_exists() {
 warn_missing_tool() {
     local tool="$1"
     local install_hint="$2"
-    echo "Warning: ${tool} CLI not found. Install it to enable this operation." >&2
-    echo "Install: ${install_hint}" >&2
+    err "Warning: ${tool} CLI not found. Install it to enable this operation."
+    err "Install: ${install_hint}"
     exit 1
 }
 
 # Helper: Fallback for plain git (no issue tracker)
 warn_no_tracker() {
-    echo "Warning: No issue tracker detected (plain git remote)." >&2
-    echo "This operation requires GitHub (gh) or GitLab (glab) CLI." >&2
+    err "Warning: No issue tracker detected (plain git remote)."
+    err "This operation requires GitHub (gh) or GitLab (glab) CLI."
     exit 1
 }
 
@@ -165,7 +167,7 @@ case "${platform}" in
                 bash "${SCRIPT_DIR}/label_sync.sh" "$@"
                 ;;
             *)
-                echo "Error: Unknown subcommand: ${subcommand}" >&2
+                err "Unknown subcommand: ${subcommand}"
                 exit 1
                 ;;
         esac
@@ -207,7 +209,7 @@ case "${platform}" in
                     done
                     glab api "projects/:id/issues/${issue_num}/notes/${last_note_id}" -X PUT -f "body=${body}"
                 else
-                    echo "Error: No comments found on issue ${issue_num}" >&2
+                    err "No comments found on issue ${issue_num}"
                     exit 1
                 fi
                 ;;
@@ -292,7 +294,7 @@ case "${platform}" in
                 bash "${SCRIPT_DIR}/label_sync.sh" "$@"
                 ;;
             *)
-                echo "Error: Unknown subcommand: ${subcommand}" >&2
+                err "Unknown subcommand: ${subcommand}"
                 exit 1
                 ;;
         esac
@@ -305,14 +307,14 @@ case "${platform}" in
                 warn_no_tracker
                 ;;
             *)
-                echo "Error: Unknown subcommand: ${subcommand}" >&2
+                err "Unknown subcommand: ${subcommand}"
                 exit 1
                 ;;
         esac
         ;;
 
     *)
-        echo "Error: Unknown platform: ${platform}" >&2
+        err "Unknown platform: ${platform}"
         exit 1
         ;;
 esac
