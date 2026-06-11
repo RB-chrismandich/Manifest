@@ -27,4 +27,4 @@ The robust, testable shape is the same every time.
 5. **Fail open / propagate cleanly per context:** a background/hook caller swallows
    reviewer errors (exit 0, never block); an on-demand caller surfaces a clear error.
 6. **Smoke-test the real CLI end-to-end once** through the pipeline before shipping
-   (see verify-cli-premise) — confirm stdin read, exit 0, no permission hang.
+   (see verify-premise) — confirm stdin read, exit 0, no permission hang.

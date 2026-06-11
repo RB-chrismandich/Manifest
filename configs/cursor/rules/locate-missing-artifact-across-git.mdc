@@ -1,0 +1,15 @@
+---
+description: "Use when a referenced file (spec, plan, doc, config) does not exist at the given path on the current branch — search worktrees, all branches, and git history before assuming it is missing or asking the user."
+globs: ".claude/skills/locate-missing-artifact-across-git/**"
+alwaysApply: false
+---
+
+# locate-missing-artifact-across-git
+
+Use when a referenced file (spec, plan, doc, config) does not exist at the given path on the current branch — search worktrees, all branches, and git history before assuming it is missing or asking the user.
+
+<!-- Auto-generated from .claude/skills/locate-missing-artifact-across-git/SKILL.md -->
+<!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
+
+Refer to `.cursor/skills/locate-missing-artifact-across-git/SKILL.md` for the full skill definition.
+

@@ -1,0 +1,15 @@
+---
+description: "Use when digesting, compressing, or summarizing session memory — distill a single session/transcript into a one-line dated daily-memory entry, or losslessly compress/rotate a set of existing memory entries (daily summary, shorthand rewrite, rotation, one-sentence log line) — with zero information loss."
+globs: ".claude/skills/session-memory-compress/**"
+alwaysApply: false
+---
+
+# session-memory-compress
+
+Use when digesting, compressing, or summarizing session memory — distill a single session/transcript into a one-line dated daily-memory entry, or losslessly compress/rotate a set of existing memory entries (daily summary, shorthand rewrite, rotation, one-sentence log line) — with zero information loss.
+
+<!-- Auto-generated from .claude/skills/session-memory-compress/SKILL.md -->
+<!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
+
+Refer to `.cursor/skills/session-memory-compress/SKILL.md` for the full skill definition.
+
