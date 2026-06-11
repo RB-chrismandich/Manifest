@@ -33,6 +33,10 @@ Thumbs.db
 
 # Node (bats test runner installed via npm in CI / locally)
 node_modules/
+package-lock.json
+
+# local tool side-effect, origin unknown (not SkillClaw — see specs/003 research R10)
+records/
 
 # Logs
 *.log
