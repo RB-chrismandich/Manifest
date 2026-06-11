@@ -132,8 +132,8 @@
 
 ## Phase 8: Polish & Cross-Cutting
 
-- [ ] T041 Confirm SC-001…SC-004, SC-006…SC-009 evidence across merged PRs (quickstart full-gate outputs in each PR description); note SC-005 (next evolve cycle proposes zero duplicates) as a post-merge observation with owner follow-up
-- [ ] T042 [P] Tick specs/003-skill-library-consolidation/checklists/requirements.md items still open; update CHANGELOG.md with the feature summary; consider `/speckit-analyze` for final cross-artifact consistency
+- [x] T041 Confirm SC-001…SC-004, SC-006…SC-009 evidence across merged PRs (quickstart full-gate outputs in each PR description); note SC-005 (next evolve cycle proposes zero duplicates) as a post-merge observation with owner follow-up. *Recorded 2026-06-11*: SC-001…SC-004/SC-006/SC-007/SC-009 evidenced in PR #289/#291/#293/#294/#296 descriptions (full-gate outputs; final: 310 bats / 198 pytest). **SC-008 not met as written**: caching trims installs ~5s/run (bats 8s→3s) but US4 added ~73 tests, so the Test job grew ~30s→42s and total wall-time rose ~87s→~113s median; determinism (pins) achieved. SC-005 pending the next evolve cycle — owner to check `/skill-evolve` proposes zero duplicates of the 7 survivors
+- [x] T042 [P] Tick specs/003-skill-library-consolidation/checklists/requirements.md items still open; update CHANGELOG.md with the feature summary; consider `/speckit-analyze` for final cross-artifact consistency. *Done 2026-06-11*: checklist already fully ticked; CHANGELOG [Unreleased] 003 items dated into [2026-06] with US4/US5 entries added; /speckit-analyze skipped — artifacts were cross-checked by Copilot review + two-reviewer gates on every story PR
 
 ---
 
