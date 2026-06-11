@@ -400,6 +400,134 @@ class GeminiAgent(BaseAgent):
 
 
 # ---------------------------------------------------------------------------
+# CLIAgent
+# ---------------------------------------------------------------------------
+
+
+class CLIAgent(BaseAgent):
+    """Generic CLI-based agent driven by the cli_agents config block.
+
+    All provider variation (binary, argument shape, output capture) is data in
+    parallel_agent.yml — adding a CLI provider is a configuration change, not a
+    new class. Args are always exec'd as a list (never a shell string).
+    """
+
+    def __init__(
+        self,
+        provider: str,
+        model: str = "flash",
+        timeout: int = 120,
+        rate_limiter: RateLimiter = None,
+        config: Config = None,
+        logger: Optional[Logger] = None,
+        streaming: bool = False,
+        progress_callback=None,
+    ):
+        config = config or Config()
+        super().__init__(
+            provider,
+            model,
+            timeout,
+            rate_limiter,
+            config,
+            logger,
+            streaming,
+            progress_callback,
+        )
+        spec = config.get(f"cli_agents.{provider}")
+        if not spec:
+            raise ValueError(f"no cli_agents config for provider: {provider}")
+        self.binary = spec["binary"]
+        self.base_args = list(spec.get("base_args", []))
+        self.model_args = list(spec.get("model_args", []))
+        self.output_strategy = spec.get("output", "stdout")
+        self.model_name = self._resolve_model(model)
+
+    def _resolve_model(self, tier: str) -> Optional[str]:
+        """Resolve model tier to full model name. Returns None for 'auto'."""
+        if tier == "auto":
+            return None
+        resolved = self.config.get(f"model_tiers.{self.name}.{tier}")
+        return resolved if resolved else tier
+
+    def _build_command(self, prompt: str, output_file: Optional[str] = None) -> List[str]:
+        """Assemble argv: binary + base_args + optional model group + prompt.
+
+        model_args are appended only when a model is resolved — the group is
+        dropped atomically, so an optional model can never leave a dangling flag.
+        """
+
+        def _subst(arg: str) -> str:
+            arg = arg.replace("{output_file}", output_file or "")
+            arg = arg.replace("{model}", self.model_name or "")
+            return arg
+
+        cmd = [self.binary] + [_subst(a) for a in self.base_args]
+        if self.model_name:
+            cmd += [_subst(a) for a in self.model_args]
+        cmd.append(prompt)
+        return cmd
+
+    def _collect_output(
+        self, returncode: int, stdout: bytes, stderr: bytes, output_file: Optional[str]
+    ) -> Dict:
+        """Apply the provider's output strategy: file > stdout > stderr-on-error."""
+        output = ""
+        if output_file and os.path.exists(output_file):
+            with open(output_file, "r") as f:
+                output = f.read().strip()
+        if not output:
+            output = stdout.decode("utf-8", errors="ignore").strip()
+        if not output and returncode != 0:
+            return {
+                "status": "failed",
+                "error": stderr.decode("utf-8", errors="ignore"),
+                "output": "",
+                "model": self.model_name or "auto",
+            }
+        return {
+            "status": "complete",
+            "output": output,
+            "model": self.model_name or "auto",
+            "validated": False,
+        }
+
+    async def _execute_impl(self, prompt: str, mode: str) -> Dict:
+        import shutil
+        import tempfile
+
+        if not shutil.which(self.binary):
+            return {
+                "status": "missing",
+                "error": f"{self.binary} command not found",
+                "output": "",
+            }
+
+        output_file = None
+        if self.output_strategy == "file_then_stdout":
+            with tempfile.NamedTemporaryFile(
+                mode="w", suffix=".txt", delete=False, prefix=f"{self.name}_out_"
+            ) as tmp:
+                output_file = tmp.name
+
+        try:
+            cmd = self._build_command(prompt, output_file)
+            proc = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            stdout, stderr = await proc.communicate()
+            return self._collect_output(proc.returncode, stdout, stderr, output_file)
+        finally:
+            if output_file:
+                try:
+                    os.unlink(output_file)
+                except OSError:
+                    pass
+
+
+# ---------------------------------------------------------------------------
 # CursorAgent
 # ---------------------------------------------------------------------------
 
