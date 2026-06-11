@@ -146,7 +146,7 @@ should_run_silent() {
     if [[ "${#paths[@]}" -lt 2 ]]; then echo "skip: fewer than 2 artifacts"; return 1; fi
     mkdir -p "$state"
     local now prev="$state/.last-run"
-    now="$(content_hash ${paths[@]+"${paths[@]}"})"
+    now="$(content_hash "${paths[@]+"${paths[@]}"}")"
     if [[ -f "$prev" && "$(cat "$prev")" == "$now" ]]; then
         echo "skip: unchanged"; return 1
     fi
@@ -174,7 +174,7 @@ review() {
     while IFS= read -r line; do [[ -n "$line" ]] && arts+=("$line"); done < <(resolve_artifacts "$root")
     if [[ "${#arts[@]}" -eq 0 ]]; then echo "spec-review: nothing to review (no artifacts found)"; return 0; fi
     echo "[spec-review] Cross-referencing project artifacts with Antigravity (agy)…"
-    local prompt raw; prompt="$(assemble_prompt "$SPEC_REVIEW_TEMPLATE" ${arts[@]+"${arts[@]}"})"
+    local prompt raw; prompt="$(assemble_prompt "$SPEC_REVIEW_TEMPLATE" "${arts[@]+"${arts[@]}"}")"
     raw="$(run_reviewer "$prompt")"
     format_findings "$raw" "$fmt" "${#arts[@]}"
 }
@@ -186,7 +186,7 @@ _silent_review_inline() {
     local arts=() line prompt raw
     while IFS= read -r line; do [[ -n "$line" ]] && arts+=("$line"); done < <(discover_artifacts "$root")
     [[ "${#arts[@]}" -eq 0 ]] && return 0   # defensive: nothing to review (set -u safe)
-    prompt="$(assemble_prompt "$SPEC_REVIEW_TEMPLATE" ${arts[@]+"${arts[@]}"})"
+    prompt="$(assemble_prompt "$SPEC_REVIEW_TEMPLATE" "${arts[@]+"${arts[@]}"}")"
     if ! raw="$(run_reviewer "$prompt" 2>>"$state/error.log")"; then
         return 0   # fail-open: reviewer failed, never block
     fi
