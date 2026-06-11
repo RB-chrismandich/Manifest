@@ -112,9 +112,9 @@ framing.
 ## Phase summaries
 
 - **Phase 0 (research.md)**: 14 decisions, all spec unknowns resolved with
-  file:line evidence — notably: prune = `rsync --delete` mirroring (matching
-  sync-skills' existing semantic, with the FR-005a safety bound interpreted at
-  directory scope and flagged for reviewer sign-off); evolve timeout 600s
+  file:line evidence — notably: prune = manifest-scoped prune-on-deploy
+  (`.deployed-skills` manifest; externally-added skills preserved, with the
+  FR-005a safety bounds per contracts/prune-on-deploy.md); evolve timeout 600s
   default; array guard = checker script in pre-commit + CI; 10 (not 3)
   scripts lack `--help`, 8 get it, 2 exempted; cluster math corrected to −12
   (81 → 69).
