@@ -1,5 +1,26 @@
 # Generic CLI Agent Refactor + Model Refresh + Antigravity Agent — Implementation Plan
 
+> **EXECUTED 2026-06-11 — read this first.** All 10 tasks are complete. The task
+> bodies below are preserved as written before execution; where review or live
+> verification forced a change, the SPEC and the code are authoritative, not the
+> task text. Deviations applied during execution:
+>
+> 1. **`prompt_args` schema slot** (commit `752ada5`): live testing revealed
+>    `agy --print` is a Go flag that takes the prompt as its *value* — a trailing
+>    positional prompt is silently swallowed. `CLIAgent` gained
+>    `prompt_args` (default `["{prompt}"]`); antigravity uses
+>    `base_args: []` + `prompt_args: ["--print", "{prompt}"]`, superseding the
+>    `base_args: ["--print"]` + positional-prompt shape in Tasks 1-2 below.
+> 2. **Missing `binary` raises `ValueError`** (commit `838f484`): review hardening;
+>    supersedes the `spec["binary"]` direct access shown in Task 2.
+> 3. **Empty-arg filter in `_build_command`** (commit `838f484`): args that
+>    substitute to `""` (stray `{output_file}` with no file) are dropped from argv.
+> 4. **Codex tier IDs** (commit `fed4f27`, per Task 5's own decision rules):
+>    `o4-mini/o3/o3-pro` → `gpt-5.4-mini/gpt-5.4/gpt-5.5`; tests updated in the
+>    same commit. Task 1/2 snippets predate the Task 5 refresh by design.
+> 5. **Sync test also covers `rate_limits`** (commit `fed4f27`), with
+>    `tokens_per_minute` reconciled into `config.py` defaults.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Replace the `CursorAgent`/`CodexAgent` classes with one YAML-driven `CLIAgent`, add Antigravity (`agy`) as the 5th parallel agent, refresh all model tier pins, govern `spec_review.sh`'s model from the same registry, and add a warn-only model staleness check.
