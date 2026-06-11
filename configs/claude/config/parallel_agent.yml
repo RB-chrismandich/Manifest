@@ -29,6 +29,9 @@ rate_limits:
   codex:
     requests_per_minute: 100
     burst_size: 10
+  antigravity:
+    requests_per_minute: 100
+    burst_size: 10
 
 # Model tier mappings
 model_tiers:
@@ -47,6 +50,10 @@ model_tiers:
     mini: "o4-mini"
     flash: "o3"
     advanced: "o3-pro"
+  antigravity:
+    mini: "Gemini 3.5 Flash (Low)"
+    flash: "Gemini 3.5 Flash (High)"
+    advanced: "Claude Opus 4.6 (Thinking)"
 
 # Timeout configuration (seconds)
 timeouts:
@@ -98,6 +105,33 @@ credit_fallback:
     - advanced
     - flash
     - mini
+  antigravity:
+    - advanced
+    - flash
+    - mini
+
+# CLI agent command definitions (consumed by CLIAgent in agents/runners.py).
+# base_args: always passed. model_args: appended only when a model is resolved
+# (dropped atomically for tier "auto" — no dangling flags). {output_file} in
+# base_args triggers tempfile creation; output "file_then_stdout" reads it
+# with priority file > stdout > stderr-on-error.
+cli_agents:
+  cursor:
+    binary: cursor
+    base_args: []
+    model_args: ["--model", "{model}"]
+    output: stdout
+  codex:
+    binary: codex
+    base_args: ["exec", "--full-auto", "--color", "never",
+                "--output-last-message", "{output_file}"]
+    model_args: ["--model", "{model}"]
+    output: file_then_stdout
+  antigravity:
+    binary: agy
+    base_args: ["--print"]
+    model_args: ["--model", "{model}"]
+    output: stdout
 
 # Logging configuration
 logging:

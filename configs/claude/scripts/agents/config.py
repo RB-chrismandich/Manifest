@@ -81,6 +81,7 @@ class Config:
                 "gemini": {"requests_per_minute": 30, "burst_size": 3},
                 "cursor": {"requests_per_minute": 100, "burst_size": 10},
                 "codex": {"requests_per_minute": 100, "burst_size": 10},
+                "antigravity": {"requests_per_minute": 100, "burst_size": 10},
             },
             "timeouts": {"default": 120, "review": 600},
             "model_tiers": {
@@ -93,10 +94,43 @@ class Config:
                     "flash": "gemini-3-flash-preview",
                     "pro": "gemini-3-pro-preview",
                 },
+                "cursor": {
+                    "mini": "gpt-5.1-codex-mini",
+                    "flash": "gpt-5.1-codex",
+                    "advanced": "gpt-5.2",
+                },
                 "codex": {
                     "mini": "o4-mini",
                     "flash": "o3",
                     "advanced": "o3-pro",
+                },
+                "antigravity": {
+                    "mini": "Gemini 3.5 Flash (Low)",
+                    "flash": "Gemini 3.5 Flash (High)",
+                    "advanced": "Claude Opus 4.6 (Thinking)",
+                },
+            },
+            "cli_agents": {
+                "cursor": {
+                    "binary": "cursor",
+                    "base_args": [],
+                    "model_args": ["--model", "{model}"],
+                    "output": "stdout",
+                },
+                "codex": {
+                    "binary": "codex",
+                    "base_args": [
+                        "exec", "--full-auto", "--color", "never",
+                        "--output-last-message", "{output_file}",
+                    ],
+                    "model_args": ["--model", "{model}"],
+                    "output": "file_then_stdout",
+                },
+                "antigravity": {
+                    "binary": "agy",
+                    "base_args": ["--print"],
+                    "model_args": ["--model", "{model}"],
+                    "output": "stdout",
                 },
             },
             "credit_fallback": {
@@ -104,6 +138,7 @@ class Config:
                 "cursor": ["advanced", "flash", "mini"],
                 "gemini": ["pro", "flash"],
                 "codex": ["advanced", "flash", "mini"],
+                "antigravity": ["advanced", "flash", "mini"],
             },
             "validation": {"consensus_threshold": {"high": 0.80, "medium": 0.50}},
         }
@@ -147,6 +182,7 @@ class ServiceConfig:
                 "gemini": {"enabled": True},
                 "cursor": {"enabled": True},
                 "codex": {"enabled": True},
+                "antigravity": {"enabled": True},
             },
             "minimum_agents": 2,
         }
