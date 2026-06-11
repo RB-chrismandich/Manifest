@@ -619,11 +619,11 @@ class TestServiceConfig:
 
 
 # ---------------------------------------------------------------------------
-# CodexAgent tests
+# Codex-via-CLIAgent regression tests
 # ---------------------------------------------------------------------------
 
 
-class TestCodexAgent:
+class TestCodexViaCLIAgent:
     """Codex behavior through the generic CLIAgent (regression for the refactor)."""
 
     def test_resolve_model_auto(self, tmp_path):

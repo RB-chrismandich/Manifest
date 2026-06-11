@@ -153,8 +153,7 @@ flowchart TB
         BASE["BaseAgent<br/>(rate limiting, timeout, fallback)"]:::active
         CLAUDE_AG["ClaudeAgent<br/>(streaming support)"]:::active
         GEMINI_AG["GeminiAgent<br/>(dual package support)"]:::active
-        CURSOR_AG["CursorAgent<br/>(subprocess)"]:::active
-        CODEX_AG["CodexAgent<br/>(subprocess, codex exec)"]:::active
+        CLI_AG["CLIAgent<br/>(cursor | codex | antigravity, config-driven)"]:::active
     end
 
     subgraph "agents/validation.py + synthesis.py"
@@ -165,8 +164,7 @@ flowchart TB
     subgraph "External APIs"
         ANTHROPIC["Anthropic API<br/>(Claude)"]:::external
         GOOGLE["Google Gemini API<br/>(OAuth/API key)"]:::external
-        CURSOR_CLI["Cursor CLI"]:::external
-        CODEX_CLI["Codex CLI"]:::external
+        CLI_BINS["CLI binaries<br/>(cursor | codex | agy)"]:::external
     end
 
     subgraph "Configuration Files"
@@ -199,13 +197,11 @@ flowchart TB
     BASE --> LIMITER
     BASE --> CLAUDE_AG
     BASE --> GEMINI_AG
-    BASE --> CURSOR_AG
-    BASE --> CODEX_AG
+    BASE --> CLI_AG
 
     CLAUDE_AG --> ANTHROPIC
     GEMINI_AG --> GOOGLE
-    CURSOR_AG --> CURSOR_CLI
-    CODEX_AG --> CODEX_CLI
+    CLI_AG --> CLI_BINS
 
     VALIDATE -.->|load| VAL_YML
     SYNTH -.->|load| SYNTH_MD
@@ -229,7 +225,7 @@ flowchart TB
 - **SynthesisEngine**: Automatic disagreement resolution when consensus < 50%, uses Claude Sonnet with synthesis.md template
 - **Streaming**: Real-time Rich Live display with progressive updates (4 updates/sec, 500 char truncation)
 - **RateLimiter**: Token bucket algorithm with burst support and adaptive backoff
-- **CodexAgent**: Subprocess-based agent using `codex exec` with `--output-last-message` for reliable output capture
+- **CLIAgent**: Generic YAML-driven subprocess agent; provider variation (cursor | codex | antigravity) is config data in the `cli_agents:` block — no per-provider subclass needed
 - **Dual Package Support**: google-genai (new) with fallback to google-generativeai (legacy), unified interface
 
 **Execution Flow**:
@@ -245,10 +241,10 @@ flowchart TB
 **Statistics**:
 
 - Modules: 6 (`config`, `runners`, `synthesis`, `validation`, `orchestrator`, `cli`) + `__init__`
-- Classes: 11 (Config, ServiceConfig, Logger, RateLimiter, ValidationEngine, SynthesisEngine,
-  BaseAgent, ClaudeAgent, GeminiAgent, CursorAgent, CodexAgent, Orchestrator)
-- CLI Flags: 27 (argparse in `agents/cli.py`)
-- Agents: 4 (Claude, Gemini, Cursor, Codex)
+- Classes: 10 (Config, ServiceConfig, Logger, RateLimiter, ValidationEngine, SynthesisEngine,
+  BaseAgent, ClaudeAgent, GeminiAgent, CLIAgent, Orchestrator)
+- CLI Flags: 30 (argparse in `agents/cli.py`)
+- Agents: 5 (Claude, Gemini, Cursor, Codex, Antigravity)
 - Total lines: ~2,400 across package (~27-line entry point)
 
 ---
@@ -269,7 +265,7 @@ flowchart LR
 
     CONFIG["config.py\nConfig · Logger\nRateLimiter · ServiceConfig"]:::foundation
 
-    RUNNERS["runners.py\nBaseAgent · ClaudeAgent\nGeminiAgent · CursorAgent\nCodexAgent"]:::mid
+    RUNNERS["runners.py\nBaseAgent · ClaudeAgent\nGeminiAgent · CLIAgent"]:::mid
 
     SYNTHESIS["synthesis.py\nSynthesisEngine"]:::mid
 
@@ -535,8 +531,9 @@ flowchart TB
     subgraph "Agent Execution (Parallel)"
         GEMINI_EXEC["Gemini CLI<br/>(gemini-3.5-flash / 3.1-pro)"]:::process
         CURSOR_EXEC["Cursor Agent<br/>(gpt-5.1/5.2)"]:::process
-        CLAUDE_EXEC["Claude CLI<br/>(haiku/sonnet/opus)"]:::process
+        CLAUDE_EXEC["Claude CLI<br/>(haiku/sonnet/opus/fable)"]:::process
         CODEX_EXEC["Codex CLI<br/>(gpt-5.4-mini/gpt-5.4/gpt-5.5)"]:::process
+        AGY_EXEC["Antigravity CLI<br/>(agy, Gemini 3.5 Flash (High))"]:::process
     end
 
     COLLECT["Collect Outputs<br/>(with retry + fallback)"]:::process
@@ -570,11 +567,13 @@ flowchart TB
     CHECK_SERVICES --> CURSOR_EXEC
     CHECK_SERVICES --> CLAUDE_EXEC
     CHECK_SERVICES --> CODEX_EXEC
+    CHECK_SERVICES --> AGY_EXEC
 
     GEMINI_EXEC --> COLLECT
     CURSOR_EXEC --> COLLECT
     CLAUDE_EXEC --> COLLECT
     CODEX_EXEC --> COLLECT
+    AGY_EXEC --> COLLECT
 
     COLLECT --> VERIFY_FILES
     VERIFY_FILES -->|No| FILE_ERROR

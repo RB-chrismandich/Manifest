@@ -507,7 +507,7 @@ async def check_credits(config: Config, logger: Optional[Logger] = None) -> Dict
         try:
             api_key = os.environ.get("GOOGLE_API_KEY")
             gemini_flash = config.get(
-                "model_tiers.gemini.flash", "gemini-3-flash-preview"
+                "model_tiers.gemini.flash", "gemini-3.5-flash"
             )
             if HAS_GENAI_NEW:
                 client = genai.Client(api_key=api_key) if api_key else genai.Client()

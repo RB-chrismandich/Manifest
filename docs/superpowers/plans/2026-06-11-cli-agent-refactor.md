@@ -20,6 +20,10 @@
 >    same commit. Task 1/2 snippets predate the Task 5 refresh by design.
 > 5. **Sync test also covers `rate_limits`** (commit `fed4f27`), with
 >    `tokens_per_minute` reconciled into `config.py` defaults.
+> 6. **Bootstrap scope** : agy detection shipped in the deploy summary only
+>    (`bootstrap/lib/deploy.sh`); no `install.sh`/`auth.sh` agy auth-detection
+>    was added — agy has no non-interactive auth-status command to probe, and
+>    `check_status.sh` covers CLI availability.
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
