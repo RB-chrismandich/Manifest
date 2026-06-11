@@ -38,8 +38,24 @@ EXTRA_PROTECT=()
 err() { echo "branch-clean: $*" >&2; }
 usage_error() { err "$*"; exit 2; }
 
+usage() {
+    cat <<'USAGE'
+Usage: branch_clean.sh [--apply] [--include-remote] [--stale-days N]
+                       [--protect GLOB]... [--default BRANCH] [--yes] [--json]
+
+  --apply           Perform deletions (otherwise dry-run preview only)
+  --include-remote  Also delete the matching remote branch (opt-in)
+  --stale-days N    Staleness threshold (default: config / 90)
+  --protect GLOB    Extra protected branch glob (repeatable)
+  --default BRANCH  Override default-branch detection
+  --yes             Skip the interactive confirmation prompt (for --apply)
+  --json            Machine-readable output
+USAGE
+}
+
 while [[ $# -gt 0 ]]; do
     case "$1" in
+        --help|-h) usage; exit 0 ;;
         --apply) APPLY=true; shift ;;
         --include-remote) INCLUDE_REMOTE=true; shift ;;
         --stale-days) [[ $# -ge 2 ]] || usage_error "--stale-days needs an argument"; STALE_DAYS="$2"; shift 2 ;;

@@ -54,9 +54,25 @@ CHANGED=false   # set by process_* to signal the file needs rewriting
 err() { echo "version-pin: $*" >&2; }
 usage_error() { err "$*"; exit 2; }
 
+usage() {
+    cat <<'USAGE'
+Usage: version_pin.sh [<path>...] [--check] [--requested NAME=VERSION]...
+                      [--rule ID] [--config FILE]
+
+  <path>...            Files/dirs to scan (default: current directory tree)
+  --check              Warn-only: report violations + fixes, make NO edits
+  --requested NAME=VER Pin NAME to an exact requested version (repeatable)
+  --rule ID            Limit to one rule-set entry from the config
+  --config FILE        Alternate command_config.yml
+
+Bypass a line with a trailing '# version-pin:ignore' marker.
+USAGE
+}
+
 parse_args() {
     while [[ $# -gt 0 ]]; do
         case "$1" in
+            --help|-h) usage; exit 0 ;;
             --check) CHECK_ONLY=true; shift ;;
             --rule) [[ $# -ge 2 ]] || usage_error "--rule needs an argument"; RULE_FILTER="$2"; shift 2 ;;
             --config) [[ $# -ge 2 ]] || usage_error "--config needs an argument"; CONFIG="$2"; shift 2 ;;

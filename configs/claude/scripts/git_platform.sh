@@ -11,6 +11,8 @@
 
 set -euo pipefail
 
+err() { echo "git-platform: $*" >&2; }
+
 # Allow override via env var
 if [[ -n "${MANIFEST_GIT_PLATFORM:-}" ]]; then
     case "${MANIFEST_GIT_PLATFORM}" in
@@ -19,8 +21,8 @@ if [[ -n "${MANIFEST_GIT_PLATFORM:-}" ]]; then
             exit 0
             ;;
         *)
-            echo "Error: Invalid MANIFEST_GIT_PLATFORM value: ${MANIFEST_GIT_PLATFORM}" >&2
-            echo "Valid values: github, gitlab, git" >&2
+            err "Invalid MANIFEST_GIT_PLATFORM value: ${MANIFEST_GIT_PLATFORM}"
+            err "Valid values: github, gitlab, git"
             exit 1
             ;;
     esac
@@ -31,13 +33,13 @@ remote_name="${1:-${MANIFEST_GIT_REMOTE:-origin}}"
 
 # Check if we're in a git repository
 if ! git rev-parse --git-dir &> /dev/null; then
-    echo "Error: Not a git repository" >&2
+    err "Not a git repository"
     exit 1
 fi
 
 # Get remote URL
 if ! remote_url=$(git remote get-url "${remote_name}" 2> /dev/null); then
-    echo "Error: Remote '${remote_name}' not found" >&2
+    err "Remote '${remote_name}' not found"
     exit 1
 fi
 

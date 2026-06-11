@@ -50,8 +50,24 @@ APPLY=false; SKILL=""; DO_EVOLVE=true; FORCE_NEW=false
 err() { echo "skillclaw-promote: $*" >&2; }
 usage_error() { err "$*"; exit 2; }
 
+usage() {
+    cat <<'USAGE'
+Usage: skillclaw_promote.sh [--apply] [--skill NAME] [--no-evolve]
+                            [--force-new] [--status]
+
+Turn evolved SkillClaw skills into a review PR. Dry-run by default.
+
+  --apply       Branch, commit per skill, and open the review PR
+  --skill NAME  Limit the run to a single evolved skill
+  --no-evolve   Skip the evolve step (promote existing candidates only)
+  --force-new   Proceed even if an open skillclaw/evolve-* PR exists
+  --status      Print pipeline status from the audit log and exit
+USAGE
+}
+
 while [[ $# -gt 0 ]]; do
     case "$1" in
+        --help|-h) usage; exit 0 ;;
         --status) python3 "$AUDIT" status; exit 0 ;;
         --apply) APPLY=true; shift ;;
         --skill) [[ $# -ge 2 ]] || usage_error "--skill needs a name"; SKILL="$2"; shift 2 ;;
