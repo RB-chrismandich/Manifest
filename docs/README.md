@@ -73,6 +73,7 @@
 |------|-------------|--------------|--------|
 | [ARCHITECTURE_DIAGRAMS.md](ARCHITECTURE_DIAGRAMS.md) | Visual system documentation | 2026-06-08 | ✅ |
 | [SKILLCLAW.md](SKILLCLAW.md) | SkillClaw session-capture and skill-evolution guide | 2026-06-08 | ✅ |
+| [SPEC-SYSTEMS.md](SPEC-SYSTEMS.md) | Map of the four spec/plan systems and when to use each | 2026-06-10 | ✅ |
 
 ### Internal Documentation
 
