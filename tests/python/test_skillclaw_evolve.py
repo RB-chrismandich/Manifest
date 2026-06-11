@@ -294,3 +294,15 @@ def test_chunk_timeout_cli_flag_overrides_env(monkeypatch, tmp_path):
     rc = ev.main([str(tmp_path), str(tmp_path), "--chunk-timeout", "7"])
     assert rc == 0
     assert ev._chunk_timeout() == 7
+
+
+def test_skill_description_block_scalar_drops_marker(tmp_path):
+    # PR #289 review: a `description: |` block scalar must not leak the
+    # literal |/>` marker into the rendered "name — description" line.
+    for marker in ("|", ">", "|-", ">+"):
+        p = tmp_path / "SKILL.md"
+        p.write_text(
+            "---\nname: a11y-audit\ndescription: %s\n  Focused accessibility audit\n"
+            "  against WCAG 2.2 AA standards.\n---\nbody\n" % marker)
+        desc = ev._skill_description(p)
+        assert desc == "Focused accessibility audit against WCAG 2.2 AA standards.", marker
