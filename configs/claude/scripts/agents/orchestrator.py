@@ -7,6 +7,7 @@ Dependency graph: config → {validation, synthesis, runners} → orchestrator.
 import asyncio
 import json
 import os
+import shutil
 import sys
 import time
 from collections import Counter
@@ -470,8 +471,6 @@ class Orchestrator:
 
 async def check_credits(config: Config, logger: Optional[Logger] = None) -> Dict:
     """Pre-flight credit check with minimal API calls"""
-    import shutil
-
     results = {}
 
     # Claude credit check

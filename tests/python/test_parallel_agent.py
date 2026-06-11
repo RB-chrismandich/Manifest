@@ -31,7 +31,7 @@ from agents.config import Config, ServiceConfig, Logger, RateLimiter  # noqa: E4
 from agents.validation import ValidationEngine  # noqa: E402
 from agents.synthesis import SynthesisEngine  # noqa: E402
 from agents.runners import BaseAgent, CLIAgent  # noqa: E402
-from agents.orchestrator import Orchestrator  # noqa: E402
+from agents.orchestrator import Orchestrator, check_credits  # noqa: E402
 
 
 # ---------------------------------------------------------------------------
@@ -758,9 +758,7 @@ class TestAntigravityAgent:
 
     @pytest.mark.asyncio
     async def test_antigravity_missing_binary(self, tmp_path, monkeypatch):
-        import shutil
-
-        monkeypatch.setattr(shutil, "which", lambda cmd: None)
+        monkeypatch.setattr("agents.runners.shutil.which", lambda cmd: None)
         config = Config(config_path=str(tmp_path / "nonexistent.yml"))
         agent = CLIAgent("antigravity", "flash", 60, RateLimiter(), config=config)
         result = await agent._execute_impl("test", "prompt")
@@ -769,6 +767,31 @@ class TestAntigravityAgent:
     def test_services_default_includes_antigravity(self, tmp_path):
         sc = ServiceConfig(config_path=str(tmp_path / "nonexistent.yml"))
         assert sc.is_enabled("antigravity") is True
+
+    @pytest.mark.asyncio
+    async def test_check_credits_antigravity_installed(self, tmp_path, monkeypatch):
+        """check_credits marks antigravity assumed_available when agy exists."""
+        monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+        monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
+        monkeypatch.setattr(
+            "agents.orchestrator.shutil.which",
+            lambda cmd: "/usr/local/bin/agy" if cmd == "agy" else None,
+        )
+        config = Config(config_path=str(tmp_path / "nonexistent.yml"))
+        results = await check_credits(config)
+        assert results["antigravity"] == {"status": "assumed_available"}
+
+    @pytest.mark.asyncio
+    async def test_check_credits_antigravity_not_installed(self, tmp_path, monkeypatch):
+        """check_credits marks antigravity not_installed when agy is absent."""
+        monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+        monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
+        monkeypatch.setattr(
+            "agents.orchestrator.shutil.which", lambda cmd: None
+        )
+        config = Config(config_path=str(tmp_path / "nonexistent.yml"))
+        results = await check_credits(config)
+        assert results["antigravity"] == {"status": "not_installed"}
 
 
 class TestCLIFlagsAntigravity:
