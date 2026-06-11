@@ -470,6 +470,8 @@ class Orchestrator:
 
 async def check_credits(config: Config, logger: Optional[Logger] = None) -> Dict:
     """Pre-flight credit check with minimal API calls"""
+    import shutil
+
     results = {}
 
     # Claude credit check
@@ -533,9 +535,13 @@ async def check_credits(config: Config, logger: Optional[Logger] = None) -> Dict
     # Cursor (no API to check, assume available)
     results["cursor"] = {"status": "assumed_available"}
 
-    # Codex credit check
-    import shutil
+    # Antigravity (subscription CLI, no credit API to probe)
+    if shutil.which("agy"):
+        results["antigravity"] = {"status": "assumed_available"}
+    else:
+        results["antigravity"] = {"status": "not_installed"}
 
+    # Codex credit check
     if shutil.which("codex"):
         try:
             proc = await asyncio.wait_for(

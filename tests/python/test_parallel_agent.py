@@ -740,3 +740,49 @@ class TestFileExistenceValidation:
         """--improve with a missing file must print an error message to stderr."""
         result = self._run("--improve", str(tmp_path / "missing.py"))
         assert "file not found" in result.stderr.lower() or "error" in result.stderr.lower()
+
+
+# ---------------------------------------------------------------------------
+# Antigravity agent wiring
+# ---------------------------------------------------------------------------
+
+
+class TestAntigravityAgent:
+    def test_antigravity_tier_resolution(self, tmp_path):
+        config = Config(config_path=str(tmp_path / "nonexistent.yml"))
+        limiter = RateLimiter()
+        agent = CLIAgent("antigravity", "advanced", 60, limiter, config=config)
+        assert agent.name == "antigravity"
+        assert agent.model_name == "Claude Opus 4.6 (Thinking)"
+        assert agent.binary == "agy"
+
+    @pytest.mark.asyncio
+    async def test_antigravity_missing_binary(self, tmp_path, monkeypatch):
+        import shutil
+
+        monkeypatch.setattr(shutil, "which", lambda cmd: None)
+        config = Config(config_path=str(tmp_path / "nonexistent.yml"))
+        agent = CLIAgent("antigravity", "flash", 60, RateLimiter(), config=config)
+        result = await agent._execute_impl("test", "prompt")
+        assert result["status"] == "missing"
+
+    def test_services_default_includes_antigravity(self, tmp_path):
+        sc = ServiceConfig(config_path=str(tmp_path / "nonexistent.yml"))
+        assert sc.is_enabled("antigravity") is True
+
+
+class TestCLIFlagsAntigravity:
+    """The CLI surface advertises antigravity flags."""
+
+    SCRIPT = str(REPO_ROOT / "configs" / "claude" / "scripts" / "parallel_agent.py")
+
+    def test_help_lists_antigravity_flags(self):
+        import subprocess
+
+        result = subprocess.run(
+            [sys.executable, self.SCRIPT, "--help"],
+            capture_output=True, text=True,
+        )
+        assert "--antigravity-model" in result.stdout
+        assert "--antigravity-only" in result.stdout
+        assert "--no-antigravity" in result.stdout
