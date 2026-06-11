@@ -5,7 +5,9 @@ Dependency graph: agents.config → agents.runners (no other cross-module deps).
 
 import asyncio
 import os
+import shutil
 import sys
+import tempfile
 import time
 from typing import Any, Dict, List, Optional
 
@@ -437,7 +439,11 @@ class CLIAgent(BaseAgent):
         spec = config.get(f"cli_agents.{provider}")
         if not spec:
             raise ValueError(f"no cli_agents config for provider: {provider}")
-        self.binary = spec["binary"]
+        self.binary = spec.get("binary")
+        if not self.binary:
+            raise ValueError(
+                f"cli_agents.{provider}.binary is required but missing"
+            )
         self.base_args = list(spec.get("base_args", []))
         self.model_args = list(spec.get("model_args", []))
         self.output_strategy = spec.get("output", "stdout")
@@ -462,7 +468,11 @@ class CLIAgent(BaseAgent):
             arg = arg.replace("{model}", self.model_name or "")
             return arg
 
-        cmd = [self.binary] + [_subst(a) for a in self.base_args]
+        cmd = [self.binary]
+        for arg in self.base_args:
+            substituted = _subst(arg)
+            if substituted:
+                cmd.append(substituted)
         if self.model_name:
             cmd += [_subst(a) for a in self.model_args]
         cmd.append(prompt)
@@ -493,9 +503,6 @@ class CLIAgent(BaseAgent):
         }
 
     async def _execute_impl(self, prompt: str, mode: str) -> Dict:
-        import shutil
-        import tempfile
-
         if not shutil.which(self.binary):
             return {
                 "status": "missing",

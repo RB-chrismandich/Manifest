@@ -125,17 +125,17 @@ class TestCLIAgentCommandAssembly:
     def test_codex_auto_drops_model_args_atomically(self, tmp_path):
         agent = CLIAgent("codex", model="auto",
                          rate_limiter=_make_limiter(), config=_make_config(tmp_path))
-        cmd = agent._build_command("hello", output_file="/tmp/out.txt")
+        cmd = agent._build_command("hello", output_file=str(tmp_path / "out.txt"))
         assert agent.model_name is None
         assert "--model" not in cmd          # no dangling flag
         assert cmd[0] == "codex"
         assert cmd[-1] == "hello"            # prompt is last
-        assert "/tmp/out.txt" in cmd         # {output_file} substituted
+        assert str(tmp_path / "out.txt") in cmd  # {output_file} substituted
 
     def test_codex_tier_resolves_via_model_tiers(self, tmp_path):
         agent = CLIAgent("codex", model="mini",
                          rate_limiter=_make_limiter(), config=_make_config(tmp_path))
-        cmd = agent._build_command("hello", output_file="/tmp/out.txt")
+        cmd = agent._build_command("hello", output_file=str(tmp_path / "out.txt"))
         i = cmd.index("--model")
         assert cmd[i + 1] == "o4-mini"
 
@@ -147,6 +147,32 @@ class TestCLIAgentCommandAssembly:
         cmd = agent._build_command("hello")
         i = cmd.index("--model")
         assert cmd[i + 1] == "gpt-5.1-codex"
+
+    def test_output_file_placeholder_dropped_when_no_file(self, tmp_path):
+        # A stdout-strategy provider with a stray {output_file} placeholder
+        # must not inject an empty argv element.
+        config = _make_config(tmp_path)
+        config.config["cli_agents"]["fake"] = {
+            "binary": "fakecli",
+            "base_args": ["--out", "{output_file}"],
+            "model_args": ["--model", "{model}"],
+            "output": "stdout",
+        }
+        agent = CLIAgent("fake", model="auto",
+                         rate_limiter=_make_limiter(), config=config)
+        cmd = agent._build_command("hello", output_file=None)
+        assert "" not in cmd
+
+    def test_missing_binary_field_raises_value_error(self, tmp_path):
+        config = _make_config(tmp_path)
+        config.config["cli_agents"]["broken"] = {
+            "base_args": [],
+            "model_args": ["--model", "{model}"],
+            "output": "stdout",
+        }
+        with pytest.raises(ValueError, match="binary is required"):
+            CLIAgent("broken", model="flash",
+                     rate_limiter=_make_limiter(), config=config)
 
     def test_custom_model_passes_through(self, tmp_path):
         agent = CLIAgent("codex", model="custom-model-123",
