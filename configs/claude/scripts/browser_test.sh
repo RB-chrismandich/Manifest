@@ -333,7 +333,7 @@ cmd_run_all() {
 
     local passed=0 failed=0 skipped=0 total=${#files[@]}
 
-    for file in ${files[@]+"${files[@]}"}; do
+    for file in "${files[@]+"${files[@]}"}"; do
         if run_single_test "$file" "$timeout" "$headless"; then
             passed=$((passed + 1))
         else
@@ -378,7 +378,7 @@ cmd_validate() {
 
     local valid=0 invalid=0
 
-    for file in ${files[@]+"${files[@]}"}; do
+    for file in "${files[@]+"${files[@]}"}"; do
         if validate_yaml "$file"; then
             valid=$((valid + 1))
         else
@@ -419,7 +419,7 @@ cmd_list() {
 
     info_msg "Browser test files in $dir:"
     echo ""
-    for file in ${files[@]+"${files[@]}"}; do
+    for file in "${files[@]+"${files[@]}"}"; do
         validate_yaml "$file" 2> /dev/null || validate_yaml "$file" 2>&1 | head -1
     done
 }
