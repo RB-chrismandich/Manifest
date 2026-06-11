@@ -169,22 +169,23 @@ run_single_test() {
 
     info_msg "Running: $file (timeout: ${timeout}s)"
 
-    # Extract task from YAML
+    # Extract task from YAML. Paths/values are passed via argv, never
+    # interpolated into Python source (FR-009).
     local task
     task=$(python3 -c "
 import yaml, sys
-with open('$file') as f:
+with open(sys.argv[1]) as f:
     d = yaml.safe_load(f)
 print(d.get('task', ''))
-")
+" "$file")
 
     local max_steps
     max_steps=$(python3 -c "
 import yaml, sys
-with open('$file') as f:
+with open(sys.argv[1]) as f:
     d = yaml.safe_load(f)
-print(d.get('max_steps', $DEFAULT_MAX_STEPS))
-")
+print(d.get('max_steps', int(sys.argv[2])))
+" "$file" "$DEFAULT_MAX_STEPS")
 
     local start_time
     start_time=$(date +%s)
@@ -203,22 +204,25 @@ print(d.get('max_steps', $DEFAULT_MAX_STEPS))
             --max-steps "$max_steps" \
             $headless_flag 2>&1) || exit_code=$?
     else
-        # Fallback to Python API
+        # Fallback to Python API. Task text (YAML-sourced!) and settings are
+        # passed via argv, never interpolated into Python source (FR-009).
         output=$(timeout "$timeout" python3 -c "
-import asyncio
+import asyncio, sys
 from browser_use import Agent, Browser
 from browser_use.llm import ChatBrowserUse
 
+task, max_steps, headless = sys.argv[1], int(sys.argv[2]), sys.argv[3] == 'true'
+
 async def main():
-    browser = Browser(headless=$([[ "$headless" == "true" ]] && echo "True" || echo "False"))
+    browser = Browser(headless=headless)
     llm = ChatBrowserUse()
-    agent = Agent(task='$task', llm=llm, browser=browser, max_steps=$max_steps)
+    agent = Agent(task=task, llm=llm, browser=browser, max_steps=max_steps)
     result = await agent.run()
     await browser.close()
     return result
 
 asyncio.run(main())
-" 2>&1) || exit_code=$?
+" "$task" "$max_steps" "$headless" 2>&1) || exit_code=$?
     fi
 
     local end_time
@@ -329,7 +333,7 @@ cmd_run_all() {
 
     local passed=0 failed=0 skipped=0 total=${#files[@]}
 
-    for file in "${files[@]}"; do
+    for file in "${files[@]+"${files[@]}"}"; do
         if run_single_test "$file" "$timeout" "$headless"; then
             ((passed++))
         else
@@ -374,7 +378,7 @@ cmd_validate() {
 
     local valid=0 invalid=0
 
-    for file in "${files[@]}"; do
+    for file in "${files[@]+"${files[@]}"}"; do
         if validate_yaml "$file"; then
             ((valid++))
         else
@@ -415,7 +419,7 @@ cmd_list() {
 
     info_msg "Browser test files in $dir:"
     echo ""
-    for file in "${files[@]}"; do
+    for file in "${files[@]+"${files[@]}"}"; do
         validate_yaml "$file" 2> /dev/null || validate_yaml "$file" 2>&1 | head -1
     done
 }

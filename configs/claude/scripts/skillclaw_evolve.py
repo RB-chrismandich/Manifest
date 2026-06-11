@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import subprocess
 import sys
@@ -20,6 +21,7 @@ import time
 from pathlib import Path
 
 DEFAULT_TOKEN_BUDGET = 100_000
+DEFAULT_CHUNK_TIMEOUT = 600  # seconds per `claude -p` chunk (FR-010)
 _SKILL_RE = re.compile(r"~~~skill name=(?P<name>[^\n]+)\n(?P<body>.*?)~~~", re.DOTALL)
 
 
@@ -100,6 +102,17 @@ def chunk_sessions(sessions: list[dict], token_budget: int) -> list[list[dict]]:
     return chunks
 
 
+def _chunk_timeout() -> int:
+    """Per-chunk wall-clock bound for `claude -p` (FR-010). Env-overridable.
+
+    Clamped to >=1 so a zero/negative override can't fail every chunk instantly.
+    """
+    try:
+        return max(1, int(os.environ.get("SKILLCLAW_CHUNK_TIMEOUT", DEFAULT_CHUNK_TIMEOUT)))
+    except ValueError:
+        return DEFAULT_CHUNK_TIMEOUT
+
+
 def subprocess_runner(prompt: str) -> str:
     """Default runner: invoke headless `claude -p` (Max-backed).
 
@@ -107,8 +120,17 @@ def subprocess_runner(prompt: str) -> str:
     windows (a chunk can approach token_budget * 4 chars) never hit the OS
     ARG_MAX "Argument list too long" limit (1 MB on macOS). `claude -p` reads the
     prompt from stdin when no positional prompt is given.
+
+    Bounded by a per-chunk timeout so a hung CLI can never block evolve
+    forever; a timeout raises the same RuntimeError shape as a non-zero exit,
+    so promote.sh's existing fail-continue path applies.
     """
-    proc = subprocess.run(["claude", "-p"], input=prompt, capture_output=True, text=True)
+    timeout = _chunk_timeout()
+    try:
+        proc = subprocess.run(["claude", "-p"], input=prompt,
+                              capture_output=True, text=True, timeout=timeout)
+    except subprocess.TimeoutExpired:
+        raise RuntimeError(f"claude -p timed out after {timeout}s (chunk abandoned)")
     if proc.returncode != 0:
         raise RuntimeError(f"claude -p failed: {proc.stderr.strip()}")
     return proc.stdout

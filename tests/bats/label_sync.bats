@@ -67,6 +67,18 @@ teardown() {
     assert_output --partial "Registry: $TEST_DIR/config/labels.yml"
 }
 
+@test "parses a labels.yml at a path containing a single quote (FR-009)" {
+    # Path must be passed to Python as data (argv), never interpolated into
+    # interpreter source — a quote in the path used to break/inject.
+    local qdir="$TEST_DIR/it's here"
+    mkdir -p "$qdir"
+    cp "$TEST_DIR/config/labels.yml" "$qdir/labels.yml"
+
+    run bash "$SCRIPT_UNDER_TEST" --dry-run --config "$qdir/labels.yml"
+    assert_success
+    assert_output --partial "Found 2 labels in registry"
+}
+
 # --- Dry-run tests ---
 
 @test "dry-run lists all labels from registry" {
