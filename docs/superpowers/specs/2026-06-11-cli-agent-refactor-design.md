@@ -131,13 +131,30 @@ each CLI's own listing — `agy models` already confirmed its catalog).
 | gemini | pro | `gemini-3-pro-preview` | Gemini 3.1 Pro GA ID (verify slug) |
 | cursor | mini/flash/advanced | gpt-5.1 era | verify against current Cursor docs |
 | codex | mini/flash/advanced | o4-mini / o3 / o3-pro | verify against current Codex docs |
+| antigravity (new) | mini | — | Gemini 3.5 Flash (Low) — slug via `agy models` |
 | antigravity (new) | flash | — | Gemini 3.5 Flash (High) — slug via `agy models` |
-| antigravity (new) | pro | — | Gemini 3.1 Pro (High) — slug via `agy models` |
 | antigravity (new) | advanced | — | Claude Opus 4.6 (Thinking) — slug via `agy models` |
 
+Antigravity tier keys follow the `mini/flash/advanced` convention shared by the
+other CLI agents (cursor, codex), so intent-level flags stay semantically
+uniform across the CLI pool. (`claude`/`gemini` API agents keep their
+provider-native keys — `haiku/sonnet/opus/fable`, `flash/pro` — as today.)
+
+**Catalog constraint (accepted)**: antigravity pins are bounded by agy's served
+catalog, which may lag the direct API — e.g. agy's ceiling is Opus 4.6 while the
+direct Claude agent runs Opus 4.8/Fable 5. This version skew within the pool is
+accepted, documented in the orchestration guide alongside the diversity caveat,
+and detected over time by the staleness check (for antigravity, `agy models` is
+the ground truth, not Anthropic's API).
+
 Lockstep updates: `credit_fallback.claude` → `[fable, opus, sonnet, haiku]`;
-`credit_fallback.antigravity` → `[advanced, pro, flash]`; `agents/config.py`
-fallback defaults synced to the YAML; doc examples refreshed.
+`credit_fallback.antigravity` → `[advanced, flash, mini]`; `agents/config.py`
+fallback defaults synced to the YAML; doc examples refreshed; and
+`task_model_defaults` in `command_config.yml` updated so the new top tier is
+actually auto-selected — security-critical and architecture task types move
+from `opus` to `fable` (with the credit-fallback chain degrading through opus →
+sonnet → haiku). Without this, `fable` would exist as a tier key reachable only
+via explicit `--claude-model fable` and never be chosen by the orchestrator.
 
 Antigravity's default tier is a Gemini model — overlap with the Gemini API agent
 is the documented diversity caveat above.
@@ -231,7 +248,8 @@ check_status.sh ── compares model_tiers.* against live provider listings (wa
 3. Remove `CursorAgent`/`CodexAgent`; update `orchestrator.py`/`cli.py` call sites.
 4. Add antigravity provider config, tiers, rate limits, fallback chain, flags,
    `services.yml` entry, bootstrap detection.
-5. Model refresh across YAML + `config.py` + docs (live-verify each slug).
+5. Model refresh across `parallel_agent.yml` + `config.py` +
+   `command_config.yml` `task_model_defaults` + docs (live-verify each slug).
 6. `SPEC_REVIEW_MODEL` seam in `spec_review.sh` + bats tests.
 7. Staleness check in `check_status.sh` + health-check report wiring.
 8. Docs pass (orchestration guides, references, README, AGENTS.md).
