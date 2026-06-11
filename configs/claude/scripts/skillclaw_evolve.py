@@ -247,7 +247,14 @@ def main(argv: list[str]) -> int:
     ap.add_argument("--token-budget", type=int, default=DEFAULT_TOKEN_BUDGET)
     ap.add_argument("--run-id", default=None,
                     help="audit run id; enables per-chunk status logging")
+    ap.add_argument("--chunk-timeout", type=int, default=None,
+                    help="seconds per `claude -p` chunk (FR-010); wins over "
+                         "SKILLCLAW_CHUNK_TIMEOUT, default %d" % DEFAULT_CHUNK_TIMEOUT)
     args = ap.parse_args(argv)
+    if args.chunk_timeout is not None:
+        # Export to the env seam subprocess_runner reads at call time, so the
+        # override reaches every chunk without threading it through evolve().
+        os.environ["SKILLCLAW_CHUNK_TIMEOUT"] = str(args.chunk_timeout)
     try:
         summary = evolve(args.sessions_dir, args.evolved_dir, args.template,
                          committed_dir=args.committed_dir, token_budget=args.token_budget,
