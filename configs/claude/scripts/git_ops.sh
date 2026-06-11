@@ -46,32 +46,43 @@ if ! platform=$(bash "${SCRIPT_DIR}/git_platform.sh" 2>&1); then
     exit 1
 fi
 
+usage() {
+    cat <<'USAGE'
+Usage: git_ops.sh <subcommand> [args...]
+
+Subcommands:
+  issue-view N       View issue/MR N
+  issue-list         List issues/MRs
+  issue-create       Create new issue/MR
+  issue-comment N    Add comment/note to issue/MR N
+  issue-comment-edit-last N  Edit last comment on issue/MR N
+  issue-close N      Close issue/MR N
+  issue-edit N       Edit issue/MR N
+  pr-create          Create pull/merge request
+  pr-view N          View PR/MR N
+  pr-list            List PRs/MRs
+  pr-review N        Review PR/MR N (pass --approve/--comment/--request-changes)
+  pr-approve N       Approve PR/MR N (shortcut for pr-review --approve)
+  pr-diff N          View PR/MR N diff
+  pr-checks N        View CI status for PR/MR N
+  pr-merge N         Merge PR/MR N
+  release-create     Create a release
+  release-list       List releases
+  label-create       Create label
+  label-list         List labels
+  label-sync         Sync labels from registry
+USAGE
+}
+
 # Validate subcommand
 if [[ $# -eq 0 ]]; then
-    echo "Usage: git_ops.sh <subcommand> [args...]" >&2
-    echo "" >&2
-    echo "Subcommands:" >&2
-    echo "  issue-view N       View issue/MR N" >&2
-    echo "  issue-list         List issues/MRs" >&2
-    echo "  issue-create       Create new issue/MR" >&2
-    echo "  issue-comment N    Add comment/note to issue/MR N" >&2
-    echo "  issue-comment-edit-last N  Edit last comment on issue/MR N" >&2
-    echo "  issue-close N      Close issue/MR N" >&2
-    echo "  issue-edit N       Edit issue/MR N" >&2
-    echo "  pr-create          Create pull/merge request" >&2
-    echo "  pr-view N          View PR/MR N" >&2
-    echo "  pr-list            List PRs/MRs" >&2
-    echo "  pr-review N        Review PR/MR N (pass --approve/--comment/--request-changes)" >&2
-    echo "  pr-approve N       Approve PR/MR N (shortcut for pr-review --approve)" >&2
-    echo "  pr-diff N          View PR/MR N diff" >&2
-    echo "  pr-checks N        View CI status for PR/MR N" >&2
-    echo "  pr-merge N         Merge PR/MR N" >&2
-    echo "  release-create     Create a release" >&2
-    echo "  release-list       List releases" >&2
-    echo "  label-create       Create label" >&2
-    echo "  label-list         List labels" >&2
-    echo "  label-sync         Sync labels from registry" >&2
+    usage >&2
     exit 1
+fi
+
+if [[ "$1" == "--help" || "$1" == "-h" || "$1" == "help" ]]; then
+    usage
+    exit 0
 fi
 
 subcommand="$1"

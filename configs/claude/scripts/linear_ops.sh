@@ -1202,7 +1202,24 @@ cmd_transition_state() {
 }
 
 # Main command router
+usage() {
+    cat <<'USAGE'
+Usage: linear_ops.sh <subcommand> [args...]
+
+Subcommands:
+  team-list            team-states          issue-list
+  issue-view           issue-update         issue-comment
+  issue-close          issue-mark-duplicate create-sub-issue
+  list-sub-issues      add-attachment       list-cycles
+  add-comment          transition-state     label-list
+  label-create
+
+Requires LINEAR_API_KEY. Run a subcommand with no args for its usage.
+USAGE
+}
+
 main() {
+    if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then usage; exit 0; fi
     [[ $# -eq 0 ]] && error "Usage: linear_ops.sh <subcommand> [args...]
 
 Subcommands:
