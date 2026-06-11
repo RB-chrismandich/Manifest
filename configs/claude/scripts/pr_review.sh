@@ -28,8 +28,23 @@ JSON_OUT=false
 err() { echo "pr-review: $*" >&2; }
 usage_error() { err "$*"; exit 2; }
 
+usage() {
+    cat <<'USAGE'
+Usage: pr_review.sh [--platform github|gitlab] [--stale-days N] [--json]
+
+Triage all open pull/merge requests (analysis-only; no mutations).
+
+  --platform P    Force platform instead of auto-detection
+  --stale-days N  Days without update before a PR counts as stale (default 30)
+  --json          Machine-readable output
+
+Exit codes: 0 = success (incl. empty queue); 2 = usage / platform / auth error
+USAGE
+}
+
 while [[ $# -gt 0 ]]; do
     case "$1" in
+        --help|-h) usage; exit 0 ;;
         --platform) [[ $# -ge 2 ]] || usage_error "--platform needs an argument"; PLATFORM="$2"; shift 2 ;;
         --stale-days) [[ $# -ge 2 ]] || usage_error "--stale-days needs an argument"; STALE_DAYS="$2"; shift 2 ;;
         --json) JSON_OUT=true; shift ;;

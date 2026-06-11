@@ -3,6 +3,18 @@ set -euo pipefail
 
 err() { echo "sync-skills: $*" >&2; }
 
+if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
+    cat <<'USAGE'
+Usage: sync-skills
+
+Sync .skillshare/skills/ (source of truth) to all home targets
+(~/.claude/skills + Cursor/Gemini/Codex/Antigravity symlinks) and run
+skillshare sync for the Copilot target. No flags. Requires MANIFEST_ROOT
+(set by bootstrap.sh).
+USAGE
+    exit 0
+fi
+
 [[ -z "${MANIFEST_ROOT:-}" ]] && { err "MANIFEST_ROOT not set. Re-run bootstrap.sh."; exit 1; }
 [[ ! -d "$MANIFEST_ROOT" ]]  && { err "MANIFEST_ROOT '$MANIFEST_ROOT' not found."; exit 1; }
 
