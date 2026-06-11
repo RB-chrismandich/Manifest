@@ -102,13 +102,13 @@
 
 **Independent test** (quickstart.md §US4): three new bats suites green locally and in CI; pins present; cache hit on second CI run.
 
-- [ ] T030 [P] [US4] Create tests/bats/learning_capture.bats: ≥1 behavioral test per subcommand (add, query, stats, increment, sync-docs) + missing-knowledge_base.yml error path (sandbox HOME, fixture YAML) — NOT descopeable per spec
-- [ ] T031 [P] [US4] Create tests/bats/check_status.bats: services.yml parsing, enabled-flag detection, MANIFEST_STATE_ROOT resolution, output shape
-- [ ] T032 [P] [US4] Create tests/bats/generate_cursor_rules.bats: rule count matches skill count, skill→rule mapping, empty-skills-dir handling
-- [ ] T033 [US4] Pin CI tool versions in .github/workflows/ci.yml to match .pre-commit-config.yaml (yamllint==1.35.1, bats npm pin, shellcheck pinned action/version) (R13)
-- [ ] T034 [US4] Add dependency caching to .github/workflows/ci.yml: actions/setup-python `cache: pip` + npm cache for bats, cache keys including the pin strings (spec edge case: pin bump invalidates)
-- [ ] T035 [US4] Run quickstart.md §US4 + full gate; compare CI wall-time before/after (target ≥20s median, SC-008); if the diff exceeds 200 lines (likely — three new suites), run parallel-agent cross-verification per Constitution II; open PR-4
-- [ ] T035a [US4] Record the browser_test.sh coverage decision: per spec assumption it is reviewer-descopeable — either add a minimal tests/bats/browser_test.bats (subcommand routing + missing-browser-use exit path only) or document the descope rationale in PR-4's description (decision must be explicit, not silent)
+- [x] T030 [P] [US4] Create tests/bats/learning_capture.bats: ≥1 behavioral test per subcommand (add, query, stats, increment, sync-docs) + missing-knowledge_base.yml error path (sandbox HOME, fixture YAML) — NOT descopeable per spec
+- [x] T031 [P] [US4] Create tests/bats/check_status.bats: services.yml parsing, enabled-flag detection, MANIFEST_STATE_ROOT resolution, output shape
+- [x] T032 [P] [US4] Create tests/bats/generate_cursor_rules.bats: rule count matches skill count, skill→rule mapping, empty-skills-dir handling
+- [x] T033 [US4] Pin CI tool versions in .github/workflows/ci.yml to match .pre-commit-config.yaml (yamllint==1.35.1, bats npm pin, shellcheck pinned action/version) (R13)
+- [x] T034 [US4] Add dependency caching to .github/workflows/ci.yml: actions/setup-python `cache: pip` + npm cache for bats, cache keys including the pin strings (spec edge case: pin bump invalidates)
+- [x] T035 [US4] Run quickstart.md §US4 + full gate; compare CI wall-time before/after (target ≥20s median, SC-008); if the diff exceeds 200 lines (likely — three new suites), run parallel-agent cross-verification per Constitution II; open PR-4
+- [x] T035a [US4] Record the browser_test.sh coverage decision: per spec assumption it is reviewer-descopeable — either add a minimal tests/bats/browser_test.bats (subcommand routing + missing-browser-use exit path only) or document the descope rationale in PR-4's description (decision must be explicit, not silent)
 
 **Checkpoint**: untested-surface risk retired; CI reproducible and faster.
 
@@ -120,7 +120,7 @@
 
 **Independent test** (quickstart.md §US5): records/ ignored; no stale current-plan pointer; --help present on the 8 user-facing scripts.
 
-- [ ] T036 [P] [US5] Add `records/` to .gitignore with comment `# local tool side-effect, origin unknown (not SkillClaw — see specs/003 research R10)`
+- [x] T036 [P] [US5] Add `records/` to .gitignore with comment `# local tool side-effect, origin unknown (not SkillClaw — see specs/003 research R10)`
 - [ ] T037 [P] [US5] Review specs/002-new-agent-skills/ deliverables (R11); if delivered mark plan.md/spec.md status "Delivered 2026-06"; confirm root CLAUDE.md SPECKIT pointer already repointed to 003 (done in planning) and remove any other stale "current plan" references
 - [ ] T038 [US5] err() convention sweep in configs/claude/scripts/*.sh: convert bare `echo ... >&2` / print_error uses to `err()` (bootstrap/lib/ exempt per clarification); document the convention + exemption in .claude/CLAUDE.md
 - [ ] T039 [US5] Add minimal `--help` (usage + flags, ≤15 lines) to the 8 user-facing scripts lacking it: branch_clean.sh, check_status.sh, git_ops.sh, linear_ops.sh, pr_review.sh, skillclaw_promote.sh, sync-skills.sh, version_pin.sh; document exemptions (version_pin_hook.sh, git_platform.sh) in .claude/CLAUDE.md (R6)
