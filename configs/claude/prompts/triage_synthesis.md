@@ -123,8 +123,10 @@ do NOT close"; Claude: "Stale but labeled - manual review required"
   "reasoning": "Issue meets staleness criteria but has 'planned' label. Conservative approach: flag for human review.",
   "caveats": ["Gemini correctly identified protected label", "Files are confirmed deleted"],
   "escalate_to_user": true,
-  "recommended_next_steps": ["Verify if 'planned' work is still roadmapped", "Consider removing label if no longer
-  planned"]
+  "recommended_next_steps": [
+    "Verify if 'planned' work is still roadmapped",
+    "Consider removing label if no longer planned"
+  ]
 }
 ```
 
