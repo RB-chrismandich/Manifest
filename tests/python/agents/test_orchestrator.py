@@ -62,18 +62,27 @@ class TestOrchestratorConsensus:
         consensus = orch._calculate_consensus(results)
         assert consensus["consensus_score"] == 0
 
-    def test_confidence_levels(self, tmp_path):
+    def test_confidence_levels_at_boundaries(self, tmp_path):
+        """Issue #305: 0-100 score must be normalized against fractional
+        thresholds (0.80/0.50) — previously every score >= 1 rated 'high'."""
         orch = _make_orchestrator(tmp_path)
-        config = _make_config(tmp_path)
 
-        # High confidence: score >= 80
-        many_words = " ".join(["commonword"] * 20 + ["unique1"])
-        results = {
-            "a": {"status": "complete", "output": many_words},
-            "b": {"status": "complete", "output": many_words + " unique2"},
-        }
-        consensus = orch._calculate_consensus(results)
-        assert consensus["confidence"] in ("high", "medium", "low")
+        def confidence_for(score):
+            common = ["word%05d" % i for i in range(score)]
+            unique = ["only%05d" % i for i in range(100 - score)]
+            results = {
+                "a": {"status": "complete", "output": " ".join(common + unique)},
+                "b": {"status": "complete", "output": " ".join(common)},
+            }
+            consensus = orch._calculate_consensus(results)
+            assert consensus["consensus_score"] == score
+            return consensus["confidence"]
+
+        assert confidence_for(80) == "high"
+        assert confidence_for(79) == "medium"
+        assert confidence_for(50) == "medium"
+        assert confidence_for(49) == "low"
+        assert confidence_for(1) == "low"  # the old bug rated this 'high'
 
     def test_print_results_json(self, tmp_path, capsys):
         orch = _make_orchestrator(tmp_path)

@@ -291,11 +291,14 @@ class Orchestrator:
             common_words = sum(1 for count in word_counts.values() if count > 1)
             consensus_score = int((common_words / total_words) * 100)
 
-        # Determine confidence level
+        # Determine confidence level. Thresholds are fractions (0.80/0.50)
+        # while consensus_score is 0-100 — normalize before comparing,
+        # matching validation.py and synthesis.py (issue #305).
         thresholds = self.config.get("validation.consensus_threshold", {})
-        if consensus_score >= thresholds.get("high", 80):
+        consensus_fraction = consensus_score / 100.0
+        if consensus_fraction >= thresholds.get("high", 0.80):
             confidence = "high"
-        elif consensus_score >= thresholds.get("medium", 50):
+        elif consensus_fraction >= thresholds.get("medium", 0.50):
             confidence = "medium"
         else:
             confidence = "low"
