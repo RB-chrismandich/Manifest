@@ -192,6 +192,13 @@ main() {
     echo "  4. Configure MCP servers if --install-mcp is set"
     echo ""
 
+    # Load existing config BEFORE showing the services banner, so the
+    # displayed toggles match what will actually be deployed (explicit CLI
+    # flags still win via the *_SET guards in load_existing_config).
+    load_existing_config
+    run_bootstrap_hook "after_config_load"
+    echo ""
+
     echo -e "${BOLD}Services to configure:${NC}"
     echo "  Claude CLI:  $(if [[ "$ENABLE_CLAUDE" == true ]]; then echo "enabled"; else echo "disabled"; fi)"
     echo "  Gemini CLI:  $(if [[ "$ENABLE_GEMINI" == true ]]; then echo "enabled"; else echo "disabled"; fi)"
@@ -209,10 +216,6 @@ main() {
 
     # Check platform
     check_platform
-
-    # Load existing config if present (for defaults)
-    load_existing_config
-    run_bootstrap_hook "after_config_load"
 
     # Prepare shared state root used by orchestration runtime.
     setup_manifest_state_dirs

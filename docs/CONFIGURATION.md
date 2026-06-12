@@ -601,8 +601,8 @@ result reports `command_overrides_applied: true`.
 
 | Tier | Model Name | Use Case | Cost |
 |------|------------|----------|------|
-| `flash` | gemini-3.5-flash | General use (default) | Lower |
-| `pro` | gemini-3.1-pro | Complex analysis | Higher |
+| `flash` | gemini-3-flash-preview | General use (default) | Lower |
+| `pro` | gemini-3-pro-preview | Complex analysis | Higher |
 
 #### Codex Models
 
@@ -676,15 +676,15 @@ export CURSOR_MODEL_FLASH="gpt-5.1-codex"
 export CURSOR_MODEL_ADVANCED="gpt-5.2"
 
 # Gemini models
-export GEMINI_MODEL_FLASH="gemini-3.5-flash"
-export GEMINI_MODEL_PRO="gemini-3.1-pro"
+export GEMINI_MODEL_FLASH="gemini-3-flash-preview"
+export GEMINI_MODEL_PRO="gemini-3-pro-preview"
 ```
 
 ### Spec Review Configuration
 
 ```bash
 # Override the reviewer model (default: resolves model_tiers.antigravity.advanced via agy)
-export SPEC_REVIEW_MODEL="gemini-3.1-pro"
+export SPEC_REVIEW_MODEL="gemini-3-pro-preview"
 
 # Override the config file passed to spec_review.sh
 export SPEC_REVIEW_CONFIG="~/.claude/config/parallel_agent.yml"
