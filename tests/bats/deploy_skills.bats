@@ -385,10 +385,12 @@ STUB
 }
 
 # ---------------------------------------------------------------------------
-# list_deployed_files — SIGPIPE-safe deployed-files listing.
-# `find | head -20 | while` under bootstrap.sh's `set -e` killed the whole
-# bootstrap (exit 141) once ~/.claude held >20 matching files, silently
-# skipping skillclaw state, python deps, auth checks, and the summary.
+# list_deployed_files — SIGPIPE-safe deployed-files listing (defensive).
+# With >20 matching files, head exits early and find dies of SIGPIPE (141).
+# That is fatal only under `pipefail` — bootstrap.sh currently sets only -e,
+# so this hardens against the trap being armed if pipefail is ever added.
+# (The silent bootstrap abort itself was _skillclaw_remove_launchd — see
+# skillclaw_lib.bats.) Tests run under -euo pipefail, the strictest mode.
 # ---------------------------------------------------------------------------
 
 @test "list_deployed_files survives set -e with more than 20 files" {
