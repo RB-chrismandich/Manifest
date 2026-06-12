@@ -49,8 +49,8 @@ The orchestrating agent (Claude) selects models based on task complexity:
 | Tier | Cursor | Claude | Gemini | Codex | Antigravity |
 |------|--------|--------|--------|-------|-------------|
 | mini/haiku | gpt-5.1-codex-mini | claude-haiku-4-5-20251001 | - | gpt-5.4-mini | Gemini 3.5 Flash (Low) |
-| flash/sonnet | gpt-5.1-codex | claude-sonnet-4-6 | gemini-3.5-flash | gpt-5.4 | Gemini 3.5 Flash (High) |
-| advanced/opus/pro | gpt-5.2 | claude-opus-4-8 | gemini-3.1-pro | gpt-5.5 | Claude Opus 4.6 (Thinking) |
+| flash/sonnet | gpt-5.1-codex | claude-sonnet-4-6 | gemini-3-flash-preview | gpt-5.4 | Gemini 3.5 Flash (High) |
+| advanced/opus/pro | gpt-5.2 | claude-opus-4-8 | gemini-3-pro-preview | gpt-5.5 | Claude Opus 4.6 (Thinking) |
 | fable (security) | - | claude-fable-5 | - | - | - |
 
 **Known correlation**: Antigravity serves Gemini/Claude model families also present via
@@ -122,8 +122,8 @@ Detection methods:
 | `CURSOR_MODEL_MINI` | Model name for 'mini' tier | `gpt-5.1-codex-mini` |
 | `CURSOR_MODEL_FLASH` | Model name for 'flash' tier | `gpt-5.1-codex` |
 | `CURSOR_MODEL_ADVANCED` | Model name for 'advanced' tier | `gpt-5.2` |
-| `GEMINI_MODEL_FLASH` | Model name for 'flash' tier | `gemini-3.5-flash` |
-| `GEMINI_MODEL_PRO` | Model name for 'pro' tier | `gemini-3.1-pro` |
+| `GEMINI_MODEL_FLASH` | Model name for 'flash' tier | `gemini-3-flash-preview` |
+| `GEMINI_MODEL_PRO` | Model name for 'pro' tier | `gemini-3-pro-preview` |
 | `CHECK_CREDITS_PREFLIGHT` | Enable pre-flight credit check | `false` |
 
 ## Output Location
