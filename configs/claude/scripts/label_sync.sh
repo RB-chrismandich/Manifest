@@ -136,12 +136,13 @@ detect_git_platform() {
 # --- Check if Linear is available ---
 
 linear_available() {
+    # linear_ops.sh calls the Linear API via curl, so only a usable API key
+    # counts — an MCP registry entry does not (issue #312).
     if [[ -f "${SCRIPT_DIR}/linear_ops.sh" ]]; then
-        # Check if linear auth is configured
-        if [[ -f "${HOME}/.claude/config/mcp_servers.yml" ]] && grep -q "linear:" "${HOME}/.claude/config/mcp_servers.yml" 2> /dev/null; then
+        if [[ -n "${LINEAR_API_KEY:-}" ]]; then
             return 0
         fi
-        if [[ -f "${HOME}/.config/linear/token" ]]; then
+        if [[ -s "${HOME}/.config/linear/token" ]]; then
             return 0
         fi
     fi

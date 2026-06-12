@@ -113,49 +113,15 @@ STUB
     assert_output --partial "Unknown subcommand: unknown-cmd"
 }
 
-# --- check_linear_mcp tests ---
+# --- check_auth tests (issue #312) ---
 
-@test "check_linear_mcp returns 0 when mcp_servers.yml contains linear" {
+@test "MCP registry entry alone does not authenticate (issue #312)" {
+    # The script talks to the API via curl — an MCP registration provides no
+    # key, and previously short-circuited auth into an empty Bearer token.
     mkdir -p "$HOME/.claude/config"
     cat > "$HOME/.claude/config/mcp_servers.yml" << EOF
 linear:
   url: https://linear.app
-EOF
-
-    # Source the script in a subshell to test the function
-    run bash -c "
-        source '$SCRIPT_UNDER_TEST' 2>/dev/null <<< '' || true
-        # We can't easily source the whole script, so test via main flow
-        exit 0
-    "
-    # If mcp_servers.yml has linear:, check_auth should succeed via MCP path
-    # We verify this indirectly by ensuring no auth error when config exists
-    mkdir -p "$HOME/.claude/config"
-    cat > "$HOME/.claude/config/mcp_servers.yml" << EOF
-linear:
-  url: https://linear.app
-EOF
-
-    # The script calls check_auth before routing; with MCP config it should pass
-    # We test team-list which will try graphql_query (stubbed curl returns STUB:curl)
-    run bash "$SCRIPT_UNDER_TEST" team-list
-    # Should not fail with auth error
-    refute_output --partial "Linear authentication required"
-}
-
-@test "check_linear_mcp returns 1 when mcp_servers.yml is missing" {
-    # No mcp_servers.yml, no token file, no env var
-    # Should fail with auth error
-    run bash "$SCRIPT_UNDER_TEST" team-list
-    assert_failure
-    assert_output --partial "Linear authentication required"
-}
-
-@test "check_linear_mcp returns 1 when mcp_servers.yml has no linear entry" {
-    mkdir -p "$HOME/.claude/config"
-    cat > "$HOME/.claude/config/mcp_servers.yml" << EOF
-sentry:
-  url: https://sentry.io
 EOF
 
     run bash "$SCRIPT_UNDER_TEST" team-list
@@ -163,21 +129,19 @@ EOF
     assert_output --partial "Linear authentication required"
 }
 
-# --- check_auth fallback tests ---
-
-@test "check_auth succeeds via MCP config" {
-    mkdir -p "$HOME/.claude/config"
-    cat > "$HOME/.claude/config/mcp_servers.yml" << EOF
-linear:
-  url: https://linear.app
-EOF
-
+@test "check_auth fails when nothing is configured" {
+    # No token file, no env var
     run bash "$SCRIPT_UNDER_TEST" team-list
+    assert_failure
+    assert_output --partial "Linear authentication required"
+}
+
+@test "check_auth succeeds via LINEAR_API_KEY env var" {
+    LINEAR_API_KEY="lin_api_env_token" run bash "$SCRIPT_UNDER_TEST" team-list
     refute_output --partial "Linear authentication required"
 }
 
 @test "check_auth succeeds via token file" {
-    # No MCP config, but token file exists
     mkdir -p "$HOME/.config/linear"
     echo "lin_api_test_token_123" > "$HOME/.config/linear/token"
 
@@ -185,8 +149,10 @@ EOF
     refute_output --partial "Linear authentication required"
 }
 
-@test "check_auth fails when no auth method available" {
-    # No MCP config, no token file
+@test "check_auth rejects an empty token file" {
+    mkdir -p "$HOME/.config/linear"
+    : > "$HOME/.config/linear/token"
+
     run bash "$SCRIPT_UNDER_TEST" team-list
     assert_failure
     assert_output --partial "Linear authentication required"
@@ -195,7 +161,7 @@ EOF
 @test "check_auth error message mentions setup options" {
     run bash "$SCRIPT_UNDER_TEST" team-list
     assert_failure
-    assert_output --partial "mcp_servers.yml"
+    assert_output --partial "LINEAR_API_KEY"
     assert_output --partial "linear/token"
     assert_output --partial "linear.app/settings/api"
 }

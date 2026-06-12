@@ -23,34 +23,27 @@ success() {
     echo -e "${GREEN}$1${NC}" >&2
 }
 
-# Check if Linear MCP is configured
-check_linear_mcp() {
-    # Check if Linear is in MCP servers config
-    if [[ -f ~/.claude/config/mcp_servers.yml ]]; then
-        if grep -q "linear:" ~/.claude/config/mcp_servers.yml; then
+# Check authentication.
+# This script talks to the Linear API via raw curl, so a usable API key is
+# required — a Linear MCP registration is irrelevant here and previously
+# short-circuited this check into sending an empty Bearer token (issue #312).
+check_auth() {
+    # Env var takes precedence
+    if [[ -n "${LINEAR_API_KEY:-}" ]]; then
+        return 0
+    fi
+
+    # Personal API key file
+    if [[ -f ~/.config/linear/token ]]; then
+        LINEAR_API_KEY=$(< ~/.config/linear/token)
+        export LINEAR_API_KEY
+        if [[ -n "${LINEAR_API_KEY}" ]]; then
             return 0
         fi
     fi
-    return 1
-}
-
-# Check authentication
-check_auth() {
-    # Try Linear MCP first
-    if check_linear_mcp; then
-        # Linear MCP should handle OAuth automatically
-        return 0
-    fi
-
-    # Fallback to personal API key
-    if [[ -f ~/.config/linear/token ]]; then
-        LINEAR_API_KEY=$(cat ~/.config/linear/token)
-        export LINEAR_API_KEY
-        return 0
-    fi
 
     error "Linear authentication required. Options:
-1. Configure Linear MCP in ~/.claude/config/mcp_servers.yml
+1. Set the LINEAR_API_KEY environment variable
 2. Set API key in ~/.config/linear/token
 
 Get an API key from: https://linear.app/settings/api"
