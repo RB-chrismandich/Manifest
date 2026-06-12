@@ -218,13 +218,20 @@ main() {
 
         install_package_manager
         install_node
-        install_claude
-        install_gemini
-        install_codex
-        install_github_cli
-        install_gitlab_cli
-        check_jq
-        check_cursor
+        # Per-tool installs return 1 as a soft signal (e.g. npm/brew missing);
+        # under set -e an unguarded call aborted the whole bootstrap mid-flight
+        # instead of continuing with the remaining tools (issue #318).
+        local install_failures=0
+        install_claude || install_failures=$((install_failures + 1))
+        install_gemini || install_failures=$((install_failures + 1))
+        install_codex || install_failures=$((install_failures + 1))
+        install_github_cli || install_failures=$((install_failures + 1))
+        install_gitlab_cli || install_failures=$((install_failures + 1))
+        check_jq || install_failures=$((install_failures + 1))
+        check_cursor || install_failures=$((install_failures + 1))
+        if [[ $install_failures -gt 0 ]]; then
+            print_warning "$install_failures install step(s) failed — continuing with remaining setup"
+        fi
     else
         print_info "Skipping installation (--skip-install)"
     fi
@@ -308,12 +315,20 @@ main() {
         run_bootstrap_hook "after_auth"
     fi
 
-    # Verify installation
-    verify_installation
+    # Verify installation. It returns its error count, so an unguarded call
+    # under set -e killed the script before the after_verify hook and the
+    # summary's auth/quick-start guidance could run (issue #318).
+    local verify_errors=0
+    verify_installation || verify_errors=$?
     run_bootstrap_hook "after_verify"
 
     # Print summary
     print_summary
+
+    if [[ $verify_errors -gt 0 ]]; then
+        print_warning "Verification reported $verify_errors error(s) — see above"
+        exit 1
+    fi
 }
 
 # Run main
