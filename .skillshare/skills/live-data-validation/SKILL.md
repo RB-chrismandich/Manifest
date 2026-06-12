@@ -1,6 +1,11 @@
 ---
 name: live-data-validation
-description: Use when validating data-ingestion, parsing, ETL, or API-integration code against real/live data — as a quick smoke pass after a change, as a comprehensive pre-merge gate, or as the confirmation step right after unit tests go green. Surfaces fixture-blind bug classes (free-text numerics, dedup-key collisions, casing/format mismatches, falsy-zero confusion) that clean synthetic fixtures hide.
+description: >-
+  Use when validating data-ingestion, parsing, ETL, or API-integration code
+  against real/live data — quick smoke pass, pre-merge gate, or right after unit
+  tests go green. Surfaces fixture-blind bugs (free-text numerics, dedup-key
+  collisions, casing/format mismatches, falsy-zero confusion) synthetic fixtures
+  hide.
 ---
 # Live-Data Validation
 

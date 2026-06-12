@@ -1,12 +1,11 @@
 ---
 name: pass-cli
-description: |
-  Retrieve credentials (passwords, API keys, tokens, SSH keys, secrets) from Proton
-  Pass via the `pass-cli` agent CLI. Use whenever a task needs a login/secret to
-  access a tool, website, database, or API — or when the user mentions Proton Pass,
-  pass-cli, a vault, or "get the credentials/password/token for X". Covers session
-  setup with a Personal Access Token, the mandatory access-reason for reading items,
-  vault/item discovery, and auto-recovery from an expired session.
+description: >-
+  Retrieve credentials (passwords, API keys, tokens, SSH keys) from Proton Pass
+  via the pass-cli agent CLI. Use whenever a task needs a login/secret, or the
+  user mentions Proton Pass, a vault, or "get the credentials/token for X".
+  Covers PAT session setup, mandatory access-reason, and expired-session
+  recovery.
 ---
 
 # Retrieve Credentials with pass-cli (Proton Pass)

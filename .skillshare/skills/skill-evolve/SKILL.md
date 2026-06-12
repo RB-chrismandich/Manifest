@@ -1,12 +1,11 @@
 ---
 name: skill-evolve
-description: |
+description: >-
   Turn SkillClaw's evolved skills into a reviewed PR into .skillshare/skills/.
-  Dry-run by default (shows the diff table and makes no changes); --apply opens a
-  single review PR with one commit per skill. Requires SkillClaw enabled
-  (./bootstrap.sh --enable-skillclaw) and the claude CLI logged in (the evolve
-  engine). Never writes to the source of truth directly — every change goes
-  through PR review.
+  Dry-run by default; --apply opens one review PR with one commit per skill.
+  Requires SkillClaw enabled (--enable-skillclaw) and the claude CLI logged in.
+  Never writes the source of truth directly — every change goes through PR
+  review.
 ---
 
 # Evolve Skills (SkillClaw)

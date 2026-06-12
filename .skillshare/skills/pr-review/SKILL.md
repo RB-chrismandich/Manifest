@@ -1,10 +1,10 @@
 ---
 name: pr-review
-description: |
+description: >-
   Review all open pull/merge requests on the active platform (GitHub/GitLab),
-  assess each for mergeability, checks, staleness, and whether it is still
-  needed, and recommend a disposition (keep, merge, close, needs-rebase) per PR.
-  Analysis-only — performs no mutations.
+  assess each for mergeability, checks, staleness, and whether still needed, and
+  recommend a disposition (keep, merge, close, needs-rebase) per PR.
+  Analysis-only — no mutations.
 ---
 
 # Open Pull Request Review

@@ -1,12 +1,12 @@
 ---
-description: "Review all open pull/merge requests on the active platform (GitHub/GitLab), assess each for mergeability, checks, staleness, and whether it is still needed, and recommend a disposition (keep, merge, close, needs-rebase) per PR. Analysis-only — performs no mutations."
+description: "Review all open pull/merge requests on the active platform (GitHub/GitLab), assess each for mergeability, checks, staleness, and whether still needed, and recommend a disposition (keep, merge, close, needs-rebase) per PR. Analysis-only — no mutations."
 globs: ".claude/skills/pr-review/**"
 alwaysApply: false
 ---
 
 # pr-review
 
-Review all open pull/merge requests on the active platform (GitHub/GitLab), assess each for mergeability, checks, staleness, and whether it is still needed, and recommend a disposition (keep, merge, close, needs-rebase) per PR. Analysis-only — performs no mutations.
+Review all open pull/merge requests on the active platform (GitHub/GitLab), assess each for mergeability, checks, staleness, and whether still needed, and recommend a disposition (keep, merge, close, needs-rebase) per PR. Analysis-only — no mutations.
 
 <!-- Auto-generated from .claude/skills/pr-review/SKILL.md -->
 <!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->

@@ -13,28 +13,19 @@ It follows the [AGENTS.md standard](https://agents.md/) for unified coding agent
 
 ## MCP Default Policy
 
-Use these MCP servers by default when their domain context matches the task:
+Default MCP/tool routing — use the matching tool when the task domain matches:
 
-- **Context7 MCP**: library/API documentation, code generation, setup steps,
-  and configuration guidance.
-- **Sentry MCP**: production/runtime error investigation, stack traces, issue
-  triage, and release regression analysis.
-- **Linear MCP**: issue requirements, acceptance criteria, project context, and
-  implementation planning.
-- **Semgrep CLI**: local SAST scanning, vulnerability detection, supply-chain
-  and secrets checks during code review and refactoring (`semgrep scan`).
-- **DeepWiki MCP**: understanding unfamiliar repositories, dependency internals,
-  and upstream API contracts.
-- **Glean MCP**: internal team knowledge, runbooks, ADRs, and company-specific
-  documentation.
-- **Google Dev Docs MCP**: official Google platform documentation (Firebase,
-  Cloud, Android, Maps) when working with Google services.
-- **Atlassian MCP**: Jira issues, Confluence pages, and Compass components when
-  the project uses Atlassian tools.
-- **Apify MCP**: web scraping, data extraction, and crawling tasks that require
-  fetching structured data from external websites.
-- **OpenTofu MCP**: OpenTofu/Terraform registry lookups, provider and module
-  documentation, resource and datasource reference for Infrastructure as Code.
+- **Context7 MCP** — library/API docs, code generation, setup, configuration
+- **Sentry MCP** — production/runtime errors, stack traces, release regressions
+- **Linear MCP** — issue requirements, acceptance criteria, project planning
+- **Semgrep CLI** (`semgrep scan`) — local SAST, vulnerability and secrets
+  checks (install: `brew install semgrep`)
+- **DeepWiki MCP** — unfamiliar repos, dependency internals, upstream API contracts
+- **Glean MCP** — internal team knowledge, runbooks, ADRs
+- **Google Dev Docs MCP** — Firebase/Cloud/Android/Maps documentation
+- **Atlassian MCP** — Jira issues, Confluence pages, Compass components
+- **Apify MCP** — web scraping/crawling for structured external data
+- **OpenTofu MCP** — Terraform/OpenTofu registry, provider/module docs
 
 ## Repository Purpose
 
@@ -154,32 +145,9 @@ cp -r configs/claude/* ~/.claude/
 cp -r configs/claude/.[!.]* ~/.claude/ 2>/dev/null || true
 chmod +x ~/.claude/scripts/*.sh ~/.claude/scripts/parallel_agent.py
 
-# Deploy Cursor configuration (optional)
-mkdir -p ~/.cursor/rules
-cp configs/cursor/rules/*.mdc ~/.cursor/rules/
-cp configs/cursor/mcp.json ~/.cursor/mcp.json
-ln -sf ~/.claude/scripts ~/.cursor/scripts
-ln -sf ~/.claude/config ~/.cursor/config
-ln -sf ~/.claude/prompts ~/.cursor/prompts
-ln -sf ~/.claude/.plans ~/.cursor/.plans
-ln -sf ~/.claude/skills ~/.cursor/skills
-
-# Deploy Gemini configuration (optional)
-cp configs/gemini/GEMINI.md ~/.gemini/
-cp configs/gemini/settings.json ~/.gemini/settings.json
-ln -sf ~/.claude/scripts ~/.gemini/scripts
-ln -sf ~/.claude/config ~/.gemini/config
-ln -sf ~/.claude/prompts ~/.gemini/prompts
-ln -sf ~/.claude/.plans ~/.gemini/.plans
-ln -sf ~/.claude/skills ~/.gemini/skills
-
-# Deploy Codex configuration (optional)
-cp AGENTS.md ~/.codex/AGENTS.md
-ln -sf ~/.claude/scripts ~/.codex/scripts
-ln -sf ~/.claude/config ~/.codex/config
-ln -sf ~/.claude/prompts ~/.codex/prompts
-ln -sf ~/.claude/.plans ~/.codex/.plans
-ln -sf ~/.claude/skills ~/.codex/skills
+# Other platforms (Cursor/Gemini/Codex/Antigravity): copy the platform guide +
+# settings, then symlink scripts/config/prompts/.plans/skills from ~/.claude/.
+# See CLAUDE.md "Manual Deployment" for the full per-platform commands.
 ```
 
 Required CLI tools (install those you want to use):
@@ -305,17 +273,13 @@ All agents share the same orchestration script at `configs/claude/scripts/parall
   --cursor-model advanced --claude-model opus --analyze /absolute/path/to/file
 ```
 
-### Consensus Thresholds
+### Validation
 
-- `>=80%`: High confidence - auto-proceed
-- `50-79%`: Medium confidence - highlight disagreements
-- `<50%`: Low confidence - escalate for human review
-
-### Validation Verdicts
-
-- `APPROVED`: Tier 1 passes, Tier 2 score >= 0.60
-- `NEEDS_REVIEW`: Tier 1 passes, Tier 2 score < 0.60
-- `BLOCKED`: Any Tier 1 check fails
+- **Tier 1 (blocking)**: cross-verification, security, error handling, breaking
+  changes. **Tier 2 (advisory)**: bugs, performance, maintainability, tests.
+- Authoritative weights: `configs/claude/config/validation_criteria.yml`.
+  Consensus thresholds and verdict rules (`APPROVED`/`NEEDS_REVIEW`/`BLOCKED`):
+  `configs/claude/references/orchestration.md`.
 
 ## Testing Changes
 
