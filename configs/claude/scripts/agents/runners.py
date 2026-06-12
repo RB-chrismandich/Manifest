@@ -545,7 +545,16 @@ class CLIAgent(BaseAgent):
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
-            stdout, stderr = await proc.communicate()
+            try:
+                stdout, stderr = await proc.communicate()
+            except asyncio.CancelledError:
+                # Timeout cancellation (asyncio.wait_for in BaseAgent.execute)
+                # interrupts communicate() but leaves the child running —
+                # kill it before the finally block unlinks its output file
+                # out from under it (issue #306).
+                proc.kill()
+                await proc.wait()
+                raise
             return self._collect_output(proc.returncode, stdout, stderr, output_file)
         finally:
             if output_file:

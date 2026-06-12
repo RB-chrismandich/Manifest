@@ -274,3 +274,24 @@ class TestCLIAgentExecution:
         result = asyncio.run(agent._execute_impl("hello world", "prompt"))
         assert result["status"] == "complete"
         assert result["output"] == "prefix --model fake-model-1 hello world"
+
+    def test_timeout_kills_subprocess(self, tmp_path):
+        """Issue #306: timeout cancellation must kill the child, not leak it."""
+        import os
+        import signal
+
+        config = _make_config(tmp_path)
+        pid_file = tmp_path / "child.pid"
+        config.config["cli_agents"]["slowfake"] = {
+            "binary": "sh",
+            "base_args": ["-c", f"echo $$ > {pid_file} && exec sleep 30"],
+            "output": "stdout",
+        }
+        agent = CLIAgent("slowfake", model="auto", timeout=1,
+                         rate_limiter=_make_limiter(), config=config)
+        result = asyncio.run(agent.execute("ignored"))
+        assert result["status"] == "failed"
+        assert "timeout" in result["error"]
+        child_pid = int(pid_file.read_text().strip())
+        with pytest.raises(ProcessLookupError):
+            os.kill(child_pid, signal.SIGTERM)  # already dead if #306 is fixed
