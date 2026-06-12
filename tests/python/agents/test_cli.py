@@ -74,3 +74,45 @@ class TestCLIArgParsing:
     def test_improve_nonexistent_file_exits_nonzero(self):
         result = _run("--improve", "/nonexistent/path/file.py")
         assert result.returncode != 0
+
+
+# ---------------------------------------------------------------------------
+# select_backend — SDK vs CLI fallback decision (claude, gemini)
+# ---------------------------------------------------------------------------
+
+SCRIPTS_DIR = str(REPO_ROOT / "configs" / "claude" / "scripts")
+if SCRIPTS_DIR not in sys.path:
+    sys.path.insert(0, SCRIPTS_DIR)
+
+from agents.cli import select_backend  # noqa: E402
+
+
+class TestSelectBackend:
+    """The OAuth-only machine case (no API key, authenticated CLI on PATH)
+    must select "cli" — that gap left only the Antigravity path runnable."""
+
+    def test_sdk_preferred_when_package_and_key_present(self):
+        assert select_backend(has_sdk=True, has_key=True, has_cli=True) == "sdk"
+
+    def test_sdk_with_key_wins_even_without_cli(self):
+        assert select_backend(has_sdk=True, has_key=True, has_cli=False) == "sdk"
+
+    def test_cli_fallback_when_key_missing(self):
+        # OAuth-only machine: SDK installed but no API key, CLI on PATH
+        assert select_backend(has_sdk=True, has_key=False, has_cli=True) == "cli"
+
+    def test_cli_fallback_when_sdk_missing(self):
+        # No SDK at all, CLI on PATH (the state that motivated this fallback)
+        assert select_backend(has_sdk=False, has_key=False, has_cli=True) == "cli"
+
+    def test_sdk_last_resort_for_own_auth(self):
+        # SDK present, no key, no CLI: let the SDK try its own auth (ADC/OAuth)
+        assert select_backend(has_sdk=True, has_key=False, has_cli=False) == "sdk"
+
+    def test_none_when_nothing_available(self):
+        assert select_backend(has_sdk=False, has_key=False, has_cli=False) is None
+
+    def test_key_alone_is_not_enough_for_sdk(self):
+        # Key set but package missing: CLI if present, else nothing
+        assert select_backend(has_sdk=False, has_key=True, has_cli=True) == "cli"
+        assert select_backend(has_sdk=False, has_key=True, has_cli=False) is None

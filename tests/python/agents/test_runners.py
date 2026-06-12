@@ -190,6 +190,22 @@ class TestCLIAgentCommandAssembly:
         # shape is: agy --model <model> --print <prompt>
         assert cmd == ["agy", "--model", "Gemini 3.5 Flash (High)", "--print", "hello"]
 
+    def test_claude_cli_command_shape(self, tmp_path):
+        # claude headless: -p/--print is a BOOLEAN flag enabling print mode;
+        # "hello" is a separate positional query arg that merely sits after it
+        # (claude --model X -p hello == claude -p hello --model X)
+        agent = CLIAgent("claude", model="sonnet",
+                         rate_limiter=_make_limiter(), config=_make_config(tmp_path))
+        cmd = agent._build_command("hello")
+        assert cmd == ["claude", "--model", "claude-sonnet-4-6", "-p", "hello"]
+
+    def test_gemini_cli_command_shape(self, tmp_path):
+        # gemini headless: -m takes the model, -p takes the prompt as its value
+        agent = CLIAgent("gemini", model="flash",
+                         rate_limiter=_make_limiter(), config=_make_config(tmp_path))
+        cmd = agent._build_command("hello")
+        assert cmd == ["gemini", "-m", "gemini-3-flash-preview", "-p", "hello"]
+
     def test_default_prompt_args_is_trailing_positional(self, tmp_path):
         # cursor and codex use the default prompt_args (trailing positional)
         agent = CLIAgent("codex", model="auto",
