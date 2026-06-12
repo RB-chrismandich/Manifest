@@ -383,3 +383,44 @@ STUB
     run grep -c 'export PATH="$HOME/.local/bin:$PATH"' "$fake_profile"
     assert_output "1"
 }
+
+# ---------------------------------------------------------------------------
+# list_deployed_files — SIGPIPE-safe deployed-files listing.
+# `find | head -20 | while` under bootstrap.sh's `set -e` killed the whole
+# bootstrap (exit 141) once ~/.claude held >20 matching files, silently
+# skipping skillclaw state, python deps, auth checks, and the summary.
+# ---------------------------------------------------------------------------
+
+@test "list_deployed_files survives set -e with more than 20 files" {
+    # shellcheck disable=SC1090
+    source "$REPO_ROOT/bootstrap/lib/deploy.sh"
+    mkdir -p "$SANDBOX/target"
+    for i in $(seq 1 30); do echo x > "$SANDBOX/target/file$i.md"; done
+
+    run bash -c "
+        set -euo pipefail
+        source '$REPO_ROOT/bootstrap/lib/common.sh'
+        source '$REPO_ROOT/bootstrap/lib/deploy.sh'
+        list_deployed_files '$SANDBOX/target'
+        echo SURVIVED
+    "
+    assert_success
+    assert_output --partial "SURVIVED"
+    # Truncation to 20 entries still applies
+    [ "$(echo "$output" | grep -c 'file')" -eq 20 ]
+}
+
+@test "list_deployed_files handles an empty directory" {
+    # shellcheck disable=SC1090
+    source "$REPO_ROOT/bootstrap/lib/deploy.sh"
+    mkdir -p "$SANDBOX/empty"
+    run bash -c "
+        set -euo pipefail
+        source '$REPO_ROOT/bootstrap/lib/common.sh'
+        source '$REPO_ROOT/bootstrap/lib/deploy.sh'
+        list_deployed_files '$SANDBOX/empty'
+        echo SURVIVED
+    "
+    assert_success
+    assert_output --partial "SURVIVED"
+}
