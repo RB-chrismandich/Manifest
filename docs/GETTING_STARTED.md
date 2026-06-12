@@ -322,8 +322,8 @@ Choose models based on task complexity:
 | Tier | Cursor | Claude | Gemini | Codex | Antigravity | Use For |
 |------|--------|--------|--------|-------|-------------|---------|
 | Lightweight | gpt-5.1-codex-mini | claude-haiku-4-5-20251001 | - | gpt-5.4-mini | Gemini 3.5 Flash (Low) | Quick questions |
-| Balanced | gpt-5.1-codex | claude-sonnet-4-6 | gemini-3.5-flash | gpt-5.4 | Gemini 3.5 Flash (High) | Code review |
-| Maximum | gpt-5.2 | claude-opus-4-8 | gemini-3.1-pro | gpt-5.5 | Claude Opus 4.6 (Thinking) | Security analysis |
+| Balanced | gpt-5.1-codex | claude-sonnet-4-6 | gemini-3-flash-preview | gpt-5.4 | Gemini 3.5 Flash (High) | Code review |
+| Maximum | gpt-5.2 | claude-opus-4-8 | gemini-3-pro-preview | gpt-5.5 | Claude Opus 4.6 (Thinking) | Security analysis |
 | Security | - | claude-fable-5 | - | - | - | Critical security tasks |
 
 **See**: [Configuration Guide](CONFIGURATION.md) for all options

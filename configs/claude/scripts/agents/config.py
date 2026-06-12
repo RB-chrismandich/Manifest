@@ -100,8 +100,8 @@ class Config:
                     "fable": "claude-fable-5",
                 },
                 "gemini": {
-                    "flash": "gemini-3.5-flash",
-                    "pro": "gemini-3.1-pro",
+                    "flash": "gemini-3-flash-preview",
+                    "pro": "gemini-3-pro-preview",
                 },
                 "cursor": {
                     "mini": "gpt-5.1-codex-mini",
