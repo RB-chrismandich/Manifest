@@ -2,7 +2,7 @@
 
 > Repository context and guidance for Claude Code when working with this codebase
 
-**Last Updated**: 2026-06-10
+**Last Updated**: 2026-06-12
 **Audience**: AI assistants (Claude Code), contributors
 **Purpose**: Provide Claude Code with repository structure, deployment process, and testing guidelines
 
@@ -12,28 +12,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## MCP Default Policy
 
-Use these MCP servers by default when their domain context matches the task:
-
-- **Context7 MCP**: library/API documentation, code generation, setup steps,
-  and configuration guidance.
-- **Sentry MCP**: production/runtime error investigation, stack traces, issue
-  triage, and release regression analysis.
-- **Linear MCP**: issue requirements, acceptance criteria, project context, and
-  implementation planning.
-- **Semgrep CLI**: local SAST scanning, vulnerability detection, supply-chain
-  and secrets checks during code review and refactoring (`semgrep scan`).
-- **DeepWiki MCP**: understanding unfamiliar repositories, dependency internals,
-  and upstream API contracts.
-- **Glean MCP**: internal team knowledge, runbooks, ADRs, and company-specific
-  documentation.
-- **Google Dev Docs MCP**: official Google platform documentation (Firebase,
-  Cloud, Android, Maps) when working with Google services.
-- **Atlassian MCP**: Jira issues, Confluence pages, and Compass components when
-  the project uses Atlassian tools.
-- **Apify MCP**: web scraping, data extraction, and crawling tasks that require
-  fetching structured data from external websites.
-- **OpenTofu MCP**: OpenTofu/Terraform registry lookups, provider and module
-  documentation, resource and datasource reference for Infrastructure as Code.
+Default MCP/tool routing (Context7, Sentry, Linear, Semgrep CLI, DeepWiki,
+Glean, Google Dev Docs, Atlassian, Apify, OpenTofu) is defined once in the
+deployed orchestration guide — see
+[configs/claude/CLAUDE.md](configs/claude/CLAUDE.md) ("Default MCP/tool
+routing"). Use the matching server when the task domain matches.
 
 ## Repository Purpose
 
@@ -113,101 +96,20 @@ The `bootstrap.sh` script automates installation, deployment, and authentication
 ./bootstrap.sh --install-mcp
 ```
 
-### Service Toggles
+Service toggles (`--enable-*/--disable-*` for claude, gemini, cursor, codex,
+antigravity, skillclaw, browser-use, gh, glab), other flags (`--skip-install`,
+`--skip-auth`, `--force`, `--reconfigure`, `--install-mcp`), and the full step
+list are documented in [README.md](README.md) and `./bootstrap.sh --help`.
 
-```bash
---enable-claude / --disable-claude   # Claude CLI (default: enabled)
---enable-gemini / --disable-gemini   # Gemini CLI (default: enabled)
---enable-cursor / --disable-cursor   # Cursor agent (default: enabled)
---enable-codex / --disable-codex     # Codex CLI (default: enabled)
---enable-antigravity / --disable-antigravity   # Antigravity IDE (default: enabled)
---enable-skillclaw / --disable-skillclaw   # SkillClaw session capture (default: disabled)
---enable-browser-use / --disable-browser-use   # browser-use for /browser-test (default: disabled)
---enable-gh / --disable-gh           # GitHub CLI (default: auto-detect)
---enable-glab / --disable-glab       # GitLab CLI (default: auto-detect)
---install-mcp                        # Configure MCP servers (interactive per-server selection)
-```
-
-### Other Options
-
-```bash
---skip-install    # Skip CLI tool installation
---skip-auth       # Skip authentication checks
---force           # Overwrite existing ~/.claude without prompting
---reconfigure     # Only update service toggles
-```
-
-### Reconfigure Services
-
-```bash
-# Change which services are enabled after initial setup
-./bootstrap.sh --reconfigure --disable-cursor
-./bootstrap.sh --reconfigure --enable-gemini --disable-claude
-```
-
-The bootstrap script:
-
-1. Checks for and installs Homebrew (if needed)
-2. Installs Node.js (required for npm-based CLIs)
-3. Installs enabled CLI tools (Claude, Gemini)
-4. Opens Cursor download page (if enabled)
-5. Deploys configuration files from `configs/` to `~/.claude/`
-6. Writes service toggles to `~/.claude/config/services.yml`
-7. Checks authentication status and provides setup instructions for unauthenticated services
+The script installs Homebrew/Node.js and enabled CLIs as needed, deploys
+`configs/` to `~/`, writes toggles to `~/.claude/config/services.yml`, and
+checks authentication.
 
 ## Manual Deployment
 
-If not using bootstrap.sh, copy the configuration directories manually:
-
-```bash
-# Deploy Claude Code configuration
-cp -r configs/claude/* ~/.claude/
-cp -r configs/claude/.[!.]* ~/.claude/ 2>/dev/null || true
-chmod +x ~/.claude/scripts/*.sh ~/.claude/scripts/parallel_agent.py
-
-# Deploy Cursor configuration (optional)
-mkdir -p ~/.cursor/rules
-cp configs/cursor/rules/*.mdc ~/.cursor/rules/
-cp configs/cursor/mcp.json ~/.cursor/mcp.json
-ln -sf ~/.claude/scripts ~/.cursor/scripts
-ln -sf ~/.claude/config ~/.cursor/config
-ln -sf ~/.claude/prompts ~/.cursor/prompts
-ln -sf ~/.claude/.plans ~/.cursor/.plans
-ln -sf ~/.claude/skills ~/.cursor/skills
-
-# Deploy Gemini configuration (optional)
-mkdir -p ~/.gemini
-cp configs/gemini/GEMINI.md ~/.gemini/
-cp configs/gemini/settings.json ~/.gemini/settings.json
-ln -sf ~/.claude/scripts ~/.gemini/scripts
-ln -sf ~/.claude/config ~/.gemini/config
-ln -sf ~/.claude/prompts ~/.gemini/prompts
-ln -sf ~/.claude/.plans ~/.gemini/.plans
-ln -sf ~/.claude/skills ~/.gemini/skills
-
-# Deploy Codex configuration (optional)
-cp AGENTS.md ~/.codex/AGENTS.md
-ln -sf ~/.claude/scripts ~/.codex/scripts
-ln -sf ~/.claude/config ~/.codex/config
-ln -sf ~/.claude/prompts ~/.codex/prompts
-ln -sf ~/.claude/.plans ~/.codex/.plans
-ln -sf ~/.claude/skills ~/.codex/skills
-
-# Deploy Antigravity configuration (optional)
-mkdir -p ~/.antigravity
-ln -sf ~/.claude/scripts ~/.antigravity/scripts
-ln -sf ~/.claude/config ~/.antigravity/config
-ln -sf ~/.claude/prompts ~/.antigravity/prompts
-ln -sf ~/.claude/skills ~/.antigravity/skills
-ln -sf ~/.claude/.plans ~/.antigravity/.plans
-```
-
-Required CLI tools (install those you want to use):
-
-- `claude` - `npm install -g @anthropic-ai/claude-code`
-- `gemini` - `npm install -g @google/gemini-cli`
-- `cursor` - Download from <https://cursor.sh>
-- `codex` - `npm install -g @openai/codex`
+Per-platform manual copy/symlink steps (Claude, Cursor, Gemini, Codex,
+Antigravity) and required CLI installs are in
+[docs/GETTING_STARTED.md](docs/GETTING_STARTED.md).
 
 ## Key Files
 
@@ -230,51 +132,15 @@ Required CLI tools (install those you want to use):
 
 ## Available Commands
 
-The following slash commands are available in Claude Code:
+Skills (70+, invoked as `/skill-name`) live in `.skillshare/skills/` — each
+directory's `SKILL.md` frontmatter is the authoritative name and description,
+and Claude Code auto-loads every description at session start, so no table is
+duplicated here. Per-skill parallel-agent policy lives in
+`configs/claude/config/command_config.yml` under `tool_policies`. See
+[docs/COMMANDS.md](docs/COMMANDS.md) for the human-readable command reference.
 
-> **Note**: this table is a curated subset of the most-used skills. The full
-> set (70+ skills, including SkillClaw-evolved ones) lives in
-> `.skillshare/skills/` — each directory's `SKILL.md` frontmatter is the
-> authoritative name and description.
-
-| Command | Description | Parallel Agents |
-|---------|-------------|-----------------|
-| `/project-commit` | Full commit pipeline: docs, pull, pre-commits, commit, push | CONDITIONAL (Phase 3) |
-| `/docs-readme` | Improve README documentation | NO |
-| `/docs-diagrams` | Generate Mermaid architecture diagrams | CONDITIONAL (5+ modules) |
-| `/docs-improve` | Diataxis documentation framework analysis | CONDITIONAL (>500 lines) |
-| `/docs-all` | Run docs-readme/docs-diagrams/docs-improve as sub-agents in one pass | CONDITIONAL |
-| `/refactor-python` | Python codebase security and quality analysis | ALWAYS |
-| `/refactor-shell` | Bash/Shell script security and quality analysis | ALWAYS |
-| `/refactor-node` | Node.js/TypeScript codebase security and quality analysis | ALWAYS |
-| `/refactor-go` | Go codebase security and quality analysis | ALWAYS |
-| `/refactor-terraform` | Terraform/OpenTofu IaC security, modularity, and quality analysis | ALWAYS |
-| `/issue-triage` | Linear issue audit: duplicates, staleness, priority validation | CONDITIONAL |
-| `/issue-prioritize` | Score and rank open issues by impact/urgency/readiness/risk | CONDITIONAL |
-| `/plan-manage` | Plan lifecycle with parallel agent orchestration | CONDITIONAL |
-| `/browser-test` | AI-powered E2E browser testing via browser-use YAML test prompts | CONDITIONAL |
-| `/checkpoint` | Create compact checkpoint summary when context is high | NO |
-| `/health-check` | Verify CLI tools, auth, config syntax, MCP, symlinks | NO |
-| `/sync-configs` | Detect cross-platform config drift and broken symlinks | NO |
-| `/version-pin` | Enforce specific, hashed version pins in dependency files (auto-fix on demand; warn-only save hook) | ALWAYS (Tier 1) |
-| `/pr-review` | Review all open PRs and recommend a disposition per PR (analysis-only) | NO |
-| `/branch-clean` | Prune merged/gone/stale branches safely (dry-run by default, local-only) | CONDITIONAL (--apply) |
-| `/skill-evolve` | Promote SkillClaw-evolved skills into a review PR (dry-run by default); requires SkillClaw enabled | NO |
-| `/pass-cli` | Retrieve credentials from Proton Pass vaults via `pass-cli` agent CLI | NO |
-| `/spec-review` | Independent Antigravity (agy) cross-reference of spec/plan/tasks for internal consistency; on-demand or via fail-open PostToolUse save hook (content-hash debounced, detached); analysis-only; works with speckit and superpowers layouts; silent-mode findings land in `.spec-review/feedback.md` | NO |
-| `/a11y-audit` | WCAG 2.2 AA accessibility audit | NO |
-| `/antipattern-detect` | Detect recurring antipatterns from lint, test, and review feedback | NO |
-| `/ci-setup` | Configure CI/CD pipelines for a target repository (GitHub Actions or GitLab CI) | NO |
-| `/code-quality` | Auto-triggered security and quality checks | AUTO (always when triggered) |
-| `/dashboard` | Visualize agent efficiency metrics | NO |
-| `/learning-loop` | Capture structured lessons learned | NO |
-| `/performance-check` | Frontend performance audit: bundle size, Core Web Vitals, caching | NO |
-| `/scaffold` | Initialize new projects with quality gates and Manifest integration | NO |
-| `/ux-review` | UX audit: accessibility, responsive design, performance budgets | NO |
-| `/verify` | Run linters, tests, and security scans in parallel | CONDITIONAL |
-
-**CLI tool** (installed to `~/.local/bin/`): `sync-skills` — sync `.skillshare/skills/`
-to all home targets (daily skill dev workflow).
+**CLI tool** (installed to `~/.local/bin/`): `sync-skills` — sync
+`.skillshare/skills/` to all home targets (daily skill dev workflow).
 
 ## Testing Changes
 
@@ -369,9 +235,3 @@ approaches), review stale plans, or archive/abandon completed work.
 - [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) - Common problems and solutions
 - [configs/claude/.plans/README.md](configs/claude/.plans/README.md) - Plan management quick reference
 - [configs/claude/CLAUDE.md](configs/claude/CLAUDE.md) - Orchestration guide (deployed to ~/.claude/)
-
-<!-- SPECKIT START -->
-For additional context about technologies to be used, project structure,
-shell commands, and other important information, read the current plan
-at `specs/003-skill-library-consolidation/plan.md`
-<!-- SPECKIT END -->

@@ -11,32 +11,24 @@ This document defines how Claude should leverage parallel LLM agents
 
 **IMPORTANT**:
 
-- Always use **absolute paths** when specifying files to analyze or review.
-  Relative paths may fail as agents run from different working directories.
-- Always use a **large timeout** (600-900 seconds) for complex analyses.
-  The default 120s is often insufficient for thorough code review.
-- Use **Context7 MCP** by default for library/API documentation, code generation,
-  setup steps, and configuration guidance.
-- Use **Sentry MCP** by default for production/runtime error investigation,
-  stack traces, issue triage, and release regression analysis.
-- Use **Linear MCP** by default for issue requirements, acceptance criteria,
-  project context, and implementation planning.
-- Use **Semgrep CLI** (`semgrep ci` or `semgrep scan`) for local SAST scanning,
-  vulnerability detection, and secrets checks during code review and refactoring.
-  Install: `brew install semgrep` or `pip install semgrep`.
-- Use **DeepWiki MCP** by default for understanding unfamiliar repositories,
-  dependency internals, and upstream API contracts.
-- Use **Glean MCP** by default for internal team knowledge, runbooks, ADRs,
-  and company-specific documentation.
-- Use **Google Dev Docs MCP** for official Google platform documentation
-  (Firebase, Cloud, Android, Maps) when working with Google services.
-- Use **Atlassian MCP** for Jira issues, Confluence pages, and Compass
-  components when the project uses Atlassian tools.
-- Use **Apify MCP** for web scraping, data extraction, and crawling tasks
-  that require fetching structured data from external websites.
-- Use **OpenTofu MCP** for OpenTofu/Terraform registry lookups, provider and
-  module documentation, resource and datasource reference when working with
-  Infrastructure as Code.
+- Always use **absolute paths** when specifying files to analyze or review
+  (agents run from different working directories).
+- Always use a **large timeout** (600-900s) for complex analyses; the 120s
+  default is often insufficient.
+
+Default MCP/tool routing — use the matching tool when the task domain matches:
+
+- **Context7 MCP** — library/API docs, code generation, setup, configuration
+- **Sentry MCP** — production/runtime errors, stack traces, release regressions
+- **Linear MCP** — issue requirements, acceptance criteria, project planning
+- **Semgrep CLI** (`semgrep scan`) — local SAST, vulnerability and secrets
+  checks (install: `brew install semgrep`)
+- **DeepWiki MCP** — unfamiliar repos, dependency internals, upstream API contracts
+- **Glean MCP** — internal team knowledge, runbooks, ADRs
+- **Google Dev Docs MCP** — Firebase/Cloud/Android/Maps documentation
+- **Atlassian MCP** — Jira issues, Confluence pages, Compass components
+- **Apify MCP** — web scraping/crawling for structured external data
+- **OpenTofu MCP** — Terraform/OpenTofu registry, provider/module docs
 
 ```bash
 # Basic code review with JSON output (all 5 agents, 10 min timeout)
@@ -110,149 +102,45 @@ Read on demand (NOT auto-loaded). You MUST read the reference before related tas
 
 ## Validation Criteria
 
-### Tier 1: Critical (Always Check)
-
-| Criterion | Weight | Description |
-|-----------|--------|-------------|
-| Cross-Verification | 0.3 | Multiple agents agree on key findings |
-| Security Issues | 0.3 | No injection, XSS, auth bypass, secrets |
-| Error Handling | 0.2 | Proper exceptions, no silent failures |
-| Breaking Changes | 0.2 | API compatibility, data migrations |
-
-### Tier 2: Standard (Code Quality)
-
-| Criterion | Weight | Description |
-|-----------|--------|-------------|
-| Bug Detection | 0.25 | Logic errors, off-by-one, null refs |
-| Performance | 0.25 | No O(n²), memory leaks |
-| Maintainability | 0.25 | Clear naming, reasonable complexity |
-| Test Coverage | 0.25 | Changes have corresponding tests |
+- **Tier 1 (blocking)**: cross-verification, security, error handling, breaking
+  changes. **Tier 2 (advisory)**: bugs, performance, maintainability, tests.
+- Authoritative weights: `~/.claude/config/validation_criteria.yml`. Consensus
+  thresholds and verdict rules (`APPROVED`/`NEEDS_REVIEW`/`BLOCKED`):
+  `~/.claude/references/orchestration.md`.
 
 ---
 
 ## Skills
 
-Claude Code skills are available in `~/.claude/skills/`.
-These integrate with the parallel agent orchestration framework.
+Skills live in `~/.claude/skills/` (70+ skills, deployed from the repo's
+`.skillshare/skills/`). Each skill's `SKILL.md` frontmatter (`name`,
+`description`) is the **authoritative registry** — Claude Code auto-loads every
+description at session start, so no table is duplicated here. Per-skill
+parallel-agent policy (always/conditional/never) lives in
+`~/.claude/config/command_config.yml` under `tool_policies`.
 
-### Available Skills
+Common entry points: `/project-commit` (full commit pipeline), `/verify`
+(lint + test + scan), `/refactor-<lang>` (security/quality roadmap, parallel
+agents ALWAYS), `/docs-all` (refresh all docs), `/plan-manage` (plan
+lifecycle), `/health-check` (env sanity), `/checkpoint` (high-context save),
+`/version-pin <file>` (auto-fix; `--check` = warn-only save-hook mode).
 
-> **Note**: this table is a curated subset of the most-used skills. The full
-> set (70+ skills, including SkillClaw-evolved ones) lives in
-> `.skillshare/skills/` — each directory's `SKILL.md` frontmatter is the
-> authoritative name and description.
-
-| Command | Description | Parallel Agents |
-|---------|-------------|-----------------|
-| `/project-commit` | Full commit pipeline: docs, pull, pre-commits, commit, push | CONDITIONAL (Phase 3) |
-| `/docs-readme` | Improve README documentation | NO |
-| `/docs-diagrams` | Generate Mermaid architecture diagrams | CONDITIONAL (5+ modules) |
-| `/docs-improve` | Diataxis documentation framework analysis | CONDITIONAL (>500 lines) |
-| `/docs-all` | Run docs-readme/docs-diagrams/docs-improve as sub-agents in one pass | CONDITIONAL |
-| `/refactor-python` | Python codebase security and quality analysis | ALWAYS |
-| `/refactor-shell` | Bash/Shell script security and quality analysis | ALWAYS |
-| `/refactor-node` | Node.js/TypeScript codebase security and quality analysis | ALWAYS |
-| `/refactor-go` | Go codebase security and quality analysis | ALWAYS |
-| `/refactor-terraform` | Terraform/OpenTofu IaC security, modularity, and quality analysis | ALWAYS |
-| `/issue-triage` | Linear issue audit: duplicates, staleness, priority validation | CONDITIONAL |
-| `/issue-prioritize` | Score and rank open issues by impact/urgency/readiness/risk | CONDITIONAL |
-| `/plan-manage` | Plan lifecycle with parallel agent orchestration | CONDITIONAL |
-| `/browser-test` | AI-powered E2E browser testing via browser-use YAML test prompts | CONDITIONAL |
-| `/checkpoint` | Create compact checkpoint summary when context is high | NO |
-| `/health-check` | Verify CLI tools, auth, config syntax, MCP, symlinks | NO |
-| `/sync-configs` | Detect cross-platform config drift and broken symlinks | NO |
-| `/version-pin` | Enforce specific, hashed version pins in dependency files (auto-fix on demand; warn-only save hook) | ALWAYS (Tier 1) |
-| `/pr-review` | Review all open PRs and recommend a disposition per PR (analysis-only) | NO |
-| `/branch-clean` | Prune merged/gone/stale branches safely (dry-run by default, local-only) | CONDITIONAL (--apply) |
-| `/skill-evolve` | Promote SkillClaw-evolved skills into a review PR (dry-run by default); requires SkillClaw enabled | NO |
-| `/pass-cli` | Retrieve credentials from Proton Pass vaults via `pass-cli` agent CLI | NO |
-| `/spec-review` | Independent Antigravity (agy) cross-reference of spec/plan/tasks for internal consistency; on-demand or via fail-open PostToolUse save hook (content-hash debounced, detached); analysis-only; works with speckit and superpowers layouts; silent-mode findings land in `.spec-review/feedback.md` | NO |
-| `/a11y-audit` | WCAG 2.2 AA accessibility audit | NO |
-| `/antipattern-detect` | Detect recurring antipatterns from lint, test, and review feedback | NO |
-| `/ci-setup` | Configure CI/CD pipelines for a target repository (GitHub Actions or GitLab CI) | NO |
-| `/code-quality` | Auto-triggered security and quality checks | AUTO (always when triggered) |
-| `/dashboard` | Visualize agent efficiency metrics | NO |
-| `/learning-loop` | Capture structured lessons learned | NO |
-| `/performance-check` | Frontend performance audit: bundle size, Core Web Vitals, caching | NO |
-| `/scaffold` | Initialize new projects with quality gates and Manifest integration | NO |
-| `/ux-review` | UX audit: accessibility, responsive design, performance budgets | NO |
-| `/verify` | Run linters, tests, and security scans in parallel | CONDITIONAL |
-
-**CLI tool** (installed to `~/.local/bin/`): `sync-skills` — sync `.skillshare/skills/`
-to all home targets (daily skill dev workflow).
-
-### Command Usage
-
-```bash
-# Full commit pipeline with documentation generation
-/project-commit "Add new feature"
-/project-commit  # Auto-generate commit message
-
-# Code analysis
-/refactor-python src/
-/refactor-shell .claude/scripts/
-
-# Documentation
-/docs-diagrams docs/ARCHITECTURE_DIAGRAMS.md
-/docs-readme
-/docs-improve docs/
-
-# Issue management
-/issue-triage                # Audit Linear backlog
-/issue-prioritize            # Rank open issues by impact
-
-# Plan management
-/plan-manage create #42      # Create plan from issue
-/plan-manage execute #42     # Execute plan deliverables
-
-# Context management
-/checkpoint                  # Save session state when context is high
-
-# Skill sync (daily dev workflow)
-sync-skills                  # Push .skillshare/skills/ changes to all home targets
-
-# Dependency / repo hygiene
-/version-pin requirements.txt          # Pin to specific version + hash (auto-fix)
-/version-pin requirements.txt --check  # Warn-only (the save-hook mode)
-/docs-all                              # Refresh all docs via sub-agents in one pass
-/pr-review                             # Triage all open PRs (analysis-only)
-/branch-clean                          # Preview prunable branches (dry-run)
-/branch-clean --apply                  # Delete local candidates (with confirmation)
-```
+**CLI tool** (installed to `~/.local/bin/`): `sync-skills` — push
+`.skillshare/skills/` changes to all home targets (daily skill dev workflow).
 
 ### Auto-Triggered Skill
 
-The `code-quality` skill auto-triggers when detecting:
-
-1. **Security patterns**: auth, crypto, secrets, input validation
-2. **Complexity patterns**:
-   - File > 500 lines
-   - > 10 functions per file
-   - > 5 classes per file
-
-When triggered, it provides inline feedback without blocking user workflow.
+`code-quality` auto-triggers on security-sensitive patterns (auth, crypto,
+secrets, input validation) or complexity (>500 lines, >10 functions, or >5
+classes per file), giving inline feedback without blocking the workflow.
 
 ---
 
 ## Plan Management
 
-Implementation plans are tracked as markdown files in `~/.claude/.plans/`.
-
-### Lifecycle
-
-```text
-CREATE → ACTIVE → COMPLETED (.archive/) or ABANDONED (.abandoned/)
-```
-
-1. **CREATE**: Copy `TEMPLATE.md`, save as `YYYYMMDD-short-description.md`
-2. **ACTIVE**: Plan lives in `.plans/` root while work is in progress; check off deliverables as they are completed
-3. **COMPLETED**: Move to `.archive/` when all deliverables are done
-4. **ABANDONED**: Move to `.abandoned/` if superseded or no longer relevant
-
-### Housekeeping Rules
-
-- **Before creating a plan**: Review existing plans in `.plans/` to avoid duplicates
-- **During implementation**: Check off deliverables (`- [x]`) as each is completed
-- **Staleness threshold**: Plans untouched for 7+ days should be reviewed — either update, complete, or abandon them
-- **Use `/plan-manage`** for orchestrated plan creation (parallel agents for cross-verified
-  planning), review, archiving, and abandoning plans
+Plans are markdown files in `~/.claude/.plans/` named
+`YYYYMMDD-short-description.md` (copy `TEMPLATE.md`). Lifecycle:
+CREATE → ACTIVE (check off deliverables as completed) → `.archive/` when done
+or `.abandoned/` if superseded. Review existing plans before creating new ones;
+plans untouched 7+ days should be updated, completed, or abandoned. Use
+`/plan-manage` for orchestrated create/review/execute/archive/abandon.
