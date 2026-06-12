@@ -509,10 +509,18 @@ class CLIAgent(BaseAgent):
                 output = f.read().strip()
         if not output:
             output = stdout.decode("utf-8", errors="ignore").strip()
-        if not output and returncode != 0:
+        if returncode != 0:
+            # A nonzero exit means usage text / error banners, not an answer —
+            # letting it through corrupted consensus and synthesis (issue #308).
+            stderr_text = stderr.decode("utf-8", errors="ignore").strip()
+            error_parts = [f"exit code {returncode}"]
+            if stderr_text:
+                error_parts.append(stderr_text)
+            if output:
+                error_parts.append(f"stdout: {output}")
             return {
                 "status": "failed",
-                "error": stderr.decode("utf-8", errors="ignore"),
+                "error": "; ".join(error_parts),
                 "output": "",
                 "model": self.model_name or "auto",
             }

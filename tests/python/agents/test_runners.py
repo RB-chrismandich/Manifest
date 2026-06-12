@@ -259,6 +259,16 @@ class TestCLIAgentExecution:
         assert result["status"] == "failed"
         assert "boom" in result["error"]
 
+    def test_nonzero_exit_with_stdout_is_failed(self, tmp_path):
+        """Issue #308: usage text on stdout + exit 1 must not count as an answer."""
+        agent = CLIAgent("cursor", model="flash",
+                         rate_limiter=_make_limiter(), config=_make_config(tmp_path))
+        result = agent._collect_output(1, b"Usage: cursor [options]", b"bad flag", None)
+        assert result["status"] == "failed"
+        assert "bad flag" in result["error"]
+        assert "Usage: cursor" in result["error"]  # preserved for debugging
+        assert result["output"] == ""
+
     def test_real_subprocess_roundtrip(self, tmp_path):
         """End-to-end through create_subprocess_exec using /bin/echo as the binary."""
         config = _make_config(tmp_path)
