@@ -78,7 +78,8 @@ get_team_id() {
         }
     }'
 
-    local variables="{\"filter\": {\"key\": {\"eq\": \"$team_key\"}}}"
+    local variables
+    variables=$(jq -nc --arg key "$team_key" '{filter: {key: {eq: $key}}}')
     local result
     result=$(graphql_query "$query" "$variables")
 
@@ -100,7 +101,9 @@ get_state_id() {
         }
     }'
 
-    local variables="{\"filter\": {\"team\": {\"id\": {\"eq\": \"$team_id\"}}, \"name\": {\"eq\": \"$state_name\"}}}"
+    local variables
+    variables=$(jq -nc --arg teamId "$team_id" --arg name "$state_name" \
+        '{filter: {team: {id: {eq: $teamId}}, name: {eq: $name}}}')
     local result
     result=$(graphql_query "$query" "$variables")
 
@@ -161,7 +164,8 @@ cmd_team_states() {
         }
     }'
 
-    local variables="{\"teamId\": \"$team_id\"}"
+    local variables
+    variables=$(jq -nc --arg teamId "$team_id" '{teamId: $teamId}')
     local result
     result=$(graphql_query "$query" "$variables")
 
@@ -333,7 +337,8 @@ cmd_issue_view() {
         }
     }'
 
-    local variables="{\"identifier\": \"$identifier\"}"
+    local variables
+    variables=$(jq -nc --arg identifier "$identifier" '{identifier: $identifier}')
     local result
     result=$(graphql_query "$query" "$variables")
 
@@ -1136,9 +1141,9 @@ cmd_transition_state() {
             }
         }
     }'
-    local target_filter="{\"id\": {\"eq\": \"$target_state_id\"}}"
     local target_state_data
-    target_state_data=$(graphql_query "$target_state_query" "{\"filter\": $target_filter}")
+    target_state_data=$(graphql_query "$target_state_query" \
+        "$(jq -nc --arg id "$target_state_id" '{filter: {id: {eq: $id}}}')")
     local target_state_type
     target_state_type=$(echo "$target_state_data" | jq -r '.data.workflowStates.nodes[0].type')
 
