@@ -383,3 +383,46 @@ STUB
     run grep -c 'export PATH="$HOME/.local/bin:$PATH"' "$fake_profile"
     assert_output "1"
 }
+
+# ---------------------------------------------------------------------------
+# list_deployed_files — SIGPIPE-safe deployed-files listing (defensive).
+# With >20 matching files, head exits early and find dies of SIGPIPE (141).
+# That is fatal only under `pipefail` — bootstrap.sh currently sets only -e,
+# so this hardens against the trap being armed if pipefail is ever added.
+# (The silent bootstrap abort itself was _skillclaw_remove_launchd — see
+# skillclaw_lib.bats.) Tests run under -euo pipefail, the strictest mode.
+# ---------------------------------------------------------------------------
+
+@test "list_deployed_files survives set -e with more than 20 files" {
+    # shellcheck disable=SC1090
+    source "$REPO_ROOT/bootstrap/lib/deploy.sh"
+    mkdir -p "$SANDBOX/target"
+    for i in $(seq 1 30); do echo x > "$SANDBOX/target/file$i.md"; done
+
+    run bash -c "
+        set -euo pipefail
+        source '$REPO_ROOT/bootstrap/lib/common.sh'
+        source '$REPO_ROOT/bootstrap/lib/deploy.sh'
+        list_deployed_files '$SANDBOX/target'
+        echo SURVIVED
+    "
+    assert_success
+    assert_output --partial "SURVIVED"
+    # Truncation to 20 entries still applies
+    [ "$(echo "$output" | grep -c 'file')" -eq 20 ]
+}
+
+@test "list_deployed_files handles an empty directory" {
+    # shellcheck disable=SC1090
+    source "$REPO_ROOT/bootstrap/lib/deploy.sh"
+    mkdir -p "$SANDBOX/empty"
+    run bash -c "
+        set -euo pipefail
+        source '$REPO_ROOT/bootstrap/lib/common.sh'
+        source '$REPO_ROOT/bootstrap/lib/deploy.sh'
+        list_deployed_files '$SANDBOX/empty'
+        echo SURVIVED
+    "
+    assert_success
+    assert_output --partial "SURVIVED"
+}

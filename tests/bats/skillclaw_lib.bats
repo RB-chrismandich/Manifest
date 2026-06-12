@@ -98,3 +98,27 @@ PROF
     run grep -Eq 'no daemon|transcript' "$REPO_ROOT/bootstrap/lib/skillclaw.sh"
     [ "$status" -eq 0 ]
 }
+
+@test "skillclaw_apply_state survives set -e when no launchd plist exists" {
+    # _skillclaw_remove_launchd ended with `[[ -f plist ]] && {...}` — when the
+    # plist is absent (the normal case) that list returns 1 as the function's
+    # exit status, and under bootstrap.sh's `set -e` the bare call aborted the
+    # ENTIRE bootstrap silently right after deploy_configs (found 2026-06-11:
+    # every run died before skillclaw state, python deps, auth, and summary).
+    run bash -c "
+        set -e
+        HOME='$SANDBOX/home'
+        mkdir -p \"\$HOME\"
+        export SKILLCLAW_HOME='$SANDBOX/.skillclaw'
+        export SHELL_PROFILE_FILE='$SANDBOX/home/.zshrc'
+        touch '$SANDBOX/home/.zshrc'
+        print_step() { :; }; print_success() { :; }; print_info() { :; }
+        print_warning() { :; }; print_error() { :; }
+        launchctl() { :; }; systemctl() { :; }
+        source '$REPO_ROOT/bootstrap/lib/skillclaw.sh'
+        ENABLE_SKILLCLAW=true skillclaw_apply_state
+        echo SURVIVED
+    "
+    assert_success
+    assert_output --partial "SURVIVED"
+}
