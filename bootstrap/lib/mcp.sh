@@ -294,6 +294,14 @@ ensure_gemini_mcp_server_in_settings() {
     return 1
 }
 
+# Best-effort: extract the URL currently registered for an MCP server name
+# from a CLI's `mcp list` output. Empty when the server is not registered.
+# Used to restore a registration if remove-then-add fails halfway (issue #322).
+get_registered_mcp_url() {
+    local list_output="$1" name="$2"
+    echo "$list_output" | grep -F "$name" | grep -oE 'https?://[^[:space:]]+' | head -1
+}
+
 # Install/update one Claude MCP server.
 install_claude_mcp_server() {
     local name="$1"
@@ -306,6 +314,11 @@ install_claude_mcp_server() {
         return 0
     fi
 
+    # Capture any existing registration so a failed add can restore it
+    # instead of leaving the server deregistered entirely (issue #322).
+    local prev_url
+    prev_url=$(get_registered_mcp_url "$(CLAUDECODE='' claude mcp list 2> /dev/null || true)" "$name")
+
     # Remove existing definitions across scopes to avoid name collisions.
     claude mcp remove "$name" > /dev/null 2>&1 || true
     claude mcp remove --scope "$CLAUDE_MCP_SCOPE" "$name" > /dev/null 2>&1 || true
@@ -314,7 +327,11 @@ install_claude_mcp_server() {
         return 0
     fi
 
-    print_warning "Failed to configure Claude MCP server '$name'"
+    if [[ -n "$prev_url" ]] && claude mcp add --scope "$CLAUDE_MCP_SCOPE" --transport "$transport" "$name" "$prev_url" > /dev/null 2>&1; then
+        print_warning "Failed to configure Claude MCP server '$name'; restored previous registration ($prev_url)"
+    else
+        print_warning "Failed to configure Claude MCP server '$name'"
+    fi
     return 1
 }
 
@@ -330,6 +347,10 @@ install_gemini_mcp_server() {
         return 0
     fi
 
+    # Capture any existing registration for restore-on-failure (issue #322).
+    local prev_url
+    prev_url=$(get_registered_mcp_url "$(gemini mcp list 2> /dev/null || true)" "$name")
+
     # Remove existing definitions across scopes to avoid name collisions.
     gemini mcp remove --scope user "$name" > /dev/null 2>&1 || true
     gemini mcp remove --scope project "$name" > /dev/null 2>&1 || true
@@ -337,6 +358,11 @@ install_gemini_mcp_server() {
     if gemini mcp add --scope "$GEMINI_MCP_SCOPE" --transport "$transport" "$name" "$url" > /dev/null 2>&1; then
         print_success "Gemini MCP configured: $name -> $url ($transport)"
         return 0
+    fi
+
+    if [[ -n "$prev_url" ]]; then
+        gemini mcp add --scope "$GEMINI_MCP_SCOPE" --transport "$transport" "$name" "$prev_url" > /dev/null 2>&1 \
+            && print_warning "Gemini MCP add failed for '$name'; restored previous registration ($prev_url)"
     fi
 
     if ensure_gemini_mcp_server_in_settings "$name" "$url" "$transport"; then
@@ -359,13 +385,21 @@ install_codex_mcp_server() {
         return 0
     fi
 
+    # Capture any existing registration for restore-on-failure (issue #322).
+    local prev_url
+    prev_url=$(get_registered_mcp_url "$(codex mcp list 2> /dev/null || true)" "$name")
+
     codex mcp remove "$name" > /dev/null 2>&1 || true
     if codex mcp add "$name" --url "$url" > /dev/null 2>&1; then
         print_success "Codex MCP configured: $name -> $url"
         return 0
     fi
 
-    print_warning "Failed to configure Codex MCP server '$name'"
+    if [[ -n "$prev_url" ]] && codex mcp add "$name" --url "$prev_url" > /dev/null 2>&1; then
+        print_warning "Failed to configure Codex MCP server '$name'; restored previous registration ($prev_url)"
+    else
+        print_warning "Failed to configure Codex MCP server '$name'"
+    fi
     return 1
 }
 
