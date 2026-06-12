@@ -184,9 +184,21 @@ deploy_configs() {
     # List deployed files
     echo ""
     print_info "Deployed files:"
-    find "$TARGET_DIR" -type f \( -name "*.md" -o -name "*.yml" -o -name "*.sh" \) 2> /dev/null | head -20 | while read -r file; do
-        echo "    ${file#"$HOME"/}"
-    done
+    list_deployed_files "$TARGET_DIR"
+}
+
+# list_deployed_files DIR — print up to 20 deployed config files.
+# SIGPIPE-safe: `find | head | while` under bootstrap.sh's `set -e` killed the
+# whole bootstrap (exit 141) once the target held >20 matching files — find
+# dies of SIGPIPE when head exits, and pipefail surfaces it. Buffer through a
+# guarded command substitution instead.
+list_deployed_files() {
+    local dir="$1" deployed_files file
+    deployed_files=$(find "$dir" -type f \( -name "*.md" -o -name "*.yml" -o -name "*.sh" \) 2> /dev/null | head -20) || true
+    while IFS= read -r file; do
+        [[ -n "$file" ]] && echo "    ${file#"$HOME"/}"
+    done <<< "$deployed_files"
+    return 0
 }
 
 # Deploy Cursor IDE configuration (mirrors .claude with symlinks)

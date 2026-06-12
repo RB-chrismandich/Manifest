@@ -28,17 +28,28 @@ skillclaw_remove_wrappers() {
 }
 
 # Remove the retired launchd/systemd supervisor if a prior install left one.
+# NOTE: must not end on a failed `[[ -f ... ]] && {...}` list — when the unit
+# is absent (the normal case) that made the function return 1, and under
+# bootstrap.sh's `set -e` the bare call aborted the entire bootstrap silently
+# right after deploy_configs (skipping skillclaw state, deps, auth, summary).
 _skillclaw_remove_launchd() {
     case "$(uname -s)" in
         Darwin)
             local plist="$HOME/Library/LaunchAgents/com.manifest.skillclaw.plist"
-            [[ -f "$plist" ]] && { launchctl unload "$plist" >/dev/null 2>&1 || true; rm -f "$plist"; }
+            if [[ -f "$plist" ]]; then
+                launchctl unload "$plist" >/dev/null 2>&1 || true
+                rm -f "$plist"
+            fi
             ;;
         Linux)
             local unit="$HOME/.config/systemd/user/skillclaw.service"
-            [[ -f "$unit" ]] && { systemctl --user disable --now skillclaw.service >/dev/null 2>&1 || true; rm -f "$unit"; }
+            if [[ -f "$unit" ]]; then
+                systemctl --user disable --now skillclaw.service >/dev/null 2>&1 || true
+                rm -f "$unit"
+            fi
             ;;
     esac
+    return 0
 }
 
 # Apply desired state. Transcript-fed evolution needs NO daemon and NO proxy —
