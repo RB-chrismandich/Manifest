@@ -258,12 +258,30 @@ configure_shell_profile_state() {
 
     # Write MANIFEST_ROOT — always update in case bootstrap is re-run from a new path.
     # Cross-platform safe: avoids sed -i BSD/GNU incompatibility on macOS.
+    # Filter out the comment and the export together — removing only the
+    # export left the comment + blank line behind and every run appended a
+    # fresh trio, growing the profile by 2 lines per run (issue #324). awk
+    # (not grep -v) so an empty result is not treated as failure, which
+    # previously kept the stale export and produced conflicting duplicates.
     if [[ -f "$profile_file" ]]; then
-        if grep -v 'export MANIFEST_ROOT=' "$profile_file" > "${profile_file}.tmp" 2>/dev/null; then
-            mv "${profile_file}.tmp" "$profile_file"
-        else
-            rm -f "${profile_file}.tmp"
-        fi
+        awk '
+            # Buffer blank runs so the one preceding the managed block can be
+            # dropped along with it
+            /^$/ { blanks++; next }
+            /^# Manifest repository root \(managed by bootstrap\.sh\)$/ {
+                if (blanks > 0) blanks--
+                while (blanks-- > 0) print ""
+                blanks = 0
+                next
+            }
+            /^export MANIFEST_ROOT=/ { next }
+            {
+                while (blanks-- > 0) print ""
+                blanks = 0
+                print
+            }
+            END { while (blanks-- > 0) print "" }
+        ' "$profile_file" > "${profile_file}.tmp" && mv "${profile_file}.tmp" "$profile_file"
     fi
     {
         echo ""
