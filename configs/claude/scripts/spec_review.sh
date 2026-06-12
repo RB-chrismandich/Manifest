@@ -139,7 +139,7 @@ run_reviewer() {
     local cli_args=()
     [[ -n "$model" ]] && cli_args+=(--model "$model")
     cli_args+=(-p "Cross-reference the artifacts above per the instructions; output only the specified blocks or NO_ISSUES.")
-    printf '%s' "$prompt" | "$SPEC_REVIEW_CLI" "${cli_args[@]}"
+    printf '%s' "$prompt" | "$SPEC_REVIEW_CLI" "${cli_args[@]}"  # array-safe (unconditional += above)
 }
 
 # format_findings RAW FORMAT [COUNT] -> formatted output. NO_ISSUES -> clean
