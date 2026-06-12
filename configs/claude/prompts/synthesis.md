@@ -10,23 +10,13 @@ type, and apply explicit resolution strategies per category.
 
 ## Agent Outputs
 
-### Gemini Output
-
-{GEMINI_OUTPUT}
-
-### Cursor Output
-
-{CURSOR_OUTPUT}
-
-### Claude Output
-
-{CLAUDE_OUTPUT}
+{AGENT_OUTPUTS}
 
 ## Synthesis Instructions
 
 ### Step 1: Identify Agreements
 
-List all points where agents converge. Agreements carry higher weight — if all three
+List all points where agents converge. Agreements carry higher weight — if all
 agents independently reach the same conclusion, treat it as high-confidence guidance.
 
 ### Step 2: Identify and Categorize Disagreements
