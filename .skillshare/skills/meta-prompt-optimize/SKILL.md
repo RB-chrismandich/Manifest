@@ -42,7 +42,6 @@ When a raw prompt payload is received via the scheduled task pipeline, execute t
 
 The output must be returned strictly using this layout so downstream agent layers can parse it deterministically:
 
-```xml
 <problem_structure>
   <problem_definition>
     [Action-oriented task statement with precise boolean endpoints or metrics]
@@ -63,7 +62,6 @@ The output must be returned strictly using this layout so downstream agent layer
     [Strict formatting payload requirements: JSON object layouts, XML schemas, or fixed markdown tables]
   </desired_output>
 </problem_structure>
-```
 
 ## 5. Normalized Structural Blueprints
 
@@ -96,11 +94,9 @@ Format Requirements:
 2. **State Payload Specification**: Strict definitions of variables passed across isolation boundaries.
 3. **Execution Telemetry JSON**:
 
-```json
 {
   "plan_status": "success | failed",
   "steps_executed": [],
   "resulting_state": {},
   "telemetry": ""
 }
-```
