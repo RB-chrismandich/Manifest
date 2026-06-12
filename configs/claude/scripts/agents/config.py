@@ -120,6 +120,23 @@ class Config:
                 },
             },
             "cli_agents": {
+                # claude/gemini entries back the OAuth CLI fallback used when
+                # the provider SDK or its API key is unavailable (see
+                # agents.cli.select_backend).
+                "claude": {
+                    "binary": "claude",
+                    "base_args": [],
+                    "model_args": ["--model", "{model}"],
+                    "prompt_args": ["-p", "{prompt}"],
+                    "output": "stdout",
+                },
+                "gemini": {
+                    "binary": "gemini",
+                    "base_args": [],
+                    "model_args": ["-m", "{model}"],
+                    "prompt_args": ["-p", "{prompt}"],
+                    "output": "stdout",
+                },
                 "cursor": {
                     "binary": "cursor",
                     "base_args": [],
