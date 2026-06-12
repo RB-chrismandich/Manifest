@@ -29,7 +29,20 @@ source "$SCRIPT_DIR/common.sh"
 
 # Get all paths and variables from common functions
 _paths_output=$(get_feature_paths) || { echo "ERROR: Failed to resolve feature paths" >&2; exit 1; }
-eval "$_paths_output"
+while IFS= read -r line; do
+    if [[ -n "$line" ]]; then
+        key="${line%%=*}"
+        val="${line#*=}"
+        val="${val%\"}"
+        val="${val#\"}"
+        case "$key" in
+            REPO_ROOT|CURRENT_BRANCH|HAS_GIT|FEATURE_DIR|FEATURE_SPEC|IMPL_PLAN|TASKS|RESEARCH|DATA_MODEL|QUICKSTART|CONTRACTS_DIR)
+                printf -v "$key" "%s" "$val"
+                export "${key?}"
+                ;;
+        esac
+    fi
+done <<< "$_paths_output"
 unset _paths_output
 
 # If feature.json pins an existing feature directory, branch naming is not required.
