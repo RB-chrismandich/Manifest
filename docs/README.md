@@ -2,7 +2,7 @@
 
 > Complete documentation index for the Manifest parallel agent orchestration framework
 
-**Last Updated**: 2026-06-08
+**Last Updated**: 2026-06-12
 
 ---
 
@@ -37,7 +37,8 @@
 |----------|-------------|----------|
 | [Architecture Diagrams](ARCHITECTURE_DIAGRAMS.md) | System design and data flows | Understanding internals |
 | [CLAUDE.md](../CLAUDE.md) | Repository context and structure | Contributing code |
-| [.claude/CLAUDE.md](../.claude/CLAUDE.md) | Orchestration guide (deployed version) | Deep dive into orchestration |
+| [.claude/CLAUDE.md](../.claude/CLAUDE.md) | Repo developer guide (skillshare, tests, conventions) | Working inside this repo |
+| [configs/claude/CLAUDE.md](../configs/claude/CLAUDE.md) | Orchestration guide (deployed to `~/.claude/`) | Deep dive into orchestration |
 
 ### For Contributors
 
@@ -54,7 +55,7 @@
 
 | File | Description | Last Updated | Status |
 |------|-------------|--------------|--------|
-| [README.md](../README.md) | Project overview and quick start | 2026-06-08 | ✅ |
+| [README.md](../README.md) | Project overview and quick start | 2026-06-12 | ✅ |
 | [CLAUDE.md](../CLAUDE.md) | AI assistant context for the repository | 2026-02-11 | ✅ |
 | [CONTRIBUTING.md](../CONTRIBUTING.md) | How to contribute to the project | 2026-05-31 | ✅ |
 | [CHANGELOG.md](../CHANGELOG.md) | Version history and release notes | 2026-05-31 | ✅ |
@@ -63,17 +64,21 @@
 
 | File | Description | Last Updated | Status |
 |------|-------------|--------------|--------|
-| [GETTING_STARTED.md](GETTING_STARTED.md) | First-time user guide | 2026-06-08 | ✅ |
-| [CONFIGURATION.md](CONFIGURATION.md) | Configuration reference | 2026-06-08 | ✅ |
-| [TROUBLESHOOTING.md](TROUBLESHOOTING.md) | Common issues and solutions | 2026-06-08 | ✅ |
+| [GETTING_STARTED.md](GETTING_STARTED.md) | First-time user guide | 2026-06-12 | ✅ |
+| [CONFIGURATION.md](CONFIGURATION.md) | Configuration reference | 2026-06-12 | ✅ |
+| [TROUBLESHOOTING.md](TROUBLESHOOTING.md) | Common issues and solutions | 2026-06-12 | ✅ |
+| [COMMANDS.md](COMMANDS.md) | Built-in commands and how to build custom ones | 2026-06-10 | ✅ |
 
 ### Technical Documentation
 
 | File | Description | Last Updated | Status |
 |------|-------------|--------------|--------|
-| [ARCHITECTURE_DIAGRAMS.md](ARCHITECTURE_DIAGRAMS.md) | Visual system documentation | 2026-06-08 | ✅ |
+| [ARCHITECTURE_DIAGRAMS.md](ARCHITECTURE_DIAGRAMS.md) | Visual system documentation | 2026-06-12 | ✅ |
 | [SKILLCLAW.md](SKILLCLAW.md) | SkillClaw session-capture and skill-evolution guide | 2026-06-08 | ✅ |
 | [SPEC-SYSTEMS.md](SPEC-SYSTEMS.md) | Map of the four spec/plan systems and when to use each | 2026-06-10 | ✅ |
+| [METRICS.md](METRICS.md) | Agent performance dashboard template (`/dashboard`) | 2026-02-11 | ✅ |
+| [KNOWLEDGE_BASE.md](KNOWLEDGE_BASE.md) | Auto-generated captured learnings (`learning_capture.sh sync-docs`) | 2026-02-13 | ✅ |
+| [PRE_COMMIT.md](PRE_COMMIT.md) | Pre-commit hook reference | 2026-02-05 | ✅ |
 
 ### Internal Documentation
 
@@ -162,6 +167,11 @@ services:
 
 **Recent Additions**:
 
+- ✅ 2026-06-12: Documented the OAuth CLI fallback (SDK vs CLI backend selection for
+  Claude/Gemini), `MODEL_CHECK_PROBE=1` live model-pin verification, and the honest
+  `check_status.sh` pin summary — README, architecture diagrams,
+  CONFIGURATION/GETTING_STARTED/TROUBLESHOOTING; fixed stale deploy paths
+  (`.claude/` → `configs/claude/`) and output paths (`~/.claude/.agent_outputs/`)
 - ✅ 2026-06-08: Documentation refresh for SkillClaw + `/pass-cli` — README, architecture
   diagrams, CONFIGURATION/TROUBLESHOOTING sections, and a Diataxis cross-link audit
 - ✅ 2026-06-07: Added SKILLCLAW.md — SkillClaw passive-ingest transcript reader and skill evolution guide
