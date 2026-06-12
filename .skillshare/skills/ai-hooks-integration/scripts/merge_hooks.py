@@ -21,34 +21,51 @@ from runtime.tool_config import TOOL_CONFIG, get_config, load_json, save_json, h
 
 
 OPENCODE_TEMPLATE = '''\
-export const PluginHook = async () => {
-  return {
-    "tool.execute.before": async (input, output) => {
-      if (input.tool !== "bash") return;
-      const command = output?.args?.command ?? input?.args?.command ?? "";
-      if (!command) return;
-      // TODO: run your checker and throw to block
-    }
-  };
-};
+export const PluginHook = async () => {{
+  return {{
+    "tool.execute.before": async (input, output) => {{
+      try {{
+        if (input.tool !== "bash") return;
+        const command = output?.args?.command ?? input?.args?.command ?? "";
+        if (!command) return;
+
+        const {{ exec }} = await import("child_process");
+        const {{ promisify }} = await import("util");
+        const execAsync = promisify(exec);
+
+        const hookCmd = `{hook_command}`;
+        if (hookCmd) {{
+          // Provide command as env var to avoid escaping issues
+          await execAsync(hookCmd, {{
+            env: {{ ...process.env, OPENCODE_INTERCEPTED_CMD: command }}
+          }});
+        }}
+      }} catch (err) {{
+        console.error(`[OpenCode Hook Error]: ${{err.message}}`);
+        // Rethrow to actually block execution if the hook failed
+        throw err;
+      }}
+    }}
+  }};
+}};
 '''
 
 
-def write_opencode_plugin(path: Path, force: bool, dry_run: bool) -> None:
+def write_opencode_plugin(path: Path, force: bool, dry_run: bool, command_to_run: str) -> None:
     if path.exists() and not force:
         return
     if dry_run:
         print(f"[dry-run] write {path}")
         return
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(OPENCODE_TEMPLATE)
+    path.write_text(OPENCODE_TEMPLATE.format(hook_command=command_to_run))
 
 
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--tool", choices=TOOL_CONFIG.keys(), required=True)
     ap.add_argument("--path", required=True)
-    ap.add_argument("--command", help="Hook command to inject (not used for opencode)")
+    ap.add_argument("--command", help="Hook command to inject")
     ap.add_argument("--matcher", help="Override matcher for nested hooks")
     ap.add_argument("--force", action="store_true", help="Overwrite existing plugin file (opencode)")
     ap.add_argument("--dry-run", action="store_true", help="Print actions without writing")
@@ -56,12 +73,12 @@ def main() -> None:
 
     path = Path(args.path).expanduser()
 
-    if args.tool == "opencode":
-        write_opencode_plugin(path, args.force, args.dry_run)
-        return
-
     if not args.command:
-        raise SystemExit("--command is required for claude/gemini/cursor")
+        raise SystemExit("--command is required for all tools")
+
+    if args.tool == "opencode":
+        write_opencode_plugin(path, args.force, args.dry_run, args.command)
+        return
 
     cfg = get_config(args.tool)
     data = load_json(path)
