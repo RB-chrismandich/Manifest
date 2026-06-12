@@ -45,18 +45,18 @@ async def main():
     parser.add_argument("--output", metavar="DIR", help="Custom output directory")
     parser.add_argument(
         "--full-output",
-        action="store_true",
+        action=argparse.BooleanOptionalAction,
         default=True,
-        help="Include complete outputs",
+        help="Include complete outputs (--no-full-output truncates to 1000 chars)",
     )
     parser.add_argument(
         "--no-stream", action="store_true", help="Disable streaming output"
     )
     parser.add_argument(
         "--synthesize",
-        action="store_true",
+        action=argparse.BooleanOptionalAction,
         default=True,
-        help="Enable synthesis for low consensus",
+        help="Enable synthesis for low consensus (--no-synthesize disables)",
     )
     parser.add_argument(
         "--timeout",

@@ -423,7 +423,28 @@ class Orchestrator:
 
         output_files["summary"] = str(md_file)
 
+        self._prune_old_outputs(output_dir)
+
         return output_files
+
+    def _prune_old_outputs(self, output_dir: Path) -> None:
+        """Keep only the newest output.keep_last runs (issue #310).
+
+        Runs are identified by their results_<timestamp>.json file; all files
+        sharing a pruned run's timestamp are removed with it.
+        """
+        keep_last = self.config.get("output.keep_last")
+        if not keep_last or int(keep_last) <= 0:
+            return
+        # Timestamps are YYYYMMDD_HHMMSS, so lexicographic == chronological
+        runs = sorted(output_dir.glob("results_*.json"))
+        for stale in runs[: -int(keep_last)]:
+            ts = stale.stem[len("results_"):]
+            for f in output_dir.glob(f"*_{ts}.*"):
+                try:
+                    f.unlink()
+                except OSError:
+                    pass
 
     def print_results(self, result: Dict, json_output: bool = False):
         """Print results in table or JSON format"""

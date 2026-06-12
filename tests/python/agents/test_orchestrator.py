@@ -84,6 +84,20 @@ class TestOrchestratorConsensus:
         assert confidence_for(49) == "low"
         assert confidence_for(1) == "low"  # the old bug rated this 'high'
 
+    def test_prune_old_outputs_keeps_newest_runs(self, tmp_path):
+        """Issue #310: output.keep_last must actually prune old run files."""
+        orch = _make_orchestrator(tmp_path)
+        orch.config.config["output"] = {"keep_last": 2}
+        stamps = ["20260101_010101", "20260102_020202", "20260103_030303"]
+        for ts in stamps:
+            for name in (f"results_{ts}.json", f"gemini_{ts}.txt", f"summary_{ts}.md"):
+                (tmp_path / name).write_text("x")
+        orch._prune_old_outputs(tmp_path)
+        remaining = sorted(p.name for p in tmp_path.iterdir())
+        assert not any(stamps[0] in n for n in remaining)
+        assert sum(1 for n in remaining if stamps[1] in n) == 3
+        assert sum(1 for n in remaining if stamps[2] in n) == 3
+
     def test_print_results_json(self, tmp_path, capsys):
         orch = _make_orchestrator(tmp_path)
         result = {

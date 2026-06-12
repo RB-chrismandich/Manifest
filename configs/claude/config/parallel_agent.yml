@@ -63,22 +63,10 @@ timeouts:
   analyze: 900
   improve: 300
 
-# Retry configuration
-retry:
-  max_attempts: 3
-  initial_backoff: 1.0
-  backoff_multiplier: 2.0
-  max_backoff: 60.0
-  jitter: 0.1
-
 # Output configuration
 output:
   directory: "~/.claude/.agent_outputs"
-  permissions: "0700"
-  keep_last: 50  # Auto-cleanup old outputs
-  formats:
-    - json
-    - markdown
+  keep_last: 50  # Auto-cleanup: prune all files of runs older than the newest 50
 
 # Validation thresholds
 validation:
@@ -86,8 +74,6 @@ validation:
     high: 0.80
     medium: 0.50
     low: 0.30
-  tier1_weight: 0.3   # Security, breaking changes, cross-verification
-  tier2_weight: 0.25  # Bug detection, performance, maintainability
 
 # Credit fallback configuration
 # Fallback chains are ordered most→least expensive; on credit exhaustion an agent falls to the
@@ -143,7 +129,6 @@ cli_agents:
 # Logging configuration
 logging:
   level: INFO  # DEBUG, INFO, WARNING, ERROR
-  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
   file: "~/.claude/.agent_outputs/parallel_agent.log"
   max_bytes: 10485760  # 10MB
   backup_count: 5
