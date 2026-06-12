@@ -169,8 +169,10 @@ content_hash() {
     cat "$@" 2>/dev/null | shasum | awk '{print $1}'
 }
 
-# Gating for silent/hook mode. Returns 0 (run) or 1 (skip, with reason on stdout).
-# Records the hash in $SPEC_REVIEW_STATE/.last-run only when it decides to run.
+# Gating for silent/hook mode. Returns 0 (run, hash on stdout) or 1 (skip,
+# with reason on stdout). The hash is recorded in .last-run only after a
+# *successful* review (_silent_review_inline) — recording it here meant one
+# transient reviewer failure permanently skipped that content (issue #317).
 should_run_silent() {
     local root="${1:-.}" state="$SPEC_REVIEW_STATE"
     # Collect paths into an array (bash 3.2-safe) so paths with spaces hash
@@ -185,7 +187,7 @@ should_run_silent() {
     if [[ -f "$prev" && "$(cat "$prev")" == "$now" ]]; then
         echo "skip: unchanged"; return 1
     fi
-    echo "$now" > "$prev"
+    echo "$now"
     return 0
 }
 
@@ -215,23 +217,27 @@ review() {
 }
 
 # The actual review for hook mode, fail-open. Writes feedback.md atomically.
+# Records the content hash (2nd arg) in .last-run only on success, so a failed
+# review is retried on the next save of the same content (issue #317).
 _silent_review_inline() {
-    local root="$1" state="$SPEC_REVIEW_STATE"
+    local root="$1" review_hash="${2:-}" state="$SPEC_REVIEW_STATE"
     mkdir -p "$state"
     local arts=() line prompt raw
     while IFS= read -r line; do [[ -n "$line" ]] && arts+=("$line"); done < <(discover_artifacts "$root")
     [[ "${#arts[@]}" -eq 0 ]] && return 0   # defensive: nothing to review (set -u safe)
     prompt="$(assemble_prompt "$SPEC_REVIEW_TEMPLATE" "${arts[@]+"${arts[@]}"}")"
     if ! raw="$(run_reviewer "$prompt" 2>>"$state/error.log")"; then
-        return 0   # fail-open: reviewer failed, never block
+        return 0   # fail-open: reviewer failed, never block; hash not recorded
     fi
     format_findings "$raw" "tree" > "$state/feedback.md.tmp" && mv "$state/feedback.md.tmp" "$state/feedback.md"
+    [[ -n "$review_hash" ]] && echo "$review_hash" > "$state/.last-run"
+    return 0
 }
 
 # Silent/hook entry: gate, single-flight lock, detach the reviewer call.
 run_silent() {
-    local root="${1:-.}" state="$SPEC_REVIEW_STATE"
-    if ! should_run_silent "$root" >/dev/null; then
+    local root="${1:-.}" state="$SPEC_REVIEW_STATE" review_hash
+    if ! review_hash="$(should_run_silent "$root")"; then
         return 0   # gate said skip (fewer than 2 artifacts / unchanged)
     fi
     mkdir -p "$state"
@@ -245,10 +251,10 @@ run_silent() {
     # `|| true` after the review so an unexpected non-zero (disk full, etc.) never
     # skips the lock release or breaks the fail-open contract.
     if [[ -n "$SPEC_REVIEW_NO_DETACH" ]]; then
-        _silent_review_inline "$root" || true; rmdir "$state/.lock" 2>/dev/null || true
+        _silent_review_inline "$root" "$review_hash" || true; rmdir "$state/.lock" 2>/dev/null || true
     else
         # Detach so the agent loop never waits on the reviewer; release lock when done.
-        ( _silent_review_inline "$root" || true; rmdir "$state/.lock" 2>/dev/null || true ) >/dev/null 2>&1 &
+        ( _silent_review_inline "$root" "$review_hash" || true; rmdir "$state/.lock" 2>/dev/null || true ) >/dev/null 2>&1 &
         disown 2>/dev/null || true
     fi
     return 0

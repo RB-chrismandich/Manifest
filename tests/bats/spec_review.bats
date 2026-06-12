@@ -143,14 +143,20 @@ STUB
     assert_output --partial "fewer than 2 artifacts"
 }
 
-@test "should_run_silent runs on first change, skips on unchanged hash" {
+@test "should_run_silent runs until a successful review records the hash (issue #317)" {
     mkdir -p "$SANDBOX/specs/001"
     printf 's\n' > "$SANDBOX/specs/001/spec.md"
     printf 'p\n' > "$SANDBOX/specs/001/plan.md"
     source "$SCRIPT"
     export SPEC_REVIEW_STATE="$SANDBOX/.spec-review"
     run should_run_silent "$SANDBOX"; assert_success          # first time: changed
-    run should_run_silent "$SANDBOX"; assert_failure          # unchanged hash
+    # The gate no longer records the hash — a failed review must be retried,
+    # so an immediate second call still says run.
+    run should_run_silent "$SANDBOX"; assert_success
+    # Simulate a successful review recording the hash (what
+    # _silent_review_inline does on success); now identical content skips.
+    echo "$output" > "$SPEC_REVIEW_STATE/.last-run"
+    run should_run_silent "$SANDBOX"; assert_failure
     assert_output --partial "unchanged"
     printf 'p2\n' > "$SANDBOX/specs/001/plan.md"
     run should_run_silent "$SANDBOX"; assert_success          # changed again
