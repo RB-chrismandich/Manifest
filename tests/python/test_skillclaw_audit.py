@@ -189,6 +189,22 @@ def test_trim_clamps_nonpositive_max_runs_to_keep_recent_one(tmp_path, monkeypat
     assert rids == {"run-2"}
 
 
+def test_trim_survives_valid_json_non_dict_lines(tmp_path, monkeypatch):
+    """Issue #311: a torn write leaving `123` or `null` (valid JSON, not a dict)
+    raised AttributeError into the outer fail-open handler, permanently
+    disabling trimming."""
+    monkeypatch.setenv("SKILLCLAW_AUDIT_DIR", str(tmp_path))
+    for i in range(4):
+        audit.log("run-%d" % i, "-", "run_start")
+    log = tmp_path / "promote.log"
+    log.write_text(log.read_text() + "123\nnull\nnot json at all\n")
+    audit.trim(max_runs=2)
+    lines = log.read_text().splitlines()
+    rids = {json.loads(ln)["run_id"] for ln in lines}
+    assert rids == {"run-2", "run-3"}  # trim actually ran
+    assert "123" not in lines and "null" not in lines
+
+
 def test_trim_is_atomic_on_failure(tmp_path, monkeypatch):
     monkeypatch.setenv("SKILLCLAW_AUDIT_DIR", str(tmp_path))
     for i in range(3):
