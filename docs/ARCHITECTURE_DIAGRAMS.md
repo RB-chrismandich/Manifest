@@ -225,7 +225,8 @@ flowchart TB
 - **SynthesisEngine**: Automatic disagreement resolution when consensus < 50%, uses Claude Sonnet with synthesis.md template
 - **Streaming**: Real-time Rich Live display with progressive updates (4 updates/sec, 500 char truncation)
 - **RateLimiter**: Token bucket algorithm with burst support and adaptive backoff
-- **CLIAgent**: Generic YAML-driven subprocess agent; provider variation (cursor | codex | antigravity) is config data in the `cli_agents:` block — no per-provider subclass needed
+- **CLIAgent**: Generic YAML-driven subprocess agent; provider variation (cursor | codex |
+  antigravity) is config data in the `cli_agents:` block — no per-provider subclass needed
 - **Dual Package Support**: google-genai (new) with fallback to google-generativeai (legacy), unified interface
 
 **Execution Flow**:
