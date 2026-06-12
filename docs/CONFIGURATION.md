@@ -515,200 +515,60 @@ command_overrides:
     # No validation for diagram generation
 ```
 
-### Project-Specific Validation Overrides
+### Customizing Validation per Command
 
-Create project-specific validation rules by adding a `validation_overrides.yml` file to your
-project's `configs/claude/config/` directory.
-This extends the base validation criteria with domain-specific checks.
+Validation behavior is customized through the `command_overrides` section of
+`validation_criteria.yml` itself — this is the mechanism the validation engine
+(`agents/validation.py`) actually loads.
 
-**File**: `configs/claude/config/validation_overrides.yml` (in your project)
+**File**: `~/.claude/config/validation_criteria.yml`
 
 #### Structure
 
 ```yaml
-# Project-Specific Validation Overrides
-# Extends ~/.claude/config/validation_criteria.yml
+command_overrides:
+  refactor-python:
+    tier1_required: true
+    tier1_checks:
+      - security
+      - error_handling
+      - breaking_changes
+      - cross_verification
+    tier2_required: true
+    tier2_threshold: 0.80
+    consensus_threshold: 0.80
+    consensus_action:
+      high: auto_proceed          # >=80%: Use unified recommendation
+      medium: show_disagreements  # 50-79%: Highlight to user
+      low: block_and_escalate     # <50%: Human review required
 
-project_tier1:
-  # Custom Tier 1 checks for your project
-  custom_security_check:
-    weight: 0.30
-    severity: critical
-    description: "Project-specific security requirement"
-    applies_to:
-      - "path/to/**/*.py"
-      - "another/path/**/*.js"
-    checks:
-      - id: check_identifier
-        description: "What this check validates"
-        patterns:
-          - "regex pattern to match good code"
-        patterns_bad:
-          - "regex pattern to match bad code"
-
-project_tier2:
-  # Custom Tier 2 checks for your project
-  custom_quality_check:
-    weight: 0.25
-    severity: medium
-    description: "Project-specific quality requirement"
-    applies_to:
-      - "**/*.ts"
-    checks:
-      - id: check_identifier
-        description: "What this check validates"
-        indicators:
-          - "pattern1"
-          - "pattern2"
-
-# Exemptions for specific paths
-exemptions:
-  - path: "**/tests/**/*.py"
-    reason: "Test files"
-    skip_checks:
-      - custom_security_check
-
-  - path: "**/migrations/*.py"
-    reason: "Generated migration files"
-    skip_checks:
-      - custom_quality_check
+  docs-readme:
+    tier1_required: false
+    tier2_required: true
+    tier2_checks:
+      - maintainability
+    parallel_agents: false
 ```
 
-#### Framework-Specific Examples
-
-**Django Projects**: See `templates/validation-overrides/django-security.yml`
-
-- CSRF protection checks
-- SQL injection prevention (no raw SQL with string interpolation)
-- XSS protection (template auto-escaping)
-- SECRET_KEY from environment
-- Migration safety (reversibility, backwards compatibility)
-
-**Express.js/Node.js Projects**: See `templates/validation-overrides/express-security.yml`
-
-- Input validation (Joi, Zod schemas)
-- SQL injection prevention (parameterized queries)
-- Authentication middleware
-- Helmet.js security headers
-- Rate limiting on sensitive endpoints
-
-**Go Projects**: See `templates/validation-overrides/go-security.yml` (coming soon)
-
-- SQL injection (database/sql parameterized queries)
-- Path traversal prevention
-- Secrets in environment variables (not code)
-- Context usage in HTTP handlers
+When `parallel_agent.py --validate` runs with a `--command` context, the
+matching override replaces the default tier requirements for that run; the
+result reports `command_overrides_applied: true`.
 
 #### How Overrides Work
 
-1. **Base criteria loaded first**: `~/.claude/config/validation_criteria.yml`
-2. **Project overrides merged**: `configs/claude/config/validation_overrides.yml`
-3. **Project checks added**: New `project_tier1` and `project_tier2` sections
-4. **Exemptions applied**: Specific paths can skip certain checks
+1. **Base criteria loaded**: `~/.claude/config/validation_criteria.yml`
+   (tier1/tier2 definitions and verdict thresholds)
+2. **Command override selected**: the entry under `command_overrides:`
+   matching the invoked command, if any
+3. **Verdict computed**: APPROVED / NEEDS_REVIEW / BLOCKED per the
+   (possibly overridden) tier requirements
 
-**Example workflow**:
-
-```bash
-# 1. Copy template for your framework
-cp templates/validation-overrides/django-security.yml \
-   configs/claude/config/validation_overrides.yml
-
-# 2. Customize for your project
-vim configs/claude/config/validation_overrides.yml
-
-# 3. Test validation
-~/.claude/scripts/parallel_agent.py --validate --review path/to/file.py
-
-# 4. Adjust thresholds or exemptions as needed
-```
-
-#### Pattern Syntax
-
-**Simple pattern matching**:
-
-```yaml
-patterns:
-  - "jwt.verify"           # Must contain this string
-  - "authenticate"         # Or this string
-```
-
-**Regex patterns**:
-
-```yaml
-patterns:
-  - "\\$\\{.*\\}.*SELECT"  # Template literal in SQL (bad)
-  - "req\\.body\\["        # Direct req.body access (bad)
-```
-
-**Context-aware patterns**:
-
-```yaml
-patterns:
-  - "current_version"      # Must contain this...
-context: "UpdateTransaction"  # ...within this context
-```
-
-**Good vs Bad patterns**:
-
-```yaml
-patterns_good:
-  - "cursor.execute.*%s"   # Parameterized query (good)
-patterns_bad:
-  - "cursor.execute.*f\""  # f-string in SQL (bad)
-```
-
-#### Validation Output
-
-When project-specific checks are used:
-
-```text
-🔍 Validation Results (with project overrides)
-
-Base Checks:
-  ✅ Cross-verification: PASS
-  ✅ Security (base): PASS
-  ✅ Error handling: PASS
-
-Project-Specific Checks:
-  ✅ Django CSRF: PASS
-     - CSRF middleware enabled in settings.py
-  ⚠️  Django SQL injection: WARNING
-     - raw() call found in queries.py:42
-     - Recommendation: Use parameterized queries
-  ❌ Django template safety: FAIL
-     - 'safe' filter used without justification (templates/user.html:15)
-
-Overall: NEEDS_REVIEW (tier1 pass, tier2: 0.55)
-```
-
-#### Best Practices
-
-1. **Start with a template**: Use framework examples from `templates/validation-overrides/`
-2. **Document your checks**: Clear descriptions help team understand violations
-3. **Use exemptions wisely**: Tests and generated files often need exemptions
-4. **Test incrementally**: Add one check at a time, verify it works
-5. **Version control**: Commit `validation_overrides.yml` to your repository
-6. **Team alignment**: Discuss thresholds and exemptions with your team
-
-#### Troubleshooting
-
-**Check not triggering**:
-
-- Verify `applies_to` paths match your file structure
-- Test regex patterns with a simple script
-- Enable verbose logging (if available)
-
-**Too many false positives**:
-
-- Refine `patterns` to be more specific
-- Add `context` to narrow scope
-- Use `exemptions` for known good cases
-
-**Check too strict**:
-
-- Lower `weight` for tier2 checks
-- Add exceptions for edge cases
-- Document reasoning in comments
+> **Note**: A standalone `validation_overrides.yml` file with
+> pattern-based project checks (as shipped in
+> `docs/templates/validation-overrides/`) is a design sketch — no code
+> loads that file today. Use `command_overrides` above for working
+> customization; the templates document the checks worth adopting if the
+> loader is implemented (tracked in issue #325).
 
 ---
 
