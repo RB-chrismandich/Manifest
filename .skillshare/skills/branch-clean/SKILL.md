@@ -1,10 +1,10 @@
 ---
 name: branch-clean
-description: |
+description: >-
   Identify and safely prune stale git branches — merged into the default branch,
-  tracking a deleted remote ([gone]), or stale beyond a threshold. Dry-run by
-  default, local-only by default (remote deletion is opt-in), and never touches
-  protected or currently checked-out branches.
+  tracking a deleted remote ([gone]), or stale beyond a threshold. Dry-run and
+  local-only by default (remote deletion opt-in); never touches protected or
+  checked-out branches.
 ---
 
 # Branch Cleanup

@@ -1,10 +1,10 @@
 ---
 name: docs-all
-description: |
+description: >-
   Run all documentation skills (docs-readme, docs-diagrams, docs-improve) in one
-  command, dispatching each as a sub-agent in an order chosen per run (with a
-  documented default precedence as fallback), and return a single consolidated
-  report. Use to refresh the whole doc set at once.
+  command, dispatching each as a sub-agent in a per-run order (documented
+  default precedence as fallback), and return a single consolidated report. Use
+  to refresh the whole doc set at once.
 ---
 
 # All-in-One Documentation Refresh

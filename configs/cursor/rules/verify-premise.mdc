@@ -1,12 +1,12 @@
 ---
-description: "Use before designing or building anything on a load-bearing assumption — verify it actually exists and behaves as believed first. Triggers when a spec, skill, hook, parser, or config depends on a CLI/binary existing with assumed subcommands/flags, a tool capability or env var being consumed, an API response's path/fields/date semantics, or a container image's runtime contract (entrypoint, supported settings)."
+description: "Use before building on a load-bearing assumption — verify it exists and behaves as believed first. Triggers when a spec, skill, hook, parser, or config depends on a CLI's assumed subcommands/flags, a consumed tool capability or env var, an API response's fields/date semantics, or a container image's runtime contract."
 globs: ".claude/skills/verify-premise/**"
 alwaysApply: false
 ---
 
 # verify-premise
 
-Use before designing or building anything on a load-bearing assumption — verify it actually exists and behaves as believed first. Triggers when a spec, skill, hook, parser, or config depends on a CLI/binary existing with assumed subcommands/flags, a tool capability or env var being consumed, an API response's path/fields/date semantics, or a container image's runtime contract (entrypoint, supported settings).
+Use before building on a load-bearing assumption — verify it exists and behaves as believed first. Triggers when a spec, skill, hook, parser, or config depends on a CLI's assumed subcommands/flags, a consumed tool capability or env var, an API response's fields/date semantics, or a container image's runtime contract.
 
 <!-- Auto-generated from .claude/skills/verify-premise/SKILL.md -->
 <!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->

@@ -1,12 +1,10 @@
 ---
 name: spec-review
-description: |
-  Cross-reference a project's spec / plan / tasks artifacts for internal
-  consistency using an independent model (Antigravity / `agy`), and surface structured
-  remediation guidance (Location / Gap / Recommended Direction / Reason Why).
-  Analysis-only — never edits artifacts. Works with both speckit
-  (spec.md/plan.md/tasks.md) and superpowers (design + plan-with-embedded-tasks)
-  layouts. Auto-discovers artifacts, or pass explicit paths.
+description: >-
+  Cross-reference spec/plan/tasks artifacts for internal consistency using an
+  independent model (Antigravity/agy); surfaces structured remediation guidance.
+  Analysis-only — never edits. Works with speckit (spec.md/plan.md/tasks.md) and
+  superpowers layouts; auto-discovers artifacts or takes explicit paths.
 ---
 
 # Spec Review (Antigravity cross-reference)

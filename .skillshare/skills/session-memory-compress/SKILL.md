@@ -1,6 +1,10 @@
 ---
 name: session-memory-compress
-description: Use when digesting, compressing, or summarizing session memory — distill a single session/transcript into a one-line dated daily-memory entry, or losslessly compress/rotate a set of existing memory entries (daily summary, shorthand rewrite, rotation, one-sentence log line) — with zero information loss.
+description: >-
+  Use when digesting, compressing, or summarizing session memory — distill a
+  session/transcript into a one-line dated daily-memory entry, or losslessly
+  compress/rotate existing memory entries (daily summary, shorthand rewrite,
+  rotation, one-sentence log line) — with zero information loss.
 ---
 # Session Memory Compress
 

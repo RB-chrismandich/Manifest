@@ -1,6 +1,11 @@
 ---
 name: verify-premise
-description: Use before designing or building anything on a load-bearing assumption — verify it actually exists and behaves as believed first. Triggers when a spec, skill, hook, parser, or config depends on a CLI/binary existing with assumed subcommands/flags, a tool capability or env var being consumed, an API response's path/fields/date semantics, or a container image's runtime contract (entrypoint, supported settings).
+description: >-
+  Use before building on a load-bearing assumption — verify it exists and
+  behaves as believed first. Triggers when a spec, skill, hook, parser, or
+  config depends on a CLI's assumed subcommands/flags, a consumed tool
+  capability or env var, an API response's fields/date semantics, or a container
+  image's runtime contract.
 ---
 
 # Verify the Premise Before Building On It

@@ -6,30 +6,12 @@
 
 ## What This Repo Is
 
-This repository manages AI agent configurations (Claude Code, Cursor, Gemini CLI,
-Codex CLI) for deployment to `~/` on target machines. It contains orchestration
-guides, commands, skills, prompts, and scripts that enable parallel LLM agent
-coordination.
+Repository purpose and the full directory tree are in the root
+[CLAUDE.md](../CLAUDE.md) (loaded alongside this file).
 
 **Important**: The deployment source configs live in `configs/`, not in root
 dot-directories. This prevents project-level config from overriding your active
 session when working in this repo.
-
-## Repository Layout
-
-```text
-configs/                  # Deployment source configs (deployed to ~/ via bootstrap.sh)
-  claude/                 # → ~/.claude/  (CLAUDE.md, skills/, config/, scripts/)
-  cursor/                 # → ~/.cursor/  (rules/, mcp.json + symlinks to claude/)
-  gemini/                 # → ~/.gemini/  (GEMINI.md, settings.json + symlinks to claude/)
-  codex/                  # → ~/.codex/   (AGENTS.md symlink + symlinks to claude/)
-
-.claude/                  # Repo-specific only (this file + settings.local.json)
-bootstrap.sh              # Deploys configs/ to ~/
-bootstrap/lib/            # Modular bootstrap libraries
-tests/                    # Bats + pytest test suites
-docs/                     # Project documentation
-```
 
 ## Skill Management (skillshare)
 
@@ -78,12 +60,6 @@ shellcheck configs/claude/scripts/*.sh bootstrap.sh bootstrap/lib/*.sh
 yamllint configs/claude/config/*.yml
 ```
 
-### Validate YAML configs
-
-```bash
-python3 -c "import yaml; yaml.safe_load(open('configs/claude/config/command_config.yml'))"
-```
-
 ## Script Conventions (configs/claude/scripts/)
 
 - **Error output**: `err() { echo "<script-name>: $*" >&2; }` is canonical;
@@ -98,14 +74,6 @@ python3 -c "import yaml; yaml.safe_load(open('configs/claude/config/command_conf
 
 ## Key Paths (in this repo)
 
-| What | Path |
-|------|------|
-| Orchestration guide | `configs/claude/CLAUDE.md` |
-| Skills (slash commands) | `configs/claude/skills/` |
-| Scripts | `configs/claude/scripts/` |
-| Config files | `configs/claude/config/` |
-| Cursor rules | `configs/cursor/rules/` |
-| Gemini guide | `configs/gemini/GEMINI.md` |
-| Bootstrap | `bootstrap.sh` + `bootstrap/lib/` |
-| Tests | `tests/bats/`, `tests/python/` |
-| Spec/plan systems map | `docs/SPEC-SYSTEMS.md` (speckit vs superpowers vs .plans vs .Jules) |
+Paths are mapped in the root [CLAUDE.md](../CLAUDE.md) structure tree. One not
+listed there: `docs/SPEC-SYSTEMS.md` — spec/plan systems map (speckit vs
+superpowers vs `.plans` vs `.Jules`).

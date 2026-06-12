@@ -118,6 +118,26 @@ EOF
     assert_output --partial 'description: "First line of description. Second line of description."'
 }
 
+@test "folded scalar description (description: >-) is collapsed into one line" {
+    mkdir -p "$SKILLS_DIR/foldy"
+    cat > "$SKILLS_DIR/foldy/SKILL.md" <<'EOF'
+---
+name: foldy
+description: >-
+  First line of description.
+  Second line of description.
+---
+
+# foldy
+EOF
+
+    run "$GEN"
+    assert_success
+
+    run cat "$RULES_DIR/foldy.mdc"
+    assert_output --partial 'description: "First line of description. Second line of description."'
+}
+
 @test "missing description falls back to '<name> skill'" {
     # BUG: the intended fallback (description="${description:-$skill_name skill}",
     # line 65) is unreachable. With `set -euo pipefail`, a SKILL.md whose

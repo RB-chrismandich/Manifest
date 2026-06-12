@@ -1,12 +1,12 @@
 ---
-description: "Enforce specific, hashed version pins in dependency files (requirements.txt, docker-compose.yaml, Dockerfiles). Detects loose references (latest, missing version, unbounded range, missing hash), resolves a specific version plus integrity hash via native package managers, and auto-fixes on demand or warns on the save hook. Supports an explicit per-entry bypass."
+description: "Enforce specific, hashed version pins in dependency files (requirements.txt, docker-compose.yaml, Dockerfiles). Detects loose refs (latest, missing version/hash, unbounded range), resolves version + hash via native package managers; auto-fixes on demand or warns on the save hook. Explicit per-entry bypass supported."
 globs: ".claude/skills/version-pin/**"
 alwaysApply: false
 ---
 
 # version-pin
 
-Enforce specific, hashed version pins in dependency files (requirements.txt, docker-compose.yaml, Dockerfiles). Detects loose references (latest, missing version, unbounded range, missing hash), resolves a specific version plus integrity hash via native package managers, and auto-fixes on demand or warns on the save hook. Supports an explicit per-entry bypass.
+Enforce specific, hashed version pins in dependency files (requirements.txt, docker-compose.yaml, Dockerfiles). Detects loose refs (latest, missing version/hash, unbounded range), resolves version + hash via native package managers; auto-fixes on demand or warns on the save hook. Explicit per-entry bypass supported.
 
 <!-- Auto-generated from .claude/skills/version-pin/SKILL.md -->
 <!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
