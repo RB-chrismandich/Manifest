@@ -47,11 +47,11 @@ install_package_manager() {
 
                 # Add Homebrew to PATH for Apple Silicon
                 if [[ -f "/opt/homebrew/bin/brew" ]]; then
-                    eval "$(/opt/homebrew/bin/brew shellenv)"
+                    source <(/opt/homebrew/bin/brew shellenv)
                 fi
                 # Add Homebrew to PATH for Intel Mac
                 if [[ -f "/usr/local/bin/brew" ]]; then
-                    eval "$(/usr/local/bin/brew shellenv)"
+                    source <(/usr/local/bin/brew shellenv)
                 fi
                 print_success "Homebrew installed"
             else
@@ -287,7 +287,7 @@ install_node() {
                         sudo apt-get install -y nodejs
                     elif [[ "$PKG_MANAGER" == "dnf" || "$PKG_MANAGER" == "yum" ]]; then
                         curl -fsSL https://rpm.nodesource.com/setup_lts.x | sudo bash -
-                        sudo $PKG_MANAGER install -y nodejs
+                        sudo "$PKG_MANAGER" install -y nodejs
                     else
                         print_warning "NodeSource not available for $PKG_MANAGER"
                         print_info "Please install Node.js manually from https://nodejs.org"
