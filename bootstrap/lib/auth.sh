@@ -68,8 +68,11 @@ setup_gemini_auth() {
     case $auth_choice in
         1)
             if command_exists gemini; then
-                print_step "Running 'gemini auth login'..."
-                gemini auth login
+                # There is no `gemini auth login` subcommand — the CLI treats
+                # unknown args as a prompt and spawns an agent session
+                # (issue #319). First run of the bare CLI triggers OAuth.
+                print_step "Launching Gemini CLI — choose 'Login with Google', then exit with /quit..."
+                gemini
                 return $?
             else
                 print_error "Gemini CLI not found."
@@ -156,7 +159,7 @@ check_gemini_auth() {
     echo "  To authenticate, run one of the following after bootstrap completes:"
     echo ""
     echo "    # Browser-based OAuth (recommended for personal use):"
-    echo -e "    ${CYAN}gemini auth login${NC}"
+    echo -e "    ${CYAN}gemini${NC}  # first run prompts a Google login (or use /auth inside the CLI)"
     echo ""
     echo "    # Or set an API key in your shell profile:"
     echo -e "    ${CYAN}export GEMINI_API_KEY='your-api-key'${NC}"
@@ -255,12 +258,30 @@ configure_shell_profile_state() {
 
     # Write MANIFEST_ROOT — always update in case bootstrap is re-run from a new path.
     # Cross-platform safe: avoids sed -i BSD/GNU incompatibility on macOS.
+    # Filter out the comment and the export together — removing only the
+    # export left the comment + blank line behind and every run appended a
+    # fresh trio, growing the profile by 2 lines per run (issue #324). awk
+    # (not grep -v) so an empty result is not treated as failure, which
+    # previously kept the stale export and produced conflicting duplicates.
     if [[ -f "$profile_file" ]]; then
-        if grep -v 'export MANIFEST_ROOT=' "$profile_file" > "${profile_file}.tmp" 2>/dev/null; then
-            mv "${profile_file}.tmp" "$profile_file"
-        else
-            rm -f "${profile_file}.tmp"
-        fi
+        awk '
+            # Buffer blank runs so the one preceding the managed block can be
+            # dropped along with it
+            /^$/ { blanks++; next }
+            /^# Manifest repository root \(managed by bootstrap\.sh\)$/ {
+                if (blanks > 0) blanks--
+                while (blanks-- > 0) print ""
+                blanks = 0
+                next
+            }
+            /^export MANIFEST_ROOT=/ { next }
+            {
+                while (blanks-- > 0) print ""
+                blanks = 0
+                print
+            }
+            END { while (blanks-- > 0) print "" }
+        ' "$profile_file" > "${profile_file}.tmp" && mv "${profile_file}.tmp" "$profile_file"
     fi
     {
         echo ""

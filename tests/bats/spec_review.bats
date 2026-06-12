@@ -143,14 +143,20 @@ STUB
     assert_output --partial "fewer than 2 artifacts"
 }
 
-@test "should_run_silent runs on first change, skips on unchanged hash" {
+@test "should_run_silent runs until a successful review records the hash (issue #317)" {
     mkdir -p "$SANDBOX/specs/001"
     printf 's\n' > "$SANDBOX/specs/001/spec.md"
     printf 'p\n' > "$SANDBOX/specs/001/plan.md"
     source "$SCRIPT"
     export SPEC_REVIEW_STATE="$SANDBOX/.spec-review"
     run should_run_silent "$SANDBOX"; assert_success          # first time: changed
-    run should_run_silent "$SANDBOX"; assert_failure          # unchanged hash
+    # The gate no longer records the hash — a failed review must be retried,
+    # so an immediate second call still says run.
+    run should_run_silent "$SANDBOX"; assert_success
+    # Simulate a successful review recording the hash (what
+    # _silent_review_inline does on success); now identical content skips.
+    echo "$output" > "$SPEC_REVIEW_STATE/.last-run"
+    run should_run_silent "$SANDBOX"; assert_failure
     assert_output --partial "unchanged"
     printf 'p2\n' > "$SANDBOX/specs/001/plan.md"
     run should_run_silent "$SANDBOX"; assert_success          # changed again
@@ -294,4 +300,87 @@ STUB
         run bash "$SCRIPT" "$SANDBOX"
     assert_success
     assert_output --partial "CLARIFICATION REQUIRED: Migration"
+}
+
+# ---------------------------------------------------------------------------
+# SPEC_REVIEW_MODEL seam
+# ---------------------------------------------------------------------------
+
+@test "resolve_review_model honors explicit SPEC_REVIEW_MODEL" {
+    source "$SCRIPT"
+    SPEC_REVIEW_MODEL="My Model X"
+    run resolve_review_model
+    assert_success
+    assert_output "My Model X"
+}
+
+@test "resolve_review_model reads model_tiers.antigravity.advanced for agy" {
+    cat > "$SANDBOX/pa.yml" <<'EOF'
+model_tiers:
+  antigravity:
+    advanced: "Claude Opus 4.6 (Thinking)"
+EOF
+    source "$SCRIPT"
+    SPEC_REVIEW_MODEL=""
+    SPEC_REVIEW_CLI="agy"
+    SPEC_REVIEW_CONFIG="$SANDBOX/pa.yml"
+    run resolve_review_model
+    assert_success
+    assert_output "Claude Opus 4.6 (Thinking)"
+}
+
+@test "resolve_review_model is empty for non-agy CLI without explicit model" {
+    cat > "$SANDBOX/pa.yml" <<'EOF'
+model_tiers:
+  antigravity:
+    advanced: "Claude Opus 4.6 (Thinking)"
+EOF
+    source "$SCRIPT"
+    SPEC_REVIEW_MODEL=""
+    SPEC_REVIEW_CLI="gemini"
+    SPEC_REVIEW_CONFIG="$SANDBOX/pa.yml"
+    run resolve_review_model
+    assert_success
+    assert_output ""
+}
+
+@test "resolve_review_model fails open when config is missing" {
+    source "$SCRIPT"
+    SPEC_REVIEW_MODEL=""
+    SPEC_REVIEW_CLI="agy"
+    SPEC_REVIEW_CONFIG="$SANDBOX/does-not-exist.yml"
+    run resolve_review_model
+    assert_success
+    assert_output ""
+}
+
+@test "run_reviewer passes --model when a model resolves" {
+    mkdir -p "$SANDBOX/bin"
+    cat > "$SANDBOX/bin/fakecli" <<'EOF'
+#!/usr/bin/env bash
+echo "ARGS:$*"
+EOF
+    chmod +x "$SANDBOX/bin/fakecli"
+    source "$SCRIPT"
+    SPEC_REVIEW_CLI="$SANDBOX/bin/fakecli"
+    SPEC_REVIEW_MODEL="Tier-X"
+    run run_reviewer "prompt body"
+    assert_success
+    assert_output --partial "--model Tier-X"
+}
+
+@test "run_reviewer omits --model when nothing resolves" {
+    mkdir -p "$SANDBOX/bin"
+    cat > "$SANDBOX/bin/fakecli" <<'EOF'
+#!/usr/bin/env bash
+echo "ARGS:$*"
+EOF
+    chmod +x "$SANDBOX/bin/fakecli"
+    source "$SCRIPT"
+    SPEC_REVIEW_CLI="$SANDBOX/bin/fakecli"
+    SPEC_REVIEW_MODEL=""
+    SPEC_REVIEW_CONFIG="$SANDBOX/does-not-exist.yml"
+    run run_reviewer "prompt body"
+    assert_success
+    refute_output --partial "--model"
 }

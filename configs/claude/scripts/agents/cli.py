@@ -23,8 +23,7 @@ from agents.orchestrator import Orchestrator, check_credits
 from agents.runners import (
     BaseAgent,
     ClaudeAgent,
-    CodexAgent,
-    CursorAgent,
+    CLIAgent,
     GeminiAgent,
 )
 
@@ -46,18 +45,18 @@ async def main():
     parser.add_argument("--output", metavar="DIR", help="Custom output directory")
     parser.add_argument(
         "--full-output",
-        action="store_true",
+        action=argparse.BooleanOptionalAction,
         default=True,
-        help="Include complete outputs",
+        help="Include complete outputs (--no-full-output truncates to 1000 chars)",
     )
     parser.add_argument(
         "--no-stream", action="store_true", help="Disable streaming output"
     )
     parser.add_argument(
         "--synthesize",
-        action="store_true",
+        action=argparse.BooleanOptionalAction,
         default=True,
-        help="Enable synthesis for low consensus",
+        help="Enable synthesis for low consensus (--no-synthesize disables)",
     )
     parser.add_argument(
         "--timeout",
@@ -69,14 +68,23 @@ async def main():
     parser.add_argument("--gemini-model", default="flash", help="Gemini model tier")
     parser.add_argument("--cursor-model", default="flash", help="Cursor model tier")
     parser.add_argument("--codex-model", default="auto", help="Codex model tier")
+    parser.add_argument(
+        "--antigravity-model", default="flash", help="Antigravity model tier"
+    )
     parser.add_argument("--claude-only", action="store_true", help="Run only Claude")
     parser.add_argument("--gemini-only", action="store_true", help="Run only Gemini")
     parser.add_argument("--cursor-only", action="store_true", help="Run only Cursor")
     parser.add_argument("--codex-only", action="store_true", help="Run only Codex")
+    parser.add_argument(
+        "--antigravity-only", action="store_true", help="Run only Antigravity"
+    )
     parser.add_argument("--no-claude", action="store_true", help="Disable Claude agent")
     parser.add_argument("--no-cursor", action="store_true", help="Disable Cursor agent")
     parser.add_argument("--no-gemini", action="store_true", help="Disable Gemini agent")
     parser.add_argument("--no-codex", action="store_true", help="Disable Codex agent")
+    parser.add_argument(
+        "--no-antigravity", action="store_true", help="Disable Antigravity agent"
+    )
     parser.add_argument(
         "--status",
         action="store_true",
@@ -161,6 +169,7 @@ async def main():
     gemini_limiter = RateLimiter(**config.get("rate_limits.gemini", {}))
     cursor_limiter = RateLimiter(**config.get("rate_limits.cursor", {}))
     codex_limiter = RateLimiter(**config.get("rate_limits.codex", {}))
+    antigravity_limiter = RateLimiter(**config.get("rate_limits.antigravity", {}))
 
     # Determine streaming mode
     streaming = not args.no_stream and config.get("streaming.enabled", True)
@@ -172,6 +181,7 @@ async def main():
         "gemini": services.is_enabled("gemini"),
         "cursor": services.is_enabled("cursor"),
         "codex": services.is_enabled("codex"),
+        "antigravity": services.is_enabled("antigravity"),
     }
 
     # 2. Apply --*-only flags (exclusive: if any set, only those run)
@@ -180,6 +190,7 @@ async def main():
         "gemini": args.gemini_only,
         "cursor": args.cursor_only,
         "codex": args.codex_only,
+        "antigravity": args.antigravity_only,
     }
     if any(only_flags.values()):
         for agent_name in enabled:
@@ -194,6 +205,8 @@ async def main():
         enabled["cursor"] = False
     if args.no_codex:
         enabled["codex"] = False
+    if args.no_antigravity:
+        enabled["antigravity"] = False
 
     # Build agents list
     agents = []
@@ -236,29 +249,36 @@ async def main():
             )
             logger.warning("Google Generative AI package not installed")
 
-    if enabled["cursor"]:
-        agents.append(
-            CursorAgent(
-                args.cursor_model,
-                timeout,
-                cursor_limiter,
-                config=config,
-                logger=logger,
-                streaming=streaming,
-            )
-        )
-
-    if enabled["codex"]:
-        agents.append(
-            CodexAgent(
-                args.codex_model,
-                timeout,
-                codex_limiter,
-                config=config,
-                logger=logger,
-                streaming=streaming,
-            )
-        )
+    cli_limiters = {
+        "cursor": cursor_limiter,
+        "codex": codex_limiter,
+        "antigravity": antigravity_limiter,
+    }
+    cli_models = {
+        "cursor": args.cursor_model,
+        "codex": args.codex_model,
+        "antigravity": args.antigravity_model,
+    }
+    for provider in ("cursor", "codex", "antigravity"):
+        if enabled[provider]:
+            try:
+                agents.append(
+                    CLIAgent(
+                        provider,
+                        cli_models[provider],
+                        timeout,
+                        cli_limiters[provider],
+                        config=config,
+                        logger=logger,
+                        streaming=streaming,
+                    )
+                )
+            except ValueError as e:
+                print(
+                    f"Warning: skipping {provider} agent: {e}",
+                    file=sys.stderr,
+                )
+                logger.warning(f"Skipping {provider} agent: {e}")
 
     # Check minimum agents
     min_warning = services.check_minimum_agents(len(agents))

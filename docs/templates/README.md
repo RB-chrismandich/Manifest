@@ -209,6 +209,13 @@ Auto-trigger skills activate when Claude detects specific code patterns, providi
 
 Project-specific validation rules that extend the base `~/.claude/config/validation_criteria.yml`.
 
+> **Status**: these templates are a design sketch — no code currently loads a
+> `validation_overrides.yml` file (see issue #325). For working per-command
+> customization use the `command_overrides` section of
+> `validation_criteria.yml` (documented in docs/CONFIGURATION.md). The
+> templates below catalog the checks worth adopting if/when the loader is
+> implemented.
+
 ### Django Security
 
 **File**: `validation-overrides/django-security.yml`

@@ -6,25 +6,32 @@
 # Usage: ./bootstrap.sh [options]
 #
 # Service toggles:
-#   --enable-claude     Enable Claude CLI (default: enabled)
-#   --disable-claude    Disable Claude CLI
-#   --enable-gemini     Enable Gemini CLI (default: enabled)
-#   --disable-gemini    Disable Gemini CLI
-#   --enable-cursor     Enable Cursor agent (default: enabled)
-#   --disable-cursor    Disable Cursor agent
-#   --enable-codex      Enable Codex CLI (default: enabled)
-#   --disable-codex     Disable Codex CLI
-#   --enable-gh         Enable GitHub CLI (default: auto-detect)
-#   --disable-gh        Disable GitHub CLI
-#   --enable-glab       Enable GitLab CLI (default: auto-detect)
-#   --disable-glab      Disable GitLab CLI
+#   --enable-claude       Enable Claude CLI (default: enabled)
+#   --disable-claude      Disable Claude CLI
+#   --enable-gemini       Enable Gemini CLI (default: enabled)
+#   --disable-gemini      Disable Gemini CLI
+#   --enable-cursor       Enable Cursor agent (default: enabled)
+#   --disable-cursor      Disable Cursor agent
+#   --enable-codex        Enable Codex CLI (default: enabled)
+#   --disable-codex       Disable Codex CLI
+#   --enable-antigravity  Enable Antigravity IDE (default: enabled)
+#   --disable-antigravity Disable Antigravity IDE
+#   --enable-skillclaw    Enable SkillClaw session capture (default: disabled)
+#   --disable-skillclaw   Disable SkillClaw session capture
+#   --enable-browser-use  Enable browser-use for /browser-test (default: disabled)
+#   --disable-browser-use Disable browser-use
+#   --enable-gh           Enable GitHub CLI (default: auto-detect)
+#   --disable-gh          Disable GitHub CLI
+#   --enable-glab         Enable GitLab CLI (default: auto-detect)
+#   --disable-glab        Disable GitLab CLI
 #
 # Other options:
 #   --skip-install      Skip CLI tool installation
 #   --skip-auth         Skip authentication checks
 #   --install-mcp       Configure default MCP servers for enabled agents
 #   --force             Overwrite existing ~/.claude without prompting
-#   --reconfigure       Only update service toggles (skip full setup)
+#   --reconfigure       Update service toggles and refresh Python/browser-use
+#                       dependencies (skips install and config deployment)
 
 set -e
 
@@ -218,13 +225,20 @@ main() {
 
         install_package_manager
         install_node
-        install_claude
-        install_gemini
-        install_codex
-        install_github_cli
-        install_gitlab_cli
-        check_jq
-        check_cursor
+        # Per-tool installs return 1 as a soft signal (e.g. npm/brew missing);
+        # under set -e an unguarded call aborted the whole bootstrap mid-flight
+        # instead of continuing with the remaining tools (issue #318).
+        local install_failures=0
+        install_claude || install_failures=$((install_failures + 1))
+        install_gemini || install_failures=$((install_failures + 1))
+        install_codex || install_failures=$((install_failures + 1))
+        install_github_cli || install_failures=$((install_failures + 1))
+        install_gitlab_cli || install_failures=$((install_failures + 1))
+        check_jq || install_failures=$((install_failures + 1))
+        check_cursor || install_failures=$((install_failures + 1))
+        if [[ $install_failures -gt 0 ]]; then
+            print_warning "$install_failures install step(s) failed — continuing with remaining setup"
+        fi
     else
         print_info "Skipping installation (--skip-install)"
     fi
@@ -308,12 +322,20 @@ main() {
         run_bootstrap_hook "after_auth"
     fi
 
-    # Verify installation
-    verify_installation
+    # Verify installation. It returns its error count, so an unguarded call
+    # under set -e killed the script before the after_verify hook and the
+    # summary's auth/quick-start guidance could run (issue #318).
+    local verify_errors=0
+    verify_installation || verify_errors=$?
     run_bootstrap_hook "after_verify"
 
     # Print summary
     print_summary
+
+    if [[ $verify_errors -gt 0 ]]; then
+        print_warning "Verification reported $verify_errors error(s) — see above"
+        exit 1
+    fi
 }
 
 # Run main

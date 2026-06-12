@@ -76,7 +76,7 @@ class SynthesisEngine:
             client = AsyncAnthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
             model = self.config.get("synthesis.model", "sonnet")
             model_name = self.config.get(
-                f"model_tiers.claude.{model}", "claude-sonnet-4-5-20250929"
+                f"model_tiers.claude.{model}", "claude-sonnet-4-6"
             )
             timeout = self.config.get("synthesis.timeout", 300)
 
@@ -139,8 +139,18 @@ class SynthesisEngine:
         # Replace template variables
         prompt = prompt.replace("{ORIGINAL_TASK}", original_task)
 
-        # Replace agent outputs
-        for agent_name in ["gemini", "claude", "cursor"]:
+        # Build one output section per agent actually present, so newer
+        # providers (codex, antigravity) aren't silently dropped from
+        # disagreement resolution (issue #309).
+        if "{AGENT_OUTPUTS}" in prompt:
+            sections = []
+            for agent_name in sorted(agent_results):
+                output = agent_results.get(agent_name, {}).get("output") or "N/A"
+                sections.append(f"### {agent_name.capitalize()} Output\n\n{output}")
+            prompt = prompt.replace("{AGENT_OUTPUTS}", "\n\n".join(sections))
+
+        # Legacy fixed placeholders — replace for every agent present
+        for agent_name in agent_results:
             output = agent_results.get(agent_name, {}).get("output", "N/A")
             prompt = prompt.replace(f"{{{agent_name.upper()}_OUTPUT}}", output)
 

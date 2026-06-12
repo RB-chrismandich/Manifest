@@ -206,8 +206,10 @@ case "${platform}" in
             issue-comment-edit-last)
                 issue_num="$1"
                 shift
-                last_note_id=$(glab api "projects/:id/issues/${issue_num}/notes?sort=desc&per_page=1" --jq '.[0].id')
-                if [[ -n "${last_note_id}" ]]; then
+                # `// empty` so an empty notes array yields "" instead of the
+                # literal "null" (which issued PUT to notes/null — issue #316)
+                last_note_id=$(glab api "projects/:id/issues/${issue_num}/notes?sort=desc&per_page=1" --jq '.[0].id // empty')
+                if [[ -n "${last_note_id}" && "${last_note_id}" != "null" ]]; then
                     body=""
                     while [[ $# -gt 0 ]]; do
                         case "$1" in
@@ -281,10 +283,18 @@ case "${platform}" in
                 glab mr diff "$@"
                 ;;
             pr-checks)
-                # GitLab: show pipeline status for MR
+                # GitLab: show pipeline status for MR N. `glab ci view` only
+                # shows the *current branch's* pipeline, so resolve the MR's
+                # source branch first (issue #316).
                 mr_num="$1"
                 shift
-                glab ci view "$@" 2> /dev/null || glab mr view "${mr_num}" --web
+                mr_branch=$(glab mr view "${mr_num}" --output json 2> /dev/null | jq -r '.source_branch // empty')
+                if [[ -n "${mr_branch}" ]]; then
+                    glab ci status --branch "${mr_branch}" "$@" 2> /dev/null \
+                        || glab mr view "${mr_num}" --web
+                else
+                    glab mr view "${mr_num}" --web
+                fi
                 ;;
             pr-merge)
                 glab mr merge "$@"

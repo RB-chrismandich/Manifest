@@ -170,3 +170,42 @@ class TestRateLimiter:
     def test_ignores_extra_kwargs(self):
         limiter = RateLimiter(tokens_per_minute=1000, unknown_param="value")
         assert limiter.rpm == 60
+
+
+# ---------------------------------------------------------------------------
+# cli_agents config block
+# ---------------------------------------------------------------------------
+
+REPO_YAML = REPO_ROOT / "configs" / "claude" / "config" / "parallel_agent.yml"
+
+
+class TestCliAgentsConfig:
+    def test_default_config_has_cli_agents(self, tmp_path):
+        config = Config(config_path=str(tmp_path / "none.yml"))
+        for provider in ("cursor", "codex", "antigravity"):
+            spec = config.get(f"cli_agents.{provider}")
+            assert spec is not None, f"missing cli_agents.{provider}"
+            assert "binary" in spec
+            assert "base_args" in spec
+            assert "model_args" in spec
+            assert spec.get("output") in ("stdout", "file_then_stdout")
+
+    def test_default_config_has_antigravity_entries(self, tmp_path):
+        config = Config(config_path=str(tmp_path / "none.yml"))
+        assert config.get("rate_limits.antigravity.requests_per_minute") == 100
+        assert config.get("credit_fallback.antigravity") == [
+            "advanced", "flash", "mini",
+        ]
+        tiers = config.get("model_tiers.antigravity")
+        assert set(tiers) == {"mini", "flash", "advanced"}
+
+    def test_defaults_match_repo_yaml(self, tmp_path):
+        """config.py defaults and parallel_agent.yml must never disagree."""
+        with open(REPO_YAML) as f:
+            repo = yaml.safe_load(f)
+        defaults = Config(config_path=str(tmp_path / "none.yml")).config
+        for section in ("cli_agents", "model_tiers", "credit_fallback", "rate_limits"):
+            assert repo[section] == defaults[section], (
+                f"{section} drifted between parallel_agent.yml and "
+                f"config.py _default_config()"
+            )

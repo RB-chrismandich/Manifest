@@ -5,7 +5,9 @@ Dependency graph: agents.config → agents.runners (no other cross-module deps).
 
 import asyncio
 import os
+import shutil
 import sys
+import tempfile
 import time
 from typing import Any, Dict, List, Optional
 
@@ -45,6 +47,7 @@ class BaseAgent:
     ):
         self.name = name
         self.model = model
+        self.model_name = model  # Concrete name; subclasses re-resolve via _resolve_model
         self.original_model = model  # Track original for fallback
         self.timeout = timeout
         self.rate_limiter = rate_limiter
@@ -117,6 +120,9 @@ class BaseAgent:
                             file=sys.stderr,
                         )
                         self.model = fallback_model
+                        # Re-resolve the concrete model name or the retry
+                        # silently re-runs the exhausted model (issue #304)
+                        self.model_name = self._resolve_model(fallback_model)
                         self.credit_fallback_used = True
                         await asyncio.sleep(1)  # Brief delay before retry
                         continue
@@ -155,6 +161,10 @@ class BaseAgent:
             "resource_exhausted",
         ]
         return any(pattern in error for pattern in exhaustion_patterns)
+
+    def _resolve_model(self, tier: str) -> Optional[str]:
+        """Resolve a model tier to a concrete model name (subclasses override)."""
+        return tier
 
     def _get_fallback_model(self) -> Optional[str]:
         """Get next fallback model tier"""
@@ -320,7 +330,11 @@ class GeminiAgent(BaseAgent):
                         "  [gemini] OAuth not configured, trying without credentials",
                         file=sys.stderr,
                     )
-                    print("  [gemini] Run: gemini auth login", file=sys.stderr)
+                    print(
+                        "  [gemini] Run the gemini CLI once to complete OAuth"
+                        " (or set GOOGLE_API_KEY)",
+                        file=sys.stderr,
+                    )
                     raise
         else:
             # Use legacy google-generativeai package
@@ -335,7 +349,8 @@ class GeminiAgent(BaseAgent):
                         self.logger.warning(f"[gemini] OAuth not configured: {e}")
                     print("  [gemini] OAuth not configured", file=sys.stderr)
                     print(
-                        "  [gemini] Run: gemini auth login or set GOOGLE_API_KEY",
+                        "  [gemini] Run the gemini CLI once to complete OAuth"
+                        " or set GOOGLE_API_KEY",
                         file=sys.stderr,
                     )
                     raise
@@ -400,15 +415,21 @@ class GeminiAgent(BaseAgent):
 
 
 # ---------------------------------------------------------------------------
-# CursorAgent
+# CLIAgent
 # ---------------------------------------------------------------------------
 
 
-class CursorAgent(BaseAgent):
-    """Cursor agent using subprocess (shell out to cursor CLI)"""
+class CLIAgent(BaseAgent):
+    """Generic CLI-based agent driven by the cli_agents config block.
+
+    All provider variation (binary, argument shape, output capture) is data in
+    parallel_agent.yml — adding a CLI provider is a configuration change, not a
+    new class. Args are always exec'd as a list (never a shell string).
+    """
 
     def __init__(
         self,
+        provider: str,
         model: str = "flash",
         timeout: int = 120,
         rate_limiter: RateLimiter = None,
@@ -419,7 +440,7 @@ class CursorAgent(BaseAgent):
     ):
         config = config or Config()
         super().__init__(
-            "cursor",
+            provider,
             model,
             timeout,
             rate_limiter,
@@ -428,157 +449,137 @@ class CursorAgent(BaseAgent):
             streaming,
             progress_callback,
         )
-        self.model_name = model
-
-    async def _execute_impl(self, prompt: str, mode: str) -> Dict:
-        """Execute cursor CLI via subprocess"""
-        # Check if cursor command exists
-        if not self._check_cursor_available():
-            return {
-                "status": "missing",
-                "error": "cursor command not found",
-                "output": "",
-            }
-
-        # Shell out to cursor CLI (use exec to prevent command injection)
-        proc = await asyncio.create_subprocess_exec(
-            "cursor",
-            "--model",
-            self.model_name,
-            prompt,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-        )
-
-        stdout, stderr = await proc.communicate()
-
-        if proc.returncode == 0:
-            return {
-                "status": "complete",
-                "output": stdout.decode("utf-8", errors="ignore"),
-                "model": self.model_name,
-                "validated": False,
-            }
-        else:
-            return {
-                "status": "failed",
-                "error": stderr.decode("utf-8", errors="ignore"),
-                "output": "",
-            }
-
-    def _check_cursor_available(self) -> bool:
-        """Check if cursor CLI is available"""
-        import shutil
-
-        return shutil.which("cursor") is not None
-
-
-# ---------------------------------------------------------------------------
-# CodexAgent
-# ---------------------------------------------------------------------------
-
-
-class CodexAgent(BaseAgent):
-    """Codex agent using subprocess (shell out to codex CLI)"""
-
-    def __init__(
-        self,
-        model: str = "flash",
-        timeout: int = 120,
-        rate_limiter: RateLimiter = None,
-        config: Config = None,
-        logger: Optional[Logger] = None,
-        streaming: bool = False,
-        progress_callback=None,
-    ):
-        config = config or Config()
-        super().__init__(
-            "codex",
-            model,
-            timeout,
-            rate_limiter,
-            config,
-            logger,
-            streaming,
-            progress_callback,
-        )
+        spec = config.get(f"cli_agents.{provider}")
+        if not spec:
+            raise ValueError(f"no cli_agents config for provider: {provider}")
+        self.binary = spec.get("binary")
+        if not self.binary:
+            raise ValueError(
+                f"cli_agents.{provider}.binary is required but missing"
+            )
+        self.base_args = list(spec.get("base_args", []))
+        self.model_args = list(spec.get("model_args", []))
+        self.prompt_args = list(spec.get("prompt_args", ["{prompt}"]))
+        self.output_strategy = spec.get("output", "stdout")
         self.model_name = self._resolve_model(model)
 
     def _resolve_model(self, tier: str) -> Optional[str]:
         """Resolve model tier to full model name. Returns None for 'auto'."""
         if tier == "auto":
             return None
-        resolved = self.config.get(f"model_tiers.codex.{tier}")
+        resolved = self.config.get(f"model_tiers.{self.name}.{tier}")
         return resolved if resolved else tier
 
-    async def _execute_impl(self, prompt: str, mode: str) -> Dict:
-        """Execute codex CLI via subprocess"""
-        import shutil
-        import tempfile
+    def _build_command(self, prompt: str, output_file: Optional[str] = None) -> List[str]:
+        """Assemble argv: binary + base_args + optional model group + prompt_args.
 
-        if not shutil.which("codex"):
+        model_args are appended only when a model is resolved — the group is
+        dropped atomically, so an optional model can never leave a dangling flag.
+        prompt_args controls how the prompt is passed (default: trailing positional
+        {prompt}).  The prompt content itself is never template-substituted — only
+        the surrounding template text in a prompt_args entry is substituted, then
+        the raw prompt is spliced in via {prompt}.
+        """
+
+        def _subst(arg: str) -> str:
+            arg = arg.replace("{output_file}", output_file or "")
+            arg = arg.replace("{model}", self.model_name or "")
+            return arg
+
+        def _subst_prompt(arg: str) -> str:
+            if "{prompt}" in arg:
+                # Split on the placeholder, substitute non-prompt placeholders in the
+                # surrounding template text only, then rejoin with the raw prompt —
+                # the prompt content itself is never template-substituted.
+                return prompt.join(_subst(piece) for piece in arg.split("{prompt}"))
+            return _subst(arg)
+
+        cmd = [self.binary]
+        for arg in self.base_args:
+            substituted = _subst(arg)
+            if substituted:
+                cmd.append(substituted)
+        if self.model_name:
+            # Drop empty substitutions here too — a stray {output_file} in
+            # model_args would otherwise inject a "" argv element
+            cmd += [a for a in (_subst(a) for a in self.model_args) if a]
+        for arg in self.prompt_args:
+            substituted = _subst_prompt(arg)
+            # Keep an empty result only when it carries the prompt itself
+            # (preserves positional semantics for an empty prompt)
+            if substituted or "{prompt}" in arg:
+                cmd.append(substituted)
+        return cmd
+
+    def _collect_output(
+        self, returncode: int, stdout: bytes, stderr: bytes, output_file: Optional[str]
+    ) -> Dict:
+        """Apply the provider's output strategy: file > stdout > stderr-on-error."""
+        output = ""
+        if output_file and os.path.exists(output_file):
+            with open(output_file, "r") as f:
+                output = f.read().strip()
+        if not output:
+            output = stdout.decode("utf-8", errors="ignore").strip()
+        if returncode != 0:
+            # A nonzero exit means usage text / error banners, not an answer —
+            # letting it through corrupted consensus and synthesis (issue #308).
+            stderr_text = stderr.decode("utf-8", errors="ignore").strip()
+            error_parts = [f"exit code {returncode}"]
+            if stderr_text:
+                error_parts.append(stderr_text)
+            if output:
+                error_parts.append(f"stdout: {output}")
+            return {
+                "status": "failed",
+                "error": "; ".join(error_parts),
+                "output": "",
+                "model": self.model_name or "auto",
+            }
+        return {
+            "status": "complete",
+            "output": output,
+            "model": self.model_name or "auto",
+            "validated": False,
+        }
+
+    async def _execute_impl(self, prompt: str, mode: str) -> Dict:
+        if not shutil.which(self.binary):
             return {
                 "status": "missing",
-                "error": "codex command not found",
+                "error": f"{self.binary} command not found",
                 "output": "",
             }
 
-        # Create temp file for --output-last-message
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".txt", delete=False, prefix="codex_out_"
-        ) as tmp:
-            output_file = tmp.name
+        output_file = None
+        if self.output_strategy == "file_then_stdout":
+            with tempfile.NamedTemporaryFile(
+                mode="w", suffix=".txt", delete=False, prefix=f"{self.name}_out_"
+            ) as tmp:
+                output_file = tmp.name
 
         try:
-            cmd = [
-                "codex",
-                "exec",
-                "--full-auto",
-                "--color",
-                "never",
-                "--output-last-message",
-                output_file,
-            ]
-
-            if self.model_name:
-                cmd.extend(["--model", self.model_name])
-
-            cmd.append(prompt)
-
+            cmd = self._build_command(prompt, output_file)
             proc = await asyncio.create_subprocess_exec(
                 *cmd,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
-
-            stdout, stderr = await proc.communicate()
-
-            # Output priority: file > stdout > stderr
-            output = ""
-            if os.path.exists(output_file):
-                with open(output_file, "r") as f:
-                    output = f.read().strip()
-
-            if not output:
-                output = stdout.decode("utf-8", errors="ignore").strip()
-
-            if not output and proc.returncode != 0:
-                return {
-                    "status": "failed",
-                    "error": stderr.decode("utf-8", errors="ignore"),
-                    "output": "",
-                    "model": self.model_name or "auto",
-                }
-
-            return {
-                "status": "complete",
-                "output": output,
-                "model": self.model_name or "auto",
-                "validated": False,
-            }
-        finally:
-            # Cleanup temp file
             try:
-                os.unlink(output_file)
-            except OSError:
-                pass
+                stdout, stderr = await proc.communicate()
+            except asyncio.CancelledError:
+                # Timeout cancellation (asyncio.wait_for in BaseAgent.execute)
+                # interrupts communicate() but leaves the child running —
+                # kill it before the finally block unlinks its output file
+                # out from under it (issue #306).
+                proc.kill()
+                await proc.wait()
+                raise
+            return self._collect_output(proc.returncode, stdout, stderr, output_file)
+        finally:
+            if output_file:
+                try:
+                    os.unlink(output_file)
+                except OSError:
+                    pass
+

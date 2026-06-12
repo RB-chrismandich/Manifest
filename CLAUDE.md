@@ -39,7 +39,7 @@ Use these MCP servers by default when their domain context matches the task:
 
 This repository manages Claude Code agent configurations for deployment to `~/.claude/`
 on target machines. It contains orchestration guides, commands, skills, prompts, and scripts
-that enable parallel LLM agent coordination (Cursor, Gemini CLI, Claude CLI).
+that enable parallel LLM agent coordination (Cursor, Gemini CLI, Claude CLI, Codex, Antigravity).
 
 ## Repository Structure
 
@@ -57,14 +57,14 @@ configs/                             # Deployment source configs (deployed to ~/
 ├── cursor/                          # → ~/.cursor/ (Cursor IDE configuration)
 │   ├── rules/                       # Cursor rules (.mdc) adapted from commands/skills
 │   ├── mcp.json                     # Cursor MCP server defaults
-│   └── (symlinks to ../claude/)     # scripts, config, prompts, skills, .plans
+│   └── (symlinks to ../claude/)     # scripts, config, prompts, .plans (skills via rules/)
 ├── gemini/                          # → ~/.gemini/ (Gemini CLI configuration)
 │   ├── GEMINI.md                    # Orchestration guide for Gemini
 │   ├── settings.json                # Gemini settings (includes MCP server defaults)
-│   └── (symlinks to ../claude/)     # scripts, config, prompts, skills, .plans
+│   └── (symlinks to ../claude/)     # scripts, config, prompts, .plans
 ├── codex/                           # → ~/.codex/ (Codex CLI configuration)
 │   ├── AGENTS.md -> ../../AGENTS.md # Codex guide
-│   └── (symlinks to ../claude/)     # scripts, config, prompts, skills, .plans
+│   └── (symlinks to ../claude/)     # scripts, config, prompts, .plans
 └── antigravity/                     # → ~/.antigravity/ (Antigravity IDE)
     └── (symlinks to ../claude/)     # scripts, config, prompts, skills, .plans
 
@@ -84,7 +84,7 @@ bootstrap/                           # Modular bootstrap libraries + hookable mo
 │   ├── deploy.sh                    # Deploy/verify/summary routines
 │   └── mcp.sh                       # MCP configuration/install routines
 └── modules/README.md                # How to add custom bootstrap extensions
-AGENTS.md                            # AI agent instructions (Cursor, Claude, Gemini, Codex)
+AGENTS.md                            # AI agent instructions (Cursor, Claude, Gemini, Codex, Antigravity)
 ```
 
 ## Bootstrap (macOS / Linux)
@@ -122,6 +122,7 @@ The `bootstrap.sh` script automates installation, deployment, and authentication
 --enable-codex / --disable-codex     # Codex CLI (default: enabled)
 --enable-antigravity / --disable-antigravity   # Antigravity IDE (default: enabled)
 --enable-skillclaw / --disable-skillclaw   # SkillClaw session capture (default: disabled)
+--enable-browser-use / --disable-browser-use   # browser-use for /browser-test (default: disabled)
 --enable-gh / --disable-gh           # GitHub CLI (default: auto-detect)
 --enable-glab / --disable-glab       # GitLab CLI (default: auto-detect)
 --install-mcp                        # Configure MCP servers (interactive per-server selection)
@@ -230,6 +231,11 @@ Required CLI tools (install those you want to use):
 ## Available Commands
 
 The following slash commands are available in Claude Code:
+
+> **Note**: this table is a curated subset of the most-used skills. The full
+> set (70+ skills, including SkillClaw-evolved ones) lives in
+> `.skillshare/skills/` — each directory's `SKILL.md` frontmatter is the
+> authoritative name and description.
 
 | Command | Description | Parallel Agents |
 |---------|-------------|-----------------|

@@ -53,40 +53,6 @@ command_exists() {
     command -v "$1" &> /dev/null
 }
 
-# Show a spinner while a command runs
-# Usage: run_with_spinner "command args" "Loading message"
-run_with_spinner() {
-    local cmd="$1"
-    local msg="${2:-Working}"
-
-    (
-        local log_file
-        log_file=$(mktemp)
-        trap 'tput cnorm 2>/dev/null || true; rm -f "$log_file"' INT TERM EXIT
-        tput civis 2>/dev/null || true
-
-        eval "$cmd" > "$log_file" 2>&1 &
-        local pid=$!
-        local spin='-\|/'
-        local i=0
-
-        while kill -0 "$pid" 2> /dev/null; do
-            i=$(((i + 1) % 4))
-            printf "\r${CYAN}${spin:$i:1}${NC} %s..." "$msg"
-            sleep 0.2
-        done
-
-        local exit_code=0
-        wait "$pid" || exit_code=$?
-
-        printf "\r\033[K"
-        if [ "$exit_code" -ne 0 ]; then
-            cat "$log_file"
-        fi
-        exit "$exit_code"
-    )
-}
-
 # Create/recreate a symlink at link_path pointing to target
 create_symlink() {
     local link_path="$1"
@@ -98,7 +64,16 @@ create_symlink() {
         return 0
     fi
 
-    rm -rf "$link_path"
+    # A real (non-symlink) path here is user content — back it up instead of
+    # silently destroying it with rm -rf (issue #321)
+    if [[ -e "$link_path" && ! -L "$link_path" ]]; then
+        local backup
+        backup="${link_path}.backup.$(date +%Y%m%d_%H%M%S)"
+        print_warning "$link_path exists as a real path — backing up to $backup"
+        mv "$link_path" "$backup"
+    else
+        rm -rf "$link_path"
+    fi
     ln -sf "$target" "$link_path"
     print_success "Symlinked $link_path -> $target"
 }

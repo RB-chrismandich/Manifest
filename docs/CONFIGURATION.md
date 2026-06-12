@@ -93,9 +93,9 @@ services:
     command: codex
     description: "Terminal coding assistant for codebase edits and automation"
     model_tiers:
-      - mini     # Lightweight (o4-mini)
-      - flash    # Balanced (o3, default)
-      - advanced # Maximum capability (o3-pro)
+      - mini     # Lightweight (gpt-5.4-mini)
+      - flash    # Balanced (gpt-5.4, default)
+      - advanced # Maximum capability (gpt-5.5)
       - auto     # Use Codex config default model
 
   # Git CLI tools - Platform-specific Git hosting integrations
@@ -137,6 +137,9 @@ fallback:
 
 # Disable Git CLIs
 ./bootstrap.sh --reconfigure --disable-gh --disable-glab
+
+# Enable browser-use (Python E2E browser automation for /browser-test)
+./bootstrap.sh --reconfigure --enable-browser-use
 ```
 
 ### Option 2: Edit services.yml manually
@@ -515,200 +518,60 @@ command_overrides:
     # No validation for diagram generation
 ```
 
-### Project-Specific Validation Overrides
+### Customizing Validation per Command
 
-Create project-specific validation rules by adding a `validation_overrides.yml` file to your
-project's `configs/claude/config/` directory.
-This extends the base validation criteria with domain-specific checks.
+Validation behavior is customized through the `command_overrides` section of
+`validation_criteria.yml` itself — this is the mechanism the validation engine
+(`agents/validation.py`) actually loads.
 
-**File**: `configs/claude/config/validation_overrides.yml` (in your project)
+**File**: `~/.claude/config/validation_criteria.yml`
 
 #### Structure
 
 ```yaml
-# Project-Specific Validation Overrides
-# Extends ~/.claude/config/validation_criteria.yml
+command_overrides:
+  refactor-python:
+    tier1_required: true
+    tier1_checks:
+      - security
+      - error_handling
+      - breaking_changes
+      - cross_verification
+    tier2_required: true
+    tier2_threshold: 0.80
+    consensus_threshold: 0.80
+    consensus_action:
+      high: auto_proceed          # >=80%: Use unified recommendation
+      medium: show_disagreements  # 50-79%: Highlight to user
+      low: block_and_escalate     # <50%: Human review required
 
-project_tier1:
-  # Custom Tier 1 checks for your project
-  custom_security_check:
-    weight: 0.30
-    severity: critical
-    description: "Project-specific security requirement"
-    applies_to:
-      - "path/to/**/*.py"
-      - "another/path/**/*.js"
-    checks:
-      - id: check_identifier
-        description: "What this check validates"
-        patterns:
-          - "regex pattern to match good code"
-        patterns_bad:
-          - "regex pattern to match bad code"
-
-project_tier2:
-  # Custom Tier 2 checks for your project
-  custom_quality_check:
-    weight: 0.25
-    severity: medium
-    description: "Project-specific quality requirement"
-    applies_to:
-      - "**/*.ts"
-    checks:
-      - id: check_identifier
-        description: "What this check validates"
-        indicators:
-          - "pattern1"
-          - "pattern2"
-
-# Exemptions for specific paths
-exemptions:
-  - path: "**/tests/**/*.py"
-    reason: "Test files"
-    skip_checks:
-      - custom_security_check
-
-  - path: "**/migrations/*.py"
-    reason: "Generated migration files"
-    skip_checks:
-      - custom_quality_check
+  docs-readme:
+    tier1_required: false
+    tier2_required: true
+    tier2_checks:
+      - maintainability
+    parallel_agents: false
 ```
 
-#### Framework-Specific Examples
-
-**Django Projects**: See `templates/validation-overrides/django-security.yml`
-
-- CSRF protection checks
-- SQL injection prevention (no raw SQL with string interpolation)
-- XSS protection (template auto-escaping)
-- SECRET_KEY from environment
-- Migration safety (reversibility, backwards compatibility)
-
-**Express.js/Node.js Projects**: See `templates/validation-overrides/express-security.yml`
-
-- Input validation (Joi, Zod schemas)
-- SQL injection prevention (parameterized queries)
-- Authentication middleware
-- Helmet.js security headers
-- Rate limiting on sensitive endpoints
-
-**Go Projects**: See `templates/validation-overrides/go-security.yml` (coming soon)
-
-- SQL injection (database/sql parameterized queries)
-- Path traversal prevention
-- Secrets in environment variables (not code)
-- Context usage in HTTP handlers
+When `parallel_agent.py --validate` runs with a `--command` context, the
+matching override replaces the default tier requirements for that run; the
+result reports `command_overrides_applied: true`.
 
 #### How Overrides Work
 
-1. **Base criteria loaded first**: `~/.claude/config/validation_criteria.yml`
-2. **Project overrides merged**: `configs/claude/config/validation_overrides.yml`
-3. **Project checks added**: New `project_tier1` and `project_tier2` sections
-4. **Exemptions applied**: Specific paths can skip certain checks
+1. **Base criteria loaded**: `~/.claude/config/validation_criteria.yml`
+   (tier1/tier2 definitions and verdict thresholds)
+2. **Command override selected**: the entry under `command_overrides:`
+   matching the invoked command, if any
+3. **Verdict computed**: APPROVED / NEEDS_REVIEW / BLOCKED per the
+   (possibly overridden) tier requirements
 
-**Example workflow**:
-
-```bash
-# 1. Copy template for your framework
-cp templates/validation-overrides/django-security.yml \
-   configs/claude/config/validation_overrides.yml
-
-# 2. Customize for your project
-vim configs/claude/config/validation_overrides.yml
-
-# 3. Test validation
-~/.claude/scripts/parallel_agent.py --validate --review path/to/file.py
-
-# 4. Adjust thresholds or exemptions as needed
-```
-
-#### Pattern Syntax
-
-**Simple pattern matching**:
-
-```yaml
-patterns:
-  - "jwt.verify"           # Must contain this string
-  - "authenticate"         # Or this string
-```
-
-**Regex patterns**:
-
-```yaml
-patterns:
-  - "\\$\\{.*\\}.*SELECT"  # Template literal in SQL (bad)
-  - "req\\.body\\["        # Direct req.body access (bad)
-```
-
-**Context-aware patterns**:
-
-```yaml
-patterns:
-  - "current_version"      # Must contain this...
-context: "UpdateTransaction"  # ...within this context
-```
-
-**Good vs Bad patterns**:
-
-```yaml
-patterns_good:
-  - "cursor.execute.*%s"   # Parameterized query (good)
-patterns_bad:
-  - "cursor.execute.*f\""  # f-string in SQL (bad)
-```
-
-#### Validation Output
-
-When project-specific checks are used:
-
-```text
-🔍 Validation Results (with project overrides)
-
-Base Checks:
-  ✅ Cross-verification: PASS
-  ✅ Security (base): PASS
-  ✅ Error handling: PASS
-
-Project-Specific Checks:
-  ✅ Django CSRF: PASS
-     - CSRF middleware enabled in settings.py
-  ⚠️  Django SQL injection: WARNING
-     - raw() call found in queries.py:42
-     - Recommendation: Use parameterized queries
-  ❌ Django template safety: FAIL
-     - 'safe' filter used without justification (templates/user.html:15)
-
-Overall: NEEDS_REVIEW (tier1 pass, tier2: 0.55)
-```
-
-#### Best Practices
-
-1. **Start with a template**: Use framework examples from `templates/validation-overrides/`
-2. **Document your checks**: Clear descriptions help team understand violations
-3. **Use exemptions wisely**: Tests and generated files often need exemptions
-4. **Test incrementally**: Add one check at a time, verify it works
-5. **Version control**: Commit `validation_overrides.yml` to your repository
-6. **Team alignment**: Discuss thresholds and exemptions with your team
-
-#### Troubleshooting
-
-**Check not triggering**:
-
-- Verify `applies_to` paths match your file structure
-- Test regex patterns with a simple script
-- Enable verbose logging (if available)
-
-**Too many false positives**:
-
-- Refine `patterns` to be more specific
-- Add `context` to narrow scope
-- Use `exemptions` for known good cases
-
-**Check too strict**:
-
-- Lower `weight` for tier2 checks
-- Add exceptions for edge cases
-- Document reasoning in comments
+> **Note**: A standalone `validation_overrides.yml` file with
+> pattern-based project checks (as shipped in
+> `docs/templates/validation-overrides/`) is a design sketch — no code
+> loads that file today. Use `command_overrides` above for working
+> customization; the templates document the checks worth adopting if the
+> loader is implemented (tracked in issue #325).
 
 ---
 
@@ -729,16 +592,37 @@ Overall: NEEDS_REVIEW (tier1 pass, tier2: 0.55)
 
 | Tier | Model Name | Use Case | Cost |
 |------|------------|----------|------|
-| `haiku` | haiku | Quick queries | Lowest |
-| `sonnet` | sonnet | Code review (default) | Medium |
-| `opus` | opus | Security analysis | Highest |
+| `haiku` | claude-haiku-4-5-20251001 | Quick queries | Lowest |
+| `sonnet` | claude-sonnet-4-6 | Code review (default) | Medium |
+| `opus` | claude-opus-4-8 | Security analysis | Higher |
+| `fable` | claude-fable-5 | Security tasks (default) | Highest |
 
 #### Gemini Models
 
 | Tier | Model Name | Use Case | Cost |
 |------|------------|----------|------|
-| `flash` | gemini-3-flash-preview | General use (default) | Lower |
-| `pro` | gemini-3-pro-preview | Complex analysis | Higher |
+| `flash` | gemini-3.5-flash | General use (default) | Lower |
+| `pro` | gemini-3.1-pro | Complex analysis | Higher |
+
+#### Codex Models
+
+| Tier | Model Name | Use Case | Cost |
+|------|------------|----------|------|
+| `mini` | gpt-5.4-mini | Quick queries | Lowest |
+| `flash` | gpt-5.4 | Code review (default) | Medium |
+| `advanced` | gpt-5.5 | Security analysis | Highest |
+
+#### Antigravity Models
+
+| Tier | Model Name | Use Case | Cost |
+|------|------------|----------|------|
+| `mini` | Gemini 3.5 Flash (Low) | Quick queries | Lowest |
+| `flash` | Gemini 3.5 Flash (High) | General use (default) | Medium |
+| `advanced` | Claude Opus 4.6 (Thinking) | Complex analysis | Highest |
+
+**Note**: Antigravity's catalog is managed by the `agy` CLI and may lag the direct
+API (e.g. Opus 4.6 vs 4.8). Run `agy models` to see the live model list, which is
+validated by `model_check.sh`.
 
 ### Selecting Models
 
@@ -792,8 +676,18 @@ export CURSOR_MODEL_FLASH="gpt-5.1-codex"
 export CURSOR_MODEL_ADVANCED="gpt-5.2"
 
 # Gemini models
-export GEMINI_MODEL_FLASH="gemini-3-flash-preview"
-export GEMINI_MODEL_PRO="gemini-3-pro-preview"
+export GEMINI_MODEL_FLASH="gemini-3.5-flash"
+export GEMINI_MODEL_PRO="gemini-3.1-pro"
+```
+
+### Spec Review Configuration
+
+```bash
+# Override the reviewer model (default: resolves model_tiers.antigravity.advanced via agy)
+export SPEC_REVIEW_MODEL="gemini-3.1-pro"
+
+# Override the config file passed to spec_review.sh
+export SPEC_REVIEW_CONFIG="~/.claude/config/parallel_agent.yml"
 ```
 
 ### Feature Flags
@@ -802,6 +696,40 @@ export GEMINI_MODEL_PRO="gemini-3-pro-preview"
 # Enable pre-flight credit check before running agents
 export CHECK_CREDITS_PREFLIGHT="true"
 ```
+
+---
+
+## CLI Agent Command Configuration
+
+**File**: `configs/claude/config/parallel_agent.yml` — `cli_agents:` block
+
+Defines how `parallel_agent.py` invokes each CLI provider. Adding a CLI provider
+is configuration-only — define its command shape here plus `model_tiers`,
+`rate_limits`, and `credit_fallback` entries in the same file.
+
+```yaml
+cli_agents:
+  cursor:
+    binary: cursor
+    base_args: []
+    model_args: ["--model", "{model}"]
+    output: stdout
+  codex:
+    binary: codex
+    base_args: ["exec", "--full-auto", "--color", "never",
+                "--output-last-message", "{output_file}"]
+    model_args: ["--model", "{model}"]
+    output: file_then_stdout
+  antigravity:
+    binary: agy
+    base_args: ["--print"]
+    model_args: ["--model", "{model}"]
+    output: stdout
+```
+
+`output: file_then_stdout` reads the tempfile first, falling back to stdout;
+`output: stdout` streams directly. `{model}` and `{output_file}` are substitution
+tokens filled at runtime.
 
 ---
 
@@ -814,19 +742,22 @@ export CHECK_CREDITS_PREFLIGHT="true"
 --gemini-only          # Run only Gemini CLI
 --claude-only          # Run only Claude CLI
 --codex-only           # Run only Codex CLI
+--antigravity-only     # Run only Antigravity (agy)
 --no-claude            # Disable Claude CLI
 --no-cursor            # Disable Cursor Agent
 --no-gemini            # Disable Gemini CLI
 --no-codex             # Disable Codex CLI
+--no-antigravity       # Disable Antigravity for this run
 ```
 
 ### Model Selection
 
 ```bash
---cursor-model <tier>  # Cursor model: mini, flash, advanced, auto (default: flash)
---claude-model <tier>  # Claude model: haiku, sonnet, opus (default: sonnet)
---gemini-model <tier>  # Gemini model: flash, pro (default: flash)
---codex-model <tier>   # Codex model: mini, flash, advanced, auto (default: auto)
+--cursor-model <tier>       # Cursor model: mini, flash, advanced, auto (default: flash)
+--claude-model <tier>       # Claude model: haiku, sonnet, opus, fable (default: sonnet)
+--gemini-model <tier>       # Gemini model: flash, pro (default: flash)
+--codex-model <tier>        # Codex model: mini, flash, advanced, auto (default: auto)
+--antigravity-model <tier>  # Antigravity model: mini, flash, advanced (default: flash)
 ```
 
 ### Execution Modes

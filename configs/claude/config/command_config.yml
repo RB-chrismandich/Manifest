@@ -432,44 +432,51 @@ parallel_agent:
 task_model_defaults:
   security:
     cursor: advanced
-    claude: opus
+    claude: fable
     gemini: pro
+    antigravity: advanced
     reason: "Security-critical code requires maximum model capability"
 
   review:
     cursor: flash
     claude: sonnet
     gemini: flash
+    antigravity: flash
     reason: "Code review benefits from balanced capability/speed"
 
   analyze:
     cursor: flash
     claude: sonnet
     gemini: flash
+    antigravity: flash
     reason: "Analysis tasks need good reasoning without opus cost"
 
   improve:
     cursor: mini
     claude: haiku
     gemini: flash
+    antigravity: mini
     reason: "Improvement suggestions can use lighter models"
 
   quick:
     cursor: mini
     claude: haiku
     gemini: flash
+    antigravity: mini
     reason: "Quick queries use lightest models for speed"
 
   issue_triage:
     cursor: flash
     claude: sonnet
     gemini: flash
+    antigravity: flash
     reason: "Balanced capability for semantic analysis"
 
   issue_prioritize:
     cursor: flash
     claude: sonnet
     gemini: flash
+    antigravity: flash
     reason: "Balanced capability for scoring refinement"
 
 # Credit exhaustion fallback chains
