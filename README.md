@@ -4,7 +4,7 @@
 
 > Parallel LLM agent orchestration framework for Claude Code, Cursor IDE, Gemini CLI, Codex CLI, and Antigravity IDE
 
-**Last Updated**: 2026-06-10
+**Last Updated**: 2026-06-12
 
 Manifest is a configuration repository that deploys a sophisticated parallel agent
 orchestration system to `~/.claude/`, `~/.cursor/`, `~/.gemini/`, `~/.codex/`, and `~/.antigravity/`, enabling Claude Code,
@@ -52,6 +52,8 @@ cd Manifest
 - **Consensus Scoring**: Variance-based algorithm calculates agreement (≥80% = high confidence, <50% = escalate + synthesis)
 - **Intelligent Model Selection**: Task-based routing (security→opus/gpt-5.2, review→sonnet/gpt-5.1-codex, quick→haiku/mini)
 - **Credit Exhaustion Fallback**: Automatic detection and retry with cheaper models (opus→sonnet→haiku)
+- **OAuth-Only Friendly**: Claude/Gemini agents auto-select SDK or CLI backends — no API keys
+  needed when the `claude`/`gemini` CLIs are logged in (SDK + API key still preferred when present)
 - **Cross-Platform**: Native support for macOS (Intel/Apple Silicon) and 5 major Linux distributions
 - **Unified Label Management**: Canonical label registry with sync across GitHub, GitLab, and Linear
 - **Production Templates**: Pre-configured permission templates for Django, Express, Go microservices, Python monorepos
@@ -129,6 +131,9 @@ Mermaid flowcharts showing bootstrap, execution, validation, and consensus flows
 - Python 3.9+ (3.12+ recommended, auto-detected by bootstrap)
 - Install deps: `pip install -r configs/claude/scripts/requirements.txt`
 - Key packages: `anthropic`, `google-genai`, `rich`, `pyyaml`, `aiohttp`
+- API keys are optional: with `ANTHROPIC_API_KEY`/`GOOGLE_API_KEY` set, the Claude/Gemini
+  agents use the SDK; without keys, they fall back to the logged-in `claude`/`gemini` CLIs
+  (OAuth subscription login works out of the box)
 
 ---
 
@@ -260,6 +265,9 @@ Manifest/
 ./bootstrap.sh --install-mcp
 ```
 
+The "Services to configure" banner and end-of-run summary reflect the effective
+configuration (existing `~/.claude/config/services.yml` merged with explicit CLI flags).
+
 ### Model Selection
 
 ```bash
@@ -275,6 +283,11 @@ Manifest/
   --claude-model haiku \
   "Quick question"
 ```
+
+Model tiers map to concrete pins in `~/.claude/config/parallel_agent.yml` (`model_tiers`),
+e.g. Gemini `flash`/`pro` → `gemini-3-flash-preview` / `gemini-3-pro-preview`. Verify pins
+against live provider listings with `model_check.sh` (add `MODEL_CHECK_PROBE=1` for a
+one-shot CLI probe per pin on OAuth-only machines without API keys).
 
 **See**: [Configuration Guide](docs/CONFIGURATION.md) for complete YAML reference, environment variables, and advanced options
 
@@ -297,6 +310,16 @@ cat ~/.claude/config/services.yml
 
 # Verify CLI tools installed
 which claude gemini cursor codex
+```
+
+**Model pins reported as unverified by check_status.sh:**
+
+```bash
+# Symptom: "N check(s) unverified (no API credentials ...)"
+# On OAuth-only machines there are no API keys to list models with, so
+# check_status.sh reports the pins as unverified rather than falsely green.
+# Live-verify each pin with a one-shot CLI probe (one tiny LLM call per pin):
+MODEL_CHECK_PROBE=1 ~/.claude/scripts/model_check.sh
 ```
 
 **Codex fails with session permission errors:**

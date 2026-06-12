@@ -2,7 +2,7 @@
 
 > Comprehensive reference for all Manifest configuration options
 
-**Last Updated**: 2026-06-08
+**Last Updated**: 2026-06-12
 **Audience**: System operators, advanced users
 **Prerequisites**: Manifest installed via bootstrap.sh or manually
 
@@ -17,8 +17,9 @@
 5. [Validation Criteria](#validation-criteria)
 6. [Model Selection](#model-selection)
 7. [Environment Variables](#environment-variables)
-8. [Command-Line Options](#command-line-options)
-9. [Override Precedence](#override-precedence)
+8. [CLI Agent Command Configuration](#cli-agent-command-configuration)
+9. [Command-Line Options](#command-line-options)
+10. [Override Precedence](#override-precedence)
 
 ---
 
@@ -680,6 +681,27 @@ export GEMINI_MODEL_FLASH="gemini-3-flash-preview"
 export GEMINI_MODEL_PRO="gemini-3-pro-preview"
 ```
 
+### Provider API Keys (Optional)
+
+```bash
+# When set (and the SDK package is installed), Claude/Gemini run via the SDK.
+# When unset, they fall back to the logged-in `claude` / `gemini` CLIs (OAuth).
+export ANTHROPIC_API_KEY="sk-ant-..."   # Claude SDK backend
+export GOOGLE_API_KEY="AIza..."         # Gemini SDK backend
+```
+
+### Model Pin Verification
+
+```bash
+# Live one-shot CLI probe per claude/gemini pin (one tiny LLM call each) —
+# use on OAuth-only machines where no API key is available to list models
+MODEL_CHECK_PROBE=1 ~/.claude/scripts/model_check.sh
+
+# Override the probe binaries (e.g. test doubles)
+export MODEL_CHECK_CLAUDE_BIN="claude"
+export MODEL_CHECK_GEMINI_BIN="gemini"
+```
+
 ### Spec Review Configuration
 
 ```bash
@@ -709,6 +731,20 @@ is configuration-only — define its command shape here plus `model_tiers`,
 
 ```yaml
 cli_agents:
+  # claude/gemini entries back the OAuth CLI fallback: used when the provider
+  # SDK or its API key is unavailable but the CLI is installed and logged in.
+  claude:
+    binary: claude
+    base_args: []
+    model_args: ["--model", "{model}"]
+    prompt_args: ["-p", "{prompt}"]
+    output: stdout
+  gemini:
+    binary: gemini
+    base_args: []
+    model_args: ["-m", "{model}"]
+    prompt_args: ["-p", "{prompt}"]
+    output: stdout
   cursor:
     binary: cursor
     base_args: []
@@ -722,14 +758,31 @@ cli_agents:
     output: file_then_stdout
   antigravity:
     binary: agy
-    base_args: ["--print"]
+    base_args: []
     model_args: ["--model", "{model}"]
+    prompt_args: ["--print", "{prompt}"]
     output: stdout
 ```
 
 `output: file_then_stdout` reads the tempfile first, falling back to stdout;
-`output: stdout` streams directly. `{model}` and `{output_file}` are substitution
-tokens filled at runtime.
+`output: stdout` streams directly. `{model}`, `{prompt}`, and `{output_file}` are
+substitution tokens filled at runtime.
+
+### Execution Backend (SDK vs CLI Fallback)
+
+Claude and Gemini pick an execution backend per run (`agents/cli.py`
+`select_backend()`):
+
+1. **SDK** — when the provider package (`anthropic` / `google-genai`) AND its API
+   key (`ANTHROPIC_API_KEY` / `GOOGLE_API_KEY`) are both present.
+2. **CLI fallback** — otherwise, when the provider CLI (`claude` / `gemini`) is on
+   PATH. OAuth/subscription logins work here with no API key — this is the default
+   path on machines authenticated via `claude` / Gemini OAuth login.
+3. **SDK with its own auth** (ADC/OAuth) as a last resort, else the provider is
+   skipped with a warning.
+
+The CLI fallback uses the `cli_agents.claude` / `cli_agents.gemini` command shapes
+above. Cursor, Codex, and Antigravity always run via their CLI entries.
 
 ---
 

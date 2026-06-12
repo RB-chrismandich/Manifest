@@ -2,7 +2,7 @@
 
 > Visual documentation of the Manifest parallel LLM agent orchestration framework
 
-**Last Updated**: 2026-06-08
+**Last Updated**: 2026-06-12
 **Project**: Manifest - AI Agent Orchestration Framework
 
 ---
@@ -12,18 +12,20 @@
 1. [Application Architecture](#application-architecture)
 2. [Python Parallel Agent Architecture](#python-parallel-agent-architecture)
 3. [agents/ Package Module Dependency Graph](#agents-package-module-dependency-graph)
-4. [Git Platform Detection & Operations](#git-platform-detection--operations)
-5. [Bootstrap Installation Flow](#bootstrap-installation-flow)
-6. [Parallel Agent Execution Flow](#parallel-agent-execution-flow)
-7. [Skill Processing Architecture](#skill-processing-architecture)
-8. [Validation Pipeline](#validation-pipeline)
-9. [Model Selection & Credit Fallback](#model-selection--credit-fallback)
-10. [Configuration Layer](#configuration-layer)
-11. [Cross-Verification Consensus](#cross-verification-consensus)
-12. [Service State Management](#service-state-management)
-13. [Issue Management Architecture](#issue-management-architecture)
-14. [Label Management Architecture](#label-management-architecture)
-15. [SkillClaw Passive Ingest & Evolve Pipeline](#skillclaw-passive-ingest--evolve-pipeline)
+4. [Agent Backend Selection (SDK vs CLI Fallback)](#agent-backend-selection-sdk-vs-cli-fallback)
+5. [Git Platform Detection & Operations](#git-platform-detection--operations)
+6. [Bootstrap Installation Flow](#bootstrap-installation-flow)
+7. [Parallel Agent Execution Flow](#parallel-agent-execution-flow)
+8. [Skill Processing Architecture](#skill-processing-architecture)
+9. [Validation Pipeline](#validation-pipeline)
+10. [Model Selection & Credit Fallback](#model-selection--credit-fallback)
+11. [Model Pin Staleness Check](#model-pin-staleness-check)
+12. [Configuration Layer](#configuration-layer)
+13. [Cross-Verification Consensus](#cross-verification-consensus)
+14. [Service State Management](#service-state-management)
+15. [Issue Management Architecture](#issue-management-architecture)
+16. [Label Management Architecture](#label-management-architecture)
+17. [SkillClaw Passive Ingest & Evolve Pipeline](#skillclaw-passive-ingest--evolve-pipeline)
 
 ---
 
@@ -67,10 +69,11 @@ flowchart TB
     end
 
     subgraph "Agent Services"
-        GEMINI["Gemini CLI"]:::external
+        GEMINI["Gemini<br/>(SDK or gemini CLI)"]:::external
         CURSOR["Cursor Agent"]:::external
-        CLAUDE_API["Claude API"]:::external
+        CLAUDE_API["Claude<br/>(SDK or claude CLI)"]:::external
         CODEX["Codex CLI"]:::external
+        AGY["Antigravity CLI (agy)"]:::external
         GH["GitHub CLI (gh)"]:::external
         GLAB["GitLab CLI (glab)"]:::external
     end
@@ -97,6 +100,7 @@ flowchart TB
     PARALLEL_PY --> CURSOR
     PARALLEL_PY --> CLAUDE_API
     PARALLEL_PY --> CODEX
+    PARALLEL_PY --> AGY
     SERVICES -.->|config| PARALLEL_PY
     COMMAND_CFG -.->|thresholds| PARALLEL_PY
     VALIDATION_CFG -.->|criteria| PARALLEL_PY
@@ -110,7 +114,10 @@ flowchart TB
 - **parallel_agent.py**: Python orchestrator with full feature parity
   (logging, validation, synthesis, streaming, Codex agent, services.yml)
 - **Configuration Layer**: YAML files controlling behavior, validation rules, and Phase 3 features
-- **Agent Services**: External LLM and Git hosting CLIs
+- **Agent Services**: External LLM and Git hosting CLIs. Claude and Gemini execute via their
+  SDK when the package + API key are present, otherwise fall back to their OAuth-authenticated
+  CLI binaries (`claude` / `gemini`) through the generic CLIAgent — all five providers can run
+  through CLIAgent paths
 - **SkillClaw Subsystem**: Passive transcript ingestion pipeline — reads existing Claude Code
   session `.jsonl` files, scrubs secrets, distills candidate skills via `claude -p` (Max-backed
   map-reduce), and opens a PR-gated review into `.skillshare/skills/`; no daemon, no proxy
@@ -135,6 +142,7 @@ flowchart TB
 
     subgraph "agents/cli.py"
         MAIN["main()"]:::active
+        SELECT["select_backend()<br/>(sdk | cli | skip)"]:::active
     end
 
     subgraph "agents/config.py"
@@ -151,9 +159,9 @@ flowchart TB
 
     subgraph "agents/runners.py"
         BASE["BaseAgent<br/>(rate limiting, timeout, fallback)"]:::active
-        CLAUDE_AG["ClaudeAgent<br/>(streaming support)"]:::active
-        GEMINI_AG["GeminiAgent<br/>(dual package support)"]:::active
-        CLI_AG["CLIAgent<br/>(cursor | codex | antigravity, config-driven)"]:::active
+        CLAUDE_AG["ClaudeAgent<br/>(SDK, streaming support)"]:::active
+        GEMINI_AG["GeminiAgent<br/>(SDK, dual package support)"]:::active
+        CLI_AG["CLIAgent<br/>(claude | gemini | cursor | codex | antigravity,<br/>config-driven)"]:::active
     end
 
     subgraph "agents/validation.py + synthesis.py"
@@ -164,7 +172,7 @@ flowchart TB
     subgraph "External APIs"
         ANTHROPIC["Anthropic API<br/>(Claude)"]:::external
         GOOGLE["Google Gemini API<br/>(OAuth/API key)"]:::external
-        CLI_BINS["CLI binaries<br/>(cursor | codex | agy)"]:::external
+        CLI_BINS["CLI binaries<br/>(claude | gemini | cursor | codex | agy)"]:::external
     end
 
     subgraph "Configuration Files"
@@ -184,6 +192,10 @@ flowchart TB
     MAIN --> CONFIG
     MAIN --> SVC_CFG
     MAIN --> LOGGER
+    MAIN --> SELECT
+    SELECT -.->|sdk| CLAUDE_AG
+    SELECT -.->|sdk| GEMINI_AG
+    SELECT -.->|cli fallback| CLI_AG
     MAIN --> ORCH
     CONFIG -.->|load| PA_YML
     SVC_CFG -.->|load| SVC_YML
@@ -225,28 +237,34 @@ flowchart TB
 - **SynthesisEngine**: Automatic disagreement resolution when consensus < 50%, uses Claude Sonnet with synthesis.md template
 - **Streaming**: Real-time Rich Live display with progressive updates (4 updates/sec, 500 char truncation)
 - **RateLimiter**: Token bucket algorithm with burst support and adaptive backoff
-- **CLIAgent**: Generic YAML-driven subprocess agent; provider variation (cursor | codex |
-  antigravity) is config data in the `cli_agents:` block — no per-provider subclass needed
+- **select_backend()**: Per-provider backend picker for SDK-capable providers (Claude, Gemini):
+  SDK when package + API key are both present, else OAuth-authenticated CLI binary via CLIAgent,
+  else SDK-own-auth (ADC/OAuth), else skip with a warning — never a crashed orchestration
+- **CLIAgent**: Generic YAML-driven subprocess agent; provider variation (claude | gemini |
+  cursor | codex | antigravity) is config data in the `cli_agents:` block — no per-provider
+  subclass needed. The claude/gemini entries back the OAuth CLI fallback
 - **Dual Package Support**: google-genai (new) with fallback to google-generativeai (legacy), unified interface
 
 **Execution Flow**:
 
 1. **Initialization**: Load config + services.yml, create logger with correlation ID, set up rate limiters
 2. **Agent Selection**: services.yml state -> `--*-only` exclusive flags -> `--no-*` overrides -> minimum agent check
-3. **Agent Execution**: Run Claude/Gemini/Cursor/Codex in parallel with streaming or progress display
-4. **Consensus**: Calculate consensus score using keyword-based analysis
-5. **Synthesis**: If consensus < 50%, trigger SynthesisEngine for unified recommendation
-6. **Validation**: Run ValidationEngine if `--validate` flag set
-7. **Output**: Write structured logs, JSON results (with duration), markdown summary (sandbox-aware fallback)
+3. **Backend Selection**: `select_backend()` picks SDK vs CLI fallback for Claude/Gemini;
+   Cursor/Codex/Antigravity always run via CLIAgent
+4. **Agent Execution**: Run Claude/Gemini/Cursor/Codex/Antigravity in parallel with streaming or progress display
+5. **Consensus**: Calculate consensus score using keyword-based analysis
+6. **Synthesis**: If consensus < 50%, trigger SynthesisEngine for unified recommendation
+7. **Validation**: Run ValidationEngine if `--validate` flag set
+8. **Output**: Write structured logs, JSON results (with duration), markdown summary (sandbox-aware fallback)
 
 **Statistics**:
 
 - Modules: 6 (`config`, `runners`, `synthesis`, `validation`, `orchestrator`, `cli`) + `__init__`
-- Classes: 10 (Config, ServiceConfig, Logger, RateLimiter, ValidationEngine, SynthesisEngine,
+- Classes: 11 (Config, ServiceConfig, Logger, RateLimiter, ValidationEngine, SynthesisEngine,
   BaseAgent, ClaudeAgent, GeminiAgent, CLIAgent, Orchestrator)
-- CLI Flags: 30 (argparse in `agents/cli.py`)
+- CLI Flags: 28 (argparse in `agents/cli.py`)
 - Agents: 5 (Claude, Gemini, Cursor, Codex, Antigravity)
-- Total lines: ~2,400 across package (~27-line entry point)
+- Total lines: ~2,540 across package (27-line entry point)
 
 ---
 
@@ -305,6 +323,65 @@ flowchart LR
 
 **Design principle**: Dependency arrows flow strictly bottom-up. No circular imports.
 `config.py` is independently testable; `orchestrator.py` is testable without `cli.py`.
+
+---
+
+## Agent Backend Selection (SDK vs CLI Fallback)
+
+How `select_backend()` in `agents/cli.py` picks an execution backend for the SDK-capable
+providers (Claude, Gemini). The SDK is preferred only when both the package and its API key
+are present; otherwise the OAuth-authenticated provider CLI (`claude` / `gemini`) is used via
+the generic CLIAgent — the common subscription-login setup needs no API key. An installed SDK
+may carry its own auth (ADC/OAuth), so it is tried before the provider is skipped.
+
+```mermaid
+%%{init: {'theme':'neutral'}}%%
+flowchart TD
+    classDef input fill:#f0f9ff,stroke:#0284c7,color:#0c4a6e
+    classDef decision fill:#fef3c7,stroke:#d97706,color:#78350f
+    classDef sdk fill:#22c55e,stroke:#166534,color:#fff
+    classDef cli fill:#3b82f6,stroke:#1d4ed8,color:#fff
+    classDef skip fill:#ef4444,stroke:#dc2626,color:#fff
+
+    PROVIDER["Enabled SDK-capable provider<br/>(claude | gemini)"]:::input
+
+    SDK_KEY{"SDK package installed<br/>AND API key set?<br/>(ANTHROPIC_API_KEY /<br/>GOOGLE_API_KEY)"}:::decision
+    CLI_PATH{"Provider CLI on PATH?<br/>(claude / gemini binary)"}:::decision
+    SDK_ONLY{"SDK package<br/>installed?"}:::decision
+
+    SDK_BACKEND["backend = sdk<br/>ClaudeAgent / GeminiAgent"]:::sdk
+    CLI_BACKEND["backend = cli<br/>CLIAgent (OAuth-authenticated CLI,<br/>cli_agents: claude/gemini entry)"]:::cli
+    SDK_OWN_AUTH["backend = sdk<br/>(SDK-own-auth: ADC/OAuth)"]:::sdk
+    SKIP["Skip provider<br/>(warning, never a crash)"]:::skip
+
+    CONSTRUCT{"Agent construction<br/>raises?<br/>(missing key, broken auth,<br/>malformed cli_agents)"}:::decision
+    AGENTS["Agent joins the<br/>parallel run"]:::sdk
+
+    PROVIDER --> SDK_KEY
+    SDK_KEY -->|Yes| SDK_BACKEND
+    SDK_KEY -->|No| CLI_PATH
+    CLI_PATH -->|Yes| CLI_BACKEND
+    CLI_PATH -->|No| SDK_ONLY
+    SDK_ONLY -->|Yes| SDK_OWN_AUTH
+    SDK_ONLY -->|No| SKIP
+
+    SDK_BACKEND --> CONSTRUCT
+    CLI_BACKEND --> CONSTRUCT
+    SDK_OWN_AUTH --> CONSTRUCT
+    CONSTRUCT -->|No| AGENTS
+    CONSTRUCT -->|Yes| SKIP
+```
+
+**Key points**:
+
+- **Cursor / Codex / Antigravity** have no SDK path — they always run via CLIAgent and bypass
+  `select_backend()` entirely
+- **All five providers** can therefore execute through CLIAgent paths; the `cli_agents:` block
+  in `parallel_agent.yml` carries the per-provider argv shape (`base_args`, `model_args`,
+  `prompt_args`, output strategy)
+- **Degradation is per-provider**: a failed backend (exception at construction) skips just that
+  provider with a warning; orchestration continues with the remaining agents subject to the
+  minimum-agent check
 
 ---
 
@@ -372,7 +449,11 @@ flowchart LR
 
 ## Bootstrap Installation Flow
 
-Complete installation and configuration deployment process with Git CLI auto-detection.
+Complete installation and configuration deployment process. Mirrors `main()` in
+`bootstrap.sh` plus the routines in `bootstrap/lib/`: the services banner is printed
+**after** the existing config is loaded (so displayed toggles match what deploys), and
+soft-failure guards keep `set -e` from aborting the pipeline mid-flight — the full
+deploy → skillclaw state → python deps → auth → verify → summary sequence always runs.
 
 ```mermaid
 %%{init: {'theme':'neutral'}}%%
@@ -382,123 +463,82 @@ flowchart TD
     classDef decision fill:#fef3c7,stroke:#d97706,color:#78350f
     classDef success fill:#22c55e,stroke:#166534,color:#fff
     classDef skip fill:#e5e7eb,stroke:#6b7280,color:#374151
+    classDef warning fill:#eab308,stroke:#a16207,color:#fff
 
     START["./bootstrap.sh"]:::input
-    PARSE_ARGS["Parse CLI Arguments<br/>(--enable/--disable flags)"]:::process
-    DETECT_PLATFORM["Detect OS Platform<br/>(macOS, Linux distro)"]:::process
+    LOAD_LIBS["Load bootstrap/lib/*.sh<br/>+ parse CLI arguments"]:::process
 
-    LOAD_CONFIG{"Load Existing<br/>services.yml?"}:::decision
-    MERGE_CONFIG["Merge File Config<br/>with CLI Args"]:::process
+    RECONFIG{"--reconfigure?"}:::decision
+    RECONFIG_PATH["Reconfigure path:<br/>services.yml → skillclaw state<br/>→ python deps + browser-use"]:::process
 
-    INSTALL_PKG["Install Package Manager<br/>(Homebrew on macOS)"]:::process
-    INSTALL_NODE["Install Node.js<br/>(for npm CLIs)"]:::process
+    LOAD_CONFIG["Load existing services.yml<br/>(merge with CLI flags;<br/>explicit flags win)"]:::process
+    BANNER["Show services banner<br/>(printed AFTER config load —<br/>reflects merged toggles)"]:::process
+    CONFIRM{"Continue<br/>with setup?"}:::decision
+    CANCELLED["Setup cancelled"]:::skip
 
-    CHECK_CLAUDE{"Claude<br/>Enabled?"}:::decision
-    INSTALL_CLAUDE["Install Claude CLI<br/>(npm install -g)"]:::process
-    SKIP_CLAUDE["Skip Claude"]:::skip
+    PLATFORM["Check platform +<br/>create ~/.manifest state dirs"]:::process
 
-    CHECK_GEMINI{"Gemini<br/>Enabled?"}:::decision
-    INSTALL_GEMINI["Install Gemini CLI<br/>(npm install -g)"]:::process
-    SKIP_GEMINI["Skip Gemini"]:::skip
+    SKIP_INSTALL{"--skip-install?"}:::decision
+    INSTALLS["Install CLIs (soft-fail, counted):<br/>package manager · node · claude<br/>gemini · codex · gh · glab · jq · cursor"]:::process
 
-    CHECK_GH{"GitHub CLI<br/>Enabled/Auto?"}:::decision
-    AUTO_GH{"gh already<br/>installed?"}:::decision
-    INSTALL_GH["Install GitHub CLI<br/>(brew/apt/dnf)"]:::process
-    SKIP_GH["Disable GitHub CLI"]:::skip
+    DEPLOY["deploy_configs<br/>(~/.claude primary; chmod +x<br/>scripts/*.sh AND *.py;<br/>write services.yml)"]:::process
+    SKILLCLAW["skillclaw_apply_state<br/>(launchd cleanup guarded —<br/>no set -e abort)"]:::process
+    PYDEPS["Install python deps<br/>+ browser-use (if enabled)"]:::process
 
-    CHECK_GLAB{"GitLab CLI<br/>Enabled/Auto?"}:::decision
-    AUTO_GLAB{"glab already<br/>installed?"}:::decision
-    INSTALL_GLAB["Install GitLab CLI<br/>(brew/apt/dnf)"]:::process
-    SKIP_GLAB["Disable GitLab CLI"]:::skip
+    MCP{"--install-mcp?"}:::decision
+    INSTALL_MCP["Configure MCP servers<br/>(interactive per-server)"]:::process
 
-    CHECK_JQ["Check jq<br/>(required by git_ops.sh)"]:::process
-    INSTALL_JQ["Install jq"]:::process
+    SKIP_AUTH{"--skip-auth?"}:::decision
+    AUTH["Auth checks (soft-fail, counted):<br/>claude · gemini · codex<br/>gh · glab · cursor info"]:::process
 
-    CHECK_CURSOR{"Cursor<br/>Enabled?"}:::decision
-    OPEN_CURSOR["Open Cursor<br/>Download Page"]:::process
-    SKIP_CURSOR["Skip Cursor"]:::skip
+    VERIFY["verify_installation<br/>(errors counted, never aborts)"]:::process
+    SUMMARY["print_summary<br/>(quick-start + auth guidance)"]:::process
+    DONE["Installation complete"]:::success
+    EXIT_WARN["Exit 1 if verification<br/>reported errors"]:::warning
 
-    CHECK_SKILLCLAW{"SkillClaw<br/>Enabled?"}:::decision
-    INSTALL_SKILLCLAW["Enable SkillClaw<br/>chmod 700 storage<br/>(transcript evolution; no daemon)"]:::process
-    SKIP_SKILLCLAW["Skip SkillClaw"]:::skip
-
-    DEPLOY["Deploy Config Files<br/>(~/.claude, ~/.cursor, ~/.gemini)"]:::process
-    WRITE_SERVICES["Write services.yml<br/>(with final toggles)"]:::process
-
-    AUTH_CLAUDE["Setup Claude Auth"]:::process
-    AUTH_GEMINI["Setup Gemini Auth"]:::process
-    AUTH_GH["Setup GitHub Auth<br/>(gh auth login)"]:::process
-    AUTH_GLAB["Setup GitLab Auth<br/>(glab auth login)"]:::process
-
-    VERIFY["Verify Installation<br/>(check files, CLIs, scripts)"]:::process
-    DONE["Installation Complete"]:::success
-
-    START --> PARSE_ARGS
-    PARSE_ARGS --> DETECT_PLATFORM
-    DETECT_PLATFORM --> LOAD_CONFIG
-
-    LOAD_CONFIG -->|Yes| MERGE_CONFIG
-    LOAD_CONFIG -->|No| INSTALL_PKG
-    MERGE_CONFIG --> INSTALL_PKG
-
-    INSTALL_PKG --> INSTALL_NODE
-    INSTALL_NODE --> CHECK_CLAUDE
-
-    CHECK_CLAUDE -->|Yes| INSTALL_CLAUDE
-    CHECK_CLAUDE -->|No| SKIP_CLAUDE
-    INSTALL_CLAUDE --> CHECK_GEMINI
-    SKIP_CLAUDE --> CHECK_GEMINI
-
-    CHECK_GEMINI -->|Yes| INSTALL_GEMINI
-    CHECK_GEMINI -->|No| SKIP_GEMINI
-    INSTALL_GEMINI --> CHECK_GH
-    SKIP_GEMINI --> CHECK_GH
-
-    CHECK_GH -->|Enabled| INSTALL_GH
-    CHECK_GH -->|Auto| AUTO_GH
-    CHECK_GH -->|Disabled| SKIP_GH
-    AUTO_GH -->|Yes| SKIP_GH
-    AUTO_GH -->|No| SKIP_GH
-    INSTALL_GH --> CHECK_GLAB
-    SKIP_GH --> CHECK_GLAB
-
-    CHECK_GLAB -->|Enabled| INSTALL_GLAB
-    CHECK_GLAB -->|Auto| AUTO_GLAB
-    CHECK_GLAB -->|Disabled| SKIP_GLAB
-    AUTO_GLAB -->|Yes| SKIP_GLAB
-    AUTO_GLAB -->|No| SKIP_GLAB
-    INSTALL_GLAB --> CHECK_JQ
-    SKIP_GLAB --> CHECK_JQ
-
-    CHECK_JQ -->|Not Found| INSTALL_JQ
-    CHECK_JQ -->|Found| CHECK_CURSOR
-    INSTALL_JQ --> CHECK_CURSOR
-
-    CHECK_CURSOR -->|Yes| OPEN_CURSOR
-    CHECK_CURSOR -->|No| SKIP_CURSOR
-    OPEN_CURSOR --> CHECK_SKILLCLAW
-    SKIP_CURSOR --> CHECK_SKILLCLAW
-
-    CHECK_SKILLCLAW -->|Yes| INSTALL_SKILLCLAW
-    CHECK_SKILLCLAW -->|No| SKIP_SKILLCLAW
-    INSTALL_SKILLCLAW --> DEPLOY
-    SKIP_SKILLCLAW --> DEPLOY
-
-    DEPLOY --> WRITE_SERVICES
-    WRITE_SERVICES --> AUTH_CLAUDE
-    AUTH_CLAUDE --> AUTH_GEMINI
-    AUTH_GEMINI --> AUTH_GH
-    AUTH_GH --> AUTH_GLAB
-    AUTH_GLAB --> VERIFY
-    VERIFY --> DONE
+    START --> LOAD_LIBS
+    LOAD_LIBS --> RECONFIG
+    RECONFIG -->|Yes| RECONFIG_PATH
+    RECONFIG_PATH --> DONE
+    RECONFIG -->|No| LOAD_CONFIG
+    LOAD_CONFIG --> BANNER
+    BANNER --> CONFIRM
+    CONFIRM -->|No| CANCELLED
+    CONFIRM -->|Yes| PLATFORM
+    PLATFORM --> SKIP_INSTALL
+    SKIP_INSTALL -->|No| INSTALLS
+    SKIP_INSTALL -->|Yes| DEPLOY
+    INSTALLS --> DEPLOY
+    DEPLOY --> SKILLCLAW
+    SKILLCLAW --> PYDEPS
+    PYDEPS --> MCP
+    MCP -->|Yes| INSTALL_MCP
+    MCP -->|No| SKIP_AUTH
+    INSTALL_MCP --> SKIP_AUTH
+    SKIP_AUTH -->|No| AUTH
+    SKIP_AUTH -->|Yes| VERIFY
+    AUTH --> VERIFY
+    VERIFY --> SUMMARY
+    SUMMARY --> DONE
+    SUMMARY -.-> EXIT_WARN
 ```
 
 **Key Features**:
 
+- **Banner after config load**: the services banner is printed only after
+  `load_existing_config` merges `services.yml` with CLI flags, so the displayed toggles
+  always match what will actually be deployed
+- **Soft-fail install/auth/verify**: per-tool installs, auth checks, and
+  `verify_installation` return error counts instead of aborting under `set -e`; the
+  pipeline always reaches the summary (verification errors still exit 1 at the end)
+- **Deploy chmod covers Python**: `deploy_configs` marks both `scripts/*.sh` and
+  `scripts/*.py` executable
+- **skillclaw_apply_state runs unconditionally after deploy**: applies enable/disable state
+  and removes any legacy launchd capture daemon; the launchd cleanup is guarded so a missing
+  service can no longer abort the rest of the bootstrap (python deps, auth, verify, summary)
 - **Auto-Detection**: gh/glab default to `auto` mode (enable if already installed)
 - **Platform-Specific Install**: Uses appropriate package manager (brew/apt/dnf/pacman)
 - **Dependency Checking**: Verifies jq is installed (required for git_ops.sh JSON normalization)
-- **Service Toggles**: Writes final enabled/disabled state to services.yml
 - **SkillClaw (disabled by default)**: When `--enable-skillclaw` is passed, sets `chmod 700`
   on `~/.skillclaw/` and enables the passive transcript-ingestion pipeline; no proxy, no daemon,
   no supervisor required
@@ -530,9 +570,9 @@ flowchart TB
     CHECK_SERVICES{"Check<br/>services.yml"}:::decision
 
     subgraph "Agent Execution (Parallel)"
-        GEMINI_EXEC["Gemini CLI<br/>(gemini-3-flash-preview / 3-pro-preview)"]:::process
+        GEMINI_EXEC["Gemini — SDK or gemini CLI<br/>(gemini-3-flash-preview / 3-pro-preview)"]:::process
         CURSOR_EXEC["Cursor Agent<br/>(gpt-5.1/5.2)"]:::process
-        CLAUDE_EXEC["Claude CLI<br/>(haiku/sonnet/opus/fable)"]:::process
+        CLAUDE_EXEC["Claude — SDK or claude CLI<br/>(haiku/sonnet/opus/fable)"]:::process
         CODEX_EXEC["Codex CLI<br/>(gpt-5.4-mini/gpt-5.4/gpt-5.5)"]:::process
         AGY_EXEC["Antigravity CLI<br/>(agy, Gemini 3.5 Flash (High))"]:::process
     end
@@ -601,6 +641,9 @@ flowchart TB
 
 - **Sandbox Detection**: Auto-detects write restrictions and falls back to `/tmp` if needed
 - **Parallel Execution**: All enabled agents run simultaneously via background processes
+- **Backend Selection**: Claude/Gemini run via SDK when package + API key are present,
+  otherwise via their OAuth-authenticated CLI through CLIAgent (see
+  [Agent Backend Selection](#agent-backend-selection-sdk-vs-cli-fallback))
 - **Output Verification**: Explicit check that files were created before proceeding
 - **Retry Logic**: Failed agents retry once after 5s delay
 - **Credit Fallback**: Automatically retries with cheaper models on quota errors
@@ -844,13 +887,19 @@ flowchart TD
 **Cursor Fallback Chain**:
 
 ```text
-gpt-5.2 (advanced) → gpt-5.1-codex (flash) → gpt-5.1-codex-mini (mini) → auto
+gpt-5.2 (advanced) → gpt-5.1-codex (flash) → gpt-5.1-codex-mini (mini)
 ```
 
 **Claude Fallback Chain**:
 
 ```text
 fable → opus → sonnet → haiku
+```
+
+**Gemini Fallback Chain**:
+
+```text
+gemini-3-pro-preview (pro) → gemini-3-flash-preview (flash)
 ```
 
 **Codex Fallback Chain**:
@@ -865,6 +914,86 @@ The script parses stderr for patterns:
 - "credit", "quota", "rate limit", "insufficient"
 - Automatically retries with next cheaper model
 - Continues with available agents if one exhausts credits
+
+---
+
+## Model Pin Staleness Check
+
+How `model_check.sh` verifies the `model_tiers` pins in `parallel_agent.yml` against live
+provider listings, including the opt-in live-probe mode (`MODEL_CHECK_PROBE=1`) for
+OAuth-only machines, and how `check_status.sh` reports the result honestly
+(stale / unverified / verified). Warn-only: every failure degrades to SKIPPED and the
+exit code is always 0.
+
+```mermaid
+%%{init: {'theme':'neutral'}}%%
+flowchart TD
+    classDef input fill:#f0f9ff,stroke:#0284c7,color:#0c4a6e
+    classDef process fill:#f0fdf4,stroke:#16a34a,color:#14532d
+    classDef decision fill:#fef3c7,stroke:#d97706,color:#78350f
+    classDef ok fill:#22c55e,stroke:#166534,color:#fff
+    classDef warn fill:#eab308,stroke:#a16207,color:#fff
+    classDef stale fill:#ef4444,stroke:#dc2626,color:#fff
+
+    CALLER["check_status.sh /<br/>/health-check"]:::input
+    MODEL_CHECK["model_check.sh<br/>(reads model_tiers pins)"]:::process
+
+    API_KEY{"API key set?<br/>(claude / gemini)"}:::decision
+    LISTING["List models via API<br/>(api.anthropic.com /<br/>generativelanguage)"]:::process
+    PROBE_OPT{"MODEL_CHECK_PROBE=1<br/>and CLI installed?"}:::decision
+    PROBE["Live one-shot probe per pin<br/>(claude --model X -p /<br/>gemini -m X -p)"]:::process
+
+    AGY_LIST["antigravity: agy models<br/>listing check"]:::process
+    UNSUP["cursor / codex:<br/>UNSUPPORTED<br/>(no listing command)"]:::warn
+
+    PIN_OK["OK<br/>(pin verified)"]:::ok
+    PIN_STALE["STALE<br/>(pin not served)"]:::stale
+    PIN_SKIP["SKIPPED<br/>(no credentials /<br/>probe failed)"]:::warn
+
+    AGG{"check_status.sh<br/>aggregation"}:::decision
+    REPORT_STALE["⚠ N stale model pin(s) —<br/>update model_tiers"]:::stale
+    REPORT_UNVER["○ N check(s) unverified —<br/>run MODEL_CHECK_PROBE=1<br/>for a live CLI probe"]:::warn
+    REPORT_OK["✓ all pins verified"]:::ok
+
+    CALLER --> MODEL_CHECK
+    MODEL_CHECK --> API_KEY
+    MODEL_CHECK --> AGY_LIST
+    MODEL_CHECK --> UNSUP
+    API_KEY -->|Yes| LISTING
+    API_KEY -->|No| PROBE_OPT
+    PROBE_OPT -->|Yes| PROBE
+    PROBE_OPT -->|No| PIN_SKIP
+    LISTING --> PIN_OK
+    LISTING --> PIN_STALE
+    PROBE --> PIN_OK
+    PROBE --> PIN_STALE
+    PROBE --> PIN_SKIP
+    AGY_LIST --> PIN_OK
+    AGY_LIST --> PIN_STALE
+
+    PIN_OK --> AGG
+    PIN_STALE --> AGG
+    PIN_SKIP --> AGG
+    AGG -->|stale > 0| REPORT_STALE
+    AGG -->|skipped > 0| REPORT_UNVER
+    AGG -->|all OK| REPORT_OK
+```
+
+**Check modes per provider**:
+
+| Provider | With API key | Without API key | Notes |
+|----------|--------------|-----------------|-------|
+| claude | `GET /v1/models` listing | `MODEL_CHECK_PROBE=1`: one tiny `claude --model <pin> -p` call per pin; else SKIPPED | Probe needed because OAuth-only machines have no key — broken pins would otherwise read as green |
+| gemini | `GET /v1beta/models` listing | `MODEL_CHECK_PROBE=1`: one tiny `gemini -m <pin> -p` call per pin; else SKIPPED | Current pins: `gemini-3-flash-preview` / `gemini-3-pro-preview` |
+| antigravity | n/a | `agy models` listing (no key needed) | CLI listing only |
+| cursor / codex | n/a | n/a | UNSUPPORTED — no model-listing command |
+
+**Honest reporting** (`check_status.sh`):
+
+- Any STALE pins → yellow warning with count (update `model_tiers`)
+- Any SKIPPED checks → "unverified" line suggesting `MODEL_CHECK_PROBE=1 model_check.sh`;
+  the green "all pins verified" line never overclaims what was actually checked
+- All OK → green "Model pin check complete — all pins verified"
 
 ---
 

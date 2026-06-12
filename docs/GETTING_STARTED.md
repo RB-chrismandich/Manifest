@@ -2,7 +2,7 @@
 
 > Step-by-step guide to installing and using the Manifest parallel agent orchestration framework
 
-**Last Updated**: 2026-06-08
+**Last Updated**: 2026-06-12
 **Audience**: New users
 **Prerequisites**: macOS 10.15+ or Linux, internet connection
 **Estimated Time**: 10-15 minutes
@@ -28,6 +28,7 @@ Manifest deploys a parallel LLM agent orchestration system that enables Claude C
 - **Gemini CLI**: Broad knowledge and creative solutions
 - **Claude CLI**: Deep reasoning and security analysis
 - **Codex CLI**: Terminal-based coding agent with sandbox execution
+- **Antigravity (agy)**: Independent IDE-backed agent for cross-family verification
 
 These agents run in parallel, analyze the same task from different perspectives,
 and their outputs are synthesized with consensus scoring to provide higher-quality
@@ -101,7 +102,8 @@ npm install -g @google/gemini-cli
 # Visit: https://cursor.sh
 
 # 4. Deploy configuration
-cp -r .claude/* ~/.claude/
+cp -r configs/claude/* ~/.claude/
+cp -r configs/claude/.[!.]* ~/.claude/ 2>/dev/null || true
 chmod +x ~/.claude/scripts/*.sh ~/.claude/scripts/parallel_agent.py
 
 # 5. Configure services (see Configuration section)
@@ -161,6 +163,11 @@ Run a simple test to verify all agents are working:
 
 - `status: "missing"` → Agent CLI not installed
 - `status: "failed"` → Authentication issue or quota exceeded
+
+> **No API keys required**: the Claude and Gemini agents pick an execution backend
+> per run — the provider SDK when its package and API key
+> (`ANTHROPIC_API_KEY` / `GOOGLE_API_KEY`) are both present, otherwise the
+> logged-in `claude` / `gemini` CLI. OAuth/subscription logins work out of the box.
 
 See [Troubleshooting](TROUBLESHOOTING.md) for solutions.
 
