@@ -47,6 +47,21 @@ deploy_configs() {
     # user/runtime state (plugins, sessions, settings.json, …) from the backup.
     local restore_from=""
 
+    # rsync is a hard dependency of every copy path below. Check it BEFORE the
+    # destructive `mv` of ~/.claude — failing mid-deploy stranded all user
+    # state in the timestamped backup with no recovery message (issue #320).
+    if ! command_exists rsync; then
+        print_error "rsync is required for deployment but was not found"
+        echo ""
+        echo "  Install it first:"
+        case "${PLATFORM:-}" in
+            macos) echo "    brew install rsync" ;;
+            *)     echo "    sudo apt install rsync   # or dnf/pacman/zypper equivalent" ;;
+        esac
+        echo ""
+        exit 1
+    fi
+
     if [[ ! -d "$source_dir" ]]; then
         print_error "Source directory not found: $source_dir"
         exit 1
