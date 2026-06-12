@@ -47,10 +47,12 @@ install_package_manager() {
 
                 # Add Homebrew to PATH for Apple Silicon
                 if [[ -f "/opt/homebrew/bin/brew" ]]; then
+                    # shellcheck disable=SC1090
                     source <(/opt/homebrew/bin/brew shellenv)
                 fi
                 # Add Homebrew to PATH for Intel Mac
                 if [[ -f "/usr/local/bin/brew" ]]; then
+                    # shellcheck disable=SC1090
                     source <(/usr/local/bin/brew shellenv)
                 fi
                 print_success "Homebrew installed"
