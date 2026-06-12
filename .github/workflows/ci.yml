@@ -20,7 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6
 
       # --- ShellCheck ---
 
@@ -60,7 +60,7 @@ jobs:
       # --- markdownlint ---
 
       - name: markdownlint - key docs
-        uses: DavidAnson/markdownlint-cli2-action@v23
+        uses: DavidAnson/markdownlint-cli2-action@ded1f9488f68a970bc66ea5619e13e9b52e601cd  # v23
         with:
           globs: |
             AGENTS.md
@@ -71,7 +71,7 @@ jobs:
       # --- YAML validation with Python ---
 
       - name: Set up Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6
         with:
           python-version: "3.14"
 
@@ -96,7 +96,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6
         with:
           # bats-support / bats-assert under tests/test_helper are git submodules
           submodules: true
@@ -106,7 +106,7 @@ jobs:
       # Cache keyed on the pinned version string so a pin bump invalidates
       # the cache (specs/003 FR-014 edge case).
       - name: Cache bats install
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830  # v4
         with:
           path: node_modules
           key: bats-1.11.1-${{ runner.os }}
@@ -120,7 +120,7 @@ jobs:
       # --- Python tests ---
 
       - name: Set up Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6
         with:
           python-version: "3.14"
           cache: pip
@@ -144,7 +144,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6
 
       - name: Verify symlinks are intact
         run: |
