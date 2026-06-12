@@ -6,25 +6,32 @@
 # Usage: ./bootstrap.sh [options]
 #
 # Service toggles:
-#   --enable-claude     Enable Claude CLI (default: enabled)
-#   --disable-claude    Disable Claude CLI
-#   --enable-gemini     Enable Gemini CLI (default: enabled)
-#   --disable-gemini    Disable Gemini CLI
-#   --enable-cursor     Enable Cursor agent (default: enabled)
-#   --disable-cursor    Disable Cursor agent
-#   --enable-codex      Enable Codex CLI (default: enabled)
-#   --disable-codex     Disable Codex CLI
-#   --enable-gh         Enable GitHub CLI (default: auto-detect)
-#   --disable-gh        Disable GitHub CLI
-#   --enable-glab       Enable GitLab CLI (default: auto-detect)
-#   --disable-glab      Disable GitLab CLI
+#   --enable-claude       Enable Claude CLI (default: enabled)
+#   --disable-claude      Disable Claude CLI
+#   --enable-gemini       Enable Gemini CLI (default: enabled)
+#   --disable-gemini      Disable Gemini CLI
+#   --enable-cursor       Enable Cursor agent (default: enabled)
+#   --disable-cursor      Disable Cursor agent
+#   --enable-codex        Enable Codex CLI (default: enabled)
+#   --disable-codex       Disable Codex CLI
+#   --enable-antigravity  Enable Antigravity IDE (default: enabled)
+#   --disable-antigravity Disable Antigravity IDE
+#   --enable-skillclaw    Enable SkillClaw session capture (default: disabled)
+#   --disable-skillclaw   Disable SkillClaw session capture
+#   --enable-browser-use  Enable browser-use for /browser-test (default: disabled)
+#   --disable-browser-use Disable browser-use
+#   --enable-gh           Enable GitHub CLI (default: auto-detect)
+#   --disable-gh          Disable GitHub CLI
+#   --enable-glab         Enable GitLab CLI (default: auto-detect)
+#   --disable-glab        Disable GitLab CLI
 #
 # Other options:
 #   --skip-install      Skip CLI tool installation
 #   --skip-auth         Skip authentication checks
 #   --install-mcp       Configure default MCP servers for enabled agents
 #   --force             Overwrite existing ~/.claude without prompting
-#   --reconfigure       Only update service toggles (skip full setup)
+#   --reconfigure       Update service toggles and refresh Python/browser-use
+#                       dependencies (skips install and config deployment)
 
 set -e
 

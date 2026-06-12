@@ -122,6 +122,7 @@ The `bootstrap.sh` script automates installation, deployment, and authentication
 --enable-codex / --disable-codex     # Codex CLI (default: enabled)
 --enable-antigravity / --disable-antigravity   # Antigravity IDE (default: enabled)
 --enable-skillclaw / --disable-skillclaw   # SkillClaw session capture (default: disabled)
+--enable-browser-use / --disable-browser-use   # browser-use for /browser-test (default: disabled)
 --enable-gh / --disable-gh           # GitHub CLI (default: auto-detect)
 --enable-glab / --disable-glab       # GitLab CLI (default: auto-detect)
 --install-mcp                        # Configure MCP servers (interactive per-server selection)
