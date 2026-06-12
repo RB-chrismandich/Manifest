@@ -58,6 +58,22 @@ direct API; consensus scores can be inflated by same-family agreement, and agy's
 may lag the direct API (e.g. Opus 4.6 vs 4.8) — `agy models` is its ground truth
 (checked by `model_check.sh`).
 
+## Execution Backend (SDK vs CLI)
+
+Claude and Gemini agents pick an execution backend per run (`agents.cli.select_backend`):
+
+1. **SDK** — when the provider package (`anthropic` / `google-generativeai`) AND its
+   API key (`ANTHROPIC_API_KEY` / `GOOGLE_API_KEY`) are both present.
+2. **CLI fallback** — otherwise, when the provider CLI (`claude` / `gemini`) is on
+   PATH. OAuth/subscription logins work here with no API key — this is the default
+   path on machines authenticated via `claude login` / gemini OAuth.
+3. **SDK with its own auth** (ADC/OAuth) as a last resort, else the provider is
+   skipped with a warning.
+
+Command shapes come from `cli_agents.claude` / `cli_agents.gemini` in
+`parallel_agent.yml`. Pin staleness on OAuth-only machines is checked with
+`MODEL_CHECK_PROBE=1 model_check.sh` (live one-shot CLI probe per pin).
+
 ## Credit Exhaustion Fallback
 
 The script automatically detects credit/quota exhaustion and falls back:

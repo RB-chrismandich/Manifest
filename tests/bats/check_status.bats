@@ -337,3 +337,17 @@ EOF
     assert_success
     refute_output --partial "Quick Test:"
 }
+
+# ---------------------------------------------------------------------------
+# Model Pins summary honesty: SKIPPED providers must not read as a green
+# "complete" (the OAuth-only false-green found in the 2026-06-11 validation).
+# ---------------------------------------------------------------------------
+
+@test "model pins summary warns when providers were skipped (no false green)" {
+    write_services_yml true true false false
+    # Sandbox PATH has no agent CLIs and no API keys -> claude/gemini SKIPPED
+    ANTHROPIC_API_KEY="" GOOGLE_API_KEY="" run bash "$SCRIPT_UNDER_TEST"
+    assert_success
+    assert_output --partial "unverified"
+    refute_output --partial "Model pin check complete (stale pins above, if any)"
+}

@@ -7,6 +7,7 @@ import argparse
 import asyncio
 import json
 import os
+import shutil
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -20,6 +21,26 @@ from agents.config import (
     ServiceConfig,
 )
 from agents.orchestrator import Orchestrator, check_credits
+
+
+def select_backend(has_sdk: bool, has_key: bool, has_cli: bool):
+    """Pick the execution backend for an SDK-capable provider (claude, gemini).
+
+    The SDK is preferred only when both the package and its API key are
+    present. Otherwise fall back to the provider CLI when it is on PATH —
+    OAuth-authenticated CLIs work without API keys, which is the common
+    subscription-login setup. As a last resort, an installed SDK may carry
+    its own auth (ADC/OAuth), so try it before giving up.
+
+    Returns "sdk", "cli", or None (provider unavailable).
+    """
+    if has_sdk and has_key:
+        return "sdk"
+    if has_cli:
+        return "cli"
+    if has_sdk:
+        return "sdk"
+    return None
 from agents.runners import (
     BaseAgent,
     ClaudeAgent,
@@ -211,43 +232,71 @@ async def main():
     # Build agents list
     agents = []
 
-    if enabled["claude"]:
-        if HAS_ANTHROPIC:
-            agents.append(
-                ClaudeAgent(
-                    args.claude_model,
-                    timeout,
-                    claude_limiter,
-                    config=config,
-                    logger=logger,
-                    streaming=streaming,
+    sdk_providers = {
+        "claude": {
+            "agent_cls": ClaudeAgent,
+            "has_sdk": HAS_ANTHROPIC,
+            "key_env": "ANTHROPIC_API_KEY",
+            "model": args.claude_model,
+            "limiter": claude_limiter,
+        },
+        "gemini": {
+            "agent_cls": GeminiAgent,
+            "has_sdk": HAS_GENAI,
+            "key_env": "GOOGLE_API_KEY",
+            "model": args.gemini_model,
+            "limiter": gemini_limiter,
+        },
+    }
+    for provider, spec in sdk_providers.items():
+        if not enabled[provider]:
+            continue
+        binary = config.get(f"cli_agents.{provider}.binary", provider)
+        backend = select_backend(
+            has_sdk=spec["has_sdk"],
+            has_key=bool(os.environ.get(spec["key_env"])),
+            has_cli=bool(shutil.which(binary)),
+        )
+        try:
+            if backend == "sdk":
+                agents.append(
+                    spec["agent_cls"](
+                        spec["model"],
+                        timeout,
+                        spec["limiter"],
+                        config=config,
+                        logger=logger,
+                        streaming=streaming,
+                    )
                 )
-            )
-        else:
+            elif backend == "cli":
+                agents.append(
+                    CLIAgent(
+                        provider,
+                        spec["model"],
+                        timeout,
+                        spec["limiter"],
+                        config=config,
+                        logger=logger,
+                        streaming=streaming,
+                    )
+                )
+            else:
+                msg = (
+                    f"Warning: skipping {provider} agent: neither the SDK "
+                    f"(+{spec['key_env']}) nor the {binary} CLI is available"
+                )
+                print(msg, file=sys.stderr)
+                logger.warning(msg)
+        except Exception as e:
+            # SDK construction can raise (missing key, broken auth) and a
+            # malformed cli_agents block raises ValueError — degrade to a
+            # skipped provider, never a crashed orchestration.
             print(
-                "Warning: anthropic package not installed, skipping Claude agent",
+                f"Warning: skipping {provider} agent ({backend}): {e}",
                 file=sys.stderr,
             )
-            logger.warning("Anthropic package not installed")
-
-    if enabled["gemini"]:
-        if HAS_GENAI:
-            agents.append(
-                GeminiAgent(
-                    args.gemini_model,
-                    timeout,
-                    gemini_limiter,
-                    config=config,
-                    logger=logger,
-                    streaming=streaming,
-                )
-            )
-        else:
-            print(
-                "Warning: google-generativeai package not installed, skipping Gemini agent",
-                file=sys.stderr,
-            )
-            logger.warning("Google Generative AI package not installed")
+            logger.warning(f"Skipping {provider} agent ({backend}): {e}")
 
     cli_limiters = {
         "cursor": cursor_limiter,
