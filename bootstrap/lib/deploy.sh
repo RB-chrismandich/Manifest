@@ -600,7 +600,7 @@ print_summary() {
         echo -e "    Claude:  ${CYAN}claude auth login${NC}  or  ${CYAN}export ANTHROPIC_API_KEY='...'${NC}"
     fi
     if [[ "$ENABLE_GEMINI" == true ]]; then
-        echo -e "    Gemini:  ${CYAN}gemini auth login${NC}  or  ${CYAN}export GEMINI_API_KEY='...'${NC}"
+        echo -e "    Gemini:  ${CYAN}gemini${NC} (first run prompts OAuth)  or  ${CYAN}export GEMINI_API_KEY='...'${NC}"
     fi
     if [[ "$ENABLE_CODEX" == true ]]; then
         echo -e "    Codex:   ${CYAN}codex auth login${NC}  or  ${CYAN}export OPENAI_API_KEY='...'${NC}"

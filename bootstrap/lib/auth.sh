@@ -68,8 +68,11 @@ setup_gemini_auth() {
     case $auth_choice in
         1)
             if command_exists gemini; then
-                print_step "Running 'gemini auth login'..."
-                gemini auth login
+                # There is no `gemini auth login` subcommand — the CLI treats
+                # unknown args as a prompt and spawns an agent session
+                # (issue #319). First run of the bare CLI triggers OAuth.
+                print_step "Launching Gemini CLI — choose 'Login with Google', then exit with /quit..."
+                gemini
                 return $?
             else
                 print_error "Gemini CLI not found."
@@ -156,7 +159,7 @@ check_gemini_auth() {
     echo "  To authenticate, run one of the following after bootstrap completes:"
     echo ""
     echo "    # Browser-based OAuth (recommended for personal use):"
-    echo -e "    ${CYAN}gemini auth login${NC}"
+    echo -e "    ${CYAN}gemini${NC}  # first run prompts a Google login (or use /auth inside the CLI)"
     echo ""
     echo "    # Or set an API key in your shell profile:"
     echo -e "    ${CYAN}export GEMINI_API_KEY='your-api-key'${NC}"

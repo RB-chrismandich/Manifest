@@ -437,7 +437,7 @@ Error: Invalid API key
 
 ```bash
 # Authenticate with Gemini CLI
-gemini auth login
+gemini  # first run prompts a Google OAuth login
 
 # Verify authentication
 gemini auth status
@@ -447,7 +447,7 @@ gemini auth status
 
 1. Visit: <https://makersuite.google.com/app/apikey>
 2. Create new API key
-3. Copy key for `gemini auth login`
+3. Copy key for `gemini  # first run prompts a Google OAuth login`
 
 ---
 

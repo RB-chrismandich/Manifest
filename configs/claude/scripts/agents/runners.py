@@ -330,7 +330,11 @@ class GeminiAgent(BaseAgent):
                         "  [gemini] OAuth not configured, trying without credentials",
                         file=sys.stderr,
                     )
-                    print("  [gemini] Run: gemini auth login", file=sys.stderr)
+                    print(
+                        "  [gemini] Run the gemini CLI once to complete OAuth"
+                        " (or set GOOGLE_API_KEY)",
+                        file=sys.stderr,
+                    )
                     raise
         else:
             # Use legacy google-generativeai package
@@ -345,7 +349,8 @@ class GeminiAgent(BaseAgent):
                         self.logger.warning(f"[gemini] OAuth not configured: {e}")
                     print("  [gemini] OAuth not configured", file=sys.stderr)
                     print(
-                        "  [gemini] Run: gemini auth login or set GOOGLE_API_KEY",
+                        "  [gemini] Run the gemini CLI once to complete OAuth"
+                        " or set GOOGLE_API_KEY",
                         file=sys.stderr,
                     )
                     raise
