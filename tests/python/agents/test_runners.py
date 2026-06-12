@@ -191,7 +191,9 @@ class TestCLIAgentCommandAssembly:
         assert cmd == ["agy", "--model", "Gemini 3.5 Flash (High)", "--print", "hello"]
 
     def test_claude_cli_command_shape(self, tmp_path):
-        # claude headless: --print is a boolean flag, the prompt is positional
+        # claude headless: -p/--print is a BOOLEAN flag enabling print mode;
+        # "hello" is a separate positional query arg that merely sits after it
+        # (claude --model X -p hello == claude -p hello --model X)
         agent = CLIAgent("claude", model="sonnet",
                          rate_limiter=_make_limiter(), config=_make_config(tmp_path))
         cmd = agent._build_command("hello")

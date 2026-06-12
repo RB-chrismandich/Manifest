@@ -295,6 +295,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 if [[ -x "$SCRIPT_DIR/model_check.sh" ]]; then
     stale_pins=0
     skipped_pins=0
+    unsupported_pins=0
     while IFS= read -r line; do
         case "$line" in
             OK:*)          [[ "$VERBOSE" == true ]] && echo -e "  ${GREEN}✓${NC} ${line#OK: }" ;;
@@ -306,15 +307,22 @@ if [[ -x "$SCRIPT_DIR/model_check.sh" ]]; then
                 skipped_pins=$((skipped_pins + 1))
                 [[ "$VERBOSE" == true ]] && echo -e "  ${YELLOW}○${NC} ${line#SKIPPED: }"
                 ;;
-            UNSUPPORTED:*) [[ "$VERBOSE" == true ]] && echo -e "  ${YELLOW}○${NC} ${line#UNSUPPORTED: }" ;;
+            UNSUPPORTED:*)
+                unsupported_pins=$((unsupported_pins + 1))
+                [[ "$VERBOSE" == true ]] && echo -e "  ${YELLOW}○${NC} ${line#UNSUPPORTED: }"
+                ;;
         esac
     done < <("$SCRIPT_DIR/model_check.sh")
     # SKIPPED must not read as green: on OAuth-only machines (no API keys)
     # claude/gemini pins go unverified and broken pins hide behind a ✓.
+    # UNSUPPORTED providers (no listing command at all) are called out in the
+    # green line so "verified" never overclaims what was actually checked.
     if [[ "$stale_pins" -gt 0 ]]; then
         echo -e "  ${YELLOW}⚠${NC}  $stale_pins stale model pin(s) — update model_tiers in parallel_agent.yml"
     elif [[ "$skipped_pins" -gt 0 ]]; then
         echo -e "  ${YELLOW}○${NC} $skipped_pins check(s) unverified (no API credentials — run MODEL_CHECK_PROBE=1 model_check.sh for a live CLI probe)"
+    elif [[ "$unsupported_pins" -gt 0 ]]; then
+        echo -e "  ${GREEN}✓${NC} Model pin check complete — all verifiable pins OK ($unsupported_pins provider(s) have no listing command)"
     else
         echo -e "  ${GREEN}✓${NC} Model pin check complete — all pins verified"
     fi
