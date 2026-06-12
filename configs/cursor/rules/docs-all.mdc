@@ -1,0 +1,15 @@
+---
+description: "Run all documentation skills (docs-readme, docs-diagrams, docs-improve) in one command, dispatching each as a sub-agent in an order chosen per run (with a documented default precedence as fallback), and return a single consolidated report. Use to refresh the whole doc set at once."
+globs: ".claude/skills/docs-all/**"
+alwaysApply: false
+---
+
+# docs-all
+
+Run all documentation skills (docs-readme, docs-diagrams, docs-improve) in one command, dispatching each as a sub-agent in an order chosen per run (with a documented default precedence as fallback), and return a single consolidated report. Use to refresh the whole doc set at once.
+
+<!-- Auto-generated from .claude/skills/docs-all/SKILL.md -->
+<!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
+
+Refer to `.cursor/skills/docs-all/SKILL.md` for the full skill definition.
+

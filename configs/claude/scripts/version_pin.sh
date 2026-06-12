@@ -54,9 +54,25 @@ CHANGED=false   # set by process_* to signal the file needs rewriting
 err() { echo "version-pin: $*" >&2; }
 usage_error() { err "$*"; exit 2; }
 
+usage() {
+    cat <<'USAGE'
+Usage: version_pin.sh [<path>...] [--check] [--requested NAME=VERSION]...
+                      [--rule ID] [--config FILE]
+
+  <path>...            Files/dirs to scan (default: current directory tree)
+  --check              Warn-only: report violations + fixes, make NO edits
+  --requested NAME=VER Pin NAME to an exact requested version (repeatable)
+  --rule ID            Limit to one rule-set entry from the config
+  --config FILE        Alternate command_config.yml
+
+Bypass a line with a trailing '# version-pin:ignore' marker.
+USAGE
+}
+
 parse_args() {
     while [[ $# -gt 0 ]]; do
         case "$1" in
+            --help|-h) usage; exit 0 ;;
             --check) CHECK_ONLY=true; shift ;;
             --rule) [[ $# -ge 2 ]] || usage_error "--rule needs an argument"; RULE_FILTER="$2"; shift 2 ;;
             --config) [[ $# -ge 2 ]] || usage_error "--config needs an argument"; CONFIG="$2"; shift 2 ;;
@@ -74,7 +90,7 @@ parse_args() {
 
 requested_for() {
     local name="$1" kv
-    for kv in ${REQUESTED_KV[@]+"${REQUESTED_KV[@]}"}; do
+    for kv in "${REQUESTED_KV[@]+"${REQUESTED_KV[@]}"}"; do
         if [[ "$kv" == "${name}="* ]]; then echo "${kv#*=}"; return 0; fi
     done
     return 0
@@ -193,7 +209,7 @@ write_back() {
     $CHECK_ONLY && return 0
     [[ "$changed" == true ]] || return 0
     [[ ${#OUT_LINES[@]} -gt 0 ]] || return 0
-    printf '%s\n' "${OUT_LINES[@]}" > "$file"
+    printf '%s\n' "${OUT_LINES[@]+"${OUT_LINES[@]}"}" > "$file"
 }
 
 report() {
@@ -212,7 +228,7 @@ process_pip() {
     local line trimmed name name_extras env_marker ver hash resolved fixed req
     OUT_LINES=(); CHANGED=false
     [[ ${#FILE_LINES[@]} -gt 0 ]] || return 0
-    for line in "${FILE_LINES[@]}"; do
+    for line in "${FILE_LINES[@]+"${FILE_LINES[@]}"}"; do
         trimmed="${line#"${line%%[![:space:]]*}"}"
         if [[ -z "$trimmed" || "$trimmed" == \#* || "$trimmed" == -* ]]; then
             OUT_LINES+=("$line"); continue
@@ -281,7 +297,7 @@ process_docker() {
         re='^([[:space:]]*FROM[[:space:]]+(--[A-Za-z-]+=[^[:space:]]+[[:space:]]+)*)([^[:space:]#]+)(.*)$'
     fi
     [[ ${#FILE_LINES[@]} -gt 0 ]] || return 0
-    for line in "${FILE_LINES[@]}"; do
+    for line in "${FILE_LINES[@]+"${FILE_LINES[@]}"}"; do
         if [[ ! "$line" =~ $re ]]; then OUT_LINES+=("$line"); continue; fi
         if [[ "$kind" == "compose" ]]; then
             key="${BASH_REMATCH[1]}"; ref="${BASH_REMATCH[2]}"; rest="${BASH_REMATCH[3]}"
@@ -348,16 +364,16 @@ build_find_globs() {
 
 collect_files() {
     local p g args first
-    for p in "${PATHS[@]}"; do
+    for p in "${PATHS[@]+"${PATHS[@]}"}"; do
         if [[ -f "$p" ]]; then
             echo "$p"
         elif [[ -d "$p" ]]; then
             args=(); first=true
-            for g in ${FIND_GLOBS[@]+"${FIND_GLOBS[@]}"}; do
+            for g in "${FIND_GLOBS[@]+"${FIND_GLOBS[@]}"}"; do
                 if $first; then args+=( -name "$g" ); first=false
                 else args+=( -o -name "$g" ); fi
             done
-            [[ ${#args[@]} -gt 0 ]] && find "$p" -type f \( "${args[@]}" \) 2>/dev/null
+            [[ ${#args[@]} -gt 0 ]] && find "$p" -type f \( "${args[@]}" \) 2>/dev/null  # array-safe (length-guarded)
         else
             err "path not found: $p"
         fi

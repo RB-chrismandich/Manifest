@@ -1,0 +1,15 @@
+---
+description: "Use when validating data-ingestion, parsing, ETL, or API-integration code against real/live data — as a quick smoke pass after a change, as a comprehensive pre-merge gate, or as the confirmation step right after unit tests go green. Surfaces fixture-blind bug classes (free-text numerics, dedup-key collisions, casing/format mismatches, falsy-zero confusion) that clean synthetic fixtures hide."
+globs: ".claude/skills/live-data-validation/**"
+alwaysApply: false
+---
+
+# live-data-validation
+
+Use when validating data-ingestion, parsing, ETL, or API-integration code against real/live data — as a quick smoke pass after a change, as a comprehensive pre-merge gate, or as the confirmation step right after unit tests go green. Surfaces fixture-blind bug classes (free-text numerics, dedup-key collisions, casing/format mismatches, falsy-zero confusion) that clean synthetic fixtures hide.
+
+<!-- Auto-generated from .claude/skills/live-data-validation/SKILL.md -->
+<!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
+
+Refer to `.cursor/skills/live-data-validation/SKILL.md` for the full skill definition.
+

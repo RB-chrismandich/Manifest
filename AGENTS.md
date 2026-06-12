@@ -2,7 +2,7 @@
 
 > Repository context and guidance for AI coding agents (Cursor, Claude Code, Gemini, Codex, etc.)
 
-**Last Updated**: 2026-02-11
+**Last Updated**: 2026-06-10
 **Audience**: AI assistants (Cursor Agent, Claude Code, Gemini CLI, Codex CLI), contributors
 **Purpose**: Provide AI agents with repository structure, deployment process, and testing guidelines
 
@@ -206,39 +206,50 @@ Required CLI tools (install those you want to use):
 
 ## Available Skills
 
-All agents share the same skill library from `.skillshare/skills/` (28 skills;
+All agents share the same skill library from `.skillshare/skills/` (69 skills;
 exposed via the `configs/claude/skills/` symlink).
 Skills are invoked as slash commands (e.g., `/refactor-python src/`).
 
 ### Skill Reference
 
-| Skill | Description | Parallel Agents |
-|-------|-------------|-----------------|
-| `/a11y-audit` | WCAG 2.2 AA accessibility audit | NO |
-| `/antipattern-detect` | Detect codebase antipatterns and suggest fixes | NO |
-| `/checkpoint` | Save context checkpoint for session continuity | NO |
-| `/ci-setup` | Configure CI/CD pipelines for target repository | NO |
-| `/code-quality` | Auto-triggered security and quality checks | AUTO |
-| `/dashboard` | Visualize agent efficiency metrics | NO |
-| `/docs-diagrams` | Generate Mermaid architecture diagrams | CONDITIONAL |
-| `/docs-improve` | Diataxis documentation framework analysis | CONDITIONAL |
+| Command | Description | Parallel Agents |
+|---------|-------------|-----------------|
+| `/project-commit` | Full commit pipeline: docs, pull, pre-commits, commit, push | CONDITIONAL (Phase 3) |
 | `/docs-readme` | Improve README documentation | NO |
-| `/health-check` | Verify CLI tools, auth, config, MCP, symlinks | NO |
-| `/issue-prioritize` | Score and rank open issues by impact | CONDITIONAL |
-| `/issue-triage` | Linear issue audit with duplicate detection | CONDITIONAL |
-| `/learning-loop` | Capture structured lessons learned | NO |
-| `/performance-check` | Core Web Vitals and bundle analysis | NO |
-| `/plan-manage` | Plan lifecycle with parallel agent orchestration | CONDITIONAL |
-| `/project-commit` | Full commit pipeline: docs, pull, pre-commits, commit, push | CONDITIONAL |
-| `/refactor-go` | Go codebase security and quality analysis | ALWAYS |
-| `/refactor-node` | Node.js/TypeScript security and quality analysis | ALWAYS |
+| `/docs-diagrams` | Generate Mermaid architecture diagrams | CONDITIONAL (5+ modules) |
+| `/docs-improve` | Diataxis documentation framework analysis | CONDITIONAL (>500 lines) |
+| `/docs-all` | Run docs-readme/docs-diagrams/docs-improve as sub-agents in one pass | CONDITIONAL |
 | `/refactor-python` | Python codebase security and quality analysis | ALWAYS |
 | `/refactor-shell` | Bash/Shell script security and quality analysis | ALWAYS |
-| `/refactor-terraform` | Terraform IaC security and modularity analysis | ALWAYS |
-| `/scaffold` | Initialize new project with quality gates and Manifest integration | NO |
-| `/sync-configs` | Detect cross-platform config drift | NO |
-| `/ux-review` | UX/accessibility/performance audit | NO |
+| `/refactor-node` | Node.js/TypeScript codebase security and quality analysis | ALWAYS |
+| `/refactor-go` | Go codebase security and quality analysis | ALWAYS |
+| `/refactor-terraform` | Terraform/OpenTofu IaC security, modularity, and quality analysis | ALWAYS |
+| `/issue-triage` | Linear issue audit: duplicates, staleness, priority validation | CONDITIONAL |
+| `/issue-prioritize` | Score and rank open issues by impact/urgency/readiness/risk | CONDITIONAL |
+| `/plan-manage` | Plan lifecycle with parallel agent orchestration | CONDITIONAL |
+| `/browser-test` | AI-powered E2E browser testing via browser-use YAML test prompts | CONDITIONAL |
+| `/checkpoint` | Create compact checkpoint summary when context is high | NO |
+| `/health-check` | Verify CLI tools, auth, config syntax, MCP, symlinks | NO |
+| `/sync-configs` | Detect cross-platform config drift and broken symlinks | NO |
+| `/version-pin` | Enforce specific, hashed version pins in dependency files (auto-fix on demand; warn-only save hook) | ALWAYS (Tier 1) |
+| `/pr-review` | Review all open PRs and recommend a disposition per PR (analysis-only) | NO |
+| `/branch-clean` | Prune merged/gone/stale branches safely (dry-run by default, local-only) | CONDITIONAL (--apply) |
+| `/skill-evolve` | Promote SkillClaw-evolved skills into a review PR (dry-run by default); requires SkillClaw enabled | NO |
+| `/pass-cli` | Retrieve credentials from Proton Pass vaults via `pass-cli` agent CLI | NO |
+| `/spec-review` | Independent Antigravity (agy) cross-reference of spec/plan/tasks for internal consistency; on-demand or via fail-open PostToolUse save hook (content-hash debounced, detached); analysis-only; works with speckit and superpowers layouts; silent-mode findings land in `.spec-review/feedback.md` | NO |
+| `/a11y-audit` | WCAG 2.2 AA accessibility audit | NO |
+| `/antipattern-detect` | Detect recurring antipatterns from lint, test, and review feedback | NO |
+| `/ci-setup` | Configure CI/CD pipelines for a target repository (GitHub Actions or GitLab CI) | NO |
+| `/code-quality` | Auto-triggered security and quality checks | AUTO (always when triggered) |
+| `/dashboard` | Visualize agent efficiency metrics | NO |
+| `/learning-loop` | Capture structured lessons learned | NO |
+| `/performance-check` | Frontend performance audit: bundle size, Core Web Vitals, caching | NO |
+| `/scaffold` | Initialize new projects with quality gates and Manifest integration | NO |
+| `/ux-review` | UX audit: accessibility, responsive design, performance budgets | NO |
 | `/verify` | Run linters, tests, and security scans in parallel | CONDITIONAL |
+
+**CLI tool** (installed to `~/.local/bin/`): `sync-skills` — sync `.skillshare/skills/`
+to all home targets (daily skill dev workflow).
 
 ### Cursor Rules
 

@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import subprocess
 import sys
@@ -20,6 +21,7 @@ import time
 from pathlib import Path
 
 DEFAULT_TOKEN_BUDGET = 100_000
+DEFAULT_CHUNK_TIMEOUT = 600  # seconds per `claude -p` chunk (FR-010)
 _SKILL_RE = re.compile(r"~~~skill name=(?P<name>[^\n]+)\n(?P<body>.*?)~~~", re.DOTALL)
 
 
@@ -100,6 +102,17 @@ def chunk_sessions(sessions: list[dict], token_budget: int) -> list[list[dict]]:
     return chunks
 
 
+def _chunk_timeout() -> int:
+    """Per-chunk wall-clock bound for `claude -p` (FR-010). Env-overridable.
+
+    Clamped to >=1 so a zero/negative override can't fail every chunk instantly.
+    """
+    try:
+        return max(1, int(os.environ.get("SKILLCLAW_CHUNK_TIMEOUT", DEFAULT_CHUNK_TIMEOUT)))
+    except ValueError:
+        return DEFAULT_CHUNK_TIMEOUT
+
+
 def subprocess_runner(prompt: str) -> str:
     """Default runner: invoke headless `claude -p` (Max-backed).
 
@@ -107,8 +120,17 @@ def subprocess_runner(prompt: str) -> str:
     windows (a chunk can approach token_budget * 4 chars) never hit the OS
     ARG_MAX "Argument list too long" limit (1 MB on macOS). `claude -p` reads the
     prompt from stdin when no positional prompt is given.
+
+    Bounded by a per-chunk timeout so a hung CLI can never block evolve
+    forever; a timeout raises the same RuntimeError shape as a non-zero exit,
+    so promote.sh's existing fail-continue path applies.
     """
-    proc = subprocess.run(["claude", "-p"], input=prompt, capture_output=True, text=True)
+    timeout = _chunk_timeout()
+    try:
+        proc = subprocess.run(["claude", "-p"], input=prompt,
+                              capture_output=True, text=True, timeout=timeout)
+    except subprocess.TimeoutExpired:
+        raise RuntimeError(f"claude -p timed out after {timeout}s (chunk abandoned)")
     if proc.returncode != 0:
         raise RuntimeError(f"claude -p failed: {proc.stderr.strip()}")
     return proc.stdout
@@ -125,10 +147,52 @@ def write_candidates(candidates: list[dict], evolved_dir: Path) -> list[str]:
     return written
 
 
+_DESC_MAX = 200
+_FRONTMATTER_RE = re.compile(r"\A---\s*\n(.*?)\n---", re.DOTALL)
+_DESC_LINE_RE = re.compile(r"^description:\s*(.+?)(?=\n\S|\Z)", re.MULTILINE | re.DOTALL)
+
+
+def _skill_description(skill_md: Path):
+    """Best-effort description from SKILL.md frontmatter; None on any failure.
+
+    Fail-open by design (contracts/library-prompt.md): a broken skill file
+    must never abort an evolve run — it just renders as a name-only line.
+    """
+    try:
+        m = _FRONTMATTER_RE.match(skill_md.read_text(encoding="utf-8"))
+        if not m:
+            return None
+        d = _DESC_LINE_RE.search(m.group(1))
+        if not d:
+            return None
+        raw = d.group(1)
+        # Block scalars (description: | / > with optional chomping/indent)
+        # put only the marker on the key line — drop it, keep the body.
+        first, _, rest = raw.partition("\n")
+        if re.fullmatch(r"[|>][+-]?\d*", first.strip()):
+            raw = rest
+        # Flatten (multi-line YAML values included) and bound prompt cost.
+        desc = " ".join(raw.split())
+        return desc[:_DESC_MAX] if desc else None
+    except OSError:
+        return None
+
+
 def _library_names(skills_dir: Path) -> list[str]:
-    """Skill directory names under a skills root (each holding a SKILL.md)."""
+    """Library entries under a skills root: 'name — description' per skill.
+
+    Descriptions let the model match by purpose (not just name) so absorbed/
+    deleted variants are not re-proposed under new names (FR-005). Falls back
+    to the bare name when no description is parsable.
+    """
     base = Path(skills_dir).expanduser()
-    return sorted(p.parent.name for p in base.glob("*/SKILL.md")) if base.exists() else []
+    if not base.exists():
+        return []
+    entries = []
+    for p in sorted(base.glob("*/SKILL.md")):
+        desc = _skill_description(p)
+        entries.append(f"{p.parent.name} — {desc}" if desc else p.parent.name)
+    return entries
 
 
 def evolve(sessions_dir, evolved_dir, template_path, *,
@@ -189,7 +253,14 @@ def main(argv: list[str]) -> int:
     ap.add_argument("--token-budget", type=int, default=DEFAULT_TOKEN_BUDGET)
     ap.add_argument("--run-id", default=None,
                     help="audit run id; enables per-chunk status logging")
+    ap.add_argument("--chunk-timeout", type=int, default=None,
+                    help="seconds per `claude -p` chunk (FR-010); wins over "
+                         "SKILLCLAW_CHUNK_TIMEOUT, default %d" % DEFAULT_CHUNK_TIMEOUT)
     args = ap.parse_args(argv)
+    if args.chunk_timeout is not None:
+        # Export to the env seam subprocess_runner reads at call time, so the
+        # override reaches every chunk without threading it through evolve().
+        os.environ["SKILLCLAW_CHUNK_TIMEOUT"] = str(args.chunk_timeout)
     try:
         summary = evolve(args.sessions_dir, args.evolved_dir, args.template,
                          committed_dir=args.committed_dir, token_budget=args.token_budget,

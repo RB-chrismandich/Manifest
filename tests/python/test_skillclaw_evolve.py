@@ -133,6 +133,104 @@ def test_evolve_shows_committed_library_not_output_dir(tmp_path):
     assert "already-merged" in seen["prompt"]
 
 
+def test_subprocess_runner_timeout_raises_runtime_error(monkeypatch):
+    # FR-010: a hung `claude -p` must surface as the same RuntimeError shape the
+    # runner raises on non-zero exit, feeding promote.sh's fail-continue path.
+    monkeypatch.delenv("SKILLCLAW_CHUNK_TIMEOUT", raising=False)
+    import subprocess as sp
+
+    def fake_run(*a, **k):
+        assert k.get("timeout") == ev.DEFAULT_CHUNK_TIMEOUT
+        raise sp.TimeoutExpired(cmd=a[0], timeout=k["timeout"])
+
+    monkeypatch.setattr(ev.subprocess, "run", fake_run)
+    try:
+        ev.subprocess_runner("prompt")
+        assert False, "expected RuntimeError"
+    except RuntimeError as e:
+        assert "timed out" in str(e)
+
+
+def test_chunk_timeout_env_override(monkeypatch):
+    monkeypatch.setenv("SKILLCLAW_CHUNK_TIMEOUT", "5")
+    import subprocess as sp
+    seen = {}
+
+    def fake_run(*a, **k):
+        seen["timeout"] = k.get("timeout")
+        raise sp.TimeoutExpired(cmd=a[0], timeout=k["timeout"])
+
+    monkeypatch.setattr(ev.subprocess, "run", fake_run)
+    try:
+        ev.subprocess_runner("prompt")
+    except RuntimeError:
+        pass
+    assert seen["timeout"] == 5
+
+
+def test_library_prompt_includes_name_and_description(tmp_path):
+    # FR-005 / contracts/library-prompt.md: {{LIBRARY}} lines are
+    # "- <name> — <description>" so the model can match by purpose, not name.
+    sessions_dir = tmp_path / "sessions"
+    sessions_dir.mkdir()
+    (sessions_dir / "s1.json").write_text(json.dumps(
+        {"session_id": "s1", "turns": [
+            {"role": "user", "blocks": [{"kind": "text", "text": "do thing"}]}]}))
+    committed = tmp_path / "committed"
+    (committed / "fix-pr-comments").mkdir(parents=True)
+    (committed / "fix-pr-comments" / "SKILL.md").write_text(
+        "---\nname: fix-pr-comments\ndescription: Fetch, triage and resolve PR review comments.\n---\nbody\n")
+    template = tmp_path / "tpl.md"
+    template.write_text("LIB {{LIBRARY}} SESS {{SESSIONS}}")
+
+    seen = {}
+    ev.evolve(sessions_dir, tmp_path / "evolved", template, committed_dir=committed,
+              token_budget=100_000, runner=lambda p: seen.__setitem__("p", p) or "NO_SKILLS")
+    assert "- fix-pr-comments — Fetch, triage and resolve PR review comments." in seen["p"]
+
+
+def test_library_prompt_broken_frontmatter_falls_back_to_name_only(tmp_path):
+    # Fail-open: unparsable frontmatter yields a name-only line, never an error.
+    sessions_dir = tmp_path / "sessions"
+    sessions_dir.mkdir()
+    (sessions_dir / "s1.json").write_text(json.dumps(
+        {"session_id": "s1", "turns": [
+            {"role": "user", "blocks": [{"kind": "text", "text": "x"}]}]}))
+    committed = tmp_path / "committed"
+    (committed / "broken-skill").mkdir(parents=True)
+    (committed / "broken-skill" / "SKILL.md").write_text("no frontmatter here\n")
+    template = tmp_path / "tpl.md"
+    template.write_text("LIB {{LIBRARY}} SESS {{SESSIONS}}")
+
+    seen = {}
+    ev.evolve(sessions_dir, tmp_path / "evolved", template, committed_dir=committed,
+              token_budget=100_000, runner=lambda p: seen.__setitem__("p", p) or "NO_SKILLS")
+    assert "- broken-skill" in seen["p"]       # present, name-only
+    assert "- broken-skill —" not in seen["p"]
+
+
+def test_library_prompt_truncates_long_descriptions(tmp_path):
+    # Descriptions are flattened + truncated at 200 chars to bound prompt cost.
+    sessions_dir = tmp_path / "sessions"
+    sessions_dir.mkdir()
+    (sessions_dir / "s1.json").write_text(json.dumps(
+        {"session_id": "s1", "turns": [
+            {"role": "user", "blocks": [{"kind": "text", "text": "x"}]}]}))
+    committed = tmp_path / "committed"
+    (committed / "long-skill").mkdir(parents=True)
+    long_desc = "verbose " * 60   # ~480 chars, multi-word
+    (committed / "long-skill" / "SKILL.md").write_text(
+        f"---\nname: long-skill\ndescription: {long_desc}\n---\nbody\n")
+    template = tmp_path / "tpl.md"
+    template.write_text("LIB\n{{LIBRARY}}\nSESS {{SESSIONS}}")
+
+    seen = {}
+    ev.evolve(sessions_dir, tmp_path / "evolved", template, committed_dir=committed,
+              token_budget=100_000, runner=lambda p: seen.__setitem__("p", p) or "NO_SKILLS")
+    line = [ln for ln in seen["p"].splitlines() if ln.startswith("- long-skill")][0]
+    assert len(line) <= 220        # "- long-skill — " prefix + 200-char cap
+
+
 def test_evolve_multichunk_dedupes_candidates_by_name(tmp_path):
     sessions_dir = tmp_path / "sessions"
     sessions_dir.mkdir()
@@ -185,3 +283,26 @@ def test_evolve_emits_chunk_events_to_status(tmp_path, monkeypatch):
         assert e["chunk_seconds"] <= e["elapsed_s"] + 1e-9   # delta never exceeds cumulative
     elapsed_values = [e["elapsed_s"] for e in chunk_events]
     assert elapsed_values == sorted(elapsed_values)          # cumulative is monotonic
+
+
+def test_chunk_timeout_cli_flag_overrides_env(monkeypatch, tmp_path):
+    # R3/T024: --chunk-timeout is the CLI override for SKILLCLAW_CHUNK_TIMEOUT.
+    # main() exports it to the env seam subprocess_runner already reads, and
+    # the flag wins over a pre-existing env value.
+    monkeypatch.setenv("SKILLCLAW_CHUNK_TIMEOUT", "5")
+    monkeypatch.setattr(ev, "evolve", lambda *a, **k: {"chunks": 0})
+    rc = ev.main([str(tmp_path), str(tmp_path), "--chunk-timeout", "7"])
+    assert rc == 0
+    assert ev._chunk_timeout() == 7
+
+
+def test_skill_description_block_scalar_drops_marker(tmp_path):
+    # PR #289 review: a `description: |` block scalar must not leak the
+    # literal |/>` marker into the rendered "name — description" line.
+    for marker in ("|", ">", "|-", ">+"):
+        p = tmp_path / "SKILL.md"
+        p.write_text(
+            "---\nname: a11y-audit\ndescription: %s\n  Focused accessibility audit\n"
+            "  against WCAG 2.2 AA standards.\n---\nbody\n" % marker)
+        desc = ev._skill_description(p)
+        assert desc == "Focused accessibility audit against WCAG 2.2 AA standards.", marker

@@ -1,0 +1,15 @@
+---
+description: "Use when asked to "review this change/diff for security vulnerabilities" — applies a disciplined source→sink method that reports only real security findings, not robustness or best-practice nits."
+globs: ".claude/skills/diff-security-review/**"
+alwaysApply: false
+---
+
+# diff-security-review
+
+Use when asked to "review this change/diff for security vulnerabilities" — applies a disciplined source→sink method that reports only real security findings, not robustness or best-practice nits.
+
+<!-- Auto-generated from .claude/skills/diff-security-review/SKILL.md -->
+<!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
+
+Refer to `.cursor/skills/diff-security-review/SKILL.md` for the full skill definition.
+

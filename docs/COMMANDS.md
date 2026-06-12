@@ -2,7 +2,7 @@
 
 > Building custom commands for Claude Code with Manifest
 
-**Last Updated**: 2026-06-08
+**Last Updated**: 2026-06-10
 **Audience**: Command developers, advanced users
 **Prerequisites**: Manifest installed, basic understanding of Markdown and Bash
 
@@ -24,16 +24,20 @@
 
 ## Built-in Commands
 
-Manifest ships with 19 slash commands and 1 CLI tool (34 skills total, 1 auto-triggered).
+Manifest ships with 33 slash commands and 1 CLI tool (69 skills total, 1 auto-triggered).
 
 | Command | Description | Parallel Agents |
 |---------|-------------|-----------------|
-| `/project-commit` | Full commit pipeline: docs, pull, pre-commits, commit, push | CONDITIONAL |
+| `/project-commit` | Full commit pipeline: docs, pull, pre-commits, commit, push | CONDITIONAL (Phase 3) |
 | `/docs-readme` | Improve README documentation | NO |
-| `/docs-diagrams` | Generate Mermaid architecture diagrams | CONDITIONAL |
-| `/docs-improve` | Diataxis documentation framework analysis | CONDITIONAL |
+| `/docs-diagrams` | Generate Mermaid architecture diagrams | CONDITIONAL (5+ modules) |
+| `/docs-improve` | Diataxis documentation framework analysis | CONDITIONAL (>500 lines) |
+| `/docs-all` | Run docs-readme/docs-diagrams/docs-improve as sub-agents in one pass | CONDITIONAL |
 | `/refactor-python` | Python codebase security and quality analysis | ALWAYS |
 | `/refactor-shell` | Bash/Shell script security and quality analysis | ALWAYS |
+| `/refactor-node` | Node.js/TypeScript codebase security and quality analysis | ALWAYS |
+| `/refactor-go` | Go codebase security and quality analysis | ALWAYS |
+| `/refactor-terraform` | Terraform/OpenTofu IaC security, modularity, and quality analysis | ALWAYS |
 | `/issue-triage` | Linear issue audit: duplicates, staleness, priority validation | CONDITIONAL |
 | `/issue-prioritize` | Score and rank open issues by impact/urgency/readiness/risk | CONDITIONAL |
 | `/plan-manage` | Plan lifecycle with parallel agent orchestration | CONDITIONAL |
@@ -42,12 +46,21 @@ Manifest ships with 19 slash commands and 1 CLI tool (34 skills total, 1 auto-tr
 | `/health-check` | Verify CLI tools, auth, config syntax, MCP, symlinks | NO |
 | `/sync-configs` | Detect cross-platform config drift and broken symlinks | NO |
 | `/version-pin` | Enforce specific, hashed version pins in dependency files (auto-fix on demand; warn-only save hook) | ALWAYS (Tier 1) |
-| `/docs-all` | Run docs-readme/docs-diagrams/docs-improve as sub-agents in one pass | NO |
 | `/pr-review` | Review all open PRs and recommend a disposition per PR (analysis-only) | NO |
 | `/branch-clean` | Prune merged/gone/stale branches safely (dry-run by default, local-only) | CONDITIONAL (--apply) |
-| `/skill-evolve` | Promote SkillClaw-evolved skills into a review PR (dry-run by default); requires SkillClaw enabled | NEVER |
-| `/pass-cli` | Retrieve credentials from Proton Pass vaults via `pass-cli` agent CLI | NEVER |
+| `/skill-evolve` | Promote SkillClaw-evolved skills into a review PR (dry-run by default); requires SkillClaw enabled | NO |
+| `/pass-cli` | Retrieve credentials from Proton Pass vaults via `pass-cli` agent CLI | NO |
 | `/spec-review` | Independent Antigravity (agy) cross-reference of spec/plan/tasks for internal consistency; on-demand or via fail-open PostToolUse save hook (content-hash debounced, detached); analysis-only; works with speckit and superpowers layouts; silent-mode findings land in `.spec-review/feedback.md` | NO |
+| `/a11y-audit` | WCAG 2.2 AA accessibility audit | NO |
+| `/antipattern-detect` | Detect recurring antipatterns from lint, test, and review feedback | NO |
+| `/ci-setup` | Configure CI/CD pipelines for a target repository (GitHub Actions or GitLab CI) | NO |
+| `/code-quality` | Auto-triggered security and quality checks | AUTO (always when triggered) |
+| `/dashboard` | Visualize agent efficiency metrics | NO |
+| `/learning-loop` | Capture structured lessons learned | NO |
+| `/performance-check` | Frontend performance audit: bundle size, Core Web Vitals, caching | NO |
+| `/scaffold` | Initialize new projects with quality gates and Manifest integration | NO |
+| `/ux-review` | UX audit: accessibility, responsive design, performance budgets | NO |
+| `/verify` | Run linters, tests, and security scans in parallel | CONDITIONAL |
 
 **CLI tool** (installed to `~/.local/bin/`):
 

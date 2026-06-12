@@ -189,7 +189,7 @@ is_cursor_mcp_current() {
     # Prefer jq for reliable JSON parsing
     if command_exists jq; then
         local idx name url current_url
-        for idx in "${MCP_SELECTED_INDICES[@]}"; do
+        for idx in ${MCP_SELECTED_INDICES[@]+"${MCP_SELECTED_INDICES[@]}"}; do
             name="${MCP_SERVER_NAMES[$idx]}"
             url="${MCP_SERVER_URLS[$idx]}"
             current_url=$(jq -r --arg n "$name" '.mcpServers[$n].url // empty' "$mcp_file" 2> /dev/null)
@@ -202,7 +202,7 @@ is_cursor_mcp_current() {
 
     # Fallback: grep for each server's URL in the file
     local idx name url
-    for idx in "${MCP_SELECTED_INDICES[@]}"; do
+    for idx in ${MCP_SELECTED_INDICES[@]+"${MCP_SELECTED_INDICES[@]}"}; do
         name="${MCP_SERVER_NAMES[$idx]}"
         url="${MCP_SERVER_URLS[$idx]}"
         if ! grep -qF "$url" "$mcp_file" 2> /dev/null; then
@@ -233,7 +233,7 @@ configure_cursor_mcp_config() {
     local json_entries=""
     local first=true
     local idx
-    for idx in "${MCP_SELECTED_INDICES[@]}"; do
+    for idx in ${MCP_SELECTED_INDICES[@]+"${MCP_SELECTED_INDICES[@]}"}; do
         local name="${MCP_SERVER_NAMES[$idx]}"
         local url="${MCP_SERVER_URLS[$idx]}"
         if [[ "$first" == true ]]; then
@@ -411,7 +411,7 @@ install_mcp_servers() {
     if [[ "$ENABLE_CLAUDE" == true ]]; then
         if command_exists claude; then
             print_step "Configuring Claude MCP servers..."
-            for idx in "${MCP_SELECTED_INDICES[@]}"; do
+            for idx in ${MCP_SELECTED_INDICES[@]+"${MCP_SELECTED_INDICES[@]}"}; do
                 install_claude_mcp_server "${MCP_SERVER_NAMES[$idx]}" "${MCP_SERVER_URLS[$idx]}" "${MCP_SERVER_TRANSPORTS[$idx]}" || failures=$((failures + 1))
             done
         else
@@ -424,7 +424,7 @@ install_mcp_servers() {
     if [[ "$ENABLE_GEMINI" == true ]]; then
         if command_exists gemini; then
             print_step "Configuring Gemini MCP servers..."
-            for idx in "${MCP_SELECTED_INDICES[@]}"; do
+            for idx in ${MCP_SELECTED_INDICES[@]+"${MCP_SELECTED_INDICES[@]}"}; do
                 install_gemini_mcp_server "${MCP_SERVER_NAMES[$idx]}" "${MCP_SERVER_URLS[$idx]}" "${MCP_SERVER_TRANSPORTS[$idx]}" || failures=$((failures + 1))
             done
         else
@@ -437,7 +437,7 @@ install_mcp_servers() {
     if [[ "$ENABLE_CODEX" == true ]]; then
         if command_exists codex; then
             print_step "Configuring Codex MCP servers..."
-            for idx in "${MCP_SELECTED_INDICES[@]}"; do
+            for idx in ${MCP_SELECTED_INDICES[@]+"${MCP_SELECTED_INDICES[@]}"}; do
                 install_codex_mcp_server "${MCP_SERVER_NAMES[$idx]}" "${MCP_SERVER_URLS[$idx]}" "${MCP_SERVER_TRANSPORTS[$idx]}" || failures=$((failures + 1))
             done
         else

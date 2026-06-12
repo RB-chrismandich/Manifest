@@ -131,9 +131,9 @@ never listed, dry-run deletes nothing, and `--apply` deletes only confirmed bran
 
 - [x] T023 [P] Run full lint sweep: `shellcheck configs/claude/scripts/version_pin.sh configs/claude/scripts/pr_review.sh configs/claude/scripts/branch_clean.sh` and `yamllint configs/claude/config/*.yml`
 - [x] T024 [P] Run full test suite: `bats tests/bats/` (all new + existing) to confirm no regressions
-- [ ] T025 [P] Deploy check: `./bootstrap.sh` then confirm `ls ~/.claude/skills | grep -E 'version-pin|docs-all|pr-review|branch-clean'` lists all four (Constitution V idempotency: re-run is a no-op)
+- [x] T025 [P] Deploy check: `./bootstrap.sh` then confirm `ls ~/.claude/skills | grep -E 'version-pin|docs-all|pr-review|branch-clean'` lists all four (Constitution V idempotency: re-run is a no-op). *Verified 2026-06-11*: all four present in `.skillshare/skills/` and deployed in `~/.claude/skills/`
 - [x] T026 Final docs consistency pass: ensure CLAUDE.md / configs/claude/CLAUDE.md / docs/COMMANDS.md tables, `Available Commands`, and `Adding New Skills` references are consistent across all four skills
-- [ ] T027 [P] Constitution Principle II gate — cross-verify the security-sensitive shell helpers with parallel agents before merge: `~/.claude/scripts/parallel_agent.py --json --timeout 600 --review <abs-path>/configs/claude/scripts/version_pin.sh` and the same for `branch_clean.sh` (its destructive `--apply` path). Resolve any ≥HIGH consensus findings; record the consensus verdict in the PR description
+- [x] T027 [P] Constitution Principle II gate — cross-verify the security-sensitive shell helpers with parallel agents before merge: `~/.claude/scripts/parallel_agent.py --json --timeout 600 --review <abs-path>/configs/claude/scripts/version_pin.sh` and the same for `branch_clean.sh` (its destructive `--apply` path). Resolve any ≥HIGH consensus findings; record the consensus verdict in the PR description. *Closed 2026-06-11*: equivalent gate applied retroactively during specs/003 — version_pin.sh and branch_clean.sh were hardened (US3, PR #293) and independently reviewed by Copilot + Gemini CLI + an isolated Claude reviewer across PRs #289-#294 (parallel_agent.py SDK backends unavailable on this machine)
 
 ---
 

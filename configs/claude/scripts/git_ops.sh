@@ -29,47 +29,60 @@
 
 set -euo pipefail
 
+err() { echo "git-ops: $*" >&2; }
+
 # Get script directory for sourcing git_platform.sh
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Source platform detection
 if [[ ! -f "${SCRIPT_DIR}/git_platform.sh" ]]; then
-    echo "Error: git_platform.sh not found in ${SCRIPT_DIR}" >&2
+    err "git_platform.sh not found in ${SCRIPT_DIR}"
     exit 1
 fi
 
 # Detect platform
 if ! platform=$(bash "${SCRIPT_DIR}/git_platform.sh" 2>&1); then
-    echo "Error: Failed to detect Git platform: ${platform}" >&2
+    err "Failed to detect Git platform: ${platform}"
     exit 1
 fi
 
+usage() {
+    cat <<'USAGE'
+Usage: git_ops.sh <subcommand> [args...]
+
+Subcommands:
+  issue-view N       View issue/MR N
+  issue-list         List issues/MRs
+  issue-create       Create new issue/MR
+  issue-comment N    Add comment/note to issue/MR N
+  issue-comment-edit-last N  Edit last comment on issue/MR N
+  issue-close N      Close issue/MR N
+  issue-edit N       Edit issue/MR N
+  pr-create          Create pull/merge request
+  pr-view N          View PR/MR N
+  pr-list            List PRs/MRs
+  pr-review N        Review PR/MR N (pass --approve/--comment/--request-changes)
+  pr-approve N       Approve PR/MR N (shortcut for pr-review --approve)
+  pr-diff N          View PR/MR N diff
+  pr-checks N        View CI status for PR/MR N
+  pr-merge N         Merge PR/MR N
+  release-create     Create a release
+  release-list       List releases
+  label-create       Create label
+  label-list         List labels
+  label-sync         Sync labels from registry
+USAGE
+}
+
 # Validate subcommand
 if [[ $# -eq 0 ]]; then
-    echo "Usage: git_ops.sh <subcommand> [args...]" >&2
-    echo "" >&2
-    echo "Subcommands:" >&2
-    echo "  issue-view N       View issue/MR N" >&2
-    echo "  issue-list         List issues/MRs" >&2
-    echo "  issue-create       Create new issue/MR" >&2
-    echo "  issue-comment N    Add comment/note to issue/MR N" >&2
-    echo "  issue-comment-edit-last N  Edit last comment on issue/MR N" >&2
-    echo "  issue-close N      Close issue/MR N" >&2
-    echo "  issue-edit N       Edit issue/MR N" >&2
-    echo "  pr-create          Create pull/merge request" >&2
-    echo "  pr-view N          View PR/MR N" >&2
-    echo "  pr-list            List PRs/MRs" >&2
-    echo "  pr-review N        Review PR/MR N (pass --approve/--comment/--request-changes)" >&2
-    echo "  pr-approve N       Approve PR/MR N (shortcut for pr-review --approve)" >&2
-    echo "  pr-diff N          View PR/MR N diff" >&2
-    echo "  pr-checks N        View CI status for PR/MR N" >&2
-    echo "  pr-merge N         Merge PR/MR N" >&2
-    echo "  release-create     Create a release" >&2
-    echo "  release-list       List releases" >&2
-    echo "  label-create       Create label" >&2
-    echo "  label-list         List labels" >&2
-    echo "  label-sync         Sync labels from registry" >&2
+    usage >&2
     exit 1
+fi
+
+if [[ "$1" == "--help" || "$1" == "-h" || "$1" == "help" ]]; then
+    usage
+    exit 0
 fi
 
 subcommand="$1"
@@ -84,15 +97,15 @@ command_exists() {
 warn_missing_tool() {
     local tool="$1"
     local install_hint="$2"
-    echo "Warning: ${tool} CLI not found. Install it to enable this operation." >&2
-    echo "Install: ${install_hint}" >&2
+    err "Warning: ${tool} CLI not found. Install it to enable this operation."
+    err "Install: ${install_hint}"
     exit 1
 }
 
 # Helper: Fallback for plain git (no issue tracker)
 warn_no_tracker() {
-    echo "Warning: No issue tracker detected (plain git remote)." >&2
-    echo "This operation requires GitHub (gh) or GitLab (glab) CLI." >&2
+    err "Warning: No issue tracker detected (plain git remote)."
+    err "This operation requires GitHub (gh) or GitLab (glab) CLI."
     exit 1
 }
 
@@ -165,7 +178,7 @@ case "${platform}" in
                 bash "${SCRIPT_DIR}/label_sync.sh" "$@"
                 ;;
             *)
-                echo "Error: Unknown subcommand: ${subcommand}" >&2
+                err "Unknown subcommand: ${subcommand}"
                 exit 1
                 ;;
         esac
@@ -207,7 +220,7 @@ case "${platform}" in
                     done
                     glab api "projects/:id/issues/${issue_num}/notes/${last_note_id}" -X PUT -f "body=${body}"
                 else
-                    echo "Error: No comments found on issue ${issue_num}" >&2
+                    err "No comments found on issue ${issue_num}"
                     exit 1
                 fi
                 ;;
@@ -247,7 +260,7 @@ case "${platform}" in
                                 ;;
                         esac
                     done
-                    glab mr create "${mr_args[@]}"
+                    glab mr create "${mr_args[@]+"${mr_args[@]}"}"
                 }
                 _translate_pr_flags "$@"
                 ;;
@@ -292,7 +305,7 @@ case "${platform}" in
                 bash "${SCRIPT_DIR}/label_sync.sh" "$@"
                 ;;
             *)
-                echo "Error: Unknown subcommand: ${subcommand}" >&2
+                err "Unknown subcommand: ${subcommand}"
                 exit 1
                 ;;
         esac
@@ -305,14 +318,14 @@ case "${platform}" in
                 warn_no_tracker
                 ;;
             *)
-                echo "Error: Unknown subcommand: ${subcommand}" >&2
+                err "Unknown subcommand: ${subcommand}"
                 exit 1
                 ;;
         esac
         ;;
 
     *)
-        echo "Error: Unknown platform: ${platform}" >&2
+        err "Unknown platform: ${platform}"
         exit 1
         ;;
 esac

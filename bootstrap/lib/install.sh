@@ -749,3 +749,41 @@ check_cursor() {
         fi
     fi
 }
+
+# Install browser-use E2E testing library and Playwright browsers
+install_browser_use() {
+    if [[ "$ENABLE_BROWSER_USE" == false ]]; then
+        print_info "browser-use is disabled - skipping installation"
+        return 0
+    fi
+
+    print_step "Checking for browser-use..."
+
+    if ! check_python; then
+        print_warning "Python 3 is required to install browser-use - skipping"
+        return 0
+    fi
+
+    local python_cmd="${PYTHON_CMD:-python3}"
+
+    if $python_cmd -c "import browser_use" &> /dev/null; then
+        print_success "browser-use is already installed"
+    else
+        print_step "Installing browser-use Python package..."
+        if $python_cmd -m pip install --user --prefer-binary browser-use; then
+            print_success "browser-use package installed successfully"
+        else
+            print_error "Failed to install browser-use package"
+            return 1
+        fi
+    fi
+
+    # Install Playwright browser binaries
+    print_step "Installing Playwright browsers..."
+    if $python_cmd -m playwright install chromium; then
+        print_success "Playwright browsers installed successfully"
+    else
+        print_warning "Failed to install Playwright browsers via 'playwright install chromium'. You may need to run this manually."
+    fi
+}
+

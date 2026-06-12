@@ -19,8 +19,22 @@ BLUE='\033[0;34m'
 BOLD='\033[1m'
 NC='\033[0m'
 
+if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
+    cat <<'USAGE'
+Usage: check_status.sh [--verbose]
+
+Parallel-agent orchestration readiness check: services.yml enabled agents,
+CLI availability, auth, and Manifest state directories.
+
+  --verbose   Also print CLI locations and versions
+
+Full environment audit (MCP, symlinks, config syntax): /health-check skill.
+USAGE
+    exit 0
+fi
+
 VERBOSE=false
-if [[ "$1" == "--verbose" ]]; then
+if [[ "${1:-}" == "--verbose" ]]; then
     VERBOSE=true
 fi
 

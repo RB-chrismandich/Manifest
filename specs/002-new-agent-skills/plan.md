@@ -1,6 +1,6 @@
 # Implementation Plan: New Agent Skills (Version Pinning, Docs Orchestration, PR Review, Branch Cleanup)
 
-**Branch**: `002-new-agent-skills` | **Date**: 2026-06-01 | **Spec**: [spec.md](./spec.md)
+**Branch**: `002-new-agent-skills` | **Date**: 2026-06-01 | **Status**: Delivered 2026-06 | **Spec**: [spec.md](./spec.md)
 
 **Input**: Feature specification from `/specs/002-new-agent-skills/spec.md`
 

@@ -4,7 +4,7 @@
 
 > Parallel LLM agent orchestration framework for Claude Code, Cursor IDE, Gemini CLI, Codex CLI, and Antigravity IDE
 
-**Last Updated**: 2026-06-08
+**Last Updated**: 2026-06-10
 
 Manifest is a configuration repository that deploys a sophisticated parallel agent
 orchestration system to `~/.claude/`, `~/.cursor/`, `~/.gemini/`, `~/.codex/`, and `~/.antigravity/`, enabling Claude Code,
@@ -140,6 +140,7 @@ Mermaid flowcharts showing bootstrap, execution, validation, and consensus flows
 | [Configuration](docs/CONFIGURATION.md) | All configuration options, YAML reference, environment variables | Operators | 15 min |
 | [Architecture Diagrams](docs/ARCHITECTURE_DIAGRAMS.md) | Visual system documentation with 15 Mermaid diagrams | Developers | 20 min |
 | [SkillClaw](docs/SKILLCLAW.md) | PR-gated skill evolution via passive transcript ingestion | Operators | 8 min |
+| [Spec Systems](docs/SPEC-SYSTEMS.md) | Map of the four spec/plan systems and when to use each | Contributors | 3 min |
 | [Troubleshooting](docs/TROUBLESHOOTING.md) | Common problems, error messages, solutions | All users | 10 min |
 | [AGENTS.md](AGENTS.md) | AI agent instructions (Cursor, Claude, Gemini, Codex) | AI assistants | 8 min |
 | [CLAUDE.md](CLAUDE.md) | Claude Code-specific project context | AI assistants | 8 min |
@@ -223,7 +224,7 @@ Manifest/
 │       ├── python/                  # Python project starter
 │       └── terraform/               # Terraform project starter
 ├── .skillshare/                     # Skill source of truth (managed by skillshare)
-│   └── skills/                      # 29 skills deployed to ~/.claude/skills/ by bootstrap
+│   └── skills/                      # 69 skills deployed to ~/.claude/skills/ by bootstrap
 ├── tests/                           # Test suites
 │   ├── python/                      # pytest tests for parallel_agent and agents/
 │   └── bats/                        # Bats shell tests for bootstrap and scripts

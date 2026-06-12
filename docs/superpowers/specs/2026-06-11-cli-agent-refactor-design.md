@@ -80,24 +80,17 @@ cli_agents:
     output: file_then_stdout
   antigravity:
     binary: agy
-    base_args: []
+    base_args: ["--print"]
     model_args: ["--model", "{model}"]
-    prompt_args: ["--print", "{prompt}"]
     output: stdout
 ```
 
 Behaviors:
 
-- **Command assembly**: `[binary] + base_args + (model_args if model else []) + prompt_args`.
+- **Command assembly**: `[binary] + base_args + (model_args if model else []) + [prompt]`.
   The optional model group is dropped *atomically* (structural grouping — no
   flag/value pair scanning, no dangling `--model`). A tier of `auto`/unresolved
   yields no model args (preserves Codex `auto` behavior).
-- **Prompt placement is data too**: `prompt_args` (default `["{prompt}"]`, a
-  trailing positional) covers CLIs whose prompt is a flag value — agy's
-  `--print` is a Go flag that *takes the prompt as its argument*, so antigravity
-  uses `prompt_args: ["--print", "{prompt}"]` (live-verified; a positional
-  prompt after `--print` is silently swallowed by Go flag parsing). The prompt
-  content itself is never template-substituted.
 - **Exec-style execution**: args remain a list passed to
   `asyncio.create_subprocess_exec` — never a shell string. Preserves existing
   command-injection protection.

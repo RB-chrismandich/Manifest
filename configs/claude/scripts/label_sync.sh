@@ -15,6 +15,8 @@
 
 set -euo pipefail
 
+err() { echo "label-sync: $*" >&2; }
+
 # Colors for output
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -71,7 +73,7 @@ while [[ $# -gt 0 ]]; do
             exit 0
             ;;
         *)
-            echo "Error: Unknown option: $1" >&2
+            err "Unknown option: $1"
             exit 1
             ;;
     esac
@@ -85,7 +87,7 @@ find_labels_file() {
             echo "$LABELS_FILE"
             return 0
         fi
-        echo "Error: Labels file not found: $LABELS_FILE" >&2
+        err "Labels file not found: $LABELS_FILE"
         return 1
     fi
 
@@ -102,7 +104,7 @@ find_labels_file() {
         fi
     done
 
-    echo "Error: labels.yml not found. Searched: ${candidates[*]}" >&2
+    err "labels.yml not found. Searched: ${candidates[*]}"
     return 1
 }
 
@@ -110,13 +112,15 @@ find_labels_file() {
 
 parse_labels() {
     local file="$1"
+    # Path passed via argv, never interpolated into Python source (FR-009):
+    # a path containing quotes must be data, not code.
     python3 -c "
 import yaml, json, sys
-with open('$file') as f:
+with open(sys.argv[1]) as f:
     data = yaml.safe_load(f)
 labels = data.get('labels', [])
 json.dump(labels, sys.stdout)
-"
+" "$file"
 }
 
 # --- Detect current git platform ---

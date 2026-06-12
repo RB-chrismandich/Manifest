@@ -1,0 +1,15 @@
+---
+description: "After drafting a design but before writing the spec, validate the debatable/assumption-laden choices with targeted external research"
+globs: ".claude/skills/research-validate-design/**"
+alwaysApply: false
+---
+
+# research-validate-design
+
+After drafting a design but before writing the spec, validate the debatable/assumption-laden choices with targeted external research
+
+<!-- Auto-generated from .claude/skills/research-validate-design/SKILL.md -->
+<!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
+
+Refer to `.cursor/skills/research-validate-design/SKILL.md` for the full skill definition.
+
