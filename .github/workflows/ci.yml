@@ -198,6 +198,18 @@ jobs:
           echo ""
           echo "All symlinks intact"
 
+      - name: Reject paths differing only by case
+        run: |
+          # Case-insensitive filesystems (macOS/Windows) collapse such paths,
+          # silently corrupting whichever casing loses (see issue #303).
+          dupes=$(git ls-files | sort -f | uniq -di)
+          if [ -n "$dupes" ]; then
+            echo "FAIL: tracked paths differ only by case:"
+            echo "$dupes"
+            exit 1
+          fi
+          echo "OK: no case-colliding paths"
+
       - name: Validate all shell scripts syntax
         run: |
           echo "Validating shell script syntax with bash -n..."
