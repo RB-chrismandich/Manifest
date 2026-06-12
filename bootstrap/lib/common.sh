@@ -98,7 +98,16 @@ create_symlink() {
         return 0
     fi
 
-    rm -rf "$link_path"
+    # A real (non-symlink) path here is user content — back it up instead of
+    # silently destroying it with rm -rf (issue #321)
+    if [[ -e "$link_path" && ! -L "$link_path" ]]; then
+        local backup
+        backup="${link_path}.backup.$(date +%Y%m%d_%H%M%S)"
+        print_warning "$link_path exists as a real path — backing up to $backup"
+        mv "$link_path" "$backup"
+    else
+        rm -rf "$link_path"
+    fi
     ln -sf "$target" "$link_path"
     print_success "Symlinked $link_path -> $target"
 }

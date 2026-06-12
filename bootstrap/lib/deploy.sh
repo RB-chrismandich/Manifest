@@ -191,6 +191,13 @@ deploy_configs() {
 
 # Deploy Cursor IDE configuration (mirrors .claude with symlinks)
 deploy_cursor_configs() {
+    # Honor the service toggle — deploying while disabled rewrote ~/.cursor
+    # against the user's explicit request (issue #321)
+    if [[ "${ENABLE_CURSOR:-true}" != true ]]; then
+        print_info "Cursor disabled — skipping config deployment"
+        return 0
+    fi
+
     print_step "Deploying Cursor IDE configuration..."
 
     local cursor_source_dir="$SCRIPT_DIR/configs/cursor"
@@ -224,6 +231,11 @@ deploy_cursor_configs() {
 
 # Deploy Gemini CLI configuration (mirrors .claude with symlinks)
 deploy_gemini_configs() {
+    if [[ "${ENABLE_GEMINI:-true}" != true ]]; then
+        print_info "Gemini disabled — skipping config deployment"
+        return 0
+    fi
+
     print_step "Deploying Gemini CLI configuration..."
 
     local gemini_source_dir="$SCRIPT_DIR/configs/gemini"
@@ -262,6 +274,11 @@ deploy_gemini_configs() {
 
 # Deploy Codex configuration (mirrors shared assets from .claude)
 deploy_codex_configs() {
+    if [[ "${ENABLE_CODEX:-true}" != true ]]; then
+        print_info "Codex disabled — skipping config deployment"
+        return 0
+    fi
+
     print_step "Deploying Codex CLI configuration..."
 
     # Create ~/.codex if needed but never wipe it (contains auth/history/session data)
@@ -288,6 +305,11 @@ deploy_codex_configs() {
 # Cursor/Gemini/Codex). Antigravity shares the single source of truth in
 # ~/.claude via symlinks for scripts, config, prompts, skills, and .plans.
 deploy_antigravity_configs() {
+    if [[ "${ENABLE_ANTIGRAVITY:-true}" != true ]]; then
+        print_info "Antigravity disabled — skipping config deployment"
+        return 0
+    fi
+
     print_step "Deploying Antigravity configuration..."
     mkdir -p "$ANTIGRAVITY_TARGET_DIR"
     # Link shared assets from ~/.claude to avoid duplicate copies, including shared skills.
