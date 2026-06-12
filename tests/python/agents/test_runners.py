@@ -71,6 +71,35 @@ class TestBaseAgent:
         assert result["status"] == "complete"
         assert "duration_seconds" in result
 
+    def test_credit_fallback_switches_executed_model(self, tmp_path):
+        """Issue #304: the retry must run the fallback model, not the exhausted one."""
+        config_file = tmp_path / "cfg.yml"
+        config_file.write_text(
+            "credit_fallback:\n  test:\n    - sonnet\n    - haiku\n"
+            "model_tiers:\n  test:\n    sonnet: model-big\n    haiku: model-small\n"
+        )
+
+        models_executed = []
+
+        class FlakyAgent(BaseAgent):
+            def _resolve_model(self, tier):
+                return self.config.get(f"model_tiers.test.{tier}", tier)
+
+            async def _execute_impl(self, prompt, mode):
+                models_executed.append(self.model_name)
+                if not self.credit_fallback_used:
+                    raise RuntimeError("quota exceeded")
+                return {"status": "complete", "output": "ok", "model": self.model_name}
+
+        agent = FlakyAgent(
+            "test", "sonnet", 30, _make_limiter(), Config(config_path=str(config_file))
+        )
+        agent.model_name = agent._resolve_model("sonnet")
+        result = asyncio.run(agent.execute("hello"))
+        assert result["status"] == "complete"
+        assert result["credit_fallback"] is True
+        assert models_executed == ["model-big", "model-small"]
+
     def test_execute_timeout(self, tmp_path):
         class SlowAgent(BaseAgent):
             async def _execute_impl(self, prompt, mode):

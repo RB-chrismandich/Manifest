@@ -47,6 +47,7 @@ class BaseAgent:
     ):
         self.name = name
         self.model = model
+        self.model_name = model  # Concrete name; subclasses re-resolve via _resolve_model
         self.original_model = model  # Track original for fallback
         self.timeout = timeout
         self.rate_limiter = rate_limiter
@@ -119,6 +120,9 @@ class BaseAgent:
                             file=sys.stderr,
                         )
                         self.model = fallback_model
+                        # Re-resolve the concrete model name or the retry
+                        # silently re-runs the exhausted model (issue #304)
+                        self.model_name = self._resolve_model(fallback_model)
                         self.credit_fallback_used = True
                         await asyncio.sleep(1)  # Brief delay before retry
                         continue
@@ -157,6 +161,10 @@ class BaseAgent:
             "resource_exhausted",
         ]
         return any(pattern in error for pattern in exhaustion_patterns)
+
+    def _resolve_model(self, tier: str) -> Optional[str]:
+        """Resolve a model tier to a concrete model name (subclasses override)."""
+        return tier
 
     def _get_fallback_model(self) -> Optional[str]:
         """Get next fallback model tier"""
