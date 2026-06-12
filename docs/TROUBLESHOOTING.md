@@ -2,7 +2,7 @@
 
 > Common problems and solutions for the Manifest parallel agent orchestration framework
 
-**Last Updated**: 2026-06-08
+**Last Updated**: 2026-06-12
 **Audience**: All users
 **Quick Help**: Most issues are fixed by checking service configuration and verifying CLI installations
 
@@ -397,6 +397,12 @@ If it still aborts with "open PR already exists":
 
 ## Authentication Issues
 
+> **API keys are optional.** The Claude/Gemini agents select an execution backend
+> per run: the provider SDK when its package and API key
+> (`ANTHROPIC_API_KEY` / `GOOGLE_API_KEY`) are both present, otherwise the
+> logged-in `claude` / `gemini` CLI (OAuth/subscription login). As long as the
+> CLIs are authenticated, orchestration works without any API key.
+
 ### Claude CLI: "Not authenticated"
 
 **Symptom:**
@@ -408,20 +414,19 @@ Error: You are not authenticated. Run 'claude auth login'
 **Solution:**
 
 ```bash
-# Log in to Claude CLI
+# Log in to Claude CLI (OAuth/subscription login — no API key required)
 claude auth login
-
-# Follow prompts to enter API key
 
 # Verify authentication
 claude auth status
 ```
 
-**Get API Key:**
+**API key (optional, for the SDK backend):**
 
 1. Visit: <https://console.anthropic.com/account/keys>
 2. Create new API key
-3. Copy key for `claude auth login`
+3. Export it as `ANTHROPIC_API_KEY` to make the orchestrator use the SDK
+   backend instead of the CLI fallback
 
 ---
 
@@ -443,11 +448,12 @@ gemini  # first run prompts a Google OAuth login
 gemini auth status
 ```
 
-**Get API Key:**
+**API key (optional, for the SDK backend):**
 
 1. Visit: <https://makersuite.google.com/app/apikey>
 2. Create new API key
-3. Copy key for `gemini  # first run prompts a Google OAuth login`
+3. Export it as `GOOGLE_API_KEY` to make the orchestrator use the SDK
+   backend instead of the CLI fallback
 
 ---
 
@@ -493,7 +499,8 @@ Warning: No services config, use defaults (all enabled)
 
 ```bash
 # Deploy configuration
-cp -r .claude/* ~/.claude/
+cp -r configs/claude/* ~/.claude/
+cp -r configs/claude/.[!.]* ~/.claude/ 2>/dev/null || true
 
 # Or re-run bootstrap
 ./bootstrap.sh --force
@@ -520,8 +527,8 @@ python3 -c "import yaml; yaml.safe_load(open('~/.claude/config/services.yml'))"
 # - Missing colons
 # - Unquoted strings with special characters
 
-# Restore from backup
-cp .claude/config/services.yml ~/.claude/config/services.yml
+# Restore from the repo source
+cp configs/claude/config/services.yml ~/.claude/config/services.yml
 ```
 
 ---
@@ -545,6 +552,32 @@ cat ~/.claude/config/services.yml
 # Run without CLI flag overrides
 ~/.claude/scripts/parallel_agent.py "Task"
 ```
+
+---
+
+### Model Pins Reported as Unverified
+
+**Symptom:**
+
+```text
+○ 2 check(s) unverified (no API credentials — run MODEL_CHECK_PROBE=1 model_check.sh for a live CLI probe)
+```
+
+**Cause:** On OAuth-only machines (no `ANTHROPIC_API_KEY` / `GOOGLE_API_KEY`)
+there is no API to list models with, so `check_status.sh` reports the
+claude/gemini pins in `parallel_agent.yml` (`model_tiers`) as unverified rather
+than falsely green.
+
+**Solution:**
+
+```bash
+# Live-verify each pin with a one-shot CLI probe (one tiny LLM call per pin)
+MODEL_CHECK_PROBE=1 ~/.claude/scripts/model_check.sh
+```
+
+If a pin reports `STALE`, update the corresponding `model_tiers` entry in
+`~/.claude/config/parallel_agent.yml` (current Gemini pins:
+`gemini-3-flash-preview` / `gemini-3-pro-preview`).
 
 ---
 
@@ -603,7 +636,9 @@ Error: Agent timed out after 600 seconds
 ```bash
 # Use lightweight models by default
 export CURSOR_MODEL_FLASH="gpt-5.1-codex-mini"  # Instead of gpt-5.1-codex
-export CLAUDE_MODEL_TIER="haiku"                 # Instead of sonnet
+
+# Or pass a lighter Claude tier per run
+~/.claude/scripts/parallel_agent.py --claude-model haiku "Task"
 
 # Configure in command_config.yml
 vim ~/.claude/config/command_config.yml
@@ -630,7 +665,7 @@ vim ~/.claude/config/command_config.yml
 ~/.claude/scripts/parallel_agent.py --json "Task" | jq .
 
 # Check output files directly
-cat ~/.manifest/orchestration/outputs/results_*.json
+cat ~/.claude/.agent_outputs/results_*.json
 
 # Validate JSON
 ~/.claude/scripts/parallel_agent.py --json "Task" | python3 -m json.tool
@@ -649,29 +684,31 @@ cat ~/.manifest/orchestration/outputs/results_*.json
 ~/.claude/scripts/parallel_agent.py --json --full-output "Task"
 
 # Check output files for complete responses
-cat ~/.manifest/claude/outputs/claude_*.txt
-cat ~/.manifest/gemini/outputs/gemini_*.txt
+cat ~/.claude/.agent_outputs/claude_*.txt
+cat ~/.claude/.agent_outputs/gemini_*.txt
 ```
 
 ---
 
 ### No Output Files Generated
 
-**Symptom:** Expected files in `~/.manifest/orchestration/outputs/` don't exist
+**Symptom:** Expected files in `~/.claude/.agent_outputs/` don't exist
 
-**Cause:** Output directory not created or permissions issue
+**Cause:** Output directory not created or permissions issue. On permission
+errors (e.g. sandboxed runs) the script falls back to
+`/tmp/.claude_agent_outputs_<pid>` — check there too.
 
 **Solution:**
 
 ```bash
 # Create output directory
-mkdir -p ~/.manifest/orchestration/outputs
+mkdir -p ~/.claude/.agent_outputs
 
 # Fix permissions
-chmod 700 ~/.manifest/orchestration/outputs
+chmod 700 ~/.claude/.agent_outputs
 
 # Specify custom output directory
-~/.claude/scripts/parallel_agent.py --output ~/.manifest/orchestration/outputs "Task"
+~/.claude/scripts/parallel_agent.py --output /tmp/agent_outputs "Task"
 ```
 
 ---
@@ -766,14 +803,17 @@ cat ~/.claude/config/validation_criteria.yml
 
 ```bash
 # View recent outputs
-ls -lth ~/.manifest/orchestration/outputs/ | head -20
+ls -lth ~/.claude/.agent_outputs/ | head -20
 
 # View latest agent outputs
-tail ~/.manifest/claude/outputs/claude_*.txt
-tail ~/.manifest/gemini/outputs/gemini_*.txt
+tail ~/.claude/.agent_outputs/claude_*.txt
+tail ~/.claude/.agent_outputs/gemini_*.txt
 
 # View JSON results
-cat ~/.manifest/orchestration/outputs/results_*.json | python3 -m json.tool
+cat ~/.claude/.agent_outputs/results_*.json | python3 -m json.tool
+
+# View the orchestrator log
+tail ~/.claude/.agent_outputs/parallel_agent.log
 ```
 
 ### Test Network Connectivity
