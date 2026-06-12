@@ -1,7 +1,7 @@
 # Issue Triage Disagreement Synthesis
 
-Multiple AI agents analyzed this issue triage decision and produced conflicting recommendations.
-Your task is to synthesize their outputs into a unified recommendation.
+Agents produced conflicting triage recommendations. Synthesize them into one unified recommendation under conservative
+triage principles.
 
 ## Triage Context
 
@@ -23,80 +23,40 @@ Your task is to synthesize their outputs into a unified recommendation.
 
 {CLAUDE_OUTPUT}
 
-## Synthesis Instructions
+## Resolution Priority Order
 
-Your goal is to produce a **unified recommendation** that resolves the disagreement while
-adhering to conservative triage principles.
+Break ties with this hierarchy:
 
-### Resolution Priority Order
+1. **Conservatism**: Prefer keeping issues open over closing. False negatives (missing a stale issue) < false positives
+   (closing active work). When in doubt, flag for human review rather than auto-close.
+2. **Evidence**: Concrete over speculative — verified file deletion > inferred; explicit staleness
+   criteria > heuristic patterns; direct label checks > description parsing. Verify file-deletion
+   claims against the filesystem, not heuristics.
+3. **User impact**: Respect "planned" labels absolutely; verify duplicate relationships are bidirectional in intent;
+   check for recent comments even if last update was months ago.
+4. **Process compliance**: Never auto-close issues with protective labels (planned, blocked, waiting); follow
+   team-specific priority conventions; maintain an audit trail for all mutations.
 
-When agents disagree, apply this hierarchy to break ties:
+## Disagreement Resolution Rules
 
-1. **Conservatism**: Prefer keeping issues open over closing
-   - False negatives (missing a stale issue) < False positives (closing active work)
-   - When in doubt, mark for human review rather than auto-close
+**Duplicate detection (similarity 70-85%):**
 
-2. **Evidence**: Prefer concrete evidence over speculation
-   - File deletion verified > File deletion inferred
-   - Explicit staleness criteria > Heuristic patterns
-   - Direct label checks > Description parsing
-
-3. **User impact**: Reduce false-positive closures
-   - Respect "planned" labels absolutely
-   - Verify duplicate relationships are bidirectional in intent
-   - Check for recent comments even if last update was months ago
-
-4. **Process compliance**: Respect Linear workflow conventions
-   - Never auto-close issues with certain labels (planned, blocked, waiting)
-   - Follow team-specific priority conventions
-   - Maintain audit trail for all mutations
-
-### Disagreement Patterns
-
-Common disagreement scenarios and how to resolve them:
-
-#### Pattern 1: Duplicate Detection (Similarity 70-85%)
-
-**Example:**
-
-- Cursor: "Not duplicates - different technical approaches"
-- Gemini: "Duplicates - same root cause"
-- Claude: "Possibly duplicates - mark for human review"
-
-**Resolution:**
-
-- If ≥2 agents say "duplicate" AND similarity ≥80% → Mark as duplicate
-- If 1 agent says "duplicate" OR similarity <80% → Flag for human review
+- ≥2 agents say "duplicate" AND similarity ≥80% → Mark as duplicate
+- 1 agent says "duplicate" OR similarity <80% → Flag for human review
 - Never auto-close duplicates with <85% consensus
 
-#### Pattern 2: Staleness (Inactive but has labels)
+**Staleness (inactive but has labels):**
 
-**Example:**
+- ANY agent detects a protected label → Do NOT auto-close
+- File deletion verified by ≥2 agents → Mark as stale (but still no auto-close if labeled)
+- Always err on the side of caution for labeled issues
 
-- Cursor: "Stale - no activity for 120 days"
-- Gemini: "Not stale - has 'planned' label"
-- Claude: "Stale but protected - manual review required"
+**Priority scoring (disagreement ≥2 levels):**
 
-**Resolution:**
-
-- If ANY agent detects protected label → Do NOT auto-close
-- If file deletion verified by ≥2 agents → Mark as stale (but still no auto-close if labeled)
-- Always err on side of caution for labeled issues
-
-#### Pattern 3: Priority Scoring (Disagreement ≥2 levels)
-
-**Example:**
-
-- Cursor: "Priority 2 (High) - critical security issue"
-- Gemini: "Priority 4 (Low) - no user impact mentioned"
-- Claude: "Priority 3 (Medium) - needs security audit first"
-
-**Resolution:**
-
-- If ≥2 agents agree on priority level → Use that level
-- If all 3 disagree → Use median priority (middle value)
-- If security mentioned by any agent → Never downgrade below Medium (P3)
-- Recommend manual review for variance >1 level
+- ≥2 agents agree on a priority level → Use that level
+- All 3 disagree → Use the median priority (middle value)
+- Security mentioned by any agent → Never downgrade below Medium (P3)
+- Variance >1 level → Recommend manual review
 
 ## Output Format
 
@@ -136,49 +96,18 @@ Return **valid JSON** with the following structure:
 
 ## Validation Rules
 
-Before finalizing your synthesis, verify:
+Before finalizing, verify:
 
 - [ ] **Conservatism**: No false-positive closures (when uncertain, flag for review)
 - [ ] **Evidence**: All claims backed by concrete data (file checks, label presence, date comparisons)
 - [ ] **Protected labels**: Absolute respect for "planned", "blocked", "waiting"
-- [ ] **Consensus threshold**: ≥85% required for auto-close actions
+- [ ] **Consensus threshold**: ≥85% required for auto-close/auto-actions; <85% requires approval
 - [ ] **Audit trail**: Action includes clear reasoning and timestamp
 
-## Examples
+## Example: Stale with Protected Label
 
-### Example 1: High-Confidence Duplicate
-
-**Input:**
-
-- Cursor: "95% duplicate - same title, same description"
-- Gemini: "Duplicate - can merge safely"
-- Claude: "Clear duplicate - mark relationship"
-
-**Output:**
-
-```json
-{
-  "unified_recommendation": {
-    "action": "mark_duplicate",
-    "target_issue": "ENG-124",
-    "parameters": {"duplicate_of": "ENG-100"}
-  },
-  "confidence": "high",
-  "consensus_score": 95,
-  "requires_user_approval": false,
-  "reasoning": "All three agents agree this is a duplicate with >90% similarity. Safe to auto-mark.",
-  "caveats": [],
-  "escalate_to_user": false
-}
-```
-
-### Example 2: Stale with Protected Label
-
-**Input:**
-
-- Cursor: "Stale - 150 days inactive, all files deleted"
-- Gemini: "Has 'planned' label - do NOT close"
-- Claude: "Stale but labeled - manual review required"
+**Input:** Cursor: "Stale - 150 days inactive, all files deleted"; Gemini: "Has 'planned' label -
+do NOT close"; Claude: "Stale but labeled - manual review required"
 
 **Output:**
 
@@ -194,44 +123,10 @@ Before finalizing your synthesis, verify:
   "reasoning": "Issue meets staleness criteria but has 'planned' label. Conservative approach: flag for human review.",
   "caveats": ["Gemini correctly identified protected label", "Files are confirmed deleted"],
   "escalate_to_user": true,
-  "recommended_next_steps": ["Verify if 'planned' work is still roadmapped", "Consider removing label if no longer planned"]
+  "recommended_next_steps": ["Verify if 'planned' work is still roadmapped", "Consider removing label if no longer
+  planned"]
 }
 ```
-
-### Example 3: Priority Disagreement
-
-**Input:**
-
-- Cursor: "Priority 1 - security vulnerability"
-- Gemini: "Priority 3 - low user impact"
-- Claude: "Priority 2 - needs security review first"
-
-**Output:**
-
-```json
-{
-  "unified_recommendation": {
-    "action": "update_priority",
-    "target_issue": "ENG-300",
-    "parameters": {"new_priority": 2}
-  },
-  "confidence": "medium",
-  "consensus_score": 60,
-  "requires_user_approval": true,
-  "reasoning": "Security mention by Cursor requires elevated priority. Using median (P2) given disagreement variance.",
-  "caveats": ["Cursor sees critical security issue", "Gemini disagrees on user impact"],
-  "escalate_to_user": true,
-  "recommended_next_steps": ["Security team review to determine true severity", "Update description with threat model"]
-}
-```
-
-## Critical Reminders
-
-1. **When in doubt, escalate** - It's better to flag for human review than make a wrong decision
-2. **Respect protective labels absolutely** - "planned", "blocked", "waiting" are sacrosanct
-3. **Verify file deletion claims** - Don't trust heuristics, check filesystem
-4. **Conservative thresholds** - ≥85% for auto-actions, <85% requires approval
-5. **Audit everything** - Every action must have clear reasoning and timestamp
 
 ---
 

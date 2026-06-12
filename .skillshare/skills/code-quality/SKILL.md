@@ -1,9 +1,10 @@
 ---
 name: code-quality
-description: |
-  Auto-trigger when detecting security-sensitive code (auth, crypto, secrets, input validation),
-  large files (>500 lines), or complex files (>10 functions or >5 classes per file).
-  Provides immediate feedback on code quality and security issues without blocking user flow.
+description: >-
+  Auto-trigger when detecting security-sensitive code (auth, crypto, secrets,
+  input validation), large files (>500 lines), or complex files (>10 functions
+  or >5 classes per file). Gives immediate code-quality and security feedback
+  without blocking user flow.
 ---
 
 # Code Quality Analysis Skill

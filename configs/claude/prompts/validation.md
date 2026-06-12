@@ -6,9 +6,7 @@ Validate the proposed code changes against tiered criteria.
 
 {CODE_OR_DIFF}
 
-## Tier 1 Criteria (Critical - All must pass)
-
-These are blocking criteria. Any failure requires resolution before proceeding.
+## Tier 1 Criteria (Critical — blocking; all must pass)
 
 | Criterion | Weight | Description |
 |-----------|--------|-------------|
@@ -21,9 +19,9 @@ These are blocking criteria. Any failure requires resolution before proceeding.
 
 - [ ] No hardcoded secrets, API keys, or credentials
 - [ ] Input validation present for user-supplied data
-- [ ] No SQL injection vulnerabilities (parameterized queries used)
+- [ ] No SQL injection (parameterized queries used)
 - [ ] No command injection (user input not passed to shell)
-- [ ] No XSS vulnerabilities (output properly escaped)
+- [ ] No XSS (output properly escaped)
 - [ ] Authentication/authorization checks in place
 - [ ] Sensitive data not logged or exposed in errors
 
@@ -41,9 +39,7 @@ These are blocking criteria. Any failure requires resolution before proceeding.
 - [ ] Deprecation warnings added for removed features
 - [ ] Backwards compatibility maintained where expected
 
-## Tier 2 Criteria (Quality)
-
-These are quality criteria. Issues should be noted but are not blocking.
+## Tier 2 Criteria (Quality — advisory, not blocking)
 
 | Criterion | Weight | Description |
 |-----------|--------|-------------|
@@ -54,38 +50,38 @@ These are quality criteria. Issues should be noted but are not blocking.
 
 ## Language-Specific Validation
 
-Apply these additional checks based on the detected language(s) in the changeset.
+Apply per detected language(s) in the changeset.
 
 ### Python
 
-- [ ] Type hints present on function signatures (pyright/mypy compatible)
+- [ ] Type hints on function signatures (pyright/mypy compatible)
 - [ ] No bare `except:` — use specific exception types
 - [ ] No `eval()`, `exec()`, or `pickle.loads()` on untrusted input
-- [ ] `yaml.safe_load()` used instead of `yaml.load()`
-- [ ] f-strings not used in SQL queries (parameterized queries required)
-- [ ] Async functions use `await` properly (no blocking calls in async context)
+- [ ] `yaml.safe_load()` instead of `yaml.load()`
+- [ ] No f-strings in SQL queries (parameterized queries required)
+- [ ] Async functions `await` properly (no blocking calls in async context)
 
 ### Go
 
 - [ ] Errors checked — no `_ :=` ignoring error returns
-- [ ] No bare returns from error checks — always return the error or wrap it
-- [ ] No goroutine leaks — goroutines have cancellation via context or done channels
-- [ ] Goroutine lifecycle managed — use `sync.WaitGroup`, `errgroup`, or explicit shutdown signals
+- [ ] No bare returns from error checks — return or wrap the error
+- [ ] No goroutine leaks — cancellation via context or done channels
+- [ ] Goroutine lifecycle managed — `sync.WaitGroup`, `errgroup`, or explicit shutdown signals
 - [ ] Race conditions — shared state protected by mutex or channels
-- [ ] `defer` used for resource cleanup (file handles, locks, connections)
+- [ ] `defer` for resource cleanup (file handles, locks, connections)
 - [ ] Input validation on exported functions
 - [ ] `context.Context` propagated through call chains (first parameter by convention)
-- [ ] `context.Context` not stored in structs — pass explicitly to functions
+- [ ] `context.Context` not stored in structs — pass explicitly
 - [ ] `go vet` compliance — no composite literal issues, printf format mismatches, or unreachable code
 - [ ] `go vet` shadow check — no unintended variable shadowing in nested scopes
 
 ### Node.js / TypeScript
 
 - [ ] TypeScript strict mode enabled (`strict: true` in tsconfig)
-- [ ] No `any` type — use specific types or `unknown` with type guards
-- [ ] Async/await used instead of raw callbacks (no callback hell)
-- [ ] Async/await error handling — all `await` calls wrapped in try/catch or `.catch()`
-- [ ] No unhandled promise rejections — reject handlers or global handlers configured
+- [ ] No `any` type — specific types or `unknown` with type guards
+- [ ] Async/await instead of raw callbacks (no callback hell)
+- [ ] All `await` calls wrapped in try/catch or `.catch()`
+- [ ] No unhandled promise rejections — reject or global handlers configured
 - [ ] No prototype pollution vectors (`Object.assign` on user input, `__proto__` access)
 - [ ] No `Object.assign({}, userInput)` or spread of untrusted objects without sanitization
 - [ ] Dependencies audited — no known vulnerabilities (`npm audit`)
@@ -99,13 +95,13 @@ Apply these additional checks based on the detected language(s) in the changeset
 - [ ] No hardcoded provider credentials — use environment variables, IAM roles, or vault
 - [ ] IAM policies follow least privilege (no `*` actions or resources)
 - [ ] Security groups do not allow `0.0.0.0/0` ingress on sensitive ports
-- [ ] `sensitive = true` set on outputs containing secrets
+- [ ] `sensitive = true` on outputs containing secrets
 - [ ] Remote state backend configured with encryption and locking
-- [ ] State file not stored in version control — `.gitignore` includes `*.tfstate`
+- [ ] State file not in version control — `.gitignore` includes `*.tfstate`
 - [ ] Provider and module versions pinned with constraints
 - [ ] Module sources pinned to specific versions or commit SHAs (no floating `ref=main`)
 - [ ] Variable validation blocks present for variables with constrained values
-- [ ] `validation { condition = ... }` used on input variables where applicable
+- [ ] `validation { condition = ... }` on input variables where applicable
 
 ### Shell / Bash
 

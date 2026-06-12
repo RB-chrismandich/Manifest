@@ -19,32 +19,24 @@ validation criteria.
 
 **IMPORTANT**:
 
-- Always use **absolute paths** when specifying files to analyze or review.
-  Relative paths may fail as agents run from different working directories.
-- Always use a **large timeout** (600-900 seconds) for complex analyses.
-  The default 120s is often insufficient for thorough code review.
-- Use **Context7 MCP** by default for library/API documentation, code generation,
-  setup steps, and configuration guidance.
-- Use **Sentry MCP** by default for production/runtime error investigation,
-  stack traces, issue triage, and release regression analysis.
-- Use **Linear MCP** by default for issue requirements, acceptance criteria,
-  project context, and implementation planning.
-- Use **Semgrep CLI** (`semgrep ci` or `semgrep scan`) for local SAST scanning,
-  vulnerability detection, and secrets checks during code review and refactoring.
-  Install: `brew install semgrep` or `pip install semgrep`.
-- Use **DeepWiki MCP** by default for understanding unfamiliar repositories,
-  dependency internals, and upstream API contracts.
-- Use **Glean MCP** by default for internal team knowledge, runbooks, ADRs,
-  and company-specific documentation.
-- Use **Google Dev Docs MCP** for official Google platform documentation
-  (Firebase, Cloud, Android, Maps) when working with Google services.
-- Use **Atlassian MCP** for Jira issues, Confluence pages, and Compass
-  components when the project uses Atlassian tools.
-- Use **Apify MCP** for web scraping, data extraction, and crawling tasks
-  that require fetching structured data from external websites.
-- Use **OpenTofu MCP** for OpenTofu/Terraform registry lookups, provider and
-  module documentation, resource and datasource reference when working with
-  Infrastructure as Code.
+- Always use **absolute paths** when specifying files to analyze or review
+  (agents run from different working directories).
+- Always use a **large timeout** (600-900s) for complex analyses; the 120s
+  default is often insufficient.
+
+Default MCP/tool routing — use the matching tool when the task domain matches:
+
+- **Context7 MCP** — library/API docs, code generation, setup, configuration
+- **Sentry MCP** — production/runtime errors, stack traces, release regressions
+- **Linear MCP** — issue requirements, acceptance criteria, project planning
+- **Semgrep CLI** (`semgrep scan`) — local SAST, vulnerability and secrets
+  checks (install: `brew install semgrep`)
+- **DeepWiki MCP** — unfamiliar repos, dependency internals, upstream API contracts
+- **Glean MCP** — internal team knowledge, runbooks, ADRs
+- **Google Dev Docs MCP** — Firebase/Cloud/Android/Maps documentation
+- **Atlassian MCP** — Jira issues, Confluence pages, Compass components
+- **Apify MCP** — web scraping/crawling for structured external data
+- **OpenTofu MCP** — Terraform/OpenTofu registry, provider/module docs
 
 ```bash
 # Basic code review with JSON output (all 5 agents, 10 min timeout)
@@ -247,23 +239,11 @@ Use agents for their strengths:
 
 ## Validation Criteria
 
-### Tier 1: Critical (Always Check)
-
-| Criterion | Weight | Description |
-|-----------|--------|-------------|
-| Cross-Verification | 0.3 | Multiple agents agree on key findings |
-| Security Issues | 0.3 | No injection, XSS, auth bypass, secrets |
-| Error Handling | 0.2 | Proper exceptions, no silent failures |
-| Breaking Changes | 0.2 | API compatibility, data migrations |
-
-### Tier 2: Standard (Code Quality)
-
-| Criterion | Weight | Description |
-|-----------|--------|-------------|
-| Bug Detection | 0.25 | Logic errors, off-by-one, null refs |
-| Performance | 0.25 | No O(n^2), memory leaks |
-| Maintainability | 0.25 | Clear naming, reasonable complexity |
-| Test Coverage | 0.25 | Changes have corresponding tests |
+- **Tier 1 (blocking)**: cross-verification, security, error handling, breaking
+  changes. **Tier 2 (advisory)**: bugs, performance, maintainability, tests.
+- Authoritative weights: `~/.gemini/config/validation_criteria.yml` (symlink to
+  `~/.claude/config/`). Consensus thresholds and verdict rules
+  (`APPROVED`/`NEEDS_REVIEW`/`BLOCKED`): `~/.claude/references/orchestration.md`.
 
 ---
 
@@ -475,62 +455,25 @@ These integrate with the parallel agent orchestration framework.
 
 ### Skill Usage
 
-Skills are invoked as slash commands in Gemini CLI:
+Skills are invoked as slash commands in Gemini CLI. Representative examples:
 
 ```bash
-# Code analysis (language-specific)
-/refactor-python src/
-/refactor-go cmd/
-/refactor-node src/
-/refactor-terraform infra/
-/refactor-shell scripts/
-
-# Project setup and CI
-/scaffold python my-project
-/ci-setup
-/verify
-
-# UX and accessibility
-/ux-review src/components/
-/a11y-audit src/templates/
-/performance-check
-
-# Documentation
-/docs-readme
-/docs-diagrams docs/ARCHITECTURE_DIAGRAMS.md
-/docs-improve docs/
-
-# Commit pipeline
-/project-commit "Add new feature"
-/project-commit  # Auto-generate commit message
-
-# Issue management
-/issue-triage
-/issue-prioritize
-
-# Plan management
-/plan-manage
-
-# Environment and learning
-/health-check
-/sync-configs
-/learning-loop
-/dashboard
-/checkpoint
+/refactor-python src/          # language analysis (also go/node/shell/terraform)
+/project-commit "Add feature"  # commit pipeline (omit message to auto-generate)
+/verify                        # linters, tests, security scans in parallel
+/docs-readme                   # docs (also /docs-diagrams, /docs-improve)
+/issue-triage                  # Linear backlog audit (also /issue-prioritize)
+/plan-manage                   # plan lifecycle
+/health-check                  # env sanity (also /sync-configs)
+/checkpoint                    # high-context save (also /learning-loop, /dashboard)
 ```
 
 ### Auto-Triggered Skill
 
 The `code-quality` skill (symlinked from `~/.claude/skills/code-quality/SKILL.md`)
-auto-triggers when detecting:
-
-1. **Security patterns**: auth, crypto, secrets, input validation
-2. **Complexity patterns**:
-   - File > 500 lines
-   - > 10 functions per file
-   - > 5 classes per file
-
-When triggered, it provides inline feedback without blocking user workflow.
+auto-triggers on security-sensitive patterns (auth, crypto, secrets, input
+validation) or complexity (>500 lines, >10 functions, or >5 classes per file),
+giving inline feedback without blocking the workflow.
 
 ---
 
@@ -568,24 +511,9 @@ operate from identical orchestration rules.
 
 ## Plan Management
 
-Implementation plans are tracked as markdown files in `~/.claude/.plans/`
-(symlinked at `~/.gemini/.plans/`).
-
-### Lifecycle
-
-```text
-CREATE -> ACTIVE -> COMPLETED (.archive/) or ABANDONED (.abandoned/)
-```
-
-1. **CREATE**: Copy `TEMPLATE.md`, save as `YYYYMMDD-short-description.md`
-2. **ACTIVE**: Plan lives in `.plans/` root while work is in progress; check off deliverables as they are completed
-3. **COMPLETED**: Move to `.archive/` when all deliverables are done
-4. **ABANDONED**: Move to `.abandoned/` if superseded or no longer relevant
-
-### Housekeeping Rules
-
-- **Before creating a plan**: Review existing plans in `.plans/` to avoid duplicates
-- **During implementation**: Check off deliverables (`- [x]`) as each is completed
-- **Staleness threshold**: Plans untouched for 7+ days should be reviewed -- either update, complete, or abandon them
-- **Use `/plan-manage`** for orchestrated plan creation (parallel agents for cross-verified
-  planning), review, archiving, and abandoning plans
+Plans are markdown files in `~/.claude/.plans/` (symlinked at `~/.gemini/.plans/`)
+named `YYYYMMDD-short-description.md` (copy `TEMPLATE.md`). Lifecycle:
+CREATE -> ACTIVE (check off deliverables as completed) -> `.archive/` when done
+or `.abandoned/` if superseded. Review existing plans before creating new ones;
+plans untouched 7+ days should be updated, completed, or abandoned. Use
+`/plan-manage` for orchestrated create/review/execute/archive/abandon.
