@@ -38,6 +38,24 @@ if [[ "${1:-}" == "--verbose" ]]; then
     VERBOSE=true
 fi
 
+# Detect timeout command (timeout on Linux, gtimeout on macOS via coreutils);
+# a bare `timeout` made auth checks always fail on stock macOS (issue #315).
+TIMEOUT_CMD=""
+if command -v timeout &> /dev/null; then
+    TIMEOUT_CMD="timeout"
+elif command -v gtimeout &> /dev/null; then
+    TIMEOUT_CMD="gtimeout"
+fi
+
+# Run a command bounded by 3s when a timeout binary exists, unbounded otherwise
+run_with_timeout() {
+    if [[ -n "$TIMEOUT_CMD" ]]; then
+        "$TIMEOUT_CMD" 3 "$@"
+    else
+        "$@"
+    fi
+}
+
 antigravity_enabled=""
 
 manifest_state_root="${MANIFEST_STATE_ROOT:-$HOME/.manifest}"
@@ -196,7 +214,7 @@ echo -e "${BOLD}Authentication:${NC}"
 
 if [[ "$claude_installed" == true ]]; then
     # Add timeout to avoid hanging
-    if timeout 3 claude auth status &> /dev/null; then
+    if run_with_timeout claude auth status &> /dev/null; then
         echo -e "  ${GREEN}✓${NC} Claude authenticated"
     else
         echo -e "  ${YELLOW}?${NC} Claude authentication unknown (check timeout)"
@@ -206,7 +224,7 @@ fi
 
 if [[ "$gemini_installed" == true ]]; then
     # Add timeout to avoid hanging
-    if timeout 3 gemini auth status &> /dev/null; then
+    if run_with_timeout gemini auth status &> /dev/null; then
         echo -e "  ${GREEN}✓${NC} Gemini authenticated"
     else
         echo -e "  ${YELLOW}?${NC} Gemini authentication unknown (check timeout)"
