@@ -433,12 +433,17 @@ class Orchestrator:
         Runs are identified by their results_<timestamp>.json file; all files
         sharing a pruned run's timestamp are removed with it.
         """
-        keep_last = self.config.get("output.keep_last")
-        if not keep_last or int(keep_last) <= 0:
+        # Fail open on invalid config — a non-numeric keep_last must not
+        # fail the whole run during output writing
+        try:
+            keep_last = int(self.config.get("output.keep_last") or 0)
+        except (TypeError, ValueError):
+            return
+        if keep_last <= 0:
             return
         # Timestamps are YYYYMMDD_HHMMSS, so lexicographic == chronological
         runs = sorted(output_dir.glob("results_*.json"))
-        for stale in runs[: -int(keep_last)]:
+        for stale in runs[:-keep_last]:
             ts = stale.stem[len("results_"):]
             for f in output_dir.glob(f"*_{ts}.*"):
                 try:

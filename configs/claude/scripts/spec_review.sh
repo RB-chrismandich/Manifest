@@ -229,8 +229,13 @@ _silent_review_inline() {
     if ! raw="$(run_reviewer "$prompt" 2>>"$state/error.log")"; then
         return 0   # fail-open: reviewer failed, never block; hash not recorded
     fi
-    format_findings "$raw" "tree" > "$state/feedback.md.tmp" && mv "$state/feedback.md.tmp" "$state/feedback.md"
-    [[ -n "$review_hash" ]] && echo "$review_hash" > "$state/.last-run"
+    # Record the hash only when feedback.md was actually written — a failed
+    # write (disk full, permissions) must stay retryable, same as a failed
+    # reviewer run (issue #317)
+    if format_findings "$raw" "tree" > "$state/feedback.md.tmp" \
+        && mv "$state/feedback.md.tmp" "$state/feedback.md"; then
+        [[ -n "$review_hash" ]] && echo "$review_hash" > "$state/.last-run"
+    fi
     return 0
 }
 

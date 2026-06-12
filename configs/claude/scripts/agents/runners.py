@@ -500,8 +500,15 @@ class CLIAgent(BaseAgent):
             if substituted:
                 cmd.append(substituted)
         if self.model_name:
-            cmd += [_subst(a) for a in self.model_args]
-        cmd += [_subst_prompt(a) for a in self.prompt_args]
+            # Drop empty substitutions here too — a stray {output_file} in
+            # model_args would otherwise inject a "" argv element
+            cmd += [a for a in (_subst(a) for a in self.model_args) if a]
+        for arg in self.prompt_args:
+            substituted = _subst_prompt(arg)
+            # Keep an empty result only when it carries the prompt itself
+            # (preserves positional semantics for an empty prompt)
+            if substituted or "{prompt}" in arg:
+                cmd.append(substituted)
         return cmd
 
     def _collect_output(
