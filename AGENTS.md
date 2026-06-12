@@ -62,7 +62,6 @@ configs/                             # Deployment source configs (deployed to ~/
 │   ├── scripts -> ../claude/scripts # Symlink to shared scripts
 │   ├── config -> ../claude/config   # Symlink to shared configs
 │   ├── prompts -> ../claude/prompts # Symlink to shared prompts
-│   ├── skills -> ../claude/skills   # Shared skills symlink
 │   └── .plans -> ../claude/.plans   # Symlink to shared plans
 ├── gemini/                          # → ~/.gemini/ (Gemini CLI configuration)
 │   ├── GEMINI.md                    # Orchestration guide for Gemini CLI
@@ -70,14 +69,12 @@ configs/                             # Deployment source configs (deployed to ~/
 │   ├── scripts -> ../claude/scripts # Symlink to shared scripts
 │   ├── config -> ../claude/config   # Symlink to shared configs
 │   ├── prompts -> ../claude/prompts # Symlink to shared prompts
-│   ├── skills -> ../claude/skills   # Shared skills symlink
 │   └── .plans -> ../claude/.plans   # Symlink to shared plans
 ├── codex/                           # → ~/.codex/ (Codex CLI configuration)
 │   ├── AGENTS.md -> ../../AGENTS.md # Codex guide (repo-level instructions)
 │   ├── scripts -> ../claude/scripts # Symlink to shared scripts
 │   ├── config -> ../claude/config   # Symlink to shared configs
 │   ├── prompts -> ../claude/prompts # Symlink to shared prompts
-│   ├── skills -> ../claude/skills   # Shared skills symlink
 │   └── .plans -> ../claude/.plans   # Symlink to shared plans
 └── antigravity/                     # → ~/.antigravity/ (Antigravity IDE)
     └── (symlinks to ../claude/)     # scripts, config, prompts, skills, .plans
@@ -206,7 +203,7 @@ Required CLI tools (install those you want to use):
 
 ## Available Skills
 
-All agents share the same skill library from `.skillshare/skills/` (69 skills;
+All agents share the same skill library from `.skillshare/skills/` (70+ skills;
 exposed via the `configs/claude/skills/` symlink).
 Skills are invoked as slash commands (e.g., `/refactor-python src/`).
 

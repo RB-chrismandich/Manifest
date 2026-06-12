@@ -57,14 +57,14 @@ configs/                             # Deployment source configs (deployed to ~/
 ├── cursor/                          # → ~/.cursor/ (Cursor IDE configuration)
 │   ├── rules/                       # Cursor rules (.mdc) adapted from commands/skills
 │   ├── mcp.json                     # Cursor MCP server defaults
-│   └── (symlinks to ../claude/)     # scripts, config, prompts, skills, .plans
+│   └── (symlinks to ../claude/)     # scripts, config, prompts, .plans (skills via rules/)
 ├── gemini/                          # → ~/.gemini/ (Gemini CLI configuration)
 │   ├── GEMINI.md                    # Orchestration guide for Gemini
 │   ├── settings.json                # Gemini settings (includes MCP server defaults)
-│   └── (symlinks to ../claude/)     # scripts, config, prompts, skills, .plans
+│   └── (symlinks to ../claude/)     # scripts, config, prompts, .plans
 ├── codex/                           # → ~/.codex/ (Codex CLI configuration)
 │   ├── AGENTS.md -> ../../AGENTS.md # Codex guide
-│   └── (symlinks to ../claude/)     # scripts, config, prompts, skills, .plans
+│   └── (symlinks to ../claude/)     # scripts, config, prompts, .plans
 └── antigravity/                     # → ~/.antigravity/ (Antigravity IDE)
     └── (symlinks to ../claude/)     # scripts, config, prompts, skills, .plans
 
@@ -230,6 +230,11 @@ Required CLI tools (install those you want to use):
 ## Available Commands
 
 The following slash commands are available in Claude Code:
+
+> **Note**: this table is a curated subset of the most-used skills. The full
+> set (70+ skills, including SkillClaw-evolved ones) lives in
+> `.skillshare/skills/` — each directory's `SKILL.md` frontmatter is the
+> authoritative name and description.
 
 | Command | Description | Parallel Agents |
 |---------|-------------|-----------------|

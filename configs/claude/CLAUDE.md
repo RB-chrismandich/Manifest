@@ -137,6 +137,11 @@ These integrate with the parallel agent orchestration framework.
 
 ### Available Skills
 
+> **Note**: this table is a curated subset of the most-used skills. The full
+> set (70+ skills, including SkillClaw-evolved ones) lives in
+> `.skillshare/skills/` — each directory's `SKILL.md` frontmatter is the
+> authoritative name and description.
+
 | Command | Description | Parallel Agents |
 |---------|-------------|-----------------|
 | `/project-commit` | Full commit pipeline: docs, pull, pre-commits, commit, push | CONDITIONAL (Phase 3) |
