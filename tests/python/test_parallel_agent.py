@@ -30,8 +30,8 @@ sys.path.insert(0, SCRIPTS_DIR)
 from agents.config import Config, ServiceConfig, Logger, RateLimiter  # noqa: E402
 from agents.validation import ValidationEngine  # noqa: E402
 from agents.synthesis import SynthesisEngine  # noqa: E402
-from agents.runners import BaseAgent, CodexAgent  # noqa: E402
-from agents.orchestrator import Orchestrator  # noqa: E402
+from agents.runners import BaseAgent, CLIAgent  # noqa: E402
+from agents.orchestrator import Orchestrator, check_credits  # noqa: E402
 
 
 # ---------------------------------------------------------------------------
@@ -619,44 +619,43 @@ class TestServiceConfig:
 
 
 # ---------------------------------------------------------------------------
-# CodexAgent tests
+# Codex-via-CLIAgent regression tests
 # ---------------------------------------------------------------------------
 
 
-class TestCodexAgent:
-    """Test the CodexAgent class."""
+class TestCodexViaCLIAgent:
+    """Codex behavior through the generic CLIAgent (regression for the refactor)."""
 
     def test_resolve_model_auto(self, tmp_path):
         """Auto tier resolves to None (let codex choose)."""
         config = Config(config_path=str(tmp_path / "nonexistent.yml"))
         limiter = RateLimiter()
-        agent = CodexAgent("auto", 60, limiter, config=config)
+        agent = CLIAgent("codex", "auto", 60, limiter, config=config)
         assert agent.model_name is None
 
     def test_resolve_model_named_tier(self, tmp_path):
         """Named tier resolves to correct model from config."""
         config = Config(config_path=str(tmp_path / "nonexistent.yml"))
         limiter = RateLimiter()
-        agent = CodexAgent("mini", 60, limiter, config=config)
-        assert agent.model_name == "o4-mini"
+        agent = CLIAgent("codex", "mini", 60, limiter, config=config)
+        assert agent.model_name == "gpt-5.4-mini"
 
     def test_resolve_model_custom(self, tmp_path):
         """Custom model name passes through as-is."""
         config = Config(config_path=str(tmp_path / "nonexistent.yml"))
         limiter = RateLimiter()
-        agent = CodexAgent("custom-model-123", 60, limiter, config=config)
+        agent = CLIAgent("codex", "custom-model-123", 60, limiter, config=config)
         assert agent.model_name == "custom-model-123"
 
     @pytest.mark.asyncio
     async def test_execute_missing_codex(self, tmp_path, monkeypatch):
-        """CodexAgent returns 'missing' status when codex is not installed."""
+        """Returns 'missing' status when codex is not installed."""
         import shutil
 
         config = Config(config_path=str(tmp_path / "nonexistent.yml"))
         limiter = RateLimiter()
-        agent = CodexAgent("auto", 60, limiter, config=config)
+        agent = CLIAgent("codex", "auto", 60, limiter, config=config)
 
-        # Mock shutil.which to return None
         monkeypatch.setattr(shutil, "which", lambda cmd: None)
         result = await agent._execute_impl("test prompt", "prompt")
         assert result["status"] == "missing"
@@ -741,3 +740,109 @@ class TestFileExistenceValidation:
         """--improve with a missing file must print an error message to stderr."""
         result = self._run("--improve", str(tmp_path / "missing.py"))
         assert "file not found" in result.stderr.lower() or "error" in result.stderr.lower()
+
+
+# ---------------------------------------------------------------------------
+# Antigravity agent wiring
+# ---------------------------------------------------------------------------
+
+
+class TestAntigravityAgent:
+    def test_antigravity_tier_resolution(self, tmp_path):
+        config = Config(config_path=str(tmp_path / "nonexistent.yml"))
+        limiter = RateLimiter()
+        agent = CLIAgent("antigravity", "advanced", 60, limiter, config=config)
+        assert agent.name == "antigravity"
+        assert agent.model_name == "Claude Opus 4.6 (Thinking)"
+        assert agent.binary == "agy"
+
+    @pytest.mark.asyncio
+    async def test_antigravity_missing_binary(self, tmp_path, monkeypatch):
+        monkeypatch.setattr("agents.runners.shutil.which", lambda cmd: None)
+        config = Config(config_path=str(tmp_path / "nonexistent.yml"))
+        agent = CLIAgent("antigravity", "flash", 60, RateLimiter(), config=config)
+        result = await agent._execute_impl("test", "prompt")
+        assert result["status"] == "missing"
+
+    def test_services_default_includes_antigravity(self, tmp_path):
+        sc = ServiceConfig(config_path=str(tmp_path / "nonexistent.yml"))
+        assert sc.is_enabled("antigravity") is True
+
+    @pytest.mark.asyncio
+    async def test_check_credits_antigravity_installed(self, tmp_path, monkeypatch):
+        """check_credits marks antigravity assumed_available when agy exists."""
+        monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+        monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
+        monkeypatch.setattr(
+            "agents.orchestrator.shutil.which",
+            lambda cmd: "/usr/local/bin/agy" if cmd == "agy" else None,
+        )
+        config = Config(config_path=str(tmp_path / "nonexistent.yml"))
+        results = await check_credits(config)
+        assert results["antigravity"] == {"status": "assumed_available"}
+
+    @pytest.mark.asyncio
+    async def test_check_credits_antigravity_not_installed(self, tmp_path, monkeypatch):
+        """check_credits marks antigravity not_installed when agy is absent."""
+        monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+        monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
+        monkeypatch.setattr(
+            "agents.orchestrator.shutil.which", lambda cmd: None
+        )
+        config = Config(config_path=str(tmp_path / "nonexistent.yml"))
+        results = await check_credits(config)
+        assert results["antigravity"] == {"status": "not_installed"}
+
+    @pytest.mark.asyncio
+    async def test_check_credits_codex_hang_times_out(self, tmp_path, monkeypatch):
+        """Issue #307: the timeout must cover communicate(), not just the spawn —
+        a codex blocked on auth/TTY hung --check-credits forever."""
+        monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+        monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
+        monkeypatch.setattr(
+            "agents.orchestrator.shutil.which",
+            lambda cmd: "/usr/local/bin/codex" if cmd == "codex" else None,
+        )
+
+        class HangingProc:
+            def __init__(self):
+                self.killed = False
+                self.returncode = None
+
+            async def communicate(self):
+                await asyncio.sleep(3600)
+
+            def kill(self):
+                self.killed = True
+
+            async def wait(self):
+                return 0
+
+        proc = HangingProc()
+
+        async def fake_exec(*args, **kwargs):
+            return proc
+
+        monkeypatch.setattr(asyncio, "create_subprocess_exec", fake_exec)
+        config = Config(config_path=str(tmp_path / "nonexistent.yml"))
+        results = await check_credits(config, probe_timeout=0.1)
+        assert results["codex"]["status"] == "error"
+        assert "timed out" in results["codex"]["error"]
+        assert proc.killed is True
+
+
+class TestCLIFlagsAntigravity:
+    """The CLI surface advertises antigravity flags."""
+
+    SCRIPT = str(REPO_ROOT / "configs" / "claude" / "scripts" / "parallel_agent.py")
+
+    def test_help_lists_antigravity_flags(self):
+        import subprocess
+
+        result = subprocess.run(
+            [sys.executable, self.SCRIPT, "--help"],
+            capture_output=True, text=True,
+        )
+        assert "--antigravity-model" in result.stdout
+        assert "--antigravity-only" in result.stdout
+        assert "--no-antigravity" in result.stdout

@@ -245,7 +245,13 @@ def trim(max_runs=MAX_RUNS):
         parsed_lines = []
         for ln in lines:
             try:
-                rid = json.loads(ln).get("run_id")
+                obj = json.loads(ln)
+                # A valid-JSON non-dict line (torn write leaving `123`/`null`)
+                # raised AttributeError past this handler into the outer
+                # fail-open except, permanently disabling trimming (issue #311)
+                if not isinstance(obj, dict):
+                    continue
+                rid = obj.get("run_id")
             except ValueError:
                 continue
             parsed_lines.append((ln, rid))

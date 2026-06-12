@@ -60,6 +60,23 @@ class TestSynthesisEngine:
         prompt = engine._build_synthesis_prompt("task", agent_results)
         assert "gemini says hello" in prompt
 
+    def test_build_synthesis_prompt_includes_all_agents(self, tmp_path):
+        """Issue #309: codex/antigravity outputs must reach the synthesis prompt."""
+        engine = _make_engine(tmp_path)
+        engine.synthesis_template = "Outputs:\n{AGENT_OUTPUTS}"
+        agent_results = {
+            "gemini": {"output": "gemini view"},
+            "claude": {"output": "claude view"},
+            "cursor": {"output": "cursor view"},
+            "codex": {"output": "codex view"},
+            "antigravity": {"output": "antigravity view"},
+        }
+        prompt = engine._build_synthesis_prompt("task", agent_results)
+        for view in agent_results.values():
+            assert view["output"] in prompt
+        assert "### Antigravity Output" in prompt
+        assert "### Codex Output" in prompt
+
     def test_skips_synthesis_at_threshold_boundary(self, tmp_path):
         engine = _make_engine(tmp_path)
         # Default threshold is 0.50; score of 50 → 50/100 = 0.50 >= threshold → skip

@@ -7,6 +7,7 @@ Dependency graph: config → {validation, synthesis, runners} → orchestrator.
 import asyncio
 import json
 import os
+import shutil
 import sys
 import time
 from collections import Counter
@@ -290,11 +291,14 @@ class Orchestrator:
             common_words = sum(1 for count in word_counts.values() if count > 1)
             consensus_score = int((common_words / total_words) * 100)
 
-        # Determine confidence level
+        # Determine confidence level. Thresholds are fractions (0.80/0.50)
+        # while consensus_score is 0-100 — normalize before comparing,
+        # matching validation.py and synthesis.py (issue #305).
         thresholds = self.config.get("validation.consensus_threshold", {})
-        if consensus_score >= thresholds.get("high", 80):
+        consensus_fraction = consensus_score / 100.0
+        if consensus_fraction >= thresholds.get("high", 0.80):
             confidence = "high"
-        elif consensus_score >= thresholds.get("medium", 50):
+        elif consensus_fraction >= thresholds.get("medium", 0.50):
             confidence = "medium"
         else:
             confidence = "low"
@@ -419,7 +423,33 @@ class Orchestrator:
 
         output_files["summary"] = str(md_file)
 
+        self._prune_old_outputs(output_dir)
+
         return output_files
+
+    def _prune_old_outputs(self, output_dir: Path) -> None:
+        """Keep only the newest output.keep_last runs (issue #310).
+
+        Runs are identified by their results_<timestamp>.json file; all files
+        sharing a pruned run's timestamp are removed with it.
+        """
+        # Fail open on invalid config — a non-numeric keep_last must not
+        # fail the whole run during output writing
+        try:
+            keep_last = int(self.config.get("output.keep_last") or 0)
+        except (TypeError, ValueError):
+            return
+        if keep_last <= 0:
+            return
+        # Timestamps are YYYYMMDD_HHMMSS, so lexicographic == chronological
+        runs = sorted(output_dir.glob("results_*.json"))
+        for stale in runs[:-keep_last]:
+            ts = stale.stem[len("results_"):]
+            for f in output_dir.glob(f"*_{ts}.*"):
+                try:
+                    f.unlink()
+                except OSError:
+                    pass
 
     def print_results(self, result: Dict, json_output: bool = False):
         """Print results in table or JSON format"""
@@ -468,7 +498,11 @@ class Orchestrator:
 # ---------------------------------------------------------------------------
 
 
-async def check_credits(config: Config, logger: Optional[Logger] = None) -> Dict:
+async def check_credits(
+    config: Config,
+    logger: Optional[Logger] = None,
+    probe_timeout: float = 15,
+) -> Dict:
     """Pre-flight credit check with minimal API calls"""
     results = {}
 
@@ -481,7 +515,9 @@ async def check_credits(config: Config, logger: Optional[Logger] = None) -> Dict
                 # Make minimal call (haiku, 10 tokens)
                 await asyncio.wait_for(
                     client.messages.create(
-                        model="claude-haiku-4-5-20251001",
+                        model=config.get(
+                            "model_tiers.claude.haiku", "claude-haiku-4-5-20251001"
+                        ),
                         max_tokens=10,
                         messages=[{"role": "user", "content": "test"}],
                     ),
@@ -503,12 +539,15 @@ async def check_credits(config: Config, logger: Optional[Logger] = None) -> Dict
     if HAS_GENAI:
         try:
             api_key = os.environ.get("GOOGLE_API_KEY")
+            gemini_flash = config.get(
+                "model_tiers.gemini.flash", "gemini-3.5-flash"
+            )
             if HAS_GENAI_NEW:
                 client = genai.Client(api_key=api_key) if api_key else genai.Client()
                 await asyncio.wait_for(
                     asyncio.to_thread(
                         client.models.generate_content,
-                        model="gemini-3-flash-preview",
+                        model=gemini_flash,
                         contents="test",
                     ),
                     timeout=10,
@@ -516,7 +555,7 @@ async def check_credits(config: Config, logger: Optional[Logger] = None) -> Dict
             else:
                 if api_key:
                     genai.configure(api_key=api_key)
-                model = genai.GenerativeModel("gemini-3-flash-preview")
+                model = genai.GenerativeModel(gemini_flash)
                 await asyncio.wait_for(
                     asyncio.to_thread(model.generate_content, "test"), timeout=10
                 )
@@ -533,25 +572,37 @@ async def check_credits(config: Config, logger: Optional[Logger] = None) -> Dict
     # Cursor (no API to check, assume available)
     results["cursor"] = {"status": "assumed_available"}
 
-    # Codex credit check
-    import shutil
+    # Antigravity (subscription CLI, no credit API to probe)
+    if shutil.which("agy"):
+        results["antigravity"] = {"status": "assumed_available"}
+    else:
+        results["antigravity"] = {"status": "not_installed"}
 
+    # Codex credit check
     if shutil.which("codex"):
         try:
-            proc = await asyncio.wait_for(
-                asyncio.create_subprocess_exec(
-                    "codex",
-                    "exec",
-                    "--full-auto",
-                    "--model",
-                    "o4-mini",
-                    "respond with OK",
-                    stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.PIPE,
-                ),
-                timeout=15,
+            proc = await asyncio.create_subprocess_exec(
+                "codex",
+                "exec",
+                "--full-auto",
+                "--model",
+                config.get("model_tiers.codex.mini", "gpt-5.4-mini"),
+                "respond with OK",
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
             )
-            stdout, stderr = await proc.communicate()
+            # The timeout must cover communicate(), not just the spawn —
+            # codex blocking on auth/TTY hung this probe forever (issue #307)
+            try:
+                stdout, stderr = await asyncio.wait_for(
+                    proc.communicate(), timeout=probe_timeout
+                )
+            except asyncio.TimeoutError:
+                proc.kill()
+                await proc.wait()
+                raise asyncio.TimeoutError(
+                    f"codex probe timed out after {probe_timeout}s"
+                )
             error_output = stderr.decode("utf-8", errors="ignore").lower()
 
             if any(

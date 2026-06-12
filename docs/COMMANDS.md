@@ -24,7 +24,10 @@
 
 ## Built-in Commands
 
-Manifest ships with 33 slash commands and 1 CLI tool (69 skills total, 1 auto-triggered).
+Manifest ships with 70+ skills and 1 CLI tool; the table below is a curated
+subset of the most-used commands. The full set (including SkillClaw-evolved
+skills) lives in `.skillshare/skills/` — each directory's `SKILL.md`
+frontmatter is the authoritative name and description.
 
 | Command | Description | Parallel Agents |
 |---------|-------------|-----------------|

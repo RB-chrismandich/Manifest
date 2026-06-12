@@ -56,7 +56,7 @@ teardown() {
 # --- Fixture helpers ---
 
 write_services_yml() {
-    # write_services_yml <claude> <gemini> <cursor> <codex>
+    # write_services_yml <claude> <gemini> <cursor> <codex> [antigravity]
     cat > "$HOME/.claude/config/services.yml" << EOF
 services:
   claude:
@@ -67,6 +67,8 @@ services:
     enabled: $3
   codex:
     enabled: $4
+  antigravity:
+    enabled: ${5:-false}
 EOF
 }
 
@@ -105,18 +107,18 @@ EOF
     assert_output --partial "Codex (disabled)"
 }
 
-@test "counts enabled services (1/4)" {
+@test "counts enabled services (1/5)" {
     write_services_yml true false false false
     run bash "$SCRIPT_UNDER_TEST"
     assert_success
-    assert_output --partial "Enabled Services (1/4):"
+    assert_output --partial "Enabled Services (1/5):"
 }
 
-@test "counts enabled services (4/4)" {
-    write_services_yml true true true true
+@test "counts enabled services (5/5)" {
+    write_services_yml true true true true true
     run bash "$SCRIPT_UNDER_TEST"
     assert_success
-    assert_output --partial "Enabled Services (4/4):"
+    assert_output --partial "Enabled Services (5/5):"
     refute_output --partial "(disabled)"
 }
 

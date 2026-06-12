@@ -19,8 +19,7 @@ from agents.orchestrator import Orchestrator, check_credits
 from agents.runners import (
     BaseAgent,
     ClaudeAgent,
-    CodexAgent,
-    CursorAgent,
+    CLIAgent,
     GeminiAgent,
 )
 from agents.synthesis import SynthesisEngine
@@ -40,9 +39,8 @@ __all__ = [
     "SynthesisEngine",
     "BaseAgent",
     "ClaudeAgent",
+    "CLIAgent",
     "GeminiAgent",
-    "CursorAgent",
-    "CodexAgent",
     "Orchestrator",
     "check_credits",
     "main",

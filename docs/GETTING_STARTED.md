@@ -198,7 +198,7 @@ Analyzes Python codebases for security, architecture, and code quality issues.
 
 **What it does:**
 
-1. Runs all 3 agents in parallel (Cursor, Gemini, Claude)
+1. Runs all 5 agents in parallel (Cursor, Gemini, Claude, Codex, Antigravity)
 2. Each agent analyzes for: security vulnerabilities, bugs, performance issues
 3. Synthesizes results with consensus scoring
 4. Validates against Tier 1 (security) and Tier 2 (quality) checks
@@ -319,11 +319,12 @@ Choose models based on task complexity:
 
 **Model tiers:**
 
-| Tier | Cursor | Claude | Gemini | Codex | Use For |
-|------|--------|--------|--------|-------|---------|
-| Lightweight | gpt-5.1-codex-mini | haiku | - | o4-mini | Quick questions |
-| Balanced | gpt-5.1-codex | sonnet | gemini-3-flash | o3 | Code review |
-| Maximum | gpt-5.2 | opus | gemini-3-pro | o3-pro | Security analysis |
+| Tier | Cursor | Claude | Gemini | Codex | Antigravity | Use For |
+|------|--------|--------|--------|-------|-------------|---------|
+| Lightweight | gpt-5.1-codex-mini | claude-haiku-4-5-20251001 | - | gpt-5.4-mini | Gemini 3.5 Flash (Low) | Quick questions |
+| Balanced | gpt-5.1-codex | claude-sonnet-4-6 | gemini-3.5-flash | gpt-5.4 | Gemini 3.5 Flash (High) | Code review |
+| Maximum | gpt-5.2 | claude-opus-4-8 | gemini-3.1-pro | gpt-5.5 | Claude Opus 4.6 (Thinking) | Security analysis |
+| Security | - | claude-fable-5 | - | - | - | Critical security tasks |
 
 **See**: [Configuration Guide](CONFIGURATION.md) for all options
 

@@ -39,9 +39,9 @@ Use these MCP servers by default when their domain context matches the task:
 ## Repository Purpose
 
 This repository manages AI agent configurations for deployment to `~/.claude/` (and mirrored
-to `~/.cursor/`, `~/.gemini/`, and `~/.codex/`) on target machines. It contains orchestration guides,
-skills, prompts, and scripts that enable parallel LLM agent coordination
-(Cursor, Gemini CLI, Claude CLI, Codex CLI).
+to `~/.cursor/`, `~/.gemini/`, `~/.codex/`, and `~/.antigravity/`) on target machines. It contains
+orchestration guides, skills, prompts, and scripts that enable parallel LLM agent coordination
+(Cursor, Gemini CLI, Claude CLI, Codex CLI, Antigravity).
 
 ## Repository Structure
 
@@ -62,7 +62,6 @@ configs/                             # Deployment source configs (deployed to ~/
 │   ├── scripts -> ../claude/scripts # Symlink to shared scripts
 │   ├── config -> ../claude/config   # Symlink to shared configs
 │   ├── prompts -> ../claude/prompts # Symlink to shared prompts
-│   ├── skills -> ../claude/skills   # Shared skills symlink
 │   └── .plans -> ../claude/.plans   # Symlink to shared plans
 ├── gemini/                          # → ~/.gemini/ (Gemini CLI configuration)
 │   ├── GEMINI.md                    # Orchestration guide for Gemini CLI
@@ -70,15 +69,15 @@ configs/                             # Deployment source configs (deployed to ~/
 │   ├── scripts -> ../claude/scripts # Symlink to shared scripts
 │   ├── config -> ../claude/config   # Symlink to shared configs
 │   ├── prompts -> ../claude/prompts # Symlink to shared prompts
-│   ├── skills -> ../claude/skills   # Shared skills symlink
 │   └── .plans -> ../claude/.plans   # Symlink to shared plans
-└── codex/                           # → ~/.codex/ (Codex CLI configuration)
-    ├── AGENTS.md -> ../../AGENTS.md # Codex guide (repo-level instructions)
-    ├── scripts -> ../claude/scripts # Symlink to shared scripts
-    ├── config -> ../claude/config   # Symlink to shared configs
-    ├── prompts -> ../claude/prompts # Symlink to shared prompts
-    ├── skills -> ../claude/skills   # Shared skills symlink
-    └── .plans -> ../claude/.plans   # Symlink to shared plans
+├── codex/                           # → ~/.codex/ (Codex CLI configuration)
+│   ├── AGENTS.md -> ../../AGENTS.md # Codex guide (repo-level instructions)
+│   ├── scripts -> ../claude/scripts # Symlink to shared scripts
+│   ├── config -> ../claude/config   # Symlink to shared configs
+│   ├── prompts -> ../claude/prompts # Symlink to shared prompts
+│   └── .plans -> ../claude/.plans   # Symlink to shared plans
+└── antigravity/                     # → ~/.antigravity/ (Antigravity IDE)
+    └── (symlinks to ../claude/)     # scripts, config, prompts, skills, .plans
 
 .claude/                             # Repo-specific config (minimal — does NOT override sessions)
 ├── CLAUDE.md                        # Developer guide for working in this repo
@@ -204,7 +203,7 @@ Required CLI tools (install those you want to use):
 
 ## Available Skills
 
-All agents share the same skill library from `.skillshare/skills/` (69 skills;
+All agents share the same skill library from `.skillshare/skills/` (70+ skills;
 exposed via the `configs/claude/skills/` symlink).
 Skills are invoked as slash commands (e.g., `/refactor-python src/`).
 
@@ -291,13 +290,14 @@ Skills are shared across all platforms via symlinks from `configs/claude/skills/
 - **Cursor**: Rules auto-generated from skills into `~/.cursor/rules/` (`.mdc` files)
 - **Gemini CLI**: Skills loaded from `~/.gemini/skills/` (symlink to `~/.claude/skills/`)
 - **Codex CLI**: Skills loaded from `~/.codex/skills/` (symlink to `~/.claude/skills/`)
+- **Antigravity**: Skills loaded from `~/.antigravity/skills/` (symlink to `~/.claude/skills/`)
 
 ## Parallel Agent Orchestration
 
 All agents share the same orchestration script at `configs/claude/scripts/parallel_agent.py`.
 
 ```bash
-# Basic code review (all 3 agents)
+# Basic code review (all 5 agents)
 ~/.claude/scripts/parallel_agent.py --json --timeout 600 --review /absolute/path/to/file
 
 # Security analysis with maximum capability models

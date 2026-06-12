@@ -47,6 +47,21 @@ deploy_configs() {
     # user/runtime state (plugins, sessions, settings.json, …) from the backup.
     local restore_from=""
 
+    # rsync is a hard dependency of every copy path below. Check it BEFORE the
+    # destructive `mv` of ~/.claude — failing mid-deploy stranded all user
+    # state in the timestamped backup with no recovery message (issue #320).
+    if ! command_exists rsync; then
+        print_error "rsync is required for deployment but was not found"
+        echo ""
+        echo "  Install it first:"
+        case "${PLATFORM:-}" in
+            macos) echo "    brew install rsync" ;;
+            *)     echo "    sudo apt install rsync   # or dnf/pacman/zypper equivalent" ;;
+        esac
+        echo ""
+        exit 1
+    fi
+
     if [[ ! -d "$source_dir" ]]; then
         print_error "Source directory not found: $source_dir"
         exit 1
@@ -176,6 +191,13 @@ deploy_configs() {
 
 # Deploy Cursor IDE configuration (mirrors .claude with symlinks)
 deploy_cursor_configs() {
+    # Honor the service toggle — deploying while disabled rewrote ~/.cursor
+    # against the user's explicit request (issue #321)
+    if [[ "${ENABLE_CURSOR:-true}" != true ]]; then
+        print_info "Cursor disabled — skipping config deployment"
+        return 0
+    fi
+
     print_step "Deploying Cursor IDE configuration..."
 
     local cursor_source_dir="$SCRIPT_DIR/configs/cursor"
@@ -209,6 +231,11 @@ deploy_cursor_configs() {
 
 # Deploy Gemini CLI configuration (mirrors .claude with symlinks)
 deploy_gemini_configs() {
+    if [[ "${ENABLE_GEMINI:-true}" != true ]]; then
+        print_info "Gemini disabled — skipping config deployment"
+        return 0
+    fi
+
     print_step "Deploying Gemini CLI configuration..."
 
     local gemini_source_dir="$SCRIPT_DIR/configs/gemini"
@@ -247,6 +274,11 @@ deploy_gemini_configs() {
 
 # Deploy Codex configuration (mirrors shared assets from .claude)
 deploy_codex_configs() {
+    if [[ "${ENABLE_CODEX:-true}" != true ]]; then
+        print_info "Codex disabled — skipping config deployment"
+        return 0
+    fi
+
     print_step "Deploying Codex CLI configuration..."
 
     # Create ~/.codex if needed but never wipe it (contains auth/history/session data)
@@ -273,6 +305,11 @@ deploy_codex_configs() {
 # Cursor/Gemini/Codex). Antigravity shares the single source of truth in
 # ~/.claude via symlinks for scripts, config, prompts, skills, and .plans.
 deploy_antigravity_configs() {
+    if [[ "${ENABLE_ANTIGRAVITY:-true}" != true ]]; then
+        print_info "Antigravity disabled — skipping config deployment"
+        return 0
+    fi
+
     print_step "Deploying Antigravity configuration..."
     mkdir -p "$ANTIGRAVITY_TARGET_DIR"
     # Link shared assets from ~/.claude to avoid duplicate copies, including shared skills.
@@ -581,6 +618,12 @@ print_summary() {
         else
             echo -e "  ${YELLOW}○${NC} antigravity (enabled, not installed)"
         fi
+        if command -v agy >/dev/null 2>&1; then
+            echo -e "  ${GREEN}✓${NC} antigravity CLI (agy) installed"
+        else
+            echo -e "  ${YELLOW}○${NC} antigravity CLI (agy) not found — parallel-agent participation needs it"
+            echo -e "    ${BLUE}→${NC} Install via the Antigravity IDE, then run: agy install"
+        fi
     else
         echo -e "  ${RED}✗${NC} antigravity (disabled)"
     fi
@@ -594,7 +637,7 @@ print_summary() {
         echo -e "    Claude:  ${CYAN}claude auth login${NC}  or  ${CYAN}export ANTHROPIC_API_KEY='...'${NC}"
     fi
     if [[ "$ENABLE_GEMINI" == true ]]; then
-        echo -e "    Gemini:  ${CYAN}gemini auth login${NC}  or  ${CYAN}export GEMINI_API_KEY='...'${NC}"
+        echo -e "    Gemini:  ${CYAN}gemini${NC} (first run prompts OAuth)  or  ${CYAN}export GEMINI_API_KEY='...'${NC}"
     fi
     if [[ "$ENABLE_CODEX" == true ]]; then
         echo -e "    Codex:   ${CYAN}codex auth login${NC}  or  ${CYAN}export OPENAI_API_KEY='...'${NC}"

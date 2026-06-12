@@ -9,6 +9,8 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SPEC_REVIEW_CLI="${SPEC_REVIEW_CLI:-agy}"
+SPEC_REVIEW_MODEL="${SPEC_REVIEW_MODEL:-}"
+SPEC_REVIEW_CONFIG="${SPEC_REVIEW_CONFIG:-$HOME/.claude/config/parallel_agent.yml}"
 SPEC_REVIEW_TEMPLATE="${SPEC_REVIEW_TEMPLATE:-${SCRIPT_DIR}/../prompts/spec_review.md}"
 SPEC_REVIEW_STATE="${SPEC_REVIEW_STATE:-.spec-review}"
 SPEC_REVIEW_NO_DETACH="${SPEC_REVIEW_NO_DETACH:-}"
@@ -100,11 +102,44 @@ assemble_prompt() {
     return "$rc"
 }
 
+# resolve_review_model -> model name on stdout, or empty. Precedence:
+# explicit SPEC_REVIEW_MODEL env always wins; otherwise, only for the default
+# agy reviewer, fall back to model_tiers.antigravity.advanced from the shared
+# parallel_agent.yml registry (a non-agy CLI would reject agy model names).
+# Fail-open: any read/parse problem yields empty (reviewer uses its default).
+resolve_review_model() {
+    if [[ -n "$SPEC_REVIEW_MODEL" ]]; then
+        printf '%s' "$SPEC_REVIEW_MODEL"
+        return 0
+    fi
+    [[ "$SPEC_REVIEW_CLI" == "agy" ]] || return 0
+    [[ -f "$SPEC_REVIEW_CONFIG" ]] || return 0
+    python3 - "$SPEC_REVIEW_CONFIG" 2>/dev/null <<'PY' || true
+import sys
+
+import yaml
+
+try:
+    with open(sys.argv[1]) as f:
+        cfg = yaml.safe_load(f) or {}
+    model = (cfg.get("model_tiers") or {}).get("antigravity", {}).get("advanced", "")
+    if model:
+        print(model, end="")
+except Exception:
+    pass
+PY
+}
+
 # run_reviewer PROMPT -> raw reviewer output. stdin carries the prompt body; the -p
-# instruction is short. Errors propagate (caller decides fail-open vs surface).
+# instruction is short. Model comes from resolve_review_model (may be empty).
+# Errors propagate (caller decides fail-open vs surface).
 run_reviewer() {
-    local prompt="$1"
-    printf '%s' "$prompt" | "$SPEC_REVIEW_CLI" -p "Cross-reference the artifacts above per the instructions; output only the specified blocks or NO_ISSUES."
+    local prompt="$1" model
+    model="$(resolve_review_model)"
+    local cli_args=()
+    [[ -n "$model" ]] && cli_args+=(--model "$model")
+    cli_args+=(-p "Cross-reference the artifacts above per the instructions; output only the specified blocks or NO_ISSUES.")
+    printf '%s' "$prompt" | "$SPEC_REVIEW_CLI" "${cli_args[@]}"  # array-safe (unconditional += above)
 }
 
 # format_findings RAW FORMAT [COUNT] -> formatted output. NO_ISSUES -> clean
@@ -134,8 +169,10 @@ content_hash() {
     cat "$@" 2>/dev/null | shasum | awk '{print $1}'
 }
 
-# Gating for silent/hook mode. Returns 0 (run) or 1 (skip, with reason on stdout).
-# Records the hash in $SPEC_REVIEW_STATE/.last-run only when it decides to run.
+# Gating for silent/hook mode. Returns 0 (run, hash on stdout) or 1 (skip,
+# with reason on stdout). The hash is recorded in .last-run only after a
+# *successful* review (_silent_review_inline) — recording it here meant one
+# transient reviewer failure permanently skipped that content (issue #317).
 should_run_silent() {
     local root="${1:-.}" state="$SPEC_REVIEW_STATE"
     # Collect paths into an array (bash 3.2-safe) so paths with spaces hash
@@ -150,7 +187,7 @@ should_run_silent() {
     if [[ -f "$prev" && "$(cat "$prev")" == "$now" ]]; then
         echo "skip: unchanged"; return 1
     fi
-    echo "$now" > "$prev"
+    echo "$now"
     return 0
 }
 
@@ -180,23 +217,32 @@ review() {
 }
 
 # The actual review for hook mode, fail-open. Writes feedback.md atomically.
+# Records the content hash (2nd arg) in .last-run only on success, so a failed
+# review is retried on the next save of the same content (issue #317).
 _silent_review_inline() {
-    local root="$1" state="$SPEC_REVIEW_STATE"
+    local root="$1" review_hash="${2:-}" state="$SPEC_REVIEW_STATE"
     mkdir -p "$state"
     local arts=() line prompt raw
     while IFS= read -r line; do [[ -n "$line" ]] && arts+=("$line"); done < <(discover_artifacts "$root")
     [[ "${#arts[@]}" -eq 0 ]] && return 0   # defensive: nothing to review (set -u safe)
     prompt="$(assemble_prompt "$SPEC_REVIEW_TEMPLATE" "${arts[@]+"${arts[@]}"}")"
     if ! raw="$(run_reviewer "$prompt" 2>>"$state/error.log")"; then
-        return 0   # fail-open: reviewer failed, never block
+        return 0   # fail-open: reviewer failed, never block; hash not recorded
     fi
-    format_findings "$raw" "tree" > "$state/feedback.md.tmp" && mv "$state/feedback.md.tmp" "$state/feedback.md"
+    # Record the hash only when feedback.md was actually written — a failed
+    # write (disk full, permissions) must stay retryable, same as a failed
+    # reviewer run (issue #317)
+    if format_findings "$raw" "tree" > "$state/feedback.md.tmp" \
+        && mv "$state/feedback.md.tmp" "$state/feedback.md"; then
+        [[ -n "$review_hash" ]] && echo "$review_hash" > "$state/.last-run"
+    fi
+    return 0
 }
 
 # Silent/hook entry: gate, single-flight lock, detach the reviewer call.
 run_silent() {
-    local root="${1:-.}" state="$SPEC_REVIEW_STATE"
-    if ! should_run_silent "$root" >/dev/null; then
+    local root="${1:-.}" state="$SPEC_REVIEW_STATE" review_hash
+    if ! review_hash="$(should_run_silent "$root")"; then
         return 0   # gate said skip (fewer than 2 artifacts / unchanged)
     fi
     mkdir -p "$state"
@@ -210,10 +256,10 @@ run_silent() {
     # `|| true` after the review so an unexpected non-zero (disk full, etc.) never
     # skips the lock release or breaks the fail-open contract.
     if [[ -n "$SPEC_REVIEW_NO_DETACH" ]]; then
-        _silent_review_inline "$root" || true; rmdir "$state/.lock" 2>/dev/null || true
+        _silent_review_inline "$root" "$review_hash" || true; rmdir "$state/.lock" 2>/dev/null || true
     else
         # Detach so the agent loop never waits on the reviewer; release lock when done.
-        ( _silent_review_inline "$root" || true; rmdir "$state/.lock" 2>/dev/null || true ) >/dev/null 2>&1 &
+        ( _silent_review_inline "$root" "$review_hash" || true; rmdir "$state/.lock" 2>/dev/null || true ) >/dev/null 2>&1 &
         disown 2>/dev/null || true
     fi
     return 0

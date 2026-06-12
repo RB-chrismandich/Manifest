@@ -1,7 +1,7 @@
 # Gemini Orchestration Guide
 
 This document defines how Gemini should leverage parallel LLM agents
-(Gemini, Cursor, Claude CLI) for cross-verification, planning, and validation.
+(Gemini, Cursor, Claude CLI, Codex, Antigravity) for cross-verification, planning, and validation.
 
 **Symlink Strategy**: The `.gemini/` directory shares most assets with `.claude/`
 via symlinks. Prompts, configuration, scripts, plans, and all skills
@@ -47,7 +47,7 @@ validation criteria.
   Infrastructure as Code.
 
 ```bash
-# Basic code review with JSON output (all 3 agents, 10 min timeout)
+# Basic code review with JSON output (all 5 agents, 10 min timeout)
 ~/.claude/scripts/parallel_agent.py --json --timeout 600 --review /absolute/path/to/file
 
 # Full analysis with validation and model selection (15 min timeout)
@@ -75,8 +75,8 @@ validation criteria.
 | `--gemini-only` | Run only Gemini CLI |
 | `--claude-only` | Run only Claude CLI |
 | `--no-claude` | Disable Claude CLI (enabled by default) |
-| `--cursor-model <tier>` | Cursor model: mini, flash, advanced, auto (default: auto) |
-| `--claude-model <tier>` | Claude model: haiku, sonnet, opus (default: sonnet) |
+| `--cursor-model <tier>` | Cursor model: mini, flash, advanced, auto (default: flash) |
+| `--claude-model <tier>` | Claude model: haiku, sonnet, opus, fable (default: sonnet) |
 | `--check-credits` | Run pre-flight credit check |
 | `--timeout <sec>` | Timeout per agent (default: 120) |
 | `--output <dir>` | Custom output directory |
@@ -95,18 +95,19 @@ The orchestrating agent selects models based on task complexity:
 
 **Model Tier Mappings:**
 
-| Tier | Cursor | Claude | Gemini |
-|------|--------|--------|--------|
-| mini/haiku | gpt-5.1-codex-mini | haiku | - |
-| flash/sonnet | gpt-5.1-codex | sonnet | gemini-3-flash-preview |
-| advanced/opus/pro | gpt-5.2 | opus | gemini-3-pro-preview |
+| Tier | Cursor | Claude | Gemini | Codex | Antigravity |
+|------|--------|--------|--------|-------|-------------|
+| mini/haiku | gpt-5.1-codex-mini | claude-haiku-4-5-20251001 | - | gpt-5.4-mini | Gemini 3.5 Flash (Low) |
+| flash/sonnet | gpt-5.1-codex | claude-sonnet-4-6 | gemini-3.5-flash | gpt-5.4 | Gemini 3.5 Flash (High) |
+| advanced/opus/pro | gpt-5.2 | claude-opus-4-8 | gemini-3.1-pro | gpt-5.5 | Claude Opus 4.6 (Thinking) |
+| fable (security) | - | claude-fable-5 | - | - | - |
 
 ### Credit Exhaustion Fallback
 
 The script automatically detects credit/quota exhaustion and falls back:
 
 - **Cursor**: gpt-5.2 → gpt-5.1-codex → gpt-5.1-codex-mini → auto
-- **Claude**: opus → sonnet → haiku
+- **Claude**: fable → opus → sonnet → haiku
 
 Detection methods:
 
@@ -150,7 +151,7 @@ Detection methods:
   "cross_verification": {
     "consensus_score": 85,
     "confidence": "high|medium|low",
-    "agent_count": 3
+    "agent_count": 5
   }
 }
 ```
@@ -163,8 +164,8 @@ Detection methods:
 | `CURSOR_MODEL_MINI` | Model name for 'mini' tier | `gpt-5.1-codex-mini` |
 | `CURSOR_MODEL_FLASH` | Model name for 'flash' tier | `gpt-5.1-codex` |
 | `CURSOR_MODEL_ADVANCED` | Model name for 'advanced' tier | `gpt-5.2` |
-| `GEMINI_MODEL_FLASH` | Model name for 'flash' tier | `gemini-3-flash-preview` |
-| `GEMINI_MODEL_PRO` | Model name for 'pro' tier | `gemini-3-pro-preview` |
+| `GEMINI_MODEL_FLASH` | Model name for 'flash' tier | `gemini-3.5-flash` |
+| `GEMINI_MODEL_PRO` | Model name for 'pro' tier | `gemini-3.1-pro` |
 | `CHECK_CREDITS_PREFLIGHT` | Enable pre-flight credit check | `false` |
 
 ---
