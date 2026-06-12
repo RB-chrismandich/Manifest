@@ -793,6 +793,43 @@ class TestAntigravityAgent:
         results = await check_credits(config)
         assert results["antigravity"] == {"status": "not_installed"}
 
+    @pytest.mark.asyncio
+    async def test_check_credits_codex_hang_times_out(self, tmp_path, monkeypatch):
+        """Issue #307: the timeout must cover communicate(), not just the spawn —
+        a codex blocked on auth/TTY hung --check-credits forever."""
+        monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+        monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
+        monkeypatch.setattr(
+            "agents.orchestrator.shutil.which",
+            lambda cmd: "/usr/local/bin/codex" if cmd == "codex" else None,
+        )
+
+        class HangingProc:
+            def __init__(self):
+                self.killed = False
+                self.returncode = None
+
+            async def communicate(self):
+                await asyncio.sleep(3600)
+
+            def kill(self):
+                self.killed = True
+
+            async def wait(self):
+                return 0
+
+        proc = HangingProc()
+
+        async def fake_exec(*args, **kwargs):
+            return proc
+
+        monkeypatch.setattr(asyncio, "create_subprocess_exec", fake_exec)
+        config = Config(config_path=str(tmp_path / "nonexistent.yml"))
+        results = await check_credits(config, probe_timeout=0.1)
+        assert results["codex"]["status"] == "error"
+        assert "timed out" in results["codex"]["error"]
+        assert proc.killed is True
+
 
 class TestCLIFlagsAntigravity:
     """The CLI surface advertises antigravity flags."""

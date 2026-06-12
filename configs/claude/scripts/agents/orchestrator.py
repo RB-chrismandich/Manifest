@@ -472,7 +472,11 @@ class Orchestrator:
 # ---------------------------------------------------------------------------
 
 
-async def check_credits(config: Config, logger: Optional[Logger] = None) -> Dict:
+async def check_credits(
+    config: Config,
+    logger: Optional[Logger] = None,
+    probe_timeout: float = 15,
+) -> Dict:
     """Pre-flight credit check with minimal API calls"""
     results = {}
 
@@ -551,20 +555,28 @@ async def check_credits(config: Config, logger: Optional[Logger] = None) -> Dict
     # Codex credit check
     if shutil.which("codex"):
         try:
-            proc = await asyncio.wait_for(
-                asyncio.create_subprocess_exec(
-                    "codex",
-                    "exec",
-                    "--full-auto",
-                    "--model",
-                    config.get("model_tiers.codex.mini", "gpt-5.4-mini"),
-                    "respond with OK",
-                    stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.PIPE,
-                ),
-                timeout=15,
+            proc = await asyncio.create_subprocess_exec(
+                "codex",
+                "exec",
+                "--full-auto",
+                "--model",
+                config.get("model_tiers.codex.mini", "gpt-5.4-mini"),
+                "respond with OK",
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
             )
-            stdout, stderr = await proc.communicate()
+            # The timeout must cover communicate(), not just the spawn —
+            # codex blocking on auth/TTY hung this probe forever (issue #307)
+            try:
+                stdout, stderr = await asyncio.wait_for(
+                    proc.communicate(), timeout=probe_timeout
+                )
+            except asyncio.TimeoutError:
+                proc.kill()
+                await proc.wait()
+                raise asyncio.TimeoutError(
+                    f"codex probe timed out after {probe_timeout}s"
+                )
             error_output = stderr.decode("utf-8", errors="ignore").lower()
 
             if any(
