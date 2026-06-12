@@ -21,6 +21,7 @@ err() { echo "label-sync: $*" >&2; }
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
+RED='\033[0;31m'
 NC='\033[0m'
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -162,13 +163,21 @@ sync_git_label() {
         return 0
     fi
 
-    if bash "${SCRIPT_DIR}/git_ops.sh" label-create "$name" --color "$color" --description "$description" --force 2> /dev/null; then
+    # Capture stderr so real failures (auth, network, missing CLI) are
+    # reported as failures instead of masquerading as "[exists]" (issue #314)
+    local errfile
+    errfile=$(mktemp)
+    if bash "${SCRIPT_DIR}/git_ops.sh" label-create "$name" --color "$color" --description "$description" --force 2> "$errfile"; then
         echo -e "  ${GREEN}[created]${NC} ${name} (${color})"
         CREATED=$((CREATED + 1))
-    else
+    elif grep -qi "already exists" "$errfile"; then
         echo -e "  ${YELLOW}[exists]${NC} ${name} (${color})"
         SKIPPED=$((SKIPPED + 1))
+    else
+        echo -e "  ${RED}[failed]${NC} ${name}: $(head -1 "$errfile")"
+        FAILED=$((FAILED + 1))
     fi
+    rm -f "$errfile"
 }
 
 # --- Sync a single label to Linear ---
@@ -191,13 +200,19 @@ sync_linear_label() {
 
     # ${arr[@]+"${arr[@]}"} expands to nothing when the array is empty — required
     # because macOS Bash 3.2 treats "${empty[@]}" as an unbound var under `set -u`.
-    if bash "${SCRIPT_DIR}/linear_ops.sh" label-create --name "$name" --color "$color" --description "$description" ${team_args[@]+"${team_args[@]}"} 2> /dev/null; then
+    local errfile
+    errfile=$(mktemp)
+    if bash "${SCRIPT_DIR}/linear_ops.sh" label-create --name "$name" --color "$color" --description "$description" ${team_args[@]+"${team_args[@]}"} 2> "$errfile"; then
         echo -e "  ${GREEN}[created]${NC} ${name} (${color}) on Linear"
         CREATED=$((CREATED + 1))
-    else
+    elif grep -qi "already exists\|duplicate" "$errfile"; then
         echo -e "  ${YELLOW}[exists]${NC} ${name} (${color}) on Linear"
         SKIPPED=$((SKIPPED + 1))
+    else
+        echo -e "  ${RED}[failed]${NC} ${name} on Linear: $(head -1 "$errfile")"
+        FAILED=$((FAILED + 1))
     fi
+    rm -f "$errfile"
 }
 
 # --- Main ---
@@ -233,10 +248,12 @@ main() {
 
         echo -e "${GREEN}Label:${NC} ${name}"
 
-        # Sync to git platform (GitHub/GitLab)
-        if [[ "$platforms" == *"$git_platform"* ]]; then
+        # Sync to git platform (GitHub/GitLab). Exact token match — substring
+        # matching let an unrecognized "git" platform match "github" and call
+        # a tracker that doesn't exist (issue #314).
+        if [[ ",$platforms," == *",$git_platform,"* ]]; then
             if [[ -z "$PLATFORM_FILTER" ]] || [[ "$PLATFORM_FILTER" == "$git_platform" ]]; then
-                if [[ "$git_platform" != "none" ]]; then
+                if [[ "$git_platform" != "none" && "$git_platform" != "git" ]]; then
                     sync_git_label "$name" "$color" "$description"
                 fi
             fi
