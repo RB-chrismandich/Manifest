@@ -30,6 +30,8 @@ except ImportError:
     genai_types = None
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 FIXTURES_DIR = Path(__file__).parent / "fixtures" / "manifest"
 RESULTS_DIR = Path(__file__).parent / "results"
 
@@ -314,7 +316,6 @@ if __name__ == "__main__":
         print(f"Done. {len(records)} records written to {RESULTS_DIR}/{run_id}.jsonl")
 
     print("Regenerating TOKEN_BENCHMARK.md...")
-    sys.path.insert(0, str(REPO_ROOT))
     from tests.token_benchmark.reporter import update_report
     update_report(RESULTS_DIR, REPO_ROOT / "docs" / "TOKEN_BENCHMARK.md")
     print("Done.")
