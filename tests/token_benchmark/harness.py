@@ -35,6 +35,38 @@ if str(REPO_ROOT) not in sys.path:
 FIXTURES_DIR = Path(__file__).parent / "fixtures" / "manifest"
 RESULTS_DIR = Path(__file__).parent / "results"
 
+PRICING: dict[str, dict[str, float]] = {
+    "claude-sonnet-4-6": {
+        "input":       3.00 / 1_000_000,
+        "output":     15.00 / 1_000_000,
+        "cache_write": 3.75 / 1_000_000,
+        "cache_read":  0.30 / 1_000_000,
+    },
+    "gemini-3-flash-preview": {
+        "input":  0.10 / 1_000_000,
+        "output": 0.40 / 1_000_000,
+    },
+}
+
+
+def compute_cost(record: dict, model: str) -> Optional[float]:
+    """Return cost in USD for a single API call record, or None if tokens unavailable."""
+    pricing = PRICING.get(model)
+    if not pricing:
+        return None
+    input_tok = record.get("input_tokens")
+    output_tok = record.get("output_tokens")
+    if input_tok is None or output_tok is None:
+        return None
+    cache_read = record.get("cache_read_tokens") or 0
+    regular_input = input_tok - cache_read
+    return (
+        regular_input * pricing["input"]
+        + cache_read * pricing["cache_read"]
+        + output_tok * pricing["output"]
+    )
+
+
 # Minimal system prompt for the CLI "before" condition.
 # Empty string stalls the claude CLI; a terse baseline gives it a valid prompt
 # to operate from without any Manifest context injection.

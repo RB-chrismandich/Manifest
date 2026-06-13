@@ -233,3 +233,34 @@ class TestWriteResult:
         assert len(files) == 1
         lines = files[0].read_text().strip().splitlines()
         assert len(lines) == 3
+
+
+class TestComputeCost:
+    def test_compute_cost_standard(self):
+        """Standard call: input + output tokens, no cache."""
+        from tests.token_benchmark.harness import compute_cost
+        record = {
+            "input_tokens": 1000,
+            "output_tokens": 100,
+            "cache_creation_tokens": None,
+            "cache_read_tokens": None,
+        }
+        cost = compute_cost(record, "claude-sonnet-4-6")
+        # 1000 * 3.00/1e6 + 100 * 15.00/1e6 = 0.003 + 0.0015 = 0.0045
+        assert abs(cost - 0.0045) < 1e-8
+
+    def test_compute_cost_with_cache_read(self):
+        """Cache read tokens billed at 0.1x input rate."""
+        from tests.token_benchmark.harness import compute_cost
+        record = {
+            "input_tokens": 1000,
+            "output_tokens": 100,
+            "cache_creation_tokens": None,
+            "cache_read_tokens": 800,
+        }
+        cost = compute_cost(record, "claude-sonnet-4-6")
+        # non-cache input: (1000-800) * 3.00/1e6 = 0.0006
+        # cache read: 800 * 0.30/1e6 = 0.00024
+        # output: 100 * 15.00/1e6 = 0.0015
+        # total = 0.00234
+        assert abs(cost - 0.00234) < 1e-8
