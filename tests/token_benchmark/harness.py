@@ -281,6 +281,8 @@ async def run_benchmark(
                     if not cli_only and provider in ("claude", "gemini"):
                         if condition == "cached" and provider != "claude":
                             continue
+                        if condition == "compressed" and not compressed_prompts.get(provider):
+                            continue
 
                         manifest = (
                             compressed_prompts[provider]

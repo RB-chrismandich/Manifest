@@ -202,7 +202,7 @@ def render_report(stats: dict, run_id: str) -> str:
             savings = data.get("savings_vs_after_pct")
             vs_after = (
                 "baseline" if cond == "after"
-                else ("—" if savings is None else f"-{savings}%")
+                else ("—" if savings is None else f"{savings:+d}%")
             )
             lines.append(
                 f"| {cond:<10} | {data['avg_input_tokens']:>13,} "

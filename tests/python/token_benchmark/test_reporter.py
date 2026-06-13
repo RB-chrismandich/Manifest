@@ -192,5 +192,5 @@ class TestCostAnalysis:
         stats = compute_stats(records)
         md = render_report(stats, "2026-06-13T08-00-00")
         # cached should show large savings vs after
-        # (0.000594 - 0.000075) / 0.000594 ≈ 0.874 → -87%
-        assert "-87%" in md
+        # (0.000594 - 0.000075) / 0.000594 ≈ 0.874 → +87%
+        assert "+87%" in md
