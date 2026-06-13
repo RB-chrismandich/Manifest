@@ -143,3 +143,54 @@ class TestUpdateReport:
         update_report(results_dir, output)
         assert output.exists()
         assert "Token Benchmark Report" in output.read_text()
+
+
+class TestCostAnalysis:
+    def _make_cost_records(self, run_id="2026-06-13T08-00-00"):
+        """Minimal records covering before/after/cached/tiered/compressed."""
+        base = {
+            "run_id": run_id, "provider": "claude", "model": "claude-sonnet-4-6",
+            "category": "mmlu", "prompt_id": "mmlu_001",
+            "quality_score": 1, "response_text": "B", "latency_ms": 1000,
+            "source": "api", "error": None,
+            "cache_creation_tokens": None, "cache_read_tokens": None,
+        }
+        return [
+            {**base, "condition": "before",     "input_tokens": 65,   "output_tokens": 4, "cost_usd": 0.000255},
+            {**base, "condition": "after",      "input_tokens": 1783, "output_tokens": 4, "cost_usd": 0.000594},
+            {**base, "condition": "cached",     "input_tokens": 1783, "output_tokens": 4, "cost_usd": 0.000075,
+             "cache_read_tokens": 1718},
+            {**base, "condition": "tiered",     "input_tokens": 65,   "output_tokens": 4, "cost_usd": 0.000255},
+            {**base, "condition": "compressed", "input_tokens": 923,  "output_tokens": 4, "cost_usd": 0.000309},
+        ]
+
+    def test_cost_table_rendered(self):
+        """Cost Analysis section appears when records have cost_usd."""
+        from tests.token_benchmark.reporter import compute_stats, render_report
+        records = self._make_cost_records()
+        stats = compute_stats(records)
+        md = render_report(stats, "2026-06-13T08-00-00")
+        assert "## Cost Analysis" in md
+        assert "cached" in md
+        assert "tiered" in md
+        assert "compressed" in md
+
+    def test_cost_table_omitted_when_no_cost_data(self):
+        """Cost Analysis section absent when all cost_usd are None (old JSONL)."""
+        from tests.token_benchmark.reporter import compute_stats, render_report
+        records = self._make_cost_records()
+        for r in records:
+            r["cost_usd"] = None
+        stats = compute_stats(records)
+        md = render_report(stats, "2026-06-13T08-00-00")
+        assert "## Cost Analysis" not in md
+
+    def test_cost_savings_percentage(self):
+        """vs after column shows correct percentage savings."""
+        from tests.token_benchmark.reporter import compute_stats, render_report
+        records = self._make_cost_records()
+        stats = compute_stats(records)
+        md = render_report(stats, "2026-06-13T08-00-00")
+        # cached should show large savings vs after
+        # (0.000594 - 0.000075) / 0.000594 ≈ 0.874 → -87%
+        assert "-87%" in md
