@@ -15,6 +15,10 @@ on:
           - cli-only
           - api-and-cli
         default: api-only
+      conditions:
+        description: "Comma-separated conditions: before,after,cached,tiered,compressed"
+        default: "before,after,cached,tiered,compressed"
+        required: false
       commit_report:
         description: "Commit updated TOKEN_BENCHMARK.md"
         type: boolean
@@ -63,6 +67,7 @@ jobs:
         env:
           INPUT_PROVIDERS: ${{ github.event.inputs.providers || 'claude' }}
           INPUT_MODE: ${{ github.event.inputs.mode || 'api-only' }}
+          INPUT_CONDITIONS: ${{ github.event.inputs.conditions || 'before,after,cached,tiered,compressed' }}
         run: |
           # Validate providers: only alphanumeric chars and commas
           if ! echo "$INPUT_PROVIDERS" | grep -qE '^[a-zA-Z0-9]([a-zA-Z0-9,]*[a-zA-Z0-9])?$'; then
@@ -77,14 +82,21 @@ jobs:
               exit 1
               ;;
           esac
+          # Validate conditions: only alphanumeric, commas, hyphens
+          if ! echo "$INPUT_CONDITIONS" | grep -qE '^[a-zA-Z0-9,-]+$'; then
+            echo "Invalid conditions value: $INPUT_CONDITIONS"
+            exit 1
+          fi
           echo "providers=$INPUT_PROVIDERS" >> "$GITHUB_OUTPUT"
           echo "mode=$INPUT_MODE" >> "$GITHUB_OUTPUT"
-          echo "Resolved: providers=$INPUT_PROVIDERS mode=$INPUT_MODE"
+          echo "conditions=$INPUT_CONDITIONS" >> "$GITHUB_OUTPUT"
+          echo "Resolved: providers=$INPUT_PROVIDERS mode=$INPUT_MODE conditions=$INPUT_CONDITIONS"
 
       - name: Run token benchmark
         env:
           BENCHMARK_PROVIDERS: ${{ steps.flags.outputs.providers }}
           BENCHMARK_MODE: ${{ steps.flags.outputs.mode }}
+          BENCHMARK_CONDITIONS: ${{ steps.flags.outputs.conditions }}
         run: |
           ARGS=(--providers "$BENCHMARK_PROVIDERS")
           case "$BENCHMARK_MODE" in
@@ -92,6 +104,7 @@ jobs:
             cli-only)    ARGS+=(--cli-only) ;;
             api-and-cli) ;;
           esac
+          ARGS+=(--conditions "$BENCHMARK_CONDITIONS")
           python3 tests/token_benchmark/harness.py "${ARGS[@]}"
 
       - name: Upload results artifact
