@@ -168,19 +168,21 @@ Report: executable or not executable.
 
 Only when `skillclaw.enabled: true` in `~/.claude/config/services.yml`:
 
+SkillClaw is proxy-free (`bootstrap/lib/skillclaw.sh`): no daemon, no socket,
+no shell wrappers. Enabling means storage-only setup.
+
 ```bash
-# Daemon health (fail-open: a red here means capture is off, not that agents are broken)
-curl -sf --max-time 0.3 http://127.0.0.1:8765/health && echo "daemon: up" || echo "daemon: down"
-
-# Wrapper functions present in the shell profile
-grep -q "MANIFEST SKILLCLAW WRAPPERS" "${ZDOTDIR:-$HOME}/.zshrc" && echo "wrappers: present" || echo "wrappers: MISSING"
-
-# Storage locked down (must be 700) — GNU-first so it works on Linux and macOS
+# Storage exists and is locked down (must be 700) — GNU-first for Linux/macOS
 stat -c '%a' ~/.skillclaw 2>/dev/null || stat -f '%Lp' ~/.skillclaw
+
+# Legacy artifacts must be ABSENT (leftovers from the pre-proxy-free install)
+grep -q "MANIFEST SKILLCLAW WRAPPERS" "${ZDOTDIR:-$HOME}/.zshrc" && echo "legacy wrappers: PRESENT (stale)" || echo "legacy wrappers: absent (ok)"
+ls ~/Library/LaunchAgents/*skillclaw* 2>/dev/null && echo "legacy plist: PRESENT (stale)" || echo "legacy plist: absent (ok)"
 ```
 
-Report `daemon: down` as INFO (capture paused, agents unaffected), but
-`wrappers: MISSING` or storage perms != 700 as WARN.
+Report storage perms != 700 as WARN; legacy wrappers or plist PRESENT as WARN
+(rerun `./bootstrap.sh` to clean them). Storage missing entirely as WARN
+(enable was never completed).
 
 ## Output Format
 
