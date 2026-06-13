@@ -273,10 +273,16 @@ def _parse_kv(pairs):
         if "=" not in p:
             continue
         k, v = p.split("=", 1)
-        try:
-            out[k] = json.loads(v)
-        except ValueError:
-            out[k] = v
+        # ⚡ Bolt: Fast-path skip json.loads for simple strings to avoid ValueError overhead
+        # Strip leading whitespace before checking the first character.
+        v_stripped = v.lstrip()
+        if v_stripped and (v_stripped[0] in '{["tf0123456789-n' or v_stripped.startswith('NaN') or v_stripped.startswith('Infinity')):
+            try:
+                out[k] = json.loads(v)
+                continue
+            except ValueError:
+                pass
+        out[k] = v
     return out
 
 
