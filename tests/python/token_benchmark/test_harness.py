@@ -15,6 +15,8 @@ from tests.token_benchmark.harness import (
     isolated_environments,
     measure_api_claude,
     measure_api_gemini,
+    measure_cli,
+    write_result,
 )
 
 
@@ -161,3 +163,47 @@ class TestMeasureApiGemini:
         assert result["response_text"] == "D"
         call_kwargs = mock_client.models.generate_content.call_args.kwargs
         assert "config" not in call_kwargs
+
+
+class TestMeasureCli:
+    def test_returns_response_text_and_latency(self, tmp_path):
+        cli_config = {"binary": "echo", "flags": []}
+        result = measure_cli("hello world", cli_config, tmp_path)
+        assert "hello world" in result["response_text"]
+        assert result["latency_ms"] >= 0
+        assert result["error"] is None
+
+    def test_home_overridden_in_subprocess(self, tmp_path):
+        cli_config = {"binary": "sh", "flags": ["-c", "echo $HOME"]}
+        result = measure_cli("ignored", cli_config, tmp_path)
+        assert str(tmp_path) in result["response_text"]
+
+    def test_missing_binary_returns_error(self, tmp_path):
+        cli_config = {"binary": "nonexistent_binary_12345", "flags": []}
+        result = measure_cli("prompt", cli_config, tmp_path)
+        assert result["error"] is not None
+        assert result["response_text"] == ""
+
+    def test_timeout_returns_error(self, tmp_path):
+        cli_config = {"binary": "sleep", "flags": []}
+        result = measure_cli("0", cli_config, tmp_path)
+        assert result["error"] is None
+
+
+class TestWriteResult:
+    def test_appends_jsonl_to_results_dir(self, tmp_path):
+        record = {"run_id": "2026-06-12T00:00:00", "provider": "claude", "input_tokens": 100}
+        write_result(record, "2026-06-12T00:00:00", results_dir=tmp_path)
+        files = list(tmp_path.glob("*.jsonl"))
+        assert len(files) == 1
+        with open(files[0]) as f:
+            loaded = json.loads(f.read().strip())
+        assert loaded["input_tokens"] == 100
+
+    def test_multiple_records_in_same_file(self, tmp_path):
+        for i in range(3):
+            write_result({"run_id": "2026-06-12T00:00:00", "i": i}, "2026-06-12T00:00:00", results_dir=tmp_path)
+        files = list(tmp_path.glob("*.jsonl"))
+        assert len(files) == 1
+        lines = files[0].read_text().strip().splitlines()
+        assert len(lines) == 3
