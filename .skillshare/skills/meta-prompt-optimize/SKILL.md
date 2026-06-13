@@ -40,9 +40,9 @@ When a raw prompt payload is received via the scheduled task pipeline, execute t
 
 ## 4. Target Serialization Schema
 
-The output must be returned strictly using this layout so downstream agent layers can parse it deterministically:
+The output must be returned strictly using this layout so downstream agent layers
+can parse it deterministically (raw XML — do NOT wrap it in Markdown code fences):
 
-```xml
 <problem_structure>
   <problem_definition>
     [Action-oriented task statement with precise boolean endpoints or metrics]
@@ -63,7 +63,6 @@ The output must be returned strictly using this layout so downstream agent layer
     [Strict formatting payload requirements: JSON object layouts, XML schemas, or fixed markdown tables]
   </desired_output>
 </problem_structure>
-```
 
 ## 5. Normalized Structural Blueprints
 
@@ -94,13 +93,11 @@ Format Requirements:
 
 1. **Constitution Compliance**: Immediate boundary verification before spawning worker threads.
 2. **State Payload Specification**: Strict definitions of variables passed across isolation boundaries.
-3. **Execution Telemetry JSON**:
+3. **Execution Telemetry JSON** (raw JSON — do NOT wrap it in Markdown code fences):
 
-```json
 {
   "plan_status": "success | failed",
   "steps_executed": [],
   "resulting_state": {},
   "telemetry": ""
 }
-```
