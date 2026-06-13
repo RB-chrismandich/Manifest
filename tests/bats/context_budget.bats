@@ -22,8 +22,10 @@ assert_budget() {
 }
 
 @test "configs/claude/CLAUDE.md stays within always-loaded budget" {
-    # Deployed to ~/.claude/CLAUDE.md: loaded in EVERY session on EVERY project
-    assert_budget "configs/claude/CLAUDE.md" 6600
+    # Deployed to ~/.claude/CLAUDE.md: loaded in EVERY session on EVERY project.
+    # Re-based from 6600 after the intentional "Token Economy (always on)"
+    # baseline section landed (file at 6448; restores ~15% headroom).
+    assert_budget "configs/claude/CLAUDE.md" 7400
 }
 
 @test "root CLAUDE.md stays within always-loaded budget" {
@@ -32,6 +34,27 @@ assert_budget() {
 
 @test ".claude/CLAUDE.md stays within always-loaded budget" {
     assert_budget ".claude/CLAUDE.md" 3900
+}
+
+@test "token-economy section bullets are identical across all four guides" {
+    # The same rules are stated in 4 always-loaded guides; this pins them
+    # together so copies cannot drift. Compares only the '- '/continuation
+    # bullet lines of the section (the /token-economy re-assert line is
+    # platform-specific and excluded).
+    local ref="" cur f
+    for f in "configs/claude/CLAUDE.md" "configs/gemini/GEMINI.md" \
+             "AGENTS.md" "configs/cursor/rules/orchestration.mdc"; do
+        cur=$(awk '/^## Token Economy \(always on\)$/{found=1; next}
+                   found && /^## /{exit}
+                   found && (/^- / || /^  [^ ]/)' "$REPO_ROOT/$f")
+        [ -n "$cur" ] || { echo "$f: token-economy section missing or empty" >&2; return 1; }
+        if [ -z "$ref" ]; then ref="$cur"; reffile="$f"; continue; fi
+        if [ "$cur" != "$ref" ]; then
+            echo "$f token-economy bullets differ from $reffile:" >&2
+            diff <(echo "$ref") <(echo "$cur") >&2 || true
+            return 1
+        fi
+    done
 }
 
 @test "skill frontmatter descriptions stay within per-session budget" {

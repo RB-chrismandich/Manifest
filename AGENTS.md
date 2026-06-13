@@ -15,7 +15,7 @@ It follows the [AGENTS.md standard](https://agents.md/) for unified coding agent
 
 Apply at all times, in every session:
 
-- Lead with the result. No filler, no closing summaries.
+- Lead with the result. No filler ("Sure", "Here's the…"), no closing summaries.
 - Match response length to the task; don't re-explain code you just wrote unless asked.
 - Use programmatic edit tools for targeted edits; never reprint a whole file for a small change.
 - If an implementation detail is genuinely ambiguous, ask ONE targeted question instead of guessing.

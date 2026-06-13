@@ -178,6 +178,7 @@ stat -c '%a' ~/.skillclaw 2>/dev/null || stat -f '%Lp' ~/.skillclaw
 # Legacy artifacts must be ABSENT (leftovers from the pre-proxy-free install)
 grep -q "MANIFEST SKILLCLAW WRAPPERS" "${ZDOTDIR:-$HOME}/.zshrc" && echo "legacy wrappers: PRESENT (stale)" || echo "legacy wrappers: absent (ok)"
 ls ~/Library/LaunchAgents/*skillclaw* 2>/dev/null && echo "legacy plist: PRESENT (stale)" || echo "legacy plist: absent (ok)"
+pgrep -f skillclaw >/dev/null 2>&1 && echo "legacy daemon process: RUNNING (stale)" || echo "legacy daemon process: absent (ok)"
 ```
 
 Report storage perms != 700 as WARN; legacy wrappers or plist PRESENT as WARN
