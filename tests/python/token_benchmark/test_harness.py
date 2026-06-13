@@ -297,6 +297,31 @@ class TestMeasureApiClaudeCaching:
         assert result["cache_read_tokens"] == 0
 
 
+class TestTieredCondition:
+    def test_tiered_injects_manifest_only_for_humaneval(self):
+        """tiered condition: humaneval gets manifest system prompt, others get baseline."""
+        from tests.token_benchmark.harness import _system_prompt_for_condition
+        manifest = "MANIFEST CONTEXT"
+        # humaneval → manifest
+        sp = _system_prompt_for_condition("tiered", "humaneval", manifest)
+        assert sp == manifest
+        # mmlu → baseline
+        sp = _system_prompt_for_condition("tiered", "mmlu", manifest)
+        assert sp == ""
+        # hellaswag → baseline
+        sp = _system_prompt_for_condition("tiered", "hellaswag", manifest)
+        assert sp == ""
+        # truthfulqa → baseline
+        sp = _system_prompt_for_condition("tiered", "truthfulqa", manifest)
+        assert sp == ""
+        # after → always manifest
+        sp = _system_prompt_for_condition("after", "mmlu", manifest)
+        assert sp == manifest
+        # before → always baseline
+        sp = _system_prompt_for_condition("before", "humaneval", manifest)
+        assert sp == ""
+
+
 class TestSyncFixturesCompression:
     def test_compression_50_produces_half_line_count(self, tmp_path):
         """--sync-fixtures --compression 50 writes first 50% of lines."""
