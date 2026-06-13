@@ -144,7 +144,7 @@ def measure_cli(prompt_text: str, cli_config: dict, home_dir: Path) -> dict:
 def write_result(record: dict, run_id: str, results_dir: Optional[Path] = None) -> None:
     """Append a result record as a JSON line to results/<run_id>.jsonl."""
     out_dir = results_dir or RESULTS_DIR
-    out_dir.mkdir(exist_ok=True)
+    out_dir.mkdir(parents=True, exist_ok=True)
     filename = out_dir / f"{run_id.replace(':', '-')}.jsonl"
     with open(filename, "a") as f:
         f.write(json.dumps(record) + "\n")

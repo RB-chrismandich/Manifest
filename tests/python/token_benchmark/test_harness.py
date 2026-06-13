@@ -184,10 +184,19 @@ class TestMeasureCli:
         assert result["error"] is not None
         assert result["response_text"] == ""
 
-    def test_timeout_returns_error(self, tmp_path):
+    def test_sleep_zero_succeeds(self, tmp_path):
         cli_config = {"binary": "sleep", "flags": []}
         result = measure_cli("0", cli_config, tmp_path)
         assert result["error"] is None
+
+    def test_timeout_returns_error(self, tmp_path):
+        import subprocess as sp
+        cli_config = {"binary": "sleep", "flags": []}
+        with patch("tests.token_benchmark.harness.subprocess.run",
+                   side_effect=sp.TimeoutExpired(cmd=["sleep"], timeout=60)):
+            result = measure_cli("100", cli_config, tmp_path)
+        assert result["error"] == "timeout"
+        assert result["response_text"] == ""
 
 
 class TestWriteResult:
