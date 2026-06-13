@@ -17,72 +17,90 @@ declare -a BOOTSTRAP_HOOKS_AFTER_VERIFY=()
 register_bootstrap_hook() {
     local hook="$1"
     local func="$2"
-    local var_name=""
 
     case "$hook" in
         after_config_load)
-            var_name="BOOTSTRAP_HOOKS_AFTER_CONFIG_LOAD"
+            BOOTSTRAP_HOOKS_AFTER_CONFIG_LOAD+=("$func")
             ;;
         before_install)
-            var_name="BOOTSTRAP_HOOKS_BEFORE_INSTALL"
+            BOOTSTRAP_HOOKS_BEFORE_INSTALL+=("$func")
             ;;
         after_deploy)
-            var_name="BOOTSTRAP_HOOKS_AFTER_DEPLOY"
+            BOOTSTRAP_HOOKS_AFTER_DEPLOY+=("$func")
             ;;
         after_auth)
-            var_name="BOOTSTRAP_HOOKS_AFTER_AUTH"
+            BOOTSTRAP_HOOKS_AFTER_AUTH+=("$func")
             ;;
         after_verify)
-            var_name="BOOTSTRAP_HOOKS_AFTER_VERIFY"
+            BOOTSTRAP_HOOKS_AFTER_VERIFY+=("$func")
             ;;
         *)
             print_warning "Unknown bootstrap hook '$hook' (function: $func)"
             return 1
             ;;
     esac
-
-    eval "$var_name+=(\"$func\")"
 }
 
 run_bootstrap_hook() {
     local hook="$1"
-    local var_name=""
-    local funcs=()
     local func
 
     case "$hook" in
         after_config_load)
-            var_name="BOOTSTRAP_HOOKS_AFTER_CONFIG_LOAD"
+            for func in ${BOOTSTRAP_HOOKS_AFTER_CONFIG_LOAD[@]+"${BOOTSTRAP_HOOKS_AFTER_CONFIG_LOAD[@]}"}; do
+                if declare -F "$func" > /dev/null; then
+                    print_step "Running module hook ($hook): $func"
+                    "$func"
+                else
+                    print_warning "Registered hook function not found: $func"
+                fi
+            done
             ;;
         before_install)
-            var_name="BOOTSTRAP_HOOKS_BEFORE_INSTALL"
+            for func in ${BOOTSTRAP_HOOKS_BEFORE_INSTALL[@]+"${BOOTSTRAP_HOOKS_BEFORE_INSTALL[@]}"}; do
+                if declare -F "$func" > /dev/null; then
+                    print_step "Running module hook ($hook): $func"
+                    "$func"
+                else
+                    print_warning "Registered hook function not found: $func"
+                fi
+            done
             ;;
         after_deploy)
-            var_name="BOOTSTRAP_HOOKS_AFTER_DEPLOY"
+            for func in ${BOOTSTRAP_HOOKS_AFTER_DEPLOY[@]+"${BOOTSTRAP_HOOKS_AFTER_DEPLOY[@]}"}; do
+                if declare -F "$func" > /dev/null; then
+                    print_step "Running module hook ($hook): $func"
+                    "$func"
+                else
+                    print_warning "Registered hook function not found: $func"
+                fi
+            done
             ;;
         after_auth)
-            var_name="BOOTSTRAP_HOOKS_AFTER_AUTH"
+            for func in ${BOOTSTRAP_HOOKS_AFTER_AUTH[@]+"${BOOTSTRAP_HOOKS_AFTER_AUTH[@]}"}; do
+                if declare -F "$func" > /dev/null; then
+                    print_step "Running module hook ($hook): $func"
+                    "$func"
+                else
+                    print_warning "Registered hook function not found: $func"
+                fi
+            done
             ;;
         after_verify)
-            var_name="BOOTSTRAP_HOOKS_AFTER_VERIFY"
+            for func in ${BOOTSTRAP_HOOKS_AFTER_VERIFY[@]+"${BOOTSTRAP_HOOKS_AFTER_VERIFY[@]}"}; do
+                if declare -F "$func" > /dev/null; then
+                    print_step "Running module hook ($hook): $func"
+                    "$func"
+                else
+                    print_warning "Registered hook function not found: $func"
+                fi
+            done
             ;;
         *)
             print_warning "Attempted to run unknown bootstrap hook '$hook'"
             return 1
             ;;
     esac
-
-    # Guard inside the eval too: an EMPTY hook array would crash here under
-    # Bash 3.2 + set -u before the guarded loop below is ever reached.
-    eval "funcs=(\${${var_name}[@]+\"\${${var_name}[@]}\"})"
-    for func in ${funcs[@]+"${funcs[@]}"}; do
-        if declare -F "$func" > /dev/null; then
-            print_step "Running module hook ($hook): $func"
-            "$func"
-        else
-            print_warning "Registered hook function not found: $func"
-        fi
-    done
 }
 
 load_bootstrap_modules() {
