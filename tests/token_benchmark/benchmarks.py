@@ -1,6 +1,6 @@
 """Benchmark prompt fixtures for token measurement (MMLU, HumanEval, HellaSwag, TruthfulQA)."""
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 
 @dataclass

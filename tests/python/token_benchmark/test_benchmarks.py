@@ -61,4 +61,5 @@ class TestProviderCliConfig:
     def test_each_provider_has_binary_and_flags(self):
         for provider, cfg in PROVIDER_CLI_CONFIG.items():
             assert "binary" in cfg, f"{provider} missing binary"
+            assert cfg["binary"], f"{provider} binary is empty"
             assert "flags" in cfg, f"{provider} missing flags"
