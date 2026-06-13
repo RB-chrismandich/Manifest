@@ -1,0 +1,5 @@
+# Do not commit OAuth tokens or credentials that may appear in settings files
+manifest/.claude/settings.local.json
+manifest/**/*.key
+manifest/**/*.token
+manifest/**/*.pem

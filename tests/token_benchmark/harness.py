@@ -256,7 +256,7 @@ def sync_fixtures(source_home: Optional[Path] = None, fixtures_dir: Optional[Pat
         agy_dst = dst / ".antigravity"
         if agy_dst.exists():
             shutil.rmtree(agy_dst)
-        shutil.copytree(agy_src, agy_dst)
+        shutil.copytree(agy_src, agy_dst, symlinks=True, ignore_dangling_symlinks=True)
         print("  synced .antigravity/")
 
 
