@@ -26,8 +26,10 @@ def exact_match_letter(response: str, gold: str) -> int:
 def exact_match_bool(response: str, gold: str) -> int:
     """Score TruthfulQA by finding first True/False in response."""
     text = response.lower().strip()
-    ti = text.find("true")
-    fi = text.find("false")
+    ti_match = re.search(r'\btrue\b', text)
+    fi_match = re.search(r'\bfalse\b', text)
+    ti = ti_match.start() if ti_match else -1
+    fi = fi_match.start() if fi_match else -1
     if ti == -1 and fi == -1:
         return 0
     if fi == -1 or (ti != -1 and ti < fi):
@@ -52,8 +54,10 @@ def pass_at_1(response: str, prompt) -> int:
     else:
         # Response is just the body — prepend signature from prompt
         func_sig = _extract_func_sig(prompt.text)
+        lines = code.strip().splitlines()
         body = "\n".join(
-            "    " + line for line in code.strip().splitlines() if line.strip()
+            ("    " + line) if line.strip() else ""
+            for line in lines
         )
         if not body:
             return 0
@@ -84,11 +88,11 @@ def score(response: str, prompt) -> int:
 
 def _extract_code(response: str) -> str:
     """Strip markdown code fences; return raw code."""
-    m = re.search(r'```(?:python)?\s*\n(.*?)\n```', response, re.DOTALL)
+    m = re.search(r'```(?:python)?\s*\n(.*?)\n\s*```', response, re.DOTALL)
     return m.group(1) if m else response
 
 
 def _extract_func_sig(prompt_text: str) -> str:
     """Extract the def ... : line from a HumanEval prompt."""
-    m = re.search(r'(def \w+\([^)]*\)[^:]*:)', prompt_text)
+    m = re.search(r'(def \w+\(.*?\)\s*(?:->[^:]+)?:)', prompt_text, re.DOTALL)
     return m.group(1) if m else "def func():"
