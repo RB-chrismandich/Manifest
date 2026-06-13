@@ -141,3 +141,23 @@ class TestMeasureApiGemini:
                     mock_genai.Client.side_effect = Exception("no auth")
                     result = await measure_api_gemini("prompt", "", "gemini-3-flash-preview")
         assert result["error"] is not None
+
+    @pytest.mark.asyncio
+    async def test_genai_types_none_omits_config(self):
+        """When genai_types is None, generate_content is called without config kwarg."""
+        mock_usage = MagicMock(prompt_token_count=10, candidates_token_count=5)
+        mock_response = MagicMock(text="D", usage_metadata=mock_usage)
+        mock_client = MagicMock()
+        mock_client.models.generate_content.return_value = mock_response
+
+        with patch("tests.token_benchmark.harness.HAS_GENAI", True):
+            with patch("tests.token_benchmark.harness.genai_types", None):
+                with patch("tests.token_benchmark.harness.genai") as mock_genai:
+                    mock_genai.Client.return_value = mock_client
+                    with patch.dict(os.environ, {"GOOGLE_API_KEY": "test-key"}):
+                        result = await measure_api_gemini("prompt", "system ctx", "gemini-3-flash-preview")
+
+        assert result["error"] is None
+        assert result["response_text"] == "D"
+        call_kwargs = mock_client.models.generate_content.call_args.kwargs
+        assert "config" not in call_kwargs
