@@ -17,17 +17,17 @@
 
 | Provider | Avg Output Before | Avg Output After | Delta |
 |----------|-------------------|------------------|-------|
-| claude | 27 | 24 | -3 |
+| claude | 27 | 23 | -3 |
 | gemini | — | — | — |
 
 ## Quality Scores (CLI — correct / total)
 
 | Provider | Category | Before | After | Delta |
 |----------|----------|--------|-------|-------|
-| claude | mmlu | — | — | — |
-| claude | humaneval | — | — | — |
-| claude | hellaswag | — | — | — |
-| claude | truthfulqa | — | — | — |
+| claude | mmlu | 6/6 | 6/6 | 0 |
+| claude | humaneval | 3/6 | 4/6 | +1 |
+| claude | hellaswag | 4/4 | 4/4 | 0 |
+| claude | truthfulqa | 4/4 | 4/4 | 0 |
 | gemini | mmlu | — | — | — |
 | gemini | humaneval | — | — | — |
 | gemini | hellaswag | — | — | — |
@@ -41,4 +41,5 @@
 
 | Run ID | Claude Input Overhead | Gemini Input Overhead | Claude Quality | Gemini Quality |
 |--------|-----------------------|-----------------------|----------------|----------------|
-| 2026-06-13T06-58-25 | +1,718 | — | — | — |
+| 2026-06-13T06-58-25 | +1,718 | — | 18/20 | — |
+| 2026-06-13T08-02-10 | +1,718 | — | 18/20 | — |
