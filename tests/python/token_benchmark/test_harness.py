@@ -295,3 +295,22 @@ class TestMeasureApiClaudeCaching:
         assert system_arg[0]["cache_control"] == {"type": "ephemeral"}
         assert result["cache_creation_tokens"] == 1718
         assert result["cache_read_tokens"] == 0
+
+
+class TestSyncFixturesCompression:
+    def test_compression_50_produces_half_line_count(self, tmp_path):
+        """--sync-fixtures --compression 50 writes first 50% of lines."""
+        from tests.token_benchmark.harness import sync_fixtures
+
+        # Create a fake source home with a CLAUDE.md of 10 lines
+        src = tmp_path / "home"
+        claude_dir = src / ".claude"
+        claude_dir.mkdir(parents=True)
+        (claude_dir / "CLAUDE.md").write_text("\n".join(f"line {i}" for i in range(10)))
+
+        dst = tmp_path / "fixtures"
+        sync_fixtures(source_home=src, fixtures_dir=dst, compression=50)
+
+        compressed = dst.parent / "fixtures-compressed" / ".claude" / "CLAUDE.md"
+        lines = compressed.read_text().splitlines()
+        assert len(lines) == 5

@@ -317,8 +317,17 @@ async def run_benchmark(
     return records
 
 
-def sync_fixtures(source_home: Optional[Path] = None, fixtures_dir: Optional[Path] = None) -> None:
-    """Copy live manifest configs into fixtures/manifest/ snapshot."""
+def sync_fixtures(
+    source_home: Optional[Path] = None,
+    fixtures_dir: Optional[Path] = None,
+    compression: Optional[int] = None,
+) -> None:
+    """Copy live manifest configs into fixtures/manifest/ snapshot.
+
+    If compression is given (e.g. 50), also write a compressed fixture at
+    fixtures/../fixtures-compressed/ containing the first compression% of lines
+    from CLAUDE.md.
+    """
     src = source_home or Path.home()
     dst = fixtures_dir or FIXTURES_DIR
 
@@ -336,6 +345,18 @@ def sync_fixtures(source_home: Optional[Path] = None, fixtures_dir: Optional[Pat
     # so its IDE installation does not need to be snapshotted; the empty dir marker suffices.
     print("  skip .antigravity/ (no system prompt injection configured)")
 
+    if compression is not None:
+        claude_src = dst / ".claude" / "CLAUDE.md"
+        if claude_src.exists():
+            all_lines = claude_src.read_text().splitlines()
+            keep = max(1, len(all_lines) * compression // 100)
+            compressed_dst = dst.parent / "fixtures-compressed" / ".claude" / "CLAUDE.md"
+            compressed_dst.parent.mkdir(parents=True, exist_ok=True)
+            compressed_dst.write_text("\n".join(all_lines[:keep]))
+            print(f"  compressed fixture: {keep}/{len(all_lines)} lines → {compressed_dst}")
+        else:
+            print(f"  skip compression: {claude_src} not found (run without --compression first to sync)")
+
 
 if __name__ == "__main__":
     import argparse
@@ -345,6 +366,8 @@ if __name__ == "__main__":
     parser.add_argument("--api-only", action="store_true")
     parser.add_argument("--cli-only", action="store_true")
     parser.add_argument("--sync-fixtures", action="store_true")
+    parser.add_argument("--compression", type=int, default=None,
+                        help="If set, also write a fixtures-compressed/ with first N%% of lines")
     parser.add_argument("--report-only", action="store_true")
     parser.add_argument("--claude-model", default="claude-sonnet-4-6")
     parser.add_argument("--gemini-model", default="gemini-3-flash-preview")
@@ -352,7 +375,7 @@ if __name__ == "__main__":
 
     if args.sync_fixtures:
         print("Syncing fixtures from live home...")
-        sync_fixtures()
+        sync_fixtures(compression=args.compression)
 
     if not args.report_only:
         from datetime import datetime
