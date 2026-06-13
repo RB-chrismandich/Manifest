@@ -106,7 +106,7 @@ jobs:
       # Cache keyed on the pinned version string so a pin bump invalidates
       # the cache (specs/003 FR-014 edge case).
       - name: Cache bats install
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830  # v4
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae  # v5.0.5
         with:
           path: node_modules
           key: bats-1.11.1-${{ runner.os }}

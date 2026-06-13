@@ -1,0 +1,15 @@
+# Do not commit OAuth tokens or credentials that may appear in settings files
+manifest/.claude/settings.local.json
+manifest/**/*.key
+manifest/**/*.token
+manifest/**/*.pem
+
+# Antigravity has no system prompt injection (MANIFEST_SYSTEM_PROMPT_PATHS["antigravity"] = None)
+# so we don't need to snapshot its IDE installation — only the .gitkeep is committed
+manifest/.antigravity/antigravity/
+manifest/.antigravity/extensions/
+manifest/.antigravity/argv.json
+manifest/.antigravity/config
+manifest/.antigravity/prompts
+manifest/.antigravity/scripts
+manifest/.antigravity/skills

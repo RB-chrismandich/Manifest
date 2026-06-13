@@ -1,0 +1,15 @@
+---
+description: "Measure input/output token overhead and quality delta introduced by Manifest config deployment across Claude, Gemini CLI, and Antigravity CLI. Runs 20 industry-standard benchmark prompts (MMLU, HumanEval, HellaSwag, TruthfulQA) before and after manifest context injection via isolated HOME directories, then regenerates docs/TOKEN_BENCHMARK.md."
+globs: ".claude/skills/token-benchmark/**"
+alwaysApply: false
+---
+
+# token-benchmark
+
+Measure input/output token overhead and quality delta introduced by Manifest config deployment across Claude, Gemini CLI, and Antigravity CLI. Runs 20 industry-standard benchmark prompts (MMLU, HumanEval, HellaSwag, TruthfulQA) before and after manifest context injection via isolated HOME directories, then regenerates docs/TOKEN_BENCHMARK.md.
+
+<!-- Auto-generated from .claude/skills/token-benchmark/SKILL.md -->
+<!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
+
+Refer to `.cursor/skills/token-benchmark/SKILL.md` for the full skill definition.
+
