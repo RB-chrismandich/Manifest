@@ -338,6 +338,13 @@ tool_policies:
     parallel_agents: conditional   # Tier 1 on the destructive --apply path
     validation_tier: 1
 
+  token-benchmark:
+    allowed:
+      - Read
+      - Bash
+      - Write
+    description: "Token benchmark harness — runs Python scripts and reads/writes result files"
+
 # Version-pinning rule set (consumed by scripts/version_pin.sh).
 # Maps file globs to an ecosystem and hash form. Notes on the fields:
 #   ecosystem   - selects the parser AND the native resolver inside the script
