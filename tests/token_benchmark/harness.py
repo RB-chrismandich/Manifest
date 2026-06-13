@@ -181,6 +181,7 @@ async def run_benchmark(
     providers: list[str],
     api_only: bool,
     run_id: str,
+    cli_only: bool = False,
     fixtures_dir: Optional[Path] = None,
     results_dir: Optional[Path] = None,
     claude_model: str = "claude-sonnet-4-6",
@@ -200,7 +201,7 @@ async def run_benchmark(
         for provider in providers:
             for prompt in BENCHMARKS:
                 for condition, home_dir in [("before", empty_home), ("after", manifest_home)]:
-                    if provider in ("claude", "gemini"):
+                    if not cli_only and provider in ("claude", "gemini"):
                         system_prompt = manifest_prompts[provider] if condition == "after" else ""
                         if provider == "claude":
                             api_result = await measure_api_claude(prompt.text, system_prompt, claude_model)
@@ -285,6 +286,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Token benchmark harness")
     parser.add_argument("--providers", default="claude,gemini,antigravity")
     parser.add_argument("--api-only", action="store_true")
+    parser.add_argument("--cli-only", action="store_true")
     parser.add_argument("--sync-fixtures", action="store_true")
     parser.add_argument("--report-only", action="store_true")
     parser.add_argument("--claude-model", default="claude-sonnet-4-6")
@@ -299,10 +301,12 @@ if __name__ == "__main__":
         from datetime import datetime
         run_id = datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
         providers = [p.strip() for p in args.providers.split(",")]
-        print(f"Running benchmark: providers={providers}, api_only={args.api_only}, run_id={run_id}")
+        mode = "cli-only" if args.cli_only else ("api-only" if args.api_only else "api+cli")
+        print(f"Running benchmark: providers={providers}, mode={mode}, run_id={run_id}")
         records = asyncio.run(run_benchmark(
             providers=providers,
             api_only=args.api_only,
+            cli_only=args.cli_only,
             run_id=run_id,
             claude_model=args.claude_model,
             gemini_model=args.gemini_model,
