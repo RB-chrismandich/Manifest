@@ -1,7 +1,9 @@
 """Quality scoring for token benchmark results."""
 
+import os
 import re
 import subprocess
+import tempfile
 
 
 def exact_match_letter(response: str, gold: str) -> int:
@@ -40,9 +42,11 @@ def exact_match_bool(response: str, gold: str) -> int:
 
 
 def pass_at_1(response: str, prompt) -> int:
-    """Score HumanEval pass@1 via subprocess sandbox (5s timeout).
+    """Score HumanEval pass@1 by executing extracted code in a subprocess (5s timeout).
 
-    Assembles the full function from the extracted body and runs test assertions.
+    Credentials are stripped from the subprocess environment to prevent leakage
+    of API keys or tokens present in the caller's environment. No OS-level
+    network or filesystem isolation is applied — this is a local dev tool.
     """
     code = _extract_code(response)
     if not code.strip():
@@ -69,6 +73,8 @@ def pass_at_1(response: str, prompt) -> int:
             capture_output=True,
             text=True,
             timeout=5,
+            env={"PATH": os.environ.get("PATH", "/usr/bin:/bin")},
+            cwd=tempfile.gettempdir(),
         )
         return 1 if result.returncode == 0 else 0
     except subprocess.TimeoutExpired:
