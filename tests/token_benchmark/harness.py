@@ -251,13 +251,9 @@ def sync_fixtures(source_home: Optional[Path] = None, fixtures_dir: Optional[Pat
         else:
             print(f"  skip {rel} (not found at {source})")
 
-    agy_src = src / ".antigravity"
-    if agy_src.exists():
-        agy_dst = dst / ".antigravity"
-        if agy_dst.exists():
-            shutil.rmtree(agy_dst)
-        shutil.copytree(agy_src, agy_dst, symlinks=True, ignore_dangling_symlinks=True)
-        print("  synced .antigravity/")
+    # Antigravity has no system prompt injection (MANIFEST_SYSTEM_PROMPT_PATHS["antigravity"] = None)
+    # so its IDE installation does not need to be snapshotted; the empty dir marker suffices.
+    print("  skip .antigravity/ (no system prompt injection configured)")
 
 
 if __name__ == "__main__":
