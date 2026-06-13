@@ -38,8 +38,8 @@ default verbosity and apply until the session ends or the user says otherwise.
 
 ## Persistence caveat
 
-This mode lives only in the session context. In a long session the invocation
-can scroll out of the active window and default verbosity returns — if you
-notice that (roughly 30k+ tokens in), re-invoke `/token-economy`. True always-on
-enforcement would require a hook (e.g. `ai-hooks-integration`); that is out of
-scope for this skill.
+A baseline of these rules is always on via the deployed orchestration guides
+("Token Economy (always on)" in `~/.claude/CLAUDE.md`, GEMINI.md, AGENTS.md,
+and the Cursor orchestration rule) — CLAUDE.md is resent every turn, so it
+cannot scroll out. This skill remains the stronger session-scoped re-assert:
+invoke it when responses drift verbose despite the baseline.
