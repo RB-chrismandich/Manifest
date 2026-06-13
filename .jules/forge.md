@@ -8,4 +8,4 @@
 
 ## 2026-06-12 - command-injection-eval
 **Learning:** Hardcoding string replacements based on expected dynamic output (like `brew shellenv`) introduces brittleness and is unsafe under `set -u` contexts. Variables like `MANPATH` may be unbound, causing a script crash.
-**Action:** Always prefer native bash process substitution (e.g. `source <(cmd)`) instead of manual parsing to safely integrate system environment configs, avoiding both command injection risks (`eval "$(cmd)"`) and unbounded variable exceptions (`set -u`).
+**Action:** Prefer native bash process substitution (e.g. `source <(cmd)`) over manual string parsing or `eval "$(cmd)"` when integrating system environment configs: it avoids brittle parsing/double-evaluation and `set -u` unbound-variable crashes. Note `source <(cmd)` still executes whatever `cmd` outputs — the trust boundary is the same as `eval`, so only use it with trusted producers.
