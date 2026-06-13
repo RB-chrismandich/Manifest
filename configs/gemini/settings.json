@@ -12,5 +12,19 @@
       "url": "https://mcp.linear.app/mcp",
       "type": "http"
     }
+  },
+  "hooks": {
+    "BeforeAgent": [
+      {
+        "hooks": [
+          {
+            "name": "token-economy-reminder",
+            "type": "command",
+            "command": "echo 'token-economy: lead with result; terse; surgical edits; one targeted question if ambiguous'",
+            "timeout": 5000
+          }
+        ]
+      }
+    ]
   }
 }

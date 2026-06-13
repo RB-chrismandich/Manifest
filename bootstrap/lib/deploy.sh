@@ -241,6 +241,41 @@ deploy_cursor_configs() {
     print_success "Cursor configuration deployed to $CURSOR_TARGET_DIR"
 }
 
+# Merge repo-defined hooks into an existing ~/.gemini/settings.json without
+# touching user settings (auth, mcpServers, …). Fail-open: parse errors leave
+# the file untouched and warn. Exit 3 from the merge means "nothing to add".
+merge_gemini_hooks() {
+    local src="$1" tgt="$2"
+    if ! command_exists python3; then
+        print_info "python3 unavailable — skipped hooks merge into existing settings.json"
+        return 0
+    fi
+    local rc=0
+    python3 - "$src" "$tgt" <<'PYEOF' || rc=$?
+import json, sys
+src_path, tgt_path = sys.argv[1], sys.argv[2]
+src = json.load(open(src_path))
+tgt = json.load(open(tgt_path))
+changed = False
+for event, entries in src.get("hooks", {}).items():
+    cur = tgt.setdefault("hooks", {}).setdefault(event, [])
+    for e in entries:
+        if e not in cur:
+            cur.append(e)
+            changed = True
+if changed:
+    with open(tgt_path, "w") as f:
+        json.dump(tgt, f, indent=2)
+        f.write("\n")
+sys.exit(0 if changed else 3)
+PYEOF
+    case $rc in
+        0) print_success "Merged repo hooks into existing settings.json" ;;
+        3) print_info "Existing settings.json already has repo hooks - preserved" ;;
+        *) print_warning "Could not merge hooks into existing settings.json (manual merge may be needed)" ;;
+    esac
+}
+
 # Deploy Gemini CLI configuration (mirrors .claude with symlinks)
 deploy_gemini_configs() {
     if [[ "${ENABLE_GEMINI:-true}" != true ]]; then
@@ -271,7 +306,7 @@ deploy_gemini_configs() {
     if [[ -f "$gemini_source_dir/settings.json" ]]; then
         # Merge with existing settings rather than overwriting (preserve auth)
         if [[ -f "$GEMINI_TARGET_DIR/settings.json" ]]; then
-            print_info "Existing settings.json found - preserving (manual merge may be needed)"
+            merge_gemini_hooks "$gemini_source_dir/settings.json" "$GEMINI_TARGET_DIR/settings.json"
         else
             cp "$gemini_source_dir/settings.json" "$GEMINI_TARGET_DIR/settings.json"
             print_success "Deployed settings.json to $GEMINI_TARGET_DIR/"

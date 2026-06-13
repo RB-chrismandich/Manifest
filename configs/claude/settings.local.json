@@ -50,6 +50,16 @@
           }
         ]
       }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo 'token-economy: lead with result; terse; surgical edits; one targeted question if ambiguous'"
+          }
+        ]
+      }
     ]
   },
   "mcpServers": {
