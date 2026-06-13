@@ -33,10 +33,20 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 FIXTURES_DIR = Path(__file__).parent / "fixtures" / "manifest"
 RESULTS_DIR = Path(__file__).parent / "results"
 
+# Minimal system prompt for the CLI "before" condition.
+# Empty string stalls the claude CLI; a terse baseline gives it a valid prompt
+# to operate from without any Manifest context injection.
+CLI_BASELINE_SYSTEM_PROMPT = "You are Claude, a helpful AI assistant."
+
 
 @contextmanager
 def isolated_environments(fixtures_dir: Path):
-    """Yield (empty_home, manifest_home) as Path objects; clean up on exit."""
+    """Yield (empty_home, manifest_home) as Path objects; clean up on exit.
+
+    Used by the API measurement path: the API calls read system-prompt text
+    directly from the fixture files in manifest_home.  The CLI path does NOT
+    use HOME isolation; it controls manifest context via --system-prompt flags.
+    """
     empty_home = Path(tempfile.mkdtemp(prefix="tbench_empty_"))
     manifest_home = Path(tempfile.mkdtemp(prefix="tbench_manifest_"))
     try:
@@ -114,17 +124,23 @@ async def measure_api_gemini(prompt_text: str, system_prompt: str, model: str) -
         return _error_result(str(e))
 
 
-def measure_cli(prompt_text: str, cli_config: dict, home_dir: Path) -> dict:
-    """Run provider CLI binary with HOME overridden; capture stdout as response."""
+def measure_cli(prompt_text: str, cli_config: dict, system_prompt: Optional[str] = None) -> dict:
+    """Run provider CLI binary; capture stdout as response.
+
+    system_prompt controls manifest context injection via --system-prompt:
+      ""        → "before" condition (suppresses auto-discovered CLAUDE.md)
+      "<text>"  → "after" condition (injects manifest text explicitly)
+      None      → no flag (CLI uses its real HOME config unchanged)
+    Auth uses the real HOME so OAuth credentials are always available.
+    """
     binary = cli_config["binary"]
-    flags = cli_config.get("flags", [])
-    env = os.environ.copy()
-    env["HOME"] = str(home_dir)
+    flags = list(cli_config.get("flags", []))
+    if system_prompt is not None:
+        flags = flags + ["--system-prompt", system_prompt]
     t0 = time.time()
     try:
         result = subprocess.run(
             [binary] + flags + [prompt_text],
-            env=env,
             capture_output=True,
             text=True,
             timeout=60,
@@ -177,12 +193,15 @@ async def run_benchmark(
     fdir = fixtures_dir or FIXTURES_DIR
     records = []
 
+    # Pre-read manifest system prompts from fixture files (used for both API and CLI paths)
+    manifest_prompts = {p: _read_system_prompt(fdir, p) for p in providers}
+
     with isolated_environments(fdir) as (empty_home, manifest_home):
         for provider in providers:
             for prompt in BENCHMARKS:
                 for condition, home_dir in [("before", empty_home), ("after", manifest_home)]:
                     if provider in ("claude", "gemini"):
-                        system_prompt = _read_system_prompt(home_dir, provider) if condition == "after" else ""
+                        system_prompt = manifest_prompts[provider] if condition == "after" else ""
                         if provider == "claude":
                             api_result = await measure_api_claude(prompt.text, system_prompt, claude_model)
                             model_used = claude_model
@@ -214,7 +233,10 @@ async def run_benchmark(
 
                     if not api_only and provider in PROVIDER_CLI_CONFIG:
                         cli_config = PROVIDER_CLI_CONFIG[provider]
-                        cli_result = measure_cli(prompt.text, cli_config, home_dir)
+                        # CLI path: use real HOME for auth; inject manifest via --system-prompt flag.
+                        # "before" uses a minimal baseline (empty string stalls the claude CLI).
+                        cli_sp = CLI_BASELINE_SYSTEM_PROMPT if condition == "before" else manifest_prompts[provider]
+                        cli_result = measure_cli(prompt.text, cli_config, system_prompt=cli_sp)
                         quality = score(cli_result.get("response_text") or "", prompt) if not cli_result.get("error") else None
                         record = {
                             "run_id": run_id,

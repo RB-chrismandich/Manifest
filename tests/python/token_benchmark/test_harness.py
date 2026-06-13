@@ -166,35 +166,52 @@ class TestMeasureApiGemini:
 
 
 class TestMeasureCli:
-    def test_returns_response_text_and_latency(self, tmp_path):
+    def test_returns_response_text_and_latency(self):
         cli_config = {"binary": "echo", "flags": []}
-        result = measure_cli("hello world", cli_config, tmp_path)
+        result = measure_cli("hello world", cli_config)
         assert "hello world" in result["response_text"]
         assert result["latency_ms"] >= 0
         assert result["error"] is None
 
-    def test_home_overridden_in_subprocess(self, tmp_path):
-        cli_config = {"binary": "sh", "flags": ["-c", "echo $HOME"]}
-        result = measure_cli("ignored", cli_config, tmp_path)
-        assert str(tmp_path) in result["response_text"]
+    def test_system_prompt_flag_appended(self):
+        """--system-prompt <value> is added to the command when system_prompt is given."""
+        import subprocess as sp
+        real_run = sp.run
+        captured = {}
+        def capture_run(cmd, **kwargs):
+            captured["cmd"] = cmd
+            return real_run(["echo", "ok"], **{k: v for k, v in kwargs.items()})
+        cli_config = {"binary": "echo", "flags": []}
+        with patch("tests.token_benchmark.harness.subprocess.run", side_effect=capture_run):
+            measure_cli("prompt", cli_config, system_prompt="MANIFEST CONTEXT")
+        assert "--system-prompt" in captured["cmd"]
+        assert "MANIFEST CONTEXT" in captured["cmd"]
 
-    def test_missing_binary_returns_error(self, tmp_path):
+    def test_system_prompt_none_omits_flag(self):
+        """No --system-prompt flag when system_prompt is None."""
+        import subprocess as sp
+        real_run = sp.run
+        captured = {}
+        def capture_run(cmd, **kwargs):
+            captured["cmd"] = cmd
+            return real_run(["echo", "ok"], **{k: v for k, v in kwargs.items()})
+        cli_config = {"binary": "echo", "flags": []}
+        with patch("tests.token_benchmark.harness.subprocess.run", side_effect=capture_run):
+            measure_cli("prompt", cli_config)
+        assert "--system-prompt" not in captured["cmd"]
+
+    def test_missing_binary_returns_error(self):
         cli_config = {"binary": "nonexistent_binary_12345", "flags": []}
-        result = measure_cli("prompt", cli_config, tmp_path)
+        result = measure_cli("prompt", cli_config)
         assert result["error"] is not None
         assert result["response_text"] == ""
 
-    def test_sleep_zero_succeeds(self, tmp_path):
-        cli_config = {"binary": "sleep", "flags": []}
-        result = measure_cli("0", cli_config, tmp_path)
-        assert result["error"] is None
-
-    def test_timeout_returns_error(self, tmp_path):
+    def test_timeout_returns_error(self):
         import subprocess as sp
         cli_config = {"binary": "sleep", "flags": []}
         with patch("tests.token_benchmark.harness.subprocess.run",
                    side_effect=sp.TimeoutExpired(cmd=["sleep"], timeout=60)):
-            result = measure_cli("100", cli_config, tmp_path)
+            result = measure_cli("100", cli_config)
         assert result["error"] == "timeout"
         assert result["response_text"] == ""
 
