@@ -58,7 +58,7 @@ def compute_cost(record: dict, model: str) -> Optional[float]:
     output_tok = record.get("output_tokens")
     if input_tok is None or output_tok is None:
         return None
-    cache_read = record.get("cache_read_tokens") or 0
+    cache_read = min(record.get("cache_read_tokens") or 0, input_tok)
     regular_input = input_tok - cache_read
     return (
         regular_input * pricing["input"]
@@ -94,7 +94,15 @@ def isolated_environments(fixtures_dir: Path):
 
 
 def _error_result(msg: str) -> dict:
-    return {"error": msg, "input_tokens": None, "output_tokens": None, "response_text": None, "latency_ms": None}
+    return {
+        "error": msg,
+        "input_tokens": None,
+        "output_tokens": None,
+        "cache_creation_tokens": None,
+        "cache_read_tokens": None,
+        "response_text": None,
+        "latency_ms": None,
+    }
 
 
 async def measure_api_claude(prompt_text: str, system_prompt: str, model: str) -> dict:
