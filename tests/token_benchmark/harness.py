@@ -41,7 +41,8 @@ def isolated_environments(fixtures_dir: Path):
     manifest_home = Path(tempfile.mkdtemp(prefix="tbench_manifest_"))
     try:
         if fixtures_dir.exists():
-            shutil.copytree(fixtures_dir, manifest_home, dirs_exist_ok=True)
+            shutil.copytree(fixtures_dir, manifest_home, dirs_exist_ok=True,
+                            symlinks=True, ignore_dangling_symlinks=True)
         yield empty_home, manifest_home
     finally:
         shutil.rmtree(empty_home, ignore_errors=True)
