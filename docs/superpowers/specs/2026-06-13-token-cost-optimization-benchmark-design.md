@@ -25,7 +25,7 @@ Three new benchmark conditions added to the existing `before` / `after` structur
 | Condition | Strategy | Expected saving |
 |-----------|----------|-----------------|
 | `cached` | Anthropic prompt caching on system prompt | ~87% on system prompt cost |
-| `tiered` | Manifest injected only for HumanEval; baseline elsewhere | ~44% fewer input tokens overall |
+| `tiered` | Manifest injected only for HumanEval; baseline elsewhere | ~67% fewer input tokens overall (6/20 prompts inject manifest) |
 | `compressed` | 50%-trimmed CLAUDE.md fixture | ~48% fewer system prompt tokens |
 
 ---
@@ -69,7 +69,7 @@ PRICING = {
 - Identical to `after` but adds `cache_control: {"type": "ephemeral"}` to the Anthropic system prompt block
 - Each prompt is called twice: first to seed the cache, second to measure the warm read
 - Only the warm read is recorded (the seed call is discarded)
-- `cache_creation_input_tokens` / `cache_read_input_tokens` extracted from API usage response
+- API usage fields mapped to record fields: `cache_creation_input_tokens` → `cache_creation_tokens`, `cache_read_input_tokens` → `cache_read_tokens`
 - Gemini: not supported; condition skipped for Gemini provider
 
 **`tiered`**
@@ -104,7 +104,7 @@ Default: `before,after` (existing behaviour unchanged).
 | before     | 65           | $0.000195     | 0.875   | —        |
 | after      | 1,783        | $0.000534     | 0.900   | baseline |
 | cached     | 1,783        | $0.000071     | 0.900   | -87%     |
-| tiered     | 718          | $0.000215     | 0.900   | -60%     |
+| tiered     | 580          | $0.000174     | 0.900   | -67%     |
 | compressed | 923          | $0.000277     | 0.892   | -48%     |
 ```
 
