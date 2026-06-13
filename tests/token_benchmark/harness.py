@@ -105,8 +105,14 @@ def _error_result(msg: str) -> dict:
     }
 
 
-async def measure_api_claude(prompt_text: str, system_prompt: str, model: str) -> dict:
-    """Call Claude API; return input_tokens, output_tokens, response_text, latency_ms."""
+async def measure_api_claude(
+    prompt_text: str, system_prompt: str, model: str, use_cache: bool = False
+) -> dict:
+    """Call Claude API; return input_tokens, output_tokens, response_text, latency_ms.
+
+    use_cache=True adds cache_control to the system prompt block and extracts
+    cache_creation_tokens / cache_read_tokens from the usage response.
+    """
     if not HAS_ANTHROPIC:
         return _error_result("anthropic package not installed")
 
@@ -115,18 +121,27 @@ async def measure_api_claude(prompt_text: str, system_prompt: str, model: str) -
         return _error_result("ANTHROPIC_API_KEY not set")
 
     client = AsyncAnthropic(api_key=api_key)
+
+    if use_cache:
+        system_arg = [{"type": "text", "text": system_prompt, "cache_control": {"type": "ephemeral"}}]
+    else:
+        system_arg = system_prompt
+
     t0 = time.time()
     try:
         response = await client.messages.create(
             model=model,
-            system=system_prompt,
+            system=system_arg,
             messages=[{"role": "user", "content": prompt_text}],
             max_tokens=1024,
         )
         latency_ms = int((time.time() - t0) * 1000)
+        usage = response.usage
         return {
-            "input_tokens": response.usage.input_tokens,
-            "output_tokens": response.usage.output_tokens,
+            "input_tokens": usage.input_tokens,
+            "output_tokens": usage.output_tokens,
+            "cache_creation_tokens": getattr(usage, "cache_creation_input_tokens", None),
+            "cache_read_tokens": getattr(usage, "cache_read_input_tokens", None),
             "response_text": response.content[0].text,
             "latency_ms": latency_ms,
             "error": None,

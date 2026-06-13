@@ -264,3 +264,34 @@ class TestComputeCost:
         # output: 100 * 15.00/1e6 = 0.0015
         # total = 0.00234
         assert abs(cost - 0.00234) < 1e-8
+
+
+class TestMeasureApiClaudeCaching:
+    @pytest.mark.asyncio
+    async def test_cached_condition_passes_cache_control(self):
+        """When use_cache=True, system prompt is sent as a list with cache_control block."""
+        mock_usage = MagicMock(
+            input_tokens=1783,
+            output_tokens=4,
+            cache_creation_input_tokens=1718,
+            cache_read_input_tokens=0,
+        )
+        mock_response = MagicMock(usage=mock_usage, content=[MagicMock(text="B")])
+        mock_client = AsyncMock()
+        mock_client.messages.create.return_value = mock_response
+
+        with patch("tests.token_benchmark.harness.HAS_ANTHROPIC", True):
+            with patch("tests.token_benchmark.harness.AsyncAnthropic", return_value=mock_client):
+                with patch.dict(os.environ, {"ANTHROPIC_API_KEY": "test-key"}):
+                    result = await measure_api_claude(
+                        "What is 2+2?", "SYSTEM", "claude-sonnet-4-6", use_cache=True
+                    )
+
+        call_kwargs = mock_client.messages.create.call_args.kwargs
+        system_arg = call_kwargs["system"]
+        # system must be a list with cache_control block
+        assert isinstance(system_arg, list)
+        assert system_arg[0]["type"] == "text"
+        assert system_arg[0]["cache_control"] == {"type": "ephemeral"}
+        assert result["cache_creation_tokens"] == 1718
+        assert result["cache_read_tokens"] == 0
