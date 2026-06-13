@@ -3,6 +3,20 @@
 This document defines how Claude should leverage parallel LLM agents
 (Gemini, Cursor, Claude CLI, Codex, Antigravity) for cross-verification, planning, and validation.
 
+## Token Economy (always on)
+
+Apply at all times, in every session:
+
+- Lead with the result. No filler ("Sure", "Here's the…"), no closing summaries.
+- Match response length to the task; don't re-explain code you just wrote unless asked.
+- Use programmatic edit tools for targeted edits; never reprint a whole file for a small change.
+- If an implementation detail is genuinely ambiguous, ask ONE targeted question instead of guessing.
+- Read what a change depends on (types, signatures, callers); skip speculative
+  whole-tree crawls and re-reads of unchanged files. Don't starve context —
+  a wrong edit costs more than one extra dependency read.
+
+`/token-economy` re-asserts this mode if drift is noticed mid-session.
+
 ## Parallel Agent Script
 
 **Location**: `~/.claude/scripts/parallel_agent.py`
