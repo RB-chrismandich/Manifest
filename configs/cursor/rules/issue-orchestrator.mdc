@@ -1,0 +1,15 @@
+---
+description: "Decision-engine prompts for the Autonomous Issue Implementation Orchestrator. Invoked once per runtime phase by the orchestrator daemon to drive a GitHub/GitLab issue from selection to a clean PR. Each phase returns one machine-parseable JSON response envelope; the engine is stateless and deterministic."
+globs: ".claude/skills/issue-orchestrator/**"
+alwaysApply: false
+---
+
+# issue-orchestrator
+
+Decision-engine prompts for the Autonomous Issue Implementation Orchestrator. Invoked once per runtime phase by the orchestrator daemon to drive a GitHub/GitLab issue from selection to a clean PR. Each phase returns one machine-parseable JSON response envelope; the engine is stateless and deterministic.
+
+<!-- Auto-generated from .claude/skills/issue-orchestrator/SKILL.md -->
+<!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
+
+Refer to `.cursor/skills/issue-orchestrator/SKILL.md` for the full skill definition.
+
