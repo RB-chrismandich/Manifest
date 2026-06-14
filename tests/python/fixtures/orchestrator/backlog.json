@@ -1,0 +1,39 @@
+{
+  "issues": [
+    {
+      "id": "#10",
+      "title": "Refactor shared auth module",
+      "body": "Low-risk cleanup of the shared auth helper.",
+      "labels": ["severity:medium"],
+      "depends_on": []
+    },
+    {
+      "id": "#11",
+      "title": "Fix flaky token refresh",
+      "body": "Intermittent failures; blocks several downstream fixes.",
+      "labels": ["severity:high"],
+      "depends_on": []
+    },
+    {
+      "id": "#12",
+      "title": "Add retry to API client",
+      "body": "Depends on the token refresh fix.",
+      "labels": ["severity:critical"],
+      "depends_on": ["#11"]
+    },
+    {
+      "id": "#13",
+      "title": "Update dashboard copy",
+      "body": "Depends on the token refresh fix.",
+      "labels": ["severity:low"],
+      "depends_on": ["#11"]
+    },
+    {
+      "id": "#14",
+      "title": "Experimental rewrite (do not automate)",
+      "body": "Human-only spike.",
+      "labels": ["severity:critical", "no-automation"],
+      "depends_on": []
+    }
+  ]
+}

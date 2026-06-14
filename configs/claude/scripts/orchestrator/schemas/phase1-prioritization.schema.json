@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://manifest/orchestrator/phase1-prioritization.schema.json",
+  "title": "Phase 1 Payload — Ingestion & Prioritization",
+  "description": "Payload when phase=1, status=ok (FR-008..FR-010, FR-036). Issues bearing the no-automation label are excluded from selection (FR-037).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["ranked_issue_ids", "top_choice_justification", "dependency_notes"],
+  "properties": {
+    "ranked_issue_ids": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Implementable issues, highest to lowest priority. Empty (with a justification noting 'all held / no work') when every candidate carries no-automation or the backlog is empty."
+    },
+    "top_choice_justification": {
+      "type": "string",
+      "description": "Why the #1 issue was chosen; MUST state the unblock-vs-severity trade-off explicitly when an unblocking issue out-ranks a higher-severity isolated one (FR-009). Notes severity_source used (FR-036)."
+    },
+    "dependency_notes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["issue_id", "blocks"],
+        "properties": {
+          "issue_id": { "type": "string" },
+          "blocks": { "type": "array", "items": { "type": "string" } }
+        }
+      },
+      "description": "Maps each issue to the issues it blocks. Empty array when no dependencies."
+    }
+  }
+}

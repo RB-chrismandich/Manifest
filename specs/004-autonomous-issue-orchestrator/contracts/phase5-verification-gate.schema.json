@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://manifest/orchestrator/phase5-verification-gate.schema.json",
+  "title": "Phase 5 Payload — Post-Implementation Verification Gate",
+  "description": "Payload when phase=5, status=ok (FR-030..FR-033). Tier 1 findings block PR-open; Tier 2 are advisory. An unmet acceptance criterion is a Tier 1 finding even if tests pass (FR-032). Tier-1 fail-closed (FR-033).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["verdict", "dimensions", "findings", "pr_open_approved"],
+  "properties": {
+    "verdict": {
+      "type": "string",
+      "enum": ["verified", "blocked"],
+      "description": "Maps to APPROVED/NEEDS_REVIEW (verified) or BLOCKED (blocked) per validation_criteria.yml."
+    },
+    "dimensions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["design_intent", "functionality", "standards"],
+      "properties": {
+        "design_intent": { "type": "string", "enum": ["pass", "fail"], "description": "Every Phase 3 task acceptance criterion satisfied (FR-030a/FR-032)." },
+        "functionality": { "type": "string", "enum": ["pass", "fail"], "description": "Test suite passes and behavior matches FRs (FR-030b)." },
+        "standards": { "type": "string", "enum": ["pass", "fail"], "description": "Code-quality/type-safety/security checks (FR-030c)." }
+      }
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["dimension", "tier", "detail", "remediation"],
+        "properties": {
+          "dimension": { "type": "string", "enum": ["design_intent", "functionality", "standards"] },
+          "tier": { "type": "integer", "enum": [1, 2], "description": "Tier 1 blocks PR-open; Tier 2 advisory (FR-031)." },
+          "detail": { "type": "string" },
+          "remediation": { "type": ["string", "null"], "description": "Required for Tier 1 (blocking) findings." }
+        }
+      }
+    },
+    "pr_open_approved": {
+      "type": "boolean",
+      "description": "true only when there is no Tier 1 finding (FR-031/FR-033)."
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "verdict": { "const": "verified" } } },
+      "then": { "properties": { "pr_open_approved": { "const": true } } },
+      "else": { "properties": { "pr_open_approved": { "const": false } } }
+    }
+  ]
+}

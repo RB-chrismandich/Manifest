@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://manifest/orchestrator/phase4-analysis-gate.schema.json",
+  "title": "Phase 4 Payload — Pre-Implementation Analysis Gate",
+  "description": "Payload when phase=4, status=ok (FR-017..FR-019). Fail-closed: ANY finding blocks. A failed/unavailable required tool is NOT a finding — it is missing input (status=blocked + escalation, FR-028).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["gate", "required_fixes", "implement_approved"],
+  "properties": {
+    "gate": {
+      "type": "string",
+      "enum": ["clean", "blocked"]
+    },
+    "required_fixes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["finding", "severity", "file", "fix_directive"],
+        "properties": {
+          "finding": { "type": "string" },
+          "severity": { "type": "string", "enum": ["error", "warning", "regression"] },
+          "file": { "type": ["string", "null"] },
+          "fix_directive": { "type": "string" }
+        }
+      },
+      "description": "Empty array ONLY when gate=clean."
+    },
+    "implement_approved": {
+      "type": "boolean",
+      "description": "true only when gate=clean (FR-018)."
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "gate": { "const": "clean" } } },
+      "then": { "properties": { "required_fixes": { "maxItems": 0 }, "implement_approved": { "const": true } } },
+      "else": { "properties": { "required_fixes": { "minItems": 1 }, "implement_approved": { "const": false } } }
+    }
+  ]
+}

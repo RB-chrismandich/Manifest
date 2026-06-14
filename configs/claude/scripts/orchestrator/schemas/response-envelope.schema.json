@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://manifest/orchestrator/response-envelope.schema.json",
+  "title": "Orchestrator Response Envelope",
+  "description": "The single top-level object every engine invocation returns (FR-001/FR-002). Exactly one envelope, nothing outside it. Field order is canonical for determinism (FR-003).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["phase", "status", "payload", "reasoning_log", "escalation"],
+  "properties": {
+    "phase": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 6,
+      "description": "Echoes the [CURRENT PHASE] directive."
+    },
+    "status": {
+      "type": "string",
+      "enum": ["ok", "blocked", "needs_escalation"],
+      "description": "ok = phase produced its payload; blocked = missing/malformed input or transient resource pause; needs_escalation = human handoff (FR-005, FR-025, FR-035)."
+    },
+    "payload": {
+      "type": "object",
+      "description": "Phase-specific payload (see phaseN-*.schema.json). MUST be {} when status != ok (FR-005)."
+    },
+    "reasoning_log": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Ordered decision trace; ALL justification lives here only (FR-004). Redacted before persistence (FR-038)."
+    },
+    "escalation": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["reason", "blocking_state"],
+          "properties": {
+            "reason": { "type": "string" },
+            "blocking_state": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["type", "transient"],
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "description": "e.g. missing_input, contradictory_input, resource_unavailable, low_consensus, critical_failure."
+                },
+                "transient": {
+                  "type": "boolean",
+                  "description": "true => pause-and-resume, NOT a human escalation (FR-035). Resource exhaustion sets this true with status=blocked."
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "status": { "const": "ok" } } },
+      "then": { "properties": { "escalation": { "type": "null" } } },
+      "else": {
+        "properties": {
+          "payload": { "maxProperties": 0 },
+          "escalation": { "type": "object" }
+        }
+      }
+    }
+  ]
+}

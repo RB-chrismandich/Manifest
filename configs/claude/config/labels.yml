@@ -36,6 +36,11 @@ labels:
     description: "Queued for future prioritization and scheduling"
     platforms: [github, gitlab, linear]
 
+  - name: no-automation
+    color: "B60205"
+    description: "Kill-switch: the autonomous orchestrator must never select, advance, or implement this issue"
+    platforms: [github, gitlab, linear]
+
 deprecated:
   - name: processed
     replacement: done

@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://manifest/orchestrator/phase2-clarification.schema.json",
+  "title": "Phase 2 Payload — Dual-Model Clarification Synthesis",
+  "description": "Payload when phase=2, status=ok (FR-011..FR-013). agy is advisory; its absence does not block (FR-028 exemption).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["finalized_spec_parameters", "agy_conflicts", "open_questions"],
+  "properties": {
+    "finalized_spec_parameters": {
+      "type": "object",
+      "description": "Keyed parameters to feed back into the specification toolchain."
+    },
+    "agy_conflicts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["topic", "chosen", "rejected", "rationale"],
+        "properties": {
+          "topic": { "type": "string" },
+          "chosen": { "type": "string" },
+          "rejected": { "type": "string" },
+          "rationale": {
+            "type": "string",
+            "description": "Resolution order applied: (1) repo-pattern consistency, (2) modularity/type-safety/security, (3) reversibility under thin evidence (FR-011/FR-012)."
+          }
+        }
+      }
+    },
+    "open_questions": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Empty array when no questions remain."
+    }
+  }
+}

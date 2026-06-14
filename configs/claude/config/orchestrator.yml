@@ -1,0 +1,46 @@
+# orchestrator.yml — Autonomous Issue Implementation Orchestrator config
+#
+# Deployed to ~/.claude/config/ via bootstrap.sh (Config-as-Code, Constitution I).
+# Spec: specs/004-autonomous-issue-orchestrator/spec.md
+
+# The six runtime phases, in execution order (spec FR-007).
+phases:
+  - {id: 1, name: ingestion-prioritization}
+  - {id: 2, name: clarification-synthesis}
+  - {id: 3, name: planning-tasking}
+  - {id: 4, name: analysis-gate}
+  - {id: 5, name: verification-gate}
+  - {id: 6, name: pr-resolution}
+
+# Per-phase retry cap before escalation (FR-027). Token-exhaustion pauses do NOT
+# count toward this cap (FR-035).
+attempt_cap: 2
+
+# Resource-pause behavior when cross-verification agents are token/credit
+# exhausted (FR-035). The daemon re-invokes the paused phase on this cadence.
+resource_pause:
+  resume_poll: hourly        # re-check capacity every hour while paused
+  count_as_attempt: false    # FR-035: never increments attempt_count
+  escalate: false            # FR-035: never escalates a human
+
+# Gate cross-verification (FR-034). Thresholds are owned by command_config.yml
+# (Constitution III) — referenced here, not redefined.
+consensus:
+  thresholds_source: command_config.yml
+  gates: [4, 5]              # only the two gates cross-verify; other phases single-pass
+
+# Human kill-switch label (FR-037). Re-checked before every phase advance.
+block_label: no-automation
+
+# Durable, append-only audit trail (FR-029) + mandatory redaction (FR-038).
+audit:
+  dir: ~/.claude/state/orchestrator   # created chmod 700
+  format: jsonl
+  redact: true                        # FR-038: mask secrets/credentials/PII before persist
+
+# Verification gate tiers (FR-031) reuse the repo's validation model.
+validation_source: validation_criteria.yml
+
+# Performance SLO (SC-017): median small-scope issue selection→PR-open, active time.
+performance:
+  small_issue_pr_minutes_median: 30

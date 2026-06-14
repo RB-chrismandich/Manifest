@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://manifest/orchestrator/phase6-pr-resolution.schema.json",
+  "title": "Phase 6 Payload — Code Review & PR Resolution",
+  "description": "Payload when phase=6, status=ok (FR-020..FR-022). Root-cause fixes, precise modifications, professional PR reply ending in a confirmation marker.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["modifications", "pr_reply", "ci_root_cause"],
+  "properties": {
+    "modifications": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["file", "location", "change", "addresses"],
+        "properties": {
+          "file": { "type": "string" },
+          "location": { "type": "string", "description": "e.g. function name or line anchor." },
+          "change": { "type": "string" },
+          "addresses": { "type": "string", "description": "The specific review comment or CI failure this fixes (FR-021)." }
+        }
+      }
+    },
+    "pr_reply": {
+      "type": "string",
+      "pattern": "[\\u2705\\uD83D\\uDEE0]\\s*$",
+      "description": "Concise professional reply ending with a confirmation marker ✅ or 🛠️ (FR-022)."
+    },
+    "ci_root_cause": {
+      "type": ["string", "null"],
+      "description": "Single root cause of the CI failure, or null when none applies (FR-021)."
+    }
+  }
+}
