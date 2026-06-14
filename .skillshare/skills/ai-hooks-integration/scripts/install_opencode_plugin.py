@@ -78,8 +78,8 @@ async function sendEvent(eventType, payload) {{
 
       ws.on("error", () => {{ clearTimeout(timeout); resolve(); }});
     }});
-  }} catch {{
-    // Silent fail if ws module not available
+  }} catch (e) {{
+    console.error("WebSocket init failed:", e.message);
   }}
 }}
 
@@ -187,7 +187,8 @@ async function sendHttp(event) {{
       signal: AbortSignal.timeout(1000),
     }});
     return response.ok;
-  }} catch {{
+  }} catch (e) {{
+    console.error("HTTP send failed:", e.message);
     return false;
   }}
 }}
@@ -200,7 +201,9 @@ async function sendWs(event) {{
         ws.send(JSON.stringify(event));
         resolve(true);
         return;
-      }} catch {{}}
+      }} catch (e) {{
+        console.error("WebSocket send failed:", e.message);
+      }}
     }}
 
     // Try to connect
@@ -231,7 +234,8 @@ async function sendWs(event) {{
         ws = null;
         resolve(false);
       }});
-    }} catch {{
+    }} catch (e) {{
+      console.error("WebSocket connect failed:", e.message);
       resolve(false);
     }}
   }});
