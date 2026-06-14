@@ -255,12 +255,14 @@ ensure_closing_keyword() {
 # ---- resolution ------------------------------------------------------------
 
 # resolve_candidates <branch> <pr|""> <commit|""> — echo candidate numbers (one per line)
+# Emits one "number|source" per resolved candidate (source: branch-prefix |
+# pr-body | commit-message), de-duplicated by number keeping the first source.
 resolve_candidates() {
     local branch="$1" pr="$2" commit="$3" platform="$4"
     local -a out=()
     # 1) branch-number prefix (strip leading zeros: 017-foo → issue #17)
     if [[ "${branch}" =~ ^([0-9]+)- ]]; then
-        out+=("$((10#${BASH_REMATCH[1]}))")
+        out+=("$((10#${BASH_REMATCH[1]}))|branch-prefix")
     fi
     # 2) PR/MR body references
     if [[ -n "${pr}" ]]; then
@@ -270,15 +272,15 @@ resolve_candidates() {
         else
             body=$(git_ops pr-view "${pr}" --output json 2>/dev/null | python3 -c 'import sys,json;print(json.load(sys.stdin).get("description",""))' 2>/dev/null || true)
         fi
-        while IFS= read -r r; do [[ -n "${r}" ]] && out+=("${r}"); done < <(printf '%s' "${body}" | extract_refs)
+        while IFS= read -r r; do [[ -n "${r}" ]] && out+=("${r}|pr-body"); done < <(printf '%s' "${body}" | extract_refs)
     fi
     # 3) commit-message references + trailers
     if [[ -n "${commit}" ]]; then
         local msg
         msg=$(git log -1 --format='%B' "${commit}" 2>/dev/null || true)
-        while IFS= read -r r; do [[ -n "${r}" ]] && out+=("${r}"); done < <(printf '%s' "${msg}" | extract_refs)
+        while IFS= read -r r; do [[ -n "${r}" ]] && out+=("${r}|commit-message"); done < <(printf '%s' "${msg}" | extract_refs)
     fi
-    printf '%s\n' "${out[@]+"${out[@]}"}" | grep -E '^[0-9]+$' | awk 'NF' | awk '!seen[$0]++' || true
+    printf '%s\n' "${out[@]+"${out[@]}"}" | awk -F'|' '$1 ~ /^[0-9]+$/ && !seen[$1]++' || true
 }
 
 # ---- platform gate ---------------------------------------------------------
@@ -403,7 +405,7 @@ sync_core() {
     fi
 
     local candidates=()
-    while IFS= read -r _c; do [[ -n "${_c}" ]] && candidates+=("${_c}"); done \
+    while IFS= read -r _c; do [[ -n "${_c}" ]] && candidates+=("${_c%%|*}"); done \
         < <(resolve_candidates "${branch}" "${pr}" "${commit}" "${platform}")
     if [[ "${#candidates[@]}" -eq 0 ]]; then
         offer_create "${branch}" "${pr}" "${commit}" "${platform}"
@@ -499,23 +501,35 @@ cmd_resolve() {
     [[ -z "${branch}" ]] && branch=$(current_branch)
     local platform
     platform=$(detect_platform)
-    local nums=()
-    while IFS= read -r _n; do [[ -n "${_n}" ]] && nums+=("${_n}"); done \
+    local refs=()
+    while IFS= read -r _n; do [[ -n "${_n}" ]] && refs+=("${_n}"); done \
         < <(resolve_candidates "${branch}" "${pr}" "${commit}" "${platform}")
-    if [[ "${#nums[@]}" -eq 0 ]]; then
+    if [[ "${#refs[@]}" -eq 0 ]]; then
         if [[ "${json}" == "1" ]]; then echo "[]"; else err "no issue resolved"; fi
         return 3
     fi
     if [[ "${json}" == "1" ]]; then
+        # Emit the full IssueRef per the data model: number, source, and (when the
+        # tracker is reachable) exists/state/label validated via issue-view.
         printf '['
-        local i
-        for i in "${!nums[@]}"; do
+        local i num source rec state labels exists cur
+        for i in "${!refs[@]}"; do
+            num="${refs[$i]%%|*}"; source="${refs[$i]#*|}"
+            rec=$(issue_record "${num}" "${platform}")
+            if [[ -n "${rec}" ]]; then
+                IFS='|' read -r _ state labels _ <<<"${rec}"
+                exists=true; cur=$(record_label "${labels}")
+            else
+                exists=false; state=""; cur=""
+            fi
             [[ "${i}" -gt 0 ]] && printf ','
-            printf '{"number":%s}' "${nums[$i]}"
+            printf '{"number":%s,"source":"%s","exists":%s,"state":"%s","label":"%s"}' \
+                "${num}" "${source}" "${exists}" "${state}" "${cur}"
         done
         printf ']\n'
     else
-        printf '%s\n' "${nums[@]}"  # array-safe: non-empty (returned 3 above if empty)
+        local r
+        for r in "${refs[@]}"; do printf '%s\n' "${r%%|*}"; done  # array-safe: non-empty (returned 3 above)
     fi
     return 0
 }

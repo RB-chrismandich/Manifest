@@ -87,6 +87,24 @@ EOF
     [ "$status" -eq 3 ]
 }
 
+@test "resolve --json emits full IssueRef (number, source, exists, state, label)" {
+    mk_issue 17 open planned
+    run "$SCRIPT" resolve --branch 017-test-branch --json
+    [ "$status" -eq 0 ]
+    [[ "$output" == *'"number":17'* ]]
+    [[ "$output" == *'"source":"branch-prefix"'* ]]
+    [[ "$output" == *'"exists":true'* ]]
+    [[ "$output" == *'"state":"open"'* ]]
+    [[ "$output" == *'"label":"planned"'* ]]
+}
+
+@test "resolve --json marks a non-existent candidate exists:false" {
+    # no fixture for #17 → issue_record returns empty
+    run "$SCRIPT" resolve --branch 017-test-branch --json
+    [ "$status" -eq 0 ]
+    [[ "$output" == *'"exists":false'* ]]
+}
+
 # --- fail-open (C1) ---------------------------------------------------------
 
 @test "sync-pr exits 0 even when tracker calls fail (fail-open)" {

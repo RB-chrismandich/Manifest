@@ -11,7 +11,7 @@ Installed via the `ai-hooks-integration` mechanism into the active tool's settin
 | `pr-issue-sync` | `pr-create` \| `gh pr create` \| `glab mr create` | `issue_support.sh sync-pr <resolved PR number>` |
 | `commit-issue-sync` | `git commit` (and `git_ops.sh`-mediated commits) | `issue_support.sh sync-commit HEAD` |
 
-**Payload → engine mapping**: the hook reads the canonical normalized payload (tool, command, exit code). It invokes the engine ONLY when the matched command **succeeded** (a failed `git commit`/`pr create` must not trigger a sync). PR number is parsed from the command's stdout (the URL/number `gh`/`glab` print on success).
+**Payload → engine mapping**: the hook reads the canonical normalized payload (tool, command, exit code). It invokes the engine ONLY when the matched command **succeeded** (a failed `git commit`/`pr create` must not trigger a sync). The dispatcher does **not** parse the PR number out of command stdout (fragile across `gh`/`glab` output formats); it calls `issue_support.sh sync-pr` with no argument and the engine **self-resolves** the current branch's open PR/MR via `pr-view`. If that lookup returns nothing (e.g. detached PR, or `glab mr view` can't resolve an MR for the branch), `sync-pr` degrades to a non-blocking warning (fail-open) — the issue still gets kept current by the next commit hook, or via a manual `sync-pr <N>`.
 
 **Timeout**: the hook entry sets `timeout` ≥ `hook_timeout_seconds`; the engine enforces its own soft timeout inside that budget and always exits 0.
 
