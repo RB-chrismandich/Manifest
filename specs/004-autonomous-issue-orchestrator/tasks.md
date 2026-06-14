@@ -112,12 +112,12 @@ description: "Task list for Autonomous Issue Implementation Orchestrator"
 
 ### Tests for User Story 3 ⚠️ (write first, ensure they FAIL)
 
-- [ ] T031 [P] [US3] Contract + integration test: Phase 2 conflict resolution order and `agy`-absent handling in `tests/python/test_orchestrator_phase2.py`
+- [X] T031 [P] [US3] Contract + integration test: Phase 2 conflict resolution order and `agy`-absent handling in `tests/python/test_orchestrator_phase2.py`
 
 ### Implementation for User Story 3
 
-- [ ] T032 [US3] Author the Phase 2 clarification-synthesis prompt (resolution order: repo-consistency → modularity/safety → reversibility) in `.skillshare/skills/issue-orchestrator/SKILL.md`
-- [ ] T033 [US3] Implement `agy`-advisory handling (absence does not block, FR-028 exemption) + conflict logging in `configs/claude/scripts/orchestrator/engine.py`
+- [X] T032 [US3] Author the Phase 2 clarification-synthesis prompt (resolution order: repo-consistency → modularity/safety → reversibility) in `.skillshare/skills/issue-orchestrator/SKILL.md`
+- [X] T033 [US3] Implement `agy`-advisory handling (absence does not block, FR-028 exemption) + conflict logging in `configs/claude/scripts/orchestrator/engine.py`
 
 **Checkpoint**: US1–US3 independently functional.
 
@@ -131,12 +131,12 @@ description: "Task list for Autonomous Issue Implementation Orchestrator"
 
 ### Tests for User Story 4 ⚠️ (write first, ensure they FAIL)
 
-- [ ] T034 [P] [US4] Contract + integration test: Phase 6 root-cause modifications + reply-marker enforcement in `tests/python/test_orchestrator_phase6.py`
+- [X] T034 [P] [US4] Contract + integration test: Phase 6 root-cause modifications + reply-marker enforcement in `tests/python/test_orchestrator_phase6.py`
 
 ### Implementation for User Story 4
 
-- [ ] T035 [US4] Author the Phase 6 PR-resolution prompt (root-cause not symptom; precise modifications; reply ends ✅/🛠️) in `.skillshare/skills/issue-orchestrator/SKILL.md`
-- [ ] T036 [US4] Implement PR-feedback ingestion via `git_ops.sh` + reply-marker validation in `configs/claude/scripts/orchestrator/daemon.py`
+- [X] T035 [US4] Author the Phase 6 PR-resolution prompt (root-cause not symptom; precise modifications; reply ends ✅/🛠️) in `.skillshare/skills/issue-orchestrator/SKILL.md`
+- [X] T036 [US4] Implement PR-feedback ingestion via `git_ops.sh` + reply-marker validation in `configs/claude/scripts/orchestrator/daemon.py`
 
 **Checkpoint**: US1–US4 independently functional; an opened PR can be driven to clean.
 
@@ -150,18 +150,18 @@ description: "Task list for Autonomous Issue Implementation Orchestrator"
 
 ### Tests for User Story 5 ⚠️ (write first, ensure they FAIL)
 
-- [ ] T037 [P] [US5] Determinism golden-transcript tests (identical payload → identical envelope, FR-003/SC-002) in `tests/python/test_orchestrator_determinism.py`
-- [ ] T038 [P] [US5] Redaction fixture-corpus tests (0 unredacted secrets/PII, SC-016) in `tests/python/test_orchestrator_redaction.py`
-- [ ] T039 [P] [US5] Safety tests: malformed/contradictory → blocked+escalation (FR-005), injection ignored+noted (FR-023), destructive-op withheld (FR-024) in `tests/python/test_orchestrator_safety.py`
-- [ ] T040 [P] [US5] Retry/pause/escalation tests (2-attempt cap FR-027; transient pause no-attempt-increment FR-035; critical-flag FR-025) in `tests/python/test_orchestrator_retry_pause.py`
+- [X] T037 [P] [US5] Determinism golden-transcript tests (identical payload → identical envelope, FR-003/SC-002) in `tests/python/test_orchestrator_determinism.py`
+- [X] T038 [P] [US5] Redaction fixture-corpus tests (0 unredacted secrets/PII, SC-016) in `tests/python/test_orchestrator_redaction.py`
+- [X] T039 [P] [US5] Safety tests: malformed/contradictory → blocked+escalation (FR-005), injection ignored+noted (FR-023), destructive-op withheld (FR-024) in `tests/python/test_orchestrator_safety.py`
+- [X] T040 [P] [US5] Retry/pause/escalation tests (2-attempt cap FR-027; transient pause no-attempt-increment FR-035; critical-flag FR-025) in `tests/python/test_orchestrator_retry_pause.py`
 
 ### Implementation for User Story 5
 
-- [ ] T041 [US5] Implement append-only JSONL audit (skillclaw_audit pattern, `chmod 700` state dir, fail-open) in `configs/claude/scripts/orchestrator/audit.py` (FR-029)
-- [ ] T042 [US5] Implement redaction (reuse `skillclaw_scrub.py`) as a MANDATORY pre-write hook inside audit.py (FR-038) in `configs/claude/scripts/orchestrator/redact.py`
-- [ ] T043 [US5] Implement the 2-attempt cap → escalation and the critical-failure-flag → escalation paths (FR-027, FR-025) in `configs/claude/scripts/orchestrator/pipeline.py`
-- [ ] T044 [US5] Implement resource-pause: transient `blocking_state`, hourly resume poll, no attempt increment, state preserved (FR-035) in `configs/claude/scripts/orchestrator/daemon.py`
-- [ ] T045 [US5] Implement missing/contradictory-input → blocked+escalation, untrusted-input injection note, and destructive-op guard (FR-005, FR-023, FR-024) in `configs/claude/scripts/orchestrator/engine.py`
+- [X] T041 [US5] Implement append-only JSONL audit (skillclaw_audit pattern, `chmod 700` state dir, fail-open) in `configs/claude/scripts/orchestrator/audit.py` (FR-029)
+- [X] T042 [US5] Implement redaction (reuse `skillclaw_scrub.py`) as a MANDATORY pre-write hook inside audit.py (FR-038) in `configs/claude/scripts/orchestrator/redact.py`
+- [X] T043 [US5] Implement the 2-attempt cap → escalation and the critical-failure-flag → escalation paths (FR-027, FR-025) in `configs/claude/scripts/orchestrator/pipeline.py`
+- [X] T044 [US5] Implement resource-pause: transient `blocking_state`, hourly resume poll, no attempt increment, state preserved (FR-035) in `configs/claude/scripts/orchestrator/daemon.py`
+- [X] T045 [US5] Implement missing/contradictory-input → blocked+escalation, untrusted-input injection note, and destructive-op guard (FR-005, FR-023, FR-024) in `configs/claude/scripts/orchestrator/engine.py`
 
 **Checkpoint**: All cross-cutting guarantees enforced across every phase.
 

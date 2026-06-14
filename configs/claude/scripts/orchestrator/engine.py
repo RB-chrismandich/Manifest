@@ -239,3 +239,90 @@ def prioritize(issues: list[dict[str, Any]]) -> Prioritization:
         else:
             why = f"Selected {top['id']}: highest severity {sev} (source: {src}); no inter-issue dependencies."
     return Prioritization(ranked_ids, why, dep_notes, held)
+
+
+# --------------------------------------------------------------------------- #
+# Phase 2 arbitration core (FR-011, FR-012) — engine vs agy
+# --------------------------------------------------------------------------- #
+def _option_score(opt: dict[str, Any]) -> tuple[int, int, int]:
+    """Resolution order (FR-011): repo-consistency > modularity/safety > reversibility."""
+    return (int(bool(opt.get("repo_consistent"))),
+            int(bool(opt.get("secure")) or bool(opt.get("modular"))),
+            int(bool(opt.get("reversible"))))
+
+
+def arbitrate(topic: str, engine_choice: dict[str, Any],
+              agy_choice: dict[str, Any] | None) -> tuple[dict[str, Any], dict | None]:
+    """Arbitrate one decision between the engine and agy (FR-012).
+
+    Returns (chosen, conflict_or_None). agy absent => proceed on the engine's
+    choice with no conflict (FR-028 exemption). On a genuine divergence the
+    higher-scoring option wins; ties do NOT defer to agy by default (FR-012).
+    """
+    if agy_choice is None or agy_choice.get("label") == engine_choice.get("label"):
+        return engine_choice, None
+    chosen = max((engine_choice, agy_choice), key=_option_score)  # stable: engine first on tie
+    rejected = agy_choice if chosen is engine_choice else engine_choice
+    conflict = {
+        "topic": topic,
+        "chosen": chosen.get("label"),
+        "rejected": rejected.get("label"),
+        "rationale": ("repo-consistency > modularity/safety > reversibility (FR-011); "
+                      "ties retain the engine's choice (FR-012)."),
+    }
+    return chosen, conflict
+
+
+# --------------------------------------------------------------------------- #
+# Phase 6 PR-reply marker (FR-022)
+# --------------------------------------------------------------------------- #
+_CONFIRM_MARKERS = ("✅", "\U0001F6E0")   # ✅ , 🛠️ (allow trailing variation selector)
+
+
+def pr_reply_has_marker(reply: str) -> bool:
+    """True if the PR reply ends with a confirmation marker ✅ or 🛠️ (FR-022)."""
+    stripped = reply.rstrip().rstrip("️").rstrip()
+    return stripped.endswith(_CONFIRM_MARKERS)
+
+
+# --------------------------------------------------------------------------- #
+# Safety helpers (FR-005, FR-023, FR-024)
+# --------------------------------------------------------------------------- #
+_INJECTION_MARKERS = (
+    "ignore your rules", "ignore previous", "disregard previous", "disregard your",
+    "approve immediately", "bypass", "override your", "you must approve",
+)
+_DESTRUCTIVE = (
+    "push --force", "push -f", "reset --hard", "filter-branch", "filter-repo",
+    "rebase", "branch -d", "branch -D", "git gc --prune",
+)
+
+
+def scan_injection(untrusted: str) -> list[str]:
+    """Return notes for any embedded directive in untrusted input (FR-023)."""
+    low = untrusted.lower()
+    return [f"ignored embedded directive: {m!r}" for m in _INJECTION_MARKERS if m in low]
+
+
+def is_destructive(command: str) -> bool:
+    return any(tok in command.lower() for tok in _DESTRUCTIVE)
+
+
+def guard_destructive(command: str, no_upstream_human_work: bool) -> tuple[bool, str]:
+    """Allow a destructive op only with explicit confirmation no human work is lost (FR-024).
+    Returns (allowed, reason)."""
+    if not is_destructive(command):
+        return True, "non-destructive"
+    if no_upstream_human_work:
+        return True, "explicitly confirmed: no upstream human work would be lost"
+    return False, "destructive op withheld: upstream human work not confirmed (FR-024) — escalating"
+
+
+def require_inputs(phase: int, inputs: dict[str, Any], required: list[str],
+                   trace: list[str] | None = None) -> dict[str, Any] | None:
+    """Return a blocked envelope if any required input is missing (FR-005), else None."""
+    missing = [k for k in required if not inputs.get(k)]
+    if missing:
+        return blocked_envelope(phase, f"missing required input(s): {missing}",
+                                bs_type="missing_input", trace=trace)
+    return None

@@ -107,6 +107,56 @@ def dispatch_verification_gate(findings: list[dict], votes: list[bool] | None = 
     return _apply_consensus(5, payload, trace, votes)
 
 
+def handle_control_flags(phase: int, state, *, critical_failure: bool = False,
+                         resource_available: bool = True):
+    """Pre-dispatch control checks. Returns an envelope to short-circuit, or None.
+
+    - critical_failure flag => needs_escalation (FR-025).
+    - agents token/credit exhausted => transient pause, mark state paused WITHOUT
+      incrementing the attempt count (FR-035); the daemon resumes the same phase.
+    """
+    if critical_failure:
+        return engine.escalation_envelope(phase, "daemon signaled a critical failure",
+                                          bs_type="critical_failure")
+    if not resource_available:
+        if state is not None:
+            state.pause_for_resource()          # FR-035: no attempt increment
+        return engine.blocked_envelope(
+            phase, "cross-verification agents token/credit exhausted; pausing for resume",
+            transient=True, bs_type="resource_unavailable",
+            trace=["resource pause: will re-invoke this phase on the hourly poll (FR-035)"])
+    return None
+
+
+def dispatch_phase2(decisions: list[dict], finalized_params: dict | None = None,
+                    open_questions: list[str] | None = None) -> dict:
+    """Phase 2: arbitrate engine vs agy per decision; log conflicts (FR-011/012)."""
+    conflicts, chosen = [], {}
+    for d in decisions:
+        pick, conflict = engine.arbitrate(d["topic"], d["engine_choice"], d.get("agy_choice"))
+        chosen[d["topic"]] = pick.get("label")
+        if conflict:
+            conflicts.append(conflict)
+    payload = {
+        "finalized_spec_parameters": finalized_params if finalized_params is not None else chosen,
+        "agy_conflicts": conflicts,
+        "open_questions": list(open_questions or []),
+    }
+    trace = [f"phase2: {len(decisions)} decision(s), {len(conflicts)} agy conflict(s)."]
+    return engine.ok_envelope(2, payload, trace)
+
+
+def dispatch_phase6(modifications: list[dict], pr_reply: str, ci_root_cause: str | None = None) -> dict:
+    """Phase 6: PR resolution — modifications + reply (must end with ✅/🛠️, FR-022)."""
+    if not engine.pr_reply_has_marker(pr_reply):
+        return engine.blocked_envelope(6, "PR reply missing confirmation marker ✅/🛠️ (FR-022)",
+                                       bs_type="contradictory_input")
+    payload = {"modifications": modifications, "pr_reply": pr_reply, "ci_root_cause": ci_root_cause}
+    trace = [f"phase6: {len(modifications)} modification(s); "
+             f"root_cause={'identified' if ci_root_cause else 'none'}."]
+    return engine.ok_envelope(6, payload, trace)
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="orchestrator",
