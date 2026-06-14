@@ -1,0 +1,79 @@
+name: Jules Trigger
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  pull-requests: read
+  issues: write
+
+concurrency:
+  group: jules-${{ github.event.issue.number }}
+  cancel-in-progress: false  # let an in-flight Jules run finish; new invocations queue
+
+jobs:
+  invoke:
+    # Security boundary: only a deliberate mention from a trusted, non-bot
+    # commenter ever reaches the JULES_API_KEY step. issue_comment runs with the
+    # base repo's secrets even for fork PRs, so author_association (set server-side
+    # by GitHub, not spoofable) is what blocks outside contributors (CONTRIBUTOR/
+    # NONE). A non-Bot machine account held by a trusted collaborator is within
+    # this boundary by design.
+    if: >-
+      contains(github.event.comment.body, '@google-labs-jules') &&
+      (github.event.comment.author_association == 'OWNER' ||
+       github.event.comment.author_association == 'MEMBER' ||
+       github.event.comment.author_association == 'COLLABORATOR') &&
+      github.event.comment.user.type != 'Bot'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Acknowledge with reaction
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3  # v9.0.0
+        with:
+          script: |
+            await github.rest.reactions.createForIssueComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: context.payload.comment.id,
+              content: 'eyes',
+            });
+
+      - name: Resolve start branch
+        id: branch
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3  # v9.0.0
+        with:
+          script: |
+            let ref = 'main';
+            if (context.payload.issue.pull_request) {
+              const pr = await github.rest.pulls.get({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: context.payload.issue.number,
+              });
+              ref = pr.data.head.ref;
+            }
+            core.setOutput('ref', ref);
+
+      - name: Invoke Jules
+        uses: google-labs-code/jules-action@bff7875eaa123cac6742b7cfc51005b95ba4d566  # v1.0.0
+        with:
+          # Raw comment body; jules-action declares this input type:string and does
+          # not re-evaluate it. Quoted to signal it is a deliberate string input.
+          prompt: "${{ github.event.comment.body }}"
+          jules_api_key: ${{ secrets.JULES_API_KEY }}
+          starting_branch: ${{ steps.branch.outputs.ref }}
+
+      - name: Report failure
+        if: failure()
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3  # v9.0.0
+        with:
+          script: |
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.issue.number,
+              body: `⚠️ The Jules trigger workflow failed — see the [workflow run](${runUrl}).`,
+            });
