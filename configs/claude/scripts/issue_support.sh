@@ -236,7 +236,7 @@ ensure_closing_keyword() {
     else
         body=$(git_ops pr-view "${pr}" --output json 2>/dev/null | python3 -c 'import sys,json;print(json.load(sys.stdin).get("description",""))' 2>/dev/null || true)
     fi
-    if printf '%s' "${body}" | grep -qiE "(close[sd]?|fix(e[sd])?|resolve[sd]?)[[:space:]]+#${n}\b"; then
+    if printf '%s' "${body}" | grep -qiE "(close[sd]?|fix(e[sd])?|resolve[sd]?)[[:space:]]+#${n}([^0-9]|$)"; then
         record_action "PR #${pr} closing-keyword Closes #${n} [skipped] (already present)"
         return 0
     fi
@@ -302,18 +302,24 @@ render_template() {
     fi
 }
 
-# offer_create <branch> <pr> <commit> <platform> — dedup, confirm, create
+# offer_create <branch> <pr> <commit> <platform> — dedup, confirm, create.
+# On reuse or successful creation, sets the global NEW_ISSUE to that issue number
+# so sync_core can run the normal sync lifecycle on it (FR-009c).
+NEW_ISSUE=""
 offer_create() {
     local branch="$1" pr="$2" commit="$3" platform="$4"
+    NEW_ISSUE=""
     if [[ "${NO_CREATE:-0}" == "1" ]]; then
         record_action "create-issue [skipped] (--no-create)"
         return 0
     fi
     # dedup: search for an existing open issue matching the branch
-    local existing=""
+    local existing num=""
     existing=$(git_ops issue-list --search "${branch}" 2>/dev/null | head -1 || true)
     if [[ -n "${existing}" ]]; then
-        record_action "create-issue [skipped] (existing match reused: ${existing%% *})"
+        num=$(printf '%s' "${existing}" | grep -oE '[0-9]+' | head -1 || true)
+        record_action "create-issue [skipped] (existing match reused: #${num:-?})"
+        NEW_ISSUE="${num}"
         return 0
     fi
     if ! is_interactive; then
@@ -331,15 +337,46 @@ offer_create() {
         record_action "create-issue [applied] (dry-run, not created)"
         return 0
     fi
-    local title="${branch}" bodyfile
+    local title="${branch}" bodyfile out
     bodyfile=$(mktemp)
     render_template "${branch}" "${pr}" "${commit}" >"${bodyfile}"
-    if git_ops issue-create --title "${title}" --body-file "${bodyfile}" --label planned >/dev/null 2>&1; then
-        record_action "create-issue [applied] (labeled planned, from template)"
+    if out=$(git_ops issue-create --title "${title}" --body-file "${bodyfile}" --label planned 2>/dev/null); then
+        # gh/glab print the new issue URL; the trailing number is the issue id.
+        num=$(printf '%s' "${out}" | grep -oE '[0-9]+' | tail -1 || true)
+        record_action "create-issue [applied] (#${num:-?}, labeled planned, from template)"
+        NEW_ISSUE="${num}"
     else
         record_action "create-issue [failed] (issue-create error)"
     fi
     rm -f "${bodyfile}"
+}
+
+# process_issue <n> <kind> <pr> <target> <ctxkey> <body> <platform>
+# Apply the normal sync to a single issue (transition + comment + closing keyword).
+process_issue() {
+    local n="$1" kind="$2" pr="$3" target="$4" ctxkey="$5" body="$6" platform="$7"
+    local rec state cur _num _labels _title
+    rec=$(issue_record "${n}" "${platform}")
+    if [[ -z "${rec}" ]]; then
+        record_action "#${n} [skipped] (issue not found)"
+        return 0
+    fi
+    IFS='|' read -r _num state _labels _title <<<"${rec}"
+    if [[ "${state}" == "closed" || "${state}" == "locked" ]]; then
+        record_action "#${n} [skipped] (issue ${state})"
+        return 0
+    fi
+    cur=$(record_label "${_labels}")
+    # commit trigger only advances issues already labeled 'planned'
+    if [[ "${kind}" == "commit" && "$(label_rank "${cur}")" == "0" ]]; then
+        record_action "#${n} [skipped] (unlabeled; outside managed lifecycle)"
+        return 0
+    fi
+    transition_issue "${n}" "${cur}" "${target}" "${platform}"
+    comment_backlink "${n}" "${ctxkey}" "${body}" "${platform}"
+    if [[ "${kind}" == "pr" ]]; then
+        ensure_closing_keyword "${pr}" "${n}" "${platform}"
+    fi
 }
 
 # ---- sync orchestration ----------------------------------------------------
@@ -370,32 +407,16 @@ sync_core() {
         < <(resolve_candidates "${branch}" "${pr}" "${commit}" "${platform}")
     if [[ "${#candidates[@]}" -eq 0 ]]; then
         offer_create "${branch}" "${pr}" "${commit}" "${platform}"
+        # A reused/created issue enters the normal sync lifecycle immediately (FR-009c).
+        if [[ -n "${NEW_ISSUE}" ]]; then
+            process_issue "${NEW_ISSUE}" "${kind}" "${pr}" "${target}" "${ctxkey}" "${body}" "${platform}"
+        fi
         return 0
     fi
 
-    local n rec state cur
+    local n
     for n in "${candidates[@]}"; do  # array-safe: non-empty (early-returned above)
-        rec=$(issue_record "${n}" "${platform}")
-        if [[ -z "${rec}" ]]; then
-            record_action "#${n} [skipped] (issue not found)"
-            continue
-        fi
-        IFS='|' read -r _num state _labels _title <<<"${rec}"
-        if [[ "${state}" == "closed" || "${state}" == "locked" ]]; then
-            record_action "#${n} [skipped] (issue ${state})"
-            continue
-        fi
-        cur=$(record_label "${_labels}")
-        # commit trigger only advances issues already labeled 'planned'
-        if [[ "${kind}" == "commit" && "$(label_rank "${cur}")" == "0" ]]; then
-            record_action "#${n} [skipped] (unlabeled; outside managed lifecycle)"
-            continue
-        fi
-        transition_issue "${n}" "${cur}" "${target}" "${platform}"
-        comment_backlink "${n}" "${ctxkey}" "${body}" "${platform}"
-        if [[ "${kind}" == "pr" ]]; then
-            ensure_closing_keyword "${pr}" "${n}" "${platform}"
-        fi
+        process_issue "${n}" "${kind}" "${pr}" "${target}" "${ctxkey}" "${body}" "${platform}"
     done
     return 0
 }

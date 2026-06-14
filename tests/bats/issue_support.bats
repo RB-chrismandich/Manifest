@@ -172,11 +172,22 @@ EOF
     [[ "$output" == *"create-issue"*"skipped"* ]]
 }
 
-@test "no linked issue but a matching one exists → reuse, don't duplicate (FR-009a)" {
+@test "no linked issue but a matching one exists → reuse + sync that issue (FR-009a/c)" {
     git checkout -q -b hotfix-adhoc
+    mk_issue 5 open planned
     ISSUE_LIST_OUT="#5  hotfix-adhoc work" run "$SCRIPT" sync-commit HEAD
     [ "$status" -eq 0 ]
-    [[ "$output" == *"existing match reused"* ]]
+    [[ "$output" == *"existing match reused: #5"* ]]
+    # FR-009c: the reused issue immediately enters the sync lifecycle
+    [[ "$output" == *"#5 transition planned→in-progress"* ]]
+}
+
+@test "PR body already containing Closes #N is detected (no duplicate append)" {
+    mk_issue 17 open planned
+    printf '{"body":"Implements the thing. Closes #17"}' > "$FIXTURE_DIR/pr.json"
+    run "$SCRIPT" sync-pr 42
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"closing-keyword Closes #17 [skipped] (already present)"* ]]
 }
 
 # --- FR-017: a failed run is recoverable on re-run --------------------------

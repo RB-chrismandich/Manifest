@@ -75,6 +75,8 @@ teardown() { [[ -n "$TMP" && -d "$TMP" ]] && rm -rf "$TMP"; }
 @test "native install adds a managed block when no hook exists; remove strips it" {
     bash "$INSTALL" --enable --native
     grep -q '>>> issue-support >>>' "$REPO/.git/hooks/post-commit"
+    # shebang must be the first line so Git can exec the hook
+    head -1 "$REPO/.git/hooks/post-commit" | grep -q '^#!'
     bash "$INSTALL" --remove
     [ ! -f "$REPO/.git/hooks/post-commit" ] || ! grep -q 'issue-support' "$REPO/.git/hooks/post-commit"
 }

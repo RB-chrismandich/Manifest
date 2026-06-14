@@ -98,11 +98,12 @@ install_native() {
     fi
     local had_file=0
     [[ -f "${post}" ]] && had_file=1
-    # Keep the shebang INSIDE the managed block when we create the file, so that
-    # remove_native strips the entire managed contribution atomically (bug_007).
+    # Shebang must be the FIRST line so Git can exec the hook. When we create the
+    # file it sits OUTSIDE the managed block; remove_native unlinks a shebang-only
+    # residual afterwards, so the enable→remove→enable round-trip still works (bug_007).
     {
-        echo "${NATIVE_BEGIN}"
         [[ "${had_file}" == "1" ]] || echo '#!/usr/bin/env bash'
+        echo "${NATIVE_BEGIN}"
         echo "\"${SCRIPT_DIR}/issue_support.sh\" sync-commit HEAD || true"
         echo "${NATIVE_END}"
     } >>"${post}"
