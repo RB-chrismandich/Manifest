@@ -79,6 +79,32 @@ teardown() { [[ -n "$TMP" && -d "$TMP" ]] && rm -rf "$TMP"; }
     [ ! -f "$REPO/.git/hooks/post-commit" ] || ! grep -q 'issue-support' "$REPO/.git/hooks/post-commit"
 }
 
+@test "native enable→remove→enable round-trip re-installs cleanly (bug_007)" {
+    bash "$INSTALL" --enable --native
+    bash "$INSTALL" --remove
+    # No orphan residual must remain to trip the clobber-guard
+    [ ! -f "$REPO/.git/hooks/post-commit" ]
+    run bash "$INSTALL" --enable --native
+    [ "$status" -eq 0 ]
+    grep -q 'issue-support' "$REPO/.git/hooks/post-commit"
+}
+
+# --- bug_006: sibling hooks under the same matcher must survive --------------
+
+@test "remove preserves a sibling hook co-located under the same Bash matcher" {
+    HOOK_CANON="$(cd "$(dirname "$INSTALL")" && pwd)/issue_support_hook.sh"
+    cat >"$ISSUE_HOOKS_SETTINGS" <<EOF
+{"hooks":{"PostToolUse":[{"matcher":"Bash","hooks":[
+  {"type":"command","command":"/usr/local/bin/audit-log.sh"},
+  {"type":"command","command":"${HOOK_CANON}"}
+]}]}}
+EOF
+    run bash "$INSTALL" --remove
+    [ "$status" -eq 0 ]
+    grep -q 'audit-log.sh' "$ISSUE_HOOKS_SETTINGS"
+    ! grep -q 'issue_support_hook.sh' "$ISSUE_HOOKS_SETTINGS"
+}
+
 # --- H4: dispatcher fires only on success -----------------------------------
 
 @test "dispatcher invokes engine sync-pr on a successful PR-create command" {
@@ -105,4 +131,35 @@ EOF
     export ISSUE_SUPPORT_ENGINE="$TMP/engine.sh"
     printf '{"tool_input":{"command":"git commit -m x"},"tool_response":{"is_error":true}}' | bash "$DISPATCH"
     [ ! -s "$REC" ]
+}
+
+# --- bug_005: classifier must not fire on unrelated commands ----------------
+
+@test "dispatcher ignores commands that merely contain pr-create/commit substrings" {
+    REC="$TMP/engine_calls.log"; : >"$REC"
+    cat >"$TMP/engine.sh" <<EOF
+#!/usr/bin/env bash
+echo "\$*" >> "$REC"
+EOF
+    chmod +x "$TMP/engine.sh"
+    export ISSUE_SUPPORT_ENGINE="$TMP/engine.sh"
+    for c in "cat tests/fixtures/pr-create.json" "npm run pr-create-helper" \
+             "git config commit.gpgsign true" "git log --grep=commit"; do
+        printf '{"tool_input":{"command":"%s"},"tool_response":{}}' "$c" > "$TMP/p.json"
+        bash "$DISPATCH" < "$TMP/p.json"
+    done
+    [ ! -s "$REC" ]   # none of the false-positive commands invoked the engine
+}
+
+@test "dispatcher still fires on a real git commit invocation" {
+    REC="$TMP/engine_calls.log"; : >"$REC"
+    cat >"$TMP/engine.sh" <<EOF
+#!/usr/bin/env bash
+echo "\$*" >> "$REC"
+EOF
+    chmod +x "$TMP/engine.sh"
+    export ISSUE_SUPPORT_ENGINE="$TMP/engine.sh"
+    printf '{"tool_input":{"command":"git commit -m work"},"tool_response":{}}' > "$TMP/p.json"
+    bash "$DISPATCH" < "$TMP/p.json"
+    grep -q 'sync-commit' "$REC"
 }

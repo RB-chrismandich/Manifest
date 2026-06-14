@@ -70,9 +70,11 @@ except Exception:
     data = {}
 hooks = data.setdefault("hooks", {})
 arr = hooks.setdefault("PostToolUse", [])
-def has(entry):
-    return any(h.get("command") == cmd for h in entry.get("hooks", []))
-arr = [e for e in arr if not has(e)]          # drop any prior managed entry
+# Filter at the HOOK level so sibling hooks co-located under the same matcher
+# entry are preserved; drop an entry only once its hooks list becomes empty.
+for e in arr:
+    e["hooks"] = [h for h in e.get("hooks", []) if h.get("command") != cmd]
+arr = [e for e in arr if e.get("hooks")]
 if action == "add":
     arr.append({"matcher": "Bash",
                 "hooks": [{"type": "command", "command": cmd, "timeout": 30}]})
@@ -96,9 +98,11 @@ install_native() {
     fi
     local had_file=0
     [[ -f "${post}" ]] && had_file=1
+    # Keep the shebang INSIDE the managed block when we create the file, so that
+    # remove_native strips the entire managed contribution atomically (bug_007).
     {
-        [[ "${had_file}" == "1" ]] || echo '#!/usr/bin/env bash'
         echo "${NATIVE_BEGIN}"
+        [[ "${had_file}" == "1" ]] || echo '#!/usr/bin/env bash'
         echo "\"${SCRIPT_DIR}/issue_support.sh\" sync-commit HEAD || true"
         echo "${NATIVE_END}"
     } >>"${post}"
@@ -116,7 +120,13 @@ remove_native() {
     awk -v b="${NATIVE_BEGIN}" -v e="${NATIVE_END}" '
         $0==b{skip=1; next} $0==e{skip=0; next} !skip{print}' "${post}" >"${tmp}"
     mv "${tmp}" "${post}"
-    chmod +x "${post}"
+    # If nothing but a shebang (or nothing) remains, we created this file — unlink
+    # it so a later --enable --native is not blocked by its own residual (bug_007).
+    if [[ ! -s "${post}" ]] || ! grep -qvE '^#!' "${post}"; then
+        rm -f "${post}"
+    else
+        chmod +x "${post}"
+    fi
 }
 
 # --- arg parsing ------------------------------------------------------------

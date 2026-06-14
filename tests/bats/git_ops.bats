@@ -214,6 +214,15 @@ make_clean_bin() {
     assert_output --partial "STUB:glab:issue update 5 --title Updated"
 }
 
+@test "issue-edit --add-label/--remove-label translate to glab --label/--unlabel" {
+    cd "$TEST_REPO" || return 1
+    git remote set-url origin "https://gitlab.com/user/repo.git"
+    create_stub "glab"
+    run bash "$SCRIPT_UNDER_TEST" issue-edit 17 --add-label in-progress --remove-label planned
+    assert_success
+    assert_output --partial "STUB:glab:issue update 17 --label in-progress --unlabel planned"
+}
+
 # --- Unknown subcommand tests ---
 
 @test "fails on unknown subcommand for GitHub" {

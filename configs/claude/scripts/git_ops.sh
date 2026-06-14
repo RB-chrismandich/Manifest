@@ -235,8 +235,28 @@ case "${platform}" in
                 glab issue close "$@"
                 ;;
             issue-edit)
-                # GitLab uses 'update' instead of 'edit'
-                glab issue update "$@"
+                # GitLab uses 'update' instead of 'edit', and --label/--unlabel
+                # instead of gh's --add-label/--remove-label.
+                _translate_issue_edit_flags() {
+                    local issue_num="$1"; shift
+                    local -a issue_args=("${issue_num}")
+                    while [[ $# -gt 0 ]]; do
+                        case "$1" in
+                            --add-label)
+                                issue_args+=(--label "$2"); shift 2 ;;
+                            --add-label=*)
+                                issue_args+=(--label "${1#--add-label=}"); shift ;;
+                            --remove-label)
+                                issue_args+=(--unlabel "$2"); shift 2 ;;
+                            --remove-label=*)
+                                issue_args+=(--unlabel "${1#--remove-label=}"); shift ;;
+                            *)
+                                issue_args+=("$1"); shift ;;
+                        esac
+                    done
+                    glab issue update "${issue_args[@]}"
+                }
+                _translate_issue_edit_flags "$@"
                 ;;
             pr-create)
                 # GitLab uses 'mr' (merge request) instead of 'pr'

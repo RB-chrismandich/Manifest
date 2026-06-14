@@ -39,9 +39,11 @@ if isinstance(resp, dict) and (resp.get("is_error") or resp.get("error")):
     ok = 0
 low = cmd.lower()
 cl = "none"
-if re.search(r"(pr[ -]create|mr[ -]create)", low):
+# Anchor on an actual CLI invocation (gh/glab/git/git_ops.sh) so that unrelated
+# commands containing "pr-create" or "git ... commit" as substrings do not fire.
+if re.search(r"^\s*(sudo\s+)?(\S*/)?(gh|glab|\S*git_ops\.sh)\s+(pr|mr)[ -]create\b", low):
     cl = "pr"
-elif re.search(r"\bgit\b.{0,40}\bcommit\b", low):
+elif re.search(r"^\s*(sudo\s+)?(\S*/)?(\S*git_ops\.sh\s+commit|git\s+commit)\b", low):
     cl = "commit"
 print("%s\t%s" % (cl, ok))
 '
