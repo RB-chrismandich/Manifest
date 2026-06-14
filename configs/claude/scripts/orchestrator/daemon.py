@@ -18,9 +18,9 @@ import sys
 from pathlib import Path
 
 try:                                    # importable as a package and runnable as a script
-    from . import engine, pipeline, gates, consensus
+    from . import engine, pipeline, gates, consensus, redact
 except ImportError:                     # pragma: no cover - direct `python daemon.py`
-    import engine, pipeline, gates, consensus   # type: ignore
+    import engine, pipeline, gates, consensus, redact   # type: ignore
 
 SCRIPTS_DIR = Path(__file__).resolve().parents[1]   # configs/claude/scripts
 GIT_OPS = SCRIPTS_DIR / "git_ops.sh"
@@ -188,7 +188,7 @@ def main(argv: list[str] | None = None) -> int:
         err(f"phase {phase} dispatch not yet implemented (MVP covers phase 1)")
         return 3
 
-    print(json.dumps(envelope, indent=2))
+    print(json.dumps(redact.scrub(envelope), indent=2))   # FR-038: redact before emitting
     return 0 if envelope["status"] == "ok" else 1
 
 

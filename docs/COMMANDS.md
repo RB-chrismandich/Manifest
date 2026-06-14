@@ -132,6 +132,44 @@ across GitHub, GitLab, and Linear.
 
 ---
 
+## Autonomous Issue Orchestrator
+
+A long-running daemon that drives one GitHub/GitLab issue at a time through six
+phases — ingestion & prioritization, clarification synthesis, planning &
+tasking, pre-implementation analysis gate, post-implementation verification
+gate, and code review & PR resolution — to a clean, review-ready Pull Request.
+The decision logic is a stateless engine returning a single machine-parseable
+JSON envelope per phase; the daemon owns execution, Git/API calls, audit, and
+retries. Spec: `specs/004-autonomous-issue-orchestrator/`.
+
+Key behaviors: two gates bracket code generation (fail-closed pre-implementation;
+Tier-1-fail-closed verification, reusing `validation_criteria.yml` tiers); the
+two gates cross-verify by consensus (`parallel_agent.py`, thresholds from
+`command_config.yml`); a `no-automation` label is a human kill-switch
+(re-checked before every phase advance); secrets/PII are redacted before the
+append-only audit; token/credit exhaustion pauses-and-resumes (hourly) without
+escalating or burning a retry.
+
+```bash
+# Run one issue end-to-end (live)
+~/.claude/scripts/orchestrator/daemon.py --repo owner/repo
+
+# Offline single-phase dispatch against a fixture (no side effects)
+~/.claude/scripts/orchestrator/daemon.py --phase 1 --payload backlog.json --dry-run
+
+# Provision the kill-switch label, then halt a specific issue mid-pipeline
+~/.claude/scripts/label_sync.sh
+gh issue edit <n> --add-label no-automation
+
+# Tail the redacted append-only audit trail
+tail -f ~/.claude/state/orchestrator/audit-*.jsonl
+```
+
+Config: `configs/claude/config/orchestrator.yml`. Decision prompts:
+`.skillshare/skills/issue-orchestrator/SKILL.md`.
+
+---
+
 ## What Are Commands
 
 Commands are markdown files that define reusable workflows for Claude Code. They enable:
