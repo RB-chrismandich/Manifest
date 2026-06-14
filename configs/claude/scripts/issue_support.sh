@@ -374,7 +374,7 @@ sync_core() {
     fi
 
     local n rec state cur
-    for n in "${candidates[@]}"; do
+    for n in "${candidates[@]}"; do  # array-safe: non-empty (early-returned above)
         rec=$(issue_record "${n}" "${platform}")
         if [[ -z "${rec}" ]]; then
             record_action "#${n} [skipped] (issue not found)"
@@ -494,7 +494,7 @@ cmd_resolve() {
         done
         printf ']\n'
     else
-        printf '%s\n' "${nums[@]}"
+        printf '%s\n' "${nums[@]}"  # array-safe: non-empty (returned 3 above if empty)
     fi
     return 0
 }

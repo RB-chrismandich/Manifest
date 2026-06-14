@@ -315,7 +315,7 @@ case "${platform}" in
                                 ;;
                         esac
                     done
-                    glab mr update "${mr_args[@]}"
+                    glab mr update "${mr_args[@]}"  # array-safe: seeded with mr_num
                 }
                 _translate_pr_edit_flags "$@"
                 ;;

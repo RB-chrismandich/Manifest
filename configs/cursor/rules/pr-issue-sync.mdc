@@ -1,0 +1,15 @@
+---
+description: "Keep the linked GitHub/GitLab issue in sync when a pull/merge request is opened: back-link comment, advance status label to needs-review, ensure the closing keyword. Runs as a PostToolUse hook; fail-open (never blocks PR creation)."
+globs: ".claude/skills/pr-issue-sync/**"
+alwaysApply: false
+---
+
+# pr-issue-sync
+
+Keep the linked GitHub/GitLab issue in sync when a pull/merge request is opened: back-link comment, advance status label to needs-review, ensure the closing keyword. Runs as a PostToolUse hook; fail-open (never blocks PR creation).
+
+<!-- Auto-generated from .claude/skills/pr-issue-sync/SKILL.md -->
+<!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
+
+Refer to `.cursor/skills/pr-issue-sync/SKILL.md` for the full skill definition.
+
