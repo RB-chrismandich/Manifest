@@ -241,4 +241,3 @@ approaches), review stale plans, or archive/abandon completed work.
 
 - `005-issue-linking-hooks` — plan: [specs/005-issue-linking-hooks/plan.md](specs/005-issue-linking-hooks/plan.md)
 <!-- SPECKIT END -->
-
