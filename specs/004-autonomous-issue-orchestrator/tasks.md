@@ -177,7 +177,7 @@ description: "Task list for Autonomous Issue Implementation Orchestrator"
 - [X] T049 [P] Security hardening: verify `chmod 700` state dir, no secret leakage to stdout/audit, no engine side-effects
 - [X] T050 [P] Lint pass: `yamllint configs/claude/config/orchestrator.yml`, `shellcheck` any new shell, JSON-schema parse check in CI
 - [X] T051 [P] Deploy the skill via `sync-skills` and verify `/issue-orchestrator` resolves
-- [~] T052 Run the `quickstart.md` acceptance walkthrough — **offline validation passed** (76 pytest + 3 bats, contracts parse, daemon dry-run dispatch, SC-001/002/016 confirmed). Full live-LLM end-to-end (real issue → LLM phases → PR; SC-007/012/017) deferred: needs the live engine backend (R1) + `./bootstrap.sh` package home-deploy
+- [~] T052 Run the `quickstart.md` acceptance walkthrough — **offline validation passed** (92 pytest + 3 bats, contracts parse, daemon dry-run dispatch, end-to-end audit write, SC-001/002/016 confirmed). The R1 engine backend + run-loop are now wired (`backend.py` `CliBackend`/`extract_envelope` + `daemon.run_phase` invoke→validate→retry→escalate→persist, unit-tested via a fake backend). Remaining for a true autonomous run: an actual live LLM invocation (the `CliBackend` subprocess boundary) and `./bootstrap.sh` package home-deploy — both require the live environment
 
 ---
 

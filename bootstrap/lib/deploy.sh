@@ -148,9 +148,11 @@ deploy_configs() {
     # Must run before link_shared_assets (create_symlink skips missing targets).
     deploy_home_skills "$SCRIPT_DIR/.skillshare/skills" "$TARGET_DIR/skills"
 
-    # Make scripts executable (.py entry points too — repo perms may lack +x)
+    # Make scripts executable (.py entry points too — repo perms may lack +x).
+    # Includes subpackage entry points (e.g. orchestrator/daemon.py).
     if [[ -d "$TARGET_DIR/scripts" ]]; then
         chmod +x "$TARGET_DIR/scripts"/*.sh "$TARGET_DIR/scripts"/*.py 2> /dev/null || true
+        chmod +x "$TARGET_DIR/scripts"/*/*.py 2> /dev/null || true
         print_success "Made scripts executable"
     fi
 

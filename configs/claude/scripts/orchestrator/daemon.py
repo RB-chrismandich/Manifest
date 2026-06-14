@@ -18,9 +18,9 @@ import sys
 from pathlib import Path
 
 try:                                    # importable as a package and runnable as a script
-    from . import engine, pipeline, gates, consensus, redact, audit
+    from . import engine, pipeline, gates, consensus, redact, audit, backend
 except ImportError:                     # pragma: no cover - direct `python daemon.py`
-    import engine, pipeline, gates, consensus, redact, audit   # type: ignore
+    import engine, pipeline, gates, consensus, redact, audit, backend   # type: ignore
 
 SCRIPTS_DIR = Path(__file__).resolve().parents[1]   # configs/claude/scripts
 GIT_OPS = SCRIPTS_DIR / "git_ops.sh"
@@ -175,6 +175,49 @@ def dispatch_phase6(modifications: list[dict], pr_reply: str, ci_root_cause: str
     trace = [f"phase6: {len(modifications)} modification(s); "
              f"root_cause={'identified' if ci_root_cause else 'none'}."]
     return engine.ok_envelope(6, payload, trace)
+
+
+def _persist(audit_log, env: dict) -> None:
+    """Fail-open audit persistence (FR-029)."""
+    if audit_log is not None:
+        try:
+            audit_log.record_response(env)
+        except Exception as exc:                # pragma: no cover - defensive
+            err(f"audit persist failed (continuing): {exc}")
+
+
+def run_phase(backend_impl, phase: int, inputs: dict, state, *,
+              critical_failure: bool = False, resource_available: bool = True,
+              consensus_votes=None, audit_log=None) -> dict:
+    """Drive ONE phase through the injectable engine Backend (R1).
+
+    Control-flag checks (FR-025/FR-035) → invoke engine → validate envelope
+    (FR-001) → retry under the 2-attempt cap, escalating on the 2nd malformed
+    response (FR-027) → persist every response to the audit (FR-029). The Backend
+    is `backend.CliBackend` in production and a deterministic fake in tests.
+    """
+    ctrl = handle_control_flags(phase, state, critical_failure=critical_failure,
+                                resource_available=resource_available)
+    if ctrl is not None:                        # critical → escalate; exhausted → pause
+        _persist(audit_log, ctrl)
+        return ctrl
+
+    while True:
+        attempt = state.record_attempt(phase)
+        payload = engine.build_context_payload(
+            phase, inputs, attempt=attempt, consensus=consensus_votes,
+            critical_failure=critical_failure, resource_available=resource_available)
+        env = backend_impl.invoke(payload)
+        if not engine.validate_envelope(env):   # well-formed envelope → done
+            _persist(audit_log, env)
+            return env
+        if state.should_escalate(phase):        # cap reached (FR-027)
+            esc = engine.escalation_envelope(
+                phase, f"engine returned an invalid envelope after {attempt} attempt(s)",
+                bs_type="invalid_envelope")
+            _persist(audit_log, esc)
+            return esc
+        # otherwise loop and retry (record_attempt increments toward the cap)
 
 
 def build_parser() -> argparse.ArgumentParser:
