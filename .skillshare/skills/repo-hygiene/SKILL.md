@@ -1,15 +1,21 @@
 ---
 name: repo-hygiene
-description: >-
-  Run a full repository hygiene sweep over open PRs/MRs and git branches in one
-  pass. Produces a sectioned report (ready-to-merge, needs-work,
-  stale/closeable, keep) with a recommended next step per item, then — after you
-  confirm — closes stale PRs and prunes stale branches. Composes the pr-review
-  and branch-clean skills and works across GitHub, GitLab, and local. Use this
-  whenever the user wants to "review open PRs", "clean up branches", "close
-  stale PRs/branches", "PR/branch hygiene", "tidy up the repo", "what's the
-  state of my PRs", or asks for any overview-plus-cleanup of the PR queue or
-  branch list — even if they don't say the word "hygiene".
+description: |
+  Use when one request covers BOTH pull/merge requests AND git branches — or
+  asks to actually close/delete the dead ones, not just list them. This is the
+  combined cleanup pass: it reviews every open PR/MR and every stale/merged/gone
+  branch together, sorts them, and after you confirm, closes the stale PRs and
+  prunes the branches in a single sweep across GitHub, GitLab, and local.
+
+  Reach for this on any "tidy up my repo" intent that spans the merge queue and
+  the branch list at once — e.g. cluttered after a batch of merges, a pile of old
+  MRs plus dozens of stale branches, "which PRs to merge vs close then prune the
+  branches behind them", "go through my PRs and close the dead ones and clean up
+  merged/gone branches locally and on github".
+
+  Pick this over pr-review (PRs only, no closing) or branch-clean (branches
+  only) whenever the ask touches both, or wants items closed/deleted rather than
+  only reported.
 ---
 
 # Repository Hygiene Sweep
