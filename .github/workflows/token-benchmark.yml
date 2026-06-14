@@ -82,8 +82,8 @@ jobs:
               exit 1
               ;;
           esac
-          # Validate conditions: only alphanumeric, commas, hyphens
-          if ! echo "$INPUT_CONDITIONS" | grep -qE '^[a-zA-Z0-9,-]+$'; then
+          # Validate conditions: comma-separated tokens, no empty entries
+          if ! echo "$INPUT_CONDITIONS" | grep -qE '^[a-zA-Z0-9-]+(,[a-zA-Z0-9-]+)*$'; then
             echo "Invalid conditions value: $INPUT_CONDITIONS"
             exit 1
           fi

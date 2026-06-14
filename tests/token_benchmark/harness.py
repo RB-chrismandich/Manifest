@@ -62,7 +62,7 @@ def compute_cost(record: dict, model: str) -> Optional[float]:
     regular_input = input_tok - cache_read
     return (
         regular_input * pricing["input"]
-        + cache_read * pricing["cache_read"]
+        + cache_read * pricing.get("cache_read", 0)
         + output_tok * pricing["output"]
     )
 
@@ -274,105 +274,104 @@ async def run_benchmark(
 
     records = []
 
-    with isolated_environments(fdir) as (empty_home, manifest_home):
-        for provider in providers:
-            for prompt in BENCHMARKS:
-                for condition in active_conditions:
-                    if not cli_only and provider in ("claude", "gemini"):
-                        if condition == "cached" and provider != "claude":
-                            continue
-                        if condition == "compressed" and not compressed_prompts.get(provider):
-                            continue
+    for provider in providers:
+        for prompt in BENCHMARKS:
+            for condition in active_conditions:
+                if not cli_only and provider in ("claude", "gemini"):
+                    if condition == "cached" and provider != "claude":
+                        continue
+                    if condition == "compressed" and not compressed_prompts.get(provider):
+                        continue
 
-                        manifest = (
-                            compressed_prompts[provider]
-                            if condition == "compressed"
-                            else manifest_prompts[provider]
-                        )
-                        system_prompt = _system_prompt_for_condition(
-                            condition, prompt.category, manifest
-                        )
-                        use_cache = (condition == "cached")
+                    manifest = (
+                        compressed_prompts[provider]
+                        if condition == "compressed"
+                        else manifest_prompts[provider]
+                    )
+                    system_prompt = _system_prompt_for_condition(
+                        condition, prompt.category, manifest
+                    )
+                    use_cache = (condition == "cached")
 
-                        if provider == "claude":
+                    if provider == "claude":
+                        api_result = await measure_api_claude(
+                            prompt.text, system_prompt, claude_model, use_cache=use_cache
+                        )
+                        if use_cache and not api_result.get("error"):
                             api_result = await measure_api_claude(
-                                prompt.text, system_prompt, claude_model, use_cache=use_cache
+                                prompt.text, system_prompt, claude_model, use_cache=True
                             )
-                            if use_cache and not api_result.get("error"):
-                                api_result = await measure_api_claude(
-                                    prompt.text, system_prompt, claude_model, use_cache=True
-                                )
-                            model_used = claude_model
-                        else:
-                            api_result = await measure_api_gemini(
-                                prompt.text, system_prompt, gemini_model
-                            )
-                            model_used = gemini_model
+                        model_used = claude_model
+                    else:
+                        api_result = await measure_api_gemini(
+                            prompt.text, system_prompt, gemini_model
+                        )
+                        model_used = gemini_model
 
-                        quality = (
-                            score(api_result.get("response_text") or "", prompt)
-                            if not api_result.get("error") else None
-                        )
-                        cost = compute_cost(api_result, model_used)
-                        record = {
-                            "run_id": run_id,
-                            "provider": provider,
-                            "model": model_used,
-                            "condition": condition,
-                            "category": prompt.category,
-                            "prompt_id": prompt.prompt_id,
-                            "input_tokens": api_result.get("input_tokens"),
-                            "output_tokens": api_result.get("output_tokens"),
-                            "cache_creation_tokens": api_result.get("cache_creation_tokens"),
-                            "cache_read_tokens": api_result.get("cache_read_tokens"),
-                            "quality_score": quality,
-                            "response_text": (api_result.get("response_text") or "")[:200],
-                            "latency_ms": api_result.get("latency_ms"),
-                            "source": "api",
-                            "error": api_result.get("error"),
-                            "cost_usd": cost,
-                        }
-                        write_result(record, run_id, results_dir)
-                        records.append(record)
-                        cost_str = f" cost=${cost:.6f}" if cost is not None else ""
-                        print(f"  [{provider}][api][{condition}][{prompt.prompt_id}] "
-                              f"in={record['input_tokens']} out={record['output_tokens']}"
-                              f"{cost_str}", flush=True)
+                    quality = (
+                        score(api_result.get("response_text") or "", prompt)
+                        if not api_result.get("error") else None
+                    )
+                    cost = compute_cost(api_result, model_used)
+                    record = {
+                        "run_id": run_id,
+                        "provider": provider,
+                        "model": model_used,
+                        "condition": condition,
+                        "category": prompt.category,
+                        "prompt_id": prompt.prompt_id,
+                        "input_tokens": api_result.get("input_tokens"),
+                        "output_tokens": api_result.get("output_tokens"),
+                        "cache_creation_tokens": api_result.get("cache_creation_tokens"),
+                        "cache_read_tokens": api_result.get("cache_read_tokens"),
+                        "quality_score": quality,
+                        "response_text": (api_result.get("response_text") or "")[:200],
+                        "latency_ms": api_result.get("latency_ms"),
+                        "source": "api",
+                        "error": api_result.get("error"),
+                        "cost_usd": cost,
+                    }
+                    write_result(record, run_id, results_dir)
+                    records.append(record)
+                    cost_str = f" cost=${cost:.6f}" if cost is not None else ""
+                    print(f"  [{provider}][api][{condition}][{prompt.prompt_id}] "
+                          f"in={record['input_tokens']} out={record['output_tokens']}"
+                          f"{cost_str}", flush=True)
 
-                    if not api_only and provider in PROVIDER_CLI_CONFIG:
-                        if condition not in ("before", "after"):
-                            continue
-                        cli_config = PROVIDER_CLI_CONFIG[provider]
-                        cli_sp = (
-                            CLI_BASELINE_SYSTEM_PROMPT
-                            if condition == "before"
-                            else manifest_prompts[provider]
-                        )
-                        cli_result = measure_cli(prompt.text, cli_config, system_prompt=cli_sp)
-                        quality = (
-                            score(cli_result.get("response_text") or "", prompt)
-                            if not cli_result.get("error") else None
-                        )
-                        record = {
-                            "run_id": run_id,
-                            "provider": provider,
-                            "model": None,
-                            "condition": condition,
-                            "category": prompt.category,
-                            "prompt_id": prompt.prompt_id,
-                            "input_tokens": None,
-                            "output_tokens": None,
-                            "cache_creation_tokens": None,
-                            "cache_read_tokens": None,
-                            "quality_score": quality,
-                            "response_text": (cli_result.get("response_text") or "")[:200],
-                            "latency_ms": cli_result.get("latency_ms"),
-                            "source": "cli",
-                            "error": cli_result.get("error"),
-                            "cost_usd": None,
-                        }
-                        write_result(record, run_id, results_dir)
-                        records.append(record)
+                if not api_only and provider in PROVIDER_CLI_CONFIG:
+                    if condition not in ("before", "after"):
+                        continue
+                    cli_config = PROVIDER_CLI_CONFIG[provider]
+                    cli_sp = (
+                        CLI_BASELINE_SYSTEM_PROMPT
+                        if condition == "before"
+                        else manifest_prompts[provider]
+                    )
+                    cli_result = measure_cli(prompt.text, cli_config, system_prompt=cli_sp)
+                    quality = (
+                        score(cli_result.get("response_text") or "", prompt)
+                        if not cli_result.get("error") else None
+                    )
+                    record = {
+                        "run_id": run_id,
+                        "provider": provider,
+                        "model": None,
+                        "condition": condition,
+                        "category": prompt.category,
+                        "prompt_id": prompt.prompt_id,
+                        "input_tokens": None,
+                        "output_tokens": None,
+                        "cache_creation_tokens": None,
+                        "cache_read_tokens": None,
+                        "quality_score": quality,
+                        "response_text": (cli_result.get("response_text") or "")[:200],
+                        "latency_ms": cli_result.get("latency_ms"),
+                        "source": "cli",
+                        "error": cli_result.get("error"),
+                        "cost_usd": None,
+                    }
+                    write_result(record, run_id, results_dir)
+                    records.append(record)
 
     return records
 
@@ -448,7 +447,11 @@ if __name__ == "__main__":
         providers = [p.strip() for p in args.providers.split(",")]
         mode = "cli-only" if args.cli_only else ("api-only" if args.api_only else "api+cli")
         print(f"Running benchmark: providers={providers}, mode={mode}, run_id={run_id}")
-        conditions = [c.strip() for c in args.conditions.split(",")]
+        _valid = {"before", "after", "cached", "tiered", "compressed"}
+        conditions = [c.strip() for c in args.conditions.split(",") if c.strip()]
+        _bad = [c for c in conditions if c not in _valid]
+        if _bad:
+            parser.error(f"Unknown conditions: {', '.join(_bad)}. Valid: {', '.join(sorted(_valid))}")
         records = asyncio.run(run_benchmark(
             providers=providers,
             api_only=args.api_only,

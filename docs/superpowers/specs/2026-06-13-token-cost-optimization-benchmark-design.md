@@ -78,7 +78,7 @@ PRICING = {
 - Rationale: benchmark shows manifest adds 0 quality gain to MMLU/HellaSwag/TruthfulQA; these are already at ceiling
 
 **`compressed`**
-- Uses `tests/token_benchmark/fixtures/manifest-compressed/.claude/CLAUDE.md` — a pre-committed 50%-trimmed version of the manifest CLAUDE.md
+- Uses `tests/token_benchmark/fixtures/fixtures-compressed/.claude/CLAUDE.md` — a pre-committed 50%-trimmed version of the manifest CLAUDE.md
 - `--sync-fixtures --compression 50` generates this file (first 50% of lines)
 - One compression level for now; additional levels can be added as separate fixtures
 
@@ -103,9 +103,9 @@ Default: `before,after` (existing behaviour unchanged).
 |------------|--------------|---------------|---------|----------|
 | before     | 65           | $0.000195     | 0.875   | —        |
 | after      | 1,783        | $0.000534     | 0.900   | baseline |
-| cached     | 1,783        | $0.000071     | 0.900   | -87%     |
-| tiered     | 580          | $0.000174     | 0.900   | -67%     |
-| compressed | 923          | $0.000277     | 0.892   | -48%     |
+| cached     | 1,783        | $0.000071     | 0.900   | +87%     |
+| tiered     | 580          | $0.000174     | 0.900   | +67%     |
+| compressed | 923          | $0.000277     | 0.892   | +48%     |
 ```
 
 Section is omitted entirely when no records have `cost_usd` — old JSONL files render the existing quality-only report without modification.
@@ -118,7 +118,7 @@ Section is omitted entirely when no records have `cost_usd` — old JSONL files 
 |------|--------|
 | `tests/token_benchmark/harness.py` | `PRICING`, `compute_cost()`, `cache_control` in `measure_api_claude`, tiered condition logic, `--conditions` flag |
 | `tests/token_benchmark/reporter.py` | `cost_summary` in `compute_stats()`, Cost Analysis section in `render_report()` |
-| `tests/token_benchmark/fixtures/manifest-compressed/.claude/CLAUDE.md` | New pre-committed compressed fixture (50% of lines) |
+| `tests/token_benchmark/fixtures/fixtures-compressed/.claude/CLAUDE.md` | New pre-committed compressed fixture (50% of lines) |
 | `tests/python/token_benchmark/test_harness.py` | 5 new tests |
 | `tests/python/token_benchmark/test_reporter.py` | 3 new tests |
 

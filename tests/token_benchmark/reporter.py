@@ -83,7 +83,7 @@ def compute_stats(records: list[dict]) -> dict:
             if cond == "after":
                 after_cost = avg_cost
 
-        if after_cost:
+        if after_cost is not None and after_cost > 0:
             for cond, data in cost_summary.items():
                 if cond != "after":
                     savings = (after_cost - data["avg_cost_usd"]) / after_cost
