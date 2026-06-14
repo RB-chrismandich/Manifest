@@ -18,6 +18,7 @@
 #   issue-edit N          Edit issue/MR N
 #   pr-create             Create pull/merge request
 #   pr-view N             View PR/MR N
+#   pr-edit N             Edit PR/MR N (e.g. --body for description)
 #   pr-list               List PRs/MRs
 #   pr-review N           Review/approve PR/MR N
 #   pr-merge N            Merge PR/MR N
@@ -60,6 +61,7 @@ Subcommands:
   issue-edit N       Edit issue/MR N
   pr-create          Create pull/merge request
   pr-view N          View PR/MR N
+  pr-edit N          Edit PR/MR N (e.g. --body for description)
   pr-list            List PRs/MRs
   pr-review N        Review PR/MR N (pass --approve/--comment/--request-changes)
   pr-approve N       Approve PR/MR N (shortcut for pr-review --approve)
@@ -143,6 +145,9 @@ case "${platform}" in
                 ;;
             pr-view)
                 gh pr view "$@"
+                ;;
+            pr-edit)
+                gh pr edit "$@"
                 ;;
             pr-list)
                 gh pr list "$@"
@@ -268,6 +273,31 @@ case "${platform}" in
                 ;;
             pr-view)
                 glab mr view "$@"
+                ;;
+            pr-edit)
+                # GitLab uses 'mr update' with --description for body edits.
+                _translate_pr_edit_flags() {
+                    local mr_num="$1"; shift
+                    local -a mr_args=("${mr_num}")
+                    while [[ $# -gt 0 ]]; do
+                        case "$1" in
+                            --body)
+                                mr_args+=(--description "$2")
+                                shift 2
+                                ;;
+                            --body=*)
+                                mr_args+=(--description "${1#--body=}")
+                                shift
+                                ;;
+                            *)
+                                mr_args+=("$1")
+                                shift
+                                ;;
+                        esac
+                    done
+                    glab mr update "${mr_args[@]}"
+                }
+                _translate_pr_edit_flags "$@"
                 ;;
             pr-list)
                 glab mr list "$@"

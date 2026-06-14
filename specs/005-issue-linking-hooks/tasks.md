@@ -28,9 +28,9 @@ Shell-and-config layout (repo default). Engine + installer in `configs/claude/sc
 
 **Purpose**: Scaffolding and offline test fixtures
 
-- [ ] T001 Create directory scaffolding: `.skillshare/skills/pr-issue-sync/`, `.skillshare/skills/commit-issue-sync/`, `configs/claude/scripts/templates/`, `tests/fixtures/issue_support/`
-- [ ] T002 [P] Add offline mock fixtures (sample `pr-view`, `issue-view`, `issue-list` JSON payloads for github & gitlab) in `tests/fixtures/issue_support/`
-- [ ] T003 [P] Create `tests/bats/issue_support.bats` skeleton with `setup()`/`teardown()` that stubs `git_ops.sh`/`git_platform.sh` on `PATH` so tests run with no live tracker
+- [X] T001 Create directory scaffolding: `.skillshare/skills/pr-issue-sync/`, `.skillshare/skills/commit-issue-sync/`, `configs/claude/scripts/templates/`, `tests/fixtures/issue_support/`
+- [X] T002 [P] Add offline mock fixtures (sample `pr-view`, `issue-view`, `issue-list` JSON payloads for github & gitlab) in `tests/fixtures/issue_support/`
+- [X] T003 [P] Create `tests/bats/issue_support.bats` skeleton with `setup()`/`teardown()` that stubs `git_ops.sh`/`git_platform.sh` on `PATH` so tests run with no live tracker
 
 ---
 
@@ -40,15 +40,15 @@ Shell-and-config layout (repo default). Engine + installer in `configs/claude/sc
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T004 Create `configs/claude/scripts/issue_support.sh` skeleton: `set -euo pipefail`, `err()` helper, `--help` (≤15 lines, exit 0), subcommand dispatch for `sync-pr`/`sync-commit`/`resolve`
-- [ ] T005 Add `tool_policies.pr-issue-sync` (`enabled: false`, `hook_timeout_seconds: 5`) and `tool_policies.commit-issue-sync` (`enabled: false`, `hook_timeout_seconds: 5`, `commit_hook_mode: sync`) to `configs/claude/config/command_config.yml`
-- [ ] T006 Implement config loader in `configs/claude/scripts/issue_support.sh` (python3 YAML read, `label_sync.sh` precedent); `enabled: false` → clean no-op exit 0 (FR-015 runtime gate)
-- [ ] T007 Integrate platform detection via `git_platform.sh` in `issue_support.sh`; non-github/gitlab (plain `git`/none) → informational no-op exit (Edge: no platform)
-- [ ] T008 Implement `resolve` subcommand in `issue_support.sh`: precedence branch-prefix → pr-body → commit-message references **and** trailers (inline `#N`/`Fixes #N` plus `Issue:`/`Refs:` trailers, per R3/FR-004), validate each candidate via `git_ops.sh issue-view` (`exists` gate), emit `IssueRef[]` JSON; report ambiguous/conflicting candidates without auto-picking (FR-012)
-- [ ] T009 Implement fail-open timeout wrapper in `issue_support.sh` (R6/FR-008): bound tracker work by `hook_timeout_seconds` via `timeout`/`gtimeout` (or `bootstrap/lib/platform.sh` helper); any failure/timeout → single `err()` warning + exit 0 (guarantee C1). Distinguish two edge cases in the warning text: (a) **insufficient token scope** → report the specific missing capability (e.g. "token lacks issue-write scope") rather than a generic error (spec Edge L80); (b) **rate limiting** → detect throttle responses and back off (bounded retry within `hook_timeout_seconds`) before degrading to a warning (spec Edge L86)
-- [ ] T010 Implement forward-only transition primitive in `issue_support.sh` (data-model state machine / FR-006a): ordered set `planned<in-progress<needs-review<done`, no-op if issue already ≥ target (C5), skip closed/locked with warning (FR-013/C4)
-- [ ] T011 Implement idempotent back-link comment primitive in `issue_support.sh`: embed marker `<!-- issue-support:sync v1 ... -->`, skip/refresh if marker already present (R2/FR-007/C2) via `git_ops.sh issue-comment`/`issue-comment-edit-last`
-- [ ] T012 Implement run-summary emitter in `issue_support.sh`: one stdout line per `SyncAction` (`type target [result] (reason)`) plus `--json` form (FR-014); wire `--dry-run` prefix
+- [X] T004 Create `configs/claude/scripts/issue_support.sh` skeleton: `set -euo pipefail`, `err()` helper, `--help` (≤15 lines, exit 0), subcommand dispatch for `sync-pr`/`sync-commit`/`resolve`
+- [X] T005 Add `tool_policies.pr-issue-sync` (`enabled: false`, `hook_timeout_seconds: 5`) and `tool_policies.commit-issue-sync` (`enabled: false`, `hook_timeout_seconds: 5`, `commit_hook_mode: sync`) to `configs/claude/config/command_config.yml`
+- [X] T006 Implement config loader in `configs/claude/scripts/issue_support.sh` (python3 YAML read, `label_sync.sh` precedent); `enabled: false` → clean no-op exit 0 (FR-015 runtime gate)
+- [X] T007 Integrate platform detection via `git_platform.sh` in `issue_support.sh`; non-github/gitlab (plain `git`/none) → informational no-op exit (Edge: no platform)
+- [X] T008 Implement `resolve` subcommand in `issue_support.sh`: precedence branch-prefix → pr-body → commit-message references **and** trailers (inline `#N`/`Fixes #N` plus `Issue:`/`Refs:` trailers, per R3/FR-004), validate each candidate via `git_ops.sh issue-view` (`exists` gate), emit `IssueRef[]` JSON; report ambiguous/conflicting candidates without auto-picking (FR-012)
+- [X] T009 Implement fail-open timeout wrapper in `issue_support.sh` (R6/FR-008): bound tracker work by `hook_timeout_seconds` via `timeout`/`gtimeout` (or `bootstrap/lib/platform.sh` helper); any failure/timeout → single `err()` warning + exit 0 (guarantee C1). Distinguish two edge cases in the warning text: (a) **insufficient token scope** → report the specific missing capability (e.g. "token lacks issue-write scope") rather than a generic error (spec Edge L80); (b) **rate limiting** → detect throttle responses and back off (bounded retry within `hook_timeout_seconds`) before degrading to a warning (spec Edge L86)
+- [X] T010 Implement forward-only transition primitive in `issue_support.sh` (data-model state machine / FR-006a): ordered set `planned<in-progress<needs-review<done`, no-op if issue already ≥ target (C5), skip closed/locked with warning (FR-013/C4)
+- [X] T011 Implement idempotent back-link comment primitive in `issue_support.sh`: embed marker `<!-- issue-support:sync v1 ... -->`, skip/refresh if marker already present (R2/FR-007/C2) via `git_ops.sh issue-comment`/`issue-comment-edit-last`
+- [X] T012 Implement run-summary emitter in `issue_support.sh`: one stdout line per `SyncAction` (`type target [result] (reason)`) plus `--json` form (FR-014); wire `--dry-run` prefix
 
 **Checkpoint**: Engine primitives ready — user stories can now be implemented in parallel
 
@@ -66,8 +66,8 @@ Shell-and-config layout (repo default). Engine + installer in `configs/claude/sc
 
 ### Implementation for User Story 1
 
-- [ ] T014 [US1] Add minimal `pr-edit <N>` subcommand to `configs/claude/scripts/git_ops.sh` (wraps `gh pr edit --body` / `glab mr update --description`), update its `--help`; non-destructive body append. Because `pr-edit` is a permanent public `git_ops.sh` primitive, add direct bats cases in `tests/bats/git_ops.bats` (append on github, append on gitlab, idempotent when keyword already present, graceful failure when the PR is not editable) — not only transitive coverage via `sync-pr`
-- [ ] T015 [US1] Implement `sync-pr <PR_NUMBER> [--dry-run] [--no-create]` in `configs/claude/scripts/issue_support.sh`: resolve → for each open issue transition → `needs-review` (T010), back-link comment (T011), ensure `Closes #N` via `git_ops.sh pr-edit` appending when missing (FR-005); all wrapped fail-open (T009)
+- [X] T014 [US1] Add minimal `pr-edit <N>` subcommand to `configs/claude/scripts/git_ops.sh` (wraps `gh pr edit --body` / `glab mr update --description`), update its `--help`; non-destructive body append. Because `pr-edit` is a permanent public `git_ops.sh` primitive, add direct bats cases in `tests/bats/git_ops.bats` (append on github, append on gitlab, idempotent when keyword already present, graceful failure when the PR is not editable) — not only transitive coverage via `sync-pr`
+- [X] T015 [US1] Implement `sync-pr <PR_NUMBER> [--dry-run] [--no-create]` in `configs/claude/scripts/issue_support.sh`: resolve → for each open issue transition → `needs-review` (T010), back-link comment (T011), ensure `Closes #N` via `git_ops.sh pr-edit` appending when missing (FR-005); all wrapped fail-open (T009)
 - [ ] T016 [US1] Create `.skillshare/skills/pr-issue-sync/SKILL.md` with `name`/`description` frontmatter; document `sync-pr` invocation, the PostToolUse trigger, fail-open behavior, and `--no-create`
 - [ ] T017 [US1] Create `configs/claude/scripts/install_issue_hooks.sh` with `--help`, `--enable`/`--remove`, and the unified PR PostToolUse matcher (`pr-create`|`gh pr create`|`glab mr create` → `sync-pr <N>`) via `ai-hooks-integration`; idempotent re-install (H1), opt-in no-op when not enabled (H3), fires only on the underlying command's success (H4)
 - [ ] T018 [US1] Register `pr-issue-sync` per `.claude/CLAUDE.md` "Adding New Skills": add `parallel_agents`/`validation_tier` under `tool_policies.pr-issue-sync` in `command_config.yml`; verify `configs/claude/skills` symlink is intact (not replaced)
@@ -88,7 +88,7 @@ Shell-and-config layout (repo default). Engine + installer in `configs/claude/sc
 
 ### Implementation for User Story 2
 
-- [ ] T020 [US2] Implement `sync-commit <SHA|HEAD> [--dry-run] [--no-create]` in `configs/claude/scripts/issue_support.sh`: resolve → transition `planned` → `in-progress` (only issues already carrying the `planned` label; unlabeled issues are outside the managed lifecycle and left untouched, per FR-006) → dedup back-link comment; read `commit_hook_mode` and on `background` fall back to `sync` + `err()` warning (v1; reserved value per FR-016)
+- [X] T020 [US2] Implement `sync-commit <SHA|HEAD> [--dry-run] [--no-create]` in `configs/claude/scripts/issue_support.sh`: resolve → transition `planned` → `in-progress` (only issues already carrying the `planned` label; unlabeled issues are outside the managed lifecycle and left untouched, per FR-006) → dedup back-link comment; read `commit_hook_mode` and on `background` fall back to `sync` + `err()` warning (v1; reserved value per FR-016)
 - [ ] T021 [US2] Create `.skillshare/skills/commit-issue-sync/SKILL.md` with `name`/`description` frontmatter; document `sync-commit`, the commit trigger, dedup/idempotency, and fail-open
 - [ ] T022 [US2] Extend `configs/claude/scripts/install_issue_hooks.sh`: unified commit PostToolUse matcher (`git commit` → `sync-commit HEAD`) plus `--native` guarded `post-commit` installer (refuses to clobber a foreign hook H2, writes a delimited managed block) and `--remove` cleanup of both surfaces (H5)
 - [ ] T023 [US2] Register `commit-issue-sync` per "Adding New Skills": add `parallel_agents`/`validation_tier` under `tool_policies.commit-issue-sync` in `command_config.yml`
@@ -109,9 +109,9 @@ Shell-and-config layout (repo default). Engine + installer in `configs/claude/sc
 
 ### Implementation for User Story 3
 
-- [ ] T025 [P] [US3] Create engine-owned template `configs/claude/scripts/templates/issue_support_issue.md`: context summary, acceptance-criteria stub, bidirectional links to branch/PR/commit
-- [ ] T026 [US3] Implement create-issue flow in `configs/claude/scripts/issue_support.sh`: dedup search via `git_ops.sh issue-list` (title/branch match) → interactive confirm (non-interactive → no-create + warn) → render template (T025) → `git_ops.sh issue-create` with `planned` label → link back → re-run the normal sync so the new issue enters the lifecycle (FR-009/009a/009b/009c)
-- [ ] T027 [US3] Wire `--no-create` flag + interactive-context detection into `sync-pr`/`sync-commit` in `issue_support.sh`; document the create-on-confirm behavior in both `SKILL.md` files
+- [X] T025 [P] [US3] Create engine-owned template `configs/claude/scripts/templates/issue_support_issue.md`: context summary, acceptance-criteria stub, bidirectional links to branch/PR/commit
+- [X] T026 [US3] Implement create-issue flow in `configs/claude/scripts/issue_support.sh`: dedup search via `git_ops.sh issue-list` (title/branch match) → interactive confirm (non-interactive → no-create + warn) → render template (T025) → `git_ops.sh issue-create` with `planned` label → link back → re-run the normal sync so the new issue enters the lifecycle (FR-009/009a/009b/009c)
+- [X] T027 [US3] Wire `--no-create` flag + interactive-context detection into `sync-pr`/`sync-commit` in `issue_support.sh`; document the create-on-confirm behavior in both `SKILL.md` files
 
 **Checkpoint**: All three user stories independently functional
 

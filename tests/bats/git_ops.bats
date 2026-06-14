@@ -143,6 +143,14 @@ make_clean_bin() {
     assert_output --partial "STUB:gh:pr list"
 }
 
+@test "routes pr-edit to gh pr edit (append body on GitHub)" {
+    cd "$TEST_REPO" || return 1
+    create_stub "gh"
+    run bash "$SCRIPT_UNDER_TEST" pr-edit 99 --body "Closes #17"
+    assert_success
+    assert_output --partial "STUB:gh:pr edit 99 --body Closes #17"
+}
+
 @test "routes label-create to gh label create" {
     cd "$TEST_REPO" || return 1
     create_stub "gh"
@@ -177,6 +185,15 @@ make_clean_bin() {
     run bash "$SCRIPT_UNDER_TEST" pr-create --title "Fix"
     assert_success
     assert_output --partial "STUB:glab:mr create --title Fix"
+}
+
+@test "routes pr-edit to glab mr update (--body → --description) on GitLab" {
+    cd "$TEST_REPO" || return 1
+    git remote set-url origin "https://gitlab.com/user/repo.git"
+    create_stub "glab"
+    run bash "$SCRIPT_UNDER_TEST" pr-edit 99 --body "Closes #17"
+    assert_success
+    assert_output --partial "STUB:glab:mr update 99 --description Closes #17"
 }
 
 @test "routes issue-comment to glab issue note on GitLab" {
