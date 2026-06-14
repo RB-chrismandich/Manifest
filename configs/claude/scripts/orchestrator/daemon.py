@@ -18,12 +18,13 @@ import sys
 from pathlib import Path
 
 try:                                    # importable as a package and runnable as a script
-    from . import engine, pipeline, gates, consensus, redact
+    from . import engine, pipeline, gates, consensus, redact, audit
 except ImportError:                     # pragma: no cover - direct `python daemon.py`
-    import engine, pipeline, gates, consensus, redact   # type: ignore
+    import engine, pipeline, gates, consensus, redact, audit   # type: ignore
 
 SCRIPTS_DIR = Path(__file__).resolve().parents[1]   # configs/claude/scripts
 GIT_OPS = SCRIPTS_DIR / "git_ops.sh"
+AUDIT_DIR = "~/.claude/state/orchestrator"          # orchestrator.yml audit.dir
 
 
 def err(*msg: object) -> None:
@@ -34,21 +35,40 @@ def err(*msg: object) -> None:
 # Platform-agnostic issue reads via git_ops.sh (R7). Live calls only; tests use
 # fixtures and never reach this path.
 # --------------------------------------------------------------------------- #
+def _normalize_issue(raw: dict) -> dict:
+    """Map a `gh`/`glab` issue object to the engine's shape.
+
+    gh uses `number` (not `id`) and labels as objects ({name,...}); depends_on
+    is not a native tracker field, so it defaults to [] (richer dependency
+    ingestion is future work)."""
+    labels = [lab.get("name", lab) if isinstance(lab, dict) else lab
+              for lab in raw.get("labels", [])]
+    iid = raw.get("id") or (f"#{raw['number']}" if raw.get("number") is not None else "")
+    return {
+        "id": iid,
+        "title": raw.get("title", ""),
+        "body": raw.get("body", ""),
+        "labels": labels,
+        "depends_on": raw.get("depends_on", []),
+    }
+
+
 def fetch_issues(repo: str) -> list[dict]:
     """Fetch open issues for the repo through git_ops.sh (github/gitlab/git)."""
     if not GIT_OPS.exists():
         err(f"git_ops.sh not found at {GIT_OPS}")
         return []
+    # subcommand is `issue-list`; gh/glab require an explicit --json field list.
     proc = subprocess.run(
-        [str(GIT_OPS), "list-issues", "--repo", repo, "--json"],
+        [str(GIT_OPS), "issue-list", "--repo", repo, "--json", "number,title,body,labels"],
         capture_output=True, text=True, check=False,
     )
     if proc.returncode != 0:
-        err(f"list-issues failed: {proc.stderr.strip()}")
+        err(f"issue-list failed: {proc.stderr.strip()}")
         return []
     try:
-        return json.loads(proc.stdout or "[]")
-    except json.JSONDecodeError as exc:
+        return [_normalize_issue(i) for i in json.loads(proc.stdout or "[]")]
+    except (json.JSONDecodeError, KeyError, TypeError) as exc:
         err(f"could not parse issues JSON: {exc}")
         return []
 
@@ -169,6 +189,12 @@ def build_parser() -> argparse.ArgumentParser:
     return p
 
 
+def _new_run_id() -> str:
+    """A short, unique-enough run id without importing uuid into the hot path."""
+    import uuid
+    return uuid.uuid4().hex[:12]
+
+
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
 
@@ -176,6 +202,9 @@ def main(argv: list[str] | None = None) -> int:
         inputs = json.loads(Path(args.payload).read_text(encoding="utf-8"))
         issues = inputs.get("issues", [])
     elif args.repo:
+        if args.dry_run:                        # --dry-run promises no side effects;
+            err("--dry-run requires --payload (no live tracker reads in dry-run mode)")
+            return 2                            # ...so it must not hit the live tracker
         issues = fetch_issues(args.repo)
     else:
         err("provide --repo or --payload")
@@ -187,6 +216,14 @@ def main(argv: list[str] | None = None) -> int:
     else:
         err(f"phase {phase} dispatch not yet implemented (MVP covers phase 1)")
         return 3
+
+    # FR-029/SC-010: persist every response to the durable, redacted audit trail.
+    # Skipped under --dry-run (an audit write is a side effect).
+    if not args.dry_run:
+        try:
+            audit.AuditLog(AUDIT_DIR, _new_run_id()).record_response(envelope)
+        except Exception as exc:                # fail-open: never crash on audit
+            err(f"audit persist failed (continuing): {exc}")
 
     print(json.dumps(redact.scrub(envelope), indent=2))   # FR-038: redact before emitting
     return 0 if envelope["status"] == "ok" else 1

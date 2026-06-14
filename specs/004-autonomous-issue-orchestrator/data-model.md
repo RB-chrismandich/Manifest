@@ -84,7 +84,7 @@ One schema per phase under `contracts/` (see contracts README):
 | `paused` | bool | True during resource-pause (FR-035); resumes without incrementing attempts. |
 
 ### Audit Record (append-only JSONL line, R4)
-`{timestamp, run_id, phase, status, reasoning_log, escalation, consensus_summary}` — written after **mandatory redaction** (FR-038); fail-open for observability.
+`{run_id, phase, status, payload, reasoning_log, escalation}` — `payload` is included so the per-phase decision content (ranked ids, tasks, verdict, modifications, pr_reply) is recoverable (SC-010). Written after **mandatory redaction** (FR-038); fail-open for observability.
 
 ---
 

@@ -49,6 +49,33 @@ def test_audit_persists_only_redacted_content(tmp_path):
         json.loads(line)
 
 
+def test_base64_and_short_secrets_redacted():  # bug_012
+    assert "REDACTED" in redact.redact_text("token=abc+def/ghij==")      # base64 punctuation
+    assert "abc+def/ghij" not in redact.redact_text("token=abc+def/ghij==")
+    assert "REDACTED" in redact.redact_text("password=short1")           # < 8 chars, no floor
+    out = redact.redact_text("api_key: longvaluestring123")
+    assert ":" in out and "REDACTED" in out                              # separator preserved
+
+
+def test_fallback_still_redacts_canonical_keys(monkeypatch):  # bug_003
+    # Simulate skillclaw_scrub unavailable (identity base): _EXTRA must still cover canon keys.
+    monkeypatch.setattr(redact, "_base_redact", lambda t: t)
+    for s in ("sk-ant-abcdef0123456789", "sk-proj-deadbeef12345678abcd",
+              "Authorization: Bearer supersecrettoken123456"):
+        assert "REDACTED" in redact.redact_text(s), f"fallback leaked: {s}"
+
+
+def test_audit_record_includes_payload(tmp_path):  # bug_019 / SC-010
+    import json as _json
+    log = audit.AuditLog(tmp_path, run_id="rp")
+    env = {"phase": 1, "status": "ok",
+           "payload": {"ranked_issue_ids": ["#11"], "top_choice_justification": "x", "dependency_notes": []},
+           "reasoning_log": ["chose #11"], "escalation": None}
+    log.record_response(env)
+    rec = _json.loads(log.path.read_text().strip())
+    assert rec["payload"]["ranked_issue_ids"] == ["#11"]   # decision content recoverable
+
+
 def test_audit_dir_is_chmod_700(tmp_path):
     import os
     log = audit.AuditLog(tmp_path / "state", run_id="r2")

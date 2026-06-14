@@ -9,8 +9,8 @@ sys.path.insert(0, str(REPO_ROOT / "configs" / "claude" / "scripts"))
 from orchestrator import engine  # noqa: E402
 
 
-def test_missing_input_blocks_with_escalation():  # FR-005
-    env = engine.require_inputs(3, {"spec": ""}, ["spec"])
+def test_missing_input_blocks_with_escalation():  # FR-005 — key absent
+    env = engine.require_inputs(3, {}, ["spec"])
     assert env is not None and env["status"] == "blocked"
     assert env["payload"] == {}
     assert env["escalation"]["blocking_state"]["type"] == "missing_input"
@@ -18,6 +18,12 @@ def test_missing_input_blocks_with_escalation():  # FR-005
 
 def test_present_input_passes():
     assert engine.require_inputs(3, {"spec": "yes"}, ["spec"]) is None
+
+
+def test_empty_collection_is_present_not_missing():  # bug_015 — []/{} are valid inputs
+    assert engine.require_inputs(4, {"findings": []}, ["findings"]) is None
+    assert engine.require_inputs(1, {"issues": []}, ["issues"]) is None
+    assert engine.require_inputs(6, {"modifications": []}, ["modifications"]) is None
 
 
 def test_injection_directives_are_noted_not_obeyed():  # FR-023

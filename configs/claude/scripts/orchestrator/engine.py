@@ -136,10 +136,18 @@ def derive_severity(issue: dict[str, Any]) -> tuple[str, str]:
     if field_val in SEVERITY_ORDER:
         return field_val, "field"
 
-    # 2) labels: "severity:high", "priority:critical", or a bare level
+    # 2) labels: only "severity:<level>" / "priority:<level>" or a bare level.
+    #    A colon-delimited label with any OTHER prefix (e.g. "scope:high",
+    #    "kind:critical") is NOT a severity assertion (FR-036; avoids the
+    #    order-dependent misclassification that would break SC-002).
     for raw in issue.get("labels", []):
         token = str(raw).strip().lower()
-        level = token.split(":", 1)[1] if ":" in token else token
+        if ":" in token:
+            prefix, level = token.split(":", 1)
+            if prefix not in ("severity", "priority"):
+                continue
+        else:
+            level = token
         if level in SEVERITY_ORDER:
             return level, "label"
 
@@ -213,11 +221,16 @@ def prioritize(issues: list[dict[str, Any]]) -> Prioritization:
     implementable = [i for i in issues if BLOCK_LABEL not in i.get("labels", [])]
     held = [i["id"] for i in issues if BLOCK_LABEL in i.get("labels", [])]
 
-    # how many issues each issue blocks (reverse of depends_on)
-    blocks: dict[str, list[str]] = {i["id"]: [] for i in issues}
-    for i in issues:
+    # How many *implementable* issues each issue unblocks (reverse of depends_on).
+    # Held (no-automation) issues never count toward the unblock score and never
+    # leak into dependency_notes (FR-037 / FR-009): only edges among
+    # implementable issues matter, since held issues can never be worked.
+    impl_ids = {i["id"] for i in implementable}
+    blocks: dict[str, list[str]] = {i["id"]: [] for i in implementable}
+    for i in implementable:
         for dep in i.get("depends_on", []):
-            blocks.setdefault(dep, []).append(i["id"])
+            if dep in impl_ids:
+                blocks[dep].append(i["id"])
 
     def sort_key(issue: dict[str, Any]) -> tuple[int, int, str]:
         sev, _src = derive_severity(issue)
@@ -290,7 +303,8 @@ def pr_reply_has_marker(reply: str) -> bool:
 # --------------------------------------------------------------------------- #
 _INJECTION_MARKERS = (
     "ignore your rules", "ignore previous", "disregard previous", "disregard your",
-    "approve immediately", "bypass", "override your", "you must approve",
+    "approve immediately", "bypass your rules", "bypass the gate", "bypass safety",
+    "override your", "you must approve",
 )
 _DESTRUCTIVE = (
     "push --force", "push -f", "reset --hard", "filter-branch", "filter-repo",
@@ -320,8 +334,14 @@ def guard_destructive(command: str, no_upstream_human_work: bool) -> tuple[bool,
 
 def require_inputs(phase: int, inputs: dict[str, Any], required: list[str],
                    trace: list[str] | None = None) -> dict[str, Any] | None:
-    """Return a blocked envelope if any required input is missing (FR-005), else None."""
-    missing = [k for k in required if not inputs.get(k)]
+    """Return a blocked envelope if any required input is missing (FR-005), else None.
+
+    "Missing" means the key is absent — NOT present-but-falsy. An empty list/dict
+    (e.g. a clean analysis `findings:[]` or an empty backlog `issues:[]`) is a
+    valid input, not a missing one; call sites that need a non-empty string layer
+    their own check.
+    """
+    missing = [k for k in required if k not in inputs]
     if missing:
         return blocked_envelope(phase, f"missing required input(s): {missing}",
                                 bs_type="missing_input", trace=trace)

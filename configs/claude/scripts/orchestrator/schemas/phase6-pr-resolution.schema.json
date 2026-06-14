@@ -23,7 +23,7 @@
     },
     "pr_reply": {
       "type": "string",
-      "pattern": "[\\u2705\\uD83D\\uDEE0]\\s*$",
+      "pattern": "[✅🛠]\\uFE0F?\\s*$",
       "description": "Concise professional reply ending with a confirmation marker ✅ or 🛠️ (FR-022)."
     },
     "ci_root_cause": {

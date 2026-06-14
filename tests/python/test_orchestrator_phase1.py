@@ -53,6 +53,33 @@ def test_severity_source_metadata_first_then_inferred():  # FR-036
     assert sev == "critical" and src == "inferred"
 
 
+def test_non_severity_colon_label_is_not_a_severity_assertion():  # bug_018 / FR-036
+    # a label like bug:critical / scope:high must NOT be read as a severity label
+    assert engine.derive_severity({"labels": ["bug:critical"]}) != ("critical", "label")
+    assert engine.derive_severity({"labels": ["scope:high"]}) != ("high", "label")
+    # order-independence: same labels, same result regardless of API ordering (SC-002)
+    a = engine.derive_severity({"labels": ["kind:high", "severity:medium"]})
+    b = engine.derive_severity({"labels": ["severity:medium", "kind:high"]})
+    assert a == b == ("medium", "label")
+    # priority: prefix is also authoritative
+    assert engine.derive_severity({"labels": ["priority:low"]}) == ("low", "label")
+
+
+def test_held_issues_do_not_inflate_unblock_count():  # bug_016 / FR-009 / FR-037
+    issues = [
+        {"id": "#1", "labels": ["severity:high"], "depends_on": []},          # isolated, high
+        {"id": "#2", "labels": ["severity:low"], "depends_on": []},           # isolated, low
+        {"id": "#3", "labels": ["severity:critical", "no-automation"], "depends_on": ["#2"]},
+        {"id": "#4", "labels": ["severity:critical", "no-automation"], "depends_on": ["#2"]},
+    ]
+    result = engine.prioritize(issues)
+    # #2's only dependents are held → it must NOT outrank the isolated high #1
+    assert result.ranked_issue_ids[0] == "#1"
+    # held ids never leak into dependency_notes
+    leaked = {b for n in result.dependency_notes for b in n["blocks"]} | {n["issue_id"] for n in result.dependency_notes}
+    assert leaked.isdisjoint({"#3", "#4"})
+
+
 def test_dependency_notes_map_blocks():  # FR-010
     notes = {n["issue_id"]: n["blocks"] for n in engine.prioritize(load_issues()).dependency_notes}
     assert set(notes["#11"]) == {"#12", "#13"}

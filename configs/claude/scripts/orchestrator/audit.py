@@ -50,11 +50,14 @@ class AuditLog:
             return False
 
     def record_response(self, envelope: dict[str, Any]) -> bool:
-        """Persist a response envelope (phase, status, reasoning_log, escalation)."""
+        """Persist a full response envelope (FR-029 / SC-010). Includes `payload`
+        so the per-phase decision content (ranked ids, tasks, verdict, modifications,
+        pr_reply) is recoverable — append() redacts the whole record first (FR-038)."""
         return self.append({
             "run_id": self.run_id,
             "phase": envelope.get("phase"),
             "status": envelope.get("status"),
+            "payload": envelope.get("payload", {}),
             "reasoning_log": envelope.get("reasoning_log", []),
             "escalation": envelope.get("escalation"),
         })
