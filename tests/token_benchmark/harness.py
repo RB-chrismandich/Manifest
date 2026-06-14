@@ -35,6 +35,54 @@ if str(REPO_ROOT) not in sys.path:
 FIXTURES_DIR = Path(__file__).parent / "fixtures" / "manifest"
 RESULTS_DIR = Path(__file__).parent / "results"
 
+PRICING: dict[str, dict[str, float]] = {
+    "claude-sonnet-4-6": {
+        "input":       3.00 / 1_000_000,
+        "output":     15.00 / 1_000_000,
+        "cache_write": 3.75 / 1_000_000,
+        "cache_read":  0.30 / 1_000_000,
+    },
+    "gemini-3-flash-preview": {
+        "input":  0.10 / 1_000_000,
+        "output": 0.40 / 1_000_000,
+    },
+}
+
+
+def compute_cost(record: dict, model: str) -> Optional[float]:
+    """Return cost in USD for a single API call record, or None if tokens unavailable."""
+    pricing = PRICING.get(model)
+    if not pricing:
+        return None
+    input_tok = record.get("input_tokens")
+    output_tok = record.get("output_tokens")
+    if input_tok is None or output_tok is None:
+        return None
+    cache_read = min(record.get("cache_read_tokens") or 0, input_tok)
+    regular_input = input_tok - cache_read
+    return (
+        regular_input * pricing["input"]
+        + cache_read * pricing.get("cache_read", 0)
+        + output_tok * pricing["output"]
+    )
+
+
+def _system_prompt_for_condition(condition: str, category: str, manifest: str) -> str:
+    """Return the system prompt string for a given condition and prompt category.
+
+    before       → empty string (no manifest)
+    after        → full manifest
+    cached       → full manifest (cache_control handled separately in measure_api_claude)
+    tiered       → manifest for humaneval only; empty for all other categories
+    compressed   → manifest is already the compressed text; treat like after
+    """
+    if condition == "before":
+        return ""
+    if condition == "tiered":
+        return manifest if category == "humaneval" else ""
+    return manifest  # after, cached, compressed
+
+
 # Minimal system prompt for the CLI "before" condition.
 # Empty string stalls the claude CLI; a terse baseline gives it a valid prompt
 # to operate from without any Manifest context injection.
@@ -62,11 +110,25 @@ def isolated_environments(fixtures_dir: Path):
 
 
 def _error_result(msg: str) -> dict:
-    return {"error": msg, "input_tokens": None, "output_tokens": None, "response_text": None, "latency_ms": None}
+    return {
+        "error": msg,
+        "input_tokens": None,
+        "output_tokens": None,
+        "cache_creation_tokens": None,
+        "cache_read_tokens": None,
+        "response_text": None,
+        "latency_ms": None,
+    }
 
 
-async def measure_api_claude(prompt_text: str, system_prompt: str, model: str) -> dict:
-    """Call Claude API; return input_tokens, output_tokens, response_text, latency_ms."""
+async def measure_api_claude(
+    prompt_text: str, system_prompt: str, model: str, use_cache: bool = False
+) -> dict:
+    """Call Claude API; return input_tokens, output_tokens, response_text, latency_ms.
+
+    use_cache=True adds cache_control to the system prompt block and extracts
+    cache_creation_tokens / cache_read_tokens from the usage response.
+    """
     if not HAS_ANTHROPIC:
         return _error_result("anthropic package not installed")
 
@@ -75,18 +137,27 @@ async def measure_api_claude(prompt_text: str, system_prompt: str, model: str) -
         return _error_result("ANTHROPIC_API_KEY not set")
 
     client = AsyncAnthropic(api_key=api_key)
+
+    if use_cache:
+        system_arg = [{"type": "text", "text": system_prompt, "cache_control": {"type": "ephemeral"}}]
+    else:
+        system_arg = system_prompt
+
     t0 = time.time()
     try:
         response = await client.messages.create(
             model=model,
-            system=system_prompt,
+            system=system_arg,
             messages=[{"role": "user", "content": prompt_text}],
             max_tokens=1024,
         )
         latency_ms = int((time.time() - t0) * 1000)
+        usage = response.usage
         return {
-            "input_tokens": response.usage.input_tokens,
-            "output_tokens": response.usage.output_tokens,
+            "input_tokens": usage.input_tokens,
+            "output_tokens": usage.output_tokens,
+            "cache_creation_tokens": getattr(usage, "cache_creation_input_tokens", None),
+            "cache_read_tokens": getattr(usage, "cache_read_input_tokens", None),
             "response_text": response.content[0].text,
             "latency_ms": latency_ms,
             "error": None,
@@ -184,86 +255,138 @@ async def run_benchmark(
     api_only: bool,
     run_id: str,
     cli_only: bool = False,
+    conditions: Optional[list[str]] = None,
     fixtures_dir: Optional[Path] = None,
     results_dir: Optional[Path] = None,
     claude_model: str = "claude-sonnet-4-6",
     gemini_model: str = "gemini-3-flash-preview",
 ) -> list[dict]:
-    """Run all benchmark prompts for each provider in before/after conditions."""
+    """Run all benchmark prompts for each provider in the specified conditions."""
     from tests.token_benchmark.benchmarks import BENCHMARKS, PROVIDER_CLI_CONFIG
     from tests.token_benchmark.scorer import score
 
+    active_conditions = conditions or ["before", "after"]
     fdir = fixtures_dir or FIXTURES_DIR
+
+    manifest_prompts = {p: _read_system_prompt(fdir, p) for p in providers}
+    compressed_dir = fdir.parent / "fixtures-compressed"
+    compressed_prompts = {p: _read_system_prompt(compressed_dir, p) for p in providers}
+
     records = []
 
-    # Pre-read manifest system prompts from fixture files (used for both API and CLI paths)
-    manifest_prompts = {p: _read_system_prompt(fdir, p) for p in providers}
+    for provider in providers:
+        for prompt in BENCHMARKS:
+            for condition in active_conditions:
+                if not cli_only and provider in ("claude", "gemini"):
+                    if condition == "cached" and provider != "claude":
+                        continue
+                    if condition == "compressed" and not compressed_prompts.get(provider):
+                        continue
 
-    with isolated_environments(fdir) as (empty_home, manifest_home):
-        for provider in providers:
-            for prompt in BENCHMARKS:
-                for condition, home_dir in [("before", empty_home), ("after", manifest_home)]:
-                    if not cli_only and provider in ("claude", "gemini"):
-                        system_prompt = manifest_prompts[provider] if condition == "after" else ""
-                        if provider == "claude":
-                            api_result = await measure_api_claude(prompt.text, system_prompt, claude_model)
-                            model_used = claude_model
-                        else:
-                            api_result = await measure_api_gemini(prompt.text, system_prompt, gemini_model)
-                            model_used = gemini_model
+                    manifest = (
+                        compressed_prompts[provider]
+                        if condition == "compressed"
+                        else manifest_prompts[provider]
+                    )
+                    system_prompt = _system_prompt_for_condition(
+                        condition, prompt.category, manifest
+                    )
+                    use_cache = (condition == "cached")
 
-                        quality = score(api_result.get("response_text") or "", prompt) if not api_result.get("error") else None
-                        record = {
-                            "run_id": run_id,
-                            "provider": provider,
-                            "model": model_used,
-                            "condition": condition,
-                            "category": prompt.category,
-                            "prompt_id": prompt.prompt_id,
-                            "input_tokens": api_result.get("input_tokens"),
-                            "output_tokens": api_result.get("output_tokens"),
-                            "quality_score": quality,
-                            "response_text": (api_result.get("response_text") or "")[:200],
-                            "latency_ms": api_result.get("latency_ms"),
-                            "source": "api",
-                            "error": api_result.get("error"),
-                        }
-                        write_result(record, run_id, results_dir)
-                        records.append(record)
-                        print(f"  [{provider}][api][{condition}][{prompt.prompt_id}] "
-                              f"in={record['input_tokens']} out={record['output_tokens']} "
-                              f"q={record['quality_score']}", flush=True)
+                    if provider == "claude":
+                        api_result = await measure_api_claude(
+                            prompt.text, system_prompt, claude_model, use_cache=use_cache
+                        )
+                        if use_cache and not api_result.get("error"):
+                            api_result = await measure_api_claude(
+                                prompt.text, system_prompt, claude_model, use_cache=True
+                            )
+                        model_used = claude_model
+                    else:
+                        api_result = await measure_api_gemini(
+                            prompt.text, system_prompt, gemini_model
+                        )
+                        model_used = gemini_model
 
-                    if not api_only and provider in PROVIDER_CLI_CONFIG:
-                        cli_config = PROVIDER_CLI_CONFIG[provider]
-                        # CLI path: use real HOME for auth; inject manifest via --system-prompt flag.
-                        # "before" uses a minimal baseline (empty string stalls the claude CLI).
-                        cli_sp = CLI_BASELINE_SYSTEM_PROMPT if condition == "before" else manifest_prompts[provider]
-                        cli_result = measure_cli(prompt.text, cli_config, system_prompt=cli_sp)
-                        quality = score(cli_result.get("response_text") or "", prompt) if not cli_result.get("error") else None
-                        record = {
-                            "run_id": run_id,
-                            "provider": provider,
-                            "model": None,
-                            "condition": condition,
-                            "category": prompt.category,
-                            "prompt_id": prompt.prompt_id,
-                            "input_tokens": None,
-                            "output_tokens": None,
-                            "quality_score": quality,
-                            "response_text": (cli_result.get("response_text") or "")[:200],
-                            "latency_ms": cli_result.get("latency_ms"),
-                            "source": "cli",
-                            "error": cli_result.get("error"),
-                        }
-                        write_result(record, run_id, results_dir)
-                        records.append(record)
+                    quality = (
+                        score(api_result.get("response_text") or "", prompt)
+                        if not api_result.get("error") else None
+                    )
+                    cost = compute_cost(api_result, model_used)
+                    record = {
+                        "run_id": run_id,
+                        "provider": provider,
+                        "model": model_used,
+                        "condition": condition,
+                        "category": prompt.category,
+                        "prompt_id": prompt.prompt_id,
+                        "input_tokens": api_result.get("input_tokens"),
+                        "output_tokens": api_result.get("output_tokens"),
+                        "cache_creation_tokens": api_result.get("cache_creation_tokens"),
+                        "cache_read_tokens": api_result.get("cache_read_tokens"),
+                        "quality_score": quality,
+                        "response_text": (api_result.get("response_text") or "")[:200],
+                        "latency_ms": api_result.get("latency_ms"),
+                        "source": "api",
+                        "error": api_result.get("error"),
+                        "cost_usd": cost,
+                    }
+                    write_result(record, run_id, results_dir)
+                    records.append(record)
+                    cost_str = f" cost=${cost:.6f}" if cost is not None else ""
+                    print(f"  [{provider}][api][{condition}][{prompt.prompt_id}] "
+                          f"in={record['input_tokens']} out={record['output_tokens']}"
+                          f"{cost_str}", flush=True)
+
+                if not api_only and provider in PROVIDER_CLI_CONFIG:
+                    if condition not in ("before", "after"):
+                        continue
+                    cli_config = PROVIDER_CLI_CONFIG[provider]
+                    cli_sp = (
+                        CLI_BASELINE_SYSTEM_PROMPT
+                        if condition == "before"
+                        else manifest_prompts[provider]
+                    )
+                    cli_result = measure_cli(prompt.text, cli_config, system_prompt=cli_sp)
+                    quality = (
+                        score(cli_result.get("response_text") or "", prompt)
+                        if not cli_result.get("error") else None
+                    )
+                    record = {
+                        "run_id": run_id,
+                        "provider": provider,
+                        "model": None,
+                        "condition": condition,
+                        "category": prompt.category,
+                        "prompt_id": prompt.prompt_id,
+                        "input_tokens": None,
+                        "output_tokens": None,
+                        "cache_creation_tokens": None,
+                        "cache_read_tokens": None,
+                        "quality_score": quality,
+                        "response_text": (cli_result.get("response_text") or "")[:200],
+                        "latency_ms": cli_result.get("latency_ms"),
+                        "source": "cli",
+                        "error": cli_result.get("error"),
+                        "cost_usd": None,
+                    }
+                    write_result(record, run_id, results_dir)
+                    records.append(record)
 
     return records
 
 
-def sync_fixtures(source_home: Optional[Path] = None, fixtures_dir: Optional[Path] = None) -> None:
-    """Copy live manifest configs into fixtures/manifest/ snapshot."""
+def sync_fixtures(
+    source_home: Optional[Path] = None,
+    fixtures_dir: Optional[Path] = None,
+    compression: Optional[int] = None,
+) -> None:
+    """Copy live manifest configs into fixtures/manifest/ snapshot.
+
+    If compression is given (e.g. 50), also write a compressed fixture at
+    fixtures/../fixtures-compressed/ containing the first compression% of lines
+    from CLAUDE.md.
+    """
     src = source_home or Path.home()
     dst = fixtures_dir or FIXTURES_DIR
 
@@ -281,6 +404,18 @@ def sync_fixtures(source_home: Optional[Path] = None, fixtures_dir: Optional[Pat
     # so its IDE installation does not need to be snapshotted; the empty dir marker suffices.
     print("  skip .antigravity/ (no system prompt injection configured)")
 
+    if compression is not None:
+        claude_src = dst / ".claude" / "CLAUDE.md"
+        if claude_src.exists():
+            all_lines = claude_src.read_text().splitlines()
+            keep = max(1, len(all_lines) * compression // 100)
+            compressed_dst = dst.parent / "fixtures-compressed" / ".claude" / "CLAUDE.md"
+            compressed_dst.parent.mkdir(parents=True, exist_ok=True)
+            compressed_dst.write_text("\n".join(all_lines[:keep]))
+            print(f"  compressed fixture: {keep}/{len(all_lines)} lines → {compressed_dst}")
+        else:
+            print(f"  skip compression: {claude_src} not found (run without --compression first to sync)")
+
 
 if __name__ == "__main__":
     import argparse
@@ -290,14 +425,21 @@ if __name__ == "__main__":
     parser.add_argument("--api-only", action="store_true")
     parser.add_argument("--cli-only", action="store_true")
     parser.add_argument("--sync-fixtures", action="store_true")
+    parser.add_argument("--compression", type=int, default=None,
+                        help="If set, also write a fixtures-compressed/ with first N%% of lines")
     parser.add_argument("--report-only", action="store_true")
     parser.add_argument("--claude-model", default="claude-sonnet-4-6")
     parser.add_argument("--gemini-model", default="gemini-3-flash-preview")
+    parser.add_argument(
+        "--conditions",
+        default="before,after",
+        help="Comma-separated conditions to run: before,after,cached,tiered,compressed"
+    )
     args = parser.parse_args()
 
     if args.sync_fixtures:
         print("Syncing fixtures from live home...")
-        sync_fixtures()
+        sync_fixtures(compression=args.compression)
 
     if not args.report_only:
         from datetime import datetime
@@ -305,10 +447,16 @@ if __name__ == "__main__":
         providers = [p.strip() for p in args.providers.split(",")]
         mode = "cli-only" if args.cli_only else ("api-only" if args.api_only else "api+cli")
         print(f"Running benchmark: providers={providers}, mode={mode}, run_id={run_id}")
+        _valid = {"before", "after", "cached", "tiered", "compressed"}
+        conditions = [c.strip() for c in args.conditions.split(",") if c.strip()]
+        _bad = [c for c in conditions if c not in _valid]
+        if _bad:
+            parser.error(f"Unknown conditions: {', '.join(_bad)}. Valid: {', '.join(sorted(_valid))}")
         records = asyncio.run(run_benchmark(
             providers=providers,
             api_only=args.api_only,
             cli_only=args.cli_only,
+            conditions=conditions,
             run_id=run_id,
             claude_model=args.claude_model,
             gemini_model=args.gemini_model,

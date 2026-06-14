@@ -59,6 +59,36 @@ def compute_stats(records: list[dict]) -> dict:
         quality[provider][category][f"{cond}_score"] += r["quality_score"]
         quality[provider][category][f"{cond}_total"] += 1
 
+    # Cost summary per condition (API records with non-null cost_usd)
+    cost_records = [r for r in api_recs if r.get("cost_usd") is not None]
+    cost_summary: dict = {}
+    if cost_records:
+        all_conditions = sorted({r["condition"] for r in cost_records})
+        after_cost: Optional[float] = None
+        for cond in all_conditions:
+            cond_recs = [r for r in cost_records if r["condition"] == cond]
+            avg_cost = sum(r["cost_usd"] for r in cond_recs) / len(cond_recs)
+            valid_input = [r for r in cond_recs if r.get("input_tokens") is not None]
+            avg_input = (sum(r["input_tokens"] for r in valid_input) / len(valid_input)
+                         if valid_input else 0)
+            valid_quality = [r for r in cond_recs if r.get("quality_score") is not None]
+            avg_quality = (sum(r["quality_score"] for r in valid_quality) / len(valid_quality)
+                           if valid_quality else 0.0)
+            cost_summary[cond] = {
+                "avg_cost_usd": avg_cost,
+                "avg_input_tokens": round(avg_input),
+                "avg_quality": round(avg_quality, 3),
+                "savings_vs_after_pct": None,
+            }
+            if cond == "after":
+                after_cost = avg_cost
+
+        if after_cost is not None and after_cost > 0:
+            for cond, data in cost_summary.items():
+                if cond != "after":
+                    savings = (after_cost - data["avg_cost_usd"]) / after_cost
+                    data["savings_vs_after_pct"] = round(savings * 100)
+
     return {
         "token_overhead": token_overhead,
         "output_delta":   {p: {"avg_output_before": v["avg_output_before"],
@@ -67,6 +97,7 @@ def compute_stats(records: list[dict]) -> dict:
                            for p, v in token_overhead.items()},
         "quality":  {p: dict(cats) for p, cats in quality.items()},
         "run_ids":  sorted({r["run_id"] for r in records}),
+        "cost_summary": cost_summary,
     }
 
 
@@ -153,6 +184,32 @@ def render_report(stats: dict, run_id: str) -> str:
         cq_str = f"{cq_score}/{cq_total}" if cq_total else "—"
         gq_str = f"{gq_score}/{gq_total}" if gq_total else "—"
         lines.append(f"| {run_id_h[:19]} | {c_str} | {g_str} | {cq_str} | {gq_str} |")
+
+    cost_summary = stats.get("cost_summary", {})
+    if cost_summary:
+        lines += [
+            "",
+            "## Cost Analysis",
+            "",
+            "| Condition  | Avg input tok | Avg cost/call | Quality | vs after |",
+            "|------------|--------------|---------------|---------|----------|",
+        ]
+        condition_order = ["before", "after", "cached", "tiered", "compressed"]
+        for cond in condition_order:
+            data = cost_summary.get(cond)
+            if not data:
+                continue
+            savings = data.get("savings_vs_after_pct")
+            vs_after = (
+                "baseline" if cond == "after"
+                else ("—" if savings is None else f"{savings:+d}%")
+            )
+            lines.append(
+                f"| {cond:<10} | {data['avg_input_tokens']:>13,} "
+                f"| ${data['avg_cost_usd']:.6f}    "
+                f"| {data['avg_quality']:.3f}   "
+                f"| {vs_after:<8} |"
+            )
 
     lines.append("")
     return "\n".join(lines)

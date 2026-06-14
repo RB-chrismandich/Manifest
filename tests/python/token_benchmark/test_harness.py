@@ -233,3 +233,109 @@ class TestWriteResult:
         assert len(files) == 1
         lines = files[0].read_text().strip().splitlines()
         assert len(lines) == 3
+
+
+class TestComputeCost:
+    def test_compute_cost_standard(self):
+        """Standard call: input + output tokens, no cache."""
+        from tests.token_benchmark.harness import compute_cost
+        record = {
+            "input_tokens": 1000,
+            "output_tokens": 100,
+            "cache_creation_tokens": None,
+            "cache_read_tokens": None,
+        }
+        cost = compute_cost(record, "claude-sonnet-4-6")
+        # 1000 * 3.00/1e6 + 100 * 15.00/1e6 = 0.003 + 0.0015 = 0.0045
+        assert abs(cost - 0.0045) < 1e-8
+
+    def test_compute_cost_with_cache_read(self):
+        """Cache read tokens billed at 0.1x input rate."""
+        from tests.token_benchmark.harness import compute_cost
+        record = {
+            "input_tokens": 1000,
+            "output_tokens": 100,
+            "cache_creation_tokens": None,
+            "cache_read_tokens": 800,
+        }
+        cost = compute_cost(record, "claude-sonnet-4-6")
+        # non-cache input: (1000-800) * 3.00/1e6 = 0.0006
+        # cache read: 800 * 0.30/1e6 = 0.00024
+        # output: 100 * 15.00/1e6 = 0.0015
+        # total = 0.00234
+        assert abs(cost - 0.00234) < 1e-8
+
+
+class TestMeasureApiClaudeCaching:
+    @pytest.mark.asyncio
+    async def test_cached_condition_passes_cache_control(self):
+        """When use_cache=True, system prompt is sent as a list with cache_control block."""
+        mock_usage = MagicMock(
+            input_tokens=1783,
+            output_tokens=4,
+            cache_creation_input_tokens=1718,
+            cache_read_input_tokens=0,
+        )
+        mock_response = MagicMock(usage=mock_usage, content=[MagicMock(text="B")])
+        mock_client = AsyncMock()
+        mock_client.messages.create.return_value = mock_response
+
+        with patch("tests.token_benchmark.harness.HAS_ANTHROPIC", True):
+            with patch("tests.token_benchmark.harness.AsyncAnthropic", return_value=mock_client):
+                with patch.dict(os.environ, {"ANTHROPIC_API_KEY": "test-key"}):
+                    result = await measure_api_claude(
+                        "What is 2+2?", "SYSTEM", "claude-sonnet-4-6", use_cache=True
+                    )
+
+        call_kwargs = mock_client.messages.create.call_args.kwargs
+        system_arg = call_kwargs["system"]
+        # system must be a list with cache_control block
+        assert isinstance(system_arg, list)
+        assert system_arg[0]["type"] == "text"
+        assert system_arg[0]["cache_control"] == {"type": "ephemeral"}
+        assert result["cache_creation_tokens"] == 1718
+        assert result["cache_read_tokens"] == 0
+
+
+class TestTieredCondition:
+    def test_tiered_injects_manifest_only_for_humaneval(self):
+        """tiered condition: humaneval gets manifest system prompt, others get baseline."""
+        from tests.token_benchmark.harness import _system_prompt_for_condition
+        manifest = "MANIFEST CONTEXT"
+        # humaneval → manifest
+        sp = _system_prompt_for_condition("tiered", "humaneval", manifest)
+        assert sp == manifest
+        # mmlu → baseline
+        sp = _system_prompt_for_condition("tiered", "mmlu", manifest)
+        assert sp == ""
+        # hellaswag → baseline
+        sp = _system_prompt_for_condition("tiered", "hellaswag", manifest)
+        assert sp == ""
+        # truthfulqa → baseline
+        sp = _system_prompt_for_condition("tiered", "truthfulqa", manifest)
+        assert sp == ""
+        # after → always manifest
+        sp = _system_prompt_for_condition("after", "mmlu", manifest)
+        assert sp == manifest
+        # before → always baseline
+        sp = _system_prompt_for_condition("before", "humaneval", manifest)
+        assert sp == ""
+
+
+class TestSyncFixturesCompression:
+    def test_compression_50_produces_half_line_count(self, tmp_path):
+        """--sync-fixtures --compression 50 writes first 50% of lines."""
+        from tests.token_benchmark.harness import sync_fixtures
+
+        # Create a fake source home with a CLAUDE.md of 10 lines
+        src = tmp_path / "home"
+        claude_dir = src / ".claude"
+        claude_dir.mkdir(parents=True)
+        (claude_dir / "CLAUDE.md").write_text("\n".join(f"line {i}" for i in range(10)))
+
+        dst = tmp_path / "fixtures"
+        sync_fixtures(source_home=src, fixtures_dir=dst, compression=50)
+
+        compressed = dst.parent / "fixtures-compressed" / ".claude" / "CLAUDE.md"
+        lines = compressed.read_text().splitlines()
+        assert len(lines) == 5
