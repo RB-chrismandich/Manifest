@@ -172,12 +172,12 @@ description: "Task list for Autonomous Issue Implementation Orchestrator"
 **Purpose**: Deployment, docs, hardening, and end-to-end validation
 
 - [X] T046 [P] Integrate the daemon into `bootstrap.sh` deploy (idempotent, existence-guarded; non-zero exit on unrecoverable failure, Principle V)
-- [ ] T047 [P] Run `configs/claude/scripts/label_sync.sh` to provision `no-automation` across platforms
+- [X] T047 [P] Run `configs/claude/scripts/label_sync.sh` to provision `no-automation` across platforms
 - [X] T048 [P] Docs: add orchestrator section to `docs/COMMANDS.md` and `README.md`; note tool policy in `command_config.yml`
 - [X] T049 [P] Security hardening: verify `chmod 700` state dir, no secret leakage to stdout/audit, no engine side-effects
 - [X] T050 [P] Lint pass: `yamllint configs/claude/config/orchestrator.yml`, `shellcheck` any new shell, JSON-schema parse check in CI
-- [ ] T051 [P] Deploy the skill via `sync-skills` and verify `/issue-orchestrator` resolves
-- [ ] T052 Run the `quickstart.md` acceptance walkthrough end-to-end and confirm SC-001/002/011/012/016/017 signals
+- [X] T051 [P] Deploy the skill via `sync-skills` and verify `/issue-orchestrator` resolves
+- [~] T052 Run the `quickstart.md` acceptance walkthrough — **offline validation passed** (76 pytest + 3 bats, contracts parse, daemon dry-run dispatch, SC-001/002/016 confirmed). Full live-LLM end-to-end (real issue → LLM phases → PR; SC-007/012/017) deferred: needs the live engine backend (R1) + `./bootstrap.sh` package home-deploy
 
 ---
 
