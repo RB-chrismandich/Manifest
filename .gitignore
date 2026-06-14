@@ -48,3 +48,6 @@ records/
 
 # spec-review runtime (feedback, content-hash, lock, error log)
 .spec-review/
+
+# skill-creator eval workspaces (iteration outputs, benchmarks, rework runs)
+*-workspace/
