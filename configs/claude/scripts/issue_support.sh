@@ -97,6 +97,17 @@ run_with_timeout() {
 # Current branch (best-effort)
 current_branch() { git rev-parse --abbrev-ref HEAD 2>/dev/null || printf ''; }
 
+# Current branch's open PR/MR number (best-effort; empty if none)
+current_pr_number() {
+    local platform="$1" n=""
+    if [[ "${platform}" == "github" ]]; then
+        n=$(git_ops pr-view --json number --jq '.number' 2>/dev/null || true)
+    else
+        n=$(git_ops pr-view --output json 2>/dev/null | python3 -c 'import sys,json;print(json.load(sys.stdin).get("iid",""))' 2>/dev/null || true)
+    fi
+    printf '%s' "${n}" | grep -oE '^[0-9]+$' || true
+}
+
 # Normalize an issue-view payload (gh or glab JSON) → "number|state|labels-csv|title"
 # Reads raw JSON on stdin. Empty output = not found.
 # NOTE: uses `python3 -c` (not a heredoc) so the piped JSON stays on stdin.
@@ -418,11 +429,15 @@ run_inner() {
 cmd_sync_pr() {
     parse_common_flags "$@"
     local pr="${REMAIN[0]:-}"
-    [[ -n "${pr}" ]] || { err "sync-pr requires a PR number"; return 0; }
     if [[ "$(cfg_get pr-issue-sync enabled false)" != "true" ]]; then
         err "pr-issue-sync disabled (set tool_policies.pr-issue-sync.enabled: true)"
         return 0
     fi
+    # Self-resolve the current branch's PR when no number is given (hook convenience)
+    if [[ -z "${pr}" ]]; then
+        pr=$(current_pr_number "$(detect_platform)")
+    fi
+    [[ -n "${pr}" ]] || { err "sync-pr: no PR number given and none found for the current branch"; return 0; }
     local t
     t=$(cfg_get pr-issue-sync hook_timeout_seconds 5)
     [[ "${t}" =~ ^[0-9]+$ ]] || t=5

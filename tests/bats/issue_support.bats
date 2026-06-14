@@ -171,3 +171,22 @@ EOF
     [ "$status" -eq 0 ]
     [[ "$output" == *"create-issue"*"skipped"* ]]
 }
+
+@test "no linked issue but a matching one exists → reuse, don't duplicate (FR-009a)" {
+    git checkout -q -b hotfix-adhoc
+    ISSUE_LIST_OUT="#5  hotfix-adhoc work" run "$SCRIPT" sync-commit HEAD
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"existing match reused"* ]]
+}
+
+# --- FR-017: a failed run is recoverable on re-run --------------------------
+
+@test "transition records [failed] when tracker errors, [applied] on a clean re-run" {
+    mk_issue 17 open planned
+    EDIT_RC=1 run "$SCRIPT" sync-commit HEAD
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"transition planned→in-progress [failed]"* ]]
+    EDIT_RC=0 run "$SCRIPT" sync-commit HEAD
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"transition planned→in-progress [applied]"* ]]
+}

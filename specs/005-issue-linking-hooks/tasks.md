@@ -62,15 +62,15 @@ Shell-and-config layout (repo default). Engine + installer in `configs/claude/sc
 
 ### Tests for User Story 1
 
-- [ ] T013 [P] [US1] Add bats cases in `tests/bats/issue_support.bats` for `sync-pr`: resolves issue from PR, transitions → `needs-review`, idempotent re-run yields only `skipped` (C2), fail-open on tracker error exits 0 (C1), closed/locked issue skipped (C4), multi-issue PR acts on each (C7). Also cover the PR-installer (T017): idempotent re-install adds no duplicate entry (H1), disabled-config install is a no-op (H3), engine does not fire when the underlying command failed (H4)
+- [X] T013 [P] [US1] Add bats cases in `tests/bats/issue_support.bats` for `sync-pr`: resolves issue from PR, transitions → `needs-review`, idempotent re-run yields only `skipped` (C2), fail-open on tracker error exits 0 (C1), closed/locked issue skipped (C4), multi-issue PR acts on each (C7). Also cover the PR-installer (T017): idempotent re-install adds no duplicate entry (H1), disabled-config install is a no-op (H3), engine does not fire when the underlying command failed (H4)
 
 ### Implementation for User Story 1
 
 - [X] T014 [US1] Add minimal `pr-edit <N>` subcommand to `configs/claude/scripts/git_ops.sh` (wraps `gh pr edit --body` / `glab mr update --description`), update its `--help`; non-destructive body append. Because `pr-edit` is a permanent public `git_ops.sh` primitive, add direct bats cases in `tests/bats/git_ops.bats` (append on github, append on gitlab, idempotent when keyword already present, graceful failure when the PR is not editable) — not only transitive coverage via `sync-pr`
 - [X] T015 [US1] Implement `sync-pr <PR_NUMBER> [--dry-run] [--no-create]` in `configs/claude/scripts/issue_support.sh`: resolve → for each open issue transition → `needs-review` (T010), back-link comment (T011), ensure `Closes #N` via `git_ops.sh pr-edit` appending when missing (FR-005); all wrapped fail-open (T009)
-- [ ] T016 [US1] Create `.skillshare/skills/pr-issue-sync/SKILL.md` with `name`/`description` frontmatter; document `sync-pr` invocation, the PostToolUse trigger, fail-open behavior, and `--no-create`
-- [ ] T017 [US1] Create `configs/claude/scripts/install_issue_hooks.sh` with `--help`, `--enable`/`--remove`, and the unified PR PostToolUse matcher (`pr-create`|`gh pr create`|`glab mr create` → `sync-pr <N>`) via `ai-hooks-integration`; idempotent re-install (H1), opt-in no-op when not enabled (H3), fires only on the underlying command's success (H4)
-- [ ] T018 [US1] Register `pr-issue-sync` per `.claude/CLAUDE.md` "Adding New Skills": add `parallel_agents`/`validation_tier` under `tool_policies.pr-issue-sync` in `command_config.yml`; verify `configs/claude/skills` symlink is intact (not replaced)
+- [X] T016 [US1] Create `.skillshare/skills/pr-issue-sync/SKILL.md` with `name`/`description` frontmatter; document `sync-pr` invocation, the PostToolUse trigger, fail-open behavior, and `--no-create`
+- [X] T017 [US1] Create `configs/claude/scripts/install_issue_hooks.sh` with `--help`, `--enable`/`--remove`, and the unified PR PostToolUse matcher (`pr-create`|`gh pr create`|`glab mr create` → `sync-pr <N>`) via `ai-hooks-integration`; idempotent re-install (H1), opt-in no-op when not enabled (H3), fires only on the underlying command's success (H4)
+- [X] T018 [US1] Register `pr-issue-sync` per `.claude/CLAUDE.md` "Adding New Skills": add `parallel_agents`/`validation_tier` under `tool_policies.pr-issue-sync` in `command_config.yml`; verify `configs/claude/skills` symlink is intact (not replaced)
 
 **Checkpoint**: PR-open sync works end-to-end and is independently demoable (MVP)
 
@@ -84,14 +84,14 @@ Shell-and-config layout (repo default). Engine + installer in `configs/claude/sc
 
 ### Tests for User Story 2
 
-- [ ] T019 [P] [US2] Add bats cases in `tests/bats/issue_support.bats` for `sync-commit`: resolves from branch prefix/commit trailer, `planned`→`in-progress`, 10 consecutive commits transition/comment at most once (C2/SC-003), fail-open exits 0 (C1), `commit_hook_mode: background` falls back to `sync` with a warning (FR-016). Also cover the native installer (T022): refuses to clobber a pre-existing foreign `post-commit` hook (H2), and `--remove` cleanly removes both the PostToolUse entry and the delimited native block (H5). Add a recovery case (FR-017): after a first run that times out / fails mid-way (tracker error injected), a second run brings the issue to the correct state with no duplicate comment or double transition
+- [X] T019 [P] [US2] Add bats cases in `tests/bats/issue_support.bats` for `sync-commit`: resolves from branch prefix/commit trailer, `planned`→`in-progress`, 10 consecutive commits transition/comment at most once (C2/SC-003), fail-open exits 0 (C1), `commit_hook_mode: background` falls back to `sync` with a warning (FR-016). Also cover the native installer (T022): refuses to clobber a pre-existing foreign `post-commit` hook (H2), and `--remove` cleanly removes both the PostToolUse entry and the delimited native block (H5). Add a recovery case (FR-017): after a first run that times out / fails mid-way (tracker error injected), a second run brings the issue to the correct state with no duplicate comment or double transition
 
 ### Implementation for User Story 2
 
 - [X] T020 [US2] Implement `sync-commit <SHA|HEAD> [--dry-run] [--no-create]` in `configs/claude/scripts/issue_support.sh`: resolve → transition `planned` → `in-progress` (only issues already carrying the `planned` label; unlabeled issues are outside the managed lifecycle and left untouched, per FR-006) → dedup back-link comment; read `commit_hook_mode` and on `background` fall back to `sync` + `err()` warning (v1; reserved value per FR-016)
-- [ ] T021 [US2] Create `.skillshare/skills/commit-issue-sync/SKILL.md` with `name`/`description` frontmatter; document `sync-commit`, the commit trigger, dedup/idempotency, and fail-open
-- [ ] T022 [US2] Extend `configs/claude/scripts/install_issue_hooks.sh`: unified commit PostToolUse matcher (`git commit` → `sync-commit HEAD`) plus `--native` guarded `post-commit` installer (refuses to clobber a foreign hook H2, writes a delimited managed block) and `--remove` cleanup of both surfaces (H5)
-- [ ] T023 [US2] Register `commit-issue-sync` per "Adding New Skills": add `parallel_agents`/`validation_tier` under `tool_policies.commit-issue-sync` in `command_config.yml`
+- [X] T021 [US2] Create `.skillshare/skills/commit-issue-sync/SKILL.md` with `name`/`description` frontmatter; document `sync-commit`, the commit trigger, dedup/idempotency, and fail-open
+- [X] T022 [US2] Extend `configs/claude/scripts/install_issue_hooks.sh`: unified commit PostToolUse matcher (`git commit` → `sync-commit HEAD`) plus `--native` guarded `post-commit` installer (refuses to clobber a foreign hook H2, writes a delimited managed block) and `--remove` cleanup of both surfaces (H5)
+- [X] T023 [US2] Register `commit-issue-sync` per "Adding New Skills": add `parallel_agents`/`validation_tier` under `tool_policies.commit-issue-sync` in `command_config.yml`
 
 **Checkpoint**: Commit sync and PR sync both work independently
 
@@ -105,7 +105,7 @@ Shell-and-config layout (repo default). Engine + installer in `configs/claude/sc
 
 ### Tests for User Story 3
 
-- [ ] T024 [P] [US3] Add bats cases in `tests/bats/issue_support.bats` for the create flow: dedup-match reuses an existing open issue instead of creating (FR-009a), non-interactive context defaults to no-create + warn (FR-009), template renders with context/acceptance-criteria/links and applies `planned` label (FR-009b/c)
+- [X] T024 [P] [US3] Add bats cases in `tests/bats/issue_support.bats` for the create flow: dedup-match reuses an existing open issue instead of creating (FR-009a), non-interactive context defaults to no-create + warn (FR-009), template renders with context/acceptance-criteria/links and applies `planned` label (FR-009b/c)
 
 ### Implementation for User Story 3
 
