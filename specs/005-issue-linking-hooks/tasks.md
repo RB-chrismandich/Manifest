@@ -124,7 +124,7 @@ Shell-and-config layout (repo default). Engine + installer in `configs/claude/sc
 - [X] T028 [P] Update `docs/COMMANDS.md` (and README skills note) to document `pr-issue-sync` + `commit-issue-sync` and `install_issue_hooks.sh`
 - [X] T029 Run `quickstart.md` steps 2–6 end-to-end against a scratch repo (commit trigger, PR trigger, missing-issue creation, fail-open, dry-run)
 - [X] T030 Run verification gate: `shellcheck configs/claude/scripts/issue_support.sh configs/claude/scripts/install_issue_hooks.sh configs/claude/scripts/git_ops.sh`; `yamllint configs/claude/config/command_config.yml`; `bats tests/bats/issue_support.bats`. Assert FR-010 label conformance: every label the engine sets or applies to a created issue exists in `configs/claude/config/labels.yml` (grep the engine's label literals against the registry — no off-registry labels)
-- [ ] T031 Tier 1 cross-verification (Constitution II): run `parallel_agent.py --review` on the `issue_support.sh` + `git_ops.sh` diff (token handling + >200 lines) before opening the PR
+- [X] T031 Tier 1 cross-verification (Constitution II): run `parallel_agent.py --review` on the `issue_support.sh` + `git_ops.sh` diff (token handling + >200 lines) before opening the PR
 
 ---
 
