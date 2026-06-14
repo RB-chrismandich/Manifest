@@ -35,34 +35,46 @@ def err(*msg: object) -> None:
 # Platform-agnostic issue reads via git_ops.sh (R7). Live calls only; tests use
 # fixtures and never reach this path.
 # --------------------------------------------------------------------------- #
-def _normalize_issue(raw: dict) -> dict:
-    """Map a `gh`/`glab` issue object to the engine's shape.
+def _detect_platform() -> str:
+    """Return 'github' | 'gitlab' | 'git' via git_platform.sh (default github)."""
+    pf = SCRIPTS_DIR / "git_platform.sh"
+    if not pf.exists():
+        return "github"
+    out = subprocess.run([str(pf)], capture_output=True, text=True, check=False)
+    return out.stdout.strip() or "github"
 
-    gh uses `number` (not `id`) and labels as objects ({name,...}); depends_on
-    is not a native tracker field, so it defaults to [] (richer dependency
-    ingestion is future work)."""
+
+def _normalize_issue(raw: dict) -> dict:
+    """Map a `gh`/`glab` issue object to the engine's shape, tolerant of both:
+    id from id/number/iid; body from body/description; labels as objects ({name})
+    or bare strings. `depends_on` is not a native tracker field → [] (future work)."""
     labels = [lab.get("name", lab) if isinstance(lab, dict) else lab
               for lab in raw.get("labels", [])]
-    iid = raw.get("id") or (f"#{raw['number']}" if raw.get("number") is not None else "")
+    num = raw.get("number", raw.get("iid"))
+    iid = raw.get("id") or (f"#{num}" if num is not None else "")
     return {
         "id": iid,
         "title": raw.get("title", ""),
-        "body": raw.get("body", ""),
+        "body": raw.get("body", raw.get("description", "")),
         "labels": labels,
         "depends_on": raw.get("depends_on", []),
     }
 
 
 def fetch_issues(repo: str) -> list[dict]:
-    """Fetch open issues for the repo through git_ops.sh (github/gitlab/git)."""
+    """Fetch open issues for the repo through git_ops.sh (github/gitlab/git).
+
+    The two CLIs take different JSON/state flags (gh: `--json <fields> --state
+    open`; glab: `--output-format json --state opened`), so the args are chosen
+    per detected platform — passing gh-only flags to glab would fail outright."""
     if not GIT_OPS.exists():
         err(f"git_ops.sh not found at {GIT_OPS}")
         return []
-    # subcommand is `issue-list`; gh/glab require an explicit --json field list.
-    proc = subprocess.run(
-        [str(GIT_OPS), "issue-list", "--repo", repo, "--json", "number,title,body,labels"],
-        capture_output=True, text=True, check=False,
-    )
+    if _detect_platform() == "gitlab":
+        args = ["issue-list", "--repo", repo, "--state", "opened", "--output-format", "json"]
+    else:  # github (and generic git) use gh-style flags
+        args = ["issue-list", "--repo", repo, "--state", "open", "--json", "number,title,body,labels"]
+    proc = subprocess.run([str(GIT_OPS), *args], capture_output=True, text=True, check=False)
     if proc.returncode != 0:
         err(f"issue-list failed: {proc.stderr.strip()}")
         return []
@@ -208,8 +220,8 @@ def run_phase(backend_impl, phase: int, inputs: dict, state, *,
             phase, inputs, attempt=attempt, consensus=consensus_votes,
             critical_failure=critical_failure, resource_available=resource_available)
         env = backend_impl.invoke(payload)
-        if not engine.validate_envelope(env):   # well-formed envelope → done
-            _persist(audit_log, env)
+        _persist(audit_log, env)                 # FR-029: persist EVERY response, incl. malformed
+        if not engine.validate_envelope(env):    # well-formed envelope → done
             return env
         if state.should_escalate(phase):        # cap reached (FR-027)
             esc = engine.escalation_envelope(

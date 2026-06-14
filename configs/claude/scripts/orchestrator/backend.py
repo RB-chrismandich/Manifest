@@ -55,8 +55,11 @@ def extract_envelope(text: str) -> dict[str, Any] | None:
         for i in range(start, len(text)):
             c = text[i]
             if in_str:
-                esc = (c == "\\") and not esc
-                if c == '"' and not esc:
+                if esc:                 # this char is escaped — consume, treat literally
+                    esc = False
+                elif c == "\\":
+                    esc = True
+                elif c == '"':
                     in_str = False
             elif c == '"':
                 in_str = True

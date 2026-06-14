@@ -1,6 +1,6 @@
 # Contracts — Autonomous Issue Implementation Orchestrator
 
-These JSON Schemas (draft 2020-12) are the **machine-parseable contract** between the orchestration daemon and the stateless decision engine. The daemon validates every engine response against `response-envelope.schema.json`, then validates `payload` against the matching phase schema. Validation failure is treated as a malformed engine response (retry under the FR-027 cap).
+These JSON Schemas (draft 2020-12) are the **machine-parseable contract** between the orchestration daemon and the stateless decision engine. At runtime the daemon enforces the envelope invariants with `engine.validate_envelope` — a dependency-free structural check that mirrors `response-envelope.schema.json` (so no `jsonschema` install is required in the deployed environment); a failed check is treated as a malformed engine response (retry under the FR-027 cap, then escalate). The phase payload schemas here are the authoritative contract for each `payload` shape and are used for conformance checking by the contract tests / CI (e.g. `set(payload.keys()) == required`) and by any external tooling; full `jsonschema` validation of payloads at runtime is optional and not performed on the hot path.
 
 | File | Phase | Spec requirements |
 |------|-------|-------------------|

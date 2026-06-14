@@ -38,6 +38,15 @@ def test_invalid_then_valid_retries_under_cap():  # FR-027
     assert env["status"] == "ok" and be.calls == 2      # retried once, then succeeded
 
 
+def test_every_response_persisted_including_invalid(tmp_path):  # C4 / FR-029
+    log = audit.AuditLog(tmp_path, run_id="rp")
+    st = pipeline.PipelineState(run_id="rp")
+    be = FakeBackend([INVALID, INVALID])
+    daemon.run_phase(be, 1, {}, st, audit_log=log)
+    # 2 malformed responses + 1 synthesized escalation = 3 audit records
+    assert len(log.path.read_text().strip().splitlines()) == 3
+
+
 def test_two_invalid_escalates():  # FR-027
     st = pipeline.PipelineState(run_id="r3")
     be = FakeBackend([INVALID, INVALID])

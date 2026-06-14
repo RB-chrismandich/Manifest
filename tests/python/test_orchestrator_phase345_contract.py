@@ -30,6 +30,26 @@ def test_phase5_payload_matches_schema_exactly():
     assert set(payload["dimensions"].keys()) == {"design_intent", "functionality", "standards"}
 
 
+def test_analysis_severity_coerced_to_enum():  # C5
+    schema = engine.load_schema("phase4-analysis-gate")
+    allowed = schema["properties"]["required_fixes"]["items"]["properties"]["severity"]["enum"]
+    p = gates.evaluate_analysis_gate([{"finding": "x", "severity": "catastrophic", "fix_directive": "y"}])
+    assert p["required_fixes"][0]["severity"] in allowed   # unknown coerced, schema-valid
+
+
+def test_verification_unknown_tier_is_fail_closed():  # C6 / FR-033
+    p = gates.evaluate_verification_gate([{"dimension": "standards", "detail": "no tier given"}])
+    assert p["verdict"] == "blocked" and p["pr_open_approved"] is False
+    assert p["findings"][0]["tier"] == 1                   # unclassified → Tier 1 blocker
+
+
+def test_verification_unknown_dimension_coerced_to_enum():  # C6
+    schema = engine.load_schema("phase5-verification-gate")
+    allowed = schema["properties"]["findings"]["items"]["properties"]["dimension"]["enum"]
+    p = gates.evaluate_verification_gate([{"dimension": "weird", "tier": 2, "detail": "x"}])
+    assert p["findings"][0]["dimension"] in allowed
+
+
 def test_phase3_sample_payload_conforms():
     schema = engine.load_schema("phase3-tasking")
     sample = {"tasks": [{

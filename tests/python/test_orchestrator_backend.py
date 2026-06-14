@@ -32,6 +32,15 @@ def test_extract_handles_nested_and_strings_with_braces():
     assert env["payload"]["msg"] == "a } b" and env["status"] == "ok"
 
 
+def test_extract_handles_escaped_quotes_in_strings():  # C2 / C1 regression
+    # noisy output forces the brace-balancing fallback; the string value contains
+    # an escaped quote AND a brace — the escape must not prematurely end the string
+    text = 'Here:\n{"status":"ok","payload":{"msg":"a \\" b } c"}} done'
+    env = backend.extract_envelope(text)
+    assert env is not None
+    assert env["payload"]["msg"] == 'a " b } c'
+
+
 def test_extract_returns_none_when_no_object():
     assert backend.extract_envelope("no json here") is None
     assert backend.extract_envelope("[1,2,3]") is None   # array is not an envelope

@@ -40,12 +40,30 @@ def load_tier2_threshold() -> float:
 # --------------------------------------------------------------------------- #
 # Phase 4 — pre-implementation analysis gate (fail-closed)
 # --------------------------------------------------------------------------- #
+_ANALYSIS_SEVERITIES = ("error", "warning", "regression")
+
+
+def _norm_severity(s: Any) -> str:
+    """Coerce to the phase4 schema enum; unknown → 'error' (fail-closed, most severe)."""
+    return s if s in _ANALYSIS_SEVERITIES else "error"
+
+
+def _norm_tier(t: Any) -> int:
+    """Fail-closed (FR-033): anything not EXPLICITLY Tier 2 is treated as Tier 1 (blocking)."""
+    return 2 if t == 2 else 1
+
+
+def _norm_dimension(d: Any) -> str:
+    """Coerce to the phase5 schema enum; unknown → 'standards'."""
+    return d if d in VERIFY_DIMENSIONS else "standards"
+
+
 def evaluate_analysis_gate(findings: list[dict[str, Any]]) -> dict[str, Any]:
     """Any finding (error/warning/regression) blocks implementation (FR-017/019)."""
     fixes = [
         {
             "finding": f["finding"],
-            "severity": f.get("severity", "warning"),
+            "severity": _norm_severity(f.get("severity", "warning")),
             "file": f.get("file"),
             "fix_directive": f.get("fix_directive", "address the finding"),
         }
@@ -80,25 +98,22 @@ def verdict_label(tier1_count: int, t2_score: float, threshold: float | None = N
 
 def evaluate_verification_gate(findings: list[dict[str, Any]]) -> dict[str, Any]:
     """Tier 1 blocks PR-open; Tier 2 is advisory (FR-031). A dimension fails if it
-    carries any Tier 1 finding. Fail-closed at Tier 1 (FR-033)."""
-    tier1 = [f for f in findings if f.get("tier") == 1]
+    carries any Tier 1 finding. Fail-closed at Tier 1 (FR-033): a finding with a
+    missing/invalid tier is normalized to Tier 1, and dimension/tier are coerced
+    to their schema enums so the payload stays contract-valid."""
+    norm = [{"dimension": _norm_dimension(f.get("dimension")), "tier": _norm_tier(f.get("tier")),
+             "detail": f.get("detail", ""), "remediation": f.get("remediation")}
+            for f in findings]
+    tier1 = [f for f in norm if f["tier"] == 1]
     dims = {
-        d: ("fail" if any(f.get("dimension") == d and f.get("tier") == 1 for f in findings) else "pass")
+        d: ("fail" if any(f["dimension"] == d and f["tier"] == 1 for f in norm) else "pass")
         for d in VERIFY_DIMENSIONS
     }
     pr_open = not tier1
     return {
         "verdict": "verified" if pr_open else "blocked",
         "dimensions": dims,
-        "findings": [
-            {
-                "dimension": f.get("dimension", "standards"),
-                "tier": f.get("tier", 2),
-                "detail": f.get("detail", ""),
-                "remediation": f.get("remediation"),
-            }
-            for f in findings
-        ],
+        "findings": norm,
         "pr_open_approved": pr_open,
     }
 
@@ -106,5 +121,5 @@ def evaluate_verification_gate(findings: list[dict[str, Any]]) -> dict[str, Any]
 def advisory_verdict_label(findings: list[dict[str, Any]]) -> str:
     """APPROVED / NEEDS_REVIEW / BLOCKED label for the PR annotation / audit
     (advisory — NOT part of the schema-bound gate payload)."""
-    tier1 = sum(1 for f in findings if f.get("tier") == 1)
+    tier1 = sum(1 for f in findings if _norm_tier(f.get("tier")) == 1)
     return verdict_label(tier1, tier2_score(findings))

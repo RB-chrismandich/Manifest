@@ -66,3 +66,11 @@ def test_blocked_envelope_helper_is_valid():  # FR-005 / FR-035
     env = engine.blocked_envelope(4, "tool unavailable", transient=True, bs_type="resource_unavailable")
     assert engine.validate_envelope(env) == []
     assert env["escalation"]["blocking_state"]["transient"] is True
+
+
+def test_ok_envelope_invalid_classified_as_invalid_envelope():  # C8
+    # phase 7 is out of range → ok_envelope must self-block as an internal contract
+    # violation, NOT as missing_input
+    env = engine.ok_envelope(7, {"x": 1}, ["t"])
+    assert env["status"] == "blocked"
+    assert env["escalation"]["blocking_state"]["type"] == "invalid_envelope"

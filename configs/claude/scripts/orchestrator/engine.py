@@ -117,7 +117,8 @@ def ok_envelope(phase: int, payload: dict[str, Any], trace: list[str]) -> dict[s
            "reasoning_log": list(trace), "escalation": None}
     errs = validate_envelope(env)
     if errs:
-        return blocked_envelope(phase, f"engine produced invalid envelope: {errs}", trace=trace)
+        return blocked_envelope(phase, f"engine produced invalid envelope: {errs}",
+                                bs_type="invalid_envelope", trace=trace)
     return env
 
 
