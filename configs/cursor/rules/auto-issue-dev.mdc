@@ -1,0 +1,15 @@
+---
+description: "Autonomously develop ONE opted-in ('auto-dev'-labeled) issue end-to-end: pick the next ready issue, branch, implement test-first, verify, and open a PR for human review (never merges). Dependency-blocked issues are tagged and skipped. Designed to run unattended in a loop (/loop /auto-issue-dev) until the queue is empty."
+globs: ".claude/skills/auto-issue-dev/**"
+alwaysApply: false
+---
+
+# auto-issue-dev
+
+Autonomously develop ONE opted-in ('auto-dev'-labeled) issue end-to-end: pick the next ready issue, branch, implement test-first, verify, and open a PR for human review (never merges). Dependency-blocked issues are tagged and skipped. Designed to run unattended in a loop (/loop /auto-issue-dev) until the queue is empty.
+
+<!-- Auto-generated from .claude/skills/auto-issue-dev/SKILL.md -->
+<!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
+
+Refer to `.cursor/skills/auto-issue-dev/SKILL.md` for the full skill definition.
+
