@@ -260,8 +260,8 @@ for i in items:
 print(json.dumps(out,separators=(",",":")))' 2>/dev/null || echo '[]')"
     [[ -z "${list}" ]] && list='[]'
 
-    # Candidate numbers, ascending (oldest-first ~= lowest number), that are NOT
-    # already tagged DEP_LABEL. Also count those excluded for that reason.
+    # Candidate numbers, ascending, that are NOT already tagged DEP_LABEL.
+    # Also count those excluded for that reason.
     local cand skipped_other
     cand="$(printf '%s' "${list}" | python3 -c 'import sys,json
 dep=sys.argv[1]
@@ -278,13 +278,115 @@ except Exception: items=[]
 if not isinstance(items, list): items=[]
 print(sum(1 for i in items if dep in {l["name"] for l in (i.get("labels") or [])}))' "${DEP_LABEL}")"
 
-    local skipped_dependency=0 n out refs meta
-    # shellcheck disable=SC2086  # intentional: splitting space-separated number list
+    # === Phase 1: unblock-aware ranking ===
+    # Pre-fetch each candidate's body to build a reverse-dep map (unblock counts),
+    # compute severity from labels, detect dependency cycles, and produce a ranked
+    # ordering: (unblock_count DESC, severity DESC, number ASC).
+    local cand_data_list n
+    cand_data_list=''
+    # shellcheck disable=SC2086
     for n in ${cand}; do
+        local issue_raw body deps_str entry
+        issue_raw="$(issue_json "${n}")"
+        body="$(printf '%s' "${issue_raw}" | python3 -c 'import sys,json
+try: d=json.load(sys.stdin)
+except Exception: d={}
+print((d.get("title") or "")+" "+(d.get("body") or ""))' 2>/dev/null || true)"
+        deps_str="$(parse_dep_refs "${body}")"
+        entry="$(printf '%s' "${issue_raw}" | python3 -c 'import sys,json
+try: d=json.load(sys.stdin)
+except Exception: d={}
+labels=[l.get("name","") if isinstance(l,dict) else str(l) for l in (d.get("labels") or [])]
+deps=[int(x) for x in sys.argv[2].split() if x.isdigit()]
+print(json.dumps({"number":int(sys.argv[1]),"labels":labels,"deps":deps},separators=(",",":")))' \
+            "${n}" "$(printf '%s' "${deps_str}" | tr '\n' ' ')" 2>/dev/null || \
+            printf '{"number":%s,"labels":[],"deps":[]}' "${n}")"
+        cand_data_list="${cand_data_list}${cand_data_list:+,}${entry}"
+    done
+
+    # One Python call: unblock counts + severity + cycle detection + stable sort
+    local rank_result
+    rank_result="$(python3 -c '
+import sys, json
+items = json.loads(sys.argv[1]) if sys.argv[1].strip() != "" else []
+if not isinstance(items, list): items = []
+cand_set = {i["number"] for i in items}
+
+# Reverse-dep map: for each N, count how many candidates depend on N
+unblock = {str(i["number"]): 0 for i in items}
+for i in items:
+    for d in i.get("deps", []):
+        if d in cand_set and d != i["number"]:
+            k = str(d)
+            unblock[k] = unblock.get(k, 0) + 1
+
+# Severity from labels (metadata-first; body inference out of scope here)
+SEV = {"p0":4,"priority:critical":4,"critical":4,
+       "p1":3,"priority:high":3,
+       "p2":2,"priority:medium":2,
+       "p3":1,"priority:low":1}
+def get_sev(labels):
+    best = 0
+    for l in labels:
+        s = SEV.get(l.lower(), 0)
+        if s > best: best = s
+    return best
+sevs = {str(i["number"]): get_sev(i.get("labels", [])) for i in items}
+
+# Cycle detection via DFS over intra-candidate deps
+deps_map = {i["number"]: [d for d in i.get("deps",[]) if d in cand_set and d != i["number"]] for i in items}
+def find_cycle():
+    vis, path = set(), []
+    def dfs(node):
+        if node in path:
+            return path[path.index(node):]
+        if node in vis: return []
+        vis.add(node); path.append(node)
+        for dep in deps_map.get(node, []):
+            r = dfs(dep)
+            if r: path.pop(); return r
+        path.pop(); return []
+    for node in sorted(deps_map):
+        if node not in vis:
+            r = dfs(node)
+            if r: return r
+    return []
+cycle = find_cycle()
+cycle_msg = ""
+if cycle:
+    cycle_msg = ("dependency cycle detected: "
+                 + " -> ".join("#"+str(x) for x in cycle)
+                 + " -> #" + str(cycle[0]))
+
+# Stable sort: unblock DESC, severity DESC, number ASC (deterministic)
+ranked = sorted(cand_set, key=lambda n: (-unblock.get(str(n),0), -sevs.get(str(n),0), n))
+print(json.dumps({"ranked":ranked,"unblock":unblock,"sevs":sevs,"cycle":cycle_msg},
+                 separators=(",",":")))
+' "[${cand_data_list}]" 2>/dev/null || \
+        printf '{"ranked":[%s],"unblock":{},"sevs":{},"cycle":""}' \
+            "$(printf '%s' "${cand}" | tr ' ' ',')")"
+
+    # Surface any cycle to stderr so it appears in the caller's output
+    local cycle_msg
+    cycle_msg="$(printf '%s' "${rank_result}" | python3 -c 'import sys,json
+try: print(json.load(sys.stdin).get("cycle",""))
+except: print("")' 2>/dev/null || true)"
+    [[ -n "${cycle_msg}" ]] && err "${cycle_msg}"
+
+    # Ranked candidate list (replaces the old ascending-number order)
+    local ranked_cand
+    ranked_cand="$(printf '%s' "${rank_result}" | python3 -c 'import sys,json
+try: d=json.load(sys.stdin)
+except: d={}
+print(" ".join(str(x) for x in d.get("ranked",[])))' 2>/dev/null || echo "${cand}")"
+
+    # === Phase 2: dep-check and select ===
+    local skipped_dependency=0 out refs meta reason
+    # shellcheck disable=SC2086
+    for n in ${ranked_cand}; do
         if out="$(cmd_check_deps "${n}" --json)"; then
             : # ready
         else
-            # unmet deps -> tag + skip
             refs="$(printf '%s' "${out}" | python3 -c 'import sys,json
 try: u=json.load(sys.stdin).get("unmet",[])
 except Exception: u=[]
@@ -293,15 +395,34 @@ print(" ".join("#%s"%x for x in u))' 2>/dev/null || true)"
             skipped_dependency=$((skipped_dependency + 1))
             continue
         fi
-        # ready candidate n — emit and exit 0 (reuse the already-fetched list;
-        # same snapshot avoids a second API call and a stale-read race)
+        # Build one-line reason explaining the ranking choice
+        reason="$(printf '%s' "${rank_result}" | python3 -c '
+import sys, json
+n = int(sys.argv[1])
+try: d = json.load(sys.stdin)
+except: d = {}
+ub = int(d.get("unblock",{}).get(str(n), 0))
+sev = int(d.get("sevs",{}).get(str(n), 0))
+sev_name = {0:"none",1:"low",2:"medium",3:"high",4:"critical"}.get(sev,"?")
+if ub > 0:
+    r = "unblocks %d issue%s" % (ub, "s" if ub!=1 else "")
+    if sev > 0: r += " (severity %s)" % sev_name
+elif sev > 0:
+    r = "highest severity (%s), no blocking dependencies" % sev_name
+else:
+    r = "oldest ready issue, no priority signal"
+print(r)
+' "${n}" 2>/dev/null || echo "selected")"
+        # Emit — reuse the already-fetched list snapshot (avoids stale-read race)
         meta="$(printf '%s' "${list}" | python3 -c 'import sys,json
-n=int(sys.argv[1]); sk=int(sys.argv[2])
+n=int(sys.argv[1]); sk=int(sys.argv[2]); reason=sys.argv[3]
 try: items=json.load(sys.stdin)
 except Exception: items=[]
 if not isinstance(items, list): items=[]
 m=next((i for i in items if i["number"]==n), {"number":n,"title":"","url":""})
-print(json.dumps({"number":m["number"],"title":m.get("title",""),"url":m.get("url",""),"skipped_dependency":sk},separators=(",",":")))' "${n}" "${skipped_dependency}")"
+print(json.dumps({"number":m["number"],"title":m.get("title",""),"url":m.get("url",""),
+                  "skipped_dependency":sk,"reason":reason},separators=(",",":")))' \
+            "${n}" "${skipped_dependency}" "${reason}")"
         if [[ ${json} -eq 1 ]]; then echo "${meta}"; else echo "${n}"; fi
         return 0
     done
