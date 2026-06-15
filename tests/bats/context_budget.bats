@@ -59,15 +59,21 @@ assert_budget() {
 
 @test "skill frontmatter descriptions stay within per-session budget" {
     # Claude Code injects every skill's description at session start.
-    # Budget covers the whole .skillshare/skills/ set (~16k chars as of trim).
+    # Budget covers the whole .skillshare/skills/ set.
+    # Raised 18500 -> 19000 (2026-06-14) for the new auto-issue-dev skill:
+    # per-skill frontmatter is already minimal (~250 chars each on average;
+    # this skill ~290) and a
+    # description has no read-on-demand alternative (it IS the always-loaded
+    # triggering text), so a genuinely new skill must grow this budget. Keep
+    # descriptions terse; if headroom runs low again, do a set-wide trim pass.
     total=0
     for f in "$REPO_ROOT"/.skillshare/skills/*/SKILL.md; do
         # frontmatter = up to the second '---' line
         chars=$(awk '/^---$/{c++; next} c==1' "$f" | wc -c)
         total=$((total + chars))
     done
-    if [ "$total" -gt 18500 ]; then
-        echo "Skill frontmatter totals $total chars (budget: 18500)." >&2
+    if [ "$total" -gt 19000 ]; then
+        echo "Skill frontmatter totals $total chars (budget: 19000)." >&2
         echo "Trim verbose descriptions; bodies are pay-per-use, frontmatter is not." >&2
         return 1
     fi
