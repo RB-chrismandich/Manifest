@@ -129,6 +129,14 @@ repos:
         language: system
         pass_filenames: false
 
+      # Check for empty or bindingless catch blocks in JavaScript templates
+      - id: check-empty-catch
+        name: Check for empty catch blocks
+        entry: tests/lint/check_empty_catch.sh
+        language: system
+        types_or: [javascript, ts]
+        pass_filenames: true
+
       # Validate YAML config files
       - id: validate-yaml-configs
         name: Validate YAML config files
