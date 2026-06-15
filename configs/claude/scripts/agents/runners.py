@@ -560,8 +560,12 @@ class CLIAgent(BaseAgent):
 
         try:
             cmd = self._build_command(prompt, output_file)
+            # stdin=DEVNULL so headless CLIs (e.g. `claude -p`, which reads piped
+            # stdin) get immediate EOF instead of inheriting and blocking on the
+            # parent's stdin until the timeout fires.
             proc = await asyncio.create_subprocess_exec(
                 *cmd,
+                stdin=asyncio.subprocess.DEVNULL,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )

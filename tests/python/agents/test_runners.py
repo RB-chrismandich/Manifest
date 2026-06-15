@@ -301,6 +301,31 @@ class TestCLIAgentExecution:
         assert result["status"] == "complete"
         assert result["output"] == "prefix --model fake-model-1 hello world"
 
+    def test_subprocess_stdin_is_devnull(self, tmp_path):
+        """Headless CLIs must get EOF on stdin, not inherit the parent's.
+
+        `claude -p` reads piped stdin; inheriting an open parent stdin makes it
+        block until the timeout fires (observed: 300s hang). Pin stdin=DEVNULL.
+        """
+        from unittest.mock import AsyncMock, patch
+
+        config = _make_config(tmp_path)
+        config.config["cli_agents"]["fake"] = {
+            "binary": "echo",
+            "base_args": [],
+            "output": "stdout",
+        }
+        agent = CLIAgent("fake", model="auto",
+                         rate_limiter=_make_limiter(), config=config)
+
+        proc = AsyncMock()
+        proc.communicate = AsyncMock(return_value=(b"ok", b""))
+        proc.returncode = 0
+        with patch("asyncio.create_subprocess_exec",
+                   return_value=proc) as spawn:
+            asyncio.run(agent._execute_impl("hi", "prompt"))
+        assert spawn.call_args.kwargs["stdin"] is asyncio.subprocess.DEVNULL
+
     def test_timeout_kills_subprocess(self, tmp_path):
         """Issue #306: timeout cancellation must kill the child, not leak it."""
         import os
