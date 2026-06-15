@@ -75,8 +75,8 @@ exit 0).
 
 | Subcommand | Behavior | Exit |
 |------------|----------|------|
-| `next-issue [--json]` | Walk open `auto-dev` issues oldest-first; for each, run the `check-deps` logic — if unmet, tag `blocked-dependency` + comment and skip; return the **first ready** candidate. (Score-ordering via `/issue-prioritize` deferred to a later iteration; v1 = oldest-first for determinism.) | `0` with JSON `{number,title,url}`; **`3` when no ready candidate** (queue empty); `1` on hard error |
-| `check-deps <N> [--json]` | Parse issue #N's body/title for dependency refs (`depends on #M`, `blocked by #M`, `requires #M`, case-insensitive); resolve each via `git_ops.sh`. Print unmet refs (open issues / unmerged PRs). | `0` all met; **`2` unmet deps found**; `1` on hard error |
+| `next-issue [--json]` | Walk open `auto-dev` issues oldest-first; for each, run the `check-deps` logic — if unmet, tag `blocked-dependency` + comment and skip; return the **first ready** candidate. (Score-ordering via `/issue-prioritize` deferred to a later iteration; v1 = oldest-first for determinism.) Exit-0 JSON: `{number,title,url,skipped_dependency}`. Exit-3 JSON (queue empty): `{ready:0,skipped_dependency:N,skipped_other:M}` so the caller can report counts despite fresh per-iteration context. | `0` with ready candidate; **`3` when no ready candidate** (queue empty); `1` on hard error |
+| `check-deps <N> [--json]` | Parse issue #N's body/title for dependency refs (`depends on #M`, `blocked by #M`, `requires #M`, `needs #M`, case-insensitive); resolve each via `git_ops.sh`. Print unmet refs (open issues / unmerged PRs). | `0` all met; **`2` unmet deps found**; `1` on hard error |
 | `mark-blocked <N> <reason>` | Add `needs-human` label to #N + one deduped comment (marker `<!-- auto-issue-dev:blocked -->`) explaining the reason. Fail-open. | `0` always |
 | `mark-dependency <N> <refs>` | Add `blocked-dependency` label to #N + one deduped comment (marker `<!-- auto-issue-dev:dependency -->`) naming the unmet ref(s). Fail-open. | `0` always |
 | `--help` | Usage + subcommands. | `0` |
@@ -94,7 +94,9 @@ Per-invocation procedure (one issue):
 2. **Select**: run `auto_issue_dev.sh next-issue --json` — this already skips and
    tags dependency-blocked candidates, returning the first ready issue. **Exit 3
    ⇒ announce "eligible queue empty — stopping" and end** (this is how `/loop`
-   terminates; note in the summary how many were skipped as dependency-blocked).
+   terminates); read the exit-3 JSON (`skipped_dependency`, `skipped_other`) to
+   report in the final summary how many were skipped — the count comes from the
+   helper, not skill-side accumulation (each iteration is fresh context).
 3. **Branch**: `git switch -c <N>-<slug>` (numeric prefix → #345 resolves #N).
 4. **Develop**: invoke `test-driven-development` — failing test first, then
    minimal implementation, scoped to the issue.
@@ -108,8 +110,8 @@ Per-invocation procedure (one issue):
 7. Return a one-line outcome summary for the loop log.
 
 Includes a `Critical Rules` block: never merge; never touch issues lacking
-`auto-dev`; one issue per invocation; roll back partial work before opening a
-draft on failure.
+`auto-dev`; one issue per invocation; on failure push partial work as a **draft**
+PR (no `Closes` keyword) so a human can inspect it — never as a real PR.
 
 ### 3. `configs/cursor/rules/auto-issue-dev.mdc`
 
