@@ -2,7 +2,7 @@
 
 > Complete documentation index for the Manifest parallel agent orchestration framework
 
-**Last Updated**: 2026-06-12
+**Last Updated**: 2026-06-15
 
 ---
 
@@ -55,7 +55,7 @@
 
 | File | Description | Last Updated | Status |
 |------|-------------|--------------|--------|
-| [README.md](../README.md) | Project overview and quick start | 2026-06-12 | ✅ |
+| [README.md](../README.md) | Project overview and quick start | 2026-06-15 | ✅ |
 | [CLAUDE.md](../CLAUDE.md) | AI assistant context for the repository | 2026-02-11 | ✅ |
 | [CONTRIBUTING.md](../CONTRIBUTING.md) | How to contribute to the project | 2026-05-31 | ✅ |
 | [CHANGELOG.md](../CHANGELOG.md) | Version history and release notes | 2026-05-31 | ✅ |
@@ -67,15 +67,16 @@
 | [GETTING_STARTED.md](GETTING_STARTED.md) | First-time user guide | 2026-06-12 | ✅ |
 | [CONFIGURATION.md](CONFIGURATION.md) | Configuration reference | 2026-06-12 | ✅ |
 | [TROUBLESHOOTING.md](TROUBLESHOOTING.md) | Common issues and solutions | 2026-06-12 | ✅ |
-| [COMMANDS.md](COMMANDS.md) | Built-in commands and how to build custom ones | 2026-06-10 | ✅ |
+| [COMMANDS.md](COMMANDS.md) | Built-in commands and how to build custom ones | 2026-06-15 | ✅ |
 
 ### Technical Documentation
 
 | File | Description | Last Updated | Status |
 |------|-------------|--------------|--------|
-| [ARCHITECTURE_DIAGRAMS.md](ARCHITECTURE_DIAGRAMS.md) | Visual system documentation | 2026-06-12 | ✅ |
+| [ARCHITECTURE_DIAGRAMS.md](ARCHITECTURE_DIAGRAMS.md) | Visual system documentation (19 Mermaid diagrams) | 2026-06-15 | ✅ |
 | [SKILLCLAW.md](SKILLCLAW.md) | SkillClaw session-capture and skill-evolution guide | 2026-06-08 | ✅ |
 | [SPEC-SYSTEMS.md](SPEC-SYSTEMS.md) | Map of the four spec/plan systems and when to use each | 2026-06-10 | ✅ |
+| [TOKEN_BENCHMARK.md](TOKEN_BENCHMARK.md) | Manifest context token overhead and quality delta across providers (`/token-benchmark`) | 2026-06-13 | ✅ |
 | [METRICS.md](METRICS.md) | Agent performance dashboard template (`/dashboard`) | 2026-02-11 | ✅ |
 | [KNOWLEDGE_BASE.md](KNOWLEDGE_BASE.md) | Auto-generated captured learnings (`learning_capture.sh sync-docs`) | 2026-02-13 | ✅ |
 | [PRE_COMMIT.md](PRE_COMMIT.md) | Pre-commit hook reference | 2026-02-05 | ✅ |
@@ -167,6 +168,11 @@ services:
 
 **Recent Additions**:
 
+- ✅ 2026-06-15: Documentation refresh for autonomous issue development and issue-linking
+  hooks — new `/auto-issue-dev`, `/repo-hygiene`, `/pr-issue-sync`, `/commit-issue-sync`
+  entries; two new architecture diagrams (issue-linking hooks; autonomous issue developer,
+  now 19 total); added `/token-benchmark` + TOKEN_BENCHMARK.md to the hub; corrected skill
+  and test counts in README
 - ✅ 2026-06-12: Documented the OAuth CLI fallback (SDK vs CLI backend selection for
   Claude/Gemini), `MODEL_CHECK_PROBE=1` live model-pin verification, and the honest
   `check_status.sh` pin summary — README, architecture diagrams,

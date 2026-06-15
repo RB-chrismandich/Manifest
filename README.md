@@ -4,7 +4,7 @@
 
 > Parallel LLM agent orchestration framework for Claude Code, Cursor IDE, Gemini CLI, Codex CLI, and Antigravity IDE
 
-**Last Updated**: 2026-06-12
+**Last Updated**: 2026-06-15
 
 Manifest is a configuration repository that deploys a sophisticated parallel agent
 orchestration system to `~/.claude/`, `~/.cursor/`, `~/.gemini/`, `~/.codex/`, and `~/.antigravity/`, enabling Claude Code,
@@ -56,6 +56,12 @@ cd Manifest
   needed when the `claude`/`gemini` CLIs are logged in (SDK + API key still preferred when present)
 - **Cross-Platform**: Native support for macOS (Intel/Apple Silicon) and 5 major Linux distributions
 - **Unified Label Management**: Canonical label registry with sync across GitHub, GitLab, and Linear
+- **Autonomous Issue Development** (`/auto-issue-dev`): Picks the next `auto-dev`-labeled issue,
+  implements it test-first, and opens a PR for review (never merges); run unattended via `/loop /auto-issue-dev`
+- **Repo Hygiene Sweep** (`/repo-hygiene`): Review-then-confirm cleanup of open PRs and stale/merged/gone
+  branches across GitHub, GitLab, and local
+- **Issue-Linking Git Hooks** (`/pr-issue-sync`, `/commit-issue-sync`): Fail-open PostToolUse hooks that keep
+  the linked issue's status label and back-links in sync as commits land and PRs open (installable via `install_issue_hooks.sh`)
 - **Production Templates**: Pre-configured permission templates for Django, Express, Go microservices, Python monorepos
 - **SkillClaw Integration** (opt-in): Passively ingests Claude Code's own `~/.claude/projects/**/*.jsonl`
   transcripts, runs a `claude -p` map-reduce evolve pass (Max subscription, no API key), and proposes
@@ -100,6 +106,8 @@ Mermaid flowcharts showing bootstrap, execution, validation, and consensus flows
 | `/docs-readme` | Improve README structure and content following best practices | NEVER | Tier 2 |
 | `/issue-prioritize` | Fetch and rank open issues by impact, urgency, readiness, risk (GitHub/GitLab/Linear) | CONDITIONAL (top candidates) | Tier 2 |
 | `/issue-triage` | Linear issue audit: duplicates, staleness, priority validation | CONDITIONAL (scenario-based) | Tier 2 |
+| `/auto-issue-dev` | Autonomously develop one `auto-dev`-labeled issue test-first and open a PR (never merges); run via `/loop /auto-issue-dev` | CONDITIONAL | Tier 1 + Tier 2 |
+| `/repo-hygiene` | Review-then-confirm cleanup sweep of open PRs and stale/merged/gone branches | CONDITIONAL | Tier 2 |
 | `/plan-manage` | Plan lifecycle: create, review, execute, archive, abandon | CONDITIONAL | Tier 2 |
 | `/browser-test` | AI-powered E2E browser testing via browser-use YAML test prompts | CONDITIONAL | Tier 2 |
 | `/skill-evolve` | Promote SkillClaw-evolved skills into a review PR (dry-run by default) | NEVER | Tier 2 |
@@ -143,9 +151,10 @@ Mermaid flowcharts showing bootstrap, execution, validation, and consensus flows
 |----------|---------|----------|--------------|
 | [Getting Started](docs/GETTING_STARTED.md) | First-time setup walkthrough with verification steps | New users | 10 min |
 | [Configuration](docs/CONFIGURATION.md) | All configuration options, YAML reference, environment variables | Operators | 15 min |
-| [Architecture Diagrams](docs/ARCHITECTURE_DIAGRAMS.md) | Visual system documentation with 15 Mermaid diagrams | Developers | 20 min |
+| [Architecture Diagrams](docs/ARCHITECTURE_DIAGRAMS.md) | Visual system documentation with 19 Mermaid diagrams | Developers | 20 min |
 | [SkillClaw](docs/SKILLCLAW.md) | PR-gated skill evolution via passive transcript ingestion | Operators | 8 min |
 | [Spec Systems](docs/SPEC-SYSTEMS.md) | Map of the four spec/plan systems and when to use each | Contributors | 3 min |
+| [Token Benchmark](docs/TOKEN_BENCHMARK.md) | Manifest context token overhead and quality delta across providers (`/token-benchmark`) | Operators | 5 min |
 | [Troubleshooting](docs/TROUBLESHOOTING.md) | Common problems, error messages, solutions | All users | 10 min |
 | [AGENTS.md](AGENTS.md) | AI agent instructions (Cursor, Claude, Gemini, Codex) | AI assistants | 8 min |
 | [CLAUDE.md](CLAUDE.md) | Claude Code-specific project context | AI assistants | 8 min |
@@ -199,6 +208,10 @@ Manifest/
 │   │   │   ├── git_platform.sh      # Git platform detection
 │   │   │   ├── git_ops.sh           # Platform-agnostic Git operations
 │   │   │   ├── linear_ops.sh        # Linear API wrapper (GraphQL)
+│   │   │   ├── issue_support.sh     # Issue-linking engine for pr-/commit-issue-sync hooks
+│   │   │   ├── issue_support_hook.sh # PostToolUse dispatcher routing PRs/commits to the engine
+│   │   │   ├── install_issue_hooks.sh # Enable/remove issue-linking hooks (PostToolUse or native)
+│   │   │   ├── auto_issue_dev.sh    # Selection/dependency engine for /auto-issue-dev
 │   │   │   ├── sync-skills.sh       # Skill deployment to home targets
 │   │   │   ├── label_sync.sh        # Label provisioning across platforms
 │   │   │   ├── skillclaw_scrub.py   # Redact API keys/auth headers from captured sessions
@@ -229,7 +242,7 @@ Manifest/
 │       ├── python/                  # Python project starter
 │       └── terraform/               # Terraform project starter
 ├── .skillshare/                     # Skill source of truth (managed by skillshare)
-│   └── skills/                      # 69 skills deployed to ~/.claude/skills/ by bootstrap
+│   └── skills/                      # 74 skills deployed to ~/.claude/skills/ by bootstrap
 ├── tests/                           # Test suites
 │   ├── python/                      # pytest tests for parallel_agent and agents/
 │   └── bats/                        # Bats shell tests for bootstrap and scripts
@@ -237,7 +250,7 @@ Manifest/
     ├── README.md                    # Documentation hub
     ├── GETTING_STARTED.md           # First-time setup walkthrough
     ├── CONFIGURATION.md             # Complete config reference
-    ├── ARCHITECTURE_DIAGRAMS.md     # Mermaid system diagrams (15 diagrams)
+    ├── ARCHITECTURE_DIAGRAMS.md     # Mermaid system diagrams (19 diagrams)
     ├── SKILLCLAW.md                 # SkillClaw integration guide
     ├── TROUBLESHOOTING.md           # Common issues and solutions
     └── COMMANDS.md                  # Command reference
@@ -349,10 +362,10 @@ export CODEX_HOME="$HOME/.manifest/custom-codex-state"
 ## Testing
 
 ```bash
-# Python tests (128 tests covering agents/ package and parallel_agent.py)
+# Python tests (310 tests covering agents/ package and parallel_agent.py)
 pytest tests/python/ -q
 
-# Shell tests (117 Bats tests covering bootstrap and scripts)
+# Shell tests (410 Bats tests covering bootstrap and scripts)
 npx bats tests/bats/
 
 # Lint shell scripts
