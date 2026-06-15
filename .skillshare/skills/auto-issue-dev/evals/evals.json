@@ -1,0 +1,23 @@
+{
+  "skill_name": "auto-issue-dev",
+  "evals": [
+    {
+      "id": 0,
+      "prompt": "pick up the next auto-dev issue and build it, open a PR but don't merge",
+      "expected_output": "Selects the lowest-numbered ready auto-dev issue via auto_issue_dev.sh next-issue, branches with the issue-number prefix, implements test-first, verifies, and opens a (non-draft) PR that the #345 hook links with Closes #N. Stops at PR-open; never merges.",
+      "files": []
+    },
+    {
+      "id": 1,
+      "prompt": "run the autonomous issue developer until there's nothing left in the queue",
+      "expected_output": "Explains it develops one issue per invocation and is driven unattended via /loop /auto-issue-dev, terminating when next-issue exits 3 (empty queue), reporting how many issues were skipped as dependency-blocked.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "auto-develop issue work but if something has an unmerged dependency, don't touch it",
+      "expected_output": "Notes that next-issue auto-detects unmet dependencies (depends on/blocked by/requires/needs #M), tags those issues blocked-dependency, comments naming the blocker, and excludes them from the loop scope rather than developing them.",
+      "files": []
+    }
+  ]
+}
