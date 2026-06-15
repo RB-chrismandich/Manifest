@@ -37,10 +37,11 @@ detect_platform() {
 # Reads raw JSON on stdin; emits "{}" on parse failure. Mirrors the field
 # mapping in issue_support.sh's NORMALIZE_PY (number/iid, opened→open,
 # description→body, label objects/strings→names, comments). The GitLab notes
-# fold is handled separately in issue_json().
+# fold is handled here too: when NORMALIZE_NOTES is set in the environment its
+# text is appended as a trailing comment (no-op when unset, i.e. the gh path).
 # NOTE: `python3 -c` (not a heredoc) keeps the piped JSON on stdin.
 NORMALIZE_ISSUE_PY='
-import sys, json
+import sys, json, os
 try:
     d = json.load(sys.stdin)
 except Exception:
@@ -68,6 +69,9 @@ for c in (src or []):
         comments.append(c.get("body", "") or "")
     else:
         comments.append(str(c))
+notes = os.environ.get("NORMALIZE_NOTES", "")
+if notes:
+    comments.append(notes)
 print(json.dumps({"number": num, "title": title, "body": body,
                   "state": state, "labels": labels, "comments": comments},
                  separators=(",", ":")))
@@ -82,42 +86,9 @@ issue_json() {
         raw="$(git_ops issue-view "${n}" --output json 2>/dev/null || true)"
         [[ -z "${raw}" ]] && { err "issue-view #${n} returned no data (tracker outage/auth?); treating as unreadable"; printf '{}'; return 0; }
         # glab `issue view --output json` does not embed notes; fetch text and
-        # fold each comment in so has_marker() can scan them.
+        # fold each comment in (via NORMALIZE_NOTES) so has_marker() can scan them.
         notes="$(git_ops issue-view "${n}" --comments 2>/dev/null || true)"
-        printf '%s' "${raw}" | NORMALIZE_NOTES="${notes}" python3 -c '
-import sys, json, os
-try:
-    d = json.load(sys.stdin)
-except Exception:
-    print("{}"); sys.exit(0)
-if not isinstance(d, dict):
-    print("{}"); sys.exit(0)
-num = d.get("number") or d.get("iid") or d.get("id") or 0
-title = d.get("title") or ""
-body = d.get("body")
-if body is None:
-    body = d.get("description") or ""
-state = (d.get("state") or "").lower()
-if state == "opened":
-    state = "open"
-labels = []
-for L in (d.get("labels") or []):
-    labels.append(L.get("name", "") if isinstance(L, dict) else str(L))
-labels = [n for n in labels if n]
-comments = []
-src = d.get("comments")
-if src is None:
-    src = d.get("notes")
-if src:
-    for c in src:
-        comments.append(c.get("body", "") if isinstance(c, dict) else str(c))
-notes = os.environ.get("NORMALIZE_NOTES", "")
-if notes:
-    comments.append(notes)
-print(json.dumps({"number": num, "title": title, "body": body,
-                  "state": state, "labels": labels, "comments": comments},
-                 separators=(",", ":")))
-' 2>/dev/null || printf '{}'
+        printf '%s' "${raw}" | NORMALIZE_NOTES="${notes}" python3 -c "${NORMALIZE_ISSUE_PY}" 2>/dev/null || printf '{}'
     else
         raw="$(git_ops issue-view "${n}" --json number,title,body,state,labels,comments 2>/dev/null || true)"
         [[ -z "${raw}" ]] && { err "issue-view #${n} returned no data (tracker outage/auth?); treating as unreadable"; printf '{}'; return 0; }
