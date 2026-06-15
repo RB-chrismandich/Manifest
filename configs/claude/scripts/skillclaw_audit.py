@@ -273,9 +273,14 @@ def _parse_kv(pairs):
         if "=" not in p:
             continue
         k, v = p.split("=", 1)
-        try:
-            out[k] = json.loads(v)
-        except ValueError:
+        v_s = v.lstrip()
+        # ⚡ Bolt: Fast-path to avoid slow ValueError on json.loads for obvious strings
+        if v_s and v_s[0] in '{["tfn0123456789-.':
+            try:
+                out[k] = json.loads(v)
+            except ValueError:
+                out[k] = v
+        else:
             out[k] = v
     return out
 
