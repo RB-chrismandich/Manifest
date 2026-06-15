@@ -1,6 +1,6 @@
 ---
 name: issue-orchestrator
-description: Decision-engine prompts for the Autonomous Issue Implementation Orchestrator. Invoked once per runtime phase by the orchestrator daemon to drive a GitHub/GitLab issue from selection to a clean PR. Each phase returns one machine-parseable JSON response envelope; the engine is stateless and deterministic.
+description: Stateless, deterministic decision engine for the Autonomous Issue Orchestrator daemon — invoked once per phase to drive a GitHub/GitLab issue from selection to a clean PR, returning one JSON response envelope per phase.
 ---
 
 # Issue Orchestrator — Decision Engine
