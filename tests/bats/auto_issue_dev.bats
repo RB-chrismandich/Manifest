@@ -119,3 +119,38 @@ EOF
     grep -q "issue-edit 10 .*blocked-dependency" "$CALL_LOG"
     grep -q "issue-comment 10" "$CALL_LOG"
 }
+
+@test "next-issue: returns lowest-numbered ready auto-dev issue (JSON)" {
+    export ISSUE_LIST_OUT='[{"number":21,"title":"b","url":"u21","labels":[{"name":"auto-dev"}]},{"number":20,"title":"a","url":"u20","labels":[{"name":"auto-dev"}]}]'
+    mk_issue 20 open auto-dev "no deps"
+    mk_issue 21 open auto-dev "no deps"
+    run "$SCRIPT" next-issue --json
+    [ "$status" -eq 0 ]
+    [[ "$output" == *'"number":20'* ]]
+}
+
+@test "next-issue: skips + tags a dependency-blocked candidate, returns next ready" {
+    export ISSUE_LIST_OUT='[{"number":20,"title":"a","url":"u20","labels":[{"name":"auto-dev"}]},{"number":21,"title":"b","url":"u21","labels":[{"name":"auto-dev"}]}]'
+    mk_issue 20 open auto-dev "blocked by #99"
+    mk_issue 99 open "" ""
+    mk_issue 21 open auto-dev "ready"
+    run "$SCRIPT" next-issue --json
+    [ "$status" -eq 0 ]
+    [[ "$output" == *'"number":21'* ]]
+    grep -q "issue-edit 20 .*blocked-dependency" "$CALL_LOG"
+}
+
+@test "next-issue: pre-excludes already blocked-dependency-tagged issues" {
+    export ISSUE_LIST_OUT='[{"number":20,"title":"a","url":"u20","labels":[{"name":"auto-dev"},{"name":"blocked-dependency"}]}]'
+    run "$SCRIPT" next-issue --json
+    [ "$status" -eq 3 ]
+    [[ "$output" == *'"skipped_other":1'* ]]
+}
+
+@test "next-issue: empty queue -> exit 3 with counts" {
+    export ISSUE_LIST_OUT='[]'
+    run "$SCRIPT" next-issue --json
+    [ "$status" -eq 3 ]
+    [[ "$output" == *'"ready":0'* ]]
+    [[ "$output" == *'"skipped_dependency":0'* ]]
+}

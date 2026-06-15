@@ -138,6 +138,70 @@ cmd_mark_dependency() {
     return 0
 }
 
+# cmd_next_issue [--json]
+cmd_next_issue() {
+    local json=0; [[ "${1:-}" == "--json" ]] && json=1
+    local list
+    list="$(git_ops issue-list --state open --label "${DEV_LABEL}" \
+                --json number,title,url,labels 2>/dev/null || echo '[]')"
+    [[ -z "${list}" ]] && list='[]'
+
+    # Candidate numbers, ascending (oldest-first ~= lowest number), that are NOT
+    # already tagged DEP_LABEL. Also count those excluded for that reason.
+    local cand skipped_other
+    cand="$(printf '%s' "${list}" | python3 -c 'import sys,json
+dep=sys.argv[1]
+try: items=json.load(sys.stdin)
+except Exception: items=[]
+if not isinstance(items, list): items=[]
+ok=[i for i in items if dep not in {l["name"] for l in (i.get("labels") or [])}]
+ok.sort(key=lambda i:i["number"])
+print(" ".join(str(i["number"]) for i in ok))' "${DEP_LABEL}")"
+    skipped_other="$(printf '%s' "${list}" | python3 -c 'import sys,json
+dep=sys.argv[1]
+try: items=json.load(sys.stdin)
+except Exception: items=[]
+if not isinstance(items, list): items=[]
+print(sum(1 for i in items if dep in {l["name"] for l in (i.get("labels") or [])}))' "${DEP_LABEL}")"
+
+    local skipped_dependency=0 n out refs meta
+    # shellcheck disable=SC2086  # intentional: splitting space-separated number list
+    for n in ${cand}; do
+        if out="$(cmd_check_deps "${n}" --json)"; then
+            : # ready
+        else
+            # unmet deps -> tag + skip
+            refs="$(printf '%s' "${out}" | python3 -c 'import sys,json
+try: u=json.load(sys.stdin).get("unmet",[])
+except Exception: u=[]
+print(" ".join("#%s"%x for x in u))' 2>/dev/null || true)"
+            cmd_mark_dependency "${n}" "${refs}"
+            skipped_dependency=$((skipped_dependency + 1))
+            continue
+        fi
+        # ready candidate n — emit and exit 0 (reuse the already-fetched list;
+        # same snapshot avoids a second API call and a stale-read race)
+        meta="$(printf '%s' "${list}" | python3 -c 'import sys,json
+n=int(sys.argv[1]); sk=int(sys.argv[2])
+try: items=json.load(sys.stdin)
+except Exception: items=[]
+if not isinstance(items, list): items=[]
+m=next((i for i in items if i["number"]==n), {"number":n,"title":"","url":""})
+print(json.dumps({"number":m["number"],"title":m.get("title",""),"url":m.get("url",""),"skipped_dependency":sk},separators=(",",":")))' "${n}" "${skipped_dependency}")"
+        if [[ ${json} -eq 1 ]]; then echo "${meta}"; else echo "${n}"; fi
+        return 0
+    done
+
+    # none ready
+    if [[ ${json} -eq 1 ]]; then
+        printf '{"ready":0,"skipped_dependency":%s,"skipped_other":%s}\n' \
+            "${skipped_dependency}" "${skipped_other:-0}"
+    else
+        err "no ready auto-dev issues (skipped ${skipped_dependency} for deps)"
+    fi
+    return 3
+}
+
 main() {
     local sub="${1:-}"; shift || true
     case "${sub}" in
@@ -145,6 +209,7 @@ main() {
         check-deps) cmd_check_deps "$@"; exit $? ;;
         mark-blocked) cmd_mark_blocked "$@"; exit 0 ;;
         mark-dependency) cmd_mark_dependency "$@"; exit 0 ;;
+        next-issue) cmd_next_issue "$@"; exit $? ;;
         *) err "unknown subcommand: ${sub:-<none>}"; usage >&2; exit 64 ;;
     esac
 }
