@@ -57,3 +57,34 @@ EOF
     [ "$status" -ne 0 ]
     [[ "$output" == *"auto-issue-dev:"* ]]
 }
+
+@test "check-deps: no dependency refs -> exit 0" {
+    mk_issue 10 open auto-dev "Just a normal issue body"
+    run "$SCRIPT" check-deps 10
+    [ "$status" -eq 0 ]
+}
+
+@test "check-deps: 'blocked by #11' where #11 open -> exit 2, names ref" {
+    mk_issue 10 open auto-dev "blocked by #11"
+    mk_issue 11 open "" ""
+    run "$SCRIPT" check-deps 10
+    [ "$status" -eq 2 ]
+    [[ "$output" == *"#11"* ]]
+}
+
+@test "check-deps: 'depends on #11' where #11 closed -> exit 0" {
+    mk_issue 10 open auto-dev "depends on #11"
+    mk_issue 11 closed "" ""
+    run "$SCRIPT" check-deps 10
+    [ "$status" -eq 0 ]
+}
+
+@test "check-deps: multiple patterns, mix of met/unmet -> exit 2 lists only unmet" {
+    mk_issue 10 open auto-dev "requires #11 and needs #12"
+    mk_issue 11 closed "" ""
+    mk_issue 12 open "" ""
+    run "$SCRIPT" check-deps 10
+    [ "$status" -eq 2 ]
+    [[ "$output" == *"#12"* ]]
+    [[ "$output" != *"#11"* ]]
+}

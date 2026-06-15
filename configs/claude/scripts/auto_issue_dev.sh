@@ -40,10 +40,69 @@ Fail-open: mark-* always exit 0. Opt-in label: auto-dev.
 USAGE
 }
 
+# parse_dep_refs <text> — print unique dependency issue/PR numbers, one per line
+parse_dep_refs() {
+    python3 - "$1" <<'PY'
+import sys, re
+text = sys.argv[1] or ""
+pat = re.compile(r'(?:depends on|blocked by|requires|needs)\s+#(\d+)', re.IGNORECASE)
+seen = []
+for m in pat.finditer(text):
+    n = m.group(1)
+    if n not in seen:
+        seen.append(n)
+print("\n".join(seen))
+PY
+}
+
+# ref_met <M> — return 0 if referenced issue is closed OR PR is merged, else 1
+ref_met() {
+    local m="$1" view state merged
+    view="$(git_ops issue-view "$m" 2>/dev/null || true)"
+    if [[ -n "${view}" ]]; then
+        state="$(printf '%s' "${view}" | python3 -c 'import sys,json; print((json.load(sys.stdin).get("state") or "").lower())' 2>/dev/null || true)"
+        [[ "${state}" == "closed" || "${state}" == "merged" ]] && return 0
+        return 1
+    fi
+    # Fall back to PR view (ref may be a PR number)
+    view="$(git_ops pr-view "$m" 2>/dev/null || true)"
+    [[ -z "${view}" ]] && return 1
+    merged="$(printf '%s' "${view}" | python3 -c 'import sys,json; d=json.load(sys.stdin); print("yes" if (d.get("merged") or (d.get("state") or "").lower()=="merged") else "no")' 2>/dev/null || echo no)"
+    [[ "${merged}" == "yes" ]]
+}
+
+# cmd_check_deps <N> [--json]
+cmd_check_deps() {
+    local n="${1:-}"; local json=0; [[ "${2:-}" == "--json" ]] && json=1
+    [[ -n "${n}" ]] || { err "check-deps: issue number required"; return 1; }
+    local body refs unmet=()
+    body="$(git_ops issue-view "${n}" 2>/dev/null | python3 -c 'import sys,json
+try:
+    d=json.load(sys.stdin); print((d.get("title") or "")+" \n "+(d.get("body") or ""))
+except Exception: pass' || true)"
+    refs="$(parse_dep_refs "${body}")"
+    local m
+    while IFS= read -r m; do
+        [[ -z "${m}" || "${m}" == "${n}" ]] && continue
+        ref_met "${m}" || unmet+=("${m}")
+    done <<< "${refs}"
+    if [[ ${#unmet[@]} -eq 0 ]]; then
+        [[ ${json} -eq 1 ]] && echo '{"unmet":[]}'
+        return 0
+    fi
+    if [[ ${json} -eq 1 ]]; then
+        printf '{"unmet":[%s]}\n' "$(IFS=,; echo "${unmet[*]}")"
+    else
+        printf 'unmet dependencies for #%s: %s\n' "${n}" "$(printf '#%s ' "${unmet[@]}")"
+    fi
+    return 2
+}
+
 main() {
     local sub="${1:-}"; shift || true
     case "${sub}" in
         --help|-h|help) usage; exit 0 ;;
+        check-deps) cmd_check_deps "$@"; exit $? ;;
         *) err "unknown subcommand: ${sub:-<none>}"; usage >&2; exit 64 ;;
     esac
 }
