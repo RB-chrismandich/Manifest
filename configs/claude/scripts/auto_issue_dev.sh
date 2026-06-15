@@ -197,9 +197,9 @@ except Exception: pass' || true)"
         return 0
     fi
     if [[ ${json} -eq 1 ]]; then
-        printf '{"unmet":[%s]}\n' "$(IFS=,; echo "${unmet[*]}")"
+        printf '{"unmet":[%s]}\n' "$(IFS=,; echo "${unmet[*]}")"  # array-safe: non-empty (early-returned above)
     else
-        printf 'unmet dependencies for #%s: %s\n' "${n}" "$(printf '#%s ' "${unmet[@]}")"
+        printf 'unmet dependencies for #%s: %s\n' "${n}" "$(printf '#%s ' "${unmet[@]}")"  # array-safe: non-empty (early-returned above)
     fi
     return 2
 }
