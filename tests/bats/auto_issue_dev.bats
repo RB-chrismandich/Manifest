@@ -329,3 +329,59 @@ EOF
     [ "$status" -eq 2 ]
     [[ "$output" == *"#11"* ]]
 }
+
+# --- Issue #358: unblock-aware prioritization --------------------------------
+
+@test "next-issue: unblocking issue outranks isolated higher-severity issue" {
+    # #20 priority:high, isolated; #21 no priority, but #22 #23 #24 all depend on it
+    # new code must return #21 (unblocks 3 > 0), not #20 (lowest number / higher severity)
+    export ISSUE_LIST_OUT='[{"number":20,"title":"highpri","url":"u20","labels":[{"name":"auto-dev"},{"name":"priority:high"}]},{"number":21,"title":"blocker","url":"u21","labels":[{"name":"auto-dev"}]},{"number":22,"title":"c","url":"u22","labels":[{"name":"auto-dev"}]},{"number":23,"title":"d","url":"u23","labels":[{"name":"auto-dev"}]},{"number":24,"title":"e","url":"u24","labels":[{"name":"auto-dev"}]}]'
+    mk_issue 20 open "auto-dev,priority:high" "no deps"
+    mk_issue 21 open auto-dev "no deps"
+    mk_issue 22 open auto-dev "depends on #21"
+    mk_issue 23 open auto-dev "blocked by #21"
+    mk_issue 24 open auto-dev "requires #21"
+    run "$SCRIPT" next-issue --json
+    [ "$status" -eq 0 ]
+    [[ "$output" == *'"number":21'* ]]
+    [[ "$output" == *'"reason":'* ]]
+}
+
+@test "next-issue: with no inter-issue deps, severity outranks issue number" {
+    # #30 lower number (no priority); #31 higher number (priority:high)
+    # current code returns #30; new code must return #31
+    export ISSUE_LIST_OUT='[{"number":30,"title":"low","url":"u30","labels":[{"name":"auto-dev"}]},{"number":31,"title":"high","url":"u31","labels":[{"name":"auto-dev"},{"name":"priority:high"}]}]'
+    mk_issue 30 open auto-dev "no deps"
+    mk_issue 31 open "auto-dev,priority:high" "no deps"
+    run "$SCRIPT" next-issue --json
+    [ "$status" -eq 0 ]
+    [[ "$output" == *'"number":31'* ]]
+}
+
+@test "next-issue: JSON output always includes reason field" {
+    export ISSUE_LIST_OUT='[{"number":40,"title":"a","url":"u40","labels":[{"name":"auto-dev"}]}]'
+    mk_issue 40 open auto-dev "no deps"
+    run "$SCRIPT" next-issue --json
+    [ "$status" -eq 0 ]
+    [[ "$output" == *'"reason":'* ]]
+}
+
+@test "next-issue: ordering is deterministic across repeated runs" {
+    export ISSUE_LIST_OUT='[{"number":50,"title":"a","url":"u50","labels":[{"name":"auto-dev"}]},{"number":51,"title":"b","url":"u51","labels":[{"name":"auto-dev"}]}]'
+    mk_issue 50 open auto-dev "no deps"
+    mk_issue 51 open auto-dev "no deps"
+    run "$SCRIPT" next-issue --json
+    local first_out="$output"
+    run "$SCRIPT" next-issue --json
+    [ "$output" = "$first_out" ]
+}
+
+@test "next-issue: dependency cycle is surfaced in output" {
+    # #60 depends on #61; #61 depends on #60 → mutual cycle should appear in output
+    export ISSUE_LIST_OUT='[{"number":60,"title":"a","url":"u60","labels":[{"name":"auto-dev"}]},{"number":61,"title":"b","url":"u61","labels":[{"name":"auto-dev"}]}]'
+    mk_issue 60 open auto-dev "depends on #61"
+    mk_issue 61 open auto-dev "depends on #60"
+    run "$SCRIPT" next-issue --json
+    [ "$status" -eq 3 ]
+    [[ "$output" == *'cycle'* ]]
+}
