@@ -27,6 +27,103 @@ FAIL_LABEL="${AUTO_ISSUE_DEV_FAIL_LABEL:-needs-human}"
 
 git_ops() { "${GIT_OPS_BIN}" "$@"; }
 
+# detect_platform — echo github|gitlab|git (via git_platform.sh)
+detect_platform() {
+    bash "${GIT_PLATFORM_BIN}" 2>/dev/null || printf 'git'
+}
+
+# Normalize an issue-view payload (gh or glab JSON) into a stable shape:
+#   {"number","title","body","state","labels":[names],"comments":[bodies]}
+# Reads raw JSON on stdin; emits "{}" on parse failure. Mirrors the field
+# mapping in issue_support.sh's NORMALIZE_PY (number/iid, opened→open,
+# description→body, label objects/strings→names, notes→comments).
+# NOTE: `python3 -c` (not a heredoc) keeps the piped JSON on stdin.
+NORMALIZE_ISSUE_PY='
+import sys, json
+try:
+    d = json.load(sys.stdin)
+except Exception:
+    print("{}"); sys.exit(0)
+if not isinstance(d, dict):
+    print("{}"); sys.exit(0)
+num = d.get("number") or d.get("iid") or d.get("id") or 0
+title = d.get("title") or ""
+body = d.get("body")
+if body is None:
+    body = d.get("description") or ""
+state = (d.get("state") or "").lower()
+if state == "opened":
+    state = "open"
+labels = []
+for L in (d.get("labels") or []):
+    labels.append(L.get("name", "") if isinstance(L, dict) else str(L))
+labels = [n for n in labels if n]
+comments = []
+src = d.get("comments")
+if src is None:
+    src = d.get("notes") or []
+for c in (src or []):
+    if isinstance(c, dict):
+        comments.append(c.get("body", "") or "")
+    else:
+        comments.append(str(c))
+print(json.dumps({"number": num, "title": title, "body": body,
+                  "state": state, "labels": labels, "comments": comments},
+                 separators=(",", ":")))
+'
+
+# issue_json <N> — fetch issue N and emit the normalized JSON object (or "{}").
+# Platform-aware: github via --json fields, gitlab via --output json (+ notes).
+issue_json() {
+    local n="$1" platform raw="" notes=""
+    platform="$(detect_platform)"
+    if [[ "${platform}" == "gitlab" ]]; then
+        raw="$(git_ops issue-view "${n}" --output json 2>/dev/null || true)"
+        [[ -z "${raw}" ]] && { printf '{}'; return 0; }
+        # glab `issue view --output json` does not embed notes; fetch text and
+        # fold each comment in so has_marker() can scan them.
+        notes="$(git_ops issue-view "${n}" --comments 2>/dev/null || true)"
+        printf '%s' "${raw}" | NORMALIZE_NOTES="${notes}" python3 -c '
+import sys, json, os
+try:
+    d = json.load(sys.stdin)
+except Exception:
+    print("{}"); sys.exit(0)
+if not isinstance(d, dict):
+    print("{}"); sys.exit(0)
+num = d.get("number") or d.get("iid") or d.get("id") or 0
+title = d.get("title") or ""
+body = d.get("body")
+if body is None:
+    body = d.get("description") or ""
+state = (d.get("state") or "").lower()
+if state == "opened":
+    state = "open"
+labels = []
+for L in (d.get("labels") or []):
+    labels.append(L.get("name", "") if isinstance(L, dict) else str(L))
+labels = [n for n in labels if n]
+comments = []
+src = d.get("comments")
+if src is None:
+    src = d.get("notes")
+if src:
+    for c in src:
+        comments.append(c.get("body", "") if isinstance(c, dict) else str(c))
+notes = os.environ.get("NORMALIZE_NOTES", "")
+if notes:
+    comments.append(notes)
+print(json.dumps({"number": num, "title": title, "body": body,
+                  "state": state, "labels": labels, "comments": comments},
+                 separators=(",", ":")))
+' 2>/dev/null || printf '{}'
+    else
+        raw="$(git_ops issue-view "${n}" --json number,title,body,state,labels,comments 2>/dev/null || true)"
+        [[ -z "${raw}" ]] && { printf '{}'; return 0; }
+        printf '%s' "${raw}" | python3 -c "${NORMALIZE_ISSUE_PY}" 2>/dev/null || printf '{}'
+    fi
+}
+
 usage() {
     cat <<'USAGE'
 Usage: auto_issue_dev.sh <subcommand> [args]
@@ -55,19 +152,28 @@ print("\n".join(seen))
 PY
 }
 
-# ref_met <M> — return 0 if referenced issue is closed OR PR is merged, else 1
+# ref_met <M> — return 0 if referenced issue is closed OR PR is merged, else 1.
+# State is normalized (GitLab 'opened'→open is unmet; 'closed'/'merged' met).
 ref_met() {
     local m="$1" view state merged
-    view="$(git_ops issue-view "$m" 2>/dev/null || true)"
-    if [[ -n "${view}" ]]; then
-        state="$(printf '%s' "${view}" | python3 -c 'import sys,json; print((json.load(sys.stdin).get("state") or "").lower())' 2>/dev/null || true)"
+    view="$(issue_json "$m" 2>/dev/null || true)"
+    state="$(printf '%s' "${view}" | python3 -c 'import sys,json
+try: d=json.load(sys.stdin)
+except Exception: d={}
+print((d.get("state") or "").lower())' 2>/dev/null || true)"
+    if [[ -n "${state}" ]]; then
+        # normalized: opened→open already; closed/merged are "met"
         [[ "${state}" == "closed" || "${state}" == "merged" ]] && return 0
         return 1
     fi
     # Fall back to PR view (ref may be a PR number)
     view="$(git_ops pr-view "$m" 2>/dev/null || true)"
     [[ -z "${view}" ]] && return 1
-    merged="$(printf '%s' "${view}" | python3 -c 'import sys,json; d=json.load(sys.stdin); print("yes" if (d.get("merged") or (d.get("state") or "").lower()=="merged") else "no")' 2>/dev/null || echo no)"
+    merged="$(printf '%s' "${view}" | python3 -c 'import sys,json
+try: d=json.load(sys.stdin)
+except Exception: d={}
+st=(d.get("state") or "").lower()
+print("yes" if (d.get("merged") or st=="merged") else "no")' 2>/dev/null || echo no)"
     [[ "${merged}" == "yes" ]]
 }
 
@@ -76,7 +182,7 @@ cmd_check_deps() {
     local n="${1:-}"; local json=0; [[ "${2:-}" == "--json" ]] && json=1
     [[ -n "${n}" ]] || { err "check-deps: issue number required"; return 1; }
     local body refs unmet=()
-    body="$(git_ops issue-view "${n}" 2>/dev/null | python3 -c 'import sys,json
+    body="$(issue_json "${n}" | python3 -c 'import sys,json
 try:
     d=json.load(sys.stdin); print((d.get("title") or "")+" \n "+(d.get("body") or ""))
 except Exception: pass' || true)"
@@ -101,10 +207,10 @@ except Exception: pass' || true)"
 # has_marker <N> <marker> — 0 if a comment with marker already exists
 has_marker() {
     local n="$1" marker="$2" body
-    body="$(git_ops issue-view "${n}" 2>/dev/null | python3 -c 'import sys,json
+    body="$(issue_json "${n}" | python3 -c 'import sys,json
 try:
     d=json.load(sys.stdin)
-    print("\n".join(c.get("body","") for c in (d.get("comments") or [])))
+    print("\n".join(str(c) for c in (d.get("comments") or [])))
 except Exception: pass' || true)"
     [[ "${body}" == *"${marker}"* ]]
 }
@@ -118,8 +224,10 @@ flag() {
     if has_marker "${n}" "${marker}"; then
         return 0
     fi
-    printf '%s\n\n%s\n' "${marker}" "${comment}" \
-        | git_ops issue-comment "${n}" --body-file - >/dev/null 2>&1 \
+    # Mirror issue_support.sh: pass the body inline via --body (gitlab note +
+    # github comment both accept it through git_ops). Marker leads so dedup
+    # via has_marker() matches on the next run.
+    git_ops issue-comment "${n}" --body "${marker}"$'\n\n'"${comment}" >/dev/null 2>&1 \
         || err "could not comment on #${n} (continuing)"
     return 0
 }
@@ -141,9 +249,34 @@ cmd_mark_dependency() {
 # cmd_next_issue [--json]
 cmd_next_issue() {
     local json=0; [[ "${1:-}" == "--json" ]] && json=1
-    local list
-    list="$(git_ops issue-list --state open --label "${DEV_LABEL}" \
-                --json number,title,url,labels 2>/dev/null || echo '[]')"
+    local platform raw list
+    platform="$(detect_platform)"
+    if [[ "${platform}" == "gitlab" ]]; then
+        raw="$(git_ops issue-list --state open --label "${DEV_LABEL}" \
+                    --output json 2>/dev/null || echo '[]')"
+    else
+        raw="$(git_ops issue-list --state open --label "${DEV_LABEL}" \
+                    --json number,title,url,labels 2>/dev/null || echo '[]')"
+    fi
+    [[ -z "${raw}" ]] && raw='[]'
+    # Normalize each list item to {number,title,url,labels:[names]} so the
+    # downstream filter/sort works identically for gh and glab (iid→number,
+    # web_url→url, label objects/strings→names).
+    list="$(printf '%s' "${raw}" | python3 -c 'import sys,json
+try: items=json.load(sys.stdin)
+except Exception: items=[]
+if not isinstance(items, list): items=[]
+out=[]
+for i in items:
+    if not isinstance(i, dict): continue
+    num=i.get("number") or i.get("iid") or i.get("id") or 0
+    url=i.get("url") or i.get("web_url") or ""
+    names=[]
+    for L in (i.get("labels") or []):
+        names.append(L.get("name","") if isinstance(L,dict) else str(L))
+    out.append({"number":num,"title":i.get("title",""),"url":url,
+                "labels":[{"name":n} for n in names if n]})
+print(json.dumps(out,separators=(",",":")))' 2>/dev/null || echo '[]')"
     [[ -z "${list}" ]] && list='[]'
 
     # Candidate numbers, ascending (oldest-first ~= lowest number), that are NOT
