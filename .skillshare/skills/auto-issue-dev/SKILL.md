@@ -43,7 +43,13 @@ this skill with fresh context for the next issue.
    - **Failure/stuck** → push WIP and open a **draft**:
      `git_ops.sh pr-create --draft --title "[WIP] <...>" --body "Partial; needs human."`
      then `auto_issue_dev.sh mark-blocked <N> "<one-line reason>"`.
-7. **Summary.** Print one line: issue, outcome (PR # or draft), and skip count.
+7. **Audit.** After determining the outcome, append one record to the audit log:
+   ```bash
+   configs/claude/scripts/audit_log.sh append \
+     "{\"ts\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",\"issue\":N,\"action\":\"<pr-opened|draft-pr|blocked>\",\"outcome\":\"<PR #NNN or draft or blocked: reason>\",\"reason\":\"<selection reason>\",\"skipped_dependency\":K}"
+   ```
+   The script redacts secrets before writing and fails open — a write failure never blocks the run.
+8. **Summary.** Print one line: issue, outcome (PR # or draft), and skip count.
 
 ## Notes
 
