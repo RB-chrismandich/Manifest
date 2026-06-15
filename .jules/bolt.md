@@ -13,3 +13,7 @@
 ## 2026-06-09 - Exception Overhead in Hot Paths
 **Learning:** Catching `ValueError` exceptions (e.g., when calling `json.loads` on non-JSON strings) inside tight loops or large parsing pipelines creates significant performance overhead (tested at ~2.8x slower).
 **Action:** Use fast-path checks (such as stripping whitespace and checking if the first character is a valid JSON opening char like `{`, `[`, `"`, `t`, `f`, `n`, or a digit) to bypass the exception overhead for obvious string literals.
+
+## 2026-06-12 - Python Generators vs. List Comprehensions
+**Learning:** In hot loops, list comprehensions can be noticeably faster than generator expressions because they execute directly at C speed in Python without the overhead of yielding individual frames, and avoid creating a temporary generator object. For instance, `len([1 for count in values if count > 1])` is faster than `sum(1 for count in values if count > 1)`. Additionally, constructing a `Counter` incrementally via an explicit `.update()` loop is faster than a nested double generator `Counter(x for x in (...) for y in (...))`.
+**Action:** When working on tight nested loops parsing large data, avoid double generators passed into objects. Unroll to `.update()` calls or use list comprehensions (`len([x ...])`) when the intermediate collection is small enough to easily fit in memory.
