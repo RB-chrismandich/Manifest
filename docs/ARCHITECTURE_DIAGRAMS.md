@@ -1515,9 +1515,9 @@ flowchart TB
 | `done` | `#0E8A16` (Green) | GitHub, GitLab, Linear | /plan-manage execute |
 | `follow-up` | `#D4C5F9` (Lavender) | GitHub, GitLab, Linear | /issue-triage |
 | `future` | `#C2E0C6` (Green) | GitHub, GitLab, Linear | /issue-prioritize |
-| `auto-dev` | (opt-in) | GitHub, GitLab, Linear | /auto-issue-dev (selection) |
-| `needs-human` | (flag) | GitHub, GitLab, Linear | /auto-issue-dev (mark-blocked) |
-| `blocked-dependency` | (flag) | GitHub, GitLab, Linear | /auto-issue-dev (mark-dependency) |
+| `auto-dev` | `#5319E7` (Purple) | GitHub, GitLab, Linear | /auto-issue-dev (selection) |
+| `needs-human` | `#B60205` (Red) | GitHub, GitLab, Linear | /auto-issue-dev (mark-blocked) |
+| `blocked-dependency` | `#6A737D` (Gray) | GitHub, GitLab, Linear | /auto-issue-dev (mark-dependency) |
 
 **Deprecated**: `processed` (replaced by `done`)
 

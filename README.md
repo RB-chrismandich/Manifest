@@ -106,8 +106,8 @@ Mermaid flowcharts showing bootstrap, execution, validation, and consensus flows
 | `/docs-readme` | Improve README structure and content following best practices | NEVER | Tier 2 |
 | `/issue-prioritize` | Fetch and rank open issues by impact, urgency, readiness, risk (GitHub/GitLab/Linear) | CONDITIONAL (top candidates) | Tier 2 |
 | `/issue-triage` | Linear issue audit: duplicates, staleness, priority validation | CONDITIONAL (scenario-based) | Tier 2 |
-| `/auto-issue-dev` | Autonomously develop one `auto-dev`-labeled issue test-first and open a PR (never merges); run via `/loop /auto-issue-dev` | CONDITIONAL | Tier 1 + Tier 2 |
-| `/repo-hygiene` | Review-then-confirm cleanup sweep of open PRs and stale/merged/gone branches | CONDITIONAL | Tier 2 |
+| `/auto-issue-dev` | Autonomously develop one `auto-dev`-labeled issue test-first and open a PR (never merges); run via `/loop /auto-issue-dev` | NEVER | Tier 1 + Tier 2 |
+| `/repo-hygiene` | Review-then-confirm cleanup sweep of open PRs and stale/merged/gone branches | CONDITIONAL | Tier 1 + Tier 2 |
 | `/plan-manage` | Plan lifecycle: create, review, execute, archive, abandon | CONDITIONAL | Tier 2 |
 | `/browser-test` | AI-powered E2E browser testing via browser-use YAML test prompts | CONDITIONAL | Tier 2 |
 | `/skill-evolve` | Promote SkillClaw-evolved skills into a review PR (dry-run by default) | NEVER | Tier 2 |
