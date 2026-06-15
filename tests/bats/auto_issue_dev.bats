@@ -147,6 +147,7 @@ EOF
     run "$SCRIPT" next-issue --json
     [ "$status" -eq 0 ]
     [[ "$output" == *'"number":21'* ]]
+    [[ "$output" == *'"skipped_dependency":1'* ]]
     grep -q "issue-edit 20 .*blocked-dependency" "$CALL_LOG"
 }
 
@@ -234,4 +235,97 @@ EOF
     run "$SCRIPT" mark-dependency 10 "#11"
     [ "$status" -eq 0 ]
     ! grep -q "issue-comment 10" "$CALL_LOG"
+}
+
+# --- ref_met pr-view requests JSON (FIX 1) -----------------------------------
+
+@test "check-deps (github): pr-view fallback passes a JSON flag, merged -> exit 0" {
+    mk_issue 10 open auto-dev "blocked by #99"
+    cat >"$FIXTURE_DIR/pr-99.json" <<'EOF'
+{"state":"MERGED","merged":true}
+EOF
+    run "$SCRIPT" check-deps 10
+    [ "$status" -eq 0 ]
+    grep -q "pr-view 99 --json" "$CALL_LOG"
+}
+
+@test "check-deps (github): dependency PR still open -> unmet exit 2" {
+    mk_issue 10 open auto-dev "blocked by #99"
+    cat >"$FIXTURE_DIR/pr-99.json" <<'EOF'
+{"state":"OPEN","merged":false}
+EOF
+    run "$SCRIPT" check-deps 10
+    [ "$status" -eq 2 ]
+}
+
+@test "check-deps: dangling ref (no issue, no PR fixture) -> unmet exit 2" {
+    mk_issue 10 open auto-dev "blocked by #99"
+    # no issue-99.json and no pr-99.json -> both views empty -> UNMET
+    run "$SCRIPT" check-deps 10
+    [ "$status" -eq 2 ]
+}
+
+# --- mark-* fail-open under double/comment failure ---------------------------
+
+@test "mark-blocked: fail-open when both edit and comment error" {
+    mk_issue 10 open auto-dev ""
+    EDIT_RC=1 COMMENT_RC=1 run "$SCRIPT" mark-blocked 10 "boom"
+    [ "$status" -eq 0 ]
+}
+
+@test "mark-dependency: fail-open when comment errors" {
+    mk_issue 10 open auto-dev ""
+    COMMENT_RC=1 run "$SCRIPT" mark-dependency 10 "#11"
+    [ "$status" -eq 0 ]
+}
+
+# --- gitlab dedup via --comments notes text ---------------------------------
+
+@test "mark-dependency (gitlab): dedup via --comments notes text" {
+    export STUB_PLATFORM=gitlab
+    cat >"$FIXTURE_DIR/issue-60.json" <<'EOF'
+{"iid":60,"state":"opened","labels":["auto-dev"],"title":"t","description":"x"}
+EOF
+    printf '%s\n' '<!-- auto-issue-dev:dependency -->' 'prior' >"$FIXTURE_DIR/comments-60.txt"
+    run "$SCRIPT" mark-dependency 60 "#61"
+    [ "$status" -eq 0 ]
+    grep -q "issue-view 60 --comments" "$CALL_LOG"
+    ! grep -q "issue-comment 60" "$CALL_LOG"
+}
+
+# --- next-issue skipped_dependency count ------------------------------------
+
+@test "next-issue: single dep-blocked candidate -> exit 3 with skipped_dependency:1" {
+    export ISSUE_LIST_OUT='[{"number":20,"title":"a","url":"u20","labels":[{"name":"auto-dev"}]}]'
+    mk_issue 20 open auto-dev "blocked by #99"
+    mk_issue 99 open "" ""
+    run "$SCRIPT" next-issue --json
+    [ "$status" -eq 3 ]
+    [[ "$output" == *'"skipped_dependency":1'* ]]
+}
+
+# --- self-reference is skipped ----------------------------------------------
+
+@test "check-deps: self-reference (#N depends on #N) -> exit 0" {
+    mk_issue 10 open auto-dev "depends on #10"
+    run "$SCRIPT" check-deps 10
+    [ "$status" -eq 0 ]
+}
+
+# --- missing-arg -------------------------------------------------------------
+
+@test "check-deps: missing issue number -> exit 1" {
+    run "$SCRIPT" check-deps
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"issue number required"* ]]
+}
+
+# --- requires-only unmet -----------------------------------------------------
+
+@test "check-deps: 'requires #11' where #11 open -> exit 2 names #11" {
+    mk_issue 10 open auto-dev "requires #11"
+    mk_issue 11 open "" ""
+    run "$SCRIPT" check-deps 10
+    [ "$status" -eq 2 ]
+    [[ "$output" == *"#11"* ]]
 }

@@ -7,7 +7,7 @@
 #
 # Subcommands:
 #   next-issue [--json]        First READY auto-dev issue; exit 3 when none
-#   check-deps <N> [--json]    Exit 2 if issue N has unmet dependency refs
+#   check-deps <N> [--json]    Exit 2 if unmet deps; exit 1 if N missing
 #   mark-blocked <N> <reason>  Add needs-human label + deduped comment (exit 0)
 #   mark-dependency <N> <refs> Add blocked-dependency label + deduped comment (exit 0)
 #
@@ -29,14 +29,15 @@ git_ops() { "${GIT_OPS_BIN}" "$@"; }
 
 # detect_platform — echo github|gitlab|git (via git_platform.sh)
 detect_platform() {
-    bash "${GIT_PLATFORM_BIN}" 2>/dev/null || printf 'git'
+    bash "${GIT_PLATFORM_BIN}" 2>/dev/null || { err "platform detection failed; defaulting to 'git' (gh-style calls may fail)"; printf 'git'; }
 }
 
 # Normalize an issue-view payload (gh or glab JSON) into a stable shape:
 #   {"number","title","body","state","labels":[names],"comments":[bodies]}
 # Reads raw JSON on stdin; emits "{}" on parse failure. Mirrors the field
 # mapping in issue_support.sh's NORMALIZE_PY (number/iid, opened→open,
-# description→body, label objects/strings→names, notes→comments).
+# description→body, label objects/strings→names, comments). The GitLab notes
+# fold is handled separately in issue_json().
 # NOTE: `python3 -c` (not a heredoc) keeps the piped JSON on stdin.
 NORMALIZE_ISSUE_PY='
 import sys, json
@@ -79,7 +80,7 @@ issue_json() {
     platform="$(detect_platform)"
     if [[ "${platform}" == "gitlab" ]]; then
         raw="$(git_ops issue-view "${n}" --output json 2>/dev/null || true)"
-        [[ -z "${raw}" ]] && { printf '{}'; return 0; }
+        [[ -z "${raw}" ]] && { err "issue-view #${n} returned no data (tracker outage/auth?); treating as unreadable"; printf '{}'; return 0; }
         # glab `issue view --output json` does not embed notes; fetch text and
         # fold each comment in so has_marker() can scan them.
         notes="$(git_ops issue-view "${n}" --comments 2>/dev/null || true)"
@@ -119,7 +120,7 @@ print(json.dumps({"number": num, "title": title, "body": body,
 ' 2>/dev/null || printf '{}'
     else
         raw="$(git_ops issue-view "${n}" --json number,title,body,state,labels,comments 2>/dev/null || true)"
-        [[ -z "${raw}" ]] && { printf '{}'; return 0; }
+        [[ -z "${raw}" ]] && { err "issue-view #${n} returned no data (tracker outage/auth?); treating as unreadable"; printf '{}'; return 0; }
         printf '%s' "${raw}" | python3 -c "${NORMALIZE_ISSUE_PY}" 2>/dev/null || printf '{}'
     fi
 }
@@ -129,7 +130,7 @@ usage() {
 Usage: auto_issue_dev.sh <subcommand> [args]
 
   next-issue [--json]          First READY auto-dev issue; exit 3 when none
-  check-deps <N> [--json]      Exit 2 if issue N has unmet dependency refs
+  check-deps <N> [--json]      Exit 2 if unmet deps; exit 1 if N missing
   mark-blocked <N> <reason>    Add needs-human label + deduped comment
   mark-dependency <N> <refs>   Add blocked-dependency label + deduped comment
 
@@ -166,9 +167,14 @@ print((d.get("state") or "").lower())' 2>/dev/null || true)"
         [[ "${state}" == "closed" || "${state}" == "merged" ]] && return 0
         return 1
     fi
-    # Fall back to PR view (ref may be a PR number)
-    view="$(git_ops pr-view "$m" 2>/dev/null || true)"
-    [[ -z "${view}" ]] && return 1
+    # Fall back to PR view (ref may be a PR number); request JSON per platform.
+    local platform; platform="$(detect_platform)"
+    if [[ "${platform}" == "gitlab" ]]; then
+        view="$(git_ops pr-view "$m" --output json 2>/dev/null || true)"
+    else
+        view="$(git_ops pr-view "$m" --json state,merged 2>/dev/null || true)"
+    fi
+    [[ -z "${view}" ]] && { err "could not resolve ref #${m} (issue+pr view both empty); treating as UNMET"; return 1; }
     merged="$(printf '%s' "${view}" | python3 -c 'import sys,json
 try: d=json.load(sys.stdin)
 except Exception: d={}
@@ -220,7 +226,7 @@ flag() {
     local n="$1" label="$2" marker="$3" comment="$4"
     [[ -n "${n}" ]] || { err "flag: issue number required"; return 0; }
     git_ops issue-edit "${n}" --add-label "${label}" >/dev/null 2>&1 \
-        || err "could not add '${label}' to #${n} (continuing)"
+        || err "FAILED to add '${label}' to #${n} — loop filters by label, so #${n} will be re-selected every run (is the label provisioned? run label_sync.sh)"
     if has_marker "${n}" "${marker}"; then
         return 0
     fi
@@ -252,11 +258,15 @@ cmd_next_issue() {
     local platform raw list
     platform="$(detect_platform)"
     if [[ "${platform}" == "gitlab" ]]; then
-        raw="$(git_ops issue-list --state open --label "${DEV_LABEL}" \
-                    --output json 2>/dev/null || echo '[]')"
+        if ! raw="$(git_ops issue-list --state open --label "${DEV_LABEL}" --output json 2>/dev/null)"; then
+            err "issue-list failed (tracker outage/auth?); treating as empty queue — loop may stop prematurely"
+            raw='[]'
+        fi
     else
-        raw="$(git_ops issue-list --state open --label "${DEV_LABEL}" \
-                    --json number,title,url,labels 2>/dev/null || echo '[]')"
+        if ! raw="$(git_ops issue-list --state open --label "${DEV_LABEL}" --json number,title,url,labels 2>/dev/null)"; then
+            err "issue-list failed (tracker outage/auth?); treating as empty queue — loop may stop prematurely"
+            raw='[]'
+        fi
     fi
     [[ -z "${raw}" ]] && raw='[]'
     # Normalize each list item to {number,title,url,labels:[names]} so the

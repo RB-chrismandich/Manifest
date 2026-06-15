@@ -61,7 +61,8 @@ assert_budget() {
     # Claude Code injects every skill's description at session start.
     # Budget covers the whole .skillshare/skills/ set.
     # Raised 18500 -> 19000 (2026-06-14) for the new auto-issue-dev skill:
-    # per-skill frontmatter is already minimal (~360 chars each) and a
+    # per-skill frontmatter is already minimal (~250 chars each on average;
+    # this skill ~290) and a
     # description has no read-on-demand alternative (it IS the always-loaded
     # triggering text), so a genuinely new skill must grow this budget. Keep
     # descriptions terse; if headroom runs low again, do a set-wide trim pass.
