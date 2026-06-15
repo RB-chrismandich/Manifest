@@ -40,20 +40,50 @@ fi
 
 # Detect timeout command (timeout on Linux, gtimeout on macOS via coreutils);
 # a bare `timeout` made auth checks always fail on stock macOS (issue #315).
+# CHECK_STATUS_NO_TIMEOUT_CMD=1 forces the pure-bash fallback below (tests use
+# this to exercise the no-coreutils path deterministically on any platform).
 TIMEOUT_CMD=""
-if command -v timeout &> /dev/null; then
-    TIMEOUT_CMD="timeout"
-elif command -v gtimeout &> /dev/null; then
-    TIMEOUT_CMD="gtimeout"
+if [[ "${CHECK_STATUS_NO_TIMEOUT_CMD:-}" != "1" ]]; then
+    if command -v timeout &> /dev/null; then
+        TIMEOUT_CMD="timeout"
+    elif command -v gtimeout &> /dev/null; then
+        TIMEOUT_CMD="gtimeout"
+    fi
 fi
 
-# Run a command bounded by 3s when a timeout binary exists, unbounded otherwise
+# Recursively SIGKILL a process and all its descendants. A bare `kill $pid`
+# leaves grandchildren orphaned (e.g. the CLI's `node` workers), and an orphan
+# that still holds the script's stdout pipe blocks any caller capturing our
+# output — re-introducing the very stall we are bounding. Kill children first
+# so we don't reparent them to init before we can find them.
+kill_tree() {
+    local pid="$1" child
+    for child in $(pgrep -P "$pid" 2> /dev/null); do
+        kill_tree "$child"
+    done
+    kill -9 "$pid" 2> /dev/null
+}
+
+# Run a command bounded by 3s. Prefer timeout(1)/gtimeout(1); otherwise fall
+# back to a pure-bash watchdog so a slow CLI (e.g. `gemini auth status`, ~60s)
+# can't stall the readiness check on machines without GNU coreutils — without
+# this the whole check took ~196s on stock macOS.
 run_with_timeout() {
+    local secs=3
     if [[ -n "$TIMEOUT_CMD" ]]; then
-        "$TIMEOUT_CMD" 3 "$@"
-    else
-        "$@"
+        "$TIMEOUT_CMD" "$secs" "$@"
+        return $?
     fi
+    "$@" &
+    local cmd_pid=$!
+    { sleep "$secs"; kill_tree "$cmd_pid"; } &
+    local watcher_pid=$!
+    wait "$cmd_pid" 2> /dev/null
+    local rc=$?
+    # command finished first: cancel the watchdog so it doesn't linger
+    kill_tree "$watcher_pid" 2> /dev/null
+    wait "$watcher_pid" 2> /dev/null
+    return "$rc"
 }
 
 antigravity_enabled=""
@@ -223,8 +253,13 @@ if [[ "$claude_installed" == true ]]; then
 fi
 
 if [[ "$gemini_installed" == true ]]; then
-    # Add timeout to avoid hanging
-    if run_with_timeout gemini auth status &> /dev/null; then
+    # Prefer a fast credential check: `gemini auth status` has no real auth
+    # subcommand and runs as a ~60s model call, so probe it only as a last
+    # resort. An API key or the OAuth creds file is an immediate signal (same
+    # file-presence heuristic as the Codex check above).
+    if [[ -n "$GEMINI_API_KEY" || -n "$GOOGLE_API_KEY" || -f "$HOME/.gemini/oauth_creds.json" ]]; then
+        echo -e "  ${GREEN}✓${NC} Gemini authenticated"
+    elif run_with_timeout gemini auth status &> /dev/null; then
         echo -e "  ${GREEN}✓${NC} Gemini authenticated"
     else
         echo -e "  ${YELLOW}?${NC} Gemini authentication unknown (check timeout)"

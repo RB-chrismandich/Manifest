@@ -60,6 +60,42 @@ synthesis_priority:
 
 # Tool policies per command
 tool_policies:
+  auto-issue-dev:
+    allowed:
+      - Bash       # auto_issue_dev.sh, git_ops.sh, install_issue_hooks.sh, git, gh/glab
+      - Read
+      - Edit       # writes code for the selected issue
+      - Write
+      - Skill      # test-driven-development, verify
+    forbidden: []
+    parallel_agents: never
+    validation_tier: 1
+
+  pr-issue-sync:
+    allowed:
+      - Bash
+      - Read
+    forbidden:
+      - Write
+      - Edit
+    parallel_agents: never
+    validation_tier: 1
+    enabled: false              # opt-in runtime gate (install_issue_hooks.sh --enable)
+    hook_timeout_seconds: 5     # fail-open soft timeout bound
+
+  commit-issue-sync:
+    allowed:
+      - Bash
+      - Read
+    forbidden:
+      - Write
+      - Edit
+    parallel_agents: never
+    validation_tier: 1
+    enabled: false              # opt-in runtime gate
+    hook_timeout_seconds: 5     # fail-open soft timeout bound
+    commit_hook_mode: sync      # sync only in v1; 'background' reserved (falls back to sync)
+
   docs-readme:
     allowed:
       - Read
@@ -336,6 +372,18 @@ tool_policies:
       - Grep
       - Bash   # git plumbing; branch deletion only on --apply
     parallel_agents: conditional   # Tier 1 on the destructive --apply path
+    validation_tier: 1
+
+  repo-hygiene:
+    allowed:
+      - Read
+      - Glob
+      - Grep
+      - Bash   # composes pr_review.sh / branch_clean.sh / hygiene_gather.py; close+delete only after confirm
+    forbidden:
+      - Write
+      - Edit   # report-first; never edits repo files
+    parallel_agents: conditional   # Tier 1 on the destructive close/prune path
     validation_tier: 1
 
   token-benchmark:

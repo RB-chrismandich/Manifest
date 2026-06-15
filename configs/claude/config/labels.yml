@@ -41,6 +41,21 @@ labels:
     description: "Kill-switch: the autonomous orchestrator must never select, advance, or implement this issue"
     platforms: [github, gitlab, linear]
 
+  - name: auto-dev
+    color: "5319E7"
+    description: "Eligible for the autonomous issue developer (/auto-issue-dev)"
+    platforms: [github, gitlab, linear]
+
+  - name: needs-human
+    color: "B60205"
+    description: "Auto-dev could not complete; needs a human"
+    platforms: [github, gitlab, linear]
+
+  - name: blocked-dependency
+    color: "6A737D"
+    description: "Has an unmet dependency; excluded from the auto-dev loop until the blocker merges"
+    platforms: [github, gitlab, linear]
+
 deprecated:
   - name: processed
     replacement: done

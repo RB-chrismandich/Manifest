@@ -235,3 +235,9 @@ approaches), review stale plans, or archive/abandon completed work.
 - [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) - Common problems and solutions
 - [configs/claude/.plans/README.md](configs/claude/.plans/README.md) - Plan management quick reference
 - [configs/claude/CLAUDE.md](configs/claude/CLAUDE.md) - Orchestration guide (deployed to ~/.claude/)
+
+<!-- SPECKIT START -->
+## Active Spec Kit Feature
+
+- `005-issue-linking-hooks` — plan: [specs/005-issue-linking-hooks/plan.md](specs/005-issue-linking-hooks/plan.md)
+<!-- SPECKIT END -->

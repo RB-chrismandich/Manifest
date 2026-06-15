@@ -2,7 +2,7 @@
 
 > Building custom commands for Claude Code with Manifest
 
-**Last Updated**: 2026-06-10
+**Last Updated**: 2026-06-15
 **Audience**: Command developers, advanced users
 **Prerequisites**: Manifest installed, basic understanding of Markdown and Bash
 
@@ -43,6 +43,9 @@ frontmatter is the authoritative name and description.
 | `/refactor-terraform` | Terraform/OpenTofu IaC security, modularity, and quality analysis | ALWAYS |
 | `/issue-triage` | Linear issue audit: duplicates, staleness, priority validation | CONDITIONAL |
 | `/issue-prioritize` | Score and rank open issues by impact/urgency/readiness/risk | CONDITIONAL |
+| `/auto-issue-dev` | Autonomously develop one opted-in (`auto-dev`-labeled) issue end-to-end — selects next ready issue, implements test-first, verifies, opens a PR (never merges); loops until queue empty | NO |
+| `/pr-issue-sync` | Hook-triggered: on PR open, back-link + advance linked issue to `needs-review` + ensure closing keyword (fail-open) | NO |
+| `/commit-issue-sync` | Hook-triggered: on branch commit, advance a `planned` issue to `in-progress`, deduped (fail-open) | NO |
 | `/plan-manage` | Plan lifecycle with parallel agent orchestration | CONDITIONAL |
 | `/browser-test` | AI-powered E2E browser testing via browser-use YAML test prompts | CONDITIONAL |
 | `/checkpoint` | Create compact checkpoint summary when context is high | NO |
@@ -51,6 +54,7 @@ frontmatter is the authoritative name and description.
 | `/version-pin` | Enforce specific, hashed version pins in dependency files (auto-fix on demand; warn-only save hook) | ALWAYS (Tier 1) |
 | `/pr-review` | Review all open PRs and recommend a disposition per PR (analysis-only) | NO |
 | `/branch-clean` | Prune merged/gone/stale branches safely (dry-run by default, local-only) | CONDITIONAL (--apply) |
+| `/repo-hygiene` | Review-then-confirm cleanup sweep of open PRs and stale/merged/gone branches (GitHub/GitLab/local) | CONDITIONAL (close/prune path) |
 | `/skill-evolve` | Promote SkillClaw-evolved skills into a review PR (dry-run by default); requires SkillClaw enabled | NO |
 | `/pass-cli` | Retrieve credentials from Proton Pass vaults via `pass-cli` agent CLI | NO |
 | `/spec-review` | Independent Antigravity (agy) cross-reference of spec/plan/tasks for internal consistency; on-demand or via fail-open PostToolUse save hook (content-hash debounced, detached); analysis-only; works with speckit and superpowers layouts; silent-mode findings land in `.spec-review/feedback.md` | NO |
@@ -64,6 +68,7 @@ frontmatter is the authoritative name and description.
 | `/scaffold` | Initialize new projects with quality gates and Manifest integration | NO |
 | `/ux-review` | UX audit: accessibility, responsive design, performance budgets | NO |
 | `/verify` | Run linters, tests, and security scans in parallel | CONDITIONAL |
+| `/token-benchmark` | Measure Manifest context token overhead and quality delta across providers; regenerates `docs/TOKEN_BENCHMARK.md` | NO |
 
 **CLI tool** (installed to `~/.local/bin/`):
 
@@ -167,6 +172,30 @@ tail -f ~/.claude/state/orchestrator/audit-*.jsonl
 
 Config: `configs/claude/config/orchestrator.yml`. Decision prompts:
 `.skillshare/skills/issue-orchestrator/SKILL.md`.
+
+## Issue-Linking Hooks
+
+Two opt-in, fail-open hooks keep the linked GitHub/GitLab issue in sync with
+development activity (skills `pr-issue-sync` and `commit-issue-sync`, over the shared
+`issue_support.sh` engine). They never block a git action.
+
+```bash
+# Enable (unified PostToolUse hook); add --native for a guarded git post-commit hook
+configs/claude/scripts/install_issue_hooks.sh --enable [--native]
+
+# Preview / debug without mutating the tracker
+configs/claude/scripts/issue_support.sh sync-pr --dry-run
+configs/claude/scripts/issue_support.sh resolve --branch 005-my-feature --json
+
+# Disable (keeps the skills; flips the runtime gate off and removes the hooks)
+configs/claude/scripts/install_issue_hooks.sh --remove
+```
+
+Behavior: PR opened → linked issue advances to `needs-review` + back-link + `Closes #N`;
+commit on a branch → a `planned` issue advances to `in-progress` (deduped). Coverage
+boundary: PR creation via the web UI or raw `gh`/`glab` outside a tool is not
+auto-observed — run `issue_support.sh sync-pr` manually there. Config:
+`command_config.yml → tool_policies.{pr,commit}-issue-sync`.
 
 ---
 

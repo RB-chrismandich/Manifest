@@ -225,6 +225,49 @@ EOF
     assert_output --partial "Codex authentication unknown"
 }
 
+# --- Auth probe timeout fallback (no GNU coreutils on PATH) ---
+
+@test "auth probe is bounded by the pure-bash fallback when no timeout binary exists" {
+    # Regression: run_with_timeout was a no-op without timeout(1)/gtimeout(1),
+    # so a slow `gemini auth status` (~60s) ran unbounded and made the whole
+    # readiness check take ~196s on stock macOS. The fallback must cap it at ~3s.
+    write_services_yml true true false false
+    make_mock_cli claude 0
+    # gemini whose `auth` hangs well past the 3s bound
+    cat > "$MOCK_BIN/gemini" << 'EOF'
+#!/bin/bash
+case "$1" in
+    auth) sleep 30 ;;
+    --version) echo "gemini 1.0.0-mock"; exit 0 ;;
+    *) exit 0 ;;
+esac
+EOF
+    chmod +x "$MOCK_BIN/gemini"
+
+    local start=$SECONDS
+    run env CHECK_STATUS_NO_TIMEOUT_CMD=1 bash "$SCRIPT_UNDER_TEST"
+    local elapsed=$(( SECONDS - start ))
+
+    assert_success
+    # slow probe is killed -> reported as unknown, not hung
+    assert_output --partial "Gemini authentication unknown"
+    [ "$elapsed" -lt 15 ]
+}
+
+@test "gemini auth uses the fast credential check, not the slow CLI probe" {
+    # oauth_creds.json present must short-circuit to authenticated WITHOUT
+    # calling `gemini auth status` (which would exit 1 here -> "unknown").
+    write_services_yml true true false false
+    make_mock_cli claude 0
+    make_mock_cli gemini 1
+    mkdir -p "$HOME/.gemini"
+    echo '{}' > "$HOME/.gemini/oauth_creds.json"
+    run bash "$SCRIPT_UNDER_TEST"
+    assert_success
+    assert_output --partial "Gemini authenticated"
+    refute_output --partial "Gemini authentication unknown"
+}
+
 # --- State directory resolution (MANIFEST_STATE_ROOT seam) ---
 
 @test "MANIFEST_STATE_ROOT is honored and state dirs are created" {

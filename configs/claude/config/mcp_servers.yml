@@ -57,8 +57,8 @@ mcp_servers:
   # ── Infrastructure as Code ───────────────────────────────────────────
 
   opentofu:
-    url: "https://mcp.opentofu.org/sse"
-    transport: "sse"
+    url: "https://mcp.opentofu.org/mcp"
+    transport: "http"
     oauth: false
     purpose: "OpenTofu registry search, provider/module docs, resource and datasource reference"
 
