@@ -134,16 +134,20 @@ def is_ancestor(ref: str, default: str) -> bool:
 
 
 def classify_local(b: dict, default: str, current: str, protected_globs: list[str],
-                   merged: dict, closed: dict, stale_days: int, now: int) -> dict:
+                   merged: dict, closed: dict, open_refs: dict,
+                   stale_days: int, now: int) -> dict:
     name = b["name"]
     age_days = (now - b["committed"]) // 86400 if b["committed"] else None
     base = {"name": name, "age_days": age_days,
-            "pr": merged.get(name) or closed.get(name)}
+            "pr": open_refs.get(name) or merged.get(name) or closed.get(name)}
     if is_protected(name, default, current, protected_globs):
         base["classification"] = "protected" if name != current else "current"
         base["safe_delete"] = False
         return base
-    if name in merged:
+    if name in open_refs:
+        base["classification"] = "open-pr"          # keep: backs an open PR
+        base["safe_delete"] = False
+    elif name in merged:
         base["classification"] = "merged-pr"      # squash-merge safe; needs -D
         base["safe_delete"] = True
     elif is_ancestor(name, default):
@@ -227,7 +231,7 @@ def main() -> int:
                       "rely on branch_clean.sh (merged-ff / gone / stale only).")
 
     locals_ = [classify_local(b, default, current, protected_globs,
-                              merged, closed, args.stale_days, now)
+                              merged, closed, open_refs, args.stale_days, now)
                for b in local_branches()]
     remotes = [classify_remote(n, merged, closed, open_refs)
                for n in remote_branches(default)]
@@ -239,11 +243,16 @@ def main() -> int:
         "stale_days": args.stale_days,
         "open_pr_sizes": sizes,                 # github only; {} otherwise
         "empty_prs": [n for n, s in sizes.items() if s["empty"]],
+        "open_pr_refs": open_refs,              # head ref -> open PR number
         "merged_pr_refs": merged,
         "closed_pr_refs": closed,
         "branches": {"local": locals_, "remote": remotes},
         "errors": errors,
     }
+    # Surface gathered errors to stderr too, so a degraded run is visible in logs
+    # and not only in the JSON a caller might not inspect.
+    for e in errors:
+        err(e)
     print(json.dumps(result, indent=2))
     # Exit non-zero only if we could gather *nothing* useful, so callers can tell
     # "clean repo" from "couldn't look".
