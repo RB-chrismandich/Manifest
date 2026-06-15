@@ -363,6 +363,18 @@ tool_policies:
     parallel_agents: conditional   # Tier 1 on the destructive --apply path
     validation_tier: 1
 
+  repo-hygiene:
+    allowed:
+      - Read
+      - Glob
+      - Grep
+      - Bash   # composes pr_review.sh / branch_clean.sh / hygiene_gather.py; close+delete only after confirm
+    forbidden:
+      - Write
+      - Edit   # report-first; never edits repo files
+    parallel_agents: conditional   # Tier 1 on the destructive close/prune path
+    validation_tier: 1
+
   token-benchmark:
     allowed:
       - Read

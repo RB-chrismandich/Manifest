@@ -1,0 +1,23 @@
+{
+  "skill_name": "repo-hygiene",
+  "evals": [
+    {
+      "id": 0,
+      "prompt": "can you go through all my open PRs and tell me which ones are ready to merge, which are stuck, and which I should just close? then close the dead ones",
+      "expected_output": "A sectioned report grouping open PRs into ready/needs-work/stale/keep with a per-PR next step, ending with a confirmation prompt before closing anything (does not auto-close).",
+      "files": []
+    },
+    {
+      "id": 1,
+      "prompt": "my local branch list is a total mess after the last few merges. clean up the stale and already-merged branches locally and on github too",
+      "expected_output": "Runs branch_clean dry-run first, groups candidates by reason (merged/gone/stale), presents them, and only deletes (including remote, since explicitly requested) after confirmation. Never touches current/protected/default branch.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "do a full hygiene pass on this repo — review every open PR and every leftover branch, break it into sections with recommendations for what to do next",
+      "expected_output": "A single combined report covering both open PRs and prunable branches, organized into clearly labeled sections, each item with a one-line rationale and a recommended next step, plus a Recommended actions summary. Report-only unless told to apply.",
+      "files": []
+    }
+  ]
+}
