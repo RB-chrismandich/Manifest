@@ -1,10 +1,9 @@
 ---
 name: auto-issue-dev
 description: |
-  Autonomously develop ONE opted-in ('auto-dev'-labeled) issue end-to-end: pick the
-  next ready issue, branch, implement test-first, verify, and open a PR for human
-  review (never merges). Dependency-blocked issues are tagged and skipped. Designed
-  to run unattended in a loop (/loop /auto-issue-dev) until the queue is empty.
+  Autonomously develop one opted-in ('auto-dev'-labeled) issue end-to-end: pick the
+  next ready issue, implement test-first, and open a PR for review (never merges).
+  Dependency-blocked issues are skipped. Run unattended via /loop /auto-issue-dev.
 ---
 
 # Autonomous Issue Developer
