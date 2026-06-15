@@ -98,11 +98,53 @@ except Exception: pass' || true)"
     return 2
 }
 
+# has_marker <N> <marker> — 0 if a comment with marker already exists
+has_marker() {
+    local n="$1" marker="$2" body
+    body="$(git_ops issue-view "${n}" 2>/dev/null | python3 -c 'import sys,json
+try:
+    d=json.load(sys.stdin)
+    print("\n".join(c.get("body","") for c in (d.get("comments") or [])))
+except Exception: pass' || true)"
+    [[ "${body}" == *"${marker}"* ]]
+}
+
+# flag <N> <label> <marker> <comment-body> — add label + deduped comment (fail-open)
+flag() {
+    local n="$1" label="$2" marker="$3" comment="$4"
+    [[ -n "${n}" ]] || { err "flag: issue number required"; return 0; }
+    git_ops issue-edit "${n}" --add-label "${label}" >/dev/null 2>&1 \
+        || err "could not add '${label}' to #${n} (continuing)"
+    if has_marker "${n}" "${marker}"; then
+        return 0
+    fi
+    printf '%s\n\n%s\n' "${marker}" "${comment}" \
+        | git_ops issue-comment "${n}" --body-file - >/dev/null 2>&1 \
+        || err "could not comment on #${n} (continuing)"
+    return 0
+}
+
+cmd_mark_blocked() {
+    local n="${1:-}" reason="${2:-unspecified}"
+    flag "${n}" "${FAIL_LABEL}" "<!-- auto-issue-dev:blocked -->" \
+        "Auto-dev could not complete this issue: ${reason}. Flagged \`${FAIL_LABEL}\` for a human."
+    return 0
+}
+
+cmd_mark_dependency() {
+    local n="${1:-}" refs="${2:-}"
+    flag "${n}" "${DEP_LABEL}" "<!-- auto-issue-dev:dependency -->" \
+        "Skipped by auto-dev: unmet dependency ${refs}. Will retry once the blocker merges and the \`${DEP_LABEL}\` label is removed."
+    return 0
+}
+
 main() {
     local sub="${1:-}"; shift || true
     case "${sub}" in
         --help|-h|help) usage; exit 0 ;;
         check-deps) cmd_check_deps "$@"; exit $? ;;
+        mark-blocked) cmd_mark_blocked "$@"; exit 0 ;;
+        mark-dependency) cmd_mark_dependency "$@"; exit 0 ;;
         *) err "unknown subcommand: ${sub:-<none>}"; usage >&2; exit 64 ;;
     esac
 }

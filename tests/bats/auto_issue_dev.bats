@@ -88,3 +88,34 @@ EOF
     [[ "$output" == *"#12"* ]]
     [[ "$output" != *"#11"* ]]
 }
+
+@test "mark-blocked: adds needs-human label and a comment, exit 0" {
+    mk_issue 10 open auto-dev ""
+    run "$SCRIPT" mark-blocked 10 "tests failed"
+    [ "$status" -eq 0 ]
+    grep -q "issue-edit 10 .*needs-human" "$CALL_LOG"
+    grep -q "issue-comment 10" "$CALL_LOG"
+}
+
+@test "mark-blocked: skips comment when marker already present (dedup)" {
+    cat >"$FIXTURE_DIR/issue-10.json" <<'EOF'
+{"number":10,"state":"open","labels":[{"name":"auto-dev"}],"title":"t","body":"b","comments":[{"body":"<!-- auto-issue-dev:blocked -->\nprior"}]}
+EOF
+    run "$SCRIPT" mark-blocked 10 "again"
+    [ "$status" -eq 0 ]
+    ! grep -q "issue-comment 10" "$CALL_LOG"
+}
+
+@test "mark-blocked: fail-open when label edit errors" {
+    mk_issue 10 open auto-dev ""
+    EDIT_RC=1 run "$SCRIPT" mark-blocked 10 "reason"
+    [ "$status" -eq 0 ]
+}
+
+@test "mark-dependency: adds blocked-dependency label + comment naming refs" {
+    mk_issue 10 open auto-dev ""
+    run "$SCRIPT" mark-dependency 10 "#11 #12"
+    [ "$status" -eq 0 ]
+    grep -q "issue-edit 10 .*blocked-dependency" "$CALL_LOG"
+    grep -q "issue-comment 10" "$CALL_LOG"
+}
