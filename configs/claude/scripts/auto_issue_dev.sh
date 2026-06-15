@@ -282,11 +282,10 @@ print(sum(1 for i in items if dep in {l["name"] for l in (i.get("labels") or [])
     # Pre-fetch each candidate's body to build a reverse-dep map (unblock counts),
     # compute severity from labels, detect dependency cycles, and produce a ranked
     # ordering: (unblock_count DESC, severity DESC, number ASC).
-    local cand_data_list n
+    local cand_data_list n issue_raw body deps_str entry
     cand_data_list=''
     # shellcheck disable=SC2086
     for n in ${cand}; do
-        local issue_raw body deps_str entry
         issue_raw="$(issue_json "${n}")"
         body="$(printf '%s' "${issue_raw}" | python3 -c 'import sys,json
 try: d=json.load(sys.stdin)
@@ -370,14 +369,14 @@ print(json.dumps({"ranked":ranked,"unblock":unblock,"sevs":sevs,"cycle":cycle_ms
     local cycle_msg
     cycle_msg="$(printf '%s' "${rank_result}" | python3 -c 'import sys,json
 try: print(json.load(sys.stdin).get("cycle",""))
-except: print("")' 2>/dev/null || true)"
+except Exception: print("")' 2>/dev/null || true)"
     [[ -n "${cycle_msg}" ]] && err "${cycle_msg}"
 
     # Ranked candidate list (replaces the old ascending-number order)
     local ranked_cand
     ranked_cand="$(printf '%s' "${rank_result}" | python3 -c 'import sys,json
 try: d=json.load(sys.stdin)
-except: d={}
+except Exception: d={}
 print(" ".join(str(x) for x in d.get("ranked",[])))' 2>/dev/null || echo "${cand}")"
 
     # === Phase 2: dep-check and select ===
@@ -400,7 +399,7 @@ print(" ".join("#%s"%x for x in u))' 2>/dev/null || true)"
 import sys, json
 n = int(sys.argv[1])
 try: d = json.load(sys.stdin)
-except: d = {}
+except Exception: d = {}
 ub = int(d.get("unblock",{}).get(str(n), 0))
 sev = int(d.get("sevs",{}).get(str(n), 0))
 sev_name = {0:"none",1:"low",2:"medium",3:"high",4:"critical"}.get(sev,"?")
