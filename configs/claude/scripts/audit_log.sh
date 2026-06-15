@@ -19,7 +19,7 @@ text = sys.argv[1] if len(sys.argv) > 1 else ""
 PATTERNS = [
     (r"(ghp|gho|github_pat)_[A-Za-z0-9_]{20,}", "<REDACTED:github-token>"),
     (r"sk-ant-[A-Za-z0-9_-]{20,}",              "<REDACTED:anthropic-key>"),
-    (r"sk-[A-Za-z0-9]{20,}",                     "<REDACTED:api-key>"),
+    (r"sk-[A-Za-z0-9_-]{20,}",                   "<REDACTED:api-key>"),
     (r"(?i)(password|passwd|secret|token|api[_-]?key)\s*[:=]\s*\S+", r"\1=<REDACTED>"),
     (r"(?i)Bearer\s+[A-Za-z0-9\-._~+/]+=*",     "Bearer <REDACTED>"),
 ]
@@ -47,7 +47,10 @@ cmd_append() {
     local record="${1:-}"
     [[ -n "${record}" ]] || { err "append: record required"; return 0; }
     local redacted
-    redacted="$(cmd_redact "${record}" 2>/dev/null || printf '%s' "${record}")"
+    if ! redacted="$(cmd_redact "${record}" 2>/dev/null)"; then
+        err "WARNING: redaction failed; skipping audit append to prevent secret leak"
+        return 0
+    fi
     local dir
     dir="$(dirname "${AUDIT_FILE}")"
     mkdir -p "${dir}" 2>/dev/null || true

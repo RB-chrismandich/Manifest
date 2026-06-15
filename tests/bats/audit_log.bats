@@ -55,6 +55,13 @@ teardown() { [[ -n "$TMP" && -d "$TMP" ]] && rm -rf "$TMP"; }
     [[ "$output" == *"REDACTED"* ]]
 }
 
+@test "redact: masks OpenAI sk-proj- key containing hyphens" {
+    run "$SCRIPT" redact 'key=sk-proj-abcdef1234567890abcdef1234567890'
+    [ "$status" -eq 0 ]
+    [[ "$output" != *"sk-proj-"* ]]
+    [[ "$output" == *"REDACTED"* ]]
+}
+
 @test "redact: masks generic token=value pattern" {
     run "$SCRIPT" redact 'token=supersecret123'
     [ "$status" -eq 0 ]
@@ -114,4 +121,15 @@ teardown() { [[ -n "$TMP" && -d "$TMP" ]] && rm -rf "$TMP"; }
     export AUTO_ISSUE_DEV_AUDIT_FILE="/nonexistent-root/deeply/nested/audit.jsonl"
     run "$SCRIPT" append '{"issue":5,"action":"pr-opened"}'
     [ "$status" -eq 0 ]
+}
+
+@test "append: skips write and exits 0 when redaction fails (no unredacted secret written)" {
+    # Stub python3 to simulate redaction failure without breaking the shell itself
+    local fake_bin="$TMP/bin"
+    mkdir -p "$fake_bin"
+    printf '#!/bin/sh\nexit 1\n' > "$fake_bin/python3"
+    chmod +x "$fake_bin/python3"
+    PATH="$fake_bin:$PATH" run "$SCRIPT" append '{"issue":6,"secret":"sk-proj-abcdef1234567890abcdef"}'
+    [ "$status" -eq 0 ]
+    [ ! -f "$AUTO_ISSUE_DEV_AUDIT_FILE" ]
 }
