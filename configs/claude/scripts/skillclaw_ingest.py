@@ -84,6 +84,11 @@ def parse_transcript(path: Path, max_tool_output_chars: int = DEFAULT_MAX_TOOL_O
             line = line.strip()
             if not line:
                 continue
+
+            # ⚡ Bolt: Fast-path to avoid slow ValueError on json.loads for obvious strings
+            if line[0] not in '{["tfn0123456789-.':
+                continue
+
             try:
                 obj = json.loads(line)
             except json.JSONDecodeError:
