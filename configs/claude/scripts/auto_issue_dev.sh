@@ -276,7 +276,7 @@ dep=sys.argv[1]
 try: items=json.load(sys.stdin)
 except Exception: items=[]
 if not isinstance(items, list): items=[]
-print(sum(1 for i in items if dep in {l["name"] for l in (i.get("labels") or [])}))' "${DEP_LABEL}")"
+print(len([1 for i in items if dep in [l.get("name") for l in (i.get("labels") or [])]]))' "${DEP_LABEL}")"
 
     # === Phase 1: unblock-aware ranking ===
     # Pre-fetch each candidate's body to build a reverse-dep map (unblock counts),

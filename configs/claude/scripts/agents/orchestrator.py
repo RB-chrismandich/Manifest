@@ -288,7 +288,7 @@ class Orchestrator:
         if not total_words:
             consensus_score = 0
         else:
-            common_words = sum(1 for count in word_counts.values() if count > 1)
+            common_words = len([1 for count in word_counts.values() if count > 1])
             consensus_score = int((common_words / total_words) * 100)
 
         # Determine confidence level. Thresholds are fractions (0.80/0.50)
