@@ -1,0 +1,15 @@
+---
+description: "Use when building or hardening a CI workflow that runs privileged actions (deploys, bot/agent invocation, secret use) on comment or PR triggers — lock down who can trigger or edit the control via identity gates, CODEOWNERS, branch protection, and environments while keeping it auto-running on PRs. Build/governance counterpart to ci-workflow-trigger-security."
+globs: ".claude/skills/secure-comment-triggered-workflow/**"
+alwaysApply: false
+---
+
+# secure-comment-triggered-workflow
+
+Use when building or hardening a CI workflow that runs privileged actions (deploys, bot/agent invocation, secret use) on comment or PR triggers — lock down who can trigger or edit the control via identity gates, CODEOWNERS, branch protection, and environments while keeping it auto-running on PRs. Build/governance counterpart to ci-workflow-trigger-security.
+
+<!-- Auto-generated from .claude/skills/secure-comment-triggered-workflow/SKILL.md -->
+<!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
+
+Refer to `.cursor/skills/secure-comment-triggered-workflow/SKILL.md` for the full skill definition.
+
