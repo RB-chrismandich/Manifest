@@ -463,7 +463,7 @@ class Orchestrator:
         """Print results as formatted table"""
         table = Table(title="Parallel Agent Results")
         table.add_column("Agent", style="cyan")
-        table.add_column("Status", style="green")
+        table.add_column("Status")
         table.add_column("Time", justify="right", style="yellow")
         table.add_column("Model", style="blue")
 
@@ -473,8 +473,12 @@ class Orchestrator:
             model = agent_result.get("model", "N/A")
 
             status_icon = "✔" if status == "complete" else "✗"
+            status_color = "green" if status == "complete" else "red"
             table.add_row(
-                agent_name.title(), f"{status_icon} {status}", duration, model
+                agent_name.title(),
+                f"[{status_color}]{status_icon} {status}[/{status_color}]",
+                duration,
+                model,
             )
 
         self.console.print(table)
