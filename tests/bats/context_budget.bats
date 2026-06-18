@@ -66,14 +66,17 @@ assert_budget() {
     # description has no read-on-demand alternative (it IS the always-loaded
     # triggering text), so a genuinely new skill must grow this budget. Keep
     # descriptions terse; if headroom runs low again, do a set-wide trim pass.
+    # Raised 19000 -> 20000 (2026-06-17) for two genuinely-new skills with no
+    # prior coverage: ci-workflow-trigger-security + secure-comment-triggered-
+    # workflow (GitHub-Actions trigger security). Descriptions kept terse.
     total=0
     for f in "$REPO_ROOT"/.skillshare/skills/*/SKILL.md; do
         # frontmatter = up to the second '---' line
         chars=$(awk '/^---$/{c++; next} c==1' "$f" | wc -c)
         total=$((total + chars))
     done
-    if [ "$total" -gt 19000 ]; then
-        echo "Skill frontmatter totals $total chars (budget: 19000)." >&2
+    if [ "$total" -gt 20000 ]; then
+        echo "Skill frontmatter totals $total chars (budget: 20000)." >&2
         echo "Trim verbose descriptions; bodies are pay-per-use, frontmatter is not." >&2
         return 1
     fi
