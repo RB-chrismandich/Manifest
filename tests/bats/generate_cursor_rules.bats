@@ -138,6 +138,30 @@ EOF
     assert_output --partial 'description: "First line of description. Second line of description."'
 }
 
+@test "description containing double quotes is escaped to valid YAML frontmatter" {
+    # Regression (PR #376): a raw " in the description used to terminate the
+    # double-quoted YAML scalar early, leaving .mdc frontmatter invalid YAML
+    # that Cursor could not load the rule from. The generator must escape
+    # inner quotes as \" so the scalar stays balanced.
+    make_skill quoted 'Use when logs are gated ("still in progress") or hard to read'
+
+    run "$GEN"
+    assert_success
+
+    local mdc="$RULES_DIR/quoted.mdc"
+    # Inner quotes are backslash-escaped (fixed-string match on the literal \").
+    run grep -F 'description: "Use when logs are gated (\"still in progress\") or hard to read"' "$mdc"
+    assert_success
+
+    # And the frontmatter actually parses as YAML, when a parser is available.
+    if command -v python3 >/dev/null 2>&1 && python3 -c 'import yaml' 2>/dev/null; then
+        front=$(sed -n '2,/^---$/p' "$mdc" | sed '$d')
+        run python3 -c 'import sys,yaml; d=yaml.safe_load(sys.stdin.read()); assert isinstance(d,dict) and d.get("description"); print("yaml-ok")' <<<"$front"
+        assert_success
+        assert_output --partial "yaml-ok"
+    fi
+}
+
 @test "missing description falls back to '<name> skill'" {
     # BUG: the intended fallback (description="${description:-$skill_name skill}",
     # line 65) is unreachable. With `set -euo pipefail`, a SKILL.md whose

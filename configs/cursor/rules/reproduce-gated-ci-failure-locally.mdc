@@ -1,5 +1,5 @@
 ---
-description: "Use when a CI job fails but the run's logs are gated ("still in progress") or hard to read — pinpoint the failing step via the jobs API and reproduce that step's commands locally from the workflow file."
+description: "Use when a CI job fails but the run's logs are gated (\"still in progress\") or hard to read — pinpoint the failing step via the jobs API and reproduce that step's commands locally from the workflow file."
 globs: ".claude/skills/reproduce-gated-ci-failure-locally/**"
 alwaysApply: false
 ---

@@ -1,5 +1,5 @@
 ---
-description: "Use when asked to "review this change/diff for security vulnerabilities" — applies a disciplined source→sink method that reports only real security findings, not robustness or best-practice nits."
+description: "Use when asked to \"review this change/diff for security vulnerabilities\" — applies a disciplined source→sink method that reports only real security findings, not robustness or best-practice nits."
 globs: ".claude/skills/diff-security-review/**"
 alwaysApply: false
 ---

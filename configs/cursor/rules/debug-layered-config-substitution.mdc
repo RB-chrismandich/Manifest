@@ -1,5 +1,5 @@
 ---
-description: "Use when a containerized app crash-loops or errors on "variable not found"/empty-value despite the orchestrator validating fine — the app does its OWN ${VAR} substitution on mounted config, separate from compose/k8s interpolation."
+description: "Use when a containerized app crash-loops or errors on \"variable not found\"/empty-value despite the orchestrator validating fine — the app does its OWN ${VAR} substitution on mounted config, separate from compose/k8s interpolation."
 globs: ".claude/skills/debug-layered-config-substitution/**"
 alwaysApply: false
 ---
