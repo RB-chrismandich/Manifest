@@ -189,6 +189,27 @@ class TestResponses(unittest.TestCase):
         )
         self.assertFalse(response["continue"])
 
+    def test_responses_include_hook_event_name(self):
+        """hookSpecificOutput must carry hookEventName (Claude Code requires it)."""
+        # Defaults to PreToolUse.
+        self.assertEqual(
+            allow_response()["hookSpecificOutput"]["hookEventName"], "PreToolUse"
+        )
+        self.assertEqual(
+            deny_response("x")["hookSpecificOutput"]["hookEventName"], "PreToolUse"
+        )
+
+    def test_event_type_threads_into_hook_event_name(self):
+        """An explicit event type must propagate to hookEventName."""
+        self.assertEqual(
+            allow_response("PostToolUse")["hookSpecificOutput"]["hookEventName"],
+            "PostToolUse",
+        )
+        self.assertEqual(
+            deny_response("x", "PostToolUse")["hookSpecificOutput"]["hookEventName"],
+            "PostToolUse",
+        )
+
 
 class TestResponseFormat(unittest.TestCase):
     """Test that responses are valid JSON."""
