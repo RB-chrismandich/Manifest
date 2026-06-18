@@ -42,6 +42,11 @@ TOOL_SIGNATURES = {
 MAX_DEPTH = 8
 
 
+def debug_log_err(msg: str) -> None:
+    """Log debug message if HOOK_DEBUG=1."""
+    if os.environ.get("HOOK_DEBUG") == "1":
+        print(f"[detect_source] {msg}", file=sys.stderr)
+
 def get_process_cmdline(pid: int) -> str:
     """Get the command line of a process by PID.
 
@@ -61,8 +66,10 @@ def get_process_cmdline(pid: int) -> str:
         try:
             # /proc/*/cmdline uses null bytes as separators
             return proc_cmdline.read_bytes().replace(b"\x00", b" ").decode("utf-8", errors="replace").strip()
-        except (PermissionError, OSError):
-            pass
+        except (PermissionError, OSError) as e:
+            debug_log_err(f"Failed to read cmdline for {pid}: {e}")
+        except Exception as e:
+            debug_log_err(f"Unexpected error reading cmdline for {pid}: {e}")
 
     # Fallback: use ps command (macOS/Linux)
     if sys.platform != "win32":
@@ -77,8 +84,10 @@ def get_process_cmdline(pid: int) -> str:
             )
             if result.returncode == 0:
                 return result.stdout.strip()
-        except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
-            pass
+        except (subprocess.TimeoutExpired, FileNotFoundError, OSError) as e:
+            debug_log_err(f"ps command failed for {pid}: {e}")
+        except Exception as e:
+            debug_log_err(f"Unexpected error running ps for {pid}: {e}")
 
     return ""
 
@@ -104,8 +113,10 @@ def get_parent_pid(pid: int) -> int | None:
                 parts = stat_content[last_paren + 1 :].split()
                 if len(parts) >= 2:
                     return int(parts[1])
-        except (PermissionError, OSError, ValueError):
-            pass
+        except (PermissionError, OSError, ValueError) as e:
+            debug_log_err(f"Failed to read stat for {pid}: {e}")
+        except Exception as e:
+            debug_log_err(f"Unexpected error reading stat for {pid}: {e}")
 
     # Fallback: use ps command
     if sys.platform != "win32":
@@ -122,8 +133,10 @@ def get_parent_pid(pid: int) -> int | None:
                 ppid = int(result.stdout.strip())
                 # Return None for init/launchd (pid 0 or 1)
                 return ppid if ppid > 1 else None
-        except (subprocess.TimeoutExpired, FileNotFoundError, OSError, ValueError):
-            pass
+        except (subprocess.TimeoutExpired, FileNotFoundError, OSError, ValueError) as e:
+            debug_log_err(f"ps command failed to get ppid for {pid}: {e}")
+        except Exception as e:
+            debug_log_err(f"Unexpected error getting ppid for {pid}: {e}")
 
     return None
 

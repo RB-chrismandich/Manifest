@@ -114,8 +114,10 @@ def run_hook(hook_cmd: str, payload: dict) -> dict | None:
         )
         if result.stdout.strip():
             return json.loads(result.stdout)
-    except (subprocess.TimeoutExpired, json.JSONDecodeError, FileNotFoundError):
-        pass
+    except (subprocess.TimeoutExpired, json.JSONDecodeError, FileNotFoundError) as e:
+        print(f"Hook warning: {{e}}", file=sys.stderr)
+    except Exception as e:
+        print(f"Hook unexpected error: {{e}}", file=sys.stderr)
     return None
 
 

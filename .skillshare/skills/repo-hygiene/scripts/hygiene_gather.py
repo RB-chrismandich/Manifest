@@ -36,7 +36,11 @@ def err(msg: str) -> None:
 
 
 def run(cmd: list[str]) -> subprocess.CompletedProcess:
-    return subprocess.run(cmd, capture_output=True, text=True)
+    try:
+        return subprocess.run(cmd, capture_output=True, text=True)
+    except Exception as e:
+        err(f"Command {' '.join(cmd)} failed: {e}")
+        return subprocess.CompletedProcess(cmd, 1, stdout="", stderr=str(e))
 
 
 def git(*args: str) -> str:
