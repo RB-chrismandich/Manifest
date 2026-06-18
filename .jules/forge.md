@@ -33,3 +33,13 @@ violates our explicit routing and graceful degradation constraints.
 **Action:** Configure automated checks to flag empty or bindingless `catch` blocks in generated JavaScript templates.
 Ensure all catch statements explicitly capture the error object (e.g. `catch (e) { ... }`) and either log the error
 message or correctly fallback/propagate it.
+
+## 2025-06-18 - json-parsing-overhead
+
+**Learning:** Catching `ValueError` or `JSONDecodeError` exceptions when calling `json.loads` on non-JSON strings
+creates significant performance overhead, especially in hooks or large parsing pipelines. Relying solely on `try/except`
+for invalid CLI output or IPC is inefficient.
+**Action:** Configure automated checks to enforce fast-path JSON validation (e.g., stripping whitespace and checking
+if the first character is a valid JSON opening char like '{', '[', '"', 't', 'f', 'n', or a digit) before calling
+`json.loads` to bypass exception overhead for obvious non-JSON strings. Ensure exceptions are not silently swallowed
+by debug-only loggers.
