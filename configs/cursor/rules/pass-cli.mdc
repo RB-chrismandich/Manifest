@@ -1,5 +1,5 @@
 ---
-description: "Retrieve credentials (passwords, API keys, tokens, SSH keys) from Proton Pass via the pass-cli agent CLI. Use whenever a task needs a login/secret, or the user mentions Proton Pass, a vault, or "get the credentials/token for X". Covers PAT session setup, mandatory access-reason, and expired-session recovery."
+description: "Retrieve credentials (passwords, API keys, tokens, SSH keys) from Proton Pass via the pass-cli agent CLI. Use whenever a task needs a login/secret, or the user mentions Proton Pass, a vault, or \"get the credentials/token for X\". Covers PAT session setup, mandatory access-reason, and expired-session recovery."
 globs: ".claude/skills/pass-cli/**"
 alwaysApply: false
 ---

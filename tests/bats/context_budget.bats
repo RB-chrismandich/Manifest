@@ -69,14 +69,20 @@ assert_budget() {
     # Raised 19000 -> 20000 (2026-06-17) for two genuinely-new skills with no
     # prior coverage: ci-workflow-trigger-security + secure-comment-triggered-
     # workflow (GitHub-Actions trigger security). Descriptions kept terse.
+    # Raised 20000 -> 21500 (2026-06-17) for the curated SkillClaw-evolve subset
+    # (#366): 5 net-new skills (merge-stacked-pr-chain, cli-help-before-
+    # dependency-checks, pin-known-bug-test-survives-fix, shell-sete-silent-abort-
+    # audit, reproduce-gated-ci-failure-locally) after dropping 2 overlapping/
+    # niche candidates and folding errexit-safe-shell-counters into shell-sete.
+    # Headroom is now thin (~200) — the next addition needs a set-wide trim pass.
     total=0
     for f in "$REPO_ROOT"/.skillshare/skills/*/SKILL.md; do
         # frontmatter = up to the second '---' line
         chars=$(awk '/^---$/{c++; next} c==1' "$f" | wc -c)
         total=$((total + chars))
     done
-    if [ "$total" -gt 20000 ]; then
-        echo "Skill frontmatter totals $total chars (budget: 20000)." >&2
+    if [ "$total" -gt 21500 ]; then
+        echo "Skill frontmatter totals $total chars (budget: 21500)." >&2
         echo "Trim verbose descriptions; bodies are pay-per-use, frontmatter is not." >&2
         return 1
     fi

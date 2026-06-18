@@ -65,9 +65,16 @@ for skill_dir in "$SKILLS_DIR"/*/; do
     fi
     description="${description:-$skill_name skill}"
 
+    # Escape for a double-quoted YAML scalar: backslash first, then double
+    # quote, so a description containing " (e.g. a quoted phrase like
+    # ("still in progress")) doesn't terminate the frontmatter scalar early
+    # and leave invalid YAML that Cursor can't load the rule from.
+    description_yaml="${description//\\/\\\\}"
+    description_yaml="${description_yaml//\"/\\\"}"
+
     # Build thin wrapper content
     content="---
-description: \"$description\"
+description: \"$description_yaml\"
 globs: \".claude/skills/$skill_name/**\"
 alwaysApply: false
 ---
