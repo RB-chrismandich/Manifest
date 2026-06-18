@@ -154,15 +154,22 @@ def normalize_event(source: str, payload: dict, event_type: str = "PreToolUse") 
     }
 
 
-def allow_response() -> dict:
+def allow_response(event_type: str = "PreToolUse") -> dict:
     """Generate an allow response."""
-    return {"hookSpecificOutput": {"permissionDecision": "allow"}, "continue": True}
+    return {
+        "hookSpecificOutput": {
+            "hookEventName": event_type,
+            "permissionDecision": "allow",
+        },
+        "continue": True,
+    }
 
 
-def deny_response(reason: str) -> dict:
+def deny_response(reason: str, event_type: str = "PreToolUse") -> dict:
     """Generate a deny response."""
     return {
         "hookSpecificOutput": {
+            "hookEventName": event_type,
             "permissionDecision": "deny",
             "permissionDecisionReason": reason,
         },
@@ -178,6 +185,7 @@ def run_handler(handler_path: str, event: dict) -> dict:
     """
     import subprocess
 
+    event_type = event.get("event_type", "PreToolUse")
     try:
         result = subprocess.run(
             [sys.executable, handler_path],
@@ -189,22 +197,22 @@ def run_handler(handler_path: str, event: dict) -> dict:
 
         if result.returncode != 0:
             debug_log(f"Handler error: {result.stderr}")
-            return allow_response()
+            return allow_response(event_type)
 
         if result.stdout.strip():
             return json.loads(result.stdout)
 
-        return allow_response()
+        return allow_response(event_type)
 
     except subprocess.TimeoutExpired:
         debug_log("Handler timeout")
-        return allow_response()
+        return allow_response(event_type)
     except json.JSONDecodeError as e:
         debug_log(f"Handler invalid JSON: {e}")
-        return allow_response()
+        return allow_response(event_type)
     except Exception as e:
         debug_log(f"Handler exception: {e}")
-        return allow_response()
+        return allow_response(event_type)
 
 
 def main() -> None:
@@ -247,7 +255,7 @@ def main() -> None:
         payload = json.loads(raw_input) if raw_input.strip() else {}
     except json.JSONDecodeError as e:
         debug_log(f"Invalid input JSON: {e}")
-        print(json.dumps(allow_response()))
+        print(json.dumps(allow_response(args.event_type)))
         return
 
     debug_log(f"Received payload: {json.dumps(payload)[:200]}...")
@@ -267,7 +275,7 @@ def main() -> None:
         should_drop, reason = should_drop_event(source, payload)
         if should_drop:
             debug_log(f"Event dropped: {reason}")
-            print(json.dumps(allow_response()))
+            print(json.dumps(allow_response(args.event_type)))
             return
 
     # Normalize event
@@ -283,7 +291,7 @@ def main() -> None:
     if args.handler:
         response = run_handler(args.handler, event)
     else:
-        response = allow_response()
+        response = allow_response(args.event_type)
 
     print(json.dumps(response))
 
