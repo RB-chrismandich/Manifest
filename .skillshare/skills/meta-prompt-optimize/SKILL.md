@@ -41,7 +41,7 @@ When a raw prompt payload is received via the scheduled task pipeline, execute t
 ## 4. Target Serialization Schema
 
 The output must be returned strictly using this layout so downstream agent layers
-can parse it deterministically (raw XML — do NOT wrap it in Markdown code fences):
+can parse it deterministically:
 
 <problem_structure>
   <problem_definition>
@@ -93,11 +93,13 @@ Format Requirements:
 
 1. **Constitution Compliance**: Immediate boundary verification before spawning worker threads.
 2. **State Payload Specification**: Strict definitions of variables passed across isolation boundaries.
-3. **Execution Telemetry JSON** (raw JSON — do NOT wrap it in Markdown code fences):
+3. **Execution Telemetry JSON**:
 
+```json
 {
   "plan_status": "success | failed",
   "steps_executed": [],
   "resulting_state": {},
   "telemetry": ""
 }
+```
