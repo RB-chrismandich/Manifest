@@ -31,3 +31,11 @@ cursor regardless of how the script terminates.
 **Learning:** The CLI tool outputs the agent status ("complete" / "failed") but doesn't utilize `rich` color tags
 for status text within the summary table in `orchestrator.py`, leading to poor visual contrast.
 **Action:** Enhance the `table.add_row` call to include color tags for the status string.
+
+## 2026-06-19 - Semantic Colors for CLI Validation States
+
+**Learning:** Binary green/red schemes in CLI outputs fail to communicate
+intermediate states like warnings or manual review requests, confusing users
+when a process didn't fully fail but isn't fully approved.
+**Action:** Use a three-color semantic system (green=success, yellow=warning/review,
+red=error/blocked) for validation verdicts to provide nuanced visual feedback.
