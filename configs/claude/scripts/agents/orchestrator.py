@@ -493,7 +493,12 @@ class Orchestrator:
 
         if result.get("validation"):
             verdict = result["validation"]["verdict"]
-            color = "green" if verdict == "APPROVED" else "red"
+            if verdict == "APPROVED":
+                color = "green"
+            elif verdict == "NEEDS_REVIEW":
+                color = "yellow"
+            else:
+                color = "red"
             self.console.print(f"[bold]Validation:[/bold] [{color}]{verdict}[/{color}]")
 
 
