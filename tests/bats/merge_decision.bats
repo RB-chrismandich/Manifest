@@ -80,6 +80,10 @@ label()  { python3 -c 'import json,sys;print(json.load(sys.stdin).get("label") o
     run "$SCRIPT" decide "$(mk '{"checks":"NO_CHECKS"}')"
     [ "$(echo "$output" | action)" = "hand-human" ]; [ "$(echo "$output" | label)" = "needs-human" ]
 }
+@test "cheap-clear but gate not yet run (gate_tier1 null) -> run-gate" {
+    run "$SCRIPT" decide "$(mk '{"gate_tier1":null,"consensus":null}')"
+    [ "$status" -eq 0 ]; [ "$(echo "$output" | action)" = "run-gate" ]
+}
 @test "all clear + consensus 0.86 -> merge" {
     run "$SCRIPT" decide "$(mk '{"consensus":0.86}')"
     [ "$(echo "$output" | action)" = "merge" ]

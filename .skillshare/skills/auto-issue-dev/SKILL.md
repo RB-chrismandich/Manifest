@@ -13,7 +13,13 @@ this skill with fresh context for the next issue.
 
 ## Critical Rules
 
-1. **Never merge.** Stop at PR-open; a human reviews and merges.
+1. **Merge only through the verified gate (supersedes the former "never merge" rule).**
+   The develop step still stops at PR-open. A PR is merged to main *only* by the
+   PR-monitoring loop below, and only when every clear condition holds (CI green, no
+   actionable human comment, `/pr-review`=merge, `/verify` pass, #360 gate Tier-1 pass, and
+   consensus ≥ 0.80) — a tested decision (`merge_decision.sh`), never a judgment call. Merges
+   are **opt-in** (`PR_MERGE_LOOP_APPLY=1`); the default is dry-run. Anything short of fully
+   clear → the PR goes to a human, never a partial/forced merge.
 2. **Never touch issues lacking the `auto-dev` label.** Selection is opt-in.
 3. **One issue per invocation.** Do not loop inside this skill.
 4. **On failure, open a DRAFT PR** (no `Closes` keyword) so a human can inspect
@@ -71,10 +77,11 @@ deterministic primitives so the irreversible step is never a judgment call:
    - `update-branch` → one `gh pr update-branch`; re-read; `DIRTY`/conflict → `needs-human`.
    - `hand-human` → apply the decision's `label` (`needs-human` or `ready-to-merge`) and skip.
    - `halt` → main CI went red after a merge: **stop the whole loop**, flag for a human (FR-012a).
-   - `merge` → **only** reachable once the #360 verification gate passes (Tier-1) and consensus
-     is high; the merge runs the admin pre-flight and `gh pr merge --squash --admin --delete-branch`,
-     then `pr_merge_loop.sh post-merge-check`. *(Merge enablement is the US2 increment; until it
-     is wired live, treat `merge` as `ready-to-merge` + human.)*
+   - `merge` → reachable only after the #360 verification gate passes (Tier-1) and consensus
+     is high. `pr_merge_loop.sh tick <pr>` runs the gate, re-decides, and on `merge` does the
+     admin pre-flight + `gh pr merge --squash --admin --delete-branch`, then `post-merge-check`.
+     Honour `PR_MERGE_LOOP_APPLY` — default dry-run; set `=1` to perform real merges. Fail-closed
+     exits (no admin / `enforce_admins` / `required_signatures`) route to `ready-to-merge` + human.
 4. **Loop control.** A run that did real work or saw an in-flight PR resets
    `pr_merge_loop.sh empty-run reset`; a fully-idle run does `empty-run incr`. At **5**
    consecutive empty runs, stop the loop (FR-018/018a). At most **one merge in flight** at a

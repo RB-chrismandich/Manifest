@@ -80,10 +80,10 @@ currently **only a design doc** (`docs/superpowers/specs/2026-06-18-auto-issue-d
 ### Implementation for User Story 1
 
 - [x] T012 [US1] Compute `review_block` in `pr_merge_loop.sh signals` (human `CHANGES_REQUESTED` / unresolved human thread; bot nits advisory) per research.md R2 (FR-007a)
-- [ ] T013 [US1] Implement `pr_merge_loop.sh address-cycle <pr>` (orchestrate `/address-pr-comments`, `/verify`, `/pr-review`; push; increment `revisions_used`) per contracts/pr_merge_loop.md (FR-002/003/004). Where the per-comment analysis and the independent review skills don't depend on each other, **fan them out in parallel** to cut wall-clock time (FR-015)
-- [ ] T014 [US1] Enforce the revision budget + `needs-human` labeling on exhaustion in `pr_merge_loop.sh` (FR-005/006), driven by `merge_decision` `revise` vs `hand-human`
+- [x] T013 [US1] Implement `pr_merge_loop.sh address-cycle <pr>` (orchestrate `/address-pr-comments`, `/verify`, `/pr-review`; push; increment `revisions_used`) per contracts/pr_merge_loop.md (FR-002/003/004). Where the per-comment analysis and the independent review skills don't depend on each other, **fan them out in parallel** to cut wall-clock time (FR-015)
+- [x] T014 [US1] Enforce the revision budget + `needs-human` labeling on exhaustion in `pr_merge_loop.sh` (FR-005/006), driven by `merge_decision` `revise` vs `hand-human`
 - [x] T015 [US1] Add the monitoring + addressing phase to `.skillshare/skills/auto-issue-dev/SKILL.md` (after `/verify`, before outcome): detect comments/CI, run `address-cycle`, respect `hold` (FR-001). This phase **extends** the existing develop→PR flow (still one new issue developed per run), it does not replace it (FR-016)
-- [ ] T016 [US1] Route address actions + reasons through `audit_log.sh append` with `audit_log.sh redact` (FR-021/022)
+- [x] T016 [US1] Route address actions + reasons through `audit_log.sh append` with `audit_log.sh redact` (FR-021/022)
 
 **Checkpoint**: managed PRs are auto-groomed to clean or `needs-human`; nothing merges.
 
@@ -97,16 +97,16 @@ currently **only a design doc** (`docs/superpowers/specs/2026-06-18-auto-issue-d
 
 ### Tests for User Story 2 ⚠️ (write first, must fail)
 
-- [ ] T017 [P] [US2] Add merge-path cases to `tests/bats/pr_merge_loop.bats` (seam): pre-flight non-admin / `enforce_admins` / `required_signatures` → exit 9 + `ready-to-merge`; all-clear → merge; `DIRTY` → human; post-merge red → halt
+- [x] T017 [P] [US2] Add merge-path cases to `tests/bats/pr_merge_loop.bats` (seam): pre-flight non-admin / `enforce_admins` / `required_signatures` → exit 9 + `ready-to-merge`; all-clear → merge; `DIRTY` → human; post-merge red → halt
 
 ### Implementation for User Story 2
 
-- [ ] T018 [US2] Add a **separate** merge-gate override `command_overrides.auto-issue-dev-merge` (distinct from #360's PR-open `command_overrides.auto-issue-dev`, where consensus is *advisory*) to `configs/claude/config/validation_criteria.yml` with `cross_verification` in **Tier-1 (blocking)** — consensus blocks the merge (Constitution Principle II; plan Complexity Tracking)
-- [ ] T019 [US2] Implement `pr_merge_loop.sh merge <pr>`: when the cheap signals are clear, run `verification_gate.sh review` to populate `gate_tier1`+`consensus` (one gate review per merge attempt — #360 cost model); pre-flight `.permissions.admin` + `enforce_admins`/`required_signatures`/merge-queue probe (research.md R1, fail-closed exit 9); one-attempt `update-branch` on `BEHIND` (R4); then `gh pr merge --squash --admin --delete-branch` (FR-008/009/010/011)
-- [ ] T020 [US2] Implement `pr_merge_loop.sh post-merge-check` — read `main` HEAD `/check-runs` (research.md R3); exit 10 on red (FR-012a)
-- [ ] T021 [US2] Wire decision→action dispatch in `pr_merge_loop.sh` consuming `merge_decision.sh decide` for **all six actions**: `merge` (T019) | `revise` (→ T013/US1) | `wait` (re-poll, → T026/US3) | `update-branch` (T019) | `hand-human`[`ready-to-merge`/`needs-human`] | `halt` (T020)
-- [ ] T022 [US2] Add the merge step to `.skillshare/skills/auto-issue-dev/SKILL.md` keyed off decision `action`, and **supersede Critical Rule #1 "Never merge"** with the gated-merge rule — call this out as a breaking change (FR-007; plan Quality-gate note)
-- [ ] T023 [US2] Extend the audit record with `gate_verdict`, `consensus`, `tier1_passed`, merge outcome, hand-off/halt reason via `audit_log.sh` (redacted) (FR-021)
+- [x] T018 [US2] Add a **separate** merge-gate override `command_overrides.auto-issue-dev-merge` (distinct from #360's PR-open `command_overrides.auto-issue-dev`, where consensus is *advisory*) to `configs/claude/config/validation_criteria.yml` with `cross_verification` in **Tier-1 (blocking)** — consensus blocks the merge (Constitution Principle II; plan Complexity Tracking)
+- [x] T019 [US2] Implement `pr_merge_loop.sh merge <pr>`: when the cheap signals are clear, run `verification_gate.sh review` to populate `gate_tier1`+`consensus` (one gate review per merge attempt — #360 cost model); pre-flight `.permissions.admin` + `enforce_admins`/`required_signatures`/merge-queue probe (research.md R1, fail-closed exit 9); one-attempt `update-branch` on `BEHIND` (R4); then `gh pr merge --squash --admin --delete-branch` (FR-008/009/010/011)
+- [x] T020 [US2] Implement `pr_merge_loop.sh post-merge-check` — read `main` HEAD `/check-runs` (research.md R3); exit 10 on red (FR-012a)
+- [x] T021 [US2] Wire decision→action dispatch in `pr_merge_loop.sh` consuming `merge_decision.sh decide` for **all six actions**: `merge` (T019) | `revise` (→ T013/US1) | `wait` (re-poll, → T026/US3) | `update-branch` (T019) | `hand-human`[`ready-to-merge`/`needs-human`] | `halt` (T020)
+- [x] T022 [US2] Add the merge step to `.skillshare/skills/auto-issue-dev/SKILL.md` keyed off decision `action`, and **supersede Critical Rule #1 "Never merge"** with the gated-merge rule — call this out as a breaking change (FR-007; plan Quality-gate note)
+- [x] T023 [US2] Extend the audit record with `gate_verdict`, `consensus`, `tier1_passed`, merge outcome, hand-off/halt reason via `audit_log.sh` (redacted) (FR-021)
 
 **Checkpoint**: clear PRs auto-merge with bypass; blocked → human; red main → halt.
 
@@ -126,8 +126,8 @@ currently **only a design doc** (`docs/superpowers/specs/2026-06-18-auto-issue-d
 
 - [x] T025 [US3] Implement `pr_merge_loop.sh empty-run <get|incr|reset>` with the in-flight-counts-as-work rule in the state dir (FR-018/018a)
 - [ ] T026 [US3] Implement self-paced polling + hard per-run ceiling in `pr_merge_loop.sh` (short non-`--watch` polls; end the run at the ceiling; clock behind the seam) (FR-017/017a)
-- [ ] T027 [US3] Enforce serialized merge + interleaved monitoring via `loop_lock.sh` (at most one merge in flight) in `pr_merge_loop.sh` (FR-014/023)
-- [ ] T028 [US3] Add loop-control wiring to `.skillshare/skills/auto-issue-dev/SKILL.md`: self-pace, 10-min ceiling, 5-empty-run stop, serialized-merge note (FR-014/017/018)
+- [x] T027 [US3] Enforce serialized merge + interleaved monitoring via `loop_lock.sh` (at most one merge in flight) in `pr_merge_loop.sh` (FR-014/023)
+- [x] T028 [US3] Add loop-control wiring to `.skillshare/skills/auto-issue-dev/SKILL.md`: self-pace, 10-min ceiling, 5-empty-run stop, serialized-merge note (FR-014/017/018)
 
 **Checkpoint**: all three stories independently functional.
 
@@ -135,11 +135,11 @@ currently **only a design doc** (`docs/superpowers/specs/2026-06-18-auto-issue-d
 
 ## Phase 6: Polish & Cross-Cutting Concerns
 
-- [ ] T029 [P] Reconcile the `auto-issue-dev` tool policy in `configs/claude/config/command_config.yml` (the gate/merge uses parallel agents deliberately — scope the `parallel_agents` note so "never auto-wrap dev output" and "the gate runs parallel agents" are both explicit)
+- [x] T029 [P] Reconcile the `auto-issue-dev` tool policy in `configs/claude/config/command_config.yml` (the gate/merge uses parallel agents deliberately — scope the `parallel_agents` note so "never auto-wrap dev output" and "the gate runs parallel agents" are both explicit)
 - [ ] T030 [P] Add monitor/merge/loop test prompts to `.skillshare/skills/auto-issue-dev/evals/evals.json`
 - [ ] T031 [P] GitLab parity stubs in `pr_merge_loop.sh`/`git_ops.sh` (`glab mr merge --squash --remove-source-branch`, `glab ci status --branch main`) guarded by `git_platform.sh` (research.md R1/R3)
-- [ ] T032 Run lint gates: `shellcheck configs/claude/scripts/{pr_merge_loop,merge_decision,loop_lock}.sh` and `yamllint` the edited `configs/claude/config/*.yml`
-- [ ] T033 Run the full suite green: `bats tests/bats/merge_decision.bats tests/bats/loop_lock.bats tests/bats/pr_merge_loop.bats`
+- [x] T032 Run lint gates: `shellcheck configs/claude/scripts/{pr_merge_loop,merge_decision,loop_lock}.sh` and `yamllint` the edited `configs/claude/config/*.yml`
+- [x] T033 Run the full suite green: `bats tests/bats/merge_decision.bats tests/bats/loop_lock.bats tests/bats/pr_merge_loop.bats`
 - [ ] T034 Run quickstart.md dry-run validation (`pr_merge_loop.sh signals <pr> --json | merge_decision.sh decide`) against a real managed PR; confirm no mutations in dry-run
 - [ ] T035 [P] Update docs (`docs/COMMANDS.md` / relevant) to note the breaking change (Rule #1 supersession), the new labels, and the merge-loop behavior
 

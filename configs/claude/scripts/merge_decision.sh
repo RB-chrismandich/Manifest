@@ -74,10 +74,13 @@ if checks == "PENDING" or mergeable == "UNKNOWN" or mstate in ("UNSTABLE", "UNKN
 if checks == "NO_CHECKS":
     out("hand-human", "no CI configured — refusing to auto-merge un-verified code", "needs-human")
 
-clear = (checks == "PASS" and g("review_block") is not True and disp == "merge"
-         and verify == "pass" and g("gate_tier1") == "pass"
-         and mstate in ("CLEAN", "HAS_HOOKS") and g("hold") is not True
+cheap_clear = (checks == "PASS" and g("review_block") is not True and disp == "merge"
+         and verify == "pass" and mstate in ("CLEAN", "HAS_HOOKS") and g("hold") is not True
          and mergeable == "MERGEABLE")
+gate = g("gate_tier1")  # "pass" | "fail"(handled above) | None(not yet run)
+if cheap_clear and gate is None:
+    out("run-gate", "cheap signals clear — run the verification gate before deciding merge", None)
+clear = cheap_clear and gate == "pass"
 if not clear:
     if rev < maxrev:
         out("revise", "not yet clear (e.g. pr-review not merge) — another cycle", None)

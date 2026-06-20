@@ -62,13 +62,17 @@ synthesis_priority:
 tool_policies:
   auto-issue-dev:
     allowed:
-      - Bash       # auto_issue_dev.sh, git_ops.sh, install_issue_hooks.sh, git, gh/glab
+      - Bash       # auto_issue_dev.sh, git_ops.sh, pr_merge_loop.sh, merge_decision.sh, verification_gate.sh, loop_lock.sh, gh/glab
       - Read
       - Edit       # writes code for the selected issue
       - Write
-      - Skill      # test-driven-development, verify
+      - Skill      # test-driven-development, verify, address-pr-comments, pr-review
     forbidden: []
-    parallel_agents: never
+    # Scope note: the DEVELOP loop never auto-wraps its own output in cross-verification
+    # (parallel_agents: never). The MERGE gate, however, is a deliberate, bounded parallel-agent
+    # review run via verification_gate.sh (#360) — that is gate-only and intentional, not a
+    # contradiction of the develop-loop policy.
+    parallel_agents: gate-only
     validation_tier: 1
 
   pr-issue-sync:

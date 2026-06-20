@@ -20,10 +20,31 @@ case "$1" in
   verify)           echo "${SEAM_VERIFY:-pass}" ;;
   hold)             echo "${SEAM_HOLD:-false}" ;;
   author)           echo "${SEAM_AUTHOR:-Copilot}" ;;
+  admin-check)      echo "${SEAM_ADMIN:-true}" ;;
+  protection)       echo "${SEAM_PROT:-enforce_admins=false required_signatures=false merge_queue=false}" ;;
+  update-branch)    echo updated ;;
+  do-merge)         [ "${SEAM_MERGE_FAIL:-0}" = 1 ] && exit 1 || echo merged ;;
 esac
 EOF
     chmod +x "$TMP/seam.sh"
     export PR_MERGE_LOOP_GH_CMD="$TMP/seam.sh"
+
+    # loop_lock seam (file-backed) so cmd_tick can acquire/release offline.
+    export LOOP_LOCK_DIR="$TMP/locks"
+    export SEAM_STATE="$TMP/labels"
+    cat > "$TMP/lockseam.sh" <<'EOF'
+#!/usr/bin/env bash
+d="${SEAM_STATE:?}"; mkdir -p "$d"; f="$d/$2"
+case "$1" in has) [ -f "$f" ] && { echo 0; exit 0; } || exit 1 ;; add) echo 0>"$f";; remove) rm -f "$f";; esac
+EOF
+    chmod +x "$TMP/lockseam.sh"; export LOOP_LOCK_LABEL_CMD="$TMP/lockseam.sh"
+
+    # verification gate review seam (tunable via SEAM_GATE).
+    cat > "$TMP/gateseam.sh" <<'EOF'
+#!/usr/bin/env bash
+echo "${SEAM_GATE:-{\"tier1\":{\"passed\":true},\"consensus_score\":0.9}}"
+EOF
+    chmod +x "$TMP/gateseam.sh"; export VERIFICATION_GATE_REVIEW_CMD="$TMP/gateseam.sh"
 }
 teardown() { [[ -n "$TMP" && -d "$TMP" ]] && rm -rf "$TMP"; }
 
@@ -89,4 +110,46 @@ action() { python3 -c 'import json,sys;print(json.load(sys.stdin)["action"])'; }
     sig="$(echo "$sig" | python3 -c 'import json,sys;d=json.load(sys.stdin);d["gate_tier1"]="pass";d["consensus"]=0.99;print(json.dumps(d))')"
     run bash -c "echo '$sig' | '$DECIDE' decide"
     [ "$(echo "$output" | action)" != "merge" ]
+}
+
+# --- cmd_merge pre-flight (T017) — fail-closed; no real merges (seamed) ---
+@test "merge: non-admin -> exit 9 (fail closed)" {
+    SEAM_ADMIN=false run "$SCRIPT" merge 5; [ "$status" -eq 9 ]
+}
+@test "merge: enforce_admins=true -> exit 9" {
+    SEAM_PROT="enforce_admins=true required_signatures=false merge_queue=false" run "$SCRIPT" merge 5
+    [ "$status" -eq 9 ]
+}
+@test "merge: required_signatures=true -> exit 9" {
+    SEAM_PROT="enforce_admins=false required_signatures=true merge_queue=false" run "$SCRIPT" merge 5
+    [ "$status" -eq 9 ]
+}
+@test "merge: admin + clean protection, dry-run -> exit 0, no actual merge" {
+    PR_MERGE_LOOP_APPLY=0 run "$SCRIPT" merge 5
+    [ "$status" -eq 0 ]; [[ "$output" == *"dry-run"* ]]
+}
+@test "merge: admin + clean, apply -> exit 0" {
+    PR_MERGE_LOOP_APPLY=1 run "$SCRIPT" merge 5; [ "$status" -eq 0 ]
+}
+@test "merge: apply + do-merge fails -> exit 2" {
+    PR_MERGE_LOOP_APPLY=1 SEAM_MERGE_FAIL=1 run "$SCRIPT" merge 5; [ "$status" -eq 2 ]
+}
+
+# --- cmd_tick dispatch (T021) ---
+@test "tick: clean PR + gate pass + high consensus -> merge (dry-run)" {
+    run "$SCRIPT" tick 5
+    [ "$status" -eq 0 ]; [[ "$output" == *"merge"* ]]; [[ "$output" == *"dry-run"* ]]
+}
+@test "tick: gate Tier-1 fail -> hand-human (never merge)" {
+    SEAM_GATE='{"tier1":{"passed":false},"consensus_score":0.9}' run "$SCRIPT" tick 5
+    [[ "$output" == *"hand-human"* ]]; [[ "$output" != *"merged"* ]]
+}
+@test "tick: failing checks -> revise (no gate, no merge)" {
+    SEAM_BUCKETS="pass fail" run "$SCRIPT" tick 5
+    [[ "$output" == *"revise"* ]]
+}
+@test "tick: a held lock makes the run skip" {
+    mkdir -p "$SEAM_STATE"; echo 0 > "$SEAM_STATE/5"   # pre-locked
+    run "$SCRIPT" tick 5
+    [[ "$output" == *"skip"* ]]
 }

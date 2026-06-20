@@ -33,7 +33,8 @@ Usage: pr_merge_loop.sh <subcommand> [args]
   signals <pr> [--json]        Recompute merge_decision input JSON for a PR.
   empty-run <get|incr|reset>   Consecutive-empty-run counter (stops loop at 5).
   address-cycle <pr>           Run one /address-pr-comments,/verify,/pr-review cycle.
-  merge <pr>                   Pre-flight + verified admin merge.
+  merge <pr>                   Pre-flight + verified admin merge (exit 9 = fail-closed).
+  tick <pr>                    Decide + dispatch one PR (lock, run-gate, act).
   post-merge-check             main HEAD CI health (exit 10 on red).
 USAGE
 }
@@ -52,6 +53,12 @@ gh_op() {
         verify)          echo pass ;;
         hold)            gh pr view "$pr" --json labels -q '.labels[].name' 2>/dev/null | grep -qx hold && echo true || echo false ;;
         author)          gh pr view "$pr" --json author -q '.author.login' 2>/dev/null ;;
+        admin-check)     gh api "repos/{owner}/{repo}" -q '.permissions.admin' 2>/dev/null || echo false ;;
+        protection)      gh api "repos/{owner}/{repo}/branches/main/protection" \
+                           -q '"enforce_admins="+(.enforce_admins.enabled|tostring)+" required_signatures="+(.required_signatures.enabled|tostring)+" merge_queue=false"' 2>/dev/null \
+                           || echo "enforce_admins=false required_signatures=false merge_queue=false" ;;
+        update-branch)   gh pr update-branch "$pr" 2>&1 ;;
+        do-merge)        gh pr merge "$pr" --squash --admin --delete-branch 2>&1 ;;
     esac
 }
 
@@ -145,6 +152,77 @@ cmd_post_merge_check() {
     return 0
 }
 
+# --- merge path (T019) + dispatch (T021) ---
+APPLY="${PR_MERGE_LOOP_APPLY:-0}"
+_jget() { python3 -c "import json,sys
+v=json.load(sys.stdin).get('$1')
+print('' if v is None else v)"; }
+
+apply_label() {  # apply_label <pr> <label> — no-op in dry-run; skips empty labels.
+    [[ -n "${2:-}" && "$2" != "None" ]] || return 0
+    [[ "$APPLY" == "1" ]] || { err "[dry-run] would label #$1 '$2'"; return 0; }
+    "${SCRIPT_DIR}/git_ops.sh" issue-edit "$1" --add-label "$2" >/dev/null 2>&1 || err "could not label #$1 $2"
+}
+
+cmd_merge() {
+    local pr="${1:?pr required}" is_admin prot
+    is_admin="$(gh_op admin-check "$pr")"
+    [[ "$is_admin" == "true" ]] || { err "#$pr: no admin permission — fail closed"; return 9; }
+    prot="$(gh_op protection "$pr")"
+    if printf '%s' "$prot" | grep -qE 'enforce_admins=true|required_signatures=true|merge_queue=true'; then
+        err "#$pr: branch protection blocks admin bypass ($prot) — fail closed"; return 9
+    fi
+    [[ "$APPLY" == "1" ]] || { err "[dry-run] would admin-merge #$pr (--squash --admin --delete-branch)"; return 0; }
+    gh_op do-merge "$pr" >/dev/null 2>&1 || { err "#$pr: merge failed"; return 2; }
+    return 0
+}
+
+cmd_tick() {
+    local pr="${1:?pr required}" sig d act gate sig2 rc=0
+    if ! "${SCRIPT_DIR}/loop_lock.sh" acquire "$pr" 2>/dev/null; then err "#$pr locked — skipping"; printf 'skip\n'; return 0; fi
+    # shellcheck disable=SC2064
+    trap "'${SCRIPT_DIR}/loop_lock.sh' release '$pr' >/dev/null 2>&1" RETURN
+
+    sig="$(cmd_signals "$pr")"
+    d="$(printf '%s' "$sig" | "${SCRIPT_DIR}/merge_decision.sh" decide)"
+    act="$(printf '%s' "$d" | _jget action)"
+
+    # Cheap signals clear → run the (expensive) verification gate, augment, re-decide.
+    if [[ "$act" == "run-gate" ]]; then
+        gate="$("${SCRIPT_DIR}/verification_gate.sh" review "$pr" 2>/dev/null)" || gate='{"reviewer_error":true}'
+        sig2="$(printf '%s' "$sig" | python3 -c '
+import json,sys
+s=json.load(sys.stdin)
+try: g=json.loads(sys.argv[1])
+except Exception: g={"reviewer_error":True}
+ok=(g.get("tier1") or {}).get("passed") is True and not g.get("reviewer_error")
+s["gate_tier1"]="pass" if ok else "fail"
+s["consensus"]=g.get("consensus_score",0)
+s["reviewer_error"]=bool(g.get("reviewer_error"))
+print(json.dumps(s))' "$gate")"
+        d="$(printf '%s' "$sig2" | "${SCRIPT_DIR}/merge_decision.sh" decide)"
+        act="$(printf '%s' "$d" | _jget action)"
+    fi
+
+    case "$act" in
+        merge)
+            cmd_merge "$pr" || rc=$?
+            if   [[ $rc -eq 9 ]]; then apply_label "$pr" ready-to-merge
+            elif [[ $rc -eq 0 ]]; then cmd_post_merge_check >/dev/null 2>&1 || { err "#$pr merged → main RED → HALT"; act="halt"; }
+            else apply_label "$pr" needs-human; fi ;;
+        update-branch) gh_op update-branch "$pr" >/dev/null 2>&1 || apply_label "$pr" needs-human ;;
+        hand-human)    apply_label "$pr" "$(printf '%s' "$d" | _jget label)" ;;
+        halt)          err "#$pr: HALT (post-merge main breakage)" ;;
+        revise)        err "#$pr: revise — the skill runs /address-pr-comments, /verify, /pr-review" ;;
+        wait)          err "#$pr: waiting on checks/mergeability" ;;
+    esac
+    # Audit (redacted, fail-open — FR-021/022).
+    "${SCRIPT_DIR}/audit_log.sh" append \
+        "{\"ts\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",\"pr\":${pr},\"action\":\"${act}\",\"apply\":${APPLY}}" \
+        2>/dev/null || true
+    printf '%s\n' "$act"
+}
+
 main() {
     local sub="${1:-}"; shift || true
     case "${sub}" in
@@ -154,7 +232,8 @@ main() {
         empty-run)       cmd_empty_run "$@"; exit $? ;;
         address-cycle)   cmd_address_cycle "$@"; exit $? ;;
         post-merge-check) cmd_post_merge_check "$@"; exit $? ;;
-        merge)           err "merge: implemented in T019 (admin pre-flight + gh pr merge --admin)"; exit 9 ;;
+        merge)           cmd_merge "$@"; exit $? ;;
+        tick)            cmd_tick "$@"; exit 0 ;;
         *) err "unknown subcommand: ${sub:-<none>}"; usage >&2; exit 64 ;;
     esac
 }
