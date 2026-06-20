@@ -34,6 +34,11 @@ violates our explicit routing and graceful degradation constraints.
 Ensure all catch statements explicitly capture the error object (e.g. `catch (e) { ... }`) and either log the error
 message or correctly fallback/propagate it.
 
+## 2026-06-21 - Forge Missing Init
+
+**Learning:** When adopting the Forge persona, any explicit instruction to read `.jules/forge.md` accompanied by the caveat `(create this file if it is missing)` implies a strict requirement to establish the file structure, even if no critical learnings are discovered during the subsequent execution that warrant a journal entry. Failing to create the empty/initial file violates the strictness of the architectural persona.
+**Action:** When acting as Forge, unconditionally create the `.jules/forge.md` file (e.g., using `touch`) before performing any analysis, ensuring the base structural requirement is met regardless of the audit's outcome.
+
 ## 2025-06-18 - json-parsing-overhead
 
 **Learning:** Catching `ValueError` or `JSONDecodeError` exceptions when calling `json.loads` on non-JSON strings

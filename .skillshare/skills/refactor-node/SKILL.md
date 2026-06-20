@@ -101,7 +101,7 @@ proceed with the standard analysis.
 ### Step 5: Code Quality
 
 - Async/await consistency (no mixing callbacks and promises)
-- Proper error handling (no swallowed rejections)
+- Proper error handling (no swallowed rejections, no empty catch blocks)
 - Memory leak patterns (event listeners, intervals without cleanup)
 - Consistent file naming convention (kebab-case recommended)
 

@@ -87,6 +87,7 @@ When triggered, this skill:
 | Command injection | Critical | User input in `subprocess`, `os.system` |
 | Unsafe deserialization | Critical | `pickle.load`, `yaml.load` (not safe_load) |
 | Bare exceptions | High | `except:` without specific exception |
+| Empty catch blocks | High | `catch {}` or `catch (e) {}` with no handling |
 | Missing input validation | High | External data used without validation |
 
 ### Quality Checks

@@ -38,6 +38,7 @@ echo '{"continue":true,"decision":"allow"}'
 ```
 
 **Config (Claude)**:
+
 ```json
 {
   "hooks": {
@@ -69,6 +70,7 @@ echo '{"continue":true}'
 ```
 
 **Config (Claude)**:
+
 ```json
 {
   "hooks": {
@@ -107,6 +109,7 @@ echo '{"continue":true}'
 ```
 
 **Config (Claude)**:
+
 ```json
 {
   "hooks": {
@@ -209,6 +212,7 @@ echo '{"continue":true}'
 ```
 
 **Config (Cursor)**:
+
 ```json
 {
   "version": 1,
@@ -331,6 +335,7 @@ echo "{\"systemMessage\":$ESCAPED}"
 ```
 
 **Config (Gemini)**:
+
 ```json
 {
   "hooks": {
@@ -729,7 +734,7 @@ module.exports = async function AutoFormatPlugin(pluginInput) {
             break;
         }
       } catch (e) {
-        // Silent fail - don't block
+        console.error("Auto-format failed:", e.message);
       }
     },
   };
