@@ -51,7 +51,46 @@ this skill with fresh context for the next issue.
    The script redacts secrets before writing and fails open — a write failure never blocks the run.
 8. **Summary.** Print one line: issue, outcome (PR # or draft), and skip count.
 
+## PR Monitoring & Merge Loop (extends, does not replace, the develop flow — FR-016)
+
+After the develop→PR step, the same loop tends the open **managed** PRs (automation-authored;
+see `config/automation_authors.yml`). This is self-paced and bounded, and it uses the
+deterministic primitives so the irreversible step is never a judgment call:
+
+1. **List managed PRs.** `pr_merge_loop.sh list-managed --json` (humans are skipped — FR-013).
+2. **Per PR, compute signals + decide.** `pr_merge_loop.sh signals <pr> --json | merge_decision.sh decide`
+   returns `{action}` — one of `merge | revise | wait | update-branch | hand-human | halt`.
+   Take the lock first: `loop_lock.sh acquire <pr>` (skip if held), release in all paths.
+3. **Act on the action:**
+   - `revise` → run one cycle: `/address-pr-comments`, then `/verify`, then `/pr-review`
+     (fan independent reviews out in parallel — FR-015); push; `pr_merge_loop.sh address-cycle <pr>`
+     records the revision. After **3** cycles without clearing, the decision returns
+     `hand-human` → label `needs-human`, move on (FR-005/006).
+   - `wait` → checks/mergeability still settling; end this PR's turn and re-check next run
+     (self-paced; never block past the 10-minute ceiling — FR-017).
+   - `update-branch` → one `gh pr update-branch`; re-read; `DIRTY`/conflict → `needs-human`.
+   - `hand-human` → apply the decision's `label` (`needs-human` or `ready-to-merge`) and skip.
+   - `halt` → main CI went red after a merge: **stop the whole loop**, flag for a human (FR-012a).
+   - `merge` → **only** reachable once the #360 verification gate passes (Tier-1) and consensus
+     is high; the merge runs the admin pre-flight and `gh pr merge --squash --admin --delete-branch`,
+     then `pr_merge_loop.sh post-merge-check`. *(Merge enablement is the US2 increment; until it
+     is wired live, treat `merge` as `ready-to-merge` + human.)*
+4. **Loop control.** A run that did real work or saw an in-flight PR resets
+   `pr_merge_loop.sh empty-run reset`; a fully-idle run does `empty-run incr`. At **5**
+   consecutive empty runs, stop the loop (FR-018/018a). At most **one merge in flight** at a
+   time (`loop_lock`), though monitoring may interleave (FR-014).
+
+Every action appends a redacted `audit_log.sh` record (FR-021/022).
+
 ## Notes
+
+- Dependency-blocked issues are detected and tagged `blocked-dependency` by
+  `next-issue`; you never see them.
+- This skill writes code (allowed tools include Edit/Write); keep diffs scoped to
+  the selected issue.
+- The merge gate's safety logic is unit-tested offline (`tests/bats/merge_decision.bats`,
+  `verification_gate.bats`, `loop_lock.bats`, `pr_merge_loop.bats`) — the irreversible merge
+  is a tested decision, not prose.
 
 - Dependency-blocked issues are detected and tagged `blocked-dependency` by
   `next-issue`; you never see them.

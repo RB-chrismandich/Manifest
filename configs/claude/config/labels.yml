@@ -51,6 +51,21 @@ labels:
     description: "Has an unmet dependency; excluded from the auto-dev loop until the blocker merges"
     platforms: [github, gitlab, linear]
 
+  - name: ready-to-merge
+    color: "0E8A16"
+    description: "Auto-dev verified the PR but lacked merge authority; ready for a human to merge"
+    platforms: [github, gitlab]
+
+  - name: loop-active
+    color: "FBCA04"
+    description: "Transient lock — the auto-dev merge loop is acting on this PR"
+    platforms: [github, gitlab]
+
+  - name: hold
+    color: "D93F0B"
+    description: "Do not auto-merge; the loop must route this PR to a human"
+    platforms: [github, gitlab]
+
 deprecated:
   - name: processed
     replacement: done
