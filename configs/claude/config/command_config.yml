@@ -278,6 +278,35 @@ tool_policies:
       - linear      # Primary: Linear issue data
       - atlassian   # Alternative: Jira issues when project uses Atlassian
 
+  auto-dev-issue-prep:
+    allowed:
+      - Read
+      - Glob
+      - Grep
+      - Bash      # git_ops.sh (issue-view/edit/comment), auto_issue_dev.sh, audit_log.sh, jq
+      - Task      # Optional parallel review for ambiguous/large issues
+      - AskUserQuestion  # Confirm label/description/comment mutations
+    forbidden:
+      - Write
+      - Edit      # No filesystem mutations; issue mutations go through git_ops.sh
+    parallel_agents: conditional
+    trigger_condition: scenario_based
+    validation_tier: 2
+
+  speckit-implement-review:
+    allowed:
+      - Read
+      - Glob
+      - Grep
+      - Bash      # check-prerequisites.sh, /verify, test runners, git, jq
+      - Task      # Parallel per-task verification
+    forbidden:
+      - Write
+      - Edit      # Analysis-only — reports gaps, never edits code or tasks.md
+    parallel_agents: conditional
+    trigger_condition: post_implement
+    validation_tier: 2
+
   health-check:
     allowed:
       - Read
