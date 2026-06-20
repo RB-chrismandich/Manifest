@@ -1,0 +1,73 @@
+#!/usr/bin/env bats
+# Tests for configs/claude/scripts/verification_gate.sh (#360 verification gate).
+# Design: docs/superpowers/specs/2026-06-18-auto-issue-dev-verification-gate-design.md
+
+SCRIPT="$BATS_TEST_DIRNAME/../../configs/claude/scripts/verification_gate.sh"
+
+setup() {
+    TMP=$(mktemp -d "${BATS_TMPDIR:-/tmp}/vgate.XXXXXX")
+}
+teardown() { [[ -n "$TMP" && -d "$TMP" ]] && rm -rf "$TMP"; }
+
+action() { python3 -c 'import json,sys;print(json.load(sys.stdin)["action"])'; }
+
+# --- CLI ---
+@test "--help exits 0, mentions review and decide" {
+    run "$SCRIPT" --help
+    [ "$status" -eq 0 ]; [[ "$output" == *"review"* ]]; [[ "$output" == *"decide"* ]]
+}
+@test "unknown subcommand non-zero" { run "$SCRIPT" bogus; [ "$status" -ne 0 ]; }
+
+# --- decide (pure core) ---
+@test "decide: reviewer_error -> draft-needs-human" {
+    run "$SCRIPT" decide '{"reviewer_error":true}'
+    [ "$status" -eq 0 ]; [ "$(echo "$output" | action)" = "draft-needs-human" ]
+}
+@test "decide: tier1 fail -> draft-needs-human" {
+    run "$SCRIPT" decide '{"tier1":{"passed":false},"consensus_score":0.9}'
+    [ "$(echo "$output" | action)" = "draft-needs-human" ]
+}
+@test "decide: tier1 pass + high consensus -> pr-open" {
+    run "$SCRIPT" decide '{"tier1":{"passed":true},"tier2":{"score":0.7},"consensus_score":0.86}'
+    [ "$(echo "$output" | action)" = "pr-open" ]
+}
+@test "decide: tier1 pass + mid consensus -> pr-open with disagreement annotation" {
+    run "$SCRIPT" decide '{"tier1":{"passed":true},"tier2":{"score":0.7},"consensus_score":0.62}'
+    [ "$(echo "$output" | action)" = "pr-open" ]
+    [[ "$output" == *"disagreement"* || "$output" == *"consensus"* ]]
+}
+@test "decide: malformed -> draft-needs-human (fail closed)" {
+    run "$SCRIPT" decide 'nope{'
+    [ "$status" -eq 0 ]; [ "$(echo "$output" | action)" = "draft-needs-human" ]
+}
+
+# --- review (seam) ---
+@test "review: seam returns gate JSON -> emitted with tier1+consensus_score" {
+    cat > "$TMP/seam.sh" <<'EOF'
+#!/usr/bin/env bash
+echo '{"tier1":{"passed":true,"issues":[]},"tier2":{"score":0.8,"concerns":[]},"consensus_score":0.9,"verdict":"APPROVED"}'
+EOF
+    chmod +x "$TMP/seam.sh"
+    VERIFICATION_GATE_REVIEW_CMD="$TMP/seam.sh" run "$SCRIPT" review 123
+    [ "$status" -eq 0 ]
+    echo "$output" | python3 -c 'import json,sys;d=json.load(sys.stdin);assert d["tier1"]["passed"] is True;assert d["consensus_score"]==0.9'
+}
+@test "review: seam non-zero -> reviewer_error sentinel (fail closed)" {
+    cat > "$TMP/seam.sh" <<'EOF'
+#!/usr/bin/env bash
+exit 1
+EOF
+    chmod +x "$TMP/seam.sh"
+    VERIFICATION_GATE_REVIEW_CMD="$TMP/seam.sh" run "$SCRIPT" review 123
+    [ "$status" -eq 0 ]
+    echo "$output" | python3 -c 'import json,sys;assert json.load(sys.stdin)["reviewer_error"] is True'
+}
+@test "review: seam emits non-JSON -> reviewer_error sentinel" {
+    cat > "$TMP/seam.sh" <<'EOF'
+#!/usr/bin/env bash
+echo "boom, not json"
+EOF
+    chmod +x "$TMP/seam.sh"
+    VERIFICATION_GATE_REVIEW_CMD="$TMP/seam.sh" run "$SCRIPT" review 123
+    echo "$output" | python3 -c 'import json,sys;assert json.load(sys.stdin)["reviewer_error"] is True'
+}
