@@ -81,14 +81,16 @@ def parse_transcript(path: Path, max_tool_output_chars: int = DEFAULT_MAX_TOOL_O
     turns: list[dict] = []
     with path.open(encoding="utf-8", errors="replace") as fh:
         for line in fh:
-            line = line.strip()
-            if not line:
+            # ⚡ Bolt: Fast-path bypass for string allocation overhead (.strip) and
+            # json.loads exception overhead. Transcript files are consistently formatted
+            # so we only incur parsing costs when the line looks exactly like our target.
+            if not line or line[0] != "{":
                 continue
             try:
                 obj = json.loads(line)
-            except json.JSONDecodeError:
+            except ValueError:
                 continue  # partial/corrupt line — skip
-            if obj.get("type") not in ("user", "assistant"):
+            if type(obj) is not dict or obj.get("type") not in ("user", "assistant"):
                 continue
             session_id = obj.get("sessionId", session_id)
             cwd = obj.get("cwd", cwd)
