@@ -43,6 +43,22 @@ USAGE
 gh_op() {
     if [[ -n "${PR_MERGE_LOOP_GH_CMD:-}" ]]; then "${PR_MERGE_LOOP_GH_CMD}" "$@"; return $?; fi
     local op="$1" pr="${2:-}"
+    local platform="${PR_MERGE_LOOP_PLATFORM:-$(bash "${SCRIPT_DIR}/git_platform.sh" 2>/dev/null || echo github)}"
+    # GitLab parity: monitoring works; the merge path FAILS CLOSED to a human (admin-check=false
+    # → cmd_merge exits 9 → ready-to-merge). Full GitLab auto-merge is design-only (glab not
+    # verified here — research.md R1); this stub never auto-merges on GitLab rather than risk a
+    # wrong merge.
+    if [[ "$platform" == "gitlab" ]]; then
+        case "$op" in
+            list)        glab mr list -F json 2>/dev/null || echo '[]' ;;
+            checks)      glab ci status 2>/dev/null ;;
+            author)      glab mr view "$pr" -F json 2>/dev/null | python3 -c 'import json,sys;print((json.load(sys.stdin).get("author") or {}).get("username",""))' 2>/dev/null ;;
+            admin-check) echo false ;;
+            do-merge)    err "gitlab auto-merge not implemented — fail closed"; return 1 ;;
+            *)           echo "" ;;
+        esac
+        return 0
+    fi
     case "$op" in
         list)            "${SCRIPT_DIR}/git_ops.sh" issue-list --json number,author 2>/dev/null ;;
         checks)          gh pr checks "$pr" --json bucket -q '.[].bucket' 2>/dev/null ;;

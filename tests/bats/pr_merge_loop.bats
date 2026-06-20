@@ -153,3 +153,8 @@ action() { python3 -c 'import json,sys;print(json.load(sys.stdin)["action"])'; }
     run "$SCRIPT" tick 5
     [[ "$output" == *"skip"* ]]
 }
+@test "gitlab: merge fails closed (no auto-merge parity → ready-to-merge + human)" {
+    unset PR_MERGE_LOOP_GH_CMD                # exercise the real platform branch
+    PR_MERGE_LOOP_PLATFORM=gitlab run "$SCRIPT" merge 5
+    [ "$status" -eq 9 ]
+}

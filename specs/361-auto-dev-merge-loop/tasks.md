@@ -136,12 +136,12 @@ currently **only a design doc** (`docs/superpowers/specs/2026-06-18-auto-issue-d
 ## Phase 6: Polish & Cross-Cutting Concerns
 
 - [x] T029 [P] Reconcile the `auto-issue-dev` tool policy in `configs/claude/config/command_config.yml` (the gate/merge uses parallel agents deliberately — scope the `parallel_agents` note so "never auto-wrap dev output" and "the gate runs parallel agents" are both explicit)
-- [ ] T030 [P] Add monitor/merge/loop test prompts to `.skillshare/skills/auto-issue-dev/evals/evals.json`
-- [ ] T031 [P] GitLab parity stubs in `pr_merge_loop.sh`/`git_ops.sh` (`glab mr merge --squash --remove-source-branch`, `glab ci status --branch main`) guarded by `git_platform.sh` (research.md R1/R3)
+- [x] T030 [P] Add monitor/merge/loop test prompts to `.skillshare/skills/auto-issue-dev/evals/evals.json`
+- [x] T031 [P] GitLab parity stubs in `pr_merge_loop.sh`/`git_ops.sh` (`glab mr merge --squash --remove-source-branch`, `glab ci status --branch main`) guarded by `git_platform.sh` (research.md R1/R3)
 - [x] T032 Run lint gates: `shellcheck configs/claude/scripts/{pr_merge_loop,merge_decision,loop_lock}.sh` and `yamllint` the edited `configs/claude/config/*.yml`
 - [x] T033 Run the full suite green: `bats tests/bats/merge_decision.bats tests/bats/loop_lock.bats tests/bats/pr_merge_loop.bats`
 - [ ] T034 Run quickstart.md dry-run validation (`pr_merge_loop.sh signals <pr> --json | merge_decision.sh decide`) against a real managed PR; confirm no mutations in dry-run
-- [ ] T035 [P] Update docs (`docs/COMMANDS.md` / relevant) to note the breaking change (Rule #1 supersession), the new labels, and the merge-loop behavior
+- [x] T035 [P] Update docs (`docs/COMMANDS.md` / relevant) to note the breaking change (Rule #1 supersession), the new labels, and the merge-loop behavior
 
 ---
 

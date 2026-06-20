@@ -43,7 +43,7 @@ frontmatter is the authoritative name and description.
 | `/refactor-terraform` | Terraform/OpenTofu IaC security, modularity, and quality analysis | ALWAYS |
 | `/issue-triage` | Linear issue audit: duplicates, staleness, priority validation | CONDITIONAL |
 | `/issue-prioritize` | Score and rank open issues by impact/urgency/readiness/risk | CONDITIONAL |
-| `/auto-issue-dev` | Autonomously develop one opted-in (`auto-dev`-labeled) issue end-to-end — selects next ready issue, implements test-first, verifies, opens a PR (never merges); loops until queue empty | NO |
+| `/auto-issue-dev` | Autonomously develop one opted-in (`auto-dev`-labeled) issue end-to-end — selects next ready issue, implements test-first, verifies, opens a PR. **Now also monitors automation PRs and (opt-in via `PR_MERGE_LOOP_APPLY=1`) merges them to main once the gated decision clears — CI green, comments addressed, #360 gate Tier-1 pass, consensus ≥0.80; fail-closed to a human otherwise.** Self-paced, stops after 5 empty runs | NO |
 | `/pr-issue-sync` | Hook-triggered: on PR open, back-link + advance linked issue to `needs-review` + ensure closing keyword (fail-open) | NO |
 | `/commit-issue-sync` | Hook-triggered: on branch commit, advance a `planned` issue to `in-progress`, deduped (fail-open) | NO |
 | `/plan-manage` | Plan lifecycle with parallel agent orchestration | CONDITIONAL |
@@ -96,6 +96,9 @@ across GitHub, GitLab, and Linear.
 | `done` | Green | `#0E8A16` | Implementation complete and validated |
 | `follow-up` | Lavender | `#D4C5F9` | Spawned from another issue during implementation |
 | `future` | Green | `#C2E0C6` | Queued for future prioritization and scheduling |
+| `ready-to-merge` | Green | `#0E8A16` | Auto-dev verified the PR but lacked merge authority; awaiting a human merge |
+| `loop-active` | Yellow | `#FBCA04` | Transient lock — the auto-dev merge loop is acting on this PR |
+| `hold` | Red-orange | `#D93F0B` | Do not auto-merge; the loop must route this PR to a human |
 
 **Deprecated**: `processed` — use `done` instead (same color and purpose).
 
