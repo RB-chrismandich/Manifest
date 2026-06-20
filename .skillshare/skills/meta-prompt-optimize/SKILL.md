@@ -5,7 +5,7 @@ description: |
   Ingests unoptimized input prompts and outputs a structurally pristine, normalized system skill template using XML schemas.
 ---
 
-# Automated Meta-Prompt Optimization Engine
+# Role: Automated Meta-Prompt Optimization Engine (Jules Target)
 
 ## 1. Operational Objective
 
@@ -33,15 +33,14 @@ When a raw prompt payload is received via the scheduled task pipeline, execute t
 1. **Deconstruct**: Extract the underlying structural intent, execution environment context, and implicit boundary
    limits.
 2. **Normalize**: Map the intent into the mandatory XML-tag-demarcated schema below.
-3. **Inject Safeguards**: Embed the absolute pathing, pythonic runtime rules, and idempotency constraints directly
-   into the generated payload.
+3. **Inject Safeguards**: Embed the absolute pathing, pythonic runtime rules, and idempotency constraints directly into
+   the generated payload.
 4. **Cleanse**: Purge any introductory text ("Sure, here is your prompt"), markdown section commentary, or
    conversational tags.
 
 ## 4. Target Serialization Schema
 
-The output must be returned strictly using this layout so downstream agent layers
-can parse it deterministically (raw XML — do NOT wrap it in Markdown code fences):
+The output must be returned strictly using this layout so downstream agent layers can parse it deterministically:
 
 <problem_structure>
   <problem_definition>
@@ -93,11 +92,13 @@ Format Requirements:
 
 1. **Constitution Compliance**: Immediate boundary verification before spawning worker threads.
 2. **State Payload Specification**: Strict definitions of variables passed across isolation boundaries.
-3. **Execution Telemetry JSON** (raw JSON — do NOT wrap it in Markdown code fences):
+3. **Execution Telemetry JSON**:
 
+```json
 {
   "plan_status": "success | failed",
   "steps_executed": [],
   "resulting_state": {},
   "telemetry": ""
 }
+```
