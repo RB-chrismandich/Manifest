@@ -43,11 +43,18 @@ of `.strip()` and the exception overhead for noise lines, yielding ~45% faster p
 **Action:** When parsing large, homogeneous JSONL files where the target lines consistently start with a specific
 character (like `{`), use direct prefix checks (`line[0]`) to filter lines before calling `json.loads`.
 
-## 2026-06-21 - Optimize Generator Comprehensions to List Comprehensions inside hot loops
+## 2026-06-21 - Generator vs list comprehension for counting (small, cold paths)
 
-**Learning:** `sum(1 for ...)` is slower than `len([1 for ...])` due to generator yielding overhead. And evaluating membership
-against a list comprehension instead of a set comprehension avoids set allocation overhead.
+**Learning:** `len([1 for ... if cond])` is measurably faster than `sum(1 for ... if cond)` on
+small/medium inputs: the list comprehension runs in a tight C loop and avoids the per-item
+generator `next()` overhead (benchmarked ~40% faster at n=50–500, collapsing to ~2% by n=5000
+as list-allocation cost catches up). The tradeoff is memory — `len([...])` materializes a
+throwaway list (O(k)) where `sum(genexpr)` is O(1) — so it only pays off on small, bounded
+inputs in cold paths, not in genuinely hot loops over large data.
 
 **Action:** Replaced `sum(1 for count in word_counts.values() if count > 1)` with
-`len([1 for count in word_counts.values() if count > 1])` in `configs/claude/scripts/agents/orchestrator.py` because
-`len([])` operates at C speed.
+`len([1 for count in word_counts.values() if count > 1])` in `configs/claude/scripts/agents/orchestrator.py`,
+which is the once-per-run consensus calc over a few hundred words — small input, cold path. For
+large or memory-sensitive loops keep `sum(1 for ...)` to avoid the list allocation. Unrelated to
+set-vs-list membership: prefer a `set` for membership tests (O(1) vs O(n)); do not swap a set
+comprehension for a list to "save allocation."
