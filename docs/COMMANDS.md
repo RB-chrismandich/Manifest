@@ -54,6 +54,7 @@ frontmatter is the authoritative name and description.
 | `/sync-configs` | Detect cross-platform config drift and broken symlinks | NO |
 | `/version-pin` | Enforce specific, hashed version pins in dependency files (auto-fix on demand; warn-only save hook) | ALWAYS (Tier 1) |
 | `/pr-review` | Review all open PRs and recommend a disposition per PR (analysis-only) | NO |
+| `/post-pr-review-monitor` | Babysit a just-opened PR/MR: watch CI to green (fix failures), address Copilot findings, tag Jules and handle its feedback. Auto-triggers on `gh pr create`/`glab mr create` | NO |
 | `/branch-clean` | Prune merged/gone/stale branches safely (dry-run by default, local-only) | CONDITIONAL (--apply) |
 | `/repo-hygiene` | Review-then-confirm cleanup sweep of open PRs and stale/merged/gone branches (GitHub/GitLab/local) | CONDITIONAL (close/prune path) |
 | `/skill-evolve` | Promote SkillClaw-evolved skills into a review PR (dry-run by default); requires SkillClaw enabled | NO |

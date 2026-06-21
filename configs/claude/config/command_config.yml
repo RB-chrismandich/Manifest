@@ -75,6 +75,16 @@ tool_policies:
     parallel_agents: gate-only
     validation_tier: 1
 
+  post-pr-review-monitor:
+    allowed:
+      - Bash
+      - Read
+      - Edit
+      - Write
+    forbidden: []
+    parallel_agents: never        # orchestrates other skills; no cross-verification fan-out
+    validation_tier: 1            # pushes commits + posts PR comments
+
   pr-issue-sync:
     allowed:
       - Bash
