@@ -1,6 +1,6 @@
 ---
 name: deploy-drift-root-cause
-description: Use when a deployed/live environment is missing expected state (symlinks, files, config) after a bootstrap/deploy — including a newly-added repo-owned entry that works on fresh installs but never reaches already-bootstrapped machines — to classify it (incomplete run, deployer bug, or preserve-on-existing drop), fix the source of truth, and close the detector's blind spot.
+description: Use when a deployed/live environment is missing expected state (symlinks, files, config) after bootstrap/deploy — including entries that work on fresh installs but miss already-bootstrapped machines — to classify the gap (incomplete run, deployer bug, or preserve-on-existing drop) and fix the source of truth.
 ---
 # Root-Cause Deploy Drift, Don't Just Backfill
 

@@ -1,10 +1,6 @@
 ---
 name: address-pr-comments
-description: >-
-  Use when your own open PR receives review feedback — inline comments (human or
-  bot like Copilot/CodeRabbit), review-body summaries, or issue-level discussion
-  — to fetch via gh api, triage and verify each claim, fix, re-test, push, and
-  reply to or resolve every item. Distinct from analysis-only pr-review.
+description: Use when your open PR receives review feedback (inline comments, Copilot/CodeRabbit, review-body, issue discussion) — fetch via gh api, triage each claim, fix, re-test, push, and resolve every item. Distinct from analysis-only pr-review.
 ---
 
 # Address PR Review Comments

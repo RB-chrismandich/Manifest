@@ -79,16 +79,19 @@ assert_budget() {
     # auto-dev-issue-prep + speckit-implement-review. Both were trimmed from
     # 717/595 -> 498/398 chars toward the ~290 norm first; the residual still
     # exceeded 21500, and the descriptions are the always-loaded triggering text
-    # with no read-on-demand alternative. Headroom is ~160 — a set-wide trim
-    # pass is genuinely overdue before the next addition.
+    # with no read-on-demand alternative. Headroom was ~160 — a set-wide trim
+    # pass was overdue.
+    # Lowered 22300 -> 21000 (2026-06-21): set-wide trim pass recovered ~1756
+    # chars (total 22141 -> 20385); 25 skills trimmed toward the ~290 norm,
+    # all trigger phrases preserved. New headroom: ~615 chars.
     total=0
     for f in "$REPO_ROOT"/.skillshare/skills/*/SKILL.md; do
         # frontmatter = up to the second '---' line
         chars=$(awk '/^---$/{c++; next} c==1' "$f" | wc -c)
         total=$((total + chars))
     done
-    if [ "$total" -gt 22300 ]; then
-        echo "Skill frontmatter totals $total chars (budget: 22300)." >&2
+    if [ "$total" -gt 21000 ]; then
+        echo "Skill frontmatter totals $total chars (budget: 21000)." >&2
         echo "Trim verbose descriptions; bodies are pay-per-use, frontmatter is not." >&2
         return 1
     fi

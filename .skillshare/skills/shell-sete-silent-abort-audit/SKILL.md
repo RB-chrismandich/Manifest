@@ -1,6 +1,6 @@
 ---
 name: shell-sete-silent-abort-audit
-description: Use when a bash script under `set -e`/`set -euo pipefail` aborts or misbehaves in production but passes tests and small inputs — audit helpers and sourced libs for four non-`$()` control-flow triggers (trailing `&&`, stdin-drain, SIGPIPE, `((i++))`-returns-1). Complements shell-pipefail-subshell-audit.
+description: Use when a bash script under `set -e`/`set -euo pipefail` aborts in production but passes tests — audit helpers and sourced libs for non-`$()` control-flow triggers (trailing `&&`, stdin-drain, SIGPIPE, `((i++))`-returns-1). Complements shell-pipefail-subshell-audit.
 ---
 # Audit Shell Helpers for Production-Only Aborts Tests Miss
 

@@ -1,12 +1,12 @@
 ---
-description: "Use when auditing an existing GitHub Actions / GitLab CI workflow that fires on attacker-influenceable triggers (pull_request_target, issue_comment, workflow_run) or handles secrets — finds the pwn-request class: fork head-ref checkout, ${{ }} injection, author_association trust gaps, secret/permission scope. Analysis-only; to build or harden one, use secure-comment-triggered-workflow."
+description: "Audit a GitHub Actions / GitLab CI workflow on attacker-influenceable triggers (pull_request_target, issue_comment, workflow_run) — finds pwn-request issues: fork head-ref checkout, ${{ }} injection, author_association gaps, secret/permission scope. Analysis-only; to harden one, use secure-comment-triggered-workflow."
 globs: ".claude/skills/ci-workflow-trigger-security/**"
 alwaysApply: false
 ---
 
 # ci-workflow-trigger-security
 
-Use when auditing an existing GitHub Actions / GitLab CI workflow that fires on attacker-influenceable triggers (pull_request_target, issue_comment, workflow_run) or handles secrets — finds the pwn-request class: fork head-ref checkout, ${{ }} injection, author_association trust gaps, secret/permission scope. Analysis-only; to build or harden one, use secure-comment-triggered-workflow.
+Audit a GitHub Actions / GitLab CI workflow on attacker-influenceable triggers (pull_request_target, issue_comment, workflow_run) — finds pwn-request issues: fork head-ref checkout, ${{ }} injection, author_association gaps, secret/permission scope. Analysis-only; to harden one, use secure-comment-triggered-workflow.
 
 <!-- Auto-generated from .claude/skills/ci-workflow-trigger-security/SKILL.md -->
 <!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->

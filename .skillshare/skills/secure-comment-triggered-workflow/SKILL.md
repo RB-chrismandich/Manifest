@@ -1,6 +1,6 @@
 ---
 name: secure-comment-triggered-workflow
-description: Use when building or hardening a CI workflow that runs privileged actions (deploys, bot/agent invocation, secret use) on comment or PR triggers — lock down who can trigger or edit the control via identity gates, CODEOWNERS, branch protection, and environments while keeping it auto-running on PRs. Build/governance counterpart to ci-workflow-trigger-security.
+description: Build or harden a CI workflow that runs privileged actions (deploys, bot/agent invocation, secret use) on comment/PR triggers — identity gates, CODEOWNERS, branch protection, environments. Counterpart to ci-workflow-trigger-security (which audits; this builds/governs).
 ---
 # Secure a Privileged Comment-/Event-Triggered Workflow
 

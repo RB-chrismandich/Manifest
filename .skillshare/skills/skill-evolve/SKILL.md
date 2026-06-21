@@ -1,11 +1,6 @@
 ---
 name: skill-evolve
-description: >-
-  Turn SkillClaw's evolved skills into a reviewed PR into .skillshare/skills/.
-  Dry-run by default; --apply opens one review PR with one commit per skill.
-  Requires SkillClaw enabled (--enable-skillclaw) and the claude CLI logged in.
-  Never writes the source of truth directly — every change goes through PR
-  review.
+description: Turn SkillClaw-evolved skills into a reviewed PR into .skillshare/skills/. Dry-run by default; --apply opens one PR with one commit per skill. Requires --enable-skillclaw and claude CLI login. Never writes source of truth directly — all changes go through PR review.
 ---
 
 # Evolve Skills (SkillClaw)

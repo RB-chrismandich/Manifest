@@ -1,11 +1,6 @@
 ---
 name: version-pin
-description: >-
-  Enforce specific, hashed version pins in dependency files (requirements.txt,
-  docker-compose.yaml, Dockerfiles). Detects loose refs (latest, missing
-  version/hash, unbounded range), resolves version + hash via native package
-  managers; auto-fixes on demand or warns on the save hook. Explicit per-entry
-  bypass supported.
+description: Enforce hashed version pins in requirements.txt, docker-compose.yaml, and Dockerfiles — detects loose refs (latest, missing hash, unbounded range), resolves version+hash via native package managers, auto-fixes or warns on save hook. Per-entry bypass supported.
 ---
 
 # Version Pinning Enforcement

@@ -1,6 +1,6 @@
 ---
 name: statistical-test-fixture-variance
-description: Use when writing or debugging unit tests for z-score, standard-deviation, normalization, or surge/ratio functions — constant or flat fixture data collapses the statistic to zero and silently fails the assertion. Build baselines with real variance.
+description: Use when writing/debugging unit tests for z-score, standard-deviation, normalization, or surge/ratio functions — flat fixture data collapses the statistic to zero and silently fails assertions. Build baselines with real variance.
 ---
 # Give Statistical Test Fixtures Real Variance
 

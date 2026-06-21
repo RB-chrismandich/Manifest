@@ -1,6 +1,6 @@
 ---
 name: pin-known-bug-test-survives-fix
-description: Use when adding a test around behavior you are NOT fixing now (a known bug or intentional placeholder) — make the assertion tolerate the post-fix output too, so fixing the bug later doesn't break the suite, and anchor the real invariant separately.
+description: Use when testing a known bug or placeholder you are NOT fixing now — make the assertion tolerate the post-fix output too, so the fix doesn't break the suite later. Anchor the real invariant separately.
 ---
 # Pin Known-Buggy Behavior Without Breaking on the Fix
 
