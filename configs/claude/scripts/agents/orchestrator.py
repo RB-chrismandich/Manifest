@@ -472,8 +472,12 @@ class Orchestrator:
             duration = f"{agent_result.get('duration_seconds', 0):.2f}s"
             model = agent_result.get("model", "N/A")
 
-            status_icon = "✔" if status == "complete" else "✗"
-            status_color = "green" if status == "complete" else "red"
+            if status == "complete":
+                status_icon, status_color = "✔", "green"
+            elif status in ("failed", "error"):
+                status_icon, status_color = "✗", "red"
+            else:
+                status_icon, status_color = "⚠", "yellow"
             table.add_row(
                 agent_name.title(),
                 f"[{status_color}]{status_icon} {status}[/{status_color}]",
