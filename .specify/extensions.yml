@@ -115,6 +115,13 @@ hooks:
     description: Auto-commit after task generation
     condition: null
   after_implement:
+  - extension: speckit-implement-review
+    command: speckit-implement-review
+    enabled: true
+    optional: false
+    prompt: Review task completion after implementation?
+    description: Audit every tasks.md task for genuine completion before commit
+    condition: null
   - extension: git
     command: speckit.git.commit
     enabled: true

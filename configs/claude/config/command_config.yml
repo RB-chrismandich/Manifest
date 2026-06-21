@@ -62,13 +62,17 @@ synthesis_priority:
 tool_policies:
   auto-issue-dev:
     allowed:
-      - Bash       # auto_issue_dev.sh, git_ops.sh, install_issue_hooks.sh, git, gh/glab
+      - Bash       # auto_issue_dev.sh, git_ops.sh, pr_merge_loop.sh, merge_decision.sh, verification_gate.sh, loop_lock.sh, gh/glab
       - Read
       - Edit       # writes code for the selected issue
       - Write
-      - Skill      # test-driven-development, verify
+      - Skill      # test-driven-development, verify, address-pr-comments, pr-review
     forbidden: []
-    parallel_agents: never
+    # Scope note: the DEVELOP loop never auto-wraps its own output in cross-verification
+    # (parallel_agents: never). The MERGE gate, however, is a deliberate, bounded parallel-agent
+    # review run via verification_gate.sh (#360) — that is gate-only and intentional, not a
+    # contradiction of the develop-loop policy.
+    parallel_agents: gate-only
     validation_tier: 1
 
   pr-issue-sync:
@@ -277,6 +281,35 @@ tool_policies:
     mcp_servers:
       - linear      # Primary: Linear issue data
       - atlassian   # Alternative: Jira issues when project uses Atlassian
+
+  auto-dev-issue-prep:
+    allowed:
+      - Read
+      - Glob
+      - Grep
+      - Bash      # git_ops.sh (issue-view/edit/comment), auto_issue_dev.sh, audit_log.sh, jq
+      - Task      # Optional parallel review for ambiguous/large issues
+      - AskUserQuestion  # Confirm label/description/comment mutations
+    forbidden:
+      - Write
+      - Edit      # No filesystem mutations; issue mutations go through git_ops.sh
+    parallel_agents: conditional
+    trigger_condition: scenario_based
+    validation_tier: 2
+
+  speckit-implement-review:
+    allowed:
+      - Read
+      - Glob
+      - Grep
+      - Bash      # check-prerequisites.sh, /verify, test runners, git, jq
+      - Task      # Parallel per-task verification
+    forbidden:
+      - Write
+      - Edit      # Analysis-only — reports gaps, never edits code or tasks.md
+    parallel_agents: conditional
+    trigger_condition: post_implement
+    validation_tier: 2
 
   health-check:
     allowed:

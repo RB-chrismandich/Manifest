@@ -1,0 +1,23 @@
+{
+  "skill_name": "auto-dev-issue-prep",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Can issue #142 be handed to auto-dev? It's titled 'Add a --dry-run flag to label_sync.sh' and the body lists the expected behavior and an example invocation.",
+      "expected_output": "Verdict READY (clear bounded scope, testable criteria, self-contained, no deps), with a proposed action to add the `auto-dev` label via git_ops.sh, shown before applying.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "Prep issue #207 for autonomous development. It says only: 'The dashboard feels slow, make it better.'",
+      "expected_output": "Verdict NEEDS-PREP: rubric fails on testable acceptance criteria, bounded scope, and reproducible context. Drafts a tighter description and/or the fewest clarifying questions (target surface, what 'slow' means, success metric); does NOT apply the auto-dev label yet.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "Is #318 a good candidate for the auto-dev loop? Body: 'Pick a vendor for SSO and wire up the login. Depends on #300 (not yet merged).'",
+      "expected_output": "Verdict NOT-SUITABLE / blocked: requires a human product/design decision (vendor choice) and has an unmet dependency (#300). Recommends keeping it human-owned (and notes the loop would skip it on the dependency regardless).",
+      "files": []
+    }
+  ]
+}

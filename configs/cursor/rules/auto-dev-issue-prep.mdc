@@ -1,0 +1,15 @@
+---
+description: "Decide whether a single issue is ready for the autonomous auto-dev loop — apply the `auto-dev` label when ready, or improve the description / draft clarifying questions when not. Use when asked to triage, groom, prep, assess, or \"make ready\" an issue for auto-dev or autonomous development, or to tighten its scope and acceptance criteria before automation picks it up. Run before auto-issue-dev, which only develops already-labeled, well-specified issues."
+globs: ".claude/skills/auto-dev-issue-prep/**"
+alwaysApply: false
+---
+
+# auto-dev-issue-prep
+
+Decide whether a single issue is ready for the autonomous auto-dev loop — apply the `auto-dev` label when ready, or improve the description / draft clarifying questions when not. Use when asked to triage, groom, prep, assess, or "make ready" an issue for auto-dev or autonomous development, or to tighten its scope and acceptance criteria before automation picks it up. Run before auto-issue-dev, which only develops already-labeled, well-specified issues.
+
+<!-- Auto-generated from .claude/skills/auto-dev-issue-prep/SKILL.md -->
+<!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
+
+Refer to `.cursor/skills/auto-dev-issue-prep/SKILL.md` for the full skill definition.
+

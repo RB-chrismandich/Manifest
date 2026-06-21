@@ -1,0 +1,26 @@
+# automation_authors.yml — allowlist of PR authors the auto-dev merge loop may act on.
+#
+# The loop (FR-013) only monitors/merges PRs authored by automation. Any author NOT in this
+# list is treated as human-authored and skipped — config-driven so adding a bot needs no code
+# change. Match against `gh pr view --json author -q .author.login` (and the GraphQL
+# `author.__typename == "Bot"` signal as a belt-and-suspenders check; see research.md R2).
+#
+# Logins are matched case-insensitively, with or without a trailing "[bot]" suffix, since the
+# suffix is surface-dependent across the gh REST/GraphQL APIs.
+
+authors:
+  # The autonomous issue developer's own account
+  - RB-chrismandich
+  - ReefBytes-Owner
+  # Recognized bots that open PRs into this repo
+  - google-labs-jules
+  - copilot-pull-request-reviewer
+  - Copilot
+  - coderabbitai
+  # Persona/automation branches (matched on author login, not branch name)
+  - forge
+  - palette
+  - bolt
+
+# Treat any author whose GraphQL __typename is "Bot" as automation even if not listed above.
+trust_bot_typename: true

@@ -230,6 +230,39 @@ command_overrides:
         function_count: 10
         class_count: 5
 
+  # PR-OPEN gate (#360): consensus is ADVISORY — cross_verification is deliberately OMITTED so
+  # a <80%-consensus change still surfaces (real-vs-draft PR); the gate annotates, never blocks.
+  auto-issue-dev:
+    tier1_required: true
+    tier1_checks:
+      - security
+      - error_handling
+      - breaking_changes
+    tier2_required: true
+    tier2_threshold: 0.60
+    consensus_threshold: 0.80
+    parallel_agents: true
+
+  # MERGE gate (#361): STRICTER than PR-open. cross_verification is Tier-1 BLOCKING, so a PR
+  # cannot be auto-merged below 80% consensus (Constitution Principle II — the irreversible
+  # step carries the higher bar). Do NOT remove cross_verification here without a constitution
+  # review; tests/bats assert the auto-dev merge gate keeps it.
+  auto-issue-dev-merge:
+    tier1_required: true
+    tier1_checks:
+      - security
+      - error_handling
+      - breaking_changes
+      - cross_verification
+    tier2_required: true
+    tier2_threshold: 0.60
+    consensus_threshold: 0.80
+    consensus_action:
+      high: auto_proceed          # >=80%: eligible to auto-merge
+      medium: show_disagreements  # 50-79%: hand to human (ready-to-merge)
+      low: block_and_escalate     # <50%: needs-human
+    parallel_agents: true
+
   issue-triage:
     tier1_required: false
     tier2_required: true

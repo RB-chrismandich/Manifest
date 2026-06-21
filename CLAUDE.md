@@ -239,5 +239,5 @@ approaches), review stale plans, or archive/abandon completed work.
 <!-- SPECKIT START -->
 ## Active Spec Kit Feature
 
-- `005-issue-linking-hooks` — plan: [specs/005-issue-linking-hooks/plan.md](specs/005-issue-linking-hooks/plan.md)
+- `361-auto-dev-merge-loop` — plan: [specs/361-auto-dev-merge-loop/plan.md](specs/361-auto-dev-merge-loop/plan.md)
 <!-- SPECKIT END -->
