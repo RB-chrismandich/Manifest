@@ -35,14 +35,14 @@ EOF
     cat > "$TMP/lockseam.sh" <<'EOF'
 #!/usr/bin/env bash
 d="${SEAM_STATE:?}"; mkdir -p "$d"; f="$d/$2"
-case "$1" in has) [ -f "$f" ] && { echo 0; exit 0; } || exit 1 ;; add) echo 0>"$f";; remove) rm -f "$f";; esac
+case "$1" in has) [ -f "$f" ] && { echo 0; exit 0; } || exit 1 ;; add) echo > "$f";; remove) rm -f "$f";; esac
 EOF
     chmod +x "$TMP/lockseam.sh"; export LOOP_LOCK_LABEL_CMD="$TMP/lockseam.sh"
 
     # verification gate review seam (tunable via SEAM_GATE).
     cat > "$TMP/gateseam.sh" <<'EOF'
 #!/usr/bin/env bash
-echo "${SEAM_GATE:-{\"tier1\":{\"passed\":true},\"consensus_score\":0.9}}"
+_d='{"tier1":{"passed":true},"consensus_score":0.9}'; echo "${SEAM_GATE:-$_d}"
 EOF
     chmod +x "$TMP/gateseam.sh"; export VERIFICATION_GATE_REVIEW_CMD="$TMP/gateseam.sh"
 }

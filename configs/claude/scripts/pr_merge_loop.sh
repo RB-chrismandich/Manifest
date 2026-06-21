@@ -17,7 +17,7 @@
 # Seams (tests/the loop inject these): PR_MERGE_LOOP_GH_CMD "<op> <pr>" (checks|reviewdecision|
 #   unresolved-human|disposition|mergeable|verify|hold|author|list), PR_MERGE_LOOP_STATE_DIR,
 #   AUTOMATION_AUTHORS_FILE, PR_MERGE_LOOP_NOW_CMD, PR_MERGE_LOOP_CEILING_SEC,
-#   PR_MERGE_LOOP_POLL_SEC, GH_NET_TIMEOUT.
+#   PR_MERGE_LOOP_POLL_SEC, GH_NET_TIMEOUT, PR_MERGE_LOOP_POSTMERGE_CMD.
 
 set -euo pipefail
 
@@ -231,7 +231,7 @@ try: g=json.loads(sys.argv[1])
 except Exception: g={"reviewer_error":True}
 ok=(g.get("tier1") or {}).get("passed") is True and not g.get("reviewer_error")
 s["gate_tier1"]="pass" if ok else "fail"
-s["consensus"]=g.get("consensus_score") or (g.get("tier1") or {}).get("consensus_score") or 0
+s["consensus"]=g.get("consensus_score",0)
 s["reviewer_error"]=bool(g.get("reviewer_error"))
 print(json.dumps(s))' "$gate")"
         d="$(printf '%s' "$sig2" | "${SCRIPT_DIR}/merge_decision.sh" decide)"
@@ -272,7 +272,7 @@ cmd_run() {
         # shellcheck disable=SC2086 # word-split the space-joined PR numbers (bash 3.2-safe)
         for pr in $managed; do
             now="$(_now)"; (( now < deadline )) || break
-            act="$(cmd_tick "$pr" | tail -1)"
+            act="$(cmd_tick "$pr")"
             case "$act" in
                 halt) err "loop HALT — main breakage on #$pr"; return 11 ;;
                 merge|revise|update-branch|wait|skip) inflight=1 ;;
