@@ -82,13 +82,14 @@ def parse_transcript(path: Path, max_tool_output_chars: int = DEFAULT_MAX_TOOL_O
     with path.open(encoding="utf-8", errors="replace") as fh:
         for line in fh:
             # ⚡ Bolt: Fast-path bypass for string allocation overhead (.strip) and
-            # json.loads exception overhead. Transcript files are consistently formatted
-            # so we only incur parsing costs when the line looks exactly like our target.
-            if not line or line[0] != "{":
+            # json.loads exception overhead. The common case (no leading whitespace)
+            # skips allocation; a rare indented line falls back to lstrip so it is not
+            # silently dropped. json.loads tolerates surrounding whitespace/newline.
+            if not line or (line[0] != "{" and line.lstrip()[:1] != "{"):
                 continue
             try:
                 obj = json.loads(line)
-            except ValueError:
+            except json.JSONDecodeError:
                 continue  # partial/corrupt line — skip
             if type(obj) is not dict or obj.get("type") not in ("user", "assistant"):
                 continue
