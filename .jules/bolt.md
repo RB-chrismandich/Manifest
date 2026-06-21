@@ -42,3 +42,12 @@ of `.strip()` and the exception overhead for noise lines, yielding ~45% faster p
 
 **Action:** When parsing large, homogeneous JSONL files where the target lines consistently start with a specific
 character (like `{`), use direct prefix checks (`line[0]`) to filter lines before calling `json.loads`.
+
+## 2026-06-21 - Optimize Generator Comprehensions to List Comprehensions inside hot loops
+
+**Learning:** `sum(1 for ...)` is slower than `len([1 for ...])` due to generator yielding overhead. And evaluating membership
+against a list comprehension instead of a set comprehension avoids set allocation overhead.
+
+**Action:** Replaced `sum(1 for count in word_counts.values() if count > 1)` with
+`len([1 for count in word_counts.values() if count > 1])` in `configs/claude/scripts/agents/orchestrator.py` because
+`len([])` operates at C speed.
