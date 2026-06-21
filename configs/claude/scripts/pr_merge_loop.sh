@@ -332,6 +332,7 @@ cmd_run() {
             cmd_empty_run reset >/dev/null
         else
             n="$(cmd_empty_run incr)"
+            # set -e-safe only as the LHS of && (non-tail); do not move to a tail position
             (( n >= 5 )) && { err "5 consecutive empty runs — stopping"; break; }
         fi
         now="$(_now)"; (( now < deadline )) || break
