@@ -1,10 +1,6 @@
 ---
 name: architecture-decision-tradeoff-table
-description: >-
-  Use when a design choice has multiple valid options and the user wants the
-  best long-term solution (fidelity, accuracy, scale, maintainability) — produce
-  a dimension-by-dimension trade-off table, justify one recommendation against
-  long-term failure modes, and record it in the spec.
+description: Use when a design choice has multiple valid options — produce a dimension-by-dimension trade-off table (fidelity, accuracy, scale, maintainability), justify one recommendation against long-term failure modes, and record it in the spec.
 ---
 # Decide an Architecture Choice via a Trade-off Table
 

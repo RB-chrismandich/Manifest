@@ -1,12 +1,12 @@
 ---
-description: "After /speckit-implement, audit that EVERY task in tasks.md was genuinely completed and validated — not just checkbox-ticked: catch skipped tasks, stubbed/placeholder work, missing tests, or spec requirements with no implementing task. Runs automatically as a speckit after_implement hook; also invoke directly to re-audit a feature's task completion."
+description: "After /speckit-implement, audit that every task in tasks.md was genuinely completed — catch skipped tasks, stubbed work, missing tests, or unimplemented spec requirements. Runs automatically as the speckit after_implement hook; invoke directly to re-audit task completion."
 globs: ".claude/skills/speckit-implement-review/**"
 alwaysApply: false
 ---
 
 # speckit-implement-review
 
-After /speckit-implement, audit that EVERY task in tasks.md was genuinely completed and validated — not just checkbox-ticked: catch skipped tasks, stubbed/placeholder work, missing tests, or spec requirements with no implementing task. Runs automatically as a speckit after_implement hook; also invoke directly to re-audit a feature's task completion.
+After /speckit-implement, audit that every task in tasks.md was genuinely completed — catch skipped tasks, stubbed work, missing tests, or unimplemented spec requirements. Runs automatically as the speckit after_implement hook; invoke directly to re-audit task completion.
 
 <!-- Auto-generated from .claude/skills/speckit-implement-review/SKILL.md -->
 <!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->

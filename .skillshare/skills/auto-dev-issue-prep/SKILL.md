@@ -1,6 +1,6 @@
 ---
 name: auto-dev-issue-prep
-description: Decide whether a single issue is ready for the autonomous auto-dev loop — apply the `auto-dev` label when ready, or improve the description / draft clarifying questions when not. Use when asked to triage, groom, prep, assess, or "make ready" an issue for auto-dev or autonomous development, or to tighten its scope and acceptance criteria before automation picks it up. Run before auto-issue-dev, which only develops already-labeled, well-specified issues.
+description: Triage/groom/prep a single issue for the auto-dev loop — apply the `auto-dev` label when ready, or tighten scope and draft clarifying questions when not. Use before auto-issue-dev when asked to assess, make-ready, or validate an issue for autonomous development.
 ---
 
 # Auto-Dev Issue Prep

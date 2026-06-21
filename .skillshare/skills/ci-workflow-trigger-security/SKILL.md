@@ -1,6 +1,6 @@
 ---
 name: ci-workflow-trigger-security
-description: Use when auditing an existing GitHub Actions / GitLab CI workflow that fires on attacker-influenceable triggers (pull_request_target, issue_comment, workflow_run) or handles secrets — finds the pwn-request class: fork head-ref checkout, ${{ }} injection, author_association trust gaps, secret/permission scope. Analysis-only; to build or harden one, use secure-comment-triggered-workflow.
+description: Audit a GitHub Actions / GitLab CI workflow on attacker-influenceable triggers (pull_request_target, issue_comment, workflow_run) — finds pwn-request issues: fork head-ref checkout, ${{ }} injection, author_association gaps, secret/permission scope. Analysis-only; to harden one, use secure-comment-triggered-workflow.
 ---
 # Security-Review a CI Workflow on Untrusted Triggers
 

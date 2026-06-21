@@ -1,10 +1,6 @@
 ---
 name: token-benchmark
-description: |
-  Measure input/output token overhead and quality delta introduced by Manifest config
-  deployment across Claude, Gemini CLI, and Antigravity CLI. Runs 20 industry-standard
-  benchmark prompts (MMLU, HumanEval, HellaSwag, TruthfulQA) before and after manifest
-  context injection via isolated HOME directories, then regenerates docs/TOKEN_BENCHMARK.md.
+description: Measure token overhead and quality delta from Manifest config across Claude, Gemini CLI, and Antigravity CLI using MMLU/HumanEval/HellaSwag/TruthfulQA prompts before/after manifest context injection; regenerates docs/TOKEN_BENCHMARK.md.
 ---
 
 # Token Benchmark Skill

@@ -1,12 +1,12 @@
 ---
-description: "Use when adding a test around behavior you are NOT fixing now (a known bug or intentional placeholder) — make the assertion tolerate the post-fix output too, so fixing the bug later doesn't break the suite, and anchor the real invariant separately."
+description: "Use when testing a known bug or placeholder you are NOT fixing now — make the assertion tolerate the post-fix output too, so the fix doesn't break the suite later. Anchor the real invariant separately."
 globs: ".claude/skills/pin-known-bug-test-survives-fix/**"
 alwaysApply: false
 ---
 
 # pin-known-bug-test-survives-fix
 
-Use when adding a test around behavior you are NOT fixing now (a known bug or intentional placeholder) — make the assertion tolerate the post-fix output too, so fixing the bug later doesn't break the suite, and anchor the real invariant separately.
+Use when testing a known bug or placeholder you are NOT fixing now — make the assertion tolerate the post-fix output too, so the fix doesn't break the suite later. Anchor the real invariant separately.
 
 <!-- Auto-generated from .claude/skills/pin-known-bug-test-survives-fix/SKILL.md -->
 <!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->

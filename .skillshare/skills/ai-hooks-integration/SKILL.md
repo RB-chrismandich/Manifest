@@ -1,11 +1,6 @@
 ---
 name: ai-hooks-integration
-description: >-
-  Integrate lifecycle hooks across AI coding tools (Claude Code, Gemini CLI,
-  Cursor, OpenCode). Use when adding/installing hooks, OpenCode plugins,
-  auto-format/notify/security policies, or wrapping any CLI without a hooks API.
-  Triggers on PreToolUse/PostToolUse/etc. lifecycle events and
-  HTTP/prompt/agent/async hooks.
+description: Integrate lifecycle hooks across AI coding tools (Claude Code, Gemini CLI, Cursor, OpenCode) — adding/installing hooks, OpenCode plugins, auto-format/notify/security policies, or wrapping CLIs without a hooks API. Covers PreToolUse/PostToolUse and HTTP/prompt/agent/async hooks.
 ---
 
 # AI Hooks Integration

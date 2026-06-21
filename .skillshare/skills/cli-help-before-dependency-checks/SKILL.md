@@ -1,6 +1,6 @@
 ---
 name: cli-help-before-dependency-checks
-description: Use when adding or auditing --help/--version/usage on a script or CLI — the help path must succeed before any config/state/dependency lookup, and be verified in a clean environment (empty HOME, fresh clone, CI), not just your already-configured machine.
+description: Use when adding or auditing --help/--version on a script or CLI — the help path must succeed before any config/state/dependency lookup, verified in a clean environment (empty HOME, fresh clone, CI), not just a pre-configured machine.
 ---
 # Make --help Work Before Any Dependency Check
 

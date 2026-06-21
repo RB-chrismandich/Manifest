@@ -1,11 +1,6 @@
 ---
 name: retire-component-cleanup
-description: >-
-  Cleanly retire/remove a component after a migration or uninstall — verify the
-  old artifact is gone, nothing will respawn it, and the new state landed.
-  Covers Unix daemons (launchd/systemd, surviving processes), migrated tool
-  runtimes (stale daemons, sockets), and plugins/MCP servers (uninstall, orphan
-  cleanup).
+description: Retire/remove a component after migration or uninstall — verify the artifact is gone, nothing will respawn it, and the new state landed. Covers Unix daemons (launchd/systemd), migrated tool runtimes (stale daemons, sockets), and plugins/MCP servers.
 ---
 # Retire a Component — Verified Cleanup
 

@@ -1,6 +1,6 @@
 ---
 name: merge-stacked-pr-chain
-description: Use when merging a chain of stacked PRs (each based on the previous branch, not main) via the gh/glab CLI — `gh pr merge --delete-branch` on a parent CLOSES the dependent child instead of retargeting it; merge keeping the branch, retarget the child, then delete.
+description: Use when merging stacked PRs via gh/glab — `gh pr merge --delete-branch` on a parent CLOSES the dependent child instead of retargeting it; merge keeping the branch, retarget the child, then delete.
 ---
 # Merge a Stacked PR Chain Safely
 

@@ -1,6 +1,6 @@
 ---
 name: docker-published-port-firewall-audit
-description: Use when reviewing or writing host firewall rules (iptables/nftables) meant to restrict access to a Docker-published port, or when a compose change adds a `ports:` mapping that replaces an app-layer auth control (Traefik, reverse-proxy auth) with a network ACL.
+description: Use when reviewing/writing host firewall rules (iptables/nftables) for a Docker-published port, or when a compose change adds a `ports:` mapping that replaces app-layer auth (Traefik, reverse-proxy) with a network ACL.
 ---
 # Docker-Published Port Firewall Audit
 

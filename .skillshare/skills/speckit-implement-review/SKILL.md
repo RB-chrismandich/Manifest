@@ -1,6 +1,6 @@
 ---
 name: speckit-implement-review
-description: After /speckit-implement, audit that EVERY task in tasks.md was genuinely completed and validated — not just checkbox-ticked: catch skipped tasks, stubbed/placeholder work, missing tests, or spec requirements with no implementing task. Runs automatically as a speckit after_implement hook; also invoke directly to re-audit a feature's task completion.
+description: After /speckit-implement, audit that every task in tasks.md was genuinely completed — catch skipped tasks, stubbed work, missing tests, or unimplemented spec requirements. Runs automatically as the speckit after_implement hook; invoke directly to re-audit task completion.
 ---
 
 # Speckit Implement Review

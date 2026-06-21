@@ -1,6 +1,6 @@
 ---
 name: mcp-server-security-audit
-description: Use when reviewing or building an HTTP-exposed MCP server (FastMCP/streamable-http or similar) that reads from a database or other backing store — checks bind address, authentication, read-only enforcement at the connection layer, and error-detail leakage.
+description: Audit an HTTP-exposed MCP server (FastMCP/streamable-http) reading from a database — checks bind address, authentication, read-only enforcement at the connection layer, and error-detail leakage.
 ---
 # MCP Server Security Audit
 
