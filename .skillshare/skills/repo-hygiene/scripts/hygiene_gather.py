@@ -71,7 +71,19 @@ def gh_refs(state: str, errors: list[str]) -> dict[str, int]:
     if r.returncode != 0:
         errors.append(f"gh pr list --state {state}: {r.stderr.strip() or 'failed'}")
         return {}
-    return {pr["headRefName"]: pr["number"] for pr in json.loads(r.stdout or "[]")}
+
+    stdout_str = (r.stdout or "").strip()
+    if not stdout_str or stdout_str[0] not in "{[":
+        errors.append(f"gh pr list --state {state} returned invalid JSON: not a JSON object/array")
+        return {}
+
+    try:
+        data = json.loads(stdout_str)
+    except json.JSONDecodeError as e:
+        errors.append(f"gh pr list --state {state} returned invalid JSON: {e}")
+        return {}
+
+    return {pr["headRefName"]: pr["number"] for pr in data}
 
 
 def gh_open_sizes(errors: list[str]) -> dict[int, dict]:
@@ -81,8 +93,20 @@ def gh_open_sizes(errors: list[str]) -> dict[int, dict]:
     if r.returncode != 0:
         errors.append(f"gh pr list sizes: {r.stderr.strip() or 'failed'}")
         return {}
+
+    stdout_str = (r.stdout or "").strip()
+    if not stdout_str or stdout_str[0] not in "{[":
+        errors.append(f"gh pr list sizes returned invalid JSON: not a JSON object/array")
+        return {}
+
+    try:
+        data = json.loads(stdout_str)
+    except json.JSONDecodeError as e:
+        errors.append(f"gh pr list sizes returned invalid JSON: {e}")
+        return {}
+
     out = {}
-    for pr in json.loads(r.stdout or "[]"):
+    for pr in data:
         cf = pr.get("changedFiles", 0)
         out[pr["number"]] = {
             "head": pr["headRefName"],
@@ -99,8 +123,20 @@ def glab_refs(flag: str, errors: list[str]) -> dict[str, int]:
     if r.returncode != 0:
         errors.append(f"glab mr list {flag}: {r.stderr.strip() or 'failed'}")
         return {}
+
+    stdout_str = (r.stdout or "").strip()
+    if not stdout_str or stdout_str[0] not in "{[":
+        errors.append(f"glab mr list {flag} returned invalid JSON: not a JSON object/array")
+        return {}
+
+    try:
+        data = json.loads(stdout_str)
+    except json.JSONDecodeError as e:
+        errors.append(f"glab mr list {flag} returned invalid JSON: {e}")
+        return {}
+
     refs = {}
-    for mr in json.loads(r.stdout or "[]"):
+    for mr in data:
         src = mr.get("source_branch")
         if src:
             refs[src] = mr.get("iid")

@@ -200,7 +200,12 @@ def run_handler(handler_path: str, event: dict) -> dict:
             return allow_response(event_type)
 
         if result.stdout.strip():
-            return json.loads(result.stdout)
+            stdout_str = result.stdout.strip()
+            if stdout_str and stdout_str[0] in "{[":
+                return json.loads(stdout_str)
+            else:
+                print("Handler invalid JSON: not a JSON object/array", file=sys.stderr)
+                return allow_response(event_type)
 
         return allow_response(event_type)
 
@@ -209,9 +214,11 @@ def run_handler(handler_path: str, event: dict) -> dict:
         return allow_response(event_type)
     except json.JSONDecodeError as e:
         debug_log(f"Handler invalid JSON: {e}")
+        print(f"Handler invalid JSON: {e}", file=sys.stderr)
         return allow_response(event_type)
     except Exception as e:
         debug_log(f"Handler exception: {e}")
+        print(f"Handler exception: {e}", file=sys.stderr)
         return allow_response(event_type)
 
 
@@ -250,13 +257,19 @@ def main() -> None:
     args = ap.parse_args()
 
     # Read payload from stdin
-    try:
-        raw_input = sys.stdin.read()
-        payload = json.loads(raw_input) if raw_input.strip() else {}
-    except json.JSONDecodeError as e:
-        debug_log(f"Invalid input JSON: {e}")
-        print(json.dumps(allow_response(args.event_type)))
-        return
+    raw_input = sys.stdin.read().strip()
+    payload = {}
+    if raw_input:
+        if raw_input[0] not in "{[":
+            print("Invalid input JSON: not a JSON object/array", file=sys.stderr)
+            print(json.dumps(allow_response(args.event_type)))
+            return
+        try:
+            payload = json.loads(raw_input)
+        except json.JSONDecodeError as e:
+            print(f"Invalid input JSON: {e}", file=sys.stderr)
+            print(json.dumps(allow_response(args.event_type)))
+            return
 
     debug_log(f"Received payload: {json.dumps(payload)[:200]}...")
 

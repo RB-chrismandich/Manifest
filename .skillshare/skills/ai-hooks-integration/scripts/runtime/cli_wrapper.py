@@ -113,7 +113,12 @@ def run_hook(hook_cmd: str, payload: dict) -> dict | None:
             timeout=HOOK_TIMEOUT,
         )
         if result.stdout.strip():
-            return json.loads(result.stdout)
+            stdout_str = result.stdout.strip()
+            if stdout_str and stdout_str[0] in "{{[":
+                return json.loads(stdout_str)
+            else:
+                print("Hook warning: invalid JSON (not object/array)", file=sys.stderr)
+                return None
     except (subprocess.TimeoutExpired, json.JSONDecodeError, FileNotFoundError) as e:
         print(f"Hook warning: {{e}}", file=sys.stderr)
     except Exception as e:
