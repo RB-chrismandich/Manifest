@@ -158,3 +158,63 @@ action() { python3 -c 'import json,sys;print(json.load(sys.stdin)["action"])'; }
     PR_MERGE_LOOP_PLATFORM=gitlab run "$SCRIPT" merge 5
     [ "$status" -eq 9 ]
 }
+
+# --- T026: run loop driver + hard ceiling ---
+@test "run: _net passes through and returns command output" {
+    run "$SCRIPT" _net echo hi
+    [ "$status" -eq 0 ]; [ "$output" = "hi" ]
+}
+
+@test "run: ceiling already past -> zero passes, no merge, exit 0" {
+    # now-seam: first call (start)=0, every later call huge -> deadline gate trips immediately
+    cat > "$TMP/now.sh" <<'EOF'
+#!/usr/bin/env bash
+c="${TMP:?}/nowc"; n=$(( $( [ -f "$c" ] && cat "$c" || echo 0 ) + 1 )); echo "$n" > "$c"
+[ "$n" -le 1 ] && echo 0 || echo 999999
+EOF
+    chmod +x "$TMP/now.sh"
+    export PR_MERGE_LOOP_NOW_CMD="$TMP/now.sh" TMP PR_MERGE_LOOP_CEILING_SEC=10 PR_MERGE_LOOP_POLL_SEC=0
+    export SEAM_LIST='[{"number":5,"author":{"login":"Copilot","__typename":"Bot"}}]'
+    run "$SCRIPT" run
+    [ "$status" -eq 0 ]
+    [[ "$output" != *"merged"* ]]
+}
+
+@test "run: fully-idle passes increment empty-run and stop at 5" {
+    export SEAM_LIST='[]' PR_MERGE_LOOP_POLL_SEC=0 PR_MERGE_LOOP_CEILING_SEC=600
+    run "$SCRIPT" run
+    [ "$status" -eq 0 ]
+    [ "$("$SCRIPT" empty-run get)" = "5" ]
+}
+
+@test "run: an in-flight (waiting) PR resets the empty-run counter" {
+    "$SCRIPT" empty-run incr; "$SCRIPT" empty-run incr; "$SCRIPT" empty-run incr; "$SCRIPT" empty-run incr
+    [ "$("$SCRIPT" empty-run get)" = "4" ]
+    # now-seam: plenty of zeros (>=1 pass) then sticky-huge to exit
+    cat > "$TMP/now.sh" <<'EOF'
+#!/usr/bin/env bash
+c="${TMP:?}/nowc"; n=$(( $( [ -f "$c" ] && cat "$c" || echo 0 ) + 1 )); echo "$n" > "$c"
+[ "$n" -le 8 ] && echo 0 || echo 999999
+EOF
+    chmod +x "$TMP/now.sh"
+    export PR_MERGE_LOOP_NOW_CMD="$TMP/now.sh" TMP PR_MERGE_LOOP_CEILING_SEC=10 PR_MERGE_LOOP_POLL_SEC=0
+    export SEAM_LIST='[{"number":5,"author":{"login":"Copilot","__typename":"Bot"}}]' SEAM_BUCKETS="pending"
+    run "$SCRIPT" run
+    [ "$status" -eq 0 ]
+    [ "$("$SCRIPT" empty-run get)" = "0" ]
+}
+
+@test "run: halt action propagates exit 11" {
+    # gate passes + clean signals -> merge; force post-merge main RED so tick returns halt
+    export SEAM_LIST='[{"number":5,"author":{"login":"Copilot","__typename":"Bot"}}]'
+    export PR_MERGE_LOOP_APPLY=1 SEAM_MERGE_FAIL=0 PR_MERGE_LOOP_POLL_SEC=0 PR_MERGE_LOOP_CEILING_SEC=600
+    # post-merge-check reads gh api directly; seam it to red via a check-runs override
+    cat > "$TMP/pmc.sh" <<'EOF'
+#!/usr/bin/env bash
+echo '["failure"]'
+EOF
+    chmod +x "$TMP/pmc.sh"
+    export PR_MERGE_LOOP_POSTMERGE_CMD="$TMP/pmc.sh"
+    run "$SCRIPT" run
+    [ "$status" -eq 11 ]
+}

@@ -12,14 +12,26 @@
 #   address-cycle <pr>      One revision cycle (/address-pr-comments,/verify,/pr-review).
 #   merge <pr>              Pre-flight + verified admin merge (FR-008..011).
 #   post-merge-check        main HEAD CI health; exit 10 on red (FR-012a).
+#   run                     Bounded self-paced loop (ceiling + 5-empty stop).
 #
 # Seams (tests/the loop inject these): PR_MERGE_LOOP_GH_CMD "<op> <pr>" (checks|reviewdecision|
 #   unresolved-human|disposition|mergeable|verify|hold|author|list), PR_MERGE_LOOP_STATE_DIR,
-#   AUTOMATION_AUTHORS_FILE.
+#   AUTOMATION_AUTHORS_FILE, PR_MERGE_LOOP_NOW_CMD, PR_MERGE_LOOP_CEILING_SEC,
+#   PR_MERGE_LOOP_POLL_SEC, GH_NET_TIMEOUT.
 
 set -euo pipefail
 
 err() { echo "pr-merge-loop: $*" >&2; }
+
+# Injectable clock (tests fast-forward via PR_MERGE_LOOP_NOW_CMD) and a bounded
+# network wrapper so a single hung call can never bust the hard ceiling.
+_now() { if [[ -n "${PR_MERGE_LOOP_NOW_CMD:-}" ]]; then "${PR_MERGE_LOOP_NOW_CMD}"; else date +%s; fi; }
+_net() {
+    local t="${GH_NET_TIMEOUT:-60}"
+    if   command -v timeout  >/dev/null 2>&1; then timeout  "$t" "$@"
+    elif command -v gtimeout >/dev/null 2>&1; then gtimeout "$t" "$@"
+    else "$@"; fi
+}
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 STATE_DIR="${PR_MERGE_LOOP_STATE_DIR:-${HOME}/.claude/pr_merge_loop}"
@@ -35,6 +47,7 @@ Usage: pr_merge_loop.sh <subcommand> [args]
   address-cycle <pr>           Run one /address-pr-comments,/verify,/pr-review cycle.
   merge <pr>                   Pre-flight + verified admin merge (exit 9 = fail-closed).
   tick <pr>                    Decide + dispatch one PR (lock, run-gate, act).
+  run [--apply]                Self-paced bounded loop (10-min ceiling; stop at 5 empty).
   post-merge-check             main HEAD CI health (exit 10 on red).
 USAGE
 }
@@ -162,8 +175,13 @@ cmd_address_cycle() {
 
 cmd_post_merge_check() {
     local sha state
-    sha="$(gh api "repos/{owner}/{repo}/commits/main" -q '.sha' 2>/dev/null)" || { err "cannot read main sha — fail closed"; return 10; }
-    state="$(gh api "repos/{owner}/{repo}/commits/${sha}/check-runs" -q '[.check_runs[]|.conclusion]' 2>/dev/null)"
+    sha="$(gh api "repos/{owner}/{repo}/commits/main" -q '.sha' 2>/dev/null)" \
+        || { [[ -n "${PR_MERGE_LOOP_POSTMERGE_CMD:-}" ]] || { err "cannot read main sha — fail closed"; return 10; }; sha="seam"; }
+    if [[ -n "${PR_MERGE_LOOP_POSTMERGE_CMD:-}" ]]; then
+        state="$("${PR_MERGE_LOOP_POSTMERGE_CMD}")"
+    else
+        state="$(_net gh api "repos/{owner}/{repo}/commits/${sha}/check-runs" -q '[.check_runs[]|.conclusion]' 2>/dev/null)"
+    fi
     if echo "$state" | grep -qE 'failure|cancelled|timed_out|action_required'; then err "main CI red — HALT"; return 10; fi
     return 0
 }
@@ -213,7 +231,7 @@ try: g=json.loads(sys.argv[1])
 except Exception: g={"reviewer_error":True}
 ok=(g.get("tier1") or {}).get("passed") is True and not g.get("reviewer_error")
 s["gate_tier1"]="pass" if ok else "fail"
-s["consensus"]=g.get("consensus_score",0)
+s["consensus"]=g.get("consensus_score") or (g.get("tier1") or {}).get("consensus_score") or 0
 s["reviewer_error"]=bool(g.get("reviewer_error"))
 print(json.dumps(s))' "$gate")"
         d="$(printf '%s' "$sig2" | "${SCRIPT_DIR}/merge_decision.sh" decide)"
@@ -239,6 +257,40 @@ print(json.dumps(s))' "$gate")"
     printf '%s\n' "$act"
 }
 
+# --- T026/T024: bounded self-paced loop driver. One merge in flight at a time
+# (loop_lock, inside cmd_tick). Hard wall-clock ceiling; stops after 5 empty passes.
+# Exit 0 = ceiling/5-empty (normal); exit 11 = halt (main red post-merge).
+cmd_run() {
+    local ceiling="${PR_MERGE_LOOP_CEILING_SEC:-600}" poll="${PR_MERGE_LOOP_POLL_SEC:-30}"
+    local start deadline now managed pr act inflight n
+    start="$(_now)"; deadline=$((start + ceiling))
+    while :; do
+        now="$(_now)"; (( now < deadline )) || break
+        managed="$(cmd_list_managed | python3 -c \
+            'import json,sys;print(" ".join(str(p["number"]) for p in json.load(sys.stdin)))' 2>/dev/null || echo "")"
+        inflight=0
+        # shellcheck disable=SC2086 # word-split the space-joined PR numbers (bash 3.2-safe)
+        for pr in $managed; do
+            now="$(_now)"; (( now < deadline )) || break
+            act="$(cmd_tick "$pr" | tail -1)"
+            case "$act" in
+                halt) err "loop HALT — main breakage on #$pr"; return 11 ;;
+                merge|revise|update-branch|wait|skip) inflight=1 ;;
+            esac
+        done
+        now="$(_now)"; (( now < deadline )) || break
+        if (( inflight == 1 )); then
+            cmd_empty_run reset >/dev/null
+        else
+            n="$(cmd_empty_run incr)"
+            (( n >= 5 )) && { err "5 consecutive empty runs — stopping"; break; }
+        fi
+        now="$(_now)"; (( now < deadline )) || break
+        [[ "$poll" -gt 0 ]] && sleep "$poll"
+    done
+    return 0
+}
+
 main() {
     local sub="${1:-}"; shift || true
     case "${sub}" in
@@ -250,6 +302,8 @@ main() {
         post-merge-check) cmd_post_merge_check "$@"; exit $? ;;
         merge)           cmd_merge "$@"; exit $? ;;
         tick)            cmd_tick "$@"; exit 0 ;;
+        run)             cmd_run "$@"; exit $? ;;
+        _net)            _net "$@"; exit $? ;;
         *) err "unknown subcommand: ${sub:-<none>}"; usage >&2; exit 64 ;;
     esac
 }
