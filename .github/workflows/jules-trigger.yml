@@ -1,0 +1,111 @@
+name: Jules Trigger
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  pull-requests: read
+  issues: write
+
+concurrency:
+  group: jules-${{ github.event.issue.number }}
+  cancel-in-progress: false  # let an in-flight Jules run finish; new invocations queue
+
+jobs:
+  invoke:
+    # Cheap pre-filter only — NOT the security boundary. author_association is
+    # set server-side (not spoofable) but is NOT a write-access check: it admits
+    # read-only/triage collaborators and read-only org members. The real gate is
+    # the "Verify commenter has write access" step below, which fails closed; the
+    # `if:` just avoids spinning up the job for unrelated comments.
+    if: >-
+      contains(github.event.comment.body, '@google-labs-jules') &&
+      (github.event.comment.author_association == 'OWNER' ||
+       github.event.comment.author_association == 'MEMBER' ||
+       github.event.comment.author_association == 'COLLABORATOR') &&
+      github.event.comment.user.type != 'Bot'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify commenter has write access
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3  # v9.0.0
+        with:
+          # Security boundary: only collaborators with write/admin permission may
+          # reach the JULES_API_KEY step. Fail closed on a lower level or any API
+          # error. (Public repo: the default GITHUB_TOKEN can read this.)
+          script: |
+            let level = 'none';
+            try {
+              const res = await github.rest.repos.getCollaboratorPermissionLevel({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                username: context.payload.comment.user.login,
+              });
+              level = res.data.permission;
+            } catch (e) {
+              core.setFailed(`Cannot verify permission for ${context.payload.comment.user.login}: ${e.message}`);
+              return;
+            }
+            if (level !== 'admin' && level !== 'write') {
+              core.setFailed(`${context.payload.comment.user.login} lacks write access (permission: ${level}); refusing to invoke Jules.`);
+            }
+
+      - name: Acknowledge with reaction
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3  # v9.0.0
+        with:
+          script: |
+            await github.rest.reactions.createForIssueComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: context.payload.comment.id,
+              content: 'eyes',
+            });
+
+      - name: Resolve start branch
+        id: branch
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3  # v9.0.0
+        with:
+          script: |
+            let ref = 'main';
+            if (context.payload.issue.pull_request) {
+              const pr = await github.rest.pulls.get({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: context.payload.issue.number,
+              });
+              const head = pr.data.head.ref;
+              // Defense-in-depth: jules-action templates starting_branch into a
+              // shell line (jq --arg starting_branch ...). A fork PR's head ref is
+              // attacker-controlled and git refs allow shell metacharacters
+              // ($ backtick ; | ( )), so reject anything outside a strict
+              // allowlist instead of passing it through.
+              if (!/^[A-Za-z0-9._\/-]+$/.test(head)) {
+                core.setFailed(`Refusing unsafe branch name: ${head}`);
+                return;
+              }
+              ref = head;
+            }
+            core.setOutput('ref', ref);
+
+      - name: Invoke Jules
+        uses: google-labs-code/jules-action@bff7875eaa123cac6742b7cfc51005b95ba4d566  # v1.0.0
+        with:
+          # Raw comment body; jules-action declares this input type:string and does
+          # not re-evaluate it. Quoted to signal it is a deliberate string input.
+          prompt: "${{ github.event.comment.body }}"
+          jules_api_key: ${{ secrets.JULES_API_KEY }}
+          starting_branch: ${{ steps.branch.outputs.ref }}
+
+      - name: Report failure
+        if: failure()
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3  # v9.0.0
+        with:
+          script: |
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.issue.number,
+              body: `⚠️ The Jules trigger workflow failed — see the [workflow run](${runUrl}).`,
+            });

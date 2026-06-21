@@ -1,0 +1,11 @@
+# Code owners — require owner review for security-sensitive automation.
+# Pairs with branch protection on `main` ("Require review from Code Owners"):
+# changes to these paths cannot be merged without @RB-chrismandich's approval.
+
+# All CI/CD and trigger workflows — includes the Jules trigger gate
+# (.github/workflows/jules-trigger.yml). The gate's author_association check is
+# the security boundary; it must not be weakened without owner review.
+/.github/workflows/   @RB-chrismandich
+
+# The ownership rules themselves must not change without owner review.
+/.github/CODEOWNERS   @RB-chrismandich
