@@ -140,16 +140,11 @@ currently **only a design doc** (`docs/superpowers/specs/2026-06-18-auto-issue-d
 - [x] T031 [P] GitLab parity stubs in `pr_merge_loop.sh`/`git_ops.sh` (`glab mr merge --squash --remove-source-branch`, `glab ci status --branch main`) guarded by `git_platform.sh` (research.md R1/R3)
 - [x] T032 Run lint gates: `shellcheck configs/claude/scripts/{pr_merge_loop,merge_decision,loop_lock}.sh` and `yamllint` the edited `configs/claude/config/*.yml`
 - [x] T033 Run the full suite green: `bats tests/bats/merge_decision.bats tests/bats/loop_lock.bats tests/bats/pr_merge_loop.bats`
-- [ ] T034 Run quickstart.md dry-run validation against a real managed PR — **DEFERRED**:
-  no live PR exists yet (branch is local-only). Run after pushing the branch:
-  ```bash
-  gh pr create --base main --head 361-auto-dev-merge-loop \
-    --title "feat: auto-dev merge loop (#361)" --body "Closes #361"
-  configs/claude/scripts/pr_merge_loop.sh signals <PR> --json \
-    | configs/claude/scripts/merge_decision.sh decide   # expect one {action}; no mutation
-  gh pr view <PR>   # confirm no label/state change
-  ```
-  (`signals <pr>` works against any PR number even though `list-managed` skips human authors.)
+- [x] T034 Run quickstart.md dry-run validation against a real managed PR — validated against
+  PR #387 (github.com/RB-chrismandich/Manifest): `signals 387 --json` emitted valid JSON
+  (checks=FAIL, mergeable=MERGEABLE, merge_state=BLOCKED) and `merge_decision decide` returned
+  `{"action":"revise","reason":"failing checks/verify with revision budget remaining"}`; PR
+  confirmed unmutated (no labels, state OPEN). Pipeline verified on live data, no side effects.
 - [x] T035 [P] Update docs (`docs/COMMANDS.md` / relevant) to note the breaking change (Rule #1 supersession), the new labels, and the merge-loop behavior
 
 ---
