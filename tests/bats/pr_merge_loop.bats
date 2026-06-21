@@ -218,3 +218,35 @@ EOF
     run "$SCRIPT" run
     [ "$status" -eq 11 ]
 }
+
+# --- T004: real review-thread accessor (fail-closed, allowlist-aware) ---
+THREADS='{"data":{"repository":{"pullRequest":{"reviewThreads":{"nodes":[%s]}}}}}'
+
+@test "threads: unresolved human thread -> count 1" {
+    node='{"isResolved":false,"isOutdated":false,"comments":{"nodes":[{"author":{"login":"some-human"}}]}}'
+    PR_MERGE_LOOP_THREADS_JSON="$(printf "$THREADS" "$node")" run "$SCRIPT" count-unresolved-human 5
+    [ "$status" -eq 0 ]; [ "$output" = "1" ]
+}
+@test "threads: unresolved BOT thread is advisory -> count 0" {
+    node='{"isResolved":false,"isOutdated":false,"comments":{"nodes":[{"author":{"login":"coderabbitai"}}]}}'
+    PR_MERGE_LOOP_THREADS_JSON="$(printf "$THREADS" "$node")" run "$SCRIPT" count-unresolved-human 5
+    [ "$status" -eq 0 ]; [ "$output" = "0" ]
+}
+@test "threads: resolved thread -> count 0" {
+    node='{"isResolved":true,"isOutdated":false,"comments":{"nodes":[{"author":{"login":"some-human"}}]}}'
+    PR_MERGE_LOOP_THREADS_JSON="$(printf "$THREADS" "$node")" run "$SCRIPT" count-unresolved-human 5
+    [ "$output" = "0" ]
+}
+@test "threads: outdated unresolved thread -> count 0" {
+    node='{"isResolved":false,"isOutdated":true,"comments":{"nodes":[{"author":{"login":"some-human"}}]}}'
+    PR_MERGE_LOOP_THREADS_JSON="$(printf "$THREADS" "$node")" run "$SCRIPT" count-unresolved-human 5
+    [ "$output" = "0" ]
+}
+@test "threads: malformed payload fails closed -> count 1" {
+    PR_MERGE_LOOP_THREADS_JSON="not json at all" run "$SCRIPT" count-unresolved-human 5
+    [ "$output" = "1" ]
+}
+@test "threads: missing nodes key fails closed -> count 1" {
+    PR_MERGE_LOOP_THREADS_JSON='{"data":{"repository":{"pullRequest":{}}}}' run "$SCRIPT" count-unresolved-human 5
+    [ "$output" = "1" ]
+}

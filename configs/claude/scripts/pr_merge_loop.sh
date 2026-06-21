@@ -76,7 +76,7 @@ gh_op() {
         list)            "${SCRIPT_DIR}/git_ops.sh" issue-list --json number,author 2>/dev/null ;;
         checks)          gh pr checks "$pr" --json bucket -q '.[].bucket' 2>/dev/null ;;
         reviewdecision)  gh pr view "$pr" --json reviewDecision -q '.reviewDecision' 2>/dev/null ;;
-        unresolved-human) echo 0 ;;   # GraphQL thread query wired in T012; default conservative
+        unresolved-human) count_unresolved_human "$pr" ;;
         disposition)     echo keep ;;
         mergeable)       gh pr view "$pr" --json mergeable,mergeStateStatus -q '.mergeable+" "+.mergeStateStatus' 2>/dev/null ;;
         verify)          echo pass ;;
@@ -89,6 +89,55 @@ gh_op() {
         update-branch)   gh pr update-branch "$pr" 2>&1 ;;
         do-merge)        gh pr merge "$pr" --squash --admin --delete-branch 2>&1 ;;
     esac
+}
+
+# Raw review-thread JSON for a PR. Seam: PR_MERGE_LOOP_THREADS_JSON (offline tests).
+gh_threads_raw() {
+    if [[ -n "${PR_MERGE_LOOP_THREADS_JSON:-}" ]]; then printf '%s' "$PR_MERGE_LOOP_THREADS_JSON"; return 0; fi
+    local pr="${1:?pr required}" nwo owner repo
+    nwo="$(_net gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null)" || return 1
+    owner="${nwo%%/*}"; repo="${nwo##*/}"
+    # shellcheck disable=SC2016  # $owner/$repo/$pr are GraphQL variables, not shell vars
+    _net gh api graphql -F owner="$owner" -F repo="$repo" -F pr="$pr" -f query='
+      query($owner:String!,$repo:String!,$pr:Int!){
+        repository(owner:$owner,name:$repo){
+          pullRequest(number:$pr){
+            reviewThreads(first:100){
+              nodes{ isResolved isOutdated comments(first:1){ nodes{ author{ login } } } }
+            }}}}' 2>/dev/null
+}
+
+# Count HUMAN-authored unresolved, non-outdated review threads. Bot nits (allowlist)
+# are advisory. Any error/malformed payload -> 1 (fail closed: a thread might block).
+COUNT_UH_PY='
+import json, sys
+try:
+    import yaml
+    cfg = yaml.safe_load(open(sys.argv[1])) or {}
+except Exception:
+    cfg = {}
+bots = {a.lower().replace("[bot]", "") for a in (cfg.get("authors") or [])}
+try:
+    nodes = json.load(sys.stdin)["data"]["repository"]["pullRequest"]["reviewThreads"]["nodes"]
+    if not isinstance(nodes, list):
+        raise ValueError("nodes not a list")
+except Exception:
+    print(1); sys.exit(0)  # malformed -> fail closed
+count = 0
+for t in nodes:
+    if t.get("isResolved") or t.get("isOutdated"):
+        continue
+    cs = ((t.get("comments") or {}).get("nodes") or [])
+    login = ((cs[0].get("author") or {}).get("login") if cs else "") or ""
+    if login.lower().replace("[bot]", "") in bots:
+        continue  # advisory bot nit
+    count += 1
+print(count)
+'
+
+count_unresolved_human() {
+    local raw; raw="$(gh_threads_raw "${1:?pr required}")" || { echo 1; return 0; }
+    printf '%s' "$raw" | python3 -c "${COUNT_UH_PY}" "$AUTHORS_FILE"
 }
 
 # --- pure classifier: raw gh values -> normalized signals JSON ---
@@ -303,6 +352,7 @@ main() {
         merge)           cmd_merge "$@"; exit $? ;;
         tick)            cmd_tick "$@"; exit 0 ;;
         run)             cmd_run "$@"; exit $? ;;
+        count-unresolved-human) count_unresolved_human "$@"; exit $? ;;
         _net)            _net "$@"; exit $? ;;
         *) err "unknown subcommand: ${sub:-<none>}"; usage >&2; exit 64 ;;
     esac
