@@ -250,3 +250,24 @@ THREADS='{"data":{"repository":{"pullRequest":{"reviewThreads":{"nodes":[%s]}}}}
     PR_MERGE_LOOP_THREADS_JSON='{"data":{"repository":{"pullRequest":{}}}}' run "$SCRIPT" count-unresolved-human 5
     [ "$output" = "1" ]
 }
+
+# --- T011: address-cycle increments revisions + budget exhaustion -> hand-human ---
+@test "address-cycle increments revisions_used" {
+    "$SCRIPT" address-cycle 5
+    [ "$(cat "$PR_MERGE_LOOP_STATE_DIR/rev_5")" = "1" ]
+    "$SCRIPT" address-cycle 5
+    [ "$(cat "$PR_MERGE_LOOP_STATE_DIR/rev_5")" = "2" ]
+}
+@test "address-cycle: under budget with failing checks -> revise" {
+    "$SCRIPT" address-cycle 5    # revisions_used=1
+    sig="$(MAX_REVISIONS=3 SEAM_BUCKETS="pass fail" "$SCRIPT" signals 5)"
+    run bash -c "echo '$sig' | '$DECIDE' decide"
+    [ "$(echo "$output" | action)" = "revise" ]
+}
+@test "address-cycle: at budget with failing checks -> hand-human + needs-human" {
+    "$SCRIPT" address-cycle 5; "$SCRIPT" address-cycle 5   # revisions_used=2
+    sig="$(MAX_REVISIONS=2 SEAM_BUCKETS="pass fail" "$SCRIPT" signals 5)"
+    run bash -c "echo '$sig' | '$DECIDE' decide"
+    [ "$(echo "$output" | action)" = "hand-human" ]
+    [ "$(echo "$output" | python3 -c 'import json,sys;print(json.load(sys.stdin)["label"])')" = "needs-human" ]
+}
