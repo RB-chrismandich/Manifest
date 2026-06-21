@@ -55,7 +55,7 @@ currently **only a design doc** (`docs/superpowers/specs/2026-06-18-auto-issue-d
 
 **⚠️ CRITICAL**: no user-story work begins until this phase is complete.
 
-- [ ] T004 [P] Add read-only accessors to `configs/claude/scripts/git_ops.sh` for review state (`latestReviews`, GraphQL `reviewThreads.isResolved`), checks (`gh pr checks --json bucket`), and `mergeable`/`mergeStateStatus`, branching on `git_platform.sh` (research.md R2/R3/R4)
+- [x] T004 [P] Add read-only accessors to `configs/claude/scripts/git_ops.sh` for review state (`latestReviews`, GraphQL `reviewThreads.isResolved`), checks (`gh pr checks --json bucket`), and `mergeable`/`mergeStateStatus`, branching on `git_platform.sh` (research.md R2/R3/R4) (wired inline in pr_merge_loop.sh as count_unresolved_human — accessors are co-located in gh_op rather than git_ops.sh; no other consumer, YAGNI).
 - [x] T005 [P] Write `tests/bats/merge_decision.bats` covering EVERY row of the contracts/merge_decision.md decision table + the SC-002 invariant ("no input yields `merge` while any hard block is set") — write to FAIL first
 - [x] T006 Implement the pure core `configs/claude/scripts/merge_decision.sh decide` to pass T005, per contracts/merge_decision.md (fail-closed ordering, exit 0, no I/O)
 - [x] T007 [P] Write `tests/bats/loop_lock.bats` — acquire/release/contention/stale-reclaim — write to FAIL first
@@ -75,7 +75,7 @@ currently **only a design doc** (`docs/superpowers/specs/2026-06-18-auto-issue-d
 
 ### Tests for User Story 1 ⚠️ (write first, must fail)
 
-- [ ] T011 [P] [US1] Add `address-cycle` cases to `tests/bats/pr_merge_loop.bats` (seam returns fixtures): runs address→verify→pr-review, increments `revisions_used`, returns `hand-human` + `needs-human` at the budget
+- [x] T011 [P] [US1] Add `address-cycle` cases to `tests/bats/pr_merge_loop.bats` (seam returns fixtures): runs address→verify→pr-review, increments `revisions_used`, returns `hand-human` + `needs-human` at the budget
 
 ### Implementation for User Story 1
 
@@ -120,12 +120,12 @@ currently **only a design doc** (`docs/superpowers/specs/2026-06-18-auto-issue-d
 
 ### Tests for User Story 3 ⚠️ (write first, must fail)
 
-- [ ] T024 [P] [US3] Add to `tests/bats/pr_merge_loop.bats`: empty-run accounting (in-flight ≠ empty per FR-018a, reset on work, stop at 5) and ceiling behavior via the injected clock seam
+- [x] T024 [P] [US3] Add to `tests/bats/pr_merge_loop.bats`: empty-run accounting (in-flight ≠ empty per FR-018a, reset on work, stop at 5) and ceiling behavior via the injected clock seam
 
 ### Implementation for User Story 3
 
 - [x] T025 [US3] Implement `pr_merge_loop.sh empty-run <get|incr|reset>` with the in-flight-counts-as-work rule in the state dir (FR-018/018a)
-- [ ] T026 [US3] Implement self-paced polling + hard per-run ceiling in `pr_merge_loop.sh` (short non-`--watch` polls; end the run at the ceiling; clock behind the seam) (FR-017/017a)
+- [x] T026 [US3] Implement self-paced polling + hard per-run ceiling in `pr_merge_loop.sh` (short non-`--watch` polls; end the run at the ceiling; clock behind the seam) (FR-017/017a) (implemented as the run subcommand; /loop is the outer re-invoker).
 - [x] T027 [US3] Enforce serialized merge + interleaved monitoring via `loop_lock.sh` (at most one merge in flight) in `pr_merge_loop.sh` (FR-014/023)
 - [x] T028 [US3] Add loop-control wiring to `.skillshare/skills/auto-issue-dev/SKILL.md`: self-pace, 10-min ceiling, 5-empty-run stop, serialized-merge note (FR-014/017/018)
 
@@ -140,7 +140,16 @@ currently **only a design doc** (`docs/superpowers/specs/2026-06-18-auto-issue-d
 - [x] T031 [P] GitLab parity stubs in `pr_merge_loop.sh`/`git_ops.sh` (`glab mr merge --squash --remove-source-branch`, `glab ci status --branch main`) guarded by `git_platform.sh` (research.md R1/R3)
 - [x] T032 Run lint gates: `shellcheck configs/claude/scripts/{pr_merge_loop,merge_decision,loop_lock}.sh` and `yamllint` the edited `configs/claude/config/*.yml`
 - [x] T033 Run the full suite green: `bats tests/bats/merge_decision.bats tests/bats/loop_lock.bats tests/bats/pr_merge_loop.bats`
-- [ ] T034 Run quickstart.md dry-run validation (`pr_merge_loop.sh signals <pr> --json | merge_decision.sh decide`) against a real managed PR; confirm no mutations in dry-run
+- [ ] T034 Run quickstart.md dry-run validation against a real managed PR — **DEFERRED**:
+  no live PR exists yet (branch is local-only). Run after pushing the branch:
+  ```bash
+  gh pr create --base main --head 361-auto-dev-merge-loop \
+    --title "feat: auto-dev merge loop (#361)" --body "Closes #361"
+  configs/claude/scripts/pr_merge_loop.sh signals <PR> --json \
+    | configs/claude/scripts/merge_decision.sh decide   # expect one {action}; no mutation
+  gh pr view <PR>   # confirm no label/state change
+  ```
+  (`signals <pr>` works against any PR number even though `list-managed` skips human authors.)
 - [x] T035 [P] Update docs (`docs/COMMANDS.md` / relevant) to note the breaking change (Rule #1 supersession), the new labels, and the merge-loop behavior
 
 ---

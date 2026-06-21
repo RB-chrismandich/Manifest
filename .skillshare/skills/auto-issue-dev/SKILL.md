@@ -82,10 +82,13 @@ deterministic primitives so the irreversible step is never a judgment call:
      admin pre-flight + `gh pr merge --squash --admin --delete-branch`, then `post-merge-check`.
      Honour `PR_MERGE_LOOP_APPLY` — default dry-run; set `=1` to perform real merges. Fail-closed
      exits (no admin / `enforce_admins` / `required_signatures`) route to `ready-to-merge` + human.
-4. **Loop control.** A run that did real work or saw an in-flight PR resets
-   `pr_merge_loop.sh empty-run reset`; a fully-idle run does `empty-run incr`. At **5**
-   consecutive empty runs, stop the loop (FR-018/018a). At most **one merge in flight** at a
-   time (`loop_lock`), though monitoring may interleave (FR-014).
+4. **Loop control.** Run one bounded pass with `pr_merge_loop.sh run` (set
+   `PR_MERGE_LOOP_APPLY=1` for real merges; default dry-run). It self-paces, enforces a
+   hard 10-minute ceiling, serializes merges via `loop_lock` (one in flight; monitoring
+   interleaves — FR-014), resets the empty-run counter on work / increments on idle passes,
+   and **stops after 5 consecutive empty runs** (FR-018/018a). It exits non-zero (11) if a
+   merge reddens `main` (halt) so `/loop` surfaces the failure. `/loop /auto-issue-dev`
+   remains the outer re-invoker that gives each pass fresh context.
 
 Every action appends a redacted `audit_log.sh` record (FR-021/022).
 
