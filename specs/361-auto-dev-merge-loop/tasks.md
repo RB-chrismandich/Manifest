@@ -45,7 +45,7 @@ currently **only a design doc** (`docs/superpowers/specs/2026-06-18-auto-issue-d
 
 - [x] T001 [P] Add labels `ready-to-merge`, `loop-active`, `hold` to `configs/claude/config/labels.yml` (registry entries with colors + descriptions)
 - [x] T002 [P] Create the automation-author allowlist `configs/claude/config/automation_authors.yml` (the auto-dev account + bot logins: Forge, Palette, Jules, Bolt, Copilot/coderabbitai) per research.md R5
-- [ ] T003 Provision the new labels on the active platform by running `configs/claude/scripts/label_sync.sh` (depends on T001)
+- [x] T003 Provision the new labels on the active platform by running `configs/claude/scripts/label_sync.sh` (depends on T001) (synced 12 labels incl. ready-to-merge/loop-active/hold to github.com/RB-chrismandich/Manifest via `--config configs/claude/config/labels.yml`; the default auto-detected the stale home registry, now resynced repo→home)
 
 ---
 
