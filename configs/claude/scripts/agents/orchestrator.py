@@ -490,8 +490,12 @@ class Orchestrator:
     def _print_summary(self, result: Dict):
         """Print consensus summary"""
         consensus = result["cross_verification"]
+
+        confidence = consensus["confidence"].upper()
+        conf_color = "green" if confidence == "HIGH" else "yellow" if confidence == "MEDIUM" else "red"
+
         self.console.print(
-            f"\n[bold]Consensus:[/bold] {consensus['consensus_score']}% ({consensus['confidence'].upper()})"
+            f"\n[bold]Consensus:[/bold] {consensus['consensus_score']}% ([{conf_color}]{confidence}[/{conf_color}])"
         )
         self.console.print(f"[bold]Agents:[/bold] {consensus['agent_count']}")
 
