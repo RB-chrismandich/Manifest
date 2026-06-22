@@ -85,6 +85,17 @@ tool_policies:
     parallel_agents: never        # orchestrates other skills; no cross-verification fan-out
     validation_tier: 1            # pushes commits + posts PR comments
 
+  pr-regression-smoke:
+    allowed:
+      - Bash       # run_pr_regression.sh: lint/bats/pytest, bootstrap, check_status, parallel_agent
+      - Read
+      - Skill      # may hand a failing gate to systematic-debugging
+    forbidden:
+      - Write      # read-only on repo source; only validates, never edits
+      - Edit
+    parallel_agents: never        # a CI-mirror gate runner, not a cross-verification fan-out
+    validation_tier: 2            # verification skill; no source mutation
+
   pr-issue-sync:
     allowed:
       - Bash

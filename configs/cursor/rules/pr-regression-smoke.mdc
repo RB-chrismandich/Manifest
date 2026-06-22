@@ -1,0 +1,15 @@
+---
+description: "Run the complete Manifest regression suite plus a deployed-environment smoke test as a post-Pull-Request gate. Use this whenever a PR has just been opened or just merged and you need to confirm nothing regressed — covers the full CI mirror (shellcheck, array-expansion lint, yamllint, markdownlint, all bats and pytest suites) AND a live smoke pass (bootstrap re-deploy, env health, orchestration round-trip). Trigger on phrases like \"regression test the PR\", \"did the merge break anything\", \"run the full suite + smoke\", \"post-PR check\", \"verify main is still green\", or any request to validate the whole repo after a change lands. Prefer this over `verify` (single-language quality gate) or `health-check` (env only) when the goal is a whole-repo PR gate with a verdict."
+globs: ".claude/skills/pr-regression-smoke/**"
+alwaysApply: false
+---
+
+# pr-regression-smoke
+
+Run the complete Manifest regression suite plus a deployed-environment smoke test as a post-Pull-Request gate. Use this whenever a PR has just been opened or just merged and you need to confirm nothing regressed — covers the full CI mirror (shellcheck, array-expansion lint, yamllint, markdownlint, all bats and pytest suites) AND a live smoke pass (bootstrap re-deploy, env health, orchestration round-trip). Trigger on phrases like "regression test the PR", "did the merge break anything", "run the full suite + smoke", "post-PR check", "verify main is still green", or any request to validate the whole repo after a change lands. Prefer this over `verify` (single-language quality gate) or `health-check` (env only) when the goal is a whole-repo PR gate with a verdict.
+
+<!-- Auto-generated from .claude/skills/pr-regression-smoke/SKILL.md -->
+<!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
+
+Refer to `.cursor/skills/pr-regression-smoke/SKILL.md` for the full skill definition.
+
