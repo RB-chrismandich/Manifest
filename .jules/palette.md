@@ -39,3 +39,10 @@ intermediate states like warnings or manual review requests, confusing users
 when a process didn't fully fail but isn't fully approved.
 **Action:** Use a three-color semantic system (green=success, yellow=warning/review,
 red=error/blocked) for validation verdicts to provide nuanced visual feedback.
+
+## 2026-06-22 - Semantic Errors in CLI Logs
+
+**Learning:** When errors are printed to the terminal without distinct red color formatting, they easily blend
+in with standard text, reducing the user's ability to quickly spot failures in busy output streams.
+**Action:** Consistently apply semantic red styling (`\033[0;31m`) to standard error messages in bash
+scripts to ensure they stand out visually and draw immediate attention.

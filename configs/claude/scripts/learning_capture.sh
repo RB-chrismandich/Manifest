@@ -23,9 +23,10 @@ set -euo pipefail
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 CYAN='\033[0;36m'
+RED='\033[0;31m'
 RESET='\033[0m'
 
-err() { echo "learning-capture: $*" >&2; }
+err() { echo -e "${RED}learning-capture: $*${RESET}" >&2; }
 
 # --- Knowledge base file location ------------------------------------
 if [[ -f "${HOME}/.claude/config/knowledge_base.yml" ]]; then
