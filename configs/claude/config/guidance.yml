@@ -1,0 +1,15 @@
+# Shipped guidance preferences — defaults (spec 362, US3).
+# Schema + gating contract: contracts/guidance-prefs-schema.md.
+#
+# This committed file is the DEFAULT layer (everything enabled). User overrides
+# live in a gitignored ~/.claude/config/guidance_local.yml, created lazily on the
+# first opt-out. Effective value = these defaults ← local override (local wins
+# per field), so a single opt-out toggle never dirties the tracked tree (SC-004).
+
+enabled: true                 # global kill-switch; false ⇒ suppress everything
+categories:
+  hints: true                 # contextual workflow hints
+  reminders: true             # best-practice reminders
+  discovery: true             # PROACTIVE discovery only; on-demand /help is always available
+verbosity: normal             # quiet | normal | verbose
+rate_limit: {}                # optional per-moment overrides of a rule's default window

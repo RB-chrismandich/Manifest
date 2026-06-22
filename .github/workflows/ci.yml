@@ -90,6 +90,19 @@ jobs:
           fi
           exit $exit_code
 
+      # docs/COMMANDS.md is GENERATED from the skill source of truth; a stale
+      # commit must fail the build (spec 362 FR-004/SC-002). pyyaml is installed
+      # by the YAML-validation step above (command_catalog.py imports it).
+      - name: Verify docs/COMMANDS.md is up-to-date with skills
+        run: |
+          if ! configs/claude/scripts/generate_commands_doc.py --check; then
+            echo ""
+            echo "FAIL: docs/COMMANDS.md is out of sync with .skillshare/skills/."
+            echo "Run 'configs/claude/scripts/generate_commands_doc.py' and commit the result."
+            exit 1
+          fi
+          echo "docs/COMMANDS.md is up-to-date"
+
   test:
     name: Test
     needs: lint
@@ -145,6 +158,17 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6
+
+      # generate_cursor_rules.sh emits the command-index rule via
+      # generate_commands_doc.py (imports pyyaml); without it the index step
+      # silently skips and stale-rule drift would pass unnoticed (spec 362 T015).
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6
+        with:
+          python-version: "3.14"
+
+      - name: Install pyyaml (for command-index generation)
+        run: pip install pyyaml==6.0.2
 
       - name: Verify symlinks are intact
         run: |

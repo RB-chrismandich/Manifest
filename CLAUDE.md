@@ -239,5 +239,5 @@ approaches), review stale plans, or archive/abandon completed work.
 <!-- SPECKIT START -->
 ## Active Spec Kit Feature
 
-- `361-auto-dev-merge-loop` — plan: [specs/361-auto-dev-merge-loop/plan.md](specs/361-auto-dev-merge-loop/plan.md)
+- `362-command-help-hints` — plan: [specs/362-command-help-hints/plan.md](specs/362-command-help-hints/plan.md)
 <!-- SPECKIT END -->

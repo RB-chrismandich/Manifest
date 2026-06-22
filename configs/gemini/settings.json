@@ -25,6 +25,18 @@
           }
         ]
       }
+    ],
+    "BeforeTool": [
+      {
+        "hooks": [
+          {
+            "name": "guidance-hint",
+            "type": "command",
+            "command": "~/.claude/scripts/guidance_hint.py",
+            "timeout": 5000
+          }
+        ]
+      }
     ]
   }
 }

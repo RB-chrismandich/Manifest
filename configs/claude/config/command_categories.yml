@@ -1,0 +1,137 @@
+# Command category taxonomy (spec 362-command-help-hints, research D1)
+#
+# This file defines the VALID discovery taxonomy ONLY: the closed set of category
+# keys, their human labels, and a stable display order. It is NOT a competing
+# assignment source.
+#
+# Category assignment precedence (command_catalog.py):
+#   1. a per-skill `category:` in SKILL.md frontmatter is authoritative;
+#   2. the `overrides:` map below wins ONLY for commands it explicitly names
+#      (escape hatch for skills not yet carrying frontmatter);
+#   3. otherwise -> `uncategorized` (always sorts last).
+#
+# Adding a category is a deliberate edit here. Keep the set small enough to scan.
+
+categories:
+  - key: git-pr
+    label: "Git & PRs"
+    order: 1
+  - key: docs
+    label: "Documentation"
+    order: 2
+  - key: security
+    label: "Security"
+    order: 3
+  - key: planning
+    label: "Planning & Specs"
+    order: 4
+  - key: skills
+    label: "Skill Authoring"
+    order: 5
+  - key: ci-cd
+    label: "CI/CD, Testing & Quality"
+    order: 6
+  - key: infra
+    label: "Infrastructure & Config"
+    order: 7
+  - key: meta
+    label: "Meta & Orchestration"
+    order: 8
+
+# Explicit category assignments for skills that do not (yet) carry a `category:`
+# in their own frontmatter. Frontmatter, where present, still wins over this map.
+# key = skill name, value = a category key from the list above.
+overrides:
+  # git-pr
+  address-pr-comments: git-pr
+  auto-issue-dev: git-pr
+  bot-pr-triage: git-pr
+  branch-clean: git-pr
+  clean-pr-from-stale-base: git-pr
+  commit-issue-sync: git-pr
+  locate-missing-artifact-across-git: git-pr
+  merge-stacked-pr-chain: git-pr
+  post-pr-review-monitor: git-pr
+  pr-issue-sync: git-pr
+  pr-review: git-pr
+  project-commit: git-pr
+  repo-hygiene: git-pr
+  reset-reapply-clean-pr: git-pr
+  triage-bot-pr-flood: git-pr
+  # docs
+  docs-all: docs
+  docs-diagrams: docs
+  docs-improve: docs
+  docs-readme: docs
+  # security
+  ci-workflow-trigger-security: security
+  diff-security-review: security
+  docker-published-port-firewall-audit: security
+  llm-output-path-traversal-audit: security
+  mcp-server-security-audit: security
+  secret-safe-upstream-proxy: security
+  secure-comment-triggered-workflow: security
+  security-finding-refutation: security
+  security-finding-triage: security
+  # planning
+  architecture-decision-tradeoff-table: planning
+  auto-dev-issue-prep: planning
+  issue-prioritize: planning
+  issue-triage: planning
+  plan-manage: planning
+  research-validate-design: planning
+  spec-review: planning
+  speckit-implement-review: planning
+  verify-premise: planning
+  wire-new-field-end-to-end: planning
+  # skills
+  ai-hooks-integration: skills
+  meta-prompt-optimize: skills
+  skill-evolve: skills
+  # ci-cd, testing & quality
+  a11y-audit: ci-cd
+  browser-test: ci-cd
+  ci-lint-config-drift: ci-cd
+  ci-setup: ci-cd
+  live-data-validation: ci-cd
+  performance-check: ci-cd
+  pin-known-bug-test-survives-fix: ci-cd
+  refactor-go: ci-cd
+  refactor-node: ci-cd
+  refactor-python: ci-cd
+  refactor-shell: ci-cd
+  refactor-terraform: ci-cd
+  reproduce-gated-ci-failure-locally: ci-cd
+  statistical-test-fixture-variance: ci-cd
+  ux-review: ci-cd
+  verify: ci-cd
+  # infra & config
+  api-bulk-endpoint-optimization: infra
+  app-native-config-validation: infra
+  cli-help-before-dependency-checks: infra
+  containerized-internal-service-probe: infra
+  debug-layered-config-substitution: infra
+  deploy-drift-root-cause: infra
+  diagnose-stalled-background-process: infra
+  headless-llm-cli-seam: infra
+  ingestion-table-idempotency: infra
+  out-of-band-cache-warm: infra
+  pass-cli: infra
+  retire-component-cleanup: infra
+  scaffold: infra
+  shell-pipefail-subshell-audit: infra
+  shell-sete-silent-abort-audit: infra
+  sync-configs: infra
+  version-pin: infra
+  # meta & orchestration
+  antipattern-detect: meta
+  checkpoint: meta
+  code-quality: meta
+  dashboard: meta
+  health-check: meta
+  help: meta
+  learning-loop: meta
+  memory-log-compress: meta
+  session-memory-compress: meta
+  token-benchmark: meta
+  token-economy: meta

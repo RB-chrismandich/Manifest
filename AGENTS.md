@@ -345,3 +345,31 @@ To add a new skill, follow the Claude Code skill instructions above.
 - [docs/CONFIGURATION.md](docs/CONFIGURATION.md) - Complete configuration reference
 - [docs/ARCHITECTURE_DIAGRAMS.md](docs/ARCHITECTURE_DIAGRAMS.md) - Visual system documentation
 - [configs/claude/.plans/README.md](configs/claude/.plans/README.md) - Plan management quick reference
+
+## Workflow Reminders (Codex / Antigravity standing-line fallback)
+
+Codex and Antigravity have no event-hook substrate, so the per-moment hints that
+Claude Code / Gemini / Cursor deliver automatically are surfaced here as a single
+standing line instead (spec 362, FR-011 documented gap): **before a commit run
+`/verify`** (or `/project-commit` for the full pipeline); **after opening a PR run
+`/post-pr-review-monitor`**; **when context is high run `/checkpoint`**. Run
+`/help` for anything else.
+
+## Command Index
+
+<!-- BEGIN COMMAND INDEX (generate_commands_doc.py --inject-guides) -->
+<!-- markdownlint-disable MD013 -->
+
+- **Git & PRs**: `/address-pr-comments` · `/auto-issue-dev` · `/bot-pr-triage` · `/branch-clean` · `/clean-pr-from-stale-base` · `/commit-issue-sync` · `/locate-missing-artifact-across-git` · `/merge-stacked-pr-chain` · `/post-pr-review-monitor` · `/pr-issue-sync` · `/pr-review` · `/project-commit` · `/repo-hygiene` · `/reset-reapply-clean-pr` · `/triage-bot-pr-flood`
+- **Documentation**: `/docs-all` · `/docs-diagrams` · `/docs-improve` · `/docs-readme`
+- **Security**: `/ci-workflow-trigger-security` · `/diff-security-review` · `/docker-published-port-firewall-audit` · `/llm-output-path-traversal-audit` · `/mcp-server-security-audit` · `/secret-safe-upstream-proxy` · `/secure-comment-triggered-workflow` · `/security-finding-refutation` · `/security-finding-triage`
+- **Planning & Specs**: `/architecture-decision-tradeoff-table` · `/auto-dev-issue-prep` · `/issue-prioritize` · `/issue-triage` · `/plan-manage` · `/research-validate-design` · `/spec-review` · `/speckit-implement-review` · `/verify-premise` · `/wire-new-field-end-to-end`
+- **Skill Authoring**: `/ai-hooks-integration` · `/meta-prompt-optimize` · `/skill-evolve`
+- **CI/CD, Testing & Quality**: `/a11y-audit` · `/browser-test` · `/ci-lint-config-drift` · `/ci-setup` · `/live-data-validation` · `/performance-check` · `/pin-known-bug-test-survives-fix` · `/refactor-go` · `/refactor-node` · `/refactor-python` · `/refactor-shell` · `/refactor-terraform` · `/reproduce-gated-ci-failure-locally` · `/statistical-test-fixture-variance` · `/ux-review` · `/verify`
+- **Infrastructure & Config**: `/api-bulk-endpoint-optimization` · `/app-native-config-validation` · `/cli-help-before-dependency-checks` · `/containerized-internal-service-probe` · `/debug-layered-config-substitution` · `/deploy-drift-root-cause` · `/diagnose-stalled-background-process` · `/headless-llm-cli-seam` · `/ingestion-table-idempotency` · `/out-of-band-cache-warm` · `/pass-cli` · `/retire-component-cleanup` · `/scaffold` · `/shell-pipefail-subshell-audit` · `/shell-sete-silent-abort-audit` · `/sync-configs` · `/version-pin`
+- **Meta & Orchestration**: `/antipattern-detect` · `/checkpoint` · `/code-quality` · `/dashboard` · `/health-check` · `/help` · `/learning-loop` · `/memory-log-compress` · `/session-memory-compress` · `/token-benchmark` · `/token-economy`
+
+Run `/help <query>` for descriptions and when-to-use.
+
+<!-- markdownlint-enable MD013 -->
+<!-- END COMMAND INDEX -->

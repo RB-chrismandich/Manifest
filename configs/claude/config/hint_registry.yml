@@ -1,0 +1,79 @@
+# Workflow-moment → command hint registry (spec 362, US2/US3).
+# Read by guidance_hint.py. Schema: contracts/hint-registry-schema.md.
+#
+# - Every rules[].command_refs entry MUST resolve to a catalog command
+#   (validated in CI / test_guidance_hint.py against the real catalog).
+# - A `category: reminder` rule MUST declare a `rate_limit` window.
+# - Rules sharing a `dedup_key` collapse to one surfaced hint per moment;
+#   surfaced hints are ordered by `priority` desc.
+
+moments:
+  - id: pre-commit
+    trigger: "PreToolUse:git-commit"
+    description: "About to create a git commit"
+  - id: pr-open
+    trigger: "PreToolUse:pr-create"
+    description: "Opening a pull/merge request"
+  - id: refactor-start
+    trigger: "command-invoke:refactor-*"
+    description: "Invoking a language refactor command"
+  - id: high-context
+    trigger: "context-high"
+    description: "Context usage is high"
+
+rules:
+  # --- contextual hints (category: hint) ------------------------------------ #
+  - moment_id: pre-commit
+    command_refs: ["verify", "project-commit"]
+    message: "Before committing: /verify to lint+test, or /project-commit for the full pipeline."
+    priority: 10
+    dedup_key: commit-guidance
+    category: hint
+  - moment_id: pr-open
+    command_refs: ["post-pr-review-monitor", "pr-review"]
+    message: "PR opened — /post-pr-review-monitor babysits CI + bot reviews; /pr-review for a disposition pass."
+    priority: 10
+    dedup_key: pr-guidance
+    category: hint
+  - moment_id: refactor-start
+    command_refs: ["verify"]
+    message: "Starting a refactor — capture a /verify baseline first so you can prove the change is safe."
+    priority: 10
+    dedup_key: refactor-guidance
+    category: hint
+
+  # --- best-practice reminders (category: reminder) ------------------------- #
+  # The `checkpoint` reminder shows at the default `normal` verbosity; the rest
+  # are `level: verbose` so they only surface for users who opt into verbose
+  # guidance, keeping the default stream uncluttered (verbosity gate).
+  - moment_id: high-context
+    command_refs: ["checkpoint"]
+    message: "Context is high — consider /checkpoint to save progress before it compacts."
+    priority: 10
+    dedup_key: context-guidance
+    category: reminder
+    rate_limit: 30m
+  - moment_id: high-context
+    command_refs: ["token-economy"]
+    message: "Long session — /token-economy keeps responses terse and surgical to stretch context."
+    priority: 5
+    dedup_key: token-economy-reminder
+    category: reminder
+    level: verbose
+    rate_limit: 60m
+  - moment_id: high-context
+    command_refs: ["plan-manage"]
+    message: "Reminder: check for stale plans with /plan-manage (untouched 7+ days → update or archive)."
+    priority: 1
+    dedup_key: stale-plan-reminder
+    category: reminder
+    level: verbose
+    rate_limit: 1d
+  - moment_id: pre-commit
+    command_refs: ["verify"]
+    message: "Best practice: a green /verify before each commit keeps main releasable."
+    priority: 1
+    dedup_key: verify-before-commit-reminder
+    category: reminder
+    level: verbose
+    rate_limit: 4h
