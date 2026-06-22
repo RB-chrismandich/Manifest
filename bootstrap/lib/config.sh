@@ -363,6 +363,7 @@ services:
       - haiku    # Fast, economical
       - sonnet   # Balanced (default)
       - opus     # Maximum capability
+      - fable    # Top tier (security-critical tasks)
 
   # Gemini CLI - Google's AI assistant
   # Install: npm install -g @google/gemini-cli
@@ -383,7 +384,7 @@ services:
     model_tiers:
       - mini     # Lightweight
       - flash    # Balanced (default)
-      - advanced # Maximum capability
+      - advanced  # Maximum capability
 
   # Codex CLI - OpenAI terminal coding agent
   # Install: npm install -g @openai/codex
@@ -394,17 +395,22 @@ services:
     model_tiers:
       - mini     # Lightweight
       - flash    # Balanced (default)
-      - advanced # Maximum capability
+      - advanced  # Maximum capability
       - auto     # Use Codex config default model
     auth:
       - OPENAI_API_KEY
       - ~/.codex/auth.json
 
-  # Antigravity IDE - VS Code fork with Claude Code extension
-  # Install: Download from https://antigravity.sh
+  # Antigravity CLI - Google's agentic IDE CLI (agy)
+  # Install: via the Antigravity IDE, then run: agy install
   antigravity:
     enabled: $ENABLE_ANTIGRAVITY
-    description: "VS Code-fork IDE; inherits ~/.claude/ config via Claude Code extension"
+    command: agy
+    description: "Antigravity CLI for cross-vendor verification (Gemini/Claude catalog)"
+    model_tiers:
+      - mini     # Lightweight
+      - flash    # Balanced (default)
+      - advanced  # Maximum capability
 
   # SkillClaw - evolves SKILL.md skills from Claude Code transcripts (proxy-free)
   # Managed by bootstrap/lib/skillclaw.sh; no install, no daemon, no proxy.
