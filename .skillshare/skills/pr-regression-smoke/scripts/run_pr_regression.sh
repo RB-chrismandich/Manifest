@@ -115,6 +115,15 @@ run_regression() {
   # markdownlint-cli2 auto-discovers .markdownlint.jsonc; run via npx (no global install).
   run_step Regression markdownlint hard 'npx --no-install markdownlint-cli2 AGENTS.md CLAUDE.md README.md "docs/*.md" 2>/dev/null'
 
+  # Generated-artifact drift. Adding/renaming a skill must be reflected in
+  # docs/COMMANDS.md, the GEMINI.md/AGENTS.md command index, and the per-skill
+  # Cursor rules — CI fails the build otherwise. These mirror those CI gates so
+  # the drift is caught here, before the push, not after.
+  run_step Regression commands-doc-drift hard 'configs/claude/scripts/generate_commands_doc.py --check'
+  # No --check on the cursor generator: regenerate, then a dirty rules/ tree is drift.
+  run_step Regression cursor-rule-drift hard \
+    'bash configs/claude/scripts/generate_cursor_rules.sh >/dev/null 2>&1; [ -z "$(git status --porcelain configs/cursor/rules/)" ]'
+
   # bats: prefer the repo-pinned binary, fall back to a PATH install.
   local bats_bin="bats"
   [ -x ./node_modules/.bin/bats ] && bats_bin="./node_modules/.bin/bats"

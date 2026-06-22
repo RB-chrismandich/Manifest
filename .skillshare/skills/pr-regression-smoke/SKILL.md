@@ -62,6 +62,7 @@ the gating signal.
 - `tests/lint/check_array_expansion.sh`
 - `yamllint configs/claude/config/*.yml`
 - `markdownlint-cli2` over `AGENTS.md CLAUDE.md README.md docs/*.md`
+- generated-artifact drift: `generate_commands_doc.py --check` (docs/COMMANDS.md + GEMINI.md/AGENTS.md command index) and a `generate_cursor_rules.sh` regenerate-and-clean-tree check — adding a skill that forgets these is the classic way a green local run still red-CIs
 - `bats tests/bats/` (full suite)
 - `pytest tests/python/` (full suite)
 

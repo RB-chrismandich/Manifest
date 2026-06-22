@@ -1006,7 +1006,7 @@ Expected output:
 <!-- BEGIN GENERATED COMMANDS (command_catalog.py) — do not edit by hand -->
 <!-- Regenerate: configs/claude/scripts/generate_commands_doc.py -->
 
-_85 commands, generated from `.skillshare/skills/*/SKILL.md`._
+_86 commands, generated from `.skillshare/skills/*/SKILL.md`._
 
 ### Git & PRs
 
@@ -1132,5 +1132,11 @@ _85 commands, generated from `.skillshare/skills/*/SKILL.md`._
 | `/session-memory-compress` | Compress or summarize session memory — distill a session/transcript into a dated one-line entry, or losslessly compress/rotate existing memory entries (daily summary, shorthand rewrite, one-sentence log line) with zero information loss. | Compress or summarize session memory — distill a session/transcript into a dated one-line entry, or losslessly compress/rotate existing memory entries (daily summary, shorthand rewrite, one-sentence log line) with zero information loss. | available |
 | `/token-benchmark` | Measure token overhead and quality delta from Manifest config across Claude, Gemini CLI, and Antigravity CLI using MMLU/HumanEval/HellaSwag/TruthfulQA prompts before/after manifest context injection; regenerates docs/TOKEN_BENCHMARK.md. | Measure token overhead and quality delta from Manifest config across Claude, Gemini CLI, and Antigravity CLI using MMLU/HumanEval/HellaSwag/TruthfulQA prompts before/after manifest context injection; regenerates docs/TOKEN_BENCHMARK. | available |
 | `/token-economy` | Switch the current session into terse, surgical, clarify-first mode to cut token usage. Invoke when responses are verbose, during long refactors, or to conserve budget. Opt-in session mutator — re-invoke if it wears off. | Switch the current session into terse, surgical, clarify-first mode to cut token usage. | available |
+
+### Uncategorized
+
+| Command | Description | When to use | Status |
+|---------|-------------|-------------|--------|
+| `/pr-regression-smoke` | Full Manifest regression (CI mirror: shellcheck, yamllint, markdownlint, bats + pytest) plus a deployed-env smoke pass (bootstrap re-deploy, env health, orchestration round-trip), as a post-PR gate. Use right after a PR opens or merges — "regression test the PR", "did the merge break anything", "verify main is still green". Whole-repo verdict; prefer over verify (one lang) or health-check. | Full Manifest regression (CI mirror: shellcheck, yamllint, markdownlint, bats + pytest) plus a deployed-env smoke pass (bootstrap re-deploy, env health, orchestration round-trip), as a post-PR gate. | available |
 
 <!-- END GENERATED COMMANDS -->
