@@ -131,8 +131,10 @@ def inject(doc_text: str, section: str) -> str:
     existing = extract_section(doc_text)
     if existing is not None:
         return doc_text.replace(existing, section)
-    sep = "" if doc_text.endswith("\n\n") else ("\n" if doc_text.endswith("\n") else "\n\n")
-    return f"{doc_text}{sep}\n## Command Reference\n\n{section}\n"
+    # Normalize trailing newlines so the append seam is exactly one blank line
+    # (avoids an MD012 multiple-blank-lines lint error).
+    base = doc_text.rstrip("\n")
+    return f"{base}\n\n## Command Reference\n\n{section}\n"
 
 
 def write_doc(doc_path: str, catalog: dict, base_text: Optional[str] = None) -> None:
@@ -184,7 +186,19 @@ def check_doc(doc_path: str, catalog: dict) -> int:
 # Compact-index injection into always-loaded platform guides (T015 / FR-009)
 # --------------------------------------------------------------------------- #
 def _index_block(catalog: dict) -> str:
-    return "\n".join([INDEX_BEGIN, "", render_compact_index(catalog), "", INDEX_END])
+    # The index packs each category's `/name` links onto one line, which exceeds
+    # the 120-col MD013 limit by design (it is a dense always-loaded index, not
+    # prose). Scope a markdownlint disable to the generated block so the linted
+    # always-loaded guides (AGENTS.md) stay green without relaxing the repo rule.
+    return "\n".join([
+        INDEX_BEGIN,
+        "<!-- markdownlint-disable MD013 -->",
+        "",
+        render_compact_index(catalog),
+        "",
+        "<!-- markdownlint-enable MD013 -->",
+        INDEX_END,
+    ])
 
 
 def extract_index(text: str) -> Optional[str]:
@@ -199,8 +213,8 @@ def inject_index(text: str, block: str) -> str:
     existing = extract_index(text)
     if existing is not None:
         return text.replace(existing, block)
-    sep = "\n" if text.endswith("\n") else "\n\n"
-    return f"{text}{sep}\n## Command Index\n\n{block}\n"
+    base = text.rstrip("\n")  # exactly one blank line at the append seam (MD012)
+    return f"{base}\n\n## Command Index\n\n{block}\n"
 
 
 def _guide_paths():

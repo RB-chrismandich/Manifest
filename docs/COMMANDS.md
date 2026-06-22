@@ -1001,7 +1001,6 @@ Expected output:
 
 ````
 
-
 ## Command Reference
 
 <!-- BEGIN GENERATED COMMANDS (command_catalog.py) — do not edit by hand -->

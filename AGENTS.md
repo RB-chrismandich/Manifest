@@ -346,7 +346,6 @@ To add a new skill, follow the Claude Code skill instructions above.
 - [docs/ARCHITECTURE_DIAGRAMS.md](docs/ARCHITECTURE_DIAGRAMS.md) - Visual system documentation
 - [configs/claude/.plans/README.md](configs/claude/.plans/README.md) - Plan management quick reference
 
-
 ## Workflow Reminders (Codex / Antigravity standing-line fallback)
 
 Codex and Antigravity have no event-hook substrate, so the per-moment hints that
@@ -359,6 +358,7 @@ standing line instead (spec 362, FR-011 documented gap): **before a commit run
 ## Command Index
 
 <!-- BEGIN COMMAND INDEX (generate_commands_doc.py --inject-guides) -->
+<!-- markdownlint-disable MD013 -->
 
 - **Git & PRs**: `/address-pr-comments` · `/auto-issue-dev` · `/bot-pr-triage` · `/branch-clean` · `/clean-pr-from-stale-base` · `/commit-issue-sync` · `/locate-missing-artifact-across-git` · `/merge-stacked-pr-chain` · `/post-pr-review-monitor` · `/pr-issue-sync` · `/pr-review` · `/project-commit` · `/repo-hygiene` · `/reset-reapply-clean-pr` · `/triage-bot-pr-flood`
 - **Documentation**: `/docs-all` · `/docs-diagrams` · `/docs-improve` · `/docs-readme`
@@ -371,4 +371,5 @@ standing line instead (spec 362, FR-011 documented gap): **before a commit run
 
 Run `/help <query>` for descriptions and when-to-use.
 
+<!-- markdownlint-enable MD013 -->
 <!-- END COMMAND INDEX -->

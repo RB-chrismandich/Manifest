@@ -536,6 +536,7 @@ plans untouched 7+ days should be updated, completed, or abandoned. Use
 ## Command Index
 
 <!-- BEGIN COMMAND INDEX (generate_commands_doc.py --inject-guides) -->
+<!-- markdownlint-disable MD013 -->
 
 - **Git & PRs**: `/address-pr-comments` · `/auto-issue-dev` · `/bot-pr-triage` · `/branch-clean` · `/clean-pr-from-stale-base` · `/commit-issue-sync` · `/locate-missing-artifact-across-git` · `/merge-stacked-pr-chain` · `/post-pr-review-monitor` · `/pr-issue-sync` · `/pr-review` · `/project-commit` · `/repo-hygiene` · `/reset-reapply-clean-pr` · `/triage-bot-pr-flood`
 - **Documentation**: `/docs-all` · `/docs-diagrams` · `/docs-improve` · `/docs-readme`
@@ -548,4 +549,5 @@ plans untouched 7+ days should be updated, completed, or abandoned. Use
 
 Run `/help <query>` for descriptions and when-to-use.
 
+<!-- markdownlint-enable MD013 -->
 <!-- END COMMAND INDEX -->
