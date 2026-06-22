@@ -163,14 +163,10 @@ EOF
 }
 
 @test "missing description falls back to '<name> skill'" {
-    # BUG: the intended fallback (description="${description:-$skill_name skill}",
-    # line 65) is unreachable. With `set -euo pipefail`, a SKILL.md whose
-    # frontmatter has no `description:` line makes
-    #   desc_line=$(echo "$front_matter" | grep '^description:' | head -1)
-    # (line 48) a failing pipeline (grep exits 1), which aborts the whole
-    # script with exit 1 and no output. Fix: append `|| true` to that pipeline.
-    skip "BUG: script exits 1 on a SKILL.md without a description (pipefail + grep, line 48)"
-
+    # Regression: under `set -euo pipefail`, a SKILL.md with no `description:`
+    # line made the grep pipelines exit 1 and aborted the script with no output,
+    # so the intended fallback (description="${description:-$skill_name skill}")
+    # was unreachable. The grep pipelines now tolerate no-match (`|| true`).
     mkdir -p "$SKILLS_DIR/nodesc"
     cat > "$SKILLS_DIR/nodesc/SKILL.md" <<'EOF'
 ---
@@ -188,14 +184,10 @@ EOF
 
 # ── Idempotence / change detection ───────────────────────────────────────────
 
-@test "second run is byte-idempotent on disk (counter miscounts: BUG)" {
-    # BUG: the "unchanged" branch (lines 84-90) never fires. $content ends in a
-    # newline and `echo "$content"` appends another, but
-    # existing=$(cat "$rule_file") strips ALL trailing newlines — so
-    # existing == content is always false and every rule is re-written and
-    # counted as "updated" on every run. The on-disk bytes ARE stable (the
-    # rewrite is identical), so this test pins true idempotence on content and
-    # documents the miscount. Expected-after-fix: "0 created, 0 updated, 2 unchanged".
+@test "second run is byte-idempotent on disk and counts rules as unchanged" {
+    # Idempotence: a second run over already-current rules writes nothing and
+    # counts both as unchanged. (The unchanged-detection compares the exact
+    # bytes that would be written, including the trailing newline echo appends.)
     make_skill alpha "Alpha"
     make_skill beta "Beta"
     "$GEN"
@@ -204,18 +196,17 @@ EOF
 
     run "$GEN"
     assert_success
-    # Accept the current (buggy) counter output OR the expected-after-fix one,
-    # so fixing the script's unchanged-detection doesn't break this test.
-    # Files themselves are unchanged either way (shasum below is the real pin).
-    assert_output --regexp "0 created, (2 updated, 0 unchanged|0 updated, 2 unchanged)"
+    # Both rules are byte-identical to the prior run, so unchanged-detection
+    # must count them as unchanged (not re-written). The shasum below is the
+    # real pin; the counter now reflects it.
+    assert_output --partial "0 created, 0 updated, 2 unchanged"
     assert_equal "$(shasum "$RULES_DIR/alpha.mdc")" "$before_alpha"
     assert_equal "$(shasum "$RULES_DIR/beta.mdc")" "$before_beta"
 }
 
 @test "changed skill description is reflected in the regenerated rule" {
-    # NOTE: because of the unchanged-detection BUG above, the counter reports
-    # both rules as "updated" and cannot distinguish the truly changed one.
-    # Assert on rule content instead, which is the behavior that matters.
+    # Only the rule whose SKILL.md changed is rewritten; the stable one is
+    # counted as unchanged.
     make_skill alpha "Alpha original"
     make_skill beta "Beta stable"
     "$GEN"
@@ -223,8 +214,7 @@ EOF
     make_skill alpha "Alpha revised"   # rewrite SKILL.md with new description
     run "$GEN"
     assert_success
-    # Current (buggy) form first; fixed form should report 1 updated, 1 unchanged.
-    assert_output --regexp "0 created, (2 updated, 0 unchanged|1 updated, 1 unchanged)"
+    assert_output --partial "0 created, 1 updated, 1 unchanged"
 
     run cat "$RULES_DIR/alpha.mdc"
     assert_output --partial "Alpha revised"
@@ -256,6 +246,20 @@ EOF
     assert_equal "$(cat "$RULES_DIR/alpha.mdc")" "$before"
 }
 
+@test "--dry-run on an unchanged rule reports unchanged, not would-update" {
+    # Regression: the unchanged-detection compared existing=$(cat file) (which
+    # strips trailing newlines) against $content (which keeps one), so the
+    # "unchanged" branch never fired and --dry-run falsely reported every
+    # already-current rule as "Would update". A no-op run must be silent.
+    make_skill alpha "Alpha stable"
+    "$GEN"   # create alpha.mdc; nothing changes afterwards
+
+    run "$GEN" --dry-run
+    assert_success
+    refute_output --partial "[DRY-RUN] Would update:"
+    assert_output --partial "0 created, 0 updated, 1 unchanged"
+}
+
 # ── Edge cases ───────────────────────────────────────────────────────────────
 
 @test "empty skills dir produces zero counts and exits 0" {
@@ -282,10 +286,9 @@ EOF
 
     run "$REPO_ROOT/configs/claude/scripts/generate_cursor_rules.sh"
     assert_success
-    # BUG (see unchanged-detection note above): everything is counted as
-    # "updated" even though the rewrites are byte-identical. After the fix this
-    # should read "0 created, 0 updated, N unchanged".
-    assert_output --regexp "Cursor rules: 0 created, [0-9]+ updated, [0-9]+ unchanged"
+    # Tree is already in sync, so every rule is counted as unchanged and
+    # nothing is rewritten.
+    assert_output --regexp "Cursor rules: 0 created, 0 updated, [0-9]+ unchanged"
 
     # The real invariant: the tree is still clean afterwards (no drift).
     git -C "$REPO_ROOT" diff --exit-code --quiet configs/cursor/rules/

@@ -46,7 +46,9 @@ for skill_dir in "$SKILLS_DIR"/*/; do
     description=""
     if head -1 "$skill_file" | grep -q '^---'; then
         front_matter=$(sed -n '2,/^---$/p' "$skill_file" | sed '$d')
-        desc_line=$(echo "$front_matter" | grep '^description:' | head -1)
+        # `|| true`: under `set -euo pipefail` a no-match grep would abort the
+        # script; tolerate a SKILL.md with no description and fall back below.
+        desc_line=$(echo "$front_matter" | grep '^description:' | head -1 || true)
         desc_value=$(echo "$desc_line" | sed 's/^description:[[:space:]]*//')
 
         if [[ "$desc_value" =~ ^[\|\>][+-]?$ || -z "$desc_value" ]]; then
@@ -57,7 +59,7 @@ for skill_dir in "$SKILLS_DIR"/*/; do
                 grep '^  ' |
                 sed 's/^  //' |
                 tr '\n' ' ' |
-                sed 's/[[:space:]]*$//')
+                sed 's/[[:space:]]*$//' || true)
         else
             # Inline value
             description=$(echo "$desc_value" | sed 's/^"//' | sed 's/"$//')
@@ -90,8 +92,13 @@ Refer to \`.cursor/skills/$skill_name/SKILL.md\` for the full skill definition.
 "
 
     if [[ -f "$rule_file" ]]; then
-        existing=$(cat "$rule_file")
-        if [[ "$existing" == "$content" ]]; then
+        # Compare against the exact bytes a write would produce. $(...) strips
+        # trailing newlines, so capture with a sentinel to preserve them; the
+        # write below is `echo "$content"`, which appends one newline beyond
+        # $content's own. Comparing raw $content here would never match and the
+        # unchanged branch would be dead code (every rule re-written each run).
+        existing=$(cat "$rule_file"; printf x); existing="${existing%x}"
+        if [[ "$existing" == "$content"$'\n' ]]; then
             log "Skip $skill_name: unchanged"
             skipped=$((skipped + 1))
             continue
