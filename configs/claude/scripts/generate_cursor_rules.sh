@@ -123,4 +123,53 @@ Refer to \`.cursor/skills/$skill_name/SKILL.md\` for the full skill definition.
     fi
 done
 
+# --- Command discovery index rule (spec 362 / T015) ------------------------ #
+# Emit an always-applied Cursor rule carrying the compact command index, so
+# Cursor reaches the same always-loaded discovery parity as GEMINI.md/AGENTS.md.
+# The index body comes from the Python generator (single source of truth); guard
+# on python3+pyyaml so a machine lacking them still generates the per-skill
+# rules above (CI has pyyaml, so drift is still caught there).
+GEN_DOC="$REPO_ROOT/configs/claude/scripts/generate_commands_doc.py"
+index_rule="$RULES_DIR/commands-index.mdc"
+if command -v python3 >/dev/null 2>&1 && python3 -c 'import yaml' >/dev/null 2>&1; then
+    index_body="$(python3 "$GEN_DOC" --compact 2>/dev/null || true)"
+    if [[ -n "$index_body" ]]; then
+        index_content="---
+description: \"Manifest command index — categories + /command links; run /help for full descriptions.\"
+alwaysApply: true
+---
+
+# Manifest Command Index
+
+${index_body}
+
+<!-- Auto-generated from .skillshare/skills/ via generate_commands_doc.py --compact -->
+<!-- Regenerate: configs/claude/scripts/generate_cursor_rules.sh -->
+"
+        if [[ -f "$index_rule" ]]; then
+            existing=$(cat "$index_rule"; printf x); existing="${existing%x}"
+            if [[ "$existing" == "$index_content"$'\n' ]]; then
+                log "Skip commands-index: unchanged"
+                skipped=$((skipped + 1))
+            elif $DRY_RUN; then
+                echo "[DRY-RUN] Would update: $index_rule"
+                updated=$((updated + 1))
+            else
+                echo "$index_content" > "$index_rule"
+                log "Updated: $index_rule"
+                updated=$((updated + 1))
+            fi
+        elif $DRY_RUN; then
+            echo "[DRY-RUN] Would create: $index_rule"
+            created=$((created + 1))
+        else
+            echo "$index_content" > "$index_rule"
+            log "Created: $index_rule"
+            created=$((created + 1))
+        fi
+    fi
+else
+    log "Skip commands-index.mdc: python3/pyyaml unavailable"
+fi
+
 echo "Cursor rules: $created created, $updated updated, $skipped unchanged"

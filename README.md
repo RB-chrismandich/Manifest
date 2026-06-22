@@ -4,7 +4,7 @@
 
 > Parallel LLM agent orchestration framework for Claude Code, Cursor IDE, Gemini CLI, Codex CLI, and Antigravity IDE
 
-**Last Updated**: 2026-06-15
+**Last Updated**: 2026-06-21
 
 Manifest is a configuration repository that deploys a sophisticated parallel agent
 orchestration system to `~/.claude/`, `~/.cursor/`, `~/.gemini/`, `~/.codex/`, and `~/.antigravity/`, enabling Claude Code,
@@ -96,8 +96,14 @@ Mermaid flowcharts showing bootstrap, execution, validation, and consensus flows
 
 ## Available Commands
 
+> **Find any command:** run `/help [query]` in-session for searchable, categorized
+> discovery, or browse the full generated [Command Reference](docs/COMMANDS.md#command-reference)
+> (every command, grouped by category, drift-checked in CI). The table below is a
+> curated highlight subset.
+
 | Command | Description | Parallel Agents | Validation |
 |---------|-------------|-----------------|------------|
+| `/help` | Find the right command fast — searchable, categorized discovery (read-only) | NEVER | — |
 | `/project-commit` | Full commit pipeline: regenerate docs, pull latest, run pre-commits, commit, push | CONDITIONAL | Tier 1 + Tier 2 |
 | `/refactor-python` | Python security, architecture, code quality analysis | ALWAYS | Tier 1 + Tier 2 (≥0.80) |
 | `/refactor-shell` | Bash/Shell script security and quality with shellcheck | ALWAYS | Tier 1 + Tier 2 (≥0.70) |
@@ -242,7 +248,7 @@ Manifest/
 │       ├── python/                  # Python project starter
 │       └── terraform/               # Terraform project starter
 ├── .skillshare/                     # Skill source of truth (managed by skillshare)
-│   └── skills/                      # 74 skills deployed to ~/.claude/skills/ by bootstrap
+│   └── skills/                      # 84 skills deployed to ~/.claude/skills/ by bootstrap
 ├── tests/                           # Test suites
 │   ├── python/                      # pytest tests for parallel_agent and agents/
 │   └── bats/                        # Bats shell tests for bootstrap and scripts
@@ -365,7 +371,7 @@ export CODEX_HOME="$HOME/.manifest/custom-codex-state"
 # Python tests (310 tests covering agents/ package and parallel_agent.py)
 pytest tests/python/ -q
 
-# Shell tests (410 Bats tests covering bootstrap and scripts)
+# Shell tests (513 Bats tests covering bootstrap and scripts)
 npx bats tests/bats/
 
 # Lint shell scripts

@@ -9,6 +9,9 @@
       "Bash(~/.claude/scripts/version_pin_hook.sh:*)",
       "Bash(~/.claude/scripts/pr_review.sh:*)",
       "Bash(~/.claude/scripts/branch_clean.sh:*)",
+      "Bash(~/.claude/scripts/command_catalog.py:*)",
+      "Bash(~/.claude/scripts/generate_commands_doc.py:*)",
+      "Bash(~/.claude/scripts/guidance_hint.py:*)",
       "Bash(shellcheck:*)",
       "Bash(python3:*)",
       "Bash(pip3 install:*)",
@@ -31,6 +34,17 @@
     ]
   },
   "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/scripts/guidance_hint.py"
+          }
+        ]
+      }
+    ],
     "PostToolUse": [
       {
         "matcher": "Write|Edit",

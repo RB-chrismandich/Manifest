@@ -2,7 +2,7 @@
 
 > Visual documentation of the Manifest parallel LLM agent orchestration framework
 
-**Last Updated**: 2026-06-15
+**Last Updated**: 2026-06-21
 **Project**: Manifest - AI Agent Orchestration Framework
 
 ---

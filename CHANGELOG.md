@@ -10,7 +10,28 @@ All notable changes are documented here in reverse chronological order.
 
 ## [Unreleased]
 
-No unreleased changes — specs/003 shipped 2026-06-11 (see below).
+### specs/362 — Command Discovery & Workflow Guidance
+
+- **`/help` command discovery** — a read-only skill that lists and searches every
+  command by category with a one-line description + when-to-use cue, marking
+  commands unavailable in the current environment. Ranked, deterministic, offline.
+- **Generated, drift-free `docs/COMMANDS.md`** — `command_catalog.py` builds a
+  machine catalog from `SKILL.md` frontmatter (the single source of truth);
+  `generate_commands_doc.py` renders it and `--check` fails CI on drift (FR-004).
+- **Curated category taxonomy** (`command_categories.yml`) — 8 categories assigned
+  via frontmatter > overrides map > `uncategorized` (no mass SKILL.md rename).
+- **Event-driven, one-shot workflow hints** (`guidance_hint.py` +
+  `hint_registry.yml`) at recognized moments (pre-commit, PR-open, refactor-start,
+  high-context), deduped + priority-ordered, fail-open, never added to
+  always-loaded context. Delivered via Claude Code + Gemini hooks; Codex/Antigravity
+  use a documented standing-line fallback in `AGENTS.md`.
+- **Tunable best-practice reminders** — `guidance.yml` shipped defaults (all on) ←
+  gitignored `~/.claude/config/guidance_local.yml` override (local wins); global +
+  per-category opt-out, verbosity, and rate-limiting. A single opt-out never dirties
+  the tracked tree (SC-004).
+- **Cross-platform parity** — compact, description-less command index injected into
+  `GEMINI.md`/`AGENTS.md` (budget-bounded, drift-checked) and a Cursor
+  `commands-index.mdc` rule; full descriptions stay in `/help` and `docs/COMMANDS.md`.
 
 ---
 

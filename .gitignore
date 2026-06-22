@@ -51,3 +51,8 @@ records/
 
 # skill-creator eval workspaces (iteration outputs, benchmarks, rework runs)
 *-workspace/
+
+# spec 362: user-local guidance overrides are machine-local (created lazily on
+# first opt-out under ~/.claude/config/) — never commit them. The shipped
+# defaults live in configs/claude/config/guidance.yml (tracked).
+guidance_local.yml

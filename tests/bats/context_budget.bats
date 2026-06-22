@@ -84,15 +84,43 @@ assert_budget() {
     # Lowered 22300 -> 21000 (2026-06-21): set-wide trim pass recovered ~1756
     # chars (total 22141 -> 20385); 25 skills trimmed toward the ~290 norm,
     # all trigger phrases preserved. New headroom: ~615 chars.
+    # Raised 21000 -> 21500 (2026-06-21) for the genuinely-new `help` discovery
+    # skill (spec 362): its description IS the always-loaded triggering text with
+    # no read-on-demand alternative. Already trimmed to ~225 chars (well under the
+    # ~290 norm) before this bump; the residual still cleared 21000 by only ~2.
     total=0
     for f in "$REPO_ROOT"/.skillshare/skills/*/SKILL.md; do
         # frontmatter = up to the second '---' line
         chars=$(awk '/^---$/{c++; next} c==1' "$f" | wc -c)
         total=$((total + chars))
     done
-    if [ "$total" -gt 21000 ]; then
-        echo "Skill frontmatter totals $total chars (budget: 21000)." >&2
+    if [ "$total" -gt 21500 ]; then
+        echo "Skill frontmatter totals $total chars (budget: 21500)." >&2
         echo "Trim verbose descriptions; bodies are pay-per-use, frontmatter is not." >&2
         return 1
     fi
+}
+
+# spec 362 / FR-009 / SC-006: the compact command index injected into the
+# always-loaded platform guides (GEMINI.md, AGENTS.md) must stay bounded as the
+# catalog grows. The index is description-less (category headers + /name links)
+# and links back to /help for detail; if this fails, the index has grown too
+# large for always-loaded context — trim categories or drop to header-only links,
+# do NOT raise the budget casually.
+@test "injected command index stays within always-loaded budget" {
+    local budget=3500 f size
+    for f in "configs/gemini/GEMINI.md" "AGENTS.md"; do
+        # Extract the block between the INDEX markers (inclusive).
+        size=$(awk '/BEGIN COMMAND INDEX/{c=1} c{print} /END COMMAND INDEX/{c=0}' \
+               "$REPO_ROOT/$f" | wc -c)
+        if [ "$size" -eq 0 ]; then
+            echo "$f: command index block not found (run generate_commands_doc.py --inject-guides)" >&2
+            return 1
+        fi
+        if [ "$size" -gt "$budget" ]; then
+            echo "$f command index is $size bytes (budget: $budget)." >&2
+            echo "Trim the compact index; it is always-loaded every session." >&2
+            return 1
+        fi
+    done
 }
