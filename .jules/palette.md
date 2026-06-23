@@ -39,3 +39,11 @@ intermediate states like warnings or manual review requests, confusing users
 when a process didn't fully fail but isn't fully approved.
 **Action:** Use a three-color semantic system (green=success, yellow=warning/review,
 red=error/blocked) for validation verdicts to provide nuanced visual feedback.
+
+## 2026-06-23 - Elapsed Time Context in CLI Spinners
+
+**Learning:** When long-running CLI tasks (like orchestrating multiple LLM agents) fallback
+to a simple spinner, users lose context on how long the operation has been running,
+which can lead to premature aborts.
+**Action:** Include a `TimeElapsedColumn()` alongside the `SpinnerColumn` in
+`rich.progress.Progress` to provide continuous visual feedback on execution duration.
