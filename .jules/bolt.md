@@ -58,3 +58,8 @@ which is the once-per-run consensus calc over a few hundred words — small inpu
 large or memory-sensitive loops keep `sum(1 for ...)` to avoid the list allocation. Unrelated to
 set-vs-list membership: prefer a `set` for membership tests (O(1) vs O(n)); do not swap a set
 comprehension for a list to "save allocation."
+## 2026-06-21 - File Parsing Memory Bottlenecks
+
+**Learning:** When parsing large files (like `.jsonl` benchmark logs), `f.read_text().splitlines()` reads the entire file into memory as a massive list of strings. Micro-optimizing string allocations (like bypassing `.strip()` in favor of direct slice checks) on top of this structure yields unmeasurable gains and degrades readability. Replacing `splitlines()` with lazy file iteration (`with f.open(encoding="utf-8") as fd: for line in fd:`) solves the actual architectural memory bottleneck while maintaining identical functionality.
+
+**Action:** Always prefer lazy file iteration over `f.read_text().splitlines()` when parsing data files to avoid large memory footprints. Avoid micro-optimizations that harm readability until true architectural bottlenecks have been resolved.

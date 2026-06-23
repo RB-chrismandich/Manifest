@@ -10,10 +10,13 @@ def load_results(results_dir: Path) -> list[dict]:
     """Read all .jsonl files in results_dir and return a flat list of records."""
     records = []
     for f in sorted(results_dir.glob("*.jsonl")):
-        for line in f.read_text().splitlines():
-            line = line.strip()
-            if line:
-                records.append(json.loads(line))
+        # ⚡ Bolt: Lazy iteration bypasses reading the whole file into memory
+        # and avoids allocating a massive list of strings via splitlines().
+        with f.open(encoding="utf-8") as fd:
+            for line in fd:
+                line = line.strip()
+                if line:
+                    records.append(json.loads(line))
     return records
 
 
