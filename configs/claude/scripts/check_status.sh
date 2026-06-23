@@ -126,31 +126,31 @@ if [[ -f ~/.claude/config/services.yml ]]; then
     if [[ "$claude_enabled" == "true" ]]; then
         echo -e "  ${GREEN}✓${NC} Claude"
     else
-        echo -e "  ${RED}✗${NC} Claude (disabled)"
+        echo -e "  ${YELLOW}○${NC} Claude (disabled)"
     fi
 
     if [[ "$gemini_enabled" == "true" ]]; then
         echo -e "  ${GREEN}✓${NC} Gemini"
     else
-        echo -e "  ${RED}✗${NC} Gemini (disabled)"
+        echo -e "  ${YELLOW}○${NC} Gemini (disabled)"
     fi
 
     if [[ "$cursor_enabled" == "true" ]]; then
         echo -e "  ${GREEN}✓${NC} Cursor"
     else
-        echo -e "  ${RED}✗${NC} Cursor (disabled)"
+        echo -e "  ${YELLOW}○${NC} Cursor (disabled)"
     fi
 
     if [[ "$codex_enabled" == "true" ]]; then
         echo -e "  ${GREEN}✓${NC} Codex"
     else
-        echo -e "  ${RED}✗${NC} Codex (disabled)"
+        echo -e "  ${YELLOW}○${NC} Codex (disabled)"
     fi
 
     if [[ "$antigravity_enabled" == "true" ]]; then
         echo -e "  ${GREEN}✓${NC} Antigravity"
     else
-        echo -e "  ${RED}✗${NC} Antigravity (disabled)"
+        echo -e "  ${YELLOW}○${NC} Antigravity (disabled)"
     fi
 
     if [[ $enabled_count -lt 2 ]]; then
