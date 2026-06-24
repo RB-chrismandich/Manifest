@@ -36,8 +36,15 @@ message or correctly fallback/propagate it.
 
 ## 2026-06-21 - Forge Missing Init
 
-**Learning:** When adopting the Forge persona, any explicit instruction to read `.jules/forge.md` accompanied by the caveat `(create this file if it is missing)` implies a strict requirement to establish the file structure, even if no critical learnings are discovered during the subsequent execution that warrant a journal entry. Failing to create the empty/initial file violates the strictness of the architectural persona.
-**Action:** When acting as Forge, unconditionally create the `.jules/forge.md` file (e.g., using `touch`) before performing any analysis, ensuring the base structural requirement is met regardless of the audit's outcome.
+**Learning:** When adopting the Forge persona, any explicit instruction to read `.jules/forge.md`
+accompanied by the caveat `(create this file if it is missing)` implies a strict requirement to
+establish the file structure, even if no critical learnings are discovered during the subsequent
+execution that warrant a journal entry. Failing to create the empty/initial file violates the
+strictness of the architectural persona.
+
+**Action:** When acting as Forge, unconditionally create the `.jules/forge.md` file (e.g., using
+`touch`) before performing any analysis, ensuring the base structural requirement is met regardless
+of the audit's outcome.
 
 ## 2025-06-18 - json-parsing-overhead
 
@@ -48,3 +55,16 @@ for invalid CLI output or IPC is inefficient.
 if the first character is a valid JSON opening char like '{', '[', '"', 't', 'f', 'n', or a digit) before calling
 `json.loads` to bypass exception overhead for obvious non-JSON strings. Ensure exceptions are not silently swallowed
 by debug-only loggers.
+
+## 2026-10-24 - JSON Fast-Path Optimization
+
+**Learning:** Replacing standard, robust try/except blocks (like `json.JSONDecodeError`)
+with brittle heuristic fast-paths (like explicit `isinstance` checks and generator
+expressions to find the first character) in an attempt to optimize performance degrades
+maintainability and violates the 'boring over clever' architectural philosophy. This is
+especially true when the fast-path adds unnecessary type-checking boilerplate to standard
+library functions guaranteed to return strings.
+
+**Action:** Avoid replacing explicit exception handling blocks with clever heuristics
+unless in a proven hot-loop where the exception overhead causes a measurable bottleneck.
+Prioritize native, readable error routing over micro-optimizations.

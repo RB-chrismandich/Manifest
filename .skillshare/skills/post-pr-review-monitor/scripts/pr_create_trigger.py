@@ -57,11 +57,22 @@ def succeeded(payload: dict) -> bool:
 
 def main() -> int:
     raw = sys.stdin.read()
-    try:
-        payload = json.loads(raw) if raw.strip() else {}
-    except json.JSONDecodeError:
+    if not isinstance(raw, str):
+        debug("payload not string; no-op")
+        return 0
+
+    first_char = next((c for c in raw if not c.isspace()), "")
+    if not first_char:
+        payload = {}
+    elif first_char not in '{["tfn0123456789-.':
         debug("payload not JSON; no-op")
         return 0
+    else:
+        try:
+            payload = json.loads(raw)
+        except json.JSONDecodeError:
+            debug("payload not JSON; no-op")
+            return 0
 
     command = extract_command(payload)
     if not PR_CREATE_RE.search(command):
