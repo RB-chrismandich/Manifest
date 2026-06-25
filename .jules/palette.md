@@ -39,3 +39,11 @@ intermediate states like warnings or manual review requests, confusing users
 when a process didn't fully fail but isn't fully approved.
 **Action:** Use a three-color semantic system (green=success, yellow=warning/review,
 red=error/blocked) for validation verdicts to provide nuanced visual feedback.
+
+## 2026-06-25 - [Add elapsed time to CLI spinner]
+
+**Learning:** For long-running CLI tasks, adding a time elapsed indicator alongside a spinner provides continuous
+visual feedback and prevents users from prematurely aborting operations by clearly indicating ongoing activity and
+duration.
+**Action:** Always include an elapsed time indicator (like TimeElapsedColumn) alongside CLI spinners for potentially
+lengthy processes.
