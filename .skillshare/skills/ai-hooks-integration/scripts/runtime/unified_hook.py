@@ -260,10 +260,6 @@ def main() -> None:
     raw_input = sys.stdin.read().strip()
     payload = {}
     if raw_input:
-        if raw_input[0] not in "{[":
-            print("Invalid input JSON: not a JSON object/array", file=sys.stderr)
-            print(json.dumps(allow_response(args.event_type)))
-            return
         try:
             payload = json.loads(raw_input)
         except json.JSONDecodeError as e:

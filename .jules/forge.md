@@ -48,3 +48,15 @@ for invalid CLI output or IPC is inefficient.
 if the first character is a valid JSON opening char like '{', '[', '"', 't', 'f', 'n', or a digit) before calling
 `json.loads` to bypass exception overhead for obvious non-JSON strings. Ensure exceptions are not silently swallowed
 by debug-only loggers.
+
+## 2024-06-25 - Performance Optimization (Python Try/Except & Parsing)
+
+**Learning:** Replacing standard, robust try/except blocks (like
+`json.JSONDecodeError`) with brittle heuristic fast-paths (like
+checking if the first character is in `"{["`) degrades maintainability
+and violates the 'boring over clever' architectural philosophy. We should let
+native JSON parsers raise `JSONDecodeError` rather than implementing manual
+lookahead string checks.
+**Action:** Audit python scripts for `stdout_str[0] not in "{["` or
+`raw_input[0] not in "{["` checks and remove them, delegating entirely to
+standard `try ... except json.JSONDecodeError` blocks.

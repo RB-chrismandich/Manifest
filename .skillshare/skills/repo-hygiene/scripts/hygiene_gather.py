@@ -73,8 +73,8 @@ def gh_refs(state: str, errors: list[str]) -> dict[str, int]:
         return {}
 
     stdout_str = (r.stdout or "").strip()
-    if not stdout_str or stdout_str[0] not in "{[":
-        errors.append(f"gh pr list --state {state} returned invalid JSON: not a JSON object/array")
+    if not stdout_str:
+        errors.append(f"gh pr list --state {state} returned empty output")
         return {}
 
     try:
@@ -95,8 +95,8 @@ def gh_open_sizes(errors: list[str]) -> dict[int, dict]:
         return {}
 
     stdout_str = (r.stdout or "").strip()
-    if not stdout_str or stdout_str[0] not in "{[":
-        errors.append(f"gh pr list sizes returned invalid JSON: not a JSON object/array")
+    if not stdout_str:
+        errors.append(f"gh pr list sizes returned empty output")
         return {}
 
     try:
@@ -125,8 +125,8 @@ def glab_refs(flag: str, errors: list[str]) -> dict[str, int]:
         return {}
 
     stdout_str = (r.stdout or "").strip()
-    if not stdout_str or stdout_str[0] not in "{[":
-        errors.append(f"glab mr list {flag} returned invalid JSON: not a JSON object/array")
+    if not stdout_str:
+        errors.append(f"glab mr list {flag} returned empty output")
         return {}
 
     try:
