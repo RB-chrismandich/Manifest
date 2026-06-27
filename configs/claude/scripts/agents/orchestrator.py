@@ -19,7 +19,7 @@ try:
     from rich.console import Console
     from rich.live import Live
     from rich.panel import Panel
-    from rich.progress import Progress, SpinnerColumn, TextColumn
+    from rich.progress import Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
     from rich.table import Table
 except ImportError:
     print("Error: Missing dependencies. Install with: pip install -r requirements.txt")
@@ -142,6 +142,7 @@ class Orchestrator:
         with Progress(
             SpinnerColumn(),
             TextColumn("[progress.description]{task.description}"),
+            TimeElapsedColumn(),
             console=self.console,
             transient=True,
         ) as progress:
