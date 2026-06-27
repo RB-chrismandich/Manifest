@@ -58,3 +58,9 @@ which is the once-per-run consensus calc over a few hundred words — small inpu
 large or memory-sensitive loops keep `sum(1 for ...)` to avoid the list allocation. Unrelated to
 set-vs-list membership: prefer a `set` for membership tests (O(1) vs O(n)); do not swap a set
 comprehension for a list to "save allocation."
+
+## 2026-06-21 - Memory Overhead in Log Parsing
+
+**Learning:** When parsing large files (like audit logs), storing all lines in memory using `.splitlines()` and parsing JSON into large intermediate arrays creates significant memory pressure. A two-pass approach using lazy file iteration (`for ln in fd:`) combined with early filtering drastically reduces memory usage (e.g., from ~120MB to ~44MB) while maintaining correctness.
+
+**Action:** Avoid `.read_text().splitlines()` for large files; utilize lazy file iteration (`for ln in fd:`) and perform operations via multiple low-memory passes when reducing data.

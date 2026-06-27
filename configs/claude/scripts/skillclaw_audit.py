@@ -238,29 +238,35 @@ def trim(max_runs=MAX_RUNS):
         path = _log_path()
         if not path.exists():
             return
-        lines = path.read_text(encoding="utf-8").splitlines()
         order, seen = [], set()
-        # ⚡ Bolt: Cache parsed json values to prevent duplicate json.loads calls
-        # Reduces overhead by ~15-20% on large files
-        parsed_lines = []
-        for ln in lines:
-            try:
-                obj = json.loads(ln)
-                # A valid-JSON non-dict line (torn write leaving `123`/`null`)
-                # raised AttributeError past this handler into the outer
-                # fail-open except, permanently disabling trimming (issue #311)
-                if not isinstance(obj, dict):
+        with path.open("r", encoding="utf-8") as fd:
+            for ln in fd:
+                try:
+                    obj = json.loads(ln)
+                    # A valid-JSON non-dict line (torn write leaving `123`/`null`)
+                    # raised AttributeError past this handler into the outer
+                    # fail-open except, permanently disabling trimming (issue #311)
+                    if not isinstance(obj, dict):
+                        continue
+                    rid = obj.get("run_id")
+                except ValueError:
                     continue
-                rid = obj.get("run_id")
-            except ValueError:
-                continue
-            parsed_lines.append((ln, rid))
-            if rid not in seen:
-                seen.add(rid)
-                order.append(rid)
+                if rid not in seen:
+                    seen.add(rid)
+                    order.append(rid)
         keep = set(order[-max_runs:])
-        # ⚡ Bolt: Use cached tuples to filter O(1) instead of re-parsing
-        kept = [ln for ln, rid in parsed_lines if rid in keep]
+
+        # ⚡ Bolt: Use a second pass to avoid loading all lines into memory.
+        # This drastically reduces peak memory usage on large log files.
+        kept = []
+        with path.open("r", encoding="utf-8") as fd:
+            for ln in fd:
+                try:
+                    obj = json.loads(ln)
+                    if isinstance(obj, dict) and obj.get("run_id") in keep:
+                        kept.append(ln.rstrip("\n"))
+                except ValueError:
+                    continue
         _write_atomic(path, "\n".join(kept) + ("\n" if kept else ""))
     except Exception:  # noqa: BLE001 - fail-open
         return
