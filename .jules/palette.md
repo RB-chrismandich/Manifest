@@ -42,3 +42,10 @@ red=error/blocked) for validation verdicts to provide nuanced visual feedback.
 ## 2026-06-21 - Semantic Colors for CLI States
 **Learning:** In CLI status tables (like `check_status.sh`), using a red cross (`✗`) for intentionally disabled services communicates a false error state, increasing cognitive overload. A three-color semantic system (green=success/enabled, yellow=warning/inactive/disabled, red=error/blocked) provides nuanced visual feedback and accurately reflects intermediate, non-error states.
 **Action:** When designing or refactoring CLI outputs, explicitly reserve red (`RED`) for critical failures or blocked states, and use yellow (`YELLOW`) with an appropriate icon (like `○` or `⚠`) for optional, inactive, or intentionally disabled components.
+
+## 2026-06-22 - Semantic Errors in CLI Logs
+
+**Learning:** When errors are printed to the terminal without distinct red color formatting, they easily blend
+in with standard text, reducing the user's ability to quickly spot failures in busy output streams.
+**Action:** Consistently apply semantic red styling (`\033[0;31m`) to standard error messages in bash
+scripts to ensure they stand out visually and draw immediate attention.

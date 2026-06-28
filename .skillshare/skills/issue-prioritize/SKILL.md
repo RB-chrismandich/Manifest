@@ -452,10 +452,10 @@ try:
                     if num not in agent_data:
                         agent_data[num] = []
                     agent_data[num].append(s)
-            except json.JSONDecodeError:
-                pass
-except (FileNotFoundError, json.JSONDecodeError):
-    pass
+            except json.JSONDecodeError as e:
+                print(f"Skipping unparseable agent JSON array: {e}", file=sys.stderr)
+except (FileNotFoundError, json.JSONDecodeError) as e:
+    print(f"Skipping agent data due to read error: {e}", file=sys.stderr)
 
 # Merge: average agent scores if available, otherwise keep heuristic
 for candidate in candidates:
