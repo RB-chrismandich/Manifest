@@ -1,12 +1,12 @@
 ---
-description: "Cross-reference spec/plan/tasks artifacts for internal consistency using Antigravity/agy; surfaces structured remediation guidance. Analysis-only, never edits. Works with speckit (spec.md/plan.md/tasks.md) and superpowers layouts; auto-discovers or takes explicit paths."
+description: "Cross-reference spec/plan/tasks artifacts for internal consistency using the parallel-agent panel (gemini/cursor/codex/antigravity, excluding the author) and a synthesized deduped findings list. Analysis-only, never edits. Works with speckit (spec.md/plan.md/tasks.md) and superpowers layouts; auto-discovers or takes explicit paths."
 globs: ".claude/skills/spec-review/**"
 alwaysApply: false
 ---
 
 # spec-review
 
-Cross-reference spec/plan/tasks artifacts for internal consistency using Antigravity/agy; surfaces structured remediation guidance. Analysis-only, never edits. Works with speckit (spec.md/plan.md/tasks.md) and superpowers layouts; auto-discovers or takes explicit paths.
+Cross-reference spec/plan/tasks artifacts for internal consistency using the parallel-agent panel (gemini/cursor/codex/antigravity, excluding the author) and a synthesized deduped findings list. Analysis-only, never edits. Works with speckit (spec.md/plan.md/tasks.md) and superpowers layouts; auto-discovers or takes explicit paths.
 
 <!-- Auto-generated from .claude/skills/spec-review/SKILL.md -->
 <!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->

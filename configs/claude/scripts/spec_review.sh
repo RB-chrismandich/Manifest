@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 # spec_review.sh — cross-reference spec/plan/tasks artifacts for consistency via
-# an independent reviewer CLI (default: agy / Antigravity). Analysis-only: never
-# edits artifacts. Reviewer is the injectable SPEC_REVIEW_CLI seam. Front-end-agnostic — the
-# /spec-review skill, the save hook, and any future CLI all wrap this script.
+# the parallel-agent panel (parallel_agent.py --no-claude), synthesizing the
+# reviewers' findings into one deduped list. Analysis-only: never edits artifacts.
+# The single-CLI SPEC_REVIEW_CLI seam is reused as the synthesizer and as the
+# fallback when the panel is unavailable. Front-end-agnostic — the /spec-review
+# skill, the save hook, and any future CLI all wrap this script.
 #
 # Usage: spec_review.sh [--spec F] [--plan F] [--tasks F] [--silent] [--format tree|json] [ROOT]
 set -euo pipefail

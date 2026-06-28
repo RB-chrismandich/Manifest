@@ -45,8 +45,9 @@ and the **fallback** path. Both `review()` (on-demand) and `_silent_review_inlin
 ### Flow: `run_panel PROMPT`
 1. `assemble_prompt` (unchanged) → artifacts + template → combined prompt.
 2. Invoke the panel:
-   `$SPEC_REVIEW_PANEL_CMD --json --no-claude --no-synthesize --no-stream --timeout <T>`
-   with the prompt on stdin.
+   `$SPEC_REVIEW_PANEL_CMD --json --no-claude --no-synthesize --no-stream --timeout <T> -- "<prompt>"`
+   (the prompt is the trailing positional arg — `parallel_agent.py` reads no stdin;
+   planning artifacts are bounded so ARG_MAX is not a concern).
    - `--no-claude` → decision #2.
    - `--no-synthesize` → we synthesize ourselves (decision #3); avoids the
      consensus-gated, non-deterministic built-in synthesis and a redundant call.
