@@ -85,11 +85,45 @@ distinctly (exit 2), never as a false pass.
   default; opt in per step with `retry: {attempts: N}` for eventually-consistent
   steps only.
 
+## AI-driven UI steps (`mode: agent`)
+
+A UI step can run in two modes. The default, `mode: deterministic`, uses
+Playwright selectors (`goto`/`click`/`fill`/`expect_*`). `mode: agent` instead
+lets **browser-use** (an LLM) drive the browser from a natural-language `task`,
+judged against `judge_context` — selectorless and resilient to DOM churn (this
+subsumes the legacy `browser-test` skill).
+
+```yaml
+- name: login
+  type: ui
+  mode: agent
+  task: "Log in as the demo user and confirm the dashboard loads"
+  judge_context: ["user reaches the dashboard after login"]
+  url: /login          # optional; defaults to catalog base_url
+  max_steps: 15        # optional
+```
+
+**Safety rule:** agent steps are LLM-judged and non-deterministic, so they **may
+not be tier `Lite`** — the PR gate stays deterministic. Put them in `Full` /
+`Full+Extra`. Captures are best-effort: if browser-use can't surface a declared
+value it's omitted, so any downstream `needs` is blocked (never a silent run).
+Playwright and browser-use use **separate browser contexts** — chain across the
+two engines by value (`captures`/`needs`), not shared cookies.
+
+Migrate existing `browser-test` prompts into a catalog:
+
+```bash
+python3 -m smoke_orchestrator.migrate tests/browser --app <app>   # → smoke-catalog/<app>.yaml (tier Full)
+```
+
 ## Install (opt-in runtime deps)
 
-UI/API steps need Playwright + Chromium; CLI steps and the appender need neither.
+Deterministic UI/API steps need Playwright + Chromium; CLI steps and the appender
+need neither. `mode: agent` steps additionally need browser-use + an LLM key.
 
 ```bash
 python3 -m pip install -r tests/requirements-smoke.txt
 python3 -m playwright install chromium
+# only if using mode: agent steps:
+python3 -m pip install -r tests/requirements-smoke-agent.txt   # + export OPENAI_API_KEY
 ```
