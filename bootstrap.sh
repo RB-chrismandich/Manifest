@@ -165,6 +165,7 @@ run_reconfigure() {
         print_header "Updating Python Dependencies"
         install_python_dependencies
         install_browser_use
+        install_smoke_deps
 
         print_success "Services reconfigured"
         echo ""
@@ -255,6 +256,7 @@ main() {
     # Install Python dependencies for parallel_agent.py
     install_python_dependencies
     install_browser_use
+    install_smoke_deps
 
     # Configure default MCP servers when requested
     if [[ "$INSTALL_MCP" == true ]]; then

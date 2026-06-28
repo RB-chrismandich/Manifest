@@ -776,3 +776,54 @@ install_browser_use() {
     fi
 }
 
+# Install smoke-test orchestrator runtime deps (Playwright + Chromium), opt-in.
+# Idempotent and existence-guarded: pip-installs only if Playwright is missing,
+# and Chromium-only (UI steps); API/CLI steps need no browser. (spec 363 R1, T034)
+install_smoke_deps() {
+    if [[ "$ENABLE_SMOKE" == false ]]; then
+        print_info "smoke-test deps are disabled - skipping installation"
+        return 0
+    fi
+
+    print_step "Checking for smoke-test dependencies (Playwright + Chromium)..."
+
+    if ! check_python; then
+        print_warning "Python 3 is required to install smoke-test deps - skipping"
+        return 0
+    fi
+
+    local python_cmd="${PYTHON_CMD:-python3}"
+
+    # Locate the pinned requirements file (repo-only; not deployed to ~/.claude).
+    local req="" here
+    here="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+    local cand
+    for cand in "$here/tests/requirements-smoke.txt" "tests/requirements-smoke.txt"; do
+        [[ -f "$cand" ]] && { req="$cand"; break; }
+    done
+
+    # Existence guard: only pip-install when Playwright is absent (idempotent).
+    if $python_cmd -c "import playwright" &> /dev/null; then
+        print_success "Playwright already installed"
+    elif [[ -n "$req" ]]; then
+        print_step "Installing smoke-test Python deps (pinned)..."
+        if $python_cmd -m pip install --user --prefer-binary -r "$req"; then
+            print_success "smoke-test deps installed from $(basename "$req")"
+        else
+            print_error "Failed to install smoke-test deps from $req"
+            return 1
+        fi
+    else
+        print_warning "tests/requirements-smoke.txt not found; install smoke deps manually"
+        return 0
+    fi
+
+    # Chromium only (UI steps). 'playwright install' is itself idempotent.
+    print_step "Installing Playwright Chromium browser..."
+    if $python_cmd -m playwright install chromium; then
+        print_success "Chromium installed for smoke UI steps"
+    else
+        print_warning "Failed to run 'playwright install chromium'. Run it manually if UI smoke steps are needed."
+    fi
+}
+

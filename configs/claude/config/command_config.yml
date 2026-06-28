@@ -96,6 +96,17 @@ tool_policies:
     parallel_agents: never        # a CI-mirror gate runner, not a cross-verification fan-out
     validation_tier: 2            # verification skill; no source mutation
 
+  smoke-orchestrator:
+    allowed:
+      - Bash       # smoke_test.py append/run/list/prune; opt-in playwright install
+      - Read
+      - Write      # appends/updates committed smoke-catalog/<app>.yaml
+      - Edit
+      - Skill      # may hand a failing gate to systematic-debugging
+    forbidden: []
+    parallel_agents: never        # an authoring/gate tool, not a cross-verification fan-out
+    validation_tier: 1            # executes CLI/shell steps + handles env-injected secrets
+
   pr-issue-sync:
     allowed:
       - Bash

@@ -1,0 +1,125 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://manifest/smoke-orchestrator/catalog.schema.json",
+  "title": "Smoke Test Catalog (per application)",
+  "description": "Declarative YAML catalog of tiered, chainable E2E smoke tests for one application. One file per app: smoke-catalog/<app>.yaml.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "app", "tests"],
+  "properties": {
+    "version": { "type": "integer", "const": 1 },
+    "app": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
+    "base_url": { "type": "string" },
+    "tests": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/test" }
+    }
+  },
+  "$defs": {
+    "tier": { "enum": ["Lite", "Full", "Full+Extra"] },
+    "test": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "tier", "steps"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
+        "title": { "type": "string" },
+        "tier": { "$ref": "#/$defs/tier" },
+        "tags": { "type": "array", "items": { "type": "string" } },
+        "steps": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/step" }
+        }
+      }
+    },
+    "step": {
+      "type": "object",
+      "required": ["name", "type"],
+      "properties": {
+        "name": { "type": "string" },
+        "type": { "enum": ["ui", "api", "cli"] },
+        "captures": {
+          "type": "object",
+          "description": "name -> extractor (JSONPath for api, selector/attr for ui, regex group for cli)",
+          "additionalProperties": { "type": "string" }
+        },
+        "needs": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Capture names this step requires; missing => step blocked (never run with missing state)."
+        },
+        "timeout_ms": { "type": "integer", "minimum": 1 },
+        "retry": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": { "attempts": { "type": "integer", "minimum": 1 } },
+          "required": ["attempts"],
+          "description": "Opt-in only. Absent => no retry (deterministic gate)."
+        },
+        "sensitive": { "type": "boolean" },
+        "mode": {
+          "enum": ["deterministic", "agent"],
+          "description": "UI execution mode. 'deterministic' (default) = Playwright selectors; 'agent' = browser-use (LLM drives the browser, judged by judge_context)."
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "type": { "const": "ui" }, "mode": { "not": { "const": "agent" } } }
+          },
+          "then": {
+            "required": ["action"],
+            "properties": {
+              "action": { "enum": ["goto", "click", "fill", "expect_text", "expect_visible"] },
+              "selector": { "type": "string" },
+              "value": { "type": "string" }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": ["mode"],
+            "properties": { "type": { "const": "ui" }, "mode": { "const": "agent" } }
+          },
+          "then": {
+            "required": ["task", "judge_context"],
+            "properties": {
+              "task": { "type": "string", "minLength": 1 },
+              "judge_context": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+              "url": { "type": "string", "description": "Starting URL/path (base_url-relative); defaults to catalog base_url." },
+              "max_steps": { "type": "integer", "minimum": 1, "description": "Max agent steps (default 15)." }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "type": { "const": "api" } } },
+          "then": {
+            "required": ["method", "path"],
+            "properties": {
+              "method": { "enum": ["GET", "POST", "PUT", "PATCH", "DELETE"] },
+              "path": { "type": "string" },
+              "body": {},
+              "expect_status": { "type": "integer" }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "type": { "const": "cli" } } },
+          "then": {
+            "required": ["command"],
+            "properties": {
+              "command": {
+                "type": "array",
+                "minItems": 1,
+                "items": { "type": "string" },
+                "description": "Argument array ONLY (never a shell string). State is substituted into individual elements."
+              },
+              "expect_exit": { "type": "integer" }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

@@ -88,14 +88,19 @@ assert_budget() {
     # skill (spec 362): its description IS the always-loaded triggering text with
     # no read-on-demand alternative. Already trimmed to ~225 chars (well under the
     # ~290 norm) before this bump; the residual still cleared 21000 by only ~2.
+    # Raised 21500 -> 22000 (2026-06-23) for the genuinely-new `smoke-orchestrator`
+    # skill (spec 363): the only smoke-test/E2E-coverage entry point, no prior
+    # coverage to fold into. Frontmatter is 283 chars (under the ~290 norm); the
+    # description is the always-loaded trigger text with no read-on-demand
+    # alternative. Headroom after this is ~273 — the next addition needs a trim pass.
     total=0
     for f in "$REPO_ROOT"/.skillshare/skills/*/SKILL.md; do
         # frontmatter = up to the second '---' line
         chars=$(awk '/^---$/{c++; next} c==1' "$f" | wc -c)
         total=$((total + chars))
     done
-    if [ "$total" -gt 21500 ]; then
-        echo "Skill frontmatter totals $total chars (budget: 21500)." >&2
+    if [ "$total" -gt 22000 ]; then
+        echo "Skill frontmatter totals $total chars (budget: 22000)." >&2
         echo "Trim verbose descriptions; bodies are pay-per-use, frontmatter is not." >&2
         return 1
     fi
