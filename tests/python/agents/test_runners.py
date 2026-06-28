@@ -151,6 +151,17 @@ class TestCLIAgentCommandAssembly:
         i = cmd.index("--model")
         assert cmd[i + 1] == "gpt-5.1-codex"
 
+    def test_cursor_headless_invocation(self, tmp_path):
+        # Regression guard: cursor-agent must run headless (--print) and
+        # read-only (--mode ask), or it launches interactively and hangs.
+        agent = CLIAgent("cursor", model="flash",
+                         rate_limiter=_make_limiter(), config=_make_config(tmp_path))
+        cmd = agent._build_command("hello")
+        assert cmd[0] == "cursor-agent"
+        assert "--print" in cmd
+        assert cmd[cmd.index("--mode") + 1] == "ask"
+        assert cmd[-1] == "hello"
+
     def test_output_file_placeholder_dropped_when_no_file(self, tmp_path):
         # A stdout-strategy provider with a stray {output_file} placeholder
         # must not inject an empty argv element.
@@ -279,10 +290,10 @@ class TestCLIAgentExecution:
         """Issue #308: usage text on stdout + exit 1 must not count as an answer."""
         agent = CLIAgent("cursor", model="flash",
                          rate_limiter=_make_limiter(), config=_make_config(tmp_path))
-        result = agent._collect_output(1, b"Usage: cursor [options]", b"bad flag", None)
+        result = agent._collect_output(1, b"Usage: cursor-agent [options]", b"bad flag", None)
         assert result["status"] == "failed"
         assert "bad flag" in result["error"]
-        assert "Usage: cursor" in result["error"]  # preserved for debugging
+        assert "Usage: cursor-agent" in result["error"]  # preserved for debugging
         assert result["output"] == ""
 
     def test_real_subprocess_roundtrip(self, tmp_path):

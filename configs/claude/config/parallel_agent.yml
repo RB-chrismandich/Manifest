@@ -122,10 +122,14 @@ cli_agents:
     model_args: ["-m", "{model}"]
     prompt_args: ["-p", "{prompt}"]
     output: stdout
+  # cursor-agent runs headless via --print; --mode ask keeps it read-only
+  # (review/analysis only — never edits files or runs shell, and can't hang on
+  # tool-approval prompts). Install: curl https://cursor.com/install -fsS | bash
   cursor:
-    binary: cursor
-    base_args: []
+    binary: cursor-agent
+    base_args: ["--print", "--output-format", "text", "--mode", "ask"]
     model_args: ["--model", "{model}"]
+    prompt_args: ["{prompt}"]
     output: stdout
   codex:
     binary: codex

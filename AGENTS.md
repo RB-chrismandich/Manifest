@@ -166,7 +166,7 @@ Required CLI tools (install those you want to use):
 
 - `claude` - `npm install -g @anthropic-ai/claude-code`
 - `gemini` - `npm install -g @google/gemini-cli`
-- `cursor` - Download from <https://cursor.sh>
+- `cursor-agent` - `curl https://cursor.com/install -fsS | bash`
 - `codex` - `npm install -g @openai/codex`
 
 ## Key Files

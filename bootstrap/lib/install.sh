@@ -697,57 +697,44 @@ check_jq() {
     fi
 }
 
-# Install Cursor (if needed for cursor agent)
+# Install the cursor-agent CLI (headless Cursor agent used by parallel_agent.py)
 check_cursor() {
     if [[ "$ENABLE_CURSOR" == false ]]; then
         print_info "Cursor is disabled - skipping installation"
         return 0
     fi
 
-    print_step "Checking for Cursor IDE..."
+    print_step "Checking for cursor-agent CLI..."
 
-    local cursor_found=false
-
-    # Check for Cursor on macOS
-    if [[ "$PLATFORM" == "macos" ]]; then
-        if [[ -d "/Applications/Cursor.app" ]] || command_exists cursor; then
-            cursor_found=true
-        fi
-    # Check for Cursor on Linux
-    elif [[ "$PLATFORM" == "linux" ]]; then
-        if command_exists cursor; then
-            cursor_found=true
-        elif [[ -d "$HOME/.local/share/cursor" ]] || [[ -d "/opt/cursor" ]]; then
-            cursor_found=true
-        elif [[ -f "$HOME/.local/bin/cursor" ]]; then
-            cursor_found=true
-        fi
+    if command_exists cursor-agent || [[ -f "$HOME/.local/bin/cursor-agent" ]]; then
+        print_success "cursor-agent is installed"
+        return 0
     fi
 
-    if [[ "$cursor_found" == true ]]; then
-        print_success "Cursor is installed"
-    else
-        print_warning "Cursor IDE not found"
-        echo ""
-        echo -e "${BOLD}Cursor IDE Installation:${NC}"
-        echo "  Download from: https://cursor.sh"
+    print_warning "cursor-agent CLI not found"
+    echo ""
+    echo -e "${BOLD}cursor-agent Installation:${NC}"
+    echo "  curl https://cursor.com/install -fsS | bash"
+    echo ""
 
-        if [[ "$PLATFORM" == "linux" ]]; then
-            echo ""
-            echo "  Linux: Download the AppImage or .deb package"
-            echo "  After download, make it executable and add to PATH"
-        fi
-        echo ""
-
-        if prompt_yes_no "Open Cursor download page in browser?"; then
-            open_url "https://cursor.sh"
-            echo ""
-            print_info "After installing Cursor, run this script again to continue setup"
+    if prompt_yes_no "Install cursor-agent now?"; then
+        if curl https://cursor.com/install -fsS | bash; then
+            if command_exists cursor-agent || [[ -f "$HOME/.local/bin/cursor-agent" ]]; then
+                print_success "cursor-agent installed"
+                print_info "Authenticate with: cursor-agent login  (or set CURSOR_API_KEY)"
+            else
+                print_warning "cursor-agent installed but not yet on PATH (restart your shell)"
+            fi
         else
-            print_warning "Cursor not installed"
+            print_warning "cursor-agent installation failed"
             if prompt_yes_no "Disable Cursor in service configuration?"; then
                 ENABLE_CURSOR=false
             fi
+        fi
+    else
+        print_warning "cursor-agent not installed"
+        if prompt_yes_no "Disable Cursor in service configuration?"; then
+            ENABLE_CURSOR=false
         fi
     fi
 }

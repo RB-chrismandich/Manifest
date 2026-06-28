@@ -375,11 +375,11 @@ services:
       - flash    # Fast (default)
       - pro      # Advanced
 
-  # Cursor Agent - IDE-integrated AI
-  # Install: Download from https://cursor.sh
+  # Cursor Agent - headless CLI for code analysis
+  # Install: curl https://cursor.com/install -fsS | bash
   cursor:
     enabled: $ENABLE_CURSOR
-    command: cursor
+    command: cursor-agent
     description: "IDE-integrated context, code-specific analysis"
     model_tiers:
       - mini     # Lightweight

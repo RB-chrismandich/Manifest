@@ -195,16 +195,16 @@ else
 fi
 
 cursor_installed=false
-if command -v cursor &> /dev/null; then
-    echo -e "  ${GREEN}✓${NC} Cursor CLI available"
+if command -v cursor-agent &> /dev/null; then
+    echo -e "  ${GREEN}✓${NC} cursor-agent CLI available"
     cursor_installed=true
     if [[ "$VERBOSE" == true ]]; then
-        echo -e "    Location: $(which cursor)"
+        echo -e "    Location: $(which cursor-agent)"
     fi
 else
-    echo -e "  ${YELLOW}○${NC} Cursor not available (optional)"
+    echo -e "  ${YELLOW}○${NC} cursor-agent not available (optional)"
     if [[ "$VERBOSE" == true ]]; then
-        echo -e "    ${BLUE}→${NC} Download: https://cursor.sh"
+        echo -e "    ${BLUE}→${NC} Install: curl https://cursor.com/install -fsS | bash"
     fi
 fi
 

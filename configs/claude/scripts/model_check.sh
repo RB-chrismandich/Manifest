@@ -146,9 +146,10 @@ main() {
     check_api_provider claude
     check_api_provider gemini
     check_cli_provider antigravity agy agy models
-    # Cursor and Codex CLIs expose no model-listing command (verified at
-    # implementation; revisit when they grow one).
-    echo "UNSUPPORTED: cursor (no listing command)"
+    # cursor-agent --list-models needs auth; check_cli_provider degrades to
+    # SKIPPED when unauthenticated, OK/STALE per tier when logged in.
+    check_cli_provider cursor cursor-agent cursor-agent --list-models
+    # Codex CLI exposes no model-listing command (revisit when it grows one).
     echo "UNSUPPORTED: codex (no listing command)"
     exit 0
 }

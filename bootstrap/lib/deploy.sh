@@ -499,22 +499,11 @@ verify_installation() {
 
     if [[ "$ENABLE_CURSOR" == true ]]; then
         enabled_count=$((enabled_count + 1))
-        local cursor_found=false
-        if [[ "$PLATFORM" == "macos" ]]; then
-            if [[ -d "/Applications/Cursor.app" ]] || command_exists cursor; then
-                cursor_found=true
-            fi
-        else
-            if command_exists cursor; then
-                cursor_found=true
-            fi
-        fi
-
-        if [[ "$cursor_found" == true ]]; then
-            print_success "cursor is available (enabled)"
+        if command_exists cursor-agent || [[ -f "$HOME/.local/bin/cursor-agent" ]]; then
+            print_success "cursor-agent is available (enabled)"
             available_tools=$((available_tools + 1))
         else
-            print_warning "cursor is not available (enabled but not installed)"
+            print_warning "cursor-agent is not available (enabled but not installed)"
         fi
     else
         print_info "cursor is disabled"
@@ -623,21 +612,10 @@ print_summary() {
     fi
 
     if [[ "$ENABLE_CURSOR" == true ]]; then
-        local cursor_found=false
-        if [[ "$PLATFORM" == "macos" ]]; then
-            if [[ -d "/Applications/Cursor.app" ]] || command_exists cursor; then
-                cursor_found=true
-            fi
+        if command_exists cursor-agent || [[ -f "$HOME/.local/bin/cursor-agent" ]]; then
+            echo -e "  ${GREEN}✓${NC} cursor-agent (enabled, installed)"
         else
-            if command_exists cursor; then
-                cursor_found=true
-            fi
-        fi
-
-        if [[ "$cursor_found" == true ]]; then
-            echo -e "  ${GREEN}✓${NC} cursor (enabled, installed)"
-        else
-            echo -e "  ${YELLOW}○${NC} cursor (enabled, not installed)"
+            echo -e "  ${YELLOW}○${NC} cursor-agent (enabled, not installed)"
         fi
     else
         echo -e "  ${RED}✗${NC} cursor (disabled)"
@@ -696,7 +674,7 @@ print_summary() {
         echo -e "    GitLab:  ${CYAN}glab auth login${NC}"
     fi
     if [[ "$ENABLE_CURSOR" == true ]]; then
-        echo "    Cursor:  Sign in within the Cursor IDE"
+        echo -e "    Cursor:  ${CYAN}cursor-agent login${NC} (or set CURSOR_API_KEY)"
     fi
     if [[ "$INSTALL_MCP" == true ]]; then
         echo "    MCP OAuth:"

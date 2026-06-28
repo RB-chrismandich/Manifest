@@ -292,7 +292,7 @@ Use agents for their strengths:
 
 The script implements:
 
-- **Agent validation**: Checks if `cursor`, `gemini`, and `claude` commands exist
+- **Agent validation**: Checks if `cursor-agent`, `gemini`, and `claude` commands exist
 - **Retry logic**: Retries once after 5s delay on failure
 - **Partial results**: Continues with available agent outputs if some fail
 - **Credit fallback**: Automatically retries with cheaper models on quota errors
