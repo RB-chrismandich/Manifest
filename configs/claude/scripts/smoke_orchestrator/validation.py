@@ -17,6 +17,7 @@ _SLUG = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 _STEP_TYPES = ("ui", "api", "cli")
 _HTTP_METHODS = ("GET", "POST", "PUT", "PATCH", "DELETE")
 _UI_ACTIONS = ("goto", "click", "fill", "expect_text", "expect_visible")
+_UI_MODES = ("deterministic", "agent")
 
 
 class ValidationError(ValueError):
@@ -47,7 +48,16 @@ def _check_step(step: Any, idx: int, errors: list[str], seen_names: set[str]) ->
         return
 
     if stype == "ui":
-        if step.get("action") not in _UI_ACTIONS:
+        mode = step.get("mode", "deterministic")
+        if mode not in _UI_MODES:
+            errors.append(f"{where}: ui 'mode' must be one of {_UI_MODES}, got {mode!r}")
+        elif mode == "agent":  # LLM-driven (browser-use): task + judge_context, no 'action'
+            if not step.get("task") or not isinstance(step.get("task"), str):
+                errors.append(f"{where}: agent ui step requires a non-empty 'task'")
+            jc = step.get("judge_context")
+            if not isinstance(jc, list) or not jc or not all(isinstance(c, str) for c in jc):
+                errors.append(f"{where}: agent ui step requires a non-empty 'judge_context' list")
+        elif step.get("action") not in _UI_ACTIONS:  # deterministic (Playwright selectors)
             errors.append(f"{where}: ui 'action' must be one of {_UI_ACTIONS}")
     elif stype == "api":
         if step.get("method") not in _HTTP_METHODS:
@@ -87,6 +97,13 @@ def _check_test(test: Any, errors: list[str], seen_ids: set[str]) -> None:
     seen_names: set[str] = set()
     for i, step in enumerate(steps):
         _check_step(step, i, errors, seen_names)
+    if test.get("tier") == "Lite":  # safety rule: the deterministic gate excludes LLM steps
+        for step in steps:
+            if isinstance(step, dict) and step.get("type") == "ui" and step.get("mode") == "agent":
+                errors.append(
+                    f"test {tid!r}: agent (mode: agent) step {step.get('name')!r} may not run at "
+                    f"tier 'Lite' — the Lite gate must stay deterministic"
+                )
 
 
 def validate_workflow(workflow: Any) -> None:

@@ -1,0 +1,7 @@
+# Opt-in deps for smoke `mode: agent` (browser-use) UI steps — installed ONLY when
+# AI-driven E2E steps are used, on top of tests/requirements-smoke.txt. Kept
+# separate so the deterministic smoke core (Playwright) stays lean (design:
+# docs/superpowers/specs/2026-06-28-smoke-subsumes-browser-test-design.md).
+#
+# Requires an LLM credential at run time (OPENAI_API_KEY; model via SMOKE_AGENT_MODEL).
+browser-use>=0.13.0

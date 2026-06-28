@@ -30,10 +30,11 @@ class SmokeTestExecutor:
     """Run one app's catalog filtered by tier, chaining state between steps."""
 
     def __init__(self, catalog_dir: str = "smoke-catalog", persist_state: bool = False,
-                 default_timeout_ms: int = DEFAULT_TIMEOUT_MS) -> None:
+                 default_timeout_ms: int = DEFAULT_TIMEOUT_MS, agent_runner=None) -> None:
         self.catalog_dir = catalog_dir
         self.persist_state = persist_state
         self.default_timeout_ms = default_timeout_ms
+        self._agent_runner = agent_runner  # injectable browser-use seam (mode: agent)
 
     def run(self, app: str, tier: str = "Lite", base_url: str | None = None,
             redactor: Redactor | None = None) -> RunReport:
@@ -52,7 +53,9 @@ class SmokeTestExecutor:
         report = RunReport(app=app, tier=tier)
 
         if tests:  # empty selection ⇒ no Playwright, distinct EMPTY verdict (FR-008)
-            need_browser = any(s.get("type") == "ui" for t in tests for s in t["steps"])
+            need_browser = any(  # agent (browser-use) steps drive their own browser, not Playwright
+                s.get("type") == "ui" and s.get("mode", "deterministic") != "agent"
+                for t in tests for s in t["steps"])
             need_api = any(s.get("type") == "api" for t in tests for s in t["steps"])
             ctx = _RunContext(effective_base)
             try:
@@ -124,6 +127,11 @@ class SmokeTestExecutor:
                 return api_runner.run(resolved, api_ctx=ctx.api_ctx,
                                       base_url=base_url, timeout_ms=timeout_ms)
             if stype == "ui":
+                if step.get("mode") == "agent":  # LLM-driven (browser-use), own browser
+                    from .steps import agent as agent_runner
+                    runner = self._agent_runner or agent_runner.default_agent_runner
+                    return agent_runner.run(resolved, runner=runner,
+                                            base_url=base_url, timeout_ms=timeout_ms)
                 from .steps import ui as ui_runner
                 return ui_runner.run(resolved, page=ctx.page,
                                      base_url=base_url, timeout_ms=timeout_ms)

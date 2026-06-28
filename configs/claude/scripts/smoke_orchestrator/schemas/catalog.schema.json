@@ -57,17 +57,38 @@
           "required": ["attempts"],
           "description": "Opt-in only. Absent => no retry (deterministic gate)."
         },
-        "sensitive": { "type": "boolean" }
+        "sensitive": { "type": "boolean" },
+        "mode": {
+          "enum": ["deterministic", "agent"],
+          "description": "UI execution mode. 'deterministic' (default) = Playwright selectors; 'agent' = browser-use (LLM drives the browser, judged by judge_context)."
+        }
       },
       "allOf": [
         {
-          "if": { "properties": { "type": { "const": "ui" } } },
+          "if": {
+            "properties": { "type": { "const": "ui" }, "mode": { "not": { "const": "agent" } } }
+          },
           "then": {
             "required": ["action"],
             "properties": {
               "action": { "enum": ["goto", "click", "fill", "expect_text", "expect_visible"] },
               "selector": { "type": "string" },
               "value": { "type": "string" }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": ["mode"],
+            "properties": { "type": { "const": "ui" }, "mode": { "const": "agent" } }
+          },
+          "then": {
+            "required": ["task", "judge_context"],
+            "properties": {
+              "task": { "type": "string", "minLength": 1 },
+              "judge_context": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+              "url": { "type": "string", "description": "Starting URL/path (base_url-relative); defaults to catalog base_url." },
+              "max_steps": { "type": "integer", "minimum": 1, "description": "Max agent steps (default 15)." }
             }
           }
         },
