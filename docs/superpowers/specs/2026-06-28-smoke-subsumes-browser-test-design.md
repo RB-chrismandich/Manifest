@@ -1,7 +1,10 @@
 # Smoke Orchestrator Subsumes `browser-test` — Design
 
 **Date**: 2026-06-28
-**Status**: Draft (pending approval)
+**Status**: Draft (pending approval) — revised after parallel-agent review
+(claude + antigravity, consensus 9/10): fixed the migration-shim/safety-rule
+contradiction, defined the agent `captures`→`needs` policy, added the agent
+starting-`url` field, and documented cross-engine browser-state limits.
 **Topic**: Fold the `browser-test` skill (browser-use, AI-driven UI E2E) into the
 smoke-test orchestrator (specs/363) as one more step mode, unifying on a single
 catalog, runner, and report — instead of maintaining two parallel E2E systems.
@@ -73,9 +76,21 @@ free. Existing deterministic UI steps are untouched.
 ```
 
 Schema change: the `type: ui` branch gains an optional `mode` enum
-(`deterministic` default, `agent`). When `mode: agent`, `task` is required,
-`judge_context` is required (non-empty), `max_steps` is optional (default 15); the
-deterministic `action`/`selector`/`value` fields are not used.
+(`deterministic` default, `agent`). When `mode: agent`:
+
+- `task` is required; `judge_context` is required (non-empty); `max_steps` is
+  optional (default 15).
+- **Starting URL**: an optional `url` field (absolute or `base_url`-relative path)
+  sets where the agent begins; absent → catalog `base_url`. (Mirrors
+  browser-test's `url`.) The deterministic `action`/`selector`/`value` fields are
+  not used.
+- **`captures` policy** (resolves the `needs` ambiguity): an agent step MAY
+  declare `captures`, but capture is **best-effort**. If browser-use cannot
+  surface a declared value at runtime, that name is treated as **unset state** —
+  identical to the existing `needs` contract: any downstream step that `needs` it
+  is **blocked with an explicit "capture unavailable: `<name>`" error**, never run
+  with missing state, and never silently dropped. Validation also rejects a
+  `needs` that references a capture name no upstream step declares.
 
 ### Flow
 
@@ -129,9 +144,13 @@ The smoke runner replaces `browser_test.sh`.
 
 A ~40-line translator: read `tests/browser/*.yaml` → emit
 `smoke-catalog/<app>.yaml` entries with `type: ui, mode: agent`
-(`task`→`task`, `judge_context`→`judge_context`, `tags:[smoke]`→`tier: Lite`,
-others → `tier: Full`). The two existing templates (`auth-flow.yaml`,
-`smoke-test.yaml`) become catalog examples.
+(`task`→`task`, `judge_context`→`judge_context`, `url`→`url`). **Every migrated
+entry lands at `tier: Full`** — never `Lite`, because all migrated steps are
+`mode: agent` and the safety rule below forbids agent steps at `Lite`. The
+original browser-test `tags` are preserved on the step (for filtering), but they
+do not set the tier; `Lite` is reserved for hand-authored deterministic tests.
+The two existing templates (`auth-flow.yaml`, `smoke-test.yaml`) become catalog
+examples.
 
 ## Safety rule (the one that keeps the gate honest)
 
@@ -146,6 +165,21 @@ graded by a fallible LLM judge. The smoke spec deliberately chose determinism
 Enforced at validation time: a `mode: agent` step in a `Lite`-tagged test is a
 catalog validation error. Keep the two graders as distinct modes — never merge
 "exact assert" and "LLM judge" into one fuzzy path.
+
+## Cross-engine browser state (deterministic ↔ agent in one test)
+
+Playwright (`mode: deterministic`) and browser-use (`mode: agent`) drive
+**separate browser contexts**; cookies / `localStorage` / session do **not**
+automatically carry across a deterministic→agent (or reverse) transition within a
+single test. v1 does **not** attempt a shared live browser context — sharing
+session cookies between two engines is brittle and out of scope.
+
+The supported way to chain across engines is the existing explicit mechanism:
+pass durable values (auth token, record id, URL) via `captures` → `needs`, with
+the consuming step re-establishing context from them (e.g. an `api` login that
+captures a token, or an agent `task` that re-authenticates). Mixing the two UI
+engines *inside one test purely for shared cookie state* is a documented
+limitation, not a feature; author such flows single-engine or chain by value.
 
 ## Dependency reconciliation (loose end to settle first)
 
@@ -163,8 +197,12 @@ LLM client dependency. Decision needed before coding:
 - `steps/agent.py`: unit tests with a **stubbed** browser-use runner (no live
   browser/LLM in CI) — pass path, judge-fail path, missing-dep skip, exception
   containment.
-- Schema: accept `mode: agent` with required fields; reject `mode: agent` missing
-  `task`/`judge_context`; reject `mode: agent` at tier `Lite`.
+- Schema: accept `mode: agent` with required fields (incl. optional `url`); reject
+  `mode: agent` missing `task`/`judge_context`; reject `mode: agent` at tier
+  `Lite`; reject a `needs` referencing a capture name no upstream step declares.
+- Captures/needs: an agent step whose declared `capture` is unavailable at runtime
+  blocks the downstream `needs` step with an explicit "capture unavailable" error
+  (never a silent drop, never run with missing state).
 - Executor: routes `mode: agent` to the agent runner; `sensitive` redaction still
   applies to agent-step output.
 - Migration shim: golden-file test translating the two existing
