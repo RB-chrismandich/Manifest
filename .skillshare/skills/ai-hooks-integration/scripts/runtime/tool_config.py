@@ -99,7 +99,16 @@ def is_nested(tool: str) -> bool:
 def load_json(path: Path) -> dict:
     """Load JSON file, returning empty dict if not exists."""
     if path.exists():
-        return json.loads(path.read_text())
+        raw = path.read_text()
+        if not isinstance(raw, str):
+            return {}
+        first_char = next((c for c in raw if not c.isspace()), "")
+        if first_char in "{[":
+            try:
+                return json.loads(raw)
+            except json.JSONDecodeError as e:
+                import sys
+                print(f"Warning: Failed to parse JSON from {path}: {e}", file=sys.stderr)
     return {}
 
 

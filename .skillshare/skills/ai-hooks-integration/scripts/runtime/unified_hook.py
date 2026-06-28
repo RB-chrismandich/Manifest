@@ -199,13 +199,15 @@ def run_handler(handler_path: str, event: dict) -> dict:
             debug_log(f"Handler error: {result.stderr}")
             return allow_response(event_type)
 
-        if result.stdout.strip():
-            stdout_str = result.stdout.strip()
-            if stdout_str and stdout_str[0] in "{[":
-                return json.loads(stdout_str)
-            else:
-                print("Handler invalid JSON: not a JSON object/array", file=sys.stderr)
-                return allow_response(event_type)
+        raw_out = result.stdout
+        if isinstance(raw_out, str):
+            first_char = next((c for c in raw_out if not c.isspace()), "")
+            if first_char:
+                if first_char in "{[":
+                    return json.loads(raw_out)
+                else:
+                    print("Handler invalid JSON: not a JSON object/array", file=sys.stderr)
+                    return allow_response(event_type)
 
         return allow_response(event_type)
 
@@ -257,10 +259,16 @@ def main() -> None:
     args = ap.parse_args()
 
     # Read payload from stdin
-    raw_input = sys.stdin.read().strip()
+    raw_input = sys.stdin.read()
     payload = {}
-    if raw_input:
-        if raw_input[0] not in "{[":
+    if not isinstance(raw_input, str):
+        print("Invalid input: not a string", file=sys.stderr)
+        print(json.dumps(allow_response(args.event_type)))
+        return
+
+    first_char = next((c for c in raw_input if not c.isspace()), "")
+    if first_char:
+        if first_char not in "{[":
             print("Invalid input JSON: not a JSON object/array", file=sys.stderr)
             print(json.dumps(allow_response(args.event_type)))
             return
