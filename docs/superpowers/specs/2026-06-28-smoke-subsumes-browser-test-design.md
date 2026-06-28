@@ -1,10 +1,13 @@
 # Smoke Orchestrator Subsumes `browser-test` — Design
 
 **Date**: 2026-06-28
-**Status**: Draft (pending approval) — revised after parallel-agent review
-(claude + antigravity, consensus 9/10): fixed the migration-shim/safety-rule
+**Status**: **Implemented** (PR #431, merged). Revised after parallel-agent
+review (claude + antigravity, consensus 9/10): fixed the migration-shim/safety-rule
 contradiction, defined the agent `captures`→`needs` policy, added the agent
-starting-`url` field, and documented cross-engine browser-state limits.
+starting-`url` field, and documented cross-engine browser-state limits. One
+implementation correction folded back in: the static `needs`-vs-capture check was
+dropped (conflicts with persisted cross-run chaining) in favour of the runtime
+`needs` block — see the captures policy.
 **Topic**: Fold the `browser-test` skill (browser-use, AI-driven UI E2E) into the
 smoke-test orchestrator (specs/363) as one more step mode, unifying on a single
 catalog, runner, and report — instead of maintaining two parallel E2E systems.
@@ -88,9 +91,13 @@ Schema change: the `type: ui` branch gains an optional `mode` enum
   declare `captures`, but capture is **best-effort**. If browser-use cannot
   surface a declared value at runtime, that name is treated as **unset state** —
   identical to the existing `needs` contract: any downstream step that `needs` it
-  is **blocked with an explicit "capture unavailable: `<name>`" error**, never run
-  with missing state, and never silently dropped. Validation also rejects a
-  `needs` that references a capture name no upstream step declares.
+  is **blocked**, never run with missing state, and never silently dropped.
+  - **Correction (as implemented, #431):** an earlier draft proposed a *static*
+    validation rule rejecting a `needs` that references a capture no in-catalog
+    step declares. That was **not** adopted — it breaks legitimate **persisted
+    cross-run chaining** (`test_chaining_state`), where a `needs` is satisfied by
+    a value persisted from a *prior run* with no declaring step in the current
+    catalog. The **runtime** `needs` block is the safeguard instead.
 
 ### Flow
 
@@ -198,11 +205,11 @@ LLM client dependency. Decision needed before coding:
   browser/LLM in CI) — pass path, judge-fail path, missing-dep skip, exception
   containment.
 - Schema: accept `mode: agent` with required fields (incl. optional `url`); reject
-  `mode: agent` missing `task`/`judge_context`; reject `mode: agent` at tier
-  `Lite`; reject a `needs` referencing a capture name no upstream step declares.
+  `mode: agent` missing `task`/`judge_context`; reject `mode: agent` at tier `Lite`.
 - Captures/needs: an agent step whose declared `capture` is unavailable at runtime
-  blocks the downstream `needs` step with an explicit "capture unavailable" error
-  (never a silent drop, never run with missing state).
+  leaves that name unset, so the downstream `needs` step is **blocked** at runtime
+  (never a silent drop, never run with missing state). No static cross-step
+  capture check — see the captures-policy correction above (persisted-state safe).
 - Executor: routes `mode: agent` to the agent runner; `sensitive` redaction still
   applies to agent-step output.
 - Migration shim: golden-file test translating the two existing
