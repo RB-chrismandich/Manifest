@@ -68,3 +68,6 @@ library functions guaranteed to return strings.
 **Action:** Avoid replacing explicit exception handling blocks with clever heuristics
 unless in a proven hot-loop where the exception overhead causes a measurable bottleneck.
 Prioritize native, readable error routing over micro-optimizations.
+## 2024-06-28 - Performance Optimization (Python Try/Except & Parsing)
+**Learning:** Checking the first character of a string and using `isinstance` for heuristic fast-paths before `json.loads` is brittle, unnecessary for strings, and violates the "boring over clever" architectural philosophy.
+**Action:** Remove `isinstance` and `first_char` fast-paths when parsing JSON payloads in `ai-hooks-integration` skills. Use standard `try/except json.JSONDecodeError` for robust parsing instead.

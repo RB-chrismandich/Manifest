@@ -200,16 +200,17 @@ def run_handler(handler_path: str, event: dict) -> dict:
             return allow_response(event_type)
 
         raw_out = result.stdout
-        if isinstance(raw_out, str):
-            first_char = next((c for c in raw_out if not c.isspace()), "")
-            if first_char:
-                if first_char in "{[":
-                    return json.loads(raw_out)
-                else:
-                    print("Handler invalid JSON: not a JSON object/array", file=sys.stderr)
-                    return allow_response(event_type)
-
-        return allow_response(event_type)
+        if not raw_out.strip():
+            return allow_response(event_type)
+        try:
+            parsed = json.loads(raw_out)
+            if not isinstance(parsed, (dict, list)):
+                print("Handler invalid JSON: not a JSON object/array", file=sys.stderr)
+                return allow_response(event_type)
+            return parsed
+        except json.JSONDecodeError as e:
+            print(f"Handler invalid JSON: {e}", file=sys.stderr)
+            return allow_response(event_type)
 
     except subprocess.TimeoutExpired:
         debug_log("Handler timeout")
@@ -266,14 +267,13 @@ def main() -> None:
         print(json.dumps(allow_response(args.event_type)))
         return
 
-    first_char = next((c for c in raw_input if not c.isspace()), "")
-    if first_char:
-        if first_char not in "{[":
-            print("Invalid input JSON: not a JSON object/array", file=sys.stderr)
-            print(json.dumps(allow_response(args.event_type)))
-            return
+    if raw_input.strip():
         try:
             payload = json.loads(raw_input)
+            if not isinstance(payload, (dict, list)):
+                print("Invalid input JSON: not a JSON object/array", file=sys.stderr)
+                print(json.dumps(allow_response(args.event_type)))
+                return
         except json.JSONDecodeError as e:
             print(f"Invalid input JSON: {e}", file=sys.stderr)
             print(json.dumps(allow_response(args.event_type)))
