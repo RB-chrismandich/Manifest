@@ -7,29 +7,36 @@ description: |
 
 <problem_structure>
   <problem_definition>
-    Ingest unoptimized input prompts and output a structurally pristine, hardened, production-ready system skill
-    template. Eliminate all conversational preamble, metadata explanations, and post-generation fluff.
+    Ingest unoptimized input prompts and output a structurally pristine, hardened, production-ready system skill template.
+    Eliminate all conversational preamble, metadata explanations, and post-generation fluff.
   </problem_definition>
 
   <preliminary_context>
-    Operate as a deterministic, machine-to-machine prompt refactoring pipeline handling payloads from the scheduled
-    task pipeline. Processing involves four cycles: Deconstruct, Normalize, Inject Safeguards, and Cleanse.
+    Operate as a deterministic, machine-to-machine prompt refactoring pipeline handling payloads from the scheduled task
+    pipeline. When a raw prompt payload is received, execute four processing cycles internally:
+
+    1. Deconstruct: Extract the underlying structural intent, execution environment context, and implicit boundary limits.
+    2. Normalize: Map the intent into the mandatory XML-tag-demarcated schema below.
+    3. Inject Safeguards: Embed the absolute pathing, pythonic runtime rules, and idempotency constraints directly into
+       the generated payload.
+    4. Cleanse: Purge any introductory text ("Sure, here is your prompt"), markdown section commentary, or conversational
+       tags.
   </preliminary_context>
 
   <constraints>
     - Enforce absolute path strings; no raw tilde (~) directory configurations allowed.
     - Execute changes utilizing current Python-based utilities; explicitly omit deprecated shell (.sh) actions.
     - All actions must be structurally idempotent to prevent environmental state corruption during re-runs.
-    - Explicitly preserve any literal schema templates (like XML tags or JSON layouts) inside the refactored output. Do
-      not consume, delete, or over-summarize these structural templates during the normalization process, as they are
-      required instructions for downstream agents.
+    - Explicitly preserve any literal schema templates (like XML tags or JSON layouts) inside the refactored output
+      (e.g., within `<desired_output>`). Do not consume, delete, or over-summarize these structural templates during
+      the normalization process, as they are required instructions for downstream agents.
   </constraints>
 
   <desired_output>
-    Return the payload strictly mapped to the following mandatory XML-tag-demarcated schema so downstream agent
-    layers can parse it deterministically:
+    Return the payload strictly mapped to the following mandatory XML-tag-demarcated schema so downstream agent layers
+    can parse it deterministically:
 
-    ```xml
+    ````xml
     <problem_structure>
       <problem_definition>
         [Action-oriented task statement with precise boolean endpoints or metrics]
@@ -52,23 +59,32 @@ description: |
         Depending on the task classification parsed during the sequence, map the payload to one of these execution
         structures:
 
-        Blueprint A: Local Automation & Systems Operations
+        ### Blueprint A: Local Automation & Systems Operations
 
-        - Risk Profiling: Enumerate environment dependencies or state impacts.
-        - Implementation Block: Production-grade code or configuration values.
-        - State Verification: A machine-executable verification string (e.g., dry-run flag) to prove success.
+        Task: Enforce deterministic system configuration, file syncing, or environment updates.
+        Format Requirements:
 
-        Blueprint B: Data Streams & Algorithmic Analysis
+        1. Risk Profiling: Enumerate environment dependencies or state impacts.
+        2. Implementation Block: Production-grade code or configuration values.
+        3. State Verification: A machine-executable verification string (e.g., dry-run flag) to prove success.
 
-        - Schema Validation: Explicit safety check for missing elements, null responses, or noise.
-        - Compute Matrix: Step-by-step logic calculating intermediate vectors before writing final fields.
-        - Fallback Logic: Precise execution paths if input data streams fail schema validation.
+        ### Blueprint B: Data Streams & Algorithmic Analysis
 
-        Blueprint C: Multi-Agent Choreography & State Handoffs
+        Objective: Ingest, filter, and calculate multi-variable metrics or quantitative signals.
+        Format Requirements:
 
-        - Constitution Compliance: Immediate boundary verification before spawning worker threads.
-        - State Payload Specification: Strict definitions of variables passed across isolation boundaries.
-        - Execution Telemetry JSON:
+        1. Schema Validation: Explicit safety check for missing elements, null responses, or noise.
+        2. Compute Matrix: Step-by-step logic calculating intermediate vectors before writing final fields.
+        3. Fallback Logic: Precise execution paths if input data streams fail schema validation.
+
+        ### Blueprint C: Multi-Agent Choreography & State Handoffs
+
+        Task: Orchestrate task states across multiple specialized tool wrappers or sub-agents.
+        Format Requirements:
+
+        1. Constitution Compliance: Immediate boundary verification before spawning worker threads.
+        2. State Payload Specification: Strict definitions of variables passed across isolation boundaries.
+        3. Execution Telemetry JSON:
 
         ```json
         {
@@ -81,7 +97,7 @@ description: |
 
       </desired_output>
     </problem_structure>
-    ```
+    ````
 
   </desired_output>
 </problem_structure>
