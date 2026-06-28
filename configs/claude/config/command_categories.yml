@@ -102,6 +102,7 @@ overrides:
   refactor-shell: ci-cd
   refactor-terraform: ci-cd
   reproduce-gated-ci-failure-locally: ci-cd
+  smoke-orchestrator: ci-cd
   statistical-test-fixture-variance: ci-cd
   ux-review: ci-cd
   verify: ci-cd

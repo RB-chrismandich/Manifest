@@ -29,6 +29,7 @@ set_bootstrap_defaults() {
     ENABLE_ANTIGRAVITY=true
     ENABLE_SKILLCLAW=false
     ENABLE_BROWSER_USE=false
+    ENABLE_SMOKE=false
     ENABLE_GH="auto"
     ENABLE_GLAB="auto"
 
@@ -40,6 +41,7 @@ set_bootstrap_defaults() {
     ANTIGRAVITY_SET=false
     SKILLCLAW_SET=false
     BROWSER_USE_SET=false
+    SMOKE_SET=false
     GH_SET=false
     GLAB_SET=false
 }
@@ -67,6 +69,8 @@ print_bootstrap_help() {
     echo "  --disable-skillclaw    Disable SkillClaw session capture"
     echo "  --enable-browser-use   Enable browser-use E2E testing (default: disabled)"
     echo "  --disable-browser-use  Disable browser-use E2E testing"
+    echo "  --enable-smoke         Install smoke-test deps: Playwright+Chromium (default: disabled)"
+    echo "  --disable-smoke        Skip smoke-test dependency install"
     echo "  --enable-gh         Enable GitHub CLI (default: auto-detect)"
     echo "  --disable-gh        Disable GitHub CLI"
     echo "  --enable-glab       Enable GitLab CLI (default: auto-detect)"
@@ -162,6 +166,16 @@ parse_bootstrap_args() {
                 BROWSER_USE_SET=true
                 shift
                 ;;
+            --enable-smoke)
+                ENABLE_SMOKE=true
+                SMOKE_SET=true
+                shift
+                ;;
+            --disable-smoke)
+                ENABLE_SMOKE=false
+                SMOKE_SET=true
+                shift
+                ;;
             --enable-gh)
                 ENABLE_GH=true
                 GH_SET=true
@@ -228,6 +242,7 @@ parse_services_config() {
     FILE_ANTIGRAVITY=""
     FILE_SKILLCLAW=""
     FILE_BROWSER_USE=""
+    FILE_SMOKE=""
     FILE_GH=""
     FILE_GLAB=""
 
@@ -242,6 +257,7 @@ parse_services_config() {
             /^[[:space:]]*antigravity:/ { section="antigravity"; subsection="" }
             /^[[:space:]]*skillclaw:/ { section="skillclaw"; subsection="" }
             /^[[:space:]]*browser_use:/ { section="browser_use"; subsection="" }
+            /^[[:space:]]*smoke:/ { section="smoke"; subsection="" }
             /^[[:space:]]*git_cli:/ { section="git_cli"; subsection="" }
             /^[[:space:]]*github:/ { if (section == "git_cli") subsection="github" }
             /^[[:space:]]*gitlab:/ { if (section == "git_cli") subsection="gitlab" }
@@ -253,6 +269,7 @@ parse_services_config() {
                 if (section == "antigravity") print "FILE_ANTIGRAVITY=true"
                 if (section == "skillclaw") print "FILE_SKILLCLAW=true"
                 if (section == "browser_use") print "FILE_BROWSER_USE=true"
+                if (section == "smoke") print "FILE_SMOKE=true"
                 if (section == "git_cli" && subsection == "github") print "FILE_GH=true"
                 if (section == "git_cli" && subsection == "gitlab") print "FILE_GLAB=true"
             }
@@ -264,6 +281,7 @@ parse_services_config() {
                 if (section == "antigravity") print "FILE_ANTIGRAVITY=false"
                 if (section == "skillclaw") print "FILE_SKILLCLAW=false"
                 if (section == "browser_use") print "FILE_BROWSER_USE=false"
+                if (section == "smoke") print "FILE_SMOKE=false"
                 if (section == "git_cli" && subsection == "github") print "FILE_GH=false"
                 if (section == "git_cli" && subsection == "gitlab") print "FILE_GLAB=false"
             }
@@ -281,7 +299,7 @@ parse_services_config() {
                     val="${val%\"}"
                     val="${val#\"}"
                     case "$key" in
-                        FILE_CLAUDE|FILE_GEMINI|FILE_CURSOR|FILE_CODEX|FILE_ANTIGRAVITY|FILE_SKILLCLAW|FILE_BROWSER_USE|FILE_GH|FILE_GLAB)
+                        FILE_CLAUDE|FILE_GEMINI|FILE_CURSOR|FILE_CODEX|FILE_ANTIGRAVITY|FILE_SKILLCLAW|FILE_BROWSER_USE|FILE_SMOKE|FILE_GH|FILE_GLAB)
                             printf -v "$key" "%s" "$val"
                             ;;
                     esac
@@ -325,6 +343,10 @@ load_existing_config() {
 
         if [[ "$BROWSER_USE_SET" == false && -n "$FILE_BROWSER_USE" ]]; then
             ENABLE_BROWSER_USE=$FILE_BROWSER_USE
+        fi
+
+        if [[ "$SMOKE_SET" == false && -n "$FILE_SMOKE" ]]; then
+            ENABLE_SMOKE=$FILE_SMOKE
         fi
 
         if [[ "$GH_SET" == false && -n "$FILE_GH" ]]; then
@@ -424,6 +446,12 @@ services:
     enabled: ${ENABLE_BROWSER_USE:-false}
     command: browser-use
     description: "AI-powered E2E browser testing via browser-use"
+
+  # smoke-orchestrator runtime deps (Playwright + Chromium) for declarative E2E smoke tests
+  smoke:
+    enabled: ${ENABLE_SMOKE:-false}
+    command: smoke_test.py
+    description: "Declarative tiered E2E smoke tests (opt-in Playwright + Chromium)"
 
   # Git CLI tools - Platform-specific Git hosting integrations
   git_cli:

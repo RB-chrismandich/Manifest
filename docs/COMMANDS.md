@@ -1006,7 +1006,7 @@ Expected output:
 <!-- BEGIN GENERATED COMMANDS (command_catalog.py) — do not edit by hand -->
 <!-- Regenerate: configs/claude/scripts/generate_commands_doc.py -->
 
-_86 commands, generated from `.skillshare/skills/*/SKILL.md`._
+_87 commands, generated from `.skillshare/skills/*/SKILL.md`._
 
 ### Git & PRs
 
@@ -1091,6 +1091,7 @@ _86 commands, generated from `.skillshare/skills/*/SKILL.md`._
 | `/refactor-shell` | Perform security and quality analysis for Bash/Shell scripts and produce a prioritized refactor plan with risk and effort guidance. | Perform security and quality analysis for Bash/Shell scripts and produce a prioritized refactor plan with risk and effort guidance. | available |
 | `/refactor-terraform` | Perform security, modularity, and quality analysis for Terraform/OpenTofu IaC codebases and return a prioritized, actionable refactoring roadmap. | Perform security, modularity, and quality analysis for Terraform/OpenTofu IaC codebases and return a prioritized, actionable refactoring roadmap. | available |
 | `/reproduce-gated-ci-failure-locally` | Use when a CI job fails but the run's logs are gated ("still in progress") or hard to read — pinpoint the failing step via the jobs API and reproduce that step's commands locally from the workflow file. | Use when a CI job fails but the run's logs are gated ("still in progress") or hard to read — pinpoint the failing step via the jobs API and reproduce that step's commands locally from the workflow file. | available |
+| `/smoke-orchestrator` | Append, run, and maintain declarative tiered E2E smoke tests (UI/API/CLI) per app. Use after shipping a feature to add coverage, to gate a PR (Lite run → JUnit + exit code), or for nightly Full runs. Catalog lives in smoke-catalog/<app>.yaml. | Append, run, and maintain declarative tiered E2E smoke tests (UI/API/CLI) per app. | available |
 | `/statistical-test-fixture-variance` | Use when writing/debugging unit tests for z-score, standard-deviation, normalization, or surge/ratio functions — flat fixture data collapses the statistic to zero and silently fails assertions. Build baselines with real variance. | Use when writing/debugging unit tests for z-score, standard-deviation, normalization, or surge/ratio functions — flat fixture data collapses the statistic to zero and silently fails assertions. | available |
 | `/ux-review` | Automated UX audit covering accessibility (WCAG 2.2), responsive design, performance budgets (Core Web Vitals), progressive enhancement, color contrast, keyboard navigation, and screen reader compatibility. | Automated UX audit covering accessibility (WCAG 2. | available |
 | `/verify` | Run linters, unit tests, and security scans in parallel for a target project. Auto-detects language from project files and runs the appropriate tool chain. Produces a unified quality report with pass/warn/fail per category. | Run linters, unit tests, and security scans in parallel for a target project. | available |

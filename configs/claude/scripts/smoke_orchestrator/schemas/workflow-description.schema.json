@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://manifest/smoke-orchestrator/workflow-description.schema.json",
+  "title": "Workflow Description (appender input)",
+  "description": "Structured object an AI agent or hook submits to SmokeTestAppender to add/update one test. Validated before any catalog mutation; invalid input leaves the catalog untouched (FR-003).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["app", "id", "tier", "steps"],
+  "properties": {
+    "app": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*$",
+      "description": "Target catalog file smoke-catalog/<app>.yaml (created if absent)."
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*$",
+      "description": "Stable slug; the upsert/idempotency key (FR-004)."
+    },
+    "title": { "type": "string" },
+    "tier": { "enum": ["Lite", "Full", "Full+Extra"] },
+    "steps": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Same step shape as catalog.schema.json#/$defs/step.",
+      "items": { "$ref": "catalog.schema.json#/$defs/step" }
+    }
+  },
+  "examples": [
+    {
+      "app": "billing",
+      "id": "create-and-fetch-invoice",
+      "title": "Create an invoice via API, then view it in the UI",
+      "tier": "Lite",
+      "steps": [
+        {
+          "name": "create_invoice",
+          "type": "api",
+          "method": "POST",
+          "path": "/api/invoices",
+          "body": { "amount": 100 },
+          "expect_status": 201,
+          "captures": { "invoice_id": "$.id" }
+        },
+        {
+          "name": "open_invoice",
+          "type": "ui",
+          "action": "goto",
+          "value": "/invoices/${state.invoice_id}",
+          "needs": ["invoice_id"]
+        }
+      ]
+    }
+  ]
+}

@@ -239,5 +239,5 @@ approaches), review stale plans, or archive/abandon completed work.
 <!-- SPECKIT START -->
 ## Active Spec Kit Feature
 
-- `362-command-help-hints` — plan: [specs/362-command-help-hints/plan.md](specs/362-command-help-hints/plan.md)
+- `363-smoke-test-orchestrator` — plan: [specs/363-smoke-test-orchestrator/plan.md](specs/363-smoke-test-orchestrator/plan.md)
 <!-- SPECKIT END -->
