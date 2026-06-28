@@ -10,6 +10,10 @@ SCRIPT="$REPO_ROOT/configs/claude/scripts/spec_review.sh"
 setup() {
     export BATS_TMPDIR="${BATS_TMPDIR:-/tmp}"
     SANDBOX=$(mktemp -d "$BATS_TMPDIR/spec_review.XXXXXX")
+    # Default the panel to a guaranteed-failing command so seam/discovery/format
+    # tests fall back to the single-CLI reviewer (the real parallel_agent.py lives
+    # next to the script and must never be invoked in tests). Panel tests override.
+    export SPEC_REVIEW_PANEL_CMD=/bin/false
 }
 
 teardown() {
@@ -87,6 +91,35 @@ cat >/dev/null   # consume stdin
 printf '⚠️  CLARIFICATION REQUIRED: Migration\n   ├─ Location: plan vs tasks\n   ├─ The Gap: zero-downtime vs destructive\n   ├─ Recommended Direction: split into 3 tasks\n   └─ Reason Why: locking violates the constraint\n'
 STUB
     chmod +x "$SANDBOX/agy"
+}
+
+_panel_json() {  # emit a parallel_agent.py-style JSON doc; args: "name|status|output"
+    python3 - "$@" <<'PY'
+import json, sys
+agents = {}
+for spec in sys.argv[1:]:
+    name, status, output = spec.split("|", 2)
+    agents[name] = {"status": status, "output": output}
+print(json.dumps({"agents": agents}))
+PY
+}
+
+_fake_synth() {  # stub synth CLI that echoes a merged finding, proving it ran
+    cat > "$SANDBOX/synth" <<'STUB'
+#!/usr/bin/env bash
+cat >/dev/null   # consume the merge prompt on stdin
+printf '⚠️  CLARIFICATION REQUIRED: Merged\n   └─ Reason Why: deduped\n'
+STUB
+    chmod +x "$SANDBOX/synth"
+}
+
+_fake_panel() {  # stub parallel_agent.py emitting canned JSON from $PANEL_FIXTURE
+    cat > "$SANDBOX/panel" <<'STUB'
+#!/usr/bin/env bash
+# prompt arrives as the trailing positional arg; ignore it. Emit canned JSON.
+cat "$PANEL_FIXTURE"
+STUB
+    chmod +x "$SANDBOX/panel"
 }
 
 @test "run_reviewer pipes prompt through the injectable seam" {
@@ -383,4 +416,124 @@ EOF
     run run_reviewer "prompt body"
     assert_success
     refute_output --partial "--model"
+}
+
+# ---------------------------------------------------------------------------
+# Parallel-agent panel engine
+# ---------------------------------------------------------------------------
+
+@test "assemble_merge_prompt substitutes {{REVIEWS}} with the reviews block" {
+    local tpl="$SANDBOX/merge.md"; printf 'MHEAD\n{{REVIEWS}}\nMTAIL\n' > "$tpl"
+    source "$SCRIPT"
+    run assemble_merge_prompt "$tpl" "=== REVIEWER: GEMINI ===
+finding one"
+    assert_success
+    assert_output --partial "MHEAD"
+    assert_output --partial "=== REVIEWER: GEMINI ==="
+    assert_output --partial "finding one"
+    assert_output --partial "MTAIL"
+    refute_output --partial "{{REVIEWS}}"
+}
+
+@test "parse_panel_json reports count, all-no-issues flag, and writes blocks" {
+    source "$SCRIPT"
+    _panel_json "gemini|complete|⚠️  CLARIFICATION REQUIRED: A" \
+                "cursor|complete|NO_ISSUES" \
+                "codex|failed|exit 1 boom" > "$SANDBOX/fx.json"
+    run parse_panel_json "$SANDBOX/fx.json" "$SANDBOX/blocks" "$SANDBOX/raw"
+    assert_success
+    assert_output "2	0"
+    grep -q "=== REVIEWER: GEMINI ===" "$SANDBOX/blocks"
+    grep -q "CLARIFICATION REQUIRED: A" "$SANDBOX/blocks"
+}
+
+@test "parse_panel_json flags all-no-issues when no CLARIFICATION present" {
+    source "$SCRIPT"
+    _panel_json "gemini|complete|NO_ISSUES" "cursor|complete|NO_ISSUES" > "$SANDBOX/fx.json"
+    run parse_panel_json "$SANDBOX/fx.json" "$SANDBOX/b" "$SANDBOX/r"
+    assert_success
+    assert_output "2	1"
+}
+
+@test "parse_panel_json tolerates console preamble before the JSON" {
+    source "$SCRIPT"
+    { printf 'Warning: only 1 agent enabled\n'; _panel_json "gemini|complete|NO_ISSUES"; } > "$SANDBOX/fx.json"
+    run parse_panel_json "$SANDBOX/fx.json" "$SANDBOX/b" "$SANDBOX/r"
+    assert_success
+    assert_output "1	1"
+}
+
+@test "run_synthesizer merges reviews through the synth seam + merge template" {
+    _fake_synth
+    source "$SCRIPT"
+    SPEC_REVIEW_SYNTH_CLI="$SANDBOX/synth" \
+    SPEC_REVIEW_MERGE_TEMPLATE="$REPO_ROOT/configs/claude/prompts/spec_review_merge.md" \
+        run run_synthesizer <<< "=== REVIEWER: GEMINI ===
+finding one"
+    assert_success
+    assert_output --partial "CLARIFICATION REQUIRED: Merged"
+}
+
+@test "run_panel: >=2 agents are merged by the synthesizer" {
+    _fake_panel; _fake_synth
+    _panel_json "gemini|complete|⚠️  CLARIFICATION REQUIRED: A" \
+                "cursor|complete|⚠️  CLARIFICATION REQUIRED: B" > "$SANDBOX/fx.json"
+    source "$SCRIPT"
+    PANEL_FIXTURE="$SANDBOX/fx.json" \
+    SPEC_REVIEW_PANEL_CMD="$SANDBOX/panel" \
+    SPEC_REVIEW_SYNTH_CLI="$SANDBOX/synth" \
+    SPEC_REVIEW_MERGE_TEMPLATE="$REPO_ROOT/configs/claude/prompts/spec_review_merge.md" \
+        run run_panel "the assembled prompt"
+    assert_success
+    assert_output --partial "CLARIFICATION REQUIRED: Merged"
+}
+
+@test "run_panel: exactly 1 agent passes through without a synth call" {
+    _fake_panel
+    _panel_json "gemini|complete|⚠️  CLARIFICATION REQUIRED: Solo" > "$SANDBOX/fx.json"
+    source "$SCRIPT"
+    PANEL_FIXTURE="$SANDBOX/fx.json" \
+    SPEC_REVIEW_PANEL_CMD="$SANDBOX/panel" \
+    SPEC_REVIEW_SYNTH_CLI="/bin/false" \
+        run run_panel "p"
+    assert_success
+    assert_output --partial "CLARIFICATION REQUIRED: Solo"
+}
+
+@test "run_panel: all NO_ISSUES short-circuits to NO_ISSUES (no synth call)" {
+    _fake_panel
+    _panel_json "gemini|complete|NO_ISSUES" "cursor|complete|NO_ISSUES" > "$SANDBOX/fx.json"
+    source "$SCRIPT"
+    PANEL_FIXTURE="$SANDBOX/fx.json" \
+    SPEC_REVIEW_PANEL_CMD="$SANDBOX/panel" \
+    SPEC_REVIEW_SYNTH_CLI="/bin/false" \
+        run run_panel "p"
+    assert_success
+    assert_output --partial "NO_ISSUES"
+}
+
+@test "run_panel: panel failure falls back to the single-CLI reviewer" {
+    _fake_reviewer
+    source "$SCRIPT"
+    SPEC_REVIEW_PANEL_CMD="/bin/false" \
+    SPEC_REVIEW_CLI="$SANDBOX/agy" \
+        run run_panel "p"
+    assert_success
+    assert_output --partial "CLARIFICATION REQUIRED: Migration"
+}
+
+@test "run_panel: synthesizer failure falls back to labeled concat" {
+    _fake_panel
+    _panel_json "gemini|complete|⚠️  CLARIFICATION REQUIRED: A" \
+                "cursor|complete|⚠️  CLARIFICATION REQUIRED: B" > "$SANDBOX/fx.json"
+    source "$SCRIPT"
+    PANEL_FIXTURE="$SANDBOX/fx.json" \
+    SPEC_REVIEW_PANEL_CMD="$SANDBOX/panel" \
+    SPEC_REVIEW_SYNTH_CLI="/bin/false" \
+    SPEC_REVIEW_MERGE_TEMPLATE="$REPO_ROOT/configs/claude/prompts/spec_review_merge.md" \
+        run run_panel "p"
+    assert_success
+    assert_output --partial "=== REVIEWER: GEMINI ==="
+    assert_output --partial "CLARIFICATION REQUIRED: A"
+    assert_output --partial "CLARIFICATION REQUIRED: B"
 }

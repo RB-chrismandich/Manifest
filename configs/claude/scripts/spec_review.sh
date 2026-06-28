@@ -14,6 +14,13 @@ SPEC_REVIEW_CONFIG="${SPEC_REVIEW_CONFIG:-$HOME/.claude/config/parallel_agent.ym
 SPEC_REVIEW_TEMPLATE="${SPEC_REVIEW_TEMPLATE:-${SCRIPT_DIR}/../prompts/spec_review.md}"
 SPEC_REVIEW_STATE="${SPEC_REVIEW_STATE:-.spec-review}"
 SPEC_REVIEW_NO_DETACH="${SPEC_REVIEW_NO_DETACH:-}"
+# Parallel-agent panel engine. PANEL_CMD fans the prompt across the panel; the
+# single-CLI SPEC_REVIEW_CLI seam is reused as the synthesizer (SYNTH_CLI) and as
+# the 0-agent fallback. Both injectable so tests can stub external CLIs.
+SPEC_REVIEW_PANEL_CMD="${SPEC_REVIEW_PANEL_CMD:-${SCRIPT_DIR}/parallel_agent.py}"
+SPEC_REVIEW_SYNTH_CLI="${SPEC_REVIEW_SYNTH_CLI:-$SPEC_REVIEW_CLI}"
+SPEC_REVIEW_MERGE_TEMPLATE="${SPEC_REVIEW_MERGE_TEMPLATE:-${SCRIPT_DIR}/../prompts/spec_review_merge.md}"
+SPEC_REVIEW_TIMEOUT="${SPEC_REVIEW_TIMEOUT:-600}"
 
 SPEC=""; PLAN=""; TASKS=""; SILENT=false; FORMAT="tree"; ROOT="."
 
@@ -102,6 +109,24 @@ assemble_prompt() {
     return "$rc"
 }
 
+# assemble_merge_prompt TEMPLATE REVIEWS_TEXT -> merge prompt on stdout.
+# Substitutes {{REVIEWS}} inline with the reviewer-findings block. Mirrors
+# assemble_prompt's awk substitution; bash 3.2-safe (no RETURN trap).
+assemble_merge_prompt() {
+    local template="$1" reviews="$2" reviewfile rc=0
+    reviewfile="$(mktemp)"
+    printf '%s\n' "$reviews" > "$reviewfile"
+    awk -v reviewfile="$reviewfile" '
+        /\{\{REVIEWS\}\}/ {
+            while ((getline ln < reviewfile) > 0) print ln
+            next
+        }
+        { print }
+    ' "$template" || rc=$?
+    rm -f "$reviewfile"
+    return "$rc"
+}
+
 # resolve_review_model -> model name on stdout, or empty. Precedence:
 # explicit SPEC_REVIEW_MODEL env always wins; otherwise, only for the default
 # agy reviewer, fall back to model_tiers.antigravity.advanced from the shared
@@ -140,6 +165,96 @@ run_reviewer() {
     [[ -n "$model" ]] && cli_args+=(--model "$model")
     cli_args+=(-p "Cross-reference the artifacts above per the instructions; output only the specified blocks or NO_ISSUES.")
     printf '%s' "$prompt" | "$SPEC_REVIEW_CLI" "${cli_args[@]}"  # array-safe (unconditional += above)
+}
+
+# parse_panel_json JSON_FILE BLOCKS_OUT RAW_OUT  (parallel_agent.py --json file)
+# -> stdout: "<count>\t<all_no_issues 0|1>"; writes labeled blocks to BLOCKS_OUT
+# and raw outputs (blank-line joined) to RAW_OUT, for the successful agents.
+# all_no_issues=1 iff >=1 successful agent and NONE contain "CLARIFICATION
+# REQUIRED". Fail-open: malformed/absent JSON yields count 0 (caller falls back).
+# JSON is read from a file (not stdin) because the heredoc occupies stdin.
+parse_panel_json() {
+    python3 - "$1" "$2" "$3" <<'PY'
+import json, sys
+json_file, blocks_path, raw_path = sys.argv[1], sys.argv[2], sys.argv[3]
+try:
+    text = open(json_file).read()
+except Exception:
+    text = ""
+try:
+    data = json.loads(text)
+except Exception:
+    # tolerate console preamble/trailing noise around the JSON object
+    i, j = text.find("{"), text.rfind("}")
+    try:
+        data = json.loads(text[i:j + 1]) if i != -1 and j != -1 else {}
+    except Exception:
+        data = {}
+agents = data.get("agents", {}) or {}
+ok = [(n, (a.get("output") or "").strip())
+      for n, a in sorted(agents.items())
+      if a.get("status") == "complete" and (a.get("output") or "").strip()]
+all_ni = bool(ok) and all("CLARIFICATION REQUIRED" not in o for _, o in ok)
+with open(blocks_path, "w") as f:
+    for n, o in ok:
+        f.write("=== REVIEWER: %s ===\n%s\n\n" % (n.upper(), o))
+with open(raw_path, "w") as f:
+    f.write("\n\n".join(o for _, o in ok))
+print("%d\t%d" % (len(ok), 1 if all_ni else 0))
+PY
+}
+
+# run_synthesizer  (labeled reviews block on stdin) -> merged findings on stdout.
+# Builds the merge prompt from the template and pipes it to the single-CLI synth
+# seam. Errors propagate so run_panel can fall back to a labeled concat.
+run_synthesizer() {
+    local reviews prompt model
+    reviews="$(cat)"
+    prompt="$(assemble_merge_prompt "$SPEC_REVIEW_MERGE_TEMPLATE" "$reviews")"
+    model="$(resolve_review_model)"
+    local cli_args=()
+    [[ -n "$model" ]] && cli_args+=(--model "$model")
+    cli_args+=(-p "Merge the reviewer findings above into one deduped list per the instructions; output only the specified blocks or NO_ISSUES.")
+    printf '%s' "$prompt" | "$SPEC_REVIEW_SYNTH_CLI" "${cli_args[@]}"
+}
+
+# run_panel PROMPT -> findings text (raw blocks or NO_ISSUES) on stdout.
+# Fans the prompt to the parallel-agent panel (excluding the author, claude),
+# then aggregates. Any panel/JSON problem falls back to the single-CLI seam;
+# a synth failure falls back to a labeled concat so findings are never lost.
+run_panel() {
+    local prompt="$1" tmpjson tmpblocks tmpraw meta count all_ni out
+    tmpjson="$(mktemp)"; tmpblocks="$(mktemp)"; tmpraw="$(mktemp)"
+    # Prompt is passed as the trailing positional arg (parallel_agent.py reads no
+    # stdin); `--` guards a prompt that might start with '-'. Planning artifacts
+    # are bounded, so ARG_MAX is not a concern.
+    if ! "$SPEC_REVIEW_PANEL_CMD" --json --no-claude --no-synthesize \
+            --no-stream --timeout "$SPEC_REVIEW_TIMEOUT" -- "$prompt" \
+            > "$tmpjson" 2>/dev/null
+    then
+        rm -f "$tmpjson" "$tmpblocks" "$tmpraw"
+        run_reviewer "$prompt"; return $?
+    fi
+    meta="$(parse_panel_json "$tmpjson" "$tmpblocks" "$tmpraw" 2>/dev/null)" || meta="0	0"
+    count="${meta%%$'\t'*}"; all_ni="${meta##*$'\t'}"
+    if [[ -z "$count" || "$count" == "0" ]]; then
+        rm -f "$tmpjson" "$tmpblocks" "$tmpraw"
+        run_reviewer "$prompt"; return $?
+    fi
+    if [[ "$all_ni" == "1" ]]; then
+        rm -f "$tmpjson" "$tmpblocks" "$tmpraw"
+        printf 'NO_ISSUES\n'; return 0
+    fi
+    if [[ "$count" == "1" ]]; then
+        cat "$tmpraw"
+    else
+        if ! out="$(run_synthesizer < "$tmpblocks")"; then
+            out="$(cat "$tmpblocks")"   # synth failed: keep labeled findings
+        fi
+        printf '%s\n' "$out"
+    fi
+    rm -f "$tmpjson" "$tmpblocks" "$tmpraw"
+    return 0
 }
 
 # format_findings RAW FORMAT [COUNT] -> formatted output. NO_ISSUES -> clean
