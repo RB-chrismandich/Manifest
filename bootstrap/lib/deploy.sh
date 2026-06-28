@@ -598,7 +598,7 @@ print_summary() {
             echo -e "  ${YELLOW}○${NC} claude (enabled, not installed)"
         fi
     else
-        echo -e "  ${RED}✗${NC} claude (disabled)"
+        echo -e "  ${YELLOW}○${NC} claude (disabled)"
     fi
 
     if [[ "$ENABLE_GEMINI" == true ]]; then
@@ -608,7 +608,7 @@ print_summary() {
             echo -e "  ${YELLOW}○${NC} gemini (enabled, not installed)"
         fi
     else
-        echo -e "  ${RED}✗${NC} gemini (disabled)"
+        echo -e "  ${YELLOW}○${NC} gemini (disabled)"
     fi
 
     if [[ "$ENABLE_CURSOR" == true ]]; then
@@ -618,7 +618,7 @@ print_summary() {
             echo -e "  ${YELLOW}○${NC} cursor-agent (enabled, not installed)"
         fi
     else
-        echo -e "  ${RED}✗${NC} cursor (disabled)"
+        echo -e "  ${YELLOW}○${NC} cursor (disabled)"
     fi
 
     if [[ "$ENABLE_CODEX" == true ]]; then
@@ -628,7 +628,7 @@ print_summary() {
             echo -e "  ${YELLOW}○${NC} codex (enabled, not installed)"
         fi
     else
-        echo -e "  ${RED}✗${NC} codex (disabled)"
+        echo -e "  ${YELLOW}○${NC} codex (disabled)"
     fi
 
     if [[ "$ENABLE_ANTIGRAVITY" == true ]]; then
@@ -650,7 +650,7 @@ print_summary() {
             echo -e "    ${BLUE}→${NC} Install via the Antigravity IDE, then run: agy install"
         fi
     else
-        echo -e "  ${RED}✗${NC} antigravity (disabled)"
+        echo -e "  ${YELLOW}○${NC} antigravity (disabled)"
     fi
     echo ""
 
