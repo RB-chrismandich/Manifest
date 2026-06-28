@@ -70,6 +70,7 @@ MANIFEST_TMP_DIR="$MANIFEST_STATE_DIR/tmp"
 SERVICES_CONFIG="$TARGET_DIR/config/services.yml"
 
 # Detect platform/runtime defaults (initialized by initialize_platform_runtime)
+# shellcheck disable=SC2034  # consumed by sourced bootstrap/lib/*.sh
 PLATFORM="unknown"
 export DISTRO=""
 # shellcheck disable=SC2034
