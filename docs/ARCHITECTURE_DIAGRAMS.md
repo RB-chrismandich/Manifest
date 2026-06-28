@@ -1063,7 +1063,7 @@ services:
     command: gemini
   cursor:
     enabled: true
-    command: cursor
+    command: cursor-agent
   skillclaw:
     enabled: false       # opt-in; enable with --enable-skillclaw
     command: skillclaw

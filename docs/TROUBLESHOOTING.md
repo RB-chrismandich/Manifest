@@ -143,15 +143,17 @@ npm --version
 # Check if CLI is installed
 which claude
 which gemini
-which cursor
+which cursor-agent
 
 # If missing, install
 npm install -g @anthropic-ai/claude-code
 npm install -g @google/gemini-cli
+curl https://cursor.com/install -fsS | bash
 
 # Verify installation
 claude --version
 gemini --version
+cursor-agent --version
 ```
 
 ---
@@ -750,11 +752,12 @@ ls -la ~/.claude/config/
 # Check CLI installations
 which claude
 which gemini
-which cursor
+which cursor-agent
 
 # Check versions
 claude --version
 gemini --version
+cursor-agent --version
 node --version
 npm --version
 ```

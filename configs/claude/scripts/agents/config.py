@@ -138,9 +138,11 @@ class Config:
                     "output": "stdout",
                 },
                 "cursor": {
-                    "binary": "cursor",
-                    "base_args": [],
+                    "binary": "cursor-agent",
+                    "base_args": ["--print", "--output-format", "text",
+                                  "--mode", "ask"],
                     "model_args": ["--model", "{model}"],
+                    "prompt_args": ["{prompt}"],
                     "output": "stdout",
                 },
                 "codex": {

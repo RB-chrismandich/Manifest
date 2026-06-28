@@ -70,6 +70,7 @@ MANIFEST_TMP_DIR="$MANIFEST_STATE_DIR/tmp"
 SERVICES_CONFIG="$TARGET_DIR/config/services.yml"
 
 # Detect platform/runtime defaults (initialized by initialize_platform_runtime)
+# shellcheck disable=SC2034  # consumed by sourced bootstrap/lib/*.sh
 PLATFORM="unknown"
 export DISTRO=""
 # shellcheck disable=SC2034
@@ -293,21 +294,9 @@ main() {
 
         # Cursor auth info
         if [[ "$ENABLE_CURSOR" == true ]]; then
-            local cursor_found=false
-            if [[ "$PLATFORM" == "macos" ]]; then
-                if [[ -d "/Applications/Cursor.app" ]] || command_exists cursor; then
-                    cursor_found=true
-                fi
-            else
-                if command_exists cursor; then
-                    cursor_found=true
-                fi
-            fi
-
-            if [[ "$cursor_found" == true ]]; then
-                print_step "Checking Cursor authentication..."
-                print_info "Cursor authentication is handled within the Cursor IDE"
-                print_info "Open Cursor and sign in to enable the cursor agent"
+            if command_exists cursor-agent || [[ -f "$HOME/.local/bin/cursor-agent" ]]; then
+                print_step "Checking cursor-agent authentication..."
+                print_info "Authenticate with: cursor-agent login  (or set CURSOR_API_KEY)"
             fi
         fi
 

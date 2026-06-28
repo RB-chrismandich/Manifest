@@ -190,6 +190,13 @@ class TestCliAgentsConfig:
             assert "model_args" in spec
             assert spec.get("output") in ("stdout", "file_then_stdout")
 
+    def test_cursor_uses_cursor_agent_binary_headless(self, tmp_path):
+        """cursor backend must invoke cursor-agent headless+read-only."""
+        spec = Config(config_path=str(tmp_path / "none.yml")).get("cli_agents.cursor")
+        assert spec["binary"] == "cursor-agent"
+        assert "--print" in spec["base_args"]
+        assert spec["base_args"][spec["base_args"].index("--mode") + 1] == "ask"
+
     def test_default_config_has_antigravity_entries(self, tmp_path):
         config = Config(config_path=str(tmp_path / "none.yml"))
         assert config.get("rate_limits.antigravity.requests_per_minute") == 100

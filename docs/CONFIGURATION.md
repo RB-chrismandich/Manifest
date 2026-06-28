@@ -78,10 +78,10 @@ services:
       - flash    # Fast (default)
       - pro      # Advanced
 
-  # Cursor Agent - IDE-integrated AI
+  # Cursor Agent - headless CLI for code analysis
   cursor:
     enabled: true
-    command: cursor
+    command: cursor-agent
     description: "IDE-integrated context, code-specific analysis"
     model_tiers:
       - mini     # Lightweight
@@ -746,9 +746,10 @@ cli_agents:
     prompt_args: ["-p", "{prompt}"]
     output: stdout
   cursor:
-    binary: cursor
-    base_args: []
+    binary: cursor-agent
+    base_args: ["--print", "--output-format", "text", "--mode", "ask"]
     model_args: ["--model", "{model}"]
+    prompt_args: ["{prompt}"]
     output: stdout
   codex:
     binary: codex

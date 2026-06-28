@@ -1,13 +1,15 @@
 ---
 name: spec-review
-description: Cross-reference spec/plan/tasks artifacts for internal consistency using Antigravity/agy; surfaces structured remediation guidance. Analysis-only, never edits. Works with speckit (spec.md/plan.md/tasks.md) and superpowers layouts; auto-discovers or takes explicit paths.
+description: Cross-reference spec/plan/tasks artifacts for internal consistency using the parallel-agent panel (gemini/cursor/codex/antigravity, excluding the author) and a synthesized deduped findings list. Analysis-only, never edits. Works with speckit (spec.md/plan.md/tasks.md) and superpowers layouts; auto-discovers or takes explicit paths.
 ---
 
-# Spec Review (Antigravity cross-reference)
+# Spec Review (parallel-agent cross-reference)
 
 Run an independent, analysis-only consistency check across the project's planning
-artifacts. A second model (Antigravity / `agy`) reviews what Claude authored — catching
-structural blind spots that self-review misses.
+artifacts. The parallel-agent panel — every enabled agent **except** the author
+(Claude) — reviews what Claude wrote, and their findings are synthesized into one
+deduped list. Multiple independent reviewers catch structural blind spots a single
+model (or self-review) misses.
 
 ## How to run
 
@@ -23,5 +25,6 @@ structural blind spots that self-review misses.
 ```
 
 Findings print as a tree of `CLARIFICATION REQUIRED` blocks, or
-`✓ No inconsistencies found.` Requires the `agy` CLI (logged in). This skill is
-analysis-only; apply the recommendations yourself.
+`✓ No inconsistencies found.` Requires `parallel_agent.py` plus at least one
+non-Claude agent CLI; it falls back to a single `agy` review when the panel is
+unavailable. This skill is analysis-only; apply the recommendations yourself.

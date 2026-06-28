@@ -98,8 +98,9 @@ sudo apt install nodejs npm
 npm install -g @anthropic-ai/claude-code
 npm install -g @google/gemini-cli
 
-# 3. Download Cursor
-# Visit: https://cursor.sh
+# 3. Install the cursor-agent CLI
+curl https://cursor.com/install -fsS | bash
+# Then authenticate: cursor-agent login  (or set CURSOR_API_KEY)
 
 # 4. Deploy configuration
 cp -r configs/claude/* ~/.claude/
