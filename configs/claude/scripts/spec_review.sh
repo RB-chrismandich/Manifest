@@ -325,9 +325,9 @@ review() {
     local arts=() line
     while IFS= read -r line; do [[ -n "$line" ]] && arts+=("$line"); done < <(resolve_artifacts "$root")
     if [[ "${#arts[@]}" -eq 0 ]]; then echo "spec-review: nothing to review (no artifacts found)"; return 0; fi
-    echo "[spec-review] Cross-referencing project artifacts with Antigravity (agy)…"
+    echo "[spec-review] Cross-referencing project artifacts with the parallel agent panel…"
     local prompt raw; prompt="$(assemble_prompt "$SPEC_REVIEW_TEMPLATE" "${arts[@]+"${arts[@]}"}")"
-    raw="$(run_reviewer "$prompt")"
+    raw="$(run_panel "$prompt")"
     format_findings "$raw" "$fmt" "${#arts[@]}"
 }
 
@@ -341,7 +341,7 @@ _silent_review_inline() {
     while IFS= read -r line; do [[ -n "$line" ]] && arts+=("$line"); done < <(discover_artifacts "$root")
     [[ "${#arts[@]}" -eq 0 ]] && return 0   # defensive: nothing to review (set -u safe)
     prompt="$(assemble_prompt "$SPEC_REVIEW_TEMPLATE" "${arts[@]+"${arts[@]}"}")"
-    if ! raw="$(run_reviewer "$prompt" 2>>"$state/error.log")"; then
+    if ! raw="$(run_panel "$prompt" 2>>"$state/error.log")"; then
         return 0   # fail-open: reviewer failed, never block; hash not recorded
     fi
     # Record the hash only when feedback.md was actually written — a failed

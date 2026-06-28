@@ -537,3 +537,30 @@ finding one"
     assert_output --partial "CLARIFICATION REQUIRED: A"
     assert_output --partial "CLARIFICATION REQUIRED: B"
 }
+
+@test "on-demand review routes through the parallel panel" {
+    _fake_panel
+    _panel_json "gemini|complete|⚠️  CLARIFICATION REQUIRED: PanelPath" > "$SANDBOX/fx.json"
+    mkdir -p "$SANDBOX/specs/001"; : > "$SANDBOX/specs/001/spec.md"; : > "$SANDBOX/specs/001/plan.md"
+    PANEL_FIXTURE="$SANDBOX/fx.json" \
+    SPEC_REVIEW_PANEL_CMD="$SANDBOX/panel" \
+    SPEC_REVIEW_TEMPLATE="$REPO_ROOT/configs/claude/prompts/spec_review.md" \
+        run bash "$SCRIPT" "$SANDBOX"
+    assert_success
+    assert_output --partial "CLARIFICATION REQUIRED: PanelPath"
+    assert_output --partial "parallel agent panel"
+}
+
+@test "silent mode routes through the panel and writes feedback (NO_DETACH)" {
+    _fake_panel
+    _panel_json "gemini|complete|⚠️  CLARIFICATION REQUIRED: HookPanel" > "$SANDBOX/fx.json"
+    mkdir -p "$SANDBOX/specs/001"; printf 'a\n' > "$SANDBOX/specs/001/spec.md"; printf 'b\n' > "$SANDBOX/specs/001/plan.md"
+    PANEL_FIXTURE="$SANDBOX/fx.json" \
+    SPEC_REVIEW_PANEL_CMD="$SANDBOX/panel" \
+    SPEC_REVIEW_NO_DETACH=1 SPEC_REVIEW_STATE="$SANDBOX/.spec-review" \
+    SPEC_REVIEW_TEMPLATE="$REPO_ROOT/configs/claude/prompts/spec_review.md" \
+        run bash "$SCRIPT" --silent "$SANDBOX"
+    assert_success
+    assert [ -f "$SANDBOX/.spec-review/feedback.md" ]
+    grep -q "CLARIFICATION REQUIRED: HookPanel" "$SANDBOX/.spec-review/feedback.md"
+}
