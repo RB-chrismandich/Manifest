@@ -67,3 +67,14 @@ error, which causes cognitive overload. Using a yellow circle effectively
 communicates a neutral, inactive, or non-blocking state.
 **Action:** Consistently replace red cross symbols with yellow circle
 symbols in bash scripts when representing disabled or optional tools.
+
+## 2026-06-29 - Semantic Documentation Formatting
+
+**Learning:** When attempting to bypass strict line-length linters by
+aggressively truncating documentation text, valuable context is lost, which
+harms the developer experience. UX improvements must not come at the cost of
+comprehensibility.
+**Action:** Do not arbitrarily delete documentation or skill descriptions just
+to satisfy a line-length limit or context budget; instead, concisely reword the
+text or move detailed context out of frontmatter and into the markdown body
+where line-length or budget rules might be more flexible.
