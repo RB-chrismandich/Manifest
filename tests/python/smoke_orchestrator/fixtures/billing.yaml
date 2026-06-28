@@ -1,0 +1,22 @@
+version: 1
+app: billing
+base_url: https://billing.staging.example.com
+tests:
+  - id: create-and-view-invoice
+    title: Create an invoice via API, then view it in the UI
+    tier: Lite
+    steps:
+      - name: create_invoice
+        type: api
+        method: POST
+        path: /api/invoices
+        body:
+          amount: 100
+        expect_status: 201
+        captures:
+          invoice_id: "$.id"
+      - name: view_invoice
+        type: ui
+        action: goto
+        value: /invoices/${state.invoice_id}
+        needs: [invoice_id]
