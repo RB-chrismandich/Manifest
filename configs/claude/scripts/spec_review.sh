@@ -217,7 +217,7 @@ run_synthesizer() {
     local cli_args=()
     [[ -n "$model" ]] && cli_args+=(--model "$model")
     cli_args+=(-p "Merge the reviewer findings above into one deduped list per the instructions; output only the specified blocks or NO_ISSUES.")
-    printf '%s' "$prompt" | "$SPEC_REVIEW_SYNTH_CLI" "${cli_args[@]}"
+    printf '%s' "$prompt" | "$SPEC_REVIEW_SYNTH_CLI" "${cli_args[@]+"${cli_args[@]}"}"
 }
 
 # run_panel PROMPT -> findings text (raw blocks or NO_ISSUES) on stdout.
