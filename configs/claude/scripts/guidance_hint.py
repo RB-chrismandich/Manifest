@@ -156,6 +156,11 @@ def _command_from_payload(raw: str) -> Optional[str]:
     `BeforeTool`-style `args.command`/top-level `command` shapes used by Gemini/
     Cursor via ai-hooks-integration). Unknown shapes return None (fail-open).
     """
+    if isinstance(raw, str):
+        # ⚡ Bolt: Fast-path bypass for string allocation overhead and slow
+        # ValueError/JSONDecodeError on json.loads for obvious non-JSON strings
+        if raw and raw[0] not in ' \t\n\r{[':
+            return None
     try:
         payload = json.loads(raw)
     except (json.JSONDecodeError, TypeError):
