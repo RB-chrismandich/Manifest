@@ -1,8 +1,7 @@
 ---
 name: meta-prompt-optimize
 description: |
-  Auto-trigger when users ask to create, optimize, refactor, or structure a new agent prompt or skill template.
-  Ingests unoptimized input prompts and outputs a structurally pristine, normalized system skill template using XML schemas.
+  Optimize/refactor agent prompts or skill templates into normalized XML schemas.
 ---
 
 <problem_structure>

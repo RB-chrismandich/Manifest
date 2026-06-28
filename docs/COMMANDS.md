@@ -1071,7 +1071,7 @@ _86 commands, generated from `.skillshare/skills/*/SKILL.md`._
 | Command | Description | When to use | Status |
 |---------|-------------|-------------|--------|
 | `/ai-hooks-integration` | Integrate lifecycle hooks across AI coding tools (Claude Code, Gemini CLI, Cursor, OpenCode) — adding/installing hooks, OpenCode plugins, auto-format/notify/security policies, or wrapping CLIs without a hooks API. Covers PreToolUse/PostToolUse and HTTP/prompt/agent/async hooks. | Integrate lifecycle hooks across AI coding tools (Claude Code, Gemini CLI, Cursor, OpenCode) — adding/installing hooks, OpenCode plugins, auto-format/notify/security policies, or wrapping CLIs without a hooks API. | available |
-| `/meta-prompt-optimize` | Auto-trigger when users ask to create, optimize, refactor, or structure a new agent prompt or skill template. Ingests unoptimized input prompts and outputs a structurally pristine, normalized system skill template using XML schemas. | Auto-trigger when users ask to create, optimize, refactor, or structure a new agent prompt or skill template. | available |
+| `/meta-prompt-optimize` | Optimize/refactor agent prompts or skill templates into normalized XML schemas. | Optimize/refactor agent prompts or skill templates into normalized XML schemas. | available |
 | `/skill-evolve` | Turn SkillClaw-evolved skills into a reviewed PR into .skillshare/skills/. Dry-run by default; --apply opens one PR with one commit per skill. Requires --enable-skillclaw and claude CLI login. Never writes source of truth directly — all changes go through PR review. | Turn SkillClaw-evolved skills into a reviewed PR into . | available |
 
 ### CI/CD, Testing & Quality
