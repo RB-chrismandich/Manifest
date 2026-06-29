@@ -59,3 +59,20 @@ Simulate an offline install (e.g., break `uv` on PATH) and run `./bootstrap.sh` 
 ## 8. Docs discoverability (SC-006)
 
 Confirm graphify appears in `README.md`, `docs/GETTING_STARTED.md`, `docs/CONFIGURATION.md`, `docs/COMMANDS.md`, root `CLAUDE.md`, and `AGENTS.md`, including how to enable/disable, invoke, and troubleshoot.
+
+## 9. Disabled-assistant exclusion (FR-002 negative)
+
+```bash
+./bootstrap.sh --disable-cursor --skip-auth --force
+ls ~/.cursor/skills/graphify 2>/dev/null && echo "UNEXPECTED: cursor got graphify" || echo "cursor excluded (expected)"
+ls ~/.claude/skills/graphify/SKILL.md   # still present for enabled assistants
+```
+Expect: the disabled assistant (Cursor) receives no graphify skill, while enabled assistants do.
+
+## 10. No-credential run (FR-011)
+
+```bash
+env -u GEMINI_API_KEY -u GOOGLE_API_KEY -u OPENAI_API_KEY -u ANTHROPIC_API_KEY \
+  ./bootstrap.sh --skip-auth --force; echo "exit=$?"
+```
+Expect: exit 0 with no credential prompt; graphify installs and its local code-mapping path works (host-agent backend needs no key). Setup never hard-fails for absent optional-backend credentials.
