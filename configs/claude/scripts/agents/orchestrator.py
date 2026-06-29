@@ -480,7 +480,7 @@ class Orchestrator:
             elif status in ("failed", "error"):
                 status_icon, status_color = "✗", "red"
             else:
-                status_icon, status_color = "⚠", "yellow"
+                status_icon, status_color = "○", "yellow"
             table.add_row(
                 agent_name.title(),
                 f"[{status_color}]{status_icon} {status}[/{status_color}]",
