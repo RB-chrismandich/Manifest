@@ -123,7 +123,16 @@ deploy_home_skills() {
     # compat symlink), drop it so we deploy into a real directory, not its target.
     [[ -L "$dest" ]] && rm -f "$dest"
     mkdir -p "$dest"
-    rsync -a "$src"/ "$dest"/
+    # Copy the skill tree. Prefer rsync; fall back to cp so a minimal host without
+    # rsync (some slim Linux images) still deploys skills instead of silently
+    # no-op'ing / hard-failing under set -e. `cp -R src/. dest/` copies CONTENTS
+    # into dest and preserves symlinks-as-symlinks, matching `rsync -a src/ dest/`
+    # for our merge-then-prune model (the prune step below handles removals).
+    if command -v rsync > /dev/null 2>&1; then
+        rsync -a "$src"/ "$dest"/
+    else
+        cp -R "$src"/. "$dest"/
+    fi
 
     # Prune previously-deployed skills now absent from the source.
     # Safety bounds: (a) an empty source (failed checkout / wrong path that

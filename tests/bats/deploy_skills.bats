@@ -139,6 +139,44 @@ teardown() {
     assert_output --partial "not found"
 }
 
+@test "deploy_home_skills falls back to cp when rsync is unavailable" {
+    # Minimal hosts (some slim Linux images) ship without rsync. The copy must
+    # still happen via cp rather than silently no-op or hard-fail under set -e.
+    mkdir -p "$SANDBOX/src/demo/sub"
+    echo body > "$SANDBOX/src/demo/SKILL.md"
+    echo leaf > "$SANDBOX/src/demo/sub/extra.md"
+
+    # Restricted PATH with the coreutils the function needs, but NO rsync.
+    local nobin="$SANDBOX/nobin"
+    mkdir -p "$nobin"
+    local t p
+    for t in rm mkdir cp find wc tr mv sed sort; do
+        p="$(command -v "$t")" && ln -s "$p" "$nobin/$t"
+    done
+
+    run env SRC="$SANDBOX/src" DEST="$SANDBOX/dest" NOBIN="$nobin" REPO="$REPO_ROOT" bash -c '
+        export PATH="$NOBIN"
+        # shellcheck disable=SC1090
+        source "$REPO/bootstrap/lib/common.sh"
+        command -v rsync >/dev/null 2>&1 && { echo "rsync STILL ON PATH"; exit 3; }
+        deploy_home_skills "$SRC" "$DEST"
+    '
+    assert_success
+    [ -f "$SANDBOX/dest/demo/SKILL.md" ]
+    [ -f "$SANDBOX/dest/demo/sub/extra.md" ]   # nested content copied too
+    assert_equal "$(cat "$SANDBOX/dest/demo/SKILL.md")" "body"
+}
+
+@test "check_rsync is a no-op success when rsync is already present" {
+    # shellcheck disable=SC1090
+    source "$REPO_ROOT/bootstrap/lib/install.sh"
+    PLATFORM=linux PKG_MANAGER=apt
+    command_exists rsync || skip "rsync not installed in this environment"
+    run check_rsync
+    assert_success
+    assert_output --partial "rsync is installed"
+}
+
 @test "deploy_configs (fresh) puts real skill dirs in TARGET and no '~' junk" {
     # Arrange an isolated TARGET and stub the heavy secondary deploys.
     export SCRIPT_DIR="$REPO_ROOT"
