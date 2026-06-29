@@ -156,3 +156,39 @@ deploy_home_skills() {
 
     print_success "Deployed skills: $src -> $dest"
 }
+
+# Gate the /graphify skill in a deployed skills dir based on ENABLE_GRAPHIFY, and
+# reconcile collisions with a foreign upstream 'graphify install' (FR-010 / FR-012).
+# Call right after deploy_home_skills for the home (~/.claude) skills dir; assistant
+# skill dirs symlink to it, so gating the home copy clears all targets.
+gate_graphify_skill() {
+    local home_skills="$1"
+    local skill="$home_skills/graphify"
+
+    if [[ "${ENABLE_GRAPHIFY:-true}" == false ]]; then
+        # Clean opt-out: remove the deployed skill (the .skillshare source stays in the
+        # repo). Defensively prune any independent (non-symlink) graphify dir under the
+        # assistant skill targets in case a future target stops symlinking to home.
+        if [[ -e "$skill" || -L "$skill" ]]; then
+            rm -rf "${home_skills:?}/graphify"
+            print_info "graphify disabled - removed deployed /graphify skill"
+        fi
+        local d target
+        for d in "$CURSOR_TARGET_DIR" "$GEMINI_TARGET_DIR" "$CODEX_TARGET_DIR" "$ANTIGRAVITY_TARGET_DIR"; do
+            target="$d/skills"
+            [[ -L "$target" || ! -d "$target" ]] && continue   # symlink to home is already cleared
+            [[ -e "$target/graphify" ]] && rm -rf "${target:?}/graphify"
+        done
+        return 0
+    fi
+
+    # Enabled: surface and reconcile a collision with a prior 'graphify install'. That
+    # installer ships a references/ sidecar and a .graphify_version marker our thin
+    # wrapper never includes; rsync -a (no --delete) leaves them behind, so their
+    # presence after deploy means a foreign skill was clobbered. Surface it and
+    # reconcile to the Manifest-managed wrapper rather than leaving a hybrid skill.
+    if [[ -d "$skill/references" || -e "$skill/.graphify_version" ]]; then
+        print_warning "Existing 'graphify install' skill detected at $skill — Manifest now manages /graphify; reconciling to the deployed wrapper."
+        rm -rf "$skill/references" "$skill/.graphify_version"
+    fi
+}

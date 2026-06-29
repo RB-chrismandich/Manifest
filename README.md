@@ -68,6 +68,9 @@ cd Manifest
   evolved skills via a review PR. No proxy, no daemon, no port. Enable with `--enable-skillclaw`
 - **Proton Pass Credential Retrieval** (`/pass-cli`): Retrieve passwords, API keys, and tokens from Proton Pass
   vaults without storing PATs in files or memory
+- **Graphify Knowledge Graphs** (`/graphify`): Map a codebase or docs into a queryable knowledge graph
+  (GRAPH_REPORT.md, graph.json, graph.html) via the bundled `graphify` CLI + skill — default-enabled
+  (host-agent backend, no API key); `--disable-graphify` to opt out
 
 ---
 

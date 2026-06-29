@@ -8,8 +8,8 @@ When graphify is enabled in `services.yml`, `check_status.sh` MUST report:
 
 | Check | Output (normal) | Output (gap) |
 |-------|-----------------|--------------|
-| Enabled | counts graphify among "Enabled Services (N/M)" | shown as disabled `○` when off |
-| CLI installed | `✓ Graphify CLI installed` (+ version in verbose) | `○ Graphify CLI not installed` + install hint |
+| Enabled | reported as a managed **tool** under CLI Tools (NOT counted in "Enabled Services (N/5)" nor `working_agents` — graphify is not a consensus agent, D4) | shown as `○ Graphify (disabled)` when off |
+| CLI installed | `✓ Graphify CLI installed` (+ version/backend in verbose) | `○ Graphify CLI not installed` + install hint |
 | Backend/auth | `host-agent (no key required)` | only if an optional backend (e.g. `GEMINI_API_KEY`) is selected but unset → actionable note |
 
 ## Rules

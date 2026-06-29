@@ -23,4 +23,4 @@ services:
 ## Consumers
 
 - `bootstrap` install gate (`install_graphify` early-returns when `enabled: false`).
-- `check_status.sh` health reporting (counts graphify among enabled services; reports CLI status).
+- `check_status.sh` health reporting (reports graphify as a managed **tool** with CLI status; NOT counted among orchestration agents — D4).

@@ -99,6 +99,12 @@ services:
       - advanced # Maximum capability (gpt-5.5)
       - auto     # Use Codex config default model
 
+  # Graphify - knowledge-graph generator (managed tool, not an orchestration agent)
+  graphify:
+    enabled: true            # default-enabled; --disable-graphify to opt out
+    command: graphify
+    description: "Knowledge-graph generator (/graphify); host-agent backend, no key required"
+
   # Git CLI tools - Platform-specific Git hosting integrations
   git_cli:
     github:
@@ -141,6 +147,9 @@ fallback:
 
 # Enable browser-use (Python E2E browser automation for /browser-test)
 ./bootstrap.sh --reconfigure --enable-browser-use
+
+# Disable Graphify (managed knowledge-graph tool; default-enabled)
+./bootstrap.sh --reconfigure --disable-graphify
 ```
 
 ### Option 2: Edit services.yml manually

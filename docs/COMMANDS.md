@@ -38,6 +38,7 @@ are built from each skill's `SKILL.md` frontmatter, the authoritative source.
 | `/docs-diagrams` | Generate Mermaid architecture diagrams | CONDITIONAL (5+ modules) |
 | `/docs-improve` | Diataxis documentation framework analysis | CONDITIONAL (>500 lines) |
 | `/docs-all` | Run docs-readme/docs-diagrams/docs-improve as sub-agents in one pass | CONDITIONAL |
+| `/graphify` | Map a codebase/docs into a queryable knowledge graph (graphify CLI) | NO |
 | `/refactor-python` | Python codebase security and quality analysis | ALWAYS |
 | `/refactor-shell` | Bash/Shell script security and quality analysis | ALWAYS |
 | `/refactor-node` | Node.js/TypeScript codebase security and quality analysis | ALWAYS |

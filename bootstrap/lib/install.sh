@@ -827,3 +827,103 @@ install_smoke_deps() {
     fi
 }
 
+# Ensure the uv Python tool installer is present (graphify's install prerequisite).
+# Idempotent and existence-guarded (Principle V): no-op if uv is already available,
+# even when it lives at ~/.local/bin and is not yet on this shell's PATH. Prefers a
+# package manager, falling back to a portable pip --user install (Python is a prereq).
+check_uv() {
+    if command_exists uv || [[ -x "$HOME/.local/bin/uv" ]]; then
+        print_success "uv is installed"
+        return 0
+    fi
+
+    print_step "Installing uv (Python tool installer)..."
+
+    case "$PLATFORM" in
+        macos)
+            if command_exists brew && brew install uv; then
+                print_success "uv installed via Homebrew"
+                return 0
+            fi
+            ;;
+        linux)
+            # Only pacman reliably packages uv; apt/dnf/yum/zypper do not, so those
+            # fall through to the portable pip path below.
+            if [[ "$PKG_MANAGER" == "pacman" ]] && sudo pacman -S --noconfirm uv; then
+                print_success "uv installed via pacman"
+                return 0
+            fi
+            ;;
+    esac
+
+    # Portable fallback 1: official standalone installer. Drops a self-contained uv
+    # binary into ~/.local/bin (already on the framework PATH) with no Python/pip,
+    # so it works on PEP 668 externally-managed interpreters (default Debian/Ubuntu,
+    # Homebrew Python) where `pip install --user` is blocked. Same curl|sh idiom the
+    # framework already uses for cursor-agent.
+    if command_exists curl && curl -LsSf https://astral.sh/uv/install.sh | sh; then
+        if command_exists uv || [[ -x "$HOME/.local/bin/uv" ]]; then
+            print_success "uv installed via the official installer"
+            return 0
+        fi
+    fi
+
+    # Portable fallback 2: pip --user, for environments that have Python 3 but no
+    # curl. May fail on PEP 668 interpreters; that is handled by the caller (warn
+    # and continue), since graphify is an optional capability.
+    if check_python; then
+        local python_cmd="${PYTHON_CMD:-python3}"
+        if $python_cmd -m pip install --user --prefer-binary uv; then
+            print_success "uv installed via pip --user"
+            return 0
+        fi
+    fi
+
+    print_warning "Could not install uv automatically; see https://docs.astral.sh/uv/ to enable graphify"
+    return 1
+}
+
+# Install the graphify knowledge-graph CLI (PyPI package 'graphifyy', command 'graphify').
+# Default-enabled service. Idempotent and existence-guarded (Principle V): installs only
+# when graphifyy is absent. Never aborts bootstrap — every failure path warns and returns 0
+# (graphify is an optional capability; FR-006 / SC-005).
+install_graphify() {
+    if [[ "$ENABLE_GRAPHIFY" == false ]]; then
+        print_info "graphify is disabled - skipping installation"
+        return 0
+    fi
+
+    print_step "Checking for graphify..."
+
+    if ! check_uv; then
+        print_warning "uv is required to install graphify - skipping (re-run ./bootstrap.sh --enable-graphify once uv is available)"
+        return 0
+    fi
+
+    # Resolve uv: it may have just been pip-installed to ~/.local/bin and not yet
+    # be on this shell's PATH.
+    local uv_bin
+    if command_exists uv; then
+        uv_bin="uv"
+    elif [[ -x "$HOME/.local/bin/uv" ]]; then
+        uv_bin="$HOME/.local/bin/uv"
+    else
+        print_warning "uv not found on PATH after install - skipping graphify"
+        return 0
+    fi
+
+    # Existence guard: only install when graphifyy is absent (idempotent).
+    if "$uv_bin" tool list 2> /dev/null | grep -q '^graphifyy'; then
+        print_success "graphify (graphifyy) is already installed"
+        return 0
+    fi
+
+    print_step "Installing graphify (graphifyy) via uv..."
+    if "$uv_bin" tool install graphifyy; then
+        print_success "graphify installed successfully"
+    else
+        print_warning "Failed to install graphifyy via uv - continuing (graphify will be unavailable)"
+    fi
+    return 0
+}
+

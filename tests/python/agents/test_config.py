@@ -112,6 +112,19 @@ class TestServiceConfig:
         svc = ServiceConfig(config_path=str(tmp_path / "none.yml"))
         assert svc.is_enabled("unknown_service") is True
 
+    def test_graphify_enabled_by_default(self, tmp_path):
+        # graphify is a default-enabled managed tool; with no file it resolves
+        # enabled via the unknown-service default (it is NOT in the agent-defaults
+        # map, so it is never counted as a consensus agent — spec 364 D4).
+        svc = ServiceConfig(config_path=str(tmp_path / "none.yml"))
+        assert svc.is_enabled("graphify") is True
+
+    def test_graphify_disabled_from_yaml(self, tmp_path):
+        cfg = tmp_path / "services.yml"
+        cfg.write_text("services:\n  graphify:\n    enabled: false\n")
+        svc = ServiceConfig(config_path=str(cfg))
+        assert svc.is_enabled("graphify") is False
+
 
 # ---------------------------------------------------------------------------
 # Logger
