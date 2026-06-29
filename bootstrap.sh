@@ -240,6 +240,7 @@ main() {
         install_github_cli || install_failures=$((install_failures + 1))
         install_gitlab_cli || install_failures=$((install_failures + 1))
         check_jq || install_failures=$((install_failures + 1))
+        check_rsync || install_failures=$((install_failures + 1))
         check_cursor || install_failures=$((install_failures + 1))
         if [[ $install_failures -gt 0 ]]; then
             print_warning "$install_failures install step(s) failed — continuing with remaining setup"
