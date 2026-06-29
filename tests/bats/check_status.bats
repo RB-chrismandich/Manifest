@@ -56,7 +56,7 @@ teardown() {
 # --- Fixture helpers ---
 
 write_services_yml() {
-    # write_services_yml <claude> <gemini> <cursor> <codex> [antigravity]
+    # write_services_yml <claude> <gemini> <cursor> <codex> [antigravity] [graphify]
     cat > "$HOME/.claude/config/services.yml" << EOF
 services:
   claude:
@@ -69,6 +69,8 @@ services:
     enabled: $4
   antigravity:
     enabled: ${5:-false}
+  graphify:
+    enabled: ${6:-false}
 EOF
 }
 
@@ -115,7 +117,9 @@ EOF
 }
 
 @test "counts enabled services (5/5)" {
-    write_services_yml true true true true true
+    # graphify (6th arg) enabled too, so no "(disabled)" marker appears; the count
+    # stays 5/5 because graphify is a tool, not a counted orchestration agent (D4).
+    write_services_yml true true true true true true
     run bash "$SCRIPT_UNDER_TEST"
     assert_success
     assert_output --partial "Enabled Services (5/5):"
@@ -165,6 +169,39 @@ EOF
     assert_output --partial "Gemini CLI not installed"
     assert_output --partial "cursor-agent not available (optional)"
     assert_output --partial "Codex CLI not installed"
+}
+
+# --- Graphify (managed tool, NOT a parallel-orchestration agent) ---
+
+@test "reports graphify installed when enabled and CLI present" {
+    write_services_yml true false false false false true
+    make_mock_cli graphify
+    run bash "$SCRIPT_UNDER_TEST"
+    assert_success
+    assert_output --partial "Graphify CLI installed"
+}
+
+@test "reports graphify not installed when enabled but CLI missing" {
+    write_services_yml true false false false false true
+    run bash "$SCRIPT_UNDER_TEST"
+    assert_success
+    assert_output --partial "Graphify CLI not installed"
+}
+
+@test "reports graphify disabled when toggled off" {
+    write_services_yml true false false false false false
+    run bash "$SCRIPT_UNDER_TEST"
+    assert_success
+    assert_output --partial "Graphify (disabled)"
+}
+
+@test "graphify does not count toward the orchestration agent total (D4)" {
+    # claude + gemini = 2 agents; graphify enabled must NOT make it 3/6.
+    write_services_yml true true false false false true
+    run bash "$SCRIPT_UNDER_TEST"
+    assert_success
+    assert_output --partial "Enabled Services (2/5):"
+    refute_output --partial "/6"
 }
 
 @test "verbose mode shows CLI location and version" {

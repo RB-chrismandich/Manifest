@@ -30,6 +30,10 @@ command -v <tool_command> &>/dev/null
 
 Report: installed (with version) or missing.
 
+This loop also covers **graphify** (`command: graphify`) — the knowledge-graph
+tool. It is a managed tool, not a parallel-orchestration agent, so it does not
+count toward orchestration readiness; report it as installed or missing only.
+
 ### 2. Authentication Status
 
 Check authentication for each enabled service:
@@ -39,6 +43,7 @@ Check authentication for each enabled service:
 - **Cursor**: `cursor --version` (no separate auth check; presence implies configured)
 - **GitHub CLI**: `gh auth status 2>/dev/null`
 - **GitLab CLI**: `glab auth status 2>/dev/null`
+- **Graphify**: not applicable — default host-agent backend uses the running assistant as the LLM (no key)
 
 Report: authenticated, unauthenticated, or not applicable.
 

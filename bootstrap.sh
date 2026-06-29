@@ -16,6 +16,8 @@
 #   --disable-codex       Disable Codex CLI
 #   --enable-antigravity  Enable Antigravity IDE (default: enabled)
 #   --disable-antigravity Disable Antigravity IDE
+#   --enable-graphify     Enable Graphify knowledge-graph CLI (default: enabled)
+#   --disable-graphify    Disable Graphify knowledge-graph CLI
 #   --enable-skillclaw    Enable SkillClaw session capture (default: disabled)
 #   --disable-skillclaw   Disable SkillClaw session capture
 #   --enable-browser-use  Enable browser-use for /browser-test (default: disabled)
@@ -130,6 +132,7 @@ run_reconfigure() {
         local old_cursor=${FILE_CURSOR:-unknown}
         local old_codex=${FILE_CODEX:-unknown}
         local old_antigravity=${FILE_ANTIGRAVITY:-unknown}
+        local old_graphify=${FILE_GRAPHIFY:-unknown}
         local old_skillclaw=${FILE_SKILLCLAW:-unknown}
         local old_browser_use=${FILE_BROWSER_USE:-unknown}
 
@@ -138,6 +141,7 @@ run_reconfigure() {
         echo "  Cursor:      $old_cursor → $ENABLE_CURSOR"
         echo "  Codex:       $old_codex → $ENABLE_CODEX"
         echo "  Antigravity: $old_antigravity → $ENABLE_ANTIGRAVITY"
+        echo "  Graphify:    $old_graphify → $ENABLE_GRAPHIFY"
         echo "  SkillClaw:   $old_skillclaw → $ENABLE_SKILLCLAW"
         echo "  browser-use: $old_browser_use → $ENABLE_BROWSER_USE"
     else
@@ -146,6 +150,7 @@ run_reconfigure() {
         echo "  Cursor:      (new) → $ENABLE_CURSOR"
         echo "  Codex:       (new) → $ENABLE_CODEX"
         echo "  Antigravity: (new) → $ENABLE_ANTIGRAVITY"
+        echo "  Graphify:    (new) → $ENABLE_GRAPHIFY"
         echo "  SkillClaw:   (new) → $ENABLE_SKILLCLAW"
         echo "  browser-use: (new) → $ENABLE_BROWSER_USE"
     fi
@@ -166,6 +171,7 @@ run_reconfigure() {
         install_python_dependencies
         install_browser_use
         install_smoke_deps
+        install_graphify
 
         print_success "Services reconfigured"
         echo ""
@@ -207,6 +213,7 @@ main() {
     echo "  Cursor:      $(if [[ "$ENABLE_CURSOR" == true ]]; then echo "enabled"; else echo "disabled"; fi)"
     echo "  Codex CLI:   $(if [[ "$ENABLE_CODEX" == true ]]; then echo "enabled"; else echo "disabled"; fi)"
     echo "  Antigravity: $(if [[ "$ENABLE_ANTIGRAVITY" == true ]]; then echo "enabled"; else echo "disabled"; fi)"
+    echo "  Graphify:    $(if [[ "$ENABLE_GRAPHIFY" == true ]]; then echo "enabled"; else echo "disabled"; fi)"
     echo "  SkillClaw:   $(if [[ "$ENABLE_SKILLCLAW" == true ]]; then echo "enabled"; else echo "disabled"; fi)"
     echo "  browser-use: $(if [[ "$ENABLE_BROWSER_USE" == true ]]; then echo "enabled"; else echo "disabled"; fi)"
     echo ""
@@ -258,6 +265,7 @@ main() {
     install_python_dependencies
     install_browser_use
     install_smoke_deps
+    install_graphify
 
     # Configure default MCP servers when requested
     if [[ "$INSTALL_MCP" == true ]]; then

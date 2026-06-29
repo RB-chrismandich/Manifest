@@ -112,6 +112,9 @@ if [[ -f ~/.claude/config/services.yml ]]; then
     cursor_enabled=$(grep -A1 "^  cursor:" ~/.claude/config/services.yml | grep "enabled:" | awk '{print $2}')
     codex_enabled=$(grep -A1 "^  codex:" ~/.claude/config/services.yml | grep "enabled:" | awk '{print $2}')
     antigravity_enabled=$(grep -A1 "^  antigravity:" ~/.claude/config/services.yml | grep "enabled:" | awk '{print $2}')
+    # graphify is a managed TOOL, not a parallel-orchestration agent (it is reported
+    # separately under CLI Tools and excluded from the agent count / working_agents).
+    graphify_enabled=$(grep -A1 "^  graphify:" ~/.claude/config/services.yml | grep "enabled:" | awk '{print $2}')
 
     enabled_count=0
     [[ "$claude_enabled" == "true" ]] && enabled_count=$((enabled_count + 1))
@@ -235,6 +238,27 @@ else
     if [[ "$VERBOSE" == true ]]; then
         echo -e "    ${BLUE}→${NC} Install via the Antigravity IDE (agy install)"
     fi
+fi
+
+# Graphify is a managed knowledge-graph tool, NOT a parallel-orchestration agent,
+# so it is reported here but never counted toward orchestration readiness
+# (no graphify_installed flag — it must not feed working_agents; spec 364 D4).
+if [[ "$graphify_enabled" == "true" ]]; then
+    if command -v graphify &> /dev/null; then
+        echo -e "  ${GREEN}✓${NC} Graphify CLI installed"
+        if [[ "$VERBOSE" == true ]]; then
+            echo -e "    Location: $(which graphify)"
+            echo -e "    Version:  $(graphify --version 2> /dev/null || echo 'unknown')"
+            echo -e "    Backend:  host-agent (no API key required)"
+        fi
+    else
+        echo -e "  ${YELLOW}○${NC} Graphify CLI not installed"
+        if [[ "$VERBOSE" == true ]]; then
+            echo -e "    ${BLUE}→${NC} Install: ./bootstrap.sh --enable-graphify  (uv tool install graphifyy)"
+        fi
+    fi
+else
+    echo -e "  ${YELLOW}○${NC} Graphify (disabled)"
 fi
 
 echo ""

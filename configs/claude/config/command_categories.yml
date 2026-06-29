@@ -129,6 +129,7 @@ overrides:
   checkpoint: meta
   code-quality: meta
   dashboard: meta
+  graphify: meta
   health-check: meta
   help: meta
   learning-loop: meta

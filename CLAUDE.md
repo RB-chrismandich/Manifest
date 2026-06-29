@@ -97,7 +97,7 @@ The `bootstrap.sh` script automates installation, deployment, and authentication
 ```
 
 Service toggles (`--enable-*/--disable-*` for claude, gemini, cursor, codex,
-antigravity, skillclaw, browser-use, gh, glab), other flags (`--skip-install`,
+antigravity, graphify, skillclaw, browser-use, gh, glab), other flags (`--skip-install`,
 `--skip-auth`, `--force`, `--reconfigure`, `--install-mcp`), and the full step
 list are documented in [README.md](README.md) and `./bootstrap.sh --help`.
 
@@ -239,5 +239,5 @@ approaches), review stale plans, or archive/abandon completed work.
 <!-- SPECKIT START -->
 ## Active Spec Kit Feature
 
-- `363-smoke-test-orchestrator` — plan: [specs/363-smoke-test-orchestrator/plan.md](specs/363-smoke-test-orchestrator/plan.md)
+- `364-graphify-integration` — plan: [specs/364-graphify-integration/plan.md](specs/364-graphify-integration/plan.md)
 <!-- SPECKIT END -->
