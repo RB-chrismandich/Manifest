@@ -235,9 +235,10 @@ approaches), review stale plans, or archive/abandon completed work.
 - [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) - Common problems and solutions
 - [configs/claude/.plans/README.md](configs/claude/.plans/README.md) - Plan management quick reference
 - [configs/claude/CLAUDE.md](configs/claude/CLAUDE.md) - Orchestration guide (deployed to ~/.claude/)
+- [docs/CODING_STANDARDS.md](docs/CODING_STANDARDS.md) - Per-language coding standards and enforcement layers
 
 <!-- SPECKIT START -->
 ## Active Spec Kit Feature
 
-- `364-graphify-integration` — plan: [specs/364-graphify-integration/plan.md](specs/364-graphify-integration/plan.md)
+- `366-coding-standards` — plan: [specs/366-coding-standards/plan.md](specs/366-coding-standards/plan.md)
 <!-- SPECKIT END -->

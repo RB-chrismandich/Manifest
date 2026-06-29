@@ -1,11 +1,15 @@
 # Pre-commit hooks for Manifest project
 # Install: pre-commit install
 # Run manually: pre-commit run --all-files
+#
+# Version pins refreshed via `pre-commit autoupdate` (feature 366, 2026-06-29)
+# and validated by running the suite on changed files. Dormant-language hooks
+# (Go/Rust/Terraform) are file-scoped and only run when matching sources appear.
 
 repos:
   # Standard pre-commit hooks
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.5.0
+    rev: v6.0.0
     hooks:
       - id: trailing-whitespace
         exclude: ^(\.Jules/|docs/templates/)
@@ -22,44 +26,59 @@ repos:
       - id: check-merge-conflict
       - id: check-executables-have-shebangs
       - id: check-shebang-scripts-are-executable
+        # .bats carry a `#!/usr/bin/env bats` shebang for tooling but are run via
+        # the bats runner (not executed directly), so they are intentionally
+        # non-executable — matches all existing tests/bats/*.bats (feature 366).
+        exclude: \.bats$
       - id: detect-private-key
       - id: mixed-line-ending
         args: ['--fix=lf']
+      # Fast Python pre-flight (feature 366): syntax + stray debug statements.
+      - id: check-ast
+        types_or: [python, pyi]
+      - id: debug-statements
+        types_or: [python, pyi]
 
   # Shell script checking
   - repo: https://github.com/shellcheck-py/shellcheck-py
-    rev: v0.9.0.6
+    rev: v0.11.0.1
     hooks:
       - id: shellcheck
         args: ['--severity=warning']
-        exclude: ^(\.Jules/)
+        # .bats use bats `@test {}` syntax that shellcheck cannot parse; they are
+        # exercised by the bats runner in CI instead (feature 366).
+        exclude: (^\.Jules/|\.bats$)
 
   # Shell script formatting
   - repo: https://github.com/scop/pre-commit-shfmt
-    rev: v3.7.0-4
+    rev: v3.13.1-1
     hooks:
       - id: shfmt
-        args: ['-i', '4', '-ci', '-sr', '-w']
-        exclude: ^(\.Jules/)
+        # -ln bash: parse as Bash (matches repo shebangs / Bash 3.2 idioms).
+        args: ['-i', '4', '-ci', '-sr', '-ln', 'bash', '-w']
+        # .bats use bats syntax shfmt cannot parse (feature 366).
+        exclude: (^\.Jules/|\.bats$)
 
   # Markdown linting
   - repo: https://github.com/igorshubovych/markdownlint-cli
-    rev: v0.39.0
+    rev: v0.49.0
     hooks:
       - id: markdownlint
         args: ['--fix', '--config', '.markdownlint.jsonc']
-        exclude: ^(\.Jules/|docs/templates/|docs/SHELL_ANALYSIS_REPORT\.md|docs/VALIDATION_REPORT\.md)
+        # specs/ holds spec-kit planning artifacts (long task lines, generated
+        # tables) — excluded like the report docs below (feature 366).
+        exclude: ^(\.Jules/|specs/|docs/templates/|docs/SHELL_ANALYSIS_REPORT\.md|docs/VALIDATION_REPORT\.md)
 
   # YAML linting
   - repo: https://github.com/adrienverge/yamllint
-    rev: v1.35.1
+    rev: v1.38.0
     hooks:
       - id: yamllint
         exclude: ^(\.Jules/)
 
   # Python linting + formatting (Ruff)
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.8.6
+    rev: v0.15.20
     hooks:
       - id: ruff
         args: ['--fix']
@@ -67,14 +86,15 @@ repos:
       - id: ruff-format
         types_or: [python, pyi]
 
-  # Go linting (golangci-lint)
+  # Go linting (golangci-lint) — DORMANT (no .go files yet); v2 config schema.
   - repo: https://github.com/golangci/golangci-lint
-    rev: v1.63.4
+    rev: v2.12.2
     hooks:
       - id: golangci-lint
         types_or: [go]
 
-  # JavaScript/TypeScript linting (ESLint)
+  # JavaScript/TypeScript linting (ESLint) — kept at v9.x to match the pinned
+  # additional_dependencies (out of scope for feature 366; dormant — no tracked .js).
   - repo: https://github.com/pre-commit/mirrors-eslint
     rev: v9.18.0
     hooks:
@@ -84,18 +104,24 @@ repos:
         additional_dependencies:
           - eslint@9.18.0
 
-  # Terraform linting + security
+  # Terraform fmt + lint + security — DORMANT (no .tf files yet; types_or scopes
+  # these so they only run when real Terraform appears). tfsec is DEPRECATED
+  # (merged into Trivy, 2024) -> use terraform_trivy (feature 366).
   - repo: https://github.com/antonbabenko/pre-commit-terraform
-    rev: v1.96.3
+    rev: v1.108.0
     hooks:
+      - id: terraform_fmt
+        types_or: [terraform]
+      - id: terraform_validate
+        types_or: [terraform]
       - id: terraform_tflint
         types_or: [terraform]
-      - id: terraform_tfsec
+      - id: terraform_trivy
         types_or: [terraform]
 
   # Secret detection
   - repo: https://github.com/gitleaks/gitleaks
-    rev: v8.18.2
+    rev: v8.30.0
     hooks:
       - id: gitleaks
 
@@ -116,7 +142,8 @@ repos:
         entry: tests/lint/check_array_expansion.sh
         language: system
         types: [shell]
-        exclude: ^\.specify/
+        # identify tags .bats as shell; exclude them like the other shell hooks.
+        exclude: (^\.specify/|\.bats$)
 
       # Check for hardcoded credentials
       - id: check-credentials
@@ -155,6 +182,32 @@ repos:
         language: system
         types: [markdown]
         exclude: ^(\.pre-commit-config\.yaml|\.Jules/|configs/|tests/|\.claude/|docs/templates/)
+
+      # Rust format + lint — DORMANT/guarded (feature 366): only runs when .rs
+      # files are staged AND a Cargo.toml exists. Avoids the unmaintained
+      # doublify/pre-commit-rust; uses the local cargo toolchain.
+      - id: cargo-fmt-check
+        name: cargo fmt --check (Rust)
+        entry: bash -c 'test -f Cargo.toml || exit 0; cargo fmt --all -- --check'
+        language: system
+        types_or: [rust]
+        pass_filenames: false
+      - id: cargo-clippy
+        name: cargo clippy -D warnings (Rust)
+        entry: bash -c 'test -f Cargo.toml || exit 0; cargo clippy --all-targets -- -D warnings'
+        language: system
+        types_or: [rust]
+        pass_filenames: false
+
+      # Python type checking (feature 366) — opt-in via the manual stage until
+      # typed coverage grows: `pre-commit run pyright --hook-stage manual`.
+      - id: pyright
+        name: pyright (type check, opt-in)
+        entry: pyright
+        language: system
+        types_or: [python, pyi]
+        stages: [manual]
+        pass_filenames: false
 
 # Global settings
 default_language_version:
