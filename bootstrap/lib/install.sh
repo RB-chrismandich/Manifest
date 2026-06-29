@@ -697,6 +697,60 @@ check_jq() {
     fi
 }
 
+# Ensure rsync is available — the config/skill deploy in deploy.sh + common.sh
+# uses it (the config-tree copy and the skill copy). Best-effort auto-install;
+# non-fatal: deploy_home_skills already has a cp fallback, but the config-tree
+# rsync (with --exclude) prefers rsync, so we try to provide it. Every path
+# returns 0 so the unguarded caller is never aborted under set -e.
+check_rsync() {
+    if command_exists rsync; then
+        print_success "rsync is installed"
+        return 0
+    fi
+
+    print_step "Installing rsync (used by config/skill deploy)..."
+
+    case "$PLATFORM" in
+        macos)
+            if command_exists brew && brew install rsync; then
+                print_success "rsync installed"
+                return 0
+            fi
+            ;;
+        linux)
+            case "$PKG_MANAGER" in
+                apt)
+                    if sudo apt-get update -qq && sudo apt-get install -y -qq rsync; then
+                        print_success "rsync installed"
+                        return 0
+                    fi
+                    ;;
+                dnf | yum)
+                    if sudo "$PKG_MANAGER" install -y rsync; then
+                        print_success "rsync installed"
+                        return 0
+                    fi
+                    ;;
+                pacman)
+                    if sudo pacman -S --noconfirm rsync; then
+                        print_success "rsync installed"
+                        return 0
+                    fi
+                    ;;
+                zypper)
+                    if sudo zypper install -y rsync; then
+                        print_success "rsync installed"
+                        return 0
+                    fi
+                    ;;
+            esac
+            ;;
+    esac
+
+    print_warning "Could not install rsync automatically; skill deploy will fall back to cp. Install rsync for the full config-tree sync."
+    return 0
+}
+
 # Install the cursor-agent CLI (headless Cursor agent used by parallel_agent.py)
 check_cursor() {
     if [[ "$ENABLE_CURSOR" == false ]]; then
