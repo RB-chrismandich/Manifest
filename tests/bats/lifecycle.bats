@@ -309,3 +309,126 @@ to_implement() {
     run "$SCRIPT" advance jira__PROJ-29 --actor agent
     [ "$status" -ne 0 ]
 }
+
+# ============================================================================
+# US3 — four-tier hierarchy provisioning (T022–T027, T012)
+# ============================================================================
+
+# Provision seam stub: echoes a fake remote id from the title; title containing FAIL -> error.
+mk_provision_stub() {
+    cat > "$BATS_TEST_TMPDIR/prov.sh" <<'P'
+#!/usr/bin/env bash
+# args: provider construct title parent_ext
+case "$3" in *FAIL*) exit 1 ;; esac
+echo "REMOTE-$(echo "$3" | tr ' ' '-')"
+P
+    chmod +x "$BATS_TEST_TMPDIR/prov.sh"
+    export LIFECYCLE_PROVISION_CMD="$BATS_TEST_TMPDIR/prov.sh"
+    export LIFECYCLE_PROVIDERS_CONFIG="$BATS_TEST_DIRNAME/../../configs/claude/config/lifecycle_providers.yml"
+}
+nodes() { python3 -c 'import json,sys;print(len(json.load(sys.stdin).get("hierarchy",[])))'; }
+tier_count() { python3 -c "import json,sys;H=json.load(sys.stdin).get('hierarchy',[]);print(sum(1 for n in H if n['tier_level']==$1))"; }
+tier_state() { python3 -c "import json,sys;H=json.load(sys.stdin).get('hierarchy',[]);print([n['provision_state'] for n in H if n['tier_level']==$1][0])"; }
+child_links_entry() { python3 -c '
+import json,sys
+H=json.load(sys.stdin)["hierarchy"]
+entry=next(n for n in H if n.get("source")=="entry")
+sub=next(n for n in H if n["tier_level"]==4)
+print(sub.get("parent_node_id")==entry["node_id"])'; }
+
+@test "init seeds the entry entity as a present Tier-3 anchor node (FR-016 consume)" {
+    mk_provision_stub
+    "$SCRIPT" init "org/repo#5" >/dev/null
+    run "$SCRIPT" status github__org_repo_5 --json
+    [ "$(echo "$output" | nodes)" = "1" ]
+    [ "$(echo "$output" | tier_state 3)" = "present" ]
+}
+@test "provision a Sub-Task (tier 4) under the seeded entry; links top-down to it" {
+    mk_provision_stub
+    "$SCRIPT" init "org/repo#7" >/dev/null
+    run "$SCRIPT" provision github__org_repo_7 --tier 4 --title "OAuth callback" --parent-tier 3
+    [ "$status" -eq 0 ]; [[ "$output" == *"provisioned tier 4"* ]]
+    run "$SCRIPT" status github__org_repo_7 --json
+    [ "$(echo "$output" | nodes)" = "2" ]
+    [ "$(echo "$output" | child_links_entry)" = "True" ]   # parent_node_id == entry node_id
+}
+@test "create-or-adopt is idempotent for the same (tier,key,parent): re-run adopts, no duplicate" {
+    mk_provision_stub
+    "$SCRIPT" init "org/repo#6" >/dev/null
+    "$SCRIPT" provision github__org_repo_6 --tier 4 --key S1 --title "OAuth callback" --parent-tier 3 >/dev/null
+    run "$SCRIPT" provision github__org_repo_6 --tier 4 --key S1 --title "OAuth callback" --parent-tier 3
+    [ "$status" -eq 0 ]; [[ "$output" == *"adopt"* ]]
+    run "$SCRIPT" status github__org_repo_6 --json
+    [ "$(echo "$output" | tier_count 4)" = "1" ]
+}
+@test "distinct same-titled siblings (different --key) do NOT collapse" {
+    mk_provision_stub
+    "$SCRIPT" init "org/repo#12" >/dev/null
+    "$SCRIPT" provision github__org_repo_12 --tier 4 --key S1 --title "Add tests" --parent-tier 3 >/dev/null
+    "$SCRIPT" provision github__org_repo_12 --tier 4 --key S2 --title "Add tests" --parent-tier 3 >/dev/null
+    run "$SCRIPT" status github__org_repo_12 --json
+    [ "$(echo "$output" | tier_count 4)" = "2" ]   # two distinct sub-tasks, not collapsed
+}
+@test "non-adjacent parent -> error (Sub-Task cannot parent directly under Initiative)" {
+    mk_provision_stub
+    "$SCRIPT" init "org/repo#13" >/dev/null
+    run "$SCRIPT" provision github__org_repo_13 --tier 4 --title "x" --parent-tier 1
+    [ "$status" -eq 2 ]; [[ "$output" == *"adjacency"* ]]
+}
+@test "top-down: provisioning an Epic (tier 2) with no Initiative present -> error" {
+    mk_provision_stub
+    "$SCRIPT" init "org/repo#8" >/dev/null
+    run "$SCRIPT" provision github__org_repo_8 --tier 2 --title "Epic" --parent-tier 1
+    [ "$status" -eq 1 ]; [[ "$output" == *"top-down"* ]]
+}
+@test "missing tier -> configuration error naming the tier (FR-014)" {
+    mk_provision_stub
+    cat > "$BATS_TEST_TMPDIR/prov.yml" <<'Y'
+providers:
+  github:
+    tier_map:
+      2: milestone
+      3: issue
+      4: sub_issue
+    missing_tier_behavior: error
+Y
+    export LIFECYCLE_PROVIDERS_CONFIG="$BATS_TEST_TMPDIR/prov.yml"
+    "$SCRIPT" init "org/repo#9" >/dev/null
+    run "$SCRIPT" provision github__org_repo_9 --tier 1 --title "Initiative X"
+    [ "$status" -eq 2 ]; [[ "$output" == *"tier 1 has no native construct"* ]]
+}
+@test "missing_tier_behavior fails CLOSED on an unknown value (no silent label collapse, FR-014)" {
+    mk_provision_stub
+    cat > "$BATS_TEST_TMPDIR/prov.yml" <<'Y'
+providers:
+  github:
+    tier_map:
+      3: issue
+    missing_tier_behavior: bogus-value
+Y
+    export LIFECYCLE_PROVIDERS_CONFIG="$BATS_TEST_TMPDIR/prov.yml"
+    "$SCRIPT" init "org/repo#14" >/dev/null
+    run "$SCRIPT" provision github__org_repo_14 --tier 1 --title "Init"
+    [ "$status" -eq 2 ]   # errors, does not collapse to a label
+}
+@test "non-numeric --parent-tier fails with a curated error, not a traceback" {
+    mk_provision_stub
+    "$SCRIPT" init "org/repo#15" >/dev/null
+    run "$SCRIPT" provision github__org_repo_15 --tier 4 --title "x" --parent-tier abc
+    [ "$status" -eq 64 ]; [[ "$output" == *"--parent-tier must be 1-4"* ]]
+}
+@test "partial failure -> FAILED_PROVISION; same-(tier,key) retry updates IN PLACE (no duplicate, FR-022)" {
+    mk_provision_stub
+    "$SCRIPT" init "org/repo#11" >/dev/null
+    # 1st attempt fails (title contains FAIL); identity pinned by --key S9
+    "$SCRIPT" provision github__org_repo_11 --tier 4 --key S9 --title "FAIL me" --parent-tier 3 >/dev/null 2>&1 || true
+    run "$SCRIPT" status github__org_repo_11 --json
+    [ "$(echo "$output" | tier_count 4)" = "1" ]
+    [ "$(echo "$output" | tier_state 4)" = "FAILED_PROVISION" ]
+    # retry SAME key, now-succeeding title -> in-place flip to present, still ONE tier-4 node
+    run "$SCRIPT" provision github__org_repo_11 --tier 4 --key S9 --title "now ok" --parent-tier 3
+    [ "$status" -eq 0 ]
+    run "$SCRIPT" status github__org_repo_11 --json
+    [ "$(echo "$output" | tier_count 4)" = "1" ]
+    [ "$(echo "$output" | tier_state 4)" = "present" ]
+}

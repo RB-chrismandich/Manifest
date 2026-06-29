@@ -42,6 +42,8 @@ Usage: lifecycle.sh <subcommand> [args]
                             [--unit <smoke-app>] [--junit <path>]
                             implement/verify auto-compute the gate via the smoke runtime.
   subtask <track-id> --id <sid> [--ship <workflow-id>] [--exempt --reason <text>]
+  provision <track-id> --tier <1-4> --title <t> [--parent-tier <m>] [--external-id <x>]
+                            Top-down, create-or-adopt; missing tier => config error.
   anchor <track-id>         Re-print the active phase.
   regress <track-id> --to <phase> --reason <text>
 USAGE
@@ -179,13 +181,18 @@ cmd_init() {
     local now; now="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
     local json
     json="$(python3 -c '
-import json,sys
+import json,sys,uuid
 tid,prov,ent,raw,now=sys.argv[1:6]
+# Seed the entry entity as the present anchor Task (Tier 3) so descendants parent top-down
+# and the anchor is never re-minted (FR-016: consume entry + provision missing descendants).
+entry_node={"node_id":uuid.uuid4().hex,"tier_level":3,"key":ent,"external_id":ent,
+ "construct":"entry","provider_type":prov,"parent_node_id":None,"parent_external_id":None,
+ "provision_state":"present","status":"planned","remote_recorded_id":None,"source":"entry"}
 print(json.dumps({"schema_version":1,"track_id":tid,
  "entry_point":{"raw":raw,"provider":prov,"entity_id":ent,"tier":3},
  "tier_anchor":"task","current_phase":"specify","completed_phases":[],
  "actor_mode":"human","regression_log":[],"subtask_states":{},
- "shipped_workflow_ids":[],"gate_results":{},"created":now}))' \
+ "shipped_workflow_ids":[],"gate_results":{},"hierarchy":[entry_node],"created":now}))' \
         "${track_id}" "${provider}" "${entity}" "${ep}" "${now}")"
     write_track "${track_id}" "${json}"
     echo "initialized track: ${track_id} (provider=${provider}, entity=${entity}, phase=specify)"
@@ -436,6 +443,128 @@ print(json.dumps(j))' "${j}" "${to}" "${reason}" "${now}")"
     echo "regressed ${id}: -> ${to} (${reason})"
 }
 
+# --- US3: four-tier hierarchy provisioning (FR-013..FR-017) -----------------------------
+
+LIFECYCLE_PROVIDERS_CONFIG="${LIFECYCLE_PROVIDERS_CONFIG:-${HOME}/.claude/config/lifecycle_providers.yml}"
+
+# Provider tool seam: create ONE remote node, echo its external id; non-zero = failure.
+# args: <provider> <construct> <title> <parent-external-id-or-empty>. Real backends route to
+# git_ops.sh (gh/glab), linear_ops.sh, or the Atlassian MCP (US4); tests inject a stub.
+provision_remote() {
+    if [ -n "${LIFECYCLE_PROVISION_CMD:-}" ]; then
+        local arr; read -ra arr <<<"${LIFECYCLE_PROVISION_CMD}"; "${arr[@]}" "$@"; return $?
+    fi
+    err "no provisioning backend (set LIFECYCLE_PROVISION_CMD or wire git_ops/linear_ops/jira)"; return 70
+}
+
+# Resolve a tier -> native construct from config. Echoes the construct, or ERR:* / MISSING:<behavior>.
+resolve_tier_construct() {
+    local provider="$1" tier="$2"
+    [ -f "${LIFECYCLE_PROVIDERS_CONFIG}" ] || { echo "ERR:no-config"; return 0; }
+    python3 -c '
+import sys, json
+try:
+    import yaml
+    cfg = yaml.safe_load(open(sys.argv[1])) or {}
+except Exception:
+    print("ERR:unreadable-config"); sys.exit(0)
+p = (cfg.get("providers") or {}).get(sys.argv[2])
+if not p:
+    print("ERR:unknown-provider"); sys.exit(0)
+c = (p.get("tier_map") or {}).get(int(sys.argv[3]))
+print(str(c) if c is not None else "MISSING:%s" % p.get("missing_tier_behavior", "error"))
+' "${LIFECYCLE_PROVIDERS_CONFIG}" "${provider}" "${tier}"
+}
+
+# provision <track-id> --tier N --title T [--key K] [--parent-tier M] [--parent-id P] [--external-id X]
+# Top-down, create-or-adopt by stable (tier,key,parent), adjacency-checked, missing-tier ->
+# config error, partial -> FAILED_PROVISION (in-place reattempt, no duplicates).
+cmd_provision() {
+    local id="${1:-}"; shift || true
+    [ -n "${id}" ] || { err "provision requires a track-id"; return 64; }
+    local tier='' title='' parent_tier='' parent_id='' ext='' key=''
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --tier) tier="${2:-}"; shift 2 ;;
+            --title) title="${2:-}"; shift 2 ;;
+            --parent-tier) parent_tier="${2:-}"; shift 2 ;;
+            --parent-id) parent_id="${2:-}"; shift 2 ;;
+            --external-id) ext="${2:-}"; shift 2 ;;
+            --key) key="${2:-}"; shift 2 ;;
+            *) err "provision: unknown option $1"; return 64 ;;
+        esac
+    done
+    case "${tier}" in 1|2|3|4) : ;; *) err "provision requires --tier <1-4>"; return 64 ;; esac
+    case "${parent_tier}" in ''|1|2|3|4) : ;; *) err "provision --parent-tier must be 1-4"; return 64 ;; esac
+    [ -n "${title}" ] || [ -n "${ext}" ] || [ -n "${key}" ] || { err "provision requires --title, --key, or --external-id"; return 64; }
+    if [ -n "${parent_tier}" ] && [ "$((tier - 1))" -ne "${parent_tier}" ]; then
+        err "tier ${tier} parent must be tier $((tier - 1)), not ${parent_tier} (adjacency, data-model)"; return 2
+    fi
+    local j; j="$(read_track "${id}")" || return $?
+    local provider; provider="$(printf '%s' "${j}" | python3 -c 'import json,sys;print(json.load(sys.stdin)["entry_point"]["provider"])')"
+    local construct; construct="$(resolve_tier_construct "${provider}" "${tier}")"
+    case "${construct}" in
+        ERR:*)                     err "provider config error: ${construct#ERR:} (${LIFECYCLE_PROVIDERS_CONFIG})"; return 2 ;;
+        MISSING:collapse-to-label) construct="label:tier${tier}" ;;   # the ONLY declared fallback
+        MISSING:*)                 err "tier ${tier} has no native construct on ${provider}; missing-tier=${construct#MISSING:} (FR-014)"; return 2 ;;
+    esac
+    key="${key:-${ext:-${title}}}"
+    # Plan: resolve parent once (top-down + ambiguity), detect adopt/reattempt by (tier,key,parent).
+    local plan; plan="$(printf '%s' "${j}" | python3 -c '
+import json,sys
+j=json.load(sys.stdin); tier=int(sys.argv[1]); key=sys.argv[2]; ptier=sys.argv[3]; pid=sys.argv[4]
+H=j.get("hierarchy") or []
+parent_node_id=None; parent_ext=None
+if ptier:
+    pres=[n for n in H if n["tier_level"]==int(ptier) and n.get("provision_state")=="present"]
+    if not pres:
+        print(json.dumps({"action":"error","reason":"parent tier %s not provisioned (top-down required, FR-016)"%ptier})); sys.exit(0)
+    if pid:
+        pres=[n for n in pres if pid in (n.get("node_id"),n.get("key"),n.get("external_id"))]
+        if not pres:
+            print(json.dumps({"action":"error","reason":"no present tier-%s parent matches --parent-id %s"%(ptier,pid)})); sys.exit(0)
+    elif len(pres)>1:
+        print(json.dumps({"action":"error","reason":"ambiguous parent: %d present nodes at tier %s (use --parent-id)"%(len(pres),ptier)})); sys.exit(0)
+    parent_node_id=pres[0].get("node_id"); parent_ext=pres[0].get("external_id")
+for n in H:
+    if n["tier_level"]==tier and n.get("key")==key and n.get("parent_node_id")==parent_node_id:
+        if n.get("provision_state")=="present":
+            print(json.dumps({"action":"adopt","external_id":n.get("external_id")})); sys.exit(0)
+        print(json.dumps({"action":"reattempt","node_id":n.get("node_id"),"parent_node_id":parent_node_id,"parent_ext":parent_ext})); sys.exit(0)
+print(json.dumps({"action":"create","parent_node_id":parent_node_id,"parent_ext":parent_ext}))
+' "${tier}" "${key}" "${parent_tier}" "${parent_id}")"
+    case "$(json_get "${plan}" action)" in
+        adopt) echo "adopt tier ${tier} (${key}): $(json_get "${plan}" external_id) (idempotent)"; return 0 ;;
+        error) err "$(json_get "${plan}" reason)"; return 1 ;;
+    esac
+    local parent_ext new_ext rc=0
+    parent_ext="$(json_get "${plan}" parent_ext)"
+    if [ -n "${ext}" ]; then new_ext="${ext}"   # caller supplied an existing remote id -> adopt it
+    else new_ext="$(provision_remote "${provider}" "${construct}" "${title:-${key}}" "${parent_ext}")" || rc=$?
+    fi
+    # Commit: upsert by node_id (reattempt reuses it; create mints a uuid). One row per (tier,key,parent).
+    local updated; updated="$(printf '%s' "${j}" | python3 -c '
+import json,sys,uuid
+j=json.load(sys.stdin); tier=int(sys.argv[1]); key=sys.argv[2]; construct=sys.argv[3]
+new_ext=sys.argv[4]; rc=int(sys.argv[5]); plan=json.loads(sys.argv[6])
+prov=j["entry_point"]["provider"]; H=j.setdefault("hierarchy",[])
+nid=plan.get("node_id") or uuid.uuid4().hex
+node=next((n for n in H if n.get("node_id")==nid), None)
+if node is None: node={"node_id":nid}; H.append(node)
+ok=(rc==0 and bool(new_ext))
+node.update({"tier_level":tier,"key":key,"construct":construct,"provider_type":prov,
+ "parent_node_id":plan.get("parent_node_id"),"parent_external_id":plan.get("parent_ext"),"status":"planned",
+ "external_id": new_ext if ok else None,
+ "remote_recorded_id": None if ok else (new_ext or None),
+ "provision_state": "present" if ok else "FAILED_PROVISION"})
+print(json.dumps(j))' "${tier}" "${key}" "${construct}" "${new_ext}" "${rc}" "${plan}")"
+    write_track "${id}" "${updated}"
+    if [ "${rc}" -ne 0 ] || [ -z "${new_ext}" ]; then
+        err "provisioning failed for tier ${tier} (${construct}); node marked FAILED_PROVISION (FR-016)"; return 1
+    fi
+    echo "provisioned tier ${tier} (${construct}): ${new_ext}"
+}
+
 main() {
     local sub="${1:-}"; shift || true
     case "${sub}" in
@@ -446,6 +575,7 @@ main() {
         gate)    cmd_gate "${1:-}" ;;
         advance) cmd_advance "$@" ;;
         subtask) cmd_subtask "$@" ;;
+        provision) cmd_provision "$@" ;;
         anchor)  cmd_anchor "$@" ;;
         regress) cmd_regress "$@" ;;
         *) err "unknown subcommand: ${sub:-<none>}"; usage >&2; exit 64 ;;
