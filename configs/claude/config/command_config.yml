@@ -107,6 +107,17 @@ tool_policies:
     parallel_agents: never        # an authoring/gate tool, not a cross-verification fan-out
     validation_tier: 1            # executes CLI/shell steps + handles env-injected secrets
 
+  lifecycle:
+    allowed:
+      - Bash       # lifecycle.sh init/status/advance/subtask/provision/verdict/reconcile/audit; smoke_test.py; spec_review.sh
+      - Read
+      - Write      # per-track JSON state under the Manifest state root
+      - Edit
+      - Skill      # drives the per-phase /speckit-* and /spec-review commands
+    forbidden: []
+    parallel_agents: never        # a state-gated driver, not a cross-verification fan-out
+    validation_tier: 1            # safety-gate logic + handles env-injected provider secrets
+
   pr-issue-sync:
     allowed:
       - Bash

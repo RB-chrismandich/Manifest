@@ -23,8 +23,8 @@ description: "Task list for feature 365 — Codified State-Gated Development Lif
 
 - [X] T001 Create `configs/claude/scripts/lifecycle.sh` skeleton: shebang, `set -euo pipefail`, `err()` helper, `--help` (≤15 lines, exits 0 BEFORE any state/dependency lookup), subcommand dispatch stub (`init|status|decide|gate|advance|anchor|regress`)
 - [X] T002 [P] Create `configs/claude/config/lifecycle_providers.yml` scaffold (provider keys github/gitlab/linear/jira; empty `tier_map`/`status_map`/`missing_tier_behavior`/`access` sections per contracts/provider-mapping.md)
-- [ ] T003 [P] Create bats scaffolds `tests/bats/lifecycle.bats` and `tests/bats/spec_review_mode.bats` (load helpers, temp `LIFECYCLE_STATE_DIR`, seam env stubs)
-- [ ] T004 [P] Add `lifecycle.sh` + `lifecycle_providers.yml` to bootstrap deploy verification (confirm `configs/claude/scripts/` + `config/` are deployed by `bootstrap.sh` to `~/.claude/`)
+- [X] T003 [P] Create bats scaffolds `tests/bats/lifecycle.bats` and `tests/bats/spec_review_mode.bats` (load helpers, temp `LIFECYCLE_STATE_DIR`, seam env stubs)
+- [X] T004 [P] Add `lifecycle.sh` + `lifecycle_providers.yml` to bootstrap deploy verification (confirm `configs/claude/scripts/` + `config/` are deployed by `bootstrap.sh` to `~/.claude/`)
 
 ---
 
@@ -53,7 +53,7 @@ description: "Task list for feature 365 — Codified State-Gated Development Lif
 - [X] T013 [US1] Implement `lifecycle.sh status [--json]` (current_phase, completed_phases, outstanding gates) (FR-007) and `anchor` (FR-006)
 - [X] T014 [US1] Implement `lifecycle.sh regress --to <phase> --reason <text>` (append regression_log, re-enter earlier phase; reject missing reason exit 2) (FR-005)
 - [X] T015 [US1] Create `.skillshare/skills/lifecycle/SKILL.md`: phase→command map (Specify=/speckit-specify … Verify=/speckit-implement-review+smoke), `actor_mode` default human (advisory) vs agent (hard), invokes the mapped command then `lifecycle.sh advance` (FR-001, FR-006). Spec-Review product (phase 3) vs technical (phase 7) MUST pass an explicit mode identifier per FR-002 — using the `--mode` flag from T036 (pulled into MVP, see below); until that flag exists T015 sets the `SPEC_REVIEW_TEMPLATE`/`SPEC_REVIEW_STATE` env seams directly
-- [ ] T016 [US1] Add `tool_policies` entry for `/lifecycle` in `configs/claude/config/command_config.yml`
+- [X] T016 [US1] Add `tool_policies` entry for `/lifecycle` in `configs/claude/config/command_config.yml`
 
 **Checkpoint**: US1 independently functional — the codified, gated lifecycle works for one provider with no hierarchy/Jira yet.
 
@@ -127,11 +127,11 @@ description: "Task list for feature 365 — Codified State-Gated Development Lif
 ## Phase 8: Polish & Cross-Cutting
 
 - [ ] T042 [P] Run `./bootstrap.sh` redeploy; verify deployed `~/.claude/scripts/{lifecycle.sh,spec_review.sh}` match repo (resolve deployed-vs-repo drift) (research D6 risk)
-- [ ] T043 [P] Update `docs/COMMANDS.md` (add `/lifecycle`) and `AGENTS.md`/`configs/claude/CLAUDE.md` runtime guidance
-- [ ] T044 [P] Verify `configs/claude/config/validation_criteria.yml` has no drift vs the reused verdict model; add per-command overrides for product/technical spec-review + analyze gates if needed
-- [ ] T045 Run `shellcheck configs/claude/scripts/lifecycle.sh spec_review.sh` + `yamllint configs/claude/config/lifecycle_providers.yml`; fix findings
+- [X] T043 [P] Update `docs/COMMANDS.md` (add `/lifecycle`) and `AGENTS.md`/`configs/claude/CLAUDE.md` runtime guidance
+- [X] T044 [P] Verify `configs/claude/config/validation_criteria.yml` has no drift vs the reused verdict model; add per-command overrides for product/technical spec-review + analyze gates if needed
+- [X] T045 Run `shellcheck configs/claude/scripts/lifecycle.sh spec_review.sh` + `yamllint configs/claude/config/lifecycle_providers.yml`; fix findings
 - [ ] T046 Execute `quickstart.md` end-to-end against one provider (smoke validation of SC-001..SC-011)
-- [ ] T047 [P] Confirm `.specify/extensions.yml` phase hooks remain consistent with the codified phase→command map
+- [X] T047 [P] Confirm `.specify/extensions.yml` phase hooks remain consistent with the codified phase→command map
 
 ---
 
