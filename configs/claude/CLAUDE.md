@@ -69,7 +69,8 @@ Read on demand (NOT auto-loaded). You MUST read the reference before related tas
 - `~/.claude/references/orchestration.md` — Read when running multi-agent validation or debugging cross-verification failures.
 - `~/.claude/references/git-platform.md` — Read when automating PRs, branch detection, or git_ops failures.
 - `~/.claude/references/layout.md` — Read when modifying config trees or mapping file locations.
-- `~/.claude/references/sub-agent-dispatch.md` — Read before a skill dispatches sub-agents: native Task vs `parallel_agent.py`, when-to-dispatch threshold, cross-platform fallback.
+- `~/.claude/references/sub-agent-dispatch.md` — Read before a skill dispatches sub-agents: native Task vs
+  `parallel_agent.py`, when-to-dispatch threshold, cross-platform fallback.
 
 ---
 

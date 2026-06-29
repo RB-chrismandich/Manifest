@@ -52,7 +52,7 @@ implementer's call — this skill's job is to tell the truth about what is actua
 
 ALWAYS use this structure so the gap between claimed and actual is unmistakable:
 
-```
+```text
 ## speckit-implement review — <FEATURE_DIR name>
 **Verdict:** <ALL VERIFIED | GAPS FOUND (<n> incomplete, <m> skipped)>
 
@@ -85,4 +85,7 @@ ALWAYS use this structure so the gap between claimed and actual is unmistakable:
 
 ## Sub-agent dispatch
 
-When ≥3 independent task groups need auditing, dispatch one sub-agent per group to verify completion, then merge; below that, audit inline. Pick the mechanism per the shared Sub-Agent Selection Rules (`configs/claude/references/sub-agent-dispatch.md`): native Task sub-agents on Claude, or `parallel_agent.py` / inline on other assistants. Dispatched sub-agents execute their task directly and do not re-dispatch.
+When ≥3 independent task groups need auditing, dispatch one sub-agent per group to verify completion, then merge;
+below that, audit inline. Pick the mechanism per the shared Sub-Agent Selection Rules
+(`configs/claude/references/sub-agent-dispatch.md`): native Task sub-agents on Claude, or `parallel_agent.py` /
+inline on other assistants. Dispatched sub-agents execute their task directly and do not re-dispatch.

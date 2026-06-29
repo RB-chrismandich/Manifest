@@ -62,4 +62,7 @@ into one report.
 
 ## Sub-agent dispatch
 
-This skill always fans out: dispatch one sub-agent per docs sub-skill (docs-readme, docs-diagrams, docs-improve) and merge their reports. Pick the mechanism per the shared Sub-Agent Selection Rules (`configs/claude/references/sub-agent-dispatch.md`): native Task sub-agents on Claude, or `parallel_agent.py` / inline on other assistants. Dispatched sub-agents execute their task directly and do not re-dispatch.
+This skill always fans out: dispatch one sub-agent per docs sub-skill (docs-readme, docs-diagrams,
+docs-improve) and merge their reports. Pick the mechanism per the shared Sub-Agent Selection Rules
+(`configs/claude/references/sub-agent-dispatch.md`): native Task sub-agents on Claude, or `parallel_agent.py` /
+inline on other assistants. Dispatched sub-agents execute their task directly and do not re-dispatch.

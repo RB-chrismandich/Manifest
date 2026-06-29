@@ -761,4 +761,7 @@ in the repository. The report includes:
 
 ## Sub-agent dispatch
 
-When ≥10 open issues need scoring, dispatch one sub-agent per issue batch to score them, then merge into one ranking; below that, score inline. Pick the mechanism per the shared Sub-Agent Selection Rules (`configs/claude/references/sub-agent-dispatch.md`): native Task sub-agents on Claude, or `parallel_agent.py` / inline on other assistants. Dispatched sub-agents execute their task directly and do not re-dispatch.
+When ≥10 open issues need scoring, dispatch one sub-agent per issue batch to score them, then merge into one ranking;
+below that, score inline. Pick the mechanism per the shared Sub-Agent Selection Rules
+(`configs/claude/references/sub-agent-dispatch.md`): native Task sub-agents on Claude, or `parallel_agent.py` / inline
+on other assistants. Dispatched sub-agents execute their task directly and do not re-dispatch.

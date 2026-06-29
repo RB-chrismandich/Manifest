@@ -32,4 +32,7 @@ the marketing-prose descriptions.
 
 ## Sub-agent dispatch
 
-When ≥3 machine-generated PRs are open, dispatch one sub-agent per PR (or batch) to disposition it, then consolidate; below that, triage inline. Pick the mechanism per the shared Sub-Agent Selection Rules (`configs/claude/references/sub-agent-dispatch.md`): native Task sub-agents on Claude, or `parallel_agent.py` / inline on other assistants. Dispatched sub-agents execute their task directly and do not re-dispatch.
+When ≥3 machine-generated PRs are open, dispatch one sub-agent per PR (or batch) to disposition it, then consolidate;
+below that, triage inline. Pick the mechanism per the shared Sub-Agent Selection Rules
+(`configs/claude/references/sub-agent-dispatch.md`): native Task sub-agents on Claude, or `parallel_agent.py` / inline
+on other assistants. Dispatched sub-agents execute their task directly and do not re-dispatch.
