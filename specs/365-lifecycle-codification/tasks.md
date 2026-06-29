@@ -21,8 +21,8 @@ description: "Task list for feature 365 — Codified State-Gated Development Lif
 
 ## Phase 1: Setup (Shared Infrastructure)
 
-- [ ] T001 Create `configs/claude/scripts/lifecycle.sh` skeleton: shebang, `set -euo pipefail`, `err()` helper, `--help` (≤15 lines, exits 0 BEFORE any state/dependency lookup), subcommand dispatch stub (`init|status|decide|gate|advance|anchor|regress`)
-- [ ] T002 [P] Create `configs/claude/config/lifecycle_providers.yml` scaffold (provider keys github/gitlab/linear/jira; empty `tier_map`/`status_map`/`missing_tier_behavior`/`access` sections per contracts/provider-mapping.md)
+- [X] T001 Create `configs/claude/scripts/lifecycle.sh` skeleton: shebang, `set -euo pipefail`, `err()` helper, `--help` (≤15 lines, exits 0 BEFORE any state/dependency lookup), subcommand dispatch stub (`init|status|decide|gate|advance|anchor|regress`)
+- [X] T002 [P] Create `configs/claude/config/lifecycle_providers.yml` scaffold (provider keys github/gitlab/linear/jira; empty `tier_map`/`status_map`/`missing_tier_behavior`/`access` sections per contracts/provider-mapping.md)
 - [ ] T003 [P] Create bats scaffolds `tests/bats/lifecycle.bats` and `tests/bats/spec_review_mode.bats` (load helpers, temp `LIFECYCLE_STATE_DIR`, seam env stubs)
 - [ ] T004 [P] Add `lifecycle.sh` + `lifecycle_providers.yml` to bootstrap deploy verification (confirm `configs/claude/scripts/` + `config/` are deployed by `bootstrap.sh` to `~/.claude/`)
 
@@ -32,11 +32,11 @@ description: "Task list for feature 365 — Codified State-Gated Development Lif
 
 **⚠️ CRITICAL**: the decide core + state store + entry detection block ALL user stories.
 
-- [ ] T005 Write FAILING bats for the pure `decide` core in `tests/bats/lifecycle.bats`: skip-detection (agent→refuse, human→warn, names missing_prereq), gate evaluation per gate_type (verdict/runner/coverage/artifact), and **fail-closed** on malformed input (→refuse) — per contracts/lifecycle-cli.md decision rules
-- [ ] T006 Implement `lifecycle.sh decide <signals-json>` (embedded `python3 -c`, always exit 0, deterministic, no I/O) to pass T005; add `gate` alias that maps decide→non-zero exit for loop callers
-- [ ] T007 Implement state persistence layer in `lifecycle.sh` (StateManager pattern): `${MANIFEST_STATE_ROOT:-$HOME/.manifest}/lifecycle/state/<track-id>.json` where **`track-id` ≡ `<provider>__<sanitized-entity-id>`** (single definition in contracts/lifecycle-cli.md + data-model.md; matches plan.md Storage), `0700`/`0600`, atomic temp+mv, secret redaction; seam `LIFECYCLE_STATE_DIR`
-- [ ] T008 [P] Implement entry-point detection (provider+entity_id+tier classification) shared by `init`, extending `git_platform.sh`-style patterns for github/gitlab/linear/jira in `configs/claude/scripts/lifecycle.sh` (or a sourced helper); unrecognized → error, no track (FR-019)
-- [ ] T009 Encode the Lifecycle Definition (9 phases → ordered command(s), entry/exit/gate_type) as data read by `lifecycle.sh` (inline assoc-array or `lifecycle_providers.yml` sibling); single source for phase order
+- [X] T005 Write FAILING bats for the pure `decide` core in `tests/bats/lifecycle.bats`: skip-detection (agent→refuse, human→warn, names missing_prereq), gate evaluation per gate_type (verdict/runner/coverage/artifact), and **fail-closed** on malformed input (→refuse) — per contracts/lifecycle-cli.md decision rules
+- [X] T006 Implement `lifecycle.sh decide <signals-json>` (embedded `python3 -c`, always exit 0, deterministic, no I/O) to pass T005; add `gate` alias that maps decide→non-zero exit for loop callers
+- [X] T007 Implement state persistence layer in `lifecycle.sh` (StateManager pattern): `${MANIFEST_STATE_ROOT:-$HOME/.manifest}/lifecycle/state/<track-id>.json` where **`track-id` ≡ `<provider>__<sanitized-entity-id>`** (single definition in contracts/lifecycle-cli.md + data-model.md; matches plan.md Storage), `0700`/`0600`, atomic temp+mv, secret redaction; seam `LIFECYCLE_STATE_DIR`
+- [X] T008 [P] Implement entry-point detection (provider+entity_id+tier classification) shared by `init`, extending `git_platform.sh`-style patterns for github/gitlab/linear/jira in `configs/claude/scripts/lifecycle.sh` (or a sourced helper); unrecognized → error, no track (FR-019)
+- [X] T009 Encode the Lifecycle Definition (9 phases → ordered command(s), entry/exit/gate_type) as data read by `lifecycle.sh` (inline assoc-array or `lifecycle_providers.yml` sibling); single source for phase order
 
 **Checkpoint**: pure gate + state + entry detection ready.
 
@@ -47,12 +47,12 @@ description: "Task list for feature 365 — Codified State-Gated Development Lif
 **Goal**: drive a track through 9 phases in order; skips refused (agent) / warned (human); status inspectable.
 **Independent Test**: `init` a track, `advance` phase-by-phase, attempt a skip → refused with prerequisite named, `status --json` shows phase/completed/outstanding.
 
-- [ ] T010 [P] [US1] Write FAILING bats: `init`/`status`/`advance` happy path, skip→refuse(agent)+warn(human), `regress --to --reason` (logged), `anchor` re-emit, resume from persisted state (`tests/bats/lifecycle.bats`)
-- [ ] T011 [US1] Implement `lifecycle.sh init <entry-point>` (create Track, set `current_phase=specify`, persist; idempotent re-init) (FR-003, FR-019)
+- [X] T010 [P] [US1] Write FAILING bats: `init`/`status`/`advance` happy path, skip→refuse(agent)+warn(human), `regress --to --reason` (logged), `anchor` re-emit, resume from persisted state (`tests/bats/lifecycle.bats`)
+- [X] T011 [US1] Implement `lifecycle.sh init <entry-point>` (create Track, set `current_phase=specify`, persist; idempotent re-init) (FR-003, FR-019)
 - [ ] T012 [US1] Implement `lifecycle.sh advance <track-id>` (compute current phase gate signal → call `decide` → persist next phase on `allow`, exit 1 on refuse, exit 3 on warn) (FR-004). Phases 1–7 advance once at the Task tier; **phases 8–9 are a two-level iterator (FR-028)**: the Task holds at Implement/Verify while each child Sub-Task independently transitions through its own Implement→Verify sub-state, and the Task advances to `done` only when every Sub-Task is complete-or-exempt. Bats (T010) MUST cover the multi-Sub-Task hold/advance.
-- [ ] T013 [US1] Implement `lifecycle.sh status [--json]` (current_phase, completed_phases, outstanding gates) (FR-007) and `anchor` (FR-006)
-- [ ] T014 [US1] Implement `lifecycle.sh regress --to <phase> --reason <text>` (append regression_log, re-enter earlier phase; reject missing reason exit 2) (FR-005)
-- [ ] T015 [US1] Create `.skillshare/skills/lifecycle/SKILL.md`: phase→command map (Specify=/speckit-specify … Verify=/speckit-implement-review+smoke), `actor_mode` default human (advisory) vs agent (hard), invokes the mapped command then `lifecycle.sh advance` (FR-001, FR-006). Spec-Review product (phase 3) vs technical (phase 7) MUST pass an explicit mode identifier per FR-002 — using the `--mode` flag from T036 (pulled into MVP, see below); until that flag exists T015 sets the `SPEC_REVIEW_TEMPLATE`/`SPEC_REVIEW_STATE` env seams directly
+- [X] T013 [US1] Implement `lifecycle.sh status [--json]` (current_phase, completed_phases, outstanding gates) (FR-007) and `anchor` (FR-006)
+- [X] T014 [US1] Implement `lifecycle.sh regress --to <phase> --reason <text>` (append regression_log, re-enter earlier phase; reject missing reason exit 2) (FR-005)
+- [X] T015 [US1] Create `.skillshare/skills/lifecycle/SKILL.md`: phase→command map (Specify=/speckit-specify … Verify=/speckit-implement-review+smoke), `actor_mode` default human (advisory) vs agent (hard), invokes the mapped command then `lifecycle.sh advance` (FR-001, FR-006). Spec-Review product (phase 3) vs technical (phase 7) MUST pass an explicit mode identifier per FR-002 — using the `--mode` flag from T036 (pulled into MVP, see below); until that flag exists T015 sets the `SPEC_REVIEW_TEMPLATE`/`SPEC_REVIEW_STATE` env seams directly
 - [ ] T016 [US1] Add `tool_policies` entry for `/lifecycle` in `configs/claude/config/command_config.yml`
 
 **Checkpoint**: US1 independently functional — the codified, gated lifecycle works for one provider with no hierarchy/Jira yet.

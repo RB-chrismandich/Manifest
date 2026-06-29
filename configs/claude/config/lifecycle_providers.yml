@@ -1,0 +1,85 @@
+# lifecycle_providers.yml — provider abstraction for the codified state-gated lifecycle.
+# Spec: specs/365-lifecycle-codification/ (contracts/provider-mapping.md is authoritative).
+#
+# Holds the VOLATILE provider specifics (tier->construct, canonical-status->label/transition,
+# access shape) so the constitution stays durable. Canonical status labels are defined once in
+# labels.yml; this file maps lifecycle phases onto them per provider.
+
+# Nine lifecycle phases collapse onto four coarse canonical statuses (mirrored to trackers).
+phase_to_canonical_status:
+  specify: planned
+  clarify: planned
+  spec_review_product: planned
+  plan: in-progress
+  task_creation: in-progress
+  analyze: in-progress
+  spec_review_tech: in-progress
+  implement: in-progress
+  verify: needs-review        # -> done once verify passes AND merged
+
+providers:
+  github:
+    access: cli               # gh, via git_ops.sh
+    tier_map:
+      1: project_v2           # no native issue type -> see missing_tier_behavior
+      2: milestone
+      3: issue
+      4: sub_issue            # native Sub-Issues API
+    status_map:               # canonical -> label (labels.yml)
+      planned: planned
+      in-progress: in-progress
+      needs-review: needs-review
+      done: done
+    missing_tier_behavior: error   # tier 1 has no native type; error names it unless overridden
+
+  gitlab:
+    access: cli               # glab, via git_ops.sh
+    tier_map:
+      1: epic                 # Premium/Ultimate
+      2: epic
+      3: issue
+      4: child_issue
+    status_map:
+      planned: planned
+      in-progress: in-progress
+      needs-review: needs-review
+      done: done
+    missing_tier_behavior: error
+
+  linear:
+    access: graphql           # linear_ops.sh (parentId / create-sub-issue)
+    tier_map:
+      1: initiative
+      2: project
+      3: issue
+      4: sub_issue            # parentId
+    status_map:               # Linear workflow states (by team); names resolved at runtime
+      planned: Backlog
+      in-progress: In Progress
+      needs-review: In Review
+      done: Done
+    missing_tier_behavior: error
+
+  jira:
+    access: mcp               # pre-authenticated Atlassian MCP — NO bespoke auth (FR-020)
+    tier_map:
+      1: Initiative           # requires Advanced Roadmaps / Premium
+      2: Epic
+      3: Task                 # or Story
+      4: Sub-task
+    # canonical -> Jira workflow TRANSITION (resolved to id at runtime via
+    # getTransitionsForJiraIssue; NEVER free-text status, FR-021)
+    status_map:
+      planned: "To Do"
+      in-progress: "In Progress"
+      needs-review: "In Review"
+      done: "Done"
+    missing_tier_behavior: error
+    mcp_tools:
+      get_issue: getJiraIssue
+      search: searchJiraIssuesUsingJql
+      transitions: getTransitionsForJiraIssue
+      transition: transitionJiraIssue
+      issue_types: getJiraProjectIssueTypesMetadata
+      create: createJiraIssue
+      comment: addCommentToJiraIssue
