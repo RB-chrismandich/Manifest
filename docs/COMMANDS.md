@@ -1007,7 +1007,7 @@ Expected output:
 <!-- BEGIN GENERATED COMMANDS (command_catalog.py) — do not edit by hand -->
 <!-- Regenerate: configs/claude/scripts/generate_commands_doc.py -->
 
-_87 commands, generated from `.skillshare/skills/*/SKILL.md`._
+_88 commands, generated from `.skillshare/skills/*/SKILL.md`._
 
 ### Git & PRs
 
@@ -1139,6 +1139,7 @@ _87 commands, generated from `.skillshare/skills/*/SKILL.md`._
 
 | Command | Description | When to use | Status |
 |---------|-------------|-------------|--------|
+| `/lifecycle` | Drive a unit of work through the codified state-gated development lifecycle (Specify→Clarify→Spec-Review→Plan→Task Creation→Analyze→Spec-Review tech→Implement→Verify). Use to start, advance, inspect, or regress a tracked feature/issue; enforces phase order (hard-halt for agents, advisory for humans) and the smoke-test Verify gate. Entry is a ticket URL or issue key (GitHub/GitLab/Linear/Jira). | Drive a unit of work through the codified state-gated development lifecycle (Specify→Clarify→Spec-Review→Plan→Task Creation→Analyze→Spec-Review tech→Implement→Verify). | available |
 | `/pr-regression-smoke` | Full Manifest regression (CI mirror: shellcheck, yamllint, markdownlint, bats + pytest) plus a deployed-env smoke pass (bootstrap re-deploy, env health, orchestration round-trip), as a post-PR gate. Use right after a PR opens or merges — "regression test the PR", "did the merge break anything", "verify main is still green". Whole-repo verdict; prefer over verify (one lang) or health-check. | Full Manifest regression (CI mirror: shellcheck, yamllint, markdownlint, bats + pytest) plus a deployed-env smoke pass (bootstrap re-deploy, env health, orchestration round-trip), as a post-PR gate. | available |
 
 <!-- END GENERATED COMMANDS -->
