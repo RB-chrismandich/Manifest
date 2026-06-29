@@ -48,40 +48,44 @@ description: |
 
       <desired_output>
         [Strict formatting payload requirements: JSON object layouts, XML schemas, or fixed markdown tables]
-
-        Depending on the task classification parsed during the sequence, map the payload to one of these execution
-        structures:
-
-        Blueprint A: Local Automation & Systems Operations
-
-        - Risk Profiling: Enumerate environment dependencies or state impacts.
-        - Implementation Block: Production-grade code or configuration values.
-        - State Verification: A machine-executable verification string (e.g., dry-run flag) to prove success.
-
-        Blueprint B: Data Streams & Algorithmic Analysis
-
-        - Schema Validation: Explicit safety check for missing elements, null responses, or noise.
-        - Compute Matrix: Step-by-step logic calculating intermediate vectors before writing final fields.
-        - Fallback Logic: Precise execution paths if input data streams fail schema validation.
-
-        Blueprint C: Multi-Agent Choreography & State Handoffs
-
-        - Constitution Compliance: Immediate boundary verification before spawning worker threads.
-        - State Payload Specification: Strict definitions of variables passed across isolation boundaries.
-        - Execution Telemetry JSON:
-
-        ```json
-        {
-          "plan_status": "success | failed",
-          "steps_executed": [],
-          "resulting_state": {},
-          "telemetry": ""
-        }
-        ```
-
       </desired_output>
     </problem_structure>
     ```
 
-  </desired_output>
-</problem_structure>
+    ## 5. Normalized Structural Blueprints
+
+    Depending on the task classification parsed during the sequence, map the payload to one of these execution
+    structures:
+
+    ### Blueprint A: Local Automation & Systems Operations
+
+    Task: Enforce deterministic system configuration, file syncing, or environment updates.
+    Format Requirements:
+    1. **Risk Profiling**: Enumerate environment dependencies or state impacts.
+    2. **Implementation Block**: Production-grade code or configuration values.
+    3. **State Verification**: A machine-executable verification string (e.g., dry-run flag) to prove success.
+
+    ### Blueprint B: Data Streams & Algorithmic Analysis
+
+    Objective: Ingest, filter, and calculate multi-variable metrics or quantitative signals.
+    Format Requirements:
+    1. **Schema Validation**: Explicit safety check for missing elements, null responses, or noise.
+    2. **Compute Matrix**: Step-by-step logic calculating intermediate vectors before writing final fields.
+    3. **Fallback Logic**: Precise execution paths if input data streams fail schema validation.
+
+    ### Blueprint C: Multi-Agent Choreography & State Handoffs
+
+    Task: Orchestrate task states across multiple specialized tool wrappers or sub-agents.
+    Format Requirements:
+    1. **Constitution Compliance**: Immediate boundary verification before spawning worker threads.
+    2. **State Payload Specification**: Strict definitions of variables passed across isolation boundaries.
+    3. **Execution Telemetry JSON**:
+
+    ```json
+    {
+      "plan_status": "success | failed",
+      "steps_executed": [],
+      "resulting_state": {},
+      "telemetry": ""
+    }
+    ```
