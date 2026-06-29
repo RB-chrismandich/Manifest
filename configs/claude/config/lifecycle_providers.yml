@@ -16,6 +16,7 @@ phase_to_canonical_status:
   spec_review_tech: in-progress
   implement: in-progress
   verify: needs-review        # -> done once verify passes AND merged
+  done: done                  # terminal phase (verify passed + merged)
 
 providers:
   github:

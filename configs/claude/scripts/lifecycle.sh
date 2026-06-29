@@ -46,6 +46,9 @@ Usage: lifecycle.sh <subcommand> [args]
                             Top-down, create-or-adopt; missing tier => config error.
   status-map <provider> <canonical-status>
                             Render a canonical status as a provider label / Jira transition.
+  verdict [--from <file>|--stdin]   Map a /spec-review --format json result to a gate signal.
+  reconcile <track-id> --tracker-status <canonical>   Loop-safe status reconciliation.
+  audit <track-id>          Surface lifecycle drift (skipped phase / missing coverage / failed node).
   anchor <track-id>         Re-print the active phase.
   regress <track-id> --to <phase> --reason <text>
 USAGE
@@ -400,6 +403,7 @@ cur=j["current_phase"]; i=PH.index(cur)
 if cur not in j["completed_phases"]: j["completed_phases"].append(cur)
 nxt = PH[i+1] if i < len(PH)-1 else "done"
 j["current_phase"]=nxt
+j.pop("status_override",None)   # a phase move re-establishes the phase-derived canonical status
 j.setdefault("gate_results",{})[cur]={"decision":decision.get("action"),"gate":gate}
 # Two-level iterator (FR-028): Sub-Tasks ride the Task through phases 8-9.
 subs=j.get("subtask_states") or {}
@@ -590,12 +594,145 @@ print("%s\t%s" % (p.get("status_via", "label"), val))
         || { err "status-map: no mapping for ${provider}/${canonical}"; return 2; }
 }
 
+# --- US5: review-gate verdict, loop-safe reconciliation, drift audit (FR-021,FR-026,FR-027) ---
+
+phase_canonical() {
+    python3 -c '
+import sys
+try:
+    import yaml; m=(yaml.safe_load(open(sys.argv[1])) or {}).get("phase_to_canonical_status") or {}
+    print(m.get(sys.argv[2],"in-progress"))
+except Exception:
+    print("in-progress")
+' "${LIFECYCLE_PROVIDERS_CONFIG}" "$1"
+}
+
+# verdict [--from <file>|--stdin]: map a /spec-review --format json result to a gate signal
+# (FR-027). [] / NO_ISSUES -> APPROVED; any critical/high finding -> BLOCKED; else NEEDS_REVIEW.
+cmd_verdict() {
+    local src
+    case "${1:-}" in
+        --from) src="$(cat "${2:?--from needs a file}")" ;;
+        --stdin|'') src="$(cat)" ;;
+        *) err "verdict: use --from <file> or --stdin"; return 64 ;;
+    esac
+    printf '%s' "${src}" | python3 -c '
+import json,sys
+def out(v): print(json.dumps({"gate_type":"verdict","verdict":v})); sys.exit(0)
+raw=sys.stdin.read().strip()
+if raw in ("","[]","NO_ISSUES"): out("APPROVED")
+try: data=json.loads(raw)
+except Exception: out("BLOCKED")             # unparseable review -> fail closed
+if isinstance(data,list): findings=data
+elif isinstance(data,dict):
+    findings=data.get("findings")
+    if findings is None: out("BLOCKED")      # unrecognized envelope -> fail closed
+else: out("BLOCKED")
+if not findings: out("APPROVED")
+def blocking(f):
+    if isinstance(f,dict):
+        if f.get("blocking") is True: return True
+        return str(f.get("severity","")).upper() in ("CRITICAL","BLOCKED","BLOCKER","HIGH")
+    # real spec_review.sh --format json emits findings as opaque strings; scan the blob for
+    # blocking markers (structured severity comes with the T036 --format json upgrade).
+    s=str(f).upper()
+    return any(k in s for k in ("CRITICAL","BLOCKED","BLOCKER","TIER-1","TIER 1"))
+out("BLOCKED" if any(blocking(f) for f in findings) else "NEEDS_REVIEW")
+'
+}
+
+# reconcile <track-id> --tracker-status <canonical>: three-way shadow-compare with origin
+# suppression (FR-021, SC-010). Adopts a tracker-side change; pushes a local change; flags a
+# true conflict for a human. After a sync the shadow == synced value, so our own echo is a noop.
+cmd_reconcile() {
+    local id="${1:-}"; shift || true
+    [ -n "${id}" ] || { err "reconcile requires a track-id"; return 64; }
+    local tracker=''
+    while [ $# -gt 0 ]; do case "$1" in
+        --tracker-status) tracker="${2:-}"; shift 2 ;;
+        *) err "reconcile: unknown option $1"; return 64 ;;
+    esac; done
+    [ -n "${tracker}" ] || { err "reconcile requires --tracker-status <canonical>"; return 64; }
+    local j; j="$(read_track "${id}")" || return $?
+    # local canonical = an adopted-status override (a human tracker move) if present, else the
+    # phase-derived status. The override is what stops the adopt path from oscillating: after an
+    # adopt, local==shadow==tracker, so the next tick is a noop. cmd_advance clears it on a phase move.
+    local override localc; override="$(json_get "${j}" status_override)"
+    if [ -n "${override}" ]; then localc="${override}"; else localc="$(phase_canonical "$(json_get "${j}" current_phase)")"; fi
+    local result; result="$(printf '%s' "${j}" | python3 -c '
+import json,sys
+j=json.load(sys.stdin); localc=sys.argv[1]; tracker=sys.argv[2]
+shadow=(j.get("tracker_shadow") or {}).get("last_synced_status")
+if shadow is None:
+    action="noop" if localc==tracker else "push"; new=localc
+elif tracker==shadow and localc==shadow: action="noop"; new=shadow
+elif tracker!=shadow and localc==shadow: action="adopt"; new=tracker
+elif localc!=shadow and tracker==shadow: action="push"; new=localc
+elif localc==tracker: action="noop"; new=localc           # both moved to the SAME value -> resync, not a conflict
+else: action="conflict"; new=shadow
+print(json.dumps({"action":action,"new_shadow":new,"local":localc,"tracker":tracker}))
+' "${localc}" "${tracker}")"
+    local action; action="$(json_get "${result}" action)"
+    if [ "${action}" != "conflict" ]; then
+        local updated; updated="$(printf '%s' "${j}" | python3 -c '
+import json,sys
+j=json.load(sys.stdin); action=sys.argv[1]; ns=sys.argv[2]
+j["tracker_shadow"]={"last_synced_status":ns}
+if action=="adopt": j["status_override"]=ns   # local now mirrors the human tracker move
+print(json.dumps(j))' "${action}" "$(json_get "${result}" new_shadow)")"
+        write_track "${id}" "${updated}"
+    fi
+    case "${action}" in
+        noop)  echo "reconcile ${id}: in sync (${tracker})" ;;
+        adopt) echo "reconcile ${id}: adopted tracker status ${tracker}" ;;
+        push)  echo "reconcile ${id}: local $(json_get "${result}" local) -> apply to tracker via status-map" ;;
+        conflict) err "reconcile ${id}: CONFLICT (local=$(json_get "${result}" local), tracker=${tracker}) — needs-human"; return 1 ;;
+    esac
+}
+
+# audit <track-id>: surface lifecycle drift (FR-026) — skipped phase, missing required smoke
+# coverage past Implement, or a FAILED_PROVISION node pending reconciliation. Exit 1 if any.
+cmd_audit() {
+    local id="${1:-}"; [ -n "${id}" ] || { err "audit requires a track-id"; return 64; }
+    local j; j="$(read_track "${id}")" || return $?
+    local override localc; override="$(json_get "${j}" status_override)"
+    if [ -n "${override}" ]; then localc="${override}"; else localc="$(phase_canonical "$(json_get "${j}" current_phase)")"; fi
+    printf '%s' "${j}" | python3 -c '
+import json,sys
+PH=["specify","clarify","spec_review_product","plan","task_creation","analyze","spec_review_tech","implement","verify"]
+j=json.load(sys.stdin); localc=sys.argv[1]; f=[]
+cur=j.get("current_phase"); done=set(j.get("completed_phases",[]))
+ci=PH.index(cur) if cur in PH else len(PH)
+for p in PH[:ci]:
+    if p not in done: f.append("skipped phase: %s incomplete but current is %s"%(p,cur))
+if cur in ("verify","done") or "implement" in done:
+    for sid,st in (j.get("subtask_states") or {}).items():
+        if st.get("exempt"):
+            if not st.get("exempt_reason"): f.append("exempt subtask %s lacks rationale"%sid)
+        elif not st.get("coverage_workflow_ids"):
+            f.append("subtask %s has no smoke coverage"%sid)
+for n in (j.get("hierarchy") or []):
+    if n.get("provision_state")=="FAILED_PROVISION":
+        f.append("hierarchy tier-%s %s is FAILED_PROVISION (needs reconciliation)"%(n.get("tier_level"),n.get("key")))
+shadow=(j.get("tracker_shadow") or {}).get("last_synced_status")
+if shadow is not None and shadow != localc:
+    f.append("stale tracking state: tracker shadow=%s but lifecycle status=%s (run reconcile)"%(shadow,localc))
+if f:
+    for x in f: print("DRIFT: %s"%x)
+    sys.exit(1)
+print("no drift: track is consistent")
+' "${localc}"
+}
+
 main() {
     local sub="${1:-}"; shift || true
     case "${sub}" in
         --help|-h|help) usage; exit 0 ;;
         init)    cmd_init "$@" ;;
         status-map) cmd_status_map "$@" ;;
+        verdict) cmd_verdict "$@" ;;
+        reconcile) cmd_reconcile "$@" ;;
+        audit)   cmd_audit "$@" ;;
         status)  cmd_status "$@" ;;
         decide)  cmd_decide "${1:-}"; exit 0 ;;
         gate)    cmd_gate "${1:-}" ;;

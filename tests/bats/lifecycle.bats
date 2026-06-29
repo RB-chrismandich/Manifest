@@ -487,3 +487,104 @@ use_repo_config() { export LIFECYCLE_PROVIDERS_CONFIG="$BATS_TEST_DIRNAME/../../
     run "$SCRIPT" status-map linear in-progress
     [ "$status" -eq 0 ]; [[ "$output" == transition* ]]; [[ "$output" == *"In Progress"* ]]
 }
+
+# ============================================================================
+# US5 — review-gate verdict, loop-safe reconciliation, drift audit (T038,T040,T041)
+# ============================================================================
+
+@test "verdict: empty / NO_ISSUES -> APPROVED" {
+    run bash -c "echo '[]' | '$SCRIPT' verdict --stdin"
+    [ "$(echo "$output" | field verdict)" = "APPROVED" ]
+    run bash -c "printf 'NO_ISSUES' | '$SCRIPT' verdict --stdin"
+    [ "$(echo "$output" | field verdict)" = "APPROVED" ]
+}
+@test "verdict: a CRITICAL/HIGH finding -> BLOCKED" {
+    run bash -c "echo '[{\"severity\":\"CRITICAL\",\"title\":\"x\"}]' | '$SCRIPT' verdict --stdin"
+    [ "$(echo "$output" | field verdict)" = "BLOCKED" ]
+}
+@test "verdict: only low/medium findings -> NEEDS_REVIEW" {
+    run bash -c "echo '[{\"severity\":\"LOW\",\"title\":\"nit\"}]' | '$SCRIPT' verdict --stdin"
+    [ "$(echo "$output" | field verdict)" = "NEEDS_REVIEW" ]
+}
+@test "verdict: unparseable review -> BLOCKED (fail closed)" {
+    run bash -c "printf 'garbage not json' | '$SCRIPT' verdict --stdin"
+    [ "$(echo "$output" | field verdict)" = "BLOCKED" ]
+}
+
+@test "reconcile: first sync establishes shadow; same value again is a noop (no loop)" {
+    use_repo_config
+    "$SCRIPT" init PROJ-40 >/dev/null   # phase specify -> canonical planned
+    run "$SCRIPT" reconcile jira__PROJ-40 --tracker-status planned
+    [ "$status" -eq 0 ]
+    run "$SCRIPT" reconcile jira__PROJ-40 --tracker-status planned
+    [ "$status" -eq 0 ]; [[ "$output" == *"in sync"* ]]   # origin suppression: no ping-pong
+}
+@test "reconcile: tracker-side change is adopted (human moved the ticket)" {
+    use_repo_config
+    "$SCRIPT" init PROJ-41 >/dev/null
+    "$SCRIPT" reconcile jira__PROJ-41 --tracker-status planned >/dev/null   # baseline
+    run "$SCRIPT" reconcile jira__PROJ-41 --tracker-status done             # human changed it
+    [ "$status" -eq 0 ]; [[ "$output" == *"adopted tracker status done"* ]]
+}
+@test "reconcile: after adopt, the SAME tracker value settles to noop (no oscillation, SC-010)" {
+    use_repo_config
+    "$SCRIPT" init PROJ-45 >/dev/null
+    "$SCRIPT" reconcile jira__PROJ-45 --tracker-status planned >/dev/null   # baseline
+    "$SCRIPT" reconcile jira__PROJ-45 --tracker-status done >/dev/null      # adopt
+    run "$SCRIPT" reconcile jira__PROJ-45 --tracker-status done             # must NOT push back
+    [ "$status" -eq 0 ]; [[ "$output" == *"in sync"* ]]
+    run "$SCRIPT" reconcile jira__PROJ-45 --tracker-status done             # and stay settled
+    [[ "$output" == *"in sync"* ]]
+}
+@test "reconcile: genuine conflict (both diverge to different values) -> needs-human" {
+    use_repo_config
+    "$SCRIPT" init PROJ-46 >/dev/null
+    "$SCRIPT" reconcile jira__PROJ-46 --tracker-status planned >/dev/null   # baseline (shadow=planned, local=planned)
+    # advance the lifecycle (local moves) AND have the tracker move elsewhere
+    "$SCRIPT" advance jira__PROJ-46 --actor agent --gate '{"gate_type":"artifact","present":true}' >/dev/null
+    "$SCRIPT" advance jira__PROJ-46 --actor agent --gate '{"gate_type":"artifact","present":true}' >/dev/null
+    "$SCRIPT" advance jira__PROJ-46 --actor agent --gate '{"gate_type":"verdict","verdict":"APPROVED"}' >/dev/null  # now plan -> in-progress
+    run "$SCRIPT" reconcile jira__PROJ-46 --tracker-status done
+    [ "$status" -eq 1 ]; [[ "$output" == *"CONFLICT"* ]]
+}
+@test "audit: stale tracking state (shadow disagrees with lifecycle status) is flagged" {
+    use_repo_config
+    "$SCRIPT" init PROJ-47 >/dev/null
+    "$SCRIPT" reconcile jira__PROJ-47 --tracker-status planned >/dev/null   # shadow=planned
+    # advance so phase-derived status moves to in-progress while shadow stays planned
+    "$SCRIPT" advance jira__PROJ-47 --actor agent --gate '{"gate_type":"artifact","present":true}' >/dev/null
+    "$SCRIPT" advance jira__PROJ-47 --actor agent --gate '{"gate_type":"artifact","present":true}' >/dev/null
+    "$SCRIPT" advance jira__PROJ-47 --actor agent --gate '{"gate_type":"verdict","verdict":"APPROVED"}' >/dev/null
+    run "$SCRIPT" audit jira__PROJ-47
+    [ "$status" -eq 1 ]; [[ "$output" == *"stale tracking state"* ]]
+}
+@test "audit: a clean track reports no drift (exit 0)" {
+    "$SCRIPT" init PROJ-42 >/dev/null
+    run "$SCRIPT" audit jira__PROJ-42
+    [ "$status" -eq 0 ]; [[ "$output" == *"no drift"* ]]
+}
+@test "audit: a non-exempt subtask without coverage past Implement is flagged (exit 1)" {
+    "$SCRIPT" init PROJ-43 >/dev/null
+    # advance to verify with one uncovered subtask via direct state (simulate drift)
+    python3 - "$LIFECYCLE_STATE_DIR/jira__PROJ-43.json" <<'PY'
+import json,sys
+p=sys.argv[1]; d=json.load(open(p))
+d["current_phase"]="verify"
+d["completed_phases"]=["specify","clarify","spec_review_product","plan","task_creation","analyze","spec_review_tech","implement"]
+d["subtask_states"]={"S1":{"phase":"verify","exempt":False,"coverage_workflow_ids":[]}}
+json.dump(d,open(p,"w"))
+PY
+    run "$SCRIPT" audit jira__PROJ-43
+    [ "$status" -eq 1 ]; [[ "$output" == *"DRIFT"* ]]; [[ "$output" == *"no smoke coverage"* ]]
+}
+@test "audit: a skipped phase is flagged" {
+    "$SCRIPT" init PROJ-44 >/dev/null
+    python3 - "$LIFECYCLE_STATE_DIR/jira__PROJ-44.json" <<'PY'
+import json,sys
+p=sys.argv[1]; d=json.load(open(p))
+d["current_phase"]="plan"; d["completed_phases"]=["specify"]   # skipped clarify + spec_review_product
+json.dump(d,open(p,"w"))
+PY
+    run "$SCRIPT" audit jira__PROJ-44
+    [ "$status" -eq 1 ]; [[ "$output" == *"skipped phase"* ]]
+}
