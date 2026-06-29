@@ -111,12 +111,12 @@ description: "Task list for feature 365 — Codified State-Gated Development Lif
 **Independent Test**: amend constitution + dependent docs consistent; run loop on a failing-Verify unit → halts + needs-human, no merge.
 
 - [X] T033 [US5] Amend `.specify/memory/constitution.md` via `/speckit-constitution`: add Principle VI (State-Gated Lifecycle) + "## Development Lifecycle" section (phase→command table, gating, 4-tier+FR-028, provider abstraction→config, Verify-smoke gate, verdict reuse), bump MINOR → v1.1.0, update Sync Impact Report (FR-023, research D7)
-- [ ] T034 [P] [US5] Sync dependent templates: `.specify/templates/plan-template.md` (Constitution Check adds lifecycle gates) and `.specify/templates/tasks-template.md` (lifecycle-gated smoke-coverage task category; scope, don't blanket-mandate tests)
-- [ ] T035 [P] [US5] Update `docs/SPEC-SYSTEMS.md` to describe the canonical 9-phase state-gated lifecycle (replace the old spec→…→implement description)
+- [X] T034 [P] [US5] Sync dependent templates: `.specify/templates/plan-template.md` (Constitution Check adds lifecycle gates) and `.specify/templates/tasks-template.md` (lifecycle-gated smoke-coverage task category; scope, don't blanket-mandate tests)
+- [X] T035 [P] [US5] Update `docs/SPEC-SYSTEMS.md` to describe the canonical 9-phase state-gated lifecycle (replace the old spec→…→implement description)
 - [X] T036 [US5] Add `--mode product|technical` to `configs/claude/scripts/spec_review.sh` (sugar over `SPEC_REVIEW_TEMPLATE`/`SPEC_REVIEW_STATE`; default unchanged; `--help` before deps; `err()`); make T037 pass. **⬆️ MVP-blocking (FR-002): complete during the MVP increment alongside T015 — listed here for US5 traceability but sequenced into Phase 3.** Until done, T015 uses the env seams directly.
 - [X] T037 [P] [US5] Write bats `tests/bats/spec_review_mode.bats`: `--mode` routes template/state, default behavior unchanged, `--help` succeeds in clean env. **⬆️ MVP-blocking — sequence with T036.**
 - [X] T038 [US5] Implement review-gate verdict parsing in `lifecycle.sh` (spec-review `--format json`: []→APPROVED, findings→NEEDS_REVIEW/BLOCKED by severity; optional `parallel_agent.py --validate` consensus) → `decide` gate_type=verdict (FR-027)
-- [ ] T039 [US5] Wire autodev enforcement: `configs/claude/scripts/auto_issue_dev.sh` + `pr_merge_loop.sh` call `lifecycle.sh gate` before advancing/merging; refuse→halt+`needs-human`; never merge past failing gate (FR-024, SC-011)
+- [X] T039 [US5] Wire autodev enforcement: `configs/claude/scripts/auto_issue_dev.sh` + `pr_merge_loop.sh` call `lifecycle.sh gate` before advancing/merging; refuse→halt+`needs-human`; never merge past failing gate (FR-024, SC-011)
 - [X] T040 [US5] Implement loop-safe status reconciliation (shadow-compare + origin suppression) in the loop using `tracker_shadow`; canonical→provider via `status_map`; idempotent (FR-021, FR-022, SC-010). Bats MUST assert re-applying an already-set label/transition is a no-op (FR-022 idempotency)
 - [X] T041 [US5] Implement drift detection (`lifecycle.sh status` / an audit subcommand surfaces skipped phase, missing required coverage, stale state) (FR-026)
 

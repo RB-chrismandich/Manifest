@@ -271,3 +271,41 @@ THREADS='{"data":{"repository":{"pullRequest":{"reviewThreads":{"nodes":[%s]}}}}
     [ "$(echo "$output" | action)" = "hand-human" ]
     [ "$(echo "$output" | python3 -c 'import json,sys;print(json.load(sys.stdin)["label"])')" = "needs-human" ]
 }
+
+# --- T039: lifecycle gate before merge (fail-open; blocks tracked PRs with audit drift) ---
+
+mk_lc_seams() {
+    # resolver: echoes $LC_TRACK for any pr (empty = not tracked)
+    cat > "$TMP/lc_resolve.sh" <<'EOF'
+#!/usr/bin/env bash
+echo "${LC_TRACK:-}"
+EOF
+    # gate stub: `audit <track>` exits $LC_AUDIT_RC
+    cat > "$TMP/lc_gate.sh" <<'EOF'
+#!/usr/bin/env bash
+[ "$1" = audit ] && exit "${LC_AUDIT_RC:-0}"
+exit 0
+EOF
+    chmod +x "$TMP/lc_resolve.sh" "$TMP/lc_gate.sh"
+    export LIFECYCLE_TRACK_FOR_PR_CMD="$TMP/lc_resolve.sh" LIFECYCLE_GATE_CMD="$TMP/lc_gate.sh"
+}
+
+@test "lifecycle gate: no resolver wired -> fail open (exit 0)" {
+    run "$SCRIPT" _lifecycle_gate 42
+    [ "$status" -eq 0 ]
+}
+@test "lifecycle gate: PR not tracked (resolver empty) -> fail open (exit 0)" {
+    mk_lc_seams; export LC_TRACK=""
+    run "$SCRIPT" _lifecycle_gate 42
+    [ "$status" -eq 0 ]
+}
+@test "lifecycle gate: tracked PR with clean audit -> ok (exit 0)" {
+    mk_lc_seams; export LC_TRACK="jira__PROJ-1" LC_AUDIT_RC=0
+    run "$SCRIPT" _lifecycle_gate 42
+    [ "$status" -eq 0 ]
+}
+@test "lifecycle gate: tracked PR with audit DRIFT -> block (exit 1)" {
+    mk_lc_seams; export LC_TRACK="jira__PROJ-1" LC_AUDIT_RC=1
+    run "$SCRIPT" _lifecycle_gate 42
+    [ "$status" -eq 1 ]
+}

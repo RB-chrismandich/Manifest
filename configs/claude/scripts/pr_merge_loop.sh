@@ -260,6 +260,20 @@ cmd_merge() {
     return 0
 }
 
+# T039/FR-024/SC-011: consult the codified lifecycle gate before merging. FAIL-OPEN — a PR with
+# no lifecycle track (the resolver seam returns empty) proceeds exactly as before; a lifecycle-
+# tracked unit is BLOCKED (return 1) when `lifecycle.sh audit` reports drift (a phase skipped or
+# the Verify smoke gate unmet), so the loop never merges past a failing lifecycle gate.
+# Seams: LIFECYCLE_TRACK_FOR_PR_CMD <pr> -> track-id (empty = not tracked); LIFECYCLE_GATE_CMD.
+lifecycle_gate_ok() {
+    local pr="${1:?pr required}" gate track
+    [[ -n "${LIFECYCLE_TRACK_FOR_PR_CMD:-}" ]] || return 0          # no resolver wired -> fail open
+    track="$("${LIFECYCLE_TRACK_FOR_PR_CMD}" "$pr" 2>/dev/null)" || return 0
+    [[ -n "$track" ]] || return 0                                   # PR not lifecycle-tracked -> fail open
+    gate="${LIFECYCLE_GATE_CMD:-${SCRIPT_DIR}/lifecycle.sh}"
+    "$gate" audit "$track" >/dev/null 2>&1                          # 0 = no drift (ok); 1 = drift (block)
+}
+
 cmd_tick() {
     local pr="${1:?pr required}" sig d act gate sig2 rc=0
     if ! "${SCRIPT_DIR}/loop_lock.sh" acquire "$pr" 2>/dev/null; then err "#$pr locked — skipping"; printf 'skip\n'; return 0; fi
@@ -289,10 +303,15 @@ print(json.dumps(s))' "$gate")"
 
     case "$act" in
         merge)
+            if ! lifecycle_gate_ok "$pr"; then
+                err "#$pr: lifecycle gate unsatisfied (audit drift) → needs-human (SC-011)"
+                apply_label "$pr" needs-human; act="hand-human"
+            else
             cmd_merge "$pr" || rc=$?
             if   [[ $rc -eq 9 ]]; then apply_label "$pr" ready-to-merge
             elif [[ $rc -eq 0 ]]; then cmd_post_merge_check >/dev/null 2>&1 || { err "#$pr merged → main RED → HALT"; act="halt"; }
-            else apply_label "$pr" needs-human; fi ;;
+            else apply_label "$pr" needs-human; fi
+            fi ;;
         update-branch) gh_op update-branch "$pr" >/dev/null 2>&1 || apply_label "$pr" needs-human ;;
         hand-human)    apply_label "$pr" "$(printf '%s' "$d" | _jget label)" ;;
         halt)          err "#$pr: HALT (post-merge main breakage)" ;;
@@ -355,6 +374,7 @@ main() {
         run)             cmd_run "$@"; exit $? ;;
         count-unresolved-human) count_unresolved_human "$@"; exit $? ;;
         _net)            _net "$@"; exit $? ;;
+        _lifecycle_gate) lifecycle_gate_ok "$@"; exit $? ;;
         *) err "unknown subcommand: ${sub:-<none>}"; usage >&2; exit 64 ;;
     esac
 }

@@ -40,7 +40,12 @@
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-[Gates determined based on constitution file]
+[Gates determined based on constitution file. In addition to Principles I–V, verify
+Principle VI (State-Gated Lifecycle): this feature's work flows through the nine phases in
+order with no skips; the Verify gate is backed by the smoke-test suite (a shipped
+user-facing workflow must have a passing critical-path smoke test); review/analyze gates use
+the APPROVED/NEEDS_REVIEW/BLOCKED verdict model. See the constitution's Development Lifecycle
+section.]
 
 ## Project Structure
 
