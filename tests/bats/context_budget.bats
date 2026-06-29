@@ -93,14 +93,19 @@ assert_budget() {
     # coverage to fold into. Frontmatter is 283 chars (under the ~290 norm); the
     # description is the always-loaded trigger text with no read-on-demand
     # alternative. Headroom after this is ~273 — the next addition needs a trim pass.
+    # Raised 22000 -> 22300 (2026-06-28) for the genuinely-new `lifecycle` skill (spec 365):
+    # the only state-gated-lifecycle driver / entry point, no prior coverage to fold into.
+    # Frontmatter is ~205 chars (well under the ~290 norm — already trimmed from ~426); the
+    # description is the always-loaded trigger text with no read-on-demand alternative.
+    # New headroom: ~353.
     total=0
     for f in "$REPO_ROOT"/.skillshare/skills/*/SKILL.md; do
         # frontmatter = up to the second '---' line
         chars=$(awk '/^---$/{c++; next} c==1' "$f" | wc -c)
         total=$((total + chars))
     done
-    if [ "$total" -gt 22000 ]; then
-        echo "Skill frontmatter totals $total chars (budget: 22000)." >&2
+    if [ "$total" -gt 22300 ]; then
+        echo "Skill frontmatter totals $total chars (budget: 22300)." >&2
         echo "Trim verbose descriptions; bodies are pay-per-use, frontmatter is not." >&2
         return 1
     fi

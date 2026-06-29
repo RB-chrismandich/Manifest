@@ -1,6 +1,6 @@
 ---
 name: lifecycle
-description: Drive a unit of work through the codified state-gated development lifecycle (Specify→Clarify→Spec-Review→Plan→Task Creation→Analyze→Spec-Review tech→Implement→Verify). Use to start, advance, inspect, or regress a tracked feature/issue; enforces phase order (hard-halt for agents, advisory for humans) and the smoke-test Verify gate. Entry is a ticket URL or issue key (GitHub/GitLab/Linear/Jira).
+description: Drive a feature/issue through the codified state-gated lifecycle (specify→…→verify) with hard phase-gating and a smoke-test Verify gate; entry is a ticket URL/issue key.
 ---
 
 # Lifecycle Orchestrator
