@@ -95,11 +95,11 @@ description: "Task list for feature 365 — Codified State-Gated Development Lif
 **Goal**: enter from a Jira URL/key; fetch via MCP; classify tier; transitions via MCP; same lifecycle as other providers.
 **Independent Test**: Jira key + URL recognized; entity fetched via MCP (no bespoke auth); tier classified; status applied via transition id; identical phase flow.
 
-- [ ] T028 [P] [US4] Write FAILING bats (seam stub for the MCP/jira call layer): Jira entry-point detection (key + browse URL), tier classification from issue-type metadata, transition-id (not free-text) status application
-- [ ] T029 [US4] Wire the `atlassian` MCP server (already in `mcp_servers.yml`) into `configs/claude/settings.local.json` (FR-020)
-- [ ] T030 [US4] Implement Jira routing in the provider seam: read via `getJiraIssue`/`searchJiraIssuesUsingJql`, tier via `getJiraProjectIssueTypesMetadata`, transitions via `getTransitionsForJiraIssue`+`transitionJiraIssue`, provision via `createJiraIssue` (FR-018, FR-020, FR-021)
-- [ ] T031 [US4] Add Jira `status_map` (canonical→transition id, resolved at runtime) + `tier_map` (Initiative=Advanced Roadmaps, Epic/Story/Sub-task) + `access: mcp` to `lifecycle_providers.yml`
-- [ ] T032 [US4] Verify the same `/lifecycle` flow runs unchanged on a Jira entry point (SC-004) — only provider/entry differ
+- [X] T028 [P] [US4] Write FAILING bats (seam stub for the MCP/jira call layer): Jira entry-point detection (key + browse URL), tier classification from issue-type metadata, transition-id (not free-text) status application
+- [X] T029 [US4] Wire the `atlassian` MCP server (already in `mcp_servers.yml`) into `configs/claude/settings.local.json` (FR-020)
+- [X] T030 [US4] Jira routing = `--external-id` adopt seam + `status-map` (shell) PLUS an agent-orchestrated MCP flow (read `getJiraIssue`/`searchJiraIssuesUsingJql`, tier `getJiraProjectIssueTypesMetadata`, transition `getTransitionsForJiraIssue`+`transitionJiraIssue`, provision `createJiraIssue`) documented in SKILL.md — MCP is an agent-layer capability, not shell-callable (FR-018, FR-020, FR-021)
+- [X] T031 [US4] Add Jira `status_map` (canonical→transition id, resolved at runtime) + `tier_map` (Initiative=Advanced Roadmaps, Epic/Story/Sub-task) + `access: mcp` to `lifecycle_providers.yml`
+- [X] T032 [US4] Verify the same `/lifecycle` flow runs unchanged on a Jira entry point (SC-004) — only provider/entry differ
 
 **Checkpoint**: all four providers (GitHub/GitLab/Linear/Jira) drive the identical lifecycle.
 

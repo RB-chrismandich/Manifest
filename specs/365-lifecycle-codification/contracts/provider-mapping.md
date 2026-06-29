@@ -10,10 +10,15 @@ Extend `git_platform.sh`-style detection to classify the entry string:
 |---|---|---|
 | `https://github.com/o/r/issues/42`, `o/r#42` | github | `o/r#42` |
 | `https://gitlab.com/o/r/-/issues/42` | gitlab | `o/r#42` |
-| Linear id/url (`ENG-123`, `linear.app/...`) | linear | `ENG-123` |
-| `https://<site>.atlassian.net/browse/PROJ-123`, `PROJ-123` | jira | `PROJ-123` |
+| `linear.app/.../issue/ENG-123` (URL) | linear | `ENG-123` |
+| `https://<site>.atlassian.net/browse/PROJ-123` (URL) | jira | `PROJ-123` |
+| bare `KEY-123` (no URL) | jira *(default)* | `KEY-123` |
 
 No match → error, **no track created** (FR-019).
+
+> **Bare-key ambiguity**: a bare `KEY-123` is syntactically identical for Jira and Linear, so it
+> defaults to **jira**; enter Linear issues by their `linear.app/...` URL (or override via the
+> entry layer). `init` errors rather than create a `provider__` track with an empty entity.
 
 ## Tier → native-construct map (FR-013/014/015)
 
@@ -34,14 +39,16 @@ No match → error, **no track created** (FR-019).
 
 Collapse 9 phases → 4 canonical statuses (already in `labels.yml`):
 
-| canonical_status | phases | github/gitlab/linear | jira |
-|---|---|---|---|
-| `planned` | specify…spec_review_product | label `planned` | transition→ "To Do"/backlog (by id) |
-| `in-progress` | plan…implement | label `in-progress` | transition→ "In Progress" (by id) |
-| `needs-review` | verify (awaiting human) | label `needs-review` | transition→ "In Review" (by id) |
-| `done` | verify passed + merged | label `done` | transition→ "Done" (by id) |
+Each provider declares `status_via` (`label` for GitHub/GitLab; `transition` for Linear/Jira):
 
-Jira values MUST be **workflow transition IDs** resolved at run time via the MCP `getTransitionsForJiraIssue` (never free-text). Labels for the git/Linear providers reuse `label_sync.sh`.
+| canonical_status | phases | github/gitlab (label) | linear (state) | jira (transition) |
+|---|---|---|---|---|
+| `planned` | specify…spec_review_product | label `planned` | Backlog | "To Do" (by id) |
+| `in-progress` | plan…implement | label `in-progress` | In Progress | "In Progress" (by id) |
+| `needs-review` | verify (awaiting human) | label `needs-review` | In Review | "In Review" (by id) |
+| `done` | verify passed + merged | label `done` | Done | "Done" (by id) |
+
+Jira values MUST be **workflow transition IDs** resolved at run time via the MCP `getTransitionsForJiraIssue` (never free-text). Linear renders as a **workflow state** applied via `linear_ops.sh transition-state` (GraphQL), NOT a label. GitHub/GitLab labels reuse `label_sync.sh`. `lifecycle.sh status-map <provider> <canonical>` returns `<status_via>\t<rendering>`.
 
 ## Loop-safe reconciliation (SC-010 / D5)
 

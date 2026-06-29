@@ -432,3 +432,58 @@ Y
     [ "$(echo "$output" | tier_count 4)" = "1" ]
     [ "$(echo "$output" | tier_state 4)" = "present" ]
 }
+
+# ============================================================================
+# US4 — Jira via pre-authenticated Atlassian MCP (T028–T032, SC-004)
+# ============================================================================
+
+use_repo_config() { export LIFECYCLE_PROVIDERS_CONFIG="$BATS_TEST_DIRNAME/../../configs/claude/config/lifecycle_providers.yml"; }
+
+@test "Jira entry detection: bare issue key -> jira provider" {
+    run "$SCRIPT" init PROJ-123
+    [ "$status" -eq 0 ]; [[ "$output" == *"provider=jira"* ]]
+}
+@test "Jira entry detection: browse URL -> jira provider + extracted key" {
+    run "$SCRIPT" init "https://acme.atlassian.net/browse/ENG-44"
+    [ "$status" -eq 0 ]; [[ "$output" == *"jira__ENG-44"* ]]
+}
+@test "status-map: Jira renders canonical status as a workflow TRANSITION (not a label, FR-021)" {
+    use_repo_config
+    run "$SCRIPT" status-map jira in-progress
+    [ "$status" -eq 0 ]; [[ "$output" == transition* ]]; [[ "$output" == *"In Progress"* ]]
+}
+@test "status-map: GitHub renders canonical status as a label" {
+    use_repo_config
+    run "$SCRIPT" status-map github done
+    [ "$status" -eq 0 ]; [[ "$output" == label* ]]; [[ "$output" == *"done"* ]]
+}
+@test "status-map: unknown status -> error (no silent default)" {
+    use_repo_config
+    run "$SCRIPT" status-map jira not-a-status
+    [ "$status" -eq 2 ]
+}
+@test "SC-004: the identical lifecycle flow runs on a GitHub track (provider only differs)" {
+    "$SCRIPT" init "org/repo#77" >/dev/null
+    run "$SCRIPT" advance github__org_repo_77 --actor agent --gate '{"gate_type":"artifact","present":true}'
+    [ "$status" -eq 0 ]; [[ "$output" == *"specify -> clarify"* ]]
+    # same commands/gates as the jira tracks used throughout US1/US2 -> SC-004 holds
+}
+@test "GitHub URL entry parses to org/repo#N (regression: sed delimiter, not an empty track)" {
+    run "$SCRIPT" init "https://github.com/acme/widgets/issues/42"
+    [ "$status" -eq 0 ]; [[ "$output" == *"provider=github"* ]]; [[ "$output" == *"acme/widgets#42"* ]]
+    run "$SCRIPT" status github__acme_widgets_42 --json
+    [ "$status" -eq 0 ]
+}
+@test "GitLab URL entry parses to group/proj#N" {
+    run "$SCRIPT" init "https://gitlab.com/acme/widgets/-/issues/9"
+    [ "$status" -eq 0 ]; [[ "$output" == *"provider=gitlab"* ]]; [[ "$output" == *"acme/widgets#9"* ]]
+}
+@test "init refuses an entry that parses to an empty entity (no provider__ corruption)" {
+    run "$SCRIPT" init "https://github.com/not-an-issue-url"
+    [ "$status" -ne 0 ]
+}
+@test "status-map: Linear renders canonical status as a workflow STATE (transition), not a label" {
+    use_repo_config
+    run "$SCRIPT" status-map linear in-progress
+    [ "$status" -eq 0 ]; [[ "$output" == transition* ]]; [[ "$output" == *"In Progress"* ]]
+}

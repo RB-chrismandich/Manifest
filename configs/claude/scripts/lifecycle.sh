@@ -44,6 +44,8 @@ Usage: lifecycle.sh <subcommand> [args]
   subtask <track-id> --id <sid> [--ship <workflow-id>] [--exempt --reason <text>]
   provision <track-id> --tier <1-4> --title <t> [--parent-tier <m>] [--external-id <x>]
                             Top-down, create-or-adopt; missing tier => config error.
+  status-map <provider> <canonical-status>
+                            Render a canonical status as a provider label / Jira transition.
   anchor <track-id>         Re-print the active phase.
   regress <track-id> --to <phase> --reason <text>
 USAGE
@@ -141,8 +143,8 @@ detect_provider() {
     # echoes "<provider> <entity-id>"; empty on no match.
     local ep="$1"
     case "${ep}" in
-        *github.com/*/issues/*) echo "github $(echo "${ep}" | sed -E 's#.*github.com/([^/]+/[^/]+)/issues/([0-9]+).*#\1#\2#')" ;;
-        *gitlab.com/*/-/issues/*) echo "gitlab $(echo "${ep}" | sed -E 's#.*gitlab.com/(.+)/-/issues/([0-9]+).*#\1#\2#')" ;;
+        *github.com/*/issues/*) echo "github $(echo "${ep}" | sed -E 's@.*github\.com/([^/]+/[^/]+)/issues/([0-9]+).*@\1#\2@')" ;;
+        *gitlab.com/*/-/issues/*) echo "gitlab $(echo "${ep}" | sed -E 's@.*gitlab\.com/(.+)/-/issues/([0-9]+).*@\1#\2@')" ;;
         *linear.app/*) echo "linear $(echo "${ep}" | sed -E 's#.*/issue/([A-Z0-9]+-[0-9]+).*#\1#')" ;;
         *atlassian.net/browse/*) echo "jira $(echo "${ep}" | sed -E 's#.*/browse/([A-Z][A-Z0-9]+-[0-9]+).*#\1#')" ;;
         */*\#[0-9]*) echo "github ${ep}" ;;                       # org/repo#42
@@ -173,8 +175,9 @@ write_track() {
 cmd_init() {
     local ep="${1:-}"; [ -n "${ep}" ] || { err "init requires an entry point"; return 64; }
     local det provider entity; det="$(detect_provider "${ep}")"
-    [ -n "${det}" ] || { err "unrecognized entry point (no provider matched): ${ep}"; return 2; }
     provider="${det%% *}"; entity="${det#* }"
+    [ -n "${provider}" ] && [ -n "${entity}" ] && [ "${entity}" != "${provider}" ] \
+        || { err "unrecognized or unparseable entry point: ${ep}"; return 2; }
     local track_id; track_id="${provider}__$(sanitize "${entity}")"
     local p; p="$(track_path "${track_id}")"
     if [ -f "${p}" ]; then echo "track exists: ${track_id} (phase: $(json_get "$(cat "${p}")" current_phase))"; return 0; fi
@@ -565,11 +568,34 @@ print(json.dumps(j))' "${tier}" "${key}" "${construct}" "${new_ext}" "${rc}" "${
     echo "provisioned tier ${tier} (${construct}): ${new_ext}"
 }
 
+# --- US4: provider status rendering (FR-021) -------------------------------------------
+# status-map <provider> <canonical-status> -> "<kind>\t<rendering>" (kind from status_via).
+# Jira/Linear render as a workflow TRANSITION/state (Jira ids resolved at runtime via the
+# Atlassian MCP getTransitionsForJiraIssue, never free-text); GitHub/GitLab render as a label.
+cmd_status_map() {
+    local provider="${1:-}" canonical="${2:-}"
+    [ -n "${provider}" ] && [ -n "${canonical}" ] || { err "status-map requires <provider> <canonical-status>"; return 64; }
+    [ -f "${LIFECYCLE_PROVIDERS_CONFIG}" ] || { err "no providers config (${LIFECYCLE_PROVIDERS_CONFIG})"; return 2; }
+    python3 -c '
+import sys
+try:
+    import yaml; cfg = yaml.safe_load(open(sys.argv[1])) or {}
+except Exception: sys.exit(2)
+p = (cfg.get("providers") or {}).get(sys.argv[2])
+if not p: sys.exit(2)
+val = (p.get("status_map") or {}).get(sys.argv[3])
+if val is None: sys.exit(2)
+print("%s\t%s" % (p.get("status_via", "label"), val))
+' "${LIFECYCLE_PROVIDERS_CONFIG}" "${provider}" "${canonical}" \
+        || { err "status-map: no mapping for ${provider}/${canonical}"; return 2; }
+}
+
 main() {
     local sub="${1:-}"; shift || true
     case "${sub}" in
         --help|-h|help) usage; exit 0 ;;
         init)    cmd_init "$@" ;;
+        status-map) cmd_status_map "$@" ;;
         status)  cmd_status "$@" ;;
         decide)  cmd_decide "${1:-}"; exit 0 ;;
         gate)    cmd_gate "${1:-}" ;;

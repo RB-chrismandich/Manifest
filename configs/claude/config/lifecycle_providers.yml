@@ -20,6 +20,7 @@ phase_to_canonical_status:
 providers:
   github:
     access: cli               # gh, via git_ops.sh
+    status_via: label         # canonical status applied as a label
     tier_map:
       1: project_v2           # no native issue type -> see missing_tier_behavior
       2: milestone
@@ -34,6 +35,7 @@ providers:
 
   gitlab:
     access: cli               # glab, via git_ops.sh
+    status_via: label
     tier_map:
       1: epic                 # Premium/Ultimate
       2: epic
@@ -48,6 +50,7 @@ providers:
 
   linear:
     access: graphql           # linear_ops.sh (parentId / create-sub-issue)
+    status_via: transition    # Linear workflow STATE (via GraphQL), not a label
     tier_map:
       1: initiative
       2: project
@@ -62,6 +65,7 @@ providers:
 
   jira:
     access: mcp               # pre-authenticated Atlassian MCP — NO bespoke auth (FR-020)
+    status_via: transition    # Jira workflow transition (resolved to id at runtime)
     tier_map:
       1: Initiative           # requires Advanced Roadmaps / Premium
       2: Epic
