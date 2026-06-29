@@ -62,6 +62,10 @@ yamllint configs/claude/config/*.yml
 
 ## Script Conventions (configs/claude/scripts/)
 
+> Full per-language standards and enforcement layers live in
+> [docs/CODING_STANDARDS.md](../docs/CODING_STANDARDS.md). The conventions below
+> are the Bash-specific essentials.
+
 - **Error output**: `err() { echo "<script-name>: $*" >&2; }` is canonical;
   route all error/warning messages through it (helpers like `error_msg()` may
   delegate to `err()`). Exempt: usage/help text, interactive prompts, blank

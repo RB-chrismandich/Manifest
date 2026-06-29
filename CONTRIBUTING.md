@@ -27,6 +27,13 @@ npx bats tests/bats/
 
 - Work on a feature branch from `main`
 - Keep commits focused and well-described
+- Follow the per-language [Coding Standards](docs/CODING_STANDARDS.md). They are
+  enforced in four layers: editor (`.editorconfig`), edit-time (an advisory
+  PostToolUse hook that lints the file you just edited), commit-time
+  (`pre-commit`), and CI (the gate of record runs `pre-commit` on the files you
+  changed — so skipping `pre-commit install` locally will not let violations
+  through).
+- Install the local hooks once: `pip install pre-commit && pre-commit install`
 - Run `shellcheck` on any modified shell scripts:
 
 ```bash
@@ -54,7 +61,7 @@ for the skillshare architecture and how skills are deployed.
 
 Follow [Conventional Commits](https://www.conventionalcommits.org/):
 
-```
+```text
 feat: add new command
 fix: correct broken link in docs
 refactor: split module into subpackage

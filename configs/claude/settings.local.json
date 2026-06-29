@@ -63,6 +63,15 @@
             "command": "~/.claude/scripts/spec_review.sh --silent"
           }
         ]
+      },
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/scripts/lint_on_edit_hook.sh"
+          }
+        ]
       }
     ],
     "UserPromptSubmit": [

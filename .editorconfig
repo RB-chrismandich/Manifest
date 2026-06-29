@@ -30,3 +30,24 @@ trim_trailing_whitespace = false  # Preserve trailing spaces for line breaks
 [*.json]
 indent_style = space
 indent_size = 2
+
+# Bats test files (Bash-based)
+[*.bats]
+indent_style = space
+indent_size = 4
+
+# Python files
+[*.py]
+indent_style = space
+indent_size = 4
+
+# Cursor rule files (Markdown-based)
+[*.mdc]
+indent_style = space
+indent_size = 2
+trim_trailing_whitespace = false  # Preserve trailing spaces for line breaks
+
+# PowerShell scripts
+[*.ps1]
+indent_style = space
+indent_size = 4
