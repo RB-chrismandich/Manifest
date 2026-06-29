@@ -67,6 +67,14 @@ services:
       - flash    # Balanced (default)
       - advanced  # Maximum capability
 
+  # Graphify - AI-powered knowledge-graph generator (/graphify skill + CLI)
+  # Install: uv tool install graphifyy (handled by bootstrap/lib/install.sh)
+  # Default backend is host-agent (uses the running assistant as the LLM; no key required).
+  graphify:
+    enabled: true
+    command: graphify
+    description: "Maps a codebase/docs into a queryable knowledge graph (/graphify)"
+
   # SkillClaw - evolves SKILL.md skills from Claude Code transcripts (proxy-free)
   # Managed by bootstrap/lib/skillclaw.sh; no install, no daemon, no proxy.
   skillclaw:

@@ -27,6 +27,7 @@ set_bootstrap_defaults() {
     ENABLE_CURSOR=true
     ENABLE_CODEX=true
     ENABLE_ANTIGRAVITY=true
+    ENABLE_GRAPHIFY=true
     ENABLE_SKILLCLAW=false
     ENABLE_BROWSER_USE=false
     ENABLE_SMOKE=false
@@ -39,6 +40,7 @@ set_bootstrap_defaults() {
     CURSOR_SET=false
     CODEX_SET=false
     ANTIGRAVITY_SET=false
+    GRAPHIFY_SET=false
     SKILLCLAW_SET=false
     BROWSER_USE_SET=false
     SMOKE_SET=false
@@ -65,6 +67,8 @@ print_bootstrap_help() {
     echo "  --disable-codex     Disable Codex CLI"
     echo "  --enable-antigravity   Enable Antigravity IDE (default: enabled)"
     echo "  --disable-antigravity  Disable Antigravity IDE"
+    echo "  --enable-graphify      Enable Graphify knowledge-graph CLI (default: enabled)"
+    echo "  --disable-graphify     Disable Graphify knowledge-graph CLI"
     echo "  --enable-skillclaw     Enable SkillClaw session capture (default: disabled)"
     echo "  --disable-skillclaw    Disable SkillClaw session capture"
     echo "  --enable-browser-use   Enable browser-use E2E testing (default: disabled)"
@@ -144,6 +148,16 @@ parse_bootstrap_args() {
             --disable-antigravity)
                 ENABLE_ANTIGRAVITY=false
                 ANTIGRAVITY_SET=true
+                shift
+                ;;
+            --enable-graphify)
+                ENABLE_GRAPHIFY=true
+                GRAPHIFY_SET=true
+                shift
+                ;;
+            --disable-graphify)
+                ENABLE_GRAPHIFY=false
+                GRAPHIFY_SET=true
                 shift
                 ;;
             --enable-skillclaw)
@@ -240,6 +254,7 @@ parse_services_config() {
     FILE_CURSOR=""
     FILE_CODEX=""
     FILE_ANTIGRAVITY=""
+    FILE_GRAPHIFY=""
     FILE_SKILLCLAW=""
     FILE_BROWSER_USE=""
     FILE_SMOKE=""
@@ -255,6 +270,7 @@ parse_services_config() {
             /^[[:space:]]*cursor:/ { section="cursor"; subsection="" }
             /^[[:space:]]*codex:/ { section="codex"; subsection="" }
             /^[[:space:]]*antigravity:/ { section="antigravity"; subsection="" }
+            /^[[:space:]]*graphify:/ { section="graphify"; subsection="" }
             /^[[:space:]]*skillclaw:/ { section="skillclaw"; subsection="" }
             /^[[:space:]]*browser_use:/ { section="browser_use"; subsection="" }
             /^[[:space:]]*smoke:/ { section="smoke"; subsection="" }
@@ -267,6 +283,7 @@ parse_services_config() {
                 if (section == "cursor") print "FILE_CURSOR=true"
                 if (section == "codex") print "FILE_CODEX=true"
                 if (section == "antigravity") print "FILE_ANTIGRAVITY=true"
+                if (section == "graphify") print "FILE_GRAPHIFY=true"
                 if (section == "skillclaw") print "FILE_SKILLCLAW=true"
                 if (section == "browser_use") print "FILE_BROWSER_USE=true"
                 if (section == "smoke") print "FILE_SMOKE=true"
@@ -279,6 +296,7 @@ parse_services_config() {
                 if (section == "cursor") print "FILE_CURSOR=false"
                 if (section == "codex") print "FILE_CODEX=false"
                 if (section == "antigravity") print "FILE_ANTIGRAVITY=false"
+                if (section == "graphify") print "FILE_GRAPHIFY=false"
                 if (section == "skillclaw") print "FILE_SKILLCLAW=false"
                 if (section == "browser_use") print "FILE_BROWSER_USE=false"
                 if (section == "smoke") print "FILE_SMOKE=false"
@@ -299,7 +317,7 @@ parse_services_config() {
                     val="${val%\"}"
                     val="${val#\"}"
                     case "$key" in
-                        FILE_CLAUDE|FILE_GEMINI|FILE_CURSOR|FILE_CODEX|FILE_ANTIGRAVITY|FILE_SKILLCLAW|FILE_BROWSER_USE|FILE_SMOKE|FILE_GH|FILE_GLAB)
+                        FILE_CLAUDE|FILE_GEMINI|FILE_CURSOR|FILE_CODEX|FILE_ANTIGRAVITY|FILE_GRAPHIFY|FILE_SKILLCLAW|FILE_BROWSER_USE|FILE_SMOKE|FILE_GH|FILE_GLAB)
                             printf -v "$key" "%s" "$val"
                             ;;
                     esac
@@ -335,6 +353,10 @@ load_existing_config() {
 
         if [[ "$ANTIGRAVITY_SET" == false && -n "$FILE_ANTIGRAVITY" ]]; then
             ENABLE_ANTIGRAVITY=$FILE_ANTIGRAVITY
+        fi
+
+        if [[ "$GRAPHIFY_SET" == false && -n "$FILE_GRAPHIFY" ]]; then
+            ENABLE_GRAPHIFY=$FILE_GRAPHIFY
         fi
 
         if [[ "$SKILLCLAW_SET" == false && -n "$FILE_SKILLCLAW" ]]; then
@@ -433,6 +455,14 @@ services:
       - mini     # Lightweight
       - flash    # Balanced (default)
       - advanced  # Maximum capability
+
+  # Graphify - AI-powered knowledge-graph generator (/graphify skill + CLI)
+  # Install: uv tool install graphifyy (handled by bootstrap/lib/install.sh)
+  # Default backend is host-agent (uses the running assistant as the LLM; no key required).
+  graphify:
+    enabled: $ENABLE_GRAPHIFY
+    command: graphify
+    description: "Maps a codebase/docs into a queryable knowledge graph (/graphify)"
 
   # SkillClaw - evolves SKILL.md skills from Claude Code transcripts (proxy-free)
   # Managed by bootstrap/lib/skillclaw.sh; no install, no daemon, no proxy.

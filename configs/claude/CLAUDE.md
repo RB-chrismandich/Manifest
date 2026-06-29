@@ -137,7 +137,14 @@ Common entry points: `/project-commit` (full commit pipeline), `/verify`
 (lint + test + scan), `/refactor-<lang>` (security/quality roadmap, parallel
 agents ALWAYS), `/docs-all` (refresh all docs), `/plan-manage` (plan
 lifecycle), `/health-check` (env sanity), `/checkpoint` (high-context save),
-`/version-pin <file>` (auto-fix; `--check` = warn-only save-hook mode).
+`/version-pin <file>` (auto-fix; `--check` = warn-only save-hook mode),
+`/graphify` (map a codebase/docs into a queryable knowledge graph).
+
+**Graphify** is a managed *tool*, not a parallel-orchestration agent: the
+`graphify` CLI (installed by bootstrap when enabled) and its `/graphify` skill
+are toggled via `--enable-graphify`/`--disable-graphify` (default: enabled), but
+graphify never participates in `parallel_agent.py` consensus and is not counted
+toward orchestration readiness.
 
 **CLI tool** (installed to `~/.local/bin/`): `sync-skills` — push
 `.skillshare/skills/` changes to all home targets (daily skill dev workflow).

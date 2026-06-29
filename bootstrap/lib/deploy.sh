@@ -100,6 +100,7 @@ deploy_configs() {
                     # below; the skills compat symlink must not be copied verbatim)
                     rsync -av --ignore-existing --exclude '/skills' "$source_dir/" "$TARGET_DIR/"
                     deploy_home_skills "$SCRIPT_DIR/.skillshare/skills" "$TARGET_DIR/skills"
+                    gate_graphify_skill "$TARGET_DIR/skills"
                     print_success "Configurations merged"
                     # Still write services config
                     write_services_config
@@ -147,6 +148,9 @@ deploy_configs() {
     # Deploy skills from the PHYSICAL skillshare source into ~/.claude/skills.
     # Must run before link_shared_assets (create_symlink skips missing targets).
     deploy_home_skills "$SCRIPT_DIR/.skillshare/skills" "$TARGET_DIR/skills"
+    # Gate /graphify on its service toggle (FR-012) and reconcile any foreign
+    # 'graphify install' residue (FR-010). Runs before the assistant skill symlinks.
+    gate_graphify_skill "$TARGET_DIR/skills"
 
     # Make scripts executable (.py entry points too — repo perms may lack +x)
     if [[ -d "$TARGET_DIR/scripts" ]]; then
