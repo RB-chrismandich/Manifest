@@ -239,5 +239,5 @@ approaches), review stale plans, or archive/abandon completed work.
 <!-- SPECKIT START -->
 ## Active Spec Kit Feature
 
-- `363-smoke-test-orchestrator` — plan: [specs/363-smoke-test-orchestrator/plan.md](specs/363-smoke-test-orchestrator/plan.md)
+- `364-graphify-integration` — plan: [specs/364-graphify-integration/plan.md](specs/364-graphify-integration/plan.md)
 <!-- SPECKIT END -->
