@@ -1,20 +1,21 @@
 <!--
 SYNC IMPACT REPORT
 ==================
-Version change: template → 1.0.0
-Modified principles: N/A (initial ratification — all principles are new)
-Added sections:
-  - Core Principles (5 principles)
-  - Quality Gates
-  - Development Workflow
-  - Governance
-Removed sections: N/A (template placeholders cleared)
-Templates requiring updates:
-  - .specify/templates/plan-template.md ✅ Constitution Check section already generically aligned
-  - .specify/templates/spec-template.md ✅ No constitution-specific mandatory sections affected
-  - .specify/templates/tasks-template.md ✅ Test-optional stance aligns with Tier 2 advisory gate
-  - .specify/templates/constitution-template.md ✅ Source template (not modified)
-Follow-up TODOs: None — all placeholders resolved.
+Version change: 1.0.0 → 1.1.0 (MINOR — new principle + section added; no removals/redefinitions)
+Modified principles: N/A (I–V unchanged)
+Added:
+  - Principle VI. State-Gated Lifecycle
+  - ## Development Lifecycle (9-phase → command map, gating, 4-tier hierarchy, enforcement)
+  Source: specs/365-lifecycle-codification (feature 365).
+Removed sections: N/A
+Templates / docs requiring updates (feature 365):
+  - .specify/templates/plan-template.md ⚠ Constitution Check must add lifecycle gates (T034)
+  - .specify/templates/tasks-template.md ⚠ reconcile "Tests OPTIONAL" w/ per-workflow smoke coverage (T034)
+  - docs/SPEC-SYSTEMS.md ⚠ describe the 9-phase state-gated lifecycle (T035)
+  - .specify/templates/spec-template.md ✅ no constitution-specific mandatory sections affected
+  - .specify/templates/constitution-template.md ✅ source template (not modified)
+Follow-up TODOs: provider-specific specifics intentionally live in
+  configs/claude/config/lifecycle_providers.yml, not the constitution (durability).
 -->
 
 # Manifest Constitution
@@ -81,6 +82,23 @@ state.
 **Rationale**: Idempotent bootstrapping is the contract that makes this repository a
 reliable configuration distribution mechanism across diverse machines and contributors.
 
+### VI. State-Gated Lifecycle
+
+All feature work MUST flow, in order, through the nine-phase development lifecycle — Specify →
+Clarify → Spec-Review (product) → Plan → Task Creation → Analyze → Spec-Review (technical) →
+Implement → Verify task-by-task — each phase mapped to existing repository commands (see the
+Development Lifecycle section). Phases MUST NOT be skipped: for autonomous/agent-driven work a
+skip or a failing gate is a hard halt; for human-driven work it is an advisory warning that
+proceeds only with a logged override. Backward transitions are permitted only when logged. The
+Verify gate IS the smoke-test suite — a unit of work MUST NOT be marked complete while a
+shipped user-facing workflow lacks a passing critical-path smoke test (missing coverage is
+never a pass). Review and analysis gates reuse the verdict model in Quality Gates
+(APPROVED/NEEDS_REVIEW/BLOCKED).
+
+**Rationale**: An enforced, observable lifecycle keeps a fast-moving, multi-language,
+multi-provider codebase honest — coverage grows with the product, no phase is silently
+skipped, and one tested gate core governs both humans and agents.
+
 ## Quality Gates
 
 All pull requests are subject to a two-tier validation process enforced via parallel
@@ -102,6 +120,39 @@ agent review:
 - `APPROVED`: Tier 1 passes AND Tier 2 score ≥ 0.60
 - `NEEDS_REVIEW`: Tier 1 passes AND Tier 2 score < 0.60
 - `BLOCKED`: Any Tier 1 check fails
+
+## Development Lifecycle
+
+Feature work is governed by the nine-phase state machine (Principle VI), tracked per unit of
+work and anchored at the Task tier. The implementation is `configs/claude/scripts/lifecycle.sh`
+(the shared, bats-tested decide/gate core) fronted by the `/lifecycle` skill and enforced by
+the autonomous-development loop — humans and agents share one tested gate.
+
+| # | Phase | Command(s) | Exit gate |
+|---|-------|-----------|-----------|
+| 1 | Specify | `/speckit-specify` | `spec.md` exists |
+| 2 | Clarify | `/speckit-clarify` | clarifications resolved |
+| 3 | Spec-Review (product) | `/spec-review --mode product` | `APPROVED` |
+| 4 | Plan | `/speckit-plan` | `plan.md` + design artifacts |
+| 5 | Task Creation | `/speckit-tasks` + `/speckit-taskstoissues` | `tasks.md` + hierarchy provisioned |
+| 6 | Analyze | `/speckit-analyze` | 0 critical findings |
+| 7 | Spec-Review (technical) | `/spec-review --mode technical` | `APPROVED` |
+| 8 | Implement | `/speckit-implement` | per-user-facing-workflow smoke coverage |
+| 9 | Verify task-by-task | `/speckit-implement-review` + `smoke_test.py run --tier Lite` | exit `0` |
+
+**Gating**: hard halt for agents, advisory-with-logged-override for humans (Principle VI).
+Review/analyze gates use the Quality Gates verdict model.
+
+**Hierarchy**: work is tracked in four tiers — Initiative → Epic → Task → Sub-Task — abstracted
+across GitHub, GitLab, Linear, and Jira. Phases 1–7 run once at the Task and its ancestor
+tiers; phases 8–9 iterate per Sub-Task. Provider-specific tier/status mappings live in
+`configs/claude/config/lifecycle_providers.yml` (Jira via the pre-authenticated Atlassian MCP),
+NOT in this constitution, so the durable governance here does not churn on provider changes.
+
+**Enforcement**: the autonomous-development loop MUST NOT merge or mark a unit of work complete
+until every prior-phase gate, including the Verify smoke gate, passes; otherwise it halts and
+flags for a human. Lifecycle drift (skipped phase, missing coverage, stale tracking state) is
+auditable via `lifecycle.sh audit`.
 
 ## Development Workflow
 
@@ -144,4 +195,4 @@ review of all principles is RECOMMENDED to ensure alignment with project evoluti
 **Runtime guidance**: Use `configs/claude/CLAUDE.md` for session-level development
 guidance; it is the deployed document that governs active Claude Code sessions.
 
-**Version**: 1.0.0 | **Ratified**: 2026-05-31 | **Last Amended**: 2026-05-31
+**Version**: 1.1.0 | **Ratified**: 2026-05-31 | **Last Amended**: 2026-06-28
