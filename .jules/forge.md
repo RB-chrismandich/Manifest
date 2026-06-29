@@ -68,3 +68,15 @@ library functions guaranteed to return strings.
 **Action:** Avoid replacing explicit exception handling blocks with clever heuristics
 unless in a proven hot-loop where the exception overhead causes a measurable bottleneck.
 Prioritize native, readable error routing over micro-optimizations.
+
+## 2026-10-24 - JSON Parsing Overhead vs Robustness
+
+**Learning:** Replacing standard, robust try/except blocks (like `json.JSONDecodeError`) with brittle heuristic
+fast-paths (like explicit `isinstance` checks and checking the first character) degrades maintainability and violates
+the 'boring over clever' architectural philosophy. When removing these heuristics and restoring native exception
+routing, we must still ensure we validate the parsed payload (e.g. `isinstance(parsed, (dict, list))`) so that valid
+JSON primitives do not bypass downstream expectations.
+
+**Action:** Audit and revert scripts using the brittle `first_char in '{['` heuristic before `json.loads`. Replace
+them with direct `try...except json.JSONDecodeError` blocks followed by `isinstance` validation to prevent primitives
+from causing type errors.
