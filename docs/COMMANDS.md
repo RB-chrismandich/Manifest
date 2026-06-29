@@ -1007,7 +1007,7 @@ Expected output:
 <!-- BEGIN GENERATED COMMANDS (command_catalog.py) — do not edit by hand -->
 <!-- Regenerate: configs/claude/scripts/generate_commands_doc.py -->
 
-_87 commands, generated from `.skillshare/skills/*/SKILL.md`._
+_88 commands, generated from `.skillshare/skills/*/SKILL.md`._
 
 ### Git & PRs
 
@@ -1127,6 +1127,7 @@ _87 commands, generated from `.skillshare/skills/*/SKILL.md`._
 | `/checkpoint` | Create a compact checkpoint summary of the current session so work can continue reliably when context usage is high. | Create a compact checkpoint summary of the current session so work can continue reliably when context usage is high. | available |
 | `/code-quality` | Auto-trigger on security-sensitive code (auth, crypto, secrets, input validation), large files (>500 lines), or complex files (>10 functions/>5 classes). Gives code-quality and security feedback without blocking user flow. | Auto-trigger on security-sensitive code (auth, crypto, secrets, input validation), large files (>500 lines), or complex files (>10 functions/>5 classes). | available |
 | `/dashboard` | Visualize agent efficiency metrics: task completion rates, common error patterns, consensus scores, and model usage distribution. Reads from .claude/.agent_outputs/ logs and outputs markdown tables and summaries. | Visualize agent efficiency metrics: task completion rates, common error patterns, consensus scores, and model usage distribution. | available |
+| `/graphify` | Map a codebase, docs, or GitHub repo into a queryable knowledge graph (graphify CLI): graph.html, GRAPH_REPORT.md, graph.json. Use to understand large or unfamiliar code, or answer "what connects X to Y?". | Map a codebase, docs, or GitHub repo into a queryable knowledge graph (graphify CLI): graph. | available |
 | `/health-check` | Verify CLI tool availability, authentication status, config syntax, MCP connectivity, and symlink integrity for the Manifest environment. | Verify CLI tool availability, authentication status, config syntax, MCP connectivity, and symlink integrity for the Manifest environment. | available |
 | `/help` | Use when you need to find the right Manifest command for a task — searches and lists every command by category with a one-line description and when-to-use cue, flagging ones unavailable here. Read-only; never runs or modifies. | Use when you need to find the right Manifest command for a task — searches and lists every command by category with a one-line description and when-to-use cue, flagging ones unavailable here. | available |
 | `/learning-loop` | Capture structured lessons learned after major tasks. Categories: pattern, antipattern, tool discovery, configuration insight. Stores in .claude/config/knowledge_base.yml and queries existing learnings. | Capture structured lessons learned after major tasks. | available |
