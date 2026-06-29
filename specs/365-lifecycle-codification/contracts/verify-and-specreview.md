@@ -15,9 +15,9 @@ Critical-path workflows MUST be tagged **tier `Lite`** (cumulative selection exc
 
 ### Implement-phase EXIT criterion (FR-008/010 — coverage reconciliation)
 ```
-smoke_test.py list --app <unit> --json        # → [{id,tier,steps}, ...]
+smoke_test.py list --app <unit> --json        # → {"<app>": [{id,tier,steps}, ...], ...}
 ```
-Compare the track's `shipped_workflow_ids` against the returned ids:
+NOTE: `list --json` returns a **dict keyed by app** (`cli.py` `_cmd_list`), not a flat list — flatten `dict.values()` before reading `id`s. Compare the track's `shipped_workflow_ids` against the returned ids:
 - every shipped id present in catalog → `coverage=OK`
 - a shipped id absent AND not marked `exempt` in track state → `coverage=MISSING` → `decide` refuses advance (agent) / warns (human).
 Exemptions live in **track state** (`subtask_states[...].exempt + exempt_reason`), not the catalog.

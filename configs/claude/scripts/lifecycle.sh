@@ -25,6 +25,10 @@ err() { echo "lifecycle: $*" >&2; }
 
 STATE_DIR="${LIFECYCLE_STATE_DIR:-${MANIFEST_STATE_ROOT:-$HOME/.manifest}/lifecycle/state}"
 
+# Injectable smoke-orchestrator seam (FR-012: consume as-is). Default = deployed runtime.
+SMOKE_CMD="${LIFECYCLE_SMOKE_CMD:-python3 ${HOME}/.claude/scripts/smoke_test.py}"
+smoke() { local arr; read -ra arr <<<"${SMOKE_CMD}"; "${arr[@]}" "$@"; }
+
 usage() {
     cat <<'USAGE'
 Usage: lifecycle.sh <subcommand> [args]
@@ -35,6 +39,9 @@ Usage: lifecycle.sh <subcommand> [args]
                             action ∈ allow|warn|refuse. Always exits 0; malformed -> refuse.
   gate [<signals-json>]     Like decide but exits non-zero on warn(3)/refuse(1) for loops.
   advance <track-id> [--gate <json>] [--actor agent|human] [--override <reason>]
+                            [--unit <smoke-app>] [--junit <path>]
+                            implement/verify auto-compute the gate via the smoke runtime.
+  subtask <track-id> --id <sid> [--ship <workflow-id>] [--exempt --reason <text>]
   anchor <track-id>         Re-print the active phase.
   regress <track-id> --to <phase> --reason <text>
 USAGE
@@ -211,20 +218,142 @@ cmd_anchor() {
     echo "[lifecycle] track ${id} is in phase: $(json_get "${j}" current_phase)"
 }
 
+# --- US2: smoke-backed Verify gate + Implement-exit coverage (FR-008..FR-012) -----------
+
+# Manage per-Sub-Task state: --ship records a covering workflow id; --exempt marks a
+# non-user-facing Sub-Task (rationale required). subtask_states[sid] + shipped_workflow_ids.
+cmd_subtask() {
+    local id="${1:-}"; shift || true
+    [ -n "${id}" ] || { err "subtask requires a track-id"; return 64; }
+    local sid='' ship='' exempt='' reason=''
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --id) sid="${2:-}"; shift 2 ;;
+            --ship) ship="${2:-}"; shift 2 ;;
+            --exempt) exempt=1; shift ;;
+            --reason) reason="${2:-}"; shift 2 ;;
+            *) err "subtask: unknown option $1"; return 64 ;;
+        esac
+    done
+    [ -n "${sid}" ] || { err "subtask requires --id"; return 64; }
+    [ -z "${exempt}" ] || [ -n "${reason}" ] || { err "subtask --exempt requires --reason (FR-011)"; return 2; }
+    local j; j="$(read_track "${id}")" || return $?
+    local updated
+    updated="$(python3 -c '
+import json,sys
+j=json.loads(sys.argv[1]); sid,ship,exempt,reason=sys.argv[2:6]
+st=j.setdefault("subtask_states",{}).setdefault(sid,{"phase":"implement","exempt":False,"coverage_workflow_ids":[]})
+if exempt=="1":
+    st["exempt"]=True; st["exempt_reason"]=reason
+if ship:
+    if ship not in st["coverage_workflow_ids"]: st["coverage_workflow_ids"].append(ship)
+    if ship not in j.setdefault("shipped_workflow_ids",[]): j["shipped_workflow_ids"].append(ship)
+print(json.dumps(j))' "${j}" "${sid}" "${ship}" "${exempt}" "${reason}")"
+    write_track "${id}" "${updated}"
+    echo "subtask ${sid}: $([ -n "${exempt}" ] && echo exempt || echo "ship=${ship:-<none>}")"
+}
+
+# Coverage signal for the Implement-exit gate: every non-exempt Sub-Task needs >=1 covering
+# workflow, and every shipped workflow id must exist in the smoke catalog (FR-008/FR-010).
+# Fails CLOSED: any error (smoke missing, malformed/unexpected output) -> MISSING, never a crash.
+# The real `smoke list --json` returns a per-app dict {app:[{id,...}]}; a flat list is tolerated.
+compute_coverage_signal() {
+    local j="$1" unit="$2" catalog
+    catalog="$(smoke list --app "${unit}" --json 2>/dev/null || echo '{}')"
+    python3 -c '
+import json, sys
+def out(cov, **kw):
+    d = {"gate_type": "coverage", "coverage": cov}; d.update(kw)
+    print(json.dumps(d)); sys.exit(0)
+try:
+    j = json.loads(sys.argv[1]); cat = json.loads(sys.argv[2] or "{}")
+except Exception:
+    out("MISSING", reason="unparseable smoke catalog — failing closed")
+if isinstance(cat, dict):
+    recs = [r for v in cat.values() if isinstance(v, list) for r in v]
+elif isinstance(cat, list):
+    recs = cat
+else:
+    out("MISSING", reason="unexpected smoke catalog shape — failing closed")
+cat_ids = {c.get("id") for c in recs if isinstance(c, dict)}
+required = set(j.get("shipped_workflow_ids", []))
+for sid, st in (j.get("subtask_states") or {}).items():
+    if st.get("exempt"):
+        if not st.get("exempt_reason"):
+            out("MISSING", reason="exempt subtask %s lacks rationale" % sid)
+        continue
+    wfs = st.get("coverage_workflow_ids", [])
+    if not wfs:
+        out("MISSING", reason="subtask %s has no smoke test" % sid)
+    required |= set(wfs)
+missing = sorted(required - cat_ids)
+out("MISSING" if missing else "OK", missing=missing)
+' "${j}" "${catalog}"
+}
+
+# Runner signal for the Verify gate: run the suite at Lite, gate on exit code (0/1/2).
+# stderr is kept (not discarded) in a sibling .log so exit 2 from an infra/usage error is
+# diagnosable rather than silently read as "missing coverage".
+compute_verify_signal() {
+    local unit="$1" junit="$2" ec=0
+    smoke run --app "${unit}" --tier Lite --junit "${junit}" >/dev/null 2>"${junit%.xml}.log" || ec=$?
+    [ "${ec}" -eq 0 ] || err "smoke run exited ${ec} (diagnostics: ${junit%.xml}.log)"
+    echo "{\"gate_type\":\"runner\",\"exit_code\":${ec}}"
+}
+
+# T021/FR-011: the workflow ids whose JUnit <testcase> passed (no failure/error/skipped),
+# recorded back into each Sub-Task for per-Sub-Task verification traceability.
+junit_passed_ids() {
+    local junit="$1"
+    [ -f "${junit}" ] || { echo '[]'; return 0; }
+    python3 -c '
+import sys, json, xml.etree.ElementTree as ET
+try:
+    data = open(sys.argv[1], "rb").read()
+    dl = data.lower()
+    # Defense-in-depth (no defusedxml dep): refuse DTDs/entities to block XXE and
+    # billion-laughs. Our smoke JUnit never declares them; an attacker-supplied one would.
+    if b"<!doctype" in dl or b"<!entity" in dl:
+        print("[]"); sys.exit(0)
+    root = ET.fromstring(data)
+    ids = [tc.get("name") for tc in root.iter("testcase")
+           if tc.get("name") and not any(c.tag in ("failure","error","skipped") for c in tc)]
+    print(json.dumps(ids))
+except Exception:
+    print("[]")
+' "${junit}" 2>/dev/null || echo '[]'
+}
+
 cmd_advance() {
     local id="${1:-}"; shift || true
     [ -n "${id}" ] || { err "advance requires a track-id"; return 64; }
-    local gate_json='{}' actor='' override=''
+    local gate_json='' actor='' override='' unit='' junit='' verified_ids='[]'
     while [ $# -gt 0 ]; do
         case "$1" in
             --gate) gate_json="${2:-}"; shift 2 ;;
             --actor) actor="${2:-}"; shift 2 ;;
             --override) override="${2:-}"; shift 2 ;;
+            --unit) unit="${2:-}"; shift 2 ;;
+            --junit) junit="${2:-}"; shift 2 ;;
             *) err "advance: unknown option $1"; return 64 ;;
         esac
     done
     local j; j="$(read_track "${id}")" || return $?
     local cur; cur="$(json_get "${j}" current_phase)"
+    # US2: auto-compute the gate for the smoke-backed phases when not explicitly supplied.
+    if [ -z "${gate_json}" ]; then
+        case "${cur}" in
+            implement)
+                [ -n "${unit}" ] || { err "advance implement requires --unit <smoke-app> (or --gate)"; return 64; }
+                gate_json="$(compute_coverage_signal "${j}" "${unit}")" ;;
+            verify)
+                [ -n "${unit}" ] || { err "advance verify requires --unit <smoke-app> (or --gate)"; return 64; }
+                [ -n "${junit}" ] || junit="${STATE_DIR}/${id}.verify.xml"
+                gate_json="$(compute_verify_signal "${unit}" "${junit}")"
+                verified_ids="$(junit_passed_ids "${junit}")" ;;
+            *) gate_json='{}' ;;
+        esac
+    fi
     [ -n "${actor}" ] || actor="$(json_get "${j}" actor_mode)"
     # assemble signals for the pure core
     local signals
@@ -249,18 +378,31 @@ print(json.dumps({"actor_mode":actor,"current_phase":j["current_phase"],
             err "refused: $(json_get "${decision}" reason) (missing: $(json_get "${decision}" missing_prereq))"
             return 1 ;;
     esac
-    # advance: append cur to completed, set next phase
+    # advance: append cur to completed, set next phase, record gate result, and (FR-028)
+    # transition per-Sub-Task sub-states as the Task crosses Implement -> Verify -> done.
     local updated
     updated="$(python3 -c '
 import json,sys
-j=json.loads(sys.argv[1]); ov=sys.argv[2]
+j=json.loads(sys.argv[1]); ov=sys.argv[2]; decision=json.loads(sys.argv[3] or "{}")
+gate=json.loads(sys.argv[4] or "{}"); verified=set(json.loads(sys.argv[5] or "[]"))
 PH=["specify","clarify","spec_review_product","plan","task_creation","analyze","spec_review_tech","implement","verify"]
 cur=j["current_phase"]; i=PH.index(cur)
 if cur not in j["completed_phases"]: j["completed_phases"].append(cur)
-if i < len(PH)-1: j["current_phase"]=PH[i+1]
-else: j["current_phase"]="done"
+nxt = PH[i+1] if i < len(PH)-1 else "done"
+j["current_phase"]=nxt
+j.setdefault("gate_results",{})[cur]={"decision":decision.get("action"),"gate":gate}
+# Two-level iterator (FR-028): Sub-Tasks ride the Task through phases 8-9.
+subs=j.get("subtask_states") or {}
+if cur=="implement":
+    for sid,st in subs.items():
+        if not st.get("exempt"): st["phase"]="verify"
+elif cur=="verify":
+    for sid,st in subs.items():
+        st["phase"]="done"
+        # T021/FR-011: record which declared workflows actually passed in this run.
+        st["verified_workflow_ids"]=[w for w in st.get("coverage_workflow_ids",[]) if w in verified]
 if ov: j.setdefault("regression_log",[]).append({"override":ov,"at_phase":cur})
-print(json.dumps(j))' "${j}" "${override}")"
+print(json.dumps(j))' "${j}" "${override}" "${decision}" "${gate_json}" "${verified_ids}")"
     write_track "${id}" "${updated}"
     echo "advanced ${id}: ${cur} -> $(json_get "${updated}" current_phase)"
 }
@@ -303,6 +445,7 @@ main() {
         decide)  cmd_decide "${1:-}"; exit 0 ;;
         gate)    cmd_gate "${1:-}" ;;
         advance) cmd_advance "$@" ;;
+        subtask) cmd_subtask "$@" ;;
         anchor)  cmd_anchor "$@" ;;
         regress) cmd_regress "$@" ;;
         *) err "unknown subcommand: ${sub:-<none>}"; usage >&2; exit 64 ;;

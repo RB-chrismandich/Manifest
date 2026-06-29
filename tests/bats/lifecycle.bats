@@ -138,3 +138,174 @@ ALL_BUT_LAST='["specify","clarify","spec_review_product","plan","task_creation",
     run "$SCRIPT" status jira__NOPE-1
     [ "$status" -eq 2 ]
 }
+
+# ============================================================================
+# US2 — smoke-backed Verify gate + Implement-exit coverage (T017–T021, T012)
+# ============================================================================
+
+# Offline smoke seam. `list` emits the REAL per-app dict shape ({app:[{id,...}]}); `run`
+# writes a JUnit (passing testcases named by $SMOKE_JUNIT_IDS) and exits $SMOKE_RUN_EXIT.
+mk_smoke_stub() {
+    cat > "$BATS_TEST_TMPDIR/smoke.sh" <<'STUB'
+#!/usr/bin/env bash
+sub="$1"; shift
+case "$sub" in
+  list) [ -n "${SMOKE_CATALOG:-}" ] && echo "$SMOKE_CATALOG" || echo '{}' ;;
+  run)
+    junit=""
+    while [ $# -gt 0 ]; do case "$1" in --junit) junit="$2"; shift 2 ;; *) shift ;; esac; done
+    if [ -n "$junit" ]; then
+      { echo '<testsuite>'
+        for id in ${SMOKE_JUNIT_IDS:-login}; do echo "<testcase name=\"$id\" classname=\"billing.Lite\"></testcase>"; done
+        echo '</testsuite>'; } > "$junit"
+    fi
+    exit "${SMOKE_RUN_EXIT:-0}" ;;
+  *) exit 0 ;;
+esac
+STUB
+    chmod +x "$BATS_TEST_TMPDIR/smoke.sh"
+    export LIFECYCLE_SMOKE_CMD="$BATS_TEST_TMPDIR/smoke.sh"
+}
+
+# Real-shape single-app catalog helper.
+CATALOG_LOGIN='{"billing":[{"id":"login","tier":"Lite","steps":3}]}'
+
+subphase() { python3 -c "import json,sys;print(json.load(sys.stdin)['subtask_states']['$1']['phase'])"; }
+sub_verified() { python3 -c "import json,sys;print('$2' in json.load(sys.stdin)['subtask_states']['$1'].get('verified_workflow_ids',[]))"; }
+
+# Advance a fresh track from specify(1) to implement(8) with passing gates.
+to_implement() {
+    local id="$1" g
+    for g in artifact artifact verdict artifact artifact verdict verdict; do
+        if [ "$g" = verdict ]; then
+            "$SCRIPT" advance "$id" --actor agent --gate '{"gate_type":"verdict","verdict":"APPROVED"}' >/dev/null
+        else
+            "$SCRIPT" advance "$id" --actor agent --gate '{"gate_type":"artifact","present":true}' >/dev/null
+        fi
+    done
+}
+
+@test "subtask --exempt requires --reason (FR-011)" {
+    "$SCRIPT" init PROJ-20 >/dev/null
+    run "$SCRIPT" subtask jira__PROJ-20 --id S1 --exempt
+    [ "$status" -eq 2 ]
+}
+@test "subtask --ship records the workflow id on the track" {
+    "$SCRIPT" init PROJ-21 >/dev/null
+    "$SCRIPT" subtask jira__PROJ-21 --id S1 --ship login >/dev/null
+    run "$SCRIPT" status jira__PROJ-21 --json
+    [[ "$output" == *'"login"'* ]]
+}
+
+@test "implement coverage OK (real dict catalog shape) -> advances to verify" {
+    mk_smoke_stub
+    export SMOKE_CATALOG="$CATALOG_LOGIN"
+    "$SCRIPT" init PROJ-22 >/dev/null
+    to_implement jira__PROJ-22
+    "$SCRIPT" subtask jira__PROJ-22 --id S1 --ship login >/dev/null
+    run "$SCRIPT" advance jira__PROJ-22 --actor agent --unit billing
+    [ "$status" -eq 0 ]; [[ "$output" == *"implement -> verify"* ]]
+}
+@test "regression guard: a flat-list catalog (wrong/old shape) is tolerated too" {
+    mk_smoke_stub
+    export SMOKE_CATALOG='[{"id":"login","tier":"Lite","steps":3}]'
+    "$SCRIPT" init PROJ-22B >/dev/null
+    to_implement jira__PROJ-22B
+    "$SCRIPT" subtask jira__PROJ-22B --id S1 --ship login >/dev/null
+    run "$SCRIPT" advance jira__PROJ-22B --actor agent --unit billing
+    [ "$status" -eq 0 ]
+}
+@test "implement coverage MISSING (shipped workflow absent from catalog) -> refused" {
+    mk_smoke_stub
+    export SMOKE_CATALOG='{"billing":[]}'
+    "$SCRIPT" init PROJ-23 >/dev/null
+    to_implement jira__PROJ-23
+    "$SCRIPT" subtask jira__PROJ-23 --id S1 --ship login >/dev/null
+    run "$SCRIPT" advance jira__PROJ-23 --actor agent --unit billing
+    [ "$status" -eq 1 ]
+    run "$SCRIPT" status jira__PROJ-23 --json
+    [ "$(echo "$output" | field current_phase)" = "implement" ]
+}
+@test "implement coverage fails CLOSED on malformed smoke output (no crash)" {
+    mk_smoke_stub
+    export SMOKE_CATALOG='this is not json'
+    "$SCRIPT" init PROJ-23C >/dev/null
+    to_implement jira__PROJ-23C
+    "$SCRIPT" subtask jira__PROJ-23C --id S1 --ship login >/dev/null
+    run "$SCRIPT" advance jira__PROJ-23C --actor agent --unit billing
+    [ "$status" -eq 1 ]   # refused (fail-closed), not an abort/traceback
+    [[ "$output" == *"refused"* ]]
+}
+@test "implement coverage MISSING (non-exempt subtask has no smoke test) -> refused" {
+    mk_smoke_stub
+    export SMOKE_CATALOG="$CATALOG_LOGIN"
+    "$SCRIPT" init PROJ-24 >/dev/null
+    to_implement jira__PROJ-24
+    "$SCRIPT" subtask jira__PROJ-24 --id S1 >/dev/null   # subtask with no --ship
+    run "$SCRIPT" advance jira__PROJ-24 --actor agent --unit billing
+    [ "$status" -eq 1 ]
+}
+@test "exempt subtask is skipped from the coverage requirement" {
+    mk_smoke_stub
+    export SMOKE_CATALOG="$CATALOG_LOGIN"
+    "$SCRIPT" init PROJ-25 >/dev/null
+    to_implement jira__PROJ-25
+    "$SCRIPT" subtask jira__PROJ-25 --id S1 --ship login >/dev/null
+    "$SCRIPT" subtask jira__PROJ-25 --id S2 --exempt --reason "internal refactor, no UI" >/dev/null
+    run "$SCRIPT" advance jira__PROJ-25 --actor agent --unit billing
+    [ "$status" -eq 0 ]; [[ "$output" == *"implement -> verify"* ]]
+}
+@test "human actor: coverage MISSING -> warn (exit 3); --override proceeds" {
+    mk_smoke_stub
+    export SMOKE_CATALOG='{"billing":[]}'
+    "$SCRIPT" init PROJ-30 >/dev/null
+    to_implement jira__PROJ-30
+    "$SCRIPT" subtask jira__PROJ-30 --id S1 --ship login >/dev/null
+    run "$SCRIPT" advance jira__PROJ-30 --actor human --unit billing
+    [ "$status" -eq 3 ]
+    run "$SCRIPT" advance jira__PROJ-30 --actor human --unit billing --override "stub, tracked separately"
+    [ "$status" -eq 0 ]
+}
+
+@test "verify gate exit 0 -> done; sub-task phase==done AND verified id recorded (FR-028/T021)" {
+    mk_smoke_stub
+    export SMOKE_CATALOG="$CATALOG_LOGIN" SMOKE_RUN_EXIT=0 SMOKE_JUNIT_IDS=login
+    "$SCRIPT" init PROJ-26 >/dev/null
+    to_implement jira__PROJ-26
+    "$SCRIPT" subtask jira__PROJ-26 --id S1 --ship login >/dev/null
+    "$SCRIPT" advance jira__PROJ-26 --actor agent --unit billing >/dev/null   # implement -> verify
+    run "$SCRIPT" advance jira__PROJ-26 --actor agent --unit billing          # verify -> done
+    [ "$status" -eq 0 ]
+    run "$SCRIPT" status jira__PROJ-26 --json
+    [ "$(echo "$output" | field current_phase)" = "done" ]
+    [ "$(echo "$output" | subphase S1)" = "done" ]              # discriminating (not a substring match)
+    [ "$(echo "$output" | sub_verified S1 login)" = "True" ]    # T021 traceability landed
+}
+@test "verify gate: run exit 1 -> refused (stays in verify)" {
+    mk_smoke_stub
+    export SMOKE_CATALOG="$CATALOG_LOGIN" SMOKE_RUN_EXIT=1
+    "$SCRIPT" init PROJ-27 >/dev/null
+    to_implement jira__PROJ-27
+    "$SCRIPT" subtask jira__PROJ-27 --id S1 --ship login >/dev/null
+    "$SCRIPT" advance jira__PROJ-27 --actor agent --unit billing >/dev/null   # implement -> verify
+    run "$SCRIPT" advance jira__PROJ-27 --actor agent --unit billing
+    [ "$status" -eq 1 ]
+    run "$SCRIPT" status jira__PROJ-27 --json
+    [ "$(echo "$output" | field current_phase)" = "verify" ]
+}
+@test "verify gate: run exit 2 (EMPTY) -> refused (missing coverage is not a pass)" {
+    mk_smoke_stub
+    export SMOKE_CATALOG="$CATALOG_LOGIN" SMOKE_RUN_EXIT=2
+    "$SCRIPT" init PROJ-28 >/dev/null
+    to_implement jira__PROJ-28
+    "$SCRIPT" subtask jira__PROJ-28 --id S1 --ship login >/dev/null
+    "$SCRIPT" advance jira__PROJ-28 --actor agent --unit billing >/dev/null
+    run "$SCRIPT" advance jira__PROJ-28 --actor agent --unit billing
+    [ "$status" -eq 1 ]
+}
+@test "advance implement without --unit errors (needs the smoke app)" {
+    "$SCRIPT" init PROJ-29 >/dev/null
+    to_implement jira__PROJ-29
+    run "$SCRIPT" advance jira__PROJ-29 --actor agent
+    [ "$status" -ne 0 ]
+}

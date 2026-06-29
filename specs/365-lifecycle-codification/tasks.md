@@ -49,7 +49,7 @@ description: "Task list for feature 365 — Codified State-Gated Development Lif
 
 - [X] T010 [P] [US1] Write FAILING bats: `init`/`status`/`advance` happy path, skip→refuse(agent)+warn(human), `regress --to --reason` (logged), `anchor` re-emit, resume from persisted state (`tests/bats/lifecycle.bats`)
 - [X] T011 [US1] Implement `lifecycle.sh init <entry-point>` (create Track, set `current_phase=specify`, persist; idempotent re-init) (FR-003, FR-019)
-- [ ] T012 [US1] Implement `lifecycle.sh advance <track-id>` (compute current phase gate signal → call `decide` → persist next phase on `allow`, exit 1 on refuse, exit 3 on warn) (FR-004). Phases 1–7 advance once at the Task tier; **phases 8–9 are a two-level iterator (FR-028)**: the Task holds at Implement/Verify while each child Sub-Task independently transitions through its own Implement→Verify sub-state, and the Task advances to `done` only when every Sub-Task is complete-or-exempt. Bats (T010) MUST cover the multi-Sub-Task hold/advance.
+- [X] T012 [US1] Implement `lifecycle.sh advance <track-id>` (compute current phase gate signal → call `decide` → persist next phase on `allow`, exit 1 on refuse, exit 3 on warn) (FR-004). Phases 1–7 advance once at the Task tier; **phases 8–9 are a two-level iterator (FR-028)**: the Task holds at Implement/Verify while each child Sub-Task independently transitions through its own Implement→Verify sub-state, and the Task advances to `done` only when every Sub-Task is complete-or-exempt. Bats (T010) MUST cover the multi-Sub-Task hold/advance.
 - [X] T013 [US1] Implement `lifecycle.sh status [--json]` (current_phase, completed_phases, outstanding gates) (FR-007) and `anchor` (FR-006)
 - [X] T014 [US1] Implement `lifecycle.sh regress --to <phase> --reason <text>` (append regression_log, re-enter earlier phase; reject missing reason exit 2) (FR-005)
 - [X] T015 [US1] Create `.skillshare/skills/lifecycle/SKILL.md`: phase→command map (Specify=/speckit-specify … Verify=/speckit-implement-review+smoke), `actor_mode` default human (advisory) vs agent (hard), invokes the mapped command then `lifecycle.sh advance` (FR-001, FR-006). Spec-Review product (phase 3) vs technical (phase 7) MUST pass an explicit mode identifier per FR-002 — using the `--mode` flag from T036 (pulled into MVP, see below); until that flag exists T015 sets the `SPEC_REVIEW_TEMPLATE`/`SPEC_REVIEW_STATE` env seams directly
@@ -64,11 +64,11 @@ description: "Task list for feature 365 — Codified State-Gated Development Lif
 **Goal**: Implement appends per-workflow smoke tests; Verify runs them at Lite as the completion gate; missing coverage fails.
 **Independent Test**: ship a workflow → smoke test appended; Verify passes only when present+green; remove it → gate fails (EMPTY≠pass).
 
-- [ ] T017 [P] [US2] Write FAILING bats (seam `LIFECYCLE_SMOKE_CMD` stub returning canned exit codes / `list --json`): Implement-exit coverage reconciliation OK vs MISSING, Verify gate exit 0/1/2 mapping (2=EMPTY→refuse), exemption path (`tests/bats/lifecycle.bats`)
-- [ ] T018 [US2] Implement Implement-phase exit criterion: diff track `shipped_workflow_ids` vs `smoke_test.py list --app <unit> --json`; absent+non-exempt → `coverage=MISSING` (blocks advance) (FR-008, FR-010)
-- [ ] T019 [US2] Implement exemption handling in track state (`subtask_states[].exempt`+`exempt_reason`, required when exempt) (FR-011)
-- [ ] T020 [US2] Implement Verify-phase gate: `smoke_test.py run --app <unit> --tier Lite --junit <path>`, gate on exit code (0 allow / 1,2 refuse-agent) via `decide` gate_type=runner (FR-009, FR-012)
-- [ ] T021 [US2] Map per-Sub-Task coverage traceability from JUnit `<testcase>` ids into `subtask_states[].coverage_workflow_ids` (FR-011); document that critical-path tests must be tier Lite
+- [X] T017 [P] [US2] Write FAILING bats (seam `LIFECYCLE_SMOKE_CMD` stub returning canned exit codes / `list --json`): Implement-exit coverage reconciliation OK vs MISSING, Verify gate exit 0/1/2 mapping (2=EMPTY→refuse), exemption path (`tests/bats/lifecycle.bats`)
+- [X] T018 [US2] Implement Implement-phase exit criterion: diff track `shipped_workflow_ids` vs `smoke_test.py list --app <unit> --json`; absent+non-exempt → `coverage=MISSING` (blocks advance) (FR-008, FR-010)
+- [X] T019 [US2] Implement exemption handling in track state (`subtask_states[].exempt`+`exempt_reason`, required when exempt) (FR-011)
+- [X] T020 [US2] Implement Verify-phase gate: `smoke_test.py run --app <unit> --tier Lite --junit <path>`, gate on exit code (0 allow / 1,2 refuse-agent) via `decide` gate_type=runner (FR-009, FR-012)
+- [X] T021 [US2] Map per-Sub-Task coverage traceability from JUnit `<testcase>` ids into `subtask_states[].coverage_workflow_ids` (FR-011); document that critical-path tests must be tier Lite
 
 **Checkpoint**: US1+US2 — a unit cannot reach done without passing Lite smoke coverage for each user-facing workflow.
 
