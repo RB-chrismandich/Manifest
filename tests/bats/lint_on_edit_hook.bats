@@ -98,12 +98,18 @@ payload() { python3 -c "import json,sys; print(json.dumps({'tool_input':{'file_p
 # --- G3: fail-open on missing tool ---
 
 @test "G3: missing linter -> exit 0, no error (fail open)" {
-    # PATH with coreutils + python3 but WITHOUT shellcheck/ruff.
+    # Build a minimal PATH containing only the hook's helpers (python3, tr,
+    # dirname, git) but NOT shellcheck/ruff, so the dispatched linter is
+    # genuinely absent on ANY runner. (We cannot just exclude homebrew paths:
+    # GitHub ubuntu runners ship shellcheck in /usr/bin.)
     fakebin="$TMP/bin"; mkdir -p "$fakebin"
-    ln -s "$(command -v python3)" "$fakebin/python3"
+    for t in python3 tr dirname git; do
+        p="$(command -v "$t")" && ln -s "$p" "$fakebin/$t"
+    done
+    bash_bin="$(command -v bash)"
     f="$TMP/bad.sh"
     printf '#!/usr/bin/env bash\ndir=$1\ncd $dir\n' > "$f"   # SC2164/SC2086
-    run bash -c "PATH='$fakebin:/usr/bin:/bin' printf '%s' '$(payload "$f")' | PATH='$fakebin:/usr/bin:/bin' '$SCRIPT' 2>&1"
+    run bash -c "printf '%s' '$(payload "$f")' | PATH='$fakebin' '$bash_bin' '$SCRIPT' 2>&1"
     [ "$status" -eq 0 ]
     [[ "$output" != *"command not found"* ]]
     [[ "$output" != *"lint-on-edit:"* ]]   # shellcheck absent -> nothing reported
