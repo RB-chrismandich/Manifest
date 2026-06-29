@@ -58,3 +58,9 @@ which is the once-per-run consensus calc over a few hundred words — small inpu
 large or memory-sensitive loops keep `sum(1 for ...)` to avoid the list allocation. Unrelated to
 set-vs-list membership: prefer a `set` for membership tests (O(1) vs O(n)); do not swap a set
 comprehension for a list to "save allocation."
+
+## 2026-06-21 - Memory Optimization for Large Files
+
+**Learning:** When dealing with large files, creating intermediate lists (like `parsed_lines`) causes
+peak memory usage to skyrocket.
+**Action:** Use a two-pass lazy iteration approach instead to identify what to keep and then collect it.
