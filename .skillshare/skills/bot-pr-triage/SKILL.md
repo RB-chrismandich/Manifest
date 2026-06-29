@@ -14,3 +14,7 @@ Use when several automated PRs target the same file/region and you must decide m
 6. **Re-check mergeability against updated main between merges.** Sequential merges to the same file invalidate prior mergeability; `sleep` for recompute, re-query `mergeable`, then merge in order.
 7. **Sync and run the full suite after the batch.** Confirm the sequential merges composed cleanly (compile + tests). If new failures appear, rule out environment causes (e.g. signing-agent down failing temp-repo commits) before blaming a merge.
 8. **Flag the automation churn.** When a bot produced N PRs for one change, note it so the bot's dedup/conventions can be tightened upstream.
+
+## Sub-agent dispatch
+
+When ≥3 bot PRs are open, dispatch one sub-agent per PR (or batch) to triage it, then consolidate dispositions; below that, triage inline. Pick the mechanism per the shared Sub-Agent Selection Rules (`configs/claude/references/sub-agent-dispatch.md`): native Task sub-agents on Claude, or `parallel_agent.py` / inline on other assistants. Dispatched sub-agents execute their task directly and do not re-dispatch.

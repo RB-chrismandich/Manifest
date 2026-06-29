@@ -21,3 +21,7 @@ Use after a vulnerability-finding pass produces candidates, to suppress false po
 7. **Do not speculate.** Refute only with cited evidence; otherwise the finding survives.
 
 8. **Return two sets:** `survived` (indices you could not refute) and `refuted` (`{idx, reason}` with the cited evidence for each). An empty `survived` means every candidate was refuted.
+
+## Sub-agent dispatch
+
+When ≥3 candidate findings need triage, dispatch one sub-agent per finding to verify it, then aggregate verdicts; below that, triage inline. Pick the mechanism per the shared Sub-Agent Selection Rules (`configs/claude/references/sub-agent-dispatch.md`): native Task sub-agents on Claude, or `parallel_agent.py` / inline on other assistants. Dispatched sub-agents execute their task directly and do not re-dispatch.

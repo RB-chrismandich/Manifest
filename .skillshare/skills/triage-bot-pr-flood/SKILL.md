@@ -29,3 +29,7 @@ the marketing-prose descriptions.
    re-poll until `CLEAN`), merge with the repo's convention (squash), delete branch.
 8. **Flag the automation** if it's generating churn — recommend tightening dedup
    and feeding it the repo conventions up front.
+
+## Sub-agent dispatch
+
+When ≥3 machine-generated PRs are open, dispatch one sub-agent per PR (or batch) to disposition it, then consolidate; below that, triage inline. Pick the mechanism per the shared Sub-Agent Selection Rules (`configs/claude/references/sub-agent-dispatch.md`): native Task sub-agents on Claude, or `parallel_agent.py` / inline on other assistants. Dispatched sub-agents execute their task directly and do not re-dispatch.

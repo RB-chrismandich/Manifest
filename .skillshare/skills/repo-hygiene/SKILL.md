@@ -211,3 +211,7 @@ Report the outcome per item (`closed` / `deleted` / `FAILED` + reason).
   the user there for blob-level dedup before this general sweep.
 - Issue backlog hygiene is a separate concern — see `issue-prioritize` /
   `issue-triage`.
+
+## Sub-agent dispatch
+
+When ≥3 open PRs or stale branches exist, dispatch one sub-agent per PR/branch batch to assess disposition, then consolidate; below that, sweep inline. Pick the mechanism per the shared Sub-Agent Selection Rules (`configs/claude/references/sub-agent-dispatch.md`): native Task sub-agents on Claude, or `parallel_agent.py` / inline on other assistants. Dispatched sub-agents execute their task directly and do not re-dispatch.

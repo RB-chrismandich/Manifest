@@ -240,5 +240,5 @@ approaches), review stale plans, or archive/abandon completed work.
 <!-- SPECKIT START -->
 ## Active Spec Kit Feature
 
-- `366-coding-standards` — plan: [specs/366-coding-standards/plan.md](specs/366-coding-standards/plan.md)
+- `367-sub-agent-dispatch-guidance` — plan: [specs/367-sub-agent-dispatch-guidance/plan.md](specs/367-sub-agent-dispatch-guidance/plan.md)
 <!-- SPECKIT END -->

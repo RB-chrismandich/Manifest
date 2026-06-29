@@ -13,3 +13,7 @@ A second-pass verification stage: given candidate vulnerabilities (from a finder
 5. **Check for in-file documentation that reframes the finding.** A comment block can establish that a "removed control" was never functional, or was delegated elsewhere. (Real example: a finding claimed an HTTPS+basic-auth Docker endpoint was replaced by plaintext `tcp://...:2375`; an in-file comment documented that the client only ever supported `tcp://`/`unix://` so the HTTPS form was a non-functional placeholder, and the new endpoint rides a Tailscale/WireGuard tunnel providing encryption + device auth — both "removed controls" were delegated, not deleted.)
 6. **Process candidates in anchor order** (`in_diff` before `off_diff`), and refute any off_diff candidate whose sink is already covered by a surviving in_diff candidate.
 7. **Return two lists:** the indices that SURVIVED (could not be refuted) and `{idx, reason}` records for each refuted one, each reason citing concrete `file:line` evidence. An empty survived list is a valid, common outcome.
+
+## Sub-agent dispatch
+
+When ≥3 candidate findings need refutation, dispatch one sub-agent per finding to attempt refutation, then aggregate verdicts; below that, refute inline. Pick the mechanism per the shared Sub-Agent Selection Rules (`configs/claude/references/sub-agent-dispatch.md`): native Task sub-agents on Claude, or `parallel_agent.py` / inline on other assistants. Dispatched sub-agents execute their task directly and do not re-dispatch.

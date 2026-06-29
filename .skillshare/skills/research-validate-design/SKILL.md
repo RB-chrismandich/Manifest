@@ -14,3 +14,7 @@ Trigger: a design is drafted and the user says "research that this is the best a
 6. Fold confirmed improvements back into the design (e.g. drop a second dependency when one call suffices); for refuted assumptions, redesign before writing anything.
 7. Note any prerequisite the research surfaced that must be verified at build time (a published status-page slug must exist, a token must return data) and mark it build-and-verify.
 8. Only then write the spec, and state in it which choices were research-validated and which remain build-and-verify, with citations.
+
+## Sub-agent dispatch
+
+When ≥3 load-bearing assumptions need validation, dispatch one sub-agent per assumption to research it, then synthesize; below that, research inline. Pick the mechanism per the shared Sub-Agent Selection Rules (`configs/claude/references/sub-agent-dispatch.md`): native Task sub-agents on Claude, or `parallel_agent.py` / inline on other assistants. Dispatched sub-agents execute their task directly and do not re-dispatch.

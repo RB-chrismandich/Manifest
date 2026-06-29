@@ -57,3 +57,7 @@ This skill is backed by `~/.claude/scripts/pr_review.sh`.
   difference between "no PRs" and "couldn't look".
 - To customize how PRs are fetched (internal mirrors, CI), set `PR_REVIEW_FETCH`
   to an executable that prints the normalized PR JSON array.
+
+## Sub-agent dispatch
+
+When ≥3 open PRs exist, dispatch one sub-agent per PR to assess mergeability, then consolidate; below that, review inline. Pick the mechanism per the shared Sub-Agent Selection Rules (`configs/claude/references/sub-agent-dispatch.md`): native Task sub-agents on Claude, or `parallel_agent.py` / inline on other assistants. Dispatched sub-agents execute their task directly and do not re-dispatch.

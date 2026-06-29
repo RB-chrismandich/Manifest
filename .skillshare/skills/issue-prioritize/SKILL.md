@@ -758,3 +758,7 @@ in the repository. The report includes:
 - **Agent timeout**: Fall back to heuristic-only scores (Step 4)
 - **Agent parse failure**: Fall back to heuristic-only scores (Step 4)
 - **Empty body issues**: Score with defaults (readiness=2, risk=2)
+
+## Sub-agent dispatch
+
+When ≥10 open issues need scoring, dispatch one sub-agent per issue batch to score them, then merge into one ranking; below that, score inline. Pick the mechanism per the shared Sub-Agent Selection Rules (`configs/claude/references/sub-agent-dispatch.md`): native Task sub-agents on Claude, or `parallel_agent.py` / inline on other assistants. Dispatched sub-agents execute their task directly and do not re-dispatch.

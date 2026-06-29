@@ -147,3 +147,7 @@ Static analysis checks that indicate Core Web Vitals risk:
 - Read-only analysis -- never modify source files
 - Skip binary files and minified bundles
 - Cap findings at 100 per file to avoid context overflow
+
+## Sub-agent dispatch
+
+When ≥3 independent pages or flows need review, dispatch one sub-agent per page/flow to review it, then merge findings; below that, review inline. Pick the mechanism per the shared Sub-Agent Selection Rules (`configs/claude/references/sub-agent-dispatch.md`): native Task sub-agents on Claude, or `parallel_agent.py` / inline on other assistants. Dispatched sub-agents execute their task directly and do not re-dispatch.

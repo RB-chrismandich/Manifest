@@ -15,3 +15,7 @@ Generic source→sink review (`diff-security-review`) and `mcp-server-security-a
 7. **Check the cheap hardening.** Trigger `types: [created]` only (no `edited` replay of an approved-looking comment), bot exclusion (`github.event.comment.user.type != 'Bot'` to stop self-trigger loops), and third-party actions pinned to a **full commit SHA**, not a mutable tag.
 8. **Prefer the structural remedy over a smarter gate.** Either refuse fork PRs before any secret is exposed (`head.repo.fork == true` → fail), or **split into two jobs**: an unprivileged job that builds/tests the fork code with no secrets, and a privileged job (triggered via `workflow_run` or gated on same-repo) that never checks out fork code. Don't rely on the author gate alone.
 9. **Report only findings with a concrete attacker path.** Rank pwn-request and secret-exfil as high; rank pure expression-injection without a secret/command sink as medium. For each, name the trigger, the untrusted input, and the sink it reaches.
+
+## Sub-agent dispatch
+
+When ≥3 workflow files need auditing, dispatch one sub-agent per workflow to audit it, then merge findings; below that, audit inline. Pick the mechanism per the shared Sub-Agent Selection Rules (`configs/claude/references/sub-agent-dispatch.md`): native Task sub-agents on Claude, or `parallel_agent.py` / inline on other assistants. Dispatched sub-agents execute their task directly and do not re-dispatch.

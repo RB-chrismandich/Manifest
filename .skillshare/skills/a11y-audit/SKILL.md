@@ -139,3 +139,7 @@ Beyond WCAG, check for common ARIA misuse:
 - Skip minified and bundled files
 - Note checks that require manual verification (color contrast, cognitive load)
 - Cap findings at 100 per file
+
+## Sub-agent dispatch
+
+When ≥3 target files or pages need auditing, dispatch one sub-agent per file/page to audit it, then merge findings; below that, audit inline. Pick the mechanism per the shared Sub-Agent Selection Rules (`configs/claude/references/sub-agent-dispatch.md`): native Task sub-agents on Claude, or `parallel_agent.py` / inline on other assistants. Dispatched sub-agents execute their task directly and do not re-dispatch.
