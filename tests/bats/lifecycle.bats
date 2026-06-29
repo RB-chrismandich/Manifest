@@ -588,3 +588,27 @@ PY
     run "$SCRIPT" audit jira__PROJ-44
     [ "$status" -eq 1 ]; [[ "$output" == *"skipped phase"* ]]
 }
+
+# ============================================================================
+# T027 — record lifecycle artifacts at their tier (FR-015)
+# ============================================================================
+
+@test "artifact: records an artifact on the Tier-3 entry node" {
+    "$SCRIPT" init PROJ-50 >/dev/null
+    run "$SCRIPT" artifact jira__PROJ-50 --tier 3 --path specs/365/plan.md --kind plan
+    [ "$status" -eq 0 ]
+    run "$SCRIPT" status jira__PROJ-50 --json
+    [[ "$output" == *"plan.md"* ]]; [[ "$output" == *'"artifacts"'* ]]
+}
+@test "artifact: requires --tier and --path" {
+    "$SCRIPT" init PROJ-51 >/dev/null
+    run "$SCRIPT" artifact jira__PROJ-51 --path x
+    [ "$status" -eq 64 ]
+    run "$SCRIPT" artifact jira__PROJ-51 --tier 3
+    [ "$status" -eq 64 ]
+}
+@test "artifact: a tier with no present node -> error (exit 1)" {
+    "$SCRIPT" init PROJ-52 >/dev/null   # only the Tier-3 entry exists; no Tier-1 node
+    run "$SCRIPT" artifact jira__PROJ-52 --tier 1 --path spec.md
+    [ "$status" -eq 1 ]; [[ "$output" == *"no present tier-1 node"* ]]
+}

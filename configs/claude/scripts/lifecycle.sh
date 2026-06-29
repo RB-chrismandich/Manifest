@@ -24,6 +24,7 @@ set -euo pipefail
 err() { echo "lifecycle: $*" >&2; }
 
 STATE_DIR="${LIFECYCLE_STATE_DIR:-${MANIFEST_STATE_ROOT:-$HOME/.manifest}/lifecycle/state}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Injectable smoke-orchestrator seam (FR-012: consume as-is). Default = deployed runtime.
 SMOKE_CMD="${LIFECYCLE_SMOKE_CMD:-python3 ${HOME}/.claude/scripts/smoke_test.py}"
@@ -49,6 +50,7 @@ Usage: lifecycle.sh <subcommand> [args]
   verdict [--from <file>|--stdin]   Map a /spec-review --format json result to a gate signal.
   reconcile <track-id> --tracker-status <canonical>   Loop-safe status reconciliation.
   audit <track-id>          Surface lifecycle drift (skipped phase / missing coverage / failed node).
+  artifact <track-id> --tier <1-4> --path <ref> [--kind <k>]   Record an artifact at its tier.
   anchor <track-id>         Re-print the active phase.
   regress <track-id> --to <phase> --reason <text>
 USAGE
@@ -461,7 +463,28 @@ provision_remote() {
     if [ -n "${LIFECYCLE_PROVISION_CMD:-}" ]; then
         local arr; read -ra arr <<<"${LIFECYCLE_PROVISION_CMD}"; "${arr[@]}" "$@"; return $?
     fi
-    err "no provisioning backend (set LIFECYCLE_PROVISION_CMD or wire git_ops/linear_ops/jira)"; return 70
+    # T025: default concrete backends. args: <provider> <construct> <title> <parent-ext>.
+    # github/gitlab via git_ops.sh (gh/glab passthrough); linear via linear_ops.sh; jira is
+    # agent-layer (Atlassian MCP createJiraIssue) so the agent passes --external-id instead.
+    # NOTE: exercised against real trackers in integration (not offline bats); Tier-1/2
+    # constructs (Project V2 / Milestone / Epic) beyond Issue/Sub-Issue need provider-specific
+    # handling not yet in git_ops.sh — those fall back to FAILED_PROVISION for reconciliation.
+    local provider="$1" title="$3" parent="$4" out
+    case "${provider}" in
+        github|gitlab)
+            out="$("${SCRIPT_DIR}/git_ops.sh" issue-create --title "${title}" 2>/dev/null)" || return 1
+            printf '%s' "${out}" | grep -oE '[0-9]+$' | head -1 ;;
+        linear)
+            if [ -n "${parent}" ]; then
+                out="$("${SCRIPT_DIR}/linear_ops.sh" create-sub-issue --parent "${parent}" --title "${title}" 2>/dev/null)" || return 1
+            else
+                out="$("${SCRIPT_DIR}/linear_ops.sh" issue-create --title "${title}" 2>/dev/null)" || return 1
+            fi
+            printf '%s' "${out}" | grep -oE '[A-Z]+-[0-9]+' | head -1 ;;
+        jira)
+            err "jira provisioning is agent-layer (Atlassian MCP createJiraIssue) — pass --external-id with the created key"; return 70 ;;
+        *) err "no provisioning backend for provider: ${provider}"; return 70 ;;
+    esac
 }
 
 # Resolve a tier -> native construct from config. Echoes the construct, or ERR:* / MISSING:<behavior>.
@@ -724,6 +747,37 @@ print("no drift: track is consistent")
 ' "${localc}"
 }
 
+# artifact <track-id> --tier N --path <ref> [--kind <k>]: record a lifecycle artifact at its
+# tier (FR-015: scope @ Initiative/Epic, design @ Task, impl/verify @ Sub-Task). Attaches to the
+# present node at that tier (the entry node is the Tier-3 anchor).
+cmd_artifact() {
+    local id="${1:-}"; shift || true
+    [ -n "${id}" ] || { err "artifact requires a track-id"; return 64; }
+    local tier='' path='' kind='ref'
+    while [ $# -gt 0 ]; do case "$1" in
+        --tier) tier="${2:-}"; shift 2 ;;
+        --path) path="${2:-}"; shift 2 ;;
+        --kind) kind="${2:-}"; shift 2 ;;
+        *) err "artifact: unknown option $1"; return 64 ;;
+    esac; done
+    case "${tier}" in 1|2|3|4) : ;; *) err "artifact requires --tier <1-4>"; return 64 ;; esac
+    [ -n "${path}" ] || { err "artifact requires --path <ref>"; return 64; }
+    local j; j="$(read_track "${id}")" || return $?
+    local updated; updated="$(printf '%s' "${j}" | python3 -c '
+import json,sys
+j=json.load(sys.stdin); tier=int(sys.argv[1]); path=sys.argv[2]; kind=sys.argv[3]
+H=j.get("hierarchy") or []
+node=next((n for n in H if n["tier_level"]==tier and n.get("provision_state")=="present"), None)
+if node is None:
+    print(json.dumps({"_error":"no present tier-%d node to attach the artifact to"%tier})); sys.exit(0)
+arts=node.setdefault("artifacts",[]); e={"kind":kind,"path":path}
+if e not in arts: arts.append(e)
+print(json.dumps(j))' "${tier}" "${path}" "${kind}")"
+    if printf '%s' "${updated}" | grep -q '"_error"'; then err "$(json_get "${updated}" _error)"; return 1; fi
+    write_track "${id}" "${updated}"
+    echo "artifact recorded at tier ${tier}: ${kind}=${path}"
+}
+
 main() {
     local sub="${1:-}"; shift || true
     case "${sub}" in
@@ -733,6 +787,7 @@ main() {
         verdict) cmd_verdict "$@" ;;
         reconcile) cmd_reconcile "$@" ;;
         audit)   cmd_audit "$@" ;;
+        artifact) cmd_artifact "$@" ;;
         status)  cmd_status "$@" ;;
         decide)  cmd_decide "${1:-}"; exit 0 ;;
         gate)    cmd_gate "${1:-}" ;;

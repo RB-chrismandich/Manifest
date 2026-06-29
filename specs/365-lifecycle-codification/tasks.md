@@ -82,9 +82,9 @@ description: "Task list for feature 365 — Codified State-Gated Development Lif
 - [X] T022 [P] [US3] Write FAILING bats: tier→construct resolution, missing-tier→config error (FR-014), top-down order, partial-provision→FAILED_PROVISION+flag (FR-016), and **retry-after-partial-failure asserts NO duplicate entities created (FR-022 create-or-adopt)**
 - [X] T023 [US3] Populate `lifecycle_providers.yml` `tier_map` for all 4 providers + `missing_tier_behavior` (default error) per contracts/provider-mapping.md
 - [X] T024 [US3] Implement Hierarchy Node model + persistence (node_id/external_id/provider_type/tier_level/parent_node_id/status/provision_state/remote_recorded_id) in track state (FR-013, FR-017)
-- [ ] T025 [US3] Implement top-down provisioning (obtain parent external_id before children). **Delegate the Task/Sub-Task issue-creation leg to `/speckit-taskstoissues` (do not reimplement it, FR-001)**; `lifecycle.sh` wraps it to add the higher tiers (Initiative/Epic) and non-GitHub providers (`linear_ops.sh create-sub-issue`, Jira MCP) plus FAILED_PROVISION/rollback handling. **Create-or-adopt idempotency (FR-022)**: lookup-before-create / dedup by external_id so a retry after `FAILED_PROVISION` adopts the existing node instead of duplicating it. Partial failure → mark FAILED_PROVISION, record remote id, halt subtree, flag reconciliation (FR-016)
+- [X] T025 [US3] Implement top-down provisioning (obtain parent external_id before children). **Delegate the Task/Sub-Task issue-creation leg to `/speckit-taskstoissues` (do not reimplement it, FR-001)**; `lifecycle.sh` wraps it to add the higher tiers (Initiative/Epic) and non-GitHub providers (`linear_ops.sh create-sub-issue`, Jira MCP) plus FAILED_PROVISION/rollback handling. **Create-or-adopt idempotency (FR-022)**: lookup-before-create / dedup by external_id so a retry after `FAILED_PROVISION` adopts the existing node instead of duplicating it. Partial failure → mark FAILED_PROVISION, record remote id, halt subtree, flag reconciliation (FR-016)
 - [X] T026 [US3] Implement tier classification + missing/renamed-tier configuration error (naming the unresolved tier) during entry + provisioning (FR-014)
-- [ ] T027 [US3] Record lifecycle artifacts at correct tier (scope@Initiative/Epic, design@Task, impl/verify@Sub-Task) in track `hierarchy_ref` (FR-015, FR-028)
+- [X] T027 [US3] Record lifecycle artifacts at correct tier (scope@Initiative/Epic, design@Task, impl/verify@Sub-Task) in track `hierarchy_ref` (FR-015, FR-028)
 
 **Checkpoint**: hierarchy works on GitHub/GitLab/Linear.
 
@@ -126,11 +126,11 @@ description: "Task list for feature 365 — Codified State-Gated Development Lif
 
 ## Phase 8: Polish & Cross-Cutting
 
-- [ ] T042 [P] Run `./bootstrap.sh` redeploy; verify deployed `~/.claude/scripts/{lifecycle.sh,spec_review.sh}` match repo (resolve deployed-vs-repo drift) (research D6 risk)
+- [X] T042 [P] Run `./bootstrap.sh` redeploy; verify deployed `~/.claude/scripts/{lifecycle.sh,spec_review.sh}` match repo (resolve deployed-vs-repo drift) (research D6 risk)
 - [X] T043 [P] Update `docs/COMMANDS.md` (add `/lifecycle`) and `AGENTS.md`/`configs/claude/CLAUDE.md` runtime guidance
 - [X] T044 [P] Verify `configs/claude/config/validation_criteria.yml` has no drift vs the reused verdict model; add per-command overrides for product/technical spec-review + analyze gates if needed
 - [X] T045 Run `shellcheck configs/claude/scripts/lifecycle.sh spec_review.sh` + `yamllint configs/claude/config/lifecycle_providers.yml`; fix findings
-- [ ] T046 Execute `quickstart.md` end-to-end against one provider (smoke validation of SC-001..SC-011)
+- [X] T046 Execute `quickstart.md` end-to-end against one provider (smoke validation of SC-001..SC-011)
 - [X] T047 [P] Confirm `.specify/extensions.yml` phase hooks remain consistent with the codified phase→command map
 
 ---
