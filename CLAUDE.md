@@ -239,5 +239,5 @@ approaches), review stale plans, or archive/abandon completed work.
 <!-- SPECKIT START -->
 ## Active Spec Kit Feature
 
-- `363-smoke-test-orchestrator` — plan: [specs/363-smoke-test-orchestrator/plan.md](specs/363-smoke-test-orchestrator/plan.md)
+- `365-lifecycle-codification` — plan: [specs/365-lifecycle-codification/plan.md](specs/365-lifecycle-codification/plan.md)
 <!-- SPECKIT END -->
