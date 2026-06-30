@@ -65,3 +65,11 @@ without confirming they are explicitly mandated and configured in the repository
 causes pipeline failures and violates pre-commit separation rules.
 **Action:** Only propose linting if explicitly required, and ensure the specific
 tool is already installed and configured before adding it to an execution plan.
+
+## 2026-06-25 - Avoid Irrelevant Journaling
+
+**Learning:** Logging CI debugging information (such as linting errors or pipeline
+failures) in the UX journal directly violates the persona instructions, which explicitly
+state that the journal must only be used for critical UX/accessibility learnings.
+**Action:** When acting as Palette, strictly restrict journal entries to genuine
+user-experience insights and avoid logging routine development friction.

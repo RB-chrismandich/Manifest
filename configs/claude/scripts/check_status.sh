@@ -44,9 +44,9 @@ fi
 # this to exercise the no-coreutils path deterministically on any platform).
 TIMEOUT_CMD=""
 if [[ "${CHECK_STATUS_NO_TIMEOUT_CMD:-}" != "1" ]]; then
-    if command -v timeout &> /dev/null; then
+    if command -v timeout &>/dev/null; then
         TIMEOUT_CMD="timeout"
-    elif command -v gtimeout &> /dev/null; then
+    elif command -v gtimeout &>/dev/null; then
         TIMEOUT_CMD="gtimeout"
     fi
 fi
@@ -58,10 +58,10 @@ fi
 # so we don't reparent them to init before we can find them.
 kill_tree() {
     local pid="$1" child
-    for child in $(pgrep -P "$pid" 2> /dev/null); do
+    for child in $(pgrep -P "$pid" 2>/dev/null); do
         kill_tree "$child"
     done
-    kill -9 "$pid" 2> /dev/null
+    kill -9 "$pid" 2>/dev/null
 }
 
 # Run a command bounded by 3s. Prefer timeout(1)/gtimeout(1); otherwise fall
@@ -76,13 +76,16 @@ run_with_timeout() {
     fi
     "$@" &
     local cmd_pid=$!
-    { sleep "$secs"; kill_tree "$cmd_pid"; } &
+    {
+        sleep "$secs"
+        kill_tree "$cmd_pid"
+    } &
     local watcher_pid=$!
-    wait "$cmd_pid" 2> /dev/null
+    wait "$cmd_pid" 2>/dev/null
     local rc=$?
     # command finished first: cancel the watchdog so it doesn't linger
-    kill_tree "$watcher_pid" 2> /dev/null
-    wait "$watcher_pid" 2> /dev/null
+    kill_tree "$watcher_pid" 2>/dev/null
+    wait "$watcher_pid" 2>/dev/null
     return "$rc"
 }
 
@@ -172,12 +175,12 @@ echo ""
 echo -e "${BOLD}CLI Tools:${NC}"
 
 claude_installed=false
-if command -v claude &> /dev/null; then
+if command -v claude &>/dev/null; then
     echo -e "  ${GREEN}✓${NC} Claude CLI installed"
     claude_installed=true
     if [[ "$VERBOSE" == true ]]; then
         echo -e "    Location: $(which claude)"
-        echo -e "    Version:  $(claude --version 2> /dev/null || echo 'unknown')"
+        echo -e "    Version:  $(claude --version 2>/dev/null || echo 'unknown')"
     fi
 else
     echo -e "  ${YELLOW}○${NC} Claude CLI not installed (optional)"
@@ -185,12 +188,12 @@ else
 fi
 
 gemini_installed=false
-if command -v gemini &> /dev/null; then
+if command -v gemini &>/dev/null; then
     echo -e "  ${GREEN}✓${NC} Gemini CLI installed"
     gemini_installed=true
     if [[ "$VERBOSE" == true ]]; then
         echo -e "    Location: $(which gemini)"
-        echo -e "    Version:  $(gemini --version 2> /dev/null || echo 'unknown')"
+        echo -e "    Version:  $(gemini --version 2>/dev/null || echo 'unknown')"
     fi
 else
     echo -e "  ${YELLOW}○${NC} Gemini CLI not installed (optional)"
@@ -198,7 +201,7 @@ else
 fi
 
 cursor_installed=false
-if command -v cursor-agent &> /dev/null; then
+if command -v cursor-agent &>/dev/null; then
     echo -e "  ${GREEN}✓${NC} cursor-agent CLI available"
     cursor_installed=true
     if [[ "$VERBOSE" == true ]]; then
@@ -212,12 +215,12 @@ else
 fi
 
 codex_installed=false
-if command -v codex &> /dev/null; then
+if command -v codex &>/dev/null; then
     echo -e "  ${GREEN}✓${NC} Codex CLI installed"
     codex_installed=true
     if [[ "$VERBOSE" == true ]]; then
         echo -e "    Location: $(which codex)"
-        echo -e "    Version:  $(codex --version 2> /dev/null || echo 'unknown')"
+        echo -e "    Version:  $(codex --version 2>/dev/null || echo 'unknown')"
     fi
 else
     echo -e "  ${YELLOW}○${NC} Codex CLI not installed"
@@ -227,7 +230,7 @@ else
 fi
 
 antigravity_installed=false
-if command -v agy &> /dev/null; then
+if command -v agy &>/dev/null; then
     echo -e "  ${GREEN}✓${NC} Antigravity CLI (agy) installed"
     antigravity_installed=true
     if [[ "$VERBOSE" == true ]]; then
@@ -244,11 +247,11 @@ fi
 # so it is reported here but never counted toward orchestration readiness
 # (no graphify_installed flag — it must not feed working_agents; spec 364 D4).
 if [[ "$graphify_enabled" == "true" ]]; then
-    if command -v graphify &> /dev/null; then
+    if command -v graphify &>/dev/null; then
         echo -e "  ${GREEN}✓${NC} Graphify CLI installed"
         if [[ "$VERBOSE" == true ]]; then
             echo -e "    Location: $(which graphify)"
-            echo -e "    Version:  $(graphify --version 2> /dev/null || echo 'unknown')"
+            echo -e "    Version:  $(graphify --version 2>/dev/null || echo 'unknown')"
             echo -e "    Backend:  host-agent (no API key required)"
         fi
     else
@@ -268,7 +271,7 @@ echo -e "${BOLD}Authentication:${NC}"
 
 if [[ "$claude_installed" == true ]]; then
     # Add timeout to avoid hanging
-    if run_with_timeout claude auth status &> /dev/null; then
+    if run_with_timeout claude auth status &>/dev/null; then
         echo -e "  ${GREEN}✓${NC} Claude authenticated"
     else
         echo -e "  ${YELLOW}?${NC} Claude authentication unknown (check timeout)"
@@ -283,7 +286,7 @@ if [[ "$gemini_installed" == true ]]; then
     # file-presence heuristic as the Codex check above).
     if [[ -n "$GEMINI_API_KEY" || -n "$GOOGLE_API_KEY" || -f "$HOME/.gemini/oauth_creds.json" ]]; then
         echo -e "  ${GREEN}✓${NC} Gemini authenticated"
-    elif run_with_timeout gemini auth status &> /dev/null; then
+    elif run_with_timeout gemini auth status &>/dev/null; then
         echo -e "  ${GREEN}✓${NC} Gemini authenticated"
     else
         echo -e "  ${YELLOW}?${NC} Gemini authentication unknown (check timeout)"
@@ -333,7 +336,7 @@ echo ""
 echo -e "${BOLD}State Directories:${NC}"
 state_ok=true
 for state_dir in "$manifest_tmp_dir" "$claude_state_dir" "$gemini_state_dir" "$cursor_state_dir" "$codex_state_dir"; do
-    if mkdir -p "$state_dir" 2> /dev/null && [[ -w "$state_dir" ]]; then
+    if mkdir -p "$state_dir" 2>/dev/null && [[ -w "$state_dir" ]]; then
         if [[ "$VERBOSE" == true ]]; then
             echo -e "  ${GREEN}✓${NC} $state_dir"
         fi
@@ -357,19 +360,19 @@ if [[ -x "$SCRIPT_DIR/model_check.sh" ]]; then
     unsupported_pins=0
     while IFS= read -r line; do
         case "$line" in
-            OK:*)          [[ "$VERBOSE" == true ]] && echo -e "  ${GREEN}✓${NC} ${line#OK: }" ;;
-            STALE:*)
-                stale_pins=$((stale_pins + 1))
-                echo -e "  ${YELLOW}⚠${NC}  ${line#STALE: }"
-                ;;
-            SKIPPED:*)
-                skipped_pins=$((skipped_pins + 1))
-                [[ "$VERBOSE" == true ]] && echo -e "  ${YELLOW}○${NC} ${line#SKIPPED: }"
-                ;;
-            UNSUPPORTED:*)
-                unsupported_pins=$((unsupported_pins + 1))
-                [[ "$VERBOSE" == true ]] && echo -e "  ${YELLOW}○${NC} ${line#UNSUPPORTED: }"
-                ;;
+        OK:*) [[ "$VERBOSE" == true ]] && echo -e "  ${GREEN}✓${NC} ${line#OK: }" ;;
+        STALE:*)
+            stale_pins=$((stale_pins + 1))
+            echo -e "  ${YELLOW}⚠${NC}  ${line#STALE: }"
+            ;;
+        SKIPPED:*)
+            skipped_pins=$((skipped_pins + 1))
+            [[ "$VERBOSE" == true ]] && echo -e "  ${YELLOW}○${NC} ${line#SKIPPED: }"
+            ;;
+        UNSUPPORTED:*)
+            unsupported_pins=$((unsupported_pins + 1))
+            [[ "$VERBOSE" == true ]] && echo -e "  ${YELLOW}○${NC} ${line#UNSUPPORTED: }"
+            ;;
         esac
     done < <("$SCRIPT_DIR/model_check.sh")
     # SKIPPED must not read as green: on OAuth-only machines (no API keys)
