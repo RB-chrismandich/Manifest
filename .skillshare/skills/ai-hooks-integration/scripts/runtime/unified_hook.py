@@ -271,8 +271,11 @@ def main() -> None:
     if raw_input.strip():
         try:
             payload = json.loads(raw_input)
-            if not isinstance(payload, (dict, list)):
-                print("Invalid input JSON: not a JSON object/array", file=sys.stderr)
+            # The hook contract is a JSON *object*; anything else (array,
+            # number, string) cannot be consumed by normalize_event's
+            # payload.get(...) and must fail open like a parse error.
+            if not isinstance(payload, dict):
+                print("Invalid input JSON: not a JSON object", file=sys.stderr)
                 print(json.dumps(allow_response(args.event_type)))
                 return
         except json.JSONDecodeError as e:

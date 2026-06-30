@@ -3,9 +3,9 @@
 
 import json
 import os
+import subprocess
 import sys
 import unittest
-from unittest.mock import patch
 
 # Add scripts directory to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
@@ -106,12 +106,12 @@ class TestShouldDropEvent(unittest.TestCase):
 
     def test_allow_claude_events(self):
         """Claude events should be allowed."""
-        should_drop, reason = should_drop_event("claude", {})
+        should_drop, _ = should_drop_event("claude", {})
         self.assertFalse(should_drop)
 
     def test_allow_gemini_events(self):
         """Gemini events should be allowed."""
-        should_drop, reason = should_drop_event("gemini", {})
+        should_drop, _ = should_drop_event("gemini", {})
         self.assertFalse(should_drop)
 
 
@@ -225,6 +225,53 @@ class TestResponseFormat(unittest.TestCase):
         response = deny_response("reason")
         # Should not raise
         json.dumps(response)
+
+
+class TestMainStdinFailOpen(unittest.TestCase):
+    """main() must fail open (exit 0, valid allow JSON) for ANY non-object stdin.
+
+    Regression: a JSON array payload passed the (dict, list) validation but then
+    crashed in normalize_event via payload.get() -> AttributeError, exit 1,
+    violating the fail-open contract.
+    """
+
+    SCRIPT = os.path.join(
+        os.path.dirname(__file__), "..", "scripts", "runtime", "unified_hook.py"
+    )
+
+    def _run(self, stdin_text):
+        return subprocess.run(
+            [sys.executable, self.SCRIPT, "--source", "claude", "--no-detect"],
+            input=stdin_text,
+            capture_output=True,
+            text=True,
+        )
+
+    def _assert_fail_open(self, stdin_text, label):
+        proc = self._run(stdin_text)
+        self.assertEqual(
+            proc.returncode, 0, f"{label}: expected exit 0, got {proc.returncode}\n{proc.stderr}"
+        )
+        self.assertNotIn("Traceback", proc.stderr, f"{label}: crashed:\n{proc.stderr}")
+        parsed = json.loads(proc.stdout)
+        self.assertEqual(
+            parsed["hookSpecificOutput"]["permissionDecision"], "allow", label
+        )
+
+    def test_array_payload_fails_open(self):
+        """A JSON array on stdin must coerce to a fail-open allow, not crash."""
+        self._assert_fail_open("[1, 2, 3]", "array")
+
+    def test_primitive_payload_fails_open(self):
+        """A JSON number/string on stdin must fail open (already worked)."""
+        self._assert_fail_open("42", "number")
+        self._assert_fail_open('"hello"', "string")
+
+    def test_object_payload_allows(self):
+        """A normal object payload still produces an allow response."""
+        self._assert_fail_open(
+            '{"tool_name": "Bash", "tool_input": {"command": "ls"}}', "object"
+        )
 
 
 if __name__ == "__main__":
