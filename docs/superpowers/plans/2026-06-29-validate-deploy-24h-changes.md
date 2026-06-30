@@ -384,9 +384,9 @@ Expected: default emits `enabled: true` + `command: graphify`; file `enabled: fa
 
 ```bash
 grep -nE 'disabled\)"' bootstrap/lib/deploy.sh   # all five (disabled) lines use YELLOW ○, not RED ✗
-SBX=$(mktemp -d); mkdir -p "$SBX/.claude/config"
-printf 'services:\n  claude:\n    enabled: true\n  gemini:\n    enabled: true\n  cursor:\n    enabled: false\n  codex:\n    enabled: false\n  antigravity:\n    enabled: false\n  graphify:\n    enabled: true\n' > "$SBX/.claude/config/services.yml"
-HOME="$SBX" bash configs/claude/scripts/check_status.sh 2>&1 | grep -iE 'Enabled Services|Graphify'; rm -rf "$SBX"
+SBX=$(mktemp -d); HOME_REAL="$HOME"; export HOME="$SBX"; mkdir -p "$HOME/.claude/config"
+printf 'services:\n  claude:\n    enabled: true\n  gemini:\n    enabled: true\n  cursor:\n    enabled: false\n  codex:\n    enabled: false\n  antigravity:\n    enabled: false\n  graphify:\n    enabled: true\n' > "$HOME/.claude/config/services.yml"
+bash configs/claude/scripts/check_status.sh 2>&1 | grep -iE 'Enabled Services|Graphify'; export HOME="$HOME_REAL"; rm -rf "$SBX"
 ```
 
 Expected: deploy.sh `(disabled)` lines all `${YELLOW}○`; sandbox check_status shows `Enabled Services (2/5)` (graphify
