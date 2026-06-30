@@ -7,8 +7,6 @@ Tests ValidationEngine in isolation — no external connections required.
 import sys
 from pathlib import Path
 
-import pytest
-
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 SCRIPTS_DIR = str(REPO_ROOT / "configs" / "claude" / "scripts")
 sys.path.insert(0, SCRIPTS_DIR)

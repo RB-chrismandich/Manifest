@@ -6,7 +6,6 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
 
@@ -239,6 +238,33 @@ class TestWrapperIntegration(unittest.TestCase):
             os.unlink(f.name)
 
             self.assertEqual(result.returncode, 0, f"Syntax error: {result.stderr}")
+
+
+class TestMainBinaryNotFound(unittest.TestCase):
+    """main() must exit cleanly when the target binary is missing.
+
+    Regression: module-level ``import sys`` was absent (it lived only inside the
+    generated wrapper template), so main()'s ``sys.stderr``/``sys.exit`` raised
+    ``NameError`` instead of printing a clean 'Cannot find original binary'
+    error and exiting 1.
+    """
+
+    SCRIPT = os.path.join(
+        os.path.dirname(__file__), "..", "scripts", "runtime", "cli_wrapper.py"
+    )
+
+    def test_missing_binary_exits_cleanly(self):
+        """A nonexistent CLI name yields exit 1 + clean message, no traceback."""
+        import subprocess
+
+        proc = subprocess.run(
+            [sys.executable, self.SCRIPT, "nonexistent-binary-xyz123"],
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(proc.returncode, 1, proc.stderr)
+        self.assertNotIn("Traceback", proc.stderr)
+        self.assertIn("Cannot find original binary", proc.stderr)
 
 
 if __name__ == "__main__":

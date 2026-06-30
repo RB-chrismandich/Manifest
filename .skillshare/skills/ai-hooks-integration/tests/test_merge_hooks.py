@@ -110,16 +110,12 @@ class TestHasHook(unittest.TestCase):
 
     def test_nested_hook_exists(self):
         """Should find nested hook."""
-        hooks = [
-            {"matcher": "Bash", "hooks": [{"command": "/path/to/hook --claude"}]}
-        ]
+        hooks = [{"matcher": "Bash", "hooks": [{"command": "/path/to/hook --claude"}]}]
         self.assertTrue(has_hook(hooks, nested=True, command="/path/to/hook"))
 
     def test_nested_hook_not_exists(self):
         """Should not find missing nested hook."""
-        hooks = [
-            {"matcher": "Bash", "hooks": [{"command": "/other/hook"}]}
-        ]
+        hooks = [{"matcher": "Bash", "hooks": [{"command": "/other/hook"}]}]
         self.assertFalse(has_hook(hooks, nested=True, command="/path/to/hook"))
 
     def test_flat_hook_exists(self):

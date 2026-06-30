@@ -1,9 +1,11 @@
-from pathlib import Path
 import json
 import sys
+from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "configs/claude/scripts"))
-import skillclaw_evolve as ev  # noqa: E402
+import contextlib
+
+import skillclaw_evolve as ev
 
 TEMPLATE = "LIB:\n{{LIBRARY}}\nSESS:\n{{SESSIONS}}\n"
 
@@ -13,8 +15,12 @@ def test_estimate_tokens_is_roughly_quarter_length():
 
 
 def test_build_prompt_substitutes_sections():
-    sessions = [{"session_id": "s1", "turns": [
-        {"role": "user", "blocks": [{"kind": "text", "text": "do x"}]}]}]
+    sessions = [
+        {
+            "session_id": "s1",
+            "turns": [{"role": "user", "blocks": [{"kind": "text", "text": "do x"}]}],
+        }
+    ]
     prompt = ev.build_prompt(TEMPLATE, sessions, ["existing-skill"])
     assert "existing-skill" in prompt
     assert "do x" in prompt
@@ -28,8 +34,12 @@ def test_parse_candidates_extracts_skill_blocks():
         "~~~\n"
     )
     cands = ev.parse_candidates(output)
-    assert cands == [{"name": "foo-bar",
-                      "content": "---\nname: foo-bar\ndescription: does foo\n---\n# Foo\nstep 1\n"}]
+    assert cands == [
+        {
+            "name": "foo-bar",
+            "content": "---\nname: foo-bar\ndescription: does foo\n---\n# Foo\nstep 1\n",
+        }
+    ]
 
 
 def test_parse_candidates_handles_no_skills():
@@ -38,17 +48,25 @@ def test_parse_candidates_handles_no_skills():
 
 def test_chunk_sessions_splits_over_budget():
     big = "x" * 160_000
-    sessions = [{"session_id": f"s{i}",
-                 "turns": [{"role": "user", "blocks": [{"kind": "text", "text": big}]}]}
-                for i in range(3)]
+    sessions = [
+        {
+            "session_id": f"s{i}",
+            "turns": [{"role": "user", "blocks": [{"kind": "text", "text": big}]}],
+        }
+        for i in range(3)
+    ]
     chunks = ev.chunk_sessions(sessions, token_budget=100_000)
-    assert len(chunks) >= 2                       # 120k tokens total -> multiple chunks
-    assert sum(len(c) for c in chunks) == 3       # no session lost
+    assert len(chunks) >= 2  # 120k tokens total -> multiple chunks
+    assert sum(len(c) for c in chunks) == 3  # no session lost
 
 
 def test_chunk_sessions_single_chunk_under_budget():
-    sessions = [{"session_id": "s1",
-                 "turns": [{"role": "user", "blocks": [{"kind": "text", "text": "tiny"}]}]}]
+    sessions = [
+        {
+            "session_id": "s1",
+            "turns": [{"role": "user", "blocks": [{"kind": "text", "text": "tiny"}]}],
+        }
+    ]
     chunks = ev.chunk_sessions(sessions, token_budget=100_000)
     assert chunks == [sessions]
 
@@ -56,20 +74,33 @@ def test_chunk_sessions_single_chunk_under_budget():
 def test_evolve_uses_injected_runner_and_writes(tmp_path):
     sessions_dir = tmp_path / "sessions"
     sessions_dir.mkdir()
-    (sessions_dir / "s1.json").write_text(json.dumps(
-        {"session_id": "s1", "turns": [
-            {"role": "user", "blocks": [{"kind": "text", "text": "deploy steps"}]}]}))
+    (sessions_dir / "s1.json").write_text(
+        json.dumps(
+            {
+                "session_id": "s1",
+                "turns": [
+                    {
+                        "role": "user",
+                        "blocks": [{"kind": "text", "text": "deploy steps"}],
+                    }
+                ],
+            }
+        )
+    )
     template = tmp_path / "tpl.md"
     template.write_text("LIB {{LIBRARY}} SESS {{SESSIONS}}")
     evolved = tmp_path / "evolved"
 
     def fake_runner(prompt):
         assert "deploy steps" in prompt
-        return ("~~~skill name=deploy-flow\n---\nname: deploy-flow\n"
-                "description: how to deploy\n---\n# Deploy\nstep 1\n~~~\n")
+        return (
+            "~~~skill name=deploy-flow\n---\nname: deploy-flow\n"
+            "description: how to deploy\n---\n# Deploy\nstep 1\n~~~\n"
+        )
 
-    summary = ev.evolve(sessions_dir, evolved, template, token_budget=100_000,
-                        runner=fake_runner)
+    summary = ev.evolve(
+        sessions_dir, evolved, template, token_budget=100_000, runner=fake_runner
+    )
     assert summary["candidates"] == 1
     assert (evolved / "deploy-flow" / "SKILL.md").read_text().startswith("---")
 
@@ -81,10 +112,15 @@ def test_evolve_empty_sessions_is_clean_noop(tmp_path):
     template.write_text("{{LIBRARY}}{{SESSIONS}}")
     evolved = tmp_path / "evolved"
     calls = []
-    summary = ev.evolve(sessions_dir, evolved, template, token_budget=100_000,
-                        runner=lambda p: calls.append(p) or "NO_SKILLS")
+    summary = ev.evolve(
+        sessions_dir,
+        evolved,
+        template,
+        token_budget=100_000,
+        runner=lambda p: calls.append(p) or "NO_SKILLS",
+    )
     assert summary["candidates"] == 0
-    assert calls == []                 # no sessions -> no model calls
+    assert calls == []  # no sessions -> no model calls
 
 
 def test_evolve_empty_sessions_with_run_id_emits_stage_start(tmp_path, monkeypatch):
@@ -97,11 +133,16 @@ def test_evolve_empty_sessions_with_run_id_emits_stage_start(tmp_path, monkeypat
     template.write_text("{{LIBRARY}}{{SESSIONS}}")
     evolved = tmp_path / "evolved"
     calls = []
-    summary = ev.evolve(sessions_dir, evolved, template, token_budget=100_000,
-                        runner=lambda p: calls.append(p) or "NO_SKILLS",
-                        run_id="20260609T230501Z-4821")
+    summary = ev.evolve(
+        sessions_dir,
+        evolved,
+        template,
+        token_budget=100_000,
+        runner=lambda p: calls.append(p) or "NO_SKILLS",
+        run_id="20260609T230501Z-4821",
+    )
     assert summary["candidates"] == 0
-    assert calls == []                 # no sessions -> still no model calls
+    assert calls == []  # no sessions -> still no model calls
     status = json.loads((tmp_path / "audit" / "status.json").read_text())
     assert status["stage"] == "evolve"
     assert status["evolve"]["total"] == 0
@@ -112,12 +153,21 @@ def test_evolve_shows_committed_library_not_output_dir(tmp_path):
     # already-merged skills), not the evolved output dir.
     sessions_dir = tmp_path / "sessions"
     sessions_dir.mkdir()
-    (sessions_dir / "s1.json").write_text(json.dumps(
-        {"session_id": "s1", "turns": [
-            {"role": "user", "blocks": [{"kind": "text", "text": "do thing"}]}]}))
+    (sessions_dir / "s1.json").write_text(
+        json.dumps(
+            {
+                "session_id": "s1",
+                "turns": [
+                    {"role": "user", "blocks": [{"kind": "text", "text": "do thing"}]}
+                ],
+            }
+        )
+    )
     committed = tmp_path / "committed"
     (committed / "already-merged").mkdir(parents=True)
-    (committed / "already-merged" / "SKILL.md").write_text("---\nname: already-merged\n---\n")
+    (committed / "already-merged" / "SKILL.md").write_text(
+        "---\nname: already-merged\n---\n"
+    )
     template = tmp_path / "tpl.md"
     template.write_text("LIB {{LIBRARY}} SESS {{SESSIONS}}")
     evolved = tmp_path / "evolved"
@@ -128,8 +178,14 @@ def test_evolve_shows_committed_library_not_output_dir(tmp_path):
         seen["prompt"] = prompt
         return "NO_SKILLS"
 
-    ev.evolve(sessions_dir, evolved, template, committed_dir=committed,
-              token_budget=100_000, runner=fake_runner)
+    ev.evolve(
+        sessions_dir,
+        evolved,
+        template,
+        committed_dir=committed,
+        token_budget=100_000,
+        runner=fake_runner,
+    )
     assert "already-merged" in seen["prompt"]
 
 
@@ -146,7 +202,7 @@ def test_subprocess_runner_timeout_raises_runtime_error(monkeypatch):
     monkeypatch.setattr(ev.subprocess, "run", fake_run)
     try:
         ev.subprocess_runner("prompt")
-        assert False, "expected RuntimeError"
+        raise AssertionError("expected RuntimeError")
     except RuntimeError as e:
         assert "timed out" in str(e)
 
@@ -154,6 +210,7 @@ def test_subprocess_runner_timeout_raises_runtime_error(monkeypatch):
 def test_chunk_timeout_env_override(monkeypatch):
     monkeypatch.setenv("SKILLCLAW_CHUNK_TIMEOUT", "5")
     import subprocess as sp
+
     seen = {}
 
     def fake_run(*a, **k):
@@ -161,10 +218,8 @@ def test_chunk_timeout_env_override(monkeypatch):
         raise sp.TimeoutExpired(cmd=a[0], timeout=k["timeout"])
 
     monkeypatch.setattr(ev.subprocess, "run", fake_run)
-    try:
+    with contextlib.suppress(RuntimeError):
         ev.subprocess_runner("prompt")
-    except RuntimeError:
-        pass
     assert seen["timeout"] == 5
 
 
@@ -173,29 +228,50 @@ def test_library_prompt_includes_name_and_description(tmp_path):
     # "- <name> — <description>" so the model can match by purpose, not name.
     sessions_dir = tmp_path / "sessions"
     sessions_dir.mkdir()
-    (sessions_dir / "s1.json").write_text(json.dumps(
-        {"session_id": "s1", "turns": [
-            {"role": "user", "blocks": [{"kind": "text", "text": "do thing"}]}]}))
+    (sessions_dir / "s1.json").write_text(
+        json.dumps(
+            {
+                "session_id": "s1",
+                "turns": [
+                    {"role": "user", "blocks": [{"kind": "text", "text": "do thing"}]}
+                ],
+            }
+        )
+    )
     committed = tmp_path / "committed"
     (committed / "fix-pr-comments").mkdir(parents=True)
     (committed / "fix-pr-comments" / "SKILL.md").write_text(
-        "---\nname: fix-pr-comments\ndescription: Fetch, triage and resolve PR review comments.\n---\nbody\n")
+        "---\nname: fix-pr-comments\ndescription: Fetch, triage and resolve PR review comments.\n---\nbody\n"
+    )
     template = tmp_path / "tpl.md"
     template.write_text("LIB {{LIBRARY}} SESS {{SESSIONS}}")
 
     seen = {}
-    ev.evolve(sessions_dir, tmp_path / "evolved", template, committed_dir=committed,
-              token_budget=100_000, runner=lambda p: seen.__setitem__("p", p) or "NO_SKILLS")
-    assert "- fix-pr-comments — Fetch, triage and resolve PR review comments." in seen["p"]
+    ev.evolve(
+        sessions_dir,
+        tmp_path / "evolved",
+        template,
+        committed_dir=committed,
+        token_budget=100_000,
+        runner=lambda p: seen.__setitem__("p", p) or "NO_SKILLS",
+    )
+    assert (
+        "- fix-pr-comments — Fetch, triage and resolve PR review comments." in seen["p"]
+    )
 
 
 def test_library_prompt_broken_frontmatter_falls_back_to_name_only(tmp_path):
     # Fail-open: unparsable frontmatter yields a name-only line, never an error.
     sessions_dir = tmp_path / "sessions"
     sessions_dir.mkdir()
-    (sessions_dir / "s1.json").write_text(json.dumps(
-        {"session_id": "s1", "turns": [
-            {"role": "user", "blocks": [{"kind": "text", "text": "x"}]}]}))
+    (sessions_dir / "s1.json").write_text(
+        json.dumps(
+            {
+                "session_id": "s1",
+                "turns": [{"role": "user", "blocks": [{"kind": "text", "text": "x"}]}],
+            }
+        )
+    )
     committed = tmp_path / "committed"
     (committed / "broken-skill").mkdir(parents=True)
     (committed / "broken-skill" / "SKILL.md").write_text("no frontmatter here\n")
@@ -203,9 +279,15 @@ def test_library_prompt_broken_frontmatter_falls_back_to_name_only(tmp_path):
     template.write_text("LIB {{LIBRARY}} SESS {{SESSIONS}}")
 
     seen = {}
-    ev.evolve(sessions_dir, tmp_path / "evolved", template, committed_dir=committed,
-              token_budget=100_000, runner=lambda p: seen.__setitem__("p", p) or "NO_SKILLS")
-    assert "- broken-skill" in seen["p"]       # present, name-only
+    ev.evolve(
+        sessions_dir,
+        tmp_path / "evolved",
+        template,
+        committed_dir=committed,
+        token_budget=100_000,
+        runner=lambda p: seen.__setitem__("p", p) or "NO_SKILLS",
+    )
+    assert "- broken-skill" in seen["p"]  # present, name-only
     assert "- broken-skill —" not in seen["p"]
 
 
@@ -213,40 +295,62 @@ def test_library_prompt_truncates_long_descriptions(tmp_path):
     # Descriptions are flattened + truncated at 200 chars to bound prompt cost.
     sessions_dir = tmp_path / "sessions"
     sessions_dir.mkdir()
-    (sessions_dir / "s1.json").write_text(json.dumps(
-        {"session_id": "s1", "turns": [
-            {"role": "user", "blocks": [{"kind": "text", "text": "x"}]}]}))
+    (sessions_dir / "s1.json").write_text(
+        json.dumps(
+            {
+                "session_id": "s1",
+                "turns": [{"role": "user", "blocks": [{"kind": "text", "text": "x"}]}],
+            }
+        )
+    )
     committed = tmp_path / "committed"
     (committed / "long-skill").mkdir(parents=True)
-    long_desc = "verbose " * 60   # ~480 chars, multi-word
+    long_desc = "verbose " * 60  # ~480 chars, multi-word
     (committed / "long-skill" / "SKILL.md").write_text(
-        f"---\nname: long-skill\ndescription: {long_desc}\n---\nbody\n")
+        f"---\nname: long-skill\ndescription: {long_desc}\n---\nbody\n"
+    )
     template = tmp_path / "tpl.md"
     template.write_text("LIB\n{{LIBRARY}}\nSESS {{SESSIONS}}")
 
     seen = {}
-    ev.evolve(sessions_dir, tmp_path / "evolved", template, committed_dir=committed,
-              token_budget=100_000, runner=lambda p: seen.__setitem__("p", p) or "NO_SKILLS")
-    line = [ln for ln in seen["p"].splitlines() if ln.startswith("- long-skill")][0]
-    assert len(line) <= 220        # "- long-skill — " prefix + 200-char cap
+    ev.evolve(
+        sessions_dir,
+        tmp_path / "evolved",
+        template,
+        committed_dir=committed,
+        token_budget=100_000,
+        runner=lambda p: seen.__setitem__("p", p) or "NO_SKILLS",
+    )
+    line = next(ln for ln in seen["p"].splitlines() if ln.startswith("- long-skill"))
+    assert len(line) <= 220  # "- long-skill — " prefix + 200-char cap
 
 
 def test_evolve_multichunk_dedupes_candidates_by_name(tmp_path):
     sessions_dir = tmp_path / "sessions"
     sessions_dir.mkdir()
-    big = "x" * 160_000  # each session ~40k tokens -> 2 sessions force 2 chunks at budget 50k
+    big = (
+        "x" * 160_000
+    )  # each session ~40k tokens -> 2 sessions force 2 chunks at budget 50k
     for i in range(2):
-        (sessions_dir / f"s{i}.json").write_text(json.dumps(
-            {"session_id": f"s{i}", "turns": [
-                {"role": "user", "blocks": [{"kind": "text", "text": big}]}]}))
+        (sessions_dir / f"s{i}.json").write_text(
+            json.dumps(
+                {
+                    "session_id": f"s{i}",
+                    "turns": [
+                        {"role": "user", "blocks": [{"kind": "text", "text": big}]}
+                    ],
+                }
+            )
+        )
     template = tmp_path / "tpl.md"
     template.write_text("{{LIBRARY}}{{SESSIONS}}")
     evolved = tmp_path / "evolved"
 
     # both chunks emit the same-named skill -> reduce must dedupe to one
-    out = ("~~~skill name=dup\n---\nname: dup\ndescription: d\n---\n# Dup\nstep\n~~~\n")
-    summary = ev.evolve(sessions_dir, evolved, template, token_budget=50_000,
-                        runner=lambda p: out)
+    out = "~~~skill name=dup\n---\nname: dup\ndescription: d\n---\n# Dup\nstep\n~~~\n"
+    summary = ev.evolve(
+        sessions_dir, evolved, template, token_budget=50_000, runner=lambda p: out
+    )
     assert summary["chunks"] >= 2
     assert summary["candidates"] == 1
     assert summary["written"] == ["dup"]
@@ -258,16 +362,29 @@ def test_evolve_emits_chunk_events_to_status(tmp_path, monkeypatch):
     sessions_dir.mkdir()
     big = "x" * 160_000  # ~40k tokens each -> 2 sessions force >=2 chunks at budget 50k
     for i in range(2):
-        (sessions_dir / f"s{i}.json").write_text(json.dumps(
-            {"session_id": f"s{i}", "turns": [
-                {"role": "user", "blocks": [{"kind": "text", "text": big}]}]}))
+        (sessions_dir / f"s{i}.json").write_text(
+            json.dumps(
+                {
+                    "session_id": f"s{i}",
+                    "turns": [
+                        {"role": "user", "blocks": [{"kind": "text", "text": big}]}
+                    ],
+                }
+            )
+        )
     template = tmp_path / "tpl.md"
     template.write_text("{{LIBRARY}}{{SESSIONS}}")
     evolved = tmp_path / "evolved"
     out = "~~~skill name=dup\n---\nname: dup\ndescription: d\n---\n# Dup\nstep\n~~~\n"
 
-    ev.evolve(sessions_dir, evolved, template, token_budget=50_000,
-              runner=lambda p: out, run_id="20260609T230501Z-4821")
+    ev.evolve(
+        sessions_dir,
+        evolved,
+        template,
+        token_budget=50_000,
+        runner=lambda p: out,
+        run_id="20260609T230501Z-4821",
+    )
 
     log_lines = (tmp_path / "audit" / "promote.log").read_text().splitlines()
     events = [json.loads(ln)["event"] for ln in log_lines]
@@ -277,12 +394,15 @@ def test_evolve_emits_chunk_events_to_status(tmp_path, monkeypatch):
     assert status["evolve"]["total"] >= 2
     assert status["evolve"]["chunk"] == status["evolve"]["total"]  # last chunk recorded
 
-    chunk_events = [json.loads(ln) for ln in log_lines
-                    if json.loads(ln)["event"] == "chunk_done"]
+    chunk_events = [
+        json.loads(ln) for ln in log_lines if json.loads(ln)["event"] == "chunk_done"
+    ]
     for e in chunk_events:
-        assert e["chunk_seconds"] <= e["elapsed_s"] + 1e-9   # delta never exceeds cumulative
+        assert (
+            e["chunk_seconds"] <= e["elapsed_s"] + 1e-9
+        )  # delta never exceeds cumulative
     elapsed_values = [e["elapsed_s"] for e in chunk_events]
-    assert elapsed_values == sorted(elapsed_values)          # cumulative is monotonic
+    assert elapsed_values == sorted(elapsed_values)  # cumulative is monotonic
 
 
 def test_chunk_timeout_cli_flag_overrides_env(monkeypatch, tmp_path):
@@ -302,7 +422,10 @@ def test_skill_description_block_scalar_drops_marker(tmp_path):
     for marker in ("|", ">", "|-", ">+"):
         p = tmp_path / "SKILL.md"
         p.write_text(
-            "---\nname: a11y-audit\ndescription: %s\n  Focused accessibility audit\n"
-            "  against WCAG 2.2 AA standards.\n---\nbody\n" % marker)
+            f"---\nname: a11y-audit\ndescription: {marker}\n  Focused accessibility audit\n"
+            "  against WCAG 2.2 AA standards.\n---\nbody\n"
+        )
         desc = ev._skill_description(p)
-        assert desc == "Focused accessibility audit against WCAG 2.2 AA standards.", marker
+        assert desc == "Focused accessibility audit against WCAG 2.2 AA standards.", (
+            marker
+        )

@@ -106,9 +106,7 @@ class TestBaseAgent:
                 await asyncio.sleep(10)
                 return {"status": "complete", "output": "late"}
 
-        agent = SlowAgent(
-            "slow", "sonnet", 1, _make_limiter(), _make_config(tmp_path)
-        )
+        agent = SlowAgent("slow", "sonnet", 1, _make_limiter(), _make_config(tmp_path))
         result = asyncio.run(agent.execute("hello"))
         assert result["status"] == "failed"
         assert "timeout" in result["error"]
@@ -122,22 +120,34 @@ class TestBaseAgent:
 class TestCLIAgentCommandAssembly:
     def test_unknown_provider_raises(self, tmp_path):
         with pytest.raises(ValueError, match="no cli_agents config"):
-            CLIAgent("nonexistent", model="flash",
-                     rate_limiter=_make_limiter(), config=_make_config(tmp_path))
+            CLIAgent(
+                "nonexistent",
+                model="flash",
+                rate_limiter=_make_limiter(),
+                config=_make_config(tmp_path),
+            )
 
     def test_codex_auto_drops_model_args_atomically(self, tmp_path):
-        agent = CLIAgent("codex", model="auto",
-                         rate_limiter=_make_limiter(), config=_make_config(tmp_path))
+        agent = CLIAgent(
+            "codex",
+            model="auto",
+            rate_limiter=_make_limiter(),
+            config=_make_config(tmp_path),
+        )
         cmd = agent._build_command("hello", output_file=str(tmp_path / "out.txt"))
         assert agent.model_name is None
-        assert "--model" not in cmd          # no dangling flag
+        assert "--model" not in cmd  # no dangling flag
         assert cmd[0] == "codex"
-        assert cmd[-1] == "hello"            # prompt is last
+        assert cmd[-1] == "hello"  # prompt is last
         assert str(tmp_path / "out.txt") in cmd  # {output_file} substituted
 
     def test_codex_tier_resolves_via_model_tiers(self, tmp_path):
-        agent = CLIAgent("codex", model="mini",
-                         rate_limiter=_make_limiter(), config=_make_config(tmp_path))
+        agent = CLIAgent(
+            "codex",
+            model="mini",
+            rate_limiter=_make_limiter(),
+            config=_make_config(tmp_path),
+        )
         cmd = agent._build_command("hello", output_file=str(tmp_path / "out.txt"))
         i = cmd.index("--model")
         assert cmd[i + 1] == "gpt-5.4-mini"
@@ -145,8 +155,12 @@ class TestCLIAgentCommandAssembly:
     def test_cursor_tier_resolves_via_model_tiers(self, tmp_path):
         # Deliberate behavior change: cursor now honors model_tiers.cursor
         # (the old CursorAgent passed the raw tier string through).
-        agent = CLIAgent("cursor", model="flash",
-                         rate_limiter=_make_limiter(), config=_make_config(tmp_path))
+        agent = CLIAgent(
+            "cursor",
+            model="flash",
+            rate_limiter=_make_limiter(),
+            config=_make_config(tmp_path),
+        )
         cmd = agent._build_command("hello")
         i = cmd.index("--model")
         assert cmd[i + 1] == "gpt-5.1-codex"
@@ -154,8 +168,12 @@ class TestCLIAgentCommandAssembly:
     def test_cursor_headless_invocation(self, tmp_path):
         # Regression guard: cursor-agent must run headless (--print) and
         # read-only (--mode ask), or it launches interactively and hangs.
-        agent = CLIAgent("cursor", model="flash",
-                         rate_limiter=_make_limiter(), config=_make_config(tmp_path))
+        agent = CLIAgent(
+            "cursor",
+            model="flash",
+            rate_limiter=_make_limiter(),
+            config=_make_config(tmp_path),
+        )
         cmd = agent._build_command("hello")
         assert cmd[0] == "cursor-agent"
         assert "--print" in cmd
@@ -172,8 +190,9 @@ class TestCLIAgentCommandAssembly:
             "model_args": ["--model", "{model}"],
             "output": "stdout",
         }
-        agent = CLIAgent("fake", model="auto",
-                         rate_limiter=_make_limiter(), config=config)
+        agent = CLIAgent(
+            "fake", model="auto", rate_limiter=_make_limiter(), config=config
+        )
         cmd = agent._build_command("hello", output_file=None)
         assert "" not in cmd
 
@@ -185,17 +204,26 @@ class TestCLIAgentCommandAssembly:
             "output": "stdout",
         }
         with pytest.raises(ValueError, match="binary is required"):
-            CLIAgent("broken", model="flash",
-                     rate_limiter=_make_limiter(), config=config)
+            CLIAgent(
+                "broken", model="flash", rate_limiter=_make_limiter(), config=config
+            )
 
     def test_custom_model_passes_through(self, tmp_path):
-        agent = CLIAgent("codex", model="custom-model-123",
-                         rate_limiter=_make_limiter(), config=_make_config(tmp_path))
+        agent = CLIAgent(
+            "codex",
+            model="custom-model-123",
+            rate_limiter=_make_limiter(),
+            config=_make_config(tmp_path),
+        )
         assert agent.model_name == "custom-model-123"
 
     def test_antigravity_command_shape(self, tmp_path):
-        agent = CLIAgent("antigravity", model="flash",
-                         rate_limiter=_make_limiter(), config=_make_config(tmp_path))
+        agent = CLIAgent(
+            "antigravity",
+            model="flash",
+            rate_limiter=_make_limiter(),
+            config=_make_config(tmp_path),
+        )
         cmd = agent._build_command("hello")
         # agy takes --print as a flag whose VALUE is the prompt, so the correct
         # shape is: agy --model <model> --print <prompt>
@@ -205,22 +233,34 @@ class TestCLIAgentCommandAssembly:
         # claude headless: -p/--print is a BOOLEAN flag enabling print mode;
         # "hello" is a separate positional query arg that merely sits after it
         # (claude --model X -p hello == claude -p hello --model X)
-        agent = CLIAgent("claude", model="sonnet",
-                         rate_limiter=_make_limiter(), config=_make_config(tmp_path))
+        agent = CLIAgent(
+            "claude",
+            model="sonnet",
+            rate_limiter=_make_limiter(),
+            config=_make_config(tmp_path),
+        )
         cmd = agent._build_command("hello")
         assert cmd == ["claude", "--model", "claude-sonnet-4-6", "-p", "hello"]
 
     def test_gemini_cli_command_shape(self, tmp_path):
         # gemini headless: -m takes the model, -p takes the prompt as its value
-        agent = CLIAgent("gemini", model="flash",
-                         rate_limiter=_make_limiter(), config=_make_config(tmp_path))
+        agent = CLIAgent(
+            "gemini",
+            model="flash",
+            rate_limiter=_make_limiter(),
+            config=_make_config(tmp_path),
+        )
         cmd = agent._build_command("hello")
         assert cmd == ["gemini", "-m", "gemini-3-flash-preview", "-p", "hello"]
 
     def test_default_prompt_args_is_trailing_positional(self, tmp_path):
         # cursor and codex use the default prompt_args (trailing positional)
-        agent = CLIAgent("codex", model="auto",
-                         rate_limiter=_make_limiter(), config=_make_config(tmp_path))
+        agent = CLIAgent(
+            "codex",
+            model="auto",
+            rate_limiter=_make_limiter(),
+            config=_make_config(tmp_path),
+        )
         cmd = agent._build_command("hello", output_file=str(tmp_path / "out.txt"))
         assert cmd[-1] == "hello"
         assert "--print" not in cmd
@@ -238,8 +278,9 @@ class TestCLIAgentCommandAssembly:
             "output": "stdout",
         }
         config.config["model_tiers"]["fake"] = {"flash": "fake-model-1"}
-        agent = CLIAgent("fake", model="flash",
-                         rate_limiter=_make_limiter(), config=config)
+        agent = CLIAgent(
+            "fake", model="flash", rate_limiter=_make_limiter(), config=config
+        )
         raw_prompt = "use {model} and {output_file} literally"
         cmd = agent._build_command(raw_prompt)
         # The prompt must appear verbatim — no substitution inside its content.
@@ -249,48 +290,75 @@ class TestCLIAgentCommandAssembly:
 class TestCLIAgentExecution:
     def test_missing_binary(self, tmp_path, monkeypatch):
         import shutil
+
         monkeypatch.setattr(shutil, "which", lambda _: None)
-        agent = CLIAgent("codex", model="auto",
-                         rate_limiter=_make_limiter(), config=_make_config(tmp_path))
+        agent = CLIAgent(
+            "codex",
+            model="auto",
+            rate_limiter=_make_limiter(),
+            config=_make_config(tmp_path),
+        )
         result = asyncio.run(agent._execute_impl("test", "prompt"))
         assert result["status"] == "missing"
         assert "codex" in result["error"]
 
     def test_stdout_strategy_collects_stdout(self, tmp_path):
-        agent = CLIAgent("cursor", model="flash",
-                         rate_limiter=_make_limiter(), config=_make_config(tmp_path))
+        agent = CLIAgent(
+            "cursor",
+            model="flash",
+            rate_limiter=_make_limiter(),
+            config=_make_config(tmp_path),
+        )
         result = agent._collect_output(0, b"the answer\n", b"", None)
         assert result["status"] == "complete"
         assert result["output"] == "the answer"
 
     def test_file_strategy_prefers_file_over_stdout(self, tmp_path):
-        agent = CLIAgent("codex", model="auto",
-                         rate_limiter=_make_limiter(), config=_make_config(tmp_path))
+        agent = CLIAgent(
+            "codex",
+            model="auto",
+            rate_limiter=_make_limiter(),
+            config=_make_config(tmp_path),
+        )
         out = tmp_path / "out.txt"
         out.write_text("from file\n")
         result = agent._collect_output(0, b"from stdout", b"", str(out))
         assert result["output"] == "from file"
 
     def test_file_strategy_falls_back_to_stdout(self, tmp_path):
-        agent = CLIAgent("codex", model="auto",
-                         rate_limiter=_make_limiter(), config=_make_config(tmp_path))
+        agent = CLIAgent(
+            "codex",
+            model="auto",
+            rate_limiter=_make_limiter(),
+            config=_make_config(tmp_path),
+        )
         out = tmp_path / "empty.txt"
         out.write_text("")
         result = agent._collect_output(0, b"from stdout", b"", str(out))
         assert result["output"] == "from stdout"
 
     def test_no_output_nonzero_exit_is_failed(self, tmp_path):
-        agent = CLIAgent("codex", model="auto",
-                         rate_limiter=_make_limiter(), config=_make_config(tmp_path))
+        agent = CLIAgent(
+            "codex",
+            model="auto",
+            rate_limiter=_make_limiter(),
+            config=_make_config(tmp_path),
+        )
         result = agent._collect_output(1, b"", b"boom", None)
         assert result["status"] == "failed"
         assert "boom" in result["error"]
 
     def test_nonzero_exit_with_stdout_is_failed(self, tmp_path):
         """Issue #308: usage text on stdout + exit 1 must not count as an answer."""
-        agent = CLIAgent("cursor", model="flash",
-                         rate_limiter=_make_limiter(), config=_make_config(tmp_path))
-        result = agent._collect_output(1, b"Usage: cursor-agent [options]", b"bad flag", None)
+        agent = CLIAgent(
+            "cursor",
+            model="flash",
+            rate_limiter=_make_limiter(),
+            config=_make_config(tmp_path),
+        )
+        result = agent._collect_output(
+            1, b"Usage: cursor-agent [options]", b"bad flag", None
+        )
         assert result["status"] == "failed"
         assert "bad flag" in result["error"]
         assert "Usage: cursor-agent" in result["error"]  # preserved for debugging
@@ -306,8 +374,9 @@ class TestCLIAgentExecution:
             "output": "stdout",
         }
         config.config["model_tiers"]["fake"] = {"flash": "fake-model-1"}
-        agent = CLIAgent("fake", model="flash",
-                         rate_limiter=_make_limiter(), config=config)
+        agent = CLIAgent(
+            "fake", model="flash", rate_limiter=_make_limiter(), config=config
+        )
         result = asyncio.run(agent._execute_impl("hello world", "prompt"))
         assert result["status"] == "complete"
         assert result["output"] == "prefix --model fake-model-1 hello world"
@@ -326,14 +395,14 @@ class TestCLIAgentExecution:
             "base_args": [],
             "output": "stdout",
         }
-        agent = CLIAgent("fake", model="auto",
-                         rate_limiter=_make_limiter(), config=config)
+        agent = CLIAgent(
+            "fake", model="auto", rate_limiter=_make_limiter(), config=config
+        )
 
         proc = AsyncMock()
         proc.communicate = AsyncMock(return_value=(b"ok", b""))
         proc.returncode = 0
-        with patch("asyncio.create_subprocess_exec",
-                   return_value=proc) as spawn:
+        with patch("asyncio.create_subprocess_exec", return_value=proc) as spawn:
             asyncio.run(agent._execute_impl("hi", "prompt"))
         assert spawn.call_args.kwargs["stdin"] is asyncio.subprocess.DEVNULL
 
@@ -349,8 +418,13 @@ class TestCLIAgentExecution:
             "base_args": ["-c", f"echo $$ > {pid_file} && exec sleep 30"],
             "output": "stdout",
         }
-        agent = CLIAgent("slowfake", model="auto", timeout=1,
-                         rate_limiter=_make_limiter(), config=config)
+        agent = CLIAgent(
+            "slowfake",
+            model="auto",
+            timeout=1,
+            rate_limiter=_make_limiter(),
+            config=config,
+        )
         result = asyncio.run(agent.execute("ignored"))
         assert result["status"] == "failed"
         assert "timeout" in result["error"]

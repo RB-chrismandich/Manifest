@@ -1,4 +1,5 @@
 """Pytest configuration — adds agents package to sys.path for per-module tests."""
+
 import sys
 from pathlib import Path
 

@@ -15,6 +15,7 @@ CLI:
 
 Env overrides (tests): COMMANDS_DOC_PATH plus the COMMAND_CATALOG_* family.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -22,7 +23,6 @@ import difflib
 import os
 import sys
 from pathlib import Path
-from typing import Optional
 
 import command_catalog as cc
 
@@ -31,7 +31,9 @@ PROG = "generate_commands_doc.py"
 _REPO_ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_DOC = _REPO_ROOT / "docs" / "COMMANDS.md"
 
-BEGIN_MARKER = "<!-- BEGIN GENERATED COMMANDS (command_catalog.py) — do not edit by hand -->"
+BEGIN_MARKER = (
+    "<!-- BEGIN GENERATED COMMANDS (command_catalog.py) — do not edit by hand -->"
+)
 END_MARKER = "<!-- END GENERATED COMMANDS -->"
 
 # Compact, description-less index injected into always-loaded platform guides
@@ -59,8 +61,9 @@ def _grouped(catalog: dict):
     labels[cc.UNCATEGORIZED] = "Uncategorized"
     order = {c["key"]: c["order"] for c in catalog["categories"]}
     order[cc.UNCATEGORIZED] = max(order.values(), default=0) + 1
-    keys = sorted({c["category"] for c in catalog["commands"]},
-                  key=lambda k: order.get(k, 999))
+    keys = sorted(
+        {c["category"] for c in catalog["commands"]}, key=lambda k: order.get(k, 999)
+    )
     for key in keys:
         members = sorted(
             (c for c in catalog["commands"] if c["category"] == key),
@@ -87,8 +90,11 @@ def render_section(catalog: dict) -> str:
         lines.append("|---------|-------------|-------------|--------|")
         for c in members:
             av = c["availability"]
-            status = "available" if av["status"] == "available" \
+            status = (
+                "available"
+                if av["status"] == "available"
                 else f"unavailable — {av['reason']}"
+            )
             lines.append(
                 f"| `/{c['name']}` | {_escape_cell(c['description'])} "
                 f"| {_escape_cell(c['when_to_use'])} | {status} |"
@@ -106,8 +112,11 @@ def render_compact_index(catalog: dict) -> str:
     """
     lines = []
     for label, members in _grouped(catalog):
-        names = " · ".join(f"`/{c['name']}`" for c in members
-                           if c["availability"]["status"] == "available")
+        names = " · ".join(
+            f"`/{c['name']}`"
+            for c in members
+            if c["availability"]["status"] == "available"
+        )
         if names:
             lines.append(f"- **{label}**: {names}")
     lines.append("")
@@ -118,12 +127,12 @@ def render_compact_index(catalog: dict) -> str:
 # --------------------------------------------------------------------------- #
 # Injection into a host document
 # --------------------------------------------------------------------------- #
-def extract_section(doc_text: str) -> Optional[str]:
+def extract_section(doc_text: str) -> str | None:
     start = doc_text.find(BEGIN_MARKER)
     end = doc_text.find(END_MARKER)
     if start == -1 or end == -1 or end < start:
         return None
-    return doc_text[start:end + len(END_MARKER)]
+    return doc_text[start : end + len(END_MARKER)]
 
 
 def inject(doc_text: str, section: str) -> str:
@@ -137,7 +146,7 @@ def inject(doc_text: str, section: str) -> str:
     return f"{base}\n\n## Command Reference\n\n{section}\n"
 
 
-def write_doc(doc_path: str, catalog: dict, base_text: Optional[str] = None) -> None:
+def write_doc(doc_path: str, catalog: dict, base_text: str | None = None) -> None:
     p = Path(doc_path)
     if base_text is not None:
         base = base_text
@@ -171,13 +180,16 @@ def check_doc(doc_path: str, catalog: dict) -> int:
         if actual == expected:
             return 0
         diff = difflib.unified_diff(
-            actual.splitlines(), expected.splitlines(),
-            fromfile="committed", tofile="expected", lineterm="",
+            actual.splitlines(),
+            expected.splitlines(),
+            fromfile="committed",
+            tofile="expected",
+            lineterm="",
         )
         print("\n".join(diff))
         err(f"{doc_path}: out of date — run generate_commands_doc.py")
         return 1
-    except Exception as exc:  # noqa: BLE001 — surface as exit 2
+    except Exception as exc:
         err(f"{doc_path}: {exc}")
         return 2
 
@@ -190,23 +202,25 @@ def _index_block(catalog: dict) -> str:
     # the 120-col MD013 limit by design (it is a dense always-loaded index, not
     # prose). Scope a markdownlint disable to the generated block so the linted
     # always-loaded guides (AGENTS.md) stay green without relaxing the repo rule.
-    return "\n".join([
-        INDEX_BEGIN,
-        "<!-- markdownlint-disable MD013 -->",
-        "",
-        render_compact_index(catalog),
-        "",
-        "<!-- markdownlint-enable MD013 -->",
-        INDEX_END,
-    ])
+    return "\n".join(
+        [
+            INDEX_BEGIN,
+            "<!-- markdownlint-disable MD013 -->",
+            "",
+            render_compact_index(catalog),
+            "",
+            "<!-- markdownlint-enable MD013 -->",
+            INDEX_END,
+        ]
+    )
 
 
-def extract_index(text: str) -> Optional[str]:
+def extract_index(text: str) -> str | None:
     start = text.find(INDEX_BEGIN)
     end = text.find(INDEX_END)
     if start == -1 or end == -1 or end < start:
         return None
-    return text[start:end + len(INDEX_END)]
+    return text[start : end + len(INDEX_END)]
 
 
 def inject_index(text: str, block: str) -> str:
@@ -257,14 +271,24 @@ def _doc_path() -> str:
 
 def _build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
-        prog=PROG, description="Generate docs/COMMANDS.md from the skill catalog.")
-    p.add_argument("--check", action="store_true",
-                   help="diff vs committed doc + guide indexes (0 in-sync, 1 drift, 2 error)")
-    p.add_argument("--compact", action="store_true",
-                   help="print the compact guide index to stdout")
-    p.add_argument("--inject-guides", action="store_true",
-                   help="inject the compact index into the always-loaded platform guides")
-    p.add_argument("--platform", default=None, help="platform for availability resolution")
+        prog=PROG, description="Generate docs/COMMANDS.md from the skill catalog."
+    )
+    p.add_argument(
+        "--check",
+        action="store_true",
+        help="diff vs committed doc + guide indexes (0 in-sync, 1 drift, 2 error)",
+    )
+    p.add_argument(
+        "--compact", action="store_true", help="print the compact guide index to stdout"
+    )
+    p.add_argument(
+        "--inject-guides",
+        action="store_true",
+        help="inject the compact index into the always-loaded platform guides",
+    )
+    p.add_argument(
+        "--platform", default=None, help="platform for availability resolution"
+    )
     return p
 
 
@@ -284,8 +308,10 @@ def main(argv=None) -> int:
         rc = check_doc(doc, catalog)
         for rel, in_sync, exists in inject_guides(catalog, write=False):
             if exists and not in_sync:
-                err(f"{rel}: command index out of date — run "
-                    f"generate_commands_doc.py --inject-guides")
+                err(
+                    f"{rel}: command index out of date — run "
+                    f"generate_commands_doc.py --inject-guides"
+                )
                 rc = rc or 1
         return rc
     if args.inject_guides:

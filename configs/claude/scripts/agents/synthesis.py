@@ -9,9 +9,8 @@ import json
 import os
 import re
 from pathlib import Path
-from typing import Dict, Optional
 
-from agents.config import Config, HAS_ANTHROPIC, Logger
+from agents.config import HAS_ANTHROPIC, Config, Logger
 
 if HAS_ANTHROPIC:
     from anthropic import AsyncAnthropic
@@ -20,7 +19,7 @@ if HAS_ANTHROPIC:
 class SynthesisEngine:
     """Handles synthesis when agents disagree"""
 
-    def __init__(self, config: Config, logger: Optional[Logger] = None):
+    def __init__(self, config: Config, logger: Logger | None = None):
         self.config = config
         self.logger = logger
         self.synthesis_template = self._load_template()
@@ -33,12 +32,12 @@ class SynthesisEngine:
                 self.logger.warning(f"Synthesis template not found: {template_path}")
             return ""
 
-        with open(template_path, "r") as f:
+        with open(template_path) as f:
             return f.read()
 
     async def synthesize(
-        self, original_task: str, agent_results: Dict, consensus: Dict
-    ) -> Optional[Dict]:
+        self, original_task: str, agent_results: dict, consensus: dict
+    ) -> dict | None:
         """Synthesize disagreements into unified recommendation"""
         # Check if synthesis is needed
         consensus_score = consensus.get("consensus_score", 100) / 100.0
@@ -104,7 +103,7 @@ class SynthesisEngine:
 
             return synthesis_result
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             if self.logger:
                 self.logger.error(f"Synthesis timed out after {timeout}s")
             return {
@@ -129,7 +128,7 @@ class SynthesisEngine:
                 "unified_recommendation": "Synthesis failed",
             }
 
-    def _build_synthesis_prompt(self, original_task: str, agent_results: Dict) -> str:
+    def _build_synthesis_prompt(self, original_task: str, agent_results: dict) -> str:
         """Build synthesis prompt from template"""
         if not self.synthesis_template:
             return ""

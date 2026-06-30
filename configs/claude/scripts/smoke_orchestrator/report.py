@@ -23,8 +23,10 @@ def _as_list(reports: RunReport | list[RunReport]) -> list[RunReport]:
 
 def _test_detail(result) -> str:
     """All step lines for one test, for the <failure> body / console verbose."""
-    return "\n".join(f"  step {s.name}: {s.status}" + (f" — {s.message}" if s.message else "")
-                     for s in result.steps)
+    return "\n".join(
+        f"  step {s.name}: {s.status}" + (f" — {s.message}" if s.message else "")
+        for s in result.steps
+    )
 
 
 def _summary_msg(result) -> str:
@@ -35,29 +37,43 @@ def _summary_msg(result) -> str:
     return result.status
 
 
-def write_junit(reports: RunReport | list[RunReport], path: str, redactor: Redactor) -> None:
+def write_junit(
+    reports: RunReport | list[RunReport], path: str, redactor: Redactor
+) -> None:
     root = ET.Element("testsuites")
     for rep in _as_list(reports):
         failures = sum(1 for r in rep.results if r.status == "failed")
         skipped = sum(1 for r in rep.results if r.status == "blocked")
-        suite = ET.SubElement(root, "testsuite", {
-            "name": rep.app,
-            "tests": str(len(rep.results)),
-            "failures": str(failures),
-            "skipped": str(skipped),
-            "time": f"{sum(r.duration_s for r in rep.results):.3f}",
-        })
+        suite = ET.SubElement(
+            root,
+            "testsuite",
+            {
+                "name": rep.app,
+                "tests": str(len(rep.results)),
+                "failures": str(failures),
+                "skipped": str(skipped),
+                "time": f"{sum(r.duration_s for r in rep.results):.3f}",
+            },
+        )
         for r in rep.results:
-            case = ET.SubElement(suite, "testcase", {
-                "name": r.id,
-                "classname": f"{rep.app}.{r.tier}",
-                "time": f"{r.duration_s:.3f}",
-            })
+            case = ET.SubElement(
+                suite,
+                "testcase",
+                {
+                    "name": r.id,
+                    "classname": f"{rep.app}.{r.tier}",
+                    "time": f"{r.duration_s:.3f}",
+                },
+            )
             if r.status == "failed":
-                node = ET.SubElement(case, "failure", {"message": redactor.scrub(_summary_msg(r))})
+                node = ET.SubElement(
+                    case, "failure", {"message": redactor.scrub(_summary_msg(r))}
+                )
                 node.text = redactor.scrub(_test_detail(r))
             elif r.status == "blocked":
-                ET.SubElement(case, "skipped", {"message": redactor.scrub(_summary_msg(r))})
+                ET.SubElement(
+                    case, "skipped", {"message": redactor.scrub(_summary_msg(r))}
+                )
     # Pretty-print via stdlib indent (no XML *parsing* round-trip → no XXE surface).
     ET.indent(root, space="  ")
     xml = ET.tostring(root, encoding="unicode", xml_declaration=True)
@@ -72,7 +88,9 @@ def format_summary(reports: RunReport | list[RunReport], redactor: Redactor) -> 
     for rep in _as_list(reports):
         lines.append(f"== {rep.app} (tier {rep.tier}) ==")
         if not rep.results:
-            lines.append("  EMPTY: no tests matched this tier (coverage gap, not a pass)")
+            lines.append(
+                "  EMPTY: no tests matched this tier (coverage gap, not a pass)"
+            )
         # Failures/blocked first so they are surfaced at the top (US2 scenario 3).
         ordered = sorted(rep.results, key=lambda r: r.status == "passed")
         for r in ordered:
@@ -84,8 +102,9 @@ def format_summary(reports: RunReport | list[RunReport], redactor: Redactor) -> 
     return "\n".join(lines)
 
 
-def print_summary(reports: RunReport | list[RunReport], redactor: Redactor,
-                  stream=sys.stdout) -> None:
+def print_summary(
+    reports: RunReport | list[RunReport], redactor: Redactor, stream=sys.stdout
+) -> None:
     print(format_summary(reports, redactor), file=stream)
 
 

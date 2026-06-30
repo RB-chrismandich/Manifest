@@ -15,11 +15,11 @@ def exact_match_letter(response: str, gold: str) -> int:
     """
     text = response.strip()
     # Priority: answer at the start of the response
-    m = re.match(r'^([A-Da-d]|[0-3])\b', text)
+    m = re.match(r"^([A-Da-d]|[0-3])\b", text)
     if m:
         return 1 if m.group(1).upper() == gold.upper() else 0
     # Fallback: first standalone letter/digit in response
-    m = re.search(r'\b([A-Da-d]|[0-3])\b', text)
+    m = re.search(r"\b([A-Da-d]|[0-3])\b", text)
     if not m:
         return 0
     return 1 if m.group(1).upper() == gold.upper() else 0
@@ -28,16 +28,13 @@ def exact_match_letter(response: str, gold: str) -> int:
 def exact_match_bool(response: str, gold: str) -> int:
     """Score TruthfulQA by finding first True/False in response."""
     text = response.lower().strip()
-    ti_match = re.search(r'\btrue\b', text)
-    fi_match = re.search(r'\bfalse\b', text)
+    ti_match = re.search(r"\btrue\b", text)
+    fi_match = re.search(r"\bfalse\b", text)
     ti = ti_match.start() if ti_match else -1
     fi = fi_match.start() if fi_match else -1
     if ti == -1 and fi == -1:
         return 0
-    if fi == -1 or (ti != -1 and ti < fi):
-        answer = "True"
-    else:
-        answer = "False"
+    answer = "True" if fi == -1 or (ti != -1 and ti < fi) else "False"
     return 1 if answer == gold else 0
 
 
@@ -53,16 +50,13 @@ def pass_at_1(response: str, prompt) -> int:
         return 0
 
     # If response includes full function def, use it directly
-    if re.search(r'def \w+\s*\(', code):
+    if re.search(r"def \w+\s*\(", code):
         full_code = code + "\n\n" + prompt.test_code
     else:
         # Response is just the body — prepend signature from prompt
         func_sig = _extract_func_sig(prompt.text)
         lines = code.strip().splitlines()
-        body = "\n".join(
-            ("    " + line) if line.strip() else ""
-            for line in lines
-        )
+        body = "\n".join(("    " + line) if line.strip() else "" for line in lines)
         if not body:
             return 0
         full_code = func_sig + "\n" + body + "\n\n" + prompt.test_code
@@ -94,11 +88,11 @@ def score(response: str, prompt) -> int:
 
 def _extract_code(response: str) -> str:
     """Strip markdown code fences; return raw code."""
-    m = re.search(r'```(?:python)?\s*\n(.*?)\n\s*```', response, re.DOTALL)
+    m = re.search(r"```(?:python)?\s*\n(.*?)\n\s*```", response, re.DOTALL)
     return m.group(1) if m else response
 
 
 def _extract_func_sig(prompt_text: str) -> str:
     """Extract the def ... : line from a HumanEval prompt."""
-    m = re.search(r'(def \w+\(.*?\)\s*(?:->[^:]+)?:)', prompt_text, re.DOTALL)
+    m = re.search(r"(def \w+\(.*?\)\s*(?:->[^:]+)?:)", prompt_text, re.DOTALL)
     return m.group(1) if m else "def func():"

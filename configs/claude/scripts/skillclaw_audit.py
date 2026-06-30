@@ -15,12 +15,14 @@ CLI (always invoked as `python3 "${SCRIPT_DIR}/skillclaw_audit.py" <cmd>`):
 
 Env overrides (tests): SKILLCLAW_AUDIT_DIR (default ~/.skillclaw).
 """
+
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 DEFAULT_HOME = "~/.skillclaw"
@@ -29,7 +31,7 @@ RUNNING, DONE, FAILED, STALE = "running", "done", "failed", "stale"
 
 
 def _now_iso() -> str:
-    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def _audit_dir() -> Path:
@@ -48,29 +50,23 @@ def _ensure_storage() -> Path:
     """mkdir -p ~/.skillclaw (700) so a fresh install never silently logs nothing."""
     d = _audit_dir()
     d.mkdir(parents=True, exist_ok=True)
-    try:
+    with contextlib.suppress(OSError):
         os.chmod(d, 0o700)
-    except OSError:
-        pass
     return d
 
 
 def _write_atomic(path: Path, data: str) -> None:
     """Write via a unique .tmp sibling + os.replace so concurrent readers never
     see a torn file and two writers never collide on the same tmp name."""
-    tmp = path.parent / ("%s.%d.tmp" % (path.name, os.getpid()))
+    tmp = path.parent / f"{path.name}.{os.getpid()}.tmp"
     try:
         tmp.write_text(data, encoding="utf-8")
-        try:
+        with contextlib.suppress(OSError):
             os.chmod(tmp, 0o600)
-        except OSError:
-            pass
         os.replace(tmp, path)
     finally:
-        try:
+        with contextlib.suppress(OSError):
             tmp.unlink()
-        except OSError:
-            pass
 
 
 def _read_status() -> dict:
@@ -105,16 +101,26 @@ def _apply_event(status: dict, stage: str, event: str, fields: dict) -> dict:
             if k in fields:
                 cfg[k] = fields[k]
     elif event == "stage_start" and stage == "evolve":
-        status["evolve"] = {"chunk": 0, "total": fields.get("chunks", 0),
-                            "elapsed_s": 0, "eta_s": None, "eta_label": "estimating…"}
+        status["evolve"] = {
+            "chunk": 0,
+            "total": fields.get("chunks", 0),
+            "elapsed_s": 0,
+            "eta_s": None,
+            "eta_label": "estimating…",
+        }
     elif event == "stage_end" and "ingested" in fields:
         status["totals"]["ingested"] = fields["ingested"]
     elif event == "chunk_done":
         done, total = fields.get("i", 0), fields.get("total", 0)
         elapsed = fields.get("elapsed_s", 0)
         eta_s, label = compute_eta(done, total, elapsed)
-        status["evolve"] = {"chunk": done, "total": total, "elapsed_s": elapsed,
-                            "eta_s": eta_s, "eta_label": label}
+        status["evolve"] = {
+            "chunk": done,
+            "total": total,
+            "elapsed_s": elapsed,
+            "eta_s": eta_s,
+            "eta_label": label,
+        }
     elif event == "candidates":
         new = fields.get("new") or []
         changed = fields.get("changed") or []
@@ -144,15 +150,16 @@ def log(run_id, stage, event, **fields):
         # may lag the log by one event if the process dies between the two writes.
         with _log_path().open("a", encoding="utf-8") as fh:
             fh.write(json.dumps(line) + "\n")
-        try:
+        with contextlib.suppress(OSError):
             os.chmod(_log_path(), 0o600)
-        except OSError:
-            pass
         current = _read_status()
         if event == "run_start" or current.get("run_id") != run_id:
             current = _fresh_status(run_id)
-        _write_atomic(_status_path(), json.dumps(_apply_event(current, stage, event, fields), indent=2))
-    except Exception:  # noqa: BLE001 - fail-open: never raise into the pipeline
+        _write_atomic(
+            _status_path(),
+            json.dumps(_apply_event(current, stage, event, fields), indent=2),
+        )
+    except Exception:
         return
 
 
@@ -171,7 +178,7 @@ def _pid_alive(pid):
     except ProcessLookupError:
         return False
     except PermissionError:
-        return True   # exists but owned by another user
+        return True  # exists but owned by another user
     except OSError:
         return False
     return True
@@ -179,12 +186,12 @@ def _pid_alive(pid):
 
 def _fmt_secs(s):
     try:
-        s = int(round(float(s)))
+        s = round(float(s))
     except (TypeError, ValueError):
         return "?"
     if s < 0:
         return "?"
-    return "%dm%02ds" % (s // 60, s % 60) if s >= 60 else "%ds" % s
+    return f"{s // 60}m{s % 60:02d}s" if s >= 60 else f"{s}s"
 
 
 def render_status():
@@ -202,27 +209,30 @@ def render_status():
             ev = st.get("evolve") or {}
             stage = st.get("stage", "?")
             if stage == "evolve" and ev.get("total"):
-                return ("run %s · evolve · chunk %s/%s · %s elapsed · %s"
-                        % (short, ev.get("chunk"), ev.get("total"),
-                           _fmt_secs(ev.get("elapsed_s")),
-                           ev.get("eta_label", "estimating…")))
-            return "run %s · %s · running" % (short, stage)
+                return "run {} · evolve · chunk {}/{} · {} elapsed · {}".format(
+                    short,
+                    ev.get("chunk"),
+                    ev.get("total"),
+                    _fmt_secs(ev.get("elapsed_s")),
+                    ev.get("eta_label", "estimating…"),
+                )
+            return f"run {short} · {stage} · running"
         if state == STALE:
-            return "run %s · stale (no live process)" % short
+            return f"run {short} · stale (no live process)"
         if state == FAILED:
-            return "last run: failed · stage %s" % st.get("error_stage", "?")
+            return "last run: failed · stage {}".format(st.get("error_stage", "?"))
         if state == DONE:
             tot = st.get("totals", {})
             parts = ["last run: done"]
             if tot.get("candidates") is not None:
-                parts.append("%s candidates" % tot["candidates"])
+                parts.append("{} candidates".format(tot["candidates"]))
             if st.get("pr_url"):
-                parts.append("PR %s" % st["pr_url"])
+                parts.append("PR {}".format(st["pr_url"]))
             if st.get("total_seconds") is not None:
                 parts.append(_fmt_secs(st["total_seconds"]))
             return " · ".join(parts)
         return "no recent run"
-    except Exception:  # noqa: BLE001 - fail-open
+    except Exception:
         return "no recent run"
 
 
@@ -268,7 +278,7 @@ def trim(max_runs=MAX_RUNS):
                 except ValueError:
                     continue
         _write_atomic(path, "\n".join(kept) + ("\n" if kept else ""))
-    except Exception:  # noqa: BLE001 - fail-open
+    except Exception:
         return
 
 
@@ -327,7 +337,7 @@ def compute_eta(chunks_done, chunks_total, elapsed_s):
         eta_s = (chunks_total - chunks_done) * (elapsed_s / chunks_done)
         # Deliberately minute-granular and rough: any sub-minute ETA rounds up to
         # "~1m left (est)" — the label is an explicit estimate, not a countdown.
-        return (eta_s, "~%dm left (est)" % max(1, round(eta_s / 60)))
+        return (eta_s, f"~{max(1, round(eta_s / 60))}m left (est)")
     except (TypeError, ValueError):
         return (None, "estimating…")
 

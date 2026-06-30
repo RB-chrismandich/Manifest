@@ -3,7 +3,6 @@
 import json
 from collections import defaultdict
 from pathlib import Path
-from typing import Optional
 
 
 def load_results(results_dir: Path) -> list[dict]:
@@ -29,30 +28,48 @@ def compute_stats(records: list[dict]) -> dict:
     token_overhead = {}
     providers = {r["provider"] for r in api_recs}
     for provider in providers:
-        before = [r for r in api_recs if r["provider"] == provider
-                  and r["condition"] == "before" and r.get("input_tokens") is not None]
-        after  = [r for r in api_recs if r["provider"] == provider
-                  and r["condition"] == "after"  and r.get("input_tokens") is not None]
+        before = [
+            r
+            for r in api_recs
+            if r["provider"] == provider
+            and r["condition"] == "before"
+            and r.get("input_tokens") is not None
+        ]
+        after = [
+            r
+            for r in api_recs
+            if r["provider"] == provider
+            and r["condition"] == "after"
+            and r.get("input_tokens") is not None
+        ]
         if not before or not after:
             continue
-        avg_in_b  = sum(r["input_tokens"]  for r in before) / len(before)
-        avg_in_a  = sum(r["input_tokens"]  for r in after)  / len(after)
+        avg_in_b = sum(r["input_tokens"] for r in before) / len(before)
+        avg_in_a = sum(r["input_tokens"] for r in after) / len(after)
         avg_out_b = sum(r["output_tokens"] for r in before) / len(before)
-        avg_out_a = sum(r["output_tokens"] for r in after)  / len(after)
-        overhead  = avg_in_a - avg_in_b
+        avg_out_a = sum(r["output_tokens"] for r in after) / len(after)
+        overhead = avg_in_a - avg_in_b
         token_overhead[provider] = {
-            "avg_input_before":  round(avg_in_b),
-            "avg_input_after":   round(avg_in_a),
-            "overhead_tokens":   round(overhead),
-            "overhead_pct":      round(overhead / avg_in_b * 100) if avg_in_b else None,
+            "avg_input_before": round(avg_in_b),
+            "avg_input_after": round(avg_in_a),
+            "overhead_tokens": round(overhead),
+            "overhead_pct": round(overhead / avg_in_b * 100) if avg_in_b else None,
             "avg_output_before": round(avg_out_b),
-            "avg_output_after":  round(avg_out_a),
-            "output_delta":      round(avg_out_a - avg_out_b),
+            "avg_output_after": round(avg_out_a),
+            "output_delta": round(avg_out_a - avg_out_b),
         }
 
     # Quality scores (CLI records)
-    quality = defaultdict(lambda: defaultdict(lambda: {"before_score": 0, "before_total": 0,
-                                                        "after_score":  0, "after_total":  0}))
+    quality = defaultdict(
+        lambda: defaultdict(
+            lambda: {
+                "before_score": 0,
+                "before_total": 0,
+                "after_score": 0,
+                "after_total": 0,
+            }
+        )
+    )
     for r in cli_recs:
         if r.get("quality_score") is None:
             continue
@@ -67,16 +84,22 @@ def compute_stats(records: list[dict]) -> dict:
     cost_summary: dict = {}
     if cost_records:
         all_conditions = sorted({r["condition"] for r in cost_records})
-        after_cost: Optional[float] = None
+        after_cost: float | None = None
         for cond in all_conditions:
             cond_recs = [r for r in cost_records if r["condition"] == cond]
             avg_cost = sum(r["cost_usd"] for r in cond_recs) / len(cond_recs)
             valid_input = [r for r in cond_recs if r.get("input_tokens") is not None]
-            avg_input = (sum(r["input_tokens"] for r in valid_input) / len(valid_input)
-                         if valid_input else 0)
+            avg_input = (
+                sum(r["input_tokens"] for r in valid_input) / len(valid_input)
+                if valid_input
+                else 0
+            )
             valid_quality = [r for r in cond_recs if r.get("quality_score") is not None]
-            avg_quality = (sum(r["quality_score"] for r in valid_quality) / len(valid_quality)
-                           if valid_quality else 0.0)
+            avg_quality = (
+                sum(r["quality_score"] for r in valid_quality) / len(valid_quality)
+                if valid_quality
+                else 0.0
+            )
             cost_summary[cond] = {
                 "avg_cost_usd": avg_cost,
                 "avg_input_tokens": round(avg_input),
@@ -94,12 +117,16 @@ def compute_stats(records: list[dict]) -> dict:
 
     return {
         "token_overhead": token_overhead,
-        "output_delta":   {p: {"avg_output_before": v["avg_output_before"],
-                               "avg_output_after":  v["avg_output_after"],
-                               "output_delta":       v["output_delta"]}
-                           for p, v in token_overhead.items()},
-        "quality":  {p: dict(cats) for p, cats in quality.items()},
-        "run_ids":  sorted({r["run_id"] for r in records}),
+        "output_delta": {
+            p: {
+                "avg_output_before": v["avg_output_before"],
+                "avg_output_after": v["avg_output_after"],
+                "output_delta": v["output_delta"],
+            }
+            for p, v in token_overhead.items()
+        },
+        "quality": {p: dict(cats) for p, cats in quality.items()},
+        "run_ids": sorted({r["run_id"] for r in records}),
         "cost_summary": cost_summary,
     }
 
@@ -139,7 +166,11 @@ def render_report(stats: dict, run_id: str) -> str:
     for provider in ("claude", "gemini"):
         d = stats["output_delta"].get(provider)
         if d:
-            delta_str = f"+{d['output_delta']}" if d["output_delta"] >= 0 else str(d["output_delta"])
+            delta_str = (
+                f"+{d['output_delta']}"
+                if d["output_delta"] >= 0
+                else str(d["output_delta"])
+            )
             lines.append(
                 f"| {provider} | {d['avg_output_before']} | {d['avg_output_after']} | {delta_str} |"
             )
@@ -204,7 +235,8 @@ def render_report(stats: dict, run_id: str) -> str:
                 continue
             savings = data.get("savings_vs_after_pct")
             vs_after = (
-                "baseline" if cond == "after"
+                "baseline"
+                if cond == "after"
                 else ("—" if savings is None else f"{savings:+d}%")
             )
             lines.append(
@@ -222,7 +254,9 @@ def update_report(results_dir: Path, output_path: Path) -> None:
     """Load all results, compute stats, render, and write TOKEN_BENCHMARK.md."""
     records = load_results(results_dir)
     if not records:
-        output_path.write_text("# Token Benchmark Report\n\nNo results yet. Run `/token-benchmark` to populate.\n")
+        output_path.write_text(
+            "# Token Benchmark Report\n\nNo results yet. Run `/token-benchmark` to populate.\n"
+        )
         return
     stats = compute_stats(records)
     latest_run_id = stats["run_ids"][-1] if stats["run_ids"] else "unknown"

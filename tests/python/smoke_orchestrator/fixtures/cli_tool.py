@@ -39,7 +39,7 @@ def main(argv: list[str]) -> int:
         return 0
     if cmd == "expect":
         # expect <wanted> <actual> -> exit 0 iff equal; proves a chained value arrived.
-        wanted, actual = (rest + ["", ""])[:2]
+        wanted, actual = ([*rest, "", ""])[:2]
         if wanted != actual:
             print(f"expected {wanted!r}, got {actual!r}", file=sys.stderr)
             return 1

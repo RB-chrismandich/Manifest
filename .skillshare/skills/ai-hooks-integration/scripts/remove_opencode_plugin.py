@@ -12,7 +12,9 @@ from pathlib import Path
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--path", required=True)
-    ap.add_argument("--dry-run", action="store_true", help="Print actions without writing")
+    ap.add_argument(
+        "--dry-run", action="store_true", help="Print actions without writing"
+    )
     args = ap.parse_args()
 
     path = Path(args.path).expanduser()

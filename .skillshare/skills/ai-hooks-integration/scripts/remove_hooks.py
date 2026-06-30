@@ -49,7 +49,9 @@ def main() -> None:
     ap.add_argument("--tool", choices=JSON_TOOLS, required=True)
     ap.add_argument("--path", required=True)
     ap.add_argument("--command", required=True)
-    ap.add_argument("--dry-run", action="store_true", help="Print actions without writing")
+    ap.add_argument(
+        "--dry-run", action="store_true", help="Print actions without writing"
+    )
     args = ap.parse_args()
 
     path = Path(args.path).expanduser()

@@ -1,9 +1,9 @@
 import json
-from pathlib import Path
 import sys
+from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "configs/claude/scripts"))
-import skillclaw_scrub as scrub  # noqa: E402
+import skillclaw_scrub as scrub
 
 
 def test_redacts_anthropic_and_openai_keys():
@@ -15,7 +15,7 @@ def test_redacts_anthropic_and_openai_keys():
 
 
 def test_redacts_auth_headers():
-    text = 'Authorization: Bearer abcdef.GHIJ-klmno\nx-api-key: secret-token-value'
+    text = "Authorization: Bearer abcdef.GHIJ-klmno\nx-api-key: secret-token-value"
     out = scrub.redact_text(text)
     assert "abcdef.GHIJ-klmno" not in out
     assert "secret-token-value" not in out

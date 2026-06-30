@@ -35,8 +35,13 @@ def translate_browser_test(doc: Any, *, test_id: str) -> dict:
     if not isinstance(judge, list) or not judge:
         raise ValueError(f"{test_id}: missing required non-empty 'judge_context'")
 
-    step: dict = {"name": "agent", "type": "ui", "mode": "agent",
-                  "task": task, "judge_context": list(judge)}
+    step: dict = {
+        "name": "agent",
+        "type": "ui",
+        "mode": "agent",
+        "task": task,
+        "judge_context": list(judge),
+    }
     if isinstance(doc.get("url"), str):
         step["url"] = doc["url"]
     if isinstance(doc.get("max_steps"), int):
@@ -57,7 +62,9 @@ def migrate_dir(src_dir: str, *, app: str) -> dict:
         test_id = _slug(path.stem)
         if not _SLUG_OK.match(test_id):
             raise ValueError(f"{path.name}: cannot derive a valid test id")
-        tests.append(translate_browser_test(yaml.safe_load(path.read_text()), test_id=test_id))
+        tests.append(
+            translate_browser_test(yaml.safe_load(path.read_text()), test_id=test_id)
+        )
     return {"version": 1, "app": app, "tests": tests}
 
 
@@ -69,10 +76,17 @@ def main(argv: list[str] | None = None) -> int:
 
     p = argparse.ArgumentParser(
         prog="smoke_orchestrator.migrate",
-        description="Migrate browser-test YAML prompts into a smoke catalog (mode: agent, tier Full).")
-    p.add_argument("src_dir", help="directory of browser-test *.yaml files (e.g. tests/browser)")
-    p.add_argument("--app", required=True, help="catalog app slug (^[a-z0-9][a-z0-9-]*$)")
-    p.add_argument("--out", help="output catalog path (default: smoke-catalog/<app>.yaml)")
+        description="Migrate browser-test YAML prompts into a smoke catalog (mode: agent, tier Full).",
+    )
+    p.add_argument(
+        "src_dir", help="directory of browser-test *.yaml files (e.g. tests/browser)"
+    )
+    p.add_argument(
+        "--app", required=True, help="catalog app slug (^[a-z0-9][a-z0-9-]*$)"
+    )
+    p.add_argument(
+        "--out", help="output catalog path (default: smoke-catalog/<app>.yaml)"
+    )
     args = p.parse_args(argv)
 
     catalog = migrate_dir(args.src_dir, app=args.app)

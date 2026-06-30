@@ -10,12 +10,18 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 SCRIPTS = REPO_ROOT / "configs" / "claude" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 
-from smoke_orchestrator.appender import SmokeTestAppender  # noqa: E402
+from smoke_orchestrator.appender import SmokeTestAppender
 
 
 def _wf(app="demo", id_="login-flow", tier="Lite", steps=None):
-    return {"app": app, "id": id_, "title": id_, "tier": tier,
-            "steps": steps or [{"name": "open", "type": "api", "method": "GET", "path": "/health"}]}
+    return {
+        "app": app,
+        "id": id_,
+        "title": id_,
+        "tier": tier,
+        "steps": steps
+        or [{"name": "open", "type": "api", "method": "GET", "path": "/health"}],
+    }
 
 
 def _cli_steps(n):
@@ -50,14 +56,20 @@ def test_prune_removes_only_target(tmp_path):
 
 
 def test_list_unknown_app_is_empty(tmp_path):
-    assert SmokeTestAppender(catalog_dir=str(tmp_path)).list_coverage("nonexistent") == []
+    assert (
+        SmokeTestAppender(catalog_dir=str(tmp_path)).list_coverage("nonexistent") == []
+    )
 
 
 # --- CLI surface (list --json / prune idempotent) ---------------------------
 def _run_cli(*args):
     env = dict(os.environ, PYTHONPATH=str(SCRIPTS))
-    return subprocess.run([sys.executable, "-m", "smoke_orchestrator", *args],
-                          capture_output=True, text=True, env=env)
+    return subprocess.run(
+        [sys.executable, "-m", "smoke_orchestrator", *args],
+        capture_output=True,
+        text=True,
+        env=env,
+    )
 
 
 def test_cli_list_json_and_prune(tmp_path):
@@ -69,7 +81,17 @@ def test_cli_list_json_and_prune(tmp_path):
     assert out.returncode == 0, out.stderr
     assert {r["id"] for r in json.loads(out.stdout)["demo"]} == {"a", "b"}
 
-    assert _run_cli("prune", "--app", "demo", "--id", "a", "--catalog-dir", str(tmp_path)).returncode == 0
+    assert (
+        _run_cli(
+            "prune", "--app", "demo", "--id", "a", "--catalog-dir", str(tmp_path)
+        ).returncode
+        == 0
+    )
     assert [r["id"] for r in ap.list_coverage("demo")] == ["b"]
     # pruning an absent id is still exit 0 (idempotent)
-    assert _run_cli("prune", "--app", "demo", "--id", "zzz", "--catalog-dir", str(tmp_path)).returncode == 0
+    assert (
+        _run_cli(
+            "prune", "--app", "demo", "--id", "zzz", "--catalog-dir", str(tmp_path)
+        ).returncode
+        == 0
+    )

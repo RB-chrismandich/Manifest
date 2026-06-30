@@ -9,6 +9,7 @@ Usage:
     skillclaw_evolve.py <sessions_dir> <evolved_dir> [--template FILE]
         [--token-budget N]
 """
+
 from __future__ import annotations
 
 import argparse
@@ -29,14 +30,15 @@ def _load_audit():
     """Import the audit logger lazily; return None if unavailable (fail-open)."""
     try:
         import skillclaw_audit
+
         return skillclaw_audit
-    except Exception:  # noqa: BLE001
+    except Exception:
         return None
 
 
 def _fmt_elapsed(s: float) -> str:
-    s = int(round(s))
-    return "%dm%02ds" % (s // 60, s % 60) if s >= 60 else "%ds" % s
+    s = round(s)
+    return f"{s // 60}m{s % 60:02d}s" if s >= 60 else f"{s}s"
 
 
 def estimate_tokens(text: str) -> int:
@@ -75,8 +77,10 @@ def build_prompt(template: str, sessions: list[dict], library_names: list[str]) 
 
 
 def parse_candidates(output: str) -> list[dict]:
-    return [{"name": m.group("name").strip(), "content": m.group("body")}
-            for m in _SKILL_RE.finditer(output)]
+    return [
+        {"name": m.group("name").strip(), "content": m.group("body")}
+        for m in _SKILL_RE.finditer(output)
+    ]
 
 
 def chunk_sessions(sessions: list[dict], token_budget: int) -> list[list[dict]]:
@@ -108,7 +112,9 @@ def _chunk_timeout() -> int:
     Clamped to >=1 so a zero/negative override can't fail every chunk instantly.
     """
     try:
-        return max(1, int(os.environ.get("SKILLCLAW_CHUNK_TIMEOUT", DEFAULT_CHUNK_TIMEOUT)))
+        return max(
+            1, int(os.environ.get("SKILLCLAW_CHUNK_TIMEOUT", DEFAULT_CHUNK_TIMEOUT))
+        )
     except ValueError:
         return DEFAULT_CHUNK_TIMEOUT
 
@@ -127,10 +133,17 @@ def subprocess_runner(prompt: str) -> str:
     """
     timeout = _chunk_timeout()
     try:
-        proc = subprocess.run(["claude", "-p"], input=prompt,
-                              capture_output=True, text=True, timeout=timeout)
-    except subprocess.TimeoutExpired:
-        raise RuntimeError(f"claude -p timed out after {timeout}s (chunk abandoned)")
+        proc = subprocess.run(
+            ["claude", "-p"],
+            input=prompt,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+        )
+    except subprocess.TimeoutExpired as e:
+        raise RuntimeError(
+            f"claude -p timed out after {timeout}s (chunk abandoned)"
+        ) from e
     if proc.returncode != 0:
         raise RuntimeError(f"claude -p failed: {proc.stderr.strip()}")
     return proc.stdout
@@ -149,7 +162,9 @@ def write_candidates(candidates: list[dict], evolved_dir: Path) -> list[str]:
 
 _DESC_MAX = 200
 _FRONTMATTER_RE = re.compile(r"\A---\s*\n(.*?)\n---", re.DOTALL)
-_DESC_LINE_RE = re.compile(r"^description:\s*(.+?)(?=\n\S|\Z)", re.MULTILINE | re.DOTALL)
+_DESC_LINE_RE = re.compile(
+    r"^description:\s*(.+?)(?=\n\S|\Z)", re.MULTILINE | re.DOTALL
+)
 
 
 def _skill_description(skill_md: Path):
@@ -195,9 +210,17 @@ def _library_names(skills_dir: Path) -> list[str]:
     return entries
 
 
-def evolve(sessions_dir, evolved_dir, template_path, *,
-           committed_dir=None, token_budget=DEFAULT_TOKEN_BUDGET, runner=subprocess_runner,
-           run_id=None, audit=None) -> dict:
+def evolve(
+    sessions_dir,
+    evolved_dir,
+    template_path,
+    *,
+    committed_dir=None,
+    token_budget=DEFAULT_TOKEN_BUDGET,
+    runner=subprocess_runner,
+    run_id=None,
+    audit=None,
+) -> dict:
     """Map-reduce sessions into SKILL.md candidates. Returns a summary dict.
 
     The prompt's "existing library" is the committed library (committed_dir) so
@@ -206,7 +229,9 @@ def evolve(sessions_dir, evolved_dir, template_path, *,
     """
     sessions = load_sessions(sessions_dir)
     template = Path(template_path).expanduser().read_text(encoding="utf-8")
-    library = _library_names(committed_dir if committed_dir is not None else evolved_dir)
+    library = _library_names(
+        committed_dir if committed_dir is not None else evolved_dir
+    )
     chunks = chunk_sessions(sessions, token_budget)
     # Emit stage_start before the empty-sessions short-circuit so --status reflects
     # that evolve ran (and skipped) rather than showing a stale prior stage.
@@ -226,11 +251,20 @@ def evolve(sessions_dir, evolved_dir, template_path, *,
             elapsed = time.monotonic() - start
             chunk_seconds = round(elapsed - prev_elapsed, 1)
             prev_elapsed = elapsed
-            audit_mod.log(run_id, "evolve", "chunk_done", i=idx, total=len(chunks),
-                          chunk_seconds=chunk_seconds, elapsed_s=round(elapsed, 1))
+            audit_mod.log(
+                run_id,
+                "evolve",
+                "chunk_done",
+                i=idx,
+                total=len(chunks),
+                chunk_seconds=chunk_seconds,
+                elapsed_s=round(elapsed, 1),
+            )
             _, label = audit_mod.compute_eta(idx, len(chunks), elapsed)
-            print("[skillclaw] evolve · chunk %d/%d · %s · %s"
-                  % (idx, len(chunks), _fmt_elapsed(elapsed), label), file=sys.stderr)
+            print(
+                f"[skillclaw] evolve · chunk {idx}/{len(chunks)} · {_fmt_elapsed(elapsed)} · {label}",
+                file=sys.stderr,
+            )
 
     # reduce: dedupe by name (last write wins); a single chunk skips a 2nd call
     if len(chunks) > 1 and mapped:
@@ -248,23 +282,35 @@ def main(argv: list[str]) -> int:
     ap.add_argument("sessions_dir")
     ap.add_argument("evolved_dir")
     ap.add_argument("--template", default="~/.claude/prompts/skillclaw_evolve.md")
-    ap.add_argument("--committed-dir",
-                    help="committed skill library shown to the model (avoids re-proposals)")
+    ap.add_argument(
+        "--committed-dir",
+        help="committed skill library shown to the model (avoids re-proposals)",
+    )
     ap.add_argument("--token-budget", type=int, default=DEFAULT_TOKEN_BUDGET)
-    ap.add_argument("--run-id", default=None,
-                    help="audit run id; enables per-chunk status logging")
-    ap.add_argument("--chunk-timeout", type=int, default=None,
-                    help="seconds per `claude -p` chunk (FR-010); wins over "
-                         "SKILLCLAW_CHUNK_TIMEOUT, default %d" % DEFAULT_CHUNK_TIMEOUT)
+    ap.add_argument(
+        "--run-id", default=None, help="audit run id; enables per-chunk status logging"
+    )
+    ap.add_argument(
+        "--chunk-timeout",
+        type=int,
+        default=None,
+        help="seconds per `claude -p` chunk (FR-010); wins over "
+        f"SKILLCLAW_CHUNK_TIMEOUT, default {DEFAULT_CHUNK_TIMEOUT}",
+    )
     args = ap.parse_args(argv)
     if args.chunk_timeout is not None:
         # Export to the env seam subprocess_runner reads at call time, so the
         # override reaches every chunk without threading it through evolve().
         os.environ["SKILLCLAW_CHUNK_TIMEOUT"] = str(args.chunk_timeout)
     try:
-        summary = evolve(args.sessions_dir, args.evolved_dir, args.template,
-                         committed_dir=args.committed_dir, token_budget=args.token_budget,
-                         run_id=args.run_id)
+        summary = evolve(
+            args.sessions_dir,
+            args.evolved_dir,
+            args.template,
+            committed_dir=args.committed_dir,
+            token_budget=args.token_budget,
+            run_id=args.run_id,
+        )
     except (RuntimeError, FileNotFoundError) as e:
         print(f"skillclaw_evolve: {e}", file=sys.stderr)
         return 1

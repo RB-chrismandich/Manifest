@@ -25,7 +25,9 @@ class StateError(RuntimeError):
 
 
 class StateManager:
-    def __init__(self, persist: bool = False, state_dir: str | os.PathLike | None = None) -> None:
+    def __init__(
+        self, persist: bool = False, state_dir: str | os.PathLike | None = None
+    ) -> None:
         self._mem: dict[str, Any] = {}
         self._persist = persist
         self._state_dir = Path(state_dir) if state_dir else _default_state_dir()
@@ -37,7 +39,9 @@ class StateManager:
     def satisfies(self, needs: list[str]) -> bool:
         return all(self.has(n) for n in (needs or []))
 
-    def resolve_value(self, raw: str, redactor: Redactor, sensitive: bool = False) -> str:
+    def resolve_value(
+        self, raw: str, redactor: Redactor, sensitive: bool = False
+    ) -> str:
         """Substitute every ${state.*}/${env.*} reference in a string."""
 
         def _sub(m: re.Match) -> str:
@@ -46,7 +50,9 @@ class StateManager:
                 if key not in self._mem:
                     raise StateError(f"unresolved state reference: ${{state.{key}}}")
                 val = str(self._mem[key])
-                if sensitive:  # in a sensitive step, every resolved ref is treated as secret
+                if (
+                    sensitive
+                ):  # in a sensitive step, every resolved ref is treated as secret
                     redactor.register(val)
                 return val
             # env
@@ -70,8 +76,16 @@ class StateManager:
         return obj
 
     # --- capture ------------------------------------------------------------
-    def capture(self, name: str, value: Any, *, app: str, sensitive: bool = False,
-                scope: str = "run", redactor: Redactor | None = None) -> None:
+    def capture(
+        self,
+        name: str,
+        value: Any,
+        *,
+        app: str,
+        sensitive: bool = False,
+        scope: str = "run",
+        redactor: Redactor | None = None,
+    ) -> None:
         self._mem[name] = value
         if sensitive and redactor is not None:
             redactor.register(value)

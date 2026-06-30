@@ -15,8 +15,9 @@ run with missing state); the secret-safe contract of the other runners is kept
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Callable
+from typing import Any
 
 from . import StepOutcome, join_url
 
@@ -30,26 +31,39 @@ class AgentResult:
     captures: dict[str, Any] = field(default_factory=dict)
 
 
-def run(step: dict, *, runner: Callable[..., AgentResult],
-        base_url: str | None, timeout_ms: int) -> StepOutcome:
+def run(
+    step: dict,
+    *,
+    runner: Callable[..., AgentResult],
+    base_url: str | None,
+    timeout_ms: int,
+) -> StepOutcome:
     url = step.get("url")
     start_url = join_url(base_url, url) if url else base_url
     max_steps = int(step.get("max_steps", 15))
     try:
-        res = runner(step["task"], judge_context=step.get("judge_context", []),
-                     start_url=start_url, max_steps=max_steps, timeout_ms=timeout_ms)
-    except Exception as exc:  # noqa: BLE001 - never abort the run or leak content (type only)
+        res = runner(
+            step["task"],
+            judge_context=step.get("judge_context", []),
+            start_url=start_url,
+            max_steps=max_steps,
+            timeout_ms=timeout_ms,
+        )
+    except Exception as exc:
         return StepOutcome(False, f"unexpected {type(exc).__name__} during agent step")
     if not getattr(res, "passed", False):
         return StepOutcome(False, f"agent judged fail: {getattr(res, 'detail', '')}")
     declared = step.get("captures") or {}
     available = res.captures or {}
-    captures = {name: available[name] for name in declared if name in available}  # best-effort
+    captures = {
+        name: available[name] for name in declared if name in available
+    }  # best-effort
     return StepOutcome(True, res.detail, captures=captures)
 
 
-def default_agent_runner(task: str, *, judge_context, start_url, max_steps,
-                         timeout_ms) -> AgentResult:  # pragma: no cover - live path
+def default_agent_runner(
+    task: str, *, judge_context, start_url, max_steps, timeout_ms
+) -> AgentResult:  # pragma: no cover - live path
     """Live adapter over browser-use. Lazily imported; exercised in manual e2e.
 
     Requires the opt-in agent extra (``tests/requirements-smoke-agent.txt``) and
@@ -71,23 +85,27 @@ def default_agent_runner(task: str, *, judge_context, start_url, max_steps,
     if judge_context:
         full_task += "\nSucceed only if ALL are true: " + "; ".join(judge_context) + "."
 
-    kwargs: dict[str, Any] = {"task": full_task,
-                              "llm": ChatOpenAI(model=os.environ.get("SMOKE_AGENT_MODEL", "gpt-4.1-mini"))}
+    kwargs: dict[str, Any] = {
+        "task": full_task,
+        "llm": ChatOpenAI(model=os.environ.get("SMOKE_AGENT_MODEL", "gpt-4.1-mini")),
+    }
     try:  # headless when the profile API is available; otherwise Agent defaults
         from browser_use import BrowserProfile  # type: ignore
+
         kwargs["browser_profile"] = BrowserProfile(headless=True)
-    except Exception:  # noqa: BLE001
+    except Exception:
         pass
 
     async def _run():
-        return await asyncio.wait_for(Agent(**kwargs).run(max_steps=max_steps),
-                                      timeout=timeout_ms / 1000.0)
+        return await asyncio.wait_for(
+            Agent(**kwargs).run(max_steps=max_steps), timeout=timeout_ms / 1000.0
+        )
 
     history = asyncio.run(_run())
     detail = ""
     try:
         detail = history.final_result() or ""
-    except Exception:  # noqa: BLE001
+    except Exception:
         detail = ""
     passed = False
     for meth in ("is_successful", "is_done"):  # prefer an explicit success verdict
@@ -95,7 +113,7 @@ def default_agent_runner(task: str, *, judge_context, start_url, max_steps,
         if callable(fn):
             try:
                 verdict = fn()
-            except Exception:  # noqa: BLE001
+            except Exception:
                 continue
             if verdict is not None:
                 passed = bool(verdict)

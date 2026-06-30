@@ -1,9 +1,9 @@
 import json
-from pathlib import Path
 import sys
+from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "configs/claude/scripts"))
-import skillclaw_promote as promote  # noqa: E402
+import skillclaw_promote as promote
 
 VALID = "---\nname: foo\ndescription: does foo\n---\n# Foo\nbody\n"
 
@@ -18,10 +18,10 @@ def _skill(dirpath: Path, name: str, body: str) -> Path:
 def test_classify_new_changed_unchanged(tmp_path):
     evolved = tmp_path / "evolved"
     committed = tmp_path / "committed"
-    _skill(evolved, "alpha", VALID.replace("foo", "alpha"))            # NEW
-    _skill(evolved, "beta", VALID.replace("foo", "beta") + "more\n")   # CHANGED
+    _skill(evolved, "alpha", VALID.replace("foo", "alpha"))  # NEW
+    _skill(evolved, "beta", VALID.replace("foo", "beta") + "more\n")  # CHANGED
     _skill(committed, "beta", VALID.replace("foo", "beta"))
-    _skill(evolved, "gamma", VALID.replace("foo", "gamma"))            # UNCHANGED
+    _skill(evolved, "gamma", VALID.replace("foo", "gamma"))  # UNCHANGED
     _skill(committed, "gamma", VALID.replace("foo", "gamma"))
 
     result = promote.classify(evolved, committed)
@@ -61,8 +61,8 @@ def test_rejected_candidates_are_copied_to_rejected_dir(tmp_path):
     evolved = tmp_path / "evolved"
     committed = tmp_path / "committed"
     rejected = tmp_path / "rejected"
-    _skill(committed, "_", VALID)                       # committed dir exists
-    _skill(evolved, "broken", "# no frontmatter\n")     # invalid -> rejected
+    _skill(committed, "_", VALID)  # committed dir exists
+    _skill(evolved, "broken", "# no frontmatter\n")  # invalid -> rejected
     rc = promote.main([str(evolved), str(committed), "--rejected-dir", str(rejected)])
     assert rc == 0
     # the rejected SKILL.md must have been copied for inspection

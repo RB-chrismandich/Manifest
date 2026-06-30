@@ -4,7 +4,7 @@
 import os
 import sys
 import unittest
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 # Add scripts directory to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
@@ -30,7 +30,9 @@ class TestToolSignatures(unittest.TestCase):
         for tool, sigs in TOOL_SIGNATURES.items():
             for sig in sigs:
                 self.assertEqual(
-                    sig, sig.lower(), f"Signature '{sig}' for {tool} should be lowercase"
+                    sig,
+                    sig.lower(),
+                    f"Signature '{sig}' for {tool} should be lowercase",
                 )
 
 
@@ -94,7 +96,9 @@ class TestDetectParentSource(unittest.TestCase):
     @patch("runtime.detect_source.get_process_cmdline")
     @patch("runtime.detect_source.get_parent_pid")
     @patch("os.getppid")
-    def test_detects_opencode(self, mock_getppid, mock_get_parent_pid, mock_get_cmdline):
+    def test_detects_opencode(
+        self, mock_getppid, mock_get_parent_pid, mock_get_cmdline
+    ):
         """Should detect opencode from command line."""
         mock_getppid.return_value = 100
         mock_get_parent_pid.side_effect = [None]
@@ -149,11 +153,15 @@ class TestDetectParentSource(unittest.TestCase):
     @patch("runtime.detect_source.get_process_cmdline")
     @patch("runtime.detect_source.get_parent_pid")
     @patch("os.getppid")
-    def test_case_insensitive(self, mock_getppid, mock_get_parent_pid, mock_get_cmdline):
+    def test_case_insensitive(
+        self, mock_getppid, mock_get_parent_pid, mock_get_cmdline
+    ):
         """Should match tool names case-insensitively."""
         mock_getppid.return_value = 100
         mock_get_parent_pid.side_effect = [None]
-        mock_get_cmdline.side_effect = ["/Applications/CURSOR.APP/Contents/MacOS/Cursor"]
+        mock_get_cmdline.side_effect = [
+            "/Applications/CURSOR.APP/Contents/MacOS/Cursor"
+        ]
 
         result = detect_parent_source()
         self.assertEqual(result, "cursor")

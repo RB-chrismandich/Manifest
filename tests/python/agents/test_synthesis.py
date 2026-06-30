@@ -8,8 +8,6 @@ import asyncio
 import sys
 from pathlib import Path
 
-import pytest
-
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 SCRIPTS_DIR = str(REPO_ROOT / "configs" / "claude" / "scripts")
 sys.path.insert(0, SCRIPTS_DIR)
@@ -32,9 +30,7 @@ class TestSynthesisEngine:
     def test_skips_synthesis_when_consensus_high(self, tmp_path):
         engine = _make_engine(tmp_path)
         consensus = {"consensus_score": 90}
-        result = asyncio.run(
-            engine.synthesize("test task", {}, consensus)
-        )
+        result = asyncio.run(engine.synthesize("test task", {}, consensus))
         assert result is None
 
     def test_template_is_string(self, tmp_path):
@@ -81,9 +77,7 @@ class TestSynthesisEngine:
         engine = _make_engine(tmp_path)
         # Default threshold is 0.50; score of 50 → 50/100 = 0.50 >= threshold → skip
         consensus = {"consensus_score": 50}
-        result = asyncio.run(
-            engine.synthesize("test", {}, consensus)
-        )
+        result = asyncio.run(engine.synthesize("test", {}, consensus))
         assert result is None
 
     def test_triggers_synthesis_below_threshold_without_sdk(self, tmp_path):
@@ -96,9 +90,7 @@ class TestSynthesisEngine:
             engine = _make_engine(tmp_path)
             engine.synthesis_template = "Template: {ORIGINAL_TASK}"
             consensus = {"consensus_score": 10}
-            result = asyncio.run(
-                engine.synthesize("test", {}, consensus)
-            )
+            result = asyncio.run(engine.synthesize("test", {}, consensus))
             assert result is None
         finally:
             synth_module.HAS_ANTHROPIC = original

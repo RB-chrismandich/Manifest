@@ -13,8 +13,8 @@ import yaml
 REPO_ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO_ROOT / "configs" / "claude" / "scripts"))
 
-from smoke_orchestrator.migrate import migrate_dir, translate_browser_test  # noqa: E402
-from smoke_orchestrator.validation import validate_catalog  # noqa: E402
+from smoke_orchestrator.migrate import migrate_dir, translate_browser_test
+from smoke_orchestrator.validation import validate_catalog
 
 
 def _bt(task="Log in and see the dashboard", judge=("dashboard is visible",), **extra):
@@ -24,8 +24,9 @@ def _bt(task="Log in and see the dashboard", judge=("dashboard is visible",), **
 
 
 def test_translate_produces_agent_ui_step():
-    entry = translate_browser_test(_bt(url="/login", max_steps=20, tags=["smoke", "auth"]),
-                                   test_id="login-flow")
+    entry = translate_browser_test(
+        _bt(url="/login", max_steps=20, tags=["smoke", "auth"]), test_id="login-flow"
+    )
     assert entry["id"] == "login-flow"
     assert entry["tier"] == "Full"
     (step,) = entry["steps"]
@@ -52,7 +53,9 @@ def test_migrate_dir_builds_a_valid_catalog(tmp_path):
     src = tmp_path / "browser"
     src.mkdir()
     (src / "login-flow.yaml").write_text(yaml.safe_dump(_bt(url="/login")))
-    (src / "checkout.yaml").write_text(yaml.safe_dump(_bt(task="Buy an item", judge=("order placed",))))
+    (src / "checkout.yaml").write_text(
+        yaml.safe_dump(_bt(task="Buy an item", judge=("order placed",)))
+    )
     catalog = migrate_dir(str(src), app="demo")
     assert catalog["version"] == 1 and catalog["app"] == "demo"
     assert {t["id"] for t in catalog["tests"]} == {"login-flow", "checkout"}

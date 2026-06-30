@@ -27,7 +27,11 @@ def _discover_apps(catalog_dir: str) -> list[str]:
 
 
 def _load_workflow(args: argparse.Namespace) -> dict:
-    raw = sys.stdin.read() if args.stdin else open(args.from_file, encoding="utf-8").read()
+    raw = (
+        sys.stdin.read()
+        if args.stdin
+        else Path(args.from_file).read_text(encoding="utf-8")
+    )
     return json.loads(raw)
 
 
@@ -51,9 +55,15 @@ def _cmd_append(args: argparse.Namespace) -> int:
     except OSError as exc:
         _err(f"I/O error writing catalog: {exc}")
         return 1
-    verb = "would update" if args.dry_run and result.updated else \
-           "would add" if args.dry_run else \
-           "updated" if result.updated else "added"
+    verb = (
+        "would update"
+        if args.dry_run and result.updated
+        else "would add"
+        if args.dry_run
+        else "updated"
+        if result.updated
+        else "added"
+    )
     print(f"{verb} test '{result.id}' in {result.path}")
     return 0
 
@@ -75,12 +85,18 @@ def _cmd_run(args: argparse.Namespace) -> int:
         _err(f"no catalogs found under {args.catalog_dir!r}")
         return 2
 
-    execu = SmokeTestExecutor(catalog_dir=args.catalog_dir, persist_state=args.persist_state)
+    execu = SmokeTestExecutor(
+        catalog_dir=args.catalog_dir, persist_state=args.persist_state
+    )
     redactor = Redactor()
     reports = []
     try:
         for app in apps:
-            reports.append(execu.run(app, tier=args.tier, base_url=args.base_url, redactor=redactor))
+            reports.append(
+                execu.run(
+                    app, tier=args.tier, base_url=args.base_url, redactor=redactor
+                )
+            )
     except ValidationError as exc:
         _err("invalid catalog (not run):")
         for e in exc.errors:
@@ -138,35 +154,76 @@ def build_parser() -> argparse.ArgumentParser:
     )
     sub = p.add_subparsers(dest="command", required=True)
 
-    ap = sub.add_parser("append", help="Add or update one test from a workflow description")
+    ap = sub.add_parser(
+        "append", help="Add or update one test from a workflow description"
+    )
     src = ap.add_mutually_exclusive_group(required=True)
-    src.add_argument("--from", dest="from_file", metavar="FILE", help="workflow description JSON file")
-    src.add_argument("--stdin", action="store_true", help="read workflow description JSON from stdin")
-    ap.add_argument("--catalog-dir", default="smoke-catalog", help="catalog root (default: smoke-catalog)")
-    ap.add_argument("--dry-run", action="store_true", help="validate and report; write nothing")
+    src.add_argument(
+        "--from",
+        dest="from_file",
+        metavar="FILE",
+        help="workflow description JSON file",
+    )
+    src.add_argument(
+        "--stdin", action="store_true", help="read workflow description JSON from stdin"
+    )
+    ap.add_argument(
+        "--catalog-dir",
+        default="smoke-catalog",
+        help="catalog root (default: smoke-catalog)",
+    )
+    ap.add_argument(
+        "--dry-run", action="store_true", help="validate and report; write nothing"
+    )
     ap.set_defaults(func=_cmd_append)
 
     rp = sub.add_parser("run", help="Run the catalog filtered by tier (the gate)")
     rp.add_argument("--app", help="run one app's catalog; omit to run all")
-    rp.add_argument("--tier", default="Lite", help="cumulative tier Lite|Full|Full+Extra (default: Lite)")
-    rp.add_argument("--junit", metavar="PATH", default="smoke-report.xml",
-                    help="write JUnit XML here (default: smoke-report.xml; empty string to skip)")
+    rp.add_argument(
+        "--tier",
+        default="Lite",
+        help="cumulative tier Lite|Full|Full+Extra (default: Lite)",
+    )
+    rp.add_argument(
+        "--junit",
+        metavar="PATH",
+        default="smoke-report.xml",
+        help="write JUnit XML here (default: smoke-report.xml; empty string to skip)",
+    )
     rp.add_argument("--base-url", dest="base_url", help="override the catalog base_url")
-    rp.add_argument("--catalog-dir", default="smoke-catalog", help="catalog root (default: smoke-catalog)")
-    rp.add_argument("--persist-state", dest="persist_state", action="store_true",
-                    help="enable cross-run persisted (non-secret) state")
+    rp.add_argument(
+        "--catalog-dir",
+        default="smoke-catalog",
+        help="catalog root (default: smoke-catalog)",
+    )
+    rp.add_argument(
+        "--persist-state",
+        dest="persist_state",
+        action="store_true",
+        help="enable cross-run persisted (non-secret) state",
+    )
     rp.set_defaults(func=_cmd_run)
 
-    lp = sub.add_parser("list", help="Report coverage (id, tier, step count) without running")
+    lp = sub.add_parser(
+        "list", help="Report coverage (id, tier, step count) without running"
+    )
     lp.add_argument("--app", help="limit to one app")
     lp.add_argument("--json", action="store_true", help="machine-readable output")
-    lp.add_argument("--catalog-dir", default="smoke-catalog", help="catalog root (default: smoke-catalog)")
+    lp.add_argument(
+        "--catalog-dir",
+        default="smoke-catalog",
+        help="catalog root (default: smoke-catalog)",
+    )
     lp.set_defaults(func=_cmd_list)
 
     pp = sub.add_parser("prune", help="Remove a test from a catalog by id (idempotent)")
     pp.add_argument("--app", required=True, help="catalog file to edit")
     pp.add_argument("--id", required=True, help="test identifier to remove")
-    pp.add_argument("--catalog-dir", default="smoke-catalog", help="catalog root (default: smoke-catalog)")
+    pp.add_argument(
+        "--catalog-dir",
+        default="smoke-catalog",
+        help="catalog root (default: smoke-catalog)",
+    )
     pp.set_defaults(func=_cmd_prune)
     return p
 

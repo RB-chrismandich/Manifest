@@ -7,8 +7,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
 from tests.token_benchmark.benchmarks import BENCHMARKS
 from tests.token_benchmark.scorer import (
-    exact_match_letter,
     exact_match_bool,
+    exact_match_letter,
     pass_at_1,
     score,
 )

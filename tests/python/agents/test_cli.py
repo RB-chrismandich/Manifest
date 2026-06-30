@@ -8,12 +8,8 @@ import subprocess
 import sys
 from pathlib import Path
 
-import pytest
-
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent.parent
-ENTRY_POINT = str(
-    REPO_ROOT / "configs" / "claude" / "scripts" / "parallel_agent.py"
-)
+ENTRY_POINT = str(REPO_ROOT / "configs" / "claude" / "scripts" / "parallel_agent.py")
 
 
 def _run(*args, **kwargs):
@@ -84,7 +80,7 @@ SCRIPTS_DIR = str(REPO_ROOT / "configs" / "claude" / "scripts")
 if SCRIPTS_DIR not in sys.path:
     sys.path.insert(0, SCRIPTS_DIR)
 
-from agents.cli import select_backend  # noqa: E402
+from agents.cli import select_backend
 
 
 class TestSelectBackend:

@@ -26,10 +26,12 @@ def run(step: dict, *, page, base_url: str | None, timeout_ms: int) -> StepOutco
             page.wait_for_selector(selector, timeout=timeout_ms)
             actual = page.text_content(selector) or ""
             if (value or "") not in actual:
-                return StepOutcome(False, f"expected text {value!r} in {selector!r}, got {actual!r}")
+                return StepOutcome(
+                    False, f"expected text {value!r} in {selector!r}, got {actual!r}"
+                )
         elif action == "expect_visible":
             page.wait_for_selector(selector, state="visible", timeout=timeout_ms)
-    except Exception as exc:  # noqa: BLE001 - Playwright errors/timeouts → clean failure
+    except Exception as exc:
         return StepOutcome(False, f"ui {action} on {selector or value!r} failed: {exc}")
     return StepOutcome(True, captures=_extract(step.get("captures", {}), page))
 
@@ -43,6 +45,8 @@ def _extract(captures: dict, page) -> dict:
         else:
             value = page.text_content(sel)
         if value is None:
-            raise CaptureError(f"ui capture {name!r}: selector {sel!r} produced no value")
+            raise CaptureError(
+                f"ui capture {name!r}: selector {sel!r} produced no value"
+            )
         out[name] = value
     return out

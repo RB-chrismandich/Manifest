@@ -47,6 +47,7 @@ def debug_log_err(msg: str) -> None:
     if os.environ.get("HOOK_DEBUG") == "1":
         print(f"[detect_source] {msg}", file=sys.stderr)
 
+
 def get_process_cmdline(pid: int) -> str:
     """Get the command line of a process by PID.
 
@@ -65,11 +66,22 @@ def get_process_cmdline(pid: int) -> str:
     if proc_cmdline.exists():
         try:
             # /proc/*/cmdline uses null bytes as separators
-            return proc_cmdline.read_bytes().replace(b"\x00", b" ").decode("utf-8", errors="replace").strip()
+            return (
+                proc_cmdline.read_bytes()
+                .replace(b"\x00", b" ")
+                .decode("utf-8", errors="replace")
+                .strip()
+            )
         except (PermissionError, OSError) as e:
-            print(f"[detect_source] Failed to read cmdline for {pid}: {e}", file=sys.stderr)
+            print(
+                f"[detect_source] Failed to read cmdline for {pid}: {e}",
+                file=sys.stderr,
+            )
         except Exception as e:
-            print(f"[detect_source] Unexpected error reading cmdline for {pid}: {e}", file=sys.stderr)
+            print(
+                f"[detect_source] Unexpected error reading cmdline for {pid}: {e}",
+                file=sys.stderr,
+            )
 
     # Fallback: use ps command (macOS/Linux)
     if sys.platform != "win32":
@@ -87,7 +99,10 @@ def get_process_cmdline(pid: int) -> str:
         except (subprocess.TimeoutExpired, FileNotFoundError, OSError) as e:
             print(f"[detect_source] ps command failed for {pid}: {e}", file=sys.stderr)
         except Exception as e:
-            print(f"[detect_source] Unexpected error running ps for {pid}: {e}", file=sys.stderr)
+            print(
+                f"[detect_source] Unexpected error running ps for {pid}: {e}",
+                file=sys.stderr,
+            )
 
     return ""
 
@@ -114,9 +129,14 @@ def get_parent_pid(pid: int) -> int | None:
                 if len(parts) >= 2:
                     return int(parts[1])
         except (PermissionError, OSError, ValueError) as e:
-            print(f"[detect_source] Failed to read stat for {pid}: {e}", file=sys.stderr)
+            print(
+                f"[detect_source] Failed to read stat for {pid}: {e}", file=sys.stderr
+            )
         except Exception as e:
-            print(f"[detect_source] Unexpected error reading stat for {pid}: {e}", file=sys.stderr)
+            print(
+                f"[detect_source] Unexpected error reading stat for {pid}: {e}",
+                file=sys.stderr,
+            )
 
     # Fallback: use ps command
     if sys.platform != "win32":
@@ -134,9 +154,15 @@ def get_parent_pid(pid: int) -> int | None:
                 # Return None for init/launchd (pid 0 or 1)
                 return ppid if ppid > 1 else None
         except (subprocess.TimeoutExpired, FileNotFoundError, OSError, ValueError) as e:
-            print(f"[detect_source] ps command failed to get ppid for {pid}: {e}", file=sys.stderr)
+            print(
+                f"[detect_source] ps command failed to get ppid for {pid}: {e}",
+                file=sys.stderr,
+            )
         except Exception as e:
-            print(f"[detect_source] Unexpected error getting ppid for {pid}: {e}", file=sys.stderr)
+            print(
+                f"[detect_source] Unexpected error getting ppid for {pid}: {e}",
+                file=sys.stderr,
+            )
 
     return None
 

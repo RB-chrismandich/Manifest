@@ -12,8 +12,8 @@ from __future__ import annotations
 import contextlib
 import json
 import threading
+from collections.abc import Iterator
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from typing import Iterator
 
 PAGE_HTML = """<!doctype html>
 <html><head><title>Invoice 1001</title></head>
@@ -64,10 +64,8 @@ class _Handler(BaseHTTPRequestHandler):
     def do_POST(self) -> None:
         length = int(self.headers.get("Content-Length", 0))
         raw = self.rfile.read(length) if length else b"{}"
-        try:
+        with contextlib.suppress(json.JSONDecodeError):
             json.loads(raw or b"{}")
-        except json.JSONDecodeError:
-            pass
         if self.path == "/login":
             # Return a session id derived server-side; never echo the secret token.
             return self._json(200, {"session_id": "sess-abc123"})

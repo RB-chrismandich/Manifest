@@ -3,16 +3,12 @@
 Render correctness + the --check drift contract (in-sync=0, drift=1).
 Written before the implementation — must FAIL first.
 """
-from pathlib import Path
+
 import sys
+from pathlib import Path
 
-import pytest
-
-sys.path.insert(
-    0, str(Path(__file__).resolve().parents[3] / "configs/claude/scripts")
-)
-import generate_commands_doc as gen  # noqa: E402
-
+sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "configs/claude/scripts"))
+import generate_commands_doc as gen
 
 CATALOG = {
     "generated_for_platform": "claude",
@@ -26,24 +22,36 @@ CATALOG = {
             "description": "Prune stale branches.",
             "when_to_use": "Use when pruning merged or gone branches",
             "category": "git-pr",
-            "availability": {"service_enabled": True, "deployed_to_platform": True,
-                             "status": "available", "reason": None},
+            "availability": {
+                "service_enabled": True,
+                "deployed_to_platform": True,
+                "status": "available",
+                "reason": None,
+            },
         },
         {
             "name": "docs-all",
             "description": "Refresh all docs.",
             "when_to_use": "Refresh all docs.",
             "category": "docs",
-            "availability": {"service_enabled": True, "deployed_to_platform": True,
-                             "status": "available", "reason": None},
+            "availability": {
+                "service_enabled": True,
+                "deployed_to_platform": True,
+                "status": "available",
+                "reason": None,
+            },
         },
         {
             "name": "skillclaw-thing",
             "description": "A gated tool.",
             "when_to_use": "Gated.",
             "category": "git-pr",
-            "availability": {"service_enabled": False, "deployed_to_platform": True,
-                             "status": "unavailable", "reason": "service disabled"},
+            "availability": {
+                "service_enabled": False,
+                "deployed_to_platform": True,
+                "status": "unavailable",
+                "reason": "service disabled",
+            },
         },
     ],
 }

@@ -12,6 +12,7 @@ command prints nothing and exits 0, so the hook never blocks normal work.
 
 Debug: set HOOK_DEBUG=1 to log decisions to stderr.
 """
+
 import json
 import os
 import re
@@ -49,10 +50,8 @@ def succeeded(payload: dict) -> bool:
             return False
         if isinstance(resp.get("exit_code"), int) and resp["exit_code"] != 0:
             return False
-    if isinstance(payload.get("exit_code"), int) and payload["exit_code"] != 0:
-        return False
     # PostToolUse only fires after success; PostToolUseFailure is a separate event.
-    return True
+    return not (isinstance(payload.get("exit_code"), int) and payload["exit_code"] != 0)
 
 
 def main() -> int:

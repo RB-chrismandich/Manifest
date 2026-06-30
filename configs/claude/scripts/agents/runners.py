@@ -4,21 +4,21 @@ Dependency graph: agents.config → agents.runners (no other cross-module deps).
 """
 
 import asyncio
+import contextlib
 import os
 import shutil
 import sys
 import tempfile
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from agents.config import (
-    Config,
     HAS_ANTHROPIC,
     HAS_GENAI,
     HAS_GENAI_NEW,
+    Config,
     Logger,
     RateLimiter,
-    ServiceConfig,
     genai,
 )
 
@@ -41,13 +41,15 @@ class BaseAgent:
         timeout: int,
         rate_limiter: RateLimiter,
         config: Config = None,
-        logger: Optional[Logger] = None,
+        logger: Logger | None = None,
         streaming: bool = False,
         progress_callback=None,
     ):
         self.name = name
         self.model = model
-        self.model_name = model  # Concrete name; subclasses re-resolve via _resolve_model
+        self.model_name = (
+            model  # Concrete name; subclasses re-resolve via _resolve_model
+        )
         self.original_model = model  # Track original for fallback
         self.timeout = timeout
         self.rate_limiter = rate_limiter
@@ -57,7 +59,7 @@ class BaseAgent:
         self.streaming = streaming
         self.progress_callback = progress_callback
 
-    async def execute(self, prompt: str, mode: str = "prompt") -> Dict:
+    async def execute(self, prompt: str, mode: str = "prompt") -> dict:
         """Execute agent with rate limiting, timeout, and credit fallback"""
         await self.rate_limiter.acquire()
 
@@ -69,7 +71,7 @@ class BaseAgent:
             )
 
         # Try with original model first, then fallback on credit exhaustion
-        for attempt in range(3):  # Max 3 fallback attempts
+        for _attempt in range(3):  # Max 3 fallback attempts
             try:
                 # Use streaming or regular execution
                 if self.streaming and hasattr(self, "_execute_streaming"):
@@ -91,7 +93,7 @@ class BaseAgent:
 
                 return result
 
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 if self.logger:
                     self.logger.error(f"[{self.name}] Timeout after {self.timeout}s")
 
@@ -129,7 +131,7 @@ class BaseAgent:
 
                 # Non-recoverable error
                 if self.logger:
-                    self.logger.error(f"[{self.name}] Error: {str(e)}")
+                    self.logger.error(f"[{self.name}] Error: {e!s}")
 
                 return {
                     "status": "failed",
@@ -162,11 +164,11 @@ class BaseAgent:
         ]
         return any(pattern in error for pattern in exhaustion_patterns)
 
-    def _resolve_model(self, tier: str) -> Optional[str]:
+    def _resolve_model(self, tier: str) -> str | None:
         """Resolve a model tier to a concrete model name (subclasses override)."""
         return tier
 
-    def _get_fallback_model(self) -> Optional[str]:
+    def _get_fallback_model(self) -> str | None:
         """Get next fallback model tier"""
         fallback_chain = self.config.get(f"credit_fallback.{self.name}", [])
 
@@ -180,7 +182,7 @@ class BaseAgent:
 
         return None
 
-    async def _execute_impl(self, prompt: str, mode: str) -> Dict:
+    async def _execute_impl(self, prompt: str, mode: str) -> dict:
         """Implementation-specific execution logic"""
         raise NotImplementedError
 
@@ -199,7 +201,7 @@ class ClaudeAgent(BaseAgent):
         timeout: int = 120,
         rate_limiter: RateLimiter = None,
         config: Config = None,
-        logger: Optional[Logger] = None,
+        logger: Logger | None = None,
         streaming: bool = False,
         progress_callback=None,
     ):
@@ -239,7 +241,7 @@ class ClaudeAgent(BaseAgent):
         """Resolve model tier to full model name"""
         return self.config.get(f"model_tiers.claude.{tier}", tier)
 
-    async def _execute_impl(self, prompt: str, mode: str) -> Dict:
+    async def _execute_impl(self, prompt: str, mode: str) -> dict:
         """Execute Claude API request"""
         response = await self.client.messages.create(
             model=self.model_name,
@@ -254,7 +256,7 @@ class ClaudeAgent(BaseAgent):
             "validated": False,
         }
 
-    async def _execute_streaming(self, prompt: str, mode: str) -> Dict:
+    async def _execute_streaming(self, prompt: str, mode: str) -> dict:
         """Execute Claude API request with streaming"""
         output_buffer = []
 
@@ -290,7 +292,7 @@ class GeminiAgent(BaseAgent):
         timeout: int = 120,
         rate_limiter: RateLimiter = None,
         config: Config = None,
-        logger: Optional[Logger] = None,
+        logger: Logger | None = None,
         streaming: bool = False,
         progress_callback=None,
     ):
@@ -360,7 +362,7 @@ class GeminiAgent(BaseAgent):
         """Resolve model tier to full model name"""
         return self.config.get(f"model_tiers.gemini.{tier}", tier)
 
-    async def _execute_impl(self, prompt: str, mode: str) -> Dict:
+    async def _execute_impl(self, prompt: str, mode: str) -> dict:
         """Execute Gemini API request"""
         if HAS_GENAI_NEW:
             # New package API
@@ -381,7 +383,7 @@ class GeminiAgent(BaseAgent):
             "validated": False,
         }
 
-    async def _execute_streaming(self, prompt: str, mode: str) -> Dict:
+    async def _execute_streaming(self, prompt: str, mode: str) -> dict:
         """Execute Gemini API request with streaming"""
         output_buffer = []
 
@@ -434,7 +436,7 @@ class CLIAgent(BaseAgent):
         timeout: int = 120,
         rate_limiter: RateLimiter = None,
         config: Config = None,
-        logger: Optional[Logger] = None,
+        logger: Logger | None = None,
         streaming: bool = False,
         progress_callback=None,
     ):
@@ -454,23 +456,21 @@ class CLIAgent(BaseAgent):
             raise ValueError(f"no cli_agents config for provider: {provider}")
         self.binary = spec.get("binary")
         if not self.binary:
-            raise ValueError(
-                f"cli_agents.{provider}.binary is required but missing"
-            )
+            raise ValueError(f"cli_agents.{provider}.binary is required but missing")
         self.base_args = list(spec.get("base_args", []))
         self.model_args = list(spec.get("model_args", []))
         self.prompt_args = list(spec.get("prompt_args", ["{prompt}"]))
         self.output_strategy = spec.get("output", "stdout")
         self.model_name = self._resolve_model(model)
 
-    def _resolve_model(self, tier: str) -> Optional[str]:
+    def _resolve_model(self, tier: str) -> str | None:
         """Resolve model tier to full model name. Returns None for 'auto'."""
         if tier == "auto":
             return None
         resolved = self.config.get(f"model_tiers.{self.name}.{tier}")
         return resolved if resolved else tier
 
-    def _build_command(self, prompt: str, output_file: Optional[str] = None) -> List[str]:
+    def _build_command(self, prompt: str, output_file: str | None = None) -> list[str]:
         """Assemble argv: binary + base_args + optional model group + prompt_args.
 
         model_args are appended only when a model is resolved — the group is
@@ -512,12 +512,12 @@ class CLIAgent(BaseAgent):
         return cmd
 
     def _collect_output(
-        self, returncode: int, stdout: bytes, stderr: bytes, output_file: Optional[str]
-    ) -> Dict:
+        self, returncode: int, stdout: bytes, stderr: bytes, output_file: str | None
+    ) -> dict:
         """Apply the provider's output strategy: file > stdout > stderr-on-error."""
         output = ""
         if output_file and os.path.exists(output_file):
-            with open(output_file, "r") as f:
+            with open(output_file) as f:
                 output = f.read().strip()
         if not output:
             output = stdout.decode("utf-8", errors="ignore").strip()
@@ -543,7 +543,7 @@ class CLIAgent(BaseAgent):
             "validated": False,
         }
 
-    async def _execute_impl(self, prompt: str, mode: str) -> Dict:
+    async def _execute_impl(self, prompt: str, mode: str) -> dict:
         if not shutil.which(self.binary):
             return {
                 "status": "missing",
@@ -582,8 +582,5 @@ class CLIAgent(BaseAgent):
             return self._collect_output(proc.returncode, stdout, stderr, output_file)
         finally:
             if output_file:
-                try:
+                with contextlib.suppress(OSError):
                     os.unlink(output_file)
-                except OSError:
-                    pass
-

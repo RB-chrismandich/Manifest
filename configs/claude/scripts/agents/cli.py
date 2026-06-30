@@ -4,7 +4,6 @@ Dependency graph: config + runners + orchestrator → cli (highest fan-in by des
 """
 
 import argparse
-import asyncio
 import json
 import os
 import shutil
@@ -13,14 +12,19 @@ from datetime import datetime
 from pathlib import Path
 
 from agents.config import (
-    Config,
     HAS_ANTHROPIC,
     HAS_GENAI,
+    Config,
     Logger,
     RateLimiter,
     ServiceConfig,
 )
 from agents.orchestrator import Orchestrator, check_credits
+from agents.runners import (
+    ClaudeAgent,
+    CLIAgent,
+    GeminiAgent,
+)
 
 
 def select_backend(has_sdk: bool, has_key: bool, has_cli: bool):
@@ -41,12 +45,6 @@ def select_backend(has_sdk: bool, has_key: bool, has_cli: bool):
     if has_sdk:
         return "sdk"
     return None
-from agents.runners import (
-    BaseAgent,
-    ClaudeAgent,
-    CLIAgent,
-    GeminiAgent,
-)
 
 
 async def main():
