@@ -306,3 +306,11 @@ After completing the analysis, capture the most significant findings:
      ```
 
 3. This step is **non-blocking** -- failures in learning capture should not affect the analysis output.
+
+## Sub-agent dispatch
+
+When ≥3 independent modules or analysis dimensions exist, dispatch one sub-agent per module to analyze it,
+then merge findings; below that, analyze inline. Pick the mechanism per the shared Sub-Agent Selection Rules
+(`configs/claude/references/sub-agent-dispatch.md`): native Task sub-agents on Claude, or
+`parallel_agent.py` / inline on other assistants. Dispatched sub-agents execute their task directly and
+do not re-dispatch.

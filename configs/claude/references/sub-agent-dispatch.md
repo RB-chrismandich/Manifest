@@ -1,0 +1,96 @@
+# Sub-Agent Dispatch & Selection Rules
+
+> Read-on-demand reference (NOT auto-loaded). Skills that fan work out link here instead of
+> restating these rules. Indexed from `configs/claude/CLAUDE.md` → "Reference Index".
+
+This repo has **two** sub-agent paradigms. A skill's `tool_policies` entry in
+`config/command_config.yml` records which it uses (`subagents` and/or `parallel_agents`); the skill
+body states the concrete trigger and links here.
+
+## The two mechanisms
+
+| Mechanism | What it is | Use for | Availability |
+|-----------|-----------|---------|--------------|
+| **Native Task/Agent sub-agents** | In-session sub-agents dispatched via the Task tool (Explore, general-purpose, …) | Parallel reads, fan-out research, independent per-item work, broad audits | **Claude only** |
+| **`parallel_agent.py`** | External multi-CLI cross-verification (Gemini/Cursor/Codex/Antigravity) with consensus scoring | Independent cross-model verification of one artifact/decision | Cross-platform |
+
+## Selection rules (by task type)
+
+| Task type | Mechanism | Notes |
+|-----------|-----------|-------|
+| Parallel information-gathering / research / broad audit (many independent items) | Native Task sub-agents | One sub-agent per item/batch. On non-Claude assistants → `parallel_agent.py` or inline. |
+| Independent cross-model verification of a security-sensitive, architectural, or >200-line change | `parallel_agent.py` | Required by the constitution's Tier-1 gate (Principle II). Not native sub-agents. |
+| Trivial / single-unit / fewer than the threshold | **Inline** | No dispatch — overhead is not justified. |
+
+## When to dispatch (the threshold)
+
+Dispatch only when **≥3 independent units of work** exist, OR an existing per-skill scale threshold
+is exceeded (e.g., `total_doc_lines >= 500`, `unique_imports >= 5`). Below that, do the work inline.
+This default keeps token-economy intact; the structured value lives in each skill's
+`subagent_trigger` in `command_config.yml` (authoritative), and the skill body's prose must agree.
+
+## No recursion
+
+A dispatched sub-agent performs its assigned task **directly** and does **not** itself fan out
+further sub-agents. This prevents agent-explosion.
+
+## Cross-platform fallback
+
+Native Task/Agent sub-agents exist only on Claude. On Cursor / Gemini / Codex / Antigravity a skill
+MUST either use `parallel_agent.py` (cross-platform) or run the work inline — never leave a non-Claude
+assistant without an executable path.
+
+---
+
+## Convention: adding (or declining) sub-agent guidance to a skill
+
+The durable contributor convention (this is the one documented place).
+
+### 1. Classify the skill
+
+| Does the work decompose into independent units? | `subagents` | Example |
+|--------------------------------------------------|-------------|---------|
+| Decomposition IS the job (always fan out) | `always` | `docs-all` |
+| Only above the threshold | `conditional` | `refactor-python` |
+| Single-step / sequential / mutates shared state | `never` | `checkpoint` |
+
+### 2. Record it in `config/command_config.yml` (canonical store)
+
+```yaml
+tool_policies:
+  <skill-name>:
+    subagents: conditional
+    subagent_trigger: "independent_units >= 3"   # only when conditional
+    # subagent_rationale: "<one line>"           # when never (or as a SKILL.md note, below)
+```
+
+For a `never` skill you may record the rationale either as `subagent_rationale` here **or** as a
+one-line marker in the `SKILL.md` body: `> Sub-agents: not used — <reason>.` The enforcement test
+accepts either form.
+
+### 3. Add the in-body trigger (always / conditional only)
+
+In the skill's `SKILL.md` **body** (never frontmatter — frontmatter is auto-loaded):
+
+```markdown
+## Sub-agent dispatch
+
+When ≥3 independent <units> exist, dispatch one sub-agent per <unit> to <task>, then merge.
+Below that, do it inline. Pick the mechanism per the shared Sub-Agent Selection Rules
+(`configs/claude/references/sub-agent-dispatch.md`): native Task sub-agents on Claude, or
+`parallel_agent.py` / inline on other assistants. Sub-agents execute directly and do not re-dispatch.
+```
+
+### 4. Do NOT restate these rules
+
+Link here; never copy. The selection rules and threshold live once, in this file.
+
+### 5. Verify
+
+```bash
+bats tests/bats/subagent_policy.bats        # coverage + consistency gate
+yamllint configs/claude/config/command_config.yml
+```
+
+A new skill with no `subagents` disposition fails the test until classified — the intended forcing
+function.

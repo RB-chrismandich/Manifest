@@ -737,3 +737,10 @@ Consensus thresholds:
 - 70-84%: RECOMMEND (require user approval)
 - 50-69%: HIGHLIGHT disagreements
 - <50%: ESCALATE to user
+
+## Sub-agent dispatch
+
+When ≥3 issues need auditing, dispatch one sub-agent per issue batch to triage, then consolidate; below that, triage
+inline. Pick the mechanism per the shared Sub-Agent Selection Rules (`configs/claude/references/sub-agent-dispatch.md`):
+native Task sub-agents on Claude, or `parallel_agent.py` / inline on other assistants. Dispatched sub-agents execute
+their task directly and do not re-dispatch.
