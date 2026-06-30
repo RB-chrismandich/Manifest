@@ -61,15 +61,13 @@ def main() -> int:
         debug("payload not string; no-op")
         return 0
 
-    first_char = next((c for c in raw if not c.isspace()), "")
-    if not first_char:
+    if not raw.strip():
         payload = {}
-    elif first_char not in '{["tfn0123456789-.':
-        debug("payload not JSON; no-op")
-        return 0
     else:
         try:
             payload = json.loads(raw)
+            if not isinstance(payload, dict):
+                payload = {}
         except json.JSONDecodeError:
             debug("payload not JSON; no-op")
             return 0

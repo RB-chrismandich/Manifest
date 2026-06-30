@@ -1,0 +1,58 @@
+# Project configuration for the Manifest repo's Python tooling.
+# Single source of truth for ruff (lint + format), pytest, coverage, and pyright
+# (feature 366-coding-standards, FR-013). Ruff/pytest read this automatically.
+
+[tool.ruff]
+# Match ruff-format's default; keeps edit-time, commit, and CI in agreement.
+line-length = 88
+target-version = "py311"
+# Scaffolds, specs, and vendored/agent dirs are not product code.
+extend-exclude = [
+    "templates",
+    "specs",
+    ".specify",
+    ".Jules",
+    "node_modules",
+]
+
+[tool.ruff.lint]
+# High-value, mostly auto-fixable rule groups. Deliberately omits noisy/unfixable
+# groups (S/bandit, N/naming, ANN, D) for now; the changed-files gate lets the
+# selection ratchet up later without a repo-wide rewrite.
+select = ["E", "W", "F", "I", "UP", "B", "C4", "SIM", "RUF"]
+# ruff-format owns line length; E501 only flags lines the formatter can't break
+# (long strings/URLs) and would otherwise create noise on the changed-files gate.
+ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+# Tests legitimately manipulate sys.path before imports (E402) and use assert
+# (S101 — inert unless S is selected, kept for forward-compat).
+"tests/**" = ["E402", "S101"]
+
+[tool.ruff.format]
+# Explicit, matches the existing ruff-format pre-commit hook behavior.
+quote-style = "double"
+indent-style = "space"
+
+[tool.pytest.ini_options]
+addopts = "--strict-markers --strict-config"
+testpaths = ["tests/python"]
+
+[tool.coverage.run]
+branch = true
+
+[tool.coverage.report]
+# Advisory target; not wired as a hard CI gate (the ≥100-test floor remains the gate).
+fail_under = 80
+show_missing = true
+
+[tool.pyright]
+# Type-check config surface (FR-008 family / R8). Lenient + scoped: the codebase
+# is largely untyped, so the pyright pre-commit hook is registered at the `manual`
+# stage (opt-in: `pre-commit run pyright --hook-stage manual`) rather than blocking
+# the changed-files gate until typed coverage grows.
+typeCheckingMode = "basic"
+include = ["configs/claude/scripts", "tests/python"]
+exclude = ["templates", "specs", ".specify", ".Jules", "node_modules"]
+reportMissingImports = false
+reportMissingModuleSource = false

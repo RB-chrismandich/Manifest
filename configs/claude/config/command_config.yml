@@ -59,6 +59,15 @@ synthesis_priority:
   - style           # Formatting and style
 
 # Tool policies per command
+#
+# Sub-agent fields (feature 367 — see configs/claude/references/sub-agent-dispatch.md):
+#   parallel_agents: always|conditional|never|gate-only  # external parallel_agent.py cross-verification
+#   trigger_condition: "<expr>"                           # scale gate for parallel_agents: conditional
+#   subagents:         always|conditional|never           # native Task/Agent sub-agents (Claude)
+#   subagent_trigger:  "<expr>"                            # REQUIRED when subagents: conditional; convention: independent_units >= 3
+#   subagent_rationale: "<one line>"                       # for subagents: never (or a `> Sub-agents: not used — <reason>.` note in SKILL.md)
+# Every skill directory with a SKILL.md MUST carry a `subagents` value (enforced by tests/bats/subagent_policy.bats).
+# command_config.yml is the canonical store; SKILL.md prose must agree and is verified by that test.
 tool_policies:
   auto-issue-dev:
     allowed:
@@ -75,6 +84,8 @@ tool_policies:
     parallel_agents: gate-only
     validation_tier: 1
 
+    subagents: never
+    subagent_rationale: Develops exactly one issue per invocation then stops; /loop handles iteration.
   post-pr-review-monitor:
     allowed:
       - Bash
@@ -85,6 +96,8 @@ tool_policies:
     parallel_agents: never        # orchestrates other skills; no cross-verification fan-out
     validation_tier: 1            # pushes commits + posts PR comments
 
+    subagents: never
+    subagent_rationale: Self-paced interactive loop babysitting a single PR sequentially.
   pr-regression-smoke:
     allowed:
       - Bash       # run_pr_regression.sh: lint/bats/pytest, bootstrap, check_status, parallel_agent
@@ -96,6 +109,8 @@ tool_policies:
     parallel_agents: never        # a CI-mirror gate runner, not a cross-verification fan-out
     validation_tier: 2            # verification skill; no source mutation
 
+    subagents: never
+    subagent_rationale: Single deterministic bundled runner executing sequential whole-repo gates.
   smoke-orchestrator:
     allowed:
       - Bash       # smoke_test.py append/run/list/prune; opt-in playwright install
@@ -117,7 +132,8 @@ tool_policies:
     forbidden: []
     parallel_agents: never        # a state-gated driver, not a cross-verification fan-out
     validation_tier: 1            # safety-gate logic + handles env-injected provider secrets
-
+    subagents: never
+    subagent_rationale: Single config-driven engine runs the catalog sequentially via one script.
   pr-issue-sync:
     allowed:
       - Bash
@@ -130,6 +146,8 @@ tool_policies:
     enabled: false              # opt-in runtime gate (install_issue_hooks.sh --enable)
     hook_timeout_seconds: 5     # fail-open soft timeout bound
 
+    subagents: never
+    subagent_rationale: Single-PR fail-open hook mutating tracker issue state.
   commit-issue-sync:
     allowed:
       - Bash
@@ -143,6 +161,8 @@ tool_policies:
     hook_timeout_seconds: 5     # fail-open soft timeout bound
     commit_hook_mode: sync      # sync only in v1; 'background' reserved (falls back to sync)
 
+    subagents: never
+    subagent_rationale: Fail-open hook mutating one linked issue per commit; sequential shared-state.
   docs-readme:
     allowed:
       - Read
@@ -153,6 +173,8 @@ tool_policies:
     parallel_agents: never
     validation_tier: 2
 
+    subagents: never
+    subagent_rationale: 'Single-target: improves one README from code-derived facts.'
   refactor-python:
     allowed:
       - Read
@@ -168,6 +190,8 @@ tool_policies:
       - context7   # Python library/API documentation
       - deepwiki   # Dependency internals and upstream contracts
 
+    subagents: conditional
+    subagent_trigger: independent_units >= 3
   docs-diagrams:
     allowed:
       - Read
@@ -179,6 +203,8 @@ tool_policies:
     trigger_condition: unique_imports >= 5
     validation_tier: 2
 
+    subagents: never
+    subagent_rationale: One diagram doc for a single codebase; uses parallel_agent.py, not native fan-out.
   docs-improve:
     allowed:
       - Read
@@ -193,6 +219,8 @@ tool_policies:
       - deepwiki   # Cross-reference dependency docs for accuracy
       - context7   # Library/API docs for code examples in documentation
 
+    subagents: never
+    subagent_rationale: Holistic docs-set audit with one health score; not independent units.
   refactor-shell:
     allowed:
       - Read
@@ -207,6 +235,8 @@ tool_policies:
     security_cli:
       - semgrep    # Local SAST scanning via CLI (requires Bash)
 
+    subagents: conditional
+    subagent_trigger: independent_units >= 3
   refactor-node:
     allowed:
       - Read
@@ -222,6 +252,8 @@ tool_policies:
       - context7   # Node/TS library documentation
       - deepwiki   # Dependency internals and upstream contracts
 
+    subagents: conditional
+    subagent_trigger: independent_units >= 3
   refactor-go:
     allowed:
       - Read
@@ -237,6 +269,8 @@ tool_policies:
       - context7   # Go library documentation
       - deepwiki   # Dependency internals and upstream contracts
 
+    subagents: conditional
+    subagent_trigger: independent_units >= 3
   refactor-terraform:
     allowed:
       - Read
@@ -253,6 +287,8 @@ tool_policies:
     security_cli:
       - semgrep    # Local SAST scanning via CLI (requires Bash)
 
+    subagents: conditional
+    subagent_trigger: independent_units >= 3
   plan-manage:
     allowed:
       - Read
@@ -273,6 +309,8 @@ tool_policies:
       - glean      # Internal team knowledge, runbooks, ADRs
       - opentofu   # OpenTofu registry docs when planning IaC changes
 
+    subagents: never
+    subagent_rationale: Interactive plan-lifecycle management acting on one plan per action.
   code-quality:  # skill
     allowed:
       - Read
@@ -289,6 +327,8 @@ tool_policies:
     security_cli:
       - semgrep    # Local SAST scanning via CLI (requires Bash)
 
+    subagents: never
+    subagent_rationale: Auto-triggered inline review of a single detected file; non-blocking.
   issue-triage:
     allowed:
       - Read
@@ -307,6 +347,8 @@ tool_policies:
       - linear      # Primary: Linear MCP for issue operations
       - atlassian   # Alternative: Jira issues when project uses Atlassian
 
+    subagents: conditional
+    subagent_trigger: independent_units >= 3
   issue-prioritize:
     allowed:
       - Read
@@ -325,6 +367,8 @@ tool_policies:
       - linear      # Primary: Linear issue data
       - atlassian   # Alternative: Jira issues when project uses Atlassian
 
+    subagents: conditional
+    subagent_trigger: open_issues >= 10
   auto-dev-issue-prep:
     allowed:
       - Read
@@ -340,6 +384,8 @@ tool_policies:
     trigger_condition: scenario_based
     validation_tier: 2
 
+    subagents: never
+    subagent_rationale: Preps exactly one issue and mutates its labels/body; single-target.
   speckit-implement-review:
     allowed:
       - Read
@@ -354,6 +400,8 @@ tool_policies:
     trigger_condition: post_implement
     validation_tier: 2
 
+    subagents: conditional
+    subagent_trigger: independent_units >= 3
   health-check:
     allowed:
       - Read
@@ -367,6 +415,8 @@ tool_policies:
     parallel_agents: never
     validation_tier: 2
 
+    subagents: never
+    subagent_rationale: Diagnoses one environment into a single summary table; sequential checks.
   browser-test:  # skill
     allowed:
       - Read
@@ -383,6 +433,8 @@ tool_policies:
       - context7   # browser-use library documentation
       - deepwiki   # browser-use internals and API contracts
 
+    subagents: never
+    subagent_rationale: Deprecated single-target migration shim for legacy YAML prompts.
   sync-configs:
     allowed:
       - Read
@@ -396,6 +448,8 @@ tool_policies:
     parallel_agents: never
     validation_tier: 2
 
+    subagents: never
+    subagent_rationale: Single sequential audit collecting checks into one drift summary.
   token-economy:
     allowed:
       - Read
@@ -407,6 +461,8 @@ tool_policies:
     parallel_agents: never
     validation_tier: 2
 
+    subagents: never
+    subagent_rationale: Session-mode mutator that changes output behavior; nothing to dispatch.
   version-pin:
     allowed:
       - Read
@@ -418,6 +474,8 @@ tool_policies:
     parallel_agents: always   # Security-sensitive supply-chain change (Constitution II)
     validation_tier: 1
 
+    subagents: never
+    subagent_rationale: Thin wrapper running one tree-walking script that mutates files in place.
   docs-all:
     allowed:
       - Read
@@ -429,6 +487,7 @@ tool_policies:
     parallel_agents: conditional
     validation_tier: 2
 
+    subagents: always
   pr-review:
     allowed:
       - Read
@@ -441,6 +500,8 @@ tool_policies:
     parallel_agents: never
     validation_tier: 2
 
+    subagents: conditional
+    subagent_trigger: independent_units >= 3
   branch-clean:
     allowed:
       - Read
@@ -450,6 +511,8 @@ tool_policies:
     parallel_agents: conditional   # Tier 1 on the destructive --apply path
     validation_tier: 1
 
+    subagents: never
+    subagent_rationale: Single script run mutating the shared local branch set; parallelism unsafe.
   repo-hygiene:
     allowed:
       - Read
@@ -462,13 +525,190 @@ tool_policies:
     parallel_agents: conditional   # Tier 1 on the destructive close/prune path
     validation_tier: 1
 
+    subagents: conditional
+    subagent_trigger: independent_units >= 3
   token-benchmark:
     allowed:
       - Read
       - Bash
       - Write
     description: "Token benchmark harness — runs Python scripts and reads/writes result files"
-
+    subagents: never
+    subagent_rationale: Single benchmark harness run via one script; provider sweep handled internally.
+  a11y-audit:
+    subagents: conditional
+    subagent_trigger: target_files >= 3
+  address-pr-comments:
+    subagents: never
+    subagent_rationale: Single PR; fixes mutate one working tree and must be re-tested/pushed sequentially.
+  ai-hooks-integration:
+    subagents: never
+    subagent_rationale: Single hook-install operation editing shared config files; not a multi-item fan-out.
+  antipattern-detect:
+    subagents: never
+    subagent_rationale: Auto-triggered analyzer writing one shared knowledge_base.yml; parallel writes unsafe.
+  api-bulk-endpoint-optimization:
+    subagents: never
+    subagent_rationale: Single sequential optimization investigation of one API loop.
+  app-native-config-validation:
+    subagents: never
+    subagent_rationale: Single-app config validation gate; one parser run per config.
+  architecture-decision-tradeoff-table:
+    subagents: never
+    subagent_rationale: Single design decision producing one trade-off table.
+  bot-pr-triage:
+    subagents: conditional
+    subagent_trigger: bot_prs >= 3
+  checkpoint:
+    subagents: never
+    subagent_rationale: Summarizes the single current session; inherently sequential.
+  ci-lint-config-drift:
+    subagents: never
+    subagent_rationale: Diagnoses one CI lint-config mismatch through a linear root-cause-then-fix sequence.
+  ci-setup:
+    subagents: never
+    subagent_rationale: Configures CI for one repo, writing shared config files; sequential and mutating.
+  ci-workflow-trigger-security:
+    subagents: conditional
+    subagent_trigger: workflow_files >= 3
+  clean-pr-from-stale-base:
+    subagents: never
+    subagent_rationale: Single-branch git surgery mutating shared git state; sequential.
+  cli-help-before-dependency-checks:
+    subagents: never
+    subagent_rationale: Reorders one entry point's help path; edit-focused single target.
+  containerized-internal-service-probe:
+    subagents: never
+    subagent_rationale: Spawns a throwaway container to probe one internal service; sequential debugging.
+  dashboard:
+    subagents: never
+    subagent_rationale: Aggregates logs into one dashboard report; single sequential aggregation.
+  debug-layered-config-substitution:
+    subagents: never
+    subagent_rationale: Single sequential debugging investigation of one app's config layer.
+  deploy-drift-root-cause:
+    subagents: never
+    subagent_rationale: Single root-cause investigation mutating the source-of-truth deployer; sequential.
+  diagnose-stalled-background-process:
+    subagents: never
+    subagent_rationale: Single-target diagnosis of one stalled process; measure-classify-fix is sequential.
+  diff-security-review:
+    subagents: never
+    subagent_rationale: Reviews one diff as a coherent source-to-sink pass; single target.
+  docker-published-port-firewall-audit:
+    subagents: never
+    subagent_rationale: Single firewall/port audit of one deploy config; sequential chain analysis.
+  graphify:
+    subagents: never
+    subagent_rationale: Thin wrapper over a single graphify CLI invocation; sequential.
+  headless-llm-cli-seam:
+    subagents: never
+    subagent_rationale: Single coding pattern for wiring one LLM CLI call behind a stdin seam.
+  help:
+    subagents: never
+    subagent_rationale: Read-only interactive command discovery; single catalog query.
+  ingestion-table-idempotency:
+    subagents: never
+    subagent_rationale: Single design decision for one table; sequential reasoning.
+  learning-loop:
+    subagents: never
+    subagent_rationale: Interactive capture/query of one knowledge-base entry; mutates shared YAML.
+  live-data-validation:
+    subagents: never
+    subagent_rationale: Single end-to-end validation pass over one pipeline; sequential.
+  llm-output-path-traversal-audit:
+    subagents: never
+    subagent_rationale: Focused single-concern security audit of one code area; sequential.
+  locate-missing-artifact-across-git:
+    subagents: never
+    subagent_rationale: Ordered search-and-stop for one artifact; stops on first hit.
+  mcp-server-security-audit:
+    subagents: never
+    subagent_rationale: Single-target audit of one MCP server with ordered, dependent checks.
+  memory-log-compress:
+    subagents: never
+    subagent_rationale: Single document/log transformation; sequential text compression.
+  merge-stacked-pr-chain:
+    subagents: never
+    subagent_rationale: Strictly ordered bottom-up merge choreography mutating shared git/PR state.
+  meta-prompt-optimize:
+    subagents: never
+    subagent_rationale: Optimizes one prompt through a fixed sequential pipeline; single target.
+  out-of-band-cache-warm:
+    subagents: never
+    subagent_rationale: Single diagnose-then-remediate workflow warming one shared cache.
+  pass-cli:
+    subagents: never
+    subagent_rationale: Interactive single-secret retrieval requiring the user's auth step.
+  performance-check:
+    subagents: never
+    subagent_rationale: Single-project static perf audit; sequential phases into one report.
+  pin-known-bug-test-survives-fix:
+    subagents: never
+    subagent_rationale: 'Tiny single-target task: write one tolerant test assertion.'
+  project-commit:
+    subagents: never
+    subagent_rationale: Sequential commit pipeline with ordered phases that mutates the repo.
+  reproduce-gated-ci-failure-locally:
+    subagents: never
+    subagent_rationale: Single-target sequential diagnosis and reproduction of one failing CI step.
+  research-validate-design:
+    subagents: conditional
+    subagent_trigger: assumptions >= 3
+  reset-reapply-clean-pr:
+    subagents: never
+    subagent_rationale: Single-branch sequential git history surgery mutating shared state.
+  retire-component-cleanup:
+    subagents: never
+    subagent_rationale: Retires one component via sequential verification steps with confirmation gates.
+  scaffold:
+    subagents: never
+    subagent_rationale: Initializes one project sequentially; mutates a single directory.
+  secret-safe-upstream-proxy:
+    subagents: never
+    subagent_rationale: Single-service design guidance for building one proxy; sequential checklist.
+  secure-comment-triggered-workflow:
+    subagents: never
+    subagent_rationale: Builds/hardens one CI workflow via an ordered governance checklist.
+  security-finding-refutation:
+    subagents: conditional
+    subagent_trigger: candidate_findings >= 3
+  security-finding-triage:
+    subagents: conditional
+    subagent_trigger: candidate_findings >= 3
+  session-memory-compress:
+    subagents: never
+    subagent_rationale: Sequential compression of one memory artifact; mutates a single shared file.
+  shell-pipefail-subshell-audit:
+    subagents: never
+    subagent_rationale: Single-script audit; substitutions tightly coupled within one file.
+  shell-sete-silent-abort-audit:
+    subagents: never
+    subagent_rationale: Single-script/sourced-chain audit of coupled control-flow hazards; sequential.
+  skill-evolve:
+    subagents: never
+    subagent_rationale: Thin wrapper invoking one promote script (handles its own batching) and opens a PR.
+  spec-review:
+    subagents: never
+    subagent_rationale: Analysis-only; delegates to external parallel_agent.py for one combined review.
+  statistical-test-fixture-variance:
+    subagents: never
+    subagent_rationale: Single-target guidance checklist; no items to fan out.
+  triage-bot-pr-flood:
+    subagents: conditional
+    subagent_trigger: bot_prs >= 3
+  ux-review:
+    subagents: conditional
+    subagent_trigger: independent_units >= 3
+  verify:
+    subagents: never
+    subagent_rationale: Single target project; runs its own lint/test/scan chain internally.
+  verify-premise:
+    subagents: never
+    subagent_rationale: Verifies one load-bearing assumption against a source of truth; single-target.
+  wire-new-field-end-to-end:
+    subagents: never
+    subagent_rationale: Sequential trace of one field across three sites; single-target.
 
 # Version-pinning rule set (consumed by scripts/version_pin.sh).
 # Maps file globs to an ecosystem and hash form. Notes on the fields:

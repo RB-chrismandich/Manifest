@@ -294,6 +294,13 @@ All agents share the same orchestration script at `configs/claude/scripts/parall
   Consensus thresholds and verdict rules (`APPROVED`/`NEEDS_REVIEW`/`BLOCKED`):
   `configs/claude/references/orchestration.md`.
 
+## Coding Standards
+
+Per-language coding standards and how they are enforced (editor → edit-time →
+commit → CI) are documented in
+[docs/CODING_STANDARDS.md](docs/CODING_STANDARDS.md). An advisory PostToolUse hook
+lints each file you edit; the CI gate runs `pre-commit` on changed files.
+
 ## Testing Changes
 
 ```bash

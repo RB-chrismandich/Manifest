@@ -1,0 +1,61 @@
+# Pre-change enforcement baseline — feature 366 (captured 2026-06-29)
+
+## Tool availability in build sandbox
+- shellcheck   /opt/homebrew/bin/shellcheck
+- ruff         /Library/Frameworks/Python.framework/Versions/3.14/bin/ruff
+- yamllint     /Library/Frameworks/Python.framework/Versions/3.14/bin/yamllint
+- markdownlint MISSING
+- pre-commit   MISSING
+- shfmt        MISSING
+- pyright      MISSING
+
+## ruff debt (default rules) — what 'pre-commit run --all-files' would surface
+    308	E501  	[ ] line-too-long
+     68	UP006 	[*] non-pep585-annotation
+     50	RUF100	[*] unused-noqa
+     46	UP045 	[*] non-pep604-annotation-optional
+     24	I001  	[*] unsorted-imports
+     22	UP031 	[ ] printf-string-formatting
+     20	F401  	[*] unused-import
+     14	RUF005	[ ] collection-literal-concatenation
+     10	UP035 	[-] deprecated-import
+      8	SIM105	[ ] suppressible-exception
+      7	SIM117	[ ] multiple-with-statements
+      5	RUF059	[ ] unused-unpacked-variable
+      5	UP015 	[*] redundant-open-modes
+      5	UP041 	[*] timeout-error-alias
+      4	UP017 	[*] datetime-timezone-utc
+      4	UP037 	[*] quoted-annotation
+      3	E702  	[ ] multiple-statements-on-one-line-semicolon
+      3	F541  	[*] f-string-missing-placeholders
+      2	B904  	[ ] raise-without-from-inside-except
+      2	B905  	[ ] zip-without-explicit-strict
+      2	C416  	[ ] unnecessary-comprehension
+      2	F821  	[ ] undefined-name
+      2	RUF015	[ ] unnecessary-iterable-allocation-for-first-element
+      2	RUF022	[*] unsorted-dunder-all
+      2	RUF046	[ ] unnecessary-cast-to-int
+      2	SIM102	[ ] collapsible-if
+      1	B007  	[ ] unused-loop-control-variable
+      1	B011  	[ ] assert-false
+      1	E402  	[ ] module-import-not-at-top-of-file
+      1	RUF010	[*] explicit-f-string-type-conversion
+      1	RUF013	[ ] implicit-optional
+      1	SIM103	[ ] needless-bool
+      1	SIM108	[ ] if-else-block-instead-of-if-exp
+      1	SIM115	[ ] open-file-with-context-handler
+    Found 630 errors.
+    [*] 235 fixable with the `--fix` option (47 hidden fixes can be enabled with the `--unsafe-fixes` option).
+
+    By directory:
+     300 configs/claude
+     193 tests/python
+      83 .skillshare/skills
+      54 tests/token_benchmark
+
+## Notes
+- pre-commit/shfmt/markdownlint not installable in the build sandbox (no network);
+  full 'pre-commit run --all-files' could not be executed here. shfmt/markdown
+  debt is therefore unmeasured but presumed nonzero across 46 .sh / 303 .md.
+- DECISION (spec Clarifications 2026-06-29): CI gates CHANGED files, not --all-files,
+  to avoid blocking on this pre-existing debt. Debt is paid down as files are touched.

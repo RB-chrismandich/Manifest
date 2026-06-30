@@ -239,12 +239,10 @@ def trim(max_runs=MAX_RUNS):
         if not path.exists():
             return
         order, seen = [], set()
-        # ⚡ Bolt: Cache parsed json values to prevent duplicate json.loads calls
-        # Reduces overhead by ~15-20% on large files
-        parsed_lines = []
+        # ⚡ Bolt: Avoid caching large parsed lists in memory. Two-pass lazy
+        # iteration drastically reduces peak memory usage on huge log files.
         with path.open("r", encoding="utf-8") as fd:
             for ln in fd:
-                ln = ln.rstrip("\n")
                 try:
                     obj = json.loads(ln)
                     # A valid-JSON non-dict line (torn write leaving `123`/`null`)
@@ -255,13 +253,20 @@ def trim(max_runs=MAX_RUNS):
                     rid = obj.get("run_id")
                 except ValueError:
                     continue
-                parsed_lines.append((ln, rid))
                 if rid not in seen:
                     seen.add(rid)
                     order.append(rid)
         keep = set(order[-max_runs:])
-        # ⚡ Bolt: Use cached tuples to filter O(1) instead of re-parsing
-        kept = [ln for ln, rid in parsed_lines if rid in keep]
+        kept = []
+        # Pass 2: only collect kept lines
+        with path.open("r", encoding="utf-8") as fd:
+            for ln in fd:
+                try:
+                    obj = json.loads(ln)
+                    if isinstance(obj, dict) and obj.get("run_id") in keep:
+                        kept.append(ln.rstrip("\n"))
+                except ValueError:
+                    continue
         _write_atomic(path, "\n".join(kept) + ("\n" if kept else ""))
     except Exception:  # noqa: BLE001 - fail-open
         return

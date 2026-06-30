@@ -21,6 +21,9 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6
+        with:
+          # Full history so pre-commit can diff changed files against the base ref.
+          fetch-depth: 0
 
       # --- ShellCheck ---
 
@@ -102,6 +105,37 @@ jobs:
             exit 1
           fi
           echo "docs/COMMANDS.md is up-to-date"
+
+      # --- pre-commit on changed files: the no-bypass gate of record (feature 366) ---
+      # Runs the repo's .pre-commit-config.yaml against files changed in this
+      # PR/push so standards (ruff, shfmt, gitleaks, markdownlint, ...) cannot be
+      # bypassed by skipping local hooks. Scoped to CHANGED files (not --all-files)
+      # due to pre-existing debt — see specs/366-coding-standards/spec.md.
+      - name: Cache pre-commit environments
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae  # v5.0.5
+        with:
+          path: ~/.cache/pre-commit
+          key: pre-commit-${{ hashFiles('.pre-commit-config.yaml') }}
+
+      - name: Install pre-commit
+        run: pip install pre-commit
+
+      - name: Run pre-commit on changed files
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          set -euo pipefail
+          if [ -n "${BASE_REF:-}" ]; then
+            # Pull request: diff against the target branch.
+            git fetch --no-tags origin "$BASE_REF"
+            pre-commit run --from-ref "origin/$BASE_REF" --to-ref HEAD --show-diff-on-failure
+          elif git rev-parse HEAD~1 > /dev/null 2>&1; then
+            # Push with a parent commit: diff against it.
+            pre-commit run --from-ref HEAD~1 --to-ref HEAD --show-diff-on-failure
+          else
+            # First commit / no parent: fall back to the full tree.
+            pre-commit run --all-files --show-diff-on-failure
+          fi
 
   test:
     name: Test

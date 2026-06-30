@@ -77,13 +77,11 @@ def gh_refs(state: str, errors: list[str]) -> dict[str, int]:
         errors.append(f"gh pr list --state {state} returned invalid JSON: not a string")
         return {}
 
-    first_char = next((c for c in stdout_str if not c.isspace()), "")
-    if first_char not in "{[":
-        errors.append(f"gh pr list --state {state} returned invalid JSON: not a JSON object/array")
-        return {}
-
     try:
         data = json.loads(stdout_str)
+        if not isinstance(data, (dict, list)):
+            errors.append(f"gh pr list --state {state} returned invalid JSON: not a JSON object/array")
+            return {}
     except json.JSONDecodeError as e:
         errors.append(f"gh pr list --state {state} returned invalid JSON: {e}")
         return {}
@@ -104,13 +102,11 @@ def gh_open_sizes(errors: list[str]) -> dict[int, dict]:
         errors.append(f"gh pr list sizes returned invalid JSON: not a string")
         return {}
 
-    first_char = next((c for c in stdout_str if not c.isspace()), "")
-    if first_char not in "{[":
-        errors.append(f"gh pr list sizes returned invalid JSON: not a JSON object/array")
-        return {}
-
     try:
         data = json.loads(stdout_str)
+        if not isinstance(data, (dict, list)):
+            errors.append(f"gh pr list sizes returned invalid JSON: not a JSON object/array")
+            return {}
     except json.JSONDecodeError as e:
         errors.append(f"gh pr list sizes returned invalid JSON: {e}")
         return {}
@@ -139,13 +135,11 @@ def glab_refs(flag: str, errors: list[str]) -> dict[str, int]:
         errors.append(f"glab mr list {flag} returned invalid JSON: not a string")
         return {}
 
-    first_char = next((c for c in stdout_str if not c.isspace()), "")
-    if first_char not in "{[":
-        errors.append(f"glab mr list {flag} returned invalid JSON: not a JSON object/array")
-        return {}
-
     try:
         data = json.loads(stdout_str)
+        if not isinstance(data, (dict, list)):
+            errors.append(f"glab mr list {flag} returned invalid JSON: not a JSON object/array")
+            return {}
     except json.JSONDecodeError as e:
         errors.append(f"glab mr list {flag} returned invalid JSON: {e}")
         return {}
