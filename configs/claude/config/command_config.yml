@@ -121,6 +121,8 @@ tool_policies:
     forbidden: []
     parallel_agents: never        # an authoring/gate tool, not a cross-verification fan-out
     validation_tier: 1            # executes CLI/shell steps + handles env-injected secrets
+    subagents: never
+    subagent_rationale: Single config-driven engine runs the tiered catalog sequentially via one smoke_test.py run; no independent fan-out units.
 
   lifecycle:
     allowed:
