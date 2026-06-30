@@ -261,6 +261,9 @@ main() {
     run_bootstrap_hook "after_deploy"
     skillclaw_apply_state
 
+    # Report-only orphan review of the just-deployed environment (fail-open; never deletes)
+    reconcile_deploy_report || print_warning "reconcile review skipped (non-fatal)"
+
     # Install Python dependencies for parallel_agent.py
     install_python_dependencies
     install_browser_use

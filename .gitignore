@@ -56,3 +56,6 @@ records/
 # first opt-out under ~/.claude/config/) — never commit them. The shipped
 # defaults live in configs/claude/config/guidance.yml (tracked).
 guidance_local.yml
+
+# Transient smoke-test JUnit output (smoke_test.py default --junit)
+smoke-report.xml

@@ -1,0 +1,31 @@
+version: 1
+app: manifest
+# First smoke catalog for the Manifest repo (feature 368). Constitution Principle VI
+# Verify gate: a deterministic, browser-free (tier Lite, type cli) critical-path test
+# for the deploy-reconcile workflow. Builds a hermetic fixture home+project in a temp
+# dir (never touches the real ~/.claude) and asserts the review previews and exits 0.
+tests:
+  - id: deploy-reconcile-preview
+    title: deploy_reconcile.sh previews a hermetic fixture and exits 0
+    tier: Lite
+    steps:
+      - name: reconcile_preview
+        type: cli
+        expect_exit: 0
+        captures:
+          remove_count: '"remove":\s*([0-9]+)'
+        command:
+          - bash
+          - -c
+          - |
+            set -euo pipefail
+            root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+            sb="$(mktemp -d)"; trap 'rm -rf "$sb"' EXIT
+            mkdir -p "$sb/home/.claude/skills/dead" "$sb/home/.claude/config"
+            mkdir -p "$sb/repo/.skillshare/skills/live" "$sb/repo/configs/claude/config"
+            echo x > "$sb/home/.claude/skills/dead/SKILL.md"
+            echo "y: 1" > "$sb/home/.claude/config/command_config.yml"
+            echo "y: 1" > "$sb/repo/configs/claude/config/command_config.yml"
+            "$root/configs/claude/scripts/deploy_reconcile.sh" \
+              --home "$sb/home" --project "$sb/repo" \
+              --config "$root/configs/claude/config/reconcile.yml" --json

@@ -1008,7 +1008,7 @@ Expected output:
 <!-- BEGIN GENERATED COMMANDS (command_catalog.py) — do not edit by hand -->
 <!-- Regenerate: configs/claude/scripts/generate_commands_doc.py -->
 
-_89 commands, generated from `.skillshare/skills/*/SKILL.md`._
+_90 commands, generated from `.skillshare/skills/*/SKILL.md`._
 
 ### Git & PRs
 
@@ -1131,7 +1131,7 @@ _89 commands, generated from `.skillshare/skills/*/SKILL.md`._
 | `/graphify` | Map a codebase, docs, or GitHub repo into a queryable knowledge graph (graphify CLI): graph.html, GRAPH_REPORT.md, graph.json. Use to understand large or unfamiliar code, or answer "what connects X to Y?". | Map a codebase, docs, or GitHub repo into a queryable knowledge graph (graphify CLI): graph. | available |
 | `/health-check` | Verify CLI tool availability, authentication status, config syntax, MCP connectivity, and symlink integrity for the Manifest environment. | Verify CLI tool availability, authentication status, config syntax, MCP connectivity, and symlink integrity for the Manifest environment. | available |
 | `/help` | Use when you need to find the right Manifest command for a task — searches and lists every command by category with a one-line description and when-to-use cue, flagging ones unavailable here. Read-only; never runs or modifies. | Use when you need to find the right Manifest command for a task — searches and lists every command by category with a one-line description and when-to-use cue, flagging ones unavailable here. | available |
-| `/learning-loop` | Capture structured lessons learned after major tasks. Categories: pattern, antipattern, tool discovery, configuration insight. Stores in .claude/config/knowledge_base.yml and queries existing learnings. | Capture structured lessons learned after major tasks. | available |
+| `/learning-loop` | Capture structured lessons learned after major tasks. Categories: pattern, antipattern, tool discovery, configuration insight. Stores in ~/.claude/config/knowledge_base.yml and queries existing learnings. | Capture structured lessons learned after major tasks. | available |
 | `/memory-log-compress` | Use when asked to compress memory/log entries into developer shorthand, or to distill a session transcript into one time-stamped log entry, with zero information loss. | Use when asked to compress memory/log entries into developer shorthand, or to distill a session transcript into one time-stamped log entry, with zero information loss. | available |
 | `/session-memory-compress` | Compress or summarize session memory — distill a session/transcript into a dated one-line entry, or losslessly compress/rotate existing memory entries (daily summary, shorthand rewrite, one-sentence log line) with zero information loss. | Compress or summarize session memory — distill a session/transcript into a dated one-line entry, or losslessly compress/rotate existing memory entries (daily summary, shorthand rewrite, one-sentence log line) with zero information loss. | available |
 | `/token-benchmark` | Measure token overhead and quality delta from Manifest config across Claude, Gemini CLI, and Antigravity CLI using MMLU/HumanEval/HellaSwag/TruthfulQA prompts before/after manifest context injection; regenerates docs/TOKEN_BENCHMARK.md. | Measure token overhead and quality delta from Manifest config across Claude, Gemini CLI, and Antigravity CLI using MMLU/HumanEval/HellaSwag/TruthfulQA prompts before/after manifest context injection; regenerates docs/TOKEN_BENCHMARK. | available |
@@ -1141,6 +1141,7 @@ _89 commands, generated from `.skillshare/skills/*/SKILL.md`._
 
 | Command | Description | When to use | Status |
 |---------|-------------|-------------|--------|
+| `/deploy-reconcile` | Review what Manifest deployed into the assistant homes (~/.claude + mirrors) versus what the project would deploy, listing orphaned deployed items KEEP or REMOVE. Preview by default; opt-in removal is recoverable (timestamped backup, never hard-delete). | Review what Manifest deployed into the assistant homes (~/. | available |
 | `/lifecycle` | Drive a feature/issue through the codified state-gated lifecycle (specify→…→verify) with hard phase-gating and a smoke-test Verify gate; entry is a ticket URL/issue key. | Drive a feature/issue through the codified state-gated lifecycle (specify→…→verify) with hard phase-gating and a smoke-test Verify gate; entry is a ticket URL/issue key. | available |
 | `/pr-regression-smoke` | Full Manifest regression (CI mirror: shellcheck, yamllint, markdownlint, bats + pytest) plus a deployed-env smoke pass (bootstrap re-deploy, env health, orchestration round-trip), as a post-PR gate. Use right after a PR opens or merges — "regression test the PR", "did the merge break anything", "verify main is still green". Whole-repo verdict; prefer over verify (one lang) or health-check. | Full Manifest regression (CI mirror: shellcheck, yamllint, markdownlint, bats + pytest) plus a deployed-env smoke pass (bootstrap re-deploy, env health, orchestration round-trip), as a post-PR gate. | available |
 

@@ -101,14 +101,19 @@ assert_budget() {
     # measured total with both present is 22189. Both descriptions are always-loaded
     # trigger text with no read-on-demand alternative. Headroom is now only ~111 —
     # the next addition needs a trim pass first.
+    # Raised 22300 -> 22600 (2026-06-30) for the genuinely-new `deploy-reconcile`
+    # skill (spec 368, the only deploy-orphan-reconciliation entry point; no prior
+    # coverage to fold in). Its description was trimmed to ~210 chars before the bump
+    # (always-loaded trigger text, no read-on-demand alternative); measured total
+    # with it present is 22490. Headroom after this is ~110 — next addition needs a trim.
     total=0
     for f in "$REPO_ROOT"/.skillshare/skills/*/SKILL.md; do
         # frontmatter = up to the second '---' line
         chars=$(awk '/^---$/{c++; next} c==1' "$f" | wc -c)
         total=$((total + chars))
     done
-    if [ "$total" -gt 22300 ]; then
-        echo "Skill frontmatter totals $total chars (budget: 22300)." >&2
+    if [ "$total" -gt 22600 ]; then
+        echo "Skill frontmatter totals $total chars (budget: 22600)." >&2
         echo "Trim verbose descriptions; bodies are pay-per-use, frontmatter is not." >&2
         return 1
     fi
