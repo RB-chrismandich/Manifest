@@ -47,6 +47,18 @@ deploy_configs() {
     # user/runtime state (plugins, sessions, settings.json, …) from the backup.
     local restore_from=""
 
+    # Snapshot the live settings.local.json BEFORE any destructive path below
+    # (backup-and-replace mv, --force overwrite, or the repo copy). The repo
+    # ships its own settings.local.json that would otherwise clobber any MCP
+    # server the user added to their live file; merge_claude_mcp_servers unions
+    # the snapshot back in after the copy. Captured here (not in each branch) so
+    # it predates the "Backup and replace" mv that moves the live dir aside.
+    local preserved_mcp=""
+    if [[ -f "$TARGET_DIR/settings.local.json" ]]; then
+        preserved_mcp="$(mktemp)"
+        cp "$TARGET_DIR/settings.local.json" "$preserved_mcp"
+    fi
+
     # rsync is a hard dependency of every copy path below. Check it BEFORE the
     # destructive `mv` of ~/.claude — failing mid-deploy stranded all user
     # state in the timestamped backup with no recovery message (issue #320).
@@ -101,6 +113,11 @@ deploy_configs() {
                     rsync -av --ignore-existing --exclude '/skills' "$source_dir/" "$TARGET_DIR/"
                     deploy_home_skills "$SCRIPT_DIR/.skillshare/skills" "$TARGET_DIR/skills"
                     gate_graphify_skill "$TARGET_DIR/skills"
+                    # --ignore-existing keeps the user's settings.local.json as-is,
+                    # but if it was absent the repo copy lands fresh; union back any
+                    # MCP servers captured from the live file either way.
+                    merge_claude_mcp_servers "$preserved_mcp" "$TARGET_DIR/settings.local.json"
+                    [[ -n "$preserved_mcp" ]] && rm -f "$preserved_mcp"
                     print_success "Configurations merged"
                     # Still write services config
                     write_services_config
@@ -144,6 +161,11 @@ deploy_configs() {
     rsync -a --exclude '/skills' "$source_dir"/ "$TARGET_DIR/"
     # Copy dot-prefixed directories (e.g. .plans/) that the glob above skips
     cp -R "$source_dir"/.[!.]* "$TARGET_DIR/" 2> /dev/null || true
+
+    # Restore any user-added MCP servers captured before the copy above so the
+    # repo's default settings.local.json does not silently drop them.
+    merge_claude_mcp_servers "$preserved_mcp" "$TARGET_DIR/settings.local.json"
+    [[ -n "$preserved_mcp" ]] && rm -f "$preserved_mcp"
 
     # Deploy skills from the PHYSICAL skillshare source into ~/.claude/skills.
     # Must run before link_shared_assets (create_symlink skips missing targets).
@@ -278,6 +300,59 @@ PYEOF
         3) print_info "Existing settings.json already has repo hooks - preserved" ;;
         *) print_warning "Could not merge hooks into existing settings.json (manual merge may be needed)" ;;
     esac
+}
+
+# Preserve user-added MCP servers across a settings.local.json redeploy.
+#
+# The repo ships configs/claude/settings.local.json with a default mcpServers
+# block. The destructive copy in deploy_configs overwrites the live
+# ~/.claude/settings.local.json, which would silently drop any MCP server the
+# user added there (e.g. via `claude mcp add --scope local`). deploy_configs
+# snapshots the live file BEFORE the copy; this unions the snapshot's mcpServers
+# back into the freshly deployed file. The USER's entry wins on key conflicts so
+# their servers are kept intact — repo defaults only fill in servers the user
+# does not already have. Fail-open: parse errors leave the deployed file
+# untouched and warn.
+merge_claude_mcp_servers() {
+    local preserved="$1" tgt="$2"
+    [[ -n "$preserved" && -f "$preserved" ]] || return 0
+    [[ -f "$tgt" ]] || return 0
+    if ! command_exists python3; then
+        print_info "python3 unavailable — skipped MCP server preservation in settings.local.json"
+        return 0
+    fi
+    local rc=0
+    python3 - "$preserved" "$tgt" << 'PYEOF' || rc=$?
+import json, sys
+pre_path, tgt_path = sys.argv[1], sys.argv[2]
+try:
+    pre = json.load(open(pre_path))
+    tgt = json.load(open(tgt_path))
+except Exception:
+    sys.exit(2)
+user_servers = pre.get("mcpServers", {})
+if not isinstance(user_servers, dict) or not user_servers:
+    sys.exit(3)
+repo_servers = tgt.get("mcpServers", {})
+if not isinstance(repo_servers, dict):
+    repo_servers = {}
+merged = dict(repo_servers)
+for name, cfg in user_servers.items():
+    merged[name] = cfg  # user entry wins on conflict — keep their server intact
+if merged == repo_servers:
+    sys.exit(3)
+tgt["mcpServers"] = merged
+with open(tgt_path, "w") as f:
+    json.dump(tgt, f, indent=2)
+    f.write("\n")
+sys.exit(0)
+PYEOF
+    case $rc in
+        0) print_success "Preserved user MCP servers in settings.local.json" ;;
+        3) print_info "No user-added MCP servers to preserve in settings.local.json" ;;
+        *) print_warning "Could not preserve MCP servers in settings.local.json (manual merge may be needed)" ;;
+    esac
+    return 0
 }
 
 # Deploy Gemini CLI configuration (mirrors .claude with symlinks)

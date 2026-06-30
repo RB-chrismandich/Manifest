@@ -51,6 +51,29 @@ setup() {
     # A stray top-level file that is NOT part of configs/claude is unknown user
     # content and must be preserved (safe default, same as plugins/sessions).
     echo 'keepme'                     > "$TARGET_DIR/my_personal_note.md"
+
+    # A live settings.local.json holding a USER-ADDED MCP server. The repo ships
+    # its own settings.local.json (with default mcpServers) that overwrites this
+    # on redeploy; the user's server must survive (kept intact).
+    cat > "$TARGET_DIR/settings.local.json" <<'JSON'
+{
+  "mcpServers": {
+    "my-private": { "url": "https://mcp.internal.example/mcp" }
+  }
+}
+JSON
+}
+
+# The user-added MCP server survived AND the repo defaults were deployed.
+assert_user_mcp_preserved() {
+    run python3 -c "
+import json
+d = json.load(open('$TARGET_DIR/settings.local.json'))
+s = d.get('mcpServers', {})
+assert s.get('my-private', {}).get('url') == 'https://mcp.internal.example/mcp', s
+assert 'sentry' in s, s  # repo default still present
+print('mcp-preserved')"
+    assert_output --partial "mcp-preserved"
 }
 
 teardown() {
@@ -83,6 +106,7 @@ assert_config_deployed() {
 
     assert_runtime_preserved
     assert_config_deployed
+    assert_user_mcp_preserved
 
     # Stale config inside a repo-owned dir was dropped (the whole point of
     # option 1 vs merge) — proving owned config was genuinely replaced.
@@ -103,6 +127,7 @@ assert_config_deployed() {
 
     assert_runtime_preserved
     assert_config_deployed
+    assert_user_mcp_preserved
     # --force is additive (no mv), so even the stale file remains — that's fine;
     # the data-loss bug was only ever the mv path.
 }
@@ -114,4 +139,12 @@ assert_config_deployed() {
     assert_runtime_preserved
     [ -f "$TARGET_DIR/CLAUDE.md" ]
     [ -d "$TARGET_DIR/skills/code-quality" ]
+
+    # Merge keeps the user's settings.local.json (and its MCP server) intact.
+    run python3 -c "
+import json
+s = json.load(open('$TARGET_DIR/settings.local.json')).get('mcpServers', {})
+assert s.get('my-private', {}).get('url') == 'https://mcp.internal.example/mcp', s
+print('mcp-intact')"
+    assert_output --partial "mcp-intact"
 }
