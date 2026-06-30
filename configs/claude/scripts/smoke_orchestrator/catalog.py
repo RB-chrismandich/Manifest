@@ -11,8 +11,8 @@ import contextlib
 import fcntl
 import os
 import tempfile
+from collections.abc import Iterator
 from pathlib import Path
-from typing import Iterator
 
 import yaml
 
@@ -39,8 +39,12 @@ def load_catalog(path: Path, app: str) -> dict:
 def atomic_write(path: Path, data: dict) -> None:
     """Write YAML via a temp file + os.replace so readers never see a partial file."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    text = yaml.safe_dump(data, sort_keys=False, default_flow_style=False, allow_unicode=True)
-    fd, tmp = tempfile.mkstemp(dir=str(path.parent), prefix=f".{path.name}.", suffix=".tmp")
+    text = yaml.safe_dump(
+        data, sort_keys=False, default_flow_style=False, allow_unicode=True
+    )
+    fd, tmp = tempfile.mkstemp(
+        dir=str(path.parent), prefix=f".{path.name}.", suffix=".tmp"
+    )
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as fh:
             fh.write(text)

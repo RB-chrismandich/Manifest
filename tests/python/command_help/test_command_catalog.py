@@ -4,15 +4,14 @@ Covers: frontmatter parse (incl. symlink-following), when_to_use derivation (D2)
 category precedence (D1), availability resolution (D6), and the duplicate /
 empty-skill error paths. Written before the implementation — must FAIL first.
 """
-from pathlib import Path
+
 import sys
+from pathlib import Path
 
 import pytest
 
-sys.path.insert(
-    0, str(Path(__file__).resolve().parents[3] / "configs/claude/scripts")
-)
-import command_catalog as cc  # noqa: E402
+sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "configs/claude/scripts"))
+import command_catalog as cc
 
 
 # --------------------------------------------------------------------------- #
@@ -75,12 +74,17 @@ def build(env, platform="claude"):
 # --------------------------------------------------------------------------- #
 def test_when_to_use_explicit_use_when_clause():
     desc = "Use when your PR receives review feedback — fetch via gh api. Distinct from pr-review."
-    assert cc.derive_when_to_use(desc, "address-pr-comments").startswith("Use when your PR receives review feedback")
+    assert cc.derive_when_to_use(desc, "address-pr-comments").startswith(
+        "Use when your PR receives review feedback"
+    )
 
 
 def test_when_to_use_first_sentence_fallback():
     desc = "Run linters, unit tests, and security scans in parallel. Produces a report."
-    assert cc.derive_when_to_use(desc, "verify") == "Run linters, unit tests, and security scans in parallel."
+    assert (
+        cc.derive_when_to_use(desc, "verify")
+        == "Run linters, unit tests, and security scans in parallel."
+    )
 
 
 def test_when_to_use_humanized_name_fallback():
@@ -91,14 +95,20 @@ def test_when_to_use_humanized_name_fallback():
 # category precedence (D1)
 # --------------------------------------------------------------------------- #
 def test_category_frontmatter_authoritative(env):
-    write_skill(env["skills"], "a-skill", {"name": "a-skill", "description": "d.", "category": "docs"})
+    write_skill(
+        env["skills"],
+        "a-skill",
+        {"name": "a-skill", "description": "d.", "category": "docs"},
+    )
     cat = build(env)
     entry = next(c for c in cat["commands"] if c["name"] == "a-skill")
     assert entry["category"] == "docs"
 
 
 def test_category_overrides_map_when_no_frontmatter(env):
-    write_skill(env["skills"], "legacy-skill", {"name": "legacy-skill", "description": "d."})
+    write_skill(
+        env["skills"], "legacy-skill", {"name": "legacy-skill", "description": "d."}
+    )
     entry = next(c for c in build(env)["commands"] if c["name"] == "legacy-skill")
     assert entry["category"] == "security"
 
@@ -111,13 +121,21 @@ def test_category_uncategorized_default(env):
 
 def test_category_frontmatter_beats_overrides(env):
     # legacy-skill is in overrides->security, but its own frontmatter says docs.
-    write_skill(env["skills"], "legacy-skill", {"name": "legacy-skill", "description": "d.", "category": "docs"})
+    write_skill(
+        env["skills"],
+        "legacy-skill",
+        {"name": "legacy-skill", "description": "d.", "category": "docs"},
+    )
     entry = next(c for c in build(env)["commands"] if c["name"] == "legacy-skill")
     assert entry["category"] == "docs"
 
 
 def test_unknown_category_is_error(env):
-    write_skill(env["skills"], "bad", {"name": "bad", "description": "d.", "category": "nonsense"})
+    write_skill(
+        env["skills"],
+        "bad",
+        {"name": "bad", "description": "d.", "category": "nonsense"},
+    )
     with pytest.raises(cc.CatalogError):
         build(env)
 
@@ -126,7 +144,11 @@ def test_unknown_category_is_error(env):
 # availability resolution (D6)
 # --------------------------------------------------------------------------- #
 def test_availability_service_disabled_marks_unavailable(env):
-    write_skill(env["skills"], "skillclaw-promote", {"name": "skillclaw-promote", "description": "d."})
+    write_skill(
+        env["skills"],
+        "skillclaw-promote",
+        {"name": "skillclaw-promote", "description": "d."},
+    )
     entry = next(c for c in build(env)["commands"] if c["name"] == "skillclaw-promote")
     assert entry["availability"]["status"] == "unavailable"
     assert entry["availability"]["service_enabled"] is False
@@ -174,9 +196,21 @@ def test_symlinked_skill_dir_is_followed(env, tmp_path):
 # schema / stability contract
 # --------------------------------------------------------------------------- #
 def test_catalog_ordering_is_deterministic(env):
-    write_skill(env["skills"], "b-doc", {"name": "b-doc", "description": "d.", "category": "docs"})
-    write_skill(env["skills"], "a-git", {"name": "a-git", "description": "d.", "category": "git-pr"})
-    write_skill(env["skills"], "a-doc", {"name": "a-doc", "description": "d.", "category": "docs"})
+    write_skill(
+        env["skills"],
+        "b-doc",
+        {"name": "b-doc", "description": "d.", "category": "docs"},
+    )
+    write_skill(
+        env["skills"],
+        "a-git",
+        {"name": "a-git", "description": "d.", "category": "git-pr"},
+    )
+    write_skill(
+        env["skills"],
+        "a-doc",
+        {"name": "a-doc", "description": "d.", "category": "docs"},
+    )
     cmds = [c["name"] for c in build(env)["commands"]]
     # categories by order (git-pr=1 before docs=2); alpha within category
     assert cmds == ["a-git", "a-doc", "b-doc"]

@@ -11,10 +11,10 @@ import tempfile
 import time
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Optional
 
 try:
     from anthropic import AsyncAnthropic
+
     HAS_ANTHROPIC = True
 except ImportError:
     HAS_ANTHROPIC = False
@@ -23,6 +23,7 @@ except ImportError:
 try:
     from google import genai
     from google.genai import types as genai_types
+
     HAS_GENAI = True
 except ImportError:
     HAS_GENAI = False
@@ -37,19 +38,19 @@ RESULTS_DIR = Path(__file__).parent / "results"
 
 PRICING: dict[str, dict[str, float]] = {
     "claude-sonnet-4-6": {
-        "input":       3.00 / 1_000_000,
-        "output":     15.00 / 1_000_000,
+        "input": 3.00 / 1_000_000,
+        "output": 15.00 / 1_000_000,
         "cache_write": 3.75 / 1_000_000,
-        "cache_read":  0.30 / 1_000_000,
+        "cache_read": 0.30 / 1_000_000,
     },
     "gemini-3-flash-preview": {
-        "input":  0.10 / 1_000_000,
+        "input": 0.10 / 1_000_000,
         "output": 0.40 / 1_000_000,
     },
 }
 
 
-def compute_cost(record: dict, model: str) -> Optional[float]:
+def compute_cost(record: dict, model: str) -> float | None:
     """Return cost in USD for a single API call record, or None if tokens unavailable."""
     pricing = PRICING.get(model)
     if not pricing:
@@ -101,8 +102,13 @@ def isolated_environments(fixtures_dir: Path):
     manifest_home = Path(tempfile.mkdtemp(prefix="tbench_manifest_"))
     try:
         if fixtures_dir.exists():
-            shutil.copytree(fixtures_dir, manifest_home, dirs_exist_ok=True,
-                            symlinks=True, ignore_dangling_symlinks=True)
+            shutil.copytree(
+                fixtures_dir,
+                manifest_home,
+                dirs_exist_ok=True,
+                symlinks=True,
+                ignore_dangling_symlinks=True,
+            )
         yield empty_home, manifest_home
     finally:
         shutil.rmtree(empty_home, ignore_errors=True)
@@ -139,7 +145,13 @@ async def measure_api_claude(
     client = AsyncAnthropic(api_key=api_key)
 
     if use_cache:
-        system_arg = [{"type": "text", "text": system_prompt, "cache_control": {"type": "ephemeral"}}]
+        system_arg = [
+            {
+                "type": "text",
+                "text": system_prompt,
+                "cache_control": {"type": "ephemeral"},
+            }
+        ]
     else:
         system_arg = system_prompt
 
@@ -156,7 +168,9 @@ async def measure_api_claude(
         return {
             "input_tokens": usage.input_tokens,
             "output_tokens": usage.output_tokens,
-            "cache_creation_tokens": getattr(usage, "cache_creation_input_tokens", None),
+            "cache_creation_tokens": getattr(
+                usage, "cache_creation_input_tokens", None
+            ),
             "cache_read_tokens": getattr(usage, "cache_read_input_tokens", None),
             "response_text": response.content[0].text,
             "latency_ms": latency_ms,
@@ -175,10 +189,14 @@ async def measure_api_gemini(prompt_text: str, system_prompt: str, model: str) -
     t0 = time.time()
     try:
         client = genai.Client(api_key=api_key) if api_key else genai.Client()
-        config = genai_types.GenerateContentConfig(
-            system_instruction=system_prompt if system_prompt else None,
-            max_output_tokens=1024,
-        ) if genai_types is not None else None
+        config = (
+            genai_types.GenerateContentConfig(
+                system_instruction=system_prompt if system_prompt else None,
+                max_output_tokens=1024,
+            )
+            if genai_types is not None
+            else None
+        )
         response = await asyncio.to_thread(
             client.models.generate_content,
             model=model,
@@ -197,7 +215,9 @@ async def measure_api_gemini(prompt_text: str, system_prompt: str, model: str) -
         return _error_result(str(e))
 
 
-def measure_cli(prompt_text: str, cli_config: dict, system_prompt: Optional[str] = None) -> dict:
+def measure_cli(
+    prompt_text: str, cli_config: dict, system_prompt: str | None = None
+) -> dict:
     """Run provider CLI binary; capture stdout as response.
 
     system_prompt controls manifest context injection via --system-prompt:
@@ -209,11 +229,11 @@ def measure_cli(prompt_text: str, cli_config: dict, system_prompt: Optional[str]
     binary = cli_config["binary"]
     flags = list(cli_config.get("flags", []))
     if system_prompt is not None:
-        flags = flags + ["--system-prompt", system_prompt]
+        flags = [*flags, "--system-prompt", system_prompt]
     t0 = time.time()
     try:
         result = subprocess.run(
-            [binary] + flags + [prompt_text],
+            [binary, *flags, prompt_text],
             capture_output=True,
             text=True,
             timeout=60,
@@ -226,12 +246,22 @@ def measure_cli(prompt_text: str, cli_config: dict, system_prompt: Optional[str]
             "error": None if result.returncode == 0 else result.stderr[:300],
         }
     except subprocess.TimeoutExpired:
-        return {"response_text": "", "latency_ms": 60000, "exit_code": -1, "error": "timeout"}
+        return {
+            "response_text": "",
+            "latency_ms": 60000,
+            "exit_code": -1,
+            "error": "timeout",
+        }
     except FileNotFoundError:
-        return {"response_text": "", "latency_ms": 0, "exit_code": -1, "error": f"{binary}: not found"}
+        return {
+            "response_text": "",
+            "latency_ms": 0,
+            "exit_code": -1,
+            "error": f"{binary}: not found",
+        }
 
 
-def write_result(record: dict, run_id: str, results_dir: Optional[Path] = None) -> None:
+def write_result(record: dict, run_id: str, results_dir: Path | None = None) -> None:
     """Append a result record as a JSON line to results/<run_id>.jsonl."""
     out_dir = results_dir or RESULTS_DIR
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -243,6 +273,7 @@ def write_result(record: dict, run_id: str, results_dir: Optional[Path] = None) 
 def _read_system_prompt(home_dir: Path, provider: str) -> str:
     """Read the manifest system prompt for a provider from a given home dir."""
     from tests.token_benchmark.benchmarks import MANIFEST_SYSTEM_PROMPT_PATHS
+
     rel_path = MANIFEST_SYSTEM_PROMPT_PATHS.get(provider)
     if not rel_path:
         return ""
@@ -255,9 +286,9 @@ async def run_benchmark(
     api_only: bool,
     run_id: str,
     cli_only: bool = False,
-    conditions: Optional[list[str]] = None,
-    fixtures_dir: Optional[Path] = None,
-    results_dir: Optional[Path] = None,
+    conditions: list[str] | None = None,
+    fixtures_dir: Path | None = None,
+    results_dir: Path | None = None,
     claude_model: str = "claude-sonnet-4-6",
     gemini_model: str = "gemini-3-flash-preview",
 ) -> list[dict]:
@@ -280,7 +311,9 @@ async def run_benchmark(
                 if not cli_only and provider in ("claude", "gemini"):
                     if condition == "cached" and provider != "claude":
                         continue
-                    if condition == "compressed" and not compressed_prompts.get(provider):
+                    if condition == "compressed" and not compressed_prompts.get(
+                        provider
+                    ):
                         continue
 
                     manifest = (
@@ -291,11 +324,14 @@ async def run_benchmark(
                     system_prompt = _system_prompt_for_condition(
                         condition, prompt.category, manifest
                     )
-                    use_cache = (condition == "cached")
+                    use_cache = condition == "cached"
 
                     if provider == "claude":
                         api_result = await measure_api_claude(
-                            prompt.text, system_prompt, claude_model, use_cache=use_cache
+                            prompt.text,
+                            system_prompt,
+                            claude_model,
+                            use_cache=use_cache,
                         )
                         if use_cache and not api_result.get("error"):
                             api_result = await measure_api_claude(
@@ -310,7 +346,8 @@ async def run_benchmark(
 
                     quality = (
                         score(api_result.get("response_text") or "", prompt)
-                        if not api_result.get("error") else None
+                        if not api_result.get("error")
+                        else None
                     )
                     cost = compute_cost(api_result, model_used)
                     record = {
@@ -322,7 +359,9 @@ async def run_benchmark(
                         "prompt_id": prompt.prompt_id,
                         "input_tokens": api_result.get("input_tokens"),
                         "output_tokens": api_result.get("output_tokens"),
-                        "cache_creation_tokens": api_result.get("cache_creation_tokens"),
+                        "cache_creation_tokens": api_result.get(
+                            "cache_creation_tokens"
+                        ),
                         "cache_read_tokens": api_result.get("cache_read_tokens"),
                         "quality_score": quality,
                         "response_text": (api_result.get("response_text") or "")[:200],
@@ -334,9 +373,12 @@ async def run_benchmark(
                     write_result(record, run_id, results_dir)
                     records.append(record)
                     cost_str = f" cost=${cost:.6f}" if cost is not None else ""
-                    print(f"  [{provider}][api][{condition}][{prompt.prompt_id}] "
-                          f"in={record['input_tokens']} out={record['output_tokens']}"
-                          f"{cost_str}", flush=True)
+                    print(
+                        f"  [{provider}][api][{condition}][{prompt.prompt_id}] "
+                        f"in={record['input_tokens']} out={record['output_tokens']}"
+                        f"{cost_str}",
+                        flush=True,
+                    )
 
                 if not api_only and provider in PROVIDER_CLI_CONFIG:
                     if condition not in ("before", "after"):
@@ -347,10 +389,13 @@ async def run_benchmark(
                         if condition == "before"
                         else manifest_prompts[provider]
                     )
-                    cli_result = measure_cli(prompt.text, cli_config, system_prompt=cli_sp)
+                    cli_result = measure_cli(
+                        prompt.text, cli_config, system_prompt=cli_sp
+                    )
                     quality = (
                         score(cli_result.get("response_text") or "", prompt)
-                        if not cli_result.get("error") else None
+                        if not cli_result.get("error")
+                        else None
                     )
                     record = {
                         "run_id": run_id,
@@ -377,9 +422,9 @@ async def run_benchmark(
 
 
 def sync_fixtures(
-    source_home: Optional[Path] = None,
-    fixtures_dir: Optional[Path] = None,
-    compression: Optional[int] = None,
+    source_home: Path | None = None,
+    fixtures_dir: Path | None = None,
+    compression: int | None = None,
 ) -> None:
     """Copy live manifest configs into fixtures/manifest/ snapshot.
 
@@ -409,12 +454,18 @@ def sync_fixtures(
         if claude_src.exists():
             all_lines = claude_src.read_text().splitlines()
             keep = max(1, len(all_lines) * compression // 100)
-            compressed_dst = dst.parent / "fixtures-compressed" / ".claude" / "CLAUDE.md"
+            compressed_dst = (
+                dst.parent / "fixtures-compressed" / ".claude" / "CLAUDE.md"
+            )
             compressed_dst.parent.mkdir(parents=True, exist_ok=True)
             compressed_dst.write_text("\n".join(all_lines[:keep]))
-            print(f"  compressed fixture: {keep}/{len(all_lines)} lines → {compressed_dst}")
+            print(
+                f"  compressed fixture: {keep}/{len(all_lines)} lines → {compressed_dst}"
+            )
         else:
-            print(f"  skip compression: {claude_src} not found (run without --compression first to sync)")
+            print(
+                f"  skip compression: {claude_src} not found (run without --compression first to sync)"
+            )
 
 
 if __name__ == "__main__":
@@ -425,15 +476,19 @@ if __name__ == "__main__":
     parser.add_argument("--api-only", action="store_true")
     parser.add_argument("--cli-only", action="store_true")
     parser.add_argument("--sync-fixtures", action="store_true")
-    parser.add_argument("--compression", type=int, default=None,
-                        help="If set, also write a fixtures-compressed/ with first N%% of lines")
+    parser.add_argument(
+        "--compression",
+        type=int,
+        default=None,
+        help="If set, also write a fixtures-compressed/ with first N%% of lines",
+    )
     parser.add_argument("--report-only", action="store_true")
     parser.add_argument("--claude-model", default="claude-sonnet-4-6")
     parser.add_argument("--gemini-model", default="gemini-3-flash-preview")
     parser.add_argument(
         "--conditions",
         default="before,after",
-        help="Comma-separated conditions to run: before,after,cached,tiered,compressed"
+        help="Comma-separated conditions to run: before,after,cached,tiered,compressed",
     )
     args = parser.parse_args()
 
@@ -443,27 +498,37 @@ if __name__ == "__main__":
 
     if not args.report_only:
         from datetime import datetime
+
         run_id = datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
         providers = [p.strip() for p in args.providers.split(",")]
-        mode = "cli-only" if args.cli_only else ("api-only" if args.api_only else "api+cli")
+        mode = (
+            "cli-only"
+            if args.cli_only
+            else ("api-only" if args.api_only else "api+cli")
+        )
         print(f"Running benchmark: providers={providers}, mode={mode}, run_id={run_id}")
         _valid = {"before", "after", "cached", "tiered", "compressed"}
         conditions = [c.strip() for c in args.conditions.split(",") if c.strip()]
         _bad = [c for c in conditions if c not in _valid]
         if _bad:
-            parser.error(f"Unknown conditions: {', '.join(_bad)}. Valid: {', '.join(sorted(_valid))}")
-        records = asyncio.run(run_benchmark(
-            providers=providers,
-            api_only=args.api_only,
-            cli_only=args.cli_only,
-            conditions=conditions,
-            run_id=run_id,
-            claude_model=args.claude_model,
-            gemini_model=args.gemini_model,
-        ))
+            parser.error(
+                f"Unknown conditions: {', '.join(_bad)}. Valid: {', '.join(sorted(_valid))}"
+            )
+        records = asyncio.run(
+            run_benchmark(
+                providers=providers,
+                api_only=args.api_only,
+                cli_only=args.cli_only,
+                conditions=conditions,
+                run_id=run_id,
+                claude_model=args.claude_model,
+                gemini_model=args.gemini_model,
+            )
+        )
         print(f"Done. {len(records)} records written to {RESULTS_DIR}/{run_id}.jsonl")
 
     print("Regenerating TOKEN_BENCHMARK.md...")
     from tests.token_benchmark.reporter import update_report
+
     update_report(RESULTS_DIR, REPO_ROOT / "docs" / "TOKEN_BENCHMARK.md")
     print("Done.")

@@ -18,6 +18,7 @@ Read-only. Classifies and prints JSON; never closes a PR or deletes a branch.
 Supports GitHub (gh) and GitLab (glab); degrades gracefully when a CLI is
 missing or unauthenticated (the gap is reported in `errors`, never swallowed).
 """
+
 from __future__ import annotations
 
 import argparse
@@ -64,10 +65,22 @@ def is_protected(name: str, default: str, current: str, globs: list[str]) -> boo
 
 # --- platform PR/MR queries -------------------------------------------------
 
+
 def gh_refs(state: str, errors: list[str]) -> dict[str, int]:
     """headRefName -> PR number for the given state (open|merged|closed)."""
-    r = run(["gh", "pr", "list", "--state", state, "--limit", "500",
-             "--json", "number,headRefName"])
+    r = run(
+        [
+            "gh",
+            "pr",
+            "list",
+            "--state",
+            state,
+            "--limit",
+            "500",
+            "--json",
+            "number,headRefName",
+        ]
+    )
     if r.returncode != 0:
         errors.append(f"gh pr list --state {state}: {r.stderr.strip() or 'failed'}")
         return {}
@@ -80,7 +93,9 @@ def gh_refs(state: str, errors: list[str]) -> dict[str, int]:
     try:
         data = json.loads(stdout_str)
         if not isinstance(data, (dict, list)):
-            errors.append(f"gh pr list --state {state} returned invalid JSON: not a JSON object/array")
+            errors.append(
+                f"gh pr list --state {state} returned invalid JSON: not a JSON object/array"
+            )
             return {}
     except json.JSONDecodeError as e:
         errors.append(f"gh pr list --state {state} returned invalid JSON: {e}")
@@ -91,21 +106,34 @@ def gh_refs(state: str, errors: list[str]) -> dict[str, int]:
 
 def gh_open_sizes(errors: list[str]) -> dict[int, dict]:
     """PR number -> diff size + empty flag for OPEN PRs."""
-    r = run(["gh", "pr", "list", "--state", "open", "--limit", "500",
-             "--json", "number,headRefName,changedFiles,additions,deletions"])
+    r = run(
+        [
+            "gh",
+            "pr",
+            "list",
+            "--state",
+            "open",
+            "--limit",
+            "500",
+            "--json",
+            "number,headRefName,changedFiles,additions,deletions",
+        ]
+    )
     if r.returncode != 0:
         errors.append(f"gh pr list sizes: {r.stderr.strip() or 'failed'}")
         return {}
 
     stdout_str = r.stdout or ""
     if not isinstance(stdout_str, str):
-        errors.append(f"gh pr list sizes returned invalid JSON: not a string")
+        errors.append("gh pr list sizes returned invalid JSON: not a string")
         return {}
 
     try:
         data = json.loads(stdout_str)
         if not isinstance(data, (dict, list)):
-            errors.append(f"gh pr list sizes returned invalid JSON: not a JSON object/array")
+            errors.append(
+                "gh pr list sizes returned invalid JSON: not a JSON object/array"
+            )
             return {}
     except json.JSONDecodeError as e:
         errors.append(f"gh pr list sizes returned invalid JSON: {e}")
@@ -138,7 +166,9 @@ def glab_refs(flag: str, errors: list[str]) -> dict[str, int]:
     try:
         data = json.loads(stdout_str)
         if not isinstance(data, (dict, list)):
-            errors.append(f"glab mr list {flag} returned invalid JSON: not a JSON object/array")
+            errors.append(
+                f"glab mr list {flag} returned invalid JSON: not a JSON object/array"
+            )
             return {}
     except json.JSONDecodeError as e:
         errors.append(f"glab mr list {flag} returned invalid JSON: {e}")
@@ -153,6 +183,7 @@ def glab_refs(flag: str, errors: list[str]) -> dict[str, int]:
 
 
 # --- branch enumeration -----------------------------------------------------
+
 
 def local_branches() -> list[dict]:
     fmt = "%(refname:short)\t%(upstream:track)\t%(committerdate:unix)"
@@ -171,7 +202,7 @@ def remote_branches(default: str) -> list[str]:
     out = git("for-each-ref", "--format", "%(refname:short)", "refs/remotes/origin")
     names = []
     for line in filter(None, out.splitlines()):
-        short = line[len("origin/"):] if line.startswith("origin/") else line
+        short = line[len("origin/") :] if line.startswith("origin/") else line
         if short in ("HEAD", default) or "HEAD ->" in line:
             continue
         names.append(short)
@@ -182,67 +213,93 @@ def is_ancestor(ref: str, default: str) -> bool:
     return run(["git", "merge-base", "--is-ancestor", ref, default]).returncode == 0
 
 
-def classify_local(b: dict, default: str, current: str, protected_globs: list[str],
-                   merged: dict, closed: dict, open_refs: dict,
-                   stale_days: int, now: int) -> dict:
+def classify_local(
+    b: dict,
+    default: str,
+    current: str,
+    protected_globs: list[str],
+    merged: dict,
+    closed: dict,
+    open_refs: dict,
+    stale_days: int,
+    now: int,
+) -> dict:
     name = b["name"]
     age_days = (now - b["committed"]) // 86400 if b["committed"] else None
-    base = {"name": name, "age_days": age_days,
-            "pr": open_refs.get(name) or merged.get(name) or closed.get(name)}
+    base = {
+        "name": name,
+        "age_days": age_days,
+        "pr": open_refs.get(name) or merged.get(name) or closed.get(name),
+    }
     if is_protected(name, default, current, protected_globs):
         base["classification"] = "protected" if name != current else "current"
         base["safe_delete"] = False
         return base
     if name in open_refs:
-        base["classification"] = "open-pr"          # keep: backs an open PR
+        base["classification"] = "open-pr"  # keep: backs an open PR
         base["safe_delete"] = False
     elif name in merged:
-        base["classification"] = "merged-pr"      # squash-merge safe; needs -D
+        base["classification"] = "merged-pr"  # squash-merge safe; needs -D
         base["safe_delete"] = True
     elif is_ancestor(name, default):
-        base["classification"] = "merged-ff"        # branch_clean handles via -d
+        base["classification"] = "merged-ff"  # branch_clean handles via -d
         base["safe_delete"] = True
     elif b["gone"]:
-        base["classification"] = "gone"             # remote deleted
+        base["classification"] = "gone"  # remote deleted
         base["safe_delete"] = True
     elif name in closed:
         base["classification"] = "closed-unmerged"  # confirm: abandoned work
         base["safe_delete"] = False
     elif age_days is not None and age_days >= stale_days:
-        base["classification"] = "stale"            # confirm: no PR, old
+        base["classification"] = "stale"  # confirm: no PR, old
         base["safe_delete"] = False
     else:
-        base["classification"] = "no-pr-active"     # keep
+        base["classification"] = "no-pr-active"  # keep
         base["safe_delete"] = False
     return base
 
 
 def classify_remote(name: str, merged: dict, closed: dict, open_refs: dict) -> dict:
-    base = {"name": name, "pr": merged.get(name) or closed.get(name) or open_refs.get(name)}
+    base = {
+        "name": name,
+        "pr": merged.get(name) or closed.get(name) or open_refs.get(name),
+    }
     if name in open_refs:
-        base["classification"] = "open-pr"          # keep: backs an open PR
+        base["classification"] = "open-pr"  # keep: backs an open PR
         base["safe_delete"] = False
     elif name in merged:
-        base["classification"] = "merged-pr"        # safe (opt-in remote delete)
+        base["classification"] = "merged-pr"  # safe (opt-in remote delete)
         base["safe_delete"] = True
     elif name in closed:
         base["classification"] = "closed-unmerged"  # confirm
         base["safe_delete"] = False
     else:
-        base["classification"] = "no-pr"            # confirm: unknown provenance
+        base["classification"] = "no-pr"  # confirm: unknown provenance
         base["safe_delete"] = False
     return base
 
 
 def main() -> int:
     ap = argparse.ArgumentParser(
-        description="Squash-merge-aware PR/branch hygiene gatherer (read-only).")
-    ap.add_argument("--platform", choices=["github", "gitlab", "git"],
-                    help="Override platform autodetection.")
-    ap.add_argument("--stale-days", type=int, default=90,
-                    help="Days without a commit before a no-PR branch is stale (default 90).")
-    ap.add_argument("--protect", action="append", default=[],
-                    help="Extra protected glob (repeatable). Added to defaults.")
+        description="Squash-merge-aware PR/branch hygiene gatherer (read-only)."
+    )
+    ap.add_argument(
+        "--platform",
+        choices=["github", "gitlab", "git"],
+        help="Override platform autodetection.",
+    )
+    ap.add_argument(
+        "--stale-days",
+        type=int,
+        default=90,
+        help="Days without a commit before a no-PR branch is stale (default 90).",
+    )
+    ap.add_argument(
+        "--protect",
+        action="append",
+        default=[],
+        help="Extra protected glob (repeatable). Added to defaults.",
+    )
     args = ap.parse_args()
 
     errors: list[str] = []
@@ -260,7 +317,9 @@ def main() -> int:
 
     if platform == "github":
         if not shutil.which("gh"):
-            errors.append("gh not installed — cannot correlate PR state or detect empty PRs.")
+            errors.append(
+                "gh not installed — cannot correlate PR state or detect empty PRs."
+            )
         else:
             open_refs = gh_refs("open", errors)
             merged = gh_refs("merged", errors)
@@ -273,26 +332,42 @@ def main() -> int:
             open_refs = glab_refs("--opened", errors)
             merged = glab_refs("--merged", errors)
             closed = glab_refs("--closed", errors)
-            errors.append("gitlab: empty-MR diff sizes not gathered (glab list lacks a changes count); "
-                          "check `glab mr diff <iid>` for suspected no-ops.")
+            errors.append(
+                "gitlab: empty-MR diff sizes not gathered (glab list lacks a changes count); "
+                "check `glab mr diff <iid>` for suspected no-ops."
+            )
     else:
-        errors.append("no GitHub/GitLab remote detected — branch correlation skipped; "
-                      "rely on branch_clean.sh (merged-ff / gone / stale only).")
+        errors.append(
+            "no GitHub/GitLab remote detected — branch correlation skipped; "
+            "rely on branch_clean.sh (merged-ff / gone / stale only)."
+        )
 
-    locals_ = [classify_local(b, default, current, protected_globs,
-                              merged, closed, open_refs, args.stale_days, now)
-               for b in local_branches()]
-    remotes = [classify_remote(n, merged, closed, open_refs)
-               for n in remote_branches(default)]
+    locals_ = [
+        classify_local(
+            b,
+            default,
+            current,
+            protected_globs,
+            merged,
+            closed,
+            open_refs,
+            args.stale_days,
+            now,
+        )
+        for b in local_branches()
+    ]
+    remotes = [
+        classify_remote(n, merged, closed, open_refs) for n in remote_branches(default)
+    ]
 
     result = {
         "platform": platform,
         "default_branch": default,
         "current_branch": current,
         "stale_days": args.stale_days,
-        "open_pr_sizes": sizes,                 # github only; {} otherwise
+        "open_pr_sizes": sizes,  # github only; {} otherwise
         "empty_prs": [n for n, s in sizes.items() if s["empty"]],
-        "open_pr_refs": open_refs,              # head ref -> open PR number
+        "open_pr_refs": open_refs,  # head ref -> open PR number
         "merged_pr_refs": merged,
         "closed_pr_refs": closed,
         "branches": {"local": locals_, "remote": remotes},

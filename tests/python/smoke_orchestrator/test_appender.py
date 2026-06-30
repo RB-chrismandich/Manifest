@@ -10,8 +10,8 @@ import yaml
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 sys.path.insert(0, str(REPO_ROOT / "configs" / "claude" / "scripts"))
 
-from smoke_orchestrator.appender import SmokeTestAppender  # noqa: E402
-from smoke_orchestrator.validation import ValidationError  # noqa: E402
+from smoke_orchestrator.appender import SmokeTestAppender
+from smoke_orchestrator.validation import ValidationError
 
 
 def _wf(test_id="login-flow", tier="Lite", title="Login"):

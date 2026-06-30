@@ -13,7 +13,6 @@ import time
 from collections import Counter
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional
 
 try:
     from rich.console import Console
@@ -25,11 +24,13 @@ except ImportError:
     print("Error: Missing dependencies. Install with: pip install -r requirements.txt")
     sys.exit(1)
 
+import contextlib
+
 from agents.config import (
-    Config,
     HAS_ANTHROPIC,
     HAS_GENAI,
     HAS_GENAI_NEW,
+    Config,
     Logger,
     genai,
 )
@@ -49,10 +50,10 @@ class Orchestrator:
 
     def __init__(
         self,
-        agents: List[BaseAgent],
+        agents: list[BaseAgent],
         config: Config,
         validate: bool = False,
-        logger: Optional[Logger] = None,
+        logger: Logger | None = None,
         enable_synthesis: bool = True,
         streaming: bool = True,
     ):
@@ -65,8 +66,8 @@ class Orchestrator:
         self.console = Console()
 
     async def execute(
-        self, prompt: str, mode: str = "prompt", command: Optional[str] = None
-    ) -> Dict:
+        self, prompt: str, mode: str = "prompt", command: str | None = None
+    ) -> dict:
         """Run all agents concurrently and synthesize results"""
         start_time = time.time()
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -137,7 +138,7 @@ class Orchestrator:
 
         return result
 
-    async def _execute_without_streaming(self, prompt: str, mode: str) -> Dict:
+    async def _execute_without_streaming(self, prompt: str, mode: str) -> dict:
         """Execute agents without streaming (legacy mode)"""
         with Progress(
             SpinnerColumn(),
@@ -157,7 +158,7 @@ class Orchestrator:
 
         # Build results dictionary
         agent_results = {}
-        for agent, result in zip(self.agents, results):
+        for agent, result in zip(self.agents, results, strict=False):
             if isinstance(result, Exception):
                 agent_results[agent.name] = {
                     "status": "failed",
@@ -171,7 +172,7 @@ class Orchestrator:
 
     async def _execute_with_streaming(
         self, prompt: str, mode: str, timestamp: str
-    ) -> Dict:
+    ) -> dict:
         """Execute agents with live streaming display"""
         agent_panels = {agent.name: "" for agent in self.agents}
 
@@ -211,7 +212,7 @@ class Orchestrator:
 
         # Build results dictionary
         agent_results = {}
-        for agent, result in zip(self.agents, results):
+        for agent, result in zip(self.agents, results, strict=False):
             if isinstance(result, Exception):
                 agent_results[agent.name] = {
                     "status": "failed",
@@ -223,7 +224,7 @@ class Orchestrator:
 
         return agent_results
 
-    def _build_streaming_layout(self, agent_panels: Dict[str, str]) -> Panel:
+    def _build_streaming_layout(self, agent_panels: dict[str, str]) -> Panel:
         """Build rich panel layout for streaming display"""
         panel_text = ""
         for agent_name, output in agent_panels.items():
@@ -236,7 +237,7 @@ class Orchestrator:
 
         return Panel(panel_text, title="Parallel Agent Execution", border_style="blue")
 
-    def _log_performance_metrics(self, result: Dict, start_time: float):
+    def _log_performance_metrics(self, result: dict, start_time: float):
         """Log performance metrics"""
         if not self.logger:
             return
@@ -257,7 +258,7 @@ class Orchestrator:
                 f"credit_fallback={credit_fallback}"
             )
 
-    def _calculate_consensus(self, results: Dict) -> Dict:
+    def _calculate_consensus(self, results: dict) -> dict:
         """Calculate cross-verification consensus score"""
         outputs = [
             r.get("output", "")
@@ -313,13 +314,13 @@ class Orchestrator:
         }
 
     def _validate_results(
-        self, results: Dict, consensus: Dict, mode: str, command: Optional[str] = None
-    ) -> Dict:
+        self, results: dict, consensus: dict, mode: str, command: str | None = None
+    ) -> dict:
         """Validate results against success criteria"""
         validator = ValidationEngine(self.config, self.logger)
         return validator.validate(results, consensus, mode, command)
 
-    def _resolve_output_dir(self, custom_output_dir: Optional[str] = None) -> Path:
+    def _resolve_output_dir(self, custom_output_dir: str | None = None) -> Path:
         """Resolve output directory with sandbox-aware fallback.
 
         Tries directories in order:
@@ -341,23 +342,21 @@ class Orchestrator:
             fallback = Path(f"/tmp/.claude_agent_outputs_{os.getpid()}")
             if self.logger:
                 self.logger.warning(
-                    f"Cannot write to {default_dir}: {e}. "
-                    f"Falling back to {fallback}"
+                    f"Cannot write to {default_dir}: {e}. Falling back to {fallback}"
                 )
             print(
-                f"  Warning: Cannot write to {default_dir}, "
-                f"using fallback: {fallback}",
+                f"  Warning: Cannot write to {default_dir}, using fallback: {fallback}",
                 file=sys.stderr,
             )
             return fallback
 
     async def _write_output_files(
         self,
-        result: Dict,
+        result: dict,
         timestamp: str,
-        custom_output_dir: Optional[str] = None,
+        custom_output_dir: str | None = None,
         full_output: bool = True,
-    ) -> Dict:
+    ) -> dict:
         """Write output files to disk with sandbox-aware fallback"""
         output_dir = self._resolve_output_dir(custom_output_dir)
         output_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -447,14 +446,12 @@ class Orchestrator:
         # Timestamps are YYYYMMDD_HHMMSS, so lexicographic == chronological
         runs = sorted(output_dir.glob("results_*.json"))
         for stale in runs[:-keep_last]:
-            ts = stale.stem[len("results_"):]
+            ts = stale.stem[len("results_") :]
             for f in output_dir.glob(f"*_{ts}.*"):
-                try:
+                with contextlib.suppress(OSError):
                     f.unlink()
-                except OSError:
-                    pass
 
-    def print_results(self, result: Dict, json_output: bool = False):
+    def print_results(self, result: dict, json_output: bool = False):
         """Print results in table or JSON format"""
         if json_output:
             print(json.dumps(result, indent=2))
@@ -462,7 +459,7 @@ class Orchestrator:
             self._print_table(result)
             self._print_summary(result)
 
-    def _print_table(self, result: Dict):
+    def _print_table(self, result: dict):
         """Print results as formatted table"""
         table = Table(title="Parallel Agent Results")
         table.add_column("Agent", style="cyan")
@@ -490,12 +487,18 @@ class Orchestrator:
 
         self.console.print(table)
 
-    def _print_summary(self, result: Dict):
+    def _print_summary(self, result: dict):
         """Print consensus summary"""
         consensus = result["cross_verification"]
 
         confidence = consensus["confidence"].upper()
-        conf_color = "green" if confidence == "HIGH" else "yellow" if confidence == "MEDIUM" else "red"
+        conf_color = (
+            "green"
+            if confidence == "HIGH"
+            else "yellow"
+            if confidence == "MEDIUM"
+            else "red"
+        )
 
         self.console.print(
             f"\n[bold]Consensus:[/bold] {consensus['consensus_score']}% ([{conf_color}]{confidence}[/{conf_color}])"
@@ -504,7 +507,13 @@ class Orchestrator:
 
         if result.get("validation"):
             verdict = result["validation"]["verdict"]
-            color = "green" if verdict == "APPROVED" else "yellow" if verdict == "NEEDS_REVIEW" else "red"
+            color = (
+                "green"
+                if verdict == "APPROVED"
+                else "yellow"
+                if verdict == "NEEDS_REVIEW"
+                else "red"
+            )
             self.console.print(f"[bold]Validation:[/bold] [{color}]{verdict}[/{color}]")
 
 
@@ -515,9 +524,9 @@ class Orchestrator:
 
 async def check_credits(
     config: Config,
-    logger: Optional[Logger] = None,
+    logger: Logger | None = None,
     probe_timeout: float = 15,
-) -> Dict:
+) -> dict:
     """Pre-flight credit check with minimal API calls"""
     results = {}
 
@@ -609,15 +618,15 @@ async def check_credits(
             # The timeout must cover communicate(), not just the spawn —
             # codex blocking on auth/TTY hung this probe forever (issue #307)
             try:
-                stdout, stderr = await asyncio.wait_for(
+                _stdout, stderr = await asyncio.wait_for(
                     proc.communicate(), timeout=probe_timeout
                 )
-            except asyncio.TimeoutError:
+            except TimeoutError as err:
                 proc.kill()
                 await proc.wait()
-                raise asyncio.TimeoutError(
+                raise TimeoutError(
                     f"codex probe timed out after {probe_timeout}s"
-                )
+                ) from err
             error_output = stderr.decode("utf-8", errors="ignore").lower()
 
             if any(
@@ -635,7 +644,7 @@ async def check_credits(
                     "status": "error",
                     "error": stderr.decode("utf-8", errors="ignore"),
                 }
-        except (asyncio.TimeoutError, Exception) as e:
+        except (TimeoutError, Exception) as e:
             results["codex"] = {"status": "error", "error": str(e)}
     else:
         results["codex"] = {"status": "not_installed"}

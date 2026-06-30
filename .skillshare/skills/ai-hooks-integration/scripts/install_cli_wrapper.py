@@ -98,7 +98,9 @@ Hook Output Format (pre-hook only):
     ap.add_argument("--hook", help="Hook command for both pre and post")
     ap.add_argument("--pre-hook", help="Pre-execution hook command")
     ap.add_argument("--post-hook", help="Post-execution hook command")
-    ap.add_argument("--original", help="Path to original binary (auto-detected if omitted)")
+    ap.add_argument(
+        "--original", help="Path to original binary (auto-detected if omitted)"
+    )
     ap.add_argument(
         "--output",
         type=Path,
@@ -113,7 +115,9 @@ Hook Output Format (pre-hook only):
     )
     ap.add_argument("--timeout", type=int, default=5, help="Hook timeout in seconds")
     ap.add_argument("--force", action="store_true", help="Overwrite existing wrapper")
-    ap.add_argument("--dry-run", action="store_true", help="Print actions without writing")
+    ap.add_argument(
+        "--dry-run", action="store_true", help="Print actions without writing"
+    )
 
     args = ap.parse_args()
 
@@ -171,7 +175,7 @@ Hook Output Format (pre-hook only):
             print(f"Original:  {original}")
             ensure_path_priority(output_dir)
     else:
-        print(f"Error: Failed to write wrapper", file=sys.stderr)
+        print("Error: Failed to write wrapper", file=sys.stderr)
         sys.exit(1)
 
 

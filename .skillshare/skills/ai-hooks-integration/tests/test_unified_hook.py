@@ -172,17 +172,13 @@ class TestResponses(unittest.TestCase):
     def test_allow_response(self):
         """Should generate valid allow response."""
         response = allow_response()
-        self.assertEqual(
-            response["hookSpecificOutput"]["permissionDecision"], "allow"
-        )
+        self.assertEqual(response["hookSpecificOutput"]["permissionDecision"], "allow")
         self.assertTrue(response["continue"])
 
     def test_deny_response(self):
         """Should generate valid deny response with reason."""
         response = deny_response("Too dangerous")
-        self.assertEqual(
-            response["hookSpecificOutput"]["permissionDecision"], "deny"
-        )
+        self.assertEqual(response["hookSpecificOutput"]["permissionDecision"], "deny")
         self.assertEqual(
             response["hookSpecificOutput"]["permissionDecisionReason"],
             "Too dangerous",
@@ -250,7 +246,9 @@ class TestMainStdinFailOpen(unittest.TestCase):
     def _assert_fail_open(self, stdin_text, label):
         proc = self._run(stdin_text)
         self.assertEqual(
-            proc.returncode, 0, f"{label}: expected exit 0, got {proc.returncode}\n{proc.stderr}"
+            proc.returncode,
+            0,
+            f"{label}: expected exit 0, got {proc.returncode}\n{proc.stderr}",
         )
         self.assertNotIn("Traceback", proc.stderr, f"{label}: crashed:\n{proc.stderr}")
         parsed = json.loads(proc.stdout)

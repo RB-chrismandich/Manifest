@@ -14,24 +14,40 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO_ROOT / "configs" / "claude" / "scripts"))
 
-from smoke_orchestrator.executor import SmokeTestExecutor  # noqa: E402
-from smoke_orchestrator.steps import StepOutcome  # noqa: E402
-from smoke_orchestrator.steps import agent as agent_runner  # noqa: E402
-from smoke_orchestrator.validation import ValidationError, validate_catalog  # noqa: E402
+from smoke_orchestrator.executor import SmokeTestExecutor
+from smoke_orchestrator.steps import StepOutcome
+from smoke_orchestrator.steps import agent as agent_runner
+from smoke_orchestrator.validation import (
+    ValidationError,
+    validate_catalog,
+)
 
 
 # --- helpers ---------------------------------------------------------------
-def _agent_step(name="login", *, task="Log in and reach the dashboard",
-                judge=("user reaches the dashboard",), **extra):
-    step = {"name": name, "type": "ui", "mode": "agent", "task": task,
-            "judge_context": list(judge)}
+def _agent_step(
+    name="login",
+    *,
+    task="Log in and reach the dashboard",
+    judge=("user reaches the dashboard",),
+    **extra,
+):
+    step = {
+        "name": name,
+        "type": "ui",
+        "mode": "agent",
+        "task": task,
+        "judge_context": list(judge),
+    }
     step.update(extra)
     return step
 
 
 def _catalog(steps, *, tier="Full", app="demo"):
-    return {"version": 1, "app": app,
-            "tests": [{"id": "t1", "tier": tier, "steps": steps}]}
+    return {
+        "version": 1,
+        "app": app,
+        "tests": [{"id": "t1", "tier": tier, "steps": steps}],
+    }
 
 
 class _Result:
@@ -88,14 +104,22 @@ def test_deterministic_ui_still_requires_action():
 
 # --- runner contract (steps/agent.py) --------------------------------------
 def test_agent_step_passes_when_runner_passes():
-    out = agent_runner.run(_agent_step(), runner=lambda *a, **k: _Result(True, "ok"),
-                           base_url=None, timeout_ms=1000)
+    out = agent_runner.run(
+        _agent_step(),
+        runner=lambda *a, **k: _Result(True, "ok"),
+        base_url=None,
+        timeout_ms=1000,
+    )
     assert isinstance(out, StepOutcome) and out.passed
 
 
 def test_agent_step_fails_when_runner_judges_fail():
-    out = agent_runner.run(_agent_step(), runner=lambda *a, **k: _Result(False, "no dashboard"),
-                           base_url=None, timeout_ms=1000)
+    out = agent_runner.run(
+        _agent_step(),
+        runner=lambda *a, **k: _Result(False, "no dashboard"),
+        base_url=None,
+        timeout_ms=1000,
+    )
     assert not out.passed
     assert "no dashboard" in out.message
 
@@ -111,8 +135,12 @@ def test_agent_step_contains_runner_exception_without_aborting():
 
 def test_agent_captures_are_best_effort_present():
     step = _agent_step(captures={"order_id": "n/a"})
-    out = agent_runner.run(step, runner=lambda *a, **k: _Result(True, captures={"order_id": "42"}),
-                           base_url=None, timeout_ms=1000)
+    out = agent_runner.run(
+        step,
+        runner=lambda *a, **k: _Result(True, captures={"order_id": "42"}),
+        base_url=None,
+        timeout_ms=1000,
+    )
     assert out.passed and out.captures == {"order_id": "42"}
 
 
@@ -120,8 +148,12 @@ def test_agent_captures_unavailable_are_omitted_not_errored():
     # design finding #2: an unavailable capture is dropped (→ downstream needs blocks),
     # never raised — the runtime 'needs' gate is the safeguard, not a static error.
     step = _agent_step(captures={"order_id": "n/a"})
-    out = agent_runner.run(step, runner=lambda *a, **k: _Result(True, captures={}),
-                           base_url=None, timeout_ms=1000)
+    out = agent_runner.run(
+        step,
+        runner=lambda *a, **k: _Result(True, captures={}),
+        base_url=None,
+        timeout_ms=1000,
+    )
     assert out.passed and out.captures == {}
 
 
@@ -132,14 +164,19 @@ def test_agent_start_url_joins_base_url():
         seen["start_url"] = start_url
         return _Result(True)
 
-    agent_runner.run(_agent_step(url="/login"), runner=capture_args,
-                     base_url="https://app.test", timeout_ms=1000)
+    agent_runner.run(
+        _agent_step(url="/login"),
+        runner=capture_args,
+        base_url="https://app.test",
+        timeout_ms=1000,
+    )
     assert seen["start_url"] == "https://app.test/login"
 
 
 # --- executor routing ------------------------------------------------------
 def test_executor_routes_agent_step_to_injected_runner(tmp_path):
     import yaml
+
     calls = []
 
     def runner(task, **k):
@@ -148,7 +185,9 @@ def test_executor_routes_agent_step_to_injected_runner(tmp_path):
 
     cat_dir = tmp_path / "smoke-catalog"
     cat_dir.mkdir()
-    (cat_dir / "demo.yaml").write_text(yaml.safe_dump(_catalog([_agent_step()], tier="Full")))
+    (cat_dir / "demo.yaml").write_text(
+        yaml.safe_dump(_catalog([_agent_step()], tier="Full"))
+    )
     execu = SmokeTestExecutor(catalog_dir=str(cat_dir), agent_runner=runner)
     report = execu.run("demo", tier="Full")
     assert calls and report.verdict == "PASS"
@@ -156,8 +195,8 @@ def test_executor_routes_agent_step_to_injected_runner(tmp_path):
 
 def test_agent_only_test_needs_no_playwright(tmp_path, monkeypatch):
     # an agent-only Full run must not try to launch Playwright (separate engines)
-    import yaml
     import smoke_orchestrator.executor as ex
+    import yaml
 
     def fail_open(self, need_browser, need_api):
         assert not need_browser, "agent steps must not require the Playwright browser"
@@ -165,7 +204,11 @@ def test_agent_only_test_needs_no_playwright(tmp_path, monkeypatch):
     monkeypatch.setattr(ex._RunContext, "open", fail_open)
     cat_dir = tmp_path / "smoke-catalog"
     cat_dir.mkdir()
-    (cat_dir / "demo.yaml").write_text(yaml.safe_dump(_catalog([_agent_step()], tier="Full")))
-    execu = SmokeTestExecutor(catalog_dir=str(cat_dir), agent_runner=lambda *a, **k: _Result(True))
+    (cat_dir / "demo.yaml").write_text(
+        yaml.safe_dump(_catalog([_agent_step()], tier="Full"))
+    )
+    execu = SmokeTestExecutor(
+        catalog_dir=str(cat_dir), agent_runner=lambda *a, **k: _Result(True)
+    )
     report = execu.run("demo", tier="Full")
     assert report.verdict == "PASS"

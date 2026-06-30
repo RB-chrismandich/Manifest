@@ -1,9 +1,9 @@
-from pathlib import Path
 import json
 import sys
+from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "configs/claude/scripts"))
-import skillclaw_audit as audit  # noqa: E402
+import skillclaw_audit as audit
 
 
 def test_compute_eta_estimating_until_two_chunks():
@@ -44,8 +44,14 @@ def _read(p):
 
 def test_log_appends_jsonl_and_updates_status(tmp_path, monkeypatch):
     monkeypatch.setenv("SKILLCLAW_AUDIT_DIR", str(tmp_path))
-    audit.log("20260609T230501Z-4821", "-", "run_start",
-              window_days=30, token_budget=100000, apply=True)
+    audit.log(
+        "20260609T230501Z-4821",
+        "-",
+        "run_start",
+        window_days=30,
+        token_budget=100000,
+        apply=True,
+    )
     log_lines = (tmp_path / "promote.log").read_text().splitlines()
     assert len(log_lines) == 1
     first = json.loads(log_lines[0])
@@ -60,7 +66,9 @@ def test_chunk_done_event_records_eta(tmp_path, monkeypatch):
     rid = "20260609T230501Z-4821"
     audit.log(rid, "-", "run_start")
     audit.log(rid, "evolve", "stage_start", chunks=12)
-    audit.log(rid, "evolve", "chunk_done", i=4, total=12, chunk_seconds=15.0, elapsed_s=60)
+    audit.log(
+        rid, "evolve", "chunk_done", i=4, total=12, chunk_seconds=15.0, elapsed_s=60
+    )
     status = _read(tmp_path / "status.json")
     assert status["stage"] == "evolve"
     assert status["evolve"]["chunk"] == 4 and status["evolve"]["total"] == 12
@@ -74,7 +82,7 @@ def test_new_run_id_resets_snapshot_no_state_bleed(tmp_path, monkeypatch):
     audit.log("20260609T235959Z-2222", "-", "run_start")  # different run_id
     status = _read(tmp_path / "status.json")
     assert status["run_id"] == "20260609T235959Z-2222"
-    assert status["pr_url"] is None          # prior run's PR must not bleed in
+    assert status["pr_url"] is None  # prior run's PR must not bleed in
     assert status["state"] == "running"
 
 
@@ -90,10 +98,16 @@ def test_candidates_counts_new_changed_and_dropped(tmp_path, monkeypatch):
     monkeypatch.setenv("SKILLCLAW_AUDIT_DIR", str(tmp_path))
     rid = "20260609T230501Z-4821"
     audit.log(rid, "-", "run_start")
-    audit.log(rid, "classify", "candidates",
-              new=["a", "b"], changed=["c"], dropped=[{"name": "d", "reason": "x"}])
+    audit.log(
+        rid,
+        "classify",
+        "candidates",
+        new=["a", "b"],
+        changed=["c"],
+        dropped=[{"name": "d", "reason": "x"}],
+    )
     totals = _read(tmp_path / "status.json")["totals"]
-    assert totals["candidates"] == 3      # 2 new + 1 changed
+    assert totals["candidates"] == 3  # 2 new + 1 changed
     assert totals["dropped"] == 1
 
 
@@ -134,7 +148,9 @@ def test_render_status_running_evolve(tmp_path, monkeypatch):
     rid = "20260609T230501Z-4821"
     audit.log(rid, "-", "run_start")
     audit.log(rid, "evolve", "stage_start", chunks=12)
-    audit.log(rid, "evolve", "chunk_done", i=4, total=12, chunk_seconds=15.0, elapsed_s=60)
+    audit.log(
+        rid, "evolve", "chunk_done", i=4, total=12, chunk_seconds=15.0, elapsed_s=60
+    )
     out = audit.render_status()
     assert "evolve" in out and "chunk 4/12" in out and "~2m left (est)" in out
 
@@ -150,7 +166,9 @@ def test_render_status_done_summary(tmp_path, monkeypatch):
     monkeypatch.setenv("SKILLCLAW_AUDIT_DIR", str(tmp_path))
     rid = "20260609T230501Z-4821"
     audit.log(rid, "-", "run_start")
-    audit.log(rid, "classify", "candidates", new=["a", "b", "c"], changed=[], dropped=[])
+    audit.log(
+        rid, "classify", "candidates", new=["a", "b", "c"], changed=[], dropped=[]
+    )
     audit.log(rid, "promote", "pr_opened", url="https://x/pull/7")
     audit.log(rid, "-", "run_end", state="done", total_seconds=252.4)
     out = audit.render_status()
@@ -171,10 +189,12 @@ def test_render_status_unknown_state_is_not_mislabeled_done(tmp_path, monkeypatc
 def test_trim_keeps_only_recent_run_ids(tmp_path, monkeypatch):
     monkeypatch.setenv("SKILLCLAW_AUDIT_DIR", str(tmp_path))
     for i in range(5):
-        audit.log("run-%d" % i, "-", "run_start")
+        audit.log(f"run-{i}", "-", "run_start")
     audit.trim(max_runs=2)
-    rids = {json.loads(ln)["run_id"]
-            for ln in (tmp_path / "promote.log").read_text().splitlines()}
+    rids = {
+        json.loads(ln)["run_id"]
+        for ln in (tmp_path / "promote.log").read_text().splitlines()
+    }
     assert rids == {"run-3", "run-4"}
 
 
@@ -182,10 +202,12 @@ def test_trim_clamps_nonpositive_max_runs_to_keep_recent_one(tmp_path, monkeypat
     # max_runs <= 0 must not retain everything (order[-0:] == all); it clamps to 1.
     monkeypatch.setenv("SKILLCLAW_AUDIT_DIR", str(tmp_path))
     for i in range(3):
-        audit.log("run-%d" % i, "-", "run_start")
+        audit.log(f"run-{i}", "-", "run_start")
     audit.trim(max_runs=0)
-    rids = {json.loads(ln)["run_id"]
-            for ln in (tmp_path / "promote.log").read_text().splitlines()}
+    rids = {
+        json.loads(ln)["run_id"]
+        for ln in (tmp_path / "promote.log").read_text().splitlines()
+    }
     assert rids == {"run-2"}
 
 
@@ -195,7 +217,7 @@ def test_trim_survives_valid_json_non_dict_lines(tmp_path, monkeypatch):
     disabling trimming."""
     monkeypatch.setenv("SKILLCLAW_AUDIT_DIR", str(tmp_path))
     for i in range(4):
-        audit.log("run-%d" % i, "-", "run_start")
+        audit.log(f"run-{i}", "-", "run_start")
     log = tmp_path / "promote.log"
     log.write_text(log.read_text() + "123\nnull\nnot json at all\n")
     audit.trim(max_runs=2)
@@ -208,7 +230,7 @@ def test_trim_survives_valid_json_non_dict_lines(tmp_path, monkeypatch):
 def test_trim_is_atomic_on_failure(tmp_path, monkeypatch):
     monkeypatch.setenv("SKILLCLAW_AUDIT_DIR", str(tmp_path))
     for i in range(3):
-        audit.log("run-%d" % i, "-", "run_start")
+        audit.log(f"run-{i}", "-", "run_start")
     original = (tmp_path / "promote.log").read_text()
 
     def boom(*a, **k):
@@ -224,12 +246,12 @@ def test_fail_open_on_unwritable_dir(tmp_path, monkeypatch):
     blocker = tmp_path / "blocker"
     blocker.write_text("not a dir")
     monkeypatch.setenv("SKILLCLAW_AUDIT_DIR", str(blocker / "sub"))
-    audit.log("run-x", "-", "run_start")          # must not raise
+    audit.log("run-x", "-", "run_start")  # must not raise
     assert audit.render_status() == "no recent run"
 
 
 def test_storage_auto_inits_when_absent(tmp_path, monkeypatch):
-    target = tmp_path / "fresh" / "nested"        # does not exist yet
+    target = tmp_path / "fresh" / "nested"  # does not exist yet
     monkeypatch.setenv("SKILLCLAW_AUDIT_DIR", str(target))
     audit.log("run-1", "-", "run_start")
     assert (target / "promote.log").exists()
@@ -238,8 +260,17 @@ def test_storage_auto_inits_when_absent(tmp_path, monkeypatch):
 
 def test_cli_log_parses_key_value_and_json(tmp_path, monkeypatch):
     monkeypatch.setenv("SKILLCLAW_AUDIT_DIR", str(tmp_path))
-    rc = audit.main(["log", "run-1", "classify", "candidates",
-                     'new=["a","b"]', "dropped=[]", "changed=[]"])
+    rc = audit.main(
+        [
+            "log",
+            "run-1",
+            "classify",
+            "candidates",
+            'new=["a","b"]',
+            "dropped=[]",
+            "changed=[]",
+        ]
+    )
     assert rc == 0
     status = json.loads((tmp_path / "status.json").read_text())
     assert status["totals"]["candidates"] == 2
@@ -249,7 +280,7 @@ def test_cli_status_and_trim(tmp_path, monkeypatch, capsys):
     monkeypatch.setenv("SKILLCLAW_AUDIT_DIR", str(tmp_path))
     assert audit.main(["status"]) == 0
     assert capsys.readouterr().out.strip() == "no recent run"
-    assert audit.main(["trim", "--max-runs", "10"]) == 0   # no log yet -> no-op, rc 0
+    assert audit.main(["trim", "--max-runs", "10"]) == 0  # no log yet -> no-op, rc 0
 
 
 def test_cli_log_bare_key_is_silently_dropped(tmp_path, monkeypatch):
@@ -259,23 +290,25 @@ def test_cli_log_bare_key_is_silently_dropped(tmp_path, monkeypatch):
     rc = audit.main(["log", "run-1", "-", "run_start", "apply", "window_days=30"])
     assert rc == 0
     status = json.loads((tmp_path / "status.json").read_text())
-    assert status.get("config", {}).get("window_days") == 30   # good pair kept
-    assert "apply" not in status.get("config", {})             # bare key dropped
+    assert status.get("config", {}).get("window_days") == 30  # good pair kept
+    assert "apply" not in status.get("config", {})  # bare key dropped
 
 
 def test_cli_trim_non_int_max_runs_falls_back(tmp_path, monkeypatch):
     monkeypatch.setenv("SKILLCLAW_AUDIT_DIR", str(tmp_path))
     for i in range(3):
-        audit.log("run-%d" % i, "-", "run_start")
-    rc = audit.main(["trim", "--max-runs", "notanint"])        # bad value -> default
+        audit.log(f"run-{i}", "-", "run_start")
+    rc = audit.main(["trim", "--max-runs", "notanint"])  # bad value -> default
     assert rc == 0
-    rids = {json.loads(ln)["run_id"]
-            for ln in (tmp_path / "promote.log").read_text().splitlines()}
-    assert rids == {"run-0", "run-1", "run-2"}                 # default 50 keeps all
+    rids = {
+        json.loads(ln)["run_id"]
+        for ln in (tmp_path / "promote.log").read_text().splitlines()
+    }
+    assert rids == {"run-0", "run-1", "run-2"}  # default 50 keeps all
 
 
 def test_cli_log_with_too_few_args_is_noop(tmp_path, monkeypatch):
     monkeypatch.setenv("SKILLCLAW_AUDIT_DIR", str(tmp_path))
-    rc = audit.main(["log", "run-1"])                          # <3 positional -> no-op
+    rc = audit.main(["log", "run-1"])  # <3 positional -> no-op
     assert rc == 0
-    assert not (tmp_path / "promote.log").exists()             # nothing written
+    assert not (tmp_path / "promote.log").exists()  # nothing written

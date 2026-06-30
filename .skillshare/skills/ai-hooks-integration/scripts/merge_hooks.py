@@ -17,10 +17,9 @@ Behavior:
 import argparse
 from pathlib import Path
 
-from runtime.tool_config import TOOL_CONFIG, get_config, load_json, save_json, has_hook
+from runtime.tool_config import TOOL_CONFIG, get_config, has_hook, load_json, save_json
 
-
-OPENCODE_TEMPLATE = '''\
+OPENCODE_TEMPLATE = """\
 export const PluginHook = async () => {{
   return {{
     "tool.execute.before": async (input, output) => {{
@@ -48,10 +47,12 @@ export const PluginHook = async () => {{
     }}
   }};
 }};
-'''
+"""
 
 
-def write_opencode_plugin(path: Path, force: bool, dry_run: bool, command_to_run: str) -> None:
+def write_opencode_plugin(
+    path: Path, force: bool, dry_run: bool, command_to_run: str
+) -> None:
     if path.exists() and not force:
         return
     if dry_run:
@@ -67,8 +68,12 @@ def main() -> None:
     ap.add_argument("--path", required=True)
     ap.add_argument("--command", help="Hook command to inject")
     ap.add_argument("--matcher", help="Override matcher for nested hooks")
-    ap.add_argument("--force", action="store_true", help="Overwrite existing plugin file (opencode)")
-    ap.add_argument("--dry-run", action="store_true", help="Print actions without writing")
+    ap.add_argument(
+        "--force", action="store_true", help="Overwrite existing plugin file (opencode)"
+    )
+    ap.add_argument(
+        "--dry-run", action="store_true", help="Print actions without writing"
+    )
     args = ap.parse_args()
 
     path = Path(args.path).expanduser()

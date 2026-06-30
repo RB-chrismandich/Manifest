@@ -9,7 +9,6 @@ import asyncio
 import sys
 from pathlib import Path
 
-import pytest
 import yaml
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent.parent
@@ -17,7 +16,6 @@ SCRIPTS_DIR = str(REPO_ROOT / "configs" / "claude" / "scripts")
 sys.path.insert(0, SCRIPTS_DIR)
 
 from agents.config import Config, Logger, RateLimiter, ServiceConfig
-
 
 # ---------------------------------------------------------------------------
 # Config
@@ -59,9 +57,7 @@ class TestConfig:
 
     def test_load_from_yaml_file(self, tmp_path):
         config_file = tmp_path / "config.yml"
-        config_file.write_text(
-            "rate_limits:\n  claude:\n    requests_per_minute: 30\n"
-        )
+        config_file.write_text("rate_limits:\n  claude:\n    requests_per_minute: 30\n")
         config = Config(config_path=str(config_file))
         assert config.get("rate_limits.claude.requests_per_minute") == 30
 
@@ -214,7 +210,9 @@ class TestCliAgentsConfig:
         config = Config(config_path=str(tmp_path / "none.yml"))
         assert config.get("rate_limits.antigravity.requests_per_minute") == 100
         assert config.get("credit_fallback.antigravity") == [
-            "advanced", "flash", "mini",
+            "advanced",
+            "flash",
+            "mini",
         ]
         tiers = config.get("model_tiers.antigravity")
         assert set(tiers) == {"mini", "flash", "advanced"}

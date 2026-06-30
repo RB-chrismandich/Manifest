@@ -38,36 +38,60 @@ def install_unified(args) -> None:
         unified_cmd += f" --handler {args.handler}"
 
     # Install for Claude (unified hook handles source detection)
-    run([
-        str(MERGE),
-        "--tool", "claude",
-        "--path", str(Path("~/.claude/settings.json").expanduser()),
-        "--command", f"{unified_cmd} --source claude",
-    ] + dry)
+    run(
+        [
+            str(MERGE),
+            "--tool",
+            "claude",
+            "--path",
+            str(Path("~/.claude/settings.json").expanduser()),
+            "--command",
+            f"{unified_cmd} --source claude",
+            *dry,
+        ]
+    )
 
     # Install for Gemini
-    run([
-        str(MERGE),
-        "--tool", "gemini",
-        "--path", str(Path("~/.gemini/settings.json").expanduser()),
-        "--command", f"{unified_cmd} --source gemini",
-    ] + dry)
+    run(
+        [
+            str(MERGE),
+            "--tool",
+            "gemini",
+            "--path",
+            str(Path("~/.gemini/settings.json").expanduser()),
+            "--command",
+            f"{unified_cmd} --source gemini",
+            *dry,
+        ]
+    )
 
     # Install for Cursor
-    run([
-        str(MERGE),
-        "--tool", "cursor",
-        "--path", str(Path("~/.cursor/hooks.json").expanduser()),
-        "--command", f"{unified_cmd} --source cursor",
-    ] + dry)
+    run(
+        [
+            str(MERGE),
+            "--tool",
+            "cursor",
+            "--path",
+            str(Path("~/.cursor/hooks.json").expanduser()),
+            "--command",
+            f"{unified_cmd} --source cursor",
+            *dry,
+        ]
+    )
 
     # Install OpenCode advanced plugin (has its own source detection)
-    run([
-        str(OPENCODE_INSTALLER),
-        "--name", args.name,
-        "--output", str(Path("~/.config/opencode/plugins").expanduser()),
-        "--advanced",
-    ] + (["--force"] if args.force else []) + dry)
+    run(
+        [
+            str(OPENCODE_INSTALLER),
+            "--name",
+            args.name,
+            "--output",
+            str(Path("~/.config/opencode/plugins").expanduser()),
+            "--advanced",
+        ]
+        + (["--force"] if args.force else [])
+        + dry
+    )
 
 
 def install_classic(args) -> None:
@@ -75,32 +99,55 @@ def install_classic(args) -> None:
     cmd = args.command
     dry = ["--dry-run"] if args.dry_run else []
 
-    run([
-        str(MERGE),
-        "--tool", "claude",
-        "--path", str(Path("~/.claude/settings.json").expanduser()),
-        "--command", f"{cmd} --claude",
-    ] + dry)
+    run(
+        [
+            str(MERGE),
+            "--tool",
+            "claude",
+            "--path",
+            str(Path("~/.claude/settings.json").expanduser()),
+            "--command",
+            f"{cmd} --claude",
+            *dry,
+        ]
+    )
 
-    run([
-        str(MERGE),
-        "--tool", "gemini",
-        "--path", str(Path("~/.gemini/settings.json").expanduser()),
-        "--command", f"{cmd} --gemini",
-    ] + dry)
+    run(
+        [
+            str(MERGE),
+            "--tool",
+            "gemini",
+            "--path",
+            str(Path("~/.gemini/settings.json").expanduser()),
+            "--command",
+            f"{cmd} --gemini",
+            *dry,
+        ]
+    )
 
-    run([
-        str(MERGE),
-        "--tool", "cursor",
-        "--path", str(Path("~/.cursor/hooks.json").expanduser()),
-        "--command", f"{cmd} --cursor",
-    ] + dry)
+    run(
+        [
+            str(MERGE),
+            "--tool",
+            "cursor",
+            "--path",
+            str(Path("~/.cursor/hooks.json").expanduser()),
+            "--command",
+            f"{cmd} --cursor",
+            *dry,
+        ]
+    )
 
-    run([
-        str(MERGE),
-        "--tool", "opencode",
-        "--path", str(Path("~/.config/opencode/plugins").expanduser() / f"{args.name}.js"),
-    ] + dry)
+    run(
+        [
+            str(MERGE),
+            "--tool",
+            "opencode",
+            "--path",
+            str(Path("~/.config/opencode/plugins").expanduser() / f"{args.name}.js"),
+            *dry,
+        ]
+    )
 
 
 def main() -> None:
@@ -120,8 +167,12 @@ Examples:
 """,
     )
     ap.add_argument("--command", help="Base hook command (classic mode)")
-    ap.add_argument("--name", required=True, help="OpenCode plugin filename without extension")
-    ap.add_argument("--dry-run", action="store_true", help="Print actions without writing")
+    ap.add_argument(
+        "--name", required=True, help="OpenCode plugin filename without extension"
+    )
+    ap.add_argument(
+        "--dry-run", action="store_true", help="Print actions without writing"
+    )
     ap.add_argument(
         "--unified",
         action="store_true",

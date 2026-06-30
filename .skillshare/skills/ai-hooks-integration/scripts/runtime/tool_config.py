@@ -106,6 +106,7 @@ def load_json(path: Path) -> dict:
                 return parsed
         except json.JSONDecodeError as e:
             import sys
+
             print(f"Warning: Failed to parse JSON from {path}: {e}", file=sys.stderr)
     return {}
 

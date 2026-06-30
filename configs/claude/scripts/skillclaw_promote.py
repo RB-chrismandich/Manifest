@@ -8,6 +8,7 @@ validation), with reasons. No git side effects here.
 Usage:
     skillclaw_promote.py <evolved_dir> <committed_dir> [--skill NAME]
 """
+
 from __future__ import annotations
 
 import argparse
@@ -72,7 +73,9 @@ def main(argv: list[str]) -> int:
     ap.add_argument("evolved_dir")
     ap.add_argument("committed_dir")
     ap.add_argument("--skill", help="restrict to a single skill name")
-    ap.add_argument("--rejected-dir", help="copy invalid candidates here for inspection")
+    ap.add_argument(
+        "--rejected-dir", help="copy invalid candidates here for inspection"
+    )
     args = ap.parse_args(argv)
 
     evolved = Path(args.evolved_dir).expanduser()

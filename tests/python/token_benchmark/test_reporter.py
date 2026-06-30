@@ -4,11 +4,14 @@ import json
 import sys
 from pathlib import Path
 
-import pytest
-
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
-from tests.token_benchmark.reporter import load_results, compute_stats, render_report, update_report
+from tests.token_benchmark.reporter import (
+    compute_stats,
+    load_results,
+    render_report,
+    update_report,
+)
 
 # Minimal fixture: 4 records covering one provider/category in before+after
 FIXTURE_RECORDS = [
@@ -110,12 +113,24 @@ class TestComputeStats:
     def test_antigravity_has_null_tokens(self):
         """Antigravity records (no API) should produce None overhead."""
         records = [
-            {**FIXTURE_RECORDS[0], "provider": "antigravity", "input_tokens": None, "source": "api"},
-            {**FIXTURE_RECORDS[1], "provider": "antigravity", "input_tokens": None, "source": "api"},
+            {
+                **FIXTURE_RECORDS[0],
+                "provider": "antigravity",
+                "input_tokens": None,
+                "source": "api",
+            },
+            {
+                **FIXTURE_RECORDS[1],
+                "provider": "antigravity",
+                "input_tokens": None,
+                "source": "api",
+            },
         ]
         stats = compute_stats(records)
-        assert stats["token_overhead"].get("antigravity") is None or \
-               stats["token_overhead"]["antigravity"]["overhead_tokens"] is None
+        assert (
+            stats["token_overhead"].get("antigravity") is None
+            or stats["token_overhead"]["antigravity"]["overhead_tokens"] is None
+        )
 
 
 class TestRenderReport:
@@ -138,7 +153,9 @@ class TestUpdateReport:
     def test_creates_report_file(self, tmp_path):
         results_dir = tmp_path / "results"
         results_dir.mkdir()
-        (results_dir / "run.jsonl").write_text("\n".join(json.dumps(r) for r in FIXTURE_RECORDS))
+        (results_dir / "run.jsonl").write_text(
+            "\n".join(json.dumps(r) for r in FIXTURE_RECORDS)
+        )
         output = tmp_path / "TOKEN_BENCHMARK.md"
         update_report(results_dir, output)
         assert output.exists()
@@ -149,24 +166,62 @@ class TestCostAnalysis:
     def _make_cost_records(self, run_id="2026-06-13T08-00-00"):
         """Minimal records covering before/after/cached/tiered/compressed."""
         base = {
-            "run_id": run_id, "provider": "claude", "model": "claude-sonnet-4-6",
-            "category": "mmlu", "prompt_id": "mmlu_001",
-            "quality_score": 1, "response_text": "B", "latency_ms": 1000,
-            "source": "api", "error": None,
-            "cache_creation_tokens": None, "cache_read_tokens": None,
+            "run_id": run_id,
+            "provider": "claude",
+            "model": "claude-sonnet-4-6",
+            "category": "mmlu",
+            "prompt_id": "mmlu_001",
+            "quality_score": 1,
+            "response_text": "B",
+            "latency_ms": 1000,
+            "source": "api",
+            "error": None,
+            "cache_creation_tokens": None,
+            "cache_read_tokens": None,
         }
         return [
-            {**base, "condition": "before",     "input_tokens": 65,   "output_tokens": 4, "cost_usd": 0.000255},
-            {**base, "condition": "after",      "input_tokens": 1783, "output_tokens": 4, "cost_usd": 0.000594},
-            {**base, "condition": "cached",     "input_tokens": 1783, "output_tokens": 4, "cost_usd": 0.000075,
-             "cache_read_tokens": 1718},
-            {**base, "condition": "tiered",     "input_tokens": 65,   "output_tokens": 4, "cost_usd": 0.000255},
-            {**base, "condition": "compressed", "input_tokens": 923,  "output_tokens": 4, "cost_usd": 0.000309},
+            {
+                **base,
+                "condition": "before",
+                "input_tokens": 65,
+                "output_tokens": 4,
+                "cost_usd": 0.000255,
+            },
+            {
+                **base,
+                "condition": "after",
+                "input_tokens": 1783,
+                "output_tokens": 4,
+                "cost_usd": 0.000594,
+            },
+            {
+                **base,
+                "condition": "cached",
+                "input_tokens": 1783,
+                "output_tokens": 4,
+                "cost_usd": 0.000075,
+                "cache_read_tokens": 1718,
+            },
+            {
+                **base,
+                "condition": "tiered",
+                "input_tokens": 65,
+                "output_tokens": 4,
+                "cost_usd": 0.000255,
+            },
+            {
+                **base,
+                "condition": "compressed",
+                "input_tokens": 923,
+                "output_tokens": 4,
+                "cost_usd": 0.000309,
+            },
         ]
 
     def test_cost_table_rendered(self):
         """Cost Analysis section appears when records have cost_usd."""
         from tests.token_benchmark.reporter import compute_stats, render_report
+
         records = self._make_cost_records()
         stats = compute_stats(records)
         md = render_report(stats, "2026-06-13T08-00-00")
@@ -178,6 +233,7 @@ class TestCostAnalysis:
     def test_cost_table_omitted_when_no_cost_data(self):
         """Cost Analysis section absent when all cost_usd are None (old JSONL)."""
         from tests.token_benchmark.reporter import compute_stats, render_report
+
         records = self._make_cost_records()
         for r in records:
             r["cost_usd"] = None
@@ -188,6 +244,7 @@ class TestCostAnalysis:
     def test_cost_savings_percentage(self):
         """vs after column shows correct percentage savings."""
         from tests.token_benchmark.reporter import compute_stats, render_report
+
         records = self._make_cost_records()
         stats = compute_stats(records)
         md = render_report(stats, "2026-06-13T08-00-00")

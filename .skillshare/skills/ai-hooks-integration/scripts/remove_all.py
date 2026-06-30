@@ -22,35 +22,52 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--command", required=True)
     ap.add_argument("--plugin", required=True)
-    ap.add_argument("--dry-run", action="store_true", help="Print actions without writing")
+    ap.add_argument(
+        "--dry-run", action="store_true", help="Print actions without writing"
+    )
     args = ap.parse_args()
     dry = ["--dry-run"] if args.dry_run else []
 
-    run([
-        str(REMOVE),
-        "--tool", "claude",
-        "--path", str(Path("~/.claude/settings.json").expanduser()),
-        "--command", args.command,
-    ] + dry)
+    run(
+        [
+            str(REMOVE),
+            "--tool",
+            "claude",
+            "--path",
+            str(Path("~/.claude/settings.json").expanduser()),
+            "--command",
+            args.command,
+            *dry,
+        ]
+    )
 
-    run([
-        str(REMOVE),
-        "--tool", "gemini",
-        "--path", str(Path("~/.gemini/settings.json").expanduser()),
-        "--command", args.command,
-    ] + dry)
+    run(
+        [
+            str(REMOVE),
+            "--tool",
+            "gemini",
+            "--path",
+            str(Path("~/.gemini/settings.json").expanduser()),
+            "--command",
+            args.command,
+            *dry,
+        ]
+    )
 
-    run([
-        str(REMOVE),
-        "--tool", "cursor",
-        "--path", str(Path("~/.cursor/hooks.json").expanduser()),
-        "--command", args.command,
-    ] + dry)
+    run(
+        [
+            str(REMOVE),
+            "--tool",
+            "cursor",
+            "--path",
+            str(Path("~/.cursor/hooks.json").expanduser()),
+            "--command",
+            args.command,
+            *dry,
+        ]
+    )
 
-    run([
-        str(REMOVE_PLUGIN),
-        "--path", str(Path(args.plugin).expanduser()),
-    ] + dry)
+    run([str(REMOVE_PLUGIN), "--path", str(Path(args.plugin).expanduser()), *dry])
 
 
 if __name__ == "__main__":

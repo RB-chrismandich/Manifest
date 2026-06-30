@@ -6,11 +6,10 @@ All other agents modules import from here. No cross-module dependencies.
 import asyncio
 import logging
 import os
-import sys
 import time
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
 
 import yaml
 
@@ -19,7 +18,7 @@ import yaml
 # ---------------------------------------------------------------------------
 
 try:
-    from anthropic import AsyncAnthropic  # noqa: F401 (re-exported)
+    from anthropic import AsyncAnthropic
 
     HAS_ANTHROPIC = True
 except ImportError:
@@ -58,22 +57,22 @@ else:
 class Config:
     """Configuration manager for parallel agent"""
 
-    def __init__(self, config_path: Optional[str] = None):
+    def __init__(self, config_path: str | None = None):
         if config_path is None:
             config_path = os.path.expanduser("~/.claude/config/parallel_agent.yml")
 
         self.config_path = config_path
         self.config = self._load_config()
 
-    def _load_config(self) -> Dict:
+    def _load_config(self) -> dict:
         """Load configuration from YAML file"""
         if not os.path.exists(self.config_path):
             return self._default_config()
 
-        with open(self.config_path, "r") as f:
+        with open(self.config_path) as f:
             return yaml.safe_load(f)
 
-    def _default_config(self) -> Dict:
+    def _default_config(self) -> dict:
         """Default configuration if file doesn't exist"""
         return {
             "rate_limits": {
@@ -139,8 +138,13 @@ class Config:
                 },
                 "cursor": {
                     "binary": "cursor-agent",
-                    "base_args": ["--print", "--output-format", "text",
-                                  "--mode", "ask"],
+                    "base_args": [
+                        "--print",
+                        "--output-format",
+                        "text",
+                        "--mode",
+                        "ask",
+                    ],
                     "model_args": ["--model", "{model}"],
                     "prompt_args": ["{prompt}"],
                     "output": "stdout",
@@ -148,8 +152,12 @@ class Config:
                 "codex": {
                     "binary": "codex",
                     "base_args": [
-                        "exec", "--full-auto", "--color", "never",
-                        "--output-last-message", "{output_file}",
+                        "exec",
+                        "--full-auto",
+                        "--color",
+                        "never",
+                        "--output-last-message",
+                        "{output_file}",
                     ],
                     "model_args": ["--model", "{model}"],
                     "output": "file_then_stdout",
@@ -192,16 +200,16 @@ class Config:
 class ServiceConfig:
     """Service configuration manager reading from services.yml"""
 
-    def __init__(self, config_path: Optional[str] = None):
+    def __init__(self, config_path: str | None = None):
         if config_path is None:
             config_path = os.path.expanduser("~/.claude/config/services.yml")
         self.config_path = config_path
         self._data = self._load()
 
-    def _load(self) -> Dict:
+    def _load(self) -> dict:
         """Load services.yml or return all-enabled defaults."""
         if os.path.exists(self.config_path):
-            with open(self.config_path, "r") as f:
+            with open(self.config_path) as f:
                 data = yaml.safe_load(f) or {}
                 return data
         # All-enabled defaults when file is missing
@@ -227,7 +235,7 @@ class ServiceConfig:
         """Minimum agents required for parallel orchestration."""
         return int(self._data.get("minimum_agents", 2))
 
-    def check_minimum_agents(self, count: int) -> Optional[str]:
+    def check_minimum_agents(self, count: int) -> str | None:
         """Return a warning message if count < minimum, else None."""
         minimum = self.minimum_agents
         if count < minimum:
@@ -319,7 +327,7 @@ class RateLimiter:
         self,
         requests_per_minute: int = 60,
         burst_size: int = 5,
-        tokens_per_minute: int = None,
+        tokens_per_minute: int | None = None,
         **kwargs,
     ):
         self.rpm = requests_per_minute

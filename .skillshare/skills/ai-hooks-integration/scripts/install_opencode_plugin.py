@@ -18,7 +18,7 @@ import argparse
 from pathlib import Path
 
 # Basic template - just hooks
-TEMPLATE_BASIC = '''/**
+TEMPLATE_BASIC = """/**
  * {plugin_name} Plugin for OpenCode
  */
 
@@ -50,10 +50,10 @@ module.exports = async function {export_name}(pluginInput) {{
     }},
   }};
 }};
-'''
+"""
 
 # WebSocket template - sends events to external server
-TEMPLATE_WEBSOCKET = '''/**
+TEMPLATE_WEBSOCKET = """/**
  * {plugin_name} Plugin for OpenCode
  *
  * Sends tool execution events to WebSocket server.
@@ -118,10 +118,10 @@ module.exports = async function {export_name}(pluginInput) {{
     }},
   }};
 }};
-'''
+"""
 
 # Advanced template - WebSocket + HTTP fallback, session management, idle detection
-TEMPLATE_ADVANCED = '''/**
+TEMPLATE_ADVANCED = """/**
  * {plugin_name} Plugin for OpenCode (Advanced)
  *
  * Features:
@@ -326,7 +326,7 @@ module.exports = async function {export_name}(pluginInput) {{
     }},
   }};
 }};
-'''
+"""
 
 
 def main() -> None:
@@ -334,9 +334,18 @@ def main() -> None:
     ap.add_argument("--name", required=True, help="Plugin file name without extension")
     ap.add_argument("--output", required=True, help="Plugins directory")
     ap.add_argument("--force", action="store_true", help="Overwrite existing file")
-    ap.add_argument("--dry-run", action="store_true", help="Print actions without writing")
-    ap.add_argument("--export", dest="export_name", default="PluginHook", help="Exported function name")
-    ap.add_argument("--websocket", action="store_true", help="Include WebSocket event sending")
+    ap.add_argument(
+        "--dry-run", action="store_true", help="Print actions without writing"
+    )
+    ap.add_argument(
+        "--export",
+        dest="export_name",
+        default="PluginHook",
+        help="Exported function name",
+    )
+    ap.add_argument(
+        "--websocket", action="store_true", help="Include WebSocket event sending"
+    )
     ap.add_argument(
         "--advanced",
         action="store_true",

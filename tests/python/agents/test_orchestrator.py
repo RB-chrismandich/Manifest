@@ -4,19 +4,15 @@
 Tests Orchestrator consensus calculation in isolation — no live agents required.
 """
 
-import asyncio
 import sys
 from pathlib import Path
-
-import pytest
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 SCRIPTS_DIR = str(REPO_ROOT / "configs" / "claude" / "scripts")
 sys.path.insert(0, SCRIPTS_DIR)
 
-from agents.config import Config, RateLimiter
+from agents.config import Config
 from agents.orchestrator import Orchestrator
-from agents.runners import BaseAgent
 
 
 def _make_config(tmp_path):
@@ -68,8 +64,8 @@ class TestOrchestratorConsensus:
         orch = _make_orchestrator(tmp_path)
 
         def confidence_for(score):
-            common = ["word%05d" % i for i in range(score)]
-            unique = ["only%05d" % i for i in range(100 - score)]
+            common = [f"word{i:05d}" for i in range(score)]
+            unique = [f"only{i:05d}" for i in range(100 - score)]
             results = {
                 "a": {"status": "complete", "output": " ".join(common + unique)},
                 "b": {"status": "complete", "output": " ".join(common)},
@@ -118,6 +114,7 @@ class TestOrchestratorConsensus:
         orch.print_results(result, json_output=True)
         captured = capsys.readouterr()
         import json
+
         parsed = json.loads(captured.out)
         assert parsed["mode"] == "prompt"
         assert "cross_verification" in parsed

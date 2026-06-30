@@ -17,6 +17,7 @@ CLI:
 
 Env overrides (tests): GUIDANCE_REGISTRY, plus HOME for rate-limit state (US3).
 """
+
 from __future__ import annotations
 
 import argparse
@@ -24,9 +25,8 @@ import json
 import os
 import re
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Optional
 
 import yaml
 
@@ -53,7 +53,8 @@ TRIGGER_PATTERNS = {
     "PreToolUse:git-commit": re.compile(r"\bgit\s+commit\b"),
     "PreToolUse:pr-create": re.compile(r"\b(gh\s+pr\s+create|glab\s+mr\s+create)\b"),
     "command-invoke:refactor-*": re.compile(
-        r"(^|[\s/])refactor-(go|node|python|shell|terraform)\b"),
+        r"(^|[\s/])refactor-(go|node|python|shell|terraform)\b"
+    ),
     "context-high": None,
 }
 
@@ -85,7 +86,9 @@ def validate_registry(registry: dict, catalog_names) -> None:
         if "id" not in m or "trigger" not in m:
             raise RegistryError(f"moment is missing 'id' or 'trigger': {m!r}")
         if m["trigger"] not in TRIGGER_PATTERNS:
-            raise RegistryError(f"moment '{m['id']}': unsupported trigger '{m['trigger']}'")
+            raise RegistryError(
+                f"moment '{m['id']}': unsupported trigger '{m['trigger']}'"
+            )
     moment_ids = {m["id"] for m in moments}
     for r in registry.get("rules", []):
         if "moment_id" not in r:
@@ -100,7 +103,9 @@ def validate_registry(registry: dict, catalog_names) -> None:
                 )
         category = r.get("category")
         if category not in VALID_CATEGORIES:
-            raise RegistryError(f"rule for '{r['moment_id']}': invalid category '{category}'")
+            raise RegistryError(
+                f"rule for '{r['moment_id']}': invalid category '{category}'"
+            )
         if category == "reminder":
             rl = r.get("rate_limit")
             if not rl:
@@ -120,7 +125,7 @@ def validate_registry(registry: dict, catalog_names) -> None:
 # --------------------------------------------------------------------------- #
 # Detection + selection
 # --------------------------------------------------------------------------- #
-def detect_moment(registry: dict, command_text: Optional[str]) -> Optional[str]:
+def detect_moment(registry: dict, command_text: str | None) -> str | None:
     if not command_text:
         return None
     for m in registry.get("moments", []):
@@ -139,7 +144,9 @@ def select_hints(registry: dict, moment_id: str) -> list:
         key = r.get("dedup_key", r.get("message"))
         if key not in best or r.get("priority", 0) > best[key].get("priority", 0):
             best[key] = r
-    return sorted(best.values(), key=lambda r: (-r.get("priority", 0), r.get("message", "")))
+    return sorted(
+        best.values(), key=lambda r: (-r.get("priority", 0), r.get("message", ""))
+    )
 
 
 def format_hints(hints: list) -> str:
@@ -149,18 +156,17 @@ def format_hints(hints: list) -> str:
 # --------------------------------------------------------------------------- #
 # Hook payload
 # --------------------------------------------------------------------------- #
-def _command_from_payload(raw: str) -> Optional[str]:
+def _command_from_payload(raw: str) -> str | None:
     """Best-effort extraction of a shell command from a hook payload.
 
     Tolerant across tools (Claude Code `tool_input.command`, and the
     `BeforeTool`-style `args.command`/top-level `command` shapes used by Gemini/
     Cursor via ai-hooks-integration). Unknown shapes return None (fail-open).
     """
-    if isinstance(raw, str):
-        # ⚡ Bolt: Fast-path bypass for string allocation overhead and slow
-        # ValueError/JSONDecodeError on json.loads for obvious non-JSON strings
-        if raw and raw[0] not in ' \t\n\r{[':
-            return None
+    # ⚡ Bolt: Fast-path bypass for string allocation overhead and slow
+    # ValueError/JSONDecodeError on json.loads for obvious non-JSON strings
+    if isinstance(raw, str) and raw and raw[0] not in " \t\n\r{[":
+        return None
     try:
         payload = json.loads(raw)
     except (json.JSONDecodeError, TypeError):
@@ -181,18 +187,37 @@ def _command_from_payload(raw: str) -> Optional[str]:
 # --------------------------------------------------------------------------- #
 def _build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
-        prog=PROG,
-        description="Emit a one-shot workflow hint for a recognized moment.")
-    p.add_argument("--moment", default=None,
-                   help="explicit Workflow Moment id (e.g. pre-commit, high-context)")
-    p.add_argument("--disable", metavar="CATEGORY", default=None,
-                   help="opt out of hints|reminders|discovery (writes only guidance_local.yml)")
-    p.add_argument("--enable", metavar="CATEGORY", default=None,
-                   help="re-enable hints|reminders|discovery in guidance_local.yml")
-    p.add_argument("--global-off", action="store_true", dest="global_off",
-                   help="set enabled:false in guidance_local.yml (kill-switch)")
-    p.add_argument("--global-on", action="store_true", dest="global_on",
-                   help="set enabled:true in guidance_local.yml")
+        prog=PROG, description="Emit a one-shot workflow hint for a recognized moment."
+    )
+    p.add_argument(
+        "--moment",
+        default=None,
+        help="explicit Workflow Moment id (e.g. pre-commit, high-context)",
+    )
+    p.add_argument(
+        "--disable",
+        metavar="CATEGORY",
+        default=None,
+        help="opt out of hints|reminders|discovery (writes only guidance_local.yml)",
+    )
+    p.add_argument(
+        "--enable",
+        metavar="CATEGORY",
+        default=None,
+        help="re-enable hints|reminders|discovery in guidance_local.yml",
+    )
+    p.add_argument(
+        "--global-off",
+        action="store_true",
+        dest="global_off",
+        help="set enabled:false in guidance_local.yml (kill-switch)",
+    )
+    p.add_argument(
+        "--global-on",
+        action="store_true",
+        dest="global_on",
+        help="set enabled:true in guidance_local.yml",
+    )
     return p
 
 
@@ -200,7 +225,7 @@ def _local_path() -> str:
     return os.environ.get("GUIDANCE_LOCAL") or DEFAULT_LOCAL
 
 
-def _handle_pref_write(args) -> Optional[int]:
+def _handle_pref_write(args) -> int | None:
     """Handle the opt-out/opt-in write flags. Returns an exit code if one fired,
     else None. Writes ONLY guidance_local.yml — never the tracked defaults.
 
@@ -218,8 +243,10 @@ def _handle_pref_write(args) -> Optional[int]:
         for flag, value in ((args.disable, False), (args.enable, True)):
             if flag:
                 if flag not in _VALID_OPT_CATEGORIES:
-                    err(f"unknown category '{flag}' (expected one of "
-                        f"{', '.join(sorted(_VALID_OPT_CATEGORIES))})")
+                    err(
+                        f"unknown category '{flag}' (expected one of "
+                        f"{', '.join(sorted(_VALID_OPT_CATEGORIES))})"
+                    )
                     return 2
                 set_local_pref(local, f"categories.{flag}", value)
                 print(f"guidance: categories.{flag}={value} written to {local}")
@@ -247,7 +274,7 @@ def _read_yaml(path) -> dict:
     try:
         data = yaml.safe_load(Path(path).expanduser().read_text(encoding="utf-8"))
         return data if isinstance(data, dict) else {}
-    except Exception:  # noqa: BLE001 — absent/unreadable → empty layer
+    except Exception:
         return {}
 
 
@@ -290,14 +317,14 @@ def _as_utc(dt: datetime) -> datetime:
     or a hand-edited state file) would otherwise raise TypeError when subtracted
     from the tz-aware `now`, which fail-open would swallow — silently disabling
     the rate limit (reminder fires every event)."""
-    return dt if dt.tzinfo is not None else dt.replace(tzinfo=timezone.utc)
+    return dt if dt.tzinfo is not None else dt.replace(tzinfo=UTC)
 
 
 def load_last_fired() -> dict:
     try:
         raw = json.loads(_state_path().read_text(encoding="utf-8"))
         return {k: _as_utc(datetime.fromisoformat(v)) for k, v in raw.items()}
-    except Exception:  # noqa: BLE001 — absent/unreadable → never fired (fail-open)
+    except Exception:
         return {}
 
 
@@ -310,11 +337,11 @@ def record_fired(moment_id: str, now: datetime) -> None:
             cur = json.loads(p.read_text(encoding="utf-8"))
         cur[moment_id] = now.isoformat()
         p.write_text(json.dumps(cur), encoding="utf-8")
-    except Exception:  # noqa: BLE001 — best-effort; never block
+    except Exception:
         pass
 
 
-def _parse_duration(spec) -> Optional[timedelta]:
+def _parse_duration(spec) -> timedelta | None:
     if not spec:
         return None
     m = re.fullmatch(r"\s*(\d+)\s*([smhd])\s*", str(spec))
@@ -327,8 +354,9 @@ def _parse_duration(spec) -> Optional[timedelta]:
 # --------------------------------------------------------------------------- #
 # Gating (authoritative resolution order — guidance-prefs-schema.md)
 # --------------------------------------------------------------------------- #
-def apply_gating(hints: list, prefs: dict, moment_id: str,
-                 last_fired=None, now=None) -> list:
+def apply_gating(
+    hints: list, prefs: dict, moment_id: str, last_fired=None, now=None
+) -> list:
     if not prefs.get("enabled", True):
         return []
     cats = prefs.get("categories", {})
@@ -344,7 +372,9 @@ def apply_gating(hints: list, prefs: dict, moment_id: str,
         if _VERBOSITY_RANK.get(r.get("level", "normal"), 1) > vgate:
             continue
         if category == "reminder":
-            window = _parse_duration(rate_overrides.get(moment_id) or r.get("rate_limit"))
+            window = _parse_duration(
+                rate_overrides.get(moment_id) or r.get("rate_limit")
+            )
             ts = last_fired.get(moment_id)
             if window and ts is not None and now is not None and (now - ts) < window:
                 continue
@@ -355,7 +385,7 @@ def apply_gating(hints: list, prefs: dict, moment_id: str,
 def _emit_for_moment(registry: dict, moment_id: str) -> int:
     hints = select_hints(registry, moment_id)
     prefs = load_preferences()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     surfaced = apply_gating(hints, prefs, moment_id, load_last_fired(), now)
     if surfaced:
         print(format_hints(surfaced))
@@ -380,7 +410,7 @@ def main(argv=None) -> int:
         if not moment_id:
             return 0
         return _emit_for_moment(registry, moment_id)
-    except Exception:  # noqa: BLE001 — fail-open: never block the action
+    except Exception:
         return 0
 
 

@@ -32,7 +32,6 @@ import json
 import os
 import sys
 from pathlib import Path
-from typing import Any
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -72,9 +71,8 @@ def extract_cwd(payload: dict) -> str:
 
     # Check tool_input for nested cwd
     tool_input = payload.get("tool_input", {})
-    if isinstance(tool_input, dict):
-        if "cwd" in tool_input:
-            return tool_input["cwd"]
+    if isinstance(tool_input, dict) and "cwd" in tool_input:
+        return tool_input["cwd"]
 
     return ""
 
@@ -206,7 +204,9 @@ def run_handler(handler_path: str, event: dict) -> dict:
                 if isinstance(parsed, (dict, list)):
                     return parsed
                 else:
-                    print("Handler invalid JSON: not a JSON object/array", file=sys.stderr)
+                    print(
+                        "Handler invalid JSON: not a JSON object/array", file=sys.stderr
+                    )
                     return allow_response(event_type)
             except json.JSONDecodeError as e:
                 print(f"Handler invalid JSON: {e}", file=sys.stderr)

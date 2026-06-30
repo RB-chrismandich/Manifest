@@ -3,7 +3,6 @@
 import json
 import os
 import sys
-import tempfile
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -32,14 +31,14 @@ class TestIsolatedEnvironments:
     def test_empty_home_has_no_files(self, tmp_path):
         fixtures = tmp_path / "fixtures"
         fixtures.mkdir()
-        with isolated_environments(fixtures) as (empty, manifest):
+        with isolated_environments(fixtures) as (empty, _manifest):
             assert list(empty.iterdir()) == []
 
     def test_manifest_home_populated_from_fixtures(self, tmp_path):
         fixtures = tmp_path / "fixtures"
         (fixtures / ".claude").mkdir(parents=True)
         (fixtures / ".claude" / "CLAUDE.md").write_text("# test manifest")
-        with isolated_environments(fixtures) as (empty, manifest):
+        with isolated_environments(fixtures) as (_empty, manifest):
             assert (manifest / ".claude" / "CLAUDE.md").read_text() == "# test manifest"
 
     def test_dirs_cleaned_up_after_exit(self, tmp_path):
@@ -69,14 +68,18 @@ class TestMeasureApiClaude:
         mock_client = AsyncMock()
         mock_client.messages.create.return_value = mock_response
 
-        with patch("tests.token_benchmark.harness.HAS_ANTHROPIC", True):
-            with patch("tests.token_benchmark.harness.AsyncAnthropic", return_value=mock_client):
-                with patch.dict(os.environ, {"ANTHROPIC_API_KEY": "test-key"}):
-                    result = await measure_api_claude(
-                        prompt_text="What is 2+2?",
-                        system_prompt="",
-                        model="claude-sonnet-4-6",
-                    )
+        with (
+            patch("tests.token_benchmark.harness.HAS_ANTHROPIC", True),
+            patch(
+                "tests.token_benchmark.harness.AsyncAnthropic", return_value=mock_client
+            ),
+            patch.dict(os.environ, {"ANTHROPIC_API_KEY": "test-key"}),
+        ):
+            result = await measure_api_claude(
+                prompt_text="What is 2+2?",
+                system_prompt="",
+                model="claude-sonnet-4-6",
+            )
 
         assert result["input_tokens"] == 312
         assert result["output_tokens"] == 47
@@ -86,9 +89,11 @@ class TestMeasureApiClaude:
     @pytest.mark.asyncio
     async def test_missing_api_key_returns_error(self):
         env = {k: v for k, v in os.environ.items() if k != "ANTHROPIC_API_KEY"}
-        with patch("tests.token_benchmark.harness.HAS_ANTHROPIC", True):
-            with patch.dict(os.environ, env, clear=True):
-                result = await measure_api_claude("prompt", "", "claude-sonnet-4-6")
+        with (
+            patch("tests.token_benchmark.harness.HAS_ANTHROPIC", True),
+            patch.dict(os.environ, env, clear=True),
+        ):
+            result = await measure_api_claude("prompt", "", "claude-sonnet-4-6")
         assert result["error"] is not None
         assert result["input_tokens"] is None
 
@@ -99,10 +104,14 @@ class TestMeasureApiClaude:
         mock_client = AsyncMock()
         mock_client.messages.create.return_value = mock_response
 
-        with patch("tests.token_benchmark.harness.HAS_ANTHROPIC", True):
-            with patch("tests.token_benchmark.harness.AsyncAnthropic", return_value=mock_client):
-                with patch.dict(os.environ, {"ANTHROPIC_API_KEY": "test-key"}):
-                    await measure_api_claude("prompt", "SYSTEM CONTEXT", "claude-sonnet-4-6")
+        with (
+            patch("tests.token_benchmark.harness.HAS_ANTHROPIC", True),
+            patch(
+                "tests.token_benchmark.harness.AsyncAnthropic", return_value=mock_client
+            ),
+            patch.dict(os.environ, {"ANTHROPIC_API_KEY": "test-key"}),
+        ):
+            await measure_api_claude("prompt", "SYSTEM CONTEXT", "claude-sonnet-4-6")
 
         call_kwargs = mock_client.messages.create.call_args.kwargs
         assert call_kwargs["system"] == "SYSTEM CONTEXT"
@@ -117,17 +126,19 @@ class TestMeasureApiGemini:
         mock_client = MagicMock()
         mock_client.models.generate_content.return_value = mock_response
 
-        with patch("tests.token_benchmark.harness.HAS_GENAI", True):
-            with patch("tests.token_benchmark.harness.genai") as mock_genai:
-                with patch("tests.token_benchmark.harness.genai_types") as mock_types:
-                    mock_types.GenerateContentConfig.return_value = MagicMock()
-                    mock_genai.Client.return_value = mock_client
-                    with patch.dict(os.environ, {"GOOGLE_API_KEY": "test-key"}):
-                        result = await measure_api_gemini(
-                            prompt_text="What is 2+2?",
-                            system_prompt="",
-                            model="gemini-3-flash-preview",
-                        )
+        with (
+            patch("tests.token_benchmark.harness.HAS_GENAI", True),
+            patch("tests.token_benchmark.harness.genai") as mock_genai,
+            patch("tests.token_benchmark.harness.genai_types") as mock_types,
+        ):
+            mock_types.GenerateContentConfig.return_value = MagicMock()
+            mock_genai.Client.return_value = mock_client
+            with patch.dict(os.environ, {"GOOGLE_API_KEY": "test-key"}):
+                result = await measure_api_gemini(
+                    prompt_text="What is 2+2?",
+                    system_prompt="",
+                    model="gemini-3-flash-preview",
+                )
 
         assert result["input_tokens"] == 308
         assert result["output_tokens"] == 52
@@ -136,12 +147,18 @@ class TestMeasureApiGemini:
 
     @pytest.mark.asyncio
     async def test_missing_api_key_returns_error(self):
-        env = {k: v for k, v in os.environ.items() if k not in ("GOOGLE_API_KEY", "GEMINI_API_KEY")}
-        with patch("tests.token_benchmark.harness.HAS_GENAI", True):
-            with patch.dict(os.environ, env, clear=True):
-                with patch("tests.token_benchmark.harness.genai") as mock_genai:
-                    mock_genai.Client.side_effect = Exception("no auth")
-                    result = await measure_api_gemini("prompt", "", "gemini-3-flash-preview")
+        env = {
+            k: v
+            for k, v in os.environ.items()
+            if k not in ("GOOGLE_API_KEY", "GEMINI_API_KEY")
+        }
+        with (
+            patch("tests.token_benchmark.harness.HAS_GENAI", True),
+            patch.dict(os.environ, env, clear=True),
+            patch("tests.token_benchmark.harness.genai") as mock_genai,
+        ):
+            mock_genai.Client.side_effect = Exception("no auth")
+            result = await measure_api_gemini("prompt", "", "gemini-3-flash-preview")
         assert result["error"] is not None
 
     @pytest.mark.asyncio
@@ -152,12 +169,16 @@ class TestMeasureApiGemini:
         mock_client = MagicMock()
         mock_client.models.generate_content.return_value = mock_response
 
-        with patch("tests.token_benchmark.harness.HAS_GENAI", True):
-            with patch("tests.token_benchmark.harness.genai_types", None):
-                with patch("tests.token_benchmark.harness.genai") as mock_genai:
-                    mock_genai.Client.return_value = mock_client
-                    with patch.dict(os.environ, {"GOOGLE_API_KEY": "test-key"}):
-                        result = await measure_api_gemini("prompt", "system ctx", "gemini-3-flash-preview")
+        with (
+            patch("tests.token_benchmark.harness.HAS_GENAI", True),
+            patch("tests.token_benchmark.harness.genai_types", None),
+            patch("tests.token_benchmark.harness.genai") as mock_genai,
+        ):
+            mock_genai.Client.return_value = mock_client
+            with patch.dict(os.environ, {"GOOGLE_API_KEY": "test-key"}):
+                result = await measure_api_gemini(
+                    "prompt", "system ctx", "gemini-3-flash-preview"
+                )
 
         assert result["error"] is None
         assert result["response_text"] == "D"
@@ -176,13 +197,18 @@ class TestMeasureCli:
     def test_system_prompt_flag_appended(self):
         """--system-prompt <value> is added to the command when system_prompt is given."""
         import subprocess as sp
+
         real_run = sp.run
         captured = {}
+
         def capture_run(cmd, **kwargs):
             captured["cmd"] = cmd
-            return real_run(["echo", "ok"], **{k: v for k, v in kwargs.items()})
+            return real_run(["echo", "ok"], **dict(kwargs.items()))
+
         cli_config = {"binary": "echo", "flags": []}
-        with patch("tests.token_benchmark.harness.subprocess.run", side_effect=capture_run):
+        with patch(
+            "tests.token_benchmark.harness.subprocess.run", side_effect=capture_run
+        ):
             measure_cli("prompt", cli_config, system_prompt="MANIFEST CONTEXT")
         assert "--system-prompt" in captured["cmd"]
         assert "MANIFEST CONTEXT" in captured["cmd"]
@@ -190,13 +216,18 @@ class TestMeasureCli:
     def test_system_prompt_none_omits_flag(self):
         """No --system-prompt flag when system_prompt is None."""
         import subprocess as sp
+
         real_run = sp.run
         captured = {}
+
         def capture_run(cmd, **kwargs):
             captured["cmd"] = cmd
-            return real_run(["echo", "ok"], **{k: v for k, v in kwargs.items()})
+            return real_run(["echo", "ok"], **dict(kwargs.items()))
+
         cli_config = {"binary": "echo", "flags": []}
-        with patch("tests.token_benchmark.harness.subprocess.run", side_effect=capture_run):
+        with patch(
+            "tests.token_benchmark.harness.subprocess.run", side_effect=capture_run
+        ):
             measure_cli("prompt", cli_config)
         assert "--system-prompt" not in captured["cmd"]
 
@@ -208,9 +239,12 @@ class TestMeasureCli:
 
     def test_timeout_returns_error(self):
         import subprocess as sp
+
         cli_config = {"binary": "sleep", "flags": []}
-        with patch("tests.token_benchmark.harness.subprocess.run",
-                   side_effect=sp.TimeoutExpired(cmd=["sleep"], timeout=60)):
+        with patch(
+            "tests.token_benchmark.harness.subprocess.run",
+            side_effect=sp.TimeoutExpired(cmd=["sleep"], timeout=60),
+        ):
             result = measure_cli("100", cli_config)
         assert result["error"] == "timeout"
         assert result["response_text"] == ""
@@ -218,7 +252,11 @@ class TestMeasureCli:
 
 class TestWriteResult:
     def test_appends_jsonl_to_results_dir(self, tmp_path):
-        record = {"run_id": "2026-06-12T00:00:00", "provider": "claude", "input_tokens": 100}
+        record = {
+            "run_id": "2026-06-12T00:00:00",
+            "provider": "claude",
+            "input_tokens": 100,
+        }
         write_result(record, "2026-06-12T00:00:00", results_dir=tmp_path)
         files = list(tmp_path.glob("*.jsonl"))
         assert len(files) == 1
@@ -228,7 +266,11 @@ class TestWriteResult:
 
     def test_multiple_records_in_same_file(self, tmp_path):
         for i in range(3):
-            write_result({"run_id": "2026-06-12T00:00:00", "i": i}, "2026-06-12T00:00:00", results_dir=tmp_path)
+            write_result(
+                {"run_id": "2026-06-12T00:00:00", "i": i},
+                "2026-06-12T00:00:00",
+                results_dir=tmp_path,
+            )
         files = list(tmp_path.glob("*.jsonl"))
         assert len(files) == 1
         lines = files[0].read_text().strip().splitlines()
@@ -239,6 +281,7 @@ class TestComputeCost:
     def test_compute_cost_standard(self):
         """Standard call: input + output tokens, no cache."""
         from tests.token_benchmark.harness import compute_cost
+
         record = {
             "input_tokens": 1000,
             "output_tokens": 100,
@@ -252,6 +295,7 @@ class TestComputeCost:
     def test_compute_cost_with_cache_read(self):
         """Cache read tokens billed at 0.1x input rate."""
         from tests.token_benchmark.harness import compute_cost
+
         record = {
             "input_tokens": 1000,
             "output_tokens": 100,
@@ -280,12 +324,16 @@ class TestMeasureApiClaudeCaching:
         mock_client = AsyncMock()
         mock_client.messages.create.return_value = mock_response
 
-        with patch("tests.token_benchmark.harness.HAS_ANTHROPIC", True):
-            with patch("tests.token_benchmark.harness.AsyncAnthropic", return_value=mock_client):
-                with patch.dict(os.environ, {"ANTHROPIC_API_KEY": "test-key"}):
-                    result = await measure_api_claude(
-                        "What is 2+2?", "SYSTEM", "claude-sonnet-4-6", use_cache=True
-                    )
+        with (
+            patch("tests.token_benchmark.harness.HAS_ANTHROPIC", True),
+            patch(
+                "tests.token_benchmark.harness.AsyncAnthropic", return_value=mock_client
+            ),
+            patch.dict(os.environ, {"ANTHROPIC_API_KEY": "test-key"}),
+        ):
+            result = await measure_api_claude(
+                "What is 2+2?", "SYSTEM", "claude-sonnet-4-6", use_cache=True
+            )
 
         call_kwargs = mock_client.messages.create.call_args.kwargs
         system_arg = call_kwargs["system"]
@@ -301,6 +349,7 @@ class TestTieredCondition:
     def test_tiered_injects_manifest_only_for_humaneval(self):
         """tiered condition: humaneval gets manifest system prompt, others get baseline."""
         from tests.token_benchmark.harness import _system_prompt_for_condition
+
         manifest = "MANIFEST CONTEXT"
         # humaneval → manifest
         sp = _system_prompt_for_condition("tiered", "humaneval", manifest)

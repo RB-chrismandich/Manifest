@@ -23,14 +23,16 @@ def run(step: dict, *, api_ctx, base_url: str | None, timeout_ms: int) -> StepOu
         kwargs["data"] = step["body"]  # dict -> JSON by Playwright
     try:
         resp = api_ctx.fetch(url, method=method, **kwargs)
-    except Exception as exc:  # noqa: BLE001 - network/timeout surfaced as a clean failure
+    except Exception as exc:
         return StepOutcome(False, f"{method} {url} errored: {exc}")
 
     expect = step.get("expect_status")
     ok = (resp.status == expect) if expect is not None else (200 <= resp.status < 300)
     if not ok:
         body = (resp.text() or "")[:200]
-        return StepOutcome(False, f"HTTP {resp.status} (expected {expect or '2xx'}): {body}")
+        return StepOutcome(
+            False, f"HTTP {resp.status} (expected {expect or '2xx'}): {body}"
+        )
     return StepOutcome(True, captures=_extract(step.get("captures", {}), resp))
 
 
@@ -39,7 +41,7 @@ def _extract(captures: dict, resp) -> dict:
         return {}
     try:
         data = resp.json()
-    except Exception as exc:  # noqa: BLE001 - non-JSON body → clean capture failure (no body echo)
+    except Exception as exc:
         raise CaptureError("api response body is not valid JSON") from exc
     return {name: _jsonpath(data, jp) for name, jp in captures.items()}
 
@@ -53,5 +55,7 @@ def _jsonpath(data, path: str):
         try:
             cur = cur[int(idx)] if idx is not None else cur[key]
         except (KeyError, IndexError, TypeError) as exc:
-            raise CaptureError(f"api capture: path {path!r} failed at {m.group(0)!r}") from exc
+            raise CaptureError(
+                f"api capture: path {path!r} failed at {m.group(0)!r}"
+            ) from exc
     return cur

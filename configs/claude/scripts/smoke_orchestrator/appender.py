@@ -32,7 +32,9 @@ class SmokeTestAppender:
         self.catalog_dir = catalog_dir
 
     def append(self, workflow: dict, *, dry_run: bool = False) -> AppendResult:
-        validate_workflow(workflow)  # raises ValidationError → catalog untouched (FR-003)
+        validate_workflow(
+            workflow
+        )  # raises ValidationError → catalog untouched (FR-003)
         app = workflow["app"]
         path = cat.catalog_path(self.catalog_dir, app)
         test = _to_test(workflow)
@@ -55,8 +57,10 @@ class SmokeTestAppender:
     def list_coverage(self, app: str) -> list[dict]:
         """Coverage records (id, tier, step count) for one app — no execution (FR-014)."""
         catalog = cat.load_catalog(cat.catalog_path(self.catalog_dir, app), app)
-        return [{"id": t.get("id"), "tier": t.get("tier"), "steps": len(t.get("steps", []))}
-                for t in catalog.get("tests", [])]
+        return [
+            {"id": t.get("id"), "tier": t.get("tier"), "steps": len(t.get("steps", []))}
+            for t in catalog.get("tests", [])
+        ]
 
     def prune(self, app: str, test_id: str) -> bool:
         """Remove a test by id (FR-018). Idempotent: absent id is a no-op. Returns removed?"""

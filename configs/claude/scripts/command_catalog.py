@@ -16,6 +16,7 @@ CLI:
 Env overrides (tests):
     COMMAND_CATALOG_SKILLS_DIR, COMMAND_CATALOG_CATEGORIES, COMMAND_CATALOG_SERVICES
 """
+
 from __future__ import annotations
 
 import argparse
@@ -24,7 +25,6 @@ import os
 import re
 import sys
 from pathlib import Path
-from typing import Optional
 
 import yaml
 
@@ -36,7 +36,9 @@ PROG = "command_catalog.py"
 # Repo-relative defaults (script lives in configs/claude/scripts/).
 _REPO_ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_SKILLS_DIR = _REPO_ROOT / ".skillshare" / "skills"
-DEFAULT_CATEGORIES = _REPO_ROOT / "configs" / "claude" / "config" / "command_categories.yml"
+DEFAULT_CATEGORIES = (
+    _REPO_ROOT / "configs" / "claude" / "config" / "command_categories.yml"
+)
 DEFAULT_SERVICES = _REPO_ROOT / "configs" / "claude" / "config" / "services.yml"
 
 DEFAULT_PLATFORM = "claude"
@@ -142,9 +144,13 @@ def resolve_category(frontmatter_cat, name, valid_keys, overrides) -> str:
     return UNCATEGORIZED
 
 
-def _service_for(name: str) -> Optional[str]:
+def _service_for(name: str) -> str | None:
     for prefix, service in SERVICE_PREFIXES.items():
-        if name == prefix or name.startswith(prefix + "-") or name.startswith(prefix + "_"):
+        if (
+            name == prefix
+            or name.startswith(prefix + "-")
+            or name.startswith(prefix + "_")
+        ):
             return service
     return None
 
@@ -173,7 +179,9 @@ def resolve_availability(name: str, services: dict, platform: str) -> dict:
             "status": "available",
             "reason": None,
         }
-    reason = "service disabled" if not service_enabled else f"not deployed on {platform}"
+    reason = (
+        "service disabled" if not service_enabled else f"not deployed on {platform}"
+    )
     return {
         "service_enabled": service_enabled,
         "deployed_to_platform": deployed,
@@ -214,7 +222,7 @@ def _parse_frontmatter(text: str, path: Path) -> dict:
         raise CatalogError(f"{path}: unterminated frontmatter")
 
     body = lines[1:end]
-    fields: dict[str, Optional[str]] = {}
+    fields: dict[str, str | None] = {}
     i = 0
     while i < len(body):
         match = _KEY_RE.match(body[i])
@@ -254,7 +262,12 @@ def parse_skill(skill_md: Path) -> dict:
     if not description:
         raise CatalogError(f"{skill_md}: empty 'description' (malformed skill)")
     category = fm.get("category")
-    return {"name": name, "description": description, "category": category, "path": skill_md}
+    return {
+        "name": name,
+        "description": description,
+        "category": category,
+        "path": skill_md,
+    }
 
 
 def _iter_skill_files(skills_dir: Path):
@@ -274,15 +287,13 @@ def _iter_skill_files(skills_dir: Path):
 # Catalog
 # --------------------------------------------------------------------------- #
 def build_catalog(
-    skills_dir: Optional[str] = None,
-    categories_path: Optional[str] = None,
-    services_path: Optional[str] = None,
-    platform: Optional[str] = None,
+    skills_dir: str | None = None,
+    categories_path: str | None = None,
+    services_path: str | None = None,
+    platform: str | None = None,
 ) -> dict:
     skills_dir = Path(
-        skills_dir
-        or os.environ.get("COMMAND_CATALOG_SKILLS_DIR")
-        or DEFAULT_SKILLS_DIR
+        skills_dir or os.environ.get("COMMAND_CATALOG_SKILLS_DIR") or DEFAULT_SKILLS_DIR
     )
     categories_path = (
         categories_path
@@ -309,8 +320,7 @@ def build_catalog(
         name = sk["name"]
         if name in seen:
             raise CatalogError(
-                f"duplicate command name '{name}' "
-                f"({seen[name]} and {skill_md})"
+                f"duplicate command name '{name}' ({seen[name]} and {skill_md})"
             )
         seen[name] = skill_md
         category = resolve_category(sk["category"], name, valid_keys, overrides)
@@ -366,8 +376,9 @@ def _row(c: dict) -> str:
     return base
 
 
-def format_listing(catalog, query=None, category=None, show_all=False,
-                   limit=DEFAULT_LIMIT) -> str:
+def format_listing(
+    catalog, query=None, category=None, show_all=False, limit=DEFAULT_LIMIT
+) -> str:
     """Render the discovery listing. Empty query → grouped by category; query →
     ranked flat list. Output is bounded by `limit` with an 'N more' footer."""
     labels = {c["key"]: c["label"] for c in catalog["categories"]}
@@ -417,17 +428,31 @@ def _build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog=PROG,
         description="Discover Manifest commands (the /help surface) or emit the "
-                    "machine catalog built from SKILL.md frontmatter.",
+        "machine catalog built from SKILL.md frontmatter.",
     )
-    p.add_argument("query", nargs="?", default=None,
-                   help="intent/keyword search over name, category, description")
+    p.add_argument(
+        "query",
+        nargs="?",
+        default=None,
+        help="intent/keyword search over name, category, description",
+    )
     p.add_argument("--json", action="store_true", help="emit machine catalog JSON")
     p.add_argument("--category", default=None, help="restrict to one taxonomy category")
-    p.add_argument("--all", action="store_true", dest="show_all",
-                   help="include unavailable commands (marked with a reason)")
-    p.add_argument("--limit", type=int, default=DEFAULT_LIMIT,
-                   help=f"cap rows shown (default {DEFAULT_LIMIT})")
-    p.add_argument("--platform", default=None, help="platform for availability resolution")
+    p.add_argument(
+        "--all",
+        action="store_true",
+        dest="show_all",
+        help="include unavailable commands (marked with a reason)",
+    )
+    p.add_argument(
+        "--limit",
+        type=int,
+        default=DEFAULT_LIMIT,
+        help=f"cap rows shown (default {DEFAULT_LIMIT})",
+    )
+    p.add_argument(
+        "--platform", default=None, help="platform for availability resolution"
+    )
     return p
 
 
@@ -444,10 +469,15 @@ def main(argv=None) -> int:
     if args.json:
         print(json.dumps(catalog, indent=2))
     else:
-        print(format_listing(
-            catalog, query=args.query, category=args.category,
-            show_all=args.show_all, limit=args.limit,
-        ))
+        print(
+            format_listing(
+                catalog,
+                query=args.query,
+                category=args.category,
+                show_all=args.show_all,
+                limit=args.limit,
+            )
+        )
     return 0
 
 

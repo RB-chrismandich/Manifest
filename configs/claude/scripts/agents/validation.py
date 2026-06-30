@@ -5,7 +5,6 @@ Independently importable: only depends on agents.config and stdlib/yaml.
 
 import re
 from pathlib import Path
-from typing import Dict, Optional
 
 import yaml
 
@@ -15,12 +14,12 @@ from agents.config import Config, Logger
 class ValidationEngine:
     """Validates agent outputs against tiered criteria"""
 
-    def __init__(self, config: Config, logger: Optional[Logger] = None):
+    def __init__(self, config: Config, logger: Logger | None = None):
         self.config = config
         self.logger = logger
         self.criteria = self._load_criteria()
 
-    def _load_criteria(self) -> Dict:
+    def _load_criteria(self) -> dict:
         """Load validation criteria from YAML file"""
         criteria_path = Path("~/.claude/config/validation_criteria.yml").expanduser()
         if not criteria_path.exists():
@@ -30,16 +29,16 @@ class ValidationEngine:
                 )
             return {}
 
-        with open(criteria_path, "r") as f:
+        with open(criteria_path) as f:
             return yaml.safe_load(f)
 
     def validate(
         self,
-        agent_results: Dict,
-        consensus: Dict,
+        agent_results: dict,
+        consensus: dict,
         mode: str,
-        command: Optional[str] = None,
-    ) -> Dict:
+        command: str | None = None,
+    ) -> dict:
         """Validate results against tier1 and tier2 criteria"""
         # Get command-specific overrides
         overrides = {}
@@ -63,8 +62,8 @@ class ValidationEngine:
         }
 
     def _validate_tier1(
-        self, agent_results: Dict, consensus: Dict, overrides: Dict
-    ) -> Dict:
+        self, agent_results: dict, consensus: dict, overrides: dict
+    ) -> dict:
         """Validate Tier 1 (critical) criteria"""
         criteria = self.criteria.get("tier1", {})
         checks = {}
@@ -148,7 +147,7 @@ class ValidationEngine:
             "failures": failures,
         }
 
-    def _check_security(self, agent_results: Dict, security_criteria: Dict) -> Dict:
+    def _check_security(self, agent_results: dict, security_criteria: dict) -> dict:
         """Check for security issues"""
         issues = []
         _keywords = security_criteria.get("keywords", [])
@@ -196,7 +195,7 @@ class ValidationEngine:
 
         return {"passed": len(issues) == 0, "issues": issues}
 
-    def _check_error_handling(self, agent_results: Dict, error_criteria: Dict) -> Dict:
+    def _check_error_handling(self, agent_results: dict, error_criteria: dict) -> dict:
         """Check for proper error handling"""
         issues = []
 
@@ -217,8 +216,8 @@ class ValidationEngine:
         return {"passed": len(issues) == 0, "issues": issues}
 
     def _check_breaking_changes(
-        self, agent_results: Dict, breaking_criteria: Dict
-    ) -> Dict:
+        self, agent_results: dict, breaking_criteria: dict
+    ) -> dict:
         """Check for breaking changes"""
         issues = []
 
@@ -238,7 +237,7 @@ class ValidationEngine:
 
         return {"passed": len(issues) == 0, "issues": issues}
 
-    def _validate_tier2(self, agent_results: Dict, overrides: Dict) -> Dict:
+    def _validate_tier2(self, agent_results: dict, overrides: dict) -> dict:
         """Validate Tier 2 (quality) criteria"""
         criteria = self.criteria.get("tier2", {})
         checks = {}
@@ -300,7 +299,7 @@ class ValidationEngine:
 
         return {"score": final_score, "checks": checks, "concerns": concerns}
 
-    def _check_bugs(self, agent_results: Dict, bug_criteria: Dict) -> Dict:
+    def _check_bugs(self, agent_results: dict, bug_criteria: dict) -> dict:
         """Check for common bug patterns"""
         concerns = []
         _patterns = bug_criteria.get("patterns", [])
@@ -324,7 +323,7 @@ class ValidationEngine:
 
         return {"score": score, "concerns": concerns}
 
-    def _check_performance(self, agent_results: Dict, perf_criteria: Dict) -> Dict:
+    def _check_performance(self, agent_results: dict, perf_criteria: dict) -> dict:
         """Check for performance anti-patterns"""
         concerns = []
 
@@ -348,7 +347,7 @@ class ValidationEngine:
 
         return {"score": score, "concerns": concerns}
 
-    def _check_maintainability(self, agent_results: Dict, maint_criteria: Dict) -> Dict:
+    def _check_maintainability(self, agent_results: dict, maint_criteria: dict) -> dict:
         """Check for maintainability issues"""
         concerns = []
 
@@ -370,7 +369,7 @@ class ValidationEngine:
 
         return {"score": score, "concerns": concerns}
 
-    def _check_test_coverage(self, agent_results: Dict, test_criteria: Dict) -> Dict:
+    def _check_test_coverage(self, agent_results: dict, test_criteria: dict) -> dict:
         """Check for test coverage"""
         concerns = []
 
@@ -393,7 +392,7 @@ class ValidationEngine:
         return {"score": score, "concerns": concerns}
 
     def _compute_verdict(
-        self, tier1_result: Dict, tier2_result: Dict, overrides: Dict
+        self, tier1_result: dict, tier2_result: dict, overrides: dict
     ) -> str:
         """Compute overall validation verdict"""
         scoring_config = self.criteria.get("scoring", {})

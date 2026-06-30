@@ -5,7 +5,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
-from tests.token_benchmark.benchmarks import BENCHMARKS, PROVIDER_CLI_CONFIG, Prompt
+from tests.token_benchmark.benchmarks import BENCHMARKS, PROVIDER_CLI_CONFIG
 
 
 class TestBenchmarkSuite:
@@ -31,17 +31,23 @@ class TestBenchmarkSuite:
     def test_mmlu_gold_answers_are_letters(self):
         for b in BENCHMARKS:
             if b.category == "mmlu":
-                assert b.gold_answer in ("A", "B", "C", "D"), f"{b.prompt_id}: {b.gold_answer!r}"
+                assert b.gold_answer in ("A", "B", "C", "D"), (
+                    f"{b.prompt_id}: {b.gold_answer!r}"
+                )
 
     def test_hellaswag_gold_answers_are_digits(self):
         for b in BENCHMARKS:
             if b.category == "hellaswag":
-                assert b.gold_answer in ("0", "1", "2", "3"), f"{b.prompt_id}: {b.gold_answer!r}"
+                assert b.gold_answer in ("0", "1", "2", "3"), (
+                    f"{b.prompt_id}: {b.gold_answer!r}"
+                )
 
     def test_truthfulqa_gold_answers_are_bool(self):
         for b in BENCHMARKS:
             if b.category == "truthfulqa":
-                assert b.gold_answer in ("True", "False"), f"{b.prompt_id}: {b.gold_answer!r}"
+                assert b.gold_answer in ("True", "False"), (
+                    f"{b.prompt_id}: {b.gold_answer!r}"
+                )
 
     def test_humaneval_has_test_code(self):
         for b in BENCHMARKS:

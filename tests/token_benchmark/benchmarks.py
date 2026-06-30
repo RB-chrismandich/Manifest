@@ -6,21 +6,21 @@ from dataclasses import dataclass
 @dataclass
 class Prompt:
     prompt_id: str
-    category: str      # "mmlu" | "humaneval" | "hellaswag" | "truthfulqa"
+    category: str  # "mmlu" | "humaneval" | "hellaswag" | "truthfulqa"
     text: str
-    gold_answer: str   # Expected answer; "" for humaneval (scored via test_code)
+    gold_answer: str  # Expected answer; "" for humaneval (scored via test_code)
     test_code: str = ""  # HumanEval: Python assertions to run against the function
 
 
 PROVIDER_CLI_CONFIG = {
-    "claude":      {"binary": "claude",      "flags": ["--print"]},
-    "gemini":      {"binary": "gemini",      "flags": ["-p"]},
-    "antigravity": {"binary": "agy",         "flags": ["--print"]},
+    "claude": {"binary": "claude", "flags": ["--print"]},
+    "gemini": {"binary": "gemini", "flags": ["-p"]},
+    "antigravity": {"binary": "agy", "flags": ["--print"]},
 }
 
 MANIFEST_SYSTEM_PROMPT_PATHS = {
-    "claude":      ".claude/CLAUDE.md",
-    "gemini":      ".gemini/GEMINI.md",
+    "claude": ".claude/CLAUDE.md",
+    "gemini": ".gemini/GEMINI.md",
     "antigravity": None,
 }
 
@@ -100,9 +100,7 @@ BENCHMARKS: list[Prompt] = [
         ),
         gold_answer="",
         test_code=(
-            "assert add(2, 3) == 5\n"
-            "assert add(-1, 1) == 0\n"
-            "assert add(0, 0) == 0"
+            "assert add(2, 3) == 5\nassert add(-1, 1) == 0\nassert add(0, 0) == 0"
         ),
     ),
     Prompt(
@@ -167,7 +165,7 @@ BENCHMARKS: list[Prompt] = [
             "Respond with ONLY the function body (the indented lines after the def), "
             "no explanation, no markdown fences.\n\n"
             "def max_subarray_sum(arr: list) -> int:\n"
-            "    \"\"\"Return the maximum sum of any contiguous subarray (Kadane's algorithm).\"\"\"\n"
+            '    """Return the maximum sum of any contiguous subarray (Kadane\'s algorithm)."""\n'
             "    "
         ),
         gold_answer="",

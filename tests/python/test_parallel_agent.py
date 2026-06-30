@@ -27,12 +27,11 @@ REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 SCRIPTS_DIR = str(REPO_ROOT / "configs" / "claude" / "scripts")
 sys.path.insert(0, SCRIPTS_DIR)
 
-from agents.config import Config, ServiceConfig, Logger, RateLimiter  # noqa: E402
-from agents.validation import ValidationEngine  # noqa: E402
-from agents.synthesis import SynthesisEngine  # noqa: E402
-from agents.runners import BaseAgent, CLIAgent  # noqa: E402
-from agents.orchestrator import Orchestrator, check_credits  # noqa: E402
-
+from agents.config import Config, Logger, RateLimiter, ServiceConfig
+from agents.orchestrator import Orchestrator, check_credits
+from agents.runners import BaseAgent, CLIAgent
+from agents.synthesis import SynthesisEngine
+from agents.validation import ValidationEngine
 
 # ---------------------------------------------------------------------------
 # Config tests
@@ -705,6 +704,7 @@ class TestFileExistenceValidation:
 
     def _run(self, flag: str, path: str):
         import subprocess
+
         return subprocess.run(
             [sys.executable, self.SCRIPT, flag, path],
             capture_output=True,
@@ -719,7 +719,10 @@ class TestFileExistenceValidation:
     def test_review_nonexistent_file_prints_error(self, tmp_path):
         """--review with a missing file must print an error message to stderr."""
         result = self._run("--review", str(tmp_path / "missing.py"))
-        assert "file not found" in result.stderr.lower() or "error" in result.stderr.lower()
+        assert (
+            "file not found" in result.stderr.lower()
+            or "error" in result.stderr.lower()
+        )
 
     def test_analyze_nonexistent_file_exits_nonzero(self, tmp_path):
         """--analyze with a missing file must exit 1 before contacting any agent."""
@@ -729,7 +732,10 @@ class TestFileExistenceValidation:
     def test_analyze_nonexistent_file_prints_error(self, tmp_path):
         """--analyze with a missing file must print an error message to stderr."""
         result = self._run("--analyze", str(tmp_path / "missing.py"))
-        assert "file not found" in result.stderr.lower() or "error" in result.stderr.lower()
+        assert (
+            "file not found" in result.stderr.lower()
+            or "error" in result.stderr.lower()
+        )
 
     def test_improve_nonexistent_file_exits_nonzero(self, tmp_path):
         """--improve with a missing file must exit 1 before contacting any agent."""
@@ -739,7 +745,10 @@ class TestFileExistenceValidation:
     def test_improve_nonexistent_file_prints_error(self, tmp_path):
         """--improve with a missing file must print an error message to stderr."""
         result = self._run("--improve", str(tmp_path / "missing.py"))
-        assert "file not found" in result.stderr.lower() or "error" in result.stderr.lower()
+        assert (
+            "file not found" in result.stderr.lower()
+            or "error" in result.stderr.lower()
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -786,9 +795,7 @@ class TestAntigravityAgent:
         """check_credits marks antigravity not_installed when agy is absent."""
         monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
         monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
-        monkeypatch.setattr(
-            "agents.orchestrator.shutil.which", lambda cmd: None
-        )
+        monkeypatch.setattr("agents.orchestrator.shutil.which", lambda cmd: None)
         config = Config(config_path=str(tmp_path / "nonexistent.yml"))
         results = await check_credits(config)
         assert results["antigravity"] == {"status": "not_installed"}
@@ -841,7 +848,8 @@ class TestCLIFlagsAntigravity:
 
         result = subprocess.run(
             [sys.executable, self.SCRIPT, "--help"],
-            capture_output=True, text=True,
+            capture_output=True,
+            text=True,
         )
         assert "--antigravity-model" in result.stdout
         assert "--antigravity-only" in result.stdout
