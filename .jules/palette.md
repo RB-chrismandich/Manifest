@@ -49,3 +49,8 @@ red=error/blocked) for validation verdicts to provide nuanced visual feedback.
 in with standard text, reducing the user's ability to quickly spot failures in busy output streams.
 **Action:** Consistently apply semantic red styling (`\033[0;31m`) to standard error messages in bash
 scripts to ensure they stand out visually and draw immediate attention.
+
+## 2026-06-25 - Avoid Linting Without Groundedness
+
+**Learning:** Blindly proposing linting tools like `shellcheck` during execution without confirming they are explicitly mandated and configured in the repository causes pipeline failures and violates pre-commit separation rules.
+**Action:** Only propose linting if explicitly required, and ensure the specific tool is already installed and configured before adding it to an execution plan.
