@@ -104,6 +104,14 @@
         "mcp-remote",
         "https://mcp.linear.app/mcp"
       ]
+    },
+    "atlassian": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "mcp-remote",
+        "https://mcp.atlassian.com/v1/mcp"
+      ]
     }
   }
 }

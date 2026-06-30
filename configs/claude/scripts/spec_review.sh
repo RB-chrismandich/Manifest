@@ -12,7 +12,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SPEC_REVIEW_CLI="${SPEC_REVIEW_CLI:-agy}"
 SPEC_REVIEW_MODEL="${SPEC_REVIEW_MODEL:-}"
-SPEC_REVIEW_CONFIG="${SPEC_REVIEW_CONFIG:-$HOME/.claude/config/parallel_agent.yml}"
+SPEC_REVIEW_CONFIG="${SPEC_REVIEW_CONFIG:-${HOME:-}/.claude/config/parallel_agent.yml}"
 SPEC_REVIEW_TEMPLATE="${SPEC_REVIEW_TEMPLATE:-${SCRIPT_DIR}/../prompts/spec_review.md}"
 SPEC_REVIEW_STATE="${SPEC_REVIEW_STATE:-.spec-review}"
 SPEC_REVIEW_NO_DETACH="${SPEC_REVIEW_NO_DETACH:-}"
@@ -24,7 +24,7 @@ SPEC_REVIEW_SYNTH_CLI="${SPEC_REVIEW_SYNTH_CLI:-$SPEC_REVIEW_CLI}"
 SPEC_REVIEW_MERGE_TEMPLATE="${SPEC_REVIEW_MERGE_TEMPLATE:-${SCRIPT_DIR}/../prompts/spec_review_merge.md}"
 SPEC_REVIEW_TIMEOUT="${SPEC_REVIEW_TIMEOUT:-600}"
 
-SPEC=""; PLAN=""; TASKS=""; SILENT=false; FORMAT="tree"; ROOT="."
+SPEC=""; PLAN=""; TASKS=""; SILENT=false; FORMAT="tree"; ROOT="."; MODE=""
 
 err() { echo "spec-review: $*" >&2; }
 usage() {
@@ -36,6 +36,7 @@ Usage: spec_review.sh [--spec F] [--plan F] [--tasks F] [--silent] [--format tre
   --spec/--plan/--tasks F  explicit artifact paths (else auto-discover under ROOT)
   --silent                 hook mode: hash-gated, detached, writes .spec-review/feedback.md
   --format tree|json       output format (default: tree)
+  --mode product|technical lifecycle pass (distinct state dir / template); default: neither
   ROOT                     project root to discover in (default: .)
 EOF
 }
@@ -49,6 +50,17 @@ parse_args() {
             --tasks) TASKS="$2"; shift 2 ;;
             --silent) SILENT=true; shift ;;
             --format) FORMAT="$2"; shift 2 ;;
+            --mode)
+                # Sugar over the SPEC_REVIEW_STATE/TEMPLATE seams so the lifecycle's product
+                # (phase 3) and technical (phase 7) passes are distinct + auditable (FR-002).
+                case "${2:-}" in
+                    product)   SPEC_REVIEW_STATE="${SPEC_REVIEW_STATE%/}/product" ;;
+                    technical) SPEC_REVIEW_STATE="${SPEC_REVIEW_STATE%/}/technical"
+                               [[ -f "${SCRIPT_DIR}/../prompts/spec_review_technical.md" ]] \
+                                   && SPEC_REVIEW_TEMPLATE="${SCRIPT_DIR}/../prompts/spec_review_technical.md" ;;
+                    *) err "invalid --mode: '${2:-}' (use product|technical)"; return 2 ;;
+                esac
+                MODE="$2"; shift 2 ;;
             -h|--help) usage; return 0 ;;
             -*) err "unknown flag: $1"; return 2 ;;
             *) ROOT="$1"; shift ;;

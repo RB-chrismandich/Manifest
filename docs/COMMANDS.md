@@ -62,7 +62,8 @@ are built from each skill's `SKILL.md` frontmatter, the authoritative source.
 | `/repo-hygiene` | Review-then-confirm cleanup sweep of open PRs and stale/merged/gone branches (GitHub/GitLab/local) | CONDITIONAL (close/prune path) |
 | `/skill-evolve` | Promote SkillClaw-evolved skills into a review PR (dry-run by default); requires SkillClaw enabled | NO |
 | `/pass-cli` | Retrieve credentials from Proton Pass vaults via `pass-cli` agent CLI | NO |
-| `/spec-review` | Independent Antigravity (agy) cross-reference of spec/plan/tasks for internal consistency; on-demand or via fail-open PostToolUse save hook (content-hash debounced, detached); analysis-only; works with speckit and superpowers layouts; silent-mode findings land in `.spec-review/feedback.md` | NO |
+| `/spec-review` | Independent Antigravity (agy) cross-reference of spec/plan/tasks for internal consistency; on-demand or via fail-open PostToolUse save hook (content-hash debounced, detached); analysis-only; works with speckit and superpowers layouts; silent-mode findings land in `.spec-review/feedback.md`. `--mode product\|technical` distinguishes the two lifecycle spec-review passes | NO |
+| `/lifecycle` | Drive a unit of work through the codified nine-phase state-gated lifecycle (Specify→…→Verify) with hard gating; entry is a ticket URL/issue key (GitHub/GitLab/Linear/Jira); the smoke-test suite is the Verify gate. Backed by `lifecycle.sh` (constitution Principle VI) | NO |
 | `/a11y-audit` | WCAG 2.2 AA accessibility audit | NO |
 | `/antipattern-detect` | Detect recurring antipatterns from lint, test, and review feedback | NO |
 | `/ci-setup` | Configure CI/CD pipelines for a target repository (GitHub Actions or GitLab CI) | NO |
@@ -1007,7 +1008,7 @@ Expected output:
 <!-- BEGIN GENERATED COMMANDS (command_catalog.py) — do not edit by hand -->
 <!-- Regenerate: configs/claude/scripts/generate_commands_doc.py -->
 
-_88 commands, generated from `.skillshare/skills/*/SKILL.md`._
+_89 commands, generated from `.skillshare/skills/*/SKILL.md`._
 
 ### Git & PRs
 
@@ -1140,6 +1141,7 @@ _88 commands, generated from `.skillshare/skills/*/SKILL.md`._
 
 | Command | Description | When to use | Status |
 |---------|-------------|-------------|--------|
+| `/lifecycle` | Drive a feature/issue through the codified state-gated lifecycle (specify→…→verify) with hard phase-gating and a smoke-test Verify gate; entry is a ticket URL/issue key. | Drive a feature/issue through the codified state-gated lifecycle (specify→…→verify) with hard phase-gating and a smoke-test Verify gate; entry is a ticket URL/issue key. | available |
 | `/pr-regression-smoke` | Full Manifest regression (CI mirror: shellcheck, yamllint, markdownlint, bats + pytest) plus a deployed-env smoke pass (bootstrap re-deploy, env health, orchestration round-trip), as a post-PR gate. Use right after a PR opens or merges — "regression test the PR", "did the merge break anything", "verify main is still green". Whole-repo verdict; prefer over verify (one lang) or health-check. | Full Manifest regression (CI mirror: shellcheck, yamllint, markdownlint, bats + pytest) plus a deployed-env smoke pass (bootstrap re-deploy, env health, orchestration round-trip), as a post-PR gate. | available |
 
 <!-- END GENERATED COMMANDS -->

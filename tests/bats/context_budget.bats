@@ -93,11 +93,14 @@ assert_budget() {
     # coverage to fold into. Frontmatter is 283 chars (under the ~290 norm); the
     # description is the always-loaded trigger text with no read-on-demand
     # alternative. Headroom after this is ~273 — the next addition needs a trim pass.
-    # Raised 22000 -> 22300 (2026-06-28) for the genuinely-new `graphify` skill
-    # (spec 364): the only knowledge-graph entry point, no prior coverage to fold
-    # into. Frontmatter is 242 chars (already under the ~290 norm before this bump);
-    # the description is always-loaded trigger text with no read-on-demand
-    # alternative. Headroom after this is ~316 — the next addition needs a trim pass.
+    # Raised 22000 -> 22300 (2026-06-28) for two genuinely-new entry-point skills
+    # added on parallel branches and merged together: `graphify` (spec 364, 242
+    # chars, the only knowledge-graph entry point) and `lifecycle` (spec 365, 205
+    # chars, the only state-gated-lifecycle driver). Both branches independently
+    # chose +300 from 22000; the merge confirmed 22300 still holds BOTH — the
+    # measured total with both present is 22189. Both descriptions are always-loaded
+    # trigger text with no read-on-demand alternative. Headroom is now only ~111 —
+    # the next addition needs a trim pass first.
     total=0
     for f in "$REPO_ROOT"/.skillshare/skills/*/SKILL.md; do
         # frontmatter = up to the second '---' line

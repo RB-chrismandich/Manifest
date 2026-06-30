@@ -376,7 +376,7 @@ standing line instead (spec 362, FR-011 documented gap): **before a commit run
 - **CI/CD, Testing & Quality**: `/a11y-audit` · `/browser-test` · `/ci-lint-config-drift` · `/ci-setup` · `/live-data-validation` · `/performance-check` · `/pin-known-bug-test-survives-fix` · `/refactor-go` · `/refactor-node` · `/refactor-python` · `/refactor-shell` · `/refactor-terraform` · `/reproduce-gated-ci-failure-locally` · `/smoke-orchestrator` · `/statistical-test-fixture-variance` · `/ux-review` · `/verify`
 - **Infrastructure & Config**: `/api-bulk-endpoint-optimization` · `/app-native-config-validation` · `/cli-help-before-dependency-checks` · `/containerized-internal-service-probe` · `/debug-layered-config-substitution` · `/deploy-drift-root-cause` · `/diagnose-stalled-background-process` · `/headless-llm-cli-seam` · `/ingestion-table-idempotency` · `/out-of-band-cache-warm` · `/pass-cli` · `/retire-component-cleanup` · `/scaffold` · `/shell-pipefail-subshell-audit` · `/shell-sete-silent-abort-audit` · `/sync-configs` · `/version-pin`
 - **Meta & Orchestration**: `/antipattern-detect` · `/checkpoint` · `/code-quality` · `/dashboard` · `/graphify` · `/health-check` · `/help` · `/learning-loop` · `/memory-log-compress` · `/session-memory-compress` · `/token-benchmark` · `/token-economy`
-- **Uncategorized**: `/pr-regression-smoke`
+- **Uncategorized**: `/lifecycle` · `/pr-regression-smoke`
 
 Run `/help <query>` for descriptions and when-to-use.
 
