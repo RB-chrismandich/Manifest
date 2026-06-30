@@ -412,7 +412,13 @@ class Orchestrator:
 
             f.write("## Agent Results\n\n")
             for agent_name, agent_result in result["agents"].items():
-                status_icon = "✓" if agent_result.get("status") == "complete" else "✗"
+                status = agent_result.get("status")
+                if status == "complete":
+                    status_icon = "✓"
+                elif status in ("failed", "error"):
+                    status_icon = "✗"
+                else:
+                    status_icon = "○"
                 f.write(f"### {status_icon} {agent_name.title()}\n\n")
                 f.write(f"- **Status**: {agent_result.get('status')}\n")
                 f.write(f"- **Model**: {agent_result.get('model', 'N/A')}\n")
