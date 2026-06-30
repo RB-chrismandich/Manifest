@@ -98,7 +98,10 @@ def parse_transcript(
                 obj = json.loads(line)
             except json.JSONDecodeError:
                 continue  # partial/corrupt line — skip
-            if not isinstance(obj, dict) or obj.get("type") not in ("user", "assistant"):
+            if not isinstance(obj, dict) or obj.get("type") not in (
+                "user",
+                "assistant",
+            ):
                 continue
             session_id = obj.get("sessionId", session_id)
             cwd = obj.get("cwd", cwd)

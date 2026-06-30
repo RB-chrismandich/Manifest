@@ -291,7 +291,10 @@ def _parse_kv(pairs):
         k, v = p.split("=", 1)
         try:
             parsed = json.loads(v)
-            if isinstance(parsed, (dict, list, int, float, bool, str)) or parsed is None:
+            if (
+                isinstance(parsed, (dict, list, int, float, bool, str))
+                or parsed is None
+            ):
                 out[k] = parsed
             else:
                 out[k] = v
