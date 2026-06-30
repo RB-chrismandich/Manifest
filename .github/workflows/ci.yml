@@ -186,6 +186,15 @@ jobs:
             echo "No Python tests found in tests/python/ - skipping"
           fi
 
+      - name: Run smoke tests (tier Lite — P-VI Verify gate)
+        # Deterministic, browser-free critical-path smoke (smoke-catalog/*.yaml).
+        run: |
+          if [ -d smoke-catalog ] && find smoke-catalog -name '*.yaml' | grep -q .; then
+            python3 configs/claude/scripts/smoke_test.py run --app manifest --tier Lite --catalog-dir smoke-catalog
+          else
+            echo "No smoke-catalog/ found - skipping"
+          fi
+
   validate:
     name: Validate Structure
     runs-on: ubuntu-latest

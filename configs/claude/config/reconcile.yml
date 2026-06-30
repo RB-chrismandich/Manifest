@@ -1,0 +1,68 @@
+# Deploy Reconciliation Review — protection policy (feature 368).
+#
+# Patterns here mark a deployed ORPHAN as KEEP (it is never moved to the removal
+# backup). An orphan is a unit present in a managed assistant home (~/.claude and
+# the mirrored ~/.cursor ~/.gemini ~/.codex ~/.antigravity) with no corresponding
+# source in the current project.
+#
+# MATCH SEMANTICS (see configs/claude/scripts/deploy_reconcile.sh):
+#   - Each candidate is matched by its path RELATIVE to its managed root.
+#   - Matching is case-sensitive fnmatch; `*` spans `/` (so a bare name protects
+#     the whole unit, and a directory name protects its entire subtree).
+#   - Protection is ADDITIVE ONLY: any match -> KEEP. There is no un-protect rule
+#     (the safe direction — SC-004). The preview + explicit --remove opt-in is the
+#     escape hatch for anything you actually want gone.
+#
+# PRECEDENCE (union; protection only grows):
+#   1. Hardcoded guards in the script (the removal trash dir + the reconcile
+#      config files themselves) — cannot be disabled.
+#   2. Repeatable `--protect GLOB` CLI flag.
+#   3. Machine-local ~/.manifest/reconcile.local.yml (outside ~/.claude; survives
+#      redeploy; never itself reconciled). Override path: MANIFEST_RECONCILE_CONFIG.
+#   4. This file (deployed to ~/.claude/config/reconcile.yml).
+#
+# Source of truth: configs/claude/config/reconcile.yml — edit here, not the
+# deployed copy (Configuration-as-Code, Constitution Principle I).
+
+reconcile:
+  protected:
+    # --- ~/.claude user-owned / runtime state (NOT sourced from the repo) ---
+    - "settings.json"               # user's own Claude Code settings (runtime-written)
+    - "settings.local.json"         # user-editable permissions overlay
+    - ".credentials.json"           # auth
+    - ".agent_outputs"              # symlink into ~/.manifest (deploy.sh)
+    - "projects"                    # chat sessions / transcripts
+    - "plugins"
+    - "commands"
+    - "ide"
+    - "sessions"
+    - "tasks"
+    - "todos"
+    - "shell-snapshots"
+    - "statsig"
+    - "cache"
+    - "backups"
+    - "security"
+    - "session-env"
+    - "file-history"
+    - "paste-cache"
+    - "chrome"
+    - "history.jsonl"
+    - "*.jsonl"                     # runtime audit/history logs
+    # Runtime *.json under managed dirs that have NO repo source (project config
+    # sources are all .yml): ~/.claude/config/{config.json,mcp_config.json},
+    # ~/.claude/skills/.metadata.json. `*` spans `/`, so this covers nested paths.
+    - "*.json"
+    - "config/projects"            # runtime project-state dir under config/
+    - ".last-*"                     # .last-cleanup, .last-update-result.json, ...
+    - "mcp-needs-auth-cache.json"
+    - ".plans"                      # plan workspace
+    - "plans"                       # Claude Code native plan dir (runtime)
+    - ".deployed-skills"            # Manifest's own prune manifest (metadata)
+    - "skills/.deployed-skills"
+    # --- secondary homes: auth/state with no project source ---
+    - "auth.json"                   # ~/.codex
+    - "oauth_creds.json"            # ~/.gemini
+    - "history"
+    - "log"
+    - "*.log"

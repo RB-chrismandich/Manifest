@@ -34,7 +34,7 @@ restore_runtime_state() {
 
     print_step "Restoring runtime state (plugins, sessions, settings.json, history) from backup"
     # -a preserves symlinks and attributes; trailing slashes copy contents.
-    rsync -a "${excludes[@]}" "$backup_dir"/ "$target_dir"/  # array-safe (unconditional += above)
+    rsync -a "${excludes[@]}" "$backup_dir"/ "$target_dir"/ # array-safe (unconditional += above)
     print_success "Runtime state restored (repo-owned config redeployed fresh)"
 }
 
@@ -56,7 +56,7 @@ deploy_configs() {
         echo "  Install it first:"
         case "${PLATFORM:-}" in
             macos) echo "    brew install rsync" ;;
-            *)     echo "    sudo apt install rsync   # or dnf/pacman/zypper equivalent" ;;
+            *) echo "    sudo apt install rsync   # or dnf/pacman/zypper equivalent" ;;
         esac
         echo ""
         exit 1
@@ -255,7 +255,7 @@ merge_gemini_hooks() {
         return 0
     fi
     local rc=0
-    python3 - "$src" "$tgt" <<'PYEOF' || rc=$?
+    python3 - "$src" "$tgt" << 'PYEOF' || rc=$?
 import json, sys
 src_path, tgt_path = sys.argv[1], sys.argv[2]
 src = json.load(open(src_path))
@@ -395,7 +395,7 @@ deploy_sync_skills() {
     cp "$SCRIPT_DIR/configs/claude/scripts/sync-skills.sh" "$HOME/.local/bin/sync-skills"
     chmod +x "$HOME/.local/bin/sync-skills"
 
-    if ! grep -Eq '\.local/bin' "$SHELL_PROFILE_FILE" 2>/dev/null; then
+    if ! grep -Eq '\.local/bin' "$SHELL_PROFILE_FILE" 2> /dev/null; then
         {
             echo ""
             echo "# User-installed tools (managed by bootstrap.sh)"
@@ -411,6 +411,26 @@ deploy_sync_skills() {
 }
 
 # Verify installation
+# Deploy-time reconciliation review (feature 368). Report-only and fail-open:
+# runs deploy_reconcile.sh in PREVIEW mode (never --remove) and prints the
+# KEEP/REMOVE summary. It MUST NOT delete anything and MUST NOT abort the deploy
+# (call it guarded: `reconcile_deploy_report || print_warning ...`). It does not
+# touch verify_errors, so bootstrap still exits non-zero only on real verify
+# failure. FR-005/FR-006; Constitution Principle V.
+reconcile_deploy_report() {
+    local script="$SCRIPT_DIR/configs/claude/scripts/deploy_reconcile.sh"
+    [[ -f "$script" ]] || return 0
+    command -v python3 > /dev/null 2>&1 || return 0
+    print_step "Reviewing deployed environment for orphans (report-only)..."
+    local summary
+    summary="$(bash "$script" --project "$SCRIPT_DIR" 2> /dev/null | grep '^Summary:' || true)"
+    if [[ -n "$summary" ]]; then
+        print_info "deploy-reconcile: ${summary}"
+        print_info "Run '~/.claude/scripts/deploy_reconcile.sh --project $SCRIPT_DIR' to review; add --remove to prune."
+    fi
+    return 0
+}
+
 verify_installation() {
     print_header "Verifying Installation"
 
@@ -647,7 +667,7 @@ print_summary() {
         else
             echo -e "  ${YELLOW}○${NC} antigravity (enabled, not installed)"
         fi
-        if command -v agy >/dev/null 2>&1; then
+        if command -v agy > /dev/null 2>&1; then
             echo -e "  ${GREEN}✓${NC} antigravity CLI (agy) installed"
         else
             echo -e "  ${YELLOW}○${NC} antigravity CLI (agy) not found — parallel-agent participation needs it"

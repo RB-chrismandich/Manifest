@@ -3,7 +3,7 @@ name: learning-loop
 description: |
   Capture structured lessons learned after major tasks. Categories: pattern,
   antipattern, tool discovery, configuration insight. Stores in
-  .claude/config/knowledge_base.yml and queries existing learnings.
+  ~/.claude/config/knowledge_base.yml and queries existing learnings.
 ---
 
 # Learning Loop Skill
@@ -68,7 +68,7 @@ Before prompting, infer context from the current session:
 
 ## Phase 3: Storage
 
-Store entries in `.claude/config/knowledge_base.yml` using this schema:
+Store entries in `~/.claude/config/knowledge_base.yml` using this schema:
 
 ```yaml
 # Knowledge Base - Auto-managed by learning-loop skill

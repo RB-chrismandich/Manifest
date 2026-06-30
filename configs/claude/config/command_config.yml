@@ -515,6 +515,17 @@ tool_policies:
 
     subagents: never
     subagent_rationale: Single script run mutating the shared local branch set; parallelism unsafe.
+  deploy-reconcile:
+    allowed:
+      - Read
+      - Glob
+      - Grep
+      - Bash   # reconcile_core.py preview; file moves only on the destructive --remove path
+    parallel_agents: conditional   # Tier 1 on the destructive --remove path
+    validation_tier: 1
+
+    subagents: never
+    subagent_rationale: Single script run mutating the user's deployed home; parallelism unsafe.
   repo-hygiene:
     allowed:
       - Read
