@@ -92,17 +92,16 @@ def parse_transcript(
     turns: list[dict] = []
     with path.open(encoding="utf-8", errors="replace") as fh:
         for line in fh:
-            # ⚡ Bolt: Fast-path bypass for string allocation overhead (.strip) and
-            # json.loads exception overhead. The common case (no leading whitespace)
-            # skips allocation; a rare indented line falls back to lstrip so it is not
-            # silently dropped. json.loads tolerates surrounding whitespace/newline.
-            if not line or (line[0] != "{" and line.lstrip()[:1] != "{"):
+            if not line.strip():
                 continue
             try:
                 obj = json.loads(line)
             except json.JSONDecodeError:
                 continue  # partial/corrupt line — skip
-            if type(obj) is not dict or obj.get("type") not in ("user", "assistant"):
+            if not isinstance(obj, dict) or obj.get("type") not in (
+                "user",
+                "assistant",
+            ):
                 continue
             session_id = obj.get("sessionId", session_id)
             cwd = obj.get("cwd", cwd)
