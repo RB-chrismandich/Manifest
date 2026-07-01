@@ -97,7 +97,11 @@ Refer to \`.cursor/skills/$skill_name/SKILL.md\` for the full skill definition.
         # write below is `echo "$content"`, which appends one newline beyond
         # $content's own. Comparing raw $content here would never match and the
         # unchanged branch would be dead code (every rule re-written each run).
-        existing=$(cat "$rule_file"; printf x); existing="${existing%x}"
+        existing=$(
+            cat "$rule_file"
+            printf x
+        )
+        existing="${existing%x}"
         if [[ "$existing" == "$content"$'\n' ]]; then
             log "Skip $skill_name: unchanged"
             skipped=$((skipped + 1))
@@ -131,8 +135,8 @@ done
 # rules above (CI has pyyaml, so drift is still caught there).
 GEN_DOC="$REPO_ROOT/configs/claude/scripts/generate_commands_doc.py"
 index_rule="$RULES_DIR/commands-index.mdc"
-if command -v python3 >/dev/null 2>&1 && python3 -c 'import yaml' >/dev/null 2>&1; then
-    index_body="$(python3 "$GEN_DOC" --compact 2>/dev/null || true)"
+if command -v python3 > /dev/null 2>&1 && python3 -c 'import yaml' > /dev/null 2>&1; then
+    index_body="$(python3 "$GEN_DOC" --compact 2> /dev/null || true)"
     if [[ -n "$index_body" ]]; then
         index_content="---
 description: \"Manifest command index — categories + /command links; run /help for full descriptions.\"
@@ -147,7 +151,11 @@ ${index_body}
 <!-- Regenerate: configs/claude/scripts/generate_cursor_rules.sh -->
 "
         if [[ -f "$index_rule" ]]; then
-            existing=$(cat "$index_rule"; printf x); existing="${existing%x}"
+            existing=$(
+                cat "$index_rule"
+                printf x
+            )
+            existing="${existing%x}"
             if [[ "$existing" == "$index_content"$'\n' ]]; then
                 log "Skip commands-index: unchanged"
                 skipped=$((skipped + 1))

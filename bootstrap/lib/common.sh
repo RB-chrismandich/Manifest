@@ -146,7 +146,7 @@ deploy_home_skills() {
         local name
         while IFS= read -r name; do
             case "$name" in
-                ''|*/*|.*|*..*) continue ;;   # empty, path-y, hidden, traversal -> never prune
+                '' | */* | .* | *..*) continue ;; # empty, path-y, hidden, traversal -> never prune
             esac
             if [[ ! -d "$src/$name" && -d "$dest/$name" ]]; then
                 rm -rf "${dest:?}/${name}"
@@ -156,8 +156,8 @@ deploy_home_skills() {
     fi
     # Atomic manifest write: a failed subshell must not truncate the previous
     # manifest (that would silently disable future pruning).
-    if (cd "$src" && find . -mindepth 1 -maxdepth 1 -type d ! -name '.*' \
-        | LC_ALL=C sort | sed 's|^\./||') > "$manifest.tmp"; then
+    if (cd "$src" && find . -mindepth 1 -maxdepth 1 -type d ! -name '.*' |
+        LC_ALL=C sort | sed 's|^\./||') > "$manifest.tmp"; then
         mv "$manifest.tmp" "$manifest"
     else
         rm -f "$manifest.tmp"
@@ -185,7 +185,7 @@ gate_graphify_skill() {
         local d target
         for d in "$CURSOR_TARGET_DIR" "$GEMINI_TARGET_DIR" "$CODEX_TARGET_DIR" "$ANTIGRAVITY_TARGET_DIR"; do
             target="$d/skills"
-            [[ -L "$target" || ! -d "$target" ]] && continue   # symlink to home is already cleared
+            [[ -L "$target" || ! -d "$target" ]] && continue # symlink to home is already cleared
             [[ -e "$target/graphify" ]] && rm -rf "${target:?}/graphify"
         done
         return 0

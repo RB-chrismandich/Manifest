@@ -26,10 +26,13 @@ STALE_DAYS=30
 JSON_OUT=false
 
 err() { echo "pr-review: $*" >&2; }
-usage_error() { err "$*"; exit 2; }
+usage_error() {
+    err "$*"
+    exit 2
+}
 
 usage() {
-    cat <<'USAGE'
+    cat << 'USAGE'
 Usage: pr_review.sh [--platform github|gitlab] [--stale-days N] [--json]
 
 Triage all open pull/merge requests (analysis-only; no mutations).
@@ -44,19 +47,36 @@ USAGE
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --help|-h) usage; exit 0 ;;
-        --platform) [[ $# -ge 2 ]] || usage_error "--platform needs an argument"; PLATFORM="$2"; shift 2 ;;
-        --stale-days) [[ $# -ge 2 ]] || usage_error "--stale-days needs an argument"; STALE_DAYS="$2"; shift 2 ;;
-        --json) JSON_OUT=true; shift ;;
+        --help | -h)
+            usage
+            exit 0
+            ;;
+        --platform)
+            [[ $# -ge 2 ]] || usage_error "--platform needs an argument"
+            PLATFORM="$2"
+            shift 2
+            ;;
+        --stale-days)
+            [[ $# -ge 2 ]] || usage_error "--stale-days needs an argument"
+            STALE_DAYS="$2"
+            shift 2
+            ;;
+        --json)
+            JSON_OUT=true
+            shift
+            ;;
         -*) usage_error "unknown flag: $1" ;;
         *) usage_error "unexpected argument: $1" ;;
     esac
 done
 
 detect_platform() {
-    if [[ -n "$PLATFORM" ]]; then echo "$PLATFORM"; return 0; fi
+    if [[ -n "$PLATFORM" ]]; then
+        echo "$PLATFORM"
+        return 0
+    fi
     if [[ -x "${SCRIPT_DIR}/git_platform.sh" ]]; then
-        "${SCRIPT_DIR}/git_platform.sh" 2>/dev/null || echo "git"
+        "${SCRIPT_DIR}/git_platform.sh" 2> /dev/null || echo "git"
     else
         echo "git"
     fi
@@ -67,10 +87,13 @@ default_fetch() {
     local platform="$1"
     case "$platform" in
         github)
-            command -v gh >/dev/null 2>&1 || { err "gh CLI not found"; return 3; }
+            command -v gh > /dev/null 2>&1 || {
+                err "gh CLI not found"
+                return 3
+            }
             gh pr list --state open --limit 200 \
-               --json number,title,author,updatedAt,mergeable,isDraft,headRefName,statusCheckRollup \
-               2>/dev/null | python3 -c '
+                --json number,title,author,updatedAt,mergeable,isDraft,headRefName,statusCheckRollup \
+                2> /dev/null | python3 -c '
 import sys, json
 try:
     rows = json.load(sys.stdin)
@@ -97,11 +120,17 @@ for r in rows:
       "merged": False,
     })
 print(json.dumps(out))
-' || { err "failed to parse gh output"; return 3; }
+' || {
+                err "failed to parse gh output"
+                return 3
+            }
             ;;
         gitlab)
-            command -v glab >/dev/null 2>&1 || { err "glab CLI not found"; return 3; }
-            glab mr list --opened -P 200 -F json 2>/dev/null | python3 -c '
+            command -v glab > /dev/null 2>&1 || {
+                err "glab CLI not found"
+                return 3
+            }
+            glab mr list --opened -P 200 -F json 2> /dev/null | python3 -c '
 import sys, json
 try:
     rows = json.load(sys.stdin)
@@ -121,7 +150,10 @@ for r in rows:
       "merged": False,
     })
 print(json.dumps(out))
-' || { err "failed to parse glab output"; return 3; }
+' || {
+                err "failed to parse glab output"
+                return 3
+            }
             ;;
         *)
             err "unsupported platform '$platform' (need a GitHub or GitLab remote)"
@@ -131,14 +163,19 @@ print(json.dumps(out))
 }
 
 main() {
-    local platform; platform="$(detect_platform)"
+    local platform
+    platform="$(detect_platform)"
     local data rc
     if [[ -n "${PR_REVIEW_FETCH:-}" ]]; then
-        data="$("$PR_REVIEW_FETCH" "$platform")" || { err "fetch override failed"; exit 2; }
+        data="$("$PR_REVIEW_FETCH" "$platform")" || {
+            err "fetch override failed"
+            exit 2
+        }
     else
         # Capture the real exit code (a negated `if` would mask it as 0).
         set +e
-        data="$(default_fetch "$platform")"; rc=$?
+        data="$(default_fetch "$platform")"
+        rc=$?
         set -e
         if [[ $rc -ne 0 ]]; then
             [[ $rc -eq 3 ]] && err "cannot enumerate PRs — is the platform CLI installed and authenticated?"
@@ -147,7 +184,7 @@ main() {
     fi
 
     STALE_DAYS="$STALE_DAYS" JSON_OUT="$JSON_OUT" PLATFORM="$platform" \
-    python3 -c '
+        python3 -c '
 import sys, json, os
 from datetime import datetime, timezone
 data = json.loads(sys.stdin.read() or "[]")

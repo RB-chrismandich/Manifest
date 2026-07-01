@@ -8,17 +8,17 @@ ARGS=()
 
 for arg in "$@"; do
     case "$arg" in
-        --json) 
-            JSON_MODE=true 
+        --json)
+            JSON_MODE=true
             ;;
-        --help|-h) 
+        --help | -h)
             echo "Usage: $0 [--json]"
             echo "  --json    Output results in JSON format"
             echo "  --help    Show this help message"
-            exit 0 
+            exit 0
             ;;
-        *) 
-            ARGS+=("$arg") 
+        *)
+            ARGS+=("$arg")
             ;;
     esac
 done
@@ -28,7 +28,10 @@ SCRIPT_DIR="$(CDPATH="" cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/common.sh"
 
 # Get all paths and variables from common functions
-_paths_output=$(get_feature_paths) || { echo "ERROR: Failed to resolve feature paths" >&2; exit 1; }
+_paths_output=$(get_feature_paths) || {
+    echo "ERROR: Failed to resolve feature paths" >&2
+    exit 1
+}
 while IFS= read -r line; do
     if [[ -n "$line" ]]; then
         key="${line%%=*}"
@@ -36,7 +39,7 @@ while IFS= read -r line; do
         val="${val%\"}"
         val="${val#\"}"
         case "$key" in
-            REPO_ROOT|CURRENT_BRANCH|HAS_GIT|FEATURE_DIR|FEATURE_SPEC|IMPL_PLAN|TASKS|RESEARCH|DATA_MODEL|QUICKSTART|CONTRACTS_DIR)
+            REPO_ROOT | CURRENT_BRANCH | HAS_GIT | FEATURE_DIR | FEATURE_SPEC | IMPL_PLAN | TASKS | RESEARCH | DATA_MODEL | QUICKSTART | CONTRACTS_DIR)
                 printf -v "$key" "%s" "$val"
                 export "${key?}"
                 ;;
@@ -80,9 +83,8 @@ if $JSON_MODE; then
     fi
 else
     echo "FEATURE_SPEC: $FEATURE_SPEC"
-    echo "IMPL_PLAN: $IMPL_PLAN" 
+    echo "IMPL_PLAN: $IMPL_PLAN"
     echo "SPECS_DIR: $FEATURE_DIR"
     echo "BRANCH: $CURRENT_BRANCH"
     echo "HAS_GIT: $HAS_GIT"
 fi
-

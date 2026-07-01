@@ -34,7 +34,10 @@ git_ops() { "${GIT_OPS_BIN}" "$@"; }
 
 # detect_platform — echo github|gitlab|git (via git_platform.sh)
 detect_platform() {
-    bash "${GIT_PLATFORM_BIN}" 2>/dev/null || { err "platform detection failed; defaulting to 'git' (gh-style calls may fail)"; printf 'git'; }
+    bash "${GIT_PLATFORM_BIN}" 2> /dev/null || {
+        err "platform detection failed; defaulting to 'git' (gh-style calls may fail)"
+        printf 'git'
+    }
 }
 
 # Normalize an issue-view payload (gh or glab JSON) into a stable shape:
@@ -88,21 +91,29 @@ issue_json() {
     local n="$1" platform raw="" notes=""
     platform="$(detect_platform)"
     if [[ "${platform}" == "gitlab" ]]; then
-        raw="$(git_ops issue-view "${n}" --output json 2>/dev/null || true)"
-        [[ -z "${raw}" ]] && { err "issue-view #${n} returned no data (tracker outage/auth?); treating as unreadable"; printf '{}'; return 0; }
+        raw="$(git_ops issue-view "${n}" --output json 2> /dev/null || true)"
+        [[ -z "${raw}" ]] && {
+            err "issue-view #${n} returned no data (tracker outage/auth?); treating as unreadable"
+            printf '{}'
+            return 0
+        }
         # glab `issue view --output json` does not embed notes; fetch text and
         # fold each comment in (via NORMALIZE_NOTES) so has_marker() can scan them.
-        notes="$(git_ops issue-view "${n}" --comments 2>/dev/null || true)"
-        printf '%s' "${raw}" | NORMALIZE_NOTES="${notes}" python3 -c "${NORMALIZE_ISSUE_PY}" 2>/dev/null || printf '{}'
+        notes="$(git_ops issue-view "${n}" --comments 2> /dev/null || true)"
+        printf '%s' "${raw}" | NORMALIZE_NOTES="${notes}" python3 -c "${NORMALIZE_ISSUE_PY}" 2> /dev/null || printf '{}'
     else
-        raw="$(git_ops issue-view "${n}" --json number,title,body,state,labels,comments 2>/dev/null || true)"
-        [[ -z "${raw}" ]] && { err "issue-view #${n} returned no data (tracker outage/auth?); treating as unreadable"; printf '{}'; return 0; }
-        printf '%s' "${raw}" | python3 -c "${NORMALIZE_ISSUE_PY}" 2>/dev/null || printf '{}'
+        raw="$(git_ops issue-view "${n}" --json number,title,body,state,labels,comments 2> /dev/null || true)"
+        [[ -z "${raw}" ]] && {
+            err "issue-view #${n} returned no data (tracker outage/auth?); treating as unreadable"
+            printf '{}'
+            return 0
+        }
+        printf '%s' "${raw}" | python3 -c "${NORMALIZE_ISSUE_PY}" 2> /dev/null || printf '{}'
     fi
 }
 
 usage() {
-    cat <<'USAGE'
+    cat << 'USAGE'
 Usage: auto_issue_dev.sh <subcommand> [args]
 
   next-issue [--json]          First READY auto-dev issue; exit 3 when none
@@ -116,7 +127,7 @@ USAGE
 
 # parse_dep_refs <text> — print unique dependency issue/PR numbers, one per line
 parse_dep_refs() {
-    python3 - "$1" <<'PY'
+    python3 - "$1" << 'PY'
 import sys, re
 text = sys.argv[1] or ""
 pat = re.compile(r'(?:depends on|blocked by|requires|needs)\s+#(\d+)', re.IGNORECASE)
@@ -133,36 +144,45 @@ PY
 # State is normalized (GitLab 'opened'→open is unmet; 'closed'/'merged' met).
 ref_met() {
     local m="$1" view state merged
-    view="$(issue_json "$m" 2>/dev/null || true)"
+    view="$(issue_json "$m" 2> /dev/null || true)"
     state="$(printf '%s' "${view}" | python3 -c 'import sys,json
 try: d=json.load(sys.stdin)
 except Exception: d={}
-print((d.get("state") or "").lower())' 2>/dev/null || true)"
+print((d.get("state") or "").lower())' 2> /dev/null || true)"
     if [[ -n "${state}" ]]; then
         # normalized: opened→open already; closed/merged are "met"
         [[ "${state}" == "closed" || "${state}" == "merged" ]] && return 0
         return 1
     fi
     # Fall back to PR view (ref may be a PR number); request JSON per platform.
-    local platform; platform="$(detect_platform)"
+    local platform
+    platform="$(detect_platform)"
     if [[ "${platform}" == "gitlab" ]]; then
-        view="$(git_ops pr-view "$m" --output json 2>/dev/null || true)"
+        view="$(git_ops pr-view "$m" --output json 2> /dev/null || true)"
     else
-        view="$(git_ops pr-view "$m" --json state,merged 2>/dev/null || true)"
+        view="$(git_ops pr-view "$m" --json state,merged 2> /dev/null || true)"
     fi
-    [[ -z "${view}" ]] && { err "could not resolve ref #${m} (issue+pr view both empty); treating as UNMET"; return 1; }
+    [[ -z "${view}" ]] && {
+        err "could not resolve ref #${m} (issue+pr view both empty); treating as UNMET"
+        return 1
+    }
     merged="$(printf '%s' "${view}" | python3 -c 'import sys,json
 try: d=json.load(sys.stdin)
 except Exception: d={}
 st=(d.get("state") or "").lower()
-print("yes" if (d.get("merged") or st=="merged") else "no")' 2>/dev/null || echo no)"
+print("yes" if (d.get("merged") or st=="merged") else "no")' 2> /dev/null || echo no)"
     [[ "${merged}" == "yes" ]]
 }
 
 # cmd_check_deps <N> [--json]
 cmd_check_deps() {
-    local n="${1:-}"; local json=0; [[ "${2:-}" == "--json" ]] && json=1
-    [[ -n "${n}" ]] || { err "check-deps: issue number required"; return 1; }
+    local n="${1:-}"
+    local json=0
+    [[ "${2:-}" == "--json" ]] && json=1
+    [[ -n "${n}" ]] || {
+        err "check-deps: issue number required"
+        return 1
+    }
     local body refs unmet=()
     body="$(issue_json "${n}" | python3 -c 'import sys,json
 try:
@@ -179,9 +199,12 @@ except Exception: pass' || true)"
         return 0
     fi
     if [[ ${json} -eq 1 ]]; then
-        printf '{"unmet":[%s]}\n' "$(IFS=,; echo "${unmet[*]}")"  # array-safe: non-empty (early-returned above)
+        printf '{"unmet":[%s]}\n' "$(
+            IFS=,
+            echo "${unmet[*]}"
+        )" # array-safe: non-empty (early-returned above)
     else
-        printf 'unmet dependencies for #%s: %s\n' "${n}" "$(printf '#%s ' "${unmet[@]}")"  # array-safe: non-empty (early-returned above)
+        printf 'unmet dependencies for #%s: %s\n' "${n}" "$(printf '#%s ' "${unmet[@]}")" # array-safe: non-empty (early-returned above)
     fi
     return 2
 }
@@ -200,17 +223,20 @@ except Exception: pass' || true)"
 # flag <N> <label> <marker> <comment-body> — add label + deduped comment (fail-open)
 flag() {
     local n="$1" label="$2" marker="$3" comment="$4"
-    [[ -n "${n}" ]] || { err "flag: issue number required"; return 0; }
-    git_ops issue-edit "${n}" --add-label "${label}" >/dev/null 2>&1 \
-        || err "FAILED to add '${label}' to #${n} — loop filters by label, so #${n} will be re-selected every run (is the label provisioned? run label_sync.sh)"
+    [[ -n "${n}" ]] || {
+        err "flag: issue number required"
+        return 0
+    }
+    git_ops issue-edit "${n}" --add-label "${label}" > /dev/null 2>&1 ||
+        err "FAILED to add '${label}' to #${n} — loop filters by label, so #${n} will be re-selected every run (is the label provisioned? run label_sync.sh)"
     if has_marker "${n}" "${marker}"; then
         return 0
     fi
     # Mirror issue_support.sh: pass the body inline via --body (gitlab note +
     # github comment both accept it through git_ops). Marker leads so dedup
     # via has_marker() matches on the next run.
-    git_ops issue-comment "${n}" --body "${marker}"$'\n\n'"${comment}" >/dev/null 2>&1 \
-        || err "could not comment on #${n} (continuing)"
+    git_ops issue-comment "${n}" --body "${marker}"$'\n\n'"${comment}" > /dev/null 2>&1 ||
+        err "could not comment on #${n} (continuing)"
     return 0
 }
 
@@ -230,16 +256,17 @@ cmd_mark_dependency() {
 
 # cmd_next_issue [--json]
 cmd_next_issue() {
-    local json=0; [[ "${1:-}" == "--json" ]] && json=1
+    local json=0
+    [[ "${1:-}" == "--json" ]] && json=1
     local platform raw list
     platform="$(detect_platform)"
     if [[ "${platform}" == "gitlab" ]]; then
-        if ! raw="$(git_ops issue-list --state open --label "${DEV_LABEL}" --output json 2>/dev/null)"; then
+        if ! raw="$(git_ops issue-list --state open --label "${DEV_LABEL}" --output json 2> /dev/null)"; then
             err "issue-list failed (tracker outage/auth?); treating as empty queue — loop may stop prematurely"
             raw='[]'
         fi
     else
-        if ! raw="$(git_ops issue-list --state open --label "${DEV_LABEL}" --json number,title,url,labels 2>/dev/null)"; then
+        if ! raw="$(git_ops issue-list --state open --label "${DEV_LABEL}" --json number,title,url,labels 2> /dev/null)"; then
             err "issue-list failed (tracker outage/auth?); treating as empty queue — loop may stop prematurely"
             raw='[]'
         fi
@@ -262,7 +289,7 @@ for i in items:
         names.append(L.get("name","") if isinstance(L,dict) else str(L))
     out.append({"number":num,"title":i.get("title",""),"url":url,
                 "labels":[{"name":n} for n in names if n]})
-print(json.dumps(out,separators=(",",":")))' 2>/dev/null || echo '[]')"
+print(json.dumps(out,separators=(",",":")))' 2> /dev/null || echo '[]')"
     [[ -z "${list}" ]] && list='[]'
 
     # Candidate numbers, ascending, that are NOT already excluded by a status label:
@@ -297,7 +324,7 @@ print(sum(1 for i in items if excl & {l["name"] for l in (i.get("labels") or [])
         body="$(printf '%s' "${issue_raw}" | python3 -c 'import sys,json
 try: d=json.load(sys.stdin)
 except Exception: d={}
-print((d.get("title") or "")+" "+(d.get("body") or ""))' 2>/dev/null || true)"
+print((d.get("title") or "")+" "+(d.get("body") or ""))' 2> /dev/null || true)"
         deps_str="$(parse_dep_refs "${body}")"
         entry="$(printf '%s' "${issue_raw}" | python3 -c 'import sys,json
 try: d=json.load(sys.stdin)
@@ -305,7 +332,7 @@ except Exception: d={}
 labels=[l.get("name","") if isinstance(l,dict) else str(l) for l in (d.get("labels") or [])]
 deps=[int(x) for x in sys.argv[2].split() if x.isdigit()]
 print(json.dumps({"number":int(sys.argv[1]),"labels":labels,"deps":deps},separators=(",",":")))' \
-            "${n}" "$(printf '%s' "${deps_str}" | tr '\n' ' ')" 2>/dev/null || \
+            "${n}" "$(printf '%s' "${deps_str}" | tr '\n' ' ')" 2> /dev/null ||
             printf '{"number":%s,"labels":[],"deps":[]}' "${n}")"
         cand_data_list="${cand_data_list}${cand_data_list:+,}${entry}"
     done
@@ -368,7 +395,7 @@ if cycle:
 ranked = sorted(cand_set, key=lambda n: (-unblock.get(str(n),0), -sevs.get(str(n),0), n))
 print(json.dumps({"ranked":ranked,"unblock":unblock,"sevs":sevs,"cycle":cycle_msg},
                  separators=(",",":")))
-' "[${cand_data_list}]" 2>/dev/null || \
+' "[${cand_data_list}]" 2> /dev/null ||
         printf '{"ranked":[%s],"unblock":{},"sevs":{},"cycle":""}' \
             "$(printf '%s' "${cand}" | tr ' ' ',')")"
 
@@ -376,7 +403,7 @@ print(json.dumps({"ranked":ranked,"unblock":unblock,"sevs":sevs,"cycle":cycle_ms
     local cycle_msg
     cycle_msg="$(printf '%s' "${rank_result}" | python3 -c 'import sys,json
 try: print(json.load(sys.stdin).get("cycle",""))
-except Exception: print("")' 2>/dev/null || true)"
+except Exception: print("")' 2> /dev/null || true)"
     [[ -n "${cycle_msg}" ]] && err "${cycle_msg}"
 
     # Ranked candidate list (replaces the old ascending-number order)
@@ -384,7 +411,7 @@ except Exception: print("")' 2>/dev/null || true)"
     ranked_cand="$(printf '%s' "${rank_result}" | python3 -c 'import sys,json
 try: d=json.load(sys.stdin)
 except Exception: d={}
-print(" ".join(str(x) for x in d.get("ranked",[])))' 2>/dev/null || echo "${cand}")"
+print(" ".join(str(x) for x in d.get("ranked",[])))' 2> /dev/null || echo "${cand}")"
 
     # === Phase 2: dep-check and select ===
     local skipped_dependency=0 out refs meta reason
@@ -396,7 +423,7 @@ print(" ".join(str(x) for x in d.get("ranked",[])))' 2>/dev/null || echo "${cand
             refs="$(printf '%s' "${out}" | python3 -c 'import sys,json
 try: u=json.load(sys.stdin).get("unmet",[])
 except Exception: u=[]
-print(" ".join("#%s"%x for x in u))' 2>/dev/null || true)"
+print(" ".join("#%s"%x for x in u))' 2> /dev/null || true)"
             cmd_mark_dependency "${n}" "${refs}"
             skipped_dependency=$((skipped_dependency + 1))
             continue
@@ -418,7 +445,7 @@ elif sev > 0:
 else:
     r = "oldest ready issue, no priority signal"
 print(r)
-' "${n}" 2>/dev/null || echo "selected")"
+' "${n}" 2> /dev/null || echo "selected")"
         # Emit — reuse the already-fetched list snapshot (avoids stale-read race)
         meta="$(printf '%s' "${list}" | python3 -c 'import sys,json
 n=int(sys.argv[1]); sk=int(sys.argv[2]); reason=sys.argv[3]; so=int(sys.argv[4])
@@ -444,14 +471,34 @@ print(json.dumps({"number":m["number"],"title":m.get("title",""),"url":m.get("ur
 }
 
 main() {
-    local sub="${1:-}"; shift || true
+    local sub="${1:-}"
+    shift || true
     case "${sub}" in
-        --help|-h|help) usage; exit 0 ;;
-        check-deps) cmd_check_deps "$@"; exit $? ;;
-        mark-blocked) cmd_mark_blocked "$@"; exit 0 ;;
-        mark-dependency) cmd_mark_dependency "$@"; exit 0 ;;
-        next-issue) cmd_next_issue "$@"; exit $? ;;
-        *) err "unknown subcommand: ${sub:-<none>}"; usage >&2; exit 64 ;;
+        --help | -h | help)
+            usage
+            exit 0
+            ;;
+        check-deps)
+            cmd_check_deps "$@"
+            exit $?
+            ;;
+        mark-blocked)
+            cmd_mark_blocked "$@"
+            exit 0
+            ;;
+        mark-dependency)
+            cmd_mark_dependency "$@"
+            exit 0
+            ;;
+        next-issue)
+            cmd_next_issue "$@"
+            exit $?
+            ;;
+        *)
+            err "unknown subcommand: ${sub:-<none>}"
+            usage >&2
+            exit 64
+            ;;
     esac
 }
 

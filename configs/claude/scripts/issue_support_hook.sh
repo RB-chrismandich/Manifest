@@ -14,7 +14,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ENGINE="${ISSUE_SUPPORT_ENGINE:-${SCRIPT_DIR}/issue_support.sh}"
 
 if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
-    cat <<'USAGE'
+    cat << 'USAGE'
 Usage: issue_support_hook.sh < <PostToolUse-JSON>
 
 Internal PostToolUse dispatcher. Reads the hook payload on stdin, and on a
@@ -23,7 +23,7 @@ USAGE
     exit 0
 fi
 
-payload="$(cat 2>/dev/null || true)"
+payload="$(cat 2> /dev/null || true)"
 
 # Classify the command and success. Prints "<class>\t<ok>" (class: pr|commit|none).
 CLASSIFY_PY='
@@ -48,18 +48,18 @@ elif re.search(r"^\s*(sudo\s+)?(\S*/)?(\S*git_ops\.sh\s+commit|git\s+commit)\b",
 print("%s\t%s" % (cl, ok))
 '
 
-result="$(printf '%s' "${payload}" | python3 -c "${CLASSIFY_PY}" 2>/dev/null || printf 'none\t0')"
+result="$(printf '%s' "${payload}" | python3 -c "${CLASSIFY_PY}" 2> /dev/null || printf 'none\t0')"
 cls="${result%%	*}"
 ok="${result##*	}"
 
 if [[ "${ok}" != "1" ]]; then
-    exit 0   # the underlying command failed (H4) — do not sync
+    exit 0 # the underlying command failed (H4) — do not sync
 fi
 
 case "${cls}" in
-    pr)     "${ENGINE}" sync-pr     >&2 2>&1 || true ;;
+    pr) "${ENGINE}" sync-pr >&2 2>&1 || true ;;
     commit) "${ENGINE}" sync-commit HEAD >&2 2>&1 || true ;;
-    *)      : ;;
+    *) : ;;
 esac
 
 exit 0

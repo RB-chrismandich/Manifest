@@ -41,7 +41,7 @@ for arg in "$@"; do
         --paths-only)
             PATHS_ONLY=true
             ;;
-        --help|-h)
+        --help | -h)
             cat << 'EOF'
 Usage: check-prerequisites.sh [OPTIONS]
 
@@ -79,7 +79,10 @@ SCRIPT_DIR="$(CDPATH="" cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/common.sh"
 
 # Get feature paths and validate branch
-_paths_output=$(get_feature_paths) || { echo "ERROR: Failed to resolve feature paths" >&2; exit 1; }
+_paths_output=$(get_feature_paths) || {
+    echo "ERROR: Failed to resolve feature paths" >&2
+    exit 1
+}
 while IFS= read -r line; do
     if [[ -n "$line" ]]; then
         key="${line%%=*}"
@@ -87,7 +90,7 @@ while IFS= read -r line; do
         val="${val%\"}"
         val="${val#\"}"
         case "$key" in
-            REPO_ROOT|CURRENT_BRANCH|HAS_GIT|FEATURE_DIR|FEATURE_SPEC|IMPL_PLAN|TASKS|RESEARCH|DATA_MODEL|QUICKSTART|CONTRACTS_DIR)
+            REPO_ROOT | CURRENT_BRANCH | HAS_GIT | FEATURE_DIR | FEATURE_SPEC | IMPL_PLAN | TASKS | RESEARCH | DATA_MODEL | QUICKSTART | CONTRACTS_DIR)
                 printf -v "$key" "%s" "$val"
                 export "${key?}"
                 ;;
@@ -153,7 +156,7 @@ docs=()
 [[ -f "$DATA_MODEL" ]] && docs+=("data-model.md")
 
 # Check contracts directory (only if it exists and has files)
-if [[ -d "$CONTRACTS_DIR" ]] && [[ -n "$(ls -A "$CONTRACTS_DIR" 2>/dev/null)" ]]; then
+if [[ -d "$CONTRACTS_DIR" ]] && [[ -n "$(ls -A "$CONTRACTS_DIR" 2> /dev/null)" ]]; then
     docs+=("contracts/")
 fi
 
@@ -190,13 +193,13 @@ else
     # Text output
     echo "FEATURE_DIR:$FEATURE_DIR"
     echo "AVAILABLE_DOCS:"
-    
+
     # Show status of each potential document
     check_file "$RESEARCH" "research.md"
     check_file "$DATA_MODEL" "data-model.md"
     check_dir "$CONTRACTS_DIR" "contracts/"
     check_file "$QUICKSTART" "quickstart.md"
-    
+
     if $INCLUDE_TASKS; then
         check_file "$TASKS" "tasks.md"
     fi

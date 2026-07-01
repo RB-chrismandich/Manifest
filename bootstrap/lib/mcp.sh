@@ -361,8 +361,8 @@ install_gemini_mcp_server() {
     fi
 
     if [[ -n "$prev_url" ]]; then
-        gemini mcp add --scope "$GEMINI_MCP_SCOPE" --transport "$transport" "$name" "$prev_url" > /dev/null 2>&1 \
-            && print_warning "Gemini MCP add failed for '$name'; restored previous registration ($prev_url)"
+        gemini mcp add --scope "$GEMINI_MCP_SCOPE" --transport "$transport" "$name" "$prev_url" > /dev/null 2>&1 &&
+            print_warning "Gemini MCP add failed for '$name'; restored previous registration ($prev_url)"
     fi
 
     if ensure_gemini_mcp_server_in_settings "$name" "$url" "$transport"; then

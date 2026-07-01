@@ -29,7 +29,7 @@ sys.stdout.write(text)
 '
 
 usage() {
-    cat <<'USAGE'
+    cat << 'USAGE'
 Usage: audit_log.sh <subcommand> [args]
 
   append <json>   Redact and append one record to the audit log; exit 0 (fail-open)
@@ -45,27 +45,44 @@ cmd_redact() {
 
 cmd_append() {
     local record="${1:-}"
-    [[ -n "${record}" ]] || { err "append: record required"; return 0; }
+    [[ -n "${record}" ]] || {
+        err "append: record required"
+        return 0
+    }
     local redacted
-    if ! redacted="$(cmd_redact "${record}" 2>/dev/null)"; then
+    if ! redacted="$(cmd_redact "${record}" 2> /dev/null)"; then
         err "WARNING: redaction failed; skipping audit append to prevent secret leak"
         return 0
     fi
     local dir
     dir="$(dirname "${AUDIT_FILE}")"
-    mkdir -p "${dir}" 2>/dev/null || true
-    printf '%s\n' "${redacted}" >> "${AUDIT_FILE}" 2>/dev/null \
-        || err "WARNING: could not append to ${AUDIT_FILE} (audit record lost)"
+    mkdir -p "${dir}" 2> /dev/null || true
+    printf '%s\n' "${redacted}" >> "${AUDIT_FILE}" 2> /dev/null ||
+        err "WARNING: could not append to ${AUDIT_FILE} (audit record lost)"
     return 0
 }
 
 main() {
-    local sub="${1:-}"; shift || true
+    local sub="${1:-}"
+    shift || true
     case "${sub}" in
-        --help|-h|help) usage; exit 0 ;;
-        append)         cmd_append "$@"; exit 0 ;;
-        redact)         cmd_redact "$@"; exit 0 ;;
-        *) err "unknown subcommand: ${sub:-<none>}"; usage >&2; exit 64 ;;
+        --help | -h | help)
+            usage
+            exit 0
+            ;;
+        append)
+            cmd_append "$@"
+            exit 0
+            ;;
+        redact)
+            cmd_redact "$@"
+            exit 0
+            ;;
+        *)
+            err "unknown subcommand: ${sub:-<none>}"
+            usage >&2
+            exit 64
+            ;;
     esac
 }
 

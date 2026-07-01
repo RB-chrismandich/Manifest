@@ -48,7 +48,7 @@ if ! platform=$(bash "${SCRIPT_DIR}/git_platform.sh" 2>&1); then
 fi
 
 usage() {
-    cat <<'USAGE'
+    cat << 'USAGE'
 Usage: git_ops.sh <subcommand> [args...]
 
 Subcommands:
@@ -238,20 +238,31 @@ case "${platform}" in
                 # GitLab uses 'update' instead of 'edit', and --label/--unlabel
                 # instead of gh's --add-label/--remove-label.
                 _translate_issue_edit_flags() {
-                    local issue_num="$1"; shift
+                    local issue_num="$1"
+                    shift
                     local -a issue_args=("${issue_num}")
                     while [[ $# -gt 0 ]]; do
                         case "$1" in
                             --add-label)
-                                issue_args+=(--label "$2"); shift 2 ;;
+                                issue_args+=(--label "$2")
+                                shift 2
+                                ;;
                             --add-label=*)
-                                issue_args+=(--label "${1#--add-label=}"); shift ;;
+                                issue_args+=(--label "${1#--add-label=}")
+                                shift
+                                ;;
                             --remove-label)
-                                issue_args+=(--unlabel "$2"); shift 2 ;;
+                                issue_args+=(--unlabel "$2")
+                                shift 2
+                                ;;
                             --remove-label=*)
-                                issue_args+=(--unlabel "${1#--remove-label=}"); shift ;;
+                                issue_args+=(--unlabel "${1#--remove-label=}")
+                                shift
+                                ;;
                             *)
-                                issue_args+=("$1"); shift ;;
+                                issue_args+=("$1")
+                                shift
+                                ;;
                         esac
                     done
                     glab issue update "${issue_args[@]}"
@@ -297,7 +308,8 @@ case "${platform}" in
             pr-edit)
                 # GitLab uses 'mr update' with --description for body edits.
                 _translate_pr_edit_flags() {
-                    local mr_num="$1"; shift
+                    local mr_num="$1"
+                    shift
                     local -a mr_args=("${mr_num}")
                     while [[ $# -gt 0 ]]; do
                         case "$1" in
@@ -315,7 +327,7 @@ case "${platform}" in
                                 ;;
                         esac
                     done
-                    glab mr update "${mr_args[@]}"  # array-safe: seeded with mr_num
+                    glab mr update "${mr_args[@]}" # array-safe: seeded with mr_num
                 }
                 _translate_pr_edit_flags "$@"
                 ;;
@@ -340,8 +352,8 @@ case "${platform}" in
                 shift
                 mr_branch=$(glab mr view "${mr_num}" --output json 2> /dev/null | jq -r '.source_branch // empty')
                 if [[ -n "${mr_branch}" ]]; then
-                    glab ci status --branch "${mr_branch}" "$@" 2> /dev/null \
-                        || glab mr view "${mr_num}" --web
+                    glab ci status --branch "${mr_branch}" "$@" 2> /dev/null ||
+                        glab mr view "${mr_num}" --web
                 else
                     glab mr view "${mr_num}" --web
                 fi

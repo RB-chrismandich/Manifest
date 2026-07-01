@@ -317,7 +317,7 @@ parse_services_config() {
                     val="${val%\"}"
                     val="${val#\"}"
                     case "$key" in
-                        FILE_CLAUDE|FILE_GEMINI|FILE_CURSOR|FILE_CODEX|FILE_ANTIGRAVITY|FILE_GRAPHIFY|FILE_SKILLCLAW|FILE_BROWSER_USE|FILE_SMOKE|FILE_GH|FILE_GLAB)
+                        FILE_CLAUDE | FILE_GEMINI | FILE_CURSOR | FILE_CODEX | FILE_ANTIGRAVITY | FILE_GRAPHIFY | FILE_SKILLCLAW | FILE_BROWSER_USE | FILE_SMOKE | FILE_GH | FILE_GLAB)
                             printf -v "$key" "%s" "$val"
                             ;;
                     esac

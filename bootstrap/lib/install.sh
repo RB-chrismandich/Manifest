@@ -853,7 +853,10 @@ install_smoke_deps() {
     here="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
     local cand
     for cand in "$here/tests/requirements-smoke.txt" "tests/requirements-smoke.txt"; do
-        [[ -f "$cand" ]] && { req="$cand"; break; }
+        [[ -f "$cand" ]] && {
+            req="$cand"
+            break
+        }
     done
 
     # Existence guard: only pip-install when Playwright is absent (idempotent).
@@ -980,4 +983,3 @@ install_graphify() {
     fi
     return 0
 }
-

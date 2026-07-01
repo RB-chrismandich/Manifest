@@ -1201,7 +1201,7 @@ cmd_transition_state() {
 
 # Main command router
 usage() {
-    cat <<'USAGE'
+    cat << 'USAGE'
 Usage: linear_ops.sh <subcommand> [args...]
 
 Subcommands:
@@ -1217,7 +1217,10 @@ USAGE
 }
 
 main() {
-    if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then usage; exit 0; fi
+    if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
+        usage
+        exit 0
+    fi
     [[ $# -eq 0 ]] && error "Usage: linear_ops.sh <subcommand> [args...]
 
 Subcommands:

@@ -23,8 +23,8 @@ skillclaw_remove_wrappers() {
     local profile="$1"
     [[ -f "$profile" ]] || return 0
     # Delete the inclusive marker block.
-    sed -e "/$SKILLCLAW_WRAP_BEGIN/,/$SKILLCLAW_WRAP_END/d" "$profile" > "${profile}.tmp" \
-        && mv "${profile}.tmp" "$profile"
+    sed -e "/$SKILLCLAW_WRAP_BEGIN/,/$SKILLCLAW_WRAP_END/d" "$profile" > "${profile}.tmp" &&
+        mv "${profile}.tmp" "$profile"
 }
 
 # Remove the retired launchd/systemd supervisor if a prior install left one.
@@ -37,14 +37,14 @@ _skillclaw_remove_launchd() {
         Darwin)
             local plist="$HOME/Library/LaunchAgents/com.manifest.skillclaw.plist"
             if [[ -f "$plist" ]]; then
-                launchctl unload "$plist" >/dev/null 2>&1 || true
+                launchctl unload "$plist" > /dev/null 2>&1 || true
                 rm -f "$plist"
             fi
             ;;
         Linux)
             local unit="$HOME/.config/systemd/user/skillclaw.service"
             if [[ -f "$unit" ]]; then
-                systemctl --user disable --now skillclaw.service >/dev/null 2>&1 || true
+                systemctl --user disable --now skillclaw.service > /dev/null 2>&1 || true
                 rm -f "$unit"
             fi
             ;;
@@ -63,7 +63,7 @@ skillclaw_apply_state() {
         mkdir -p "$SKILLCLAW_HOME/sessions" "$SKILLCLAW_HOME/skills"
         # Tier-1 secrets honeypot: lock down the root AND subdirs (transcripts may
         # transit sessions/ before scrubbing). Inherited umask is not enough.
-        chmod 700 "$SKILLCLAW_HOME" "$SKILLCLAW_HOME/sessions" "$SKILLCLAW_HOME/skills" 2>/dev/null || true
+        chmod 700 "$SKILLCLAW_HOME" "$SKILLCLAW_HOME/sessions" "$SKILLCLAW_HOME/skills" 2> /dev/null || true
         print_success "SkillClaw enabled (transcript evolution; no daemon, no proxy)"
     else
         print_info "SkillClaw disabled (storage left intact; nothing running)"

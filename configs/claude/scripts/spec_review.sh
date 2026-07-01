@@ -24,11 +24,17 @@ SPEC_REVIEW_SYNTH_CLI="${SPEC_REVIEW_SYNTH_CLI:-$SPEC_REVIEW_CLI}"
 SPEC_REVIEW_MERGE_TEMPLATE="${SPEC_REVIEW_MERGE_TEMPLATE:-${SCRIPT_DIR}/../prompts/spec_review_merge.md}"
 SPEC_REVIEW_TIMEOUT="${SPEC_REVIEW_TIMEOUT:-600}"
 
-SPEC=""; PLAN=""; TASKS=""; SILENT=false; FORMAT="tree"; ROOT="."; MODE=""
+SPEC=""
+PLAN=""
+TASKS=""
+SILENT=false
+FORMAT="tree"
+ROOT="."
+MODE=""
 
 err() { echo "spec-review: $*" >&2; }
 usage() {
-    cat <<'EOF'
+    cat << 'EOF'
 spec-review — cross-reference spec/plan/tasks for consistency (Antigravity/agy, analysis-only)
 
 Usage: spec_review.sh [--spec F] [--plan F] [--tasks F] [--silent] [--format tree|json] [ROOT]
@@ -45,25 +51,56 @@ parse_args() {
     # shellcheck disable=SC2034  # vars consumed by future discovery/invoke tasks
     while [[ $# -gt 0 ]]; do
         case "$1" in
-            --spec)  SPEC="$2"; shift 2 ;;
-            --plan)  PLAN="$2"; shift 2 ;;
-            --tasks) TASKS="$2"; shift 2 ;;
-            --silent) SILENT=true; shift ;;
-            --format) FORMAT="$2"; shift 2 ;;
+            --spec)
+                SPEC="$2"
+                shift 2
+                ;;
+            --plan)
+                PLAN="$2"
+                shift 2
+                ;;
+            --tasks)
+                TASKS="$2"
+                shift 2
+                ;;
+            --silent)
+                SILENT=true
+                shift
+                ;;
+            --format)
+                FORMAT="$2"
+                shift 2
+                ;;
             --mode)
                 # Sugar over the SPEC_REVIEW_STATE/TEMPLATE seams so the lifecycle's product
                 # (phase 3) and technical (phase 7) passes are distinct + auditable (FR-002).
                 case "${2:-}" in
-                    product)   SPEC_REVIEW_STATE="${SPEC_REVIEW_STATE%/}/product" ;;
-                    technical) SPEC_REVIEW_STATE="${SPEC_REVIEW_STATE%/}/technical"
-                               [[ -f "${SCRIPT_DIR}/../prompts/spec_review_technical.md" ]] \
-                                   && SPEC_REVIEW_TEMPLATE="${SCRIPT_DIR}/../prompts/spec_review_technical.md" ;;
-                    *) err "invalid --mode: '${2:-}' (use product|technical)"; return 2 ;;
+                    product) SPEC_REVIEW_STATE="${SPEC_REVIEW_STATE%/}/product" ;;
+                    technical)
+                        SPEC_REVIEW_STATE="${SPEC_REVIEW_STATE%/}/technical"
+                        [[ -f "${SCRIPT_DIR}/../prompts/spec_review_technical.md" ]] &&
+                            SPEC_REVIEW_TEMPLATE="${SCRIPT_DIR}/../prompts/spec_review_technical.md"
+                        ;;
+                    *)
+                        err "invalid --mode: '${2:-}' (use product|technical)"
+                        return 2
+                        ;;
                 esac
-                MODE="$2"; shift 2 ;;
-            -h|--help) usage; return 0 ;;
-            -*) err "unknown flag: $1"; return 2 ;;
-            *) ROOT="$1"; shift ;;
+                MODE="$2"
+                shift 2
+                ;;
+            -h | --help)
+                usage
+                return 0
+                ;;
+            -*)
+                err "unknown flag: $1"
+                return 2
+                ;;
+            *)
+                ROOT="$1"
+                shift
+                ;;
         esac
     done
 }
@@ -75,20 +112,21 @@ discover_artifacts() {
     local root="${1:-.}" sp pl
     # speckit: specs/<n>/ first, then cwd
     # shellcheck disable=SC2012  # ls used intentionally; files are date-prefixed, no special chars
-    sp=$(ls -1 "$root"/specs/*/spec.md 2>/dev/null | sort | tail -1 || true)
+    sp=$(ls -1 "$root"/specs/*/spec.md 2> /dev/null | sort | tail -1 || true)
     [[ -z "$sp" && -f "$root/spec.md" ]] && sp="$root/spec.md"
     if [[ -n "$sp" ]]; then
-        local d; d="$(dirname "$sp")"
+        local d
+        d="$(dirname "$sp")"
         printf 'spec\t%s\n' "$sp"
-        [[ -f "$d/plan.md" ]]  && printf 'plan\t%s\n'  "$d/plan.md"
+        [[ -f "$d/plan.md" ]] && printf 'plan\t%s\n' "$d/plan.md"
         [[ -f "$d/tasks.md" ]] && printf 'tasks\t%s\n' "$d/tasks.md"
         return 0
     fi
     # superpowers: newest design + newest plan (tasks embedded in plan)
     # shellcheck disable=SC2012  # ls used intentionally; files are date-prefixed, no special chars
-    sp=$(ls -1 "$root"/docs/superpowers/specs/*-design.md 2>/dev/null | sort | tail -1 || true)
+    sp=$(ls -1 "$root"/docs/superpowers/specs/*-design.md 2> /dev/null | sort | tail -1 || true)
     # shellcheck disable=SC2012  # ls used intentionally; files are date-prefixed, no special chars
-    pl=$(ls -1 "$root"/docs/superpowers/plans/*.md 2>/dev/null | sort | tail -1 || true)
+    pl=$(ls -1 "$root"/docs/superpowers/plans/*.md 2> /dev/null | sort | tail -1 || true)
     [[ -n "$sp" ]] && printf 'spec\t%s\n' "$sp"
     [[ -n "$pl" ]] && printf 'plan\t%s\n' "$pl"
     return 0
@@ -96,11 +134,13 @@ discover_artifacts() {
 
 # assemble_prompt TEMPLATE "role\tpath"...  ->  full prompt on stdout
 assemble_prompt() {
-    local template="$1"; shift
+    local template="$1"
+    shift
     local artfile line role path
     artfile="$(mktemp)"
     for line in "$@"; do
-        role="${line%%$'\t'*}"; path="${line#*$'\t'}"
+        role="${line%%$'\t'*}"
+        path="${line#*$'\t'}"
         {
             printf '=== %s: %s ===\n' "$(printf '%s' "$role" | tr '[:lower:]' '[:upper:]')" "$path"
             cat "$path"
@@ -153,7 +193,7 @@ resolve_review_model() {
     fi
     [[ "$SPEC_REVIEW_CLI" == "agy" ]] || return 0
     [[ -f "$SPEC_REVIEW_CONFIG" ]] || return 0
-    python3 - "$SPEC_REVIEW_CONFIG" 2>/dev/null <<'PY' || true
+    python3 - "$SPEC_REVIEW_CONFIG" 2> /dev/null << 'PY' || true
 import sys
 
 import yaml
@@ -178,7 +218,7 @@ run_reviewer() {
     local cli_args=()
     [[ -n "$model" ]] && cli_args+=(--model "$model")
     cli_args+=(-p "Cross-reference the artifacts above per the instructions; output only the specified blocks or NO_ISSUES.")
-    printf '%s' "$prompt" | "$SPEC_REVIEW_CLI" "${cli_args[@]}"  # array-safe (unconditional += above)
+    printf '%s' "$prompt" | "$SPEC_REVIEW_CLI" "${cli_args[@]}" # array-safe (unconditional += above)
 }
 
 # parse_panel_json JSON_FILE BLOCKS_OUT RAW_OUT  (parallel_agent.py --json file)
@@ -188,7 +228,7 @@ run_reviewer() {
 # REQUIRED". Fail-open: malformed/absent JSON yields count 0 (caller falls back).
 # JSON is read from a file (not stdin) because the heredoc occupies stdin.
 parse_panel_json() {
-    python3 - "$1" "$2" "$3" <<'PY'
+    python3 - "$1" "$2" "$3" << 'PY'
 import json, sys
 json_file, blocks_path, raw_path = sys.argv[1], sys.argv[2], sys.argv[3]
 try:
@@ -229,7 +269,7 @@ run_synthesizer() {
     local cli_args=()
     [[ -n "$model" ]] && cli_args+=(--model "$model")
     cli_args+=(-p "Merge the reviewer findings above into one deduped list per the instructions; output only the specified blocks or NO_ISSUES.")
-    printf '%s' "$prompt" | "$SPEC_REVIEW_SYNTH_CLI" "${cli_args[@]}"  # array-safe (unconditional += above)
+    printf '%s' "$prompt" | "$SPEC_REVIEW_SYNTH_CLI" "${cli_args[@]}" # array-safe (unconditional += above)
 }
 
 # run_panel PROMPT -> findings text (raw blocks or NO_ISSUES) on stdout.
@@ -238,32 +278,37 @@ run_synthesizer() {
 # a synth failure falls back to a labeled concat so findings are never lost.
 run_panel() {
     local prompt="$1" tmpjson tmpblocks tmpraw meta count all_ni out
-    tmpjson="$(mktemp)"; tmpblocks="$(mktemp)"; tmpraw="$(mktemp)"
+    tmpjson="$(mktemp)"
+    tmpblocks="$(mktemp)"
+    tmpraw="$(mktemp)"
     # Prompt is passed as the trailing positional arg (parallel_agent.py reads no
     # stdin); `--` guards a prompt that might start with '-'. Planning artifacts
     # are bounded, so ARG_MAX is not a concern.
     if ! "$SPEC_REVIEW_PANEL_CMD" --json --no-claude --no-synthesize \
-            --no-stream --timeout "$SPEC_REVIEW_TIMEOUT" -- "$prompt" \
-            > "$tmpjson" 2>/dev/null
-    then
+        --no-stream --timeout "$SPEC_REVIEW_TIMEOUT" -- "$prompt" \
+        > "$tmpjson" 2> /dev/null; then
         rm -f "$tmpjson" "$tmpblocks" "$tmpraw"
-        run_reviewer "$prompt"; return $?
+        run_reviewer "$prompt"
+        return $?
     fi
-    meta="$(parse_panel_json "$tmpjson" "$tmpblocks" "$tmpraw" 2>/dev/null)" || meta="0	0"
-    count="${meta%%$'\t'*}"; all_ni="${meta##*$'\t'}"
+    meta="$(parse_panel_json "$tmpjson" "$tmpblocks" "$tmpraw" 2> /dev/null)" || meta="0	0"
+    count="${meta%%$'\t'*}"
+    all_ni="${meta##*$'\t'}"
     if [[ -z "$count" || "$count" == "0" ]]; then
         rm -f "$tmpjson" "$tmpblocks" "$tmpraw"
-        run_reviewer "$prompt"; return $?
+        run_reviewer "$prompt"
+        return $?
     fi
     if [[ "$all_ni" == "1" ]]; then
         rm -f "$tmpjson" "$tmpblocks" "$tmpraw"
-        printf 'NO_ISSUES\n'; return 0
+        printf 'NO_ISSUES\n'
+        return 0
     fi
     if [[ "$count" == "1" ]]; then
         cat "$tmpraw"
     else
         if ! out="$(run_synthesizer < "$tmpblocks")"; then
-            out="$(cat "$tmpblocks")"   # synth failed: keep labeled findings
+            out="$(cat "$tmpblocks")" # synth failed: keep labeled findings
         fi
         printf '%s\n' "$out"
     fi
@@ -295,7 +340,7 @@ format_findings() {
 
 # Stable combined-content hash of the given files.
 content_hash() {
-    cat "$@" 2>/dev/null | shasum | awk '{print $1}'
+    cat "$@" 2> /dev/null | shasum | awk '{print $1}'
 }
 
 # Gating for silent/hook mode. Returns 0 (run, hash on stdout) or 1 (skip,
@@ -309,12 +354,16 @@ should_run_silent() {
     local paths=() line
     while IFS= read -r line; do [[ -n "$line" ]] && paths+=("$line"); done \
         < <(discover_artifacts "$root" | cut -f2)
-    if [[ "${#paths[@]}" -lt 2 ]]; then echo "skip: fewer than 2 artifacts"; return 1; fi
+    if [[ "${#paths[@]}" -lt 2 ]]; then
+        echo "skip: fewer than 2 artifacts"
+        return 1
+    fi
     mkdir -p "$state"
     local now prev="$state/.last-run"
     now="$(content_hash "${paths[@]+"${paths[@]}"}")"
     if [[ -f "$prev" && "$(cat "$prev")" == "$now" ]]; then
-        echo "skip: unchanged"; return 1
+        echo "skip: unchanged"
+        return 1
     fi
     echo "$now"
     return 0
@@ -325,8 +374,8 @@ should_run_silent() {
 resolve_artifacts() {
     local root="${1:-.}"
     if [[ -n "$SPEC" || -n "$PLAN" || -n "$TASKS" ]]; then
-        [[ -n "$SPEC" ]]  && printf 'spec\t%s\n'  "$SPEC"
-        [[ -n "$PLAN" ]]  && printf 'plan\t%s\n'  "$PLAN"
+        [[ -n "$SPEC" ]] && printf 'spec\t%s\n' "$SPEC"
+        [[ -n "$PLAN" ]] && printf 'plan\t%s\n' "$PLAN"
         [[ -n "$TASKS" ]] && printf 'tasks\t%s\n' "$TASKS"
         return 0
     fi
@@ -338,9 +387,13 @@ review() {
     local root="${1:-.}" fmt="${2:-tree}"
     local arts=() line
     while IFS= read -r line; do [[ -n "$line" ]] && arts+=("$line"); done < <(resolve_artifacts "$root")
-    if [[ "${#arts[@]}" -eq 0 ]]; then echo "spec-review: nothing to review (no artifacts found)"; return 0; fi
+    if [[ "${#arts[@]}" -eq 0 ]]; then
+        echo "spec-review: nothing to review (no artifacts found)"
+        return 0
+    fi
     echo "[spec-review] Cross-referencing project artifacts with the parallel agent panel…"
-    local prompt raw; prompt="$(assemble_prompt "$SPEC_REVIEW_TEMPLATE" "${arts[@]+"${arts[@]}"}")"
+    local prompt raw
+    prompt="$(assemble_prompt "$SPEC_REVIEW_TEMPLATE" "${arts[@]+"${arts[@]}"}")"
     raw="$(run_panel "$prompt")"
     format_findings "$raw" "$fmt" "${#arts[@]}"
 }
@@ -353,16 +406,16 @@ _silent_review_inline() {
     mkdir -p "$state"
     local arts=() line prompt raw
     while IFS= read -r line; do [[ -n "$line" ]] && arts+=("$line"); done < <(discover_artifacts "$root")
-    [[ "${#arts[@]}" -eq 0 ]] && return 0   # defensive: nothing to review (set -u safe)
+    [[ "${#arts[@]}" -eq 0 ]] && return 0 # defensive: nothing to review (set -u safe)
     prompt="$(assemble_prompt "$SPEC_REVIEW_TEMPLATE" "${arts[@]+"${arts[@]}"}")"
-    if ! raw="$(run_panel "$prompt" 2>>"$state/error.log")"; then
-        return 0   # fail-open: reviewer failed, never block; hash not recorded
+    if ! raw="$(run_panel "$prompt" 2>> "$state/error.log")"; then
+        return 0 # fail-open: reviewer failed, never block; hash not recorded
     fi
     # Record the hash only when feedback.md was actually written — a failed
     # write (disk full, permissions) must stay retryable, same as a failed
     # reviewer run (issue #317)
-    if format_findings "$raw" "tree" > "$state/feedback.md.tmp" \
-        && mv "$state/feedback.md.tmp" "$state/feedback.md"; then
+    if format_findings "$raw" "tree" > "$state/feedback.md.tmp" &&
+        mv "$state/feedback.md.tmp" "$state/feedback.md"; then
         [[ -n "$review_hash" ]] && echo "$review_hash" > "$state/.last-run"
     fi
     return 0
@@ -372,32 +425,42 @@ _silent_review_inline() {
 run_silent() {
     local root="${1:-.}" state="$SPEC_REVIEW_STATE" review_hash
     if ! review_hash="$(should_run_silent "$root")"; then
-        return 0   # gate said skip (fewer than 2 artifacts / unchanged)
+        return 0 # gate said skip (fewer than 2 artifacts / unchanged)
     fi
     mkdir -p "$state"
     # Self-heal a stale lock left by a crashed prior run (older than 10 min), so a
     # killed detached review can never permanently disable the hook.
-    if [[ -d "$state/.lock" ]] && find "$state/.lock" -maxdepth 0 -mmin +10 2>/dev/null | grep -q .; then
-        rmdir "$state/.lock" 2>/dev/null || true
+    if [[ -d "$state/.lock" ]] && find "$state/.lock" -maxdepth 0 -mmin +10 2> /dev/null | grep -q .; then
+        rmdir "$state/.lock" 2> /dev/null || true
     fi
     # Single-flight lock: skip if a review is already in flight.
-    if ! mkdir "$state/.lock" 2>/dev/null; then return 0; fi
+    if ! mkdir "$state/.lock" 2> /dev/null; then return 0; fi
     # `|| true` after the review so an unexpected non-zero (disk full, etc.) never
     # skips the lock release or breaks the fail-open contract.
     if [[ -n "$SPEC_REVIEW_NO_DETACH" ]]; then
-        _silent_review_inline "$root" "$review_hash" || true; rmdir "$state/.lock" 2>/dev/null || true
+        _silent_review_inline "$root" "$review_hash" || true
+        rmdir "$state/.lock" 2> /dev/null || true
     else
         # Detach so the agent loop never waits on the reviewer; release lock when done.
-        ( _silent_review_inline "$root" "$review_hash" || true; rmdir "$state/.lock" 2>/dev/null || true ) >/dev/null 2>&1 &
-        disown 2>/dev/null || true
+        (
+            _silent_review_inline "$root" "$review_hash" || true
+            rmdir "$state/.lock" 2> /dev/null || true
+        ) > /dev/null 2>&1 &
+        disown 2> /dev/null || true
     fi
     return 0
 }
 
 main() {
-    if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then usage; return 0; fi
+    if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
+        usage
+        return 0
+    fi
     parse_args "$@" || return $?
-    if [[ "$SILENT" == true ]]; then run_silent "$ROOT"; return 0; fi
+    if [[ "$SILENT" == true ]]; then
+        run_silent "$ROOT"
+        return 0
+    fi
     review "$ROOT" "$FORMAT"
 }
 

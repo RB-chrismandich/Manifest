@@ -16,7 +16,7 @@ set -euo pipefail
 err() { echo "merge-decision: $*" >&2; }
 
 usage() {
-    cat <<'USAGE'
+    cat << 'USAGE'
 Usage: merge_decision.sh decide [<signals-json>]
 
   decide   Map a signals JSON (arg or stdin) to {action, reason, label}.
@@ -97,11 +97,22 @@ out("hand-human", "all clear but consensus low — block + synthesize", "needs-h
 cmd_decide() { python3 -c "${DECIDE_PY}" "${1:-}"; }
 
 main() {
-    local sub="${1:-}"; shift || true
+    local sub="${1:-}"
+    shift || true
     case "${sub}" in
-        --help|-h|help) usage; exit 0 ;;
-        decide)         cmd_decide "$@"; exit 0 ;;
-        *) err "unknown subcommand: ${sub:-<none>}"; usage >&2; exit 64 ;;
+        --help | -h | help)
+            usage
+            exit 0
+            ;;
+        decide)
+            cmd_decide "$@"
+            exit 0
+            ;;
+        *)
+            err "unknown subcommand: ${sub:-<none>}"
+            usage >&2
+            exit 64
+            ;;
     esac
 }
 
