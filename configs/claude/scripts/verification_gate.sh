@@ -105,9 +105,14 @@ if isinstance(d.get("tier1"), dict):
     print(json.dumps(d)); sys.exit(0)
 v = d.get("validation")
 if isinstance(v, dict) and isinstance(v.get("tier1"), dict):
-    cv = d.get("cross_verification") or {}
+    # Consensus for merge_decision must be a FRACTION (banded at 0.80). The tier1
+    # cross_verification check carries it as one; cross_verification.consensus_score is
+    # PERCENT-scale (log prints "Consensus score: N%") — normalize, never pass raw.
+    cons = ((v["tier1"].get("checks") or {}).get("cross_verification") or {}).get("score")
+    if cons is None:
+        cons = (d.get("cross_verification") or {}).get("consensus_score", 0) / 100.0
     print(json.dumps({"tier1": v["tier1"], "tier2": v.get("tier2") or {},
-        "consensus_score": cv.get("consensus_score", 0),
+        "consensus_score": cons,
         "verdict": v.get("verdict", "UNKNOWN")})); sys.exit(0)
 sys.exit(1)' 2>/dev/null)" || shaped=""
     fi
