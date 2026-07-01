@@ -97,6 +97,31 @@ action() { python3 -c 'import json,sys;print(json.load(sys.stdin)["action"])'; }
     [ "$(echo "$output" | field gate_tier1)" = "None" ]
 }
 
+# --- set-disposition: the reviewing agent records its /pr-review verdict ---
+
+@test "set-disposition writes per-PR state" {
+    run "$SCRIPT" set-disposition 42 merge
+    [ "$status" -eq 0 ]
+    [ "$(cat "$PR_MERGE_LOOP_STATE_DIR/disp_42")" = "merge" ]
+}
+
+@test "set-disposition rejects values outside merge|keep|close" {
+    run "$SCRIPT" set-disposition 42 shipit
+    [ "$status" -ne 0 ]
+    [ ! -f "$PR_MERGE_LOOP_STATE_DIR/disp_42" ]
+}
+
+@test "signals: recorded disposition overrides the live one" {
+    "$SCRIPT" set-disposition 7 merge
+    SEAM_DISP=keep run "$SCRIPT" signals 7
+    [ "$(echo "$output" | field pr_review_disposition)" = "merge" ]
+}
+
+@test "signals: without recorded disposition the live one is used" {
+    SEAM_DISP=keep run "$SCRIPT" signals 8
+    [ "$(echo "$output" | field pr_review_disposition)" = "keep" ]
+}
+
 # --- integration: signals -> merge_decision ---
 @test "integration: a clean PR with gate+consensus injected -> merge" {
     sig="$("$SCRIPT" signals 5)"

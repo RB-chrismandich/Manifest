@@ -45,6 +45,7 @@ Usage: pr_merge_loop.sh <subcommand> [args]
   signals <pr> [--json]        Recompute merge_decision input JSON for a PR.
   empty-run <get|incr|reset>   Consecutive-empty-run counter (stops loop at 5).
   address-cycle <pr>           Run one /address-pr-comments,/verify,/pr-review cycle.
+  set-disposition <pr> <v>     Record the /pr-review verdict (merge|keep|close) for signals.
   merge <pr>                   Pre-flight + verified admin merge (exit 9 = fail-closed).
   tick <pr>                    Decide + dispatch one PR (lock, run-gate, act).
   run [--apply]                Self-paced bounded loop (10-min ceiling; stop at 5 empty).
@@ -54,6 +55,11 @@ USAGE
 
 # --- platform seam (default drives gh via git_ops.sh) ---
 gh_op() {
+    # A disposition the reviewing agent recorded via set-disposition wins over the live default
+    # (there is no platform API for "/pr-review said merge"; the state file IS that signal).
+    if [[ "$1" == "disposition" && -n "${2:-}" && -f "${STATE_DIR}/disp_${2}" ]]; then
+        cat "${STATE_DIR}/disp_${2}"; return 0
+    fi
     if [[ -n "${PR_MERGE_LOOP_GH_CMD:-}" ]]; then "${PR_MERGE_LOOP_GH_CMD}" "$@"; return $?; fi
     local op="$1" pr="${2:-}"
     local platform="${PR_MERGE_LOOP_PLATFORM:-$(bash "${SCRIPT_DIR}/git_platform.sh" 2>/dev/null || echo github)}"
@@ -222,6 +228,17 @@ cmd_address_cycle() {
     return 0
 }
 
+# The reviewing agent records its /pr-review verdict here; cmd_signals reads it back through
+# gh_op disposition. Without a recorded verdict the decision can never reach run-gate/merge
+# (the live default is "keep"), which is the safe default for unreviewed PRs.
+cmd_set_disposition() {
+    local pr="${1:?pr required}" v="${2:?merge|keep|close required}"
+    case "$v" in merge|keep|close) ;; *) err "invalid disposition: ${v} (merge|keep|close)"; return 64 ;; esac
+    mkdir -p "$STATE_DIR" 2>/dev/null || true
+    echo "$v" > "${STATE_DIR}/disp_${pr}"
+    return 0
+}
+
 cmd_post_merge_check() {
     local sha state
     sha="$(gh api "repos/{owner}/{repo}/commits/main" -q '.sha' 2>/dev/null)" \
@@ -368,6 +385,7 @@ main() {
         signals)         cmd_signals "$@"; exit 0 ;;
         empty-run)       cmd_empty_run "$@"; exit $? ;;
         address-cycle)   cmd_address_cycle "$@"; exit $? ;;
+        set-disposition) cmd_set_disposition "$@"; exit $? ;;
         post-merge-check) cmd_post_merge_check "$@"; exit $? ;;
         merge)           cmd_merge "$@"; exit $? ;;
         tick)            cmd_tick "$@"; exit 0 ;;
