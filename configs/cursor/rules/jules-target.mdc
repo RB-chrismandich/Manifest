@@ -1,0 +1,14 @@
+---
+description: "A prompt refactoring pipeline that ingests unoptimized prompts and outputs a normalized system skill template."
+globs: ".claude/skills/jules-target/**"
+alwaysApply: false
+---
+
+# jules-target
+
+A prompt refactoring pipeline that ingests unoptimized prompts and outputs a normalized system skill template.
+
+<!-- Auto-generated from .claude/skills/jules-target/SKILL.md -->
+<!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
+
+Refer to `.cursor/skills/jules-target/SKILL.md` for the full skill definition.
