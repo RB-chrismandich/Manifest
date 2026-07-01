@@ -52,6 +52,28 @@ EOF
     [ "$status" -eq 0 ]
     echo "$output" | python3 -c 'import json,sys;d=json.load(sys.stdin);assert d["tier1"]["passed"] is True;assert d["consensus_score"]==0.9'
 }
+@test "review: parallel_agent-shaped output is adapted to gate JSON" {
+    cat > "$TMP/seam.sh" <<'EOF'
+#!/usr/bin/env bash
+echo '{"mode":"review","agents":{},"cross_verification":{"consensus_score":0.86,"confidence":"high","agent_count":4},"validation":{"tier1":{"passed":true,"failures":[]},"tier2":{"score":0.9,"concerns":[]},"verdict":"APPROVED"}}'
+EOF
+    chmod +x "$TMP/seam.sh"
+    VERIFICATION_GATE_REVIEW_CMD="$TMP/seam.sh" run "$SCRIPT" review 123
+    [ "$status" -eq 0 ]
+    echo "$output" | python3 -c 'import json,sys;d=json.load(sys.stdin);assert d["tier1"]["passed"] is True;assert d["consensus_score"]==0.86;assert d["verdict"]=="APPROVED";assert not d.get("reviewer_error")'
+}
+
+@test "review: parallel_agent output without validation -> reviewer_error (fail closed)" {
+    cat > "$TMP/seam.sh" <<'EOF'
+#!/usr/bin/env bash
+echo '{"mode":"review","agents":{},"cross_verification":{"consensus_score":1},"validation":null}'
+EOF
+    chmod +x "$TMP/seam.sh"
+    VERIFICATION_GATE_REVIEW_CMD="$TMP/seam.sh" run "$SCRIPT" review 123
+    [ "$status" -eq 0 ]
+    echo "$output" | python3 -c 'import json,sys;d=json.load(sys.stdin);assert d["reviewer_error"] is True'
+}
+
 @test "review: seam non-zero -> reviewer_error sentinel (fail closed)" {
     cat > "$TMP/seam.sh" <<'EOF'
 #!/usr/bin/env bash

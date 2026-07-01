@@ -92,11 +92,30 @@ cmd_review() {
     cmd="${VERIFICATION_GATE_REVIEW_CMD:-${SCRIPT_DIR}/parallel_agent.py --json --validate --timeout 600 --review}"
     raw="$(eval "${cmd} \"${packet}\"" 2>/dev/null)" || rc=$?
 
-    if [[ $rc -ne 0 ]] || ! printf '%s' "$raw" | python3 -c 'import json,sys;d=json.load(sys.stdin);assert "tier1" in d' 2>/dev/null; then
+    # Adapt to gate JSON. parallel_agent emits {validation:{tier1,tier2,verdict},
+    # cross_verification:{consensus_score}}; a seam may already emit gate-shaped JSON
+    # (top-level tier1) — pass that through. Anything else fails closed.
+    local shaped=""
+    if [[ $rc -eq 0 ]]; then
+        shaped="$(printf '%s' "$raw" | python3 -c '
+import json, sys
+try: d = json.load(sys.stdin)
+except Exception: sys.exit(1)
+if isinstance(d.get("tier1"), dict):
+    print(json.dumps(d)); sys.exit(0)
+v = d.get("validation")
+if isinstance(v, dict) and isinstance(v.get("tier1"), dict):
+    cv = d.get("cross_verification") or {}
+    print(json.dumps({"tier1": v["tier1"], "tier2": v.get("tier2") or {},
+        "consensus_score": cv.get("consensus_score", 0),
+        "verdict": v.get("verdict", "UNKNOWN")})); sys.exit(0)
+sys.exit(1)' 2>/dev/null)" || shaped=""
+    fi
+    if [[ -z "$shaped" ]]; then
         printf '%s\n' '{"reviewer_error":true,"tier1":{"passed":false},"consensus_score":0,"verdict":"BLOCKED"}'
         return 0
     fi
-    printf '%s\n' "$raw"
+    printf '%s\n' "$shaped"
 }
 
 main() {
