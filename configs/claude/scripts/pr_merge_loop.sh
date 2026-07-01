@@ -73,7 +73,7 @@ gh_op() {
         return 0
     fi
     case "$op" in
-        list)            "${SCRIPT_DIR}/git_ops.sh" issue-list --json number,author 2>/dev/null ;;
+        list)            "${SCRIPT_DIR}/git_ops.sh" pr-list --json number,author 2>/dev/null ;;
         checks)          gh pr checks "$pr" --json bucket -q '.[].bucket' 2>/dev/null ;;
         reviewdecision)  gh pr view "$pr" --json reviewDecision -q '.reviewDecision' 2>/dev/null ;;
         unresolved-human) count_unresolved_human "$pr" ;;
