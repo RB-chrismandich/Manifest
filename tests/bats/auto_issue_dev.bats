@@ -158,6 +158,18 @@ EOF
     [[ "$output" == *'"skipped_other":1'* ]]
 }
 
+@test "next-issue: pre-excludes in-flight statuses (needs-review/in-progress/needs-human)" {
+    # An issue whose PR is open (needs-review), one being worked (in-progress), and one
+    # handed to a human must NOT be re-selected — without this the loop re-develops the
+    # same issue every cycle until its PR merges.
+    export ISSUE_LIST_OUT='[{"number":20,"title":"a","url":"u20","labels":[{"name":"auto-dev"},{"name":"needs-review"}]},{"number":21,"title":"b","url":"u21","labels":[{"name":"auto-dev"},{"name":"in-progress"}]},{"number":22,"title":"c","url":"u22","labels":[{"name":"auto-dev"},{"name":"needs-human"}]},{"number":23,"title":"d","url":"u23","labels":[{"name":"auto-dev"}]}]'
+    mk_issue 23 open auto-dev "ready"
+    run "$SCRIPT" next-issue --json
+    [ "$status" -eq 0 ]
+    [[ "$output" == *'"number":23'* ]]
+    [[ "$output" == *'"skipped_other":3'* ]]
+}
+
 @test "next-issue: empty queue -> exit 3 with counts" {
     export ISSUE_LIST_OUT='[]'
     run "$SCRIPT" next-issue --json

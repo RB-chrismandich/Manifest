@@ -24,6 +24,11 @@ GIT_PLATFORM_BIN="${GIT_PLATFORM_BIN:-${SCRIPT_DIR}/git_platform.sh}"
 DEV_LABEL="${AUTO_ISSUE_DEV_LABEL:-auto-dev}"
 DEP_LABEL="${AUTO_ISSUE_DEV_DEP_LABEL:-blocked-dependency}"
 FAIL_LABEL="${AUTO_ISSUE_DEV_FAIL_LABEL:-needs-human}"
+# In-flight statuses (issue-linking hooks set these): an open PR (needs-review) or active
+# work (in-progress) must not be re-selected, else the loop re-develops the same issue
+# every cycle until its PR merges.
+REVIEW_LABEL="${AUTO_ISSUE_DEV_REVIEW_LABEL:-needs-review}"
+PROGRESS_LABEL="${AUTO_ISSUE_DEV_PROGRESS_LABEL:-in-progress}"
 
 git_ops() { "${GIT_OPS_BIN}" "$@"; }
 
@@ -260,23 +265,25 @@ for i in items:
 print(json.dumps(out,separators=(",",":")))' 2>/dev/null || echo '[]')"
     [[ -z "${list}" ]] && list='[]'
 
-    # Candidate numbers, ascending, that are NOT already tagged DEP_LABEL.
-    # Also count those excluded for that reason.
+    # Candidate numbers, ascending, that are NOT already excluded by a status label:
+    # DEP_LABEL (blocked), FAIL_LABEL (handed to a human), REVIEW_LABEL (PR open),
+    # PROGRESS_LABEL (being worked). Also count those excluded.
+    local excl="${DEP_LABEL},${FAIL_LABEL},${REVIEW_LABEL},${PROGRESS_LABEL}"
     local cand skipped_other
     cand="$(printf '%s' "${list}" | python3 -c 'import sys,json
-dep=sys.argv[1]
+excl=set(sys.argv[1].split(","))
 try: items=json.load(sys.stdin)
 except Exception: items=[]
 if not isinstance(items, list): items=[]
-ok=[i for i in items if dep not in {l["name"] for l in (i.get("labels") or [])}]
+ok=[i for i in items if not (excl & {l["name"] for l in (i.get("labels") or [])})]
 ok.sort(key=lambda i:i["number"])
-print(" ".join(str(i["number"]) for i in ok))' "${DEP_LABEL}")"
+print(" ".join(str(i["number"]) for i in ok))' "${excl}")"
     skipped_other="$(printf '%s' "${list}" | python3 -c 'import sys,json
-dep=sys.argv[1]
+excl=set(sys.argv[1].split(","))
 try: items=json.load(sys.stdin)
 except Exception: items=[]
 if not isinstance(items, list): items=[]
-print(sum(1 for i in items if dep in {l["name"] for l in (i.get("labels") or [])}))' "${DEP_LABEL}")"
+print(sum(1 for i in items if excl & {l["name"] for l in (i.get("labels") or [])}))' "${excl}")"
 
     # === Phase 1: unblock-aware ranking ===
     # Pre-fetch each candidate's body to build a reverse-dep map (unblock counts),
@@ -414,14 +421,14 @@ print(r)
 ' "${n}" 2>/dev/null || echo "selected")"
         # Emit — reuse the already-fetched list snapshot (avoids stale-read race)
         meta="$(printf '%s' "${list}" | python3 -c 'import sys,json
-n=int(sys.argv[1]); sk=int(sys.argv[2]); reason=sys.argv[3]
+n=int(sys.argv[1]); sk=int(sys.argv[2]); reason=sys.argv[3]; so=int(sys.argv[4])
 try: items=json.load(sys.stdin)
 except Exception: items=[]
 if not isinstance(items, list): items=[]
 m=next((i for i in items if i["number"]==n), {"number":n,"title":"","url":""})
 print(json.dumps({"number":m["number"],"title":m.get("title",""),"url":m.get("url",""),
-                  "skipped_dependency":sk,"reason":reason},separators=(",",":")))' \
-            "${n}" "${skipped_dependency}" "${reason}")"
+                  "skipped_dependency":sk,"skipped_other":so,"reason":reason},separators=(",",":")))' \
+            "${n}" "${skipped_dependency}" "${reason}" "${skipped_other:-0}")"
         if [[ ${json} -eq 1 ]]; then echo "${meta}"; else echo "${n}"; fi
         return 0
     done
