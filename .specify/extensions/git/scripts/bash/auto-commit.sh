@@ -32,12 +32,12 @@ REPO_ROOT=$(_find_project_root "$SCRIPT_DIR") || REPO_ROOT="$(pwd)"
 cd "$REPO_ROOT"
 
 # Check if git is available
-if ! command -v git >/dev/null 2>&1; then
+if ! command -v git > /dev/null 2>&1; then
     echo "[specify] Warning: Git not found; skipped auto-commit" >&2
     exit 0
 fi
 
-if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+if ! git rev-parse --is-inside-work-tree > /dev/null 2>&1; then
     echo "[specify] Warning: Not a Git repository; skipped auto-commit" >&2
     exit 0
 fi
@@ -104,7 +104,7 @@ if [ -f "$_config_file" ]; then
     if [ "$_enabled" = "false" ] && [ "$_default_enabled" = "true" ]; then
         # Only use default if the event wasn't explicitly set to false
         # Check if event section existed at all
-        if ! grep -q "^[[:space:]]*${EVENT_NAME}:" "$_config_file" 2>/dev/null; then
+        if ! grep -q "^[[:space:]]*${EVENT_NAME}:" "$_config_file" 2> /dev/null; then
             _enabled=true
         fi
     fi
@@ -118,7 +118,7 @@ if [ "$_enabled" != "true" ]; then
 fi
 
 # Check if there are changes to commit
-if git diff --quiet HEAD 2>/dev/null && git diff --cached --quiet 2>/dev/null && [ -z "$(git ls-files --others --exclude-standard 2>/dev/null)" ]; then
+if git diff --quiet HEAD 2> /dev/null && git diff --cached --quiet 2> /dev/null && [ -z "$(git ls-files --others --exclude-standard 2> /dev/null)" ]; then
     echo "[specify] No changes to commit after $EVENT_NAME" >&2
     exit 0
 fi
@@ -134,7 +134,13 @@ if [ -z "$_commit_msg" ]; then
 fi
 
 # Stage and commit
-_git_out=$(git add . 2>&1) || { echo "[specify] Error: git add failed: $_git_out" >&2; exit 1; }
-_git_out=$(git commit -q -m "$_commit_msg" 2>&1) || { echo "[specify] Error: git commit failed: $_git_out" >&2; exit 1; }
+_git_out=$(git add . 2>&1) || {
+    echo "[specify] Error: git add failed: $_git_out" >&2
+    exit 1
+}
+_git_out=$(git commit -q -m "$_commit_msg" 2>&1) || {
+    echo "[specify] Error: git commit failed: $_git_out" >&2
+    exit 1
+}
 
 echo "[OK] Changes committed ${_phase} ${_command_name}" >&2

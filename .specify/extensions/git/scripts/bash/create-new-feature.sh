@@ -59,7 +59,7 @@ while [ $i -le $# ]; do
         --timestamp)
             USE_TIMESTAMP=true
             ;;
-        --help|-h)
+        --help | -h)
             echo "Usage: $0 [--json] [--dry-run] [--allow-existing-branch] [--short-name <name>] [--number N] [--timestamp] <feature_description>"
             echo ""
             echo "Options:"
@@ -126,7 +126,7 @@ get_highest_from_specs() {
 
 # Function to get highest number from git branches
 get_highest_from_branches() {
-    git branch -a 2>/dev/null | sed 's/^[* ]*//; s|^remotes/[^/]*/||' | _extract_highest_number
+    git branch -a 2> /dev/null | sed 's/^[* ]*//; s|^remotes/[^/]*/||' | _extract_highest_number
 }
 
 # Extract the highest sequential feature number from a list of ref names (one per line).
@@ -149,9 +149,9 @@ _extract_highest_number() {
 get_highest_from_remote_refs() {
     local highest=0
 
-    for remote in $(git remote 2>/dev/null); do
+    for remote in $(git remote 2> /dev/null); do
         local remote_highest
-        remote_highest=$(GIT_TERMINAL_PROMPT=0 git ls-remote --heads "$remote" 2>/dev/null | sed 's|.*refs/heads/||' | _extract_highest_number)
+        remote_highest=$(GIT_TERMINAL_PROMPT=0 git ls-remote --heads "$remote" 2> /dev/null | sed 's|.*refs/heads/||' | _extract_highest_number)
         if [ "$remote_highest" -gt "$highest" ]; then
             highest=$remote_highest
         fi
@@ -166,17 +166,21 @@ check_existing_branches() {
     local skip_fetch="${2:-false}"
 
     if [ "$skip_fetch" = true ]; then
-        local highest_remote=$(get_highest_from_remote_refs)
-        local highest_branch=$(get_highest_from_branches)
+        local highest_remote
+        highest_remote=$(get_highest_from_remote_refs)
+        local highest_branch
+        highest_branch=$(get_highest_from_branches)
         if [ "$highest_remote" -gt "$highest_branch" ]; then
             highest_branch=$highest_remote
         fi
     else
-        git fetch --all --prune >/dev/null 2>&1 || true
-        local highest_branch=$(get_highest_from_branches)
+        git fetch --all --prune > /dev/null 2>&1 || true
+        local highest_branch
+        highest_branch=$(get_highest_from_branches)
     fi
 
-    local highest_spec=$(get_highest_from_specs "$specs_dir")
+    local highest_spec
+    highest_spec=$(get_highest_from_specs "$specs_dir")
 
     local max_num=$highest_branch
     if [ "$highest_spec" -gt "$max_num" ]; then
@@ -235,9 +239,9 @@ if [ "$_common_loaded" != "true" ]; then
 fi
 
 # Resolve repository root
-if type get_repo_root >/dev/null 2>&1; then
+if type get_repo_root > /dev/null 2>&1; then
     REPO_ROOT=$(get_repo_root)
-elif git rev-parse --show-toplevel >/dev/null 2>&1; then
+elif git rev-parse --show-toplevel > /dev/null 2>&1; then
     REPO_ROOT=$(git rev-parse --show-toplevel)
 elif [ -n "$_PROJECT_ROOT" ]; then
     REPO_ROOT="$_PROJECT_ROOT"
@@ -247,13 +251,13 @@ else
 fi
 
 # Check if git is available at this repo root
-if type has_git >/dev/null 2>&1; then
+if type has_git > /dev/null 2>&1; then
     if has_git "$REPO_ROOT"; then
         HAS_GIT=true
     else
         HAS_GIT=false
     fi
-elif git -C "$REPO_ROOT" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+elif git -C "$REPO_ROOT" rev-parse --is-inside-work-tree > /dev/null 2>&1; then
     HAS_GIT=true
 else
     HAS_GIT=false
@@ -269,7 +273,8 @@ generate_branch_name() {
 
     local stop_words="^(i|a|an|the|to|for|of|in|on|at|by|with|from|is|are|was|were|be|been|being|have|has|had|do|does|did|will|would|should|could|can|may|might|must|shall|this|that|these|those|my|your|our|their|want|need|add|get|set)$"
 
-    local clean_name=$(echo "$description" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/ /g')
+    local clean_name
+    clean_name=$(echo "$description" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/ /g')
 
     local meaningful_words=()
     for word in $clean_name; do
@@ -297,7 +302,8 @@ generate_branch_name() {
         done
         echo "$result"
     else
-        local cleaned=$(clean_branch_name "$description")
+        local cleaned
+        cleaned=$(clean_branch_name "$description")
         echo "$cleaned" | tr '-' '\n' | grep -v '^$' | head -3 | tr '\n' '-' | sed 's/-$//'
     fi
 }
@@ -363,7 +369,7 @@ if [ -n "${GIT_BRANCH_NAME:-}" ] && [ "$BRANCH_BYTE_LEN" -gt $MAX_BRANCH_LENGTH 
     >&2 echo "Error: GIT_BRANCH_NAME must be 244 bytes or fewer in UTF-8. Provided value is ${BRANCH_BYTE_LEN} bytes."
     exit 1
 elif [ "$BRANCH_BYTE_LEN" -gt $MAX_BRANCH_LENGTH ]; then
-    PREFIX_LENGTH=$(( ${#FEATURE_NUM} + 1 ))
+    PREFIX_LENGTH=$((${#FEATURE_NUM} + 1))
     MAX_SUFFIX_LENGTH=$((MAX_BRANCH_LENGTH - PREFIX_LENGTH))
 
     TRUNCATED_SUFFIX=$(echo "$BRANCH_SUFFIX" | cut -c1-$MAX_SUFFIX_LENGTH)
@@ -381,7 +387,7 @@ if [ "$DRY_RUN" != true ]; then
     if [ "$HAS_GIT" = true ]; then
         branch_create_error=""
         if ! branch_create_error=$(git checkout -q -b "$BRANCH_NAME" 2>&1); then
-            current_branch="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
+            current_branch="$(git rev-parse --abbrev-ref HEAD 2> /dev/null || true)"
             if git branch --list "$BRANCH_NAME" | grep -q .; then
                 if [ "$ALLOW_EXISTING" = true ]; then
                     if [ "$current_branch" = "$BRANCH_NAME" ]; then
@@ -418,7 +424,7 @@ if [ "$DRY_RUN" != true ]; then
 fi
 
 if $JSON_MODE; then
-    if command -v jq >/dev/null 2>&1; then
+    if command -v jq > /dev/null 2>&1; then
         if [ "$DRY_RUN" = true ]; then
             jq -cn \
                 --arg branch_name "$BRANCH_NAME" \
@@ -431,7 +437,7 @@ if $JSON_MODE; then
                 '{BRANCH_NAME:$branch_name,FEATURE_NUM:$feature_num}'
         fi
     else
-        if type json_escape >/dev/null 2>&1; then
+        if type json_escape > /dev/null 2>&1; then
             _je_branch=$(json_escape "$BRANCH_NAME")
             _je_num=$(json_escape "$FEATURE_NUM")
         else

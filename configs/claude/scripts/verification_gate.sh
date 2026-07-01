@@ -24,7 +24,7 @@ HIGH="${VERIFICATION_GATE_HIGH:-0.80}"
 LOW="${VERIFICATION_GATE_LOW:-0.50}"
 
 usage() {
-    cat <<'USAGE'
+    cat << 'USAGE'
 Usage: verification_gate.sh <review <issue> | decide [<gate-json>]>
 
   review <issue>   Run the gate reviewer (behind VERIFICATION_GATE_REVIEW_CMD seam);
@@ -62,8 +62,12 @@ cmd_decide() { VG_HIGH="$HIGH" VG_LOW="$LOW" python3 -c "${DECIDE_PY}" "${1:-}";
 
 cmd_review() {
     local issue="${1:-}"
-    [[ -n "$issue" ]] || { err "review: issue number required"; return 64; }
-    local packet; packet="$(mktemp "${TMPDIR:-/tmp}/vgate-packet.XXXXXX")"
+    [[ -n "$issue" ]] || {
+        err "review: issue number required"
+        return 64
+    }
+    local packet
+    packet="$(mktemp "${TMPDIR:-/tmp}/vgate-packet.XXXXXX")"
     # shellcheck disable=SC2064
     trap "rm -f '$packet'" RETURN
 
@@ -71,26 +75,26 @@ cmd_review() {
     # still gets whatever context is available; a thin packet is not a safety failure).
     {
         echo "# Review packet for issue #${issue}"
-        "${SCRIPT_DIR}/git_ops.sh" issue-view "$issue" 2>/dev/null || true
+        "${SCRIPT_DIR}/git_ops.sh" issue-view "$issue" 2> /dev/null || true
         echo "---DIFF---"
         # The number under review is a PR in the merge loop — its diff lives on the platform,
         # not in the caller's checkout (which may be a different branch entirely). Fall back to
         # the local branch diff for pre-PR (issue-flow) callers.
-        "${SCRIPT_DIR}/git_ops.sh" pr-diff "$issue" 2>/dev/null \
-            || git diff "origin/main...HEAD" 2>/dev/null || git diff 2>/dev/null || true
-    } > "$packet" 2>/dev/null || true
+        "${SCRIPT_DIR}/git_ops.sh" pr-diff "$issue" 2> /dev/null ||
+            git diff "origin/main...HEAD" 2> /dev/null || git diff 2> /dev/null || true
+    } > "$packet" 2> /dev/null || true
 
     # Redact before the packet leaves the process.
     if [[ -x "${SCRIPT_DIR}/audit_log.sh" ]]; then
-        "${SCRIPT_DIR}/audit_log.sh" redact "$(cat "$packet")" > "${packet}.r" 2>/dev/null \
-            && mv "${packet}.r" "$packet" || true
+        "${SCRIPT_DIR}/audit_log.sh" redact "$(cat "$packet")" > "${packet}.r" 2> /dev/null &&
+            mv "${packet}.r" "$packet" || true
     fi
 
     local cmd raw rc=0
     # --timeout 600: the 120s parallel_agent default is documented as insufficient for a
     # multi-agent diff review (CLAUDE.md orchestration guide) and was producing reviewer_error.
     cmd="${VERIFICATION_GATE_REVIEW_CMD:-${SCRIPT_DIR}/parallel_agent.py --json --validate --timeout 600 --review}"
-    raw="$(eval "${cmd} \"${packet}\"" 2>/dev/null)" || rc=$?
+    raw="$(eval "${cmd} \"${packet}\"" 2> /dev/null)" || rc=$?
 
     # Adapt to gate JSON. parallel_agent emits {validation:{tier1,tier2,verdict},
     # cross_verification:{consensus_score}}; a seam may already emit gate-shaped JSON
@@ -114,7 +118,7 @@ if isinstance(v, dict) and isinstance(v.get("tier1"), dict):
     print(json.dumps({"tier1": v["tier1"], "tier2": v.get("tier2") or {},
         "consensus_score": cons,
         "verdict": v.get("verdict", "UNKNOWN")})); sys.exit(0)
-sys.exit(1)' 2>/dev/null)" || shaped=""
+sys.exit(1)' 2> /dev/null)" || shaped=""
     fi
     if [[ -z "$shaped" ]]; then
         printf '%s\n' '{"reviewer_error":true,"tier1":{"passed":false},"consensus_score":0,"verdict":"BLOCKED"}'
@@ -124,12 +128,26 @@ sys.exit(1)' 2>/dev/null)" || shaped=""
 }
 
 main() {
-    local sub="${1:-}"; shift || true
+    local sub="${1:-}"
+    shift || true
     case "${sub}" in
-        --help|-h|help) usage; exit 0 ;;
-        review)         cmd_review "$@"; exit $? ;;
-        decide)         cmd_decide "$@"; exit 0 ;;
-        *) err "unknown subcommand: ${sub:-<none>}"; usage >&2; exit 64 ;;
+        --help | -h | help)
+            usage
+            exit 0
+            ;;
+        review)
+            cmd_review "$@"
+            exit $?
+            ;;
+        decide)
+            cmd_decide "$@"
+            exit 0
+            ;;
+        *)
+            err "unknown subcommand: ${sub:-<none>}"
+            usage >&2
+            exit 64
+            ;;
     esac
 }
 

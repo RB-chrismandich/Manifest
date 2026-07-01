@@ -25,14 +25,14 @@ try:
 except Exception:
     print(""); sys.exit(0)
 ti = d.get("tool_input") or {}
-print(ti.get("file_path") or d.get("file_path") or "")' 2>/dev/null || true)"
+print(ti.get("file_path") or d.get("file_path") or "")' 2> /dev/null || true)"
 
 [[ -n "$file" && -f "$file" ]] || exit 0
 
 # Only act on recognized, version-pinnable file names (keeps unrelated edits quiet).
 case "$(basename "$file")" in
-    requirements.txt|requirements*.txt|docker-compose.yml|docker-compose.yaml|\
-    compose.yml|compose.yaml|Dockerfile|Dockerfile.*|*.Dockerfile)
+    requirements.txt | requirements*.txt | docker-compose.yml | docker-compose.yaml | \
+        compose.yml | compose.yaml | Dockerfile | Dockerfile.* | *.Dockerfile)
         "${SCRIPT_DIR}/version_pin.sh" --check "$file" >&2 || true
         ;;
 esac

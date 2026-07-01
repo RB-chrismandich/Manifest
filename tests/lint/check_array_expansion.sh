@@ -2,7 +2,7 @@
 # check_array_expansion.sh — flag empty-array expansions unsafe under
 # macOS Bash 3.2 + `set -u` (specs/003 FR-011, contracts/array-guard.md).
 #
-# Rule: in any *.sh file, an expansion "${name[@]}" or "${name[*]}" is flagged
+# Rule: in any *.sh file, an expansion "${name[@]}" or "${name[*]}" is flagged  # array-safe
 # when the SAME file initializes that array as `name=()` (i.e. it can be empty
 # at expansion time), UNLESS:
 #   - the expansion uses the guard idiom  "${name[@]+"${name[@]}"}"   , or
@@ -34,8 +34,8 @@ fi
 # scan_file FILE -> prints findings (one "file:line: name" per line).
 scan_file() {
     local f="$1" empties name hit line_no line
-    empties=$(grep -oE '[A-Za-z_][A-Za-z0-9_]*=\([[:space:]]*\)' "$f" 2>/dev/null \
-        | sed -E 's/=\([[:space:]]*\)$//' | sort -u || true)
+    empties=$(grep -oE '[A-Za-z_][A-Za-z0-9_]*=\([[:space:]]*\)' "$f" 2> /dev/null |
+        sed -E 's/=\([[:space:]]*\)$//' | sort -u || true)
     [[ -z "$empties" ]] && return 0
     while IFS= read -r name; do
         [[ -z "$name" ]] && continue
@@ -44,11 +44,11 @@ scan_file() {
             line_no="${hit%%:*}"
             line="${hit#*:}"
             # Guarded idiom and explicit opt-outs are fine.
-            [[ "$line" == *"\${${name}[@]+"* || "$line" == *"\${${name}[*]+"* \
-               || "$line" == *"\${${name}[@]:+"* || "$line" == *"\${${name}[*]:+"* ]] && continue
+            [[ "$line" == *"\${${name}[@]+"* || "$line" == *"\${${name}[*]+"* ||
+                "$line" == *"\${${name}[@]:+"* || "$line" == *"\${${name}[*]:+"* ]] && continue
             [[ "$line" == *"# array-safe"* ]] && continue
             echo "$f:$line_no: $name"
-        done <<< "$(grep -nE "\\\$\{${name}\[[@*]\]\}" "$f" 2>/dev/null || true)"
+        done <<< "$(grep -nE "\\\$\{${name}\[[@*]\]\}" "$f" 2> /dev/null || true)"
     done <<< "$empties"
     return 0
 }

@@ -25,7 +25,7 @@ NATIVE_BEGIN="# >>> issue-support >>>"
 NATIVE_END="# <<< issue-support <<<"
 
 usage() {
-    cat <<'USAGE'
+    cat << 'USAGE'
 Usage: install_issue_hooks.sh <--enable [--native] | --remove> [--settings PATH]
 
   --enable      Turn on the hooks (PostToolUse) and flip the runtime gate on
@@ -38,8 +38,11 @@ USAGE
 # set_enabled <skill> <true|false> — flip tool_policies.<skill>.enabled, keep comments
 set_enabled() {
     local skill="$1" val="$2"
-    [[ -f "${CONFIG_FILE}" ]] || { err "config not found: ${CONFIG_FILE}"; return 1; }
-    python3 - "${CONFIG_FILE}" "${skill}" "${val}" <<'PY'
+    [[ -f "${CONFIG_FILE}" ]] || {
+        err "config not found: ${CONFIG_FILE}"
+        return 1
+    }
+    python3 - "${CONFIG_FILE}" "${skill}" "${val}" << 'PY'
 import sys, re
 path, skill, val = sys.argv[1:4]
 lines = open(path).read().splitlines(keepends=True)
@@ -60,8 +63,8 @@ PY
 merge_settings() {
     local action="$1"
     mkdir -p "$(dirname "${SETTINGS_FILE}")"
-    [[ -f "${SETTINGS_FILE}" ]] || echo '{}' >"${SETTINGS_FILE}"
-    python3 - "${SETTINGS_FILE}" "${action}" "${HOOK_SCRIPT}" <<'PY'
+    [[ -f "${SETTINGS_FILE}" ]] || echo '{}' > "${SETTINGS_FILE}"
+    python3 - "${SETTINGS_FILE}" "${action}" "${HOOK_SCRIPT}" << 'PY'
 import sys, json
 path, action, cmd = sys.argv[1:4]
 try:
@@ -85,8 +88,11 @@ PY
 
 install_native() {
     local hooks_dir post
-    hooks_dir="$(git rev-parse --git-path hooks 2>/dev/null || true)"
-    [[ -n "${hooks_dir}" ]] || { err "not a git repo; skipping --native"; return 0; }
+    hooks_dir="$(git rev-parse --git-path hooks 2> /dev/null || true)"
+    [[ -n "${hooks_dir}" ]] || {
+        err "not a git repo; skipping --native"
+        return 0
+    }
     mkdir -p "${hooks_dir}"
     post="${hooks_dir}/post-commit"
     if [[ -f "${post}" ]] && ! grep -qF "${NATIVE_BEGIN}" "${post}"; then
@@ -94,7 +100,7 @@ install_native() {
         return 0
     fi
     if [[ -f "${post}" ]] && grep -qF "${NATIVE_BEGIN}" "${post}"; then
-        return 0   # already managed (idempotent)
+        return 0 # already managed (idempotent)
     fi
     local had_file=0
     [[ -f "${post}" ]] && had_file=1
@@ -106,20 +112,20 @@ install_native() {
         echo "${NATIVE_BEGIN}"
         echo "\"${SCRIPT_DIR}/issue_support.sh\" sync-commit HEAD || true"
         echo "${NATIVE_END}"
-    } >>"${post}"
+    } >> "${post}"
     chmod +x "${post}"
 }
 
 remove_native() {
     local hooks_dir post tmp
-    hooks_dir="$(git rev-parse --git-path hooks 2>/dev/null || true)"
+    hooks_dir="$(git rev-parse --git-path hooks 2> /dev/null || true)"
     [[ -n "${hooks_dir}" ]] || return 0
     post="${hooks_dir}/post-commit"
     [[ -f "${post}" ]] || return 0
     grep -qF "${NATIVE_BEGIN}" "${post}" || return 0
     tmp="$(mktemp)"
     awk -v b="${NATIVE_BEGIN}" -v e="${NATIVE_END}" '
-        $0==b{skip=1; next} $0==e{skip=0; next} !skip{print}' "${post}" >"${tmp}"
+        $0==b{skip=1; next} $0==e{skip=0; next} !skip{print}' "${post}" > "${tmp}"
     mv "${tmp}" "${post}"
     # If nothing but a shebang (or nothing) remains, we created this file — unlink
     # it so a later --enable --native is not blocked by its own residual (bug_007).
@@ -132,15 +138,37 @@ remove_native() {
 
 # --- arg parsing ------------------------------------------------------------
 ACTION="" NATIVE=0
-[[ $# -eq 0 ]] && { usage >&2; exit 1; }
+[[ $# -eq 0 ]] && {
+    usage >&2
+    exit 1
+}
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --enable) ACTION="enable"; shift ;;
-        --remove) ACTION="remove"; shift ;;
-        --native) NATIVE=1; shift ;;
-        --settings) SETTINGS_FILE="$2"; shift 2 ;;
-        --help|-h) usage; exit 0 ;;
-        *) err "unknown option: $1"; usage >&2; exit 1 ;;
+        --enable)
+            ACTION="enable"
+            shift
+            ;;
+        --remove)
+            ACTION="remove"
+            shift
+            ;;
+        --native)
+            NATIVE=1
+            shift
+            ;;
+        --settings)
+            SETTINGS_FILE="$2"
+            shift 2
+            ;;
+        --help | -h)
+            usage
+            exit 0
+            ;;
+        *)
+            err "unknown option: $1"
+            usage >&2
+            exit 1
+            ;;
     esac
 done
 
@@ -159,5 +187,9 @@ case "${ACTION}" in
         remove_native
         echo "issue-linking hooks removed/disabled"
         ;;
-    *) err "specify --enable or --remove"; usage >&2; exit 1 ;;
+    *)
+        err "specify --enable or --remove"
+        usage >&2
+        exit 1
+        ;;
 esac

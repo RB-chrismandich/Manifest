@@ -7,7 +7,7 @@ find_specify_root() {
     local dir="${1:-$(pwd)}"
     # Normalize to absolute path to prevent infinite loop with relative paths
     # Use -- to handle paths starting with - (e.g., -P, -L)
-    dir="$(cd -- "$dir" 2>/dev/null && pwd)" || return 1
+    dir="$(cd -- "$dir" 2> /dev/null && pwd)" || return 1
     local prev_dir=""
     while true; do
         if [ -d "$dir/.specify" ]; then
@@ -35,13 +35,14 @@ get_repo_root() {
     fi
 
     # Fallback to git if no .specify found
-    if git rev-parse --show-toplevel >/dev/null 2>&1; then
+    if git rev-parse --show-toplevel > /dev/null 2>&1; then
         git rev-parse --show-toplevel
         return
     fi
 
     # Final fallback to script location for non-git repos
-    local script_dir="$(CDPATH="" cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    local script_dir
+    script_dir="$(CDPATH="" cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
     (cd "$script_dir/../../.." && pwd)
 }
 
@@ -54,7 +55,8 @@ get_current_branch() {
     fi
 
     # Then check git if available at the spec-kit root (not parent)
-    local repo_root=$(get_repo_root)
+    local repo_root
+    repo_root=$(get_repo_root)
     if has_git; then
         git -C "$repo_root" rev-parse --abbrev-ref HEAD
         return
@@ -70,7 +72,8 @@ get_current_branch() {
 
         for dir in "$specs_dir"/*; do
             if [[ -d "$dir" ]]; then
-                local dirname=$(basename "$dir")
+                local dirname
+                dirname=$(basename "$dir")
                 if [[ "$dirname" =~ ^([0-9]{8}-[0-9]{6})- ]]; then
                     # Timestamp-based branch: compare lexicographically
                     local ts="${BASH_REMATCH[1]}"
@@ -98,7 +101,7 @@ get_current_branch() {
         fi
     fi
 
-    echo "main"  # Final fallback
+    echo "main" # Final fallback
 }
 
 # Check if we have git available at the spec-kit root level
@@ -106,12 +109,13 @@ get_current_branch() {
 # Handles both regular repos (.git directory) and worktrees/submodules (.git file)
 has_git() {
     # First check if git command is available (before calling get_repo_root which may use git)
-    command -v git >/dev/null 2>&1 || return 1
-    local repo_root=$(get_repo_root)
+    command -v git > /dev/null 2>&1 || return 1
+    local repo_root
+    repo_root=$(get_repo_root)
     # Check if .git exists (directory or file for worktrees/submodules)
     [ -e "$repo_root/.git" ] || return 1
     # Verify it's actually a valid git work tree
-    git -C "$repo_root" rev-parse --is-inside-work-tree >/dev/null 2>&1
+    git -C "$repo_root" rev-parse --is-inside-work-tree > /dev/null 2>&1
 }
 
 # Strip a single optional path segment (e.g. gitflow "feat/004-name" -> "004-name").
@@ -161,24 +165,27 @@ check_feature_branch() {
 read_feature_json_feature_directory() {
     local repo_root="$1"
     local fj="$repo_root/.specify/feature.json"
-    [[ -f "$fj" ]] || { printf '%s' ''; return 0; }
+    [[ -f "$fj" ]] || {
+        printf '%s' ''
+        return 0
+    }
 
     local _fd=''
-    if command -v jq >/dev/null 2>&1; then
-        if ! _fd=$(jq -r '.feature_directory // empty' "$fj" 2>/dev/null); then
+    if command -v jq > /dev/null 2>&1; then
+        if ! _fd=$(jq -r '.feature_directory // empty' "$fj" 2> /dev/null); then
             _fd=''
         fi
-    elif command -v python3 >/dev/null 2>&1; then
+    elif command -v python3 > /dev/null 2>&1; then
         # Use Python so pretty-printed/multi-line JSON still parses correctly.
-        if ! _fd=$(python3 -c "import json,sys; d=json.load(open(sys.argv[1])); v=d.get('feature_directory'); print(v if v else '')" "$fj" 2>/dev/null); then
+        if ! _fd=$(python3 -c "import json,sys; d=json.load(open(sys.argv[1])); v=d.get('feature_directory'); print(v if v else '')" "$fj" 2> /dev/null); then
             _fd=''
         fi
     else
         # Last-resort single-line grep/sed fallback. The `|| true` guards against
         # grep returning 1 (no match) aborting under `set -e` / `pipefail`.
-        _fd=$( { grep -E '"feature_directory"[[:space:]]*:' "$fj" 2>/dev/null || true; } \
-            | head -n 1 \
-            | sed -E 's/^[^:]*:[[:space:]]*"([^"]*)".*$/\1/' )
+        _fd=$({ grep -E '"feature_directory"[[:space:]]*:' "$fj" 2> /dev/null || true; } |
+            head -n 1 |
+            sed -E 's/^[^:]*:[[:space:]]*"([^"]*)".*$/\1/')
     fi
 
     printf '%s' "$_fd"
@@ -200,8 +207,8 @@ feature_json_matches_feature_dir() {
     [[ -d "$_fd" ]] || return 1
 
     local norm_json norm_active
-    norm_json="$(cd -- "$_fd" 2>/dev/null && pwd -P)" || return 1
-    norm_active="$(cd -- "$active_feature_dir" 2>/dev/null && pwd -P)" || return 1
+    norm_json="$(cd -- "$_fd" 2> /dev/null && pwd -P)" || return 1
+    norm_active="$(cd -- "$active_feature_dir" 2> /dev/null && pwd -P)" || return 1
 
     [[ "$norm_json" == "$norm_active" ]]
 }
@@ -252,8 +259,10 @@ find_feature_dir_by_prefix() {
 }
 
 get_feature_paths() {
-    local repo_root=$(get_repo_root)
-    local current_branch=$(get_current_branch)
+    local repo_root
+    repo_root=$(get_repo_root)
+    local current_branch
+    current_branch=$(get_current_branch)
     local has_git_repo="false"
 
     if has_git; then
@@ -303,7 +312,7 @@ get_feature_paths() {
 
 # Check if jq is available for safe JSON construction
 has_jq() {
-    command -v jq >/dev/null 2>&1
+    command -v jq > /dev/null 2>&1
 }
 
 # Escape a string for safe embedding in a JSON value (fallback when jq is unavailable).
@@ -323,10 +332,10 @@ json_escape() {
     # so multi-byte UTF-8 sequences (first byte >= 0xC0) pass through intact.
     local LC_ALL=C
     local i char code
-    for (( i=0; i<${#s}; i++ )); do
+    for ((i = 0; i < ${#s}; i++)); do
         char="${s:$i:1}"
-        printf -v code '%d' "'$char" 2>/dev/null || code=256
-        if (( code >= 1 && code <= 31 )); then
+        printf -v code '%d' "'$char" 2> /dev/null || code=256
+        if ((code >= 1 && code <= 31)); then
             printf '\\u%04x' "$code"
         else
             printf '%s' "$char"
@@ -335,7 +344,7 @@ json_escape() {
 }
 
 check_file() { [[ -f "$1" ]] && echo "  ✓ $2" || echo "  ✗ $2"; }
-check_dir() { [[ -d "$1" && -n $(ls -A "$1" 2>/dev/null) ]] && echo "  ✓ $2" || echo "  ✗ $2"; }
+check_dir() { [[ -d "$1" && -n $(ls -A "$1" 2> /dev/null) ]] && echo "  ✓ $2" || echo "  ✗ $2"; }
 
 # Resolve a template name to a file path using the priority stack:
 #   1. .specify/templates/overrides/
@@ -355,7 +364,7 @@ resolve_template() {
     local presets_dir="$repo_root/.specify/presets"
     if [ -d "$presets_dir" ]; then
         local registry_file="$presets_dir/.registry"
-        if [ -f "$registry_file" ] && command -v python3 >/dev/null 2>&1; then
+        if [ -f "$registry_file" ] && command -v python3 > /dev/null 2>&1; then
             # Read preset IDs sorted by priority (lower number = higher precedence).
             # The python3 call is wrapped in an if-condition so that set -e does not
             # abort the function when python3 exits non-zero (e.g. invalid JSON).
@@ -371,7 +380,7 @@ try:
             print(pid)
 except Exception:
     sys.exit(1)
-" 2>/dev/null); then
+" 2> /dev/null); then
                 if [ -n "$sorted_presets" ]; then
                     # python3 succeeded and returned preset IDs — search in priority order
                     while IFS= read -r preset_id; do
@@ -404,7 +413,7 @@ except Exception:
         for ext in "$ext_dir"/*/; do
             [ -d "$ext" ] || continue
             # Skip hidden directories (e.g. .backup, .cache)
-            case "$(basename "$ext")" in .*) continue;; esac
+            case "$(basename "$ext")" in .*) continue ;; esac
             local candidate="$ext/templates/${template_name}.md"
             [ -f "$candidate" ] && echo "$candidate" && return 0
         done
@@ -447,7 +456,7 @@ resolve_template_content() {
     if [ -d "$presets_dir" ]; then
         local registry_file="$presets_dir/.registry"
         local sorted_presets=""
-        if [ -f "$registry_file" ] && command -v python3 >/dev/null 2>&1; then
+        if [ -f "$registry_file" ] && command -v python3 > /dev/null 2>&1; then
             if sorted_presets=$(SPECKIT_REGISTRY="$registry_file" python3 -c "
 import json, sys, os
 try:
@@ -459,7 +468,7 @@ try:
             print(pid)
 except Exception:
     sys.exit(1)
-" 2>/dev/null); then
+" 2> /dev/null); then
                 if [ -n "$sorted_presets" ]; then
                     local yaml_warned=false
                     while IFS= read -r preset_id; do
@@ -467,7 +476,7 @@ except Exception:
                         local strategy="replace"
                         local manifest_file=""
                         local manifest="$presets_dir/$preset_id/preset.yml"
-                        if [ -f "$manifest" ] && command -v python3 >/dev/null 2>&1; then
+                        if [ -f "$manifest" ] && command -v python3 > /dev/null 2>&1; then
                             # Requires PyYAML; falls back to replace/convention if unavailable
                             local result
                             local py_stderr
@@ -490,13 +499,13 @@ try:
     print('replace\t')
 except Exception:
     print('replace\t')
-" 2>"$py_stderr")
+" 2> "$py_stderr")
                             local parse_status=$?
                             if [ $parse_status -eq 0 ] && [ -n "$result" ]; then
                                 IFS=$'\t' read -r strategy manifest_file <<< "$result"
                                 strategy=$(printf '%s' "$strategy" | tr '[:upper:]' '[:lower:]')
                             fi
-                            if [ "$yaml_warned" = false ] && grep -q 'yaml_missing' "$py_stderr" 2>/dev/null; then
+                            if [ "$yaml_warned" = false ] && grep -q 'yaml_missing' "$py_stderr" 2> /dev/null; then
                                 echo "Warning: PyYAML not available; composition strategies may be ignored" >&2
                                 yaml_warned=true
                             fi
@@ -507,7 +516,7 @@ except Exception:
                         if [ -n "$manifest_file" ]; then
                             # Reject absolute paths and parent traversal
                             case "$manifest_file" in
-                                /*|*../*|../*) manifest_file="" ;;
+                                /* | *../*) manifest_file="" ;;
                             esac
                         fi
                         if [ -n "$manifest_file" ]; then
@@ -553,7 +562,7 @@ except Exception:
     if [ -d "$ext_dir" ]; then
         for ext in "$ext_dir"/*/; do
             [ -d "$ext" ] || continue
-            case "$(basename "$ext")" in .*) continue;; esac
+            case "$(basename "$ext")" in .*) continue ;; esac
             local candidate="$ext/templates/${template_name}.md"
             if [ -f "$candidate" ]; then
                 layer_paths+=("$candidate")
@@ -594,7 +603,7 @@ except Exception:
     # to find the nearest replace layer. Only compose layers above that base.
     local base_idx=-1
     local i
-    for (( i=0; i<count; i++ )); do
+    for ((i = 0; i < count; i++)); do
         if [ "${layer_strategies[$i]}" = "replace" ]; then
             base_idx=$i
             break
@@ -602,30 +611,39 @@ except Exception:
     done
 
     if [ $base_idx -lt 0 ]; then
-        return 1  # no base layer found
+        return 1 # no base layer found
     fi
 
     # Read the base content; compose layers above the base (higher priority)
     local content
-    content=$(cat "${layer_paths[$base_idx]}"; printf x)
+    content=$(
+        cat "${layer_paths[$base_idx]}"
+        printf x
+    )
     content="${content%x}"
 
-    for (( i=base_idx-1; i>=0; i-- )); do
+    for ((i = base_idx - 1; i >= 0; i--)); do
         local path="${layer_paths[$i]}"
         local strat="${layer_strategies[$i]}"
         local layer_content
         # Preserve trailing newlines
-        layer_content=$(cat "$path"; printf x)
+        layer_content=$(
+            cat "$path"
+            printf x
+        )
         layer_content="${layer_content%x}"
 
         case "$strat" in
             replace) content="$layer_content" ;;
             prepend) content="$(printf '%s\n\n%s' "$layer_content" "$content")" ;;
-            append)  content="$(printf '%s\n\n%s' "$content" "$layer_content")" ;;
+            append) content="$(printf '%s\n\n%s' "$content" "$layer_content")" ;;
             wrap)
                 case "$layer_content" in
                     *'{CORE_TEMPLATE}'*) ;;
-                    *) echo "Error: wrap strategy missing {CORE_TEMPLATE} placeholder" >&2; return 1 ;;
+                    *)
+                        echo "Error: wrap strategy missing {CORE_TEMPLATE} placeholder" >&2
+                        return 1
+                        ;;
                 esac
                 while [[ "$layer_content" == *'{CORE_TEMPLATE}'* ]]; do
                     local before="${layer_content%%\{CORE_TEMPLATE\}*}"
@@ -634,11 +652,13 @@ except Exception:
                 done
                 content="$layer_content"
                 ;;
-            *) echo "Error: unknown strategy '$strat'" >&2; return 1 ;;
+            *)
+                echo "Error: unknown strategy '$strat'" >&2
+                return 1
+                ;;
         esac
     done
 
     printf '%s' "$content"
     return 0
 }
-

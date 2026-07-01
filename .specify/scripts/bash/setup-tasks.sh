@@ -8,13 +8,16 @@ JSON_MODE=false
 for arg in "$@"; do
     case "$arg" in
         --json) JSON_MODE=true ;;
-        --help|-h)
+        --help | -h)
             echo "Usage: $0 [--json]"
             echo "  --json    Output results in JSON format"
             echo "  --help    Show this help message"
             exit 0
             ;;
-        *) echo "ERROR: Unknown option '$arg'" >&2; exit 1 ;;
+        *)
+            echo "ERROR: Unknown option '$arg'" >&2
+            exit 1
+            ;;
     esac
 done
 
@@ -23,7 +26,10 @@ SCRIPT_DIR="$(CDPATH="" cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/common.sh"
 
 # Get feature paths
-_paths_output=$(get_feature_paths) || { echo "ERROR: Failed to resolve feature paths" >&2; exit 1; }
+_paths_output=$(get_feature_paths) || {
+    echo "ERROR: Failed to resolve feature paths" >&2
+    exit 1
+}
 while IFS= read -r line; do
     if [[ -n "$line" ]]; then
         key="${line%%=*}"
@@ -31,7 +37,7 @@ while IFS= read -r line; do
         val="${val%\"}"
         val="${val#\"}"
         case "$key" in
-            REPO_ROOT|CURRENT_BRANCH|HAS_GIT|FEATURE_DIR|FEATURE_SPEC|IMPL_PLAN|TASKS|RESEARCH|DATA_MODEL|QUICKSTART|CONTRACTS_DIR)
+            REPO_ROOT | CURRENT_BRANCH | HAS_GIT | FEATURE_DIR | FEATURE_SPEC | IMPL_PLAN | TASKS | RESEARCH | DATA_MODEL | QUICKSTART | CONTRACTS_DIR)
                 printf -v "$key" "%s" "$val"
                 export "${key?}"
                 ;;
@@ -62,7 +68,7 @@ fi
 docs=()
 [[ -f "$RESEARCH" ]] && docs+=("research.md")
 [[ -f "$DATA_MODEL" ]] && docs+=("data-model.md")
-if [[ -d "$CONTRACTS_DIR" ]] && [[ -n "$(ls -A "$CONTRACTS_DIR" 2>/dev/null)" ]]; then
+if [[ -d "$CONTRACTS_DIR" ]] && [[ -n "$(ls -A "$CONTRACTS_DIR" 2> /dev/null)" ]]; then
     docs+=("contracts/")
 fi
 [[ -f "$QUICKSTART" ]] && docs+=("quickstart.md")

@@ -17,7 +17,7 @@ MODEL_CHECK_CONFIG="${MODEL_CHECK_CONFIG:-$HOME/.claude/config/parallel_agent.ym
 list_tiers() {
     local provider="$1"
     [[ -f "$MODEL_CHECK_CONFIG" ]] || return 0
-    python3 - "$MODEL_CHECK_CONFIG" "$provider" 2>/dev/null <<'PY' || true
+    python3 - "$MODEL_CHECK_CONFIG" "$provider" 2> /dev/null << 'PY' || true
 import sys
 
 import yaml
@@ -37,19 +37,19 @@ PY
 check_cli_provider() {
     local provider="$1" binary="$2"
     shift 2
-    if ! command -v "$binary" >/dev/null 2>&1; then
+    if ! command -v "$binary" > /dev/null 2>&1; then
         echo "SKIPPED: $provider ($binary not installed)"
         return 0
     fi
     local listing
-    if ! listing="$("$@" 2>/dev/null)"; then
+    if ! listing="$("$@" 2> /dev/null)"; then
         echo "SKIPPED: $provider (model listing failed)"
         return 0
     fi
     local tier model
     while IFS=$'\t' read -r tier model; do
         [[ -z "${model:-}" ]] && continue
-        if grep -qiF "$model" <<<"$listing"; then
+        if grep -qiF "$model" <<< "$listing"; then
             echo "OK: model_tiers.$provider.$tier = $model"
         else
             echo "STALE: model_tiers.$provider.$tier = $model not in provider listing"
@@ -90,7 +90,7 @@ probe_pins() {
 # maybe_probe PROVIDER BINARY -> 0 if the probe handled the provider
 maybe_probe() {
     local provider="$1" binary="$2"
-    if [[ "${MODEL_CHECK_PROBE:-0}" == "1" ]] && command -v "$binary" >/dev/null 2>&1; then
+    if [[ "${MODEL_CHECK_PROBE:-0}" == "1" ]] && command -v "$binary" > /dev/null 2>&1; then
         probe_pins "$provider" "$binary"
         return 0
     fi
@@ -103,25 +103,25 @@ check_api_provider() {
     case "$provider" in
         claude)
             if [[ -z "${ANTHROPIC_API_KEY:-}" ]]; then
-                maybe_probe claude "${MODEL_CHECK_CLAUDE_BIN:-claude}" \
-                    || echo "SKIPPED: claude (no credentials)"
+                maybe_probe claude "${MODEL_CHECK_CLAUDE_BIN:-claude}" ||
+                    echo "SKIPPED: claude (no credentials)"
                 return 0
             fi
             listing="$(curl -sf --connect-timeout 5 --max-time 10 https://api.anthropic.com/v1/models \
                 -H "x-api-key: $ANTHROPIC_API_KEY" \
-                -H "anthropic-version: 2023-06-01" 2>/dev/null)" || {
+                -H "anthropic-version: 2023-06-01" 2> /dev/null)" || {
                 echo "SKIPPED: claude (models endpoint unreachable)"
                 return 0
             }
             ;;
         gemini)
             if [[ -z "${GOOGLE_API_KEY:-}" ]]; then
-                maybe_probe gemini "${MODEL_CHECK_GEMINI_BIN:-gemini}" \
-                    || echo "SKIPPED: gemini (no credentials)"
+                maybe_probe gemini "${MODEL_CHECK_GEMINI_BIN:-gemini}" ||
+                    echo "SKIPPED: gemini (no credentials)"
                 return 0
             fi
             listing="$(curl -sf --connect-timeout 5 --max-time 10 \
-                "https://generativelanguage.googleapis.com/v1beta/models?key=$GOOGLE_API_KEY" 2>/dev/null)" || {
+                "https://generativelanguage.googleapis.com/v1beta/models?key=$GOOGLE_API_KEY" 2> /dev/null)" || {
                 echo "SKIPPED: gemini (models endpoint unreachable)"
                 return 0
             }
@@ -134,7 +134,7 @@ check_api_provider() {
     local tier model
     while IFS=$'\t' read -r tier model; do
         [[ -z "${model:-}" ]] && continue
-        if grep -qiF "$model" <<<"$listing"; then
+        if grep -qiF "$model" <<< "$listing"; then
             echo "OK: model_tiers.$provider.$tier = $model"
         else
             echo "STALE: model_tiers.$provider.$tier = $model not in provider listing"

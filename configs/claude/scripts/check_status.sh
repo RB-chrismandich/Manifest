@@ -20,7 +20,7 @@ BOLD='\033[1m'
 NC='\033[0m'
 
 if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
-    cat <<'USAGE'
+    cat << 'USAGE'
 Usage: check_status.sh [--verbose]
 
 Parallel-agent orchestration readiness check: services.yml enabled agents,
@@ -76,7 +76,10 @@ run_with_timeout() {
     fi
     "$@" &
     local cmd_pid=$!
-    { sleep "$secs"; kill_tree "$cmd_pid"; } &
+    {
+        sleep "$secs"
+        kill_tree "$cmd_pid"
+    } &
     local watcher_pid=$!
     wait "$cmd_pid" 2> /dev/null
     local rc=$?
@@ -357,7 +360,7 @@ if [[ -x "$SCRIPT_DIR/model_check.sh" ]]; then
     unsupported_pins=0
     while IFS= read -r line; do
         case "$line" in
-            OK:*)          [[ "$VERBOSE" == true ]] && echo -e "  ${GREEN}✓${NC} ${line#OK: }" ;;
+            OK:*) [[ "$VERBOSE" == true ]] && echo -e "  ${GREEN}✓${NC} ${line#OK: }" ;;
             STALE:*)
                 stale_pins=$((stale_pins + 1))
                 echo -e "  ${YELLOW}⚠${NC}  ${line#STALE: }"

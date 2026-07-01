@@ -35,7 +35,7 @@ COMMITTED="${SKILLCLAW_COMMITTED:-${MANIFEST_ROOT:-${SCRIPT_DIR}/../../..}/.skil
 AUDIT="${SCRIPT_DIR}/skillclaw_audit.py"
 # Shared audit storage; evolve.py reads SKILLCLAW_AUDIT_DIR too (default ~/.skillclaw).
 export SKILLCLAW_AUDIT_DIR="${SKILLCLAW_AUDIT_DIR:-$HOME/.skillclaw}"
-audit() { python3 "$AUDIT" "$@" >/dev/null 2>&1 || true; }
+audit() { python3 "$AUDIT" "$@" > /dev/null 2>&1 || true; }
 
 BRANCH_PREFIX="skillclaw/evolve-"
 PR_BASE="main"
@@ -45,13 +45,19 @@ PR_BASE="main"
 WINDOW_DAYS="${SKILLCLAW_WINDOW_DAYS:-30}"
 TOKEN_BUDGET="${SKILLCLAW_TOKEN_BUDGET:-100000}"
 
-APPLY=false; SKILL=""; DO_EVOLVE=true; FORCE_NEW=false
+APPLY=false
+SKILL=""
+DO_EVOLVE=true
+FORCE_NEW=false
 
 err() { echo "skillclaw-promote: $*" >&2; }
-usage_error() { err "$*"; exit 2; }
+usage_error() {
+    err "$*"
+    exit 2
+}
 
 usage() {
-    cat <<'USAGE'
+    cat << 'USAGE'
 Usage: skillclaw_promote.sh [--apply] [--skill NAME] [--no-evolve]
                             [--force-new] [--status]
 
@@ -67,12 +73,31 @@ USAGE
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --help|-h) usage; exit 0 ;;
-        --status) python3 "$AUDIT" status; exit 0 ;;
-        --apply) APPLY=true; shift ;;
-        --skill) [[ $# -ge 2 ]] || usage_error "--skill needs a name"; SKILL="$2"; shift 2 ;;
-        --no-evolve) DO_EVOLVE=false; shift ;;
-        --force-new) FORCE_NEW=true; shift ;;
+        --help | -h)
+            usage
+            exit 0
+            ;;
+        --status)
+            python3 "$AUDIT" status
+            exit 0
+            ;;
+        --apply)
+            APPLY=true
+            shift
+            ;;
+        --skill)
+            [[ $# -ge 2 ]] || usage_error "--skill needs a name"
+            SKILL="$2"
+            shift 2
+            ;;
+        --no-evolve)
+            DO_EVOLVE=false
+            shift
+            ;;
+        --force-new)
+            FORCE_NEW=true
+            shift
+            ;;
         -*) usage_error "unknown flag: $1" ;;
         *) usage_error "unexpected argument: $1" ;;
     esac
@@ -93,10 +118,11 @@ audit log "$run_id" "-" run_start window_days="$WINDOW_DAYS" token_budget="$TOKE
 # 0. Idempotency (Option A): one open evolve PR at a time.
 open_pr() {
     if [[ -n "${SKILLCLAW_OPEN_PR:-}" ]]; then
-        echo "$SKILLCLAW_OPEN_PR"; return 0
+        echo "$SKILLCLAW_OPEN_PR"
+        return 0
     fi
-    "$GITOPS" pr-list --search "head:${BRANCH_PREFIX}" --state open 2>/dev/null \
-        | grep -Eo 'https?://[^ ]+' | head -1 || true
+    "$GITOPS" pr-list --search "head:${BRANCH_PREFIX}" --state open 2> /dev/null |
+        grep -Eo 'https?://[^ ]+' | head -1 || true
 }
 if [[ "$APPLY" == true && "$FORCE_NEW" == false ]]; then
     existing="$(open_pr)"
@@ -109,26 +135,28 @@ fi
 
 # 1. Ingest transcripts → sessions (passive; no proxy).
 if [[ "$DO_EVOLVE" == true ]]; then
-    CUR_STAGE="ingest"; _t0=$SECONDS
+    CUR_STAGE="ingest"
+    _t0=$SECONDS
     echo "▸ ingest…"
     audit log "$run_id" ingest stage_start
     # Capture ingest's JSON summary (stdout) so stage_end carries the ingested
     # count → status.json totals.ingested is populated for --status/troubleshooting.
     ingest_json="$(python3 "$INGEST" "$TRANSCRIPTS" "$SESSIONS" --state "$STATE" \
-        --window-days "$WINDOW_DAYS" 2>/dev/null)" \
-        || err "ingest returned non-zero (continuing)"
-    ingested_count="$(printf '%s' "$ingest_json" \
-        | python3 -c 'import json,sys; print(int(json.load(sys.stdin).get("ingested",0)))' \
-        2>/dev/null || echo 0)"
+        --window-days "$WINDOW_DAYS" 2> /dev/null)" ||
+        err "ingest returned non-zero (continuing)"
+    ingested_count="$(printf '%s' "$ingest_json" |
+        python3 -c 'import json,sys; print(int(json.load(sys.stdin).get("ingested",0)))' \
+            2> /dev/null || echo 0)"
     audit log "$run_id" ingest stage_end seconds=$((SECONDS - _t0)) ingested="$ingested_count"
 fi
 
 # 2. Scrub captured sessions (best-effort; never blocks).
 if [[ -d "$SESSIONS" ]]; then
-    CUR_STAGE="scrub"; _t0=$SECONDS
+    CUR_STAGE="scrub"
+    _t0=$SECONDS
     echo "▸ scrub…"
     audit log "$run_id" scrub stage_start
-    python3 "${SCRIPT_DIR}/skillclaw_scrub.py" "$SESSIONS" >/dev/null 2>&1 || true
+    python3 "${SCRIPT_DIR}/skillclaw_scrub.py" "$SESSIONS" > /dev/null 2>&1 || true
     audit log "$run_id" scrub stage_end seconds=$((SECONDS - _t0))
 fi
 
@@ -138,18 +166,23 @@ if [[ "$DO_EVOLVE" == true ]]; then
     echo "▸ evolve…"
     python3 "$EVOLVE" "$SESSIONS" "$EVOLVED" --template "$TEMPLATE" \
         --committed-dir "$COMMITTED" --token-budget "$TOKEN_BUDGET" \
-        --run-id "$run_id" >/dev/null \
-        || err "evolve returned non-zero (continuing)"
+        --run-id "$run_id" > /dev/null ||
+        err "evolve returned non-zero (continuing)"
 fi
 
 # 4. Classify + validate. A crash here (empty/non-JSON output) must fail loudly,
 # not abort cryptically under `set -e`, so guard the capture explicitly.
-CUR_STAGE="classify"; _t0=$SECONDS; echo "▸ classify…"
+CUR_STAGE="classify"
+_t0=$SECONDS
+echo "▸ classify…"
 audit log "$run_id" classify stage_start
 classify_args=("$EVOLVED" "$COMMITTED" --rejected-dir "$REJECTED")
 [[ -n "$SKILL" ]] && classify_args+=(--skill "$SKILL")
-classify_json="$(python3 "${SCRIPT_DIR}/skillclaw_promote.py" "${classify_args[@]}")" \
-    || { err "classify failed (skillclaw_promote.py returned non-zero)"; exit 1; }
+classify_json="$(python3 "${SCRIPT_DIR}/skillclaw_promote.py" "${classify_args[@]}")" ||
+    {
+        err "classify failed (skillclaw_promote.py returned non-zero)"
+        exit 1
+    }
 
 # Print the human diff table. The .get() defaults keep this resilient if the
 # JSON ever lacks a key rather than aborting the pipeline.
@@ -197,7 +230,9 @@ if [[ "$APPLY" != true ]]; then
 fi
 
 # 5. Stage a branch with one commit per skill, then open a PR.
-CUR_STAGE="promote"; _t0=$SECONDS; echo "▸ promote…"
+CUR_STAGE="promote"
+_t0=$SECONDS
+echo "▸ promote…"
 audit log "$run_id" promote stage_start
 count="$(echo "$promote_names" | wc -w | tr -d ' ')"
 if [[ ! -d "$COMMITTED" ]]; then
@@ -213,7 +248,7 @@ for name in $promote_names; do
     mkdir -p "$dest"
     cp "${EVOLVED}/${name}/SKILL.md" "${dest}/SKILL.md"
     git add "${dest}/SKILL.md"
-    git commit -m "skill(${name}): evolve via SkillClaw" >/dev/null
+    git commit -m "skill(${name}): evolve via SkillClaw" > /dev/null
 done
 
 body="$(printf 'Auto-evolved by SkillClaw. Skills: %s\n\nProvenance: %s\nReview each commit independently; drop a skill by reverting its commit.' \
