@@ -73,7 +73,11 @@ cmd_review() {
         echo "# Review packet for issue #${issue}"
         "${SCRIPT_DIR}/git_ops.sh" issue-view "$issue" 2>/dev/null || true
         echo "---DIFF---"
-        git -C "$SCRIPT_DIR" diff "origin/main...HEAD" 2>/dev/null || git diff 2>/dev/null || true
+        # The number under review is a PR in the merge loop — its diff lives on the platform,
+        # not in the caller's checkout (which may be a different branch entirely). Fall back to
+        # the local branch diff for pre-PR (issue-flow) callers.
+        "${SCRIPT_DIR}/git_ops.sh" pr-diff "$issue" 2>/dev/null \
+            || git diff "origin/main...HEAD" 2>/dev/null || git diff 2>/dev/null || true
     } > "$packet" 2>/dev/null || true
 
     # Redact before the packet leaves the process.
@@ -83,7 +87,9 @@ cmd_review() {
     fi
 
     local cmd raw rc=0
-    cmd="${VERIFICATION_GATE_REVIEW_CMD:-${SCRIPT_DIR}/parallel_agent.py --json --validate --review}"
+    # --timeout 600: the 120s parallel_agent default is documented as insufficient for a
+    # multi-agent diff review (CLAUDE.md orchestration guide) and was producing reviewer_error.
+    cmd="${VERIFICATION_GATE_REVIEW_CMD:-${SCRIPT_DIR}/parallel_agent.py --json --validate --timeout 600 --review}"
     raw="$(eval "${cmd} \"${packet}\"" 2>/dev/null)" || rc=$?
 
     if [[ $rc -ne 0 ]] || ! printf '%s' "$raw" | python3 -c 'import json,sys;d=json.load(sys.stdin);assert "tier1" in d' 2>/dev/null; then
