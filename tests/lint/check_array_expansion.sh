@@ -2,7 +2,7 @@
 # check_array_expansion.sh — flag empty-array expansions unsafe under
 # macOS Bash 3.2 + `set -u` (specs/003 FR-011, contracts/array-guard.md).
 #
-# Rule: in any *.sh file, an expansion "${name[@]}" or "${name[*]}" is flagged
+# Rule: in any *.sh file, an expansion "${name[@]}" or "${name[*]}" is flagged  # array-safe
 # when the SAME file initializes that array as `name=()` (i.e. it can be empty
 # at expansion time), UNLESS:
 #   - the expansion uses the guard idiom  "${name[@]+"${name[@]}"}"   , or

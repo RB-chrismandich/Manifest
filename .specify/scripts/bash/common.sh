@@ -41,7 +41,8 @@ get_repo_root() {
     fi
 
     # Final fallback to script location for non-git repos
-    local script_dir="$(CDPATH="" cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    local script_dir
+    script_dir="$(CDPATH="" cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
     (cd "$script_dir/../../.." && pwd)
 }
 
@@ -54,7 +55,8 @@ get_current_branch() {
     fi
 
     # Then check git if available at the spec-kit root (not parent)
-    local repo_root=$(get_repo_root)
+    local repo_root
+    repo_root=$(get_repo_root)
     if has_git; then
         git -C "$repo_root" rev-parse --abbrev-ref HEAD
         return
@@ -70,7 +72,8 @@ get_current_branch() {
 
         for dir in "$specs_dir"/*; do
             if [[ -d "$dir" ]]; then
-                local dirname=$(basename "$dir")
+                local dirname
+                dirname=$(basename "$dir")
                 if [[ "$dirname" =~ ^([0-9]{8}-[0-9]{6})- ]]; then
                     # Timestamp-based branch: compare lexicographically
                     local ts="${BASH_REMATCH[1]}"
@@ -107,7 +110,8 @@ get_current_branch() {
 has_git() {
     # First check if git command is available (before calling get_repo_root which may use git)
     command -v git > /dev/null 2>&1 || return 1
-    local repo_root=$(get_repo_root)
+    local repo_root
+    repo_root=$(get_repo_root)
     # Check if .git exists (directory or file for worktrees/submodules)
     [ -e "$repo_root/.git" ] || return 1
     # Verify it's actually a valid git work tree
@@ -255,8 +259,10 @@ find_feature_dir_by_prefix() {
 }
 
 get_feature_paths() {
-    local repo_root=$(get_repo_root)
-    local current_branch=$(get_current_branch)
+    local repo_root
+    repo_root=$(get_repo_root)
+    local current_branch
+    current_branch=$(get_current_branch)
     local has_git_repo="false"
 
     if has_git; then
@@ -510,7 +516,7 @@ except Exception:
                         if [ -n "$manifest_file" ]; then
                             # Reject absolute paths and parent traversal
                             case "$manifest_file" in
-                                /* | *../* | ../*) manifest_file="" ;;
+                                /* | *../*) manifest_file="" ;;
                             esac
                         fi
                         if [ -n "$manifest_file" ]; then
