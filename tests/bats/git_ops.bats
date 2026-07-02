@@ -298,6 +298,7 @@ make_clean_bin() {
 # --- issue-comment body normalization (issue #475) ---
 
 @test "issue-comment: positional body is normalized to --body (github)" {
+    cd "$TEST_REPO" || return 1
     create_stub "gh"
     run bash "$SCRIPT_UNDER_TEST" issue-comment 42 "hello world"
     assert_success
@@ -305,6 +306,7 @@ make_clean_bin() {
 }
 
 @test "issue-comment: flag-style invocation passes through unchanged" {
+    cd "$TEST_REPO" || return 1
     create_stub "gh"
     run bash "$SCRIPT_UNDER_TEST" issue-comment 42 --body "hi"
     assert_success
@@ -312,6 +314,7 @@ make_clean_bin() {
 }
 
 @test "issue-comment: positional body is normalized to --message (gitlab)" {
+    cd "$TEST_REPO" || return 1
     create_stub "glab"
     export MANIFEST_GIT_PLATFORM=gitlab
     run bash "$SCRIPT_UNDER_TEST" issue-comment 42 "hello world"
