@@ -74,7 +74,7 @@ Default MCP/tool routing — use the matching tool when the task domain matches:
 | `--claude-only` | Run only Claude CLI |
 | `--no-claude` | Disable Claude CLI |
 | `--cursor-model <tier>` | Cursor model: mini, flash, advanced, auto |
-| `--claude-model <tier>` | Claude model: haiku, sonnet, opus |
+| `--claude-model <tier>` | Claude model: haiku, sonnet, opus, fable |
 | `--timeout <sec>` | Timeout per agent (default: 120) |
 
 ### Model Selection
