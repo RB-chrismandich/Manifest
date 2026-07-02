@@ -2,7 +2,7 @@
 
 > Version history for the Manifest parallel agent orchestration framework
 
-**Last Updated**: 2026-06-11
+**Last Updated**: 2026-07-01
 
 All notable changes are documented here in reverse chronological order.
 
@@ -10,7 +10,61 @@ All notable changes are documented here in reverse chronological order.
 
 ## [Unreleased]
 
-### specs/362 — Command Discovery & Workflow Guidance
+_Nothing yet — the next unreleased work lands here._
+
+---
+
+## [2026-06]
+
+### specs/368 — Deploy Reconciliation Review (shipped 2026-06-30, PR #443)
+
+- **`/deploy-reconcile`** — compares what Manifest deployed into the assistant
+  homes (`~/.claude` + mirrors) against what the project would deploy, listing
+  orphaned deployed items KEEP/REMOVE (`deploy_reconcile.sh` + `reconcile_core.py`,
+  realpath-deduped `skills/` + `config/` namespaces).
+- Preview by default; removal is opt-in and recoverable (timestamped backup,
+  never a hard delete).
+
+### specs/367 — Sub-Agent Dispatch Guidance (shipped 2026-06-30, PR #441)
+
+- **One documented home for dispatch rules** — `references/sub-agent-dispatch.md`
+  (native Task sub-agents vs `parallel_agent.py`, the ≥3-independent-units
+  threshold, no recursion, cross-platform fallback); skills link there instead of
+  restating the rules.
+- Every skill carries a `subagents: always|conditional|never` disposition in
+  `command_config.yml` `tool_policies`, enforced by `subagent_policy.bats`.
+
+### specs/365 — Codified State-Gated Dev Lifecycle (shipped 2026-06-30, PR #432)
+
+- **`/lifecycle`** drives a feature/issue through the codified
+  specify→…→verify phases with hard phase-gating; entry is a ticket URL/issue
+  key, and the Verify gate requires a smoke test.
+
+### specs/366 — Coding Standards & No-Bypass CI Gate (shipped 2026-06-29, PR #440)
+
+- **`docs/CODING_STANDARDS.md`** — per-language standards with explicit
+  enforcement layers; `lint_on_edit_hook.sh` gives edit-time lint feedback.
+- **Changed-file pre-commit gate in CI** — the full hook suite runs on every
+  file a PR touches, with no bypass path.
+
+### specs/364 — Graphify Integration (shipped 2026-06-29, PR #433)
+
+- **`/graphify`** maps a codebase, docs set, or GitHub repo into a queryable
+  knowledge graph (`graph.html`, `GRAPH_REPORT.md`, `graph.json`); the
+  `graphify` CLI is installed by bootstrap behind
+  `--enable-graphify`/`--disable-graphify` (default: enabled).
+- Managed _tool_, not an orchestration agent — never part of
+  `parallel_agent.py` consensus.
+
+### specs/363 — Smoke-Test Orchestrator (shipped 2026-06-28, PR #431)
+
+- **smoke-orchestrator skill + `smoke_test.py`** — catalog-driven smoke tests
+  (`smoke-catalog/`) with `append`/`run`/`list`/`prune`; UI steps run via
+  `mode: agent` (browser-use).
+- **`/browser-test` deprecated** — superseded by the orchestrator, with a
+  documented migration path.
+
+### specs/362 — Command Discovery & Workflow Guidance (shipped 2026-06-22, PR #396)
 
 - **`/help` command discovery** — a read-only skill that lists and searches every
   command by category with a one-line description + when-to-use cue, marking
@@ -32,10 +86,6 @@ All notable changes are documented here in reverse chronological order.
 - **Cross-platform parity** — compact, description-less command index injected into
   `GEMINI.md`/`AGENTS.md` (budget-bounded, drift-checked) and a Cursor
   `commands-index.mdc` rule; full descriptions stay in `/help` and `docs/COMMANDS.md`.
-
----
-
-## [2026-06]
 
 ### specs/003 — Skill Library Consolidation & Repo Health (shipped 2026-06-11, PRs #289 #291 #293 #294 #296)
 
