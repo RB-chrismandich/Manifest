@@ -1,0 +1,79 @@
+#!/usr/bin/env bats
+# Tests for bootstrap.sh run_reconfigure wiring — the graphify skill gate must
+# run on --reconfigure (issue #459), not only inside deploy_configs.
+
+load '../test_helper/bats-support/load'
+load '../test_helper/bats-assert/load'
+
+REPO_ROOT="$BATS_TEST_DIRNAME/../.."
+
+setup() {
+    export BATS_TMPDIR="${BATS_TMPDIR:-/tmp}"
+    SANDBOX=$(mktemp -d "$BATS_TMPDIR/bootstrap_reconfigure.XXXXXX")
+
+    # Real gate under test comes from common.sh
+    # shellcheck disable=SC1090
+    source "$REPO_ROOT/bootstrap/lib/common.sh"
+
+    # bootstrap.sh executes main on load, so extract run_reconfigure instead
+    awk '/^run_reconfigure\(\) \{/,/^\}/' "$REPO_ROOT/bootstrap.sh" > "$SANDBOX/run_reconfigure.sh"
+    # shellcheck disable=SC1090
+    source "$SANDBOX/run_reconfigure.sh"
+
+    # Stub every collaborator except gate_graphify_skill
+    print_header() { :; }
+    print_success() { :; }
+    print_info() { :; }
+    print_warning() { :; }
+    print_error() { :; }
+    load_existing_config() { :; }
+    run_bootstrap_hook() { :; }
+    prompt_yes_no() { return 0; }
+    setup_manifest_state_dirs() { :; }
+    configure_shell_profile_state() { :; }
+    write_services_config() { :; }
+    skillclaw_apply_state() { :; }
+    install_mcp_servers() { :; }
+    install_python_dependencies() { :; }
+    install_browser_use() { :; }
+    install_smoke_deps() { :; }
+    install_graphify() { :; }
+
+    export TARGET_DIR="$SANDBOX/home/.claude"
+    mkdir -p "$TARGET_DIR/skills/graphify"
+    echo "wrapper" > "$TARGET_DIR/skills/graphify/SKILL.md"
+    export SERVICES_CONFIG="$TARGET_DIR/config/services.yml"
+    export INSTALL_MCP=false
+    export CURSOR_TARGET_DIR="$SANDBOX/home/.cursor"
+    export GEMINI_TARGET_DIR="$SANDBOX/home/.gemini"
+    export CODEX_TARGET_DIR="$SANDBOX/home/.codex"
+    export ANTIGRAVITY_TARGET_DIR="$SANDBOX/home/.antigravity"
+    export ENABLE_CLAUDE=true ENABLE_GEMINI=true ENABLE_CURSOR=true ENABLE_CODEX=true
+    export ENABLE_ANTIGRAVITY=true ENABLE_SKILLCLAW=false ENABLE_BROWSER_USE=false
+    export BOLD='' NC=''
+}
+
+teardown() {
+    [[ -n "$SANDBOX" && -d "$SANDBOX" ]] && rm -rf "$SANDBOX"
+}
+
+@test "reconfigure with --disable-graphify removes the deployed /graphify skill" {
+    export ENABLE_GRAPHIFY=false
+    run run_reconfigure
+    assert_success
+    [ ! -d "$TARGET_DIR/skills/graphify" ]
+}
+
+@test "reconfigure with graphify enabled leaves the deployed skill intact" {
+    export ENABLE_GRAPHIFY=true
+    run run_reconfigure
+    assert_success
+    [ -d "$TARGET_DIR/skills/graphify" ]
+}
+
+@test "reconfigure tolerates a home without a skills dir" {
+    rm -rf "$TARGET_DIR/skills"
+    export ENABLE_GRAPHIFY=false
+    run run_reconfigure
+    assert_success
+}

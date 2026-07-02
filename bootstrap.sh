@@ -173,6 +173,13 @@ run_reconfigure() {
         install_smoke_deps
         install_graphify
 
+        # Gate the deployed /graphify skill to match the new toggle — the gate
+        # otherwise only runs inside deploy_configs, so a reconfigure-time
+        # --disable-graphify would leave the skill deployed (issue #459).
+        if [[ -d "$TARGET_DIR/skills" ]]; then
+            gate_graphify_skill "$TARGET_DIR/skills"
+        fi
+
         print_success "Services reconfigured"
         echo ""
         print_info "The parallel_agent.py script will use these settings on next run"
