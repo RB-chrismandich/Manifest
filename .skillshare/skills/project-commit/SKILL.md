@@ -57,8 +57,8 @@ Do **not** invoke slash commands in this pipeline. Execute the equivalent workfl
      code block language tags, broken links, and stale placeholders.
    - Changelog entry check (CONTRIBUTING.md convention): if the staged work is
      notable — a new feature, breaking change, or deprecation — require a
-     `CHANGELOG.md` entry under `[Unreleased]` (or the current dated section)
-     and add one when missing before proceeding to commit.
+     `CHANGELOG.md` entry under `[Unreleased]` and add one when missing
+     before proceeding to commit.
    - Compute/update a documentation health score summary.
    - If total documentation lines > 500, run:
      `~/.claude/scripts/parallel_agent.py --json --validate`
