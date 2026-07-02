@@ -19,21 +19,43 @@ if HAS_ANTHROPIC:
 class SynthesisEngine:
     """Handles synthesis when agents disagree"""
 
-    def __init__(self, config: Config, logger: Logger | None = None):
+    def __init__(
+        self,
+        config: Config,
+        logger: Logger | None = None,
+        template_path: str | os.PathLike | None = None,
+    ):
         self.config = config
         self.logger = logger
-        self.synthesis_template = self._load_template()
+        self.synthesis_template = self._load_template(template_path)
 
-    def _load_template(self) -> str:
-        """Load synthesis prompt template"""
-        template_path = Path("~/.claude/prompts/synthesis.md").expanduser()
-        if not template_path.exists():
-            if self.logger:
-                self.logger.warning(f"Synthesis template not found: {template_path}")
-            return ""
+    def _load_template(self, template_path: str | os.PathLike | None = None) -> str:
+        """Load the synthesis prompt template.
 
-        with open(template_path) as f:
-            return f.read()
+        Resolution order: explicit ``template_path`` argument, the
+        ``SYNTHESIS_TEMPLATE`` env var, the deployed home copy
+        (``~/.claude/prompts/synthesis.md``), then the repo template next to
+        this package — so fresh clones and CI exercise the repo copy instead
+        of silently disabling synthesis (issue #465).
+        """
+        candidates: list[Path] = []
+        if template_path:
+            candidates.append(Path(template_path).expanduser())
+        env_path = os.environ.get("SYNTHESIS_TEMPLATE")
+        if env_path:
+            candidates.append(Path(env_path).expanduser())
+        candidates.append(Path("~/.claude/prompts/synthesis.md").expanduser())
+        candidates.append(
+            Path(__file__).resolve().parents[2] / "prompts" / "synthesis.md"
+        )
+        for candidate in candidates:
+            if candidate.exists():
+                with open(candidate) as f:
+                    return f.read()
+        if self.logger:
+            tried = ", ".join(str(c) for c in candidates)
+            self.logger.warning(f"Synthesis template not found: tried {tried}")
+        return ""
 
     async def synthesize(
         self, original_task: str, agent_results: dict, consensus: dict
