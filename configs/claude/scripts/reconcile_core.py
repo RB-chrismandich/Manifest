@@ -24,12 +24,14 @@ import argparse
 import fnmatch
 import json
 import os
+import re
 import sys
 
 ROOT_TAGS = ("claude", "cursor", "gemini", "codex", "antigravity")
 SECONDARY_TAGS = ROOT_TAGS[1:]
-# The two managed namespaces reconciled in v1 (relative to each home root).
-NAMESPACES = ("skills", "config")
+# Managed namespaces reconciled per home root (v1: skills+config; v2 adds
+# scripts — deployed tooling drift was invisible before, issue #462).
+NAMESPACES = ("skills", "config", "scripts")
 
 
 def err(msg):
@@ -118,8 +120,9 @@ def expected_keys(project):
     """Logical keys the current project would deploy into ~/.claude.
 
     skills from ``<project>/.skillshare/skills/*``; config from
-    ``<project>/configs/claude/config/*``. Returns a set of ``"skills/<name>"`` /
-    ``"config/<name>"`` keys.
+    ``<project>/configs/claude/config/*``; scripts from
+    ``<project>/configs/claude/scripts/*``. Returns a set of
+    ``"skills/<name>"`` / ``"config/<name>"`` / ``"scripts/<name>"`` keys.
     """
     keys = set()
     skills_src = os.path.join(project, ".skillshare", "skills")
@@ -134,6 +137,10 @@ def expected_keys(project):
     config_src = os.path.join(project, "configs", "claude", "config")
     for name in _entries(config_src):
         keys.add(f"config/{name}")
+    scripts_src = os.path.join(project, "configs", "claude", "scripts")
+    for name in _entries(scripts_src):
+        if not name.startswith("."):
+            keys.add(f"scripts/{name}")
     return keys
 
 
@@ -174,7 +181,7 @@ def has_active_dependent(canonical, edges):
 
 
 def _claude_units(base, only_root):
-    """Enumerate candidate units whose canonical path is under ~/.claude/{skills,config}.
+    """Enumerate candidate units whose canonical path is under ~/.claude/{skills,config,scripts}.
 
     Scans all 5 homes (so symlinked secondary copies are seen and collapsed), but
     only canonical-under-~/.claude units become candidates. Returns dict
@@ -191,7 +198,7 @@ def _claude_units(base, only_root):
             for name in _entries(nsdir):
                 disc = os.path.join(nsdir, name)
                 canon = realpath(disc)
-                # Only reconcile canonical content under ~/.claude/{skills,config}.
+                # Only reconcile canonical content under a managed namespace.
                 if canon == agent_outputs:
                     continue
                 rel_under = os.path.relpath(canon, claude_base)
@@ -200,7 +207,7 @@ def _claude_units(base, only_root):
                 top = rel_under.split(os.sep, 1)[0]
                 if top not in NAMESPACES:
                     continue
-                unit_type = "skill" if top == "skills" else "config"
+                unit_type = {"skills": "skill", "scripts": "script"}.get(top, "config")
                 rec = units.setdefault(
                     canon,
                     {"rel_key": rel_under, "unit_type": unit_type, "seen_roots": set()},
@@ -269,6 +276,41 @@ def _tilde(path, base=None):
     return path
 
 
+_ENTRY_POINT_RE = re.compile(r"~/\.claude/scripts/([A-Za-z0-9_][A-Za-z0-9_./-]*)")
+
+
+def entry_point_warnings(base):
+    """Warn when a deployed skill references a ~/.claude/scripts entry point
+    that is not deployed — the /deploy-reconcile-without-its-script failure
+    mode (issue #462). Read-only; returns sorted human-readable warnings.
+    """
+    claude_base = realpath(home_root(base, "claude"))
+    skills_dir = os.path.join(claude_base, "skills")
+    warnings = set()
+    for name in _entries(skills_dir):
+        skill_md = os.path.join(skills_dir, name, "SKILL.md")
+        if not os.path.isfile(skill_md):
+            continue
+        try:
+            with open(skill_md, encoding="utf-8", errors="replace") as fh:
+                text = fh.read()
+        except OSError:
+            continue
+        scripts_root = os.path.join(claude_base, "scripts")
+        for ref in _ENTRY_POINT_RE.findall(text):
+            ref = ref.rstrip(".")
+            # Containment guard: a ref with '..' segments must not let the
+            # existence check escape ~/.claude/scripts (review 3511352386);
+            # an escaping ref is by definition not a deployed entry point.
+            target = os.path.normpath(os.path.join(scripts_root, ref))
+            inside = target == scripts_root or target.startswith(scripts_root + os.sep)
+            if not inside or not os.path.exists(target):
+                warnings.add(
+                    f"skill '{name}' references ~/.claude/scripts/{ref} which is not deployed"
+                )
+    return sorted(warnings)
+
+
 def build_report(base, project, patterns, only_root=None):
     items = classify(base, project, patterns, only_root)
     keep = sum(1 for i in items if i["verdict"] == "KEEP")
@@ -284,6 +326,7 @@ def build_report(base, project, patterns, only_root=None):
         "roots": roots,
         "summary": {"orphans": len(items), "keep": keep, "remove": remove},
         "items": items,
+        "warnings": entry_point_warnings(base),
         "removed": None,
         "backup_dir": None,
     }
@@ -321,6 +364,12 @@ def render_human(report):
         out.append(
             f"Run with --remove to move the {s['remove']} REMOVE item(s) to a recoverable backup."
         )
+    warns = report.get("warnings") or []
+    if warns:
+        out.append("")
+        out.append(f"Warnings ({len(warns)}):")
+        for w in warns:
+            out.append(f"  ! {w}")
     return "\n".join(out)
 
 
