@@ -95,8 +95,53 @@ STUB
     grep -q ".cursor/skills" "$RSYNC_LOG"
 }
 
-@test "passes --delete flag to rsync" {
+@test "never passes --delete to rsync (merge-then-manifest-prune model)" {
     run bash "$SCRIPT"
     assert_success
-    grep -q -- "--delete" "$RSYNC_LOG"
+    if [[ -f "$RSYNC_LOG" ]]; then
+        run grep -- "--delete" "$RSYNC_LOG"
+        assert_failure
+    fi
+}
+
+# Behavioral tests below use the REAL rsync (restricted PATH without MOCK_BIN).
+REAL_PATH="/usr/bin:/bin:/usr/sbin"
+
+@test "foreign (non-manifest) skill survives a sync" {
+    mkdir -p "$HOME/.claude/skills/my-local-skill"
+    echo "keep me" > "$HOME/.claude/skills/my-local-skill/SKILL.md"
+    printf 'demo-skill\n' > "$HOME/.claude/skills/.deployed-skills"
+    PATH="$REAL_PATH" run bash "$SCRIPT"
+    assert_success
+    [ -f "$HOME/.claude/skills/my-local-skill/SKILL.md" ]
+    [ -f "$HOME/.claude/skills/demo-skill/SKILL.md" ]
+}
+
+@test ".deployed-skills manifest survives and is rewritten to current source" {
+    printf 'demo-skill\n' > "$HOME/.claude/skills/.deployed-skills"
+    PATH="$REAL_PATH" run bash "$SCRIPT"
+    assert_success
+    [ -f "$HOME/.claude/skills/.deployed-skills" ]
+    grep -qx "demo-skill" "$HOME/.claude/skills/.deployed-skills"
+}
+
+@test "prunes a manifest-listed skill that was removed from the source" {
+    # Pins the invariant the --delete replacement must preserve (deploy_home_skills parity).
+    mkdir -p "$HOME/.claude/skills/old-skill"
+    printf 'demo-skill\nold-skill\n' > "$HOME/.claude/skills/.deployed-skills"
+    PATH="$REAL_PATH" run bash "$SCRIPT"
+    assert_success
+    [ ! -d "$HOME/.claude/skills/old-skill" ]
+}
+
+@test "skips a secondary home that is a symlink to the primary skills dir" {
+    mkdir -p "$HOME/.cursor"
+    ln -s "$HOME/.claude/skills" "$HOME/.cursor/skills"
+    run bash "$SCRIPT"
+    assert_success
+    assert_output --partial "skipping"
+    if [[ -f "$RSYNC_LOG" ]]; then
+        run grep ".cursor/skills" "$RSYNC_LOG"
+        assert_failure
+    fi
 }
