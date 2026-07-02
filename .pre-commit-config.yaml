@@ -138,6 +138,14 @@ repos:
         language: system
         files: ^bootstrap\.sh$
 
+      # Non-final bare [[ ]] assertions silently pass in bats on macOS
+      # Bash 3.2 (issue #479; same check runs as a CI lint step)
+      - id: check-bats-assertions
+        name: Check bats assertions (Bash 3.2 silent pass)
+        entry: tests/lint/check_bats_assertions.sh
+        language: system
+        files: \.bats$
+
       # Empty-array expansions unsafe under macOS Bash 3.2 + set -u
       # (specs/003 FR-011; same check runs as a CI lint step)
       - id: check-array-expansion

@@ -91,10 +91,10 @@ EOF
     mk_issue 17 open planned
     run "$SCRIPT" resolve --branch 017-test-branch --json
     [ "$status" -eq 0 ]
-    [[ "$output" == *'"number":17'* ]]
-    [[ "$output" == *'"source":"branch-prefix"'* ]]
-    [[ "$output" == *'"exists":true'* ]]
-    [[ "$output" == *'"state":"open"'* ]]
+    [[ "$output" == *'"number":17'* ]] || return 1
+    [[ "$output" == *'"source":"branch-prefix"'* ]] || return 1
+    [[ "$output" == *'"exists":true'* ]] || return 1
+    [[ "$output" == *'"state":"open"'* ]] || return 1
     [[ "$output" == *'"label":"planned"'* ]]
 }
 
@@ -223,7 +223,7 @@ EOF
     mk_issue 5 open planned
     ISSUE_LIST_OUT="#5  hotfix-adhoc work" run "$SCRIPT" sync-commit HEAD
     [ "$status" -eq 0 ]
-    [[ "$output" == *"existing match reused: #5"* ]]
+    [[ "$output" == *"existing match reused: #5"* ]] || return 1
     # FR-009c: the reused issue immediately enters the sync lifecycle
     [[ "$output" == *"#5 transition planned→in-progress"* ]]
 }
@@ -242,7 +242,7 @@ EOF
     mk_issue 17 open planned
     EDIT_RC=1 run "$SCRIPT" sync-commit HEAD
     [ "$status" -eq 0 ]
-    [[ "$output" == *"transition planned→in-progress [failed]"* ]]
+    [[ "$output" == *"transition planned→in-progress [failed]"* ]] || return 1
     EDIT_RC=0 run "$SCRIPT" sync-commit HEAD
     [ "$status" -eq 0 ]
     [[ "$output" == *"transition planned→in-progress [applied]"* ]]

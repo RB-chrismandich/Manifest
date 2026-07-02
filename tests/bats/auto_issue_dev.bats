@@ -58,7 +58,7 @@ EOF
 @test "--help exits 0 and prints usage" {
     run "$SCRIPT" --help
     [ "$status" -eq 0 ]
-    [[ "$output" == *"next-issue"* ]]
+    [[ "$output" == *"next-issue"* ]] || return 1
     [[ "$output" == *"check-deps"* ]]
 }
 
@@ -95,7 +95,7 @@ EOF
     mk_issue 12 open "" ""
     run "$SCRIPT" check-deps 10
     [ "$status" -eq 2 ]
-    [[ "$output" == *"#12"* ]]
+    [[ "$output" == *"#12"* ]] || return 1
     [[ "$output" != *"#11"* ]]
 }
 
@@ -146,8 +146,8 @@ EOF
     mk_issue 21 open auto-dev "ready"
     run "$SCRIPT" next-issue --json
     [ "$status" -eq 0 ]
-    [[ "$output" == *'"number":21'* ]]
-    [[ "$output" == *'"skipped_dependency":1'* ]]
+    [[ "$output" == *'"number":21'* ]] || return 1
+    [[ "$output" == *'"skipped_dependency":1'* ]] || return 1
     grep -q "issue-edit 20 .*blocked-dependency" "$CALL_LOG"
 }
 
@@ -166,7 +166,7 @@ EOF
     mk_issue 23 open auto-dev "ready"
     run "$SCRIPT" next-issue --json
     [ "$status" -eq 0 ]
-    [[ "$output" == *'"number":23'* ]]
+    [[ "$output" == *'"number":23'* ]] || return 1
     [[ "$output" == *'"skipped_other":3'* ]]
 }
 
@@ -174,7 +174,7 @@ EOF
     export ISSUE_LIST_OUT='[]'
     run "$SCRIPT" next-issue --json
     [ "$status" -eq 3 ]
-    [[ "$output" == *'"ready":0'* ]]
+    [[ "$output" == *'"ready":0'* ]] || return 1
     [[ "$output" == *'"skipped_dependency":0'* ]]
 }
 
@@ -210,7 +210,7 @@ EOF
 EOF
     run "$SCRIPT" check-deps 40
     [ "$status" -eq 2 ]
-    [[ "$output" == *"#41"* ]]
+    [[ "$output" == *"#41"* ]] || return 1
     grep -q "issue-view 40 --output json" "$CALL_LOG"
 }
 
@@ -222,7 +222,7 @@ EOF
 EOF
     run "$SCRIPT" next-issue --json
     [ "$status" -eq 0 ]
-    [[ "$output" == *'"number":50'* ]]
+    [[ "$output" == *'"number":50'* ]] || return 1
     grep -q "issue-list .*--output json" "$CALL_LOG"
 }
 
@@ -355,7 +355,7 @@ EOF
     mk_issue 24 open auto-dev "requires #21"
     run "$SCRIPT" next-issue --json
     [ "$status" -eq 0 ]
-    [[ "$output" == *'"number":21'* ]]
+    [[ "$output" == *'"number":21'* ]] || return 1
     [[ "$output" == *'"reason":'* ]]
 }
 
