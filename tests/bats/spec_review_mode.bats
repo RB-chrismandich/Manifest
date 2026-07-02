@@ -59,4 +59,5 @@ load_script() { source "$SCRIPT"; }
 @test "technical template keeps the shared output contract (NO_ISSUES token)" {
     grep -q 'NO_ISSUES' "$BATS_TEST_DIRNAME/../../configs/claude/prompts/spec_review_technical.md"
     grep -q '{{ARTIFACTS}}' "$BATS_TEST_DIRNAME/../../configs/claude/prompts/spec_review_technical.md"
+    grep -q 'CLARIFICATION REQUIRED' "$BATS_TEST_DIRNAME/../../configs/claude/prompts/spec_review_technical.md"
 }
