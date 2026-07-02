@@ -120,6 +120,17 @@ and record the dissent under Unverified observations for transparency.
   --provenance session-capture --source ai-code-audit`>
 ```
 
+## Sub-agent dispatch
+
+Dispatch sub-agents ONLY for the cross-verification step: one adversarial
+refuter per candidate `critical`/`high` finding (the `subagent_trigger` in
+`command_config.yml`). The passes themselves run inline — they share the P0
+orientation context and must not be split. Pick the mechanism per the shared
+Sub-Agent Selection Rules (`configs/claude/references/sub-agent-dispatch.md`):
+native Task sub-agents on Claude, or `parallel_agent.py` / inline adversarial
+re-reads on other assistants. Dispatched refuters judge only the evidence they
+are given and do not re-dispatch.
+
 ## Acceptance harness
 
 `tests/fixtures/audit-seeded/` (Manifest repo only — the harness does not ship
