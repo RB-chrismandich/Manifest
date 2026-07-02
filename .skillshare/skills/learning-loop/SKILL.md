@@ -89,6 +89,26 @@ entries:
     last_referenced: "2026-02-11T14:30:00Z"
 ```
 
+### Antipattern entries: guardrail fields (spec 457)
+
+When the captured learning is an **antipattern**, additionally populate the
+guardrail-registry fields so the entry is immediately consumed by write-time
+guidance (`code-quality`) and `/ai-code-audit` (capture-to-active in one step):
+
+- `severity`: `critical` | `high` | `medium` | `low` | `info`
+- `detection_cue`: how to spot it in code (string, or per-language map)
+- `prevention_rule`: positive "do this instead" phrasing
+- `provenance: session-capture`
+- `tags` MUST include exactly ONE guardrail-category tag: `arch`,
+  `async-state`, `error-handling`, `security`, `dependency`, `iteration`
+  (structure/duplication/tests → arch; async/lifecycle/races → async-state;
+  swallowed errors/validation → error-handling; vulns/secrets → security;
+  packages/env → dependency; refinement/session-drift → iteration)
+
+Prefer capturing via `~/.claude/scripts/learning_capture.sh add` (supports all
+of the above as `--severity`, `--detection-cue`, `--prevention-rule`,
+`--provenance`, plus the tag in `--tags`).
+
 ### ID Generation
 
 Format: `YYYYMMDD-NNN` where NNN is a zero-padded sequence number for that date.

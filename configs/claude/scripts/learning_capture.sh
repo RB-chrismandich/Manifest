@@ -21,7 +21,6 @@ set -euo pipefail
 
 # --- Colors -----------------------------------------------------------
 GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
 CYAN='\033[0;36m'
 RED='\033[0;31m'
 RESET='\033[0m'
@@ -59,11 +58,17 @@ SUBCOMMANDS:
 ADD OPTIONS:
   --title <text>        (required) Short title for the entry
   --category <cat>      (required) One of: pattern, antipattern, tool_discovery, config_insight
-  --language <lang>     (required) Language: python, go, typescript, javascript, bash, terraform, yaml, general
+  --language <lang>     (required) Language: python, go, typescript, javascript, bash, terraform, yaml, markdown, general
   --description <text>  (required) Detailed description of the learning
-  --tags <t1,t2,...>    (optional) Comma-separated tags
+  --tags <t1,t2,...>    (optional) Comma-separated tags. Guardrail entries carry exactly one
+                        category tag: arch, async-state, error-handling, security, dependency, iteration
   --confidence <level>  (optional) high, medium, or low (default: medium)
   --source <text>       (optional) Source skill or context that produced this entry
+  --severity <level>    (optional) critical, high, medium, low, or info (guardrail entries)
+  --detection-cue <txt> (optional) How to spot the anti-pattern (plain text; per-language
+                        maps are edited directly in the YAML)
+  --prevention-rule <t> (optional) Positive "do this instead" rule (guardrail entries)
+  --provenance <p>      (optional) research-seed or session-capture
 
 QUERY OPTIONS:
   --category <cat>      Filter by category
@@ -97,10 +102,6 @@ success_msg() {
     echo -e "${GREEN}$1${RESET}"
 }
 
-warn_msg() {
-    echo -e "${YELLOW}$1${RESET}"
-}
-
 info_msg() {
     echo -e "${CYAN}$1${RESET}"
 }
@@ -129,11 +130,48 @@ validate_confidence() {
     esac
 }
 
+validate_language() {
+    local lang="$1"
+    case "$lang" in
+        python | go | typescript | javascript | bash | terraform | yaml | markdown | general) return 0 ;;
+        *)
+            error_msg "Invalid language: $lang"
+            err "  Valid languages: python, go, typescript, javascript, bash, terraform, yaml, markdown, general"
+            return 1
+            ;;
+    esac
+}
+
+validate_severity() {
+    local sev="$1"
+    case "$sev" in
+        "" | critical | high | medium | low | info) return 0 ;;
+        *)
+            error_msg "Invalid severity: $sev"
+            err "  Valid levels: critical, high, medium, low, info"
+            return 1
+            ;;
+    esac
+}
+
+validate_provenance() {
+    local prov="$1"
+    case "$prov" in
+        "" | research-seed | session-capture) return 0 ;;
+        *)
+            error_msg "Invalid provenance: $prov"
+            err "  Valid values: research-seed, session-capture"
+            return 1
+            ;;
+    esac
+}
+
 # --- Subcommand: add --------------------------------------------------
 
 cmd_add() {
     local title="" category="" language="" description=""
     local tags="" confidence="medium" source=""
+    local severity="" detection_cue="" prevention_rule="" provenance=""
 
     while [[ $# -gt 0 ]]; do
         case "$1" in
@@ -165,6 +203,22 @@ cmd_add() {
                 source="$2"
                 shift 2
                 ;;
+            --severity)
+                severity="$2"
+                shift 2
+                ;;
+            --detection-cue)
+                detection_cue="$2"
+                shift 2
+                ;;
+            --prevention-rule)
+                prevention_rule="$2"
+                shift 2
+                ;;
+            --provenance)
+                provenance="$2"
+                shift 2
+                ;;
             *)
                 error_msg "Unknown option for add: $1"
                 return 1
@@ -191,7 +245,10 @@ cmd_add() {
     fi
 
     validate_category "$category" || return 1
+    validate_language "$language" || return 1
     validate_confidence "$confidence" || return 1
+    validate_severity "$severity" || return 1
+    validate_provenance "$provenance" || return 1
 
     local today
     today=$(date +%Y-%m-%d)
@@ -200,7 +257,9 @@ cmd_add() {
     local new_id
     new_id=$(
         python3 - "$KNOWLEDGE_BASE_FILE" "$title" "$category" "$language" \
-            "$description" "$tags" "$confidence" "$source" "$today" << 'PYTHON'
+            "$description" "$tags" "$confidence" "$source" "$today" \
+            "$severity" "$detection_cue" "$prevention_rule" "$provenance" << 'PYTHON'
+import os
 import sys
 import yaml
 
@@ -213,11 +272,12 @@ tags_str = sys.argv[6]
 confidence = sys.argv[7]
 source = sys.argv[8]
 today = sys.argv[9]
+severity = sys.argv[10]
+detection_cue = sys.argv[11]
+prevention_rule = sys.argv[12]
+provenance = sys.argv[13]
 
 # Read existing knowledge base
-with open(kb_file, "r") as f:
-    raw_content = f.read()
-
 with open(kb_file, "r") as f:
     kb = yaml.safe_load(f) or {}
 
@@ -255,6 +315,17 @@ if tags_str:
 if source:
     new_entry["source"] = source
 
+# Guardrail-registry fields (spec 457, contracts/registry-schema.md) — all
+# optional; omitted flags keep the legacy entry shape byte-identical.
+if severity:
+    new_entry["severity"] = severity
+if detection_cue:
+    new_entry["detection_cue"] = detection_cue
+if prevention_rule:
+    new_entry["prevention_rule"] = prevention_rule
+if provenance:
+    new_entry["provenance"] = provenance
+
 entries.append(new_entry)
 kb["entries"] = entries
 
@@ -269,10 +340,13 @@ for line in raw_lines:
     else:
         break
 
-with open(kb_file, "w") as f:
+# Atomic write: temp file + os.replace so an interrupt never truncates the KB
+tmp_file = kb_file + ".tmp"
+with open(tmp_file, "w") as f:
     for line in header_lines:
         f.write(line)
     yaml.dump(kb, f, default_flow_style=False, sort_keys=False, allow_unicode=True)
+os.replace(tmp_file, kb_file)
 
 print(new_id)
 PYTHON
@@ -313,6 +387,7 @@ cmd_query() {
     done
 
     python3 - "$KNOWLEDGE_BASE_FILE" "$filter_category" "$filter_language" "$filter_tag" "$format" << 'PYTHON'
+import os
 import sys
 import yaml
 
@@ -416,6 +491,7 @@ PYTHON
 
 cmd_stats() {
     python3 - "$KNOWLEDGE_BASE_FILE" << 'PYTHON'
+import os
 import sys
 import yaml
 from collections import Counter
@@ -468,6 +544,7 @@ cmd_increment() {
     local result
     result=$(
         python3 - "$KNOWLEDGE_BASE_FILE" "$entry_id" "$today" << 'PYTHON'
+import os
 import sys
 import yaml
 
@@ -506,10 +583,13 @@ for line in raw_lines:
     else:
         break
 
-with open(kb_file, "w") as f:
+# Atomic write: temp file + os.replace so an interrupt never truncates the KB
+tmp_file = kb_file + ".tmp"
+with open(tmp_file, "w") as f:
     for line in header_lines:
         f.write(line)
     yaml.dump(kb, f, default_flow_style=False, sort_keys=False, allow_unicode=True)
+os.replace(tmp_file, kb_file)
 PYTHON
     )
 
@@ -546,6 +626,7 @@ cmd_sync_docs() {
     local output_file="${docs_dir}/KNOWLEDGE_BASE.md"
 
     python3 - "$KNOWLEDGE_BASE_FILE" "$output_file" << 'PYTHON'
+import os
 import sys
 import yaml
 from datetime import datetime
@@ -637,12 +718,17 @@ for cat_key, cat_title, cat_desc, _ in cat_config:
 
     # Summary table
     if cat_key == "antipattern":
-        lines.append("| ID | Language | Title | Severity | Occurrences | Description |")
-        lines.append("| -- | -------- | ----- | -------- | ----------- | ----------- |")
+        lines.append("| ID | Language | Title | Severity | Occurrences | Description | Prevention Rule |")
+        lines.append("| -- | -------- | ----- | -------- | ----------- | ----------- | --------------- |")
         for e in items:
             desc_short = e.get("description", "").strip().replace("\n", " ")[:100]
-            sev = e.get("confidence", "medium")  # use confidence as severity proxy
-            lines.append(f"| {e['id']} | {e.get('language', '?')} | {e.get('title', '?')} | {sev} | {e.get('occurrences', 1)} | {desc_short} |")
+            # Real severity field when present; confidence as legacy proxy.
+            sev = e.get("severity") or e.get("confidence", "medium")
+            rule = str(e.get("prevention_rule", "") or "").strip().replace("\n", " ")[:120]
+            cue = e.get("detection_cue")
+            if isinstance(cue, dict):
+                rule = f"{rule} _(cues: {', '.join(sorted(cue))})_" if rule else f"_(cues: {', '.join(sorted(cue))})_"
+            lines.append(f"| {e['id']} | {e.get('language', '?')} | {e.get('title', '?')} | {sev} | {e.get('occurrences', 1)} | {desc_short} | {rule} |")
     elif cat_key == "pattern":
         lines.append("| ID | Language | Title | Confidence | Description |")
         lines.append("| -- | -------- | ----- | ---------- | ----------- |")
@@ -664,25 +750,37 @@ for cat_key, cat_title, cat_desc, _ in cat_config:
 
     # Detailed entries for antipatterns
     if cat_key == "antipattern":
+        import textwrap
+
+        def wrapped(text):
+            # MD013 caps prose lines at 120; wrap paragraphs the generator emits.
+            return textwrap.wrap(" ".join(str(text).split()), width=110)
+
         lines.append("")
         for e in items:
             lines.append(f"### {e['id']}: {e.get('title', 'Untitled')}")
             lines.append("")
             lines.append(f"- **Category**: {e.get('category', '?')}")
             lines.append(f"- **Language**: {e.get('language', '?')}")
-            lines.append(f"- **Severity**: {e.get('confidence', '?')}")
+            lines.append(f"- **Severity**: {e.get('severity') or e.get('confidence', '?')}")
             lines.append(f"- **Occurrences**: {e.get('occurrences', 1)}")
             lines.append(f"- **First seen**: {e.get('created', '?')}")
             lines.append(f"- **Last seen**: {e.get('last_seen', '?')}")
             lines.append("")
             desc = e.get("description", "").strip()
-            lines.append(f"**Problem**: {desc}")
+            lines.extend(wrapped(f"**Problem**: {desc}"))
             lines.append("")
+            rule = str(e.get("prevention_rule", "") or "").strip()
+            if rule:
+                lines.extend(wrapped(f"**Do this instead**: {rule}"))
+                lines.append("")
             tags = e.get("tags", [])
             if tags:
                 lines.append(f"**Tags**: {', '.join(tags)}")
                 lines.append("")
 
+    if lines and lines[-1] != "":
+        lines.append("")  # markdownlint requires a blank line between a table and the rule
     lines.append("---")
 
 # References section
@@ -701,9 +799,8 @@ with open(output_file, "w") as f:
 print(f"Regenerated {output_file} with {len(entries)} entries.")
 PYTHON
 
-    if [[ $? -eq 0 ]]; then
-        success_msg "docs/KNOWLEDGE_BASE.md regenerated from YAML source of truth"
-    fi
+    # set -e already aborts on python3 failure; reaching here means success
+    success_msg "docs/KNOWLEDGE_BASE.md regenerated from YAML source of truth"
 }
 
 # --- Main dispatch ----------------------------------------------------

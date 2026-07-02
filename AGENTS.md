@@ -294,6 +294,36 @@ All agents share the same orchestration script at `configs/claude/scripts/parall
   Consensus thresholds and verdict rules (`APPROVED`/`NEEDS_REVIEW`/`BLOCKED`):
   `configs/claude/references/orchestration.md`.
 
+## Proactive Coding Guardrails (always on)
+
+Apply while writing or refactoring code, in every session:
+
+- **Propagate error signals** — every catch rethrows, returns a typed
+  error/fallback the caller must check, or routes to a central handler.
+  Never log-and-fall-through.
+- **Validate at boundaries** — type/presence/range checks at entry points;
+  distinguish zero from missing; pass only validated values inward.
+- **Secrets from the environment only** — no credential literals in source,
+  tests, or .env.example; fail fast when required config is absent.
+- **Handle the async lifecycle** — await or explicitly route every async
+  operation; pair every listener/subscription/timer with its teardown;
+  serialize or atomize concurrent writes to shared state.
+- **Refactor before accreting** — extract the seam before adding to long
+  functions/files; search for an existing helper before writing a new one.
+- **No speculative code** — no guards for unreachable states, no single-use
+  abstractions, no dead modules kept "for later".
+- **Verify dependencies exist** — check the official registry (existence,
+  maintenance, advisories) before adding any package.
+- **Refinement safety** — when modifying existing code, NEVER remove security
+  controls or validation without stating it in the change description.
+
+Registry of anti-patterns (detection cues + prevention rules):
+`configs/claude/config/knowledge_base.yml` (guardrail tags: arch, async-state,
+error-handling, security, dependency, iteration). Full reference:
+`configs/claude/references/antipatterns.md`. On-demand deep audit: `/ai-code-audit`.
+
+---
+
 ## Coding Standards
 
 Per-language coding standards and how they are enforced (editor → edit-time →
@@ -373,7 +403,7 @@ standing line instead (spec 362, FR-011 documented gap): **before a commit run
 - **Security**: `/ci-workflow-trigger-security` · `/diff-security-review` · `/docker-published-port-firewall-audit` · `/llm-output-path-traversal-audit` · `/mcp-server-security-audit` · `/secret-safe-upstream-proxy` · `/secure-comment-triggered-workflow` · `/security-finding-refutation` · `/security-finding-triage`
 - **Planning & Specs**: `/architecture-decision-tradeoff-table` · `/auto-dev-issue-prep` · `/issue-prioritize` · `/issue-triage` · `/plan-manage` · `/research-validate-design` · `/spec-review` · `/speckit-implement-review` · `/verify-premise` · `/wire-new-field-end-to-end`
 - **Skill Authoring**: `/ai-hooks-integration` · `/meta-prompt-optimize` · `/skill-evolve`
-- **CI/CD, Testing & Quality**: `/a11y-audit` · `/browser-test` · `/ci-lint-config-drift` · `/ci-setup` · `/live-data-validation` · `/performance-check` · `/pin-known-bug-test-survives-fix` · `/refactor-go` · `/refactor-node` · `/refactor-python` · `/refactor-shell` · `/refactor-terraform` · `/reproduce-gated-ci-failure-locally` · `/smoke-orchestrator` · `/statistical-test-fixture-variance` · `/ux-review` · `/verify`
+- **CI/CD, Testing & Quality**: `/a11y-audit` · `/ai-code-audit` · `/browser-test` · `/ci-lint-config-drift` · `/ci-setup` · `/live-data-validation` · `/performance-check` · `/pin-known-bug-test-survives-fix` · `/refactor-go` · `/refactor-node` · `/refactor-python` · `/refactor-shell` · `/refactor-terraform` · `/reproduce-gated-ci-failure-locally` · `/smoke-orchestrator` · `/statistical-test-fixture-variance` · `/ux-review` · `/verify`
 - **Infrastructure & Config**: `/api-bulk-endpoint-optimization` · `/app-native-config-validation` · `/cli-help-before-dependency-checks` · `/containerized-internal-service-probe` · `/debug-layered-config-substitution` · `/deploy-drift-root-cause` · `/diagnose-stalled-background-process` · `/headless-llm-cli-seam` · `/ingestion-table-idempotency` · `/out-of-band-cache-warm` · `/pass-cli` · `/retire-component-cleanup` · `/scaffold` · `/shell-pipefail-subshell-audit` · `/shell-sete-silent-abort-audit` · `/sync-configs` · `/version-pin`
 - **Meta & Orchestration**: `/antipattern-detect` · `/checkpoint` · `/code-quality` · `/dashboard` · `/graphify` · `/health-check` · `/help` · `/learning-loop` · `/memory-log-compress` · `/session-memory-compress` · `/token-benchmark` · `/token-economy`
 - **Uncategorized**: `/deploy-reconcile` · `/lifecycle` · `/pr-regression-smoke`

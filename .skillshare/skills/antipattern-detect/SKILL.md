@@ -80,10 +80,25 @@ For each new antipattern, store it in the YAML knowledge base:
   --language <language> \
   --title "<short title>" \
   --description "<1-2 sentence problem description and recommended fix>" \
-  --tags "<comma-separated tags>" \
+  --tags "<guardrail-category>,<extra tags>" \
   --confidence <high|medium|low> \
+  --severity <critical|high|medium|low|info> \
+  --detection-cue "<how to spot it in code>" \
+  --prevention-rule "<positive 'do this instead' rule>" \
+  --provenance session-capture \
   --source antipattern-detect
 ```
+
+**Guardrail-category tag (required for antipattern entries, spec 457)**: include
+exactly ONE of `arch`, `async-state`, `error-handling`, `security`,
+`dependency`, `iteration` in `--tags` — this is how the entry joins the
+guardrail registry consumed by write-time guidance (`code-quality`) and
+`/ai-code-audit`. Pick by the defect's nature: structure/duplication/tests →
+`arch`; async/lifecycle/races → `async-state`; swallowed errors/validation →
+`error-handling`; vulns/secrets → `security`; packages/env → `dependency`;
+refinement/session-drift → `iteration`. The severity, detection cue, and
+prevention rule make the capture immediately usable by those consumers
+(capture-to-active in one step).
 
 After storing all new entries, regenerate the human-readable docs:
 

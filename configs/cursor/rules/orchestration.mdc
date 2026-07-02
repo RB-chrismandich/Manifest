@@ -140,6 +140,36 @@ When agents disagree, synthesize by:
   `~/.claude/config/`). Consensus thresholds and verdict rules
   (`APPROVED`/`NEEDS_REVIEW`/`BLOCKED`): `~/.claude/references/orchestration.md`.
 
+## Proactive Coding Guardrails (always on)
+
+Apply while writing or refactoring code, in every session:
+
+- **Propagate error signals** — every catch rethrows, returns a typed
+  error/fallback the caller must check, or routes to a central handler.
+  Never log-and-fall-through.
+- **Validate at boundaries** — type/presence/range checks at entry points;
+  distinguish zero from missing; pass only validated values inward.
+- **Secrets from the environment only** — no credential literals in source,
+  tests, or .env.example; fail fast when required config is absent.
+- **Handle the async lifecycle** — await or explicitly route every async
+  operation; pair every listener/subscription/timer with its teardown;
+  serialize or atomize concurrent writes to shared state.
+- **Refactor before accreting** — extract the seam before adding to long
+  functions/files; search for an existing helper before writing a new one.
+- **No speculative code** — no guards for unreachable states, no single-use
+  abstractions, no dead modules kept "for later".
+- **Verify dependencies exist** — check the official registry (existence,
+  maintenance, advisories) before adding any package.
+- **Refinement safety** — when modifying existing code, NEVER remove security
+  controls or validation without stating it in the change description.
+
+Registry of anti-patterns (detection cues + prevention rules):
+`~/.claude/config/knowledge_base.yml` (guardrail tags: arch, async-state,
+error-handling, security, dependency, iteration). Full reference:
+`~/.claude/references/antipatterns.md`. On-demand deep audit: `/ai-code-audit`.
+
+---
+
 ---
 
 ## Workflow Integration
