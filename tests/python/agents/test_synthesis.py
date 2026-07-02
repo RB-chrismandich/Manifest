@@ -94,3 +94,45 @@ class TestSynthesisEngine:
             assert result is None
         finally:
             synth_module.HAS_ANTHROPIC = original
+
+
+class TestTemplateResolution:
+    """Resolution order: explicit param > SYNTHESIS_TEMPLATE env > deployed
+    home copy > repo-relative fallback (issue #465 — fresh clones/CI must not
+    silently disable synthesis)."""
+
+    def test_explicit_template_path_wins(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("HOME", str(tmp_path))  # no deployed copy
+        monkeypatch.delenv("SYNTHESIS_TEMPLATE", raising=False)
+        custom = tmp_path / "custom.md"
+        custom.write_text("CUSTOM TEMPLATE")
+        config = Config(config_path=str(tmp_path / "none.yml"))
+        engine = SynthesisEngine(config, template_path=str(custom))
+        assert engine.synthesis_template == "CUSTOM TEMPLATE"
+
+    def test_env_var_used_when_no_param(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("HOME", str(tmp_path))
+        envt = tmp_path / "envt.md"
+        envt.write_text("ENV TEMPLATE")
+        monkeypatch.setenv("SYNTHESIS_TEMPLATE", str(envt))
+        engine = _make_engine(tmp_path)
+        assert engine.synthesis_template == "ENV TEMPLATE"
+
+    def test_deployed_home_copy_preferred_over_repo(self, tmp_path, monkeypatch):
+        monkeypatch.delenv("SYNTHESIS_TEMPLATE", raising=False)
+        monkeypatch.setenv("HOME", str(tmp_path))
+        dep = tmp_path / ".claude" / "prompts"
+        dep.mkdir(parents=True)
+        (dep / "synthesis.md").write_text("DEPLOYED TEMPLATE")
+        engine = _make_engine(tmp_path)
+        assert engine.synthesis_template == "DEPLOYED TEMPLATE"
+
+    def test_repo_fallback_on_fresh_clone(self, tmp_path, monkeypatch):
+        monkeypatch.delenv("SYNTHESIS_TEMPLATE", raising=False)
+        monkeypatch.setenv("HOME", str(tmp_path))  # empty fake home
+        engine = _make_engine(tmp_path)
+        repo_template = (
+            REPO_ROOT / "configs" / "claude" / "prompts" / "synthesis.md"
+        ).read_text()
+        assert engine.synthesis_template == repo_template
+        assert engine.synthesis_template != ""
