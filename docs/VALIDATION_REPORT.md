@@ -124,7 +124,7 @@ minimum_agents: 2    ✅ Integer parsed correctly
 
 ```yaml
 thresholds:
-  improve_docs_lines: 500  ✅ Integer parsed correctly
+  docs_improve_lines: 500  ✅ Integer parsed correctly
 refactor-shell:
   allowed:
     - Read  ✅ List parsed correctly

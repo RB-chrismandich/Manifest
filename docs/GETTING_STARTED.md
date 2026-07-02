@@ -348,10 +348,11 @@ Agents agree when consensus score ≥ threshold:
 Configure in `~/.claude/config/command_config.yml`:
 
 ```yaml
+# float 0.0-1.0 scale — must match command_config.yml
 consensus:
-  high: 80
-  medium: 50
-  low: 0
+  high: 0.80
+  medium: 0.50
+  low: 0.0
 ```
 
 ---
