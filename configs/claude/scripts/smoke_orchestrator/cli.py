@@ -150,7 +150,7 @@ def _cmd_prune(args: argparse.Namespace) -> int:
 def _cmd_migrate(args: argparse.Namespace) -> int:
     # Delegate to the migrate module's own CLI — one argv source of truth (it
     # stays independently runnable as `python3 -m smoke_orchestrator.migrate`).
-    from smoke_orchestrator.migrate import main as migrate_main
+    from .migrate import main as migrate_main
 
     argv = [args.src_dir, "--app", args.app]
     if args.out:
@@ -236,6 +236,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="catalog root (default: smoke-catalog)",
     )
     pp.set_defaults(func=_cmd_prune)
+
     mp = sub.add_parser(
         "migrate",
         help="Migrate legacy browser-test YAML prompts into a smoke catalog",
