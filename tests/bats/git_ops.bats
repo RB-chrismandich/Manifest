@@ -294,3 +294,27 @@ make_clean_bin() {
     assert_success
     assert_output --partial "STUB:glab:issue view 42"
 }
+
+# --- issue-comment body normalization (issue #475) ---
+
+@test "issue-comment: positional body is normalized to --body (github)" {
+    create_stub "gh"
+    run bash "$SCRIPT_UNDER_TEST" issue-comment 42 "hello world"
+    assert_success
+    assert_output --partial "STUB:gh:issue comment 42 --body hello world"
+}
+
+@test "issue-comment: flag-style invocation passes through unchanged" {
+    create_stub "gh"
+    run bash "$SCRIPT_UNDER_TEST" issue-comment 42 --body "hi"
+    assert_success
+    assert_output --partial "STUB:gh:issue comment 42 --body hi"
+}
+
+@test "issue-comment: positional body is normalized to --message (gitlab)" {
+    create_stub "glab"
+    export MANIFEST_GIT_PLATFORM=gitlab
+    run bash "$SCRIPT_UNDER_TEST" issue-comment 42 "hello world"
+    assert_success
+    assert_output --partial "STUB:glab:issue note 42 --message hello world"
+}

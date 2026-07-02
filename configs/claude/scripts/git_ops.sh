@@ -32,6 +32,21 @@ set -euo pipefail
 
 err() { echo "git-ops: $*" >&2; }
 
+# issue_comment_args BODY_FLAG N [ARGS...] — sets ISSUE_COMMENT_ARGS.
+# The documented invocation is `issue-comment <N> "<text>"` (issue #475): when
+# the arg after N is a non-flag positional it becomes `BODY_FLAG <text>`;
+# flag-style invocations (--body, --body-file, -R ...) pass through unchanged.
+issue_comment_args() {
+    local body_flag="$1"
+    shift
+    ISSUE_COMMENT_ARGS=("$@")
+    if [[ $# -ge 2 && "${2:0:1}" != "-" ]]; then
+        local n="$1" body="$2"
+        shift 2
+        ISSUE_COMMENT_ARGS=("$n" "$body_flag" "$body" "$@")
+    fi
+}
+
 # Get script directory for sourcing git_platform.sh
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
@@ -129,7 +144,8 @@ case "${platform}" in
                 gh issue create "$@"
                 ;;
             issue-comment)
-                gh issue comment "$@"
+                issue_comment_args --body "$@"
+                gh issue comment "${ISSUE_COMMENT_ARGS[@]+"${ISSUE_COMMENT_ARGS[@]}"}"
                 ;;
             issue-comment-edit-last)
                 gh issue comment "$@" --edit-last
@@ -205,8 +221,10 @@ case "${platform}" in
                 glab issue create "$@"
                 ;;
             issue-comment)
-                # GitLab uses 'note' instead of 'comment'
-                glab issue note "$@"
+                # GitLab uses 'note' instead of 'comment'; glab's body flag is
+                # -m/--message (mocked in tests; glab is not installed here)
+                issue_comment_args --message "$@"
+                glab issue note "${ISSUE_COMMENT_ARGS[@]+"${ISSUE_COMMENT_ARGS[@]}"}"
                 ;;
             issue-comment-edit-last)
                 issue_num="$1"
