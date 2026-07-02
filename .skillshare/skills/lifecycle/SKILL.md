@@ -49,7 +49,9 @@ lifecycle.sh advance <track-id> --actor <agent|human> --gate '<phase-gate-json>'
   flag `needs-human`. Never advance/merge past a failing gate.
 - **Humans** (`--actor human`): a skip or failing gate is an **advisory warning** (exit 3);
   proceed only with `--override "<reason>"`, which is logged.
-- **Verify**: backed by the smoke orchestrator. Missing coverage (`smoke_test.py run` exit 2,
+- **Verify**: backed by the smoke orchestrator (run from the project root —
+  the catalog root defaults to the relative `./smoke-catalog`; pass
+  `--catalog-dir` when invoking from elsewhere). Missing coverage (`smoke_test.py run` exit 2,
   EMPTY) is a failure — never a pass. Non-user-facing Sub-Tasks are marked exempt with a
   rationale in track state.
 - **Backward moves**: `lifecycle.sh regress <id> --to <phase> --reason <text>` (logged).
