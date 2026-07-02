@@ -27,6 +27,17 @@ entries:
     last_seen: 2026-02-11
     occurrences: 8
     source: antipattern-detect
+    severity: critical
+    detection_cue:
+      bash: "unquoted $var in commands; bash -c/eval with interpolated strings"
+      python: "subprocess(shell=True) or os.system with f-string user input"
+      typescript: "child_process exec with template literals; SQL built by string concat"
+      go: "exec.Command(\"sh\", \"-c\", input); fmt.Sprintf into SQL"
+    prevention_rule: >
+      Never interpolate untrusted values into commands or queries: quote all shell
+      expansions, pass argv arrays (no shell=True / -c), and use parameterized
+      queries or prepared statements for SQL.
+    provenance: research-seed
 
   - id: ANTI-002
     title: "Insecure temporary file/directory creation"
@@ -42,6 +53,15 @@ entries:
     last_seen: 2026-02-05
     occurrences: 3
     source: antipattern-detect
+    severity: high
+    detection_cue:
+      bash: "hardcoded /tmp/<name>; mkdir under /tmp without mktemp; no trap cleanup"
+      python: "open()/os.mkdir on literal /tmp paths instead of the tempfile module"
+    prevention_rule: >
+      Create temp files/dirs with mktemp (or the language's tempfile API), set a
+      restrictive umask, and register cleanup (trap/finally) so paths are
+      unpredictable and never leak.
+    provenance: research-seed
 
   - id: ANTI-003
     title: "Stale file-path references in pre-commit hooks"
@@ -136,3 +156,748 @@ entries:
     last_seen: 2026-02-11
     occurrences: 1
     source: antipattern-detect
+
+  # --- Proactive Code Guardrails registry seed (spec 457) ---------------------
+  # Guardrail categories (exactly one tag per entry):
+  #   arch | async-state | error-handling | security | dependency | iteration
+
+  - id: ANTI-006
+    title: "Refactoring avoidance (linear accretion)"
+    category: antipattern
+    language: general
+    description: >
+      Features are bolted onto existing code without restructuring; functions and
+      files grow linearly until no seam is left to test or reuse. Endemic to
+      AI-iterated code (90-100% occurrence in studied repos).
+    tags: [arch, refactoring, accretion]
+    confidence: high
+    created: 2026-07-01
+    last_seen: 2026-07-01
+    occurrences: 0
+    source: registry-seed
+    severity: medium
+    detection_cue: >
+      Diffs that only ever add lines to the same function/file; functions growing
+      past ~50 lines across successive changes with no extraction commits.
+    prevention_rule: >
+      Before adding to a function or file that is already long, extract the seam
+      first (new function/module), then add the feature to the extracted unit.
+    provenance: research-seed
+
+  - id: ANTI-007
+    title: "Context-induced monolith (return of the monolith)"
+    category: antipattern
+    language: general
+    description: >
+      As session context fills, new functionality lands in existing oversized files
+      instead of properly scoped modules, abandoning earlier modular decisions.
+    tags: [arch, monolith, modularity]
+    confidence: high
+    created: 2026-07-01
+    last_seen: 2026-07-01
+    occurrences: 0
+    source: registry-seed
+    severity: medium
+    detection_cue: >
+      One file accumulating unrelated responsibilities late in a session; imports
+      fanning out from a single module that keeps absorbing new features.
+    prevention_rule: >
+      Re-check the module map before placing new code: new responsibility = new
+      module. If a file exceeds ~500 lines or mixes concerns, split before adding.
+    provenance: research-seed
+
+  - id: ANTI-008
+    title: "Cosmetic abstraction (single-impl interface, no isolation)"
+    category: antipattern
+    language: general
+    description: >
+      Interfaces/abstract classes with exactly one implementation that add no
+      isolation, testability, or substitution benefit — indirection that relocates
+      complexity instead of hiding it.
+    tags: [arch, abstraction, indirection]
+    confidence: high
+    created: 2026-07-01
+    last_seen: 2026-07-01
+    occurrences: 0
+    source: registry-seed
+    severity: info
+    detection_cue: >
+      Interface + sole concrete class pairs where deleting the interface changes no
+      behavior; factory-of-factory layers; wrappers that only delegate.
+    prevention_rule: >
+      Introduce an abstraction only when a second implementation, a test seam, or a
+      module boundary demands it; otherwise use the concrete type directly.
+    provenance: research-seed
+
+  - id: ANTI-009
+    title: "Broken abstraction (interface bypassed by concrete references)"
+    category: antipattern
+    language: general
+    description: >
+      A well-defined interface exists but consumers reference the concrete type
+      anyway (casts, direct construction, reaching into internals), so the boundary
+      no longer isolates anything.
+    tags: [arch, abstraction, leaky-layering]
+    confidence: high
+    created: 2026-07-01
+    last_seen: 2026-07-01
+    occurrences: 0
+    source: registry-seed
+    severity: medium
+    detection_cue: >
+      Downcasts or instanceof/type-assertions on interface values; callers importing
+      the implementation module although an interface module exists.
+    prevention_rule: >
+      Consume the boundary type everywhere; if a caller needs implementation
+      details, widen the interface deliberately or remove it — never bypass it.
+    provenance: research-seed
+
+  - id: ANTI-010
+    title: "Dead or orphan module (zero live callers)"
+    category: antipattern
+    language: general
+    description: >
+      Modules/functions with no active non-test caller. Often speculative code or
+      leftovers after refactors; a module only referenced by its own tests is dead
+      code masquerading as live.
+    tags: [arch, dead-code, orphan-module]
+    confidence: high
+    created: 2026-07-01
+    last_seen: 2026-07-01
+    occurrences: 0
+    source: registry-seed
+    severity: medium
+    detection_cue: >
+      Exports never imported elsewhere; functions whose return value no caller
+      consumes; linter unused-symbol findings suppressed instead of resolved.
+    prevention_rule: >
+      Delete unused code rather than keeping it "for later" — version control
+      preserves it. A module kept alive only by its tests should be removed with
+      its tests.
+    provenance: research-seed
+
+  - id: ANTI-011
+    title: "Near-duplicate function (context-loss duplication)"
+    category: antipattern
+    language: general
+    description: >
+      A utility is regenerated 100+ lines away or in another file because earlier
+      context was lost, leaving near-identical logic that will drift (one copy gets
+      the fix, the other keeps the bug).
+    tags: [arch, duplication, drift]
+    confidence: high
+    created: 2026-07-01
+    last_seen: 2026-07-01
+    occurrences: 0
+    source: registry-seed
+    severity: low
+    detection_cue: >
+      Blocks of 10+ similar lines appearing more than once; two helpers with
+      near-identical names/signatures (parseX/extractX) in one codebase.
+    prevention_rule: >
+      Search for an existing helper before writing one (grep by domain noun/verb).
+      If a near-duplicate exists, consolidate and reuse instead of adding a sibling.
+    provenance: research-seed
+
+  - id: ANTI-012
+    title: "Excessive inline commenting substituting for readable code"
+    category: antipattern
+    language: general
+    description: >
+      Comments narrate every trivial line (a hallmark of AI generation) instead of
+      the code being self-explanatory; they rot immediately and bury the few
+      comments that carry real constraints.
+    tags: [arch, comments, readability]
+    confidence: high
+    created: 2026-07-01
+    last_seen: 2026-07-01
+    occurrences: 0
+    source: registry-seed
+    severity: low
+    detection_cue: >
+      Comment-per-line ratios near 1:1; comments restating the next statement
+      ("increment counter"); narration of obvious control flow.
+    prevention_rule: >
+      Comment only what code cannot express: invariants, constraints, and
+      non-obvious why. Rename/restructure instead of narrating what or how.
+    provenance: research-seed
+
+  - id: ANTI-013
+    title: "Phantom guards and over-specified edge cases"
+    category: antipattern
+    language: general
+    description: >
+      Defensive checks for impossible or already-excluded conditions clutter core
+      logic (null-checking a value proven non-null, re-validating internally
+      produced data), adding noise without safety.
+    tags: [arch, phantom-guards, speculative-code]
+    confidence: high
+    created: 2026-07-01
+    last_seen: 2026-07-01
+    occurrences: 0
+    source: registry-seed
+    severity: info
+    detection_cue: >
+      Branches that no input can reach; repeated validation of the same value down
+      a call chain; guards on constants or freshly constructed objects.
+    prevention_rule: >
+      Validate at the boundary once, then trust internal invariants. Add a guard
+      only for a reachable state you can name in a test.
+    provenance: research-seed
+
+  - id: ANTI-014
+    title: "Vanilla style: no separation of concerns"
+    category: antipattern
+    language: general
+    description: >
+      Business logic, data access, and presentation interleaved in single functions
+      with no service/layer boundaries, making the code untestable and every change
+      a cross-cutting edit.
+    tags: [arch, separation-of-concerns, layering]
+    confidence: high
+    created: 2026-07-01
+    last_seen: 2026-07-01
+    occurrences: 0
+    source: registry-seed
+    severity: medium
+    detection_cue: >
+      Handlers that parse input, query storage, compute, and format output inline;
+      SQL/HTTP calls inside rendering or CLI-argument code.
+    prevention_rule: >
+      Keep I/O at the edges and logic in the middle: parse/validate at entry,
+      compute in pure functions, perform storage/network in dedicated modules.
+    provenance: research-seed
+
+  - id: ANTI-015
+    title: "Shallow test coverage (presence, not behavior)"
+    category: antipattern
+    language: general
+    description: >
+      Many tests, little depth: assertions only check that code runs or mocks were
+      called, not outcomes; AI-generated tests often mirror the implementation
+      (circular validation) and miss semantic edge cases.
+    tags: [arch, testing, coverage-quality]
+    confidence: high
+    created: 2026-07-01
+    last_seen: 2026-07-01
+    occurrences: 0
+    source: registry-seed
+    severity: medium
+    detection_cue: >
+      Tests without outcome assertions (no expected values); no failure-path tests;
+      suites that pass unchanged when the core logic is inverted.
+    prevention_rule: >
+      Every test asserts a specific observable outcome, including at least one
+      failure/edge path per behavior; write the assertion from the spec, not from
+      the implementation.
+    provenance: research-seed
+
+  - id: ANTI-016
+    title: "Unhandled async operation (un-awaited/uncaught)"
+    category: antipattern
+    language: general
+    description: >
+      Async work launched without awaiting or attaching error handling: rejections
+      vanish, ordering becomes racy, and failures surface later as unrelated
+      crashes.
+    tags: [async-state, promises, unhandled-rejection]
+    confidence: high
+    created: 2026-07-01
+    last_seen: 2026-07-01
+    occurrences: 0
+    source: registry-seed
+    severity: high
+    detection_cue:
+      typescript: "floating promises (no await/.catch); async fn called in sync context"
+      python: "asyncio.create_task without done-callback; coroutine never awaited warning"
+      go: "goroutine writing results with no errgroup/channel consumption"
+      bash: "background jobs (&) never waited; pipelines where failures are ignored"
+    prevention_rule: >
+      Every async operation is awaited or explicitly detached with an error route:
+      attach .catch/try-await, consume task results, and wait/reap background jobs.
+    provenance: research-seed
+
+  - id: ANTI-017
+    title: "Orphan state (conditional write, unconditional read)"
+    category: antipattern
+    language: general
+    description: >
+      State initialized then written only on some paths but read without guards on
+      all paths — or state that is never consumed at all. Includes the stale-closure
+      variant where async work mutates state after teardown.
+    tags: [async-state, orphan-state, null-guard]
+    confidence: high
+    created: 2026-07-01
+    last_seen: 2026-07-01
+    occurrences: 0
+    source: registry-seed
+    severity: medium
+    detection_cue: >
+      Variables assigned inside if/try branches and dereferenced outside them;
+      state fields with writers but no readers; setState after unmount/cancel.
+    prevention_rule: >
+      Make every state variable total: initialize with a valid value, or make all
+      readers handle the unset case; delete state that nothing reads.
+    provenance: research-seed
+
+  - id: ANTI-018
+    title: "Missing teardown for listeners, subscriptions, timers"
+    category: antipattern
+    language: general
+    description: >
+      Event listeners, subscriptions, sockets, or timers registered during
+      setup with no corresponding cleanup on destroy/unmount, causing leaks and
+      stale-state mutations.
+    tags: [async-state, teardown, lifecycle]
+    confidence: high
+    created: 2026-07-01
+    last_seen: 2026-07-01
+    occurrences: 0
+    source: registry-seed
+    severity: medium
+    detection_cue:
+      typescript: "addEventListener/subscribe/setInterval in mount hooks without cleanup return"
+      python: "signal/loop callbacks registered without remove in close/aexit"
+      go: "time.Ticker never Stop()ed; contexts without cancel"
+    prevention_rule: >
+      Pair every registration with its teardown in the same change: cleanup
+      function, defer/finally, or destructor — written before the feature logic.
+    provenance: research-seed
+
+  - id: ANTI-019
+    title: "Shared-state race (non-atomic concurrent writes)"
+    category: antipattern
+    language: general
+    description: >
+      Two or more concurrent writers mutate shared state (file, global, cache, DB
+      row) without locking/serialization: re-entrant handlers, polling loops
+      without cancellation, non-atomic read-modify-write file updates.
+    tags: [async-state, race-condition, atomicity]
+    confidence: high
+    created: 2026-07-01
+    last_seen: 2026-07-01
+    occurrences: 0
+    source: registry-seed
+    severity: high
+    detection_cue: >
+      Read-modify-write of a shared file/variable without lock or rename-into-place;
+      handlers that can re-fire before the prior invocation completes; check-then-act
+      on shared resources.
+    prevention_rule: >
+      Serialize writers (lock, queue, single-writer) or make writes atomic
+      (write-temp-then-rename, compare-and-swap); add cancellation tokens to loops
+      that can overlap.
+    provenance: research-seed
+
+  - id: ANTI-020
+    title: "Collection boundary cases unhandled (empty/null/single)"
+    category: antipattern
+    language: general
+    description: >
+      Code that processes collections assumes a happy-path plural case and breaks on
+      empty, null/missing, or single-item inputs; zero is treated as falsy-absent.
+    tags: [async-state, boundary-conditions, empty-collection]
+    confidence: high
+    created: 2026-07-01
+    last_seen: 2026-07-01
+    occurrences: 0
+    source: registry-seed
+    severity: medium
+    detection_cue: >
+      Indexing [0] without length checks; reduce/aggregate without initial value;
+      `if value:` treating 0/empty as missing; division by len(items).
+    prevention_rule: >
+      Trace every collection path for empty, single, and absent inputs before
+      shipping; distinguish "zero" from "missing" explicitly (is None / undefined
+      checks, not truthiness).
+    provenance: research-seed
+
+  - id: ANTI-021
+    title: "Catch-log-return-undefined (swallowed error)"
+    category: antipattern
+    language: general
+    description: >
+      A catch block logs and falls through, so the caller receives
+      undefined/None/zero-value with no failure signal and crashes later or
+      corrupts state. In web handlers, the global error middleware never fires.
+    tags: [error-handling, swallowed-error, silent-failure]
+    confidence: high
+    created: 2026-07-01
+    last_seen: 2026-07-01
+    occurrences: 0
+    source: registry-seed
+    severity: high
+    detection_cue:
+      typescript: "catch (e) { console.error(e) } with no rethrow/return in a value-returning fn"
+      python: "except Exception: logger.error(...) then falling off the function end"
+      go: "if err != nil { log.Println(err) } without return err"
+      bash: "cmd || echo 'warn' continuing; errors masked by local var=$(cmd)"
+    prevention_rule: >
+      Every catch propagates a usable signal: rethrow, return a typed error/fallback
+      the caller must check, or route to a central handler that notifies the caller.
+      Never log-and-fall-through.
+    provenance: research-seed
+
+  - id: ANTI-022
+    title: "Catch-and-discard without propagation or fallback"
+    category: antipattern
+    language: general
+    description: >
+      try/catch wraps a block purely to suppress failure — empty catch, catch
+      returning a default silently, or catch continuing a multi-step operation as
+      if step N had succeeded.
+    tags: [error-handling, suppression, empty-catch]
+    confidence: high
+    created: 2026-07-01
+    last_seen: 2026-07-01
+    occurrences: 0
+    source: registry-seed
+    severity: high
+    detection_cue: >
+      Empty catch/except-pass blocks; catch returning [] / {} / null silently in
+      data-loading code; loops that continue past per-item failures uncounted.
+    prevention_rule: >
+      Suppress an error only with a named reason: comment the invariant, count and
+      report skipped items, and make silent defaults impossible on write paths.
+    provenance: research-seed
+
+  - id: ANTI-023
+    title: "Symmetric generic error messages"
+    category: antipattern
+    language: general
+    description: >
+      Every failure produces the same generic message ("Something went wrong",
+      "Error: operation failed") regardless of cause, making triage impossible while
+      looking robust.
+    tags: [error-handling, diagnostics, error-messages]
+    confidence: high
+    created: 2026-07-01
+    last_seen: 2026-07-01
+    occurrences: 0
+    source: registry-seed
+    severity: low
+    detection_cue: >
+      Multiple catch sites emitting identical strings; error text without the
+      failing input, path, or operation; rethrows that drop the original cause.
+    prevention_rule: >
+      Error messages name the operation, the offending input/path, and preserve the
+      cause chain; user-facing text may be generic only when the full detail is
+      logged with correlation.
+    provenance: research-seed
+
+  - id: ANTI-024
+    title: "Missing input validation at function boundaries (CWE-20)"
+    category: antipattern
+    language: general
+    description: >
+      Functions consume external input (args, request bodies, env, file content)
+      directly without null/type/range checks at the boundary — the most common
+      security-relevant flaw in LLM-generated code across languages.
+    tags: [error-handling, input-validation, cwe-20]
+    confidence: high
+    created: 2026-07-01
+    last_seen: 2026-07-01
+    occurrences: 0
+    source: registry-seed
+    severity: high
+    detection_cue:
+      general: >
+        Request/CLI/env values used without schema or presence checks; parsing
+        without try/error paths; validation deep in the stack instead of at entry.
+      bash: >
+        Positional args ($1, $2) assigned and used with no arg-count/usage check or
+        format/existence validation — a set -u unbound-variable crash is a symptom
+        of missing validation, not a substitute for it; quoting alone is not validation.
+    prevention_rule: >
+      Validate at the entry boundary (type, presence, range, size), reject early
+      with specific errors (usage message for CLIs), and pass only validated,
+      typed values inward.
+    provenance: research-seed
+
+  - id: ANTI-025
+    title: "Hardcoded secret in source (CWE-798)"
+    category: antipattern
+    language: general
+    description: >
+      API keys, passwords, JWT signing keys, or connection strings embedded as
+      literals in source or committed .env/.env.example files instead of loaded
+      from the environment or a secrets manager.
+    tags: [security, secrets, cwe-798]
+    confidence: high
+    created: 2026-07-01
+    last_seen: 2026-07-01
+    occurrences: 0
+    source: registry-seed
+    severity: critical
+    detection_cue: >
+      String literals matching key/token/password patterns; base64 blobs assigned
+      to auth config; realistic values in .env.example; secrets in test fixtures.
+    prevention_rule: >
+      Load credentials from environment/secret stores at startup with fail-fast
+      validation; commit only placeholder .env.example values; scan diffs with a
+      secrets detector before push.
+    provenance: research-seed
+
+  - id: ANTI-026
+    title: "Missing resource-level authorization (IDOR)"
+    category: antipattern
+    language: general
+    description: >
+      Routes check authentication but not ownership: predictable IDs are accepted
+      and any logged-in user can read/mutate another user's resource. 53% of
+      critical vulns in AI-generated apps; near-invisible to SAST.
+    tags: [security, authorization, idor]
+    confidence: high
+    created: 2026-07-01
+    last_seen: 2026-07-01
+    occurrences: 0
+    source: registry-seed
+    severity: critical
+    detection_cue: >
+      Handlers fetching by request-supplied ID with no owner/tenant predicate;
+      authorization only in the client; JWT validated for signature but claims
+      never checked against the resource.
+    prevention_rule: >
+      Authorize at the resource level on the server: every fetch/mutation filters
+      by the authenticated principal (owner/tenant scope), and JWTs are validated
+      for signature, expiry, issuer, and algorithm.
+    provenance: research-seed
+
+  - id: ANTI-027
+    title: "Weak cryptography or insecure randomness (CWE-327)"
+    category: antipattern
+    language: general
+    description: >
+      MD5/SHA-1 for password hashing, Math.random()/time-seeded values for tokens,
+      or hand-rolled encryption instead of vetted primitives and libraries.
+    tags: [security, cryptography, cwe-327]
+    confidence: high
+    created: 2026-07-01
+    last_seen: 2026-07-01
+    occurrences: 0
+    source: registry-seed
+    severity: high
+    detection_cue:
+      typescript: "Math.random()/Date.now() for tokens; createHash('md5') for passwords"
+      python: "random module for secrets instead of the secrets module; hashlib.md5 for auth"
+      go: "math/rand for tokens instead of crypto/rand"
+    prevention_rule: >
+      Passwords use Argon2/bcrypt/PBKDF2; tokens use the platform CSPRNG; encryption
+      uses established libraries with modern defaults — never custom constructions.
+    provenance: research-seed
+
+  - id: ANTI-028
+    title: "Permissive CORS / missing HTTP security headers"
+    category: antipattern
+    language: general
+    description: >
+      Wildcard (*) CORS origins on authenticated endpoints and absent
+      Content-Security-Policy, X-Content-Type-Options, X-Frame-Options, or HSTS —
+      the default shape of AI-generated web apps.
+    tags: [security, cors, http-headers]
+    confidence: high
+    created: 2026-07-01
+    last_seen: 2026-07-01
+    occurrences: 0
+    source: registry-seed
+    severity: high
+    detection_cue: >
+      Access-Control-Allow-Origin: * combined with credentials; no security-header
+      middleware registered; CSP absent on HTML-serving routes.
+    prevention_rule: >
+      Enumerate allowed origins explicitly (never * with credentials) and register
+      the standard security-header set on every HTML/API surface at app setup.
+    provenance: research-seed
+
+  - id: ANTI-029
+    title: "Sensitive data in logs or debug output"
+    category: antipattern
+    language: general
+    description: >
+      console.log/print statements left on production paths emitting request
+      bodies, tokens, PII, or stack traces to user-facing responses and log sinks;
+      debug flags not gated by environment.
+    tags: [security, logging, data-exposure]
+    confidence: high
+    created: 2026-07-01
+    last_seen: 2026-07-01
+    occurrences: 0
+    source: registry-seed
+    severity: high
+    detection_cue: >
+      Logging whole request/response objects; error handlers returning stack traces
+      to clients; DEBUG=true defaults; tokens/secrets interpolated into messages.
+    prevention_rule: >
+      Log identifiers, not payloads: redact tokens/PII at the logger boundary,
+      return generic errors to clients while logging detail server-side, and gate
+      debug output behind environment checks.
+    provenance: research-seed
+
+  - id: ANTI-030
+    title: "Hallucinated or unverified dependency (slopsquatting risk)"
+    category: antipattern
+    language: general
+    description: >
+      Depending on packages that don't exist on the registry (AI-invented names) or
+      were never verified for maintenance/CVEs — attackers register hallucinated
+      names with malicious code.
+    tags: [dependency, supply-chain, slopsquatting]
+    confidence: high
+    created: 2026-07-01
+    last_seen: 2026-07-01
+    occurrences: 0
+    source: registry-seed
+    severity: critical
+    detection_cue: >
+      New manifest entries never installed in CI; package names close to popular
+      ones; imports that resolve to nothing; simple tasks pulling deep dep trees.
+    prevention_rule: >
+      Verify every new dependency on its official registry (existence, maintenance,
+      advisories) before adding; prefer the standard library for small needs; new
+      deps must install and build in CI in the same change.
+    provenance: research-seed
+
+  - id: ANTI-031
+    title: "Stale or vulnerable version pin"
+    category: antipattern
+    language: general
+    description: >
+      Pins reproduce versions that were current at model-training time but are now
+      deprecated or carry patched CVEs, silently re-introducing fixed
+      vulnerabilities.
+    tags: [dependency, version-pin, cve]
+    confidence: high
+    created: 2026-07-01
+    last_seen: 2026-07-01
+    occurrences: 0
+    source: registry-seed
+    severity: high
+    detection_cue: >
+      Newly added pins older than the package's latest major/minor by years;
+      lockfiles with advisories flagged by audit tooling; EOL runtimes in configs.
+    prevention_rule: >
+      Resolve versions from the live registry at edit time, run the ecosystem's
+      audit tool on every dependency change, and record why any pin is held back.
+    provenance: research-seed
+
+  - id: ANTI-032
+    title: "Environment-sensitive code without pinning or config validation"
+    category: antipattern
+    language: general
+    description: >
+      "Worked on my machine": implicit reliance on unpinned tool versions, ambient
+      env vars, or absolute paths; process.env/os.environ read throughout the code
+      with no startup validation, failing silently elsewhere.
+    tags: [dependency, environment, config-validation]
+    confidence: high
+    created: 2026-07-01
+    last_seen: 2026-07-01
+    occurrences: 0
+    source: registry-seed
+    severity: medium
+    detection_cue: >
+      env vars read deep in the stack with fallback defaults; no engines/runtime
+      pin; paths outside the repo hardcoded; missing single startup config check.
+    prevention_rule: >
+      Validate all required env/config at startup (fail fast, name the missing
+      key), pin runtimes and tools in manifests, and resolve paths relative to the
+      project root.
+    provenance: research-seed
+
+  - id: ANTI-033
+    title: "Security-control removal during refinement"
+    category: antipattern
+    language: general
+    description: >
+      Iterative "improvement" passes strip validation, auth checks, or error
+      handling in pursuit of brevity or features — the feedback-loop degradation
+      that raises critical vulnerabilities 37.6% over five iterations.
+    tags: [iteration, regression, security-control]
+    confidence: high
+    created: 2026-07-01
+    last_seen: 2026-07-01
+    occurrences: 0
+    source: registry-seed
+    severity: critical
+    detection_cue: >
+      Diffs deleting guard clauses, auth middleware, validation branches, or
+      try/except blocks while claiming refactor/cleanup; parameterization added to
+      new queries while raw ones remain in the same file.
+    prevention_rule: >
+      When modifying existing code, preserve every security control and validation
+      unless the removal is intentional and stated in the change description;
+      diff-review refinements specifically for deleted guards.
+    provenance: research-seed
+
+  - id: ANTI-034
+    title: "Convention drift across sessions (pattern abandonment)"
+    category: antipattern
+    language: general
+    description: >
+      Naming styles, error-handling idioms, or architectural patterns established
+      early are abandoned in later-generated code; inter-session boundaries carry
+      silent contract mismatches.
+    tags: [iteration, convention-drift, consistency]
+    confidence: high
+    created: 2026-07-01
+    last_seen: 2026-07-01
+    occurrences: 0
+    source: registry-seed
+    severity: low
+    detection_cue: >
+      camelCase and snake_case mixed in one module; repository/factory pattern used
+      in early files and dropped later; two modules exchanging values with
+      incompatible assumptions about shape/units.
+    prevention_rule: >
+      Before writing, read the neighboring code and match its idioms exactly
+      (naming, errors, structure); at integration points, verify the consumed
+      contract against the producer's actual output.
+    provenance: research-seed
+
+  - id: ANTI-035
+    title: "Literal prompt fixation (no architectural extrapolation)"
+    category: antipattern
+    language: general
+    description: >
+      The request is implemented word-for-word with no consideration of the
+      surrounding architecture: duplicate mechanisms get added where an existing
+      subsystem should be extended, and implied requirements are ignored.
+    tags: [iteration, prompt-fixation, integration]
+    confidence: high
+    created: 2026-07-01
+    last_seen: 2026-07-01
+    occurrences: 0
+    source: registry-seed
+    severity: info
+    detection_cue: >
+      New code re-implementing an existing subsystem's job; features that ignore
+      established config/registry mechanisms; requested behavior wired in isolation
+      from its obvious call sites.
+    prevention_rule: >
+      Map the request onto the existing architecture first: extend the subsystem
+      that owns the concern, honor existing extension points, and surface implied
+      requirements instead of ignoring them.
+    provenance: research-seed
+
+  - id: ANTI-036
+    title: "Bug deja vu (same error class recurring across sessions)"
+    category: antipattern
+    language: general
+    description: >
+      The same class of mistake reappears in session after session because nothing
+      persists the lesson; each fix is local and the pattern is never recorded.
+    tags: [iteration, recurrence, knowledge-capture]
+    confidence: high
+    created: 2026-07-01
+    last_seen: 2026-07-01
+    occurrences: 0
+    source: registry-seed
+    severity: low
+    detection_cue: >
+      Reviews/lint runs flagging an issue type already fixed in earlier commits;
+      repeated hotfixes with identical shape in different files.
+    prevention_rule: >
+      On the second occurrence of any mistake class, capture it into this registry
+      (learning_capture.sh) with a prevention rule so future sessions are warned
+      proactively; consult the registry before related work.
+    provenance: research-seed

@@ -305,3 +305,78 @@ print(e['occurrences'], e['last_seen'])
     run cat "$SANDBOX/docs/KNOWLEDGE_BASE.md"
     assert_output --partial "Pin GitHub Actions by SHA"
 }
+
+# --- Guardrail-registry fields (spec 457, contracts/registry-schema.md) ------
+
+@test "add with guardrail fields preserves them through capture and sync-docs" {
+    mkdir -p "$SANDBOX/docs"
+    run bash "$SCRIPT" add \
+        --title "Swallowed error in async flow" \
+        --category antipattern \
+        --language general \
+        --description "Catch logs and falls through; caller gets no failure signal" \
+        --tags "error-handling,swallowed-error" \
+        --severity high \
+        --detection-cue "catch block with log call and no rethrow/return" \
+        --prevention-rule "Every catch propagates a usable signal to the caller" \
+        --provenance session-capture \
+        --source antipattern-detect
+    assert_success
+
+    run python3 - "$SANDBOX/.claude/config/knowledge_base.yml" <<'PY'
+import sys, yaml
+entries = yaml.safe_load(open(sys.argv[1]))["entries"]
+e = next(x for x in entries if x["title"] == "Swallowed error in async flow")
+assert e["severity"] == "high", e
+assert e["detection_cue"] == "catch block with log call and no rethrow/return", e
+assert e["prevention_rule"] == "Every catch propagates a usable signal to the caller", e
+assert e["provenance"] == "session-capture", e
+assert e["tags"] == ["error-handling", "swallowed-error"], e
+PY
+    assert_success
+
+    run bash "$SCRIPT" sync-docs
+    assert_success
+    run cat "$SANDBOX/docs/KNOWLEDGE_BASE.md"
+    assert_output --partial "Every catch propagates a usable signal"
+}
+
+@test "add without guardrail fields keeps the legacy entry shape" {
+    run bash "$SCRIPT" add \
+        --title "Legacy-shaped entry" \
+        --category pattern \
+        --language python \
+        --description "No guardrail fields supplied"
+    assert_success
+
+    run python3 - "$SANDBOX/.claude/config/knowledge_base.yml" <<'PY'
+import sys, yaml
+entries = yaml.safe_load(open(sys.argv[1]))["entries"]
+e = next(x for x in entries if x["title"] == "Legacy-shaped entry")
+for k in ("severity", "detection_cue", "prevention_rule", "provenance"):
+    assert k not in e, f"unexpected {k} on legacy entry: {e}"
+PY
+    assert_success
+}
+
+@test "add rejects an invalid severity with non-zero exit" {
+    run bash "$SCRIPT" add \
+        --title "Bad severity" \
+        --category antipattern \
+        --language general \
+        --description "x" \
+        --severity urgent
+    assert_failure
+    assert_output --partial "Invalid severity"
+}
+
+@test "add rejects an invalid provenance with non-zero exit" {
+    run bash "$SCRIPT" add \
+        --title "Bad provenance" \
+        --category antipattern \
+        --language general \
+        --description "x" \
+        --provenance vendor-import
+    assert_failure
+    assert_output --partial "Invalid provenance"
+}

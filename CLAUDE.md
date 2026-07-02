@@ -240,5 +240,5 @@ approaches), review stale plans, or archive/abandon completed work.
 <!-- SPECKIT START -->
 ## Active Spec Kit Feature
 
-- `368-deploy-orphan-review` — plan: [specs/368-deploy-orphan-review/plan.md](specs/368-deploy-orphan-review/plan.md)
+- `457-proactive-code-guardrails` — plan: [specs/457-proactive-code-guardrails/plan.md](specs/457-proactive-code-guardrails/plan.md)
 <!-- SPECKIT END -->

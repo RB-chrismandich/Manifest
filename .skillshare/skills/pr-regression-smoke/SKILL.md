@@ -2,10 +2,9 @@
 name: pr-regression-smoke
 description: |
   Full Manifest regression (CI mirror: shellcheck, yamllint, markdownlint, bats
-  + pytest) plus a deployed-env smoke pass (bootstrap re-deploy, env health,
-  orchestration round-trip), as a post-PR gate. Use right after a PR opens or
-  merges — "regression test the PR", "did the merge break anything", "verify main
-  is still green". Whole-repo verdict; prefer over verify (one lang) or health-check.
+  + pytest) plus a deployed-env smoke pass, as a post-PR gate. Use right after a
+  PR opens or merges — "regression test the PR", "did the merge break anything",
+  "verify main is still green". Whole-repo verdict; prefer over verify or health-check.
 ---
 
 # PR Regression + Smoke
@@ -62,7 +61,10 @@ the gating signal.
 - `tests/lint/check_array_expansion.sh`
 - `yamllint configs/claude/config/*.yml`
 - `markdownlint-cli2` over `AGENTS.md CLAUDE.md README.md docs/*.md`
-- generated-artifact drift: `generate_commands_doc.py --check` (docs/COMMANDS.md + GEMINI.md/AGENTS.md command index) and a `generate_cursor_rules.sh` regenerate-and-clean-tree check — adding a skill that forgets these is the classic way a green local run still red-CIs
+- generated-artifact drift: `generate_commands_doc.py --check` (docs/COMMANDS.md +
+  GEMINI.md/AGENTS.md command index) and a `generate_cursor_rules.sh`
+  regenerate-and-clean-tree check — adding a skill that forgets these is the
+  classic way a green local run still red-CIs
 - `bats tests/bats/` (full suite)
 - `pytest tests/python/` (full suite)
 

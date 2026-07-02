@@ -106,14 +106,21 @@ assert_budget() {
     # coverage to fold in). Its description was trimmed to ~210 chars before the bump
     # (always-loaded trigger text, no read-on-demand alternative); measured total
     # with it present is 22490. Headroom after this is ~110 — next addition needs a trim.
+    # Raised 22600 -> 22800 (2026-07-01) for the genuinely-new `ai-code-audit` skill
+    # (spec 457, the only AI-defect/vibe-antipattern audit entry point; no prior
+    # coverage to fold in). Trim pass done FIRST per the rule above: pr-regression-smoke,
+    # deploy-drift-root-cause, ci-workflow-trigger-security trimmed ~190 chars total
+    # (trigger phrases preserved); the new description was cut to ~300 chars and the
+    # residual still exceeded 22600. Measured total with it present is 22679.
+    # Headroom after this is ~124 — the next addition needs a set-wide trim pass first.
     total=0
     for f in "$REPO_ROOT"/.skillshare/skills/*/SKILL.md; do
         # frontmatter = up to the second '---' line
         chars=$(awk '/^---$/{c++; next} c==1' "$f" | wc -c)
         total=$((total + chars))
     done
-    if [ "$total" -gt 22600 ]; then
-        echo "Skill frontmatter totals $total chars (budget: 22600)." >&2
+    if [ "$total" -gt 22800 ]; then
+        echo "Skill frontmatter totals $total chars (budget: 22800)." >&2
         echo "Trim verbose descriptions; bodies are pay-per-use, frontmatter is not." >&2
         return 1
     fi
