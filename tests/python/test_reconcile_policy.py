@@ -212,3 +212,29 @@ def test_clean_state(tmp_path):
 def test_unresolvable_project_exit_2(tmp_path, capsys):
     rc = core.main(["--home", str(tmp_path), "--project", str(tmp_path / "nope")])
     assert rc == 2
+
+
+def test_expected_keys_includes_top_level_files(world):
+    from pathlib import Path
+
+    _base, project = world
+    skills_src = Path(project) / ".skillshare" / "skills"
+    (skills_src / "README.md").write_text("# skills\n")
+    (skills_src / ".metadata.json").write_text("{}\n")
+    keys = core.expected_keys(project)
+    # repo-sourced top-level files (deployed by every bootstrap) are expected units
+    assert "skills/README.md" in keys
+    # hidden entries are not reconciled units (stay under protection patterns)
+    assert "skills/.metadata.json" not in keys
+
+
+def test_repo_sourced_top_level_file_is_reconciled_not_orphan(world):
+    from pathlib import Path
+
+    base, project = world
+    (Path(project) / ".skillshare" / "skills" / "README.md").write_text("# skills\n")
+    (Path(base) / ".claude" / "skills" / "README.md").write_text("# skills\n")
+    items = core.classify(base, project, DEFAULT_PROTECT)
+    by = _by_key(items)
+    # reconciled units are not listed at all — previously misclassified REMOVE
+    assert "skills/README.md" not in by
