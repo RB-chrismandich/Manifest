@@ -282,8 +282,8 @@ Defines behavior for each slash command.
 ```yaml
 thresholds:
   # Documentation commands
-  improve_docs_lines: 500         # Trigger parallel agents when total doc lines > 500
-  generate_diagrams_modules: 5    # Trigger when analyzing 5+ unique imports/modules
+  docs_improve_lines: 500         # Trigger parallel agents when total doc lines > 500
+  docs_diagrams_modules: 5        # Trigger when analyzing 5+ unique imports/modules
 
   # Code quality skill auto-triggers
   skill_file_lines: 500           # File > 500 lines
@@ -295,10 +295,11 @@ thresholds:
 ### Consensus Thresholds
 
 ```yaml
+# Consensus thresholds for parallel agent decisions (float 0.0-1.0)
 consensus:
-  high: 80      # >=80%: Auto-proceed with unified recommendation
-  medium: 50    # 50-79%: Highlight disagreements to user
-  low: 0        # <50%: Block and escalate for human review
+  high: 0.80    # >=0.80: Auto-proceed with unified recommendation
+  medium: 0.50  # 0.50-0.79: Highlight disagreements to user
+  low: 0.0      # <0.50: Block and escalate for human review
 ```
 
 **Example**: If 2 of 3 agents agree → 67% consensus → medium confidence → disagreements highlighted

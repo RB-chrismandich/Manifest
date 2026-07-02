@@ -142,7 +142,11 @@ The `bootstrap.sh` script automates installation, deployment, and authentication
 --enable-gemini / --disable-gemini   # Gemini CLI (default: enabled)
 --enable-cursor / --disable-cursor   # Cursor agent (default: enabled)
 --enable-codex / --disable-codex     # Codex CLI (default: enabled)
+--enable-antigravity / --disable-antigravity  # Antigravity IDE (default: enabled)
 --enable-graphify / --disable-graphify  # Graphify knowledge-graph CLI + /graphify skill (default: enabled)
+--enable-skillclaw / --disable-skillclaw  # SkillClaw session capture (default: disabled)
+--enable-browser-use / --disable-browser-use  # browser-use deps for smoke agent steps (default: disabled)
+--enable-smoke / --disable-smoke     # smoke-test deps: Playwright+Chromium (default: disabled)
 --enable-gh / --disable-gh           # GitHub CLI (default: auto-detect)
 --enable-glab / --disable-glab       # GitLab CLI (default: auto-detect)
 --install-mcp                        # Configure MCP servers (interactive per-server selection)
@@ -205,7 +209,7 @@ Skills are invoked as slash commands (e.g., `/refactor-python src/`).
 | `/issue-triage` | Linear issue audit: duplicates, staleness, priority validation | CONDITIONAL |
 | `/issue-prioritize` | Score and rank open issues by impact/urgency/readiness/risk | CONDITIONAL |
 | `/plan-manage` | Plan lifecycle with parallel agent orchestration | CONDITIONAL |
-| `/browser-test` | AI-powered E2E browser testing via browser-use YAML test prompts | CONDITIONAL |
+| `/smoke-orchestrator` | Catalog-driven smoke tests; UI steps run via browser-use `mode: agent` | NO |
 | `/checkpoint` | Create compact checkpoint summary when context is high | NO |
 | `/health-check` | Verify CLI tools, auth, config syntax, MCP, symlinks | NO |
 | `/sync-configs` | Detect cross-platform config drift and broken symlinks | NO |
@@ -234,34 +238,9 @@ to all home targets (daily skill dev workflow).
 All Cursor rules are auto-generated from SKILL.md files using `generate_cursor_rules.sh`.
 Each skill produces a corresponding `.mdc` rule in `configs/cursor/rules/`.
 
-| Rule | Description |
-|------|-------------|
-| `orchestration` | Parallel agent orchestration guide (always-on) |
-| `a11y-audit` | WCAG 2.2 AA accessibility audit |
-| `antipattern-detect` | Codebase antipattern detection |
-| `checkpoint` | Context checkpoint |
-| `ci-setup` | CI/CD pipeline configuration |
-| `code-quality` | Auto-triggered security/quality checks |
-| `dashboard` | Efficiency metrics |
-| `docs-diagrams` | Mermaid diagram generation |
-| `docs-improve` | Diataxis documentation |
-| `docs-readme` | README improvement |
-| `health-check` | Environment health check |
-| `issue-prioritize` | Issue prioritization |
-| `issue-triage` | Linear issue triage |
-| `learning-loop` | Lessons learned capture |
-| `performance-check` | Performance analysis |
-| `plan-manage` | Plan lifecycle |
-| `project-commit` | Commit pipeline |
-| `refactor-go` | Go analysis |
-| `refactor-node` | Node.js/TypeScript analysis |
-| `refactor-python` | Python analysis |
-| `refactor-shell` | Shell analysis |
-| `refactor-terraform` | Terraform IaC analysis |
-| `scaffold` | Project scaffolding |
-| `sync-configs` | Config drift detection |
-| `ux-review` | UX/accessibility audit |
-| `verify` | Linter/test/security scan runner |
+The full rule set (one `.mdc` per skill, plus `orchestration` and
+`commands-index`) lives in `configs/cursor/rules/` — regenerate with
+`generate_cursor_rules.sh`; do not hand-edit generated rules.
 
 ### Platform-Specific Notes
 

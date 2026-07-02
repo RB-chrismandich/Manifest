@@ -49,9 +49,11 @@ reconcile:
     - "chrome"
     - "history.jsonl"
     - "*.jsonl"                     # runtime audit/history logs
-    # Runtime *.json under managed dirs that have NO repo source (project config
-    # sources are all .yml): ~/.claude/config/{config.json,mcp_config.json},
-    # ~/.claude/skills/.metadata.json. `*` spans `/`, so this covers nested paths.
+    # Runtime *.json under managed dirs with no reconciled source (project config
+    # sources are all .yml): ~/.claude/config/{config.json,mcp_config.json}.
+    # skills/.metadata.json IS repo-sourced (.skillshare/skills/.metadata.json),
+    # but hidden entries are not reconciled units, so it stays covered here.
+    # `*` spans `/`, so this covers nested paths.
     - "*.json"
     - "config/projects"            # runtime project-state dir under config/
     - ".last-*"                     # .last-cleanup, .last-update-result.json, ...

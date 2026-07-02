@@ -74,7 +74,7 @@ Default MCP/tool routing — use the matching tool when the task domain matches:
 | `--claude-only` | Run only Claude CLI |
 | `--no-claude` | Disable Claude CLI |
 | `--cursor-model <tier>` | Cursor model: mini, flash, advanced, auto |
-| `--claude-model <tier>` | Claude model: haiku, sonnet, opus |
+| `--claude-model <tier>` | Claude model: haiku, sonnet, opus, fable |
 | `--timeout <sec>` | Timeout per agent (default: 120) |
 
 ### Model Selection
@@ -231,8 +231,9 @@ When working on large tasks, monitor context usage to avoid hitting limits:
 - **80-95%**: Use `/checkpoint` to create a compact summary
 - **Above 95%**: Stop and save state; recommend starting a new session
 
-The `context_monitor.md` prompt template provides structured guidance for
-context-aware behavior during long sessions.
+The `context_monitor.md` prompt template documents these thresholds as manual
+guidance — nothing auto-invokes `/checkpoint`; run it yourself at the
+thresholds above.
 
 ---
 

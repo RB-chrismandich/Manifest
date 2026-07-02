@@ -2,7 +2,7 @@
 
 > Guidelines for contributing to the Manifest parallel agent orchestration framework
 
-**Last Updated**: 2026-05-31
+**Last Updated**: 2026-07-02
 **Audience**: Contributors
 
 ---
@@ -14,6 +14,10 @@
 3. Run the test suite to verify everything passes:
 
 ```bash
+# One-time setup: the bats suites need the bats-support/bats-assert submodules
+# (clone with `git clone --recurse-submodules`, or run this in an existing clone)
+git submodule update --init
+
 # Python tests
 pytest tests/python/ -q
 
@@ -50,7 +54,9 @@ python3 -c "import yaml; yaml.safe_load(open('configs/claude/config/command_conf
 ### Testing
 
 All changes to `configs/claude/scripts/` require corresponding tests in `tests/python/` or `tests/bats/`.
-The CI requires a minimum of 100 tests passing — do not reduce coverage.
+CI runs the full bats + pytest suites on every PR and all of them must pass;
+the changed-file pre-commit gate runs the complete hook suite on every file a
+PR touches. Do not reduce coverage.
 
 ### Skills
 
@@ -78,6 +84,9 @@ docs: update getting started guide
 ## Documentation
 
 When adding features, update the relevant docs in `docs/` and the `Last Updated` date.
+Notable changes — new features, breaking changes, deprecations — also add a changelog
+entry to `CHANGELOG.md` under `[Unreleased]` in the same PR (the entry moves into a
+dated section when it ships). Small fixes, refactors, and docs-only changes don't need one.
 See [docs/README.md](docs/README.md) for documentation standards.
 
 ---

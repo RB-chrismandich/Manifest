@@ -118,7 +118,7 @@ Mermaid flowcharts showing bootstrap, execution, validation, and consensus flows
 | `/auto-issue-dev` | Autonomously develop one `auto-dev`-labeled issue test-first and open a PR (never merges); run via `/loop /auto-issue-dev` | NEVER | Tier 1 + Tier 2 |
 | `/repo-hygiene` | Review-then-confirm cleanup sweep of open PRs and stale/merged/gone branches | CONDITIONAL | Tier 1 + Tier 2 |
 | `/plan-manage` | Plan lifecycle: create, review, execute, archive, abandon | CONDITIONAL | Tier 2 |
-| `/browser-test` | AI-powered E2E browser testing via browser-use YAML test prompts | CONDITIONAL | Tier 2 |
+| `/smoke-orchestrator` | Catalog-driven smoke tests; UI steps run via browser-use `mode: agent` | NEVER | Tier 2 |
 | `/skill-evolve` | Promote SkillClaw-evolved skills into a review PR (dry-run by default) | NEVER | Tier 2 |
 
 **CLI tools** (installed to `~/.local/bin/`):
@@ -251,7 +251,7 @@ Manifest/
 │       ├── python/                  # Python project starter
 │       └── terraform/               # Terraform project starter
 ├── .skillshare/                     # Skill source of truth (managed by skillshare)
-│   └── skills/                      # 84 skills deployed to ~/.claude/skills/ by bootstrap
+│   └── skills/                      # skill library deployed to ~/.claude/skills/ by bootstrap
 ├── tests/                           # Test suites
 │   ├── python/                      # pytest tests for parallel_agent and agents/
 │   └── bats/                        # Bats shell tests for bootstrap and scripts
@@ -371,10 +371,10 @@ export CODEX_HOME="$HOME/.manifest/custom-codex-state"
 ## Testing
 
 ```bash
-# Python tests (310 tests covering agents/ package and parallel_agent.py)
+# Python tests (full suite: agents/ package, orchestrator scripts)
 pytest tests/python/ -q
 
-# Shell tests (513 Bats tests covering bootstrap and scripts)
+# Shell tests (full Bats suite covering bootstrap and scripts)
 npx bats tests/bats/
 
 # Lint shell scripts

@@ -37,17 +37,52 @@ else
     err "Warning: skillshare not installed — skipping Copilot sync"
 fi
 
-# Home targets — parallel rsync, PID-tracked so failures are visible
+# real_dir DIR — resolve a directory's physical path (portable; no readlink -f)
+real_dir() { (cd "$1" 2> /dev/null && pwd -P); }
+
+# sync_one DEST — merge-then-manifest-prune, mirroring deploy_home_skills:
+# rsync WITHOUT --delete (never touches foreign skills or the manifest), then
+# prune only previously-deployed skills now absent from the source, scoped by
+# the .deployed-skills manifest, and atomically rewrite the manifest.
+sync_one() {
+    local dest="$1" manifest name src_count
+    rsync -a "$SKILLS_SRC/" "$dest/" || return 1
+    manifest="$dest/.deployed-skills"
+    src_count=$(find "$SKILLS_SRC" -mindepth 1 -maxdepth 1 -type d ! -name '.*' | wc -l | tr -d ' ')
+    if [[ -f "$manifest" && "$src_count" -gt 0 ]]; then
+        while IFS= read -r name; do
+            case "$name" in
+                '' | */* | .* | *..*) continue ;; # empty, path-y, hidden, traversal -> never prune
+            esac
+            if [[ ! -d "$SKILLS_SRC/$name" && -d "$dest/$name" ]]; then
+                rm -rf "${dest:?}/${name}"
+            fi
+        done < "$manifest"
+    fi
+    # Atomic manifest write: a failed subshell must not truncate the previous one.
+    if (cd "$SKILLS_SRC" && find . -mindepth 1 -maxdepth 1 -type d ! -name '.*' |
+        LC_ALL=C sort | sed 's|^\./||') > "$manifest.tmp"; then
+        mv "$manifest.tmp" "$manifest"
+    else
+        rm -f "$manifest.tmp"
+    fi
+}
+
+# Home targets — parallel sync, PID-tracked so failures are visible
 pids=()
 targets=()
 
-rsync -a --delete "$SKILLS_SRC/" "$HOME/.claude/skills/" &
+sync_one "$HOME/.claude/skills" &
 pids+=($!) targets+=("$HOME/.claude/skills")
+primary_real=$(real_dir "$HOME/.claude/skills" || true)
 for dir in "$HOME/.cursor/skills" "$HOME/.gemini/skills" "$HOME/.codex/skills"; do
-    [[ -d "$dir" ]] && {
-        rsync -a --delete "$SKILLS_SRC/" "$dir/" &
-        pids+=($!) targets+=("$dir")
-    }
+    [[ -d "$dir" ]] || continue
+    if [[ -n "$primary_real" && "$(real_dir "$dir")" == "$primary_real" ]]; then
+        err "skipping $dir (symlink to primary skills dir — already synced)"
+        continue
+    fi
+    sync_one "$dir" &
+    pids+=($!) targets+=("$dir")
 done
 
 failed=0

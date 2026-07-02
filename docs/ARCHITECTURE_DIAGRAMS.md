@@ -729,7 +729,7 @@ flowchart LR
 
 - **ALWAYS Parallel**: `/refactor-python`, `/refactor-shell` (security-sensitive)
 - **CONDITIONAL**: `/docs-diagrams` (5+ modules), `/plan-manage` (complex planning),
-  `/browser-test` (critical flows, 3+ tests)
+  `/docs-improve` (500+ total doc lines)
 - **NEVER Parallel**: `/docs-readme` (straightforward documentation)
 
 ---

@@ -51,7 +51,7 @@ are built from each skill's `SKILL.md` frontmatter, the authoritative source.
 | `/pr-issue-sync` | Hook-triggered: on PR open, back-link + advance linked issue to `needs-review` + ensure closing keyword (fail-open) | NO |
 | `/commit-issue-sync` | Hook-triggered: on branch commit, advance a `planned` issue to `in-progress`, deduped (fail-open) | NO |
 | `/plan-manage` | Plan lifecycle with parallel agent orchestration | CONDITIONAL |
-| `/browser-test` | AI-powered E2E browser testing via browser-use YAML test prompts | CONDITIONAL |
+| `/smoke-orchestrator` | Catalog-driven smoke tests; UI steps run via browser-use `mode: agent` | NO |
 | `/checkpoint` | Create compact checkpoint summary when context is high | NO |
 | `/health-check` | Verify CLI tools, auth, config syntax, MCP, symlinks | NO |
 | `/sync-configs` | Detect cross-platform config drift and broken symlinks | NO |
@@ -102,6 +102,9 @@ across GitHub, GitLab, and Linear.
 | `done` | Green | `#0E8A16` | Implementation complete and validated |
 | `follow-up` | Lavender | `#D4C5F9` | Spawned from another issue during implementation |
 | `future` | Green | `#C2E0C6` | Queued for future prioritization and scheduling |
+| `auto-dev` | Purple | `#5319E7` | Eligible for the autonomous issue developer (/auto-issue-dev) |
+| `needs-human` | Dark red | `#B60205` | Auto-dev could not complete; needs a human |
+| `blocked-dependency` | Gray | `#6A737D` | Has an unmet dependency; excluded from the auto-dev queue |
 | `ready-to-merge` | Green | `#0E8A16` | Auto-dev verified the PR but lacked merge authority; awaiting a human merge |
 | `loop-active` | Yellow | `#FBCA04` | Transient lock — the auto-dev merge loop is acting on this PR |
 | `hold` | Red-orange | `#D93F0B` | Do not auto-merge; the loop must route this PR to a human |
@@ -1082,7 +1085,7 @@ _91 commands, generated from `.skillshare/skills/*/SKILL.md`._
 |---------|-------------|-------------|--------|
 | `/a11y-audit` | Focused accessibility audit against WCAG 2.2 AA standards. Checks ARIA best practices, semantic HTML, focus management, color contrast, keyboard navigation, skip links, alt text, form labels, and error announcements. | Focused accessibility audit against WCAG 2. | available |
 | `/ai-code-audit` | Seven-pass audit of a codebase for AI-generation defects (architecture, async/state, error handling, security, logic, quality, iteration): evidence-traced, severity-classified, cross-verified findings. Use for "audit this codebase", "find vibe-coding/AI antipatterns". | Seven-pass audit of a codebase for AI-generation defects (architecture, async/state, error handling, security, logic, quality, iteration): evidence-traced, severity-classified, cross-verified findings. | available |
-| `/browser-test` | DEPRECATED — superseded by the smoke-orchestrator skill (UI steps with mode agent). Kept one release for migration. Manages legacy browser-use YAML prompts in tests/browser/; migrate via python3 -m smoke_orchestrator.migrate tests/browser --app <app>. | DEPRECATED — superseded by the smoke-orchestrator skill (UI steps with mode agent). | available |
+| `/browser-test` | DEPRECATED — superseded by the smoke-orchestrator skill (UI steps with mode agent). Kept one release for migration. Manages legacy browser-use YAML prompts in tests/browser/; migrate via ~/.claude/scripts/smoke_test.py migrate tests/browser --app <app>. | DEPRECATED — superseded by the smoke-orchestrator skill (UI steps with mode agent). | available |
 | `/ci-lint-config-drift` | Diagnose lint/format failures that only appear in CI (pass locally) by finding where CI overrides the repo's committed linter config, then verify the fix at the annotation level | Diagnose lint/format failures that only appear in CI (pass locally) by finding where CI overrides the repo's committed linter config, then verify the fix at the annotation level | available |
 | `/ci-setup` | Configure CI/CD pipelines for a target repository based on detected languages, project structure, and hosting platform (GitHub Actions or GitLab CI). | Configure CI/CD pipelines for a target repository based on detected languages, project structure, and hosting platform (GitHub Actions or GitLab CI). | available |
 | `/live-data-validation` | Validate data-ingestion, parsing, ETL, or API-integration code against real/live data — smoke pass, pre-merge gate, or post-unit-test. Surfaces fixture-blind bugs (free-text numerics, dedup-key collisions, casing/format mismatches, falsy-zero) that synthetic fixtures hide. | Validate data-ingestion, parsing, ETL, or API-integration code against real/live data — smoke pass, pre-merge gate, or post-unit-test. | available |

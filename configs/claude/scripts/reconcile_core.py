@@ -127,7 +127,12 @@ def expected_keys(project):
     keys = set()
     skills_src = os.path.join(project, ".skillshare", "skills")
     for name in _entries(skills_src):
-        if os.path.isdir(os.path.join(skills_src, name)):
+        path = os.path.join(skills_src, name)
+        if os.path.isdir(path):
+            keys.add(f"skills/{name}")
+        elif os.path.isfile(path) and not name.startswith("."):
+            # Repo-sourced top-level files (e.g. README.md) deploy with every
+            # bootstrap; hidden entries are not reconciled units.
             keys.add(f"skills/{name}")
     config_src = os.path.join(project, "configs", "claude", "config")
     for name in _entries(config_src):

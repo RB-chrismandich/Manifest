@@ -53,7 +53,7 @@ jobs:
 
       # Pinned to match .pre-commit-config.yaml (specs/003 FR-014).
       - name: Install yamllint
-        run: pip install yamllint==1.35.1
+        run: pip install yamllint==1.38.0
 
       # Use the repo's .yamllint (max-line 150, warning) rather than the built-in
       # `relaxed` preset, which forces an 80-col limit the project does not adopt.

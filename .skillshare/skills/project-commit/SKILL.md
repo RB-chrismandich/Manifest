@@ -55,6 +55,10 @@ Do **not** invoke slash commands in this pipeline. Execute the equivalent workfl
    - Apply structure/content/format/link checks and fix issues:
      headings, TOC for long docs, "Last Updated", related-doc references,
      code block language tags, broken links, and stale placeholders.
+   - Changelog entry check (CONTRIBUTING.md convention): if the staged work is
+     notable — a new feature, breaking change, or deprecation — require a
+     `CHANGELOG.md` entry under `[Unreleased]` and add one when missing
+     before proceeding to commit.
    - Compute/update a documentation health score summary.
    - If total documentation lines > 500, run:
      `~/.claude/scripts/parallel_agent.py --json --validate`
