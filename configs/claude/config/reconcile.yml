@@ -60,6 +60,10 @@ reconcile:
     - "plans"                       # Claude Code native plan dir (runtime)
     - ".deployed-skills"            # Manifest's own prune manifest (metadata)
     - "skills/.deployed-skills"
+    # --- scripts namespace (v2): runtime interpreter caches, never repo-sourced ---
+    - "__pycache__"
+    - "*.pyc"
+    - ".pytest_cache"
     # --- secondary homes: auth/state with no project source ---
     - "auth.json"                   # ~/.codex
     - "oauth_creds.json"            # ~/.gemini

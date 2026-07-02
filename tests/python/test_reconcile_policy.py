@@ -212,3 +212,57 @@ def test_clean_state(tmp_path):
 def test_unresolvable_project_exit_2(tmp_path, capsys):
     rc = core.main(["--home", str(tmp_path), "--project", str(tmp_path / "nope")])
     assert rc == 2
+
+
+def test_scripts_namespace_reconciled_orphan_and_protected(world):
+    from pathlib import Path
+
+    base, project = world
+    scripts_src = Path(project) / "configs" / "claude" / "scripts"
+    scripts_src.mkdir(parents=True, exist_ok=True)
+    (scripts_src / "live_tool.sh").write_text("#!/bin/bash\n")
+    deployed = Path(base) / ".claude" / "scripts"
+    deployed.mkdir()
+    (deployed / "live_tool.sh").write_text("#!/bin/bash\n")
+    # stale bytecode of a removed package — the motivating orphan (issue #462)
+    (deployed / "orchestrator").mkdir()
+    (deployed / "orchestrator" / "x.cpython-314.pyc").write_text("")
+    # runtime cache inside a live scripts dir — must stay protected
+    (deployed / "__pycache__").mkdir()
+
+    items = core.classify(base, project, [*DEFAULT_PROTECT, "__pycache__", "*.pyc"])
+    by = _by_key(items)
+    assert "scripts/live_tool.sh" not in by  # reconciled — has a repo source
+    assert by["scripts/orchestrator"]["verdict"] == "REMOVE"
+    assert by["scripts/orchestrator"]["reason_code"] == "orphan_no_source"
+    assert by["scripts/__pycache__"]["verdict"] == "KEEP"
+    assert by["scripts/__pycache__"]["reason_code"] == "protected"
+
+
+def test_missing_skill_entry_point_produces_warning(world):
+    from pathlib import Path
+
+    base, project = world
+    skill = Path(base) / ".claude" / "skills" / "uses-script"
+    skill.mkdir()
+    (skill / "SKILL.md").write_text(
+        "Run `~/.claude/scripts/deploy_reconcile.sh` for the preview.\n"
+    )
+    rep = core.build_report(base, project, DEFAULT_PROTECT)
+    assert any("deploy_reconcile.sh" in w for w in rep["warnings"])
+
+
+def test_deployed_entry_point_produces_no_warning(world):
+    from pathlib import Path
+
+    base, project = world
+    deployed = Path(base) / ".claude" / "scripts"
+    deployed.mkdir(exist_ok=True)
+    (deployed / "deploy_reconcile.sh").write_text("#!/bin/bash\n")
+    skill = Path(base) / ".claude" / "skills" / "uses-script"
+    skill.mkdir()
+    (skill / "SKILL.md").write_text(
+        "Run `~/.claude/scripts/deploy_reconcile.sh` for the preview.\n"
+    )
+    rep = core.build_report(base, project, DEFAULT_PROTECT)
+    assert not any("deploy_reconcile.sh" in w for w in rep["warnings"])

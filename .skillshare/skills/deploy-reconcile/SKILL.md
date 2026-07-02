@@ -9,7 +9,7 @@ description: >-
 
 # Deploy Reconciliation Review
 
-Find deployed units (skills, config files) that exist in your home but no longer
+Find deployed units (skills, config files, scripts) that exist in your home but no longer
 exist in the project, and reconcile them. Preview is the default and changes
 nothing; removal is explicit, recoverable, and never runs during a routine deploy.
 
