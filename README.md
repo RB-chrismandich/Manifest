@@ -251,7 +251,7 @@ Manifest/
 │       ├── python/                  # Python project starter
 │       └── terraform/               # Terraform project starter
 ├── .skillshare/                     # Skill source of truth (managed by skillshare)
-│   └── skills/                      # 84 skills deployed to ~/.claude/skills/ by bootstrap
+│   └── skills/                      # skill library deployed to ~/.claude/skills/ by bootstrap
 ├── tests/                           # Test suites
 │   ├── python/                      # pytest tests for parallel_agent and agents/
 │   └── bats/                        # Bats shell tests for bootstrap and scripts
@@ -371,10 +371,10 @@ export CODEX_HOME="$HOME/.manifest/custom-codex-state"
 ## Testing
 
 ```bash
-# Python tests (310 tests covering agents/ package and parallel_agent.py)
+# Python tests (full suite: agents/ package, orchestrator scripts)
 pytest tests/python/ -q
 
-# Shell tests (513 Bats tests covering bootstrap and scripts)
+# Shell tests (full Bats suite covering bootstrap and scripts)
 npx bats tests/bats/
 
 # Lint shell scripts

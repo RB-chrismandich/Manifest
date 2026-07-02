@@ -53,33 +53,33 @@
 
 ### Core Documentation
 
-| File | Description | Last Updated | Status |
-|------|-------------|--------------|--------|
-| [README.md](../README.md) | Project overview and quick start | 2026-06-15 | ✅ |
-| [CLAUDE.md](../CLAUDE.md) | AI assistant context for the repository | 2026-02-11 | ✅ |
-| [CONTRIBUTING.md](../CONTRIBUTING.md) | How to contribute to the project | 2026-05-31 | ✅ |
-| [CHANGELOG.md](../CHANGELOG.md) | Version history and release notes | 2026-05-31 | ✅ |
+| File | Description | Status |
+|------|-------------|--------|
+| [README.md](../README.md) | Project overview and quick start | ✅ |
+| [CLAUDE.md](../CLAUDE.md) | AI assistant context for the repository | ✅ |
+| [CONTRIBUTING.md](../CONTRIBUTING.md) | How to contribute to the project | ✅ |
+| [CHANGELOG.md](../CHANGELOG.md) | Version history and release notes | ✅ |
 
 ### User Documentation
 
-| File | Description | Last Updated | Status |
-|------|-------------|--------------|--------|
-| [GETTING_STARTED.md](GETTING_STARTED.md) | First-time user guide | 2026-06-12 | ✅ |
-| [CONFIGURATION.md](CONFIGURATION.md) | Configuration reference | 2026-06-12 | ✅ |
-| [TROUBLESHOOTING.md](TROUBLESHOOTING.md) | Common issues and solutions | 2026-06-12 | ✅ |
-| [COMMANDS.md](COMMANDS.md) | Built-in commands and how to build custom ones | 2026-06-15 | ✅ |
+| File | Description | Status |
+|------|-------------|--------|
+| [GETTING_STARTED.md](GETTING_STARTED.md) | First-time user guide | ✅ |
+| [CONFIGURATION.md](CONFIGURATION.md) | Configuration reference | ✅ |
+| [TROUBLESHOOTING.md](TROUBLESHOOTING.md) | Common issues and solutions | ✅ |
+| [COMMANDS.md](COMMANDS.md) | Built-in commands and how to build custom ones | ✅ |
 
 ### Technical Documentation
 
-| File | Description | Last Updated | Status |
-|------|-------------|--------------|--------|
-| [ARCHITECTURE_DIAGRAMS.md](ARCHITECTURE_DIAGRAMS.md) | Visual system documentation (19 Mermaid diagrams) | 2026-06-15 | ✅ |
-| [SKILLCLAW.md](SKILLCLAW.md) | SkillClaw session-capture and skill-evolution guide | 2026-06-08 | ✅ |
-| [SPEC-SYSTEMS.md](SPEC-SYSTEMS.md) | Map of the four spec/plan systems and when to use each | 2026-06-10 | ✅ |
-| [TOKEN_BENCHMARK.md](TOKEN_BENCHMARK.md) | Manifest context token overhead and quality delta across providers (`/token-benchmark`) | 2026-06-13 | ✅ |
-| [METRICS.md](METRICS.md) | Agent performance dashboard template (`/dashboard`) | 2026-02-11 | ✅ |
-| [KNOWLEDGE_BASE.md](KNOWLEDGE_BASE.md) | Auto-generated captured learnings (`learning_capture.sh sync-docs`) | 2026-02-13 | ✅ |
-| [PRE_COMMIT.md](PRE_COMMIT.md) | Pre-commit hook reference | 2026-02-05 | ✅ |
+| File | Description | Status |
+|------|-------------|--------|
+| [ARCHITECTURE_DIAGRAMS.md](ARCHITECTURE_DIAGRAMS.md) | Visual system documentation (19 Mermaid diagrams) | ✅ |
+| [SKILLCLAW.md](SKILLCLAW.md) | SkillClaw session-capture and skill-evolution guide | ✅ |
+| [SPEC-SYSTEMS.md](SPEC-SYSTEMS.md) | Map of the four spec/plan systems and when to use each | ✅ |
+| [TOKEN_BENCHMARK.md](TOKEN_BENCHMARK.md) | Manifest context token overhead and quality delta across providers (`/token-benchmark`) | ✅ |
+| [METRICS.md](METRICS.md) | Agent performance dashboard template (`/dashboard`) | ✅ |
+| [KNOWLEDGE_BASE.md](KNOWLEDGE_BASE.md) | Auto-generated captured learnings (`learning_capture.sh sync-docs`) | ✅ |
+| [PRE_COMMIT.md](PRE_COMMIT.md) | Pre-commit hook reference | ✅ |
 
 ### Internal Documentation
 

@@ -102,6 +102,9 @@ across GitHub, GitLab, and Linear.
 | `done` | Green | `#0E8A16` | Implementation complete and validated |
 | `follow-up` | Lavender | `#D4C5F9` | Spawned from another issue during implementation |
 | `future` | Green | `#C2E0C6` | Queued for future prioritization and scheduling |
+| `auto-dev` | Purple | `#5319E7` | Eligible for the autonomous issue developer (/auto-issue-dev) |
+| `needs-human` | Dark red | `#B60205` | Auto-dev could not complete; needs a human |
+| `blocked-dependency` | Gray | `#6A737D` | Has an unmet dependency; excluded from the auto-dev queue |
 | `ready-to-merge` | Green | `#0E8A16` | Auto-dev verified the PR but lacked merge authority; awaiting a human merge |
 | `loop-active` | Yellow | `#FBCA04` | Transient lock — the auto-dev merge loop is acting on this PR |
 | `hold` | Red-orange | `#D93F0B` | Do not auto-merge; the loop must route this PR to a human |

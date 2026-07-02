@@ -2,7 +2,7 @@
 
 > Which planning system to use, when — and what each directory is for
 
-**Last Updated**: 2026-06-10
+**Last Updated**: 2026-06-29
 **Audience**: Contributors, AI agents
 
 This repo accumulated four complementary planning/specification systems. They
