@@ -44,3 +44,20 @@ load_script() { source "$SCRIPT"; }
     [ "$SPEC" = "./spec.md" ]; [ "$PLAN" = "./plan.md" ]; [ "$TASKS" = "./tasks.md" ]
     [ "$SPEC_REVIEW_STATE" = ".spec-review/product" ]
 }
+
+@test "--mode technical selects the technical template (it must exist)" {
+    # The [[ -f ]] guard silently fell back to the generic template while
+    # prompts/spec_review_technical.md did not exist — phases 3 and 7 ran
+    # byte-identical reviews (issue #463).
+    [ -f "$BATS_TEST_DIRNAME/../../configs/claude/prompts/spec_review_technical.md" ]
+    # shellcheck disable=SC1090
+    source "$SCRIPT"
+    parse_args --mode technical
+    [[ "$SPEC_REVIEW_TEMPLATE" == *"spec_review_technical.md" ]]
+}
+
+@test "technical template keeps the shared output contract (NO_ISSUES token)" {
+    grep -q 'NO_ISSUES' "$BATS_TEST_DIRNAME/../../configs/claude/prompts/spec_review_technical.md"
+    grep -q '{{ARTIFACTS}}' "$BATS_TEST_DIRNAME/../../configs/claude/prompts/spec_review_technical.md"
+    grep -q 'CLARIFICATION REQUIRED' "$BATS_TEST_DIRNAME/../../configs/claude/prompts/spec_review_technical.md"
+}

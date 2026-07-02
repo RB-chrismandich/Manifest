@@ -25,8 +25,8 @@ gate signal. Constitution: Principle VI + "Development Lifecycle". Contracts:
 | 8 | implement | `/speckit-implement` | coverage: every shipped user-facing workflow has a smoke test (or exempt) |
 | 9 | verify | `/speckit-implement-review` + `smoke_test.py run --tier Lite` | runner: exit 0 |
 
-> Until the `--mode` flag ships (task T036), set `SPEC_REVIEW_TEMPLATE`/`SPEC_REVIEW_STATE`
-> env vars directly to distinguish the product vs technical passes.
+> The `--mode product|technical` flag routes the state dir and selects the
+> matching template (`prompts/spec_review.md` vs `prompts/spec_review_technical.md`).
 
 ## Usage
 
