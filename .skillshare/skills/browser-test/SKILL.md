@@ -1,6 +1,6 @@
 ---
 name: browser-test
-description: DEPRECATED — superseded by the smoke-orchestrator skill (UI steps with mode agent). Kept one release for migration. Manages legacy browser-use YAML prompts in tests/browser/; migrate via python3 -m smoke_orchestrator.migrate tests/browser --app <app>.
+description: DEPRECATED — superseded by the smoke-orchestrator skill (UI steps with mode agent). Kept one release for migration. Manages legacy browser-use YAML prompts in tests/browser/; migrate via ~/.claude/scripts/smoke_test.py migrate tests/browser --app <app>.
 ---
 
 # Browser Test Skill
@@ -8,7 +8,7 @@ description: DEPRECATED — superseded by the smoke-orchestrator skill (UI steps
 > **⚠️ DEPRECATED — superseded by `smoke-orchestrator`.** Browser E2E now lives in
 > the smoke catalog as `type: ui, mode: agent` steps (same browser-use engine,
 > plus tiering / state-chaining / JUnit / secret redaction). Migrate existing
-> prompts with `python3 -m smoke_orchestrator.migrate tests/browser --app <app>`,
+> prompts with `~/.claude/scripts/smoke_test.py migrate tests/browser --app <app>`,
 > then author new browser tests via `/smoke-orchestrator`. Kept one release to
 > ease migration; will be removed.
 
