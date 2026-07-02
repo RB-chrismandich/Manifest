@@ -15,7 +15,7 @@ teardown() { [[ -n "$TMP" && -d "$TMP" ]] && rm -rf "$TMP"; }
 @test "--help exits 0 and prints usage" {
     run "$SCRIPT" --help
     [ "$status" -eq 0 ]
-    [[ "$output" == *"append"* ]]
+    [[ "$output" == *"append"* ]] || return 1
     [[ "$output" == *"redact"* ]]
 }
 
@@ -30,57 +30,57 @@ teardown() { [[ -n "$TMP" && -d "$TMP" ]] && rm -rf "$TMP"; }
 @test "redact: masks GitHub PAT (ghp_...)" {
     run "$SCRIPT" redact '{"token":"ghp_abcdefghijklmnopqrstuvwxyz123456"}'
     [ "$status" -eq 0 ]
-    [[ "$output" != *"ghp_"* ]]
+    [[ "$output" != *"ghp_"* ]] || return 1
     [[ "$output" == *"REDACTED"* ]]
 }
 
 @test "redact: masks GitHub OAuth token (gho_...)" {
     run "$SCRIPT" redact '{"auth":"gho_abcdefghijklmnopqrstuvwxyz123456"}'
     [ "$status" -eq 0 ]
-    [[ "$output" != *"gho_"* ]]
+    [[ "$output" != *"gho_"* ]] || return 1
     [[ "$output" == *"REDACTED"* ]]
 }
 
 @test "redact: masks Anthropic API key (sk-ant-...)" {
     run "$SCRIPT" redact 'key=sk-ant-api03-aaaabbbbccccddddeeeeffffgggghhhh'
     [ "$status" -eq 0 ]
-    [[ "$output" != *"sk-ant-"* ]]
+    [[ "$output" != *"sk-ant-"* ]] || return 1
     [[ "$output" == *"REDACTED"* ]]
 }
 
 @test "redact: masks OpenAI-style API key (sk-...)" {
     run "$SCRIPT" redact 'key=sk-aaaaaabbbbbbccccccddddddeeeeeeffffffffgggggghh'
     [ "$status" -eq 0 ]
-    [[ "$output" != *"sk-aaaaa"* ]]
+    [[ "$output" != *"sk-aaaaa"* ]] || return 1
     [[ "$output" == *"REDACTED"* ]]
 }
 
 @test "redact: masks OpenAI sk-proj- key containing hyphens" {
     run "$SCRIPT" redact 'key=sk-proj-abcdef1234567890abcdef1234567890'
     [ "$status" -eq 0 ]
-    [[ "$output" != *"sk-proj-"* ]]
+    [[ "$output" != *"sk-proj-"* ]] || return 1
     [[ "$output" == *"REDACTED"* ]]
 }
 
 @test "redact: masks generic token=value pattern" {
     run "$SCRIPT" redact 'token=supersecret123'
     [ "$status" -eq 0 ]
-    [[ "$output" != *"supersecret123"* ]]
+    [[ "$output" != *"supersecret123"* ]] || return 1
     [[ "$output" == *"REDACTED"* ]]
 }
 
 @test "redact: masks Bearer authorization header" {
     run "$SCRIPT" redact 'Authorization: Bearer eyJhbGciOiJSUzI1NiJ9.payload.sig'
     [ "$status" -eq 0 ]
-    [[ "$output" != *"eyJhbGci"* ]]
+    [[ "$output" != *"eyJhbGci"* ]] || return 1
     [[ "$output" == *"REDACTED"* ]]
 }
 
 @test "redact: passes clean text unchanged" {
     run "$SCRIPT" redact '{"issue":42,"action":"pr-opened","outcome":"PR #99"}'
     [ "$status" -eq 0 ]
-    [[ "$output" == *'"issue":42'* ]]
-    [[ "$output" == *'"action":"pr-opened"'* ]]
+    [[ "$output" == *'"issue":42'* ]] || return 1
+    [[ "$output" == *'"action":"pr-opened"'* ]] || return 1
     [[ "$output" != *"REDACTED"* ]]
 }
 

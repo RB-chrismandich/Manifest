@@ -19,7 +19,7 @@ payload() { python3 -c "import json,sys; print(json.dumps({'tool_input':{'file_p
 @test "--help exits 0 and prints usage" {
     run "$SCRIPT" --help
     [ "$status" -eq 0 ]
-    [[ "$output" == *"advisory"* ]]
+    [[ "$output" == *"advisory"* ]] || return 1
     [[ "$output" == *"Dispatch"* ]]
 }
 
@@ -111,7 +111,7 @@ payload() { python3 -c "import json,sys; print(json.dumps({'tool_input':{'file_p
     printf '#!/usr/bin/env bash\ndir=$1\ncd $dir\n' > "$f"   # SC2164/SC2086
     run bash -c "printf '%s' '$(payload "$f")' | PATH='$fakebin' '$bash_bin' '$SCRIPT' 2>&1"
     [ "$status" -eq 0 ]
-    [[ "$output" != *"command not found"* ]]
+    [[ "$output" != *"command not found"* ]] || return 1
     [[ "$output" != *"lint-on-edit:"* ]]   # shellcheck absent -> nothing reported
 }
 

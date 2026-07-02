@@ -49,6 +49,10 @@ jobs:
       - name: Check empty-array expansions (Bash 3.2 set -u)
         run: tests/lint/check_array_expansion.sh
 
+      # (issue #479; same check runs as a pre-commit hook)
+      - name: Check bats assertions (Bash 3.2 silent pass)
+        run: tests/lint/check_bats_assertions.sh
+
       # --- yamllint ---
 
       # Pinned to match .pre-commit-config.yaml (specs/003 FR-014).
