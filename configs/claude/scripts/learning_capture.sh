@@ -724,7 +724,10 @@ for cat_key, cat_title, cat_desc, _ in cat_config:
             desc_short = e.get("description", "").strip().replace("\n", " ")[:100]
             # Real severity field when present; confidence as legacy proxy.
             sev = e.get("severity") or e.get("confidence", "medium")
-            rule = str(e.get("prevention_rule", "") or "").strip().replace("\n", " ")[:120]
+            rule = str(e.get("prevention_rule", "") or "").strip().replace("\n", " ")
+            if len(rule) > 120:
+                # word-boundary truncation with ellipsis; never cut mid-token
+                rule = rule[:117].rsplit(" ", 1)[0] + "..."
             cue = e.get("detection_cue")
             if isinstance(cue, dict):
                 rule = f"{rule} _(cues: {', '.join(sorted(cue))})_" if rule else f"_(cues: {', '.join(sorted(cue))})_"
