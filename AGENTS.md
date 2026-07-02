@@ -142,7 +142,11 @@ The `bootstrap.sh` script automates installation, deployment, and authentication
 --enable-gemini / --disable-gemini   # Gemini CLI (default: enabled)
 --enable-cursor / --disable-cursor   # Cursor agent (default: enabled)
 --enable-codex / --disable-codex     # Codex CLI (default: enabled)
+--enable-antigravity / --disable-antigravity  # Antigravity IDE (default: enabled)
 --enable-graphify / --disable-graphify  # Graphify knowledge-graph CLI + /graphify skill (default: enabled)
+--enable-skillclaw / --disable-skillclaw  # SkillClaw session capture (default: disabled)
+--enable-browser-use / --disable-browser-use  # browser-use deps for smoke agent steps (default: disabled)
+--enable-smoke / --disable-smoke     # smoke-test deps: Playwright+Chromium (default: disabled)
 --enable-gh / --disable-gh           # GitHub CLI (default: auto-detect)
 --enable-glab / --disable-glab       # GitLab CLI (default: auto-detect)
 --install-mcp                        # Configure MCP servers (interactive per-server selection)
@@ -205,7 +209,7 @@ Skills are invoked as slash commands (e.g., `/refactor-python src/`).
 | `/issue-triage` | Linear issue audit: duplicates, staleness, priority validation | CONDITIONAL |
 | `/issue-prioritize` | Score and rank open issues by impact/urgency/readiness/risk | CONDITIONAL |
 | `/plan-manage` | Plan lifecycle with parallel agent orchestration | CONDITIONAL |
-| `/browser-test` | AI-powered E2E browser testing via browser-use YAML test prompts | CONDITIONAL |
+| `/smoke-orchestrator` | Catalog-driven smoke tests; UI steps run via browser-use `mode: agent` | NO |
 | `/checkpoint` | Create compact checkpoint summary when context is high | NO |
 | `/health-check` | Verify CLI tools, auth, config syntax, MCP, symlinks | NO |
 | `/sync-configs` | Detect cross-platform config drift and broken symlinks | NO |
@@ -234,34 +238,9 @@ to all home targets (daily skill dev workflow).
 All Cursor rules are auto-generated from SKILL.md files using `generate_cursor_rules.sh`.
 Each skill produces a corresponding `.mdc` rule in `configs/cursor/rules/`.
 
-| Rule | Description |
-|------|-------------|
-| `orchestration` | Parallel agent orchestration guide (always-on) |
-| `a11y-audit` | WCAG 2.2 AA accessibility audit |
-| `antipattern-detect` | Codebase antipattern detection |
-| `checkpoint` | Context checkpoint |
-| `ci-setup` | CI/CD pipeline configuration |
-| `code-quality` | Auto-triggered security/quality checks |
-| `dashboard` | Efficiency metrics |
-| `docs-diagrams` | Mermaid diagram generation |
-| `docs-improve` | Diataxis documentation |
-| `docs-readme` | README improvement |
-| `health-check` | Environment health check |
-| `issue-prioritize` | Issue prioritization |
-| `issue-triage` | Linear issue triage |
-| `learning-loop` | Lessons learned capture |
-| `performance-check` | Performance analysis |
-| `plan-manage` | Plan lifecycle |
-| `project-commit` | Commit pipeline |
-| `refactor-go` | Go analysis |
-| `refactor-node` | Node.js/TypeScript analysis |
-| `refactor-python` | Python analysis |
-| `refactor-shell` | Shell analysis |
-| `refactor-terraform` | Terraform IaC analysis |
-| `scaffold` | Project scaffolding |
-| `sync-configs` | Config drift detection |
-| `ux-review` | UX/accessibility audit |
-| `verify` | Linter/test/security scan runner |
+The full rule set (one `.mdc` per skill, plus `orchestration` and
+`commands-index`) lives in `configs/cursor/rules/` — regenerate with
+`generate_cursor_rules.sh`; do not hand-edit generated rules.
 
 ### Platform-Specific Notes
 
@@ -293,6 +272,36 @@ All agents share the same orchestration script at `configs/claude/scripts/parall
 - Authoritative weights: `configs/claude/config/validation_criteria.yml`.
   Consensus thresholds and verdict rules (`APPROVED`/`NEEDS_REVIEW`/`BLOCKED`):
   `configs/claude/references/orchestration.md`.
+
+## Proactive Coding Guardrails (always on)
+
+Apply while writing or refactoring code, in every session:
+
+- **Propagate error signals** — every catch rethrows, returns a typed
+  error/fallback the caller must check, or routes to a central handler.
+  Never log-and-fall-through.
+- **Validate at boundaries** — type/presence/range checks at entry points;
+  distinguish zero from missing; pass only validated values inward.
+- **Secrets from the environment only** — no credential literals in source,
+  tests, or .env.example; fail fast when required config is absent.
+- **Handle the async lifecycle** — await or explicitly route every async
+  operation; pair every listener/subscription/timer with its teardown;
+  serialize or atomize concurrent writes to shared state.
+- **Refactor before accreting** — extract the seam before adding to long
+  functions/files; search for an existing helper before writing a new one.
+- **No speculative code** — no guards for unreachable states, no single-use
+  abstractions, no dead modules kept "for later".
+- **Verify dependencies exist** — check the official registry (existence,
+  maintenance, advisories) before adding any package.
+- **Refinement safety** — when modifying existing code, NEVER remove security
+  controls or validation without stating it in the change description.
+
+Registry of anti-patterns (detection cues + prevention rules):
+`configs/claude/config/knowledge_base.yml` (guardrail tags: arch, async-state,
+error-handling, security, dependency, iteration). Full reference:
+`configs/claude/references/antipatterns.md`. On-demand deep audit: `/ai-code-audit`.
+
+---
 
 ## Coding Standards
 
@@ -373,7 +382,7 @@ standing line instead (spec 362, FR-011 documented gap): **before a commit run
 - **Security**: `/ci-workflow-trigger-security` · `/diff-security-review` · `/docker-published-port-firewall-audit` · `/llm-output-path-traversal-audit` · `/mcp-server-security-audit` · `/secret-safe-upstream-proxy` · `/secure-comment-triggered-workflow` · `/security-finding-refutation` · `/security-finding-triage`
 - **Planning & Specs**: `/architecture-decision-tradeoff-table` · `/auto-dev-issue-prep` · `/issue-prioritize` · `/issue-triage` · `/plan-manage` · `/research-validate-design` · `/spec-review` · `/speckit-implement-review` · `/verify-premise` · `/wire-new-field-end-to-end`
 - **Skill Authoring**: `/ai-hooks-integration` · `/meta-prompt-optimize` · `/skill-evolve`
-- **CI/CD, Testing & Quality**: `/a11y-audit` · `/browser-test` · `/ci-lint-config-drift` · `/ci-setup` · `/live-data-validation` · `/performance-check` · `/pin-known-bug-test-survives-fix` · `/refactor-go` · `/refactor-node` · `/refactor-python` · `/refactor-shell` · `/refactor-terraform` · `/reproduce-gated-ci-failure-locally` · `/smoke-orchestrator` · `/statistical-test-fixture-variance` · `/ux-review` · `/verify`
+- **CI/CD, Testing & Quality**: `/a11y-audit` · `/ai-code-audit` · `/browser-test` · `/ci-lint-config-drift` · `/ci-setup` · `/live-data-validation` · `/performance-check` · `/pin-known-bug-test-survives-fix` · `/refactor-go` · `/refactor-node` · `/refactor-python` · `/refactor-shell` · `/refactor-terraform` · `/reproduce-gated-ci-failure-locally` · `/smoke-orchestrator` · `/statistical-test-fixture-variance` · `/ux-review` · `/verify`
 - **Infrastructure & Config**: `/api-bulk-endpoint-optimization` · `/app-native-config-validation` · `/cli-help-before-dependency-checks` · `/containerized-internal-service-probe` · `/debug-layered-config-substitution` · `/deploy-drift-root-cause` · `/diagnose-stalled-background-process` · `/headless-llm-cli-seam` · `/ingestion-table-idempotency` · `/out-of-band-cache-warm` · `/pass-cli` · `/retire-component-cleanup` · `/scaffold` · `/shell-pipefail-subshell-audit` · `/shell-sete-silent-abort-audit` · `/sync-configs` · `/version-pin`
 - **Meta & Orchestration**: `/antipattern-detect` · `/checkpoint` · `/code-quality` · `/dashboard` · `/graphify` · `/health-check` · `/help` · `/learning-loop` · `/memory-log-compress` · `/session-memory-compress` · `/token-benchmark` · `/token-economy`
 - **Uncategorized**: `/deploy-reconcile` · `/lifecycle` · `/pr-regression-smoke`

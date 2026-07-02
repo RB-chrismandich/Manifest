@@ -35,8 +35,7 @@ Default MCP/tool routing — use the matching tool when the task domain matches:
 - **Context7 MCP** — library/API docs, code generation, setup, configuration
 - **Sentry MCP** — production/runtime errors, stack traces, release regressions
 - **Linear MCP** — issue requirements, acceptance criteria, project planning
-- **Semgrep CLI** (`semgrep scan`) — local SAST, vulnerability and secrets
-  checks (install: `brew install semgrep`)
+- **Semgrep CLI** (`semgrep scan`) — local SAST, vulnerability and secrets checks
 - **DeepWiki MCP** — unfamiliar repos, dependency internals, upstream API contracts
 - **Glean MCP** — internal team knowledge, runbooks, ADRs
 - **Google Dev Docs MCP** — Firebase/Cloud/Android/Maps documentation
@@ -51,14 +50,8 @@ Default MCP/tool routing — use the matching tool when the task domain matches:
 # Generic prompt to all agents
 ~/.claude/scripts/parallel_agent.py --json "Your question here"
 
-# Quick query with lightweight models
-~/.claude/scripts/parallel_agent.py --cursor-model mini --claude-model haiku "Quick question"
-
 # Full analysis with validation and model selection (15 min timeout)
 ~/.claude/scripts/parallel_agent.py --json --full-output --validate --timeout 900 --cursor-model advanced --claude-model opus --analyze /absolute/path/to/file
-
-# Antigravity-only quick query
-~/.claude/scripts/parallel_agent.py --antigravity-only --antigravity-model flash "Quick question"
 ```
 
 ## Reference Index
@@ -71,6 +64,17 @@ Read on demand (NOT auto-loaded). You MUST read the reference before related tas
 - `~/.claude/references/layout.md` — Read when modifying config trees or mapping file locations.
 - `~/.claude/references/sub-agent-dispatch.md` — Read before a skill dispatches sub-agents: native Task vs
   `parallel_agent.py`, when-to-dispatch threshold, cross-platform fallback.
+- `~/.claude/references/antipatterns.md` — Read before writing or refactoring code:
+  guardrail registry (detection cues + prevention rules).
+
+## Proactive Coding Guardrails (always on)
+
+While writing: propagate error signals (never log-and-drop); validate inputs at
+boundaries; secrets from env only; await/route every async op; pair
+setup/teardown; serialize shared writes; refactor before accreting; no
+speculative guards, single-use abstractions, or dead code; verify new deps
+exist. When refining, NEVER silently remove security controls or validation.
+Registry: `~/.claude/config/knowledge_base.yml`; `/ai-code-audit` = full audit.
 
 ---
 

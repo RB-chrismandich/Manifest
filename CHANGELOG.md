@@ -10,7 +10,26 @@ All notable changes are documented here in reverse chronological order.
 
 ## [Unreleased]
 
-_Nothing yet — the next unreleased work lands here._
+### specs/457 — Proactive Code Guardrails
+
+- **Guardrail registry** — `knowledge_base.yml` seeded with 33 curated
+  anti-pattern entries across 6 categories (`arch`, `async-state`,
+  `error-handling`, `security`, `dependency`, `iteration`), each with severity,
+  per-language detection cues, and a positive prevention rule; schema pinned by
+  `knowledge_base_registry.bats`.
+- **Write-time prevention** — "Proactive Coding Guardrails (always on)" digest
+  in all deployed guides (budget-checked) with full detail in
+  `references/antipatterns.md`; `code-quality` now flags registry anti-patterns
+  inline as non-blocking advisory feedback.
+- **`/ai-code-audit`** — dedicated seven-pass audit skill (inventory →
+  architecture → async/state → security → logic → quality → iterative
+  regression) with evidence-traced findings, adversarial cross-verification of
+  critical/high candidates, and APPROVED/NEEDS_REVIEW/BLOCKED verdicts; smoke
+  harness at `tests/fixtures/audit-seeded/`.
+- **Capture loop** — `learning_capture.sh add` accepts `--severity`,
+  `--detection-cue`, `--prevention-rule`, `--provenance`;
+  `antipattern-detect`/`learning-loop` captures become active in guidance and
+  audits in one step.
 
 ---
 

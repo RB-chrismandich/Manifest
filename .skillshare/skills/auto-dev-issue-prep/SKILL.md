@@ -56,7 +56,7 @@ confirmation — or autonomously with `--apply` for unattended backlog grooming.
      and, on confirmation, update it: `git_ops.sh issue-edit <N> --body "<improved>"`.
      **Preserve the reporter's intent and content — tighten, don't replace.**
    - If it needs the reporter's input, draft the questions and, on confirmation, post them:
-     `git_ops.sh issue-comment <N> "<questions>"`. If the reporter is in this session, just
+     `git_ops.sh issue-comment <N> --body "<questions>"`. If the reporter is in this session, just
      ask inline instead of commenting.
    - Re-score once answers land; promote to READY when the rubric clears.
 
@@ -67,7 +67,7 @@ confirmation — or autonomously with `--apply` for unattended backlog grooming.
 
 ALWAYS use this structure so the verdict and the proposed mutation are unambiguous:
 
-```
+```text
 ## Issue #<N> — <READY | NEEDS-PREP | NOT-SUITABLE>
 **Title:** <title>
 

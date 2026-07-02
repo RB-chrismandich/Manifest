@@ -212,3 +212,102 @@ def test_clean_state(tmp_path):
 def test_unresolvable_project_exit_2(tmp_path, capsys):
     rc = core.main(["--home", str(tmp_path), "--project", str(tmp_path / "nope")])
     assert rc == 2
+
+
+def test_scripts_namespace_reconciled_orphan_and_protected(world):
+    from pathlib import Path
+
+    base, project = world
+    scripts_src = Path(project) / "configs" / "claude" / "scripts"
+    scripts_src.mkdir(parents=True, exist_ok=True)
+    (scripts_src / "live_tool.sh").write_text("#!/bin/bash\n")
+    deployed = Path(base) / ".claude" / "scripts"
+    deployed.mkdir()
+    (deployed / "live_tool.sh").write_text("#!/bin/bash\n")
+    # stale bytecode of a removed package — the motivating orphan (issue #462)
+    (deployed / "orchestrator").mkdir()
+    (deployed / "orchestrator" / "x.cpython-314.pyc").write_text("")
+    # runtime cache inside a live scripts dir — must stay protected
+    (deployed / "__pycache__").mkdir()
+
+    items = core.classify(base, project, [*DEFAULT_PROTECT, "__pycache__", "*.pyc"])
+    by = _by_key(items)
+    assert "scripts/live_tool.sh" not in by  # reconciled — has a repo source
+    assert by["scripts/orchestrator"]["verdict"] == "REMOVE"
+    assert by["scripts/orchestrator"]["reason_code"] == "orphan_no_source"
+    assert by["scripts/__pycache__"]["verdict"] == "KEEP"
+    assert by["scripts/__pycache__"]["reason_code"] == "protected"
+
+
+def test_missing_skill_entry_point_produces_warning(world):
+    from pathlib import Path
+
+    base, project = world
+    skill = Path(base) / ".claude" / "skills" / "uses-script"
+    skill.mkdir()
+    (skill / "SKILL.md").write_text(
+        "Run `~/.claude/scripts/deploy_reconcile.sh` for the preview.\n"
+    )
+    rep = core.build_report(base, project, DEFAULT_PROTECT)
+    assert any("deploy_reconcile.sh" in w for w in rep["warnings"])
+
+
+def test_deployed_entry_point_produces_no_warning(world):
+    from pathlib import Path
+
+    base, project = world
+    deployed = Path(base) / ".claude" / "scripts"
+    deployed.mkdir(exist_ok=True)
+    (deployed / "deploy_reconcile.sh").write_text("#!/bin/bash\n")
+    skill = Path(base) / ".claude" / "skills" / "uses-script"
+    skill.mkdir()
+    (skill / "SKILL.md").write_text(
+        "Run `~/.claude/scripts/deploy_reconcile.sh` for the preview.\n"
+    )
+    rep = core.build_report(base, project, DEFAULT_PROTECT)
+    assert not any("deploy_reconcile.sh" in w for w in rep["warnings"])
+
+
+def test_traversal_entry_point_ref_cannot_escape_scripts_root(world):
+    from pathlib import Path
+
+    base, project = world
+    # A file that EXISTS outside ~/.claude/scripts — pre-guard, a '..' ref
+    # resolving to it made os.path.exists() succeed and suppressed the warning.
+    (Path(base) / ".claude" / "outside.sh").write_text("#!/bin/bash\n")
+    # An EXISTING intermediate dir is required for the unguarded exists()
+    # check to resolve the traversal (POSIX resolves each component).
+    (Path(base) / ".claude" / "scripts" / "agents").mkdir(parents=True)
+    skill = Path(base) / ".claude" / "skills" / "sneaky"
+    skill.mkdir()
+    (skill / "SKILL.md").write_text(
+        "run ~/.claude/scripts/agents/../../outside.sh now\n"
+    )
+    rep = core.build_report(base, project, DEFAULT_PROTECT)
+    assert any("outside.sh" in w for w in rep["warnings"])
+
+
+def test_expected_keys_includes_top_level_files(world):
+    from pathlib import Path
+
+    _base, project = world
+    skills_src = Path(project) / ".skillshare" / "skills"
+    (skills_src / "README.md").write_text("# skills\n")
+    (skills_src / ".metadata.json").write_text("{}\n")
+    keys = core.expected_keys(project)
+    # repo-sourced top-level files (deployed by every bootstrap) are expected units
+    assert "skills/README.md" in keys
+    # hidden entries are not reconciled units (stay under protection patterns)
+    assert "skills/.metadata.json" not in keys
+
+
+def test_repo_sourced_top_level_file_is_reconciled_not_orphan(world):
+    from pathlib import Path
+
+    base, project = world
+    (Path(project) / ".skillshare" / "skills" / "README.md").write_text("# skills\n")
+    (Path(base) / ".claude" / "skills" / "README.md").write_text("# skills\n")
+    items = core.classify(base, project, DEFAULT_PROTECT)
+    by = _by_key(items)
+    # reconciled units are not listed at all — previously misclassified REMOVE
+    assert "skills/README.md" not in by

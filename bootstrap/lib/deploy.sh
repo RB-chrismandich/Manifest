@@ -58,6 +58,13 @@ deploy_configs() {
         preserved_mcp="$(mktemp)"
         cp "$TARGET_DIR/settings.local.json" "$preserved_mcp"
     fi
+    # Snapshot the deployed command_config.yml too: install_issue_hooks.sh flips
+    # runtime opt-in gates inside this repo-managed file (issue #461).
+    local preserved_cmdcfg=""
+    if [[ -f "$TARGET_DIR/config/command_config.yml" ]]; then
+        preserved_cmdcfg="$(mktemp)"
+        cp "$TARGET_DIR/config/command_config.yml" "$preserved_cmdcfg"
+    fi
 
     # rsync is a hard dependency of every copy path below. Check it BEFORE the
     # destructive `mv` of ~/.claude — failing mid-deploy stranded all user
@@ -118,6 +125,8 @@ deploy_configs() {
                     # MCP servers captured from the live file either way.
                     merge_claude_mcp_servers "$preserved_mcp" "$TARGET_DIR/settings.local.json"
                     [[ -n "$preserved_mcp" ]] && rm -f "$preserved_mcp"
+                    preserve_issue_sync_gates "$preserved_cmdcfg" "$TARGET_DIR/config/command_config.yml"
+                    [[ -n "$preserved_cmdcfg" ]] && rm -f "$preserved_cmdcfg"
                     print_success "Configurations merged"
                     # Still write services config
                     write_services_config
@@ -166,6 +175,10 @@ deploy_configs() {
     # repo's default settings.local.json does not silently drop them.
     merge_claude_mcp_servers "$preserved_mcp" "$TARGET_DIR/settings.local.json"
     [[ -n "$preserved_mcp" ]] && rm -f "$preserved_mcp"
+
+    # Restore runtime-mutated issue-sync opt-in gates the copy just overwrote.
+    preserve_issue_sync_gates "$preserved_cmdcfg" "$TARGET_DIR/config/command_config.yml"
+    [[ -n "$preserved_cmdcfg" ]] && rm -f "$preserved_cmdcfg"
 
     # Deploy skills from the PHYSICAL skillshare source into ~/.claude/skills.
     # Must run before link_shared_assets (create_symlink skips missing targets).
@@ -351,6 +364,86 @@ PYEOF
         0) print_success "Preserved user MCP servers in settings.local.json" ;;
         3) print_info "No user-added MCP servers to preserve in settings.local.json" ;;
         *) print_warning "Could not preserve MCP servers in settings.local.json (manual merge may be needed)" ;;
+    esac
+    return 0
+}
+
+# Preserve runtime-mutated issue-sync opt-in gates across a redeploy.
+# install_issue_hooks.sh flips tool_policies.{pr-issue-sync,commit-issue-sync}
+# .enabled in the DEPLOYED command_config.yml (a repo-managed file); the copy
+# paths overwrite it with the repo default (enabled: false), silently disabling
+# the opted-in hooks (issue #461). Scope: ONLY those two enabled: gates — the
+# repo copy stays authoritative for everything else. Fail-open like its
+# sibling merge_claude_mcp_servers.
+preserve_issue_sync_gates() {
+    local preserved="$1" tgt="$2"
+    [[ -n "$preserved" && -f "$preserved" ]] || return 0
+    [[ -f "$tgt" ]] || return 0
+    if ! command_exists python3; then
+        print_info "python3 unavailable — skipped issue-sync gate preservation in command_config.yml"
+        return 0
+    fi
+    local rc=0
+    python3 - "$preserved" "$tgt" << 'PYEOF2' || rc=$?
+import re, sys
+pre_path, tgt_path = sys.argv[1], sys.argv[2]
+HOOKS = ("pr-issue-sync", "commit-issue-sync")
+
+
+def read_gate(lines, skill):
+    inblk = False
+    for ln in lines:
+        if re.match(r"^  %s:\s*$" % re.escape(skill), ln):
+            inblk = True
+            continue
+        if inblk and re.match(r"^  \S", ln):
+            break
+        if inblk:
+            m = re.match(r"^    enabled:\s*(true|false)", ln)
+            if m:
+                return m.group(1)
+    return None
+
+
+def write_gate(lines, skill):
+    out, inblk, changed = [], False, False
+    for ln in lines:
+        if re.match(r"^  %s:\s*$" % re.escape(skill), ln):
+            inblk = True
+            out.append(ln)
+            continue
+        if inblk and re.match(r"^  \S", ln):
+            inblk = False
+        if inblk and re.match(r"^    enabled:", ln):
+            new = re.sub(r"(enabled:\s*)(true|false)", lambda m: m.group(1) + "true", ln)
+            changed = changed or (new != ln)
+            ln = new
+        out.append(ln)
+    return out, changed
+
+
+try:
+    pre = open(pre_path).read().splitlines(keepends=True)
+    tgt = open(tgt_path).read().splitlines(keepends=True)
+except Exception:
+    sys.exit(2)
+any_changed = False
+for skill in HOOKS:
+    if read_gate(pre, skill) != "true":
+        continue  # only opt-ins are runtime state worth carrying over
+    if read_gate(tgt, skill) == "true":
+        continue
+    tgt, changed = write_gate(tgt, skill)
+    any_changed = any_changed or changed
+if not any_changed:
+    sys.exit(3)
+open(tgt_path, "w").write("".join(tgt))
+sys.exit(0)
+PYEOF2
+    case $rc in
+        0) print_success "Preserved issue-sync opt-in gates in command_config.yml" ;;
+        3) print_info "No issue-sync opt-in gates to preserve in command_config.yml" ;;
+        *) print_warning "Could not preserve issue-sync gates in command_config.yml (re-run install_issue_hooks.sh --enable if needed)" ;;
     esac
     return 0
 }

@@ -90,6 +90,7 @@ overrides:
   skill-evolve: skills
   # ci-cd, testing & quality
   a11y-audit: ci-cd
+  ai-code-audit: ci-cd
   browser-test: ci-cd
   ci-lint-config-drift: ci-cd
   ci-setup: ci-cd

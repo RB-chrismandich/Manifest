@@ -10,6 +10,9 @@
 | `~/.claude/config/validation_criteria.yml` | Tier 1/Tier 2 validation rules with command overrides |
 | `~/.claude/prompts/preflight_analysis.md` | Pre-flight analysis template |
 | `~/.claude/prompts/synthesis.md` | Agent disagreement synthesis template |
+| `~/.claude/prompts/skillclaw_evolve.md` | SkillClaw evolve prompt (script-consumed) |
+| `~/.claude/prompts/spec_review.md` | Spec review template (script-consumed) |
+| `~/.claude/prompts/spec_review_merge.md` | Spec review merge template (script-consumed) |
 | `~/.claude/prompts/validation.md` | Validation criteria template |
 
 ## File Structure
@@ -35,7 +38,6 @@
 │   ├── context_monitor.md
 │   ├── preflight_analysis.md
 │   ├── synthesis.md
-│   ├── triage_synthesis.md
 │   └── validation.md
 ├── config/
 │   ├── command_config.yml

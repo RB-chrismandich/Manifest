@@ -2,7 +2,7 @@
 
 > Repository context and guidance for Claude Code when working with this codebase
 
-**Last Updated**: 2026-06-12
+**Last Updated**: 2026-07-02
 **Audience**: AI assistants (Claude Code), contributors
 **Purpose**: Provide Claude Code with repository structure, deployment process, and testing guidelines
 
@@ -53,6 +53,7 @@ configs/                             # Deployment source configs (deployed to ~/
 
 .claude/                             # Repo-specific config only (does NOT override active sessions)
 ├── CLAUDE.md                        # Developer guide for working in this repo
+├── skills/                          # speckit-* project-scoped skills (loaded in this repo's sessions)
 └── settings.local.json              # Repo-relevant permissions only (no MCP servers)
 
 bootstrap.sh                         # macOS/Linux bootstrap script
@@ -97,7 +98,7 @@ The `bootstrap.sh` script automates installation, deployment, and authentication
 ```
 
 Service toggles (`--enable-*/--disable-*` for claude, gemini, cursor, codex,
-antigravity, graphify, skillclaw, browser-use, gh, glab), other flags (`--skip-install`,
+antigravity, graphify, skillclaw, browser-use, smoke, gh, glab), other flags (`--skip-install`,
 `--skip-auth`, `--force`, `--reconfigure`, `--install-mcp`), and the full step
 list are documented in [README.md](README.md) and `./bootstrap.sh --help`.
 
@@ -169,8 +170,9 @@ python3 -c "import yaml; yaml.safe_load(open('configs/claude/config/validation_c
 Issue labels are managed centrally in `configs/claude/config/labels.yml` and synced across
 GitHub, GitLab, and Linear via `label_sync.sh`.
 
-**Labels**: `planned` (blue), `in-progress` (yellow), `needs-review` (orange), `done` (green),
-`follow-up` (lavender), `future` (green)
+**Labels**: managed centrally in `configs/claude/config/labels.yml` (12 active
+labels incl. the auto-dev lifecycle set); the full registry table lives in
+[docs/COMMANDS.md](docs/COMMANDS.md#label-management).
 
 ```bash
 # Sync all labels to the current platform
@@ -240,5 +242,5 @@ approaches), review stale plans, or archive/abandon completed work.
 <!-- SPECKIT START -->
 ## Active Spec Kit Feature
 
-- none — no spec-kit feature currently in flight (368-deploy-orphan-review delivered 2026-06, PR #443)
+- `457-proactive-code-guardrails` — plan: [specs/457-proactive-code-guardrails/plan.md](specs/457-proactive-code-guardrails/plan.md)
 <!-- SPECKIT END -->

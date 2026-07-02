@@ -557,6 +557,19 @@ tool_policies:
   ai-hooks-integration:
     subagents: never
     subagent_rationale: Single hook-install operation editing shared config files; not a multi-item fan-out.
+  ai-code-audit:
+    allowed:
+      - Read
+      - Glob
+      - Grep
+      - Bash   # read-only inspection (git log, wc, registry lookups); never mutates the target
+    forbidden:
+      - Write
+      - Edit   # Analysis-only: the audit never modifies the audited codebase
+    parallel_agents: conditional  # only for critical/high finding cross-verification (spec 457 FR-012)
+    validation_tier: 1
+    subagents: conditional
+    subagent_trigger: critical_or_high_findings >= 1  # one adversarial refuter per critical/high finding
   antipattern-detect:
     subagents: never
     subagent_rationale: Auto-triggered analyzer writing one shared knowledge_base.yml; parallel writes unsafe.

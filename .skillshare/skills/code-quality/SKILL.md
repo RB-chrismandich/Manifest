@@ -96,6 +96,26 @@ When triggered, this skill:
 | Missing type hints | Low | Function without return type |
 | Magic numbers | Low | Unexplained numeric literals |
 
+### Registry Anti-Patterns (advisory)
+
+On trigger, additionally consult the guardrail registry
+`~/.claude/config/knowledge_base.yml`: every entry carrying exactly one
+guardrail-category tag (`arch`, `async-state`, `error-handling`, `security`,
+`dependency`, `iteration`) — including `provenance: session-capture` entries
+added after this skill shipped — defines a `detection_cue` and a
+`prevention_rule`.
+
+- Match the code being written/reviewed against the entries' detection cues
+  (use the cue for the file's language when the cue is a per-language map).
+- For each match, report inline: entry ID, title, severity, and the entry's
+  `prevention_rule` as the suggested fix.
+- These findings are **advisory and non-blocking** (spec 457 FR-011): they
+  never gate or interrupt the workflow. Blocking remains exclusive to the
+  Tier 1 validation gates (`validation_criteria.yml`).
+- Full per-entry detail: `~/.claude/references/antipatterns.md`. For a
+  systematic whole-codebase review, suggest `/ai-code-audit` instead of
+  expanding inline feedback.
+
 ## Output Format
 
 When triggered, report findings in this format:
