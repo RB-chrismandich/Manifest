@@ -68,3 +68,30 @@ def test_migrate_dir_rejects_a_file_missing_required_fields(tmp_path):
     (src / "bad.yaml").write_text(yaml.safe_dump({"judge_context": ["x"]}))  # no task
     with pytest.raises(ValueError):
         migrate_dir(str(src), app="demo")
+
+
+class TestCliMigrateSubcommand:
+    """The documented copy-paste path must work without PYTHONPATH gymnastics:
+    smoke_test.py's cli gains a `migrate` subcommand delegating to migrate.main
+    (issue #467 — `python3 -m smoke_orchestrator.migrate` fails from a project
+    root because the package is never on sys.path)."""
+
+    def test_cli_migrate_produces_catalog(self, tmp_path):
+        from smoke_orchestrator import cli
+
+        src = tmp_path / "browser"
+        src.mkdir()
+        (src / "login.yaml").write_text(
+            "task: Log in and see the dashboard\njudge_context:\n  - dashboard is visible\n"
+        )
+        out = tmp_path / "smoke-catalog" / "demo.yaml"
+        rc = cli.main(["migrate", str(src), "--app", "demo", "--out", str(out)])
+        assert rc == 0
+        assert out.exists()
+
+    def test_cli_migrate_listed_in_help(self, capsys):
+        from smoke_orchestrator import cli
+
+        with pytest.raises(SystemExit):
+            cli.main(["--help"])
+        assert "migrate" in capsys.readouterr().out

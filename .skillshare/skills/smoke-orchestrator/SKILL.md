@@ -113,7 +113,7 @@ two engines by value (`captures`/`needs`), not shared cookies.
 Migrate existing `browser-test` prompts into a catalog:
 
 ```bash
-python3 -m smoke_orchestrator.migrate tests/browser --app <app>   # → smoke-catalog/<app>.yaml (tier Full)
+~/.claude/scripts/smoke_test.py migrate tests/browser --app <app>  # → smoke-catalog/<app>.yaml (tier Full)
 ```
 
 ## Install (opt-in runtime deps)
