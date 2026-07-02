@@ -153,9 +153,6 @@ Edit `~/.claude/config/linear_triage.yml` to customize:
 | `SKILL.md` | Main skill implementation |
 | `~/.claude/scripts/linear_ops.sh` | Linear MCP wrapper |
 | `~/.claude/config/linear_triage.yml` | Configuration |
-| `~/.claude/prompts/triage_synthesis.md` | Agent disagreement synthesis |
-| `~/.claude/commands/issue-triage.md` | Claude command wrapper |
-| `.gemini/commands/issue-triage.toml` | Gemini command wrapper |
 
 ## See Also
 

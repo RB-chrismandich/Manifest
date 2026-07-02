@@ -35,7 +35,6 @@
 │   ├── context_monitor.md
 │   ├── preflight_analysis.md
 │   ├── synthesis.md
-│   ├── triage_synthesis.md
 │   └── validation.md
 ├── config/
 │   ├── command_config.yml
