@@ -266,3 +266,22 @@ def test_deployed_entry_point_produces_no_warning(world):
     )
     rep = core.build_report(base, project, DEFAULT_PROTECT)
     assert not any("deploy_reconcile.sh" in w for w in rep["warnings"])
+
+
+def test_traversal_entry_point_ref_cannot_escape_scripts_root(world):
+    from pathlib import Path
+
+    base, project = world
+    # A file that EXISTS outside ~/.claude/scripts — pre-guard, a '..' ref
+    # resolving to it made os.path.exists() succeed and suppressed the warning.
+    (Path(base) / ".claude" / "outside.sh").write_text("#!/bin/bash\n")
+    # An EXISTING intermediate dir is required for the unguarded exists()
+    # check to resolve the traversal (POSIX resolves each component).
+    (Path(base) / ".claude" / "scripts" / "agents").mkdir(parents=True)
+    skill = Path(base) / ".claude" / "skills" / "sneaky"
+    skill.mkdir()
+    (skill / "SKILL.md").write_text(
+        "run ~/.claude/scripts/agents/../../outside.sh now\n"
+    )
+    rep = core.build_report(base, project, DEFAULT_PROTECT)
+    assert any("outside.sh" in w for w in rep["warnings"])

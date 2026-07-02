@@ -291,9 +291,15 @@ def entry_point_warnings(base):
                 text = fh.read()
         except OSError:
             continue
+        scripts_root = os.path.join(claude_base, "scripts")
         for ref in _ENTRY_POINT_RE.findall(text):
             ref = ref.rstrip(".")
-            if not os.path.exists(os.path.join(claude_base, "scripts", ref)):
+            # Containment guard: a ref with '..' segments must not let the
+            # existence check escape ~/.claude/scripts (review 3511352386);
+            # an escaping ref is by definition not a deployed entry point.
+            target = os.path.normpath(os.path.join(scripts_root, ref))
+            inside = target == scripts_root or target.startswith(scripts_root + os.sep)
+            if not inside or not os.path.exists(target):
                 warnings.add(
                     f"skill '{name}' references ~/.claude/scripts/{ref} which is not deployed"
                 )
