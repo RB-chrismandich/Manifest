@@ -78,6 +78,9 @@ docs: update getting started guide
 ## Documentation
 
 When adding features, update the relevant docs in `docs/` and the `Last Updated` date.
+Notable changes — new features, breaking changes, deprecations — also add a changelog
+entry to `CHANGELOG.md` under `[Unreleased]` in the same PR (the entry moves into a
+dated section when it ships). Small fixes, refactors, and docs-only changes don't need one.
 See [docs/README.md](docs/README.md) for documentation standards.
 
 ---
