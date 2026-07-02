@@ -149,6 +149,34 @@ EOF
     [[ "$output" == *"#17"*"skipped"*"closed"* ]]
 }
 
+# --- ref strength: bare mentions never close or advance (sync-pr greedy-ref fix) ---
+
+@test "sync-pr: bare #N body mention gets back-link only — no transition, no Closes" {
+    # PR body mentions #99 without a closing verb (e.g. "Tracking epic: #99").
+    printf 'This slice is part of epic #99.' >"$FIXTURE_DIR/pr.json"
+    mk_issue 17 open planned
+    mk_issue 99 open ""
+    run "$SCRIPT" sync-pr 42
+    [ "$status" -eq 0 ]
+    # NOTE: `|| return 1` on every non-final [[ ]]: under macOS bash 3.2, a failing [[ ]]
+    # mid-test is swallowed by errexit and the test silently passes.
+    [[ "$output" == *"#99 comment back-link"* ]] || return 1
+    [[ "$output" != *"closing-keyword Closes #99"* ]] || return 1
+    [[ "$output" != *"#99 transition"* ]] || return 1
+    # the branch-prefix issue (#17) still gets the full treatment
+    [[ "$output" == *"closing-keyword Closes #17"* ]]
+}
+
+@test "sync-pr: explicit 'Closes #N' body ref gets the full treatment" {
+    printf 'Fixes the thing.\n\nCloses #88' >"$FIXTURE_DIR/pr.json"
+    mk_issue 17 open planned
+    mk_issue 88 open planned
+    run "$SCRIPT" sync-pr 42
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"#88 transition"* ]] || return 1
+    [[ "$output" == *"closing-keyword Closes #88 [skipped] (already present)"* ]]
+}
+
 # --- commit: only advances planned (FR-006) ---------------------------------
 
 @test "sync-commit skips an unlabeled issue" {
