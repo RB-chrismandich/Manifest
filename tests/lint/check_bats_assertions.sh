@@ -8,10 +8,10 @@
 # while CI stays honest:
 #   @test "should fail but passes" { out="x"; [[ "$out" == "y" ]]; echo after; }
 #
-# Rule: in any *.bats file, a whole-line bare `[[ ... ]]` (no ||/&&) whose next
-# non-empty line is not the closing `}` of the test is flagged, UNLESS the line
-# carries an inline `# assertion-safe` opt-out comment. Fix by chaining
-# `|| return 1` or moving the assertion to final position.
+# Rule: in any *.bats file, a whole-line bare `[[ ... ]]` (no ||/&&, trailing
+# comment allowed) whose next non-empty line is not the closing `}` of the test
+# is flagged, UNLESS its inline comment contains `assertion-safe`. Fix by
+# chaining `|| return 1` or moving the assertion to final position.
 #
 # Output: one `file:line` per finding; exit 1 if any, else 0.
 # Usage: check_bats_assertions.sh [file.bats ...]   (no args = all tracked *.bats)
@@ -39,20 +39,22 @@ fi
 
 # scan_file FILE -> prints findings (one "file:line" per line).
 scan_file() {
-    local f="$1" lines=() line stripped next i j n
+    local f="$1" lines=() line stripped code comment next i j n
+    # Split a bare whole-line [[ ]] into code and optional trailing comment,
+    # so `[[ ... ]]  # note` is still seen as an assertion and only the
+    # comment (not the mere presence of one) can opt out.
+    local code_re='^(\[\[ .+ \]\])[[:space:]]*(#.*)?$'
     while IFS= read -r line || [[ -n "$line" ]]; do
         lines+=("$line")
     done < "$f"
     n=${#lines[@]}
     for ((i = 0; i < n; i++)); do
         stripped="${lines[$i]#"${lines[$i]%%[![:space:]]*}"}"
-        # Bare whole-line [[ ]] with no continuation and no opt-out.
-        case "$stripped" in
-            "[[ "*" ]]") ;;
-            *) continue ;;
-        esac
-        [[ "$stripped" == *"||"* || "$stripped" == *"&&"* ]] && continue
-        [[ "${lines[$i]}" == *"# assertion-safe"* ]] && continue
+        [[ "$stripped" =~ $code_re ]] || continue
+        code="${BASH_REMATCH[1]}"
+        comment="${BASH_REMATCH[2]:-}"
+        [[ "$code" == *"||"* || "$code" == *"&&"* ]] && continue
+        [[ "$comment" == *"assertion-safe"* ]] && continue
         # Non-final: next non-empty line is not the test's closing brace.
         for ((j = i + 1; j < n; j++)); do
             next="${lines[$j]#"${lines[$j]%%[![:space:]]*}"}"

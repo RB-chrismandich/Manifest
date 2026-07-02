@@ -51,6 +51,21 @@ teardown() {
     assert_success
 }
 
+@test "non-final bare [[ ]] with unrelated inline comment is still caught" {
+    printf '@test "t" {\n    out="x"\n    [[ "$out" == "y" ]] # checks output\n    echo after\n}\n' \
+        > "$SANDBOX/commented.bats"
+    run "$CHECKER" "$SANDBOX/commented.bats"
+    assert_failure
+    assert_output --partial "commented.bats:3"
+}
+
+@test "chained || return 1 with inline comment passes" {
+    printf '@test "t" {\n    [[ -n "$PATH" ]] || return 1 # env sanity\n    echo after\n}\n' \
+        > "$SANDBOX/chained_comment.bats"
+    run "$CHECKER" "$SANDBOX/chained_comment.bats"
+    assert_success
+}
+
 @test "no-args mode scans tracked .bats and exits 0 at HEAD" {
     run "$CHECKER"
     assert_success
