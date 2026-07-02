@@ -116,6 +116,7 @@ description: "Task list for parallel_agent.py modularization into agents/ packag
 - [x] T028 Run final full test suite including all per-module and integration tests: `pytest tests/python/ -v` — zero failures required; this is the final regression gate covering all modules added in US1 and US2
 - [x] T029 [P] Remove dead code: confirm the original monolith body in `parallel_agent.py` is fully replaced by the shim (no old class definitions remain in the entry-point file)
 - [ ] T030 **[REQUIRED MERGE GATE]** Constitution Principle II: run parallel agent cross-verification before merging — `~/.claude/scripts/parallel_agent.py --validate --review configs/claude/scripts/agents/`; this is a MUST per the constitution for >200-line modifications; PR MUST NOT merge without a passing review at ≥50% consensus
+  - _Closeout exception (2026-07-01, issue #456): no cross-verification record exists from the 2026-05 merge (PR #260); the gate was not recorded at merge time. Logged retroactively as a documented exception — the checkbox is left unchecked to reflect what actually happened; the agents/ package has since been continuously covered by the full pytest suite._
 
 ---
 

@@ -4,7 +4,7 @@
 
 **Created**: 2026-06-28
 
-**Status**: Draft
+**Status**: Delivered 2026-06
 
 **Input**: User description: "Review the Gemini discussion ('Jira Integration for Issue Hierarchy') and align the direction forward with our smoke test framework to codify it within our process." The discussion converged on: (1) a strict nine-phase, state-gated development lifecycle — Specify → Clarify → Spec-Review → Plan → Task Creation → Analyze → Spec-Review (technical) → Implement → Verify task-by-task — with hard gating so phases cannot be skipped; (2) a four-tier issue hierarchy — Initiative → Epic → Task → Sub-Task — abstracted polymorphically across issue trackers; and (3) adding Jira (via pre-authenticated MCP, entered from a ticket URL/issue key) as a provider alongside the existing GitHub/GitLab/Linear support. This feature codifies that lifecycle as governed repository process and wires the existing smoke-test orchestrator in as the "Verify task-by-task" gate.
 
