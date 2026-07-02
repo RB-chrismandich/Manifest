@@ -1,19 +1,21 @@
-# Context Monitoring Prompt
+# Context Monitoring Guidance
 
-**Purpose**: Auto-trigger `/checkpoint` when <5% context remains.
+**Purpose**: guidance for context-aware behavior in long sessions. There is no
+automatic trigger — no hook or script consumes this template; the assistant (or
+the user) invokes `/checkpoint` manually when the thresholds below are reached.
 
-## Trigger Condition
+## Thresholds
+
+- **80–95% context used**: run `/checkpoint` to compress the session into a
+  scratchpad summary + memory updates before quality degrades.
+- **Above 95%**: stop new work, run `/checkpoint`, and recommend starting a
+  fresh session from the checkpoint.
+
+## Suggested checkpoint message
 
 ```text
-if (tokens_used / 200000) >= 0.95:
-    auto_invoke("/checkpoint")
-```
-
-## Auto-trigger Message
-
-```text
-⚠️ CONTEXT CHECKPOINT TRIGGERED
+⚠️ CONTEXT CHECKPOINT RECOMMENDED
 
 Usage: X/200000 (Y% used, Z% remaining)
-Auto-invoking /checkpoint to preserve history...
+Run /checkpoint to preserve session history before continuing.
 ```

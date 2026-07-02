@@ -231,8 +231,9 @@ When working on large tasks, monitor context usage to avoid hitting limits:
 - **80-95%**: Use `/checkpoint` to create a compact summary
 - **Above 95%**: Stop and save state; recommend starting a new session
 
-The `context_monitor.md` prompt template provides structured guidance for
-context-aware behavior during long sessions.
+The `context_monitor.md` prompt template documents these thresholds as manual
+guidance — nothing auto-invokes `/checkpoint`; run it yourself at the
+thresholds above.
 
 ---
 
