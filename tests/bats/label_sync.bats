@@ -11,6 +11,12 @@ setup() {
     export BATS_TMPDIR="${BATS_TMPDIR:-/tmp}"
     TEST_DIR=$(mktemp -d "$BATS_TMPDIR/label_sync_test.XXXXXX")
 
+    # Hermetic platform: without this the dry-run/validate tests depend on the
+    # AMBIENT origin remote of whatever checkout runs the suite — they fail
+    # 2/12 in any clone whose origin is not a github/gitlab URL (issue #471).
+    # git_platform.sh short-circuits on this override.
+    export MANIFEST_GIT_PLATFORM=github
+
     # Create a minimal labels.yml for testing
     mkdir -p "$TEST_DIR/config"
     cat > "$TEST_DIR/config/labels.yml" << 'EOF'
