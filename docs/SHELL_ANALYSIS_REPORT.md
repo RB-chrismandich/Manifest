@@ -208,7 +208,7 @@ echo "${file#"$HOME"/}"
 
 ```yaml
 # Line 8 (86 chars - too long)
-  improve_docs_lines: 500         # Trigger parallel agents when total doc lines > 500
+  docs_improve_lines: 500         # Trigger parallel agents when total doc lines > 500
 
 # Line 15 (1 space before comment, needs 2)
   skill_cyclomatic_complexity: 15 # Cyclomatic complexity > 15
