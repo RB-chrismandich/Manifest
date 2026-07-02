@@ -45,6 +45,10 @@ a broader run is a superset. Use `Lite` for the fast critical-path PR gate,
 
 ## How to run (the gate)
 
+> **cwd contract**: run from the project root — the catalog root defaults to the
+> RELATIVE `./smoke-catalog` (it is not deployed to any home). From anywhere
+> else, pass `--catalog-dir /path/to/project/smoke-catalog` explicitly.
+
 ```bash
 # PR gate — fast critical path. exit 0 = merge-safe; 1 = a test failed/blocked; 2 = empty/usage.
 ~/.claude/scripts/smoke_test.py run --app billing --tier Lite --junit smoke-lite.xml
