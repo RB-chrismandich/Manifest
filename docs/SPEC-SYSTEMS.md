@@ -46,4 +46,6 @@ When a spec-kit feature's final PR merges, the same PR (or an immediate follow-u
    exception note under any task that genuinely did not happen.
 3. Update the `<!-- SPECKIT -->` block in root `CLAUDE.md`: point it at the next
    active feature or set it to `none`.
-4. Add the feature's `CHANGELOG.md` entry (see CONTRIBUTING.md's changelog convention).
+4. Add the feature's `CHANGELOG.md` entry under `[Unreleased]` in the same PR
+   (it moves into the dated `[YYYY-MM]` section when it ships; CONTRIBUTING.md's
+   Documentation section carries the full convention).
