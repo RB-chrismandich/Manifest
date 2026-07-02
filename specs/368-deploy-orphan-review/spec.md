@@ -4,7 +4,7 @@
 
 **Created**: 2026-06-30
 
-**Status**: Draft
+**Status**: Delivered 2026-06
 
 **Input**: User description: "Manifest: 1. Run a review when writing or potentially merging. provide an option to list all that would be kept (or removed) that don't exist in our project"
 

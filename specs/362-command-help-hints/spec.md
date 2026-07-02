@@ -4,7 +4,7 @@
 
 **Created**: 2026-06-21
 
-**Status**: Draft
+**Status**: Delivered 2026-06
 
 **Input**: User description: "Improve experience / help for available commands and workflow hints / reminders"
 

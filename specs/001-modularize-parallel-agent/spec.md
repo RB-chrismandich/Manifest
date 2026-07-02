@@ -4,7 +4,7 @@
 
 **Created**: 2026-05-31
 
-**Status**: Draft
+**Status**: Delivered 2026-05
 
 **Input**: User description: "parallel_agent.py modularization — At 2145 lines / 74 functions it's past the point where a single file is maintainable. Natural split: agents/ package — config.py, runners.py, synthesis.py, validation.py, cli.py. Would make targeted tests and future changes much cleaner."
 

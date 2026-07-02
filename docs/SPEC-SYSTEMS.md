@@ -35,3 +35,15 @@ are not competing — each owns a distinct lifecycle stage and audience.
 - [docs/COMMANDS.md](COMMANDS.md) — canonical slash-command table
 - [configs/claude/.plans/README.md](../configs/claude/.plans/README.md) — plan lifecycle reference
 - [.specify/memory/constitution.md](../.specify/memory/constitution.md) — project constitution
+
+## Feature Closeout Checklist
+
+When a spec-kit feature's final PR merges, the same PR (or an immediate follow-up) must:
+
+1. Flip `**Status**: Draft` → `**Status**: Delivered YYYY-MM` in the feature's
+   `spec.md` (and `plan.md` header where present), matching specs/002's format.
+2. Check off remaining `tasks.md` boxes — or record an explicit closeout
+   exception note under any task that genuinely did not happen.
+3. Update the `<!-- SPECKIT -->` block in root `CLAUDE.md`: point it at the next
+   active feature or set it to `none`.
+4. Add the feature's `CHANGELOG.md` entry (see CONTRIBUTING.md's changelog convention).

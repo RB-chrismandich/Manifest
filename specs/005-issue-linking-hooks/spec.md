@@ -4,7 +4,7 @@
 
 **Created**: 2026-06-14
 
-**Status**: Draft
+**Status**: Delivered 2026-06
 
 **Input**: User description: "Create a skill that is designed to support / improve github / gitlab issues. Run it as a hook whenever a PR is executed. Additionally define a similar skill for branch commits."
 

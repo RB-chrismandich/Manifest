@@ -240,5 +240,5 @@ approaches), review stale plans, or archive/abandon completed work.
 <!-- SPECKIT START -->
 ## Active Spec Kit Feature
 
-- `368-deploy-orphan-review` — plan: [specs/368-deploy-orphan-review/plan.md](specs/368-deploy-orphan-review/plan.md)
+- none — no spec-kit feature currently in flight (368-deploy-orphan-review delivered 2026-06, PR #443)
 <!-- SPECKIT END -->

@@ -4,7 +4,7 @@
 
 **Created**: 2026-06-28
 
-**Status**: Draft
+**Status**: Delivered 2026-06
 
 **Input**: User description: "make appropriate use of sub-agents for these. specifically instruct when to."
 

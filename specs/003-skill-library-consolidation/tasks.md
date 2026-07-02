@@ -71,7 +71,7 @@
 - [x] T018 [P] [US2] CHANGELOG.md: move shipped Unreleased items (promote audit log etc.) into a dated `[2026-06]` section; add entries for this feature's PRs as they land
 - [x] T019 [P] [US2] Prepend archive banner to docs/SHELL_ANALYSIS_REPORT.md: `> [ARCHIVED 2026-06-10] Analyzes the retired parallel_agent.sh; superseded — see configs/claude/scripts/ for current tooling`
 - [x] T020 [P] [US2] Create docs/SPEC-SYSTEMS.md per research R9 (roles of specs/+.specify/, docs/superpowers/, configs/claude/.plans/, .Jules/); link it from README.md, docs/README.md, and .claude/CLAUDE.md
-- [ ] T021 [US2] Run quickstart.md §US2 + full gate; markdownlint clean; if the diff exceeds 200 lines (likely), run parallel-agent cross-verification (`~/.claude/scripts/parallel_agent.py --json --timeout 600 --review` on changed files) per Constitution II before opening PR-2
+- [x] T021 [US2] Run quickstart.md §US2 + full gate; markdownlint clean; if the diff exceeds 200 lines (likely), run parallel-agent cross-verification (`~/.claude/scripts/parallel_agent.py --json --timeout 600 --review` on changed files) per Constitution II before opening PR-2
 
 **Checkpoint**: docs match reality; drift map published.
 
@@ -83,14 +83,15 @@
 
 **Independent test** (quickstart.md §US3): quote-path parse succeeds; timeout pytest green; guard clean at HEAD and catches a planted violation; no test_*.py under configs/claude/scripts/.
 
-- [ ] T022 [P] [US3] Fix parse_labels in configs/claude/scripts/label_sync.sh:112-121 — pass `$file` as `sys.argv[1]`; add a bats case to tests/bats/label_sync.bats parsing a labels.yml under a path containing a single quote
-- [ ] T023 [P] [US3] Fix configs/claude/scripts/browser_test.sh lines ~174/~182 (`open('$file')`) and ~186 (`$DEFAULT_MAX_STEPS`) — argv passing for all three (R5)
-- [ ] T024 [P] [US3] Add timeout pytest to tests/python/test_skillclaw_evolve.py (runner raising subprocess.TimeoutExpired → chunk fails as RuntimeError, run continues per fail-continue) then implement `--chunk-timeout`/`SKILLCLAW_CHUNK_TIMEOUT` (default 600) on subprocess.run in configs/claude/scripts/skillclaw_evolve.py:111 (R3)
-- [ ] T025 [US3] Write tests/lint/check_array_expansion.sh per contracts/array-guard.md (detection rule, `# array-safe` opt-out, exit 0/1, findings as `file:line: name`); include fixture self-test proving a planted violation is caught
-- [ ] T026 [US3] Sweep all tracked *.sh for unsafe empty-array expansions; convert to `${arr[@]+"${arr[@]}"}` or annotate `# array-safe`; guard exits 0 at HEAD
-- [ ] T027 [US3] Wire the guard both places (clarification): local repo hook in .pre-commit-config.yaml + step in the lint job of .github/workflows/ci.yml
-- [ ] T028 [P] [US3] `git mv configs/claude/scripts/test_oauth.py configs/claude/scripts/test_parallel_agent.py tests/python/`; fix their sys.path inserts for the new location; `grep -rn "scripts/test_oauth\|scripts/test_parallel_agent"` → fix any references; pytest green
-- [ ] T029 [US3] Run quickstart.md §US3 + full gate; parallel-agent cross-verification (Constitution II — security-adjacent quoting changes); open PR-3
+- [x] T022 [P] [US3] Fix parse_labels in configs/claude/scripts/label_sync.sh:112-121 — pass `$file` as `sys.argv[1]`; add a bats case to tests/bats/label_sync.bats parsing a labels.yml under a path containing a single quote
+- [x] T023 [P] [US3] Fix configs/claude/scripts/browser_test.sh lines ~174/~182 (`open('$file')`) and ~186 (`$DEFAULT_MAX_STEPS`) — argv passing for all three (R5)
+- [x] T024 [P] [US3] Add timeout pytest to tests/python/test_skillclaw_evolve.py (runner raising subprocess.TimeoutExpired → chunk fails as RuntimeError, run continues per fail-continue) then implement `--chunk-timeout`/`SKILLCLAW_CHUNK_TIMEOUT` (default 600) on subprocess.run in configs/claude/scripts/skillclaw_evolve.py:111 (R3)
+- [x] T025 [US3] Write tests/lint/check_array_expansion.sh per contracts/array-guard.md (detection rule, `# array-safe` opt-out, exit 0/1, findings as `file:line: name`); include fixture self-test proving a planted violation is caught
+- [x] T026 [US3] Sweep all tracked *.sh for unsafe empty-array expansions; convert to `${arr[@]+"${arr[@]}"}` or annotate `# array-safe`; guard exits 0 at HEAD
+- [x] T027 [US3] Wire the guard both places (clarification): local repo hook in .pre-commit-config.yaml + step in the lint job of .github/workflows/ci.yml
+- [x] T028 [P] [US3] `git mv configs/claude/scripts/test_oauth.py configs/claude/scripts/test_parallel_agent.py tests/python/`; fix their sys.path inserts for the new location; `grep -rn "scripts/test_oauth\|scripts/test_parallel_agent"` → fix any references; pytest green
+  - _Closeout note (2026-07-01, issue #456): test_parallel_agent.py moved to tests/python/; test_oauth.py was later deleted (OAuth path retired in PR #333) rather than moved._
+- [x] T029 [US3] Run quickstart.md §US3 + full gate; parallel-agent cross-verification (Constitution II — security-adjacent quoting changes); open PR-3
 
 **Checkpoint**: robustness class bugs closed and guarded.
 
