@@ -94,7 +94,7 @@ def parse_transcript(
         for line in fh:
             # ⚡ Bolt: Fast-path prefix check avoids .strip() string allocation
             # and bypasses json.loads exception overhead for non-JSON lines.
-            if not line or (line[0] != '{' and line.lstrip()[:1] != '{'):
+            if not line or (line[0] != "{" and line.lstrip()[:1] != "{"):
                 continue
             try:
                 obj = json.loads(line)
