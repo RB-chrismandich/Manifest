@@ -36,15 +36,29 @@ false-positive risk).
 
 ## Component 1: Stamp writer (bootstrap side)
 
-At the end of a successful Claude deploy (both the fresh-deploy and
-merge-mode paths in `bootstrap/lib/deploy.sh`, alongside
-`write_services_config`), write `~/.claude/config/deploy_stamp`:
+At the end of a successful Claude deploy, write
+`~/.claude/config/deploy_stamp` via a `write_deploy_stamp()` helper called in
+**both** deploy paths alongside `write_services_config`:
+
+- Fresh/backup-replace path (~line 201): stamp is written normally.
+- Merge-mode path (~line 132): the merge path uses
+  `rsync --ignore-existing`, so a pre-existing `settings.local.json` is
+  **skipped** — meaning a user redeploying via merge would not receive the new
+  SessionStart hook from the repo copy. The merge path therefore must (a) call
+  `write_deploy_stamp()` too, and (b) ensure the SessionStart hook is present
+  in the live `settings.local.json`. Reuse the existing
+  `merge_claude_mcp_servers` idempotent-JSON-merge approach: extend it (or add
+  a sibling `merge_claude_session_hooks()`) to union the repo's SessionStart
+  hook entry into the live file if absent. Without this the nudge is
+  dead for every merge-mode redeploy.
+
+The stamp contents:
 
 ```
 tree_configs=<git rev-parse HEAD:configs>
 tree_skills=<git rev-parse HEAD:.skillshare/skills>
 head_sha=<git rev-parse HEAD>
-dirty=<true|false>          # worktree had uncommitted changes at deploy time
+dirty=<true|false>          # configs/ or .skillshare/skills/ had uncommitted changes at deploy time
 clone_path=<absolute path of the deploying clone>
 deployed_at=<ISO-8601 UTC>
 ```
@@ -53,6 +67,12 @@ deployed_at=<ISO-8601 UTC>
   YAML dependency).
 - Recording `clone_path` solves clone discovery for the checker — no reliance
   on `MANIFEST_ROOT` being exported in the hook's environment.
+- `dirty` is scoped to the two deploy-source paths only —
+  `git status --porcelain -- configs .skillshare/skills` — **not** the whole
+  worktree. This mirrors the checker's step 4 exactly; an unrelated
+  uncommitted change (a WIP test, a doc edit) must not mark the stamp dirty,
+  or step 5 would nudge on a clean-main deploy whose configs/skills were in
+  fact fresh.
 - If the deploying directory is not a git repo (e.g. tarball copy), skip the
   stamp entirely; the checker then stays silent (fail-open).
 - The stamp is repo-owned output like `services.yml`: regenerated on every
@@ -63,7 +83,14 @@ deployed_at=<ISO-8601 UTC>
 New script `configs/claude/scripts/deploy_stamp_check.sh`, deployed to
 `~/.claude/scripts/`, registered as a `SessionStart` hook in
 `configs/claude/settings.local.json` (the first SessionStart entry in that
-file).
+file). SessionStart is a new event key for this settings file (it currently
+has only `PreToolUse`/`PostToolUse`/`UserPromptSubmit`).
+
+Also add `Bash(~/.claude/scripts/deploy_stamp_check.sh:*)` to
+`permissions.allow`. This is **not** required for the hook to run — harness-fired
+hooks don't gate on `permissions.allow` (3 of the 5 existing hooks have no allow
+entry and run fine) — but it matches the pattern of 2 of the 5 existing hooks
+and costs nothing, so include it for consistency.
 
 Logic, in order — every early exit is a silent `exit 0`:
 
@@ -130,9 +157,14 @@ patterns — temp git repo with `configs/` + `.skillshare/skills/`):
 
 Stamp writer:
 1. Successful deploy writes a stamp with all six keys and correct tree hashes.
-2. Dirty worktree at deploy time → stamp has `dirty=true`.
+2. Uncommitted change under `configs/` at deploy time → stamp `dirty=true`.
+2b. Uncommitted change OUTSIDE `configs/`+`.skillshare/skills/` (e.g. a WIP
+    file under `tests/`) → stamp `dirty=false` (scope isolation; guards the
+    finding-3 false positive).
 3. Non-git source dir → no stamp written, deploy still succeeds.
-4. Merge-mode deploy path also writes the stamp.
+4. Merge-mode deploy path also writes the stamp AND unions the SessionStart
+   hook into a pre-existing live `settings.local.json` that lacked it
+   (guards the finding-1 gap).
 
 Checker (each asserts silent exit 0 unless noted):
 5. No stamp file.
@@ -155,7 +187,7 @@ via the existing settings checks.
 | File | Change |
 |------|--------|
 | `configs/claude/scripts/deploy_stamp_check.sh` | New checker script |
-| `bootstrap/lib/deploy.sh` | Write stamp in both deploy paths (helper `write_deploy_stamp()`) |
-| `configs/claude/settings.local.json` | Add SessionStart hook entry |
+| `bootstrap/lib/deploy.sh` | `write_deploy_stamp()` helper called in both deploy paths; merge-mode also unions the SessionStart hook into the live `settings.local.json` (skipped by `rsync --ignore-existing`) |
+| `configs/claude/settings.local.json` | Add SessionStart hook entry + `permissions.allow` entry (consistency) |
 | `tests/bats/deploy_stamp.bats` | New test file |
 | `docs/COMMANDS.md` / guides | Only if the regen chain requires it (no new skill, so likely untouched) |
