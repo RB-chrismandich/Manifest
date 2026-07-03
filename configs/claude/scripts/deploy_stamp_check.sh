@@ -16,7 +16,7 @@ debug() { [[ "${DEPLOY_STAMP_DEBUG:-}" == "1" ]] && err "$*"; return 0; }
 
 usage() {
     cat << 'EOF'
-Usage: deploy_stamp_check.sh [--help]
+Usage: deploy_stamp_check.sh [-h|--help]
 
 SessionStart hook: warns once when the Manifest git clone has changed
 configs/ or skills since the last ./bootstrap.sh deploy. Silent (exit 0)

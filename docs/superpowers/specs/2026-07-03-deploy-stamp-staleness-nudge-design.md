@@ -149,6 +149,17 @@ actionable by Claude in whatever project the session starts in.
 - Age-gating or re-warning cadence beyond once-per-hash.
 - Detecting manual edits to the live `~/.claude` tree (user-owned;
   `deploy-reconcile` covers that direction).
+- Re-stamping from `sync-skills`. `sync-skills.sh` is a *partial* deploy: it
+  rsyncs only `.skillshare/skills/` into `~/.claude/skills` and does not ship
+  `configs/`, scripts, or `services.yml`, so it deliberately does not write the
+  stamp. Consequence: after a skills-only `sync-skills` on a clean default
+  branch, the checker may fire once ("run `./bootstrap.sh`") even though the
+  skills are already live — which is technically correct (a full bootstrap
+  deploy *is* stale) but can read as a false positive to a skill developer. The
+  nudge is harmless (bootstrap is idempotent and re-stamps) and dedupes per
+  hash. A future `sync-skills.sh` enhancement could patch just `tree_skills` in
+  the existing stamp to close this window; intentionally deferred so the checker
+  never has to model partial-deploy semantics.
 
 ## Testing
 
