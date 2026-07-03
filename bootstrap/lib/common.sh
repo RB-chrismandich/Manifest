@@ -84,6 +84,11 @@ link_shared_assets() {
     local destination_dir="$1"
     local shared_name="${2:-Config}"
     local include_skills="${3:-false}"
+    # Space-separated asset names to skip for this tool (default: none). Lets a
+    # tool opt out of assets it must not carry — e.g. Antigravity excludes
+    # "scripts prompts" because agy is a parallel_agent provider, not an
+    # orchestrator that runs parallel_agent.py.
+    local exclude="${4:-}"
 
     local symlinks=(
         "scripts:$TARGET_DIR/scripts"
@@ -99,6 +104,8 @@ link_shared_assets() {
     for entry in "${symlinks[@]}"; do
         local name="${entry%%:*}"
         local target="${entry#*:}"
+        # Skip assets this tool opted out of (whole-word match on the list).
+        [[ " $exclude " == *" $name "* ]] && continue
         local link_path="$destination_dir/$name"
         create_symlink "$link_path" "$target" "${shared_name} $name"
     done

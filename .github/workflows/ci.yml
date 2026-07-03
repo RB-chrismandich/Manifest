@@ -262,10 +262,10 @@ jobs:
           check_symlink "configs/codex/.plans"    "../claude/.plans"
 
           # configs/antigravity symlinks (the only platform dir with a
-          # repo-level skills symlink — see issue #328)
-          check_symlink "configs/antigravity/scripts" "../claude/scripts"
+          # repo-level skills symlink — see issue #328). No scripts/prompts:
+          # agy is a parallel_agent provider, not an orchestrator that runs
+          # parallel_agent.py, so it does not carry the orchestrator wiring.
           check_symlink "configs/antigravity/config"  "../claude/config"
-          check_symlink "configs/antigravity/prompts" "../claude/prompts"
           check_symlink "configs/antigravity/skills"  "../claude/skills"
           check_symlink "configs/antigravity/.plans"  "../claude/.plans"
 

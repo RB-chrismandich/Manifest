@@ -49,7 +49,7 @@ configs/                             # Deployment source configs (deployed to ~/
 │   ├── AGENTS.md -> ../../AGENTS.md # Codex guide
 │   └── (symlinks to ../claude/)     # scripts, config, prompts, .plans
 └── antigravity/                     # → ~/.antigravity/ (Antigravity IDE)
-    └── (symlinks to ../claude/)     # scripts, config, prompts, skills, .plans
+    └── (symlinks to ../claude/)     # config, skills, .plans (no scripts/prompts: agy is a parallel_agent provider, not an orchestrator)
 
 .claude/                             # Repo-specific config only (does NOT override active sessions)
 ├── CLAUDE.md                        # Developer guide for working in this repo
