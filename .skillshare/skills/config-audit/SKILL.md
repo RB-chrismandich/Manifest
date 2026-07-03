@@ -60,17 +60,17 @@ Check if `.cursor/rules/*.mdc` files are up-to-date with SKILL.md sources.
 
 ```bash
 # Run in dry-run mode
-.claude/scripts/generate_cursor_rules.sh --dry-run
+~/.claude/scripts/generate_cursor_rules.sh --dry-run
 ```
 
 If any would be updated, report the drift.
 
 ### 3. Gemini Command Parity
 
-Verify that each `.claude/commands/*.md` has a corresponding `.gemini/commands/*.toml`.
+Verify that each `~/.claude/commands/*.md` has a corresponding `.gemini/commands/*.toml`.
 
 ```bash
-for cmd in .claude/commands/*.md; do
+for cmd in ~/.claude/commands/*.md; do
     name=$(basename "$cmd" .md)
     toml=".gemini/commands/${name}.toml"
     if [[ ! -f "$toml" ]]; then
@@ -88,12 +88,12 @@ Compare MCP server configurations across platforms:
 - `.gemini/settings.json` → `mcpServers`
 
 For each platform, extract server names and URLs. Flag any differences from
-the canonical `.claude/config/mcp_servers.yml`.
+the canonical `~/.claude/config/mcp_servers.yml`.
 
 ### 5. Config File Freshness
 
 For shared config files accessed via symlink, verify that the canonical files
-in `.claude/config/` have not been bypassed by platform-specific copies.
+in `~/.claude/config/` have not been bypassed by platform-specific copies.
 
 ```bash
 # These should NOT exist as regular files if symlinks are working

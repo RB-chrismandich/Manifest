@@ -48,11 +48,13 @@ flag, or env var.
 
 1. **Confirm the binary exists, and try spelling variants** (`agi` vs `agy`,
    hyphen vs underscore) — don't conclude "no such tool" from one name:
+
    ```bash
    for b in agy agi antigravity ag tool-cli; do
      p=$(command -v "$b" 2>/dev/null) && echo "found: $b -> $p ($("$b" --version 2>&1 | head -1))"
    done
    ```
+
    Also check common install dirs (`~/.local/bin`, Homebrew, `/usr/local/bin`)
    and whether an installed app ships a CLI.
 2. **Distinguish the binary from the IDE/app.** A symlink-only config dir means
@@ -66,9 +68,11 @@ flag, or env var.
 4. **Smoke-test headless behavior** before wiring it into automation. Confirm
    it reads the prompt from **stdin**, prints a clean result, exits 0, is
    authenticated, and does **not** hang on a TTY/permission prompt. Bound it:
+
    ```bash
    echo "Reply with exactly: OK" | timeout 60 <tool> -p 2>&1; echo "exit=$?"
    ```
+
    (macOS lacks `timeout`; use a background PID + watchdog `kill`.)
 5. **If absent, do not encode it into a spec.** Propose the repo-native
    alternative (skill + reusable engine script) instead of inventing a binary —
@@ -123,11 +127,13 @@ you haven't confirmed it reads.
    directly** rather than passing an ignored env var. Use an `entrypoint:`
    wrapper that idempotently appends the setting before `exec`-ing the original
    entrypoint:
+
    ```sh
    cfg=/config/app.conf
    grep -q 'SettingKey' "$cfg" || printf '\nSettingKey=value\n' >> "$cfg"
    exec /entrypoint.sh "$@"
    ```
+
    Guard with `grep -q` so restarts don't accumulate duplicate lines.
 3. **Verify on the real deployed host, not just locally.** A passing local
    config-validate does not prove the setting took effect — SSH in (or check
@@ -139,4 +145,5 @@ you haven't confirmed it reads.
    the bypass should apply, and never widen an allowlist to the proxy IP (it
    would bypass auth for all proxied traffic).
 
-> Absorbed: verify-cli-premise, verify-cli-premise-before-tooling, verify-tool-premise, verify-api-schema-before-trust, verify-image-runtime-contract (2026-06)
+> Absorbed: verify-cli-premise, verify-cli-premise-before-tooling, verify-tool-premise, verify-api-schema-before-trust,
+> verify-image-runtime-contract (2026-06)

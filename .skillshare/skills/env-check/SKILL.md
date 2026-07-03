@@ -21,7 +21,7 @@ Execute each check category below. Collect results into a summary table.
 
 ### 1. CLI Tool Availability
 
-For each service in `.claude/config/services.yml` where `enabled: true`:
+For each service in `~/.claude/config/services.yml` where `enabled: true`:
 
 ```bash
 command -v <tool_command> &>/dev/null
@@ -58,20 +58,20 @@ python3 -c "import json; json.load(open('<file>'))" 2>&1
 
 Files to check:
 
-- `.claude/config/command_config.yml`
-- `.claude/config/parallel_agent.yml`
-- `.claude/config/services.yml`
-- `.claude/config/validation_criteria.yml`
-- `.claude/config/linear_triage.yml`
-- `.claude/config/mcp_servers.yml`
-- `.claude/config/labels.yml`
+- `~/.claude/config/command_config.yml`
+- `~/.claude/config/parallel_agent.yml`
+- `~/.claude/config/services.yml`
+- `~/.claude/config/validation_criteria.yml`
+- `~/.claude/config/linear_triage.yml`
+- `~/.claude/config/mcp_servers.yml`
+- `~/.claude/config/labels.yml`
 - `.claude/settings.local.json`
 
 Report: valid or error details.
 
 ### 4. MCP Server Connectivity
 
-For each server in `.claude/config/mcp_servers.yml`:
+For each server in `~/.claude/config/mcp_servers.yml`:
 
 ```bash
 curl -s -o /dev/null -w "%{http_code}" --max-time 5 <url>
@@ -108,7 +108,7 @@ Verify all cross-platform symlinks are intact:
 ```
 
 Only check symlinks for services marked `enabled: true` in
-`.claude/config/services.yml` (e.g. skip `.cursor`/`.codex` when disabled).
+`~/.claude/config/services.yml` (e.g. skip `.cursor`/`.codex` when disabled).
 
 For each: check if symlink exists and target is valid.
 
@@ -118,7 +118,7 @@ Report: intact, broken (dangling), or missing.
 
 Verify the label registry is valid and labels are consistent:
 
-1. Check `.claude/config/labels.yml` exists and is valid YAML
+1. Check `~/.claude/config/labels.yml` exists and is valid YAML
 2. Verify each label has required fields: `name`, `color`, `description`, `platforms`
 3. Verify color values are valid 6-digit hex (no leading `#`)
 4. Check for duplicate label names
@@ -128,7 +128,7 @@ Verify the label registry is valid and labels are consistent:
 # Validate labels.yml syntax
 python3 -c "
 import yaml, sys
-with open('.claude/config/labels.yml') as f:
+with open('~/.claude/config/labels.yml') as f:
     data = yaml.safe_load(f)
 labels = data.get('labels', [])
 for label in labels:
@@ -161,7 +161,7 @@ Report as `info` (not `fail`) when missing.
 
 ### 8. Script Executability
 
-Verify all scripts in `.claude/scripts/` are executable:
+Verify all scripts in `~/.claude/scripts/` are executable:
 
 ```bash
 [[ -x "$script" ]]

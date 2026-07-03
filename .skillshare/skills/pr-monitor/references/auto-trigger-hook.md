@@ -12,7 +12,7 @@ see it. It's also not server-side CI — it runs inside your AI session, where t
 
 ## How it works
 
-```
+```text
 you run: gh pr create / glab mr create
             │ (tool succeeds)
             ▼

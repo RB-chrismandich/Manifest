@@ -105,18 +105,21 @@ All pull requests are subject to a two-tier validation process enforced via para
 agent review:
 
 **Tier 1 — Blocking (all must pass)**:
+
 - Cross-verification: multiple agents agree on key findings
 - Security: no injection, XSS, auth bypass, or secrets exposure
 - Error handling: proper exceptions with no silent failures
 - Breaking changes: API compatibility and data migration safety verified
 
 **Tier 2 — Advisory (score ≥0.60 required for APPROVED verdict)**:
+
 - Bug detection: logic errors, off-by-one, null references
 - Performance: no O(n²) loops or memory leaks in hot paths
 - Maintainability: clear naming, reasonable cyclomatic complexity
 - Test coverage: changes include corresponding tests
 
 **Verdicts**:
+
 - `APPROVED`: Tier 1 passes AND Tier 2 score ≥ 0.60
 - `NEEDS_REVIEW`: Tier 1 passes AND Tier 2 score < 0.60
 - `BLOCKED`: Any Tier 1 check fails
@@ -185,6 +188,7 @@ version bump per the policy below, and review by at least one repository maintai
 `LAST_AMENDED_DATE` MUST be updated to the merge date.
 
 **Versioning policy**:
+
 - MAJOR: backward-incompatible governance changes — principle removals or redefinitions
 - MINOR: new principle or section added, or materially expanded guidance
 - PATCH: clarifications, wording fixes, non-semantic refinements

@@ -23,11 +23,11 @@ stale aggregates after upstream corrections.
 
 ## Guardrails
 
-3. **Wrap multi-statement writes in one transaction** (`with conn:`), so a crash
+1. **Wrap multi-statement writes in one transaction** (`with conn:`), so a crash
    can't leave events updated but the derived aggregate stale.
-4. **Guard the empty-feed case**: if the fetch returns zero rows, do NOT run the
+2. **Guard the empty-feed case**: if the fetch returns zero rows, do NOT run the
    `DELETE` — preserve existing data and only bump the as-of/refresh timestamp.
-5. **Separate raw from derived**: keep an append-only raw event log and a
+3. **Separate raw from derived**: keep an append-only raw event log and a
    materialized summary table when a formula may change — you can recompute the
    summary from raw without re-hitting the API (`--recompute`). Drive staleness
    off the raw `fetched_at`, not the summary's `computed_at` (recompute refreshes

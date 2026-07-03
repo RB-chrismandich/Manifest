@@ -4,7 +4,7 @@
 
 **Created**: 2026-07-02
 
-**Status**: Draft
+**Status**: Delivered (PR pending review)
 
 **Input**: User description: "Adopt a `<purpose>-<verb>[-<qualifier>]` naming taxonomy across the skill library (issue #478): ratify the naming convention and domain vocabulary, merge duplicate skills first, delete deprecated browser-test, rename all non-conformant skills per the ratified map, document the convention and exception list in docs/SKILL-NAMING.md, and add a conformance lint/test so new skills must conform."
 

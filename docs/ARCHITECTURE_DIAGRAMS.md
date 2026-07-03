@@ -24,8 +24,8 @@
 13. [Cross-Verification Consensus](#cross-verification-consensus)
 14. [Service State Management](#service-state-management)
 15. [Issue Management Architecture](#issue-management-architecture)
-16. [Issue-Linking Hooks (issue-sync-commit / issue-sync-pr)](#issue-linking-hooks-commit-issue-sync--pr-issue-sync)
-17. [Autonomous Issue Developer (/issue-dev-auto)](#autonomous-issue-developer-auto-issue-dev)
+16. [Issue-Linking Hooks (issue-sync-commit / issue-sync-pr)](#issue-linking-hooks-issue-sync-commit--issue-sync-pr)
+17. [Autonomous Issue Developer (/issue-dev-auto)](#autonomous-issue-developer-issue-dev-auto)
 18. [Label Management Architecture](#label-management-architecture)
 19. [SkillClaw Passive Ingest & Evolve Pipeline](#skillclaw-passive-ingest--evolve-pipeline)
 
@@ -236,7 +236,8 @@ flowchart TB
   - Tier 1 (critical): Security, error handling, breaking changes, cross-verification
   - Tier 2 (quality): Bug detection, performance, maintainability, test coverage
   - Verdicts: APPROVED, NEEDS_REVIEW, BLOCKED
-- **SynthesisEngine**: Automatic disagreement resolution when consensus < 50%, uses Claude Sonnet with synthesis.md template
+- **SynthesisEngine**: Automatic disagreement resolution when consensus < 50%, uses Claude Sonnet with synthesis.md
+  template
 - **Streaming**: Real-time Rich Live display with progressive updates (4 updates/sec, 500 char truncation)
 - **RateLimiter**: Token bucket algorithm with burst support and adaptive backoff
 - **select_backend()**: Per-provider backend picker for SDK-capable providers (Claude, Gemini):

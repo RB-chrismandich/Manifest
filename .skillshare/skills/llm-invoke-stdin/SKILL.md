@@ -10,12 +10,15 @@ The robust, testable shape is the same every time.
 1. **Feed the prompt on stdin, not argv.** A distillation/review prompt can be
    hundreds of KB (token_budget × ~4 chars); passing it as a CLI argument risks
    `OSError: Argument list too long` (`ARG_MAX`, ~1 MB on macOS). Pipe it instead:
+
    ```python
    proc = subprocess.run([cli, "-p"], input=prompt, capture_output=True, text=True)
    ```
+
    ```bash
    printf '%s' "$prompt" | "$REVIEWER_CLI" -p "<short instruction>"
    ```
+
    Keep only a short fixed instruction as the argv; the large body goes through the pipe.
 2. **Put the CLI behind a named, injectable seam** (env var or function), e.g.
    `SPEC_REVIEW_CLI="${SPEC_REVIEW_CLI:-agy}"` / `run_reviewer()`. Name it for the

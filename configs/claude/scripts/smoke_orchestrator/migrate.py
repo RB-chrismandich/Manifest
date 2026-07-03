@@ -79,7 +79,8 @@ def main(argv: list[str] | None = None) -> int:
         description="Migrate legacy browser-use YAML prompts into a smoke catalog (mode: agent, tier Full).",
     )
     p.add_argument(
-        "src_dir", help="directory of legacy browser-use *.yaml files (e.g. tests/browser)"
+        "src_dir",
+        help="directory of legacy browser-use *.yaml files (e.g. tests/browser)",
     )
     p.add_argument(
         "--app", required=True, help="catalog app slug (^[a-z0-9][a-z0-9-]*$)"
