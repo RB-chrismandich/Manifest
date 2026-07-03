@@ -92,7 +92,7 @@ def parse_transcript(
     turns: list[dict] = []
     with path.open(encoding="utf-8", errors="replace") as fh:
         for line in fh:
-            if not line or (line[0] != '{' and line.lstrip()[:1] != '{'):
+            if not line or (line[0] != "{" and line.lstrip()[:1] != "{"):
                 continue
             try:
                 obj = json.loads(line)

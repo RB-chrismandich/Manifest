@@ -253,7 +253,7 @@ def trim(max_runs=MAX_RUNS):
         # iteration drastically reduces peak memory usage on huge log files.
         with path.open("r", encoding="utf-8") as fd:
             for ln in fd:
-                if not ln or (ln[0] != '{' and ln.lstrip()[:1] != '{'):
+                if not ln or (ln[0] != "{" and ln.lstrip()[:1] != "{"):
                     continue
                 try:
                     obj = json.loads(ln)
@@ -273,7 +273,7 @@ def trim(max_runs=MAX_RUNS):
         # Pass 2: only collect kept lines
         with path.open("r", encoding="utf-8") as fd:
             for ln in fd:
-                if not ln or (ln[0] != '{' and ln.lstrip()[:1] != '{'):
+                if not ln or (ln[0] != "{" and ln.lstrip()[:1] != "{"):
                     continue
                 try:
                     obj = json.loads(ln)
