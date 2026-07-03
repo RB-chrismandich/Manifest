@@ -77,7 +77,7 @@
 | [SKILLCLAW.md](SKILLCLAW.md) | SkillClaw session-capture and skill-evolution guide | ✅ |
 | [SPEC-SYSTEMS.md](SPEC-SYSTEMS.md) | Map of the four spec/plan systems and when to use each | ✅ |
 | [TOKEN_BENCHMARK.md](TOKEN_BENCHMARK.md) | Manifest context token overhead and quality delta across providers (`/token-benchmark`) | ✅ |
-| [METRICS.md](METRICS.md) | Agent performance dashboard template (`/dashboard`) | ✅ |
+| [METRICS.md](METRICS.md) | Agent performance dashboard template (`/metrics-report`) | ✅ |
 | [KNOWLEDGE_BASE.md](KNOWLEDGE_BASE.md) | Auto-generated captured learnings (`learning_capture.sh sync-docs`) | ✅ |
 | [PRE_COMMIT.md](PRE_COMMIT.md) | Pre-commit hook reference | ✅ |
 
@@ -88,7 +88,7 @@
 | [configs/claude/CLAUDE.md](../configs/claude/CLAUDE.md) | Orchestration guide (deployed to ~/.claude/) | AI agent coordination |
 | [configs/claude/skills/\*/SKILL.md](../configs/claude/skills/) | Skill definitions (slash commands) | Command behavior |
 | [configs/claude/prompts/\*.md](../configs/claude/prompts/) | Agent orchestration templates | Synthesis and validation |
-| [configs/claude/skills/code-quality/SKILL.md](../configs/claude/skills/code-quality/SKILL.md) | Auto-triggered code quality skill | Security/quality checks |
+| [configs/claude/skills/code-audit/SKILL.md](../configs/claude/skills/code-audit/SKILL.md) | Auto-triggered code quality skill | Security/quality checks |
 
 ---
 
@@ -169,7 +169,7 @@ services:
 **Recent Additions**:
 
 - ✅ 2026-06-15: Documentation refresh for autonomous issue development and issue-linking
-  hooks — new `/auto-issue-dev`, `/repo-hygiene`, `/pr-issue-sync`, `/commit-issue-sync`
+  hooks — new `/issue-dev-auto`, `/repo-clean`, `/issue-sync-pr`, `/issue-sync-commit`
   entries; two new architecture diagrams (issue-linking hooks; autonomous issue developer,
   now 19 total); added `/token-benchmark` + TOKEN_BENCHMARK.md to the hub; corrected skill
   and test counts in README

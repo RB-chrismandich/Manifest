@@ -31,4 +31,4 @@ Mechanical, non-destructive compression of session content into a memory artifac
 - **Merge entries about the same work into one time-blocked entry** (e.g. `08:48-09:22`), grouped by subject (feature/issue/file). Collapsing five entries about one feature into one is the biggest compression win. Do NOT merge work that is genuinely distinct (different branch, hours apart, different phase) just because it shares a topic.
 - Preserve the `## timestamp | branch` format and chronological order throughout.
 
-> Absorbed: session-memory-digest (2026-06); merged from memory-log-compress + session-memory-compress (specs/480, 2026-07).
+> Absorbed: session-memory-digest (2026-06); merged from the former memory-log-compress and session-memory-compress skills (specs/480, 2026-07).

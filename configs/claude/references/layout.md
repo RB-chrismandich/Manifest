@@ -22,18 +22,18 @@
 ├── CLAUDE.md                        # This orchestration guide
 ├── skills/                          # Skill library (28; source: .skillshare/skills/)
 │   ├── checkpoint/SKILL.md
-│   ├── code-quality/SKILL.md       # Auto-triggered quality/security
-│   ├── docs-diagrams/SKILL.md
+│   ├── code-audit/SKILL.md       # Auto-triggered quality/security
+│   ├── docs-generate-diagrams/SKILL.md
 │   ├── docs-improve/SKILL.md
-│   ├── docs-readme/SKILL.md
-│   ├── health-check/SKILL.md
+│   ├── docs-improve-readme/SKILL.md
+│   ├── env-check/SKILL.md
 │   ├── issue-prioritize/SKILL.md
 │   ├── issue-triage/SKILL.md
 │   ├── plan-manage/SKILL.md
-│   ├── project-commit/SKILL.md
-│   ├── refactor-python/SKILL.md
-│   ├── refactor-shell/SKILL.md
-│   └── sync-configs/SKILL.md
+│   ├── git-commit/SKILL.md
+│   ├── python-refactor/SKILL.md
+│   ├── shell-refactor/SKILL.md
+│   └── config-audit/SKILL.md
 ├── prompts/
 │   ├── context_monitor.md
 │   ├── preflight_analysis.md

@@ -24,7 +24,7 @@ payload() { printf '{"tool_name":"Bash","tool_input":{"command":"%s"}}' "$1"; }
 @test "git commit surfaces a commit-guidance hint" {
     run bash -c "echo '$(payload "git commit -m wip")' | '$HINT'"
     assert_success
-    assert_output --partial "/verify"
+    assert_output --partial "/project-verify"
 }
 
 @test "gh pr create surfaces a PR-open hint" {
@@ -42,7 +42,7 @@ payload() { printf '{"tool_name":"Bash","tool_input":{"command":"%s"}}' "$1"; }
 @test "explicit --moment emits that moment's hint" {
     run "$HINT" --moment pre-commit
     assert_success
-    assert_output --partial "/verify"
+    assert_output --partial "/project-verify"
 }
 
 @test "fails open: malformed payload exits 0 with no output" {

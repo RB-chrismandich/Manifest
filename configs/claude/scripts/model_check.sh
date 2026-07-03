@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # model_check.sh — warn-only staleness check of model_tiers pins against live
 # provider listings. Never blocks: every failure degrades to SKIPPED and the
-# exit code is always 0. Invoked by check_status.sh and /health-check.
+# exit code is always 0. Invoked by check_status.sh and /env-check.
 #
 # Report lines: OK / STALE / SKIPPED / UNSUPPORTED
 # Usage: model_check.sh

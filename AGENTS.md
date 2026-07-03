@@ -190,29 +190,29 @@ Required CLI tools (install those you want to use):
 
 All agents share the same skill library from `.skillshare/skills/` (70+ skills;
 exposed via the `configs/claude/skills/` symlink).
-Skills are invoked as slash commands (e.g., `/refactor-python src/`).
+Skills are invoked as slash commands (e.g., `/python-refactor src/`).
 
 ### Skill Reference
 
 | Command | Description | Parallel Agents |
 |---------|-------------|-----------------|
-| `/project-commit` | Full commit pipeline: docs, pull, pre-commits, commit, push | CONDITIONAL (Phase 3) |
-| `/docs-readme` | Improve README documentation | NO |
-| `/docs-diagrams` | Generate Mermaid architecture diagrams | CONDITIONAL (5+ modules) |
+| `/git-commit` | Full commit pipeline: docs, pull, pre-commits, commit, push | CONDITIONAL (Phase 3) |
+| `/docs-improve-readme` | Improve README documentation | NO |
+| `/docs-generate-diagrams` | Generate Mermaid architecture diagrams | CONDITIONAL (5+ modules) |
 | `/docs-improve` | Diataxis documentation framework analysis | CONDITIONAL (>500 lines) |
-| `/docs-all` | Run docs-readme/docs-diagrams/docs-improve as sub-agents in one pass | CONDITIONAL |
-| `/refactor-python` | Python codebase security and quality analysis | ALWAYS |
-| `/refactor-shell` | Bash/Shell script security and quality analysis | ALWAYS |
-| `/refactor-node` | Node.js/TypeScript codebase security and quality analysis | ALWAYS |
-| `/refactor-go` | Go codebase security and quality analysis | ALWAYS |
-| `/refactor-terraform` | Terraform/OpenTofu IaC security, modularity, and quality analysis | ALWAYS |
+| `/docs-all` | Run docs-improve-readme/docs-generate-diagrams/docs-improve as sub-agents in one pass | CONDITIONAL |
+| `/python-refactor` | Python codebase security and quality analysis | ALWAYS |
+| `/shell-refactor` | Bash/Shell script security and quality analysis | ALWAYS |
+| `/node-refactor` | Node.js/TypeScript codebase security and quality analysis | ALWAYS |
+| `/go-refactor` | Go codebase security and quality analysis | ALWAYS |
+| `/terraform-refactor` | Terraform/OpenTofu IaC security, modularity, and quality analysis | ALWAYS |
 | `/issue-triage` | Linear issue audit: duplicates, staleness, priority validation | CONDITIONAL |
 | `/issue-prioritize` | Score and rank open issues by impact/urgency/readiness/risk | CONDITIONAL |
 | `/plan-manage` | Plan lifecycle with parallel agent orchestration | CONDITIONAL |
-| `/smoke-orchestrator` | Catalog-driven smoke tests; UI steps run via browser-use `mode: agent` | NO |
-| `/checkpoint` | Create compact checkpoint summary when context is high | NO |
-| `/health-check` | Verify CLI tools, auth, config syntax, MCP, symlinks | NO |
-| `/sync-configs` | Detect cross-platform config drift and broken symlinks | NO |
+| `/smoke-manage` | Catalog-driven smoke tests; UI steps run via browser-use `mode: agent` | NO |
+| `/session-checkpoint` | Create compact checkpoint summary when context is high | NO |
+| `/env-check` | Verify CLI tools, auth, config syntax, MCP, symlinks | NO |
+| `/config-audit` | Detect cross-platform config drift and broken symlinks | NO |
 | `/version-pin` | Enforce specific, hashed version pins in dependency files (auto-fix on demand; warn-only save hook) | ALWAYS (Tier 1) |
 | `/pr-review` | Review all open PRs and recommend a disposition per PR (analysis-only) | NO |
 | `/branch-clean` | Prune merged/gone/stale branches safely (dry-run by default, local-only) | CONDITIONAL (--apply) |
@@ -222,13 +222,13 @@ Skills are invoked as slash commands (e.g., `/refactor-python src/`).
 | `/a11y-audit` | WCAG 2.2 AA accessibility audit | NO |
 | `/antipattern-detect` | Detect recurring antipatterns from lint, test, and review feedback | NO |
 | `/ci-setup` | Configure CI/CD pipelines for a target repository (GitHub Actions or GitLab CI) | NO |
-| `/code-quality` | Auto-triggered security and quality checks | AUTO (always when triggered) |
-| `/dashboard` | Visualize agent efficiency metrics | NO |
-| `/learning-loop` | Capture structured lessons learned | NO |
+| `/code-audit` | Auto-triggered security and quality checks | AUTO (always when triggered) |
+| `/metrics-report` | Visualize agent efficiency metrics | NO |
+| `/learning-capture` | Capture structured lessons learned | NO |
 | `/performance-check` | Frontend performance audit: bundle size, Core Web Vitals, caching | NO |
-| `/scaffold` | Initialize new projects with quality gates and Manifest integration | NO |
+| `/project-scaffold` | Initialize new projects with quality gates and Manifest integration | NO |
 | `/ux-review` | UX audit: accessibility, responsive design, performance budgets | NO |
-| `/verify` | Run linters, tests, and security scans in parallel | CONDITIONAL |
+| `/project-verify` | Run linters, tests, and security scans in parallel | CONDITIONAL |
 
 **CLI tool** (installed to `~/.local/bin/`): `sync-skills` — sync `.skillshare/skills/`
 to all home targets (daily skill dev workflow).
@@ -368,8 +368,8 @@ To add a new skill, follow the Claude Code skill instructions above.
 Codex and Antigravity have no event-hook substrate, so the per-moment hints that
 Claude Code / Gemini / Cursor deliver automatically are surfaced here as a single
 standing line instead (spec 362, FR-011 documented gap): **before a commit run
-`/verify`** (or `/project-commit` for the full pipeline); **after opening a PR run
-`/post-pr-review-monitor`**; **when context is high run `/checkpoint`**. Run
+`/project-verify`** (or `/git-commit` for the full pipeline); **after opening a PR run
+`/pr-monitor`**; **when context is high run `/session-checkpoint`**. Run
 `/help` for anything else.
 
 ## Command Index
@@ -377,15 +377,15 @@ standing line instead (spec 362, FR-011 documented gap): **before a commit run
 <!-- BEGIN COMMAND INDEX (generate_commands_doc.py --inject-guides) -->
 <!-- markdownlint-disable MD013 -->
 
-- **Git & PRs**: `/address-pr-comments` · `/auto-issue-dev` · `/bot-pr-triage` · `/branch-clean` · `/clean-pr-from-stale-base` · `/commit-issue-sync` · `/locate-missing-artifact-across-git` · `/merge-stacked-pr-chain` · `/post-pr-review-monitor` · `/pr-issue-sync` · `/pr-review` · `/project-commit` · `/repo-hygiene` · `/reset-reapply-clean-pr` · `/triage-bot-pr-flood`
-- **Documentation**: `/docs-all` · `/docs-diagrams` · `/docs-improve` · `/docs-readme`
-- **Security**: `/ci-workflow-trigger-security` · `/diff-security-review` · `/docker-published-port-firewall-audit` · `/llm-output-path-traversal-audit` · `/mcp-server-security-audit` · `/secret-safe-upstream-proxy` · `/secure-comment-triggered-workflow` · `/security-finding-refutation` · `/security-finding-triage`
-- **Planning & Specs**: `/architecture-decision-tradeoff-table` · `/auto-dev-issue-prep` · `/issue-prioritize` · `/issue-triage` · `/plan-manage` · `/research-validate-design` · `/spec-review` · `/speckit-implement-review` · `/verify-premise` · `/wire-new-field-end-to-end`
-- **Skill Authoring**: `/ai-hooks-integration` · `/meta-prompt-optimize` · `/skill-evolve`
-- **CI/CD, Testing & Quality**: `/a11y-audit` · `/ai-code-audit` · `/browser-test` · `/ci-lint-config-drift` · `/ci-setup` · `/live-data-validation` · `/performance-check` · `/pin-known-bug-test-survives-fix` · `/refactor-go` · `/refactor-node` · `/refactor-python` · `/refactor-shell` · `/refactor-terraform` · `/reproduce-gated-ci-failure-locally` · `/smoke-orchestrator` · `/statistical-test-fixture-variance` · `/ux-review` · `/verify`
-- **Infrastructure & Config**: `/api-bulk-endpoint-optimization` · `/app-native-config-validation` · `/cli-help-before-dependency-checks` · `/containerized-internal-service-probe` · `/debug-layered-config-substitution` · `/deploy-drift-root-cause` · `/diagnose-stalled-background-process` · `/headless-llm-cli-seam` · `/ingestion-table-idempotency` · `/out-of-band-cache-warm` · `/pass-cli` · `/retire-component-cleanup` · `/scaffold` · `/shell-pipefail-subshell-audit` · `/shell-sete-silent-abort-audit` · `/sync-configs` · `/version-pin`
-- **Meta & Orchestration**: `/antipattern-detect` · `/checkpoint` · `/code-quality` · `/dashboard` · `/graphify` · `/health-check` · `/help` · `/learning-loop` · `/memory-log-compress` · `/session-memory-compress` · `/token-benchmark` · `/token-economy`
-- **Uncategorized**: `/deploy-reconcile` · `/lifecycle` · `/pr-regression-smoke`
+- **Git & PRs**: `/pr-address-comments` · `/issue-dev-auto` · `/pr-triage-bots` · `/branch-clean` · `/pr-clean-base` · `/issue-sync-commit` · `/git-find-artifact` · `/pr-merge-stacked` · `/pr-monitor` · `/issue-sync-pr` · `/pr-review` · `/git-commit` · `/repo-clean` · `/pr-reset-reapply` · `/pr-triage-bots`
+- **Documentation**: `/docs-all` · `/docs-generate-diagrams` · `/docs-improve` · `/docs-improve-readme`
+- **Security**: `/ci-audit-triggers` · `/security-review-diff` · `/docker-audit-firewall` · `/llm-audit-traversal` · `/mcp-audit` · `/security-harden-proxy` · `/ci-harden-workflow` · `/security-refute-findings` · `/security-triage-findings`
+- **Planning & Specs**: `/spec-decide-tradeoffs` · `/issue-prep-auto` · `/issue-prioritize` · `/issue-triage` · `/plan-manage` · `/design-validate` · `/spec-review` · `/speckit-audit-tasks` · `/premise-verify` · `/data-wire-field`
+- **Skill Authoring**: `/ai-hooks-integration` · `/prompt-optimize` · `/skill-evolve`
+- **CI/CD, Testing & Quality**: `/a11y-audit` · `/ai-code-audit` · `/browser-test` · `/ci-diagnose-drift` · `/ci-setup` · `/data-validate-live` · `/performance-check` · `/test-pin-bug` · `/go-refactor` · `/node-refactor` · `/python-refactor` · `/shell-refactor` · `/terraform-refactor` · `/ci-reproduce-failure` · `/smoke-manage` · `/test-vary-fixtures` · `/ux-review` · `/project-verify`
+- **Infrastructure & Config**: `/api-optimize-bulk` · `/config-validate-native` · `/cli-audit-help` · `/docker-probe-internal` · `/config-debug-substitution` · `/deploy-diagnose-drift` · `/process-diagnose-stall` · `/llm-invoke-stdin` · `/data-design-ingestion` · `/cache-warm-oob` · `/pass-cli` · `/deploy-retire-component` · `/project-scaffold` · `/shell-audit-pipefail` · `/shell-audit-errexit` · `/config-audit` · `/version-pin`
+- **Meta & Orchestration**: `/antipattern-detect` · `/session-checkpoint` · `/code-audit` · `/metrics-report` · `/graphify` · `/env-check` · `/help` · `/learning-capture` · `/memory-compress` · `/memory-compress` · `/token-benchmark` · `/token-conserve`
+- **Uncategorized**: `/deploy-reconcile` · `/lifecycle-run` · `/pr-smoke`
 
 Run `/help <query>` for descriptions and when-to-use.
 

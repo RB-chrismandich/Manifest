@@ -4,7 +4,7 @@ description: |
   Full Manifest regression (CI mirror: shellcheck, yamllint, markdownlint, bats
   + pytest) plus a deployed-env smoke pass, as a post-PR gate. Use right after a
   PR opens or merges — "regression test the PR", "did the merge break anything",
-  "verify main is still green". Whole-repo verdict; prefer over verify or health-check.
+  "verify main is still green". Whole-repo verdict; prefer over verify or env-check.
 ---
 
 # PR Regression + Smoke
@@ -21,10 +21,10 @@ GitHub state or know about PR numbers — it validates the code in front of it.
 
 ## When to reach for this vs. neighbors
 
-- **`verify`** runs a *single project's* lint/test/security for one language. Use
+- **`project-verify`** runs a *single project's* lint/test/security for one language. Use
   it for a quick quality pass on a subdirectory. This skill is the whole-repo,
   CI-equivalent gate plus a smoke pass — heavier and PR-scoped.
-- **`health-check`** validates only the deployed environment (configs, symlinks,
+- **`env-check`** validates only the deployed environment (configs, symlinks,
   auth). That is a *subset* of this skill's smoke phase.
 - Reach for **this** skill when someone wants one verdict answering "is it safe
   to merge / did the merge break anything?"
@@ -35,7 +35,7 @@ The deterministic work lives in a bundled runner so the verdict is reproducible
 and the exit code can gate a merge or feed a hook. From the repo root:
 
 ```bash
-.skillshare/skills/pr-regression-smoke/scripts/run_pr_regression.sh
+.skillshare/skills/pr-smoke/scripts/run_pr_regression.sh
 ```
 
 Useful flags (the script self-documents via `--help`):

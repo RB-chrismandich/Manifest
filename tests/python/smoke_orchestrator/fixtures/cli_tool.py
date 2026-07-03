@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Trivial CLI target for smoke-orchestrator executor tests (``cli`` step type).
+"""Trivial CLI target for smoke-manage executor tests (``cli`` step type).
 
 Subcommands exercise the runner's contract without any external dependency:
 

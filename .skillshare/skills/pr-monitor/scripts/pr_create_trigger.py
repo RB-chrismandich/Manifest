@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Auto-trigger handler for post-pr-review-monitor.
+"""Auto-trigger handler for pr-monitor.
 
 Reads a tool-lifecycle hook payload on stdin (Claude PostToolUse, Gemini
 AfterTool, Cursor afterShellExecution — normalized by ai-hooks-integration's
 unified handler) and, when it sees a SUCCESSFUL `gh pr create` / `glab mr create`
 shell command, emits hook output that nudges the agent to run the
-post-pr-review-monitor skill on the just-created PR.
+pr-monitor skill on the just-created PR.
 
 Fail-open by design: any parse error, a non-matching command, or a failed
 command prints nothing and exits 0, so the hook never blocks normal work.
@@ -82,7 +82,7 @@ def main() -> int:
     debug("PR-create detected — emitting trigger")
     context = (
         "A pull/merge request was just created. Run the "
-        "`post-pr-review-monitor` skill on this new PR: monitor CI to green "
+        "`pr-monitor` skill on this new PR: monitor CI to green "
         "(diagnosing and fixing failures), address GitHub Copilot findings if "
         "Copilot reviewed, and tag @google-labs-jules (if not already tagged) "
         "then watch for and address its feedback. Auto-detect the PR for the "

@@ -13,7 +13,7 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "configs/claude/scripts"))
 import guidance_hint as gh
 
-CATALOG_NAMES = {"verify", "project-commit", "checkpoint", "pr-review"}
+CATALOG_NAMES = {"verify", "git-commit", "checkpoint", "pr-review"}
 
 REGISTRY = {
     "moments": [
@@ -28,8 +28,8 @@ REGISTRY = {
     "rules": [
         {
             "moment_id": "pre-commit",
-            "command_refs": ["verify", "project-commit"],
-            "message": "Before committing: /verify or /project-commit.",
+            "command_refs": ["verify", "git-commit"],
+            "message": "Before committing: /project-verify or /git-commit.",
             "priority": 10,
             "dedup_key": "commit-guidance",
             "category": "hint",
@@ -45,7 +45,7 @@ REGISTRY = {
         {
             "moment_id": "high-context",
             "command_refs": ["checkpoint"],
-            "message": "Context is high — consider /checkpoint.",
+            "message": "Context is high — consider /session-checkpoint.",
             "priority": 10,
             "dedup_key": "context-guidance",
             "category": "reminder",
@@ -90,7 +90,7 @@ def test_select_orders_by_priority_desc():
             },
             {
                 "moment_id": "pre-commit",
-                "command_refs": ["project-commit"],
+                "command_refs": ["git-commit"],
                 "message": "high",
                 "priority": 9,
                 "dedup_key": "b",
@@ -207,7 +207,7 @@ def test_validate_missing_moment_id_raises_registry_error_not_keyerror():
 def test_format_hints_one_shot_text():
     hints = gh.select_hints(REGISTRY, "pre-commit")
     out = gh.format_hints(hints)
-    assert "/verify" in out
+    assert "/project-verify" in out
     assert out.count("\n") <= 1  # one-shot, compact
 
 
@@ -364,7 +364,7 @@ def test_single_opt_out_write_then_suppressed(tmp_path):
 MOMENT_SAMPLES = {
     "pre-commit": "git commit -m 'wip'",
     "pr-open": "gh pr create --fill",
-    "refactor-start": "/refactor-python src/",
+    "refactor-start": "/python-refactor src/",
     "high-context": None,  # signal-only
 }
 

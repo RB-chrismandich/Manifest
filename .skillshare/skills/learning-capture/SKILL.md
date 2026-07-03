@@ -71,7 +71,7 @@ Before prompting, infer context from the current session:
 Store entries in `~/.claude/config/knowledge_base.yml` using this schema:
 
 ```yaml
-# Knowledge Base - Auto-managed by learning-loop skill
+# Knowledge Base - Auto-managed by learning-capture skill
 # Do not edit manually unless correcting entries
 version: 1
 entries:
@@ -82,7 +82,7 @@ entries:
     description: "Ruff is a single Rust-based tool that replaces flake8, isort, and black with faster execution."
     tags: [linting, formatting, migration]
     tool: ruff
-    source: refactor-python
+    source: python-refactor
     confidence: high
     example: "ruff check --fix . && ruff format ."
     created: "2026-02-11T14:30:00Z"
@@ -93,7 +93,7 @@ entries:
 
 When the captured learning is an **antipattern**, additionally populate the
 guardrail-registry fields so the entry is immediately consumed by write-time
-guidance (`code-quality`) and `/ai-code-audit` (capture-to-active in one step):
+guidance (`code-audit`) and `/ai-code-audit` (capture-to-active in one step):
 
 - `severity`: `critical` | `high` | `medium` | `low` | `info`
 - `detection_cue`: how to spot it in code (string, or per-language map)
@@ -127,11 +127,11 @@ When querying, search across these fields: `title`, `description`, `tags`, `tool
 
 ```bash
 # Search examples
-/learning-loop query ruff
-/learning-loop query "go test"
-/learning-loop list antipattern
-/learning-loop list tool-discovery
-/learning-loop stats
+/learning-capture query ruff
+/learning-capture query "go test"
+/learning-capture list antipattern
+/learning-capture list tool-discovery
+/learning-capture stats
 ```
 
 ### Query Output
@@ -154,7 +154,7 @@ When querying, search across these fields: `title`, `description`, `tags`, `tool
 - **Language**: python
 - **Description**: Ruff is a single Rust-based tool that replaces flake8, isort, and black.
 - **Example**: `ruff check --fix . && ruff format .`
-- **Source**: refactor-python
+- **Source**: python-refactor
 ```
 
 ### Stats Output

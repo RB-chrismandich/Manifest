@@ -4,7 +4,7 @@ description: Use when merging stacked PRs via gh/glab — `gh pr merge --delete-
 ---
 # Merge a Stacked PR Chain Safely
 
-Distinct from `clean-pr-from-stale-base` (rebasing one branch onto a fresh base) and `reset-reapply-clean-pr` (untangling tangled history). This is the merge-time choreography for an already-open stack.
+Distinct from `pr-clean-base` (rebasing one branch onto a fresh base) and `pr-reset-reapply` (untangling tangled history). This is the merge-time choreography for an already-open stack.
 
 1. **Map the stack first.** `for n in <PRs>; do gh pr view $n --json number,baseRefName,headRefName; done`. Confirm the chain: A(base `main`) ← B(base A) ← C(base B) …
 2. **Ensure CI runs on every PR before merging.** A workflow keyed `on: pull_request: branches: [main]` only triggers for PRs targeting `main`; stacked children targeting a non-main base show "no checks reported" and can't be gated. Drop the base filter (`on: pull_request:` with no `branches:`) so each story-PR is independently green.

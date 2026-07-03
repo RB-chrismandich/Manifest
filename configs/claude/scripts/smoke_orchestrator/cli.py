@@ -2,7 +2,7 @@
 
 `list`/`prune` (US4) are wired in the lifecycle phase. Heavy deps (executor →
 Playwright) are imported lazily inside each handler so `--help` succeeds before
-any dependency/config lookup (repo convention; cli-help-before-dependency-checks).
+any dependency/config lookup (repo convention; cli-audit-help).
 """
 
 from __future__ import annotations
@@ -14,7 +14,7 @@ from pathlib import Path
 
 # NOTE: heavy/runtime imports (appender→catalog→yaml, executor→Playwright) are
 # deferred into each handler so `--help` and arg parsing never require them
-# (cli-help-before-dependency-checks). build_parser()/main() stay stdlib-only.
+# (cli-audit-help). build_parser()/main() stay stdlib-only.
 
 
 def _err(msg: str) -> None:

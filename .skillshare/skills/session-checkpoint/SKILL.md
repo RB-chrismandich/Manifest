@@ -100,8 +100,8 @@ Generate a structured summary in the scratchpad directory:
 
 | Command | Purpose | Outcome |
 |---------|---------|---------|
-| `/project-commit` | Create comprehensive commit | ✅ Success (commit 03e67ee) |
-| `/refactor-python` | Analyze codebase | ⚠️ Found 3 issues |
+| `/git-commit` | Create comprehensive commit | ✅ Success (commit 03e67ee) |
+| `/python-refactor` | Analyze codebase | ⚠️ Found 3 issues |
 
 ---
 
@@ -231,7 +231,7 @@ Conversation can continue with preserved context in memory and summary.
 This command should be **auto-invoked** when:
 1. Context usage > 95% (190,000/200,000 tokens)
 2. Before starting any new major task
-3. User explicitly runs `/checkpoint`
+3. User explicitly runs `/session-checkpoint`
 
 ## Example Usage
 
@@ -240,10 +240,10 @@ This command should be **auto-invoked** when:
 # (no user action needed)
 
 # Manual trigger
-/checkpoint
+/session-checkpoint
 
 # Custom threshold
-/checkpoint 90
+/session-checkpoint 90
 ```text
 
 ---

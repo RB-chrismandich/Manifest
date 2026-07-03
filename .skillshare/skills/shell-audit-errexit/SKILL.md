@@ -1,10 +1,10 @@
 ---
 name: shell-audit-errexit
-description: Use when a bash script under `set -e`/`set -euo pipefail` aborts in production but passes tests — audit helpers and sourced libs for non-`$()` control-flow triggers (trailing `&&`, stdin-drain, SIGPIPE, `((i++))`-returns-1). Complements shell-pipefail-subshell-audit.
+description: Use when a bash script under `set -e`/`set -euo pipefail` aborts in production but passes tests — audit helpers and sourced libs for non-`$()` control-flow triggers (trailing `&&`, stdin-drain, SIGPIPE, `((i++))`-returns-1). Complements shell-audit-pipefail.
 ---
 # Audit Shell Helpers for Production-Only Aborts Tests Miss
 
-Four control-flow hazards that pass small fixtures and abort in production. Same family as `shell-pipefail-subshell-audit`, but the trigger is control flow, not `$()` parsing.
+Four control-flow hazards that pass small fixtures and abort in production. Same family as `shell-audit-pipefail`, but the trigger is control flow, not `$()` parsing.
 
 1. **Recognize the signature.** Script exits non-zero (1, or 141 for SIGPIPE) right after a benign step (a "Deployed files" listing, a cleanup), with no error output, skipping everything after it — or a loop processes only its first item. Tests pass because fixtures are small, the file exists, or there's no real subprocess. The failing statement is often three files deep in a sourced helper that "can't fail."
 2. **Trailing-conditional return.** Scan every function and sourced script for a LAST statement of the form `[[ cond ]] && action` or `cmd && action`. When the guard is false the `&&` list returns non-zero, becomes the function's exit status, and under `set -e` in the caller aborts the whole script. This was a launchd-cleanup `[[ -f "$plist" ]] && {...}` that killed every bootstrap run silently. Fix: end on explicit `return 0`/`true`, guard with `|| true`, or rewrite as `if ... then ... fi`.

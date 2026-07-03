@@ -1,15 +1,15 @@
 ---
 name: ci-audit-triggers
-description: Audit a GitHub Actions / GitLab CI workflow on attacker-influenceable triggers (pull_request_target, issue_comment, workflow_run) — finds pwn-request issues (fork head-ref checkout, ${{ }} injection, author_association gaps). Analysis-only; to harden one, use secure-comment-triggered-workflow.
+description: Audit a GitHub Actions / GitLab CI workflow on attacker-influenceable triggers (pull_request_target, issue_comment, workflow_run) — finds pwn-request issues (fork head-ref checkout, ${{ }} injection, author_association gaps). Analysis-only; to harden one, use ci-harden-workflow.
 ---
 # Security-Review a CI Workflow on Untrusted Triggers
 
-Generic source→sink review (`diff-security-review`) and `mcp-server-security-audit` miss CI-specific
+Generic source→sink review (`security-review-diff`) and `mcp-audit` miss CI-specific
 escalations: the sink is a runner holding the **base repo's secrets**, the substitution happens in the
 runner's own `${{ }}`/shell semantics, and the attacker controls a fork PR's code or a comment's text while a
 privileged trigger runs in base-repo context. Apply this whenever a `.github/workflows/*.yml` (or
 `.gitlab-ci.yml`) fires on events an outsider can influence, or exposes `secrets.*`. To *build or lock down*
-such a workflow (CODEOWNERS, branch protection, environments), use `secure-comment-triggered-workflow`.
+such a workflow (CODEOWNERS, branch protection, environments), use `ci-harden-workflow`.
 
 1. **Classify the trigger's trust level.** `pull_request_target`, `issue_comment`, `issues`, `workflow_run`,
    and `discussion_comment` run with the **base repo's secrets and a writable token**, and are reachable by

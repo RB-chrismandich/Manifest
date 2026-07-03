@@ -439,7 +439,7 @@ After completing the analysis, capture the most significant findings:
        --category antipattern --language bash \
        --title "<finding title>" \
        --description "<finding description and recommended fix>" \
-       --source refactor-shell --confidence high
+       --source shell-refactor --confidence high
      ```
 
 2. For any new tool recommendations discovered:
@@ -450,7 +450,7 @@ After completing the analysis, capture the most significant findings:
        --category tool_discovery --language bash \
        --title "<tool recommendation>" \
        --description "<why this tool is better>" \
-       --source refactor-shell --confidence medium
+       --source shell-refactor --confidence medium
      ```
 
 3. This step is **non-blocking** -- failures in learning capture should not affect the analysis output.

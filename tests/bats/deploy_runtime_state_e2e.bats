@@ -95,7 +95,7 @@ assert_config_deployed() {
     [ -f "$TARGET_DIR/CLAUDE.md" ]
     [ -d "$TARGET_DIR/config" ]
     [ -d "$TARGET_DIR/scripts" ]
-    [ -d "$TARGET_DIR/skills/code-quality" ]   # real skills, not the symlink
+    [ -d "$TARGET_DIR/skills/code-audit" ]   # real skills, not the symlink
     [ ! -L "$TARGET_DIR/skills" ]
 }
 
@@ -138,7 +138,7 @@ assert_config_deployed() {
 
     assert_runtime_preserved
     [ -f "$TARGET_DIR/CLAUDE.md" ]
-    [ -d "$TARGET_DIR/skills/code-quality" ]
+    [ -d "$TARGET_DIR/skills/code-audit" ]
 
     # Merge keeps the user's settings.local.json (and its MCP server) intact.
     run python3 -c "

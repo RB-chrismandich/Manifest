@@ -1,11 +1,11 @@
 ---
 name: issue-prep-auto
-description: Triage/groom/prep a single issue for the auto-dev loop — apply the `auto-dev` label when ready, or tighten scope and draft clarifying questions when not. Use before auto-issue-dev when asked to assess, make-ready, or validate an issue for autonomous development.
+description: Triage/groom/prep a single issue for the auto-dev loop — apply the `auto-dev` label when ready, or tighten scope and draft clarifying questions when not. Use before issue-dev-auto when asked to assess, make-ready, or validate an issue for autonomous development.
 ---
 
 # Auto-Dev Issue Prep
 
-Get **one** issue ready for `auto-issue-dev` — the autonomous developer that picks up
+Get **one** issue ready for `issue-dev-auto` — the autonomous developer that picks up
 `auto-dev`-labeled issues and implements them test-first with no human in the loop. Because
 that developer has no one to ask mid-task, an issue is only safe to hand it when the goal,
 scope, and definition of "done" are unambiguous **from the issue alone**. This skill makes
@@ -95,6 +95,6 @@ ALWAYS use this structure so the verdict and the proposed mutation are unambiguo
   swallowed, and never leaves an issue half-groomed without saying so.
 - **One issue per invocation.** To sweep the backlog, the caller loops this over
   `git_ops.sh issue-list`; keeping the unit small keeps each readiness call auditable.
-- This is the **intake** step; `auto-issue-dev` is the **development** step. Labeling an
+- This is the **intake** step; `issue-dev-auto` is the **development** step. Labeling an
   issue `auto-dev` here is the signal that hands it to that loop, so treat the label as a
   commitment that the rubric genuinely cleared.

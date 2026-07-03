@@ -37,7 +37,7 @@ URL if the user gave one.
   `configs/claude/scripts/git_platform.sh`.
 
 If no PR exists for the branch, say so and ask whether to create one (or point
-the user at `/project-commit`) rather than guessing. If the PR is a **draft**,
+the user at `/git-commit`) rather than guessing. If the PR is a **draft**,
 note it — Copilot/Jules often won't auto-review a draft; offer to mark it ready.
 
 See `references/platform-commands.md` for the full GitHub/GitLab command
@@ -56,10 +56,10 @@ When a check **fails**, don't just report it — diagnose and fix:
 1. Pull the failing logs (`gh run view <run-id> --log-failed`, or the GitLab job
    trace). Read the *actual* error, not the check name.
 2. Find the root cause in the diff. A lint/format failure that only shows up in
-   CI often means CI overrides the local linter config — the `ci-lint-config-drift`
+   CI often means CI overrides the local linter config — the `ci-diagnose-drift`
    skill is the right tool there.
 3. Apply a **scoped** fix. Re-run the same checks locally first (lean on the
-   `verify` skill — it runs the lint/test/scan chain CI runs) so you are not
+   `project-verify` skill — it runs the lint/test/scan chain CI runs) so you are not
    pushing on faith.
 4. Commit with a message naming the failure you fixed, push, and go back to
    watching. Each push restarts CI, so loop here until green.
@@ -80,7 +80,7 @@ Copilot is already on the PR. (Jules is the one you tag in phase 3.)
   `references/platform-commands.md` for the exact `gh api` queries.
 - **No Copilot →** skip this phase (Copilot review may not be enabled on the
   repo; that's fine, don't try to force it).
-- **Copilot present with findings →** hand the work to the **`address-pr-comments`**
+- **Copilot present with findings →** hand the work to the **`pr-address-comments`**
   skill. It already does this correctly: fetch all three feedback channels,
   verify each claim against the current code (bots are sometimes wrong — line
   numbers drift, claims go stale), fix the real ones, decline wrong ones with
@@ -110,7 +110,7 @@ assignee is silently ignored. The only programmatic trigger in this repo is a
    - **commits pushed to the PR branch**, or
    - a **separate linked PR**.
    Poll for these (see waiting strategy below). When findings land as comments,
-   route them through **`address-pr-comments`** just like Copilot's. If Jules
+   route them through **`pr-address-comments`** just like Copilot's. If Jules
    pushes commits or opens a sibling PR, review that diff on its merits before
    accepting (the `pr-triage-bots` skill covers judging bot diffs) — Jules
    over-produces and is sometimes wrong, so verify, don't rubber-stamp.
@@ -145,9 +145,9 @@ don't busy-spin every few seconds.
 - **Don't fabricate progress.** Only claim CI is green / a bot is satisfied
   after you've seen it. "Pending" is a valid, useful status.
 - **Verify bot claims before acting on them** — this is delegated to
-  `address-pr-comments`, which is built around exactly that discipline.
+  `pr-address-comments`, which is built around exactly that discipline.
 - This skill orchestrates; the heavy lifting lives in focused skills
-  (`address-pr-comments`, `verify`, `ci-lint-config-drift`, `pr-triage-bots`).
+  (`pr-address-comments`, `project-verify`, `ci-diagnose-drift`, `pr-triage-bots`).
   Reach for them instead of duplicating their logic.
 
 ## Auto-trigger on PR creation

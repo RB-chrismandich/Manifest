@@ -10,7 +10,7 @@ description: |
 
 When a commit lands on a feature branch, this skill moves the linked issue into
 "active" status so the tracker reflects work-in-progress as soon as it starts. It is
-one half of the issue-linking hooks (see also [`pr-issue-sync`]); both delegate to the
+one half of the issue-linking hooks (see also [`issue-sync-pr`]); both delegate to the
 shared engine `configs/claude/scripts/issue_support.sh`.
 
 ## What it does
@@ -40,10 +40,10 @@ configs/claude/scripts/issue_support.sh sync-commit HEAD [--dry-run] [--no-creat
 Installed via `configs/claude/scripts/install_issue_hooks.sh --enable` (unified
 `PostToolUse`, matched to `git commit`) and optionally `--native` to add a guarded
 git `post-commit` hook for commits made outside an AI tool. Opt-in: gated by
-`tool_policies.commit-issue-sync.enabled`.
+`tool_policies.issue-sync-commit.enabled`.
 
 ## Configuration
 
-`command_config.yml → tool_policies.commit-issue-sync`: `enabled` (default false),
+`command_config.yml → tool_policies.issue-sync-commit`: `enabled` (default false),
 `hook_timeout_seconds` (default 5), `commit_hook_mode` (`sync` only in v1;
 `background` is reserved and falls back to `sync` with a warning).

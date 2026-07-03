@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# audit_log.sh — append-only JSONL audit writer for /auto-issue-dev
+# audit_log.sh — append-only JSONL audit writer for /issue-dev-auto
 #
 # Subcommands:
 #   append <json>   Redact known secret patterns and append record; exit 0 (fail-open)

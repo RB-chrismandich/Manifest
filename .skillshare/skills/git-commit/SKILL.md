@@ -279,7 +279,7 @@ capture the failure patterns for the knowledge base:
        --category antipattern --language <detected> \
        --title "Pre-commit: <hook> failure" \
        --description "<what failed and how it was fixed>" \
-       --source project-commit --confidence medium
+       --source git-commit --confidence medium
      ```
 
 2. This step is **non-blocking** -- failures in learning capture should not affect the commit pipeline.

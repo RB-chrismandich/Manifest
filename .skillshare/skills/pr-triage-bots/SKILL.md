@@ -24,4 +24,4 @@ dispositions; below that, triage inline. Pick the mechanism per the shared Sub-A
 `parallel_agent.py` / inline on other assistants. Dispatched sub-agents execute their task directly and
 do not re-dispatch.
 
-> Merged from bot-pr-triage + triage-bot-pr-flood (specs/480, 2026-07).
+> Merged from the former bot-pr-triage and triage-bot-pr-flood skills (specs/480, 2026-07).

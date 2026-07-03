@@ -1,0 +1,15 @@
+---
+description: "Analyze and improve repository README documentation using code-derived facts, clear structure, and practical onboarding guidance."
+globs: ".claude/skills/docs-improve-readme/**"
+alwaysApply: false
+---
+
+# docs-improve-readme
+
+Analyze and improve repository README documentation using code-derived facts, clear structure, and practical onboarding guidance.
+
+<!-- Auto-generated from .claude/skills/docs-improve-readme/SKILL.md -->
+<!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
+
+Refer to `.cursor/skills/docs-improve-readme/SKILL.md` for the full skill definition.
+

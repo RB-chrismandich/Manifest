@@ -74,7 +74,7 @@ def build(env, platform="claude"):
 # --------------------------------------------------------------------------- #
 def test_when_to_use_explicit_use_when_clause():
     desc = "Use when your PR receives review feedback — fetch via gh api. Distinct from pr-review."
-    assert cc.derive_when_to_use(desc, "address-pr-comments").startswith(
+    assert cc.derive_when_to_use(desc, "pr-address-comments").startswith(
         "Use when your PR receives review feedback"
     )
 

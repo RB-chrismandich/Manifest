@@ -1,5 +1,5 @@
 # Knowledge Base — Structured Learning Storage
-# Managed by: learning-loop skill, antipattern-detect skill
+# Managed by: learning-capture skill, antipattern-detect skill
 # Utility: ~/.claude/scripts/learning_capture.sh
 # Format: entries indexed by ID with category, language, and metadata
 #
@@ -122,7 +122,7 @@ entries:
     created: 2026-02-11
     last_seen: 2026-02-11
     occurrences: 1
-    source: refactor-python
+    source: python-refactor
     references:
       - https://docs.astral.sh/ruff/
 

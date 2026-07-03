@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Squash-merge-aware hygiene data gatherer for the repo-hygiene skill.
+"""Squash-merge-aware hygiene data gatherer for the repo-clean skill.
 
 Supplies the two pieces the existing backends (pr_review.sh / branch_clean.sh)
 can't, in one platform-aware pass:

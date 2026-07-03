@@ -1,0 +1,15 @@
+---
+description: "Auto-trigger when users ask to create, optimize, refactor, or structure a new agent prompt or skill template. Ingests unoptimized input prompts and outputs a structurally pristine, normalized system skill template using XML schemas."
+globs: ".claude/skills/prompt-optimize/**"
+alwaysApply: false
+---
+
+# prompt-optimize
+
+Auto-trigger when users ask to create, optimize, refactor, or structure a new agent prompt or skill template. Ingests unoptimized input prompts and outputs a structurally pristine, normalized system skill template using XML schemas.
+
+<!-- Auto-generated from .claude/skills/prompt-optimize/SKILL.md -->
+<!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
+
+Refer to `.cursor/skills/prompt-optimize/SKILL.md` for the full skill definition.
+

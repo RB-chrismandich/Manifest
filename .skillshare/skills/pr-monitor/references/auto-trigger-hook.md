@@ -4,7 +4,7 @@ This skill can fire automatically the moment you open a PR/MR from an AI coding
 tool. The trigger is a **tool-lifecycle hook** (Claude Code PostToolUse and the
 equivalents in Cursor, Gemini CLI, and Antigravity) that watches shell commands
 for a successful `gh pr create` / `glab mr create` and then nudges the agent to
-run `post-pr-review-monitor` on the new PR.
+run `pr-monitor` on the new PR.
 
 It is *not* a git hook: PR/MR creation is a remote event, and a git hook can't
 see it. It's also not server-side CI — it runs inside your AI session, where the
@@ -35,12 +35,12 @@ Use the `ai-hooks-integration` skill's unified installer — one handler, source
 detection, registered on the right event for each tool:
 
 ```bash
-HANDLER="$HOME/.claude/skills/post-pr-review-monitor/scripts/pr_create_trigger.py"
+HANDLER="$HOME/.claude/skills/pr-monitor/scripts/pr_create_trigger.py"
 
 ~/.claude/skills/ai-hooks-integration/scripts/install_all.py \
   --unified \
   --handler "$HANDLER" \
-  --name post-pr-review-monitor \
+  --name pr-monitor \
   --dry-run        # drop --dry-run to apply
 ```
 
@@ -67,7 +67,7 @@ a plugin instead — see `install_opencode_plugin.py` in ai-hooks-integration.
 ```bash
 ~/.claude/skills/ai-hooks-integration/scripts/merge_hooks.py \
   --tool claude --path ~/.claude/settings.json \
-  --command "python3 $HOME/.claude/skills/post-pr-review-monitor/scripts/pr_create_trigger.py"
+  --command "python3 $HOME/.claude/skills/pr-monitor/scripts/pr_create_trigger.py"
 ```
 
 ## Verify / debug / remove
@@ -75,10 +75,10 @@ a plugin instead — see `install_opencode_plugin.py` in ai-hooks-integration.
 ```bash
 # Debug: log decisions to stderr
 echo '{"tool_input":{"command":"gh pr create --fill"},"tool_response":{"success":true}}' \
-  | HOOK_DEBUG=1 python3 ~/.claude/skills/post-pr-review-monitor/scripts/pr_create_trigger.py
+  | HOOK_DEBUG=1 python3 ~/.claude/skills/pr-monitor/scripts/pr_create_trigger.py
 
 # Remove from all tools
-~/.claude/skills/ai-hooks-integration/scripts/remove_all.py --name post-pr-review-monitor
+~/.claude/skills/ai-hooks-integration/scripts/remove_all.py --name pr-monitor
 ```
 
 ## Why a hook, not a slash command

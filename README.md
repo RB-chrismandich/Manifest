@@ -56,11 +56,11 @@ cd Manifest
   needed when the `claude`/`gemini` CLIs are logged in (SDK + API key still preferred when present)
 - **Cross-Platform**: Native support for macOS (Intel/Apple Silicon) and 5 major Linux distributions
 - **Unified Label Management**: Canonical label registry with sync across GitHub, GitLab, and Linear
-- **Autonomous Issue Development** (`/auto-issue-dev`): Picks the next `auto-dev`-labeled issue,
-  implements it test-first, and opens a PR for review (never merges); run unattended via `/loop /auto-issue-dev`
-- **Repo Hygiene Sweep** (`/repo-hygiene`): Review-then-confirm cleanup of open PRs and stale/merged/gone
+- **Autonomous Issue Development** (`/issue-dev-auto`): Picks the next `auto-dev`-labeled issue,
+  implements it test-first, and opens a PR for review (never merges); run unattended via `/loop /issue-dev-auto`
+- **Repo Hygiene Sweep** (`/repo-clean`): Review-then-confirm cleanup of open PRs and stale/merged/gone
   branches across GitHub, GitLab, and local
-- **Issue-Linking Git Hooks** (`/pr-issue-sync`, `/commit-issue-sync`): Fail-open PostToolUse hooks that keep
+- **Issue-Linking Git Hooks** (`/issue-sync-pr`, `/issue-sync-commit`): Fail-open PostToolUse hooks that keep
   the linked issue's status label and back-links in sync as commits land and PRs open (installable via `install_issue_hooks.sh`)
 - **Production Templates**: Pre-configured permission templates for Django, Express, Go microservices, Python monorepos
 - **SkillClaw Integration** (opt-in): Passively ingests Claude Code's own `~/.claude/projects/**/*.jsonl`
@@ -107,18 +107,18 @@ Mermaid flowcharts showing bootstrap, execution, validation, and consensus flows
 | Command | Description | Parallel Agents | Validation |
 |---------|-------------|-----------------|------------|
 | `/help` | Find the right command fast — searchable, categorized discovery (read-only) | NEVER | — |
-| `/project-commit` | Full commit pipeline: regenerate docs, pull latest, run pre-commits, commit, push | CONDITIONAL | Tier 1 + Tier 2 |
-| `/refactor-python` | Python security, architecture, code quality analysis | ALWAYS | Tier 1 + Tier 2 (≥0.80) |
-| `/refactor-shell` | Bash/Shell script security and quality with shellcheck | ALWAYS | Tier 1 + Tier 2 (≥0.70) |
-| `/docs-diagrams` | Generate Mermaid architecture flowcharts and sequence diagrams | CONDITIONAL (≥5 imports) | Tier 2 |
+| `/git-commit` | Full commit pipeline: regenerate docs, pull latest, run pre-commits, commit, push | CONDITIONAL | Tier 1 + Tier 2 |
+| `/python-refactor` | Python security, architecture, code quality analysis | ALWAYS | Tier 1 + Tier 2 (≥0.80) |
+| `/shell-refactor` | Bash/Shell script security and quality with shellcheck | ALWAYS | Tier 1 + Tier 2 (≥0.70) |
+| `/docs-generate-diagrams` | Generate Mermaid architecture flowcharts and sequence diagrams | CONDITIONAL (≥5 imports) | Tier 2 |
 | `/docs-improve` | Analyze docs against Diataxis framework (tutorials, how-tos, reference, explanation) | CONDITIONAL (≥500 lines) | Tier 2 |
-| `/docs-readme` | Improve README structure and content following best practices | NEVER | Tier 2 |
+| `/docs-improve-readme` | Improve README structure and content following best practices | NEVER | Tier 2 |
 | `/issue-prioritize` | Fetch and rank open issues by impact, urgency, readiness, risk (GitHub/GitLab/Linear) | CONDITIONAL (top candidates) | Tier 2 |
 | `/issue-triage` | Linear issue audit: duplicates, staleness, priority validation | CONDITIONAL (scenario-based) | Tier 2 |
-| `/auto-issue-dev` | Autonomously develop one `auto-dev`-labeled issue test-first and open a PR (never merges); run via `/loop /auto-issue-dev` | NEVER | Tier 1 + Tier 2 |
-| `/repo-hygiene` | Review-then-confirm cleanup sweep of open PRs and stale/merged/gone branches | CONDITIONAL | Tier 1 + Tier 2 |
+| `/issue-dev-auto` | Autonomously develop one `auto-dev`-labeled issue test-first and open a PR (never merges); run via `/loop /issue-dev-auto` | NEVER | Tier 1 + Tier 2 |
+| `/repo-clean` | Review-then-confirm cleanup sweep of open PRs and stale/merged/gone branches | CONDITIONAL | Tier 1 + Tier 2 |
 | `/plan-manage` | Plan lifecycle: create, review, execute, archive, abandon | CONDITIONAL | Tier 2 |
-| `/smoke-orchestrator` | Catalog-driven smoke tests; UI steps run via browser-use `mode: agent` | NEVER | Tier 2 |
+| `/smoke-manage` | Catalog-driven smoke tests; UI steps run via browser-use `mode: agent` | NEVER | Tier 2 |
 | `/skill-evolve` | Promote SkillClaw-evolved skills into a review PR (dry-run by default) | NEVER | Tier 2 |
 
 **CLI tools** (installed to `~/.local/bin/`):
@@ -217,10 +217,10 @@ Manifest/
 │   │   │   ├── git_platform.sh      # Git platform detection
 │   │   │   ├── git_ops.sh           # Platform-agnostic Git operations
 │   │   │   ├── linear_ops.sh        # Linear API wrapper (GraphQL)
-│   │   │   ├── issue_support.sh     # Issue-linking engine for pr-/commit-issue-sync hooks
+│   │   │   ├── issue_support.sh     # Issue-linking engine for pr-/issue-sync-commit hooks
 │   │   │   ├── issue_support_hook.sh # PostToolUse dispatcher routing PRs/commits to the engine
 │   │   │   ├── install_issue_hooks.sh # Enable/remove issue-linking hooks (PostToolUse or native)
-│   │   │   ├── auto_issue_dev.sh    # Selection/dependency engine for /auto-issue-dev
+│   │   │   ├── auto_issue_dev.sh    # Selection/dependency engine for /issue-dev-auto
 │   │   │   ├── sync-skills.sh       # Skill deployment to home targets
 │   │   │   ├── label_sync.sh        # Label provisioning across platforms
 │   │   │   ├── skillclaw_scrub.py   # Redact API keys/auth headers from captured sessions

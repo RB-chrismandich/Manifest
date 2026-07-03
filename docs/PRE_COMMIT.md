@@ -13,7 +13,7 @@ before commits. Hooks validate code quality, security, and formatting.
 
 ## Installation
 
-Pre-commit is automatically installed and configured by `/project-commit` command.
+Pre-commit is automatically installed and configured by `/git-commit` command.
 
 To install manually:
 

@@ -89,7 +89,7 @@ print('no-duplicates')"
 import json
 d = json.load(open('$REPO_ROOT/configs/gemini/settings.json'))
 entries = d['hooks']['BeforeAgent']
-assert any('token-economy' in json.dumps(e) for e in entries)
+assert any('token-conserve' in json.dumps(e) for e in entries)
 print('source-hook-present')"
     assert_output --partial "source-hook-present"
 }

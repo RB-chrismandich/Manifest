@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://manifest/smoke-orchestrator/workflow-description.schema.json",
+  "$id": "https://manifest/smoke-manage/workflow-description.schema.json",
   "title": "Workflow Description (appender input)",
   "description": "Structured object an AI agent or hook submits to SmokeTestAppender to add/update one test. Validated before any catalog mutation; invalid input leaves the catalog untouched (FR-003).",
   "type": "object",

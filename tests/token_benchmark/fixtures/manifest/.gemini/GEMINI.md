@@ -441,48 +441,48 @@ These integrate with the parallel agent orchestration framework.
 |-------|-------------|-----------------|
 | `/a11y-audit` | WCAG 2.2 AA accessibility audit | NO |
 | `/antipattern-detect` | Detect codebase antipatterns and suggest fixes | NO |
-| `/checkpoint` | Save context checkpoint for session continuity | NO |
+| `/session-checkpoint` | Save context checkpoint for session continuity | NO |
 | `/ci-setup` | Configure CI/CD pipelines for target repository | NO |
-| `/code-quality` | Auto-triggered security and quality checks | AUTO |
-| `/dashboard` | Visualize agent efficiency metrics | NO |
-| `/docs-diagrams` | Generate Mermaid architecture diagrams | CONDITIONAL |
+| `/code-audit` | Auto-triggered security and quality checks | AUTO |
+| `/metrics-report` | Visualize agent efficiency metrics | NO |
+| `/docs-generate-diagrams` | Generate Mermaid architecture diagrams | CONDITIONAL |
 | `/docs-improve` | Diataxis documentation framework analysis | CONDITIONAL |
-| `/docs-readme` | Improve README documentation | NO |
-| `/health-check` | Verify CLI tools, auth, config, MCP, symlinks | NO |
+| `/docs-improve-readme` | Improve README documentation | NO |
+| `/env-check` | Verify CLI tools, auth, config, MCP, symlinks | NO |
 | `/issue-prioritize` | Score and rank open issues by impact | CONDITIONAL |
 | `/issue-triage` | Linear issue audit with duplicate detection | CONDITIONAL |
-| `/learning-loop` | Capture structured lessons learned | NO |
+| `/learning-capture` | Capture structured lessons learned | NO |
 | `/performance-check` | Core Web Vitals and bundle analysis | NO |
 | `/plan-manage` | Plan lifecycle with parallel agent orchestration | CONDITIONAL |
-| `/project-commit` | Full commit pipeline: docs, pull, pre-commits, commit, push | CONDITIONAL |
-| `/refactor-go` | Go codebase security and quality analysis | ALWAYS |
-| `/refactor-node` | Node.js/TypeScript security and quality analysis | ALWAYS |
-| `/refactor-python` | Python codebase security and quality analysis | ALWAYS |
-| `/refactor-shell` | Bash/Shell script security and quality analysis | ALWAYS |
-| `/refactor-terraform` | Terraform IaC security and modularity analysis | ALWAYS |
-| `/scaffold` | Initialize new project with quality gates and Manifest integration | NO |
-| `/sync-configs` | Detect cross-platform config drift | NO |
+| `/git-commit` | Full commit pipeline: docs, pull, pre-commits, commit, push | CONDITIONAL |
+| `/go-refactor` | Go codebase security and quality analysis | ALWAYS |
+| `/node-refactor` | Node.js/TypeScript security and quality analysis | ALWAYS |
+| `/python-refactor` | Python codebase security and quality analysis | ALWAYS |
+| `/shell-refactor` | Bash/Shell script security and quality analysis | ALWAYS |
+| `/terraform-refactor` | Terraform IaC security and modularity analysis | ALWAYS |
+| `/project-scaffold` | Initialize new project with quality gates and Manifest integration | NO |
+| `/config-audit` | Detect cross-platform config drift | NO |
 | `/ux-review` | UX/accessibility/performance audit | NO |
-| `/verify` | Run linters, tests, and security scans in parallel | CONDITIONAL |
+| `/project-verify` | Run linters, tests, and security scans in parallel | CONDITIONAL |
 
 ### Skill Usage
 
 Skills are invoked as slash commands in Gemini CLI. Representative examples:
 
 ```bash
-/refactor-python src/          # language analysis (also go/node/shell/terraform)
-/project-commit "Add feature"  # commit pipeline (omit message to auto-generate)
-/verify                        # linters, tests, security scans in parallel
-/docs-readme                   # docs (also /docs-diagrams, /docs-improve)
+/python-refactor src/          # language analysis (also go/node/shell/terraform)
+/git-commit "Add feature"  # commit pipeline (omit message to auto-generate)
+/project-verify                        # linters, tests, security scans in parallel
+/docs-improve-readme                   # docs (also /docs-generate-diagrams, /docs-improve)
 /issue-triage                  # Linear backlog audit (also /issue-prioritize)
 /plan-manage                   # plan lifecycle
-/health-check                  # env sanity (also /sync-configs)
-/checkpoint                    # high-context save (also /learning-loop, /dashboard)
+/env-check                  # env sanity (also /config-audit)
+/session-checkpoint                    # high-context save (also /learning-capture, /metrics-report)
 ```
 
 ### Auto-Triggered Skill
 
-The `code-quality` skill (symlinked from `~/.claude/skills/code-quality/SKILL.md`)
+The `code-audit` skill (symlinked from `~/.claude/skills/code-audit/SKILL.md`)
 auto-triggers on security-sensitive patterns (auth, crypto, secrets, input
 validation) or complexity (>500 lines, >10 functions, or >5 classes per file),
 giving inline feedback without blocking the workflow.

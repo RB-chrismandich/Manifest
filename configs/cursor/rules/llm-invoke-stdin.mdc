@@ -1,0 +1,15 @@
+---
+description: "Use when a script needs to call an LLM/agent CLI (claude -p, gemini -p, agy -p) as a step — pipe the prompt via stdin behind an injectable seam so it is ARG_MAX-safe and testable offline."
+globs: ".claude/skills/llm-invoke-stdin/**"
+alwaysApply: false
+---
+
+# llm-invoke-stdin
+
+Use when a script needs to call an LLM/agent CLI (claude -p, gemini -p, agy -p) as a step — pipe the prompt via stdin behind an injectable seam so it is ARG_MAX-safe and testable offline.
+
+<!-- Auto-generated from .claude/skills/llm-invoke-stdin/SKILL.md -->
+<!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
+
+Refer to `.cursor/skills/llm-invoke-stdin/SKILL.md` for the full skill definition.
+

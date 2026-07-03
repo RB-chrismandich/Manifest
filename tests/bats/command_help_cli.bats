@@ -55,7 +55,7 @@ make_fixture() {
             > "$SANDBOX/skills/$1/SKILL.md"
     }
     _skill branch-clean git-pr "Prune stale git branches."
-    _skill repo-hygiene git-pr "Tidy up PRs and branches."
+    _skill repo-clean git-pr "Tidy up PRs and branches."
     _skill docs-all docs "Refresh all docs."
     _skill verify ci-cd "Run linters and tests."
     _skill skillclaw-promote skills "A service-gated tool."
@@ -68,7 +68,7 @@ categories:
   - {key: skills, label: "Skills", order: 4}
 overrides:
   branch-clean: git-pr
-  repo-hygiene: git-pr
+  repo-clean: git-pr
   docs-all: docs
   verify: ci-cd
   skillclaw-promote: skills

@@ -125,7 +125,7 @@ Read the selected template(s) and customize:
 
 If `smoke-catalog/` exists in the project and contains `*.yaml` or `*.yml` files,
 add a smoke test job running the deterministic `Lite` tier (see the
-smoke-orchestrator skill) to the CI pipeline:
+smoke-manage skill) to the CI pipeline:
 
 **GitHub Actions** — add after the test job:
 
@@ -165,14 +165,13 @@ smoke-tests:
   allow_failure: true
 ```
 
-The browser test job should:
+The smoke test job should:
 
 - Run **after** unit tests (dependency/needs)
 - Use `allow_failure: true` / `continue-on-error: true` so it does not block the pipeline
-- Install browser-use and Chromium in the CI environment
-- Run in headless mode
+- Install Playwright + Chromium in the CI environment (headless)
 
-If `tests/browser/` does not exist, skip this step entirely.
+If `smoke-catalog/` does not exist, skip this step entirely.
 
 ### Step 5: Write Configuration Files
 

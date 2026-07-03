@@ -25,8 +25,8 @@ with machine-local additions in `~/.manifest/reconcile.local.yml`.
   assistant homes) without changing anything.
 - To safely clean up orphaned deployed files, with a recoverable backup.
 
-Related but different: `sync-configs`/`health-check` check cross-platform drift and
-symlink integrity (read-only); `deploy-drift-root-cause` finds state *missing* from
+Related but different: `config-audit`/`env-check` check cross-platform drift and
+symlink integrity (read-only); `deploy-diagnose-drift` finds state *missing* from
 a deploy. This skill finds state that is *extra*/orphaned and can prune it.
 
 ## Task

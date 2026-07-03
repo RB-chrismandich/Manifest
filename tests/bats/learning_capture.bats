@@ -106,7 +106,7 @@ print(len(kb.get('entries') or []))
         --description "Bare except clauses hide real errors" \
         --tags "exceptions,error-handling" \
         --confidence high \
-        --source refactor-python
+        --source python-refactor
     assert_success
     assert_output --partial "Added entry KB-002: Avoid bare except"
     assert_output --partial "Category: antipattern | Language: python | Confidence: high"
@@ -122,7 +122,7 @@ assert e['language'] == 'python'
 assert e['confidence'] == 'high'
 assert e['occurrences'] == 1
 assert e['tags'] == ['exceptions', 'error-handling']
-assert e['source'] == 'refactor-python'
+assert e['source'] == 'python-refactor'
 print('entry ok')
 "
     assert_success

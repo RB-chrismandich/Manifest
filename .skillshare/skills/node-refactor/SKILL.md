@@ -232,7 +232,7 @@ After completing the analysis, capture the most significant findings:
        --category antipattern --language typescript \
        --title "<finding title>" \
        --description "<finding description and recommended fix>" \
-       --source refactor-node --confidence high
+       --source node-refactor --confidence high
      ```
 
 2. For any new tool recommendations discovered:
@@ -243,7 +243,7 @@ After completing the analysis, capture the most significant findings:
        --category tool_discovery --language typescript \
        --title "<tool recommendation>" \
        --description "<why this tool is better>" \
-       --source refactor-node --confidence medium
+       --source node-refactor --confidence medium
      ```
 
 3. This step is **non-blocking** -- failures in learning capture should not affect the analysis output.

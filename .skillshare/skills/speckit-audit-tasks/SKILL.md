@@ -29,7 +29,7 @@ implementer's call — this skill's job is to tell the truth about what is actua
    - **Artifact exists** — the file(s)/symbol(s) the task describes are actually present in
      the working tree, not merely planned.
    - **Tests are real and green** — any test the task promised exists and passes. Run
-     `/verify` (or the task's specific test) rather than trusting the box; test/security
+     `/project-verify` (or the task's specific test) rather than trusting the box; test/security
      failures are blocking, lint is advisory.
    - **No stub left** — no `TODO`/`FIXME`/`pass`/`NotImplemented`/placeholder sitting where
      the task required real behavior.
@@ -80,7 +80,7 @@ ALWAYS use this structure so the gap between claimed and actual is unmistakable:
 - **Runs as an `after_implement` hook** (`.specify/extensions.yml`) so it fires the moment
   implementation finishes and before the auto-commit hook — gaps are cheapest to fix before
   the work is committed. It also runs standalone any time to re-audit.
-- Complements `/verify` (deterministic lint/test/scan) and `speckit-analyze` (artifact
+- Complements `/project-verify` (deterministic lint/test/scan) and `speckit-analyze` (artifact
   consistency): this skill is specifically about **did we actually finish every task**.
 
 ## Sub-agent dispatch

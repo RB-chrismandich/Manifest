@@ -301,7 +301,7 @@ Project-specific validation rules that extend the base `~/.claude/config/validat
 2. Define `project_tier1` (critical) and `project_tier2` (quality) checks
 3. Use patterns (regex) to detect issues
 4. Add exemptions for test files, generated code, etc.
-5. Test with `/refactor-python` or `--validate` flag
+5. Test with `/python-refactor` or `--validate` flag
 
 ---
 

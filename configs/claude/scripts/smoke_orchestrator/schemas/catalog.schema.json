@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://manifest/smoke-orchestrator/catalog.schema.json",
+  "$id": "https://manifest/smoke-manage/catalog.schema.json",
   "title": "Smoke Test Catalog (per application)",
   "description": "Declarative YAML catalog of tiered, chainable E2E smoke tests for one application. One file per app: smoke-catalog/<app>.yaml.",
   "type": "object",

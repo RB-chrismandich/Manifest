@@ -115,7 +115,7 @@ the gate — surface this and let the user post it from a trusted account.
 
 ## Fetch review feedback
 
-Routing findings to fixes is the job of the **`address-pr-comments`** skill —
+Routing findings to fixes is the job of the **`pr-address-comments`** skill —
 invoke it rather than re-implementing. For reference, its three channels are:
 
 ```bash

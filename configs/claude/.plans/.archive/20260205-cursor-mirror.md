@@ -42,13 +42,13 @@ duplicate configuration.
 ### Phase 2: Cursor-Specific Rules (adapted from commands/skills)
 
 - [x] **2.1** Create `.cursor/rules/orchestration.mdc` — always-on rule adapted from `.claude/CLAUDE.md`
-- [x] **2.2** Create `.cursor/rules/code-quality.mdc` — auto-triggered rule adapted from `.claude/skills/code-quality/SKILL.md`
-- [x] **2.3** Create `.cursor/rules/refactor-python.mdc` — adapted from `refactor-python.md` command
-- [x] **2.4** Create `.cursor/rules/refactor-shell.mdc` — adapted from `refactor-shell.md` command
-- [x] **2.5** Create `.cursor/rules/docs-readme.mdc` — adapted from `docs-readme.md` command
+- [x] **2.2** Create `.cursor/rules/code-audit.mdc` — auto-triggered rule adapted from `.claude/skills/code-audit/SKILL.md`
+- [x] **2.3** Create `.cursor/rules/python-refactor.mdc` — adapted from `python-refactor.md` command
+- [x] **2.4** Create `.cursor/rules/shell-refactor.mdc` — adapted from `shell-refactor.md` command
+- [x] **2.5** Create `.cursor/rules/docs-improve-readme.mdc` — adapted from `docs-improve-readme.md` command
 - [x] **2.6** Create `.cursor/rules/docs-improve.mdc` — adapted from `docs-improve.md` command
-- [x] **2.7** Create `.cursor/rules/docs-diagrams.mdc` — adapted from `docs-diagrams.md` command
-- [x] **2.8** Create `.cursor/rules/project-commit.mdc` — adapted from `project-commit.md` command
+- [x] **2.7** Create `.cursor/rules/docs-generate-diagrams.mdc` — adapted from `docs-generate-diagrams.md` command
+- [x] **2.8** Create `.cursor/rules/git-commit.mdc` — adapted from `git-commit.md` command
 - [x] **2.9** Create `.cursor/rules/plan-manage.mdc` — adapted from `plan-manage.md` command
 
 ### Phase 3: AGENTS.md (Project Instructions)
@@ -77,13 +77,13 @@ duplicate configuration.
 | `.cursor/prompts` | Symlink → `../.claude/prompts/` |
 | `.cursor/.plans` | Symlink → `../.claude/.plans/` |
 | `.cursor/rules/orchestration.mdc` | New file — adapted from `.claude/CLAUDE.md` |
-| `.cursor/rules/code-quality.mdc` | New file — adapted from `.claude/skills/code-quality/SKILL.md` |
-| `.cursor/rules/refactor-python.mdc` | New file — adapted from `.claude/commands/refactor-python.md` |
-| `.cursor/rules/refactor-shell.mdc` | New file — adapted from `.claude/commands/refactor-shell.md` |
-| `.cursor/rules/docs-readme.mdc` | New file — adapted from `.claude/commands/docs-readme.md` |
+| `.cursor/rules/code-audit.mdc` | New file — adapted from `.claude/skills/code-audit/SKILL.md` |
+| `.cursor/rules/python-refactor.mdc` | New file — adapted from `.claude/commands/python-refactor.md` |
+| `.cursor/rules/shell-refactor.mdc` | New file — adapted from `.claude/commands/shell-refactor.md` |
+| `.cursor/rules/docs-improve-readme.mdc` | New file — adapted from `.claude/commands/docs-improve-readme.md` |
 | `.cursor/rules/docs-improve.mdc` | New file — adapted from `.claude/commands/docs-improve.md` |
-| `.cursor/rules/docs-diagrams.mdc` | New file — adapted from `.claude/commands/docs-diagrams.md` |
-| `.cursor/rules/project-commit.mdc` | New file — adapted from `.claude/commands/project-commit.md` |
+| `.cursor/rules/docs-generate-diagrams.mdc` | New file — adapted from `.claude/commands/docs-generate-diagrams.md` |
+| `.cursor/rules/git-commit.mdc` | New file — adapted from `.claude/commands/git-commit.md` |
 | `.cursor/rules/plan-manage.mdc` | New file — adapted from `.claude/commands/plan-manage.md` |
 | `AGENTS.md` | New file — project instructions for Cursor |
 | `bootstrap.sh` | Add `.cursor/` deployment support |

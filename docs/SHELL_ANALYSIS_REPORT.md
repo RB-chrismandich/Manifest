@@ -276,7 +276,7 @@ echo "${file#"$HOME"/}"
 3. ✅ Create `.pre-commit-config.yaml`
 4. ✅ Create `.yamllint` config
 5. ✅ Create `.editorconfig`
-6. ✅ Create `/refactor-shell` command
+6. ✅ Create `/shell-refactor` command
 
 **TODO:**
 
@@ -470,7 +470,7 @@ Create BATS tests for:
 - [.pre-commit-config.yaml](../.pre-commit-config.yaml) - Pre-commit hook configuration
 - [.yamllint](../.yamllint) - YAML linting rules
 - [.editorconfig](../.editorconfig) - Editor consistency settings
-- [configs/claude/skills/refactor-shell/SKILL.md](../configs/claude/skills/refactor-shell/SKILL.md) - Shell refactor skill
+- [configs/claude/skills/shell-refactor/SKILL.md](../configs/claude/skills/shell-refactor/SKILL.md) - Shell refactor skill
 - [ShellCheck Wiki](https://www.shellcheck.net/wiki/) - Error code explanations
 
 ---

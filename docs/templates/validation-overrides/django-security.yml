@@ -192,7 +192,7 @@ project_tier2:
 
 # Command-specific overrides
 commands:
-  /refactor-python:
+  /python-refactor:
     tier1_threshold: 1.0  # All tier 1 must pass
     tier2_threshold: 0.70  # Raise bar for refactoring
 

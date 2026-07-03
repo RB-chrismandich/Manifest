@@ -267,7 +267,7 @@ teardown() {
     assert_success
 
     # Real skill dirs landed (sampled), and skills is NOT a symlink.
-    [ -d "$TARGET_DIR/skills/code-quality" ]
+    [ -d "$TARGET_DIR/skills/code-audit" ]
     [ ! -L "$TARGET_DIR/skills" ]
     # The compat symlink was never copied verbatim into the home dir.
     [ ! -e "$TARGET_DIR/skills/skills" ]

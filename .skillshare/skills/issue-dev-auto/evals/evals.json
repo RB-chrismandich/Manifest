@@ -1,5 +1,5 @@
 {
-  "skill_name": "auto-issue-dev",
+  "skill_name": "issue-dev-auto",
   "evals": [
     {
       "id": 0,
@@ -10,7 +10,7 @@
     {
       "id": 1,
       "prompt": "run the autonomous issue developer until there's nothing left in the queue",
-      "expected_output": "Explains it develops one issue per invocation and is driven unattended via /loop /auto-issue-dev, terminating when next-issue exits 3 (empty queue), reporting how many issues were skipped as dependency-blocked.",
+      "expected_output": "Explains it develops one issue per invocation and is driven unattended via /loop /issue-dev-auto, terminating when next-issue exits 3 (empty queue), reporting how many issues were skipped as dependency-blocked.",
       "files": []
     },
     {
@@ -22,7 +22,7 @@
     {
       "id": 3,
       "prompt": "after the PR is open, keep an eye on it — fix any review comments and failing checks, then merge it once everything's green",
-      "expected_output": "Runs the PR monitoring loop: pr_merge_loop.sh signals | merge_decision.sh decide; on `revise` runs /address-pr-comments,/verify,/pr-review (≤3 cycles); only merges on `merge` (CI green, no actionable human comment, /pr-review=merge, /verify pass, #360 gate Tier-1 pass, consensus≥0.80) via admin bypass; anything short → ready-to-merge/needs-human. Honors PR_MERGE_LOOP_APPLY (dry-run by default).",
+      "expected_output": "Runs the PR monitoring loop: pr_merge_loop.sh signals | merge_decision.sh decide; on `revise` runs /pr-address-comments,/project-verify,/pr-review (≤3 cycles); only merges on `merge` (CI green, no actionable human comment, /pr-review=merge, /project-verify pass, #360 gate Tier-1 pass, consensus≥0.80) via admin bypass; anything short → ready-to-merge/needs-human. Honors PR_MERGE_LOOP_APPLY (dry-run by default).",
       "files": []
     },
     {

@@ -1,0 +1,15 @@
+---
+description: "Run the end-to-end commit pipeline: docs refresh, sync with remote, checks, staging, commit, and push with safe failure handling."
+globs: ".claude/skills/git-commit/**"
+alwaysApply: false
+---
+
+# git-commit
+
+Run the end-to-end commit pipeline: docs refresh, sync with remote, checks, staging, commit, and push with safe failure handling.
+
+<!-- Auto-generated from .claude/skills/git-commit/SKILL.md -->
+<!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
+
+Refer to `.cursor/skills/git-commit/SKILL.md` for the full skill definition.
+

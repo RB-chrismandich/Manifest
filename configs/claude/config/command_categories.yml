@@ -43,95 +43,95 @@ categories:
 # key = skill name, value = a category key from the list above.
 overrides:
   # git-pr
-  address-pr-comments: git-pr
-  auto-issue-dev: git-pr
+  pr-address-comments: git-pr
+  issue-dev-auto: git-pr
   branch-clean: git-pr
-  clean-pr-from-stale-base: git-pr
-  commit-issue-sync: git-pr
-  locate-missing-artifact-across-git: git-pr
-  merge-stacked-pr-chain: git-pr
-  post-pr-review-monitor: git-pr
-  pr-issue-sync: git-pr
+  pr-clean-base: git-pr
+  issue-sync-commit: git-pr
+  git-find-artifact: git-pr
+  pr-merge-stacked: git-pr
+  pr-monitor: git-pr
+  issue-sync-pr: git-pr
   pr-review: git-pr
   pr-triage-bots: git-pr
-  project-commit: git-pr
-  repo-hygiene: git-pr
-  reset-reapply-clean-pr: git-pr
+  git-commit: git-pr
+  repo-clean: git-pr
+  pr-reset-reapply: git-pr
   # docs
   docs-all: docs
-  docs-diagrams: docs
+  docs-generate-diagrams: docs
   docs-improve: docs
-  docs-readme: docs
+  docs-improve-readme: docs
   # security
-  ci-workflow-trigger-security: security
-  diff-security-review: security
-  docker-published-port-firewall-audit: security
-  llm-output-path-traversal-audit: security
-  mcp-server-security-audit: security
-  secret-safe-upstream-proxy: security
-  secure-comment-triggered-workflow: security
-  security-finding-refutation: security
-  security-finding-triage: security
+  ci-audit-triggers: security
+  security-review-diff: security
+  docker-audit-firewall: security
+  llm-audit-traversal: security
+  mcp-audit: security
+  security-harden-proxy: security
+  ci-harden-workflow: security
+  security-refute-findings: security
+  security-triage-findings: security
   # planning
-  architecture-decision-tradeoff-table: planning
-  auto-dev-issue-prep: planning
+  spec-decide-tradeoffs: planning
+  issue-prep-auto: planning
   issue-prioritize: planning
   issue-triage: planning
   plan-manage: planning
-  research-validate-design: planning
+  design-validate: planning
   spec-review: planning
-  speckit-implement-review: planning
-  verify-premise: planning
-  wire-new-field-end-to-end: planning
+  speckit-audit-tasks: planning
+  premise-verify: planning
+  data-wire-field: planning
   # skills
   ai-hooks-integration: skills
-  meta-prompt-optimize: skills
+  prompt-optimize: skills
   skill-evolve: skills
   # ci-cd, testing & quality
   a11y-audit: ci-cd
   ai-code-audit: ci-cd
-  ci-lint-config-drift: ci-cd
+  ci-diagnose-drift: ci-cd
   ci-setup: ci-cd
-  live-data-validation: ci-cd
+  data-validate-live: ci-cd
   performance-check: ci-cd
-  pin-known-bug-test-survives-fix: ci-cd
-  refactor-go: ci-cd
-  refactor-node: ci-cd
-  refactor-python: ci-cd
-  refactor-shell: ci-cd
-  refactor-terraform: ci-cd
-  reproduce-gated-ci-failure-locally: ci-cd
-  smoke-orchestrator: ci-cd
-  statistical-test-fixture-variance: ci-cd
+  test-pin-bug: ci-cd
+  go-refactor: ci-cd
+  node-refactor: ci-cd
+  python-refactor: ci-cd
+  shell-refactor: ci-cd
+  terraform-refactor: ci-cd
+  ci-reproduce-failure: ci-cd
+  smoke-manage: ci-cd
+  test-vary-fixtures: ci-cd
   ux-review: ci-cd
-  verify: ci-cd
+  project-verify: ci-cd
   # infra & config
-  api-bulk-endpoint-optimization: infra
-  app-native-config-validation: infra
-  cli-help-before-dependency-checks: infra
-  containerized-internal-service-probe: infra
-  debug-layered-config-substitution: infra
-  deploy-drift-root-cause: infra
-  diagnose-stalled-background-process: infra
-  headless-llm-cli-seam: infra
-  ingestion-table-idempotency: infra
-  out-of-band-cache-warm: infra
+  api-optimize-bulk: infra
+  config-validate-native: infra
+  cli-audit-help: infra
+  docker-probe-internal: infra
+  config-debug-substitution: infra
+  deploy-diagnose-drift: infra
+  process-diagnose-stall: infra
+  llm-invoke-stdin: infra
+  data-design-ingestion: infra
+  cache-warm-oob: infra
   pass-cli: infra
-  retire-component-cleanup: infra
-  scaffold: infra
-  shell-pipefail-subshell-audit: infra
-  shell-sete-silent-abort-audit: infra
-  sync-configs: infra
+  deploy-retire-component: infra
+  project-scaffold: infra
+  shell-audit-pipefail: infra
+  shell-audit-errexit: infra
+  config-audit: infra
   version-pin: infra
   # meta & orchestration
   antipattern-detect: meta
-  checkpoint: meta
-  code-quality: meta
-  dashboard: meta
+  session-checkpoint: meta
+  code-audit: meta
+  metrics-report: meta
   graphify: meta
-  health-check: meta
+  env-check: meta
   help: meta
-  learning-loop: meta
+  learning-capture: meta
   memory-compress: meta
   token-benchmark: meta
-  token-economy: meta
+  token-conserve: meta

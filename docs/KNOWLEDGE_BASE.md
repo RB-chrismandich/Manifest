@@ -5,7 +5,7 @@
 
 **Last Updated**: 2026-07-02T00:15:13-07:00
 **Source**: `configs/claude/config/knowledge_base.yml` (machine-readable source of truth)
-**Managed by**: `learning-loop` skill, `antipattern-detect` skill
+**Managed by**: `learning-capture` skill, `antipattern-detect` skill
 
 ---
 
@@ -13,14 +13,14 @@
 
 This knowledge base is auto-generated from
 `configs/claude/config/knowledge_base.yml` (the machine-readable source of truth).
-Entries are captured by the `learning-loop` skill and `antipattern-detect` skill.
-To add entries, use `learning_capture.sh add` or the `/learning-loop` skill.
+Entries are captured by the `learning-capture` skill and `antipattern-detect` skill.
+To add entries, use `learning_capture.sh add` or the `/learning-capture` skill.
 
 ## How to Contribute
 
 | Action | Command | Description |
 | ------ | ------- | ----------- |
-| Capture a new learning | `/learning-loop` | Records a pattern, tool discovery, or config insight |
+| Capture a new learning | `/learning-capture` | Records a pattern, tool discovery, or config insight |
 | Detect antipatterns | `/antipattern-detect` | Analyzes recent code for known antipatterns |
 | Regenerate this file | `learning_capture.sh sync-docs` | Rebuilds from YAML source of truth |
 
@@ -738,6 +738,6 @@ Lessons learned about configuration, thresholds, and environment setup.
 ## References
 
 - **Machine-readable source**: [`configs/claude/config/knowledge_base.yml`](../configs/claude/config/knowledge_base.yml)
-- **Learning loop skill**: [`configs/claude/skills/learning-loop/`](../configs/claude/skills/learning-loop/)
+- **Learning loop skill**: [`configs/claude/skills/learning-capture/`](../configs/claude/skills/learning-capture/)
 - **Antipattern detection skill**: [`configs/claude/skills/antipattern-detect/`](../configs/claude/skills/antipattern-detect/)
 - **Sync command**: `~/.claude/scripts/learning_capture.sh sync-docs`

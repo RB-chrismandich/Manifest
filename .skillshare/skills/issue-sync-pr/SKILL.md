@@ -10,7 +10,7 @@ description: |
 
 When a pull/merge request is opened, this skill updates each issue the PR relates
 to so the tracker reflects "up for review" without manual upkeep. It is one half of
-the issue-linking hooks (see also [`commit-issue-sync`]); both delegate to the shared
+the issue-linking hooks (see also [`issue-sync-commit`]); both delegate to the shared
 engine `configs/claude/scripts/issue_support.sh`.
 
 ## What it does
@@ -45,11 +45,11 @@ missing-issue creation offer.
 
 Installed as a unified `PostToolUse` hook (cross-tool) via
 `configs/claude/scripts/install_issue_hooks.sh --enable`, matched to PR/MR-create
-commands. Opt-in: gated by `tool_policies.pr-issue-sync.enabled` in
+commands. Opt-in: gated by `tool_policies.issue-sync-pr.enabled` in
 `command_config.yml`. Coverage boundary: PR creation via the web UI or raw
 `gh`/`glab` outside a tool is not auto-observed — run `sync-pr` manually there.
 
 ## Configuration
 
-`command_config.yml → tool_policies.pr-issue-sync`: `enabled` (default false),
+`command_config.yml → tool_policies.issue-sync-pr`: `enabled` (default false),
 `hook_timeout_seconds` (default 5).

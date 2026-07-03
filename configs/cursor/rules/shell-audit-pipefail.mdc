@@ -1,0 +1,15 @@
+---
+description: "Audit bash scripts using set -euo pipefail for silent-abort risks in $() command substitutions that parse empty or malformed input"
+globs: ".claude/skills/shell-audit-pipefail/**"
+alwaysApply: false
+---
+
+# shell-audit-pipefail
+
+Audit bash scripts using set -euo pipefail for silent-abort risks in $() command substitutions that parse empty or malformed input
+
+<!-- Auto-generated from .claude/skills/shell-audit-pipefail/SKILL.md -->
+<!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
+
+Refer to `.cursor/skills/shell-audit-pipefail/SKILL.md` for the full skill definition.
+

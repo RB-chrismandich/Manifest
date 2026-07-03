@@ -280,7 +280,7 @@ After completing the analysis, capture the most significant findings:
        --category antipattern --language go \
        --title "<finding title>" \
        --description "<finding description and recommended fix>" \
-       --source refactor-go --confidence high
+       --source go-refactor --confidence high
      ```
 
 2. For any new tool recommendations discovered:
@@ -291,7 +291,7 @@ After completing the analysis, capture the most significant findings:
        --category tool_discovery --language go \
        --title "<tool recommendation>" \
        --description "<why this tool is better>" \
-       --source refactor-go --confidence medium
+       --source go-refactor --confidence medium
      ```
 
 3. This step is **non-blocking** -- failures in learning capture should not affect the analysis output.

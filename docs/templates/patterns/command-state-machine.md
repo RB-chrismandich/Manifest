@@ -5,7 +5,7 @@
 **Pattern Type**: Command Design
 **Complexity**: Intermediate
 **Use Cases**: Deployments, CI/CD pipelines, complex workflows
-**Reference**: Based on cookedbooks `project-commit.md`
+**Reference**: Based on cookedbooks `git-commit.md`
 
 ---
 
@@ -561,7 +561,7 @@ fi
 
 1. `templates/commands/full-deployment-pipeline.md` - Complete deployment example
 2. `templates/github-workflow/issue-process.md` - GitHub issue processing
-3. `.claude/commands/project-commit.md` - Full commit pipeline (if using cookedbooks pattern)
+3. `.claude/commands/git-commit.md` - Full commit pipeline (if using cookedbooks pattern)
 
 ---
 
@@ -569,4 +569,4 @@ fi
 
 - [docs/COMMANDS.md](../../docs/COMMANDS.md) - Building Custom Commands
 - [templates/commands/](../commands/) - Example commands
-- [cookedbooks project-commit.md](https://github.com/ReefBytes/cookedbooks) - Reference implementation
+- [cookedbooks git-commit.md](https://github.com/ReefBytes/cookedbooks) - Reference implementation

@@ -46,7 +46,7 @@ symlinks exists), resist patching only the live symptom.
    real. For a structural merge, seed a pre-existing target that already holds user keys and assert
    all four: (a) the repo entry is now present, (b) user keys are preserved, (c) a second run is
    idempotent (no duplicates), (d) malformed existing content leaves the file untouched.
-6. **Close the detector's blind spot.** If a health-check/validation skill never inspected the
+6. **Close the detector's blind spot.** If a env-check/validation skill never inspected the
    drifted component, add it (scoped to enabled services only) so the same gap is caught next time.
 7. **Verify before claiming done:** run the affected test suites, shellcheck the changed file, and
    confirm the live state resolves. Distinguish pre-existing lint infos from ones your edit

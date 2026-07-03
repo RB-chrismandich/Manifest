@@ -134,7 +134,7 @@ can cause the daemon and wrappers to disagree on where data lives.
 | Symlinks | Cursor | scripts | pass | Intact → ../.claude/scripts |
 | Symlinks | Gemini | config | fail | Missing |
 | Rules | Cursor | issue-triage.mdc | warn | Outdated (would update) |
-| Commands | Gemini | health-check.toml | fail | Missing |
+| Commands | Gemini | env-check.toml | fail | Missing |
 | MCP | Cursor | sentry | pass | Matches canonical |
 | MCP | Gemini | linear | warn | URL differs from canonical |
 

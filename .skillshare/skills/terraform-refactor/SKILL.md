@@ -212,7 +212,7 @@ After completing the analysis, capture the most significant findings:
        --category antipattern --language terraform \
        --title "<finding title>" \
        --description "<finding description and recommended fix>" \
-       --source refactor-terraform --confidence high
+       --source terraform-refactor --confidence high
      ```
 
 2. For any new tool recommendations discovered:
@@ -223,7 +223,7 @@ After completing the analysis, capture the most significant findings:
        --category tool_discovery --language terraform \
        --title "<tool recommendation>" \
        --description "<why this tool is better>" \
-       --source refactor-terraform --confidence medium
+       --source terraform-refactor --confidence medium
      ```
 
 3. This step is **non-blocking** -- failures in learning capture should not affect the analysis output.

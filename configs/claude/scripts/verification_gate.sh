@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# verification_gate.sh — post-implementation verification gate for /auto-issue-dev (#360).
+# verification_gate.sh — post-implementation verification gate for /issue-dev-auto (#360).
 #
 # Reuses the existing parallel_agent.py consensus engine as a CONSUMER (it does not modify
 # it). Tier-1 findings block a real PR (→ draft + needs-human); Tier-2 and the consensus

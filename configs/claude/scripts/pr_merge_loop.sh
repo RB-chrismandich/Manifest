@@ -9,7 +9,7 @@
 #   list-managed [--json]   Open PRs whose author is in the automation allowlist (FR-013).
 #   signals <pr> [--json]   Recompute the merge_decision input JSON for one PR.
 #   empty-run <get|incr|reset>   Manage the consecutive-empty-run counter (FR-018a).
-#   address-cycle <pr>      One revision cycle (/address-pr-comments,/verify,/pr-review).
+#   address-cycle <pr>      One revision cycle (/pr-address-comments,/project-verify,/pr-review).
 #   merge <pr>              Pre-flight + verified admin merge (FR-008..011).
 #   post-merge-check        main HEAD CI health; exit 10 on red (FR-012a).
 #   run                     Bounded self-paced loop (ceiling + 5-empty stop).
@@ -46,7 +46,7 @@ Usage: pr_merge_loop.sh <subcommand> [args]
   list-managed [--json]        Automation-authored open PRs (skips humans).
   signals <pr> [--json]        Recompute merge_decision input JSON for a PR.
   empty-run <get|incr|reset>   Consecutive-empty-run counter (stops loop at 5).
-  address-cycle <pr>           Run one /address-pr-comments,/verify,/pr-review cycle.
+  address-cycle <pr>           Run one /pr-address-comments,/project-verify,/pr-review cycle.
   set-disposition <pr> <v>     Record the /pr-review verdict (merge|keep|close) for signals.
   merge <pr>                   Pre-flight + verified admin merge (exit 9 = fail-closed).
   tick <pr>                    Decide + dispatch one PR (lock, run-gate, act).
@@ -253,7 +253,7 @@ cmd_empty_run() {
 # --- live orchestration (integration paths; seam-overridable) ---
 cmd_address_cycle() {
     local pr="${1:?pr required}"
-    err "address-cycle #${pr}: run /address-pr-comments, /verify, /pr-review (where independent, in parallel — FR-015)"
+    err "address-cycle #${pr}: run /pr-address-comments, /project-verify, /pr-review (where independent, in parallel — FR-015)"
     local f="${STATE_DIR}/rev_${pr}"
     mkdir -p "$STATE_DIR" 2> /dev/null || true
     echo $(($(revisions_used "$pr") + 1)) > "$f"
@@ -401,7 +401,7 @@ print(json.dumps(s))' "$gate")"
         update-branch) gh_op update-branch "$pr" > /dev/null 2>&1 || apply_label "$pr" needs-human ;;
         hand-human) apply_label "$pr" "$(printf '%s' "$d" | _jget label)" ;;
         halt) err "#$pr: HALT (post-merge main breakage)" ;;
-        revise) err "#$pr: revise — the skill runs /address-pr-comments, /verify, /pr-review" ;;
+        revise) err "#$pr: revise — the skill runs /pr-address-comments, /project-verify, /pr-review" ;;
         wait) err "#$pr: waiting on checks/mergeability" ;;
     esac
     # Audit (redacted, fail-open — FR-021/022).

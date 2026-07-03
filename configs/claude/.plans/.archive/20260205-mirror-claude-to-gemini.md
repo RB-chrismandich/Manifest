@@ -44,7 +44,7 @@ without duplicating content unnecessarily.
 - [x] **1.3** Symlink `scripts/` directory: `.gemini/scripts/ -> ../.claude/scripts/`
   (parallel_agent.sh already supports Gemini)
 - [x] **1.4** Symlink `.plans/` directory: `.gemini/.plans/ -> ../.claude/.plans/` (shared plan management)
-- [x] **1.5** Symlink `skills/code-quality/SKILL.md`: `.gemini/skills/code-quality/SKILL.md -> ../../../.claude/skills/code-quality/SKILL.md`
+- [x] **1.5** Symlink `skills/code-audit/SKILL.md`: `.gemini/skills/code-audit/SKILL.md -> ../../../.claude/skills/code-audit/SKILL.md`
 - [x] **1.6** Symlink `config/` YAML files: `.gemini/config/ -> ../.claude/config/`
   (command_config.yml, validation_criteria.yml, services.yml are agent-agnostic
   reference data)
@@ -64,12 +64,12 @@ Gemini CLI uses TOML files with `description` and `prompt` fields. Claude's Mark
 contain complex multi-phase instructions. The TOML `prompt` field will contain the full
 instruction text.
 
-- [x] **3.1** Convert `commands/project-commit.md` -> `.gemini/commands/project-commit.toml`
-- [x] **3.2** Convert `commands/refactor-python.md` -> `.gemini/commands/refactor-python.toml`
-- [x] **3.3** Convert `commands/refactor-shell.md` -> `.gemini/commands/refactor-shell.toml`
-- [x] **3.4** Convert `commands/docs-diagrams.md` -> `.gemini/commands/docs-diagrams.toml`
+- [x] **3.1** Convert `commands/git-commit.md` -> `.gemini/commands/git-commit.toml`
+- [x] **3.2** Convert `commands/python-refactor.md` -> `.gemini/commands/python-refactor.toml`
+- [x] **3.3** Convert `commands/shell-refactor.md` -> `.gemini/commands/shell-refactor.toml`
+- [x] **3.4** Convert `commands/docs-generate-diagrams.md` -> `.gemini/commands/docs-generate-diagrams.toml`
 - [x] **3.5** Convert `commands/docs-improve.md` -> `.gemini/commands/docs-improve.toml`
-- [x] **3.6** Convert `commands/docs-readme.md` -> `.gemini/commands/docs-readme.toml`
+- [x] **3.6** Convert `commands/docs-improve-readme.md` -> `.gemini/commands/docs-improve-readme.toml`
 - [x] **3.7** Convert `commands/plan-manage.md` -> `.gemini/commands/plan-manage.toml`
 - [x] **3.8** Convert `commands/checkpoint.md` -> `.gemini/commands/checkpoint.toml`
 
@@ -104,7 +104,7 @@ instruction text.
 | `.gemini/scripts/` | SYMLINK -> `../.claude/scripts/` |
 | `.gemini/.plans/` | SYMLINK -> `../.claude/.plans/` |
 | `.gemini/config/` | SYMLINK -> `../.claude/config/` |
-| `.gemini/skills/code-quality/SKILL.md` | SYMLINK -> `../../../.claude/skills/code-quality/SKILL.md` |
+| `.gemini/skills/code-audit/SKILL.md` | SYMLINK -> `../../../.claude/skills/code-audit/SKILL.md` |
 | `bootstrap.sh` | MODIFY - Add `.gemini/` deployment |
 | `CLAUDE.md` (root) | MODIFY - Update repo structure |
 | `README.md` | MODIFY - Document `.gemini/` |
@@ -147,7 +147,7 @@ Shell commands can be embedded via !{command} syntax.
 2. `scripts/` - `parallel_agent.sh` already has full Gemini support
 3. `.plans/` - Plan management is shared across agents
 4. `config/` - YAML configs are reference data, not agent-specific settings
-5. `skills/code-quality/SKILL.md` - Same convention in both CLIs
+5. `skills/code-audit/SKILL.md` - Same convention in both CLIs
 6. `.agent_outputs/` - Shared output directory (if created)
 
 ## Risks
@@ -158,7 +158,7 @@ Shell commands can be embedded via !{command} syntax.
 - **Risk**: Symlinks may not work on Windows if repo is cloned there — **Mitigation**: bootstrap.sh
   already targets macOS/Linux only. Document this limitation.
 - **Risk**: TOML commands may have size limits for the `prompt` field — **Mitigation**: Test with
-  the largest command (refactor-shell.md at 409 lines). Gemini CLI should handle large prompts.
+  the largest command (shell-refactor.md at 409 lines). Gemini CLI should handle large prompts.
 - **Risk**: Gemini CLI's `settings.json` schema may evolve — **Mitigation**: Use minimal
   settings; link to upstream schema for reference.
 

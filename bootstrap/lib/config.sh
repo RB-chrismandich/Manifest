@@ -477,7 +477,7 @@ services:
     command: browser-use
     description: "AI-powered E2E browser testing via browser-use"
 
-  # smoke-orchestrator runtime deps (Playwright + Chromium) for declarative E2E smoke tests
+  # smoke-manage runtime deps (Playwright + Chromium) for declarative E2E smoke tests
   smoke:
     enabled: ${ENABLE_SMOKE:-false}
     command: smoke_test.py

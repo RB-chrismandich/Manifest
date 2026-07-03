@@ -35,7 +35,7 @@ by scanning the current directory for indicator files:
 If no language is detected and none was provided, stop and report:
 
 ```text
-Error: Could not detect project language. Please specify: /scaffold python my-project
+Error: Could not detect project language. Please specify: /project-scaffold python my-project
 ```
 
 ---
@@ -62,7 +62,7 @@ The sanitized name is used as:
 Copy boilerplate files from the appropriate template directory. The templates live at:
 
 ```text
-~/.claude/skills/scaffold/  (this skill)
+~/.claude/skills/project-scaffold/  (this skill)
 templates/scaffold/{language}/  (in the Manifest repo)
 ```
 
@@ -223,7 +223,7 @@ For Node.js projects that include a web framework (detected via `next`, `vite`, 
 `nuxt`, `astro`, `gatsby`, or `sveltekit` in `package.json` dependencies):
 
 1. **Seed a starter smoke catalog** for the app — write a workflow-description
-   JSON (schema and tiers: see the smoke-orchestrator skill) and append it:
+   JSON (schema and tiers: see the smoke-manage skill) and append it:
 
    ```bash
    echo '{"app": "<app>", "id": "homepage-loads", "tier": "Lite",
@@ -235,7 +235,7 @@ For Node.js projects that include a web framework (detected via `next`, `vite`, 
 
    ```text
    Smoke testing (optional):
-     Playwright + Chromium for deterministic UI steps (see smoke-orchestrator install)
+     Playwright + Chromium for deterministic UI steps (see smoke-manage install)
      ~/.claude/scripts/smoke_test.py run --app <app> --tier Lite
    ```
 

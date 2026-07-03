@@ -56,10 +56,10 @@ EOF
     export ISSUE_SUPPORT_CONFIG="$TMP/config.yml"
     cat >"$ISSUE_SUPPORT_CONFIG" <<'EOF'
 tool_policies:
-  pr-issue-sync:
+  issue-sync-pr:
     enabled: true
     hook_timeout_seconds: 5
-  commit-issue-sync:
+  issue-sync-commit:
     enabled: true
     hook_timeout_seconds: 5
     commit_hook_mode: sync
@@ -123,7 +123,7 @@ EOF
 @test "sync-pr is a no-op when disabled" {
     cat >"$ISSUE_SUPPORT_CONFIG" <<'EOF'
 tool_policies:
-  pr-issue-sync:
+  issue-sync-pr:
     enabled: false
 EOF
     run "$SCRIPT" sync-pr 42
@@ -198,7 +198,7 @@ EOF
 @test "commit_hook_mode=background falls back to sync with a warning" {
     cat >"$ISSUE_SUPPORT_CONFIG" <<'EOF'
 tool_policies:
-  commit-issue-sync:
+  issue-sync-commit:
     enabled: true
     hook_timeout_seconds: 5
     commit_hook_mode: background

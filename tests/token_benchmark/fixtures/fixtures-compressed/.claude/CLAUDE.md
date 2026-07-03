@@ -15,7 +15,7 @@ Apply at all times, in every session:
   whole-tree crawls and re-reads of unchanged files. Don't starve context —
   a wrong edit costs more than one extra dependency read.
 
-`/token-economy` re-asserts this mode if drift is noticed mid-session.
+`/token-conserve` re-asserts this mode if drift is noticed mid-session.
 
 ## Parallel Agent Script
 

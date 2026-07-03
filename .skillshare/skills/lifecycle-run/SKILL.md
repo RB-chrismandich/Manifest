@@ -23,7 +23,7 @@ gate signal. Constitution: Principle VI + "Development Lifecycle". Contracts:
 | 6 | analyze | `/speckit-analyze` | verdict: 0 critical |
 | 7 | spec_review_tech | `/spec-review --mode technical` | verdict: APPROVED |
 | 8 | implement | `/speckit-implement` | coverage: every shipped user-facing workflow has a smoke test (or exempt) |
-| 9 | verify | `/speckit-implement-review` + `smoke_test.py run --tier Lite` | runner: exit 0 |
+| 9 | verify | `/speckit-audit-tasks` + `smoke_test.py run --tier Lite` | runner: exit 0 |
 
 > The `--mode product|technical` flag routes the state dir and selects the
 > matching template (`prompts/spec_review.md` vs `prompts/spec_review_technical.md`).

@@ -35,7 +35,7 @@ tests:
 YAML
 }
 
-# --- --help precedes any dependency lookup (cli-help-before-dependency-checks) ---
+# --- --help precedes any dependency lookup (cli-audit-help) ---
 @test "smoke_test.py --help exits 0 with usage (clean HOME, no catalog)" {
     run env HOME="$SANDBOX" "$SHIM" --help
     assert_success
@@ -102,8 +102,8 @@ YAML
 
 # --- skill wrapper present ---
 @test "skill wrapper SKILL.md is present with name + description" {
-    run cat "$REPO_ROOT/.skillshare/skills/smoke-orchestrator/SKILL.md"
+    run cat "$REPO_ROOT/.skillshare/skills/smoke-manage/SKILL.md"
     assert_success
-    assert_output --partial "name: smoke-orchestrator"
+    assert_output --partial "name: smoke-manage"
     assert_output --partial "description:"
 }

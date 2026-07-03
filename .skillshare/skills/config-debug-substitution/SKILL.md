@@ -12,4 +12,4 @@ Many apps (Glance, Traefik, custom servers) perform their own `${VAR}` interpola
 3. **Enumerate every variable actually passed into the app's container** (its compose `environment:`/`env`/`envFrom`), and diff the two sets. Any var in the config set but not the env set is your bug.
 4. **Add the missing var to the app's environment** as a passthrough (`DOMAIN: ${DOMAIN}`), not just to the orchestrator's `.env`. The orchestrator having a value does NOT mean the app's process sees it.
 5. **For optional vars, beware empty-string injection:** passing `FOO: ${FOO}` when `FOO` is unset sends `""` to the app, which some parsers reject (`invalid value type`). If the app can't tolerate empty, omit the key entirely rather than passing a blank, and let the config use a literal/default.
-6. **Re-validate with the app's own parser** (see `app-native-config-validation`) using placeholders for every enumerated var, so the next failure surfaces at validate time instead of mid-deploy.
+6. **Re-validate with the app's own parser** (see `config-validate-native`) using placeholders for every enumerated var, so the next failure surfaces at validate time instead of mid-deploy.

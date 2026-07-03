@@ -1,10 +1,10 @@
 ---
 name: ci-harden-workflow
-description: Build or harden a CI workflow that runs privileged actions (deploys, bot/agent invocation, secret use) on comment/PR triggers — identity gates, CODEOWNERS, branch protection, environments. Counterpart to ci-workflow-trigger-security (which audits; this builds/governs).
+description: Build or harden a CI workflow that runs privileged actions (deploys, bot/agent invocation, secret use) on comment/PR triggers — identity gates, CODEOWNERS, branch protection, environments. Counterpart to ci-audit-triggers (which audits; this builds/governs).
 ---
 # Secure a Privileged Comment-/Event-Triggered Workflow
 
-A workflow that invokes an agent or uses a secret in response to `issue_comment` / `pull_request_target` / `workflow_run` runs with the *base* repo's token and secrets — even for fork PRs. Left ungated this is the "pwn request" hole. Goal: lock down *who can change or trigger the control* without losing the auto-run-on-PRs value. To *audit an existing* workflow for these holes (expression injection, fork head-ref checkout), use `ci-workflow-trigger-security`; this skill is the build/governance side.
+A workflow that invokes an agent or uses a secret in response to `issue_comment` / `pull_request_target` / `workflow_run` runs with the *base* repo's token and secrets — even for fork PRs. Left ungated this is the "pwn request" hole. Goal: lock down *who can change or trigger the control* without losing the auto-run-on-PRs value. To *audit an existing* workflow for these holes (expression injection, fork head-ref checkout), use `ci-audit-triggers`; this skill is the build/governance side.
 
 1. **Name the privilege.** State exactly which secret or write permission the job can reach. That is the blast radius you are gating.
 2. **Gate on server-set identity, not just string matching.** Require ALL of: the mention/command text is present; the actor is genuinely trusted; and `github.event.comment.user.type != 'Bot'` (stops self-trigger loops). Put the gate at **job level** (`if:`) so no step runs in an untrusted context. `author_association ∈ {OWNER, MEMBER, COLLABORATOR}` is server-set and not spoofable, but it is **not a write-access check** — `COLLABORATOR` includes read-/triage-only collaborators and `MEMBER` is any org member, so it can admit principals who cannot actually change the repo. For a privileged trigger, confirm the real permission level (e.g. `gh api repos/{owner}/{repo}/collaborators/{user}/permission` → `admin`/`write`) rather than `author_association` alone.

@@ -145,7 +145,7 @@ fallback:
 # Disable Git CLIs
 ./bootstrap.sh --reconfigure --disable-gh --disable-glab
 
-# Enable browser-use (Python E2E browser automation for smoke-orchestrator UI steps)
+# Enable browser-use (Python E2E browser automation for smoke-manage UI steps)
 ./bootstrap.sh --reconfigure --enable-browser-use
 
 # Disable Graphify (managed knowledge-graph tool; default-enabled)
@@ -310,7 +310,7 @@ Defines which tools each command can use:
 
 ```yaml
 tool_policies:
-  refactor-python:
+  python-refactor:
     allowed:
       - Read
       - Glob
@@ -322,7 +322,7 @@ tool_policies:
     parallel_agents: always
     validation_tier: 1
 
-  docs-diagrams:
+  docs-generate-diagrams:
     allowed:
       - Read
       - Glob
@@ -512,7 +512,7 @@ scoring:
 
 ```yaml
 command_overrides:
-  refactor-python:
+  python-refactor:
     tier1_required: true
     tier1_checks:
       - security
@@ -523,7 +523,7 @@ command_overrides:
     tier2_threshold: 0.80  # Higher threshold for refactoring
     consensus_threshold: 0.80
 
-  docs-diagrams:
+  docs-generate-diagrams:
     tier1_required: false
     tier2_required: false
     # No validation for diagram generation
@@ -541,7 +541,7 @@ Validation behavior is customized through the `command_overrides` section of
 
 ```yaml
 command_overrides:
-  refactor-python:
+  python-refactor:
     tier1_required: true
     tier1_checks:
       - security
@@ -556,7 +556,7 @@ command_overrides:
       medium: show_disagreements  # 50-79%: Highlight to user
       low: block_and_escalate     # <50%: Human review required
 
-  docs-readme:
+  docs-improve-readme:
     tier1_required: false
     tier2_required: true
     tier2_checks:

@@ -291,7 +291,7 @@ After completing the analysis, capture the most significant findings:
        --category antipattern --language python \
        --title "<finding title>" \
        --description "<finding description and recommended fix>" \
-       --source refactor-python --confidence high
+       --source python-refactor --confidence high
      ```
 
 2. For any new tool recommendations discovered:
@@ -302,7 +302,7 @@ After completing the analysis, capture the most significant findings:
        --category tool_discovery --language python \
        --title "<tool recommendation>" \
        --description "<why this tool is better>" \
-       --source refactor-python --confidence medium
+       --source python-refactor --confidence medium
      ```
 
 3. This step is **non-blocking** -- failures in learning capture should not affect the analysis output.

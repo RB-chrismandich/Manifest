@@ -458,7 +458,7 @@ def _build_parser() -> argparse.ArgumentParser:
 
 def main(argv=None) -> int:
     # --help must succeed before any catalog/config load (repo convention:
-    # cli-help-before-dependency-checks). argparse handles -h/--help here,
+    # cli-audit-help). argparse handles -h/--help here,
     # before build_catalog() touches the filesystem.
     args = _build_parser().parse_args(argv)
     try:

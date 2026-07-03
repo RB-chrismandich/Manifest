@@ -24,8 +24,8 @@
 13. [Cross-Verification Consensus](#cross-verification-consensus)
 14. [Service State Management](#service-state-management)
 15. [Issue Management Architecture](#issue-management-architecture)
-16. [Issue-Linking Hooks (commit-issue-sync / pr-issue-sync)](#issue-linking-hooks-commit-issue-sync--pr-issue-sync)
-17. [Autonomous Issue Developer (/auto-issue-dev)](#autonomous-issue-developer-auto-issue-dev)
+16. [Issue-Linking Hooks (issue-sync-commit / issue-sync-pr)](#issue-linking-hooks-commit-issue-sync--pr-issue-sync)
+17. [Autonomous Issue Developer (/issue-dev-auto)](#autonomous-issue-developer-auto-issue-dev)
 18. [Label Management Architecture](#label-management-architecture)
 19. [SkillClaw Passive Ingest & Evolve Pipeline](#skillclaw-passive-ingest--evolve-pipeline)
 
@@ -727,10 +727,10 @@ flowchart LR
 
 **Command Types**:
 
-- **ALWAYS Parallel**: `/refactor-python`, `/refactor-shell` (security-sensitive)
-- **CONDITIONAL**: `/docs-diagrams` (5+ modules), `/plan-manage` (complex planning),
+- **ALWAYS Parallel**: `/python-refactor`, `/shell-refactor` (security-sensitive)
+- **CONDITIONAL**: `/docs-generate-diagrams` (5+ modules), `/plan-manage` (complex planning),
   `/docs-improve` (500+ total doc lines)
-- **NEVER Parallel**: `/docs-readme` (straightforward documentation)
+- **NEVER Parallel**: `/docs-improve-readme` (straightforward documentation)
 
 ---
 
@@ -806,10 +806,10 @@ Commands can override default thresholds in `validation_criteria.yml`:
 
 ```yaml
 command_overrides:
-  refactor-python:
+  python-refactor:
     tier1:
       security_issues: 0.5  # Higher weight for Python security
-  project-commit:
+  git-commit:
     tier2:
       test_coverage: 0.0    # Don't require tests for commits
 ```
@@ -937,7 +937,7 @@ flowchart TD
     classDef warn fill:#eab308,stroke:#a16207,color:#fff
     classDef stale fill:#ef4444,stroke:#dc2626,color:#fff
 
-    CALLER["check_status.sh /<br/>/health-check"]:::input
+    CALLER["check_status.sh /<br/>/env-check"]:::input
     MODEL_CHECK["model_check.sh<br/>(reads model_tiers pins)"]:::process
 
     API_KEY{"API key set?<br/>(claude / gemini)"}:::decision
@@ -1284,7 +1284,7 @@ flowchart TB
 
 ---
 
-## Issue-Linking Hooks (commit-issue-sync / pr-issue-sync)
+## Issue-Linking Hooks (issue-sync-commit / issue-sync-pr)
 
 How the issue-linking hooks keep the GitHub/GitLab issue tracker in sync as commits
 land and PRs/MRs open. A single PostToolUse dispatcher (`issue_support_hook.sh`)
@@ -1363,7 +1363,7 @@ flowchart TB
 **Key properties**:
 
 - **Opt-in & reversible**: `install_issue_hooks.sh --enable/--remove` flips the
-  `tool_policies.{pr-issue-sync,commit-issue-sync}.enabled` gate and idempotently
+  `tool_policies.{issue-sync-pr,issue-sync-commit}.enabled` gate and idempotently
   adds/removes the PostToolUse entry in `~/.claude/settings.json`. `--native` adds a
   guarded `git post-commit` hook (refuses to clobber a pre-existing one).
 - **Fail-open**: `sync-pr`/`sync-commit` always exit 0; an internal `__inner`
@@ -1378,9 +1378,9 @@ flowchart TB
 
 ---
 
-## Autonomous Issue Developer (/auto-issue-dev)
+## Autonomous Issue Developer (/issue-dev-auto)
 
-How `/auto-issue-dev` (engine: `auto_issue_dev.sh`) develops **exactly one** opted-in
+How `/issue-dev-auto` (engine: `auto_issue_dev.sh`) develops **exactly one** opted-in
 issue per invocation and opens a PR for review — never merging. `/loop` re-runs the
 skill with fresh context for the next issue. Selection is opt-in (the `auto-dev`
 label) and dependency-aware: issues with unmet `depends on #N` / `blocked by #N`
@@ -1397,7 +1397,7 @@ flowchart TD
     classDef warning fill:#eab308,stroke:#a16207,color:#fff
     classDef stop fill:#e5e7eb,stroke:#6b7280,color:#374151
 
-    LOOP["/loop /auto-issue-dev<br/>(fresh context per run)"]:::input
+    LOOP["/loop /issue-dev-auto<br/>(fresh context per run)"]:::input
     PREFLIGHT["Preflight:<br/>install_issue_hooks.sh --enable<br/>+ gh/glab auth check"]:::process
 
     NEXT["auto_issue_dev.sh next-issue --json<br/>list 'auto-dev' open issues,<br/>drop 'blocked-dependency',<br/>oldest-first"]:::process
@@ -1409,7 +1409,7 @@ flowchart TD
 
     BRANCH["git switch -c N-slug<br/>(numeric prefix links #N)"]:::process
     TDD["test-driven-development:<br/>failing test → implement → green"]:::process
-    VERIFY{"/verify<br/>tests + security pass?"}:::decision
+    VERIFY{"/project-verify<br/>tests + security pass?"}:::decision
 
     PR["git_ops.sh pr-create<br/>→ PR hook injects Closes #N,<br/>moves #N to needs-review"]:::success
     DRAFT["pr-create --draft [WIP]<br/>+ mark-blocked (needs-human label)"]:::warning
@@ -1487,7 +1487,7 @@ flowchart TB
     subgraph "Consumers"
         PLAN["/plan-manage<br/>planned, in-progress, done"]:::script
         TRIAGE["/issue-triage<br/>needs-review, follow-up"]:::script
-        HEALTH["/health-check<br/>label validation"]:::script
+        HEALTH["/env-check<br/>label validation"]:::script
     end
 
     LABELS --> PARSE
@@ -1510,14 +1510,14 @@ flowchart TB
 | Label | Color | Platforms | Used By |
 |-------|-------|-----------|---------|
 | `planned` | `#1D76DB` (Blue) | GitHub, GitLab, Linear | /plan-manage create |
-| `in-progress` | `#FBCA04` (Yellow) | GitHub, GitLab, Linear | /plan-manage execute, commit-issue-sync |
-| `needs-review` | `#E3A21A` (Orange) | GitHub, GitLab, Linear | /issue-triage, pr-issue-sync |
+| `in-progress` | `#FBCA04` (Yellow) | GitHub, GitLab, Linear | /plan-manage execute, issue-sync-commit |
+| `needs-review` | `#E3A21A` (Orange) | GitHub, GitLab, Linear | /issue-triage, issue-sync-pr |
 | `done` | `#0E8A16` (Green) | GitHub, GitLab, Linear | /plan-manage execute |
 | `follow-up` | `#D4C5F9` (Lavender) | GitHub, GitLab, Linear | /issue-triage |
 | `future` | `#C2E0C6` (Green) | GitHub, GitLab, Linear | /issue-prioritize |
-| `auto-dev` | `#5319E7` (Purple) | GitHub, GitLab, Linear | /auto-issue-dev (selection) |
-| `needs-human` | `#B60205` (Red) | GitHub, GitLab, Linear | /auto-issue-dev (mark-blocked) |
-| `blocked-dependency` | `#6A737D` (Gray) | GitHub, GitLab, Linear | /auto-issue-dev (mark-dependency) |
+| `auto-dev` | `#5319E7` (Purple) | GitHub, GitLab, Linear | /issue-dev-auto (selection) |
+| `needs-human` | `#B60205` (Red) | GitHub, GitLab, Linear | /issue-dev-auto (mark-blocked) |
+| `blocked-dependency` | `#6A737D` (Gray) | GitHub, GitLab, Linear | /issue-dev-auto (mark-dependency) |
 
 **Deprecated**: `processed` (replaced by `done`)
 

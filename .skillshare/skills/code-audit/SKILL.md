@@ -1,6 +1,6 @@
 ---
 name: code-audit
-description: Auto-trigger on security-sensitive code (auth, crypto, secrets, input validation), large files (>500 lines), or complex files (>10 functions/>5 classes). Gives code-quality and security feedback without blocking user flow.
+description: Auto-trigger on security-sensitive code (auth, crypto, secrets, input validation), large files (>500 lines), or complex files (>10 functions/>5 classes). Gives code-audit and security feedback without blocking user flow.
 ---
 
 # Code Quality Analysis Skill
@@ -156,7 +156,7 @@ This skill provides information without interrupting user workflow:
 
 ## Integration with Commands
 
-This skill works alongside the `/refactor-python` command:
+This skill works alongside the `/python-refactor` command:
 
 - **Skill**: Lightweight, auto-triggered, inline feedback
 - **Command**: Comprehensive, user-invoked, full report
@@ -164,7 +164,7 @@ This skill works alongside the `/refactor-python` command:
 When both trigger:
 
 1. Skill provides immediate feedback
-2. User can invoke `/refactor-python` for detailed analysis
+2. User can invoke `/python-refactor` for detailed analysis
 3. Results are complementary, not duplicated
 
 ## Configuration

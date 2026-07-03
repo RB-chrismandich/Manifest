@@ -3,7 +3,7 @@ name: issue-dev-auto
 description: |
   Autonomously develop one opted-in ('auto-dev'-labeled) issue end-to-end: pick the
   next ready issue, implement test-first, and open a PR for review (never merges).
-  Dependency-blocked issues are skipped. Run unattended via /loop /auto-issue-dev.
+  Dependency-blocked issues are skipped. Run unattended via /loop /issue-dev-auto.
 ---
 
 # Autonomous Issue Developer
@@ -16,7 +16,7 @@ this skill with fresh context for the next issue.
 1. **Merge only through the verified gate (supersedes the former "never merge" rule).**
    The develop step still stops at PR-open. A PR is merged to main *only* by the
    PR-monitoring loop below, and only when every clear condition holds (CI green, no
-   actionable human comment, `/pr-review`=merge, `/verify` pass, #360 gate Tier-1 pass, and
+   actionable human comment, `/pr-review`=merge, `/project-verify` pass, #360 gate Tier-1 pass, and
    consensus ≥ 0.80) — a tested decision (`merge_decision.sh`), never a judgment call. Merges
    are **opt-in** (`PR_MERGE_LOOP_APPLY=1`); the default is dry-run. Anything short of fully
    clear → the PR goes to a human, never a partial/forced merge.
@@ -41,7 +41,7 @@ this skill with fresh context for the next issue.
 4. **Develop test-first.** Invoke `superpowers:test-driven-development`: write a
    failing test for the issue's acceptance criteria, implement minimally, get green.
    Keep scope to the issue.
-5. **Verify.** Run `/verify`. Lint warnings are non-blocking; test or security
+5. **Verify.** Run `/project-verify`. Lint warnings are non-blocking; test or security
    failures are blocking.
 6. **Outcome:**
    - **Success** → `configs/claude/scripts/git_ops.sh pr-create --title "<...>" --body "<...>"`.
@@ -68,7 +68,7 @@ deterministic primitives so the irreversible step is never a judgment call:
    returns `{action}` — one of `merge | revise | wait | update-branch | hand-human | halt`.
    Take the lock first: `loop_lock.sh acquire <pr>` (skip if held), release in all paths.
 3. **Act on the action:**
-   - `revise` → run one cycle: `/address-pr-comments`, then `/verify`, then `/pr-review`
+   - `revise` → run one cycle: `/pr-address-comments`, then `/project-verify`, then `/pr-review`
      (fan independent reviews out in parallel — FR-015); push; `pr_merge_loop.sh address-cycle <pr>`
      records the revision. After **3** cycles without clearing, the decision returns
      `hand-human` → label `needs-human`, move on (FR-005/006).
@@ -87,7 +87,7 @@ deterministic primitives so the irreversible step is never a judgment call:
    hard 10-minute ceiling, serializes merges via `loop_lock` (one in flight; monitoring
    interleaves — FR-014), resets the empty-run counter on work / increments on idle passes,
    and **stops after 5 consecutive empty runs** (FR-018/018a). It exits non-zero (11) if a
-   merge reddens `main` (halt) so `/loop` surfaces the failure. `/loop /auto-issue-dev`
+   merge reddens `main` (halt) so `/loop` surfaces the failure. `/loop /issue-dev-auto`
    remains the outer re-invoker that gives each pass fresh context.
 
 Every action appends a redacted `audit_log.sh` record (FR-021/022).

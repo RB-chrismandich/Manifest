@@ -1,5 +1,5 @@
 {
-  "skill_name": "speckit-implement-review",
+  "skill_name": "speckit-audit-tasks",
   "evals": [
     {
       "id": 1,
@@ -10,7 +10,7 @@
     {
       "id": 2,
       "prompt": "Review the implementation — task T012 is marked done but I don't think the test was actually written.",
-      "expected_output": "Flags T012 as INCOMPLETE with the missing-test evidence; runs /verify or the specific test; lists T012 on the punch list; does not modify tasks.md.",
+      "expected_output": "Flags T012 as INCOMPLETE with the missing-test evidence; runs /project-verify or the specific test; lists T012 on the punch list; does not modify tasks.md.",
       "files": []
     },
     {

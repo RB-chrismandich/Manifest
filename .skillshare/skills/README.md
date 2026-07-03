@@ -4,15 +4,15 @@ This directory is the canonical source of reusable workflows for all supported L
 
 ## Canonical Skills (Transcribed from Commands)
 
-- `checkpoint`
-- `docs-diagrams`
+- `session-checkpoint`
+- `docs-generate-diagrams`
 - `docs-improve`
-- `docs-readme`
+- `docs-improve-readme`
 - `plan-manage`
-- `project-commit`
-- `refactor-python`
-- `refactor-shell`
-- `code-quality` (existing)
+- `git-commit`
+- `python-refactor`
+- `shell-refactor`
+- `code-audit` (existing)
 
 ## Command Wrappers
 

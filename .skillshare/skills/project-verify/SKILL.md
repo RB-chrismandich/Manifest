@@ -87,7 +87,7 @@ wait
 ## Phase 3.5: Smoke Tests (Optional)
 
 After the standard lint/test/security scans complete, check for a smoke catalog
-(see the smoke-orchestrator skill):
+(see the smoke-manage skill):
 
 1. **Detect catalog**: Check if `smoke-catalog/` exists and contains `*.yaml` or `*.yml` files.
 2. **If it does**: Execute the deterministic PR-gate tier:

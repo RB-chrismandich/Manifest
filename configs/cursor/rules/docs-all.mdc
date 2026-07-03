@@ -1,12 +1,12 @@
 ---
-description: "Run docs-readme, docs-diagrams, and docs-improve in one command, dispatching each as a sub-agent and returning a consolidated report. Use to refresh the whole doc set at once."
+description: "Run docs-improve-readme, docs-generate-diagrams, and docs-improve in one command, dispatching each as a sub-agent and returning a consolidated report. Use to refresh the whole doc set at once."
 globs: ".claude/skills/docs-all/**"
 alwaysApply: false
 ---
 
 # docs-all
 
-Run docs-readme, docs-diagrams, and docs-improve in one command, dispatching each as a sub-agent and returning a consolidated report. Use to refresh the whole doc set at once.
+Run docs-improve-readme, docs-generate-diagrams, and docs-improve in one command, dispatching each as a sub-agent and returning a consolidated report. Use to refresh the whole doc set at once.
 
 <!-- Auto-generated from .claude/skills/docs-all/SKILL.md -->
 <!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->

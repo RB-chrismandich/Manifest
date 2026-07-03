@@ -27,12 +27,12 @@ setup() {
     # Repo-shipped default shape (comments intact, gates false)
     cat > "$TGT" <<'YML'
 tool_policies:
-  pr-issue-sync:
+  issue-sync-pr:
     # hook-triggered; opt-in via install_issue_hooks.sh
     enabled: false
     allowed:
       - Bash
-  commit-issue-sync:
+  issue-sync-commit:
     enabled: false
     allowed:
       - Bash
@@ -48,12 +48,12 @@ teardown() {
 _live_optin() { # snapshot where the user opted in to both hooks
     cat > "$PRESERVED" <<'YML'
 tool_policies:
-  pr-issue-sync:
+  issue-sync-pr:
     # hook-triggered; opt-in via install_issue_hooks.sh
     enabled: true
     allowed:
       - Bash
-  commit-issue-sync:
+  issue-sync-commit:
     enabled: true
     allowed:
       - Bash
@@ -66,8 +66,8 @@ YML
     _live_optin
     run preserve_issue_sync_gates "$PRESERVED" "$TGT"
     assert_success
-    grep -A3 '^  pr-issue-sync:' "$TGT" | grep -q 'enabled: true'
-    grep -A2 '^  commit-issue-sync:' "$TGT" | grep -q 'enabled: true'
+    grep -A3 '^  issue-sync-pr:' "$TGT" | grep -q 'enabled: true'
+    grep -A2 '^  issue-sync-commit:' "$TGT" | grep -q 'enabled: true'
 }
 
 @test "scope guard: other skills' gates are NOT carried over" {
@@ -87,7 +87,7 @@ YML
 @test "fresh install (no snapshot) leaves repo defaults untouched" {
     run preserve_issue_sync_gates "" "$TGT"
     assert_success
-    grep -A3 '^  pr-issue-sync:' "$TGT" | grep -q 'enabled: false'
+    grep -A3 '^  issue-sync-pr:' "$TGT" | grep -q 'enabled: false'
 }
 
 @test "snapshot with gates still false changes nothing" {
