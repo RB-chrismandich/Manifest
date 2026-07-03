@@ -92,7 +92,6 @@ advance_clone() {
 
 setup_checker() {
     FHOME="$TMP/home"; mkdir -p "$FHOME/.manifest"
-    export HOME_BAK="$HOME"
     # origin/HEAD so the default-branch resolver finds 'main' (or the init branch)
     DEF_BRANCH="$(git -C "$CLONE" rev-parse --abbrev-ref HEAD)"
     git -C "$CLONE" symbolic-ref "refs/remotes/origin/HEAD" "refs/remotes/origin/$DEF_BRANCH" 2>/dev/null || true
