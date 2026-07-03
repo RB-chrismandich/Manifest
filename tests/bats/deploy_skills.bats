@@ -276,7 +276,7 @@ teardown() {
     assert_output ""
 }
 
-@test "deploy_antigravity_configs symlinks all 5 shared assets to claude" {
+@test "deploy_antigravity_configs symlinks config/skills/.plans but not scripts/prompts" {
     export TARGET_DIR="$SANDBOX/home/.claude"
     export ANTIGRAVITY_TARGET_DIR="$SANDBOX/home/.antigravity"
     mkdir -p "$TARGET_DIR/skills/demo" "$TARGET_DIR/scripts" \
@@ -288,10 +288,12 @@ teardown() {
     run deploy_antigravity_configs
     assert_success
 
-    # All five shared assets are symlinked (mirrors Cursor/Gemini/Codex).
-    for link in skills scripts config prompts .plans; do
-        [ -L "$ANTIGRAVITY_TARGET_DIR/$link" ]
+    # agy is a parallel_agent provider, not an orchestrator: no scripts/prompts.
+    for link in skills config .plans; do
+        [ -L "$ANTIGRAVITY_TARGET_DIR/$link" ] || { echo "missing link: $link"; false; }
     done
+    [ ! -e "$ANTIGRAVITY_TARGET_DIR/scripts" ] || { echo "scripts must not be linked"; false; }
+    [ ! -e "$ANTIGRAVITY_TARGET_DIR/prompts" ] || { echo "prompts must not be linked"; false; }
     [ -d "$ANTIGRAVITY_TARGET_DIR/skills/demo" ]
 }
 
@@ -308,9 +310,11 @@ teardown() {
     run deploy_antigravity_configs      # second run — must not fail
     assert_success
 
-    for link in skills scripts config prompts .plans; do
-        [ -L "$ANTIGRAVITY_TARGET_DIR/$link" ]
+    for link in skills config .plans; do
+        [ -L "$ANTIGRAVITY_TARGET_DIR/$link" ] || { echo "missing link: $link"; false; }
     done
+    [ ! -e "$ANTIGRAVITY_TARGET_DIR/scripts" ] || { echo "scripts must not be linked"; false; }
+    [ ! -e "$ANTIGRAVITY_TARGET_DIR/prompts" ] || { echo "prompts must not be linked"; false; }
     [ -d "$ANTIGRAVITY_TARGET_DIR/skills/demo" ]
 }
 
