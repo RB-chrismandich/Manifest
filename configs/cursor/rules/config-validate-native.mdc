@@ -1,0 +1,15 @@
+---
+description: "Use before deploying any app that parses its own config file (Glance, nginx, Traefik, Prometheus, Terraform, etc.) — validate with the application's OWN parser, not a generic linter, because generic linting passes configs the app rejects."
+globs: ".claude/skills/config-validate-native/**"
+alwaysApply: false
+---
+
+# config-validate-native
+
+Use before deploying any app that parses its own config file (Glance, nginx, Traefik, Prometheus, Terraform, etc.) — validate with the application's OWN parser, not a generic linter, because generic linting passes configs the app rejects.
+
+<!-- Auto-generated from .claude/skills/config-validate-native/SKILL.md -->
+<!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
+
+Refer to `.cursor/skills/config-validate-native/SKILL.md` for the full skill definition.
+

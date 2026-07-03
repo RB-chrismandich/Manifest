@@ -13,10 +13,10 @@ setup() {
     export ISSUE_HOOKS_CONFIG="$TMP/config.yml"
     cat >"$ISSUE_HOOKS_CONFIG" <<'EOF'
 tool_policies:
-  pr-issue-sync:
+  issue-sync-pr:
     enabled: false              # comment kept
     hook_timeout_seconds: 5
-  commit-issue-sync:
+  issue-sync-commit:
     enabled: false
     hook_timeout_seconds: 5
     commit_hook_mode: sync
@@ -34,8 +34,8 @@ teardown() { [[ -n "$TMP" && -d "$TMP" ]] && rm -rf "$TMP"; }
 @test "enable flips both skills' enabled to true and preserves comments" {
     run bash "$INSTALL" --enable
     [ "$status" -eq 0 ]
-    grep -A1 '^  pr-issue-sync:' "$ISSUE_HOOKS_CONFIG" | grep -q 'enabled: true'
-    grep -A1 '^  commit-issue-sync:' "$ISSUE_HOOKS_CONFIG" | grep -q 'enabled: true'
+    grep -A1 '^  issue-sync-pr:' "$ISSUE_HOOKS_CONFIG" | grep -q 'enabled: true'
+    grep -A1 '^  issue-sync-commit:' "$ISSUE_HOOKS_CONFIG" | grep -q 'enabled: true'
     grep -q '# comment kept' "$ISSUE_HOOKS_CONFIG"
     # unrelated skill untouched
     grep -A1 '^  other-skill:' "$ISSUE_HOOKS_CONFIG" | grep -q 'enabled: false'
@@ -56,7 +56,7 @@ teardown() { [[ -n "$TMP" && -d "$TMP" ]] && rm -rf "$TMP"; }
     bash "$INSTALL" --enable
     run bash "$INSTALL" --remove
     [ "$status" -eq 0 ]
-    grep -A1 '^  pr-issue-sync:' "$ISSUE_HOOKS_CONFIG" | grep -q 'enabled: false'
+    grep -A1 '^  issue-sync-pr:' "$ISSUE_HOOKS_CONFIG" | grep -q 'enabled: false'
     count=$(python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); print(sum(1 for e in d["hooks"].get("PostToolUse",[]) for h in e["hooks"] if "issue_support_hook.sh" in h["command"]))' "$ISSUE_HOOKS_SETTINGS")
     [ "$count" -eq 0 ]
 }

@@ -1,0 +1,15 @@
+---
+description: "Generate and maintain Mermaid architecture diagrams that reflect current system structure, workflows, and integrations."
+globs: ".claude/skills/docs-generate-diagrams/**"
+alwaysApply: false
+---
+
+# docs-generate-diagrams
+
+Generate and maintain Mermaid architecture diagrams that reflect current system structure, workflows, and integrations.
+
+<!-- Auto-generated from .claude/skills/docs-generate-diagrams/SKILL.md -->
+<!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
+
+Refer to `.cursor/skills/docs-generate-diagrams/SKILL.md` for the full skill definition.
+

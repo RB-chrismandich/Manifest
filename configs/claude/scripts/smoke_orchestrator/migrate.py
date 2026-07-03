@@ -1,4 +1,4 @@
-"""One-shot migration: browser-test YAML prompts → smoke-catalog agent steps.
+"""One-shot migration: legacy browser-use YAML prompts → smoke-catalog agent steps.
 
 Translates the legacy ``tests/browser/*.yaml`` browser-use format
 (``task`` / ``judge_context`` / ``url`` / ``max_steps`` / ``tags``) into smoke
@@ -25,9 +25,9 @@ def _slug(stem: str) -> str:
 
 
 def translate_browser_test(doc: Any, *, test_id: str) -> dict:
-    """Translate one browser-test doc into a smoke catalog test entry."""
+    """Translate one legacy browser-use doc into a smoke catalog test entry."""
     if not isinstance(doc, dict):
-        raise ValueError(f"{test_id}: browser-test must be a mapping")
+        raise ValueError(f"{test_id}: legacy browser-use doc must be a mapping")
     task = doc.get("task")
     if not task or not isinstance(task, str):
         raise ValueError(f"{test_id}: missing required 'task'")
@@ -76,10 +76,11 @@ def main(argv: list[str] | None = None) -> int:
 
     p = argparse.ArgumentParser(
         prog="smoke_orchestrator.migrate",
-        description="Migrate browser-test YAML prompts into a smoke catalog (mode: agent, tier Full).",
+        description="Migrate legacy browser-use YAML prompts into a smoke catalog (mode: agent, tier Full).",
     )
     p.add_argument(
-        "src_dir", help="directory of browser-test *.yaml files (e.g. tests/browser)"
+        "src_dir",
+        help="directory of legacy browser-use *.yaml files (e.g. tests/browser)",
     )
     p.add_argument(
         "--app", required=True, help="catalog app slug (^[a-z0-9][a-z0-9-]*$)"

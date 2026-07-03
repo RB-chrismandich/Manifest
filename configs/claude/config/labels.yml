@@ -38,7 +38,7 @@ labels:
 
   - name: auto-dev
     color: "5319E7"
-    description: "Eligible for the autonomous issue developer (/auto-issue-dev)"
+    description: "Eligible for the autonomous issue developer (/issue-dev-auto)"
     platforms: [github, gitlab, linear]
 
   - name: needs-human

@@ -105,18 +105,21 @@ All pull requests are subject to a two-tier validation process enforced via para
 agent review:
 
 **Tier 1 — Blocking (all must pass)**:
+
 - Cross-verification: multiple agents agree on key findings
 - Security: no injection, XSS, auth bypass, or secrets exposure
 - Error handling: proper exceptions with no silent failures
 - Breaking changes: API compatibility and data migration safety verified
 
 **Tier 2 — Advisory (score ≥0.60 required for APPROVED verdict)**:
+
 - Bug detection: logic errors, off-by-one, null references
 - Performance: no O(n²) loops or memory leaks in hot paths
 - Maintainability: clear naming, reasonable cyclomatic complexity
 - Test coverage: changes include corresponding tests
 
 **Verdicts**:
+
 - `APPROVED`: Tier 1 passes AND Tier 2 score ≥ 0.60
 - `NEEDS_REVIEW`: Tier 1 passes AND Tier 2 score < 0.60
 - `BLOCKED`: Any Tier 1 check fails
@@ -125,7 +128,7 @@ agent review:
 
 Feature work is governed by the nine-phase state machine (Principle VI), tracked per unit of
 work and anchored at the Task tier. The implementation is `configs/claude/scripts/lifecycle.sh`
-(the shared, bats-tested decide/gate core) fronted by the `/lifecycle` skill and enforced by
+(the shared, bats-tested decide/gate core) fronted by the `/lifecycle-run` skill and enforced by
 the autonomous-development loop — humans and agents share one tested gate.
 
 | # | Phase | Command(s) | Exit gate |
@@ -138,7 +141,7 @@ the autonomous-development loop — humans and agents share one tested gate.
 | 6 | Analyze | `/speckit-analyze` | 0 critical findings |
 | 7 | Spec-Review (technical) | `/spec-review --mode technical` | `APPROVED` |
 | 8 | Implement | `/speckit-implement` | per-user-facing-workflow smoke coverage |
-| 9 | Verify task-by-task | `/speckit-implement-review` + `smoke_test.py run --tier Lite` | exit `0` |
+| 9 | Verify task-by-task | `/speckit-audit-tasks` + `smoke_test.py run --tier Lite` | exit `0` |
 
 **Gating**: hard halt for agents, advisory-with-logged-override for humans (Principle VI).
 Review/analyze gates use the Quality Gates verdict model.
@@ -185,6 +188,7 @@ version bump per the policy below, and review by at least one repository maintai
 `LAST_AMENDED_DATE` MUST be updated to the merge date.
 
 **Versioning policy**:
+
 - MAJOR: backward-incompatible governance changes — principle removals or redefinitions
 - MINOR: new principle or section added, or materially expanded guidance
 - PATCH: clarifications, wording fixes, non-semantic refinements

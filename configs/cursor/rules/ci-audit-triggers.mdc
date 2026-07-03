@@ -1,0 +1,15 @@
+---
+description: "Audit a GitHub Actions / GitLab CI workflow on attacker-influenceable triggers (pull_request_target, issue_comment, workflow_run) — finds pwn-request issues (fork head-ref checkout, ${{ }} injection, author_association gaps). Analysis-only; to harden one, use ci-harden-workflow."
+globs: ".claude/skills/ci-audit-triggers/**"
+alwaysApply: false
+---
+
+# ci-audit-triggers
+
+Audit a GitHub Actions / GitLab CI workflow on attacker-influenceable triggers (pull_request_target, issue_comment, workflow_run) — finds pwn-request issues (fork head-ref checkout, ${{ }} injection, author_association gaps). Analysis-only; to harden one, use ci-harden-workflow.
+
+<!-- Auto-generated from .claude/skills/ci-audit-triggers/SKILL.md -->
+<!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
+
+Refer to `.cursor/skills/ci-audit-triggers/SKILL.md` for the full skill definition.
+

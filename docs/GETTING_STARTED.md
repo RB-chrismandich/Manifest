@@ -194,7 +194,7 @@ Manifest integrates with Claude Code through slash commands.
 
 ### Available Commands
 
-#### `/refactor-python` - Code Analysis (Always uses parallel agents)
+#### `/python-refactor` - Code Analysis (Always uses parallel agents)
 
 Analyzes Python codebases for security, architecture, and code quality issues.
 
@@ -202,7 +202,7 @@ Analyzes Python codebases for security, architecture, and code quality issues.
 
 ```bash
 # In Claude Code
-/refactor-python src/
+/python-refactor src/
 ```
 
 **What it does:**
@@ -213,7 +213,7 @@ Analyzes Python codebases for security, architecture, and code quality issues.
 4. Validates against Tier 1 (security) and Tier 2 (quality) checks
 5. Returns unified recommendation
 
-#### `/docs-diagrams` - Architecture Diagrams (Conditional)
+#### `/docs-generate-diagrams` - Architecture Diagrams (Conditional)
 
 Generates Mermaid diagrams for project documentation.
 
@@ -221,7 +221,7 @@ Generates Mermaid diagrams for project documentation.
 
 ```bash
 # In Claude Code
-/docs-diagrams docs/ARCHITECTURE.md
+/docs-generate-diagrams docs/ARCHITECTURE.md
 ```
 
 **Triggers parallel agents when:** Analyzing 5+ unique imports/modules
@@ -239,7 +239,7 @@ Analyzes documentation against the Diataxis framework.
 
 **Triggers parallel agents when:** Total documentation lines > 500
 
-#### `/docs-readme` - README Enhancement (Never uses parallel agents)
+#### `/docs-improve-readme` - README Enhancement (Never uses parallel agents)
 
 Improves README.md documentation following best practices.
 
@@ -247,7 +247,7 @@ Improves README.md documentation following best practices.
 
 ```bash
 # In Claude Code
-/docs-readme
+/docs-improve-readme
 ```
 
 ### Command Output Formats
@@ -361,7 +361,7 @@ consensus:
 
 ### For Regular Use
 
-1. **Integrate with Claude Code**: Commands are available as `/refactor-python`, `/docs-diagrams`, etc.
+1. **Integrate with Claude Code**: Commands are available as `/python-refactor`, `/docs-generate-diagrams`, etc.
 2. **Review Configuration**: Read [Configuration Guide](CONFIGURATION.md) to customize behavior
 3. **Learn Architecture**: View [Architecture Diagrams](ARCHITECTURE_DIAGRAMS.md) to understand data flows
 

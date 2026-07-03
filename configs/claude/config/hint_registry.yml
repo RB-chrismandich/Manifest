@@ -15,7 +15,7 @@ moments:
     trigger: "PreToolUse:pr-create"
     description: "Opening a pull/merge request"
   - id: refactor-start
-    trigger: "command-invoke:refactor-*"
+    trigger: "command-invoke:*-refactor"
     description: "Invoking a language refactor command"
   - id: high-context
     trigger: "context-high"
@@ -24,38 +24,38 @@ moments:
 rules:
   # --- contextual hints (category: hint) ------------------------------------ #
   - moment_id: pre-commit
-    command_refs: ["verify", "project-commit"]
-    message: "Before committing: /verify to lint+test, or /project-commit for the full pipeline."
+    command_refs: ["project-verify", "git-commit"]
+    message: "Before committing: /project-verify to lint+test, or /git-commit for the full pipeline."
     priority: 10
     dedup_key: commit-guidance
     category: hint
   - moment_id: pr-open
-    command_refs: ["post-pr-review-monitor", "pr-review"]
-    message: "PR opened — /post-pr-review-monitor babysits CI + bot reviews; /pr-review for a disposition pass."
+    command_refs: ["pr-monitor", "pr-review"]
+    message: "PR opened — /pr-monitor babysits CI + bot reviews; /pr-review for a disposition pass."
     priority: 10
     dedup_key: pr-guidance
     category: hint
   - moment_id: refactor-start
-    command_refs: ["verify"]
-    message: "Starting a refactor — capture a /verify baseline first so you can prove the change is safe."
+    command_refs: ["project-verify"]
+    message: "Starting a refactor — capture a /project-verify baseline first so you can prove the change is safe."
     priority: 10
     dedup_key: refactor-guidance
     category: hint
 
   # --- best-practice reminders (category: reminder) ------------------------- #
-  # The `checkpoint` reminder shows at the default `normal` verbosity; the rest
+  # The `session-checkpoint` reminder shows at the default `normal` verbosity; the rest
   # are `level: verbose` so they only surface for users who opt into verbose
   # guidance, keeping the default stream uncluttered (verbosity gate).
   - moment_id: high-context
-    command_refs: ["checkpoint"]
-    message: "Context is high — consider /checkpoint to save progress before it compacts."
+    command_refs: ["session-checkpoint"]
+    message: "Context is high — consider /session-checkpoint to save progress before it compacts."
     priority: 10
     dedup_key: context-guidance
     category: reminder
     rate_limit: 30m
   - moment_id: high-context
-    command_refs: ["token-economy"]
-    message: "Long session — /token-economy keeps responses terse and surgical to stretch context."
+    command_refs: ["token-conserve"]
+    message: "Long session — /token-conserve keeps responses terse and surgical to stretch context."
     priority: 5
     dedup_key: token-economy-reminder
     category: reminder
@@ -70,8 +70,8 @@ rules:
     level: verbose
     rate_limit: 1d
   - moment_id: pre-commit
-    command_refs: ["verify"]
-    message: "Best practice: a green /verify before each commit keeps main releasable."
+    command_refs: ["project-verify"]
+    message: "Best practice: a green /project-verify before each commit keeps main releasable."
     priority: 1
     dedup_key: verify-before-commit-reminder
     category: reminder

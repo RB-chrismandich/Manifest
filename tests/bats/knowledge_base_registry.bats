@@ -2,7 +2,7 @@
 # Guardrail-registry invariants for configs/claude/config/knowledge_base.yml
 # (spec 457, contracts/registry-schema.md). The registry is the single source
 # of truth for proactive-coding anti-patterns consumed by the CLAUDE.md digest,
-# references/antipatterns.md, the code-quality skill, and the ai-code-audit
+# references/antipatterns.md, the code-audit skill, and the ai-code-audit
 # skill. These tests pin the schema so captures and edits cannot silently
 # break downstream consumers.
 

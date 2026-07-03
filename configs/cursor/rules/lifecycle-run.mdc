@@ -1,0 +1,15 @@
+---
+description: "Drive a feature/issue through the codified state-gated lifecycle (specify→…→verify) with hard phase-gating and a smoke-test Verify gate; entry is a ticket URL/issue key."
+globs: ".claude/skills/lifecycle-run/**"
+alwaysApply: false
+---
+
+# lifecycle-run
+
+Drive a feature/issue through the codified state-gated lifecycle (specify→…→verify) with hard phase-gating and a smoke-test Verify gate; entry is a ticket URL/issue key.
+
+<!-- Auto-generated from .claude/skills/lifecycle-run/SKILL.md -->
+<!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
+
+Refer to `.cursor/skills/lifecycle-run/SKILL.md` for the full skill definition.
+

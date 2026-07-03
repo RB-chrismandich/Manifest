@@ -14,10 +14,10 @@ print('ok')"
     [ "$status" -eq 0 ]
 }
 
-@test "auto-issue-dev (PR-open) omits cross_verification (advisory consensus)" {
+@test "issue-dev-auto (PR-open) omits cross_verification (advisory consensus)" {
     run python3 -c "
 import yaml
-o=yaml.safe_load(open('$VC'))['command_overrides']['auto-issue-dev']
+o=yaml.safe_load(open('$VC'))['command_overrides']['issue-dev-auto']
 assert 'cross_verification' not in o.get('tier1_checks',[]), o.get('tier1_checks')
 print('ok')"
     [ "$status" -eq 0 ]

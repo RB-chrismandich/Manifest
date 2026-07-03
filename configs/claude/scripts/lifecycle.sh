@@ -4,7 +4,7 @@
 # Spec: specs/365-lifecycle-codification/ (contracts/lifecycle-cli.md is authoritative).
 # Mirrors the merge_decision.sh / verification_gate.sh idiom (specs 360/361): a PURE,
 # offline-testable `decide` core (signals JSON in -> {action} out, always exit 0, fails
-# closed) plus thin stateful subcommands. The /lifecycle skill (humans, advisory) and the
+# closed) plus thin stateful subcommands. The /lifecycle-run skill (humans, advisory) and the
 # autodev loop (agents, hard halt) both consume this one tested gate.
 #
 # Subcommands:
@@ -26,7 +26,7 @@ err() { echo "lifecycle: $*" >&2; }
 STATE_DIR="${LIFECYCLE_STATE_DIR:-${MANIFEST_STATE_ROOT:-$HOME/.manifest}/lifecycle/state}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Injectable smoke-orchestrator seam (FR-012: consume as-is). Default = deployed runtime.
+# Injectable smoke-manage seam (FR-012: consume as-is). Default = deployed runtime.
 SMOKE_CMD="${LIFECYCLE_SMOKE_CMD:-python3 ${HOME}/.claude/scripts/smoke_test.py}"
 smoke() {
     local arr

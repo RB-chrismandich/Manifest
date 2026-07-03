@@ -61,7 +61,7 @@
         "tests/test_unified_hook.py": "sha256:9fefd16c450d4dce6e1227e658c55ad67224073df1fde1bc68e1c93c08347245"
       }
     },
-    "meta-prompt-optimize": {
+    "prompt-optimize": {
       "source": "local",
       "type": "skill",
       "installed_at": "2026-06-09T19:58:04+00:00",

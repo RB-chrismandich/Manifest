@@ -1,0 +1,15 @@
+---
+description: "Validate data-ingestion, parsing, ETL, or API-integration code against real/live data — smoke pass, pre-merge gate, or post-unit-test. Surfaces fixture-blind bugs (free-text numerics, dedup-key collisions, casing/format mismatches, falsy-zero) that synthetic fixtures hide."
+globs: ".claude/skills/data-validate-live/**"
+alwaysApply: false
+---
+
+# data-validate-live
+
+Validate data-ingestion, parsing, ETL, or API-integration code against real/live data — smoke pass, pre-merge gate, or post-unit-test. Surfaces fixture-blind bugs (free-text numerics, dedup-key collisions, casing/format mismatches, falsy-zero) that synthetic fixtures hide.
+
+<!-- Auto-generated from .claude/skills/data-validate-live/SKILL.md -->
+<!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
+
+Refer to `.cursor/skills/data-validate-live/SKILL.md` for the full skill definition.
+

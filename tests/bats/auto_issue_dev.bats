@@ -65,7 +65,7 @@ EOF
 @test "unknown subcommand errors via err() and exits non-zero" {
     run "$SCRIPT" bogus
     [ "$status" -ne 0 ]
-    [[ "$output" == *"auto-issue-dev:"* ]]
+    [[ "$output" == *"issue-dev-auto:"* ]]
 }
 
 @test "check-deps: no dependency refs -> exit 0" {
@@ -109,7 +109,7 @@ EOF
 
 @test "mark-blocked: skips comment when marker already present (dedup)" {
     cat >"$FIXTURE_DIR/issue-10.json" <<'EOF'
-{"number":10,"state":"open","labels":[{"name":"auto-dev"}],"title":"t","body":"b","comments":[{"body":"<!-- auto-issue-dev:blocked -->\nprior"}]}
+{"number":10,"state":"open","labels":[{"name":"auto-dev"}],"title":"t","body":"b","comments":[{"body":"<!-- issue-dev-auto:blocked -->\nprior"}]}
 EOF
     run "$SCRIPT" mark-blocked 10 "again"
     [ "$status" -eq 0 ]
@@ -242,7 +242,7 @@ EOF
 
 @test "mark-dependency: skips comment when marker already present (dedup)" {
     cat >"$FIXTURE_DIR/issue-10.json" <<'EOF'
-{"number":10,"state":"open","labels":[{"name":"auto-dev"}],"title":"t","body":"b","comments":[{"body":"<!-- auto-issue-dev:dependency -->\nprior"}]}
+{"number":10,"state":"open","labels":[{"name":"auto-dev"}],"title":"t","body":"b","comments":[{"body":"<!-- issue-dev-auto:dependency -->\nprior"}]}
 EOF
     run "$SCRIPT" mark-dependency 10 "#11"
     [ "$status" -eq 0 ]
@@ -298,7 +298,7 @@ EOF
     cat >"$FIXTURE_DIR/issue-60.json" <<'EOF'
 {"iid":60,"state":"opened","labels":["auto-dev"],"title":"t","description":"x"}
 EOF
-    printf '%s\n' '<!-- auto-issue-dev:dependency -->' 'prior' >"$FIXTURE_DIR/comments-60.txt"
+    printf '%s\n' '<!-- issue-dev-auto:dependency -->' 'prior' >"$FIXTURE_DIR/comments-60.txt"
     run "$SCRIPT" mark-dependency 60 "#61"
     [ "$status" -eq 0 ]
     grep -q "issue-view 60 --comments" "$CALL_LOG"

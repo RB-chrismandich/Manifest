@@ -74,7 +74,7 @@ the instruction to **refute** the finding. Refuted — or the evidence cannot be
 re-confirmed — → downgrade to **Unverified observations** (a status change —
 never re-label the severity) or drop. Mark surviving findings "verified
 (cross-checked)". `medium` and below rely on the evidence rule alone. This
-mirrors `security-finding-refutation`; judge on completed re-checks only — a
+mirrors `security-refute-findings`; judge on completed re-checks only — a
 failed/absent sub-agent is not a refutation and not a confirmation: retry it
 once, and if it fails again keep the evidenced finding with status "verified
 (evidence rule; cross-check unavailable)" — never drop an evidenced

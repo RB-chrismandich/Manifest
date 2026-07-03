@@ -15,7 +15,7 @@ Apply at all times, in every session:
   whole-tree crawls and re-reads of unchanged files. Don't starve context —
   a wrong edit costs more than one extra dependency read.
 
-`/token-economy` re-asserts this mode if drift is noticed mid-session.
+`/token-conserve` re-asserts this mode if drift is noticed mid-session.
 
 ## Parallel Agent Script
 
@@ -133,10 +133,10 @@ description at session start, so no table is duplicated here. Per-skill
 parallel-agent policy (always/conditional/never) lives in
 `~/.claude/config/command_config.yml` under `tool_policies`.
 
-Common entry points: `/project-commit` (full commit pipeline), `/verify`
+Common entry points: `/git-commit` (full commit pipeline), `/project-verify`
 (lint + test + scan), `/refactor-<lang>` (security/quality roadmap, parallel
 agents ALWAYS), `/docs-all` (refresh all docs), `/plan-manage` (plan
-lifecycle), `/health-check` (env sanity), `/checkpoint` (high-context save),
+lifecycle), `/env-check` (env sanity), `/session-checkpoint` (high-context save),
 `/version-pin <file>` (auto-fix; `--check` = warn-only save-hook mode).
 
 **CLI tool** (installed to `~/.local/bin/`): `sync-skills` — push
@@ -144,7 +144,7 @@ lifecycle), `/health-check` (env sanity), `/checkpoint` (high-context save),
 
 ### Auto-Triggered Skill
 
-`code-quality` auto-triggers on security-sensitive patterns (auth, crypto,
+`code-audit` auto-triggers on security-sensitive patterns (auth, crypto,
 secrets, input validation) or complexity (>500 lines, >10 functions, or >5
 classes per file), giving inline feedback without blocking the workflow.
 

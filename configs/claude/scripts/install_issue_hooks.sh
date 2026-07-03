@@ -174,15 +174,15 @@ done
 
 case "${ACTION}" in
     enable)
-        set_enabled pr-issue-sync true
-        set_enabled commit-issue-sync true
+        set_enabled issue-sync-pr true
+        set_enabled issue-sync-commit true
         merge_settings add
         [[ "${NATIVE}" == "1" ]] && install_native
         echo "issue-linking hooks enabled (settings: ${SETTINGS_FILE})"
         ;;
     remove)
-        set_enabled pr-issue-sync false
-        set_enabled commit-issue-sync false
+        set_enabled issue-sync-pr false
+        set_enabled issue-sync-commit false
         merge_settings remove
         remove_native
         echo "issue-linking hooks removed/disabled"

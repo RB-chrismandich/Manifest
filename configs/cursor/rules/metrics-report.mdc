@@ -1,0 +1,15 @@
+---
+description: "Visualize agent efficiency metrics: task completion rates, common error patterns, consensus scores, and model usage distribution. Reads from .claude/.agent_outputs/ logs and outputs markdown tables and summaries."
+globs: ".claude/skills/metrics-report/**"
+alwaysApply: false
+---
+
+# metrics-report
+
+Visualize agent efficiency metrics: task completion rates, common error patterns, consensus scores, and model usage distribution. Reads from .claude/.agent_outputs/ logs and outputs markdown tables and summaries.
+
+<!-- Auto-generated from .claude/skills/metrics-report/SKILL.md -->
+<!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
+
+Refer to `.cursor/skills/metrics-report/SKILL.md` for the full skill definition.
+

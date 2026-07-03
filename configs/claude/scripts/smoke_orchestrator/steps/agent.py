@@ -1,7 +1,7 @@
 """AI/browser-use step runner — ``type: ui, mode: agent``.
 
 An LLM drives a real browser from a natural-language ``task`` and is graded by a
-judge against ``judge_context`` (the browser-test model), folded into the smoke
+judge against ``judge_context`` (the legacy browser-use model), folded into the smoke
 catalog so it inherits tiering, ``retry``, ``sensitive`` redaction and JUnit.
 
 Like the other runners this file never imports the heavy dependency: the actual

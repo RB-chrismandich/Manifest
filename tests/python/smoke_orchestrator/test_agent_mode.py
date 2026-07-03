@@ -1,5 +1,5 @@
 """mode: agent (browser-use) UI steps — schema validation, runner contract,
-executor routing (design: smoke subsumes browser-test).
+executor routing (design: smoke subsumes the legacy browser-use flow).
 
 The browser-use call is an injectable seam (``runner``) so every path here runs
 offline with stubs — no browser, no LLM, no creds. The default live adapter

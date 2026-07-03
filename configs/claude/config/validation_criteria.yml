@@ -159,7 +159,7 @@ scoring:
 # Command-specific validation overrides
 # These override the default tier1/tier2 requirements per command
 command_overrides:
-  refactor-python:
+  python-refactor:
     tier1_required: true
     tier1_checks:
       - security
@@ -174,7 +174,7 @@ command_overrides:
       medium: show_disagreements  # 50-79%: Highlight to user
       low: block_and_escalate     # <50%: Human review required
 
-  docs-readme:
+  docs-improve-readme:
     tier1_required: false
     tier2_required: true
     tier2_checks:
@@ -190,14 +190,14 @@ command_overrides:
       type: total_lines_changed
       threshold: 500
 
-  docs-diagrams:
+  docs-generate-diagrams:
     tier1_required: false
     tier2_required: false
     parallel_agents_condition:
       type: unique_imports
       threshold: 5
 
-  refactor-shell:
+  shell-refactor:
     tier1_required: true
     tier1_checks:
       - security
@@ -211,7 +211,7 @@ command_overrides:
       medium: show_disagreements  # 50-74%: Highlight to user
       low: block_and_escalate     # <50%: Human review required
 
-  code-quality:  # Skill (auto-triggered)
+  code-audit:  # Skill (auto-triggered)
     tier1_required: true
     tier1_checks:
       - security
@@ -232,7 +232,7 @@ command_overrides:
 
   # PR-OPEN gate (#360): consensus is ADVISORY — cross_verification is deliberately OMITTED so
   # a <80%-consensus change still surfaces (real-vs-draft PR); the gate annotates, never blocks.
-  auto-issue-dev:
+  issue-dev-auto:
     tier1_required: true
     tier1_checks:
       - security

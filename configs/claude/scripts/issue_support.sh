@@ -2,8 +2,8 @@
 # issue_support.sh - Shared issue-support engine for the issue-linking hooks
 #
 # Platform-agnostic engine (sibling to git_ops.sh) that keeps the issue tracker
-# in sync with development activity. Invoked by the pr-issue-sync and
-# commit-issue-sync skills (and their hooks). FAIL-OPEN: sync-pr/sync-commit
+# in sync with development activity. Invoked by the issue-sync-pr and
+# issue-sync-commit skills (and their hooks). FAIL-OPEN: sync-pr/sync-commit
 # always exit 0 so a git action is never blocked.
 #
 # Subcommands:
@@ -493,8 +493,8 @@ run_inner() {
 cmd_sync_pr() {
     parse_common_flags "$@"
     local pr="${REMAIN[0]:-}"
-    if [[ "$(cfg_get pr-issue-sync enabled false)" != "true" ]]; then
-        err "pr-issue-sync disabled (set tool_policies.pr-issue-sync.enabled: true)"
+    if [[ "$(cfg_get issue-sync-pr enabled false)" != "true" ]]; then
+        err "issue-sync-pr disabled (set tool_policies.issue-sync-pr.enabled: true)"
         return 0
     fi
     # Self-resolve the current branch's PR when no number is given (hook convenience)
@@ -506,7 +506,7 @@ cmd_sync_pr() {
         return 0
     }
     local t
-    t=$(cfg_get pr-issue-sync hook_timeout_seconds 5)
+    t=$(cfg_get issue-sync-pr hook_timeout_seconds 5)
     [[ "${t}" =~ ^[0-9]+$ ]] || t=5
     run_with_timeout "${t}" bash "$0" __inner pr "${pr}" "" "${DRY_RUN}" "${NO_CREATE}" ||
         err "sync degraded to a warning (non-fatal or timed out); re-run heals (FR-017)"
@@ -515,17 +515,17 @@ cmd_sync_pr() {
 cmd_sync_commit() {
     parse_common_flags "$@"
     local commit="${REMAIN[0]:-HEAD}"
-    if [[ "$(cfg_get commit-issue-sync enabled false)" != "true" ]]; then
-        err "commit-issue-sync disabled (set tool_policies.commit-issue-sync.enabled: true)"
+    if [[ "$(cfg_get issue-sync-commit enabled false)" != "true" ]]; then
+        err "issue-sync-commit disabled (set tool_policies.issue-sync-commit.enabled: true)"
         return 0
     fi
     local mode
-    mode=$(cfg_get commit-issue-sync commit_hook_mode sync)
+    mode=$(cfg_get issue-sync-commit commit_hook_mode sync)
     if [[ "${mode}" == "background" ]]; then
         err "commit_hook_mode=background is reserved for a future release; running sync"
     fi
     local t
-    t=$(cfg_get commit-issue-sync hook_timeout_seconds 5)
+    t=$(cfg_get issue-sync-commit hook_timeout_seconds 5)
     [[ "${t}" =~ ^[0-9]+$ ]] || t=5
     run_with_timeout "${t}" bash "$0" __inner commit "" "${commit}" "${DRY_RUN}" "${NO_CREATE}" ||
         err "sync degraded to a warning (non-fatal or timed out); re-run heals (FR-017)"

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# auto_issue_dev.sh - selection/dependency/flagging engine for /auto-issue-dev
+# auto_issue_dev.sh - selection/dependency/flagging engine for /issue-dev-auto
 #
 # Wraps git_ops.sh. Picks the next opted-in ('auto-dev') issue that is ready to
 # develop, skipping (and tagging) ones with unmet dependencies. Failure/dependency
@@ -16,7 +16,7 @@
 
 set -euo pipefail
 
-err() { echo "auto-issue-dev: $*" >&2; }
+err() { echo "issue-dev-auto: $*" >&2; }
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 GIT_OPS_BIN="${GIT_OPS_BIN:-${SCRIPT_DIR}/git_ops.sh}"
@@ -242,14 +242,14 @@ flag() {
 
 cmd_mark_blocked() {
     local n="${1:-}" reason="${2:-unspecified}"
-    flag "${n}" "${FAIL_LABEL}" "<!-- auto-issue-dev:blocked -->" \
+    flag "${n}" "${FAIL_LABEL}" "<!-- issue-dev-auto:blocked -->" \
         "Auto-dev could not complete this issue: ${reason}. Flagged \`${FAIL_LABEL}\` for a human."
     return 0
 }
 
 cmd_mark_dependency() {
     local n="${1:-}" refs="${2:-}"
-    flag "${n}" "${DEP_LABEL}" "<!-- auto-issue-dev:dependency -->" \
+    flag "${n}" "${DEP_LABEL}" "<!-- issue-dev-auto:dependency -->" \
         "Skipped by auto-dev: unmet dependency ${refs}. Will retry once the blocker merges and the \`${DEP_LABEL}\` label is removed."
     return 0
 }

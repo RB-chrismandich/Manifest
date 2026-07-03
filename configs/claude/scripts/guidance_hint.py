@@ -52,8 +52,8 @@ _VALID_OPT_CATEGORIES = {"hints", "reminders", "discovery"}
 TRIGGER_PATTERNS = {
     "PreToolUse:git-commit": re.compile(r"\bgit\s+commit\b"),
     "PreToolUse:pr-create": re.compile(r"\b(gh\s+pr\s+create|glab\s+mr\s+create)\b"),
-    "command-invoke:refactor-*": re.compile(
-        r"(^|[\s/])refactor-(go|node|python|shell|terraform)\b"
+    "command-invoke:*-refactor": re.compile(
+        r"(^|[\s/])(go|node|python|shell|terraform)-refactor\b"
     ),
     "context-high": None,
 }
@@ -391,7 +391,7 @@ def _emit_for_moment(registry: dict, moment_id: str) -> int:
 
 
 def main(argv=None) -> int:
-    # --help precedes any registry/config load (cli-help-before-dependency-checks).
+    # --help precedes any registry/config load (cli-audit-help).
     args = _build_parser().parse_args(argv)
     # Preference writes (opt-out/opt-in) report errors rather than failing open.
     write_rc = _handle_pref_write(args)

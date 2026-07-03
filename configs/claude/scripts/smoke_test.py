@@ -7,7 +7,7 @@ directory (``configs/claude/scripts``, or the deployed ``~/.claude/scripts``) on
 
 ``--help`` and argument parsing succeed before any runtime dependency (PyYAML /
 Playwright) is touched — those are imported lazily inside each subcommand handler
-(repo convention: cli-help-before-dependency-checks).
+(repo convention: cli-audit-help).
 """
 
 import os

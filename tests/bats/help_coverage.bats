@@ -12,7 +12,7 @@ setup() {
 
 USER_FACING="branch_clean.sh check_status.sh git_ops.sh linear_ops.sh
 pr_review.sh skillclaw_promote.sh sync-skills.sh version_pin.sh
-browser_test.sh label_sync.sh learning_capture.sh spec_review.sh"
+label_sync.sh learning_capture.sh spec_review.sh"
 
 @test "every user-facing script: --help exits 0 and prints Usage on stdout" {
     for f in $USER_FACING; do

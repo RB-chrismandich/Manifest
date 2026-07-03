@@ -9,7 +9,7 @@
 # Also invoked by: parallel_agent.py --status
 #
 # For full environment audit (MCP, symlinks, config syntax, labels):
-#   use the /health-check skill in Claude Code.
+#   use the /env-check skill in Claude Code.
 
 # Colors
 GREEN='\033[0;32m'
@@ -28,7 +28,7 @@ CLI availability, auth, and Manifest state directories.
 
   --verbose   Also print CLI locations and versions
 
-Full environment audit (MCP, symlinks, config syntax): /health-check skill.
+Full environment audit (MCP, symlinks, config syntax): /env-check skill.
 USAGE
     exit 0
 fi

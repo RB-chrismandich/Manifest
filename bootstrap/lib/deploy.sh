@@ -369,7 +369,7 @@ PYEOF
 }
 
 # Preserve runtime-mutated issue-sync opt-in gates across a redeploy.
-# install_issue_hooks.sh flips tool_policies.{pr-issue-sync,commit-issue-sync}
+# install_issue_hooks.sh flips tool_policies.{issue-sync-pr,issue-sync-commit}
 # .enabled in the DEPLOYED command_config.yml (a repo-managed file); the copy
 # paths overwrite it with the repo default (enabled: false), silently disabling
 # the opted-in hooks (issue #461). Scope: ONLY those two enabled: gates — the
@@ -387,7 +387,7 @@ preserve_issue_sync_gates() {
     python3 - "$preserved" "$tgt" << 'PYEOF2' || rc=$?
 import re, sys
 pre_path, tgt_path = sys.argv[1], sys.argv[2]
-HOOKS = ("pr-issue-sync", "commit-issue-sync")
+HOOKS = ("issue-sync-pr", "issue-sync-commit")
 
 
 def read_gate(lines, skill):
@@ -618,11 +618,11 @@ verify_installation() {
         "$TARGET_DIR/config/services.yml"
         "$CURSOR_TARGET_DIR/rules/orchestration.mdc"
         "$CURSOR_TARGET_DIR/mcp.json"
-        "$CURSOR_TARGET_DIR/skills/code-quality/SKILL.md"
+        "$CURSOR_TARGET_DIR/skills/code-audit/SKILL.md"
         "$GEMINI_TARGET_DIR/GEMINI.md"
-        "$GEMINI_TARGET_DIR/skills/code-quality/SKILL.md"
+        "$GEMINI_TARGET_DIR/skills/code-audit/SKILL.md"
         "$CODEX_TARGET_DIR/AGENTS.md"
-        "$CODEX_TARGET_DIR/skills/code-quality/SKILL.md"
+        "$CODEX_TARGET_DIR/skills/code-audit/SKILL.md"
     )
 
     for file in "${required_files[@]}"; do
@@ -918,7 +918,7 @@ print_summary() {
     echo ""
     echo "  # Use Claude Code commands"
     echo "  claude  # Start Claude Code CLI"
-    echo "  # Then use: /refactor-python, /docs-readme, /docs-improve, etc."
+    echo "  # Then use: /python-refactor, /docs-improve-readme, /docs-improve, etc."
     echo ""
 
     echo -e "${BOLD}Documentation:${NC}"

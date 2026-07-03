@@ -194,31 +194,31 @@ error-handling, security, dependency, iteration). Full reference:
 
 | Rule | Description | Parallel Agents |
 |------|-------------|-----------------|
-| @project-commit | Full commit pipeline | CONDITIONAL |
-| @refactor-python | Python security and quality analysis | ALWAYS |
-| @refactor-go | Go security and quality analysis | ALWAYS |
-| @refactor-node | Node.js/TypeScript security and quality analysis | ALWAYS |
-| @refactor-terraform | Terraform IaC security and modularity analysis | ALWAYS |
-| @refactor-shell | Shell script security and quality analysis | ALWAYS |
+| @git-commit | Full commit pipeline | CONDITIONAL |
+| @python-refactor | Python security and quality analysis | ALWAYS |
+| @go-refactor | Go security and quality analysis | ALWAYS |
+| @node-refactor | Node.js/TypeScript security and quality analysis | ALWAYS |
+| @terraform-refactor | Terraform IaC security and modularity analysis | ALWAYS |
+| @shell-refactor | Shell script security and quality analysis | ALWAYS |
 | @scaffold | Initialize new project with quality gates | NO |
 | @verify | Run linters, tests, and security scans | CONDITIONAL |
 | @ci-setup | Configure CI/CD pipelines | NO |
 | @ux-review | UX/accessibility audit | NO |
 | @a11y-audit | WCAG 2.2 AA accessibility audit | NO |
 | @performance-check | Core Web Vitals and bundle analysis | NO |
-| @docs-readme | Improve README documentation | NO |
-| @docs-diagrams | Generate Mermaid architecture diagrams | CONDITIONAL |
+| @docs-improve-readme | Improve README documentation | NO |
+| @docs-generate-diagrams | Generate Mermaid architecture diagrams | CONDITIONAL |
 | @docs-improve | Diataxis documentation framework analysis | CONDITIONAL |
 | @plan-manage | Plan lifecycle management | CONDITIONAL |
 | @issue-triage | Linear issue audit with duplicate detection | CONDITIONAL |
 | @issue-prioritize | Score and rank open issues by impact | CONDITIONAL |
 | @antipattern-detect | Detect codebase antipatterns and suggest fixes | NO |
-| @health-check | Verify CLI tools, auth, config, symlinks | NO |
-| @sync-configs | Detect cross-platform config drift | NO |
-| @learning-loop | Capture structured lessons learned | NO |
+| @env-check | Verify CLI tools, auth, config, symlinks | NO |
+| @config-audit | Detect cross-platform config drift | NO |
+| @learning-capture | Capture structured lessons learned | NO |
 | @dashboard | Visualize agent efficiency metrics | NO |
 | @checkpoint | Save context checkpoint | NO |
-| @code-quality | Auto-triggered code quality checks | AUTO |
+| @code-audit | Auto-triggered code quality checks | AUTO |
 
 ---
 
@@ -228,11 +228,11 @@ When working on large tasks, monitor context usage to avoid hitting limits:
 
 - **Below 60%**: Normal operation — no special action needed
 - **60-80%**: Consider summarizing completed work before continuing
-- **80-95%**: Use `/checkpoint` to create a compact summary
+- **80-95%**: Use `/session-checkpoint` to create a compact summary
 - **Above 95%**: Stop and save state; recommend starting a new session
 
 The `context_monitor.md` prompt template documents these thresholds as manual
-guidance — nothing auto-invokes `/checkpoint`; run it yourself at the
+guidance — nothing auto-invokes `/session-checkpoint`; run it yourself at the
 thresholds above.
 
 ---

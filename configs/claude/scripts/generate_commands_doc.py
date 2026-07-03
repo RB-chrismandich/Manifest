@@ -293,7 +293,7 @@ def _build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv=None) -> int:
-    # --help precedes any catalog/config load (cli-help-before-dependency-checks).
+    # --help precedes any catalog/config load (cli-audit-help).
     args = _build_parser().parse_args(argv)
     try:
         catalog = cc.build_catalog(platform=args.platform)

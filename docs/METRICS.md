@@ -4,7 +4,7 @@
 > and learning capture across the Manifest orchestration framework.
 
 **Last Updated**: 2026-02-11
-**Managed by**: `dashboard` skill
+**Managed by**: `metrics-report` skill
 **Data source**: `.claude/.agent_outputs/` logs
 
 ---
@@ -13,7 +13,7 @@
 
 This dashboard provides visibility into the operational health of the parallel
 agent orchestration system. All tables start empty (headers only) and are
-populated automatically by the `/dashboard` skill, which reads from
+populated automatically by the `/metrics-report` skill, which reads from
 `.agent_outputs/` logs and `~/.claude/config/` data files.
 
 ---
@@ -88,7 +88,7 @@ Run the dashboard skill to auto-populate these tables from live data:
 
 ```bash
 # In Claude Code
-/dashboard
+/metrics-report
 
 # The skill reads from:
 #   ~/.claude/.agent_outputs/results_*.json   -- agent run logs
@@ -107,4 +107,4 @@ Tables are regenerated on each run. Previous values are overwritten with current
 - **Knowledge base config**: [`configs/claude/config/knowledge_base.yml`](../configs/claude/config/knowledge_base.yml)
 - **Validation criteria**: [`configs/claude/config/validation_criteria.yml`](../configs/claude/config/validation_criteria.yml)
 - **Command config**: [`configs/claude/config/command_config.yml`](../configs/claude/config/command_config.yml)
-- **Dashboard skill**: [`configs/claude/skills/dashboard/SKILL.md`](../configs/claude/skills/dashboard/SKILL.md)
+- **Dashboard skill**: [`configs/claude/skills/metrics-report/SKILL.md`](../configs/claude/skills/metrics-report/SKILL.md)

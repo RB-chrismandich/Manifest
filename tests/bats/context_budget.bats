@@ -36,10 +36,10 @@ assert_budget() {
     assert_budget ".claude/CLAUDE.md" 3900
 }
 
-@test "token-economy section bullets are identical across all four guides" {
+@test "token-conserve section bullets are identical across all four guides" {
     # The same rules are stated in 4 always-loaded guides; this pins them
     # together so copies cannot drift. Compares only the '- '/continuation
-    # bullet lines of the section (the /token-economy re-assert line is
+    # bullet lines of the section (the /token-conserve re-assert line is
     # platform-specific and excluded).
     local ref="" cur f
     for f in "configs/claude/CLAUDE.md" "configs/gemini/GEMINI.md" \
@@ -47,10 +47,10 @@ assert_budget() {
         cur=$(awk '/^## Token Economy \(always on\)$/{found=1; next}
                    found && /^## /{exit}
                    found && (/^- / || /^  [^ ]/)' "$REPO_ROOT/$f")
-        [ -n "$cur" ] || { echo "$f: token-economy section missing or empty" >&2; return 1; }
+        [ -n "$cur" ] || { echo "$f: token-conserve section missing or empty" >&2; return 1; }
         if [ -z "$ref" ]; then ref="$cur"; reffile="$f"; continue; fi
         if [ "$cur" != "$ref" ]; then
-            echo "$f token-economy bullets differ from $reffile:" >&2
+            echo "$f token-conserve bullets differ from $reffile:" >&2
             diff <(echo "$ref") <(echo "$cur") >&2 || true
             return 1
         fi
@@ -60,23 +60,23 @@ assert_budget() {
 @test "skill frontmatter descriptions stay within per-session budget" {
     # Claude Code injects every skill's description at session start.
     # Budget covers the whole .skillshare/skills/ set.
-    # Raised 18500 -> 19000 (2026-06-14) for the new auto-issue-dev skill:
+    # Raised 18500 -> 19000 (2026-06-14) for the new issue-dev-auto skill:
     # per-skill frontmatter is already minimal (~250 chars each on average;
     # this skill ~290) and a
     # description has no read-on-demand alternative (it IS the always-loaded
     # triggering text), so a genuinely new skill must grow this budget. Keep
     # descriptions terse; if headroom runs low again, do a set-wide trim pass.
     # Raised 19000 -> 20000 (2026-06-17) for two genuinely-new skills with no
-    # prior coverage: ci-workflow-trigger-security + secure-comment-triggered-
+    # prior coverage: ci-audit-triggers + secure-comment-triggered-
     # workflow (GitHub-Actions trigger security). Descriptions kept terse.
     # Raised 20000 -> 21500 (2026-06-17) for the curated SkillClaw-evolve subset
-    # (#366): 5 net-new skills (merge-stacked-pr-chain, cli-help-before-
-    # dependency-checks, pin-known-bug-test-survives-fix, shell-sete-silent-abort-
-    # audit, reproduce-gated-ci-failure-locally) after dropping 2 overlapping/
+    # (#366): 5 net-new skills (pr-merge-stacked, cli-help-before-
+    # dependency-checks, test-pin-bug, shell-sete-silent-abort-
+    # audit, ci-reproduce-failure) after dropping 2 overlapping/
     # niche candidates and folding errexit-safe-shell-counters into shell-sete.
     # Headroom is now thin (~200) — the next addition needs a set-wide trim pass.
     # Raised 21500 -> 22300 (2026-06-21) for two genuinely-new skills (#361):
-    # auto-dev-issue-prep + speckit-implement-review. Both were trimmed from
+    # issue-prep-auto + speckit-audit-tasks. Both were trimmed from
     # 717/595 -> 498/398 chars toward the ~290 norm first; the residual still
     # exceeded 21500, and the descriptions are the always-loaded triggering text
     # with no read-on-demand alternative. Headroom was ~160 — a set-wide trim
@@ -88,7 +88,7 @@ assert_budget() {
     # skill (spec 362): its description IS the always-loaded triggering text with
     # no read-on-demand alternative. Already trimmed to ~225 chars (well under the
     # ~290 norm) before this bump; the residual still cleared 21000 by only ~2.
-    # Raised 21500 -> 22000 (2026-06-23) for the genuinely-new `smoke-orchestrator`
+    # Raised 21500 -> 22000 (2026-06-23) for the genuinely-new `smoke-manage`
     # skill (spec 363): the only smoke-test/E2E-coverage entry point, no prior
     # coverage to fold into. Frontmatter is 283 chars (under the ~290 norm); the
     # description is the always-loaded trigger text with no read-on-demand
@@ -108,8 +108,8 @@ assert_budget() {
     # with it present is 22490. Headroom after this is ~110 — next addition needs a trim.
     # Raised 22600 -> 22800 (2026-07-01) for the genuinely-new `ai-code-audit` skill
     # (spec 457, the only AI-defect/vibe-antipattern audit entry point; no prior
-    # coverage to fold in). Trim pass done FIRST per the rule above: pr-regression-smoke,
-    # deploy-drift-root-cause, ci-workflow-trigger-security trimmed ~190 chars total
+    # coverage to fold in). Trim pass done FIRST per the rule above: pr-smoke,
+    # deploy-diagnose-drift, ci-audit-triggers trimmed ~190 chars total
     # (trigger phrases preserved); the new description was cut to ~300 chars and the
     # residual still exceeded 22600. Measured total with it present is 22679.
     # Headroom after this is ~124 — the next addition needs a set-wide trim pass first.

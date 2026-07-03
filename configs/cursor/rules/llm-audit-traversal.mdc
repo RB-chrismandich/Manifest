@@ -1,0 +1,15 @@
+---
+description: "Review code that writes files using names/paths parsed from LLM output for path traversal and indirect prompt-injection sinks"
+globs: ".claude/skills/llm-audit-traversal/**"
+alwaysApply: false
+---
+
+# llm-audit-traversal
+
+Review code that writes files using names/paths parsed from LLM output for path traversal and indirect prompt-injection sinks
+
+<!-- Auto-generated from .claude/skills/llm-audit-traversal/SKILL.md -->
+<!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
+
+Refer to `.cursor/skills/llm-audit-traversal/SKILL.md` for the full skill definition.
+

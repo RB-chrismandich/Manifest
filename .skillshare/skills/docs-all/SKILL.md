@@ -1,6 +1,6 @@
 ---
 name: docs-all
-description: Run docs-readme, docs-diagrams, and docs-improve in one command, dispatching each as a sub-agent and returning a consolidated report. Use to refresh the whole doc set at once.
+description: Run docs-improve-readme, docs-generate-diagrams, and docs-improve in one command, dispatching each as a sub-agent and returning a consolidated report. Use to refresh the whole doc set at once.
 ---
 
 # All-in-One Documentation Refresh
@@ -23,11 +23,11 @@ into one report.
    diagram updates the other two produce).
 
    - **Default precedence (fallback when no strong signal):**
-     `docs-readme` → `docs-diagrams` → `docs-improve`.
+     `docs-improve-readme` → `docs-generate-diagrams` → `docs-improve`.
    - **Signal-based adjustments:**
      - Changes concentrated in architecture/module structure or imports →
-       prioritize `docs-diagrams` early.
-     - Changes mostly in prose/onboarding → prioritize `docs-readme` early.
+       prioritize `docs-generate-diagrams` early.
+     - Changes mostly in prose/onboarding → prioritize `docs-improve-readme` early.
      - Either way, keep `docs-improve` last.
    - If the user passed `--order a,b,c`, use it verbatim (still keep the
      dependency in mind and warn if it is violated).
@@ -44,8 +44,8 @@ into one report.
    ```text
    docs-all report
    Order: <a> → <b> → <c>   (reason: <signal | default fallback>)
-   - docs-readme    : success — <1-line summary>
-   - docs-diagrams  : success — <1-line summary>
+   - docs-improve-readme    : success — <1-line summary>
+   - docs-generate-diagrams  : success — <1-line summary>
    - docs-improve   : failed  — <error>
    ```
 
@@ -55,14 +55,14 @@ into one report.
 ## Notes
 
 - This skill writes no files itself and runs no shell script — it is pure
-  sub-agent orchestration over `docs-readme`, `docs-diagrams`, `docs-improve`.
+  sub-agent orchestration over `docs-improve-readme`, `docs-generate-diagrams`, `docs-improve`.
 - If one of the three skills is unavailable, run the others and report the gap.
 - Verification scenario: see `specs/002-new-agent-skills/quickstart.md` (docs-all
   section) for how to confirm ordering, rationale, and failure-surfacing.
 
 ## Sub-agent dispatch
 
-This skill always fans out: dispatch one sub-agent per docs sub-skill (docs-readme, docs-diagrams,
+This skill always fans out: dispatch one sub-agent per docs sub-skill (docs-improve-readme, docs-generate-diagrams,
 docs-improve) and merge their reports. Pick the mechanism per the shared Sub-Agent Selection Rules
 (`configs/claude/references/sub-agent-dispatch.md`): native Task sub-agents on Claude, or `parallel_agent.py` /
 inline on other assistants. Dispatched sub-agents execute their task directly and do not re-dispatch.

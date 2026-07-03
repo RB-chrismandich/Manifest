@@ -1,0 +1,15 @@
+---
+description: "Use when adding or auditing --help/--version on a script or CLI — the help path must succeed before any config/state/dependency lookup, verified in a clean environment (empty HOME, fresh clone, CI), not just a pre-configured machine."
+globs: ".claude/skills/cli-audit-help/**"
+alwaysApply: false
+---
+
+# cli-audit-help
+
+Use when adding or auditing --help/--version on a script or CLI — the help path must succeed before any config/state/dependency lookup, verified in a clean environment (empty HOME, fresh clone, CI), not just a pre-configured machine.
+
+<!-- Auto-generated from .claude/skills/cli-audit-help/SKILL.md -->
+<!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
+
+Refer to `.cursor/skills/cli-audit-help/SKILL.md` for the full skill definition.
+

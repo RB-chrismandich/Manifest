@@ -26,7 +26,7 @@ body states the concrete trigger and links here.
 
 Dispatch only when **≥3 independent units of work** exist, OR an existing per-skill scale threshold
 is exceeded (e.g., `total_doc_lines >= 500`, `unique_imports >= 5`). Below that, do the work inline.
-This default keeps token-economy intact; the structured value lives in each skill's
+This default keeps token-conserve intact; the structured value lives in each skill's
 `subagent_trigger` in `command_config.yml` (authoritative), and the skill body's prose must agree.
 
 ## No recursion
@@ -51,8 +51,8 @@ The durable contributor convention (this is the one documented place).
 | Does the work decompose into independent units? | `subagents` | Example |
 |--------------------------------------------------|-------------|---------|
 | Decomposition IS the job (always fan out) | `always` | `docs-all` |
-| Only above the threshold | `conditional` | `refactor-python` |
-| Single-step / sequential / mutates shared state | `never` | `checkpoint` |
+| Only above the threshold | `conditional` | `python-refactor` |
+| Single-step / sequential / mutates shared state | `never` | `session-checkpoint` |
 
 ### 2. Record it in `config/command_config.yml` (canonical store)
 
