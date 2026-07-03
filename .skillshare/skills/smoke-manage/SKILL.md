@@ -95,7 +95,8 @@ A UI step can run in two modes. The default, `mode: deterministic`, uses
 Playwright selectors (`goto`/`click`/`fill`/`expect_*`). `mode: agent` instead
 lets **browser-use** (an LLM) drive the browser from a natural-language `task`,
 judged against `judge_context` — selectorless and resilient to DOM churn (this
-subsumes the retired legacy browser-use skill).
+subsumes the legacy browser-use flow, formerly managed by the retired
+browser-test skill).
 
 ```yaml
 - name: login
