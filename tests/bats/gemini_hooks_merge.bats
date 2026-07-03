@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# merge_gemini_hooks(): repo hooks must reach EXISTING ~/.gemini/settings.json
+# merge_settings_hooks(): repo hooks must reach EXISTING ~/.gemini/settings.json
 # installs (the preserve-only branch silently skipped them, so hooks shipped
 # in configs/gemini/settings.json never propagated to bootstrapped machines).
 
@@ -13,7 +13,7 @@ setup() {
     SRC="$TMPDIR_T/src.json"
     TGT="$TMPDIR_T/tgt.json"
 
-    # Minimal stubs for the helpers merge_gemini_hooks uses
+    # Minimal stubs for the helpers merge_settings_hooks uses
     command_exists() { command -v "$1" > /dev/null 2>&1; }
     print_info() { echo "INFO: $*"; }
     print_success() { echo "OK: $*"; }
@@ -43,7 +43,7 @@ teardown() {
     cat > "$TGT" <<'EOF'
 { "mcpServers": { "user-server": { "url": "https://example.test" } } }
 EOF
-    run merge_gemini_hooks "$SRC" "$TGT"
+    run merge_settings_hooks "$SRC" "$TGT"
     assert_success
     assert_output --partial "Merged repo hooks"
 
@@ -60,9 +60,9 @@ print('merged-and-preserved')"
     cat > "$TGT" <<'EOF'
 {}
 EOF
-    run merge_gemini_hooks "$SRC" "$TGT"
+    run merge_settings_hooks "$SRC" "$TGT"
     assert_success
-    run merge_gemini_hooks "$SRC" "$TGT"
+    run merge_settings_hooks "$SRC" "$TGT"
     assert_success
     assert_output --partial "already has repo hooks"
 
@@ -78,7 +78,7 @@ print('no-duplicates')"
     echo '{ not json' > "$TGT"
     local before
     before=$(cat "$TGT")
-    run merge_gemini_hooks "$SRC" "$TGT"
+    run merge_settings_hooks "$SRC" "$TGT"
     assert_success
     assert_output --partial "WARN"
     assert_equal "$(cat "$TGT")" "$before"

@@ -280,10 +280,11 @@ deploy_cursor_configs() {
     print_success "Cursor configuration deployed to $CURSOR_TARGET_DIR"
 }
 
-# Merge repo-defined hooks into an existing ~/.gemini/settings.json without
-# touching user settings (auth, mcpServers, …). Fail-open: parse errors leave
-# the file untouched and warn. Exit 3 from the merge means "nothing to add".
-merge_gemini_hooks() {
+# Union repo-shipped hooks into an EXISTING settings JSON that rsync's
+# --ignore-existing would otherwise skip. Event-agnostic: works for any
+# hooks.<event>[] shape (Gemini BeforeAgent, Claude SessionStart, …).
+# Shared by deploy_gemini_configs and the Claude merge-mode path.
+merge_settings_hooks() {
     local src="$1" tgt="$2"
     if ! command_exists python3; then
         print_info "python3 unavailable — skipped hooks merge into existing settings.json"
@@ -478,7 +479,7 @@ deploy_gemini_configs() {
     if [[ -f "$gemini_source_dir/settings.json" ]]; then
         # Merge with existing settings rather than overwriting (preserve auth)
         if [[ -f "$GEMINI_TARGET_DIR/settings.json" ]]; then
-            merge_gemini_hooks "$gemini_source_dir/settings.json" "$GEMINI_TARGET_DIR/settings.json"
+            merge_settings_hooks "$gemini_source_dir/settings.json" "$GEMINI_TARGET_DIR/settings.json"
         else
             cp "$gemini_source_dir/settings.json" "$GEMINI_TARGET_DIR/settings.json"
             print_success "Deployed settings.json to $GEMINI_TARGET_DIR/"
