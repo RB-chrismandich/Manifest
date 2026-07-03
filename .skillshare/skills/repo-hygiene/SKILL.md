@@ -207,7 +207,7 @@ Report the outcome per item (`closed` / `deleted` / `FAILED` + reason).
 ## Notes
 
 - Bot-PR floods (many near-identical Jules/Copilot/Palette PRs) are better
-  handled by `bot-pr-triage` — if the queue is dominated by bot duplicates, point
+  handled by `pr-triage-bots` — if the queue is dominated by bot duplicates, point
   the user there for blob-level dedup before this general sweep.
 - Issue backlog hygiene is a separate concern — see `issue-prioritize` /
   `issue-triage`.

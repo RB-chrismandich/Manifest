@@ -20,7 +20,7 @@
 #   --disable-graphify    Disable Graphify knowledge-graph CLI
 #   --enable-skillclaw    Enable SkillClaw session capture (default: disabled)
 #   --disable-skillclaw   Disable SkillClaw session capture
-#   --enable-browser-use  Enable browser-use for /browser-test (default: disabled)
+#   --enable-browser-use  Enable browser-use for smoke-orchestrator UI steps (default: disabled)
 #   --disable-browser-use Disable browser-use
 #   --enable-gh           Enable GitHub CLI (default: auto-detect)
 #   --disable-gh          Disable GitHub CLI

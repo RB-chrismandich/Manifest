@@ -145,7 +145,7 @@ fallback:
 # Disable Git CLIs
 ./bootstrap.sh --reconfigure --disable-gh --disable-glab
 
-# Enable browser-use (Python E2E browser automation for /browser-test)
+# Enable browser-use (Python E2E browser automation for smoke-orchestrator UI steps)
 ./bootstrap.sh --reconfigure --enable-browser-use
 
 # Disable Graphify (managed knowledge-graph tool; default-enabled)

@@ -217,24 +217,26 @@ repos:
 
 ---
 
-## Phase 4.5: Browser Test Scaffolding (Node.js Web Projects)
+## Phase 4.5: Smoke Test Scaffolding (Node.js Web Projects)
 
 For Node.js projects that include a web framework (detected via `next`, `vite`, `remix`,
 `nuxt`, `astro`, `gatsby`, or `sveltekit` in `package.json` dependencies):
 
-1. **Create `tests/browser/` directory** with a starter smoke test:
+1. **Seed a starter smoke catalog** for the app — write a workflow-description
+   JSON (schema and tiers: see the smoke-orchestrator skill) and append it:
 
    ```bash
-   mkdir -p tests/browser
-   cp ~/.claude/skills/browser-test/templates/smoke-test.yaml tests/browser/smoke-test.yaml
+   echo '{"app": "<app>", "id": "homepage-loads", "tier": "Lite",
+          "workflow": "Load the homepage; assert 200 and the app shell renders"}' |
+     ~/.claude/scripts/smoke_test.py append --stdin --dry-run   # drop --dry-run to write
    ```
 
-2. **Add a note to the summary** suggesting optional browser-use installation:
+2. **Add a note to the summary** suggesting the optional runtime deps and gate:
 
    ```text
-   Browser testing (optional):
-     pip install browser-use
-     ~/.claude/scripts/browser_test.sh run-all tests/browser/
+   Smoke testing (optional):
+     Playwright + Chromium for deterministic UI steps (see smoke-orchestrator install)
+     ~/.claude/scripts/smoke_test.py run --app <app> --tier Lite
    ```
 
 This phase is **non-blocking** — only suggests, does not require installation.

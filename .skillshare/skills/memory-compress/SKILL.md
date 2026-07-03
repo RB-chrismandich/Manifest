@@ -1,10 +1,10 @@
 ---
-name: session-memory-compress
-description: Compress or summarize session memory — distill a session/transcript into a dated one-line entry, or losslessly compress/rotate existing memory entries (daily summary, shorthand rewrite, one-sentence log line) with zero information loss.
+name: memory-compress
+description: Compress or summarize memory/log entries — distill a session/transcript into a dated one-line entry, or losslessly compress/rotate existing memory entries (daily summary, developer-shorthand rewrite, one-sentence log line) with zero information loss.
 ---
-# Session Memory Compress
+# Memory Compress
 
-Mechanical, non-destructive compression of session content into a memory artifact. You compress — you never create. Zero information loss on facts, refs, verbs, and causal links.
+Mechanical, non-destructive compression of session content into a memory artifact. You compress — you never create. Zero information loss on facts, refs, verbs, and causal links. Output the result only — no preamble, no fences, no commentary.
 
 ## Shared core
 
@@ -28,7 +28,7 @@ Mechanical, non-destructive compression of session content into a memory artifac
 
 ## Mode B — Compress existing entries (lossless)
 
-- **Merge entries about the same work into one time-blocked entry** (e.g. `08:48-09:22`), grouped by subject (feature/issue/file). Collapsing five entries about one feature into one is the biggest compression win.
+- **Merge entries about the same work into one time-blocked entry** (e.g. `08:48-09:22`), grouped by subject (feature/issue/file). Collapsing five entries about one feature into one is the biggest compression win. Do NOT merge work that is genuinely distinct (different branch, hours apart, different phase) just because it shares a topic.
 - Preserve the `## timestamp | branch` format and chronological order throughout.
 
-> Absorbed: session-memory-digest (2026-06)
+> Absorbed: session-memory-digest (2026-06); merged from memory-log-compress + session-memory-compress (specs/480, 2026-07).

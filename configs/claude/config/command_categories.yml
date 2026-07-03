@@ -45,7 +45,6 @@ overrides:
   # git-pr
   address-pr-comments: git-pr
   auto-issue-dev: git-pr
-  bot-pr-triage: git-pr
   branch-clean: git-pr
   clean-pr-from-stale-base: git-pr
   commit-issue-sync: git-pr
@@ -54,10 +53,10 @@ overrides:
   post-pr-review-monitor: git-pr
   pr-issue-sync: git-pr
   pr-review: git-pr
+  pr-triage-bots: git-pr
   project-commit: git-pr
   repo-hygiene: git-pr
   reset-reapply-clean-pr: git-pr
-  triage-bot-pr-flood: git-pr
   # docs
   docs-all: docs
   docs-diagrams: docs
@@ -91,7 +90,6 @@ overrides:
   # ci-cd, testing & quality
   a11y-audit: ci-cd
   ai-code-audit: ci-cd
-  browser-test: ci-cd
   ci-lint-config-drift: ci-cd
   ci-setup: ci-cd
   live-data-validation: ci-cd
@@ -134,7 +132,6 @@ overrides:
   health-check: meta
   help: meta
   learning-loop: meta
-  memory-log-compress: meta
-  session-memory-compress: meta
+  memory-compress: meta
   token-benchmark: meta
   token-economy: meta

@@ -1,4 +1,4 @@
-"""Migration shim: browser-test YAML (browser-use) → smoke catalog agent steps.
+"""Migration shim: legacy browser-use YAML → smoke catalog agent steps.
 
 Every migrated entry must be tier Full (agent steps are forbidden at Lite) and
 the resulting catalog must pass validate_catalog.

@@ -419,24 +419,6 @@ tool_policies:
 
     subagents: never
     subagent_rationale: Diagnoses one environment into a single summary table; sequential checks.
-  browser-test:  # skill
-    allowed:
-      - Read
-      - Glob
-      - Grep
-      - Bash      # browser_test.sh, browser-use CLI, python3
-    forbidden:
-      - Write
-      - Edit      # Test execution only — does not modify source
-    parallel_agents: conditional
-    trigger_condition: critical_user_flows OR test_files >= 3
-    validation_tier: 2
-    mcp_servers:
-      - context7   # browser-use library documentation
-      - deepwiki   # browser-use internals and API contracts
-
-    subagents: never
-    subagent_rationale: Deprecated single-target migration shim for legacy YAML prompts.
   sync-configs:
     allowed:
       - Read
@@ -582,9 +564,6 @@ tool_policies:
   architecture-decision-tradeoff-table:
     subagents: never
     subagent_rationale: Single design decision producing one trade-off table.
-  bot-pr-triage:
-    subagents: conditional
-    subagent_trigger: bot_prs >= 3
   checkpoint:
     subagents: never
     subagent_rationale: Summarizes the single current session; inherently sequential.
@@ -651,9 +630,9 @@ tool_policies:
   mcp-server-security-audit:
     subagents: never
     subagent_rationale: Single-target audit of one MCP server with ordered, dependent checks.
-  memory-log-compress:
+  memory-compress:
     subagents: never
-    subagent_rationale: Single document/log transformation; sequential text compression.
+    subagent_rationale: Sequential compression of one memory artifact; mutates a single shared file.
   merge-stacked-pr-chain:
     subagents: never
     subagent_rationale: Strictly ordered bottom-up merge choreography mutating shared git/PR state.
@@ -702,9 +681,6 @@ tool_policies:
   security-finding-triage:
     subagents: conditional
     subagent_trigger: candidate_findings >= 3
-  session-memory-compress:
-    subagents: never
-    subagent_rationale: Sequential compression of one memory artifact; mutates a single shared file.
   shell-pipefail-subshell-audit:
     subagents: never
     subagent_rationale: Single-script audit; substitutions tightly coupled within one file.
@@ -720,7 +696,7 @@ tool_policies:
   statistical-test-fixture-variance:
     subagents: never
     subagent_rationale: Single-target guidance checklist; no items to fan out.
-  triage-bot-pr-flood:
+  pr-triage-bots:
     subagents: conditional
     subagent_trigger: bot_prs >= 3
   ux-review:

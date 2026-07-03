@@ -239,10 +239,10 @@ def build_parser() -> argparse.ArgumentParser:
 
     mp = sub.add_parser(
         "migrate",
-        help="Migrate legacy browser-test YAML prompts into a smoke catalog",
+        help="Migrate legacy browser-use YAML prompts into a smoke catalog",
     )
     mp.add_argument(
-        "src_dir", help="directory of browser-test *.yaml files (e.g. tests/browser)"
+        "src_dir", help="directory of legacy browser-use *.yaml files (e.g. tests/browser)"
     )
     mp.add_argument(
         "--app", required=True, help="catalog app slug (^[a-z0-9][a-z0-9-]*$)"

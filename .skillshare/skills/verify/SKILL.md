@@ -84,28 +84,25 @@ wait
 
 ---
 
-## Phase 3.5: Browser Tests (Optional)
+## Phase 3.5: Smoke Tests (Optional)
 
-After the standard lint/test/security scans complete, check for browser-use E2E tests:
+After the standard lint/test/security scans complete, check for a smoke catalog
+(see the smoke-orchestrator skill):
 
-1. **Detect test directory**: Check if `tests/browser/` exists and contains `*.yaml` or `*.yml` files.
-2. **Check tool availability**: Run `command -v browser-use` or `python3 -c "import browser_use"`.
-3. **If both exist**: Execute browser tests via the wrapper:
+1. **Detect catalog**: Check if `smoke-catalog/` exists and contains `*.yaml` or `*.yml` files.
+2. **If it does**: Execute the deterministic PR-gate tier:
 
    ```bash
-   ~/.claude/scripts/browser_test.sh run-all tests/browser/ --timeout 120
+   ~/.claude/scripts/smoke_test.py run --tier Lite
    ```
 
-4. **If `tests/browser/` exists but browser-use is not installed**: Record as `skip` with message:
+3. **If runtime deps are missing** (runner reports Playwright/Chromium absent): Record as
+   `skip` with the runner's install hint.
 
-   ```text
-   Browser tests: skip — browser-use not installed (pip install browser-use)
-   ```
+4. **If `smoke-catalog/` does not exist**: Skip silently (do not report).
 
-5. **If `tests/browser/` does not exist**: Skip silently (do not report).
-
-Add browser test results to the Phase 4 classification and Phase 5 report table as a
-`Browser` category row alongside Lint, Test, and Security.
+Add smoke test results to the Phase 4 classification and Phase 5 report table as a
+`Smoke` category row alongside Lint, Test, and Security.
 
 ---
 

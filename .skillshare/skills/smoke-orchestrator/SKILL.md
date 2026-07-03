@@ -95,7 +95,7 @@ A UI step can run in two modes. The default, `mode: deterministic`, uses
 Playwright selectors (`goto`/`click`/`fill`/`expect_*`). `mode: agent` instead
 lets **browser-use** (an LLM) drive the browser from a natural-language `task`,
 judged against `judge_context` — selectorless and resilient to DOM churn (this
-subsumes the legacy `browser-test` skill).
+subsumes the retired legacy browser-use skill).
 
 ```yaml
 - name: login
@@ -114,7 +114,7 @@ value it's omitted, so any downstream `needs` is blocked (never a silent run).
 Playwright and browser-use use **separate browser contexts** — chain across the
 two engines by value (`captures`/`needs`), not shared cookies.
 
-Migrate existing `browser-test` prompts into a catalog:
+Migrate existing legacy browser-use YAML prompts into a catalog:
 
 ```bash
 ~/.claude/scripts/smoke_test.py migrate tests/browser --app <app>  # → smoke-catalog/<app>.yaml (tier Full)

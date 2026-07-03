@@ -121,48 +121,47 @@ Read the selected template(s) and customize:
 6. **Set Python/Node/Go versions** — Use the project's actual version constraints rather than
    template defaults.
 
-### Step 4.5: E2E Browser Test Job (Optional)
+### Step 4.5: E2E Smoke Test Job (Optional)
 
-If `tests/browser/` exists in the project and contains `*.yaml` or `*.yml` files,
-add a browser test job to the CI pipeline:
+If `smoke-catalog/` exists in the project and contains `*.yaml` or `*.yml` files,
+add a smoke test job running the deterministic `Lite` tier (see the
+smoke-orchestrator skill) to the CI pipeline:
 
 **GitHub Actions** — add after the test job:
 
 ```yaml
-  browser-tests:
+  smoke-tests:
     runs-on: ubuntu-latest
     needs: [test]
-    if: hashFiles('tests/browser/*.yaml') != '' || hashFiles('tests/browser/*.yml') != ''
+    if: hashFiles('smoke-catalog/*.yaml') != '' || hashFiles('smoke-catalog/*.yml') != ''
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Install browser-use
-        run: pip install browser-use
-      - name: Install browser dependencies
-        run: npx playwright install --with-deps chromium
-      - name: Run browser tests
+      - name: Install smoke runtime deps
         run: |
-          chmod +x ~/.claude/scripts/browser_test.sh 2>/dev/null || true
-          python3 -m browser_use run tests/browser/ --headless || true
+          pip install playwright pyyaml
+          python3 -m playwright install --with-deps chromium
+      - name: Run smoke tests (Lite tier)
+        run: python3 smoke_test.py run --tier Lite --junit smoke-report.xml
 ```
 
 **GitLab CI** — add after the test stage:
 
 ```yaml
-browser-tests:
+smoke-tests:
   stage: test
   image: python:3.12
   before_script:
-    - pip install browser-use
-    - npx playwright install --with-deps chromium
+    - pip install playwright pyyaml
+    - python3 -m playwright install --with-deps chromium
   script:
-    - python3 -m browser_use run tests/browser/ --headless || true
+    - python3 smoke_test.py run --tier Lite --junit smoke-report.xml
   rules:
     - exists:
-        - tests/browser/*.yaml
-        - tests/browser/*.yml
+        - smoke-catalog/*.yaml
+        - smoke-catalog/*.yml
   allow_failure: true
 ```
 

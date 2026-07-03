@@ -112,7 +112,7 @@ assignee is silently ignored. The only programmatic trigger in this repo is a
    Poll for these (see waiting strategy below). When findings land as comments,
    route them through **`address-pr-comments`** just like Copilot's. If Jules
    pushes commits or opens a sibling PR, review that diff on its merits before
-   accepting (the `bot-pr-triage` skill covers judging bot diffs) — Jules
+   accepting (the `pr-triage-bots` skill covers judging bot diffs) — Jules
    over-produces and is sometimes wrong, so verify, don't rubber-stamp.
 
 ### 4. Close the loop
@@ -147,7 +147,7 @@ don't busy-spin every few seconds.
 - **Verify bot claims before acting on them** — this is delegated to
   `address-pr-comments`, which is built around exactly that discipline.
 - This skill orchestrates; the heavy lifting lives in focused skills
-  (`address-pr-comments`, `verify`, `ci-lint-config-drift`, `bot-pr-triage`).
+  (`address-pr-comments`, `verify`, `ci-lint-config-drift`, `pr-triage-bots`).
   Reach for them instead of duplicating their logic.
 
 ## Auto-trigger on PR creation
