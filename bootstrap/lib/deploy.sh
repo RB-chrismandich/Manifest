@@ -316,6 +316,41 @@ PYEOF
     esac
 }
 
+# Record what this deploy shipped so the SessionStart checker
+# (deploy_stamp_check.sh) can detect a clone that later advanced past it.
+# Source-to-source design: we stamp the git TREE hashes of the two deploy
+# sources, never the live tree, so the checker never has to replicate
+# merge/gating semantics. Fail-open: a non-git source (tarball copy) gets no
+# stamp and the checker then stays silent. The dirty flag is scoped to the two
+# deploy-source paths ONLY — unrelated worktree WIP must not poison it, or the
+# checker would nudge on a clean-main deploy whose configs/skills were fresh.
+write_deploy_stamp() {
+    local repo_root="$1" tgt_dir="$2"
+    git -C "$repo_root" rev-parse --git-dir > /dev/null 2>&1 || {
+        print_info "Source is not a git checkout — skipped deploy stamp"
+        return 0
+    }
+    local tree_configs tree_skills head_sha dirty
+    tree_configs="$(git -C "$repo_root" rev-parse HEAD:configs 2> /dev/null)" || return 0
+    tree_skills="$(git -C "$repo_root" rev-parse HEAD:.skillshare/skills 2> /dev/null)" || return 0
+    head_sha="$(git -C "$repo_root" rev-parse HEAD 2> /dev/null)" || return 0
+    if [[ -n "$(git -C "$repo_root" status --porcelain -- configs .skillshare/skills 2> /dev/null)" ]]; then
+        dirty=true
+    else
+        dirty=false
+    fi
+    mkdir -p "$tgt_dir/config"
+    cat > "$tgt_dir/config/deploy_stamp" << EOF
+tree_configs=$tree_configs
+tree_skills=$tree_skills
+head_sha=$head_sha
+dirty=$dirty
+clone_path=$repo_root
+deployed_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+EOF
+    print_success "Wrote deploy stamp"
+}
+
 # Preserve user-added MCP servers across a settings.local.json redeploy.
 #
 # The repo ships configs/claude/settings.local.json with a default mcpServers
