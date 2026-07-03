@@ -25,17 +25,21 @@ description: |
   </preliminary_context>
 
   <constraints>
-    - Enforce absolute path strings; no raw tilde (~) directory configurations allowed.
-    - Execute changes utilizing current Python-based utilities; explicitly omit deprecated shell (.sh) actions.
-    - All actions must be structurally idempotent to prevent environmental state corruption during re-runs.
-    - Explicitly preserve any literal schema templates (like XML tags or JSON layouts) inside the refactored
-      output (e.g., within <desired_output>). Do not consume, delete, or over-summarize these structural templates
-      during the normalization process, as they are required instructions for downstream agents.
+    - Enforce absolute path strings; prohibit the use of tildes (~) or unexpanded environment variables in paths. Force
+      absolute, fully qualified target paths (e.g., ~/.claude/skills must be written out or resolved via absolute
+      parameters).
+    - Execute changes utilizing current Python-based utilities; explicitly omit deprecated legacy shell (.sh) actions in
+      favor of programmatic pythonic drop-in replacements.
+    - All actions must be structurally idempotent to prevent environmental state corruption during re-runs, creating
+      duplicate structures, breaking environment state, or fragmenting folders.
+    - Explicitly preserve any literal schema templates (like XML tags or JSON layouts) inside the refactored output
+      (e.g., within <desired_output>). Do not consume, delete, or over-summarize these structural templates during the
+      normalization process, as they are required instructions for downstream agents.
   </constraints>
 
   <desired_output>
-    Return the payload strictly mapped to the following mandatory XML-tag-demarcated schema so downstream agent
-    layers can parse it deterministically:
+    Return the payload strictly mapped to the following mandatory XML-tag-demarcated schema so downstream agent layers
+    can parse it deterministically:
 
     ```xml
     <problem_structure>
@@ -48,9 +52,14 @@ description: |
       </preliminary_context>
 
       <constraints>
-        - Enforce absolute path strings; no raw tilde (~) directory configurations allowed.
-        - Execute changes utilizing current Python-based utilities; explicitly omit deprecated shell (.sh) actions.
+        - Enforce absolute path strings; prohibit the use of tildes (~) or unexpanded environment variables in paths.
+          Force absolute, fully qualified target paths (e.g., ~/.claude/skills must be written out).
+        - Execute changes utilizing current Python-based utilities; explicitly omit deprecated legacy shell (.sh)
+          actions in favor of programmatic pythonic drop-in replacements.
         - All actions must be structurally idempotent to prevent environmental state corruption during re-runs.
+        - Explicitly preserve any literal schema templates (like XML tags or JSON layouts) inside the refactored
+          output (e.g., within <desired_output>). Do not consume, delete, or over-summarize these structural
+          templates during the normalization process.
         - [Additional task-specific constraints]
       </constraints>
 
