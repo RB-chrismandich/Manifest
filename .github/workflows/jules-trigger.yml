@@ -6,7 +6,11 @@ on:
 
 permissions:
   contents: read
-  pull-requests: read
+  # write, not read: this workflow fires on issue_comment on a PR, and posts a
+  # 👀 reaction + a failure comment on that PR. PR-targeted comment/reaction
+  # writes require pull-requests:write — issues:write alone 403s ("Resource not
+  # accessible by integration") even though PR comments use the issues API.
+  pull-requests: write
   issues: write
 
 concurrency:
