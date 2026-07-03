@@ -1,0 +1,15 @@
+---
+description: "Triage a queue of machine-generated PRs (Jules, Palette, Bolt, Copilot) — detect byte-identical duplicates, close redundant no-ops, merge verified micro-opts, and hold PRs that contradict repo conventions."
+globs: ".claude/skills/pr-triage-bots/**"
+alwaysApply: false
+---
+
+# pr-triage-bots
+
+Triage a queue of machine-generated PRs (Jules, Palette, Bolt, Copilot) — detect byte-identical duplicates, close redundant no-ops, merge verified micro-opts, and hold PRs that contradict repo conventions.
+
+<!-- Auto-generated from .claude/skills/pr-triage-bots/SKILL.md -->
+<!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
+
+Refer to `.cursor/skills/pr-triage-bots/SKILL.md` for the full skill definition.
+

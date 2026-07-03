@@ -567,14 +567,14 @@ plans untouched 7+ days should be updated, completed, or abandoned. Use
 <!-- BEGIN COMMAND INDEX (generate_commands_doc.py --inject-guides) -->
 <!-- markdownlint-disable MD013 -->
 
-- **Git & PRs**: `/pr-address-comments` · `/issue-dev-auto` · `/pr-triage-bots` · `/branch-clean` · `/pr-clean-base` · `/issue-sync-commit` · `/git-find-artifact` · `/pr-merge-stacked` · `/pr-monitor` · `/issue-sync-pr` · `/pr-review` · `/git-commit` · `/repo-clean` · `/pr-reset-reapply` · `/pr-triage-bots`
+- **Git & PRs**: `/branch-clean` · `/git-commit` · `/git-find-artifact` · `/issue-dev-auto` · `/issue-sync-commit` · `/issue-sync-pr` · `/pr-address-comments` · `/pr-clean-base` · `/pr-merge-stacked` · `/pr-monitor` · `/pr-reset-reapply` · `/pr-review` · `/pr-triage-bots` · `/repo-clean`
 - **Documentation**: `/docs-all` · `/docs-generate-diagrams` · `/docs-improve` · `/docs-improve-readme`
-- **Security**: `/ci-audit-triggers` · `/security-review-diff` · `/docker-audit-firewall` · `/llm-audit-traversal` · `/mcp-audit` · `/security-harden-proxy` · `/ci-harden-workflow` · `/security-refute-findings` · `/security-triage-findings`
-- **Planning & Specs**: `/spec-decide-tradeoffs` · `/issue-prep-auto` · `/issue-prioritize` · `/issue-triage` · `/plan-manage` · `/design-validate` · `/spec-review` · `/speckit-audit-tasks` · `/premise-verify` · `/data-wire-field`
+- **Security**: `/ci-audit-triggers` · `/ci-harden-workflow` · `/docker-audit-firewall` · `/llm-audit-traversal` · `/mcp-audit` · `/security-harden-proxy` · `/security-refute-findings` · `/security-review-diff` · `/security-triage-findings`
+- **Planning & Specs**: `/data-wire-field` · `/design-validate` · `/issue-prep-auto` · `/issue-prioritize` · `/issue-triage` · `/plan-manage` · `/premise-verify` · `/spec-decide-tradeoffs` · `/spec-review` · `/speckit-audit-tasks`
 - **Skill Authoring**: `/ai-hooks-integration` · `/prompt-optimize` · `/skill-evolve`
-- **CI/CD, Testing & Quality**: `/a11y-audit` · `/ai-code-audit` · `/browser-test` · `/ci-diagnose-drift` · `/ci-setup` · `/data-validate-live` · `/performance-check` · `/test-pin-bug` · `/go-refactor` · `/node-refactor` · `/python-refactor` · `/shell-refactor` · `/terraform-refactor` · `/ci-reproduce-failure` · `/smoke-manage` · `/test-vary-fixtures` · `/ux-review` · `/project-verify`
-- **Infrastructure & Config**: `/api-optimize-bulk` · `/config-validate-native` · `/cli-audit-help` · `/docker-probe-internal` · `/config-debug-substitution` · `/deploy-diagnose-drift` · `/process-diagnose-stall` · `/llm-invoke-stdin` · `/data-design-ingestion` · `/cache-warm-oob` · `/pass-cli` · `/deploy-retire-component` · `/project-scaffold` · `/shell-audit-pipefail` · `/shell-audit-errexit` · `/config-audit` · `/version-pin`
-- **Meta & Orchestration**: `/antipattern-detect` · `/session-checkpoint` · `/code-audit` · `/metrics-report` · `/graphify` · `/env-check` · `/help` · `/learning-capture` · `/memory-compress` · `/memory-compress` · `/token-benchmark` · `/token-conserve`
+- **CI/CD, Testing & Quality**: `/a11y-audit` · `/ai-code-audit` · `/ci-diagnose-drift` · `/ci-reproduce-failure` · `/ci-setup` · `/data-validate-live` · `/go-refactor` · `/node-refactor` · `/performance-check` · `/project-verify` · `/python-refactor` · `/shell-refactor` · `/smoke-manage` · `/terraform-refactor` · `/test-pin-bug` · `/test-vary-fixtures` · `/ux-review`
+- **Infrastructure & Config**: `/api-optimize-bulk` · `/cache-warm-oob` · `/cli-audit-help` · `/config-audit` · `/config-debug-substitution` · `/config-validate-native` · `/data-design-ingestion` · `/deploy-diagnose-drift` · `/deploy-retire-component` · `/docker-probe-internal` · `/llm-invoke-stdin` · `/pass-cli` · `/process-diagnose-stall` · `/project-scaffold` · `/shell-audit-errexit` · `/shell-audit-pipefail` · `/version-pin`
+- **Meta & Orchestration**: `/antipattern-detect` · `/code-audit` · `/env-check` · `/graphify` · `/help` · `/learning-capture` · `/memory-compress` · `/metrics-report` · `/session-checkpoint` · `/token-benchmark` · `/token-conserve`
 - **Uncategorized**: `/deploy-reconcile` · `/lifecycle-run` · `/pr-smoke`
 
 Run `/help <query>` for descriptions and when-to-use.

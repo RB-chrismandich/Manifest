@@ -1,15 +1,15 @@
 ---
 description: "Run linters, unit tests, and security scans in parallel for a target project. Auto-detects language from project files and runs the appropriate tool chain. Produces a unified quality report with pass/warn/fail per category."
-globs: ".claude/skills/verify/**"
+globs: ".claude/skills/project-verify/**"
 alwaysApply: false
 ---
 
-# verify
+# project-verify
 
 Run linters, unit tests, and security scans in parallel for a target project. Auto-detects language from project files and runs the appropriate tool chain. Produces a unified quality report with pass/warn/fail per category.
 
-<!-- Auto-generated from .claude/skills/verify/SKILL.md -->
+<!-- Auto-generated from .claude/skills/project-verify/SKILL.md -->
 <!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
 
-Refer to `.cursor/skills/verify/SKILL.md` for the full skill definition.
+Refer to `.cursor/skills/project-verify/SKILL.md` for the full skill definition.
 
