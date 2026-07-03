@@ -127,6 +127,11 @@ deploy_configs() {
                     [[ -n "$preserved_mcp" ]] && rm -f "$preserved_mcp"
                     preserve_issue_sync_gates "$preserved_cmdcfg" "$TARGET_DIR/config/command_config.yml"
                     [[ -n "$preserved_cmdcfg" ]] && rm -f "$preserved_cmdcfg"
+                    # rsync --ignore-existing skipped the repo settings.local.json,
+                    # so a pre-existing live file never gains repo-shipped hooks
+                    # (e.g. the new SessionStart nudge). Union them in explicitly.
+                    merge_settings_hooks "$source_dir/settings.local.json" "$TARGET_DIR/settings.local.json"
+                    write_deploy_stamp "$SCRIPT_DIR" "$TARGET_DIR"
                     print_success "Configurations merged"
                     # Still write services config
                     write_services_config
@@ -199,6 +204,9 @@ deploy_configs() {
 
     # Write services configuration
     write_services_config
+
+    # Record the deploy so the SessionStart checker can detect later drift.
+    write_deploy_stamp "$SCRIPT_DIR" "$TARGET_DIR"
 
     print_success "Configuration files deployed to $TARGET_DIR"
 

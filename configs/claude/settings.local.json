@@ -27,6 +27,7 @@
       "Bash(gh pr:*)",
       "Bash(gh api:*)",
       "Bash(glab issue:*)",
+      "Bash(~/.claude/scripts/deploy_stamp_check.sh:*)",
       "WebSearch",
       "WebFetch(domain:github.com)",
       "WebFetch(domain:gist.github.com)",
@@ -80,6 +81,16 @@
           {
             "type": "command",
             "command": "echo 'token-conserve: lead with result; terse; surgical edits; one targeted question if ambiguous'"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/scripts/deploy_stamp_check.sh"
           }
         ]
       }

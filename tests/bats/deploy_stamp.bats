@@ -186,3 +186,21 @@ EOF
     assert_success
     assert_output --partial "Usage"
 }
+
+@test "wiring: repo settings.local.json registers the SessionStart hook" {
+    run python3 -c "
+import json
+d = json.load(open('$REPO_ROOT/configs/claude/settings.local.json'))
+cmds = [h['command'] for m in d['hooks']['SessionStart'] for h in m['hooks']]
+assert any(c.endswith('deploy_stamp_check.sh') for c in cmds), cmds
+allow = d['permissions']['allow']
+assert any('deploy_stamp_check.sh' in a for a in allow), 'missing allow entry'
+print('wired')"
+    assert_success
+    assert_output --partial "wired"
+}
+
+@test "wiring: both deploy paths call write_deploy_stamp" {
+    run grep -c 'write_deploy_stamp "\$SCRIPT_DIR" "\$TARGET_DIR"' "$REPO_ROOT/bootstrap/lib/deploy.sh"
+    assert_output "2"
+}
