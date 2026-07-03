@@ -151,8 +151,8 @@ stamp_val() { grep "^$1=" "$TGT/config/deploy_stamp" | cut -d= -f2-; }
 }
 
 @test "non-git source dir writes no stamp and still returns 0" {
-    NONGIT="$TMP/nongit"; mkdir -p "$NONGIT/configs" "$TGT2/config"
-    TGT2="$TMP/t2"; mkdir -p "$TGT2/config"
+    local NONGIT="$TMP/nongit" TGT2="$TMP/t2"
+    mkdir -p "$NONGIT/configs" "$TGT2/config"
     run write_deploy_stamp "$NONGIT" "$TGT2"
     assert_success
     [ ! -f "$TGT2/config/deploy_stamp" ]
