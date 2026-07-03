@@ -12,7 +12,10 @@
 set -uo pipefail
 
 err() { echo "deploy_stamp_check.sh: $*" >&2; }
-debug() { [[ "${DEPLOY_STAMP_DEBUG:-}" == "1" ]] && err "$*"; return 0; }
+debug() {
+    [[ "${DEPLOY_STAMP_DEBUG:-}" == "1" ]] && err "$*"
+    return 0
+}
 
 usage() {
     cat << 'EOF'

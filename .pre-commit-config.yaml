@@ -70,7 +70,9 @@ repos:
         args: ['--fix', '--config', '.markdownlint.jsonc']
         # specs/ holds spec-kit planning artifacts (long task lines, generated
         # tables) — excluded like the report docs below (feature 366).
-        exclude: ^(\.Jules/|specs/|docs/templates/|docs/SHELL_ANALYSIS_REPORT\.md|docs/VALIDATION_REPORT\.md)
+        # docs/superpowers/ (brainstorming → plan/spec output) is the same class
+        # of planning artifact: long task lines and full embedded code blocks.
+        exclude: ^(\.Jules/|specs/|docs/superpowers/|docs/templates/|docs/SHELL_ANALYSIS_REPORT\.md|docs/VALIDATION_REPORT\.md)
 
   # YAML linting
   - repo: https://github.com/adrienverge/yamllint
@@ -192,7 +194,9 @@ repos:
           exit $found' --
         language: system
         types: [markdown]
-        exclude: ^(\.pre-commit-config\.yaml|\.Jules/|configs/|tests/|\.claude/|docs/templates/)
+        # docs/superpowers/plans/ embeds bats fixtures that legitimately write to
+        # a fake $FHOME/.claude/... path — excluded like tests/ for the same reason.
+        exclude: ^(\.pre-commit-config\.yaml|\.Jules/|configs/|tests/|\.claude/|docs/superpowers/plans/|docs/templates/)
 
       # Rust format + lint — DORMANT/guarded (feature 366): only runs when .rs
       # files are staged AND a Cargo.toml exists. Avoids the unmaintained
