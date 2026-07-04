@@ -3,8 +3,8 @@ app: manifest
 # Smoke catalog for the Manifest repo. Constitution Principle VI Verify gate:
 # deterministic, browser-free (tier Lite, type cli) critical-path tests. Each
 # builds a hermetic fixture home+project in a temp dir (never touches the real
-# ~/.claude) and asserts exit 0. Hand-indented to satisfy the repo's yamllint
-# (indent-sequences); smoke_test.py append re-serializes flatter and fails it.
+# ~/.claude) and asserts exit 0. Indentation follows the repo yamllint
+# (indent-sequences); smoke_test.py append now emits this style automatically.
 tests:
   - id: deploy-reconcile-preview
     title: deploy_reconcile.sh previews a hermetic fixture and exits 0

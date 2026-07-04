@@ -17,6 +17,31 @@ from pathlib import Path
 import yaml
 
 
+class _IndentedDumper(yaml.SafeDumper):
+    """SafeDumper that indents sequence items under their parent key.
+
+    PyYAML emits sequences indentless by default (``key:\\n- item``), which the
+    repo's yamllint (``indentation: {indent-sequences: true}``) rejects — so a
+    plain ``safe_dump`` catalog fails CI lint. Overriding ``increase_indent`` to
+    never be indentless produces the ``key:\\n  - item`` form yamllint expects.
+    """
+
+    def increase_indent(self, flow: bool = False, indentless: bool = False):
+        return super().increase_indent(flow, indentless=False)
+
+
+def dump_catalog(data: dict) -> str:
+    """Serialize a catalog to yamllint-compliant YAML (indent-sequences)."""
+    return yaml.dump(
+        data,
+        Dumper=_IndentedDumper,
+        sort_keys=False,
+        default_flow_style=False,
+        allow_unicode=True,
+        indent=2,
+    )
+
+
 def catalog_path(catalog_dir: str | os.PathLike, app: str) -> Path:
     return Path(catalog_dir) / f"{app}.yaml"
 
@@ -39,9 +64,7 @@ def load_catalog(path: Path, app: str) -> dict:
 def atomic_write(path: Path, data: dict) -> None:
     """Write YAML via a temp file + os.replace so readers never see a partial file."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    text = yaml.safe_dump(
-        data, sort_keys=False, default_flow_style=False, allow_unicode=True
-    )
+    text = dump_catalog(data)
     fd, tmp = tempfile.mkstemp(
         dir=str(path.parent), prefix=f".{path.name}.", suffix=".tmp"
     )
