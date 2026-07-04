@@ -1,9 +1,10 @@
 version: 1
 app: manifest
-# First smoke catalog for the Manifest repo (feature 368). Constitution Principle VI
-# Verify gate: a deterministic, browser-free (tier Lite, type cli) critical-path test
-# for the deploy-reconcile workflow. Builds a hermetic fixture home+project in a temp
-# dir (never touches the real ~/.claude) and asserts the review previews and exits 0.
+# Smoke catalog for the Manifest repo. Constitution Principle VI Verify gate:
+# deterministic, browser-free (tier Lite, type cli) critical-path tests. Each
+# builds a hermetic fixture home+project in a temp dir (never touches the real
+# ~/.claude) and asserts exit 0. Hand-indented to satisfy the repo's yamllint
+# (indent-sequences); smoke_test.py append re-serializes flatter and fails it.
 tests:
   - id: deploy-reconcile-preview
     title: deploy_reconcile.sh previews a hermetic fixture and exits 0
@@ -29,3 +30,65 @@ tests:
             "$root/configs/claude/scripts/deploy_reconcile.sh" \
               --home "$sb/home" --project "$sb/repo" \
               --config "$root/configs/claude/config/reconcile.yml" --json
+  - id: antigravity-deploy-reduced-set
+    title: deploy_antigravity_configs links config/skills/.plans but not scripts/prompts
+    tier: Lite
+    steps:
+      - name: antigravity_deploy
+        type: cli
+        expect_exit: 0
+        captures:
+          result: 'RESULT antigravity_reduced_set=(ok)'
+        command:
+          - bash
+          - -c
+          - |
+            set -euo pipefail
+            GREEN='' CYAN='' NC='' BLUE='' YELLOW='' RED='' BOLD=''
+            root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+            sb="$(mktemp -d)"; trap 'rm -rf "$sb"' EXIT
+            export TARGET_DIR="$sb/claude"
+            export ANTIGRAVITY_TARGET_DIR="$sb/antigravity"
+            export ENABLE_ANTIGRAVITY=true
+            mkdir -p "$TARGET_DIR"/scripts "$TARGET_DIR"/config "$TARGET_DIR"/prompts \
+              "$TARGET_DIR"/.plans "$TARGET_DIR"/skills
+            # shellcheck disable=SC1090
+            source "$root/bootstrap/lib/common.sh"
+            # shellcheck disable=SC1090
+            source "$root/bootstrap/lib/deploy.sh"
+            deploy_antigravity_configs > /dev/null
+            for l in config skills .plans; do
+              [ -L "$ANTIGRAVITY_TARGET_DIR/$l" ] || { echo "FAIL: missing expected link $l"; exit 1; }
+            done
+            for l in scripts prompts; do
+              [ ! -e "$ANTIGRAVITY_TARGET_DIR/$l" ] || { echo "FAIL: agy must not carry orchestrator wiring: $l"; exit 1; }
+            done
+            echo "RESULT antigravity_reduced_set=ok"
+  - id: shared-asset-deploy-full-set
+    title: link_shared_assets gives a standard assistant all five shared links
+    tier: Lite
+    steps:
+      - name: shared_deploy
+        type: cli
+        expect_exit: 0
+        captures:
+          result: 'RESULT shared_asset_full_set=(ok)'
+        command:
+          - bash
+          - -c
+          - |
+            set -euo pipefail
+            GREEN='' CYAN='' NC='' BLUE='' YELLOW='' RED='' BOLD=''
+            root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+            sb="$(mktemp -d)"; trap 'rm -rf "$sb"' EXIT
+            export TARGET_DIR="$sb/claude"
+            mkdir -p "$TARGET_DIR"/scripts "$TARGET_DIR"/config "$TARGET_DIR"/prompts \
+              "$TARGET_DIR"/.plans "$TARGET_DIR"/skills
+            dest="$sb/gemini"; mkdir -p "$dest"
+            # shellcheck disable=SC1090
+            source "$root/bootstrap/lib/common.sh"
+            link_shared_assets "$dest" "SmokeAssistant" "true" > /dev/null
+            for l in scripts config prompts .plans skills; do
+              [ -L "$dest/$l" ] || { echo "FAIL: standard assistant missing link $l"; exit 1; }
+            done
+            echo "RESULT shared_asset_full_set=ok"
