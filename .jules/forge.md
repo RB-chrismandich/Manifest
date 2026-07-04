@@ -80,3 +80,6 @@ JSON primitives do not bypass downstream expectations.
 **Action:** Audit and revert scripts using the brittle `first_char in '{['` heuristic before `json.loads`. Replace
 them with direct `try...except json.JSONDecodeError` blocks followed by `isinstance` validation to prevent primitives
 from causing type errors.
+## 2025-02-14 - Prompt Refactoring for prompt-optimize
+**Learning:** Refactoring meta-prompts requires careful preservation of literal XML schemas to avoid disrupting downstream parsers.
+**Action:** Overwrote `.skillshare/skills/prompt-optimize/SKILL.md` with explicit literal XML schemas and rigid guardrails from the target blueprint.

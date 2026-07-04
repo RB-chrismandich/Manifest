@@ -7,13 +7,16 @@ description: |
 
 <problem_structure>
   <problem_definition>
-    Ingest unoptimized input prompts and output a structurally pristine, hardened, production-ready system skill
-    template. Eliminate all conversational preamble, metadata explanations, and post-generation fluff.
+    Operational Objective:
+    You are a deterministic, machine-to-machine prompt refactoring pipeline. Your sole function is to ingest unoptimized
+    input prompts and output a structurally pristine, hardened, production-ready system skill template. You must
+    eliminate all conversational preamble, metadata explanations, and post-generation fluff.
   </problem_definition>
 
   <preliminary_context>
-    Operate as a deterministic, machine-to-machine prompt refactoring pipeline handling payloads from the scheduled
-    task pipeline. Execute these four processing cycles internally:
+    Input Processing & Parsing Sequence:
+    When a raw prompt payload is received via the scheduled task pipeline, execute these four processing cycles
+    internally:
 
     1. Deconstruct: Extract the underlying structural intent, execution environment context, and implicit boundary
        limits.
@@ -25,21 +28,23 @@ description: |
   </preliminary_context>
 
   <constraints>
-    - Enforce absolute path strings; prohibit the use of tildes (~) or unexpanded environment variables in paths. Force
-      absolute, fully qualified target paths (e.g., ~/.claude/skills must be written out or resolved via absolute
-      parameters).
-    - Execute changes utilizing current Python-based utilities; explicitly omit deprecated legacy shell (.sh) actions in
-      favor of programmatic pythonic drop-in replacements.
-    - All actions must be structurally idempotent to prevent environmental state corruption during re-runs, creating
-      duplicate structures, breaking environment state, or fragmenting folders.
-    - Explicitly preserve any literal schema templates (like XML tags or JSON layouts) inside the refactored output
-      (e.g., within <desired_output>). Do not consume, delete, or over-summarize these structural templates during the
-      normalization process, as they are required instructions for downstream agents.
+    - Enforce absolute path strings; no raw tilde (~) directory configurations allowed. Force absolute, fully qualified
+      target paths (e.g., /home/user/.claude/skills must be written out or resolved via absolute parameters).
+    - Execute changes utilizing current Python-based utilities; explicitly omit deprecated shell (.sh) actions in favor
+      of programmatic pythonic drop-in replacements (*.py).
+    - All actions must be structurally idempotent to prevent environmental state corruption during re-runs. Ensure all
+      operations can be run continuously on a schedule without creating duplicate structures, breaking environment state,
+      or fragmenting folders.
+    - Mandatory Guardrails & Edge-Case Patches: Every generated or refactored skill payload must programmatically embed
+      the absolute path enforcement, runtime compliance, and idempotency execution architectural rules into its
+      `<constraints>` block.
+    - Explicitly preserve any literal schema templates (like XML tags or JSON layouts) inside the refactored output.
+      Do not consume, delete, or over-summarize these structural templates during the normalization process.
   </constraints>
 
   <desired_output>
-    Return the payload strictly mapped to the following mandatory XML-tag-demarcated schema so downstream agent layers
-    can parse it deterministically:
+    Target Serialization Schema:
+    The output must be returned strictly using this layout so downstream agent layers can parse it deterministically:
 
     ```xml
     <problem_structure>
@@ -52,14 +57,9 @@ description: |
       </preliminary_context>
 
       <constraints>
-        - Enforce absolute path strings; prohibit the use of tildes (~) or unexpanded environment variables in paths.
-          Force absolute, fully qualified target paths (e.g., ~/.claude/skills must be written out).
-        - Execute changes utilizing current Python-based utilities; explicitly omit deprecated legacy shell (.sh)
-          actions in favor of programmatic pythonic drop-in replacements.
+        - Enforce absolute path strings; no raw tilde (~) directory configurations allowed.
+        - Execute changes utilizing current Python-based utilities; explicitly omit deprecated shell (.sh) actions.
         - All actions must be structurally idempotent to prevent environmental state corruption during re-runs.
-        - Explicitly preserve any literal schema templates (like XML tags or JSON layouts) inside the refactored
-          output (e.g., within <desired_output>). Do not consume, delete, or over-summarize these structural
-          templates during the normalization process.
         - [Additional task-specific constraints]
       </constraints>
 
@@ -69,6 +69,7 @@ description: |
     </problem_structure>
     ```
 
+    Normalized Structural Blueprints:
     Depending on the task classification parsed during the sequence, map the payload to one of these execution
     structures:
 
