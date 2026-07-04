@@ -25,21 +25,23 @@ extract_block() {
     ' "$NAMING_DOC"
 }
 
-@test "naming doc provides non-empty domain and exception blocks" {
-    [ -f "$NAMING_DOC" ]
-    local domains exceptions
-    domains=$(extract_block domains)
-    exceptions=$(extract_block exceptions)
-    [ -n "$domains" ]
-    [ -n "$exceptions" ]
+# Emit the skill directories under $1 (one trailing-slash path per line). Only
+# real skills — directories containing a SKILL.md — count; a stray directory
+# such as a rename-leftover __pycache__ orphan is not a skill and is skipped.
+skill_dirs() {
+    local root="$1" dir
+    for dir in "$root"/*/; do
+        [ -f "$dir/SKILL.md" ] && printf '%s\n' "$dir"
+    done
 }
 
-@test "every skill name conforms to <purpose>-<verb>[-<qualifier>] or is excepted" {
-    local domains exceptions violations="" name
-    domains=$(extract_block domains)
-    exceptions=$(extract_block exceptions)
-
-    for dir in "$SKILLS_DIR"/*/; do
+# Emit naming-taxonomy violations (one "name: reason" per line) for the skills
+# under $1, given newline-lists of domain tokens ($2) and exceptions ($3).
+naming_violations() {
+    local root="$1" domains="$2" exceptions="$3"
+    local dir name matched domain violations=""
+    while IFS= read -r dir; do
+        [ -n "$dir" ] || continue
         name="$(basename "$dir")"
 
         if printf '%s\n' "$exceptions" | grep -qx "$name"; then
@@ -53,7 +55,7 @@ extract_block() {
         fi
 
         # First token(s) must be a vocabulary domain.
-        local matched=false domain
+        matched=false
         while IFS= read -r domain; do
             if [ "$name" != "$domain" ] && [[ "$name" == "$domain"-* ]]; then
                 matched=true
@@ -63,12 +65,58 @@ extract_block() {
         if [ "$matched" = false ]; then
             violations+="$name: first token not in the domain vocabulary"$'\n'
         fi
-    done
+    done <<< "$(skill_dirs "$root")"
+    printf '%s' "$violations"
+}
+
+@test "naming doc provides non-empty domain and exception blocks" {
+    [ -f "$NAMING_DOC" ]
+    local domains exceptions
+    domains=$(extract_block domains)
+    exceptions=$(extract_block exceptions)
+    [ -n "$domains" ]
+    [ -n "$exceptions" ]
+}
+
+@test "every skill name conforms to <purpose>-<verb>[-<qualifier>] or is excepted" {
+    local domains exceptions violations
+    domains=$(extract_block domains)
+    exceptions=$(extract_block exceptions)
+
+    violations="$(naming_violations "$SKILLS_DIR" "$domains" "$exceptions")"
 
     if [ -n "$violations" ]; then
         echo "Skill names violating docs/SKILL-NAMING.md (<purpose>-<verb>[-<qualifier>]):" >&2
         printf '%s' "$violations" >&2
         echo "Rename the skill, or add a domain/exception in docs/SKILL-NAMING.md with rationale." >&2
+        return 1
+    fi
+}
+
+@test "naming gate ignores SKILL.md-less dirs (rename orphan) but still flags real skills" {
+    local tmp domains exceptions
+    tmp="$(mktemp -d)"
+    # Orphaned rename-leftover: only a stale __pycache__, no SKILL.md. A prior
+    # skill rename (e.g. post-pr-review-monitor -> pr-monitor) leaves this behind
+    # because git cannot delete untracked bytecode; it must NOT be gated.
+    mkdir -p "$tmp/post-pr-review-monitor/scripts/__pycache__"
+    : > "$tmp/post-pr-review-monitor/scripts/__pycache__/pr_create_trigger.cpython-314.pyc"
+    # A real skill (has SKILL.md) with a non-vocabulary first token must still be caught.
+    mkdir -p "$tmp/zzznope-verb"
+    printf 'name: zzznope-verb\n' > "$tmp/zzznope-verb/SKILL.md"
+
+    domains=$(extract_block domains)
+    exceptions=$(extract_block exceptions)
+    local output
+    output="$(naming_violations "$tmp" "$domains" "$exceptions")"
+    rm -rf "$tmp"
+
+    if printf '%s' "$output" | grep -q "post-pr-review-monitor"; then
+        echo "orphan dir was gated as a skill: $output" >&2
+        return 1
+    fi
+    if ! printf '%s' "$output" | grep -q "zzznope-verb"; then
+        echo "enforcement regressed — real violation not reported: $output" >&2
         return 1
     fi
 }
