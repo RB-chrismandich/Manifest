@@ -261,7 +261,7 @@ def trim(max_runs=MAX_RUNS):
                     if not isinstance(obj, dict):
                         continue
                     rid = obj.get("run_id")
-                except ValueError:
+                except json.JSONDecodeError:
                     continue
                 if rid not in seen:
                     seen.add(rid)
@@ -275,7 +275,7 @@ def trim(max_runs=MAX_RUNS):
                     obj = json.loads(ln)
                     if isinstance(obj, dict) and obj.get("run_id") in keep:
                         kept.append(ln.rstrip("\n"))
-                except ValueError:
+                except json.JSONDecodeError:
                     continue
         _write_atomic(path, "\n".join(kept) + ("\n" if kept else ""))
     except Exception:
