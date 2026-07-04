@@ -522,7 +522,11 @@ deploy_codex_configs() {
 
 # Deploy Antigravity configuration (mirrors .claude with symlinks, matching
 # Cursor/Gemini/Codex). Antigravity shares the single source of truth in
-# ~/.claude via symlinks for scripts, config, prompts, skills, and .plans.
+# ~/.claude via symlinks for config, skills, and .plans.
+#
+# It deliberately does NOT link scripts/ (parallel_agent.py) or prompts/ (the
+# orchestration guide): agy participates as a provider inside parallel_agent,
+# driven purely by config — it is not an orchestrator that runs the script.
 deploy_antigravity_configs() {
     if [[ "${ENABLE_ANTIGRAVITY:-true}" != true ]]; then
         print_info "Antigravity disabled — skipping config deployment"
@@ -531,8 +535,23 @@ deploy_antigravity_configs() {
 
     print_step "Deploying Antigravity configuration..."
     mkdir -p "$ANTIGRAVITY_TARGET_DIR"
-    # Link shared assets from ~/.claude to avoid duplicate copies, including shared skills.
-    link_shared_assets "$ANTIGRAVITY_TARGET_DIR" "Antigravity" "true"
+
+    # Prune scripts/prompts links left by an earlier bootstrap so already-deployed
+    # machines converge on the reduced set. Only OUR symlinks are removed — a real
+    # dir a user created is left untouched (create_symlink also backs those up).
+    local orphan
+    for orphan in scripts prompts; do
+        # Explicit if (not `[[ ]] && rm`): under bootstrap.sh's set -e a false
+        # test would return non-zero and abort the whole deploy on the common
+        # fresh-install path where no stale link exists.
+        if [[ -L "$ANTIGRAVITY_TARGET_DIR/$orphan" ]]; then
+            rm -f "$ANTIGRAVITY_TARGET_DIR/$orphan"
+        fi
+    done
+
+    # Link shared assets from ~/.claude (config, skills, .plans), excluding the
+    # orchestrator wiring (scripts, prompts).
+    link_shared_assets "$ANTIGRAVITY_TARGET_DIR" "Antigravity" "true" "scripts prompts"
     print_success "Antigravity configuration deployed to $ANTIGRAVITY_TARGET_DIR"
 }
 

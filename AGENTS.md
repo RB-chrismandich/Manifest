@@ -80,7 +80,7 @@ configs/                             # Deployment source configs (deployed to ~/
 │   ├── prompts -> ../claude/prompts # Symlink to shared prompts
 │   └── .plans -> ../claude/.plans   # Symlink to shared plans
 └── antigravity/                     # → ~/.antigravity/ (Antigravity IDE)
-    └── (symlinks to ../claude/)     # scripts, config, prompts, skills, .plans
+    └── (symlinks to ../claude/)     # config, skills, .plans (no scripts/prompts: agy is a parallel_agent provider, not an orchestrator)
 
 .claude/                             # Repo-specific config (minimal — does NOT override sessions)
 ├── CLAUDE.md                        # Developer guide for working in this repo
