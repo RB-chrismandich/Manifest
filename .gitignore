@@ -59,3 +59,5 @@ guidance_local.yml
 
 # Transient smoke-test JUnit output (smoke_test.py default --junit)
 smoke-report.xml
+# Transient per-catalog write lock (smoke_test.py append)
+smoke-catalog/*.lock
