@@ -183,8 +183,10 @@ if command -v claude &> /dev/null; then
         echo -e "    Version:  $(claude --version 2> /dev/null || echo 'unknown')"
     fi
 else
-    echo -e "  ${RED}✗${NC} Claude CLI not installed"
-    echo -e "    ${BLUE}→${NC} Install: npm install -g @anthropic-ai/claude-code"
+    echo -e "  ${YELLOW}○${NC} Claude CLI not installed (optional)"
+    if [[ "$VERBOSE" == true ]]; then
+        echo -e "    ${BLUE}→${NC} Install: npm install -g @anthropic-ai/claude-code"
+    fi
 fi
 
 gemini_installed=false
@@ -196,8 +198,10 @@ if command -v gemini &> /dev/null; then
         echo -e "    Version:  $(gemini --version 2> /dev/null || echo 'unknown')"
     fi
 else
-    echo -e "  ${RED}✗${NC} Gemini CLI not installed"
-    echo -e "    ${BLUE}→${NC} Install: npm install -g @google/gemini-cli"
+    echo -e "  ${YELLOW}○${NC} Gemini CLI not installed (optional)"
+    if [[ "$VERBOSE" == true ]]; then
+        echo -e "    ${BLUE}→${NC} Install: npm install -g @google/gemini-cli"
+    fi
 fi
 
 cursor_installed=false

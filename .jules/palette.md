@@ -63,3 +63,10 @@ scripts to ensure they stand out visually and draw immediate attention.
 states causes confusion. A binary pass/fail schema fails to represent intermediate neutral states correctly.
 **Action:** Always use a three-state semantic system (e.g., success, error, and neutral/disabled) for status icons
 in generated reports.
+
+## 2026-06-25 - Missing Optional CLIs Representation
+
+**Learning:** Missing optional CLIs (like Claude and Gemini when disabled or uninstalled) should not be
+represented as critical errors with a red cross (`✗`). This creates a false error state and panic for users.
+**Action:** Use a neutral yellow circle (`○`) and hide installation hints behind verbose flags for optional
+components that are not strictly required for the core application to function.

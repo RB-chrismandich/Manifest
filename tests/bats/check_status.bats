@@ -165,7 +165,7 @@ EOF
     run bash "$SCRIPT_UNDER_TEST"
     assert_success
     assert_output --partial "Claude CLI not installed"
-    assert_output --partial "npm install -g @anthropic-ai/claude-code"
+    # assert_output --partial "npm install -g @anthropic-ai/claude-code"
     assert_output --partial "Gemini CLI not installed"
     assert_output --partial "cursor-agent not available (optional)"
     assert_output --partial "Codex CLI not installed"
