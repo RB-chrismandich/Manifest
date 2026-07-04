@@ -39,6 +39,26 @@ def test_append_new_creates_valid_entry(tmp_path):
     assert [t["id"] for t in catalog["tests"]] == ["login-flow"]
 
 
+def test_append_output_is_yamllint_indent_sequences_compliant(tmp_path):
+    """The serialized catalog must indent sequence items under their parent key.
+
+    yamllint's default `indentation: {indent-sequences: true}` (the repo config)
+    rejects PyYAML's default indentless sequences, so `append` output would fail
+    CI lint. Encode the rule structurally (no dependency on yamllint importable).
+    """
+    app = SmokeTestAppender(catalog_dir=str(tmp_path))
+    app.append(_wf())
+    text = (Path(tmp_path) / "demo.yaml").read_text()
+    # sequence items indented under their key ...
+    assert "\ntests:\n  - " in text, text
+    assert "\n    steps:\n      - " in text, text
+    # ... and never flush-left under a mapping key
+    assert "\n- id:" not in text, text
+    assert "\n  - name:" not in text, text
+    # still parses back to the same data
+    assert yaml.safe_load(text)["tests"][0]["id"] == "login-flow"
+
+
 def test_append_is_idempotent_by_id(tmp_path):
     """SC-002: resubmitting the same id 10x yields exactly one entry."""
     app = SmokeTestAppender(catalog_dir=str(tmp_path))

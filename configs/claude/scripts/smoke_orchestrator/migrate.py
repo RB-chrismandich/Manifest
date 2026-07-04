@@ -72,7 +72,7 @@ def main(argv: list[str] | None = None) -> int:
     """CLI: migrate tests/browser/*.yaml → a smoke catalog file."""
     import argparse
 
-    import yaml
+    from .catalog import dump_catalog
 
     p = argparse.ArgumentParser(
         prog="smoke_orchestrator.migrate",
@@ -93,7 +93,7 @@ def main(argv: list[str] | None = None) -> int:
     catalog = migrate_dir(args.src_dir, app=args.app)
     out = Path(args.out) if args.out else Path("smoke-catalog") / f"{args.app}.yaml"
     out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(yaml.safe_dump(catalog, sort_keys=False))
+    out.write_text(dump_catalog(catalog))
     print(f"wrote {len(catalog['tests'])} test(s) → {out}")
     return 0
 
