@@ -127,6 +127,11 @@ deploy_configs() {
                     [[ -n "$preserved_mcp" ]] && rm -f "$preserved_mcp"
                     preserve_issue_sync_gates "$preserved_cmdcfg" "$TARGET_DIR/config/command_config.yml"
                     [[ -n "$preserved_cmdcfg" ]] && rm -f "$preserved_cmdcfg"
+                    # rsync --ignore-existing skipped the repo settings.local.json,
+                    # so a pre-existing live file never gains repo-shipped hooks
+                    # (e.g. the new SessionStart nudge). Union them in explicitly.
+                    merge_settings_hooks "$source_dir/settings.local.json" "$TARGET_DIR/settings.local.json"
+                    write_deploy_stamp "$SCRIPT_DIR" "$TARGET_DIR"
                     print_success "Configurations merged"
                     # Still write services config
                     write_services_config
@@ -199,6 +204,9 @@ deploy_configs() {
 
     # Write services configuration
     write_services_config
+
+    # Record the deploy so the SessionStart checker can detect later drift.
+    write_deploy_stamp "$SCRIPT_DIR" "$TARGET_DIR"
 
     print_success "Configuration files deployed to $TARGET_DIR"
 
@@ -280,10 +288,11 @@ deploy_cursor_configs() {
     print_success "Cursor configuration deployed to $CURSOR_TARGET_DIR"
 }
 
-# Merge repo-defined hooks into an existing ~/.gemini/settings.json without
-# touching user settings (auth, mcpServers, …). Fail-open: parse errors leave
-# the file untouched and warn. Exit 3 from the merge means "nothing to add".
-merge_gemini_hooks() {
+# Union repo-shipped hooks into an EXISTING settings JSON that rsync's
+# --ignore-existing would otherwise skip. Event-agnostic: works for any
+# hooks.<event>[] shape (Gemini BeforeAgent, Claude SessionStart, …).
+# Shared by deploy_gemini_configs and the Claude merge-mode path.
+merge_settings_hooks() {
     local src="$1" tgt="$2"
     if ! command_exists python3; then
         print_info "python3 unavailable — skipped hooks merge into existing settings.json"
@@ -313,6 +322,41 @@ PYEOF
         3) print_info "Existing settings.json already has repo hooks - preserved" ;;
         *) print_warning "Could not merge hooks into existing settings.json (manual merge may be needed)" ;;
     esac
+}
+
+# Record what this deploy shipped so the SessionStart checker
+# (deploy_stamp_check.sh) can detect a clone that later advanced past it.
+# Source-to-source design: we stamp the git TREE hashes of the two deploy
+# sources, never the live tree, so the checker never has to replicate
+# merge/gating semantics. Fail-open: a non-git source (tarball copy) gets no
+# stamp and the checker then stays silent. The dirty flag is scoped to the two
+# deploy-source paths ONLY — unrelated worktree WIP must not poison it, or the
+# checker would nudge on a clean-main deploy whose configs/skills were fresh.
+write_deploy_stamp() {
+    local repo_root="$1" tgt_dir="$2"
+    git -C "$repo_root" rev-parse --git-dir > /dev/null 2>&1 || {
+        print_info "Source is not a git checkout — skipped deploy stamp"
+        return 0
+    }
+    local tree_configs tree_skills head_sha dirty
+    tree_configs="$(git -C "$repo_root" rev-parse HEAD:configs 2> /dev/null)" || return 0
+    tree_skills="$(git -C "$repo_root" rev-parse HEAD:.skillshare/skills 2> /dev/null)" || return 0
+    head_sha="$(git -C "$repo_root" rev-parse HEAD 2> /dev/null)" || return 0
+    if [[ -n "$(git -C "$repo_root" status --porcelain -- configs .skillshare/skills 2> /dev/null)" ]]; then
+        dirty=true
+    else
+        dirty=false
+    fi
+    mkdir -p "$tgt_dir/config"
+    cat > "$tgt_dir/config/deploy_stamp" << EOF
+tree_configs=$tree_configs
+tree_skills=$tree_skills
+head_sha=$head_sha
+dirty=$dirty
+clone_path=$repo_root
+deployed_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+EOF
+    print_success "Wrote deploy stamp"
 }
 
 # Preserve user-added MCP servers across a settings.local.json redeploy.
@@ -478,7 +522,7 @@ deploy_gemini_configs() {
     if [[ -f "$gemini_source_dir/settings.json" ]]; then
         # Merge with existing settings rather than overwriting (preserve auth)
         if [[ -f "$GEMINI_TARGET_DIR/settings.json" ]]; then
-            merge_gemini_hooks "$gemini_source_dir/settings.json" "$GEMINI_TARGET_DIR/settings.json"
+            merge_settings_hooks "$gemini_source_dir/settings.json" "$GEMINI_TARGET_DIR/settings.json"
         else
             cp "$gemini_source_dir/settings.json" "$GEMINI_TARGET_DIR/settings.json"
             print_success "Deployed settings.json to $GEMINI_TARGET_DIR/"
