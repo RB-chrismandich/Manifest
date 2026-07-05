@@ -242,5 +242,7 @@ approaches), review stale plans, or archive/abandon completed work.
 <!-- SPECKIT START -->
 ## Active Spec Kit Feature
 
-- `457-proactive-code-guardrails` — plan: [specs/457-proactive-code-guardrails/plan.md](specs/457-proactive-code-guardrails/plan.md)
+- _None currently active_ — the most recent features
+  (`457-proactive-code-guardrails`, `480-skill-naming-taxonomy`) are merged. This
+  block is repopulated by `/speckit-plan` when the next feature is planned.
 <!-- SPECKIT END -->
