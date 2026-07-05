@@ -121,7 +121,7 @@ Expected: TOTAL ≈ 21656; parse check exits 0; `ai-hooks-integration` tagged EX
 # Replaces ONLY the description span in place; every other front-matter line
 # (name, any future keys) and the body are left byte-for-byte unchanged.
 import glob, re, yaml
-YAML_INDICATORS = set("-?:[]{}#&*!|>'\"%@`")
+YAML_INDICATORS = set("-?:[]{}#&*!|>'\"%@`\\")  # includes backslash per spec
 # Derive excluded set dynamically from skillshare provenance (spec constraint) —
 # any skill with a `source:` is externally managed. No hardcoded name.
 cfg = yaml.safe_load(open(".skillshare/config.yaml")) or {}
@@ -139,6 +139,8 @@ for f in glob.glob(".skillshare/skills/*/SKILL.md"):
     assert lines[0] == "---", f"{f}: no front-matter"
     end = lines.index("---", 1)                       # closing marker index
     di = next(i for i in range(1, end) if re.match(r'^description:', lines[i]))
+    if not re.match(r'^description:\s*[|>]', lines[di]):
+        continue                                       # already inline — outside Lever A scope
     dj = di + 1                                        # end of the description span
     while dj < end and not re.match(r'^[A-Za-z0-9_-]+:', lines[dj]):
         dj += 1                                        # consume indented/blank block-scalar lines
@@ -218,7 +220,14 @@ Claude-Session: https://claude.ai/code/session_01JpWri5Fi9XhWyGZLuSL42R"
 
 - [ ] **Step 1: Compute the trim list (post-Lever-A)**
 
-Run: `"$SCRATCH/measure_frontmatter.sh" | awk '$1>290 && $3!="EXCLUDED"{print}'`
+Metric: **total front-matter bytes** — the exact quantity `context_budget.bats`
+counts and what the design's "18 over norm" figure measured. Skill names are 2–4
+short ASCII tokens (~20–30 bytes), so front-matter bytes track description length
+closely; the norm is a soft ~290-byte front-matter target, not a hard per-skill cap.
+
+Run: `"$SCRATCH/measure_frontmatter.sh" | awk '$1>290 && $0 !~ /EXCLUDED/{print $NF}'`
+(`$NF` = skill name; the `!~ /EXCLUDED/` guard drops externally-managed skills
+regardless of field position.)
 Expected: ~17 skills (e.g. pr-smoke, pr-monitor, deploy-diagnose-drift, ci-audit-triggers, speckit-audit-tasks, data-validate-live, ai-code-audit, spec-review, skill-evolve, deploy-reconcile, shell-audit-errexit, issue-prep-auto, ci-harden-workflow, branch-clean, deploy-retire-component, version-pin, pr-review).
 
 - [ ] **Step 2: For each skill, generate an eval set with sibling negatives**

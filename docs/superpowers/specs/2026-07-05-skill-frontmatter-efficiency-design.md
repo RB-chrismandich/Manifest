@@ -90,8 +90,10 @@ a folded block; folded `>-` is an acceptable fallback if quoting is awkward.)
 
 ### Lever B — Content trim (eval-guarded, real risk)
 
-Shorten the ~18 descriptions over the 290-char norm toward ~275, preserving every
-distinct trigger token and "use-when" cue.
+Shorten the ~18 descriptions whose **total front-matter exceeds the ~290-byte
+norm** (the same metric `context_budget.bats` counts; skill names are short ASCII
+tokens, so front-matter bytes track description length closely) toward ~275,
+preserving every distinct trigger token and "use-when" cue.
 
 **Non-trimmable content** (never removed by a trim):
 - Security-critical keywords (e.g. `auth`, `crypto`, `secrets`, `injection`,
