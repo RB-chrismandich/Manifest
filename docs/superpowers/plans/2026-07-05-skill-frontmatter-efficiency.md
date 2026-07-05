@@ -1,0 +1,422 @@
+# Skill Front-Matter Efficiency Pass — Implementation Plan
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** Make all 88 skills' YAML front-matter efficient (fewest gate bytes / loaded tokens) without weakening any skill's triggering.
+
+**Architecture:** Two levers. Lever A mechanically inline-normalizes the 39 block-scalar descriptions (parsed triggering tokens preserved by construction). Lever B trims the ~17 over-norm descriptions, each gated by a skill-creator trigger-eval (no regression vs baseline). Then ratchet the `context_budget.bats` cap and add a house-style note.
+
+**Tech Stack:** Bash/awk, Python 3 (PyYAML for parse-validation), bats, skill-creator `run_eval.py` (`claude -p` trigger evals).
+
+## Global Constraints
+
+- Scope is **descriptions only** — never touch skill `name:`, skill bodies, or the naming taxonomy.
+- **Exclude externally-managed skills**: any skill listed under `skills:` with a `source:` in `.skillshare/config.yaml` (currently only `ai-hooks-integration`). Never edit those files.
+- House style: inline single-line description; **double-quote** iff the text contains `: ` (colon-space) or begins with a YAML indicator (`- ? : [ ] { } # & * ! | > ' " % @ \``); escape embedded `"` as `\"`.
+- Non-trimmable content (Lever B): security keywords, negative-space cross-references ("Analysis-only; use X instead"), the skill's name-match cue and primary "use when" phrase.
+- Every task ends green on `bats tests/bats/context_budget.bats` and a YAML-parse check of all touched SKILL.md files.
+- The `~290` figure is a soft norm, not a hard per-skill cap. The only hard gate is the total-bytes budget.
+- Work in worktree `feat/skill-frontmatter-efficiency`. Commit messages end with the repo's Co-Authored-By + Claude-Session trailers.
+
+---
+
+## File Structure
+
+| Path | Responsibility | Change |
+|---|---|---|
+| `.skillshare/skills/*/SKILL.md` | Per-skill front-matter (the edits) | Modify (excl. externally-managed) |
+| `scratchpad/normalize_frontmatter.py` | One-off Lever A transform + parse-verify (NOT committed) | Create (scratchpad only) |
+| `scratchpad/measure_frontmatter.sh` | Byte/style/parse audit used across tasks (NOT committed) | Create (scratchpad only) |
+| `tests/bats/context_budget.bats:116-127` | Total front-matter byte cap | Modify (D1 ratchet) |
+| `docs/SKILL-NAMING.md` | Naming + now front-matter house style | Modify (D2) |
+
+Scratchpad scripts live in the session scratchpad dir and are never committed — only the resulting `.md`/test/doc diffs are.
+
+---
+
+## Task 1: Audit harness + baseline snapshot
+
+**Files:**
+- Create: `scratchpad/measure_frontmatter.sh`
+
+**Interfaces:**
+- Produces: `measure_frontmatter.sh` prints, per skill, `<bytes> <style:inline|literal|folded> <name>`, plus TOTAL bytes and the externally-managed exclusion list; a `--parse` mode that asserts every SKILL.md front-matter is valid YAML.
+
+- [ ] **Step 1: Write the audit script**
+
+```bash
+cat > "$SCRATCH/measure_frontmatter.sh" <<'EOF'
+#!/usr/bin/env bash
+# Audit skill front-matter: bytes (bats method), scalar style, YAML validity.
+set -euo pipefail
+ROOT="${1:-.skillshare/skills}"
+excluded() { # skills with a source: in .skillshare/config.yaml
+  awk '/^skills:/{s=1} s&&/^ *- name:/{n=$3} s&&/source:/{print n}' .skillshare/config.yaml
+}
+EXCL="$(excluded)"
+total=0
+for f in "$ROOT"/*/SKILL.md; do
+  name="$(basename "$(dirname "$f")")"
+  case " $EXCL " in *" $name "*) tag="EXCLUDED";; *) tag="";; esac
+  bytes=$(awk '/^---$/{c++; next} c==1' "$f" | wc -c | tr -d ' ')
+  style=$(awk '/^description: *\|/{print "literal";f=1} /^description: *>/{print "folded";f=1} /^description: [^|>]/{print "inline";f=1} f{exit}' "$f")
+  total=$((total + bytes))
+  printf "%5d  %-7s %-9s %s\n" "$bytes" "$style" "$tag" "$name"
+done
+echo "TOTAL: $total"
+EOF
+chmod +x "$SCRATCH/measure_frontmatter.sh"
+```
+
+- [ ] **Step 2: Add `--parse` YAML-validity mode**
+
+```bash
+# Append to measure_frontmatter.sh: `measure_frontmatter.sh --parse`
+# extracts front-matter and runs it through PyYAML; nonzero on any parse error.
+```
+
+```python
+# scratchpad/parse_check.py — invoked by --parse
+import sys, glob, yaml
+bad = 0
+for f in glob.glob(".skillshare/skills/*/SKILL.md"):
+    fm = []
+    with open(f) as fh:
+        lines = fh.read().splitlines()
+    assert lines[0] == "---"
+    for ln in lines[1:]:
+        if ln == "---": break
+        fm.append(ln)
+    try:
+        d = yaml.safe_load("\n".join(fm))
+        assert "name" in d and "description" in d, f"{f}: missing keys"
+    except Exception as e:
+        print(f"PARSE FAIL {f}: {e}"); bad += 1
+sys.exit(1 if bad else 0)
+```
+
+- [ ] **Step 3: Run baseline and record it**
+
+Run: `"$SCRATCH/measure_frontmatter.sh" | tee "$SCRATCH/baseline.txt"; python3 scratchpad/parse_check.py`
+Expected: TOTAL ≈ 21656; parse check exits 0; `ai-hooks-integration` tagged EXCLUDED.
+
+- [ ] **Step 4: No commit** (scratchpad only — nothing enters the repo this task).
+
+---
+
+## Task 2: Lever A — inline-normalize the 39 block-scalar descriptions
+
+**Files:**
+- Modify: each `.skillshare/skills/<name>/SKILL.md` whose style is `literal` or `folded` and is not EXCLUDED
+- Create: `scratchpad/normalize_frontmatter.py` (not committed)
+
+**Interfaces:**
+- Consumes: baseline audit from Task 1.
+- Produces: every non-excluded description on one inline line, quoted per the colon-space rule; parsed value equal to the old parsed value with newlines folded to single spaces.
+
+- [ ] **Step 1: Write the transform (parse → re-emit inline)**
+
+```python
+# scratchpad/normalize_frontmatter.py
+import glob, re, yaml, sys
+YAML_INDICATORS = set("-?:[]{}#&*!|>'\"%@`")
+EXCL = {"ai-hooks-integration"}  # from .skillshare/config.yaml source: entries
+def needs_quote(v):
+    return (": " in v) or (v[:1] in YAML_INDICATORS)
+def inline(v):
+    v = " ".join(v.split())           # fold whitespace/newlines to single spaces
+    if needs_quote(v):
+        return '"' + v.replace('"', '\\"') + '"'
+    return v
+for f in glob.glob(".skillshare/skills/*/SKILL.md"):
+    name = f.split("/")[-2]
+    if name in EXCL: continue
+    text = open(f).read()
+    lines = text.splitlines()
+    # locate front-matter bounds
+    assert lines[0] == "---"
+    end = lines.index("---", 1)
+    fm = "\n".join(lines[1:end])
+    doc = yaml.safe_load(fm)
+    new_fm = f"name: {doc['name']}\ndescription: {inline(doc['description'])}"
+    if new_fm == fm.strip():          # already inline & minimal
+        continue
+    body = "\n".join(lines[end:])     # from the closing --- onward
+    open(f, "w").write(f"---\n{new_fm}\n{body}\n" if not body.endswith("\n") else f"---\n{new_fm}\n{body}")
+    print("normalized", name)
+```
+
+- [ ] **Step 2: Dry-run guard — confirm no genuine multi-line loss**
+
+Run: `awk '/^description: *\|/{c=1;next} c&&/^[a-zA-Z_-]+:/{exit} c&&/^---/{exit} c{print}' .skillshare/skills/*/SKILL.md | grep -nE '^\s*$|^\s*[-*] ' || echo "SAFE: no blank lines / list markers in any literal block"`
+Expected: `SAFE: …` (verified during design — 0 of 31 are genuine multi-line). If any line prints, STOP and hand that skill to Lever B manual review instead.
+
+- [ ] **Step 3: Apply the transform**
+
+Run: `python3 scratchpad/normalize_frontmatter.py`
+Expected: ~39 "normalized <name>" lines (excludes any already-inline).
+
+- [ ] **Step 4: Verify parsed values are semantically preserved**
+
+```python
+# scratchpad/verify_preserved.py — compare old (git HEAD) vs new parsed descriptions
+import subprocess, glob, yaml
+def parse(text):
+    lines = text.splitlines(); end = lines.index("---", 1)
+    return yaml.safe_load("\n".join(lines[1:end]))["description"]
+fails = 0
+for f in glob.glob(".skillshare/skills/*/SKILL.md"):
+    old = subprocess.run(["git","show",f"HEAD:{f}"],capture_output=True,text=True).stdout
+    if not old: continue
+    o = " ".join(parse(old).split()); n = " ".join(parse(open(f).read()).split())
+    if o != n:
+        print(f"TOKEN DRIFT {f}:\n  old={o!r}\n  new={n!r}"); fails += 1
+print("OK: all preserved" if not fails else f"{fails} drifted")
+import sys; sys.exit(1 if fails else 0)
+```
+
+Run: `python3 scratchpad/verify_preserved.py`
+Expected: `OK: all preserved` — whitespace-normalized parsed descriptions are identical (proves Lever A changed only formatting, not trigger tokens).
+
+- [ ] **Step 5: Verify YAML validity, byte drop, and budget gate**
+
+Run: `python3 scratchpad/parse_check.py && "$SCRATCH/measure_frontmatter.sh" | tail -1 && bats tests/bats/context_budget.bats`
+Expected: parse exits 0; TOTAL dropped below 21656; all context_budget tests pass.
+
+- [ ] **Step 6: Commit Lever A**
+
+```bash
+git add .skillshare/skills/
+git commit -m "refactor(skills): inline-normalize block-scalar front-matter (Lever A)
+
+Convert literal/folded description block scalars to inline single-line,
+quoting the colon-space descriptions. Parsed triggering tokens preserved
+(verified: whitespace-normalized values identical). Recovers block-wrapper
+indentation bytes from always-loaded context.
+
+Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01JpWri5Fi9XhWyGZLuSL42R"
+```
+
+---
+
+## Task 3: Lever B — eval-guarded content trim of over-norm descriptions
+
+**Files:**
+- Modify: each non-excluded `.skillshare/skills/<name>/SKILL.md` with front-matter > 290 bytes (from Task 1 audit, re-measured post-Lever-A)
+- Create: `scratchpad/evalsets/<name>.json`, `scratchpad/eval-evidence.md` (not committed; evidence pasted into commit body)
+
+**Interfaces:**
+- Consumes: `run_eval.py` at `~/.claude/plugins/cache/claude-plugins-official/skill-creator/*/skills/skill-creator/scripts/run_eval.py`, run as `python3 -m scripts.run_eval` from the skill-creator dir.
+- Produces: trimmed descriptions with recorded baseline-vs-candidate trigger evidence.
+
+- [ ] **Step 1: Compute the trim list (post-Lever-A)**
+
+Run: `"$SCRATCH/measure_frontmatter.sh" | awk '$1>290 && $3!="EXCLUDED"{print}'`
+Expected: ~17 skills (e.g. pr-smoke, pr-monitor, deploy-diagnose-drift, ci-audit-triggers, speckit-audit-tasks, data-validate-live, ai-code-audit, spec-review, skill-evolve, deploy-reconcile, shell-audit-errexit, issue-prep-auto, ci-harden-workflow, branch-clean, deploy-retire-component, version-pin, pr-review).
+
+- [ ] **Step 2: For each skill, generate an eval set with sibling negatives**
+
+For skill `<name>` in domain `<D>` (first name token): create `scratchpad/evalsets/<name>.json` with skill-creator's schema — `should_trigger` queries (paraphrases of the skill's real use-cases) and `should_not_trigger` queries that **include** real use-cases of same-domain siblings (all other `<D>-*` skills) plus 2–3 unrelated tasks. Use the skill-creator analyzer agent to draft, then hand-check that every sibling is represented in the negatives.
+
+Example (`pr-review`, domain `pr`): negatives include a `pr-address-comments` task ("fix the review comments on my PR"), a `pr-monitor` task ("babysit my open PR"), a `pr-smoke` task ("regression-test the repo after this PR"). If a trim makes `pr-review` fire on those, the eval catches the collision.
+
+- [ ] **Step 3: Baseline eval (original description)**
+
+```bash
+SC="$HOME/.claude/plugins/cache/claude-plugins-official/skill-creator"
+SCDIR="$(dirname "$(find "$SC" -name run_eval.py | head -1)")/.."
+( cd "$SCDIR" && python3 -m scripts.run_eval \
+    --skill-path "$PWD_REPO/.skillshare/skills/<name>" \
+    --eval-set "$SCRATCH/evalsets/<name>.json" \
+    --runs-per-query 3 --num-workers 6 --verbose ) | tee "$SCRATCH/base-<name>.json"
+```
+Expected: a baseline should-trigger rate and should-not-trigger (false-fire) rate. Record both.
+
+- [ ] **Step 4: Draft the trim (preserve non-trimmable content)**
+
+Rewrite the description shorter, keeping: name-match cue, primary "use when" phrase, all security keywords, and all negative-space cross-references. Target ≤ ~275 bytes front-matter. Keep it inline + colon-space-quoted per Global Constraints.
+
+- [ ] **Step 5: Candidate eval (override, file untouched)**
+
+```bash
+( cd "$SCDIR" && python3 -m scripts.run_eval \
+    --skill-path "$PWD_REPO/.skillshare/skills/<name>" \
+    --eval-set "$SCRATCH/evalsets/<name>.json" \
+    --description "<trimmed description>" \
+    --runs-per-query 3 --num-workers 6 --verbose ) | tee "$SCRATCH/cand-<name>.json"
+```
+
+- [ ] **Step 6: Gate — accept only on no regression**
+
+Accept the trim **iff** candidate should-trigger rate ≥ baseline **and** candidate false-fire rate ≤ baseline. Otherwise revise wording (Step 4) and re-run, or keep the original description unchanged. Append a one-line verdict per skill to `scratchpad/eval-evidence.md` (`<name>: trigger base→cand, false base→cand, VERDICT`).
+
+- [ ] **Step 7: Apply accepted trims to the files**
+
+Edit each accepted skill's `description:` in place. Skills that failed the gate keep their original wording (that is a valid, expected outcome — record it).
+
+- [ ] **Step 8: Verify parse + budget after trims**
+
+Run: `python3 scratchpad/parse_check.py && bats tests/bats/context_budget.bats`
+Expected: parse exits 0; budget green (total now lower still).
+
+- [ ] **Step 9: Commit Lever B with evidence**
+
+```bash
+git add .skillshare/skills/
+git commit -m "refactor(skills): trim over-norm descriptions, eval-verified (Lever B)
+
+Trim N descriptions toward the ~275-byte norm. Each trim gated by a
+skill-creator trigger eval with sibling-derived negatives; accepted only
+when should-trigger rate held and false-fire rate did not rise. Skills that
+regressed kept their original wording. Evidence:
+<paste eval-evidence.md table>
+
+Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01JpWri5Fi9XhWyGZLuSL42R"
+```
+
+---
+
+## Task 4: D1 — ratchet the budget cap
+
+**Files:**
+- Modify: `tests/bats/context_budget.bats:116-127` (the `total > 22800` gate + comment block)
+
+- [ ] **Step 1: Measure the final total**
+
+Run: `"$SCRATCH/measure_frontmatter.sh" | tail -1`
+Expected: prints the post-trim TOTAL (call it `T`).
+
+- [ ] **Step 2: Set the new cap to `T + 800`**
+
+Edit the two `22800` occurrences (the `-gt` comparison and the echoed budget) to `T + 800` (rounded up to the next 50). Append a comment line to the block matching the file's existing convention, e.g.:
+
+```
+# Lowered 22800 -> <NEW> (2026-07-05): set-wide front-matter efficiency pass
+# (inline-normalize + eval-guarded trims) cut the total to <T>; new cap leaves
+# ~800 bytes (~3 skills) headroom. See
+# docs/superpowers/specs/2026-07-05-skill-frontmatter-efficiency-design.md.
+```
+
+- [ ] **Step 3: Verify the gate still passes at the new cap**
+
+Run: `bats tests/bats/context_budget.bats`
+Expected: all tests pass (total ≤ new cap, with ~800 headroom).
+
+- [ ] **Step 4: Sanity-check the cap actually bites**
+
+Run: `grep -nE '22800|-gt' tests/bats/context_budget.bats`
+Expected: no stray `22800` remains in the skill-frontmatter test; the new value is present in both the comparison and the echo.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add tests/bats/context_budget.bats
+git commit -m "test(budget): ratchet skill front-matter cap after efficiency pass (D1)
+
+Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01JpWri5Fi9XhWyGZLuSL42R"
+```
+
+---
+
+## Task 5: D2 — front-matter house-style note
+
+**Files:**
+- Modify: `docs/SKILL-NAMING.md` (add a "Front-Matter Style" section after "The Pattern")
+
+- [ ] **Step 1: Add the section**
+
+```markdown
+## Front-Matter Style
+
+The `description:` is always-loaded triggering text (injected every session) and
+is byte-counted by `tests/bats/context_budget.bats`. Keep it efficient:
+
+- **Inline single-line.** No `|` (literal) or `>` (folded) block scalars — their
+  indentation is pure byte overhead in always-loaded context.
+- **Quote when needed.** Double-quote the value if it contains `: ` (colon-space)
+  or begins with a YAML indicator (`- ? : [ ] { } # & * ! | > ' " % @ \``); escape
+  embedded `"` as `\"`.
+- **~290-char soft norm.** Not a hard cap (the only hard gate is the total-bytes
+  budget), but stay near it. If a genuinely-new skill pushes the total over the
+  cap, do a set-wide trim before raising the budget.
+- **Never trim away** security keywords, negative-space cross-references
+  ("Analysis-only; use `X` instead"), the name-match cue, or the primary
+  "use when" phrase — these are what make the skill trigger correctly and
+  keep siblings from firing.
+```
+
+- [ ] **Step 2: Lint the doc**
+
+Run: `npx markdownlint-cli --config .markdownlint.jsonc docs/SKILL-NAMING.md`
+Expected: no errors (MD013 line_length 120 — keep lines wrapped ≤120).
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add docs/SKILL-NAMING.md
+git commit -m "docs(skills): document front-matter efficiency house style (D2)
+
+Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01JpWri5Fi9XhWyGZLuSL42R"
+```
+
+---
+
+## Task 6: Full regression + PR
+
+**Files:** none (verification + PR)
+
+- [ ] **Step 1: Run the real pre-commit over the diff**
+
+Run: `pre-commit run --from-ref origin/main --to-ref HEAD --all-files 2>&1 | tail -30` (or `pre-commit run --files $(git diff --name-only origin/main)`)
+Expected: markdownlint, yamllint, and all hooks pass. Fix any hygiene the diff drags in before proceeding.
+
+- [ ] **Step 2: Run the affected bats gates**
+
+Run: `bats tests/bats/context_budget.bats tests/bats/skill_naming.bats`
+Expected: all pass (naming untouched → green; budget at new cap → green).
+
+- [ ] **Step 3: Confirm no skill body or name changed**
+
+Run: `git diff origin/main --name-only | grep -v -E 'docs/|tests/bats/context_budget.bats' | xargs -I{} git diff origin/main -- {} | grep -E '^\+' | grep -vE '^\+\+\+|^\+(name: |description: )' | grep -E '^\+' || echo "OK: only description lines changed in skill files"`
+Expected: `OK: …` — the only added lines in SKILL.md files are `description:` lines (name + bodies untouched).
+
+- [ ] **Step 4: Confirm the externally-managed skill is untouched**
+
+Run: `git diff origin/main -- .skillshare/skills/ai-hooks-integration/ | wc -l`
+Expected: `0`.
+
+- [ ] **Step 5: Push and open the PR**
+
+```bash
+git push -u origin feat/skill-frontmatter-efficiency
+gh pr create --title "refactor(skills): set-wide front-matter efficiency pass" --body "$(cat <<'BODY'
+Inline-normalizes block-scalar skill descriptions (Lever A, mechanical) and
+trims over-norm descriptions with skill-creator trigger evals guarding against
+regressions and cross-skill collisions (Lever B). Ratchets the
+context_budget.bats cap (D1) and documents the house style (D2).
+
+- Total front-matter: 21656 → <T> bytes; cap 22800 → <T+800>.
+- Trigger tokens preserved on Lever A (verified parsed-value identical mod whitespace).
+- Lever B trims accepted only on no eval regression; evidence in commit bodies.
+- ai-hooks-integration (externally managed) untouched.
+
+Spec: docs/superpowers/specs/2026-07-05-skill-frontmatter-efficiency-design.md
+Plan: docs/superpowers/plans/2026-07-05-skill-frontmatter-efficiency.md
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+BODY
+)"
+```
+
+---
+
+## Self-Review (author checklist — completed)
+
+- **Spec coverage:** Lever A → Task 2; Lever B + eval + sibling negatives → Task 3; provenance exclusion → Tasks 1–2 + Task 6 Step 4; colon-space quoting → Global Constraints + Task 2 Step 1; D1 → Task 4; D2 → Task 5; CI-safety → Task 6. All design sections map to a task.
+- **Placeholder scan:** `<name>`, `<T>`, `<D>`, `<trimmed description>` are per-iteration substitutions with defined derivation, not unfilled TODOs. No "add error handling"/"write tests for the above".
+- **Type/name consistency:** `measure_frontmatter.sh`, `parse_check.py`, `normalize_frontmatter.py`, `verify_preserved.py` referenced consistently across tasks; eval field names (should_trigger/should_not_trigger, `--description`, `--eval-set`, `--skill-path`) match `run_eval.py`'s verified interface.
+- **Known judgement points (intended, not gaps):** the exact trim wording per skill and the eval-set query drafting are LLM-authored at execution time under the stated acceptance gate — the plan fixes the *gate*, not the prose.
