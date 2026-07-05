@@ -3,8 +3,16 @@ app: manifest
 # Smoke catalog for the Manifest repo. Constitution Principle VI Verify gate:
 # deterministic, browser-free (tier Lite, type cli) critical-path tests. Each
 # builds a hermetic fixture home+project in a temp dir (never touches the real
-# ~/.claude) and asserts exit 0. Indentation follows the repo yamllint
-# (indent-sequences); smoke_test.py append now emits this style automatically.
+# ~/.claude) and asserts exit 0. Two axes of coverage:
+#   - deploy shape: what bootstrap links/copies (reconcile, antigravity, shared).
+#   - deploy preservation: user runtime state that survives a redeploy — MCP
+#     servers, opted-in issue-sync gates, and repo top-level defaults such as
+#     skillListingBudgetFraction unioned into an existing settings.local.json
+#     user-wins — the invariants whose silent regression corrupts a real
+#     ~/.claude on the next `git pull && ./bootstrap.sh`.
+# Indentation follows the repo yamllint (indent-sequences); smoke_test.py append
+# emits this style automatically but strips comments, so restore this header if
+# a re-append drops it.
 tests:
   - id: deploy-reconcile-preview
     title: deploy_reconcile.sh previews a hermetic fixture and exits 0
@@ -18,18 +26,15 @@ tests:
         command:
           - bash
           - -c
-          - |
-            set -euo pipefail
-            root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
-            sb="$(mktemp -d)"; trap 'rm -rf "$sb"' EXIT
-            mkdir -p "$sb/home/.claude/skills/dead" "$sb/home/.claude/config"
-            mkdir -p "$sb/repo/.skillshare/skills/live" "$sb/repo/configs/claude/config"
-            echo x > "$sb/home/.claude/skills/dead/SKILL.md"
-            echo "y: 1" > "$sb/home/.claude/config/command_config.yml"
-            echo "y: 1" > "$sb/repo/configs/claude/config/command_config.yml"
-            "$root/configs/claude/scripts/deploy_reconcile.sh" \
-              --home "$sb/home" --project "$sb/repo" \
-              --config "$root/configs/claude/config/reconcile.yml" --json
+          - "set -euo pipefail\nroot=\"$(git rev-parse --show-toplevel 2>/dev/null\
+            \ || pwd)\"\nsb=\"$(mktemp -d)\"; trap 'rm -rf \"$sb\"' EXIT\nmkdir -p\
+            \ \"$sb/home/.claude/skills/dead\" \"$sb/home/.claude/config\"\nmkdir\
+            \ -p \"$sb/repo/.skillshare/skills/live\" \"$sb/repo/configs/claude/config\"\
+            \necho x > \"$sb/home/.claude/skills/dead/SKILL.md\"\necho \"y: 1\" >\
+            \ \"$sb/home/.claude/config/command_config.yml\"\necho \"y: 1\" > \"$sb/repo/configs/claude/config/command_config.yml\"\
+            \n\"$root/configs/claude/scripts/deploy_reconcile.sh\" \\\n  --home \"\
+            $sb/home\" --project \"$sb/repo\" \\\n  --config \"$root/configs/claude/config/reconcile.yml\"\
+            \ --json\n"
   - id: antigravity-deploy-reduced-set
     title: deploy_antigravity_configs links config/skills/.plans but not scripts/prompts
     tier: Lite
@@ -38,32 +43,23 @@ tests:
         type: cli
         expect_exit: 0
         captures:
-          result: 'RESULT antigravity_reduced_set=(ok)'
+          result: RESULT antigravity_reduced_set=(ok)
         command:
           - bash
           - -c
-          - |
-            set -euo pipefail
-            GREEN='' CYAN='' NC='' BLUE='' YELLOW='' RED='' BOLD=''
-            root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
-            sb="$(mktemp -d)"; trap 'rm -rf "$sb"' EXIT
-            export TARGET_DIR="$sb/claude"
-            export ANTIGRAVITY_TARGET_DIR="$sb/antigravity"
-            export ENABLE_ANTIGRAVITY=true
-            mkdir -p "$TARGET_DIR"/scripts "$TARGET_DIR"/config "$TARGET_DIR"/prompts \
-              "$TARGET_DIR"/.plans "$TARGET_DIR"/skills
-            # shellcheck disable=SC1090
-            source "$root/bootstrap/lib/common.sh"
-            # shellcheck disable=SC1090
-            source "$root/bootstrap/lib/deploy.sh"
-            deploy_antigravity_configs > /dev/null
-            for l in config skills .plans; do
-              [ -L "$ANTIGRAVITY_TARGET_DIR/$l" ] || { echo "FAIL: missing expected link $l"; exit 1; }
-            done
-            for l in scripts prompts; do
-              [ ! -e "$ANTIGRAVITY_TARGET_DIR/$l" ] || { echo "FAIL: agy must not carry orchestrator wiring: $l"; exit 1; }
-            done
-            echo "RESULT antigravity_reduced_set=ok"
+          - "set -euo pipefail\nGREEN='' CYAN='' NC='' BLUE='' YELLOW='' RED='' BOLD=''\n\
+            root=\"$(git rev-parse --show-toplevel 2>/dev/null || pwd)\"\nsb=\"$(mktemp\
+            \ -d)\"; trap 'rm -rf \"$sb\"' EXIT\nexport TARGET_DIR=\"$sb/claude\"\n\
+            export ANTIGRAVITY_TARGET_DIR=\"$sb/antigravity\"\nexport ENABLE_ANTIGRAVITY=true\n\
+            mkdir -p \"$TARGET_DIR\"/scripts \"$TARGET_DIR\"/config \"$TARGET_DIR\"\
+            /prompts \\\n  \"$TARGET_DIR\"/.plans \"$TARGET_DIR\"/skills\n# shellcheck\
+            \ disable=SC1090\nsource \"$root/bootstrap/lib/common.sh\"\n# shellcheck\
+            \ disable=SC1090\nsource \"$root/bootstrap/lib/deploy.sh\"\ndeploy_antigravity_configs\
+            \ > /dev/null\nfor l in config skills .plans; do\n  [ -L \"$ANTIGRAVITY_TARGET_DIR/$l\"\
+            \ ] || { echo \"FAIL: missing expected link $l\"; exit 1; }\ndone\nfor\
+            \ l in scripts prompts; do\n  [ ! -e \"$ANTIGRAVITY_TARGET_DIR/$l\" ]\
+            \ || { echo \"FAIL: agy must not carry orchestrator wiring: $l\"; exit\
+            \ 1; }\ndone\necho \"RESULT antigravity_reduced_set=ok\"\n"
   - id: shared-asset-deploy-full-set
     title: link_shared_assets gives a standard assistant all five shared links
     tier: Lite
@@ -72,23 +68,113 @@ tests:
         type: cli
         expect_exit: 0
         captures:
-          result: 'RESULT shared_asset_full_set=(ok)'
+          result: RESULT shared_asset_full_set=(ok)
         command:
           - bash
           - -c
-          - |
-            set -euo pipefail
-            GREEN='' CYAN='' NC='' BLUE='' YELLOW='' RED='' BOLD=''
-            root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
-            sb="$(mktemp -d)"; trap 'rm -rf "$sb"' EXIT
-            export TARGET_DIR="$sb/claude"
-            mkdir -p "$TARGET_DIR"/scripts "$TARGET_DIR"/config "$TARGET_DIR"/prompts \
-              "$TARGET_DIR"/.plans "$TARGET_DIR"/skills
-            dest="$sb/gemini"; mkdir -p "$dest"
-            # shellcheck disable=SC1090
-            source "$root/bootstrap/lib/common.sh"
-            link_shared_assets "$dest" "SmokeAssistant" "true" > /dev/null
-            for l in scripts config prompts .plans skills; do
-              [ -L "$dest/$l" ] || { echo "FAIL: standard assistant missing link $l"; exit 1; }
-            done
-            echo "RESULT shared_asset_full_set=ok"
+          - "set -euo pipefail\nGREEN='' CYAN='' NC='' BLUE='' YELLOW='' RED='' BOLD=''\n\
+            root=\"$(git rev-parse --show-toplevel 2>/dev/null || pwd)\"\nsb=\"$(mktemp\
+            \ -d)\"; trap 'rm -rf \"$sb\"' EXIT\nexport TARGET_DIR=\"$sb/claude\"\n\
+            mkdir -p \"$TARGET_DIR\"/scripts \"$TARGET_DIR\"/config \"$TARGET_DIR\"\
+            /prompts \\\n  \"$TARGET_DIR\"/.plans \"$TARGET_DIR\"/skills\ndest=\"\
+            $sb/gemini\"; mkdir -p \"$dest\"\n# shellcheck disable=SC1090\nsource\
+            \ \"$root/bootstrap/lib/common.sh\"\nlink_shared_assets \"$dest\" \"SmokeAssistant\"\
+            \ \"true\" > /dev/null\nfor l in scripts config prompts .plans skills;\
+            \ do\n  [ -L \"$dest/$l\" ] || { echo \"FAIL: standard assistant missing\
+            \ link $l\"; exit 1; }\ndone\necho \"RESULT shared_asset_full_set=ok\"\
+            \n"
+  - id: mcp-preserve-settings-local
+    title: merge_claude_mcp_servers keeps user MCP servers across a redeploy
+    tier: Lite
+    steps:
+      - name: mcp_preserve_settings_local
+        type: cli
+        expect_exit: 0
+        captures:
+          result: RESULT mcp_preserve=(ok)
+        command:
+          - bash
+          - -c
+          - "set -euo pipefail\nGREEN='' CYAN='' NC='' BLUE='' YELLOW='' RED='' BOLD=''\n\
+            root=\"$(git rev-parse --show-toplevel 2>/dev/null || pwd)\"\nsb=\"$(mktemp\
+            \ -d)\"; trap 'rm -rf \"$sb\"' EXIT\n# preserved = a real user's settings.local.json\
+            \ (has their own MCP server)\nprintf '{\"mcpServers\":{\"userfoo\":{\"\
+            url\":\"https://u\"}}}' > \"$sb/preserved.json\"\n# tgt = the repo-managed\
+            \ copy about to overwrite it (has repo servers + other keys)\nprintf '{\"\
+            mcpServers\":{\"repobar\":{\"url\":\"https://r\"}},\"permissions\":{\"\
+            allow\":[]}}' > \"$sb/tgt.json\"\n# shellcheck disable=SC1090\nsource\
+            \ \"$root/bootstrap/lib/common.sh\"\n# shellcheck disable=SC1090\nsource\
+            \ \"$root/bootstrap/lib/deploy.sh\"\nmerge_claude_mcp_servers \"$sb/preserved.json\"\
+            \ \"$sb/tgt.json\" > /dev/null\npython3 - \"$sb/tgt.json\" <<'PY'\nimport\
+            \ json, sys\nd = json.load(open(sys.argv[1]))\nk = set(d.get(\"mcpServers\"\
+            , {}))\nif not {\"userfoo\", \"repobar\"} <= k:\n    sys.exit(\"FAIL:\
+            \ user/repo MCP server lost on redeploy: %s\" % sorted(k))\nif \"permissions\"\
+            \ not in d:\n    sys.exit(\"FAIL: unrelated settings.local.json key dropped\"\
+            )\nPY\necho \"RESULT mcp_preserve=ok\"\n"
+  - id: issue-sync-gate-preserve
+    title: preserve_issue_sync_gates carries opt-in gates across a redeploy
+    tier: Lite
+    steps:
+      - name: issue_sync_gate_preserve
+        type: cli
+        expect_exit: 0
+        captures:
+          result: RESULT gate_preserve=(ok)
+        command:
+          - bash
+          - -c
+          - "set -euo pipefail\nGREEN='' CYAN='' NC='' BLUE='' YELLOW='' RED='' BOLD=''\n\
+            root=\"$(git rev-parse --show-toplevel 2>/dev/null || pwd)\"\nsb=\"$(mktemp\
+            \ -d)\"; trap 'rm -rf \"$sb\"' EXIT\n# preserved = user opted in via install_issue_hooks.sh\
+            \ (enabled: true)\nprintf 'tool_policies:\\n  issue-sync-pr:\\n    enabled:\
+            \ true\\n  other-skill:\\n    enabled: false\\n' > \"$sb/preserved.yml\"\
+            \n# tgt = repo default copy that would silently disable the opt-in (enabled:\
+            \ false)\nprintf 'tool_policies:\\n  issue-sync-pr:\\n    enabled: false\\\
+            n  other-skill:\\n    enabled: false\\n' > \"$sb/tgt.yml\"\n# shellcheck\
+            \ disable=SC1090\nsource \"$root/bootstrap/lib/common.sh\"\n# shellcheck\
+            \ disable=SC1090\nsource \"$root/bootstrap/lib/deploy.sh\"\npreserve_issue_sync_gates\
+            \ \"$sb/preserved.yml\" \"$sb/tgt.yml\" > /dev/null\npython3 - \"$sb/tgt.yml\"\
+            \ <<'PY'\nimport re, sys\nt = open(sys.argv[1]).read()\npr = re.search(r'issue-sync-pr:\\\
+            s*\\n\\s*enabled:\\s*(true|false)', t).group(1)\noth = re.search(r'other-skill:\\\
+            s*\\n\\s*enabled:\\s*(true|false)', t).group(1)\nif pr != \"true\":\n\
+            \    sys.exit(\"FAIL: opted-in issue-sync gate reverted to disabled on\
+            \ redeploy\")\nif oth != \"false\":\n    sys.exit(\"FAIL: non-issue-sync\
+            \ gate wrongly mutated (over-broad preserve)\")\nPY\necho \"RESULT gate_preserve=ok\"\
+            \n"
+  - id: settings-defaults-preserve
+    title: merge_claude_settings_defaults delivers repo top-level default, user value
+      wins
+    tier: Lite
+    steps:
+      - name: settings_defaults
+        type: cli
+        expect_exit: 0
+        captures:
+          result: RESULT settings_defaults=(ok)
+        command:
+          - bash
+          - -c
+          - "set -euo pipefail\nGREEN='' CYAN='' NC='' BLUE='' YELLOW='' RED='' BOLD=''\n\
+            root=\"$(git rev-parse --show-toplevel 2>/dev/null || pwd)\"\nsb=\"$(mktemp\
+            \ -d)\"; trap 'rm -rf \"$sb\"' EXIT\n# src = the repo's own deployed settings.local.json\
+            \ (real source of defaults)\nsrc=\"$root/configs/claude/settings.local.json\"\
+            \n# tgt = an already-bootstrapped user file: has NO skill budget (must\
+            \ be added)\n# alongside a custom key that must survive untouched.\nprintf\
+            \ '{\"permissions\":{\"allow\":[\"Bash(ls:*)\"]}}' > \"$sb/tgt.json\"\n\
+            # shellcheck disable=SC1090\nsource \"$root/bootstrap/lib/common.sh\"\n\
+            # shellcheck disable=SC1090\nsource \"$root/bootstrap/lib/deploy.sh\"\n\
+            merge_claude_settings_defaults \"$src\" \"$sb/tgt.json\" > /dev/null\n\
+            python3 - \"$sb/tgt.json\" \"$src\" <<'PY'\nimport json, sys\ntgt = json.load(open(sys.argv[1]))\n\
+            src = json.load(open(sys.argv[2]))\n# repo must actually ship the top-level\
+            \ default we claim to propagate\nif src.get(\"skillListingBudgetFraction\"\
+            ) != 0.05:\n    sys.exit(\"FAIL: repo settings.local.json no longer ships\
+            \ skillListingBudgetFraction=0.05\")\n# the missing default must have\
+            \ been unioned into the existing file\nif tgt.get(\"skillListingBudgetFraction\"\
+            ) != 0.05:\n    sys.exit(\"FAIL: repo default not delivered to an existing\
+            \ install\")\n# the user's own unrelated key must survive untouched\n\
+            if tgt.get(\"permissions\", {}).get(\"allow\") != [\"Bash(ls:*)\"]:\n\
+            \    sys.exit(\"FAIL: user's own settings mutated by the defaults merge\"\
+            )\n# env must NOT be shipped in settings.json (subprocess-only, no-op\
+            \ for caching)\nif \"env\" in src:\n    sys.exit(\"FAIL: settings.local.json\
+            \ ships an env block (subprocess-only, misleading)\")\nPY\necho \"RESULT\
+            \ settings_defaults=ok\"\n"

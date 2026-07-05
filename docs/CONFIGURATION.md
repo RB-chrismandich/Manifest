@@ -47,6 +47,43 @@ vim ~/.claude/config/validation_criteria.yml
 vim ~/.claude/config/skillclaw.yml
 ```
 
+### Claude Code Session Settings (`settings.local.json`)
+
+The deployed `~/.claude/settings.local.json` carries Claude Code session settings
+in addition to permissions, hooks, and MCP servers:
+
+| Key | Value | Purpose |
+|-----|-------|---------|
+| `skillListingBudgetFraction` | `0.05` | Fraction of the context window reserved for the auto-loaded skill name/description listing. Manifest ships 70+ skills, so the Claude Code default (`0.01`) collapses many descriptions to name-only and weakens skill triggering; `0.05` keeps more descriptions visible. Requires Claude Code v2.1.105+. |
+
+Bootstrap unions this default into an **existing** `settings.local.json`
+(`merge_claude_settings_defaults`) **user-wins** — a value you set yourself is
+never overwritten, so `vim` your own `skillListingBudgetFraction` and it survives
+the next `./bootstrap.sh`.
+
+#### Optional: 1-hour prompt caching (opt-in, not deployed)
+
+`ENABLE_PROMPT_CACHING_1H=1` opts Claude Code into the 1-hour prompt-cache TTL
+(vs. the 5-minute default). It is **not** deployed by Manifest for two reasons:
+
+- It only takes effect as a **shell environment variable read before `claude`
+  launches** — the `settings.json` `env` block reaches spawned subprocesses, not
+  Claude Code's own runtime, so setting it there is a silent no-op.
+- On a **Claude subscription the 1-hour TTL is already the free default**; the
+  variable only changes behavior on **API-key / Bedrock / third-party**
+  providers, where the longer TTL bills cache writes at a **higher rate**. That
+  cost trade-off is a per-user choice, not a blanket default.
+
+Enable it yourself when you want it:
+
+```bash
+# Persist for every session (zsh; use ~/.bashrc for bash)
+echo 'export ENABLE_PROMPT_CACHING_1H=1' >> ~/.zshrc
+
+# Or one launch only
+ENABLE_PROMPT_CACHING_1H=1 claude
+```
+
 ---
 
 ## Service Configuration

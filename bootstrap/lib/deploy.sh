@@ -131,6 +131,9 @@ deploy_configs() {
                     # so a pre-existing live file never gains repo-shipped hooks
                     # (e.g. the new SessionStart nudge). Union them in explicitly.
                     merge_settings_hooks "$source_dir/settings.local.json" "$TARGET_DIR/settings.local.json"
+                    # ...and repo session defaults (env vars, skillListingBudgetFraction)
+                    # the same --ignore-existing skip would strand on existing installs.
+                    merge_claude_settings_defaults "$source_dir/settings.local.json" "$TARGET_DIR/settings.local.json"
                     write_deploy_stamp "$SCRIPT_DIR" "$TARGET_DIR"
                     print_success "Configurations merged"
                     # Still write services config
@@ -322,6 +325,58 @@ PYEOF
         3) print_info "Existing settings.json already has repo hooks - preserved" ;;
         *) print_warning "Could not merge hooks into existing settings.json (manual merge may be needed)" ;;
     esac
+}
+
+# Union repo-shipped top-level default settings (currently
+# skillListingBudgetFraction, and any future scalar peer) into an EXISTING
+# settings.local.json that rsync's --ignore-existing would otherwise skip, so an
+# already-bootstrapped machine still receives new defaults. User-wins: a key the
+# user already set is NEVER overwritten. Scope EXCLUDES permissions/hooks/
+# mcpServers (their own mergers own those) and env (the settings.json env block
+# only reaches spawned subprocesses, so it is never a place we ship Claude
+# Code's own runtime defaults). Fail-open like its siblings: a missing python3 or
+# unparseable JSON is a skip, not a stop.
+merge_claude_settings_defaults() {
+    local src="$1" tgt="$2"
+    [[ -n "$src" && -f "$src" && -f "$tgt" ]] || return 0
+    if ! command_exists python3; then
+        print_info "python3 unavailable — skipped settings defaults merge into existing settings.json"
+        return 0
+    fi
+    local rc=0
+    python3 - "$src" "$tgt" << 'PYEOF' || rc=$?
+import json, sys
+src_path, tgt_path = sys.argv[1], sys.argv[2]
+# Owned by dedicated mergers, or (env) only meaningful for subprocesses — never a
+# top-level default this merger propagates.
+OWNED = {"permissions", "hooks", "mcpServers", "env"}
+try:
+    src = json.load(open(src_path))
+    tgt = json.load(open(tgt_path))
+except Exception:
+    sys.exit(2)
+if not isinstance(tgt, dict):
+    sys.exit(2)
+changed = False
+for k, v in src.items():
+    if k in OWNED:
+        continue
+    if k not in tgt:  # user-wins: only fill a key the user has not set
+        tgt[k] = v
+        changed = True
+if not changed:
+    sys.exit(3)
+with open(tgt_path, "w") as f:
+    json.dump(tgt, f, indent=2)
+    f.write("\n")
+sys.exit(0)
+PYEOF
+    case $rc in
+        0) print_success "Merged repo session defaults into existing settings.json" ;;
+        3) print_info "Existing settings.json already has repo session defaults - preserved" ;;
+        *) print_warning "Could not merge session defaults into existing settings.json (manual merge may be needed)" ;;
+    esac
+    return 0
 }
 
 # Record what this deploy shipped so the SessionStart checker

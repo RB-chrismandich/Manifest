@@ -140,11 +140,17 @@ assert_config_deployed() {
     [ -f "$TARGET_DIR/CLAUDE.md" ]
     [ -d "$TARGET_DIR/skills/code-audit" ]
 
-    # Merge keeps the user's settings.local.json (and its MCP server) intact.
+    # Merge keeps the user's settings.local.json (and its MCP server) intact AND
+    # unions in the repo's top-level session defaults (skillListingBudgetFraction)
+    # that rsync --ignore-existing would otherwise strand — proving
+    # merge_claude_settings_defaults is actually wired into the merge path (the
+    # fixture at setup seeds NO skillListingBudgetFraction).
     run python3 -c "
 import json
-s = json.load(open('$TARGET_DIR/settings.local.json')).get('mcpServers', {})
+d = json.load(open('$TARGET_DIR/settings.local.json'))
+s = d.get('mcpServers', {})
 assert s.get('my-private', {}).get('url') == 'https://mcp.internal.example/mcp', s
-print('mcp-intact')"
-    assert_output --partial "mcp-intact"
+assert d.get('skillListingBudgetFraction') == 0.05, d.get('skillListingBudgetFraction')
+print('mcp-intact-defaults-merged')"
+    assert_output --partial "mcp-intact-defaults-merged"
 }
