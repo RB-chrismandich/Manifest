@@ -109,8 +109,10 @@ preserving every distinct trigger token and "use-when" cue.
   from `.skillshare/config.yaml` ownership metadata (skillshare-installed skills),
   not a single hardcoded name. `ai-hooks-integration` is externally installed via
   skillshare — local edits are overwritten on the next `skillshare install`, so it
-  is out of scope. If ownership metadata is unavailable, fall back to the
-  `docs/SKILL-NAMING.md` exceptions list intersected with skillshare provenance.
+  is out of scope. `.skillshare/config.yaml` is committed infrastructure (per
+  `.claude/CLAUDE.md`) and always present; if it is missing or unparseable the
+  tooling **fails closed** — errors out and edits nothing rather than guessing an
+  exclusion set — so an externally-managed skill is never touched by accident.
 - `graphify`, `help`, `pass-cli` are naming *exceptions* but are locally owned —
   they are **in** scope for efficiency edits (name is not touched; description is).
 
@@ -139,8 +141,9 @@ construction.
 Tooling location:
 `~/.claude/plugins/cache/claude-plugins-official/skill-creator/…/scripts/run_eval.py`
 (run as `python3 -m scripts.run_eval` from the skill-creator dir). Interface
-verified: `--eval-set`, `--skill-path`, `--description`, `--runs-per-query`,
-`--trigger-threshold`, `--model`.
+verified (from `run_eval.py --help`): `--eval-set`, `--skill-path`,
+`--description`, `--runs-per-query`, `--trigger-threshold`, `--model`,
+`--num-workers`, `--timeout`, `--verbose`.
 
 ## Durability add-ons (approved)
 

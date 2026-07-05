@@ -25,22 +25,41 @@
 | Path | Responsibility | Change |
 |---|---|---|
 | `.skillshare/skills/*/SKILL.md` | Per-skill front-matter (the edits) | Modify (excl. externally-managed) |
-| `scratchpad/normalize_frontmatter.py` | One-off Lever A transform + parse-verify (NOT committed) | Create (scratchpad only) |
-| `scratchpad/measure_frontmatter.sh` | Byte/style/parse audit used across tasks (NOT committed) | Create (scratchpad only) |
+| `$SCRATCH/measure_frontmatter.sh` | Byte/style/parse audit used across tasks | Create (scratch only) |
+| `$SCRATCH/parse_check.py` | PyYAML validity + `name`/`description` presence check | Create (scratch only) |
+| `$SCRATCH/normalize_frontmatter.py` | One-off Lever A in-place inline transform | Create (scratch only) |
+| `$SCRATCH/verify_preserved.py` | Old-vs-new parsed-description equality check | Create (scratch only) |
+| `$SCRATCH/evalsets/<name>.json` | Per-skill trigger eval sets (Lever B) | Create (scratch only) |
+| `$SCRATCH/eval-evidence.md` | Baseline-vs-candidate eval verdicts (pasted into commit) | Create (scratch only) |
+| `.skillshare/skills/*/SKILL.md` | Per-skill front-matter (the edits) | Modify (excl. externally-managed) |
 | `tests/bats/context_budget.bats:116-127` | Total front-matter byte cap | Modify (D1 ratchet) |
 | `docs/SKILL-NAMING.md` | Naming + now front-matter house style | Modify (D2) |
 
-Scratchpad scripts live in the session scratchpad dir and are never committed — only the resulting `.md`/test/doc diffs are.
+`$SCRATCH` is the session scratchpad directory (defined in Task 1 Step 0). Every
+scratch script and data file lives under it and is **never committed** — only the
+resulting `.skillshare/skills/*.md`, `tests/`, and `docs/` diffs enter the repo.
 
 ---
 
 ## Task 1: Audit harness + baseline snapshot
 
 **Files:**
-- Create: `scratchpad/measure_frontmatter.sh`
+- Create: `$SCRATCH/measure_frontmatter.sh`
 
 **Interfaces:**
 - Produces: `measure_frontmatter.sh` prints, per skill, `<bytes> <style:inline|literal|folded> <name>`, plus TOTAL bytes and the externally-managed exclusion list; a `--parse` mode that asserts every SKILL.md front-matter is valid YAML.
+
+- [ ] **Step 0: Define `$SCRATCH` and confirm exclusion data exists (fail closed)**
+
+```bash
+export SCRATCH="/private/tmp/claude-501/-Users-chrismandich-Documents-GitHub-Manifest/<session>/scratchpad"
+mkdir -p "$SCRATCH/evalsets"
+# .skillshare/config.yaml is committed infra; if it is missing/unparseable we
+# cannot determine externally-managed skills -> STOP (never risk editing them).
+python3 -c "import yaml,sys; yaml.safe_load(open('.skillshare/config.yaml'))" \
+  || { echo "FATAL: .skillshare/config.yaml missing/unparseable — aborting (fail closed)"; exit 1; }
+```
+Expected: `$SCRATCH` exists; the config parses. If it aborts, do not proceed with any task.
 
 - [ ] **Step 1: Write the audit script**
 
@@ -76,7 +95,7 @@ chmod +x "$SCRATCH/measure_frontmatter.sh"
 ```
 
 ```python
-# scratchpad/parse_check.py — invoked by --parse
+# $SCRATCH/parse_check.py — invoked by --parse
 import sys, glob, yaml
 bad = 0
 for f in glob.glob(".skillshare/skills/*/SKILL.md"):
@@ -97,7 +116,7 @@ sys.exit(1 if bad else 0)
 
 - [ ] **Step 3: Run baseline and record it**
 
-Run: `"$SCRATCH/measure_frontmatter.sh" | tee "$SCRATCH/baseline.txt"; python3 scratchpad/parse_check.py`
+Run: `"$SCRATCH/measure_frontmatter.sh" | tee "$SCRATCH/baseline.txt"; python3 $SCRATCH/parse_check.py`
 Expected: TOTAL ≈ 21656; parse check exits 0; `ai-hooks-integration` tagged EXCLUDED.
 
 - [ ] **Step 4: No commit** (scratchpad only — nothing enters the repo this task).
@@ -108,7 +127,7 @@ Expected: TOTAL ≈ 21656; parse check exits 0; `ai-hooks-integration` tagged EX
 
 **Files:**
 - Modify: each `.skillshare/skills/<name>/SKILL.md` whose style is `literal` or `folded` and is not EXCLUDED
-- Create: `scratchpad/normalize_frontmatter.py` (not committed)
+- Create: `$SCRATCH/normalize_frontmatter.py` (not committed)
 
 **Interfaces:**
 - Consumes: baseline audit from Task 1.
@@ -117,7 +136,7 @@ Expected: TOTAL ≈ 21656; parse check exits 0; `ai-hooks-integration` tagged EX
 - [ ] **Step 1: Write the transform (parse → re-emit inline)**
 
 ```python
-# scratchpad/normalize_frontmatter.py
+# $SCRATCH/normalize_frontmatter.py
 # Replaces ONLY the description span in place; every other front-matter line
 # (name, any future keys) and the body are left byte-for-byte unchanged.
 import glob, re, yaml
@@ -161,13 +180,13 @@ Expected: `SAFE: …` (verified during design — 0 of 31 are genuine multi-line
 
 - [ ] **Step 3: Apply the transform**
 
-Run: `python3 scratchpad/normalize_frontmatter.py`
+Run: `python3 $SCRATCH/normalize_frontmatter.py`
 Expected: ~39 "normalized <name>" lines (excludes any already-inline).
 
 - [ ] **Step 4: Verify parsed values are semantically preserved**
 
 ```python
-# scratchpad/verify_preserved.py — compare old (git HEAD) vs new parsed descriptions
+# $SCRATCH/verify_preserved.py — compare old (git HEAD) vs new parsed descriptions
 import subprocess, glob, yaml
 def parse(text):
     lines = text.splitlines(); end = lines.index("---", 1)
@@ -183,12 +202,12 @@ print("OK: all preserved" if not fails else f"{fails} drifted")
 import sys; sys.exit(1 if fails else 0)
 ```
 
-Run: `python3 scratchpad/verify_preserved.py`
+Run: `python3 $SCRATCH/verify_preserved.py`
 Expected: `OK: all preserved` — whitespace-normalized parsed descriptions are identical (proves Lever A changed only formatting, not trigger tokens).
 
 - [ ] **Step 5: Verify YAML validity, byte drop, and budget gate**
 
-Run: `python3 scratchpad/parse_check.py && "$SCRATCH/measure_frontmatter.sh" | tail -1 && bats tests/bats/context_budget.bats`
+Run: `python3 $SCRATCH/parse_check.py && "$SCRATCH/measure_frontmatter.sh" | tail -1 && bats tests/bats/context_budget.bats`
 Expected: parse exits 0; TOTAL dropped below 21656; all context_budget tests pass.
 
 - [ ] **Step 6: Commit Lever A**
@@ -212,7 +231,7 @@ Claude-Session: https://claude.ai/code/session_01JpWri5Fi9XhWyGZLuSL42R"
 
 **Files:**
 - Modify: each non-excluded `.skillshare/skills/<name>/SKILL.md` with front-matter > 290 bytes (from Task 1 audit, re-measured post-Lever-A)
-- Create: `scratchpad/evalsets/<name>.json`, `scratchpad/eval-evidence.md` (not committed; evidence pasted into commit body)
+- Create: `$SCRATCH/evalsets/<name>.json`, `$SCRATCH/eval-evidence.md` (not committed; evidence pasted into commit body)
 
 **Interfaces:**
 - Consumes: `run_eval.py` at `~/.claude/plugins/cache/claude-plugins-official/skill-creator/*/skills/skill-creator/scripts/run_eval.py`, run as `python3 -m scripts.run_eval` from the skill-creator dir.
@@ -232,7 +251,7 @@ Expected: ~17 skills (e.g. pr-smoke, pr-monitor, deploy-diagnose-drift, ci-audit
 
 - [ ] **Step 2: For each skill, generate an eval set with sibling negatives**
 
-For skill `<name>` in domain `<D>` (first name token): create `scratchpad/evalsets/<name>.json` with skill-creator's schema — `should_trigger` queries (paraphrases of the skill's real use-cases) and `should_not_trigger` queries that **include** real use-cases of same-domain siblings (all other `<D>-*` skills) plus 2–3 unrelated tasks. Use the skill-creator analyzer agent to draft, then hand-check that every sibling is represented in the negatives.
+For skill `<name>` in domain `<D>` (first name token): create `$SCRATCH/evalsets/<name>.json` with skill-creator's schema — `should_trigger` queries (paraphrases of the skill's real use-cases) and `should_not_trigger` queries that **include** real use-cases of same-domain siblings (all other `<D>-*` skills) plus 2–3 unrelated tasks. Use the skill-creator analyzer agent to draft, then hand-check that every sibling is represented in the negatives.
 
 Example (`pr-review`, domain `pr`): negatives include a `pr-address-comments` task ("fix the review comments on my PR"), a `pr-monitor` task ("babysit my open PR"), a `pr-smoke` task ("regression-test the repo after this PR"). If a trim makes `pr-review` fire on those, the eval catches the collision.
 
@@ -266,7 +285,7 @@ Rewrite the description shorter, keeping: name-match cue, primary "use when" phr
 
 - [ ] **Step 6: Gate — accept only on no regression**
 
-Accept the trim **iff** candidate should-trigger rate ≥ baseline **and** candidate false-fire rate ≤ baseline. Otherwise revise wording (Step 4) and re-run, or keep the original description unchanged. Append a one-line verdict per skill to `scratchpad/eval-evidence.md` (`<name>: trigger base→cand, false base→cand, VERDICT`).
+Accept the trim **iff** candidate should-trigger rate ≥ baseline **and** candidate false-fire rate ≤ baseline. Otherwise revise wording (Step 4) and re-run, or keep the original description unchanged. Append a one-line verdict per skill to `$SCRATCH/eval-evidence.md` (`<name>: trigger base→cand, false base→cand, VERDICT`).
 
 - [ ] **Step 7: Apply accepted trims to the files**
 
@@ -274,7 +293,7 @@ Edit each accepted skill's `description:` in place. Skills that failed the gate 
 
 - [ ] **Step 8: Verify parse + budget after trims**
 
-Run: `python3 scratchpad/parse_check.py && bats tests/bats/context_budget.bats`
+Run: `python3 $SCRATCH/parse_check.py && bats tests/bats/context_budget.bats`
 Expected: parse exits 0; budget green (total now lower still).
 
 - [ ] **Step 9: Commit Lever B with evidence**
