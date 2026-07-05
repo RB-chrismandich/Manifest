@@ -118,33 +118,39 @@ Expected: TOTAL ≈ 21656; parse check exits 0; `ai-hooks-integration` tagged EX
 
 ```python
 # scratchpad/normalize_frontmatter.py
-import glob, re, yaml, sys
+# Replaces ONLY the description span in place; every other front-matter line
+# (name, any future keys) and the body are left byte-for-byte unchanged.
+import glob, re, yaml
 YAML_INDICATORS = set("-?:[]{}#&*!|>'\"%@`")
-EXCL = {"ai-hooks-integration"}  # from .skillshare/config.yaml source: entries
+# Derive excluded set dynamically from skillshare provenance (spec constraint) —
+# any skill with a `source:` is externally managed. No hardcoded name.
+cfg = yaml.safe_load(open(".skillshare/config.yaml")) or {}
+EXCL = {s["name"] for s in (cfg.get("skills") or []) if s.get("source")}
 def needs_quote(v):
     return (": " in v) or (v[:1] in YAML_INDICATORS)
-def inline(v):
+def emit(v):
     v = " ".join(v.split())           # fold whitespace/newlines to single spaces
-    if needs_quote(v):
-        return '"' + v.replace('"', '\\"') + '"'
-    return v
+    return '"' + v.replace('"', '\\"') + '"' if needs_quote(v) else v
 for f in glob.glob(".skillshare/skills/*/SKILL.md"):
     name = f.split("/")[-2]
     if name in EXCL: continue
     text = open(f).read()
-    lines = text.splitlines()
-    # locate front-matter bounds
-    assert lines[0] == "---"
-    end = lines.index("---", 1)
-    fm = "\n".join(lines[1:end])
-    doc = yaml.safe_load(fm)
-    new_fm = f"name: {doc['name']}\ndescription: {inline(doc['description'])}"
-    if new_fm == fm.strip():          # already inline & minimal
-        continue
-    body = "\n".join(lines[end:])     # from the closing --- onward
-    open(f, "w").write(f"---\n{new_fm}\n{body}\n" if not body.endswith("\n") else f"---\n{new_fm}\n{body}")
-    print("normalized", name)
+    lines = text.split("\n")
+    assert lines[0] == "---", f"{f}: no front-matter"
+    end = lines.index("---", 1)                       # closing marker index
+    di = next(i for i in range(1, end) if re.match(r'^description:', lines[i]))
+    dj = di + 1                                        # end of the description span
+    while dj < end and not re.match(r'^[A-Za-z0-9_-]+:', lines[dj]):
+        dj += 1                                        # consume indented/blank block-scalar lines
+    val = yaml.safe_load("\n".join(lines[di:dj]))["description"]
+    new_lines = lines[:di] + [f"description: {emit(val)}"] + lines[dj:]
+    out = "\n".join(new_lines)
+    if out != text:                                   # skip already-inline & minimal
+        open(f, "w").write(out)
+        print("normalized", name)
 ```
+
+This edits the `description` span only — `name:` and any other keys pass through untouched (satisfies the spec's "preserve all other metadata" rule even though today every skill has exactly `name` + `description`).
 
 - [ ] **Step 2: Dry-run guard — confirm no genuine multi-line loss**
 
@@ -224,6 +230,8 @@ Example (`pr-review`, domain `pr`): negatives include a `pr-address-comments` ta
 - [ ] **Step 3: Baseline eval (original description)**
 
 ```bash
+# Define once for all eval steps in this task (same shell session):
+PWD_REPO="$(git rev-parse --show-toplevel)"
 SC="$HOME/.claude/plugins/cache/claude-plugins-official/skill-creator"
 SCDIR="$(dirname "$(find "$SC" -name run_eval.py | head -1)")/.."
 ( cd "$SCDIR" && python3 -m scripts.run_eval \
@@ -384,10 +392,19 @@ Expected: all pass (naming untouched → green; budget at new cap → green).
 Run: `git diff origin/main --name-only | grep -v -E 'docs/|tests/bats/context_budget.bats' | xargs -I{} git diff origin/main -- {} | grep -E '^\+' | grep -vE '^\+\+\+|^\+(name: |description: )' | grep -E '^\+' || echo "OK: only description lines changed in skill files"`
 Expected: `OK: …` — the only added lines in SKILL.md files are `description:` lines (name + bodies untouched).
 
-- [ ] **Step 4: Confirm the externally-managed skill is untouched**
+- [ ] **Step 4: Confirm every externally-managed skill is untouched**
 
-Run: `git diff origin/main -- .skillshare/skills/ai-hooks-integration/ | wc -l`
-Expected: `0`.
+Run:
+```bash
+EXCL=$(awk '/^skills:/{s=1} s&&/^ *- name:/{n=$3} s&&/source:/{print n}' .skillshare/config.yaml)
+rc=0
+for n in $EXCL; do
+  d=$(git diff origin/main -- ".skillshare/skills/$n/" | wc -l | tr -d ' ')
+  [ "$d" = 0 ] || { echo "MODIFIED externally-managed skill: $n ($d diff lines)"; rc=1; }
+done
+[ "$rc" = 0 ] && echo "OK: all externally-managed skills untouched"
+```
+Expected: `OK: all externally-managed skills untouched` (dynamically covers every `source:` skill, not just `ai-hooks-integration`).
 
 - [ ] **Step 5: Push and open the PR**
 
