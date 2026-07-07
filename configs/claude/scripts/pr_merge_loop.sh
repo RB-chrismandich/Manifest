@@ -21,7 +21,7 @@
 
 set -euo pipefail
 
-err() { echo "pr-merge-loop: $*" >&2; }
+err() { echo -e "\033[0;31mpr-merge-loop: $*\033[0m" >&2; }
 
 # Injectable clock (tests fast-forward via PR_MERGE_LOOP_NOW_CMD) and a bounded
 # network wrapper so a single hung call can never bust the hard ceiling.

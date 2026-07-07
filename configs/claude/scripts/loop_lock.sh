@@ -16,7 +16,7 @@
 
 set -euo pipefail
 
-err() { echo "loop-lock: $*" >&2; }
+err() { echo -e "\033[0;31mloop-lock: $*\033[0m" >&2; }
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LOCK_DIR="${LOOP_LOCK_DIR:-${TMPDIR:-/tmp}/prloop-locks}"

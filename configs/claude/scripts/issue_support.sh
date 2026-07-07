@@ -17,7 +17,7 @@
 
 set -euo pipefail
 
-err() { echo "issue-support: $*" >&2; }
+err() { echo -e "\033[0;31missue-support: $*\033[0m" >&2; }
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 GIT_OPS_BIN="${GIT_OPS_BIN:-${SCRIPT_DIR}/git_ops.sh}"
