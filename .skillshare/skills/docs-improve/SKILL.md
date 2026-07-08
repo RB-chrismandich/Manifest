@@ -1,8 +1,6 @@
 ---
 name: docs-improve
-description: |
-  Audit and improve project documentation using Diataxis and documentation
-  quality best practices across the docs set.
+description: Audit and improve project documentation using Diataxis and documentation quality best practices across the docs set.
 ---
 
 # Documentation Improvement Command

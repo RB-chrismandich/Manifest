@@ -1,10 +1,6 @@
 ---
 name: repo-clean
-description: >-
-  PR/MR + branch cleanup sweep: review every open PR and stale/merged/gone
-  branch, then after you confirm close the dead PRs and prune branches
-  (GitHub/GitLab/local). For any "tidy up my repo" ask spanning both; pick over
-  pr-review or branch-clean.
+description: "PR/MR + branch cleanup sweep: review every open PR and stale/merged/gone branch, then after you confirm close the dead PRs and prune branches (GitHub/GitLab/local). For any \"tidy up my repo\" ask spanning both; pick over pr-review or branch-clean."
 ---
 
 # Repository Hygiene Sweep

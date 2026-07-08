@@ -1,8 +1,6 @@
 ---
 name: terraform-refactor
-description: |
-  Perform security, modularity, and quality analysis for Terraform/OpenTofu IaC codebases
-  and return a prioritized, actionable refactoring roadmap.
+description: Perform security, modularity, and quality analysis for Terraform/OpenTofu IaC codebases and return a prioritized, actionable refactoring roadmap.
 ---
 
 # Terraform IaC Refactor Analysis

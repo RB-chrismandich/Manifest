@@ -1,8 +1,6 @@
 ---
 name: session-checkpoint
-description: |
-  Create a compact checkpoint summary of the current session so work can continue
-  reliably when context usage is high.
+description: Create a compact checkpoint summary of the current session so work can continue reliably when context usage is high.
 ---
 
 # Checkpoint Context Command

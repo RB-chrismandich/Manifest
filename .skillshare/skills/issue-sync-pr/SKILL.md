@@ -1,9 +1,6 @@
 ---
 name: issue-sync-pr
-description: |
-  Keep the linked GitHub/GitLab issue in sync when a pull/merge request is opened:
-  back-link comment, advance status label to needs-review, ensure the closing keyword.
-  Runs as a PostToolUse hook; fail-open (never blocks PR creation).
+description: "Keep the linked GitHub/GitLab issue in sync when a pull/merge request is opened: back-link comment, advance status label to needs-review, ensure the closing keyword. Runs as a PostToolUse hook; fail-open (never blocks PR creation)."
 ---
 
 # PR → Issue Sync Skill

@@ -1,8 +1,6 @@
 ---
 name: plan-manage
-description: |
-  Manage plan lifecycle in .claude/.plans with create, review, execute, archive,
-  and abandon flows, including optional parallel-agent orchestration.
+description: Manage plan lifecycle in .claude/.plans with create, review, execute, archive, and abandon flows, including optional parallel-agent orchestration.
 ---
 
 # Plan Management

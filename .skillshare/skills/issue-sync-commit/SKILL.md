@@ -1,9 +1,6 @@
 ---
 name: issue-sync-commit
-description: |
-  Keep the linked GitHub/GitLab issue in sync when commits land on a feature branch:
-  advance a planned issue to in-progress, deduplicated across commits. Runs as a
-  hook (PostToolUse or native post-commit); fail-open (never blocks the commit).
+description: "Keep the linked GitHub/GitLab issue in sync when commits land on a feature branch: advance a planned issue to in-progress, deduplicated across commits. Runs as a hook (PostToolUse or native post-commit); fail-open (never blocks the commit)."
 ---
 
 # Commit → Issue Sync Skill

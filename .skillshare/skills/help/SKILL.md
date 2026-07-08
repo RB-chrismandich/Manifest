@@ -1,9 +1,6 @@
 ---
 name: help
-description: >-
-  Use when you need to find the right Manifest command for a task — searches and
-  lists every command by category with a one-line description and when-to-use
-  cue, flagging ones unavailable here. Read-only; never runs or modifies.
+description: Use when you need to find the right Manifest command for a task — searches and lists every command by category with a one-line description and when-to-use cue, flagging ones unavailable here. Read-only; never runs or modifies.
 ---
 
 # Command Discovery (`/help`)

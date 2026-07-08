@@ -1,10 +1,6 @@
 ---
 name: ai-code-audit
-description: >-
-  Seven-pass audit of a codebase for AI-generation defects (architecture,
-  async/state, error handling, security, logic, quality, iteration): evidence-traced,
-  severity-classified, cross-verified findings. Use for "audit this codebase",
-  "find vibe-coding/AI antipatterns".
+description: "Seven-pass audit of a codebase for AI-generation defects (architecture, async/state, error handling, security, logic, quality, iteration): evidence-traced, severity-classified, cross-verified findings. Use for \"audit this codebase\", \"find vibe-coding/AI antipatterns\"."
 ---
 
 # AI-Code Audit (seven-pass guardrail audit)

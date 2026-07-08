@@ -1,9 +1,6 @@
 ---
 name: a11y-audit
-description: |
-  Focused accessibility audit against WCAG 2.2 AA standards. Checks ARIA best
-  practices, semantic HTML, focus management, color contrast, keyboard navigation,
-  skip links, alt text, form labels, and error announcements.
+description: Focused accessibility audit against WCAG 2.2 AA standards. Checks ARIA best practices, semantic HTML, focus management, color contrast, keyboard navigation, skip links, alt text, form labels, and error announcements.
 ---
 
 # Accessibility Audit Skill

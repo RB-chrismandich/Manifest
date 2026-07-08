@@ -1,9 +1,6 @@
 ---
 name: performance-check
-description: |
-  Frontend performance audit: bundle size analysis, Core Web Vitals targets,
-  lazy loading, image optimization, caching strategy, code splitting, and
-  render-blocking resource detection.
+description: "Frontend performance audit: bundle size analysis, Core Web Vitals targets, lazy loading, image optimization, caching strategy, code splitting, and render-blocking resource detection."
 ---
 
 # Performance Check Skill
