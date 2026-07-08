@@ -90,11 +90,14 @@ cmd_review() {
             mv "${packet}.r" "$packet" || true
     fi
 
-    local cmd raw rc=0
+    local raw rc=0
     # --timeout 600: the 120s parallel_agent default is documented as insufficient for a
     # multi-agent diff review (CLAUDE.md orchestration guide) and was producing reviewer_error.
-    cmd="${VERIFICATION_GATE_REVIEW_CMD:-${SCRIPT_DIR}/parallel_agent.py --json --validate --timeout 600 --review}"
-    raw="$(eval "${cmd} \"${packet}\"" 2> /dev/null)" || rc=$?
+    local cmd_str="${VERIFICATION_GATE_REVIEW_CMD:-${SCRIPT_DIR}/parallel_agent.py --json --validate --timeout 600 --review}"
+    local -a cmd_arr
+    read -r -a cmd_arr <<< "$cmd_str"
+    # array-safe
+    raw="$("${cmd_arr[@]+"${cmd_arr[@]}"}" "$packet" 2> /dev/null)" || rc=$?
 
     # Adapt to gate JSON. parallel_agent emits {validation:{tier1,tier2,verdict},
     # cross_verification:{consensus_score}}; a seam may already emit gate-shaped JSON

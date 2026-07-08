@@ -80,3 +80,13 @@ JSON primitives do not bypass downstream expectations.
 **Action:** Audit and revert scripts using the brittle `first_char in '{['` heuristic before `json.loads`. Replace
 them with direct `try...except json.JSONDecodeError` blocks followed by `isinstance` validation to prevent primitives
 from causing type errors.
+
+## 2026-10-24 - Verification Gate Eval Rewrite
+
+**Learning:** Using `eval` to interpolate unescaped variables like file paths
+(e.g. `eval "${cmd} \"${packet}\""`) creates a severe command injection
+vulnerability and violates core safety constraints.
+**Action:** Replace `eval` with proper Bash array parsing and safe array
+expansion (`read -r -a cmd_arr <<< "$cmd_str"` followed by
+`"${cmd_arr[@]+"${cmd_arr[@]}"}" "$packet"`) to execute dynamic commands
+securely without a subshell string evaluation.
