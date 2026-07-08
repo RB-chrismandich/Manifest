@@ -42,10 +42,9 @@ is byte-counted by `tests/bats/context_budget.bats`. Keep it efficient:
 
 - **Inline single-line.** No `|` (literal) or `>` (folded) block scalars — their
   indentation is pure byte overhead in always-loaded context.
-- **Quote when needed.** Double-quote the value if it contains `` `: ` ``
-  (colon-space) or begins with a YAML indicator
-  (`` `- ? : [ ] { } # & * ! | > ' " % @ \`` ``). Escape embedded `"` as
-  `` `\"` ``.
+- **Quote when needed.** Double-quote the value if it contains a colon followed
+  by a space, or begins with a YAML indicator (`- ? : [ ] { } # & * ! | > ' " % @`)
+  or a backtick. Escape embedded double quotes as `\"`.
 - **~290-char soft norm.** Not a hard cap (the only hard gate is the total-bytes
   budget), but stay near it. If a genuinely-new skill pushes the total over the
   cap, do a set-wide trim before raising the budget.
