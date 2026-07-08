@@ -25,7 +25,7 @@ PLATFORM=""
 STALE_DAYS=30
 JSON_OUT=false
 
-err() { echo "pr-review: $*" >&2; }
+err() { echo -e "\033[0;31mpr-review: $*\033[0m" >&2; }
 usage_error() {
     err "$*"
     exit 2

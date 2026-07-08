@@ -50,7 +50,7 @@ SKILL=""
 DO_EVOLVE=true
 FORCE_NEW=false
 
-err() { echo "skillclaw-promote: $*" >&2; }
+err() { echo -e "\033[0;31mskillclaw-promote: $*\033[0m" >&2; }
 usage_error() {
     err "$*"
     exit 2

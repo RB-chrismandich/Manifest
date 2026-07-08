@@ -15,7 +15,7 @@
 
 set -euo pipefail
 
-err() { echo "install-issue-hooks: $*" >&2; }
+err() { echo -e "\033[0;31minstall-issue-hooks: $*\033[0m" >&2; }
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 HOOK_SCRIPT="${SCRIPT_DIR}/issue_support_hook.sh"

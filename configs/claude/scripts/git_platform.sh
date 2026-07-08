@@ -11,7 +11,7 @@
 
 set -euo pipefail
 
-err() { echo "git-platform: $*" >&2; }
+err() { echo -e "\033[0;31mgit-platform: $*\033[0m" >&2; }
 
 # Allow override via env var
 if [[ -n "${MANIFEST_GIT_PLATFORM:-}" ]]; then

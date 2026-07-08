@@ -64,7 +64,7 @@ Each language carries one verdict:
   `"${arr[@]+"${arr[@]}"}"`. Enforced by `tests/lint/check_array_expansion.sh`.
 - Prefer `[[ ]]` over `[ ]`; quote all expansions; use `command -v`, not `which`.
 - Declare function-local variables with `local`; module constants with `readonly`.
-- Route error/warning output through `err() { echo "<script-name>: $*" >&2; }`.
+- Route error/warning output through `err() { echo -e "\033[0;31m<script-name>: $*\033[0m" >&2; }`.
   `bootstrap/lib/` keeps its own `print_error()` family as the sole exception.
 - Every user-facing entry-point script handles `--help` (usage ≤15 lines, exit 0).
   Detection/save-hook helpers are exempt with rationale (`git_platform.sh`,

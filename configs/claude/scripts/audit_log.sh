@@ -9,7 +9,7 @@
 
 set -euo pipefail
 
-err() { echo "audit-log: $*" >&2; }
+err() { echo -e "\033[0;31maudit-log: $*\033[0m" >&2; }
 
 AUDIT_FILE="${AUTO_ISSUE_DEV_AUDIT_FILE:-${HOME}/.claude/auto_issue_dev_audit.jsonl}"
 

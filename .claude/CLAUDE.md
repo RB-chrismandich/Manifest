@@ -66,7 +66,7 @@ yamllint configs/claude/config/*.yml
 > [docs/CODING_STANDARDS.md](../docs/CODING_STANDARDS.md). The conventions below
 > are the Bash-specific essentials.
 
-- **Error output**: `err() { echo "<script-name>: $*" >&2; }` is canonical;
+- **Error output**: `err() { echo -e "\033[0;31m<script-name>: $*\033[0m" >&2; }` is canonical;
   route all error/warning messages through it (helpers like `error_msg()` may
   delegate to `err()`). Exempt: usage/help text, interactive prompts, blank
   separator lines, and success/info status output. `bootstrap/lib/` keeps its
