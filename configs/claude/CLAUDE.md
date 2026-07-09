@@ -47,9 +47,6 @@ Default MCP/tool routing — use the matching tool when the task domain matches:
 # Basic code review with JSON output (all 5 agents, 10 min timeout)
 ~/.claude/scripts/parallel_agent.py --json --timeout 600 --review /absolute/path/to/file
 
-# Generic prompt to all agents
-~/.claude/scripts/parallel_agent.py --json "Your question here"
-
 # Full analysis with validation and model selection (15 min timeout)
 ~/.claude/scripts/parallel_agent.py --json --full-output --validate --timeout 900 --cursor-model advanced --claude-model opus --analyze /absolute/path/to/file
 ```
@@ -64,9 +61,8 @@ Read on demand (NOT auto-loaded). You MUST read the reference before related tas
 - `~/.claude/references/layout.md` — Read when modifying config trees or mapping file locations.
 - `~/.claude/references/sub-agent-dispatch.md` — Read before a skill dispatches sub-agents: native Task vs
   `parallel_agent.py`, when-to-dispatch threshold, cross-platform fallback.
-- `~/.claude/references/spec-artifact-discovery.md` — Read before a spec-* skill (spec-review,
-  spec-audit-tasks, spec-decide-tradeoffs) reads planning artifacts: speckit vs superpowers layout
-  detection, discovery precedence, and where each skill records/audits.
+- `~/.claude/references/spec-artifact-discovery.md` — Read before a spec-* skill reads
+  planning artifacts: speckit vs superpowers layout detection + precedence.
 - `~/.claude/references/antipatterns.md` — Read before writing or refactoring code:
   guardrail registry (detection cues + prevention rules).
 
@@ -85,41 +81,18 @@ Registry: `~/.claude/config/knowledge_base.yml`; `/ai-code-audit` = full audit.
 
 ### ALWAYS Use Parallel Agents For
 
-1. **Security-sensitive code changes**
-   - Authentication/authorization logic
-   - Input validation and sanitization
-   - Cryptographic operations
-   - Secret handling
-
-2. **Architectural decisions**
-   - New system components
-   - API design changes
-   - Database schema modifications
-   - Service integration patterns
-
-3. **Large file modifications (>200 lines)**
-   - Complex refactoring
-   - Major feature additions
-   - Performance-critical code
-
-4. **Critical business logic**
-   - Payment processing
-   - User data handling
-   - Compliance-related code
+1. **Security-sensitive changes** — auth, input validation/sanitization, crypto, secret handling
+2. **Architectural decisions** — new components, API changes, schema modifications, service integrations
+3. **Large file modifications (>200 lines)** — complex refactoring, major feature additions, performance-critical code
+4. **Critical business logic** — payment processing, user data handling, compliance-related code
 
 ### CONSIDER Parallel Agents For
 
-- Complex refactoring with multiple affected files
-- New feature implementation
-- Performance optimization
-- Debugging difficult issues
+Complex multi-file refactoring, new feature implementation, performance optimization, debugging difficult issues.
 
 ### SKIP Parallel Agents For
 
-- Typo fixes, comments, formatting
-- Single-line changes
-- Documentation updates
-- Simple variable renames
+Typo/comment/formatting fixes, single-line changes, documentation updates, simple variable renames.
 
 ---
 
