@@ -178,6 +178,43 @@ gain. `context_budget.bats` and `skill_naming.bats` stay green. One focused PR.
 ## Delivery
 
 Isolated worktree `feat/skill-frontmatter-efficiency` (recreated after the prior
-worktree was pruned by a `branch-clean` run). Logical commits: (1) Lever A
-formatting, (2) Lever B trims with eval evidence, (3) D1 budget ratchet, (4) D2
-doc. Full pre-commit + `context_budget.bats` + `skill_naming.bats` green before PR.
+worktree was pruned by a `branch-clean` run). Logical commits: Lever A
+formatting, Lever B trims with eval evidence, D1 budget ratchet, D2 doc, plus the
+discovered follow-ups below. Full pre-commit + `context_budget.bats` +
+`skill_naming.bats` green before PR.
+
+## Implementation notes — discovered during execution
+
+Two things surfaced during subagent-driven execution that the design did not
+predict; both were fixed on-branch and are reflected in the plan (Task 2b, Task 6):
+
+- **Derived-doc generators had a shared escaping bug (a bug *class*).** Inlining
+  descriptions that contain embedded quotes (Lever A double-quoted them as `\"`)
+  broke *two* generators that string-strip the outer quotes without unescaping
+  `\"`: the bash `generate_cursor_rules.sh` and the Python
+  `command_catalog.py:_strip_quotes` (COMMANDS.md). On `main` these skills were
+  block scalars, so the bug was latent; the branch was never pushed, so CI never
+  caught it. Both were fixed with a pure-bash / pure-Python YAML-unescape on the
+  inline path, each with a new test (fuzz-verified correct unescape order). Root
+  cause chosen over the block-scalar fallback so the all-inline house style holds
+  and future quoted-phrase descriptions are safe. 5 skills were affected
+  (`ai-code-audit`, `graphify`, `repo-clean`, `pr-monitor`, `pr-smoke`).
+- **pr-monitor's trim degraded a derived column.** The trim reworded "Use when"
+  → "Use for", defeating `command_catalog.derive_when_to_use()`'s literal match;
+  restored "Use when …" keeping every quoted trigger phrase.
+- **A changed-file gate dragged in pre-existing hygiene.** Touching
+  `plan-manage`'s description pulled its whole body into `check-stale-repo-paths`,
+  which flagged 12 pre-existing stale `.claude/.plans/` paths; prefixed to
+  `~/.claude/…` (incidental, user-approved; the one body edit outside the
+  descriptions-only scope).
+
+## Eval-harness caveat (surface in PR)
+
+The skill-creator `run_eval.py` detector aborts on the first non-Skill `tool_use`
+(the model runs a locate-file Bash step first), zeroing all positives. Lever B
+evals ran a patched detector that scans the full transcript for a Skill/Read
+`tool_use` of the temp skill. The same patch is applied to baseline and
+candidate, so the relative accept/reject gate is unaffected; absolute rates are
+low/noisy (3 runs/query, single-shot HOME, ~16 queries) and used only as relative
+signals. Every accepted skill has a non-zero baseline (impossible under the broken
+detector), confirming the patch is live on both sides.
