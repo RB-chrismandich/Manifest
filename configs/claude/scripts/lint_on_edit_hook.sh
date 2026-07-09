@@ -22,7 +22,7 @@
 
 set -uo pipefail
 
-err() { echo "lint_on_edit_hook.sh: $*" >&2; }
+err() { echo -e "\033[0;31mlint_on_edit_hook.sh: $*\033[0m" >&2; }
 
 usage() {
     cat << 'EOF'

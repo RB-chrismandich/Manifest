@@ -6,7 +6,7 @@
 # the confirm gate, and the destructive move. Contract: specs/368-…/contracts/reconcile-cli.md
 set -euo pipefail
 
-err() { echo "deploy-reconcile: $*" >&2; }
+err() { echo -e "\033[0;31mdeploy-reconcile: $*\033[0m" >&2; }
 
 usage() {
     cat << 'EOF'

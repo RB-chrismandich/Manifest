@@ -13,7 +13,7 @@
 
 set -euo pipefail
 
-err() { echo "merge-decision: $*" >&2; }
+err() { echo -e "\033[0;31mmerge-decision: $*\033[0m" >&2; }
 
 usage() {
     cat << 'USAGE'

@@ -32,7 +32,7 @@ FORMAT="tree"
 ROOT="."
 MODE=""
 
-err() { echo "spec-review: $*" >&2; }
+err() { echo -e "\033[0;31mspec-review: $*\033[0m" >&2; }
 usage() {
     cat << 'EOF'
 spec-review — cross-reference spec/plan/tasks for consistency (Antigravity/agy, analysis-only)
