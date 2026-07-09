@@ -61,8 +61,27 @@ for skill_dir in "$SKILLS_DIR"/*/; do
                 tr '\n' ' ' |
                 sed 's/[[:space:]]*$//' || true)
         else
-            # Inline value
+            # Inline value: strip the outer quotes, then YAML-unescape so
+            # $description holds the literal text (a raw " and \), matching
+            # what the block-scalar path above already yields (block scalars
+            # carry no escapes). Without this, a SKILL.md description like
+            # "... \"phrase\" ..." would leave $description holding the
+            # literal `\"`, which the emit step below then re-escapes into
+            # `\\\"` (double-escaped) instead of the correct single `\"`.
+            #
+            # Order matters: unescape \" -> " before \\ -> \. Reversing it is
+            # wrong — e.g. raw `\\"` (escaped-backslash + delimiter quote)
+            # must decode to `\"` (a literal backslash then a literal quote).
+            # Unescaping \\ first collapses it to a single backslash sitting
+            # right before the quote, and the second pass then misreads that
+            # backslash+quote pair as an escaped-quote sequence, stripping the
+            # backslash and losing a character (`\\"` -> `"`, wrong). Doing \"
+            # first avoids this: real \" pairs are consumed while any \\ pairs
+            # are still intact (two chars), so they can't be mistaken for an
+            # escaped quote.
             description=$(echo "$desc_value" | sed 's/^"//' | sed 's/"$//')
+            description=${description//\\\"/\"}
+            description=${description//\\\\/\\}
         fi
     fi
     description="${description:-$skill_name skill}"
