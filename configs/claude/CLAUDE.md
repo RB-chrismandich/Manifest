@@ -64,6 +64,9 @@ Read on demand (NOT auto-loaded). You MUST read the reference before related tas
 - `~/.claude/references/layout.md` — Read when modifying config trees or mapping file locations.
 - `~/.claude/references/sub-agent-dispatch.md` — Read before a skill dispatches sub-agents: native Task vs
   `parallel_agent.py`, when-to-dispatch threshold, cross-platform fallback.
+- `~/.claude/references/spec-artifact-discovery.md` — Read before a spec-* skill (spec-review,
+  spec-audit-tasks, spec-decide-tradeoffs) reads planning artifacts: speckit vs superpowers layout
+  detection, discovery precedence, and where each skill records/audits.
 - `~/.claude/references/antipatterns.md` — Read before writing or refactoring code:
   guardrail registry (detection cues + prevention rules).
 

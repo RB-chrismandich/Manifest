@@ -1,27 +1,34 @@
 ---
-name: speckit-audit-tasks
-description: After /speckit-implement, audit that every task in tasks.md was genuinely completed — catch skipped tasks, stubbed work, missing tests, or unimplemented spec requirements. Runs automatically as the speckit after_implement hook; invoke directly to re-audit task completion.
+name: spec-audit-tasks
+description: After an implement step, audit that every task in the task list was genuinely completed — catch skipped tasks, stubbed work, missing tests, or unimplemented spec requirements. Works with speckit (tasks.md) and superpowers (tasks embedded in the plan) layouts; auto-discovers or takes explicit paths. Runs automatically as the speckit after_implement hook; invoke directly to re-audit.
 ---
 
-# Speckit Implement Review
+# Task-Completion Audit
 
-`speckit-implement` ticks tasks done as it goes, but a checked box is a *claim*, not proof.
-This skill verifies the claim: it walks every task in `tasks.md` and looks for real evidence
+An implement step ticks tasks done as it goes, but a checked box is a *claim*, not proof.
+This skill verifies the claim: it walks every task in the task list and looks for real evidence
 of completion — the code exists, the tests it promised exist and pass, the spec requirement
 it maps to is actually satisfied, and no placeholder was left behind. It runs right after
 implementation so gaps surface while the work is fresh, **before** the change is committed
 and assumed done.
 
-Analysis-only: it reports gaps, it never edits code or `tasks.md`. Fixing is the
+Analysis-only: it reports gaps, it never edits code or the task list. Fixing is the
 implementer's call — this skill's job is to tell the truth about what is actually finished.
 
 ## Procedure
 
-1. **Locate the artifacts.** Run `.specify/scripts/bash/check-prerequisites.sh --json --paths-only`
-   to get `FEATURE_DIR`, `FEATURE_SPEC`, `IMPL_PLAN`, `TASKS`. If `TASKS` is missing, report
-   there is nothing to review (implementation may not have generated tasks) and stop.
+1. **Locate the artifacts** per `configs/claude/references/spec-artifact-discovery.md` (explicit
+   paths win, else detect the layout):
+   - **speckit:** run `.specify/scripts/bash/check-prerequisites.sh --json --paths-only` to get
+     `FEATURE_DIR`, `FEATURE_SPEC`, `IMPL_PLAN`, `TASKS`; the task list is `tasks.md`.
+   - **superpowers:** there is no `tasks.md` and no `.specify/` — the spec is the newest
+     `docs/superpowers/specs/*-design.md` and the task list is embedded in the newest
+     `docs/superpowers/plans/*.md`. Parse the plan's checkbox/numbered tasks.
 
-2. **Enumerate tasks.** Parse `tasks.md` into `{id, description, checkbox-state, referenced
+   If no task list can be found in either layout, report there is nothing to review
+   (implementation may not have generated tasks) and stop.
+
+2. **Enumerate tasks.** Parse the task list into `{id, description, checkbox-state, referenced
    files/tests}`. Note which are marked done (`[x]`) vs open (`[ ]`).
 
 3. **Verify each task against evidence — one at a time.** A checkbox is not evidence. For
@@ -40,9 +47,12 @@ implementer's call — this skill's job is to tell the truth about what is actua
    (one subagent per task or per cluster) and aggregate. The checks are independent, so this
    is faster and keeps each verdict isolated from the others.
 
-4. **Cross-check coverage** between `spec.md` and `tasks.md`:
+4. **Cross-check coverage** between the spec and the task list:
    - **Orphan requirements** — any FR-*/acceptance scenario with no implementing task.
    - **Orphan tasks** — any task that maps to no requirement (possible scope creep).
+
+   Use the spec↔task-list relationship for the active layout: speckit is spec ↔ plan ↔ tasks;
+   superpowers is spec ↔ plan (with the tasks embedded in that plan).
 
 5. **Classify and report.** Give every task one of: **DONE** (verified), **INCOMPLETE**
    (marked done but evidence missing), **SKIPPED** (still open), or **UNVERIFIABLE** (needs a
@@ -53,7 +63,7 @@ implementer's call — this skill's job is to tell the truth about what is actua
 ALWAYS use this structure so the gap between claimed and actual is unmistakable:
 
 ```text
-## speckit-implement review — <FEATURE_DIR name>
+## Task-completion audit — <feature/plan name>
 **Verdict:** <ALL VERIFIED | GAPS FOUND (<n> incomplete, <m> skipped)>
 
 | Task | Claimed | Verified | Evidence / Gap |
@@ -75,13 +85,15 @@ ALWAYS use this structure so the gap between claimed and actual is unmistakable:
 - **Evidence over checkboxes** is the entire point. If a task can only be confirmed by its
   checkbox, it is `UNVERIFIABLE`, not `DONE` — say so plainly rather than rubber-stamp it.
 - **Analysis-only**, which is what makes it safe to auto-run: it never edits code or
-  re-checks boxes. It produces the punch list; the implementer (or a follow-up
-  `/speckit-implement`) acts on it.
-- **Runs as an `after_implement` hook** (`.specify/extensions.yml`) so it fires the moment
-  implementation finishes and before the auto-commit hook — gaps are cheapest to fix before
-  the work is committed. It also runs standalone any time to re-audit.
-- Complements `/project-verify` (deterministic lint/test/scan) and `speckit-analyze` (artifact
-  consistency): this skill is specifically about **did we actually finish every task**.
+  re-checks boxes. It produces the punch list; the implementer (or a follow-up implement pass)
+  acts on it.
+- **Runs as an `after_implement` hook** in speckit (`.specify/extensions.yml`) so it fires the
+  moment implementation finishes and before the auto-commit hook — gaps are cheapest to fix
+  before the work is committed. In superpowers or standalone, invoke it directly after the
+  implement step; it re-audits any time.
+- Complements `/project-verify` (deterministic lint/test/scan) and the cross-artifact
+  consistency pass (`speckit-analyze` / `spec-review`): this skill is specifically about
+  **did we actually finish every task**.
 
 ## Sub-agent dispatch
 

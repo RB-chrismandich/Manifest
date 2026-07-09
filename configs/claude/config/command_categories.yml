@@ -80,7 +80,7 @@ overrides:
   plan-manage: planning
   design-validate: planning
   spec-review: planning
-  speckit-audit-tasks: planning
+  spec-audit-tasks: planning
   premise-verify: planning
   data-wire-field: planning
   # skills
