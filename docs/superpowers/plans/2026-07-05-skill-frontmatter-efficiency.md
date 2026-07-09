@@ -257,6 +257,13 @@ pure-bash (no python), and `command_catalog.py` keeps its line-based frontmatter
 reader (no `yaml.safe_load`, since descriptions legitimately contain `: `).
 Unescape order: `\"`→`"` before `\\`→`\`.
 
+**Steps:**
+
+- [ ] **Step 1:** Write a failing test for each generator's embedded-quote case — a bats case in `generate_cursor_rules.bats` and a pytest round-trip case in `test_command_catalog.py`. Each asserts single-escaped `\"` in the generated frontmatter and a bare `"` in the body/cell; confirm each fails on the current (buggy) generator first.
+- [ ] **Step 2:** Apply the inline-path YAML-unescape in `generate_cursor_rules.sh`; run the bats suite, regenerate cursor rules, confirm a clean `git status configs/cursor/rules/`. Commit (script + test only — no `.mdc`).
+- [ ] **Step 3:** Apply the `_strip_quotes` inline-path unescape in `command_catalog.py`; run `pytest tests/python/command_help/`, regenerate `docs/COMMANDS.md`, confirm `generate_commands_doc.py --check` exits 0 and the out-of-scope skills drop out of the diff. Commit (script + test only).
+- [ ] **Step 4:** Confirm both generators reproduce the committed derived files for all 88 skills (empty `git status --porcelain docs/COMMANDS.md configs/cursor/rules/`) and `shellcheck generate_cursor_rules.sh` is clean.
+
 **Acceptance:** `bats tests/bats/generate_cursor_rules.bats` + `pytest
 tests/python/command_help/` pass (each with a new embedded-quote case); running
 both generators leaves `git status --porcelain docs/COMMANDS.md
@@ -302,7 +309,12 @@ Example (`pr-review`, domain `pr`): negatives include a `pr-address-comments` ta
 PWD_REPO="$(git rev-parse --show-toplevel)"
 SC="$HOME/.claude/plugins/cache/claude-plugins-official/skill-creator"
 SCDIR="$(dirname "$(find "$SC" -name run_eval.py | head -1)")/.."
-( cd "$SCDIR" && python3 -m scripts.run_eval \
+# Detector patch (see Interfaces) — run from a PATCHED copy so positives aren't zeroed:
+EVALDIR="$SCRATCH/evalscripts"; cp -r "$SCDIR"/. "$EVALDIR/"
+# then edit $EVALDIR/scripts/run_eval.py so the detector scans the full transcript
+# for a Skill/Read tool_use naming the temp skill (instead of aborting on the first
+# non-Skill tool_use). All eval steps below run from $EVALDIR, not $SCDIR.
+( cd "$EVALDIR" && python3 -m scripts.run_eval \
     --skill-path "$PWD_REPO/.skillshare/skills/<name>" \
     --eval-set "$SCRATCH/evalsets/<name>.json" \
     --runs-per-query 3 --num-workers 6 --verbose ) | tee "$SCRATCH/base-<name>.json"
@@ -316,7 +328,7 @@ Rewrite the description shorter, keeping: name-match cue, primary "use when" phr
 - [ ] **Step 5: Candidate eval (override, file untouched)**
 
 ```bash
-( cd "$SCDIR" && python3 -m scripts.run_eval \
+( cd "$EVALDIR" && python3 -m scripts.run_eval \
     --skill-path "$PWD_REPO/.skillshare/skills/<name>" \
     --eval-set "$SCRATCH/evalsets/<name>.json" \
     --description "<trimmed description>" \
@@ -449,6 +461,10 @@ Claude-Session: https://claude.ai/code/session_01JpWri5Fi9XhWyGZLuSL42R"
 
 Run: `pre-commit run --from-ref origin/main --to-ref HEAD --all-files 2>&1 | tail -30` (or `pre-commit run --files $(git diff --name-only origin/main)`)
 Expected: markdownlint, yamllint, and all hooks pass. Fix any hygiene the diff drags in before proceeding.
+
+- [ ] **Step 1b: Apply the approved plan-manage path fix (if the gate flags it)**
+
+`check-stale-repo-paths` runs on changed files; touching `plan-manage`'s description drags its whole body into the gate, which flags pre-existing bare `.claude/.plans/` / `labels.yml` references. Prefix each flagged reference (body **and** description) to the deployed canonical `~/.claude/…` form — path-prefix only, no prose/logic change (get user sign-off, since this is the one body edit outside the descriptions-only scope). Regenerate `docs/COMMANDS.md` + `plan-manage.mdc` (description changed) and re-run the gate on the file until it passes. Commit separately.
 
 - [ ] **Step 2: Run the affected bats gates**
 
