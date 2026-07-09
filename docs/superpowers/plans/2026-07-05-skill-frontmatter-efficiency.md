@@ -227,6 +227,32 @@ Claude-Session: https://claude.ai/code/session_01JpWri5Fi9XhWyGZLuSL42R"
 
 ---
 
+## Task 2b: Fix generate_cursor_rules.sh escaping (Lever A follow-up)
+
+**Why:** Lever A inlined 5 descriptions that contain embedded quotes
+(`ai-code-audit`, `graphify`, `repo-clean`, `pr-monitor`, `pr-smoke`). The
+Cursor-rule generator string-strips the outer quotes on its inline path but
+never YAML-unescapes `\"`, then re-escapes — emitting `\\\"` in the `.mdc`
+frontmatter and a backslashed quote in the body. Block scalars (the pre-Lever-A
+form) were unaffected, so `origin/main` shipped correct rules; the branch does
+not. CI regenerates cursor rules and fails on a dirty tree, so this must be
+fixed before the PR. (Discovered during Task 6 regen; not in the original plan.)
+
+**Files:**
+- Modify: `configs/claude/scripts/generate_cursor_rules.sh` (inline-path unescape)
+- Modify: `tests/bats/generate_cursor_rules.bats` (embedded-quote case + block-path guard)
+
+**Constraint:** the per-skill loop stays pure-bash (no python dependency — the
+python path is only for the command-index rule).
+
+**Acceptance:** `bats tests/bats/generate_cursor_rules.bats` passes; running
+`generate_cursor_rules.sh` on the committed tree leaves
+`git status --porcelain configs/cursor/rules/` empty (fixed generator reproduces
+the correct committed `.mdc` for all 88 skills); `shellcheck` clean. Isolated
+commit — script + test only, no `.mdc`/`SKILL.md`.
+
+---
+
 ## Task 3: Lever B — eval-guarded content trim of over-norm descriptions
 
 **Files:**
@@ -415,10 +441,20 @@ Expected: markdownlint, yamllint, and all hooks pass. Fix any hygiene the diff d
 Run: `bats tests/bats/context_budget.bats tests/bats/skill_naming.bats`
 Expected: all pass (naming untouched → green; budget at new cap → green).
 
-- [ ] **Step 3: Confirm no skill body or name changed**
+- [ ] **Step 3: Confirm no skill body or name changed** (scope: SKILL.md only)
 
-Run: `git diff origin/main --name-only | grep -v -E 'docs/|tests/bats/context_budget.bats' | xargs -I{} git diff origin/main -- {} | grep -E '^\+' | grep -vE '^\+\+\+|^\+(name: |description: )' | grep -E '^\+' || echo "OK: only description lines changed in skill files"`
-Expected: `OK: …` — the only added lines in SKILL.md files are `description:` lines (name + bodies untouched).
+Run: `git diff origin/main --name-only -- '.skillshare/skills/*/SKILL.md' | xargs -I{} git diff origin/main -- {} | grep -E '^\+' | grep -vE '^\+\+\+|^\+(name: |description: )' || echo "OK: only description lines changed in skill files"`
+Expected: `OK: …` — within SKILL.md files the only added lines are `description:` (name + bodies untouched). Derived files (COMMANDS.md, `configs/cursor/rules/*.mdc`), the generator fix (`generate_cursor_rules.sh` + its bats test), and `context_budget.bats` legitimately change and are covered by Steps 3b/2b.
+
+- [ ] **Step 3b: Confirm derived docs are in sync (the two CI gates)**
+
+Regeneration happens at commit time (Task 2b + Lever B commit). Verify here that nothing is stale:
+```bash
+configs/claude/scripts/generate_commands_doc.py --check   # COMMANDS.md gate (ci.yml)
+configs/claude/scripts/generate_cursor_rules.sh           # cursor-rules gate (ci.yml)
+git status --porcelain docs/COMMANDS.md configs/cursor/rules/
+```
+Expected: `--check` exits 0; `git status` is empty. Any dirty file = a stale derived doc that must be regenerated and folded into its source commit before the PR.
 
 - [ ] **Step 4: Confirm every externally-managed skill is untouched**
 
