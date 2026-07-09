@@ -348,10 +348,14 @@ Edit each accepted skill's `description:` in place. Skills that failed the gate 
 Run: `python3 $SCRATCH/parse_check.py && bats tests/bats/context_budget.bats`
 Expected: parse exits 0; budget green (total now lower still).
 
-- [ ] **Step 9: Commit Lever B with evidence**
+- [ ] **Step 9: Regenerate derived docs, then commit Lever B with evidence**
+
+The trims change description text, so the derived docs must be regenerated (Task 2b must be done first so the generators escape correctly; Task 6 Step 3b enforces sync):
 
 ```bash
-git add .skillshare/skills/
+configs/claude/scripts/generate_commands_doc.py     # rewrites docs/COMMANDS.md
+configs/claude/scripts/generate_cursor_rules.sh     # rewrites the trimmed skills' configs/cursor/rules/*.mdc
+git add .skillshare/skills/ docs/COMMANDS.md configs/cursor/rules/
 git commit -m "refactor(skills): trim over-norm descriptions, eval-verified (Lever B)
 
 Trim N descriptions toward the ~275-byte norm. Each trim gated by a
@@ -459,7 +463,7 @@ Claude-Session: https://claude.ai/code/session_01JpWri5Fi9XhWyGZLuSL42R"
 
 - [ ] **Step 1: Run the real pre-commit over the diff**
 
-Run: `pre-commit run --from-ref origin/main --to-ref HEAD --all-files 2>&1 | tail -30` (or `pre-commit run --files $(git diff --name-only origin/main)`)
+Run: `pre-commit run --from-ref origin/main --to-ref HEAD 2>&1 | tail -30` (or, equivalently, `pre-commit run --files $(git diff --name-only origin/main)`). Note: `--from-ref/--to-ref` and `--all-files` are mutually exclusive — use one form, not both. If `pre-commit` is not on PATH, `python3 -m pre_commit …`.
 Expected: markdownlint, yamllint, and all hooks pass. Fix any hygiene the diff drags in before proceeding.
 
 - [ ] **Step 1b: Apply the approved plan-manage path fix (if the gate flags it)**
