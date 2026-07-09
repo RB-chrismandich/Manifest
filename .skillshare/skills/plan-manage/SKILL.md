@@ -5,7 +5,7 @@ description: Manage plan lifecycle in .claude/.plans with create, review, execut
 
 # Plan Management
 
-Manage implementation plans in `.claude/.plans/` with optional parallel agent orchestration
+Manage implementation plans in `~/.claude/.plans/` with optional parallel agent orchestration
 for cross-verified planning.
 
 ## Arguments
@@ -25,7 +25,7 @@ Determine the requested action from the user's argument (default: **list**).
 
 ### list
 
-1. Read all `*.md` files in `.claude/.plans/` (excluding TEMPLATE.md and README.md)
+1. Read all `*.md` files in `~/.claude/.plans/` (excluding TEMPLATE.md and README.md)
 2. For each plan, extract: filename, status, title, created date, deliverables (checked/total)
 3. Flag any plan not modified in 7+ days as **STALE**
 4. Display a summary table
@@ -102,7 +102,7 @@ Otherwise → single-agent planning (Step 2b).
 
 #### Step 3: Save the Plan
 
-1. Read `.claude/.plans/TEMPLATE.md`
+1. Read `~/.claude/.plans/TEMPLATE.md`
 2. Populate all sections from the synthesized/drafted plan:
    - **Objective**: From the task description
    - **Context**: Why this work is needed, any relevant codebase context discovered
@@ -113,15 +113,15 @@ Otherwise → single-agent planning (Step 2b).
    - **Log**: Record whether parallel agents were used and the consensus score
    - **Issue**: `#N` (if created from an issue, otherwise omit)
 3. Save the plan file:
-   - **Issue-linked**: `.claude/.plans/YYYYMMDD-issue-N-short-description.md`
-   - **Text-only**: `.claude/.plans/YYYYMMDD-short-description.md`
+   - **Issue-linked**: `~/.claude/.plans/YYYYMMDD-issue-N-short-description.md`
+   - **Text-only**: `~/.claude/.plans/YYYYMMDD-short-description.md`
 4. Present the final plan to the user for approval
 
 #### Step 3a: Post plan to issue (issue-linked only)
 
 If the plan was created from an issue:
 
-1. Apply the `planned` label — create it if it doesn't exist (see `.claude/config/labels.yml` for canonical definitions):
+1. Apply the `planned` label — create it if it doesn't exist (see `~/.claude/config/labels.yml` for canonical definitions):
 
    ```bash
    ~/.claude/scripts/git_ops.sh label-create "planned" --color "1D76DB" --description "Implementation plan exists for this issue" --force 2>/dev/null || true
@@ -153,7 +153,7 @@ Accepts a plan filename **or** an issue number (`42` / `#42`).
 #### Step 0: Resolve plan source
 
 1. If the argument matches `^#?\d+$`, treat it as an **issue number**:
-   a. Search for a matching plan: `glob .claude/.plans/*issue-N*`.
+   a. Search for a matching plan: `glob ~/.claude/.plans/*issue-N*`.
    b. If found, use that plan file.
    c. If not found, check the issue body/comments for a plan (look for `## Deliverables` section).
    d. If still not found, abort with: `"No plan found for issue #N. Run: /plan-manage create N"`
@@ -164,7 +164,7 @@ Accepts a plan filename **or** an issue number (`42` / `#42`).
 
 If the plan has an `**Issue**: #N` field or was resolved from an issue number:
 
-1. Apply the `in-progress` label, remove `planned` (see `.claude/config/labels.yml`):
+1. Apply the `in-progress` label, remove `planned` (see `~/.claude/config/labels.yml`):
 
    ```bash
    ~/.claude/scripts/git_ops.sh label-create "in-progress" --color "FBCA04" --description "Implementation is actively underway" --force 2>/dev/null || true
@@ -217,7 +217,7 @@ If the plan is linked to an issue:
 
 2. Post the review results as a comment on the issue.
 3. Based on the verdict:
-   - **APPROVED**: Apply `done` label, remove `in-progress`, close the issue (see `.claude/config/labels.yml`):
+   - **APPROVED**: Apply `done` label, remove `in-progress`, close the issue (see `~/.claude/config/labels.yml`):
 
      ```bash
      ~/.claude/scripts/git_ops.sh label-create "done" --color "0E8A16" --description "Implementation complete and validated" --force 2>/dev/null || true
@@ -231,20 +231,20 @@ If the plan is linked to an issue:
 
 1. Update the plan's **Log** with an execution summary entry.
 2. Update `**Status**: ACTIVE` to `**Status**: COMPLETED` in the plan file.
-3. Move the plan to `.claude/.plans/.archive/`.
+3. Move the plan to `~/.claude/.plans/.archive/`.
 4. Report a summary of all changes made.
 
 ### archive
 
 1. Accept a filename argument or ask which plan to archive
 2. Verify all deliverables are checked off
-3. Move the plan to `.claude/.plans/.archive/`
+3. Move the plan to `~/.claude/.plans/.archive/`
 
 ### abandon
 
 1. Accept a filename argument or ask which plan to abandon
 2. Confirm with the user
-3. Move the plan to `.claude/.plans/.abandoned/`
+3. Move the plan to `~/.claude/.plans/.abandoned/`
 
 ---
 
