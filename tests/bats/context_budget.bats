@@ -116,7 +116,7 @@ assert_budget() {
     # Lowered 22800 -> 22000 (2026-07-09): set-wide front-matter efficiency pass —
     # inline-normalized 39 block-scalar descriptions (Lever A, parsed value preserved)
     # + eval-guarded trims of 9 over-norm descriptions (Lever B) cut the total to
-    # 21164. New cap leaves ~836 bytes (~3 skills) headroom — not near-zero, so a
+    # 21166. New cap leaves ~834 bytes (~3 skills) headroom — not near-zero, so a
     # genuinely-new skill still fits without an immediate bump. See
     # docs/superpowers/specs/2026-07-05-skill-frontmatter-efficiency-design.md.
     total=0
