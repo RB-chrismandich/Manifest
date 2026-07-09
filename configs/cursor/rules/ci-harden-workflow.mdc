@@ -1,12 +1,12 @@
 ---
-description: "Build or harden a CI workflow that runs privileged actions (deploys, bot/agent invocation, secret use) on comment/PR triggers — identity gates, CODEOWNERS, branch protection, environments. Counterpart to ci-audit-triggers (which audits; this builds/governs)."
+description: "Build or harden a CI workflow running privileged actions (deploys, bot/agent invocation, secret use) on comment/PR triggers — identity gates, CODEOWNERS, branch protection, environments. Counterpart to ci-audit-triggers, which audits."
 globs: ".claude/skills/ci-harden-workflow/**"
 alwaysApply: false
 ---
 
 # ci-harden-workflow
 
-Build or harden a CI workflow that runs privileged actions (deploys, bot/agent invocation, secret use) on comment/PR triggers — identity gates, CODEOWNERS, branch protection, environments. Counterpart to ci-audit-triggers (which audits; this builds/governs).
+Build or harden a CI workflow running privileged actions (deploys, bot/agent invocation, secret use) on comment/PR triggers — identity gates, CODEOWNERS, branch protection, environments. Counterpart to ci-audit-triggers, which audits.
 
 <!-- Auto-generated from .claude/skills/ci-harden-workflow/SKILL.md -->
 <!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->

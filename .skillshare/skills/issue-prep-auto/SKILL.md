@@ -1,6 +1,6 @@
 ---
 name: issue-prep-auto
-description: Triage/groom/prep a single issue for the auto-dev loop — apply the `auto-dev` label when ready, or tighten scope and draft clarifying questions when not. Use before issue-dev-auto when asked to assess, make-ready, or validate an issue for autonomous development.
+description: Triage/groom/prep a single issue for the auto-dev loop — apply the `auto-dev` label when ready, else tighten scope and draft clarifying questions. Use before issue-dev-auto to assess or make-ready an issue for autonomous development.
 ---
 
 # Auto-Dev Issue Prep

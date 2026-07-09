@@ -1,12 +1,12 @@
 ---
-description: "Use when a bash script under `set -e`/`set -euo pipefail` aborts in production but passes tests — audit helpers and sourced libs for non-`$()` control-flow triggers (trailing `&&`, stdin-drain, SIGPIPE, `((i++))`-returns-1). Complements shell-audit-pipefail."
+description: "Use when a bash script under `set -euo pipefail` aborts in production but passes tests — audit helpers and sourced libs for non-`$()` control-flow triggers (trailing `&&`, stdin-drain, SIGPIPE, `((i++))`). Complements shell-audit-pipefail."
 globs: ".claude/skills/shell-audit-errexit/**"
 alwaysApply: false
 ---
 
 # shell-audit-errexit
 
-Use when a bash script under `set -e`/`set -euo pipefail` aborts in production but passes tests — audit helpers and sourced libs for non-`$()` control-flow triggers (trailing `&&`, stdin-drain, SIGPIPE, `((i++))`-returns-1). Complements shell-audit-pipefail.
+Use when a bash script under `set -euo pipefail` aborts in production but passes tests — audit helpers and sourced libs for non-`$()` control-flow triggers (trailing `&&`, stdin-drain, SIGPIPE, `((i++))`). Complements shell-audit-pipefail.
 
 <!-- Auto-generated from .claude/skills/shell-audit-errexit/SKILL.md -->
 <!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
