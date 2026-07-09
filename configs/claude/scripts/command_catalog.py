@@ -196,7 +196,32 @@ def resolve_availability(name: str, services: dict, platform: str) -> dict:
 def _strip_quotes(v: str) -> str:
     v = v.strip()
     if len(v) >= 2 and v[0] in "\"'" and v[-1] == v[0]:
-        return v[1:-1]
+        inner = v[1:-1]
+        if v[0] == '"':
+            # YAML-unescape the double-quoted scalar body: strip the outer
+            # quotes above, then undo backslash escaping so callers get the
+            # literal text (a raw " and \). Python twin of the bash fix in
+            # bd2738e (generate_cursor_rules.sh) — without this, a
+            # description like "... \"phrase\" ..." would leave the parsed
+            # value holding the literal `\"` instead of `"`.
+            #
+            # Order matters: unescape \" -> " before \\ -> \. Reversing it is
+            # wrong — e.g. raw `\\"` (escaped-backslash + delimiter quote)
+            # must decode to `\"` (a literal backslash then a literal quote).
+            # Unescaping \\ first collapses it to a single backslash sitting
+            # right before the quote, and the second pass then misreads that
+            # backslash+quote pair as an escaped-quote sequence, stripping
+            # the backslash and losing a character (`\\"` -> `"`, wrong).
+            # Doing \" first avoids this: real \" pairs are consumed while
+            # any \\ pairs are still intact (two chars), so they can't be
+            # mistaken for an escaped quote.
+            inner = inner.replace('\\"', '"').replace("\\\\", "\\")
+        else:
+            # Single-quoted YAML escapes an embedded quote as ''; no current
+            # SKILL.md description uses single quotes, but handle it for
+            # correctness/parity with the double-quoted path above.
+            inner = inner.replace("''", "'")
+        return inner
     return v
 
 
