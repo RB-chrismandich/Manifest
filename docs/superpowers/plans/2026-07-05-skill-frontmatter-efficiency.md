@@ -10,7 +10,7 @@
 
 ## Global Constraints
 
-- Scope is **descriptions only** — never touch skill `name:`, skill bodies, or the naming taxonomy.
+- Scope is **descriptions only** — never touch skill `name:`, skill bodies, or the naming taxonomy. **One approved exception** (surfaced during Task 6, user-approved): `plan-manage`'s body had 12 pre-existing stale `.claude/.plans/` / `labels.yml` paths prefixed to `~/.claude/…` (path-prefix only, no prose/logic), because touching its description dragged the whole file into the `check-stale-repo-paths` changed-file gate. Task 6 Step 3 excludes `plan-manage` body diffs accordingly.
 - **Exclude externally-managed skills**: any skill listed under `skills:` with a `source:` in `.skillshare/config.yaml` (currently only `ai-hooks-integration`). Never edit those files.
 - House style: inline single-line description; **double-quote** iff the text contains `: ` (colon-space) or begins with a YAML indicator (`- ? : [ ] { } # & * ! | > ' " % @ \``); escape embedded `"` as `\"`.
 - Non-trimmable content (Lever B): security keywords, negative-space cross-references ("Analysis-only; use X instead"), the skill's name-match cue and primary "use when" phrase.
@@ -31,7 +31,13 @@
 | `$SCRATCH/verify_preserved.py` | Old-vs-new parsed-description equality check | Create (scratch only) |
 | `$SCRATCH/evalsets/<name>.json` | Per-skill trigger eval sets (Lever B) | Create (scratch only) |
 | `$SCRATCH/eval-evidence.md` | Baseline-vs-candidate eval verdicts (pasted into commit) | Create (scratch only) |
-| `.skillshare/skills/*/SKILL.md` | Per-skill front-matter (the edits) | Modify (excl. externally-managed) |
+| `configs/claude/scripts/generate_cursor_rules.sh` | Cursor `.mdc` generator — inline-quote unescape (Task 2b) | Modify |
+| `tests/bats/generate_cursor_rules.bats` | Embedded-quote generator test (Task 2b) | Modify |
+| `configs/claude/scripts/command_catalog.py` | COMMANDS.md generator `_strip_quotes` — inline-quote unescape (Task 2b) | Modify |
+| `tests/python/command_help/test_command_catalog.py` | Embedded-quote round-trip test (Task 2b) | Modify |
+| `configs/cursor/rules/*.mdc` | Regenerated cursor rules for trimmed skills (Lever B) | Modify (generated) |
+| `docs/COMMANDS.md` | Regenerated command index for trimmed skills (Lever B) | Modify (generated) |
+| `.skillshare/skills/plan-manage/SKILL.md` | Approved body path-prefix fix (Task 6, gate-forced) | Modify (body — the one exception) |
 | `tests/bats/context_budget.bats:116-127` | Total front-matter byte cap | Modify (D1 ratchet) |
 | `docs/SKILL-NAMING.md` | Naming + now front-matter house style | Modify (D2) |
 
@@ -227,29 +233,36 @@ Claude-Session: https://claude.ai/code/session_01JpWri5Fi9XhWyGZLuSL42R"
 
 ---
 
-## Task 2b: Fix generate_cursor_rules.sh escaping (Lever A follow-up)
+## Task 2b: Fix the derived-doc generators' inline-quote escaping (Lever A follow-up)
 
-**Why:** Lever A inlined 5 descriptions that contain embedded quotes
-(`ai-code-audit`, `graphify`, `repo-clean`, `pr-monitor`, `pr-smoke`). The
-Cursor-rule generator string-strips the outer quotes on its inline path but
-never YAML-unescapes `\"`, then re-escapes — emitting `\\\"` in the `.mdc`
-frontmatter and a backslashed quote in the body. Block scalars (the pre-Lever-A
-form) were unaffected, so `origin/main` shipped correct rules; the branch does
-not. CI regenerates cursor rules and fails on a dirty tree, so this must be
-fixed before the PR. (Discovered during Task 6 regen; not in the original plan.)
+**Why:** Lever A inlined 5 descriptions containing embedded quotes
+(`ai-code-audit`, `graphify`, `repo-clean`, `pr-monitor`, `pr-smoke`). **Two**
+derived-doc generators — a shared bug class — string-strip the outer quotes on
+their inline path but never YAML-unescape `\"`, then re-escape:
+the bash `generate_cursor_rules.sh` (cursor `.mdc`) emits `\\\"` in frontmatter +
+a backslashed body quote, and the Python `command_catalog.py:_strip_quotes`
+(COMMANDS.md) leaks literal backslashes and pulls out-of-scope skills into the
+diff. Block scalars (the pre-Lever-A form) were unaffected, so `origin/main`
+shipped correct output; the branch does not. CI regenerates both (cursor-rules
+clean-tree check + `generate_commands_doc.py --check`), so both must be fixed
+before the PR. (Discovered during Task 6 regen; not in the original design.
+Fixed as two commits: bd2738e bash, 094242b Python.)
 
 **Files:**
-- Modify: `configs/claude/scripts/generate_cursor_rules.sh` (inline-path unescape)
-- Modify: `tests/bats/generate_cursor_rules.bats` (embedded-quote case + block-path guard)
+- Modify: `configs/claude/scripts/generate_cursor_rules.sh` (bash inline-path unescape) + `tests/bats/generate_cursor_rules.bats`
+- Modify: `configs/claude/scripts/command_catalog.py` (`_strip_quotes` inline-path unescape) + `tests/python/command_help/test_command_catalog.py`
 
-**Constraint:** the per-skill loop stays pure-bash (no python dependency — the
-python path is only for the command-index rule).
+**Constraint:** both per-skill paths stay dependency-light — the bash loop stays
+pure-bash (no python), and `command_catalog.py` keeps its line-based frontmatter
+reader (no `yaml.safe_load`, since descriptions legitimately contain `: `).
+Unescape order: `\"`→`"` before `\\`→`\`.
 
-**Acceptance:** `bats tests/bats/generate_cursor_rules.bats` passes; running
-`generate_cursor_rules.sh` on the committed tree leaves
-`git status --porcelain configs/cursor/rules/` empty (fixed generator reproduces
-the correct committed `.mdc` for all 88 skills); `shellcheck` clean. Isolated
-commit — script + test only, no `.mdc`/`SKILL.md`.
+**Acceptance:** `bats tests/bats/generate_cursor_rules.bats` + `pytest
+tests/python/command_help/` pass (each with a new embedded-quote case); running
+both generators leaves `git status --porcelain docs/COMMANDS.md
+configs/cursor/rules/` empty (they reproduce the correct committed derived files
+for all 88 skills); `generate_commands_doc.py --check` exit 0; `shellcheck`
+clean. Two isolated fix commits — generators + tests only, no `.mdc`/`SKILL.md`.
 
 ---
 
@@ -261,6 +274,7 @@ commit — script + test only, no `.mdc`/`SKILL.md`.
 
 **Interfaces:**
 - Consumes: `run_eval.py` at `~/.claude/plugins/cache/claude-plugins-official/skill-creator/*/skills/skill-creator/scripts/run_eval.py`, run as `python3 -m scripts.run_eval` from the skill-creator dir.
+- **Detector patch (required):** upstream `run_eval.py`'s detector aborts on the first non-Skill `tool_use` (the model runs a locate-file Bash step first), zeroing all positives. Copy the scripts into `$SCRATCH/evalscripts/` and patch the detector to scan the full transcript for a `Skill`/`Read` `tool_use` naming the temp skill, then run that patched copy. Apply the SAME patch to baseline and candidate so the relative accept/reject gate is unaffected (absolute rates stay noisy → relative signals only). A non-zero baseline on every accepted skill confirms the patch is live. See the design's "Eval-harness caveat".
 - Produces: trimmed descriptions with recorded baseline-vs-candidate trigger evidence.
 
 - [ ] **Step 1: Compute the trim list (post-Lever-A)**
@@ -441,10 +455,10 @@ Expected: markdownlint, yamllint, and all hooks pass. Fix any hygiene the diff d
 Run: `bats tests/bats/context_budget.bats tests/bats/skill_naming.bats`
 Expected: all pass (naming untouched → green; budget at new cap → green).
 
-- [ ] **Step 3: Confirm no skill body or name changed** (scope: SKILL.md only)
+- [ ] **Step 3: Confirm no skill body or name changed** (scope: SKILL.md only, except the one approved plan-manage path fix)
 
-Run: `git diff origin/main --name-only -- '.skillshare/skills/*/SKILL.md' | xargs -I{} git diff origin/main -- {} | grep -E '^\+' | grep -vE '^\+\+\+|^\+(name: |description: )' || echo "OK: only description lines changed in skill files"`
-Expected: `OK: …` — within SKILL.md files the only added lines are `description:` (name + bodies untouched). Derived files (COMMANDS.md, `configs/cursor/rules/*.mdc`), the generator fix (`generate_cursor_rules.sh` + its bats test), and `context_budget.bats` legitimately change and are covered by Steps 3b/2b.
+Run: `git diff origin/main --name-only -- '.skillshare/skills/*/SKILL.md' | grep -v '/plan-manage/' | xargs -I{} git diff origin/main -- {} | grep -E '^\+' | grep -vE '^\+\+\+|^\+(name: |description: )' || echo "OK: only description lines changed in skill files"`
+Expected: `OK: …` — within SKILL.md files (excluding `plan-manage`) the only added lines are `description:` (name + bodies untouched). `plan-manage`'s body path-prefix fix is the single approved exception (see Global Constraints). Derived files (COMMANDS.md, `configs/cursor/rules/*.mdc`), the generator fixes (`generate_cursor_rules.sh` + `command_catalog.py` + their tests), and `context_budget.bats` legitimately change and are covered by Steps 3b/2b.
 
 - [ ] **Step 3b: Confirm derived docs are in sync (the two CI gates)**
 
