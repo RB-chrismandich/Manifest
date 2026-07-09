@@ -194,9 +194,10 @@ repos:
           exit $found' --
         language: system
         types: [markdown]
-        # docs/superpowers/plans/ embeds bats fixtures that legitimately write to
-        # a fake $FHOME/.claude/... path — excluded like tests/ for the same reason.
-        exclude: ^(\.pre-commit-config\.yaml|\.Jules/|configs/|tests/|\.claude/|docs/superpowers/plans/|docs/templates/)
+        # docs/superpowers/{plans,specs}/ are design docs that legitimately quote
+        # paths (plans embed bats fixtures writing a fake $FHOME/.claude/... path;
+        # specs document stale paths being fixed) — excluded like tests/.
+        exclude: ^(\.pre-commit-config\.yaml|\.Jules/|configs/|tests/|\.claude/|docs/superpowers/plans/|docs/superpowers/specs/|docs/templates/)
 
       # Rust format + lint — DORMANT/guarded (feature 366): only runs when .rs
       # files are staged AND a Cargo.toml exists. Avoids the unmaintained
