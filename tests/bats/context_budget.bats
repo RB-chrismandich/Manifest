@@ -113,14 +113,20 @@ assert_budget() {
     # (trigger phrases preserved); the new description was cut to ~300 chars and the
     # residual still exceeded 22600. Measured total with it present is 22679.
     # Headroom after this is ~124 — the next addition needs a set-wide trim pass first.
+    # Lowered 22800 -> 22000 (2026-07-09): set-wide front-matter efficiency pass —
+    # inline-normalized 39 block-scalar descriptions (Lever A, parsed value preserved)
+    # + eval-guarded trims of 9 over-norm descriptions (Lever B) cut the total to
+    # 21164. New cap leaves ~836 bytes (~3 skills) headroom — not near-zero, so a
+    # genuinely-new skill still fits without an immediate bump. See
+    # docs/superpowers/specs/2026-07-05-skill-frontmatter-efficiency-design.md.
     total=0
     for f in "$REPO_ROOT"/.skillshare/skills/*/SKILL.md; do
         # frontmatter = up to the second '---' line
         chars=$(awk '/^---$/{c++; next} c==1' "$f" | wc -c)
         total=$((total + chars))
     done
-    if [ "$total" -gt 22800 ]; then
-        echo "Skill frontmatter totals $total chars (budget: 22800)." >&2
+    if [ "$total" -gt 22000 ]; then
+        echo "Skill frontmatter totals $total chars (budget: 22000)." >&2
         echo "Trim verbose descriptions; bodies are pay-per-use, frontmatter is not." >&2
         return 1
     fi
