@@ -11,9 +11,9 @@
 # session. Diagnostics go to stderr only under DEPLOY_STAMP_DEBUG=1.
 set -uo pipefail
 
-err() { echo -e "\033[0;31mdeploy_stamp_check.sh: $*\033[0m" >&2; }
+err() { if [[ -t 2 ]]; then printf '\033[0;31m%s\033[0m\n' "deploy_stamp_check.sh: $*" >&2; else printf '%s\n' "deploy_stamp_check.sh: $*" >&2; fi; }
 debug() {
-    [[ "${DEPLOY_STAMP_DEBUG:-}" == "1" ]] && err "$*"
+    [[ "${DEPLOY_STAMP_DEBUG:-}" == "1" ]] && printf '%s\n' "deploy_stamp_check.sh: $*" >&2
     return 0
 }
 

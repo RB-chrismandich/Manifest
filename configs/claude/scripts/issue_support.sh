@@ -17,7 +17,7 @@
 
 set -euo pipefail
 
-err() { echo -e "\033[0;31missue-support: $*\033[0m" >&2; }
+err() { if [[ -t 2 ]]; then printf '\033[0;31m%s\033[0m\n' "issue-support: $*" >&2; else printf '%s\n' "issue-support: $*" >&2; fi; }
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 GIT_OPS_BIN="${GIT_OPS_BIN:-${SCRIPT_DIR}/git_ops.sh}"
