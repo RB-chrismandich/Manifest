@@ -108,8 +108,29 @@ parse_args() {
 # Print "role\tpath" lines for discovered artifacts. speckit: spec/plan/tasks.md
 # (cwd or specs/<n>/). superpowers: newest *-design.md + newest plans/*.md (tasks
 # are embedded in the plan, so no tasks line). Newest = name sort (date-prefixed).
+# A FILE root is an explicit spec (FR-001 precedence for "point at the design
+# doc" targets) paired within its OWN layout tree — a co-existing speckit
+# layout must not hijack a superpowers design doc's plan (feature 482 US3).
 discover_artifacts() {
     local root="${1:-.}" sp pl
+    if [[ -f "$root" ]]; then
+        printf 'spec\t%s\n' "$root"
+        case "$root" in
+            */docs/superpowers/specs/*.md)
+                local sp_base="${root%/specs/*}"
+                # shellcheck disable=SC2012  # ls intentional; date-prefixed names
+                pl=$(ls -1 "$sp_base"/plans/*.md 2> /dev/null | sort | tail -1 || true)
+                [[ -n "$pl" ]] && printf 'plan\t%s\n' "$pl"
+                ;;
+            *)
+                local d
+                d="$(dirname "$root")"
+                [[ -f "$d/plan.md" ]] && printf 'plan\t%s\n' "$d/plan.md"
+                [[ -f "$d/tasks.md" ]] && printf 'tasks\t%s\n' "$d/tasks.md"
+                ;;
+        esac
+        return 0
+    fi
     # speckit: specs/<n>/ first, then cwd
     # shellcheck disable=SC2012  # ls used intentionally; files are date-prefixed, no special chars
     sp=$(ls -1 "$root"/specs/*/spec.md 2> /dev/null | sort | tail -1 || true)

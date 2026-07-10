@@ -31,7 +31,7 @@ ROOT_TAGS = ("claude", "cursor", "gemini", "codex", "antigravity")
 SECONDARY_TAGS = ROOT_TAGS[1:]
 # Managed namespaces reconciled per home root (v1: skills+config; v2 adds
 # scripts — deployed tooling drift was invisible before, issue #462).
-NAMESPACES = ("skills", "config", "scripts")
+NAMESPACES = ("skills", "config", "scripts", "prompts")
 
 
 def err(msg):
@@ -121,8 +121,10 @@ def expected_keys(project):
 
     skills from ``<project>/.skillshare/skills/*``; config from
     ``<project>/configs/claude/config/*``; scripts from
-    ``<project>/configs/claude/scripts/*``. Returns a set of
-    ``"skills/<name>"`` / ``"config/<name>"`` / ``"scripts/<name>"`` keys.
+    ``<project>/configs/claude/scripts/*``; prompts from
+    ``<project>/configs/claude/prompts/*``. Returns a set of
+    ``"skills/<name>"`` / ``"config/<name>"`` / ``"scripts/<name>"`` /
+    ``"prompts/<name>"`` keys.
     """
     keys = set()
     skills_src = os.path.join(project, ".skillshare", "skills")
@@ -141,6 +143,10 @@ def expected_keys(project):
     for name in _entries(scripts_src):
         if not name.startswith("."):
             keys.add(f"scripts/{name}")
+    prompts_src = os.path.join(project, "configs", "claude", "prompts")
+    for name in _entries(prompts_src):
+        if not name.startswith("."):
+            keys.add(f"prompts/{name}")
     return keys
 
 
@@ -207,7 +213,11 @@ def _claude_units(base, only_root):
                 top = rel_under.split(os.sep, 1)[0]
                 if top not in NAMESPACES:
                     continue
-                unit_type = {"skills": "skill", "scripts": "script"}.get(top, "config")
+                unit_type = {
+                    "skills": "skill",
+                    "scripts": "script",
+                    "prompts": "prompt",
+                }.get(top, "config")
                 rec = units.setdefault(
                     canon,
                     {"rel_key": rel_under, "unit_type": unit_type, "seen_roots": set()},

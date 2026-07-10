@@ -38,6 +38,12 @@ superpowers is two-way **spec ↔ plan (+ embedded tasks)**. A skill MUST NOT re
 
 "Newest" = lexicographic name sort (`ls | sort | tail -1`); both layouts date-prefix files.
 
+**File targets.** A ROOT that is a *file* (e.g. "point the command at the design doc",
+feature 482 US3) is itself the `spec`, paired within its **own** layout tree: a path under
+`docs/superpowers/specs/` pairs the newest `docs/superpowers/plans/*.md` from the same tree;
+any other markdown file pairs sibling `plan.md`/`tasks.md`. A co-existing speckit layout
+never hijacks an explicitly-targeted superpowers doc (or vice versa).
+
 ## What each consumer does with the roles
 
 - **spec-review** — cross-references the discovered roles for internal consistency
