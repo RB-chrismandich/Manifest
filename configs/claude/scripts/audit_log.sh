@@ -5,13 +5,15 @@
 #   append <json>   Redact known secret patterns and append record; exit 0 (fail-open)
 #   redact <text>   Emit redacted version of text on stdout; exit 0
 #
-# Env: AUTO_ISSUE_DEV_AUDIT_FILE (default: ~/.claude/auto_issue_dev_audit.jsonl)
+# Env: AUDIT_LOG_FILE (generic target, preferred — lets other features, e.g.
+#      CDDL, write their own per-tool audit files through this writer) or
+#      AUTO_ISSUE_DEV_AUDIT_FILE (legacy; default: ~/.claude/auto_issue_dev_audit.jsonl)
 
 set -euo pipefail
 
 err() { if [[ -t 2 ]]; then printf '\033[0;31m%s\033[0m\n' "audit-log: $*" >&2; else printf '%s\n' "audit-log: $*" >&2; fi; }
 
-AUDIT_FILE="${AUTO_ISSUE_DEV_AUDIT_FILE:-${HOME}/.claude/auto_issue_dev_audit.jsonl}"
+AUDIT_FILE="${AUDIT_LOG_FILE:-${AUTO_ISSUE_DEV_AUDIT_FILE:-${HOME}/.claude/auto_issue_dev_audit.jsonl}}"
 
 REDACT_PY='
 import sys, re
@@ -35,7 +37,8 @@ Usage: audit_log.sh <subcommand> [args]
   append <json>   Redact and append one record to the audit log; exit 0 (fail-open)
   redact <text>   Emit redacted version of text on stdout; exit 0
 
-Env: AUTO_ISSUE_DEV_AUDIT_FILE (default: ~/.claude/auto_issue_dev_audit.jsonl)
+Env: AUDIT_LOG_FILE (preferred) or AUTO_ISSUE_DEV_AUDIT_FILE (legacy;
+     default: ~/.claude/auto_issue_dev_audit.jsonl)
 USAGE
 }
 

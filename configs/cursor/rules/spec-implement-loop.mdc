@@ -1,0 +1,15 @@
+---
+description: "Critic-gated implementation (CDDL) of a completed spec+plan — speckit feature dir or superpowers design doc. Two critics gate clarification, then an implementer iterates under project verification until dual structured approval stages the changes. Never commits or pushes."
+globs: ".claude/skills/spec-implement-loop/**"
+alwaysApply: false
+---
+
+# spec-implement-loop
+
+Critic-gated implementation (CDDL) of a completed spec+plan — speckit feature dir or superpowers design doc. Two critics gate clarification, then an implementer iterates under project verification until dual structured approval stages the changes. Never commits or pushes.
+
+<!-- Auto-generated from .claude/skills/spec-implement-loop/SKILL.md -->
+<!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
+
+Refer to `.cursor/skills/spec-implement-loop/SKILL.md` for the full skill definition.
+

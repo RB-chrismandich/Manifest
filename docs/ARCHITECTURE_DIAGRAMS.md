@@ -28,6 +28,7 @@
 17. [Autonomous Issue Developer (/issue-dev-auto)](#autonomous-issue-developer-issue-dev-auto)
 18. [Label Management Architecture](#label-management-architecture)
 19. [SkillClaw Passive Ingest & Evolve Pipeline](#skillclaw-passive-ingest--evolve-pipeline)
+20. [Critic-Driven Development Loop (/spec-implement-loop)](#critic-driven-development-loop-spec-implement-loop)
 
 ---
 
@@ -1595,6 +1596,73 @@ flowchart LR
   (`skillclaw_promote.sh --apply`); dry-run by default
 - `/pass-cli` — Retrieve secrets from Proton Pass via `pass-cli` agent CLI;
   handles session setup, vault/item discovery, and auto-recovery
+
+---
+
+## Critic-Driven Development Loop (/spec-implement-loop)
+
+How CDDL (`cddl_loop.py` + the `cddl/` package, feature 482) runs a two-phase,
+critic-gated implementation over a resolved spec+plan context (speckit or
+superpowers, via the `spec_review.sh` discovery seam). Both critics must emit
+structured `complete` verdicts before any code; the implement→verify→critique
+loop stages exactly the final approved candidate's paths — the loop never
+commits, pushes, merges, or reverts. Runs persist under
+`~/.manifest/cddl/runs/` (keep-everything, per-iteration backups); audit events
+append via `audit_log.sh` (fail-open).
+
+```mermaid
+%%{init: {'theme':'neutral'}}%%
+flowchart TD
+    classDef input fill:#f0f9ff,stroke:#0284c7,color:#0c4a6e
+    classDef process fill:#f0fdf4,stroke:#16a34a,color:#14532d
+    classDef decision fill:#fef3c7,stroke:#d97706,color:#78350f
+    classDef success fill:#22c55e,stroke:#166534,color:#fff
+    classDef warning fill:#eab308,stroke:#a16207,color:#fff
+    classDef stop fill:#e5e7eb,stroke:#6b7280,color:#374151
+
+    SKILL["/spec-implement-loop &lt;target&gt;<br/>(skill relays questions, re-enters)"]:::input
+    PREFLIGHT["Pre-flight: discovery seam,<br/>role validation, git checks<br/>(feature branch + clean tree),<br/>backend probe, state-root lock"]:::process
+    REFUSE["exit 6 — one actionable<br/>message, zero mutations"]:::stop
+
+    GATE["Phase 1 round N:<br/>qa-critic + arch-critic<br/>independently interrogate context"]:::process
+    BOTHOK{"both emit<br/>cddl-verdict complete?"}:::decision
+    PARK["exit 3 — questions.md written;<br/>operator answers via<br/>answer --run &lt;id&gt;"]:::warning
+    ROUNDS{"rounds<br/>exhausted?"}:::decision
+    GATEFAIL["exit 4 gate_failure —<br/>zero code produced"]:::stop
+
+    IMPL["Implementer emits cddl-file<br/>candidate (full-file blocks)"]:::process
+    CONFINE{"paths confined?<br/>(relative, no traversal,<br/>realpath inside repo)"}:::decision
+    APPLY["atomic apply<br/>+ pre-image backups<br/>iterations/&lt;n&gt;/backup/"]:::process
+    VERIFY{"project gates pass?<br/>(--verify-cmd or auto-detect)"}:::decision
+    CRITIQUE["qa-critic + arch-critic<br/>audit independently<br/>(strict fenced verdicts)"]:::process
+    DUAL{"dual approve?"}:::decision
+    FEEDBACK["deficiencies feed<br/>next iteration context"]:::warning
+    CEILING{"iteration ceiling /<br/>run deadline hit?"}:::decision
+    STAGED["exit 0 — stage exactly the<br/>approved candidate's paths<br/>(staged = critic-approved)"]:::success
+    FAIL["exit 5/7 — report names blocking<br/>critic + backup-based discard steps;<br/>work left applied, unstaged"]:::stop
+
+    SKILL --> PREFLIGHT
+    PREFLIGHT -->|refusal| REFUSE
+    PREFLIGHT -->|ok| GATE --> BOTHOK
+    BOTHOK -->|questions| ROUNDS
+    ROUNDS -->|no| PARK --> GATE
+    ROUNDS -->|yes| GATEFAIL
+    BOTHOK -->|yes| IMPL --> CONFINE
+    CONFINE -->|violation| FEEDBACK
+    CONFINE -->|ok| APPLY --> VERIFY
+    VERIFY -->|fail| FEEDBACK
+    VERIFY -->|pass| CRITIQUE --> DUAL
+    DUAL -->|yes| STAGED
+    DUAL -->|no| FEEDBACK --> CEILING
+    CEILING -->|no| IMPL
+    CEILING -->|yes| FAIL
+```
+
+Key seams: `CDDL_CLI` (injectable `claude -p` runner; tests stub it),
+`spec_review.sh` `discover_artifacts` (file-target-aware layout pairing),
+`audit_log.sh` `AUDIT_LOG_FILE` (per-tool audit stream), role prompts in
+`configs/claude/prompts/cddl/` (editable without code changes; zero-touch
+deploy, no agent-registry writes).
 
 ---
 

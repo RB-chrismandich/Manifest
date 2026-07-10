@@ -63,6 +63,34 @@ teardown() {
     assert_output ""
 }
 
+@test "discover_artifacts pairs a superpowers design-doc FILE within its own tree" {
+    # Mixed-layout repo: the co-existing speckit layout must NOT hijack the
+    # explicit design doc's plan (feature 482 US3 / FR-001).
+    mkdir -p "$SANDBOX/specs/001-feature" \
+        "$SANDBOX/docs/superpowers/specs" "$SANDBOX/docs/superpowers/plans"
+    : > "$SANDBOX/specs/001-feature/spec.md"
+    : > "$SANDBOX/specs/001-feature/plan.md"
+    : > "$SANDBOX/docs/superpowers/specs/2026-06-08-thing-design.md"
+    : > "$SANDBOX/docs/superpowers/plans/2026-06-08-thing.md"
+    source "$SCRIPT"
+    run discover_artifacts "$SANDBOX/docs/superpowers/specs/2026-06-08-thing-design.md"
+    assert_success
+    assert_output --partial "spec	$SANDBOX/docs/superpowers/specs/2026-06-08-thing-design.md"
+    assert_output --partial "plan	$SANDBOX/docs/superpowers/plans/2026-06-08-thing.md"
+    refute_output --partial "001-feature"
+}
+
+@test "discover_artifacts pairs a speckit spec FILE with its siblings" {
+    mkdir -p "$SANDBOX/specs/001-feature"
+    : > "$SANDBOX/specs/001-feature/spec.md"
+    : > "$SANDBOX/specs/001-feature/plan.md"
+    source "$SCRIPT"
+    run discover_artifacts "$SANDBOX/specs/001-feature/spec.md"
+    assert_success
+    assert_output --partial "spec	$SANDBOX/specs/001-feature/spec.md"
+    assert_output --partial "plan	$SANDBOX/specs/001-feature/plan.md"
+}
+
 @test "assemble_prompt embeds template and role-labelled artifact contents" {
     local tpl="$SANDBOX/tpl.md"; printf 'HEAD
 {{ARTIFACTS}}

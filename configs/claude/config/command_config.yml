@@ -404,6 +404,18 @@ tool_policies:
 
     subagents: conditional
     subagent_trigger: independent_units >= 3
+  spec-implement-loop:
+    allowed:
+      - Read
+      - Bash      # cddl_loop.py start/answer/status; git state inspection
+    forbidden:
+      - Write
+      - Edit      # The loop's implementer role writes code; the skill only orchestrates
+    parallel_agents: never
+    validation_tier: 1
+
+    subagents: never
+    subagent_rationale: Sequential two-critic role state machine (CDDL); fan-out would bypass its unanimous verdict gating.
   env-check:
     allowed:
       - Read

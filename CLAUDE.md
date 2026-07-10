@@ -242,9 +242,14 @@ approaches), review stale plans, or archive/abandon completed work.
 <!-- SPECKIT START -->
 ## Active Spec Kit Feature
 
-- **`481-pilotfish-orchestration`** — Pilotfish-style cost-tiered multi-model orchestration
-  (opt-in, config-only): vendor six role-agents + a delegation-policy reference into
-  `configs/claude/`, deployed by bootstrap under `--enable-pilotfish`. Plan:
-  [specs/481-pilotfish-orchestration/plan.md](specs/481-pilotfish-orchestration/plan.md)
-  (spec, research, data-model, contracts, quickstart alongside). Next: `/speckit-tasks`.
+- **`482-critic-dev-loop`** — Critic-Driven Development Loop (CDDL): re-entrant
+  two-phase loop (clarification gate → implement/verify/critique) over speckit or
+  superpowers artifacts; roles in `configs/claude/prompts/cddl/`, orchestrator
+  `configs/claude/scripts/cddl_loop.py` + `cddl/`, skill `/spec-implement-loop`. Plan:
+  [specs/482-critic-dev-loop/plan.md](specs/482-critic-dev-loop/plan.md)
+  (spec, research, data-model, contracts, quickstart, tasks alongside; cross-reference
+  spec-review converged 2026-07-10; analyze 0-critical; implemented 2026-07-10 —
+  42/42 tasks, pytest + bats + Lite smoke green; technical spec-review converged
+  after 6 panel rounds — 14 review-driven fixes logged in the spec's
+  Clarifications). Next: commit + PR (`/speckit-git-commit` or `/git-commit`).
 <!-- SPECKIT END -->

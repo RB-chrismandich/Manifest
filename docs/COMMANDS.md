@@ -1011,7 +1011,7 @@ Expected output:
 <!-- BEGIN GENERATED COMMANDS (command_catalog.py) — do not edit by hand -->
 <!-- Regenerate: configs/claude/scripts/generate_commands_doc.py -->
 
-_88 commands, generated from `.skillshare/skills/*/SKILL.md`._
+_89 commands, generated from `.skillshare/skills/*/SKILL.md`._
 
 ### Git & PRs
 
@@ -1145,5 +1145,6 @@ _88 commands, generated from `.skillshare/skills/*/SKILL.md`._
 | `/deploy-reconcile` | Review what Manifest deployed into the assistant homes (~/.claude + mirrors) versus what the project would deploy, listing orphaned deployed items KEEP or REMOVE. Preview by default; opt-in removal is recoverable (timestamped backup, never hard-delete). | Review what Manifest deployed into the assistant homes (~/. | available |
 | `/lifecycle-run` | Drive a feature/issue through the codified state-gated lifecycle (specify→…→verify) with hard phase-gating and a smoke-test Verify gate; entry is a ticket URL/issue key. | Drive a feature/issue through the codified state-gated lifecycle (specify→…→verify) with hard phase-gating and a smoke-test Verify gate; entry is a ticket URL/issue key. | available |
 | `/pr-smoke` | Full Manifest regression (CI mirror: shellcheck, yamllint, bats, pytest) plus a deployed-env smoke pass — the post-PR gate. Use when a PR opens or merges: "regression test the PR", "did the merge break anything", "verify main is still green". Whole-repo verdict; prefer over verify or env-check. | Use when a PR opens or merges: "regression test the PR", "did the merge break anything", "verify main is still green". | available |
+| `/spec-implement-loop` | Critic-gated implementation (CDDL) of a completed spec+plan — speckit feature dir or superpowers design doc. Two critics gate clarification, then an implementer iterates under project verification until dual structured approval stages the changes. Never commits or pushes. | Critic-gated implementation (CDDL) of a completed spec+plan — speckit feature dir or superpowers design doc. | available |
 
 <!-- END GENERATED COMMANDS -->
