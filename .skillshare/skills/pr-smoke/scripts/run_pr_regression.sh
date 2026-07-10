@@ -17,7 +17,7 @@
 set -u
 
 SCRIPT_NAME="run_pr_regression.sh"
-err() { echo "${SCRIPT_NAME}: $*" >&2; }
+err() { if [[ -t 2 ]]; then printf '\033[0;31m%s\033[0m\n' "${SCRIPT_NAME}: $*" >&2; else printf '%s\n' "${SCRIPT_NAME}: $*" >&2; fi; }
 
 usage() {
     cat << 'EOF'
