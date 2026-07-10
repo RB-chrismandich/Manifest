@@ -96,7 +96,6 @@ cmd_review() {
     local cmd_str="${VERIFICATION_GATE_REVIEW_CMD:-${SCRIPT_DIR}/parallel_agent.py --json --validate --timeout 600 --review}"
     local -a cmd_arr
     read -r -a cmd_arr <<< "$cmd_str"
-    # array-safe
     raw="$("${cmd_arr[@]+"${cmd_arr[@]}"}" "$packet" 2> /dev/null)" || rc=$?
 
     # Adapt to gate JSON. parallel_agent emits {validation:{tier1,tier2,verdict},
