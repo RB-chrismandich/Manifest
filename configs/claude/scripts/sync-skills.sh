@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-err() { echo "sync-skills: $*" >&2; }
+err() { if [[ -t 2 ]]; then printf '\033[0;31m%s\033[0m\n' "sync-skills: $*" >&2; else printf '%s\n' "sync-skills: $*" >&2; fi; }
 
 if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
     cat << 'USAGE'

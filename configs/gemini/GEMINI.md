@@ -180,27 +180,10 @@ Detection methods:
 
 ### ALWAYS Use Parallel Agents For
 
-1. **Security-sensitive code changes**
-   - Authentication/authorization logic
-   - Input validation and sanitization
-   - Cryptographic operations
-   - Secret handling
-
-2. **Architectural decisions**
-   - New system components
-   - API design changes
-   - Database schema modifications
-   - Service integration patterns
-
-3. **Large file modifications (>200 lines)**
-   - Complex refactoring
-   - Major feature additions
-   - Performance-critical code
-
-4. **Critical business logic**
-   - Payment processing
-   - User data handling
-   - Compliance-related code
+1. **Security-sensitive changes**: authN/authZ, input validation/sanitization, crypto, secret handling
+2. **Architectural decisions**: new components, API design, DB schema, service integration
+3. **Large file mods (>200 lines)**: complex refactoring, major features, performance-critical code
+4. **Critical business logic**: payment processing, user-data handling, compliance
 
 ### CONSIDER Parallel Agents For
 
@@ -570,7 +553,7 @@ plans untouched 7+ days should be updated, completed, or abandoned. Use
 - **Git & PRs**: `/branch-clean` · `/git-commit` · `/git-find-artifact` · `/issue-dev-auto` · `/issue-sync-commit` · `/issue-sync-pr` · `/pr-address-comments` · `/pr-clean-base` · `/pr-merge-stacked` · `/pr-monitor` · `/pr-reset-reapply` · `/pr-review` · `/pr-triage-bots` · `/repo-clean`
 - **Documentation**: `/docs-all` · `/docs-generate-diagrams` · `/docs-improve` · `/docs-improve-readme`
 - **Security**: `/ci-audit-triggers` · `/ci-harden-workflow` · `/docker-audit-firewall` · `/llm-audit-traversal` · `/mcp-audit` · `/security-harden-proxy` · `/security-refute-findings` · `/security-review-diff` · `/security-triage-findings`
-- **Planning & Specs**: `/data-wire-field` · `/design-validate` · `/issue-prep-auto` · `/issue-prioritize` · `/issue-triage` · `/plan-manage` · `/premise-verify` · `/spec-decide-tradeoffs` · `/spec-review` · `/speckit-audit-tasks`
+- **Planning & Specs**: `/data-wire-field` · `/design-validate` · `/issue-prep-auto` · `/issue-prioritize` · `/issue-triage` · `/plan-manage` · `/premise-verify` · `/spec-audit-tasks` · `/spec-decide-tradeoffs` · `/spec-review`
 - **Skill Authoring**: `/ai-hooks-integration` · `/prompt-optimize` · `/skill-evolve`
 - **CI/CD, Testing & Quality**: `/a11y-audit` · `/ai-code-audit` · `/ci-diagnose-drift` · `/ci-reproduce-failure` · `/ci-setup` · `/data-validate-live` · `/go-refactor` · `/node-refactor` · `/performance-check` · `/project-verify` · `/python-refactor` · `/shell-refactor` · `/smoke-manage` · `/terraform-refactor` · `/test-pin-bug` · `/test-vary-fixtures` · `/ux-review`
 - **Infrastructure & Config**: `/api-optimize-bulk` · `/cache-warm-oob` · `/cli-audit-help` · `/config-audit` · `/config-debug-substitution` · `/config-validate-native` · `/data-design-ingestion` · `/deploy-diagnose-drift` · `/deploy-retire-component` · `/docker-probe-internal` · `/llm-invoke-stdin` · `/pass-cli` · `/process-diagnose-stall` · `/project-scaffold` · `/shell-audit-errexit` · `/shell-audit-pipefail` · `/version-pin`

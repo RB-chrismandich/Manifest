@@ -11,7 +11,7 @@
 
 set -euo pipefail
 
-err() { echo "git-platform: $*" >&2; }
+err() { if [[ -t 2 ]]; then printf '\033[0;31m%s\033[0m\n' "git-platform: $*" >&2; else printf '%s\n' "git-platform: $*" >&2; fi; }
 
 # Allow override via env var
 if [[ -n "${MANIFEST_GIT_PLATFORM:-}" ]]; then

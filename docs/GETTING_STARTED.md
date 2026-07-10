@@ -381,6 +381,9 @@ If you encounter issues:
 - **Environment Variables**: Override defaults with `CURSOR_MODEL_ADVANCED`, `GEMINI_INCLUDE_DIRS`, etc.
 - **SkillClaw (opt-in)**: Capture agent sessions and evolve skills locally — enable with
   `./bootstrap.sh --enable-skillclaw`. See [docs/SKILLCLAW.md](SKILLCLAW.md) for details.
+- **pilotfish (opt-in)**: Cost-tiered role-agents that delegate mechanical/read-only work to
+  cheaper model tiers and gate results behind a verifier — enable with
+  `./bootstrap.sh --enable-pilotfish` (Claude-only; does not change your main-session model).
 
 **See**: [Configuration Guide](CONFIGURATION.md) for advanced topics
 

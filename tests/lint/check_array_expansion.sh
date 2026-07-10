@@ -12,7 +12,7 @@
 # Usage: check_array_expansion.sh [file.sh ...]   (no args = all tracked *.sh)
 set -euo pipefail
 
-err() { echo "check-array-expansion: $*" >&2; }
+err() { if [[ -t 2 ]]; then printf '\033[0;31m%s\033[0m\n' "check-array-expansion: $*" >&2; else printf '%s\n' "check-array-expansion: $*" >&2; fi; }
 
 files=()
 if [[ $# -gt 0 ]]; then

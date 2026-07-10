@@ -9,14 +9,14 @@ GREEN='\033[0;32m'
 NC='\033[0m' # No Color
 
 # Error handling (canonical err() convention; error() exits, warning() continues)
-err() { echo "linear-ops: $*" >&2; }
+err() { if [[ -t 2 ]]; then printf '\033[0;31m%s\033[0m\n' "linear-ops: $*" >&2; else printf '%s\n' "linear-ops: $*" >&2; fi; }
 error() {
     err "$1"
     exit 1
 }
 
 warning() {
-    err "Warning: $1"
+    if [[ -t 2 ]]; then printf '\033[0;33m%s\033[0m\n' "linear-ops: Warning: $1" >&2; else printf '%s\n' "linear-ops: Warning: $1" >&2; fi
 }
 
 success() {

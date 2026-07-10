@@ -66,3 +66,4 @@ smoke-catalog/*.lock
 # (ruff/pytest/pyright), not uv dependency management. uv is only a graphify
 # runtime (bootstrap/lib/install.sh). Ignore so a stray `uv` run stays untracked.
 uv.lock
+benchmark_data/

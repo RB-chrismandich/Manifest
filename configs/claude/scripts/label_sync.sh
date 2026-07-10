@@ -15,7 +15,7 @@
 
 set -euo pipefail
 
-err() { echo "label-sync: $*" >&2; }
+err() { if [[ -t 2 ]]; then printf '\033[0;31m%s\033[0m\n' "label-sync: $*" >&2; else printf '%s\n' "label-sync: $*" >&2; fi; }
 
 # Colors for output
 GREEN='\033[0;32m'

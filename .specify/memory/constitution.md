@@ -141,7 +141,7 @@ the autonomous-development loop — humans and agents share one tested gate.
 | 6 | Analyze | `/speckit-analyze` | 0 critical findings |
 | 7 | Spec-Review (technical) | `/spec-review --mode technical` | `APPROVED` |
 | 8 | Implement | `/speckit-implement` | per-user-facing-workflow smoke coverage |
-| 9 | Verify task-by-task | `/speckit-audit-tasks` + `smoke_test.py run --tier Lite` | exit `0` |
+| 9 | Verify task-by-task | `/spec-audit-tasks` + `smoke_test.py run --tier Lite` | exit `0` |
 
 **Gating**: hard halt for agents, advisory-with-logged-override for humans (Principle VI).
 Review/analyze gates use the Quality Gates verdict model.

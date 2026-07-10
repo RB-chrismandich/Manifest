@@ -17,7 +17,7 @@
 # Usage: check_bats_assertions.sh [file.bats ...]   (no args = all tracked *.bats)
 set -euo pipefail
 
-err() { echo "check-bats-assertions: $*" >&2; }
+err() { if [[ -t 2 ]]; then printf '\033[0;31m%s\033[0m\n' "check-bats-assertions: $*" >&2; else printf '%s\n' "check-bats-assertions: $*" >&2; fi; }
 
 if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
     sed -n '2,17p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'

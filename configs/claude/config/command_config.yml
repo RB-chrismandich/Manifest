@@ -388,7 +388,7 @@ tool_policies:
 
     subagents: never
     subagent_rationale: Preps exactly one issue and mutates its labels/body; single-target.
-  speckit-audit-tasks:
+  spec-audit-tasks:
     allowed:
       - Read
       - Glob
@@ -397,7 +397,7 @@ tool_policies:
       - Task      # Parallel per-task verification
     forbidden:
       - Write
-      - Edit      # Analysis-only — reports gaps, never edits code or tasks.md
+      - Edit      # Analysis-only — reports gaps, never edits code or the task list
     parallel_agents: conditional
     trigger_condition: post_implement
     validation_tier: 2

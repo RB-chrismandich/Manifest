@@ -1,6 +1,6 @@
 ---
 name: spec-decide-tradeoffs
-description: Use when a design choice has multiple valid options — produce a dimension-by-dimension trade-off table (fidelity, accuracy, scale, maintainability), justify one recommendation against long-term failure modes, and record it in the spec.
+description: Use when a design choice has multiple valid options — produce a dimension-by-dimension trade-off table (fidelity, accuracy, scale, maintainability), justify one recommendation against long-term failure modes, and record it in the spec. Works with speckit and superpowers layouts.
 ---
 # Decide an Architecture Choice via a Trade-off Table
 
@@ -27,6 +27,9 @@ fetch cadence open.
 6. **Make it tunable where the right value is uncertain.** If the decision hides a magic number (threshold, weight,
    window), promote it to a config field with a sensible default rather than hard-coding — note this in the
    recommendation.
-7. **Record the decision in the artifact immediately.** Write it into the spec's Clarifications/Decisions section (or
-   research.md) with the chosen option and the one-line rationale, so downstream planning and tasks inherit it. Keep
-   field/entity names consistent with the rest of the artifact set — a rename here is a future cross-artifact finding.
+7. **Record the decision in the artifact immediately** — into whichever artifact set the project uses
+   (`configs/claude/references/spec-artifact-discovery.md`): for **speckit**, the spec's Clarifications/Decisions
+   section (or `research.md`); for **superpowers**, the Decisions section of the design doc
+   (`docs/superpowers/specs/*-design.md`). Capture the chosen option and the one-line rationale so downstream planning
+   and tasks inherit it. Keep field/entity names consistent with the rest of the artifact set — a rename here is a
+   future cross-artifact finding.
