@@ -70,7 +70,3 @@ in generated reports.
 represented as critical errors with a red cross (`✗`). This creates a false error state and panic for users.
 **Action:** Use a neutral yellow circle (`○`) and hide installation hints behind verbose flags for optional
 components that are not strictly required for the core application to function.
-
-## 2024-05-24 - Semantic Status Icons
-**Learning:** In CLI status outputs and generated markdown reports, using a red cross (✗) to denote intentionally disabled or missing optional services creates a false error state, degrading the DX.
-**Action:** Use a yellow circle (○) to communicate a neutral, inactive, or non-blocking state, reserving red strictly for true failures.
