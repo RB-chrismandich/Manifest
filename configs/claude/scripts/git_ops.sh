@@ -30,7 +30,7 @@
 
 set -euo pipefail
 
-err() { echo "git-ops: $*" >&2; }
+err() { if [[ -t 2 ]]; then printf '\033[0;31m%s\033[0m\n' "git-ops: $*" >&2; else printf '%s\n' "git-ops: $*" >&2; fi; }
 
 # issue_comment_args BODY_FLAG N [ARGS...] — sets ISSUE_COMMENT_ARGS.
 # The documented invocation is `issue-comment <N> "<text>"` (issue #475): when

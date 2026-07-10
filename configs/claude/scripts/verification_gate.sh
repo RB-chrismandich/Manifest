@@ -17,7 +17,7 @@
 
 set -euo pipefail
 
-err() { echo "verification-gate: $*" >&2; }
+err() { if [[ -t 2 ]]; then printf '\033[0;31m%s\033[0m\n' "verification-gate: $*" >&2; else printf '%s\n' "verification-gate: $*" >&2; fi; }
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 HIGH="${VERIFICATION_GATE_HIGH:-0.80}"

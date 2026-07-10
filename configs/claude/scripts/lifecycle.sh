@@ -21,7 +21,7 @@
 
 set -euo pipefail
 
-err() { echo "lifecycle: $*" >&2; }
+err() { if [[ -t 2 ]]; then printf '\033[0;31m%s\033[0m\n' "lifecycle: $*" >&2; else printf '%s\n' "lifecycle: $*" >&2; fi; }
 
 STATE_DIR="${LIFECYCLE_STATE_DIR:-${MANIFEST_STATE_ROOT:-$HOME/.manifest}/lifecycle/state}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
