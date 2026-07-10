@@ -42,7 +42,11 @@ superpowers is two-way **spec ↔ plan (+ embedded tasks)**. A skill MUST NOT re
 
 - **spec-review** — cross-references the discovered roles for internal consistency
   (spec↔plan↔tasks, or spec↔plan for superpowers). Delegates discovery to
-  `spec_review.sh` (`resolve_artifacts`), which implements this contract directly.
+  `spec_review.sh` (`resolve_artifacts` → `discover_artifacts`), a lightweight resolver that
+  implements the **path-resolution subset** of this contract: explicit paths, else the newest
+  `specs/*/spec.md` (speckit) or the newest `docs/superpowers/*` (superpowers). It does **not**
+  itself run `check-prerequisites.sh` or gate on a `.specify/` directory — those steps in
+  precedence rule 2 are performed by the speckit skills/commands, which resolve their own paths.
 - **spec-audit-tasks** — audits that each task was genuinely completed. The task list comes
   from `tasks.md` (speckit) **or** the plan's embedded task list (superpowers). In speckit,
   resolve via `check-prerequisites.sh --json --require-tasks --include-tasks`; in superpowers,
