@@ -32,7 +32,7 @@ FORMAT="tree"
 ROOT="."
 MODE=""
 
-err() { echo -e "\033[0;31mspec-review: $*\033[0m" >&2; }
+err() { if [[ -t 2 ]]; then printf '\033[0;31m%s\033[0m\n' "spec-review: $*" >&2; else printf '%s\n' "spec-review: $*" >&2; fi; }
 usage() {
     cat << 'EOF'
 spec-review — cross-reference spec/plan/tasks for consistency (Antigravity/agy, analysis-only)

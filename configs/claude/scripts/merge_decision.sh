@@ -13,7 +13,7 @@
 
 set -euo pipefail
 
-err() { echo -e "\033[0;31mmerge-decision: $*\033[0m" >&2; }
+err() { if [[ -t 2 ]]; then printf '\033[0;31m%s\033[0m\n' "merge-decision: $*" >&2; else printf '%s\n' "merge-decision: $*" >&2; fi; }
 
 usage() {
     cat << 'USAGE'

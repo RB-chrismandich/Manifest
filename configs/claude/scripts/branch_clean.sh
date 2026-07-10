@@ -35,7 +35,7 @@ ASSUME_YES=false
 JSON_OUT=false
 EXTRA_PROTECT=()
 
-err() { echo -e "\033[0;31mbranch-clean: $*\033[0m" >&2; }
+err() { if [[ -t 2 ]]; then printf '\033[0;31m%s\033[0m\n' "branch-clean: $*" >&2; else printf '%s\n' "branch-clean: $*" >&2; fi; }
 usage_error() {
     err "$*"
     exit 2

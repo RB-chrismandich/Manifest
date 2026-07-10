@@ -9,7 +9,7 @@ GREEN='\033[0;32m'
 NC='\033[0m' # No Color
 
 # Error handling (canonical err() convention; error() exits, warning() continues)
-err() { echo -e "\033[0;31mlinear-ops: $*\033[0m" >&2; }
+err() { if [[ -t 2 ]]; then printf '\033[0;31m%s\033[0m\n' "linear-ops: $*" >&2; else printf '%s\n' "linear-ops: $*" >&2; fi; }
 error() {
     err "$1"
     exit 1

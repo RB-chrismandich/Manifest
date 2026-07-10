@@ -51,7 +51,7 @@ FILE_LINES=()
 OUT_LINES=()
 CHANGED=false # set by process_* to signal the file needs rewriting
 
-err() { echo -e "\033[0;31mversion-pin: $*\033[0m" >&2; }
+err() { if [[ -t 2 ]]; then printf '\033[0;31m%s\033[0m\n' "version-pin: $*" >&2; else printf '%s\n' "version-pin: $*" >&2; fi; }
 usage_error() {
     err "$*"
     exit 2
