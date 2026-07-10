@@ -1,0 +1,3 @@
+# Manifest-owned marker: this ~/.claude/agents dir is deployed and managed by
+# bootstrap.sh (--enable-pilotfish). Its presence lets the toggle prune the dir
+# cleanly and distinguishes it from a user-authored agents dir (spec FR-008).

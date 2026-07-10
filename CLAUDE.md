@@ -242,7 +242,9 @@ approaches), review stale plans, or archive/abandon completed work.
 <!-- SPECKIT START -->
 ## Active Spec Kit Feature
 
-- _None currently active_ — the most recent features
-  (`457-proactive-code-guardrails`, `480-skill-naming-taxonomy`) are merged. This
-  block is repopulated by `/speckit-plan` when the next feature is planned.
+- **`481-pilotfish-orchestration`** — Pilotfish-style cost-tiered multi-model orchestration
+  (opt-in, config-only): vendor six role-agents + a delegation-policy reference into
+  `configs/claude/`, deployed by bootstrap under `--enable-pilotfish`. Plan:
+  [specs/481-pilotfish-orchestration/plan.md](specs/481-pilotfish-orchestration/plan.md)
+  (spec, research, data-model, contracts, quickstart alongside). Next: `/speckit-tasks`.
 <!-- SPECKIT END -->

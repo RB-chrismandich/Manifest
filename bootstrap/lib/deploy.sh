@@ -66,6 +66,12 @@ deploy_configs() {
         cp "$TARGET_DIR/config/command_config.yml" "$preserved_cmdcfg"
     fi
 
+    # Pilotfish collision guard (spec FR-008): abort BEFORE any destructive copy if
+    # an enabled pilotfish deploy would overwrite a foreign ~/.claude/agents dir.
+    if ! check_pilotfish_collision "$TARGET_DIR"; then
+        return 1
+    fi
+
     # rsync is a hard dependency of every copy path below. Check it BEFORE the
     # destructive `mv` of ~/.claude — failing mid-deploy stranded all user
     # state in the timestamped backup with no recovery message (issue #320).
@@ -117,9 +123,10 @@ deploy_configs() {
                     print_step "Merging configurations..."
                     # Merge mode - copy only new files (skills handled separately
                     # below; the skills compat symlink must not be copied verbatim)
-                    rsync -av --ignore-existing --exclude '/skills' "$source_dir/" "$TARGET_DIR/"
+                    rsync -av --ignore-existing --exclude '/skills' --exclude '/agents' --exclude '/references/pilotfish-delegation.md' "$source_dir/" "$TARGET_DIR/"
                     deploy_home_skills "$SCRIPT_DIR/.skillshare/skills" "$TARGET_DIR/skills"
                     gate_graphify_skill "$TARGET_DIR/skills"
+                    gate_pilotfish_agents "$TARGET_DIR" "$source_dir/agents"
                     # --ignore-existing keeps the user's settings.local.json as-is,
                     # but if it was absent the repo copy lands fresh; union back any
                     # MCP servers captured from the live file either way.
@@ -173,9 +180,10 @@ deploy_configs() {
 
     print_step "Copying configuration files..."
     # Copy everything EXCEPT skills (skills is a symlink -> .skillshare/skills;
-    # copying it verbatim would create a broken link in ~/.claude). rsync mirrors
-    # deploy.sh's existing idiom (merge path below).
-    rsync -a --exclude '/skills' "$source_dir"/ "$TARGET_DIR/"
+    # copying it verbatim would create a broken link in ~/.claude) and agents/
+    # (pilotfish role files are deployed by gate_pilotfish_agents under its toggle,
+    # so a disabled or foreign ~/.claude/agents is never clobbered — spec FR-008).
+    rsync -a --exclude '/skills' --exclude '/agents' --exclude '/references/pilotfish-delegation.md' "$source_dir"/ "$TARGET_DIR/"
     # Copy dot-prefixed directories (e.g. .plans/) that the glob above skips
     cp -R "$source_dir"/.[!.]* "$TARGET_DIR/" 2> /dev/null || true
 
@@ -194,6 +202,7 @@ deploy_configs() {
     # Gate /graphify on its service toggle (FR-012) and reconcile any foreign
     # 'graphify install' residue (FR-010). Runs before the assistant skill symlinks.
     gate_graphify_skill "$TARGET_DIR/skills"
+    gate_pilotfish_agents "$TARGET_DIR" "$source_dir/agents"
 
     # Make scripts executable (.py entry points too — repo perms may lack +x)
     if [[ -d "$TARGET_DIR/scripts" ]]; then
