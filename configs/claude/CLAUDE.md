@@ -82,27 +82,10 @@ Registry: `~/.claude/config/knowledge_base.yml`; `/ai-code-audit` = full audit.
 
 ### ALWAYS Use Parallel Agents For
 
-1. **Security-sensitive code changes**
-   - Authentication/authorization logic
-   - Input validation and sanitization
-   - Cryptographic operations
-   - Secret handling
-
-2. **Architectural decisions**
-   - New system components
-   - API design changes
-   - Database schema modifications
-   - Service integration patterns
-
-3. **Large file modifications (>200 lines)**
-   - Complex refactoring
-   - Major feature additions
-   - Performance-critical code
-
-4. **Critical business logic**
-   - Payment processing
-   - User data handling
-   - Compliance-related code
+1. **Security-sensitive changes**: authN/authZ, input validation/sanitization, crypto, secret handling
+2. **Architectural decisions**: new components, API design, DB schema, service integration
+3. **Large file mods (>200 lines)**: complex refactoring, major features, performance-critical code
+4. **Critical business logic**: payment processing, user-data handling, compliance
 
 ### CONSIDER Parallel Agents For
 

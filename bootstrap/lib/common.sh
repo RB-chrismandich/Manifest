@@ -208,3 +208,146 @@ gate_graphify_skill() {
         rm -rf "$skill/references" "$skill/.graphify_version"
     fi
 }
+
+# ---------------------------------------------------------------------------
+# pilotfish cost-tiered role-agents (opt-in via --enable-pilotfish; Claude-only).
+#
+# configs/claude/agents/ is EXCLUDED from the wholesale rsync (deploy.sh) so a
+# disabled or foreign ~/.claude/agents is never copied over — the gate is the sole
+# deployer of the six role files and the .pilotfish ownership marker (it writes the
+# marker itself; a shipped marker would falsely read as "Manifest-owned" after a
+# disabled deploy). references/pilotfish-delegation.md still lands via rsync (unique
+# name, no collision risk) and is pruned on disable. When on, the gate copies the six
+# agents, stamps the marker, and injects the one-line delegation pointer into the
+# deployed CLAUDE.md; when off it manifest-scoped-prunes exactly its own artifacts.
+# settings.json is never touched (spec FR-016).
+# ---------------------------------------------------------------------------
+
+# The one delegation-policy pointer line added to the deployed CLAUDE.md Reference
+# Index when enabled. Kept out of the committed source guide so its always-loaded
+# byte budget is unaffected when pilotfish is off (FR-009/FR-014).
+PILOTFISH_POINTER_LINE='- `~/.claude/references/pilotfish-delegation.md` — pilotfish cost-tiered delegation (role→alias, selective-verify).'
+
+# The exact set of agent files Manifest deploys. The disable path removes ONLY these
+# (plus the marker), never the whole agents dir, so a user-authored agent that
+# coexists in ~/.claude/agents survives an opt-out (manifest-scoped prune, like
+# deploy_home_skills). Keep in sync with configs/claude/agents/*.md.
+PILOTFISH_AGENT_FILES=(scout.md Explore.md mech-executor.md executor.md verifier.md security-executor.md)
+
+# Pre-deploy collision guard (spec FR-008). Called BEFORE any destructive copy: if
+# pilotfish is enabled and ~/.claude/agents exists but is NOT Manifest-owned (no
+# .pilotfish marker), abort ONLY when one of the six role files we would deploy is
+# already present — overwriting a user's same-named agent is the real hazard. A
+# differently-named user agent is no collision and must NOT block enabling (else a
+# disable that left a coexisting user agent behind would deadlock the next enable).
+# Returns 1 to abort, 0 when safe. No-op when pilotfish is disabled.
+check_pilotfish_collision() {
+    local home="$1"
+    local agents="$home/agents"
+    [[ "${ENABLE_PILOTFISH:-false}" == false ]] && return 0
+    [[ -d "$agents" && ! -f "$agents/.pilotfish" ]] || return 0
+    local a
+    for a in ${PILOTFISH_AGENT_FILES[@]+"${PILOTFISH_AGENT_FILES[@]}"}; do
+        if [[ -e "$agents/$a" ]]; then
+            print_error "pilotfish: $agents/$a already exists and is not Manifest-owned; refusing to overwrite. Move or remove it, then re-run (nothing was changed)."
+            return 1
+        fi
+    done
+    return 0
+}
+
+# Post-copy gate (called next to gate_graphify_skill). Prune the pilotfish artifacts
+# when the toggle is off (removing exactly them, SC-003); when on, deploy the six
+# role files + the delegation reference from source (both rsync-excluded), stamp the
+# owner marker, and inject the delegation pointer. Idempotent across both rsync paths.
+#   $1 home        — deploy target home (e.g. ~/.claude)
+#   $2 src_agents  — source agents dir (configs/claude/agents); used only when enabled
+gate_pilotfish_agents() {
+    local home="$1"
+    local src_agents="${2:-}"
+    local agents="$home/agents"
+    local ref="$home/references/pilotfish-delegation.md"
+    local guide="$home/CLAUDE.md"
+    # The delegation reference is a sibling of the agents dir under configs/claude/;
+    # like agents/ it is rsync-excluded and deployed here so a disabled/foreign run
+    # never lands it (no copy-then-delete churn on default bootstraps).
+    local src_ref=""
+    [[ -n "$src_agents" ]] && src_ref="$(dirname "$src_agents")/references/pilotfish-delegation.md"
+
+    if [[ "${ENABLE_PILOTFISH:-false}" == false ]]; then
+        # Opt-out: remove exactly the deployed pilotfish artifacts and NOTHING else.
+        # Manifest-scoped prune (mirrors deploy_home_skills): delete only our six role
+        # files + the marker, then rmdir the agents dir ONLY if it is now empty — a
+        # user-authored agent coexisting in ~/.claude/agents survives (SC-003).
+        if [[ -f "$agents/.pilotfish" ]]; then
+            local a
+            for a in ${PILOTFISH_AGENT_FILES[@]+"${PILOTFISH_AGENT_FILES[@]}"}; do
+                rm -f "$agents/$a"
+            done
+            rm -f "$agents/.pilotfish"
+            rmdir "$agents" 2> /dev/null || true # only succeeds when empty; user agents survive
+            print_info "pilotfish disabled - removed deployed role-agents"
+        fi
+        [[ -f "$ref" ]] && rm -f "$ref"
+        remove_pilotfish_pointer "$guide"
+        return 0
+    fi
+
+    # Enabled: agents/ is rsync-excluded, so deploy the six role files here. The
+    # collision guard (check_pilotfish_collision, pre-rsync) already ensured no
+    # non-Manifest same-named file will be overwritten. Idempotent: cp overwrites our
+    # own files, the marker is re-stamped, and the pointer inject is grep-guarded — so
+    # an enabled re-run reconverges to the same tree rather than skipping (it is a
+    # no-op in effect, NOT a bypass of the enable path).
+    mkdir -p "$agents"
+    if [[ -n "$src_agents" && -d "$src_agents" ]]; then
+        local f
+        for f in ${PILOTFISH_AGENT_FILES[@]+"${PILOTFISH_AGENT_FILES[@]}"}; do
+            [[ -f "$src_agents/$f" ]] && cp "$src_agents/$f" "$agents/$f"
+        done
+    fi
+    if [[ -n "$src_ref" && -f "$src_ref" ]]; then
+        mkdir -p "$home/references"
+        cp "$src_ref" "$ref"
+    fi
+    : > "$agents/.pilotfish"
+    inject_pilotfish_pointer "$guide"
+    return 0
+}
+
+# Idempotently add PILOTFISH_POINTER_LINE to the deployed guide's Reference Index,
+# anchored after the last shipped entry (antipatterns.md); falls back to the
+# "## Reference Index" heading if that anchor is absent.
+inject_pilotfish_pointer() {
+    local guide="$1"
+    [[ -f "$guide" ]] || return 0
+    grep -qF 'pilotfish-delegation.md' "$guide" && return 0
+    local tmp
+    tmp="$(mktemp)" || return 0
+    if grep -qF 'antipatterns.md' "$guide"; then
+        awk -v ins="$PILOTFISH_POINTER_LINE" '
+            { print }
+            !done && /antipatterns\.md/ { print ins; done = 1 }
+        ' "$guide" > "$tmp"
+    else
+        awk -v ins="$PILOTFISH_POINTER_LINE" '
+            { print }
+            !done && /^## Reference Index/ { print ""; print ins; done = 1 }
+        ' "$guide" > "$tmp"
+    fi
+    if grep -qF 'pilotfish-delegation.md' "$tmp"; then
+        mv "$tmp" "$guide"
+    else
+        rm -f "$tmp"
+    fi
+}
+
+# Remove the pilotfish pointer line from the deployed guide (idempotent).
+remove_pilotfish_pointer() {
+    local guide="$1"
+    [[ -f "$guide" ]] || return 0
+    grep -qF 'pilotfish-delegation.md' "$guide" || return 0
+    local tmp
+    tmp="$(mktemp)" || return 0
+    grep -vF 'pilotfish-delegation.md' "$guide" > "$tmp" && mv "$tmp" "$guide" || rm -f "$tmp"
+}

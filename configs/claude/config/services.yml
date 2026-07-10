@@ -79,6 +79,12 @@ services:
     description: "Evolves skills from transcripts into review PRs via /skill-evolve (opt-in)"
     storage: ~/.skillclaw
 
+  # pilotfish - cost-tiered role-agents (~/.claude/agents/) + delegation policy reference
+  # Config-only; gated deploy in bootstrap/lib/deploy.sh (gate_pilotfish_agents). Claude-only.
+  pilotfish:
+    enabled: false
+    description: "Cost-tiered role-agents + delegation policy, verifier-gated (opt-in, Claude-only)"
+
   # browser-use - AI-powered E2E browser testing agent
   browser_use:
     enabled: false
