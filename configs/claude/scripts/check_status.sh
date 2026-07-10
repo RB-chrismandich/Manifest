@@ -165,7 +165,7 @@ if [[ -f ~/.claude/config/services.yml ]]; then
         echo -e "  ${BLUE}→${NC} Fix: ./bootstrap.sh --reconfigure --enable-claude --enable-gemini --enable-codex"
     fi
 else
-    echo -e "  ${RED}✗${NC} services.yml not found"
+    echo -e "  ${YELLOW}○${NC} services.yml not found"
     echo -e "  ${BLUE}→${NC} Run: ./bootstrap.sh"
 fi
 
