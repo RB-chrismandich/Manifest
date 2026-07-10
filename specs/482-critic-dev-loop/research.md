@@ -220,7 +220,7 @@ testing conventions).
   chars), measured at deployed size. `cddl_loop.py` ships `--help` (≤15 lines, exit 0)
   and an `err()` stderr helper per script conventions (specs/003 R6/R7).
 - **Alternatives considered**: name `spec-loop-dev` (rejected: verb must be second
-  token); `speckit-loop-dev` + `.claude/skills/` placement (rejected in spec
+  token); `speckit-loop-dev` + project-local skills-dir placement (rejected in spec
   Assumptions: dual-workflow skills use `spec-`, source of truth is `.skillshare/`).
 
 ## D13 — Test strategy (Constitution VI Verify gate)
