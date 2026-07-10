@@ -72,6 +72,10 @@ peak memory usage to skyrocket.
 than simply checking the first character (`line[0]`). Testing on a file with millions of noise lines
 showed `line[0] != '{'` is over 1000x faster than `.isspace()` because it avoids all string
 iteration/allocation.
-**Action:** When implementing fast-path checks for JSON, prioritize a strict `line[0]` character check
-and accept that lines with leading whitespace will fall back to the `json.loads` exception path, rather
-than trying to elegantly handle whitespace and degrading performance for the common case.
+**Action:** When implementing fast-path checks for JSON, lead with the cheap `line[0] != '{'` character
+check as a short-circuit so the common (unpadded) case never pays for whitespace handling, then fall back
+to `line.lstrip()[:1] != '{'` only for the lines that fail that first check (`line[0] != '{' and
+line.lstrip()[:1] != '{'`). This keeps whitespace-padded valid JSON — which `lstrip` still recognizes —
+instead of dropping it to the `json.loads` exception path, while the `line[0]` guard keeps the hot path
+fast because `lstrip` runs only on the rare non-`{`-leading lines. Keep the `lstrip` clause: it is what
+preserves padded JSON, and the guard already spares the common case its cost.
