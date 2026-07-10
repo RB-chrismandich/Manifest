@@ -79,11 +79,11 @@ jobs:
                 pull_number: context.payload.issue.number,
               });
               const head = pr.data.head.ref;
-              // Defense-in-depth: jules-action templates starting_branch into a
-              // shell line (jq --arg starting_branch ...). A fork PR's head ref is
-              // attacker-controlled and git refs allow shell metacharacters
-              // ($ backtick ; | ( )), so reject anything outside a strict
-              // allowlist instead of passing it through.
+              // Defense-in-depth: the branch name reaches the invoke step's
+              // shell (via env) and the actions/checkout ref. A fork PR's head
+              // ref is attacker-controlled and git refs allow shell
+              // metacharacters ($ backtick ; | ( )), so reject anything
+              // outside a strict allowlist instead of passing it through.
               if (!/^[A-Za-z0-9._\/-]+$/.test(head)) {
                 core.setFailed(`Refusing unsafe branch name: ${head}`);
                 return;
@@ -92,14 +92,65 @@ jobs:
             }
             core.setOutput('ref', ref);
 
-      - name: Invoke Jules
-        uses: google-labs-code/jules-action@bff7875eaa123cac6742b7cfc51005b95ba4d566  # v1.0.0
+      - name: Check out the start branch for prompt context
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6
         with:
-          # Raw comment body; jules-action declares this input type:string and does
-          # not re-evaluate it. Quoted to signal it is a deliberate string input.
-          prompt: "${{ github.event.comment.body }}"
-          jules_api_key: ${{ secrets.JULES_API_KEY }}
-          starting_branch: ${{ steps.branch.outputs.ref }}
+          ref: ${{ steps.branch.outputs.ref }}
+          fetch-depth: 30
+
+      - name: Invoke Jules
+        # Inline replacement for google-labs-code/jules-action@bff7875 (v1.0.0),
+        # retired for three bugs: (1) its internal ref-less checkout grabbed the
+        # DEFAULT branch on issue_comment events, so the prompt context came from
+        # main, not the PR under review; (2) its include_last_commit /
+        # include_commit_log toggles are string-truthy no-ops ("false" is truthy
+        # in composite `if:`), so the full-patch `git show` could not be turned
+        # off; (3) it passed the prompt as ONE jq --arg argv element, which hits
+        # E2BIG once a commit exceeds the 128KB kernel per-arg cap (main's tip
+        # did — run 29124735254). The prompt now travels via jq --rawfile
+        # (ARG_MAX-safe) with bounded, branch-correct context, and untrusted
+        # values reach the shell only through env (never templated into code).
+        env:
+          COMMENT_BODY: ${{ github.event.comment.body }}
+          STARTING_BRANCH: ${{ steps.branch.outputs.ref }}
+          JULES_API_KEY: ${{ secrets.JULES_API_KEY }}
+          REPO_FULL_NAME: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '%s\n' "$COMMENT_BODY" > prompt.txt
+          {
+            printf '\n\nBranch: %s\n\nRecent commits (oneline):\n```\n' "$STARTING_BRANCH"
+            git log --oneline -20
+            printf '```\n\nLatest commit (message + diffstat):\n```\n'
+            git show --stat
+            printf '```\n'
+          } >> prompt.txt
+          # shellcheck disable=SC2016  # $jules_prompt etc. are jq variables, not shell
+          jq -n --rawfile jules_prompt prompt.txt \
+            --arg starting_branch "$STARTING_BRANCH" \
+            --arg repo_full_name "$REPO_FULL_NAME" '{
+              prompt: $jules_prompt,
+              sourceContext: {
+                source: "sources/github/\($repo_full_name)",
+                githubRepoContext: { startingBranch: $starting_branch }
+              },
+              requirePlanApproval: false,
+              automationMode: "AUTO_CREATE_PR"
+            }' > jules_payload.json
+          http_code=$(curl -sS -o jules_response.json -w '%{http_code}' \
+            'https://jules.googleapis.com/v1alpha/sessions' \
+            -X POST \
+            -H 'Content-Type: application/json' \
+            -H "X-Goog-Api-Key: ${JULES_API_KEY}" \
+            -d @jules_payload.json)
+          if [ "${http_code}" -ge 300 ]; then
+            echo "Jules API returned HTTP ${http_code}:" >&2
+            cat jules_response.json >&2
+            exit 1
+          fi
+          # Echo the created session minus the (large) prompt for the run log.
+          jq -c 'del(.prompt)' jules_response.json
 
       - name: Report failure
         if: failure()
