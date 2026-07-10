@@ -1,6 +1,6 @@
 ---
 name: data-validate-live
-description: Validate data-ingestion, parsing, ETL, or API-integration code against real/live data — smoke pass, pre-merge gate, or post-unit-test. Surfaces fixture-blind bugs (free-text numerics, dedup-key collisions, casing/format mismatches, falsy-zero) that synthetic fixtures hide.
+description: Validate data-ingestion, parsing, ETL, or API-integration code against real/live data — smoke pass, pre-merge gate, or post-unit-test. Surfaces fixture-blind bugs (free-text numerics, dedup-key collisions, falsy-zero) that fixtures hide.
 ---
 # Live-Data Validation
 

@@ -1,9 +1,6 @@
 ---
 name: token-conserve
-description: |
-  Switch the current session into terse, surgical, clarify-first mode to cut
-  token usage. Invoke when responses are verbose, during long refactors, or to
-  conserve budget. Opt-in session mutator — re-invoke if it wears off.
+description: Switch the current session into terse, surgical, clarify-first mode to cut token usage. Invoke when responses are verbose, during long refactors, or to conserve budget. Opt-in session mutator — re-invoke if it wears off.
 ---
 
 # Token Economy Mode

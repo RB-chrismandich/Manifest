@@ -1,8 +1,6 @@
 ---
 name: docs-improve-readme
-description: |
-  Analyze and improve repository README documentation using code-derived facts,
-  clear structure, and practical onboarding guidance.
+description: Analyze and improve repository README documentation using code-derived facts, clear structure, and practical onboarding guidance.
 ---
 
 # README Improvement Command

@@ -1,8 +1,6 @@
 ---
 name: node-refactor
-description: |
-  Perform security, architecture, and quality analysis for Node.js/TypeScript codebases
-  and return a prioritized, actionable refactoring roadmap.
+description: Perform security, architecture, and quality analysis for Node.js/TypeScript codebases and return a prioritized, actionable refactoring roadmap.
 ---
 
 # Node.js/TypeScript Codebase Refactor Analysis

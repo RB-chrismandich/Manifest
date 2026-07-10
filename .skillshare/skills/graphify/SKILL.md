@@ -1,9 +1,6 @@
 ---
 name: graphify
-description: |
-  Map a codebase, docs, or GitHub repo into a queryable knowledge graph (graphify
-  CLI): graph.html, GRAPH_REPORT.md, graph.json. Use to understand large or
-  unfamiliar code, or answer "what connects X to Y?".
+description: "Map a codebase, docs, or GitHub repo into a queryable knowledge graph (graphify CLI): graph.html, GRAPH_REPORT.md, graph.json. Use to understand large or unfamiliar code, or answer \"what connects X to Y?\"."
 ---
 
 # Graphify Skill

@@ -162,6 +162,65 @@ EOF
     fi
 }
 
+@test "inline description with embedded escaped quotes is YAML-unescaped, then re-escaped exactly once" {
+    # Regression: the inline path stripped the outer quotes of a
+    # double-quoted description but never unescaped \" -> ", so a SKILL.md
+    # description of "... \"phrase one\" ..." left $description holding the
+    # literal `\"`. The emit step then re-escaped that into `\\\"`
+    # (double-escaped) in the frontmatter, and the plain-markdown body kept
+    # the stray backslash (`\"phrase one\"`) instead of a plain quote.
+    make_skill quoted-inline '"Do the thing. Use for \"phrase one\", \"phrase two\"."'
+
+    run "$GEN"
+    assert_success
+
+    local mdc="$RULES_DIR/quoted-inline.mdc"
+
+    # Frontmatter: exactly one backslash before each quote (valid YAML).
+    run grep -F 'description: "Do the thing. Use for \"phrase one\", \"phrase two\"."' "$mdc"
+    assert_success
+    # Not double-escaped (the bug produced \\\" — three backslashes then a
+    # quote — before "phrase one").
+    run grep -F '\\\"phrase one\\\"' "$mdc"
+    assert_failure
+
+    # Body (plain markdown, where generate_cursor_rules.sh emits the
+    # ${description} body substitution): real quotes, no
+    # backslash. Extract the body line exactly rather than grepping the
+    # whole file — the correctly single-escaped frontmatter line legitimately
+    # contains the same `\"phrase one\"` substring, so a whole-file negative
+    # grep for it would false-fail here.
+    body_line=$(awk '/^# quoted-inline$/{getline; getline; print; exit}' "$mdc")
+    assert_equal "$body_line" 'Do the thing. Use for "phrase one", "phrase two".'
+}
+
+@test "block scalar description with embedded quotes is unaffected by the inline-path fix" {
+    # Regression guard: block scalars carry no escapes, so the unescape added
+    # to the inline path must not touch this path. A literal " in a block
+    # scalar body should still come through as one real quote (not stripped,
+    # not escaped) and be re-escaped exactly once in the frontmatter.
+    mkdir -p "$SKILLS_DIR/blocky-quoted"
+    cat > "$SKILLS_DIR/blocky-quoted/SKILL.md" <<'EOF'
+---
+name: blocky-quoted
+description: |
+  First line with "a quoted phrase" inside.
+  Second line continues.
+---
+
+# blocky-quoted
+EOF
+
+    run "$GEN"
+    assert_success
+
+    local mdc="$RULES_DIR/blocky-quoted.mdc"
+    run grep -F 'description: "First line with \"a quoted phrase\" inside. Second line continues."' "$mdc"
+    assert_success
+    run grep -F 'First line with "a quoted phrase" inside. Second line continues.' "$mdc"
+    assert_success
+}
+
 @test "missing description falls back to '<name> skill'" {
     # Regression: under `set -euo pipefail`, a SKILL.md with no `description:`
     # line made the grep pipelines exit 1 and aborted the script with no output,

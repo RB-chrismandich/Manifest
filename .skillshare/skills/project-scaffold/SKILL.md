@@ -1,8 +1,6 @@
 ---
 name: project-scaffold
-description: |
-  Initialize new projects with language-specific quality gates, linting configs,
-  test frameworks, CI/CD templates, and Manifest integration.
+description: Initialize new projects with language-specific quality gates, linting configs, test frameworks, CI/CD templates, and Manifest integration.
 ---
 
 # Project Scaffold Skill

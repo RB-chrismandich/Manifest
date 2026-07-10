@@ -1,8 +1,6 @@
 ---
 name: issue-triage
-description: |
-  Comprehensive Linear issue audit: validate prioritization, identify duplicates
-  and overlapping issues, detect stale/obsolete issues, produce clean actionable backlog
+description: "Comprehensive Linear issue audit: validate prioritization, identify duplicates and overlapping issues, detect stale/obsolete issues, produce clean actionable backlog"
 ---
 
 # Linear Issue Triage Skill

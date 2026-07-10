@@ -1,8 +1,6 @@
 ---
 name: config-audit
-description: |
-  Verify cross-platform configuration consistency, check symlink integrity,
-  and detect config drift between Claude, Cursor, Gemini, and Codex platforms.
+description: Verify cross-platform configuration consistency, check symlink integrity, and detect config drift between Claude, Cursor, Gemini, and Codex platforms.
 ---
 
 # Sync Configs Skill

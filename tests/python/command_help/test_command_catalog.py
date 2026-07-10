@@ -179,6 +179,27 @@ def test_empty_description_is_error(env):
 
 
 # --------------------------------------------------------------------------- #
+# frontmatter parsing — double-quoted YAML unescaping (_strip_quotes)
+# --------------------------------------------------------------------------- #
+def test_double_quoted_description_unescapes_inner_quotes(env):
+    # Mirrors the inline double-quoted style the front-matter efficiency pass
+    # used for descriptions with embedded trigger phrases (e.g. pr-monitor).
+    # The raw frontmatter line is:
+    #   description: "Use when \"trigger phrase\" appears: react."
+    write_skill(
+        env["skills"],
+        "quoted-skill",
+        {
+            "name": "quoted-skill",
+            "description": r'"Use when \"trigger phrase\" appears: react."',
+        },
+    )
+    entry = next(c for c in build(env)["commands"] if c["name"] == "quoted-skill")
+    assert entry["description"] == 'Use when "trigger phrase" appears: react.'
+    assert "\\" not in entry["description"]
+
+
+# --------------------------------------------------------------------------- #
 # symlink-following (repo convention: skills may be reached via a symlinked dir)
 # --------------------------------------------------------------------------- #
 def test_symlinked_skill_dir_is_followed(env, tmp_path):

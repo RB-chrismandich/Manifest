@@ -1,8 +1,6 @@
 ---
 name: issue-prioritize
-description: |
-  Fetch open issues from GitHub, GitLab, or Linear, score them by impact/urgency/readiness/risk,
-  and recommend the top issues to address next. Analysis-only — no mutations.
+description: Fetch open issues from GitHub, GitLab, or Linear, score them by impact/urgency/readiness/risk, and recommend the top issues to address next. Analysis-only — no mutations.
 ---
 
 # Issue Prioritization Skill

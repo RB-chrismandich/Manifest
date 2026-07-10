@@ -1,10 +1,6 @@
 ---
 name: pr-monitor
-description: >-
-  Babysit a just-opened pull/merge request: watch CI to green, address GitHub
-  Copilot findings, and tag Google Jules (@google-labs-jules) then handle its
-  feedback. Use when a PR/MR was just opened, or for "monitor/babysit my PR",
-  "get the bots to review it", "tag jules", "address copilot comments".
+description: "Babysit a just-opened pull/merge request: watch CI to green, address GitHub Copilot findings, and tag Google Jules (@google-labs-jules) then handle its feedback. Use when a PR/MR is just opened: \"babysit my PR\", \"get the bots to review it\", \"tag jules\"."
 ---
 
 # Post-PR Review Monitor

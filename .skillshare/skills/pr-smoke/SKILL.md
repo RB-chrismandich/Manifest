@@ -1,10 +1,6 @@
 ---
 name: pr-smoke
-description: |
-  Full Manifest regression (CI mirror: shellcheck, yamllint, markdownlint, bats
-  + pytest) plus a deployed-env smoke pass, as a post-PR gate. Use right after a
-  PR opens or merges — "regression test the PR", "did the merge break anything",
-  "verify main is still green". Whole-repo verdict; prefer over verify or env-check.
+description: "Full Manifest regression (CI mirror: shellcheck, yamllint, bats, pytest) plus a deployed-env smoke pass — the post-PR gate. Use when a PR opens or merges: \"regression test the PR\", \"did the merge break anything\", \"verify main is still green\". Whole-repo verdict; prefer over verify or env-check."
 ---
 
 # PR Regression + Smoke

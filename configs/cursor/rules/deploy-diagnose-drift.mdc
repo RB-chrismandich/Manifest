@@ -1,12 +1,12 @@
 ---
-description: "Use when a deployed/live environment is missing expected state (symlinks, files, config) after bootstrap/deploy — incl. entries that only miss already-bootstrapped machines — to classify the gap (incomplete run, deployer bug, preserve-on-existing drop) and fix the source of truth."
+description: "Use when a deployed/live environment is missing expected state (symlinks, files, config) after bootstrap/deploy — even on already-bootstrapped machines — to classify the gap (incomplete run, deployer bug, preserve-on-existing drop) and fix the source of truth."
 globs: ".claude/skills/deploy-diagnose-drift/**"
 alwaysApply: false
 ---
 
 # deploy-diagnose-drift
 
-Use when a deployed/live environment is missing expected state (symlinks, files, config) after bootstrap/deploy — incl. entries that only miss already-bootstrapped machines — to classify the gap (incomplete run, deployer bug, preserve-on-existing drop) and fix the source of truth.
+Use when a deployed/live environment is missing expected state (symlinks, files, config) after bootstrap/deploy — even on already-bootstrapped machines — to classify the gap (incomplete run, deployer bug, preserve-on-existing drop) and fix the source of truth.
 
 <!-- Auto-generated from .claude/skills/deploy-diagnose-drift/SKILL.md -->
 <!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->

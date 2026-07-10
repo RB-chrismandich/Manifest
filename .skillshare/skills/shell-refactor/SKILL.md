@@ -1,8 +1,6 @@
 ---
 name: shell-refactor
-description: |
-  Perform security and quality analysis for Bash/Shell scripts and produce a
-  prioritized refactor plan with risk and effort guidance.
+description: Perform security and quality analysis for Bash/Shell scripts and produce a prioritized refactor plan with risk and effort guidance.
 ---
 
 # Shell Script Refactor Analysis

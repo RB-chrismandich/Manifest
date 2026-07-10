@@ -1,6 +1,6 @@
 ---
 name: shell-audit-errexit
-description: Use when a bash script under `set -e`/`set -euo pipefail` aborts in production but passes tests — audit helpers and sourced libs for non-`$()` control-flow triggers (trailing `&&`, stdin-drain, SIGPIPE, `((i++))`-returns-1). Complements shell-audit-pipefail.
+description: Use when a bash script under `set -euo pipefail` aborts in production but passes tests — audit helpers and sourced libs for non-`$()` control-flow triggers (trailing `&&`, stdin-drain, SIGPIPE, `((i++))`). Complements shell-audit-pipefail.
 ---
 # Audit Shell Helpers for Production-Only Aborts Tests Miss
 

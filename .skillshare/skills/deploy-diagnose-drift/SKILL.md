@@ -1,10 +1,6 @@
 ---
 name: deploy-diagnose-drift
-description: >-
-  Use when a deployed/live environment is missing expected state (symlinks, files,
-  config) after bootstrap/deploy — incl. entries that only miss already-bootstrapped
-  machines — to classify the gap (incomplete run, deployer bug, preserve-on-existing
-  drop) and fix the source of truth.
+description: Use when a deployed/live environment is missing expected state (symlinks, files, config) after bootstrap/deploy — even on already-bootstrapped machines — to classify the gap (incomplete run, deployer bug, preserve-on-existing drop) and fix the source of truth.
 ---
 # Root-Cause Deploy Drift, Don't Just Backfill
 

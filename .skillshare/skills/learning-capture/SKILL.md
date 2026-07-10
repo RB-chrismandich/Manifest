@@ -1,9 +1,6 @@
 ---
 name: learning-capture
-description: |
-  Capture structured lessons learned after major tasks. Categories: pattern,
-  antipattern, tool discovery, configuration insight. Stores in
-  ~/.claude/config/knowledge_base.yml and queries existing learnings.
+description: "Capture structured lessons learned after major tasks. Categories: pattern, antipattern, tool discovery, configuration insight. Stores in ~/.claude/config/knowledge_base.yml and queries existing learnings."
 ---
 
 # Learning Loop Skill

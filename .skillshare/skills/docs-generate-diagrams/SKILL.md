@@ -1,8 +1,6 @@
 ---
 name: docs-generate-diagrams
-description: |
-  Generate and maintain Mermaid architecture diagrams that reflect current
-  system structure, workflows, and integrations.
+description: Generate and maintain Mermaid architecture diagrams that reflect current system structure, workflows, and integrations.
 ---
 
 # Generate Architecture Diagrams

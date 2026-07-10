@@ -35,6 +35,24 @@ Rules:
 5. Language domains are first-position purposes: `python-refactor`, `go-refactor` —
    never `refactor-python` or `code-refactor-go`.
 
+## Front-Matter Style
+
+The `description:` is always-loaded triggering text (injected every session) and
+is byte-counted by `tests/bats/context_budget.bats`. Keep it efficient:
+
+- **Inline single-line.** No `|` (literal) or `>` (folded) block scalars — their
+  indentation is pure byte overhead in always-loaded context.
+- **Quote when needed.** Double-quote the value if it contains a colon followed
+  by a space, or begins with a YAML indicator (`- ? : [ ] { } # & * ! | > ' " % @`)
+  or a backtick. Escape embedded double quotes as `\"`.
+- **~290-char soft norm.** Not a hard cap (the only hard gate is the total-bytes
+  budget), but stay near it. If a genuinely-new skill pushes the total over the
+  cap, do a set-wide trim before raising the budget.
+- **Never trim away** security keywords, negative-space cross-references
+  ("Analysis-only; use `X` instead"), the name-match cue, or the primary
+  "use when" phrase — these are what make the skill trigger correctly and
+  keep siblings from firing.
+
 ## Domain Vocabulary
 
 The first token(s) of every skill name must appear in this list. The conformance test

@@ -1,6 +1,6 @@
 ---
 name: ci-harden-workflow
-description: Build or harden a CI workflow that runs privileged actions (deploys, bot/agent invocation, secret use) on comment/PR triggers — identity gates, CODEOWNERS, branch protection, environments. Counterpart to ci-audit-triggers (which audits; this builds/governs).
+description: Build or harden a CI workflow running privileged actions (deploys, bot/agent invocation, secret use) on comment/PR triggers — identity gates, CODEOWNERS, branch protection, environments. Counterpart to ci-audit-triggers, which audits.
 ---
 # Secure a Privileged Comment-/Event-Triggered Workflow
 

@@ -1,6 +1,6 @@
 ---
 name: ci-audit-triggers
-description: Audit a GitHub Actions / GitLab CI workflow on attacker-influenceable triggers (pull_request_target, issue_comment, workflow_run) — finds pwn-request issues (fork head-ref checkout, ${{ }} injection, author_association gaps). Analysis-only; to harden one, use ci-harden-workflow.
+description: "Audit a GitHub Actions/GitLab CI workflow for attacker-influenceable triggers (pull_request_target, issue_comment, workflow_run) — pwn-request issues: fork head-ref checkout, ${{ }} injection, author_association gaps. Analysis-only; harden via ci-harden-workflow."
 ---
 # Security-Review a CI Workflow on Untrusted Triggers
 

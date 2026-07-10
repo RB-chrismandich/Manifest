@@ -1,10 +1,6 @@
 ---
 name: deploy-reconcile
-description: >-
-  Review what Manifest deployed into the assistant homes (~/.claude + mirrors)
-  versus what the project would deploy, listing orphaned deployed items KEEP or
-  REMOVE. Preview by default; opt-in removal is recoverable (timestamped backup,
-  never hard-delete).
+description: Review what Manifest deployed into the assistant homes (~/.claude + mirrors) versus what the project would deploy, listing orphaned deployed items KEEP or REMOVE. Preview by default; opt-in removal is recoverable (timestamped backup, never hard-delete).
 ---
 
 # Deploy Reconciliation Review

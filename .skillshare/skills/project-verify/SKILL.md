@@ -1,9 +1,6 @@
 ---
 name: project-verify
-description: |
-  Run linters, unit tests, and security scans in parallel for a target project.
-  Auto-detects language from project files and runs the appropriate tool chain.
-  Produces a unified quality report with pass/warn/fail per category.
+description: Run linters, unit tests, and security scans in parallel for a target project. Auto-detects language from project files and runs the appropriate tool chain. Produces a unified quality report with pass/warn/fail per category.
 ---
 
 # Verify Skill
