@@ -242,14 +242,9 @@ approaches), review stale plans, or archive/abandon completed work.
 <!-- SPECKIT START -->
 ## Active Spec Kit Feature
 
-- **`482-critic-dev-loop`** — Critic-Driven Development Loop (CDDL): re-entrant
-  two-phase loop (clarification gate → implement/verify/critique) over speckit or
-  superpowers artifacts; roles in `configs/claude/prompts/cddl/`, orchestrator
-  `configs/claude/scripts/cddl_loop.py` + `cddl/`, skill `/spec-implement-loop`. Plan:
-  [specs/482-critic-dev-loop/plan.md](specs/482-critic-dev-loop/plan.md)
-  (spec, research, data-model, contracts, quickstart, tasks alongside; cross-reference
-  spec-review converged 2026-07-10; analyze 0-critical; implemented 2026-07-10 —
-  42/42 tasks, pytest + bats + Lite smoke green; technical spec-review converged
-  after 6 panel rounds — 14 review-driven fixes logged in the spec's
-  Clarifications). Next: commit + PR (`/speckit-git-commit` or `/git-commit`).
+- None — **`482-critic-dev-loop`** (Critic-Driven Development Loop, skill
+  `/spec-implement-loop`) SHIPPED 2026-07-10 via PR #543 (+ Jules-trigger infra
+  fix PR #544). Full lifecycle record:
+  [specs/482-critic-dev-loop/](specs/482-critic-dev-loop/). Start the next
+  feature with `/speckit-specify`.
 <!-- SPECKIT END -->
