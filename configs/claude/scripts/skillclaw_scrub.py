@@ -71,9 +71,8 @@ def main(argv: list[str]) -> int:
     changed = 0
     for f in _iter_session_files(root):
         if args.check:
-            if redact_text(
-                f.read_text(encoding="utf-8", errors="replace")
-            ) != f.read_text(encoding="utf-8", errors="replace"):
+            content = f.read_text(encoding="utf-8", errors="replace")
+            if redact_text(content) != content:
                 print(f"secret found in {f}", file=sys.stderr)
                 leaked = True
         else:

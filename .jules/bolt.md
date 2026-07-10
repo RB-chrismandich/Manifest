@@ -79,3 +79,12 @@ line.lstrip()[:1] != '{'`). This keeps whitespace-padded valid JSON — which `l
 instead of dropping it to the `json.loads` exception path, while the `line[0]` guard keeps the hot path
 fast because `lstrip` runs only on the rare non-`{`-leading lines. Keep the `lstrip` clause: it is what
 preserves padded JSON, and the guard already spares the common case its cost.
+
+## 2026-06-25 - Double File Reads in Hot Paths
+
+**Learning:** Calling `Path.read_text()` twice on the same file in a tight loop or check branch (e.g.,
+`if func(f.read_text()) != f.read_text():`) is a significant performance bottleneck. It causes the entire file
+to be read from disk, decoded, and allocated in memory twice per file.
+
+**Action:** Read the file content once into a local variable (`content = f.read_text()`) and use that variable
+for both the transformation and the equality check.
