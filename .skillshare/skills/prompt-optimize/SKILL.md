@@ -1,7 +1,7 @@
 ---
 name: prompt-optimize
 description: |
-  Automated Meta-Prompt Optimization Engine. Ingests unoptimized input prompts and outputs a structurally pristine, hardened, production-ready system skill template. Eliminates all conversational preamble, metadata explanations, and post-generation fluff.
+  Use when a user asks to create, optimize, refactor, or harden a prompt into a structurally pristine, hardened, production-ready system skill template. An automated meta-prompt optimization engine that ingests unoptimized input prompts and eliminates all conversational preamble, metadata explanations, and post-generation fluff.
 ---
 
 # Role: Automated Meta-Prompt Optimization Engine (Jules Target)
