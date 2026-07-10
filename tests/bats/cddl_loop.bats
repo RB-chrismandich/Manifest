@@ -46,7 +46,7 @@ STUB
     # Fixture target repo: speckit layout, clean tree, feature branch.
     TEST_REPO="$TEST_TMP/repo"
     mkdir -p "$TEST_REPO/specs/001-fixture"
-    git init -q "$TEST_REPO"
+    git init -q -b main "$TEST_REPO"
     git -C "$TEST_REPO" config user.email cddl@test
     git -C "$TEST_REPO" config user.name cddl-test
     printf '# Spec\nGreet the user.\n' > "$TEST_REPO/specs/001-fixture/spec.md"
@@ -178,7 +178,7 @@ STUB
 @test "superpowers layout runs identically" {
     SP_REPO="$TEST_TMP/sp-repo"
     mkdir -p "$SP_REPO/docs/superpowers/specs" "$SP_REPO/docs/superpowers/plans"
-    git init -q "$SP_REPO"
+    git init -q -b main "$SP_REPO"
     git -C "$SP_REPO" config user.email cddl@test
     git -C "$SP_REPO" config user.name cddl-test
     printf '# Design\nGreet the user.\n' > "$SP_REPO/docs/superpowers/specs/2026-fixture-design.md"
