@@ -28,3 +28,8 @@ Findings print as a tree of `CLARIFICATION REQUIRED` blocks, or
 `✓ No inconsistencies found.` Requires `parallel_agent.py` plus at least one
 non-Claude agent CLI; it falls back to a single `agy` review when the panel is
 unavailable. This skill is analysis-only; apply the recommendations yourself.
+
+Layout detection (speckit `spec/plan/tasks` vs superpowers `design + plan`, with
+tasks embedded in the plan) follows `configs/claude/references/spec-artifact-discovery.md`
+— the same contract `spec-audit-tasks` and `spec-decide-tradeoffs` use — and is
+implemented by the script's `resolve_artifacts`/`discover_artifacts` seam.

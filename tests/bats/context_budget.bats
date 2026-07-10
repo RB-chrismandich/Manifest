@@ -76,7 +76,7 @@ assert_budget() {
     # niche candidates and folding errexit-safe-shell-counters into shell-sete.
     # Headroom is now thin (~200) — the next addition needs a set-wide trim pass.
     # Raised 21500 -> 22300 (2026-06-21) for two genuinely-new skills (#361):
-    # issue-prep-auto + speckit-audit-tasks. Both were trimmed from
+    # issue-prep-auto + speckit-audit-tasks (since renamed spec-audit-tasks). Both were trimmed from
     # 717/595 -> 498/398 chars toward the ~290 norm first; the residual still
     # exceeded 21500, and the descriptions are the always-loaded triggering text
     # with no read-on-demand alternative. Headroom was ~160 — a set-wide trim

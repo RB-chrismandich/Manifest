@@ -1,0 +1,29 @@
+{
+  "skill_name": "spec-audit-tasks",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I just ran /speckit-implement on the 361-auto-dev-merge-loop feature and every task is checked off. Confirm everything actually got done.",
+      "expected_output": "Detects the speckit layout (resolves tasks.md via check-prerequisites.sh); per-task table verifying each task against real evidence (files exist, tests pass, no stubs); verdict ALL VERIFIED or GAPS FOUND with a punch list; analysis-only (no edits).",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "Review the implementation — task T012 is marked done but I don't think the test was actually written.",
+      "expected_output": "Flags T012 as INCOMPLETE with the missing-test evidence; runs /project-verify or the specific test; lists T012 on the punch list; does not modify the task list.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "Did we cover every requirement in the spec? Some FRs might not have tasks.",
+      "expected_output": "Coverage cross-check between the spec FRs and the task list; reports orphan requirements (FRs with no task) and orphan tasks (no requirement); verdict reflects any gaps.",
+      "files": []
+    },
+    {
+      "id": 4,
+      "prompt": "This is a superpowers project (no .specify/, tasks live in docs/superpowers/plans/). We finished executing the plan — audit that every task in the plan actually got done.",
+      "expected_output": "Detects the superpowers layout: parses the embedded task list from the newest docs/superpowers/plans/*.md and cross-references the newest *-design.md; does NOT report a missing tasks.md; per-task evidence table + verdict + punch list; analysis-only.",
+      "files": []
+    }
+  ]
+}

@@ -47,9 +47,6 @@ Default MCP/tool routing — use the matching tool when the task domain matches:
 # Basic code review with JSON output (all 5 agents, 10 min timeout)
 ~/.claude/scripts/parallel_agent.py --json --timeout 600 --review /absolute/path/to/file
 
-# Generic prompt to all agents
-~/.claude/scripts/parallel_agent.py --json "Your question here"
-
 # Full analysis with validation and model selection (15 min timeout)
 ~/.claude/scripts/parallel_agent.py --json --full-output --validate --timeout 900 --cursor-model advanced --claude-model opus --analyze /absolute/path/to/file
 ```
@@ -64,6 +61,8 @@ Read on demand (NOT auto-loaded). You MUST read the reference before related tas
 - `~/.claude/references/layout.md` — Read when modifying config trees or mapping file locations.
 - `~/.claude/references/sub-agent-dispatch.md` — Read before a skill dispatches sub-agents: native Task vs
   `parallel_agent.py`, when-to-dispatch threshold, cross-platform fallback.
+- `~/.claude/references/spec-artifact-discovery.md` — Read before a spec-* skill reads
+  planning artifacts: speckit vs superpowers layout detection + precedence.
 - `~/.claude/references/antipatterns.md` — Read before writing or refactoring code:
   guardrail registry (detection cues + prevention rules).
 
@@ -89,17 +88,11 @@ Registry: `~/.claude/config/knowledge_base.yml`; `/ai-code-audit` = full audit.
 
 ### CONSIDER Parallel Agents For
 
-- Complex refactoring with multiple affected files
-- New feature implementation
-- Performance optimization
-- Debugging difficult issues
+Complex multi-file refactoring, new feature implementation, performance optimization, debugging difficult issues.
 
 ### SKIP Parallel Agents For
 
-- Typo fixes, comments, formatting
-- Single-line changes
-- Documentation updates
-- Simple variable renames
+Typo/comment/formatting fixes, single-line changes, documentation updates, simple variable renames.
 
 ---
 
