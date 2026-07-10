@@ -139,6 +139,50 @@ def test_parse_transcript_returns_none_when_no_turns(tmp_path):
     assert ing.parse_transcript(f) is None
 
 
+def test_parse_transcript_skips_plaintext_noise_line(tmp_path):
+    # A plain-text noise line that does NOT start with "{" is skipped by the
+    # fast-path prefix check (line[0] != "{" and line.lstrip()[:1] != "{")
+    # before json.loads is ever attempted. Raw-write so the leading char is
+    # non-JSON (the _write_jsonl helper would only emit compact JSON).
+    f = tmp_path / "sess-noise.jsonl"
+    f.write_text(
+        "this is not json at all\n"
+        + json.dumps(
+            {
+                "type": "user",
+                "sessionId": "sess-noise",
+                "message": {"role": "user", "content": "hi"},
+            }
+        )
+        + "\n"
+    )
+    rec = ing.parse_transcript(f)
+    assert rec["session_id"] == "sess-noise"
+    assert len(rec["turns"]) == 1
+    assert rec["turns"][0]["blocks"] == [{"kind": "text", "text": "hi"}]
+
+
+def test_parse_transcript_keeps_whitespace_padded_json(tmp_path):
+    # A valid JSON line with leading whitespace must STILL be parsed: line[0]
+    # ("{") fails the first check, but the line.lstrip()[:1] fallback keeps it
+    # instead of dropping it to the json.loads exception path. Raw-write to
+    # preserve the leading whitespace.
+    f = tmp_path / "sess-pad.jsonl"
+    padded = "   " + json.dumps(
+        {
+            "type": "user",
+            "sessionId": "sess-pad",
+            "message": {"role": "user", "content": "padded"},
+        }
+    )
+    f.write_text(padded + "\n")
+    rec = ing.parse_transcript(f)
+    assert rec is not None
+    assert rec["session_id"] == "sess-pad"
+    assert len(rec["turns"]) == 1
+    assert rec["turns"][0]["blocks"] == [{"kind": "text", "text": "padded"}]
+
+
 def test_within_window():
     now = 1_000_000.0
     day = 86400
