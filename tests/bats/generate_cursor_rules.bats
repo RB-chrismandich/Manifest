@@ -184,7 +184,8 @@ EOF
     run grep -F '\\\"phrase one\\\"' "$mdc"
     assert_failure
 
-    # Body (plain markdown, line 86 of the generator): real quotes, no
+    # Body (plain markdown, where generate_cursor_rules.sh emits the
+    # ${description} body substitution): real quotes, no
     # backslash. Extract the body line exactly rather than grepping the
     # whole file — the correctly single-escaped frontmatter line legitimately
     # contains the same `\"phrase one\"` substring, so a whole-file negative
