@@ -142,6 +142,15 @@ services:
     command: graphify
     description: "Knowledge-graph generator (/graphify); host-agent backend, no key required"
 
+  # pilotfish - cost-tiered role-agents (~/.claude/agents/) + delegation policy reference.
+  # Opt-in, config-only, Claude-only. Enabling deploys six role-agents (scout, Explore,
+  # mech-executor, executor, verifier, security-executor) that bind to Claude Code's built-in
+  # model aliases (haiku/sonnet/opus) plus a read-on-demand delegation policy; disabling removes
+  # exactly those. Does not change the main-session model. Toggle: --enable-pilotfish.
+  pilotfish:
+    enabled: false           # opt-in; --enable-pilotfish to turn on
+    description: "Cost-tiered role-agents + delegation policy, verifier-gated (opt-in, Claude-only)"
+
   # Git CLI tools - Platform-specific Git hosting integrations
   git_cli:
     github:
