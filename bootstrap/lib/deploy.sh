@@ -1007,6 +1007,34 @@ verify_installation() {
     return $errors
 }
 
+# Warn when a disabled service still has a previously deployed managed config
+# in its home target (#549). When a service is disabled, bootstrap skips
+# deploying its configs, so any earlier copy is left in place and silently
+# goes stale. Detection is presence-based (deployed copy exists while disabled),
+# not content/mtime analysis; this function is warning-only and never deletes,
+# moves, or modifies any file. Bash 3.2 compatible (no associative arrays).
+warn_stale_disabled_configs() {
+    # Each entry: <service>|<enabled-flag>|<deployed managed-config path>
+    local entries=(
+        "claude|${ENABLE_CLAUDE:-true}|$TARGET_DIR/CLAUDE.md"
+        "gemini|${ENABLE_GEMINI:-true}|$GEMINI_TARGET_DIR/GEMINI.md"
+        "cursor|${ENABLE_CURSOR:-true}|$CURSOR_TARGET_DIR/rules"
+        "codex|${ENABLE_CODEX:-true}|$CODEX_TARGET_DIR/AGENTS.md"
+        "antigravity|${ENABLE_ANTIGRAVITY:-true}|$ANTIGRAVITY_TARGET_DIR/config"
+    )
+    local entry service enabled path rest
+    for entry in "${entries[@]}"; do
+        service="${entry%%|*}"
+        rest="${entry#*|}"
+        enabled="${rest%%|*}"
+        path="${rest#*|}"
+        # -e follows symlinks; -L also catches a dangling deployed symlink.
+        if [[ "$enabled" != true ]] && { [[ -e "$path" ]] || [[ -L "$path" ]]; }; then
+            print_warning "$service disabled — deployed config left in place and will go stale: $path"
+        fi
+    done
+}
+
 # Print final summary
 print_summary() {
     print_header "Setup Complete"
@@ -1097,6 +1125,9 @@ print_summary() {
         echo -e "  ${YELLOW}○${NC} antigravity (disabled)"
     fi
     echo ""
+
+    # Flag any disabled service whose deployed config is still present (#549).
+    warn_stale_disabled_configs
 
     echo -e "${BOLD}Authentication Commands:${NC}"
     echo ""
