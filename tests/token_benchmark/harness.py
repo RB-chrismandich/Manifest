@@ -317,6 +317,7 @@ async def run_benchmark(
     compressed_prompts = {p: _read_system_prompt(compressed_dir, p) for p in providers}
 
     records = []
+    unsupported_warned: set[str] = set()
 
     for provider in providers:
         for prompt in BENCHMARKS:
@@ -406,6 +407,14 @@ async def run_benchmark(
                         # from a scored row — rather than invoking the CLI
                         # with a baseline/manifest prompt it cannot honor, or
                         # falsely labeling it as Claude (#546).
+                        if provider not in unsupported_warned:
+                            unsupported_warned.add(provider)
+                            print(
+                                f"  [{provider}][cli] unsupported: no "
+                                "system-prompt injection strategy; recording "
+                                "'unsupported' rows",
+                                flush=True,
+                            )
                         record = {
                             "run_id": run_id,
                             "provider": provider,

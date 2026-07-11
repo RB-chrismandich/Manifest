@@ -142,6 +142,14 @@ def compute_stats(records: list[dict]) -> dict:
         "run_ids": sorted({r["run_id"] for r in records}),
         "cost_summary": cost_summary,
         "unsupported_providers": sorted(unsupported_providers),
+        # (provider, category) cells whose most recent run recorded only
+        # "unsupported" rows (no system-prompt injection strategy — #546).
+        # Latest knowledge wins: newer scored/errored rows clear the marker,
+        # and the marker overrides older (pre-#546, contaminated) scores.
+        # Scoped per-cell (not per-provider like unsupported_providers above)
+        # because the Quality Scores table has a category axis: a stale
+        # provider-wide marker would mislabel every category forever.
+        "cli_unsupported": _latest_unsupported_cells(cli_recs),
     }
 
 
@@ -150,6 +158,20 @@ def _empty_cell(provider: str, unsupported: set[str]) -> str:
     provider has a verified-absent mechanism for this metric (recorded via
     the row-level `unsupported` flag), else `—` (never measured)."""
     return "unsupported" if provider in unsupported else "—"
+
+
+def _latest_unsupported_cells(cli_recs: list[dict]) -> list[tuple]:
+    """Return (provider, category) cells unsupported as of their latest run."""
+    by_cell = defaultdict(list)
+    for r in cli_recs:
+        by_cell[(r.get("provider"), r.get("category"))].append(r)
+    cells = []
+    for (provider, category), rows in by_cell.items():
+        latest_run = max(r["run_id"] for r in rows)
+        latest_rows = [r for r in rows if r["run_id"] == latest_run]
+        if all(r.get("unsupported") for r in latest_rows):
+            cells.append((provider, category))
+    return sorted(cells)
 
 
 def render_report(stats: dict, run_id: str) -> str:
@@ -161,10 +183,11 @@ def render_report(stats: dict, run_id: str) -> str:
         f"**Last run**: {run_id[:10]}",
         "**Prompts**: 20 (6 MMLU, 6 HumanEval, 4 HellaSwag, 4 TruthfulQA)",
         "",
-        "> **Legend**: `—` = never measured (no data collected for this cell) vs.",
-        "> `unsupported` = the provider has no verified system-prompt injection mechanism",
-        "> (see `PROVIDER_CLI_CONFIG` in `tests/token_benchmark/benchmarks.py`) and is",
-        "> recorded as such rather than invoked with a flag it cannot honor.",
+        "> **Legend**: `—` = no valid measurements (never run, or all attempts",
+        "> errored) vs. `unsupported` = the provider has no verified",
+        "> system-prompt injection mechanism (see `PROVIDER_CLI_CONFIG` in",
+        "> `tests/token_benchmark/benchmarks.py`) and is recorded as such",
+        "> rather than invoked with a flag it cannot honor.",
         "",
         "---",
         "",
@@ -213,19 +236,31 @@ def render_report(stats: dict, run_id: str) -> str:
         "| Provider | Category | Before | After | Delta |",
         "|----------|----------|--------|-------|-------|",
     ]
+    cli_unsupported = set(stats.get("cli_unsupported", []))
     for provider in PROVIDERS:
         cats = stats["quality"].get(provider, {})
         for category in ("mmlu", "humaneval", "hellaswag", "truthfulqa"):
             q = cats.get(category, {})
-            if q and q.get("before_total", 0) > 0:
+            # Unsupported (as of the latest run) takes precedence over any
+            # older scores — those predate the strategy table and are
+            # contaminated by flag-text leakage (#546).
+            if (provider, category) in cli_unsupported:
+                lines.append(
+                    f"| {provider} | {category} | unsupported | unsupported | — |"
+                )
+            elif q and q.get("before_total", 0) > 0:
                 b = f"{q['before_score']}/{q['before_total']}"
                 a = f"{q['after_score']}/{q['after_total']}"
                 delta = q["after_score"] - q["before_score"]
                 d = f"+{delta}" if delta > 0 else str(delta)
                 lines.append(f"| {provider} | {category} | {b} | {a} | {d} |")
             else:
-                cell = _empty_cell(provider, unsupported)
-                lines.append(f"| {provider} | {category} | {cell} | {cell} | {cell} |")
+                # Not unsupported as of the latest run and no quality data:
+                # render "never measured" directly rather than falling back
+                # to the provider-wide `unsupported` set — that set is
+                # history-wide (any row ever), which would re-mislabel a
+                # category whose cli_unsupported marker has since cleared.
+                lines.append(f"| {provider} | {category} | — | — | — |")
 
     # Historical Runs columns are driven by PROVIDERS (not a hard-coded
     # claude/gemini pair) so every provider — including agy, which is always

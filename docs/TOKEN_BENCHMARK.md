@@ -3,10 +3,11 @@
 **Last run**: 2026-07-10
 **Prompts**: 20 (6 MMLU, 6 HumanEval, 4 HellaSwag, 4 TruthfulQA)
 
-> **Legend**: `—` = never measured (no data collected for this cell) vs.
-> `unsupported` = the provider has no verified system-prompt injection mechanism
-> (see `PROVIDER_CLI_CONFIG` in `tests/token_benchmark/benchmarks.py`) and is
-> recorded as such rather than invoked with a flag it cannot honor.
+> **Legend**: `—` = no valid measurements (never run, or all attempts
+> errored) vs. `unsupported` = the provider has no verified
+> system-prompt injection mechanism (see `PROVIDER_CLI_CONFIG` in
+> `tests/token_benchmark/benchmarks.py`) and is recorded as such
+> rather than invoked with a flag it cannot honor.
 
 ---
 
