@@ -3,7 +3,10 @@
 **Last run**: 2026-06-13
 **Prompts**: 20 (6 MMLU, 6 HumanEval, 4 HellaSwag, 4 TruthfulQA)
 
-> **Legend**: `—` = never measured (no data collected for this cell) vs. `unsupported` = the provider has no verified system-prompt injection mechanism (see `PROVIDER_CLI_CONFIG` in `tests/token_benchmark/benchmarks.py`) and is recorded as such rather than invoked with a flag it cannot honor.
+> **Legend**: `—` = never measured (no data collected for this cell) vs.
+> `unsupported` = the provider has no verified system-prompt injection mechanism
+> (see `PROVIDER_CLI_CONFIG` in `tests/token_benchmark/benchmarks.py`) and is
+> recorded as such rather than invoked with a flag it cannot honor.
 
 ---
 
@@ -21,6 +24,7 @@
 |----------|-------------------|------------------|-------|
 | claude | 27 | 23 | -3 |
 | gemini | — | — | — |
+| antigravity | — | — | — |
 
 ## Quality Scores (CLI — correct / total)
 
@@ -41,7 +45,7 @@
 
 ## Historical Runs
 
-| Run ID | Claude Input Overhead | Gemini Input Overhead | Claude Quality | Gemini Quality |
-|--------|-----------------------|-----------------------|----------------|----------------|
-| 2026-06-13T06-58-25 | +1,718 | — | 18/20 | — |
-| 2026-06-13T08-02-10 | +1,718 | — | 18/20 | — |
+| Run ID | Claude Input Overhead | Gemini Input Overhead | Antigravity Input Overhead | Claude Quality | Gemini Quality | Antigravity Quality |
+|--------|-------------------|-------------------|-------------------|-------------------|-------------------|-------------------|
+| 2026-06-13T06-58-25 | +1,718 | — | — | 18/20 | — | — |
+| 2026-06-13T08-02-10 | +1,718 | — | — | 18/20 | — | — |

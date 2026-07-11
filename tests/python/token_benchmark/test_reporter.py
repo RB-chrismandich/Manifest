@@ -198,6 +198,94 @@ class TestUpdateReport:
         assert "Token Benchmark Report" in output.read_text()
 
 
+class TestConsistentProviderRendering:
+    """(#546/G11) Every table is driven by the same provider set — a provider
+    with only `unsupported` CLI rows must still get a row/column in every
+    table, rendered as `unsupported` rather than silently dropped."""
+
+    UNSUPPORTED_RECORDS = [
+        {
+            "run_id": "2026-07-11T00-00-00",
+            "provider": "antigravity",
+            "model": None,
+            "condition": cond,
+            "category": "mmlu",
+            "prompt_id": "mmlu_001",
+            "input_tokens": None,
+            "output_tokens": None,
+            "quality_score": None,
+            "response_text": None,
+            "source": "cli",
+            "error": None,
+            "unsupported": True,
+        }
+        for cond in ("before", "after")
+    ] + [
+        {
+            "run_id": "2026-07-11T00-00-00",
+            "provider": "gemini",
+            "model": None,
+            "condition": cond,
+            "category": "mmlu",
+            "prompt_id": "mmlu_001",
+            "input_tokens": None,
+            "output_tokens": None,
+            "quality_score": None,
+            "response_text": None,
+            "source": "cli",
+            "error": None,
+            "unsupported": True,
+        }
+        for cond in ("before", "after")
+    ]
+
+    def test_output_delta_table_renders_antigravity_as_unsupported(self):
+        stats = compute_stats(self.UNSUPPORTED_RECORDS)
+        md = render_report(stats, run_id="2026-07-11T00-00-00")
+        delta_section = md.split("## Output Token Delta")[1].split("##")[0]
+        assert "| antigravity | unsupported | unsupported | unsupported |" in delta_section
+        assert "| gemini | unsupported | unsupported | unsupported |" in delta_section
+
+    def test_historical_runs_table_includes_antigravity_column(self):
+        stats = compute_stats(self.UNSUPPORTED_RECORDS)
+        md = render_report(stats, run_id="2026-07-11T00-00-00")
+        historical_section = md.split("## Historical Runs")[1].split("##")[0]
+        assert "Antigravity Input Overhead" in historical_section
+        assert "Antigravity Quality" in historical_section
+        assert "unsupported" in historical_section
+
+    def test_never_measured_stays_dash_not_unsupported(self):
+        """A provider absent from every record (never run) still renders `—`,
+        not `unsupported` — the two states must stay distinguishable."""
+        stats = compute_stats(FIXTURE_RECORDS)  # claude-only fixture
+        md = render_report(stats, run_id="2026-06-12T10-00-00")
+        delta_section = md.split("## Output Token Delta")[1].split("##")[0]
+        assert "| gemini | — | — | — |" in delta_section
+        assert "| antigravity | — | — | — |" in delta_section
+
+    def test_compute_stats_defensively_gets_unsupported_key(self):
+        """Records from the API path (and older JSONL) never carry the
+        `unsupported` key at all; compute_stats must not KeyError on them."""
+        api_only_records = [
+            {
+                "run_id": "2026-07-11T00-00-00",
+                "provider": "claude",
+                "model": "claude-sonnet-4-6",
+                "condition": "before",
+                "category": "mmlu",
+                "prompt_id": "mmlu_001",
+                "input_tokens": 100,
+                "output_tokens": 5,
+                "quality_score": 1,
+                "source": "api",
+                "error": None,
+                # no "unsupported" key present
+            }
+        ]
+        stats = compute_stats(api_only_records)  # must not raise KeyError
+        assert stats["unsupported_providers"] == []
+
+
 class TestCostAnalysis:
     def _make_cost_records(self, run_id="2026-06-13T08-00-00"):
         """Minimal records covering before/after/cached/tiered/compressed."""

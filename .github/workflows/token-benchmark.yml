@@ -4,7 +4,10 @@ on:
   workflow_dispatch:
     inputs:
       providers:
-        description: "Comma-separated providers to benchmark (claude,gemini)"
+        description: >-
+          Comma-separated providers to benchmark. Only claude,gemini measure
+          tokens/cost; antigravity is quality-only (no token/cost data, no
+          system-prompt mechanism) — see docs/TOKEN_BENCHMARK.md legend.
         default: "claude"
         required: false
       mode:
