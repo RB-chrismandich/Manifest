@@ -3,11 +3,39 @@
   "permissions": {
     "allow": [
       "mcp__plugin_context7_context7__resolve-library-id",
-      "mcp__plugin_context7_context7__query-docs"
+      "mcp__plugin_context7_context7__query-docs",
+      "Task(Explore)",
+      "Task(Plan)",
+      "Task(claude-code-guide)"
     ],
     "defaultMode": "default"
   },
-  "model": "sonnet",
+  "model": "claude-fable-5[1m]",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Library/Frameworks/Python.framework/Versions/3.14/bin/python3.14-intel64 /Users/chrismandich/.claude/skills/ai-hooks-integration/scripts/runtime/unified_hook.py --handler /Users/chrismandich/.claude/skills/post-pr-review-monitor/scripts/pr_create_trigger.py --source claude"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/chrismandich/.claude/scripts/issue_support_hook.sh",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  },
   "enabledPlugins": {
     "remember@claude-plugins-official": true,
     "hookify@claude-plugins-official": true,
@@ -46,12 +74,16 @@
       }
     }
   },
-  "effortLevel": "high",
+  "effortLevel": "xhigh",
+  "tui": "fullscreen",
   "skipDangerousModePermissionPrompt": true,
+  "skipWorkflowUsageWarning": true,
   "theme": "auto",
   "editorMode": "normal",
   "preferredNotifChannel": "auto",
   "autoCompactEnabled": true,
+  "inputNeededNotifEnabled": true,
+  "agentPushNotifEnabled": true,
   "maxConcurrency": 8,
   "streamBufferMs": 10,
   "tier": "max"

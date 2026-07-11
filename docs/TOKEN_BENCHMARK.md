@@ -1,6 +1,6 @@
 # Token Benchmark Report
 
-**Last run**: 2026-06-13
+**Last run**: 2026-07-10
 **Prompts**: 20 (6 MMLU, 6 HumanEval, 4 HellaSwag, 4 TruthfulQA)
 
 > **Legend**: `—` = never measured (no data collected for this cell) vs.
@@ -30,10 +30,10 @@
 
 | Provider | Category | Before | After | Delta |
 |----------|----------|--------|-------|-------|
-| claude | mmlu | 6/6 | 6/6 | 0 |
-| claude | humaneval | 3/6 | 4/6 | +1 |
-| claude | hellaswag | 4/4 | 4/4 | 0 |
-| claude | truthfulqa | 4/4 | 4/4 | 0 |
+| claude | mmlu | 12/12 | 12/12 | 0 |
+| claude | humaneval | 6/12 | 8/12 | +2 |
+| claude | hellaswag | 8/8 | 8/8 | 0 |
+| claude | truthfulqa | 8/8 | 8/8 | 0 |
 | gemini | mmlu | — | — | — |
 | gemini | humaneval | — | — | — |
 | gemini | hellaswag | — | — | — |
@@ -49,3 +49,4 @@
 |--------|-------------------|-------------------|-------------------|-------------------|-------------------|-------------------|
 | 2026-06-13T06-58-25 | +1,718 | — | — | 18/20 | — | — |
 | 2026-06-13T08-02-10 | +1,718 | — | — | 18/20 | — | — |
+| 2026-07-10T21-26-52 | +1,718 | — | — | 36/40 | — | — |

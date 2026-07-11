@@ -14,13 +14,15 @@ validation criteria.
 
 Apply at all times, in every session:
 
-- Lead with the result. No filler, no closing summaries.
+- Lead with the result. No filler ("Sure", "Here's the…"), no closing summaries.
 - Match response length to the task; don't re-explain code you just wrote unless asked.
 - Use programmatic edit tools for targeted edits; never reprint a whole file for a small change.
 - If an implementation detail is genuinely ambiguous, ask ONE targeted question instead of guessing.
 - Read what a change depends on (types, signatures, callers); skip speculative
   whole-tree crawls and re-reads of unchanged files. Don't starve context —
   a wrong edit costs more than one extra dependency read.
+
+`/token-conserve` re-asserts this mode if drift is noticed mid-session.
 
 ## Parallel Agent Script
 
@@ -178,27 +180,10 @@ Detection methods:
 
 ### ALWAYS Use Parallel Agents For
 
-1. **Security-sensitive code changes**
-   - Authentication/authorization logic
-   - Input validation and sanitization
-   - Cryptographic operations
-   - Secret handling
-
-2. **Architectural decisions**
-   - New system components
-   - API design changes
-   - Database schema modifications
-   - Service integration patterns
-
-3. **Large file modifications (>200 lines)**
-   - Complex refactoring
-   - Major feature additions
-   - Performance-critical code
-
-4. **Critical business logic**
-   - Payment processing
-   - User data handling
-   - Compliance-related code
+1. **Security-sensitive changes**: authN/authZ, input validation/sanitization, crypto, secret handling
+2. **Architectural decisions**: new components, API design, DB schema, service integration
+3. **Large file mods (>200 lines)**: complex refactoring, major features, performance-critical code
+4. **Critical business logic**: payment processing, user-data handling, compliance
 
 ### CONSIDER Parallel Agents For
 
@@ -257,6 +242,36 @@ Use agents for their strengths:
   `~/.claude/config/`). Consensus thresholds and verdict rules
   (`APPROVED`/`NEEDS_REVIEW`/`BLOCKED`): `~/.claude/references/orchestration.md`.
 
+## Proactive Coding Guardrails (always on)
+
+Apply while writing or refactoring code, in every session:
+
+- **Propagate error signals** — every catch rethrows, returns a typed
+  error/fallback the caller must check, or routes to a central handler.
+  Never log-and-fall-through.
+- **Validate at boundaries** — type/presence/range checks at entry points;
+  distinguish zero from missing; pass only validated values inward.
+- **Secrets from the environment only** — no credential literals in source,
+  tests, or .env.example; fail fast when required config is absent.
+- **Handle the async lifecycle** — await or explicitly route every async
+  operation; pair every listener/subscription/timer with its teardown;
+  serialize or atomize concurrent writes to shared state.
+- **Refactor before accreting** — extract the seam before adding to long
+  functions/files; search for an existing helper before writing a new one.
+- **No speculative code** — no guards for unreachable states, no single-use
+  abstractions, no dead modules kept "for later".
+- **Verify dependencies exist** — check the official registry (existence,
+  maintenance, advisories) before adding any package.
+- **Refinement safety** — when modifying existing code, NEVER remove security
+  controls or validation without stating it in the change description.
+
+Registry of anti-patterns (detection cues + prevention rules):
+`~/.claude/config/knowledge_base.yml` (guardrail tags: arch, async-state,
+error-handling, security, dependency, iteration). Full reference:
+`~/.claude/references/antipatterns.md`. On-demand deep audit: `/ai-code-audit`.
+
+---
+
 ---
 
 ## Workflow Integration
@@ -290,7 +305,7 @@ Use agents for their strengths:
 
 The script implements:
 
-- **Agent validation**: Checks if `cursor`, `gemini`, and `claude` commands exist
+- **Agent validation**: Checks if `cursor-agent`, `gemini`, and `claude` commands exist
 - **Retry logic**: Retries once after 5s delay on failure
 - **Partial results**: Continues with available agent outputs if some fail
 - **Credit fallback**: Automatically retries with cheaper models on quota errors
@@ -529,3 +544,23 @@ CREATE -> ACTIVE (check off deliverables as completed) -> `.archive/` when done
 or `.abandoned/` if superseded. Review existing plans before creating new ones;
 plans untouched 7+ days should be updated, completed, or abandoned. Use
 `/plan-manage` for orchestrated create/review/execute/archive/abandon.
+
+## Command Index
+
+<!-- BEGIN COMMAND INDEX (generate_commands_doc.py --inject-guides) -->
+<!-- markdownlint-disable MD013 -->
+
+- **Git & PRs**: `/branch-clean` · `/git-commit` · `/git-find-artifact` · `/issue-dev-auto` · `/issue-sync-commit` · `/issue-sync-pr` · `/pr-address-comments` · `/pr-clean-base` · `/pr-merge-stacked` · `/pr-monitor` · `/pr-reset-reapply` · `/pr-review` · `/pr-triage-bots` · `/repo-clean`
+- **Documentation**: `/docs-all` · `/docs-generate-diagrams` · `/docs-improve` · `/docs-improve-readme`
+- **Security**: `/ci-audit-triggers` · `/ci-harden-workflow` · `/docker-audit-firewall` · `/llm-audit-traversal` · `/mcp-audit` · `/security-harden-proxy` · `/security-refute-findings` · `/security-review-diff` · `/security-triage-findings`
+- **Planning & Specs**: `/data-wire-field` · `/design-validate` · `/issue-prep-auto` · `/issue-prioritize` · `/issue-triage` · `/plan-manage` · `/premise-verify` · `/spec-audit-tasks` · `/spec-decide-tradeoffs` · `/spec-review`
+- **Skill Authoring**: `/ai-hooks-integration` · `/prompt-optimize` · `/skill-evolve`
+- **CI/CD, Testing & Quality**: `/a11y-audit` · `/ai-code-audit` · `/ci-diagnose-drift` · `/ci-reproduce-failure` · `/ci-setup` · `/data-validate-live` · `/go-refactor` · `/node-refactor` · `/performance-check` · `/project-verify` · `/python-refactor` · `/shell-refactor` · `/smoke-manage` · `/terraform-refactor` · `/test-pin-bug` · `/test-vary-fixtures` · `/ux-review`
+- **Infrastructure & Config**: `/api-optimize-bulk` · `/cache-warm-oob` · `/cli-audit-help` · `/config-audit` · `/config-debug-substitution` · `/config-validate-native` · `/data-design-ingestion` · `/deploy-diagnose-drift` · `/deploy-retire-component` · `/docker-probe-internal` · `/llm-invoke-stdin` · `/pass-cli` · `/process-diagnose-stall` · `/project-scaffold` · `/shell-audit-errexit` · `/shell-audit-pipefail` · `/version-pin`
+- **Meta & Orchestration**: `/antipattern-detect` · `/code-audit` · `/env-check` · `/graphify` · `/help` · `/learning-capture` · `/memory-compress` · `/metrics-report` · `/session-checkpoint` · `/token-benchmark` · `/token-conserve`
+- **Uncategorized**: `/deploy-reconcile` · `/lifecycle-run` · `/pr-smoke` · `/spec-implement-loop`
+
+Run `/help <query>` for descriptions and when-to-use.
+
+<!-- markdownlint-enable MD013 -->
+<!-- END COMMAND INDEX -->

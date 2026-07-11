@@ -35,8 +35,7 @@ Default MCP/tool routing — use the matching tool when the task domain matches:
 - **Context7 MCP** — library/API docs, code generation, setup, configuration
 - **Sentry MCP** — production/runtime errors, stack traces, release regressions
 - **Linear MCP** — issue requirements, acceptance criteria, project planning
-- **Semgrep CLI** (`semgrep scan`) — local SAST, vulnerability and secrets
-  checks (install: `brew install semgrep`)
+- **Semgrep CLI** (`semgrep scan`) — local SAST, vulnerability and secrets checks
 - **DeepWiki MCP** — unfamiliar repos, dependency internals, upstream API contracts
 - **Glean MCP** — internal team knowledge, runbooks, ADRs
 - **Google Dev Docs MCP** — Firebase/Cloud/Android/Maps documentation
@@ -48,17 +47,8 @@ Default MCP/tool routing — use the matching tool when the task domain matches:
 # Basic code review with JSON output (all 5 agents, 10 min timeout)
 ~/.claude/scripts/parallel_agent.py --json --timeout 600 --review /absolute/path/to/file
 
-# Generic prompt to all agents
-~/.claude/scripts/parallel_agent.py --json "Your question here"
-
-# Quick query with lightweight models
-~/.claude/scripts/parallel_agent.py --cursor-model mini --claude-model haiku "Quick question"
-
 # Full analysis with validation and model selection (15 min timeout)
 ~/.claude/scripts/parallel_agent.py --json --full-output --validate --timeout 900 --cursor-model advanced --claude-model opus --analyze /absolute/path/to/file
-
-# Antigravity-only quick query
-~/.claude/scripts/parallel_agent.py --antigravity-only --antigravity-model flash "Quick question"
 ```
 
 ## Reference Index
@@ -69,6 +59,21 @@ Read on demand (NOT auto-loaded). You MUST read the reference before related tas
 - `~/.claude/references/orchestration.md` — Read when running multi-agent validation or debugging cross-verification failures.
 - `~/.claude/references/git-platform.md` — Read when automating PRs, branch detection, or git_ops failures.
 - `~/.claude/references/layout.md` — Read when modifying config trees or mapping file locations.
+- `~/.claude/references/sub-agent-dispatch.md` — Read before a skill dispatches sub-agents: native Task vs
+  `parallel_agent.py`, when-to-dispatch threshold, cross-platform fallback.
+- `~/.claude/references/spec-artifact-discovery.md` — Read before a spec-* skill reads
+  planning artifacts: speckit vs superpowers layout detection + precedence.
+- `~/.claude/references/antipatterns.md` — Read before writing or refactoring code:
+  guardrail registry (detection cues + prevention rules).
+
+## Proactive Coding Guardrails (always on)
+
+While writing: propagate error signals (never log-and-drop); validate inputs at
+boundaries; secrets from env only; await/route every async op; pair
+setup/teardown; serialize shared writes; refactor before accreting; no
+speculative guards, single-use abstractions, or dead code; verify new deps
+exist. When refining, NEVER silently remove security controls or validation.
+Registry: `~/.claude/config/knowledge_base.yml`; `/ai-code-audit` = full audit.
 
 ---
 
@@ -76,41 +81,18 @@ Read on demand (NOT auto-loaded). You MUST read the reference before related tas
 
 ### ALWAYS Use Parallel Agents For
 
-1. **Security-sensitive code changes**
-   - Authentication/authorization logic
-   - Input validation and sanitization
-   - Cryptographic operations
-   - Secret handling
-
-2. **Architectural decisions**
-   - New system components
-   - API design changes
-   - Database schema modifications
-   - Service integration patterns
-
-3. **Large file modifications (>200 lines)**
-   - Complex refactoring
-   - Major feature additions
-   - Performance-critical code
-
-4. **Critical business logic**
-   - Payment processing
-   - User data handling
-   - Compliance-related code
+1. **Security-sensitive changes**: authN/authZ, input validation/sanitization, crypto, secret handling
+2. **Architectural decisions**: new components, API design, DB schema, service integration
+3. **Large file mods (>200 lines)**: complex refactoring, major features, performance-critical code
+4. **Critical business logic**: payment processing, user-data handling, compliance
 
 ### CONSIDER Parallel Agents For
 
-- Complex refactoring with multiple affected files
-- New feature implementation
-- Performance optimization
-- Debugging difficult issues
+Complex multi-file refactoring, new feature implementation, performance optimization, debugging difficult issues.
 
 ### SKIP Parallel Agents For
 
-- Typo fixes, comments, formatting
-- Single-line changes
-- Documentation updates
-- Simple variable renames
+Typo/comment/formatting fixes, single-line changes, documentation updates, simple variable renames.
 
 ---
 
@@ -137,7 +119,14 @@ Common entry points: `/git-commit` (full commit pipeline), `/project-verify`
 (lint + test + scan), `/refactor-<lang>` (security/quality roadmap, parallel
 agents ALWAYS), `/docs-all` (refresh all docs), `/plan-manage` (plan
 lifecycle), `/env-check` (env sanity), `/session-checkpoint` (high-context save),
-`/version-pin <file>` (auto-fix; `--check` = warn-only save-hook mode).
+`/version-pin <file>` (auto-fix; `--check` = warn-only save-hook mode),
+`/graphify` (map a codebase/docs into a queryable knowledge graph).
+
+**Graphify** is a managed *tool*, not a parallel-orchestration agent: the
+`graphify` CLI (installed by bootstrap when enabled) and its `/graphify` skill
+are toggled via `--enable-graphify`/`--disable-graphify` (default: enabled), but
+graphify never participates in `parallel_agent.py` consensus and is not counted
+toward orchestration readiness.
 
 **CLI tool** (installed to `~/.local/bin/`): `sync-skills` — push
 `.skillshare/skills/` changes to all home targets (daily skill dev workflow).
