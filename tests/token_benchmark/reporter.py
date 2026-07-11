@@ -139,6 +139,12 @@ def render_report(stats: dict, run_id: str) -> str:
         f"**Last run**: {run_id[:10]}",
         "**Prompts**: 20 (6 MMLU, 6 HumanEval, 4 HellaSwag, 4 TruthfulQA)",
         "",
+        "> **Legend**: `—` = never measured (no data collected for this cell) "
+        "vs. `unsupported` = the provider has no verified system-prompt "
+        "injection mechanism (see `PROVIDER_CLI_CONFIG` in "
+        "`tests/token_benchmark/benchmarks.py`) and is recorded as such "
+        "rather than invoked with a flag it cannot honor.",
+        "",
         "---",
         "",
         "## Token Overhead (Manifest Context Cost — API)",

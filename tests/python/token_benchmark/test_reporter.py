@@ -110,27 +110,55 @@ class TestComputeStats:
         assert q["after_score"] == 1
         assert q["before_total"] == 1
 
-    def test_antigravity_has_null_tokens(self):
-        """Antigravity records (no API) should produce None overhead."""
+    def test_antigravity_records_unsupported_outcome(self):
+        """(#546) Antigravity has no verified system-prompt injection
+        mechanism, so its CLI rows carry an explicit "unsupported" outcome —
+        distinct from "error" and from a normally-scored row — in both the
+        before and after conditions, and produce no token overhead (CLI never
+        reports tokens for any provider)."""
         records = [
             {
-                **FIXTURE_RECORDS[0],
+                "run_id": "2026-06-12T10-00-00",
                 "provider": "antigravity",
+                "model": None,
+                "condition": "before",
+                "category": "mmlu",
+                "prompt_id": "mmlu_001",
                 "input_tokens": None,
-                "source": "api",
+                "output_tokens": None,
+                "quality_score": None,
+                "response_text": None,
+                "source": "cli",
+                "error": None,
+                "unsupported": True,
             },
             {
-                **FIXTURE_RECORDS[1],
+                "run_id": "2026-06-12T10-00-00",
                 "provider": "antigravity",
+                "model": None,
+                "condition": "after",
+                "category": "mmlu",
+                "prompt_id": "mmlu_001",
                 "input_tokens": None,
-                "source": "api",
+                "output_tokens": None,
+                "quality_score": None,
+                "response_text": None,
+                "source": "cli",
+                "error": None,
+                "unsupported": True,
             },
         ]
         stats = compute_stats(records)
-        assert (
-            stats["token_overhead"].get("antigravity") is None
-            or stats["token_overhead"]["antigravity"]["overhead_tokens"] is None
-        )
+        # No API records at all => no token overhead entry for antigravity.
+        assert stats["token_overhead"].get("antigravity") is None
+        # Unsupported rows must never masquerade as a scored quality row.
+        assert stats["quality"].get("antigravity", {}).get("mmlu", {}) == {}
+        # Every row is explicitly unsupported, and that is distinct from an
+        # error outcome (error stays None) and from a real quality score.
+        assert all(r["unsupported"] is True for r in records)
+        assert all(r["error"] is None for r in records)
+        assert all(r["quality_score"] is None for r in records)
+        assert {r["condition"] for r in records} == {"before", "after"}
 
 
 class TestRenderReport:
@@ -147,6 +175,14 @@ class TestRenderReport:
         md = render_report(stats, run_id="2026-06-12T10-00-00")
         assert "2,535" in md  # overhead tokens (comma-formatted)
         assert "2,635" in md  # avg input after (comma-formatted)
+
+    def test_legend_distinguishes_unsupported_from_never_measured(self):
+        """(#546) The report legend explicitly distinguishes a `—` cell
+        (never measured) from an `unsupported` provider outcome."""
+        stats = compute_stats(FIXTURE_RECORDS)
+        md = render_report(stats, run_id="2026-06-12T10-00-00")
+        assert "never measured" in md
+        assert "unsupported" in md
 
 
 class TestUpdateReport:

@@ -69,3 +69,12 @@ class TestProviderCliConfig:
             assert "binary" in cfg, f"{provider} missing binary"
             assert cfg["binary"], f"{provider} binary is empty"
             assert "flags" in cfg, f"{provider} missing flags"
+
+    def test_only_claude_has_system_prompt_strategy(self):
+        """(#546) Only providers with a verified system-prompt injection
+        mechanism define system_prompt_flag. agy 1.1.1 has no --system-prompt
+        flag (live-verified) and gemini's is unverified — neither may define
+        one speculatively."""
+        assert PROVIDER_CLI_CONFIG["claude"]["system_prompt_flag"] == "--system-prompt"
+        assert "system_prompt_flag" not in PROVIDER_CLI_CONFIG["gemini"]
+        assert "system_prompt_flag" not in PROVIDER_CLI_CONFIG["antigravity"]

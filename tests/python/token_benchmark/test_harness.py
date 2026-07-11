@@ -2,6 +2,7 @@
 
 import json
 import os
+import subprocess as sp
 import sys
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -15,8 +16,10 @@ from tests.token_benchmark.harness import (
     measure_api_claude,
     measure_api_gemini,
     measure_cli,
+    run_benchmark,
     write_result,
 )
+from tests.token_benchmark.benchmarks import BENCHMARKS
 
 
 class TestIsolatedEnvironments:
@@ -195,7 +198,8 @@ class TestMeasureCli:
         assert result["error"] is None
 
     def test_system_prompt_flag_appended(self):
-        """--system-prompt <value> is added to the command when system_prompt is given."""
+        """The configured system_prompt_flag is added when a strategy exists
+        (cli_config declares system_prompt_flag) and system_prompt is given."""
         import subprocess as sp
 
         real_run = sp.run
@@ -205,7 +209,11 @@ class TestMeasureCli:
             captured["cmd"] = cmd
             return real_run(["echo", "ok"], **dict(kwargs.items()))
 
-        cli_config = {"binary": "echo", "flags": []}
+        cli_config = {
+            "binary": "echo",
+            "flags": [],
+            "system_prompt_flag": "--system-prompt",
+        }
         with patch(
             "tests.token_benchmark.harness.subprocess.run", side_effect=capture_run
         ):
@@ -214,7 +222,7 @@ class TestMeasureCli:
         assert "MANIFEST CONTEXT" in captured["cmd"]
 
     def test_system_prompt_none_omits_flag(self):
-        """No --system-prompt flag when system_prompt is None."""
+        """No --system-prompt flag when system_prompt is None, even with a strategy."""
         import subprocess as sp
 
         real_run = sp.run
@@ -224,12 +232,39 @@ class TestMeasureCli:
             captured["cmd"] = cmd
             return real_run(["echo", "ok"], **dict(kwargs.items()))
 
-        cli_config = {"binary": "echo", "flags": []}
+        cli_config = {
+            "binary": "echo",
+            "flags": [],
+            "system_prompt_flag": "--system-prompt",
+        }
         with patch(
             "tests.token_benchmark.harness.subprocess.run", side_effect=capture_run
         ):
             measure_cli("prompt", cli_config)
         assert "--system-prompt" not in captured["cmd"]
+
+    def test_system_prompt_ignored_without_strategy(self):
+        """(#546/G8) A provider with NO system_prompt_flag strategy (e.g. agy,
+        gemini) is NEVER invoked with a system-prompt flag, even when a
+        system_prompt value is supplied — there is no verified mechanism to
+        honor it."""
+        import subprocess as sp
+
+        real_run = sp.run
+        captured = {}
+
+        def capture_run(cmd, **kwargs):
+            captured["cmd"] = cmd
+            return real_run(["echo", "ok"], **dict(kwargs.items()))
+
+        cli_config = {"binary": "echo", "flags": ["--print"]}  # no system_prompt_flag
+        with patch(
+            "tests.token_benchmark.harness.subprocess.run", side_effect=capture_run
+        ):
+            measure_cli("prompt", cli_config, system_prompt="MANIFEST CONTEXT")
+        assert "--system-prompt" not in captured["cmd"]
+        assert "MANIFEST CONTEXT" not in captured["cmd"]
+        assert captured["cmd"] == ["echo", "--print", "prompt"]
 
     def test_missing_binary_returns_error(self):
         cli_config = {"binary": "nonexistent_binary_12345", "flags": []}
@@ -248,6 +283,88 @@ class TestMeasureCli:
             result = measure_cli("100", cli_config)
         assert result["error"] == "timeout"
         assert result["response_text"] == ""
+
+
+class TestRunBenchmarkCliStrategy:
+    """(#546) run_benchmark's CLI branch is provider-aware: only providers with
+    a verified system_prompt_flag strategy are ever invoked with a
+    system-prompt flag; the rest yield an explicit unsupported outcome with
+    zero subprocess invocations. All CLI calls are mocked — no live CLIs."""
+
+    @pytest.mark.asyncio
+    async def test_claude_invocation_shape_unchanged(self, tmp_path):
+        """claude keeps injecting --system-prompt exactly as before #546."""
+        fixtures = tmp_path / "fixtures"
+        (fixtures / ".claude").mkdir(parents=True)
+        (fixtures / ".claude" / "CLAUDE.md").write_text("MANIFEST TEXT")
+
+        calls = []
+
+        def fake_run(cmd, **kwargs):
+            calls.append(cmd)
+            return sp.CompletedProcess(cmd, 0, stdout="B", stderr="")
+
+        with patch(
+            "tests.token_benchmark.harness.subprocess.run", side_effect=fake_run
+        ):
+            records = await run_benchmark(
+                providers=["claude"],
+                api_only=False,
+                cli_only=True,
+                conditions=["before", "after"],
+                run_id="test-run",
+                fixtures_dir=fixtures,
+                results_dir=tmp_path / "results",
+            )
+
+        # subprocess.run is also hit by the scorer's HumanEval `python3 -c`
+        # execution; isolate the claude CLI invocations themselves.
+        claude_calls = [c for c in calls if c[0] == "claude"]
+        assert len(claude_calls) == len(BENCHMARKS) * 2  # before + after, every prompt
+        for cmd in claude_calls:
+            assert "--system-prompt" in cmd
+        assert len(records) == len(claude_calls)
+        assert all(r["provider"] == "claude" for r in records)
+        assert all(r["unsupported"] is False for r in records)
+
+    @pytest.mark.asyncio
+    async def test_unsupported_providers_yield_zero_invocations(self, tmp_path):
+        """gemini/antigravity (no system_prompt_flag strategy) never touch
+        subprocess.run and instead get an explicit unsupported row in both
+        the before and after conditions."""
+        fixtures = tmp_path / "fixtures"
+        fixtures.mkdir()
+
+        calls = []
+
+        def fake_run(cmd, **kwargs):
+            calls.append(cmd)
+            return sp.CompletedProcess(cmd, 0, stdout="", stderr="")
+
+        with patch(
+            "tests.token_benchmark.harness.subprocess.run", side_effect=fake_run
+        ):
+            records = await run_benchmark(
+                providers=["gemini", "antigravity"],
+                api_only=False,
+                cli_only=True,
+                conditions=["before", "after"],
+                run_id="test-run",
+                fixtures_dir=fixtures,
+                results_dir=tmp_path / "results",
+            )
+
+        assert calls == []  # zero invocations at all, flag-bearing or otherwise
+        # 2 providers * 2 conditions * len(BENCHMARKS) prompts
+        assert len(records) == len(BENCHMARKS) * 2 * 2
+        assert {r["condition"] for r in records} == {"before", "after"}
+        assert {r["provider"] for r in records} == {"gemini", "antigravity"}
+        for r in records:
+            assert r["unsupported"] is True
+            assert r["error"] is None  # distinct from an error outcome
+            assert r["quality_score"] is None  # distinct from a scored row
+            assert r["input_tokens"] is None
+            assert r["response_text"] is None
 
 
 class TestWriteResult:
