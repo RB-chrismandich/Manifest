@@ -7,7 +7,7 @@ description: Integrate lifecycle hooks across AI coding tools (Claude Code, Gemi
 
 ## Decision Tree
 
-```
+```text
 Does the target tool have a hooks API?
 ├── YES (Claude, Gemini CLI, Cursor, OpenCode)
 │   └── Installing hooks for multiple tools at once?
@@ -73,7 +73,8 @@ WorktreeCreate, WorktreeRemove, PreCompact, SessionEnd
 
 ### Gemini CLI Events (11 total)
 
-SessionStart, SessionEnd, BeforeAgent, AfterAgent, BeforeModel, AfterModel, BeforeToolSelection, BeforeTool, AfterTool, PreCompress, Notification
+SessionStart, SessionEnd, BeforeAgent, AfterAgent, BeforeModel, AfterModel, BeforeToolSelection, BeforeTool,
+AfterTool, PreCompress, Notification
 
 ## References
 

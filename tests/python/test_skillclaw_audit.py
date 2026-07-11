@@ -258,6 +258,35 @@ def test_storage_auto_inits_when_absent(tmp_path, monkeypatch):
     assert (target / "status.json").exists()
 
 
+def test_storage_auto_init_chmods_dir_700(tmp_path, monkeypatch):
+    # _ensure_storage() is the Tier-1 honeypot guard: "a fresh install never
+    # silently logs nothing" must also mean it never logs into a
+    # world/group-readable directory. chmod is an explicit os.chmod() call
+    # (not umask-derived), so this holds under any default umask, incl. root.
+    target = tmp_path / "fresh" / "nested"
+    monkeypatch.setenv("SKILLCLAW_AUDIT_DIR", str(target))
+    audit.log("run-1", "-", "run_start")
+    assert oct(target.stat().st_mode)[-3:] == "700"
+
+
+def test_ensure_storage_chmod_is_fail_open_not_a_noop(tmp_path, monkeypatch):
+    # os.chmod is wrapped in contextlib.suppress(OSError) so a chmod failure
+    # (e.g. a filesystem without POSIX perms) degrades silently rather than
+    # aborting the run — but confirm it's a genuine best-effort *attempt*,
+    # not code that was silently deleted, by observing it actually applies
+    # 700 when the syscall does succeed (asserted above) and never raises
+    # even when os.chmod is made to fail.
+    target = tmp_path / "raises"
+    monkeypatch.setenv("SKILLCLAW_AUDIT_DIR", str(target))
+
+    def _boom(*_a, **_kw):
+        raise OSError("simulated chmod failure")
+
+    monkeypatch.setattr(audit.os, "chmod", _boom)
+    audit.log("run-1", "-", "run_start")  # must not raise despite chmod boom
+    assert (target / "promote.log").exists()
+
+
 def test_cli_log_parses_key_value_and_json(tmp_path, monkeypatch):
     monkeypatch.setenv("SKILLCLAW_AUDIT_DIR", str(tmp_path))
     rc = audit.main(

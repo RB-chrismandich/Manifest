@@ -134,6 +134,7 @@ CLAUDE_CODE_REMOTE     # "true" in remote web environments
 ### PreToolUse I/O
 
 **Input:**
+
 ```json
 {
   "tool_name": "Bash",
@@ -145,26 +146,31 @@ CLAUDE_CODE_REMOTE     # "true" in remote web environments
 ```
 
 **Allow:**
+
 ```json
 {"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "allow", "permissionDecisionReason": "Safe"}}
 ```
 
 **Deny:**
+
 ```json
 {"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "deny", "permissionDecisionReason": "Blocked"}}
 ```
 
 **Ask user:**
+
 ```json
 {"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "ask", "permissionDecisionReason": "Needs review"}}
 ```
 
 **Modify input + allow:**
+
 ```json
 {"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "allow", "updatedInput": {"command": "npm test --coverage"}}}
 ```
 
 **Add context:**
+
 ```json
 {"hookSpecificOutput": {"hookEventName": "PreToolUse", "additionalContext": "Running in production"}}
 ```
@@ -172,6 +178,7 @@ CLAUDE_CODE_REMOTE     # "true" in remote web environments
 ### PermissionRequest I/O
 
 **Input:**
+
 ```json
 {
   "tool_name": "Bash", "tool_input": {"command": "rm -rf node_modules"},
@@ -181,16 +188,19 @@ CLAUDE_CODE_REMOTE     # "true" in remote web environments
 ```
 
 **Allow:**
+
 ```json
 {"hookSpecificOutput": {"hookEventName": "PermissionRequest", "decision": {"behavior": "allow"}}}
 ```
 
 **Allow + modify + remember:**
+
 ```json
 {"hookSpecificOutput": {"hookEventName": "PermissionRequest", "decision": {"behavior": "allow", "updatedInput": {"command": "npm run lint"}, "updatedPermissions": [{"type": "toolAlwaysAllow", "tool": "Bash"}]}}}
 ```
 
 **Deny:**
+
 ```json
 {"hookSpecificOutput": {"hookEventName": "PermissionRequest", "decision": {"behavior": "deny", "message": "Not allowed", "interrupt": true}}}
 ```
@@ -198,6 +208,7 @@ CLAUDE_CODE_REMOTE     # "true" in remote web environments
 ### PostToolUse I/O
 
 **Input:**
+
 ```json
 {
   "tool_name": "Write",
@@ -209,11 +220,13 @@ CLAUDE_CODE_REMOTE     # "true" in remote web environments
 ```
 
 **Feedback to Claude:**
+
 ```json
 {"decision": "block", "reason": "Linting errors found", "hookSpecificOutput": {"hookEventName": "PostToolUse", "additionalContext": "Fix ESLint errors"}}
 ```
 
 **Replace MCP tool output:**
+
 ```json
 {"hookSpecificOutput": {"hookEventName": "PostToolUse", "updatedMCPToolOutput": "filtered result"}}
 ```
@@ -221,6 +234,7 @@ CLAUDE_CODE_REMOTE     # "true" in remote web environments
 ### PostToolUseFailure I/O
 
 **Input:**
+
 ```json
 {
   "tool_name": "Bash", "tool_input": {"command": "npm test"},
@@ -234,6 +248,7 @@ CLAUDE_CODE_REMOTE     # "true" in remote web environments
 ### Stop / SubagentStop I/O
 
 **Input:**
+
 ```json
 {
   "stop_hook_active": false,
@@ -245,6 +260,7 @@ CLAUDE_CODE_REMOTE     # "true" in remote web environments
 SubagentStop adds: `agent_id`, `agent_type`, `agent_transcript_path`.
 
 **Block (continue working):**
+
 ```json
 {"decision": "block", "reason": "Tests still failing, please fix"}
 ```
@@ -252,16 +268,19 @@ SubagentStop adds: `agent_id`, `agent_type`, `agent_transcript_path`.
 ### SessionStart I/O
 
 **Input:**
+
 ```json
 {"source": "startup", "model": "claude-sonnet-4-6", "hook_event_name": "SessionStart"}
 ```
 
 **Inject context (plain text stdout or JSON):**
+
 ```json
 {"hookSpecificOutput": {"hookEventName": "SessionStart", "additionalContext": "Project uses Python 3.12"}}
 ```
 
 **Persist env vars:** Write to `$CLAUDE_ENV_FILE`:
+
 ```bash
 echo 'export NODE_ENV=production' >> "$CLAUDE_ENV_FILE"
 ```
@@ -269,11 +288,13 @@ echo 'export NODE_ENV=production' >> "$CLAUDE_ENV_FILE"
 ### UserPromptSubmit I/O
 
 **Input:**
+
 ```json
 {"prompt": "Delete the database", "hook_event_name": "UserPromptSubmit"}
 ```
 
 **Block:**
+
 ```json
 {"decision": "block", "reason": "Destructive prompts not allowed"}
 ```
@@ -409,6 +430,7 @@ CLAUDE_PROJECT_DIR   # Compatibility alias
 ### BeforeTool I/O
 
 **Input:**
+
 ```json
 {
   "hook_name": "BeforeTool",
@@ -419,16 +441,19 @@ CLAUDE_PROJECT_DIR   # Compatibility alias
 ```
 
 **Allow:**
+
 ```json
 {"decision": "allow"}
 ```
 
 **Allow + Context:**
+
 ```json
 {"decision": "allow", "systemMessage": "Extra context"}
 ```
 
 **Deny:**
+
 ```json
 {"decision": "deny", "reason": "Blocked", "systemMessage": "..."}
 ```
@@ -436,11 +461,13 @@ CLAUDE_PROJECT_DIR   # Compatibility alias
 ### SessionStart I/O
 
 **Input:**
+
 ```json
 {"hook_name": "SessionStart", "session_id": "...", "trigger": "startup"}
 ```
 
 **Output:**
+
 ```json
 {"systemMessage": "Context injected at session start"}
 ```
@@ -481,16 +508,19 @@ CLAUDE_PROJECT_DIR   # Compatibility alias
 ### beforeShellExecution I/O
 
 **Input:**
+
 ```json
 {"command": "ls", "cwd": "/project"}
 ```
 
 **Allow:**
+
 ```json
 {"continue": true, "permission": "allow"}
 ```
 
 **Deny:**
+
 ```json
 {"continue": false, "permission": "deny", "agent_message": "Blocked"}
 ```
@@ -587,7 +617,7 @@ For tools **without** hooks API (gh, aws, kubectl, docker).
 
 ### Flow
 
-```
+```text
 User → ~/.local/bin/gh (wrapper) → Pre-hook → /usr/bin/gh → Post-hook → Exit
 ```
 
@@ -600,6 +630,7 @@ scripts/install_cli_wrapper.py --cli gh --hook "/path/to/hook"
 ### Pre-hook I/O
 
 **Input:**
+
 ```json
 {"cli": "gh", "args": ["pr", "create"], "cwd": "/project", "phase": "pre"}
 ```
@@ -607,6 +638,7 @@ scripts/install_cli_wrapper.py --cli gh --hook "/path/to/hook"
 **Allow:** Exit 0 or `{"decision": "allow"}`
 
 **Deny:**
+
 ```json
 {"decision": "deny", "reason": "Blocked"}
 ```
@@ -614,6 +646,7 @@ scripts/install_cli_wrapper.py --cli gh --hook "/path/to/hook"
 ### Post-hook I/O
 
 **Input:**
+
 ```json
 {"cli": "gh", "args": ["pr", "create"], "cwd": "/project", "phase": "post", "exit_code": 0}
 ```
@@ -652,6 +685,6 @@ scripts/install_cli_wrapper.py --cli gh --hook "/path/to/hook"
 
 ## External Docs
 
-- Claude: https://code.claude.com/docs/en/hooks
-- Gemini: https://geminicli.com/docs/hooks/
-- Cursor: https://docs.cursor.com/agent/hooks
+- Claude: <https://code.claude.com/docs/en/hooks>
+- Gemini: <https://geminicli.com/docs/hooks/>
+- Cursor: <https://docs.cursor.com/agent/hooks>

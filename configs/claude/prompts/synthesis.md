@@ -1,6 +1,7 @@
 # Disagreement Synthesis Task
 
-Synthesize multiple agents' analyses into a unified recommendation: identify agreements, categorize disagreements, score positions with weighted evidence, and apply the resolution strategy per category.
+Synthesize multiple agents' analyses into a unified recommendation: identify agreements, categorize
+disagreements, score positions with weighted evidence, and apply the resolution strategy per category.
 
 ## Original Context
 
@@ -38,9 +39,12 @@ Classify by **disagreement type** and **domain category**.
 
 Score each agent's position on each disagreement:
 
-- **Specificity** (0-3): 0 = assertion only; 1 = general reasoning; 2 = references specific patterns, standards, or file regions; 3 = cites exact file:line, documentation links, or benchmarks
-- **Reasoning depth** (0-3): 0 = surface observation; 1 = issue without implications; 2 = implications and trade-offs; 3 = full reasoning chain with edge cases
-- **Confidence signal** (0-2): 0 = hedges heavily or self-contradicts; 1 = no strong conviction; 2 = clear conviction with supporting reasoning
+- **Specificity** (0-3): 0 = assertion only; 1 = general reasoning; 2 = references specific patterns, standards,
+  or file regions; 3 = cites exact file:line, documentation links, or benchmarks
+- **Reasoning depth** (0-3): 0 = surface observation; 1 = issue without implications; 2 = implications and
+  trade-offs; 3 = full reasoning chain with edge cases
+- **Confidence signal** (0-2): 0 = hedges heavily or self-contradicts; 1 = no strong conviction; 2 = clear
+  conviction with supporting reasoning
 - **Consistency** (0-2): 0 = contradicts the agent's other findings; 1 = neutral/independent; 2 = reinforced by other findings
 
 Dimension weights by disagreement type:
@@ -62,11 +66,13 @@ Higher score wins, with overrides:
 
 ### Step 4: Determine Priority
 
-Per disagreement assess: safety (safer position?), correctness (more technically correct?), practicality (easier to implement/maintain?), alignment (matches project conventions?).
+Per disagreement assess: safety (safer position?), correctness (more technically correct?), practicality
+(easier to implement/maintain?), alignment (matches project conventions?).
 
 ### Step 5: Synthesize Unified Recommendation
 
-Incorporate agreements as baseline; resolve each disagreement with clear rationale; note caveats where the alternative might be better; flag remaining uncertainties for human judgment.
+Incorporate agreements as baseline; resolve each disagreement with clear rationale; note caveats where the
+alternative might be better; flag remaining uncertainties for human judgment.
 
 ## Output Format
 
@@ -117,7 +123,8 @@ Return ONLY the following JSON object. No commentary outside the JSON block.
 }
 ```
 
-Set `"override_applied"` to a string (e.g. `"security_domain: safer position preferred"`) when an override decided the resolution, else `null`.
+Set `"override_applied"` to a string (e.g. `"security_domain: safer position preferred"`) when an override
+decided the resolution, else `null`.
 
 ## Scoring Guide
 

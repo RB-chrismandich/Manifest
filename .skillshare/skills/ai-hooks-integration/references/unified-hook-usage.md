@@ -14,7 +14,8 @@ scripts/install_all.py --unified --handler "/path/to/handler.py" --name my-hook 
 
 ## Problem Background
 
-Cursor and OpenCode read `~/.claude/settings.json`, which triggers Claude's hooks even when running inside these other tools. This causes:
+Cursor and OpenCode read `~/.claude/settings.json`, which triggers Claude's hooks even when running inside
+these other tools. This causes:
 
 1. **Source misidentification**: Events report `source=claude` when actually from Cursor/OpenCode
 2. **Noise events**: Cursor reading `.claude/` directory generates unwanted events
@@ -24,7 +25,7 @@ Cursor and OpenCode read `~/.claude/settings.json`, which triggers Claude's hook
 
 The unified hook (`scripts/runtime/unified_hook.py`) sits between the tool and your handler:
 
-```
+```text
 ┌─────────┐     ┌──────────────┐     ┌──────────────┐     ┌─────────┐
 │  Tool   │ --> │ unified_hook │ --> │   Handler    │ --> │ Output  │
 │(Claude) │     │  (detect,    │     │ (your logic) │     │  JSON   │
@@ -78,7 +79,7 @@ Converts tool-specific payloads to a canonical format:
 
 ## Command Line Options
 
-```
+```text
 unified_hook.py [options]
 
 Options:
@@ -149,6 +150,7 @@ scripts/install_opencode_plugin.py --name my-hook \
 ```
 
 Features of advanced plugin:
+
 - WebSocket + HTTP fallback
 - Session ID from cwd hash
 - Idle timeout detection (SessionEnd after 5 min)
@@ -167,7 +169,8 @@ HOOK_DEBUG=1 HOOK_LOG_FILE=/tmp/hook.log python unified_hook.py
 ```
 
 Example debug output:
-```
+
+```text
 [unified_hook] Received payload: {"tool_name":"Bash",...
 [unified_hook] Source override: claude -> cursor
 [unified_hook] Effective source: cursor
@@ -177,17 +180,20 @@ Example debug output:
 ## Testing
 
 Test source detection:
+
 ```bash
 python scripts/runtime/detect_source.py
 ```
 
 Test event normalization:
+
 ```bash
 echo '{"tool_name":"Bash","tool_input":{"command":"ls"}}' | \
   python scripts/runtime/unified_hook.py --normalize-only
 ```
 
 Test with a handler:
+
 ```bash
 echo '{"tool_name":"Bash","tool_input":{"command":"ls"}}' | \
   python scripts/runtime/unified_hook.py --handler /path/to/handler.py

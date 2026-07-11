@@ -63,16 +63,37 @@ repos:
         exclude: (^\.Jules/|\.bats$)
 
   # Markdown linting
-  - repo: https://github.com/igorshubovych/markdownlint-cli
-    rev: v0.49.0
+  # Switched from igorshubovych/markdownlint-cli (v0.49.0, unrelated Ruby-era
+  # tool) to DavidAnson/markdownlint-cli2's own pre-commit hook, pinned to the
+  # same v0.23.0 engine line CI runs via markdownlint-cli2-action (v23) and
+  # that ships with local `brew install markdownlint-cli2` — closes a version
+  # skew where local/CI could pass while pre-commit's older engine flagged
+  # (or missed) different rule violations (feature 366 follow-up, unit U8).
+  - repo: https://github.com/DavidAnson/markdownlint-cli2
+    rev: v0.23.0
     hooks:
-      - id: markdownlint
-        args: ['--fix', '--config', '.markdownlint.jsonc']
-        # specs/ holds spec-kit planning artifacts (long task lines, generated
-        # tables) — excluded like the report docs below (feature 366).
-        # docs/superpowers/ (brainstorming → plan/spec output) is the same class
-        # of planning artifact: long task lines and full embedded code blocks.
-        exclude: ^(\.Jules/|specs/|docs/superpowers/|docs/templates/|docs/SHELL_ANALYSIS_REPORT\.md|docs/VALIDATION_REPORT\.md)
+      - id: markdownlint-cli2
+        args: ['--config', '.markdownlint.jsonc', '--fix']
+        # Vendored/scaffold/generated content the repo does not own
+        # stylistically (unit U8). Deliberate coverage tradeoff: the
+        # changed-files CI gate previously DID lint these paths when a PR
+        # touched them — and then failed on pre-existing upstream style
+        # debt unrelated to the PR. Excluding them trades that coverage
+        # for non-blocking edits to vendored content:
+        #   - specs/, docs/superpowers/ — spec-kit / brainstorming planning
+        #     artifacts (long task lines, generated tables, embedded code).
+        #   - .specify/ — upstream spec-kit scaffold (templates, extensions).
+        #   - .claude/skills/speckit-* — vendored speckit skill docs mirrored
+        #     from spec-kit, not authored to this repo's markdown style.
+        #   - .jules/ — Jules agent persona scaffold, same class as .Jules/.
+        #   - node_modules/ — third-party deps (also globally excluded below;
+        #     listed here too so this hook's scope is self-documenting).
+        #   - docs/templates/, docs/SHELL_ANALYSIS_REPORT.md,
+        #     docs/VALIDATION_REPORT.md — pre-existing report/template docs
+        #     (feature 366).
+        # This keeps the changed-files CI gate (pre-commit run --files ...)
+        # from failing on files the repo does not control the prose of.
+        exclude: ^(\.Jules/|\.jules/|specs/|docs/superpowers/|docs/templates/|docs/SHELL_ANALYSIS_REPORT\.md|docs/VALIDATION_REPORT\.md|\.specify/|\.claude/skills/speckit-[^/]+/|node_modules/)
 
   # YAML linting
   - repo: https://github.com/adrienverge/yamllint

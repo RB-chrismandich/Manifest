@@ -54,6 +54,9 @@ deploy_configs() {
     # the snapshot back in after the copy. Captured here (not in each branch) so
     # it predates the "Backup and replace" mv that moves the live dir aside.
     local preserved_mcp=""
+    # TARGET_DIR (not a typo of the local restore_from/source_dir vars above) is
+    # the global set in bootstrap.sh (~/.claude), consumed across bootstrap/lib/*.sh.
+    # shellcheck disable=SC2153
     if [[ -f "$TARGET_DIR/settings.local.json" ]]; then
         preserved_mcp="$(mktemp)"
         cp "$TARGET_DIR/settings.local.json" "$preserved_mcp"
@@ -694,6 +697,9 @@ deploy_sync_skills() {
         {
             echo ""
             echo "# User-installed tools (managed by bootstrap.sh)"
+            # Single-quoted intentionally: $HOME/$PATH must stay literal so they
+            # expand in the user's shell at profile-load time, not here.
+            # shellcheck disable=SC2016
             echo 'export PATH="$HOME/.local/bin:$PATH"'
         } >> "$SHELL_PROFILE_FILE"
     fi

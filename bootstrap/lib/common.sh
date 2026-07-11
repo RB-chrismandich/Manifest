@@ -226,6 +226,9 @@ gate_graphify_skill() {
 # The one delegation-policy pointer line added to the deployed CLAUDE.md Reference
 # Index when enabled. Kept out of the committed source guide so its always-loaded
 # byte budget is unaffected when pilotfish is off (FR-009/FR-014).
+# Single-quoted intentionally: this is a literal markdown line with no shell
+# expansion wanted (the backtick-wrapped path is doc text, not a command sub).
+# shellcheck disable=SC2016
 PILOTFISH_POINTER_LINE='- `~/.claude/references/pilotfish-delegation.md` — pilotfish cost-tiered delegation (role→alias, selective-verify).'
 
 # The exact set of agent files Manifest deploys. The disable path removes ONLY these
@@ -349,5 +352,9 @@ remove_pilotfish_pointer() {
     grep -qF 'pilotfish-delegation.md' "$guide" || return 0
     local tmp
     tmp="$(mktemp)" || return 0
+    # A&&B||C is safe here: mv only fails if grep already failed (empty/missing
+    # $tmp) or the guide path is unwritable, and either way rm -f "$tmp" is a
+    # correct no-op/cleanup, not a masked error path.
+    # shellcheck disable=SC2015
     grep -vF 'pilotfish-delegation.md' "$guide" > "$tmp" && mv "$tmp" "$guide" || rm -f "$tmp"
 }

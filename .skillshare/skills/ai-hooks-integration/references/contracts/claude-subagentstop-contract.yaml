@@ -18,7 +18,7 @@ input:
 
 output:
   # Same as Stop:
-  decision: "block"?
+  decision: "block"             # optional; same as Stop
   reason: string?
 
 notes:

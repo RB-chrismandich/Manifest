@@ -14,7 +14,7 @@ input:
   file_path: string?           # path to changed file
 
 output:
-  decision: "block"?
+  decision: "block"             # optional; omitted when not blocking
   reason: string?
 
 notes:

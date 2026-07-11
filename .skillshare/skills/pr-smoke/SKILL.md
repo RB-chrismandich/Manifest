@@ -54,9 +54,11 @@ the gating signal.
 **Regression (mirrors `.github/workflows/ci.yml` — keep them in lockstep):**
 
 - `shellcheck -S warning` over `configs/claude/scripts/*.sh` and `bootstrap.sh` + `bootstrap/lib/*.sh`
-- `tests/lint/check_array_expansion.sh`
-- `yamllint configs/claude/config/*.yml`
+- `bash -n` shell-syntax sweep over the same script set
+- `tests/lint/check_array_expansion.sh` and `tests/lint/check_bats_assertions.sh`
+- `yamllint configs/claude/config/*.yml` plus a plain `yaml.safe_load` parse of each config
 - `markdownlint-cli2` over `AGENTS.md CLAUDE.md README.md docs/*.md`
+- `smoke_test.py run --app manifest --tier Lite` (CI's Verify gate; skipped under `--quick`)
 - generated-artifact drift: `generate_commands_doc.py --check` (docs/COMMANDS.md +
   GEMINI.md/AGENTS.md command index) and a `generate_cursor_rules.sh`
   regenerate-and-clean-tree check — adding a skill that forgets these is the

@@ -16,7 +16,7 @@ input:
   tool_use_id: string
 
 output:
-  decision: "block"?           # prompts Claude with reason
+  decision: "block"             # optional; prompts Claude with reason when present
   reason: string?              # shown to Claude when decision=block
   hookSpecificOutput:
     hookEventName: "PostToolUse"

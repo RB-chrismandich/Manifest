@@ -1,0 +1,139 @@
+#!/usr/bin/env bats
+# ci_mirror_drift.bats — asserts the pr-smoke regression mirror
+# (.skillshare/skills/pr-smoke/scripts/run_pr_regression.sh) stays a
+# superset of the canonical checks declared in .github/workflows/ci.yml.
+#
+# Intent: nothing else catches ci.yml growing a check the mirror doesn't
+# run — a contributor can get a clean local `run_pr_regression.sh` while a
+# check that only lives in ci.yml silently regresses on push. Each check
+# below is its own @test so a failure names exactly which mirrored step
+# is missing.
+#
+# Matching is TOKEN-based (binary + distinctive arg), never whole-line, so
+# cosmetic reformatting of either file (line wraps, `python3 -m X` vs a
+# bare `X`, quoting) does not false-fail. Two greps per check:
+#   1. a sanity grep against ci.yml itself — if THIS fails, ci.yml no
+#      longer runs the check the way this test assumes; update the
+#      ci-tokens for that @test to match the new ci.yml step, don't just
+#      delete the test.
+#   2. a grep against run_pr_regression.sh for the mirrored tokens — if
+#      THIS fails, the mirror script is missing (or renamed) the step.
+#      Either add the invocation to run_pr_regression.sh (and its
+#      SKILL.md "What it checks" list), or, if the check is intentionally
+#      unmirrored (e.g. a structural symlink/case-collision check that
+#      has no meaningful "run it again locally" form), record that
+#      decision by deleting the @test with a comment explaining why —
+#      never leave it silently red.
+#
+# How to update when CI legitimately changes: edit the `ci_tokens` /
+# `mirror_tokens` pipe-separated lists below to the new command's
+# distinctive tokens, or add a new @test for a wholly new check. Do not
+# widen a token to something generic ("python3", "run") that would match
+# unrelated commands and mask real drift.
+
+REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
+CI_YML="$REPO_ROOT/.github/workflows/ci.yml"
+MIRROR="$REPO_ROOT/.skillshare/skills/pr-smoke/scripts/run_pr_regression.sh"
+
+setup() {
+    [ -f "$CI_YML" ] || { echo "missing $CI_YML" >&2; return 1; }
+    [ -f "$MIRROR" ] || { echo "missing $MIRROR" >&2; return 1; }
+}
+
+# has_tokens FILE token... — true iff every token appears as a fixed
+# substring SOMEWHERE in FILE's non-comment lines (whole-file, not
+# per-line, so a step whose tokens are spread across a multi-line `run:`
+# block still matches). Comment lines are stripped first: prose like
+# "# bash -n mirrors CI's ..." must not satisfy a deleted step's tokens.
+has_tokens() {
+    local file="$1"
+    shift
+    local tok stripped
+    stripped="$(grep -vE '^[[:space:]]*#' "$file")"
+    for tok in "$@"; do
+        printf '%s\n' "$stripped" | grep -qF -- "$tok" || return 1
+    done
+}
+
+# assert_mirrored LABEL ci_tokens [mirror_tokens]
+#   Token lists are '|'-separated strings (not arrays) so a token may
+#   contain spaces (e.g. "-S warning") without extra quoting gymnastics,
+#   and so this stays portable across the bash 3.2 (macOS) / bash 5
+#   (Linux CI) split this repo targets. mirror_tokens defaults to
+#   ci_tokens — pass it only when the mirror legitimately spells the
+#   step differently.
+assert_mirrored() {
+    local label="$1" ci_tokens="$2" mirror_tokens="${3:-$2}"
+    local -a ci_arr mirror_arr
+    IFS='|' read -r -a ci_arr <<< "$ci_tokens"
+    IFS='|' read -r -a mirror_arr <<< "$mirror_tokens"
+
+    if ! has_tokens "$CI_YML" "${ci_arr[@]}"; then
+        echo "SETUP DRIFT: ci.yml no longer matches the expected tokens for '$label' (${ci_tokens//|/, }) — update this test's ci_tokens to the current ci.yml step instead of deleting the test." >&2
+        return 1
+    fi
+    if ! has_tokens "$MIRROR" "${mirror_arr[@]}"; then
+        echo "MIRROR DRIFT: run_pr_regression.sh is missing the '$label' step. ci.yml runs it, but no invocation in the mirror matches all of: ${mirror_tokens//|/, }" >&2
+        return 1
+    fi
+}
+
+@test "shellcheck mirrors configs/claude/scripts/*.sh (-S warning)" {
+    assert_mirrored "shellcheck configs/claude/scripts/" \
+        "shellcheck|-S warning|configs/claude/scripts/*.sh"
+}
+
+@test "shellcheck mirrors bootstrap.sh + bootstrap/lib/*.sh (-S warning)" {
+    assert_mirrored "shellcheck bootstrap.sh + bootstrap/lib/" \
+        "shellcheck|-S warning|bootstrap.sh|bootstrap/lib/*.sh"
+}
+
+@test "lint guard: check_array_expansion.sh is mirrored" {
+    assert_mirrored "check_array_expansion.sh" \
+        "tests/lint/check_array_expansion.sh"
+}
+
+@test "lint guard: check_bats_assertions.sh is mirrored" {
+    assert_mirrored "check_bats_assertions.sh" \
+        "tests/lint/check_bats_assertions.sh"
+}
+
+@test "yamllint mirrors configs/claude/config/*.yml" {
+    assert_mirrored "yamllint configs/claude/config/" \
+        "yamllint|configs/claude/config/*.yml"
+}
+
+@test "markdownlint mirrors the key-docs globs" {
+    assert_mirrored "markdownlint key docs" \
+        "markdownlint-cli2|AGENTS.md|CLAUDE.md|README.md|docs/*.md"
+}
+
+@test "python yaml.safe_load validation loop is mirrored" {
+    assert_mirrored "python yaml.safe_load loop over configs/claude/config/" \
+        "yaml.safe_load|configs/claude/config"
+}
+
+@test "generate_commands_doc.py --check (docs/COMMANDS.md drift) is mirrored" {
+    assert_mirrored "generate_commands_doc.py --check" \
+        "generate_commands_doc.py|--check"
+}
+
+@test "bats tests/bats/ is mirrored" {
+    assert_mirrored "bats tests/bats/" \
+        "bats|tests/bats/"
+}
+
+@test "pytest tests/python/ is mirrored" {
+    assert_mirrored "pytest tests/python/" \
+        "pytest|tests/python/"
+}
+
+@test "smoke_test.py Lite-tier run (P-VI Verify gate) is mirrored" {
+    assert_mirrored "smoke_test.py --tier Lite" \
+        "smoke_test.py|--tier Lite"
+}
+
+@test "bash -n shell-syntax validation is mirrored" {
+    assert_mirrored "bash -n syntax check" \
+        "bash -n"
+}

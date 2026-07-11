@@ -11,6 +11,10 @@
 # session. Diagnostics go to stderr only under DEPLOY_STAMP_DEBUG=1.
 set -uo pipefail
 
+# Canonical err() convention (docs/CODING_STANDARDS.md), kept for parity with
+# every other script even though this hook's fail-open design (every path
+# exits 0 via debug()/return, never a hard error) currently has no call site.
+# shellcheck disable=SC2329
 err() { if [[ -t 2 ]]; then printf '\033[0;31m%s\033[0m\n' "deploy_stamp_check.sh: $*" >&2; else printf '%s\n' "deploy_stamp_check.sh: $*" >&2; fi; }
 debug() {
     [[ "${DEPLOY_STAMP_DEBUG:-}" == "1" ]] && printf '%s\n' "deploy_stamp_check.sh: $*" >&2

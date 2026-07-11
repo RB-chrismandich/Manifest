@@ -15,7 +15,7 @@ input:
 output:
   # Plain text stdout → added as context
   # OR JSON:
-  decision: "block"?           # prevents prompt processing, erases prompt
+  decision: "block"             # optional; prevents prompt processing, erases prompt when present
   reason: string?              # shown to user when blocked
   hookSpecificOutput:
     hookEventName: "UserPromptSubmit"

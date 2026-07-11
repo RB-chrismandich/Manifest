@@ -14,7 +14,7 @@ input:
   last_assistant_message: string  # Claude's final response text
 
 output:
-  decision: "block"?           # prevents Claude from stopping
+  decision: "block"             # optional; prevents Claude from stopping when present
   reason: string?              # required when block; tells Claude why to continue
 
 notes:

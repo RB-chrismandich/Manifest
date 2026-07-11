@@ -1,6 +1,12 @@
 #!/bin/bash
 # linear_ops.sh - Linear MCP wrapper for platform-agnostic issue operations
 # Usage: linear_ops.sh <subcommand> [args...]
+#
+# GraphQL query bodies below are single-quoted intentionally throughout this
+# file: they use GraphQL's own $var syntax (query($filter: TeamFilter) {...}),
+# which must stay literal for the server to parse — shell must never expand
+# it. Variables are passed separately via `jq` into the `variables` JSON arg.
+# shellcheck disable=SC2016
 
 set -euo pipefail
 

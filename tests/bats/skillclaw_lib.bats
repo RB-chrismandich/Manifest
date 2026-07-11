@@ -42,6 +42,26 @@ teardown() {
     done
 }
 
+@test "skillclaw_apply_state re-enforces 700 on already-existing dirs that drifted looser" {
+    # docs/SKILLCLAW.md: "set at enable time and re-enforced on each
+    # skillclaw_apply_state call" — simulate a second enable run after
+    # something loosened the perms (e.g. a manual chmod, an unrelated tool).
+    export SHELL_PROFILE_FILE="$SANDBOX/.zshrc"
+    touch "$SANDBOX/.zshrc"
+    launchctl() { :; }
+    systemctl() { :; }
+    mkdir -p "$SKILLCLAW_HOME/sessions" "$SKILLCLAW_HOME/skills"
+    chmod 755 "$SKILLCLAW_HOME" "$SKILLCLAW_HOME/sessions" "$SKILLCLAW_HOME/skills"
+    ENABLE_SKILLCLAW=true run skillclaw_apply_state
+    assert_success
+    local d
+    for d in "$SKILLCLAW_HOME" "$SKILLCLAW_HOME/sessions" "$SKILLCLAW_HOME/skills"; do
+        local mode
+        mode=$(stat -c '%a' "$d" 2>/dev/null || stat -f '%Lp' "$d")
+        assert_equal "$mode" "700"
+    done
+}
+
 @test "skillclaw_remove_wrappers strips the marker block" {
     local profile="$SANDBOX/.zshrc"
     cat > "$profile" << 'PROF'

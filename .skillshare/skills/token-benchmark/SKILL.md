@@ -26,7 +26,8 @@ python3 -c "import anthropic; print(f'anthropic {anthropic.__version__}: ok')" 2
 python3 -c "from google import genai; print('google-genai: ok')" 2>/dev/null || echo "google-genai package: missing — pip install google-genai"
 ```
 
-If any API key or binary is missing, inform the user and offer to run with `--api-only` (skips CLI path) or `--providers claude` (single provider).
+If any API key or binary is missing, inform the user and offer to run with `--api-only` (skips CLI path) or
+`--providers claude` (single provider).
 
 ## Arguments
 
@@ -69,6 +70,7 @@ python3 tests/token_benchmark/harness.py \
 1. Print the summary table from `docs/TOKEN_BENCHMARK.md` (the `## Token Overhead` section).
 2. Ask: "Commit the updated TOKEN_BENCHMARK.md? (y/n)"
 3. If yes:
+
 ```bash
 git add docs/TOKEN_BENCHMARK.md tests/token_benchmark/results/
 git commit -m "chore: update token benchmark results $(date +%Y-%m-%d)"

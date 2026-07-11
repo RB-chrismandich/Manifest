@@ -10,6 +10,9 @@ check_platform() {
         linux)
             local version=""
             if [[ -f /etc/os-release ]]; then
+                # /etc/os-release is a runtime-only distro file with no static
+                # equivalent shellcheck can follow; content is host-specific.
+                # shellcheck disable=SC1091
                 . /etc/os-release
                 version="$PRETTY_NAME"
             else

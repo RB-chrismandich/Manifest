@@ -7,6 +7,7 @@ Tests SynthesisEngine in isolation — no external agent connections required.
 import asyncio
 import sys
 from pathlib import Path
+from unittest.mock import AsyncMock, MagicMock
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 SCRIPTS_DIR = str(REPO_ROOT / "configs" / "claude" / "scripts")
@@ -94,6 +95,205 @@ class TestSynthesisEngine:
             assert result is None
         finally:
             synth_module.HAS_ANTHROPIC = original
+
+
+def _mock_anthropic_response(text: str):
+    """Build a fake AsyncAnthropic client/response chain for synth_module."""
+    response = MagicMock()
+    response.content = [MagicMock(text=text)]
+    client = MagicMock()
+    client.messages.create = AsyncMock(return_value=response)
+    return client
+
+
+class TestSynthesizeWithSdk:
+    """Exercise the HAS_ANTHROPIC=True branch with a stubbed client — no
+    live network/CLI calls. anthropic may not be installed in this env, so
+    both HAS_ANTHROPIC and AsyncAnthropic are patched onto the module."""
+
+    def _engine_below_threshold(self, tmp_path, monkeypatch, client):
+        from agents import synthesis as synth_module
+
+        monkeypatch.setattr(synth_module, "HAS_ANTHROPIC", True)
+        monkeypatch.setattr(
+            synth_module,
+            "AsyncAnthropic",
+            MagicMock(return_value=client),
+            raising=False,
+        )
+        engine = _make_engine(tmp_path)
+        engine.synthesis_template = "Task: {ORIGINAL_TASK}\n{AGENT_OUTPUTS}"
+        return engine
+
+    def test_successful_synthesis_returns_parsed_json(self, tmp_path, monkeypatch):
+        client = _mock_anthropic_response('{"unified_recommendation": "do X"}')
+        engine = self._engine_below_threshold(tmp_path, monkeypatch, client)
+        agent_results = {"claude": {"output": "claude says X"}}
+        result = asyncio.run(
+            engine.synthesize("task", agent_results, {"consensus_score": 10})
+        )
+        assert result["triggered"] is True
+        assert result["unified_recommendation"] == "do X"
+
+    def test_synthesis_strips_markdown_json_fence(self, tmp_path, monkeypatch):
+        text = '```json\n{"unified_recommendation": "fenced"}\n```'
+        client = _mock_anthropic_response(text)
+        engine = self._engine_below_threshold(tmp_path, monkeypatch, client)
+        result = asyncio.run(
+            engine.synthesize(
+                "task", {"claude": {"output": "x"}}, {"consensus_score": 0}
+            )
+        )
+        assert result["unified_recommendation"] == "fenced"
+
+    def test_json_decode_error_falls_back_to_raw_text(self, tmp_path, monkeypatch):
+        client = _mock_anthropic_response("not valid json at all")
+        engine = self._engine_below_threshold(tmp_path, monkeypatch, client)
+        result = asyncio.run(
+            engine.synthesize(
+                "task", {"claude": {"output": "x"}}, {"consensus_score": 0}
+            )
+        )
+        assert result["triggered"] is True
+        assert result["error"] == "json_parse_failed"
+        assert result["unified_recommendation"] == "not valid json at all"
+
+    def test_timeout_error_returns_timeout_result(self, tmp_path, monkeypatch):
+        from agents import synthesis as synth_module
+
+        client = MagicMock()
+        client.messages.create = AsyncMock(side_effect=TimeoutError())
+        monkeypatch.setattr(synth_module, "HAS_ANTHROPIC", True)
+        monkeypatch.setattr(
+            synth_module,
+            "AsyncAnthropic",
+            MagicMock(return_value=client),
+            raising=False,
+        )
+        engine = _make_engine(tmp_path)
+        engine.synthesis_template = "Task: {ORIGINAL_TASK}"
+        result = asyncio.run(
+            engine.synthesize(
+                "task", {"claude": {"output": "x"}}, {"consensus_score": 0}
+            )
+        )
+        assert result["triggered"] is True
+        assert result["error"] == "timeout"
+
+    def test_generic_exception_is_captured(self, tmp_path, monkeypatch):
+        from agents import synthesis as synth_module
+
+        client = MagicMock()
+        client.messages.create = AsyncMock(side_effect=RuntimeError("boom"))
+        monkeypatch.setattr(synth_module, "HAS_ANTHROPIC", True)
+        monkeypatch.setattr(
+            synth_module,
+            "AsyncAnthropic",
+            MagicMock(return_value=client),
+            raising=False,
+        )
+        engine = _make_engine(tmp_path)
+        engine.synthesis_template = "Task: {ORIGINAL_TASK}"
+        result = asyncio.run(
+            engine.synthesize(
+                "task", {"claude": {"output": "x"}}, {"consensus_score": 0}
+            )
+        )
+        assert result["triggered"] is True
+        assert result["error"] == "boom"
+        assert result["unified_recommendation"] == "Synthesis failed"
+
+    def test_missing_prompt_short_circuits_before_sdk_call(self, tmp_path, monkeypatch):
+        """Empty template -> empty prompt -> returns None without ever
+        constructing the Anthropic client."""
+        from agents import synthesis as synth_module
+
+        client_factory = MagicMock()
+        monkeypatch.setattr(synth_module, "HAS_ANTHROPIC", True)
+        monkeypatch.setattr(
+            synth_module, "AsyncAnthropic", client_factory, raising=False
+        )
+        engine = _make_engine(tmp_path)
+        engine.synthesis_template = ""
+        result = asyncio.run(engine.synthesize("task", {}, {"consensus_score": 0}))
+        assert result is None
+        client_factory.assert_not_called()
+
+
+class TestBuildPromptEdgeCases:
+    def test_single_agent_output(self, tmp_path):
+        engine = _make_engine(tmp_path)
+        engine.synthesis_template = "{AGENT_OUTPUTS}"
+        prompt = engine._build_synthesis_prompt(
+            "task", {"claude": {"output": "solo view"}}
+        )
+        assert prompt == "### Claude Output\n\nsolo view"
+
+    def test_empty_agent_results_leaves_placeholder_section_empty(self, tmp_path):
+        engine = _make_engine(tmp_path)
+        engine.synthesis_template = "Before\n{AGENT_OUTPUTS}\nAfter"
+        prompt = engine._build_synthesis_prompt("task", {})
+        assert prompt == "Before\n\nAfter"
+
+    def test_agent_with_missing_output_key_renders_na(self, tmp_path):
+        engine = _make_engine(tmp_path)
+        engine.synthesis_template = "{AGENT_OUTPUTS}"
+        prompt = engine._build_synthesis_prompt("task", {"gemini": {}})
+        assert "N/A" in prompt
+        assert "### Gemini Output" in prompt
+
+    def test_agent_with_empty_string_output_renders_na(self, tmp_path):
+        """output='' is falsy, so the {AGENT_OUTPUTS} section falls back to N/A."""
+        engine = _make_engine(tmp_path)
+        engine.synthesis_template = "{AGENT_OUTPUTS}"
+        prompt = engine._build_synthesis_prompt("task", {"gemini": {"output": ""}})
+        assert "N/A" in prompt
+
+    def test_no_placeholders_returns_template_unchanged(self, tmp_path):
+        engine = _make_engine(tmp_path)
+        engine.synthesis_template = "static content, no placeholders"
+        prompt = engine._build_synthesis_prompt(
+            "task", {"claude": {"output": "ignored"}}
+        )
+        assert prompt == "static content, no placeholders"
+
+
+class TestConsensusThreshold:
+    def test_custom_threshold_from_config(self, tmp_path, monkeypatch):
+        """A stricter configured threshold triggers synthesis at a score
+        (0.70) that would be skipped under the 0.50 default — proven by
+        actually driving the mocked SDK call, not just checking None."""
+        from agents import synthesis as synth_module
+
+        client = _mock_anthropic_response('{"unified_recommendation": "ran"}')
+        monkeypatch.setattr(synth_module, "HAS_ANTHROPIC", True)
+        monkeypatch.setattr(
+            synth_module,
+            "AsyncAnthropic",
+            MagicMock(return_value=client),
+            raising=False,
+        )
+
+        engine = _make_engine(tmp_path)
+        engine.config.config.setdefault("synthesis", {})["threshold"] = 0.90
+        engine.synthesis_template = "{ORIGINAL_TASK}"
+
+        consensus = {"consensus_score": 70}  # 0.70 < 0.90 custom threshold
+
+        # Sanity: default threshold (0.50) would have skipped this score.
+        default_engine = _make_engine(tmp_path)
+        default_engine.synthesis_template = "{ORIGINAL_TASK}"
+        assert asyncio.run(default_engine.synthesize("task", {}, consensus)) is None
+
+        result = asyncio.run(engine.synthesize("task", {}, consensus))
+        assert result["unified_recommendation"] == "ran"
+        client.messages.create.assert_called_once()
+
+    def test_missing_consensus_score_defaults_to_full_consensus(self, tmp_path):
+        """consensus dict without 'consensus_score' defaults to 100 -> skip."""
+        engine = _make_engine(tmp_path)
+        result = asyncio.run(engine.synthesize("task", {}, {}))
+        assert result is None
 
 
 class TestTemplateResolution:

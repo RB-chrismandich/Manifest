@@ -12,6 +12,10 @@ detect_platform() {
             PLATFORM="linux"
             # Detect Linux distribution
             if [[ -f /etc/os-release ]]; then
+                # /etc/os-release is a runtime-only distro file with no static
+                # equivalent shellcheck can follow (-x doesn't help; content is
+                # host-specific), so it can't be resolved for analysis.
+                # shellcheck disable=SC1091
                 . /etc/os-release
                 DISTRO="$ID"
             elif [[ -f /etc/debian_version ]]; then

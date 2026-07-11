@@ -238,6 +238,10 @@ configure_shell_profile_state() {
             ;;
     esac
 
+    # Single-quoted intentionally: this line is written verbatim into the
+    # user's shell profile, so ${MANIFEST_STATE_ROOT:-$HOME/.manifest} must
+    # expand there at profile-load time, not here.
+    # shellcheck disable=SC2016
     local export_line='export MANIFEST_STATE_ROOT="${MANIFEST_STATE_ROOT:-$HOME/.manifest}"'
     # shellcheck disable=SC2034
     SHELL_PROFILE_FILE="$profile_file"

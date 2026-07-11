@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 # run_pr_regression.sh — complete regression + smoke test for the Manifest repo.
 #
-# Mirrors the gates in .github/workflows/ci.yml (shellcheck, array-expansion,
-# yamllint, markdownlint, bats, pytest) and adds a deployed-environment smoke
-# pass (bootstrap re-deploy, env health, live orchestration probe).
+# Mirrors the gates in .github/workflows/ci.yml (shellcheck, lint guards,
+# shell syntax, yamllint + YAML parse, markdownlint, generated-doc drift, bats,
+# pytest, smoke Lite) and adds a deployed-environment smoke pass (bootstrap
+# re-deploy, env health, live orchestration probe).
+# tests/bats/ci_mirror_drift.bats asserts this mirror stays a superset of ci.yml.
 #
 # Why a script and not freehand commands: a PR gate needs a *reliable* verdict.
 # A script aggregates every phase's real exit code into one number, so the
@@ -14,6 +16,10 @@
 #   0 = PASS  every gate clean
 #   1 = WARN  no regressions, but a non-blocking smoke check degraded
 #   2 = FAIL  a regression gate failed (lint/test/deploy)
+#
+# run_step takes single-quoted command strings so $vars expand inside its
+# `bash -c`, not at definition time — SC2016 flags that idiom by design.
+# shellcheck disable=SC2016
 set -u
 
 SCRIPT_NAME="run_pr_regression.sh"
@@ -116,7 +122,11 @@ run_regression() {
         run_step Regression shellcheck-scripts hard 'shellcheck -S warning configs/claude/scripts/*.sh'
         run_step Regression shellcheck-bootstrap hard 'shellcheck -S warning bootstrap.sh bootstrap/lib/*.sh'
     fi
+    # bash -n mirrors CI's validate-job syntax sweep (works even without shellcheck).
+    run_step Regression shell-syntax hard \
+        'for f in bootstrap.sh bootstrap/lib/*.sh configs/claude/scripts/*.sh; do bash -n "$f" || exit 1; done'
     run_step Regression array-expansion-lint hard 'tests/lint/check_array_expansion.sh'
+    run_step Regression bats-assertions-lint hard 'tests/lint/check_bats_assertions.sh'
     # Invoke yamllint as a module: the bare console-script shim can fail to exec
     # under `bash -c` on some Python installs (the shebang falls through to sh),
     # whereas `python3 -m yamllint` is portable.
@@ -126,8 +136,27 @@ run_regression() {
         record Regression yamllint skip "python 'yamllint' module not installed"
         echo "▶ Regression: yamllint — skip (module not installed)"
     fi
-    # markdownlint-cli2 auto-discovers .markdownlint.jsonc; run via npx (no global install).
-    run_step Regression markdownlint hard 'npx --no-install markdownlint-cli2 AGENTS.md CLAUDE.md README.md "docs/*.md" 2>/dev/null'
+    # CI validates every config twice: yamllint (style) above, and a plain
+    # yaml.safe_load parse (syntax) — mirror both so a parse-only breakage
+    # can't slip past the style gate.
+    if python3 -c 'import yaml' 2> /dev/null; then
+        run_step Regression yaml-parse hard \
+            'for f in configs/claude/config/*.yml; do python3 -c "import sys, yaml; yaml.safe_load(open(sys.argv[1]))" "$f" || exit 1; done'
+    else
+        record Regression yaml-parse skip "python 'yaml' module not installed"
+        echo "▶ Regression: yaml-parse — skip (module not installed)"
+    fi
+    # markdownlint-cli2 auto-discovers .markdownlint.jsonc. Prefer the
+    # repo-local pinned copy (tracks CI's pinned action line), then a PATH
+    # (brew) install, then npx resolution. Stderr is kept everywhere —
+    # markdownlint-cli2 reports violations on stderr.
+    local mdl="npx --no-install markdownlint-cli2"
+    if [ -x ./node_modules/.bin/markdownlint-cli2 ]; then
+        mdl="./node_modules/.bin/markdownlint-cli2"
+    elif command -v markdownlint-cli2 > /dev/null 2>&1; then
+        mdl="markdownlint-cli2"
+    fi
+    run_step Regression markdownlint hard "$mdl AGENTS.md CLAUDE.md README.md \"docs/*.md\""
 
     # Generated-artifact drift. Adding/renaming a skill must be reflected in
     # docs/COMMANDS.md, the GEMINI.md/AGENTS.md command index, and the per-skill
@@ -148,10 +177,23 @@ run_regression() {
     if [ "$QUICK" = 1 ]; then
         record Regression pytest skip "--quick mode"
         echo "▶ Regression: pytest — skip (--quick)"
+        record Regression smoke-lite skip "--quick mode"
+        echo "▶ Regression: smoke-lite — skip (--quick)"
         return
     fi
     if need python3 Regression pytest; then
         run_step Regression pytest hard 'python3 -m pytest tests/python/ -q'
+    fi
+    # Lite-tier smoke catalog run — part of CI's test job (Verify gate).
+    # smoke_test.py imports pyyaml, so gate on the module (covers a missing
+    # python3 too) exactly like yaml-parse above — a bare-python box should
+    # skip, not report a false regression.
+    if python3 -c 'import yaml' 2> /dev/null; then
+        run_step Regression smoke-lite hard \
+            'python3 configs/claude/scripts/smoke_test.py run --app manifest --tier Lite --catalog-dir smoke-catalog'
+    else
+        record Regression smoke-lite skip "python 'yaml' module not installed"
+        echo "▶ Regression: smoke-lite — skip (module not installed)"
     fi
 }
 

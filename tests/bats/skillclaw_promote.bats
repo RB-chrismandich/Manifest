@@ -172,3 +172,43 @@ EOF
     run grep -E '"stage": "classify".*"event": "stage_end"' "$SKILLCLAW_AUDIT_DIR/promote.log"
     assert_success
 }
+
+# Repo-side fail-open contract for capture (docs/SKILLCLAW.md: capture is passive,
+# no daemon/socket/proxy). The equivalent decision point is here: ingest reading a
+# transcript it cannot access must not abort the pipeline — it degrades to "0
+# ingested, continue" rather than blocking scrub/evolve/classify.
+@test "ingest failure on an unreadable transcript is fail-open: pipeline continues" {
+    if [[ "$(id -u)" -eq 0 ]]; then
+        skip "root ignores file permissions"
+    fi
+    export SKILLCLAW_TRANSCRIPTS="$SANDBOX/transcripts"
+    mkdir -p "$SKILLCLAW_TRANSCRIPTS"
+    local tf="$SKILLCLAW_TRANSCRIPTS/broken.jsonl"
+    printf '{"type":"user","message":{"role":"user","content":"hi"}}\n' > "$tf"
+    # Backdate past the 5-minute settle window so ingest actually opens the file
+    # (files newer than settle_minutes are skipped, not read).
+    python3 -c "import os, time; t = time.time() - 3600; os.utime('$tf', (t, t))"
+    chmod 000 "$tf"
+    run bash "$SCRIPT"
+    chmod 644 "$tf" # restore so teardown's rm -rf can remove it
+    assert_success
+    assert_output --partial "ingest returned non-zero (continuing)"
+    assert_output --partial "classify"
+}
+
+@test "ingest failure still reaches and logs the classify stage in the audit log" {
+    if [[ "$(id -u)" -eq 0 ]]; then
+        skip "root ignores file permissions"
+    fi
+    export SKILLCLAW_TRANSCRIPTS="$SANDBOX/transcripts2"
+    mkdir -p "$SKILLCLAW_TRANSCRIPTS"
+    local tf="$SKILLCLAW_TRANSCRIPTS/broken.jsonl"
+    printf '{"type":"user","message":{"role":"user","content":"hi"}}\n' > "$tf"
+    python3 -c "import os, time; t = time.time() - 3600; os.utime('$tf', (t, t))"
+    chmod 000 "$tf"
+    run bash "$SCRIPT"
+    chmod 644 "$tf"
+    assert_success
+    run grep -c '"stage": "classify", "event": "stage_start"' "$SKILLCLAW_AUDIT_DIR/promote.log"
+    assert_output "1"
+}

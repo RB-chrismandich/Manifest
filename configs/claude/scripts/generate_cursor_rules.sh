@@ -49,7 +49,8 @@ for skill_dir in "$SKILLS_DIR"/*/; do
         # `|| true`: under `set -euo pipefail` a no-match grep would abort the
         # script; tolerate a SKILL.md with no description and fall back below.
         desc_line=$(echo "$front_matter" | grep '^description:' | head -1 || true)
-        desc_value=$(echo "$desc_line" | sed 's/^description:[[:space:]]*//')
+        desc_value="${desc_line#description:}"
+        desc_value="${desc_value#"${desc_value%%[![:space:]]*}"}"
 
         if [[ "$desc_value" =~ ^[\|\>][+-]?$ || -z "$desc_value" ]]; then
             # Block scalar: collect indented lines after the indicator
