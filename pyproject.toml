@@ -37,6 +37,8 @@ indent-style = "space"
 [tool.pytest.ini_options]
 addopts = "--strict-markers --strict-config"
 testpaths = ["tests/python"]
+# pytest-asyncio's future default, pinned explicitly (unset emits PytestDeprecationWarning).
+asyncio_default_fixture_loop_scope = "function"
 
 [tool.coverage.run]
 branch = true
