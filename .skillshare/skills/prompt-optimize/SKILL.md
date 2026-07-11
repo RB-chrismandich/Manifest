@@ -55,9 +55,6 @@ The output must be returned strictly using this layout so downstream agent layer
     - Enforce absolute path strings; no raw tilde (~) directory configurations allowed.
     - Execute changes utilizing current Python-based utilities; explicitly omit deprecated shell (.sh) actions.
     - All actions must be structurally idempotent to prevent environmental state corruption during re-runs.
-    - Explicitly preserve any literal schema templates (like XML tags or JSON layouts) inside the refactored output
-      (e.g., within `<desired_output>`). Do not consume, delete, or over-summarize these structural templates during
-      the normalization process, as they are required instructions for downstream agents.
     - [Additional task-specific constraints]
   </constraints>
 
