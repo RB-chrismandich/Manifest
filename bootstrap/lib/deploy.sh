@@ -263,6 +263,50 @@ list_deployed_files() {
     return 0
 }
 
+# Manifest-tracked prune of orphan Cursor rules (spec 2026-07-11
+# cursor-feature-parity WS-3 / #505). Mirrors deploy_home_skills's
+# prune model (common.sh:144-171): a `.deployed-rules` manifest records the
+# *.mdc basenames we shipped last deploy; anything in that manifest that is
+# no longer in the source (skill renamed/removed) AND still present in dest
+# gets removed. Rules never in the manifest — i.e. user-authored rules the
+# user dropped into ~/.cursor/rules/ themselves — are never touched.
+# orchestration.mdc and commands-index.mdc are excluded from the manifest (and
+# thus never prune-eligible): they are hand/generator-maintained singletons,
+# not one-per-skill.
+prune_cursor_rules() {
+    local src_rules_dir="$1"
+    local dest_rules_dir="$2"
+    local manifest="$dest_rules_dir/.deployed-rules"
+
+    local src_rule_count
+    src_rule_count=$(find "$src_rules_dir" -maxdepth 1 -type f -name '*.mdc' | wc -l | tr -d ' ')
+
+    if [[ -f "$manifest" && "$src_rule_count" -gt 0 ]]; then
+        local rule_name
+        while IFS= read -r rule_name; do
+            case "$rule_name" in
+                '' | */* | .* | *..* | orchestration.mdc | commands-index.mdc) continue ;;
+            esac
+            if [[ ! -f "$src_rules_dir/$rule_name" && -f "$dest_rules_dir/$rule_name" ]]; then
+                rm -f "${dest_rules_dir:?}/${rule_name}"
+                print_info "Pruned orphan Cursor rule: $rule_name"
+            fi
+        done < "$manifest"
+    fi
+
+    # Atomic manifest write: a failed subshell must not truncate the previous
+    # manifest (that would silently disable future pruning). The two
+    # protected singletons are excluded at the find level so they can never
+    # end up manifest-tracked / prune-eligible.
+    if (cd "$src_rules_dir" && find . -maxdepth 1 -type f -name '*.mdc' \
+        ! -name 'orchestration.mdc' ! -name 'commands-index.mdc' |
+        LC_ALL=C sort | sed 's|^\./||') > "$manifest.tmp"; then
+        mv "$manifest.tmp" "$manifest"
+    else
+        rm -f "$manifest.tmp"
+    fi
+}
+
 # Deploy Cursor IDE configuration (mirrors .claude with symlinks)
 deploy_cursor_configs() {
     # Honor the service toggle — deploying while disabled rewrote ~/.cursor
@@ -289,6 +333,7 @@ deploy_cursor_configs() {
     if [[ -d "$cursor_source_dir/rules" ]]; then
         cp "$cursor_source_dir/rules"/*.mdc "$CURSOR_TARGET_DIR/rules/" 2> /dev/null || true
         print_success "Deployed Cursor rules to $CURSOR_TARGET_DIR/rules/"
+        prune_cursor_rules "$cursor_source_dir/rules" "$CURSOR_TARGET_DIR/rules"
     fi
 
     # Copy Cursor MCP config template (global MCP server defaults)

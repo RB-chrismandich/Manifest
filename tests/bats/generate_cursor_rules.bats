@@ -18,9 +18,20 @@ setup() {
     SKILLS_DIR="$SANDBOX/configs/claude/skills"
     RULES_DIR="$SANDBOX/configs/cursor/rules"
     GEN="$SANDBOX/configs/claude/scripts/generate_cursor_rules.sh"
-    mkdir -p "$SKILLS_DIR" "$RULES_DIR" "$SANDBOX/configs/claude/scripts"
+    mkdir -p "$SKILLS_DIR" "$RULES_DIR" "$SANDBOX/configs/claude/scripts" "$SANDBOX/configs/claude/config"
     cp "$REPO_ROOT/configs/claude/scripts/generate_cursor_rules.sh" "$GEN"
     chmod +x "$GEN"
+    # generate_cursor_rules.sh also regenerates configs/cursor/mcp.json (spec
+    # 2026-07-11 cursor-feature-parity WS-1); stage the generator + a minimal
+    # fixture registry so the sandbox mirrors the real layout it expects.
+    cp "$REPO_ROOT/configs/claude/scripts/generate_cursor_mcp.py" "$SANDBOX/configs/claude/scripts/generate_cursor_mcp.py"
+    chmod +x "$SANDBOX/configs/claude/scripts/generate_cursor_mcp.py"
+    cat > "$SANDBOX/configs/claude/config/mcp_servers.yml" << 'EOF'
+mcp_servers:
+  fixture-server:
+    url: "https://example.com/fixture-server"
+    transport: "http"
+EOF
 }
 
 teardown() {
@@ -328,6 +339,90 @@ EOF
     assert_equal "$(ls "$RULES_DIR" | wc -l | tr -d ' ')" "0"
 }
 
+# ── Orphan rule pruning (spec 2026-07-11 cursor-feature-parity WS-3 / #505) ──
+
+@test "orphan rule for a removed skill is deleted on regen and counted" {
+    make_skill alpha "Alpha"
+    make_skill beta "Beta"
+    "$GEN"
+    [ -f "$RULES_DIR/beta.mdc" ]
+
+    rm -rf "$SKILLS_DIR/beta"   # skill removed from source of truth
+    run "$GEN"
+    assert_success
+    assert_output --partial "1 removed"
+    [ ! -e "$RULES_DIR/beta.mdc" ]
+    [ -f "$RULES_DIR/alpha.mdc" ]   # unrelated rule untouched
+}
+
+@test "orphan rule for a renamed skill is deleted, new rule created" {
+    make_skill old-name "Old"
+    "$GEN"
+    [ -f "$RULES_DIR/old-name.mdc" ]
+
+    mv "$SKILLS_DIR/old-name" "$SKILLS_DIR/new-name"
+    run "$GEN"
+    assert_success
+    assert_output --partial "1 created"
+    assert_output --partial "1 removed"
+    [ ! -e "$RULES_DIR/old-name.mdc" ]
+    [ -f "$RULES_DIR/new-name.mdc" ]
+}
+
+@test "--dry-run on an orphan rule reports would-remove and deletes nothing" {
+    make_skill alpha "Alpha"
+    "$GEN"
+    rm -rf "$SKILLS_DIR/alpha"
+
+    run "$GEN" --dry-run
+    assert_success
+    assert_output --partial "would remove: $RULES_DIR/alpha.mdc"
+    assert_output --partial "1 removed"
+    [ -f "$RULES_DIR/alpha.mdc" ]   # dry-run must not delete
+}
+
+@test "orchestration.mdc and commands-index.mdc are never pruned as orphans" {
+    # Neither has a matching configs/claude/skills/<name>/ dir (by design —
+    # they are hand/generator-maintained singletons, not one-per-skill), so
+    # the naive "no matching skill dir" rule must not delete them.
+    make_skill alpha "Alpha"
+    echo "protected" > "$RULES_DIR/orchestration.mdc"
+    echo "protected" > "$RULES_DIR/commands-index.mdc"
+
+    run "$GEN"
+    assert_success
+    refute_output --partial "would remove: $RULES_DIR/orchestration.mdc"
+    refute_output --partial "would remove: $RULES_DIR/commands-index.mdc"
+    [ -f "$RULES_DIR/orchestration.mdc" ]
+    [ -f "$RULES_DIR/commands-index.mdc" ]
+    assert_equal "$(cat "$RULES_DIR/orchestration.mdc")" "protected"
+}
+
+@test "orphan pruning is idempotent — second regen reports 0 removed" {
+    make_skill alpha "Alpha"
+    make_skill beta "Beta"
+    "$GEN"
+    rm -rf "$SKILLS_DIR/beta"
+    "$GEN"   # first prune removes beta.mdc
+    [ ! -e "$RULES_DIR/beta.mdc" ]
+
+    run "$GEN"
+    assert_success
+    assert_output --partial "0 removed"
+}
+
+@test "no orphans present: removed count is 0 and nothing is deleted" {
+    make_skill alpha "Alpha"
+    make_skill beta "Beta"
+    "$GEN"
+
+    run "$GEN"
+    assert_success
+    assert_output --partial "0 removed"
+    [ -f "$RULES_DIR/alpha.mdc" ]
+    [ -f "$RULES_DIR/beta.mdc" ]
+}
+
 @test "--help prints usage and exits 0" {
     run "$GEN" --help
     assert_success
@@ -345,9 +440,9 @@ EOF
 
     run "$REPO_ROOT/configs/claude/scripts/generate_cursor_rules.sh"
     assert_success
-    # Tree is already in sync, so every rule is counted as unchanged and
-    # nothing is rewritten.
-    assert_output --regexp "Cursor rules: 0 created, 0 updated, [0-9]+ unchanged"
+    # Tree is already in sync, so every rule is counted as unchanged, nothing
+    # is rewritten, and no orphans are pruned.
+    assert_output --regexp "Cursor rules: 0 created, 0 updated, [0-9]+ unchanged, 0 removed"
 
     # The real invariant: the tree is still clean afterwards (no drift).
     git -C "$REPO_ROOT" diff --exit-code --quiet configs/cursor/rules/

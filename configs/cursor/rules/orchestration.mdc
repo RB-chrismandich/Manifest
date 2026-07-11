@@ -23,6 +23,8 @@ Apply at all times, in every session:
   whole-tree crawls and re-reads of unchanged files. Don't starve context —
   a wrong edit costs more than one extra dependency read.
 
+`@token-conserve` re-asserts this mode if drift is noticed mid-session.
+
 ## Parallel Agent Script
 
 **Location**: `~/.claude/scripts/parallel_agent.py` (symlinked at `.cursor/scripts/`)
@@ -91,6 +93,23 @@ Select models based on task complexity:
 
 ---
 
+## Reference Index
+
+Read on demand (NOT auto-loaded). You MUST read the reference before related tasks:
+
+- `~/.claude/references/parallel-agent.md` — Read for flag specs, JSON schema validation, or resolving Credit Exhaustion.
+- `~/.claude/references/orchestration.md` — Read when running multi-agent validation or debugging cross-verification failures.
+- `~/.claude/references/git-platform.md` — Read when automating PRs, branch detection, or git_ops failures.
+- `~/.claude/references/layout.md` — Read when modifying config trees or mapping file locations.
+- `~/.claude/references/sub-agent-dispatch.md` — Read before a rule dispatches sub-agents: native Task vs
+  `parallel_agent.py`, when-to-dispatch threshold, cross-platform fallback.
+- `~/.claude/references/spec-artifact-discovery.md` — Read before a spec-* rule reads
+  planning artifacts: speckit vs superpowers layout detection + precedence.
+- `~/.claude/references/antipatterns.md` — Read before writing or refactoring code:
+  guardrail registry (detection cues + prevention rules).
+
+---
+
 ## Proactive Decision Framework
 
 ### ALWAYS Use Parallel Agents For
@@ -99,6 +118,11 @@ Select models based on task complexity:
 2. **Architectural decisions** — new services, API changes, schema modifications
 3. **Large file modifications (>200 lines)** — complex refactoring, major features
 4. **Critical business logic** — payments, user data, compliance
+
+### CONSIDER Parallel Agents For
+
+Complex multi-file refactoring, new feature implementation, performance
+optimization, debugging difficult issues.
 
 ### SKIP Parallel Agents For
 
@@ -250,6 +274,25 @@ All configuration is symlinked from `.claude/`:
 | `prompts/preflight_analysis.md` | Pre-flight analysis template |
 | `prompts/synthesis.md` | Agent disagreement synthesis template |
 | `prompts/validation.md` | Validation criteria template |
+
+---
+
+## Skills
+
+**Graphify** is a managed *tool*, not a parallel-orchestration agent: the
+`graphify` CLI (installed by bootstrap when enabled) and its `@graphify` rule
+are toggled via `--enable-graphify`/`--disable-graphify` (default: enabled), but
+graphify never participates in `parallel_agent.py` consensus and is not counted
+toward orchestration readiness.
+
+**CLI tool** (installed to `~/.local/bin/`): `sync-skills` — push
+`.skillshare/skills/` changes to all home targets (daily skill dev workflow).
+
+### Auto-Triggered Rule
+
+`@code-audit` auto-triggers on security-sensitive patterns (auth, crypto,
+secrets, input validation) or complexity (>500 lines, >10 functions, or >5
+classes per file), giving inline feedback without blocking the workflow.
 
 ---
 
