@@ -83,7 +83,7 @@ def compute_stats(records: list[dict]) -> dict:
             }
         )
     )
-    for r in cli_recs:
+    for r in _cli_quality_records(cli_recs):
         if r.get("quality_score") is None:
             continue
         provider = r["provider"]
@@ -158,6 +158,33 @@ def _empty_cell(provider: str, unsupported: set[str]) -> str:
     provider has a verified-absent mechanism for this metric (recorded via
     the row-level `unsupported` flag), else `—` (never measured)."""
     return "unsupported" if provider in unsupported else "—"
+
+
+def _unsupported_watermarks(cli_recs: list[dict]) -> dict[tuple, str]:
+    """Map (provider, category) -> latest run_id that recorded 'unsupported'."""
+    watermarks: dict[tuple, str] = {}
+    for r in cli_recs:
+        if r.get("unsupported"):
+            # .get: legacy rows may lack keys; never crash report generation
+            cell = (r.get("provider"), r.get("category"))
+            watermarks[cell] = max(watermarks.get(cell, ""), r["run_id"])
+    return watermarks
+
+
+def _cli_quality_records(cli_recs: list[dict]) -> list[dict]:
+    """CLI rows eligible for quality aggregation.
+
+    Scored rows at or before a cell's latest 'unsupported' observation are
+    invalidated — they predate the strategy table and were measured with
+    flag text leaked into the prompt (#546). Only rows from strictly newer
+    runs (a later, verified strategy) count.
+    """
+    watermarks = _unsupported_watermarks(cli_recs)
+    return [
+        r
+        for r in cli_recs
+        if r["run_id"] > watermarks.get((r.get("provider"), r.get("category")), "")
+    ]
 
 
 def _latest_unsupported_cells(cli_recs: list[dict]) -> list[tuple]:

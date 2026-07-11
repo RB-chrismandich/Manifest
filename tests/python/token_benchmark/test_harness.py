@@ -385,6 +385,8 @@ class TestRunBenchmarkCliStrategy:
             results_dir=tmp_path / "results",
         )
 
+        # The console must disclose the skip — exactly once per provider,
+        # not silently and not once per prompt.
         out = capsys.readouterr().out
         for provider in ("gemini", "antigravity"):
             assert out.count(f"[{provider}][cli] unsupported") == 1

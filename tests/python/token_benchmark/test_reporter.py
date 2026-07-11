@@ -296,9 +296,14 @@ class TestUnsupportedOutcome:
 
     def _gemini_cli_rows(self, run_id, *, unsupported, quality_score=None):
         """Derive gemini CLI before/after rows from the claude CLI fixture."""
+        cli_base = next(
+            r
+            for r in FIXTURE_RECORDS
+            if r["source"] == "cli" and r["condition"] == "before"
+        )
         return [
             {
-                **FIXTURE_RECORDS[2],
+                **cli_base,
                 "run_id": run_id,
                 "provider": "gemini",
                 "condition": cond,
@@ -356,7 +361,9 @@ class TestUnsupportedOutcome:
         assert "| gemini | mmlu | 1/1 | 1/1 | 0 |" in md
 
     def test_latest_unsupported_overrides_older_contaminated_scores(self):
-        """Newer unsupported rows invalidate older (pre-#546, polluted) scores."""
+        """Newer unsupported rows invalidate older (pre-#546, polluted) scores —
+        at the aggregation level, not just in the rendered cell, so no other
+        table (e.g. Historical Runs) can re-publish the contaminated scores."""
         records = (
             FIXTURE_RECORDS
             + self._gemini_cli_rows(
@@ -366,8 +373,30 @@ class TestUnsupportedOutcome:
         )
         stats = compute_stats(records)
         assert stats["cli_unsupported"] == [("gemini", "mmlu")]
+        # Invalidated scores are excluded from the aggregates entirely
+        assert stats["quality"].get("gemini", {}) == {}
         md = render_report(stats, run_id="2026-07-01T10-00-00")
         assert "| gemini | mmlu | unsupported | unsupported | — |" in md
+
+    def test_watermark_excludes_only_rows_up_to_unsupported_run(self):
+        """After an unsupported watermark, a still-newer measured run counts
+        alone — pre-watermark contaminated scores never blend back in."""
+        records = (
+            FIXTURE_RECORDS
+            + self._gemini_cli_rows(
+                "2026-06-12T10-00-00", unsupported=False, quality_score=1
+            )
+            + self._gemini_cli_rows("2026-07-01T10-00-00", unsupported=True)
+            + self._gemini_cli_rows(
+                "2026-07-08T10-00-00", unsupported=False, quality_score=0
+            )
+        )
+        stats = compute_stats(records)
+        assert stats["cli_unsupported"] == []
+        q = stats["quality"]["gemini"]["mmlu"]
+        # Only the post-watermark run is counted: 0/1, not a 1/2 blend
+        assert (q["before_score"], q["before_total"]) == (0, 1)
+        assert (q["after_score"], q["after_total"]) == (0, 1)
 
 
 class TestCostAnalysis:
