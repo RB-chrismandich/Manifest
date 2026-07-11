@@ -2,9 +2,11 @@
 
 This skill can fire automatically the moment you open a PR/MR from an AI coding
 tool. The trigger is a **tool-lifecycle hook** (Claude Code PostToolUse and the
-equivalents in Cursor, Gemini CLI, and Antigravity) that watches shell commands
-for a successful `gh pr create` / `glab mr create` and then nudges the agent to
-run `pr-monitor` on the new PR.
+equivalents in Cursor and Gemini CLI) that watches shell commands for a
+successful `gh pr create` / `glab mr create` and then nudges the agent to run
+`pr-monitor` on the new PR. Codex and Antigravity have no event-hook substrate
+(spec 362, FR-011), so on those tools you run the skill by hand instead — see
+"Why a hook, not a slash command" below.
 
 It is *not* a git hook: PR/MR creation is a remote event, and a git hook can't
 see it. It's also not server-side CI — it runs inside your AI session, where the
@@ -29,7 +31,7 @@ The handler is **fail-open**: malformed payloads, non-matching commands, and
 failed PR creations all produce no output and exit 0, so the hook can never
 wedge your normal workflow.
 
-## Install across all four tools (recommended)
+## Install across all three hook-capable tools (recommended)
 
 Use the `ai-hooks-integration` skill's unified installer — one handler, source
 detection, registered on the right event for each tool:
@@ -51,16 +53,18 @@ no-ops on everything else, so there's no per-event/matcher flag to set.
 
 This registers the equivalent event per tool:
 
-| Tool        | Config                          | Event                   |
-|-------------|---------------------------------|-------------------------|
-| Claude Code | `~/.claude/settings.json`       | PostToolUse (Bash)      |
-| Gemini CLI  | `~/.gemini/settings.json`       | AfterTool               |
-| Cursor      | `~/.cursor/hooks.json`          | afterShellExecution     |
-| Antigravity | symlinks to `~/.claude/` config | (covered via Claude)    |
+| Tool        | Config                     | Event               |
+|-------------|----------------------------|----------------------|
+| Claude Code | `~/.claude/settings.json`  | PostToolUse (Bash)   |
+| Gemini CLI  | `~/.gemini/settings.json`  | AfterTool            |
+| Cursor      | `~/.cursor/hooks.json`     | afterShellExecution  |
 
-In this repo, Antigravity's config is symlinked to Claude's (`configs/antigravity/`
-→ `../claude/`), so the Claude hook covers Antigravity. OpenCode, if used, takes
-a plugin instead — see `install_opencode_plugin.py` in ai-hooks-integration.
+Codex and Antigravity have no event-hook substrate — `configs/antigravity/`
+symlinks only config/skills/.plans, not a `settings.json` for hooks to live in
+— so neither tool can auto-trigger this skill; run `/pr-monitor` by hand after
+opening a PR from either one (see AGENTS.md's Workflow Reminders). OpenCode, if
+used, takes a plugin instead — see `install_opencode_plugin.py` in
+ai-hooks-integration.
 
 ## Single tool only
 

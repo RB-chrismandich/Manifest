@@ -901,6 +901,9 @@ print_summary() {
     echo "  Cursor Config:  $CURSOR_TARGET_DIR"
     echo "  Gemini Config:  $GEMINI_TARGET_DIR"
     echo "  Codex Config:   $CODEX_TARGET_DIR"
+    if [[ "$ENABLE_ANTIGRAVITY" == true ]]; then
+        echo "  Antigravity Config: $ANTIGRAVITY_TARGET_DIR"
+    fi
     echo "  State Root:     $MANIFEST_STATE_DIR"
     echo "  Agent Outputs:  $MANIFEST_OUTPUT_DIR"
     echo "  Temp Files:     $MANIFEST_TMP_DIR"

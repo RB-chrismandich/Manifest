@@ -75,7 +75,7 @@ targets=()
 sync_one "$HOME/.claude/skills" &
 pids+=($!) targets+=("$HOME/.claude/skills")
 primary_real=$(real_dir "$HOME/.claude/skills" || true)
-for dir in "$HOME/.cursor/skills" "$HOME/.gemini/skills" "$HOME/.codex/skills"; do
+for dir in "$HOME/.cursor/skills" "$HOME/.gemini/skills" "$HOME/.codex/skills" "$HOME/.antigravity/skills"; do
     [[ -d "$dir" ]] || continue
     if [[ -n "$primary_real" && "$(real_dir "$dir")" == "$primary_real" ]]; then
         err "skipping $dir (symlink to primary skills dir — already synced)"
