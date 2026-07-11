@@ -2,6 +2,14 @@
 # Single source of truth for ruff (lint + format), pytest, coverage, and pyright
 # (feature 366-coding-standards, FR-013). Ruff/pytest read this automatically.
 
+# Optional SDKs for the token-benchmark API path (#547). Not installed by
+# default; run the harness with `uv run --group benchmark ...`.
+[dependency-groups]
+benchmark = [
+    "anthropic",
+    "google-genai",
+]
+
 [tool.ruff]
 # Match ruff-format's default; keeps edit-time, commit, and CI in agreement.
 line-length = 88

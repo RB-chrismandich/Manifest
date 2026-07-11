@@ -514,7 +514,18 @@ def sync_fixtures(
             )
 
 
-if __name__ == "__main__":
+def missing_api_sdks(providers: list[str]) -> list[str]:
+    """Return the SDK packages required for the requested API providers but
+    not importable in this environment (#547). Antigravity has no API path."""
+    missing = []
+    if "claude" in providers and not HAS_ANTHROPIC:
+        missing.append("anthropic (claude API path)")
+    if "gemini" in providers and not HAS_GENAI:
+        missing.append("google-genai (gemini API path)")
+    return missing
+
+
+def main(argv: list[str] | None = None) -> None:
     import argparse
 
     parser = argparse.ArgumentParser(description="Token benchmark harness")
@@ -536,7 +547,22 @@ if __name__ == "__main__":
         default="before,after",
         help="Comma-separated conditions to run: before,after,cached,tiered,compressed",
     )
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
+
+    providers = [p.strip() for p in args.providers.split(",") if p.strip()]
+
+    # Hard-fail before any writes: an API-path run without its SDK previously
+    # "succeeded" in seconds while appending 40 junk error rows (#547).
+    if not args.report_only and not args.cli_only:
+        missing = missing_api_sdks(providers)
+        if missing:
+            print(
+                "harness: API path requested but required SDK(s) are not "
+                "importable: " + "; ".join(missing) + ". Install them via "
+                "`uv run --group benchmark ...` or rerun with --cli-only.",
+                file=sys.stderr,
+            )
+            raise SystemExit(2)
 
     if args.sync_fixtures:
         print("Syncing fixtures from live home...")
@@ -546,7 +572,6 @@ if __name__ == "__main__":
         from datetime import datetime
 
         run_id = datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
-        providers = [p.strip() for p in args.providers.split(",")]
         mode = (
             "cli-only"
             if args.cli_only
@@ -578,3 +603,7 @@ if __name__ == "__main__":
 
     update_report(RESULTS_DIR, REPO_ROOT / "docs" / "TOKEN_BENCHMARK.md")
     print("Done.")
+
+
+if __name__ == "__main__":
+    main()

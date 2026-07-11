@@ -21,13 +21,14 @@ command -v claude    && echo "claude binary: ok"    || echo "claude binary: miss
 command -v gemini    && echo "gemini binary: ok"    || echo "gemini binary: missing"
 command -v agy       && echo "agy binary: ok"       || echo "agy binary: missing (antigravity)"
 
-# Python packages
-python3 -c "import anthropic; print(f'anthropic {anthropic.__version__}: ok')" 2>/dev/null || echo "anthropic package: missing — pip install anthropic"
-python3 -c "from google import genai; print('google-genai: ok')" 2>/dev/null || echo "google-genai package: missing — pip install google-genai"
+# Python packages (uv-managed via the `benchmark` dependency group — #547)
+uv run --group benchmark python -c "import anthropic; print(f'anthropic {anthropic.__version__}: ok')" 2>/dev/null || echo "anthropic: missing — check [dependency-groups].benchmark in pyproject.toml"
+uv run --group benchmark python -c "from google import genai; print('google-genai: ok')" 2>/dev/null || echo "google-genai: missing — check [dependency-groups].benchmark in pyproject.toml"
 ```
 
 If any API key or binary is missing, inform the user and offer to run with `--api-only` (skips CLI path) or
-`--providers claude` (single provider).
+`--providers claude` (single provider). The harness itself hard-fails (exit 2, no rows
+written) if the API path is requested without its SDK importable; `--cli-only` needs no SDK.
 
 > **Antigravity caveat**: `agy` has no SDK and no verified `--system-prompt` mechanism (see
 > `PROVIDER_CLI_CONFIG` in `tests/token_benchmark/benchmarks.py`), so it is **unsupported/quality-only**
@@ -68,9 +69,9 @@ echo "$ARGUMENTS" | grep -q -- "--api-only"       && API_ONLY_FLAG="--api-only"
 echo "$ARGUMENTS" | grep -q -- "--cli-only"       && CLI_ONLY_FLAG="--cli-only"
 echo "$ARGUMENTS" | grep -qP -- "--providers\s+(\S+)" && \
   PROVIDERS=$(echo "$ARGUMENTS" | grep -oP '(?<=--providers\s)\S+')
-echo "$ARGUMENTS" | grep -q -- "--report-only" && exec python3 tests/token_benchmark/harness.py --report-only
+echo "$ARGUMENTS" | grep -q -- "--report-only" && exec uv run --group benchmark python tests/token_benchmark/harness.py --report-only
 
-python3 tests/token_benchmark/harness.py \
+uv run --group benchmark python tests/token_benchmark/harness.py \
   --providers "$PROVIDERS" \
   $SYNC_FLAG \
   $API_ONLY_FLAG \
