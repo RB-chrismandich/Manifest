@@ -242,9 +242,9 @@ approaches), review stale plans, or archive/abandon completed work.
 <!-- SPECKIT START -->
 ## Active Spec Kit Feature
 
-- None — **`482-critic-dev-loop`** (Critic-Driven Development Loop, skill
-  `/spec-implement-loop`) SHIPPED 2026-07-10 via PR #543 (+ Jules-trigger infra
-  fix PR #544). Full lifecycle record:
-  [specs/482-critic-dev-loop/](specs/482-critic-dev-loop/). Start the next
-  feature with `/speckit-specify`.
+- **`483-emdash-support`** (emdash full config inheritance) — PLANNED. emdash is
+  an external harness (no deploy tree); support = transitive inheritance +
+  hybrid verification + `.emdash.json`. Plan:
+  [specs/483-emdash-support/plan.md](specs/483-emdash-support/plan.md). Next:
+  `/speckit-tasks`.
 <!-- SPECKIT END -->
