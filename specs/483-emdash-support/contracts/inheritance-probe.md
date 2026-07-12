@@ -48,6 +48,8 @@ Conventions (repo standards): errors via `err() { echo "emdash_inherit_check.sh:
 }
 ```
 
+`coexistence.manifest_hooks_preserved` and `coexistence.worktree_permissions_intact` are **tri-state**: `true` / `false` / `null`. They are only ever `true` or `false` when the probe found an actual `.emdash-merged` sibling on disk to diff against a distinct baseline (the bats fixture simulates this). In a live `/env-check` run there is normally no such sibling — the current file would be its own "baseline" and "merged" copy, so a self-comparison can never prove anything was or wasn't dropped. Rather than report a false-positive `true` in that case, the probe reports `null` (rendered as `unverified` in the human report) and does not fail D3 on it alone. See "Coexistence assertion" below.
+
 ## Exit codes
 
 | Code | Meaning |
@@ -61,8 +63,10 @@ Conventions (repo standards): errors via `err() { echo "emdash_inherit_check.sh:
 
 The probe simulates emdash's observed merge — appending `{ "type":"command", "command":"curl http://127.0.0.1:$EMDASH_HOOK_PORT/hook", <EMDASH_MARKER> }` to a hook event array — against the file emdash actually writes for the given scope (spec-review F3):
 
-- **Home scope** (`~/.claude/settings.json`): this is where Manifest's **hooks** live (repo `settings.local.json` holds permissions only). The probe asserts every pre-existing Manifest hook entry survives the append → `manifest_hooks_preserved`.
-- **Workspace scope** (`<worktree>/.claude/settings.local.json`): holds **permissions** (no Manifest hooks). The probe asserts the permissions block is not corrupted by the append → `worktree_permissions_intact`.
+- **Home scope** (`~/.claude/settings.json`): this is where Manifest's **hooks** live (repo `settings.local.json` holds permissions only). When a `settings.json.emdash-merged` sibling exists, the probe asserts every pre-existing Manifest hook entry survives the append → `manifest_hooks_preserved`.
+- **Workspace scope** (`<worktree>/.claude/settings.local.json`): holds **permissions** (no Manifest hooks). When a `settings.local.json.emdash-merged` sibling exists, the probe asserts the permissions block is not corrupted by the append → `worktree_permissions_intact`.
+
+**No sibling on disk (the normal live/`env-check` case)**: the probe cannot construct an independent pre-merge baseline from a single in-place file — comparing it to itself is a tautology and can never detect a real drop/corruption. Rather than report a false `true`, it reports `null`/`unverified` for that scope and does not fail D3 on it alone (D3 only FAILs on an explicit verified `false`, i.e. a real diff against a genuine sibling). This means the coexistence guarantee is **deterministically verified only when a `.emdash-merged` sibling is present** — the bats fixture below — and is otherwise informational/best-effort in a live run.
 
 This is the deterministic core of the automated test; the manual smoke confirms the real app produces the same shape, writes to the expected scope, and that the hook actually fires under ACP mode.
 

@@ -53,9 +53,16 @@ substring or the `EMDASH_HOOK_PORT` command; override with `EMDASH_MARKER`).
   `coexistence.worktree_permissions_intact == true`.
 
 The probe treats the `.emdash-merged` sibling (when present) as the simulated
-post-merge state and the plain file as the pre-merge baseline. In a live
-`/env-check` run no sibling exists, so the probe reads the real in-place file as
-both baseline and merged (marker detection still works).
+post-merge state and the plain file as the pre-merge baseline, and in that case
+genuinely diffs the two — this is what makes `manifest_hooks_preserved` /
+`worktree_permissions_intact` a real, deterministic assertion here. In a live
+`/env-check` run no sibling exists, so there is no independent baseline to diff
+(marker detection for `emdash_hook_detected` still works, since that only
+inspects the current file's content, not a diff). Diffing a file against
+itself would always report "preserved/intact" even if something had actually
+been dropped, so the probe reports `null`/`unverified` for those two fields in
+that case rather than a false `true` — see the "Coexistence assertion" section
+of `contracts/inheritance-probe.md`.
 
 ## Injected env (reproduced by the bats test, not stored here)
 

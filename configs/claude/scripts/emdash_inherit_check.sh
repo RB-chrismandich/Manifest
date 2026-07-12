@@ -75,7 +75,7 @@ EMDASH_MARKER="${EMDASH_MARKER:-emdash-managed-hook}"
 home_claude="${home_dir%/}/.claude"
 if [[ ! -d "$home_claude" ]]; then
     if [[ "$json_out" -eq 1 ]]; then
-        printf '{"verdict":"BLOCKED","reason":"home deploy missing: %s","dimensions":{},"coexistence":{"emdash_hook_detected":false,"manifest_hooks_preserved":true,"worktree_permissions_intact":true}}\n' "$home_claude"
+        printf '{"verdict":"BLOCKED","reason":"home deploy missing: %s","dimensions":{},"coexistence":{"emdash_hook_detected":false,"manifest_hooks_preserved":null,"worktree_permissions_intact":null}}\n' "$home_claude"
     else
         echo "emdash inheritance: BLOCKED"
         echo "  home deploy missing: $home_claude"
@@ -87,10 +87,23 @@ fi
 worktree_claude="${worktree_dir%/}/.claude"
 home_settings="${home_claude}/settings.json"
 home_merged="${home_settings}.emdash-merged"
-[[ -f "$home_merged" ]] || home_merged="$home_settings"
+# A `.emdash-merged` sibling is a genuine, independently-written pre/post pair
+# (fixture mode). Without one (the normal live/env-check case) there is no
+# pre-merge snapshot to diff against — comparing the live file to itself would
+# always report "preserved/intact" even if emdash had actually dropped
+# something, so track whether a real comparison is happening.
+home_merge_simulated=1
+[[ -f "$home_merged" ]] || {
+    home_merged="$home_settings"
+    home_merge_simulated=0
+}
 worktree_settings="${worktree_claude}/settings.local.json"
 worktree_merged="${worktree_settings}.emdash-merged"
-[[ -f "$worktree_merged" ]] || worktree_merged="$worktree_settings"
+worktree_merge_simulated=1
+[[ -f "$worktree_merged" ]] || {
+    worktree_merged="$worktree_settings"
+    worktree_merge_simulated=0
+}
 
 # --- D1 Skills ---------------------------------------------------------------
 skills_count=0
@@ -132,10 +145,13 @@ fi
 # --- JSON analysis (D3 hooks/coexistence + D4 MCP count) ---------------------
 # Emits key=value lines parsed below.
 analysis="$(
-    python3 - "$home_settings" "$home_merged" "$worktree_settings" "$worktree_merged" "$EMDASH_MARKER" << 'PY'
+    python3 - "$home_settings" "$home_merged" "$worktree_settings" "$worktree_merged" "$EMDASH_MARKER" \
+        "$home_merge_simulated" "$worktree_merge_simulated" << 'PY'
 import json, sys
 
 home_base, home_merged, wt_base, wt_merged, marker = sys.argv[1:6]
+home_merge_simulated = sys.argv[6] == "1"
+worktree_merge_simulated = sys.argv[7] == "1"
 
 
 def load(path):
@@ -202,27 +218,37 @@ mcp = hb.get("mcpServers")
 mcp_count = len(mcp) if isinstance(mcp, dict) else 0
 
 # D3 home scope: Manifest hooks present in baseline, all preserved in merged.
+# Tri-state result: 1 = verified preserved, 0 = verified DROPPED (corruption
+# detected), 2 = unverifiable (no independent pre/post snapshot to diff --
+# home_base and home_merged are the same file, so the comparison would be a
+# tautology; report it honestly instead of a false-positive "true").
 manifest_cmds = set(hook_commands(hb, only_manifest=True))
 merged_cmds = set(hook_commands(hm, only_manifest=False))
 home_manifest_hooks = len(manifest_cmds)
-preserved = manifest_cmds.issubset(merged_cmds) and hm_ok
+if home_merge_simulated:
+    preserved = 1 if (manifest_cmds.issubset(merged_cmds) and hm_ok) else 0
+else:
+    preserved = 2
 
 # D3 worktree scope: permissions block not corrupted by the merge.
 base_perms = wb.get("permissions")
 merged_perms = wm.get("permissions")
-if wb_ok and wm_ok:
-    # Intact when the permissions block is unchanged (missing on both = nothing
-    # to corrupt = intact).
-    perms_intact = base_perms == merged_perms
+if worktree_merge_simulated:
+    if wb_ok and wm_ok:
+        # Intact when the permissions block is unchanged (missing on both =
+        # nothing to corrupt = intact).
+        perms_intact = 1 if base_perms == merged_perms else 0
+    else:
+        perms_intact = 0
 else:
-    perms_intact = False
+    perms_intact = 2
 
 emdash_detected = any_emdash(hm) or any_emdash(wm)
 
 print("mcp_count=%d" % mcp_count)
 print("home_manifest_hooks=%d" % home_manifest_hooks)
-print("manifest_hooks_preserved=%d" % (1 if preserved else 0))
-print("worktree_permissions_intact=%d" % (1 if perms_intact else 0))
+print("manifest_hooks_preserved=%d" % preserved)
+print("worktree_permissions_intact=%d" % perms_intact)
 print("emdash_hook_detected=%d" % (1 if emdash_detected else 0))
 PY
 )"
@@ -230,8 +256,13 @@ analysis_rc=$?
 
 mcp_count=0
 home_manifest_hooks=0
-manifest_hooks_preserved=0
-worktree_permissions_intact=0
+# manifest_hooks_preserved / worktree_permissions_intact are tri-state:
+# 1=verified preserved/intact, 0=verified corrupted (FAIL), 2=unverifiable (no
+# independent pre/post snapshot -- live mode). Default to 2 (unverifiable)
+# rather than 0 so an analysis failure isn't misreported as detected
+# corruption.
+manifest_hooks_preserved=2
+worktree_permissions_intact=2
 emdash_hook_detected=0
 if [[ "$analysis_rc" -eq 0 ]]; then
     while IFS='=' read -r k v; do
@@ -248,10 +279,18 @@ else
 fi
 
 # --- D3 Hooks (+ coexistence) ------------------------------------------------
-if [[ "$home_manifest_hooks" -ge 1 && "$manifest_hooks_preserved" -eq 1 && "$worktree_permissions_intact" -eq 1 ]]; then
+# PASS requires Manifest hooks present and neither coexistence check having
+# VERIFIED corruption (tri-state value 0). A tri-state of 2 (unverifiable --
+# no simulated merge sibling on disk, i.e. a live/env-check run) is not
+# treated as a failure since there is nothing to have detected; it is
+# surfaced distinctly below and in --json so it is never confused with an
+# actual verified-safe merge.
+if [[ "$home_manifest_hooks" -ge 1 && "$manifest_hooks_preserved" -ne 0 && "$worktree_permissions_intact" -ne 0 ]]; then
     d3_status="PASS"
-    if [[ "$emdash_hook_detected" -eq 1 ]]; then
+    if [[ "$emdash_hook_detected" -eq 1 && "$manifest_hooks_preserved" -eq 1 && "$worktree_permissions_intact" -eq 1 ]]; then
         d3_detail="manifest hooks present; preserved after emdash merge"
+    elif [[ "$emdash_hook_detected" -eq 1 ]]; then
+        d3_detail="manifest hooks present; emdash hook detected but no pre/post snapshot to verify preservation (live run)"
     else
         d3_detail="manifest hooks present; no emdash hook detected (nothing to preserve yet)"
     fi
@@ -259,7 +298,7 @@ else
     d3_status="FAIL"
     if [[ "$home_manifest_hooks" -lt 1 ]]; then
         d3_detail="no Manifest hooks in ${home_settings}"
-    elif [[ "$manifest_hooks_preserved" -ne 1 ]]; then
+    elif [[ "$manifest_hooks_preserved" -eq 0 ]]; then
         d3_detail="Manifest hooks dropped by emdash merge in ${home_merged}"
     else
         d3_detail="worktree permissions corrupted by emdash merge in ${worktree_merged}"
@@ -339,18 +378,38 @@ done
 
 # --- Output ------------------------------------------------------------------
 bool() { [[ "$1" -eq 1 ]] && echo true || echo false; }
+# tri(): renders the tri-state coexistence result. "unverified" (tri-state 2)
+# means no independent pre/post snapshot existed to compare (live run, no
+# `.emdash-merged` sibling on disk) -- it must never be conflated with a
+# verified "true", or the check silently reports success without having
+# checked anything.
+tri() {
+    case "$1" in
+        1) echo true ;;
+        0) echo false ;;
+        *) echo unverified ;;
+    esac
+}
 
 if [[ "$json_out" -eq 1 ]]; then
     python3 - \
         "$verdict" \
         "$d1_status" "$d1_detail" "$d2_status" "$d2_detail" "$d3_status" "$d3_detail" \
         "$d4_status" "$d4_detail" "$d5_status" "$d5_detail" "$d6_status" "$d6_detail" \
-        "$(bool "$emdash_hook_detected")" "$(bool "$manifest_hooks_preserved")" "$(bool "$worktree_permissions_intact")" \
+        "$(bool "$emdash_hook_detected")" "$(tri "$manifest_hooks_preserved")" "$(tri "$worktree_permissions_intact")" \
         << 'PY'
 import json, sys
 a = sys.argv
 verdict = a[1]
 d = a[2:14]
+
+
+def tri_json(s):
+    # "unverified" -> null: no independent pre/post snapshot was available to
+    # compare (live run), so this must not be reported as true or false.
+    return {"true": True, "false": False}.get(s)
+
+
 report = {
     "verdict": verdict,
     "dimensions": {
@@ -363,8 +422,8 @@ report = {
     },
     "coexistence": {
         "emdash_hook_detected": a[14] == "true",
-        "manifest_hooks_preserved": a[15] == "true",
-        "worktree_permissions_intact": a[16] == "true",
+        "manifest_hooks_preserved": tri_json(a[15]),
+        "worktree_permissions_intact": tri_json(a[16]),
     },
 }
 print(json.dumps(report))
@@ -377,9 +436,13 @@ else
     printf '  D4 mcp          %-5s %s\n' "$d4_status" "$d4_detail"
     printf '  D5 guide        %-5s %s\n' "$d5_status" "$d5_detail"
     printf '  D6 repo guides  %-5s %s\n' "$d6_status" "$d6_detail"
-    echo "  coexistence: emdash_hook_detected=$(bool "$emdash_hook_detected"), manifest_hooks_preserved=$(bool "$manifest_hooks_preserved"), worktree_permissions_intact=$(bool "$worktree_permissions_intact")"
+    echo "  coexistence: emdash_hook_detected=$(bool "$emdash_hook_detected"), manifest_hooks_preserved=$(tri "$manifest_hooks_preserved"), worktree_permissions_intact=$(tri "$worktree_permissions_intact")"
     if [[ "$emdash_hook_detected" -eq 1 ]]; then
-        echo "  note: emdash appends its own hook (marker-tagged) + gitignores the machine-local file; keep that injected hook uncommitted. Manifest hooks are preserved."
+        if [[ "$manifest_hooks_preserved" -eq 2 || "$worktree_permissions_intact" -eq 2 ]]; then
+            echo "  note: emdash appends its own hook (marker-tagged) + gitignores the machine-local file; keep that injected hook uncommitted. No pre/post snapshot was available in this live run, so preservation is unverified here (verified deterministically by tests/bats/emdash_inheritance.bats against the fixture)."
+        else
+            echo "  note: emdash appends its own hook (marker-tagged) + gitignores the machine-local file; keep that injected hook uncommitted. Manifest hooks are preserved."
+        fi
     fi
 fi
 

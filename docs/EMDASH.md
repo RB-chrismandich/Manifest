@@ -55,8 +55,12 @@ emdash launches the agent with your real `HOME` inside a normal worktree checkou
 This repository ships a committed **`.emdash.json`** at its root so that fresh
 emdash worktrees of Manifest are immediately functional:
 
-- `preservePatterns: ["guidance_local.yml"]` — copies the repo's untracked local
-  config into each new worktree.
+- `preservePatterns: []` — this repo has no untracked file *inside its tree*
+  worth preserving. `guidance_local.yml` is gitignored, but it lives at
+  `~/.claude/config/guidance_local.yml` (HOME-side), never inside a repo
+  worktree, so it would never match a `preservePatterns` glob — see
+  [the pattern for other repos](#the-emdashjson-pattern-for-other-repositories)
+  below for when this field is actually useful.
 - `scripts.setup` — runs `git submodule update --init --recursive` (bats helpers)
   and `pip install -r tests/requirements-ci.txt` (matches CI) so `pytest` / `bats`
   run without manual fixup.
@@ -66,7 +70,12 @@ Verify inheritance any time:
 ```bash
 # Live probe against your real environment (also runs inside /env-check):
 configs/claude/scripts/emdash_inherit_check.sh    # deployed: ~/.claude/scripts/...
-# Expect: verdict INHERITED, all dimensions PASS, "manifest hooks preserved".
+# Expect: verdict INHERITED, all dimensions PASS. The coexistence fields
+# (manifest_hooks_preserved / worktree_permissions_intact) report
+# "unverified" in a live run (no independent pre/post snapshot exists to
+# diff against) rather than a false "preserved" -- see the coexistence
+# caveat below. They are a genuine true/false only in the deterministic
+# bats fixture test.
 ```
 
 The manual smoke runbook (open the repo in emdash, select Claude Code, confirm each
@@ -81,9 +90,10 @@ can add its own root `.emdash.json` to fix both:
 
 ```jsonc
 {
-  // Untracked/gitignored files copied into every new worktree.
-  // Do NOT list tracked files — git already provides them.
-  "preservePatterns": ["guidance_local.yml"],
+  // Untracked/gitignored files that live INSIDE THE REPO TREE, copied into
+  // every new worktree. Do NOT list tracked files — git already provides
+  // them. Example: a repo-root `.env` (gitignore it first).
+  "preservePatterns": [".env"],
   "scripts": {
     // Runs once when emdash creates the worktree. Idempotent + fail-closed.
     "setup": "git submodule update --init --recursive && pip install -r tests/requirements-ci.txt"
@@ -96,9 +106,13 @@ Rules:
 
 - **Never list a secret file in `preservePatterns` unless it is already gitignored.**
   `.env` is the common general-pattern example, but you must **gitignore `.env`
-  first** so the provisioning mechanism can never commit it. This repo does **not**
-  list `.env` — it neither uses nor gitignores one; its only untracked local config
-  is `guidance_local.yml`.
+  first** so the provisioning mechanism can never commit it. This repo lists
+  neither `.env` (it neither uses nor gitignores one) nor `guidance_local.yml`
+  (real, but HOME-side — see above) — so its `preservePatterns` is empty.
+- **Only list paths inside the repo tree.** `preservePatterns` copies
+  untracked files from the *existing checkout* into the *new worktree* — a
+  gitignored name that only ever exists outside the repo (e.g. under `$HOME`)
+  can never match, no matter how it's spelled in the glob.
 - **Do not list tracked files** (e.g. `.claude/settings.local.json` is tracked in
   this repo — it must not appear).
 - Keep `scripts.setup` **idempotent** (a worktree may be re-set-up) and
@@ -122,9 +136,12 @@ What this means for Manifest:
 - **Manifest's hooks survive.** Manifest's event hooks live in home
   `~/.claude/settings.json`; the repo's tracked `.claude/settings.local.json` holds
   **permissions** only. emdash's append coexists with both — its idempotent,
-  marker-based merge preserves your existing entries. The
-  [inheritance probe](#verifying-inheritance) asserts this
-  (`manifest_hooks_preserved` / `worktree_permissions_intact`).
+  marker-based merge is designed to preserve your existing entries. The
+  [inheritance probe](#verifying-inheritance) deterministically asserts this
+  (`manifest_hooks_preserved` / `worktree_permissions_intact`) against a fixture
+  in `tests/bats/emdash_inheritance.bats`; a live `/env-check` run has no
+  independent pre-merge snapshot to diff against, so it reports those two
+  fields as `unverified` rather than claiming a guarantee it cannot check.
 - **The injected hook is machine-local — keep it uncommitted.** Because it points
   at a per-session `127.0.0.1` port, it is meaningless on another machine. emdash
   gitignoring the settings path is the intended behavior. If you see an uncommitted

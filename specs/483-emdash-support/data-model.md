@@ -8,7 +8,7 @@ Repo-root file emdash reads to configure worktree creation for this repository. 
 
 | Field | Type | Purpose | This repo's value (finalized in impl) |
 |-------|------|---------|----------------------------------------|
-| `preservePatterns` | string[] (globs) | Untracked/ignored files copied into each new worktree | `guidance_local.yml` (this repo's only untracked local config; `.env` NOT listed — not gitignored here) |
+| `preservePatterns` | string[] (globs) | Untracked/ignored files, inside the repo tree, copied into each new worktree | `[]` (empty — this repo has no in-tree untracked config; `guidance_local.yml` is gitignored but lives HOME-side at `~/.claude/config/`, never in the repo tree, so it can't be a preserve target; `.env` also NOT listed — not gitignored here) |
 | `scripts.setup` | string | Command run once when a worktree is created | `git submodule update --init --recursive` + `pip install -r tests/requirements-ci.txt` (matches CI; NOT `uv sync`) so `pytest`/`bats` work |
 | `scripts.run` | string (optional) | Default run command | omitted (no single run target) |
 | `scripts.teardown` | string (optional) | Cleanup on worktree removal | omitted |

@@ -202,10 +202,15 @@ D5 orchestration guide, D6 repo guides — plus the overall verdict:
 **Hook-coexistence caveat**: emdash appends its own `Stop` hook
 (`curl http://127.0.0.1:$EMDASH_HOOK_PORT/hook`, marker-tagged) to the agent's
 settings file on each spawn and adds that path to `.gitignore`. Manifest's hooks
-(home `~/.claude/settings.json`) and the repo's committed permissions are preserved
-by emdash's idempotent merge — the probe's `coexistence.manifest_hooks_preserved`
-and `worktree_permissions_intact` flags confirm this. The injected machine-local
-hook is expected to stay **uncommitted**; do not commit it. See `docs/EMDASH.md`.
+(home `~/.claude/settings.json`) and the repo's committed permissions are expected
+to be preserved by emdash's idempotent merge. In a live run the probe has no
+independent pre-merge snapshot to diff against, so `coexistence.manifest_hooks_preserved`
+and `worktree_permissions_intact` report `null` (`unverified`) rather than a
+false `true` — treat this as informational, not a live guarantee. The
+deterministic version of this check (a real pre/post diff) runs in
+`tests/bats/emdash_inheritance.bats` against a fixture, where those flags are
+genuine `true`/`false`. The injected machine-local hook is expected to stay
+**uncommitted**; do not commit it. See `docs/EMDASH.md`.
 
 Report: `pass` (INHERITED), `warn` (BLOCKED home-deploy-missing, or DEGRADED),
 or `info` (emdash not detected — optional harness).

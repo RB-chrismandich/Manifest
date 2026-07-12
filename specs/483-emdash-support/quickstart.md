@@ -11,14 +11,17 @@ Audience: a Manifest user who wants to run Manifest-configured coding agents thr
 ## Setup (per machine)
 
 - Nothing to deploy for emdash itself — inheritance is automatic because emdash launches the agent with your real `HOME` inside a normal worktree checkout.
-- This repository ships a committed `.emdash.json` so its emdash worktrees are functional (preserves `guidance_local.yml`, runs `git submodule update --init` + `pip install -r tests/requirements-ci.txt`). Other repos can add their own `.emdash.json` following the same pattern (`docs/EMDASH.md`); if a repo preserves a secret file like `.env`, it must be gitignored first.
+- This repository ships a committed `.emdash.json` so its emdash worktrees are functional (`preservePatterns` is empty — this repo has no in-tree untracked config to preserve; runs `git submodule update --init` + `pip install -r tests/requirements-ci.txt`). Other repos can add their own `.emdash.json` following the same pattern (`docs/EMDASH.md`); if a repo preserves a secret file like `.env`, it must be gitignored first.
 
 ## Verify inheritance (automated)
 
 ```bash
 # Live check against your real environment (also runs inside /env-check):
 configs/claude/scripts/emdash_inherit_check.sh
-# Expect: verdict INHERITED, all dimensions PASS, "manifest hooks preserved".
+# Expect: verdict INHERITED, all dimensions PASS. The coexistence fields
+# (manifest_hooks_preserved / worktree_permissions_intact) report "unverified"
+# in a live run (no independent pre/post snapshot to diff against) -- they are
+# a genuine true/false only in the deterministic bats fixture test.
 
 # Or via the skill:
 /env-check          # the "emdash Inheritance" section reports the same

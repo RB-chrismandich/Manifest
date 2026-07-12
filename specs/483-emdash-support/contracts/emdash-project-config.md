@@ -6,12 +6,16 @@
 
 ```jsonc
 {
-  // Untracked/gitignored files copied into every new worktree.
-  // Tracked files are already present via git — do NOT list them here.
-  // This repo's only untracked local config is guidance_local.yml (gitignored).
-  // NOT .env: this repo has none and .env is not gitignored here — listing it
-  // would risk committing secrets. (.env is the general-pattern example in docs.)
-  "preservePatterns": ["guidance_local.yml"],
+  // Untracked/gitignored files WITHIN THE REPO TREE copied into every new
+  // worktree. Tracked files are already present via git — do NOT list them
+  // here. This repo currently has none: `guidance_local.yml` is gitignored
+  // but lives at `~/.claude/config/guidance_local.yml` (HOME-side, outside
+  // the repo tree entirely), so it could never match a preservePatterns glob
+  // regardless of what's listed here — do NOT list it.
+  // NOT .env either: this repo has none and .env is not gitignored here —
+  // listing it would risk committing secrets. (.env is the general-pattern
+  // example in docs, for repos that DO have an in-tree untracked file.)
+  "preservePatterns": [],
 
   "scripts": {
     // Runs once when emdash creates the worktree. Must be idempotent + fail closed.
@@ -34,7 +38,7 @@
 
 1. **Valid JSON** — CI asserts `python3 -c "import json; json.load(open('.emdash.json'))"`.
 2. **No tracked files in `preservePatterns`** — `.claude/settings.local.json` is tracked; it MUST NOT appear here.
-3. **Secrets stay untracked** — any preserved file that holds secrets MUST already be gitignored; the repo never commits them (FR-006 AC3). For THIS repo, `preservePatterns` is `guidance_local.yml` (gitignored). `.env` is the general-pattern example only; it is NOT listed here because this repo neither uses nor gitignores it — other repos adding `.env` MUST gitignore it first (documented in `docs/EMDASH.md`).
+3. **Secrets stay untracked** — any preserved file that holds secrets MUST already be gitignored; the repo never commits them (FR-006 AC3). For THIS repo, `preservePatterns` is `[]` (empty): its only gitignored config-like name, `guidance_local.yml`, resolves to `~/.claude/config/guidance_local.yml` (HOME-side), never a path inside the repo/worktree tree, so it is not a valid preserve target and is not listed. `.env` is the general-pattern example only; it is NOT listed here because this repo neither uses nor gitignores it — other repos adding an in-tree untracked file (e.g. `.env`) MUST gitignore it first (documented in `docs/EMDASH.md`).
 4. **`scripts.setup` idempotent + fail-closed** — safe to re-run; non-zero exit on failure so a broken worktree is visible, not silently degraded.
 5. **Exact commands finalized in implementation** against the repo's real submodule + Python-env entry points; the values above are the design intent.
 
