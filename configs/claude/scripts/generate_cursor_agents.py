@@ -68,7 +68,14 @@ DEFAULT_OUTPUT = _REPO_ROOT / "configs" / "cursor" / "agents"
 # PILOTFISH_AGENT_FILES / DEVPANEL_AGENT_FILES (bootstrap/lib/common.sh) if
 # roles are added/renamed.
 READONLY_ROLES = {"scout", "Explore", "verifier", "spec-guard", "chaos-engineer"}
-BACKGROUND_ROLES = {"scout", "Explore", "mech-executor", "verifier", "spec-guard", "chaos-engineer"}
+BACKGROUND_ROLES = {
+    "scout",
+    "Explore",
+    "mech-executor",
+    "verifier",
+    "spec-guard",
+    "chaos-engineer",
+}
 
 FRONTMATTER_DELIM = "---\n"
 
@@ -200,7 +207,9 @@ def main(argv=None) -> int:
         dir_files = sorted(p for p in src_dir.glob("*.md") if p.is_file())
         for p in dir_files:
             if p.name in seen_names:
-                err(f"{p.name}: defined in both {seen_names[p.name]} and {p} — filenames must be unique across source dirs")
+                err(
+                    f"{p.name}: defined in both {seen_names[p.name]} and {p} — filenames must be unique across source dirs"
+                )
                 return 2
             seen_names[p.name] = p
         source_files.extend(dir_files)
