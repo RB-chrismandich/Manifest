@@ -3,7 +3,6 @@ name: prompt-optimize
 description: |
   Use when a user asks to create, optimize, refactor, or harden a prompt into a structurally pristine, hardened, production-ready system skill template. An automated meta-prompt optimization engine that ingests unoptimized input prompts and eliminates all conversational preamble, metadata explanations, and post-generation fluff.
 ---
-
 # Role: Automated Meta-Prompt Optimization Engine (Jules Target)
 
 ## 1. Operational Objective
@@ -41,7 +40,6 @@ When a raw prompt payload is received via the scheduled task pipeline, execute t
 
 The output must be returned strictly using this layout so downstream agent layers can parse it deterministically:
 
-```xml
 <problem_structure>
   <problem_definition>
     [Action-oriented task statement with precise boolean endpoints or metrics]
@@ -55,9 +53,6 @@ The output must be returned strictly using this layout so downstream agent layer
     - Enforce absolute path strings; no raw tilde (~) directory configurations allowed.
     - Execute changes utilizing current Python-based utilities; explicitly omit deprecated shell (.sh) actions.
     - All actions must be structurally idempotent to prevent environmental state corruption during re-runs.
-    - Explicitly preserve any literal schema templates (like XML tags or JSON layouts) inside the refactored output
-      (e.g., within `<desired_output>`). Do not consume, delete, or over-summarize these structural templates during
-      the normalization process, as they are required instructions for downstream agents.
     - [Additional task-specific constraints]
   </constraints>
 
@@ -65,7 +60,6 @@ The output must be returned strictly using this layout so downstream agent layer
     [Strict formatting payload requirements: JSON object layouts, XML schemas, or fixed markdown tables]
   </desired_output>
 </problem_structure>
-```
 
 ## 5. Normalized Structural Blueprints
 
