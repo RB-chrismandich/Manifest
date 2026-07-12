@@ -1,6 +1,8 @@
 #!/usr/bin/env bats
 # Tests for bootstrap.sh run_reconfigure wiring — the graphify skill gate must
-# run on --reconfigure (issue #459), not only inside deploy_configs.
+# run on --reconfigure (issue #459), not only inside deploy_configs. Also
+# covers warn_stale_disabled_configs (#549), which likewise must fire on
+# --reconfigure, not only from print_summary in the main() install path.
 
 load '../test_helper/bats-support/load'
 load '../test_helper/bats-assert/load'
@@ -11,9 +13,11 @@ setup() {
     export BATS_TMPDIR="${BATS_TMPDIR:-/tmp}"
     SANDBOX=$(mktemp -d "$BATS_TMPDIR/bootstrap_reconfigure.XXXXXX")
 
-    # Real gate under test comes from common.sh
+    # Real gates under test come from common.sh and deploy.sh
     # shellcheck disable=SC1090
     source "$REPO_ROOT/bootstrap/lib/common.sh"
+    # shellcheck disable=SC1090
+    source "$REPO_ROOT/bootstrap/lib/deploy.sh"
 
     # bootstrap.sh executes main on load, so extract run_reconfigure instead
     awk '/^run_reconfigure\(\) \{/,/^\}/' "$REPO_ROOT/bootstrap.sh" > "$SANDBOX/run_reconfigure.sh"
@@ -76,4 +80,27 @@ teardown() {
     export ENABLE_GRAPHIFY=false
     run run_reconfigure
     assert_success
+}
+
+@test "reconfigure with --disable-claude warns about the stale deployed CLAUDE.md (#549)" {
+    # Un-stub print_warning so the real warn_stale_disabled_configs output is
+    # observable; every other collaborator stays stubbed from setup().
+    print_warning() { echo -e "${YELLOW}⚠${NC} $1"; }
+    echo "deployed guide" > "$TARGET_DIR/CLAUDE.md"
+    export ENABLE_CLAUDE=false
+
+    run run_reconfigure
+    assert_success
+    assert_output --partial "claude"
+    assert_output --partial "$TARGET_DIR/CLAUDE.md"
+}
+
+@test "reconfigure with claude still enabled does not warn about CLAUDE.md" {
+    print_warning() { echo -e "${YELLOW}⚠${NC} $1"; }
+    echo "deployed guide" > "$TARGET_DIR/CLAUDE.md"
+    export ENABLE_CLAUDE=true
+
+    run run_reconfigure
+    assert_success
+    refute_output --partial "claude disabled"
 }

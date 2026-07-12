@@ -47,6 +47,21 @@ deploy_configs() {
     # user/runtime state (plugins, sessions, settings.json, …) from the backup.
     local restore_from=""
 
+    # $TARGET_DIR (~/.claude) is shared infrastructure: Gemini/Cursor/Codex/
+    # Antigravity all symlink into its scripts/config/prompts/.plans/skills
+    # (link_shared_assets) regardless of ENABLE_CLAUDE, so this function must
+    # NOT early-return like deploy_gemini_configs/deploy_cursor_configs/etc do —
+    # that would break every other enabled assistant's deploy. CLAUDE.md itself,
+    # however, is Claude-CLI-specific content (nothing else reads it), so it
+    # alone is excluded from the copy when Claude is disabled — matching the
+    # same "disabled → don't (re)deploy the guide file" behavior used for
+    # GEMINI.md/AGENTS.md, and making warn_stale_disabled_configs' "claude"
+    # entry meaningful instead of a guaranteed false positive (#549).
+    local claude_md_exclude=()
+    if [[ "${ENABLE_CLAUDE:-true}" != true ]]; then
+        claude_md_exclude=(--exclude '/CLAUDE.md')
+    fi
+
     # Snapshot the live settings.local.json BEFORE any destructive path below
     # (backup-and-replace mv, --force overwrite, or the repo copy). The repo
     # ships its own settings.local.json that would otherwise clobber any MCP
@@ -124,9 +139,12 @@ deploy_configs() {
                     ;;
                 2)
                     print_step "Merging configurations..."
+                    if [[ "${ENABLE_CLAUDE:-true}" != true ]]; then
+                        print_info "Claude disabled — not deploying CLAUDE.md"
+                    fi
                     # Merge mode - copy only new files (skills handled separately
                     # below; the skills compat symlink must not be copied verbatim)
-                    rsync -av --ignore-existing --exclude '/skills' --exclude '/agents' --exclude '/references/pilotfish-delegation.md' "$source_dir/" "$TARGET_DIR/"
+                    rsync -av --ignore-existing --exclude '/skills' --exclude '/agents' --exclude '/references/pilotfish-delegation.md' "${claude_md_exclude[@]}" "$source_dir/" "$TARGET_DIR/"
                     deploy_home_skills "$SCRIPT_DIR/.skillshare/skills" "$TARGET_DIR/skills"
                     gate_graphify_skill "$TARGET_DIR/skills"
                     gate_pilotfish_agents "$TARGET_DIR" "$source_dir/agents"
@@ -182,11 +200,15 @@ deploy_configs() {
     fi
 
     print_step "Copying configuration files..."
+    if [[ "${ENABLE_CLAUDE:-true}" != true ]]; then
+        print_info "Claude disabled — not deploying CLAUDE.md"
+    fi
     # Copy everything EXCEPT skills (skills is a symlink -> .skillshare/skills;
     # copying it verbatim would create a broken link in ~/.claude) and agents/
     # (pilotfish role files are deployed by gate_pilotfish_agents under its toggle,
     # so a disabled or foreign ~/.claude/agents is never clobbered — spec FR-008).
-    rsync -a --exclude '/skills' --exclude '/agents' --exclude '/references/pilotfish-delegation.md' "$source_dir"/ "$TARGET_DIR/"
+    # CLAUDE.md is excluded too when Claude is disabled (see claude_md_exclude above).
+    rsync -a --exclude '/skills' --exclude '/agents' --exclude '/references/pilotfish-delegation.md' "${claude_md_exclude[@]}" "$source_dir"/ "$TARGET_DIR/"
     # Copy dot-prefixed directories (e.g. .plans/) that the glob above skips
     cp -R "$source_dir"/.[!.]* "$TARGET_DIR/" 2> /dev/null || true
 

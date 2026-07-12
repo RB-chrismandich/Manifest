@@ -116,3 +116,94 @@ teardown() {
     assert_success
     assert_output ""
 }
+
+# ---- end-to-end: deploy_configs() honoring ENABLE_CLAUDE for the "claude"
+# entry (#549 follow-up). The unit tests above hand-place files and never
+# exercise the real deploy path, so they could not catch that deploy_configs()
+# used to redeploy $TARGET_DIR/CLAUDE.md unconditionally — making the "claude"
+# entry in warn_stale_disabled_configs' entries array a guaranteed false
+# positive on every `--disable-claude` run (a documented workflow, README:284).
+# These drive the REAL deploy_configs() against the real repo source.
+
+setup_e2e_deploy() {
+    export SCRIPT_DIR="$REPO_ROOT"
+    export HOME="$SANDBOX/home"
+    export TARGET_DIR="$HOME/.claude"
+    export MANIFEST_OUTPUT_DIR="$HOME/.manifest/outputs"
+    export FORCE=false
+
+    # Isolate heavy/secondary routines unrelated to this behavior (network,
+    # other assistants) — mirrors deploy_runtime_state_e2e.bats.
+    write_services_config()      { :; }
+    deploy_cursor_configs()      { :; }
+    deploy_gemini_configs()      { :; }
+    deploy_codex_configs()       { :; }
+    deploy_antigravity_configs() { :; }
+    sync_skillshare_targets()    { :; }
+    deploy_sync_skills()         { :; }
+}
+
+@test "e2e fresh install with ENABLE_CLAUDE=false deploys shared infra but not CLAUDE.md" {
+    setup_e2e_deploy
+    export ENABLE_CLAUDE=false
+
+    deploy_configs
+
+    [ ! -e "$TARGET_DIR/CLAUDE.md" ]
+    # Shared infra other assistants symlink into must still be deployed —
+    # disabling Claude must not starve an enabled Gemini/Cursor/Codex/Antigravity.
+    [ -d "$TARGET_DIR/config" ]
+    [ -d "$TARGET_DIR/scripts" ]
+    [ -d "$TARGET_DIR/skills/code-audit" ]
+
+    # And the warning function's premise now holds: nothing was ever deployed,
+    # so there is nothing stale to warn about.
+    export GEMINI_TARGET_DIR="$HOME/.gemini" CURSOR_TARGET_DIR="$HOME/.cursor" \
+        CODEX_TARGET_DIR="$HOME/.codex" ANTIGRAVITY_TARGET_DIR="$HOME/.antigravity"
+    export ENABLE_GEMINI=true ENABLE_CURSOR=true ENABLE_CODEX=true ENABLE_ANTIGRAVITY=true
+    run warn_stale_disabled_configs
+    assert_success
+    refute_output --partial "claude"
+}
+
+@test "e2e re-deploy with ENABLE_CLAUDE=false leaves a prior CLAUDE.md stale, and the warning fires" {
+    setup_e2e_deploy
+    export ENABLE_CLAUDE=true
+    deploy_configs
+    [ -f "$TARGET_DIR/CLAUDE.md" ]
+    grep -q "Claude Orchestration Guide" "$TARGET_DIR/CLAUDE.md"
+
+    # Simulate the user now running --reconfigure --disable-claude: the repo's
+    # CLAUDE.md must NOT be refreshed, and the pre-existing copy must be left
+    # exactly as-is (stale), not deleted.
+    echo "STALE PRIOR CONTENT" > "$TARGET_DIR/CLAUDE.md"
+    export ENABLE_CLAUDE=false FORCE=true
+    deploy_configs
+
+    [ -f "$TARGET_DIR/CLAUDE.md" ]
+    assert_equal "$(cat "$TARGET_DIR/CLAUDE.md")" "STALE PRIOR CONTENT"
+    # Shared infra was still refreshed regardless of the Claude toggle.
+    [ -d "$TARGET_DIR/config" ]
+
+    export GEMINI_TARGET_DIR="$HOME/.gemini" CURSOR_TARGET_DIR="$HOME/.cursor" \
+        CODEX_TARGET_DIR="$HOME/.codex" ANTIGRAVITY_TARGET_DIR="$HOME/.antigravity"
+    export ENABLE_GEMINI=true ENABLE_CURSOR=true ENABLE_CODEX=true ENABLE_ANTIGRAVITY=true
+    run warn_stale_disabled_configs
+    assert_success
+    assert_output --partial "claude"
+    assert_output --partial "$TARGET_DIR/CLAUDE.md"
+}
+
+@test "e2e ENABLE_CLAUDE=true (default) still (re)deploys CLAUDE.md fresh from source" {
+    setup_e2e_deploy
+    export ENABLE_CLAUDE=true
+    mkdir -p "$TARGET_DIR"
+    echo "old content" > "$TARGET_DIR/CLAUDE.md"
+
+    export FORCE=true
+    deploy_configs
+
+    [ -f "$TARGET_DIR/CLAUDE.md" ]
+    grep -q "Claude Orchestration Guide" "$TARGET_DIR/CLAUDE.md"
+    [ "$(cat "$TARGET_DIR/CLAUDE.md")" != "old content" ]
+}
