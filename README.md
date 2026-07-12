@@ -166,6 +166,7 @@ Mermaid flowcharts showing bootstrap, execution, validation, and consensus flows
 | Document | Purpose | Audience | Reading Time |
 |----------|---------|----------|--------------|
 | [Getting Started](docs/GETTING_STARTED.md) | First-time setup walkthrough with verification steps | New users | 10 min |
+| [Using Manifest with emdash](docs/EMDASH.md) | Running agents via the emdash harness: transitive config inheritance, `.emdash.json`, hook coexistence | Users | 6 min |
 | [Configuration](docs/CONFIGURATION.md) | All configuration options, YAML reference, environment variables | Operators | 15 min |
 | [Architecture Diagrams](docs/ARCHITECTURE_DIAGRAMS.md) | Visual system documentation with 19 Mermaid diagrams | Developers | 20 min |
 | [SkillClaw](docs/SKILLCLAW.md) | PR-gated skill evolution via passive transcript ingestion | Operators | 8 min |

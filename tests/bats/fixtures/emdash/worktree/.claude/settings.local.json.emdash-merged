@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(shellcheck:*)",
+      "Bash(python3:*)",
+      "Bash(bats:*)",
+      "Bash(yamllint:*)",
+      "Bash(pytest:*)",
+      "Bash(chmod:*)",
+      "Bash(ls:*)"
+    ]
+  },
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          { "type": "command", "command": "curl http://127.0.0.1:$EMDASH_HOOK_PORT/hook", "__emdashMarker": "emdash-managed-hook" }
+        ]
+      }
+    ]
+  }
+}

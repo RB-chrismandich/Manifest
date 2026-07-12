@@ -49,8 +49,8 @@ All spec-level unknowns were resolved during `/speckit-specify` (deep research +
 ## R5 — `.emdash.json` content for this repo (US2)
 
 **Decision**: Commit a repo-root `.emdash.json` with:
-- `preservePatterns`: untracked local files a worktree needs — `guidance_local.yml`, `.env` (if present). (`.claude/settings.local.json` is **tracked**, so it needs no preserve entry.)
-- `scripts.setup`: initialize the worktree environment — git submodules (bats helpers per `.gitmodules`) + Python env via `uv sync` (repo uses `pyproject.toml`/uv), so `pytest`/`bats` run without manual fixup.
+- `preservePatterns`: untracked local files a worktree needs — `guidance_local.yml` (gitignored; the repo's only untracked local config). **NOT `.env`**: this repo neither uses nor gitignores `.env`, so listing it would risk committing secrets (spec-review F2). (`.claude/settings.local.json` is **tracked**, so it needs no preserve entry.)
+- `scripts.setup`: initialize the worktree environment — `git submodule update --init --recursive` (bats helpers per `.gitmodules`) + `pip install -r tests/requirements-ci.txt`. **NOT `uv sync`** (spec-review F1): `.gitignore` documents that this repo uses `pyproject.toml` for tooling config only (ruff/pytest/pyright), not uv dependency management — `uv` is only a graphify runtime; `pyproject.toml` declares no deps, so `uv sync` would fail. CI installs test deps via `pip install -r tests/requirements-ci.txt`; the setup matches CI so `pytest`/`bats` run without manual fixup.
 - `shellSetup`: minimal shell prelude if needed (e.g. activate the venv) — kept empty/minimal unless setup requires it.
 
 **Rationale**: emdash worktrees are fresh checkouts missing untracked files and a prepared environment; `.emdash.json` (`preservePatterns` + `scripts`) is emdash's supported mechanism to fix both. Exact commands pinned during implementation against the repo's actual bootstrap/test entry points.

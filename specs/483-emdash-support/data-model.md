@@ -8,8 +8,8 @@ Repo-root file emdash reads to configure worktree creation for this repository. 
 
 | Field | Type | Purpose | This repo's value (finalized in impl) |
 |-------|------|---------|----------------------------------------|
-| `preservePatterns` | string[] (globs) | Untracked/ignored files copied into each new worktree | `guidance_local.yml`, `.env` (secrets — never committed) |
-| `scripts.setup` | string | Command run once when a worktree is created | init submodules + `uv sync` (Python env) so `pytest`/`bats` work |
+| `preservePatterns` | string[] (globs) | Untracked/ignored files copied into each new worktree | `guidance_local.yml` (this repo's only untracked local config; `.env` NOT listed — not gitignored here) |
+| `scripts.setup` | string | Command run once when a worktree is created | `git submodule update --init --recursive` + `pip install -r tests/requirements-ci.txt` (matches CI; NOT `uv sync`) so `pytest`/`bats` work |
 | `scripts.run` | string (optional) | Default run command | omitted (no single run target) |
 | `scripts.teardown` | string (optional) | Cleanup on worktree removal | omitted |
 | `shellSetup` | string (optional) | Prelude run in each PTY before the interactive shell | minimal/empty unless venv activation needed |
@@ -39,10 +39,11 @@ Synthetic reproduction of how emdash launches an agent — the input the automat
 
 | Component | Represents | Fixture form |
 |-----------|-----------|--------------|
-| Fake `HOME/.claude/` | The Manifest home deploy | `skills/`, `agents/`, `settings.json` (with Manifest hooks + mcpServers) |
-| Fake worktree | A repo checkout in a worktree | `CLAUDE.md`, `AGENTS.md`, `.claude/` (incl. tracked `settings.local.json`) |
+| Fake `HOME/.claude/` | The Manifest home deploy | `skills/`, `agents/`, `settings.json` (with Manifest **hooks** + mcpServers) — hooks live HOME-side (research R3) |
+| Fake worktree | A repo checkout in a worktree | `CLAUDE.md`, `AGENTS.md`, `.claude/{agents/, settings.local.json}` — the tracked `settings.local.json` holds **permissions only**, matching the real repo (no hooks) |
 | Injected env | emdash's PTY env | `HOME`, `PATH`, `EMDASH_HOOK_PORT`, `EMDASH_PTY_ID`, `EMDASH_HOOK_NONCE` set |
-| Merged settings | emdash's per-spawn hook write | a settings file with the emdash `Stop` hook (`curl …$EMDASH_HOOK_PORT/hook` + `EMDASH_MARKER`) appended alongside a pre-existing Manifest hook |
+| Merged settings (home-scope) | emdash appends its hook to home `settings.json` | `home/.claude/settings.json.emdash-merged`: emdash `Stop` hook (`curl …$EMDASH_HOOK_PORT/hook` + `EMDASH_MARKER`) appended alongside the pre-existing Manifest **hooks** → the hook-**preservation** assertion (FR-007) |
+| Merged settings (workspace-scope) | emdash appends its hook to worktree `settings.local.json` | `worktree/.claude/settings.local.json.emdash-merged`: emdash `Stop` hook appended alongside the repo's **permissions** → the permissions-**not-corrupted** assertion |
 
 ## E4 — Inheritance Probe Report (output)
 

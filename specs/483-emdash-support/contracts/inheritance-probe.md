@@ -23,7 +23,7 @@ Conventions (repo standards): errors via `err() { echo "emdash_inherit_check.sh:
 |----|-------|-----------|
 | D1 Skills | count `~/.claude/skills/*/SKILL.md` | ≥ 1 |
 | D2 Subagents | presence of `~/.claude/agents/*.md` and/or `<worktree>/.claude/agents/*.md` | Manifest subagents reachable |
-| D3 Hooks | Manifest hooks in resolved settings; re-check after simulated emdash merge | Manifest hooks present AND survive an appended emdash hook |
+| D3 Hooks | Manifest hooks in HOME `~/.claude/settings.json`; re-check after simulated emdash merge (home-scope) + worktree permissions after worktree-scope merge | Manifest hooks present AND survive the append; worktree permissions not corrupted |
 | D4 MCP | `mcpServers` in `~/.claude/settings.json` / `.mcp.json` | ≥ 1 Manifest MCP server resolvable |
 | D5 Orchestration guide | `<home>/.claude/CLAUDE.md`, `<worktree>/CLAUDE.md`, `<worktree>/.claude/CLAUDE.md` | guide files readable |
 | D6 Repo guides | `<worktree>/AGENTS.md`, `<worktree>/.claude/` | committed guidance present |
@@ -44,7 +44,7 @@ Conventions (repo standards): errors via `err() { echo "emdash_inherit_check.sh:
     "guide":   {"status":"PASS","detail":"home+repo guides present"},
     "repo_guides":{"status":"PASS","detail":"AGENTS.md + .claude present"}
   },
-  "coexistence": {"emdash_hook_detected": true, "manifest_hooks_preserved": true}
+  "coexistence": {"emdash_hook_detected": true, "manifest_hooks_preserved": true, "worktree_permissions_intact": true}
 }
 ```
 
@@ -59,7 +59,12 @@ Conventions (repo standards): errors via `err() { echo "emdash_inherit_check.sh:
 
 ## Coexistence assertion (D3 detail — FR-007 / SC-003)
 
-The probe simulates emdash's observed merge — appending `{ "type":"command", "command":"curl http://127.0.0.1:$EMDASH_HOOK_PORT/hook", <EMDASH_MARKER> }` to a hook event array — and asserts every pre-existing (Manifest) hook entry is still present afterward. This is the deterministic core of the automated test; the manual smoke confirms the real app produces the same shape and that the hook actually fires under ACP mode.
+The probe simulates emdash's observed merge — appending `{ "type":"command", "command":"curl http://127.0.0.1:$EMDASH_HOOK_PORT/hook", <EMDASH_MARKER> }` to a hook event array — against the file emdash actually writes for the given scope (spec-review F3):
+
+- **Home scope** (`~/.claude/settings.json`): this is where Manifest's **hooks** live (repo `settings.local.json` holds permissions only). The probe asserts every pre-existing Manifest hook entry survives the append → `manifest_hooks_preserved`.
+- **Workspace scope** (`<worktree>/.claude/settings.local.json`): holds **permissions** (no Manifest hooks). The probe asserts the permissions block is not corrupted by the append → `worktree_permissions_intact`.
+
+This is the deterministic core of the automated test; the manual smoke confirms the real app produces the same shape, writes to the expected scope, and that the hook actually fires under ACP mode.
 
 ## Verified by
 

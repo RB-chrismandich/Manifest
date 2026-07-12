@@ -1,0 +1,39 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          { "type": "command", "command": "~/.claude/scripts/guidance_hint.py" }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          { "type": "command", "command": "~/.claude/scripts/version_pin_hook.sh" }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          { "type": "command", "command": "~/.claude/scripts/deploy_stamp_check.sh" }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          { "type": "command", "command": "~/.claude/scripts/audit_log.sh" }
+        ]
+      }
+    ]
+  },
+  "mcpServers": {
+    "sentry": { "url": "https://mcp.sentry.dev/mcp" },
+    "context7": { "command": "npx", "args": ["-y", "mcp-remote", "https://mcp.context7.com/mcp/oauth"] },
+    "linear": { "command": "npx", "args": ["-y", "mcp-remote", "https://mcp.linear.app/mcp"] }
+  }
+}

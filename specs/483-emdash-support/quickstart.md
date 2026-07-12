@@ -11,7 +11,7 @@ Audience: a Manifest user who wants to run Manifest-configured coding agents thr
 ## Setup (per machine)
 
 - Nothing to deploy for emdash itself — inheritance is automatic because emdash launches the agent with your real `HOME` inside a normal worktree checkout.
-- This repository ships a committed `.emdash.json` so its emdash worktrees are functional (preserves `guidance_local.yml`/`.env`, runs submodule + Python env setup). Other repos can add their own `.emdash.json` following the same pattern (`docs/EMDASH.md`).
+- This repository ships a committed `.emdash.json` so its emdash worktrees are functional (preserves `guidance_local.yml`, runs `git submodule update --init` + `pip install -r tests/requirements-ci.txt`). Other repos can add their own `.emdash.json` following the same pattern (`docs/EMDASH.md`); if a repo preserves a secret file like `.env`, it must be gitignored first.
 
 ## Verify inheritance (automated)
 

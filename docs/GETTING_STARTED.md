@@ -389,6 +389,24 @@ If you encounter issues:
 
 **See**: [Configuration Guide](CONFIGURATION.md) for advanced topics
 
+### Using Manifest with emdash
+
+[emdash](https://github.com/generalaction/emdash) is a desktop **harness** — not a
+Manifest deploy target — that launches your agent CLIs in parallel git worktrees
+using your real `HOME`. A Manifest-configured agent therefore inherits the full
+config (skills, subagents, hooks, MCP, guides) **transitively**, with no `~/.emdash/`
+directory to deploy. Prerequisites: run `./bootstrap.sh` first (home deploy) and
+install a supported agent (Claude Code is formally verified; Codex/Gemini/Cursor are
+best-effort). Verify with `/env-check`'s "emdash Inheritance" section, or run the
+probe directly:
+
+```bash
+configs/claude/scripts/emdash_inherit_check.sh   # verdict INHERITED = full parity
+```
+
+See [docs/EMDASH.md](EMDASH.md) for setup, the `.emdash.json` worktree pattern, and
+the hook-coexistence caveat.
+
 ---
 
 ## Quick Reference
