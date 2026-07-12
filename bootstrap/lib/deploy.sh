@@ -857,7 +857,6 @@ verify_installation() {
     print_step "Checking deployed files..."
 
     local required_files=(
-        "$TARGET_DIR/CLAUDE.md"
         "$TARGET_DIR/scripts/parallel_agent.py"
         "$TARGET_DIR/scripts/git_platform.sh"
         "$TARGET_DIR/scripts/git_ops.sh"
@@ -874,6 +873,14 @@ verify_installation() {
         "$CODEX_TARGET_DIR/AGENTS.md"
         "$CODEX_TARGET_DIR/skills/code-audit/SKILL.md"
     )
+
+    # Guarded (unlike the sibling entries above): deploy_configs skips copying
+    # CLAUDE.md when Claude is disabled (see claude_md_exclude above), so
+    # checking this file unconditionally would false-positive "Missing" on a
+    # deliberately-disabled service.
+    if [[ "${ENABLE_CLAUDE:-true}" == true ]]; then
+        required_files+=("$TARGET_DIR/CLAUDE.md")
+    fi
 
     # Guarded (unlike the sibling entries above): deploy_antigravity_configs
     # early-returns without creating anything when Antigravity is disabled, so

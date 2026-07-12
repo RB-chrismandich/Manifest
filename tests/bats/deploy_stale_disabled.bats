@@ -207,3 +207,49 @@ setup_e2e_deploy() {
     grep -q "Claude Orchestration Guide" "$TARGET_DIR/CLAUDE.md"
     [ "$(cat "$TARGET_DIR/CLAUDE.md")" != "old content" ]
 }
+
+# ---- verify_installation: CLAUDE.md required_files guard (#549 follow-up) ----
+#
+# deploy_configs() skips copying CLAUDE.md when ENABLE_CLAUDE is false (see the
+# e2e tests above), but verify_installation()'s required_files array used to
+# require "$TARGET_DIR/CLAUDE.md" unconditionally — so a `--disable-claude`
+# bootstrap followed by `verify` falsely reported "Missing: CLAUDE.md". Fixed
+# the same way the pre-existing Antigravity entry in the same array is
+# guarded: only require CLAUDE.md when ENABLE_CLAUDE is (default-)true.
+
+setup_verify_installation() {
+    export HOME="$SANDBOX/home"
+    mkdir -p "$HOME"
+    export MANIFEST_STATE_DIR="$HOME/.manifest"
+    export MANIFEST_OUTPUT_DIR="$MANIFEST_STATE_DIR/orchestration/outputs"
+    export MANIFEST_TMP_DIR="$MANIFEST_STATE_DIR/tmp"
+    export ENABLE_GH=false ENABLE_GLAB=false
+}
+
+@test "verify_installation does not report CLAUDE.md as missing when ENABLE_CLAUDE is false" {
+    export ENABLE_CLAUDE=false
+    setup_verify_installation
+    # No $TARGET_DIR/CLAUDE.md written — mirrors a real --disable-claude deploy.
+    run verify_installation
+    refute_output --partial "Missing: ${TARGET_DIR#"$HOME"/}/CLAUDE.md"
+    refute_output --partial "$TARGET_DIR/CLAUDE.md"
+}
+
+@test "verify_installation still reports CLAUDE.md as Found when ENABLE_CLAUDE is true and file present" {
+    export ENABLE_CLAUDE=true
+    setup_verify_installation
+    mkdir -p "$TARGET_DIR"
+    echo "guide" > "$TARGET_DIR/CLAUDE.md"
+    run verify_installation
+    assert_output --partial "Found:"
+    assert_output --partial "$TARGET_DIR/CLAUDE.md"
+}
+
+@test "verify_installation still reports CLAUDE.md as Missing when ENABLE_CLAUDE is true and file absent" {
+    export ENABLE_CLAUDE=true
+    setup_verify_installation
+    # No $TARGET_DIR/CLAUDE.md written — a genuinely broken enabled install.
+    run verify_installation
+    assert_output --partial "Missing:"
+    assert_output --partial "$TARGET_DIR/CLAUDE.md"
+}
