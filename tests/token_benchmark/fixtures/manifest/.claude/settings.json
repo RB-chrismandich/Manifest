@@ -10,7 +10,7 @@
     ],
     "defaultMode": "default"
   },
-  "model": "claude-fable-5[1m]",
+  "model": "claude-fable-5",
   "hooks": {
     "PreToolUse": [
       {
@@ -18,7 +18,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/Library/Frameworks/Python.framework/Versions/3.14/bin/python3.14-intel64 /Users/chrismandich/.claude/skills/ai-hooks-integration/scripts/runtime/unified_hook.py --handler /Users/chrismandich/.claude/skills/post-pr-review-monitor/scripts/pr_create_trigger.py --source claude"
+            "command": "python3 /Users/developer/.claude/skills/ai-hooks-integration/scripts/runtime/unified_hook.py --handler /Users/developer/.claude/skills/post-pr-review-monitor/scripts/pr_create_trigger.py --source claude"
           }
         ]
       }
@@ -29,7 +29,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/chrismandich/.claude/scripts/issue_support_hook.sh",
+            "command": "/Users/developer/.claude/scripts/issue_support_hook.sh",
             "timeout": 30
           }
         ]
