@@ -151,6 +151,15 @@ services:
     enabled: false           # opt-in; --enable-pilotfish to turn on
     description: "Cost-tiered role-agents + delegation policy, verifier-gated (opt-in, Claude-only)"
 
+  # devpanel - critic-gated dev/debug/test role-agents (~/.claude/agents/) + delegation policy
+  # reference. Opt-in, config-only, Claude-only, independent of pilotfish (own toggle/marker,
+  # same target dir, disjoint filenames — both may be enabled together). Enabling deploys five
+  # role-agents (developer, debugger, tester + shared validators spec-guard, chaos-engineer) in
+  # a propose->critique->refactor loop; disabling removes exactly those. Toggle: --enable-devpanel.
+  devpanel:
+    enabled: false           # opt-in; --enable-devpanel to turn on
+    description: "developer/debugger/tester + spec-guard/chaos-engineer critic loop (opt-in, Claude-only)"
+
   # Git CLI tools - Platform-specific Git hosting integrations
   git_cli:
     github:

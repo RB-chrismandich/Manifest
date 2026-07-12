@@ -89,6 +89,11 @@ deploy_configs() {
     if ! check_pilotfish_collision "$TARGET_DIR"; then
         return 1
     fi
+    # devpanel collision guard: same rationale, independent toggle/marker, same
+    # target dir (~/.claude/agents) on disjoint filenames.
+    if ! check_devpanel_collision "$TARGET_DIR"; then
+        return 1
+    fi
 
     # rsync is a hard dependency of every copy path below. Check it BEFORE the
     # destructive `mv` of ~/.claude — failing mid-deploy stranded all user
@@ -144,10 +149,11 @@ deploy_configs() {
                     fi
                     # Merge mode - copy only new files (skills handled separately
                     # below; the skills compat symlink must not be copied verbatim)
-                    rsync -av --ignore-existing --exclude '/skills' --exclude '/agents' --exclude '/references/pilotfish-delegation.md' "${claude_md_exclude[@]+"${claude_md_exclude[@]}"}" "$source_dir/" "$TARGET_DIR/"
+                    rsync -av --ignore-existing --exclude '/skills' --exclude '/agents' --exclude '/agents-devpanel' --exclude '/references/pilotfish-delegation.md' --exclude '/references/devpanel-delegation.md' "${claude_md_exclude[@]+"${claude_md_exclude[@]}"}" "$source_dir/" "$TARGET_DIR/"
                     deploy_home_skills "$SCRIPT_DIR/.skillshare/skills" "$TARGET_DIR/skills"
                     gate_graphify_skill "$TARGET_DIR/skills"
                     gate_pilotfish_agents "$TARGET_DIR" "$source_dir/agents"
+                    gate_devpanel_agents "$TARGET_DIR" "$source_dir/agents-devpanel"
                     # --ignore-existing keeps the user's settings.local.json as-is,
                     # but if it was absent the repo copy lands fresh; union back any
                     # MCP servers captured from the live file either way.
@@ -204,11 +210,12 @@ deploy_configs() {
         print_info "Claude disabled — not deploying CLAUDE.md"
     fi
     # Copy everything EXCEPT skills (skills is a symlink -> .skillshare/skills;
-    # copying it verbatim would create a broken link in ~/.claude) and agents/
+    # copying it verbatim would create a broken link in ~/.claude), agents/
     # (pilotfish role files are deployed by gate_pilotfish_agents under its toggle,
-    # so a disabled or foreign ~/.claude/agents is never clobbered — spec FR-008).
+    # so a disabled or foreign ~/.claude/agents is never clobbered — spec FR-008),
+    # and agents-devpanel/ (same rationale, gate_devpanel_agents, independent toggle).
     # CLAUDE.md is excluded too when Claude is disabled (see claude_md_exclude above).
-    rsync -a --exclude '/skills' --exclude '/agents' --exclude '/references/pilotfish-delegation.md' "${claude_md_exclude[@]+"${claude_md_exclude[@]}"}" "$source_dir"/ "$TARGET_DIR/"
+    rsync -a --exclude '/skills' --exclude '/agents' --exclude '/agents-devpanel' --exclude '/references/pilotfish-delegation.md' --exclude '/references/devpanel-delegation.md' "${claude_md_exclude[@]+"${claude_md_exclude[@]}"}" "$source_dir"/ "$TARGET_DIR/"
     # Copy dot-prefixed directories (e.g. .plans/) that the glob above skips
     cp -R "$source_dir"/.[!.]* "$TARGET_DIR/" 2> /dev/null || true
 
@@ -228,6 +235,7 @@ deploy_configs() {
     # 'graphify install' residue (FR-010). Runs before the assistant skill symlinks.
     gate_graphify_skill "$TARGET_DIR/skills"
     gate_pilotfish_agents "$TARGET_DIR" "$source_dir/agents"
+    gate_devpanel_agents "$TARGET_DIR" "$source_dir/agents-devpanel"
 
     # Make scripts executable (.py entry points too — repo perms may lack +x)
     if [[ -d "$TARGET_DIR/scripts" ]]; then
@@ -391,6 +399,16 @@ deploy_cursor_configs() {
         gate_pilotfish_agents "$CURSOR_TARGET_DIR" "$cursor_source_dir/agents"
     else
         print_warning "pilotfish: skipped Cursor role-agents deploy due to collision (see above)"
+    fi
+
+    # devpanel role-agents: same generated dir (configs/cursor/agents/, both role
+    # sets land there via generate_cursor_agents.py — see that script), same
+    # home-agnostic gate/collision reuse, independent toggle and non-fatal
+    # collision handling as pilotfish above.
+    if check_devpanel_collision "$CURSOR_TARGET_DIR"; then
+        gate_devpanel_agents "$CURSOR_TARGET_DIR" "$cursor_source_dir/agents"
+    else
+        print_warning "devpanel: skipped Cursor role-agents deploy due to collision (see above)"
     fi
 
     # Link shared assets from ~/.claude to avoid duplicate copies, including shared skills.

@@ -190,6 +190,43 @@ print('schema-ok')
     [ -f "$OUT/scout.md" ]
 }
 
+@test "an explicit single-source run against a shared output dir never deletes the other source's files (provenance-scoped pruning)" {
+    # Two independent role sets (mirrors pilotfish vs devpanel) sharing one
+    # output dir, generated together first (as a real deploy would default to).
+    SRC_B="$SANDBOX/src-agents-b"
+    mkdir -p "$SRC_B"
+    make_agent scout scout.md haiku low "role-set A"
+    SRC="$SRC_B" make_agent developer developer.md opus medium "role-set B"
+    "$GEN" --src "$SRC" --src "$SRC_B" --output "$OUT"
+    [ -f "$OUT/scout.md" ]
+    [ -f "$OUT/developer.md" ]
+
+    # Now regenerate scoped to ONLY role-set A (e.g. a maintainer iterating on
+    # just that set) against the SAME shared --output. Role-set B's file must
+    # survive — it belongs to a source dir this run never processed, so it is
+    # not an orphan, even though it isn't in this run's valid_names.
+    run "$GEN" --src "$SRC" --output "$OUT"
+    assert_success
+    assert_output --partial "0 removed"
+    [ -f "$OUT/scout.md" ]
+    [ -f "$OUT/developer.md" ]
+}
+
+@test "provenance-scoped pruning still removes a true orphan once its OWN source dir is (re-)processed" {
+    SRC_B="$SANDBOX/src-agents-b"
+    mkdir -p "$SRC_B"
+    make_agent scout scout.md haiku low "role-set A"
+    SRC="$SRC_B" make_agent developer developer.md opus medium "role-set B"
+    "$GEN" --src "$SRC" --src "$SRC_B" --output "$OUT"
+
+    rm -f "$SRC_B/developer.md"
+    run "$GEN" --src "$SRC" --src "$SRC_B" --output "$OUT"
+    assert_success
+    assert_output --partial "1 removed"
+    [ ! -e "$OUT/developer.md" ]
+    [ -f "$OUT/scout.md" ]
+}
+
 # ── Dry run ──────────────────────────────────────────────────────────────────
 
 @test "--dry-run on a missing output dir reports would-create and writes nothing" {
@@ -267,10 +304,11 @@ EOF
 
 # ── Real repo (read-only-ish guarded check) ─────────────────────────────────
 
-@test "real repo: configs/cursor/agents/*.md exist for exactly the six pilotfish roles" {
+@test "real repo: configs/cursor/agents/*.md exist for the six pilotfish + five devpanel roles" {
     run bash -c "ls '$REPO_ROOT'/configs/cursor/agents/*.md | wc -l | tr -d ' '"
-    assert_output "6"
-    for name in scout Explore mech-executor executor verifier security-executor; do
+    assert_output "11"
+    for name in scout Explore mech-executor executor verifier security-executor \
+        developer debugger tester spec-guard chaos-engineer; do
         [ -f "$REPO_ROOT/configs/cursor/agents/$name.md" ]
     done
 }
