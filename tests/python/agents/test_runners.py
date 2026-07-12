@@ -465,9 +465,9 @@ class TestCLIAgentExecution:
         with (
             patch("agents.runners.shutil.which", return_value="/usr/local/bin/agy"),
             patch("asyncio.create_subprocess_exec", return_value=proc),
+            pytest.raises(RuntimeError, match="quota"),
         ):
-            with pytest.raises(RuntimeError, match="quota"):
-                asyncio.run(agent._execute_impl("hello", "prompt"))
+            asyncio.run(agent._execute_impl("hello", "prompt"))
 
     def test_credit_exhaustion_pattern_in_stdout_does_not_raise(self, tmp_path):
         """A nonzero-exit answer whose STDOUT merely contains a pattern word

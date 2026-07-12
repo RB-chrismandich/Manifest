@@ -11,6 +11,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
+from tests.token_benchmark.benchmarks import BENCHMARKS
 from tests.token_benchmark.harness import (
     isolated_environments,
     measure_api_claude,
@@ -19,7 +20,6 @@ from tests.token_benchmark.harness import (
     run_benchmark,
     write_result,
 )
-from tests.token_benchmark.benchmarks import BENCHMARKS
 
 
 class TestIsolatedEnvironments:

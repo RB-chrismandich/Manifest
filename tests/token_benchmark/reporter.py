@@ -246,13 +246,17 @@ def render_report(stats: dict, run_id: str) -> str:
         for provider in PROVIDERS:
             d = stats["token_overhead"].get(provider)
             overhead_cells.append(
-                f"+{d['overhead_tokens']:,}" if d else _empty_cell(provider, unsupported)
+                f"+{d['overhead_tokens']:,}"
+                if d
+                else _empty_cell(provider, unsupported)
             )
             q_cats = stats["quality"].get(provider, {})
             q_total = sum(v.get("after_total", 0) for v in q_cats.values())
             q_score = sum(v.get("after_score", 0) for v in q_cats.values())
             quality_cells.append(
-                f"{q_score}/{q_total}" if q_total else _empty_cell(provider, unsupported)
+                f"{q_score}/{q_total}"
+                if q_total
+                else _empty_cell(provider, unsupported)
             )
         row = " | ".join([*overhead_cells, *quality_cells])
         lines.append(f"| {run_id_h[:19]} | {row} |")

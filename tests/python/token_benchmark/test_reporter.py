@@ -243,7 +243,9 @@ class TestConsistentProviderRendering:
         stats = compute_stats(self.UNSUPPORTED_RECORDS)
         md = render_report(stats, run_id="2026-07-11T00-00-00")
         delta_section = md.split("## Output Token Delta")[1].split("##")[0]
-        assert "| antigravity | unsupported | unsupported | unsupported |" in delta_section
+        assert (
+            "| antigravity | unsupported | unsupported | unsupported |" in delta_section
+        )
         assert "| gemini | unsupported | unsupported | unsupported |" in delta_section
 
     def test_historical_runs_table_includes_antigravity_column(self):

@@ -812,7 +812,9 @@ class TestAntigravityAgent:
         assert results["antigravity"] == {"status": "not_installed"}
 
     @pytest.mark.asyncio
-    async def test_check_credits_antigravity_quota_exceeded(self, tmp_path, monkeypatch):
+    async def test_check_credits_antigravity_quota_exceeded(
+        self, tmp_path, monkeypatch
+    ):
         """check_credits classifies agy stderr mentioning quota/unauthorized as
         quota_exceeded, mirroring the codex probe's classification."""
         monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
@@ -837,7 +839,9 @@ class TestAntigravityAgent:
         assert results["antigravity"]["status"] == "quota_exceeded"
 
     @pytest.mark.asyncio
-    async def test_check_credits_antigravity_hang_times_out(self, tmp_path, monkeypatch):
+    async def test_check_credits_antigravity_hang_times_out(
+        self, tmp_path, monkeypatch
+    ):
         """Mirrors test_check_credits_codex_hang_times_out: the timeout must
         cover communicate(), not just the spawn, for the agy probe too."""
         monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
