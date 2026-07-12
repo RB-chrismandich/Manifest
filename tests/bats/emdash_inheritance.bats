@@ -9,6 +9,11 @@
 # HOME-side Manifest hooks and does not corrupt the worktree permissions, a
 # missing home deploy BLOCKS (exit 2), and that emdash's injected PTY env
 # (EMDASH_HOOK_PORT/EMDASH_PTY_ID/EMDASH_HOOK_NONCE) does not degrade resolution.
+# Also drives two negative-path fixtures (home-corrupted-hooks,
+# worktree-corrupted-permissions) that each genuinely diff a real
+# .emdash-merged sibling against its baseline to prove the tri-state
+# coexistence checks actually detect verified corruption (tri-state 0), not
+# just the passing (1) and unverifiable-live-run (2) states.
 #
 # Contract: specs/483-emdash-support/contracts/inheritance-probe.md (T004).
 
@@ -19,6 +24,12 @@ REPO_ROOT="$BATS_TEST_DIRNAME/../.."
 PROBE="$REPO_ROOT/configs/claude/scripts/emdash_inherit_check.sh"
 HOME_FIX="$REPO_ROOT/tests/bats/fixtures/emdash/home"
 WT_FIX="$REPO_ROOT/tests/bats/fixtures/emdash/worktree"
+# Negative-path fixtures: each isolates ONE genuine corruption of the tri-state
+# coexistence result (a real .emdash-merged sibling that actually diffs from
+# its baseline, not merely absent) against an otherwise-passing counterpart,
+# so the resulting DEGRADED verdict is attributable to that one dimension.
+HOME_FIX_HOOKS_DROPPED="$REPO_ROOT/tests/bats/fixtures/emdash/home-corrupted-hooks"
+WT_FIX_PERMS_CORRUPTED="$REPO_ROOT/tests/bats/fixtures/emdash/worktree-corrupted-permissions"
 
 setup() {
     command -v python3 > /dev/null 2>&1 || skip "python3 not installed"
@@ -66,6 +77,42 @@ coex()       { python3 -c "import json,sys;print(json.dumps(json.load(sys.stdin)
     assert_equal "$(echo "$output" | coex emdash_hook_detected)" "true"
     assert_equal "$(echo "$output" | coex manifest_hooks_preserved)" "true"
     assert_equal "$(echo "$output" | coex worktree_permissions_intact)" "true"
+}
+
+# --- Coexistence: genuine corruption is detected (tri-state == false) --------
+
+@test "coexistence: a real dropped Manifest hook yields manifest_hooks_preserved=false and DEGRADED" {
+    # home-corrupted-hooks/.claude/settings.json.emdash-merged genuinely
+    # DROPS the PostToolUse (version_pin_hook.sh) entry relative to its own
+    # settings.json baseline -- a real diff, not an absent sibling. Paired
+    # with the passing worktree fixture so DEGRADED is attributable only to
+    # the home-side hook-preservation check.
+    run "$PROBE" --json --home "$HOME_FIX_HOOKS_DROPPED" --worktree "$WT_FIX"
+    assert_equal "$status" 1   # 1 == DEGRADED
+    assert_equal "$(echo "$output" | verdict)" "DEGRADED"
+    assert_equal "$(echo "$output" | dim_status hooks)" "FAIL"
+    assert_equal "$(echo "$output" | coex emdash_hook_detected)" "true"
+    assert_equal "$(echo "$output" | coex manifest_hooks_preserved)" "false"
+    # The worktree side of this pairing is untouched, so it must still read
+    # verified-intact -- confirms the FAIL is attributable to the home scope.
+    assert_equal "$(echo "$output" | coex worktree_permissions_intact)" "true"
+}
+
+@test "coexistence: real corrupted worktree permissions yields worktree_permissions_intact=false and DEGRADED" {
+    # worktree-corrupted-permissions/.claude/settings.local.json.emdash-merged
+    # genuinely DROPS allow entries relative to its own settings.local.json
+    # baseline. Paired with the passing home fixture so DEGRADED is
+    # attributable only to the worktree-side permissions check.
+    run "$PROBE" --json --home "$HOME_FIX" --worktree "$WT_FIX_PERMS_CORRUPTED"
+    assert_equal "$status" 1   # 1 == DEGRADED
+    assert_equal "$(echo "$output" | verdict)" "DEGRADED"
+    assert_equal "$(echo "$output" | dim_status hooks)" "FAIL"
+    assert_equal "$(echo "$output" | coex emdash_hook_detected)" "true"
+    assert_equal "$(echo "$output" | coex worktree_permissions_intact)" "false"
+    # The home side of this pairing is untouched, so it must still read
+    # verified-preserved -- confirms the FAIL is attributable to the
+    # worktree scope.
+    assert_equal "$(echo "$output" | coex manifest_hooks_preserved)" "true"
 }
 
 # --- BLOCKED: home deploy missing --------------------------------------------

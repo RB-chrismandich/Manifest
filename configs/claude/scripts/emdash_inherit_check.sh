@@ -75,7 +75,21 @@ EMDASH_MARKER="${EMDASH_MARKER:-emdash-managed-hook}"
 home_claude="${home_dir%/}/.claude"
 if [[ ! -d "$home_claude" ]]; then
     if [[ "$json_out" -eq 1 ]]; then
-        printf '{"verdict":"BLOCKED","reason":"home deploy missing: %s","dimensions":{},"coexistence":{"emdash_hook_detected":false,"manifest_hooks_preserved":null,"worktree_permissions_intact":null}}\n' "$home_claude"
+        python3 - "$home_claude" << 'PY'
+import json, sys
+
+report = {
+    "verdict": "BLOCKED",
+    "reason": "home deploy missing: %s" % sys.argv[1],
+    "dimensions": {},
+    "coexistence": {
+        "emdash_hook_detected": False,
+        "manifest_hooks_preserved": None,
+        "worktree_permissions_intact": None,
+    },
+}
+print(json.dumps(report))
+PY
     else
         echo "emdash inheritance: BLOCKED"
         echo "  home deploy missing: $home_claude"

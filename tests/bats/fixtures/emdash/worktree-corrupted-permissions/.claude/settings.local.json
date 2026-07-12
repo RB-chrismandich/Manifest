@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(shellcheck:*)",
+      "Bash(python3:*)",
+      "Bash(bats:*)",
+      "Bash(yamllint:*)",
+      "Bash(pytest:*)",
+      "Bash(chmod:*)",
+      "Bash(ls:*)"
+    ]
+  }
+}

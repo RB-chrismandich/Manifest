@@ -32,6 +32,20 @@ emdash/
         └── settings.local.json.emdash-merged  # emdash Stop hook appended ALONGSIDE the
                                            #    permissions block -> permissions-NOT-CORRUPTED
                                            #    assertion
+
+home-corrupted-hooks/.claude/                 # variant of home/ used for the NEGATIVE-path
+├── ...                                       #   test: settings.json is identical to
+├── settings.json                             #   home/settings.json, but ...
+└── settings.json.emdash-merged               #   ... this sibling genuinely DROPS the
+                                              #   PostToolUse (version_pin_hook.sh) entry ->
+                                              #   coexistence.manifest_hooks_preserved == false
+
+worktree-corrupted-permissions/               # variant of worktree/ used for the NEGATIVE-path
+├── ...                                       #   test: settings.local.json is identical to
+├── .claude/settings.local.json               #   worktree/settings.local.json, but ...
+└── .claude/settings.local.json.emdash-merged #   ... this sibling genuinely DROPS three
+                                              #   allow entries ->
+                                              #   coexistence.worktree_permissions_intact == false
 ```
 
 ## The two `.emdash-merged` variants
@@ -71,6 +85,33 @@ emdash's PTY sets `HOME`, `PATH`, and `EMDASH_HOOK_PORT` / `EMDASH_PTY_ID` /
 their presence does not degrade resolution; the `EMDASH_HOOK_PORT` variable also
 appears in the merged fixture's hook command. Real ACP runtime hook-firing is
 validated by the manual smoke (quickstart.md), not this fixture.
+
+## Negative-path fixtures (`*-corrupted-*`)
+
+`home/` and `worktree/` above only demonstrate the PASS (tri-state `1`,
+verified-preserved) path. `home-corrupted-hooks/` and
+`worktree-corrupted-permissions/` are paired, single-difference variants that
+exercise the verified-corruption (tri-state `0`) path instead, each swapped in
+for the passing fixture on ONE side only (the other side stays on the passing
+`home/` or `worktree/` fixture) so the resulting `DEGRADED` verdict is
+attributable to exactly one coexistence check:
+
+- **`home-corrupted-hooks/.claude/settings.json.emdash-merged`** genuinely
+  omits the `PostToolUse` (`version_pin_hook.sh`) hook present in its own
+  `settings.json` baseline — a real diff against a real sibling, not an
+  absent one. Paired with the passing `worktree/` fixture, this yields
+  `coexistence.manifest_hooks_preserved == false`, D3 `FAIL`, and verdict
+  `DEGRADED` (exit 1).
+- **`worktree-corrupted-permissions/.claude/settings.local.json.emdash-merged`**
+  genuinely drops three `allow` entries present in its own
+  `settings.local.json` baseline. Paired with the passing `home/` fixture,
+  this yields `coexistence.worktree_permissions_intact == false`, D3 `FAIL`,
+  and verdict `DEGRADED` (exit 1).
+
+Together with the `home`/`worktree` pairing (tri-state `1`) and a live run
+with no `.emdash-merged` sibling (tri-state `2`, unverifiable — see above),
+these two negative fixtures exercise all three tri-state values the
+coexistence checks can produce.
 
 ## Ground-truth caveat
 
