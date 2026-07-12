@@ -279,7 +279,7 @@ if [[ "$claude_installed" == true ]]; then
     if run_with_timeout claude auth status &> /dev/null; then
         echo -e "  ${GREEN}✓${NC} Claude authenticated"
     else
-        echo -e "  ${YELLOW}?${NC} Claude authentication unknown (check timeout)"
+        echo -e "  ${YELLOW}⚠${NC}  Claude authentication unknown (check timeout)"
         echo -e "    ${BLUE}→${NC} Verify: claude auth status"
     fi
 fi
@@ -294,7 +294,7 @@ if [[ "$gemini_installed" == true ]]; then
     elif run_with_timeout gemini auth status &> /dev/null; then
         echo -e "  ${GREEN}✓${NC} Gemini authenticated"
     else
-        echo -e "  ${YELLOW}?${NC} Gemini authentication unknown (check timeout)"
+        echo -e "  ${YELLOW}⚠${NC}  Gemini authentication unknown (check timeout)"
         echo -e "    ${BLUE}→${NC} Verify: gemini auth status"
     fi
 fi
@@ -303,7 +303,7 @@ if [[ "$codex_installed" == true ]]; then
     if [[ -n "$OPENAI_API_KEY" ]] || [[ -f "$CODEX_HOME/auth.json" ]] || [[ -f "$HOME/.codex/auth.json" ]]; then
         echo -e "  ${GREEN}✓${NC} Codex authenticated"
     else
-        echo -e "  ${YELLOW}?${NC} Codex authentication unknown"
+        echo -e "  ${YELLOW}⚠${NC}  Codex authentication unknown"
         echo -e "    ${BLUE}→${NC} Verify: codex login  (or set OPENAI_API_KEY)"
     fi
 fi
@@ -330,7 +330,7 @@ if [[ "$codex_installed" == true && "$codex_enabled" == "true" ]]; then
                 echo -e "  ${GREEN}✓${NC} Codex sessions writable (${codex_sessions_dir})"
             fi
         else
-            echo -e "  ${YELLOW}?${NC} Codex session storage not writable"
+            echo -e "  ${YELLOW}⚠${NC}  Codex session storage not writable"
             echo -e "    ${BLUE}→${NC} Fix permissions: $codex_sessions_dir"
             codex_runtime_ready=false
         fi
@@ -341,7 +341,7 @@ if [[ "$codex_installed" == true && "$codex_enabled" == "true" ]]; then
                 echo -e "  ${GREEN}✓${NC} Codex session parent writable (${codex_sessions_parent})"
             fi
         else
-            echo -e "  ${YELLOW}?${NC} Codex session path cannot be created"
+            echo -e "  ${YELLOW}⚠${NC}  Codex session path cannot be created"
             echo -e "    ${BLUE}→${NC} Fix permissions: $codex_sessions_parent"
             codex_runtime_ready=false
         fi
@@ -358,7 +358,7 @@ for state_dir in "$manifest_tmp_dir" "$claude_state_dir" "$gemini_state_dir" "$c
             echo -e "  ${GREEN}✓${NC} $state_dir"
         fi
     else
-        echo -e "  ${YELLOW}?${NC} Not writable: $state_dir"
+        echo -e "  ${YELLOW}⚠${NC}  Not writable: $state_dir"
         state_ok=false
     fi
 done
