@@ -57,5 +57,7 @@ home returns to its pre-enable state.
 ## Notes
 
 - **Does not change your main-session model** — it only adds delegation config (FR-016).
-- **Claude-only** in this feature; other assistant homes are unaffected (FR-013).
+- **Claude-only** in this feature; other assistant homes are unaffected (FR-013). **Update
+  (2026-07-11)**: Cursor is now also a provisioned target (`~/.cursor/agents/`) via the
+  cursor-feature-parity WS-5 follow-up; Gemini/Codex/Antigravity remain unaffected.
 - Upstream: pilotfish (MIT), vendored v1.1.0; see the header of `pilotfish-delegation.md`.

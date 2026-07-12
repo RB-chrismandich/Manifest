@@ -222,6 +222,13 @@ repository gates passing.
   Codex, Antigravity) do not consume, so the feature MUST NOT deploy role-agent files to
   those homes. Extending the role/tier idea to other homes is explicitly out of scope for
   this feature and deferred to a possible follow-up.
+  > **Update (2026-07-11, cursor-feature-parity WS-5)**: Cursor 2.x shipped native subagent
+  > support (`~/.cursor/agents/*.md`) after this FR was written, closing the gap this FR
+  > anticipated. Cursor is now a second provisioned pilotfish target — see
+  > `docs/superpowers/specs/2026-07-11-cursor-feature-parity-design.md` §WS-5 and
+  > `configs/claude/scripts/generate_cursor_agents.py`. Gemini/Codex/Antigravity still have no
+  > subagent-file mechanism and remain out of scope; this FR's text is left as originally
+  > written for the historical record.
 - **FR-014**: The delegation policy MUST be deployed as its own read-on-demand file (a
   reference document), with only a one-line pointer added to the always-loaded
   `configs/claude/CLAUDE.md` Reference Index. The full policy MUST NOT be inlined into the
@@ -299,7 +306,9 @@ repository gates passing.
 ## Out of Scope
 
 - Deploying role-agents to non-Claude assistant homes (Cursor, Gemini, Codex, Antigravity);
-  the role/tier idea may be formalized for them in a later feature (per FR-013).
+  the role/tier idea may be formalized for them in a later feature (per FR-013). **Cursor**:
+  done in the cursor-feature-parity WS-5 follow-up (2026-07-11, see the FR-013 update note
+  above); Gemini/Codex/Antigravity remain out of scope (no subagent-file mechanism).
 - Inlining the delegation policy into the always-loaded orchestration guide; it ships as a
   read-on-demand reference (per FR-014).
 - Refactoring the existing subagent-driven-development skill or the parallel-agent

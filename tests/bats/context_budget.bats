@@ -36,6 +36,15 @@ assert_budget() {
     assert_budget ".claude/CLAUDE.md" 3900
 }
 
+@test "configs/cursor/rules/orchestration.mdc stays within always-loaded budget" {
+    # Cursor's alwaysApply rule (`~/.cursor/rules/orchestration.mdc`) is loaded
+    # every session, same as the CLAUDE.md guides above. Baseline 12652 after
+    # porting the WS-2 CLAUDE.md-parity items (Reference Index, Graphify note,
+    # sync-skills note, CONSIDER tier, code-audit thresholds, /token-conserve
+    # note); budget restores ~15% headroom (2026-07-11 cursor-feature-parity).
+    assert_budget "configs/cursor/rules/orchestration.mdc" 14500
+}
+
 @test "token-conserve section bullets are identical across all four guides" {
     # The same rules are stated in 4 always-loaded guides; this pins them
     # together so copies cannot drift. Compares only the '- '/continuation

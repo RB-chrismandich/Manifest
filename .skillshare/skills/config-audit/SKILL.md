@@ -85,8 +85,36 @@ Compare MCP server configurations across platforms:
 - `.cursor/mcp.json`
 - `.gemini/settings.json` → `mcpServers`
 
-For each platform, extract server names and URLs. Flag any differences from
-the canonical `~/.claude/config/mcp_servers.yml`.
+The canonical registry is `~/.claude/config/mcp_servers.yml` (`mcp_servers:`
+mapping). For each platform, extract deployed server names and URLs and
+compare against the **full canonical list**, not just the servers already
+present — a server the registry defines but a platform never picked up is
+drift too, and is easy to miss if the check only walks the deployed subset:
+
+Detect missing servers by **exact top-level key membership** in the deployed
+`mcpServers` object — never a substring `grep`, since a registry name that is a
+substring of another quoted token (or of a URL) would false-negative:
+
+```bash
+python3 -c "
+import yaml, json
+registry = yaml.safe_load(open('$HOME/.claude/config/mcp_servers.yml')).get('mcp_servers', {})
+canonical = sorted(registry)
+deployed = json.load(open('$HOME/.cursor/mcp.json')).get('mcpServers', {})
+for name in canonical:
+    if name not in deployed:          # exact key membership, not substring
+        print(f'missing: {name} not in .cursor/mcp.json')
+"
+```
+
+Flag BOTH kinds of drift, per platform:
+
+- **present but mismatched** — a deployed server's URL/command differs from canonical.
+- **missing** — a canonical registry server absent from a platform's deployed
+  config entirely. Report each missing server by name so it's actionable
+  (e.g. regenerate via `generate_cursor_mcp.py` for Cursor, or update the
+  hand-maintained `settings.local.json`/`settings.json` block for
+  Claude/Gemini).
 
 ### 5. Config File Freshness
 
@@ -135,6 +163,7 @@ can cause the daemon and wrappers to disagree on where data lives.
 | Commands | Gemini | env-check.toml | fail | Missing |
 | MCP | Cursor | sentry | pass | Matches canonical |
 | MCP | Gemini | linear | warn | URL differs from canonical |
+| MCP | Cursor | deepwiki | fail | Missing — in registry, not in .cursor/mcp.json |
 
 ### Summary
 

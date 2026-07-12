@@ -147,6 +147,29 @@ Refer to \`.cursor/skills/$skill_name/SKILL.md\` for the full skill definition.
     fi
 done
 
+# --- Orphan rule pruning (spec 2026-07-11 cursor-feature-parity, WS-3 / #505) #
+# Remove any configs/cursor/rules/<name>.mdc left behind by a renamed or
+# deleted skill (no matching configs/claude/skills/<name>/ dir), so stale
+# rules don't silently keep shipping. orchestration.mdc and commands-index.mdc
+# are hand/generator-maintained (not one-per-skill) and always excluded.
+removed=0
+for rule_file in "$RULES_DIR"/*.mdc; do
+    [[ -f "$rule_file" ]] || continue
+    rule_name="$(basename "$rule_file" .mdc)"
+    case "$rule_name" in
+        orchestration | commands-index) continue ;;
+    esac
+    if [[ ! -d "$SKILLS_DIR/$rule_name" ]]; then
+        if $DRY_RUN; then
+            echo "[DRY-RUN] would remove: $rule_file"
+        else
+            rm -f "$rule_file"
+            log "Removed orphan rule: $rule_file"
+        fi
+        removed=$((removed + 1))
+    fi
+done
+
 # --- Command discovery index rule (spec 362 / T015) ------------------------ #
 # Emit an always-applied Cursor rule carrying the compact command index, so
 # Cursor reaches the same always-loaded discovery parity as GEMINI.md/AGENTS.md.
@@ -200,4 +223,35 @@ else
     log "Skip commands-index.mdc: python3/pyyaml unavailable"
 fi
 
-echo "Cursor rules: $created created, $updated updated, $skipped unchanged"
+echo "Cursor rules: $created created, $updated updated, $skipped unchanged, $removed removed"
+
+# --- MCP server config (spec 2026-07-11 cursor-feature-parity, WS-1) ------- #
+# Regenerate configs/cursor/mcp.json from the shared registry so it never
+# drifts from configs/claude/config/mcp_servers.yml. Guard on python3+pyyaml,
+# mirroring the commands-index.mdc block above.
+GEN_MCP="$REPO_ROOT/configs/claude/scripts/generate_cursor_mcp.py"
+if command -v python3 > /dev/null 2>&1 && python3 -c 'import yaml' > /dev/null 2>&1; then
+    if $DRY_RUN; then
+        python3 "$GEN_MCP" --dry-run
+    else
+        python3 "$GEN_MCP"
+    fi
+else
+    log "Skip mcp.json: python3/pyyaml unavailable"
+fi
+
+# --- Agent definitions (spec 2026-07-11 cursor-feature-parity, WS-5) ------- #
+# Regenerate configs/cursor/agents/*.md from the six configs/claude/agents/*.md
+# pilotfish role-agents so Cursor-native frontmatter (model: inherit, no
+# effort, readonly/is_background) never drifts from the Claude source. Guard
+# on python3+pyyaml, mirroring the mcp.json block above.
+GEN_AGENTS="$REPO_ROOT/configs/claude/scripts/generate_cursor_agents.py"
+if command -v python3 > /dev/null 2>&1 && python3 -c 'import yaml' > /dev/null 2>&1; then
+    if $DRY_RUN; then
+        python3 "$GEN_AGENTS" --dry-run
+    else
+        python3 "$GEN_AGENTS"
+    fi
+else
+    log "Skip cursor agents: python3/pyyaml unavailable"
+fi
