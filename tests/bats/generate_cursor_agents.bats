@@ -212,6 +212,60 @@ print('schema-ok')
     [ -f "$OUT/developer.md" ]
 }
 
+@test "missing provenance manifest (pre-manifest out_dir) is a quiet no-op: untracked file left alone, no warning" {
+    make_agent scout scout.md haiku low "desc"
+    mkdir -p "$OUT"
+    echo "hand-authored, predates the manifest" > "$OUT/legacy.md"
+    # No $OUT/.sources.json at all.
+
+    run "$GEN" --src "$SRC" --output "$OUT"
+    assert_success
+    assert_output --partial "0 removed"
+    refute_output --partial "malformed"
+    [ -f "$OUT/legacy.md" ]
+}
+
+@test "malformed provenance manifest (invalid JSON) warns on stderr instead of silently reporting 0 removed" {
+    make_agent scout scout.md haiku low "desc"
+    mkdir -p "$OUT"
+    echo "not valid json {" > "$OUT/.sources.json"
+    echo "orphan, provenance now unrecoverable" > "$OUT/orphan.md"
+
+    run "$GEN" --src "$SRC" --output "$OUT"
+    assert_success
+    assert_output --partial "malformed provenance manifest"
+    assert_output --partial "0 removed"
+    # Conservative: without recoverable provenance the untracked file is left
+    # alone rather than guessed-orphaned.
+    [ -f "$OUT/orphan.md" ]
+}
+
+@test "malformed provenance manifest (JSON array, not an object) also warns rather than silently swallowing" {
+    make_agent scout scout.md haiku low "desc"
+    mkdir -p "$OUT"
+    echo '["not", "an", "object"]' > "$OUT/.sources.json"
+
+    run "$GEN" --src "$SRC" --output "$OUT"
+    assert_success
+    assert_output --partial "provenance manifest is not a JSON object"
+}
+
+@test "a malformed manifest self-heals: the next run's manifest is rebuilt and valid JSON again" {
+    make_agent scout scout.md haiku low "desc"
+    mkdir -p "$OUT"
+    echo "not valid json {" > "$OUT/.sources.json"
+    "$GEN" --src "$SRC" --output "$OUT"
+
+    run python3 -c "
+import json
+data = json.load(open('$OUT/.sources.json'))
+assert data == {'scout.md': 'src-agents'}, data
+print('manifest-ok')
+"
+    assert_success
+    assert_output --partial "manifest-ok"
+}
+
 @test "provenance-scoped pruning still removes a true orphan once its OWN source dir is (re-)processed" {
     SRC_B="$SANDBOX/src-agents-b"
     mkdir -p "$SRC_B"

@@ -96,14 +96,43 @@ def err(msg: str) -> None:
 
 
 def load_manifest(out_dir: Path) -> dict[str, str]:
+    """Load the provenance manifest, never silently swallowing corruption.
+
+    A MISSING file is an expected, quiet state (first run ever, or an
+    out_dir that predates this manifest) — orphan-pruning simply stays
+    conservative (see the caller) for anything it can't attribute.
+
+    A file that EXISTS but fails to parse (or isn't a JSON object) is
+    different: it means provenance data we previously had has been lost —
+    e.g. hand-edited, truncated by a crashed write, or corrupted by a VCS
+    merge. Silently treating that the same as "missing" would disable
+    orphan-pruning for every untracked file with zero indication anything
+    is wrong (a log-and-drop failure). Warn on stderr so `0 removed` is
+    never mistaken for "nothing to prune" when it actually means "pruning
+    was skipped because provenance was unreadable".
+    """
     path = out_dir / MANIFEST_NAME
     if not path.is_file():
         return {}
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, OSError):
+    except (json.JSONDecodeError, OSError) as exc:
+        err(
+            f"{path}: malformed provenance manifest ({exc}); orphan-pruning is "
+            "skipped this run for any existing file whose provenance can no "
+            "longer be verified (nothing deleted; the manifest will be "
+            "rebuilt for the files processed this run)"
+        )
         return {}
-    return data if isinstance(data, dict) else {}
+    if not isinstance(data, dict):
+        err(
+            f"{path}: provenance manifest is not a JSON object; orphan-pruning "
+            "is skipped this run for any existing file whose provenance can no "
+            "longer be verified (nothing deleted; the manifest will be "
+            "rebuilt for the files processed this run)"
+        )
+        return {}
+    return data
 
 
 def save_manifest(out_dir: Path, manifest: dict[str, str]) -> None:
