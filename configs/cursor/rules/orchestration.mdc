@@ -72,22 +72,25 @@ Default MCP/tool routing — use the matching tool when the task domain matches:
 | `--cursor-only` | Run only Cursor Agent |
 | `--gemini-only` | Run only Gemini CLI |
 | `--claude-only` | Run only Claude CLI |
+| `--antigravity-only` | Run only Antigravity (agy) |
 | `--no-claude` | Disable Claude CLI |
+| `--no-antigravity` | Disable Antigravity for this run |
 | `--cursor-model <tier>` | Cursor model: mini, flash, advanced, auto |
 | `--claude-model <tier>` | Claude model: haiku, sonnet, opus, fable |
+| `--antigravity-model <tier>` | Antigravity model: mini, flash, advanced |
 | `--timeout <sec>` | Timeout per agent (default: 120) |
 
 ### Model Selection
 
 Select models based on task complexity:
 
-| Task Type | Cursor | Claude | Gemini | Reason |
-|-----------|--------|--------|--------|--------|
-| Security | advanced | opus | pro | Maximum capability for critical code |
-| Review | flash | sonnet | flash | Balanced performance/cost |
-| Analyze | flash | sonnet | flash | Good reasoning without opus cost |
-| Improve | mini | haiku | flash | Lighter models for suggestions |
-| Quick | mini | haiku | flash | Speed for simple queries |
+| Task Type | Cursor | Claude | Gemini | Antigravity | Reason |
+|-----------|--------|--------|--------|-------------|--------|
+| Security | advanced | opus | pro | advanced | Maximum capability for critical code |
+| Review | flash | sonnet | flash | flash | Balanced performance/cost |
+| Analyze | flash | sonnet | flash | flash | Good reasoning without opus cost |
+| Improve | mini | haiku | flash | mini | Lighter models for suggestions |
+| Quick | mini | haiku | flash | mini | Speed for simple queries |
 
 ---
 

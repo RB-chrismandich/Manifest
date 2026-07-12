@@ -51,6 +51,9 @@ model_tiers:
     mini: "gpt-5.4-mini"
     flash: "gpt-5.4"
     advanced: "gpt-5.5"
+  # Verified current against the live `agy models` catalog on 2026-07-11
+  # (agy 1.1.1) — these are agy's real current entries, not placeholders.
+  # Re-verify with `agy models` before changing; do not "bump" opportunistically.
   antigravity:
     mini: "Gemini 3.5 Flash (Low)"
     flash: "Gemini 3.5 Flash (High)"
