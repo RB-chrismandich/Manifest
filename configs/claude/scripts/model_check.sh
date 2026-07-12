@@ -7,7 +7,8 @@
 # Usage: model_check.sh
 #   env: MODEL_CHECK_CONFIG overrides the config path
 #        MODEL_CHECK_PROBE=1 enables live one-shot CLI probes for claude/gemini
-#        when no API key is set (OAuth-only machines) — one tiny LLM call per pin
+#        (when no API key is set — OAuth-only machines) and for antigravity
+#        (when `agy models` fails, e.g. not logged in) — one tiny LLM call per pin
 #        MODEL_CHECK_CLAUDE_BIN / MODEL_CHECK_GEMINI_BIN override probe binaries
 set -uo pipefail
 
@@ -43,7 +44,10 @@ check_cli_provider() {
     fi
     local listing
     if ! listing="$("$@" 2> /dev/null)"; then
-        echo "SKIPPED: $provider (model listing failed)"
+        # Listing failed (e.g. agy not logged in) — fall back to a live
+        # one-shot probe per pin when opted in, instead of a permanent SKIPPED.
+        maybe_probe "$provider" "$binary" ||
+            echo "SKIPPED: $provider (model listing failed)"
         return 0
     fi
     local tier model
@@ -59,7 +63,9 @@ check_cli_provider() {
 
 # probe_pins PROVIDER BINARY -> per-pin OK/STALE/SKIPPED via a live one-shot
 # CLI call. Used when no API key is available but the OAuth-authenticated CLI
-# is — without this, broken pins read as green on OAuth-only machines.
+# is (claude/gemini), or when a CLI-only provider's model-listing command
+# fails (antigravity: `agy models` needs a login) — without this, broken pins
+# read as green (or permanently SKIPPED) on those machines.
 # Opt-in (MODEL_CHECK_PROBE=1): each pin costs one tiny LLM call.
 probe_pins() {
     local provider="$1" binary="$2"
@@ -71,6 +77,7 @@ probe_pins() {
         case "$provider" in
             claude) out="$("$binary" --model "$model" -p "Reply with exactly: OK" 2>&1 < /dev/null)" ;;
             gemini) out="$("$binary" -m "$model" -p "Reply with exactly: OK" 2>&1 < /dev/null)" ;;
+            antigravity) out="$("$binary" --model "$model" -p "Reply with exactly: OK" 2>&1 < /dev/null)" ;;
             *)
                 echo "SKIPPED: $provider (no probe shape)"
                 return 0

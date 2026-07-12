@@ -778,17 +778,28 @@ class TestAntigravityAgent:
         assert sc.is_enabled("antigravity") is True
 
     @pytest.mark.asyncio
-    async def test_check_credits_antigravity_installed(self, tmp_path, monkeypatch):
-        """check_credits marks antigravity assumed_available when agy exists."""
+    async def test_check_credits_antigravity_available(self, tmp_path, monkeypatch):
+        """check_credits probes agy (codex-style) and marks it available on rc=0."""
         monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
         monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
         monkeypatch.setattr(
             "agents.orchestrator.shutil.which",
             lambda cmd: "/usr/local/bin/agy" if cmd == "agy" else None,
         )
+
+        class FakeProc:
+            returncode = 0
+
+            async def communicate(self):
+                return (b"OK", b"")
+
+        async def fake_exec(*args, **kwargs):
+            return FakeProc()
+
+        monkeypatch.setattr(asyncio, "create_subprocess_exec", fake_exec)
         config = Config(config_path=str(tmp_path / "nonexistent.yml"))
         results = await check_credits(config)
-        assert results["antigravity"] == {"status": "assumed_available"}
+        assert results["antigravity"] == {"status": "available"}
 
     @pytest.mark.asyncio
     async def test_check_credits_antigravity_not_installed(self, tmp_path, monkeypatch):
@@ -799,6 +810,68 @@ class TestAntigravityAgent:
         config = Config(config_path=str(tmp_path / "nonexistent.yml"))
         results = await check_credits(config)
         assert results["antigravity"] == {"status": "not_installed"}
+
+    @pytest.mark.asyncio
+    async def test_check_credits_antigravity_quota_exceeded(self, tmp_path, monkeypatch):
+        """check_credits classifies agy stderr mentioning quota/unauthorized as
+        quota_exceeded, mirroring the codex probe's classification."""
+        monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+        monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
+        monkeypatch.setattr(
+            "agents.orchestrator.shutil.which",
+            lambda cmd: "/usr/local/bin/agy" if cmd == "agy" else None,
+        )
+
+        class FakeProc:
+            returncode = 1
+
+            async def communicate(self):
+                return (b"", b"Error: unauthorized, please run agy login")
+
+        async def fake_exec(*args, **kwargs):
+            return FakeProc()
+
+        monkeypatch.setattr(asyncio, "create_subprocess_exec", fake_exec)
+        config = Config(config_path=str(tmp_path / "nonexistent.yml"))
+        results = await check_credits(config)
+        assert results["antigravity"]["status"] == "quota_exceeded"
+
+    @pytest.mark.asyncio
+    async def test_check_credits_antigravity_hang_times_out(self, tmp_path, monkeypatch):
+        """Mirrors test_check_credits_codex_hang_times_out: the timeout must
+        cover communicate(), not just the spawn, for the agy probe too."""
+        monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+        monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
+        monkeypatch.setattr(
+            "agents.orchestrator.shutil.which",
+            lambda cmd: "/usr/local/bin/agy" if cmd == "agy" else None,
+        )
+
+        class HangingProc:
+            def __init__(self):
+                self.killed = False
+                self.returncode = None
+
+            async def communicate(self):
+                await asyncio.sleep(3600)
+
+            def kill(self):
+                self.killed = True
+
+            async def wait(self):
+                return 0
+
+        proc = HangingProc()
+
+        async def fake_exec(*args, **kwargs):
+            return proc
+
+        monkeypatch.setattr(asyncio, "create_subprocess_exec", fake_exec)
+        config = Config(config_path=str(tmp_path / "nonexistent.yml"))
+        results = await check_credits(config, probe_timeout=0.1)
+        assert results["antigravity"]["status"] == "error"
+        assert "timed out" in results["antigravity"]["error"]
+        assert proc.killed is True
 
     @pytest.mark.asyncio
     async def test_check_credits_codex_hang_times_out(self, tmp_path, monkeypatch):

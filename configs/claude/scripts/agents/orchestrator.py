@@ -602,9 +602,48 @@ async def check_credits(
     # Cursor (no API to check, assume available)
     results["cursor"] = {"status": "assumed_available"}
 
-    # Antigravity (subscription CLI, no credit API to probe)
+    # Antigravity credit check (subscription CLI, no credit API — probe like codex)
     if shutil.which("agy"):
-        results["antigravity"] = {"status": "assumed_available"}
+        try:
+            proc = await asyncio.create_subprocess_exec(
+                "agy",
+                "-p",
+                "respond with OK",
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            # The timeout must cover communicate(), not just the spawn — mirrors
+            # the codex hang fix above (issue #307): agy blocked on auth/TTY
+            # must not hang --check-credits forever.
+            try:
+                _stdout, stderr = await asyncio.wait_for(
+                    proc.communicate(), timeout=probe_timeout
+                )
+            except TimeoutError as err:
+                proc.kill()
+                await proc.wait()
+                raise TimeoutError(
+                    f"antigravity probe timed out after {probe_timeout}s"
+                ) from err
+            error_output = stderr.decode("utf-8", errors="ignore").lower()
+
+            if any(
+                p in error_output
+                for p in ("quota", "credit", "rate limit", "429", "unauthorized")
+            ):
+                results["antigravity"] = {
+                    "status": "quota_exceeded",
+                    "error": stderr.decode("utf-8", errors="ignore"),
+                }
+            elif proc.returncode == 0:
+                results["antigravity"] = {"status": "available"}
+            else:
+                results["antigravity"] = {
+                    "status": "error",
+                    "error": stderr.decode("utf-8", errors="ignore"),
+                }
+        except (TimeoutError, Exception) as e:
+            results["antigravity"] = {"status": "error", "error": str(e)}
     else:
         results["antigravity"] = {"status": "not_installed"}
 

@@ -216,3 +216,81 @@ FAKE
     assert_output --partial "OK: model_tiers.gemini.flash"
     assert_output --partial "OK: model_tiers.gemini.pro"
 }
+
+# ---------------------------------------------------------------------------
+# Antigravity probe fallback (G3): `agy models` needs a login, so
+# check_cli_provider must fall back to a live per-pin probe (MODEL_CHECK_PROBE=1)
+# instead of permanent SKIPPED — using a fake agy stub, no live binary.
+# ---------------------------------------------------------------------------
+
+setup_agy_stub() {
+    # $1: models-subcommand behavior script body appended after the dispatch;
+    # writes $SANDBOX/bin/fakeagy which fails `agy models` (not logged in) and
+    # answers the probe shape `agy --model <m> -p <prompt>` per $1's exit/output.
+    mkdir -p "$SANDBOX/bin"
+    cat > "$SANDBOX/bin/fakeagy" <<EOF
+#!/usr/bin/env bash
+if [[ "\$1" == "models" ]]; then
+    echo "not logged in" >&2
+    exit 1
+fi
+$1
+EOF
+    chmod +x "$SANDBOX/bin/fakeagy"
+}
+
+@test "check_cli_provider falls back to live probe when agy models listing fails" {
+    setup_agy_stub 'echo "OK"; exit 0'
+    source "$SCRIPT"
+    MODEL_CHECK_CONFIG="$SANDBOX/pa.yml"
+    MODEL_CHECK_PROBE=1 run check_cli_provider antigravity "$SANDBOX/bin/fakeagy" "$SANDBOX/bin/fakeagy" models
+    assert_success
+    assert_output --partial "OK: model_tiers.antigravity.flash"
+    assert_output --partial "OK: model_tiers.antigravity.advanced"
+}
+
+@test "check_cli_provider probe fallback reports STALE on unserved model" {
+    setup_agy_stub 'echo "There'"'"'s an issue with the selected model. It may not exist."; exit 1'
+    source "$SCRIPT"
+    MODEL_CHECK_CONFIG="$SANDBOX/pa.yml"
+    MODEL_CHECK_PROBE=1 run check_cli_provider antigravity "$SANDBOX/bin/fakeagy" "$SANDBOX/bin/fakeagy" models
+    assert_success
+    assert_output --partial "STALE: model_tiers.antigravity.flash"
+    assert_output --partial "STALE: model_tiers.antigravity.advanced"
+}
+
+@test "check_cli_provider stays SKIPPED (model listing failed) when probe is disabled" {
+    setup_agy_stub 'echo "OK"; exit 0'
+    source "$SCRIPT"
+    MODEL_CHECK_CONFIG="$SANDBOX/pa.yml"
+    run check_cli_provider antigravity "$SANDBOX/bin/fakeagy" "$SANDBOX/bin/fakeagy" models
+    assert_success
+    assert_output --partial "SKIPPED: antigravity (model listing failed)"
+    refute_output --partial "OK:"
+}
+
+@test "check_cli_provider falls back to 'no probe shape' SKIPPED for cursor (shared maybe_probe path)" {
+    # cursor has no probe shape in probe_pins' case statement — pins the
+    # message drift this batch introduces for the pre-existing cursor call in
+    # main() (SKIPPED: cursor (model listing failed) -> SKIPPED: cursor (no
+    # probe shape) once MODEL_CHECK_PROBE=1 is set and cursor-agent is on PATH).
+    cat > "$SANDBOX/cursor.yml" <<'YAML'
+model_tiers:
+  cursor:
+    flash: "cursor-fast"
+YAML
+    mkdir -p "$SANDBOX/bin"
+    cat > "$SANDBOX/bin/fakecursor" <<'FAKE'
+#!/usr/bin/env bash
+echo "unauthorized" >&2
+exit 1
+FAKE
+    chmod +x "$SANDBOX/bin/fakecursor"
+    source "$SCRIPT"
+    MODEL_CHECK_CONFIG="$SANDBOX/cursor.yml"
+    MODEL_CHECK_PROBE=1 run check_cli_provider cursor "$SANDBOX/bin/fakecursor" \
+        "$SANDBOX/bin/fakecursor" --list-models
+    assert_success
+    assert_output --partial "SKIPPED: cursor (no probe shape)"
+    refute_output --partial "SKIPPED: cursor (model listing failed)"
+}

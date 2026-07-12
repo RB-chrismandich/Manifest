@@ -533,6 +533,11 @@ class CLIAgent(BaseAgent):
             return {
                 "status": "failed",
                 "error": "; ".join(error_parts),
+                # Kept separate from "error" (which also carries stdout text)
+                # so credit-exhaustion classification checks stderr only —
+                # an answer's stdout content must never trigger a false
+                # "quota exceeded" fallback walk.
+                "stderr": stderr_text,
                 "output": "",
                 "model": self.model_name or "auto",
             }
@@ -579,7 +584,19 @@ class CLIAgent(BaseAgent):
                 proc.kill()
                 await proc.wait()
                 raise
-            return self._collect_output(proc.returncode, stdout, stderr, output_file)
+            result = self._collect_output(proc.returncode, stdout, stderr, output_file)
+            if result["status"] == "failed" and self._is_credit_exhaustion_error(
+                result.get("stderr", "").lower()
+            ):
+                # Mirror the SDK agents (Claude/Gemini raise real exceptions on
+                # quota errors, which BaseAgent.execute catches to walk
+                # credit_fallback): a CLI provider's credit-exhaustion stderr
+                # must also raise, or the configured credit_fallback chain
+                # (shared by every cli_agents provider: claude/gemini CLI
+                # fallback, cursor, codex, antigravity) is dead — a "failed"
+                # dict never reaches BaseAgent.execute's except-block.
+                raise RuntimeError(result["error"])
+            return result
         finally:
             if output_file:
                 with contextlib.suppress(OSError):

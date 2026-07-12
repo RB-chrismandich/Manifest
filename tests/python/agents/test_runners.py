@@ -406,6 +406,135 @@ class TestCLIAgentExecution:
             asyncio.run(agent._execute_impl("hi", "prompt"))
         assert spawn.call_args.kwargs["stdin"] is asyncio.subprocess.DEVNULL
 
+    def test_antigravity_success_parses_stdout(self, tmp_path):
+        """G6: antigravity CLIAgent execution, mirroring the generic cases above."""
+        from unittest.mock import AsyncMock, patch
+
+        agent = CLIAgent(
+            "antigravity",
+            model="flash",
+            rate_limiter=_make_limiter(),
+            config=_make_config(tmp_path),
+        )
+        proc = AsyncMock()
+        proc.communicate = AsyncMock(return_value=(b"OK\n", b""))
+        proc.returncode = 0
+        with (
+            patch("agents.runners.shutil.which", return_value="/usr/local/bin/agy"),
+            patch("asyncio.create_subprocess_exec", return_value=proc),
+        ):
+            result = asyncio.run(agent._execute_impl("hello", "prompt"))
+        assert result["status"] == "complete"
+        assert result["output"] == "OK"
+
+    def test_antigravity_nonzero_exit_is_failed(self, tmp_path):
+        """G6: a non-credit-related nonzero exit stays a failed dict."""
+        from unittest.mock import AsyncMock, patch
+
+        agent = CLIAgent(
+            "antigravity",
+            model="flash",
+            rate_limiter=_make_limiter(),
+            config=_make_config(tmp_path),
+        )
+        proc = AsyncMock()
+        proc.communicate = AsyncMock(return_value=(b"", b"unrecognized flag: --bogus"))
+        proc.returncode = 1
+        with (
+            patch("agents.runners.shutil.which", return_value="/usr/local/bin/agy"),
+            patch("asyncio.create_subprocess_exec", return_value=proc),
+        ):
+            result = asyncio.run(agent._execute_impl("hello", "prompt"))
+        assert result["status"] == "failed"
+        assert "unrecognized flag: --bogus" in result["error"]
+
+    def test_antigravity_credit_exhaustion_stderr_raises(self, tmp_path):
+        """G4/G6: credit-exhaustion stderr must raise (not return a failed dict)
+        so BaseAgent.execute can walk credit_fallback.antigravity."""
+        from unittest.mock import AsyncMock, patch
+
+        agent = CLIAgent(
+            "antigravity",
+            model="advanced",
+            rate_limiter=_make_limiter(),
+            config=_make_config(tmp_path),
+        )
+        proc = AsyncMock()
+        proc.communicate = AsyncMock(return_value=(b"", b"Error: quota exceeded"))
+        proc.returncode = 1
+        with (
+            patch("agents.runners.shutil.which", return_value="/usr/local/bin/agy"),
+            patch("asyncio.create_subprocess_exec", return_value=proc),
+        ):
+            with pytest.raises(RuntimeError, match="quota"):
+                asyncio.run(agent._execute_impl("hello", "prompt"))
+
+    def test_credit_exhaustion_pattern_in_stdout_does_not_raise(self, tmp_path):
+        """A nonzero-exit answer whose STDOUT merely contains a pattern word
+        (e.g. "credit") must not be misclassified as credit exhaustion — only
+        stderr drives the fallback-triggering raise (generic CLIAgent path,
+        exercised via antigravity)."""
+        from unittest.mock import AsyncMock, patch
+
+        agent = CLIAgent(
+            "antigravity",
+            model="flash",
+            rate_limiter=_make_limiter(),
+            config=_make_config(tmp_path),
+        )
+        proc = AsyncMock()
+        proc.communicate = AsyncMock(
+            return_value=(
+                b"your credit score summary is incomplete",
+                b"unrecognized flag: --bogus",
+            )
+        )
+        proc.returncode = 1
+        with (
+            patch("agents.runners.shutil.which", return_value="/usr/local/bin/agy"),
+            patch("asyncio.create_subprocess_exec", return_value=proc),
+        ):
+            result = asyncio.run(agent._execute_impl("hello", "prompt"))
+        assert result["status"] == "failed"
+        assert "unrecognized flag: --bogus" in result["error"]
+
+    def test_antigravity_credit_exhaustion_triggers_fallback_walk(self, tmp_path):
+        """G4: quota-signalling agy stderr on the first attempt must trigger the
+        configured credit_fallback.antigravity tier walk (advanced -> flash)."""
+        from unittest.mock import AsyncMock, patch
+
+        agent = CLIAgent(
+            "antigravity",
+            model="advanced",
+            rate_limiter=_make_limiter(),
+            config=_make_config(tmp_path),
+        )
+        calls = []
+
+        async def fake_exec(*cmd, **kwargs):
+            calls.append(cmd)
+            proc = AsyncMock()
+            if len(calls) == 1:
+                proc.communicate = AsyncMock(
+                    return_value=(b"", b"Error: quota exceeded")
+                )
+                proc.returncode = 1
+            else:
+                proc.communicate = AsyncMock(return_value=(b"OK", b""))
+                proc.returncode = 0
+            return proc
+
+        with (
+            patch("agents.runners.shutil.which", return_value="/usr/local/bin/agy"),
+            patch("asyncio.create_subprocess_exec", side_effect=fake_exec),
+        ):
+            result = asyncio.run(agent.execute("hello"))
+
+        assert result["status"] == "complete"
+        assert result["credit_fallback"] is True
+        assert agent.model_name == "Gemini 3.5 Flash (High)"
+        assert len(calls) == 2
+
     def test_timeout_kills_subprocess(self, tmp_path):
         """Issue #306: timeout cancellation must kill the child, not leak it."""
         import os
