@@ -10,7 +10,7 @@
     ],
     "defaultMode": "default"
   },
-  "model": "claude-fable-5",
+  "model": "claude-fable-5[1m]",
   "hooks": {
     "PreToolUse": [
       {
@@ -18,7 +18,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 /Users/developer/.claude/skills/ai-hooks-integration/scripts/runtime/unified_hook.py --handler /Users/developer/.claude/skills/post-pr-review-monitor/scripts/pr_create_trigger.py --source claude"
+            "command": "/Library/Frameworks/Python.framework/Versions/3.14/bin/python3.14-intel64 /Users/developer/.claude/skills/ai-hooks-integration/scripts/runtime/unified_hook.py --handler /Users/developer/.claude/skills/post-pr-review-monitor/scripts/pr_create_trigger.py --source claude"
           }
         ]
       }
