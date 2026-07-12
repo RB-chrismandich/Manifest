@@ -4,6 +4,7 @@
 import asyncio
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -467,6 +468,30 @@ async def run_benchmark(
     return records
 
 
+_ANSI_ESCAPE_RE = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
+_FIXTURE_PLACEHOLDER_HOME = "/Users/developer"
+
+
+def _scrub_fixture_pii(text: str, home: Path) -> str:
+    """Strip terminal escape codes and the contributor's real home/username
+    from text before it lands in a tracked repo fixture (#552 follow-up).
+
+    Fixtures under tests/token_benchmark/fixtures/ are committed and read by
+    anyone who clones the repo, so a live ~/.claude/settings.json or CLAUDE.md
+    synced via --sync-fixtures must not leak the operator's absolute home
+    directory path, OS username, or raw ANSI/SGR escape sequences captured
+    from their terminal.
+    """
+    text = _ANSI_ESCAPE_RE.sub("", text)
+    home_str = str(home)
+    if home_str and home_str in text:
+        text = text.replace(home_str, _FIXTURE_PLACEHOLDER_HOME)
+    username = home.name
+    if username and username not in ("developer", ""):
+        text = re.sub(rf"(?<![\w.-]){re.escape(username)}(?![\w.-])", "developer", text)
+    return text
+
+
 def sync_fixtures(
     source_home: Path | None = None,
     fixtures_dir: Path | None = None,
@@ -477,6 +502,10 @@ def sync_fixtures(
     If compression is given (e.g. 50), also write a compressed fixture at
     fixtures/../fixtures-compressed/ containing the first compression% of lines
     from CLAUDE.md.
+
+    Copied content is scrubbed (see _scrub_fixture_pii) so a --sync-fixtures
+    run never reintroduces a contributor's real home path/username or stray
+    ANSI escape codes into the tracked fixtures (#552).
     """
     src = source_home or Path.home()
     dst = fixtures_dir or FIXTURES_DIR
@@ -486,7 +515,8 @@ def sync_fixtures(
         dest = dst / rel
         if source.exists():
             dest.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(source, dest)
+            scrubbed = _scrub_fixture_pii(source.read_text(), src)
+            dest.write_text(scrubbed)
             print(f"  synced {rel}")
         else:
             print(f"  skip {rel} (not found at {source})")

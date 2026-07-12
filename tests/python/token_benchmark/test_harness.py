@@ -568,3 +568,69 @@ class TestSyncFixturesCompression:
         compressed = dst.parent / "fixtures-compressed" / ".claude" / "CLAUDE.md"
         lines = compressed.read_text().splitlines()
         assert len(lines) == 5
+
+
+class TestSyncFixturesScrubsPii:
+    """#552 follow-up: --sync-fixtures must not leak the contributor's real
+    home path/username or raw ANSI escapes into tracked repo fixtures."""
+
+    def test_strips_ansi_escape_codes(self, tmp_path):
+        from tests.token_benchmark.harness import sync_fixtures
+
+        src = tmp_path / "home"
+        (src / ".claude").mkdir(parents=True)
+        (src / ".claude" / "settings.json").write_text(
+            '{"model": "claude-fable-5\x1b[1m"}'
+        )
+
+        dst = tmp_path / "fixtures"
+        sync_fixtures(source_home=src, fixtures_dir=dst)
+
+        synced = (dst / ".claude" / "settings.json").read_text()
+        assert "\x1b" not in synced
+        assert "claude-fable-5" in synced
+
+    def test_scrubs_real_home_path_and_username(self, tmp_path):
+        from tests.token_benchmark.harness import sync_fixtures
+
+        src = tmp_path / "home" / "reallocaluser"
+        (src / ".claude").mkdir(parents=True)
+        (src / ".claude" / "settings.json").write_text(
+            json.dumps(
+                {
+                    "hooks": {
+                        "PostToolUse": [
+                            {
+                                "hooks": [
+                                    {
+                                        "command": f"{src}/.claude/scripts/issue_support_hook.sh"
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                }
+            )
+        )
+
+        dst = tmp_path / "fixtures"
+        sync_fixtures(source_home=src, fixtures_dir=dst)
+
+        synced = (dst / ".claude" / "settings.json").read_text()
+        assert str(src) not in synced
+        assert "reallocaluser" not in synced
+        assert "/Users/developer" in synced
+
+    def test_leaves_clean_content_unchanged(self, tmp_path):
+        from tests.token_benchmark.harness import sync_fixtures
+
+        src = tmp_path / "home"
+        (src / ".claude").mkdir(parents=True)
+        content = '{"model": "claude-sonnet-4-6"}'
+        (src / ".claude" / "settings.json").write_text(content)
+
+        dst = tmp_path / "fixtures"
+        sync_fixtures(source_home=src, fixtures_dir=dst)
+
+        synced = (dst / ".claude" / "settings.json").read_text()
+        assert synced == content
