@@ -145,7 +145,7 @@ tool_policies:
       - Edit
     parallel_agents: never
     validation_tier: 1
-    enabled: false              # opt-in runtime gate (install_issue_hooks.sh --enable)
+    enabled: true              # opt-in runtime gate (install_issue_hooks.sh --enable)
     hook_timeout_seconds: 5     # fail-open soft timeout bound
 
     subagents: never
@@ -159,7 +159,7 @@ tool_policies:
       - Edit
     parallel_agents: never
     validation_tier: 1
-    enabled: false              # opt-in runtime gate
+    enabled: true              # opt-in runtime gate
     hook_timeout_seconds: 5     # fail-open soft timeout bound
     commit_hook_mode: sync      # sync only in v1; 'background' reserved (falls back to sync)
 
