@@ -239,3 +239,19 @@ if command -v python3 > /dev/null 2>&1 && python3 -c 'import yaml' > /dev/null 2
 else
     log "Skip mcp.json: python3/pyyaml unavailable"
 fi
+
+# --- Agent definitions (spec 2026-07-11 cursor-feature-parity, WS-5) ------- #
+# Regenerate configs/cursor/agents/*.md from the six configs/claude/agents/*.md
+# pilotfish role-agents so Cursor-native frontmatter (model: inherit, no
+# effort, readonly/is_background) never drifts from the Claude source. Guard
+# on python3+pyyaml, mirroring the mcp.json block above.
+GEN_AGENTS="$REPO_ROOT/configs/claude/scripts/generate_cursor_agents.py"
+if command -v python3 > /dev/null 2>&1 && python3 -c 'import yaml' > /dev/null 2>&1; then
+    if $DRY_RUN; then
+        python3 "$GEN_AGENTS" --dry-run
+    else
+        python3 "$GEN_AGENTS"
+    fi
+else
+    log "Skip cursor agents: python3/pyyaml unavailable"
+fi

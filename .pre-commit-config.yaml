@@ -197,6 +197,26 @@ repos:
         language: system
         files: ^configs/claude/config/.*\.yml$
 
+      # Cursor rules/mcp.json/agents drift — local mirror of the CI "Cursor
+      # rules up-to-date" gate (spec 2026-07-11 cursor-feature-parity WS-6),
+      # so drift is caught before a PR rather than only in CI. --dry-run never
+      # mutates and always exits 0 itself, so drift is detected by scanning
+      # its own report lines rather than its exit code.
+      - id: check-cursor-rules-drift
+        name: Check Cursor rules/mcp.json/agents drift (dry-run)
+        entry: >-
+          bash -c '
+          out=$(configs/claude/scripts/generate_cursor_rules.sh --dry-run);
+          echo "$out";
+          if echo "$out" | grep -qE "\[DRY-RUN\]|would remove:"; then
+          echo "FAIL: Cursor rules/mcp.json/agents are out of sync with source.";
+          echo "Run configs/claude/scripts/generate_cursor_rules.sh and commit the result.";
+          exit 1;
+          fi'
+        language: system
+        pass_filenames: false
+        files: ^(\.skillshare/skills/|configs/claude/agents/|configs/claude/config/mcp_servers\.yml|configs/cursor/(rules|mcp\.json|agents)/)
+
       # Detect stale repo-relative .claude/ paths after configs/ migration
       # Only scans docs and root markdown — configs/, tests/, and templates/
       # legitimately reference deployed ~/.claude/ paths.

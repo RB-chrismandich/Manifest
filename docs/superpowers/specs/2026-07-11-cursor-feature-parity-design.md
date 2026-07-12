@@ -182,6 +182,43 @@ validate against.
   (WS-4 provides the mechanism; a full permission port is not attempted here).
 - **Author-controlled memory file** — Cursor Memories are auto-managed.
 - **Custom modes** — GUI-only, not deployable via config.
+- **UserPromptSubmit `/token-conserve` echo hook** (WS-4) — Claude's
+  `UserPromptSubmit` hook stdout is injected into context; Cursor's nearest
+  analog, `beforeSubmitPrompt`, takes `{prompt, attachments}` as input but its
+  **output contract for injecting context back is not in the verified fact
+  set** for this session (only the input shape was confirmed against
+  `cursor.com/docs`). Shipping the plain `echo '...'` verbatim risks either
+  silent inertness (Cursor ignores non-JSON stdout) or, worse, an unverified
+  guess at the wrong JSON field. Excluded rather than shipped-broken, per the
+  WS-4 correctness requirement; a follow-up should confirm the exact
+  `beforeSubmitPrompt` output schema before wiring this one hook.
+- **Advisory-stdout surfacing of the WIRED hints (WS-4)** — the two hooks that
+  emit an advisory line to stdout, `guidance_hint.py` (`beforeShellExecution`)
+  and `deploy_stamp_check.sh` (`sessionStart`), are wired because they are
+  **input-correct and fail-open** (they exit 0 and never block), but whether
+  Cursor actually surfaces their *non-JSON* advisory stdout to the user the way
+  Claude renders PreToolUse/SessionStart output is **unverified** — the same
+  output-contract gap that gated the echo exclusion above. So their advisory
+  output (guidance_hint's git-command hint, deploy_stamp_check's stamp-drift
+  warning) is safe regardless,
+  but their user-visible *hint text* is best-effort and possibly inert pending
+  that `beforeSubmitPrompt`/output-contract verification. This is a
+  surfacing caveat, not a correctness risk: nothing breaks if the hint is
+  swallowed.
+- **`~/.cursor/CLAUDE.md` pilotfish-pointer edge (WS-5, known limitation — not
+  guarded by design)** — `gate_pilotfish_agents` derives its guide path as
+  `guide="$home/CLAUDE.md"`; for the Cursor home that is `~/.cursor/CLAUDE.md`,
+  which the Cursor deploy never creates, so the pointer inject/remove is a pure
+  no-op there (grep-guarded on a non-existent file). The only exposure: if a
+  user *hand-authors* `~/.cursor/CLAUDE.md` containing a `## Reference Index` /
+  `antipatterns.md` anchor, enabling pilotfish would inject a `~/.claude`-pathed
+  delegation-pointer line into it (and cleanly remove it on disable — the edit
+  is reversible). We **deliberately do NOT add a Cursor-specific guard** to the
+  shared `gate_pilotfish_agents`/`common.sh`: that helper is Claude-critical
+  machinery, and a speculative guard on it carries more regression risk than
+  this narrow, self-cleaning, user-self-inflicted edge is worth (repo guardrail:
+  "no speculative guards"). Documented here as a known reversible limitation
+  instead.
 
 ## 6. ⚠️ CRITICAL FLAG (separate issue — NOT fixed this session)
 

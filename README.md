@@ -71,10 +71,12 @@ cd Manifest
 - **Graphify Knowledge Graphs** (`/graphify`): Map a codebase or docs into a queryable knowledge graph
   (GRAPH_REPORT.md, graph.json, graph.html) via the bundled `graphify` CLI + skill — default-enabled
   (host-agent backend, no API key); `--disable-graphify` to opt out
-- **Pilotfish Cost-Tiered Orchestration** (opt-in): Deploys six Claude-only role-agents (scout, Explore,
-  mech-executor, executor, verifier, security-executor) bound to built-in model aliases (haiku/sonnet/opus)
-  plus a verifier-gated delegation policy, so mechanical/read-only work runs on cheaper tiers while the
-  frontier model plans and decides. Config-only; does not change your main-session model. Enable with
+- **Pilotfish Cost-Tiered Orchestration** (opt-in): Deploys six role-agents (scout, Explore,
+  mech-executor, executor, verifier, security-executor) to both the Claude home
+  (`~/.claude/agents/`, bound to built-in model aliases haiku/sonnet/opus) and the Cursor home
+  (`~/.cursor/agents/`, Cursor-native frontmatter with `model: inherit`), plus a verifier-gated
+  delegation policy, so mechanical/read-only work runs on cheaper tiers while the frontier model
+  plans and decides. Config-only; does not change your main-session model. Enable with
   `--enable-pilotfish`
 
 ---

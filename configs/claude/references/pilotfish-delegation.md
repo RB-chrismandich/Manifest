@@ -17,7 +17,11 @@
 
 Read this before delegating cost-tiered work. It routes each unit of work to the cheapest
 capable role, keeps the frontier model for planning/decision/review, and gates risky results
-behind an independent verifier. Opt-in (`bootstrap.sh --enable-pilotfish`); Claude-only.
+behind an independent verifier. Opt-in (`bootstrap.sh --enable-pilotfish`); deployed to both
+the Claude home (`~/.claude/agents/`) and, since 2026-07-11 (cursor-feature-parity WS-5), the
+Cursor home (`~/.cursor/agents/`, Cursor-native frontmatter — see
+`configs/claude/scripts/generate_cursor_agents.py`). Gemini/Codex/Antigravity remain out of
+scope (no subagent-file mechanism to deploy to).
 
 ## Model aliases
 

@@ -203,6 +203,24 @@ EOF
     chmod +x "$RULES_GEN"
     make_registry alpha beta
 
+    # generate_cursor_rules.sh also regenerates configs/cursor/agents/*.md
+    # (spec 2026-07-11 cursor-feature-parity WS-5); stage the generator + a
+    # minimal fixture source agent so the sandbox mirrors the real layout.
+    AGENTS_DIR="$SANDBOX/configs/claude/agents"
+    mkdir -p "$AGENTS_DIR"
+    cp "$REPO_ROOT/configs/claude/scripts/generate_cursor_agents.py" "$SCRIPTS_DIR/generate_cursor_agents.py"
+    chmod +x "$SCRIPTS_DIR/generate_cursor_agents.py"
+    cat > "$AGENTS_DIR/fixture-agent.md" << 'EOF'
+---
+name: fixture-agent
+description: "Fixture agent for generate_cursor_rules.sh sandbox tests."
+model: haiku
+effort: low
+---
+
+Fixture body.
+EOF
+
     run "$RULES_GEN"
     assert_success
     assert_output --partial "Cursor mcp.json:"

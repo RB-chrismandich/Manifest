@@ -32,6 +32,22 @@ mcp_servers:
     url: "https://example.com/fixture-server"
     transport: "http"
 EOF
+    # generate_cursor_rules.sh also regenerates configs/cursor/agents/*.md
+    # (spec 2026-07-11 cursor-feature-parity WS-5); stage the generator + a
+    # minimal fixture source agent so the sandbox mirrors the real layout.
+    mkdir -p "$SANDBOX/configs/claude/agents"
+    cp "$REPO_ROOT/configs/claude/scripts/generate_cursor_agents.py" "$SANDBOX/configs/claude/scripts/generate_cursor_agents.py"
+    chmod +x "$SANDBOX/configs/claude/scripts/generate_cursor_agents.py"
+    cat > "$SANDBOX/configs/claude/agents/fixture-agent.md" << 'EOF'
+---
+name: fixture-agent
+description: "Fixture agent for generate_cursor_rules.sh sandbox tests."
+model: haiku
+effort: low
+---
+
+Fixture body.
+EOF
 }
 
 teardown() {

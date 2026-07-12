@@ -63,7 +63,9 @@ smoke-catalog `cli` entry is deferred (T010) because it would only re-exercise t
 against the real `~/.claude` for no added signal; if wanted later, it must target a temp HOME.
 
 **Target Platform**: Claude home only (`~/.claude/`); FR-013 excludes Cursor/Gemini/Codex/
-Antigravity. macOS + Linux dev machines via the existing bootstrap deploy chain.
+Antigravity. macOS + Linux dev machines via the existing bootstrap deploy chain. **Update
+(2026-07-11)**: Cursor is now also a target — see FR-013's update note in spec.md and
+cursor-feature-parity WS-5.
 
 **Project Type**: Configuration/orchestration toolkit (this repo deploys agent config; no
 application runtime). No `src/` tree.
