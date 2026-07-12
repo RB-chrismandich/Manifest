@@ -95,3 +95,110 @@ teardown() {
         [ -L "$dest/$name" ] || { echo "expected symlink for other assistant: $name"; false; }
     done
 }
+
+# ---- verify_installation: CLI-tools readiness loop counts antigravity (G15) ----
+
+setup_verify() {
+    SANDBOX=$(mktemp -d "${BATS_TMPDIR:-/tmp}/deploy_ag_verify.XXXXXX")
+    export HOME="$SANDBOX/home"
+    export TARGET_DIR="$HOME/.claude"
+    export CURSOR_TARGET_DIR="$HOME/.cursor"
+    export GEMINI_TARGET_DIR="$HOME/.gemini"
+    export CODEX_TARGET_DIR="$HOME/.codex"
+    export ANTIGRAVITY_TARGET_DIR="$HOME/.antigravity"
+    export MANIFEST_STATE_DIR="$HOME/.manifest"
+    export MANIFEST_OUTPUT_DIR="$MANIFEST_STATE_DIR/orchestration/outputs"
+    export MANIFEST_TMP_DIR="$MANIFEST_STATE_DIR/tmp"
+    export ENABLE_CLAUDE=true ENABLE_GEMINI=false ENABLE_CURSOR=false ENABLE_CODEX=false
+    export ENABLE_ANTIGRAVITY=true ENABLE_GH=false ENABLE_GLAB=false
+    export RED='' GREEN='' BLUE='' YELLOW='' CYAN='' BOLD='' NC=''
+    mkdir -p "$HOME"
+    MOCK_BIN="$SANDBOX/mock_bin"
+    mkdir -p "$MOCK_BIN"
+    # Restricted PATH (mocks + system coreutils only) so a real claude/agy/jq
+    # already installed on the dev machine can't leak into command_exists checks.
+    export PATH="$MOCK_BIN:/usr/bin:/bin"
+    # shellcheck disable=SC1090
+    source "$REPO_ROOT/bootstrap/lib/common.sh"
+    # shellcheck disable=SC1090
+    source "$REPO_ROOT/bootstrap/lib/deploy.sh"
+}
+
+make_verify_stub() {
+    cat > "$MOCK_BIN/$1" << 'EOF'
+#!/bin/bash
+exit 0
+EOF
+    chmod +x "$MOCK_BIN/$1"
+}
+
+@test "verify_installation counts antigravity toward enabled/available so claude+agy-only doesn't falsely warn" {
+    setup_verify
+    make_verify_stub claude
+    make_verify_stub agy
+    run verify_installation
+    assert_output --partial "agy is available (enabled)"
+    refute_output --partial "Only 1 services enabled"
+}
+
+@test "verify_installation warns when antigravity is enabled but agy is not installed" {
+    setup_verify
+    make_verify_stub claude
+    run verify_installation
+    assert_output --partial "agy is not available (enabled but not installed)"
+}
+
+@test "verify_installation reports antigravity as disabled when ENABLE_ANTIGRAVITY is false" {
+    setup_verify
+    export ENABLE_ANTIGRAVITY=false
+    make_verify_stub claude
+    run verify_installation
+    assert_output --partial "antigravity is disabled"
+    refute_output --partial "agy is available"
+}
+
+@test "verify_installation required_files checks the antigravity SKILL.md only when enabled" {
+    setup_verify
+    export ENABLE_ANTIGRAVITY=false
+    make_verify_stub claude
+    run verify_installation
+    refute_output --partial ".antigravity/skills/code-audit/SKILL.md"
+}
+
+@test "verify_installation reports the antigravity SKILL.md as Found when deployed and enabled" {
+    setup_verify
+    make_verify_stub claude
+    make_verify_stub agy
+    mkdir -p "$ANTIGRAVITY_TARGET_DIR/skills/code-audit"
+    echo "skill" > "$ANTIGRAVITY_TARGET_DIR/skills/code-audit/SKILL.md"
+    run verify_installation
+    assert_output --partial "Found:"
+    assert_output --partial ".antigravity/skills/code-audit/SKILL.md"
+}
+
+@test "verify_installation reports the antigravity SKILL.md as Missing when enabled but not deployed" {
+    setup_verify
+    make_verify_stub claude
+    make_verify_stub agy
+    run verify_installation
+    assert_output --partial "Missing:"
+    assert_output --partial ".antigravity/skills/code-audit/SKILL.md"
+}
+
+# ---- print_summary: antigravity auth hint (G17) ----
+
+@test "print_summary includes an antigravity auth hint when enabled" {
+    setup_verify
+    export PLATFORM=macos INSTALL_MCP=false SHELL=/bin/bash
+    run print_summary
+    assert_output --partial "Antigravity:"
+    assert_output --partial "agy"
+}
+
+@test "print_summary omits the antigravity auth hint when disabled" {
+    setup_verify
+    export ENABLE_ANTIGRAVITY=false
+    export PLATFORM=macos INSTALL_MCP=false SHELL=/bin/bash
+    run print_summary
+    refute_output --partial "Antigravity:"
+}

@@ -80,9 +80,12 @@ Default MCP/tool routing — use the matching tool when the task domain matches:
 | `--cursor-only` | Run only Cursor Agent |
 | `--gemini-only` | Run only Gemini CLI |
 | `--claude-only` | Run only Claude CLI |
+| `--antigravity-only` | Run only Antigravity (agy) |
 | `--no-claude` | Disable Claude CLI (enabled by default) |
+| `--no-antigravity` | Disable Antigravity for this run |
 | `--cursor-model <tier>` | Cursor model: mini, flash, advanced, auto (default: flash) |
 | `--claude-model <tier>` | Claude model: haiku, sonnet, opus, fable (default: sonnet) |
+| `--antigravity-model <tier>` | Antigravity model: mini, flash, advanced (default: flash) |
 | `--check-credits` | Run pre-flight credit check |
 | `--timeout <sec>` | Timeout per agent (default: 120) |
 | `--output <dir>` | Custom output directory |
@@ -91,13 +94,13 @@ Default MCP/tool routing — use the matching tool when the task domain matches:
 
 The orchestrating agent selects models based on task complexity:
 
-| Task Type | Cursor | Claude | Gemini | Reason |
-|-----------|--------|--------|--------|--------|
-| Security | advanced | opus | pro | Maximum capability for critical code |
-| Review | flash | sonnet | flash | Balanced performance/cost |
-| Analyze | flash | sonnet | flash | Good reasoning without opus cost |
-| Improve | mini | haiku | flash | Lighter models for suggestions |
-| Quick | mini | haiku | flash | Speed for simple queries |
+| Task Type | Cursor | Claude | Gemini | Antigravity | Reason |
+|-----------|--------|--------|--------|-------------|--------|
+| Security | advanced | opus | pro | advanced | Maximum capability for critical code |
+| Review | flash | sonnet | flash | flash | Balanced performance/cost |
+| Analyze | flash | sonnet | flash | flash | Good reasoning without opus cost |
+| Improve | mini | haiku | flash | mini | Lighter models for suggestions |
+| Quick | mini | haiku | flash | mini | Speed for simple queries |
 
 **Model Tier Mappings:**
 
@@ -114,6 +117,7 @@ The script automatically detects credit/quota exhaustion and falls back:
 
 - **Cursor**: gpt-5.2 → gpt-5.1-codex → gpt-5.1-codex-mini → auto
 - **Claude**: fable → opus → sonnet → haiku
+- **Antigravity**: advanced → flash → mini
 
 Detection methods:
 
@@ -146,12 +150,20 @@ Detection methods:
       "model": "sonnet|haiku|opus",
       "credit_fallback": false,
       "output": "Agent response..."
+    },
+    "antigravity": {
+      "status": "complete|missing|failed",
+      "validated": true|false,
+      "model": "flash|mini|advanced",
+      "credit_fallback": false,
+      "output": "Agent response..."
     }
   },
   "output_files": {
     "cursor": "/path/to/cursor_output.txt",
     "gemini": "/path/to/gemini_output.txt",
     "claude": "/path/to/claude_output.txt",
+    "antigravity": "/path/to/antigravity_output.txt",
     "summary": "/path/to/summary.md"
   },
   "cross_verification": {

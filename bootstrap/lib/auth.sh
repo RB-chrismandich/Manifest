@@ -216,6 +216,78 @@ check_codex_auth() {
     return 1
 }
 
+# Recursively SIGKILL a process and its descendants. Mirrors check_status.sh's
+# kill_tree: a plain `kill $pid` orphans grandchildren (e.g. a CLI's node
+# workers), and an orphan still holding our stdout pipe would re-introduce the
+# very stall we're bounding.
+_antigravity_kill_tree() {
+    local pid="$1" child
+    for child in $(pgrep -P "$pid" 2> /dev/null); do
+        _antigravity_kill_tree "$child"
+    done
+    kill -9 "$pid" 2> /dev/null
+}
+
+# Run `agy models` bounded to 5s. `agy models` lists models only when logged
+# in (confirmed live on agy 1.1.1), so a clean exit is our auth signal. Prefer
+# timeout(1)/gtimeout(1) (TIMEOUT_CMD, set by initialize_platform_runtime);
+# otherwise fall back to a background+kill watchdog so an unauthenticated or
+# hanging agy can't stall bootstrap — bare `timeout` is absent on stock macOS
+# and gtimeout is not guaranteed either (see agy-batchD-groundtruth.md).
+_antigravity_models_bounded() {
+    if [[ -n "$TIMEOUT_CMD" ]]; then
+        "$TIMEOUT_CMD" 5 agy models &> /dev/null
+        return $?
+    fi
+
+    agy models &> /dev/null &
+    local cmd_pid=$!
+    {
+        sleep 5
+        _antigravity_kill_tree "$cmd_pid"
+    } &
+    local watcher_pid=$!
+    wait "$cmd_pid" 2> /dev/null
+    local rc=$?
+    _antigravity_kill_tree "$watcher_pid" 2> /dev/null
+    wait "$watcher_pid" 2> /dev/null
+    return "$rc"
+}
+
+# Check Antigravity (agy) CLI authentication.
+# agy has no persisted auth-file heuristic we can check the way claude/codex
+# do: its real config lives under ~/.gemini/config (agy is Gemini-CLI
+# lineage), not a predictable ~/.antigravity credentials path (see G14 in
+# agy-batchD-groundtruth.md). The only reliable signal is a bounded live
+# probe — `agy models` succeeds only when logged in. No auto-installer here:
+# agy ships via the Antigravity IDE (or `agy install`), by design.
+check_antigravity_auth() {
+    if [[ "$ENABLE_ANTIGRAVITY" == false ]]; then
+        return 0
+    fi
+
+    print_step "Checking Antigravity CLI (agy) authentication..."
+
+    if ! command_exists agy; then
+        print_warning "Antigravity CLI (agy) not installed - skipping auth check"
+        return 1
+    fi
+
+    if _antigravity_models_bounded; then
+        print_success "Antigravity CLI is authenticated"
+        return 0
+    fi
+
+    print_error "Antigravity CLI is NOT authenticated"
+    echo ""
+    echo "  Antigravity has no separate login subcommand or auto-installer here"
+    echo "  (it ships via the IDE, or 'agy install'). To authenticate:"
+    echo ""
+    echo -e "    ${CYAN}agy${NC}  # launch the CLI/IDE session and sign in when prompted"
+    echo ""
+    return 1
+}
+
 # Configure shell profile defaults for Manifest runtime state.
 # Adds export only once and preserves user overrides by using parameter expansion.
 configure_shell_profile_state() {
@@ -317,6 +389,9 @@ setup_manifest_state_dirs() {
         "$MANIFEST_STATE_DIR/codex/outputs"
         "$MANIFEST_STATE_DIR/codex/tmp"
         "$MANIFEST_STATE_DIR/codex/sessions"
+        "$MANIFEST_STATE_DIR/antigravity"
+        "$MANIFEST_STATE_DIR/antigravity/outputs"
+        "$MANIFEST_STATE_DIR/antigravity/tmp"
     )
 
     for dir in "${state_dirs[@]}"; do

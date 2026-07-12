@@ -149,7 +149,8 @@ don't busy-spin every few seconds.
 ## Auto-trigger on PR creation
 
 This workflow is wired to fire automatically when you open a PR/MR from an AI
-coding tool (Claude Code, Cursor, Gemini CLI, Antigravity): a PostToolUse-style
-hook watches for `gh pr create` / `glab mr create` and invokes this skill on the
-new PR. See `references/auto-trigger-hook.md` for the hook definition and how it
-deploys across tools.
+coding tool (Claude Code, Cursor, Gemini CLI): a PostToolUse-style hook watches
+for `gh pr create` / `glab mr create` and invokes this skill on the new PR.
+Codex and Antigravity have no event-hook substrate, so on those tools run
+`/pr-monitor` by hand after opening a PR. See `references/auto-trigger-hook.md`
+for the hook definition and how it deploys across tools.

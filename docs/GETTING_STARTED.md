@@ -288,6 +288,8 @@ services:
     enabled: true  # Enable/disable Cursor Agent
   codex:
     enabled: true  # Enable/disable Codex CLI
+  antigravity:
+    enabled: true  # Enable/disable Antigravity CLI (agy)
   git_cli:
     github:
       enabled: auto  # auto | true | false (auto-detect if installed)

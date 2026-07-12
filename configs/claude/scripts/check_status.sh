@@ -98,6 +98,7 @@ gemini_state_dir="${GEMINI_STATE_DIR:-$manifest_state_root/gemini}"
 cursor_state_dir="${CURSOR_STATE_DIR:-$manifest_state_root/cursor}"
 codex_state_dir="${CODEX_STATE_DIR:-${CODEX_HOME:-$manifest_state_root/codex}}"
 export CODEX_HOME="${CODEX_HOME:-$codex_state_dir}"
+antigravity_state_dir="${ANTIGRAVITY_STATE_DIR:-$manifest_state_root/antigravity}"
 
 echo -e "${BOLD}${BLUE}═══════════════════════════════════════════════════════${NC}"
 echo -e "${BOLD}${BLUE}  Parallel Agent System Health Check${NC}"
@@ -307,6 +308,18 @@ if [[ "$codex_installed" == true ]]; then
     fi
 fi
 
+if [[ "$antigravity_installed" == true ]]; then
+    # agy has no predictable credentials-file heuristic (its config lives
+    # under ~/.gemini/config, not ~/.antigravity — see G14); `agy models`
+    # lists models only when logged in, so bound-probe it as the auth signal.
+    if run_with_timeout agy models &> /dev/null; then
+        echo -e "  ${GREEN}✓${NC} Antigravity authenticated"
+    else
+        echo -e "  ${YELLOW}?${NC} Antigravity authentication unknown (check timeout)"
+        echo -e "    ${BLUE}→${NC} Verify: agy models  (launch the CLI/IDE to sign in)"
+    fi
+fi
+
 codex_runtime_ready=true
 if [[ "$codex_installed" == true && "$codex_enabled" == "true" ]]; then
     codex_home_dir="$CODEX_HOME"
@@ -339,7 +352,7 @@ echo ""
 
 echo -e "${BOLD}State Directories:${NC}"
 state_ok=true
-for state_dir in "$manifest_tmp_dir" "$claude_state_dir" "$gemini_state_dir" "$cursor_state_dir" "$codex_state_dir"; do
+for state_dir in "$manifest_tmp_dir" "$claude_state_dir" "$gemini_state_dir" "$cursor_state_dir" "$codex_state_dir" "$antigravity_state_dir"; do
     if mkdir -p "$state_dir" 2> /dev/null && [[ -w "$state_dir" ]]; then
         if [[ "$VERBOSE" == true ]]; then
             echo -e "  ${GREEN}✓${NC} $state_dir"

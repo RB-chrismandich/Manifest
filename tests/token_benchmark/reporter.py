@@ -4,6 +4,11 @@ import json
 from collections import defaultdict
 from pathlib import Path
 
+# Canonical provider set, shared by every table so no table can silently drop
+# a provider by hard-coding a shorter tuple (#546/G11). Table order == display
+# order.
+PROVIDERS = ("claude", "gemini", "antigravity")
+
 
 def load_results(results_dir: Path) -> list[dict]:
     """Read all .jsonl files in results_dir and return a flat list of records."""
@@ -23,6 +28,14 @@ def compute_stats(records: list[dict]) -> dict:
     """Aggregate records into summary stats per provider."""
     api_recs = [r for r in records if r.get("source") == "api"]
     cli_recs = [r for r in records if r.get("source") == "cli"]
+
+    # Providers with a verified-absent system-prompt mechanism (#546) record
+    # an explicit "unsupported" outcome on their CLI rows. Rows from the API
+    # path and older JSONL never carry the key, so always use .get() here —
+    # a bare r["unsupported"] would KeyError and break reporting.
+    unsupported_providers = {
+        r["provider"] for r in records if r.get("unsupported") is True
+    }
 
     # Token overhead (API records with non-null tokens)
     token_overhead = {}
@@ -128,16 +141,30 @@ def compute_stats(records: list[dict]) -> dict:
         "quality": {p: dict(cats) for p, cats in quality.items()},
         "run_ids": sorted({r["run_id"] for r in records}),
         "cost_summary": cost_summary,
+        "unsupported_providers": sorted(unsupported_providers),
     }
+
+
+def _empty_cell(provider: str, unsupported: set[str]) -> str:
+    """Render the blank-data cell for a provider: `unsupported` when the
+    provider has a verified-absent mechanism for this metric (recorded via
+    the row-level `unsupported` flag), else `—` (never measured)."""
+    return "unsupported" if provider in unsupported else "—"
 
 
 def render_report(stats: dict, run_id: str) -> str:
     """Render TOKEN_BENCHMARK.md markdown from computed stats."""
+    unsupported = set(stats.get("unsupported_providers", []))
     lines = [
         "# Token Benchmark Report",
         "",
         f"**Last run**: {run_id[:10]}",
         "**Prompts**: 20 (6 MMLU, 6 HumanEval, 4 HellaSwag, 4 TruthfulQA)",
+        "",
+        "> **Legend**: `—` = never measured (no data collected for this cell) vs.",
+        "> `unsupported` = the provider has no verified system-prompt injection mechanism",
+        "> (see `PROVIDER_CLI_CONFIG` in `tests/token_benchmark/benchmarks.py`) and is",
+        "> recorded as such rather than invoked with a flag it cannot honor.",
         "",
         "---",
         "",
@@ -146,7 +173,7 @@ def render_report(stats: dict, run_id: str) -> str:
         "| Provider | Avg Input Before | Avg Input After | Overhead (tokens) | Overhead (%) |",
         "|----------|-----------------|-----------------|-------------------|--------------|",
     ]
-    for provider in ("claude", "gemini", "antigravity"):
+    for provider in PROVIDERS:
         d = stats["token_overhead"].get(provider)
         if d:
             lines.append(
@@ -154,7 +181,8 @@ def render_report(stats: dict, run_id: str) -> str:
                 f"| +{d['overhead_tokens']:,} | +{d['overhead_pct']}% |"
             )
         else:
-            lines.append(f"| {provider} | — | — | — | — |")
+            cell = _empty_cell(provider, unsupported)
+            lines.append(f"| {provider} | {cell} | {cell} | {cell} | {cell} |")
 
     lines += [
         "",
@@ -163,7 +191,7 @@ def render_report(stats: dict, run_id: str) -> str:
         "| Provider | Avg Output Before | Avg Output After | Delta |",
         "|----------|-------------------|------------------|-------|",
     ]
-    for provider in ("claude", "gemini"):
+    for provider in PROVIDERS:
         d = stats["output_delta"].get(provider)
         if d:
             delta_str = (
@@ -175,7 +203,8 @@ def render_report(stats: dict, run_id: str) -> str:
                 f"| {provider} | {d['avg_output_before']} | {d['avg_output_after']} | {delta_str} |"
             )
         else:
-            lines.append(f"| {provider} | — | — | — |")
+            cell = _empty_cell(provider, unsupported)
+            lines.append(f"| {provider} | {cell} | {cell} | {cell} |")
 
     lines += [
         "",
@@ -184,7 +213,7 @@ def render_report(stats: dict, run_id: str) -> str:
         "| Provider | Category | Before | After | Delta |",
         "|----------|----------|--------|-------|-------|",
     ]
-    for provider in ("claude", "gemini", "antigravity"):
+    for provider in PROVIDERS:
         cats = stats["quality"].get(provider, {})
         for category in ("mmlu", "humaneval", "hellaswag", "truthfulqa"):
             q = cats.get(category, {})
@@ -195,35 +224,53 @@ def render_report(stats: dict, run_id: str) -> str:
                 d = f"+{delta}" if delta > 0 else str(delta)
                 lines.append(f"| {provider} | {category} | {b} | {a} | {d} |")
             else:
-                lines.append(f"| {provider} | {category} | — | — | — |")
+                cell = _empty_cell(provider, unsupported)
+                lines.append(f"| {provider} | {category} | {cell} | {cell} | {cell} |")
 
+    # Historical Runs columns are driven by PROVIDERS (not a hard-coded
+    # claude/gemini pair) so every provider — including agy, which is always
+    # `unsupported` here today — gets a column rather than being silently
+    # dropped from this table (#546/G11).
+    overhead_headers = " | ".join(f"{p.capitalize()} Input Overhead" for p in PROVIDERS)
+    quality_headers = " | ".join(f"{p.capitalize()} Quality" for p in PROVIDERS)
     lines += [
         "",
         "## Historical Runs",
         "",
-        "| Run ID | Claude Input Overhead | Gemini Input Overhead | Claude Quality | Gemini Quality |",
-        "|--------|-----------------------|-----------------------|----------------|----------------|",
+        f"| Run ID | {overhead_headers} | {quality_headers} |",
+        "|--------|" + "-------------------|" * (2 * len(PROVIDERS)),
     ]
     for run_id_h in stats.get("run_ids", [])[-10:]:  # last 10 runs
-        c = stats["token_overhead"].get("claude")
-        g = stats["token_overhead"].get("gemini")
-        c_q = stats["quality"].get("claude", {})
-        cq_total = sum(v.get("after_total", 0) for v in c_q.values())
-        cq_score = sum(v.get("after_score", 0) for v in c_q.values())
-        g_q = stats["quality"].get("gemini", {})
-        gq_total = sum(v.get("after_total", 0) for v in g_q.values())
-        gq_score = sum(v.get("after_score", 0) for v in g_q.values())
-        c_str = f"+{c['overhead_tokens']:,}" if c else "—"
-        g_str = f"+{g['overhead_tokens']:,}" if g else "—"
-        cq_str = f"{cq_score}/{cq_total}" if cq_total else "—"
-        gq_str = f"{gq_score}/{gq_total}" if gq_total else "—"
-        lines.append(f"| {run_id_h[:19]} | {c_str} | {g_str} | {cq_str} | {gq_str} |")
+        overhead_cells = []
+        quality_cells = []
+        for provider in PROVIDERS:
+            d = stats["token_overhead"].get(provider)
+            overhead_cells.append(
+                f"+{d['overhead_tokens']:,}"
+                if d
+                else _empty_cell(provider, unsupported)
+            )
+            q_cats = stats["quality"].get(provider, {})
+            q_total = sum(v.get("after_total", 0) for v in q_cats.values())
+            q_score = sum(v.get("after_score", 0) for v in q_cats.values())
+            quality_cells.append(
+                f"{q_score}/{q_total}"
+                if q_total
+                else _empty_cell(provider, unsupported)
+            )
+        row = " | ".join([*overhead_cells, *quality_cells])
+        lines.append(f"| {run_id_h[:19]} | {row} |")
 
     cost_summary = stats.get("cost_summary", {})
     if cost_summary:
         lines += [
             "",
             "## Cost Analysis",
+            "",
+            "> Cost is computed only from the API path (`PRICING` in "
+            "`tests/token_benchmark/harness.py`), so this table reflects "
+            "claude/gemini only — antigravity has no API/tokenizer path and "
+            "is `unsupported` here by design (see legend above).",
             "",
             "| Condition  | Avg input tok | Avg cost/call | Quality | vs after |",
             "|------------|--------------|---------------|---------|----------|",

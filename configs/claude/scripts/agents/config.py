@@ -112,6 +112,10 @@ class Config:
                     "flash": "gpt-5.4",
                     "advanced": "gpt-5.5",
                 },
+                # Verified current against the live `agy models` catalog on
+                # 2026-07-11 (agy 1.1.1) — mirrors parallel_agent.yml
+                # model_tiers.antigravity; re-verify with `agy models` before
+                # changing, do not "bump" opportunistically.
                 "antigravity": {
                     "mini": "Gemini 3.5 Flash (Low)",
                     "flash": "Gemini 3.5 Flash (High)",

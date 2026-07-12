@@ -87,7 +87,10 @@ def _system_prompt_for_condition(condition: str, category: str, manifest: str) -
 # Minimal system prompt for the CLI "before" condition.
 # Empty string stalls the claude CLI; a terse baseline gives it a valid prompt
 # to operate from without any Manifest context injection.
-CLI_BASELINE_SYSTEM_PROMPT = "You are Claude, a helpful AI assistant."
+# Provider-neutral by design (#546/G9): only reached for providers with a
+# verified system_prompt_flag strategy (see PROVIDER_CLI_CONFIG), but the
+# wording itself must not falsely label a non-claude provider as Claude.
+CLI_BASELINE_SYSTEM_PROMPT = "You are a helpful AI assistant."
 
 
 @contextmanager
@@ -220,16 +223,26 @@ def measure_cli(
 ) -> dict:
     """Run provider CLI binary; capture stdout as response.
 
-    system_prompt controls manifest context injection via --system-prompt:
-      ""        → "before" condition (suppresses auto-discovered CLAUDE.md)
-      "<text>"  → "after" condition (injects manifest text explicitly)
-      None      → no flag (CLI uses its real HOME config unchanged)
+    system_prompt controls manifest context injection, gated by the
+    provider's system_prompt_flag STRATEGY in cli_config (see
+    PROVIDER_CLI_CONFIG) — only providers with a verified injection
+    mechanism define one (e.g. claude → "--system-prompt"):
+      cli_config has no "system_prompt_flag" → the flag is NEVER appended,
+        regardless of system_prompt (no verified mechanism; #546). Callers
+        should prefer recording an explicit "unsupported" outcome over
+        invoking this function to inject manifest context for such
+        providers.
+      system_prompt is None                 → no flag (CLI uses its real
+        HOME config unchanged).
+      system_prompt is ""/"<text>"           → flag appended with that value
+        ("before"/"after" conditions), only when a strategy exists.
     Auth uses the real HOME so OAuth credentials are always available.
     """
     binary = cli_config["binary"]
     flags = list(cli_config.get("flags", []))
-    if system_prompt is not None:
-        flags = [*flags, "--system-prompt", system_prompt]
+    system_prompt_flag = cli_config.get("system_prompt_flag")
+    if system_prompt is not None and system_prompt_flag:
+        flags = [*flags, system_prompt_flag, system_prompt]
     t0 = time.time()
     try:
         result = subprocess.run(
@@ -384,6 +397,38 @@ async def run_benchmark(
                     if condition not in ("before", "after"):
                         continue
                     cli_config = PROVIDER_CLI_CONFIG[provider]
+
+                    if not cli_config.get("system_prompt_flag"):
+                        # No verified system-prompt injection mechanism for
+                        # this provider (e.g. agy 1.1.1 has no --system-prompt
+                        # flag; gemini's is unverified). Recording an explicit
+                        # "unsupported" outcome — distinct from "error" and
+                        # from a scored row — rather than invoking the CLI
+                        # with a baseline/manifest prompt it cannot honor, or
+                        # falsely labeling it as Claude (#546).
+                        record = {
+                            "run_id": run_id,
+                            "provider": provider,
+                            "model": None,
+                            "condition": condition,
+                            "category": prompt.category,
+                            "prompt_id": prompt.prompt_id,
+                            "input_tokens": None,
+                            "output_tokens": None,
+                            "cache_creation_tokens": None,
+                            "cache_read_tokens": None,
+                            "quality_score": None,
+                            "response_text": None,
+                            "latency_ms": None,
+                            "source": "cli",
+                            "error": None,
+                            "unsupported": True,
+                            "cost_usd": None,
+                        }
+                        write_result(record, run_id, results_dir)
+                        records.append(record)
+                        continue
+
                     cli_sp = (
                         CLI_BASELINE_SYSTEM_PROMPT
                         if condition == "before"
@@ -413,6 +458,7 @@ async def run_benchmark(
                         "latency_ms": cli_result.get("latency_ms"),
                         "source": "cli",
                         "error": cli_result.get("error"),
+                        "unsupported": False,
                         "cost_usd": None,
                     }
                     write_result(record, run_id, results_dir)

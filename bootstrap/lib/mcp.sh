@@ -488,6 +488,21 @@ install_mcp_servers() {
         print_info "Cursor is disabled; skipped Cursor MCP setup"
     fi
 
+    # Antigravity (agy) is intentionally NOT configured here — by design, not
+    # an omission. Verified live on agy 1.1.1 (G16, agy-batchD-groundtruth.md):
+    # `agy --help` lists no `mcp` subcommand, and `agy mcp --help` just falls
+    # through to the general usage banner. agy has an interactive `/mcp` TUI
+    # panel and a bulk `plugin import [gemini|claude]` command, but neither is
+    # a scriptable `add <name> <url>` surface this loop could drive
+    # idempotently the way install_{claude,gemini,codex}_mcp_server do. agy's
+    # config also lives under ~/.gemini/config (Gemini-CLI lineage), not a
+    # dedicated ~/.antigravity MCP config this script could write directly.
+    # Do not add an install_antigravity_mcp_server that shells a CLI that
+    # doesn't exist — surface the by-design gap to the user instead.
+    if [[ "$ENABLE_ANTIGRAVITY" == true ]]; then
+        print_info "Antigravity (agy) has no scriptable MCP CLI — configure servers via the IDE's /mcp panel or 'agy plugin import'"
+    fi
+
     # 5. OAuth notes & summary
     echo ""
     echo -e "${BOLD}OAuth Notes:${NC}"

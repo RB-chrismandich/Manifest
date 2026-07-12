@@ -36,13 +36,13 @@ an output directory with `--output /tmp/agent_outputs`.
 
 The orchestrating agent (Claude) selects models based on task complexity:
 
-| Task Type | Cursor | Claude | Gemini | Reason |
-|-----------|--------|--------|--------|--------|
-| Security | advanced | opus | pro | Maximum capability for critical code |
-| Review | flash | sonnet | flash | Balanced performance/cost |
-| Analyze | flash | sonnet | flash | Good reasoning without opus cost |
-| Improve | mini | haiku | flash | Lighter models for suggestions |
-| Quick | mini | haiku | flash | Speed for simple queries |
+| Task Type | Cursor | Claude | Gemini | Antigravity | Reason |
+|-----------|--------|--------|--------|-------------|--------|
+| Security | advanced | opus | pro | advanced | Maximum capability for critical code |
+| Review | flash | sonnet | flash | flash | Balanced performance/cost |
+| Analyze | flash | sonnet | flash | flash | Good reasoning without opus cost |
+| Improve | mini | haiku | flash | mini | Lighter models for suggestions |
+| Quick | mini | haiku | flash | mini | Speed for simple queries |
 
 **Model Tier Mappings:**
 
@@ -114,12 +114,20 @@ Detection methods:
       "model": "sonnet|haiku|opus",
       "credit_fallback": false,
       "output": "Agent response..."
+    },
+    "antigravity": {
+      "status": "complete|missing|failed",
+      "validated": true|false,
+      "model": "flash|mini|advanced",
+      "credit_fallback": false,
+      "output": "Agent response..."
     }
   },
   "output_files": {
     "cursor": "/path/to/cursor_output.txt",
     "gemini": "/path/to/gemini_output.txt",
     "claude": "/path/to/claude_output.txt",
+    "antigravity": "/path/to/antigravity_output.txt",
     "summary": "/path/to/summary.md"
   },
   "cross_verification": {
@@ -151,5 +159,6 @@ Files generated per run:
 - `cursor_YYYYMMDD_HHMMSS.txt` - Cursor Agent output
 - `gemini_YYYYMMDD_HHMMSS.txt` - Gemini CLI output
 - `claude_YYYYMMDD_HHMMSS.txt` - Claude CLI output
+- `antigravity_YYYYMMDD_HHMMSS.txt` - Antigravity (agy) output
 - `summary_YYYYMMDD_HHMMSS.md` - Markdown summary
 - `results_YYYYMMDD_HHMMSS.json` - JSON output (if --json)
