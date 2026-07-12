@@ -41,7 +41,7 @@ EOF
     # Keep auth env out of the sandbox
     unset OPENAI_API_KEY CODEX_HOME
     unset MANIFEST_STATE_ROOT MANIFEST_TMP_DIR
-    unset CLAUDE_STATE_DIR GEMINI_STATE_DIR CURSOR_STATE_DIR CODEX_STATE_DIR
+    unset CLAUDE_STATE_DIR GEMINI_STATE_DIR CURSOR_STATE_DIR CODEX_STATE_DIR ANTIGRAVITY_STATE_DIR
 }
 
 teardown() {
@@ -262,6 +262,37 @@ EOF
     assert_output --partial "Codex authentication unknown"
 }
 
+make_mock_agy() {
+    # make_mock_agy [models_exit_code]
+    local models_rc="${1:-0}"
+    cat > "$MOCK_BIN/agy" << EOF
+#!/bin/bash
+case "\$1" in
+    models) exit $models_rc ;;
+    --version) echo "agy 1.0.0-mock"; exit 0 ;;
+    *) exit 0 ;;
+esac
+EOF
+    chmod +x "$MOCK_BIN/agy"
+}
+
+@test "antigravity authenticated when 'agy models' succeeds" {
+    write_services_yml false false false false true
+    make_mock_agy 0
+    run bash "$SCRIPT_UNDER_TEST"
+    assert_success
+    assert_output --partial "Antigravity authenticated"
+}
+
+@test "antigravity authentication unknown when 'agy models' fails" {
+    write_services_yml false false false false true
+    make_mock_agy 1
+    run bash "$SCRIPT_UNDER_TEST"
+    assert_success
+    assert_output --partial "Antigravity authentication unknown"
+    assert_output --partial "Verify: agy models"
+}
+
 # --- Auth probe timeout fallback (no GNU coreutils on PATH) ---
 
 @test "auth probe is bounded by the pure-bash fallback when no timeout binary exists" {
@@ -318,6 +349,16 @@ EOF
     [ -d "$TEST_DIR/custom_state/gemini" ]
     [ -d "$TEST_DIR/custom_state/cursor" ]
     [ -d "$TEST_DIR/custom_state/codex" ]
+    [ -d "$TEST_DIR/custom_state/antigravity" ]
+}
+
+@test "antigravity state dir env override is honored (verbose, symmetry with codex/gemini/cursor)" {
+    write_services_yml false false false false true
+    export ANTIGRAVITY_STATE_DIR="$TEST_DIR/alt_antigravity_state"
+    run bash "$SCRIPT_UNDER_TEST" --verbose
+    assert_success
+    assert_output --partial "$TEST_DIR/alt_antigravity_state"
+    [ -d "$TEST_DIR/alt_antigravity_state" ]
 }
 
 @test "defaults state root to HOME/.manifest" {

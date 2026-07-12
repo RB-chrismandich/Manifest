@@ -42,7 +42,7 @@ run_in_harness() {
         set -u
         RED='' GREEN='' BLUE='' YELLOW='' CYAN='' BOLD='' NC=''
         HOME='$FAKE_HOME'
-        PATH='$FAKE_BIN:\$PATH'
+        PATH='$FAKE_BIN:/usr/bin:/bin'
         TIMEOUT_CMD=''
         GOOGLE_API_KEY=''
         GEMINI_API_KEY=''
@@ -213,4 +213,113 @@ run_in_harness() {
     assert_success
     assert_output --partial "GitLab CLI not installed"
     assert_output --partial "exit=1"
+}
+
+# --- check_antigravity_auth (agy) ---
+
+# Write an executable `agy` stub that responds to `models` with $2 (default 0).
+make_agy_stub() {
+    local exit_code="${1:-0}"
+    cat > "$FAKE_BIN/agy" << EOF
+#!/bin/bash
+case "\$1" in
+    models) exit $exit_code ;;
+    *) exit 0 ;;
+esac
+EOF
+    chmod +x "$FAKE_BIN/agy"
+}
+
+@test "check_antigravity_auth returns success without checking when ENABLE_ANTIGRAVITY is false" {
+    run run_in_harness '
+        ENABLE_ANTIGRAVITY=false
+        check_antigravity_auth
+        echo "exit=$?"
+    '
+    assert_success
+    assert_output --partial "exit=0"
+    refute_output --partial "Checking Antigravity"
+}
+
+@test "check_antigravity_auth warns and returns 1 when the CLI is not installed" {
+    run run_in_harness '
+        ENABLE_ANTIGRAVITY=true
+        check_antigravity_auth
+        echo "exit=$?"
+    '
+    assert_success
+    assert_output --partial "Antigravity CLI (agy) not installed"
+    assert_output --partial "exit=1"
+}
+
+@test "check_antigravity_auth succeeds when 'agy models' exits 0" {
+    make_agy_stub 0
+    run run_in_harness '
+        ENABLE_ANTIGRAVITY=true
+        TIMEOUT_CMD=""
+        check_antigravity_auth
+        echo "exit=$?"
+    '
+    assert_success
+    assert_output --partial "Antigravity CLI is authenticated"
+    assert_output --partial "exit=0"
+}
+
+@test "check_antigravity_auth errors when 'agy models' exits nonzero" {
+    make_agy_stub 1
+    run run_in_harness '
+        ENABLE_ANTIGRAVITY=true
+        TIMEOUT_CMD=""
+        check_antigravity_auth
+        echo "exit=$?"
+    '
+    assert_success
+    assert_output --partial "Antigravity CLI is NOT authenticated"
+    assert_output --partial "exit=1"
+}
+
+@test "check_antigravity_auth uses TIMEOUT_CMD when available" {
+    # A fake timeout(1) that drops the duration arg and execs the wrapped command,
+    # proving check_antigravity_auth actually routes the probe through TIMEOUT_CMD.
+    cat > "$FAKE_BIN/timeout" << 'EOF'
+#!/bin/bash
+shift
+exec "$@"
+EOF
+    chmod +x "$FAKE_BIN/timeout"
+    make_agy_stub 0
+    run run_in_harness '
+        ENABLE_ANTIGRAVITY=true
+        TIMEOUT_CMD="timeout"
+        check_antigravity_auth
+        echo "exit=$?"
+    '
+    assert_success
+    assert_output --partial "Antigravity CLI is authenticated"
+}
+
+@test "check_antigravity_auth bounds a hanging 'agy models' without a timeout binary (macOS-safe fallback)" {
+    # Regression guard for the macOS-safe bound requirement: no timeout(1)/
+    # gtimeout(1) on PATH must still cap the probe instead of hanging bootstrap.
+    cat > "$FAKE_BIN/agy" << 'EOF'
+#!/bin/bash
+case "$1" in
+    models) sleep 30; exit 0 ;;
+    *) exit 0 ;;
+esac
+EOF
+    chmod +x "$FAKE_BIN/agy"
+
+    local start=$SECONDS
+    run run_in_harness '
+        ENABLE_ANTIGRAVITY=true
+        TIMEOUT_CMD=""
+        check_antigravity_auth
+        echo "exit=$?"
+    '
+    local elapsed=$(( SECONDS - start ))
+
+    assert_success
+    assert_output --partial "Antigravity CLI is NOT authenticated"
+    [ "$elapsed" -lt 15 ]
 }

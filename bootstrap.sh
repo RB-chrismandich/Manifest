@@ -303,6 +303,11 @@ main() {
             check_codex_auth || auth_failures=$((auth_failures + 1))
         fi
 
+        # Antigravity (agy) auth check
+        if [[ "$ENABLE_ANTIGRAVITY" == true ]]; then
+            check_antigravity_auth || auth_failures=$((auth_failures + 1))
+        fi
+
         # GitHub CLI auth check
         if [[ "$ENABLE_GH" == true ]]; then
             check_gh_auth || auth_failures=$((auth_failures + 1))

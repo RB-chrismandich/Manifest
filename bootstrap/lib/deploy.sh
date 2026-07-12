@@ -638,6 +638,26 @@ deploy_codex_configs() {
 # It deliberately does NOT link scripts/ (parallel_agent.py) or prompts/ (the
 # orchestration guide): agy participates as a provider inside parallel_agent,
 # driven purely by config — it is not an orchestrator that runs the script.
+#
+# Unlike deploy_gemini_configs/deploy_codex_configs, this function also does
+# NOT copy a standalone home guide (no GEMINI.md/AGENTS.md analog deployed
+# under ~/.antigravity). Verified live (G14, agy-batchD-groundtruth.md): the
+# `agy` CLI reads its config from ~/.gemini/config (agy is Gemini-CLI
+# lineage), never from ~/.antigravity, so a guide file placed there would
+# simply never be read by the CLI. The Antigravity IDE's bundled Claude-Code
+# extension already reads ~/.claude/CLAUDE.md natively, and agy ships its own
+# builtin `antigravity_guide` skill for in-context reference. By-design
+# omission — do not "fix" by deploying a guide agy cannot read.
+#
+# Bound-probed live (2026-07-11): `agy --print` with a prompt asking it to
+# quote its context file's first heading verbatim returned the exact text of
+# the Manifest-deployed ~/.gemini/GEMINI.md ("# Gemini Orchestration Guide"),
+# confirming agy inherits that file as context — closing the open question
+# noted in G14. So agy already receives Manifest orchestration guidance via
+# the Gemini home when ENABLE_GEMINI is true; it just has no dedicated
+# ~/.antigravity guide of its own (caveat: a claude+agy-only install with
+# gemini disabled gives agy no home guide context at all — inherent to it
+# being config-driven, not a gap this deploy step can close).
 deploy_antigravity_configs() {
     if [[ "${ENABLE_ANTIGRAVITY:-true}" != true ]]; then
         print_info "Antigravity disabled — skipping config deployment"
@@ -758,6 +778,14 @@ verify_installation() {
         "$CODEX_TARGET_DIR/skills/code-audit/SKILL.md"
     )
 
+    # Guarded (unlike the sibling entries above): deploy_antigravity_configs
+    # early-returns without creating anything when Antigravity is disabled, so
+    # checking this file unconditionally would false-positive "Missing" on a
+    # deliberately-disabled service.
+    if [[ "$ENABLE_ANTIGRAVITY" == true ]]; then
+        required_files+=("$ANTIGRAVITY_TARGET_DIR/skills/code-audit/SKILL.md")
+    fi
+
     for file in "${required_files[@]}"; do
         if [[ -f "$file" ]]; then
             print_success "Found: ${file#"$HOME"/}"
@@ -779,6 +807,7 @@ verify_installation() {
         "$MANIFEST_STATE_DIR/cursor"
         "$MANIFEST_STATE_DIR/codex"
         "$MANIFEST_STATE_DIR/codex/sessions"
+        "$MANIFEST_STATE_DIR/antigravity"
     )
 
     local dir
@@ -844,6 +873,18 @@ verify_installation() {
         fi
     else
         print_info "codex is disabled"
+    fi
+
+    if [[ "$ENABLE_ANTIGRAVITY" == true ]]; then
+        enabled_count=$((enabled_count + 1))
+        if command_exists agy; then
+            print_success "agy is available (enabled)"
+            available_tools=$((available_tools + 1))
+        else
+            print_warning "agy is not available (enabled but not installed)"
+        fi
+    else
+        print_info "antigravity is disabled"
     fi
 
     # Check Git CLI tools
@@ -995,6 +1036,9 @@ print_summary() {
     if [[ "$ENABLE_CODEX" == true ]]; then
         echo -e "    Codex:   ${CYAN}codex auth login${NC}  or  ${CYAN}export OPENAI_API_KEY='...'${NC}"
     fi
+    if [[ "$ENABLE_ANTIGRAVITY" == true ]]; then
+        echo -e "    Antigravity: ${CYAN}agy${NC}  (launch the CLI/IDE to sign in — no separate login subcommand)"
+    fi
     if [[ "$ENABLE_GH" == true ]]; then
         echo -e "    GitHub:  ${CYAN}gh auth login${NC}"
     fi
@@ -1064,6 +1108,10 @@ print_summary() {
     echo "  Cursor rules:   ~/.cursor/rules/"
     echo "  Gemini guide:   ~/.gemini/GEMINI.md"
     echo "  Codex guide:    ~/.codex/AGENTS.md"
+    # No "Antigravity guide:" line by design (G14/G22): the agy CLI reads
+    # config from ~/.gemini/config, not ~/.antigravity, so a guide dropped
+    # there would never be read — see deploy_antigravity_configs() above for
+    # the full rationale.
     echo "  Config:         ~/.claude/config/"
     echo ""
 }
