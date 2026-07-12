@@ -18,7 +18,7 @@ Interactive in-session discovery surface (skill `.skillshare/skills/help/`). Rea
 ## Behavior contract
 
 - **Empty `query` + no `--category`** → full listing grouped by category (`order` asc, `uncategorized` last). Each row: `name` · one-line `description` · `when_to_use`.
-- **`query` present** → ranked matches (name > category > description/when-to-use; ties alphabetical). 
+- **`query` present** → ranked matches (name > category > description/when-to-use; ties alphabetical).
 - **No match** → explicit `No command matches "<query>".` (never a misleading suggestion). [Edge case]
 - **Unavailable commands** → marked with `reason` (FR-008); never recommended as the top result.
 - **Deterministic & offline** → no model call; identical input → identical output (testable, SC-001/SC-003).
