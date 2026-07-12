@@ -343,8 +343,8 @@ json_escape() {
     done
 }
 
-check_file() { [[ -f "$1" ]] && echo "  ✓ $2" || echo "  ✗ $2"; }
-check_dir() { [[ -d "$1" && -n $(ls -A "$1" 2> /dev/null) ]] && echo "  ✓ $2" || echo "  ✗ $2"; }
+check_file() { [[ -f "$1" ]] && echo -e "  \033[0;32m✓\033[0m $2" || echo -e "  \033[0;31m✗\033[0m $2"; }
+check_dir() { [[ -d "$1" && -n $(ls -A "$1" 2> /dev/null) ]] && echo -e "  \033[0;32m✓\033[0m $2" || echo -e "  \033[0;31m✗\033[0m $2"; }
 
 # Resolve a template name to a file path using the priority stack:
 #   1. .specify/templates/overrides/
