@@ -41,11 +41,7 @@ def detect_cmds(repo_root: str | Path) -> list[str]:
     package_json = repo / "package.json"
     if package_json.is_file():
         try:
-            content = package_json.read_text(encoding="utf-8")
-            if '"test"' in content:
-                scripts = json.loads(content).get("scripts", {})
-            else:
-                scripts = {}
+            scripts = json.loads(package_json.read_text()).get("scripts", {})
         except (json.JSONDecodeError, OSError):
             scripts = {}
         if scripts.get("test"):
@@ -53,11 +49,7 @@ def detect_cmds(repo_root: str | Path) -> list[str]:
     makefile = repo / "Makefile"
     if makefile.is_file():
         try:
-            content = makefile.read_text(encoding="utf-8")
-            if "\ntest" in content or content.startswith("test"):
-                has_test = re.search(r"^test\s*:", content, re.M)
-            else:
-                has_test = None
+            has_test = re.search(r"^test\s*:", makefile.read_text(), re.M)
         except OSError:
             has_test = None
         if has_test:

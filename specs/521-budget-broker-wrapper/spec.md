@@ -4,9 +4,7 @@
 
 **Created**: 2026-07-13
 
-**Status**: Planning
-
-> **Note**: Specification only — no `budget_broker` wrapper is wired into `CLIAgent` yet. Session credit fallback remains in `parallel_agent.yml` / `agents/runners.py`.
+**Status**: Planning / Implementation
 
 ---
 

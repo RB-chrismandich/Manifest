@@ -160,7 +160,6 @@ synthesis:
   threshold: 0.50  # Trigger when consensus < 50%
   model: "sonnet"
   timeout: 300  # 5 minutes
-  backend: auto   # auto | cli | sdk
 
 # Streaming configuration
 streaming:

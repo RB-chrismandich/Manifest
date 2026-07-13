@@ -80,7 +80,7 @@ SCRIPTS_DIR = str(REPO_ROOT / "configs" / "claude" / "scripts")
 if SCRIPTS_DIR not in sys.path:
     sys.path.insert(0, SCRIPTS_DIR)
 
-from agents.config import select_backend
+from agents.cli import select_backend
 
 
 class TestSelectBackend:

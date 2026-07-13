@@ -432,36 +432,6 @@ claude auth status
 
 ---
 
-### Synthesis fails with API key error
-
-**Symptom:**
-
-```text
-Could not resolve authentication method. Expected either api_key or auth_token to be set...
-```
-
-(or `Synthesis requires claude CLI ... or ANTHROPIC_API_KEY` in JSON output)
-
-**Cause:** Low-consensus synthesis invokes Claude to merge agent disagreements.
-With `synthesis.backend: auto` (default), it uses the same auth path as the
-primary claude agent: SDK when `ANTHROPIC_API_KEY` is set, otherwise the
-logged-in `claude` CLI.
-
-**Solution:**
-
-```bash
-# OAuth path (recommended): ensure claude CLI is installed and logged in
-claude auth login
-claude auth status
-
-# Headless/CI path: force SDK backend in ~/.claude/config/parallel_agent.yml
-#   synthesis:
-#     backend: sdk
-# and export ANTHROPIC_API_KEY
-```
-
----
-
 ### Gemini CLI: "Authentication failed"
 
 **Symptom:**

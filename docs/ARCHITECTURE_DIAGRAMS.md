@@ -237,9 +237,8 @@ flowchart TB
   - Tier 1 (critical): Security, error handling, breaking changes, cross-verification
   - Tier 2 (quality): Bug detection, performance, maintainability, test coverage
   - Verdicts: APPROVED, NEEDS_REVIEW, BLOCKED
-- **SynthesisEngine**: Automatic disagreement resolution when consensus < 50%; invokes
-  Claude via CLI (`claude -p`) or SDK depending on `synthesis.backend` (`auto` matches
-  primary claude agent backend selection)
+- **SynthesisEngine**: Automatic disagreement resolution when consensus < 50%, uses Claude Sonnet with synthesis.md
+  template
 - **Streaming**: Real-time Rich Live display with progressive updates (4 updates/sec, 500 char truncation)
 - **RateLimiter**: Token bucket algorithm with burst support and adaptive backoff
 - **select_backend()**: Per-provider backend picker for SDK-capable providers (Claude, Gemini):
