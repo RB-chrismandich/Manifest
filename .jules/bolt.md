@@ -88,12 +88,3 @@ to be read from disk, decoded, and allocated in memory twice per file.
 
 **Action:** Read the file content once into a local variable (`content = f.read_text()`) and use that variable
 for both the transformation and the equality check.
-
-## 2026-07-13 - Fast-Path File Parsing
-
-**Learning:** Blindly running expensive operations like `json.loads()` or `re.search()`
-on entire file contents (e.g., `package.json` or `Makefile`) during discovery phases
-causes unnecessary performance overhead, especially for large files.
-**Action:** When scanning files for specific keys or patterns, read the text once and
-use a fast string check (e.g., `'"test"' in content` or `'\ntest' in content`) to
-short-circuit before applying the expensive parser or regex.
