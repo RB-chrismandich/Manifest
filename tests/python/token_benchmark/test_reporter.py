@@ -399,6 +399,106 @@ class TestUnsupportedOutcome:
         assert (q["after_score"], q["after_total"]) == (0, 1)
 
 
+class TestHistoricalRunsPerRunScope:
+    """(#551) Historical Runs rows must aggregate only that row's run_id."""
+
+    @staticmethod
+    def _api_row(run_id, *, input_before, input_after):
+        return [
+            {
+                "run_id": run_id,
+                "provider": "claude",
+                "model": "claude-sonnet-4-6",
+                "condition": cond,
+                "category": "mmlu",
+                "prompt_id": "mmlu_001",
+                "input_tokens": tokens,
+                "output_tokens": 5,
+                "quality_score": 1,
+                "source": "api",
+                "error": None,
+            }
+            for cond, tokens in (("before", input_before), ("after", input_after))
+        ]
+
+    @staticmethod
+    def _cli_row(run_id, *, quality_score):
+        return [
+            {
+                "run_id": run_id,
+                "provider": "claude",
+                "model": None,
+                "condition": cond,
+                "category": "mmlu",
+                "prompt_id": "mmlu_001",
+                "input_tokens": None,
+                "output_tokens": None,
+                "quality_score": quality_score,
+                "source": "cli",
+                "error": None,
+            }
+            for cond in ("before", "after")
+        ]
+
+    def test_two_runs_produce_distinct_historical_rows(self):
+        """Two runs with different overheads/quality must not duplicate aggregates."""
+        records = (
+            self._api_row("2026-06-12T10-00-00", input_before=100, input_after=200)
+            + self._cli_row("2026-06-12T10-00-00", quality_score=1)
+            + self._api_row("2026-07-01T10-00-00", input_before=100, input_after=500)
+            + self._cli_row("2026-07-01T10-00-00", quality_score=0)
+        )
+        stats = compute_stats(records)
+        md = render_report(stats, run_id="2026-07-01T10-00-00")
+        historical = md.split("## Historical Runs")[1].split("##")[0]
+        assert "| 2026-06-12T10-00-00 | +100" in historical
+        assert "| 2026-07-01T10-00-00 | +400" in historical
+        assert "1/1" in historical
+        assert "0/1" in historical
+
+    def test_run_with_no_valid_measurements_shows_dash_not_inherited(self):
+        """A CLI-only unsupported run must not inherit another run's aggregates."""
+        measured = self._api_row(
+            "2026-06-12T10-00-00", input_before=100, input_after=2635
+        ) + self._cli_row("2026-06-12T10-00-00", quality_score=1)
+        cli_only_unsupported = [
+            {
+                "run_id": "2026-07-11T00-00-00",
+                "provider": "antigravity",
+                "model": None,
+                "condition": cond,
+                "category": "mmlu",
+                "prompt_id": "mmlu_001",
+                "input_tokens": None,
+                "output_tokens": None,
+                "quality_score": None,
+                "response_text": None,
+                "source": "cli",
+                "error": None,
+                "unsupported": True,
+            }
+            for cond in ("before", "after")
+        ]
+        stats = compute_stats(measured + cli_only_unsupported)
+        md = render_report(stats, run_id="2026-07-11T00-00-00")
+        historical = md.split("## Historical Runs")[1].split("##")[0]
+        measured_row = next(
+            line
+            for line in historical.splitlines()
+            if line.startswith("| 2026-06-12T10-00-00")
+        )
+        empty_row = next(
+            line
+            for line in historical.splitlines()
+            if line.startswith("| 2026-07-11T00-00-00")
+        )
+        assert "+2,535" in measured_row
+        assert "+2,535" not in empty_row
+        assert "1/1" in measured_row
+        assert "1/1" not in empty_row
+        assert "unsupported" in empty_row
+
+
 class TestCostAnalysis:
     def _make_cost_records(self, run_id="2026-06-13T08-00-00"):
         """Minimal records covering before/after/cached/tiered/compressed."""
