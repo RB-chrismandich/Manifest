@@ -428,6 +428,8 @@ class TestSynthesisCliInvoke:
         from agents import synthesis as synth_module
 
         async def fake_wait_for(coro, timeout):
+            if hasattr(coro, "close"):
+                coro.close()
             raise TimeoutError()
 
         monkeypatch.setattr(synth_module.asyncio, "wait_for", fake_wait_for)
