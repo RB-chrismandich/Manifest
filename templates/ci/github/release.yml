@@ -55,12 +55,16 @@ jobs:
 
       - name: Determine version
         id: semver
+        env:
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+          INPUT_BUMP: ${{ inputs.bump }}
+          INPUT_PRERELEASE: ${{ inputs.prerelease }}
         run: |
           # Get latest tag
           latest_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
           echo "Latest tag: $latest_tag"
 
-          if [[ "${{ github.event_name }}" == "push" ]]; then
+          if [[ "$GITHUB_EVENT_NAME" == "push" ]]; then
             # Tag push — use the pushed tag directly
             tag="${GITHUB_REF#refs/tags/}"
             version="${tag#v}"
@@ -73,7 +77,7 @@ jobs:
             version="${latest_tag#v}"
             IFS='.' read -r major minor patch <<< "${version%%-*}"
 
-            case "${{ inputs.bump }}" in
+            case "$INPUT_BUMP" in
               major) major=$((major + 1)); minor=0; patch=0 ;;
               minor) minor=$((minor + 1)); patch=0 ;;
               patch) patch=$((patch + 1)) ;;
@@ -82,8 +86,8 @@ jobs:
             version="${major}.${minor}.${patch}"
             is_prerelease="false"
 
-            if [[ -n "${{ inputs.prerelease }}" ]]; then
-              version="${version}-${{ inputs.prerelease }}"
+            if [[ -n "$INPUT_PRERELEASE" ]]; then
+              version="${version}-${INPUT_PRERELEASE}"
               is_prerelease="true"
             fi
 
@@ -108,14 +112,16 @@ jobs:
           fetch-depth: 0
 
       - name: Build
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
         run: |
-          echo "Building release ${{ needs.version.outputs.version }}..."
+          echo "Building release $VERSION..."
           # --- Customize build steps for your project ---
           # Examples:
           #   Python:   python -m build
           #   Go:       goreleaser release --snapshot --clean
           #   Node.js:  npm run build && npm pack
-          #   Docker:   docker build -t myapp:${{ needs.version.outputs.tag }} .
+          #   Docker:   docker build -t myapp:$VERSION .
           echo "Build complete."
 
       - name: Generate checksums
@@ -152,8 +158,10 @@ jobs:
 
       - name: Generate notes
         id: notes
+        env:
+          TAG: ${{ needs.version.outputs.tag }}
         run: |
-          tag="${{ needs.version.outputs.tag }}"
+          tag="$TAG"
 
           # Find previous tag
           prev_tag=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
@@ -248,23 +256,27 @@ jobs:
 
       - name: Create tag (workflow_dispatch only)
         if: github.event_name == 'workflow_dispatch'
+        env:
+          TAG: ${{ needs.version.outputs.tag }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git tag -a "${{ needs.version.outputs.tag }}" -m "Release ${{ needs.version.outputs.tag }}"
-          git push origin "${{ needs.version.outputs.tag }}"
+          git tag -a "$TAG" -m "Release $TAG"
+          git push origin "$TAG"
 
       - name: Create GitHub release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.version.outputs.tag }}
+          IS_PRERELEASE: ${{ needs.version.outputs.is_prerelease }}
         run: |
           args=(
-            "${{ needs.version.outputs.tag }}"
-            --title "${{ needs.version.outputs.tag }}"
+            "$TAG"
+            --title "$TAG"
             --notes-file /tmp/release_notes.md
           )
 
-          if [[ "${{ needs.version.outputs.is_prerelease }}" == "true" ]]; then
+          if [[ "$IS_PRERELEASE" == "true" ]]; then
             args+=(--prerelease)
           fi
 
@@ -276,9 +288,14 @@ jobs:
           gh release create "${args[@]}"
 
       - name: Summary
+        env:
+          TAG: ${{ needs.version.outputs.tag }}
+          VERSION: ${{ needs.version.outputs.version }}
+          IS_PRERELEASE: ${{ needs.version.outputs.is_prerelease }}
+          RELEASE_URL: ${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ needs.version.outputs.tag }}
         run: |
-          echo "## Release ${{ needs.version.outputs.tag }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "## Release $TAG" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "- **Version**: ${{ needs.version.outputs.version }}" >> "$GITHUB_STEP_SUMMARY"
-          echo "- **Pre-release**: ${{ needs.version.outputs.is_prerelease }}" >> "$GITHUB_STEP_SUMMARY"
-          echo "- **URL**: ${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ needs.version.outputs.tag }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Version**: $VERSION" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Pre-release**: $IS_PRERELEASE" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **URL**: $RELEASE_URL" >> "$GITHUB_STEP_SUMMARY"
