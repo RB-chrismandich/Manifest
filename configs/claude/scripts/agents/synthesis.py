@@ -86,9 +86,7 @@ class SynthesisEngine:
         # auto — match primary claude agent, but never fall through to a doomed SDK
         if not has_key and not has_cli:
             return None
-        return select_backend(
-            has_sdk=HAS_ANTHROPIC, has_key=has_key, has_cli=has_cli
-        )
+        return select_backend(has_sdk=HAS_ANTHROPIC, has_key=has_key, has_cli=has_cli)
 
     def _build_claude_cli_command(
         self, prompt: str, output_file: str | None
@@ -249,9 +247,7 @@ class SynthesisEngine:
                 synthesis_text = response.content[0].text
 
             # Parse JSON response
-            json_match = re.search(
-                r"```json\s*\n(.*?)\n```", synthesis_text, re.DOTALL
-            )
+            json_match = re.search(r"```json\s*\n(.*?)\n```", synthesis_text, re.DOTALL)
             if json_match:
                 synthesis_text = json_match.group(1)
 

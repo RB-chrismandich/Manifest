@@ -83,7 +83,9 @@ class TestSynthesisEngine:
         result = asyncio.run(engine.synthesize("test", {}, consensus))
         assert result is None
 
-    def test_triggers_synthesis_below_threshold_without_auth(self, tmp_path, monkeypatch):
+    def test_triggers_synthesis_below_threshold_without_auth(
+        self, tmp_path, monkeypatch
+    ):
         """No SDK, no CLI, no API key → auth error envelope (not a crash)."""
         from agents import synthesis as synth_module
 
@@ -285,13 +287,17 @@ class TestSynthesisBackendResolution:
 
     def test_auto_prefers_cli_without_api_key(self, tmp_path, monkeypatch):
         monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
-        monkeypatch.setattr("agents.synthesis.shutil.which", lambda _: "/usr/bin/claude")
+        monkeypatch.setattr(
+            "agents.synthesis.shutil.which", lambda _: "/usr/bin/claude"
+        )
         engine = _make_engine(tmp_path)
         assert engine._resolve_synthesis_backend() == "cli"
 
     def test_auto_prefers_sdk_with_api_key(self, tmp_path, monkeypatch):
         monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
-        monkeypatch.setattr("agents.synthesis.shutil.which", lambda _: "/usr/bin/claude")
+        monkeypatch.setattr(
+            "agents.synthesis.shutil.which", lambda _: "/usr/bin/claude"
+        )
         from agents import synthesis as synth_module
 
         original = synth_module.HAS_ANTHROPIC
@@ -317,13 +323,17 @@ class TestSynthesisBackendResolution:
 
     def test_backend_cli_forces_cli_even_with_key(self, tmp_path, monkeypatch):
         monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
-        monkeypatch.setattr("agents.synthesis.shutil.which", lambda _: "/usr/bin/claude")
+        monkeypatch.setattr(
+            "agents.synthesis.shutil.which", lambda _: "/usr/bin/claude"
+        )
         engine = _make_engine(tmp_path)
         engine.config.config.setdefault("synthesis", {})["backend"] = "cli"
         assert engine._resolve_synthesis_backend() == "cli"
 
     def test_backend_sdk_forces_sdk(self, tmp_path, monkeypatch):
-        monkeypatch.setattr("agents.synthesis.shutil.which", lambda _: "/usr/bin/claude")
+        monkeypatch.setattr(
+            "agents.synthesis.shutil.which", lambda _: "/usr/bin/claude"
+        )
         from agents import synthesis as synth_module
 
         original = synth_module.HAS_ANTHROPIC
@@ -337,7 +347,9 @@ class TestSynthesisBackendResolution:
 
     def test_invalid_backend_falls_back_to_auto(self, tmp_path, monkeypatch):
         monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
-        monkeypatch.setattr("agents.synthesis.shutil.which", lambda _: "/usr/bin/claude")
+        monkeypatch.setattr(
+            "agents.synthesis.shutil.which", lambda _: "/usr/bin/claude"
+        )
         engine = _make_engine(tmp_path)
         engine.config.config.setdefault("synthesis", {})["backend"] = "bogus"
         assert engine._resolve_synthesis_backend() == "cli"
@@ -369,7 +381,9 @@ class TestSynthesisCliInvoke:
 
         engine = self._engine_with_template(tmp_path)
         result = asyncio.run(
-            engine.synthesize("task", {"claude": {"output": "x"}}, {"consensus_score": 0})
+            engine.synthesize(
+                "task", {"claude": {"output": "x"}}, {"consensus_score": 0}
+            )
         )
         assert result["unified_recommendation"] == "merged"
         assert result["triggered"] is True
@@ -392,7 +406,9 @@ class TestSynthesisCliInvoke:
 
         engine = self._engine_with_template(tmp_path)
         result = asyncio.run(
-            engine.synthesize("task", {"claude": {"output": "x"}}, {"consensus_score": 0})
+            engine.synthesize(
+                "task", {"claude": {"output": "x"}}, {"consensus_score": 0}
+            )
         )
         assert result["triggered"] is True
         assert "not logged in" in result["error"]
@@ -402,13 +418,17 @@ class TestSynthesisCliInvoke:
 
         client_factory = MagicMock()
         monkeypatch.setattr(synth_module, "HAS_ANTHROPIC", True)
-        monkeypatch.setattr(synth_module, "AsyncAnthropic", client_factory, raising=False)
+        monkeypatch.setattr(
+            synth_module, "AsyncAnthropic", client_factory, raising=False
+        )
         monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
         monkeypatch.setattr(synth_module.shutil, "which", lambda _: None)
 
         engine = self._engine_with_template(tmp_path)
         result = asyncio.run(
-            engine.synthesize("task", {"claude": {"output": "x"}}, {"consensus_score": 0})
+            engine.synthesize(
+                "task", {"claude": {"output": "x"}}, {"consensus_score": 0}
+            )
         )
         assert result["triggered"] is True
         assert "ANTHROPIC_API_KEY" in result["error"]
@@ -449,7 +469,9 @@ class TestSynthesisCliInvoke:
 
         engine = self._engine_with_template(tmp_path)
         result = asyncio.run(
-            engine.synthesize("task", {"claude": {"output": "x"}}, {"consensus_score": 0})
+            engine.synthesize(
+                "task", {"claude": {"output": "x"}}, {"consensus_score": 0}
+            )
         )
         assert result["error"] == "timeout"
 
