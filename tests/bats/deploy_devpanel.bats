@@ -54,11 +54,11 @@ EOF
 @test "gate enabled: deploys exactly the five role files + the reference from source" {
     seed_deployed_home
     ENABLE_DEVPANEL=true gate_devpanel_agents "$HOME_DIR" "$SRC_AGENTS"
-    for a in developer.md debugger.md tester.md spec-guard.md chaos-engineer.md; do
+    for a in developer.md debugger.md tester.md spec-guard.md chaos-engineer.md performance-auditor.md; do
         [ -f "$HOME_DIR/agents/$a" ]
     done
     run bash -c "ls '$HOME_DIR'/agents/*.md | wc -l | tr -d ' '"
-    assert_output "5"
+    assert_output "6"
     [ -f "$HOME_DIR/references/devpanel-delegation.md" ]
 }
 
@@ -215,9 +215,9 @@ EOF
 
 # ---- source-file invariants -------------------------------------------------
 
-@test "source: exactly five devpanel role-agent files exist" {
+@test "source: exactly six devpanel role-agent files exist" {
     run bash -c "ls '$REPO_ROOT'/configs/claude/agents-devpanel/*.md | wc -l | tr -d ' '"
-    assert_output "5"
+    assert_output "6"
 }
 
 @test "source: every agent model is a built-in alias, never a raw model ID" {

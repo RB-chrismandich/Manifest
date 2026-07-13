@@ -54,11 +54,11 @@ EOF
 @test "gate enabled: deploys exactly the six role files + the reference from source (both rsync-excluded)" {
     seed_deployed_home
     ENABLE_PILOTFISH=true gate_pilotfish_agents "$HOME_DIR" "$SRC_AGENTS"
-    for a in scout.md Explore.md mech-executor.md executor.md verifier.md security-executor.md; do
+    for a in scout.md Explore.md mech-executor.md executor.md verifier.md security-executor.md context-chronicler.md compatibility-translator.md dependency-guardian.md; do
         [ -f "$HOME_DIR/agents/$a" ]
     done
     run bash -c "ls '$HOME_DIR'/agents/*.md | wc -l | tr -d ' '"
-    assert_output "6"
+    assert_output "9"
     [ -f "$HOME_DIR/references/pilotfish-delegation.md" ]     # reference gate-deployed too
 }
 
@@ -193,9 +193,9 @@ EOF
 
 # ---- source-file invariants (contracts/agent-frontmatter.md) ---------------
 
-@test "source: exactly six role-agent files exist" {
+@test "source: exactly nine role-agent files exist" {
     run bash -c "ls '$REPO_ROOT'/configs/claude/agents/*.md | wc -l | tr -d ' '"
-    assert_output "6"
+    assert_output "9"
 }
 
 @test "source: every agent model is a built-in alias, never a raw model ID" {

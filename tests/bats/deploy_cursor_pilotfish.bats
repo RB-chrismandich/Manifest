@@ -58,12 +58,12 @@ teardown() {
     export ENABLE_PILOTFISH=true
     run deploy_cursor_configs
     assert_success
-    for a in scout.md Explore.md mech-executor.md executor.md verifier.md security-executor.md; do
+    for a in scout.md Explore.md mech-executor.md executor.md verifier.md security-executor.md context-chronicler.md compatibility-translator.md dependency-guardian.md; do
         [ -f "$CURSOR_TARGET_DIR/agents/$a" ]
     done
     [ -f "$CURSOR_TARGET_DIR/agents/.pilotfish" ]
     run bash -c "ls '$CURSOR_TARGET_DIR'/agents/*.md | wc -l | tr -d ' '"
-    assert_output "6"
+    assert_output "9"
 }
 
 @test "ENABLE_PILOTFISH=true: deployed agent carries Cursor-native frontmatter (model: inherit)" {
@@ -130,7 +130,7 @@ teardown() {
 
 @test "no collision: a differently-named user agent does not block enabling" {
     mkdir -p "$CURSOR_TARGET_DIR/agents"
-    echo "user agent" > "$CURSOR_TARGET_DIR/agents/my-agent.md" # not one of the six, no marker
+    echo "user agent" > "$CURSOR_TARGET_DIR/agents/my-agent.md" # not one of the nine, no marker
 
     export ENABLE_PILOTFISH=true
     run deploy_cursor_configs

@@ -56,6 +56,9 @@ alias unless a specific version is genuinely required.
 | `executor` | `opus` | medium | judgment work (features, bug fixes) |
 | `verifier` | `opus` | medium | fresh-context adversarial check → CONFIRMED / REFUTED |
 | `security-executor` | `opus` | high | security-sensitive work (never a cheaper tier) |
+| `context-chronicler` | `haiku` | low | session memory compression & token budget checkpointing |
+| `compatibility-translator` | `haiku` | low | cross-platform formatting & rule sync (Cursor rules, Antigravity commands) |
+| `dependency-guardian` | `opus` | high | package vulnerability & license compliance auditing |
 
 ## Delegation rules
 

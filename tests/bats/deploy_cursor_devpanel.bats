@@ -3,7 +3,7 @@
 # deploy_cursor_pilotfish.bats (which covers the sibling pilotfish toggle) by
 # exercising deploy_cursor_configs() itself, but against the SHARED
 # configs/cursor/agents/ output dir the way generate_cursor_agents.py
-# actually populates it in the real repo: six pilotfish + five devpanel
+# actually populates it in the real repo: nine pilotfish + six devpanel
 # files, disjoint names, one directory. deploy_devpanel.bats already covers
 # gate_devpanel_agents/check_devpanel_collision generically against a
 # Claude-style home; this file is the missing devpanel counterpart to
@@ -79,17 +79,17 @@ teardown() {
     export ENABLE_DEVPANEL=true
     run deploy_cursor_configs
     assert_success
-    for a in developer.md debugger.md tester.md spec-guard.md chaos-engineer.md; do
+    for a in developer.md debugger.md tester.md spec-guard.md chaos-engineer.md performance-auditor.md; do
         [ -f "$CURSOR_TARGET_DIR/agents/$a" ]
     done
     [ -f "$CURSOR_TARGET_DIR/agents/.devpanel" ]
-    # Pilotfish stays off: none of its six files should have landed even
+    # Pilotfish stays off: none of its nine files should have landed even
     # though they sit right next to devpanel's in the shared source dir.
-    for a in scout.md Explore.md mech-executor.md executor.md verifier.md security-executor.md; do
+    for a in scout.md Explore.md mech-executor.md executor.md verifier.md security-executor.md context-chronicler.md compatibility-translator.md dependency-guardian.md; do
         [ ! -f "$CURSOR_TARGET_DIR/agents/$a" ]
     done
     run bash -c "ls '$CURSOR_TARGET_DIR'/agents/*.md | wc -l | tr -d ' '"
-    assert_output "5"
+    assert_output "6"
 }
 
 @test "ENABLE_DEVPANEL=true: deployed agent carries Cursor-native frontmatter (model: inherit)" {
@@ -107,14 +107,14 @@ teardown() {
     export ENABLE_DEVPANEL=true
     run deploy_cursor_configs
     assert_success
-    for a in scout.md Explore.md mech-executor.md executor.md verifier.md security-executor.md \
-        developer.md debugger.md tester.md spec-guard.md chaos-engineer.md; do
+    for a in scout.md Explore.md mech-executor.md executor.md verifier.md security-executor.md context-chronicler.md compatibility-translator.md dependency-guardian.md \
+        developer.md debugger.md tester.md spec-guard.md chaos-engineer.md performance-auditor.md; do
         [ -f "$CURSOR_TARGET_DIR/agents/$a" ]
     done
     [ -f "$CURSOR_TARGET_DIR/agents/.pilotfish" ]
     [ -f "$CURSOR_TARGET_DIR/agents/.devpanel" ]
     run bash -c "ls '$CURSOR_TARGET_DIR'/agents/*.md | wc -l | tr -d ' '"
-    assert_output "11"
+    assert_output "15"
 }
 
 @test "disabling ENABLE_DEVPANEL after both were enabled prunes only the five devpanel files, pilotfish survives" {
@@ -127,11 +127,11 @@ teardown() {
     export ENABLE_DEVPANEL=false
     run deploy_cursor_configs
     assert_success
-    for a in developer.md debugger.md tester.md spec-guard.md chaos-engineer.md; do
+    for a in developer.md debugger.md tester.md spec-guard.md chaos-engineer.md performance-auditor.md; do
         [ ! -f "$CURSOR_TARGET_DIR/agents/$a" ]
     done
     [ ! -f "$CURSOR_TARGET_DIR/agents/.devpanel" ]
-    for a in scout.md Explore.md mech-executor.md executor.md verifier.md security-executor.md; do
+    for a in scout.md Explore.md mech-executor.md executor.md verifier.md security-executor.md context-chronicler.md compatibility-translator.md dependency-guardian.md; do
         [ -f "$CURSOR_TARGET_DIR/agents/$a" ]
     done
     [ -f "$CURSOR_TARGET_DIR/agents/.pilotfish" ]
@@ -146,11 +146,11 @@ teardown() {
     export ENABLE_PILOTFISH=false
     run deploy_cursor_configs
     assert_success
-    for a in scout.md Explore.md mech-executor.md executor.md verifier.md security-executor.md; do
+    for a in scout.md Explore.md mech-executor.md executor.md verifier.md security-executor.md context-chronicler.md compatibility-translator.md dependency-guardian.md; do
         [ ! -f "$CURSOR_TARGET_DIR/agents/$a" ]
     done
     [ ! -f "$CURSOR_TARGET_DIR/agents/.pilotfish" ]
-    for a in developer.md debugger.md tester.md spec-guard.md chaos-engineer.md; do
+    for a in developer.md debugger.md tester.md spec-guard.md chaos-engineer.md performance-auditor.md; do
         [ -f "$CURSOR_TARGET_DIR/agents/$a" ]
     done
     [ -f "$CURSOR_TARGET_DIR/agents/.devpanel" ]
@@ -255,12 +255,12 @@ teardown() {
 
     run deploy_cursor_configs
     assert_success
-    for name in scout Explore mech-executor executor verifier security-executor \
-        developer debugger tester spec-guard chaos-engineer; do
+    for name in scout Explore mech-executor executor verifier security-executor context-chronicler compatibility-translator dependency-guardian \
+        developer debugger tester spec-guard chaos-engineer performance-auditor; do
         [ -f "$CURSOR_TARGET_DIR/agents/$name.md" ]
     done
     run bash -c "ls '$CURSOR_TARGET_DIR'/agents/*.md | wc -l | tr -d ' '"
-    assert_output "11"
+    assert_output "15"
     [ -f "$CURSOR_TARGET_DIR/agents/.pilotfish" ]
     [ -f "$CURSOR_TARGET_DIR/agents/.devpanel" ]
 }

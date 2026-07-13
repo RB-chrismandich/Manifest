@@ -20,6 +20,7 @@ mechanism to deploy to).
 | `tester` | primary | exhaustive end-to-end validation (golden path, edge cases, stress, races, perf) |
 | `spec-guard` | shared validator | spec/functionality adherence — feature drift, broken dependencies, regressions |
 | `chaos-engineer` | shared validator | resilience/performance — edge cases, races, leaks, latency under load |
+| `performance-auditor` | shared validator | efficiency/performance budget — complexity class (Big-O), I/O waste, resource leaks |
 
 Pick the primary that matches the job: `developer` to build, `debugger` to diagnose a
 failure, `tester` to validate a completed change. The two validators are

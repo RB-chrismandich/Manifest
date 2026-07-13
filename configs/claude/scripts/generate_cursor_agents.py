@@ -4,9 +4,9 @@
 Two independent Manifest role-agent sets share this one Cursor-side output dir
 (disjoint filenames, each gated by its own bootstrap toggle):
 
-  - configs/claude/agents/*.md — the six pilotfish cost-tiered roles (spec
+  - configs/claude/agents/*.md — the nine pilotfish cost-tiered roles (spec
     481-pilotfish-orchestration).
-  - configs/claude/agents-devpanel/*.md — the five devpanel critic-gated
+  - configs/claude/agents-devpanel/*.md — the six devpanel critic-gated
     roles (developer/debugger/tester + spec-guard/chaos-engineer).
 
 Both are authored with Claude Code's agent frontmatter (name, description,

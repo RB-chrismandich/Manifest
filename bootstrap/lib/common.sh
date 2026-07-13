@@ -235,7 +235,7 @@ PILOTFISH_POINTER_LINE='- `~/.claude/references/pilotfish-delegation.md` — pil
 # (plus the marker), never the whole agents dir, so a user-authored agent that
 # coexists in ~/.claude/agents survives an opt-out (manifest-scoped prune, like
 # deploy_home_skills). Keep in sync with configs/claude/agents/*.md.
-PILOTFISH_AGENT_FILES=(scout.md Explore.md mech-executor.md executor.md verifier.md security-executor.md)
+PILOTFISH_AGENT_FILES=(scout.md Explore.md mech-executor.md executor.md verifier.md security-executor.md context-chronicler.md compatibility-translator.md dependency-guardian.md)
 
 # Pre-deploy collision guard (spec FR-008). Called BEFORE any destructive copy: if
 # pilotfish is enabled and ~/.claude/agents exists but is NOT Manifest-owned (no
@@ -376,7 +376,7 @@ DEVPANEL_POINTER_LINE='- `~/.claude/references/devpanel-delegation.md` — devpa
 
 # The exact set of agent files Manifest deploys for devpanel. Keep in sync with
 # configs/claude/agents-devpanel/*.md.
-DEVPANEL_AGENT_FILES=(developer.md debugger.md tester.md spec-guard.md chaos-engineer.md)
+DEVPANEL_AGENT_FILES=(developer.md debugger.md tester.md spec-guard.md chaos-engineer.md performance-auditor.md)
 
 # Pre-deploy collision guard, mirrors check_pilotfish_collision. Returns 1 to
 # abort, 0 when safe. No-op when devpanel is disabled.

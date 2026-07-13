@@ -2,13 +2,27 @@
 
 > Version history for the Manifest parallel agent orchestration framework
 
-**Last Updated**: 2026-07-10
+**Last Updated**: 2026-07-13
 
 All notable changes are documented here in reverse chronological order.
 
 ---
 
 ## [Unreleased]
+
+### Agent Frameworks Expansion
+
+- **New Role-Agents** — Added 4 new high-precision role-agents with detailed operational
+  execution rules, prompts, and validation criteria:
+  - `context-chronicler`: Memory optimization utility with a strict JSON state checkpoint schema.
+  - `compatibility-translator`: Cross-platform configuration sync engine (Cursor `.mdc`,
+    Antigravity `agy`, Claude Code).
+  - `performance-auditor`: Continuous CDDL critic verifying Big-O complexity, batching
+    efficiency, and resource leak prevention.
+  - `dependency-guardian`: Supply-chain security audit tool detecting typosquatting and
+    restrictive licenses.
+- **Auto-Sync & Parity** — Registered roles in the bootstrap configuration arrays, documented
+  them in delegation policies, and regenerated all matching Cursor configurations automatically.
 
 ### specs/482 — Critic-Driven Development Loop (CDDL)
 

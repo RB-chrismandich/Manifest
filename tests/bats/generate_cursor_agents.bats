@@ -358,11 +358,11 @@ EOF
 
 # ── Real repo (read-only-ish guarded check) ─────────────────────────────────
 
-@test "real repo: configs/cursor/agents/*.md exist for the six pilotfish + five devpanel roles" {
+@test "real repo: configs/cursor/agents/*.md exist for the nine pilotfish + six devpanel roles" {
     run bash -c "ls '$REPO_ROOT'/configs/cursor/agents/*.md | wc -l | tr -d ' '"
-    assert_output "11"
-    for name in scout Explore mech-executor executor verifier security-executor \
-        developer debugger tester spec-guard chaos-engineer; do
+    assert_output "15"
+    for name in scout Explore mech-executor executor verifier security-executor context-chronicler compatibility-translator dependency-guardian \
+        developer debugger tester spec-guard chaos-engineer performance-auditor; do
         [ -f "$REPO_ROOT/configs/cursor/agents/$name.md" ]
     done
 }
