@@ -9,6 +9,8 @@ import sys
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
+import pytest
+
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 SCRIPTS_DIR = str(REPO_ROOT / "configs" / "claude" / "scripts")
 sys.path.insert(0, SCRIPTS_DIR)
@@ -81,18 +83,22 @@ class TestSynthesisEngine:
         result = asyncio.run(engine.synthesize("test", {}, consensus))
         assert result is None
 
-    def test_triggers_synthesis_below_threshold_without_sdk(self, tmp_path):
-        """Synthesis returns None gracefully when Anthropic SDK is unavailable."""
+    def test_triggers_synthesis_below_threshold_without_auth(self, tmp_path, monkeypatch):
+        """No SDK, no CLI, no API key → auth error envelope (not a crash)."""
         from agents import synthesis as synth_module
 
         original = synth_module.HAS_ANTHROPIC
         synth_module.HAS_ANTHROPIC = False
+        monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+        monkeypatch.setattr(synth_module.shutil, "which", lambda _: None)
         try:
             engine = _make_engine(tmp_path)
             engine.synthesis_template = "Template: {ORIGINAL_TASK}"
             consensus = {"consensus_score": 10}
             result = asyncio.run(engine.synthesize("test", {}, consensus))
-            assert result is None
+            assert result is not None
+            assert result["triggered"] is True
+            assert "ANTHROPIC_API_KEY" in result["error"]
         finally:
             synth_module.HAS_ANTHROPIC = original
 
@@ -114,6 +120,7 @@ class TestSynthesizeWithSdk:
     def _engine_below_threshold(self, tmp_path, monkeypatch, client):
         from agents import synthesis as synth_module
 
+        monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
         monkeypatch.setattr(synth_module, "HAS_ANTHROPIC", True)
         monkeypatch.setattr(
             synth_module,
@@ -122,6 +129,7 @@ class TestSynthesizeWithSdk:
             raising=False,
         )
         engine = _make_engine(tmp_path)
+        engine.config.config.setdefault("synthesis", {})["backend"] = "sdk"
         engine.synthesis_template = "Task: {ORIGINAL_TASK}\n{AGENT_OUTPUTS}"
         return engine
 
@@ -164,6 +172,7 @@ class TestSynthesizeWithSdk:
         client = MagicMock()
         client.messages.create = AsyncMock(side_effect=TimeoutError())
         monkeypatch.setattr(synth_module, "HAS_ANTHROPIC", True)
+        monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
         monkeypatch.setattr(
             synth_module,
             "AsyncAnthropic",
@@ -171,6 +180,7 @@ class TestSynthesizeWithSdk:
             raising=False,
         )
         engine = _make_engine(tmp_path)
+        engine.config.config.setdefault("synthesis", {})["backend"] = "sdk"
         engine.synthesis_template = "Task: {ORIGINAL_TASK}"
         result = asyncio.run(
             engine.synthesize(
@@ -186,6 +196,7 @@ class TestSynthesizeWithSdk:
         client = MagicMock()
         client.messages.create = AsyncMock(side_effect=RuntimeError("boom"))
         monkeypatch.setattr(synth_module, "HAS_ANTHROPIC", True)
+        monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
         monkeypatch.setattr(
             synth_module,
             "AsyncAnthropic",
@@ -193,6 +204,7 @@ class TestSynthesizeWithSdk:
             raising=False,
         )
         engine = _make_engine(tmp_path)
+        engine.config.config.setdefault("synthesis", {})["backend"] = "sdk"
         engine.synthesis_template = "Task: {ORIGINAL_TASK}"
         result = asyncio.run(
             engine.synthesize(
@@ -210,10 +222,12 @@ class TestSynthesizeWithSdk:
 
         client_factory = MagicMock()
         monkeypatch.setattr(synth_module, "HAS_ANTHROPIC", True)
+        monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
         monkeypatch.setattr(
             synth_module, "AsyncAnthropic", client_factory, raising=False
         )
         engine = _make_engine(tmp_path)
+        engine.config.config.setdefault("synthesis", {})["backend"] = "sdk"
         engine.synthesis_template = ""
         result = asyncio.run(engine.synthesize("task", {}, {"consensus_score": 0}))
         assert result is None
@@ -258,6 +272,176 @@ class TestBuildPromptEdgeCases:
         assert prompt == "static content, no placeholders"
 
 
+class TestSynthesisBackendResolution:
+    def test_auto_prefers_cli_without_api_key(self, tmp_path, monkeypatch):
+        monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+        monkeypatch.setattr("agents.synthesis.shutil.which", lambda _: "/usr/bin/claude")
+        engine = _make_engine(tmp_path)
+        assert engine._resolve_synthesis_backend() == "cli"
+
+    def test_auto_prefers_sdk_with_api_key(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
+        monkeypatch.setattr("agents.synthesis.shutil.which", lambda _: "/usr/bin/claude")
+        from agents import synthesis as synth_module
+
+        original = synth_module.HAS_ANTHROPIC
+        synth_module.HAS_ANTHROPIC = True
+        try:
+            engine = _make_engine(tmp_path)
+            assert engine._resolve_synthesis_backend() == "sdk"
+        finally:
+            synth_module.HAS_ANTHROPIC = original
+
+    def test_auto_neither_cli_nor_key_returns_none(self, tmp_path, monkeypatch):
+        monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+        monkeypatch.setattr("agents.synthesis.shutil.which", lambda _: None)
+        from agents import synthesis as synth_module
+
+        original = synth_module.HAS_ANTHROPIC
+        synth_module.HAS_ANTHROPIC = True
+        try:
+            engine = _make_engine(tmp_path)
+            assert engine._resolve_synthesis_backend() is None
+        finally:
+            synth_module.HAS_ANTHROPIC = original
+
+    def test_backend_cli_forces_cli_even_with_key(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
+        monkeypatch.setattr("agents.synthesis.shutil.which", lambda _: "/usr/bin/claude")
+        engine = _make_engine(tmp_path)
+        engine.config.config.setdefault("synthesis", {})["backend"] = "cli"
+        assert engine._resolve_synthesis_backend() == "cli"
+
+    def test_backend_sdk_forces_sdk(self, tmp_path, monkeypatch):
+        monkeypatch.setattr("agents.synthesis.shutil.which", lambda _: "/usr/bin/claude")
+        from agents import synthesis as synth_module
+
+        original = synth_module.HAS_ANTHROPIC
+        synth_module.HAS_ANTHROPIC = True
+        try:
+            engine = _make_engine(tmp_path)
+            engine.config.config.setdefault("synthesis", {})["backend"] = "sdk"
+            assert engine._resolve_synthesis_backend() == "sdk"
+        finally:
+            synth_module.HAS_ANTHROPIC = original
+
+    def test_invalid_backend_falls_back_to_auto(self, tmp_path, monkeypatch):
+        monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+        monkeypatch.setattr("agents.synthesis.shutil.which", lambda _: "/usr/bin/claude")
+        engine = _make_engine(tmp_path)
+        engine.config.config.setdefault("synthesis", {})["backend"] = "bogus"
+        assert engine._resolve_synthesis_backend() == "cli"
+
+
+class TestSynthesisCliInvoke:
+    def _engine_with_template(self, tmp_path):
+        engine = _make_engine(tmp_path)
+        engine.synthesis_template = "Task: {ORIGINAL_TASK}"
+        return engine
+
+    def test_cli_success_parses_json(self, tmp_path, monkeypatch):
+        from agents import synthesis as synth_module
+
+        async def fake_exec(*cmd, **kwargs):
+            proc = MagicMock()
+            proc.communicate = AsyncMock(
+                return_value=(b'{"unified_recommendation": "merged"}', b"")
+            )
+            proc.returncode = 0
+            proc.kill = MagicMock()
+            proc.wait = AsyncMock()
+            return proc
+
+        monkeypatch.setattr(synth_module.asyncio, "create_subprocess_exec", fake_exec)
+        monkeypatch.setattr(synth_module, "HAS_ANTHROPIC", False)
+        monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+        monkeypatch.setattr(synth_module.shutil, "which", lambda _: "/usr/bin/claude")
+
+        engine = self._engine_with_template(tmp_path)
+        result = asyncio.run(
+            engine.synthesize("task", {"claude": {"output": "x"}}, {"consensus_score": 0})
+        )
+        assert result["unified_recommendation"] == "merged"
+        assert result["triggered"] is True
+
+    def test_cli_nonzero_exit_returns_error(self, tmp_path, monkeypatch):
+        from agents import synthesis as synth_module
+
+        async def fake_exec(*cmd, **kwargs):
+            proc = MagicMock()
+            proc.communicate = AsyncMock(return_value=(b"", b"not logged in"))
+            proc.returncode = 1
+            proc.kill = MagicMock()
+            proc.wait = AsyncMock()
+            return proc
+
+        monkeypatch.setattr(synth_module.asyncio, "create_subprocess_exec", fake_exec)
+        monkeypatch.setattr(synth_module, "HAS_ANTHROPIC", False)
+        monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+        monkeypatch.setattr(synth_module.shutil, "which", lambda _: "/usr/bin/claude")
+
+        engine = self._engine_with_template(tmp_path)
+        result = asyncio.run(
+            engine.synthesize("task", {"claude": {"output": "x"}}, {"consensus_score": 0})
+        )
+        assert result["triggered"] is True
+        assert "not logged in" in result["error"]
+
+    def test_auto_neither_auth_returns_combined_error(self, tmp_path, monkeypatch):
+        from agents import synthesis as synth_module
+
+        client_factory = MagicMock()
+        monkeypatch.setattr(synth_module, "HAS_ANTHROPIC", True)
+        monkeypatch.setattr(synth_module, "AsyncAnthropic", client_factory, raising=False)
+        monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+        monkeypatch.setattr(synth_module.shutil, "which", lambda _: None)
+
+        engine = self._engine_with_template(tmp_path)
+        result = asyncio.run(
+            engine.synthesize("task", {"claude": {"output": "x"}}, {"consensus_score": 0})
+        )
+        assert result["triggered"] is True
+        assert "ANTHROPIC_API_KEY" in result["error"]
+        assert "claude" in result["error"].lower()
+        client_factory.assert_not_called()
+
+    def test_cli_cancelled_kills_child(self, tmp_path, monkeypatch):
+        from agents import synthesis as synth_module
+
+        proc = MagicMock()
+        proc.communicate = AsyncMock(side_effect=asyncio.CancelledError())
+        proc.kill = MagicMock()
+        proc.wait = AsyncMock()
+
+        async def fake_exec(*cmd, **kwargs):
+            return proc
+
+        monkeypatch.setattr(synth_module.asyncio, "create_subprocess_exec", fake_exec)
+        engine = self._engine_with_template(tmp_path)
+
+        with pytest.raises(asyncio.CancelledError):
+            asyncio.run(engine._invoke_claude_cli("prompt"))
+        proc.kill.assert_called_once()
+        proc.wait.assert_called_once()
+
+    def test_cli_timeout_returns_timeout_error(self, tmp_path, monkeypatch):
+        from agents import synthesis as synth_module
+
+        async def fake_wait_for(coro, timeout):
+            raise TimeoutError()
+
+        monkeypatch.setattr(synth_module.asyncio, "wait_for", fake_wait_for)
+        monkeypatch.setattr(synth_module, "HAS_ANTHROPIC", False)
+        monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+        monkeypatch.setattr(synth_module.shutil, "which", lambda _: "/usr/bin/claude")
+
+        engine = self._engine_with_template(tmp_path)
+        result = asyncio.run(
+            engine.synthesize("task", {"claude": {"output": "x"}}, {"consensus_score": 0})
+        )
+        assert result["error"] == "timeout"
+
+
 class TestConsensusThreshold:
     def test_custom_threshold_from_config(self, tmp_path, monkeypatch):
         """A stricter configured threshold triggers synthesis at a score
@@ -267,6 +451,7 @@ class TestConsensusThreshold:
 
         client = _mock_anthropic_response('{"unified_recommendation": "ran"}')
         monkeypatch.setattr(synth_module, "HAS_ANTHROPIC", True)
+        monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
         monkeypatch.setattr(
             synth_module,
             "AsyncAnthropic",
@@ -276,6 +461,7 @@ class TestConsensusThreshold:
 
         engine = _make_engine(tmp_path)
         engine.config.config.setdefault("synthesis", {})["threshold"] = 0.90
+        engine.config.config.setdefault("synthesis", {})["backend"] = "sdk"
         engine.synthesis_template = "{ORIGINAL_TASK}"
 
         consensus = {"consensus_score": 70}  # 0.70 < 0.90 custom threshold
