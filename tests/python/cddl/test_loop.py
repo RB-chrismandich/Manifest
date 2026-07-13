@@ -265,7 +265,7 @@ def test_verification_failure_skips_critics_and_feeds_back(
         runner,
         state_root,
         roles_dir,
-        verify_cmd="echo gate-broke && exit 2",
+        verify_cmd="python3 -c 'import sys; sys.exit(2)'",
         max_iterations=1,
     )
     assert outcome.status == "ceiling_failure"
