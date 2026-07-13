@@ -254,6 +254,8 @@ done
 body="$(printf 'Auto-evolved by SkillClaw. Skills: %s\n\nProvenance: %s\nReview each commit independently; drop a skill by reverting its commit.' \
     "$promote_names" "$SESSIONS")"
 
+git push -u origin "$branch"
+
 pr_url="$("$GITOPS" pr-create --base "$PR_BASE" --head "$branch" \
     --title "SkillClaw: evolve ${count} skill(s)" --body "$body" \
     --label needs-review --label follow-up)"
