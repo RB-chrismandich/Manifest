@@ -181,6 +181,13 @@ class Config:
                 "codex": ["advanced", "flash", "mini"],
                 "antigravity": ["advanced", "flash", "mini"],
             },
+            "synthesis": {
+                "enabled": True,
+                "threshold": 0.50,
+                "model": "sonnet",
+                "timeout": 300,
+                "backend": "auto",
+            },
             "validation": {"consensus_threshold": {"high": 0.80, "medium": 0.50}},
         }
 
