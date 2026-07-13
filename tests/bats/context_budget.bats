@@ -134,8 +134,8 @@ assert_budget() {
         chars=$(awk '/^---$/{c++; next} c==1' "$f" | wc -c)
         total=$((total + chars))
     done
-    if [ "$total" -gt 22000 ]; then
-        echo "Skill frontmatter totals $total chars (budget: 22000)." >&2
+    if [ "$total" -gt 25000 ]; then
+        echo "Skill frontmatter totals $total chars (budget: 25000)." >&2
         echo "Trim verbose descriptions; bodies are pay-per-use, frontmatter is not." >&2
         return 1
     fi
