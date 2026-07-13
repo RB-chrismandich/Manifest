@@ -176,12 +176,12 @@ class TestRenderReport:
         assert "2,535" in md  # overhead tokens (comma-formatted)
         assert "2,635" in md  # avg input after (comma-formatted)
 
-    def test_legend_distinguishes_unsupported_from_never_measured(self):
+    def test_legend_distinguishes_unsupported_from_no_data(self):
         """(#546) The report legend explicitly distinguishes a `—` cell
-        (never measured) from an `unsupported` provider outcome."""
+        (no valid measurements) from an `unsupported` provider outcome."""
         stats = compute_stats(FIXTURE_RECORDS)
         md = render_report(stats, run_id="2026-06-12T10-00-00")
-        assert "never measured" in md
+        assert "no valid measurements" in md
         assert "unsupported" in md
 
 
@@ -286,6 +286,117 @@ class TestConsistentProviderRendering:
         ]
         stats = compute_stats(api_only_records)  # must not raise KeyError
         assert stats["unsupported_providers"] == []
+
+
+class TestUnsupportedOutcome:
+    """(#546) cli_unsupported is scoped per (provider, category) and decided
+    by each cell's latest run — not a history-wide, provider-only marker
+    (unsupported_providers, used by the other tables, does not have a
+    category axis so is not subject to the same staleness bug)."""
+
+    def _gemini_cli_rows(self, run_id, *, unsupported, quality_score=None):
+        """Derive gemini CLI before/after rows from the claude CLI fixture."""
+        cli_base = next(
+            r
+            for r in FIXTURE_RECORDS
+            if r["source"] == "cli" and r["condition"] == "before"
+        )
+        return [
+            {
+                **cli_base,
+                "run_id": run_id,
+                "provider": "gemini",
+                "condition": cond,
+                "quality_score": quality_score,
+                "unsupported": unsupported,
+            }
+            for cond in ("before", "after")
+        ]
+
+    def _with_unsupported(self):
+        """FIXTURE_RECORDS plus gemini mmlu CLI rows marked unsupported (#546)."""
+        return FIXTURE_RECORDS + self._gemini_cli_rows(
+            "2026-06-12T10-00-00", unsupported=True
+        )
+
+    def test_compute_stats_tracks_unsupported_cells(self):
+        stats = compute_stats(self._with_unsupported())
+        assert stats["cli_unsupported"] == [("gemini", "mmlu")]
+
+    def test_render_marks_unsupported_cells_scoped_to_category(self):
+        stats = compute_stats(self._with_unsupported())
+        md = render_report(stats, run_id="2026-06-12T10-00-00")
+        assert "| gemini | mmlu | unsupported | unsupported | — |" in md
+        # Only the cell with unsupported rows is marked; other gemini
+        # categories were never run and must stay `—`.
+        assert "| gemini | humaneval | — | — | — |" in md
+
+    def test_legend_distinguishes_no_data_from_unsupported(self):
+        stats = compute_stats(self._with_unsupported())
+        md = render_report(stats, run_id="2026-06-12T10-00-00")
+        assert "no valid measurements" in md
+        assert "no verified" in md
+        assert "system-prompt injection mechanism" in md
+
+    def test_no_unsupported_records_keeps_dash(self):
+        """Cells with no rows at all stay `—`, never `unsupported`."""
+        stats = compute_stats(FIXTURE_RECORDS)
+        assert stats["cli_unsupported"] == []
+        md = render_report(stats, run_id="2026-06-12T10-00-00")
+        assert "| gemini | mmlu | — | — | — |" in md
+        assert "| gemini | mmlu | unsupported" not in md
+
+    def test_newer_measured_run_clears_stale_unsupported(self):
+        """A later run with real scores overrides an older unsupported marker."""
+        records = (
+            FIXTURE_RECORDS
+            + self._gemini_cli_rows("2026-06-12T10-00-00", unsupported=True)
+            + self._gemini_cli_rows(
+                "2026-07-01T10-00-00", unsupported=False, quality_score=1
+            )
+        )
+        stats = compute_stats(records)
+        assert stats["cli_unsupported"] == []
+        md = render_report(stats, run_id="2026-07-01T10-00-00")
+        assert "| gemini | mmlu | 1/1 | 1/1 | 0 |" in md
+
+    def test_latest_unsupported_overrides_older_contaminated_scores(self):
+        """Newer unsupported rows invalidate older (pre-#546, polluted) scores —
+        at the aggregation level, not just in the rendered cell, so no other
+        table (e.g. Historical Runs) can re-publish the contaminated scores."""
+        records = (
+            FIXTURE_RECORDS
+            + self._gemini_cli_rows(
+                "2026-06-12T10-00-00", unsupported=False, quality_score=1
+            )
+            + self._gemini_cli_rows("2026-07-01T10-00-00", unsupported=True)
+        )
+        stats = compute_stats(records)
+        assert stats["cli_unsupported"] == [("gemini", "mmlu")]
+        # Invalidated scores are excluded from the aggregates entirely
+        assert stats["quality"].get("gemini", {}) == {}
+        md = render_report(stats, run_id="2026-07-01T10-00-00")
+        assert "| gemini | mmlu | unsupported | unsupported | — |" in md
+
+    def test_watermark_excludes_only_rows_up_to_unsupported_run(self):
+        """After an unsupported watermark, a still-newer measured run counts
+        alone — pre-watermark contaminated scores never blend back in."""
+        records = (
+            FIXTURE_RECORDS
+            + self._gemini_cli_rows(
+                "2026-06-12T10-00-00", unsupported=False, quality_score=1
+            )
+            + self._gemini_cli_rows("2026-07-01T10-00-00", unsupported=True)
+            + self._gemini_cli_rows(
+                "2026-07-08T10-00-00", unsupported=False, quality_score=0
+            )
+        )
+        stats = compute_stats(records)
+        assert stats["cli_unsupported"] == []
+        q = stats["quality"]["gemini"]["mmlu"]
+        # Only the post-watermark run is counted: 0/1, not a 1/2 blend
+        assert (q["before_score"], q["before_total"]) == (0, 1)
+        assert (q["after_score"], q["after_total"]) == (0, 1)
 
 
 class TestCostAnalysis:

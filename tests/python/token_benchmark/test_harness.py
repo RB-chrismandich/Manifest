@@ -366,6 +366,31 @@ class TestRunBenchmarkCliStrategy:
             assert r["input_tokens"] is None
             assert r["response_text"] is None
 
+    @pytest.mark.asyncio
+    async def test_unsupported_warns_once_per_provider(self, tmp_path, capsys):
+        """A console warning is printed the first time a provider records an
+        unsupported CLI row, and never repeated for that provider — even
+        though every (prompt, condition) pair for it takes the unsupported
+        branch."""
+        fixtures = tmp_path / "fixtures"
+        fixtures.mkdir()
+
+        await run_benchmark(
+            providers=["gemini", "antigravity"],
+            api_only=False,
+            cli_only=True,
+            conditions=["before", "after"],
+            run_id="test-run",
+            fixtures_dir=fixtures,
+            results_dir=tmp_path / "results",
+        )
+
+        # The console must disclose the skip — exactly once per provider,
+        # not silently and not once per prompt.
+        out = capsys.readouterr().out
+        for provider in ("gemini", "antigravity"):
+            assert out.count(f"[{provider}][cli] unsupported") == 1
+
 
 class TestWriteResult:
     def test_appends_jsonl_to_results_dir(self, tmp_path):
