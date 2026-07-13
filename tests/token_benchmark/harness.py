@@ -4,6 +4,7 @@
 import asyncio
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -476,6 +477,30 @@ async def run_benchmark(
     return records
 
 
+_ANSI_ESCAPE_RE = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
+_FIXTURE_PLACEHOLDER_HOME = "/Users/developer"
+
+
+def _scrub_fixture_pii(text: str, home: Path) -> str:
+    """Strip terminal escape codes and the contributor's real home/username
+    from text before it lands in a tracked repo fixture (#552 follow-up).
+
+    Fixtures under tests/token_benchmark/fixtures/ are committed and read by
+    anyone who clones the repo, so a live ~/.claude/settings.json or CLAUDE.md
+    synced via --sync-fixtures must not leak the operator's absolute home
+    directory path, OS username, or raw ANSI/SGR escape sequences captured
+    from their terminal.
+    """
+    text = _ANSI_ESCAPE_RE.sub("", text)
+    home_str = str(home)
+    if home_str and home_str in text:
+        text = text.replace(home_str, _FIXTURE_PLACEHOLDER_HOME)
+    username = home.name
+    if username and username not in ("developer", ""):
+        text = re.sub(rf"(?<![\w.-]){re.escape(username)}(?![\w.-])", "developer", text)
+    return text
+
+
 def sync_fixtures(
     source_home: Path | None = None,
     fixtures_dir: Path | None = None,
@@ -486,6 +511,10 @@ def sync_fixtures(
     If compression is given (e.g. 50), also write a compressed fixture at
     fixtures/../fixtures-compressed/ containing the first compression% of lines
     from CLAUDE.md.
+
+    Copied content is scrubbed (see _scrub_fixture_pii) so a --sync-fixtures
+    run never reintroduces a contributor's real home path/username or stray
+    ANSI escape codes into the tracked fixtures (#552).
     """
     src = source_home or Path.home()
     dst = fixtures_dir or FIXTURES_DIR
@@ -495,7 +524,8 @@ def sync_fixtures(
         dest = dst / rel
         if source.exists():
             dest.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(source, dest)
+            scrubbed = _scrub_fixture_pii(source.read_text(), src)
+            dest.write_text(scrubbed)
             print(f"  synced {rel}")
         else:
             print(f"  skip {rel} (not found at {source})")
@@ -523,7 +553,18 @@ def sync_fixtures(
             )
 
 
-if __name__ == "__main__":
+def missing_api_sdks(providers: list[str]) -> list[str]:
+    """Return the SDK packages required for the requested API providers but
+    not importable in this environment (#547). Antigravity has no API path."""
+    missing = []
+    if "claude" in providers and not HAS_ANTHROPIC:
+        missing.append("anthropic (claude API path)")
+    if "gemini" in providers and not HAS_GENAI:
+        missing.append("google-genai (gemini API path)")
+    return missing
+
+
+def main(argv: list[str] | None = None) -> None:
     import argparse
 
     parser = argparse.ArgumentParser(description="Token benchmark harness")
@@ -545,7 +586,22 @@ if __name__ == "__main__":
         default="before,after",
         help="Comma-separated conditions to run: before,after,cached,tiered,compressed",
     )
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
+
+    providers = [p.strip() for p in args.providers.split(",") if p.strip()]
+
+    # Hard-fail before any writes: an API-path run without its SDK previously
+    # "succeeded" in seconds while appending 40 junk error rows (#547).
+    if not args.report_only and not args.cli_only:
+        missing = missing_api_sdks(providers)
+        if missing:
+            print(
+                "harness: API path requested but required SDK(s) are not "
+                "importable: " + "; ".join(missing) + ". Install them via "
+                "`uv run --group benchmark ...` or rerun with --cli-only.",
+                file=sys.stderr,
+            )
+            raise SystemExit(2)
 
     if args.sync_fixtures:
         print("Syncing fixtures from live home...")
@@ -555,7 +611,6 @@ if __name__ == "__main__":
         from datetime import datetime
 
         run_id = datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
-        providers = [p.strip() for p in args.providers.split(",")]
         mode = (
             "cli-only"
             if args.cli_only
@@ -587,3 +642,7 @@ if __name__ == "__main__":
 
     update_report(RESULTS_DIR, REPO_ROOT / "docs" / "TOKEN_BENCHMARK.md")
     print("Done.")
+
+
+if __name__ == "__main__":
+    main()

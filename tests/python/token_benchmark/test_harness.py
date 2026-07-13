@@ -392,6 +392,69 @@ class TestRunBenchmarkCliStrategy:
             assert out.count(f"[{provider}][cli] unsupported") == 1
 
 
+class TestMainSdkGuard:
+    """#547: requesting the API path without an importable SDK must hard-fail
+    (exit non-zero, zero rows written, no report regeneration)."""
+
+    def _patched_harness(self, monkeypatch, tmp_path):
+        from tests.token_benchmark import harness
+
+        (tmp_path / "docs").mkdir()
+        monkeypatch.setattr(harness, "RESULTS_DIR", tmp_path / "results")
+        monkeypatch.setattr(harness, "REPO_ROOT", tmp_path)
+        return harness
+
+    def test_missing_api_sdks_helper(self, monkeypatch):
+        from tests.token_benchmark import harness
+
+        monkeypatch.setattr(harness, "HAS_ANTHROPIC", False)
+        monkeypatch.setattr(harness, "HAS_GENAI", False)
+        missing = harness.missing_api_sdks(["claude", "gemini", "antigravity"])
+        assert any("anthropic" in m for m in missing)
+        assert any("google-genai" in m for m in missing)
+        # antigravity has no API path, so alone it needs no SDK
+        assert harness.missing_api_sdks(["antigravity"]) == []
+        monkeypatch.setattr(harness, "HAS_ANTHROPIC", True)
+        assert harness.missing_api_sdks(["claude"]) == []
+
+    def test_api_only_missing_sdk_hard_fails_no_artifacts(
+        self, monkeypatch, tmp_path, capsys
+    ):
+        harness = self._patched_harness(monkeypatch, tmp_path)
+        monkeypatch.setattr(harness, "HAS_ANTHROPIC", False)
+        monkeypatch.setattr(harness, "HAS_GENAI", False)
+        with pytest.raises(SystemExit) as exc:
+            harness.main(["--api-only", "--providers", "claude,gemini"])
+        assert exc.value.code == 2
+        err = capsys.readouterr().err
+        assert "anthropic" in err
+        assert "google-genai" in err
+        assert not (tmp_path / "results").exists(), "no result rows may be written"
+        assert not (tmp_path / "docs" / "TOKEN_BENCHMARK.md").exists(), (
+            "report must not be regenerated on hard-fail"
+        )
+
+    def test_default_mode_includes_api_and_hard_fails(self, monkeypatch, tmp_path):
+        """Default mode (api+cli) also requests the API path, so it refuses too."""
+        harness = self._patched_harness(monkeypatch, tmp_path)
+        monkeypatch.setattr(harness, "HAS_ANTHROPIC", False)
+        with pytest.raises(SystemExit) as exc:
+            harness.main(["--providers", "claude"])
+        assert exc.value.code == 2
+        assert not (tmp_path / "results").exists()
+
+    def test_cli_only_runs_without_sdks(self, monkeypatch, tmp_path):
+        """Regression guard: --cli-only must stay runnable with no SDK installed."""
+        harness = self._patched_harness(monkeypatch, tmp_path)
+        monkeypatch.setattr(harness, "HAS_ANTHROPIC", False)
+        monkeypatch.setattr(harness, "HAS_GENAI", False)
+        fake = MagicMock(stdout="B\n", stderr="", returncode=0)
+        with patch("tests.token_benchmark.harness.subprocess.run", return_value=fake):
+            harness.main(["--cli-only", "--providers", "claude"])
+        assert len(list((tmp_path / "results").glob("*.jsonl"))) == 1
+        assert (tmp_path / "docs" / "TOKEN_BENCHMARK.md").exists()
+
+
 class TestWriteResult:
     def test_appends_jsonl_to_results_dir(self, tmp_path):
         record = {
@@ -530,3 +593,69 @@ class TestSyncFixturesCompression:
         compressed = dst.parent / "fixtures-compressed" / ".claude" / "CLAUDE.md"
         lines = compressed.read_text().splitlines()
         assert len(lines) == 5
+
+
+class TestSyncFixturesScrubsPii:
+    """#552 follow-up: --sync-fixtures must not leak the contributor's real
+    home path/username or raw ANSI escapes into tracked repo fixtures."""
+
+    def test_strips_ansi_escape_codes(self, tmp_path):
+        from tests.token_benchmark.harness import sync_fixtures
+
+        src = tmp_path / "home"
+        (src / ".claude").mkdir(parents=True)
+        (src / ".claude" / "settings.json").write_text(
+            '{"model": "claude-fable-5\x1b[1m"}'
+        )
+
+        dst = tmp_path / "fixtures"
+        sync_fixtures(source_home=src, fixtures_dir=dst)
+
+        synced = (dst / ".claude" / "settings.json").read_text()
+        assert "\x1b" not in synced
+        assert "claude-fable-5" in synced
+
+    def test_scrubs_real_home_path_and_username(self, tmp_path):
+        from tests.token_benchmark.harness import sync_fixtures
+
+        src = tmp_path / "home" / "reallocaluser"
+        (src / ".claude").mkdir(parents=True)
+        (src / ".claude" / "settings.json").write_text(
+            json.dumps(
+                {
+                    "hooks": {
+                        "PostToolUse": [
+                            {
+                                "hooks": [
+                                    {
+                                        "command": f"{src}/.claude/scripts/issue_support_hook.sh"
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                }
+            )
+        )
+
+        dst = tmp_path / "fixtures"
+        sync_fixtures(source_home=src, fixtures_dir=dst)
+
+        synced = (dst / ".claude" / "settings.json").read_text()
+        assert str(src) not in synced
+        assert "reallocaluser" not in synced
+        assert "/Users/developer" in synced
+
+    def test_leaves_clean_content_unchanged(self, tmp_path):
+        from tests.token_benchmark.harness import sync_fixtures
+
+        src = tmp_path / "home"
+        (src / ".claude").mkdir(parents=True)
+        content = '{"model": "claude-sonnet-4-6"}'
+        (src / ".claude" / "settings.json").write_text(content)
+
+        dst = tmp_path / "fixtures"
+        sync_fixtures(source_home=src, fixtures_dir=dst)
+
+        synced = (dst / ".claude" / "settings.json").read_text()
+        assert synced == content

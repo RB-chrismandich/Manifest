@@ -62,8 +62,8 @@ smoke-report.xml
 # Transient per-catalog write lock (smoke_test.py append)
 smoke-catalog/*.lock
 
-# Stray uv lockfile — this repo uses pyproject.toml for tooling config only
-# (ruff/pytest/pyright), not uv dependency management. uv is only a graphify
-# runtime (bootstrap/lib/install.sh). Ignore so a stray `uv` run stays untracked.
+# uv lockfile — intentionally untracked (#523). pyproject.toml is the source
+# of truth (ruff/pytest/pyright config + the optional [dependency-groups]
+# benchmark group, #547); resolution is reproducible from it on demand.
 uv.lock
 benchmark_data/
