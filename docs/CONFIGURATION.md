@@ -832,11 +832,33 @@ cli_agents:
 
 `output: file_then_stdout` reads the tempfile first, falling back to stdout;
 `output: stdout` streams directly. `{model}`, `{prompt}`, and `{output_file}` are
-substitution tokens filled at runtime.
+substituted at runtime.
+
+### Synthesis configuration
+
+**File**: `configs/claude/config/parallel_agent.yml` — `synthesis:` block
+
+When consensus falls below `threshold` (default 0.50), `SynthesisEngine` merges
+agent outputs using the `synthesis.md` prompt template.
+
+```yaml
+synthesis:
+  enabled: true
+  threshold: 0.50
+  model: "sonnet"       # model_tiers.claude tier
+  timeout: 300
+  backend: auto         # auto | cli | sdk
+```
+
+| `backend` | Behavior |
+|-----------|----------|
+| `auto` (default) | Same as primary claude agent: SDK when package + `ANTHROPIC_API_KEY`, else `claude -p` CLI |
+| `cli` | Always invoke `claude -p` (OAuth/subscription login) |
+| `sdk` | Always use Anthropic SDK (requires `ANTHROPIC_API_KEY`; for headless/CI) |
 
 ### Execution Backend (SDK vs CLI Fallback)
 
-Claude and Gemini pick an execution backend per run (`agents/cli.py`
+Claude and Gemini pick an execution backend per run (`agents/config.py`
 `select_backend()`):
 
 1. **SDK** — when the provider package (`anthropic` / `google-genai`) AND its API

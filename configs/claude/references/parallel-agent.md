@@ -74,6 +74,15 @@ Command shapes come from `cli_agents.claude` / `cli_agents.gemini` in
 `parallel_agent.yml`. Pin staleness on OAuth-only machines is checked with
 `MODEL_CHECK_PROBE=1 model_check.sh` (live one-shot CLI probe per pin).
 
+## Synthesis auth
+
+When consensus is low, `SynthesisEngine` merges agent outputs. Configure
+`synthesis.backend` in `parallel_agent.yml`:
+
+- **`auto`** (default) — same backend selection as the primary claude agent
+- **`cli`** — always `claude -p` (OAuth/subscription login)
+- **`sdk`** — always Anthropic SDK (`ANTHROPIC_API_KEY`; headless/CI)
+
 ## Credit Exhaustion Fallback
 
 The script automatically detects credit/quota exhaustion and falls back:
