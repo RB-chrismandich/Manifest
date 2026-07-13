@@ -180,6 +180,13 @@ run_reconfigure() {
             gate_graphify_skill "$TARGET_DIR/skills"
         fi
 
+        # Flag any disabled service whose deployed config is still present
+        # (#549). warn_stale_disabled_configs is otherwise only called from
+        # print_summary, which main() never reaches in --reconfigure mode —
+        # so a disable-via-reconfigure (README's own documented workflow:
+        # `--reconfigure --enable-gemini --disable-claude`) would never warn.
+        warn_stale_disabled_configs
+
         print_success "Services reconfigured"
         echo ""
         print_info "The parallel_agent.py script will use these settings on next run"
