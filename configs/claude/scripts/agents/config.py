@@ -94,7 +94,7 @@ class Config:
             "model_tiers": {
                 "claude": {
                     "haiku": "claude-haiku-4-5-20251001",
-                    "sonnet": "claude-sonnet-4-6",
+                    "sonnet": "claude-sonnet-5",
                     "opus": "claude-opus-4-8",
                     "fable": "claude-fable-5",
                 },
@@ -103,9 +103,9 @@ class Config:
                     "pro": "gemini-3-pro-preview",
                 },
                 "cursor": {
-                    "mini": "gpt-5.1-codex-mini",
-                    "flash": "gpt-5.1-codex",
-                    "advanced": "gpt-5.2",
+                    "mini": "auto",
+                    "flash": "auto",
+                    "advanced": "auto",
                 },
                 "codex": {
                     "mini": "gpt-5.4-mini",
