@@ -99,7 +99,14 @@ PY
 fi
 
 worktree_claude="${worktree_dir%/}/.claude"
-home_settings="${home_claude}/settings.json"
+# Manifest deploys hooks + mcpServers into `settings.local.json` at HOME scope
+# (bootstrap/lib/deploy.sh's merge_settings_hooks / merge_claude_mcp_servers
+# both target `$TARGET_DIR/settings.local.json`; the repo's own
+# configs/claude/settings.local.json is the source of that hooks+mcpServers
+# block). `~/.claude/settings.json` is user/runtime state Manifest never
+# writes -- probing it here would misreport every correctly-bootstrapped
+# machine as DEGRADED.
+home_settings="${home_claude}/settings.local.json"
 home_merged="${home_settings}.emdash-merged"
 # A `.emdash-merged` sibling is a genuine, independently-written pre/post pair
 # (fixture mode). Without one (the normal live/env-check case) there is no

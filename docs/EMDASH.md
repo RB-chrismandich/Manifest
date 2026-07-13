@@ -133,10 +133,12 @@ adds the settings file's path to `.gitignore`.
 
 What this means for Manifest:
 
-- **Manifest's hooks survive.** Manifest's event hooks live in home
-  `~/.claude/settings.json`; the repo's tracked `.claude/settings.local.json` holds
-  **permissions** only. emdash's append coexists with both — its idempotent,
-  marker-based merge is designed to preserve your existing entries. The
+- **Manifest's hooks survive.** Manifest's event hooks (and `mcpServers`) are
+  deployed into home `~/.claude/settings.local.json` (bootstrap's
+  `merge_settings_hooks` / `merge_claude_mcp_servers`); the repo's tracked
+  worktree `.claude/settings.local.json` holds **permissions** only. emdash's
+  append coexists with both — its idempotent, marker-based merge is designed
+  to preserve your existing entries. The
   [inheritance probe](#verifying-inheritance) deterministically asserts this
   (`manifest_hooks_preserved` / `worktree_permissions_intact`) against a fixture
   in `tests/bats/emdash_inheritance.bats`; a live `/env-check` run has no
@@ -173,7 +175,7 @@ What this means for Manifest:
   simulation fixture under `tests/bats/fixtures/emdash/`.
 - **Parallel worktrees may race on home-scoped settings.** When emdash injects
   home-scoped hook wiring, multiple concurrent worktree sessions can write the same
-  shared `~/.claude/settings.json`. This is **emdash-internal** (last-writer / race
+  shared `~/.claude/settings.local.json`. This is **emdash-internal** (last-writer / race
   behavior); Manifest does **not** add a guard for it. The observed idempotent merge
   is designed to preserve unrelated (Manifest) hooks, but the ordering of concurrent
   writes is emdash's responsibility, not Manifest's.

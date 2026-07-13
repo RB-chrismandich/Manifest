@@ -23,8 +23,8 @@ Conventions (repo standards): errors via `err() { echo "emdash_inherit_check.sh:
 |----|-------|-----------|
 | D1 Skills | count `~/.claude/skills/*/SKILL.md` | ≥ 1 |
 | D2 Subagents | presence of `~/.claude/agents/*.md` and/or `<worktree>/.claude/agents/*.md` | Manifest subagents reachable |
-| D3 Hooks | Manifest hooks in HOME `~/.claude/settings.json`; re-check after simulated emdash merge (home-scope) + worktree permissions after worktree-scope merge | Manifest hooks present AND survive the append; worktree permissions not corrupted |
-| D4 MCP | `mcpServers` in `~/.claude/settings.json` / `.mcp.json` | ≥ 1 Manifest MCP server resolvable |
+| D3 Hooks | Manifest hooks in HOME `~/.claude/settings.local.json`; re-check after simulated emdash merge (home-scope) + worktree permissions after worktree-scope merge | Manifest hooks present AND survive the append; worktree permissions not corrupted |
+| D4 MCP | `mcpServers` in `~/.claude/settings.local.json` / `.mcp.json` | ≥ 1 Manifest MCP server resolvable |
 | D5 Orchestration guide | `<home>/.claude/CLAUDE.md`, `<worktree>/CLAUDE.md`, `<worktree>/.claude/CLAUDE.md` | guide files readable |
 | D6 Repo guides | `<worktree>/AGENTS.md`, `<worktree>/.claude/` | committed guidance present |
 
@@ -63,8 +63,8 @@ Conventions (repo standards): errors via `err() { echo "emdash_inherit_check.sh:
 
 The probe simulates emdash's observed merge — appending `{ "type":"command", "command":"curl http://127.0.0.1:$EMDASH_HOOK_PORT/hook", <EMDASH_MARKER> }` to a hook event array — against the file emdash actually writes for the given scope (spec-review F3):
 
-- **Home scope** (`~/.claude/settings.json`): this is where Manifest's **hooks** live (repo `settings.local.json` holds permissions only). When a `settings.json.emdash-merged` sibling exists, the probe asserts every pre-existing Manifest hook entry survives the append → `manifest_hooks_preserved`.
-- **Workspace scope** (`<worktree>/.claude/settings.local.json`): holds **permissions** (no Manifest hooks). When a `settings.local.json.emdash-merged` sibling exists, the probe asserts the permissions block is not corrupted by the append → `worktree_permissions_intact`.
+- **Home scope** (`~/.claude/settings.local.json`): this is where Manifest's **hooks** (and `mcpServers`) are deployed — bootstrap's `merge_settings_hooks` / `merge_claude_mcp_servers` both target `$TARGET_DIR/settings.local.json`, matching the repo's own `configs/claude/settings.local.json`. (`~/.claude/settings.json` is user/runtime state Manifest never writes and is not probed.) When a `settings.local.json.emdash-merged` sibling exists at HOME scope, the probe asserts every pre-existing Manifest hook entry survives the append → `manifest_hooks_preserved`.
+- **Workspace scope** (`<worktree>/.claude/settings.local.json`): holds **permissions** (no Manifest hooks) at the repo/worktree level. When a `settings.local.json.emdash-merged` sibling exists there, the probe asserts the permissions block is not corrupted by the append → `worktree_permissions_intact`.
 
 **No sibling on disk (the normal live/`env-check` case)**: the probe cannot construct an independent pre-merge baseline from a single in-place file — comparing it to itself is a tautology and can never detect a real drop/corruption. Rather than report a false `true`, it reports `null`/`unverified` for that scope and does not fail D3 on it alone (D3 only FAILs on an explicit verified `false`, i.e. a real diff against a genuine sibling). This means the coexistence guarantee is **deterministically verified only when a `.emdash-merged` sibling is present** — the bats fixture below — and is otherwise informational/best-effort in a live run.
 

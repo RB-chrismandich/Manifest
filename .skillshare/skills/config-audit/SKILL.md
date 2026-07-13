@@ -158,8 +158,9 @@ hook** (`curl http://127.0.0.1:$EMDASH_HOOK_PORT/hook`, marker-tagged for idempo
 dedup) to the agent's `.claude/settings.local.json` and adds that path to `.gitignore`.
 This is expected and does **not** indicate config drift:
 
-- Manifest's event **hooks** live in home `~/.claude/settings.json`; the repo's
-  tracked `.claude/settings.local.json` holds **permissions** only. emdash's append
+- Manifest's event **hooks** (and `mcpServers`) are deployed into home
+  `~/.claude/settings.local.json`; the repo's tracked worktree
+  `.claude/settings.local.json` holds **permissions** only. emdash's append
   coexists with both — its idempotent merge preserves existing entries.
 - If an audit surfaces an emdash `Stop` hook or a new `.gitignore` line for a
   settings file, treat it as machine-local **coexistence, not a drift finding**.

@@ -7,9 +7,12 @@ from `tests/bats/emdash_inheritance.bats`. Maps to data-model **E3** of
 `specs/483-emdash-support/`.
 
 Nothing here is deployed — these are inert test inputs. The layout is faithful
-to the repo's REAL split (spec-review F3): **hooks live HOME-side**
-(`~/.claude/settings.json`); the tracked repo `.claude/settings.local.json`
-holds **permissions only** (no hooks).
+to the repo's REAL split (bootstrap/lib/deploy.sh's `merge_settings_hooks` /
+`merge_claude_mcp_servers`, both targeting `$TARGET_DIR/settings.local.json`):
+**hooks + mcpServers live HOME-side in `~/.claude/settings.local.json`**
+(the same file the tracked repo `.claude/settings.local.json` seeds, holding
+**permissions** at the worktree scope). `~/.claude/settings.json` is
+user/runtime state Manifest never writes and is not probed.
 
 ## Layout
 
@@ -19,8 +22,8 @@ emdash/
 │   ├── CLAUDE.md                          # D5 home orchestration guide
 │   ├── skills/env-check/SKILL.md          # D1 skills (>=1 SKILL.md reachable)
 │   ├── agents/developer.md                # D2 home-side subagent
-│   ├── settings.json                      # D3 Manifest hooks + D4 mcpServers (baseline)
-│   └── settings.json.emdash-merged        # D3 emdash Stop hook appended ALONGSIDE the
+│   ├── settings.local.json                # D3 Manifest hooks + D4 mcpServers (baseline)
+│   └── settings.local.json.emdash-merged   # D3 emdash Stop hook appended ALONGSIDE the
 │                                          #    pre-existing Manifest Stop hook (audit_log.sh)
 │                                          #    -> hook-PRESERVATION assertion
 └── worktree/                              # fake repo checkout in an emdash worktree
@@ -34,9 +37,9 @@ emdash/
                                            #    assertion
 
 home-corrupted-hooks/.claude/                 # variant of home/ used for the NEGATIVE-path
-├── ...                                       #   test: settings.json is identical to
-├── settings.json                             #   home/settings.json, but ...
-└── settings.json.emdash-merged               #   ... this sibling genuinely DROPS the
+├── ...                                       #   test: settings.local.json is identical to
+├── settings.local.json                       #   home/settings.local.json, but ...
+└── settings.local.json.emdash-merged         #   ... this sibling genuinely DROPS the
                                               #   PostToolUse (version_pin_hook.sh) entry ->
                                               #   coexistence.manifest_hooks_preserved == false
 
@@ -57,7 +60,7 @@ idempotency marker. The fixture encodes that marker as the field
 `"__emdashMarker": "emdash-managed-hook"` (the probe detects it via the marker
 substring or the `EMDASH_HOOK_PORT` command; override with `EMDASH_MARKER`).
 
-- **`home/.claude/settings.json.emdash-merged`** — the emdash `Stop` entry sits
+- **`home/.claude/settings.local.json.emdash-merged`** — the emdash `Stop` entry sits
   next to the pre-existing Manifest `Stop` hook (`audit_log.sh`) and all other
   Manifest hook events are unchanged. The probe asserts every Manifest hook
   survives the append → `coexistence.manifest_hooks_preserved == true`.
@@ -96,9 +99,9 @@ for the passing fixture on ONE side only (the other side stays on the passing
 `home/` or `worktree/` fixture) so the resulting `DEGRADED` verdict is
 attributable to exactly one coexistence check:
 
-- **`home-corrupted-hooks/.claude/settings.json.emdash-merged`** genuinely
+- **`home-corrupted-hooks/.claude/settings.local.json.emdash-merged`** genuinely
   omits the `PostToolUse` (`version_pin_hook.sh`) hook present in its own
-  `settings.json` baseline — a real diff against a real sibling, not an
+  `settings.local.json` baseline — a real diff against a real sibling, not an
   absent one. Paired with the passing `worktree/` fixture, this yields
   `coexistence.manifest_hooks_preserved == false`, D3 `FAIL`, and verdict
   `DEGRADED` (exit 1).
