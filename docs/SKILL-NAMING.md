@@ -62,6 +62,7 @@ parses the fenced block between the markers — keep one token per line.
 ```text
 a11y
 ai-code
+automation
 antipattern
 api
 branch
