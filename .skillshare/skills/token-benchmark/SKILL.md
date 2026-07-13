@@ -46,15 +46,17 @@ actually in play.
 
 ## Arguments
 
-Parse `$ARGUMENTS` for flags. Supported flags (mirrors `tests/token_benchmark/harness.py`'s argparse):
+Parse `$ARGUMENTS` for flags. The table mirrors the harness argparse
+(`tests/token_benchmark/harness.py`) — keep them in sync (#548):
 
 | Flag | Effect | Default |
 |------|--------|---------|
-| `--providers <list>` | Comma-separated providers to run | `claude,gemini,antigravity` |
+| (none) | Full run: all providers, API + CLI paths | — |
+| `--providers <list>` | Comma-separated providers to run (e.g. `claude` alone is ~3 min) | `claude,gemini,antigravity` |
 | `--api-only` | Skip the CLI path; API token/cost counts only (claude, gemini) | off |
 | `--cli-only` | Skip the API path; run only the CLI behavioral/quality path — the only viable path for CLI-only providers with no SDK (e.g. `antigravity`) | off |
 | `--sync-fixtures` | Sync `fixtures/manifest/` (and `fixtures-compressed/` if `--compression` given) from the live home before running | off |
-| `--compression <pct>` | With `--sync-fixtures`, also write `fixtures-compressed/` keeping the first N% of `CLAUDE.md` lines | none |
+| `--compression <N>` | With `--sync-fixtures`: also write `fixtures-compressed/` keeping the first N% of `CLAUDE.md` lines | unset |
 | `--report-only` | Regenerate `docs/TOKEN_BENCHMARK.md` from existing `results/*.jsonl`; no new API/CLI calls | off |
 | `--claude-model <id>` | Claude model id used for the API path | `claude-sonnet-4-6` |
 | `--gemini-model <id>` | Gemini model id used for the API path | `gemini-3-flash-preview` |
@@ -106,6 +108,8 @@ without touching claude/gemini's API path — and without requiring `uv` to be i
 3. If yes:
 
 ```bash
+# --sync-fixtures modifies tests/token_benchmark/fixtures/ in the working
+# tree, so include it — otherwise the committed fixtures drift stale.
 git add docs/TOKEN_BENCHMARK.md tests/token_benchmark/results/ tests/token_benchmark/fixtures/
 git commit -m "chore: update token benchmark results $(date +%Y-%m-%d)"
 ```
