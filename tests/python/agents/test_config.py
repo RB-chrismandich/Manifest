@@ -227,3 +227,17 @@ class TestCliAgentsConfig:
                 f"{section} drifted between parallel_agent.yml and "
                 f"config.py _default_config()"
             )
+
+
+class TestSynthesisConfig:
+    def test_default_config_has_synthesis_backend(self, tmp_path):
+        config = Config(config_path=str(tmp_path / "none.yml"))
+        assert config.get("synthesis.backend") == "auto"
+        assert config.get("synthesis.enabled") is True
+        assert config.get("synthesis.threshold") == 0.50
+
+    def test_synthesis_defaults_match_repo_yaml(self, tmp_path):
+        with open(REPO_YAML) as f:
+            repo = yaml.safe_load(f)
+        defaults = Config(config_path=str(tmp_path / "none.yml")).config
+        assert repo["synthesis"] == defaults["synthesis"]
