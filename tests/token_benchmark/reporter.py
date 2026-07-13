@@ -24,7 +24,7 @@ def load_results(results_dir: Path) -> list[dict]:
     return records
 
 
-def compute_stats(records: list[dict]) -> dict:
+def compute_stats(records: list[dict], *, _include_per_run: bool = True) -> dict:
     """Aggregate records into summary stats per provider."""
     api_recs = [r for r in records if r.get("source") == "api"]
     cli_recs = [r for r in records if r.get("source") == "cli"]
@@ -128,7 +128,7 @@ def compute_stats(records: list[dict]) -> dict:
                     savings = (after_cost - data["avg_cost_usd"]) / after_cost
                     data["savings_vs_after_pct"] = round(savings * 100)
 
-    return {
+    result = {
         "token_overhead": token_overhead,
         "output_delta": {
             p: {
@@ -151,6 +151,15 @@ def compute_stats(records: list[dict]) -> dict:
         # provider-wide marker would mislabel every category forever.
         "cli_unsupported": _latest_unsupported_cells(cli_recs),
     }
+    if _include_per_run:
+        result["per_run"] = {
+            run_id: compute_stats(
+                [r for r in records if r["run_id"] == run_id],
+                _include_per_run=False,
+            )
+            for run_id in result["run_ids"]
+        }
+    return result
 
 
 def _empty_cell(provider: str, unsupported: set[str]) -> str:
@@ -303,22 +312,24 @@ def render_report(stats: dict, run_id: str) -> str:
         "|--------|" + "-------------------|" * (2 * len(PROVIDERS)),
     ]
     for run_id_h in stats.get("run_ids", [])[-10:]:  # last 10 runs
+        run_stats = stats.get("per_run", {}).get(run_id_h, {})
+        run_unsupported = set(run_stats.get("unsupported_providers", []))
         overhead_cells = []
         quality_cells = []
         for provider in PROVIDERS:
-            d = stats["token_overhead"].get(provider)
+            d = run_stats.get("token_overhead", {}).get(provider)
             overhead_cells.append(
                 f"+{d['overhead_tokens']:,}"
                 if d
-                else _empty_cell(provider, unsupported)
+                else _empty_cell(provider, run_unsupported)
             )
-            q_cats = stats["quality"].get(provider, {})
+            q_cats = run_stats.get("quality", {}).get(provider, {})
             q_total = sum(v.get("after_total", 0) for v in q_cats.values())
             q_score = sum(v.get("after_score", 0) for v in q_cats.values())
             quality_cells.append(
                 f"{q_score}/{q_total}"
                 if q_total
-                else _empty_cell(provider, unsupported)
+                else _empty_cell(provider, run_unsupported)
             )
         row = " | ".join([*overhead_cells, *quality_cells])
         lines.append(f"| {run_id_h[:19]} | {row} |")
