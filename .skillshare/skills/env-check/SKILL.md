@@ -98,9 +98,7 @@ Verify all cross-platform symlinks are intact:
 .codex/prompts   → ../.claude/prompts
 .codex/skills    → ../.claude/skills
 .codex/.plans    → ../.claude/.plans
-.antigravity/scripts → ../.claude/scripts
 .antigravity/config  → ../.claude/config
-.antigravity/prompts → ../.claude/prompts
 .antigravity/skills  → ../.claude/skills
 .antigravity/.plans  → ../.claude/.plans
 ```
@@ -166,6 +164,56 @@ Verify all scripts in `~/.claude/scripts/` are executable:
 ```
 
 Report: executable or not executable.
+
+### 9. emdash Inheritance (Info)
+
+[emdash](https://github.com/generalaction/emdash) is an external **harness** (not
+a Manifest deploy target) that launches your agent CLIs in parallel git worktrees
+using your **real `HOME`** — so a Manifest-configured agent inherits the full
+config transitively. This check reports whether that inheritance path is intact
+and surfaces the one coexistence caveat (FR-010, SC-005). Uses the shared probe
+`configs/claude/scripts/emdash_inherit_check.sh` (deployed to `~/.claude/scripts/`).
+
+Detect emdash first (optional harness — report `info`, not `fail`, when absent):
+
+```bash
+# macOS app bundle or the emdash worktrees directory
+[[ -d /Applications/Emdash.app || -d "$HOME/emdash" ]] \
+    && echo "emdash: detected" || echo "emdash: not detected (optional)"
+```
+
+When emdash is detected, run the shared inheritance probe live and render its
+per-dimension report:
+
+```bash
+~/.claude/scripts/emdash_inherit_check.sh          # human report
+~/.claude/scripts/emdash_inherit_check.sh --json   # machine-readable (same result)
+```
+
+Render one row per dimension — D1 skills, D2 subagents, D3 hooks, D4 MCP,
+D5 orchestration guide, D6 repo guides — plus the overall verdict:
+
+- **`INHERITED`** (exit 0) — all dimensions resolve → report `pass`.
+- **`DEGRADED`** (exit 1) — ≥1 dimension `FAIL` → report `warn` with the failing dimension(s).
+- **`BLOCKED`** (exit 2) — **prerequisite not met**: the Manifest home deployment
+  has not been run (`~/.claude` absent), so emdash sessions inherit only the
+  repo's committed config. Report `warn` with the fix: run `./bootstrap.sh`, then re-check.
+
+**Hook-coexistence caveat**: emdash appends its own `Stop` hook
+(`curl http://127.0.0.1:$EMDASH_HOOK_PORT/hook`, marker-tagged) to the agent's
+settings file on each spawn and adds that path to `.gitignore`. Manifest's hooks
+(home `~/.claude/settings.local.json`) and the repo's committed permissions are expected
+to be preserved by emdash's idempotent merge. In a live run the probe has no
+independent pre-merge snapshot to diff against, so `coexistence.manifest_hooks_preserved`
+and `worktree_permissions_intact` report `null` (`unverified`) rather than a
+false `true` — treat this as informational, not a live guarantee. The
+deterministic version of this check (a real pre/post diff) runs in
+`tests/bats/emdash_inheritance.bats` against a fixture, where those flags are
+genuine `true`/`false`. The injected machine-local hook is expected to stay
+**uncommitted**; do not commit it. See `docs/EMDASH.md`.
+
+Report: `pass` (INHERITED), `warn` (BLOCKED home-deploy-missing, or DEGRADED),
+or `info` (emdash not detected — optional harness).
 
 ## SkillClaw (if enabled)
 

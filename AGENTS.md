@@ -252,6 +252,17 @@ Skills are shared across all platforms via symlinks from `configs/claude/skills/
 - **Codex CLI**: Skills loaded from `~/.codex/skills/` (symlink to `~/.claude/skills/`)
 - **Antigravity**: Skills loaded from `~/.antigravity/skills/` (symlink to `~/.claude/skills/`)
 
+### emdash (external harness, not a deploy target)
+
+[emdash](https://github.com/generalaction/emdash) is an external desktop **harness**
+— it is **not** a Manifest deploy platform. It launches your agent CLIs (Claude Code,
+Codex, Gemini, Cursor) in parallel git worktrees using your **real `HOME`**, so those
+agents **inherit the full Manifest configuration transitively** — home `~/.claude/`
+skills/subagents/hooks/MCP/orchestration guide plus the repo's committed
+`CLAUDE.md`/`.claude/`/`AGENTS.md`. There is deliberately **no `~/.emdash/` config
+directory and no `configs/emdash/` tree** (either would be inert). Prerequisite: run
+`./bootstrap.sh` (home deploy) first. See [docs/EMDASH.md](docs/EMDASH.md).
+
 ## Parallel Agent Orchestration
 
 All agents share the same orchestration script at `configs/claude/scripts/parallel_agent.py`.

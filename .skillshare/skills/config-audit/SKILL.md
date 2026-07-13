@@ -150,6 +150,24 @@ diff configs/claude/config/skillclaw.yml ~/.claude/config/skillclaw.yml 2>/dev/n
 Pay particular attention to `port` and `storage_root` fields — divergence there
 can cause the daemon and wrappers to disagree on where data lives.
 
+### 7. emdash Hook Coexistence (awareness — not drift)
+
+The [emdash](https://github.com/generalaction/emdash) harness launches agent CLIs
+in git worktrees using the real `HOME`. On each spawn it **appends its own `Stop`
+hook** (`curl http://127.0.0.1:$EMDASH_HOOK_PORT/hook`, marker-tagged for idempotent
+dedup) to the agent's `.claude/settings.local.json` and adds that path to `.gitignore`.
+This is expected and does **not** indicate config drift:
+
+- Manifest's event **hooks** (and `mcpServers`) are deployed into home
+  `~/.claude/settings.local.json`; the repo's tracked worktree
+  `.claude/settings.local.json` holds **permissions** only. emdash's append
+  coexists with both — its idempotent merge preserves existing entries.
+- If an audit surfaces an emdash `Stop` hook or a new `.gitignore` line for a
+  settings file, treat it as machine-local **coexistence, not a drift finding**.
+  The injected hook is expected to stay **uncommitted** — do not commit it.
+
+See `docs/EMDASH.md` for the full coexistence caveat.
+
 ## Output Format
 
 ```text

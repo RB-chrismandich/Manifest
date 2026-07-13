@@ -1,0 +1,9 @@
+{
+  "preservePatterns": [],
+  "scripts": {
+    "setup": "git submodule update --init --recursive && pip install -r tests/requirements-ci.txt",
+    "run": null,
+    "teardown": null
+  },
+  "shellSetup": ""
+}
