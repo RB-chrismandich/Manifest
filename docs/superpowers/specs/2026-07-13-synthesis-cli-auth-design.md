@@ -1,7 +1,7 @@
 # Synthesis CLI Auth Alignment
 
-**Date**: 2026-07-13  
-**Status**: Approved (spec-review revisions applied)  
+**Date**: 2026-07-13
+**Status**: Approved (spec-review revisions applied)
 **Scope**: Fix `SynthesisEngine` authentication so low-consensus synthesis works
 for OAuth-only Claude Code users (CLI login, no `ANTHROPIC_API_KEY`), matching
 how the primary claude parallel agent already runs.
@@ -19,8 +19,8 @@ OAuth session.
 Primary agents do not have this gap. For claude (and gemini), `agents/cli.py`
 uses `select_backend()`:
 
-1. SDK when the package is installed **and** the API key env var is set  
-2. Otherwise CLI when the provider binary is on `PATH` (`claude -p`, etc.)  
+1. SDK when the package is installed **and** the API key env var is set
+2. Otherwise CLI when the provider binary is on `PATH` (`claude -p`, etc.)
 3. Otherwise SDK as a last resort (ADC/OAuth on SDK — rarely used for Anthropic)
 
 Most Manifest users authenticate via `claude /login` (subscription OAuth) without
@@ -167,12 +167,12 @@ synthesis lightweight). Add `import shutil` for `shutil.which("claude")`.
 
 Unchanged until the invoke step:
 
-1. Orchestrator runs N agents → `agent_results`  
-2. Consensus scorer → `consensus_score`  
-3. If score < threshold and synthesis enabled → `SynthesisEngine.synthesize()`  
-4. Template fill (`synthesis.md`) → prompt string  
-5. **New:** backend resolution → CLI or SDK invoke → raw text  
-6. JSON parse → attach under `consensus["synthesis"]` in orchestrator output  
+1. Orchestrator runs N agents → `agent_results`
+2. Consensus scorer → `consensus_score`
+3. If score < threshold and synthesis enabled → `SynthesisEngine.synthesize()`
+4. Template fill (`synthesis.md`) → prompt string
+5. **New:** backend resolution → CLI or SDK invoke → raw text
+6. JSON parse → attach under `consensus["synthesis"]` in orchestrator output
 
 No changes to CLI flags, JSON schema fields, or consensus scoring.
 
