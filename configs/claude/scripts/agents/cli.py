@@ -18,6 +18,7 @@ from agents.config import (
     Logger,
     RateLimiter,
     ServiceConfig,
+    select_backend,
 )
 from agents.orchestrator import Orchestrator, check_credits
 from agents.runners import (
@@ -25,26 +26,6 @@ from agents.runners import (
     CLIAgent,
     GeminiAgent,
 )
-
-
-def select_backend(has_sdk: bool, has_key: bool, has_cli: bool):
-    """Pick the execution backend for an SDK-capable provider (claude, gemini).
-
-    The SDK is preferred only when both the package and its API key are
-    present. Otherwise fall back to the provider CLI when it is on PATH —
-    OAuth-authenticated CLIs work without API keys, which is the common
-    subscription-login setup. As a last resort, an installed SDK may carry
-    its own auth (ADC/OAuth), so try it before giving up.
-
-    Returns "sdk", "cli", or None (provider unavailable).
-    """
-    if has_sdk and has_key:
-        return "sdk"
-    if has_cli:
-        return "cli"
-    if has_sdk:
-        return "sdk"
-    return None
 
 
 async def main():

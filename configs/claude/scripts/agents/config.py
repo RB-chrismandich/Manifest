@@ -125,7 +125,7 @@ class Config:
             "cli_agents": {
                 # claude/gemini entries back the OAuth CLI fallback used when
                 # the provider SDK or its API key is unavailable (see
-                # agents.cli.select_backend).
+                # agents.config.select_backend).
                 "claude": {
                     "binary": "claude",
                     "base_args": [],
@@ -194,6 +194,26 @@ class Config:
             else:
                 return default
         return value if value is not None else default
+
+
+def select_backend(has_sdk: bool, has_key: bool, has_cli: bool) -> str | None:
+    """Pick the execution backend for an SDK-capable provider (claude, gemini).
+
+    The SDK is preferred only when both the package and its API key are
+    present. Otherwise fall back to the provider CLI when it is on PATH —
+    OAuth-authenticated CLIs work without API keys, which is the common
+    subscription-login setup. As a last resort, an installed SDK may carry
+    its own auth (ADC/OAuth), so try it before giving up.
+
+    Returns "sdk", "cli", or None (provider unavailable).
+    """
+    if has_sdk and has_key:
+        return "sdk"
+    if has_cli:
+        return "cli"
+    if has_sdk:
+        return "sdk"
+    return None
 
 
 # ---------------------------------------------------------------------------
