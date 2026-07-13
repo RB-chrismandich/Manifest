@@ -163,7 +163,7 @@ class TestCLIAgentCommandAssembly:
         )
         cmd = agent._build_command("hello")
         i = cmd.index("--model")
-        assert cmd[i + 1] == "gpt-5.1-codex"
+        assert cmd[i + 1] == "auto"
 
     def test_cursor_headless_invocation(self, tmp_path):
         # Regression guard: cursor-agent must run headless (--print) and
@@ -240,7 +240,7 @@ class TestCLIAgentCommandAssembly:
             config=_make_config(tmp_path),
         )
         cmd = agent._build_command("hello")
-        assert cmd == ["claude", "--model", "claude-sonnet-4-6", "-p", "hello"]
+        assert cmd == ["claude", "--model", "claude-sonnet-5", "-p", "hello"]
 
     def test_gemini_cli_command_shape(self, tmp_path):
         # gemini headless: -m takes the model, -p takes the prompt as its value
