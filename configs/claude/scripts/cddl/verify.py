@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import re
+import shlex
 import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -58,10 +59,11 @@ def detect_cmds(repo_root: str | Path) -> list[str]:
 
 def _default_command_runner_factory(repo_root, timeout):
     def run_cmd(cmd: str) -> tuple[int, str]:
+        argv = shlex.split(cmd)
         try:
             proc = subprocess.run(
-                cmd,
-                shell=True,
+                argv,
+                shell=False,
                 cwd=str(repo_root),
                 capture_output=True,
                 text=True,
@@ -81,7 +83,13 @@ def run_verification(
     timeout: float | None = None,
     command_runner=None,
 ) -> VerificationResult:
-    """Run the project's gates in sequence, logging output; stop at first failure."""
+    """Run the project's gates in sequence, logging output; stop at first failure.
+
+    When ``verify_cmd`` is set, it is parsed as a simple argv string via
+    :func:`shlex.split` (``shell=False``). Shell metacharacters such as
+    ``&&``, ``|``, and ``;`` are not interpreted — they become literal
+    arguments. Use injectable ``command_runner`` if compound shell is required.
+    """
     log_path = Path(log_path)
     log_path.parent.mkdir(parents=True, exist_ok=True)
     cmds = [verify_cmd] if verify_cmd else detect_cmds(repo_root)

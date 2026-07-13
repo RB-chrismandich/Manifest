@@ -1,6 +1,10 @@
 """US1 — verification-before-critique gate (T016, FR-009; research D8)."""
 
 import json
+import shlex
+from unittest.mock import MagicMock
+
+import pytest
 
 from cddl.verify import detect_cmds, run_verification
 
@@ -60,9 +64,16 @@ def test_verify_cmd_override_passes(tmp_path):
 
 def test_verify_cmd_override_fails(tmp_path):
     log = tmp_path / "verify.log"
-    result = run_verification(tmp_path, "echo boom && exit 3", log)
+    result = run_verification(tmp_path, "false", log)
     assert result.ran and not result.passed
-    assert "boom" in log.read_text()
+    assert "[exit 1]" in log.read_text()
+
+
+def test_verify_cmd_shell_metacharacters_are_literal(tmp_path):
+    log = tmp_path / "verify.log"
+    result = run_verification(tmp_path, "echo boom && exit 3", log)
+    assert result.ran and result.passed
+    assert "boom && exit 3" in log.read_text()
 
 
 def test_sequence_stops_at_first_failure(tmp_path):
@@ -81,3 +92,33 @@ def test_command_runs_in_repo_cwd(tmp_path):
     log = tmp_path / "verify.log"
     run_verification(tmp_path, "pwd", log)
     assert str(tmp_path.resolve()) in log.read_text()
+
+
+@pytest.mark.parametrize(
+    "cmd",
+    [
+        "bats tests/bats/",
+        "pytest",
+        "npm test -s",
+        "make test",
+    ],
+)
+def test_default_runner_splits_auto_detected_cmds(cmd, tmp_path, monkeypatch):
+    calls: list[dict] = []
+
+    def fake_run(argv, **kwargs):
+        calls.append({"argv": argv, "shell": kwargs.get("shell")})
+        proc = MagicMock()
+        proc.returncode = 0
+        proc.stdout = f"ran {' '.join(argv)}\n"
+        proc.stderr = ""
+        return proc
+
+    monkeypatch.setattr("cddl.verify.subprocess.run", fake_run)
+    log = tmp_path / "verify.log"
+    result = run_verification(tmp_path, cmd, log)
+    assert result.ran and result.passed
+    assert len(calls) == 1
+    assert calls[0]["shell"] is False
+    assert calls[0]["argv"] == shlex.split(cmd)
+    assert f"ran {cmd}" in log.read_text()
