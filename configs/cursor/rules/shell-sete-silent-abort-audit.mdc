@@ -1,0 +1,15 @@
+---
+description: "Use when a bash script under `set -e` (or `set -euo pipefail`) aborts, exits non-zero, or misbehaves in production but passes tests and small inputs — audit helper functions and sourced libs for three non-`$()` triggers. Complements shell-pipefail-subshell-audit (which covers `$()` parsing empty input)."
+globs: ".claude/skills/shell-sete-silent-abort-audit/**"
+alwaysApply: false
+---
+
+# shell-sete-silent-abort-audit
+
+Use when a bash script under `set -e` (or `set -euo pipefail`) aborts, exits non-zero, or misbehaves in production but passes tests and small inputs — audit helper functions and sourced libs for three non-`$()` triggers. Complements shell-pipefail-subshell-audit (which covers `$()` parsing empty input).
+
+<!-- Auto-generated from .claude/skills/shell-sete-silent-abort-audit/SKILL.md -->
+<!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
+
+Refer to `.cursor/skills/shell-sete-silent-abort-audit/SKILL.md` for the full skill definition.
+
