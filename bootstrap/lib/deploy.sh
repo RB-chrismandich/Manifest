@@ -144,7 +144,7 @@ deploy_configs() {
                     fi
                     # Merge mode - copy only new files (skills handled separately
                     # below; the skills compat symlink must not be copied verbatim)
-                    rsync -av --ignore-existing --exclude '/skills' --exclude '/agents' --exclude '/references/pilotfish-delegation.md' "${claude_md_exclude[@]}" "$source_dir/" "$TARGET_DIR/"
+                    rsync -av --ignore-existing --exclude '/skills' --exclude '/agents' --exclude '/references/pilotfish-delegation.md' "${claude_md_exclude[@]+"${claude_md_exclude[@]}"}" "$source_dir/" "$TARGET_DIR/"
                     deploy_home_skills "$SCRIPT_DIR/.skillshare/skills" "$TARGET_DIR/skills"
                     gate_graphify_skill "$TARGET_DIR/skills"
                     gate_pilotfish_agents "$TARGET_DIR" "$source_dir/agents"
@@ -208,7 +208,7 @@ deploy_configs() {
     # (pilotfish role files are deployed by gate_pilotfish_agents under its toggle,
     # so a disabled or foreign ~/.claude/agents is never clobbered — spec FR-008).
     # CLAUDE.md is excluded too when Claude is disabled (see claude_md_exclude above).
-    rsync -a --exclude '/skills' --exclude '/agents' --exclude '/references/pilotfish-delegation.md' "${claude_md_exclude[@]}" "$source_dir"/ "$TARGET_DIR/"
+    rsync -a --exclude '/skills' --exclude '/agents' --exclude '/references/pilotfish-delegation.md' "${claude_md_exclude[@]+"${claude_md_exclude[@]}"}" "$source_dir"/ "$TARGET_DIR/"
     # Copy dot-prefixed directories (e.g. .plans/) that the glob above skips
     cp -R "$source_dir"/.[!.]* "$TARGET_DIR/" 2> /dev/null || true
 
