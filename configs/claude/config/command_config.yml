@@ -567,6 +567,9 @@ tool_policies:
   antipattern-detect:
     subagents: never
     subagent_rationale: Auto-triggered analyzer writing one shared knowledge_base.yml; parallel writes unsafe.
+  automation-rework-breakeven:
+    subagents: never
+    subagent_rationale: Single break-even analysis for one automation/skill version trade-off.
   api-optimize-bulk:
     subagents: never
     subagent_rationale: Single sequential optimization investigation of one API loop.
@@ -660,6 +663,9 @@ tool_policies:
   performance-check:
     subagents: never
     subagent_rationale: Single-project static perf audit; sequential phases into one report.
+  test-audit-false-green:
+    subagents: never
+    subagent_rationale: Single-target audit of one health-check or CI gate for skip-as-pass blind spots.
   test-pin-bug:
     subagents: never
     subagent_rationale: 'Tiny single-target task: write one tolerant test assertion.'
@@ -699,6 +705,9 @@ tool_policies:
   shell-audit-errexit:
     subagents: never
     subagent_rationale: Single-script/sourced-chain audit of coupled control-flow hazards; sequential.
+  shell-audit-counters:
+    subagents: never
+    subagent_rationale: Single-pattern audit of errexit-unsafe arithmetic counters in one script.
   skill-evolve:
     subagents: never
     subagent_rationale: Thin wrapper invoking one promote script (handles its own batching) and opens a PR.

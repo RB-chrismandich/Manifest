@@ -57,6 +57,7 @@ diff-security-review	security-review-diff
 security-finding-triage	security-triage-findings
 checkpoint	session-checkpoint
 shell-sete-silent-abort-audit	shell-audit-errexit
+errexit-safe-shell-counters	shell-audit-counters
 shell-pipefail-subshell-audit	shell-audit-pipefail
 refactor-shell	shell-refactor
 smoke-orchestrator	smoke-manage
@@ -64,5 +65,6 @@ architecture-decision-tradeoff-table	spec-decide-tradeoffs
 speckit-implement-review	speckit-audit-tasks
 refactor-terraform	terraform-refactor
 pin-known-bug-test-survives-fix	test-pin-bug
+false-green-check-audit	test-audit-false-green
 statistical-test-fixture-variance	test-vary-fixtures
 token-economy	token-conserve

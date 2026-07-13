@@ -1,10 +1,10 @@
 ---
-name: errexit-safe-shell-counters
+name: shell-audit-counters
 description: Use when writing or debugging bash under `set -e` that increments counters with `((var++))`/`((n--))` — the arithmetic command returns exit 1 when its result is 0, silently aborting the script on the first increment from zero (and only on bash ≥4, so macOS bash 3.2 hides it until CI).
 ---
 # Errexit-Safe Shell Counters
 
-Distinct from `shell-pipefail-subshell-audit` (pipefail + `$()` parsing empty input). This is the `((...))`-returns-1-on-zero trap that passes locally and dies in CI.
+Distinct from `shell-audit-pipefail` (pipefail + `$()` parsing empty input). This is the `((...))`-returns-1-on-zero trap that passes locally and dies in CI.
 
 1. **Know the trap.** In bash, `((expr))` and `let` return exit status 1 whenever the arithmetic result is `0`. `((count++))` is *post*-increment — it evaluates to the OLD value — so the very first `((count++))` when `count=0` evaluates to 0 and returns 1.
 2. **See why it aborts.** Under `set -e`/`set -euo pipefail`, that nonzero status kills the script — usually mid-loop, right after the action you just counted — giving a baffling silent exit with no error message.
