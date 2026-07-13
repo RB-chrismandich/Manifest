@@ -9,7 +9,7 @@
 ---
 
 ## 1. Context & Purpose
-VisualSmoke is an autonomous, browser-driven end-to-end verification agent harness. It extends Manifest's [smoke test orchestrator](file:///Users/chrismandich/Documents/GitHub/Manifest/specs/363-smoke-test-orchestrator/spec.md) by introducing an LLM-driven interaction mode that verifies visual fidelity, user flow correctness, accessibility, and performance budgets.
+VisualSmoke is an autonomous, browser-driven end-to-end verification agent harness. It extends Manifest's [smoke test orchestrator](../363-smoke-test-orchestrator/spec.md) by introducing an LLM-driven interaction mode that verifies visual fidelity, user flow correctness, accessibility, and performance budgets.
 
 Instead of writing brittle CSS/XPath-based tests, an agent describes the visual target or user flow in plain language, and the VisualSmoke runner executes, audits, and validates the UI.
 
