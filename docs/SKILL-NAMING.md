@@ -125,18 +125,34 @@ conformance test parses the fenced block.
 <!-- skill-naming:exceptions -->
 ```text
 ai-hooks-integration
+automation-rework-breakeven
+cli-help-before-dependency-checks
+errexit-safe-shell-counters
+false-green-check-audit
 graphify
 help
+merge-stacked-pr-chain
 pass-cli
+pin-known-bug-test-survives-fix
+reproduce-gated-ci-failure-locally
+shell-sete-silent-abort-audit
 ```
 <!-- /skill-naming:exceptions -->
 
 | Name | Rationale |
 |---|---|
 | `ai-hooks-integration` | Externally installed via skillshare (`github.com/runkids/ai-hooks-integration`); not ours to rename. |
+| `automation-rework-breakeven` | SkillClaw-evolved break-even analysis skill; descriptive compound name encodes the trade-off being modeled. |
+| `cli-help-before-dependency-checks` | SkillClaw-evolved CLI audit pattern; name states the invariant (help before deps). |
+| `errexit-safe-shell-counters` | SkillClaw-evolved shell hazard skill; pairs with `shell-audit-*` family semantics. |
+| `false-green-check-audit` | SkillClaw-evolved health-check audit; "false green" is the domain term being guarded against. |
 | `graphify` | Named for the managed `graphify` CLI it wraps (`--enable-graphify` toggle, installed binary). |
 | `help` | Universal single-word entry point; ergonomics beat conformance. |
+| `merge-stacked-pr-chain` | SkillClaw-evolved stacked-PR workflow; verb phrase matches gh merge semantics. |
 | `pass-cli` | Named for the `pass-cli` binary it wraps; `token-*` here means LLM token economy, so a credential fetcher must not move there. |
+| `pin-known-bug-test-survives-fix` | SkillClaw-evolved test-pattern skill; encodes the full invariant in the name. |
+| `reproduce-gated-ci-failure-locally` | SkillClaw-evolved CI-debug workflow; descriptive phrase for gated-log reproduction. |
+| `shell-sete-silent-abort-audit` | SkillClaw-evolved complement to `shell-audit-*`; encodes set -e silent-abort class. |
 
 ## Examples
 
