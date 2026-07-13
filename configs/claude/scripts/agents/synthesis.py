@@ -60,6 +60,15 @@ class SynthesisEngine:
             self.logger.warning(f"Synthesis template not found: tried {tried}")
         return ""
 
+    def _claude_cli_available(self) -> bool:
+        spec = self.config.get("cli_agents.claude") or {}
+        binary = spec.get("binary", "claude")
+        if not binary:
+            return False
+        if os.path.isabs(binary) or binary.startswith("."):
+            return os.path.isfile(binary) and os.access(binary, os.X_OK)
+        return bool(shutil.which(binary))
+
     def _resolve_synthesis_backend(self) -> str | None:
         raw = self.config.get("synthesis.backend", "auto")
         if raw not in ("auto", "cli", "sdk"):
@@ -67,7 +76,7 @@ class SynthesisEngine:
                 self.logger.warning(f"invalid synthesis.backend={raw!r}, using auto")
             raw = "auto"
 
-        has_cli = bool(shutil.which("claude"))
+        has_cli = self._claude_cli_available()
         has_key = bool(os.environ.get("ANTHROPIC_API_KEY"))
 
         if raw == "cli":

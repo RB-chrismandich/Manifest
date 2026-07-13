@@ -273,6 +273,16 @@ class TestBuildPromptEdgeCases:
 
 
 class TestSynthesisBackendResolution:
+    def test_claude_cli_available_uses_configured_binary(self, tmp_path):
+        engine = _make_engine(tmp_path)
+        custom = tmp_path / "my-claude"
+        custom.write_text("#!/bin/sh\necho hi\n")
+        custom.chmod(0o755)
+        engine.config.config.setdefault("cli_agents", {}).setdefault("claude", {})[
+            "binary"
+        ] = str(custom)
+        assert engine._claude_cli_available() is True
+
     def test_auto_prefers_cli_without_api_key(self, tmp_path, monkeypatch):
         monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
         monkeypatch.setattr("agents.synthesis.shutil.which", lambda _: "/usr/bin/claude")
