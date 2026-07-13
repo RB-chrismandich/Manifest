@@ -5,7 +5,6 @@ import shlex
 from unittest.mock import MagicMock
 
 import pytest
-
 from cddl.verify import detect_cmds, run_verification
 
 
