@@ -458,10 +458,9 @@ class TestHistoricalRunsPerRunScope:
 
     def test_run_with_no_valid_measurements_shows_dash_not_inherited(self):
         """A CLI-only unsupported run must not inherit another run's aggregates."""
-        measured = (
-            self._api_row("2026-06-12T10-00-00", input_before=100, input_after=2635)
-            + self._cli_row("2026-06-12T10-00-00", quality_score=1)
-        )
+        measured = self._api_row(
+            "2026-06-12T10-00-00", input_before=100, input_after=2635
+        ) + self._cli_row("2026-06-12T10-00-00", quality_score=1)
         cli_only_unsupported = [
             {
                 "run_id": "2026-07-11T00-00-00",
