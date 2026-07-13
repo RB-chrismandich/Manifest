@@ -1,0 +1,13 @@
+{
+  "Explore.md": "agents",
+  "chaos-engineer.md": "agents-devpanel",
+  "debugger.md": "agents-devpanel",
+  "developer.md": "agents-devpanel",
+  "executor.md": "agents",
+  "mech-executor.md": "agents",
+  "scout.md": "agents",
+  "security-executor.md": "agents",
+  "spec-guard.md": "agents-devpanel",
+  "tester.md": "agents-devpanel",
+  "verifier.md": "agents"
+}

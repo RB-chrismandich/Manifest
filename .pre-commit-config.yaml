@@ -215,7 +215,7 @@ repos:
           fi'
         language: system
         pass_filenames: false
-        files: ^(\.skillshare/skills/|configs/claude/agents/|configs/claude/config/mcp_servers\.yml|configs/cursor/(rules|mcp\.json|agents)/)
+        files: ^(\.skillshare/skills/|configs/claude/agents/|configs/claude/agents-devpanel/|configs/claude/config/mcp_servers\.yml|configs/cursor/(rules|mcp\.json|agents)/)
 
       # Detect stale repo-relative .claude/ paths after configs/ migration
       # Only scans docs and root markdown — configs/, tests/, and templates/

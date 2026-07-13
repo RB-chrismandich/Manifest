@@ -358,3 +358,136 @@ remove_pilotfish_pointer() {
     # shellcheck disable=SC2015
     grep -vF 'pilotfish-delegation.md' "$guide" > "$tmp" && mv "$tmp" "$guide" || rm -f "$tmp"
 }
+
+# ---------------------------------------------------------------------------
+# devpanel critic-gated role-agents (opt-in via --enable-devpanel; Claude-only).
+#
+# A second, independent role-agent set: developer/debugger/tester (primaries)
+# plus spec-guard/chaos-engineer (shared validators gating whichever primary
+# ran). Deploys into the SAME ~/.claude/agents dir as pilotfish, on disjoint
+# filenames — the two toggles are fully independent and may be enabled
+# together. Mirrors gate_pilotfish_agents' mechanics exactly (own marker,
+# own pointer, own manifest-scoped prune) rather than extending pilotfish's
+# closed six-role set, which has its own contract (exactly six files).
+# ---------------------------------------------------------------------------
+
+# shellcheck disable=SC2016
+DEVPANEL_POINTER_LINE='- `~/.claude/references/devpanel-delegation.md` — devpanel critic-gated dev/debug/test role agents (propose→critique→refactor loop).'
+
+# The exact set of agent files Manifest deploys for devpanel. Keep in sync with
+# configs/claude/agents-devpanel/*.md.
+DEVPANEL_AGENT_FILES=(developer.md debugger.md tester.md spec-guard.md chaos-engineer.md)
+
+# Pre-deploy collision guard, mirrors check_pilotfish_collision. Returns 1 to
+# abort, 0 when safe. No-op when devpanel is disabled.
+check_devpanel_collision() {
+    local home="$1"
+    local agents="$home/agents"
+    [[ "${ENABLE_DEVPANEL:-false}" == false ]] && return 0
+    [[ -d "$agents" && ! -f "$agents/.devpanel" ]] || return 0
+    local a
+    for a in ${DEVPANEL_AGENT_FILES[@]+"${DEVPANEL_AGENT_FILES[@]}"}; do
+        if [[ -e "$agents/$a" ]]; then
+            print_error "devpanel: $agents/$a already exists and is not Manifest-owned; refusing to overwrite. Move or remove it, then re-run (nothing was changed)."
+            return 1
+        fi
+    done
+    return 0
+}
+
+# Post-copy gate, mirrors gate_pilotfish_agents. Prune the devpanel artifacts
+# when the toggle is off (removing exactly them); when on, deploy the five
+# role files + the delegation reference from source, stamp the owner marker,
+# and inject the delegation pointer. Idempotent across both rsync paths.
+#   $1 home        — deploy target home (e.g. ~/.claude)
+#   $2 src_agents  — source agents dir (configs/claude/agents-devpanel); used only when enabled
+gate_devpanel_agents() {
+    local home="$1"
+    local src_agents="${2:-}"
+    local agents="$home/agents"
+    local ref="$home/references/devpanel-delegation.md"
+    local guide="$home/CLAUDE.md"
+    local src_ref=""
+    [[ -n "$src_agents" ]] && src_ref="$(dirname "$src_agents")/references/devpanel-delegation.md"
+
+    if [[ "${ENABLE_DEVPANEL:-false}" == false ]]; then
+        # Opt-out: remove exactly the deployed devpanel artifacts and NOTHING
+        # else — manifest-scoped prune, mirrors gate_pilotfish_agents. A
+        # coexisting pilotfish deploy (or user-authored agent) in the same
+        # dir survives; rmdir only succeeds when the dir is now empty.
+        if [[ -f "$agents/.devpanel" ]]; then
+            local a
+            for a in ${DEVPANEL_AGENT_FILES[@]+"${DEVPANEL_AGENT_FILES[@]}"}; do
+                rm -f "$agents/$a"
+            done
+            rm -f "$agents/.devpanel"
+            rmdir "$agents" 2> /dev/null || true
+            print_info "devpanel disabled - removed deployed role-agents"
+        fi
+        [[ -f "$ref" ]] && rm -f "$ref"
+        remove_devpanel_pointer "$guide"
+        return 0
+    fi
+
+    # Enabled: idempotent — cp overwrites our own files, the marker is
+    # re-stamped, and the pointer inject is grep-guarded, so an enabled
+    # re-run reconverges to the same tree rather than skipping.
+    mkdir -p "$agents"
+    if [[ -n "$src_agents" && -d "$src_agents" ]]; then
+        local f
+        for f in ${DEVPANEL_AGENT_FILES[@]+"${DEVPANEL_AGENT_FILES[@]}"}; do
+            [[ -f "$src_agents/$f" ]] && cp "$src_agents/$f" "$agents/$f"
+        done
+    fi
+    if [[ -n "$src_ref" && -f "$src_ref" ]]; then
+        mkdir -p "$home/references"
+        cp "$src_ref" "$ref"
+    fi
+    : > "$agents/.devpanel"
+    inject_devpanel_pointer "$guide"
+    return 0
+}
+
+# Idempotently add DEVPANEL_POINTER_LINE to the deployed guide's Reference
+# Index, anchored after the pilotfish pointer when present (so enabling both
+# toggles produces a stable, order-independent result), else after
+# antipatterns.md, else the "## Reference Index" heading.
+inject_devpanel_pointer() {
+    local guide="$1"
+    [[ -f "$guide" ]] || return 0
+    grep -qF 'devpanel-delegation.md' "$guide" && return 0
+    local tmp
+    tmp="$(mktemp)" || return 0
+    if grep -qF 'pilotfish-delegation.md' "$guide"; then
+        awk -v ins="$DEVPANEL_POINTER_LINE" '
+            { print }
+            !done && /pilotfish-delegation\.md/ { print ins; done = 1 }
+        ' "$guide" > "$tmp"
+    elif grep -qF 'antipatterns.md' "$guide"; then
+        awk -v ins="$DEVPANEL_POINTER_LINE" '
+            { print }
+            !done && /antipatterns\.md/ { print ins; done = 1 }
+        ' "$guide" > "$tmp"
+    else
+        awk -v ins="$DEVPANEL_POINTER_LINE" '
+            { print }
+            !done && /^## Reference Index/ { print ""; print ins; done = 1 }
+        ' "$guide" > "$tmp"
+    fi
+    if grep -qF 'devpanel-delegation.md' "$tmp"; then
+        mv "$tmp" "$guide"
+    else
+        rm -f "$tmp"
+    fi
+}
+
+# Remove the devpanel pointer line from the deployed guide (idempotent).
+remove_devpanel_pointer() {
+    local guide="$1"
+    [[ -f "$guide" ]] || return 0
+    grep -qF 'devpanel-delegation.md' "$guide" || return 0
+    local tmp
+    tmp="$(mktemp)" || return 0
+    # shellcheck disable=SC2015
+    grep -vF 'devpanel-delegation.md' "$guide" > "$tmp" && mv "$tmp" "$guide" || rm -f "$tmp"
+}

@@ -30,6 +30,7 @@ set_bootstrap_defaults() {
     ENABLE_GRAPHIFY=true
     ENABLE_SKILLCLAW=false
     ENABLE_PILOTFISH=false
+    ENABLE_DEVPANEL=false
     ENABLE_BROWSER_USE=false
     ENABLE_SMOKE=false
     ENABLE_GH="auto"
@@ -44,6 +45,7 @@ set_bootstrap_defaults() {
     GRAPHIFY_SET=false
     SKILLCLAW_SET=false
     PILOTFISH_SET=false
+    DEVPANEL_SET=false
     BROWSER_USE_SET=false
     SMOKE_SET=false
     GH_SET=false
@@ -75,6 +77,8 @@ print_bootstrap_help() {
     echo "  --disable-skillclaw    Disable SkillClaw session capture"
     echo "  --enable-pilotfish     Enable pilotfish cost-tiered role-agents (default: disabled)"
     echo "  --disable-pilotfish    Disable pilotfish cost-tiered role-agents"
+    echo "  --enable-devpanel      Enable devpanel critic-gated dev/debug/test role-agents (default: disabled)"
+    echo "  --disable-devpanel     Disable devpanel critic-gated dev/debug/test role-agents"
     echo "  --enable-browser-use   Enable browser-use E2E testing (default: disabled)"
     echo "  --disable-browser-use  Disable browser-use E2E testing"
     echo "  --enable-smoke         Install smoke-test deps: Playwright+Chromium (default: disabled)"
@@ -184,6 +188,16 @@ parse_bootstrap_args() {
                 PILOTFISH_SET=true
                 shift
                 ;;
+            --enable-devpanel)
+                ENABLE_DEVPANEL=true
+                DEVPANEL_SET=true
+                shift
+                ;;
+            --disable-devpanel)
+                ENABLE_DEVPANEL=false
+                DEVPANEL_SET=true
+                shift
+                ;;
             --enable-browser-use)
                 ENABLE_BROWSER_USE=true
                 BROWSER_USE_SET=true
@@ -271,6 +285,7 @@ parse_services_config() {
     FILE_GRAPHIFY=""
     FILE_SKILLCLAW=""
     FILE_PILOTFISH=""
+    FILE_DEVPANEL=""
     FILE_BROWSER_USE=""
     FILE_SMOKE=""
     FILE_GH=""
@@ -288,6 +303,7 @@ parse_services_config() {
             /^[[:space:]]*graphify:/ { section="graphify"; subsection="" }
             /^[[:space:]]*skillclaw:/ { section="skillclaw"; subsection="" }
             /^[[:space:]]*pilotfish:/ { section="pilotfish"; subsection="" }
+            /^[[:space:]]*devpanel:/ { section="devpanel"; subsection="" }
             /^[[:space:]]*browser_use:/ { section="browser_use"; subsection="" }
             /^[[:space:]]*smoke:/ { section="smoke"; subsection="" }
             /^[[:space:]]*git_cli:/ { section="git_cli"; subsection="" }
@@ -302,6 +318,7 @@ parse_services_config() {
                 if (section == "graphify") print "FILE_GRAPHIFY=true"
                 if (section == "skillclaw") print "FILE_SKILLCLAW=true"
                 if (section == "pilotfish") print "FILE_PILOTFISH=true"
+                if (section == "devpanel") print "FILE_DEVPANEL=true"
                 if (section == "browser_use") print "FILE_BROWSER_USE=true"
                 if (section == "smoke") print "FILE_SMOKE=true"
                 if (section == "git_cli" && subsection == "github") print "FILE_GH=true"
@@ -316,6 +333,7 @@ parse_services_config() {
                 if (section == "graphify") print "FILE_GRAPHIFY=false"
                 if (section == "skillclaw") print "FILE_SKILLCLAW=false"
                 if (section == "pilotfish") print "FILE_PILOTFISH=false"
+                if (section == "devpanel") print "FILE_DEVPANEL=false"
                 if (section == "browser_use") print "FILE_BROWSER_USE=false"
                 if (section == "smoke") print "FILE_SMOKE=false"
                 if (section == "git_cli" && subsection == "github") print "FILE_GH=false"
@@ -335,7 +353,7 @@ parse_services_config() {
                     val="${val%\"}"
                     val="${val#\"}"
                     case "$key" in
-                        FILE_CLAUDE | FILE_GEMINI | FILE_CURSOR | FILE_CODEX | FILE_ANTIGRAVITY | FILE_GRAPHIFY | FILE_SKILLCLAW | FILE_PILOTFISH | FILE_BROWSER_USE | FILE_SMOKE | FILE_GH | FILE_GLAB)
+                        FILE_CLAUDE | FILE_GEMINI | FILE_CURSOR | FILE_CODEX | FILE_ANTIGRAVITY | FILE_GRAPHIFY | FILE_SKILLCLAW | FILE_PILOTFISH | FILE_DEVPANEL | FILE_BROWSER_USE | FILE_SMOKE | FILE_GH | FILE_GLAB)
                             printf -v "$key" "%s" "$val"
                             ;;
                     esac
@@ -383,6 +401,10 @@ load_existing_config() {
 
         if [[ "$PILOTFISH_SET" == false && -n "$FILE_PILOTFISH" ]]; then
             ENABLE_PILOTFISH=$FILE_PILOTFISH
+        fi
+
+        if [[ "$DEVPANEL_SET" == false && -n "$FILE_DEVPANEL" ]]; then
+            ENABLE_DEVPANEL=$FILE_DEVPANEL
         fi
 
         if [[ "$BROWSER_USE_SET" == false && -n "$FILE_BROWSER_USE" ]]; then
@@ -498,6 +520,14 @@ services:
   pilotfish:
     enabled: ${ENABLE_PILOTFISH:-false}
     description: "Cost-tiered role-agents + delegation policy, verifier-gated (opt-in, Claude-only)"
+
+  # devpanel - critic-gated dev/debug/test role-agents (~/.claude/agents/) + delegation
+  # policy reference. Independent of pilotfish (own toggle, own marker), deploys into the
+  # same agents dir on disjoint filenames. Config-only; gated deploy in
+  # bootstrap/lib/deploy.sh (gate_devpanel_agents). Claude-only.
+  devpanel:
+    enabled: ${ENABLE_DEVPANEL:-false}
+    description: "developer/debugger/tester + spec-guard/chaos-engineer critic loop (opt-in, Claude-only)"
 
   # browser-use - AI-powered E2E browser testing agent
   browser_use:

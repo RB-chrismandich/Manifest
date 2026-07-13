@@ -78,6 +78,13 @@ cd Manifest
   delegation policy, so mechanical/read-only work runs on cheaper tiers while the frontier model
   plans and decides. Config-only; does not change your main-session model. Enable with
   `--enable-pilotfish`
+- **DevPanel Critic-Gated Role Agents** (opt-in): Deploys five role-agents (developer, debugger,
+  tester as primaries; spec-guard, chaos-engineer as shared adversarial validators) to the same
+  Claude/Cursor agent homes as pilotfish, on disjoint filenames — both toggles may be enabled
+  together. A propose → critique → refactor loop: a primary implements/diagnoses/tests, both
+  validators independently gate the candidate, and the loop terminates only on dual `APPROVED`
+  with zero pending changes. Config-only; does not change your main-session model. Enable with
+  `--enable-devpanel`
 
 ---
 

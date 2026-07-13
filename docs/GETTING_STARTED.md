@@ -386,6 +386,10 @@ If you encounter issues:
 - **pilotfish (opt-in)**: Cost-tiered role-agents that delegate mechanical/read-only work to
   cheaper model tiers and gate results behind a verifier — enable with
   `./bootstrap.sh --enable-pilotfish` (Claude-only; does not change your main-session model).
+- **devpanel (opt-in)**: Critic-gated developer/debugger/tester role-agents, gated by two shared
+  adversarial validators (spec-guard, chaos-engineer) in a propose → critique → refactor loop —
+  enable with `./bootstrap.sh --enable-devpanel` (Claude-only; independent of pilotfish, may be
+  enabled alongside it; does not change your main-session model).
 
 **See**: [Configuration Guide](CONFIGURATION.md) for advanced topics
 

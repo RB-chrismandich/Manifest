@@ -85,6 +85,14 @@ services:
     enabled: false
     description: "Cost-tiered role-agents + delegation policy, verifier-gated (opt-in, Claude-only)"
 
+  # devpanel - critic-gated dev/debug/test role-agents (~/.claude/agents/) + delegation
+  # policy reference. Independent of pilotfish (own toggle, own marker), deploys into the
+  # same agents dir on disjoint filenames. Config-only; gated deploy in
+  # bootstrap/lib/deploy.sh (gate_devpanel_agents). Claude-only.
+  devpanel:
+    enabled: false
+    description: "developer/debugger/tester + spec-guard/chaos-engineer critic loop (opt-in, Claude-only)"
+
   # browser-use - AI-powered E2E browser testing agent
   browser_use:
     enabled: false
