@@ -175,6 +175,12 @@ jobs:
       - name: Install bats (pinned)
         run: npm install bats@1.11.1
 
+      - name: Install uv
+        run: pip install uv
+
+      - name: Sync manifest runtime (bats tests stub ~/.claude/.venv from this tree)
+        run: uv sync --project configs/claude
+
       - name: Run bats tests
         run: ./node_modules/.bin/bats tests/bats/
 
@@ -205,7 +211,7 @@ jobs:
         # Deterministic, browser-free critical-path smoke (smoke-catalog/*.yaml).
         run: |
           if [ -d smoke-catalog ] && find smoke-catalog -name '*.yaml' | grep -q .; then
-            python3 configs/claude/scripts/smoke_test.py run --app manifest --tier Lite --catalog-dir smoke-catalog
+            configs/claude/.venv/bin/manifest smoke run --app manifest --tier Lite --catalog-dir smoke-catalog
           else
             echo "No smoke-catalog/ found - skipping"
           fi

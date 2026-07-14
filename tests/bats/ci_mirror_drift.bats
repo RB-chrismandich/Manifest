@@ -129,8 +129,8 @@ assert_mirrored() {
 }
 
 @test "smoke_test.py Lite-tier run (P-VI Verify gate) is mirrored" {
-    assert_mirrored "smoke_test.py --tier Lite" \
-        "smoke_test.py|--tier Lite"
+    assert_mirrored "manifest smoke --tier Lite" \
+        "manifest smoke|--tier Lite"
 }
 
 @test "bash -n shell-syntax validation is mirrored" {

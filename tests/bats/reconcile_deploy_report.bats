@@ -14,6 +14,10 @@ setup() {
     mkdir -p "$HOME/.claude/skills/dead" "$HOME/.claude/config"
     echo "x" > "$HOME/.claude/skills/dead/SKILL.md"
     echo "stale" > "$HOME/.claude/config/old_layout.yml"
+    # shellcheck disable=SC1091
+    source "$REPO_ROOT/tests/test_helper/stub_home_runtime.bash"
+    stub_home_manifest_runtime "$REPO_ROOT"
+    export MANIFEST_VENV_PY="$HOME/.claude/.venv/bin/python"
     # source the libs under test (functions only)
     # shellcheck disable=SC1090
     source "$REPO_ROOT/bootstrap/lib/common.sh"

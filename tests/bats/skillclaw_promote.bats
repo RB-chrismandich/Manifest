@@ -23,12 +23,6 @@ echo "git_ops.sh $*" >> "$SKILLCLAW_PROMOTE_LOG"
 [ "$1" = "pr-create" ] && echo "https://example.test/pr/1"
 exit 0
 EOF
-    cat > "$MOCK_BIN/manifest" << 'EOF'
-#!/usr/bin/env bash
-if [[ "$1" == skillclaw ]]; then shift; echo "skillclaw $*" >> "$SKILLCLAW_PROMOTE_LOG"; exit 0; fi
-echo "manifest $*" >> "$SKILLCLAW_PROMOTE_LOG"
-exit 1
-EOF
     cat > "$MOCK_BIN/git" << 'EOF'
 #!/usr/bin/env bash
 case "$1" in
@@ -39,9 +33,14 @@ case "$1" in
 esac
 exit 0
 EOF
-    chmod +x "$MOCK_BIN/git_ops.sh" "$MOCK_BIN/manifest" "$MOCK_BIN/git"
+    chmod +x "$MOCK_BIN/git_ops.sh" "$MOCK_BIN/git"
     export SKILLCLAW_GITOPS="$MOCK_BIN/git_ops.sh"
-    export MANIFEST="$MOCK_BIN/manifest"
+    export HOME="$SANDBOX/home"
+    mkdir -p "$HOME"
+    # shellcheck disable=SC1091
+    source "$REPO_ROOT/tests/test_helper/stub_home_runtime.bash"
+    stub_home_manifest_runtime "$REPO_ROOT"
+    export MANIFEST="$HOME/.claude/.venv/bin/manifest"
     export PATH="$MOCK_BIN:$PATH"
     export SKILLCLAW_PROMOTE_LOG="$SANDBOX/log"
     export SKILLCLAW_AUDIT_DIR="$SANDBOX/skillclaw"
@@ -89,10 +88,10 @@ teardown() {
     grep -q "skillclaw_promote.sh" "$f"
 }
 
-@test "promote runs ingest+evolve scripts instead of the skillclaw binary" {
-  run grep -E 'skillclaw_(ingest|evolve)\.py' "$REPO_ROOT/configs/claude/scripts/skillclaw_promote.sh"
+@test "promote runs manifest skillclaw ingest/evolve/promote instead of legacy scripts" {
+  run grep -E 'manifest skillclaw (ingest|evolve|promote)' "$REPO_ROOT/configs/claude/scripts/skillclaw_promote.sh"
   [ "$status" -eq 0 ]
-  run grep -c 'skillclaw evolve --mode workflow' "$REPO_ROOT/configs/claude/scripts/skillclaw_promote.sh"
+  run grep -cE 'skillclaw_(ingest|evolve|promote)\.py' "$REPO_ROOT/configs/claude/scripts/skillclaw_promote.sh"
   [ "$output" -eq 0 ]
 }
 

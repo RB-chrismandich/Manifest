@@ -5,6 +5,8 @@
 
 load '../test_helper/bats-support/load'
 load '../test_helper/bats-assert/load'
+# shellcheck disable=SC1091
+load '../test_helper/stub_home_runtime'
 
 REPO_ROOT="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)"
 SHIM="$REPO_ROOT/configs/claude/scripts/smoke_test.py"
@@ -12,6 +14,9 @@ CLI_TOOL="$REPO_ROOT/tests/python/smoke_orchestrator/fixtures/cli_tool.py"
 
 setup() {
     SANDBOX=$(mktemp -d "${BATS_TMPDIR:-/tmp}/smoke_cli.XXXXXX")
+    export HOME="$SANDBOX/home"
+    mkdir -p "$HOME"
+    stub_home_manifest_runtime "$REPO_ROOT"
 }
 
 teardown() {
@@ -37,7 +42,7 @@ YAML
 
 # --- --help precedes any dependency lookup (cli-audit-help) ---
 @test "smoke_test.py --help exits 0 with usage (clean HOME, no catalog)" {
-    run env HOME="$SANDBOX" "$SHIM" --help
+    run "$SHIM" --help
     assert_success
     assert_output --partial "usage:"
     assert_output --partial "append"
