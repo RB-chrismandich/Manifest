@@ -38,9 +38,8 @@ setup() {
     write_services_config() { :; }
     skillclaw_apply_state() { :; }
     install_mcp_servers() { :; }
-    install_python_dependencies() { :; }
-    install_browser_use() { :; }
-    install_smoke_deps() { :; }
+    check_uv() { :; }
+    uv_sync_home_runtime() { :; }
     install_graphify() { :; }
 
     export TARGET_DIR="$SANDBOX/home/.claude"

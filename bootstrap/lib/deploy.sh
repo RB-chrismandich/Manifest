@@ -182,6 +182,8 @@ deploy_configs() {
                     deploy_antigravity_configs
                     sync_skillshare_targets
                     deploy_sync_skills
+                    cp "$SCRIPT_DIR/configs/claude/pyproject.toml" "$TARGET_DIR/pyproject.toml"
+                    cp "$SCRIPT_DIR/configs/claude/uv.lock" "$TARGET_DIR/uv.lock"
                     return 0
                     ;;
                 3 | *)
@@ -218,6 +220,10 @@ deploy_configs() {
     rsync -a --exclude '/skills' --exclude '/agents' --exclude '/agents-devpanel' --exclude '/references/pilotfish-delegation.md' --exclude '/references/devpanel-delegation.md' "${claude_md_exclude[@]+"${claude_md_exclude[@]}"}" "$source_dir"/ "$TARGET_DIR/"
     # Copy dot-prefixed directories (e.g. .plans/) that the glob above skips
     cp -R "$source_dir"/.[!.]* "$TARGET_DIR/" 2> /dev/null || true
+
+    # uv project root must live at $TARGET_DIR/ (not only via rsync) for uv sync --project
+    cp "$SCRIPT_DIR/configs/claude/pyproject.toml" "$TARGET_DIR/pyproject.toml"
+    cp "$SCRIPT_DIR/configs/claude/uv.lock" "$TARGET_DIR/uv.lock"
 
     # Restore any user-added MCP servers captured before the copy above so the
     # repo's default settings.local.json does not silently drop them.
