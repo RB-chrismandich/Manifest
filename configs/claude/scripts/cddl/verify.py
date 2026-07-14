@@ -42,6 +42,7 @@ def detect_cmds(repo_root: str | Path) -> list[str]:
     if package_json.is_file():
         try:
             content = package_json.read_text(encoding="utf-8")
+            # ⚡ Bolt: Fast substring check bypasses expensive json.loads if 'test' script is not defined
             if '"test"' in content:
                 scripts = json.loads(content).get("scripts", {})
             else:
@@ -54,6 +55,7 @@ def detect_cmds(repo_root: str | Path) -> list[str]:
     if makefile.is_file():
         try:
             content = makefile.read_text(encoding="utf-8")
+            # ⚡ Bolt: Fast substring check bypasses expensive regex parsing if 'test' target is not defined
             if "\ntest" in content or content.startswith("test"):
                 has_test = re.search(r"^test\s*:", content, re.M)
             else:
