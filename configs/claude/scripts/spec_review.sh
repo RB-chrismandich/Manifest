@@ -19,7 +19,7 @@ SPEC_REVIEW_NO_DETACH="${SPEC_REVIEW_NO_DETACH:-}"
 # Parallel-agent panel engine. PANEL_CMD fans the prompt across the panel; the
 # single-CLI SPEC_REVIEW_CLI seam is reused as the synthesizer (SYNTH_CLI) and as
 # the 0-agent fallback. Both injectable so tests can stub external CLIs.
-SPEC_REVIEW_PANEL_CMD="${SPEC_REVIEW_PANEL_CMD:-${SCRIPT_DIR}/parallel_agent.py}"
+SPEC_REVIEW_PANEL_CMD="${SPEC_REVIEW_PANEL_CMD:-manifest parallel-agent}"
 SPEC_REVIEW_SYNTH_CLI="${SPEC_REVIEW_SYNTH_CLI:-$SPEC_REVIEW_CLI}"
 SPEC_REVIEW_MERGE_TEMPLATE="${SPEC_REVIEW_MERGE_TEMPLATE:-${SCRIPT_DIR}/../prompts/spec_review_merge.md}"
 SPEC_REVIEW_TIMEOUT="${SPEC_REVIEW_TIMEOUT:-600}"
@@ -299,13 +299,15 @@ run_synthesizer() {
 # a synth failure falls back to a labeled concat so findings are never lost.
 run_panel() {
     local prompt="$1" tmpjson tmpblocks tmpraw meta count all_ni out
+    local -a panel_cmd
+    read -ra panel_cmd <<< "${SPEC_REVIEW_PANEL_CMD}"
     tmpjson="$(mktemp)"
     tmpblocks="$(mktemp)"
     tmpraw="$(mktemp)"
     # Prompt is passed as the trailing positional arg (parallel_agent.py reads no
     # stdin); `--` guards a prompt that might start with '-'. Planning artifacts
     # are bounded, so ARG_MAX is not a concern.
-    if ! "$SPEC_REVIEW_PANEL_CMD" --json --no-claude --no-synthesize \
+    if ! "${panel_cmd[@]}" --json --no-claude --no-synthesize \
         --no-stream --timeout "$SPEC_REVIEW_TIMEOUT" -- "$prompt" \
         > "$tmpjson" 2> /dev/null; then
         rm -f "$tmpjson" "$tmpblocks" "$tmpraw"

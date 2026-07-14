@@ -23,10 +23,11 @@ echo "git_ops.sh $*" >> "$SKILLCLAW_PROMOTE_LOG"
 [ "$1" = "pr-create" ] && echo "https://example.test/pr/1"
 exit 0
 EOF
-    cat > "$MOCK_BIN/skillclaw" << 'EOF'
+    cat > "$MOCK_BIN/manifest" << 'EOF'
 #!/usr/bin/env bash
-echo "skillclaw $*" >> "$SKILLCLAW_PROMOTE_LOG"
-exit 0
+if [[ "$1" == skillclaw ]]; then shift; echo "skillclaw $*" >> "$SKILLCLAW_PROMOTE_LOG"; exit 0; fi
+echo "manifest $*" >> "$SKILLCLAW_PROMOTE_LOG"
+exit 1
 EOF
     cat > "$MOCK_BIN/git" << 'EOF'
 #!/usr/bin/env bash
@@ -38,8 +39,9 @@ case "$1" in
 esac
 exit 0
 EOF
-    chmod +x "$MOCK_BIN/git_ops.sh" "$MOCK_BIN/skillclaw" "$MOCK_BIN/git"
+    chmod +x "$MOCK_BIN/git_ops.sh" "$MOCK_BIN/manifest" "$MOCK_BIN/git"
     export SKILLCLAW_GITOPS="$MOCK_BIN/git_ops.sh"
+    export MANIFEST="$MOCK_BIN/manifest"
     export PATH="$MOCK_BIN:$PATH"
     export SKILLCLAW_PROMOTE_LOG="$SANDBOX/log"
     export SKILLCLAW_AUDIT_DIR="$SANDBOX/skillclaw"

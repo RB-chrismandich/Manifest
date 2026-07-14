@@ -84,6 +84,7 @@ done
 [[ "${RECONCILE_ASSUME_YES:-0}" == "1" ]] && ASSUME_YES=1
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+VENV_PY="${MANIFEST_VENV_PY:-${HOME}/.claude/.venv/bin/python}"
 CORE="$SCRIPT_DIR/reconcile_core.py"
 [[ -f "$CORE" ]] || {
     err "missing core: $CORE"
@@ -99,7 +100,7 @@ core_args=(--format json)
 for g in ${PROTECT[@]+"${PROTECT[@]}"}; do core_args+=(--protect "$g"); done
 
 # --- Scan once (read-only). Core exit 2 = usage/unresolved project. ---
-REPORT="$(python3 "$CORE" "${core_args[@]}")" || {
+REPORT="$("$VENV_PY" "$CORE" "${core_args[@]}")" || {
     rc=$?
     exit "$rc"
 }
@@ -109,7 +110,7 @@ if [[ "$DO_REMOVE" -eq 0 ]]; then
     if [[ "$AS_JSON" -eq 1 ]]; then
         printf '%s\n' "$REPORT"
     else
-        printf '%s\n' "$REPORT" | python3 "$CORE" --from-json - --format human
+        printf '%s\n' "$REPORT" | "$VENV_PY" "$CORE" --from-json - --format human
     fi
     exit 0
 fi
@@ -117,10 +118,10 @@ fi
 # --- Removal mode ---
 # Show the preview the user is acting on, rendered from the SAME scan (no re-read,
 # no TOCTOU). Note: this relies on reconcile_core.py's --from-json render contract.
-printf '%s\n' "$REPORT" | python3 "$CORE" --from-json - --format human
+printf '%s\n' "$REPORT" | "$VENV_PY" "$CORE" --from-json - --format human
 
 # Extract REMOVE canonical paths from the captured report.
-remove_paths="$(printf '%s\n' "$REPORT" | python3 -c \
+remove_paths="$(printf '%s\n' "$REPORT" | "$VENV_PY" -c \
     'import json,sys; d=json.load(sys.stdin); [print(i["canonical_path"]) for i in d["items"] if i["verdict"]=="REMOVE"]')"
 
 if [[ -z "$remove_paths" ]]; then
@@ -132,9 +133,9 @@ fi
 base="${HOME_BASE:-$HOME}"
 state_root="${MANIFEST_STATE_ROOT:-$HOME/.manifest}"
 trash_root="${BACKUP_DIR:-${MANIFEST_RECONCILE_TRASH:-$state_root/reconcile-trash}}"
-trash_abs="$(python3 -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "$trash_root")"
+trash_abs="$("$VENV_PY" -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "$trash_root")"
 for tag in claude cursor gemini codex antigravity; do
-    rootp="$(python3 -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "$base/.$tag")"
+    rootp="$("$VENV_PY" -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "$base/.$tag")"
     case "$trash_abs/" in
         "$rootp"/*)
             err "--backup-dir resolves inside managed root $base/.$tag; refusing"
@@ -191,7 +192,7 @@ RST
     chmod 700 "$trash_dir/restore.sh"
 }
 
-base_real="$(python3 -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "$base")"
+base_real="$("$VENV_PY" -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "$base")"
 mkdir -p "$trash_dir"
 chmod 700 "$trash_dir"
 manifest="$trash_dir/removed.tsv"
@@ -227,7 +228,7 @@ echo "Restore with:"
 echo "  $trash_dir/restore.sh"
 
 if [[ "$AS_JSON" -eq 1 ]]; then
-    printf '%s\n' "$REPORT" | python3 -c '
+    printf '%s\n' "$REPORT" | "$VENV_PY" -c '
 import json,sys
 d=json.load(sys.stdin); d["mode"]="remove"
 td=sys.argv[1]; man=sys.argv[2]

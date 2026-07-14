@@ -16,13 +16,12 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 GITOPS="${SKILLCLAW_GITOPS:-${SCRIPT_DIR}/git_ops.sh}"
+MANIFEST="${MANIFEST:-manifest}"
 # shellcheck disable=SC2034  # CFG is a test/future-use seam; not used in this version
 CFG="${SKILLCLAW_CONFIG:-${SCRIPT_DIR}/../config/skillclaw.yml}"
 
 EVOLVED="${SKILLCLAW_EVOLVED:-$HOME/.skillclaw/skills}"
 SESSIONS="${SKILLCLAW_SESSIONS:-$HOME/.skillclaw/sessions}"
-INGEST="${SCRIPT_DIR}/skillclaw_ingest.py"
-EVOLVE="${SCRIPT_DIR}/skillclaw_evolve.py"
 TEMPLATE="${SKILLCLAW_TEMPLATE:-${SCRIPT_DIR}/../prompts/skillclaw_evolve.md}"
 TRANSCRIPTS="${SKILLCLAW_TRANSCRIPTS:-$HOME/.claude/projects}"
 STATE="${SKILLCLAW_STATE:-$HOME/.skillclaw/.ingest-state.json}"
@@ -32,10 +31,10 @@ REJECTED="${SKILLCLAW_REJECTED:-$HOME/.skillclaw/skills/rejected}"
 # bootstrap into the shell profile); fall back to repo-relative when run in-tree.
 COMMITTED="${SKILLCLAW_COMMITTED:-${MANIFEST_ROOT:-${SCRIPT_DIR}/../../..}/.skillshare/skills}"
 
-AUDIT="${SCRIPT_DIR}/skillclaw_audit.py"
 # Shared audit storage; evolve.py reads SKILLCLAW_AUDIT_DIR too (default ~/.skillclaw).
 export SKILLCLAW_AUDIT_DIR="${SKILLCLAW_AUDIT_DIR:-$HOME/.skillclaw}"
-audit() { python3 "$AUDIT" "$@" > /dev/null 2>&1 || true; }
+skillclaw_cmd() { "$MANIFEST" skillclaw "$@"; }
+audit() { skillclaw_cmd audit "$@" > /dev/null 2>&1 || true; }
 
 BRANCH_PREFIX="skillclaw/evolve-"
 PR_BASE="main"
@@ -78,7 +77,7 @@ while [[ $# -gt 0 ]]; do
             exit 0
             ;;
         --status)
-            python3 "$AUDIT" status
+            skillclaw_cmd audit status
             exit 0
             ;;
         --apply)
@@ -141,7 +140,7 @@ if [[ "$DO_EVOLVE" == true ]]; then
     audit log "$run_id" ingest stage_start
     # Capture ingest's JSON summary (stdout) so stage_end carries the ingested
     # count → status.json totals.ingested is populated for --status/troubleshooting.
-    ingest_json="$(python3 "$INGEST" "$TRANSCRIPTS" "$SESSIONS" --state "$STATE" \
+    ingest_json="$(skillclaw_cmd ingest "$TRANSCRIPTS" "$SESSIONS" --state "$STATE" \
         --window-days "$WINDOW_DAYS" 2> /dev/null)" ||
         err "ingest returned non-zero (continuing)"
     ingested_count="$(printf '%s' "$ingest_json" |
@@ -156,7 +155,7 @@ if [[ -d "$SESSIONS" ]]; then
     _t0=$SECONDS
     echo "▸ scrub…"
     audit log "$run_id" scrub stage_start
-    python3 "${SCRIPT_DIR}/skillclaw_scrub.py" "$SESSIONS" > /dev/null 2>&1 || true
+    skillclaw_cmd scrub "$SESSIONS" > /dev/null 2>&1 || true
     audit log "$run_id" scrub stage_end seconds=$((SECONDS - _t0))
 fi
 
@@ -164,7 +163,7 @@ fi
 if [[ "$DO_EVOLVE" == true ]]; then
     CUR_STAGE="evolve"
     echo "▸ evolve…"
-    python3 "$EVOLVE" "$SESSIONS" "$EVOLVED" --template "$TEMPLATE" \
+    skillclaw_cmd evolve "$SESSIONS" "$EVOLVED" --template "$TEMPLATE" \
         --committed-dir "$COMMITTED" --token-budget "$TOKEN_BUDGET" \
         --run-id "$run_id" > /dev/null ||
         err "evolve returned non-zero (continuing)"
@@ -178,7 +177,7 @@ echo "▸ classify…"
 audit log "$run_id" classify stage_start
 classify_args=("$EVOLVED" "$COMMITTED" --rejected-dir "$REJECTED")
 [[ -n "$SKILL" ]] && classify_args+=(--skill "$SKILL")
-classify_json="$(python3 "${SCRIPT_DIR}/skillclaw_promote.py" "${classify_args[@]}")" ||
+classify_json="$(skillclaw_cmd promote "${classify_args[@]}")" ||
     {
         err "classify failed (skillclaw_promote.py returned non-zero)"
         exit 1

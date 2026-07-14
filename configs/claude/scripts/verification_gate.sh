@@ -12,7 +12,7 @@
 #                      seam, emit gate JSON {tier1,tier2,consensus_score,verdict,reviewer_error}.
 #   decide [<gate>]    Pure core: map gate JSON (arg/stdin) to {action,label,annotation,reason}.
 #
-# Env: VERIFICATION_GATE_REVIEW_CMD  reviewer seam (default: parallel_agent.py --json --validate --review)
+# Env: VERIFICATION_GATE_REVIEW_CMD  reviewer seam (default: manifest parallel-agent --json --validate --review)
 #      VERIFICATION_GATE_HIGH/LOW    consensus thresholds (default 0.80 / 0.50)
 
 set -euo pipefail
@@ -93,7 +93,7 @@ cmd_review() {
     local raw rc=0
     # --timeout 600: the 120s parallel_agent default is documented as insufficient for a
     # multi-agent diff review (CLAUDE.md orchestration guide) and was producing reviewer_error.
-    local cmd_str="${VERIFICATION_GATE_REVIEW_CMD:-${SCRIPT_DIR}/parallel_agent.py --json --validate --timeout 600 --review}"
+    local cmd_str="${VERIFICATION_GATE_REVIEW_CMD:-manifest parallel-agent --json --validate --timeout 600 --review}"
     local -a cmd_arr
     read -r -a cmd_arr <<< "$cmd_str"
     raw="$("${cmd_arr[@]+"${cmd_arr[@]}"}" "$packet" 2> /dev/null)" || rc=$?
