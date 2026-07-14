@@ -538,7 +538,7 @@ services:
   # smoke-manage runtime deps (Playwright + Chromium) for declarative E2E smoke tests
   smoke:
     enabled: ${ENABLE_SMOKE:-false}
-    command: smoke_test.py
+    command: manifest smoke
     description: "Declarative tiered E2E smoke tests (opt-in Playwright + Chromium)"
 
   # Git CLI tools - Platform-specific Git hosting integrations
