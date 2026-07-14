@@ -166,11 +166,10 @@ run_reconfigure() {
         fi
         run_bootstrap_hook "after_deploy"
 
-        # Install/update Python dependencies
+        # Install/update Python runtime (uv sync at deployed home)
         print_header "Updating Python Dependencies"
-        install_python_dependencies
-        install_browser_use
-        install_smoke_deps
+        check_uv || print_warning "uv not available — home runtime sync may be skipped"
+        uv_sync_home_runtime
         install_graphify
 
         # Gate the deployed /graphify skill to match the new toggle — the gate
@@ -270,6 +269,9 @@ main() {
         print_info "Skipping installation (--skip-install)"
     fi
 
+    # Ensure uv is present before deploy (required for home runtime sync + graphify)
+    check_uv || print_warning "uv not available — home runtime sync may be skipped"
+
     # Deploy configurations
     deploy_configs
     run_bootstrap_hook "after_deploy"
@@ -278,10 +280,9 @@ main() {
     # Report-only orphan review of the just-deployed environment (fail-open; never deletes)
     reconcile_deploy_report || print_warning "reconcile review skipped (non-fatal)"
 
-    # Install Python dependencies for parallel_agent.py
-    install_python_dependencies
-    install_browser_use
-    install_smoke_deps
+    # Sync home Python runtime (uv) after deploy — pyproject/lock land in $TARGET_DIR
+    print_header "Syncing Home Python Runtime"
+    uv_sync_home_runtime
     install_graphify
 
     # Configure default MCP servers when requested
