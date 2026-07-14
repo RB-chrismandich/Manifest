@@ -31,6 +31,9 @@ All notable changes are documented here in reverse chronological order.
   Role prompts at `configs/claude/prompts/cddl/`.
 - **CDDL sunset** — removed `manifest cddl` and the `cddl/` Python package; `cddl_loop.py`
   is a deprecation stub pointing at `/spec-implement-loop`.
+- **Agent-agnostic synthesis** — low-consensus merge in `parallel-agent` uses any
+  configured `cli_agents` provider (`synthesis.provider` / `SYNTH_PROVIDER` /
+  `SYNTH_CLI`); default order prefers antigravity → cursor → gemini → codex → claude.
 - **Shared infra** — `spec_review.sh` `discover_artifacts` now handles FILE
   targets (paired within their own layout tree); `audit_log.sh` gains a generic
   `AUDIT_LOG_FILE` env; deploy-reconcile now covers the `prompts/` namespace.

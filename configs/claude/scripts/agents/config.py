@@ -187,6 +187,14 @@ class Config:
                 "model": "sonnet",
                 "timeout": 300,
                 "backend": "auto",
+                "provider": "auto",
+                "provider_order": [
+                    "antigravity",
+                    "cursor",
+                    "gemini",
+                    "codex",
+                    "claude",
+                ],
             },
             "validation": {"consensus_threshold": {"high": 0.80, "medium": 0.50}},
         }
