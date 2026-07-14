@@ -5,8 +5,11 @@
 
 load '../test_helper/bats-support/load'
 load '../test_helper/bats-assert/load'
+# shellcheck disable=SC1091
+load '../test_helper/stub_home_runtime'
 
-SCRIPTS_DIR="$BATS_TEST_DIRNAME/../../configs/claude/scripts"
+REPO_ROOT="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)"
+SCRIPTS_DIR="$REPO_ROOT/configs/claude/scripts"
 CDDL="$SCRIPTS_DIR/cddl_loop.py"
 
 setup() {
@@ -15,6 +18,7 @@ setup() {
     export MANIFEST_STATE_ROOT="$TEST_TMP/state"
     export TMPDIR="$TEST_TMP/tmp"
     mkdir -p "$HOME" "$TMPDIR"
+    stub_home_manifest_runtime "$REPO_ROOT"
 
     # Deploy the real role prompts into the fake home (runtime read location).
     mkdir -p "$HOME/.claude/prompts/cddl"

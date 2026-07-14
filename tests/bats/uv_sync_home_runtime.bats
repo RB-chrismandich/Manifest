@@ -114,7 +114,7 @@ STUB
 @test "deploys manifest wrapper from manifest-cli.sh" {
     run uv_sync_home_runtime
     assert_success
-    [[ -f "$HOME/.local/bin/manifest" ]]
+    [[ -f "$HOME/.local/bin/manifest" ]] || return 1 # assertion-safe
     diff -q "$REPO_ROOT/configs/claude/scripts/manifest-cli.sh" "$HOME/.local/bin/manifest"
 }
 
@@ -124,7 +124,7 @@ STUB
     run uv_sync_home_runtime
     assert_success
     assert_equal "$(grep -c '^uv sync' "$UV_LOG" || true)" "2"
-    [[ -x "$HOME/.local/bin/manifest" ]]
+    [[ -x "$HOME/.local/bin/manifest" ]] || return 1 # assertion-safe
 }
 
 @test "does not deploy wrapper when uv sync fails" {
