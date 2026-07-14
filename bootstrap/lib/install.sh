@@ -986,3 +986,46 @@ install_graphify() {
     fi
     return 0
 }
+
+# Sync the home Python runtime via uv (replaces pip install --user for parallel_agent deps).
+# Reads deployed services.yml for optional dependency groups, runs uv sync, optionally
+# installs Playwright Chromium for smoke, and deploys ~/.local/bin/manifest wrapper.
+uv_sync_home_runtime() {
+    local target_dir="${TARGET_DIR:-$HOME/.claude}"
+    local uv_bin=""
+    if command_exists uv; then
+        uv_bin="$(command -v uv)"
+    elif [[ -x "$HOME/.local/bin/uv" ]]; then
+        uv_bin="$HOME/.local/bin/uv"
+    else
+        print_warning "uv not found — skipping home runtime sync"
+        return 0
+    fi
+    UV_BIN="$uv_bin"
+
+    local -a group_flags=()
+    local services_yml="$target_dir/config/services.yml"
+    if [[ -f "$services_yml" ]]; then
+        if python3 -c "import yaml,sys; d=yaml.safe_load(open(sys.argv[1])); print('1' if d.get('services',{}).get('smoke',{}).get('enabled') else '0')" "$services_yml" | grep -q 1; then
+            group_flags+=(--group smoke)
+        fi
+        if python3 -c "import yaml,sys; d=yaml.safe_load(open(sys.argv[1])); print('1' if d.get('services',{}).get('browser_use',{}).get('enabled') else '0')" "$services_yml" | grep -q 1; then
+            group_flags+=(--group smoke --group smoke-agent)
+        fi
+    fi
+
+    print_step "Syncing home Python runtime (uv)..."
+    if ! "$uv_bin" sync --project "$target_dir" "${group_flags[@]}"; then
+        print_warning "uv sync failed — parallel agent may be unavailable"
+        return 0
+    fi
+
+    if [[ " ${group_flags[*]} " == *" smoke "* ]]; then
+        "$target_dir/.venv/bin/playwright" install chromium || print_warning "playwright install chromium failed"
+    fi
+
+    mkdir -p "$HOME/.local/bin"
+    cp "$SCRIPT_DIR/configs/claude/scripts/manifest-cli.sh" "$HOME/.local/bin/manifest"
+    chmod +x "$HOME/.local/bin/manifest"
+    print_success "Home runtime synced; manifest CLI at ~/.local/bin/manifest"
+}
