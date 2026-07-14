@@ -3,7 +3,7 @@ app: manifest
 # Smoke catalog for the Manifest repo. Constitution Principle VI Verify gate:
 # deterministic, browser-free (tier Lite, type cli) critical-path tests. Each
 # builds a hermetic fixture home+project in a temp dir (never touches the real
-# ~/.claude) and asserts exit 0. Two axes of coverage:
+# ~/.claude) and asserts exit 0. Coverage axes:
 #   - deploy shape: what bootstrap links/copies (reconcile, antigravity, shared).
 #   - deploy preservation: user runtime state that survives a redeploy — MCP
 #     servers, opted-in issue-sync gates, and repo top-level defaults such as
@@ -12,6 +12,9 @@ app: manifest
 #     ~/.claude on the next `git pull && ./bootstrap.sh`.
 #   - workflow critical path: the CDDL loop stages a dual-approved candidate
 #     end-to-end against a stub CLI (feature 482).
+#   - nightly (Full): deeper deploy e2e, cursor rule pruning, gemini hook merge,
+#     and a deterministic Playwright UI fixture step.
+#   - edge (Full+Extra): idempotent hook-merge regressions.
 # Indentation follows the repo yamllint (indent-sequences); smoke_test.py append
 # emits this style automatically but strips comments, so restore this header if
 # a re-append drops it.
@@ -213,3 +216,277 @@ tests:
             $root/configs/claude/scripts/cddl_loop.py\" start \"$repo/specs/001-fx\"\
             \ngit -C \"$repo\" diff --cached --name-only | grep -qx 'greet.txt'\n\
             find \"$MANIFEST_STATE_ROOT/cddl/runs\" -name report.md | grep -q report.md\n"
+  - id: deploy-force-runtime-preserve
+    title: deploy_configs --force keeps plugins, sessions, and user MCP across redeploy
+    tier: Full
+    steps:
+      - name: force_deploy_preserve
+        type: cli
+        expect_exit: 0
+        captures:
+          result: RESULT deploy_force=(ok)
+        command:
+          - bash
+          - -c
+          - 'set -euo pipefail
+
+            GREEN='''' CYAN='''' NC='''' BLUE='''' YELLOW='''' RED='''' BOLD=''''
+
+            root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+
+            sb="$(mktemp -d)"; trap ''rm -rf "$sb"'' EXIT
+
+            export SCRIPT_DIR="$root" HOME="$sb/home" FORCE=true
+
+            export TARGET_DIR="$HOME/.claude" CURSOR_TARGET_DIR="$HOME/.cursor"
+
+            export GEMINI_TARGET_DIR="$HOME/.gemini" CODEX_TARGET_DIR="$HOME/.codex"
+
+            export ANTIGRAVITY_TARGET_DIR="$HOME/.antigravity" MANIFEST_OUTPUT_DIR="$HOME/.manifest/outputs"
+
+            export ENABLE_CURSOR=false ENABLE_GEMINI=false ENABLE_CODEX=false ENABLE_ANTIGRAVITY=false
+
+            source "$root/bootstrap/lib/common.sh"
+
+            source "$root/bootstrap/lib/deploy.sh"
+
+            write_services_config() { :; }
+
+            deploy_cursor_configs() { :; }
+
+            deploy_gemini_configs() { :; }
+
+            deploy_codex_configs() { :; }
+
+            deploy_antigravity_configs() { :; }
+
+            sync_skillshare_targets() { :; }
+
+            deploy_sync_skills() { :; }
+
+            mkdir -p "$TARGET_DIR/plugins/cache" "$TARGET_DIR/projects" "$TARGET_DIR/config"
+
+            echo ''{"plugins":{"remember":1}}'' > "$TARGET_DIR/plugins/installed_plugins.json"
+
+            echo session-data > "$TARGET_DIR/projects/abc.jsonl"
+
+            echo user-settings > "$TARGET_DIR/settings.json"
+
+            printf ''{"mcpServers":{"my-private":{"url":"https://mcp.internal.example/mcp"}}}''
+            > "$TARGET_DIR/settings.local.json"
+
+            deploy_configs > /dev/null
+
+            [ -f "$TARGET_DIR/plugins/installed_plugins.json" ]
+
+            [ -f "$TARGET_DIR/projects/abc.jsonl" ]
+
+            [ -f "$TARGET_DIR/CLAUDE.md" ]
+
+            [ -d "$TARGET_DIR/skills/code-audit" ]
+
+            python3 - "$TARGET_DIR/settings.local.json" <<''INNER''
+
+            import json, sys
+
+            d = json.load(open(sys.argv[1]))
+
+            assert d["mcpServers"]["my-private"]["url"] == "https://mcp.internal.example/mcp"
+
+            INNER
+
+            echo "RESULT deploy_force=ok"
+
+            '
+  - id: cursor-rules-orphan-prune
+    title: deploy_cursor_configs prunes orphan rules removed from source
+    tier: Full
+    steps:
+      - name: prune_orphan
+        type: cli
+        expect_exit: 0
+        captures:
+          result: RESULT cursor_prune=(ok)
+        command:
+          - bash
+          - -c
+          - 'set -euo pipefail
+
+            GREEN='''' CYAN='''' NC='''' BLUE='''' YELLOW='''' RED='''' BOLD=''''
+
+            root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+
+            sb="$(mktemp -d)"; trap ''rm -rf "$sb"'' EXIT
+
+            SRC="$sb/repo/configs/cursor/rules"
+
+            mkdir -p "$SRC"
+
+            export SCRIPT_DIR="$sb/repo" TARGET_DIR="$sb/home/.claude"
+
+            export CURSOR_TARGET_DIR="$sb/home/.cursor" ENABLE_CURSOR=true
+
+            printf body > "$SRC/alpha.mdc"
+
+            printf body > "$SRC/beta.mdc"
+
+            source "$root/bootstrap/lib/common.sh"
+
+            source "$root/bootstrap/lib/deploy.sh"
+
+            deploy_cursor_configs > /dev/null
+
+            [ -f "$CURSOR_TARGET_DIR/rules/beta.mdc" ]
+
+            rm -f "$SRC/beta.mdc"
+
+            deploy_cursor_configs > /dev/null
+
+            [ ! -e "$CURSOR_TARGET_DIR/rules/beta.mdc" ]
+
+            [ -f "$CURSOR_TARGET_DIR/rules/alpha.mdc" ]
+
+            echo "RESULT cursor_prune=ok"
+
+            '
+  - id: gemini-hooks-merge-preserve
+    title: merge_settings_hooks unions repo hooks into an existing settings.json
+    tier: Full
+    steps:
+      - name: hooks_merge
+        type: cli
+        expect_exit: 0
+        captures:
+          result: RESULT hooks_merge=(ok)
+        command:
+          - bash
+          - -c
+          - 'set -euo pipefail
+
+            root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+
+            sb="$(mktemp -d)"; trap ''rm -rf "$sb"'' EXIT
+
+            SRC="$sb/src.json" TGT="$sb/tgt.json"
+
+            printf ''{"hooks":{"BeforeAgent":[{"hooks":[{"name":"token-economy-reminder","type":"command","command":"echo
+            reminder","timeout":5000}]}]}}'' > "$SRC"
+
+            printf ''{"mcpServers":{"user-server":{"url":"https://example.test"}}}''
+            > "$TGT"
+
+            command_exists() { command -v "$1" >/dev/null 2>&1; }
+
+            print_info() { :; }
+
+            print_success() { :; }
+
+            print_warning() { :; }
+
+            source "$root/bootstrap/lib/deploy.sh"
+
+            merge_settings_hooks "$SRC" "$TGT" > /dev/null
+
+            python3 - "$TGT" <<''INNER''
+
+            import json, sys
+
+            d = json.load(open(sys.argv[1]))
+
+            assert d["mcpServers"]["user-server"]["url"] == "https://example.test"
+
+            assert d["hooks"]["BeforeAgent"][0]["hooks"][0]["name"] == "token-economy-reminder"
+
+            INNER
+
+            echo "RESULT hooks_merge=ok"
+
+            '
+  - id: bootstrap-smoke-ui-fixture
+    title: Playwright UI step loads a committed fixture page and asserts visible copy
+    tier: Full
+    steps:
+      - name: resolve_fixture
+        type: cli
+        expect_exit: 0
+        captures:
+          fixture_url: FIXTURE=(file://[^\s]+)
+        command:
+          - bash
+          - -c
+          - 'set -euo pipefail
+
+            root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+
+            fixture="$root/tests/fixtures/smoke/gate.html"
+
+            [ -f "$fixture" ]
+
+            echo "FIXTURE=file://$fixture"
+
+            '
+      - name: load_fixture
+        type: ui
+        action: goto
+        value: ${state.fixture_url}
+        needs:
+          - fixture_url
+      - name: assert_heading
+        type: ui
+        action: expect_text
+        selector: '#gate'
+        value: Manifest smoke gate
+        needs:
+          - fixture_url
+  - id: gemini-hooks-merge-idempotent
+    title: merge_settings_hooks is idempotent on a second run (no duplicate hooks)
+    tier: Full+Extra
+    steps:
+      - name: hooks_idempotent
+        type: cli
+        expect_exit: 0
+        captures:
+          result: RESULT hooks_idempotent=(ok)
+        command:
+          - bash
+          - -c
+          - 'set -euo pipefail
+
+            root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+
+            sb="$(mktemp -d)"; trap ''rm -rf "$sb"'' EXIT
+
+            SRC="$sb/src.json" TGT="$sb/tgt.json"
+
+            printf ''{"hooks":{"BeforeAgent":[{"hooks":[{"name":"token-economy-reminder","type":"command","command":"echo
+            reminder","timeout":5000}]}]}}'' > "$SRC"
+
+            printf ''{}'' > "$TGT"
+
+            command_exists() { command -v "$1" >/dev/null 2>&1; }
+
+            print_info() { :; }
+
+            print_success() { :; }
+
+            print_warning() { :; }
+
+            source "$root/bootstrap/lib/deploy.sh"
+
+            merge_settings_hooks "$SRC" "$TGT" > /dev/null
+
+            merge_settings_hooks "$SRC" "$TGT" > /dev/null
+
+            python3 - "$TGT" <<''INNER''
+
+            import json, sys
+
+            d = json.load(open(sys.argv[1]))
+
+            assert len(d["hooks"]["BeforeAgent"]) == 1, d
+
+            INNER
+
+            echo "RESULT hooks_idempotent=ok"
+
+            '
