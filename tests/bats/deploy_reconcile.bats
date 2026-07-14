@@ -15,6 +15,7 @@ setup() {
     BASE="$SANDBOX/home"
     PROJ="$SANDBOX/repo"
     export MANIFEST_STATE_ROOT="$SANDBOX/state"
+    export MANIFEST_VENV_PY="${MANIFEST_VENV_PY:-python3}"
     mkdir -p "$BASE/.claude/skills/live" "$BASE/.claude/skills/dead" "$BASE/.claude/config" "$BASE/.cursor"
     echo "x" > "$BASE/.claude/skills/live/SKILL.md"
     echo "x" > "$BASE/.claude/skills/dead/SKILL.md"
