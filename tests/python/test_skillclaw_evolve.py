@@ -5,7 +5,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "configs/claude/scripts"))
 import contextlib
 
-import skillclaw_evolve as ev
+from skillclaw import evolve as ev
 
 TEMPLATE = "LIB:\n{{LIBRARY}}\nSESS:\n{{SESSIONS}}\n"
 

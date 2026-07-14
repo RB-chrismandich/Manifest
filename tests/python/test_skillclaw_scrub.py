@@ -3,7 +3,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "configs/claude/scripts"))
-import skillclaw_scrub as scrub
+from skillclaw import scrub as scrub
 
 
 def test_redacts_anthropic_and_openai_keys():
