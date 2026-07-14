@@ -29,5 +29,5 @@ plan, a sidecar is the only path).
 
 When ≥3 load-bearing assumptions need validation, dispatch one sub-agent per assumption to research it, then
 synthesize; below that, research inline. Pick the mechanism per the shared Sub-Agent Selection Rules
-(`configs/claude/references/sub-agent-dispatch.md`): native Task sub-agents on Claude, or `parallel_agent.py` /
+(`configs/claude/references/sub-agent-dispatch.md`): native Task sub-agents on Claude, or `manifest parallel-agent` /
 inline on other assistants. Dispatched sub-agents execute their task directly and do not re-dispatch.

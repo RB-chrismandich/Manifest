@@ -23,7 +23,7 @@ gate signal. Constitution: Principle VI + "Development Lifecycle". Contracts:
 | 6 | analyze | `/speckit-analyze` | verdict: 0 critical |
 | 7 | spec_review_tech | `/spec-review --mode technical` | verdict: APPROVED |
 | 8 | implement | `/speckit-implement` | coverage: every shipped user-facing workflow has a smoke test (or exempt) |
-| 9 | verify | `/spec-audit-tasks` + `smoke_test.py run --tier Lite` | runner: exit 0 |
+| 9 | verify | `/spec-audit-tasks` + `manifest smoke run --tier Lite` | runner: exit 0 |
 
 > The `--mode product|technical` flag routes the state dir and selects the
 > matching template (`prompts/spec_review.md` vs `prompts/spec_review_technical.md`).
@@ -51,7 +51,7 @@ lifecycle.sh advance <track-id> --actor <agent|human> --gate '<phase-gate-json>'
   proceed only with `--override "<reason>"`, which is logged.
 - **Verify**: backed by the smoke orchestrator (run from the project root —
   the catalog root defaults to the relative `./smoke-catalog`; pass
-  `--catalog-dir` when invoking from elsewhere). Missing coverage (`smoke_test.py run` exit 2,
+  `--catalog-dir` when invoking from elsewhere). Missing coverage (`manifest smoke run` exit 2,
   EMPTY) is a failure — never a pass. Non-user-facing Sub-Tasks are marked exempt with a
   rationale in track state.
 - **Backward moves**: `lifecycle.sh regress <id> --to <phase> --reason <text>` (logged).

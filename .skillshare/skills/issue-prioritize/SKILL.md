@@ -387,7 +387,7 @@ fi
 # Build scoring prompt
 CANDIDATES=$(jq -r '.[] | "### #\(.number) — \(.title)\nBody: \(.body // "No description" | .[0:300])\nLabels: \(.labels | join(", "))\nHeuristic scores: Impact=\(.scores.impact) Urgency=\(.scores.urgency) Readiness=\(.scores.readiness) Risk=\(.scores.risk) Score=\(.scores.score)\n"' "$TEMP_DIR/top_candidates.json")
 
-~/.claude/scripts/parallel_agent.py --json --full-output --timeout 600 \
+manifest parallel-agent --json --full-output --timeout 600 \
     --cursor-model flash --claude-model sonnet \
     "You are an issue prioritization analyst. Score these open issues for a software project.
 
@@ -761,5 +761,5 @@ in the repository. The report includes:
 
 When ≥10 open issues need scoring, dispatch one sub-agent per issue batch to score them, then merge into one ranking;
 below that, score inline. Pick the mechanism per the shared Sub-Agent Selection Rules
-(`configs/claude/references/sub-agent-dispatch.md`): native Task sub-agents on Claude, or `parallel_agent.py` / inline
+(`configs/claude/references/sub-agent-dispatch.md`): native Task sub-agents on Claude, or `manifest parallel-agent` / inline
 on other assistants. Dispatched sub-agents execute their task directly and do not re-dispatch.

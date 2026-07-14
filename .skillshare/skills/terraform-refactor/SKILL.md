@@ -12,7 +12,7 @@ refactoring report with prioritized recommendations.
 ## Parallel Agent Integration
 
 This command ALWAYS uses parallel agents (security-critical).
-Executes: `~/.claude/scripts/parallel_agent.py --json --full-output --validate --analyze`
+Executes: `manifest parallel-agent --json --full-output --validate --analyze`
 
 ## Task
 
@@ -230,5 +230,5 @@ After completing the analysis, capture the most significant findings:
 
 When ≥3 independent modules or stacks exist, dispatch one sub-agent per module to analyze it, then merge findings;
 below that, analyze inline. Pick the mechanism per the shared Sub-Agent Selection Rules
-(`configs/claude/references/sub-agent-dispatch.md`): native Task sub-agents on Claude, or `parallel_agent.py` /
+(`configs/claude/references/sub-agent-dispatch.md`): native Task sub-agents on Claude, or `manifest parallel-agent` /
 inline on other assistants. Dispatched sub-agents execute their task directly and do not re-dispatch.

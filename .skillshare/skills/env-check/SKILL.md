@@ -11,7 +11,7 @@ misconfiguration, missing tools, broken symlinks, or authentication issues.
 > **Scope note:** This skill covers config syntax, MCP connectivity, symlinks,
 > labels, and script executability. For a quick terminal check of parallel
 > orchestration readiness (enabled agents, state directories), run:
-> `~/.claude/scripts/check_status.sh` (also available as `parallel_agent.py --status`).
+> `~/.claude/scripts/check_status.sh` (also available as `manifest parallel-agent --status`).
 
 ## Checks
 
@@ -32,7 +32,37 @@ This loop also covers **graphify** (`command: graphify`) — the knowledge-graph
 tool. It is a managed tool, not a parallel-orchestration agent, so it does not
 count toward orchestration readiness; report it as installed or missing only.
 
-### 2. Authentication Status
+### 2. Home Python Runtime
+
+Manifest's Python tools run from a uv-managed venv at `~/.claude/.venv` (not
+system `python3` or retired `pip install --user`). Treat any hard failure here
+as **BLOCKED** (same severity as a missing `~/.claude/skills` symlink).
+
+```bash
+MANIFEST_PY="${HOME}/.claude/.venv/bin/python"
+
+command -v uv &>/dev/null && uv --version 2>/dev/null
+[[ -x "$MANIFEST_PY" ]] && "$MANIFEST_PY" --version 2>/dev/null
+command -v manifest &>/dev/null && manifest --help &>/dev/null
+manifest doctor
+```
+
+Report per check:
+
+| Check | pass | fail (BLOCKED) |
+|-------|------|----------------|
+| `uv` on PATH | version shown | missing |
+| `~/.claude/.venv` | `$MANIFEST_PY` exists and runs | absent or not executable |
+| `manifest` on PATH | help exits 0 | missing or broken wrapper |
+| `manifest doctor` | exit 0 (core imports: `anthropic`, `yaml`, etc.) | exit non-zero |
+
+When `smoke.enabled: true` in `~/.claude/config/services.yml`, `manifest doctor`
+must also import `playwright` — treat failure as **BLOCKED**. When
+`browser_use.enabled: true`, `doctor` must import `browser_use` — also
+**BLOCKED**. Missing optional deps when the corresponding service is disabled
+are **warn** only.
+
+### 3. Authentication Status
 
 Check authentication for each enabled service:
 
@@ -45,13 +75,14 @@ Check authentication for each enabled service:
 
 Report: authenticated, unauthenticated, or not applicable.
 
-### 3. Configuration Syntax
+### 4. Configuration Syntax
 
-Validate YAML and JSON config files:
+Validate YAML and JSON config files (use the home venv — not system `python3`):
 
 ```bash
-python3 -c "import yaml; yaml.safe_load(open('<file>'))" 2>&1
-python3 -c "import json; json.load(open('<file>'))" 2>&1
+MANIFEST_PY="${HOME}/.claude/.venv/bin/python"
+"$MANIFEST_PY" -c "import yaml; yaml.safe_load(open('<file>'))" 2>&1
+"$MANIFEST_PY" -c "import json; json.load(open('<file>'))" 2>&1
 ```
 
 Files to check:
@@ -67,7 +98,7 @@ Files to check:
 
 Report: valid or error details.
 
-### 4. MCP Server Connectivity
+### 5. MCP Server Connectivity
 
 For each server in `~/.claude/config/mcp_servers.yml`:
 
@@ -77,7 +108,7 @@ curl -s -o /dev/null -w "%{http_code}" --max-time 5 <url>
 
 Report: reachable (HTTP status) or unreachable.
 
-### 5. Symlink Integrity
+### 6. Symlink Integrity
 
 Verify all cross-platform symlinks are intact:
 
@@ -110,7 +141,7 @@ For each: check if symlink exists and target is valid.
 
 Report: intact, broken (dangling), or missing.
 
-### 6. Label Registry Validation
+### 7. Label Registry Validation
 
 Verify the label registry is valid and labels are consistent:
 
@@ -121,8 +152,9 @@ Verify the label registry is valid and labels are consistent:
 5. If `gh` is available, run `gh label list --json name,color` and compare against registry
 
 ```bash
-# Validate labels.yml syntax
-python3 -c "
+# Validate labels.yml syntax (home venv)
+MANIFEST_PY="${HOME}/.claude/.venv/bin/python"
+"$MANIFEST_PY" -c "
 import yaml, sys
 with open('~/.claude/config/labels.yml') as f:
     data = yaml.safe_load(f)
@@ -138,7 +170,7 @@ print(f'{len(labels)} labels validated')
 
 Report: valid (N labels) or error details.
 
-### 7. Browser-Use Availability (Info)
+### 8. Browser-Use Availability (Info)
 
 Check if browser-use is available for E2E testing:
 
@@ -146,8 +178,9 @@ Check if browser-use is available for E2E testing:
 # Check CLI
 command -v browser-use &>/dev/null && browser-use --version 2>/dev/null
 
-# Check Python module
-python3 -c "import browser_use; print(browser_use.__version__)" 2>/dev/null
+# Check Python module (home venv when browser-use group is installed)
+MANIFEST_PY="${HOME}/.claude/.venv/bin/python"
+"$MANIFEST_PY" -c "import browser_use; print(browser_use.__version__)" 2>/dev/null
 ```
 
 Report: installed (with version) or not installed.
@@ -155,7 +188,7 @@ Report: installed (with version) or not installed.
 This check is **informational only** — browser-use is an optional tool.
 Report as `info` (not `fail`) when missing.
 
-### 8. Script Executability
+### 9. Script Executability
 
 Verify all scripts in `~/.claude/scripts/` are executable:
 
@@ -165,7 +198,7 @@ Verify all scripts in `~/.claude/scripts/` are executable:
 
 Report: executable or not executable.
 
-### 9. emdash Inheritance (Info)
+### 10. emdash Inheritance (Info)
 
 [emdash](https://github.com/generalaction/emdash) is an external **harness** (not
 a Manifest deploy target) that launches your agent CLIs in parallel git worktrees
@@ -255,7 +288,9 @@ Report storage perms != 700 as WARN; legacy wrappers or plist PRESENT as WARN
 | Symlinks | .cursor/scripts | pass | Intact |
 | Symlinks | .gemini/config | fail | Broken |
 | Labels | labels.yml | pass | 5 labels validated |
-| Scripts | parallel_agent.py | pass | Executable |
+| Runtime | uv | pass | v0.x.x |
+| Runtime | manifest doctor | pass | Core imports OK |
+| Runtime | manifest | pass | On PATH |
 
 ### Summary
 
