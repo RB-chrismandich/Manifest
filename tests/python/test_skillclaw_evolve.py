@@ -190,10 +190,20 @@ def test_evolve_shows_committed_library_not_output_dir(tmp_path):
 
 
 def test_subprocess_runner_timeout_raises_runtime_error(monkeypatch):
-    # FR-010: a hung `claude -p` must surface as the same RuntimeError shape the
-    # runner raises on non-zero exit, feeding promote.sh's fail-continue path.
+    # FR-010: a hung headless CLI chunk must surface as RuntimeError for promote.sh.
     monkeypatch.delenv("SKILLCLAW_CHUNK_TIMEOUT", raising=False)
     import subprocess as sp
+
+    from agents.cli_invoke import CliRoute
+
+    monkeypatch.setattr(
+        "agents.cli_invoke.resolve_cli_route",
+        lambda *a, **k: CliRoute("cli", "claude"),
+    )
+    monkeypatch.setattr(
+        "agents.cli_invoke.build_subprocess_argv",
+        lambda config, route, prompt, **kw: (["claude", "-p"], prompt),
+    )
 
     def fake_run(*a, **k):
         assert k.get("timeout") == ev.DEFAULT_CHUNK_TIMEOUT
@@ -210,6 +220,17 @@ def test_subprocess_runner_timeout_raises_runtime_error(monkeypatch):
 def test_chunk_timeout_env_override(monkeypatch):
     monkeypatch.setenv("SKILLCLAW_CHUNK_TIMEOUT", "5")
     import subprocess as sp
+
+    from agents.cli_invoke import CliRoute
+
+    monkeypatch.setattr(
+        "agents.cli_invoke.resolve_cli_route",
+        lambda *a, **k: CliRoute("cli", "claude"),
+    )
+    monkeypatch.setattr(
+        "agents.cli_invoke.build_subprocess_argv",
+        lambda config, route, prompt, **kw: (["claude", "-p"], prompt),
+    )
 
     seen = {}
 

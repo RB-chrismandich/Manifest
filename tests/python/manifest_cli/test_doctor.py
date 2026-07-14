@@ -83,5 +83,18 @@ def test_optional_deps_not_required_when_disabled(tmp_path, monkeypatch):
 
 def test_core_import_failure(tmp_path, monkeypatch):
     services = _write_services(tmp_path, "services: {}\n")
+    _patch_imports(monkeypatch, failures={"yaml"})
+    assert doctor_mod.run_doctor(services) == 1
+
+
+def test_claude_enabled_requires_anthropic(tmp_path, monkeypatch):
+    services = _write_services(
+        tmp_path,
+        """
+        services:
+          claude:
+            enabled: true
+        """,
+    )
     _patch_imports(monkeypatch, failures={"anthropic"})
     assert doctor_mod.run_doctor(services) == 1

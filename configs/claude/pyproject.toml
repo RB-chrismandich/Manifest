@@ -4,7 +4,6 @@ version = "0.0.0"
 description = "Manifest home-deployed Python runtime"
 requires-python = ">=3.11"
 dependencies = [
-  "anthropic>=0.40.0",
   "google-genai>=1.0.0; python_version >= '3.9'",
   "google-generativeai>=0.8.0",
   "google-auth>=2.0.0",
@@ -19,6 +18,7 @@ dependencies = [
 manifest = "manifest_cli:main"
 
 [dependency-groups]
+claude = ["anthropic>=0.40.0"]
 smoke = ["playwright==1.60.0"]
 smoke-agent = ["browser-use>=0.13.0"]
 

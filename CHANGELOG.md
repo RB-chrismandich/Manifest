@@ -34,6 +34,11 @@ All notable changes are documented here in reverse chronological order.
 - **Agent-agnostic synthesis** — low-consensus merge in `parallel-agent` uses any
   configured `cli_agents` provider (`synthesis.provider` / `SYNTH_PROVIDER` /
   `SYNTH_CLI`); default order prefers antigravity → cursor → gemini → codex → claude.
+- **Cross-platform parity seams** — shared `agents/cli_invoke.py` for synthesis,
+  `cddl_invoke.py` (CDDL critics on Gemini/Codex/Agy), and SkillClaw evolve
+  (`EVOLVE_CLI` / `EVOLVE_PROVIDER`); `anthropic` moved to optional `uv --group claude`;
+  Gemini hooks aligned with version-pin / spec-review / lint-on-edit; `/pr-smoke`
+  orchestration probe tries the first available provider.
 - **Shared infra** — `spec_review.sh` `discover_artifacts` now handles FILE
   targets (paired within their own layout tree); `audit_log.sh` gains a generic
   `AUDIT_LOG_FILE` env; deploy-reconcile now covers the `prompts/` namespace.

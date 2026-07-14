@@ -24,6 +24,33 @@ def _make_engine(tmp_path):
     return SynthesisEngine(config)
 
 
+def _patch_no_cli(monkeypatch):
+    monkeypatch.setattr("agents.cli_invoke.shutil.which", lambda _: None)
+
+
+def _patch_cli_on_path(monkeypatch, binary="agy", path="/usr/bin/agy"):
+    def which(name):
+        return path if name == binary else None
+
+    monkeypatch.setattr("agents.cli_invoke.shutil.which", which)
+
+
+def _patch_sdk_available(monkeypatch):
+    from agents import cli_invoke as cli_invoke_mod
+    from agents import synthesis as synth_module
+
+    monkeypatch.setattr(cli_invoke_mod, "HAS_ANTHROPIC", True)
+    monkeypatch.setattr(synth_module, "HAS_ANTHROPIC", True)
+
+
+def _patch_no_sdk(monkeypatch):
+    from agents import cli_invoke as cli_invoke_mod
+    from agents import synthesis as synth_module
+
+    monkeypatch.setattr(cli_invoke_mod, "HAS_ANTHROPIC", False)
+    monkeypatch.setattr(synth_module, "HAS_ANTHROPIC", False)
+
+
 class TestSynthesisEngine:
     def test_creation(self, tmp_path):
         engine = _make_engine(tmp_path)
@@ -87,22 +114,16 @@ class TestSynthesisEngine:
         self, tmp_path, monkeypatch
     ):
         """No SDK, no CLI, no API key → auth error envelope (not a crash)."""
-        from agents import synthesis as synth_module
-
-        original = synth_module.HAS_ANTHROPIC
-        synth_module.HAS_ANTHROPIC = False
+        _patch_no_sdk(monkeypatch)
         monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
-        monkeypatch.setattr(synth_module.shutil, "which", lambda _: None)
-        try:
-            engine = _make_engine(tmp_path)
-            engine.synthesis_template = "Template: {ORIGINAL_TASK}"
-            consensus = {"consensus_score": 10}
-            result = asyncio.run(engine.synthesize("test", {}, consensus))
-            assert result is not None
-            assert result["triggered"] is True
-            assert "Synthesis unavailable" in result["error"]
-        finally:
-            synth_module.HAS_ANTHROPIC = original
+        _patch_no_cli(monkeypatch)
+        engine = _make_engine(tmp_path)
+        engine.synthesis_template = "Template: {ORIGINAL_TASK}"
+        consensus = {"consensus_score": 10}
+        result = asyncio.run(engine.synthesize("test", {}, consensus))
+        assert result is not None
+        assert result["triggered"] is True
+        assert "Synthesis unavailable" in result["error"]
 
 
 def _mock_anthropic_response(text: str):
@@ -123,7 +144,8 @@ class TestSynthesizeWithSdk:
         from agents import synthesis as synth_module
 
         monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
-        monkeypatch.setattr(synth_module, "HAS_ANTHROPIC", True)
+        _patch_sdk_available(monkeypatch)
+        _patch_no_cli(monkeypatch)
         monkeypatch.setattr(
             synth_module,
             "AsyncAnthropic",
@@ -173,7 +195,8 @@ class TestSynthesizeWithSdk:
 
         client = MagicMock()
         client.messages.create = AsyncMock(side_effect=TimeoutError())
-        monkeypatch.setattr(synth_module, "HAS_ANTHROPIC", True)
+        _patch_sdk_available(monkeypatch)
+        _patch_no_cli(monkeypatch)
         monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
         monkeypatch.setattr(
             synth_module,
@@ -197,7 +220,8 @@ class TestSynthesizeWithSdk:
 
         client = MagicMock()
         client.messages.create = AsyncMock(side_effect=RuntimeError("boom"))
-        monkeypatch.setattr(synth_module, "HAS_ANTHROPIC", True)
+        _patch_sdk_available(monkeypatch)
+        _patch_no_cli(monkeypatch)
         monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
         monkeypatch.setattr(
             synth_module,
@@ -291,7 +315,7 @@ class TestSynthesisBackendResolution:
         def which(binary):
             return "/usr/bin/agy" if binary == "agy" else None
 
-        monkeypatch.setattr("agents.synthesis.shutil.which", which)
+        monkeypatch.setattr("agents.cli_invoke.shutil.which", which)
         engine = _make_engine(tmp_path)
         route = engine._resolve_synthesis_route()
         assert route == SynthesisRoute("cli", "antigravity")
@@ -302,38 +326,26 @@ class TestSynthesisBackendResolution:
         def which(binary):
             return "/usr/bin/claude" if binary == "claude" else None
 
-        monkeypatch.setattr("agents.synthesis.shutil.which", which)
+        monkeypatch.setattr("agents.cli_invoke.shutil.which", which)
         engine = _make_engine(tmp_path)
         route = engine._resolve_synthesis_route()
         assert route == SynthesisRoute("cli", "claude")
 
     def test_auto_falls_back_to_sdk_when_no_cli(self, tmp_path, monkeypatch):
         monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
-        monkeypatch.setattr("agents.synthesis.shutil.which", lambda _: None)
-        from agents import synthesis as synth_module
-
-        original = synth_module.HAS_ANTHROPIC
-        synth_module.HAS_ANTHROPIC = True
-        try:
-            engine = _make_engine(tmp_path)
-            route = engine._resolve_synthesis_route()
-            assert route == SynthesisRoute("sdk", "claude")
-            assert engine._resolve_synthesis_backend() == "sdk"
-        finally:
-            synth_module.HAS_ANTHROPIC = original
+        _patch_no_cli(monkeypatch)
+        _patch_sdk_available(monkeypatch)
+        engine = _make_engine(tmp_path)
+        route = engine._resolve_synthesis_route()
+        assert route == SynthesisRoute("sdk", "claude")
+        assert engine._resolve_synthesis_backend() == "sdk"
 
     def test_auto_neither_cli_nor_key_returns_none(self, tmp_path, monkeypatch):
         monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
-        monkeypatch.setattr("agents.synthesis.shutil.which", lambda _: None)
-        from agents import synthesis as synth_module
-
-        original = synth_module.HAS_ANTHROPIC
-        synth_module.HAS_ANTHROPIC = True
-        try:
-            engine = _make_engine(tmp_path)
-            assert engine._resolve_synthesis_route() is None
-        finally:
-            synth_module.HAS_ANTHROPIC = original
+        _patch_no_cli(monkeypatch)
+        _patch_sdk_available(monkeypatch)
+        engine = _make_engine(tmp_path)
+        assert engine._resolve_synthesis_route() is None
 
     def test_backend_cli_forces_cli_even_with_key(self, tmp_path, monkeypatch):
         monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
@@ -341,27 +353,18 @@ class TestSynthesisBackendResolution:
         def which(binary):
             return "/usr/bin/claude" if binary == "claude" else None
 
-        monkeypatch.setattr("agents.synthesis.shutil.which", which)
+        monkeypatch.setattr("agents.cli_invoke.shutil.which", which)
         engine = _make_engine(tmp_path)
         engine.config.config.setdefault("synthesis", {})["backend"] = "cli"
         assert engine._resolve_synthesis_route() == SynthesisRoute("cli", "claude")
 
     def test_backend_sdk_forces_sdk(self, tmp_path, monkeypatch):
-        def which(binary):
-            return "/usr/bin/claude" if binary == "claude" else None
-
-        monkeypatch.setattr("agents.synthesis.shutil.which", which)
-        from agents import synthesis as synth_module
-
-        original = synth_module.HAS_ANTHROPIC
-        synth_module.HAS_ANTHROPIC = True
+        _patch_cli_on_path(monkeypatch, binary="claude", path="/usr/bin/claude")
+        _patch_sdk_available(monkeypatch)
         monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
-        try:
-            engine = _make_engine(tmp_path)
-            engine.config.config.setdefault("synthesis", {})["backend"] = "sdk"
-            assert engine._resolve_synthesis_route() == SynthesisRoute("sdk", "claude")
-        finally:
-            synth_module.HAS_ANTHROPIC = original
+        engine = _make_engine(tmp_path)
+        engine.config.config.setdefault("synthesis", {})["backend"] = "sdk"
+        assert engine._resolve_synthesis_route() == SynthesisRoute("sdk", "claude")
 
     def test_invalid_backend_falls_back_to_auto(self, tmp_path, monkeypatch):
         monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
@@ -369,7 +372,7 @@ class TestSynthesisBackendResolution:
         def which(binary):
             return "/usr/bin/claude" if binary == "claude" else None
 
-        monkeypatch.setattr("agents.synthesis.shutil.which", which)
+        monkeypatch.setattr("agents.cli_invoke.shutil.which", which)
         engine = _make_engine(tmp_path)
         engine.config.config.setdefault("synthesis", {})["backend"] = "bogus"
         assert engine._resolve_synthesis_route() == SynthesisRoute("cli", "claude")
@@ -377,7 +380,7 @@ class TestSynthesisBackendResolution:
     def test_synth_provider_env_overrides_config(self, tmp_path, monkeypatch):
         monkeypatch.setenv("SYNTH_PROVIDER", "cursor")
         monkeypatch.setattr(
-            "agents.synthesis.shutil.which",
+            "agents.cli_invoke.shutil.which",
             lambda binary: "/usr/bin/cursor-agent"
             if binary == "cursor-agent"
             else None,
@@ -404,7 +407,7 @@ class TestSynthesisCliInvoke:
         self._patch_cli_success(
             monkeypatch, '{"unified_recommendation": "merged"}'
         )
-        monkeypatch.setattr("agents.synthesis.shutil.which", lambda _: "/usr/bin/agy")
+        _patch_cli_on_path(monkeypatch)
 
         engine = self._engine_with_template(tmp_path)
         result = asyncio.run(
@@ -422,7 +425,7 @@ class TestSynthesisCliInvoke:
             return {"status": "failed", "error": "not logged in", "output": ""}
 
         monkeypatch.setattr(runners.CLIAgent, "_execute_impl", fake_impl)
-        monkeypatch.setattr("agents.synthesis.shutil.which", lambda _: "/usr/bin/agy")
+        _patch_cli_on_path(monkeypatch)
 
         engine = self._engine_with_template(tmp_path)
         result = asyncio.run(
@@ -437,12 +440,12 @@ class TestSynthesisCliInvoke:
         from agents import synthesis as synth_module
 
         client_factory = MagicMock()
-        monkeypatch.setattr(synth_module, "HAS_ANTHROPIC", True)
+        _patch_sdk_available(monkeypatch)
         monkeypatch.setattr(
             synth_module, "AsyncAnthropic", client_factory, raising=False
         )
         monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
-        monkeypatch.setattr(synth_module.shutil, "which", lambda _: None)
+        _patch_no_cli(monkeypatch)
 
         engine = self._engine_with_template(tmp_path)
         result = asyncio.run(
@@ -469,15 +472,15 @@ class TestSynthesisCliInvoke:
             )
 
     def test_cli_timeout_returns_timeout_error(self, tmp_path, monkeypatch):
-        from agents import synthesis as synth_module
+        from agents import cli_invoke as cli_invoke_mod
 
         async def fake_wait_for(coro, timeout):
             if hasattr(coro, "close"):
                 coro.close()
             raise TimeoutError()
 
-        monkeypatch.setattr(synth_module.asyncio, "wait_for", fake_wait_for)
-        monkeypatch.setattr(synth_module.shutil, "which", lambda _: "/usr/bin/agy")
+        monkeypatch.setattr(cli_invoke_mod.asyncio, "wait_for", fake_wait_for)
+        _patch_cli_on_path(monkeypatch)
 
         engine = self._engine_with_template(tmp_path)
         result = asyncio.run(
@@ -496,7 +499,8 @@ class TestConsensusThreshold:
         from agents import synthesis as synth_module
 
         client = _mock_anthropic_response('{"unified_recommendation": "ran"}')
-        monkeypatch.setattr(synth_module, "HAS_ANTHROPIC", True)
+        _patch_sdk_available(monkeypatch)
+        _patch_no_cli(monkeypatch)
         monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
         monkeypatch.setattr(
             synth_module,

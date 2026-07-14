@@ -27,15 +27,21 @@ def run_doctor(services_yml: Path) -> int:
     """Run import smoke tests; optional groups keyed off services.yml."""
     failures: list[str] = []
 
-    for module in ("anthropic", "yaml"):
-        err = _try_import(module)
-        if err:
-            failures.append(f"missing core dependency {module}: {err}")
+    err = _try_import("yaml")
+    if err:
+        failures.append(f"missing core dependency yaml: {err}")
 
     if services_yml.is_file():
         data = yaml.safe_load(services_yml.read_text()) or {}
     else:
         data = {}
+
+    if _service_enabled(data, "claude"):
+        err = _try_import("anthropic")
+        if err:
+            failures.append(
+                f"claude.enabled requires anthropic SDK (uv sync --group claude): {err}"
+            )
 
     if _service_enabled(data, "smoke"):
         err = _try_import("playwright")

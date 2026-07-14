@@ -37,6 +37,43 @@
           }
         ]
       }
+    ],
+    "AfterTool": [
+      {
+        "matcher": "write_file|replace",
+        "hooks": [
+          {
+            "name": "version-pin",
+            "type": "command",
+            "command": "~/.claude/scripts/version_pin_hook.sh",
+            "timeout": 30000
+          },
+          {
+            "name": "spec-review",
+            "type": "command",
+            "command": "~/.claude/scripts/spec_review.sh --silent",
+            "timeout": 120000
+          },
+          {
+            "name": "lint-on-edit",
+            "type": "command",
+            "command": "~/.claude/scripts/lint_on_edit_hook.sh",
+            "timeout": 30000
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "name": "deploy-stamp-check",
+            "type": "command",
+            "command": "~/.claude/scripts/deploy_stamp_check.sh",
+            "timeout": 10000
+          }
+        ]
+      }
     ]
   }
 }
