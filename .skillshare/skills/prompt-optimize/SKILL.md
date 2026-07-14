@@ -27,7 +27,8 @@ Every generated or refactored skill payload *must* programmatically embed the fo
 
 ## 3. Input Processing & Parsing Sequence
 
-When a raw prompt payload is received via the scheduled task pipeline, execute these four processing cycles internally:
+When a raw prompt payload is received via the scheduled task pipeline, execute these four processing cycles
+internally:
 
 1. **Deconstruct**: Extract the underlying structural intent, execution environment context, and implicit boundary
    limits.
@@ -41,7 +42,6 @@ When a raw prompt payload is received via the scheduled task pipeline, execute t
 
 The output must be returned strictly using this layout so downstream agent layers can parse it deterministically:
 
-```xml
 <problem_structure>
   <problem_definition>
     [Action-oriented task statement with precise boolean endpoints or metrics]
@@ -62,11 +62,11 @@ The output must be returned strictly using this layout so downstream agent layer
     [Strict formatting payload requirements: JSON object layouts, XML schemas, or fixed markdown tables]
   </desired_output>
 </problem_structure>
-```
 
 ## 5. Normalized Structural Blueprints
 
-Depending on the task classification parsed during the sequence, map the payload to one of these execution structures:
+Depending on the task classification parsed during the sequence, map the payload to one of these execution
+structures:
 
 ### Blueprint A: Local Automation & Systems Operations
 
