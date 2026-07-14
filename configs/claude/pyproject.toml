@@ -1,0 +1,49 @@
+[project]
+name = "manifest-runtime"
+version = "0.0.0"
+description = "Manifest home-deployed Python runtime"
+requires-python = ">=3.11"
+dependencies = [
+  "anthropic>=0.40.0",
+  "google-genai>=1.0.0; python_version >= '3.9'",
+  "google-generativeai>=0.8.0",
+  "google-auth>=2.0.0",
+  "aiohttp>=3.9.0",
+  "asyncio-throttle>=1.0.0",
+  "pyyaml>=6.0.1",
+  "jsonschema>=4.23.0",
+  "rich>=13.0.0",
+  "click>=8.1.0",
+  "psutil>=5.9.0",
+]
+
+[project.scripts]
+manifest = "manifest_cli:main"
+
+[dependency-groups]
+smoke = ["playwright==1.60.0"]
+smoke-agent = ["browser-use>=0.13.0"]
+
+[tool.uv]
+package = true
+override-dependencies = ["google-api-core==2.29.0"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = [
+  "scripts/agents",
+  "scripts/smoke_orchestrator",
+  "scripts/cddl",
+  "scripts/skillclaw",
+  "scripts/manifest_cli",
+]
+
+[tool.hatch.build.targets.wheel.sources]
+"scripts/agents" = "agents"
+"scripts/smoke_orchestrator" = "smoke_orchestrator"
+"scripts/cddl" = "cddl"
+"scripts/skillclaw" = "skillclaw"
+"scripts/manifest_cli" = "manifest_cli"
