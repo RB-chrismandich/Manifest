@@ -58,7 +58,7 @@ the gating signal.
 - `tests/lint/check_array_expansion.sh` and `tests/lint/check_bats_assertions.sh`
 - `yamllint configs/claude/config/*.yml` plus a plain `yaml.safe_load` parse of each config
 - `markdownlint-cli2` over `AGENTS.md CLAUDE.md README.md docs/*.md`
-- `smoke_test.py run --app manifest --tier Lite` (CI's Verify gate; skipped under `--quick`)
+- `manifest smoke run --app manifest --tier Lite` (CI's Verify gate; skipped under `--quick`)
 - generated-artifact drift: `generate_commands_doc.py --check` (docs/COMMANDS.md +
   GEMINI.md/AGENTS.md command index) and a `generate_cursor_rules.sh`
   regenerate-and-clean-tree check — adding a skill that forgets these is the
@@ -70,7 +70,7 @@ the gating signal.
 
 - `bootstrap.sh --skip-install --skip-auth --force` — the deploy path still works *(hard gate: a broken deploy is a regression)*
 - `check_status.sh` — symlinks, config syntax, auth, orchestration readiness *(soft: disabled/unauth agents are normal)*
-- `parallel_agent.py --claude-only` round-trip — an agent actually responds end-to-end *(soft)*
+- `manifest parallel-agent --claude-only` round-trip — an agent actually responds end-to-end *(soft)*
 
 ## Reporting back to the user
 

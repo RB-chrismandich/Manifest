@@ -64,5 +64,5 @@ into one report.
 
 This skill always fans out: dispatch one sub-agent per docs sub-skill (docs-improve-readme, docs-generate-diagrams,
 docs-improve) and merge their reports. Pick the mechanism per the shared Sub-Agent Selection Rules
-(`configs/claude/references/sub-agent-dispatch.md`): native Task sub-agents on Claude, or `parallel_agent.py` /
+(`configs/claude/references/sub-agent-dispatch.md`): native Task sub-agents on Claude, or `manifest parallel-agent` /
 inline on other assistants. Dispatched sub-agents execute their task directly and do not re-dispatch.

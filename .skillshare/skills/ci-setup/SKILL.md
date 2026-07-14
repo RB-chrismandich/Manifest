@@ -142,7 +142,7 @@ smoke-manage skill) to the CI pipeline:
           pip install playwright pyyaml
           python3 -m playwright install --with-deps chromium
       - name: Run smoke tests (Lite tier)
-        run: python3 smoke_test.py run --tier Lite --junit smoke-report.xml
+        run: manifest smoke run --tier Lite --junit smoke-report.xml
 ```
 
 **GitLab CI** — add after the test stage:
@@ -155,7 +155,7 @@ smoke-tests:
     - pip install playwright pyyaml
     - python3 -m playwright install --with-deps chromium
   script:
-    - python3 smoke_test.py run --tier Lite --junit smoke-report.xml
+    - manifest smoke run --tier Lite --junit smoke-report.xml
   rules:
     - exists:
         - smoke-catalog/*.yaml

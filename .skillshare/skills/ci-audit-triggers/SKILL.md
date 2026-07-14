@@ -70,5 +70,5 @@ such a workflow (CODEOWNERS, branch protection, environments), use `ci-harden-wo
 
 When ≥3 workflow files need auditing, dispatch one sub-agent per workflow to audit it, then merge findings;
 below that, audit inline. Pick the mechanism per the shared Sub-Agent Selection Rules
-(`configs/claude/references/sub-agent-dispatch.md`): native Task sub-agents on Claude, or `parallel_agent.py` /
+(`configs/claude/references/sub-agent-dispatch.md`): native Task sub-agents on Claude, or `manifest parallel-agent` /
 inline on other assistants. Dispatched sub-agents execute their task directly and do not re-dispatch.

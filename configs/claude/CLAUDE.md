@@ -17,9 +17,11 @@ Apply at all times, in every session:
 
 `/token-conserve` re-asserts this mode if drift is noticed mid-session.
 
-## Parallel Agent Script
+## Manifest CLI (parallel-agent)
 
-**Location**: `~/.claude/scripts/parallel_agent.py`
+**Canonical command**: `manifest parallel-agent` (installed to `~/.local/bin/manifest` by bootstrap).
+
+Legacy shim `~/.claude/scripts/parallel_agent.py` still forwards to the same entry point but prints a deprecation warning — prefer `manifest parallel-agent`.
 
 ### Quick Usage
 
@@ -45,10 +47,13 @@ Default MCP/tool routing — use the matching tool when the task domain matches:
 
 ```bash
 # Basic code review with JSON output (all 5 agents, 10 min timeout)
-~/.claude/scripts/parallel_agent.py --json --timeout 600 --review /absolute/path/to/file
+manifest parallel-agent --json --timeout 600 --review /absolute/path/to/file
 
 # Full analysis with validation and model selection (15 min timeout)
-~/.claude/scripts/parallel_agent.py --json --full-output --validate --timeout 900 --cursor-model advanced --claude-model opus --analyze /absolute/path/to/file
+manifest parallel-agent --json --full-output --validate --timeout 900 --cursor-model advanced --claude-model opus --analyze /absolute/path/to/file
+
+# Smoke catalog (when smoke service enabled)
+manifest smoke run --app manifest --tier Lite
 ```
 
 ## Reference Index
@@ -60,7 +65,7 @@ Read on demand (NOT auto-loaded). You MUST read the reference before related tas
 - `~/.claude/references/git-platform.md` — Read when automating PRs, branch detection, or git_ops failures.
 - `~/.claude/references/layout.md` — Read when modifying config trees or mapping file locations.
 - `~/.claude/references/sub-agent-dispatch.md` — Read before a skill dispatches sub-agents: native Task vs
-  `parallel_agent.py`, when-to-dispatch threshold, cross-platform fallback.
+  `manifest parallel-agent`, when-to-dispatch threshold, cross-platform fallback.
 - `~/.claude/references/spec-artifact-discovery.md` — Read before a spec-* skill reads
   planning artifacts: speckit vs superpowers layout detection + precedence.
 - `~/.claude/references/antipatterns.md` — Read before writing or refactoring code:
@@ -125,7 +130,7 @@ lifecycle), `/env-check` (env sanity), `/session-checkpoint` (high-context save)
 **Graphify** is a managed *tool*, not a parallel-orchestration agent: the
 `graphify` CLI (installed by bootstrap when enabled) and its `/graphify` skill
 are toggled via `--enable-graphify`/`--disable-graphify` (default: enabled), but
-graphify never participates in `parallel_agent.py` consensus and is not counted
+graphify never participates in `manifest parallel-agent` consensus and is not counted
 toward orchestration readiness.
 
 **CLI tool** (installed to `~/.local/bin/`): `sync-skills` — push

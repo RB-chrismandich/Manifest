@@ -40,5 +40,5 @@ for each). An empty `survived` means every candidate was refuted.
 
 When ≥3 candidate findings need triage, dispatch one sub-agent per finding to verify it, then aggregate verdicts; below
 that, triage inline. Pick the mechanism per the shared Sub-Agent Selection Rules
-(`configs/claude/references/sub-agent-dispatch.md`): native Task sub-agents on Claude, or `parallel_agent.py` / inline
+(`configs/claude/references/sub-agent-dispatch.md`): native Task sub-agents on Claude, or `manifest parallel-agent` / inline
 on other assistants. Dispatched sub-agents execute their task directly and do not re-dispatch.

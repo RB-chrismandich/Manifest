@@ -25,9 +25,11 @@ Apply at all times, in every session:
 
 `@token-conserve` re-asserts this mode if drift is noticed mid-session.
 
-## Parallel Agent Script
+## Manifest CLI (parallel-agent)
 
-**Location**: `~/.claude/scripts/parallel_agent.py` (symlinked at `.cursor/scripts/`)
+**Canonical command**: `manifest parallel-agent` (installed to `~/.local/bin/manifest`; scripts symlinked at `.cursor/scripts/`).
+
+Legacy shim `~/.claude/scripts/parallel_agent.py` still forwards but prints a deprecation warning — prefer `manifest parallel-agent`.
 
 ### Quick Usage
 
@@ -52,14 +54,14 @@ Default MCP/tool routing — use the matching tool when the task domain matches:
 
 ```bash
 # Basic code review with JSON output (all 5 agents, 10 min timeout)
-~/.claude/scripts/parallel_agent.py --json --timeout 600 --review /absolute/path/to/file
+manifest parallel-agent --json --timeout 600 --review /absolute/path/to/file
 
 # Full analysis with validation and model selection (15 min timeout)
-~/.claude/scripts/parallel_agent.py --json --full-output --validate --timeout 900 \
+manifest parallel-agent --json --full-output --validate --timeout 900 \
   --cursor-model advanced --claude-model opus --analyze /absolute/path/to/file
 
 # Generic prompt to all agents
-~/.claude/scripts/parallel_agent.py --json "Your question here"
+manifest parallel-agent --json "Your question here"
 ```
 
 ### Options
@@ -105,7 +107,7 @@ Read on demand (NOT auto-loaded). You MUST read the reference before related tas
 - `~/.claude/references/git-platform.md` — Read when automating PRs, branch detection, or git_ops failures.
 - `~/.claude/references/layout.md` — Read when modifying config trees or mapping file locations.
 - `~/.claude/references/sub-agent-dispatch.md` — Read before a rule dispatches sub-agents: native Task vs
-  `parallel_agent.py`, when-to-dispatch threshold, cross-platform fallback.
+  `manifest parallel-agent`, when-to-dispatch threshold, cross-platform fallback.
 - `~/.claude/references/spec-artifact-discovery.md` — Read before a spec-* rule reads
   planning artifacts: speckit vs superpowers layout detection + precedence.
 - `~/.claude/references/antipatterns.md` — Read before writing or refactoring code:
@@ -204,14 +206,14 @@ error-handling, security, dependency, iteration). Full reference:
 ### Before Making Changes
 
 ```bash
-~/.claude/scripts/parallel_agent.py --json --validate \
+manifest parallel-agent --json --validate \
   "Review this planned change: [description]. Files affected: [list]"
 ```
 
 ### After Making Changes
 
 ```bash
-~/.claude/scripts/parallel_agent.py --json --validate --timeout 600 \
+manifest parallel-agent --json --validate --timeout 600 \
   --review /absolute/path/to/modified_file
 ```
 
@@ -285,7 +287,7 @@ All configuration is symlinked from `.claude/`:
 **Graphify** is a managed *tool*, not a parallel-orchestration agent: the
 `graphify` CLI (installed by bootstrap when enabled) and its `@graphify` rule
 are toggled via `--enable-graphify`/`--disable-graphify` (default: enabled), but
-graphify never participates in `parallel_agent.py` consensus and is not counted
+graphify never participates in `manifest parallel-agent` consensus and is not counted
 toward orchestration readiness.
 
 **CLI tool** (installed to `~/.local/bin/`): `sync-skills` — push
