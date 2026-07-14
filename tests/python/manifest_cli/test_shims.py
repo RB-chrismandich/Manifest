@@ -107,7 +107,6 @@ def test_exec_manifest_exits_when_manifest_missing(monkeypatch, tmp_path, capsys
     [
         ("parallel_agent.py", "parallel-agent", "parallel_agent.py"),
         ("smoke_test.py", "smoke", "smoke_test.py"),
-        ("cddl_loop.py", "cddl", "cddl_loop.py"),
         ("skillclaw_ingest.py", "skillclaw ingest", "skillclaw_ingest.py"),
         ("skillclaw_evolve.py", "skillclaw evolve", "skillclaw_evolve.py"),
         ("skillclaw_promote.py", "skillclaw promote", "skillclaw_promote.py"),
@@ -124,3 +123,17 @@ def test_legacy_entry_points_delegate(script, subcommand, legacy, monkeypatch):
     )
     runpy.run_path(str(SCRIPTS / script), run_name="__main__")
     assert calls == [(subcommand, legacy)]
+
+
+def test_cddl_loop_retired():
+    sys.argv = ["cddl_loop.py", "start", "specs/001-fx"]
+    with pytest.raises(SystemExit) as exc:
+        runpy.run_path(str(SCRIPTS / "cddl_loop.py"), run_name="__main__")
+    assert exc.value.code == 2
+
+
+def test_cddl_loop_help_exits_zero():
+    with pytest.raises(SystemExit) as exc:
+        sys.argv = ["cddl_loop.py", "--help"]
+        runpy.run_path(str(SCRIPTS / "cddl_loop.py"), run_name="__main__")
+    assert exc.value.code == 0

@@ -22,5 +22,9 @@ Produce the smallest complete change that satisfies the spec and plan:
 - All paths must be relative to the repository root. You cannot write outside
   the repository; attempting to is a rejected candidate.
 
+> **Sub-agent skill:** `/spec-implement-loop` uses `developer.md` as the sole
+> code-writing persona. This `implementer.md` charter remains for the legacy
+> `manifest cddl` scripted orchestrator.
+
 State your reasoning briefly, then emit the candidate in the exact output
 format given at the end of this prompt.

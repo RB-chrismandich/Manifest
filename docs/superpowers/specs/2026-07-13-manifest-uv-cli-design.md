@@ -168,7 +168,6 @@ build-backend = "hatchling.build"
 packages = [
   "scripts/agents",
   "scripts/smoke_orchestrator",
-  "scripts/cddl",
   "scripts/skillclaw",
   "scripts/manifest_cli",
 ]
@@ -176,7 +175,6 @@ packages = [
 [tool.hatch.build.targets.wheel.sources]
 "scripts/agents" = "agents"
 "scripts/smoke_orchestrator" = "smoke_orchestrator"
-"scripts/cddl" = "cddl"
 "scripts/skillclaw" = "skillclaw"
 "scripts/manifest_cli" = "manifest_cli"
 ```
@@ -209,7 +207,6 @@ retain logic, or v1 shims would circularly delegate and N+1 removal would delete
 |------------|----------|--------------|
 | `parallel-agent` | `parallel_agent.py` | `agents.cli:main` (async wrapper) |
 | `smoke` | `smoke_test.py` | `smoke_orchestrator.cli:main` |
-| `cddl` | `cddl_loop.py` | `cddl.cli:main` (preserves exit-code contract) |
 | `skillclaw ingest` | `skillclaw_ingest.py` | `skillclaw.ingest:main` |
 | `skillclaw evolve` | `skillclaw_evolve.py` | `skillclaw.evolve:main` |
 | `skillclaw promote` | `skillclaw_promote.py` | `skillclaw.promote:main` |
@@ -222,8 +219,9 @@ retain logic, or v1 shims would circularly delegate and N+1 removal would delete
 
 ### Exit codes
 
-Subcommands **preserve existing exit codes** (especially `cddl` 0/2/3/4/5/6/7). The router
-never swallows `SystemExit` codes.
+Subcommands **preserve existing exit codes** where applicable. The router never
+swallows `SystemExit` codes. (`cddl_loop.py` was retired; the shim exits 0 for
+`--help`, 2 otherwise.)
 
 ---
 
