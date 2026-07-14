@@ -26,6 +26,8 @@ smoke-agent = ["browser-use>=0.13.0"]
 
 [tool.uv]
 package = true
+# Resolves smoke-agent (browser-use) vs google-generativeai under universal lock;
+# see docs/superpowers/specs/2026-07-13-manifest-uv-cli-design.md
 override-dependencies = ["google-api-core==2.29.0"]
 
 [build-system]
