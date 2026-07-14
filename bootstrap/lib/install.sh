@@ -202,36 +202,6 @@ check_python() {
     fi
 }
 
-# Install Python dependencies for parallel_agent.py
-install_python_dependencies() {
-    if ! check_python; then
-        return 0 # Skip if Python not available, non-fatal
-    fi
-
-    # Use PYTHON_CMD from check_python
-    local python_cmd="${PYTHON_CMD:-python3}"
-
-    local requirements_file="$TARGET_DIR/scripts/requirements.txt"
-
-    if [[ ! -f "$requirements_file" ]]; then
-        print_warning "requirements.txt not found at $requirements_file"
-        return 0
-    fi
-
-    print_step "Installing Python dependencies for parallel_agent.py..."
-    print_info "Using: $python_cmd"
-
-    # Try to install with --user flag and prefer binary wheels
-    if $python_cmd -m pip install --user --prefer-binary -q -r "$requirements_file" 2>&1; then
-        print_success "Python dependencies installed"
-    else
-        print_warning "Failed to install Python dependencies"
-        print_info "Some packages may require compilation or may not support this Python version"
-        print_info "You can install manually later with:"
-        print_info "  $python_cmd -m pip install --prefer-binary -r $requirements_file"
-    fi
-}
-
 # Install Node.js (required for some CLIs)
 install_node() {
     print_step "Checking for Node.js..."
@@ -793,97 +763,6 @@ check_cursor() {
         if prompt_yes_no "Disable Cursor in service configuration?"; then
             ENABLE_CURSOR=false
         fi
-    fi
-}
-
-# Install browser-use E2E testing library and Playwright browsers
-install_browser_use() {
-    if [[ "$ENABLE_BROWSER_USE" == false ]]; then
-        print_info "browser-use is disabled - skipping installation"
-        return 0
-    fi
-
-    print_step "Checking for browser-use..."
-
-    if ! check_python; then
-        print_warning "Python 3 is required to install browser-use - skipping"
-        return 0
-    fi
-
-    local python_cmd="${PYTHON_CMD:-python3}"
-
-    if $python_cmd -c "import browser_use" &> /dev/null; then
-        print_success "browser-use is already installed"
-    else
-        print_step "Installing browser-use Python package..."
-        if $python_cmd -m pip install --user --prefer-binary browser-use; then
-            print_success "browser-use package installed successfully"
-        else
-            print_error "Failed to install browser-use package"
-            return 1
-        fi
-    fi
-
-    # Install Playwright browser binaries
-    print_step "Installing Playwright browsers..."
-    if $python_cmd -m playwright install chromium; then
-        print_success "Playwright browsers installed successfully"
-    else
-        print_warning "Failed to install Playwright browsers via 'playwright install chromium'. You may need to run this manually."
-    fi
-}
-
-# Install smoke-test orchestrator runtime deps (Playwright + Chromium), opt-in.
-# Idempotent and existence-guarded: pip-installs only if Playwright is missing,
-# and Chromium-only (UI steps); API/CLI steps need no browser. (spec 363 R1, T034)
-install_smoke_deps() {
-    if [[ "$ENABLE_SMOKE" == false ]]; then
-        print_info "smoke-test deps are disabled - skipping installation"
-        return 0
-    fi
-
-    print_step "Checking for smoke-test dependencies (Playwright + Chromium)..."
-
-    if ! check_python; then
-        print_warning "Python 3 is required to install smoke-test deps - skipping"
-        return 0
-    fi
-
-    local python_cmd="${PYTHON_CMD:-python3}"
-
-    # Locate the pinned requirements file (repo-only; not deployed to ~/.claude).
-    local req="" here
-    here="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-    local cand
-    for cand in "$here/tests/requirements-smoke.txt" "tests/requirements-smoke.txt"; do
-        [[ -f "$cand" ]] && {
-            req="$cand"
-            break
-        }
-    done
-
-    # Existence guard: only pip-install when Playwright is absent (idempotent).
-    if $python_cmd -c "import playwright" &> /dev/null; then
-        print_success "Playwright already installed"
-    elif [[ -n "$req" ]]; then
-        print_step "Installing smoke-test Python deps (pinned)..."
-        if $python_cmd -m pip install --user --prefer-binary -r "$req"; then
-            print_success "smoke-test deps installed from $(basename "$req")"
-        else
-            print_error "Failed to install smoke-test deps from $req"
-            return 1
-        fi
-    else
-        print_warning "tests/requirements-smoke.txt not found; install smoke deps manually"
-        return 0
-    fi
-
-    # Chromium only (UI steps). 'playwright install' is itself idempotent.
-    print_step "Installing Playwright Chromium browser..."
-    if $python_cmd -m playwright install chromium; then
-        print_success "Chromium installed for smoke UI steps"
-    else
-        print_warning "Failed to run 'playwright install chromium'. Run it manually if UI smoke steps are needed."
     fi
 }
 
