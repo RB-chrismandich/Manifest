@@ -1,22 +1,39 @@
 """Agent disagreement synthesis engine.
 
-Depends on agents.config (+ optional Anthropic SDK). Invokes Claude via CLI
-(OAuth session) or SDK (API key) depending on synthesis.backend config.
+Uses any configured ``cli_agents`` provider (agy, cursor-agent, gemini, …) or,
+when explicitly requested, the Anthropic SDK. Provider selection is controlled
+by ``synthesis.provider`` / ``SYNTH_PROVIDER`` and ``SYNTH_CLI`` env overrides.
 """
 
+from __future__ import annotations
+
 import asyncio
-import contextlib
 import json
 import os
 import re
 import shutil
-import tempfile
+from dataclasses import dataclass
 from pathlib import Path
 
-from agents.config import HAS_ANTHROPIC, Config, Logger, select_backend
+from agents.config import HAS_ANTHROPIC, Config, Logger
 
 if HAS_ANTHROPIC:
     from anthropic import AsyncAnthropic
+
+DEFAULT_PROVIDER_ORDER = (
+    "antigravity",
+    "cursor",
+    "gemini",
+    "codex",
+    "claude",
+)
+
+
+@dataclass(frozen=True)
+class SynthesisRoute:
+    mode: str  # "cli" | "sdk"
+    provider: str
+    binary_override: str | None = None
 
 
 class SynthesisEngine:
@@ -60,120 +77,168 @@ class SynthesisEngine:
             self.logger.warning(f"Synthesis template not found: tried {tried}")
         return ""
 
-    def _claude_cli_available(self) -> bool:
-        spec = self.config.get("cli_agents.claude") or {}
-        binary = spec.get("binary", "claude")
+    def _cli_provider_names(self) -> list[str]:
+        order = self.config.get("synthesis.provider_order")
+        if isinstance(order, list) and order:
+            return [str(name) for name in order]
+        agents = self.config.get("cli_agents") or {}
+        if isinstance(agents, dict) and agents:
+            return list(agents.keys())
+        return list(DEFAULT_PROVIDER_ORDER)
+
+    def _provider_for_synth_cli(self, cli: str) -> str | None:
+        cli_name = Path(cli).name
+        agents = self.config.get("cli_agents") or {}
+        if not isinstance(agents, dict):
+            return None
+        for name, spec in agents.items():
+            if not isinstance(spec, dict):
+                continue
+            binary = spec.get("binary", "")
+            if cli == binary or cli_name == binary:
+                return str(name)
+        return None
+
+    def _binary_on_path(self, binary: str) -> bool:
         if not binary:
             return False
         if os.path.isabs(binary) or binary.startswith("."):
             return os.path.isfile(binary) and os.access(binary, os.X_OK)
         return bool(shutil.which(binary))
 
-    def _resolve_synthesis_backend(self) -> str | None:
-        raw = self.config.get("synthesis.backend", "auto")
-        if raw not in ("auto", "cli", "sdk"):
+    def _cli_provider_available(
+        self, provider: str, binary_override: str | None = None
+    ) -> bool:
+        spec = self.config.get(f"cli_agents.{provider}")
+        if not spec:
+            return False
+        binary = binary_override or spec.get("binary")
+        return self._binary_on_path(str(binary or ""))
+
+    def _claude_sdk_available(self) -> bool:
+        return HAS_ANTHROPIC and bool(os.environ.get("ANTHROPIC_API_KEY"))
+
+    def _resolve_synthesis_route(self) -> SynthesisRoute | None:
+        backend = self.config.get("synthesis.backend", "auto")
+        if backend not in ("auto", "cli", "sdk"):
             if self.logger:
-                self.logger.warning(f"invalid synthesis.backend={raw!r}, using auto")
-            raw = "auto"
+                self.logger.warning(f"invalid synthesis.backend={backend!r}, using auto")
+            backend = "auto"
 
-        has_cli = self._claude_cli_available()
-        has_key = bool(os.environ.get("ANTHROPIC_API_KEY"))
+        provider_cfg = (
+            os.environ.get("SYNTH_PROVIDER")
+            or self.config.get("synthesis.provider")
+            or "auto"
+        )
+        synth_cli = os.environ.get("SYNTH_CLI")
+        binary_override = synth_cli if synth_cli else None
 
-        if raw == "cli":
-            return "cli" if has_cli else None
-        if raw == "sdk":
-            return "sdk" if HAS_ANTHROPIC else None
-        # auto — match primary claude agent, but never fall through to a doomed SDK
-        if not has_key and not has_cli:
+        if provider_cfg == "auto" and synth_cli:
+            inferred = self._provider_for_synth_cli(synth_cli)
+            if inferred:
+                provider_cfg = inferred
+
+        if provider_cfg == "sdk" or backend == "sdk":
+            return SynthesisRoute("sdk", "claude") if self._claude_sdk_available() else None
+
+        if provider_cfg != "auto":
+            ov = binary_override if synth_cli else None
+            if backend != "sdk" and self._cli_provider_available(
+                str(provider_cfg), ov
+            ):
+                return SynthesisRoute(
+                    "cli",
+                    str(provider_cfg),
+                    binary_override=ov,
+                )
+            if str(provider_cfg) == "claude" and backend != "cli":
+                return (
+                    SynthesisRoute("sdk", "claude")
+                    if self._claude_sdk_available()
+                    else None
+                )
             return None
-        return select_backend(has_sdk=HAS_ANTHROPIC, has_key=has_key, has_cli=has_cli)
 
-    def _build_claude_cli_command(
-        self, prompt: str, output_file: str | None
-    ) -> list[str]:
-        spec = self.config.get("cli_agents.claude") or {}
-        binary = spec.get("binary", "claude")
+        if backend == "sdk":
+            return SynthesisRoute("sdk", "claude") if self._claude_sdk_available() else None
+
+        for name in self._cli_provider_names():
+            ov: str | None = None
+            if synth_cli and (
+                name == self._provider_for_synth_cli(synth_cli)
+                or str(provider_cfg) == name
+            ):
+                ov = synth_cli
+            if self._cli_provider_available(name, ov):
+                return SynthesisRoute("cli", name, binary_override=ov)
+
+        if backend == "auto" and self._claude_sdk_available():
+            return SynthesisRoute("sdk", "claude")
+
+        return None
+
+    def _resolve_synthesis_backend(self) -> str | None:
+        """Backward-compatible shim: returns ``cli``, ``sdk``, or ``None``."""
+        route = self._resolve_synthesis_route()
+        if route is None:
+            return None
+        return route.mode
+
+    def _unavailable_error_message(self) -> str:
+        providers = ", ".join(self._cli_provider_names())
+        return (
+            "Synthesis unavailable: no CLI on PATH for configured providers "
+            f"({providers}). Set SYNTH_PROVIDER or SYNTH_CLI, install a panel "
+            "CLI, or use synthesis.provider: sdk with ANTHROPIC_API_KEY."
+        )
+
+    async def _invoke_cli(self, route: SynthesisRoute, prompt: str) -> str:
+        from agents.runners import CLIAgent
+
         model_tier = self.config.get("synthesis.model", "sonnet")
-        model_name = self.config.get(f"model_tiers.claude.{model_tier}", model_tier)
+        timeout = self.config.get("synthesis.timeout", 300)
+        agent = CLIAgent(
+            route.provider,
+            model=model_tier,
+            timeout=timeout,
+            config=self.config,
+            logger=self.logger,
+        )
+        if route.binary_override:
+            agent.binary = route.binary_override
 
-        def subst(arg: str) -> str:
-            return arg.replace("{output_file}", output_file or "").replace(
-                "{model}", model_name
+        result = await agent._execute_impl(prompt, "synthesize")
+        if result.get("status") != "complete":
+            raise RuntimeError(
+                result.get("error") or f"{route.provider} synthesis failed"
             )
-
-        def subst_prompt(arg: str) -> str:
-            if "{prompt}" in arg:
-                return prompt.join(subst(piece) for piece in arg.split("{prompt}"))
-            return subst(arg)
-
-        cmd = [binary]
-        for arg in spec.get("base_args", []):
-            substituted = subst(arg)
-            if substituted:
-                cmd.append(substituted)
-        if model_name:
-            cmd += [a for a in (subst(a) for a in spec.get("model_args", [])) if a]
-        for arg in spec.get("prompt_args", ["-p", "{prompt}"]):
-            substituted = subst_prompt(arg)
-            if substituted or "{prompt}" in arg:
-                cmd.append(substituted)
-        return cmd
+        return result.get("output") or ""
 
     async def _invoke_claude_cli(self, prompt: str) -> str:
-        spec = self.config.get("cli_agents.claude") or {}
-        output_strategy = spec.get("output", "stdout")
-        if output_strategy not in ("stdout", "file_then_stdout"):
-            if self.logger:
-                self.logger.warning(
-                    f"unsupported cli_agents.claude.output={output_strategy!r}, "
-                    "using stdout"
-                )
-            output_strategy = "stdout"
+        """Backward-compatible entry for tests targeting the Claude CLI path."""
+        route = SynthesisRoute("cli", "claude")
+        return await self._invoke_cli(route, prompt)
 
-        output_file = None
-        if output_strategy == "file_then_stdout":
-            with tempfile.NamedTemporaryFile(
-                mode="w", suffix=".txt", delete=False, prefix="synthesis_out_"
-            ) as tmp:
-                output_file = tmp.name
+    async def _invoke_claude_sdk(self, prompt: str) -> str:
+        if not HAS_ANTHROPIC:
+            raise RuntimeError("Anthropic SDK not available")
 
-        cmd = self._build_claude_cli_command(prompt, output_file)
-        proc = await asyncio.create_subprocess_exec(
-            *cmd,
-            stdin=asyncio.subprocess.DEVNULL,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
+        client = AsyncAnthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
+        model = self.config.get("synthesis.model", "sonnet")
+        model_name = self.config.get(
+            f"model_tiers.claude.{model}", "claude-sonnet-4-6"
         )
-        try:
-            stdout, stderr = await proc.communicate()
-            if proc.returncode != 0:
-                err = stderr.decode("utf-8", errors="ignore").strip()
-                raise RuntimeError(err or f"claude exited {proc.returncode}")
-            text = ""
-            if (
-                output_strategy == "file_then_stdout"
-                and output_file
-                and os.path.exists(output_file)
-            ):
-                with open(output_file) as f:
-                    text = f.read().strip()
-            if not text:
-                text = stdout.decode("utf-8", errors="ignore").strip()
-            return text
-        except asyncio.CancelledError:
-            proc.kill()
-            await proc.wait()
-            raise
-        finally:
-            if output_file:
-                with contextlib.suppress(OSError):
-                    os.unlink(output_file)
+        response = await client.messages.create(
+            model=model_name,
+            max_tokens=4096,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        return response.content[0].text
 
     async def synthesize(
         self, original_task: str, agent_results: dict, consensus: dict
     ) -> dict | None:
         """Synthesize disagreements into unified recommendation"""
-        # Check if synthesis is needed
         consensus_score = consensus.get("consensus_score", 100) / 100.0
         threshold = self.config.get("synthesis.threshold", 0.50)
 
@@ -189,7 +254,6 @@ class SynthesisEngine:
                 f"Consensus {consensus_score:.2f} < {threshold}, triggering synthesis"
             )
 
-        # Build synthesis prompt
         prompt = self._build_synthesis_prompt(original_task, agent_results)
 
         if not prompt:
@@ -197,56 +261,34 @@ class SynthesisEngine:
                 self.logger.warning("Failed to build synthesis prompt")
             return None
 
-        backend = self._resolve_synthesis_backend()
-        if backend is None:
+        route = self._resolve_synthesis_route()
+        if route is None:
             if self.logger:
-                self.logger.warning(
-                    "Synthesis unavailable: no claude CLI and no ANTHROPIC_API_KEY"
-                )
+                self.logger.warning(self._unavailable_error_message())
             return {
                 "triggered": True,
-                "error": (
-                    "Synthesis requires claude CLI (run `claude /login`) or "
-                    "ANTHROPIC_API_KEY (set synthesis.backend: sdk)"
-                ),
+                "error": self._unavailable_error_message(),
                 "unified_recommendation": "Synthesis failed",
             }
 
         if self.logger:
-            self.logger.info(f"Synthesis using claude backend: {backend}")
+            self.logger.info(
+                f"Synthesis using {route.mode} backend ({route.provider})"
+            )
 
         timeout = self.config.get("synthesis.timeout", 300)
         synthesis_text = ""
 
         try:
-            if backend == "cli":
+            if route.mode == "cli":
                 synthesis_text = await asyncio.wait_for(
-                    self._invoke_claude_cli(prompt), timeout=timeout
+                    self._invoke_cli(route, prompt), timeout=timeout
                 )
             else:
-                if not HAS_ANTHROPIC:
-                    if self.logger:
-                        self.logger.warning(
-                            "Anthropic SDK not available, cannot synthesize"
-                        )
-                    return None
-
-                client = AsyncAnthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
-                model = self.config.get("synthesis.model", "sonnet")
-                model_name = self.config.get(
-                    f"model_tiers.claude.{model}", "claude-sonnet-4-6"
+                synthesis_text = await asyncio.wait_for(
+                    self._invoke_claude_sdk(prompt), timeout=timeout
                 )
-                response = await asyncio.wait_for(
-                    client.messages.create(
-                        model=model_name,
-                        max_tokens=4096,
-                        messages=[{"role": "user", "content": prompt}],
-                    ),
-                    timeout=timeout,
-                )
-                synthesis_text = response.content[0].text
 
-            # Parse JSON response
             json_match = re.search(r"```json\s*\n(.*?)\n```", synthesis_text, re.DOTALL)
             if json_match:
                 synthesis_text = json_match.group(1)
@@ -290,13 +332,8 @@ class SynthesisEngine:
             return ""
 
         prompt = self.synthesis_template
-
-        # Replace template variables
         prompt = prompt.replace("{ORIGINAL_TASK}", original_task)
 
-        # Build one output section per agent actually present, so newer
-        # providers (codex, antigravity) aren't silently dropped from
-        # disagreement resolution (issue #309).
         if "{AGENT_OUTPUTS}" in prompt:
             sections = []
             for agent_name in sorted(agent_results):
@@ -304,7 +341,6 @@ class SynthesisEngine:
                 sections.append(f"### {agent_name.capitalize()} Output\n\n{output}")
             prompt = prompt.replace("{AGENT_OUTPUTS}", "\n\n".join(sections))
 
-        # Legacy fixed placeholders — replace for every agent present
         for agent_name in agent_results:
             output = agent_results.get(agent_name, {}).get("output", "N/A")
             prompt = prompt.replace(f"{{{agent_name.upper()}_OUTPUT}}", output)
