@@ -22,8 +22,8 @@ teardown() {
     [[ -n "$SANDBOX" && -d "$SANDBOX" ]] && rm -rf "$SANDBOX"
 }
 
-@test "repo ships the three role prompts with valid frontmatter" {
-    for f in implementer qa-critic arch-critic; do
+@test "repo ships the CDDL role prompts with valid frontmatter" {
+    for f in developer developer-reviewer implementer qa-critic arch-critic; do
         [ -f "$PROMPTS_SRC/$f.md" ]
         head -1 "$PROMPTS_SRC/$f.md" | grep -q '^---$'
         grep -q "^name: $f$" "$PROMPTS_SRC/$f.md"
@@ -57,6 +57,8 @@ teardown() {
 
     rsync -a "${RSYNC_EXCLUDES[@]}" "$src/" "$target/"
 
+    [ -f "$target/prompts/cddl/developer.md" ]
+    [ -f "$target/prompts/cddl/developer-reviewer.md" ]
     [ -f "$target/prompts/cddl/implementer.md" ]
     [ -f "$target/prompts/cddl/qa-critic.md" ]
     [ -f "$target/prompts/cddl/arch-critic.md" ]

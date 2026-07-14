@@ -15,20 +15,7 @@ def test_help_lists_parallel_agent():
     assert "parallel-agent" in result.output
 
 
-def test_cddl_delegates_argv(monkeypatch):
-    captured = {}
-
-    def fake_main(argv=None):
-        captured["argv"] = list(argv or [])
-        return 0
-
-    monkeypatch.setattr("cddl.cli.main", fake_main)
-    result = CliRunner().invoke(cli, ["cddl", "status"])
+def test_help_does_not_list_retired_cddl():
+    result = CliRunner().invoke(cli, ["--help"])
     assert result.exit_code == 0
-    assert captured["argv"] == ["status"]
-
-
-def test_cddl_preserves_exit_code(monkeypatch):
-    monkeypatch.setattr("cddl.cli.main", lambda argv=None: 7)
-    result = CliRunner().invoke(cli, ["cddl", "run"])
-    assert result.exit_code == 7
+    assert "cddl" not in result.output

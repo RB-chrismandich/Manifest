@@ -1,61 +1,140 @@
 ---
 name: spec-implement-loop
-description: Critic-gated implementation (CDDL) of a completed spec+plan — speckit feature dir or superpowers design doc. Two critics gate clarification, then an implementer iterates under project verification until dual structured approval stages the changes. Never commits or pushes.
+description: Critic-gated implementation (CDDL) via sub-agents — developer writes code; developer reviewer plus QA and architecture critics review until each approves with zero findings. Never commits or pushes.
 ---
 
 # Critic-Gated Implementation Loop (CDDL)
 
-Runs a completed feature's implementation through an adversarial two-phase loop:
-a **clarification gate** (a QA/security critic and an architecture critic must both
-independently signal no open questions) followed by an **implement → verify →
-critique loop** that ends only on dual explicit approval or a bounded ceiling.
-Success means changes are **staged, never committed** (staged = critic-approved)
-on the current feature branch. This complements `/speckit-implement`; it does not
-replace it or run its lifecycle hooks.
+Runs a completed feature through an adversarial loop orchestrated with **native
+sub-agents** (Task tool). **Do not** use `parallel_agent.py` for personas — panel
+consensus is a different workflow.
 
-Prerequisites: a feature branch (not the default branch), a clean tree (or
-explicit `--allow-dirty`), an authenticated `claude` CLI, and a resolvable
-spec (+ optional plan) in either supported layout.
+## Personas (strict separation)
+
+| Persona | Sub-agent type | Writes code? | Phase |
+|---------|----------------|--------------|-------|
+| **Developer** | `generalPurpose` | **Yes — only role** | 2 |
+| **Developer reviewer** | `code-reviewer` (`readonly: true`) | **Never** | 2 |
+| **QA / security critic** | `security-review` (`readonly: true`) | **Never** | 1 + 2 |
+| **Architecture critic** | `code-architect` (`readonly: true`) | **Never** | 1 + 2 |
+
+The orchestrator (you) **never** writes implementation code — only dispatches
+sub-agents, runs verification, parses verdicts, persists run artifacts, and
+stages on success.
+
+**Completion:** phase 2 succeeds only when the developer reviewer, QA critic,
+and architecture critic **each** return `approve` with **zero findings** on the
+same iteration. Any findings → feed back to the developer and iterate.
+
+## Sub-agent dispatch
+
+> Sub-agents: **always** — one fresh sub-agent per persona per round/iteration.
+> Sequential dispatch only (no parallel critics — each must see the same tree).
+> Mechanism: native Task sub-agents per
+> `configs/claude/references/sub-agent-dispatch.md`. On platforms without Task,
+> refuse and ask the operator to use Cursor or Claude Code.
+
+Charters (deployed copies under `~/.claude/prompts/cddl/` after bootstrap):
+
+- `developer.md` — code author
+- `developer-reviewer.md` — spec/plan + quality gate
+- `qa-critic.md` — security / validation / runtime safety
+- `arch-critic.md` — layering / design / DRY
+
+Dispatch templates live in this skill's `prompts/` directory. Hand sub-agents
+**file paths**, not pasted artifacts.
+
+## Prerequisites
+
+- Feature branch (not default); clean tree unless operator passes `--allow-dirty`
+- Resolvable spec (+ optional plan): speckit feature dir or superpowers design
+  doc — discovery per `configs/claude/references/spec-artifact-discovery.md`
+- `uv sync --project configs/claude` (or home bootstrap) so verification tools
+  exist when auto-detecting gates
 
 ## Procedure
 
-1. **Start** the run with the target path the user gave (feature dir, design doc
-   root, or repo root — discovery follows the spec-artifact precedence):
+### 0. Pre-flight (orchestrator, inline)
 
-   ```bash
-   python3 ~/.claude/scripts/cddl_loop.py start <target-path> \
-     [--spec <path>] [--plan <path>] [--verify-cmd '<cmd>'] \
-     [--max-rounds N] [--max-iterations N] [--allow-dirty]
-   ```
+1. Refuse default branch and dirty tree (unless `--allow-dirty`).
+2. Resolve spec + plan; write `<RUN_DIR>/context.md` (paths, layout, verify cmd,
+   iteration/round limits, clarification answers).
+3. Create run dir:
+   `${MANIFEST_STATE_ROOT:-~/.manifest}/cddl/runs/<repo-slug>/<run-id>/`
+   with `state.json` (`phase`, `iteration`, `round`, `status`).
 
-2. **Branch on the exit code** (stable contract):
-   - **0** — success. Report the staged paths (`git diff --cached --name-only`)
-     and the report location; remind the operator the loop never commits.
-   - **3** — questions pending. Read the `questions.md` path from the output,
-     relay each critic's questions to the operator conversationally, collect
-     answers, write them to a temp file, then re-enter:
+Defaults: clarification rounds **3**, implementation iterations **10**.
 
-     ```bash
-     python3 ~/.claude/scripts/cddl_loop.py answer --run <run-id> --answers-file <file>
-     ```
+### 1. Phase 1 — clarification gate (no code)
 
-     Repeat until the gate resolves (exit 0/4/5/7). This relay loop is the
-     skill's main job — the operator experiences one continuous conversation.
-   - **4** — gate failure: relay the unresolved questions from the report; the
-     spec needs clarification work before implementation (no code was produced).
-   - **5** — ceiling exhausted: summarize each critic's outstanding deficiencies
-     from `report.md`; the candidate is applied but UNSTAGED with discard steps
-     in the report.
-   - **6** — pre-flight refusal: surface the one-line reason (branch, dirty
-     tree, layout, roles, backend, lock) and how to fix it.
-   - **7** — aborted (dead critic / timeout): point at the raw outputs under
-     the run dir (`iterations/<n>/<role>.md`; phase-1 failures land in
-     `clarify/round-<n>-<role>.md`) — every attempt is persisted.
+For each round until both critics `complete` or rounds exhaust:
 
-3. **Inspect** on request: `cddl_loop.py status [--run <id>]` summarizes the
-   latest run (blocking critic, top deficiency, run dir, report).
+1. Dispatch **QA critic** (`security-review`, `readonly: true`) with
+   `reviewer-dispatch.md` — phase 1, artifacts = spec + plan only.
+2. Dispatch **architecture critic** (`code-architect`, `readonly: true`) —
+   same inputs, independent.
+3. Parse last `cddl-verdict` block from each output (`prompts/verdict-format.md`).
+4. If **either** has `questions` findings → write `questions.md`, relay to the
+   operator, collect answers → `answers-<round>.md`, append to `context.md`,
+   next round.
+5. If **both** `complete` with zero findings → enter phase 2.
 
-Runs persist under `${MANIFEST_STATE_ROOT:-~/.manifest}/cddl/runs/<repo-slug>/`
-(keep-everything; prune manually by deleting a run dir). Roles are tuned by
-editing `configs/claude/prompts/cddl/*.md` in the Manifest repo and
-redeploying — never edit the deployed copies.
+If rounds exhaust with open questions → **gate failure** (no code produced);
+write `report.md` and stop.
+
+### 2. Phase 2 — implement → verify → triple review
+
+For each iteration until all three reviewers approve or iterations exhaust:
+
+1. **Developer** (`generalPurpose`, **not** readonly) — `developer-dispatch.md`.
+   Only this sub-agent may modify the repo.
+2. **Verification** (orchestrator): run the verify command from context (or
+   `/project-verify`). On failure, write deficiencies to
+   `iterations/<n>/verify.log`, skip critics, next iteration with verify output
+   as developer feedback.
+3. Generate review package: `git diff` + `git diff --cached` →
+   `iterations/<n>/review-package.diff`.
+4. Dispatch **developer reviewer** (`code-reviewer`, `readonly: true`).
+5. Dispatch **QA critic** (`security-review`, `readonly: true`).
+6. Dispatch **architecture critic** (`code-architect`, `readonly: true`).
+7. Parse verdicts. If **any** persona has findings → merge into
+   `iterations/<n>/findings.md` for the next developer dispatch.
+8. If **all three** `approve` with **empty findings** → success (step 3).
+
+If iterations exhaust without triple approval → **ceiling failure**; leave work
+applied but **unstaged**; `report.md` lists per-persona outstanding findings.
+
+### 3. Success disposition
+
+- `git add --` only paths from the final approved iteration (never pre-existing
+  dirt, never unrelated files).
+- **Never** commit, push, or merge.
+- Write `report.md`; tell the operator staged paths (`git diff --cached --name-only`).
+
+## Operator relay (phase 1)
+
+When critics ask questions, present them conversationally, collect answers in one
+message, persist to `answers-<round>.md`, and continue — one continuous session.
+Do not ask the operator to run CLI tools.
+
+## Tunables
+
+| Flag / env | Default | Meaning |
+|------------|---------|---------|
+| `--max-rounds` | 3 | Clarification rounds |
+| `--max-iterations` | 10 | Implementation iterations |
+| `--verify-cmd` | auto-detect | Override verification command |
+| `--allow-dirty` | off | Allow dirty tree at start |
+
+## Persistence
+
+Per iteration: `developer-report.md`, `developer-reviewer.md`, `qa-critic.md`,
+`arch-critic.md`, `verdicts.json` (parsed), `verify.log`, `findings.md`.
+
+Keep everything under the run dir (manual prune: `rm -rf <run-id>`).
+
+## What this skill does NOT do
+
+- Use `parallel_agent.py` for personas
+- Let critics or the developer reviewer write code
+- Commit or push

@@ -30,14 +30,6 @@ def smoke(args: tuple[str, ...]) -> None:
     raise SystemExit(smoke_main())
 
 
-@cli.command("cddl", context_settings={"ignore_unknown_options": True})
-@click.argument("args", nargs=-1, type=click.UNPROCESSED)
-def cddl(args: tuple[str, ...]) -> None:
-    from cddl.cli import main as cddl_main
-
-    raise SystemExit(cddl_main(list(args)))
-
-
 @cli.group()
 def skillclaw() -> None:
     """SkillClaw tools."""

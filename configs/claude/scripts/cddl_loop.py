@@ -1,5 +1,23 @@
 #!/usr/bin/env python3
-from _manifest_shim import exec_manifest
+"""CDDL scripted orchestrator retired — use /spec-implement-loop (sub-agents)."""
+from __future__ import annotations
+
+import sys
+
+_RETIRED = (
+    "cddl_loop.py: removed — CDDL orchestration is the /spec-implement-loop skill "
+    "(Task sub-agents). Role prompts remain at ~/.claude/prompts/cddl/."
+)
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = list(argv if argv is not None else sys.argv[1:])
+    if not args or args[0] in ("-h", "--help"):
+        print(f"Usage: {_RETIRED}")
+        return 0
+    print(_RETIRED, file=sys.stderr)
+    return 2
+
 
 if __name__ == "__main__":
-    exec_manifest("cddl", "cddl_loop.py")
+    raise SystemExit(main())

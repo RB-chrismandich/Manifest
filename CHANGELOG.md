@@ -26,20 +26,11 @@ All notable changes are documented here in reverse chronological order.
 
 ### specs/482 — Critic-Driven Development Loop (CDDL)
 
-- **`/spec-implement-loop`** — critic-gated implementation of a completed
-  spec+plan (speckit feature dir or superpowers design doc): a bounded
-  clarification gate (both critics must emit structured `complete` verdicts
-  before any code) followed by an implement → verify → critique loop that
-  stages exactly the final dual-approved candidate's paths (staged =
-  critic-approved; never commits/pushes/reverts).
-- **Orchestrator** — re-entrant `cddl_loop.py` + `cddl/` package: fail-closed
-  fence-aware `cddl-verdict` parsing, write confinement
-  (realpath/traversal/backslash), per-iteration pre-image backups with
-  backup-based discard instructions, project verification before critique,
-  state-root run lock, auth-probing backend pre-flight, diagnosable
-  keep-everything run dirs under `~/.manifest/cddl/runs/`.
-- **Roles as config** — `configs/claude/prompts/cddl/{implementer,qa-critic,arch-critic}.md`
-  (alias-validated model bindings, zero-touch deploy, no agent-registry writes).
+- **`/spec-implement-loop`** — sub-agent CDDL: developer writes; developer reviewer,
+  QA critic, and architecture critic review until each approves with zero findings.
+  Role prompts at `configs/claude/prompts/cddl/`.
+- **CDDL sunset** — removed `manifest cddl` and the `cddl/` Python package; `cddl_loop.py`
+  is a deprecation stub pointing at `/spec-implement-loop`.
 - **Shared infra** — `spec_review.sh` `discover_artifacts` now handles FILE
   targets (paired within their own layout tree); `audit_log.sh` gains a generic
   `AUDIT_LOG_FILE` env; deploy-reconcile now covers the `prompts/` namespace.

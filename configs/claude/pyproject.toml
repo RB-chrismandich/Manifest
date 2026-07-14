@@ -11,10 +11,8 @@ dependencies = [
   "aiohttp>=3.9.0",
   "asyncio-throttle>=1.0.0",
   "pyyaml>=6.0.1",
-  "jsonschema>=4.23.0",
   "rich>=13.0.0",
   "click>=8.1.0",
-  "psutil>=5.9.0",
 ]
 
 [project.scripts]
@@ -38,7 +36,6 @@ build-backend = "hatchling.build"
 packages = [
   "scripts/agents",
   "scripts/smoke_orchestrator",
-  "scripts/cddl",
   "scripts/skillclaw",
   "scripts/manifest_cli",
 ]
@@ -46,6 +43,5 @@ packages = [
 [tool.hatch.build.targets.wheel.sources]
 "scripts/agents" = "agents"
 "scripts/smoke_orchestrator" = "smoke_orchestrator"
-"scripts/cddl" = "cddl"
 "scripts/skillclaw" = "skillclaw"
 "scripts/manifest_cli" = "manifest_cli"
