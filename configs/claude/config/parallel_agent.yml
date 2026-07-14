@@ -170,6 +170,13 @@ synthesis:
     - codex
     - claude
 
+# Headless CLI seams (CDDL personas, SkillClaw evolve) — inherit provider_order
+# from synthesis when omitted.
+cddl_invoke:
+  provider: auto
+skillclaw_evolve:
+  provider: auto
+
 # Streaming configuration
 streaming:
   enabled: true  # Default: enable streaming

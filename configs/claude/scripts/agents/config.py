@@ -196,6 +196,8 @@ class Config:
                     "claude",
                 ],
             },
+            "cddl_invoke": {"provider": "auto"},
+            "skillclaw_evolve": {"provider": "auto"},
             "validation": {"consensus_threshold": {"high": 0.80, "medium": 0.50}},
         }
 

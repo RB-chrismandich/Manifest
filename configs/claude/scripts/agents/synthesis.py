@@ -1,8 +1,7 @@
 """Agent disagreement synthesis engine.
 
-Uses any configured ``cli_agents`` provider (agy, cursor-agent, gemini, …) or,
-when explicitly requested, the Anthropic SDK. Provider selection is controlled
-by ``synthesis.provider`` / ``SYNTH_PROVIDER`` and ``SYNTH_CLI`` env overrides.
+Uses any configured ``cli_agents`` provider via ``agents.cli_invoke``; Anthropic
+SDK when ``synthesis.provider: sdk`` (or auto fallback with API key).
 """
 
 from __future__ import annotations
@@ -11,29 +10,16 @@ import asyncio
 import json
 import os
 import re
-import shutil
-from dataclasses import dataclass
 from pathlib import Path
 
+from agents.cli_invoke import CliRoute, invoke_cli_timed, resolve_cli_route
 from agents.config import HAS_ANTHROPIC, Config, Logger
 
 if HAS_ANTHROPIC:
     from anthropic import AsyncAnthropic
 
-DEFAULT_PROVIDER_ORDER = (
-    "antigravity",
-    "cursor",
-    "gemini",
-    "codex",
-    "claude",
-)
-
-
-@dataclass(frozen=True)
-class SynthesisRoute:
-    mode: str  # "cli" | "sdk"
-    provider: str
-    binary_override: str | None = None
+# Backward-compatible alias for tests and callers.
+SynthesisRoute = CliRoute
 
 
 class SynthesisEngine:
@@ -50,14 +36,6 @@ class SynthesisEngine:
         self.synthesis_template = self._load_template(template_path)
 
     def _load_template(self, template_path: str | os.PathLike | None = None) -> str:
-        """Load the synthesis prompt template.
-
-        Resolution order: explicit ``template_path`` argument, the
-        ``SYNTHESIS_TEMPLATE`` env var, the deployed home copy
-        (``~/.claude/prompts/synthesis.md``), then the repo template next to
-        this package — so fresh clones and CI exercise the repo copy instead
-        of silently disabling synthesis (issue #465).
-        """
         candidates: list[Path] = []
         if template_path:
             candidates.append(Path(template_path).expanduser())
@@ -77,147 +55,47 @@ class SynthesisEngine:
             self.logger.warning(f"Synthesis template not found: tried {tried}")
         return ""
 
-    def _cli_provider_names(self) -> list[str]:
-        order = self.config.get("synthesis.provider_order")
-        if isinstance(order, list) and order:
-            return [str(name) for name in order]
-        agents = self.config.get("cli_agents") or {}
-        if isinstance(agents, dict) and agents:
-            return list(agents.keys())
-        return list(DEFAULT_PROVIDER_ORDER)
-
-    def _provider_for_synth_cli(self, cli: str) -> str | None:
-        cli_name = Path(cli).name
-        agents = self.config.get("cli_agents") or {}
-        if not isinstance(agents, dict):
-            return None
-        for name, spec in agents.items():
-            if not isinstance(spec, dict):
-                continue
-            binary = spec.get("binary", "")
-            if cli == binary or cli_name == binary:
-                return str(name)
-        return None
-
-    def _binary_on_path(self, binary: str) -> bool:
-        if not binary:
-            return False
-        if os.path.isabs(binary) or binary.startswith("."):
-            return os.path.isfile(binary) and os.access(binary, os.X_OK)
-        return bool(shutil.which(binary))
-
-    def _cli_provider_available(
-        self, provider: str, binary_override: str | None = None
-    ) -> bool:
-        spec = self.config.get(f"cli_agents.{provider}")
-        if not spec:
-            return False
-        binary = binary_override or spec.get("binary")
-        return self._binary_on_path(str(binary or ""))
-
-    def _claude_sdk_available(self) -> bool:
-        return HAS_ANTHROPIC and bool(os.environ.get("ANTHROPIC_API_KEY"))
-
-    def _resolve_synthesis_route(self) -> SynthesisRoute | None:
-        backend = self.config.get("synthesis.backend", "auto")
-        if backend not in ("auto", "cli", "sdk"):
-            if self.logger:
-                self.logger.warning(f"invalid synthesis.backend={backend!r}, using auto")
-            backend = "auto"
-
-        provider_cfg = (
-            os.environ.get("SYNTH_PROVIDER")
-            or self.config.get("synthesis.provider")
-            or "auto"
+    def _resolve_synthesis_route(self) -> CliRoute | None:
+        return resolve_cli_route(
+            self.config,
+            section="synthesis",
+            env_prefix="SYNTH",
+            allow_sdk=True,
         )
-        synth_cli = os.environ.get("SYNTH_CLI")
-        binary_override = synth_cli if synth_cli else None
-
-        if provider_cfg == "auto" and synth_cli:
-            inferred = self._provider_for_synth_cli(synth_cli)
-            if inferred:
-                provider_cfg = inferred
-
-        if provider_cfg == "sdk" or backend == "sdk":
-            return SynthesisRoute("sdk", "claude") if self._claude_sdk_available() else None
-
-        if provider_cfg != "auto":
-            ov = binary_override if synth_cli else None
-            if backend != "sdk" and self._cli_provider_available(
-                str(provider_cfg), ov
-            ):
-                return SynthesisRoute(
-                    "cli",
-                    str(provider_cfg),
-                    binary_override=ov,
-                )
-            if str(provider_cfg) == "claude" and backend != "cli":
-                return (
-                    SynthesisRoute("sdk", "claude")
-                    if self._claude_sdk_available()
-                    else None
-                )
-            return None
-
-        if backend == "sdk":
-            return SynthesisRoute("sdk", "claude") if self._claude_sdk_available() else None
-
-        for name in self._cli_provider_names():
-            ov: str | None = None
-            if synth_cli and (
-                name == self._provider_for_synth_cli(synth_cli)
-                or str(provider_cfg) == name
-            ):
-                ov = synth_cli
-            if self._cli_provider_available(name, ov):
-                return SynthesisRoute("cli", name, binary_override=ov)
-
-        if backend == "auto" and self._claude_sdk_available():
-            return SynthesisRoute("sdk", "claude")
-
-        return None
 
     def _resolve_synthesis_backend(self) -> str | None:
-        """Backward-compatible shim: returns ``cli``, ``sdk``, or ``None``."""
         route = self._resolve_synthesis_route()
-        if route is None:
-            return None
-        return route.mode
+        return route.mode if route else None
+
+    def _cli_provider_available(self, provider: str, binary_override: str | None = None) -> bool:
+        from agents.cli_invoke import cli_provider_available
+
+        return cli_provider_available(self.config, provider, binary_override)
 
     def _unavailable_error_message(self) -> str:
-        providers = ", ".join(self._cli_provider_names())
+        from agents.cli_invoke import _provider_names
+
+        providers = ", ".join(_provider_names(self.config, "synthesis"))
         return (
             "Synthesis unavailable: no CLI on PATH for configured providers "
             f"({providers}). Set SYNTH_PROVIDER or SYNTH_CLI, install a panel "
             "CLI, or use synthesis.provider: sdk with ANTHROPIC_API_KEY."
         )
 
-    async def _invoke_cli(self, route: SynthesisRoute, prompt: str) -> str:
-        from agents.runners import CLIAgent
-
+    async def _invoke_cli(self, route: CliRoute, prompt: str) -> str:
         model_tier = self.config.get("synthesis.model", "sonnet")
         timeout = self.config.get("synthesis.timeout", 300)
-        agent = CLIAgent(
-            route.provider,
-            model=model_tier,
+        return await invoke_cli_timed(
+            route,
+            prompt,
+            self.config,
+            model_tier=model_tier,
             timeout=timeout,
-            config=self.config,
             logger=self.logger,
         )
-        if route.binary_override:
-            agent.binary = route.binary_override
-
-        result = await agent._execute_impl(prompt, "synthesize")
-        if result.get("status") != "complete":
-            raise RuntimeError(
-                result.get("error") or f"{route.provider} synthesis failed"
-            )
-        return result.get("output") or ""
 
     async def _invoke_claude_cli(self, prompt: str) -> str:
-        """Backward-compatible entry for tests targeting the Claude CLI path."""
-        route = SynthesisRoute("cli", "claude")
-        return await self._invoke_cli(route, prompt)
+        return await self._invoke_cli(CliRoute("cli", "claude"), prompt)
 
     async def _invoke_claude_sdk(self, prompt: str) -> str:
         if not HAS_ANTHROPIC:
@@ -238,7 +116,6 @@ class SynthesisEngine:
     async def synthesize(
         self, original_task: str, agent_results: dict, consensus: dict
     ) -> dict | None:
-        """Synthesize disagreements into unified recommendation"""
         consensus_score = consensus.get("consensus_score", 100) / 100.0
         threshold = self.config.get("synthesis.threshold", 0.50)
 
@@ -255,7 +132,6 @@ class SynthesisEngine:
             )
 
         prompt = self._build_synthesis_prompt(original_task, agent_results)
-
         if not prompt:
             if self.logger:
                 self.logger.warning("Failed to build synthesis prompt")
@@ -281,9 +157,7 @@ class SynthesisEngine:
 
         try:
             if route.mode == "cli":
-                synthesis_text = await asyncio.wait_for(
-                    self._invoke_cli(route, prompt), timeout=timeout
-                )
+                synthesis_text = await self._invoke_cli(route, prompt)
             else:
                 synthesis_text = await asyncio.wait_for(
                     self._invoke_claude_sdk(prompt), timeout=timeout
@@ -327,7 +201,6 @@ class SynthesisEngine:
             }
 
     def _build_synthesis_prompt(self, original_task: str, agent_results: dict) -> str:
-        """Build synthesis prompt from template"""
         if not self.synthesis_template:
             return ""
 
@@ -346,3 +219,4 @@ class SynthesisEngine:
             prompt = prompt.replace(f"{{{agent_name.upper()}_OUTPUT}}", output)
 
         return prompt
+

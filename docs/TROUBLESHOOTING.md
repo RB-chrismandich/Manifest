@@ -471,6 +471,16 @@ SYNTH_PROVIDER=cursor manifest parallel-agent --json ...
 # and export ANTHROPIC_API_KEY
 ```
 
+**Related seams** (same `cli_agents` registry, different env prefixes):
+
+| Seam | Script / skill | Env overrides |
+|------|----------------|---------------|
+| CDDL critics | `cddl_invoke.py`, `/spec-implement-loop` | `CDDL_INVOKE_PROVIDER`, `CDDL_INVOKE_CLI` |
+| SkillClaw evolve | `skillclaw_evolve.py`, `/skill-evolve` | `EVOLVE_PROVIDER`, `EVOLVE_CLI` |
+
+On Gemini/Codex/Antigravity without native Task, CDDL critics use
+`cddl_invoke.py` (see `.skillshare/skills/spec-implement-loop/prompts/cli-dispatch.md`).
+
 ---
 
 ### Gemini CLI: "Authentication failed"

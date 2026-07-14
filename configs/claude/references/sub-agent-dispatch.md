@@ -11,14 +11,16 @@ body states the concrete trigger and links here.
 
 | Mechanism | What it is | Use for | Availability |
 |-----------|-----------|---------|--------------|
-| **Native Task/Agent sub-agents** | In-session sub-agents dispatched via the Task tool (Explore, general-purpose, …) | Parallel reads, fan-out research, independent per-item work, broad audits | **Claude only** |
+| **Native Task/Agent sub-agents** | In-session sub-agents dispatched via the Task tool (Explore, general-purpose, …) | Parallel reads, fan-out research, independent per-item work, broad audits, **CDDL personas** | **Claude Code, Cursor** |
 | **`parallel_agent.py`** | External multi-CLI cross-verification (Gemini/Cursor/Codex/Antigravity) with consensus scoring | Independent cross-model verification of one artifact/decision | Cross-platform |
+| **Headless CLI invoke** (`cddl_invoke.py`, `EVOLVE_CLI`, `SYNTH_CLI`) | Single-provider subprocess using `cli_agents` config | CDDL critics on Gemini/Codex/Agy; synthesis; SkillClaw evolve | Cross-platform (CLI on PATH) |
 
 ## Selection rules (by task type)
 
 | Task type | Mechanism | Notes |
 |-----------|-----------|-------|
-| Parallel information-gathering / research / broad audit (many independent items) | Native Task sub-agents | One sub-agent per item/batch. On non-Claude assistants → `parallel_agent.py` or inline. |
+| Parallel information-gathering / research / broad audit (many independent items) | Native Task sub-agents | One sub-agent per item/batch. On Gemini/Codex/Agy → `parallel_agent.py` or inline. |
+| CDDL personas (`/spec-implement-loop`) | Task sub-agents on Claude/Cursor; else `cddl_invoke.py` | See skill `prompts/cli-dispatch.md`. Developer writes only in main session when Task absent. |
 | Independent cross-model verification of a security-sensitive, architectural, or >200-line change | `parallel_agent.py` | Required by the constitution's Tier-1 gate (Principle II). Not native sub-agents. |
 | Trivial / single-unit / fewer than the threshold | **Inline** | No dispatch — overhead is not justified. |
 
@@ -36,9 +38,14 @@ further sub-agents. This prevents agent-explosion.
 
 ## Cross-platform fallback
 
-Native Task/Agent sub-agents exist only on Claude. On Cursor / Gemini / Codex / Antigravity a skill
-MUST either use `parallel_agent.py` (cross-platform) or run the work inline — never leave a non-Claude
-assistant without an executable path.
+| Platform | Native Task | Fallback for fan-out / CDDL critics |
+|----------|-------------|-------------------------------------|
+| Claude Code | Yes | — |
+| Cursor | Yes | — |
+| Gemini CLI, Codex, Antigravity | No | `cddl_invoke.py`, `parallel_agent.py`, or inline |
+
+Never leave an assistant without an executable path. Headless seams share
+`parallel_agent.yml` → `cli_agents` and `SYNTH_*` / `CDDL_INVOKE_*` / `EVOLVE_*` env overrides.
 
 ---
 
@@ -77,8 +84,9 @@ In the skill's `SKILL.md` **body** (never frontmatter — frontmatter is auto-lo
 
 When ≥3 independent <units> exist, dispatch one sub-agent per <unit> to <task>, then merge.
 Below that, do it inline. Pick the mechanism per the shared Sub-Agent Selection Rules
-(`configs/claude/references/sub-agent-dispatch.md`): native Task sub-agents on Claude, or
-`parallel_agent.py` / inline on other assistants. Sub-agents execute directly and do not re-dispatch.
+(`configs/claude/references/sub-agent-dispatch.md`): native Task on Claude Code/Cursor, or
+`parallel_agent.py` / `cddl_invoke.py` / inline on other assistants. Sub-agents execute
+directly and do not re-dispatch.
 ```
 
 ### 4. Do NOT restate these rules

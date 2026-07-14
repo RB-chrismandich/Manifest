@@ -219,10 +219,10 @@ run_smoke() {
         echo "▶ Smoke: orchestration — skip"
     else
         # One real round-trip through the orchestrator proves agents respond
-        # end-to-end. claude-only keeps it to a single cheap call; soft because an
-        # unauthenticated machine should warn, not block a code PR.
+        # end-to-end. Try the first available provider (not Claude-only); soft
+        # because an unauthenticated machine should warn, not block a code PR.
         run_step Smoke orchestration soft \
-            "manifest parallel-agent --json --claude-only --timeout 90 'Reply with the single word OK'"
+            'for flag in --antigravity-only --cursor-only --gemini-only --codex-only --claude-only; do manifest parallel-agent --json "$flag" --timeout 90 '"'"'Reply with the single word OK'"'"' >/dev/null 2>&1 && exit 0; done; exit 1'
     fi
 }
 

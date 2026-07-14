@@ -891,6 +891,9 @@ uv_sync_home_runtime() {
         if python3 -c "import yaml,sys; d=yaml.safe_load(open(sys.argv[1])); print('1' if d.get('services',{}).get('browser_use',{}).get('enabled') else '0')" "$services_yml" | grep -q 1; then
             group_flags+=(--group smoke --group smoke-agent)
         fi
+        if python3 -c "import yaml,sys; d=yaml.safe_load(open(sys.argv[1])); print('1' if d.get('services',{}).get('claude',{}).get('enabled') else '0')" "$services_yml" | grep -q 1; then
+            group_flags+=(--group claude)
+        fi
     fi
 
     print_step "Syncing home Python runtime (uv)..."

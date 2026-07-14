@@ -1281,7 +1281,6 @@ version = "0.0.0"
 source = { editable = "." }
 dependencies = [
     { name = "aiohttp" },
-    { name = "anthropic" },
     { name = "asyncio-throttle" },
     { name = "click" },
     { name = "google-auth" },
@@ -1292,6 +1291,9 @@ dependencies = [
 ]
 
 [package.dev-dependencies]
+claude = [
+    { name = "anthropic" },
+]
 smoke = [
     { name = "playwright" },
 ]
@@ -1302,7 +1304,6 @@ smoke-agent = [
 [package.metadata]
 requires-dist = [
     { name = "aiohttp", specifier = ">=3.9.0" },
-    { name = "anthropic", specifier = ">=0.40.0" },
     { name = "asyncio-throttle", specifier = ">=1.0.0" },
     { name = "click", specifier = ">=8.1.0" },
     { name = "google-auth", specifier = ">=2.0.0" },
@@ -1313,6 +1314,7 @@ requires-dist = [
 ]
 
 [package.metadata.requires-dev]
+claude = [{ name = "anthropic", specifier = ">=0.40.0" }]
 smoke = [{ name = "playwright", specifier = "==1.60.0" }]
 smoke-agent = [{ name = "browser-use", specifier = ">=0.13.0" }]
 

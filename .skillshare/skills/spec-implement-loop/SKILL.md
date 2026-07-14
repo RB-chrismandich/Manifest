@@ -30,9 +30,15 @@ same iteration. Any findings → feed back to the developer and iterate.
 
 > Sub-agents: **always** — one fresh sub-agent per persona per round/iteration.
 > Sequential dispatch only (no parallel critics — each must see the same tree).
-> Mechanism: native Task sub-agents per
-> `configs/claude/references/sub-agent-dispatch.md`. On platforms without Task,
-> refuse and ask the operator to use Cursor or Claude Code.
+
+**Primary (Claude Code, Cursor):** native Task sub-agents per
+`configs/claude/references/sub-agent-dispatch.md`.
+
+**CLI fallback (Gemini, Codex, Antigravity):** critics and developer-reviewer via
+`~/.claude/scripts/cddl_invoke.py` — see `prompts/cli-dispatch.md`. Model tiers:
+`configs/claude/references/cddl-role-models.md`. The developer role still
+requires a writer — run implementation in the main session when Task is absent, or
+ask the operator to use Cursor / Claude Code for full separation.
 
 Charters (deployed copies under `~/.claude/prompts/cddl/` after bootstrap):
 
@@ -125,6 +131,8 @@ Do not ask the operator to run CLI tools.
 | `--max-iterations` | 10 | Implementation iterations |
 | `--verify-cmd` | auto-detect | Override verification command |
 | `--allow-dirty` | off | Allow dirty tree at start |
+| `CDDL_INVOKE_PROVIDER` | auto | Headless critic CLI provider |
+| `CDDL_INVOKE_CLI` | — | Binary override for `cddl_invoke.py` |
 
 ## Persistence
 

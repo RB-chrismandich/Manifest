@@ -70,7 +70,7 @@ the gating signal.
 
 - `bootstrap.sh --skip-install --skip-auth --force` — the deploy path still works *(hard gate: a broken deploy is a regression)*
 - `check_status.sh` — symlinks, config syntax, auth, orchestration readiness *(soft: disabled/unauth agents are normal)*
-- `manifest parallel-agent --claude-only` round-trip — an agent actually responds end-to-end *(soft)*
+- `manifest parallel-agent` round-trip — first available provider responds end-to-end *(soft)*
 
 ## Reporting back to the user
 
