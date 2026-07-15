@@ -272,7 +272,8 @@ If the plan is linked to an issue:
 ## Tool Usage
 
 - **Read**, **Glob**, **Grep**: Inspect plans, explore codebase during planning
-- **Bash**: Run `manifest parallel-agent` (create/review/execute), `git_ops.sh` (issue operations), `mv` (archive/abandon), `date`
+- **Bash**: Run `manifest parallel-agent` (create/review/execute), `git_ops.sh`
+  (issue operations), `mv` (archive/abandon), `date`
 - **Write**: Save new plans from template
 - **Edit**: Check off deliverables (`- [x]`) during execute
 - **Task**: Spawn synthesis agent when agents disagree (consensus < 80%)
