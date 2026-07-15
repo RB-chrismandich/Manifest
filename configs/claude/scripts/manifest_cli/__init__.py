@@ -21,7 +21,11 @@ def parallel_agent(args: tuple[str, ...]) -> None:
     raise SystemExit(asyncio.run(agents_main()))
 
 
-@cli.command("smoke", context_settings={"ignore_unknown_options": True})
+@cli.command(
+    "smoke",
+    context_settings={"ignore_unknown_options": True},
+    add_help_option=False,
+)
 @click.argument("args", nargs=-1, type=click.UNPROCESSED)
 def smoke(args: tuple[str, ...]) -> None:
     from smoke_orchestrator.cli import main as smoke_main

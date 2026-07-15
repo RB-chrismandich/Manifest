@@ -179,7 +179,7 @@ classify_args=("$EVOLVED" "$COMMITTED" --rejected-dir "$REJECTED")
 [[ -n "$SKILL" ]] && classify_args+=(--skill "$SKILL")
 classify_json="$(skillclaw_cmd promote "${classify_args[@]}")" ||
     {
-        err "classify failed (skillclaw_promote.py returned non-zero)"
+        err "classify failed (manifest skillclaw promote returned non-zero)"
         exit 1
     }
 

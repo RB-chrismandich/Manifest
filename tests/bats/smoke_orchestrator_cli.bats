@@ -15,6 +15,7 @@ CLI_TOOL="$REPO_ROOT/tests/python/smoke_orchestrator/fixtures/cli_tool.py"
 setup() {
     SANDBOX=$(mktemp -d "${BATS_TMPDIR:-/tmp}/smoke_cli.XXXXXX")
     export HOME="$SANDBOX/home"
+    export PYTHONWARNINGS=ignore::DeprecationWarning
     mkdir -p "$HOME"
     stub_home_manifest_runtime "$REPO_ROOT"
 }
