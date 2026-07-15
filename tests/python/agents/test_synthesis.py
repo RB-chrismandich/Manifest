@@ -304,9 +304,9 @@ class TestSynthesisBackendResolution:
         custom = tmp_path / "my-agy"
         custom.write_text("#!/bin/sh\necho hi\n")
         custom.chmod(0o755)
-        engine.config.config.setdefault("cli_agents", {}).setdefault(
-            "antigravity", {}
-        )["binary"] = str(custom)
+        engine.config.config.setdefault("cli_agents", {}).setdefault("antigravity", {})[
+            "binary"
+        ] = str(custom)
         assert engine._cli_provider_available("antigravity") is True
 
     def test_auto_uses_first_cli_in_provider_order(self, tmp_path, monkeypatch):
@@ -381,9 +381,9 @@ class TestSynthesisBackendResolution:
         monkeypatch.setenv("SYNTH_PROVIDER", "cursor")
         monkeypatch.setattr(
             "agents.cli_invoke.shutil.which",
-            lambda binary: "/usr/bin/cursor-agent"
-            if binary == "cursor-agent"
-            else None,
+            lambda binary: (
+                "/usr/bin/cursor-agent" if binary == "cursor-agent" else None
+            ),
         )
         engine = _make_engine(tmp_path)
         assert engine._resolve_synthesis_route() == SynthesisRoute("cli", "cursor")
@@ -404,9 +404,7 @@ class TestSynthesisCliInvoke:
         monkeypatch.setattr(runners.CLIAgent, "_execute_impl", fake_impl)
 
     def test_cli_success_parses_json(self, tmp_path, monkeypatch):
-        self._patch_cli_success(
-            monkeypatch, '{"unified_recommendation": "merged"}'
-        )
+        self._patch_cli_success(monkeypatch, '{"unified_recommendation": "merged"}')
         _patch_cli_on_path(monkeypatch)
 
         engine = self._engine_with_template(tmp_path)

@@ -67,7 +67,9 @@ class SynthesisEngine:
         route = self._resolve_synthesis_route()
         return route.mode if route else None
 
-    def _cli_provider_available(self, provider: str, binary_override: str | None = None) -> bool:
+    def _cli_provider_available(
+        self, provider: str, binary_override: str | None = None
+    ) -> bool:
         from agents.cli_invoke import cli_provider_available
 
         return cli_provider_available(self.config, provider, binary_override)
@@ -103,9 +105,7 @@ class SynthesisEngine:
 
         client = AsyncAnthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
         model = self.config.get("synthesis.model", "sonnet")
-        model_name = self.config.get(
-            f"model_tiers.claude.{model}", "claude-sonnet-4-6"
-        )
+        model_name = self.config.get(f"model_tiers.claude.{model}", "claude-sonnet-4-6")
         response = await client.messages.create(
             model=model_name,
             max_tokens=4096,
@@ -148,9 +148,7 @@ class SynthesisEngine:
             }
 
         if self.logger:
-            self.logger.info(
-                f"Synthesis using {route.mode} backend ({route.provider})"
-            )
+            self.logger.info(f"Synthesis using {route.mode} backend ({route.provider})")
 
         timeout = self.config.get("synthesis.timeout", 300)
         synthesis_text = ""
@@ -219,4 +217,3 @@ class SynthesisEngine:
             prompt = prompt.replace(f"{{{agent_name.upper()}_OUTPUT}}", output)
 
         return prompt
-

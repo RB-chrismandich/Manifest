@@ -9,8 +9,8 @@ from pathlib import Path
 SCRIPTS = Path(__file__).resolve().parents[2] / "configs/claude/scripts"
 sys.path.insert(0, str(SCRIPTS))
 
-import cddl_invoke  # noqa: E402
-from agents.cli_invoke import CliRoute  # noqa: E402
+import cddl_invoke
+from agents.cli_invoke import CliRoute
 
 
 def test_main_invokes_charter_and_body(tmp_path, monkeypatch):

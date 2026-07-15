@@ -5,7 +5,6 @@ SCRIPTS = Path(__file__).resolve().parents[3] / "configs/claude/scripts"
 sys.path.insert(0, str(SCRIPTS))
 
 from click.testing import CliRunner
-
 from manifest_cli import cli
 
 

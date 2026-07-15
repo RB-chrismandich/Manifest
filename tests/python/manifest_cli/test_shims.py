@@ -9,14 +9,17 @@ sys.path.insert(0, str(SCRIPTS))
 
 import _manifest_shim
 
-
 MANIFEST_HOME = "~/.claude/.venv/bin/manifest"
 LOCAL_UV = "~/.local/bin/uv"
 
 
 def _patch_runtime(monkeypatch, tmp_path, *, uv: bool = True, manifest: bool = True):
     if uv:
-        monkeypatch.setattr(_manifest_shim.shutil, "which", lambda cmd: "/usr/bin/uv" if cmd == "uv" else None)
+        monkeypatch.setattr(
+            _manifest_shim.shutil,
+            "which",
+            lambda cmd: "/usr/bin/uv" if cmd == "uv" else None,
+        )
     else:
         monkeypatch.setattr(_manifest_shim.shutil, "which", lambda cmd: None)
 
@@ -53,11 +56,18 @@ def test_exec_manifest_warns_and_execs(monkeypatch, tmp_path):
         raise SystemExit(0)
 
     monkeypatch.setattr(_manifest_shim.os, "execv", fake_execv)
-    monkeypatch.setattr(_manifest_shim.sys, "argv", ["parallel_agent.py", "--json", "prompt"])
+    monkeypatch.setattr(
+        _manifest_shim.sys, "argv", ["parallel_agent.py", "--json", "prompt"]
+    )
 
-    with pytest.warns(DeprecationWarning, match=r"parallel_agent\.py is deprecated; use: manifest parallel-agent"):
-        with pytest.raises(SystemExit) as exc:
-            _manifest_shim.exec_manifest("parallel-agent", "parallel_agent.py")
+    with (
+        pytest.warns(
+            DeprecationWarning,
+            match=r"parallel_agent\.py is deprecated; use: manifest parallel-agent",
+        ),
+        pytest.raises(SystemExit) as exc,
+    ):
+        _manifest_shim.exec_manifest("parallel-agent", "parallel_agent.py")
 
     assert exc.value.code == 0
     assert captured["bin"] == str(manifest_bin)
@@ -73,11 +83,12 @@ def test_exec_manifest_splits_multiword_subcommand(monkeypatch, tmp_path):
         raise SystemExit(0)
 
     monkeypatch.setattr(_manifest_shim.os, "execv", fake_execv)
-    monkeypatch.setattr(_manifest_shim.sys, "argv", ["skillclaw_ingest.py", "in", "out"])
+    monkeypatch.setattr(
+        _manifest_shim.sys, "argv", ["skillclaw_ingest.py", "in", "out"]
+    )
 
-    with pytest.warns(DeprecationWarning):
-        with pytest.raises(SystemExit):
-            _manifest_shim.exec_manifest("skillclaw ingest", "skillclaw_ingest.py")
+    with pytest.warns(DeprecationWarning), pytest.raises(SystemExit):
+        _manifest_shim.exec_manifest("skillclaw ingest", "skillclaw_ingest.py")
 
     assert captured["args"] == ["manifest", "skillclaw", "ingest", "in", "out"]
 

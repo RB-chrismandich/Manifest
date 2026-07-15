@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """CDDL scripted orchestrator retired — use /spec-implement-loop (sub-agents)."""
+
 from __future__ import annotations
 
 import sys
