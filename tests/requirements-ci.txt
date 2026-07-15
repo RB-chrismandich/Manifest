@@ -3,6 +3,6 @@
 yamllint==1.38.0
 pytest==8.3.4
 pytest-asyncio==0.25.2
-pyyaml==6.0.2
-rich==13.9.4
+PyYAML==6.0.3
+rich==14.3.1
 asyncio-throttle==1.0.2
