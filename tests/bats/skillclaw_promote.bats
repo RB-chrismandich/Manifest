@@ -89,7 +89,7 @@ teardown() {
 }
 
 @test "promote runs manifest skillclaw ingest/evolve/promote instead of legacy scripts" {
-  run grep -E 'manifest skillclaw (ingest|evolve|promote)' "$REPO_ROOT/configs/claude/scripts/skillclaw_promote.sh"
+  run grep -E 'skillclaw_cmd (ingest|evolve|promote)' "$REPO_ROOT/configs/claude/scripts/skillclaw_promote.sh"
   [ "$status" -eq 0 ]
   run grep -cE 'skillclaw_(ingest|evolve|promote)\.py' "$REPO_ROOT/configs/claude/scripts/skillclaw_promote.sh"
   [ "$output" -eq 0 ]

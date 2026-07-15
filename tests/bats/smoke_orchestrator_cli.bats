@@ -44,7 +44,7 @@ YAML
 @test "smoke_test.py --help exits 0 with usage (clean HOME, no catalog)" {
     run "$SHIM" --help
     assert_success
-    assert_output --partial "usage:"
+    assert_output --partial "Usage:"
     assert_output --partial "append"
     assert_output --partial "run"
 }
@@ -53,7 +53,7 @@ YAML
     for sub in append run list prune; do
         run "$SHIM" "$sub" --help
         assert_success
-        assert_output --partial "usage:"
+        assert_output --partial "Usage:"
     done
 }
 
