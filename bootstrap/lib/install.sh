@@ -880,7 +880,6 @@ uv_sync_home_runtime() {
         print_warning "uv not found — skipping home runtime sync"
         return 0
     fi
-    UV_BIN="$uv_bin"
 
     local -a group_flags=()
     local services_yml="$target_dir/config/services.yml"
