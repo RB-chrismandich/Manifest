@@ -19,7 +19,8 @@ Apply at all times, in every session:
 
 ## Manifest CLI
 
-**Entry point**: `manifest parallel-agent` (`~/.local/bin/manifest`). Legacy `parallel_agent.py` forwards with a deprecation warning.
+**Entry point**: `manifest parallel-agent` (`~/.local/bin/manifest`). Legacy
+`parallel_agent.py` forwards with a deprecation warning.
 
 ### Quick Usage
 
@@ -122,7 +123,9 @@ lifecycle), `/env-check` (env sanity), `/session-checkpoint` (high-context save)
 `/version-pin <file>` (auto-fix; `--check` = warn-only save-hook mode),
 `/graphify` (map a codebase/docs into a queryable knowledge graph).
 
-**Graphify** is a managed tool, not a consensus agent: toggled via bootstrap (`--enable-graphify`, default on) but excluded from `manifest parallel-agent` counts.
+**Graphify** is a managed tool, not a consensus agent: toggled via bootstrap
+(`--enable-graphify`, default on) but excluded from `manifest parallel-agent`
+counts.
 
 **CLI tool** (installed to `~/.local/bin/`): `sync-skills` — push
 `.skillshare/skills/` changes to all home targets (daily skill dev workflow).
