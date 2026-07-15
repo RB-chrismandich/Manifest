@@ -13,6 +13,7 @@ Usage:
   cddl_invoke.py --charter ~/.claude/prompts/cddl/qa-critic.md < dispatch.md
   printf '%s' "$prompt" | cddl_invoke.py --charter PATH [--model-tier sonnet]
 """
+
 from __future__ import annotations
 
 import argparse

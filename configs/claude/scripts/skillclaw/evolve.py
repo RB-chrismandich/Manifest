@@ -143,9 +143,7 @@ def subprocess_runner(prompt: str) -> str:
         )
 
     timeout = _chunk_timeout()
-    argv, stdin_body = build_subprocess_argv(
-        config, route, prompt, model_tier="sonnet"
-    )
+    argv, stdin_body = build_subprocess_argv(config, route, prompt, model_tier="sonnet")
     try:
         proc = subprocess.run(
             argv,

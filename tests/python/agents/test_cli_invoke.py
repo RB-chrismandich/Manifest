@@ -5,18 +5,16 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-import pytest
-
 SCRIPTS = Path(__file__).resolve().parents[3] / "configs/claude/scripts"
 sys.path.insert(0, str(SCRIPTS))
 
-from agents.cli_invoke import (  # noqa: E402
+from agents.cli_invoke import (
     CliRoute,
     build_subprocess_argv,
     resolve_cli_route,
     resolve_role_model_tier,
 )
-from agents.config import Config  # noqa: E402
+from agents.config import Config
 
 
 def _config(tmp_path: Path) -> Config:
@@ -81,7 +79,9 @@ def test_build_subprocess_argv_claude_uses_stdin(tmp_path, monkeypatch):
 
 def test_resolve_cli_route_sdk_only_when_allowed(tmp_path, monkeypatch):
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
-    monkeypatch.setattr("agents.cli_invoke.cli_provider_available", lambda *a, **k: False)
+    monkeypatch.setattr(
+        "agents.cli_invoke.cli_provider_available", lambda *a, **k: False
+    )
     from agents import cli_invoke as mod
 
     original = mod.HAS_ANTHROPIC
