@@ -882,10 +882,12 @@ uv_sync_home_runtime() {
     fi
 
     local -a group_flags=()
+    local install_playwright=false
     local services_yml="$target_dir/config/services.yml"
     if [[ -f "$services_yml" ]]; then
         if python3 -c "import yaml,sys; d=yaml.safe_load(open(sys.argv[1])); print('1' if d.get('services',{}).get('smoke',{}).get('enabled') else '0')" "$services_yml" | grep -q 1; then
             group_flags+=(--group smoke)
+            install_playwright=true
         fi
         if python3 -c "import yaml,sys; d=yaml.safe_load(open(sys.argv[1])); print('1' if d.get('services',{}).get('browser_use',{}).get('enabled') else '0')" "$services_yml" | grep -q 1; then
             group_flags+=(--group smoke --group smoke-agent)
@@ -896,12 +898,12 @@ uv_sync_home_runtime() {
     fi
 
     print_step "Syncing home Python runtime (uv)..."
-    if ! "$uv_bin" sync --project "$target_dir" "${group_flags[@]}"; then
+    if ! "$uv_bin" sync --project "$target_dir" "${group_flags[@]+"${group_flags[@]}"}"; then
         print_warning "uv sync failed — parallel agent may be unavailable"
         return 0
     fi
 
-    if [[ " ${group_flags[*]} " == *" smoke "* ]]; then
+    if [[ "$install_playwright" == true ]]; then
         "$target_dir/.venv/bin/playwright" install chromium || print_warning "playwright install chromium failed"
     fi
 
