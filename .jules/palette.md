@@ -70,3 +70,10 @@ in generated reports.
 represented as critical errors with a red cross (`✗`). This creates a false error state and panic for users.
 **Action:** Use a neutral yellow circle (`○`) and hide installation hints behind verbose flags for optional
 components that are not strictly required for the core application to function.
+
+## 2026-07-16 - Specify Script File Check Representation
+
+**Learning:** Using a red cross (`✗`) to denote optional files (like `research.md`,
+`data-model.md`) missing in a project setup causes false error states.
+**Action:** Use a yellow circle (`○`) for missing optional files in CLI outputs to
+communicate a neutral state.
