@@ -90,3 +90,9 @@ vulnerability and violates core safety constraints.
 expansion (`read -r -a cmd_arr <<< "$cmd_str"` followed by
 `"${cmd_arr[@]+"${cmd_arr[@]}"}" "$packet"`) to execute dynamic commands
 securely without a subshell string evaluation.
+
+## 2026-11-06 - Prompt Optimize
+
+**Learning:** When authoring skill templates that feature raw XML markup which should not be parsed by the downstream renderer, the markup must be escaped by being placed inside standard Markdown code blocks.
+
+**Action:** Ensure skill templates use ```xml codeblocks for any structural syntax documentation.

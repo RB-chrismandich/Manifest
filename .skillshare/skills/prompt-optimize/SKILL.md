@@ -42,6 +42,7 @@ internally:
 
 The output must be returned strictly using this layout so downstream agent layers can parse it deterministically:
 
+```xml
 <problem_structure>
   <problem_definition>
     [Action-oriented task statement with precise boolean endpoints or metrics]
@@ -62,6 +63,7 @@ The output must be returned strictly using this layout so downstream agent layer
     [Strict formatting payload requirements: JSON object layouts, XML schemas, or fixed markdown tables]
   </desired_output>
 </problem_structure>
+```
 
 ## 5. Normalized Structural Blueprints
 
