@@ -321,3 +321,73 @@ make_clean_bin() {
     assert_success
     assert_output --partial "STUB:glab:issue note 42 --message hello world"
 }
+
+# --- pr-close / pr-comment / pr-comments (Task 13) ---
+
+@test "routes pr-close to gh pr close" {
+    cd "$TEST_REPO" || return 1
+    create_stub "gh"
+    run bash "$SCRIPT_UNDER_TEST" pr-close 42
+    assert_success
+    assert_output --partial "STUB:gh:pr close 42"
+}
+
+@test "routes pr-comment to gh pr comment" {
+    cd "$TEST_REPO" || return 1
+    create_stub "gh"
+    run bash "$SCRIPT_UNDER_TEST" pr-comment 42 --body "Hello"
+    assert_success
+    assert_output --partial "STUB:gh:pr comment 42 --body Hello"
+}
+
+@test "pr-comment: positional body is normalized to --body (github)" {
+    cd "$TEST_REPO" || return 1
+    create_stub "gh"
+    run bash "$SCRIPT_UNDER_TEST" pr-comment 42 "hello world"
+    assert_success
+    assert_output --partial "STUB:gh:pr comment 42 --body hello world"
+}
+
+@test "routes pr-comments to gh api repos/{owner}/{repo}/pulls/N/comments" {
+    cd "$TEST_REPO" || return 1
+    create_stub "gh"
+    run bash "$SCRIPT_UNDER_TEST" pr-comments 42
+    assert_success
+    assert_output --partial "STUB:gh:api repos/{owner}/{repo}/pulls/42/comments --jq"
+}
+
+@test "routes pr-close to glab mr close on GitLab" {
+    cd "$TEST_REPO" || return 1
+    git remote set-url origin "https://gitlab.com/user/repo.git"
+    create_stub "glab"
+    run bash "$SCRIPT_UNDER_TEST" pr-close 42
+    assert_success
+    assert_output --partial "STUB:glab:mr close 42"
+}
+
+@test "routes pr-comment to glab mr note on GitLab" {
+    cd "$TEST_REPO" || return 1
+    git remote set-url origin "https://gitlab.com/user/repo.git"
+    create_stub "glab"
+    run bash "$SCRIPT_UNDER_TEST" pr-comment 42 --message "Hello"
+    assert_success
+    assert_output --partial "STUB:glab:mr note 42 --message Hello"
+}
+
+@test "pr-comment: positional body is normalized to --message (gitlab)" {
+    cd "$TEST_REPO" || return 1
+    create_stub "glab"
+    export MANIFEST_GIT_PLATFORM=gitlab
+    run bash "$SCRIPT_UNDER_TEST" pr-comment 42 "hello world"
+    assert_success
+    assert_output --partial "STUB:glab:mr note 42 --message hello world"
+}
+
+@test "routes pr-comments to glab api projects/:id/merge_requests/N/notes on GitLab" {
+    cd "$TEST_REPO" || return 1
+    git remote set-url origin "https://gitlab.com/user/repo.git"
+    create_stub "glab"
+    run bash "$SCRIPT_UNDER_TEST" pr-comments 42
+    assert_success
+    assert_output --partial "STUB:glab:api projects/:id/merge_requests/42/notes?sort=asc --jq"
+}

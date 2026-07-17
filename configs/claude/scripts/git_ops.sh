@@ -22,6 +22,9 @@
 #   pr-list               List PRs/MRs
 #   pr-review N           Review/approve PR/MR N
 #   pr-merge N            Merge PR/MR N
+#   pr-close N            Close PR/MR N
+#   pr-comment N TEXT     Add comment/note to PR/MR N
+#   pr-comments N         List review comments on PR/MR N (JSON)
 #   release-create        Create a release
 #   release-list          List releases
 #   label-create          Create label
@@ -83,6 +86,9 @@ Subcommands:
   pr-diff N          View PR/MR N diff
   pr-checks N        View CI status for PR/MR N
   pr-merge N         Merge PR/MR N
+  pr-close N         Close PR/MR N
+  pr-comment N TEXT  Add comment/note to PR/MR N
+  pr-comments N      List review comments on PR/MR N (JSON)
   release-create     Create a release
   release-list       List releases
   label-create       Create label
@@ -182,6 +188,19 @@ case "${platform}" in
                 ;;
             pr-merge)
                 gh pr merge "$@"
+                ;;
+            pr-close)
+                gh pr close "$@"
+                ;;
+            pr-comment)
+                issue_comment_args --body "$@"
+                gh pr comment "${ISSUE_COMMENT_ARGS[@]+"${ISSUE_COMMENT_ARGS[@]}"}"
+                ;;
+            pr-comments)
+                pr_num="$1"
+                shift
+                gh api "repos/{owner}/{repo}/pulls/${pr_num}/comments" \
+                    --jq '[.[] | {id, author: .user.login, path, line, body}]' "$@"
                 ;;
             release-create)
                 gh release create "$@"
@@ -378,6 +397,19 @@ case "${platform}" in
                 ;;
             pr-merge)
                 glab mr merge "$@"
+                ;;
+            pr-close)
+                glab mr close "$@"
+                ;;
+            pr-comment)
+                issue_comment_args --message "$@"
+                glab mr note "${ISSUE_COMMENT_ARGS[@]+"${ISSUE_COMMENT_ARGS[@]}"}"
+                ;;
+            pr-comments)
+                mr_num="$1"
+                shift
+                glab api "projects/:id/merge_requests/${mr_num}/notes?sort=asc" \
+                    --jq '[.[] | select(.system == false) | {id, author: .author.username, path: (.position.new_path // null), line: (.position.new_line // null), body}]' "$@"
                 ;;
             release-create)
                 glab release create "$@"
