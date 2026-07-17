@@ -98,9 +98,10 @@ Two separate doc fetches:
    No access=0, Minimal access=5, Guest=10, Planner=15, Reporter=20,
    Security Manager=25, **Developer=30, Maintainer=40, Owner=50**, Admin=60.
    The task brief's expected mapping (Guest=10, Reporter=20, Developer=30,
-   Maintainer=40, Owner=50) matches exactly (the two extra tiers — Planner
-   and Security Manager — are newer GitLab additions between Reporter and
-   Developer/Security, and don't affect the `>=40` threshold).
+   Maintainer=40, Owner=50) matches exactly (the two extra tiers are newer
+   GitLab additions and don't affect the `>=40` threshold: Planner=15 sits
+   between Guest and Reporter, and Security Manager=25 sits between Reporter
+   and Developer).
 2. GitLab Projects API doc (`Get a single project`) — confirmed the response
    shape literally contains:
    ```json
@@ -148,11 +149,16 @@ genuinely differ in spelling from GitHub's check-run conclusions (`failure`,
 `cancelled`), and GitLab has no direct equivalent for GitHub's `timed_out` /
 `action_required` conclusions. The comment also correctly notes this grep
 pattern (`failure|cancelled|timed_out|action_required`) only runs on the
-github code path today (gitlab's `repo-admin-check` fails closed before
-`cmd_post_merge_check` would ever be reached with a gitlab `commit-checks`
-result) — so the vocabulary mismatch is currently inert, not live, and
-matches Task 15's own self-review on this exact point. **No bug — this is a
-correctly-labeled known future gap, not a live defect.**
+github code path today — but the mechanism is not "`repo-admin-check` fails
+closed first": `pr_merge_loop.sh`'s `gh_op` dispatcher hardcodes
+`admin-check) echo false ;;` on its gitlab branch (line 81) as a documented
+design-only stub, so the gitlab path never even invokes
+`git_ops.sh repo-admin-check`. `cmd_post_merge_check` is simply never reached
+via a gitlab `commit-checks` result because the merge path is short-circuited
+upstream of it by that hardcoded stub — so the vocabulary mismatch is
+currently inert, not live, and matches Task 15's own self-review on this
+exact point. **No bug — this is a correctly-labeled known future gap, not a
+live defect.**
 
 ## Bugs found
 
@@ -170,7 +176,7 @@ public API/CLI surface. No changes were made to `git_ops.sh` or
 | `permissions.project_access.access_level` / `group_access.access_level` fields exist on the single-project response | External: fetched GitLab Projects API docs ("Get a single project") |
 | Access-level integers (Guest=10 … Owner=50, Maintainer=40 threshold) | External: fetched GitLab Members API docs |
 | `GET .../commits/:sha/statuses` returns a flat array with a `status` field and the 6-value vocabulary | External: fetched GitLab Commits API docs |
-| `pr_merge_loop.sh`'s vocabulary-mismatch comment is accurate and the mismatch is currently inert | Internal: read `pr_merge_loop.sh` lines 297–322 and traced the gitlab `repo-admin-check` fail-closed path from Task 15's own report |
+| `pr_merge_loop.sh`'s vocabulary-mismatch comment is accurate and the mismatch is currently inert | Internal: read `pr_merge_loop.sh` lines 297–322 and traced `gh_op`'s hardcoded gitlab `admin-check) echo false ;;` stub (line 81), which never invokes `git_ops.sh repo-admin-check` on this path |
 | `mr close`/`mr merge` conventions predicting `mr reopen` | Internal reasoning only, superseded by the external confirmation above — not relied on as the sole evidence |
 
 No claim in this document rests on unconfirmed guessing from training-data
@@ -228,8 +234,10 @@ direct exercises of all 4 verbs Task 15 added:
    through what `pr-merge-stacked`/`merge-stacked-pr-chain` document: merge
    the parent MR *keeping the branch* (`glab mr merge <parent-mr-iid>` without
    `--remove-source-branch`), retarget the child MR to `main`
-   (`git_ops.sh pr-edit <child-mr-iid> --base main`, verify GitLab's
-   `pr-edit` translation maps `--base` → `--target-branch`), confirm via
+   (`git_ops.sh pr-edit <child-mr-iid> --base main` — `git_ops.sh`'s gitlab
+   `pr-edit` case now translates `--base`/`--base=*` to `--target-branch`
+   directly, via the fix landed alongside this doc update, so no manual
+   workaround or skill-level caveat is needed here), confirm via
    `glab mr view <child-mr-iid>` that `target_branch` is now `main` and the
    MR is still open (not auto-closed), then delete the now-merged parent
    branch and clean up.

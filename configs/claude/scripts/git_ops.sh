@@ -388,6 +388,14 @@ case "${platform}" in
                                 mr_args+=(--description "${1#--body=}")
                                 shift
                                 ;;
+                            --base)
+                                mr_args+=(--target-branch "$2")
+                                shift 2
+                                ;;
+                            --base=*)
+                                mr_args+=(--target-branch "${1#--base=}")
+                                shift
+                                ;;
                             *)
                                 mr_args+=("$1")
                                 shift

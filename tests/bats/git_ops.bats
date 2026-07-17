@@ -196,6 +196,26 @@ make_clean_bin() {
     assert_output --partial "STUB:glab:mr update 99 --description Closes #17"
 }
 
+@test "routes pr-edit to glab mr update (--base → --target-branch) on GitLab" {
+    cd "$TEST_REPO" || return 1
+    git remote set-url origin "https://gitlab.com/user/repo.git"
+    create_stub "glab"
+    run bash "$SCRIPT_UNDER_TEST" pr-edit 99 --base main
+    assert_success
+    assert_output --partial "STUB:glab:mr update 99 --target-branch main"
+    refute_output --partial "--base main"
+}
+
+@test "routes pr-edit to glab mr update (--base=main → --target-branch main) on GitLab" {
+    cd "$TEST_REPO" || return 1
+    git remote set-url origin "https://gitlab.com/user/repo.git"
+    create_stub "glab"
+    run bash "$SCRIPT_UNDER_TEST" pr-edit 99 --base=main
+    assert_success
+    assert_output --partial "STUB:glab:mr update 99 --target-branch main"
+    refute_output --partial "--base=main"
+}
+
 @test "routes issue-comment to glab issue note on GitLab" {
     cd "$TEST_REPO" || return 1
     git remote set-url origin "https://gitlab.com/user/repo.git"
