@@ -28,7 +28,7 @@ phase_to_canonical_status:
 providers:
   github:
     access: [cli, api]      # prepend mcp when a GitHub MCP server is registered
-    verified: false          # flipped by the Task 12 contract matrix
+    verified: true           # Task 12 matrix (2026-07-17): 9/9 PASS, 2/2 N/A (docs/superpowers/specs/2026-07-17-tracker-contract-matrix.md)
     status_via: label         # canonical status applied as a label
     tier_map:
       1: project_v2           # no native issue type -> see missing_tier_behavior
