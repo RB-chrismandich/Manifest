@@ -59,7 +59,7 @@ lifecycle.sh advance <track-id> --actor <agent|human> --gate '<phase-gate-json>'
 ## Providers (GitHub / GitLab / Linear / Jira)
 
 Entry is a ticket URL or issue key; `lifecycle.sh init` detects the provider. Hierarchy
-and status rendering come from `configs/claude/config/lifecycle_providers.yml`
+and status rendering come from `configs/claude/config/tracker_providers.yml`
 (`lifecycle.sh status-map <provider> <canonical>` resolves a label vs. a Jira transition).
 
 **Jira is reached via the pre-authenticated Atlassian MCP** (wired in `settings.local.json`)
