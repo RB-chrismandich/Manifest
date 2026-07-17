@@ -18,7 +18,10 @@ Exit codes: 3 = provider is MCP-only in shell context; 4 = verb not
 implemented for provider (both mean: skip loudly, do not fail silently).
 USAGE
 }
-[[ "${1:-}" == "--help" || "${1:-}" == "-h" ]] && { usage; exit 0; }
+[[ "${1:-}" == "--help" || "${1:-}" == "-h" ]] && {
+    usage
+    exit 0
+}
 
 err() { if [[ -t 2 ]]; then printf '\033[0;31m%s\033[0m\n' "tracker-ops: $*" >&2; else printf '%s\n' "tracker-ops: $*" >&2; fi; }
 
@@ -28,12 +31,14 @@ GIT_OPS="${GIT_OPS_BIN:-${SCRIPT_DIR}/git_ops.sh}"
 LINEAR_OPS="${LINEAR_OPS_BIN:-${SCRIPT_DIR}/linear_ops.sh}"
 CANONICAL_STATUSES=(planned in-progress needs-review "done")
 
-valid_provider() { case "$1" in github | gitlab | linear | jira) return 0 ;; *) return 1 ;; esac; }
+valid_provider() { case "$1" in github | gitlab | linear | jira) return 0 ;; *) return 1 ;; esac }
 
 resolve_provider() {
     local p=""
-    if [[ -n "${FORCED_PROVIDER:-}" ]]; then p="${FORCED_PROVIDER}"
-    elif [[ -n "${MANIFEST_TRACKER:-}" ]]; then p="${MANIFEST_TRACKER}"
+    if [[ -n "${FORCED_PROVIDER:-}" ]]; then
+        p="${FORCED_PROVIDER}"
+    elif [[ -n "${MANIFEST_TRACKER:-}" ]]; then
+        p="${MANIFEST_TRACKER}"
     else
         local root
         root=$(git rev-parse --show-toplevel 2> /dev/null || true)
@@ -60,14 +65,20 @@ if [[ "${1:-}" == "--provider" ]]; then
     FORCED_PROVIDER="$2"
     shift 2
 fi
-[[ $# -eq 0 ]] && { usage >&2; exit 1; }
+[[ $# -eq 0 ]] && {
+    usage >&2
+    exit 1
+}
 verb="$1"
 shift
 
 provider=$(resolve_provider) || exit 1
 
 if [[ "${provider}" == "jira" ]]; then
-    if [[ "${verb}" == "resolve-provider" ]]; then echo jira; exit 0; fi
+    if [[ "${verb}" == "resolve-provider" ]]; then
+        echo jira
+        exit 0
+    fi
     err "unsupported-in-context: jira access is MCP-only; run from agent context"
     err "(registry: tracker_providers.yml providers.jira.access)"
     exit 3
@@ -102,7 +113,10 @@ case "${verb}" in
         ;;
     issue-transition)
         n="${1:-}" target="${2:-}"
-        [[ -n "${n}" && -n "${target}" ]] || { err "usage: issue-transition N CANONICAL_STATUS"; exit 1; }
+        [[ -n "${n}" && -n "${target}" ]] || {
+            err "usage: issue-transition N CANONICAL_STATUS"
+            exit 1
+        }
         case "${provider}" in
             github | gitlab)
                 args=("${n}")
@@ -119,11 +133,20 @@ case "${verb}" in
         ;;
     duplicate-mark)
         n="${1:-}"
-        [[ -n "${n}" ]] || { err "usage: duplicate-mark N --duplicate-of M"; exit 1; }
+        [[ -n "${n}" ]] || {
+            err "usage: duplicate-mark N --duplicate-of M"
+            exit 1
+        }
         shift
-        [[ "${1:-}" == "--duplicate-of" ]] || { err "usage: duplicate-mark N --duplicate-of M"; exit 1; }
+        [[ "${1:-}" == "--duplicate-of" ]] || {
+            err "usage: duplicate-mark N --duplicate-of M"
+            exit 1
+        }
         primary="${2:-}"
-        [[ -n "${primary}" ]] || { err "usage: duplicate-mark N --duplicate-of M"; exit 1; }
+        [[ -n "${primary}" ]] || {
+            err "usage: duplicate-mark N --duplicate-of M"
+            exit 1
+        }
         case "${provider}" in
             linear) engine issue-mark-duplicate "${n}" --duplicate-of "${primary}" ;;
             github | gitlab)

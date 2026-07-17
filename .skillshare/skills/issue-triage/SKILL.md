@@ -5,7 +5,8 @@ description: "Comprehensive issue audit for the configured tracker (GitHub, GitL
 
 # Issue Triage Skill
 
-Automated issue backlog management for the configured tracker (GitHub, GitLab, Linear, or Jira) with duplicate detection, staleness analysis, and priority validation.
+Automated issue backlog management for the configured tracker (GitHub, GitLab, Linear, or
+Jira) with duplicate detection, staleness analysis, and priority validation.
 
 ## Purpose
 
@@ -36,7 +37,9 @@ This skill performs comprehensive issue triage by:
 1. **Tracker authentication** — per provider (resolved via `tracker_ops.sh resolve-provider`):
    - `linear`: `LINEAR_API_KEY` env var or `~/.config/linear/token`
    - `github` / `gitlab`: `gh` / `glab` CLI authenticated
-   - `jira`: Atlassian MCP configured (jira is MCP-only — `tracker_ops.sh` exits 3 for any jira verb in shell context; run jira triage from agent context and call the Atlassian MCP tools directly instead of shelling out)
+   - `jira`: Atlassian MCP configured (jira is MCP-only — `tracker_ops.sh` exits 3 for any jira verb in
+     shell context; run jira triage from agent context and call the Atlassian MCP tools directly instead
+     of shelling out)
 2. **Tools installed**: `jq`, `python3`
 3. **Scripts available**: `~/.claude/scripts/tracker_ops.sh`, `~/.claude/scripts/parallel_agent.py`
 4. **Config loaded**: `~/.claude/config/tracker_triage.yml`

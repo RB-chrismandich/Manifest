@@ -8,6 +8,7 @@ Usage:
   tracker_registry.py mcp-tool <provider> <operation>
 Exit codes: 0 ok, 1 usage, 2 unknown provider/key.
 """
+
 import sys
 from pathlib import Path
 
@@ -41,7 +42,10 @@ def main(argv):
         provider = rest[0]
         p = data["providers"].get(provider)
         if p is None:
-            die(2, f"unknown provider: {provider} (known: {', '.join(data['providers'])})")
+            die(
+                2,
+                f"unknown provider: {provider} (known: {', '.join(data['providers'])})",
+            )
         if cmd == "access":
             print("\n".join(p["access"]))
             return 0
