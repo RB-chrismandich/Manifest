@@ -188,8 +188,45 @@ by design for now), all PR/forge verbs (Phase 2), CI skills (Phase 3).
 
 ## 5. Open items deferred to later phases
 
-- GitHub/GitLab MCP server registration (would promote MCP to the front of
-  their `access:` lists) — Phase 2 decision.
+- **GitHub/GitLab MCP server registration — evaluated, deferred (Task 18,
+  2026-07-17); CLI remains first.** Decision rule: adopt only if a server
+  covers ≥ the `git_ops.sh` verb set (issue-view/list/create/comment/close/edit;
+  pr-create/view/edit/list/review/approve/diff/checks/merge/close/comment/comments;
+  pr-reopen/pr-update-branch/repo-admin-check/commit-checks/branch-protection;
+  release-create/list; label-create/list/sync) with OAuth-capable auth.
+  Findings (both candidates OAuth-capable, but both fail on verb coverage):
+  - **GitHub official server** (`github/github-mcp-server`, README tool
+    reference at commit fetched 2026-07-17): remote server supports OAuth
+    (no static PAT required) via browser login. Covers issues fully
+    (`issue_read`/`issue_write`/`list_issues`/`add_issue_comment`/`label_write`/
+    `list_label`) and most PR ops (`create_pull_request`, `pull_request_read`
+    incl. `get_diff`/`get_check_runs`/`get_status`, `update_pull_request`,
+    `pull_request_review_write`, `merge_pull_request`,
+    `update_pull_request_branch`). Gaps confirmed absent from the tool
+    reference: no release-*create*/publish/delete tool (`releases` toolset is
+    read-only — `get_latest_release`, `get_release_by_tag`, `list_releases`
+    only); no branch-protection tool; no repo-admin-check equivalent (no
+    permission-level/collaborator-role query, only `list_repository_collaborators`);
+    no general commit-checks-by-SHA tool (`get_check_runs` is PR-scoped only,
+    via `pull_request_read`). 4 of the 23 git_ops.sh verbs have no
+    corresponding tool.
+  - **GitLab**: no single "official first-party" server parallel to the
+    GitHub one was adopted here — GitLab's own built-in MCP server
+    (`https://<instance>/api/v4/mcp`, per GitLab docs
+    `user/model_context_protocol/mcp_server_tools/`, fetched 2026-07-17) is
+    OAuth-capable but exposes only ~20 tools skewed toward read/search
+    (`create_issue`, `get_issue`, `create_merge_request`, `get_merge_request*`,
+    `create_merge_request_note`, `search_labels`, pipeline read tools). It has
+    no MR merge/approve/edit/close/reopen tool, no release tools at all, and
+    no branch-protection tool — a larger gap than GitHub's. (Third-party
+    community servers such as `zereight/gitlab-mcp` claim broader coverage
+    but were out of scope: not first-party/vetted the way `atlassian` is in
+    `mcp_servers.yml`, so adopting one wasn't pursued.)
+
+  Per the decision rule, neither clears the bar — `mcp_servers.yml` and
+  `tracker_providers.yml`'s `access:` lists are unchanged; `git_ops.sh`
+  (CLI/API) remains the sole forge/PR-operations path. Full findings with
+  sources: `.superpowers/sdd/task-18-report.md`.
 - Bot identity config (Copilot/Jules/Palette/Bolt names in `pr-monitor` /
   `pr-triage-bots`) — Phase 2.
 - `~/.claude/` as the hardcoded config home across ~40 skills. Functionally
