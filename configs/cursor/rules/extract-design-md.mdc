@@ -1,0 +1,15 @@
+---
+description: "Extract a Stitch-compatible DESIGN.md design system directly from frontend source (React, Vue, Svelte, Angular, HTML/CSS) — components, stylesheets, tokens, themes. Use to reverse-engineer or audit a project's design system."
+globs: ".claude/skills/extract-design-md/**"
+alwaysApply: false
+---
+
+# extract-design-md
+
+Extract a Stitch-compatible DESIGN.md design system directly from frontend source (React, Vue, Svelte, Angular, HTML/CSS) — components, stylesheets, tokens, themes. Use to reverse-engineer or audit a project's design system.
+
+<!-- Auto-generated from .claude/skills/extract-design-md/SKILL.md -->
+<!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
+
+Refer to `.cursor/skills/extract-design-md/SKILL.md` for the full skill definition.
+

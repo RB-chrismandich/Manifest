@@ -1,0 +1,15 @@
+---
+description: "Upload local assets (images, mockups, HTML, design markdown) to a Stitch project. ALWAYS use when visual assets or design docs need uploading, especially when direct MCP calls fail/truncate on base64 token limits."
+globs: ".claude/skills/upload-to-stitch/**"
+alwaysApply: false
+---
+
+# upload-to-stitch
+
+Upload local assets (images, mockups, HTML, design markdown) to a Stitch project. ALWAYS use when visual assets or design docs need uploading, especially when direct MCP calls fail/truncate on base64 token limits.
+
+<!-- Auto-generated from .claude/skills/upload-to-stitch/SKILL.md -->
+<!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
+
+Refer to `.cursor/skills/upload-to-stitch/SKILL.md` for the full skill definition.
+

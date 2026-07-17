@@ -127,21 +127,37 @@ conformance test parses the fenced block.
 ai-hooks-integration
 automation-rework-breakeven
 cli-help-before-dependency-checks
+code-to-design
+design-md
+enhance-prompt
 errexit-safe-shell-counters
+extract-design-md
+extract-static-html
 false-green-check-audit
+generate-design
 graphify
 help
+manage-design-system
 merge-stacked-pr-chain
 pass-cli
 pin-known-bug-test-survives-fix
+react-components
+react-native
+react-vite-dashboard
+remotion
 reproduce-gated-ci-failure-locally
+shadcn-ui
 shell-sete-silent-abort-audit
+stitch-loop
+taste-design
+upload-to-stitch
 ```
 <!-- /skill-naming:exceptions -->
 
 | Name | Rationale |
 |---|---|
 | `ai-hooks-integration` | Externally installed via skillshare (`github.com/runkids/ai-hooks-integration`); not ours to rename. |
+| `code-to-design`, `design-md`, `enhance-prompt`, `extract-design-md`, `extract-static-html`, `generate-design`, `manage-design-system`, `react-components`, `react-native`, `react-vite-dashboard`, `remotion`, `shadcn-ui`, `stitch-loop`, `taste-design`, `upload-to-stitch` | Externally installed via skillshare (`github.com/google-labs-code/stitch-skills`); Stitch MCP design/build/utility skills — not ours to rename. |
 | `automation-rework-breakeven` | SkillClaw-evolved break-even analysis skill; descriptive compound name encodes the trade-off being modeled. |
 | `cli-help-before-dependency-checks` | SkillClaw-evolved CLI audit pattern; name states the invariant (help before deps). |
 | `errexit-safe-shell-counters` | SkillClaw-evolved shell hazard skill; pairs with `shell-audit-*` family semantics. |
