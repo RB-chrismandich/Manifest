@@ -215,15 +215,17 @@ transition_issue() {
         record_action "#${n} transition ${cur:-none}→${target} [applied]"
         return 0
     fi
-    local rc=0
-    "${TRACKER_OPS_BIN}" issue-transition "${n}" "${target}" || rc=$?
+    local rc=0 out=""
+    out=$("${TRACKER_OPS_BIN}" issue-transition "${n}" "${target}" 2>&1) || rc=$?
     if [[ ${rc} -eq 3 || ${rc} -eq 4 ]]; then
         err "tracker provider limitation (rc=${rc}) — skipping sync, not failing hook"
+        record_action "#${n} transition ${cur:-none}→${target} [skipped] (tracker provider limitation, rc=${rc})"
         return 0
     fi
     if [[ ${rc} -eq 0 ]]; then
         record_action "#${n} transition ${cur:-none}→${target} [applied]"
     else
+        err "tracker transition failed for #${n} (rc=${rc}): ${out}"
         record_action "#${n} transition ${cur:-none}→${target} [failed] (label update error)"
     fi
 }
@@ -246,15 +248,17 @@ comment_backlink() {
         record_action "#${n} comment back-link [applied]"
         return 0
     fi
-    local rc=0
-    "${TRACKER_OPS_BIN}" issue-comment "${n}" "${body}"$'\n\n'"${marker}" || rc=$?
+    local rc=0 out=""
+    out=$("${TRACKER_OPS_BIN}" issue-comment "${n}" "${body}"$'\n\n'"${marker}" 2>&1) || rc=$?
     if [[ ${rc} -eq 3 || ${rc} -eq 4 ]]; then
         err "tracker provider limitation (rc=${rc}) — skipping sync, not failing hook"
+        record_action "#${n} comment back-link [skipped] (tracker provider limitation, rc=${rc})"
         return 0
     fi
     if [[ ${rc} -eq 0 ]]; then
         record_action "#${n} comment back-link [applied]"
     else
+        err "tracker comment failed for #${n} (rc=${rc}): ${out}"
         record_action "#${n} comment back-link [failed] (comment error)"
     fi
 }
