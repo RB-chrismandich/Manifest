@@ -11,7 +11,7 @@ is slow/rate-limited because it does.
    (hundreds+), pause before running.
 2. Validate rate limits FIRST — do not assume. Fetch the official API docs AND read the official client's source for
    any sleep/retry/`min_interval`/backoff logic. Absence of throttling code means added client-side delays are pure
-   overhead. **github-only**: if the client repo is on GitHub, `gh api repos/<org>/<client>/contents/<file>`
+   overhead. **GitHub syntax shown below — GitLab uses a different endpoint**: if the client repo is on GitHub, `gh api repos/<org>/<client>/contents/<file>`
    (base64-encoded, needs decoding) fetches one file without cloning; on GitLab use `glab api
    projects/<id>/repository/files/<file>?ref=<branch>` instead, or just clone/`curl` the raw file for any other host.
 3. Search the client's endpoint map and docs for bulk/aggregate variants: `/bulk/...`, `/live/...`, all-entity forms
