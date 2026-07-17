@@ -237,11 +237,16 @@ class Config:
         it carries base_args/output strategy that agent_roster.yml
         deliberately does not duplicate (see agent_roster.yml header).
 
-        A provider absent from cli_agents falls back to agent_roster.yml:
-        this is what makes a CLI-only agent addable purely via config — no
-        cli_agents entry, no new Python class — using the roster's
-        binary/model_args/prompt_args with generic-CLI defaults
-        (base_args=[], output="stdout") for the fields the roster omits.
+        A provider absent from cli_agents falls back to agent_roster.yml,
+        using the roster's binary/model_args/prompt_args with generic-CLI
+        defaults (base_args=[], output="stdout") for the fields the roster
+        omits. This makes roster-only construction possible at THIS layer —
+        no cli_agents entry, no new Python class needed for `Config`/
+        `CLIAgent` to build a spec. It does NOT make a roster-only agent
+        selectable or runnable end-to-end today: `cli.py`'s provider
+        selection, CLI flags, and rate-limiter/model wiring are still
+        hardcoded per-provider (not roster-aware). Closing that gap is
+        out of this task's scope — see agent_roster.yml.
         """
         spec = self.get(f"cli_agents.{provider}")
         if spec:
