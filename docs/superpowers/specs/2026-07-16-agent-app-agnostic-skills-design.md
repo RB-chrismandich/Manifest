@@ -100,9 +100,10 @@ Per provider (`github`, `gitlab`, `linear`, `jira`):
   - `gitlab: [cli, api]`
   - `linear: [mcp, cli, api]` (`cli` = `linear_ops.sh` GraphQL engine)
   - `jira: [mcp]`
-- `status_model:` — `label` (github, gitlab) vs `transition` (linear, jira),
-  plus the canonical-status map (planned / in_progress / needs_review / done)
-  carried over from `lifecycle_providers.yml`.
+- `status_via:` — `label` (github, gitlab) vs `transition` (linear, jira),
+  plus the canonical-status map (planned / in-progress / needs-review / done)
+  carried over from `lifecycle_providers.yml` (key name and hyphenated status
+  spelling kept verbatim for `lifecycle-run` compatibility).
 - `tier_map:` — project/epic/issue/sub-issue construct names per provider.
 - `mcp_tools:` — explicit MCP tool-name map where `access` includes `mcp`
   (jira today; linear once its MCP path is exercised).
