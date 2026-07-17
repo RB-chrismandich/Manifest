@@ -90,11 +90,19 @@ case "${verb}" in
     issue-label)
         case "${provider}" in
             github | gitlab) engine issue-edit "$@" ;;
-            linear) engine issue-update "$@" ;;
+            linear)
+                # linear_ops.sh issue-update only supports --state/--priority;
+                # it has no label-mutation to route --add-label/--remove-label
+                # to (registry: tracker_providers.yml — labels are status-
+                # transition-only on linear via issue-transition).
+                err "issue-label not implemented for linear (registry documents the mapping; see spec §4.1)"
+                exit 4
+                ;;
         esac
         ;;
     issue-transition)
-        n="$1" target="$2"
+        n="${1:-}" target="${2:-}"
+        [[ -n "${n}" && -n "${target}" ]] || { err "usage: issue-transition N CANONICAL_STATUS"; exit 1; }
         case "${provider}" in
             github | gitlab)
                 args=("${n}")
@@ -105,14 +113,17 @@ case "${verb}" in
                 engine issue-edit "${args[@]}"
                 ;;
             linear)
-                engine transition-state "${n}" "$(status_name "${target}")"
+                engine transition-state --identifier "${n}" --state "$(status_name "${target}")"
                 ;;
         esac
         ;;
     duplicate-mark)
-        n="$1"; shift
-        [[ "${1:-}" == "--duplicate-of" ]] || { err "duplicate-mark N --duplicate-of M"; exit 1; }
-        primary="$2"
+        n="${1:-}"
+        [[ -n "${n}" ]] || { err "usage: duplicate-mark N --duplicate-of M"; exit 1; }
+        shift
+        [[ "${1:-}" == "--duplicate-of" ]] || { err "usage: duplicate-mark N --duplicate-of M"; exit 1; }
+        primary="${2:-}"
+        [[ -n "${primary}" ]] || { err "usage: duplicate-mark N --duplicate-of M"; exit 1; }
         case "${provider}" in
             linear) engine issue-mark-duplicate "${n}" --duplicate-of "${primary}" ;;
             github | gitlab)

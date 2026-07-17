@@ -86,7 +86,37 @@ EOS
     make_stub "${STUBS}/linear_ops.sh"
     LINEAR_OPS_BIN="${STUBS}/linear_ops.sh" MANIFEST_TRACKER=linear \
         run bash "${SCRIPT}" issue-transition ENG-42 needs-review
-    grep -q 'transition-state ENG-42 In Review' "${STUBS}/linear_ops.sh.calls"
+    grep -q -- "transition-state --identifier ENG-42 --state In Review" "${STUBS}/linear_ops.sh.calls"
+}
+
+@test "issue-transition missing args exits 1 with usage hint" {
+    run bash "${SCRIPT}" --provider linear issue-transition
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"usage:"* ]]
+}
+
+@test "issue-transition missing target exits 1 with usage hint" {
+    run bash "${SCRIPT}" --provider linear issue-transition ENG-42
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"usage:"* ]]
+}
+
+@test "duplicate-mark missing args exits 1 with usage hint" {
+    run bash "${SCRIPT}" --provider linear duplicate-mark
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"usage:"* ]]
+}
+
+@test "duplicate-mark missing --duplicate-of value exits 1 with usage hint" {
+    run bash "${SCRIPT}" --provider linear duplicate-mark 9 --duplicate-of
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"usage:"* ]]
+}
+
+@test "issue-label on linear exits 4 not-implemented" {
+    MANIFEST_TRACKER=linear run bash "${SCRIPT}" issue-label ENG-42 --add-label bug
+    [ "$status" -eq 4 ]
+    [[ "$output" == *"not implemented"* ]]
 }
 
 @test "duplicate-mark github closes with comment and label" {
