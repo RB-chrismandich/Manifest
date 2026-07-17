@@ -60,7 +60,8 @@ without a verified fix. Ignore non-actionable service notices
 - **github-only: thread resolution** — GitHub supports formally resolving a
   review thread; GitLab (via `glab`) has no equivalent, so this block is
   provider-conditional:
-  - github: `gh api graphql -f query='mutation { resolveReviewThread(input: {threadId: "<thread_id>"}) { thread { isResolved } } }'`
+  - github: `gh api graphql -f query='mutation { resolveReviewThread(input:
+    {threadId: "<thread_id>"}) { thread { isResolved } } }'`
     (thread IDs come from `gh pr view <N> --json reviewThreads`, *not* from
     `pr-comments`' `id` field — those are comment IDs, not thread IDs).
   - gitlab: no thread-resolve verb exists, so instead post

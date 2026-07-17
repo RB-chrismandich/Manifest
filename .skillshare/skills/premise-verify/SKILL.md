@@ -105,7 +105,8 @@ and before any analysis depends on the data.
 4. **Cross-check against the vendor's official client source** — clone it or
    fetch the specific file and decode it — to confirm exact URLs, auth header
    format, and whether it does any rate-limiting — its absence tells you the
-   API is lenient. **GitHub syntax shown below — GitLab uses a different endpoint**: if the vendor hosts on GitHub, `gh api
+   API is lenient. **GitHub syntax shown below — GitLab uses a different
+   endpoint**: if the vendor hosts on GitHub, `gh api
    repos/<org>/<client>/contents/<file>` (base64-encoded content, needs
    decoding) is a quick one-shot fetch without cloning; on GitLab use `glab
    api projects/<id>/repository/files/<file>?ref=<branch>` instead, and for

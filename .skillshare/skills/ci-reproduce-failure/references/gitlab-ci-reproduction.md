@@ -47,7 +47,7 @@ The failing job's real `script:`/`variables:`/`extends:` definition may live in 
 of these, not in the top-level `.gitlab-ci.yml` you'd naively open. Don't assume the
 job is "missing" from the file you can see — resolve includes first:
 
-```
+```bash
 glab ci config compile              # current directory's .gitlab-ci.yml
 glab ci config compile path/to/.gitlab-ci.yml
 ```

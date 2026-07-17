@@ -461,7 +461,7 @@ case "${platform}" in
                         esac
                     done
                     [[ -z "${comment}" ]] || glab mr note "${mr_num}" --message "${comment}"
-                    glab mr close "${mr_args[@]}"
+                    glab mr close "${mr_args[@]}" # array-safe: seeded with mr_num
                 }
                 _translate_pr_close_flags "$@"
                 ;;

@@ -227,12 +227,65 @@ by design for now), all PR/forge verbs (Phase 2), CI skills (Phase 3).
   `tracker_providers.yml`'s `access:` lists are unchanged; `git_ops.sh`
   (CLI/API) remains the sole forge/PR-operations path. Full findings with
   sources: `.superpowers/sdd/task-18-report.md`.
-- Bot identity config (Copilot/Jules/Palette/Bolt names in `pr-monitor` /
-  `pr-triage-bots`) — Phase 2.
-- `~/.claude/` as the hardcoded config home across ~40 skills. Functionally
-  benign (symlinked into all agent homes) and invasive to change; documented
-  as a known soft assumption, revisited in Phase 4.
-- `ai-hooks-integration`'s independently-enumerated host list — Phase 4.
+- **Bot identity config — done (Task 17, 2026-07-17).** Added
+  `configs/claude/config/review_bots.yml` (copilot, jules, palette, bolt);
+  `pr-monitor`/`pr-triage-bots` now read it instead of hardcoding logins.
+  Verified each entry against the live repo rather than guessing: copilot
+  and jules have real, gh-confirmed `author_login`s; palette/bolt turned out
+  to be **Jules personas with no distinct bot account** (their PRs are
+  authored by the human account that invoked the session), so the registry
+  correctly encodes `author_login: null` + `identified_by: title_prefix` for
+  those two, and a follow-up fix pass corrected two live search-command bugs
+  this surfaced (an AND-instead-of-OR title search, and a wrong `bolt-`
+  vs. `bolt/` branch-prefix). Full evidence:
+  `.superpowers/sdd/task-17-report.md`.
+- **`~/.claude/` as the hardcoded config home — documented (Task 25,
+  2026-07-17), not eliminated.** The four fleet-inspection skills
+  (`env-check`, `config-audit`, `deploy-reconcile`, `deploy-retire-component`)
+  now read the agent fleet from `agent_roster.yml` instead of hardcoding
+  `claude`/`cursor`/`gemini`/`codex`/`antigravity` lists — antigravity in
+  particular was previously missing from `config-audit`'s symlink and
+  config-freshness checks entirely, and is now covered. `~/.claude/` itself
+  remains the literal, unabstracted config home baked into these and ~40
+  other skills' paths (`~/.claude/scripts/...`, `~/.claude/config/...`); this
+  was always a documented soft assumption, not a Phase 4 deliverable to
+  remove it, and it still holds. See "Two real deferred gaps" below for what
+  Task 25 additionally surfaced.
+- **`ai-hooks-integration`'s host list — confirmed still separately
+  enumerated, by design.** This skill installs lifecycle hooks into
+  Claude Code, Gemini CLI, Cursor, and OpenCode — a different axis (each
+  tool's own hook/plugin mechanism) from `agent_roster.yml` (which enumerates
+  backends for `parallel_agent.py`'s cross-verification). No Phase 1-4 task
+  touched or was meant to touch it; the two enumerations describe genuinely
+  different concepts and unifying them was never in scope. Left as-is.
+
+### Two real deferred gaps discovered during implementation (not covered by any task in this plan)
+
+Both surfaced as explicit self-flagged concerns in their originating tasks'
+reports, not silently dropped:
+
+1. **`configs/claude/scripts/agents/cli.py` has zero roster-awareness.**
+   Task 24 gave `Config`/`CLIAgent` the ability to build a working spec for a
+   6th agent purely from an `agent_roster.yml` entry (no new Python
+   subclass required) — but `cli.py`'s provider selection, `--*-only`/`--no-*`
+   flags, and rate-limiter/model wiring are still hardcoded per the 5 known
+   providers. Concretely: today, adding a 6th agent to `agent_roster.yml`
+   makes `Config.get_cli_agent_spec()` succeed for it, but there is still no
+   way to actually invoke it through `parallel_agent.py`'s CLI — that
+   requires `cli.py` changes Task 24 explicitly scoped out. See
+   `.superpowers/sdd/task-24-report.md` ("Concerns" #2).
+2. **Backing scripts still hardcode parts of the agent fleet.** Task 25 made
+   four *skill* files roster-driven, but the scripts they invoke were left
+   untouched by design (out of the task's scope): e.g.
+   `configs/claude/scripts/deploy_reconcile.sh:136`
+   (`for tag in claude cursor gemini codex antigravity`) and
+   `config-audit`'s §4 "MCP Configuration Consistency" check, which still
+   names only `.claude`/`.cursor`/`.gemini` explicitly (no cited source for
+   where codex/antigravity keep an MCP config file, so it wasn't guessed at).
+   See `.superpowers/sdd/task-25-report.md` ("Concerns" #1-2).
+
+Both are legitimate follow-up-task candidates for a future roster-completion
+pass, not gaps this program silently left unaddressed.
 
 ---
 
