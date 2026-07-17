@@ -1,0 +1,15 @@
+---
+description: "Generate new Stitch screens from text/images, edit existing screens with prompts and design tokens, and create design variants via the Stitch MCP server."
+globs: ".claude/skills/generate-design/**"
+alwaysApply: false
+---
+
+# generate-design
+
+Generate new Stitch screens from text/images, edit existing screens with prompts and design tokens, and create design variants via the Stitch MCP server.
+
+<!-- Auto-generated from .claude/skills/generate-design/SKILL.md -->
+<!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
+
+Refer to `.cursor/skills/generate-design/SKILL.md` for the full skill definition.
+

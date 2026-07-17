@@ -1,0 +1,15 @@
+---
+description: "Converts Stitch designs into modular Vite/React components, or syncs existing React components with the latest Stitch designs, using networked fetch and AST-based validation."
+globs: ".claude/skills/react-components/**"
+alwaysApply: false
+---
+
+# react-components
+
+Converts Stitch designs into modular Vite/React components, or syncs existing React components with the latest Stitch designs, using networked fetch and AST-based validation.
+
+<!-- Auto-generated from .claude/skills/react-components/SKILL.md -->
+<!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
+
+Refer to `.cursor/skills/react-components/SKILL.md` for the full skill definition.
+

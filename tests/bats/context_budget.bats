@@ -128,14 +128,22 @@ assert_budget() {
     # 21166. New cap leaves ~834 bytes (~3 skills) headroom — not near-zero, so a
     # genuinely-new skill still fits without an immediate bump. See
     # docs/superpowers/specs/2026-07-05-skill-frontmatter-efficiency-design.md.
+    # Raised 25000 -> 29000 (2026-07-15) for 15 genuinely-new skills: the Stitch
+    # Design Skills family, externally installed via skillshare from
+    # google-labs-code/stitch-skills (the only Google-Stitch-MCP entry points; no
+    # prior coverage to fold into). Trim pass done first: 9 verbose/block-scalar
+    # descriptions inline-normalized and cut toward the ~290 norm (recovered
+    # ~1191 chars, 29648 -> 28457); the residual still exceeded 25000. Measured
+    # total with all 15 present is 28457. Headroom after this is ~543 — the next
+    # addition needs a trim pass first.
     total=0
     for f in "$REPO_ROOT"/.skillshare/skills/*/SKILL.md; do
         # frontmatter = up to the second '---' line
         chars=$(awk '/^---$/{c++; next} c==1' "$f" | wc -c)
         total=$((total + chars))
     done
-    if [ "$total" -gt 25000 ]; then
-        echo "Skill frontmatter totals $total chars (budget: 25000)." >&2
+    if [ "$total" -gt 29000 ]; then
+        echo "Skill frontmatter totals $total chars (budget: 29000)." >&2
         echo "Trim verbose descriptions; bodies are pay-per-use, frontmatter is not." >&2
         return 1
     fi

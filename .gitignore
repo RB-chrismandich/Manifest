@@ -67,3 +67,4 @@ smoke-catalog/*.lock
 # benchmark group, #547); resolution is reproducible from it on demand.
 uv.lock
 benchmark_data/
+.claude/settings.local.json
