@@ -195,10 +195,10 @@ else
     echo "AVAILABLE_DOCS:"
 
     # Show status of each potential document
-    check_file "$RESEARCH" "research.md"
-    check_file "$DATA_MODEL" "data-model.md"
-    check_dir "$CONTRACTS_DIR" "contracts/"
-    check_file "$QUICKSTART" "quickstart.md"
+    check_optional_file "$RESEARCH" "research.md"
+    check_optional_file "$DATA_MODEL" "data-model.md"
+    check_optional_dir "$CONTRACTS_DIR" "contracts/"
+    check_optional_file "$QUICKSTART" "quickstart.md"
 
     if $INCLUDE_TASKS; then
         check_file "$TASKS" "tasks.md"

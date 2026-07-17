@@ -70,3 +70,10 @@ in generated reports.
 represented as critical errors with a red cross (`✗`). This creates a false error state and panic for users.
 **Action:** Use a neutral yellow circle (`○`) and hide installation hints behind verbose flags for optional
 components that are not strictly required for the core application to function.
+
+## 2024-07-17 - Update missing file indication from error to inactive
+
+**Learning:** Missing optional files or directories in CLI status reports (like `check-prerequisites.sh`) should not be
+shown as a red cross error (`✗`), as this causes a false error state and panic for users.
+**Action:** Changed the missing state to use a neutral yellow circle (`○`) so it clearly signals that the file/directory
+is inactive/not present, rather than broken.
