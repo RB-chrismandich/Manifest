@@ -8,6 +8,20 @@ description: Use when a CI job fails but the run's logs are gated ("still in pro
 don't need the logs — per-step conclusions and the workflow definition are enough to find and reproduce the failure
 offline. Broader than `ci-diagnose-drift` (that's the config-override sub-case); this applies to any failing step.
 
+### Step 0: Detect platform
+
+Run `~/.claude/scripts/ci_platform.sh`. The method below (pinpoint the failing unit
+from the API, pin the commit, find its real definition, reproduce locally) applies on
+either platform — only the commands and the job-definition lookup change:
+
+- `github-actions` → steps 1-7 below apply as written.
+- `gitlab-ci` → load `references/gitlab-ci-reproduction.md` for the real `glab
+  ci`/`glab api`/`glab job` equivalents (job-level, not step-level, granularity;
+  `.gitlab-ci.yml` plus resolved `include:` in place of `.github/workflows/*.yml`) and
+  apply the same method through that vocabulary instead.
+- `none` → report that no CI configuration was detected and stop; don't guess at a
+  platform or improvise generic advice.
+
 1. **Get per-step conclusions mid-run.** `gh api repos/<owner>/<repo>/actions/jobs/<job_id> --jq '.steps[] |
    "\(.number). \(.name): \(.status) \(.conclusion)"'` returns each step's status/conclusion even before the whole run
    completes — naming the exact failing step.
