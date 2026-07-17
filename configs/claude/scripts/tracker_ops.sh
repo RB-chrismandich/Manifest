@@ -24,10 +24,9 @@ err() { if [[ -t 2 ]]; then printf '\033[0;31m%s\033[0m\n' "tracker-ops: $*" >&2
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REGISTRY="${SCRIPT_DIR}/tracker_registry.py"
-# shellcheck disable=SC2034 # Used in Task 4 verb dispatch
-GIT_OPS="${SCRIPT_DIR}/git_ops.sh"
-# shellcheck disable=SC2034
-LINEAR_OPS="${SCRIPT_DIR}/linear_ops.sh"
+GIT_OPS="${GIT_OPS_BIN:-${SCRIPT_DIR}/git_ops.sh}"
+LINEAR_OPS="${LINEAR_OPS_BIN:-${SCRIPT_DIR}/linear_ops.sh}"
+CANONICAL_STATUSES=(planned in-progress needs-review "done")
 
 valid_provider() { case "$1" in github | gitlab | linear | jira) return 0 ;; *) return 1 ;; esac; }
 
@@ -67,10 +66,76 @@ shift
 
 provider=$(resolve_provider) || exit 1
 
+if [[ "${provider}" == "jira" ]]; then
+    if [[ "${verb}" == "resolve-provider" ]]; then echo jira; exit 0; fi
+    err "unsupported-in-context: jira access is MCP-only; run from agent context"
+    err "(registry: tracker_providers.yml providers.jira.access)"
+    exit 3
+fi
+
+engine() { # route a verb 1:1 to the provider engine
+    case "${provider}" in
+        github | gitlab) bash "${GIT_OPS}" "$@" ;;
+        linear) bash "${LINEAR_OPS}" "$@" ;;
+    esac
+}
+
+status_name() { python3 "${REGISTRY}" status "${provider}" "$1"; }
+
 case "${verb}" in
-    resolve-provider)
-        echo "${provider}"
-        exit 0
+    resolve-provider) echo "${provider}" ;;
+    issue-list | issue-view | issue-create | issue-comment | issue-close)
+        engine "${verb}" "$@"
+        ;;
+    issue-label)
+        case "${provider}" in
+            github | gitlab) engine issue-edit "$@" ;;
+            linear) engine issue-update "$@" ;;
+        esac
+        ;;
+    issue-transition)
+        n="$1" target="$2"
+        case "${provider}" in
+            github | gitlab)
+                args=("${n}")
+                for s in "${CANONICAL_STATUSES[@]}"; do
+                    [[ "${s}" != "${target}" ]] && args+=(--remove-label "${s}")
+                done
+                args+=(--add-label "$(status_name "${target}")")
+                engine issue-edit "${args[@]}"
+                ;;
+            linear)
+                engine transition-state "${n}" "$(status_name "${target}")"
+                ;;
+        esac
+        ;;
+    duplicate-mark)
+        n="$1"; shift
+        [[ "${1:-}" == "--duplicate-of" ]] || { err "duplicate-mark N --duplicate-of M"; exit 1; }
+        primary="$2"
+        case "${provider}" in
+            linear) engine issue-mark-duplicate "${n}" --duplicate-of "${primary}" ;;
+            github | gitlab)
+                engine issue-comment "${n}" "Duplicate of #${primary}"
+                engine issue-edit "${n}" --add-label duplicate
+                engine issue-close "${n}"
+                ;;
+        esac
+        ;;
+    sub-issue-create | sub-issue-list)
+        case "${provider}" in
+            linear)
+                if [[ "${verb}" == "sub-issue-create" ]]; then
+                    engine create-sub-issue "$@"
+                else
+                    engine list-sub-issues "$@"
+                fi
+                ;;
+            github | gitlab)
+                err "${verb} not implemented for ${provider} (registry documents the mapping; see spec §4.1)"
+                exit 4
+                ;;
+        esac
         ;;
     *)
         err "Unknown verb: ${verb}"
