@@ -1,11 +1,11 @@
 ---
 name: issue-triage
-description: "Comprehensive Linear issue audit: validate prioritization, identify duplicates and overlapping issues, detect stale/obsolete issues, produce clean actionable backlog"
+description: "Comprehensive issue audit for the configured tracker (GitHub, GitLab, Linear, or Jira): validate prioritization, identify duplicates and overlapping issues, detect stale/obsolete issues, produce clean actionable backlog"
 ---
 
-# Linear Issue Triage Skill
+# Issue Triage Skill
 
-Automated Linear issue backlog management with duplicate detection, staleness analysis, and priority validation.
+Automated issue backlog management for the configured tracker (GitHub, GitLab, Linear, or Jira) with duplicate detection, staleness analysis, and priority validation.
 
 ## Purpose
 
@@ -26,18 +26,20 @@ This skill performs comprehensive issue triage by:
 | Argument | Description | Default |
 |----------|-------------|---------|
 | `--dry-run` | Analysis only, no mutations | false |
-| `--close-stale` | Auto-cancel stale issues (requires explicit flag) | false |
-| `--team TEAM` | Filter by team key (e.g., "ENG", "PRODUCT") | all teams |
+| `--close-stale` | Auto-close stale issues (requires explicit flag) | false |
+| `--team TEAM` | Filter by team key (e.g., "ENG", "PRODUCT") — linear only; other providers filter by label/milestone instead | all teams |
 | `--priority N` | Filter by priority (0-4) | all priorities |
 | `--limit N` | Max issues to analyze | 500 |
 
 ## Prerequisites
 
-1. **Linear MCP configured** in `~/.claude/config/mcp_servers.yml` OR
-2. **Linear API key** in `~/.config/linear/token`
-3. **Tools installed**: `jq`, `python3`
-4. **Scripts available**: `~/.claude/scripts/linear_ops.sh`, `~/.claude/scripts/parallel_agent.py`
-5. **Config loaded**: `~/.claude/config/linear_triage.yml`
+1. **Tracker authentication** — per provider (resolved via `tracker_ops.sh resolve-provider`):
+   - `linear`: `LINEAR_API_KEY` env var or `~/.config/linear/token`
+   - `github` / `gitlab`: `gh` / `glab` CLI authenticated
+   - `jira`: Atlassian MCP configured (jira is MCP-only — `tracker_ops.sh` exits 3 for any jira verb in shell context; run jira triage from agent context and call the Atlassian MCP tools directly instead of shelling out)
+2. **Tools installed**: `jq`, `python3`
+3. **Scripts available**: `~/.claude/scripts/tracker_ops.sh`, `~/.claude/scripts/parallel_agent.py`
+4. **Config loaded**: `~/.claude/config/tracker_triage.yml`
 
 ## Workflow
 
@@ -48,7 +50,7 @@ This skill performs comprehensive issue triage by:
 set -euo pipefail
 
 # Load triage configuration
-CONFIG_FILE="${HOME}/.claude/config/linear_triage.yml"
+CONFIG_FILE="${HOME}/.claude/config/tracker_triage.yml"
 
 if [[ ! -f "$CONFIG_FILE" ]]; then
     echo "Error: Configuration file not found: $CONFIG_FILE" >&2
@@ -121,21 +123,35 @@ done
 TEMP_DIR=$(mktemp -d)
 ISSUES_FILE="$TEMP_DIR/issues.json"
 
-echo "Fetching issues from Linear..."
+PROVIDER=$(~/.claude/scripts/tracker_ops.sh resolve-provider)
+echo "Fetching issues from ${PROVIDER}..."
 
-if [[ -n "$TEAM_FILTER" ]]; then
-    ~/.claude/scripts/linear_ops.sh issue-list \
-        --team "$TEAM_FILTER" \
+if [[ "$PROVIDER" == "linear" ]]; then
+    # Linear models "team" as a first-class scope. team-list has no
+    # tracker_ops.sh equivalent (engine-level, linear-only concept — it isn't
+    # part of the canonical verb set), so it stays a direct linear_ops.sh call.
+    if [[ -n "$TEAM_FILTER" ]]; then
+        ~/.claude/scripts/tracker_ops.sh issue-list \
+            --team "$TEAM_FILTER" \
+            --limit "$LIMIT" \
+            --json > "$ISSUES_FILE"
+    else
+        # Fetch across all teams
+        ~/.claude/scripts/linear_ops.sh team-list --json | jq -r '.[].key' | while read -r team; do
+            ~/.claude/scripts/tracker_ops.sh issue-list \
+                --team "$team" \
+                --limit "$LIMIT" \
+                --json >> "$ISSUES_FILE"
+        done
+    fi
+else
+    # github/gitlab have no "team" scope on issue-list; list by label or
+    # milestone instead (gh/glab pass these flags through natively). jira is
+    # MCP-only (tracker_ops.sh exits 3) — fetch via the Atlassian MCP tools
+    # from agent context instead of this shell block.
+    ~/.claude/scripts/tracker_ops.sh issue-list \
         --limit "$LIMIT" \
         --json > "$ISSUES_FILE"
-else
-    # Fetch across all teams
-    ~/.claude/scripts/linear_ops.sh team-list --json | jq -r '.[].key' | while read -r team; do
-        ~/.claude/scripts/linear_ops.sh issue-list \
-            --team "$team" \
-            --limit "$LIMIT" \
-            --json >> "$ISSUES_FILE"
-    done
 fi
 
 # Apply priority filter if specified
@@ -293,7 +309,7 @@ jq -c '.[] | select(.needs_agent_review == true)' "$DUPLICATES_FILE" | while rea
     # Call parallel agents for consensus
     consensus=$(~/.claude/scripts/parallel_agent.py --json --timeout 300 \
         --cursor-model mini --claude-model haiku \
-        "Are these Linear issues duplicates?
+        "Are these issues duplicates?
 
         Issue A: $primary_title
         Description A: $primary_desc
@@ -440,7 +456,7 @@ validate_priorities() {
         # Call parallel agents for priority scoring
         consensus=$(~/.claude/scripts/parallel_agent.py --json --timeout 300 \
             --cursor-model flash --claude-model sonnet \
-            "Score this Linear issue for prioritization:
+            "Score this issue for prioritization:
 
             Title: $title
             Description: $description
@@ -497,7 +513,7 @@ echo "Generating triage report..."
 REPORT_FILE="$TEMP_DIR/triage_report.md"
 
 cat > "$REPORT_FILE" << EOFMD
-# Linear Issue Triage Report
+# Issue Triage Report ($PROVIDER)
 
 **Generated**: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
 **Mode**: $([ "$DRY_RUN" = true ] && echo "DRY-RUN" || echo "LIVE")
@@ -533,7 +549,7 @@ $(jq -r '.[] | select(.confidence == "HIGH") |
 
 ## Stale Issues (Safe to Close)
 
-These issues meet staleness criteria and can be canceled with \`--close-stale\`:
+These issues meet staleness criteria and can be closed with \`--close-stale\`:
 
 $(jq -r '.[] | select(.safe_to_close == true) |
 "- **\(.identifier)** (\(.team)) - \(.days_since_update) days inactive
@@ -575,15 +591,15 @@ if [ "$DRY_RUN" = true ]; then
 
 1. Review recommendations above
 2. Re-run without \`--dry-run\` to mark duplicates
-3. Add \`--close-stale\` flag to cancel stale issues
+3. Add \`--close-stale\` flag to close stale issues
 EOFMD
 else
     cat >> "$REPORT_FILE" << EOFMD
 **Actions to be executed:**
 
 - Mark $(jq '[.[] | select(.confidence == "HIGH")] | length' "$DUPLICATES_FILE") high-confidence duplicates
-$([ "$CLOSE_STALE" = true ] && echo "- Cancel $(jq '[.[] | select(.safe_to_close == true)] | length' "$STALE_FILE") stale issues" || echo "- Stale issues NOT closed (use --close-stale to enable)")
-- Priority updates require manual approval (use Linear UI)
+$([ "$CLOSE_STALE" = true ] && echo "- Close $(jq '[.[] | select(.safe_to_close == true)] | length' "$STALE_FILE") stale issues" || echo "- Stale issues NOT closed (use --close-stale to enable)")
+- Priority updates require manual approval (use the tracker's UI/CLI — Linear UI, gh/glab, or Jira)
 EOFMD
 fi
 
@@ -606,7 +622,7 @@ if [ "$DRY_RUN" = false ]; then
         duplicate_id=$(echo "$dup" | jq -r '.duplicate_issue.identifier')
         primary_id=$(echo "$dup" | jq -r '.primary_issue.identifier')
 
-        ~/.claude/scripts/linear_ops.sh issue-mark-duplicate "$duplicate_id" --duplicate-of "$primary_id"
+        ~/.claude/scripts/tracker_ops.sh duplicate-mark "$duplicate_id" --duplicate-of "$primary_id"
 
         # Log action
         jq --arg action "mark_duplicate" \
@@ -619,14 +635,14 @@ if [ "$DRY_RUN" = false ]; then
         echo "  ✓ Marked $duplicate_id as duplicate of $primary_id"
     done
 
-    # Cancel stale issues (only if --close-stale flag)
+    # Close stale issues (only if --close-stale flag)
     if [ "$CLOSE_STALE" = true ]; then
-        echo "Canceling stale issues..."
+        echo "Closing stale issues..."
         jq -c '.[] | select(.safe_to_close == true)' "$STALE_FILE" | while read -r stale; do
             issue_id=$(echo "$stale" | jq -r '.identifier')
             reasons=$(echo "$stale" | jq -r '.reasons | join("; ")')
 
-            ~/.claude/scripts/linear_ops.sh issue-close "$issue_id" \
+            ~/.claude/scripts/tracker_ops.sh issue-close "$issue_id" \
                 --comment "Closing as stale: $reasons. Reopen if still relevant."
 
             # Log action
@@ -640,7 +656,7 @@ if [ "$DRY_RUN" = false ]; then
             echo "  ✓ Closed $issue_id (stale)"
         done
     else
-        echo "Stale issue cancellation SKIPPED (use --close-stale to enable)"
+        echo "Stale issue closure SKIPPED (use --close-stale to enable)"
     fi
 
     # Output action audit
@@ -685,12 +701,12 @@ if ! command -v python3 &> /dev/null; then
     exit 1
 fi
 
-if [[ ! -x ~/.claude/scripts/linear_ops.sh ]]; then
-    echo "Error: linear_ops.sh not found or not executable" >&2
+if [[ ! -x ~/.claude/scripts/tracker_ops.sh ]]; then
+    echo "Error: tracker_ops.sh not found or not executable" >&2
     exit 1
 fi
 
-if [[ ! -f ~/.claude/config/linear_triage.yml ]]; then
+if [[ ! -f ~/.claude/config/tracker_triage.yml ]]; then
     echo "Error: Configuration file not found" >&2
     exit 1
 fi

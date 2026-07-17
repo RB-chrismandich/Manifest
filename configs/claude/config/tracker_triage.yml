@@ -1,8 +1,5 @@
-# DEPRECATED: superseded by tracker_triage.yml (provider-neutral; covers
-# GitHub/GitLab/Linear/Jira). Kept in place for one release; scheduled for
-# deletion in Phase 2 cleanup. Do not add new references to this file.
-#
-# Linear Issue Triage Configuration
+# tracker_triage.yml — provider-neutral triage scoring (was linear_triage.yml).
+# Provider specifics come from tracker_providers.yml.
 # Controls thresholds, scoring formulas, and safety rules for automated issue management
 
 # Duplicate detection thresholds
@@ -11,7 +8,7 @@ duplicate_detection:
   title_similarity_medium: 0.65    # Gray area - use parallel agents
   description_overlap_high: 0.70
   description_overlap_medium: 0.50
-  same_team_boost: 0.05            # Boost score if same team
+  same_scope_boost: 0.05           # Boost score if same scope (team/milestone/project boundary)
   shared_labels_boost: 0.05        # Boost score per shared label
 
 # Staleness criteria
@@ -37,7 +34,8 @@ priority:
     readiness_weight: 2
     risk_weight: -1
 
-  # Score to Linear priority (0-4) mapping
+  # Score to canonical priority (0-4) mapping; per-provider priority names/fields
+  # come from tracker_providers.yml
   mapping:
     urgent: 28        # score ≥28 → priority 1 (Urgent)
     high: 22          # score ≥22 → priority 2 (High)
@@ -72,7 +70,7 @@ actions:
 
   # Requires user confirmation before execution
   requires_confirmation:
-    - cancel_issue
+    - close_issue
     - update_priority
     - update_status
     - remove_label
@@ -96,5 +94,5 @@ output:
   include_audit_trail: true   # Log all actions taken
   confidence_thresholds:
     high: 0.85                # Display as HIGH
-    medium: 0.70              # Display as MEDIUM
-    low: 0.50                 # Display as LOW
+    medium: 0.70               # Display as MEDIUM
+    low: 0.50                  # Display as LOW
