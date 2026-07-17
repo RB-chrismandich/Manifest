@@ -65,17 +65,25 @@ or the failure is environmental / needs a decision (flaky infra, a secret, a
 product choice), stop and hand back a crisp diagnosis instead of thrashing. A
 human un-sticking you in 30 seconds beats ten more failed pushes.
 
-### 2. GitHub Copilot — address findings if it reviewed
+Bot identities (logins, invoke method, mention syntax) live in
+`configs/claude/config/review_bots.yml`, not hardcoded here — for each bot in
+that registry with `role: reviewer`, check whether it's on the PR and act per
+its `invoke` field. Phases 2 and 3 below cover the two reviewer entries
+(`copilot`, `jules`) with their registry-keyed behavioral notes attached.
+
+### 2. GitHub Copilot (`review_bots.yml` bot: `copilot`) — address findings if it reviewed
 
 Copilot is **addressed-if-present**, not summoned: this phase only acts when
 Copilot is already on the PR. (Jules is the one you tag in phase 3.)
 
 - **Is Copilot on the PR?** Check both requested reviewers and submitted
-  reviews for the Copilot bot — its login is `copilot-pull-request-reviewer[bot]`
-  and it shows as "Copilot" in the reviewers list. See
-  `references/platform-commands.md` for the exact `gh api` queries.
+  reviews for the Copilot bot — its login is registry field `copilot.author_login`
+  (`copilot-pull-request-reviewer[bot]`) and it shows as "Copilot" in the
+  reviewers list. See `references/platform-commands.md` for the exact `gh api`
+  queries.
 - **No Copilot →** skip this phase (Copilot review may not be enabled on the
-  repo; that's fine, don't try to force it).
+  repo; that's fine, don't try to force it — `invoke: automatic` means it
+  reviews on its own schedule or not at all, never via a comment).
 - **Copilot present with findings →** hand the work to the **`pr-address-comments`**
   skill. It already does this correctly: fetch all three feedback channels,
   verify each claim against the current code (bots are sometimes wrong — line
@@ -83,15 +91,16 @@ Copilot is already on the PR. (Jules is the one you tag in phase 3.)
   evidence, re-test, push, and reply to / resolve every thread. Don't
   re-implement that here.
 
-### 3. Google Jules — tag it, then watch for and address its feedback
+### 3. Google Jules (`review_bots.yml` bot: `jules`) — tag it, then watch for and address its feedback
 
 Jules is **not** a GitHub-native reviewer: requesting it as a reviewer or
 assignee is silently ignored. The only programmatic trigger in this repo is a
-**comment mention** that the `jules-trigger.yml` workflow acts on.
+**comment mention** (registry field `jules.mention`) that the `jules-trigger.yml`
+workflow acts on.
 
 1. **Is Jules already tagged?** Scan the PR's comments (not reviews) for a
-   `@google-labs-jules` mention. Also note whether the trigger landed: the
-   workflow reacts with 👀 on the triggering comment.
+   `jules.mention` (`@google-labs-jules`). Also note whether the trigger landed:
+   the workflow reacts with 👀 on the triggering comment.
 2. **Not tagged → tag it.** Post a comment mentioning it with a clear ask:
    `gh pr comment <N> --body "@google-labs-jules please review this PR"`
    (GitLab: `glab mr note <N> --message "..."`). Only a trusted commenter
@@ -101,15 +110,20 @@ assignee is silently ignored. The only programmatic trigger in this repo is a
 3. **Watch for Jules activity, then address it.** Jules does not leave inline
    GitHub *review* comments the way Copilot does — its feedback shows up as one
    or more of:
-   - **PR comments** from the Jules bot / its personas (Forge, Bolt, Palette,
-     Sentinel),
+   - **PR comments** from the Jules bot / its personas (the registry's
+     `role: author` entries — `palette`, `bolt` — plus Forge and Sentinel,
+     which aren't separately registered),
    - **commits pushed to the PR branch**, or
    - a **separate linked PR**.
    Poll for these (see waiting strategy below). When findings land as comments,
    route them through **`pr-address-comments`** just like Copilot's. If Jules
    pushes commits or opens a sibling PR, review that diff on its merits before
    accepting (the `pr-triage-bots` skill covers judging bot diffs) — Jules
-   over-produces and is sometimes wrong, so verify, don't rubber-stamp.
+   over-produces and is sometimes wrong, so verify, don't rubber-stamp. Note
+   that `palette`/`bolt` PRs carry no distinct GitHub bot account (see
+   `review_bots.yml`'s `identified_by: title_prefix` for those two) — they post
+   under whichever account's credentials ran the Jules session, so identify
+   them by title/branch prefix, not by author login.
 
 ### 4. Close the loop
 
