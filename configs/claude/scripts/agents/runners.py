@@ -451,7 +451,11 @@ class CLIAgent(BaseAgent):
             streaming,
             progress_callback,
         )
-        spec = config.get(f"cli_agents.{provider}")
+        # get_cli_agent_spec falls back to agent_roster.yml when `provider`
+        # has no cli_agents.<provider> entry — this is what lets a new
+        # CLI-only agent be added purely via the roster, with no code
+        # change and no new subclass (see Config.get_cli_agent_spec).
+        spec = config.get_cli_agent_spec(provider)
         if not spec:
             raise ValueError(f"no cli_agents config for provider: {provider}")
         self.binary = spec.get("binary")
