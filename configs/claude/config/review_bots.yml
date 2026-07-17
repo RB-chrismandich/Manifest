@@ -76,13 +76,18 @@ bots:
     invoke: n/a
     identified_by: title_prefix
     title_prefix: "⚡ Bolt:"
-    branch_prefix: "bolt-"
+    branch_prefix: "bolt/"     # historical outlier: #580 used "bolt-" (older form, no longer used)
     notes: >
       Checked 2026-07-17: PRs #530, #534, #541, #573, #580, #590, #595
       (title-prefixed "⚡ Bolt:") all show author.login = RB-chrismandich
       (is_bot: false) via `gh pr list --json author`, and their commits[].authors
       are the same account (`gh pr view <N> --json commits`). Same situation as
       palette: Bolt is a Jules persona, not a distinct GitHub bot account —
-      identify by the "⚡ Bolt:" title prefix and/or "bolt-" branch prefix.
+      identify by the "⚡ Bolt:" title prefix and/or "bolt/" branch prefix.
+      Live-verified 2026-07-17: `gh pr list --search "head:bolt-"` returns 0
+      results; `gh pr list --search "head:bolt/"` returns the real open Bolt
+      PRs (#590, #595). Only #580 used the older "bolt-" convention — 6 of 7
+      cited PRs plus both currently-open ones use "bolt/", so that's the value
+      this field must carry to actually match anything today.
       Focus: performance micro-optimizations (fast-path checks, avoided
       re-parses/re-reads).

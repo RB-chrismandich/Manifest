@@ -116,16 +116,18 @@ gh api repos/{owner}/{repo}/issues/<N>/comments \
   --jq '.[] | select(.user.login | test("jules"; "i"))'
 
 # 1b. Sibling PRs opened under a Jules persona (palette/bolt — see review_bots.yml;
-# these have NO distinct bot login, so match by title/branch prefix, not author)
-gh pr list --search "in:title 🎨 Palette: in:title ⚡ Bolt:" \
+# these have NO distinct bot login, so match by title/branch prefix, not author).
+# NOTE: GitHub search ANDs repeated qualifiers, so two `in:title` clauses would
+# require a single PR title containing BOTH strings (impossible) — use `OR`.
+gh pr list --search "in:title 🎨 Palette: OR in:title ⚡ Bolt:" \
   --json number,title,headRefName,author
 
 # 2. New commits pushed to the PR branch
 gh pr view <N> --json commits --jq '.commits[-3:]'
 
 # 3. A separate linked PR opened under a Jules persona branch (registry
-# branch_prefix values: palette/, bolt-)
-gh pr list --search "head:palette/ head:bolt-" --json number,title,headRefName
+# branch_prefix values: palette/, bolt/). Same AND-vs-OR pitfall as 1b above.
+gh pr list --search "head:palette/ OR head:bolt/" --json number,title,headRefName
 ```
 
 Trust gate: only a comment from an OWNER / MEMBER / COLLABORATOR triggers Jules
