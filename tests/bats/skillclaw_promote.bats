@@ -196,6 +196,30 @@ EOF
     assert_output --partial "classify"
 }
 
+@test "EVOLVE_CLI seam: evolve stage invokes the stub named by EVOLVE_CLI, not a hardcoded claude" {
+    # llm-invoke-stdin pattern: EVOLVE_CLI is role-named, vendor-default.
+    # Pre-seed a session so evolve() actually calls the runner (an empty
+    # sessions dir short-circuits before any subprocess call).
+    export SKILLCLAW_TRANSCRIPTS="$SANDBOX/transcripts_empty"
+    mkdir -p "$SKILLCLAW_TRANSCRIPTS"
+    cat > "$SKILLCLAW_SESSIONS/preseeded.json" << 'EOF'
+{"session_id": "preseeded", "turns": [{"role": "user", "blocks": [{"kind": "text", "text": "do a thing"}]}]}
+EOF
+    export EVOLVE_CLI="fake_evolve_cli"
+    cat > "$MOCK_BIN/fake_evolve_cli" << 'EOF'
+#!/usr/bin/env bash
+echo "fake_evolve_cli $*" >> "$SKILLCLAW_PROMOTE_LOG"
+cat > /dev/null
+echo "NO_SKILLS"
+exit 0
+EOF
+    chmod +x "$MOCK_BIN/fake_evolve_cli"
+    run bash "$SCRIPT"
+    assert_success
+    run grep -c "fake_evolve_cli -p" "$SKILLCLAW_PROMOTE_LOG"
+    assert_output "1"
+}
+
 @test "ingest failure still reaches and logs the classify stage in the audit log" {
     if [[ "$(id -u)" -eq 0 ]]; then
         skip "root ignores file permissions"
