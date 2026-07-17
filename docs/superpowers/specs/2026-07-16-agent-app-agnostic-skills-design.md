@@ -272,8 +272,10 @@ reports, not silently dropped:
    providers. Concretely: today, adding a 6th agent to `agent_roster.yml`
    makes `Config.get_cli_agent_spec()` succeed for it, but there is still no
    way to actually invoke it through `parallel_agent.py`'s CLI — that
-   requires `cli.py` changes Task 24 explicitly scoped out. See
-   `.superpowers/sdd/task-24-report.md` ("Concerns" #2).
+   requires `cli.py` changes Task 24 explicitly scoped out. See the
+   `get_cli_agent_spec()` docstring in
+   `configs/claude/scripts/agents/config.py` (landed in commit `fd02dc0`,
+   "fix(agents): correct roster-extensibility claim scope").
 2. **Backing scripts still hardcode parts of the agent fleet.** Task 25 made
    four *skill* files roster-driven, but the scripts they invoke were left
    untouched by design (out of the task's scope): e.g.
