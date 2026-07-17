@@ -1,4 +1,7 @@
+import subprocess
+import sys
 from pathlib import Path
+
 import yaml
 
 REPO = Path(__file__).resolve().parents[2]
@@ -39,8 +42,6 @@ def test_default_provider_is_a_known_provider():
     assert data["default_provider"] in data["providers"]
 
 
-import subprocess, sys
-
 SCRIPT = REPO / "configs/claude/scripts/tracker_registry.py"
 
 def run(*args):
@@ -66,3 +67,12 @@ def test_unknown_provider_exits_2():
 def test_mcp_tool_lookup_jira():
     r = run("mcp-tool", "jira", "transition")
     assert r.stdout.strip() == "transitionJiraIssue"
+
+def test_missing_registry_exits_2(tmp_path, monkeypatch):
+    import shutil
+    broken = tmp_path / "tracker_registry.py"
+    shutil.copy(SCRIPT, broken)
+    r = subprocess.run([sys.executable, str(broken), "status", "github", "planned"],
+                       capture_output=True, text=True)
+    assert r.returncode == 2
+    assert "cannot read registry" in r.stderr

@@ -27,7 +27,10 @@ def main(argv):
         return 0
     if not argv:
         die(1, "missing subcommand (see --help)")
-    data = yaml.safe_load(REG.read_text())
+    try:
+        data = yaml.safe_load(REG.read_text())
+    except OSError as exc:
+        die(2, f"cannot read registry {REG}: {exc}")
     cmd, rest = argv[0], argv[1:]
     if cmd == "default-provider":
         print(data["default_provider"])
