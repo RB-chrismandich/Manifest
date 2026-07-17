@@ -37,3 +37,32 @@ def test_every_provider_declares_verified_flag():
 def test_default_provider_is_a_known_provider():
     data = load()
     assert data["default_provider"] in data["providers"]
+
+
+import subprocess, sys
+
+SCRIPT = REPO / "configs/claude/scripts/tracker_registry.py"
+
+def run(*args):
+    return subprocess.run([sys.executable, str(SCRIPT), *args],
+                          capture_output=True, text=True)
+
+def test_status_lookup_linear_transition_name():
+    r = run("status", "linear", "needs-review")
+    assert r.returncode == 0 and r.stdout.strip() == "In Review"
+
+def test_status_lookup_github_label():
+    r = run("status", "github", "planned")
+    assert r.returncode == 0 and r.stdout.strip() == "planned"
+
+def test_access_list_order_preserved():
+    r = run("access", "linear")
+    assert r.stdout.split() == ["mcp", "cli", "api"]
+
+def test_unknown_provider_exits_2():
+    r = run("status", "bitbucket", "planned")
+    assert r.returncode == 2 and "bitbucket" in r.stderr
+
+def test_mcp_tool_lookup_jira():
+    r = run("mcp-tool", "jira", "transition")
+    assert r.stdout.strip() == "transitionJiraIssue"
