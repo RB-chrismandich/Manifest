@@ -9,9 +9,11 @@ is slow/rate-limited because it does.
 
 1. Estimate the cost of the naive path: N entities × M datasets = total calls and rough wall-clock. If N is large
    (hundreds+), pause before running.
-2. Validate rate limits FIRST — do not assume. Fetch the official API docs AND read the official client's source (e.g.
-   `gh api repos/<org>/<client>/contents/<file>`) for any sleep/retry/`min_interval`/backoff logic. Absence of
-   throttling code means added client-side delays are pure overhead.
+2. Validate rate limits FIRST — do not assume. Fetch the official API docs AND read the official client's source for
+   any sleep/retry/`min_interval`/backoff logic. Absence of throttling code means added client-side delays are pure
+   overhead. **github-only**: if the client repo is on GitHub, `gh api repos/<org>/<client>/contents/<file>`
+   (base64-encoded, needs decoding) fetches one file without cloning; on GitLab use `glab api
+   projects/<id>/repository/files/<file>?ref=<branch>` instead, or just clone/`curl` the raw file for any other host.
 3. Search the client's endpoint map and docs for bulk/aggregate variants: `/bulk/...`, `/live/...`, all-entity forms
    (calling the method with no entity argument), or a single endpoint returning all rows with full history.
 4. Verify a candidate bulk endpoint live with one minimal authenticated request; confirm it (a) covers your entity

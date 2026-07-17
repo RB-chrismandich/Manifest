@@ -102,10 +102,14 @@ and before any analysis depends on the data.
    the info became **public** (`fileDate`/`ReportDate`/`Filed`), never the
    transaction date — disclosure lags days to weeks, and using the wrong one
    fabricates predictive signal (look-ahead bias).
-4. **Cross-check against the vendor's official client source** (fetch via
-   `gh api .../contents/<file>` and decode) to confirm exact URLs, auth header
+4. **Cross-check against the vendor's official client source** — clone it or
+   fetch the specific file and decode it — to confirm exact URLs, auth header
    format, and whether it does any rate-limiting — its absence tells you the
-   API is lenient.
+   API is lenient. **github-only**: if the vendor hosts on GitHub, `gh api
+   repos/<org>/<client>/contents/<file>` (base64-encoded content, needs
+   decoding) is a quick one-shot fetch without cloning; on GitLab use `glab
+   api projects/<id>/repository/files/<file>?ref=<branch>` instead, and for
+   any other host just `curl`/clone the raw file.
 5. **Fix the parser test-first**: update the fixture to the *verified* real
    shape (including the two distinct date fields), assert the correct date keys
    the window, then fix the parser.

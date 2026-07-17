@@ -21,7 +21,8 @@ pr-clean-base instead.
 5. Re-run any pre-deploy validation (dry-run, verify script) before committing, since the reset reverted everything
    including unrelated prior edits.
 6. Commit as one focused, reviewable commit and `git push --force-with-lease`.
-7. Open a fresh PR if the previous one was already merged; never reopen merged history. Verify with `gh pr view <n>
-   --json state,commits` that the new PR contains only the intended commit(s).
+7. Open a fresh PR if the previous one was already merged; never reopen merged history. Verify with
+   `~/.claude/scripts/git_ops.sh pr-view <n> --json state,commits` that the new PR contains only the intended
+   commit(s).
 8. Never `git rebase -i` interactively in a non-interactive agent shell and never force-push without
    `--force-with-lease`.
