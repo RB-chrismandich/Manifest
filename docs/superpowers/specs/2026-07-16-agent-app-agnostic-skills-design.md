@@ -278,13 +278,25 @@ reports, not silently dropped:
    "fix(agents): correct roster-extensibility claim scope").
 2. **Backing scripts still hardcode parts of the agent fleet.** Task 25 made
    four *skill* files roster-driven, but the scripts they invoke were left
-   untouched by design (out of the task's scope): e.g.
-   `configs/claude/scripts/deploy_reconcile.sh:136`
-   (`for tag in claude cursor gemini codex antigravity`) and
+   untouched by design (out of the task's scope). Confirmed still hardcoding
+   the 5-agent list: `configs/claude/scripts/deploy_reconcile.sh:136`
+   (`for tag in claude cursor gemini codex antigravity`),
+   `configs/claude/scripts/reconcile_core.py:30`
+   (`ROOT_TAGS = ("claude", "cursor", "gemini", "codex", "antigravity")`),
+   `configs/claude/scripts/check_status.sh` (per-agent `*_enabled`/`*_installed`
+   variables and install/auth checks repeated once per agent, e.g. lines
+   92-100 and 178-240), and `configs/claude/scripts/sync-skills.sh:78`
+   (`for dir in "$HOME/.cursor/skills" "$HOME/.gemini/skills"
+   "$HOME/.codex/skills" "$HOME/.antigravity/skills"`). Also unaddressed:
    `config-audit`'s §4 "MCP Configuration Consistency" check, which still
    names only `.claude`/`.cursor`/`.gemini` explicitly (no cited source for
    where codex/antigravity keep an MCP config file, so it wasn't guessed at).
-   See `.superpowers/sdd/task-25-report.md` ("Concerns" #1-2).
+   Separately, `agent_roster.yml`'s drift-guard test
+   (`test_binary_matches_parallel_agent_cli_agents`) only compares the
+   `binary` field against `parallel_agent.yml`'s `cli_agents` for the 5
+   known agents; `home_dir`, `auth_check`, `prompt_args`, `model_args`, and
+   `enabled_default` are unguarded and can drift between the two files
+   undetected. See `.superpowers/sdd/task-25-report.md` ("Concerns" #1-2).
 
 Both are legitimate follow-up-task candidates for a future roster-completion
 pass, not gaps this program silently left unaddressed.
