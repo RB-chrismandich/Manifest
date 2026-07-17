@@ -4,6 +4,8 @@ setup() {
     STUBS="${TMPDIR_T}/stubs"; mkdir -p "${STUBS}"
     PATH="${STUBS}:${PATH}"
     export MANIFEST_GIT_PLATFORM=git   # neutralize remote detection by default
+    WORKDIR="${TMPDIR_T}/work"; mkdir -p "${WORKDIR}"
+    cd "${WORKDIR}"
 }
 
 teardown() { rm -rf "${TMPDIR_T}"; }
@@ -21,7 +23,8 @@ teardown() { rm -rf "${TMPDIR_T}"; }
 }
 
 @test "marker file beats remote detection" {
-    cd "${TMPDIR_T}" && git init -q .
+    REPO="${TMPDIR_T}/repo"; mkdir -p "${REPO}"
+    cd "${REPO}" && git init -q .
     echo "jira" > .manifest-tracker
     run bash "${SCRIPT}" resolve-provider
     [ "$status" -eq 0 ]
