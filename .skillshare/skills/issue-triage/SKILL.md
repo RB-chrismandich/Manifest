@@ -379,7 +379,7 @@ detect_duplicates() {
     local issues_file="$1"
 
     # Python script for fuzzy title matching
-    python3 << 'PYEOF'
+    python3 - "$TEMP_DIR/issues_with_components.json" "$DUP_TITLE_HIGH" "$DUP_TITLE_MEDIUM" << 'PYEOF'
 import json
 import sys
 from difflib import SequenceMatcher
@@ -453,7 +453,6 @@ for i, issue_a in enumerate(issues):
 # Output duplicates
 print(json.dumps(duplicates, indent=2))
 PYEOF
-"$TEMP_DIR/issues_with_components.json" "$DUP_TITLE_HIGH" "$DUP_TITLE_MEDIUM"
 }
 
 detect_duplicates "$TEMP_DIR/issues_with_components.json" > "$DUPLICATES_FILE"
@@ -510,7 +509,7 @@ STALE_FILE="$TEMP_DIR/stale.json"
 detect_stale() {
     local issues_file="$1"
 
-    python3 << 'PYEOF'
+    python3 - "$TEMP_DIR/issues_with_components.json" "$STALENESS_DAYS" "$FILE_MISSING_THRESHOLD" << 'PYEOF'
 import json
 import sys
 import os
@@ -590,7 +589,6 @@ for issue in issues:
 # Output stale issues
 print(json.dumps(stale_issues, indent=2))
 PYEOF
-"$TEMP_DIR/issues_with_components.json" "$STALENESS_DAYS" "$FILE_MISSING_THRESHOLD"
 }
 
 detect_stale "$TEMP_DIR/issues_with_components.json" > "$STALE_FILE"
