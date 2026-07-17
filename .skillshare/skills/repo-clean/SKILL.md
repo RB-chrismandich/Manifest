@@ -154,6 +154,7 @@ on `keep`, `needs-work`, or `confirm-individually` items without a separate OK.
 short comment so the trail explains *why*:
 
 ```bash
+# TODO(phase-2): git_ops pr-close
 # GitHub
 gh pr close <num> --comment "Closing as stale: <reason>. Reopen if still needed."
 # GitLab
