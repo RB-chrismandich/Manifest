@@ -69,9 +69,12 @@ without a verified fix. Ignore non-actionable service notices
 
 ## Review bodies
 
-- Review summaries arrive separately from inline threads (`/reviews` or
-  `--json reviews`); extract each actionable point as its own triage item —
-  they often restate or extend the inline comments.
+- **github-only**: review summaries arrive separately from inline threads
+  (`gh pr view <N> --json reviews,reviewThreads`); extract each actionable
+  point as its own triage item — they often restate or extend the inline
+  comments.
+- gitlab: no separate review-body concept — review feedback already surfaces
+  as MR notes via `pr-comments` above, so this step is a no-op on gitlab.
 
 ## Issue-level discussion
 
