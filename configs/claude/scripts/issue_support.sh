@@ -12,7 +12,7 @@
 #   resolve <--pr N | --commit SHA | --branch NAME> [--json]  Resolve issue refs only
 #
 # Env overrides (testing seams):
-#   GIT_OPS_BIN, GIT_PLATFORM_BIN, ISSUE_SUPPORT_CONFIG, ISSUE_SUPPORT_LABELS,
+#   GIT_OPS_BIN, TRACKER_OPS_BIN, ISSUE_SUPPORT_CONFIG, ISSUE_SUPPORT_LABELS,
 #   ISSUE_SUPPORT_TEMPLATE, ISSUE_SUPPORT_INTERACTIVE (0|1)
 
 set -euo pipefail
@@ -21,7 +21,7 @@ err() { if [[ -t 2 ]]; then printf '\033[0;31m%s\033[0m\n' "issue-support: $*" >
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 GIT_OPS_BIN="${GIT_OPS_BIN:-${SCRIPT_DIR}/git_ops.sh}"
-GIT_PLATFORM_BIN="${GIT_PLATFORM_BIN:-${SCRIPT_DIR}/git_platform.sh}"
+TRACKER_OPS_BIN="${TRACKER_OPS_BIN:-${SCRIPT_DIR}/tracker_ops.sh}"
 CONFIG_FILE="${ISSUE_SUPPORT_CONFIG:-${SCRIPT_DIR}/../config/command_config.yml}"
 TEMPLATE_FILE="${ISSUE_SUPPORT_TEMPLATE:-${SCRIPT_DIR}/templates/issue_support_issue.md}"
 
@@ -215,9 +215,13 @@ transition_issue() {
         record_action "#${n} transition ${cur:-none}→${target} [applied]"
         return 0
     fi
-    local args=(--add-label "${target}")
-    [[ -n "${cur}" ]] && args+=(--remove-label "${cur}")
-    if git_ops issue-edit "${n}" "${args[@]}" > /dev/null 2>&1; then
+    local rc=0
+    "${TRACKER_OPS_BIN}" issue-transition "${n}" "${target}" || rc=$?
+    if [[ ${rc} -eq 3 || ${rc} -eq 4 ]]; then
+        err "tracker provider limitation (rc=${rc}) — skipping sync, not failing hook"
+        return 0
+    fi
+    if [[ ${rc} -eq 0 ]]; then
         record_action "#${n} transition ${cur:-none}→${target} [applied]"
     else
         record_action "#${n} transition ${cur:-none}→${target} [failed] (label update error)"
@@ -242,7 +246,13 @@ comment_backlink() {
         record_action "#${n} comment back-link [applied]"
         return 0
     fi
-    if git_ops issue-comment "${n}" --body "${body}"$'\n\n'"${marker}" > /dev/null 2>&1; then
+    local rc=0
+    "${TRACKER_OPS_BIN}" issue-comment "${n}" "${body}"$'\n\n'"${marker}" || rc=$?
+    if [[ ${rc} -eq 3 || ${rc} -eq 4 ]]; then
+        err "tracker provider limitation (rc=${rc}) — skipping sync, not failing hook"
+        return 0
+    fi
+    if [[ ${rc} -eq 0 ]]; then
         record_action "#${n} comment back-link [applied]"
     else
         record_action "#${n} comment back-link [failed] (comment error)"
@@ -310,7 +320,7 @@ resolve_candidates() {
 # ---- platform gate ---------------------------------------------------------
 detect_platform() {
     local p
-    p=$(bash "${GIT_PLATFORM_BIN}" 2> /dev/null || printf 'git')
+    p=$("${TRACKER_OPS_BIN}" resolve-provider 2> /dev/null || printf 'git')
     printf '%s' "${p}"
 }
 
