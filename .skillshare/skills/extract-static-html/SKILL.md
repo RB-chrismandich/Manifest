@@ -45,7 +45,7 @@ Launches headless Chrome, captures the fully rendered DOM, and produces a self-c
 
 ### Workflow
 
-1.  **Start the App** and note the port.
+1. **Start the App** and note the port.
 
     > [!WARNING]
     > **Checkpoint — User Confirmation Required.**
@@ -55,7 +55,8 @@ Launches headless Chrome, captures the fully rendered DOM, and produces a self-c
     > is running and rendering correctly. Do **NOT** proceed to the snapshot
     > step until the user confirms.
 
-2.  **Run the Snapshot Script**:
+2. **Run the Snapshot Script**:
+
     ```bash
     npx tsx <SKILL_DIR>/scripts/snapshot.ts \
       --url http://localhost:5173 \
@@ -63,7 +64,8 @@ Launches headless Chrome, captures the fully rendered DOM, and produces a self-c
       --wait 2000
     ```
 
-3.  **Multiple pages** — run once per route:
+3. **Multiple pages** — run once per route:
+
     ```bash
     npx tsx <SKILL_DIR>/scripts/snapshot.ts \
       --url http://localhost:5173 --output .stitch/home.html --wait 2000
@@ -126,16 +128,16 @@ Use when you need to **interact with the page** (click buttons, fill forms, navi
 
 ### Workflow
 
-1.  **Start the App** locally.
-2.  **Navigate** using a browser subagent.
-3.  **Interact** as needed (click, scroll, fill forms).
-4.  **Extract DOM**: `document.documentElement.outerHTML`
+1. **Start the App** locally.
+2. **Navigate** using a browser subagent.
+3. **Interact** as needed (click, scroll, fill forms).
+4. **Extract DOM**: `document.documentElement.outerHTML`
 
     > [!WARNING]
     > Large pages may truncate. To handle this:
     > - Remove `<style>` tags before extraction: `document.querySelectorAll('style').forEach(el => el.remove())`
     > - Re-add styles statically (Tailwind CDN link, source CSS)
-5.  **Save** to file.
+5. **Save** to file.
 
 ***
 
@@ -175,6 +177,7 @@ npx tsx <SKILL_DIR>/scripts/extract_inline_html.ts \
 ### Post-Processing
 
 Inline local images:
+
 ```bash
 npx tsx <SKILL_DIR>/scripts/post_process.ts \
   .stitch/Page.html --base-dir <app-directory>

@@ -118,6 +118,7 @@ Use this checklist to ensure your Remotion walkthrough video composition is comp
 ---
 
 **Notes:**
+
 - Mark items with `[x]` as you complete them
 - Add custom checklist items specific to your project
 - Review Remotion documentation for updates

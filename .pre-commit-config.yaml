@@ -91,9 +91,14 @@ repos:
         #   - docs/templates/, docs/SHELL_ANALYSIS_REPORT.md,
         #     docs/VALIDATION_REPORT.md — pre-existing report/template docs
         #     (feature 366).
+        #   - .skillshare/skills/ — skillshare-vendored skill content (e.g.
+        #     ai-hooks-integration, the Stitch Design Skills family): synced
+        #     from upstream repos not authored to this repo's 120-col/heading
+        #     conventions; rewrapping prose to fit would fight every
+        #     `skillshare update` re-sync instead of diffing cleanly.
         # This keeps the changed-files CI gate (pre-commit run --files ...)
         # from failing on files the repo does not control the prose of.
-        exclude: ^(\.Jules/|\.jules/|specs/|docs/superpowers/|docs/templates/|docs/SHELL_ANALYSIS_REPORT\.md|docs/VALIDATION_REPORT\.md|\.specify/|\.claude/skills/speckit-[^/]+/|node_modules/)
+        exclude: ^(\.Jules/|\.jules/|specs/|docs/superpowers/|docs/templates/|docs/SHELL_ANALYSIS_REPORT\.md|docs/VALIDATION_REPORT\.md|\.specify/|\.claude/skills/speckit-[^/]+/|node_modules/|\.skillshare/skills/)
 
   # YAML linting
   - repo: https://github.com/adrienverge/yamllint
@@ -126,7 +131,12 @@ repos:
     hooks:
       - id: eslint
         types_or: [javascript, jsx, ts, tsx]
-        exclude: ^(templates/|\.Jules/)
+        # .skillshare/skills/ vendored content (e.g. the Stitch Design Skills
+        # family) ships its own .ts/.js scripts but has no eslint.config.js of
+        # its own, and this repo has never set up flat-config eslint (dormant
+        # per the additional_dependencies note above) — running eslint against
+        # it just fails on a missing config, not real findings.
+        exclude: ^(templates/|\.Jules/|\.skillshare/skills/)
         additional_dependencies:
           - eslint@9.18.0
 

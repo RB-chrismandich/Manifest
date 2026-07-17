@@ -39,6 +39,7 @@ Replace all components at once:
 ## Internal Migrations (shadcn specific)
 
 ### RTL Support Migration
+
 If you need to support RTL languages (like Arabic or Hebrew) in an existing shadcn/ui project:
 
 ```bash
@@ -46,6 +47,7 @@ npx shadcn@latest migrate rtl
 ```
 
 This CLI command transforms your components to use **logical properties**:
+
 - `ml-4` -> `ms-4` (margin-start)
 - `pl-4` -> `ps-4` (padding-start)
 - `text-left` -> `text-start`
@@ -76,6 +78,7 @@ It ensures your UI adapts correctly to layout direction without manual refactori
 ### Key Differences
 
 **1. Import Structure**
+
 ```tsx
 // MUI
 import Button from '@mui/material/Button'
@@ -85,6 +88,7 @@ import { Button } from '@/components/ui/button'
 ```
 
 **2. Form Components**
+
 ```tsx
 // MUI
 <TextField
@@ -125,6 +129,7 @@ import { Button } from '@/components/ui/button'
 ```
 
 **3. Theming**
+
 ```tsx
 // MUI
 import { ThemeProvider, createTheme } from '@mui/material/styles'
@@ -147,6 +152,7 @@ const theme = createTheme({
 ```
 
 **4. Styling Approach**
+
 ```tsx
 // MUI (sx prop)
 <Button sx={{ px: 4, py: 2, borderRadius: 2 }}>
@@ -162,6 +168,7 @@ const theme = createTheme({
 ### Migration Example: Login Form
 
 **Before (MUI)**:
+
 ```tsx
 import { TextField, Button, Box } from '@mui/material'
 
@@ -179,6 +186,7 @@ export function LoginForm() {
 ```
 
 **After (shadcn/ui)**:
+
 ```tsx
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -223,6 +231,7 @@ export function LoginForm() {
 ### Key Differences
 
 **1. Layout Components**
+
 ```tsx
 // Chakra UI
 <Stack spacing={4} direction="column">
@@ -238,6 +247,7 @@ export function LoginForm() {
 ```
 
 **2. Responsive Styles**
+
 ```tsx
 // Chakra UI
 <Box display={{ base: 'block', md: 'flex' }} />
@@ -247,6 +257,7 @@ export function LoginForm() {
 ```
 
 **3. Color Mode**
+
 ```tsx
 // Chakra UI
 import { useColorMode } from '@chakra-ui/react'
@@ -280,6 +291,7 @@ const { theme, setTheme } = useTheme()
 ### Key Differences
 
 **1. Form Handling**
+
 ```tsx
 // Ant Design
 <Form
@@ -315,6 +327,7 @@ const { theme, setTheme } = useTheme()
 ```
 
 **2. Notifications**
+
 ```tsx
 // Ant Design
 import { message } from 'antd'
@@ -351,6 +364,7 @@ toast({
 ### Key Differences
 
 **1. Class-Based vs Component-Based**
+
 ```tsx
 // Bootstrap
 <button className="btn btn-primary btn-lg">
@@ -364,6 +378,7 @@ toast({
 ```
 
 **2. Cards**
+
 ```html
 <!-- Bootstrap -->
 <div class="card">
@@ -417,6 +432,7 @@ toast({
 ### 1. Not Setting Up Tailwind Properly
 
 shadcn/ui requires Tailwind. Ensure:
+
 - `tailwind.config.js` includes correct content paths
 - CSS variables are defined in `globals.css`
 - Tailwind plugins are installed (e.g., `tailwindcss-animate`)
@@ -424,12 +440,14 @@ shadcn/ui requires Tailwind. Ensure:
 ### 2. Forgetting Path Aliases
 
 Components use `@/` imports. Configure:
+
 - `tsconfig.json` with path aliases
 - Vite/Next.js config for runtime resolution
 
 ### 3. Trying to Match Old Library Exactly
 
 Don't force shadcn/ui to work like your old library. Embrace the new patterns:
+
 - Use composition over configuration
 - Leverage Tailwind utilities
 - Create wrapper components for custom needs
@@ -437,6 +455,7 @@ Don't force shadcn/ui to work like your old library. Embrace the new patterns:
 ### 4. Not Using Form Libraries
 
 shadcn/ui form components are basic. For complex forms, use:
+
 - `react-hook-form` for form state
 - `zod` for validation
 - shadcn's `Form` component for integration
@@ -444,6 +463,7 @@ shadcn/ui form components are basic. For complex forms, use:
 ### 5. Ignoring Accessibility
 
 While shadcn/ui is accessible by default, custom modifications can break this. Test with:
+
 - Keyboard navigation
 - Screen readers
 - ARIA attribute validation
@@ -457,6 +477,7 @@ While shadcn/ui is accessible by default, custom modifications can break this. T
 ## Next Steps
 
 After migration:
+
 1. Review the [Customization Guide](./customization-guide.md)
 2. Explore the [Component Catalog](./component-catalog.md)
 3. Check out [Examples](../examples/)

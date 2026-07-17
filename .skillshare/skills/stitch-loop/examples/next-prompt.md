@@ -4,6 +4,7 @@ page: contact
 A warm, inviting contact page for Oakwood Furniture Co.
 
 **DESIGN SYSTEM (REQUIRED):**
+
 - Platform: Web, Desktop-first
 - Theme: Light, minimal, photography-first
 - Background: Warm barely-there cream (#FCFAFA)
@@ -18,6 +19,7 @@ A warm, inviting contact page for Oakwood Furniture Co.
 - No harsh shadows, no aggressive colors - serene and trustworthy
 
 **Page Structure:**
+
 1. **Header:** Navigation with logo, Shop, Collections, About, Contact (active)
 2. **Hero Section:** Warm headline "Get in Touch" with a brief welcome message
 3. **Contact Form:** Name, email, message fields with the teal-navy submit button

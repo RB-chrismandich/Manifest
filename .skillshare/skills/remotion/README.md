@@ -23,6 +23,7 @@ This skill bridges Stitch (UI design platform) and Remotion (programmatic video 
 > "Look up the screens in my Stitch project 'Calculator App' and build a remotion video that shows a walkthrough of the screens."
 
 **What Happens:**
+
 1. Agent retrieves all screens from the Stitch project
 2. Downloads screenshots for each screen
 3. Creates a Remotion composition with transitions
@@ -75,11 +76,13 @@ project/
 ## Integration Points
 
 **With Stitch:**
+
 - Uses Stitch MCP to list projects and screens
 - Downloads screenshots and HTML code
 - Extracts screen metadata (title, dimensions)
 
 **With Remotion:**
+
 - Creates TypeScript/React components
 - Configures composition settings
 - Renders video using Remotion CLI or MCP

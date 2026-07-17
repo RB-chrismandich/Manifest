@@ -35,6 +35,7 @@ You are a mobile engineer focused on transforming Stitch web designs into clean,
    - A `screens` map detailing each screen's ID, label, sourceScreen reference, dimensions, and canvasPosition.
 
 ### Anti-patterns for Phase 1
+
 - ❌ Reading `.stitch/designs/*.html` directly without calling MCP `get_screen` first.
 - ❌ Skipping the `fetch-stitch.sh` download script.
 - ❌ Not asking the user when existing files are found.
@@ -55,6 +56,7 @@ You are a mobile engineer focused on transforming Stitch web designs into clean,
 3. **Verify theme**: Confirm the theme colors and fonts in `src/theme.ts` match what you extracted from the HTML design.
 
 ### Anti-patterns for Phase 2
+
 - ❌ Hardcoding color hex codes or rgba strings directly inside component StyleSheet declarations.
 - ❌ Using theme tokens from a previous project without extracting them from the new design.
 - ❌ Skipping the creation/update of `src/theme.ts`.
@@ -64,6 +66,7 @@ You are a mobile engineer focused on transforming Stitch web designs into clean,
 > **GATE: Every component MUST satisfy ALL of the following rules. Violations will cause `npm run validate` to fail.**
 
 ### Element mapping
+
 Map HTML elements to React Native components using these rules:
 
 | HTML | React Native | Notes |
@@ -81,42 +84,46 @@ Map HTML elements to React Native components using these rules:
 | Root wrapper | `SafeAreaView` | Wrap top-level screens to avoid notch/status bar overlap. |
 
 ### Style mapping
+
 CSS and Tailwind classes do not work in React Native. Convert all styles to `StyleSheet.create()`:
 
-* **Layout**: Flexbox is the default layout system. `flexDirection` defaults to `'column'` (not `'row'` like web CSS).
+- **Layout**: Flexbox is the default layout system. `flexDirection` defaults to `'column'` (not `'row'` like web CSS).
   - `display: flex` is implicit on every `View`.
   - `justify-content` maps to `justifyContent`.
   - `align-items` maps to `alignItems`.
   - `gap` maps to `gap` (React Native 0.71+). For older versions, use `marginBottom` on children.
-* **Dimensions**: Use numbers (not strings). `width: 100` means 100 density-independent pixels.
+- **Dimensions**: Use numbers (not strings). `width: 100` means 100 density-independent pixels.
   - Percentage strings are supported: `width: '100%'`.
   - For responsive sizing, use `useWindowDimensions()` from `react-native`.
   - There is no `vw`/`vh`. Calculate from `Dimensions.get('window')`.
-* **Typography**: All text styles must be on `Text` components, never on `View`.
+- **Typography**: All text styles must be on `Text` components, never on `View`.
   - `font-size` maps to `fontSize` (number, not string).
   - `font-weight` maps to `fontWeight` (string: `'400'`, `'700'`, `'bold'`).
   - `line-height` maps to `lineHeight` (number).
   - `letter-spacing` maps to `letterSpacing`.
   - `text-transform` maps to `textTransform`.
   - `color` applies to `Text` only.
-* **Borders and shadows**:
+- **Borders and shadows**:
   - `border-radius` maps to `borderRadius`.
   - `box-shadow` does not exist. Use `elevation` (Android) and `shadowColor`/`shadowOffset`/`shadowOpacity`/`shadowRadius` (iOS). Use `Platform.select()` to apply platform-specific shadow styles.
-* **Unsupported CSS properties**: Do not use `hover`, `transition`, `animation` (use `react-native-reanimated` for animations), or `position: fixed` (use absolute positioning instead).
+- **Unsupported CSS properties**: Do not use `hover`, `transition`, `animation` (use `react-native-reanimated` for animations), or `position: fixed` (use absolute positioning instead).
 
 ### Architectural Rules
-* **Modular components (Atomic Design)**: Break the design into independent files. Organize components as atoms (buttons, labels, icons), molecules (input groups, cards), and organisms (headers, lists, forms). Place them in `src/components/atoms/`, `src/components/molecules/`, and `src/components/organisms/`. Monolithic page/screen files are PROHIBITED.
-* **Logic isolation**: Move event handlers, API calls, and business logic into custom hooks in `src/hooks/`. Components should only handle rendering.
-* **Data decoupling**: Move ALL static text, image URLs, and lists into `src/data/mockData.ts`. No hardcoded content in components.
-* **Type safety**: EVERY component file (including screens) MUST export a TypeScript interface named `[ComponentName]Props` with `readonly` property modifiers. The validator requires the interface to be **exported** — files without an exported Props interface will FAIL validation.
-* **No hardcoded styles**: Extract colors, spacing, and font sizes into `src/theme.ts`. Reference them in `StyleSheet.create()`. Absolutely no raw color hex codes or rgba strings are allowed in component files.
-* **Navigation**: Use React Navigation for screen transitions. Define screen types with `NativeStackScreenProps` or `BottomTabScreenProps`.
-* **Accessibility**: Every interactive element must have `accessibilityLabel` and `accessibilityRole`. Images need `accessibilityLabel`. Use `accessibilityState` for toggles and checkboxes.
-* **Safe areas**: Wrap top-level screen components with `SafeAreaView` from `react-native-safe-area-context` (not the default one from `react-native`).
-* **Project specific**: Focus on the target project's needs and constraints. Leave Google license headers out of the generated components.
+
+- **Modular components (Atomic Design)**: Break the design into independent files. Organize components as atoms (buttons, labels, icons), molecules (input groups, cards), and organisms (headers, lists, forms). Place them in `src/components/atoms/`, `src/components/molecules/`, and `src/components/organisms/`. Monolithic page/screen files are PROHIBITED.
+- **Logic isolation**: Move event handlers, API calls, and business logic into custom hooks in `src/hooks/`. Components should only handle rendering.
+- **Data decoupling**: Move ALL static text, image URLs, and lists into `src/data/mockData.ts`. No hardcoded content in components.
+- **Type safety**: EVERY component file (including screens) MUST export a TypeScript interface named `[ComponentName]Props` with `readonly` property modifiers. The validator requires the interface to be **exported** — files without an exported Props interface will FAIL validation.
+- **No hardcoded styles**: Extract colors, spacing, and font sizes into `src/theme.ts`. Reference them in `StyleSheet.create()`. Absolutely no raw color hex codes or rgba strings are allowed in component files.
+- **Navigation**: Use React Navigation for screen transitions. Define screen types with `NativeStackScreenProps` or `BottomTabScreenProps`.
+- **Accessibility**: Every interactive element must have `accessibilityLabel` and `accessibilityRole`. Images need `accessibilityLabel`. Use `accessibilityState` for toggles and checkboxes.
+- **Safe areas**: Wrap top-level screen components with `SafeAreaView` from `react-native-safe-area-context` (not the default one from `react-native`).
+- **Project specific**: Focus on the target project's needs and constraints. Leave Google license headers out of the generated components.
 
 ### Platform-specific code
+
 When the design requires different behavior on iOS and Android:
+
 ```typescript
 import { Platform } from 'react-native';
 
@@ -136,6 +143,7 @@ const styles = StyleSheet.create({
 ```
 
 ### Anti-patterns for Phase 3
+
 - ❌ Putting all UI in a single monolithic screen file.
 - ❌ Using HTML tags (like `div`, `span`, `p`) instead of React Native components.
 - ❌ Inline event handlers or business logic without custom hooks.
@@ -153,18 +161,20 @@ const styles = StyleSheet.create({
 4. **Component drafting**: Use `resources/component-template.tsx` as a base. Find and replace ALL instances of `StitchComponent` with the actual component name. Map HTML elements to React Native primitives.
 5. **Navigation wiring**: If the design has multiple screens, set up a `NavigationContainer` with a stack or tab navigator in `App.tsx`.
 6. **Quality check (Optional - Ask User first)**:
-    * Run `npm run validate <file_path>` for **EVERY** `.tsx` file in components and screens to report component validity.
-    * Run `tsc --noEmit` to verify TypeScript compile status.
-    * Check output against `resources/architecture-checklist.md`.
-    * Obtain permission before starting the packager (`npx react-native start` or `npx expo start`) or starting visual simulator audits to verify the app renders correctly on a simulator/device.
+    - Run `npm run validate <file_path>` for **EVERY** `.tsx` file in components and screens to report component validity.
+    - Run `tsc --noEmit` to verify TypeScript compile status.
+    - Check output against `resources/architecture-checklist.md`.
+    - Obtain permission before starting the packager (`npx react-native start` or `npx expo start`) or starting visual simulator audits to verify the app renders correctly on a simulator/device.
 
 ### Anti-patterns for Phase 4
+
 - ❌ Launching packagers or simulators without user consent.
 - ❌ Declaring task "done" without verifying code compiles.
 
 ## Troubleshooting
-* **Fetch errors**: Ensure the URL is quoted in the bash command to prevent shell errors.
-* **Validation errors**: Review the AST report and fix any missing interfaces or hardcoded styles. The most common failures are missing an **exported** `Props` interface or leaving raw hex colors in `StyleSheet.create()`.
-* **Text outside Text component**: React Native crashes if raw strings appear outside `<Text>`. Verify all text nodes are wrapped.
-* **Image sizing**: Unlike web `<img>`, React Native `Image` has no intrinsic size. Always specify `width` and `height` in styles or use `aspectRatio`.
-* **FlatList vs ScrollView**: If you see a "VirtualizedList inside ScrollView" warning, replace the outer `ScrollView` with a plain `View` or use `FlatList` `ListHeaderComponent`/`ListFooterComponent`.
+
+- **Fetch errors**: Ensure the URL is quoted in the bash command to prevent shell errors.
+- **Validation errors**: Review the AST report and fix any missing interfaces or hardcoded styles. The most common failures are missing an **exported** `Props` interface or leaving raw hex colors in `StyleSheet.create()`.
+- **Text outside Text component**: React Native crashes if raw strings appear outside `<Text>`. Verify all text nodes are wrapped.
+- **Image sizing**: Unlike web `<img>`, React Native `Image` has no intrinsic size. Always specify `width` and `height` in styles or use `aspectRatio`.
+- **FlatList vs ScrollView**: If you see a "VirtualizedList inside ScrollView" warning, replace the outer `ScrollView` with a plain `View` or use `FlatList` `ListHeaderComponent`/`ListFooterComponent`.

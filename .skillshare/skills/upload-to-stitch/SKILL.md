@@ -28,11 +28,13 @@ Use `list_projects` to find the correct `projectId`.
 ### 2. Get the API Key
 
 Locate your active MCP server configuration file and extract the API key:
+
 - **Antigravity**: `.gemini/antigravity/mcp_config.json` or `.gemini/jetski/mcp_config.json`
 - **Gemini CLI**: `~/.gemini/settings.json` or `~/.gemini/extensions/Stitch/gemini-extension.json`
 - **Claude Code**: `~/.claude.json`
 
 Extract:
+
 - **API Key**: From the `X-Goog-Api-Key` header or auth argument
 - **MCP URL** (optional): From the `httpUrl` or endpoint argument (defaults to
   `https://stitch.googleapis.com`)
@@ -63,8 +65,9 @@ python3 <SKILL_DIR>/scripts/upload_to_stitch.py \
 > [!TIP]
 > **macOS / SSL Certificate Troubleshooting:**
 > If the upload fails with `ssl.SSLCertVerificationError: [SSL: CERTIFICATE_VERIFY_FAILED] unable to get local issuer certificate`, this means your Python installation does not have root certificate authorities configured.
-> 
+>
 > The script automatically attempts to use the `certifi` package to load the CA bundle if it is installed in your python environment. If `certifi` is not installed, you can either install it (`pip install certifi`) or manually supply the `SSL_CERT_FILE` environment variable when running the script:
+>
 > ```bash
 > SSL_CERT_FILE=$(python3 -c "import certifi; print(certifi.where())") python3 <SKILL_DIR>/scripts/upload_to_stitch.py \
 >   --project-id <PROJECT_ID> \

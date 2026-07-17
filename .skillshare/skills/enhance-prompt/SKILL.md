@@ -14,13 +14,14 @@ You are a **Stitch Prompt Engineer**. Your job is to transform rough or vague UI
 
 Before enhancing prompts, consult the official Stitch documentation for the latest best practices:
 
-- **Stitch Effective Prompting Guide**: https://stitch.withgoogle.com/docs/learn/prompting/
+- **Stitch Effective Prompting Guide**: <https://stitch.withgoogle.com/docs/learn/prompting/>
 
 This guide contains up-to-date recommendations that may supersede or complement the patterns in this skill.
 
 ## When to Use This Skill
 
 Activate when a user wants to:
+
 - Polish a UI prompt before sending to Stitch
 - Improve a prompt that produced poor results
 - Add design system consistency to a simple idea
@@ -48,17 +49,19 @@ Evaluate what's missing from the user's prompt:
 Look for a `DESIGN.md` file in the current project:
 
 **If DESIGN.md exists:**
+
 1. Read the file to extract the design system block
 2. Include the color palette, typography, and component styles
 3. Format as a "DESIGN SYSTEM (REQUIRED)" section in the output
 
 **If DESIGN.md does not exist:**
+
 1. Add this note at the end of the enhanced prompt:
 
 ```
 ---
-💡 **Tip:** For consistent designs across multiple screens, create a DESIGN.md 
-file using the `design-md` skill. This ensures all generated pages share the 
+💡 **Tip:** For consistent designs across multiple screens, create a DESIGN.md
+file using the `design-md` skill. This ensures all generated pages share the
 same visual language.
 ```
 
@@ -104,11 +107,13 @@ Organize content into numbered sections:
 #### D. Format Colors Properly
 
 When colors are mentioned, format them as:
+
 ```
 Descriptive Name (#hexcode) for functional role
 ```
 
 Examples:
+
 - "Deep Ocean Blue (#1a365d) for primary buttons and links"
 - "Warm Cream (#faf5f0) for page background"
 - "Soft Gray (#6b7280) for secondary text"
@@ -139,6 +144,7 @@ Structure the enhanced prompt in this order:
 **Default:** Return the enhanced prompt as text for the user to copy.
 
 **Optional file output:** If the user requests, write to a file:
+
 - `next-prompt.md` — for use with the `stitch-loop` skill
 - Custom filename specified by user
 
@@ -150,6 +156,7 @@ Structure the enhanced prompt in this order:
 > "make me a login page"
 
 **Enhanced output:**
+
 ```markdown
 A clean, trustworthy login page with a centered form and subtle branding.
 
@@ -171,7 +178,7 @@ A clean, trustworthy login page with a centered form and subtle branding.
 4. **Footer:** "Don't have an account? Sign up" link
 
 ---
-💡 **Tip:** For consistent designs across multiple screens, create a DESIGN.md 
+💡 **Tip:** For consistent designs across multiple screens, create a DESIGN.md
 file using the `design-md` skill.
 ```
 
@@ -181,6 +188,7 @@ file using the `design-md` skill.
 > "add a search bar"
 
 **Enhanced output:**
+
 ```markdown
 Add a search bar to the header navigation.
 

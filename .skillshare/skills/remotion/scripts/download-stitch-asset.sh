@@ -6,9 +6,9 @@
 set -e
 
 if [ $# -ne 2 ]; then
-  echo "Usage: $0 <download_url> <output_path>"
-  echo "Example: $0 'https://storage.googleapis.com/stitch/screenshot.png' 'assets/screen.png'"
-  exit 1
+    echo "Usage: $0 <download_url> <output_path>"
+    echo "Example: $0 'https://storage.googleapis.com/stitch/screenshot.png' 'assets/screen.png'"
+    exit 1
 fi
 
 DOWNLOAD_URL="$1"
@@ -24,15 +24,15 @@ echo "Saving to: $OUTPUT_PATH"
 # Use curl with follow redirects; -f fails on HTTP errors so an error
 # response (e.g. an expired signed URL) is not saved as the asset
 if curl -L -f -o "$OUTPUT_PATH" "$DOWNLOAD_URL"; then
-  echo "✓ Successfully downloaded to $OUTPUT_PATH"
+    echo "✓ Successfully downloaded to $OUTPUT_PATH"
 
-  # Display file size for verification
-  if command -v stat &> /dev/null; then
-    FILE_SIZE=$(stat -f%z "$OUTPUT_PATH" 2>/dev/null || stat -c%s "$OUTPUT_PATH" 2>/dev/null)
-    echo "  File size: $FILE_SIZE bytes"
-  fi
+    # Display file size for verification
+    if command -v stat &> /dev/null; then
+        FILE_SIZE=$(stat -f%z "$OUTPUT_PATH" 2> /dev/null || stat -c%s "$OUTPUT_PATH" 2> /dev/null)
+        echo "  File size: $FILE_SIZE bytes"
+    fi
 else
-  echo "✗ Download failed"
-  rm -f "$OUTPUT_PATH"
-  exit 1
+    echo "✗ Download failed"
+    rm -f "$OUTPUT_PATH"
+    exit 1
 fi

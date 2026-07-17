@@ -119,7 +119,6 @@ The following font enum values are confirmed to work (server-validated):
 > [!WARNING]
 > Omit the legacy `font` field when updating the design system to avoid "invalid argument" errors.
 
-
 > [!NOTE]
 > The `namedColors` object above is abbreviated. The full response contains 50+
 > Material 3 color tokens including all container, fixed, and inverse variants.
@@ -154,6 +153,7 @@ Applies a design system to one or more screens in a project.
 ```
 
 **How to get the required IDs:**
+
 1. Call `get_project` to retrieve `screenInstances` — each has an `id` and
    `sourceScreen`.
 2. Call `list_design_systems` to retrieve the design system `name` (format:

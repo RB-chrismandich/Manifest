@@ -83,6 +83,7 @@ src/
 ```
 
 Also check for:
+
 - `tailwind.config.js` / `tailwind.config.ts` — Custom colors, fonts, spacing
 - `globals.css` / `global.css` — CSS custom properties (variables)
 - Any `theme.*` or `tokens.*` files
@@ -174,12 +175,14 @@ the intended color.
 Extract the complete typographic system:
 
 **Font families:**
+
 - Check CSS `font-family`, Tailwind `fontFamily`, Google Fonts links, or
   local `@font-face` declarations.
 - Note the **character** of each font: geometric vs humanist, serif vs sans,
   the feeling it evokes.
 
 **Type scale (hierarchy):**
+
 - Find every heading level (H1-H6) and body text, noting:
   - `font-size` (in rem or px)
   - `font-weight` (numeric value + descriptive name)
@@ -189,6 +192,7 @@ Extract the complete typographic system:
   hero sections?
 
 **Spacing principles:**
+
 - How does text spacing relate to the overall spacing scale?
 - Letter-spacing patterns on headings vs body
 - Line-height philosophy (generous/relaxed for body, tighter for display)
@@ -198,12 +202,14 @@ Extract the complete typographic system:
 Analyze the 4-5 most important UI primitives:
 
 **Buttons:**
+
 - Corner radius (and what it communicates — playful? professional? minimal?)
 - Color scheme for primary, secondary, and ghost variants
 - Hover/focus/active states and transition timing
 - Padding ratios (horizontal vs vertical)
 
 **Cards / Containers:**
+
 - Corner radius (often different from buttons — slightly rounder)
 - Shadow strategy: flat, subtle hover shadows, or always elevated?
 - Border treatment: hairline borders, colored accents, or none?
@@ -211,17 +217,20 @@ Analyze the 4-5 most important UI primitives:
 - Image treatment within cards (full-bleed, padded, rounded?)
 
 **Navigation:**
+
 - Layout pattern (horizontal bar, vertical sidebar, drawer)
 - Typography treatment (uppercase, letter-spacing, weight)
 - Active/hover state indicators (underline, color, background)
 - Mobile behavior (hamburger, bottom nav, drawer)
 
 **Inputs & Forms:**
+
 - Border style and focus state behavior
 - Corner style consistency with buttons
 - Padding and touch-target sizing
 
 **Domain-Specific Components:**
+
 - Identify 1-2 components unique to this project (e.g., product cards,
   dashboard widgets, chat bubbles) and describe their styling patterns.
 
@@ -230,21 +239,25 @@ Analyze the 4-5 most important UI primitives:
 Extract the structural system:
 
 **Grid & Structure:**
+
 - Max content width (from `max-width` on containers)
 - Column system (CSS Grid, Flexbox patterns, defined breakpoints)
 - Responsive breakpoints (from media queries or Tailwind config)
 
 **Whitespace Strategy:**
+
 - Base spacing unit (8px grid? 4px? custom?)
 - Section margins (how much space between major sections)
 - Edge padding (page margins at different breakpoints)
 
 **Alignment & Visual Balance:**
+
 - Text alignment patterns (centered heroes, left-aligned body)
 - Image-to-text ratios
 - Visual weight distribution
 
 **Responsive Behavior:**
+
 - Mobile-first or desktop-first?
 - How do grids collapse? Padding scale?
 - Touch target sizing

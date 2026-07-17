@@ -20,7 +20,7 @@ This skill helps you create `DESIGN.md` files that serve as the "source of truth
 
 - Access to the Stitch MCP Server
 - A Stitch project with at least one designed screen
-- Access to the Stitch Effective Prompting Guide: https://stitch.withgoogle.com/docs/learn/prompting/
+- Access to the Stitch Effective Prompting Guide: <https://stitch.withgoogle.com/docs/learn/prompting/>
 
 ## The Goal
 
@@ -42,7 +42,7 @@ To analyze a Stitch project, you must retrieve screen metadata and design assets
    - Review screen titles to identify the target screen (e.g., "Home", "Landing Page")
    - Extract the Screen ID from the screen's `name` field
 
-4. **Metadata fetch**: 
+4. **Metadata fetch**:
    - Call `[prefix]:get_screen` with both `projectId` and `screenId` (both as numeric IDs only)
    - This returns the complete screen object including:
      - `screenshot.downloadUrl` - Visual reference of the design
@@ -64,25 +64,32 @@ To analyze a Stitch project, you must retrieve screen metadata and design assets
 ## Analysis & Synthesis Instructions
 
 ### 1. Extract Project Identity (JSON)
+
 - Locate the Project Title
 - Locate the specific Project ID (e.g., from the `name` field in the JSON)
 
 ### 2. Define the Atmosphere (Image/HTML)
+
 Evaluate the screenshot and HTML structure to capture the overall "vibe." Use evocative adjectives to describe the mood (e.g., "Airy," "Dense," "Minimalist," "Utilitarian").
 
 ### 3. Map the Color Palette (Tailwind Config/JSON)
+
 Identify the key colors in the system. For each color, provide:
+
 - A descriptive, natural language name that conveys its character (e.g., "Deep Muted Teal-Navy")
 - The specific hex code in parentheses for precision (e.g., "#294056")
 - Its specific functional role (e.g., "Used for primary actions")
 
 ### 4. Translate Geometry & Shape (CSS/Tailwind)
+
 Convert technical `border-radius` and layout values into physical descriptions:
+
 - Describe `rounded-full` as "Pill-shaped"
 - Describe `rounded-lg` as "Subtly rounded corners"
 - Describe `rounded-none` as "Sharp, squared-off edges"
 
 ### 5. Describe Depth & Elevation
+
 Explain how the UI handles layers. Describe the presence and quality of shadows (e.g., "Flat," "Whisper-soft diffused shadows," or "Heavy, high-contrast drop shadows").
 
 ## Output Guidelines
@@ -121,16 +128,19 @@ Explain how the UI handles layers. Describe the presence and quality of shadows 
 To use this skill for the Furniture Collection project:
 
 1. **Retrieve project information:**
+
    ```
    Use the Stitch MCP Server to get the Furniture Collection project
    ```
 
 2. **Get the Home page screen details:**
+
    ```
    Retrieve the Home page screen's code, image, and screen object information
    ```
 
 3. **Reference best practices:**
+
    ```
    Review the Stitch Effective Prompting Guide at:
    https://stitch.withgoogle.com/docs/learn/prompting/

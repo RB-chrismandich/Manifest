@@ -21,12 +21,14 @@ This skill enables you to create walkthrough videos that showcase app screens wi
 ## Prerequisites
 
 **Required:**
+
 - Access to the Stitch MCP Server
 - Access to the Remotion MCP Server (or Remotion CLI)
 - Node.js and npm installed
 - A Stitch project with designed screens
 
 **Recommended:**
+
 - Familiarity with Remotion's video capabilities
 - Understanding of React components (Remotion uses React)
 
@@ -35,6 +37,7 @@ This skill enables you to create walkthrough videos that showcase app screens wi
 ### Step 1: Discover Available MCP Servers
 
 Run `list_tools` to identify available MCP servers and their prefixes:
+
 - **Stitch MCP**: Look for `stitch:` or `mcp_stitch:` prefix
 - **Remotion MCP**: Look for `remotion:` or `mcp_remotion:` prefix
 
@@ -71,13 +74,16 @@ Run `list_tools` to identify available MCP servers and their prefixes:
    - If exists, use the existing project structure
 
 2. **Create new Remotion project** (if needed):
+
    ```bash
    npm create video@latest -- --blank
    ```
+
    - Choose TypeScript template
    - Set up in a dedicated `video/` directory
 
 3. **Install dependencies**:
+
    ```bash
    cd video
    npm install @remotion/transitions @remotion/animated-emoji
@@ -109,11 +115,13 @@ Create a modular Remotion composition with these components:
 Use Remotion's `@remotion/transitions` for professional effects:
 
 - **Fade**: Smooth cross-fade between screens
+
   ```tsx
   import {fade} from '@remotion/transitions/fade';
   ```
 
 - **Slide**: Directional slide transitions
+
   ```tsx
   import {slide} from '@remotion/transitions/slide';
   ```
@@ -188,6 +196,7 @@ Create the video components following Remotion best practices:
    - Set frame rate and duration
 
 **Reference Resources:**
+
 - Use `resources/screen-slide-template.tsx` as starting point
 - Follow `resources/composition-checklist.md` for completeness
 - Review examples in `examples/` directory
@@ -195,9 +204,11 @@ Create the video components following Remotion best practices:
 ### Step 3: Preview and Refine
 
 1. **Start Remotion Studio**:
+
    ```bash
    npm run dev
    ```
+
    - Opens browser-based preview
    - Allows real-time editing and refinement
 
@@ -214,6 +225,7 @@ Create the video components following Remotion best practices:
 ### Step 4: Render Video
 
 1. **Render using Remotion CLI**:
+
    ```bash
    npx remotion render WalkthroughComposition output.mp4
    ```
@@ -243,7 +255,7 @@ const Hotspot = ({x, y, label}) => {
     fps: 30,
     config: {damping: 10, stiffness: 100}
   });
-  
+
   return (
     <div style={{
       position: 'absolute',
@@ -303,10 +315,11 @@ project/
 
 Remotion maintains its own Agent Skills that define best practices. Review these for advanced techniques:
 
-- **Repository**: https://github.com/remotion-dev/remotion/tree/main/packages/skills
+- **Repository**: <https://github.com/remotion-dev/remotion/tree/main/packages/skills>
 - **Installation**: `npx skills add remotion-dev/skills`
 
 Key Remotion skills to leverage:
+
 - Animation timing and easing
 - Composition architecture patterns
 - Performance optimization
@@ -317,6 +330,7 @@ Key Remotion skills to leverage:
 ### Pattern 1: Simple Slide Show
 
 Basic walkthrough with fade transitions:
+
 - 3-5 seconds per screen
 - Cross-fade transitions
 - Bottom text overlay with screen title
@@ -325,6 +339,7 @@ Basic walkthrough with fade transitions:
 ### Pattern 2: Feature Highlight
 
 Focus on specific UI elements:
+
 - Zoom into specific regions
 - Animated circles/arrows pointing to features
 - Slow-motion emphasis on key interactions
@@ -333,6 +348,7 @@ Focus on specific UI elements:
 ### Pattern 3: User Flow
 
 Show step-by-step user journey:
+
 - Sequential screen flow with directional slides
 - Numbered steps overlay
 - Highlight user actions (clicks, taps)
@@ -360,12 +376,14 @@ Show step-by-step user journey:
 ## Example Usage
 
 **User prompt:**
+
 ```
-Look up the screens in my Stitch project "Calculator App" and build a remotion video 
+Look up the screens in my Stitch project "Calculator App" and build a remotion video
 that shows a walkthrough of the screens.
 ```
 
 **Agent workflow:**
+
 1. List Stitch projects → Find "Calculator App" → Extract project ID
 2. List screens in project → Identify all screens (Home, History, Settings)
 3. Download screenshots for each screen → Save to `assets/screens/`
@@ -386,8 +404,8 @@ that shows a walkthrough of the screens.
 
 ## References
 
-- **Stitch Documentation**: https://stitch.withgoogle.com/docs/
-- **Remotion Documentation**: https://www.remotion.dev/docs/
-- **Remotion Skills**: https://www.remotion.dev/docs/ai/skills
-- **Remotion MCP**: https://www.remotion.dev/docs/ai/mcp
-- **Remotion Transitions**: https://www.remotion.dev/docs/transitions
+- **Stitch Documentation**: <https://stitch.withgoogle.com/docs/>
+- **Remotion Documentation**: <https://www.remotion.dev/docs/>
+- **Remotion Skills**: <https://www.remotion.dev/docs/ai/skills>
+- **Remotion MCP**: <https://www.remotion.dev/docs/ai/mcp>
+- **Remotion Transitions**: <https://www.remotion.dev/docs/transitions>

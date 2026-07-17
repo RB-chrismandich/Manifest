@@ -13,6 +13,7 @@ shadcn/ui uses a CSS variable-based theming system, making it easy to customize 
 shadcn/ui uses HSL color values stored as CSS variables. Each color has a base value and a foreground variant for text/content that appears on top of it.
 
 **Base Color Variables** (in `globals.css`):
+
 ```css
 :root {
   --background: 0 0% 100%;        /* Page background */
@@ -37,25 +38,26 @@ To match your brand, update the primary color:
 :root {
   /* Original blue */
   --primary: 221.2 83.2% 53.3%;
-  
+
   /* Change to brand purple */
   --primary: 270 91% 65%;
-  
+
   /* Adjust foreground for contrast */
   --primary-foreground: 0 0% 100%;
 }
 ```
 
 **HSL Format**: `hue saturation lightness`
+
 - Hue: 0-360 (color wheel position)
 - Saturation: 0-100% (color intensity)
 - Lightness: 0-100% (brightness)
 
 ### Tools for Color Selection
 
-1. **HSL Color Picker**: https://hslpicker.com/
-2. **Shadcn Theme Generator**: https://ui.shadcn.com/themes
-3. **Coolors**: https://coolors.co/ (generates palettes)
+1. **HSL Color Picker**: <https://hslpicker.com/>
+2. **Shadcn Theme Generator**: <https://ui.shadcn.com/themes>
+3. **Coolors**: <https://coolors.co/> (generates palettes)
 
 ### Creating a Color Scheme
 
@@ -66,19 +68,19 @@ Start with your primary brand color, then derive other colors:
   /* 1. Primary brand color */
   --primary: 230 90% 60%;
   --primary-foreground: 0 0% 100%;
-  
+
   /* 2. Lighter variant for secondary */
   --secondary: 230 30% 95%;
   --secondary-foreground: 230 90% 30%;
-  
+
   /* 3. Subtle accent (shift hue slightly) */
   --accent: 200 90% 60%;
   --accent-foreground: 0 0% 100%;
-  
+
   /* 4. Muted backgrounds (low saturation) */
   --muted: 230 20% 96%;
   --muted-foreground: 230 20% 40%;
-  
+
   /* 5. Keep destructive red-based */
   --destructive: 0 84% 60%;
   --destructive-foreground: 0 0% 100%;
@@ -104,6 +106,7 @@ shadcn/ui includes dark mode support out of the box. Add dark mode colors:
 ### Toggle Dark Mode
 
 **Next.js with next-themes**:
+
 ```bash
 npm install next-themes
 ```
@@ -229,6 +232,7 @@ export interface ButtonProps
 ```
 
 Usage:
+
 ```tsx
 <Button variant="success" size="xl">Save Changes</Button>
 ```
@@ -246,11 +250,11 @@ interface LoadingButtonProps extends ButtonProps {
   loading?: boolean
 }
 
-export function LoadingButton({ 
-  loading, 
-  children, 
+export function LoadingButton({
+  loading,
+  children,
   disabled,
-  ...props 
+  ...props
 }: LoadingButtonProps) {
   return (
     <Button disabled={loading || disabled} {...props}>
@@ -288,8 +292,8 @@ Import fonts in your layout:
 import { Inter, Poppins } from 'next/font/google'
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-sans' })
-const poppins = Poppins({ 
-  weight: ['600', '700'], 
+const poppins = Poppins({
+  weight: ['600', '700'],
   subsets: ['latin'],
   variable: '--font-heading',
 })
@@ -304,6 +308,7 @@ export default function RootLayout({ children }) {
 ```
 
 Use in components:
+
 ```tsx
 <h1 className="font-heading text-3xl">Heading</h1>
 <p className="font-sans">Body text</p>
@@ -346,13 +351,13 @@ Customize roundedness globally:
 /* globals.css */
 :root {
   --radius: 0.5rem;  /* Default (8px) */
-  
+
   /* More rounded */
   --radius: 1rem;    /* 16px */
-  
+
   /* Sharp edges */
   --radius: 0;       /* No rounding */
-  
+
   /* Very rounded */
   --radius: 1.5rem;  /* 24px */
 }
@@ -435,6 +440,7 @@ module.exports = {
 ```
 
 Use in components:
+
 ```tsx
 <div className="animate-fade-in">Content</div>
 ```
@@ -491,6 +497,7 @@ export const designTokens = {
 ```
 
 Use in components:
+
 ```tsx
 import { designTokens } from "@/lib/design-tokens"
 
