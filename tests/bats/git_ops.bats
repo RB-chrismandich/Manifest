@@ -391,3 +391,100 @@ make_clean_bin() {
     assert_success
     assert_output --partial "STUB:glab:api projects/:id/merge_requests/42/notes?sort=asc --jq"
 }
+
+# --- pr-reopen / pr-update-branch / repo-admin-check / branch-protection / commit-checks (Task 15) ---
+
+@test "pr-close --comment translates to glab mr note + mr close on GitLab" {
+    cd "$TEST_REPO" || return 1
+    git remote set-url origin "https://gitlab.com/user/repo.git"
+    create_stub "glab"
+    run bash "$SCRIPT_UNDER_TEST" pr-close 42 --comment "Closing as stale"
+    assert_success
+    assert_output --partial "STUB:glab:mr note 42 --message Closing as stale"
+    assert_output --partial "STUB:glab:mr close 42"
+}
+
+@test "routes pr-reopen to gh pr reopen" {
+    cd "$TEST_REPO" || return 1
+    create_stub "gh"
+    run bash "$SCRIPT_UNDER_TEST" pr-reopen 42
+    assert_success
+    assert_output --partial "STUB:gh:pr reopen 42"
+}
+
+@test "routes pr-reopen to glab mr reopen on GitLab" {
+    cd "$TEST_REPO" || return 1
+    git remote set-url origin "https://gitlab.com/user/repo.git"
+    create_stub "glab"
+    run bash "$SCRIPT_UNDER_TEST" pr-reopen 42
+    assert_success
+    assert_output --partial "STUB:glab:mr reopen 42"
+}
+
+@test "routes pr-update-branch to gh pr update-branch" {
+    cd "$TEST_REPO" || return 1
+    create_stub "gh"
+    run bash "$SCRIPT_UNDER_TEST" pr-update-branch 42
+    assert_success
+    assert_output --partial "STUB:gh:pr update-branch 42"
+}
+
+@test "routes pr-update-branch to glab merge_requests rebase on GitLab" {
+    cd "$TEST_REPO" || return 1
+    git remote set-url origin "https://gitlab.com/user/repo.git"
+    create_stub "glab"
+    run bash "$SCRIPT_UNDER_TEST" pr-update-branch 42
+    assert_success
+    assert_output --partial "STUB:glab:api projects/:id/merge_requests/42/rebase -X PUT"
+}
+
+@test "routes repo-admin-check to gh api repos/{owner}/{repo}" {
+    cd "$TEST_REPO" || return 1
+    create_stub "gh"
+    run bash "$SCRIPT_UNDER_TEST" repo-admin-check
+    assert_success
+    assert_output --partial "STUB:gh:api repos/{owner}/{repo} -q .permissions.admin"
+}
+
+@test "routes repo-admin-check to glab api projects/:id on GitLab" {
+    cd "$TEST_REPO" || return 1
+    git remote set-url origin "https://gitlab.com/user/repo.git"
+    create_stub "glab"
+    run bash "$SCRIPT_UNDER_TEST" repo-admin-check
+    assert_success
+    assert_output --partial "STUB:glab:api projects/:id --jq"
+}
+
+@test "routes branch-protection to gh api branches/main/protection" {
+    cd "$TEST_REPO" || return 1
+    create_stub "gh"
+    run bash "$SCRIPT_UNDER_TEST" branch-protection
+    assert_success
+    assert_output --partial "STUB:gh:api repos/{owner}/{repo}/branches/main/protection -q"
+}
+
+@test "branch-protection has no GitLab equivalent (github-only, fails loud)" {
+    cd "$TEST_REPO" || return 1
+    git remote set-url origin "https://gitlab.com/user/repo.git"
+    create_stub "glab"
+    run bash "$SCRIPT_UNDER_TEST" branch-protection
+    assert_failure
+    assert_output --partial "no GitLab equivalent"
+}
+
+@test "routes commit-checks to gh api commits/SHA/check-runs" {
+    cd "$TEST_REPO" || return 1
+    create_stub "gh"
+    run bash "$SCRIPT_UNDER_TEST" commit-checks abc123
+    assert_success
+    assert_output --partial "STUB:gh:api repos/{owner}/{repo}/commits/abc123/check-runs -q"
+}
+
+@test "routes commit-checks to glab api repository/commits/SHA/statuses on GitLab" {
+    cd "$TEST_REPO" || return 1
+    git remote set-url origin "https://gitlab.com/user/repo.git"
+    create_stub "glab"
+    run bash "$SCRIPT_UNDER_TEST" commit-checks abc123
+    assert_success
+    assert_output --partial "STUB:glab:api projects/:id/repository/commits/abc123/statuses --jq"
+}
