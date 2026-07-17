@@ -87,7 +87,9 @@ class RepoLock:
                 if age <= self.stale_s:
                     owner = "unknown"
                     with contextlib.suppress(OSError, json.JSONDecodeError):
-                        owner = json.loads(self.path.read_text()).get("run", "unknown")
+                        content = self.path.read_text(encoding="utf-8")
+                        if '"run"' in content:
+                            owner = json.loads(content).get("run", "unknown")
                     raise PreflightError(
                         f"another cddl run is active for this repo (run {owner}; "
                         f"lock {self.path}, reclaimable after {int(self.stale_s)}s)"
