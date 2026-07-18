@@ -318,3 +318,46 @@ class TestHyphenatedRosterAgentName:
         cli_models = resolve_cli_models(cli_only, args)
         # "gemini-pro" has no entry in _MODEL_TIER_DEFAULTS -> generic "auto".
         assert cli_models == {"gemini-pro": "auto"}
+
+
+# ---------------------------------------------------------------------------
+# Drift guard (goal-task-E, Part 2): cli.py's own hardcoded-default copies --
+# _FALLBACK_ROSTER (used only when agent_roster.yml is missing/unreadable,
+# see cli.py's module comment) and _MODEL_TIER_DEFAULTS (model-tier defaults;
+# NOT part of agent_roster.yml's schema by design -- see agent_roster.yml's
+# header) -- are two of several independent hardcoded-default copies this
+# goal's work created (see also reconcile_core.py's _DEFAULT_ROOT_TAGS in
+# test_reconcile_policy.py, and check_status.sh's/sync-skills.sh's tier-3
+# arrays in tests/bats/agent_roster_drift_guard.bats). Neither dict carries
+# binary/home_dir/auth_check values to compare -- only names -- so the guard
+# here is name-SET equality against the REAL agent_roster.yml (read live,
+# not a hardcoded expectation), so a future agent rename/removal not
+# mirrored into cli.py's fallbacks fails here instead of shipping a stale
+# copy that silently drops (or never grows) flags for the known fleet.
+# ---------------------------------------------------------------------------
+
+
+class TestCliFallbackDriftGuard:
+    def test_fallback_roster_names_match_real_registry(self):
+        import yaml
+
+        from agents.cli import _FALLBACK_ROSTER
+
+        roster_path = (
+            REPO_ROOT / "configs" / "claude" / "config" / "agent_roster.yml"
+        )
+        with open(roster_path, encoding="utf-8") as fh:
+            real_names = set(yaml.safe_load(fh)["agents"])
+        assert set(_FALLBACK_ROSTER) == real_names
+
+    def test_model_tier_defaults_names_match_real_registry(self):
+        import yaml
+
+        from agents.cli import _MODEL_TIER_DEFAULTS
+
+        roster_path = (
+            REPO_ROOT / "configs" / "claude" / "config" / "agent_roster.yml"
+        )
+        with open(roster_path, encoding="utf-8") as fh:
+            real_names = set(yaml.safe_load(fh)["agents"])
+        assert set(_MODEL_TIER_DEFAULTS) == real_names

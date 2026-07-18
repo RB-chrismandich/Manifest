@@ -487,3 +487,24 @@ def test_load_fleet_tags_hardcoded_default_when_registry_missing(tmp_path, monke
 
     assert mod.ROOT_TAGS == mod._DEFAULT_ROOT_TAGS
     assert mod.ROOT_TAGS == ("claude", "cursor", "gemini", "codex", "antigravity")
+
+
+# --------------------------------------------------------------------------- #
+# Drift guard (goal-task-E, Part 2): reconcile_core.py's innermost fallback
+# (_DEFAULT_ROOT_TAGS) is one of several independent hardcoded-default
+# copies this goal's work created (see also cli.py's _FALLBACK_ROSTER /
+# _MODEL_TIER_DEFAULTS in tests/python/agents/test_cli.py, and
+# check_status.sh's/sync-skills.sh's tier-3 arrays in
+# tests/bats/agent_roster_drift_guard.bats). _DEFAULT_ROOT_TAGS carries no
+# binary/home_dir/auth_check fields -- just the 5 agent names -- so the only
+# meaningful guard here is name-set equality, read live from the REAL
+# agent_roster.yml (not a hardcoded expectation in this test), so a future
+# agent rename/removal not mirrored into _DEFAULT_ROOT_TAGS fails here
+# instead of shipping a silently stale fully-degraded fallback.
+# --------------------------------------------------------------------------- #
+def test_default_root_tags_matches_real_registry_name_set():
+    import yaml
+
+    with open(_REAL_ROSTER, encoding="utf-8") as fh:
+        real_names = set(yaml.safe_load(fh)["agents"])
+    assert set(core._DEFAULT_ROOT_TAGS) == real_names
