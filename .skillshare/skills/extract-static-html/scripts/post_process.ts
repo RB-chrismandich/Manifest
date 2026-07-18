@@ -232,8 +232,9 @@ function resolveLocalFile(localPath: string, baseDir: string): string | null {
       if (fs.existsSync(candidate) && fs.statSync(candidate).isFile()) {
         return candidate;
       }
-    } catch {
+    } catch (e) {
       // Permission errors, etc. — skip
+      console.warn(`⚠️  Failed resolving local file ${candidate}: ${e instanceof Error ? e.message : String(e)}`);
     }
   }
   return null;
@@ -252,7 +253,8 @@ function readFileAtomic(
   let fd: number;
   try {
     fd = fs.openSync(filePath, 'r');
-  } catch {
+  } catch (e) {
+    console.warn(`⚠️  Failed opening ${filePath}: ${e instanceof Error ? e.message : String(e)}`);
     // File was removed or became inaccessible between resolve and open
     return null;
   }
@@ -429,7 +431,8 @@ function main(): void {
     let fd: number;
     try {
       fd = fs.openSync(file, opts.dryRun ? 'r' : 'r+');
-    } catch {
+    } catch (e) {
+      console.warn(`⚠️  Failed opening ${file}: ${e instanceof Error ? e.message : String(e)}`);
       console.warn(`⚠️  File not found, skipping: ${file}`);
       continue;
     }
