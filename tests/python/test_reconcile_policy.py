@@ -23,6 +23,11 @@ _spec = importlib.util.spec_from_file_location("reconcile_core", _CORE)
 core = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(core)
 
+# The REAL production registry — used (not a synthetic fixture) by the
+# fallback-parser test below to prove the manual parser genuinely handles
+# production YAML.
+_REAL_ROSTER = os.path.join(os.path.dirname(_CORE), "..", "config", "agent_roster.yml")
+
 
 # --------------------------------------------------------------------------- #
 # Fixture: a hermetic managed-home + project tree
@@ -447,3 +452,38 @@ def test_fifth_agent_root_still_rejects_unknown_tag(tmp_path, monkeypatch):
         ["--home", str(tmp_path), "--project", str(tmp_path), "--root", "beta"]
     )
     assert rc == 2
+
+
+def test_load_fleet_tags_fallback_parser_on_real_registry(monkeypatch):
+    """PyYAML-unavailable fallback path: with ``_agent_roster_loader()``
+    forced to return None (mirrors PyYAML being unavailable, or
+    ``agents/config.py`` failing to import), ``load_fleet_tags()`` falls
+    through to ``_fallback_roster_tags()``'s hand-rolled line parser. Points
+    at the REAL ``configs/claude/config/agent_roster.yml`` (not a synthetic
+    fixture) to prove the manual parser genuinely handles production YAML,
+    not just a crafted test string.
+    """
+    mod = _load_core_with_roster(_REAL_ROSTER, monkeypatch)
+    monkeypatch.setattr(mod, "_agent_roster_loader", lambda: None)
+
+    assert mod.load_fleet_tags(_REAL_ROSTER) == mod._DEFAULT_ROOT_TAGS
+    assert mod.load_fleet_tags(_REAL_ROSTER) == (
+        "claude",
+        "cursor",
+        "gemini",
+        "codex",
+        "antigravity",
+    )
+
+
+def test_load_fleet_tags_hardcoded_default_when_registry_missing(tmp_path, monkeypatch):
+    """Registry-absent fallback path: pointing ``roster_path`` at a
+    nonexistent file makes both the loader-based read and the manual-parser
+    fallback come up empty, so ``load_fleet_tags()`` returns the hardcoded
+    ``_DEFAULT_ROOT_TAGS`` tuple verbatim.
+    """
+    missing = tmp_path / "does-not-exist" / "agent_roster.yml"
+    mod = _load_core_with_roster(missing, monkeypatch)
+
+    assert mod.ROOT_TAGS == mod._DEFAULT_ROOT_TAGS
+    assert mod.ROOT_TAGS == ("claude", "cursor", "gemini", "codex", "antigravity")
