@@ -594,3 +594,45 @@ EOF
     assert_success
     assert_output --partial "Beta CLI not installed (optional)"
 }
+
+@test "total roster-parse failure falls back to the 5 historical hardcoded agents, not 0/0" {
+    # Reproduce the reviewer's exact total-failure scenario: MANIFEST_AGENT_ROSTER
+    # points at a file that exists but is garbage -- it fails BOTH the
+    # python3+PyYAML parse (yaml.safe_load succeeds but yields a bare string,
+    # not a dict, so data.get("agents") raises and is swallowed) AND the awk
+    # fallback parse (no "^agents:" line for it to key off of) -- combined
+    # with this suite's already-restricted PATH (MOCK_BIN:/usr/bin:/bin, whose
+    # /usr/bin/python3 has no PyYAML -- see setup()). Before agent_roster.yml
+    # existed, this script always reported the true state of the 5 hardcoded
+    # agents; a bare roster-read failure must not regress that to "0/0".
+    cat > "$TEST_DIR/agent_roster.yml" << 'EOF'
+this is not a valid agent roster file at all
+EOF
+    export MANIFEST_AGENT_ROSTER="$TEST_DIR/agent_roster.yml"
+
+    make_mock_cli claude
+    make_mock_cli gemini
+    write_services_yml true true false false
+
+    run bash "$SCRIPT_UNDER_TEST"
+    assert_success
+
+    # Denominator is the 5 historical agents, not 0 -- proves the third
+    # fallback tier populated ROSTER_NAMES instead of leaving it empty.
+    assert_output --partial "Enabled Services (2/5):"
+    refute_output --partial "Enabled Services (0/0)"
+    refute_output --partial "Claude (disabled)"
+    refute_output --partial "Gemini (disabled)"
+    assert_output --partial "Cursor (disabled)"
+    assert_output --partial "Codex (disabled)"
+    assert_output --partial "Antigravity (disabled)"
+
+    # CLI Tools section reflects real installed state, not an empty roster.
+    assert_output --partial "Claude CLI installed"
+    assert_output --partial "Gemini CLI installed"
+
+    # services.yml's real enabled state (claude+gemini) drives a real "ready"
+    # verdict -- not the false "no agents available" the bug produced.
+    assert_output --partial "System ready for parallel orchestration (2 agents available)"
+    refute_output --partial "System not operational (no agents available)"
+}

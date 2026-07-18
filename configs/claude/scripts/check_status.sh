@@ -211,6 +211,24 @@ while IFS=$'\t' read -r r_name r_binary r_auth; do
     ROSTER_AUTH_CHECKS+=("$r_auth")
 done < <(load_agent_roster_tsv)
 
+# Third tier: both the python3+PyYAML parse AND the awk fallback above produced
+# nothing -- missing/corrupted agent_roster.yml, or a bad MANIFEST_AGENT_ROSTER
+# override pointing nowhere. Before agent_roster.yml existed (Task 26) this
+# script always reported the true state of these 5 hardcoded agents regardless
+# of any file being present; without this tier a totally-unreadable roster
+# silently collapses to "Enabled Services (0/0)" / "System not operational" even
+# when services.yml has real agents enabled -- a regression, not the intended
+# failure mode. Mirrors reconcile_core.py's load_fleet_tags() _DEFAULT_ROOT_TAGS
+# fallback for this same file. Values match the *) case-dispatch defaults in
+# agent_installed_msg/agent_not_installed_msg/agent_install_hint below and
+# agent_roster.yml's own committed content -- one source of truth, not a
+# fourth independent set of values.
+if [[ ${#ROSTER_NAMES[@]} -eq 0 ]]; then
+    ROSTER_NAMES=(claude gemini cursor codex antigravity)
+    ROSTER_BINARIES=(claude gemini cursor-agent codex agy)
+    ROSTER_AUTH_CHECKS=("claude auth status" "gemini auth status" "cursor-agent --version" "codex login status" "agy models")
+fi
+
 # roster_binary/roster_auth_check NAME -> field for NAME (empty if not
 # found). Linear scan over the parallel arrays above (bash 3.2-safe).
 roster_binary() {
