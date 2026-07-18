@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
-"""Distill SKILL.md candidates from ingested sessions via `claude -p` (Max-backed).
+"""Distill SKILL.md candidates from ingested sessions via a headless LLM CLI.
 
 Replaces the retired `skillclaw evolve` binary. Map-reduces sessions through the
-headless Claude CLI: chunks that exceed the token budget are distilled
-independently (map), then merged (reduce). No proxy, no API key.
+LLM CLI named by `EVOLVE_CLI` (default `claude`, Max-backed): chunks that exceed
+the token budget are distilled independently (map), then merged (reduce). No
+proxy, no API key. The CLI is a swappable seam; the session source
+(~/.claude/projects/**/*.jsonl transcripts) is not — see subprocess_runner().
 
 Usage:
     skillclaw_evolve.py <sessions_dir> <evolved_dir> [--template FILE]
@@ -120,21 +122,31 @@ def _chunk_timeout() -> int:
 
 
 def subprocess_runner(prompt: str) -> str:
-    """Default runner: invoke headless `claude -p` (Max-backed).
+    """Default runner: invoke headless `"${EVOLVE_CLI}" -p` (Max-backed).
+
+    The CLI binary is a role-named, injectable seam (llm-invoke-stdin pattern):
+    `EVOLVE_CLI` env var, defaulting to `claude`. Swapping vendors (e.g.
+    claude -> gemini) is a one-line env-var change; no code edit required.
+    This seam covers the LLM invocation ONLY — the session data this prompt is
+    built from (~/.claude/projects/**/*.jsonl, ingested by skillclaw_ingest.py)
+    is Claude Code transcript format and is claude-specific by design, not
+    part of this seam.
 
     The prompt is fed via stdin, not as an argv argument, so large transcript
     windows (a chunk can approach token_budget * 4 chars) never hit the OS
-    ARG_MAX "Argument list too long" limit (1 MB on macOS). `claude -p` reads the
-    prompt from stdin when no positional prompt is given.
+    ARG_MAX "Argument list too long" limit (1 MB on macOS). The CLI reads the
+    prompt from stdin when no positional prompt is given (true of `claude -p`;
+    verify equivalent stdin behavior before swapping to another vendor's CLI).
 
     Bounded by a per-chunk timeout so a hung CLI can never block evolve
     forever; a timeout raises the same RuntimeError shape as a non-zero exit,
     so promote.sh's existing fail-continue path applies.
     """
+    cli = os.environ.get("EVOLVE_CLI", "claude")
     timeout = _chunk_timeout()
     try:
         proc = subprocess.run(
-            ["claude", "-p"],
+            [cli, "-p"],
             input=prompt,
             capture_output=True,
             text=True,
@@ -142,10 +154,10 @@ def subprocess_runner(prompt: str) -> str:
         )
     except subprocess.TimeoutExpired as e:
         raise RuntimeError(
-            f"claude -p timed out after {timeout}s (chunk abandoned)"
+            f"{cli} -p timed out after {timeout}s (chunk abandoned)"
         ) from e
     if proc.returncode != 0:
-        raise RuntimeError(f"claude -p failed: {proc.stderr.strip()}")
+        raise RuntimeError(f"{cli} -p failed: {proc.stderr.strip()}")
     return proc.stdout
 
 

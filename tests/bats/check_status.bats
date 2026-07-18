@@ -42,6 +42,7 @@ EOF
     unset OPENAI_API_KEY CODEX_HOME
     unset MANIFEST_STATE_ROOT MANIFEST_TMP_DIR
     unset CLAUDE_STATE_DIR GEMINI_STATE_DIR CURSOR_STATE_DIR CODEX_STATE_DIR ANTIGRAVITY_STATE_DIR
+    unset MANIFEST_AGENT_ROSTER
 }
 
 teardown() {
@@ -471,4 +472,167 @@ EOF
     assert_success
     assert_output --partial "unverified"
     refute_output --partial "Model pin check complete (stale pins above, if any)"
+}
+
+# ---------------------------------------------------------------------------
+# agent_roster.yml-driven enumeration (Task 26): Enabled Services and CLI
+# Tools are derived from the registry, not a hardcoded 5-agent list.
+# Mirrors the acceptance-test pattern from
+# tests/python/test_reconcile_policy.py::test_sixth_agent_extends_fleet_via_config_only
+# -- a synthetic 6th agent added ONLY to a fresh, env-var-pointed roster
+# fixture (never the real registry) must be picked up with zero changes to
+# check_status.sh.
+# ---------------------------------------------------------------------------
+
+write_sixth_agent_roster() {
+    cat > "$TEST_DIR/agent_roster.yml" << 'EOF'
+agents:
+  claude:
+    name: claude
+    binary: claude
+    home_dir: ~/.claude
+    prompt_args: ["-p", "{prompt}"]
+    model_args: ["--model", "{model}"]
+    auth_check: "claude auth status"
+    enabled_default: true
+  gemini:
+    name: gemini
+    binary: gemini
+    home_dir: ~/.gemini
+    prompt_args: ["-p", "{prompt}"]
+    model_args: ["-m", "{model}"]
+    auth_check: "gemini auth status"
+    enabled_default: true
+  cursor:
+    name: cursor
+    binary: cursor-agent
+    home_dir: ~/.cursor
+    prompt_args: ["{prompt}"]
+    model_args: ["--model", "{model}"]
+    auth_check: "cursor-agent --version"
+    enabled_default: true
+  codex:
+    name: codex
+    binary: codex
+    home_dir: ~/.codex
+    prompt_args: ["{prompt}"]
+    model_args: ["--model", "{model}"]
+    auth_check: "codex login status"
+    enabled_default: true
+  antigravity:
+    name: antigravity
+    binary: agy
+    home_dir: ~/.antigravity
+    prompt_args: ["--print", "{prompt}"]
+    model_args: ["--model", "{model}"]
+    auth_check: "agy models"
+    enabled_default: true
+  beta:
+    name: beta
+    binary: beta-agent
+    home_dir: ~/.beta
+    prompt_args: ["{prompt}"]
+    model_args: ["--model", "{model}"]
+    auth_check: "beta-agent --version"
+    enabled_default: true
+EOF
+}
+
+@test "6th roster-only agent is picked up by the Enabled Services count without a script edit" {
+    write_sixth_agent_roster
+    # services.yml also needs a "beta" block -- write_services_yml only knows
+    # the 5 historical agents, so this test writes it directly.
+    cat > "$HOME/.claude/config/services.yml" << 'EOF'
+services:
+  claude:
+    enabled: false
+  gemini:
+    enabled: false
+  cursor:
+    enabled: false
+  codex:
+    enabled: false
+  antigravity:
+    enabled: false
+  graphify:
+    enabled: false
+  beta:
+    enabled: true
+EOF
+    export MANIFEST_AGENT_ROSTER="$TEST_DIR/agent_roster.yml"
+    run bash "$SCRIPT_UNDER_TEST"
+    assert_success
+    # 6 agents now enumerated (5 historical + beta), 1 enabled -- the
+    # denominator itself proves the roster (not a hardcoded 5) drove the count.
+    assert_output --partial "Enabled Services (1/6):"
+    assert_output --partial "Beta"
+    refute_output --partial "Beta (disabled)"
+}
+
+@test "6th roster-only agent is picked up by the CLI Tools check without a script edit" {
+    write_sixth_agent_roster
+    cat > "$MOCK_BIN/beta-agent" << 'EOF'
+#!/bin/bash
+case "$1" in
+    --version) echo "beta-agent 1.0.0-mock"; exit 0 ;;
+    *) exit 0 ;;
+esac
+EOF
+    chmod +x "$MOCK_BIN/beta-agent"
+    write_services_yml true false false false
+    export MANIFEST_AGENT_ROSTER="$TEST_DIR/agent_roster.yml"
+    run bash "$SCRIPT_UNDER_TEST"
+    assert_success
+    assert_output --partial "Beta CLI installed"
+}
+
+@test "6th roster-only agent without its binary installed reports not-installed, not a crash" {
+    write_sixth_agent_roster
+    write_services_yml false false false false
+    export MANIFEST_AGENT_ROSTER="$TEST_DIR/agent_roster.yml"
+    run bash "$SCRIPT_UNDER_TEST"
+    assert_success
+    assert_output --partial "Beta CLI not installed (optional)"
+}
+
+@test "total roster-parse failure falls back to the 5 historical hardcoded agents, not 0/0" {
+    # Reproduce the reviewer's exact total-failure scenario: MANIFEST_AGENT_ROSTER
+    # points at a file that exists but is garbage -- it fails BOTH the
+    # python3+PyYAML parse (yaml.safe_load succeeds but yields a bare string,
+    # not a dict, so data.get("agents") raises and is swallowed) AND the awk
+    # fallback parse (no "^agents:" line for it to key off of) -- combined
+    # with this suite's already-restricted PATH (MOCK_BIN:/usr/bin:/bin, whose
+    # /usr/bin/python3 has no PyYAML -- see setup()). Before agent_roster.yml
+    # existed, this script always reported the true state of the 5 hardcoded
+    # agents; a bare roster-read failure must not regress that to "0/0".
+    cat > "$TEST_DIR/agent_roster.yml" << 'EOF'
+this is not a valid agent roster file at all
+EOF
+    export MANIFEST_AGENT_ROSTER="$TEST_DIR/agent_roster.yml"
+
+    make_mock_cli claude
+    make_mock_cli gemini
+    write_services_yml true true false false
+
+    run bash "$SCRIPT_UNDER_TEST"
+    assert_success
+
+    # Denominator is the 5 historical agents, not 0 -- proves the third
+    # fallback tier populated ROSTER_NAMES instead of leaving it empty.
+    assert_output --partial "Enabled Services (2/5):"
+    refute_output --partial "Enabled Services (0/0)"
+    refute_output --partial "Claude (disabled)"
+    refute_output --partial "Gemini (disabled)"
+    assert_output --partial "Cursor (disabled)"
+    assert_output --partial "Codex (disabled)"
+    assert_output --partial "Antigravity (disabled)"
+
+    # CLI Tools section reflects real installed state, not an empty roster.
+    assert_output --partial "Claude CLI installed"
+    assert_output --partial "Gemini CLI installed"
+
+    # services.yml's real enabled state (claude+gemini) drives a real "ready"
+    # verdict -- not the false "no agents available" the bug produced.
+    assert_output --partial "System ready for parallel orchestration (2 agents available)"
+    refute_output --partial "System not operational (no agents available)"
 }

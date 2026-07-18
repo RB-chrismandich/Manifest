@@ -9,6 +9,16 @@ close, or hold.
 Bots over-produce: duplicate one-line changes across many PRs, overstate in marketing-prose bodies, and over-generalize
 narrow changes into blanket policy. Judge the diff, not the title.
 
+Bot identities live in `configs/claude/config/review_bots.yml`, not hardcoded
+here: for each bot in the registry with `role: author` (currently `palette`,
+`bolt`) or `role: reviewer` (`copilot`, `jules`, when it opens a sibling PR),
+identify its PRs per the entry's `identified_by` field — `author_login` for
+copilot/jules (real bot accounts), `title_prefix`/`branch_prefix` for
+palette/bolt (Jules personas with no distinct GitHub identity — see the
+registry's notes for the verification evidence). Read the registry rather
+than re-deriving these facts; add a bot by editing the registry, not this
+skill.
+
 1. **Inventory and group by touched file/region.** `gh pr list --state open --json
    number,title,headRefName,author,additions,changedFiles`, then `gh pr diff <n>` for each.
 2. **Detect exact duplicates by blob, not by eyeball.** Compare the changed-blob hash across PRs (`gh pr diff` / `git

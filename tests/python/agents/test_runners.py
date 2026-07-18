@@ -19,7 +19,10 @@ from agents.runners import BaseAgent, CLIAgent
 
 
 def _make_config(tmp_path):
-    return Config(config_path=str(tmp_path / "none.yml"))
+    return Config(
+        config_path=str(tmp_path / "none.yml"),
+        roster_path=str(tmp_path / "agent_roster.yml"),
+    )
 
 
 def _make_limiter():

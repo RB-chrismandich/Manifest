@@ -11,6 +11,22 @@ privileged trigger runs in base-repo context. Apply this whenever a `.github/wor
 `.gitlab-ci.yml`) fires on events an outsider can influence, or exposes `secrets.*`. To *build or lock down*
 such a workflow (CODEOWNERS, branch protection, environments), use `ci-harden-workflow`.
 
+### Step 0: Detect platform
+
+Run `~/.claude/scripts/ci_platform.sh`. The shared audit method below (classify
+trigger trust → enumerate attacker-controlled inputs → trace the ref/code the job
+operates on → hunt injection → audit secret reach → check cheap hardening) applies on
+either platform — only the vocabulary changes:
+
+- `github-actions` → the trigger/variable/injection vocabulary in steps 1-9 below
+  applies as written.
+- `gitlab-ci` → load `references/gitlab-ci-triggers.md` for the real GitLab
+  equivalents (pipelines for merge requests from forks, `CI_MERGE_REQUEST_*`
+  variables, `$[[ inputs.* ]]` interpolation, protected variables/branches in place of
+  `author_association`) and apply the same method through that vocabulary instead.
+- `none` → report that no CI configuration was detected and stop; don't guess at a
+  platform or improvise generic advice.
+
 1. **Classify the trigger's trust level.** `pull_request_target`, `issue_comment`, `issues`, `workflow_run`,
    and `discussion_comment` run with the **base repo's secrets and a writable token**, and are reachable by
    untrusted actors (any commenter, any fork-PR author). Plain `pull_request` from a fork runs **without**

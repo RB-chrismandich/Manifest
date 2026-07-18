@@ -196,6 +196,26 @@ make_clean_bin() {
     assert_output --partial "STUB:glab:mr update 99 --description Closes #17"
 }
 
+@test "routes pr-edit to glab mr update (--base → --target-branch) on GitLab" {
+    cd "$TEST_REPO" || return 1
+    git remote set-url origin "https://gitlab.com/user/repo.git"
+    create_stub "glab"
+    run bash "$SCRIPT_UNDER_TEST" pr-edit 99 --base main
+    assert_success
+    assert_output --partial "STUB:glab:mr update 99 --target-branch main"
+    refute_output --partial "--base main"
+}
+
+@test "routes pr-edit to glab mr update (--base=main → --target-branch main) on GitLab" {
+    cd "$TEST_REPO" || return 1
+    git remote set-url origin "https://gitlab.com/user/repo.git"
+    create_stub "glab"
+    run bash "$SCRIPT_UNDER_TEST" pr-edit 99 --base=main
+    assert_success
+    assert_output --partial "STUB:glab:mr update 99 --target-branch main"
+    refute_output --partial "--base=main"
+}
+
 @test "routes issue-comment to glab issue note on GitLab" {
     cd "$TEST_REPO" || return 1
     git remote set-url origin "https://gitlab.com/user/repo.git"
@@ -320,4 +340,253 @@ make_clean_bin() {
     run bash "$SCRIPT_UNDER_TEST" issue-comment 42 "hello world"
     assert_success
     assert_output --partial "STUB:glab:issue note 42 --message hello world"
+}
+
+# --- pr-close / pr-comment / pr-comments (Task 13) ---
+
+@test "routes pr-close to gh pr close" {
+    cd "$TEST_REPO" || return 1
+    create_stub "gh"
+    run bash "$SCRIPT_UNDER_TEST" pr-close 42
+    assert_success
+    assert_output --partial "STUB:gh:pr close 42"
+}
+
+@test "routes pr-comment to gh pr comment" {
+    cd "$TEST_REPO" || return 1
+    create_stub "gh"
+    run bash "$SCRIPT_UNDER_TEST" pr-comment 42 --body "Hello"
+    assert_success
+    assert_output --partial "STUB:gh:pr comment 42 --body Hello"
+}
+
+@test "pr-comment: positional body is normalized to --body (github)" {
+    cd "$TEST_REPO" || return 1
+    create_stub "gh"
+    run bash "$SCRIPT_UNDER_TEST" pr-comment 42 "hello world"
+    assert_success
+    assert_output --partial "STUB:gh:pr comment 42 --body hello world"
+}
+
+@test "routes pr-comments to gh api repos/{owner}/{repo}/pulls/N/comments" {
+    cd "$TEST_REPO" || return 1
+    create_stub "gh"
+    run bash "$SCRIPT_UNDER_TEST" pr-comments 42
+    assert_success
+    assert_output --partial "STUB:gh:api repos/{owner}/{repo}/pulls/42/comments --jq"
+}
+
+@test "routes pr-close to glab mr close on GitLab" {
+    cd "$TEST_REPO" || return 1
+    git remote set-url origin "https://gitlab.com/user/repo.git"
+    create_stub "glab"
+    run bash "$SCRIPT_UNDER_TEST" pr-close 42
+    assert_success
+    assert_output --partial "STUB:glab:mr close 42"
+}
+
+@test "routes pr-comment to glab mr note on GitLab" {
+    cd "$TEST_REPO" || return 1
+    git remote set-url origin "https://gitlab.com/user/repo.git"
+    create_stub "glab"
+    run bash "$SCRIPT_UNDER_TEST" pr-comment 42 --message "Hello"
+    assert_success
+    assert_output --partial "STUB:glab:mr note 42 --message Hello"
+}
+
+@test "pr-comment: positional body is normalized to --message (gitlab)" {
+    cd "$TEST_REPO" || return 1
+    create_stub "glab"
+    export MANIFEST_GIT_PLATFORM=gitlab
+    run bash "$SCRIPT_UNDER_TEST" pr-comment 42 "hello world"
+    assert_success
+    assert_output --partial "STUB:glab:mr note 42 --message hello world"
+}
+
+@test "routes pr-comments to glab api projects/:id/merge_requests/N/discussions on GitLab" {
+    cd "$TEST_REPO" || return 1
+    git remote set-url origin "https://gitlab.com/user/repo.git"
+    create_stub "glab"
+    run bash "$SCRIPT_UNDER_TEST" pr-comments 42
+    assert_success
+    assert_output --partial "STUB:glab:api projects/:id/merge_requests/42/discussions --jq"
+}
+
+@test "pr-comments (gitlab): jq filter extracts inline diff comments and excludes non-inline/system notes" {
+    cd "$TEST_REPO" || return 1
+    git remote set-url origin "https://gitlab.com/user/repo.git"
+
+    # Discussions-API-shaped fixture (docs.gitlab.com/api/discussions/):
+    # disc1 = an inline DiffNote (has .position -> must be included);
+    # disc2 = a general MR-level discussion note (no .position -> excluded);
+    # disc3 = a system note (system:true -> excluded even though it lacks
+    # position too, proving both filters are exercised independently).
+    DISCUSSIONS_FIXTURE="$BATS_TMPDIR/discussions_fixture.json"
+    cat > "$DISCUSSIONS_FIXTURE" << 'FIXTURE'
+[
+  {
+    "id": "disc1",
+    "notes": [
+      {
+        "id": 1128,
+        "type": "DiffNote",
+        "body": "inline diff comment",
+        "system": false,
+        "author": {"id": 1, "username": "root"},
+        "position": {
+          "old_path": "package.json",
+          "new_path": "package.json",
+          "old_line": 27,
+          "new_line": 27
+        }
+      }
+    ]
+  },
+  {
+    "id": "disc2",
+    "notes": [
+      {
+        "id": 1129,
+        "type": null,
+        "body": "general MR-level discussion, not inline",
+        "system": false,
+        "author": {"id": 2, "username": "jane"}
+      }
+    ]
+  },
+  {
+    "id": "disc3",
+    "notes": [
+      {
+        "id": 1130,
+        "type": null,
+        "body": "changed the description",
+        "system": true,
+        "author": {"id": 3, "username": "bot"}
+      }
+    ]
+  }
+]
+FIXTURE
+    export DISCUSSIONS_FIXTURE
+
+    # Stub that behaves like `glab api ... --jq FILTER`: apply the real jq
+    # filter the script passes against our fixture, so the test exercises
+    # the actual --jq expression rather than just asserting the call shape.
+    cat > "$MOCK_BIN/glab" << 'STUB'
+#!/usr/bin/env bash
+if [[ "$1" == "api" && "$3" == "--jq" ]]; then
+    jq "$4" "$DISCUSSIONS_FIXTURE"
+else
+    echo "STUB:glab:$*"
+fi
+STUB
+    chmod +x "$MOCK_BIN/glab"
+
+    run bash "$SCRIPT_UNDER_TEST" pr-comments 42
+    assert_success
+    parsed=$(echo "$output" | jq -c '.')
+    [ "$(echo "$parsed" | jq 'length')" -eq 1 ]
+    [ "$(echo "$parsed" | jq -r '.[0].id')" = "1128" ]
+    [ "$(echo "$parsed" | jq -r '.[0].author')" = "root" ]
+    [ "$(echo "$parsed" | jq -r '.[0].path')" = "package.json" ]
+    [ "$(echo "$parsed" | jq -r '.[0].line')" = "27" ]
+    [ "$(echo "$parsed" | jq -r '.[0].body')" = "inline diff comment" ]
+}
+
+# --- pr-reopen / pr-update-branch / repo-admin-check / branch-protection / commit-checks (Task 15) ---
+
+@test "pr-close --comment translates to glab mr note + mr close on GitLab" {
+    cd "$TEST_REPO" || return 1
+    git remote set-url origin "https://gitlab.com/user/repo.git"
+    create_stub "glab"
+    run bash "$SCRIPT_UNDER_TEST" pr-close 42 --comment "Closing as stale"
+    assert_success
+    assert_output --partial "STUB:glab:mr note 42 --message Closing as stale"
+    assert_output --partial "STUB:glab:mr close 42"
+}
+
+@test "routes pr-reopen to gh pr reopen" {
+    cd "$TEST_REPO" || return 1
+    create_stub "gh"
+    run bash "$SCRIPT_UNDER_TEST" pr-reopen 42
+    assert_success
+    assert_output --partial "STUB:gh:pr reopen 42"
+}
+
+@test "routes pr-reopen to glab mr reopen on GitLab" {
+    cd "$TEST_REPO" || return 1
+    git remote set-url origin "https://gitlab.com/user/repo.git"
+    create_stub "glab"
+    run bash "$SCRIPT_UNDER_TEST" pr-reopen 42
+    assert_success
+    assert_output --partial "STUB:glab:mr reopen 42"
+}
+
+@test "routes pr-update-branch to gh pr update-branch" {
+    cd "$TEST_REPO" || return 1
+    create_stub "gh"
+    run bash "$SCRIPT_UNDER_TEST" pr-update-branch 42
+    assert_success
+    assert_output --partial "STUB:gh:pr update-branch 42"
+}
+
+@test "routes pr-update-branch to glab merge_requests rebase on GitLab" {
+    cd "$TEST_REPO" || return 1
+    git remote set-url origin "https://gitlab.com/user/repo.git"
+    create_stub "glab"
+    run bash "$SCRIPT_UNDER_TEST" pr-update-branch 42
+    assert_success
+    assert_output --partial "STUB:glab:api projects/:id/merge_requests/42/rebase -X PUT"
+}
+
+@test "routes repo-admin-check to gh api repos/{owner}/{repo}" {
+    cd "$TEST_REPO" || return 1
+    create_stub "gh"
+    run bash "$SCRIPT_UNDER_TEST" repo-admin-check
+    assert_success
+    assert_output --partial "STUB:gh:api repos/{owner}/{repo} -q .permissions.admin"
+}
+
+@test "routes repo-admin-check to glab api projects/:id on GitLab" {
+    cd "$TEST_REPO" || return 1
+    git remote set-url origin "https://gitlab.com/user/repo.git"
+    create_stub "glab"
+    run bash "$SCRIPT_UNDER_TEST" repo-admin-check
+    assert_success
+    assert_output --partial "STUB:glab:api projects/:id --jq"
+}
+
+@test "routes branch-protection to gh api branches/main/protection" {
+    cd "$TEST_REPO" || return 1
+    create_stub "gh"
+    run bash "$SCRIPT_UNDER_TEST" branch-protection
+    assert_success
+    assert_output --partial "STUB:gh:api repos/{owner}/{repo}/branches/main/protection -q"
+}
+
+@test "branch-protection has no GitLab equivalent (github-only, fails loud)" {
+    cd "$TEST_REPO" || return 1
+    git remote set-url origin "https://gitlab.com/user/repo.git"
+    create_stub "glab"
+    run bash "$SCRIPT_UNDER_TEST" branch-protection
+    assert_failure
+    assert_output --partial "no GitLab equivalent"
+}
+
+@test "routes commit-checks to gh api commits/SHA/check-runs" {
+    cd "$TEST_REPO" || return 1
+    create_stub "gh"
+    run bash "$SCRIPT_UNDER_TEST" commit-checks abc123
+    assert_success
+    assert_output --partial "STUB:gh:api repos/{owner}/{repo}/commits/abc123/check-runs -q"
+}
+
+@test "routes commit-checks to glab api repository/commits/SHA/statuses on GitLab" {
+    cd "$TEST_REPO" || return 1
+    git remote set-url origin "https://gitlab.com/user/repo.git"
+    create_stub "glab"
+    run bash "$SCRIPT_UNDER_TEST" commit-checks abc123
+    assert_success
+    assert_output --partial "STUB:glab:api projects/:id/repository/commits/abc123/statuses --jq"
 }

@@ -1,11 +1,12 @@
 ---
 name: issue-triage
-description: "Comprehensive Linear issue audit: validate prioritization, identify duplicates and overlapping issues, detect stale/obsolete issues, produce clean actionable backlog"
+description: "Comprehensive issue audit for the configured tracker (GitHub, GitLab, Linear, or Jira): validate prioritization, identify duplicates and overlapping issues, detect stale/obsolete issues, produce clean actionable backlog"
 ---
 
-# Linear Issue Triage Skill
+# Issue Triage Skill
 
-Automated Linear issue backlog management with duplicate detection, staleness analysis, and priority validation.
+Automated issue backlog management for the configured tracker (GitHub, GitLab, Linear, or
+Jira) with duplicate detection, staleness analysis, and priority validation.
 
 ## Purpose
 
@@ -26,18 +27,22 @@ This skill performs comprehensive issue triage by:
 | Argument | Description | Default |
 |----------|-------------|---------|
 | `--dry-run` | Analysis only, no mutations | false |
-| `--close-stale` | Auto-cancel stale issues (requires explicit flag) | false |
-| `--team TEAM` | Filter by team key (e.g., "ENG", "PRODUCT") | all teams |
+| `--close-stale` | Auto-close stale issues (requires explicit flag) | false |
+| `--team TEAM` | Filter by team key (e.g., "ENG", "PRODUCT") — linear only; other providers filter by label/milestone instead | all teams |
 | `--priority N` | Filter by priority (0-4) | all priorities |
 | `--limit N` | Max issues to analyze | 500 |
 
 ## Prerequisites
 
-1. **Linear MCP configured** in `~/.claude/config/mcp_servers.yml` OR
-2. **Linear API key** in `~/.config/linear/token`
-3. **Tools installed**: `jq`, `python3`
-4. **Scripts available**: `~/.claude/scripts/linear_ops.sh`, `~/.claude/scripts/parallel_agent.py`
-5. **Config loaded**: `~/.claude/config/linear_triage.yml`
+1. **Tracker authentication** — per provider (resolved via `tracker_ops.sh resolve-provider`):
+   - `linear`: `LINEAR_API_KEY` env var or `~/.config/linear/token`
+   - `github` / `gitlab`: `gh` / `glab` CLI authenticated
+   - `jira`: Atlassian MCP configured (jira is MCP-only — `tracker_ops.sh` exits 3 for any jira verb in
+     shell context; run jira triage from agent context and call the Atlassian MCP tools directly instead
+     of shelling out)
+2. **Tools installed**: `jq`, `python3`
+3. **Scripts available**: `~/.claude/scripts/tracker_ops.sh`, `~/.claude/scripts/parallel_agent.py`
+4. **Config loaded**: `~/.claude/config/tracker_triage.yml`
 
 ## Workflow
 
@@ -45,12 +50,13 @@ The full step-by-step workflow — including the exact scripts to run at each st
 
 1. Step 1: Load Configuration
 2. Step 2: Fetch Issues
-3. Step 3: Parse and Classify Issues
-4. Step 4: Duplicate Detection
-5. Step 5: Staleness Detection
-6. Step 6: Priority Validation
-7. Step 7: Generate Recommendations
-8. Step 8: Execute Actions
+3. Step 3: Normalize to Common Schema
+4. Step 4: Extract Components
+5. Step 5: Duplicate Detection
+6. Step 6: Staleness Detection
+7. Step 7: Priority Validation
+8. Step 8: Generate Recommendations
+9. Step 9: Execute Actions
 
 ## Safety Rules
 
@@ -77,12 +83,12 @@ if ! command -v python3 &> /dev/null; then
     exit 1
 fi
 
-if [[ ! -x ~/.claude/scripts/linear_ops.sh ]]; then
-    echo "Error: linear_ops.sh not found or not executable" >&2
+if [[ ! -x ~/.claude/scripts/tracker_ops.sh ]]; then
+    echo "Error: tracker_ops.sh not found or not executable" >&2
     exit 1
 fi
 
-if [[ ! -f ~/.claude/config/linear_triage.yml ]]; then
+if [[ ! -f ~/.claude/config/tracker_triage.yml ]]; then
     echo "Error: Configuration file not found" >&2
     exit 1
 fi

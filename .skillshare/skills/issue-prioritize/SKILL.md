@@ -1,16 +1,17 @@
 ---
 name: issue-prioritize
-description: Fetch open issues from GitHub, GitLab, or Linear, score them by impact/urgency/readiness/risk, and recommend the top issues to address next. Analysis-only — no mutations.
+description: Fetch open issues from GitHub, GitLab, Linear, or Jira, score them by impact/urgency/readiness/risk, and recommend the top issues to address next. Analysis-only — no mutations.
 ---
 
 # Issue Prioritization Skill
 
 Fetch open issues, score them using a weighted formula, and produce a ranked prioritization
-report. Works with GitHub, GitLab, and Linear. **Read-only** — never modifies issues or files.
+report. Works with GitHub, GitLab, Linear, and Jira (agent-context only, via MCP).
+**Read-only** — never modifies issues or files.
 
 ## Purpose
 
-1. Fetch open issues from the detected (or specified) platform
+1. Fetch open issues from the detected (or specified) provider
 2. Filter to issues with the `future` label by default (use `--all` for all open issues)
 3. Score each issue on Impact, Urgency, Readiness, and Risk (1–5 each)
 4. Rank by weighted formula with tiebreakers
@@ -20,7 +21,7 @@ report. Works with GitHub, GitLab, and Linear. **Read-only** — never modifies 
 ## Arguments
 
 ```bash
-/issue-prioritize [--repo OWNER/REPO] [--platform github|gitlab|linear]
+/issue-prioritize [--repo OWNER/REPO] [--provider github|gitlab|linear|jira]
                   [--team TEAM] [--limit N] [--top N]
                   [--label LABEL] [--all] [--project-context FILE]
 ```
@@ -28,7 +29,7 @@ report. Works with GitHub, GitLab, and Linear. **Read-only** — never modifies 
 | Argument | Description | Default |
 |----------|-------------|---------|
 | `--repo OWNER/REPO` | Target repository (GitHub/GitLab only) | current repo |
-| `--platform github\|gitlab\|linear` | Force platform | auto-detect |
+| `--provider github\|gitlab\|linear\|jira` | Force provider (default: auto-detect via `tracker_ops.sh`) | auto-detect |
 | `--team TEAM` | Linear team key filter | all teams |
 | `--limit N` | Max issues to fetch | 100 |
 | `--top N` | How many top issues to report | 5 |
@@ -38,15 +39,17 @@ report. Works with GitHub, GitLab, and Linear. **Read-only** — never modifies 
 
 ## Prerequisites
 
-1. **Platform CLI installed** — at least one of:
+1. **Provider CLI/access configured** — at least one of:
    - `gh` (GitHub CLI) — for GitHub repos
    - `glab` (GitLab CLI) — for GitLab repos
    - Linear MCP or API key — for Linear projects
+   - Atlassian MCP — for Jira projects (agent-context only; see note below)
 2. **Scripts available**:
-   - `~/.claude/scripts/git_platform.sh` — platform auto-detection
-   - `~/.claude/scripts/git_ops.sh` — platform-agnostic issue operations
-   - `~/.claude/scripts/linear_ops.sh` — Linear API wrapper
+   - `~/.claude/scripts/tracker_ops.sh` — provider-agnostic tracker operations (detection + verbs)
+   - `~/.claude/scripts/linear_ops.sh` — Linear API wrapper (invoked internally by `tracker_ops.sh` for the `linear` provider)
 3. **Tools**: `jq`, `python3`
+4. Jira is agent-context only (MCP); when `PROVIDER=jira`, fetch via the Atlassian MCP tools named
+   in `tracker_providers.yml` instead of `tracker_ops.sh` (which exits 3).
 
 ## Critical Rules
 
@@ -63,7 +66,7 @@ report. Works with GitHub, GitLab, and Linear. **Read-only** — never modifies 
 
 The full step-by-step workflow — including the exact scripts to run at each step — lives in [references/workflow.md](references/workflow.md). **Read that file and execute each step in order in one shell session** (later steps consume env vars and intermediate files set by earlier ones). Steps:
 
-1. Step 1: Detect Platform
+1. Step 1: Resolve Provider
 2. Step 2: Fetch Open Issues
 3. Step 3: Normalize
 4. Step 4: Heuristic Pre-Scoring
@@ -160,10 +163,13 @@ When scores are equal, prefer:
 /issue-prioritize --project-context docs/PROJECT_CONTEXT.md
 
 # Prioritize Linear issues for a specific team
-/issue-prioritize --platform linear --team ENG --top 10
+/issue-prioritize --provider linear --team ENG --top 10
 
 # GitLab repo prioritization
-/issue-prioritize --platform gitlab --repo mygroup/myproject
+/issue-prioritize --provider gitlab --repo mygroup/myproject
+
+# Prioritize Jira issues (agent-context only, fetched via the Atlassian MCP)
+/issue-prioritize --provider jira --top 10
 ```
 
 ## Output Format
@@ -179,7 +185,9 @@ in the repository. The report includes:
 ## Error Handling
 
 - **No issues found**: Report "No open issues found" and exit cleanly
-- **Platform CLI missing**: Error with install instructions
+- **Provider CLI/access missing**: `tracker_ops.sh` errors with install/config instructions
+- **`PROVIDER=jira` in shell context**: `tracker_ops.sh` exits 3 by design — fetch via the
+  Atlassian MCP instead (see Step 2 Jira note), not an error to report to the user
 - **Agent timeout**: Fall back to heuristic-only scores (Step 4)
 - **Agent parse failure**: Fall back to heuristic-only scores (Step 4)
 - **Empty body issues**: Score with defaults (readiness=2, risk=2)

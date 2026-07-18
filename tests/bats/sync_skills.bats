@@ -145,3 +145,126 @@ REAL_PATH="/usr/bin:/bin:/usr/sbin"
         assert_failure
     fi
 }
+
+# ---------------------------------------------------------------------------
+# agent_roster.yml-driven secondary targets: the secondary sync loop is
+# derived from agent_roster.yml's home_dir field, not a hardcoded 4-agent
+# list. Mirrors the acceptance-test pattern from
+# tests/bats/check_status.bats ("6th roster-only agent...without a script
+# edit") and tests/python/test_reconcile_policy.py::test_sixth_agent_extends_fleet_via_config_only
+# -- a synthetic 6th agent added ONLY to a fresh, env-var-pointed roster
+# fixture (never the real registry) must be picked up with zero changes to
+# sync-skills.sh.
+# ---------------------------------------------------------------------------
+
+@test "6th roster-only agent is picked up by the secondary sync loop without a script edit" {
+    cat > "$SANDBOX/agent_roster.yml" << 'EOF'
+agents:
+  claude:
+    name: claude
+    binary: claude
+    home_dir: ~/.claude
+    prompt_args: ["-p", "{prompt}"]
+    model_args: ["--model", "{model}"]
+    auth_check: "claude auth status"
+    enabled_default: true
+  gemini:
+    name: gemini
+    binary: gemini
+    home_dir: ~/.gemini
+    prompt_args: ["-p", "{prompt}"]
+    model_args: ["-m", "{model}"]
+    auth_check: "gemini auth status"
+    enabled_default: true
+  cursor:
+    name: cursor
+    binary: cursor-agent
+    home_dir: ~/.cursor
+    prompt_args: ["{prompt}"]
+    model_args: ["--model", "{model}"]
+    auth_check: "cursor-agent --version"
+    enabled_default: true
+  codex:
+    name: codex
+    binary: codex
+    home_dir: ~/.codex
+    prompt_args: ["{prompt}"]
+    model_args: ["--model", "{model}"]
+    auth_check: "codex login status"
+    enabled_default: true
+  antigravity:
+    name: antigravity
+    binary: agy
+    home_dir: ~/.antigravity
+    prompt_args: ["--print", "{prompt}"]
+    model_args: ["--model", "{model}"]
+    auth_check: "agy models"
+    enabled_default: true
+  beta:
+    name: beta
+    binary: beta-agent
+    home_dir: ~/.beta
+    prompt_args: ["{prompt}"]
+    model_args: ["--model", "{model}"]
+    auth_check: "beta-agent --version"
+    enabled_default: true
+EOF
+    export MANIFEST_AGENT_ROSTER="$SANDBOX/agent_roster.yml"
+    mkdir -p "$HOME/.beta/skills"
+    run bash "$SCRIPT"
+    assert_success
+    grep -q ".beta/skills" "$RSYNC_LOG"
+}
+
+@test "awk fallback parses the 6th agent's home_dir when python3 lacks PyYAML" {
+    # Restricted PATH excludes Homebrew (/usr/local/bin, /opt/homebrew/bin), so
+    # this resolves to the stock /usr/bin/python3 -- which has no PyYAML on
+    # macOS -- forcing the real awk fallback tier (mirrors check_status.bats's
+    # setup(), and the exact scenario load_agent_roster_home_dirs's `|| true`
+    # guard exists for: a failing python3 command substitution must not trip
+    # `set -euo pipefail` before the fallback ever runs).
+    cat > "$SANDBOX/agent_roster.yml" << 'EOF'
+agents:
+  claude:
+    name: claude
+    binary: claude
+    home_dir: ~/.claude
+    prompt_args: ["-p", "{prompt}"]
+    model_args: ["--model", "{model}"]
+    auth_check: "claude auth status"
+    enabled_default: true
+  beta:
+    name: beta
+    binary: beta-agent
+    home_dir: ~/.beta
+    prompt_args: ["{prompt}"]
+    model_args: ["--model", "{model}"]
+    auth_check: "beta-agent --version"
+    enabled_default: true
+EOF
+    export MANIFEST_AGENT_ROSTER="$SANDBOX/agent_roster.yml"
+    mkdir -p "$HOME/.beta/skills"
+    PATH="$MOCK_BIN:/usr/bin:/bin" run bash "$SCRIPT"
+    assert_success
+    grep -q ".beta/skills" "$RSYNC_LOG"
+}
+
+@test "claude never appears in the roster-derived secondary loop (no double-sync)" {
+    export MANIFEST_AGENT_ROSTER="$SANDBOX/agent_roster.yml"
+    cat > "$MANIFEST_AGENT_ROSTER" << 'EOF'
+agents:
+  claude:
+    name: claude
+    binary: claude
+    home_dir: ~/.claude
+    prompt_args: ["-p", "{prompt}"]
+    model_args: ["--model", "{model}"]
+    auth_check: "claude auth status"
+    enabled_default: true
+EOF
+    run bash "$SCRIPT"
+    assert_success
+    # Exactly one rsync invocation total: the primary ~/.claude/skills sync.
+    # If claude leaked into the secondary loop this would be 2.
+    [ "$(grep -c "rsync " "$RSYNC_LOG")" -eq 1 ]
+}

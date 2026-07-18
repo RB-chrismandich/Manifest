@@ -1,3 +1,7 @@
+# DEPRECATED: superseded by tracker_triage.yml (provider-neutral; covers
+# GitHub/GitLab/Linear/Jira). Kept in place for one release; scheduled for
+# deletion in Phase 2 cleanup. Do not add new references to this file.
+#
 # Linear Issue Triage Configuration
 # Controls thresholds, scoring formulas, and safety rules for automated issue management
 

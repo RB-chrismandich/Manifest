@@ -4,51 +4,33 @@ The complete step-by-step procedure for this skill. Execute each step in order i
 
 ## Contents
 
-- Step 1: Detect Platform
-- Step 2: Fetch Open Issues
-- Step 3: Normalize
-- Step 4: Heuristic Pre-Scoring
-- Step 5: Agent-Refined Scoring for Top Candidates
-- Step 6: Codebase Context Validation (Optional)
-- Step 7: Generate Report
-- Step 8: STOP
+- ### Step 1: Resolve Provider
+- ### Step 2: Fetch Open Issues
+- ### Step 3: Normalize
+- ### Step 4: Heuristic Pre-Scoring
+- ### Step 5: Agent-Refined Scoring for Top Candidates
+- ### Step 6: Codebase Context Validation (Optional)
+- ### Step 7: Generate Report
+- ### Step 8: STOP
 
 ## Workflow
 
-### Step 1: Detect Platform
+### Step 1: Resolve Provider
 
 ```bash
-# Auto-detect platform from git remote
-PLATFORM="${FORCED_PLATFORM:-$(~/.claude/scripts/git_platform.sh 2>/dev/null || echo "github")}"
-
-# Validate platform CLI is available
-case "$PLATFORM" in
-    github)
-        if ! command -v gh &>/dev/null; then
-            echo "Error: gh CLI required for GitHub. Install: brew install gh" >&2
-            exit 1
-        fi
-        ;;
-    gitlab)
-        if ! command -v glab &>/dev/null; then
-            echo "Error: glab CLI required for GitLab. Install: brew install glab" >&2
-            exit 1
-        fi
-        ;;
-    linear)
-        if [[ ! -x ~/.claude/scripts/linear_ops.sh ]]; then
-            echo "Error: linear_ops.sh not found" >&2
-            exit 1
-        fi
-        ;;
-esac
-
-echo "Platform detected: $PLATFORM"
+# Auto-detect provider via tracker_ops.sh (--provider > MANIFEST_TRACKER >
+# .manifest-tracker file > git remote > registry default_provider)
+PROVIDER="${FORCED_PROVIDER:-$(~/.claude/scripts/tracker_ops.sh resolve-provider)}"
+echo "Tracker provider: $PROVIDER"
 ```
+
+`tracker_ops.sh` validates that the provider's underlying CLI/engine is available and fails
+loudly (exit 1) if not, or exit 3 if the provider is MCP-only in shell context (jira).
 
 ### Step 2: Fetch Open Issues
 
-Fetch issues using the appropriate platform CLI. Normalize output to a common JSON schema.
+Fetch issues via `~/.claude/scripts/tracker_ops.sh --provider "$PROVIDER" issue-list …` (jira is
+the exception — see below). Normalize output to a common JSON schema.
 
 #### GitHub
 
@@ -59,7 +41,7 @@ REPO_FLAG=""
 LABEL_FLAG=""
 [[ "$FILTER_ALL" != true && -n "$FILTER_LABEL" ]] && LABEL_FLAG="--label $FILTER_LABEL"
 
-gh issue list --state open --limit "$LIMIT" \
+~/.claude/scripts/tracker_ops.sh --provider github issue-list --state open --limit "$LIMIT" \
     --json number,title,labels,createdAt,updatedAt,body,comments,assignees \
     $REPO_FLAG $LABEL_FLAG > "$TEMP_DIR/raw_issues.json"
 ```
@@ -73,7 +55,7 @@ REPO_FLAG=""
 LABEL_FLAG=""
 [[ "$FILTER_ALL" != true && -n "$FILTER_LABEL" ]] && LABEL_FLAG="--label $FILTER_LABEL"
 
-glab issue list --state opened --per-page "$LIMIT" \
+~/.claude/scripts/tracker_ops.sh --provider gitlab issue-list --state opened --per-page "$LIMIT" \
     --output-format json \
     $REPO_FLAG $LABEL_FLAG > "$TEMP_DIR/raw_issues.json"
 ```
@@ -87,26 +69,36 @@ TEAM_FLAG=""
 LABEL_FLAG=""
 [[ "$FILTER_ALL" != true && -n "$FILTER_LABEL" ]] && LABEL_FLAG="--label $FILTER_LABEL"
 
-~/.claude/scripts/linear_ops.sh issue-list \
+~/.claude/scripts/tracker_ops.sh --provider linear issue-list \
     --limit "$LIMIT" \
     --json $TEAM_FLAG $LABEL_FLAG > "$TEMP_DIR/raw_issues.json"
 ```
 
+#### Jira
+
+Jira is agent-context only (MCP) — `tracker_ops.sh` exits 3 for this provider. Instead, call the
+Atlassian MCP search tool directly (tool name resolved via
+`~/.claude/scripts/tracker_registry.py mcp-tool jira search`, currently `searchJiraIssuesUsingJql`)
+with a JQL query scoped to open issues, e.g. `project = "$JIRA_PROJECT" AND statusCategory != Done`
+plus `AND labels = "$FILTER_LABEL"` unless `--all` was passed. Extract the `issues` array from the
+MCP response (so `raw_issues.json` is a JSON list, consistent with the other providers) and save it
+to `$TEMP_DIR/raw_issues.json`.
+
 ### Step 3: Normalize
 
-Normalize all platform outputs to a common schema.
+Normalize all provider outputs to a common schema.
 
 Label filtering is handled at fetch time (Step 2) via `--label`. If `--all` is set,
 all open issues are fetched without a label filter.
 
 ```python
 #!/usr/bin/env python3
-"""Normalize issues from different platforms into a common schema."""
+"""Normalize issues from different providers into a common schema."""
 import json
 import sys
 from datetime import datetime, timezone
 
-platform = sys.argv[1]
+provider = sys.argv[1]  # invoke as: normalize.py "$PROVIDER" raw_issues.json
 
 with open(sys.argv[2]) as f:
     raw = json.load(f)
@@ -114,8 +106,9 @@ with open(sys.argv[2]) as f:
 issues = []
 
 for item in raw:
-    # Platform-specific field mapping
-    if platform == "github":
+    # Provider-specific field mapping. The output "platform" key name is kept
+    # for backward compatibility with the downstream scoring/report steps.
+    if provider == "github":
         labels = [l["name"] for l in item.get("labels", [])]
         issue = {
             "number": item["number"],
@@ -128,7 +121,7 @@ for item in raw:
             "comment_count": len(item.get("comments", [])),
             "platform": "github",
         }
-    elif platform == "gitlab":
+    elif provider == "gitlab":
         labels = item.get("labels", [])
         issue = {
             "number": item.get("iid", item.get("id")),
@@ -141,7 +134,7 @@ for item in raw:
             "comment_count": item.get("user_notes_count", 0),
             "platform": "gitlab",
         }
-    elif platform == "linear":
+    elif provider == "linear":
         labels = [l["name"] for l in item.get("labels", {}).get("nodes", [])]
         issue = {
             "number": item.get("identifier", item.get("number", "")),
@@ -153,6 +146,24 @@ for item in raw:
             "assignees": [],
             "comment_count": 0,
             "platform": "linear",
+        }
+    elif provider == "jira":
+        # searchJiraIssuesUsingJql result shape: {"key": "PROJ-123", "fields": {...}}.
+        # Jira's "key" is the human-facing identifier — mapped to "number" (not
+        # a new "id" field) so it flows unchanged through every downstream step
+        # (sort_key, heuristic scoring, report generation) that reads .number.
+        fields = item.get("fields", {})
+        assignee = fields.get("assignee") or {}
+        issue = {
+            "number": item.get("key", ""),
+            "title": fields.get("summary", ""),
+            "body": fields.get("description", ""),
+            "labels": fields.get("labels", []),
+            "created_at": fields.get("created", ""),
+            "updated_at": fields.get("updated", ""),
+            "assignees": [assignee["displayName"]] if assignee.get("displayName") else [],
+            "comment_count": 0,
+            "platform": "jira",
         }
     else:
         continue
@@ -486,7 +497,7 @@ Produce the final prioritization report in markdown format.
 # Variables set from earlier steps:
 # ISSUE_COUNT — total issues analyzed (after filtering)
 # TOP_N — number of top issues to show (default: 5)
-# PLATFORM — detected platform
+# PROVIDER — resolved tracker provider (Step 1)
 
 TOTAL_COUNT=$(jq 'length' "$TEMP_DIR/issues.json")
 REPORT_DATE=$(date -u +"%Y-%m-%d %H:%M UTC")
@@ -502,7 +513,7 @@ cat << REPORT_HEADER
 # Issue Prioritization Report
 
 **Generated**: $REPORT_DATE
-**Platform**: $PLATFORM
+**Provider**: $PROVIDER
 **Filter**: $LABEL_NOTE
 **Open Issues Analyzed**: $TOTAL_COUNT
 REPORT_HEADER

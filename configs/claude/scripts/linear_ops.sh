@@ -351,6 +351,93 @@ cmd_issue_view() {
     echo "$result" | jq -r '.data.issue'
 }
 
+# Subcommand: issue-create
+cmd_issue_create() {
+    local team=""
+    local title=""
+    local description=""
+    local priority=""
+    local state=""
+
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --team)
+                team="$2"
+                shift 2
+                ;;
+            --title)
+                title="$2"
+                shift 2
+                ;;
+            --description)
+                description="$2"
+                shift 2
+                ;;
+            --priority)
+                priority="$2"
+                shift 2
+                ;;
+            --state)
+                state="$2"
+                shift 2
+                ;;
+            *) error "Unknown option: $1" ;;
+        esac
+    done
+
+    [[ -z "$team" ]] && error "--team TEAM_KEY required"
+    [[ -z "$title" ]] && error "--title required"
+
+    local team_id
+    team_id=$(get_team_id "$team")
+    [[ -z "$team_id" ]] && error "Team not found: $team"
+
+    local input
+    input=$(jq -nc --arg title "$title" --arg teamId "$team_id" '{title: $title, teamId: $teamId}')
+
+    if [[ -n "$description" ]]; then
+        input=$(echo "$input" | jq --arg desc "$description" '. + {description: $desc}')
+    fi
+
+    if [[ -n "$priority" ]]; then
+        input=$(echo "$input" | jq --argjson pri "$priority" '. + {priority: $pri}')
+    fi
+
+    if [[ -n "$state" ]]; then
+        local state_id
+        state_id=$(get_state_id "$team_id" "$state")
+        [[ -z "$state_id" ]] && error "State not found: $state"
+        input=$(echo "$input" | jq --arg sid "$state_id" '. + {stateId: $sid}')
+    fi
+
+    local query='mutation($input: IssueCreateInput!) {
+        issueCreate(input: $input) {
+            success
+            issue {
+                id
+                identifier
+                title
+            }
+        }
+    }'
+
+    local variables
+    variables=$(jq -nc --argjson input "$input" '{input: $input}')
+    local result
+    result=$(graphql_query "$query" "$variables")
+
+    if [[ $(echo "$result" | jq -r '.data.issueCreate.success') == "true" ]]; then
+        local new_id
+        new_id=$(echo "$result" | jq -r '.data.issueCreate.issue.identifier')
+        success "Created $new_id"
+        echo "$result" | jq -c '.data.issueCreate.issue'
+    else
+        local errors
+        errors=$(echo "$result" | jq -r '.errors // empty')
+        error "Failed to create issue: ${errors:-unknown error}"
+    fi
+}
+
 # Subcommand: issue-update
 cmd_issue_update() {
     local identifier="$1"
@@ -1212,11 +1299,11 @@ Usage: linear_ops.sh <subcommand> [args...]
 
 Subcommands:
   team-list            team-states          issue-list
-  issue-view           issue-update         issue-comment
-  issue-close          issue-mark-duplicate create-sub-issue
-  list-sub-issues      add-attachment       list-cycles
-  add-comment          transition-state     label-list
-  label-create
+  issue-view           issue-create         issue-update
+  issue-comment        issue-close          issue-mark-duplicate
+  create-sub-issue     list-sub-issues      add-attachment
+  list-cycles          add-comment          transition-state
+  label-list           label-create
 
 Requires LINEAR_API_KEY. Run a subcommand with no args for its usage.
 USAGE
@@ -1234,6 +1321,7 @@ Subcommands:
   team-states TEAM_KEY
   issue-list [--team TEAM] [--state STATE] [--priority N] [--limit N] [--json]
   issue-view IDENTIFIER
+  issue-create --team TEAM_KEY --title \"...\" [--description \"...\"] [--priority N] [--state STATE]
   issue-update IDENTIFIER [--state STATE] [--priority N]
   issue-comment IDENTIFIER --body \"...\"
   issue-close IDENTIFIER [--comment \"...\"]
@@ -1257,6 +1345,7 @@ Subcommands:
         team-states) cmd_team_states "$@" ;;
         issue-list) cmd_issue_list "$@" ;;
         issue-view) cmd_issue_view "$@" ;;
+        issue-create) cmd_issue_create "$@" ;;
         issue-update) cmd_issue_update "$@" ;;
         issue-comment) cmd_issue_comment "$@" ;;
         issue-close) cmd_issue_close "$@" ;;
