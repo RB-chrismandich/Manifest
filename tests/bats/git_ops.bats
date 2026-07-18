@@ -403,13 +403,95 @@ make_clean_bin() {
     assert_output --partial "STUB:glab:mr note 42 --message hello world"
 }
 
-@test "routes pr-comments to glab api projects/:id/merge_requests/N/notes on GitLab" {
+@test "routes pr-comments to glab api projects/:id/merge_requests/N/discussions on GitLab" {
     cd "$TEST_REPO" || return 1
     git remote set-url origin "https://gitlab.com/user/repo.git"
     create_stub "glab"
     run bash "$SCRIPT_UNDER_TEST" pr-comments 42
     assert_success
-    assert_output --partial "STUB:glab:api projects/:id/merge_requests/42/notes?sort=asc --jq"
+    assert_output --partial "STUB:glab:api projects/:id/merge_requests/42/discussions --jq"
+}
+
+@test "pr-comments (gitlab): jq filter extracts inline diff comments and excludes non-inline/system notes" {
+    cd "$TEST_REPO" || return 1
+    git remote set-url origin "https://gitlab.com/user/repo.git"
+
+    # Discussions-API-shaped fixture (docs.gitlab.com/api/discussions/):
+    # disc1 = an inline DiffNote (has .position -> must be included);
+    # disc2 = a general MR-level discussion note (no .position -> excluded);
+    # disc3 = a system note (system:true -> excluded even though it lacks
+    # position too, proving both filters are exercised independently).
+    DISCUSSIONS_FIXTURE="$BATS_TMPDIR/discussions_fixture.json"
+    cat > "$DISCUSSIONS_FIXTURE" << 'FIXTURE'
+[
+  {
+    "id": "disc1",
+    "notes": [
+      {
+        "id": 1128,
+        "type": "DiffNote",
+        "body": "inline diff comment",
+        "system": false,
+        "author": {"id": 1, "username": "root"},
+        "position": {
+          "old_path": "package.json",
+          "new_path": "package.json",
+          "old_line": 27,
+          "new_line": 27
+        }
+      }
+    ]
+  },
+  {
+    "id": "disc2",
+    "notes": [
+      {
+        "id": 1129,
+        "type": null,
+        "body": "general MR-level discussion, not inline",
+        "system": false,
+        "author": {"id": 2, "username": "jane"}
+      }
+    ]
+  },
+  {
+    "id": "disc3",
+    "notes": [
+      {
+        "id": 1130,
+        "type": null,
+        "body": "changed the description",
+        "system": true,
+        "author": {"id": 3, "username": "bot"}
+      }
+    ]
+  }
+]
+FIXTURE
+    export DISCUSSIONS_FIXTURE
+
+    # Stub that behaves like `glab api ... --jq FILTER`: apply the real jq
+    # filter the script passes against our fixture, so the test exercises
+    # the actual --jq expression rather than just asserting the call shape.
+    cat > "$MOCK_BIN/glab" << 'STUB'
+#!/usr/bin/env bash
+if [[ "$1" == "api" && "$3" == "--jq" ]]; then
+    jq "$4" "$DISCUSSIONS_FIXTURE"
+else
+    echo "STUB:glab:$*"
+fi
+STUB
+    chmod +x "$MOCK_BIN/glab"
+
+    run bash "$SCRIPT_UNDER_TEST" pr-comments 42
+    assert_success
+    parsed=$(echo "$output" | jq -c '.')
+    [ "$(echo "$parsed" | jq 'length')" -eq 1 ]
+    [ "$(echo "$parsed" | jq -r '.[0].id')" = "1128" ]
+    [ "$(echo "$parsed" | jq -r '.[0].author')" = "root" ]
+    [ "$(echo "$parsed" | jq -r '.[0].path')" = "package.json" ]
+    [ "$(echo "$parsed" | jq -r '.[0].line')" = "27" ]
+    [ "$(echo "$parsed" | jq -r '.[0].body')" = "inline diff comment" ]
 }
 
 # --- pr-reopen / pr-update-branch / repo-admin-check / branch-protection / commit-checks (Task 15) ---

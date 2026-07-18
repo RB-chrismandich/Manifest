@@ -95,8 +95,33 @@ status_name() { python3 "${REGISTRY}" status "${provider}" "$1"; }
 
 case "${verb}" in
     resolve-provider) echo "${provider}" ;;
-    issue-list | issue-view | issue-create | issue-comment | issue-close)
+    issue-list | issue-view | issue-create | issue-close)
         engine "${verb}" "$@"
+        ;;
+    issue-comment)
+        case "${provider}" in
+            github | gitlab)
+                # git_ops.sh translates positional N TEXT into N --body/--message
+                # TEXT internally via issue_comment_args; pass through unchanged.
+                engine issue-comment "$@"
+                ;;
+            linear)
+                # linear_ops.sh's cmd_issue_comment has no positional-text
+                # support: it requires every arg after the identifier to be
+                # --body VALUE (a bare positional TEXT hits "Unknown option").
+                # Translate the documented `issue-comment N TEXT` contract into
+                # `N --body TEXT` here, mirroring git_ops.sh's issue_comment_args
+                # guard so already-flag-style invocations (--body, --body-file,
+                # or a TEXT that itself starts with "-") pass through unchanged.
+                if [[ $# -ge 2 && "${2:0:1}" != "-" ]]; then
+                    n="$1" body="$2"
+                    shift 2
+                    engine issue-comment "${n}" --body "${body}" "$@"
+                else
+                    engine issue-comment "$@"
+                fi
+                ;;
+        esac
         ;;
     issue-label)
         case "${provider}" in

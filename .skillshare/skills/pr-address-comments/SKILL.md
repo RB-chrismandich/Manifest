@@ -13,11 +13,14 @@ without a verified fix. Ignore non-actionable service notices
 1. **Fetch all three feedback channels** — no single view is complete:
    - Inline code comments: `~/.claude/scripts/git_ops.sh pr-comments N` —
      returns JSON `[{id, author, path, line, body}]` on both github and
-     gitlab (github: PR review comments; gitlab: MR notes with
-     `.system == false`, which already folds in top-level discussion too).
+     gitlab (github: PR review comments; gitlab: MR discussion notes with a
+     diff `position`, i.e. genuinely inline comments only — general
+     MR-level discussion notes and system notes are excluded).
    - Review bodies: `gh pr view <N> --json reviews,reviewThreads`
-     (github-only — GitLab has no separate review-body concept; its review
-     feedback already surfaces as MR notes via `pr-comments` above).
+     (github-only — GitLab has no separate review-body concept, but its
+     top-level (non-inline) discussion notes are NOT covered by
+     `pr-comments` above; see "Issue-level discussion" below for how to
+     fetch those on gitlab).
    - Issue-level discussion: `gh pr view <N> --comments`
 2. **Verify each claim against current code before acting**: open the exact
    file and lines cited and confirm the assertion (counts, staleness, logic)
@@ -74,13 +77,18 @@ without a verified fix. Ignore non-actionable service notices
   (`gh pr view <N> --json reviews,reviewThreads`); extract each actionable
   point as its own triage item — they often restate or extend the inline
   comments.
-- gitlab: no separate review-body concept — review feedback already surfaces
-  as MR notes via `pr-comments` above, so this step is a no-op on gitlab.
+- gitlab: no separate review-body concept, but note that `pr-comments` above
+  is now inline-only (matching github) — general, non-inline MR discussion
+  notes are NOT returned by it; fetch those separately in the step below.
 
 ## Issue-level discussion
 
 - Top-level PR comments (`gh pr view <N> --comments`) can contain feedback
   too; triage them like any other item, and this thread is where the summary
   disposition table belongs.
+- gitlab has no equivalent git_ops.sh verb for general MR discussion notes;
+  fetch them directly: `glab api projects/:id/merge_requests/N/notes --jq
+  '[.[] | select(.system == false)]'` (the Notes API — separate from
+  `pr-comments`' Discussions-API-backed inline results).
 
 > Absorbed: address-pr-review-comments, address-review-comments (2026-06)

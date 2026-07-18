@@ -481,10 +481,18 @@ case "${platform}" in
                 glab mr note "${ISSUE_COMMENT_ARGS[@]+"${ISSUE_COMMENT_ARGS[@]}"}"
                 ;;
             pr-comments)
+                # The Notes API cannot return inline diff comments at all
+                # (docs.gitlab.com/api/notes/: "Notes are not attached to
+                # specific lines... see the discussions API"); only the
+                # Discussions API exposes each note's diff `position`. Flatten
+                # every discussion's notes, keep only inline (position != null)
+                # non-system notes — matching github's pulls/.../comments
+                # inline-only semantics — and prefer new_path/new_line (the
+                # current/new version of the file) over old_path/old_line.
                 mr_num="$1"
                 shift
-                glab api "projects/:id/merge_requests/${mr_num}/notes?sort=asc" \
-                    --jq '[.[] | select(.system == false) | {id, author: .author.username, path: (.position.new_path // null), line: (.position.new_line // null), body}]' "$@"
+                glab api "projects/:id/merge_requests/${mr_num}/discussions" \
+                    --jq '[.[].notes[] | select(.system == false) | select(.position != null) | {id, author: .author.username, path: .position.new_path, line: .position.new_line, body}]' "$@"
                 ;;
             repo-admin-check)
                 # GitLab has no single "admin" boolean; approximate with

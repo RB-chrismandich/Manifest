@@ -73,6 +73,40 @@ EOS
     grep -q "issue-close ENG-42" "${STUBS}/linear_ops.sh.calls"
 }
 
+@test "issue-comment on linear translates positional TEXT into --body (bug: linear_ops.sh has no positional support)" {
+    make_stub "${STUBS}/linear_ops.sh"
+    LINEAR_OPS_BIN="${STUBS}/linear_ops.sh" MANIFEST_TRACKER=linear \
+        run bash "${SCRIPT}" issue-comment ENG-42 "some text"
+    [ "$status" -eq 0 ]
+    grep -q -- "issue-comment ENG-42 --body some text" "${STUBS}/linear_ops.sh.calls"
+}
+
+@test "issue-comment on linear passes already-flag-style --body through unchanged" {
+    make_stub "${STUBS}/linear_ops.sh"
+    LINEAR_OPS_BIN="${STUBS}/linear_ops.sh" MANIFEST_TRACKER=linear \
+        run bash "${SCRIPT}" issue-comment ENG-42 --body "some text"
+    [ "$status" -eq 0 ]
+    grep -q -- "issue-comment ENG-42 --body some text" "${STUBS}/linear_ops.sh.calls"
+    # exactly one --body, not double-wrapped
+    [ "$(grep -o -- "--body" "${STUBS}/linear_ops.sh.calls" | wc -l | tr -d ' ')" = "1" ]
+}
+
+@test "issue-comment on linear does not wrap TEXT that itself starts with a dash" {
+    make_stub "${STUBS}/linear_ops.sh"
+    LINEAR_OPS_BIN="${STUBS}/linear_ops.sh" MANIFEST_TRACKER=linear \
+        run bash "${SCRIPT}" issue-comment ENG-42 "-not-a-flag"
+    [ "$status" -eq 0 ]
+    grep -q -- "issue-comment ENG-42 -not-a-flag" "${STUBS}/linear_ops.sh.calls"
+}
+
+@test "issue-comment on github passes through unchanged (git_ops.sh translates internally)" {
+    make_stub "${STUBS}/git_ops.sh"
+    GIT_OPS_BIN="${STUBS}/git_ops.sh" MANIFEST_TRACKER=github \
+        run bash "${SCRIPT}" issue-comment 42 "some text"
+    [ "$status" -eq 0 ]
+    grep -q -- "issue-comment 42 some text" "${STUBS}/git_ops.sh.calls"
+}
+
 @test "issue-transition github swaps canonical labels" {
     make_stub "${STUBS}/git_ops.sh"
     GIT_OPS_BIN="${STUBS}/git_ops.sh" MANIFEST_TRACKER=github \
