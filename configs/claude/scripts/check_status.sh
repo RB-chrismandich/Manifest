@@ -89,6 +89,165 @@ run_with_timeout() {
     return "$rc"
 }
 
+# --- agent_roster.yml (Task 26): single enumeration of the 5(+)-agent
+# fleet, consumed by the Enabled Services and CLI Tools loops below, plus
+# the claude/cursor Authentication checks (whose auth_check is a single
+# command). gemini/codex/antigravity keep their bespoke multi-condition
+# auth logic (see comments at each block) -- the registry's auth_check
+# field only has room for one command, not their richer detection.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# cap_name NAME -> NAME with its first letter uppercased (claude -> Claude).
+# All roster agent names are lowercase single words, so this simple scheme
+# reproduces the historical hardcoded display labels exactly.
+cap_name() {
+    local n="$1"
+    printf '%s%s' "$(tr '[:lower:]' '[:upper:]' <<< "${n:0:1}")" "${n:1}"
+}
+
+# resolve_agent_roster_path -> the agent_roster.yml to read.
+# MANIFEST_AGENT_ROSTER (test fixtures; mirrors reconcile_core.py's env var
+# of the same name -- see tests/python/test_reconcile_policy.py) takes
+# precedence, then the deployed home copy, then the repo-relative sibling of
+# this script -- so check_status.sh works both post-bootstrap (~/.claude)
+# and run directly from a checkout with no ~/.claude yet (e.g. this repo's
+# own bats sandbox, which redirects HOME but not this script's own location).
+resolve_agent_roster_path() {
+    if [[ -n "${MANIFEST_AGENT_ROSTER:-}" ]]; then
+        echo "$MANIFEST_AGENT_ROSTER"
+    elif [[ -f "$HOME/.claude/config/agent_roster.yml" ]]; then
+        echo "$HOME/.claude/config/agent_roster.yml"
+    else
+        echo "$SCRIPT_DIR/../config/agent_roster.yml"
+    fi
+}
+
+# load_agent_roster_tsv -> "name<TAB>binary<TAB>auth_check" lines, one per
+# agent, in the registry's declaration order. Missing/malformed registry
+# yields no lines -- mirrors agents/config.py's load_agent_roster (the
+# roster is an optional extensibility source, never a hard dependency).
+#
+# Primary parse is python3 + PyYAML (this codebase's established idiom for a
+# bash script reading YAML, e.g. model_check.sh). If that yields nothing --
+# no python3, or a python3 without the yaml module (observed: stock macOS
+# /usr/bin/python3 has no PyYAML) -- fall back to a PyYAML-free awk parser,
+# mirroring reconcile_core.py's own documented fallback for this exact file
+# ("avoid a hard yaml runtime dependency").
+load_agent_roster_tsv() {
+    local roster_path out
+    roster_path="$(resolve_agent_roster_path)"
+    [[ -f "$roster_path" ]] || return 0
+
+    out="$(python3 - "$roster_path" 2> /dev/null << 'PY'
+import sys
+
+import yaml
+
+try:
+    with open(sys.argv[1]) as f:
+        data = yaml.safe_load(f) or {}
+    agents = data.get("agents") or {}
+    for name, entry in agents.items():
+        if not isinstance(entry, dict):
+            continue
+        print(f"{name}\t{entry.get('binary', '')}\t{entry.get('auth_check', '')}")
+except Exception:
+    pass
+PY
+    )"
+    if [[ -n "$out" ]]; then
+        printf '%s\n' "$out"
+        return 0
+    fi
+
+    load_agent_roster_tsv_fallback "$roster_path"
+}
+
+# load_agent_roster_tsv_fallback ROSTER_PATH -> same TSV shape as above,
+# hand-parsed with awk against agent_roster.yml's fixed indentation (2-space
+# agent-name headers, 4-space fields) -- no PyYAML required.
+load_agent_roster_tsv_fallback() {
+    awk '
+        /^agents:[[:space:]]*$/ { in_agents = 1; next }
+        in_agents && /^[^[:space:]]/ { in_agents = 0 }
+        in_agents && /^  [A-Za-z0-9_-]+:[[:space:]]*$/ {
+            if (name != "") { print name "\t" binary "\t" auth }
+            line = $0
+            sub(/^  /, "", line)
+            sub(/:[[:space:]]*$/, "", line)
+            name = line
+            binary = ""
+            auth = ""
+            next
+        }
+        in_agents && /^    binary:/ {
+            val = $0
+            sub(/^    binary:[[:space:]]*/, "", val)
+            gsub(/^"|"$/, "", val)
+            binary = val
+            next
+        }
+        in_agents && /^    auth_check:/ {
+            val = $0
+            sub(/^    auth_check:[[:space:]]*/, "", val)
+            gsub(/^"|"$/, "", val)
+            auth = val
+            next
+        }
+        END { if (name != "") print name "\t" binary "\t" auth }
+    ' "$1"
+}
+
+# Roster storage uses parallel indexed arrays, not associative arrays --
+# this file (like branch_clean.sh, pr_review.sh, version_pin.sh) targets
+# bash 3.2 (stock macOS /bin/bash), which has no `declare -A`.
+declare -a ROSTER_NAMES=()
+declare -a ROSTER_BINARIES=()
+declare -a ROSTER_AUTH_CHECKS=()
+while IFS=$'\t' read -r r_name r_binary r_auth; do
+    [[ -z "$r_name" ]] && continue
+    ROSTER_NAMES+=("$r_name")
+    ROSTER_BINARIES+=("$r_binary")
+    ROSTER_AUTH_CHECKS+=("$r_auth")
+done < <(load_agent_roster_tsv)
+
+# roster_binary/roster_auth_check NAME -> field for NAME (empty if not
+# found). Linear scan over the parallel arrays above (bash 3.2-safe).
+roster_binary() {
+    local target="$1" i
+    for ((i = 0; i < ${#ROSTER_NAMES[@]}; i++)); do
+        if [[ "${ROSTER_NAMES[i]}" == "$target" ]]; then
+            echo "${ROSTER_BINARIES[i]}"
+            return 0
+        fi
+    done
+}
+
+roster_auth_check() {
+    local target="$1" i
+    for ((i = 0; i < ${#ROSTER_NAMES[@]}; i++)); do
+        if [[ "${ROSTER_NAMES[i]}" == "$target" ]]; then
+            echo "${ROSTER_AUTH_CHECKS[i]}"
+            return 0
+        fi
+    done
+}
+
+# Static declarations for the 5 known agents' enabled/installed flags.
+# The roster loops below assign these dynamically by name
+# (printf -v "${name}_installed" ...) so shellcheck (SC2154) cannot trace
+# the assignment; declaring them here also keeps every later reference
+# (codex_runtime_ready, working_agents, ...) safe if a known agent were
+# ever absent from the registry.
+claude_installed=false
+gemini_installed=false
+cursor_installed=false
+codex_installed=false
+antigravity_installed=false
+claude_enabled=""
+gemini_enabled=""
+cursor_enabled=""
+codex_enabled=""
 antigravity_enabled=""
 
 manifest_state_root="${MANIFEST_STATE_ROOT:-$HOME/.manifest}"
@@ -110,55 +269,36 @@ echo -e "${BOLD}Configuration:${NC}"
 if [[ -f ~/.claude/config/services.yml ]]; then
     echo -e "  ${GREEN}✓${NC} services.yml found"
 
-    # Parse enabled services using grep (more portable than yq)
-    claude_enabled=$(grep -A1 "^  claude:" ~/.claude/config/services.yml | grep "enabled:" | awk '{print $2}')
-    gemini_enabled=$(grep -A1 "^  gemini:" ~/.claude/config/services.yml | grep "enabled:" | awk '{print $2}')
-    cursor_enabled=$(grep -A1 "^  cursor:" ~/.claude/config/services.yml | grep "enabled:" | awk '{print $2}')
-    codex_enabled=$(grep -A1 "^  codex:" ~/.claude/config/services.yml | grep "enabled:" | awk '{print $2}')
-    antigravity_enabled=$(grep -A1 "^  antigravity:" ~/.claude/config/services.yml | grep "enabled:" | awk '{print $2}')
+    # Parse enabled services using grep (more portable than yq), one agent
+    # per ROSTER_NAMES entry (agent_roster.yml-derived; Task 26) -- a new
+    # agent needs only a registry entry + a services.yml block, no script edit.
+    for r_name in "${ROSTER_NAMES[@]}"; do
+        r_val=$(grep -A1 "^  ${r_name}:" ~/.claude/config/services.yml | grep "enabled:" | awk '{print $2}')
+        printf -v "${r_name}_enabled" '%s' "$r_val"
+    done
     # graphify is a managed TOOL, not a parallel-orchestration agent (it is reported
-    # separately under CLI Tools and excluded from the agent count / working_agents).
+    # separately under CLI Tools and excluded from the agent count / working_agents)
+    # -- and it is not a fleet agent in agent_roster.yml, so it stays a standalone lookup.
     graphify_enabled=$(grep -A1 "^  graphify:" ~/.claude/config/services.yml | grep "enabled:" | awk '{print $2}')
 
     enabled_count=0
-    [[ "$claude_enabled" == "true" ]] && enabled_count=$((enabled_count + 1))
-    [[ "$gemini_enabled" == "true" ]] && enabled_count=$((enabled_count + 1))
-    [[ "$cursor_enabled" == "true" ]] && enabled_count=$((enabled_count + 1))
-    [[ "$codex_enabled" == "true" ]] && enabled_count=$((enabled_count + 1))
-    [[ "$antigravity_enabled" == "true" ]] && enabled_count=$((enabled_count + 1))
+    for r_name in "${ROSTER_NAMES[@]}"; do
+        r_var="${r_name}_enabled"
+        [[ "${!r_var}" == "true" ]] && enabled_count=$((enabled_count + 1))
+    done
 
     echo ""
-    echo -e "${BOLD}Enabled Services (${enabled_count}/5):${NC}"
+    echo -e "${BOLD}Enabled Services (${enabled_count}/${#ROSTER_NAMES[@]}):${NC}"
 
-    if [[ "$claude_enabled" == "true" ]]; then
-        echo -e "  ${GREEN}✓${NC} Claude"
-    else
-        echo -e "  ${YELLOW}○${NC} Claude (disabled)"
-    fi
-
-    if [[ "$gemini_enabled" == "true" ]]; then
-        echo -e "  ${GREEN}✓${NC} Gemini"
-    else
-        echo -e "  ${YELLOW}○${NC} Gemini (disabled)"
-    fi
-
-    if [[ "$cursor_enabled" == "true" ]]; then
-        echo -e "  ${GREEN}✓${NC} Cursor"
-    else
-        echo -e "  ${YELLOW}○${NC} Cursor (disabled)"
-    fi
-
-    if [[ "$codex_enabled" == "true" ]]; then
-        echo -e "  ${GREEN}✓${NC} Codex"
-    else
-        echo -e "  ${YELLOW}○${NC} Codex (disabled)"
-    fi
-
-    if [[ "$antigravity_enabled" == "true" ]]; then
-        echo -e "  ${GREEN}✓${NC} Antigravity"
-    else
-        echo -e "  ${YELLOW}○${NC} Antigravity (disabled)"
-    fi
+    for r_name in "${ROSTER_NAMES[@]}"; do
+        r_var="${r_name}_enabled"
+        r_label="$(cap_name "$r_name")"
+        if [[ "${!r_var}" == "true" ]]; then
+            echo -e "  ${GREEN}✓${NC} ${r_label}"
+        else
+            echo -e "  ${YELLOW}○${NC} ${r_label} (disabled)"
+        fi
+    done
 
     if [[ $enabled_count -lt 2 ]]; then
         echo ""
@@ -175,78 +315,74 @@ echo ""
 # Check CLI installations
 echo -e "${BOLD}CLI Tools:${NC}"
 
-claude_installed=false
-if command -v claude &> /dev/null; then
-    echo -e "  ${GREEN}✓${NC} Claude CLI installed"
-    claude_installed=true
-    if [[ "$VERBOSE" == true ]]; then
-        echo -e "    Location: $(which claude)"
-        echo -e "    Version:  $(claude --version 2> /dev/null || echo 'unknown')"
-    fi
-else
-    echo -e "  ${YELLOW}○${NC} Claude CLI not installed (optional)"
-    if [[ "$VERBOSE" == true ]]; then
-        echo -e "    ${BLUE}→${NC} Install: npm install -g @anthropic-ai/claude-code"
-    fi
-fi
+# Install hints and display messages are NOT part of agent_roster.yml's
+# schema (binary/home_dir/prompt_args/model_args/auth_check/enabled_default)
+# -- they are package-manager-specific / UX text, not fleet-membership
+# facts, so they stay local here rather than growing the registry's schema.
+# Same treatment as the per-agent quirk notes elsewhere in this file: the
+# ENUMERATION (roster agent names + binaries) is single-sourced from
+# agent_roster.yml; these display strings are not. `case` dispatch (not an
+# associative array) to stay bash 3.2-safe, matching model_check.sh's
+# per-provider `case` blocks.
+agent_installed_msg() {
+    case "$1" in
+        claude) echo "Claude CLI installed" ;;
+        gemini) echo "Gemini CLI installed" ;;
+        cursor) echo "cursor-agent CLI available" ;;
+        codex) echo "Codex CLI installed" ;;
+        antigravity) echo "Antigravity CLI (agy) installed" ;;
+        *) echo "$(cap_name "$1") CLI installed" ;;
+    esac
+}
+agent_not_installed_msg() {
+    case "$1" in
+        claude) echo "Claude CLI not installed (optional)" ;;
+        gemini) echo "Gemini CLI not installed (optional)" ;;
+        cursor) echo "cursor-agent not available (optional)" ;;
+        codex) echo "Codex CLI not installed" ;;
+        antigravity) echo "Antigravity CLI (agy) not installed (optional)" ;;
+        *) echo "$(cap_name "$1") CLI not installed (optional)" ;;
+    esac
+}
+agent_install_hint() {
+    case "$1" in
+        claude) echo "npm install -g @anthropic-ai/claude-code" ;;
+        gemini) echo "npm install -g @google/gemini-cli" ;;
+        cursor) echo "curl https://cursor.com/install -fsS | bash" ;;
+        codex) echo "npm install -g @openai/codex" ;;
+        antigravity) echo "Install via the Antigravity IDE (agy install)" ;;
+        *) echo "no install hint configured for $1" ;;
+    esac
+}
+# claude/gemini/codex CLIs print a version banner; cursor-agent and agy
+# (antigravity) do not today, so their verbose block omits the Version line
+# -- preserved exactly from the pre-roster-loop behavior.
+agent_shows_version() {
+    case "$1" in
+        claude | gemini | codex) return 0 ;;
+        *) return 1 ;;
+    esac
+}
 
-gemini_installed=false
-if command -v gemini &> /dev/null; then
-    echo -e "  ${GREEN}✓${NC} Gemini CLI installed"
-    gemini_installed=true
-    if [[ "$VERBOSE" == true ]]; then
-        echo -e "    Location: $(which gemini)"
-        echo -e "    Version:  $(gemini --version 2> /dev/null || echo 'unknown')"
+for r_name in "${ROSTER_NAMES[@]}"; do
+    r_binary="$(roster_binary "$r_name")"
+    if command -v "$r_binary" &> /dev/null; then
+        echo -e "  ${GREEN}✓${NC} $(agent_installed_msg "$r_name")"
+        printf -v "${r_name}_installed" '%s' true
+        if [[ "$VERBOSE" == true ]]; then
+            echo -e "    Location: $(which "$r_binary")"
+            if agent_shows_version "$r_name"; then
+                echo -e "    Version:  $("$r_binary" --version 2> /dev/null || echo 'unknown')"
+            fi
+        fi
+    else
+        printf -v "${r_name}_installed" '%s' false
+        echo -e "  ${YELLOW}○${NC} $(agent_not_installed_msg "$r_name")"
+        if [[ "$VERBOSE" == true ]]; then
+            echo -e "    ${BLUE}→${NC} Install: $(agent_install_hint "$r_name")"
+        fi
     fi
-else
-    echo -e "  ${YELLOW}○${NC} Gemini CLI not installed (optional)"
-    if [[ "$VERBOSE" == true ]]; then
-        echo -e "    ${BLUE}→${NC} Install: npm install -g @google/gemini-cli"
-    fi
-fi
-
-cursor_installed=false
-if command -v cursor-agent &> /dev/null; then
-    echo -e "  ${GREEN}✓${NC} cursor-agent CLI available"
-    cursor_installed=true
-    if [[ "$VERBOSE" == true ]]; then
-        echo -e "    Location: $(which cursor-agent)"
-    fi
-else
-    echo -e "  ${YELLOW}○${NC} cursor-agent not available (optional)"
-    if [[ "$VERBOSE" == true ]]; then
-        echo -e "    ${BLUE}→${NC} Install: curl https://cursor.com/install -fsS | bash"
-    fi
-fi
-
-codex_installed=false
-if command -v codex &> /dev/null; then
-    echo -e "  ${GREEN}✓${NC} Codex CLI installed"
-    codex_installed=true
-    if [[ "$VERBOSE" == true ]]; then
-        echo -e "    Location: $(which codex)"
-        echo -e "    Version:  $(codex --version 2> /dev/null || echo 'unknown')"
-    fi
-else
-    echo -e "  ${YELLOW}○${NC} Codex CLI not installed"
-    if [[ "$VERBOSE" == true ]]; then
-        echo -e "    ${BLUE}→${NC} Install: npm install -g @openai/codex"
-    fi
-fi
-
-antigravity_installed=false
-if command -v agy &> /dev/null; then
-    echo -e "  ${GREEN}✓${NC} Antigravity CLI (agy) installed"
-    antigravity_installed=true
-    if [[ "$VERBOSE" == true ]]; then
-        echo -e "    Location: $(which agy)"
-    fi
-else
-    echo -e "  ${YELLOW}○${NC} Antigravity CLI (agy) not installed (optional)"
-    if [[ "$VERBOSE" == true ]]; then
-        echo -e "    ${BLUE}→${NC} Install via the Antigravity IDE (agy install)"
-    fi
-fi
+done
 
 # Graphify is a managed knowledge-graph tool, NOT a parallel-orchestration agent,
 # so it is reported here but never counted toward orchestration readiness
@@ -274,16 +410,36 @@ echo ""
 # Check authentication
 echo -e "${BOLD}Authentication:${NC}"
 
-if [[ "$claude_installed" == true ]]; then
-    # Add timeout to avoid hanging
-    if run_with_timeout claude auth status &> /dev/null; then
-        echo -e "  ${GREEN}✓${NC} Claude authenticated"
-    else
-        echo -e "  ${YELLOW}⚠${NC}  Claude authentication unknown (check timeout)"
-        echo -e "    ${BLUE}→${NC} Verify: claude auth status"
+# claude and cursor's auth checks are a single non-interactive command with
+# no extra condition, so they are driven directly by agent_roster.yml's
+# auth_check field (Task 26). gemini/codex/antigravity need richer
+# multi-source detection (env vars, credential files, and/or a fallback
+# probe) that a single roster command cannot express, so they keep their
+# bespoke logic below, unconverted -- an honest, documented schema
+# limitation, not a bug to paper over.
+for r_name in claude cursor; do
+    r_var="${r_name}_installed"
+    if [[ "${!r_var}" == true ]]; then
+        r_auth_check="$(roster_auth_check "$r_name")"
+        r_label="$(cap_name "$r_name")"
+        # Split the roster's auth_check command string into argv (it is a
+        # plain space-separated command, e.g. "claude auth status") --
+        # avoids an unquoted word-split expansion (SC2086) below.
+        read -ra r_auth_argv <<< "$r_auth_check"
+        # Add timeout to avoid hanging
+        if run_with_timeout "${r_auth_argv[@]}" &> /dev/null; then
+            echo -e "  ${GREEN}✓${NC} ${r_label} authenticated"
+        else
+            echo -e "  ${YELLOW}⚠${NC}  ${r_label} authentication unknown (check timeout)"
+            echo -e "    ${BLUE}→${NC} Verify: ${r_auth_check}"
+        fi
     fi
-fi
+done
 
+# gemini: NOT roster-driven -- agent_roster.yml's auth_check is a single
+# command ("gemini auth status"), but the real check here is a 3-way OR
+# (env var(s) OR the OAuth creds file OR that command as a last-resort
+# probe) that a single roster field cannot express.
 if [[ "$gemini_installed" == true ]]; then
     # Prefer a fast credential check: `gemini auth status` has no real auth
     # subcommand and runs as a ~60s model call, so probe it only as a last
@@ -299,6 +455,10 @@ if [[ "$gemini_installed" == true ]]; then
     fi
 fi
 
+# codex: NOT roster-driven -- agent_roster.yml's auth_check is a single
+# command ("codex login status"), but the real check here is env var OR
+# either of two candidate auth.json paths OR that command, a 3-source OR a
+# single roster field cannot express.
 if [[ "$codex_installed" == true ]]; then
     if [[ -n "$OPENAI_API_KEY" ]] || [[ -f "$CODEX_HOME/auth.json" ]] || [[ -f "$HOME/.codex/auth.json" ]]; then
         echo -e "  ${GREEN}✓${NC} Codex authenticated"
@@ -308,6 +468,11 @@ if [[ "$codex_installed" == true ]]; then
     fi
 fi
 
+# antigravity: NOT roster-driven -- agent_roster.yml's auth_check is a
+# single command ("agy models"), which IS what runs below, but it is used
+# as a bound-probe signal (no credentials-file heuristic exists for agy;
+# see the ~/.gemini/config quirk note), which is a richer usage pattern
+# than a plain success/failure roster-driven call.
 if [[ "$antigravity_installed" == true ]]; then
     # agy has no predictable credentials-file heuristic (its config lives
     # under ~/.gemini/config, not ~/.antigravity — see G14); `agy models`
@@ -370,7 +535,7 @@ echo ""
 
 # Model staleness (warn-only; full detail via model_check.sh directly)
 echo -e "${BOLD}Model Pins:${NC}"
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# SCRIPT_DIR is set once near the top of the file (agent_roster.yml resolution).
 if [[ -x "$SCRIPT_DIR/model_check.sh" ]]; then
     stale_pins=0
     skipped_pins=0
