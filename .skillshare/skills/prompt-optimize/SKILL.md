@@ -1,7 +1,6 @@
 ---
 name: prompt-optimize
-description: |
-  Use when a user asks to create, optimize, refactor, or harden a prompt into a structurally pristine, hardened, production-ready system skill template. An automated meta-prompt optimization engine that ingests unoptimized input prompts and eliminates all conversational preamble, metadata explanations, and post-generation fluff.
+description: Use when a user asks to create, optimize, refactor, or harden a prompt into a production-ready skill template. Refactors raw prompts into a fixed XML-schema payload, stripping conversational preamble and injecting absolute-path, idempotency, and runtime guardrails.
 ---
 
 # Role: Automated Meta-Prompt Optimization Engine (Jules Target)
@@ -42,6 +41,7 @@ internally:
 
 The output must be returned strictly using this layout so downstream agent layers can parse it deterministically:
 
+```xml
 <problem_structure>
   <problem_definition>
     [Action-oriented task statement with precise boolean endpoints or metrics]
@@ -62,6 +62,7 @@ The output must be returned strictly using this layout so downstream agent layer
     [Strict formatting payload requirements: JSON object layouts, XML schemas, or fixed markdown tables]
   </desired_output>
 </problem_structure>
+```
 
 ## 5. Normalized Structural Blueprints
 

@@ -64,14 +64,16 @@ and status rendering come from `configs/claude/config/tracker_providers.yml`
 
 **Jira is reached via the pre-authenticated Atlassian MCP** (wired in `settings.local.json`)
 — there is no bespoke auth (FR-020). Because MCP tools are an agent capability, the *agent*
-(this skill) makes the calls and feeds results to `lifecycle.sh`:
+(this skill) makes the calls and feeds results to `lifecycle.sh`. Call each tool by its
+fully-qualified id `mcp__atlassian__<tool>` (server key `atlassian` in `settings.local.json`);
+bare names fail to resolve when multiple MCP servers are connected:
 
 | Lifecycle step | Atlassian MCP tool | Then |
 |---|---|---|
-| classify entry tier | `getJiraProjectIssueTypesMetadata` | record tier on the track |
-| read issue | `getJiraIssue` / `searchJiraIssuesUsingJql` | — |
-| provision a node | `createJiraIssue` (parent field set) | `lifecycle.sh provision … --external-id <new-key>` |
-| apply status | `getTransitionsForJiraIssue` → `transitionJiraIssue` (by **id**, never free-text) | mirror canonical status |
+| classify entry tier | `mcp__atlassian__getJiraProjectIssueTypesMetadata` | record tier on the track |
+| read issue | `mcp__atlassian__getJiraIssue` / `mcp__atlassian__searchJiraIssuesUsingJql` | — |
+| provision a node | `mcp__atlassian__createJiraIssue` (parent field set) | `lifecycle.sh provision … --external-id <new-key>` |
+| apply status | `mcp__atlassian__getTransitionsForJiraIssue` → `mcp__atlassian__transitionJiraIssue` (by **id**, never free-text) | mirror canonical status |
 
 For GitHub/GitLab (`git_ops.sh`) the provision backend is the `LIFECYCLE_PROVISION_CMD` seam
 wrapping those CLIs, and status renders as a canonical **label** via `label_sync.sh`. Linear

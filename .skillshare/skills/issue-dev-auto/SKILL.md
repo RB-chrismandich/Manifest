@@ -1,6 +1,6 @@
 ---
 name: issue-dev-auto
-description: "Autonomously develop one opted-in ('auto-dev'-labeled) issue end-to-end: pick the next ready issue, implement test-first, and open a PR for review (never merges). Dependency-blocked issues are skipped. Run unattended via /loop /issue-dev-auto."
+description: "Autonomously develop one opted-in ('auto-dev'-labeled) issue end-to-end: implement test-first and open a PR; an opt-in gated loop may also merge cleared PRs (dry-run by default). Dependency-blocked issues are skipped. Run unattended via /loop /issue-dev-auto."
 ---
 
 # Autonomous Issue Developer

@@ -126,11 +126,9 @@ conformance test parses the fenced block.
 ```text
 ai-hooks-integration
 automation-rework-breakeven
-cli-help-before-dependency-checks
 code-to-design
 design-md
 enhance-prompt
-errexit-safe-shell-counters
 extract-design-md
 extract-static-html
 false-green-check-audit
@@ -138,16 +136,12 @@ generate-design
 graphify
 help
 manage-design-system
-merge-stacked-pr-chain
 pass-cli
-pin-known-bug-test-survives-fix
 react-components
 react-native
 react-vite-dashboard
 remotion
-reproduce-gated-ci-failure-locally
 shadcn-ui
-shell-sete-silent-abort-audit
 stitch-loop
 taste-design
 upload-to-stitch
@@ -159,16 +153,10 @@ upload-to-stitch
 | `ai-hooks-integration` | Externally installed via skillshare (`github.com/runkids/ai-hooks-integration`); not ours to rename. |
 | `code-to-design`, `design-md`, `enhance-prompt`, `extract-design-md`, `extract-static-html`, `generate-design`, `manage-design-system`, `react-components`, `react-native`, `react-vite-dashboard`, `remotion`, `shadcn-ui`, `stitch-loop`, `taste-design`, `upload-to-stitch` | Externally installed via skillshare (`github.com/google-labs-code/stitch-skills`); Stitch MCP design/build/utility skills — not ours to rename. |
 | `automation-rework-breakeven` | SkillClaw-evolved break-even analysis skill; descriptive compound name encodes the trade-off being modeled. |
-| `cli-help-before-dependency-checks` | SkillClaw-evolved CLI audit pattern; name states the invariant (help before deps). |
-| `errexit-safe-shell-counters` | SkillClaw-evolved shell hazard skill; pairs with `shell-audit-*` family semantics. |
 | `false-green-check-audit` | SkillClaw-evolved health-check audit; "false green" is the domain term being guarded against. |
 | `graphify` | Named for the managed `graphify` CLI it wraps (`--enable-graphify` toggle, installed binary). |
 | `help` | Universal single-word entry point; ergonomics beat conformance. |
-| `merge-stacked-pr-chain` | SkillClaw-evolved stacked-PR workflow; verb phrase matches gh merge semantics. |
 | `pass-cli` | Named for the `pass-cli` binary it wraps; `token-*` here means LLM token economy, so a credential fetcher must not move there. |
-| `pin-known-bug-test-survives-fix` | SkillClaw-evolved test-pattern skill; encodes the full invariant in the name. |
-| `reproduce-gated-ci-failure-locally` | SkillClaw-evolved CI-debug workflow; descriptive phrase for gated-log reproduction. |
-| `shell-sete-silent-abort-audit` | SkillClaw-evolved complement to `shell-audit-*`; encodes set -e silent-abort class. |
 
 ## Examples
 
@@ -183,7 +171,6 @@ upload-to-stitch
 |---|---|
 | `triage-bot-pr-flood` | verb-first; doesn't cluster with `pr-*` |
 | `refactor-python` | wrong altitude (rule 5) |
-| `pin-known-bug-test-survives-fix` | sentence-like; >4 tokens; verb buried |
 | `dashboard` | bare noun; no domain, no verb |
 
 ## History

@@ -27,13 +27,15 @@ When context usage exceeds the threshold (default 95%), create a compressed summ
 
 ### Step 1: Check Current Context Usage
 
-Parse the most recent system warning for token usage:
+Parse the most recent system warning for token usage. Use the window size the
+warning actually reports as the denominator — do not hardcode it (200K on some
+models, 1M on others):
 
 ```text
-Token usage: X/200000; Y remaining
-```text
+Token usage: X/<window>; Y remaining
+```
 
-Calculate percentage used: `(X / 200000) * 100`
+Calculate percentage used: `(X / <window>) * 100`
 
 If usage < threshold, inform user and exit.
 
@@ -51,111 +53,9 @@ Scan the conversation for:
 
 Generate a structured summary in the scratchpad directory:
 
-```markdown
-# Conversation Summary - [YYYY-MM-DD HH:MM]
-
-**Context Usage**: X/200000 (Z%)
-**Trigger Threshold**: 95%
-
----
-
-## Session Overview
-
-**Started**: [timestamp from first message]
-**Duration**: [approximate]
-**Primary Goal**: [main task user requested]
-
----
-
-## Key Decisions
-
-1. **[Decision 1]**
-   - Context: [why decision was needed]
-   - Choice: [what was decided]
-   - Rationale: [reasoning]
-
-2. **[Decision 2]**
-   - ...
-
----
-
-## Code Changes
-
-### Created Files (N files)
-- `path/to/file1.ext` - [brief description]
-- `path/to/file2.ext` - [brief description]
-
-### Modified Files (N files)
-- `path/to/file3.ext` - [what changed]
-- `path/to/file4.ext` - [what changed]
-
-### Deleted Files (N files)
-- `path/to/file5.ext` - [reason for deletion]
-
----
-
-## Commands Executed
-
-| Command | Purpose | Outcome |
-|---------|---------|---------|
-| `/git-commit` | Create comprehensive commit | ✅ Success (commit 03e67ee) |
-| `/python-refactor` | Analyze codebase | ⚠️ Found 3 issues |
-
----
-
-## Blockers & Resolutions
-
-1. **[Blocker]**
-   - Issue: [description]
-   - Resolution: [how it was resolved]
-   - Outcome: [result]
-
----
-
-## User Preferences Noted
-
-- Prefers [X] over [Y] for [use case]
-- Uses [tool/pattern] for [scenario]
-- Coding style: [preferences noted]
-
----
-
-## Action Items
-
-### Completed
-- [x] Item 1
-- [x] Item 2
-
-### Pending
-- [ ] Item 3
-- [ ] Item 4
-
----
-
-## Next Steps
-
-1. [Next logical step based on conversation]
-2. [Follow-up task]
-3. [Recommendation for user]
-
----
-
-## Context for Continuation
-
-If conversation continues after checkpoint:
-- Current working directory: `[pwd]`
-- Active branch: `[git branch]`
-- Recent commit: `[git log -1]`
-- Open files: [list if relevant]
-
----
-
-## Preserved Code Snippets
-
-### [Snippet 1 Name]
-```language
-[Important code snippet that should be preserved]
-```text
+Use the template in [references/summary-template.md](references/summary-template.md).
+Derive `<window>` from the reported token warning; fill every section from the
+conversation.
 
 **Context**: [why this is important]
 
@@ -204,7 +104,7 @@ Present summary to user:
 ```markdown
 ## 🗜️ Context Compacted
 
-**Usage**: 192,000/200,000 (96%)
+**Usage**: X/<window> (Z%)
 **Summary saved**: [path]
 
 ### Quick Reference
@@ -227,7 +127,7 @@ Conversation can continue with preserved context in memory and summary.
 ## Automatic Trigger
 
 This command should be **auto-invoked** when:
-1. Context usage > 95% (190,000/200,000 tokens)
+1. Context usage exceeds 95% of the reported window
 2. Before starting any new major task
 3. User explicitly runs `/session-checkpoint`
 
