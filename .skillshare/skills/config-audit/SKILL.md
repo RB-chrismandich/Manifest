@@ -127,6 +127,27 @@ Flag BOTH kinds of drift, per platform:
   hand-maintained `settings.local.json`/`settings.json` block for
   Claude/Gemini).
 
+**Quirk — codex and antigravity are out of scope for this file-diff check:**
+this check only covers the three platforms above; it does not check codex or
+antigravity, and not because they were forgotten. Per `bootstrap/lib/mcp.sh`:
+
+- **codex** is CLI-managed, not file-managed — `install_codex_mcp_server()`
+  registers servers via `codex mcp add <name> --url <url>` (and removes/lists
+  via `codex mcp remove`/`codex mcp list`); there is no static
+  `~/.codex/mcp.json`-equivalent file to diff against the canonical registry.
+  Auditing codex would mean shelling out to `codex mcp list` and parsing its
+  tabular output — a different check mechanism, out of scope here.
+- **antigravity** has no scriptable MCP CLI at all — `bootstrap/lib/mcp.sh`
+  documents (verified live on agy 1.1.1, G16/agy-batchD-groundtruth.md) that
+  `agy --help` lists no `mcp` subcommand and `agy mcp --help` falls through to
+  the general usage banner. Its config also lives under `~/.gemini/config`
+  (Gemini-CLI lineage), not a dedicated `~/.antigravity` MCP file, so whatever
+  MCP state it has is already covered (or not) by the Gemini check above.
+
+Don't report codex/antigravity as missing from this check — that's by design,
+not drift. If a future audit wants codex coverage, it needs a
+`codex mcp list`-parsing check, not an extension of this file-diff approach.
+
 ### 5. Config File Freshness
 
 For shared config files accessed via symlink, verify that the canonical files
