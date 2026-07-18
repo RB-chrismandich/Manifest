@@ -304,7 +304,8 @@ function fetchAndEncode(url: string, timeout: number, redirectCount = 0): Promis
     let parsedUrl: URL;
     try {
       parsedUrl = new URL(url);
-    } catch {
+    } catch (e) {
+      console.warn(`  WARN: Failed to parse URL: ${e instanceof Error ? e.message : String(e)}`);
       const fallback =
         'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
       console.warn(`  WARN: Invalid URL: ${url.slice(0, 70).replace(/\n|\r/g, '')}...`);
@@ -340,7 +341,8 @@ function fetchAndEncode(url: string, timeout: number, redirectCount = 0): Promis
           let redirectUrl: string;
           try {
             redirectUrl = new URL(resp.headers.location, url).href;
-          } catch {
+          } catch (e) {
+            console.warn(`  WARN: Failed to resolve redirect URL: ${e instanceof Error ? e.message : String(e)}`);
             redirectUrl = resp.headers.location;
           }
           // Consume response body to free the socket

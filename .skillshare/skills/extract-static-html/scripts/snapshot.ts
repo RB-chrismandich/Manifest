@@ -171,7 +171,8 @@ function validateOpts(opts: Opts): void {
   if (opts.url) {
     try {
       new URL(opts.url);
-    } catch {
+    } catch (e) {
+      console.warn(`⚠️  URL validation failed: ${e instanceof Error ? e.message : String(e)}`);
       errors.push(
         `Invalid URL: "${opts.url}". Must be a valid URL (e.g., http://localhost:5173)`,
       );
@@ -298,7 +299,8 @@ async function snapshot(opts: Opts): Promise<void> {
         waitUntil: 'networkidle0',
         timeout: Math.min(30000, opts.timeout - 5000),
       });
-    } catch {
+    } catch (e) {
+      console.warn(`⚠️  Navigation networkidle0 failed: ${e instanceof Error ? e.message : String(e)}`);
       const msg = 'networkidle0 timed out, falling back to networkidle2';
       console.warn(`⚠️  ${msg}...`);
       stats.warnings.push(msg);
@@ -426,7 +428,8 @@ async function snapshot(opts: Opts): Promise<void> {
               reader.onerror = () => resolve(null);
               reader.readAsDataURL(blob);
             });
-          } catch {
+          } catch (e) {
+            console.warn(`⚠️  Failed reading blob as data URL: ${e instanceof Error ? e.message : String(e)}`);
             return null;
           }
         },
@@ -667,7 +670,9 @@ async function snapshot(opts: Opts): Promise<void> {
                 try {
                   const abs = new URL(val, base).href;
                   el.setAttribute(attr, abs);
-                } catch (e) { }
+                } catch (e) {
+                  console.warn(`⚠️  Failed setting absolute attribute ${attr} on ${val}: ${e instanceof Error ? e.message : String(e)}`);
+                }
               }
             };
             document.querySelectorAll('img[src]').forEach(img => resolveAttr(img, 'src'));
@@ -689,7 +694,8 @@ async function snapshot(opts: Opts): Promise<void> {
                   }
                   try {
                     return `url('${new URL(url, base).href}')`;
-                  } catch {
+                  } catch (e) {
+                    console.warn(`⚠️  Failed to resolve CSS URL ${url}: ${e instanceof Error ? e.message : String(e)}`);
                     return match;
                   }
                 });
@@ -920,7 +926,8 @@ async function snapshot(opts: Opts): Promise<void> {
                 end: ref.end,
                 dataUri: absUrl, // Not a data URI yet — just resolved to absolute
               });
-            } catch {
+            } catch (e) {
+              console.warn(`⚠️  Skipping malformed URL: ${e instanceof Error ? e.message : String(e)}`);
               // Malformed URL — skip
             }
           }
@@ -1200,7 +1207,8 @@ async function snapshot(opts: Opts): Promise<void> {
           if (dataUri) {
             obj.setAttribute('data', dataUri);
           }
-        } catch {
+        } catch (e) {
+          console.warn(`⚠️  Skipping failed object processing: ${e instanceof Error ? e.message : String(e)}`);
           // Skip failed objects
         }
       });
@@ -1309,7 +1317,8 @@ async function snapshot(opts: Opts): Promise<void> {
     if (browser) {
       try {
         await browser.close();
-      } catch {
+      } catch (e) {
+        console.warn(`⚠️  Browser close failed: ${e instanceof Error ? e.message : String(e)}`);
         // Browser may already be closed by timeout handler
       }
     }
