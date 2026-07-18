@@ -70,3 +70,10 @@ in generated reports.
 represented as critical errors with a red cross (`✗`). This creates a false error state and panic for users.
 **Action:** Use a neutral yellow circle (`○`) and hide installation hints behind verbose flags for optional
 components that are not strictly required for the core application to function.
+
+## 2026-07-06 - Semantic Optional Files
+
+**Learning:** When displaying missing optional files in CLI scripts (like `research.md`), using a red cross (`✗`)
+creates a false sense of error for users. A missing optional file is an expected, neutral state.
+**Action:** Use a yellow circle (`○`) for missing optional files, reserving the red cross strictly for required
+files or critical errors.
