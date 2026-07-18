@@ -608,6 +608,11 @@ echo ""
 echo -e "${BOLD}${BLUE}═══════════════════════════════════════════════════════${NC}"
 echo -e "${BOLD}Overall Status:${NC}"
 
+# NOTE: this tally still only recognizes the 5 hardcoded agent names above —
+# a roster-only 6th+ agent (hyphenated or not) has its enabled/installed
+# state correctly read via ROSTER_NAMES elsewhere in this script, but is
+# never counted toward orchestration readiness here. Pre-existing limitation,
+# not introduced or fixed by the hyphen-sanitization work above.
 working_agents=0
 [[ "$claude_installed" == true && "$claude_enabled" == "true" ]] && working_agents=$((working_agents + 1))
 [[ "$gemini_installed" == true && "$gemini_enabled" == "true" ]] && working_agents=$((working_agents + 1))
