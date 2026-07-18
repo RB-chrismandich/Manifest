@@ -138,7 +138,8 @@ load_agent_roster_tsv() {
     roster_path="$(resolve_agent_roster_path)"
     [[ -f "$roster_path" ]] || return 0
 
-    out="$(python3 - "$roster_path" 2> /dev/null << 'PY'
+    out="$(
+        python3 - "$roster_path" 2> /dev/null << 'PY'
 import sys
 
 import yaml

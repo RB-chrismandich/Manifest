@@ -122,7 +122,6 @@ class TestSelectBackend:
 # ---------------------------------------------------------------------------
 
 import yaml
-
 from agents.cli import (
     build_parser,
     cli_only_provider_names,
@@ -340,24 +339,18 @@ class TestHyphenatedRosterAgentName:
 class TestCliFallbackDriftGuard:
     def test_fallback_roster_names_match_real_registry(self):
         import yaml
-
         from agents.cli import _FALLBACK_ROSTER
 
-        roster_path = (
-            REPO_ROOT / "configs" / "claude" / "config" / "agent_roster.yml"
-        )
+        roster_path = REPO_ROOT / "configs" / "claude" / "config" / "agent_roster.yml"
         with open(roster_path, encoding="utf-8") as fh:
             real_names = set(yaml.safe_load(fh)["agents"])
         assert set(_FALLBACK_ROSTER) == real_names
 
     def test_model_tier_defaults_names_match_real_registry(self):
         import yaml
-
         from agents.cli import _MODEL_TIER_DEFAULTS
 
-        roster_path = (
-            REPO_ROOT / "configs" / "claude" / "config" / "agent_roster.yml"
-        )
+        roster_path = REPO_ROOT / "configs" / "claude" / "config" / "agent_roster.yml"
         with open(roster_path, encoding="utf-8") as fh:
             real_names = set(yaml.safe_load(fh)["agents"])
         assert set(_MODEL_TIER_DEFAULTS) == real_names
