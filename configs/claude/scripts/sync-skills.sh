@@ -137,7 +137,12 @@ done < <(load_agent_roster_home_dirs)
 # always syncing the 4 historical secondary targets.
 if [[ ${#ROSTER_NAMES[@]} -eq 0 ]]; then
     ROSTER_NAMES=(claude gemini cursor codex antigravity)
-    ROSTER_HOME_DIRS=("$HOME/.claude" "$HOME/.gemini" "$HOME/.cursor" "$HOME/.codex" "$HOME/.antigravity")
+    # Literal ~/.<name> form, matching how tiers 1/2 store agent_roster.yml's
+    # own home_dir values -- deliberately NOT pre-expanded here, so the single
+    # expansion step below (line ~150) applies uniformly regardless of which
+    # tier populated this array.
+    # shellcheck disable=SC2088 # intentional: literal ~ kept unexpanded, see above
+    ROSTER_HOME_DIRS=("~/.claude" "~/.gemini" "~/.cursor" "~/.codex" "~/.antigravity")
 fi
 
 # Secondary sync targets = every roster agent's home_dir/skills EXCEPT
