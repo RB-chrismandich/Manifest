@@ -311,3 +311,139 @@ def test_repo_sourced_top_level_file_is_reconciled_not_orphan(world):
     by = _by_key(items)
     # reconciled units are not listed at all — previously misclassified REMOVE
     assert "skills/README.md" not in by
+
+
+# --------------------------------------------------------------------------- #
+# Fleet tags — derived from agent_roster.yml (config-only extensibility)
+# --------------------------------------------------------------------------- #
+_SIXTH_AGENT_ROSTER = """\
+agents:
+  claude:
+    name: claude
+    binary: claude
+    home_dir: ~/.claude
+    prompt_args: ["-p", "{prompt}"]
+    model_args: ["--model", "{model}"]
+    auth_check: "claude auth status"
+    enabled_default: true
+  gemini:
+    name: gemini
+    binary: gemini
+    home_dir: ~/.gemini
+    prompt_args: ["-p", "{prompt}"]
+    model_args: ["-m", "{model}"]
+    auth_check: "gemini auth status"
+    enabled_default: true
+  cursor:
+    name: cursor
+    binary: cursor-agent
+    home_dir: ~/.cursor
+    prompt_args: ["{prompt}"]
+    model_args: ["--model", "{model}"]
+    auth_check: "cursor-agent --version"
+    enabled_default: true
+  codex:
+    name: codex
+    binary: codex
+    home_dir: ~/.codex
+    prompt_args: ["{prompt}"]
+    model_args: ["--model", "{model}"]
+    auth_check: "codex login status"
+    enabled_default: true
+  antigravity:
+    name: antigravity
+    binary: agy
+    home_dir: ~/.antigravity
+    prompt_args: ["--print", "{prompt}"]
+    model_args: ["--model", "{model}"]
+    auth_check: "agy models"
+    enabled_default: true
+  beta:
+    name: beta
+    binary: beta-agent
+    home_dir: ~/.beta
+    prompt_args: ["{prompt}"]
+    model_args: ["--model", "{model}"]
+    auth_check: "beta-agent --version"
+    enabled_default: false
+"""
+
+
+def _load_core_with_roster(roster_path, monkeypatch):
+    """Load a FRESH copy of reconcile_core.py with MANIFEST_AGENT_ROSTER
+    pointed at ``roster_path`` — module-level ROOT_TAGS is computed once at
+    exec time, so a distinct module object is required to observe a
+    different registry (mirrors the module-load pattern this test file
+    already uses for ``core`` itself, at the top of this file).
+    """
+    monkeypatch.setenv("MANIFEST_AGENT_ROSTER", str(roster_path))
+    spec = importlib.util.spec_from_file_location(
+        "reconcile_core_sixth_agent_fixture", _CORE
+    )
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def test_sixth_agent_extends_fleet_via_config_only(tmp_path, monkeypatch):
+    """Acceptance test: a 6th agent added ONLY to agent_roster.yml is picked
+    up by ROOT_TAGS/SECONDARY_TAGS and accepted by the CLI's --root
+    validation — with zero changes to reconcile_core.py's Python source.
+    """
+    roster = tmp_path / "agent_roster.yml"
+    roster.write_text(_SIXTH_AGENT_ROSTER)
+
+    mod = _load_core_with_roster(roster, monkeypatch)
+
+    # The 5 known agents keep their exact historical order; "beta" is new.
+    assert mod.ROOT_TAGS == (
+        "claude",
+        "cursor",
+        "gemini",
+        "codex",
+        "antigravity",
+        "beta",
+    )
+    assert "beta" in mod.SECONDARY_TAGS
+    assert mod.ROOT_TAGS[1:] == mod.SECONDARY_TAGS
+
+    # --list-tags reflects it too (the machine-readable list deploy_reconcile.sh reads).
+    import io
+    from contextlib import redirect_stdout
+
+    buf = io.StringIO()
+    with redirect_stdout(buf):
+        rc = mod.main(["--list-tags"])
+    assert rc == 0
+    assert "beta" in buf.getvalue().splitlines()
+
+    # --root beta is accepted (previously "unknown --root" -> exit 2).
+    home = tmp_path / "home"
+    project = tmp_path / "repo"
+    (home / ".beta").mkdir(parents=True)
+    (project / "configs" / "claude" / "config").mkdir(parents=True)
+    rc = mod.main(
+        [
+            "--home",
+            str(home),
+            "--project",
+            str(project),
+            "--root",
+            "beta",
+            "--format",
+            "json",
+        ]
+    )
+    assert rc == 0
+
+
+def test_fifth_agent_root_still_rejects_unknown_tag(tmp_path, monkeypatch):
+    """Control: with the REAL (5-agent) registry, an unrelated tag is still
+    rejected — proves the 6th-agent acceptance above is genuinely
+    registry-driven, not an accidental always-accept regression.
+    """
+    monkeypatch.delenv("MANIFEST_AGENT_ROSTER", raising=False)
+    rc = core.main(
+        ["--home", str(tmp_path), "--project", str(tmp_path), "--root", "beta"]
+    )
+    assert rc == 2

@@ -22,12 +22,130 @@ from __future__ import annotations
 
 import argparse
 import fnmatch
+import importlib.util
 import json
 import os
 import re
 import sys
 
-ROOT_TAGS = ("claude", "cursor", "gemini", "codex", "antigravity")
+# --------------------------------------------------------------------------- #
+# Fleet tags — derived from agent_roster.yml (single enumeration of the
+# 5-agent fleet; see agent_roster.yml's header). Previously a hardcoded
+# tuple; a 6th agent now needs only a registry entry, no source change here
+# (tests/python/test_reconcile_policy.py::test_sixth_agent_extends_fleet_via_config_only).
+# --------------------------------------------------------------------------- #
+_DEFAULT_ROOT_TAGS = ("claude", "cursor", "gemini", "codex", "antigravity")
+
+
+def _default_roster_path():
+    return os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "..", "config", "agent_roster.yml"
+    )
+
+
+def _agent_roster_loader():
+    """Load ``load_agent_roster`` from ``agents/config.py`` WITHOUT importing
+    the ``agents`` package. ``agents/__init__.py`` re-exports the full
+    orchestration stack (cli/orchestrator/runners/synthesis/validation) —
+    heavy and unrelated to this read-only engine — and importing it would
+    make PyYAML a hard runtime dependency of this module, which currently has
+    none (see ``_parse_protected_yaml`` below). Loaded standalone via
+    ``spec_from_file_location``, the same technique
+    ``tests/python/test_reconcile_policy.py`` already uses to load this very
+    module. Returns None on any failure (missing file, missing PyYAML, ...)
+    so callers fall back gracefully.
+    """
+    try:
+        cfg_path = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)), "agents", "config.py"
+        )
+        spec = importlib.util.spec_from_file_location(
+            "_reconcile_agents_config", cfg_path
+        )
+        if spec is None or spec.loader is None:
+            return None
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        return mod.load_agent_roster
+    except Exception:
+        return None
+
+
+def _fallback_roster_tags(path):
+    """PyYAML-free extraction of the top-level keys under ``agents:`` —
+    mirrors ``_parse_protected_yaml``'s manual fallback parser (no hard yaml
+    dependency at runtime).
+    """
+    if not path or not os.path.isfile(path):
+        return []
+    tags, in_block = [], False
+    with open(path, encoding="utf-8") as fh:
+        for raw in fh:
+            line = raw.rstrip("\n")
+            stripped = line.strip()
+            if not stripped or stripped.startswith("#"):
+                continue
+            if line == "agents:":
+                in_block = True
+                continue
+            if in_block:
+                if (
+                    line.startswith("  ")
+                    and not line.startswith("    ")
+                    and stripped.endswith(":")
+                ):
+                    tags.append(stripped[:-1])
+                elif not line.startswith(" "):
+                    break
+    return tags
+
+
+def _order_tags(tags):
+    """Order tags to match the historical ``ROOT_TAGS`` order for the 5 known
+    agents exactly, regardless of the registry's own key order (drift-safe:
+    ``agent_roster.yml`` lists ``gemini`` before ``cursor``) — this is a
+    drop-in data-source swap, not a redesign, so the 5-agent output (roots
+    listing, ``--root`` error message) must stay byte-identical. A tag not in
+    the historical set (e.g. a config-only 6th agent) is appended afterward,
+    in the order the registry declared it.
+    """
+    known_order = {t: i for i, t in enumerate(_DEFAULT_ROOT_TAGS)}
+    known = sorted((t for t in tags if t in known_order), key=lambda t: known_order[t])
+    extra = [t for t in tags if t not in known_order]
+    return known + extra
+
+
+def load_fleet_tags(roster_path=None):
+    """The fleet tag tuple, derived from ``agent_roster.yml``.
+
+    Resolution order: explicit ``roster_path`` arg > ``MANIFEST_AGENT_ROSTER``
+    env var (mirrors ``RECONCILE_CONFIG``/``MANIFEST_RECONCILE_CONFIG``
+    below) > the sibling ``../config/agent_roster.yml``. Falls back to the
+    hardcoded 5-tag default if the registry is missing, unparseable, or the
+    ``agents/config.py`` loader can't be imported — this CLI must keep
+    working with no config file present (same invariant as
+    ``_parse_protected_yaml``).
+    """
+    path = (
+        roster_path or os.environ.get("MANIFEST_AGENT_ROSTER") or _default_roster_path()
+    )
+    tags = []
+    loader = _agent_roster_loader()
+    if loader is not None:
+        try:
+            roster = loader(path)
+            if isinstance(roster, dict) and roster:
+                tags = list(roster.keys())
+        except Exception:
+            tags = []
+    if not tags:
+        tags = _fallback_roster_tags(path)
+    if not tags:
+        return _DEFAULT_ROOT_TAGS
+    return tuple(_order_tags(tags))
+
+
+ROOT_TAGS = load_fleet_tags()
 SECONDARY_TAGS = ROOT_TAGS[1:]
 # Managed namespaces reconciled per home root (v1: skills+config; v2 adds
 # scripts — deployed tooling drift was invisible before, issue #462).
@@ -421,7 +539,18 @@ def main(argv=None):
         "--from-json",
         help="render an existing report (path or '-') instead of scanning",
     )
+    ap.add_argument(
+        "--list-tags",
+        action="store_true",
+        help="print the fleet tag list (one per line, agent_roster.yml-derived) and exit",
+    )
     args = ap.parse_args(argv)
+
+    # Machine-readable fleet list for the bash wrapper (deploy_reconcile.sh) —
+    # needs no project/home resolution, mirrors the --from-json short-circuit.
+    if args.list_tags:
+        sys.stdout.write("\n".join(ROOT_TAGS) + "\n")
+        return 0
 
     # Re-render a previously captured report (lets the bash wrapper scan once).
     if args.from_json:
