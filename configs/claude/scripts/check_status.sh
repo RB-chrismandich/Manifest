@@ -252,11 +252,15 @@ roster_auth_check() {
 }
 
 # Static declarations for the 5 known agents' enabled/installed flags.
-# The roster loops below assign these dynamically by name
-# (printf -v "${name}_installed" ...) so shellcheck (SC2154) cannot trace
-# the assignment; declaring them here also keeps every later reference
-# (codex_runtime_ready, working_agents, ...) safe if a known agent were
-# ever absent from the registry.
+# The roster loops below assign these dynamically by sanitized name
+# (printf -v "${name//-/_}_installed" ...  -- bash identifiers cannot
+# contain '-', so a hyphenated roster name like "test-agent" is mangled to
+# "test_agent" for the variable only, mirroring agents/cli.py's _dest()
+# name-mangling) so shellcheck (SC2154) cannot trace the assignment;
+# declaring them here also keeps every later reference (codex_runtime_ready,
+# working_agents, ...) safe if a known agent were ever absent from the
+# registry. The 5 names below are all already valid identifiers, so the
+# sanitization is a no-op for them.
 claude_installed=false
 gemini_installed=false
 cursor_installed=false
@@ -292,7 +296,12 @@ if [[ -f ~/.claude/config/services.yml ]]; then
     # agent needs only a registry entry + a services.yml block, no script edit.
     for r_name in "${ROSTER_NAMES[@]}"; do
         r_val=$(grep -A1 "^  ${r_name}:" ~/.claude/config/services.yml | grep "enabled:" | awk '{print $2}')
-        printf -v "${r_name}_enabled" '%s' "$r_val"
+        # Bash identifiers cannot contain '-' (e.g. a roster agent named
+        # "test-agent" would make printf -v reject "test-agent_enabled" as
+        # "not a valid identifier"); sanitize to the bash-3.2-safe
+        # ${var//-/_} form for the identifier only -- the ungrepped
+        # $r_name above still targets the real services.yml key.
+        printf -v "${r_name//-/_}_enabled" '%s' "$r_val"
     done
     # graphify is a managed TOOL, not a parallel-orchestration agent (it is reported
     # separately under CLI Tools and excluded from the agent count / working_agents)
@@ -301,7 +310,7 @@ if [[ -f ~/.claude/config/services.yml ]]; then
 
     enabled_count=0
     for r_name in "${ROSTER_NAMES[@]}"; do
-        r_var="${r_name}_enabled"
+        r_var="${r_name//-/_}_enabled"
         [[ "${!r_var}" == "true" ]] && enabled_count=$((enabled_count + 1))
     done
 
@@ -309,7 +318,7 @@ if [[ -f ~/.claude/config/services.yml ]]; then
     echo -e "${BOLD}Enabled Services (${enabled_count}/${#ROSTER_NAMES[@]}):${NC}"
 
     for r_name in "${ROSTER_NAMES[@]}"; do
-        r_var="${r_name}_enabled"
+        r_var="${r_name//-/_}_enabled"
         r_label="$(cap_name "$r_name")"
         if [[ "${!r_var}" == "true" ]]; then
             echo -e "  ${GREEN}✓${NC} ${r_label}"
@@ -386,7 +395,9 @@ for r_name in "${ROSTER_NAMES[@]}"; do
     r_binary="$(roster_binary "$r_name")"
     if command -v "$r_binary" &> /dev/null; then
         echo -e "  ${GREEN}✓${NC} $(agent_installed_msg "$r_name")"
-        printf -v "${r_name}_installed" '%s' true
+        # ${r_name//-/_}: see the "_enabled" assignment above -- same
+        # identifier-safety requirement applies to "_installed".
+        printf -v "${r_name//-/_}_installed" '%s' true
         if [[ "$VERBOSE" == true ]]; then
             echo -e "    Location: $(which "$r_binary")"
             if agent_shows_version "$r_name"; then
@@ -394,7 +405,7 @@ for r_name in "${ROSTER_NAMES[@]}"; do
             fi
         fi
     else
-        printf -v "${r_name}_installed" '%s' false
+        printf -v "${r_name//-/_}_installed" '%s' false
         echo -e "  ${YELLOW}○${NC} $(agent_not_installed_msg "$r_name")"
         if [[ "$VERBOSE" == true ]]; then
             echo -e "    ${BLUE}→${NC} Install: $(agent_install_hint "$r_name")"
@@ -436,7 +447,7 @@ echo -e "${BOLD}Authentication:${NC}"
 # bespoke logic below, unconverted -- an honest, documented schema
 # limitation, not a bug to paper over.
 for r_name in claude cursor; do
-    r_var="${r_name}_installed"
+    r_var="${r_name//-/_}_installed"
     if [[ "${!r_var}" == true ]]; then
         r_auth_check="$(roster_auth_check "$r_name")"
         r_label="$(cap_name "$r_name")"

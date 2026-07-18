@@ -226,32 +226,35 @@ teardown() {
     run bash "$CHECK_STATUS"
     assert_success
     # 7 roster agents now enumerated (5 historical + beta + test-agent); the
-    # denominator itself proves the roster (not a hardcoded 5) drove the count.
-    assert_output --partial "Enabled Services (1/7):"
+    # denominator itself proves the roster (not a hardcoded 5) drove the
+    # count. Numerator is 2 (beta + test-agent, both enabled: true in
+    # services.yml) now that the hyphenated-name identifier bug (see the
+    # next test) is fixed and test-agent's enabled-state is read correctly
+    # too -- pre-fix this was "(1/7)" because test-agent's own state was
+    # always misread as disabled.
+    assert_output --partial "Enabled Services (2/7):"
     assert_output --partial "Beta"
     refute_output --partial "Beta (disabled)"
     assert_output --partial "Beta CLI installed"
 }
 
-@test "[2/4 check_status.sh] a hyphenated roster agent is enumerated (CLI Tools) without crashing the whole script" {
+@test "[2/4 check_status.sh] a hyphenated roster agent is enumerated (CLI Tools) with correct enabled-state" {
     # check_status.sh's per-agent Enabled/CLI-Tools state is stored via
-    # printf -v "\${r_name}_enabled" / "\${r_name}_installed" -- bash
-    # identifiers cannot contain '-', so "test-agent" trips "not a valid
-    # identifier" on those two assignments (see check_status.sh lines ~295,
-    # ~389). That's a real, narrower gap than cli.py's (which Task D fixed
-    # via _dest() name-mangling) -- check_status.sh's hyphen support was
-    # never in this goal's scope. Pinned here deliberately: the script must
-    # stay non-fatal (exit 0, other agents unaffected) even though
-    # test-agent's OWN enabled-state comes out wrong ("(disabled)" despite
-    # services.yml enabling it). A future fix to check_status.sh's hyphen
-    # handling should have to touch this assertion, not silently pass it.
+    # printf -v "\${r_name//-/_}_enabled" / "\${r_name//-/_}_installed" --
+    # bash identifiers cannot contain '-', so a hyphenated name like
+    # "test-agent" is sanitized to "test_agent" for the variable identifier
+    # only (mirroring agents/cli.py's _dest() name-mangling; see
+    # check_status.sh lines ~295, ~389 and the indirect-read sites at
+    # ~304/~312/~439). services.yml enables test-agent, so it must report
+    # enabled -- not the pre-fix "(disabled)" misread caused by printf -v
+    # silently rejecting "test-agent_enabled" as "not a valid identifier".
     run bash "$CHECK_STATUS"
     assert_success
     assert_output --partial "Test-agent CLI installed"
-    assert_output --partial "Test-agent (disabled)"
+    assert_output --partial "Test-agent"
+    refute_output --partial "Test-agent (disabled)"
     # The other agents (crucially "beta", not adjacent to the bug) still
-    # report correctly -- the hyphenated entry's failure is contained, not
-    # script-wide.
+    # report correctly.
     assert_output --partial "Beta CLI installed"
     refute_output --partial "Beta (disabled)"
 }
