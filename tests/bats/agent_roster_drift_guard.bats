@@ -78,14 +78,16 @@ PY
     # to a sentinel so the comparison is against the ~-form agent_roster.yml
     # actually stores, not this test runner's real $HOME. Written to a temp
     # script (not inlined into `bash -c "..."`) to sidestep nested-quoting
-    # escaping of the '/SENTINEL_HOME' -> '~' substitution below.
+    # escaping of the '/SENTINEL_HOME' -> '~' substitution below. Use
+    # prefix-strip + literal '~' concat (not ${home/#.../~}) so tilde is not
+    # re-expanded via $HOME when HOME=/SENTINEL_HOME.
     driver="$TEST_TMP/driver.sh"
     {
         printf '%s\n' "$fallback_src"
         cat << 'DRIVER'
 for i in "${!ROSTER_NAMES[@]}"; do
     home="${ROSTER_HOME_DIRS[$i]}"
-    home="${home/#\/SENTINEL_HOME/~}"
+    home="~${home#/SENTINEL_HOME}"
     printf '%s\t%s\n' "${ROSTER_NAMES[$i]}" "$home"
 done
 DRIVER
