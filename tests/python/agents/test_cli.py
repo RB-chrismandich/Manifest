@@ -123,7 +123,12 @@ class TestSelectBackend:
 
 import yaml
 
-from agents.cli import build_parser, cli_only_provider_names
+from agents.cli import (
+    build_parser,
+    cli_only_provider_names,
+    resolve_cli_models,
+    resolve_enabled_agents,
+)
 from agents.config import Config, RateLimiter
 from agents.runners import CLIAgent
 
@@ -219,3 +224,97 @@ class TestRosterDrivenSixthAgent:
         )
         assert agent.binary == "echo"
         assert agent.name == "beta"
+
+
+# ---------------------------------------------------------------------------
+# Hyphenated roster agent name — argparse mangles a flag's dest by replacing
+# '-' with '_' (e.g. "--gemini-pro-only" -> args.gemini_pro_only), so any
+# getattr(args, f"{name}_only") lookup that reuses the *raw* roster name
+# (still hyphenated) raises AttributeError. That AttributeError fires
+# unconditionally during startup arg processing for EVERY invocation, not
+# just ones targeting the hyphenated agent — so this is a regression test
+# for a full-script crash, not a per-agent edge case. Uses the same
+# fresh-fixture pattern as TestRosterDrivenSixthAgent above.
+# ---------------------------------------------------------------------------
+
+ROSTER_WITH_HYPHENATED_NAME = {
+    "claude": {},
+    "gemini": {},
+    "gemini-pro": {},
+}
+
+FAKE_SDK_PROVIDERS_HYPHEN = {"claude": {}, "gemini": {}}
+
+
+class TestHyphenatedRosterAgentName:
+    def test_hyphenated_flags_present_in_help(self):
+        parser = build_parser(ROSTER_WITH_HYPHENATED_NAME)
+        help_text = parser.format_help()
+        assert "--gemini-pro-only" in help_text
+        assert "--no-gemini-pro" in help_text
+        assert "--gemini-pro-model" in help_text
+
+    def test_gemini_pro_only_flag_mangles_to_underscored_dest(self):
+        # Confirms argparse's own behavior: the flag is hyphenated but the
+        # dest attribute is underscored. This is the ground truth that
+        # downstream getattr(args, ...) lookups must match.
+        parser = build_parser(ROSTER_WITH_HYPHENATED_NAME)
+        args = parser.parse_args(["--gemini-pro-only"])
+        assert args.gemini_pro_only is True
+        assert not hasattr(args, "gemini-pro_only")
+
+    def test_resolve_enabled_agents_does_not_raise_for_hyphenated_name(self):
+        """This is the exact code path that crashed the entire script for
+        ALL agents (not just the hyphenated one) before the fix: main()
+        calls this unconditionally during startup, before any agent
+        dispatch. Reproducing it directly (no subprocess) proves the fix
+        without needing live agent binaries/keys."""
+        parser = build_parser(ROSTER_WITH_HYPHENATED_NAME)
+        args = parser.parse_args(["--claude-only", "ping"])
+        enabled = resolve_enabled_agents(
+            ROSTER_WITH_HYPHENATED_NAME,
+            args,
+            {"claude": True, "gemini": True, "gemini-pro": True},
+        )
+        # --claude-only is exclusive: only claude stays enabled.
+        assert enabled == {"claude": True, "gemini": False, "gemini-pro": False}
+
+    def test_gemini_pro_only_flag_resolves_correctly(self):
+        parser = build_parser(ROSTER_WITH_HYPHENATED_NAME)
+        args = parser.parse_args(["--gemini-pro-only"])
+        enabled = resolve_enabled_agents(
+            ROSTER_WITH_HYPHENATED_NAME,
+            args,
+            {"claude": True, "gemini": True, "gemini-pro": True},
+        )
+        assert enabled == {"claude": False, "gemini": False, "gemini-pro": True}
+
+    def test_no_gemini_pro_flag_always_wins(self):
+        parser = build_parser(ROSTER_WITH_HYPHENATED_NAME)
+        args = parser.parse_args(["--no-gemini-pro"])
+        enabled = resolve_enabled_agents(
+            ROSTER_WITH_HYPHENATED_NAME,
+            args,
+            {"claude": True, "gemini": True, "gemini-pro": True},
+        )
+        assert enabled == {"claude": True, "gemini": True, "gemini-pro": False}
+
+    def test_gemini_pro_model_flag_resolves_via_cli_only_dispatch(self):
+        parser = build_parser(ROSTER_WITH_HYPHENATED_NAME)
+        args = parser.parse_args(["--gemini-pro-model", "advanced"])
+        cli_only = cli_only_provider_names(
+            ROSTER_WITH_HYPHENATED_NAME, FAKE_SDK_PROVIDERS_HYPHEN
+        )
+        assert cli_only == ["gemini-pro"]
+        cli_models = resolve_cli_models(cli_only, args)
+        assert cli_models == {"gemini-pro": "advanced"}
+
+    def test_default_gemini_pro_model_resolves_without_override(self):
+        parser = build_parser(ROSTER_WITH_HYPHENATED_NAME)
+        args = parser.parse_args([])
+        cli_only = cli_only_provider_names(
+            ROSTER_WITH_HYPHENATED_NAME, FAKE_SDK_PROVIDERS_HYPHEN
+        )
+        cli_models = resolve_cli_models(cli_only, args)
+        # "gemini-pro" has no entry in _MODEL_TIER_DEFAULTS -> generic "auto".
+        assert cli_models == {"gemini-pro": "auto"}

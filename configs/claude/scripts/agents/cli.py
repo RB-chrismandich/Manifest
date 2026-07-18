@@ -64,6 +64,50 @@ def _ordered(roster: dict, hint: list[str]) -> list[str]:
     return ordered
 
 
+def _dest(name: str) -> str:
+    """Normalize a roster agent name into argparse's dest-name mangling.
+
+    argparse builds a flag's dest by replacing '-' with '_' when it turns
+    `--{name}-only` into an attribute name (e.g. a roster agent named
+    "gemini-pro" gets flag `--gemini-pro-only` but dest `gemini_pro_only`).
+    Every getattr(args, ...) lookup below re-derives that dest from the raw
+    roster name and must apply the same normalization argparse itself does,
+    or a hyphenated roster name raises AttributeError on any real invocation
+    (roster names are hyphen-free today, so this is a no-op for them).
+    """
+    return name.replace("-", "_")
+
+
+def resolve_enabled_agents(
+    roster: dict, args: argparse.Namespace, enabled: dict[str, bool]
+) -> dict[str, bool]:
+    """Apply --*-only (exclusive) and --no-* (always-wins) overrides on top
+    of the services.yml-derived `enabled` state. Split out from main() so
+    the dest-name derivation — the site of the hyphenated-roster-name
+    AttributeError bug — is directly unit-testable without a subprocess.
+    """
+    enabled = dict(enabled)
+    only_flags = {name: getattr(args, f"{_dest(name)}_only") for name in roster}
+    if any(only_flags.values()):
+        for agent_name in enabled:
+            enabled[agent_name] = only_flags[agent_name]
+    for name in roster:
+        if getattr(args, f"no_{_dest(name)}"):
+            enabled[name] = False
+    return enabled
+
+
+def resolve_cli_models(
+    cli_only_providers: list[str], args: argparse.Namespace
+) -> dict[str, str]:
+    """Model-tier overrides for CLI-only roster agents, keyed by roster name.
+
+    Split out for the same reason as resolve_enabled_agents — the dest-name
+    derivation is another site of the hyphenated-roster-name bug.
+    """
+    return {name: getattr(args, f"{_dest(name)}_model") for name in cli_only_providers}
+
+
 def cli_only_provider_names(roster: dict, sdk_providers: dict) -> list[str]:
     """Roster agent names not handled via sdk_providers (claude/gemini's SDK
     backend selection) — the CLI-only dispatch set. Any roster agent here
@@ -239,16 +283,9 @@ async def main():
     # 1. Start with services.yml enabled state
     enabled = {name: services.is_enabled(name) for name in roster}
 
-    # 2. Apply --*-only flags (exclusive: if any set, only those run)
-    only_flags = {name: getattr(args, f"{name}_only") for name in roster}
-    if any(only_flags.values()):
-        for agent_name in enabled:
-            enabled[agent_name] = only_flags[agent_name]
-
-    # 3. Apply --no-* overrides (always win)
-    for name in roster:
-        if getattr(args, f"no_{name}"):
-            enabled[name] = False
+    # 2. Apply --*-only flags (exclusive: if any set, only those run) and
+    #    --no-* overrides (always win)
+    enabled = resolve_enabled_agents(roster, args, enabled)
 
     # Build agents list
     agents = []
@@ -326,9 +363,7 @@ async def main():
         name: RateLimiter(**config.get(f"rate_limits.{name}", {}))
         for name in cli_only_providers
     }
-    cli_models = {
-        name: getattr(args, f"{name}_model") for name in cli_only_providers
-    }
+    cli_models = resolve_cli_models(cli_only_providers, args)
     for provider in cli_only_providers:
         if enabled[provider]:
             try:
