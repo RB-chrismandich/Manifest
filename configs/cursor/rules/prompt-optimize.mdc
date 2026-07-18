@@ -6,11 +6,10 @@ alwaysApply: false
 
 # prompt-optimize
 
-Use to create, optimize, refactor, or harden a prompt into a structurally pristine, production-ready system skill
-template. Ingests unoptimized input prompts and eliminates conversational preamble, metadata explanations, and post-
-generation fluff.
+Use to create, optimize, refactor, or harden a prompt into a structurally pristine, production-ready system skill template. Ingests unoptimized input prompts and eliminates conversational preamble, metadata explanations, and post-generation fluff.
 
 <!-- Auto-generated from .claude/skills/prompt-optimize/SKILL.md -->
 <!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
 
 Refer to `.cursor/skills/prompt-optimize/SKILL.md` for the full skill definition.
+
