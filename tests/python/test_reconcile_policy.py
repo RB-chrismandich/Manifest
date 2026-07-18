@@ -23,6 +23,11 @@ _spec = importlib.util.spec_from_file_location("reconcile_core", _CORE)
 core = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(core)
 
+# The REAL production registry — used (not a synthetic fixture) by the
+# fallback-parser test below to prove the manual parser genuinely handles
+# production YAML.
+_REAL_ROSTER = os.path.join(os.path.dirname(_CORE), "..", "config", "agent_roster.yml")
+
 
 # --------------------------------------------------------------------------- #
 # Fixture: a hermetic managed-home + project tree
@@ -311,3 +316,195 @@ def test_repo_sourced_top_level_file_is_reconciled_not_orphan(world):
     by = _by_key(items)
     # reconciled units are not listed at all — previously misclassified REMOVE
     assert "skills/README.md" not in by
+
+
+# --------------------------------------------------------------------------- #
+# Fleet tags — derived from agent_roster.yml (config-only extensibility)
+# --------------------------------------------------------------------------- #
+_SIXTH_AGENT_ROSTER = """\
+agents:
+  claude:
+    name: claude
+    binary: claude
+    home_dir: ~/.claude
+    prompt_args: ["-p", "{prompt}"]
+    model_args: ["--model", "{model}"]
+    auth_check: "claude auth status"
+    enabled_default: true
+  gemini:
+    name: gemini
+    binary: gemini
+    home_dir: ~/.gemini
+    prompt_args: ["-p", "{prompt}"]
+    model_args: ["-m", "{model}"]
+    auth_check: "gemini auth status"
+    enabled_default: true
+  cursor:
+    name: cursor
+    binary: cursor-agent
+    home_dir: ~/.cursor
+    prompt_args: ["{prompt}"]
+    model_args: ["--model", "{model}"]
+    auth_check: "cursor-agent --version"
+    enabled_default: true
+  codex:
+    name: codex
+    binary: codex
+    home_dir: ~/.codex
+    prompt_args: ["{prompt}"]
+    model_args: ["--model", "{model}"]
+    auth_check: "codex login status"
+    enabled_default: true
+  antigravity:
+    name: antigravity
+    binary: agy
+    home_dir: ~/.antigravity
+    prompt_args: ["--print", "{prompt}"]
+    model_args: ["--model", "{model}"]
+    auth_check: "agy models"
+    enabled_default: true
+  beta:
+    name: beta
+    binary: beta-agent
+    home_dir: ~/.beta
+    prompt_args: ["{prompt}"]
+    model_args: ["--model", "{model}"]
+    auth_check: "beta-agent --version"
+    enabled_default: false
+"""
+
+
+def _load_core_with_roster(roster_path, monkeypatch):
+    """Load a FRESH copy of reconcile_core.py with MANIFEST_AGENT_ROSTER
+    pointed at ``roster_path`` — module-level ROOT_TAGS is computed once at
+    exec time, so a distinct module object is required to observe a
+    different registry (mirrors the module-load pattern this test file
+    already uses for ``core`` itself, at the top of this file).
+    """
+    monkeypatch.setenv("MANIFEST_AGENT_ROSTER", str(roster_path))
+    spec = importlib.util.spec_from_file_location(
+        "reconcile_core_sixth_agent_fixture", _CORE
+    )
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def test_sixth_agent_extends_fleet_via_config_only(tmp_path, monkeypatch):
+    """Acceptance test: a 6th agent added ONLY to agent_roster.yml is picked
+    up by ROOT_TAGS/SECONDARY_TAGS and accepted by the CLI's --root
+    validation — with zero changes to reconcile_core.py's Python source.
+    """
+    roster = tmp_path / "agent_roster.yml"
+    roster.write_text(_SIXTH_AGENT_ROSTER)
+
+    mod = _load_core_with_roster(roster, monkeypatch)
+
+    # The 5 known agents keep their exact historical order; "beta" is new.
+    assert mod.ROOT_TAGS == (
+        "claude",
+        "cursor",
+        "gemini",
+        "codex",
+        "antigravity",
+        "beta",
+    )
+    assert "beta" in mod.SECONDARY_TAGS
+    assert mod.ROOT_TAGS[1:] == mod.SECONDARY_TAGS
+
+    # --list-tags reflects it too (the machine-readable list deploy_reconcile.sh reads).
+    import io
+    from contextlib import redirect_stdout
+
+    buf = io.StringIO()
+    with redirect_stdout(buf):
+        rc = mod.main(["--list-tags"])
+    assert rc == 0
+    assert "beta" in buf.getvalue().splitlines()
+
+    # --root beta is accepted (previously "unknown --root" -> exit 2).
+    home = tmp_path / "home"
+    project = tmp_path / "repo"
+    (home / ".beta").mkdir(parents=True)
+    (project / "configs" / "claude" / "config").mkdir(parents=True)
+    rc = mod.main(
+        [
+            "--home",
+            str(home),
+            "--project",
+            str(project),
+            "--root",
+            "beta",
+            "--format",
+            "json",
+        ]
+    )
+    assert rc == 0
+
+
+def test_fifth_agent_root_still_rejects_unknown_tag(tmp_path, monkeypatch):
+    """Control: with the REAL (5-agent) registry, an unrelated tag is still
+    rejected — proves the 6th-agent acceptance above is genuinely
+    registry-driven, not an accidental always-accept regression.
+    """
+    monkeypatch.delenv("MANIFEST_AGENT_ROSTER", raising=False)
+    rc = core.main(
+        ["--home", str(tmp_path), "--project", str(tmp_path), "--root", "beta"]
+    )
+    assert rc == 2
+
+
+def test_load_fleet_tags_fallback_parser_on_real_registry(monkeypatch):
+    """PyYAML-unavailable fallback path: with ``_agent_roster_loader()``
+    forced to return None (mirrors PyYAML being unavailable, or
+    ``agents/config.py`` failing to import), ``load_fleet_tags()`` falls
+    through to ``_fallback_roster_tags()``'s hand-rolled line parser. Points
+    at the REAL ``configs/claude/config/agent_roster.yml`` (not a synthetic
+    fixture) to prove the manual parser genuinely handles production YAML,
+    not just a crafted test string.
+    """
+    mod = _load_core_with_roster(_REAL_ROSTER, monkeypatch)
+    monkeypatch.setattr(mod, "_agent_roster_loader", lambda: None)
+
+    assert mod.load_fleet_tags(_REAL_ROSTER) == mod._DEFAULT_ROOT_TAGS
+    assert mod.load_fleet_tags(_REAL_ROSTER) == (
+        "claude",
+        "cursor",
+        "gemini",
+        "codex",
+        "antigravity",
+    )
+
+
+def test_load_fleet_tags_hardcoded_default_when_registry_missing(tmp_path, monkeypatch):
+    """Registry-absent fallback path: pointing ``roster_path`` at a
+    nonexistent file makes both the loader-based read and the manual-parser
+    fallback come up empty, so ``load_fleet_tags()`` returns the hardcoded
+    ``_DEFAULT_ROOT_TAGS`` tuple verbatim.
+    """
+    missing = tmp_path / "does-not-exist" / "agent_roster.yml"
+    mod = _load_core_with_roster(missing, monkeypatch)
+
+    assert mod.ROOT_TAGS == mod._DEFAULT_ROOT_TAGS
+    assert mod.ROOT_TAGS == ("claude", "cursor", "gemini", "codex", "antigravity")
+
+
+# --------------------------------------------------------------------------- #
+# Drift guard (goal-task-E, Part 2): reconcile_core.py's innermost fallback
+# (_DEFAULT_ROOT_TAGS) is one of several independent hardcoded-default
+# copies this goal's work created (see also cli.py's _FALLBACK_ROSTER /
+# _MODEL_TIER_DEFAULTS in tests/python/agents/test_cli.py, and
+# check_status.sh's/sync-skills.sh's tier-3 arrays in
+# tests/bats/agent_roster_drift_guard.bats). _DEFAULT_ROOT_TAGS carries no
+# binary/home_dir/auth_check fields -- just the 5 agent names -- so the only
+# meaningful guard here is name-set equality, read live from the REAL
+# agent_roster.yml (not a hardcoded expectation in this test), so a future
+# agent rename/removal not mirrored into _DEFAULT_ROOT_TAGS fails here
+# instead of shipping a silently stale fully-degraded fallback.
+# --------------------------------------------------------------------------- #
+def test_default_root_tags_matches_real_registry_name_set():
+    import yaml
+
+    with open(_REAL_ROSTER, encoding="utf-8") as fh:
+        real_names = set(yaml.safe_load(fh)["agents"])
+    assert set(core._DEFAULT_ROOT_TAGS) == real_names

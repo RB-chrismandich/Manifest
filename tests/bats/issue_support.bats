@@ -48,8 +48,57 @@ exit "${GITOPS_RC:-0}"
 EOF
     chmod +x "$TMP/git_ops.sh"
 
+    # Stub tracker_ops.sh: records calls to CALL_LOG (same log as git_ops.sh,
+    # matching the file's shared stubbing convention). resolve-provider honors
+    # STUB_PLATFORM (same knob the git_platform.sh stub used pre-Task-7).
+    # issue-transition/issue-comment honor EDIT_RC/COMMENT_RC for ordinary
+    # failures, and TRACKER_RC to simulate the tracker_ops provider-limitation
+    # exit codes (3 = MCP-only provider, 4 = verb not implemented) — mirroring
+    # tracker_ops.sh's own "unsupported-in-context" / "not implemented" wording
+    # on stderr so callers can assert the fail-open reason was logged.
+    # NOTE: on success, issue-transition/issue-comment echo a fake gh/glab-style
+    # issue URL to stdout — mirroring real `gh issue edit`/`gh issue comment`,
+    # which print the issue URL on SUCCESS too (Task 7 finding: this must never
+    # leak into issue_support.sh's own output). On a genuine (non-3/4) failure
+    # they emit a diagnostic on stderr, which the caller IS expected to surface.
+    cat >"$TMP/tracker_ops.sh" <<'EOF'
+#!/usr/bin/env bash
+sub="$1"; shift
+echo "$sub $*" >> "${CALL_LOG:-/dev/null}"
+case "$sub" in
+  resolve-provider) echo "${STUB_PLATFORM:-github}"; exit 0 ;;
+  issue-transition)
+    if [[ -n "${TRACKER_RC:-}" ]]; then
+      echo "tracker-ops: unsupported-in-context: simulated provider limitation" >&2
+      exit "${TRACKER_RC}"
+    fi
+    if [[ "${EDIT_RC:-0}" -ne 0 ]]; then
+      echo "tracker-ops: issue-transition failed: simulated genuine error" >&2
+      exit "${EDIT_RC}"
+    fi
+    echo "https://github.com/example/repo/issues/${1:-0}"
+    exit 0
+    ;;
+  issue-comment)
+    if [[ -n "${TRACKER_RC:-}" ]]; then
+      echo "tracker-ops: unsupported-in-context: simulated provider limitation" >&2
+      exit "${TRACKER_RC}"
+    fi
+    if [[ "${COMMENT_RC:-0}" -ne 0 ]]; then
+      echo "tracker-ops: issue-comment failed: simulated genuine error" >&2
+      exit "${COMMENT_RC}"
+    fi
+    echo "https://github.com/example/repo/issues/${1:-0}#issuecomment-1"
+    exit 0
+    ;;
+  *) exit 0 ;;
+esac
+EOF
+    chmod +x "$TMP/tracker_ops.sh"
+
     export GIT_PLATFORM_BIN="$TMP/git_platform.sh"
     export GIT_OPS_BIN="$TMP/git_ops.sh"
+    export TRACKER_OPS_BIN="$TMP/tracker_ops.sh"
     export CALL_LOG="$TMP/calls.log"
 
     # Config with both skills enabled
@@ -246,4 +295,106 @@ EOF
     EDIT_RC=0 run "$SCRIPT" sync-commit HEAD
     [ "$status" -eq 0 ]
     [[ "$output" == *"transition planned→in-progress [applied]"* ]]
+}
+
+# --- Task 7: transition_issue/comment_backlink re-pointed onto tracker_ops.sh -
+
+@test "transition_issue shells out to tracker_ops issue-transition N target" {
+    mk_issue 17 open planned
+    run "$SCRIPT" sync-commit HEAD
+    [ "$status" -eq 0 ]
+    grep -q "issue-transition 17 in-progress" "$CALL_LOG" || return 1
+    [[ "$output" == *"#17 transition planned→in-progress [applied]"* ]]
+}
+
+@test "comment_backlink shells out to tracker_ops issue-comment N TEXT" {
+    mk_issue 17 open planned
+    run "$SCRIPT" sync-commit HEAD
+    [ "$status" -eq 0 ]
+    grep -q "issue-comment 17 Work in progress" "$CALL_LOG" || return 1
+    [[ "$output" == *"#17 comment back-link [applied]"* ]]
+}
+
+@test "detect_platform resolves via tracker_ops resolve-provider" {
+    mk_issue 17 open planned
+    run "$SCRIPT" sync-commit HEAD
+    [ "$status" -eq 0 ]
+    grep -q "^resolve-provider" "$CALL_LOG" || return 1
+}
+
+@test "transition_issue fail-open on tracker rc=3 (jira-style MCP-only): returns 0, logs reason once (not double-printed), does not mark [failed]" {
+    mk_issue 17 open planned
+    TRACKER_RC=3 run "$SCRIPT" sync-commit HEAD
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"tracker provider limitation (rc=3)"* ]] || return 1
+    # the raw tracker_ops stderr ("unsupported-in-context") is captured, not
+    # streamed live — the clean err() message above is the only surfaced text.
+    [[ "$output" != *"unsupported-in-context"* ]] || return 1
+    [[ "$output" != *"transition planned→in-progress [failed]"* ]]
+}
+
+@test "transition_issue fail-open on tracker rc=4 (verb not implemented): returns 0, logs reason once, does not mark [failed]" {
+    mk_issue 17 open planned
+    TRACKER_RC=4 run "$SCRIPT" sync-commit HEAD
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"tracker provider limitation (rc=4)"* ]] || return 1
+    [[ "$output" != *"unsupported-in-context"* ]] || return 1
+    [[ "$output" != *"transition planned→in-progress [failed]"* ]]
+}
+
+@test "comment_backlink fail-open on tracker rc=3: returns 0, logs reason, does not mark [failed]" {
+    mk_issue 17 open planned
+    TRACKER_RC=3 run "$SCRIPT" sync-commit HEAD
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"tracker provider limitation (rc=3)"* ]] || return 1
+    [[ "$output" != *"comment back-link [failed]"* ]]
+}
+
+@test "comment_backlink fail-open on tracker rc=4: returns 0, logs reason, does not mark [failed]" {
+    mk_issue 17 open planned
+    TRACKER_RC=4 run "$SCRIPT" sync-commit HEAD
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"tracker provider limitation (rc=4)"* ]] || return 1
+    [[ "$output" != *"comment back-link [failed]"* ]]
+}
+
+# --- Fix round: suppress success-path leak; surface genuine failures; log fail-open skips ---
+
+@test "successful transition+comment do not leak tracker_ops stdout URLs (Task 7 finding regression)" {
+    mk_issue 17 open planned
+    run "$SCRIPT" sync-commit HEAD
+    [ "$status" -eq 0 ]
+    [[ "$output" != *"https://github.com/example/repo/issues"* ]] || return 1
+    [[ "$output" == *"transition planned→in-progress [applied]"* ]] || return 1
+    [[ "$output" == *"comment back-link [applied]"* ]]
+}
+
+@test "transition_issue genuine (non-3/4) failure surfaces captured tracker diagnostic text" {
+    mk_issue 17 open planned
+    EDIT_RC=2 run "$SCRIPT" sync-commit HEAD
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"transition planned→in-progress [failed]"* ]] || return 1
+    [[ "$output" == *"simulated genuine error"* ]]
+}
+
+@test "comment_backlink genuine (non-3/4) failure surfaces captured tracker diagnostic text" {
+    mk_issue 17 open planned
+    COMMENT_RC=2 run "$SCRIPT" sync-commit HEAD
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"comment back-link [failed]"* ]] || return 1
+    [[ "$output" == *"simulated genuine error"* ]]
+}
+
+@test "transition_issue fail-open path records a record_action entry (not silently missing from summary)" {
+    mk_issue 17 open planned
+    TRACKER_RC=3 run "$SCRIPT" sync-commit HEAD
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"#17 transition planned→in-progress [skipped] (tracker provider limitation, rc=3)"* ]]
+}
+
+@test "comment_backlink fail-open path records a record_action entry (not silently missing from summary)" {
+    mk_issue 17 open planned
+    TRACKER_RC=3 run "$SCRIPT" sync-commit HEAD
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"#17 comment back-link [skipped] (tracker provider limitation, rc=3)"* ]]
 }

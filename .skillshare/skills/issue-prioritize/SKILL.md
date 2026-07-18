@@ -1,16 +1,17 @@
 ---
 name: issue-prioritize
-description: Fetch open issues from GitHub, GitLab, or Linear, score them by impact/urgency/readiness/risk, and recommend the top issues to address next. Analysis-only — no mutations.
+description: Fetch open issues from GitHub, GitLab, Linear, or Jira, score them by impact/urgency/readiness/risk, and recommend the top issues to address next. Analysis-only — no mutations.
 ---
 
 # Issue Prioritization Skill
 
 Fetch open issues, score them using a weighted formula, and produce a ranked prioritization
-report. Works with GitHub, GitLab, and Linear. **Read-only** — never modifies issues or files.
+report. Works with GitHub, GitLab, Linear, and Jira (agent-context only, via MCP).
+**Read-only** — never modifies issues or files.
 
 ## Purpose
 
-1. Fetch open issues from the detected (or specified) platform
+1. Fetch open issues from the detected (or specified) provider
 2. Filter to issues with the `future` label by default (use `--all` for all open issues)
 3. Score each issue on Impact, Urgency, Readiness, and Risk (1–5 each)
 4. Rank by weighted formula with tiebreakers
@@ -20,7 +21,7 @@ report. Works with GitHub, GitLab, and Linear. **Read-only** — never modifies 
 ## Arguments
 
 ```bash
-/issue-prioritize [--repo OWNER/REPO] [--platform github|gitlab|linear]
+/issue-prioritize [--repo OWNER/REPO] [--provider github|gitlab|linear|jira]
                   [--team TEAM] [--limit N] [--top N]
                   [--label LABEL] [--all] [--project-context FILE]
 ```
@@ -28,7 +29,7 @@ report. Works with GitHub, GitLab, and Linear. **Read-only** — never modifies 
 | Argument | Description | Default |
 |----------|-------------|---------|
 | `--repo OWNER/REPO` | Target repository (GitHub/GitLab only) | current repo |
-| `--platform github\|gitlab\|linear` | Force platform | auto-detect |
+| `--provider github\|gitlab\|linear\|jira` | Force provider (default: auto-detect via `tracker_ops.sh`) | auto-detect |
 | `--team TEAM` | Linear team key filter | all teams |
 | `--limit N` | Max issues to fetch | 100 |
 | `--top N` | How many top issues to report | 5 |
@@ -38,15 +39,17 @@ report. Works with GitHub, GitLab, and Linear. **Read-only** — never modifies 
 
 ## Prerequisites
 
-1. **Platform CLI installed** — at least one of:
+1. **Provider CLI/access configured** — at least one of:
    - `gh` (GitHub CLI) — for GitHub repos
    - `glab` (GitLab CLI) — for GitLab repos
    - Linear MCP or API key — for Linear projects
+   - Atlassian MCP — for Jira projects (agent-context only; see note below)
 2. **Scripts available**:
-   - `~/.claude/scripts/git_platform.sh` — platform auto-detection
-   - `~/.claude/scripts/git_ops.sh` — platform-agnostic issue operations
-   - `~/.claude/scripts/linear_ops.sh` — Linear API wrapper
+   - `~/.claude/scripts/tracker_ops.sh` — provider-agnostic tracker operations (detection + verbs)
+   - `~/.claude/scripts/linear_ops.sh` — Linear API wrapper (invoked internally by `tracker_ops.sh` for the `linear` provider)
 3. **Tools**: `jq`, `python3`
+4. Jira is agent-context only (MCP); when `PROVIDER=jira`, fetch via the Atlassian MCP tools named
+   in `tracker_providers.yml` instead of `tracker_ops.sh` (which exits 3).
 
 ## Critical Rules
 
@@ -61,40 +64,22 @@ report. Works with GitHub, GitLab, and Linear. **Read-only** — never modifies 
 
 ## Workflow
 
-### Step 1: Detect Platform
+### Step 1: Resolve Provider
 
 ```bash
-# Auto-detect platform from git remote
-PLATFORM="${FORCED_PLATFORM:-$(~/.claude/scripts/git_platform.sh 2>/dev/null || echo "github")}"
-
-# Validate platform CLI is available
-case "$PLATFORM" in
-    github)
-        if ! command -v gh &>/dev/null; then
-            echo "Error: gh CLI required for GitHub. Install: brew install gh" >&2
-            exit 1
-        fi
-        ;;
-    gitlab)
-        if ! command -v glab &>/dev/null; then
-            echo "Error: glab CLI required for GitLab. Install: brew install glab" >&2
-            exit 1
-        fi
-        ;;
-    linear)
-        if [[ ! -x ~/.claude/scripts/linear_ops.sh ]]; then
-            echo "Error: linear_ops.sh not found" >&2
-            exit 1
-        fi
-        ;;
-esac
-
-echo "Platform detected: $PLATFORM"
+# Auto-detect provider via tracker_ops.sh (--provider > MANIFEST_TRACKER >
+# .manifest-tracker file > git remote > registry default_provider)
+PROVIDER="${FORCED_PROVIDER:-$(~/.claude/scripts/tracker_ops.sh resolve-provider)}"
+echo "Tracker provider: $PROVIDER"
 ```
+
+`tracker_ops.sh` validates that the provider's underlying CLI/engine is available and fails
+loudly (exit 1) if not, or exit 3 if the provider is MCP-only in shell context (jira).
 
 ### Step 2: Fetch Open Issues
 
-Fetch issues using the appropriate platform CLI. Normalize output to a common JSON schema.
+Fetch issues via `~/.claude/scripts/tracker_ops.sh --provider "$PROVIDER" issue-list …` (jira is
+the exception — see below). Normalize output to a common JSON schema.
 
 #### GitHub
 
@@ -105,7 +90,7 @@ REPO_FLAG=""
 LABEL_FLAG=""
 [[ "$FILTER_ALL" != true && -n "$FILTER_LABEL" ]] && LABEL_FLAG="--label $FILTER_LABEL"
 
-gh issue list --state open --limit "$LIMIT" \
+~/.claude/scripts/tracker_ops.sh --provider github issue-list --state open --limit "$LIMIT" \
     --json number,title,labels,createdAt,updatedAt,body,comments,assignees \
     $REPO_FLAG $LABEL_FLAG > "$TEMP_DIR/raw_issues.json"
 ```
@@ -119,7 +104,7 @@ REPO_FLAG=""
 LABEL_FLAG=""
 [[ "$FILTER_ALL" != true && -n "$FILTER_LABEL" ]] && LABEL_FLAG="--label $FILTER_LABEL"
 
-glab issue list --state opened --per-page "$LIMIT" \
+~/.claude/scripts/tracker_ops.sh --provider gitlab issue-list --state opened --per-page "$LIMIT" \
     --output-format json \
     $REPO_FLAG $LABEL_FLAG > "$TEMP_DIR/raw_issues.json"
 ```
@@ -133,26 +118,36 @@ TEAM_FLAG=""
 LABEL_FLAG=""
 [[ "$FILTER_ALL" != true && -n "$FILTER_LABEL" ]] && LABEL_FLAG="--label $FILTER_LABEL"
 
-~/.claude/scripts/linear_ops.sh issue-list \
+~/.claude/scripts/tracker_ops.sh --provider linear issue-list \
     --limit "$LIMIT" \
     --json $TEAM_FLAG $LABEL_FLAG > "$TEMP_DIR/raw_issues.json"
 ```
 
+#### Jira
+
+Jira is agent-context only (MCP) — `tracker_ops.sh` exits 3 for this provider. Instead, call the
+Atlassian MCP search tool directly (tool name resolved via
+`~/.claude/scripts/tracker_registry.py mcp-tool jira search`, currently `searchJiraIssuesUsingJql`)
+with a JQL query scoped to open issues, e.g. `project = "$JIRA_PROJECT" AND statusCategory != Done`
+plus `AND labels = "$FILTER_LABEL"` unless `--all` was passed. Extract the `issues` array from the
+MCP response (so `raw_issues.json` is a JSON list, consistent with the other providers) and save it
+to `$TEMP_DIR/raw_issues.json`.
+
 ### Step 3: Normalize
 
-Normalize all platform outputs to a common schema.
+Normalize all provider outputs to a common schema.
 
 Label filtering is handled at fetch time (Step 2) via `--label`. If `--all` is set,
 all open issues are fetched without a label filter.
 
 ```python
 #!/usr/bin/env python3
-"""Normalize issues from different platforms into a common schema."""
+"""Normalize issues from different providers into a common schema."""
 import json
 import sys
 from datetime import datetime, timezone
 
-platform = sys.argv[1]
+provider = sys.argv[1]  # invoke as: normalize.py "$PROVIDER" raw_issues.json
 
 with open(sys.argv[2]) as f:
     raw = json.load(f)
@@ -160,8 +155,9 @@ with open(sys.argv[2]) as f:
 issues = []
 
 for item in raw:
-    # Platform-specific field mapping
-    if platform == "github":
+    # Provider-specific field mapping. The output "platform" key name is kept
+    # for backward compatibility with the downstream scoring/report steps.
+    if provider == "github":
         labels = [l["name"] for l in item.get("labels", [])]
         issue = {
             "number": item["number"],
@@ -174,7 +170,7 @@ for item in raw:
             "comment_count": len(item.get("comments", [])),
             "platform": "github",
         }
-    elif platform == "gitlab":
+    elif provider == "gitlab":
         labels = item.get("labels", [])
         issue = {
             "number": item.get("iid", item.get("id")),
@@ -187,7 +183,7 @@ for item in raw:
             "comment_count": item.get("user_notes_count", 0),
             "platform": "gitlab",
         }
-    elif platform == "linear":
+    elif provider == "linear":
         labels = [l["name"] for l in item.get("labels", {}).get("nodes", [])]
         issue = {
             "number": item.get("identifier", item.get("number", "")),
@@ -199,6 +195,24 @@ for item in raw:
             "assignees": [],
             "comment_count": 0,
             "platform": "linear",
+        }
+    elif provider == "jira":
+        # searchJiraIssuesUsingJql result shape: {"key": "PROJ-123", "fields": {...}}.
+        # Jira's "key" is the human-facing identifier — mapped to "number" (not
+        # a new "id" field) so it flows unchanged through every downstream step
+        # (sort_key, heuristic scoring, report generation) that reads .number.
+        fields = item.get("fields", {})
+        assignee = fields.get("assignee") or {}
+        issue = {
+            "number": item.get("key", ""),
+            "title": fields.get("summary", ""),
+            "body": fields.get("description", ""),
+            "labels": fields.get("labels", []),
+            "created_at": fields.get("created", ""),
+            "updated_at": fields.get("updated", ""),
+            "assignees": [assignee["displayName"]] if assignee.get("displayName") else [],
+            "comment_count": 0,
+            "platform": "jira",
         }
     else:
         continue
@@ -532,7 +546,7 @@ Produce the final prioritization report in markdown format.
 # Variables set from earlier steps:
 # ISSUE_COUNT — total issues analyzed (after filtering)
 # TOP_N — number of top issues to show (default: 5)
-# PLATFORM — detected platform
+# PROVIDER — resolved tracker provider (Step 1)
 
 TOTAL_COUNT=$(jq 'length' "$TEMP_DIR/issues.json")
 REPORT_DATE=$(date -u +"%Y-%m-%d %H:%M UTC")
@@ -548,7 +562,7 @@ cat << REPORT_HEADER
 # Issue Prioritization Report
 
 **Generated**: $REPORT_DATE
-**Platform**: $PLATFORM
+**Provider**: $PROVIDER
 **Filter**: $LABEL_NOTE
 **Open Issues Analyzed**: $TOTAL_COUNT
 REPORT_HEADER
@@ -733,10 +747,13 @@ When scores are equal, prefer:
 /issue-prioritize --project-context docs/PROJECT_CONTEXT.md
 
 # Prioritize Linear issues for a specific team
-/issue-prioritize --platform linear --team ENG --top 10
+/issue-prioritize --provider linear --team ENG --top 10
 
 # GitLab repo prioritization
-/issue-prioritize --platform gitlab --repo mygroup/myproject
+/issue-prioritize --provider gitlab --repo mygroup/myproject
+
+# Prioritize Jira issues (agent-context only, fetched via the Atlassian MCP)
+/issue-prioritize --provider jira --top 10
 ```
 
 ## Output Format
@@ -752,7 +769,9 @@ in the repository. The report includes:
 ## Error Handling
 
 - **No issues found**: Report "No open issues found" and exit cleanly
-- **Platform CLI missing**: Error with install instructions
+- **Provider CLI/access missing**: `tracker_ops.sh` errors with install/config instructions
+- **`PROVIDER=jira` in shell context**: `tracker_ops.sh` exits 3 by design — fetch via the
+  Atlassian MCP instead (see Step 2 Jira note), not an error to report to the user
 - **Agent timeout**: Fall back to heuristic-only scores (Step 4)
 - **Agent parse failure**: Fall back to heuristic-only scores (Step 4)
 - **Empty body issues**: Score with defaults (readiness=2, risk=2)

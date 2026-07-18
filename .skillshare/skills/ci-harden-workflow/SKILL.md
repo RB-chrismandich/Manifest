@@ -10,6 +10,22 @@ hole. Goal: lock down *who can change or trigger the control* without losing the
 existing* workflow for these holes (expression injection, fork head-ref checkout), use `ci-audit-triggers`; this skill
 is the build/governance side.
 
+### Step 0: Detect platform
+
+Run `~/.claude/scripts/ci_platform.sh`. The governance method below (name the
+privilege, gate on real identity, protect the control file, least-privilege scoping,
+SHA-pin dependencies) applies on either platform:
+
+- `github-actions` → steps 1-9 below apply as written.
+- `gitlab-ci` → load `~/.claude/skills/ci-audit-triggers/references/gitlab-ci-triggers.md`
+  (specifically its "Hardening-side quick reference" section) for the real GitLab
+  controls in place of GitHub-specific ones: protected variables/branches instead of
+  `author_association`, protected environments with required approvals instead of
+  GitHub Environments, and full-commit-SHA-pinned CI/CD components instead of pinned
+  Actions.
+- `none` → report that no CI configuration was detected and stop; don't guess at a
+  platform or invent generic advice.
+
 1. **Name the privilege.** State exactly which secret or write permission the job can reach. That is the blast radius
    you are gating.
 2. **Gate on server-set identity, not just string matching.** Require ALL of: the mention/command text is present; the

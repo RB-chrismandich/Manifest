@@ -1,11 +1,12 @@
 ---
 name: issue-triage
-description: "Comprehensive Linear issue audit: validate prioritization, identify duplicates and overlapping issues, detect stale/obsolete issues, produce clean actionable backlog"
+description: "Comprehensive issue audit for the configured tracker (GitHub, GitLab, Linear, or Jira): validate prioritization, identify duplicates and overlapping issues, detect stale/obsolete issues, produce clean actionable backlog"
 ---
 
-# Linear Issue Triage Skill
+# Issue Triage Skill
 
-Automated Linear issue backlog management with duplicate detection, staleness analysis, and priority validation.
+Automated issue backlog management for the configured tracker (GitHub, GitLab, Linear, or
+Jira) with duplicate detection, staleness analysis, and priority validation.
 
 ## Purpose
 
@@ -26,18 +27,22 @@ This skill performs comprehensive issue triage by:
 | Argument | Description | Default |
 |----------|-------------|---------|
 | `--dry-run` | Analysis only, no mutations | false |
-| `--close-stale` | Auto-cancel stale issues (requires explicit flag) | false |
-| `--team TEAM` | Filter by team key (e.g., "ENG", "PRODUCT") | all teams |
+| `--close-stale` | Auto-close stale issues (requires explicit flag) | false |
+| `--team TEAM` | Filter by team key (e.g., "ENG", "PRODUCT") — linear only; other providers filter by label/milestone instead | all teams |
 | `--priority N` | Filter by priority (0-4) | all priorities |
 | `--limit N` | Max issues to analyze | 500 |
 
 ## Prerequisites
 
-1. **Linear MCP configured** in `~/.claude/config/mcp_servers.yml` OR
-2. **Linear API key** in `~/.config/linear/token`
-3. **Tools installed**: `jq`, `python3`
-4. **Scripts available**: `~/.claude/scripts/linear_ops.sh`, `~/.claude/scripts/parallel_agent.py`
-5. **Config loaded**: `~/.claude/config/linear_triage.yml`
+1. **Tracker authentication** — per provider (resolved via `tracker_ops.sh resolve-provider`):
+   - `linear`: `LINEAR_API_KEY` env var or `~/.config/linear/token`
+   - `github` / `gitlab`: `gh` / `glab` CLI authenticated
+   - `jira`: Atlassian MCP configured (jira is MCP-only — `tracker_ops.sh` exits 3 for any jira verb in
+     shell context; run jira triage from agent context and call the Atlassian MCP tools directly instead
+     of shelling out)
+2. **Tools installed**: `jq`, `python3`
+3. **Scripts available**: `~/.claude/scripts/tracker_ops.sh`, `~/.claude/scripts/parallel_agent.py`
+4. **Config loaded**: `~/.claude/config/tracker_triage.yml`
 
 ## Workflow
 
@@ -48,7 +53,7 @@ This skill performs comprehensive issue triage by:
 set -euo pipefail
 
 # Load triage configuration
-CONFIG_FILE="${HOME}/.claude/config/linear_triage.yml"
+CONFIG_FILE="${HOME}/.claude/config/tracker_triage.yml"
 
 if [[ ! -f "$CONFIG_FILE" ]]; then
     echo "Error: Configuration file not found: $CONFIG_FILE" >&2
@@ -117,59 +122,235 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-# Fetch issues
+# Fetch issues in each provider's native shape — normalized to a common
+# schema in Step 3 before any duplicate/staleness/priority logic runs.
 TEMP_DIR=$(mktemp -d)
-ISSUES_FILE="$TEMP_DIR/issues.json"
+RAW_ISSUES_FILE="$TEMP_DIR/raw_issues.json"
 
-echo "Fetching issues from Linear..."
+PROVIDER=$(~/.claude/scripts/tracker_ops.sh resolve-provider)
+echo "Fetching issues from ${PROVIDER}..."
 
-if [[ -n "$TEAM_FILTER" ]]; then
-    ~/.claude/scripts/linear_ops.sh issue-list \
-        --team "$TEAM_FILTER" \
-        --limit "$LIMIT" \
-        --json > "$ISSUES_FILE"
-else
-    # Fetch across all teams
-    ~/.claude/scripts/linear_ops.sh team-list --json | jq -r '.[].key' | while read -r team; do
-        ~/.claude/scripts/linear_ops.sh issue-list \
-            --team "$team" \
-            --limit "$LIMIT" \
-            --json >> "$ISSUES_FILE"
-    done
-fi
-
-# Apply priority filter if specified
-if [[ -n "$PRIORITY_FILTER" ]]; then
-    jq --argjson pri "$PRIORITY_FILTER" '[.[] | select(.priority == $pri)]' \
-        "$ISSUES_FILE" > "$TEMP_DIR/filtered.json"
-    mv "$TEMP_DIR/filtered.json" "$ISSUES_FILE"
-fi
-
-ISSUE_COUNT=$(jq 'length' "$ISSUES_FILE")
-echo "Fetched $ISSUE_COUNT issues"
+case "$PROVIDER" in
+    github)
+        # No "team" scope on issue-list; --team filters by label/milestone
+        # instead (caller's responsibility — see Arguments table).
+        ~/.claude/scripts/tracker_ops.sh issue-list --state open --limit "$LIMIT" \
+            --json number,title,body,labels,createdAt,updatedAt,state \
+            > "$RAW_ISSUES_FILE"
+        ;;
+    gitlab)
+        ~/.claude/scripts/tracker_ops.sh issue-list --state opened --per-page "$LIMIT" \
+            --output-format json \
+            > "$RAW_ISSUES_FILE"
+        ;;
+    linear)
+        # Linear models "team" as a first-class scope. team-list has no
+        # tracker_ops.sh equivalent (engine-level, linear-only concept — it isn't
+        # part of the canonical verb set), so it stays a direct linear_ops.sh call.
+        if [[ -n "$TEAM_FILTER" ]]; then
+            ~/.claude/scripts/tracker_ops.sh issue-list \
+                --team "$TEAM_FILTER" \
+                --limit "$LIMIT" \
+                --json > "$RAW_ISSUES_FILE"
+        else
+            # Fetch across all teams, then merge the per-team arrays into one
+            # (issue-list emits one JSON array per call; Step 3's normalizer
+            # needs a single valid JSON array, not a concatenated stream).
+            TEAM_PARTS="$TEMP_DIR/raw_issues_by_team.ndjson"
+            : > "$TEAM_PARTS"
+            ~/.claude/scripts/linear_ops.sh team-list --json | jq -r '.[].key' | while read -r team; do
+                ~/.claude/scripts/tracker_ops.sh issue-list \
+                    --team "$team" \
+                    --limit "$LIMIT" \
+                    --json >> "$TEAM_PARTS"
+            done
+            jq -s 'add // []' "$TEAM_PARTS" > "$RAW_ISSUES_FILE"
+        fi
+        ;;
+    jira)
+        # jira is MCP-only (tracker_ops.sh exits 3) — fetch via the Atlassian
+        # MCP search tool (name resolved via
+        # `~/.claude/scripts/tracker_registry.py mcp-tool jira search`,
+        # currently `searchJiraIssuesUsingJql`) from agent context instead of
+        # this shell block. Extract the `issues` array so $RAW_ISSUES_FILE is
+        # a JSON list, consistent with the other providers.
+        echo "Jira fetch is agent-context only; populate $RAW_ISSUES_FILE via the Atlassian MCP before continuing." >&2
+        ;;
+esac
 ```
 
-### Step 3: Parse and Classify Issues
+### Step 3: Normalize to Common Schema
+
+Every downstream step (duplicate detection, staleness, priority validation) reads only this
+schema — never a provider's raw shape. Fields and their honest per-provider mappings:
+
+| Field | Meaning | github | gitlab | linear | jira |
+|-------|---------|--------|--------|--------|------|
+| `id` | internal unique id | `number` (str) | `iid`/`id` (str) | `id` | `id`/`key` |
+| `identifier` | human-facing id used by `tracker_ops.sh` verbs | `number` | `iid` | `identifier` | `key` |
+| `title` | issue title | `title` | `title` | `title` | `fields.summary` |
+| `description` | issue body | `body` | `description` | `description` | `fields.description` |
+| `priority` | canonical 0-4 (1=Urgent…4=Low, 0=None — Linear's native scale, `tracker_triage.yml priority.labels`) | derived from priority-shaped labels (`urgent`/`p0`/`critical`/`blocker`→1, `high`/`p1`→2, `medium`/`p2`→3, `low`/`p3`/`p4`→4, else 0) | same label derivation as github | native `priority` field | derived from `fields.priority.name` (Highest/Blocker→1, High→2, Medium→3, Low/Lowest→4, else 0) |
+| `state` | canonical workflow state (`backlog`/`started`/`completed`/`canceled`) | open + no status label→`backlog`; open + `in-progress`/`needs-review` label→`started`; closed→`completed` (or `canceled` if a `wontfix`/`duplicate`/`invalid` label is present) | same derivation as github | native `state.type` | `fields.status.statusCategory.key` (`new`→backlog, `indeterminate`→started, `done`→completed; a cancellation-worded resolution→`canceled`) |
+| `team` | scope key used for the duplicate-detection same-scope boost | `""` (no native scope on issue-list; the boost is skipped when empty — Step 5) | `""` (same — no native scope) | `team.key` | `fields.project.key` |
+| `labels` | label names | `labels[].name` | `labels[]` (already strings) | `labels.nodes[].name` | `fields.labels` |
+| `createdAt` / `updatedAt` | ISO8601 timestamps | `createdAt`/`updatedAt` | `created_at`/`updated_at` | `createdAt`/`updatedAt` | `fields.created`/`fields.updated` |
+
+`relations` (Linear's GraphQL `relations.nodes`) is dropped: no downstream step ever reads it,
+and github/gitlab/jira have no clean equivalent worth inventing for a field nothing consumes.
 
 ```bash
-# Extract metadata and classify
-echo "Parsing issue metadata..."
+echo "Normalizing issues to common schema..."
 
-jq -r '.[] | {
-    id,
-    identifier,
-    title,
-    description,
-    priority,
-    state: .state.type,
-    team: .team.key,
-    labels: [.labels.nodes[]?.name // empty],
-    createdAt,
-    updatedAt,
-    relations: .relations.nodes
-}' "$ISSUES_FILE" > "$TEMP_DIR/issues_parsed.json"
+python3 - "$PROVIDER" "$RAW_ISSUES_FILE" << 'PYEOF' > "$TEMP_DIR/issues_normalized.json"
+#!/usr/bin/env python3
+"""Normalize per-provider issue JSON into the common triage schema."""
+import json
+import sys
 
-# Extract components from descriptions (file paths, service names)
+provider = sys.argv[1]
+with open(sys.argv[2]) as f:
+    raw = json.load(f) or []
+
+# Priority labels honored on github/gitlab (and as a jira fallback) when the
+# tracker has no native 0-4 field. Mirrors Linear's own scale
+# (tracker_triage.yml priority.labels): 1=Urgent 2=High 3=Medium 4=Low
+# 0=None (no matching label — an honest default, not a guess).
+PRIORITY_LABEL_MAP = {
+    "urgent": 1, "p0": 1, "critical": 1, "blocker": 1,
+    "high": 2, "p1": 2,
+    "medium": 3, "p2": 3,
+    "low": 4, "p3": 4, "p4": 4,
+}
+
+def priority_from_labels(labels):
+    label_set = {l.lower() for l in labels}
+    for label in label_set:
+        for key, val in PRIORITY_LABEL_MAP.items():
+            if key in label:
+                return val
+    return 0
+
+# Canonical status labels (tracker_providers.yml status_map / tracker_ops.sh
+# CANONICAL_STATUSES): planned, in-progress, needs-review, done.
+def state_from_open_closed(is_closed, labels):
+    label_set = {l.lower() for l in labels}
+    if is_closed:
+        if label_set & {"wontfix", "duplicate", "invalid"}:
+            return "canceled"
+        return "completed"
+    if label_set & {"needs-review", "in-progress"}:
+        return "started"
+    return "backlog"
+
+issues = []
+
+for item in raw:
+    if provider == "github":
+        labels = [l["name"] for l in item.get("labels", [])]
+        is_closed = str(item.get("state", "OPEN")).upper() == "CLOSED"
+        number = str(item["number"])
+        issue = {
+            "id": number,
+            "identifier": number,
+            "title": item["title"],
+            "description": item.get("body") or "",
+            "priority": priority_from_labels(labels),
+            "state": state_from_open_closed(is_closed, labels),
+            "team": "",
+            "labels": labels,
+            "createdAt": item.get("createdAt", ""),
+            "updatedAt": item.get("updatedAt", ""),
+        }
+    elif provider == "gitlab":
+        labels = item.get("labels", [])
+        is_closed = item.get("state", "opened") == "closed"
+        number = str(item.get("iid", item.get("id", "")))
+        issue = {
+            "id": number,
+            "identifier": number,
+            "title": item["title"],
+            "description": item.get("description") or "",
+            "priority": priority_from_labels(labels),
+            "state": state_from_open_closed(is_closed, labels),
+            "team": "",
+            "labels": labels,
+            "createdAt": item.get("created_at", ""),
+            "updatedAt": item.get("updated_at", ""),
+        }
+    elif provider == "linear":
+        labels = [l["name"] for l in item.get("labels", {}).get("nodes", [])]
+        issue = {
+            "id": item.get("id", ""),
+            "identifier": item.get("identifier", ""),
+            "title": item["title"],
+            "description": item.get("description") or "",
+            "priority": item.get("priority", 0) or 0,
+            "state": item.get("state", {}).get("type", "backlog"),
+            "team": item.get("team", {}).get("key", ""),
+            "labels": labels,
+            "createdAt": item.get("createdAt", ""),
+            "updatedAt": item.get("updatedAt", ""),
+        }
+    elif provider == "jira":
+        fields = item.get("fields", {})
+        labels = fields.get("labels") or []
+        status_category = (fields.get("status") or {}).get("statusCategory", {}).get("key", "new")
+        resolution_name = ((fields.get("resolution") or {}).get("name") or "").lower()
+        if resolution_name in ("won't do", "wont do", "cancelled", "canceled"):
+            state = "canceled"
+        elif status_category == "done":
+            state = "completed"
+        elif status_category == "indeterminate":
+            state = "started"
+        else:
+            state = "backlog"
+        priority_name = ((fields.get("priority") or {}).get("name") or "").lower()
+        priority = {
+            "highest": 1, "blocker": 1,
+            "high": 2,
+            "medium": 3,
+            "low": 4, "lowest": 4,
+        }.get(priority_name, 0)
+        key = item.get("key", "")
+        issue = {
+            "id": item.get("id", key),
+            "identifier": key,
+            "title": fields.get("summary", ""),
+            "description": fields.get("description") or "",
+            "priority": priority,
+            "state": state,
+            "team": (fields.get("project") or {}).get("key", ""),
+            "labels": labels,
+            "createdAt": fields.get("created", ""),
+            "updatedAt": fields.get("updated", ""),
+        }
+    else:
+        continue
+
+    issues.append(issue)
+
+print(json.dumps(issues, indent=2))
+PYEOF
+
+# Apply priority filter if specified (uniform 0-4 scale, applied
+# post-normalization so it works the same across every provider)
+if [[ -n "$PRIORITY_FILTER" ]]; then
+    jq --argjson pri "$PRIORITY_FILTER" '[.[] | select(.priority == $pri)]' \
+        "$TEMP_DIR/issues_normalized.json" > "$TEMP_DIR/issues.json"
+else
+    cp "$TEMP_DIR/issues_normalized.json" "$TEMP_DIR/issues.json"
+fi
+
+ISSUE_COUNT=$(jq 'length' "$TEMP_DIR/issues.json")
+echo "Fetched $ISSUE_COUNT issues (normalized)"
+```
+
+### Step 4: Extract Components
+
+```bash
+echo "Extracting components from issue descriptions..."
+
 extract_components() {
     local description="$1"
 
@@ -182,8 +363,7 @@ extract_components() {
     echo "${file_paths},${services}"
 }
 
-# Add components to each issue
-jq -c '.[]' "$TEMP_DIR/issues_parsed.json" | while read -r issue; do
+jq -c '.[]' "$TEMP_DIR/issues.json" | while read -r issue; do
     description=$(echo "$issue" | jq -r '.description // ""')
     components=$(extract_components "$description")
 
@@ -191,7 +371,7 @@ jq -c '.[]' "$TEMP_DIR/issues_parsed.json" | while read -r issue; do
 done > "$TEMP_DIR/issues_with_components.json"
 ```
 
-### Step 4: Duplicate Detection
+### Step 5: Duplicate Detection
 
 ```bash
 echo "Detecting duplicates..."
@@ -202,7 +382,7 @@ detect_duplicates() {
     local issues_file="$1"
 
     # Python script for fuzzy title matching
-    python3 << 'PYEOF'
+    python3 - "$TEMP_DIR/issues_with_components.json" "$DUP_TITLE_HIGH" "$DUP_TITLE_MEDIUM" << 'PYEOF'
 import json
 import sys
 from difflib import SequenceMatcher
@@ -230,8 +410,10 @@ for i, issue_a in enumerate(issues):
         if issue_a.get('description') and issue_b.get('description'):
             desc_sim = similarity(issue_a['description'], issue_b['description'])
 
-        # Boost score for same team
-        same_team_boost = 0.05 if issue_a['team'] == issue_b['team'] else 0.0
+        # Boost score for same team/scope (github/gitlab have no native
+        # scope — team is "" for every issue there — so an empty match never
+        # counts; only a real, non-empty shared team/project key boosts)
+        same_team_boost = 0.05 if issue_a['team'] and issue_a['team'] == issue_b['team'] else 0.0
 
         # Boost score for shared labels
         shared_labels = set(issue_a.get('labels', [])) & set(issue_b.get('labels', []))
@@ -274,7 +456,6 @@ for i, issue_a in enumerate(issues):
 # Output duplicates
 print(json.dumps(duplicates, indent=2))
 PYEOF
-"$TEMP_DIR/issues_with_components.json" "$DUP_TITLE_HIGH" "$DUP_TITLE_MEDIUM"
 }
 
 detect_duplicates "$TEMP_DIR/issues_with_components.json" > "$DUPLICATES_FILE"
@@ -286,14 +467,14 @@ jq -c '.[] | select(.needs_agent_review == true)' "$DUPLICATES_FILE" | while rea
     primary_title=$(echo "$dup" | jq -r '.primary_issue.title')
     duplicate_title=$(echo "$dup" | jq -r '.duplicate_issue.title')
     primary_desc=$(jq -r --arg id "$(echo "$dup" | jq -r '.primary_issue.identifier')" \
-        '.[] | select(.identifier == $id) | .description // ""' "$TEMP_DIR/issues_parsed.json")
+        '.[] | select(.identifier == $id) | .description // ""' "$TEMP_DIR/issues_with_components.json")
     duplicate_desc=$(jq -r --arg id "$(echo "$dup" | jq -r '.duplicate_issue.identifier')" \
-        '.[] | select(.identifier == $id) | .description // ""' "$TEMP_DIR/issues_parsed.json")
+        '.[] | select(.identifier == $id) | .description // ""' "$TEMP_DIR/issues_with_components.json")
 
     # Call parallel agents for consensus
     consensus=$(~/.claude/scripts/parallel_agent.py --json --timeout 300 \
         --cursor-model mini --claude-model haiku \
-        "Are these Linear issues duplicates?
+        "Are these issues duplicates?
 
         Issue A: $primary_title
         Description A: $primary_desc
@@ -321,7 +502,7 @@ DUP_COUNT=$(jq '[.[] | select(.confidence == "HIGH")] | length' "$DUPLICATES_FIL
 echo "Found $DUP_COUNT high-confidence duplicates"
 ```
 
-### Step 5: Staleness Detection
+### Step 6: Staleness Detection
 
 ```bash
 echo "Detecting stale issues..."
@@ -331,7 +512,7 @@ STALE_FILE="$TEMP_DIR/stale.json"
 detect_stale() {
     local issues_file="$1"
 
-    python3 << 'PYEOF'
+    python3 - "$TEMP_DIR/issues_with_components.json" "$STALENESS_DAYS" "$FILE_MISSING_THRESHOLD" << 'PYEOF'
 import json
 import sys
 import os
@@ -411,7 +592,6 @@ for issue in issues:
 # Output stale issues
 print(json.dumps(stale_issues, indent=2))
 PYEOF
-"$TEMP_DIR/issues_with_components.json" "$STALENESS_DAYS" "$FILE_MISSING_THRESHOLD"
 }
 
 detect_stale "$TEMP_DIR/issues_with_components.json" > "$STALE_FILE"
@@ -420,7 +600,7 @@ STALE_COUNT=$(jq '[.[] | select(.safe_to_close == true)] | length' "$STALE_FILE"
 echo "Found $STALE_COUNT closable stale issues"
 ```
 
-### Step 6: Priority Validation
+### Step 7: Priority Validation
 
 ```bash
 echo "Validating issue priorities..."
@@ -440,7 +620,7 @@ validate_priorities() {
         # Call parallel agents for priority scoring
         consensus=$(~/.claude/scripts/parallel_agent.py --json --timeout 300 \
             --cursor-model flash --claude-model sonnet \
-            "Score this Linear issue for prioritization:
+            "Score this issue for prioritization:
 
             Title: $title
             Description: $description
@@ -489,7 +669,7 @@ PRIORITY_COUNT=$(jq 'length' "$PRIORITY_FILE")
 echo "Found $PRIORITY_COUNT priority misalignments"
 ```
 
-### Step 7: Generate Recommendations
+### Step 8: Generate Recommendations
 
 ```bash
 echo "Generating triage report..."
@@ -497,7 +677,7 @@ echo "Generating triage report..."
 REPORT_FILE="$TEMP_DIR/triage_report.md"
 
 cat > "$REPORT_FILE" << EOFMD
-# Linear Issue Triage Report
+# Issue Triage Report ($PROVIDER)
 
 **Generated**: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
 **Mode**: $([ "$DRY_RUN" = true ] && echo "DRY-RUN" || echo "LIVE")
@@ -533,7 +713,7 @@ $(jq -r '.[] | select(.confidence == "HIGH") |
 
 ## Stale Issues (Safe to Close)
 
-These issues meet staleness criteria and can be canceled with \`--close-stale\`:
+These issues meet staleness criteria and can be closed with \`--close-stale\`:
 
 $(jq -r '.[] | select(.safe_to_close == true) |
 "- **\(.identifier)** (\(.team)) - \(.days_since_update) days inactive
@@ -575,22 +755,22 @@ if [ "$DRY_RUN" = true ]; then
 
 1. Review recommendations above
 2. Re-run without \`--dry-run\` to mark duplicates
-3. Add \`--close-stale\` flag to cancel stale issues
+3. Add \`--close-stale\` flag to close stale issues
 EOFMD
 else
     cat >> "$REPORT_FILE" << EOFMD
 **Actions to be executed:**
 
 - Mark $(jq '[.[] | select(.confidence == "HIGH")] | length' "$DUPLICATES_FILE") high-confidence duplicates
-$([ "$CLOSE_STALE" = true ] && echo "- Cancel $(jq '[.[] | select(.safe_to_close == true)] | length' "$STALE_FILE") stale issues" || echo "- Stale issues NOT closed (use --close-stale to enable)")
-- Priority updates require manual approval (use Linear UI)
+$([ "$CLOSE_STALE" = true ] && echo "- Close $(jq '[.[] | select(.safe_to_close == true)] | length' "$STALE_FILE") stale issues" || echo "- Stale issues NOT closed (use --close-stale to enable)")
+- Priority updates require manual approval (use the tracker's UI/CLI — Linear UI, gh/glab, or Jira)
 EOFMD
 fi
 
 cat "$REPORT_FILE"
 ```
 
-### Step 8: Execute Actions
+### Step 9: Execute Actions
 
 ```bash
 if [ "$DRY_RUN" = false ]; then
@@ -606,7 +786,7 @@ if [ "$DRY_RUN" = false ]; then
         duplicate_id=$(echo "$dup" | jq -r '.duplicate_issue.identifier')
         primary_id=$(echo "$dup" | jq -r '.primary_issue.identifier')
 
-        ~/.claude/scripts/linear_ops.sh issue-mark-duplicate "$duplicate_id" --duplicate-of "$primary_id"
+        ~/.claude/scripts/tracker_ops.sh duplicate-mark "$duplicate_id" --duplicate-of "$primary_id"
 
         # Log action
         jq --arg action "mark_duplicate" \
@@ -619,14 +799,14 @@ if [ "$DRY_RUN" = false ]; then
         echo "  ✓ Marked $duplicate_id as duplicate of $primary_id"
     done
 
-    # Cancel stale issues (only if --close-stale flag)
+    # Close stale issues (only if --close-stale flag)
     if [ "$CLOSE_STALE" = true ]; then
-        echo "Canceling stale issues..."
+        echo "Closing stale issues..."
         jq -c '.[] | select(.safe_to_close == true)' "$STALE_FILE" | while read -r stale; do
             issue_id=$(echo "$stale" | jq -r '.identifier')
             reasons=$(echo "$stale" | jq -r '.reasons | join("; ")')
 
-            ~/.claude/scripts/linear_ops.sh issue-close "$issue_id" \
+            ~/.claude/scripts/tracker_ops.sh issue-close "$issue_id" \
                 --comment "Closing as stale: $reasons. Reopen if still relevant."
 
             # Log action
@@ -640,7 +820,7 @@ if [ "$DRY_RUN" = false ]; then
             echo "  ✓ Closed $issue_id (stale)"
         done
     else
-        echo "Stale issue cancellation SKIPPED (use --close-stale to enable)"
+        echo "Stale issue closure SKIPPED (use --close-stale to enable)"
     fi
 
     # Output action audit
@@ -685,12 +865,12 @@ if ! command -v python3 &> /dev/null; then
     exit 1
 fi
 
-if [[ ! -x ~/.claude/scripts/linear_ops.sh ]]; then
-    echo "Error: linear_ops.sh not found or not executable" >&2
+if [[ ! -x ~/.claude/scripts/tracker_ops.sh ]]; then
+    echo "Error: tracker_ops.sh not found or not executable" >&2
     exit 1
 fi
 
-if [[ ! -f ~/.claude/config/linear_triage.yml ]]; then
+if [[ ! -f ~/.claude/config/tracker_triage.yml ]]; then
     echo "Error: Configuration file not found" >&2
     exit 1
 fi

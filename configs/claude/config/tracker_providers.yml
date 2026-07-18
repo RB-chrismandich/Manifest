@@ -1,9 +1,9 @@
-# lifecycle_providers.yml — provider abstraction for the codified state-gated lifecycle.
-# Spec: specs/365-lifecycle-codification/ (contracts/provider-mapping.md is authoritative).
-#
-# Holds the VOLATILE provider specifics (tier->construct, canonical-status->label/transition,
-# access shape) so the constitution stays durable. Canonical status labels are defined once in
-# labels.yml; this file maps lifecycle phases onto them per provider.
+# tracker_providers.yml — issue-tracker provider registry (evolves lifecycle_providers.yml;
+# spec: docs/superpowers/specs/2026-07-16-agent-app-agnostic-skills-design.md).
+# Access precedence per provider is an ORDERED list: mcp > cli > git > api.
+# Agent-context skills use the first available method; hooks/scripts start at cli.
+
+default_provider: github   # used when no override and remote is not github/gitlab
 
 # Nine lifecycle phases collapse onto four coarse canonical statuses (mirrored to trackers).
 phase_to_canonical_status:
@@ -18,9 +18,17 @@ phase_to_canonical_status:
   verify: needs-review        # -> done once verify passes AND merged
   done: done                  # terminal phase (verify passed + merged)
 
+# Canonical operations (implemented by tracker_ops.sh): issue-list issue-view
+# issue-create issue-comment issue-transition issue-label issue-close
+# duplicate-mark sub-issue-create sub-issue-list.
+# Where a provider lacks a native construct the mapping is documented here:
+# duplicate-mark = native state on linear/jira; close + "Duplicate of #N"
+# comment + `duplicate` label on github/gitlab.
+
 providers:
   github:
-    access: cli               # gh, via git_ops.sh
+    access: [cli, api]      # prepend mcp when a GitHub MCP server is registered
+    verified: true           # Task 12 matrix (2026-07-17): 9/9 PASS, 2/2 N/A (docs/superpowers/specs/2026-07-17-tracker-contract-matrix.md)
     status_via: label         # canonical status applied as a label
     tier_map:
       1: project_v2           # no native issue type -> see missing_tier_behavior
@@ -35,7 +43,8 @@ providers:
     missing_tier_behavior: error   # tier 1 has no native type; error names it unless overridden
 
   gitlab:
-    access: cli               # glab, via git_ops.sh
+    access: [cli, api]
+    verified: false
     status_via: label
     tier_map:
       1: epic                 # Premium/Ultimate
@@ -50,7 +59,8 @@ providers:
     missing_tier_behavior: error
 
   linear:
-    access: graphql           # linear_ops.sh (parentId / create-sub-issue)
+    access: [mcp, cli, api]  # cli = linear_ops.sh GraphQL engine
+    verified: false
     status_via: transition    # Linear workflow STATE (via GraphQL), not a label
     tier_map:
       1: initiative
@@ -65,7 +75,8 @@ providers:
     missing_tier_behavior: error
 
   jira:
-    access: mcp               # pre-authenticated Atlassian MCP — NO bespoke auth (FR-020)
+    access: [mcp]
+    verified: false
     status_via: transition    # Jira workflow transition (resolved to id at runtime)
     tier_map:
       1: Initiative           # requires Advanced Roadmaps / Premium
