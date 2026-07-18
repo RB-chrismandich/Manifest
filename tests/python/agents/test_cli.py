@@ -112,3 +112,110 @@ class TestSelectBackend:
         # Key set but package missing: CLI if present, else nothing
         assert select_backend(has_sdk=False, has_key=True, has_cli=True) == "cli"
         assert select_backend(has_sdk=False, has_key=True, has_cli=False) is None
+
+
+# ---------------------------------------------------------------------------
+# Roster-driven flags/dispatch — a 6th synthetic CLI-only agent ("beta", no
+# sdk_providers entry) must get working flags and reach CLIAgent construction
+# with zero changes to cli.py, proving build_parser()/cli_only_provider_names()
+# are genuinely roster-driven rather than hardcoded to the 5 shipped agents.
+# ---------------------------------------------------------------------------
+
+import yaml
+
+from agents.cli import build_parser, cli_only_provider_names
+from agents.config import Config, RateLimiter
+from agents.runners import CLIAgent
+
+# Mirrors agent_roster.yml's key order (claude, gemini, cursor, codex,
+# antigravity) plus a synthetic 6th CLI-only agent appended at the end.
+ROSTER_WITH_BETA = {
+    "claude": {},
+    "gemini": {},
+    "cursor": {},
+    "codex": {},
+    "antigravity": {},
+    "beta": {},
+}
+
+# claude/gemini go through the SDK-selection path (untouched by this task);
+# everything else — including the synthetic "beta" — is CLI-only dispatch.
+FAKE_SDK_PROVIDERS = {"claude": {}, "gemini": {}}
+
+
+class TestRosterDrivenSixthAgent:
+    def test_beta_only_flag_parses(self):
+        parser = build_parser(ROSTER_WITH_BETA)
+        args = parser.parse_args(["--beta-only"])
+        assert args.beta_only is True
+
+    def test_no_beta_flag_parses(self):
+        parser = build_parser(ROSTER_WITH_BETA)
+        args = parser.parse_args(["--no-beta"])
+        assert args.no_beta is True
+
+    def test_beta_model_flag_parses_with_generic_default(self):
+        parser = build_parser(ROSTER_WITH_BETA)
+        args = parser.parse_args([])
+        # "beta" has no entry in _MODEL_TIER_DEFAULTS (not in
+        # agent_roster.yml's schema) — falls back to the generic "auto".
+        assert args.beta_model == "auto"
+
+    def test_beta_model_flag_accepts_override(self):
+        parser = build_parser(ROSTER_WITH_BETA)
+        args = parser.parse_args(["--beta-model", "advanced"])
+        assert args.beta_model == "advanced"
+
+    def test_help_shows_beta_flags(self):
+        parser = build_parser(ROSTER_WITH_BETA)
+        help_text = parser.format_help()
+        assert "--beta-only" in help_text
+        assert "--no-beta" in help_text
+        assert "--beta-model" in help_text
+
+    def test_beta_is_in_cli_only_dispatch_set(self):
+        names = cli_only_provider_names(ROSTER_WITH_BETA, FAKE_SDK_PROVIDERS)
+        assert names == ["cursor", "codex", "antigravity", "beta"]
+
+    def test_claude_and_gemini_excluded_from_cli_only_dispatch(self):
+        names = cli_only_provider_names(ROSTER_WITH_BETA, FAKE_SDK_PROVIDERS)
+        assert "claude" not in names
+        assert "gemini" not in names
+
+    def test_cliagent_beta_constructs_through_roster_fallback(self, tmp_path):
+        """Reachability proof: a CLIAgent("beta", ...) construction succeeds
+        via the same Config.get_cli_agent_spec() roster-fallback path that
+        cursor/codex/antigravity use, when "beta" has no cli_agents entry in
+        parallel_agent.yml but does have a roster entry."""
+        roster_file = tmp_path / "agent_roster.yml"
+        roster_file.write_text(
+            yaml.dump(
+                {
+                    "agents": {
+                        "beta": {
+                            "name": "beta",
+                            "binary": "echo",
+                            "home_dir": "~/.beta",
+                            "prompt_args": ["{prompt}"],
+                            "model_args": ["--model", "{model}"],
+                            "auth_check": "echo ok",
+                            "enabled_default": True,
+                        }
+                    }
+                }
+            )
+        )
+        config = Config(
+            config_path=str(tmp_path / "nonexistent_parallel_agent.yml"),
+            roster_path=str(roster_file),
+        )
+        limiter = RateLimiter(requests_per_minute=1000, burst_size=100)
+        agent = CLIAgent(
+            "beta",
+            "auto",
+            30,
+            limiter,
+            config=config,
+        )
+        assert agent.binary == "echo"
+        assert agent.name == "beta"
