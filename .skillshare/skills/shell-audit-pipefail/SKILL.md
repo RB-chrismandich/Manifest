@@ -1,6 +1,6 @@
 ---
 name: shell-audit-pipefail
-description: Audit bash scripts using set -euo pipefail for silent-abort risks in $() command substitutions that parse empty or malformed input
+description: Audit bash scripts using set -euo pipefail for silent-abort risks in $() command substitutions that parse empty or malformed input. Complements shell-audit-errexit (non-$() control-flow triggers).
 ---
 # Shell Pipefail Subshell Audit
 

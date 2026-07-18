@@ -1,6 +1,6 @@
 ---
 name: security-review-diff
-description: Use when asked to "review this change/diff for security vulnerabilities" — applies a disciplined source→sink method that reports only real security findings, not robustness or best-practice nits.
+description: Use when asked to "review this change/diff for security vulnerabilities" — applies a disciplined source→sink method that reports only real security findings, not robustness or best-practice nits. Generates findings from a diff; to verify/refute an existing candidate list, use security-refute-findings.
 ---
 # Diff Security Review
 
