@@ -662,3 +662,5 @@ except Exception:
     printf '%s' "$content"
     return 0
 }
+check_optional_file() { [[ -f "$1" ]] && echo -e "  \033[0;32m✓\033[0m $2" || echo -e "  \033[0;33m○\033[0m $2"; }
+check_optional_dir() { [[ -d "$1" && -n $(ls -A "$1" 2> /dev/null) ]] && echo -e "  \033[0;32m✓\033[0m $2" || echo -e "  \033[0;33m○\033[0m $2"; }

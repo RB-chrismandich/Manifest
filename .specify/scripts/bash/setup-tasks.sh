@@ -108,8 +108,8 @@ else
     echo "FEATURE_DIR: $FEATURE_DIR"
     echo "TASKS_TEMPLATE: ${TASKS_TEMPLATE:-not found}"
     echo "AVAILABLE_DOCS:"
-    check_file "$RESEARCH" "research.md"
-    check_file "$DATA_MODEL" "data-model.md"
-    check_dir "$CONTRACTS_DIR" "contracts/"
-    check_file "$QUICKSTART" "quickstart.md"
+    check_optional_file "$RESEARCH" "research.md"
+    check_optional_file "$DATA_MODEL" "data-model.md"
+    check_optional_dir "$CONTRACTS_DIR" "contracts/"
+    check_optional_file "$QUICKSTART" "quickstart.md"
 fi

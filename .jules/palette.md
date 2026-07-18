@@ -70,3 +70,8 @@ in generated reports.
 represented as critical errors with a red cross (`✗`). This creates a false error state and panic for users.
 **Action:** Use a neutral yellow circle (`○`) and hide installation hints behind verbose flags for optional
 components that are not strictly required for the core application to function.
+
+## 2026-06-25 - Differentiating Optional vs Required File Checks in CLI
+
+**Learning:** When validating the presence of required and optional files, applying the same error reporting (`check_file` with a red cross ✗) to optional files creates a false error state and visual noise, causing unnecessary user concern about missing components that are actually not required.
+**Action:** Created distinct variant functions (`check_optional_file` and `check_optional_dir`) in shared bash utilities (`common.sh`) that use a neutral yellow circle (○) to clearly communicate a non-blocking, missing optional file state, reserving the red cross purely for true requirement failures.
