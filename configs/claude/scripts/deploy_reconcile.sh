@@ -147,7 +147,7 @@ while IFS= read -r t; do
     [[ -n "$t" ]] && fleet_tags+=("$t")
 done <<< "$fleet_tags_raw"
 
-for tag in "${fleet_tags[@]}"; do
+for tag in ${fleet_tags[@]+"${fleet_tags[@]}"}; do
     rootp="$(python3 -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "$base/.$tag")"
     case "$trash_abs/" in
         "$rootp"/*)

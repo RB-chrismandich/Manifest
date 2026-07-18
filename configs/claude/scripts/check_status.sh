@@ -294,7 +294,7 @@ if [[ -f ~/.claude/config/services.yml ]]; then
     # Parse enabled services using grep (more portable than yq), one agent
     # per ROSTER_NAMES entry (agent_roster.yml-derived; Task 26) -- a new
     # agent needs only a registry entry + a services.yml block, no script edit.
-    for r_name in "${ROSTER_NAMES[@]}"; do
+    for r_name in ${ROSTER_NAMES[@]+"${ROSTER_NAMES[@]}"}; do
         r_val=$(grep -A1 "^  ${r_name}:" ~/.claude/config/services.yml | grep "enabled:" | awk '{print $2}')
         # Bash identifiers cannot contain '-' (e.g. a roster agent named
         # "test-agent" would make printf -v reject "test-agent_enabled" as
@@ -309,7 +309,7 @@ if [[ -f ~/.claude/config/services.yml ]]; then
     graphify_enabled=$(grep -A1 "^  graphify:" ~/.claude/config/services.yml | grep "enabled:" | awk '{print $2}')
 
     enabled_count=0
-    for r_name in "${ROSTER_NAMES[@]}"; do
+    for r_name in ${ROSTER_NAMES[@]+"${ROSTER_NAMES[@]}"}; do
         r_var="${r_name//-/_}_enabled"
         [[ "${!r_var}" == "true" ]] && enabled_count=$((enabled_count + 1))
     done
@@ -317,7 +317,7 @@ if [[ -f ~/.claude/config/services.yml ]]; then
     echo ""
     echo -e "${BOLD}Enabled Services (${enabled_count}/${#ROSTER_NAMES[@]}):${NC}"
 
-    for r_name in "${ROSTER_NAMES[@]}"; do
+    for r_name in ${ROSTER_NAMES[@]+"${ROSTER_NAMES[@]}"}; do
         r_var="${r_name//-/_}_enabled"
         r_label="$(cap_name "$r_name")"
         if [[ "${!r_var}" == "true" ]]; then
@@ -391,7 +391,7 @@ agent_shows_version() {
     esac
 }
 
-for r_name in "${ROSTER_NAMES[@]}"; do
+for r_name in ${ROSTER_NAMES[@]+"${ROSTER_NAMES[@]}"}; do
     r_binary="$(roster_binary "$r_name")"
     if command -v "$r_binary" &> /dev/null; then
         echo -e "  ${GREEN}✓${NC} $(agent_installed_msg "$r_name")"
