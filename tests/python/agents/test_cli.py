@@ -4,20 +4,49 @@
 Tests CLI argument parsing in isolation via subprocess — no live agents required.
 """
 
+import os
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 ENTRY_POINT = str(REPO_ROOT / "configs" / "claude" / "scripts" / "parallel_agent.py")
 
+_STUB_HOME: str | None = None
+
+
+def _stub_home_runtime() -> str:
+    """A HOME whose ~/.claude/.venv points at the repo's project venv so the
+    parallel_agent.py deprecation shim resolves the `manifest` home runtime
+    (mirrors the bats stub_home_manifest_runtime helper). The venv is built by
+    `uv sync --project configs/claude`, as CI's Test job does. Cached per run."""
+    global _STUB_HOME
+    if _STUB_HOME is not None:
+        return _STUB_HOME
+    manifest = REPO_ROOT / "configs" / "claude" / ".venv" / "bin" / "manifest"
+    home = Path(tempfile.mkdtemp(prefix="manifest_home_"))
+    if manifest.exists():
+        venv_bin = home / ".claude" / ".venv" / "bin"
+        venv_bin.mkdir(parents=True, exist_ok=True)
+        (venv_bin / "manifest").symlink_to(manifest)
+        local_bin = home / ".local" / "bin"
+        local_bin.mkdir(parents=True, exist_ok=True)
+        uv = local_bin / "uv"
+        uv.write_text("#!/bin/sh\nexit 0\n")
+        uv.chmod(0o755)
+    _STUB_HOME = str(home)
+    return _STUB_HOME
+
 
 def _run(*args, **kwargs):
     """Run the entry point with given args and return CompletedProcess."""
+    env = {**os.environ, "HOME": _stub_home_runtime()}
     return subprocess.run(
         [sys.executable, ENTRY_POINT, *args],
         capture_output=True,
         text=True,
+        env=env,
         **kwargs,
     )
 
