@@ -1,13 +1,38 @@
 import json
+import os
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "configs/claude/scripts"))
 import contextlib
 
+import pytest
+
 from skillclaw import evolve as ev
 
 TEMPLATE = "LIB:\n{{LIBRARY}}\nSESS:\n{{SESSIONS}}\n"
+
+
+@pytest.fixture
+def evolve_provider_home(monkeypatch, tmp_path):
+    """Hermetic cli_agents config + claude/gemini stubs on PATH so the evolve
+    provider resolution works without a deployed ~/.claude (CI's HOME is clean):
+    resolve_cli_route needs cli_agents specs, the provider binary on PATH, and
+    provider: auto for the EVOLVE_CLI->provider inference."""
+    cfgdir = tmp_path / "home" / ".claude" / "config"
+    cfgdir.mkdir(parents=True)
+    (cfgdir / "parallel_agent.yml").write_text(
+        "skillclaw_evolve:\n  provider: auto\n"
+        "cli_agents:\n  claude: {binary: claude}\n  gemini: {binary: gemini}\n"
+    )
+    bindir = tmp_path / "bin"
+    bindir.mkdir()
+    for name in ("claude", "gemini"):
+        stub = bindir / name
+        stub.write_text("#!/bin/sh\ntrue\n")
+        stub.chmod(0o755)
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    monkeypatch.setenv("PATH", f"{bindir}{os.pathsep}{os.environ.get('PATH', '')}")
 
 
 def test_estimate_tokens_is_roughly_quarter_length():
@@ -217,7 +242,7 @@ def test_subprocess_runner_timeout_raises_runtime_error(monkeypatch):
         assert "timed out" in str(e)
 
 
-def test_subprocess_runner_defaults_to_claude(monkeypatch):
+def test_subprocess_runner_defaults_to_claude(monkeypatch, evolve_provider_home):
     monkeypatch.delenv("EVOLVE_CLI", raising=False)
     import subprocess as sp
 
@@ -233,7 +258,7 @@ def test_subprocess_runner_defaults_to_claude(monkeypatch):
     assert seen["cmd"] == ["claude", "-p"]
 
 
-def test_subprocess_runner_honors_evolve_cli_env_seam(monkeypatch):
+def test_subprocess_runner_honors_evolve_cli_env_seam(monkeypatch, evolve_provider_home):
     # llm-invoke-stdin pattern: EVOLVE_CLI is role-named, vendor only as
     # default — swapping claude -> gemini must be a one-line env-var change,
     # not a code edit.
