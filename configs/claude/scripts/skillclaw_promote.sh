@@ -13,13 +13,11 @@
 #   SKILLCLAW_SESSIONS, SKILLCLAW_GITOPS, SKILLCLAW_OPEN_PR, SKILLCLAW_TRANSCRIPTS,
 #   SKILLCLAW_STATE, SKILLCLAW_REJECTED, SKILLCLAW_TEMPLATE.
 #
-# LLM CLI seam (llm-invoke-stdin pattern): the evolve stage (skillclaw_evolve.py,
-# invoked below) shells out to EVOLVE_CLI="${EVOLVE_CLI:-claude}" -p to distill
-# candidates. Role-named, not vendor-named — swapping claude->gemini is a
-# one-line env-var change; no edit needed in this script or skillclaw_evolve.py.
-# This does NOT change the transcript data source (~/.claude/projects/**/*.jsonl,
-# read by skillclaw_ingest.py above): that is Claude Code session format and is
-# claude-specific by design, not a seam.
+# LLM CLI seam (llm-invoke-stdin pattern): manifest skillclaw evolve shells out to
+# EVOLVE_CLI="${EVOLVE_CLI:-claude}" -p to distill candidates. Role-named, not
+# vendor-named — swapping claude->gemini is a one-line env-var change; no edit
+# needed in this script. Transcript ingest reads ~/.claude/projects/**/*.jsonl
+# (Claude Code session format; claude-specific by design, not a CLI seam).
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

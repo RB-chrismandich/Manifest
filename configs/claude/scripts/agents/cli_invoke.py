@@ -23,6 +23,9 @@ DEFAULT_CLI_PROVIDER_ORDER = (
     "claude",
 )
 
+# llm-invoke-stdin: arbitrary {PREFIX}_CLI binary on PATH with no roster match.
+_DIRECT_CLI_PROVIDER = "__direct_cli__"
+
 # Providers whose default headless entry reads the prompt from stdin (large payloads).
 STDIN_PROMPT_BINARIES = frozenset({"claude", "gemini"})
 
@@ -117,6 +120,8 @@ def resolve_cli_route(
         inferred = _provider_for_cli_env(config, synth_cli)
         if inferred:
             provider_cfg = inferred
+        elif _binary_on_path(synth_cli):
+            return CliRoute("cli", _DIRECT_CLI_PROVIDER, binary_override=synth_cli)
 
     if allow_sdk and (provider_cfg == "sdk" or backend == "sdk"):
         return CliRoute("sdk", "claude") if claude_sdk_available() else None
@@ -214,6 +219,9 @@ def build_subprocess_argv(
     binary_name = Path(str(binary)).name
 
     if binary_name in STDIN_PROMPT_BINARIES:
+        return [str(binary), "-p"], prompt
+
+    if route.provider == _DIRECT_CLI_PROVIDER:
         return [str(binary), "-p"], prompt
 
     from agents.runners import CLIAgent

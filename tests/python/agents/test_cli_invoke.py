@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 
@@ -46,6 +47,28 @@ def test_resolve_cli_route_env_cli_override(tmp_path, monkeypatch):
         allow_sdk=False,
     )
     assert route == CliRoute("cli", "antigravity", binary_override="agy")
+
+
+def test_resolve_cli_route_direct_cli_override(tmp_path, monkeypatch, tmp_path_factory):
+    stub = tmp_path_factory.mktemp("bin") / "fake_evolve_cli"
+    stub.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    stub.chmod(0o755)
+    monkeypatch.setenv("PATH", f"{stub.parent}{os.pathsep}{os.environ.get('PATH', '')}")
+    monkeypatch.setenv("EVOLVE_CLI", "fake_evolve_cli")
+    monkeypatch.delenv("EVOLVE_PROVIDER", raising=False)
+    route = resolve_cli_route(
+        _config(tmp_path),
+        section="skillclaw_evolve",
+        env_prefix="EVOLVE",
+        allow_sdk=False,
+    )
+    assert route is not None
+    assert route.binary_override == "fake_evolve_cli"
+    argv, stdin = build_subprocess_argv(
+        _config(tmp_path), route, "hello prompt", model_tier="sonnet"
+    )
+    assert argv == ["fake_evolve_cli", "-p"]
+    assert stdin == "hello prompt"
 
 
 def test_resolve_cli_route_skillclaw_section(tmp_path, monkeypatch):
