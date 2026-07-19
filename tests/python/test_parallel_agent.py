@@ -16,10 +16,38 @@ Run with: pytest tests/python/test_parallel_agent.py -v
 
 import asyncio
 import json
+import os
+import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 import pytest
+
+_STUB_HOME: str | None = None
+
+
+def _stub_home_env() -> dict:
+    """Env with HOME pointing at a temp dir whose ~/.claude/.venv symlinks the
+    repo's project venv, so the parallel_agent.py deprecation shim resolves the
+    manifest home runtime (mirrors the bats stub_home_manifest_runtime helper).
+    The venv is built by `uv sync --project configs/claude`, as CI does."""
+    global _STUB_HOME
+    if _STUB_HOME is None:
+        manifest = REPO_ROOT / "configs" / "claude" / ".venv" / "bin" / "manifest"
+        home = Path(tempfile.mkdtemp(prefix="manifest_home_"))
+        if manifest.exists():
+            venv_bin = home / ".claude" / ".venv" / "bin"
+            venv_bin.mkdir(parents=True, exist_ok=True)
+            (venv_bin / "manifest").symlink_to(manifest)
+            local_bin = home / ".local" / "bin"
+            local_bin.mkdir(parents=True, exist_ok=True)
+            uv = local_bin / "uv"
+            uv.write_text("#!/bin/sh\nexit 0\n")
+            uv.chmod(0o755)
+        _STUB_HOME = str(home)
+    return {**os.environ, "HOME": _STUB_HOME}
+
 
 # Add the scripts directory to path so we can import the module.
 # In the repo the source lives at configs/claude/scripts/, not .claude/scripts/.
@@ -703,12 +731,11 @@ class TestFileExistenceValidation:
     SCRIPT = str(REPO_ROOT / "configs" / "claude" / "scripts" / "parallel_agent.py")
 
     def _run(self, flag: str, path: str):
-        import subprocess
-
         return subprocess.run(
             [sys.executable, self.SCRIPT, flag, path],
             capture_output=True,
             text=True,
+            env=_stub_home_env(),
         )
 
     def test_review_nonexistent_file_exits_nonzero(self, tmp_path):
@@ -921,12 +948,11 @@ class TestCLIFlagsAntigravity:
     SCRIPT = str(REPO_ROOT / "configs" / "claude" / "scripts" / "parallel_agent.py")
 
     def test_help_lists_antigravity_flags(self):
-        import subprocess
-
         result = subprocess.run(
             [sys.executable, self.SCRIPT, "--help"],
             capture_output=True,
             text=True,
+            env=_stub_home_env(),
         )
         assert "--antigravity-model" in result.stdout
         assert "--antigravity-only" in result.stdout

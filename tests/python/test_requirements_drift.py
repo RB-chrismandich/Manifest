@@ -77,7 +77,13 @@ def test_requirements_pins_match_uv_lock(
         )
 
         if allowed_groups is None:
-            assert name in groups["core"], (
+            ok = name in groups["core"]
+            # anthropic is an optional [claude] SDK dep (uv --group claude) kept
+            # in the runtime requirements file for CI SDK tests (see its header);
+            # allow it from the claude group, analogous to the pyyaml case below.
+            if not ok and name == "anthropic":
+                ok = name in groups.get("claude", set())
+            assert ok, (
                 f"{req_path.name}: {req.name} is not a manifest-runtime core dependency"
             )
         else:
