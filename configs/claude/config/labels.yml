@@ -66,6 +66,11 @@ labels:
     description: "Do not auto-merge; the loop must route this PR to a human"
     platforms: [github, gitlab]
 
+  - name: duplicate
+    color: "CFD3D7"
+    description: "Duplicate of another issue"
+    platforms: [github, gitlab, linear]
+
 deprecated:
   - name: processed
     replacement: done

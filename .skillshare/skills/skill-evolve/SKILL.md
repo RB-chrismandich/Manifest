@@ -10,9 +10,28 @@ into the committed `.skillshare/skills/` library — gated behind PR review.
 
 Backed by `~/.claude/scripts/skillclaw_promote.sh`, which ingests your recent
 Claude Code transcripts (`~/.claude/projects/**/*.jsonl`), scrubs them of secrets,
-evolves `SKILL.md` candidates via `claude -p`, classifies them
+evolves `SKILL.md` candidates via `"${EVOLVE_CLI}" -p`, classifies them
 (NEW/CHANGED/UNCHANGED), drops any that fail frontmatter checks, and opens one
 review PR per batch. No proxy, no daemon — transcripts are read passively.
+
+## LLM CLI seam
+
+The distillation step shells out to `EVOLVE_CLI="${EVOLVE_CLI:-claude}" -p`
+(`configs/claude/scripts/skillclaw_evolve.py`, `subprocess_runner()`) — a
+role-named, injectable seam per the `llm-invoke-stdin` pattern. Swapping
+vendors (`claude` -> `gemini`, `agy`, etc.) is a one-line env-var change:
+
+```bash
+EVOLVE_CLI=gemini ~/.claude/scripts/skillclaw_promote.sh
+```
+
+**Not swappable — by design, not an oversight:** the *data source* this step
+distills from is `~/.claude/projects/**/*.jsonl` — Claude Code's own session
+transcript format, read by `skillclaw_ingest.py`. That format is inherent to
+running inside Claude Code; it is not a CLI choice, so `EVOLVE_CLI` only
+changes which model does the distilling, never where the sessions come from.
+Running this skill from a non-Claude-Code harness has no transcripts to read,
+regardless of `EVOLVE_CLI`.
 
 ## When to use
 

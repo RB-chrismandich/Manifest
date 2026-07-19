@@ -13,6 +13,11 @@ Backed by `~/.claude/scripts/deploy_reconcile.sh`. The protection policy lives i
 `~/.claude/config/reconcile.yml` (source: `configs/claude/config/reconcile.yml`),
 with machine-local additions in `~/.manifest/reconcile.local.yml`.
 
+The "mirrors" are not a hardcoded platform list — they're every agent's
+`home_dir` in `~/.claude/config/agent_roster.yml` (`~/.cursor`, `~/.gemini`,
+`~/.codex`, `~/.antigravity` today, alongside canonical `~/.claude`). A 6th
+roster entry is in scope for reconciliation automatically.
+
 ## When to use
 
 - After deleting or renaming skills/config in the repo, to find leftovers still

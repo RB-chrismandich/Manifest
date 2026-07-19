@@ -1,12 +1,12 @@
 ---
-description: "Adversarially verify a list of candidate security findings before reporting, refuting any where the attacker is the only victim or the diff does not introduce the sink"
+description: "Adversarially verify candidate security findings before reporting, refuting any where the attacker is the only victim or the diff does not introduce the sink. Broad refutation-gate catalog; see security-refute-findings for the removed/delegated-control reframing variant."
 globs: ".claude/skills/security-triage-findings/**"
 alwaysApply: false
 ---
 
 # security-triage-findings
 
-Adversarially verify a list of candidate security findings before reporting, refuting any where the attacker is the only victim or the diff does not introduce the sink
+Adversarially verify candidate security findings before reporting, refuting any where the attacker is the only victim or the diff does not introduce the sink. Broad refutation-gate catalog; see security-refute-findings for the removed/delegated-control reframing variant.
 
 <!-- Auto-generated from .claude/skills/security-triage-findings/SKILL.md -->
 <!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->

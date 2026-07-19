@@ -1,6 +1,6 @@
 ---
 name: security-triage-findings
-description: Adversarially verify a list of candidate security findings before reporting, refuting any where the attacker is the only victim or the diff does not introduce the sink
+description: Adversarially verify candidate security findings before reporting, refuting any where the attacker is the only victim or the diff does not introduce the sink. Broad refutation-gate catalog; see security-refute-findings for the removed/delegated-control reframing variant.
 ---
 # Adversarial Security Finding Triage
 

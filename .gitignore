@@ -69,3 +69,4 @@ uv.lock
 # Home runtime lock is committed (manifest uv CLI — configs/claude/pyproject.toml).
 !configs/claude/uv.lock
 benchmark_data/
+.claude/settings.local.json

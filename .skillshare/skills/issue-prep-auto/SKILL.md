@@ -25,7 +25,7 @@ confirmation — or autonomously with `--apply` for unattended backlog grooming.
 ## Procedure
 
 1. **Load the issue.** Run
-   `configs/claude/scripts/git_ops.sh issue-view <N> --json number,title,body,state,labels,comments`.
+   `configs/claude/scripts/tracker_ops.sh issue-view <N> --json number,title,body,state,labels,comments`.
    If no number is given, use the one in context or ask which issue.
 
 2. **Score against the readiness rubric.** Each item is a concrete way the autonomous
@@ -43,7 +43,9 @@ confirmation — or autonomously with `--apply` for unattended backlog grooming.
 
 3. **Decide a verdict:**
    - **READY** — rubric clears. Recommend the `auto-dev` label; on confirmation apply
-     `git_ops.sh issue-edit <N> --add-label auto-dev`.
+     `tracker_ops.sh issue-label <N> --add-label auto-dev` (github/gitlab). Linear has no
+     native label mutation reachable from `tracker_ops.sh` — it exits 4 — so on that
+     provider apply the label directly (Linear UI/API) and say so in the report.
    - **NEEDS-PREP** — real work, but under-specified. Draft a tighter issue body (sharper
      title, explicit acceptance criteria, scope boundaries, test notes) and/or the fewest
      clarifying questions that would unblock automation. Do **not** label `auto-dev` yet.
@@ -53,10 +55,12 @@ confirmation — or autonomously with `--apply` for unattended backlog grooming.
 
 4. **Close the gap (NEEDS-PREP):**
    - If the missing detail is knowable from the repo/issue, propose a rewritten description
-     and, on confirmation, update it: `git_ops.sh issue-edit <N> --body "<improved>"`.
+     and, on confirmation, update it: `git_ops.sh issue-edit <N> --body "<improved>"` (body
+     rewrites have no `tracker_ops.sh` verb — only label mutations route through it — so
+     this stays on the git-hosting wrapper and is unavailable on Linear/Jira).
      **Preserve the reporter's intent and content — tighten, don't replace.**
    - If it needs the reporter's input, draft the questions and, on confirmation, post them:
-     `git_ops.sh issue-comment <N> --body "<questions>"`. If the reporter is in this session, just
+     `tracker_ops.sh issue-comment <N> "<questions>"`. If the reporter is in this session, just
      ask inline instead of commenting.
    - Re-score once answers land; promote to READY when the rubric clears.
 
@@ -94,7 +98,7 @@ ALWAYS use this structure so the verdict and the proposed mutation are unambiguo
 - **Fail-open on writes:** a failed label/edit/comment is reported plainly, never silently
   swallowed, and never leaves an issue half-groomed without saying so.
 - **One issue per invocation.** To sweep the backlog, the caller loops this over
-  `git_ops.sh issue-list`; keeping the unit small keeps each readiness call auditable.
+  `tracker_ops.sh issue-list`; keeping the unit small keeps each readiness call auditable.
 - This is the **intake** step; `issue-dev-auto` is the **development** step. Labeling an
   issue `auto-dev` here is the signal that hands it to that loop, so treat the label as a
   commitment that the rubric genuinely cleared.

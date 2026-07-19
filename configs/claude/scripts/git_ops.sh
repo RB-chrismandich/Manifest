@@ -22,6 +22,14 @@
 #   pr-list               List PRs/MRs
 #   pr-review N           Review/approve PR/MR N
 #   pr-merge N            Merge PR/MR N
+#   pr-close N            Close PR/MR N
+#   pr-reopen N           Reopen a closed PR/MR N
+#   pr-update-branch N    Sync PR/MR N's branch with its base (github: merge; gitlab: rebase)
+#   pr-comment N TEXT     Add comment/note to PR/MR N
+#   pr-comments N         List review comments on PR/MR N (JSON)
+#   repo-admin-check      Print true/false: does the authenticated user have admin/maintainer rights
+#   branch-protection     Print main's protection flags (enforce_admins/required_signatures/merge_queue); github-only
+#   commit-checks SHA     List CI conclusions/statuses for a commit SHA (JSON array)
 #   release-create        Create a release
 #   release-list          List releases
 #   label-create          Create label
@@ -83,6 +91,14 @@ Subcommands:
   pr-diff N          View PR/MR N diff
   pr-checks N        View CI status for PR/MR N
   pr-merge N         Merge PR/MR N
+  pr-close N         Close PR/MR N
+  pr-reopen N        Reopen a closed PR/MR N
+  pr-update-branch N Sync PR/MR N's branch with its base (github: merge; gitlab: rebase)
+  pr-comment N TEXT  Add comment/note to PR/MR N
+  pr-comments N      List review comments on PR/MR N (JSON)
+  repo-admin-check   Print true/false: authenticated user has admin/maintainer rights
+  branch-protection  Print main's protection flags (enforce_admins/required_signatures/merge_queue); github-only
+  commit-checks SHA  List CI conclusions/statuses for a commit SHA (JSON array)
   release-create     Create a release
   release-list       List releases
   label-create       Create label
@@ -182,6 +198,39 @@ case "${platform}" in
                 ;;
             pr-merge)
                 gh pr merge "$@"
+                ;;
+            pr-close)
+                gh pr close "$@"
+                ;;
+            pr-reopen)
+                gh pr reopen "$@"
+                ;;
+            pr-update-branch)
+                gh pr update-branch "$@"
+                ;;
+            pr-comment)
+                issue_comment_args --body "$@"
+                gh pr comment "${ISSUE_COMMENT_ARGS[@]+"${ISSUE_COMMENT_ARGS[@]}"}"
+                ;;
+            pr-comments)
+                pr_num="$1"
+                shift
+                gh api "repos/{owner}/{repo}/pulls/${pr_num}/comments" \
+                    --jq '[.[] | {id, author: .user.login, path, line, body}]' "$@"
+                ;;
+            repo-admin-check)
+                gh api "repos/{owner}/{repo}" -q '.permissions.admin' "$@" 2> /dev/null || echo false
+                ;;
+            branch-protection)
+                gh api "repos/{owner}/{repo}/branches/main/protection" \
+                    -q '"enforce_admins="+(.enforce_admins.enabled|tostring)+" required_signatures="+(.required_signatures.enabled|tostring)+" merge_queue=false"' \
+                    "$@" 2> /dev/null ||
+                    echo "enforce_admins=false required_signatures=false merge_queue=false"
+                ;;
+            commit-checks)
+                sha="$1"
+                shift
+                gh api "repos/{owner}/{repo}/commits/${sha}/check-runs" -q '[.check_runs[]|.conclusion]' "$@"
                 ;;
             release-create)
                 gh release create "$@"
@@ -339,6 +388,14 @@ case "${platform}" in
                                 mr_args+=(--description "${1#--body=}")
                                 shift
                                 ;;
+                            --base)
+                                mr_args+=(--target-branch "$2")
+                                shift 2
+                                ;;
+                            --base=*)
+                                mr_args+=(--target-branch "${1#--base=}")
+                                shift
+                                ;;
                             *)
                                 mr_args+=("$1")
                                 shift
@@ -378,6 +435,86 @@ case "${platform}" in
                 ;;
             pr-merge)
                 glab mr merge "$@"
+                ;;
+            pr-close)
+                # GitLab's `mr close` has no --comment flag (unlike `gh pr close`);
+                # translate by posting a note first, then closing.
+                _translate_pr_close_flags() {
+                    local mr_num="$1"
+                    shift
+                    local -a mr_args=("${mr_num}")
+                    local comment=""
+                    while [[ $# -gt 0 ]]; do
+                        case "$1" in
+                            --comment)
+                                comment="$2"
+                                shift 2
+                                ;;
+                            --comment=*)
+                                comment="${1#--comment=}"
+                                shift
+                                ;;
+                            *)
+                                mr_args+=("$1")
+                                shift
+                                ;;
+                        esac
+                    done
+                    [[ -z "${comment}" ]] || glab mr note "${mr_num}" --message "${comment}"
+                    glab mr close "${mr_args[@]}" # array-safe: seeded with mr_num
+                }
+                _translate_pr_close_flags "$@"
+                ;;
+            pr-reopen)
+                glab mr reopen "$@"
+                ;;
+            pr-update-branch)
+                # GitLab has no direct "merge base into branch" endpoint; the closest
+                # equivalent is a server-side rebase (semantically rebase, not merge —
+                # note the difference to callers expecting github's merge behavior).
+                mr_num="$1"
+                shift
+                glab api "projects/:id/merge_requests/${mr_num}/rebase" -X PUT "$@"
+                ;;
+            pr-comment)
+                issue_comment_args --message "$@"
+                glab mr note "${ISSUE_COMMENT_ARGS[@]+"${ISSUE_COMMENT_ARGS[@]}"}"
+                ;;
+            pr-comments)
+                # The Notes API cannot return inline diff comments at all
+                # (docs.gitlab.com/api/notes/: "Notes are not attached to
+                # specific lines... see the discussions API"); only the
+                # Discussions API exposes each note's diff `position`. Flatten
+                # every discussion's notes, keep only inline (position != null)
+                # non-system notes — matching github's pulls/.../comments
+                # inline-only semantics — and prefer new_path/new_line (the
+                # current/new version of the file) over old_path/old_line.
+                mr_num="$1"
+                shift
+                glab api "projects/:id/merge_requests/${mr_num}/discussions" \
+                    --jq '[.[].notes[] | select(.system == false) | select(.position != null) | {id, author: .author.username, path: .position.new_path, line: .position.new_line, body}]' "$@"
+                ;;
+            repo-admin-check)
+                # GitLab has no single "admin" boolean; approximate with
+                # Maintainer(40)+ access, the closest analogue to github's
+                # repo-admin permission for merge/branch-protection bypass.
+                glab api "projects/:id" \
+                    --jq '((.permissions.project_access.access_level // 0) >= 40) or ((.permissions.group_access.access_level // 0) >= 40)' \
+                    "$@" 2> /dev/null || echo false
+                ;;
+            branch-protection)
+                # github-only: github's enforce_admins/required_signatures/merge_queue
+                # trio has no unified GitLab equivalent — GitLab models admin bypass via
+                # separate push/merge access levels and a distinct signed-commit push
+                # rule, not a single protection resource. Fail loud rather than fabricate
+                # a false equivalence.
+                err "branch-protection has no GitLab equivalent (github-only verb)"
+                exit 1
+                ;;
+            commit-checks)
+                sha="$1"
+                shift
+                glab api "projects/:id/repository/commits/${sha}/statuses" --jq '[.[].status]' "$@"
                 ;;
             release-create)
                 glab release create "$@"

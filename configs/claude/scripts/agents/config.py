@@ -54,15 +54,42 @@ else:
 # ---------------------------------------------------------------------------
 
 
+def load_agent_roster(roster_path: str | None = None) -> dict[str, dict]:
+    """Load the `agents:` map from agent_roster.yml.
+
+    Returns {} if the file is missing or malformed — callers treat the
+    roster as an optional extensibility source, never a hard dependency.
+    """
+    if roster_path is None:
+        roster_path = os.path.expanduser("~/.claude/config/agent_roster.yml")
+
+    if not os.path.exists(roster_path):
+        return {}
+
+    try:
+        with open(roster_path) as f:
+            data = yaml.safe_load(f) or {}
+    except (OSError, yaml.YAMLError):
+        return {}
+
+    agents = data.get("agents")
+    return agents if isinstance(agents, dict) else {}
+
+
 class Config:
     """Configuration manager for parallel agent"""
 
-    def __init__(self, config_path: str | None = None):
+    def __init__(self, config_path: str | None = None, roster_path: str | None = None):
         if config_path is None:
             config_path = os.path.expanduser("~/.claude/config/parallel_agent.yml")
 
         self.config_path = config_path
         self.config = self._load_config()
+
+        # Lazily loaded on first get_cli_agent_spec() miss against cli_agents —
+        # None means "not loaded yet", {} means "loaded, empty/missing file".
+        self._roster_path = roster_path
+        self._roster: dict[str, dict] | None = None
 
     def _load_config(self) -> dict:
         """Load configuration from YAML file"""
@@ -211,6 +238,44 @@ class Config:
             else:
                 return default
         return value if value is not None else default
+
+    def get_cli_agent_spec(self, provider: str) -> dict | None:
+        """Resolve a CLIAgent spec for `provider`.
+
+        `cli_agents.<provider>` (parallel_agent.yml, or the hardcoded
+        defaults mirroring it) remains the primary, authoritative source —
+        it carries base_args/output strategy that agent_roster.yml
+        deliberately does not duplicate (see agent_roster.yml header).
+
+        A provider absent from cli_agents falls back to agent_roster.yml,
+        using the roster's binary/model_args/prompt_args with generic-CLI
+        defaults (base_args=[], output="stdout") for the fields the roster
+        omits. This makes roster-only construction possible at THIS layer —
+        no cli_agents entry, no new Python class needed for `Config`/
+        `CLIAgent` to build a spec. It does NOT make a roster-only agent
+        selectable or runnable end-to-end today: `cli.py`'s provider
+        selection, CLI flags, and rate-limiter/model wiring are still
+        hardcoded per-provider (not roster-aware). Closing that gap is
+        out of this task's scope — see agent_roster.yml.
+        """
+        spec = self.get(f"cli_agents.{provider}")
+        if spec:
+            return spec
+
+        if self._roster is None:
+            self._roster = load_agent_roster(self._roster_path)
+
+        entry = self._roster.get(provider)
+        if not entry:
+            return None
+
+        return {
+            "binary": entry.get("binary"),
+            "base_args": [],
+            "model_args": list(entry.get("model_args", [])),
+            "prompt_args": list(entry.get("prompt_args", ["{prompt}"])),
+            "output": "stdout",
+        }
 
 
 def select_backend(has_sdk: bool, has_key: bool, has_cli: bool) -> str | None:

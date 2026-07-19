@@ -53,7 +53,7 @@ authenticated Claude Code session — no separate API key:
 ```bash
 # Map a directory or repo (default: current directory). Route the semantic pass
 # through the local `claude -p`; haiku keeps structured-JSON extraction fast/cheap.
-GRAPHIFY_CLAUDE_CLI_MODEL=haiku graphify "${DIRECTORY:-.}" --backend claude-cli $EXTRA_FLAGS
+GRAPHIFY_CLAUDE_CLI_MODEL=haiku graphify "${DIRECTORY:-.}" --backend "${GRAPHIFY_LLM_CLI:-claude-cli}" $EXTRA_FLAGS
 
 # Or answer a question against an existing graph (no backend needed)
 graphify query "what connects auth to the database?"
@@ -70,7 +70,29 @@ extraction; unset it to fall back to the CLI default (Opus). A **pure-code**
 corpus needs no backend — plain `graphify <dir>` is fine there.
 
 If the run finishes with `next: run graphify cluster-only <dir>`, do that pass
-(also `--backend claude-cli`) to name communities and write `GRAPH_REPORT.md`.
+(also `--backend "${GRAPHIFY_LLM_CLI:-claude-cli}"`) to name communities and
+write `GRAPH_REPORT.md`.
+
+### LLM backend seam
+
+Unlike `skill-evolve`, graphify's LLM backend really is a first-class CLI flag
+(`graphify --help` confirms it), so this one is a genuine seam, not a
+workaround: `GRAPHIFY_LLM_CLI="${GRAPHIFY_LLM_CLI:-claude-cli}"`, role-named
+per the `llm-invoke-stdin` pattern, plumbed into `--backend`. Verified against
+this environment's installed `graphify` CLI:
+
+- `graphify extract --help` lists `--backend B` as
+  `gemini|kimi|claude|openai|deepseek|ollama` (API-key backends), and
+  `cluster-only`/`label`'s `--max-concurrency` help text names `claude-cli`
+  alongside `ollama` as a distinct, locally-authenticated backend value (the
+  one this skill defaults to, since it needs no separate API key).
+- Swap vendors with a one-line env-var change, e.g.
+  `GRAPHIFY_LLM_CLI=gemini GEMINI_API_KEY=... graphify . --backend gemini`
+  — in that case set `--backend` to match `GRAPHIFY_LLM_CLI` directly (the
+  commands above already do this via `--backend "${GRAPHIFY_LLM_CLI:-claude-cli}"`).
+- This seam covers backend selection only. It does not change what graphify
+  reads (your target directory/repo) — there is no transcript-style data
+  source restriction here, unlike `skill-evolve`.
 
 ### Phase 3: Report
 

@@ -85,6 +85,13 @@ cd Manifest
   validators independently gate the candidate, and the loop terminates only on dual `APPROVED`
   with zero pending changes. Config-only; does not change your main-session model. Enable with
   `--enable-devpanel`
+- **Stitch Design Skills** (15 skills, externally installed via skillshare from
+  [`google-labs-code/stitch-skills`](https://github.com/google-labs-code/stitch-skills)):
+  design workflows (`generate-design`, `code-to-design`, `manage-design-system`, ...), code
+  generation (`react-components`, `react-native`, `react-vite-dashboard`, `remotion`,
+  `shadcn-ui`), and utilities (`stitch-loop`, `enhance-prompt`, `taste-design`, `design-md`) for
+  [Google Stitch](https://stitch.withgoogle.com). Requires the Stitch MCP server — see
+  [Requirements](#requirements)
 
 ---
 
@@ -165,6 +172,23 @@ Mermaid flowcharts showing bootstrap, execution, validation, and consensus flows
 - API keys are optional: with `ANTHROPIC_API_KEY`/`GOOGLE_API_KEY` set, the Claude/Gemini
   agents use the SDK; without keys, they fall back to the logged-in `claude`/`gemini` CLIs
   (OAuth subscription login works out of the box)
+
+**For the Stitch Design Skills (optional):**
+
+- A [Google Stitch](https://stitch.withgoogle.com) account/project
+- The Stitch MCP server, registered manually — **not** wired into `--install-mcp`. Stitch's
+  auth model doesn't fit `configs/claude/config/mcp_servers.yml`'s zero-config remote-HTTP+OAuth
+  schema: the official direct-HTTP path (`stitch.googleapis.com` + API-key header) is
+  [known broken in Claude Code](https://github.com/anthropics/claude-code/issues/41664)
+  (it always attempts OAuth dynamic client registration, which Stitch doesn't support, and
+  ignores the header), so the working setup is a local stdio proxy. Run the guided wizard —
+  it handles gcloud/API-key auth, project selection, and per-client config generation:
+
+  ```bash
+  npx @_davideast/stitch-mcp init
+  ```
+
+  See the [Stitch MCP setup guide](https://davideast.github.io/stitch-mcp/setup/) for details.
 
 ---
 

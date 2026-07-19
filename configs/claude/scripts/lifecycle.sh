@@ -583,7 +583,7 @@ print(json.dumps(j))' "${j}" "${to}" "${reason}" "${now}")"
 
 # --- US3: four-tier hierarchy provisioning (FR-013..FR-017) -----------------------------
 
-LIFECYCLE_PROVIDERS_CONFIG="${LIFECYCLE_PROVIDERS_CONFIG:-${HOME}/.claude/config/lifecycle_providers.yml}"
+LIFECYCLE_PROVIDERS_CONFIG="${LIFECYCLE_PROVIDERS_CONFIG:-${HOME}/.claude/config/tracker_providers.yml}"
 
 # Provider tool seam: create ONE remote node, echo its external id; non-zero = failure.
 # args: <provider> <construct> <title> <parent-external-id-or-empty>. Real backends route to

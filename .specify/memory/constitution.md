@@ -16,6 +16,23 @@ Templates / docs requiring updates (feature 365):
   - .specify/templates/constitution-template.md ✅ source template (not modified)
 Follow-up TODOs: provider-specific specifics intentionally live in
   configs/claude/config/lifecycle_providers.yml, not the constitution (durability).
+
+--------------------------------------------------------------------------------
+
+Version change: 1.1.0 → 1.1.1 (PATCH — reference correction, no principle/section
+  changes)
+Modified principles: N/A (I–VI unchanged)
+Modified sections:
+  - ## Development Lifecycle: provider-specific tier/status mapping file re-pointed
+    from `configs/claude/config/lifecycle_providers.yml` to
+    `configs/claude/config/tracker_providers.yml`.
+  Source: `lifecycle_providers.yml` was deleted (commit a0070d0) and its content
+  absorbed byte-identically into `tracker_providers.yml`, part of the broader
+  tracker-provider abstraction work
+  (docs/superpowers/plans/2026-07-16-agent-app-agnostic-skills.md).
+Removed sections: N/A
+Templates / docs requiring updates: N/A (path-only correction; no template impact)
+Follow-up TODOs: N/A
 -->
 
 # Manifest Constitution
@@ -149,7 +166,7 @@ Review/analyze gates use the Quality Gates verdict model.
 **Hierarchy**: work is tracked in four tiers — Initiative → Epic → Task → Sub-Task — abstracted
 across GitHub, GitLab, Linear, and Jira. Phases 1–7 run once at the Task and its ancestor
 tiers; phases 8–9 iterate per Sub-Task. Provider-specific tier/status mappings live in
-`configs/claude/config/lifecycle_providers.yml` (Jira via the pre-authenticated Atlassian MCP),
+`configs/claude/config/tracker_providers.yml` (Jira via the pre-authenticated Atlassian MCP),
 NOT in this constitution, so the durable governance here does not churn on provider changes.
 
 **Enforcement**: the autonomous-development loop MUST NOT merge or mark a unit of work complete
@@ -199,4 +216,4 @@ review of all principles is RECOMMENDED to ensure alignment with project evoluti
 **Runtime guidance**: Use `configs/claude/CLAUDE.md` for session-level development
 guidance; it is the deployed document that governs active Claude Code sessions.
 
-**Version**: 1.1.0 | **Ratified**: 2026-05-31 | **Last Amended**: 2026-06-28
+**Version**: 1.1.1 | **Ratified**: 2026-05-31 | **Last Amended**: 2026-07-17

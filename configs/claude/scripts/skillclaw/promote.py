@@ -40,9 +40,10 @@ def parse_frontmatter(text: str) -> dict | None:
     return fm
 
 
-def validate_skill(skill_md: Path) -> tuple[bool, str]:
+def validate_skill(skill_md: Path, text: str | None = None) -> tuple[bool, str]:
     """Validate a SKILL.md has name+description frontmatter. (bool, reason)."""
-    text = _read(skill_md)
+    if text is None:
+        text = _read(skill_md)
     fm = parse_frontmatter(text)
     if fm is None:
         return False, "missing or malformed frontmatter"
@@ -58,13 +59,16 @@ def classify(evolved_dir: Path, committed_dir: Path) -> list[dict]:
     for skill_md in sorted(evolved_dir.glob("*/SKILL.md")):
         name = skill_md.parent.name
         committed = committed_dir / name / "SKILL.md"
+        skill_text = _read(skill_md)
         if not committed.exists():
             status = "NEW"
-        elif _read(committed) == _read(skill_md):
+        elif _read(committed) == skill_text:
             status = "UNCHANGED"
         else:
             status = "CHANGED"
-        out.append({"name": name, "status": status, "path": str(skill_md)})
+        out.append(
+            {"name": name, "status": status, "path": str(skill_md), "text": skill_text}
+        )
     return out
 
 
@@ -91,7 +95,7 @@ def main(argv: list[str]) -> int:
             continue
         if c["status"] == "UNCHANGED":
             continue
-        ok, reason = validate_skill(Path(c["path"]))
+        ok, reason = validate_skill(Path(c["path"]), text=c.pop("text", None))
         if ok:
             promote.append(c)
         else:

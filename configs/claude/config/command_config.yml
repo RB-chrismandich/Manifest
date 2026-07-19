@@ -554,6 +554,51 @@ tool_policies:
   ai-hooks-integration:
     subagents: never
     subagent_rationale: Single hook-install operation editing shared config files; not a multi-item fan-out.
+  code-to-design:
+    subagents: never
+    subagent_rationale: "Vendored Stitch MCP skill (skillshare): single sequential design-upload workflow, not a fan-out."
+  design-md:
+    subagents: never
+    subagent_rationale: "Vendored Stitch MCP skill (skillshare): single-project analysis producing one DESIGN.md."
+  enhance-prompt:
+    subagents: never
+    subagent_rationale: "Vendored Stitch MCP skill (skillshare): single-prompt rewrite, not a multi-item fan-out."
+  extract-design-md:
+    subagents: never
+    subagent_rationale: "Vendored Stitch MCP skill (skillshare): single-project source scan producing one DESIGN.md."
+  extract-static-html:
+    subagents: never
+    subagent_rationale: "Vendored Stitch MCP skill (skillshare): single-target HTML extraction."
+  generate-design:
+    subagents: never
+    subagent_rationale: "Vendored Stitch MCP skill (skillshare): single design-generation request against the Stitch MCP server."
+  manage-design-system:
+    subagents: never
+    subagent_rationale: "Vendored Stitch MCP skill (skillshare): single design-system upload/apply operation."
+  react-components:
+    subagents: never
+    subagent_rationale: "Vendored Stitch MCP skill (skillshare): sequential fetch-then-convert workflow with its own validation gates."
+  react-native:
+    subagents: never
+    subagent_rationale: "Vendored Stitch MCP skill (skillshare): sequential fetch-then-convert workflow with its own validation gates."
+  react-vite-dashboard:
+    subagents: never
+    subagent_rationale: "Vendored Stitch MCP skill (skillshare): sequential fetch-then-convert workflow with its own validation gates."
+  remotion:
+    subagents: never
+    subagent_rationale: "Vendored Stitch MCP skill (skillshare): single video-render pipeline, not a multi-item fan-out."
+  shadcn-ui:
+    subagents: never
+    subagent_rationale: "Vendored Stitch MCP skill (skillshare): reference/setup guidance skill, not a multi-item fan-out."
+  stitch-loop:
+    subagents: never
+    subagent_rationale: "Vendored Stitch MCP skill (skillshare): single-agent baton-passing loop across iterations, not a fan-out."
+  taste-design:
+    subagents: never
+    subagent_rationale: "Vendored Stitch MCP skill (skillshare): single DESIGN.md generation, not a multi-item fan-out."
+  upload-to-stitch:
+    subagents: never
+    subagent_rationale: "Vendored Stitch MCP skill (skillshare): single asset-upload operation."
   ai-code-audit:
     allowed:
       - Read
@@ -729,27 +774,9 @@ tool_policies:
   automation-rework-breakeven:
     subagents: never
     subagent_rationale: Single-target break-even analysis for one automation version comparison.
-  cli-help-before-dependency-checks:
-    subagents: never
-    subagent_rationale: Single-script CLI audit checklist; help path is sequential.
-  errexit-safe-shell-counters:
-    subagents: never
-    subagent_rationale: Single-script shell audit for arithmetic counter hazards under set -e.
   false-green-check-audit:
     subagents: never
     subagent_rationale: Single health-check/validation gate audit; sequential checklist.
-  merge-stacked-pr-chain:
-    subagents: never
-    subagent_rationale: Sequential stacked-PR merge procedure for one chain at a time.
-  pin-known-bug-test-survives-fix:
-    subagents: never
-    subagent_rationale: Single-test authoring guidance; one target test per invocation.
-  reproduce-gated-ci-failure-locally:
-    subagents: never
-    subagent_rationale: Single CI job reproduction; one failing step per run.
-  shell-sete-silent-abort-audit:
-    subagents: never
-    subagent_rationale: Single-script/sourced-chain audit; complements shell-audit-* family.
 
 # Version-pinning rule set (consumed by scripts/version_pin.sh).
 # Maps file globs to an ecosystem and hash form. Notes on the fields:

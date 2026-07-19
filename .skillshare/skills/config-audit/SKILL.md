@@ -15,27 +15,38 @@ Execute each check category below. Collect results into a summary table.
 
 ### 1. Symlink Integrity
 
-Verify all expected symlinks exist and point to valid targets.
+Verify all expected symlinks exist and point to valid targets. The platform
+set is not a fixed 3/4-tuple — it's every agent in
+`~/.claude/config/agent_roster.yml` except `claude` itself (the physical
+config home the others link back to):
 
-**Expected symlinks** (from repo root):
+```bash
+python3 -c "
+import yaml
+roster = yaml.safe_load(open('$HOME/.claude/config/agent_roster.yml'))['agents']
+for name, agent in roster.items():
+    if name == 'claude':
+        continue
+    print(f'{name}: {agent[\"home_dir\"]}')
+"
+```
 
-| Platform | Symlink | Target |
-|----------|---------|--------|
-| Cursor | `.cursor/scripts` | `../.claude/scripts` |
-| Cursor | `.cursor/config` | `../.claude/config` |
-| Cursor | `.cursor/prompts` | `../.claude/prompts` |
-| Cursor | `.cursor/skills` | `../.claude/skills` |
-| Cursor | `.cursor/.plans` | `../.claude/.plans` |
-| Gemini | `.gemini/scripts` | `../.claude/scripts` |
-| Gemini | `.gemini/config` | `../.claude/config` |
-| Gemini | `.gemini/prompts` | `../.claude/prompts` |
-| Gemini | `.gemini/skills` | `../.claude/skills` |
-| Gemini | `.gemini/.plans` | `../.claude/.plans` |
-| Codex | `.codex/scripts` | `../.claude/scripts` |
-| Codex | `.codex/config` | `../.claude/config` |
-| Codex | `.codex/prompts` | `../.claude/prompts` |
-| Codex | `.codex/skills` | `../.claude/skills` |
-| Codex | `.codex/.plans` | `../.claude/.plans` |
+**Expected symlinks** (from repo root, per mirror `home_dir` — `.cursor`,
+`.gemini`, `.codex`, `.antigravity` today):
+
+| Symlink | Target |
+|---------|--------|
+| `<home>/scripts` | `../.claude/scripts` |
+| `<home>/config` | `../.claude/config` |
+| `<home>/prompts` | `../.claude/prompts` |
+| `<home>/skills` | `../.claude/skills` |
+| `<home>/.plans` | `../.claude/.plans` |
+
+**Quirk — antigravity is a partial mirror:** `.antigravity` only gets
+`config`, `skills`, `.plans` (no `scripts`/`prompts` — `agy` is a
+`parallel_agent.py` CLI provider, not an orchestrator that reads
+scripts/prompts directly). Don't report its missing `scripts`/`prompts`
+symlinks as drift.
 
 For each symlink:
 
@@ -116,14 +127,43 @@ Flag BOTH kinds of drift, per platform:
   hand-maintained `settings.local.json`/`settings.json` block for
   Claude/Gemini).
 
+**Quirk — codex and antigravity are out of scope for this file-diff check:**
+this check only covers the three platforms above; it does not check codex or
+antigravity, and not because they were forgotten. Per `bootstrap/lib/mcp.sh`:
+
+- **codex** is CLI-managed, not file-managed — `install_codex_mcp_server()`
+  registers servers via `codex mcp add <name> --url <url>` (and removes/lists
+  via `codex mcp remove`/`codex mcp list`); there is no static
+  `~/.codex/mcp.json`-equivalent file to diff against the canonical registry.
+  Auditing codex would mean shelling out to `codex mcp list` and parsing its
+  tabular output — a different check mechanism, out of scope here.
+- **antigravity** has no scriptable MCP CLI at all — `bootstrap/lib/mcp.sh`
+  documents (verified live on agy 1.1.1, G16/agy-batchD-groundtruth.md) that
+  `agy --help` lists no `mcp` subcommand and `agy mcp --help` falls through to
+  the general usage banner. Its config also lives under `~/.gemini/config`
+  (Gemini-CLI lineage), not a dedicated `~/.antigravity` MCP file, so whatever
+  MCP state it has is already covered (or not) by the Gemini check above.
+
+Don't report codex/antigravity as missing from this check — that's by design,
+not drift. If a future audit wants codex coverage, it needs a
+`codex mcp list`-parsing check, not an extension of this file-diff approach.
+
 ### 5. Config File Freshness
 
 For shared config files accessed via symlink, verify that the canonical files
 in `~/.claude/config/` have not been bypassed by platform-specific copies.
 
 ```bash
-# These should NOT exist as regular files if symlinks are working
-for platform in .cursor .gemini .codex; do
+# Platforms come from agent_roster.yml's home_dir values (every agent except
+# claude, the canonical source) — not a hardcoded list. These should NOT
+# exist as regular files if symlinks are working.
+platforms=$(python3 -c "
+import yaml
+roster = yaml.safe_load(open('$HOME/.claude/config/agent_roster.yml'))['agents']
+print(' '.join(a['home_dir'].replace('~/.', '.') for n, a in roster.items() if n != 'claude'))
+")
+
+for platform in $platforms; do
     for cfg in config/command_config.yml config/services.yml; do
         path="$platform/$cfg"
         if [[ -f "$path" && ! -L "$platform/config" ]]; then

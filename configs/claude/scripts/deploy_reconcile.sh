@@ -134,7 +134,21 @@ base="${HOME_BASE:-$HOME}"
 state_root="${MANIFEST_STATE_ROOT:-$HOME/.manifest}"
 trash_root="${BACKUP_DIR:-${MANIFEST_RECONCILE_TRASH:-$state_root/reconcile-trash}}"
 trash_abs="$("$VENV_PY" -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "$trash_root")"
-for tag in claude cursor gemini codex antigravity; do
+
+# Fleet tag list — sourced from reconcile_core.py (agent_roster.yml-derived),
+# not hardcoded here, so a 6th agent added to the registry needs no edit to
+# either file (feature: derive agent fleet from agent_roster.yml).
+fleet_tags_raw="$("$VENV_PY" "$CORE" --list-tags)" || {
+    rc=$?
+    err "failed to list agent fleet tags from $CORE"
+    exit "$rc"
+}
+fleet_tags=()
+while IFS= read -r t; do
+    [[ -n "$t" ]] && fleet_tags+=("$t")
+done <<< "$fleet_tags_raw"
+
+for tag in ${fleet_tags[@]+"${fleet_tags[@]}"}; do
     rootp="$("$VENV_PY" -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "$base/.$tag")"
     case "$trash_abs/" in
         "$rootp"/*)

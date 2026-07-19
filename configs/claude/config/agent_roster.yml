@@ -1,0 +1,77 @@
+# agent_roster.yml — single enumeration of the 5-agent fleet
+# (claude/gemini/cursor/codex/antigravity). This is the canonical source for
+# binary/home_dir/auth_check facts; consumers in Tasks 24-26.
+#
+# This registry EXTRACTS facts already declared elsewhere — it does not
+# replace them:
+#   - `parallel_agent.yml` keeps its own tuning tables (model_tiers,
+#     rate_limits, credit_fallback) and its `cli_agents` binary/args block.
+#     test_agent_roster.py::test_binary_matches_parallel_agent_cli_agents is a
+#     drift guard asserting the two files agree on `binary` per agent — it is
+#     not a migration.
+#   - `bootstrap/lib/config.sh` write_services_config() is the source for
+#     `enabled_default` (all 5 agents default to true there).
+#   - `.skillshare/skills/env-check/SKILL.md` documents claude/gemini
+#     `auth_check` verbatim; it has no Authentication Status entries for
+#     codex/antigravity and its cursor entry says `cursor --version` (missing
+#     the `-agent` suffix used by the actual binary everywhere else in this
+#     repo). Those three auth_check values were corroborated against
+#     `bootstrap/lib/auth.sh`'s real check_*_auth() functions and a live probe
+#     of the installed CLIs (see task-23-report.md provenance table).
+#
+# Fields (all required):
+#   name             agent key, repeated as a value for lookup convenience
+#   binary           CLI executable name (must match parallel_agent.yml
+#                    cli_agents[name].binary — enforced by drift-guard test)
+#   home_dir         this agent's deployed config home, always `~/.<name>`
+#   prompt_args      argv template for passing the prompt (default trailing
+#                    positional is spelled out explicitly here, not omitted)
+#   model_args       argv template appended only when a model is resolved
+#   auth_check       non-interactive command that verifies authentication
+#   enabled_default  whether bootstrap.sh enables this agent out of the box
+
+agents:
+  claude:
+    name: claude
+    binary: claude
+    home_dir: ~/.claude
+    prompt_args: ["-p", "{prompt}"]
+    model_args: ["--model", "{model}"]
+    auth_check: "claude auth status"
+    enabled_default: true
+
+  gemini:
+    name: gemini
+    binary: gemini
+    home_dir: ~/.gemini
+    prompt_args: ["-p", "{prompt}"]
+    model_args: ["-m", "{model}"]
+    auth_check: "gemini auth status"
+    enabled_default: true
+
+  cursor:
+    name: cursor
+    binary: cursor-agent
+    home_dir: ~/.cursor
+    prompt_args: ["{prompt}"]
+    model_args: ["--model", "{model}"]
+    auth_check: "cursor-agent --version"
+    enabled_default: true
+
+  codex:
+    name: codex
+    binary: codex
+    home_dir: ~/.codex
+    prompt_args: ["{prompt}"]
+    model_args: ["--model", "{model}"]
+    auth_check: "codex login status"
+    enabled_default: true
+
+  antigravity:
+    name: antigravity
+    binary: agy
+    home_dir: ~/.antigravity
+    prompt_args: ["--print", "{prompt}"]
+    model_args: ["--model", "{model}"]
+    auth_check: "agy models"
+    enabled_default: true

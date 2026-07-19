@@ -90,6 +90,7 @@ STUB
     assert_output --partial "team-states"
     assert_output --partial "issue-list"
     assert_output --partial "issue-view"
+    assert_output --partial "issue-create"
     assert_output --partial "issue-update"
     assert_output --partial "issue-comment"
     assert_output --partial "issue-close"
@@ -203,6 +204,32 @@ EOF
 
     run bash "$SCRIPT_UNDER_TEST" issue-view ENG-123
     refute_output --partial "Unknown subcommand"
+}
+
+@test "routes issue-create subcommand" {
+    mkdir -p "$HOME/.config/linear"
+    echo "test-token" > "$HOME/.config/linear/token"
+
+    run bash "$SCRIPT_UNDER_TEST" issue-create --team ENG --title "New issue"
+    refute_output --partial "Unknown subcommand"
+}
+
+@test "issue-create fails without --team" {
+    mkdir -p "$HOME/.config/linear"
+    echo "test-token" > "$HOME/.config/linear/token"
+
+    run bash "$SCRIPT_UNDER_TEST" issue-create --title "New issue"
+    assert_failure
+    assert_output --partial "--team"
+}
+
+@test "issue-create fails without --title" {
+    mkdir -p "$HOME/.config/linear"
+    echo "test-token" > "$HOME/.config/linear/token"
+
+    run bash "$SCRIPT_UNDER_TEST" issue-create --team ENG
+    assert_failure
+    assert_output --partial "--title required"
 }
 
 @test "routes issue-update subcommand" {

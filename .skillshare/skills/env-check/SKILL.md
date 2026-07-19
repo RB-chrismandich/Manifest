@@ -64,11 +64,40 @@ are **warn** only.
 
 ### 3. Authentication Status
 
-Check authentication for each enabled service:
+The fleet's per-agent auth check is not a hand-maintained list — read it from
+`~/.claude/config/agent_roster.yml` (`agents.<name>.auth_check`) and run each
+entry:
 
-- **Claude**: `claude auth status 2>/dev/null` or check `ANTHROPIC_API_KEY` is set
-- **Gemini**: `gemini auth status 2>/dev/null` or check `GOOGLE_API_KEY` is set
-- **Cursor**: `cursor --version` (no separate auth check; presence implies configured)
+```bash
+python3 -c "
+import yaml
+roster = yaml.safe_load(open('$HOME/.claude/config/agent_roster.yml'))['agents']
+for name, agent in roster.items():
+    print(f'{name}: {agent[\"auth_check\"]}')
+"
+```
+
+Run each printed `auth_check` command and report authenticated/unauthenticated
+per agent, applying these per-agent quirks:
+
+- **claude**: `claude auth status` — if unavailable, checking `ANTHROPIC_API_KEY`
+  is set is an equally valid pass.
+- **gemini**: `gemini auth status` — if unavailable, checking `GOOGLE_API_KEY`
+  is set is an equally valid pass.
+- **cursor**: `cursor-agent --version` only confirms the binary runs, not that
+  it's authenticated — no stronger non-interactive check is documented yet
+  (see `agent_roster.yml`'s provenance notes on `cursor-agent status|whoami`
+  as a future candidate). Report accordingly, don't treat it as a strong pass.
+- **codex**: `codex login status` is the CLI-native check. If it requires
+  interactivity in this environment, fall back to the non-interactive check
+  `bootstrap/lib/auth.sh`'s `check_codex_auth` actually uses: `OPENAI_API_KEY`
+  set, or `~/.codex/auth.json` / `~/.config/codex/auth.json` present.
+- **antigravity**: `agy models` is a deliberate live probe, not a version
+  check — `agy` has no persisted auth-file to inspect, so this command only
+  succeeds when logged in (see `bootstrap/lib/auth.sh`'s `check_antigravity_auth`).
+
+Also check these non-fleet services, which are not in `agent_roster.yml`:
+
 - **GitHub CLI**: `gh auth status 2>/dev/null`
 - **GitLab CLI**: `glab auth status 2>/dev/null`
 - **Graphify**: not applicable — default host-agent backend uses the running assistant as the LLM (no key)
@@ -110,29 +139,38 @@ Report: reachable (HTTP status) or unreachable.
 
 ### 6. Symlink Integrity
 
-Verify all cross-platform symlinks are intact:
+Verify all cross-platform symlinks are intact. The mirror set is not a fixed
+4/5-tuple — it's every agent in `~/.claude/config/agent_roster.yml` except
+`claude` itself (the physical config home the others link back to):
 
 ```bash
-# Expected symlinks (target → source)
-.cursor/scripts  → ../.claude/scripts
-.cursor/config   → ../.claude/config
-.cursor/prompts  → ../.claude/prompts
-.cursor/skills   → ../.claude/skills
-.cursor/.plans   → ../.claude/.plans
-.gemini/scripts  → ../.claude/scripts
-.gemini/config   → ../.claude/config
-.gemini/prompts  → ../.claude/prompts
-.gemini/skills   → ../.claude/skills
-.gemini/.plans   → ../.claude/.plans
-.codex/scripts   → ../.claude/scripts
-.codex/config    → ../.claude/config
-.codex/prompts   → ../.claude/prompts
-.codex/skills    → ../.claude/skills
-.codex/.plans    → ../.claude/.plans
-.antigravity/config  → ../.claude/config
-.antigravity/skills  → ../.claude/skills
-.antigravity/.plans  → ../.claude/.plans
+python3 -c "
+import yaml
+roster = yaml.safe_load(open('$HOME/.claude/config/agent_roster.yml'))['agents']
+for name, agent in roster.items():
+    if name == 'claude':
+        continue
+    print(f'{name}: {agent[\"home_dir\"]}')
+"
 ```
+
+For each mirror `home_dir` from the roster (`.cursor`, `.gemini`, `.codex`,
+`.antigravity` today — automatically picks up a 6th agent if the roster
+gains one), the standard link set is:
+
+```text
+<home>/scripts  → ../.claude/scripts
+<home>/config   → ../.claude/config
+<home>/prompts  → ../.claude/prompts
+<home>/skills   → ../.claude/skills
+<home>/.plans   → ../.claude/.plans
+```
+
+**Quirk — antigravity is a partial mirror:** `.antigravity` only gets
+`config`, `skills`, `.plans` — no `scripts` or `prompts` symlink, because
+`agy` is a `parallel_agent.py` CLI provider, not an orchestrator that reads
+scripts/prompts directly. Don't report its missing `scripts`/`prompts`
+symlinks as broken or missing.
 
 Only check symlinks for services marked `enabled: true` in
 `~/.claude/config/services.yml` (e.g. skip `.cursor`/`.codex` when disabled).

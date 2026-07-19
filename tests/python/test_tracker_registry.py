@@ -1,0 +1,98 @@
+import subprocess
+import sys
+from pathlib import Path
+
+import yaml
+
+REPO = Path(__file__).resolve().parents[2]
+REG = REPO / "configs/claude/config/tracker_providers.yml"
+
+
+def load():
+    return yaml.safe_load(REG.read_text())
+
+
+def test_registry_exists_and_parses():
+    data = load()
+    assert isinstance(data, dict)
+
+
+def test_all_four_providers_present():
+    assert set(load()["providers"]) == {"github", "gitlab", "linear", "jira"}
+
+
+def test_access_is_ordered_list_from_allowed_methods():
+    allowed = {"mcp", "cli", "git", "api"}
+    for name, p in load()["providers"].items():
+        assert isinstance(p["access"], list) and p["access"], name
+        assert set(p["access"]) <= allowed, name
+
+
+def test_jira_is_mcp_only_and_has_tool_map():
+    jira = load()["providers"]["jira"]
+    assert jira["access"] == ["mcp"]
+    assert "transition" in jira["mcp_tools"]
+
+
+def test_status_maps_cover_all_canonical_statuses():
+    canon = {"planned", "in-progress", "needs-review", "done"}
+    for name, p in load()["providers"].items():
+        assert set(p["status_map"]) == canon, name
+
+
+def test_every_provider_declares_verified_flag():
+    for name, p in load()["providers"].items():
+        assert isinstance(p["verified"], bool), name
+
+
+def test_default_provider_is_a_known_provider():
+    data = load()
+    assert data["default_provider"] in data["providers"]
+
+
+SCRIPT = REPO / "configs/claude/scripts/tracker_registry.py"
+
+
+def run(*args):
+    return subprocess.run(
+        [sys.executable, str(SCRIPT), *args], capture_output=True, text=True
+    )
+
+
+def test_status_lookup_linear_transition_name():
+    r = run("status", "linear", "needs-review")
+    assert r.returncode == 0 and r.stdout.strip() == "In Review"
+
+
+def test_status_lookup_github_label():
+    r = run("status", "github", "planned")
+    assert r.returncode == 0 and r.stdout.strip() == "planned"
+
+
+def test_access_list_order_preserved():
+    r = run("access", "linear")
+    assert r.stdout.split() == ["mcp", "cli", "api"]
+
+
+def test_unknown_provider_exits_2():
+    r = run("status", "bitbucket", "planned")
+    assert r.returncode == 2 and "bitbucket" in r.stderr
+
+
+def test_mcp_tool_lookup_jira():
+    r = run("mcp-tool", "jira", "transition")
+    assert r.stdout.strip() == "transitionJiraIssue"
+
+
+def test_missing_registry_exits_2(tmp_path, monkeypatch):
+    import shutil
+
+    broken = tmp_path / "tracker_registry.py"
+    shutil.copy(SCRIPT, broken)
+    r = subprocess.run(
+        [sys.executable, str(broken), "status", "github", "planned"],
+        capture_output=True,
+        text=True,
+    )
+    assert r.returncode == 2
+    assert "cannot read registry" in r.stderr

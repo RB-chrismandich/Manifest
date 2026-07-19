@@ -324,7 +324,7 @@ echo "REMOTE-$(echo "$3" | tr ' ' '-')"
 P
     chmod +x "$BATS_TEST_TMPDIR/prov.sh"
     export LIFECYCLE_PROVISION_CMD="$BATS_TEST_TMPDIR/prov.sh"
-    export LIFECYCLE_PROVIDERS_CONFIG="$BATS_TEST_DIRNAME/../../configs/claude/config/lifecycle_providers.yml"
+    export LIFECYCLE_PROVIDERS_CONFIG="$BATS_TEST_DIRNAME/../../configs/claude/config/tracker_providers.yml"
 }
 nodes() { python3 -c 'import json,sys;print(len(json.load(sys.stdin).get("hierarchy",[])))'; }
 tier_count() { python3 -c "import json,sys;H=json.load(sys.stdin).get('hierarchy',[]);print(sum(1 for n in H if n['tier_level']==$1))"; }
@@ -437,7 +437,7 @@ Y
 # US4 — Jira via pre-authenticated Atlassian MCP (T028–T032, SC-004)
 # ============================================================================
 
-use_repo_config() { export LIFECYCLE_PROVIDERS_CONFIG="$BATS_TEST_DIRNAME/../../configs/claude/config/lifecycle_providers.yml"; }
+use_repo_config() { export LIFECYCLE_PROVIDERS_CONFIG="$BATS_TEST_DIRNAME/../../configs/claude/config/tracker_providers.yml"; }
 
 @test "Jira entry detection: bare issue key -> jira provider" {
     run "$SCRIPT" init PROJ-123

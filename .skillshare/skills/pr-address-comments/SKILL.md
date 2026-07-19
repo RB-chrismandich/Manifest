@@ -1,6 +1,6 @@
 ---
 name: pr-address-comments
-description: Use when your open PR receives review feedback (inline comments, Copilot/CodeRabbit, review-body, issue discussion) — fetch via gh api, triage each claim, fix, re-test, push, and resolve every item. Distinct from analysis-only pr-review.
+description: Use when your open PR receives review feedback (inline comments, Copilot/CodeRabbit, review-body, issue discussion) — resolve every item truthfully: fix real issues, decline wrong ones with evidence, never mark resolved without a verified fix. Distinct from analysis-only pr-review.
 ---
 
 # Address PR Review Comments
@@ -11,8 +11,16 @@ without a verified fix. Ignore non-actionable service notices
 (usage-limit/bot-connector messages).
 
 1. **Fetch all three feedback channels** — no single view is complete:
-   - Inline code comments: `gh api repos/<owner>/<repo>/pulls/<N>/comments`
-   - Review bodies: `gh api repos/<owner>/<repo>/pulls/<N>/reviews` (or `gh pr view <N> --json reviews,reviewThreads`)
+   - Inline code comments: `~/.claude/scripts/git_ops.sh pr-comments N` —
+     returns JSON `[{id, author, path, line, body}]` on both github and
+     gitlab (github: PR review comments; gitlab: MR discussion notes with a
+     diff `position`, i.e. genuinely inline comments only — general
+     MR-level discussion notes and system notes are excluded).
+   - Review bodies: `gh pr view <N> --json reviews,reviewThreads`
+     (github-only — GitLab has no separate review-body concept, but its
+     top-level (non-inline) discussion notes are NOT covered by
+     `pr-comments` above; see "Issue-level discussion" below for how to
+     fetch those on gitlab).
    - Issue-level discussion: `gh pr view <N> --comments`
 2. **Verify each claim against current code before acting**: open the exact
    file and lines cited and confirm the assertion (counts, staleness, logic)
@@ -39,30 +47,48 @@ without a verified fix. Ignore non-actionable service notices
 7. **Commit with a message that enumerates each fix and references the
    review**, push, and confirm CI green on the new run.
 8. **Reply to every item — never leave one silent**: "Fixed in {commit}" for
-   accepted items; "Declining: {rationale + evidence}" for rejected ones. Then
-   post one summary disposition table (comment → verdict → action/fix at
-   file:line) on the PR so a reviewer can verify at a glance.
+   accepted items; "Declining: {rationale + evidence}" for rejected ones,
+   posted via `~/.claude/scripts/git_ops.sh pr-comment N "..."`. Then post one
+   summary disposition table (comment → verdict → action/fix at file:line) on
+   the PR so a reviewer can verify at a glance.
 
 ## Inline comment threads
 
-- Parse exact targets with `--jq '.[] | {id, path, line, body}'`.
-- Reply per thread:
-  `gh api repos/<owner>/<repo>/pulls/<N>/comments/<comment_id>/replies -X POST -f body="..."`
-  (these reply endpoints often 404; when they do, the summary comment from
-  step 8 is the reliable fallback channel — post it either way).
-- If the host supports it, mark threads resolved; otherwise the summary
-  comment closes the loop.
+- `~/.claude/scripts/git_ops.sh pr-comments N` already returns exact targets
+  as `{id, author, path, line, body}` — no manual `--jq` parsing needed.
+- Reply per item as a top-level comment (per-comment threaded replies often
+  404 on both hosts): `~/.claude/scripts/git_ops.sh pr-comment N "Fixed in
+  <commit>: ..."` / `"Declining: <rationale>"`. The step-8 summary disposition
+  table is the reliable fallback channel regardless — post it either way.
+- **github-only: thread resolution** — GitHub supports formally resolving a
+  review thread; GitLab (via `glab`) has no equivalent, so this block is
+  provider-conditional:
+  - github: `gh api graphql -f query='mutation { resolveReviewThread(input:
+    {threadId: "<thread_id>"}) { thread { isResolved } } }'`
+    (thread IDs come from `gh pr view <N> --json reviewThreads`, *not* from
+    `pr-comments`' `id` field — those are comment IDs, not thread IDs).
+  - gitlab: no thread-resolve verb exists, so instead post
+    `~/.claude/scripts/git_ops.sh pr-comment N "Resolved: <summary>"` to close
+    the loop (routes to `glab mr note` under git_ops.sh).
 
 ## Review bodies
 
-- Review summaries arrive separately from inline threads (`/reviews` or
-  `--json reviews`); extract each actionable point as its own triage item —
-  they often restate or extend the inline comments.
+- **github-only**: review summaries arrive separately from inline threads
+  (`gh pr view <N> --json reviews,reviewThreads`); extract each actionable
+  point as its own triage item — they often restate or extend the inline
+  comments.
+- gitlab: no separate review-body concept, but note that `pr-comments` above
+  is now inline-only (matching github) — general, non-inline MR discussion
+  notes are NOT returned by it; fetch those separately in the step below.
 
 ## Issue-level discussion
 
 - Top-level PR comments (`gh pr view <N> --comments`) can contain feedback
   too; triage them like any other item, and this thread is where the summary
   disposition table belongs.
+- gitlab has no equivalent git_ops.sh verb for general MR discussion notes;
+  fetch them directly: `glab api projects/:id/merge_requests/N/notes --jq
+  '[.[] | select(.system == false)]'` (the Notes API — separate from
+  `pr-comments`' Discussions-API-backed inline results).
 
 > Absorbed: address-pr-review-comments, address-review-comments (2026-06)

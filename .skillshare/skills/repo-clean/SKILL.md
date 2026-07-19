@@ -149,15 +149,12 @@ When the user confirms (or invoked with `--apply` / "apply"), act on exactly the
 items you put in the **Stale / closeable** and **Safe to delete** lists — never
 on `keep`, `needs-work`, or `confirm-individually` items without a separate OK.
 
-**Close stale PRs** (including the empty no-ops) via the detected platform's CLI
-— there is no `pr-close` verb in `git_ops.sh`, so use the CLI directly. Leave a
-short comment so the trail explains *why*:
+**Close stale PRs** (including the empty no-ops) via `git_ops.sh pr-close`
+(routes to `gh pr close` / `glab mr close`). Leave a short comment so the
+trail explains *why*:
 
 ```bash
-# GitHub
-gh pr close <num> --comment "Closing as stale: <reason>. Reopen if still needed."
-# GitLab
-glab mr close <num>
+~/.claude/scripts/git_ops.sh pr-close <num> --comment "Closing as stale: <reason>. Reopen if still needed."
 ```
 
 **Delete branches**, by class. The split matters because force-delete is only

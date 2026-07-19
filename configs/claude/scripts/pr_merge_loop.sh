@@ -89,31 +89,50 @@ gh_op() {
     fi
     case "$op" in
         list) "${SCRIPT_DIR}/git_ops.sh" pr-list --json number,author 2> /dev/null ;;
-        checks) gh pr checks "$pr" --json bucket -q '.[].bucket' 2> /dev/null ;;
-        reviewdecision) gh pr view "$pr" --json reviewDecision -q '.reviewDecision' 2> /dev/null ;;
+        checks) "${SCRIPT_DIR}/git_ops.sh" pr-checks "$pr" --json bucket -q '.[].bucket' 2> /dev/null ;;
+        reviewdecision) "${SCRIPT_DIR}/git_ops.sh" pr-view "$pr" --json reviewDecision -q '.reviewDecision' 2> /dev/null ;;
         unresolved-human) count_unresolved_human "$pr" ;;
         disposition) echo keep ;;
-        mergeable) gh pr view "$pr" --json mergeable,mergeStateStatus -q '.mergeable+" "+.mergeStateStatus' 2> /dev/null ;;
+        mergeable) "${SCRIPT_DIR}/git_ops.sh" pr-view "$pr" --json mergeable,mergeStateStatus -q '.mergeable+" "+.mergeStateStatus' 2> /dev/null ;;
         verify) echo pass ;;
-        hold) gh pr view "$pr" --json labels -q '.labels[].name' 2> /dev/null | grep -qx hold && echo true || echo false ;;
-        author) gh pr view "$pr" --json author -q '.author.login' 2> /dev/null ;;
-        admin-check) gh api "repos/{owner}/{repo}" -q '.permissions.admin' 2> /dev/null || echo false ;;
-        protection) gh api "repos/{owner}/{repo}/branches/main/protection" \
-            -q '"enforce_admins="+(.enforce_admins.enabled|tostring)+" required_signatures="+(.required_signatures.enabled|tostring)+" merge_queue=false"' 2> /dev/null ||
+        hold) "${SCRIPT_DIR}/git_ops.sh" pr-view "$pr" --json labels -q '.labels[].name' 2> /dev/null | grep -qx hold && echo true || echo false ;;
+        author) "${SCRIPT_DIR}/git_ops.sh" pr-view "$pr" --json author -q '.author.login' 2> /dev/null ;;
+        admin-check) "${SCRIPT_DIR}/git_ops.sh" repo-admin-check 2> /dev/null || echo false ;;
+        protection) "${SCRIPT_DIR}/git_ops.sh" branch-protection 2> /dev/null ||
             echo "enforce_admins=false required_signatures=false merge_queue=false" ;;
-        update-branch) gh pr update-branch "$pr" 2>&1 ;;
-        do-merge) gh pr merge "$pr" --squash --admin --delete-branch 2>&1 ;;
+        update-branch) "${SCRIPT_DIR}/git_ops.sh" pr-update-branch "$pr" 2>&1 ;;
+        do-merge) "${SCRIPT_DIR}/git_ops.sh" pr-merge "$pr" --squash --admin --delete-branch 2>&1 ;;
     esac
 }
 
+# Derive "owner/repo" from the origin remote via pure git (no API call) —
+# precedence: git > api. Handles both https and scp-like ssh remote forms.
+_owner_repo_from_remote() {
+    local url path
+    url="$(git remote get-url origin 2> /dev/null)" || return 1
+    url="${url%.git}"
+    url="${url#*://}" # strip scheme (https://, ssh://)
+    url="${url#*@}"   # strip user@ (scp-like ssh: git@host:owner/repo)
+    path="${url#*[:/]}"
+    [[ -n "$path" && "$path" == */* ]] || return 1
+    printf '%s' "$path"
+}
+
 # Raw review-thread JSON for a PR. Seam: PR_MERGE_LOOP_THREADS_JSON (offline tests).
+#
+# github-only: GitHub's reviewThreads (isResolved/isOutdated per-thread) has no
+# clean GitLab twin — GitLab's discussions API models resolvability per-note
+# with a different shape, and this exact nested JSON contract is load-bearing
+# (tested directly via PR_MERGE_LOOP_THREADS_JSON in pr_merge_loop.bats).
+# unresolved-human is never reached on the gitlab path (see the gitlab case
+# above, which fails closed via admin-check=false before this matters).
 gh_threads_raw() {
     if [[ -n "${PR_MERGE_LOOP_THREADS_JSON:-}" ]]; then
         printf '%s' "$PR_MERGE_LOOP_THREADS_JSON"
         return 0
     fi
     local pr="${1:?pr required}" nwo owner repo
-    nwo="$(_net gh repo view --json nameWithOwner -q .nameWithOwner 2> /dev/null)" || return 1
+    nwo="$(_owner_repo_from_remote)" || return 1
     owner="${nwo%%/*}"
     repo="${nwo##*/}"
     # shellcheck disable=SC2016  # $owner/$repo/$pr are GraphQL variables, not shell vars
@@ -277,18 +296,23 @@ cmd_set_disposition() {
 
 cmd_post_merge_check() {
     local sha state
-    sha="$(gh api "repos/{owner}/{repo}/commits/main" -q '.sha' 2> /dev/null)" ||
-        {
-            [[ -n "${PR_MERGE_LOOP_POSTMERGE_CMD:-}" ]] || {
-                err "cannot read main sha — fail closed"
-                return 10
-            }
-            sha="seam"
+    # Pure git plumbing (no API call) for the main HEAD sha.
+    sha="$(git ls-remote origin main 2> /dev/null | awk 'NR==1{print $1}')"
+    if [[ -z "$sha" ]]; then
+        [[ -n "${PR_MERGE_LOOP_POSTMERGE_CMD:-}" ]] || {
+            err "cannot read main sha — fail closed"
+            return 10
         }
+        sha="seam"
+    fi
     if [[ -n "${PR_MERGE_LOOP_POSTMERGE_CMD:-}" ]]; then
         state="$("${PR_MERGE_LOOP_POSTMERGE_CMD}")"
     else
-        state="$(_net gh api "repos/{owner}/{repo}/commits/${sha}/check-runs" -q '[.check_runs[]|.conclusion]' 2> /dev/null)"
+        # NOTE: github check-run conclusions (failure/cancelled/timed_out/action_required)
+        # vs gitlab pipeline statuses (failed/canceled/...) use slightly different
+        # vocabulary; the grep below matches github's. This path only runs on github
+        # today (gitlab auto-merge fails closed before reaching post-merge-check).
+        state="$(_net "${SCRIPT_DIR}/git_ops.sh" commit-checks "${sha}" 2> /dev/null)"
     fi
     if echo "$state" | grep -qE 'failure|cancelled|timed_out|action_required'; then
         err "main CI red — HALT"

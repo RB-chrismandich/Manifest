@@ -217,6 +217,41 @@ def test_subprocess_runner_timeout_raises_runtime_error(monkeypatch):
         assert "timed out" in str(e)
 
 
+def test_subprocess_runner_defaults_to_claude(monkeypatch):
+    monkeypatch.delenv("EVOLVE_CLI", raising=False)
+    import subprocess as sp
+
+    seen = {}
+
+    def fake_run(cmd, **k):
+        seen["cmd"] = cmd
+        raise sp.TimeoutExpired(cmd=cmd, timeout=k["timeout"])
+
+    monkeypatch.setattr(ev.subprocess, "run", fake_run)
+    with contextlib.suppress(RuntimeError):
+        ev.subprocess_runner("prompt")
+    assert seen["cmd"] == ["claude", "-p"]
+
+
+def test_subprocess_runner_honors_evolve_cli_env_seam(monkeypatch):
+    # llm-invoke-stdin pattern: EVOLVE_CLI is role-named, vendor only as
+    # default — swapping claude -> gemini must be a one-line env-var change,
+    # not a code edit.
+    monkeypatch.setenv("EVOLVE_CLI", "gemini")
+    import subprocess as sp
+
+    seen = {}
+
+    def fake_run(cmd, **k):
+        seen["cmd"] = cmd
+        raise sp.TimeoutExpired(cmd=cmd, timeout=k["timeout"])
+
+    monkeypatch.setattr(ev.subprocess, "run", fake_run)
+    with contextlib.suppress(RuntimeError):
+        ev.subprocess_runner("prompt")
+    assert seen["cmd"] == ["gemini", "-p"]
+
+
 def test_chunk_timeout_env_override(monkeypatch):
     monkeypatch.setenv("SKILLCLAW_CHUNK_TIMEOUT", "5")
     import subprocess as sp

@@ -1,6 +1,6 @@
 ---
 name: git-commit
-description: "Run the end-to-end commit pipeline: docs refresh, sync with remote, checks, staging, commit, and push with safe failure handling."
+description: "Run the full Manifest commit pipeline — refresh docs, sync with remote, run pre-commit checks, then stage, commit, and push with safe failure handling. Use when committing and pushing through the whole pipeline, not a bare git commit."
 ---
 
 # Project Commit Pipeline

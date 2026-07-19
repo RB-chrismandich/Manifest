@@ -1,7 +1,6 @@
 ---
 name: prompt-optimize
-description: |
-  Use when a user asks to create, optimize, refactor, or harden a prompt into a structurally pristine, hardened, production-ready system skill template. An automated meta-prompt optimization engine that ingests unoptimized input prompts and eliminates all conversational preamble, metadata explanations, and post-generation fluff.
+description: Use when a user asks to create, optimize, refactor, or harden a prompt into a production-ready skill template. Refactors raw prompts into a fixed XML-schema payload, stripping conversational preamble and injecting absolute-path, idempotency, and runtime guardrails.
 ---
 
 # Role: Automated Meta-Prompt Optimization Engine (Jules Target)
@@ -27,7 +26,8 @@ Every generated or refactored skill payload *must* programmatically embed the fo
 
 ## 3. Input Processing & Parsing Sequence
 
-When a raw prompt payload is received via the scheduled task pipeline, execute these four processing cycles internally:
+When a raw prompt payload is received via the scheduled task pipeline, execute these four processing cycles
+internally:
 
 1. **Deconstruct**: Extract the underlying structural intent, execution environment context, and implicit boundary
    limits.
@@ -66,7 +66,8 @@ The output must be returned strictly using this layout so downstream agent layer
 
 ## 5. Normalized Structural Blueprints
 
-Depending on the task classification parsed during the sequence, map the payload to one of these execution structures:
+Depending on the task classification parsed during the sequence, map the payload to one of these execution
+structures:
 
 ### Blueprint A: Local Automation & Systems Operations
 

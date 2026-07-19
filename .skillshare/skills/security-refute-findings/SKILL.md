@@ -1,6 +1,6 @@
 ---
 name: security-refute-findings
-description: Adversarially verify a list of candidate security findings to cut false positives before reporting, using attacker/victim privilege-boundary analysis and diff-anchoring
+description: Adversarially verify candidate security findings to cut false positives before reporting, via attacker/victim privilege-boundary analysis and diff-anchoring; emphasizes reframing removed/delegated controls. See security-triage-findings for the broad refutation-gate catalog.
 ---
 # Security Finding Refutation
 
