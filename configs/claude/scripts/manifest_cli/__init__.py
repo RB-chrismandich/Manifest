@@ -12,7 +12,11 @@ def cli() -> None:
     """Manifest home-runtime CLI."""
 
 
-@cli.command("parallel-agent", context_settings={"ignore_unknown_options": True})
+@cli.command(
+    "parallel-agent",
+    context_settings={"ignore_unknown_options": True},
+    add_help_option=False,
+)
 @click.argument("args", nargs=-1, type=click.UNPROCESSED)
 def parallel_agent(args: tuple[str, ...]) -> None:
     from agents.cli import main as agents_main

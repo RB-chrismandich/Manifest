@@ -50,6 +50,14 @@ SYNC_SKILLS="$REPO_ROOT/configs/claude/scripts/sync-skills.sh"
 RECONCILE_CORE="$REPO_ROOT/configs/claude/scripts/reconcile_core.py"
 PARALLEL_AGENT="$REPO_ROOT/configs/claude/scripts/parallel_agent.py"
 
+# The [4/4 cli.py] tests invoke parallel_agent.py, which is a deprecation shim
+# routing to ~/.claude/.venv/bin/manifest. setup() stubs that from the repo's
+# project venv when present; skip when it isn't (local run without `uv sync`).
+require_home_runtime() {
+    [[ -x "$HOME/.claude/.venv/bin/manifest" ]] ||
+        skip "manifest home runtime not built (run: uv sync --project configs/claude)"
+}
+
 setup() {
     export BATS_TMPDIR="${BATS_TMPDIR:-/tmp}"
 
@@ -67,6 +75,16 @@ setup() {
     export HOME="$TEST_DIR/home"
     mkdir -p "$HOME/.claude/config" "$HOME/.claude/skills"
     mkdir -p "$HOME/.beta/skills" "$HOME/.test-agent/skills"
+
+    # The parallel_agent.py deprecation shim routes to the home runtime at
+    # ~/.claude/.venv/bin/manifest. Point the sandbox HOME's runtime at the
+    # repo's project venv (built by `uv sync --project configs/claude`, which
+    # CI's Test job runs) so the live [4/4 cli.py] dispatch tests exercise the
+    # real `manifest parallel-agent`. Left absent locally when the venv is
+    # unbuilt — the [4/4] tests skip themselves via require_home_runtime.
+    if [[ -x "$REPO_ROOT/configs/claude/.venv/bin/manifest" ]]; then
+        ln -sfn "$REPO_ROOT/configs/claude/.venv" "$HOME/.claude/.venv"
+    fi
 
     ROSTER="$HOME/.claude/config/agent_roster.yml"
     cat > "$ROSTER" << 'EOF'
@@ -277,6 +295,7 @@ teardown() {
 # ---------------------------------------------------------------------------
 
 @test "[4/4 cli.py] --help advertises working flags for both the plain 6th agent and the hyphenated 7th agent" {
+    require_home_runtime
     run "$PY_BIN" "$PARALLEL_AGENT" --help
     assert_success
     assert_output --partial "--beta-only"
@@ -288,6 +307,7 @@ teardown() {
 }
 
 @test "[4/4 cli.py] --beta-only dispatches a REAL live CLIAgent subprocess (plain 6th agent)" {
+    require_home_runtime
     run "$PY_BIN" "$PARALLEL_AGENT" --beta-only --no-synthesize --timeout 15 --json "ping"
     assert_success
     assert_output --partial '"beta"'
@@ -306,6 +326,7 @@ teardown() {
     # stub binary ("echo", matching Task D's own echo-as-CLI pattern) runs
     # end to end -- proving the fix holds under a real process boundary, not
     # just the in-process reproduction.
+    require_home_runtime
     run "$PY_BIN" "$PARALLEL_AGENT" --test-agent-only --no-synthesize --timeout 15 --json "ping"
     assert_success
     assert_output --partial '"test-agent"'
