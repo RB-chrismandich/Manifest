@@ -85,6 +85,10 @@ done
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 VENV_PY="${MANIFEST_VENV_PY:-${HOME}/.claude/.venv/bin/python}"
+# Fall back to python3 when the deployed home-runtime venv is absent (e.g. CI
+# smoke, or running this read-only preview before bootstrap). reconcile_core.py
+# only needs PyYAML, which python3 provides.
+[[ -x "$VENV_PY" ]] || VENV_PY="$(command -v python3 || echo python3)"
 CORE="$SCRIPT_DIR/reconcile_core.py"
 [[ -f "$CORE" ]] || {
     err "missing core: $CORE"
