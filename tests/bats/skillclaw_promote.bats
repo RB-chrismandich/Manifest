@@ -206,6 +206,26 @@ EOF
     cat > "$SKILLCLAW_SESSIONS/preseeded.json" << 'EOF'
 {"session_id": "preseeded", "turns": [{"role": "user", "blocks": [{"kind": "text", "text": "do a thing"}]}]}
 EOF
+    # #584 resolves EVOLVE_CLI as a *binary override* for a configured provider
+    # (agents/cli_invoke.resolve_cli_route reads cli_agents from
+    # ~/.claude/config/parallel_agent.yml). Provide a claude provider spec and pin
+    # EVOLVE_PROVIDER so a provider resolves; EVOLVE_CLI then swaps that provider's
+    # binary to our stub — proving the seam is honored/swappable, not hardcoded to
+    # claude. (#584 also inserts --model <tier> before -p, hence the .*-p match.)
+    mkdir -p "$HOME/.claude/config"
+    cat > "$HOME/.claude/config/parallel_agent.yml" << 'EOF'
+cli_agents:
+  claude:
+    binary: claude
+    base_args: []
+    model_args: ["--model", "{model}"]
+    prompt_args: ["-p", "{prompt}"]
+    output: stdout
+model_tiers:
+  claude:
+    sonnet: "claude-sonnet-5"
+EOF
+    export EVOLVE_PROVIDER="claude"
     export EVOLVE_CLI="fake_evolve_cli"
     cat > "$MOCK_BIN/fake_evolve_cli" << 'EOF'
 #!/usr/bin/env bash
@@ -217,7 +237,7 @@ EOF
     chmod +x "$MOCK_BIN/fake_evolve_cli"
     run bash "$SCRIPT"
     assert_success
-    run grep -c "fake_evolve_cli -p" "$SKILLCLAW_PROMOTE_LOG"
+    run grep -Ec "fake_evolve_cli.*-p" "$SKILLCLAW_PROMOTE_LOG"
     assert_output "1"
 }
 
