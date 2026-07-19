@@ -7,7 +7,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "configs/claude/scr
 import contextlib
 
 import pytest
-
 from skillclaw import evolve as ev
 
 TEMPLATE = "LIB:\n{{LIBRARY}}\nSESS:\n{{SESSIONS}}\n"
@@ -258,7 +257,9 @@ def test_subprocess_runner_defaults_to_claude(monkeypatch, evolve_provider_home)
     assert seen["cmd"] == ["claude", "-p"]
 
 
-def test_subprocess_runner_honors_evolve_cli_env_seam(monkeypatch, evolve_provider_home):
+def test_subprocess_runner_honors_evolve_cli_env_seam(
+    monkeypatch, evolve_provider_home
+):
     # llm-invoke-stdin pattern: EVOLVE_CLI is role-named, vendor only as
     # default — swapping claude -> gemini must be a one-line env-var change,
     # not a code edit.
