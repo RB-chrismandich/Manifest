@@ -221,6 +221,17 @@ def test_subprocess_runner_defaults_to_claude(monkeypatch):
     monkeypatch.delenv("EVOLVE_CLI", raising=False)
     import subprocess as sp
 
+    from agents.cli_invoke import CliRoute
+
+    monkeypatch.setattr(
+        "agents.cli_invoke.resolve_cli_route",
+        lambda *a, **k: CliRoute("cli", "claude"),
+    )
+    monkeypatch.setattr(
+        "agents.cli_invoke.build_subprocess_argv",
+        lambda config, route, prompt, **kw: (["claude", "-p"], prompt),
+    )
+
     seen = {}
 
     def fake_run(cmd, **k):
@@ -239,6 +250,21 @@ def test_subprocess_runner_honors_evolve_cli_env_seam(monkeypatch):
     # not a code edit.
     monkeypatch.setenv("EVOLVE_CLI", "gemini")
     import subprocess as sp
+
+    from agents.cli_invoke import CliRoute
+
+    def fake_resolve(config, **kwargs):
+        assert kwargs.get("env_prefix") == "EVOLVE"
+        return CliRoute("cli", "gemini", binary_override="gemini")
+
+    monkeypatch.setattr("agents.cli_invoke.resolve_cli_route", fake_resolve)
+    monkeypatch.setattr(
+        "agents.cli_invoke.build_subprocess_argv",
+        lambda config, route, prompt, **kw: (
+            [route.binary_override or route.provider, "-p"],
+            prompt,
+        ),
+    )
 
     seen = {}
 
