@@ -43,6 +43,7 @@
 
 load '../test_helper/bats-support/load'
 load '../test_helper/bats-assert/load'
+load '../test_helper/stub_home_runtime.bash'
 
 REPO_ROOT="$BATS_TEST_DIRNAME/../.."
 CHECK_STATUS="$REPO_ROOT/configs/claude/scripts/check_status.sh"
@@ -76,14 +77,12 @@ setup() {
     mkdir -p "$HOME/.claude/config" "$HOME/.claude/skills"
     mkdir -p "$HOME/.beta/skills" "$HOME/.test-agent/skills"
 
-    # The parallel_agent.py deprecation shim routes to the home runtime at
-    # ~/.claude/.venv/bin/manifest. Point the sandbox HOME's runtime at the
-    # repo's project venv (built by `uv sync --project configs/claude`, which
-    # CI's Test job runs) so the live [4/4 cli.py] dispatch tests exercise the
-    # real `manifest parallel-agent`. Left absent locally when the venv is
-    # unbuilt — the [4/4] tests skip themselves via require_home_runtime.
+    # The [4/4 cli.py] tests invoke the parallel_agent.py deprecation shim, which
+    # routes to ~/.claude/.venv/bin/manifest. Stub that from the repo's project
+    # venv (uv-synced, as CI does) via the shared helper; the [4/4] tests skip
+    # when it isn't built (see require_home_runtime).
     if [[ -x "$REPO_ROOT/configs/claude/.venv/bin/manifest" ]]; then
-        ln -sfn "$REPO_ROOT/configs/claude/.venv" "$HOME/.claude/.venv"
+        stub_home_manifest_runtime "$REPO_ROOT"
     fi
 
     ROSTER="$HOME/.claude/config/agent_roster.yml"
