@@ -27,7 +27,7 @@ STATE_DIR="${LIFECYCLE_STATE_DIR:-${MANIFEST_STATE_ROOT:-$HOME/.manifest}/lifecy
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Injectable smoke-manage seam (FR-012: consume as-is). Default = deployed runtime.
-SMOKE_CMD="${LIFECYCLE_SMOKE_CMD:-python3 ${HOME}/.claude/scripts/smoke_test.py}"
+SMOKE_CMD="${LIFECYCLE_SMOKE_CMD:-manifest smoke}"
 smoke() {
     local arr
     read -ra arr <<< "${SMOKE_CMD}"

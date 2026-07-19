@@ -160,7 +160,22 @@ synthesis:
   threshold: 0.50  # Trigger when consensus < 50%
   model: "sonnet"
   timeout: 300  # 5 minutes
-  backend: auto   # auto | cli | sdk
+  backend: auto   # auto | cli | sdk (cli = CLI only; sdk = Anthropic SDK only)
+  provider: auto  # auto | antigravity | cursor | gemini | codex | claude | sdk
+  # First on PATH wins when provider=auto. Override: SYNTH_PROVIDER or SYNTH_CLI.
+  provider_order:
+    - antigravity
+    - cursor
+    - gemini
+    - codex
+    - claude
+
+# Headless CLI seams (CDDL personas, SkillClaw evolve) — inherit provider_order
+# from synthesis when omitted.
+cddl_invoke:
+  provider: auto
+skillclaw_evolve:
+  provider: auto
 
 # Streaming configuration
 streaming:

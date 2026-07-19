@@ -1,12 +1,12 @@
 ---
-description: "Critic-gated implementation (CDDL) of a completed spec+plan — speckit feature dir or superpowers design doc. Two critics gate clarification, then an implementer iterates under project verification until dual structured approval stages the changes. Never commits or pushes."
+description: "Critic-gated implementation (CDDL) via sub-agents — developer writes code; developer reviewer plus QA and architecture critics review until each approves with zero findings. Never commits or pushes."
 globs: ".claude/skills/spec-implement-loop/**"
 alwaysApply: false
 ---
 
 # spec-implement-loop
 
-Critic-gated implementation (CDDL) of a completed spec+plan — speckit feature dir or superpowers design doc. Two critics gate clarification, then an implementer iterates under project verification until dual structured approval stages the changes. Never commits or pushes.
+Critic-gated implementation (CDDL) via sub-agents — developer writes code; developer reviewer plus QA and architecture critics review until each approves with zero findings. Never commits or pushes.
 
 <!-- Auto-generated from .claude/skills/spec-implement-loop/SKILL.md -->
 <!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->

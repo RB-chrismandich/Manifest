@@ -10,8 +10,8 @@ app: manifest
 #     skillListingBudgetFraction unioned into an existing settings.local.json
 #     user-wins — the invariants whose silent regression corrupts a real
 #     ~/.claude on the next `git pull && ./bootstrap.sh`.
-#   - workflow critical path: the CDDL loop stages a dual-approved candidate
-#     end-to-end against a stub CLI (feature 482).
+#   - workflow critical path: CDDL orchestration is sub-agent only (manifest cddl
+#     retired); role charters remain under configs/claude/prompts/cddl/.
 #   - nightly (Full): deeper deploy e2e, cursor rule pruning, gemini hook merge,
 #     and a deterministic Playwright UI fixture step.
 #   - edge (Full+Extra): idempotent hook-merge regressions.
@@ -183,39 +183,7 @@ tests:
             \ for caching)\nif \"env\" in src:\n    sys.exit(\"FAIL: settings.local.json\
             \ ships an env block (subprocess-only, misleading)\")\nPY\necho \"RESULT\
             \ settings_defaults=ok\"\n"
-  - id: cddl-loop-critical-path
-    title: cddl_loop.py stages a dual-approved candidate in a hermetic fixture (feature
-      482)
-    tier: Lite
-    steps:
-      - name: cddl_happy_path
-        type: cli
-        expect_exit: 0
-        command:
-          - bash
-          - -c
-          - "set -euo pipefail\nroot=\"$(git rev-parse --show-toplevel 2>/dev/null\
-            \ || pwd)\"\nsb=\"$(mktemp -d)\"; trap 'rm -rf \"$sb\"' EXIT\nexport HOME=\"\
-            $sb/home\" MANIFEST_STATE_ROOT=\"$sb/state\" TMPDIR=\"$sb/tmp\"\nmkdir\
-            \ -p \"$HOME/.claude/prompts/cddl\" \"$TMPDIR\" \"$sb/bin\"\ncp \"$root/configs/claude/prompts/cddl/\"\
-            *.md \"$HOME/.claude/prompts/cddl/\"\ncat > \"$sb/bin/claude\" <<'EOS'\n\
-            #!/usr/bin/env bash\nprompt=$(cat)\nrole=\"qa_critic\"; [[ \"$prompt\"\
-            \ == *'\"arch_critic\"'* ]] && role=\"arch_critic\"\nif [[ \"$prompt\"\
-            \ == *\"phase 1: clarification gate\"* ]]; then\n  printf '```cddl-verdict\\\
-            n{\"role\": \"%s\", \"decision\": \"complete\", \"findings\": []}\\n```\\\
-            n' \"$role\"\nelif [[ \"$prompt\" == *\"produce the candidate\"* ]]; then\n\
-            \  printf 'Change.\\n```cddl-file greet.txt\\nhello\\n```\\n'\nelse\n\
-            \  printf '```cddl-verdict\\n{\"role\": \"%s\", \"decision\": \"approve\"\
-            , \"findings\": []}\\n```\\n' \"$role\"\nfi\nEOS\nchmod +x \"$sb/bin/claude\"\
-            \nexport PATH=\"$sb/bin:$PATH\"\nrepo=\"$sb/repo\"; mkdir -p \"$repo/specs/001-fx\"\
-            \ngit init -q \"$repo\"\ngit -C \"$repo\" config user.email cddl@smoke\n\
-            git -C \"$repo\" config user.name cddl-smoke\nprintf '# Spec\\nGreet.\\\
-            n' > \"$repo/specs/001-fx/spec.md\"\nprintf '# Plan\\nOne file.\\n' >\
-            \ \"$repo/specs/001-fx/plan.md\"\ngit -C \"$repo\" add -A; git -C \"$repo\"\
-            \ commit -qm init\ngit -C \"$repo\" checkout -qb 482-smoke\npython3 \"\
-            $root/configs/claude/scripts/cddl_loop.py\" start \"$repo/specs/001-fx\"\
-            \ngit -C \"$repo\" diff --cached --name-only | grep -qx 'greet.txt'\n\
-            find \"$MANIFEST_STATE_ROOT/cddl/runs\" -name report.md | grep -q report.md\n"
+
   - id: deploy-force-runtime-preserve
     title: deploy_configs --force keeps plugins, sessions, and user MCP across redeploy
     tier: Full

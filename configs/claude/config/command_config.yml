@@ -407,15 +407,18 @@ tool_policies:
   spec-implement-loop:
     allowed:
       - Read
-      - Bash      # cddl_loop.py start/answer/status; git state inspection
+      - Glob
+      - Grep
+      - Bash      # git state, verification gates, artifact discovery
+      - Task      # CDDL personas: developer + three read-only reviewers/critics
     forbidden:
       - Write
-      - Edit      # The loop's implementer role writes code; the skill only orchestrates
+      - Edit      # Only the developer sub-agent writes code
     parallel_agents: never
     validation_tier: 1
 
-    subagents: never
-    subagent_rationale: Sequential two-critic role state machine (CDDL); fan-out would bypass its unanimous verdict gating.
+    subagents: always
+    subagent_rationale: Four-persona CDDL loop; developer sub-agent is the sole code author; three read-only reviewer sub-agents gate each iteration.
   env-check:
     allowed:
       - Read

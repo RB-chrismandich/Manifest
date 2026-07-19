@@ -3,7 +3,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "configs/claude/scripts"))
-import skillclaw_ingest as ing
+from skillclaw import ingest as ing
 
 
 def test_normalize_string_content():

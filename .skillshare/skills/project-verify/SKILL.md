@@ -90,7 +90,7 @@ After the standard lint/test/security scans complete, check for a smoke catalog
 2. **If it does**: Execute the deterministic PR-gate tier:
 
    ```bash
-   ~/.claude/scripts/smoke_test.py run --tier Lite
+   manifest smoke run --tier Lite
    ```
 
 3. **If runtime deps are missing** (runner reports Playwright/Chromium absent): Record as

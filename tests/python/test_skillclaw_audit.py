@@ -3,7 +3,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "configs/claude/scripts"))
-import skillclaw_audit as audit
+from skillclaw import audit as audit
 
 
 def test_compute_eta_estimating_until_two_chunks():

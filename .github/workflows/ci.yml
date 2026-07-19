@@ -110,6 +110,16 @@ jobs:
           fi
           echo "docs/COMMANDS.md is up-to-date"
 
+      # --- manifest-runtime uv gates (spec manifest-uv-cli, task 10) ---
+      - name: Install uv
+        run: pip install uv
+
+      - name: uv lock --check (configs/claude)
+        run: uv lock --check --project configs/claude
+
+      - name: uv build (configs/claude)
+        run: uv build --project configs/claude
+
       # --- pre-commit on changed files: the no-bypass gate of record (feature 366) ---
       # Runs the repo's .pre-commit-config.yaml against files changed in this
       # PR/push so standards (ruff, shfmt, gitleaks, markdownlint, ...) cannot be
@@ -165,6 +175,12 @@ jobs:
       - name: Install bats (pinned)
         run: npm install bats@1.11.1
 
+      - name: Install uv
+        run: pip install uv
+
+      - name: Sync manifest runtime (bats tests stub ~/.claude/.venv from this tree)
+        run: uv sync --project configs/claude
+
       - name: Run bats tests
         run: ./node_modules/.bin/bats tests/bats/
 
@@ -179,8 +195,9 @@ jobs:
 
       - name: Install pytest and parallel_agent runtime deps (pinned)
         # parallel_agent.py hard-imports yaml + rich (sys.exit(1) otherwise);
-        # asyncio-throttle backs RateLimiter. API SDKs are optional/graceful.
-        run: pip install -r tests/requirements-ci.txt
+        # asyncio-throttle backs RateLimiter. requirements-runtime.txt mirrors
+        # configs/claude/uv.lock core deps for manifest_cli / scripts packages.
+        run: pip install -r tests/requirements-ci.txt -r tests/requirements-runtime.txt
 
       - name: Run Python tests (if any exist)
         run: |
@@ -194,7 +211,7 @@ jobs:
         # Deterministic, browser-free critical-path smoke (smoke-catalog/*.yaml).
         run: |
           if [ -d smoke-catalog ] && find smoke-catalog -name '*.yaml' | grep -q .; then
-            python3 configs/claude/scripts/smoke_test.py run --app manifest --tier Lite --catalog-dir smoke-catalog
+            configs/claude/.venv/bin/manifest smoke run --app manifest --tier Lite --catalog-dir smoke-catalog
           else
             echo "No smoke-catalog/ found - skipping"
           fi

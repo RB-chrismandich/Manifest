@@ -432,33 +432,54 @@ claude auth status
 
 ---
 
-### Synthesis fails with API key error
+### Synthesis fails with no synthesizer available
 
 **Symptom:**
 
 ```text
-Could not resolve authentication method. Expected either api_key or auth_token to be set...
+Synthesis unavailable: no CLI on PATH for configured providers ...
 ```
 
-(or `Synthesis requires claude CLI ... or ANTHROPIC_API_KEY` in JSON output)
+(or the same message in JSON `error` when consensus is low)
 
-**Cause:** Low-consensus synthesis invokes Claude to merge agent disagreements.
-With `synthesis.backend: auto` (default), it uses the same auth path as the
-primary claude agent: SDK when `ANTHROPIC_API_KEY` is set, otherwise the
-logged-in `claude` CLI.
+**Cause:** Low-consensus synthesis merges agent disagreements via a single
+headless CLI. With `synthesis.provider: auto` (default), the first provider in
+`synthesis.provider_order` that is on PATH wins (`antigravity` → `cursor` →
+`gemini` → `codex` → `claude`). Override with `SYNTH_PROVIDER` or `SYNTH_CLI`.
 
 **Solution:**
 
 ```bash
-# OAuth path (recommended): ensure claude CLI is installed and logged in
-claude auth login
-claude auth status
+# Antigravity (default first in provider_order)
+agy --version
 
-# Headless/CI path: force SDK backend in ~/.claude/config/parallel_agent.yml
+# Cursor
+cursor-agent --version
+
+# Claude OAuth path
+claude auth login
+
+# Force a provider in ~/.claude/config/parallel_agent.yml
 #   synthesis:
-#     backend: sdk
+#     provider: cursor   # or antigravity, gemini, codex, claude
+# Or env for one run:
+SYNTH_PROVIDER=cursor manifest parallel-agent --json ...
+
+# Headless/CI: Anthropic SDK only when explicitly configured
+#   synthesis:
+#     provider: sdk
 # and export ANTHROPIC_API_KEY
 ```
+
+**Related seams** (same `cli_agents` registry, different env prefixes):
+
+| Seam | Script / skill | Env overrides |
+|------|----------------|---------------|
+| CDDL critics | `cddl_invoke.py`, `/spec-implement-loop` | `CDDL_INVOKE_PROVIDER`, `CDDL_INVOKE_CLI` |
+| SkillClaw evolve | `skillclaw_evolve.py`, `/skill-evolve` | `EVOLVE_PROVIDER`, `EVOLVE_CLI` |
+
+On Gemini/Codex/Antigravity without native Task, CDDL critics use
+`cddl_invoke.py` (see `.skillshare/skills/spec-implement-loop/prompts/cli-dispatch.md`).
 
 ---
 

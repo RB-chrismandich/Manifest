@@ -123,7 +123,7 @@ refuter per candidate `critical`/`high` finding (the `subagent_trigger` in
 `command_config.yml`). The passes themselves run inline — they share the P0
 orientation context and must not be split. Pick the mechanism per the shared
 Sub-Agent Selection Rules (`configs/claude/references/sub-agent-dispatch.md`):
-native Task sub-agents on Claude, or `parallel_agent.py` / inline adversarial
+native Task sub-agents on Claude, or `manifest parallel-agent` / inline adversarial
 re-reads on other assistants. Dispatched refuters judge only the evidence they
 are given and do not re-dispatch.
 

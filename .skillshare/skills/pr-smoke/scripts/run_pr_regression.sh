@@ -185,12 +185,12 @@ run_regression() {
         run_step Regression pytest hard 'python3 -m pytest tests/python/ -q'
     fi
     # Lite-tier smoke catalog run — part of CI's test job (Verify gate).
-    # smoke_test.py imports pyyaml, so gate on the module (covers a missing
+    # manifest smoke imports pyyaml, so gate on the module (covers a missing
     # python3 too) exactly like yaml-parse above — a bare-python box should
     # skip, not report a false regression.
     if python3 -c 'import yaml' 2> /dev/null; then
         run_step Regression smoke-lite hard \
-            'python3 configs/claude/scripts/smoke_test.py run --app manifest --tier Lite --catalog-dir smoke-catalog'
+            'manifest smoke run --app manifest --tier Lite --catalog-dir smoke-catalog'
     else
         record Regression smoke-lite skip "python 'yaml' module not installed"
         echo "▶ Regression: smoke-lite — skip (module not installed)"
@@ -219,10 +219,10 @@ run_smoke() {
         echo "▶ Smoke: orchestration — skip"
     else
         # One real round-trip through the orchestrator proves agents respond
-        # end-to-end. claude-only keeps it to a single cheap call; soft because an
-        # unauthenticated machine should warn, not block a code PR.
+        # end-to-end. Try the first available provider (not Claude-only); soft
+        # because an unauthenticated machine should warn, not block a code PR.
         run_step Smoke orchestration soft \
-            "$HOME/.claude/scripts/parallel_agent.py --json --claude-only --timeout 90 'Reply with the single word OK'"
+            'for flag in --antigravity-only --cursor-only --gemini-only --codex-only --claude-only; do manifest parallel-agent --json "$flag" --timeout 90 '"'"'Reply with the single word OK'"'"' >/dev/null 2>&1 && exit 0; done; exit 1'
     fi
 }
 

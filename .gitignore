@@ -66,5 +66,7 @@ smoke-catalog/*.lock
 # of truth (ruff/pytest/pyright config + the optional [dependency-groups]
 # benchmark group, #547); resolution is reproducible from it on demand.
 uv.lock
+# Home runtime lock is committed (manifest uv CLI — configs/claude/pyproject.toml).
+!configs/claude/uv.lock
 benchmark_data/
 .claude/settings.local.json

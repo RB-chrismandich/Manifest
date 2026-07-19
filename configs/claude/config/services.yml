@@ -80,18 +80,19 @@ services:
     storage: ~/.skillclaw
 
   # pilotfish - cost-tiered role-agents (~/.claude/agents/) + delegation policy reference
-  # Config-only; gated deploy in bootstrap/lib/deploy.sh (gate_pilotfish_agents). Claude-only.
+  # Config-only; gated deploy in bootstrap/lib/deploy.sh (gate_pilotfish_agents).
+  # Deploy targets: Claude (~/.claude/agents) and Cursor (~/.cursor/agents).
   pilotfish:
     enabled: false
-    description: "Cost-tiered role-agents + delegation policy, verifier-gated (opt-in, Claude-only)"
+    description: "Cost-tiered role-agents + delegation policy, verifier-gated (opt-in)"
 
   # devpanel - critic-gated dev/debug/test role-agents (~/.claude/agents/) + delegation
   # policy reference. Independent of pilotfish (own toggle, own marker), deploys into the
   # same agents dir on disjoint filenames. Config-only; gated deploy in
-  # bootstrap/lib/deploy.sh (gate_devpanel_agents). Claude-only.
+  # bootstrap/lib/deploy.sh (gate_devpanel_agents). Claude + Cursor deploy targets.
   devpanel:
     enabled: false
-    description: "developer/debugger/tester + spec-guard/chaos-engineer critic loop (opt-in, Claude-only)"
+    description: "developer/debugger/tester + spec-guard/chaos-engineer critic loop (opt-in)"
 
   # browser-use - AI-powered E2E browser testing agent
   browser_use:
@@ -102,7 +103,7 @@ services:
   # smoke-manage runtime deps (Playwright + Chromium) for declarative E2E smoke tests
   smoke:
     enabled: false
-    command: smoke_test.py
+    command: manifest smoke
     description: "Declarative tiered E2E smoke tests (opt-in Playwright + Chromium)"
 
   # Git CLI tools - Platform-specific Git hosting integrations

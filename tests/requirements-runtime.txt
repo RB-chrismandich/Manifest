@@ -1,0 +1,13 @@
+# sync-with: configs/claude/uv.lock
+# Core manifest-runtime deps for CI pytest jobs importing configs/claude/scripts/.
+# Direct [project.dependencies] pins only — transitive deps resolve at install time.
+# anthropic: optional at deploy time (uv --group claude); kept here for CI SDK tests.
+anthropic==0.76.0
+google-genai==1.65.0
+google-generativeai==0.8.6
+google-auth==2.48.0
+aiohttp==3.13.4
+asyncio-throttle==1.0.2
+PyYAML==6.0.3
+rich==14.3.1
+click==8.3.1

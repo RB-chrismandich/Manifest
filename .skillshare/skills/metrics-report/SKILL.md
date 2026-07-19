@@ -38,7 +38,7 @@ If no result files exist, report:
 
 ```text
 No agent output data found in ~/.claude/.agent_outputs/
-Run parallel_agent.py with --json to generate trackable data.
+Run manifest parallel-agent with --json to generate trackable data.
 ```
 
 ---

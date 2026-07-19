@@ -202,36 +202,6 @@ check_python() {
     fi
 }
 
-# Install Python dependencies for parallel_agent.py
-install_python_dependencies() {
-    if ! check_python; then
-        return 0 # Skip if Python not available, non-fatal
-    fi
-
-    # Use PYTHON_CMD from check_python
-    local python_cmd="${PYTHON_CMD:-python3}"
-
-    local requirements_file="$TARGET_DIR/scripts/requirements.txt"
-
-    if [[ ! -f "$requirements_file" ]]; then
-        print_warning "requirements.txt not found at $requirements_file"
-        return 0
-    fi
-
-    print_step "Installing Python dependencies for parallel_agent.py..."
-    print_info "Using: $python_cmd"
-
-    # Try to install with --user flag and prefer binary wheels
-    if $python_cmd -m pip install --user --prefer-binary -q -r "$requirements_file" 2>&1; then
-        print_success "Python dependencies installed"
-    else
-        print_warning "Failed to install Python dependencies"
-        print_info "Some packages may require compilation or may not support this Python version"
-        print_info "You can install manually later with:"
-        print_info "  $python_cmd -m pip install --prefer-binary -r $requirements_file"
-    fi
-}
-
 # Install Node.js (required for some CLIs)
 install_node() {
     print_step "Checking for Node.js..."
@@ -796,97 +766,6 @@ check_cursor() {
     fi
 }
 
-# Install browser-use E2E testing library and Playwright browsers
-install_browser_use() {
-    if [[ "$ENABLE_BROWSER_USE" == false ]]; then
-        print_info "browser-use is disabled - skipping installation"
-        return 0
-    fi
-
-    print_step "Checking for browser-use..."
-
-    if ! check_python; then
-        print_warning "Python 3 is required to install browser-use - skipping"
-        return 0
-    fi
-
-    local python_cmd="${PYTHON_CMD:-python3}"
-
-    if $python_cmd -c "import browser_use" &> /dev/null; then
-        print_success "browser-use is already installed"
-    else
-        print_step "Installing browser-use Python package..."
-        if $python_cmd -m pip install --user --prefer-binary browser-use; then
-            print_success "browser-use package installed successfully"
-        else
-            print_error "Failed to install browser-use package"
-            return 1
-        fi
-    fi
-
-    # Install Playwright browser binaries
-    print_step "Installing Playwright browsers..."
-    if $python_cmd -m playwright install chromium; then
-        print_success "Playwright browsers installed successfully"
-    else
-        print_warning "Failed to install Playwright browsers via 'playwright install chromium'. You may need to run this manually."
-    fi
-}
-
-# Install smoke-test orchestrator runtime deps (Playwright + Chromium), opt-in.
-# Idempotent and existence-guarded: pip-installs only if Playwright is missing,
-# and Chromium-only (UI steps); API/CLI steps need no browser. (spec 363 R1, T034)
-install_smoke_deps() {
-    if [[ "$ENABLE_SMOKE" == false ]]; then
-        print_info "smoke-test deps are disabled - skipping installation"
-        return 0
-    fi
-
-    print_step "Checking for smoke-test dependencies (Playwright + Chromium)..."
-
-    if ! check_python; then
-        print_warning "Python 3 is required to install smoke-test deps - skipping"
-        return 0
-    fi
-
-    local python_cmd="${PYTHON_CMD:-python3}"
-
-    # Locate the pinned requirements file (repo-only; not deployed to ~/.claude).
-    local req="" here
-    here="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-    local cand
-    for cand in "$here/tests/requirements-smoke.txt" "tests/requirements-smoke.txt"; do
-        [[ -f "$cand" ]] && {
-            req="$cand"
-            break
-        }
-    done
-
-    # Existence guard: only pip-install when Playwright is absent (idempotent).
-    if $python_cmd -c "import playwright" &> /dev/null; then
-        print_success "Playwright already installed"
-    elif [[ -n "$req" ]]; then
-        print_step "Installing smoke-test Python deps (pinned)..."
-        if $python_cmd -m pip install --user --prefer-binary -r "$req"; then
-            print_success "smoke-test deps installed from $(basename "$req")"
-        else
-            print_error "Failed to install smoke-test deps from $req"
-            return 1
-        fi
-    else
-        print_warning "tests/requirements-smoke.txt not found; install smoke deps manually"
-        return 0
-    fi
-
-    # Chromium only (UI steps). 'playwright install' is itself idempotent.
-    print_step "Installing Playwright Chromium browser..."
-    if $python_cmd -m playwright install chromium; then
-        print_success "Chromium installed for smoke UI steps"
-    else
-        print_warning "Failed to run 'playwright install chromium'. Run it manually if UI smoke steps are needed."
-    fi
-}
-
 # Ensure the uv Python tool installer is present (graphify's install prerequisite).
 # Idempotent and existence-guarded (Principle V): no-op if uv is already available,
 # even when it lives at ~/.local/bin and is not yet on this shell's PATH. Prefers a
@@ -985,4 +864,51 @@ install_graphify() {
         print_warning "Failed to install graphifyy via uv - continuing (graphify will be unavailable)"
     fi
     return 0
+}
+
+# Sync the home Python runtime via uv (replaces pip install --user for parallel_agent deps).
+# Reads deployed services.yml for optional dependency groups, runs uv sync, optionally
+# installs Playwright Chromium for smoke, and deploys ~/.local/bin/manifest wrapper.
+uv_sync_home_runtime() {
+    local target_dir="${TARGET_DIR:-$HOME/.claude}"
+    local uv_bin=""
+    if command_exists uv; then
+        uv_bin="$(command -v uv)"
+    elif [[ -x "$HOME/.local/bin/uv" ]]; then
+        uv_bin="$HOME/.local/bin/uv"
+    else
+        print_warning "uv not found — skipping home runtime sync"
+        return 0
+    fi
+
+    local -a group_flags=()
+    local install_playwright=false
+    local services_yml="$target_dir/config/services.yml"
+    if [[ -f "$services_yml" ]]; then
+        if python3 -c "import yaml,sys; d=yaml.safe_load(open(sys.argv[1])); print('1' if d.get('services',{}).get('smoke',{}).get('enabled') else '0')" "$services_yml" | grep -q 1; then
+            group_flags+=(--group smoke)
+            install_playwright=true
+        fi
+        if python3 -c "import yaml,sys; d=yaml.safe_load(open(sys.argv[1])); print('1' if d.get('services',{}).get('browser_use',{}).get('enabled') else '0')" "$services_yml" | grep -q 1; then
+            group_flags+=(--group smoke --group smoke-agent)
+        fi
+        if python3 -c "import yaml,sys; d=yaml.safe_load(open(sys.argv[1])); print('1' if d.get('services',{}).get('claude',{}).get('enabled') else '0')" "$services_yml" | grep -q 1; then
+            group_flags+=(--group claude)
+        fi
+    fi
+
+    print_step "Syncing home Python runtime (uv)..."
+    if ! "$uv_bin" sync --project "$target_dir" "${group_flags[@]+"${group_flags[@]}"}"; then
+        print_warning "uv sync failed — parallel agent may be unavailable"
+        return 0
+    fi
+
+    if [[ "$install_playwright" == true ]]; then
+        "$target_dir/.venv/bin/playwright" install chromium || print_warning "playwright install chromium failed"
+    fi
+
+    mkdir -p "$HOME/.local/bin"
+    cp "$SCRIPT_DIR/configs/claude/scripts/manifest-cli.sh" "$HOME/.local/bin/manifest"
+    chmod +x "$HOME/.local/bin/manifest"
+    print_success "Home runtime synced; manifest CLI at ~/.local/bin/manifest"
 }

@@ -58,7 +58,7 @@ configs/                             # Deployment source configs (deployed to ~/
 │   │   └── mcp_servers.yml          # Default MCP server registry (OAuth-capable)
 │   ├── .plans/                      # Plan management (template, archive, abandoned)
 │   ├── settings.local.json          # Default permissions and MCP server config
-│   └── scripts/parallel_agent.py    # Main parallel agent orchestration script
+│   └── scripts/manifest_cli/        # Manifest CLI router (manifest parallel-agent, manifest smoke, …)
 ├── cursor/                          # → ~/.cursor/ (Cursor IDE configuration)
 │   ├── rules/                       # Cursor rules (.mdc) — auto-generated from SKILL.md
 │   ├── mcp.json                     # Cursor MCP server defaults
@@ -182,7 +182,7 @@ Required CLI tools (install those you want to use):
 | `configs/cursor/rules/orchestration.mdc` | Main orchestration guide for Cursor (always-on rule) |
 | `configs/gemini/GEMINI.md` | Main orchestration guide for Gemini CLI |
 | `configs/codex/AGENTS.md` | Main orchestration guide for Codex CLI |
-| `configs/claude/scripts/parallel_agent.py` | Python script that runs agents in parallel with consensus scoring |
+| `configs/claude/scripts/manifest_cli/` | Manifest CLI (`manifest parallel-agent`, `manifest smoke`, `manifest doctor`) |
 | `configs/claude/config/command_config.yml` | Thresholds, tool policies, model selection, error recovery |
 | `configs/claude/config/validation_criteria.yml` | Tier 1 (critical) and Tier 2 (quality) validation rules |
 
@@ -265,15 +265,20 @@ directory and no `configs/emdash/` tree** (either would be inert). Prerequisite:
 
 ## Parallel Agent Orchestration
 
-All agents share the same orchestration script at `configs/claude/scripts/parallel_agent.py`.
+All agents share the same Manifest CLI entry point (`manifest parallel-agent`), installed to
+`~/.local/bin/manifest` by bootstrap. Legacy shims under `~/.claude/scripts/parallel_agent.py`
+still forward but are deprecated.
 
 ```bash
 # Basic code review (all 5 agents)
-~/.claude/scripts/parallel_agent.py --json --timeout 600 --review /absolute/path/to/file
+manifest parallel-agent --json --timeout 600 --review /absolute/path/to/file
 
 # Security analysis with maximum capability models
-~/.claude/scripts/parallel_agent.py --json --full-output --validate --timeout 900 \
+manifest parallel-agent --json --full-output --validate --timeout 900 \
   --cursor-model advanced --claude-model opus --analyze /absolute/path/to/file
+
+# Smoke catalog (when smoke service enabled)
+manifest smoke run --app manifest --tier Lite
 ```
 
 ### Validation
@@ -324,11 +329,11 @@ lints each file you edit; the CI gate runs `pre-commit` on changed files.
 ## Testing Changes
 
 ```bash
-# Test parallel agent script
-configs/claude/scripts/parallel_agent.py --json "Test prompt"
+# Test parallel agent CLI
+manifest parallel-agent --json "Test prompt"
 
 # Test specific mode
-configs/claude/scripts/parallel_agent.py --json --review /path/to/file
+manifest parallel-agent --json --review /path/to/file
 
 # Validate YAML configs
 python3 -c "import yaml; yaml.safe_load(open('configs/claude/config/command_config.yml'))"

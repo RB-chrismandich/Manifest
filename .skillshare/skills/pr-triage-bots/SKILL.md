@@ -48,7 +48,7 @@ skill.
 When ≥3 bot PRs are open, dispatch one sub-agent per PR (or batch) to triage it, then consolidate
 dispositions; below that, triage inline. Pick the mechanism per the shared Sub-Agent Selection Rules
 (`configs/claude/references/sub-agent-dispatch.md`): native Task sub-agents on Claude, or
-`parallel_agent.py` / inline on other assistants. Dispatched sub-agents execute their task directly and
+`manifest parallel-agent` / inline on other assistants. Dispatched sub-agents execute their task directly and
 do not re-dispatch.
 
 > Merged from the former bot-pr-triage and triage-bot-pr-flood skills (specs/480, 2026-07).

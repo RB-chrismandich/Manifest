@@ -214,7 +214,17 @@ class Config:
                 "model": "sonnet",
                 "timeout": 300,
                 "backend": "auto",
+                "provider": "auto",
+                "provider_order": [
+                    "antigravity",
+                    "cursor",
+                    "gemini",
+                    "codex",
+                    "claude",
+                ],
             },
+            "cddl_invoke": {"provider": "auto"},
+            "skillclaw_evolve": {"provider": "auto"},
             "validation": {"consensus_threshold": {"high": 0.80, "medium": 0.50}},
         }
 

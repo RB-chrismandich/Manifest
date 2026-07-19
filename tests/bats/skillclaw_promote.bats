@@ -23,11 +23,6 @@ echo "git_ops.sh $*" >> "$SKILLCLAW_PROMOTE_LOG"
 [ "$1" = "pr-create" ] && echo "https://example.test/pr/1"
 exit 0
 EOF
-    cat > "$MOCK_BIN/skillclaw" << 'EOF'
-#!/usr/bin/env bash
-echo "skillclaw $*" >> "$SKILLCLAW_PROMOTE_LOG"
-exit 0
-EOF
     cat > "$MOCK_BIN/git" << 'EOF'
 #!/usr/bin/env bash
 case "$1" in
@@ -38,8 +33,14 @@ case "$1" in
 esac
 exit 0
 EOF
-    chmod +x "$MOCK_BIN/git_ops.sh" "$MOCK_BIN/skillclaw" "$MOCK_BIN/git"
+    chmod +x "$MOCK_BIN/git_ops.sh" "$MOCK_BIN/git"
     export SKILLCLAW_GITOPS="$MOCK_BIN/git_ops.sh"
+    export HOME="$SANDBOX/home"
+    mkdir -p "$HOME"
+    # shellcheck disable=SC1091
+    source "$REPO_ROOT/tests/test_helper/stub_home_runtime.bash"
+    stub_home_manifest_runtime "$REPO_ROOT"
+    export MANIFEST="$HOME/.claude/.venv/bin/manifest"
     export PATH="$MOCK_BIN:$PATH"
     export SKILLCLAW_PROMOTE_LOG="$SANDBOX/log"
     export SKILLCLAW_AUDIT_DIR="$SANDBOX/skillclaw"
@@ -87,10 +88,10 @@ teardown() {
     grep -q "skillclaw_promote.sh" "$f"
 }
 
-@test "promote runs ingest+evolve scripts instead of the skillclaw binary" {
-  run grep -E 'skillclaw_(ingest|evolve)\.py' "$REPO_ROOT/configs/claude/scripts/skillclaw_promote.sh"
+@test "promote runs manifest skillclaw ingest/evolve/promote instead of legacy scripts" {
+  run grep -E 'skillclaw_cmd (ingest|evolve|promote)' "$REPO_ROOT/configs/claude/scripts/skillclaw_promote.sh"
   [ "$status" -eq 0 ]
-  run grep -c 'skillclaw evolve --mode workflow' "$REPO_ROOT/configs/claude/scripts/skillclaw_promote.sh"
+  run grep -cE 'skillclaw_(ingest|evolve|promote)\.py' "$REPO_ROOT/configs/claude/scripts/skillclaw_promote.sh"
   [ "$output" -eq 0 ]
 }
 
@@ -205,6 +206,26 @@ EOF
     cat > "$SKILLCLAW_SESSIONS/preseeded.json" << 'EOF'
 {"session_id": "preseeded", "turns": [{"role": "user", "blocks": [{"kind": "text", "text": "do a thing"}]}]}
 EOF
+    # #584 resolves EVOLVE_CLI as a *binary override* for a configured provider
+    # (agents/cli_invoke.resolve_cli_route reads cli_agents from
+    # ~/.claude/config/parallel_agent.yml). Provide a claude provider spec and pin
+    # EVOLVE_PROVIDER so a provider resolves; EVOLVE_CLI then swaps that provider's
+    # binary to our stub — proving the seam is honored/swappable, not hardcoded to
+    # claude. (#584 also inserts --model <tier> before -p, hence the .*-p match.)
+    mkdir -p "$HOME/.claude/config"
+    cat > "$HOME/.claude/config/parallel_agent.yml" << 'EOF'
+cli_agents:
+  claude:
+    binary: claude
+    base_args: []
+    model_args: ["--model", "{model}"]
+    prompt_args: ["-p", "{prompt}"]
+    output: stdout
+model_tiers:
+  claude:
+    sonnet: "claude-sonnet-5"
+EOF
+    export EVOLVE_PROVIDER="claude"
     export EVOLVE_CLI="fake_evolve_cli"
     cat > "$MOCK_BIN/fake_evolve_cli" << 'EOF'
 #!/usr/bin/env bash
@@ -216,7 +237,7 @@ EOF
     chmod +x "$MOCK_BIN/fake_evolve_cli"
     run bash "$SCRIPT"
     assert_success
-    run grep -c "fake_evolve_cli -p" "$SKILLCLAW_PROMOTE_LOG"
+    run grep -Ec "fake_evolve_cli.*-p" "$SKILLCLAW_PROMOTE_LOG"
     assert_output "1"
 }
 
