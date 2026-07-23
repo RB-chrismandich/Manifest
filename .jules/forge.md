@@ -90,3 +90,7 @@ vulnerability and violates core safety constraints.
 expansion (`read -r -a cmd_arr <<< "$cmd_str"` followed by
 `"${cmd_arr[@]+"${cmd_arr[@]}"}" "$packet"`) to execute dynamic commands
 securely without a subshell string evaluation.
+
+## 2024-07-23 - [prompt-optimize]
+**Learning:** Hardening meta-prompt optimization requires mapping unoptimized inputs into fixed XML-schema payloads, embedding absolute-path/idempotency guardrails, and stripping conversational fluff.
+**Action:** Overwrote SKILL.md payload with deterministic machine-to-machine blueprint while preserving required YAML frontmatter and formatting to pass lint.
