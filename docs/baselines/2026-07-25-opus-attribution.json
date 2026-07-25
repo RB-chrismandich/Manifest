@@ -1,0 +1,189 @@
+{
+ "scan": {
+  "root": "/Users/chrismandich/.claude/projects",
+  "since": null,
+  "until": "2026-07-25T20:00:00Z",
+  "assistant_lines_with_usage": 105728,
+  "api_requests": 47185,
+  "overcount_factor": 2.2407,
+  "skipped_no_timestamp": 0
+ },
+ "models": {
+  "claude-sonnet-5": 19918,
+  "claude-opus-4-8": 14150,
+  "claude-fable-5": 8452,
+  "claude-opus-4-7": 2723,
+  "claude-sonnet-4-6": 792,
+  "claude-haiku-4-5-20251001": 774,
+  "<synthetic>": 376
+ },
+ "opus_totals": {
+  "input": 10853921,
+  "output": 18590338,
+  "cache_read": 2770695662,
+  "cache_creation": 110473747,
+  "requests": 16873
+ },
+ "classified_pct": 98.04,
+ "classes": {
+  "reasoning": {
+   "requests": 8329,
+   "pct_requests": 49.36,
+   "input": 2650935,
+   "output": 12362581,
+   "cache_read": 1756800309,
+   "cache_creation": 58260229,
+   "weighted_input_units": 251156252.2,
+   "median_output": 907,
+   "p90_output": 3310
+  },
+  "tool_mechanical": {
+   "requests": 1737,
+   "pct_requests": 10.29,
+   "input": 19978,
+   "output": 380835,
+   "cache_read": 260506992,
+   "cache_creation": 3501707,
+   "weighted_input_units": 30447811.0,
+   "median_output": 150,
+   "p90_output": 349
+  },
+  "other": {
+   "requests": 331,
+   "pct_requests": 1.96,
+   "input": 6330,
+   "output": 106370,
+   "cache_read": 58582842,
+   "cache_creation": 3065123,
+   "weighted_input_units": 9696017.9,
+   "median_output": 80,
+   "p90_output": 1152
+  },
+  "text_response": {
+   "requests": 319,
+   "pct_requests": 1.89,
+   "input": 9781,
+   "output": 108672,
+   "cache_read": 69394959,
+   "cache_creation": 678082,
+   "weighted_input_units": 7796879.4,
+   "median_output": 221,
+   "p90_output": 845
+  },
+  "tool_edit": {
+   "requests": 883,
+   "pct_requests": 5.23,
+   "input": 17080,
+   "output": 569552,
+   "cache_read": 242192041,
+   "cache_creation": 1214155,
+   "weighted_input_units": 25753977.9,
+   "median_output": 442,
+   "p90_output": 1130
+  },
+  "mixed": {
+   "requests": 740,
+   "pct_requests": 4.39,
+   "input": 40541,
+   "output": 445095,
+   "cache_read": 144257039,
+   "cache_creation": 7229500,
+   "weighted_input_units": 23503119.9,
+   "median_output": 334.5,
+   "p90_output": 1144
+  },
+  "subagent": {
+   "requests": 4534,
+   "pct_requests": 26.87,
+   "input": 8109276,
+   "output": 4617233,
+   "cache_read": 238961480,
+   "cache_creation": 36524951,
+   "weighted_input_units": 77661612.8,
+   "median_output": 358.5,
+   "p90_output": 2757
+  }
+ },
+ "top_projects": {
+  "-Users-chrismandich-Documents-GitHub-Manifest": {
+   "requests": 2269,
+   "reasoning": 1595,
+   "tool_mechanical": 231,
+   "other": 40,
+   "tool_edit": 214,
+   "mixed": 139,
+   "text_response": 50
+  },
+  "-Users-chrismandich-Documents-GitHub-5-whys-trading": {
+   "requests": 1226,
+   "reasoning": 826,
+   "tool_mechanical": 150,
+   "other": 70,
+   "mixed": 88,
+   "text_response": 23,
+   "tool_edit": 69
+  },
+  "subagents": {
+   "requests": 1209,
+   "subagent": 1209
+  },
+  "-Users-chrismandich-Documents-GitHub-5-whys-trading--claude-worktrees-performance-improvement": {
+   "requests": 1067,
+   "reasoning": 601,
+   "other": 11,
+   "tool_mechanical": 201,
+   "mixed": 146,
+   "text_response": 27,
+   "tool_edit": 81
+  },
+  "-Users-chrismandich-Documents-GitHub-TideByte": {
+   "requests": 828,
+   "reasoning": 544,
+   "tool_mechanical": 135,
+   "other": 24,
+   "mixed": 53,
+   "text_response": 31,
+   "tool_edit": 41
+  },
+  "-Users-chrismandich-emdash-worktrees-Manifest-emdash-review-agent-usage-dm6k5": {
+   "requests": 633,
+   "reasoning": 486,
+   "tool_mechanical": 131,
+   "other": 8,
+   "mixed": 1,
+   "tool_edit": 6,
+   "text_response": 1
+  },
+  "wf_aad32161-c35": {
+   "requests": 457,
+   "subagent": 457
+  },
+  "-Users-chrismandich-Documents-GitHub-hasslemagne": {
+   "requests": 454,
+   "reasoning": 311,
+   "tool_mechanical": 37,
+   "mixed": 16,
+   "tool_edit": 87,
+   "text_response": 2,
+   "other": 1
+  },
+  "-Users-chrismandich-Documents-GitHub-5-whys-trading--claude-worktrees-design-agent": {
+   "requests": 414,
+   "reasoning": 287,
+   "tool_mechanical": 21,
+   "mixed": 44,
+   "tool_edit": 38,
+   "text_response": 21,
+   "other": 3
+  },
+  "-Users-chrismandich-Documents-GitHub-Manifest--claude-worktrees-lifecycle-improvement": {
+   "requests": 404,
+   "reasoning": 273,
+   "tool_mechanical": 58,
+   "tool_edit": 52,
+   "mixed": 12,
+   "other": 4,
+   "text_response": 5
+  }
+ }
+}

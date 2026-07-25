@@ -76,6 +76,10 @@ yamllint configs/claude/config/*.yml
   (usage + flags, ≤15 lines, exit 0). Exempt with rationale (specs/003 R6):
   `version_pin_hook.sh` (save-hook wrapper, not user-invoked) and
   `git_platform.sh` (internal detection helper used by git_ops.sh).
+- **Python entry points** are gated the same way (`tests/bats/help_coverage.bats`
+  `PY_USER_FACING` list). Exempt: `_manifest_shim.py`, `budget_broker.py`,
+  `reconcile_core.py` — rationale in
+  [docs/CODING_STANDARDS.md](../docs/CODING_STANDARDS.md#python-active--primary).
 
 ## Key Paths (in this repo)
 

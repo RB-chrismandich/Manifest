@@ -7,6 +7,16 @@
 # deploy-source git tree hashes against it. Warns ONLY on a clean default
 # branch — feature-branch / dirty-tree drift is expected WIP.
 #
+# Also nudges (once) when the clone's default branch is behind its upstream
+# remote-tracking ref — this catches the case the tree-hash compare above
+# cannot: a clone that never advanced locally (stamp matches HEAD exactly)
+# but is itself many commits behind origin, so the deployed home is stale
+# even though nothing here ever changed. This NEVER runs `git fetch` (a
+# SessionStart hook must not make a network call that could block/slow every
+# session start) — it only reads the remote-tracking ref already on disk
+# from whatever fetch last happened. A clone that has never been fetched has
+# no refs/remotes/origin/<branch> and stays invisible to this check.
+#
 # Fail-open: every error path exits 0 so a broken check never blocks a
 # session. Diagnostics go to stderr only under DEPLOY_STAMP_DEBUG=1.
 set -uo pipefail
@@ -26,9 +36,10 @@ usage() {
 Usage: deploy_stamp_check.sh [-h|--help]
 
 SessionStart hook: warns once when the Manifest git clone has changed
-configs/ or skills since the last ./bootstrap.sh deploy. Silent (exit 0)
-unless the clone is on a clean default branch AND its sources differ from
-the recorded stamp. Set DEPLOY_STAMP_DEBUG=1 for stderr diagnostics.
+configs/ or skills since the last ./bootstrap.sh deploy, OR when the clone's
+default branch is behind its already-fetched origin/<branch> ref (no
+`git fetch` is ever run). Silent (exit 0) unless the clone is on a clean
+default branch. Set DEPLOY_STAMP_DEBUG=1 for stderr diagnostics.
 EOF
 }
 
@@ -81,6 +92,32 @@ main() {
         return 0
     }
 
+    local state_root="${MANIFEST_STATE_ROOT:-$HOME/.manifest}"
+
+    # Behind-upstream check (see header comment): local-only, no `git fetch`.
+    # Compares HEAD against the remote-tracking ref already on disk, so a
+    # clone that has never been fetched simply never triggers this — that
+    # limitation is accepted, not worked around.
+    local behind
+    behind="$(git -C "$clone_path" rev-list --count "HEAD..refs/remotes/origin/$def_branch" 2> /dev/null)"
+    if [[ "$behind" =~ ^[0-9]+$ && "$behind" -gt 0 ]]; then
+        local upstream_sha behind_state
+        upstream_sha="$(git -C "$clone_path" rev-parse "refs/remotes/origin/$def_branch" 2> /dev/null)"
+        behind_state="$state_root/deploy_stamp_behind_warned"
+        if [[ -z "$upstream_sha" || ! -f "$behind_state" || "$(cat "$behind_state" 2> /dev/null)" != "$upstream_sha" ]]; then
+            printf '⚠ Manifest clone %s is %s commit(s) behind origin/%s — git pull, then ./bootstrap.sh to redeploy.\n' \
+                "$clone_path" "$behind" "$def_branch"
+            if [[ -n "$upstream_sha" ]]; then
+                mkdir -p "$state_root" 2> /dev/null || true
+                printf '%s\n' "$upstream_sha" > "$behind_state" 2> /dev/null || true
+            fi
+        else
+            debug "already warned for upstream $upstream_sha"
+        fi
+    else
+        debug "not behind upstream (or origin/$def_branch not fetched)"
+    fi
+
     local cur_configs cur_skills
     cur_configs="$(git -C "$clone_path" rev-parse HEAD:configs 2> /dev/null)" || return 0
     cur_skills="$(git -C "$clone_path" rev-parse HEAD:.skillshare/skills 2> /dev/null)" || return 0
@@ -90,7 +127,6 @@ main() {
         return 0
     fi
 
-    local state_root="${MANIFEST_STATE_ROOT:-$HOME/.manifest}"
     local state_file="$state_root/deploy_stamp_warned"
     local combined="${cur_configs}:${cur_skills}"
     if [[ -f "$state_file" && "$(cat "$state_file" 2> /dev/null)" == "$combined" ]]; then

@@ -89,6 +89,31 @@ array-expansion lint at commit and CI.
 - Prefer `pathlib`, f-strings, and `logging` over `os.path`, `%`/`.format`, and
   `print()` in library code.
 - Keep environments isolated (`venv`/`uv`); pin test/runtime deps.
+- **Exit codes for NEW CLI entry points**: `0` success, `2` usage or unusable
+  input (bad flag, bad argument value, unreadable path, unwritable output).
+  Reserve `1` for "ran correctly and found violations" — the `version_pin.sh
+  --check` shape — so a caller can distinguish "I invoked it wrong" from "it
+  worked and the answer was bad". `2` also matches argparse's own default for
+  unrecognised arguments, so the documented contract and the framework agree
+  without extra code. Record the mapping in the module docstring
+  (`Exit codes: ...`). Existing scripts predate this and use several other
+  schemes (`1=failure`, `64=usage`, domain-specific `3`/`4`); do not retrofit
+  them — callers may depend on the current codes.
+- **Never let an empty result exit 0 as if it were a clean run.** A mistyped
+  path or an empty time window must be distinguishable from a genuine zero.
+  Equally, an unparseable filter value must be a hard error, not a silently
+  ignored one — string-comparing a timestamp bound accepts garbage
+  (`"2026-…" > "banana"` is `False`) and silently widens the scan.
+- **`--help` entry points**: every directly-invocable Python CLI in
+  `configs/claude/scripts/` handles `--help` (exit 0, `usage`/`Usage` in
+  output), gated by `tests/bats/help_coverage.bats`'s `PY_USER_FACING` list.
+  Exempt: `_manifest_shim.py` (shared library module — no `__main__`, never
+  invoked directly, only imported by the `skillclaw_*.py`/`smoke_test.py`/
+  `parallel_agent.py` deprecation shims), `budget_broker.py` (interceptor
+  wrapper — its argv IS the wrapped command being intercepted, so `--help` is
+  forwarded to the child process instead of being handled), and
+  `reconcile_core.py` (internal read-only engine behind `deploy_reconcile.sh`;
+  `add_help=False`, no direct CLI surface, per its own module docstring).
 
 **Enforcement:** `ruff check` + `ruff format` (commit + CI on changed files);
 `ruff check` advisory at edit-time; pyright is available as an opt-in manual hook

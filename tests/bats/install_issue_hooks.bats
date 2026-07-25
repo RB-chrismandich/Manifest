@@ -50,6 +50,32 @@ teardown() { [[ -n "$TMP" && -d "$TMP" ]] && rm -rf "$TMP"; }
     [ "$count" -eq 1 ]
 }
 
+# Regression: the test above re-runs the SAME installer path, so the command
+# strings match exactly and it passed even while this bug was live. The real
+# duplicate came from installing once from a repo clone and once from the
+# deployed ~/.claude/scripts copy — same hook, two absolute paths, neither
+# removing the other, so it fired twice on every matching tool call.
+@test "enable replaces a registration of the same hook made from another path" {
+    cat > "$ISSUE_HOOKS_SETTINGS" <<'EOF'
+{
+  "hooks": {
+    "PostToolUse": [
+      {"matcher": "Bash", "hooks": [{"type": "command", "command": "/some/other/clone/configs/claude/scripts/issue_support_hook.sh", "timeout": 30}]},
+      {"matcher": "Write", "hooks": [{"type": "command", "command": "/unrelated/other_hook.sh"}]}
+    ]
+  }
+}
+EOF
+    run bash "$INSTALL" --enable
+    [ "$status" -eq 0 ]
+    count=$(python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); print(sum(1 for e in d["hooks"]["PostToolUse"] for h in e["hooks"] if "issue_support_hook.sh" in h["command"]))' "$ISSUE_HOOKS_SETTINGS")
+    [ "$count" -eq 1 ]
+    # the surviving one is the freshly-installed path, not the stale clone
+    python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); assert not any("/some/other/clone/" in h["command"] for e in d["hooks"]["PostToolUse"] for h in e["hooks"])' "$ISSUE_HOOKS_SETTINGS"
+    # an unrelated hook under a different matcher is untouched
+    python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); assert any("other_hook.sh" in h["command"] for e in d["hooks"]["PostToolUse"] for h in e["hooks"])' "$ISSUE_HOOKS_SETTINGS"
+}
+
 # --- H5: remove cleans up both surfaces -------------------------------------
 
 @test "remove flips enabled false and drops the settings entry" {

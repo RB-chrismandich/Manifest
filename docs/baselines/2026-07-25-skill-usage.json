@@ -1,0 +1,680 @@
+{
+ "skill_tool": [
+  [
+   "code-review",
+   78
+  ],
+  [
+   "issue-prep-auto",
+   43
+  ],
+  [
+   "issue-dev-auto",
+   16
+  ],
+  [
+   "pr-address-comments",
+   16
+  ],
+  [
+   "superpowers:brainstorming",
+   13
+  ],
+  [
+   "superpowers:writing-plans",
+   13
+  ],
+  [
+   "superpowers:subagent-driven-development",
+   12
+  ],
+  [
+   "commit-commands:commit-push-pr",
+   12
+  ],
+  [
+   "spec-review",
+   11
+  ],
+  [
+   "superpowers:test-driven-development",
+   10
+  ],
+  [
+   "pr-review",
+   10
+  ],
+  [
+   "superpowers:finishing-a-development-branch",
+   8
+  ],
+  [
+   "speckit-git-feature",
+   8
+  ],
+  [
+   "project-verify",
+   7
+  ],
+  [
+   "pr-monitor",
+   7
+  ],
+  [
+   "speckit-implement-review",
+   5
+  ],
+  [
+   "ai-code-audit",
+   4
+  ],
+  [
+   "superpowers:systematic-debugging",
+   4
+  ],
+  [
+   "git-commit",
+   4
+  ],
+  [
+   "loop",
+   3
+  ],
+  [
+   "superpowers:executing-plans",
+   3
+  ],
+  [
+   "speckit-specify",
+   3
+  ],
+  [
+   "pr-smoke",
+   3
+  ],
+  [
+   "ci-harden-workflow",
+   3
+  ],
+  [
+   "auto-issue-dev",
+   2
+  ],
+  [
+   "verify",
+   2
+  ],
+  [
+   "pr-triage-bots",
+   2
+  ],
+  [
+   "speckit-constitution",
+   2
+  ],
+  [
+   "pass-cli",
+   2
+  ],
+  [
+   "smoke-manage",
+   2
+  ],
+  [
+   "git-find-artifact",
+   2
+  ],
+  [
+   "spec-audit-tasks",
+   2
+  ],
+  [
+   "speckit-tasks",
+   2
+  ],
+  [
+   "mcp-audit",
+   2
+  ],
+  [
+   "superpowers:dispatching-parallel-agents",
+   1
+  ],
+  [
+   "init",
+   1
+  ],
+  [
+   "address-pr-comments",
+   1
+  ],
+  [
+   "systematic-debugging",
+   1
+  ],
+  [
+   "locate-missing-artifact-across-git",
+   1
+  ],
+  [
+   "speckit-clarify",
+   1
+  ],
+  [
+   "security-review-diff",
+   1
+  ],
+  [
+   "pr-merge-stacked",
+   1
+  ],
+  [
+   "brainstorming",
+   1
+  ],
+  [
+   "writing-plans",
+   1
+  ],
+  [
+   "update-config",
+   1
+  ],
+  [
+   "deploy-reconcile",
+   1
+  ],
+  [
+   "hookify:hookify",
+   1
+  ],
+  [
+   "hookify:writing-rules",
+   1
+  ],
+  [
+   "plan-manage",
+   1
+  ],
+  [
+   "repo-hygiene",
+   1
+  ],
+  [
+   "branch-clean",
+   1
+  ],
+  [
+   "speckit-plan",
+   1
+  ],
+  [
+   "env-check",
+   1
+  ],
+  [
+   "project-commit",
+   1
+  ],
+  [
+   "shell-pipefail-subshell-audit",
+   1
+  ],
+  [
+   "shell-sete-silent-abort-audit",
+   1
+  ],
+  [
+   "ci-lint-config-drift",
+   1
+  ],
+  [
+   "claude-api",
+   1
+  ],
+  [
+   "verify-premise",
+   1
+  ],
+  [
+   "superpowers:using-git-worktrees",
+   1
+  ],
+  [
+   "clean-pr-from-stale-base",
+   1
+  ],
+  [
+   "n8n-workflows",
+   1
+  ],
+  [
+   "auto-dev-issue-prep",
+   1
+  ],
+  [
+   "speckit-implement",
+   1
+  ]
+ ],
+ "slash_cmd": [
+  [
+   "loop",
+   103
+  ],
+  [
+   "goal",
+   59
+  ],
+  [
+   "effort",
+   46
+  ],
+  [
+   "clear",
+   45
+  ],
+  [
+   "model",
+   38
+  ],
+  [
+   "spec-review",
+   32
+  ],
+  [
+   "speckit-tasks",
+   15
+  ],
+  [
+   "speckit-analyze",
+   15
+  ],
+  [
+   "pr-monitor",
+   15
+  ],
+  [
+   "pr-review",
+   14
+  ],
+  [
+   "speckit-plan",
+   14
+  ],
+  [
+   "speckit-implement",
+   14
+  ],
+  [
+   "speckit-specify",
+   13
+  ],
+  [
+   "speckit-clarify",
+   13
+  ],
+  [
+   "superpowers:brainstorming",
+   10
+  ],
+  [
+   "superpowers:systematic-debugging",
+   9
+  ],
+  [
+   "speckit-implement-review",
+   8
+  ],
+  [
+   "spec-audit-tasks",
+   7
+  ],
+  [
+   "bot-pr-triage",
+   6
+  ],
+  [
+   "graphify",
+   5
+  ],
+  [
+   "pr-address-comments",
+   4
+  ],
+  [
+   "address-pr-comments",
+   4
+  ],
+  [
+   "smoke-manage",
+   4
+  ],
+  [
+   "auto-dev-issue-prep",
+   3
+  ],
+  [
+   "repo-hygiene",
+   3
+  ],
+  [
+   "compact",
+   3
+  ],
+  [
+   "init",
+   2
+  ],
+  [
+   "code-review",
+   2
+  ],
+  [
+   "speckit-git-commit",
+   2
+  ],
+  [
+   "speckit-audit-tasks",
+   2
+  ],
+  [
+   "pr-issue-sync",
+   1
+  ],
+  [
+   "issue-prep-auto",
+   1
+  ],
+  [
+   "issue-prioritize",
+   1
+  ],
+  [
+   "design-login",
+   1
+  ],
+  [
+   "superpowers:writing-plans",
+   1
+  ],
+  [
+   "superpowers:subagent-driven-development",
+   1
+  ],
+  [
+   "git-commit",
+   1
+  ],
+  [
+   "post-pr-review-monitor",
+   1
+  ],
+  [
+   "repo-clean",
+   1
+  ],
+  [
+   "deploy-smoke-test",
+   1
+  ],
+  [
+   "auto-issue-dev",
+   1
+  ]
+ ],
+ "first_seen": {
+  "goal": "2026-06-30T17:57:11.607Z",
+  "issue-dev-auto": "2026-07-03T22:51:19.151Z",
+  "project-verify": "2026-07-04T20:17:04.392Z",
+  "clear": "2026-06-21T19:00:36.302Z",
+  "code-review": "2026-06-29T22:38:35.848Z",
+  "superpowers:brainstorming": "2026-06-22T06:06:56.440Z",
+  "spec-review": "2026-06-21T21:53:33.450Z",
+  "superpowers:writing-plans": "2026-06-22T06:21:54.379Z",
+  "superpowers:subagent-driven-development": "2026-06-22T06:28:19.445Z",
+  "superpowers:finishing-a-development-branch": "2026-06-29T01:32:30.171Z",
+  "pr-review": "2026-06-28T08:40:53.184Z",
+  "issue-prep-auto": "2026-07-03T22:32:01.891Z",
+  "commit-commands:commit-push-pr": "2026-06-21T19:05:46.172Z",
+  "superpowers:dispatching-parallel-agents": "2026-07-11T08:55:35.365Z",
+  "pr-address-comments": "2026-07-04T07:53:22.051Z",
+  "model": "2026-06-23T06:45:21.619Z",
+  "effort": "2026-06-23T06:45:26.689Z",
+  "init": "2026-07-11T09:09:18.605Z",
+  "loop": "2026-06-29T00:51:39.237Z",
+  "speckit-specify": "2026-06-21T19:34:18.347Z",
+  "speckit-git-feature": "2026-06-21T19:34:32.195Z",
+  "speckit-clarify": "2026-06-21T19:40:45.994Z",
+  "speckit-plan": "2026-06-21T19:54:33.020Z",
+  "speckit-tasks": "2026-06-21T21:46:06.755Z",
+  "speckit-analyze": "2026-06-21T21:48:09.829Z",
+  "speckit-implement": "2026-06-21T23:18:31.188Z",
+  "speckit-implement-review": "2026-06-23T07:38:11.311Z",
+  "auto-dev-issue-prep": "2026-07-01T06:53:40.778Z",
+  "auto-issue-dev": "2026-07-01T19:56:46.257Z",
+  "superpowers:test-driven-development": "2026-06-28T22:52:14.920Z",
+  "verify": "2026-07-01T20:04:45.714Z",
+  "address-pr-comments": "2026-07-01T18:00:20.611Z",
+  "pr-issue-sync": "2026-07-02T00:18:17.336Z",
+  "superpowers:executing-plans": "2026-06-28T08:45:57.060Z",
+  "ai-code-audit": "2026-07-17T06:58:25.672Z",
+  "superpowers:systematic-debugging": "2026-06-23T06:35:39.026Z",
+  "pr-monitor": "2026-07-03T22:20:01.052Z",
+  "graphify": "2026-07-01T06:55:29.313Z",
+  "pr-triage-bots": "2026-07-03T08:36:32.431Z",
+  "spec-audit-tasks": "2026-07-10T00:28:35.775Z",
+  "speckit-constitution": "2026-06-21T21:49:40.093Z",
+  "systematic-debugging": "2026-07-18T07:31:17.505Z",
+  "issue-prioritize": "2026-07-17T20:02:20.197Z",
+  "locate-missing-artifact-across-git": "2026-06-30T05:05:19.891Z",
+  "design-login": "2026-07-01T02:51:57.657Z",
+  "bot-pr-triage": "2026-06-28T08:41:00.140Z",
+  "pass-cli": "2026-06-21T19:05:15.174Z",
+  "speckit-git-commit": "2026-06-21T23:17:54.583Z",
+  "security-review-diff": "2026-07-11T07:45:53.856Z",
+  "repo-hygiene": "2026-06-28T08:38:17.275Z",
+  "git-commit": "2026-07-10T07:47:37.523Z",
+  "pr-merge-stacked": "2026-07-17T06:58:37.528Z",
+  "smoke-manage": "2026-07-04T07:55:16.714Z",
+  "git-find-artifact": "2026-07-08T07:12:26.755Z",
+  "brainstorming": "2026-07-18T23:22:29.303Z",
+  "writing-plans": "2026-07-18T23:31:52.481Z",
+  "update-config": "2026-07-03T07:49:20.454Z",
+  "deploy-reconcile": "2026-07-03T08:01:59.173Z",
+  "hookify:hookify": "2026-07-03T08:21:19.078Z",
+  "hookify:writing-rules": "2026-07-03T08:21:30.100Z",
+  "plan-manage": "2026-07-11T00:39:06.615Z",
+  "branch-clean": "2026-07-05T07:56:51.402Z",
+  "compact": "2026-06-28T22:18:56.133Z",
+  "pr-smoke": "2026-07-03T22:18:52.939Z",
+  "env-check": "2026-07-12T07:43:02.932Z",
+  "post-pr-review-monitor": "2026-07-02T07:02:29.741Z",
+  "project-commit": "2026-06-30T22:15:53.180Z",
+  "repo-clean": "2026-07-12T07:04:54.606Z",
+  "shell-pipefail-subshell-audit": "2026-06-30T17:42:40.962Z",
+  "shell-sete-silent-abort-audit": "2026-06-30T17:42:40.966Z",
+  "ci-lint-config-drift": "2026-06-29T23:33:14.762Z",
+  "claude-api": "2026-07-17T22:02:44.978Z",
+  "deploy-smoke-test": "2026-06-23T06:28:54.470Z",
+  "verify-premise": "2026-06-29T01:22:04.217Z",
+  "superpowers:using-git-worktrees": "2026-06-29T01:28:05.520Z",
+  "clean-pr-from-stale-base": "2026-06-29T07:07:39.527Z",
+  "n8n-workflows": "2026-06-22T05:09:44.407Z",
+  "mcp-audit": "2026-07-10T21:29:41.528Z",
+  "ci-harden-workflow": "2026-07-04T19:41:08.112Z",
+  "speckit-audit-tasks": "2026-07-09T06:07:14.811Z"
+ },
+ "last_seen": {
+  "goal": "2026-07-19T00:17:37.914Z",
+  "issue-dev-auto": "2026-07-15T07:09:35.862Z",
+  "project-verify": "2026-07-15T07:26:39.795Z",
+  "clear": "2026-07-18T23:20:52.575Z",
+  "code-review": "2026-07-18T23:42:04.217Z",
+  "superpowers:brainstorming": "2026-07-18T23:30:28.974Z",
+  "spec-review": "2026-07-19T06:35:01.648Z",
+  "superpowers:writing-plans": "2026-07-19T00:19:07.661Z",
+  "superpowers:subagent-driven-development": "2026-07-19T06:40:37.692Z",
+  "superpowers:finishing-a-development-branch": "2026-07-19T16:30:35.674Z",
+  "pr-review": "2026-07-18T23:20:12.933Z",
+  "issue-prep-auto": "2026-07-18T23:26:07.949Z",
+  "commit-commands:commit-push-pr": "2026-07-19T17:02:47.430Z",
+  "superpowers:dispatching-parallel-agents": "2026-07-11T08:55:35.365Z",
+  "pr-address-comments": "2026-07-18T08:03:34.017Z",
+  "model": "2026-07-17T23:01:58.272Z",
+  "effort": "2026-07-19T00:18:01.089Z",
+  "init": "2026-07-12T08:32:26.022Z",
+  "loop": "2026-07-12T09:22:25.706Z",
+  "speckit-specify": "2026-07-12T07:49:29.557Z",
+  "speckit-git-feature": "2026-07-10T07:40:05.110Z",
+  "speckit-clarify": "2026-07-12T08:16:08.911Z",
+  "speckit-plan": "2026-07-12T08:39:48.650Z",
+  "speckit-tasks": "2026-07-12T08:40:53.503Z",
+  "speckit-analyze": "2026-07-12T08:45:31.910Z",
+  "speckit-implement": "2026-07-10T16:48:54.389Z",
+  "speckit-implement-review": "2026-07-02T06:49:42.957Z",
+  "auto-dev-issue-prep": "2026-07-02T17:25:13.393Z",
+  "auto-issue-dev": "2026-07-02T17:40:15.132Z",
+  "superpowers:test-driven-development": "2026-07-18T01:09:55.243Z",
+  "verify": "2026-07-01T23:19:20.277Z",
+  "address-pr-comments": "2026-07-02T22:54:28.979Z",
+  "pr-issue-sync": "2026-07-02T00:18:17.336Z",
+  "superpowers:executing-plans": "2026-07-19T00:18:17.580Z",
+  "ai-code-audit": "2026-07-19T06:55:45.850Z",
+  "superpowers:systematic-debugging": "2026-07-21T17:01:00.030Z",
+  "pr-monitor": "2026-07-19T17:03:10.250Z",
+  "graphify": "2026-07-08T07:48:59.806Z",
+  "pr-triage-bots": "2026-07-17T06:59:30.249Z",
+  "spec-audit-tasks": "2026-07-19T16:33:15.766Z",
+  "speckit-constitution": "2026-07-18T00:49:39.764Z",
+  "systematic-debugging": "2026-07-18T07:31:17.505Z",
+  "issue-prioritize": "2026-07-17T20:02:20.197Z",
+  "locate-missing-artifact-across-git": "2026-06-30T05:05:19.891Z",
+  "design-login": "2026-07-01T02:51:57.657Z",
+  "bot-pr-triage": "2026-07-01T03:13:49.974Z",
+  "pass-cli": "2026-07-02T05:46:54.202Z",
+  "speckit-git-commit": "2026-07-10T20:58:31.716Z",
+  "security-review-diff": "2026-07-11T07:45:53.856Z",
+  "repo-hygiene": "2026-07-01T18:03:30.888Z",
+  "git-commit": "2026-07-11T05:00:56.260Z",
+  "pr-merge-stacked": "2026-07-17T06:58:37.528Z",
+  "smoke-manage": "2026-07-17T07:12:58.011Z",
+  "git-find-artifact": "2026-07-19T00:18:34.316Z",
+  "brainstorming": "2026-07-18T23:22:29.303Z",
+  "writing-plans": "2026-07-18T23:31:52.481Z",
+  "update-config": "2026-07-03T07:49:20.454Z",
+  "deploy-reconcile": "2026-07-03T08:01:59.173Z",
+  "hookify:hookify": "2026-07-03T08:21:19.078Z",
+  "hookify:writing-rules": "2026-07-03T08:21:30.100Z",
+  "plan-manage": "2026-07-11T00:39:06.615Z",
+  "branch-clean": "2026-07-05T07:56:51.402Z",
+  "compact": "2026-07-09T05:51:46.039Z",
+  "pr-smoke": "2026-07-11T04:18:05.632Z",
+  "env-check": "2026-07-12T07:43:02.932Z",
+  "post-pr-review-monitor": "2026-07-02T07:02:29.741Z",
+  "project-commit": "2026-06-30T22:15:53.180Z",
+  "repo-clean": "2026-07-12T07:04:54.606Z",
+  "shell-pipefail-subshell-audit": "2026-06-30T17:42:40.962Z",
+  "shell-sete-silent-abort-audit": "2026-06-30T17:42:40.966Z",
+  "ci-lint-config-drift": "2026-06-29T23:33:14.762Z",
+  "claude-api": "2026-07-17T22:02:44.978Z",
+  "deploy-smoke-test": "2026-06-23T06:28:54.470Z",
+  "verify-premise": "2026-06-29T01:22:04.217Z",
+  "superpowers:using-git-worktrees": "2026-06-29T01:28:05.520Z",
+  "clean-pr-from-stale-base": "2026-06-29T07:07:39.527Z",
+  "n8n-workflows": "2026-06-22T05:09:44.407Z",
+  "mcp-audit": "2026-07-19T17:09:19.232Z",
+  "ci-harden-workflow": "2026-07-05T06:42:34.827Z",
+  "speckit-audit-tasks": "2026-07-09T07:42:27.979Z"
+ },
+ "sessions_per_skill": {
+  "goal": 42,
+  "issue-dev-auto": 9,
+  "project-verify": 7,
+  "clear": 45,
+  "code-review": 78,
+  "superpowers:brainstorming": 21,
+  "spec-review": 29,
+  "superpowers:writing-plans": 13,
+  "superpowers:subagent-driven-development": 12,
+  "superpowers:finishing-a-development-branch": 8,
+  "pr-review": 23,
+  "issue-prep-auto": 41,
+  "commit-commands:commit-push-pr": 11,
+  "superpowers:dispatching-parallel-agents": 1,
+  "pr-address-comments": 19,
+  "model": 30,
+  "effort": 45,
+  "init": 2,
+  "loop": 13,
+  "speckit-specify": 14,
+  "speckit-git-feature": 8,
+  "speckit-clarify": 14,
+  "speckit-plan": 13,
+  "speckit-tasks": 14,
+  "speckit-analyze": 14,
+  "speckit-implement": 14,
+  "speckit-implement-review": 10,
+  "auto-dev-issue-prep": 3,
+  "auto-issue-dev": 2,
+  "superpowers:test-driven-development": 10,
+  "verify": 2,
+  "address-pr-comments": 4,
+  "pr-issue-sync": 1,
+  "superpowers:executing-plans": 3,
+  "ai-code-audit": 4,
+  "superpowers:systematic-debugging": 11,
+  "pr-monitor": 19,
+  "graphify": 4,
+  "pr-triage-bots": 2,
+  "spec-audit-tasks": 7,
+  "speckit-constitution": 2,
+  "systematic-debugging": 1,
+  "issue-prioritize": 1,
+  "locate-missing-artifact-across-git": 1,
+  "design-login": 1,
+  "bot-pr-triage": 6,
+  "pass-cli": 2,
+  "speckit-git-commit": 2,
+  "security-review-diff": 1,
+  "repo-hygiene": 3,
+  "git-commit": 5,
+  "pr-merge-stacked": 1,
+  "smoke-manage": 6,
+  "git-find-artifact": 2,
+  "brainstorming": 1,
+  "writing-plans": 1,
+  "update-config": 1,
+  "deploy-reconcile": 1,
+  "hookify:hookify": 1,
+  "hookify:writing-rules": 1,
+  "plan-manage": 1,
+  "branch-clean": 1,
+  "compact": 3,
+  "pr-smoke": 3,
+  "env-check": 1,
+  "post-pr-review-monitor": 1,
+  "project-commit": 1,
+  "repo-clean": 1,
+  "shell-pipefail-subshell-audit": 1,
+  "shell-sete-silent-abort-audit": 1,
+  "ci-lint-config-drift": 1,
+  "claude-api": 1,
+  "deploy-smoke-test": 1,
+  "verify-premise": 1,
+  "superpowers:using-git-worktrees": 1,
+  "clean-pr-from-stale-base": 1,
+  "n8n-workflows": 1,
+  "mcp-audit": 2,
+  "ci-harden-workflow": 3,
+  "speckit-audit-tasks": 1
+ },
+ "scan": {
+  "root": "/Users/chrismandich/.claude/projects",
+  "since": null,
+  "until": "2026-07-25T20:00:00Z",
+  "records_seen": 55414,
+  "records_in_range": 55414,
+  "skipped_no_timestamp": 32
+ }
+}

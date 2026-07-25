@@ -61,6 +61,25 @@ from agents.runners import BaseAgent, CLIAgent
 from agents.synthesis import SynthesisEngine
 from agents.validation import ValidationEngine
 
+# Tests below that assert on the actual `manifest parallel-agent --help`/error
+# surface need the project venv built (`uv sync --project configs/claude`, as
+# CI's Test job and _stub_home_env() above both do). Without it, the
+# parallel_agent.py shim can't resolve a manifest binary and instead prints a
+# generic deprecation notice -- a real, different code path, not a failure of
+# the thing being tested. Skip cleanly rather than asserting against that
+# notice's text.
+_MANIFEST_RUNTIME_AVAILABLE = (
+    REPO_ROOT / "configs" / "claude" / ".venv" / "bin" / "manifest"
+).exists()
+_REQUIRES_MANIFEST_RUNTIME = pytest.mark.skipif(
+    not _MANIFEST_RUNTIME_AVAILABLE,
+    reason=(
+        "requires the manifest home runtime built at "
+        "configs/claude/.venv/bin/manifest -- run "
+        "`uv sync --project configs/claude` (see .github/workflows/ci.yml)"
+    ),
+)
+
 # ---------------------------------------------------------------------------
 # Config tests
 # ---------------------------------------------------------------------------
@@ -743,6 +762,7 @@ class TestFileExistenceValidation:
         result = self._run("--review", str(tmp_path / "missing.py"))
         assert result.returncode == 1
 
+    @_REQUIRES_MANIFEST_RUNTIME
     def test_review_nonexistent_file_prints_error(self, tmp_path):
         """--review with a missing file must print an error message to stderr."""
         result = self._run("--review", str(tmp_path / "missing.py"))
@@ -756,6 +776,7 @@ class TestFileExistenceValidation:
         result = self._run("--analyze", str(tmp_path / "missing.py"))
         assert result.returncode == 1
 
+    @_REQUIRES_MANIFEST_RUNTIME
     def test_analyze_nonexistent_file_prints_error(self, tmp_path):
         """--analyze with a missing file must print an error message to stderr."""
         result = self._run("--analyze", str(tmp_path / "missing.py"))
@@ -769,6 +790,7 @@ class TestFileExistenceValidation:
         result = self._run("--improve", str(tmp_path / "missing.py"))
         assert result.returncode == 1
 
+    @_REQUIRES_MANIFEST_RUNTIME
     def test_improve_nonexistent_file_prints_error(self, tmp_path):
         """--improve with a missing file must print an error message to stderr."""
         result = self._run("--improve", str(tmp_path / "missing.py"))
@@ -947,6 +969,7 @@ class TestCLIFlagsAntigravity:
 
     SCRIPT = str(REPO_ROOT / "configs" / "claude" / "scripts" / "parallel_agent.py")
 
+    @_REQUIRES_MANIFEST_RUNTIME
     def test_help_lists_antigravity_flags(self):
         result = subprocess.run(
             [sys.executable, self.SCRIPT, "--help"],

@@ -71,12 +71,33 @@ try:
     data = json.load(open(path)) or {}
 except Exception:
     data = {}
+import os
 hooks = data.setdefault("hooks", {})
 arr = hooks.setdefault("PostToolUse", [])
+
+
+def _same_hook(existing, wanted):
+    """Match on the script NAME, not the full command string.
+
+    HOOK_SCRIPT is derived from wherever this installer was invoked, so the
+    same hook registers under different absolute paths when run from a repo
+    clone versus the deployed ~/.claude/scripts copy. Comparing full strings
+    made each path look like a distinct hook, so both survived and the hook
+    fired twice on every matching tool call. Identity is the basename.
+    """
+    if not existing:
+        return False
+    return os.path.basename(existing.split()[0]) == os.path.basename(
+        wanted.split()[0]
+    )
+
+
 # Filter at the HOOK level so sibling hooks co-located under the same matcher
 # entry are preserved; drop an entry only once its hooks list becomes empty.
 for e in arr:
-    e["hooks"] = [h for h in e.get("hooks", []) if h.get("command") != cmd]
+    e["hooks"] = [
+        h for h in e.get("hooks", []) if not _same_hook(h.get("command", ""), cmd)
+    ]
 arr = [e for e in arr if e.get("hooks")]
 if action == "add":
     arr.append({"matcher": "Bash",

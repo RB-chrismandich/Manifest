@@ -126,6 +126,29 @@ deploy_home_skills() {
         return 1
     fi
 
+    # Guard: a top-level directory under $src with no SKILL.md is not a skill.
+    # A skill rename can leave the old-name directory behind on disk even
+    # though `git status` shows nothing for it, because it still holds only
+    # git-ignored content (e.g. a stray scripts/__pycache__/*.pyc) — ignored
+    # files never show as untracked, so nothing flags it there. rsync/cp copy
+    # the FILESYSTEM, not the git tree, so such a directory would otherwise
+    # deploy as a phantom skill and break repo<->home parity (observed:
+    # `.skillshare/skills/<old-name>` deployed as an extra 108th "skill").
+    # Warn loudly rather than silently skip — a silent skip would just as
+    # easily hide a genuinely malformed real skill — and exclude it from the
+    # deploy so this class of drift can't recur.
+    local -a bogus_names=()
+    local d name
+    for d in "$src"/*/; do
+        [[ -d "$d" ]] || continue
+        name="$(basename "$d")"
+        [[ "$name" == .* ]] && continue
+        if [[ ! -f "${d}SKILL.md" ]]; then
+            bogus_names+=("$name")
+            print_warning "Not deploying $src/$name — no SKILL.md found (not a skill; check for rename debris)"
+        fi
+    done
+
     # If dest is a stray symlink (e.g. from an older install that copied the
     # compat symlink), drop it so we deploy into a real directory, not its target.
     [[ -L "$dest" ]] && rm -f "$dest"
@@ -141,6 +164,13 @@ deploy_home_skills() {
         cp -R "$src"/. "$dest"/
     fi
 
+    # Remove any non-skill directories the copy above just brought over (see
+    # the SKILL.md guard above) so they never land in dest.
+    local bn
+    for bn in ${bogus_names[@]+"${bogus_names[@]}"}; do
+        rm -rf "${dest:?}/${bn}"
+    done
+
     # Prune previously-deployed skills now absent from the source.
     # Safety bounds: (a) an empty source (failed checkout / wrong path that
     # still exists) must never mass-prune dest — require >=1 source skill;
@@ -149,6 +179,7 @@ deploy_home_skills() {
     local manifest="$dest/.deployed-skills"
     local src_count
     src_count=$(find "$src" -mindepth 1 -maxdepth 1 -type d ! -name '.*' | wc -l | tr -d ' ')
+    src_count=$((src_count - ${#bogus_names[@]}))
     if [[ -f "$manifest" && "$src_count" -gt 0 ]]; then
         local name
         while IFS= read -r name; do
@@ -162,9 +193,14 @@ deploy_home_skills() {
         done < "$manifest"
     fi
     # Atomic manifest write: a failed subshell must not truncate the previous
-    # manifest (that would silently disable future pruning).
+    # manifest (that would silently disable future pruning). Bogus (non-skill)
+    # directories are filtered out so they can never become a manifest entry.
     if (cd "$src" && find . -mindepth 1 -maxdepth 1 -type d ! -name '.*' |
         LC_ALL=C sort | sed 's|^\./||') > "$manifest.tmp"; then
+        if [[ "${#bogus_names[@]}" -gt 0 ]]; then
+            grep -vFxf <(printf '%s\n' "${bogus_names[@]}") "$manifest.tmp" > "$manifest.tmp2" || true # array-safe (length-guarded above)
+            mv "$manifest.tmp2" "$manifest.tmp"
+        fi
         mv "$manifest.tmp" "$manifest"
     else
         rm -f "$manifest.tmp"

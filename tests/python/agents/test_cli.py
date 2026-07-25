@@ -10,8 +10,29 @@ import sys
 import tempfile
 from pathlib import Path
 
+import pytest
+
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 ENTRY_POINT = str(REPO_ROOT / "configs" / "claude" / "scripts" / "parallel_agent.py")
+
+# Tests below that assert on the actual `manifest parallel-agent --help`/error
+# surface need the project venv built (`uv sync --project configs/claude`, as
+# CI's Test job and _stub_home_runtime() below both do). Without it, the
+# parallel_agent.py shim can't resolve a manifest binary and instead prints a
+# generic deprecation notice -- a real, different code path, not a failure of
+# the thing being tested. Skip cleanly rather than asserting against that
+# notice's text.
+_MANIFEST_RUNTIME_AVAILABLE = (
+    REPO_ROOT / "configs" / "claude" / ".venv" / "bin" / "manifest"
+).exists()
+_REQUIRES_MANIFEST_RUNTIME = pytest.mark.skipif(
+    not _MANIFEST_RUNTIME_AVAILABLE,
+    reason=(
+        "requires the manifest home runtime built at "
+        "configs/claude/.venv/bin/manifest -- run "
+        "`uv sync --project configs/claude` (see .github/workflows/ci.yml)"
+    ),
+)
 
 _STUB_HOME: str | None = None
 
@@ -56,26 +77,32 @@ class TestCLIArgParsing:
         result = _run("--help")
         assert result.returncode == 0
 
+    @_REQUIRES_MANIFEST_RUNTIME
     def test_help_contains_json_flag(self):
         result = _run("--help")
         assert "--json" in result.stdout
 
+    @_REQUIRES_MANIFEST_RUNTIME
     def test_help_contains_validate_flag(self):
         result = _run("--help")
         assert "--validate" in result.stdout
 
+    @_REQUIRES_MANIFEST_RUNTIME
     def test_help_contains_review_flag(self):
         result = _run("--help")
         assert "--review" in result.stdout
 
+    @_REQUIRES_MANIFEST_RUNTIME
     def test_help_contains_analyze_flag(self):
         result = _run("--help")
         assert "--analyze" in result.stdout
 
+    @_REQUIRES_MANIFEST_RUNTIME
     def test_help_contains_timeout_flag(self):
         result = _run("--help")
         assert "--timeout" in result.stdout
 
+    @_REQUIRES_MANIFEST_RUNTIME
     def test_help_contains_claude_only_flag(self):
         result = _run("--help")
         assert "--claude-only" in result.stdout
@@ -88,6 +115,7 @@ class TestCLIArgParsing:
         result = _run("--review", "/nonexistent/path/file.py")
         assert result.returncode != 0
 
+    @_REQUIRES_MANIFEST_RUNTIME
     def test_review_nonexistent_file_prints_error(self):
         result = _run("--review", "/nonexistent/path/file.py")
         assert "error" in result.stderr.lower() or "not found" in result.stderr.lower()

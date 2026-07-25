@@ -31,6 +31,33 @@ is exceeded (e.g., `total_doc_lines >= 500`, `unique_imports >= 5`). Below that,
 This default keeps token-conserve intact; the structured value lives in each skill's
 `subagent_trigger` in `command_config.yml` (authoritative), and the skill body's prose must agree.
 
+## Model selection (measured — the one cache-safe cost lever)
+
+**Default a dispatched sub-agent to Sonnet unless the task needs more.** Pass an
+explicit `model` when dispatching; do not inherit the parent's model by accident.
+
+Measured 2026-07-25 over 47,185 real API requests
+(`docs/baselines/2026-07-25-credit-baseline.md`): 63% of sub-agent traffic
+already runs Sonnet, but the premium remainder costs **$845** more than it needs
+to — Opus sub-agents $503.74→$302.24, Fable sub-agents $919.32→$275.80. Fable is
+the bigger half: it bills $10/$50 per MTok, 2x Opus.
+
+Sub-agents are the **only** place a model switch is cache-safe, because each
+carries its own context and its own cache. That is what makes this lever work
+and the obvious alternative fail:
+
+> **Do not route individual turns within a conversation to a cheaper model.**
+> Prompt caches are model-scoped. Main-loop turns average ~150K cache-read
+> tokens, so switching model mid-conversation invalidates the prefix and forces
+> the next premium turn to pay a full cache **write**. Measured on the most
+> attractive candidate class (mechanical tool calls, median output 150 tokens):
+> **$129 saved against a $1,628 penalty — net −$1,499.** This is the intuitive
+> optimisation and it loses money; it is rejected on evidence, not preference.
+
+Escalate a sub-agent above Sonnet only for genuinely hard reasoning. Mechanical
+fan-out (file reads, greps, per-item transforms) is Haiku-eligible and roughly
+halves the Sonnet figure again.
+
 ## No recursion
 
 A dispatched sub-agent performs its assigned task **directly** and does **not** itself fan out

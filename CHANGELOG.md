@@ -10,6 +10,54 @@ All notable changes are documented here in reverse chronological order.
 
 ## [Unreleased]
 
+### Credit Measurement Baseline
+
+- **Three measurement CLIs** in `configs/claude/scripts/` — `token_cost_report.py`,
+  `skill_usage_report.py`, `opus_attribution_report.py`. All take `--since`/`--until`
+  so a committed snapshot is reproducible against an append-only transcript corpus.
+- **Corrected a 2.24x measurement error.** Prior credit figures counted JSONL *lines*,
+  not API requests: Claude Code writes each content block of one response as its own
+  `assistant` line and every sibling repeats the same `usage` object. Deduping by
+  `requestId` (first value for input/cache fields, **max** for the cumulative
+  `output_tokens`) puts the real total at 47,185 requests, not 105,728 — and Opus at
+  16,873, not 41,527.
+- **Dated baseline** in `docs/baselines/` with the Opus task-class attribution
+  (98.04% classified) and a costed routing proposal. Headline findings: cache reads
+  are 53% of Opus spend; per-turn model downgrades are net-**negative** (-$1,499)
+  because caches are model-scoped; sub-agents are the only cache-neutral lever
+  ($845, 13.8% of spend); Fable 5 is 39.9% of total spend on 18% of requests.
+- **Sub-agent model-selection rule** documented in
+  `configs/claude/references/sub-agent-dispatch.md`, including why the intuitive
+  per-turn downgrade is rejected on evidence.
+
+### Fixed
+
+- **Duplicate PostToolUse hook.** `install_issue_hooks.sh` deduped by exact command
+  string, so installing once from a repo clone and once from the deployed
+  `~/.claude/scripts` copy registered the same hook twice and it fired twice on every
+  matching tool call. Matching is now by script name.
+- **Stale-clone drift was undetectable.** `deploy_stamp_check.sh` compared the clone
+  against the deploy stamp, so a clone many commits *behind* its remote (stamp
+  matching HEAD exactly) never warned. It now also checks the already-fetched
+  remote-tracking ref — no `git fetch`, preserving the fail-open SessionStart design.
+- **Git-invisible directories could deploy as skills.** A directory under
+  `.skillshare/skills/` containing only ignored files (e.g. `__pycache__` left by a
+  rename) is reported by git as ignored, never untracked, but `deploy_home_skills`
+  rsyncs the filesystem. Directories without a `SKILL.md` are now warned about and
+  excluded.
+- **Five CLI defects** in the new measurement scripts, all found by probing and now
+  covered by regression tests: an unparseable `--until` was silently ignored (leaving
+  the scan unbounded at exit 0), a nonexistent `--root` returned a clean zero at exit 0,
+  an empty result set raised a `ZeroDivisionError` traceback, an unwritable `--json`
+  path raised a raw `FileNotFoundError`, and unbounded scan counters made committed
+  snapshots drift on every regeneration.
+
+### Added
+
+- Exit-code and empty-result conventions for new Python CLI entry points in
+  `docs/CODING_STANDARDS.md`; `--help` coverage for Python entry points in
+  `tests/bats/help_coverage.bats`.
+
 ### Agent Frameworks Expansion
 
 - **New Role-Agents** — Added 4 new high-precision role-agents with detailed operational
@@ -105,7 +153,7 @@ All notable changes are documented here in reverse chronological order.
   knowledge graph (`graph.html`, `GRAPH_REPORT.md`, `graph.json`); the
   `graphify` CLI is installed by bootstrap behind
   `--enable-graphify`/`--disable-graphify` (default: enabled).
-- Managed _tool_, not an orchestration agent — never part of
+- Managed *tool*, not an orchestration agent — never part of
   `parallel_agent.py` consensus.
 
 ### specs/363 — Smoke-Test Orchestrator (shipped 2026-06-28, PR #431)
