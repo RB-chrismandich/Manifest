@@ -78,6 +78,36 @@ EOF
 
 # --- H5: remove cleans up both surfaces -------------------------------------
 
+# Regression: hook commands are commonly interpreter-prefixed
+# ("/usr/bin/env bash <path>", "python3 <path> --handler ...") — this repo's
+# own PreToolUse entry has that shape. Keying identity on the first token only
+# sees "env"/"python3", so such a registration survived --enable (duplicate)
+# and --remove (orphan left behind).
+@test "enable/remove match an interpreter-prefixed registration of the same hook" {
+    cat > "$ISSUE_HOOKS_SETTINGS" <<'EOF'
+{
+  "hooks": {
+    "PostToolUse": [
+      {"matcher": "Bash", "hooks": [{"type": "command", "command": "/usr/bin/env bash /other/clone/issue_support_hook.sh --verbose", "timeout": 30}]},
+      {"matcher": "Write", "hooks": [{"type": "command", "command": "/unrelated/other_hook.sh"}]}
+    ]
+  }
+}
+EOF
+    run bash "$INSTALL" --enable
+    [ "$status" -eq 0 ]
+    count=$(python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); print(sum(1 for e in d["hooks"]["PostToolUse"] for h in e["hooks"] if "issue_support_hook.sh" in h["command"]))' "$ISSUE_HOOKS_SETTINGS")
+    [ "$count" -eq 1 ]
+    python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); assert not any("/other/clone/" in h["command"] for e in d["hooks"]["PostToolUse"] for h in e["hooks"])' "$ISSUE_HOOKS_SETTINGS"
+
+    # ...and remove must not leave the interpreter-prefixed form orphaned.
+    run bash "$INSTALL" --remove
+    [ "$status" -eq 0 ]
+    count=$(python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); print(sum(1 for e in d["hooks"]["PostToolUse"] for h in e["hooks"] if "issue_support_hook.sh" in h["command"]))' "$ISSUE_HOOKS_SETTINGS")
+    [ "$count" -eq 0 ]
+    python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); assert any("other_hook.sh" in h["command"] for e in d["hooks"]["PostToolUse"] for h in e["hooks"])' "$ISSUE_HOOKS_SETTINGS"
+}
+
 @test "remove flips enabled false and drops the settings entry" {
     bash "$INSTALL" --enable
     run bash "$INSTALL" --remove

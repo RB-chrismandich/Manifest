@@ -77,19 +77,24 @@ arr = hooks.setdefault("PostToolUse", [])
 
 
 def _same_hook(existing, wanted):
-    """Match on the script NAME, not the full command string.
+    """Match on the script NAME appearing anywhere in the command.
 
     HOOK_SCRIPT is derived from wherever this installer was invoked, so the
     same hook registers under different absolute paths when run from a repo
     clone versus the deployed ~/.claude/scripts copy. Comparing full strings
     made each path look like a distinct hook, so both survived and the hook
     fired twice on every matching tool call. Identity is the basename.
+
+    Scan EVERY token, not just the first: hook commands are commonly
+    interpreter-prefixed ("/usr/bin/env bash <path>", "python3 <path>
+    --handler ...") — this repo's own PreToolUse entry has that shape. Keying
+    on token[0] alone sees "env"/"python3" and misses the hook entirely, so a
+    hand-written variant survives --enable (duplicate) and --remove (orphan).
     """
     if not existing:
         return False
-    return os.path.basename(existing.split()[0]) == os.path.basename(
-        wanted.split()[0]
-    )
+    target = os.path.basename(wanted.split()[0])
+    return any(os.path.basename(tok) == target for tok in existing.split())
 
 
 # Filter at the HOOK level so sibling hooks co-located under the same matcher
