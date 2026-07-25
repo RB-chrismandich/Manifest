@@ -48,6 +48,16 @@ label_sync.sh learning_capture.sh spec_review.sh"
 # forwarded to the child process rather than handled), reconcile_core.py
 # (internal read-only engine behind deploy_reconcile.sh; add_help=False and
 # no direct CLI surface, per its own module docstring).
+#
+# The `manifest` deprecation shims (parallel_agent.py, smoke_test.py, the
+# skillclaw_*.py family) are excluded too, but MECHANICALLY rather than by
+# name — see py_gated() below. They do not own a --help: they exec the home
+# runtime, so with `manifest` installed they print ITS usage and with it
+# absent they print a deprecation notice by design. Gating them makes the
+# suite pass or fail on whether the runtime happens to be built, which is
+# exactly the local-green/CI-red split that put this comment here. Deriving
+# the exclusion from the shim import also means a future shim is exempt
+# automatically instead of silently breaking CI.
 PY_USER_FACING="cddl_invoke.py cddl_loop.py command_catalog.py
 generate_commands_doc.py generate_cursor_agents.py generate_cursor_mcp.py
 guidance_hint.py opus_attribution_report.py parallel_agent.py
@@ -55,8 +65,17 @@ skill_usage_report.py skillclaw_audit.py skillclaw_evolve.py
 skillclaw_ingest.py skillclaw_promote.py skillclaw_scrub.py smoke_test.py
 token_cost_report.py tracker_registry.py"
 
-@test "every user-facing python script: --help exits 0 and prints usage on stdout" {
+# Echo the gated subset: PY_USER_FACING minus the `manifest` deprecation shims.
+py_gated() {
+    local f
     for f in $PY_USER_FACING; do
+        grep -q "_manifest_shim" "$SCRIPTS/$f" 2> /dev/null && continue
+        printf '%s\n' "$f"
+    done
+}
+
+@test "every user-facing python script: --help exits 0 and prints usage on stdout" {
+    for f in $(py_gated); do
         run python3 "$SCRIPTS/$f" --help
         [ "$status" -eq 0 ] || { echo "$f: exit $status"; false; }
         lc_output="$(printf '%s' "$output" | tr '[:upper:]' '[:lower:]')"
@@ -69,7 +88,7 @@ token_cost_report.py tracker_registry.py"
     # 80 (vs the Bash list's 50) gives headroom for argparse's fuller,
     # auto-generated option blocks (e.g. parallel_agent.py's full flag surface
     # is a legitimate ~63 lines, not a defect).
-    for f in $PY_USER_FACING; do
+    for f in $(py_gated); do
         lines=$(python3 "$SCRIPTS/$f" --help 2>&1 | wc -l | tr -d ' ')
         [ "$lines" -le 80 ] || { echo "$f: $lines lines"; false; }
     done

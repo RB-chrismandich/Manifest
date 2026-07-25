@@ -114,6 +114,14 @@ array-expansion lint at commit and CI.
   forwarded to the child process instead of being handled), and
   `reconcile_core.py` (internal read-only engine behind `deploy_reconcile.sh`;
   `add_help=False`, no direct CLI surface, per its own module docstring).
+  The `manifest` deprecation shims (`parallel_agent.py`, `smoke_test.py`, the
+  `skillclaw_*.py` family) are excluded **mechanically**, by detecting their
+  `_manifest_shim` import rather than by a hand-maintained name list. They do
+  not own a `--help`: they exec the home runtime, so they print *its* usage
+  when `manifest` is installed and a deprecation notice when it isn't. Gating
+  them makes the suite pass or fail on whether the runtime happens to be built
+  — green locally, red in CI. Deriving the exclusion also means a future shim
+  is exempt automatically instead of silently breaking the build.
 
 **Enforcement:** `ruff check` + `ruff format` (commit + CI on changed files);
 `ruff check` advisory at edit-time; pyright is available as an opt-in manual hook
