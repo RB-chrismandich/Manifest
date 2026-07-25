@@ -19,9 +19,10 @@ def exec_manifest(subcommand: str, legacy_name: str) -> None:
         if os.path.isfile(manifest_bin):
             os.execv(manifest_bin, ["manifest", *subcommand.split(), *sys.argv[1:]])
         print(
+            f"Usage: manifest {subcommand} [options]\n\n"
             f"{legacy_name} is a deprecated shim for `manifest {subcommand}`. "
             f"Install the home runtime (./bootstrap.sh), then run "
-            f"`manifest {subcommand} --help`."
+            f"`manifest {subcommand} --help` for full usage."
         )
         raise SystemExit(0)
     if not shutil.which("uv") and not os.path.isfile(
