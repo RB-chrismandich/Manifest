@@ -33,6 +33,12 @@ cd Manifest
 ~/.claude/scripts/parallel_agent.py --json "Test connection"
 ```
 
+> **`./bootstrap.sh` is not side-effect-free on the working tree.** Every run
+> invokes skillshare, which writes its project-scoped Copilot target
+> `.github/skills/` into the repo. That path is gitignored and is skillshare's
+> to own, so the write is expected — but do not run bootstrap expecting a clean
+> `git status`, and do not commit `.github/skills/`.
+
 ⏱️ **Time to setup**: ~5 minutes | 💻 **Platforms**: macOS (Intel/Apple Silicon), Linux (Debian, RHEL, Arch, openSUSE)
 🐍 **Python**: 3.9+ (Phase 3 features require Python; bootstrap auto-detects and prefers 3.12+)
 

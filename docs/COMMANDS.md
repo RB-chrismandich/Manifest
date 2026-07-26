@@ -1011,7 +1011,7 @@ Expected output:
 <!-- BEGIN GENERATED COMMANDS (command_catalog.py) — do not edit by hand -->
 <!-- Regenerate: configs/claude/scripts/generate_commands_doc.py -->
 
-_106 commands, generated from `.skillshare/skills/*/SKILL.md`._
+_107 commands, generated from `.skillshare/skills/*/SKILL.md`._
 
 ### Git & PRs
 
@@ -1162,6 +1162,7 @@ _106 commands, generated from `.skillshare/skills/*/SKILL.md`._
 | `/spec-implement-loop` | Critic-gated implementation (CDDL) via sub-agents — developer writes code; developer reviewer plus QA and architecture critics review until each approves with zero findings. Never commits or pushes. | Critic-gated implementation (CDDL) via sub-agents — developer writes code; developer reviewer plus QA and architecture critics review until each approves with zero findings. | available |
 | `/stitch-loop` | Teaches agents to iteratively build websites using Stitch with an autonomous baton-passing loop pattern | Teaches agents to iteratively build websites using Stitch with an autonomous baton-passing loop pattern | available |
 | `/taste-design` | Generates agent-friendly DESIGN.md files for Google Stitch enforcing premium, anti-generic UI standards — strict typography, calibrated color, asymmetric layouts, micro-motion. | Generates agent-friendly DESIGN. | available |
+| `/test-isolate-ambient` | Use before verifying Manifest deploy, hook, or installer behaviour — a pass against your real ~/.claude, real settings.json, or the checked-out repo proves nothing, because the ambient state IS the fixture. Ready-made isolation handles (TARGET_DIR, ISSUE_HOOKS_SETTINGS, throwaway clone) plus the rule for making the varying thing vary. | Use before verifying Manifest deploy, hook, or installer behaviour — a pass against your real ~/. | available |
 | `/upload-to-stitch` | Upload local assets (images, mockups, HTML, design markdown) to a Stitch project. ALWAYS use when visual assets or design docs need uploading, especially when direct MCP calls fail/truncate on base64 token limits. | use when visual assets or design docs need uploading, especially when direct MCP calls fail/truncate on base64 token limits. | available |
 
 <!-- END GENERATED COMMANDS -->

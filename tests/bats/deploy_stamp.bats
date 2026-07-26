@@ -186,6 +186,128 @@ EOF
     assert_output --partial "Usage"
 }
 
+# --- behind-upstream detection (defect: stale-clone drift was undetectable
+# when the deploy stamp matches the clone exactly, because the clone itself
+# never advanced past the last deploy — it just never pulled from origin) ---
+
+@test "checker: nudges when clean clone matches its stamp but is behind an already-fetched origin ref" {
+    setup_checker
+    write_fake_stamp false   # stamp matches CLONE's current HEAD exactly
+    local old_sha
+    old_sha="$(git -C "$CLONE" rev-parse HEAD)"
+
+    # Simulate a fetch that already happened elsewhere: origin/<branch> is
+    # 2 commits ahead. The clone's own HEAD never moved (reset back below),
+    # reproducing the observed bug: stamp == clone HEAD, but home is stale.
+    git -C "$CLONE" commit --allow-empty -qm "upstream advance 1"
+    git -C "$CLONE" commit --allow-empty -qm "upstream advance 2"
+    git -C "$CLONE" update-ref "refs/remotes/origin/$DEF_BRANCH" "$(git -C "$CLONE" rev-parse HEAD)"
+    git -C "$CLONE" reset -q --hard "$old_sha"
+
+    run env HOME="$FHOME" MANIFEST_STATE_ROOT="$FHOME/.manifest" bash "$CHECK"
+    assert_success
+    assert_output --partial "behind origin/$DEF_BRANCH"
+    assert_output --partial "2 commit"
+
+    # second run with the same upstream ref: dedupes to silent
+    run env HOME="$FHOME" MANIFEST_STATE_ROOT="$FHOME/.manifest" bash "$CHECK"
+    assert_success
+    assert_output ""
+}
+
+@test "checker: re-nudges once the fetched origin ref advances further" {
+    setup_checker
+    write_fake_stamp false
+    local old_sha
+    old_sha="$(git -C "$CLONE" rev-parse HEAD)"
+    git -C "$CLONE" commit --allow-empty -qm "upstream advance 1"
+    git -C "$CLONE" update-ref "refs/remotes/origin/$DEF_BRANCH" "$(git -C "$CLONE" rev-parse HEAD)"
+    git -C "$CLONE" reset -q --hard "$old_sha"
+    env HOME="$FHOME" MANIFEST_STATE_ROOT="$FHOME/.manifest" bash "$CHECK" > /dev/null
+
+    # origin advances again (another fetch happened)
+    git -C "$CLONE" checkout -q "$DEF_BRANCH" 2> /dev/null || true
+    local newer
+    newer="$(git -C "$CLONE" commit-tree -p "$(git -C "$CLONE" rev-parse "refs/remotes/origin/$DEF_BRANCH")" -m more "$(git -C "$CLONE" rev-parse HEAD^{tree})")"
+    git -C "$CLONE" update-ref "refs/remotes/origin/$DEF_BRANCH" "$newer"
+
+    run env HOME="$FHOME" MANIFEST_STATE_ROOT="$FHOME/.manifest" bash "$CHECK"
+    assert_success
+    assert_output --partial "behind origin/$DEF_BRANCH"
+}
+
+@test "checker: silent when clone is up to date with the fetched origin ref" {
+    setup_checker
+    write_fake_stamp false
+    # origin/<branch> points at the exact same commit as HEAD -> 0 behind.
+    git -C "$CLONE" update-ref "refs/remotes/origin/$DEF_BRANCH" "$(git -C "$CLONE" rev-parse HEAD)"
+
+    run env HOME="$FHOME" MANIFEST_STATE_ROOT="$FHOME/.manifest" bash "$CHECK"
+    assert_success
+    assert_output ""
+}
+
+@test "checker: silent (never fetched) when no origin remote-tracking ref exists at all" {
+    setup_checker
+    write_fake_stamp false
+    git -C "$CLONE" update-ref -d "refs/remotes/origin/$DEF_BRANCH" 2> /dev/null || true
+
+    run env HOME="$FHOME" MANIFEST_STATE_ROOT="$FHOME/.manifest" bash "$CHECK"
+    assert_success
+    assert_output ""
+}
+
+@test "checker: nudges when the default branch name contains a slash" {
+    # Regression: the resolver used `${def_branch##*/}`, which keeps only the
+    # last path component — release/v2 became v2, refs/remotes/origin/v2 does
+    # not exist, and the behind-check silently no-opped. Every other checker
+    # test runs on a slash-free init branch, so the defect was invisible: the
+    # branch name has to VARY inside the check for it to be exercised.
+    setup_checker
+    git -C "$CLONE" checkout -q -b release/v2
+    git -C "$CLONE" symbolic-ref "refs/remotes/origin/HEAD" "refs/remotes/origin/release/v2"
+    write_fake_stamp false
+    local old_sha
+    old_sha="$(git -C "$CLONE" rev-parse HEAD)"
+
+    git -C "$CLONE" commit --allow-empty -qm "upstream advance"
+    git -C "$CLONE" update-ref "refs/remotes/origin/release/v2" "$(git -C "$CLONE" rev-parse HEAD)"
+    git -C "$CLONE" reset -q --hard "$old_sha"
+
+    run env HOME="$FHOME" MANIFEST_STATE_ROOT="$FHOME/.manifest" bash "$CHECK"
+    assert_success
+    assert_output --partial "behind origin/release/v2"
+    assert_output --partial "1 commit"
+}
+
+@test "checker: behind-upstream check stays silent on a feature branch" {
+    setup_checker
+    write_fake_stamp false
+    local old_sha
+    old_sha="$(git -C "$CLONE" rev-parse HEAD)"
+    git -C "$CLONE" commit --allow-empty -qm "upstream advance"
+    git -C "$CLONE" update-ref "refs/remotes/origin/$DEF_BRANCH" "$(git -C "$CLONE" rev-parse HEAD)"
+    git -C "$CLONE" reset -q --hard "$old_sha"
+    git -C "$CLONE" checkout -q -b feature/y
+
+    run env HOME="$FHOME" MANIFEST_STATE_ROOT="$FHOME/.manifest" bash "$CHECK"
+    assert_success
+    assert_output ""
+}
+
+@test "checker: exits 0 even when git is unavailable on PATH" {
+    setup_checker
+    write_fake_stamp false
+    local nobin="$TMP/nobin"
+    mkdir -p "$nobin"
+    local t p
+    for t in bash cat mkdir; do
+        p="$(command -v "$t")" && ln -s "$p" "$nobin/$t"
+    done
+    run env HOME="$FHOME" MANIFEST_STATE_ROOT="$FHOME/.manifest" PATH="$nobin" bash "$CHECK"
+    assert_success
+}
+
 @test "wiring: repo settings.local.json registers the SessionStart hook" {
     run python3 -c "
 import json

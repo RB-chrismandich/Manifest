@@ -139,6 +139,40 @@ teardown() {
     assert_output --partial "not found"
 }
 
+@test "deploy_home_skills warns on and excludes a top-level dir with no SKILL.md (rename debris)" {
+    # Regression: a skill rename can leave the old-name directory behind on
+    # disk (it still holds only git-ignored content, e.g. scripts/__pycache__)
+    # even though git status shows nothing for it. deploy_home_skills copies
+    # the filesystem, not the git tree, so this must not deploy as a phantom
+    # skill.
+    mkdir -p "$SANDBOX/src/real-skill" "$SANDBOX/src/orphan-skill/scripts/__pycache__"
+    echo body > "$SANDBOX/src/real-skill/SKILL.md"
+    echo stale > "$SANDBOX/src/orphan-skill/scripts/__pycache__/stale.pyc"
+
+    run deploy_home_skills "$SANDBOX/src" "$SANDBOX/dest"
+    assert_success
+    assert_output --partial "Not deploying"
+    assert_output --partial "orphan-skill"
+    assert_output --partial "no SKILL.md"
+
+    [ -d "$SANDBOX/dest/real-skill" ]        # valid skill still deployed
+    [ ! -e "$SANDBOX/dest/orphan-skill" ]    # non-skill dir excluded, not deployed
+    run grep -qx "orphan-skill" "$SANDBOX/dest/.deployed-skills"
+    assert_failure                          # never enters the manifest
+}
+
+@test "deploy_home_skills non-skill dir guard stays quiet on a normal, fully-populated source" {
+    mkdir -p "$SANDBOX/src/alpha" "$SANDBOX/src/beta"
+    echo a > "$SANDBOX/src/alpha/SKILL.md"
+    echo b > "$SANDBOX/src/beta/SKILL.md"
+
+    run deploy_home_skills "$SANDBOX/src" "$SANDBOX/dest"
+    assert_success
+    refute_output --partial "Not deploying"
+    [ -d "$SANDBOX/dest/alpha" ]
+    [ -d "$SANDBOX/dest/beta" ]
+}
+
 # ── gate_graphify_skill (FR-012 disable cleanup / FR-010 collision reconcile) ──
 
 @test "gate_graphify_skill removes the deployed skill when disabled" {

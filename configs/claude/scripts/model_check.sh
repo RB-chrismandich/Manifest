@@ -12,6 +12,27 @@
 #        MODEL_CHECK_CLAUDE_BIN / MODEL_CHECK_GEMINI_BIN override probe binaries
 set -uo pipefail
 
+# --help before any config read or provider probe: it must succeed in a clean
+# environment (empty HOME, no CLIs, no credentials), so it cannot depend on
+# anything the checks below look up.
+if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
+    cat << 'EOF'
+Usage: model_check.sh
+
+Warn-only staleness check of model_tiers pins against live provider listings.
+Always exits 0; every failure degrades to a SKIPPED report line.
+
+Report lines: OK / STALE / SKIPPED / UNSUPPORTED
+
+Environment:
+  MODEL_CHECK_CONFIG          config path (default ~/.claude/config/parallel_agent.yml)
+  MODEL_CHECK_PROBE=1         live one-shot CLI probes for OAuth-only machines
+  MODEL_CHECK_CLAUDE_BIN      override the claude probe binary
+  MODEL_CHECK_GEMINI_BIN      override the gemini probe binary
+EOF
+    exit 0
+fi
+
 MODEL_CHECK_CONFIG="${MODEL_CHECK_CONFIG:-$HOME/.claude/config/parallel_agent.yml}"
 
 # list_tiers PROVIDER -> "tier<TAB>model" lines from model_tiers.<provider>

@@ -1,0 +1,624 @@
+{
+ "scan": {
+  "root": "/Users/chrismandich/.claude/projects",
+  "since": null,
+  "until": "2026-07-25T23:58:27Z",
+  "models_filter": "all",
+  "assistant_lines_with_usage": 108204,
+  "api_requests": 48347,
+  "overcount_factor": 2.2381,
+  "skipped_no_timestamp": 0
+ },
+ "models": {
+  "claude-sonnet-5": 20169,
+  "claude-opus-4-8": 14150,
+  "claude-fable-5": 8452,
+  "claude-opus-4-7": 2763,
+  "claude-opus-5": 871,
+  "claude-sonnet-4-6": 792,
+  "claude-haiku-4-5-20251001": 774,
+  "<synthetic>": 376
+ },
+ "selected_totals": {
+  "input": 21737441,
+  "output": 42134590,
+  "cache_read": 6354747490,
+  "cache_creation": 245989213,
+  "requests": 48347
+ },
+ "classified_pct": 98.64,
+ "classes": {
+  "reasoning": {
+   "requests": 12566,
+   "pct_requests": 25.99,
+   "input": 3869152,
+   "output": 17582890,
+   "cache_read": 2749182493,
+   "cache_creation": 89785707,
+   "weighted_input_units": 391019535.1,
+   "cost_usd": 2822.86,
+   "median_output": 828.0,
+   "p90_output": 3076
+  },
+  "tool_mechanical": {
+   "requests": 2788,
+   "pct_requests": 5.77,
+   "input": 41783,
+   "output": 687502,
+   "cache_read": 576002596,
+   "cache_creation": 6104443,
+   "weighted_input_units": 65272596.4,
+   "cost_usd": 482.06,
+   "median_output": 158.0,
+   "p90_output": 447
+  },
+  "other": {
+   "requests": 657,
+   "pct_requests": 1.36,
+   "input": 35251,
+   "output": 318450,
+   "cache_read": 157481663,
+   "cache_creation": 4950766,
+   "weighted_input_units": 21971874.8,
+   "cost_usd": 138.7,
+   "median_output": 120,
+   "p90_output": 1485
+  },
+  "text_response": {
+   "requests": 781,
+   "pct_requests": 1.62,
+   "input": 11384,
+   "output": 210359,
+   "cache_read": 173398722,
+   "cache_creation": 2002473,
+   "weighted_input_units": 19854347.4,
+   "cost_usd": null,
+   "median_output": 97,
+   "p90_output": 814
+  },
+  "tool_edit": {
+   "requests": 1254,
+   "pct_requests": 2.59,
+   "input": 22150,
+   "output": 886184,
+   "cache_read": 342383363,
+   "cache_creation": 1793731,
+   "weighted_input_units": 36502650.1,
+   "cost_usd": 237.27,
+   "median_output": 477.0,
+   "p90_output": 1310
+  },
+  "mixed": {
+   "requests": 1167,
+   "pct_requests": 2.41,
+   "input": 45333,
+   "output": 711557,
+   "cache_read": 259879705,
+   "cache_creation": 8108092,
+   "weighted_input_units": 36168418.5,
+   "cost_usd": 190.44,
+   "median_output": 336,
+   "p90_output": 1191
+  },
+  "subagent": {
+   "requests": 29134,
+   "pct_requests": 60.26,
+   "input": 17712388,
+   "output": 21737648,
+   "cache_read": 2096418948,
+   "cache_creation": 133244001,
+   "weighted_input_units": 393909284.1,
+   "cost_usd": null,
+   "median_output": 304.0,
+   "p90_output": 1803
+  }
+ },
+ "class_model_matrix": {
+  "mixed": {
+   "claude-fable-5": {
+    "requests": 68,
+    "input": 4052,
+    "output": 80766,
+    "cache_read": 21216242,
+    "cache_creation": 116893,
+    "weighted_input_units": 2271792.5,
+    "cost_usd": 26.76
+   },
+   "claude-opus-4-7": {
+    "requests": 13,
+    "input": 13,
+    "output": 2410,
+    "cache_read": 410498,
+    "cache_creation": 25214,
+    "weighted_input_units": 72580.3,
+    "cost_usd": 0.42
+   },
+   "claude-opus-4-8": {
+    "requests": 727,
+    "input": 40528,
+    "output": 442685,
+    "cache_read": 143846541,
+    "cache_creation": 7204286,
+    "weighted_input_units": 23430539.6,
+    "cost_usd": 128.22
+   },
+   "claude-opus-5": {
+    "requests": 18,
+    "input": 33,
+    "output": 11815,
+    "cache_read": 4575636,
+    "cache_creation": 15310,
+    "weighted_input_units": 476734.1,
+    "cost_usd": 2.68
+   },
+   "claude-sonnet-4-6": {
+    "requests": 12,
+    "input": 12,
+    "output": 3118,
+    "cache_read": 440087,
+    "cache_creation": 27496,
+    "weighted_input_units": 78390.7,
+    "cost_usd": 0.28
+   },
+   "claude-sonnet-5": {
+    "requests": 329,
+    "input": 695,
+    "output": 170763,
+    "cache_read": 89390701,
+    "cache_creation": 718893,
+    "weighted_input_units": 9838381.3,
+    "cost_usd": 32.08
+   }
+  },
+  "other": {
+   "claude-fable-5": {
+    "requests": 150,
+    "input": 2302,
+    "output": 77543,
+    "cache_read": 41199347,
+    "cache_creation": 1433168,
+    "weighted_input_units": 5913696.7,
+    "cost_usd": 63.01
+   },
+   "claude-opus-4-7": {
+    "requests": 113,
+    "input": 118,
+    "output": 7986,
+    "cache_read": 5423439,
+    "cache_creation": 211196,
+    "weighted_input_units": 806456.9,
+    "cost_usd": 4.23
+   },
+   "claude-opus-4-8": {
+    "requests": 218,
+    "input": 6212,
+    "output": 98384,
+    "cache_read": 53159403,
+    "cache_creation": 2853927,
+    "weighted_input_units": 8889561.1,
+    "cost_usd": 46.91
+   },
+   "claude-opus-5": {
+    "requests": 40,
+    "input": 72,
+    "output": 20969,
+    "cache_read": 15256305,
+    "cache_creation": 72532,
+    "weighted_input_units": 1616367.5,
+    "cost_usd": 8.61
+   },
+   "claude-sonnet-4-6": {
+    "requests": 1,
+    "input": 1,
+    "output": 119,
+    "cache_read": 37076,
+    "cache_creation": 231,
+    "weighted_input_units": 3997.4,
+    "cost_usd": 0.01
+   },
+   "claude-sonnet-5": {
+    "requests": 135,
+    "input": 26546,
+    "output": 113449,
+    "cache_read": 42406093,
+    "cache_creation": 379712,
+    "weighted_input_units": 4741795.3,
+    "cost_usd": 15.93
+   }
+  },
+  "reasoning": {
+   "claude-fable-5": {
+    "requests": 2553,
+    "input": 1208724,
+    "output": 2932966,
+    "cache_read": 631387313,
+    "cache_creation": 19758536,
+    "weighted_input_units": 89045625.3,
+    "cost_usd": 1037.1
+   },
+   "claude-haiku-4-5-20251001": {
+    "requests": 6,
+    "input": 60,
+    "output": 1599,
+    "cache_read": 107482,
+    "cache_creation": 115231,
+    "weighted_input_units": 154847.0,
+    "cost_usd": 0.16
+   },
+   "claude-opus-4-7": {
+    "requests": 1788,
+    "input": 12893,
+    "output": 2014204,
+    "cache_read": 68054072,
+    "cache_creation": 15876762,
+    "weighted_input_units": 26664252.7,
+    "cost_usd": 183.68
+   },
+   "claude-opus-4-8": {
+    "requests": 6563,
+    "input": 2638094,
+    "output": 10377165,
+    "cache_read": 1689889023,
+    "cache_creation": 42592501,
+    "weighted_input_units": 224867622.6,
+    "cost_usd": 1383.77
+   },
+   "claude-opus-5": {
+    "requests": 348,
+    "input": 658,
+    "output": 720317,
+    "cache_read": 112824828,
+    "cache_creation": 1468765,
+    "weighted_input_units": 13119097.1,
+    "cost_usd": 83.6
+   },
+   "claude-sonnet-4-6": {
+    "requests": 299,
+    "input": 531,
+    "output": 348033,
+    "cache_read": 9333346,
+    "cache_creation": 2336150,
+    "weighted_input_units": 3854053.1,
+    "cost_usd": 16.78
+   },
+   "claude-sonnet-5": {
+    "requests": 1009,
+    "input": 8192,
+    "output": 1188606,
+    "cache_read": 237586429,
+    "cache_creation": 7637762,
+    "weighted_input_units": 33314037.4,
+    "cost_usd": 117.77
+   }
+  },
+  "subagent": {
+   "<synthetic>": {
+    "requests": 313,
+    "input": 0,
+    "output": 0,
+    "cache_read": 0,
+    "cache_creation": 0,
+    "weighted_input_units": 0.0,
+    "cost_usd": null
+   },
+   "claude-fable-5": {
+    "requests": 4531,
+    "input": 6367149,
+    "output": 4259084,
+    "cache_read": 250734148,
+    "cache_creation": 31356837,
+    "weighted_input_units": 70636610.0,
+    "cost_usd": 919.32
+   },
+   "claude-haiku-4-5-20251001": {
+    "requests": 768,
+    "input": 6461,
+    "output": 319685,
+    "cache_read": 29799904,
+    "cache_creation": 2144009,
+    "weighted_input_units": 5666462.7,
+    "cost_usd": 7.26
+   },
+   "claude-opus-4-8": {
+    "requests": 4534,
+    "input": 8109276,
+    "output": 4617233,
+    "cache_read": 238961480,
+    "cache_creation": 36524951,
+    "weighted_input_units": 77661612.8,
+    "cost_usd": 503.74
+   },
+   "claude-opus-5": {
+    "requests": 283,
+    "input": 566,
+    "output": 875054,
+    "cache_read": 19382404,
+    "cache_creation": 3074420,
+    "weighted_input_units": 5781831.4,
+    "cost_usd": 50.79
+   },
+   "claude-sonnet-4-6": {
+    "requests": 393,
+    "input": 27468,
+    "output": 217900,
+    "cache_read": 11031061,
+    "cache_creation": 1394797,
+    "weighted_input_units": 2874070.4,
+    "cost_usd": 11.89
+   },
+   "claude-sonnet-5": {
+    "requests": 18312,
+    "input": 3201468,
+    "output": 11448692,
+    "cache_read": 1546509951,
+    "cache_creation": 58748987,
+    "weighted_input_units": 231288696.8,
+    "cost_usd": 865.6
+   }
+  },
+  "text_response": {
+   "<synthetic>": {
+    "requests": 63,
+    "input": 0,
+    "output": 0,
+    "cache_read": 0,
+    "cache_creation": 0,
+    "weighted_input_units": 0.0,
+    "cost_usd": null
+   },
+   "claude-fable-5": {
+    "requests": 143,
+    "input": 1120,
+    "output": 40185,
+    "cache_read": 34054789,
+    "cache_creation": 310476,
+    "weighted_input_units": 3794693.9,
+    "cost_usd": 39.96
+   },
+   "claude-opus-4-8": {
+    "requests": 319,
+    "input": 9781,
+    "output": 108672,
+    "cache_read": 69394959,
+    "cache_creation": 678082,
+    "weighted_input_units": 7796879.4,
+    "cost_usd": 41.7
+   },
+   "claude-opus-5": {
+    "requests": 14,
+    "input": 26,
+    "output": 19859,
+    "cache_read": 5128344,
+    "cache_creation": 15495,
+    "weighted_input_units": 532229.2,
+    "cost_usd": 3.16
+   },
+   "claude-sonnet-4-6": {
+    "requests": 60,
+    "input": 93,
+    "output": 12180,
+    "cache_read": 2165624,
+    "cache_creation": 619224,
+    "weighted_input_units": 990685.4,
+    "cost_usd": 3.15
+   },
+   "claude-sonnet-5": {
+    "requests": 182,
+    "input": 364,
+    "output": 29463,
+    "cache_read": 62655006,
+    "cache_creation": 379196,
+    "weighted_input_units": 6739859.6,
+    "cost_usd": 20.66
+   }
+  },
+  "tool_edit": {
+   "claude-fable-5": {
+    "requests": 210,
+    "input": 4765,
+    "output": 207186,
+    "cache_read": 58718665,
+    "cache_creation": 359373,
+    "weighted_input_units": 6325847.8,
+    "cost_usd": 73.62
+   },
+   "claude-opus-4-8": {
+    "requests": 883,
+    "input": 17080,
+    "output": 569552,
+    "cache_read": 242192041,
+    "cache_creation": 1214155,
+    "weighted_input_units": 25753977.9,
+    "cost_usd": 143.01
+   },
+   "claude-opus-5": {
+    "requests": 90,
+    "input": 164,
+    "output": 63712,
+    "cache_read": 23642615,
+    "cache_creation": 143024,
+    "weighted_input_units": 2543205.5,
+    "cost_usd": 14.31
+   },
+   "claude-sonnet-4-6": {
+    "requests": 1,
+    "input": 1,
+    "output": 532,
+    "cache_read": 47042,
+    "cache_creation": 900,
+    "weighted_input_units": 5830.2,
+    "cost_usd": 0.03
+   },
+   "claude-sonnet-5": {
+    "requests": 70,
+    "input": 140,
+    "output": 45202,
+    "cache_read": 17783000,
+    "cache_creation": 76279,
+    "weighted_input_units": 1873788.8,
+    "cost_usd": 6.3
+   }
+  },
+  "tool_mechanical": {
+   "claude-fable-5": {
+    "requests": 797,
+    "input": 21297,
+    "output": 245276,
+    "cache_read": 250655796,
+    "cache_creation": 2285637,
+    "weighted_input_units": 27943922.9,
+    "cost_usd": 291.7
+   },
+   "claude-opus-4-7": {
+    "requests": 849,
+    "input": 1170,
+    "output": 124770,
+    "cache_read": 38371321,
+    "cache_creation": 1350425,
+    "weighted_input_units": 5526333.3,
+    "cost_usd": 30.75
+   },
+   "claude-opus-4-8": {
+    "requests": 906,
+    "input": 18826,
+    "output": 258667,
+    "cache_read": 223248404,
+    "cache_creation": 2186932,
+    "weighted_input_units": 25077331.4,
+    "cost_usd": 131.85
+   },
+   "claude-opus-5": {
+    "requests": 78,
+    "input": 141,
+    "output": 24082,
+    "cache_read": 30866895,
+    "cache_creation": 119715,
+    "weighted_input_units": 3236474.2,
+    "cost_usd": 16.78
+   },
+   "claude-sonnet-4-6": {
+    "requests": 26,
+    "input": 85,
+    "output": 4695,
+    "cache_read": 1028240,
+    "cache_creation": 21979,
+    "weighted_input_units": 130382.8,
+    "cost_usd": 0.46
+   },
+   "claude-sonnet-5": {
+    "requests": 132,
+    "input": 264,
+    "output": 30012,
+    "cache_read": 31831940,
+    "cache_creation": 139755,
+    "weighted_input_units": 3358151.8,
+    "cost_usd": 10.52
+   }
+  }
+ },
+ "unpriced_models": {
+  "<synthetic>": 376
+ },
+ "pricing": {
+  "cache_read_multiplier": 0.1,
+  "cache_write_multiplier": 1.25,
+  "rates_per_mtok": {
+   "claude-fable-5": [
+    10.0,
+    50.0
+   ],
+   "claude-haiku-4-5-20251001": [
+    1.0,
+    5.0
+   ],
+   "claude-opus-4-7": [
+    5.0,
+    25.0
+   ],
+   "claude-opus-4-8": [
+    5.0,
+    25.0
+   ],
+   "claude-opus-5": [
+    5.0,
+    25.0
+   ],
+   "claude-sonnet-4-6": [
+    3.0,
+    15.0
+   ],
+   "claude-sonnet-5": [
+    3.0,
+    15.0
+   ]
+  },
+  "note": "claude-sonnet-5 list $3/$15; intro $2/$10 through 2026-08-31"
+ },
+ "top_projects": {
+  "subagents": {
+   "requests": 7667,
+   "subagent": 7667
+  },
+  "-Users-chrismandich-Documents-GitHub-Manifest": {
+   "requests": 3776,
+   "reasoning": 2560,
+   "tool_mechanical": 457,
+   "other": 114,
+   "tool_edit": 307,
+   "mixed": 210,
+   "text_response": 128
+  },
+  "wf_18b44709-2f0": {
+   "requests": 3209,
+   "subagent": 3209
+  },
+  "wf_033bcb2b-0df": {
+   "requests": 3153,
+   "subagent": 3153
+  },
+  "wf_104f4b1e-0de": {
+   "requests": 2626,
+   "subagent": 2626
+  },
+  "-Users-chrismandich-Documents-GitHub-5-whys-trading": {
+   "requests": 2323,
+   "reasoning": 1565,
+   "tool_mechanical": 352,
+   "other": 106,
+   "mixed": 111,
+   "text_response": 71,
+   "tool_edit": 118
+  },
+  "-Users-chrismandich-emdash-worktrees-Manifest-emdash-review-agent-usage-dm6k5": {
+   "requests": 1142,
+   "reasoning": 690,
+   "tool_mechanical": 165,
+   "text_response": 138,
+   "other": 77,
+   "tool_edit": 11,
+   "mixed": 61
+  },
+  "-Users-chrismandich-Documents-GitHub-5-whys-trading--claude-worktrees-performance-improvement": {
+   "requests": 1138,
+   "reasoning": 652,
+   "other": 11,
+   "tool_mechanical": 215,
+   "mixed": 146,
+   "text_response": 29,
+   "tool_edit": 85
+  },
+  "wf_e20d5ccf-0c0": {
+   "requests": 1038,
+   "subagent": 1038
+  },
+  "-Users-chrismandich-Documents-GitHub-TideByte": {
+   "requests": 936,
+   "reasoning": 612,
+   "tool_mechanical": 155,
+   "other": 28,
+   "tool_edit": 48,
+   "mixed": 55,
+   "text_response": 38
+  }
+ }
+}

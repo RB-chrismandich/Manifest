@@ -72,10 +72,12 @@ yamllint configs/claude/config/*.yml
   delegate to `err()`). Exempt: usage/help text, interactive prompts, blank
   separator lines, and success/info status output. `bootstrap/lib/` keeps its
   own `print_error()` family (specs/003 R7).
-- **`--help`**: every user-facing entry point script handles `--help`
-  (usage + flags, ≤15 lines, exit 0). Exempt with rationale (specs/003 R6):
-  `version_pin_hook.sh` (save-hook wrapper, not user-invoked) and
-  `git_platform.sh` (internal detection helper used by git_ops.sh).
+- **`--help`**: every user-facing entry point (`.sh` and `.py`) handles `--help`
+  — usage + flags, ≤15 lines, exit 0, before any config/state lookup. Coverage
+  is **enumerated, not listed** by `tests/bats/help_coverage.bats`; opt out in
+  the file with `# help-coverage: exempt — <why>` under the shebang. Libraries
+  and `manifest` shims are excluded automatically. Rationale:
+  [docs/CODING_STANDARDS.md](../docs/CODING_STANDARDS.md#python-active--primary).
 
 ## Key Paths (in this repo)
 

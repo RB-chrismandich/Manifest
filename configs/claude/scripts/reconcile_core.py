@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# help-coverage: exempt — internal read-only engine behind deploy_reconcile.sh;
+# add_help=False, no direct CLI surface (see the module docstring).
 """Deploy Reconciliation Review — read-only classification core (feature 368).
 
 This is the pure-read engine behind ``deploy_reconcile.sh``: it enumerates

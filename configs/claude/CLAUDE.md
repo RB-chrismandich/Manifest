@@ -14,6 +14,7 @@ Apply at all times, in every session:
 - Read what a change depends on (types, signatures, callers); skip speculative
   whole-tree crawls and re-reads of unchanged files. Don't starve context —
   a wrong edit costs more than one extra dependency read.
+- Pin dispatched sub-agents to Sonnet by default; never inherit the session's model.
 
 `/token-conserve` re-asserts this mode if drift is noticed mid-session.
 
@@ -33,23 +34,20 @@ Apply at all times, in every session:
 
 Default MCP/tool routing — use the matching tool when the task domain matches:
 
-- **Context7 MCP** — library/API docs, code generation, setup, configuration
-- **Sentry MCP** — production/runtime errors, stack traces, release regressions
-- **Linear MCP** — issue requirements, acceptance criteria, project planning
-- **Semgrep CLI** (`semgrep scan`) — local SAST, vulnerability and secrets checks
-- **DeepWiki MCP** — unfamiliar repos, dependency internals, upstream API contracts
-- **Glean MCP** — internal team knowledge, runbooks, ADRs
-- **Google Dev Docs MCP** — Firebase/Cloud/Android/Maps documentation
-- **Atlassian MCP** — Jira issues, Confluence pages, Compass components
-- **Apify MCP** — web scraping/crawling for structured external data
-- **OpenTofu MCP** — Terraform/OpenTofu registry, provider/module docs
+**Context7** library/API docs, setup, config · **Sentry** production/runtime
+errors, stack traces, release regressions · **Linear** / **Atlassian** issue
+requirements, acceptance criteria · **Semgrep CLI** local SAST, vulnerabilities,
+secrets · **DeepWiki** unfamiliar repos, dependency internals, upstream API
+contracts · **Glean** internal runbooks, ADRs · **Google Dev Docs**
+Firebase/Cloud/Android/Maps · **Apify** web scraping · **OpenTofu** Terraform
+registry, provider/module docs.
 
 ```bash
 # Basic code review with JSON output (all 5 agents, 10 min timeout)
 manifest parallel-agent --json --timeout 600 --review /absolute/path/to/file
 
-# Full analysis with validation and model selection (15 min timeout)
-manifest parallel-agent --json --full-output --validate --timeout 900 --cursor-model advanced --claude-model opus --analyze /absolute/path/to/file
+# Full analysis (flags: references/parallel-agent.md)
+manifest parallel-agent --json --validate --timeout 900 --analyze /abs/path
 ```
 
 ## Reference Index
@@ -61,7 +59,7 @@ Read on demand (NOT auto-loaded). You MUST read the reference before related tas
 - `~/.claude/references/git-platform.md` — Read when automating PRs, branch detection, or git_ops failures.
 - `~/.claude/references/layout.md` — Read when modifying config trees or mapping file locations.
 - `~/.claude/references/sub-agent-dispatch.md` — Read before a skill dispatches sub-agents: native Task vs
-  `manifest parallel-agent`, when-to-dispatch threshold, cross-platform fallback.
+  `manifest parallel-agent`, when-to-dispatch threshold, model pinning, cross-platform fallback.
 - `~/.claude/references/spec-artifact-discovery.md` — Read before a spec-* skill reads
   planning artifacts: speckit vs superpowers layout detection + precedence.
 - `~/.claude/references/antipatterns.md` — Read before writing or refactoring code:
@@ -109,19 +107,16 @@ Typo/comment/formatting fixes, single-line changes, documentation updates, simpl
 
 ## Skills
 
-Skills live in `~/.claude/skills/` (70+ skills, deployed from the repo's
+Skills live in `~/.claude/skills/` (deployed from the repo's
 `.skillshare/skills/`). Each skill's `SKILL.md` frontmatter (`name`,
 `description`) is the **authoritative registry** — Claude Code auto-loads every
 description at session start, so no table is duplicated here. Per-skill
 parallel-agent policy (always/conditional/never) lives in
 `~/.claude/config/command_config.yml` under `tool_policies`.
 
-Common entry points: `/git-commit` (full commit pipeline), `/project-verify`
-(lint + test + scan), `/refactor-<lang>` (security/quality roadmap, parallel
-agents ALWAYS), `/docs-all` (refresh all docs), `/plan-manage` (plan
-lifecycle), `/env-check` (env sanity), `/session-checkpoint` (high-context save),
-`/version-pin <file>` (auto-fix; `--check` = warn-only save-hook mode),
-`/graphify` (map a codebase/docs into a queryable knowledge graph).
+Common entry points: `/git-commit`, `/project-verify`, `/refactor-<lang>`,
+`/docs-all`, `/plan-manage`, `/env-check`, `/session-checkpoint`,
+`/version-pin`, `/graphify`. `/help` searches the full catalog by task.
 
 **Graphify** is a managed tool, not a consensus agent: toggled via bootstrap
 (`--enable-graphify`, default on) but excluded from `manifest parallel-agent`
@@ -140,9 +135,7 @@ classes per file), giving inline feedback without blocking the workflow.
 
 ## Plan Management
 
-Plans are markdown files in `~/.claude/.plans/` named
-`YYYYMMDD-short-description.md` (copy `TEMPLATE.md`). Lifecycle:
-CREATE → ACTIVE (check off deliverables as completed) → `.archive/` when done
-or `.abandoned/` if superseded. Review existing plans before creating new ones;
-plans untouched 7+ days should be updated, completed, or abandoned. Use
-`/plan-manage` for orchestrated create/review/execute/archive/abandon.
+Plans are `~/.claude/.plans/YYYYMMDD-short-description.md` (copy `TEMPLATE.md`);
+lifecycle CREATE → ACTIVE → `.archive/` or `.abandoned/`. Review existing plans
+before creating one; 7+ days untouched means update, complete, or abandon.
+`/plan-manage` runs the whole lifecycle. Details: `~/.claude/.plans/README.md`.

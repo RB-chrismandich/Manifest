@@ -51,4 +51,7 @@ dispositions; below that, triage inline. Pick the mechanism per the shared Sub-A
 `manifest parallel-agent` / inline on other assistants. Dispatched sub-agents execute their task directly and
 do not re-dispatch.
 
+Dispatch on **Sonnet** (`subagent_model: sonnet` in `command_config.yml`) — pass the model
+explicitly; inheriting the session's model bills premium rates for fan-out work.
+
 > Merged from the former bot-pr-triage and triage-bot-pr-flood skills (specs/480, 2026-07).

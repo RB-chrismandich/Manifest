@@ -22,6 +22,7 @@ Apply at all times, in every session:
 - Read what a change depends on (types, signatures, callers); skip speculative
   whole-tree crawls and re-reads of unchanged files. Don't starve context —
   a wrong edit costs more than one extra dependency read.
+- Pin dispatched sub-agents to Sonnet by default; never inherit the session's model.
 
 ## MCP Default Policy
 
@@ -401,7 +402,7 @@ standing line instead (spec 362, FR-011 documented gap): **before a commit run
 - **CI/CD, Testing & Quality**: `/a11y-audit` · `/ai-code-audit` · `/ci-diagnose-drift` · `/ci-reproduce-failure` · `/ci-setup` · `/data-validate-live` · `/go-refactor` · `/node-refactor` · `/performance-check` · `/project-verify` · `/python-refactor` · `/shell-refactor` · `/smoke-manage` · `/terraform-refactor` · `/test-pin-bug` · `/test-vary-fixtures` · `/ux-review`
 - **Infrastructure & Config**: `/api-optimize-bulk` · `/cache-warm-oob` · `/cli-audit-help` · `/config-audit` · `/config-debug-substitution` · `/config-validate-native` · `/data-design-ingestion` · `/deploy-diagnose-drift` · `/deploy-retire-component` · `/docker-probe-internal` · `/llm-invoke-stdin` · `/pass-cli` · `/process-diagnose-stall` · `/project-scaffold` · `/shell-audit-errexit` · `/shell-audit-pipefail` · `/version-pin`
 - **Meta & Orchestration**: `/antipattern-detect` · `/code-audit` · `/env-check` · `/graphify` · `/help` · `/learning-capture` · `/memory-compress` · `/metrics-report` · `/session-checkpoint` · `/token-benchmark` · `/token-conserve`
-- **Uncategorized**: `/automation-rework-breakeven` · `/code-to-design` · `/deploy-reconcile` · `/design-md` · `/enhance-prompt` · `/extract-design-md` · `/extract-static-html` · `/false-green-check-audit` · `/generate-design` · `/lifecycle-run` · `/manage-design-system` · `/pr-smoke` · `/react-components` · `/react-native` · `/react-vite-dashboard` · `/remotion` · `/shadcn-ui` · `/spec-implement-loop` · `/stitch-loop` · `/taste-design` · `/upload-to-stitch`
+- **Uncategorized**: `/automation-rework-breakeven` · `/code-to-design` · `/deploy-reconcile` · `/design-md` · `/enhance-prompt` · `/extract-design-md` · `/extract-static-html` · `/false-green-check-audit` · `/generate-design` · `/lifecycle-run` · `/manage-design-system` · `/pr-smoke` · `/react-components` · `/react-native` · `/react-vite-dashboard` · `/remotion` · `/shadcn-ui` · `/spec-implement-loop` · `/stitch-loop` · `/taste-design` · `/test-isolate-ambient` · `/upload-to-stitch`
 
 Run `/help <query>` for descriptions and when-to-use.
 

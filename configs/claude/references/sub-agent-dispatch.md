@@ -31,6 +31,52 @@ is exceeded (e.g., `total_doc_lines >= 500`, `unique_imports >= 5`). Below that,
 This default keeps token-conserve intact; the structured value lives in each skill's
 `subagent_trigger` in `command_config.yml` (authoritative), and the skill body's prose must agree.
 
+## Model selection (measured — the one cache-safe cost lever)
+
+**Default a dispatched sub-agent to Sonnet unless the task needs more.** Pass an
+explicit `model` when dispatching; do not inherit the parent's model by accident.
+
+Measured 2026-07-25 over 47,185 real API requests
+(`docs/baselines/2026-07-25-credit-baseline.md`): 63% of sub-agent traffic
+already runs Sonnet, but the premium remainder costs **$845** more than it needs
+to — Opus sub-agents $503.74→$302.24, Fable sub-agents $919.32→$275.80. Fable is
+the bigger half: it bills $10/$50 per MTok, 2x Opus.
+
+Sub-agents are the **only** place a model switch is cache-safe, because each
+carries its own context and its own cache. That is what makes this lever work
+and the obvious alternative fail:
+
+> **Do not route individual turns within a conversation to a cheaper model.**
+> Prompt caches are model-scoped. Main-loop turns average ~150K cache-read
+> tokens, so switching model mid-conversation invalidates the prefix and forces
+> the next premium turn to pay a full cache **write**. Measured on the most
+> attractive candidate class (mechanical tool calls, median output 150 tokens):
+> **$129 saved against a $1,628 penalty — net −$1,499.** This is the intuitive
+> optimisation and it loses money; it is rejected on evidence, not preference.
+
+Escalate a sub-agent above Sonnet only for genuinely hard reasoning. Mechanical
+fan-out (file reads, greps, per-item transforms) is Haiku-eligible and roughly
+halves the Sonnet figure again.
+
+### Enforcement
+
+Every skill with `subagents: always|conditional` declares a `subagent_model` in
+`config/command_config.yml`, and its `## Sub-agent dispatch` section states the
+same model. Both are gated by `tests/bats/subagent_policy.bats` (checks T7/T8),
+enumerated from the disposition — a new dispatching skill fails until it pins a
+model, with no name list to maintain.
+
+| `subagent_model` | Use for |
+|---|---|
+| `sonnet` | **The default.** Any dispatch that is not one of the rows below. |
+| `haiku` | Purely mechanical fan-out: file reads, greps, per-item transforms. |
+| `opus` | Genuinely hard reasoning — adversarial verification of security or correctness findings. |
+| `charter` | Per-role tiers declared in the CDDL charters (`cddl-role-models.md`). |
+
+Ad-hoc dispatches outside a skill (Explore, general-purpose, one-off fan-out)
+are not reachable by that gate, so the same default is stated as a rule in the
+always-loaded orchestration guides' Token Economy section.
+
 ## No recursion
 
 A dispatched sub-agent performs its assigned task **directly** and does **not** itself fan out
@@ -68,6 +114,7 @@ tool_policies:
   <skill-name>:
     subagents: conditional
     subagent_trigger: "independent_units >= 3"   # only when conditional
+    subagent_model: sonnet                       # required when always|conditional; see the table above
     # subagent_rationale: "<one line>"           # when never (or as a SKILL.md note, below)
 ```
 
@@ -87,6 +134,9 @@ Below that, do it inline. Pick the mechanism per the shared Sub-Agent Selection 
 (`configs/claude/references/sub-agent-dispatch.md`): native Task on Claude Code/Cursor, or
 `parallel_agent.py` / `cddl_invoke.py` / inline on other assistants. Sub-agents execute
 directly and do not re-dispatch.
+
+Dispatch on **Sonnet** (`subagent_model: sonnet` in `command_config.yml`) — pass the model
+explicitly; inheriting the session's model bills premium rates for fan-out work.
 ```
 
 ### 4. Do NOT restate these rules

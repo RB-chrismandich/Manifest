@@ -211,3 +211,6 @@ When ≥3 open PRs or stale branches exist, dispatch one sub-agent per PR/branch
 consolidate; below that, sweep inline. Pick the mechanism per the shared Sub-Agent Selection Rules
 (`configs/claude/references/sub-agent-dispatch.md`): native Task sub-agents on Claude, or `manifest parallel-agent` /
 inline on other assistants. Dispatched sub-agents execute their task directly and do not re-dispatch.
+
+Dispatch on **Sonnet** (`subagent_model: sonnet` in `command_config.yml`) — pass the model
+explicitly; inheriting the session's model bills premium rates for fan-out work.

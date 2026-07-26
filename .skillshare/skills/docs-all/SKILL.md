@@ -66,3 +66,6 @@ This skill always fans out: dispatch one sub-agent per docs sub-skill (docs-impr
 docs-improve) and merge their reports. Pick the mechanism per the shared Sub-Agent Selection Rules
 (`configs/claude/references/sub-agent-dispatch.md`): native Task sub-agents on Claude, or `manifest parallel-agent` /
 inline on other assistants. Dispatched sub-agents execute their task directly and do not re-dispatch.
+
+Dispatch on **Sonnet** (`subagent_model: sonnet` in `command_config.yml`) — pass the model
+explicitly; inheriting the session's model bills premium rates for fan-out work.

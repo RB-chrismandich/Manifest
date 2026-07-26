@@ -242,6 +242,7 @@ approaches), review stale plans, or archive/abandon completed work.
 - [configs/claude/.plans/README.md](configs/claude/.plans/README.md) - Plan management quick reference
 - [configs/claude/CLAUDE.md](configs/claude/CLAUDE.md) - Orchestration guide (deployed to ~/.claude/)
 - [docs/CODING_STANDARDS.md](docs/CODING_STANDARDS.md) - Per-language coding standards and enforcement layers
+- [docs/MODEL-POLICY.md](docs/MODEL-POLICY.md) - Which model runs a session/sub-agent/turn, measured
 
 <!-- SPECKIT START -->
 ## Active Spec Kit Feature

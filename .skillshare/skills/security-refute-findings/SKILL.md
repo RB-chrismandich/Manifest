@@ -43,3 +43,7 @@ When ≥3 candidate findings need refutation, dispatch one sub-agent per finding
 aggregate verdicts; below that, refute inline. Pick the mechanism per the shared Sub-Agent Selection Rules
 (`configs/claude/references/sub-agent-dispatch.md`): native Task sub-agents on Claude, or `manifest parallel-agent` /
 inline on other assistants. Dispatched sub-agents execute their task directly and do not re-dispatch.
+
+Dispatch on **Opus** (`subagent_model: opus` in `command_config.yml`) — adversarial
+verification is the documented escalation case. Pass the model explicitly; do not inherit
+the session's.

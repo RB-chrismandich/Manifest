@@ -1,0 +1,27 @@
+{
+ "agg": {
+  "input_tokens": 21735209,
+  "output_tokens": 40161941,
+  "cache_read_input_tokens": 6115107086,
+  "cache_creation_input_tokens": 240096078,
+  "api_calls": 47185
+ },
+ "sessions": 2969,
+ "assistant_lines": 105728,
+ "api_requests": 47185,
+ "naive_agg": {
+  "input_tokens": 66731766,
+  "output_tokens": 76216680,
+  "cache_read_input_tokens": 13607821057,
+  "cache_creation_input_tokens": 636631129,
+  "api_calls": 105728
+ },
+ "scan": {
+  "root": "/Users/chrismandich/.claude/projects",
+  "since": null,
+  "until": "2026-07-25T20:00:00Z",
+  "records_in_range": 105728,
+  "skipped_no_timestamp": 0,
+  "missing_request_id": 0
+ }
+}

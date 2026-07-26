@@ -127,6 +127,10 @@ native Task sub-agents on Claude, or `manifest parallel-agent` / inline adversar
 re-reads on other assistants. Dispatched refuters judge only the evidence they
 are given and do not re-dispatch.
 
+Dispatch on **Opus** (`subagent_model: opus` in `command_config.yml`) — adversarial
+verification is the documented escalation case. Pass the model explicitly; do not inherit
+the session's.
+
 ## Acceptance harness
 
 `tests/fixtures/audit-seeded/` (Manifest repo only — the harness does not ship
