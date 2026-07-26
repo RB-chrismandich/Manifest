@@ -46,6 +46,7 @@ MECHANICAL_TOOLS = {
 }
 EDIT_TOOLS = {"Edit", "MultiEdit", "NotebookEdit", "Write"}
 
+
 # Anthropic relative price multipliers, expressed against fresh input = 1.0.
 # Sourced from model_pricing so the weighting here and the dollar figures in
 # token_cost_report.py cannot drift apart.
