@@ -175,6 +175,17 @@ jobs:
       - name: Install bats (pinned)
         run: npm install bats@1.11.1
 
+      # apm_publish_gate / apm_install_verify bats invoke gitleaks on PATH;
+      # the lint job's pre-commit hook env is not visible here.
+      - name: Install gitleaks (pinned)
+        run: |
+          GITLEAKS_VERSION=8.30.0
+          curl -sSfL \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" \
+            | tar -xz -C /tmp
+          sudo install -m 0755 /tmp/gitleaks /usr/local/bin/gitleaks
+          gitleaks version
+
       - name: Install uv
         run: pip install uv
 
