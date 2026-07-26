@@ -2,13 +2,40 @@
 
 > Version history for the Manifest parallel agent orchestration framework
 
-**Last Updated**: 2026-07-13
+**Last Updated**: 2026-07-26
 
 All notable changes are documented here in reverse chronological order.
 
 ---
 
 ## [Unreleased]
+
+### APM Publish Gates (feature 522, Phase 0 — T048–T050)
+
+- **Supply-chain gates now precede any APM registry publish** — implemented
+  before the first (throwaway spike) publish because publication is
+  irreversible; they block T004 and are the one sanctioned FR-001 exception.
+- **`apm_publish_gate.sh scan|provenance|all`** — blocking pre-publish
+  content scan (repo gitleaks config + machine-local-path/private-material
+  checks; gitleaks absent or erroring REJECTS, never degrades to regex-only)
+  and a provenance gate (clean working tree at an exact tag). `all` appends
+  one JSONL gate record per attempt — pass *or* fail — so SC-011 ("every
+  publish has a preceding gate record") is auditable. Allowlist:
+  `configs/claude/config/apm_publish_allowlist.txt`.
+- **`apm_install_verify.sh verify TREE --ref REF`** — fail-closed package
+  integrity verification on install: re-derives the canonical tree hash and
+  compares it to the publish-time gate record, trusting nothing the `apm`
+  binary claims about itself. Zero matching records, conflicting hashes, or
+  an unreadable subject are all indeterminate → reject.
+- **`apm_hash_lib.sh`** — single shared definition of the NUL-safe file walk,
+  canonical tree hash, and gate-record contract constants, so the publish
+  writer and install reader cannot silently drift apart.
+- **Threat controls** opened in `specs/522-apm-deploy-migration/decision-record.md`
+  (typosquatting, dependency confusion, registry-account compromise — each
+  naming its enforcing mechanism, FR-018).
+- **Tests**: 43 bats cases across two suites, including mutation-proven
+  fail-closed behavior (blank-line allowlist fail-open, embedded-newline
+  filename bypass) and a shared `tests/test_helper/git_fixture.bash`.
 
 ### Model-Routing Verification (class x model matrix)
 

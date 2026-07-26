@@ -13,4 +13,3 @@ When a v2 of a skill/automation is more correct but spends more tokens per run, 
 5. **Apply the salvage-value insight.** A confidently-wrong output has near-zero salvage value, so rework often costs ≈ a fresh full run. That means the costlier version's small premium buys out a full-price redo — the math usually favors it once misses are real.
 6. **Report a verdict, not just deltas.** Compute the break-even rate `p* = extra_spend / R`, then compare it to the *observed* miss rate (e.g. from evals) to say plainly whether it nets positive and under what usage mix.
 7. **Persist the baseline to memory** (per-run costs, measured R, break-even rate, usage assumption) so future sessions don't re-derive it.
-
