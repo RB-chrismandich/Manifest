@@ -24,6 +24,17 @@ this skill with fresh context for the next issue.
 5. Status sync (`planned→in-progress→needs-review`) and `Closes #N` are handled by
    the issue-linking hooks — do not hand-edit labels for the happy path.
 
+## Session model
+
+This skill is **long-horizon**: one invocation develops an issue end-to-end (implement, test, PR), and it is
+designed to run unattended under `/loop`.
+
+Before starting, check the session's model. If it is not Fable 5, **ask the user to switch**
+(`/model` → Fable 5) and wait for the answer. Do not assume Fable is active, and do not silently
+proceed on the default model — the choice trades ~2x the per-token cost against capability, so it
+is the user's to make. Everything shorter than this runs on Opus by default
+(`session_model` in `command_config.yml`; rationale in `docs/MODEL-POLICY.md`).
+
 ## Procedure
 
 1. **Preflight.** Ensure the issue hooks are enabled:

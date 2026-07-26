@@ -50,6 +50,17 @@ Charters (deployed copies under `~/.claude/prompts/cddl/` after bootstrap):
 Dispatch templates live in this skill's `prompts/` directory. Hand sub-agents
 **file paths**, not pasted artifacts.
 
+## Session model
+
+This skill is **long-horizon**: the CDDL loop re-runs four personas over the whole tree every round,
+until the gates clear.
+
+Before starting, check the session's model. If it is not Fable 5, **ask the user to switch**
+(`/model` → Fable 5) and wait for the answer. Do not assume Fable is active, and do not silently
+proceed on the default model — the choice trades ~2x the per-token cost against capability, so it
+is the user's to make. Everything shorter than this runs on Opus by default
+(`session_model` in `command_config.yml`; rationale in `docs/MODEL-POLICY.md`).
+
 ## Prerequisites
 
 - Feature branch (not default); clean tree unless operator passes `--allow-dirty`

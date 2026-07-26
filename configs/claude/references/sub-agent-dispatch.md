@@ -58,6 +58,25 @@ Escalate a sub-agent above Sonnet only for genuinely hard reasoning. Mechanical
 fan-out (file reads, greps, per-item transforms) is Haiku-eligible and roughly
 halves the Sonnet figure again.
 
+### Enforcement
+
+Every skill with `subagents: always|conditional` declares a `subagent_model` in
+`config/command_config.yml`, and its `## Sub-agent dispatch` section states the
+same model. Both are gated by `tests/bats/subagent_policy.bats` (checks T7/T8),
+enumerated from the disposition — a new dispatching skill fails until it pins a
+model, with no name list to maintain.
+
+| `subagent_model` | Use for |
+|---|---|
+| `sonnet` | **The default.** Any dispatch that is not one of the rows below. |
+| `haiku` | Purely mechanical fan-out: file reads, greps, per-item transforms. |
+| `opus` | Genuinely hard reasoning — adversarial verification of security or correctness findings. |
+| `charter` | Per-role tiers declared in the CDDL charters (`cddl-role-models.md`). |
+
+Ad-hoc dispatches outside a skill (Explore, general-purpose, one-off fan-out)
+are not reachable by that gate, so the same default is stated as a rule in the
+always-loaded orchestration guides' Token Economy section.
+
 ## No recursion
 
 A dispatched sub-agent performs its assigned task **directly** and does **not** itself fan out
@@ -95,6 +114,7 @@ tool_policies:
   <skill-name>:
     subagents: conditional
     subagent_trigger: "independent_units >= 3"   # only when conditional
+    subagent_model: sonnet                       # required when always|conditional; see the table above
     # subagent_rationale: "<one line>"           # when never (or as a SKILL.md note, below)
 ```
 
@@ -114,6 +134,9 @@ Below that, do it inline. Pick the mechanism per the shared Sub-Agent Selection 
 (`configs/claude/references/sub-agent-dispatch.md`): native Task on Claude Code/Cursor, or
 `parallel_agent.py` / `cddl_invoke.py` / inline on other assistants. Sub-agents execute
 directly and do not re-dispatch.
+
+Dispatch on **Sonnet** (`subagent_model: sonnet` in `command_config.yml`) — pass the model
+explicitly; inheriting the session's model bills premium rates for fan-out work.
 ```
 
 ### 4. Do NOT restate these rules

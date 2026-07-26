@@ -25,7 +25,11 @@ skills = sorted(
 with open(cfg, encoding="utf-8") as fh:
     tp = (yaml.safe_load(fh) or {}).get("tool_policies", {}) or {}
 VALID = {"always", "conditional", "never"}
+VALID_MODELS = {"haiku", "sonnet", "opus", "charter"}
+VALID_SESSION_MODELS = {"opus", "fable"}
+DISPATCHING = ("always", "conditional")
 MARKER = "## Sub-agent dispatch"
+SESSION_MARKER = "## Session model"
 
 def body(s):
     with open(os.path.join(skills_dir, s, "SKILL.md"), encoding="utf-8") as fh:
@@ -33,6 +37,19 @@ def body(s):
 
 def entry(s):
     return tp.get(s) or {}
+
+def dispatch_section(s):
+    """The '## Sub-agent dispatch' section body, or '' when absent."""
+    out, on = [], False
+    for line in body(s).splitlines():
+        if line.startswith(MARKER):
+            on = True
+            continue
+        if on and line.startswith("## "):
+            break
+        if on:
+            out.append(line)
+    return "\n".join(out)
 
 fail = []
 
@@ -68,6 +85,56 @@ elif check == "no_contradiction":      # T6
     for s in skills:
         if entry(s).get("subagents") == "never" and MARKER in body(s):
             fail.append(f"{s}: never but body contains a '{MARKER}' section")
+elif check == "model_pinned":          # T7
+    # A dispatch site that names no model inherits the parent session's model,
+    # which bills the premium main-loop tier for fan-out work. Measured
+    # 2026-07-25: $845/yr of avoidable premium sub-agent spend, $643 of it from
+    # inherited Fable 5 alone. Enumerated from the disposition, not a name list.
+    for s in skills:
+        e = entry(s)
+        if e.get("subagents") not in DISPATCHING:
+            continue
+        m = e.get("subagent_model")
+        if m is None:
+            fail.append(f"{s}: {e['subagents']} but no subagent_model (default: sonnet)")
+        elif m not in VALID_MODELS:
+            fail.append(f"{s}: invalid subagent_model {m!r} (expected one of {sorted(VALID_MODELS)})")
+elif check == "model_in_body":         # T8
+    # The dispatch prose must state the same model the config pins, so a reader
+    # of SKILL.md alone cannot dispatch on the inherited model by accident.
+    for s in skills:
+        e = entry(s)
+        if e.get("subagents") not in DISPATCHING:
+            continue
+        m = e.get("subagent_model")
+        if m not in VALID_MODELS:
+            continue                    # already reported by T7
+        sec = dispatch_section(s).lower()
+        needle = "cddl-role-models.md" if m == "charter" else m
+        if needle not in sec:
+            fail.append(f"{s}: dispatch section does not name the pinned model ({m!r}; expected {needle!r})")
+elif check == "session_model":         # T9
+    # Fable 5 bills 2x Opus. A skill may declare it needs a long-horizon session,
+    # but the switch is the user's call: the skill must ASK, never assume it is
+    # already active. Enumerated from the field's presence, not a name list.
+    for s in skills:
+        e = entry(s)
+        sm = e.get("session_model")
+        if sm is None:
+            if "session_model_rationale" in e:
+                fail.append(f"{s}: session_model_rationale without session_model")
+            continue
+        if sm not in VALID_SESSION_MODELS:
+            fail.append(f"{s}: invalid session_model {sm!r} (expected one of {sorted(VALID_SESSION_MODELS)})")
+            continue
+        if not e.get("session_model_rationale"):
+            fail.append(f"{s}: session_model: {sm} but no session_model_rationale")
+        if sm == "fable":
+            b = body(s)
+            if SESSION_MARKER not in b:
+                fail.append(f"{s}: session_model: fable but no '{SESSION_MARKER}' section in SKILL.md")
+            elif "ask the user to switch" not in b:
+                fail.append(f"{s}: '{SESSION_MARKER}' section does not instruct asking the user to switch")
 else:
     print(f"unknown check: {check}", file=sys.stderr)
     sys.exit(2)
@@ -108,5 +175,20 @@ PY
 
 @test "never skills do not instruct dispatch (no contradiction)" {
     run run_check no_contradiction
+    [ "$status" -eq 0 ] || { echo "$output"; false; }
+}
+
+@test "always/conditional skills pin a sub-agent model (no inherit-by-accident)" {
+    run run_check model_pinned
+    [ "$status" -eq 0 ] || { echo "$output"; false; }
+}
+
+@test "dispatch prose names the same model the config pins" {
+    run run_check model_in_body
+    [ "$status" -eq 0 ] || { echo "$output"; false; }
+}
+
+@test "a skill wanting Fable asks the user to switch (never assumes)" {
+    run run_check session_model
     [ "$status" -eq 0 ] || { echo "$output"; false; }
 }

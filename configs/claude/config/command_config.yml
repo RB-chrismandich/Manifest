@@ -66,8 +66,18 @@ synthesis_priority:
 #   subagents:         always|conditional|never           # native Task/Agent sub-agents (Claude)
 #   subagent_trigger:  "<expr>"                            # REQUIRED when subagents: conditional; convention: independent_units >= 3
 #   subagent_rationale: "<one line>"                       # for subagents: never (or a `> Sub-agents: not used — <reason>.` note in SKILL.md)
+#   subagent_model:    haiku|sonnet|opus|charter           # REQUIRED when subagents: always|conditional. Default `sonnet`;
+#                                                          # `charter` = per-role tiers in the CDDL charters. Escalate to `opus`
+#                                                          # only for genuinely hard reasoning (measured: 2026-07-25 baseline).
 # Every skill directory with a SKILL.md MUST carry a `subagents` value (enforced by tests/bats/subagent_policy.bats).
 # command_config.yml is the canonical store; SKILL.md prose must agree and is verified by that test.
+#
+# Session-model fields (2026-07-25 credit baseline — see docs/MODEL-POLICY.md):
+#   session_model:           opus|fable                    # omit = Opus, the default start model
+#   session_model_rationale: "<one line>"                  # REQUIRED whenever session_model is set
+# `fable` marks work that is genuinely long-horizon (hours of autonomous iteration). A skill that
+# wants Fable ASKS the user to switch and waits for the answer — it never assumes Fable is active
+# and never silently proceeds on the default. Enforced by tests/bats/subagent_policy.bats.
 tool_policies:
   issue-dev-auto:
     allowed:
@@ -83,6 +93,8 @@ tool_policies:
     # contradiction of the develop-loop policy.
     parallel_agents: gate-only
     validation_tier: 1
+    session_model: fable
+    session_model_rationale: Unattended end-to-end issue development under /loop; hours of autonomous work per run.
 
     subagents: never
     subagent_rationale: Develops exactly one issue per invocation then stops; /loop handles iteration.
@@ -134,6 +146,8 @@ tool_policies:
     forbidden: []
     parallel_agents: never        # a state-gated driver, not a cross-verification fan-out
     validation_tier: 1            # safety-gate logic + handles env-injected provider secrets
+    session_model: fable
+    session_model_rationale: Drives a feature across all nine state-gated phases in one run; long-horizon by construction.
     subagents: never
     subagent_rationale: Single config-driven engine runs the catalog sequentially via one script.
   issue-sync-pr:
@@ -194,6 +208,7 @@ tool_policies:
 
     subagents: conditional
     subagent_trigger: independent_units >= 3
+    subagent_model: sonnet
   docs-generate-diagrams:
     allowed:
       - Read
@@ -239,6 +254,7 @@ tool_policies:
 
     subagents: conditional
     subagent_trigger: independent_units >= 3
+    subagent_model: sonnet
   node-refactor:
     allowed:
       - Read
@@ -256,6 +272,7 @@ tool_policies:
 
     subagents: conditional
     subagent_trigger: independent_units >= 3
+    subagent_model: sonnet
   go-refactor:
     allowed:
       - Read
@@ -273,6 +290,7 @@ tool_policies:
 
     subagents: conditional
     subagent_trigger: independent_units >= 3
+    subagent_model: sonnet
   terraform-refactor:
     allowed:
       - Read
@@ -291,6 +309,7 @@ tool_policies:
 
     subagents: conditional
     subagent_trigger: independent_units >= 3
+    subagent_model: sonnet
   plan-manage:
     allowed:
       - Read
@@ -351,6 +370,7 @@ tool_policies:
 
     subagents: conditional
     subagent_trigger: independent_units >= 3
+    subagent_model: sonnet
   issue-prioritize:
     allowed:
       - Read
@@ -371,6 +391,7 @@ tool_policies:
 
     subagents: conditional
     subagent_trigger: open_issues >= 10
+    subagent_model: sonnet
   issue-prep-auto:
     allowed:
       - Read
@@ -404,6 +425,7 @@ tool_policies:
 
     subagents: conditional
     subagent_trigger: independent_units >= 3
+    subagent_model: sonnet
   spec-implement-loop:
     allowed:
       - Read
@@ -416,9 +438,12 @@ tool_policies:
       - Edit      # Only the developer sub-agent writes code
     parallel_agents: never
     validation_tier: 1
+    session_model: fable
+    session_model_rationale: Multi-round CDDL loop; each round re-reads the whole tree and iterates until the gates clear.
 
     subagents: always
     subagent_rationale: Four-persona CDDL loop; developer sub-agent is the sole code author; three read-only reviewer sub-agents gate each iteration.
+    subagent_model: charter
   env-check:
     allowed:
       - Read
@@ -487,6 +512,7 @@ tool_policies:
     validation_tier: 2
 
     subagents: always
+    subagent_model: sonnet
   pr-review:
     allowed:
       - Read
@@ -501,6 +527,7 @@ tool_policies:
 
     subagents: conditional
     subagent_trigger: independent_units >= 3
+    subagent_model: sonnet
   branch-clean:
     allowed:
       - Read
@@ -537,6 +564,7 @@ tool_policies:
 
     subagents: conditional
     subagent_trigger: independent_units >= 3
+    subagent_model: sonnet
   token-benchmark:
     allowed:
       - Read
@@ -548,6 +576,7 @@ tool_policies:
   a11y-audit:
     subagents: conditional
     subagent_trigger: target_files >= 3
+    subagent_model: sonnet
   pr-address-comments:
     subagents: never
     subagent_rationale: Single PR; fixes mutate one working tree and must be re-tested/pushed sequentially.
@@ -612,6 +641,7 @@ tool_policies:
     validation_tier: 1
     subagents: conditional
     subagent_trigger: critical_or_high_findings >= 1  # one adversarial refuter per critical/high finding
+    subagent_model: opus
   antipattern-detect:
     subagents: never
     subagent_rationale: Auto-triggered analyzer writing one shared knowledge_base.yml; parallel writes unsafe.
@@ -636,6 +666,7 @@ tool_policies:
   ci-audit-triggers:
     subagents: conditional
     subagent_trigger: workflow_files >= 3
+    subagent_model: sonnet
   pr-clean-base:
     subagents: never
     subagent_rationale: Single-branch git surgery mutating shared git state; sequential.
@@ -708,6 +739,17 @@ tool_policies:
   performance-check:
     subagents: never
     subagent_rationale: Single-project static perf audit; sequential phases into one report.
+  test-isolate-ambient:
+    allowed:
+      - Read
+      - Bash       # builds throwaway fixtures: git init, mktemp, bats
+      - Write
+      - Edit
+    forbidden: []
+    parallel_agents: never   # a fixture-construction recipe, not a cross-verification fan-out
+    validation_tier: 2
+    subagents: never
+    subagent_rationale: Building one isolated fixture is a single sequential unit.
   test-pin-bug:
     subagents: never
     subagent_rationale: 'Tiny single-target task: write one tolerant test assertion.'
@@ -720,6 +762,7 @@ tool_policies:
   design-validate:
     subagents: conditional
     subagent_trigger: assumptions >= 3
+    subagent_model: sonnet
   pr-reset-reapply:
     subagents: never
     subagent_rationale: Single-branch sequential git history surgery mutating shared state.
@@ -738,9 +781,11 @@ tool_policies:
   security-refute-findings:
     subagents: conditional
     subagent_trigger: candidate_findings >= 3
+    subagent_model: opus
   security-triage-findings:
     subagents: conditional
     subagent_trigger: candidate_findings >= 3
+    subagent_model: opus
   shell-audit-pipefail:
     subagents: never
     subagent_rationale: Single-script audit; substitutions tightly coupled within one file.
@@ -759,9 +804,11 @@ tool_policies:
   pr-triage-bots:
     subagents: conditional
     subagent_trigger: bot_prs >= 3
+    subagent_model: sonnet
   ux-review:
     subagents: conditional
     subagent_trigger: independent_units >= 3
+    subagent_model: sonnet
   project-verify:
     subagents: never
     subagent_rationale: Single target project; runs its own lint/test/scan chain internally.

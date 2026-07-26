@@ -28,6 +28,16 @@ gate signal. Constitution: Principle VI + "Development Lifecycle". Contracts:
 > The `--mode product|technical` flag routes the state dir and selects the
 > matching template (`prompts/spec_review.md` vs `prompts/spec_review_technical.md`).
 
+## Session model
+
+This skill is **long-horizon**: one invocation drives a feature across all nine state-gated phases.
+
+Before starting, check the session's model. If it is not Fable 5, **ask the user to switch**
+(`/model` → Fable 5) and wait for the answer. Do not assume Fable is active, and do not silently
+proceed on the default model — the choice trades ~2x the per-token cost against capability, so it
+is the user's to make. Everything shorter than this runs on Opus by default
+(`session_model` in `command_config.yml`; rationale in `docs/MODEL-POLICY.md`).
+
 ## Usage
 
 ```bash

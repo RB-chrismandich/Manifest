@@ -25,7 +25,15 @@ assert_budget() {
     # Deployed to ~/.claude/CLAUDE.md: loaded in EVERY session on EVERY project.
     # Re-based from 6600 after the intentional "Token Economy (always on)"
     # baseline section landed (file at 6448; restores ~15% headroom).
-    assert_budget "configs/claude/CLAUDE.md" 7400
+    # Lowered 7400 -> 7000 (2026-07-25) after a trim pass reclaimed 697 bytes
+    # (7225 -> 6528): compacted the MCP routing list to one cue-preserving
+    # paragraph, cut the duplicated second CLI example, condensed Plan
+    # Management into its own README's pointer, and replaced the entry-point
+    # gloss with `/help`. The old cap left ~55 bytes once the pilotfish
+    # deploy-time pointer was added, so the next always-on rule would have
+    # failed deploy_pilotfish.bats in the middle of unrelated work. Lowering
+    # locks the gain in: ~470 bytes of source headroom, ~750 deployed.
+    assert_budget "configs/claude/CLAUDE.md" 7000
 }
 
 @test "root CLAUDE.md stays within always-loaded budget" {

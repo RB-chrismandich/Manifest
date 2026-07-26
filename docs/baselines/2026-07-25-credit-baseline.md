@@ -84,6 +84,21 @@ Haiku 4.5 `$1`/`$5`. Cache read = 0.1x input rate, cache write = 1.25x.
 **53.4% of all Opus spend is cache reads** (2.78B tokens x $0.50/MTok = $1,385).
 That single fact determines which routing levers are viable.
 
+> **Pricing caveat: the corpus cannot see the context tier.** A session running
+> `opus[1m]` records its model in the transcript as plain `claude-opus-5` — the
+> `[1m]` suffix exists only in `settings.json` and in the headless `modelUsage`
+> key, never in the JSONL these reports read. Every figure here therefore prices
+> long-context requests at standard rates. Exposure looks bounded: main-loop
+> turns average ~150K cache-read tokens and a sampled `[1m]` session averaged
+> ~18K per request, both under the usual 200K long-context threshold — so if any
+> premium applies it should apply rarely. But it is an unmodelled assumption in a
+> document that otherwise claims list-price accuracy, and it can only shift
+> figures **upward**. Separately, several still-active models
+> (`claude-opus-4-5`, `claude-opus-4-1`, `claude-sonnet-4-5`, `claude-sonnet-4-0`)
+> are absent from `model_pricing.py` by design — they report as `unpriced` and
+> are excluded from totals rather than guessed at, so a longer scan window will
+> show holes, not wrong numbers.
+
 ---
 
 ## Routing proposal
@@ -107,7 +122,16 @@ cache re-write penalty     260,507,437 tok x $6.25/MTok  =  $1,628.17
 Do not implement this. The same reasoning rejects per-turn routing of
 `tool_edit`, `mixed`, and `text_response`.
 
-### Recommended: route remaining premium subagents to Sonnet 5
+### Adopted 2026-07-25: route remaining premium subagents to Sonnet 5
+
+> **Declared, not yet confirmed in behaviour.** `subagent_model` is now required
+> on every dispatching skill (`command_config.yml`), the dispatch prose must
+> state the same model, and both are gated by `tests/bats/subagent_policy.bats`
+> (T7/T8) — but those gates read the config, not the traffic. The measured check
+> is the class x model matrix (see [Verifying a landed lever](#verifying-a-landed-lever));
+> at the change point it still showed 283 `subagent` requests on Opus 5, so
+> treat the saving below as projected until a post-change interval reads clean.
+> Policy: [docs/MODEL-POLICY.md](../MODEL-POLICY.md#1-sub-agents-default-to-sonnet).
 
 Subagents carry their **own context and own cache**, so routing them changes
 nothing about the main loop's prefix. This is the only class where a model
@@ -153,7 +177,14 @@ the problem. The largest single uncosted item is Fable 5 **main-loop** traffic:
 3,921 requests, $1,532.15, which is a session-level model-selection question
 rather than a routing one.
 
-### Open decision: Fable 5 main-loop traffic ($1,532.15)
+### Decided 2026-07-25: Fable 5 main-loop traffic ($1,532.15)
+
+> **Outcome: the middle option was adopted** — Fable only for genuinely
+> long-horizon work, and a skill that wants it **asks the user to switch**
+> rather than assuming. Encoded as `session_model` in `command_config.yml`,
+> gated by `tests/bats/subagent_policy.bats` (T9). Policy:
+> [docs/MODEL-POLICY.md](../MODEL-POLICY.md#2-sessions-start-on-opus-fable-is-asked-for-never-assumed).
+> The options as originally costed are preserved below.
 
 The largest single uncosted item, and the one thing here that is **not** a code
 change — it is a policy choice about which model starts a session. 3,921
@@ -183,18 +214,45 @@ a routing change, and is out of scope for this baseline.
 ## Reproduce
 
 ```bash
-# Opus attribution (this document's tables)
+# Opus attribution + cost derivation (the two tables above)
 configs/claude/scripts/opus_attribution_report.py \
     --until 2026-07-25T20:00:00Z \
     --json docs/baselines/2026-07-25-opus-attribution.json
 
-# Corpus-wide token cost and skill usage
+# Sub-agent traffic by model, incl. the Fable 5 row ($919.32), and the
+# Fable main-loop figure ($1,532.15 = every non-subagent Fable cell)
+configs/claude/scripts/opus_attribution_report.py \
+    --until 2026-07-25T20:00:00Z --models all
+
+# Per-model cost table (the scope-correction table) and skill usage
 configs/claude/scripts/token_cost_report.py  --until 2026-07-25T20:00:00Z
 configs/claude/scripts/skill_usage_report.py --until 2026-07-25T20:00:00Z
 ```
 
 Re-running with the same `--until` reproduces the snapshot **byte-identically**
 (verified), not merely within the ±2% tolerance.
+
+Prices come from one shared table — `configs/claude/scripts/model_pricing.py`
+(`--json` to dump it) — so a figure here cannot disagree with one in
+`token_cost_report.py`. A model absent from that table is reported as
+**unpriced** and excluded from every total; it is never silently costed at $0.
+Cache writes are billed at the 5-minute-TTL rate (1.25x), so any 1h-TTL traffic
+makes these figures a **floor**, not a point estimate.
+
+### Verifying a landed lever
+
+Cost tables justify a routing change; they do not confirm one happened. The
+class x model matrix is the confirmation query — one command, no config
+reading:
+
+```bash
+# Did premium sub-agent traffic actually stop after the change point?
+configs/claude/scripts/opus_attribution_report.py \
+    --since 2026-07-25T23:58:27Z --models all | grep '^subagent'
+```
+
+A `subagent x <premium model>` row that is still non-zero means the lever has
+not landed in behaviour, whatever `command_config.yml` declares.
 
 ---
 
