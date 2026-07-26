@@ -1011,7 +1011,7 @@ Expected output:
 <!-- BEGIN GENERATED COMMANDS (command_catalog.py) — do not edit by hand -->
 <!-- Regenerate: configs/claude/scripts/generate_commands_doc.py -->
 
-_107 commands, generated from `.skillshare/skills/*/SKILL.md`._
+_108 commands, generated from `.skillshare/skills/*/SKILL.md`._
 
 ### Git & PRs
 
@@ -1154,6 +1154,7 @@ _107 commands, generated from `.skillshare/skills/*/SKILL.md`._
 | `/lifecycle-run` | Drive a feature/issue through the codified state-gated lifecycle (specify→…→verify) with hard phase-gating and a smoke-test Verify gate; entry is a ticket URL/issue key. | Drive a feature/issue through the codified state-gated lifecycle (specify→…→verify) with hard phase-gating and a smoke-test Verify gate; entry is a ticket URL/issue key. | available |
 | `/manage-design-system` | Manage design systems in Stitch via MCP: retrieve assets, create/update design systems, and apply them to screens. | Manage design systems in Stitch via MCP: retrieve assets, create/update design systems, and apply them to screens. | available |
 | `/pr-smoke` | Full Manifest regression (CI mirror: shellcheck, yamllint, bats, pytest) plus a deployed-env smoke pass — the post-PR gate. Use when a PR opens or merges: "regression test the PR", "did the merge break anything", "verify main is still green". Whole-repo verdict; prefer over verify or env-check. | Use when a PR opens or merges: "regression test the PR", "did the merge break anything", "verify main is still green". | available |
+| `/print-tune-bambu` | Recommend Bambu Studio print settings for a part and emit an importable process preset. Use when slicing an STL/3MF, tuning for a material (PLA, PETG-CF, ABS, PA, TPU), fixing a failed print (warping, drooping overhangs, weak layers), or asking what a Bambu Studio setting does. Reads stock values from the local install. | Use when slicing an STL/3MF, tuning for a material (PLA, PETG-CF, ABS, PA, TPU), fixing a failed print (warping, drooping overhangs, weak layers), or asking what a Bambu Studio setting does. | available |
 | `/react-components` | Converts Stitch designs into modular Vite/React components, or syncs existing React components with the latest Stitch designs, using networked fetch and AST-based validation. | Converts Stitch designs into modular Vite/React components, or syncs existing React components with the latest Stitch designs, using networked fetch and AST-based validation. | available |
 | `/react-native` | Convert Stitch HTML designs to React Native components, or sync existing native components with the latest Stitch designs, using StyleSheet. | Convert Stitch HTML designs to React Native components, or sync existing native components with the latest Stitch designs, using StyleSheet. | available |
 | `/react-vite-dashboard` | Convert Stitch designs into production React + Vite dashboards with TanStack Query, accessible tokens from DESIGN.md, and Web3-ready patterns (ethers/viem). | Convert Stitch designs into production React + Vite dashboards with TanStack Query, accessible tokens from DESIGN. | available |

@@ -79,6 +79,19 @@ synthesis_priority:
 # wants Fable ASKS the user to switch and waits for the answer — it never assumes Fable is active
 # and never silently proceeds on the default. Enforced by tests/bats/subagent_policy.bats.
 tool_policies:
+  print-tune-bambu:
+    allowed:
+      - Read
+      - Glob
+      - Grep
+      - Bash   # Reads local Bambu Studio profiles, mirrors the wiki, drives the headless slicer
+      - Write  # Emits an importable user process preset
+    parallel_agents: never
+    parallel_agents_rationale: Grounded in the local slicer profile DB and verified by a real slice; consensus adds no signal a measurement does not.
+    validation_tier: 2
+
+    subagents: never
+    subagent_rationale: Single-user workflow over local files and one wiki mirror; no independent branches of work to fan out.
   issue-dev-auto:
     allowed:
       - Bash       # auto_issue_dev.sh, git_ops.sh, pr_merge_loop.sh, merge_decision.sh, verification_gate.sh, loop_lock.sh, gh/glab
