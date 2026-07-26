@@ -311,10 +311,184 @@ def test_unwritable_json_path_exits_nonzero_no_traceback(tmp_path, script):
     assert not bad_json.exists()
 
 
+# --- 7. Class x model matrix: the routing lever is verifiable at all ------
+# The baseline's headline row -- "Fable 5 sub-agents: 4,531 requests,
+# $919.32" -- came from ad-hoc analysis: opus_attribution_report.py hard-
+# filtered to Opus and token_cost_report.py had no class awareness, so no
+# committed script could re-derive it. The gates could then only prove that
+# command_config.yml *says* Sonnet, never that a dispatch *ran* Sonnet.
+# These tests pin the query that closes that gap.
+
+# 800,000 cache-creation tokens weight to exactly 1,000,000 input units
+# (x1.25), so a model's whole input cost is one clean $/MTok multiple.
+CLEAN_TOKENS = {"input_tokens": 0, "cache_read": 0, "cache_creation": 800_000}
+
+
+def subagent_record(request_id, timestamp, model, **kw):
+    """A sidechain request -- what classify() calls the `subagent` class."""
+    return usage_record(
+        request_id,
+        timestamp,
+        model=model,
+        is_sidechain=True,
+        output_tokens=100_000,
+        content=[{"type": "text", "text": "done"}],
+        **{**CLEAN_TOKENS, **kw},
+    )
+
+
+def test_matrix_costs_each_class_model_cell(tmp_path):
+    write_jsonl(
+        tmp_path / "proj" / "s.jsonl",
+        [
+            subagent_record("req_f", "2026-07-01T00:00:00Z", "claude-fable-5"),
+            subagent_record("req_s", "2026-07-01T00:01:00Z", "claude-sonnet-5"),
+        ],
+    )
+    out = tmp_path / "out.json"
+    r = run(OPUS_ATTR, "--root", str(tmp_path), "--models", "all", "--json", str(out))
+    assert r.returncode == 0, r.stderr
+
+    matrix = json.loads(out.read_text())["class_model_matrix"]
+    # 1M weighted input units + 100K output, priced per model:
+    #   fable  $10/MTok in + $50/MTok out -> 10.00 + 5.00 = 15.00
+    #   sonnet  $3/MTok in + $15/MTok out ->  3.00 + 1.50 =  4.50
+    assert matrix["subagent"]["claude-fable-5"]["cost_usd"] == 15.00
+    assert matrix["subagent"]["claude-sonnet-5"]["cost_usd"] == 4.50
+    assert matrix["subagent"]["claude-fable-5"]["requests"] == 1
+
+
+def test_unknown_model_is_unpriced_never_zero(tmp_path):
+    # A model missing from the price table must read as a HOLE in the total,
+    # not as a $0 line -- a silent zero is the same false-green shape as a
+    # gate that checks the doc instead of the behaviour.
+    write_jsonl(
+        tmp_path / "proj" / "s.jsonl",
+        [subagent_record("req_x", "2026-07-01T00:00:00Z", "claude-notreal-9")],
+    )
+    out = tmp_path / "out.json"
+    r = run(OPUS_ATTR, "--root", str(tmp_path), "--models", "all", "--json", str(out))
+    assert r.returncode == 0, r.stderr
+
+    data = json.loads(out.read_text())
+    cell = data["class_model_matrix"]["subagent"]["claude-notreal-9"]
+    assert cell["cost_usd"] is None, "an unpriced model must not report a cost"
+    assert data["unpriced_models"] == {"claude-notreal-9": 1}
+    # The class rollup must refuse to state a total it cannot compute.
+    assert data["classes"]["subagent"]["cost_usd"] is None
+    assert "UNPRICED" in r.stdout
+
+
+def test_models_filter_defaults_to_opus_and_all_widens_it(tmp_path):
+    write_jsonl(
+        tmp_path / "proj" / "s.jsonl",
+        [
+            subagent_record("req_o", "2026-07-01T00:00:00Z", "claude-opus-4-8"),
+            subagent_record("req_f", "2026-07-01T00:01:00Z", "claude-fable-5"),
+        ],
+    )
+    default_out = tmp_path / "default.json"
+    r = run(OPUS_ATTR, "--root", str(tmp_path), "--json", str(default_out))
+    assert r.returncode == 0, r.stderr
+    default_models = json.loads(default_out.read_text())["class_model_matrix"][
+        "subagent"
+    ]
+    assert set(default_models) == {"claude-opus-4-8"}
+
+    all_out = tmp_path / "all.json"
+    r = run(
+        OPUS_ATTR, "--root", str(tmp_path), "--models", "all", "--json", str(all_out)
+    )
+    assert r.returncode == 0, r.stderr
+    all_models = json.loads(all_out.read_text())["class_model_matrix"]["subagent"]
+    assert set(all_models) == {"claude-opus-4-8", "claude-fable-5"}
+
+
+def test_since_change_point_shows_a_cell_going_to_zero(tmp_path):
+    # The lever-1 verification query itself: sub-agents ran on Fable before
+    # the change point and on Sonnet after it, so `--since <change-point>`
+    # must show subagent x fable absent -- evidence a dispatch actually moved.
+    change_point = "2026-07-25T23:58:27Z"
+    write_jsonl(
+        tmp_path / "proj" / "s.jsonl",
+        [
+            subagent_record("req_before", "2026-07-25T12:00:00Z", "claude-fable-5"),
+            subagent_record("req_after", "2026-07-26T12:00:00Z", "claude-sonnet-5"),
+        ],
+    )
+    after = tmp_path / "after.json"
+    r = run(
+        OPUS_ATTR,
+        "--root",
+        str(tmp_path),
+        "--models",
+        "all",
+        "--since",
+        change_point,
+        "--json",
+        str(after),
+    )
+    assert r.returncode == 0, r.stderr
+
+    post = json.loads(after.read_text())["class_model_matrix"]["subagent"]
+    assert "claude-fable-5" not in post, "premium sub-agent traffic did not go to zero"
+    assert post["claude-sonnet-5"]["requests"] == 1
+
+
+def test_token_cost_report_costs_every_model(tmp_path):
+    write_jsonl(
+        tmp_path / "proj" / "s.jsonl",
+        [
+            subagent_record("req_f", "2026-07-01T00:00:00Z", "claude-fable-5"),
+            subagent_record("req_u", "2026-07-01T00:01:00Z", "claude-notreal-9"),
+        ],
+    )
+    out = tmp_path / "out.json"
+    r = run(TOKEN_COST, "--root", str(tmp_path), "--json", str(out))
+    assert r.returncode == 0, r.stderr
+
+    data = json.loads(out.read_text())
+    by_model = {row["model"]: row for row in data["cost_by_model"]}
+    assert by_model["claude-fable-5"]["cost_usd"] == 15.00
+    assert by_model["claude-notreal-9"]["cost_usd"] is None
+    assert data["cost_total_usd"] == 15.00  # the unpriced model is a hole, not a $0
+    assert data["unpriced_models"] == {"claude-notreal-9": 1}
+
+
+# --- 8. Price table resolution --------------------------------------------
+
+
+def test_price_table_resolution():
+    sys.path.insert(0, str(SCRIPTS))
+    try:
+        import model_pricing
+    finally:
+        sys.path.pop(0)
+
+    # Dated snapshot ids resolve to their undated rate...
+    assert model_pricing.rates("claude-haiku-4-5-20251001") == (1.00, 5.00)
+    # ...but a model absent from the table must NOT borrow a neighbour's rate.
+    assert model_pricing.rates("claude-sonnet-4-5") is None
+    assert model_pricing.rates("<synthetic>") is None
+    assert model_pricing.rates(None) is None
+    assert (
+        model_pricing.cost_usd(
+            "<synthetic>",
+            input_tokens=10**9,
+            output_tokens=10**9,
+            cache_read=0,
+            cache_creation=0,
+        )
+        is None
+    )
+
+
 # --- --help must exit 0 for every entry point -----------------------------
 
 
-@pytest.mark.parametrize("script", ALL_SCRIPTS, ids=lambda s: s.name)
+@pytest.mark.parametrize(
+    "script", [*ALL_SCRIPTS, SCRIPTS / "model_pricing.py"], ids=lambda s: s.name
+)
 def test_help_exits_zero(script):
     r = run(script, "--help")
     assert r.returncode == 0, r.stderr

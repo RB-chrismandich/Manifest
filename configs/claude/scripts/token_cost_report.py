@@ -33,6 +33,11 @@ import sys
 from datetime import UTC, datetime
 from pathlib import Path
 
+try:
+    import model_pricing
+except ModuleNotFoundError:  # partial deploy — --help must still answer
+    model_pricing = None
+
 PROG = "token_cost_report.py"
 DEFAULT_ROOT = "~/.claude/projects"
 USAGE_KEYS = (
@@ -73,13 +78,11 @@ def _parse_ts(raw: str | None) -> datetime | None:
 
 def scan(
     root: Path, since: datetime | None, until: datetime | None
-) -> tuple[
-    collections.Counter, dict, collections.Counter, int, collections.Counter, dict
-]:
+) -> tuple[collections.Counter, dict, int, collections.Counter, dict, dict]:
     """Walk ``root`` for ``*.jsonl`` transcripts, dedupe by requestId, and
     aggregate usage.
 
-    Returns (agg, per_session, models, files, counts, naive_agg) where ``agg``
+    Returns (agg, per_session, files, counts, naive_agg, per_model) where ``agg``
     is the deduped/corrected totals, ``naive_agg`` is the raw per-line sum
     (the pre-fix, overcounted figure), and ``counts`` carries the self-check
     and time-filter bookkeeping (assistant_lines, records_in_range,
@@ -167,17 +170,57 @@ def scan(
 
     agg: collections.Counter = collections.Counter()
     per_session: dict = collections.defaultdict(collections.Counter)
-    models: collections.Counter = collections.Counter()
+    per_model: dict = collections.defaultdict(collections.Counter)
     for entry in by_request.values():
-        models[entry["model"]] += 1
         for k in USAGE_KEYS:
             agg[k] += entry[k]
             per_session[entry["sid"]][k] += entry[k]
+            per_model[entry["model"]][k] += entry[k]
         agg["api_calls"] += 1
         per_session[entry["sid"]]["api_calls"] += 1
+        per_model[entry["model"]]["api_calls"] += 1
 
     counts["api_requests"] = len(by_request)
-    return agg, per_session, models, files, counts, naive_agg
+    return agg, per_session, files, counts, naive_agg, per_model
+
+
+def cost_by_model(per_model: dict) -> tuple[list[dict], float, dict]:
+    """Cost each model's deduped usage.
+
+    Returns (rows, priced_total, unpriced) — rows sorted by cost descending
+    with unpriced models last. ``unpriced`` maps model -> request count so an
+    unknown model is reported as a hole in the total, never as $0 spend.
+    """
+    rows = []
+    unpriced: dict = {}
+    total = 0.0
+    for model, c in per_model.items():
+        if model_pricing is None:  # partial deploy; --help already answered above
+            err(
+                "model_pricing.py must sit beside this script "
+                "(deploy the whole configs/claude/scripts/ directory)"
+            )
+            raise SystemExit(2)
+        cost = model_pricing.cost_usd(
+            model,
+            input_tokens=c["input_tokens"],
+            output_tokens=c["output_tokens"],
+            cache_read=c["cache_read_input_tokens"],
+            cache_creation=c["cache_creation_input_tokens"],
+        )
+        if cost is None:
+            unpriced[model] = c["api_calls"]
+        else:
+            total += cost
+        rows.append(
+            {
+                "model": model,
+                "requests": c["api_calls"],
+                "cost_usd": None if cost is None else round(cost, 2),
+            }
+        )
+    rows.sort(key=lambda r: (r["cost_usd"] is None, -(r["cost_usd"] or 0)))
+    return rows, total, unpriced
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -234,7 +277,9 @@ def main(argv: list[str] | None = None) -> int:
         err(f"transcript root not found: {root}")
         return 2
 
-    agg, per_session, models, files, counts, naive_agg = scan(root, since_dt, until_dt)
+    agg, per_session, files, counts, naive_agg, per_model = scan(
+        root, since_dt, until_dt
+    )
 
     # Bail before the report: every share/ratio below divides by a total, so an
     # empty window used to raise a raw ZeroDivisionError traceback. An empty
@@ -314,7 +359,21 @@ def main(argv: list[str] | None = None) -> int:
             f"calls={c['api_calls']:>5}  {s[:70]}"
         )
     print()
-    print("models:", models.most_common(6))
+    model_rows, priced_total, unpriced = cost_by_model(per_model)
+    print(f"{'model':<28}{'reqs':>9}{'cost':>13}{'% of total':>12}")
+    for row in model_rows:
+        if row["cost_usd"] is None:
+            print(f"{row['model']:<28}{row['requests']:>9,}{'unpriced':>13}{'—':>12}")
+            continue
+        share = 100 * row["cost_usd"] / priced_total if priced_total else 0
+        print(
+            f"{row['model']:<28}{row['requests']:>9,}"
+            f"{'$' + format(row['cost_usd'], ',.2f'):>13}{share:>11.1f}%"
+        )
+    print(f"{'TOTAL (priced)':<28}{'':>9}{'$' + format(priced_total, ',.2f'):>13}")
+    if unpriced:
+        detail = ", ".join(f"{m} ({n:,} reqs)" for m, n in sorted(unpriced.items()))
+        print(f"UNPRICED (excluded from the total): {detail}")
 
     if args.json:
         try:
@@ -322,6 +381,9 @@ def main(argv: list[str] | None = None) -> int:
                 json.dumps(
                     {
                         "agg": dict(agg),
+                        "cost_by_model": model_rows,
+                        "cost_total_usd": round(priced_total, 2),
+                        "unpriced_models": unpriced,
                         "sessions": len(per_session),
                         "assistant_lines": counts["assistant_lines"],
                         "api_requests": counts["api_requests"],
