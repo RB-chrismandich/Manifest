@@ -33,6 +33,43 @@ Modified sections:
 Removed sections: N/A
 Templates / docs requiring updates: N/A (path-only correction; no template impact)
 Follow-up TODOs: N/A
+
+--------------------------------------------------------------------------------
+
+Version change: 1.1.1 → 2.0.0 (MAJOR — two principles redefined + one added)
+Modified principles:
+  - I. Configuration-as-Code — REDEFINED. Was mechanism-named (`configs/` deployed
+    "via bootstrap.sh"; drift corrected "via ./bootstrap.sh --reconfigure"). Now
+    property-first: version-controlled source, reproducible-from-manifest deploy,
+    single-owner paths, detectable+correctable drift. The named-implementation
+    clause was the defect: any change of deployer contradicted the constitution
+    by construction.
+  - V. Bootstrap Reproducibility → V. Reproducible, Idempotent Deployment.
+    REDEFINED and widened from one script to every deploy mechanism; adds
+    byte-identical no-change re-runs, orphan removal, user-edit preservation,
+    and disjoint path ownership as constitutional properties.
+Added:
+  - Principle VII. Published Artifact Integrity — governs distribution of Manifest
+    configuration as published, installable packages (version pinning, lockfile
+    reproducibility, integrity verification, pre-publish scrubbing, offline path).
+  Source: specs/522-apm-deploy-migration (feature 522).
+Modified sections:
+  - ## Development Workflow → Skills: home deployment is no longer asserted to be
+    `bootstrap.sh`-managed; it is now whichever mechanism owns that path, per
+    Principle V's ownership rule.
+Removed sections: N/A
+NOTE ON SEQUENCING: this amendment is deliberately MECHANISM-NEUTRAL. It names no
+  package manager and presupposes no outcome of feature 522's feasibility spike.
+  It is therefore valid whether that spike returns GO or NO-GO, and it does not
+  constitute adoption of any specific tool.
+Templates / docs requiring updates:
+  - .specify/templates/plan-template.md ⚠ Constitution Check should reference the
+    ownership/idempotence gates (Principle V) for any feature touching deployment
+  - CLAUDE.md / configs/claude/CLAUDE.md ⚠ drift-correction guidance still names
+    `./bootstrap.sh --reconfigure`; update when a migrated domain exists
+  - docs/CONFIGURATION.md, docs/GETTING_STARTED.md ⚠ same
+Follow-up TODOs: Principle VII takes effect for any published package; until one is
+  published it constrains nothing and is dormant by design.
 -->
 
 # Manifest Constitution
@@ -42,14 +79,23 @@ Follow-up TODOs: N/A
 ### I. Configuration-as-Code
 
 All agent configurations, skills, orchestration rules, and prompt templates MUST be
-version-controlled in `configs/` and deployed reproducibly via `bootstrap.sh`. Manual
-edits to deployed files in `~/.claude/`, `~/.cursor/`, `~/.gemini/`, or `~/.codex/` are
-prohibited; the repository is the authoritative source of truth. Configuration drift MUST
-be detected and corrected via `./bootstrap.sh --reconfigure`.
+version-controlled; the repository is the authoritative source of truth and a deployed
+tree is an output, never an input. Specifically:
+
+- Every deployed artifact MUST be reproducible from committed sources plus a committed
+  manifest, on a machine with no prior state.
+- Manual edits to deployed files in `~/.claude/`, `~/.cursor/`, `~/.gemini/`,
+  `~/.codex/`, or `~/.antigravity/` are prohibited. A mechanism that *preserves* a
+  user's manual edit MUST surface it as drift rather than silently accepting it.
+- Configuration drift MUST be **detectable by a command** and **correctable without
+  manual reconciliation**. The correcting mechanism is whichever one owns the path
+  (Principle V); this constitution does not name it.
 
 **Rationale**: Reproducible deployments prevent environment-specific failures and ensure
 every contributor operates from a consistent, auditable baseline regardless of machine
-state.
+state. This principle is stated as *properties*, not as a named script: a governance rule
+that hardcodes its own implementation is contradicted by any improvement to that
+implementation, which converts routine engineering into a constitutional violation.
 
 ### II. Parallel Agent Orchestration
 
@@ -88,16 +134,33 @@ skill is sufficient.
 **Rationale**: Composable skills enable independent testing, per-platform deployment, and
 targeted updates without risk to the core orchestration engine.
 
-### V. Bootstrap Reproducibility
+### V. Reproducible, Idempotent Deployment
 
-`bootstrap.sh` MUST produce identical deployments regardless of starting machine state.
-All installation and configuration steps MUST be idempotent. Non-idempotent operations
-(e.g., `git init`, credential writes) MUST be guarded by existence checks. The script
-MUST exit non-zero on any unrecoverable failure rather than continuing in a degraded
-state.
+Every mechanism that writes into an assistant home — the bootstrap installer, a package
+manager, or any successor — MUST satisfy all of the following. These are properties of
+*deployment*, not of any one script:
 
-**Rationale**: Idempotent bootstrapping is the contract that makes this repository a
-reliable configuration distribution mechanism across diverse machines and contributors.
+1. **Identical output**: the same sources produce the same deployed tree regardless of
+   starting machine state.
+2. **Idempotence**: re-running with unchanged sources produces a byte-identical tree and
+   reports no changes. Non-idempotent operations (e.g. `git init`, credential writes)
+   MUST be guarded by existence checks.
+3. **Orphan removal**: a file a previous deploy wrote and the current sources no longer
+   produce MUST be removed by the deploy itself, not by a separate reconciliation pass.
+4. **User-edit preservation**: a deployed file the user has modified MUST NOT be silently
+   overwritten; it MUST be preserved and reported (see Principle I).
+5. **Single ownership**: each deployed path MUST have **exactly one** owning mechanism.
+   Two mechanisms writing the same path is a defect, not an acceptable intermediate
+   state, including during a migration between mechanisms.
+6. **Fail closed**: exit non-zero on any unrecoverable failure rather than continuing in
+   a degraded state. A step that is skipped or cannot be verified MUST NOT report success.
+
+**Rationale**: Idempotent, self-cleaning, single-owner deployment is the contract that
+makes this repository a reliable configuration distribution mechanism across diverse
+machines and contributors. Properties 3–5 are stated explicitly because their absence —
+not their violation — was the root cause of recurring drift: a deployer that keeps no
+record of what it owns cannot remove what it orphaned, cannot tell a user's edit from its
+own output, and cannot detect that a second mechanism is fighting it for the same file.
 
 ### VI. State-Gated Lifecycle
 
@@ -115,6 +178,36 @@ never a pass). Review and analysis gates reuse the verdict model in Quality Gate
 **Rationale**: An enforced, observable lifecycle keeps a fast-moving, multi-language,
 multi-provider codebase honest — coverage grows with the product, no phase is silently
 skipped, and one tested gate core governs both humans and agents.
+
+### VII. Published Artifact Integrity
+
+When Manifest configuration is distributed as a **published, installable package** rather
+than consumed from a local checkout, the act of publishing is outward-facing and
+effectively irreversible — a published version can be superseded but not unseen. Therefore:
+
+1. **Provenance**: a published artifact MUST be built from committed sources at a tagged
+   version. Publishing from a dirty or unreproducible working tree is prohibited.
+2. **Pinning**: consumed packages and the publishing/installing toolchain itself MUST be
+   version-pinned and resolvable from a committed lockfile. Upgrades are deliberate
+   changes that MUST re-run the deployment property checks in Principle V.
+3. **Integrity**: installation MUST verify artifact integrity (hash or signature). An
+   installer that cannot verify what it fetched MUST fail closed, not warn and proceed.
+4. **Pre-publish scrubbing**: content MUST be scanned for secrets, credentials,
+   machine-local paths, and private or user-identifying material **before** publication,
+   and the scan MUST block on findings. Publishing distributes content beyond the
+   maintainer's control; a post-publish discovery is not remediable by deletion.
+5. **Availability independence**: a documented path MUST exist to install from a pinned
+   local artifact without network or registry access, so an outage or a removed upstream
+   cannot prevent a machine from being provisioned.
+6. **Local development path**: contributors MUST be able to build, deploy, and test
+   changes locally **without publishing**. A workflow in which every edit requires a
+   publish to be testable is prohibited, as it converts iteration into distribution.
+
+**Rationale**: Publishing converts an internal deployment concern into a supply chain.
+Configuration published this way carries hooks and MCP server definitions, which are
+executable code paths, not inert files — so the integrity of a published artifact is a
+security property, not a packaging convenience. This principle is dormant until a package
+is actually published, and constrains nothing before then.
 
 ## Quality Gates
 
@@ -182,8 +275,9 @@ configs) before opening a PR.
 
 **Skills**: New skills are added to `.skillshare/skills/` (source of truth). The path
 `configs/claude/skills/` is a backward-compatibility symlink and MUST NOT be replaced
-with a real directory. Home deployment (`~/.claude/skills`) is managed by `bootstrap.sh`;
-skillshare manages project-scoped targets (`.github/skills`).
+with a real directory. Home deployment (`~/.claude/skills`) is managed by whichever
+mechanism owns that path under Principle V — exactly one at any time — and skillshare
+manages project-scoped targets (`.github/skills`).
 
 **Plans**: Implementation plans live in `configs/claude/.plans/` as
 `YYYYMMDD-description.md`. Plans follow the lifecycle CREATE → ACTIVE → COMPLETED
@@ -216,4 +310,4 @@ review of all principles is RECOMMENDED to ensure alignment with project evoluti
 **Runtime guidance**: Use `configs/claude/CLAUDE.md` for session-level development
 guidance; it is the deployed document that governs active Claude Code sessions.
 
-**Version**: 1.1.1 | **Ratified**: 2026-05-31 | **Last Amended**: 2026-07-17
+**Version**: 2.0.0 | **Ratified**: 2026-05-31 | **Last Amended**: 2026-07-25
