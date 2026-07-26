@@ -78,7 +78,7 @@ jobs:
       # --- YAML validation with Python ---
 
       - name: Set up Python
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6
         with:
           python-version: "3.14"
 
@@ -187,7 +187,7 @@ jobs:
       # --- Python tests ---
 
       - name: Set up Python
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6
         with:
           python-version: "3.14"
           cache: pip
@@ -229,7 +229,7 @@ jobs:
       # without it both steps silently skip and drift would pass unnoticed
       # (spec 362 T015; spec 2026-07-11 cursor-feature-parity WS-1).
       - name: Set up Python
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6
         with:
           python-version: "3.14"
 
