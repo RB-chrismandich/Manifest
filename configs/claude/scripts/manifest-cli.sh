@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# help-coverage: exempt — thin exec wrapper; argv IS the wrapped command, so --help
+# is the home runtime's, not this script's. Gating it would make the suite pass or
+# fail on whether ~/.claude/.venv happens to exist (green locally, red in CI).
 set -euo pipefail
 
 err() { printf 'manifest: %s\n' "$*" >&2; }

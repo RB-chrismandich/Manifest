@@ -70,7 +70,9 @@ Each language carries one verdict:
   and the help path must succeed before any config read, state lookup, or
   dependency probe. Detection/save-hook helpers opt out **in the file** with
   `# help-coverage: exempt — <rationale>` under the shebang (`ci_platform.sh`,
-  `git_platform.sh`, `version_pin_hook.sh`). See the Python section for why the
+  `git_platform.sh`, `version_pin_hook.sh`, `manifest-cli.sh`). Verify the help
+  path with an **empty `HOME`**, not your own: a wrapper that forwards to the
+  home runtime exits 0 on a configured machine and 1 in CI. See the Python section for why the
   coverage set is enumerated rather than listed.
 - Never `eval` or interpolate untrusted input into shell source.
 - Inline `# shellcheck disable=SCxxxx` with a reason only; never blanket file-level
