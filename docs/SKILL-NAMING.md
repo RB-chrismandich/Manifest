@@ -90,6 +90,7 @@ performance
 plan
 pr
 premise
+print
 process
 project
 prompt
