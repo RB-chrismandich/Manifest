@@ -61,18 +61,23 @@ $10/$50 per MTok, 2x Opus. Start there.
 report splits by class *and* model, so one command reads the lever directly:
 
 ```bash
+# --since is the DEPLOY point, not the commit point: until bootstrap.sh copied
+# the guide into ~/.claude, every session still loaded the old policy.
 configs/claude/scripts/opus_attribution_report.py \
-    --since 2026-07-25T23:58:27Z --models all | grep '^subagent'
+    --since 2026-07-26T02:40:18Z --models all | grep '^subagent'
 ```
 
-**It has not yet read clean.** In the 3h58m between the baseline and the change
-point — the session that landed this very policy — 283 sub-agent requests ran on
-Opus 5 ($50.79), against zero Opus 5 traffic of any kind before it. The rule
-above permits Opus for adversarial verification, so a non-zero cell is not by
-itself a violation; what it establishes is that the cell is non-zero and the
-report cannot say whether those dispatches were the permitted exception or
-inherited the session model. Until a post-change interval reads premium
-sub-agent cells at (or near) zero, treat lever 1 as **declared, not landed**.
+**Deployed 2026-07-26T02:40:18Z; measurement starts there.** Earlier readings
+of this query looked alarming — 283 sub-agent requests on Opus 5, then 555, then
+943 — and every one of them was measured against a `--since` that predated the
+deploy. The policy existed only in the repo until `./bootstrap.sh` copied it into
+`~/.claude`, so that traffic ran under the *old* guide. It is the comparison
+baseline, not evidence of failure.
+
+The rule above permits Opus for adversarial verification, so a non-zero premium
+cell is not by itself a violation; the matrix cannot distinguish a permitted
+exception from an inherited default. Until a post-deploy interval reads premium
+sub-agent cells at (or near) zero, lever 1 stays **declared, not landed**.
 
 Closing that last ambiguity needs the dispatch to record its own intent —
 transcripts carry the model a sub-agent ran on, not the reason it was chosen.
@@ -223,12 +228,22 @@ baseline exists. For each lever:
 |---|---|---|---|
 | 2026-07-25T20:00:00Z | Baseline | `docs/baselines/2026-07-25-opus-attribution.json` | — |
 | 2026-07-25T23:58:27Z | Levers 1 + 2 land | `docs/baselines/2026-07-25-changepoint-model-policy-opus-attribution.json` (Opus) · `docs/baselines/2026-07-25-changepoint-model-class-matrix.json` (all models) | pending — needs accumulated traffic |
+| 2026-07-26T02:40:18Z | **Deployed to `~/.claude`** — the point measurement actually starts from | `docs/baselines/2026-07-26-postdeploy-model-class-matrix.json` | pending — measure from HERE, not from the commit |
 
 Levers 1 and 2 landed together, which normally forfeits attribution. They stay
 separable here because the attribution report splits by **class** and by
 **model**: lever 1 moves the `subagent` class off Opus/Fable, lever 2 moves
 main-loop Fable requests off Fable. Read them from different rows, and do not
 land a third lever until both have been read.
+
+**Measure from the deploy row, not the commit row.** Committing changed nothing
+observable: until `./bootstrap.sh` copied the guide and `command_config.yml`
+into `~/.claude`, every session still loaded the old policy. The interval
+between the commit and the deploy is pre-change traffic wearing a post-change
+date, and reading it was what made lever 1 look broken. At the deploy point the
+cumulative `subagent x claude-opus-5` cell stood at 943 requests / $156.68 — all
+of it inherited under the old guide, and the number a post-deploy interval must
+be compared against rather than added to.
 
 Change-point deltas from the baseline 4h earlier (measurement noise, not
 effect): 48,347 requests (+1,162), Opus 17,784 (+911), `subagent` class 4,817
