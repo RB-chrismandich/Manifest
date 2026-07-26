@@ -79,7 +79,14 @@ main() {
 
     local def_branch cur_branch
     def_branch="$(git -C "$clone_path" symbolic-ref --quiet refs/remotes/origin/HEAD 2> /dev/null)"
-    def_branch="${def_branch##*/}"
+    # Strip exactly the ref prefix. `##*/` would keep only the last path
+    # component, truncating a slash-containing default branch (release/v2 -> v2)
+    # so that refs/remotes/origin/<branch> below resolves to nothing and the
+    # behind-upstream check silently no-ops.
+    case "$def_branch" in
+        refs/remotes/origin/*) def_branch="${def_branch#refs/remotes/origin/}" ;;
+        *) def_branch="" ;;
+    esac
     [[ -n "$def_branch" ]] || def_branch="main"
     cur_branch="$(git -C "$clone_path" rev-parse --abbrev-ref HEAD 2> /dev/null)"
     [[ "$cur_branch" == "$def_branch" ]] || {
@@ -97,7 +104,12 @@ main() {
     # Behind-upstream check (see header comment): local-only, no `git fetch`.
     # Compares HEAD against the remote-tracking ref already on disk, so a
     # clone that has never been fetched simply never triggers this — that
-    # limitation is accepted, not worked around.
+    # limitation is accepted, not worked around. It is NOT reported to the user:
+    # a SessionStart hook must not fetch, so it cannot distinguish "up to date"
+    # from "unknown" without network, and a per-session nudge about a rare
+    # condition (normal `git clone` always populates origin/*) is worse than
+    # silence. It is distinguished on the debug channel below, so a diagnosis
+    # run never sees an unexplained zero.
     local behind
     behind="$(git -C "$clone_path" rev-list --count "HEAD..refs/remotes/origin/$def_branch" 2> /dev/null)"
     if [[ "$behind" =~ ^[0-9]+$ && "$behind" -gt 0 ]]; then
@@ -114,8 +126,10 @@ main() {
         else
             debug "already warned for upstream $upstream_sha"
         fi
+    elif git -C "$clone_path" rev-parse --verify --quiet "refs/remotes/origin/$def_branch" > /dev/null 2>&1; then
+        debug "not behind upstream"
     else
-        debug "not behind upstream (or origin/$def_branch not fetched)"
+        debug "origin/$def_branch has no remote-tracking ref (never fetched) — behind-check inactive"
     fi
 
     local cur_configs cur_skills

@@ -257,6 +257,29 @@ EOF
     assert_output ""
 }
 
+@test "checker: nudges when the default branch name contains a slash" {
+    # Regression: the resolver used `${def_branch##*/}`, which keeps only the
+    # last path component — release/v2 became v2, refs/remotes/origin/v2 does
+    # not exist, and the behind-check silently no-opped. Every other checker
+    # test runs on a slash-free init branch, so the defect was invisible: the
+    # branch name has to VARY inside the check for it to be exercised.
+    setup_checker
+    git -C "$CLONE" checkout -q -b release/v2
+    git -C "$CLONE" symbolic-ref "refs/remotes/origin/HEAD" "refs/remotes/origin/release/v2"
+    write_fake_stamp false
+    local old_sha
+    old_sha="$(git -C "$CLONE" rev-parse HEAD)"
+
+    git -C "$CLONE" commit --allow-empty -qm "upstream advance"
+    git -C "$CLONE" update-ref "refs/remotes/origin/release/v2" "$(git -C "$CLONE" rev-parse HEAD)"
+    git -C "$CLONE" reset -q --hard "$old_sha"
+
+    run env HOME="$FHOME" MANIFEST_STATE_ROOT="$FHOME/.manifest" bash "$CHECK"
+    assert_success
+    assert_output --partial "behind origin/release/v2"
+    assert_output --partial "1 commit"
+}
+
 @test "checker: behind-upstream check stays silent on a feature branch" {
     setup_checker
     write_fake_stamp false

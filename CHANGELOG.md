@@ -10,6 +10,28 @@ All notable changes are documented here in reverse chronological order.
 
 ## [Unreleased]
 
+### Model-Routing Verification (class x model matrix)
+
+- **`opus_attribution_report.py` is no longer Opus-only.** A hardcoded
+  `if "opus" not in model: continue` meant no committed script could reproduce the
+  baseline's own headline row (Fable 5 sub-agents: 4,531 requests, $919.32) — that
+  figure came from ad-hoc analysis that was not kept, while the Reproduce section
+  claimed otherwise. The filter is now `--models` (default `opus`, `all` to widen),
+  and the report emits a **class x model matrix** with per-cell cost.
+- **`--since <change-point> --models all` is the lever-verification query.**
+  `subagent_policy.bats` T7/T8 prove `command_config.yml` *says* Sonnet; nothing
+  proved a dispatch *ran* Sonnet. One command now answers it. First reading:
+  283 sub-agent requests on Opus 5 in the change-point interval, so lever 1 is
+  marked **declared, not landed** in `docs/MODEL-POLICY.md`.
+- **Shared price table** `configs/claude/scripts/model_pricing.py` (`--json` to
+  dump), used by both cost-reporting CLIs so their figures cannot diverge. An
+  unknown model is reported **unpriced** and excluded from totals — never costed
+  at $0. `token_cost_report.py` gained the per-model cost table that reproduces
+  the baseline's $6,141.64 scope-correction figures.
+- **Tests**: 7 new cases in `tests/python/test_measurement_reports.py` covering
+  matrix cost math, unpriced-not-zero, `--models` filtering, and the
+  cell-goes-to-zero verification query.
+
 ### Credit Measurement Baseline
 
 - **Three measurement CLIs** in `configs/claude/scripts/` — `token_cost_report.py`,
