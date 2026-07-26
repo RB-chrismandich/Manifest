@@ -20,7 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803  # v6
         with:
           # Full history so pre-commit can diff changed files against the base ref.
           fetch-depth: 0
@@ -157,7 +157,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803  # v6
         with:
           # bats-support / bats-assert under tests/test_helper are git submodules
           submodules: true
@@ -221,7 +221,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803  # v6
 
       # generate_cursor_rules.sh emits the command-index rule via
       # generate_commands_doc.py (imports pyyaml), and regenerates
