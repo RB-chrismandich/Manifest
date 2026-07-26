@@ -66,9 +66,12 @@ Each language carries one verdict:
 - Declare function-local variables with `local`; module constants with `readonly`.
 - Route error/warning output through `err() { echo "<script-name>: $*" >&2; }`.
   `bootstrap/lib/` keeps its own `print_error()` family as the sole exception.
-- Every user-facing entry-point script handles `--help` (usage ≤15 lines, exit 0).
-  Detection/save-hook helpers are exempt with rationale (`git_platform.sh`,
-  `version_pin_hook.sh`).
+- Every user-facing entry-point script handles `--help` (usage ≤15 lines, exit 0),
+  and the help path must succeed before any config read, state lookup, or
+  dependency probe. Detection/save-hook helpers opt out **in the file** with
+  `# help-coverage: exempt — <rationale>` under the shebang (`ci_platform.sh`,
+  `git_platform.sh`, `version_pin_hook.sh`). See the Python section for why the
+  coverage set is enumerated rather than listed.
 - Never `eval` or interpolate untrusted input into shell source.
 - Inline `# shellcheck disable=SCxxxx` with a reason only; never blanket file-level
   disables.
@@ -106,22 +109,31 @@ array-expansion lint at commit and CI.
   (`"2026-…" > "banana"` is `False`) and silently widens the scan.
 - **`--help` entry points**: every directly-invocable Python CLI in
   `configs/claude/scripts/` handles `--help` (exit 0, `usage`/`Usage` in
-  output), gated by `tests/bats/help_coverage.bats`'s `PY_USER_FACING` list.
-  Exempt: `_manifest_shim.py` (shared library module — no `__main__`, never
-  invoked directly, only imported by the `skillclaw_*.py`/`smoke_test.py`/
-  `parallel_agent.py` deprecation shims), `budget_broker.py` (interceptor
-  wrapper — its argv IS the wrapped command being intercepted, so `--help` is
-  forwarded to the child process instead of being handled), and
-  `reconcile_core.py` (internal read-only engine behind `deploy_reconcile.sh`;
-  `add_help=False`, no direct CLI surface, per its own module docstring).
-  The `manifest` deprecation shims (`parallel_agent.py`, `smoke_test.py`, the
-  `skillclaw_*.py` family) are excluded **mechanically**, by detecting their
-  `_manifest_shim` import rather than by a hand-maintained name list. They do
-  not own a `--help`: they exec the home runtime, so they print *its* usage
-  when `manifest` is installed and a deprecation notice when it isn't. Gating
-  them makes the suite pass or fail on whether the runtime happens to be built
-  — green locally, red in CI. Deriving the exclusion also means a future shim
-  is exempt automatically instead of silently breaking the build.
+  output), gated by `tests/bats/help_coverage.bats`.
+
+  **Coverage is enumerated, never listed.** The gate walks every `*.py` and
+  `*.sh` in the directory. An inclusion list fails in the direction you cannot
+  see — a new script that forgets to join it is silently ungated — and a name
+  in the list that cannot satisfy the gate breaks CI, which is exactly how
+  `parallel_agent.py` broke the build. Exclusions come from one of three
+  places, in order of preference:
+
+  1. **Derived from the code.** A file with no `__main__` block is a library,
+     not an entry point (`_manifest_shim.py`). A file importing
+     `_manifest_shim` is a `manifest` deprecation shim: it execs the home
+     runtime, so it prints *that* runtime's usage when `manifest` is installed
+     and a deprecation notice when it isn't. Gating those makes the suite pass
+     or fail on whether the runtime happens to be built — green locally, red in
+     CI. Deriving it means a future shim is exempt automatically.
+  2. **Declared in the file**, directly under the shebang:
+     `# help-coverage: exempt — <rationale>`. Used by `budget_broker.py` (an
+     interceptor wrapper — its argv IS the wrapped command, so `--help` is
+     forwarded to the child) and `reconcile_core.py` (internal read-only engine
+     behind `deploy_reconcile.sh`; `add_help=False`, no direct CLI surface).
+     The rationale travels with the code, and a bare opt-out is itself a test
+     failure.
+  3. **Nothing else.** A script that is neither gated nor marked fails the
+     `coverage is enumerated, not listed` test.
 
 **Enforcement:** `ruff check` + `ruff format` (commit + CI on changed files);
 `ruff check` advisory at edit-time; pyright is available as an opt-in manual hook

@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# help-coverage: exempt — interceptor wrapper; argv IS the wrapped command being
+# intercepted, so --help is forwarded to the child rather than handled here.
 """BudgetBroker Command Interceptor Wrapper.
 
 Intercepts outgoing CLI agent execution calls, estimates token spend, tracks costs,

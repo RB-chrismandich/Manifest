@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# help-coverage: exempt — save-hook wrapper invoked by the harness with hook JSON on
+# stdin, never by a user with flags.
 # version_pin_hook.sh - PostToolUse adapter for version_pin.sh (warn-only)
 #
 # Reads the Claude Code PostToolUse JSON payload on stdin, extracts the edited

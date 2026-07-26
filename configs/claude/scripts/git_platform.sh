@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# help-coverage: exempt — internal detection helper used by git_ops.sh; prints the
+# detected platform to stdout, so it has no independent CLI surface.
 # git_platform.sh - Detect Git hosting platform from remote URL
 #
 # Usage: git_platform.sh [remote_name]

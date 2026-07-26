@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# help-coverage: exempt — internal detection helper; its whole contract is to print
+# the detected platform to stdout, so a --help mode would collide with that output.
 # ci_platform.sh - Detect CI platform from repository configuration
 #
 # Usage: ci_platform.sh
