@@ -111,6 +111,16 @@ link_shared_assets() {
     done
 }
 
+# Ownership registry helper. Sourced from configs/claude/scripts/ because
+# sync-skills.sh — a standalone CLI in ~/.local/bin — needs the same function and
+# cannot source the bootstrap libraries. One implementation, two callers.
+# shellcheck disable=SC1090,SC1091
+if [[ -n "${SCRIPT_DIR:-}" && -f "$SCRIPT_DIR/configs/claude/scripts/apm_domains_lib.sh" ]]; then
+    source "$SCRIPT_DIR/configs/claude/scripts/apm_domains_lib.sh"
+elif [[ -f "${BASH_SOURCE[0]%/*}/../../configs/claude/scripts/apm_domains_lib.sh" ]]; then
+    source "${BASH_SOURCE[0]%/*}/../../configs/claude/scripts/apm_domains_lib.sh"
+fi
+
 # Deploy skills into a tool's real skills dir from the PHYSICAL skillshare source.
 # Always sources the real .apm/skills dir (never the compat symlink).
 # Manifest-scoped prune (FR-005a, specs/003): skills we previously deployed and
@@ -120,6 +130,14 @@ link_shared_assets() {
 deploy_home_skills() {
     local src="$1"
     local dest="$2"
+    # T014/FR-027: stand down for a domain APM owns, and keep deploying the
+    # rest. Per-domain, never a global off-switch — the domain name defaults to
+    # the destination's basename ("skills") so callers need no new argument.
+    local domain="${3:-$(basename "$dest")}"
+    if declare -f apm_owns_domain > /dev/null 2>&1 && apm_owns_domain "$domain"; then
+        print_info "Skipping $domain — APM owns this domain (deploy it with $APM_DOMAIN_REPLACEMENT_CMD)"
+        return 0
+    fi
 
     if [[ ! -d "$src" ]]; then
         print_error "Skill source not found: $src"

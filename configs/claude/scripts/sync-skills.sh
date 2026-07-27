@@ -31,6 +31,28 @@ SKILLS_SRC="$MANIFEST_ROOT/.apm/skills"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+# T015/FR-027: stand down for a domain APM owns. Deployed to ~/.local/bin, so
+# the library is resolved from the repo first and the deployed sibling second.
+# shellcheck disable=SC1090,SC1091
+for _lib in "$MANIFEST_ROOT/configs/claude/scripts/apm_domains_lib.sh" \
+    "$SCRIPT_DIR/apm_domains_lib.sh" "$HOME/.claude/scripts/apm_domains_lib.sh"; do
+    [[ -f "$_lib" ]] && {
+        source "$_lib"
+        break
+    }
+done
+unset _lib
+
+if declare -f apm_owns_domain > /dev/null 2>&1 && apm_owns_domain skills; then
+    # SAY it. A silent no-op reads as success, and a contributor whose skill
+    # edit never reached their home will debug the edit, not the tool. Naming
+    # the replacement matters just as much: "declined to act" with no
+    # alternative is a dead end (FR-021 requires the workflow keep working).
+    echo "sync-skills: skipping 'skills' — APM owns this domain now."
+    echo "sync-skills: use ${APM_DOMAIN_REPLACEMENT_CMD:-apm-dev-sync} instead (publish-free; also removes deleted skills)."
+    exit 0
+fi
+
 # resolve_agent_roster_path -> the agent_roster.yml to read. Same precedence
 # as check_status.sh's resolve_agent_roster_path: MANIFEST_AGENT_ROSTER (test
 # fixtures) > the deployed home copy > the repo-relative sibling of this
