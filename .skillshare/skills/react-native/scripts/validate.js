@@ -23,9 +23,13 @@ const RGBA_COLOR_REGEX = /^rgba?\(\s*\d/;
 const HTML_ELEMENTS = ['div', 'span', 'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'img', 'button', 'a', 'input', 'ul', 'ol', 'li', 'section', 'header', 'footer', 'nav', 'main'];
 
 async function validateComponent(filePath) {
-  const code = fs.readFileSync(filePath, 'utf-8');
-  const filename = path.basename(filePath);
+  if (!filePath) {
+    console.error("Usage: node validate.js <path-to-component>");
+    process.exit(1);
+  }
   try {
+    const code = fs.readFileSync(filePath, 'utf-8');
+    const filename = path.basename(filePath);
     const ast = await swc.parse(code, { syntax: "typescript", tsx: true });
     let hasInterface = false;
     let hasExportedInterface = false;
@@ -112,7 +116,7 @@ async function validateComponent(filePath) {
       process.exit(1);
     }
   } catch (err) {
-    console.error("PARSE ERROR:", err.message);
+    console.error("ERROR:", err.message);
     process.exit(1);
   }
 }

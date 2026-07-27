@@ -18,12 +18,16 @@ import swc from '@swc/core';
 import fs from 'node:fs';
 import path from 'node:path';
 
-const HEX_COLOR_REGEX = /#[0-9A-Fa-f]{6}/;
+const HEX_COLOR_REGEX = /#[0-9A-Fa-f]{3,8}\b/;
 
 async function validateComponent(filePath) {
-  const code = fs.readFileSync(filePath, 'utf-8');
-  const filename = path.basename(filePath);
+  if (!filePath) {
+    console.error("Usage: node validate.js <path-to-component>");
+    process.exit(1);
+  }
   try {
+    const code = fs.readFileSync(filePath, 'utf-8');
+    const filename = path.basename(filePath);
     const ast = await swc.parse(code, { syntax: "typescript", tsx: true });
     let hasInterface = false;
     let tailwindIssues = [];
@@ -70,7 +74,7 @@ async function validateComponent(filePath) {
       process.exit(1);
     }
   } catch (err) {
-    console.error("❌ PARSE ERROR:", err.message);
+    console.error("❌ ERROR:", err.message);
     process.exit(1);
   }
 }
