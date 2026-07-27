@@ -983,17 +983,33 @@ install_apm_cli() {
     }
     local wheel="$tmp/apm_cli-${APM_PINNED_VERSION}-py3-none-any.whl"
 
-    local url
-    if ! url="$(apm_resolve_wheel_url)" || [[ -z "$url" ]]; then
-        print_error "Could not resolve the apm v$APM_PINNED_VERSION wheel URL — refusing to install"
-        rm -rf "$tmp"
-        return 1
-    fi
+    # T044/FR-031: offline path. APM_WHEEL_LOCAL points at a pinned artifact
+    # already on disk, so a disconnected or air-gapped machine can install
+    # without any network or registry access. It skips resolution and download —
+    # NOT verification: the checksum below still runs, because "I brought my own
+    # file" is not evidence about what is in it, and an offline install is
+    # exactly when nobody is watching.
+    if [[ -n "${APM_WHEEL_LOCAL:-}" ]]; then
+        if [[ ! -f "$APM_WHEEL_LOCAL" ]]; then
+            print_error "APM_WHEEL_LOCAL is set but not a file: $APM_WHEEL_LOCAL"
+            rm -rf "$tmp"
+            return 1
+        fi
+        cp "$APM_WHEEL_LOCAL" "$wheel"
+        print_info "Using pinned local artifact (offline): $APM_WHEEL_LOCAL"
+    else
+        local url
+        if ! url="$(apm_resolve_wheel_url)" || [[ -z "$url" ]]; then
+            print_error "Could not resolve the apm v$APM_PINNED_VERSION wheel URL — refusing to install"
+            rm -rf "$tmp"
+            return 1
+        fi
 
-    if ! apm_download "$url" "$wheel"; then
-        print_error "Download of apm v$APM_PINNED_VERSION failed — refusing to install"
-        rm -rf "$tmp"
-        return 1
+        if ! apm_download "$url" "$wheel"; then
+            print_error "Download of apm v$APM_PINNED_VERSION failed — refusing to install"
+            rm -rf "$tmp"
+            return 1
+        fi
     fi
 
     local actual
