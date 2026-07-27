@@ -786,6 +786,18 @@ PYEOF
 # the opted-in hooks (issue #461). Scope: ONLY those two enabled: gates — the
 # repo copy stays authoritative for everything else. Fail-open like its
 # sibling merge_claude_mcp_servers.
+# DEPRECATED as of T051/FR-034 — now a one-way migration shim, not a mechanism.
+#
+# This function exists because the issue-hook opt-in used to be written into the
+# DEPLOYED command_config.yml: state stored inside a build output, which every
+# deploy is free to overwrite, so the deploy had to carry it back across. That
+# was compensating for the write being in the wrong place.
+#
+# install_issue_hooks.sh now writes ~/.manifest/issue_hooks.yml, a file no
+# package owns, and nothing needs carrying. This is kept only so users who
+# opted in the old way do not silently lose it on their next deploy. Once such
+# opt-ins can be assumed migrated (a re-run of `install_issue_hooks.sh --enable`
+# moves one), delete this function and its two call sites — do not extend it.
 preserve_issue_sync_gates() {
     local preserved="$1" tgt="$2"
     [[ -n "$preserved" && -f "$preserved" ]] || return 0

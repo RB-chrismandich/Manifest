@@ -10,6 +10,10 @@ setup() {
     export BATS_TMPDIR="${BATS_TMPDIR:-/tmp}"
     TMP=$(mktemp -d "$BATS_TMPDIR/install_ih.XXXXXX")
     export ISSUE_HOOKS_SETTINGS="$TMP/settings.json"
+    # Isolate the user-scope opt-in overlay (T051). This suite RUNS the real
+    # installer, so without this it writes into the developer's actual
+    # ~/.manifest/ — observed, not hypothetical.
+    export ISSUE_HOOKS_STATE="$TMP/issue_hooks.yml"
     export ISSUE_HOOKS_CONFIG="$TMP/config.yml"
     cat >"$ISSUE_HOOKS_CONFIG" <<'EOF'
 tool_policies:
@@ -31,13 +35,30 @@ teardown() { [[ -n "$TMP" && -d "$TMP" ]] && rm -rf "$TMP"; }
 
 # --- H3: opt-in runtime gate ------------------------------------------------
 
-@test "enable flips both skills' enabled to true and preserves comments" {
+@test "enable records both skills in the user-scope overlay" {
+    # Contract CHANGED by T051/FR-034. This test previously asserted the
+    # installer flipped `enabled: true` inside the deployed command_config.yml.
+    # That made a user opt-in a piece of state stored in a build output, which
+    # any deploy is free to overwrite — the sole reason
+    # preserve_issue_sync_gates() existed. The installer now writes a file no
+    # package owns, and the assertion moved with it.
     run bash "$INSTALL" --enable
     [ "$status" -eq 0 ]
-    grep -A1 '^  issue-sync-pr:' "$ISSUE_HOOKS_CONFIG" | grep -q 'enabled: true'
-    grep -A1 '^  issue-sync-commit:' "$ISSUE_HOOKS_CONFIG" | grep -q 'enabled: true'
+    grep -q 'issue-sync-pr' "$ISSUE_HOOKS_STATE"
+    grep -q 'issue-sync-commit' "$ISSUE_HOOKS_STATE"
+    grep -q 'enabled: true' "$ISSUE_HOOKS_STATE"
+}
+
+@test "enable leaves the package-owned config untouched, comments and all" {
+    # The other half of the same contract. The installer now has no code path to
+    # command_config.yml at all, so this passes trivially today — it is kept as a
+    # regression guard against the write being reintroduced, which is exactly how
+    # the original defect arrived.
+    cp "$ISSUE_HOOKS_CONFIG" "$TMP/config.before"
+    run bash "$INSTALL" --enable
+    [ "$status" -eq 0 ]
+    diff "$ISSUE_HOOKS_CONFIG" "$TMP/config.before"
     grep -q '# comment kept' "$ISSUE_HOOKS_CONFIG"
-    # unrelated skill untouched
     grep -A1 '^  other-skill:' "$ISSUE_HOOKS_CONFIG" | grep -q 'enabled: false'
 }
 

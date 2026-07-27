@@ -54,14 +54,45 @@ else:
 # ---------------------------------------------------------------------------
 
 
+# ---------------------------------------------------------------------------
+# Config directory resolution
+# ---------------------------------------------------------------------------
+
+#: Environment override for the config directory these classes read from.
+#: Without it, every path here resolves to the *deployed* ``~/.claude/config``,
+#: so editing a YAML in the repo has no effect until ``bootstrap.sh`` copies it
+#: out — which makes "I changed the config and nothing happened" a routine and
+#: entirely avoidable confusion, and makes tests dependent on ambient home state.
+MANIFEST_CONFIG_DIR_ENV = "MANIFEST_CONFIG_DIR"
+
+DEFAULT_CONFIG_DIR = "~/.claude/config"
+
+
+def resolve_config_path(filename: str, explicit: str | None = None) -> str:
+    """Resolve a config file path.
+
+    Precedence: *explicit* argument > ``$MANIFEST_CONFIG_DIR`` > the deployed
+    ``~/.claude/config``. The explicit argument wins over the environment on
+    purpose — a caller that names a path is being specific, and an env var
+    silently overriding it would make tests that pass a fixture path depend on
+    the ambient environment, which is the failure mode this override exists to
+    remove.
+    """
+    if explicit is not None:
+        return explicit
+    base = os.environ.get(MANIFEST_CONFIG_DIR_ENV)
+    if base:
+        return os.path.join(os.path.expanduser(base), filename)
+    return os.path.expanduser(f"{DEFAULT_CONFIG_DIR}/{filename}")
+
+
 def load_agent_roster(roster_path: str | None = None) -> dict[str, dict]:
     """Load the `agents:` map from agent_roster.yml.
 
     Returns {} if the file is missing or malformed — callers treat the
     roster as an optional extensibility source, never a hard dependency.
     """
-    if roster_path is None:
-        roster_path = os.path.expanduser("~/.claude/config/agent_roster.yml")
+    roster_path = resolve_config_path("agent_roster.yml", roster_path)
 
     if not os.path.exists(roster_path):
         return {}
@@ -80,10 +111,7 @@ class Config:
     """Configuration manager for parallel agent"""
 
     def __init__(self, config_path: str | None = None, roster_path: str | None = None):
-        if config_path is None:
-            config_path = os.path.expanduser("~/.claude/config/parallel_agent.yml")
-
-        self.config_path = config_path
+        self.config_path = resolve_config_path("parallel_agent.yml", config_path)
         self.config = self._load_config()
 
         # Lazily loaded on first get_cli_agent_spec() miss against cli_agents —
@@ -307,9 +335,7 @@ class ServiceConfig:
     """Service configuration manager reading from services.yml"""
 
     def __init__(self, config_path: str | None = None):
-        if config_path is None:
-            config_path = os.path.expanduser("~/.claude/config/services.yml")
-        self.config_path = config_path
+        self.config_path = resolve_config_path("services.yml", config_path)
         self._data = self._load()
 
     def _load(self) -> dict:

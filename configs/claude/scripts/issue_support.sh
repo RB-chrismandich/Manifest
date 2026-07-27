@@ -23,6 +23,14 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 GIT_OPS_BIN="${GIT_OPS_BIN:-${SCRIPT_DIR}/git_ops.sh}"
 TRACKER_OPS_BIN="${TRACKER_OPS_BIN:-${SCRIPT_DIR}/tracker_ops.sh}"
 CONFIG_FILE="${ISSUE_SUPPORT_CONFIG:-${SCRIPT_DIR}/../config/command_config.yml}"
+# T051/FR-034: user opt-in state lives in a file NO package owns, checked before
+# the deployed command_config.yml. Under build-output semantics a deployed file
+# is reproducible from source and may be overwritten by any deploy, so an opt-in
+# recorded there is state stored in a build artifact -- which is why
+# preserve_issue_sync_gates() had to exist at all. The overlay removes the need
+# for that carry-across rather than making it more robust.
+# command_config.yml stays a valid fallback so existing opt-ins keep working.
+ISSUE_HOOKS_STATE="${ISSUE_HOOKS_STATE:-${HOME}/.manifest/issue_hooks.yml}"
 TEMPLATE_FILE="${ISSUE_SUPPORT_TEMPLATE:-${SCRIPT_DIR}/templates/issue_support_issue.md}"
 
 # Ordered status lifecycle (forward-only). Index = rank. (canonical labels.yml set)
@@ -46,13 +54,35 @@ USAGE
 git_ops() { "${GIT_OPS_BIN}" "$@"; }
 
 # cfg_get <skill> <key> <default> — read tool_policies.<skill>.<key>
+# overlay_has <skill> <key> -- does the user-scope overlay define this key?
+# Separate from cfg_get's read so "present but false" stays distinguishable from
+# "absent": folding them together would make it impossible to turn a hook OFF
+# via the overlay once the package config said true.
+overlay_has() {
+    python3 - "${ISSUE_HOOKS_STATE}" "$1" "$2" << 'OV' 2> /dev/null
+import sys, yaml
+path, skill, key = sys.argv[1:4]
+try:
+    data = yaml.safe_load(open(path)) or {}
+    pol = (data.get("tool_policies", {}) or {}).get(skill, {}) or {}
+    sys.exit(0 if key in pol else 1)
+except Exception:
+    sys.exit(1)
+OV
+}
+
 cfg_get() {
-    local skill="$1" key="$2" default="$3"
-    [[ -f "${CONFIG_FILE}" ]] || {
+    local skill="$1" key="$2" default="$3" src="${CONFIG_FILE}"
+    # Overlay first, package config second. A key absent from the overlay falls
+    # through, so the overlay only carries what the user actually set.
+    if [[ -f "${ISSUE_HOOKS_STATE}" ]] && overlay_has "${skill}" "${key}"; then
+        src="${ISSUE_HOOKS_STATE}"
+    fi
+    [[ -f "${src}" ]] || {
         printf '%s' "${default}"
         return 0
     }
-    python3 - "${CONFIG_FILE}" "${skill}" "${key}" "${default}" << 'PY' 2> /dev/null || printf '%s' "${default}"
+    python3 - "${src}" "${skill}" "${key}" "${default}" << 'PY' 2> /dev/null || printf '%s' "${default}"
 import sys, yaml
 path, skill, key, default = sys.argv[1:5]
 try:

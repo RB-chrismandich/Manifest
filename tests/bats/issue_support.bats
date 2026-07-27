@@ -101,6 +101,12 @@ EOF
     export TRACKER_OPS_BIN="$TMP/tracker_ops.sh"
     export CALL_LOG="$TMP/calls.log"
 
+    # Isolate the user-scope opt-in overlay (T051). It defaults to
+    # $HOME/.manifest/issue_hooks.yml, so without this a developer who has
+    # opted in — or a previous test run that leaked — silently overrides the
+    # fixture below and these tests read the machine, not the fixture.
+    export ISSUE_HOOKS_STATE="$TMP/issue_hooks.yml"
+
     # Config with both skills enabled
     export ISSUE_SUPPORT_CONFIG="$TMP/config.yml"
     cat >"$ISSUE_SUPPORT_CONFIG" <<'EOF'

@@ -19,7 +19,16 @@ err() { if [[ -t 2 ]]; then printf '\033[0;31m%s\033[0m\n' "install-issue-hooks:
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 HOOK_SCRIPT="${SCRIPT_DIR}/issue_support_hook.sh"
-CONFIG_FILE="${ISSUE_HOOKS_CONFIG:-${SCRIPT_DIR}/../config/command_config.yml}"
+# NOTE: this script no longer reads or writes command_config.yml at all.
+# The opt-in moved to the user-scope overlay below (T051/FR-034), so the
+# former CONFIG_FILE variable was removed rather than left dangling —
+# having no path to the package config IS the guarantee.
+# T051/FR-034: the opt-in is written to a user-scope overlay that no package
+# owns, NOT to the deployed command_config.yml. Writing a deployed file made the
+# opt-in a piece of state living inside a build artifact, which any deploy is
+# free to overwrite -- the whole reason preserve_issue_sync_gates() exists. The
+# fix is to stop writing there, not to carry the write across harder.
+ISSUE_HOOKS_STATE="${ISSUE_HOOKS_STATE:-${HOME}/.manifest/issue_hooks.yml}"
 SETTINGS_FILE="${ISSUE_HOOKS_SETTINGS:-${HOME}/.claude/settings.json}"
 NATIVE_BEGIN="# >>> issue-support >>>"
 NATIVE_END="# <<< issue-support <<<"
@@ -38,25 +47,31 @@ USAGE
 # set_enabled <skill> <true|false> — flip tool_policies.<skill>.enabled, keep comments
 set_enabled() {
     local skill="$1" val="$2"
-    [[ -f "${CONFIG_FILE}" ]] || {
-        err "config not found: ${CONFIG_FILE}"
-        return 1
-    }
-    python3 - "${CONFIG_FILE}" "${skill}" "${val}" << 'PY'
-import sys, re
+    mkdir -p "$(dirname "${ISSUE_HOOKS_STATE}")"
+    python3 - "${ISSUE_HOOKS_STATE}" "${skill}" "${val}" << 'ST'
+import sys, os, yaml
 path, skill, val = sys.argv[1:4]
-lines = open(path).read().splitlines(keepends=True)
-out, inblk = [], False
-for ln in lines:
-    if re.match(r'^  %s:\s*$' % re.escape(skill), ln):
-        inblk = True; out.append(ln); continue
-    if inblk and re.match(r'^  \S', ln):
-        inblk = False
-    if inblk and re.match(r'^    enabled:', ln):
-        ln = re.sub(r'(enabled:\s*)(true|false)', lambda m: m.group(1) + val, ln)
-    out.append(ln)
-open(path, 'w').write(''.join(out))
-PY
+data = {}
+if os.path.exists(path):
+    try:
+        data = yaml.safe_load(open(path)) or {}
+    except Exception:
+        # A corrupted overlay must not silently discard the user's other opt-ins
+        # by being overwritten wholesale.
+        sys.stderr.write(f"install-issue-hooks: {path} is unreadable; refusing to overwrite it\n")
+        sys.exit(1)
+policies = data.setdefault("tool_policies", {})
+policies.setdefault(skill, {})["enabled"] = (val == "true")
+header = (
+    "# User-scope opt-in state for the issue-sync hooks (T051/FR-034).\n"
+    "# Written by install_issue_hooks.sh; owned by you, not by any package, so\n"
+    "# no deploy overwrites it. Takes precedence over the deployed\n"
+    "# command_config.yml, which remains the default source for everything else.\n"
+)
+with open(path, "w") as f:
+    f.write(header)
+    yaml.safe_dump(data, f, default_flow_style=False, sort_keys=True)
+ST
 }
 
 # merge_settings <add|remove> — idempotently add/remove the PostToolUse entry
