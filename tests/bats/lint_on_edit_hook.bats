@@ -154,6 +154,87 @@ payload() { python3 -c "import json,sys; print(json.dumps({'tool_input':{'file_p
     [[ "$output" == *"lint-on-edit: $f"* ]]
 }
 
+# --- Line caps (docs_lint.py): opt-in per repo, reports only when over ---
+
+# Build a throwaway git repo at $1 that opts into caps by shipping a limits
+# file at the path the hook looks for.
+cap_repo() {
+    local root="$1"
+    mkdir -p "$root/configs/claude/config" "$root/docs"
+    git -C "$root" init -q
+    cat > "$root/configs/claude/config/doc_limits.yml" << 'YML'
+---
+defaults: {max_lines: 20, warn_at: 0.8}
+types: {hub: {max_lines: 5}}
+classify:
+  - {glob: "**/docs/README.md", type: hub}
+exempt: {globs: [], markers: ["DO NOT EDIT"]}
+overrides: {type_marker: "doc-type:", limit_marker: "doc-limit:"}
+fluff: {phrases: [], structure: {}}
+YML
+}
+
+# Write $2 lines of filler markdown to $1.
+fill_doc() {
+    local path="$1" lines="$2" i
+    : > "$path"
+    for ((i = 1; i <= lines; i++)); do printf 'line %d\n' "$i" >> "$path"; done
+}
+
+@test "caps: an over-cap markdown file reports the overage on stderr, exit 0" {
+    cap_repo "$TMP/repo"
+    fill_doc "$TMP/repo/docs/GUIDE.md" 40
+    run bash -c "printf '%s' '$(payload "$TMP/repo/docs/GUIDE.md")' | '$SCRIPT' 2>&1"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"OVER (+20)"* ]] || { echo "$output"; false; }
+}
+
+@test "caps: a within-cap markdown file emits nothing" {
+    # docs_lint.py always prints a summary; an advisory that fires on every
+    # write is one people stop reading, so the hook must stay silent here.
+    cap_repo "$TMP/repo"
+    fill_doc "$TMP/repo/docs/GUIDE.md" 5
+    run bash -c "printf '%s' '$(payload "$TMP/repo/docs/GUIDE.md")' | '$SCRIPT' 2>&1"
+    [ "$status" -eq 0 ]
+    [[ "$output" != *"docs_lint"* ]] || { echo "$output"; false; }
+    [[ "$output" != *"OVER"* ]] || { echo "$output"; false; }
+}
+
+@test "caps: per-type classification is applied, not just the default" {
+    cap_repo "$TMP/repo"
+    fill_doc "$TMP/repo/docs/README.md" 10   # under default 20, over hub 5
+    run bash -c "printf '%s' '$(payload "$TMP/repo/docs/README.md")' | '$SCRIPT' 2>&1"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"hub"* && "$output" == *"OVER (+5)"* ]] || { echo "$output"; false; }
+}
+
+@test "caps: a repo with no doc_limits.yml is never nagged (opt-in)" {
+    # The hook fires on every .md write anywhere, including unrelated projects.
+    mkdir -p "$TMP/plain"
+    git -C "$TMP/plain" init -q
+    fill_doc "$TMP/plain/BIG.md" 400
+    run bash -c "printf '%s' '$(payload "$TMP/plain/BIG.md")' | '$SCRIPT' 2>&1"
+    [ "$status" -eq 0 ]
+    [[ "$output" != *"OVER"* ]] || { echo "$output"; false; }
+}
+
+@test "caps: .mdc is excluded (cursor rules are generated)" {
+    cap_repo "$TMP/repo"
+    fill_doc "$TMP/repo/docs/rule.mdc" 400
+    run bash -c "printf '%s' '$(payload "$TMP/repo/docs/rule.mdc")' | '$SCRIPT' 2>&1"
+    [ "$status" -eq 0 ]
+    [[ "$output" != *"OVER"* ]] || { echo "$output"; false; }
+}
+
+@test "caps: G2 holds — an over-cap file is not mutated" {
+    cap_repo "$TMP/repo"
+    fill_doc "$TMP/repo/docs/GUIDE.md" 40
+    before="$(md5 -q "$TMP/repo/docs/GUIDE.md" 2> /dev/null || md5sum "$TMP/repo/docs/GUIDE.md" | cut -d' ' -f1)"
+    run bash -c "printf '%s' '$(payload "$TMP/repo/docs/GUIDE.md")' | '$SCRIPT' 2>&1"
+    after="$(md5 -q "$TMP/repo/docs/GUIDE.md" 2> /dev/null || md5sum "$TMP/repo/docs/GUIDE.md" | cut -d' ' -f1)"
+    [ "$before" = "$after" ]
+}
+
 # --- G8: macOS Bash 3.2 safety (run the hook under /bin/bash) ---
 
 @test "G8: runs under macOS /bin/bash (3.2) -> exit 0" {

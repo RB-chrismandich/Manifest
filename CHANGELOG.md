@@ -35,9 +35,19 @@ All notable changes are documented here in reverse chronological order.
   un-forbidden (scoped to `docs_lint.py`), and `docs-improve` moves
   `subagents: never` → `conditional` because its unit of work is now an
   independently-capped topic directory, not one holistic score.
+- **Edit-time enforcement, not CI.** `lint_on_edit_hook.sh` now runs the cap
+  check on `.md` writes, so a doc that crosses its cap says so in-session where
+  the fix is one edit — rather than at merge time, when it is already written
+  and reviewed. Opt-in per repo (only fires where a `doc_limits.yml` or
+  `.doc-limits.yml` is present, so unrelated projects are never nagged),
+  reports only when over cap, advisory as ever. `docs_lint.py` is deliberately
+  NOT wired into CI: the changed-file gate would fail unrelated PRs on the 10
+  pre-existing over-cap docs.
 - **Tests**: `tests/bats/docs_lint.bats` (19 cases) pins classification, cap
   arithmetic, override rationale enforcement, exempt handling, and the
   `**`-vs-`*` glob distinction that `fnmatch` would collapse.
+  `lint_on_edit_hook.bats` gains 6 covering opt-in, silence-when-clean,
+  per-type classification, `.mdc` exclusion, and non-mutation.
 
 ### Model-Routing Verification (class x model matrix)
 
