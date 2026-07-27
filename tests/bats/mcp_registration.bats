@@ -35,7 +35,12 @@ setup() {
 exit 0
 STUB
     chmod +x "$SANDBOX/bin/claude"
-    SRC="$REPO_ROOT/configs/claude/config/mcp_user_servers.json"
+    # A FIXTURE, not the shipped list: these tests verify the mechanism (both
+    # transports, idempotency, rescue, guards). Coupling them to the real
+    # server list means pruning a server you no longer use breaks the suite and
+    # silently drops http-transport coverage.
+    SRC="$REPO_ROOT/tests/bats/fixtures/mcp/servers.json"
+    REPO_SERVERS="$REPO_ROOT/configs/claude/config/mcp_user_servers.json"
 }
 
 teardown() {
@@ -67,15 +72,15 @@ run_install() {
 @test "plan emits a row per repo server with the right transport" {
     run env MCP_SRC="$SRC" MCP_HOME="$SANDBOX/absent.json" python3 "$PLAN"
     assert_success
-    assert_output --partial "sentry	http	https://mcp.sentry.dev/mcp"
-    assert_output --partial "context7	stdio	npx -y mcp-remote"
+    assert_output --partial "fixture-http	http	https://mcp.example.test/mcp"
+    assert_output --partial "fixture-stdio	stdio	npx -y mcp-remote"
 }
 
 @test "plan marks an already-registered server present, not to-add" {
-    printf '{"mcpServers":{"sentry":{"url":"x"}}}' > "$SANDBOX/claude.json"
+    printf '{"mcpServers":{"fixture-http":{"url":"x"}}}' > "$SANDBOX/claude.json"
     run env MCP_SRC="$SRC" MCP_HOME="$SANDBOX/claude.json" python3 "$PLAN"
     assert_success
-    assert_output --partial "sentry	present"
+    assert_output --partial "fixture-http	present"
 }
 
 @test "plan rescues a server stranded in the inert settings.local.json" {
@@ -96,16 +101,16 @@ run_install() {
     # sourced-whole it silently added 0 and claimed success.
     run run_install
     assert_success
-    assert_output --partial "4 added"
+    assert_output --partial "2 added"
     refute_output --partial "SyntaxError"
     refute_output --partial "ambiguous redirect"
     run cat "$MCP_STUB_LOG"
-    assert_output --partial "--transport http sentry"
-    assert_output --partial "linear -- npx -y mcp-remote"
+    assert_output --partial "--transport http fixture-http"
+    assert_output --partial "fixture-stdio -- npx -y mcp-remote"
 }
 
 @test "REGRESSION: no server is added twice on a second run" {
-    printf '{"mcpServers":{"sentry":{"url":"x"},"context7":{"command":"npx"},"linear":{"command":"npx"},"atlassian":{"command":"npx"}}}' \
+    printf '{"mcpServers":{"fixture-http":{"url":"x"},"fixture-stdio":{"command":"npx"}}}' \
         > "$HOME/.claude.json"
     run run_install
     assert_success
@@ -132,4 +137,14 @@ run_install() {
     assert_output --partial "skipped"
     run cat "$MCP_STUB_LOG"
     assert_output ""
+}
+
+@test "the shipped MCP list is valid and parses to a plan" {
+    # Decoupled from the fixture above: this is the only test that reads the
+    # real file, so pruning a server is a one-line config change, not a test edit.
+    run env MCP_SRC="$REPO_SERVERS" MCP_HOME="$SANDBOX/absent.json" python3 "$PLAN"
+    assert_success
+    run python3 -c "import json,sys; d=json.load(open(sys.argv[1])); print(type(d).__name__, len(d))" "$REPO_SERVERS"
+    assert_success
+    assert_output --partial "dict"
 }

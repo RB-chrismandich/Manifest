@@ -1,0 +1,9 @@
+{
+  "fixture-http": {
+    "url": "https://mcp.example.test/mcp"
+  },
+  "fixture-stdio": {
+    "command": "npx",
+    "args": ["-y", "mcp-remote", "https://mcp.example.test/stdio"]
+  }
+}
