@@ -8,6 +8,7 @@
 #
 # Dispatch:  .sh→shellcheck  .py→ruff  .yml/.yaml→yamllint
 #            .json→python3 json.load  .md/.mdc→markdownlint
+#            .md→docs_lint.py line caps (only where the repo ships doc_limits.yml)
 #
 # Wire via settings.local.json:
 #   "hooks": { "PostToolUse": [ { "matcher": "Write|Edit",
@@ -34,6 +35,7 @@ exits 0, never auto-fixes, fails open on missing tools.
 
 Dispatch: .sh→shellcheck  .py→ruff  .yml/.yaml→yamllint
           .json→json.load  .md/.mdc→markdownlint
+          .md→docs_lint.py caps (repos shipping doc_limits.yml)
 
 Usage: lint_on_edit_hook.sh [--help]
 EOF
@@ -134,6 +136,28 @@ case "$ext" in
             report markdownlint -c "$repo_root/.markdownlint.jsonc" "$FILE"
         else
             report markdownlint "$FILE"
+        fi
+        # Line-cap check, opt-in per repo: only runs where the repo ships a
+        # doc_limits.yml, so editing a .md in an unrelated project never nags
+        # about caps that project never adopted. Reports ONLY when over cap —
+        # docs_lint.py always prints a summary, and an advisory that fires on
+        # every write is one people stop reading. Cursor .mdc rules are
+        # generated, so they are excluded.
+        if [[ "$ext" == "md" && -n "$repo_root" ]]; then
+            doc_limits=""
+            for candidate in \
+                "$repo_root/configs/claude/config/doc_limits.yml" \
+                "$repo_root/.doc-limits.yml"; do
+                [[ -f "$candidate" ]] && doc_limits="$candidate" && break
+            done
+            docs_lint="$(dirname "${BASH_SOURCE[0]}")/docs_lint.py"
+            if [[ -n "$doc_limits" && -f "$docs_lint" ]] && command -v python3 > /dev/null 2>&1; then
+                cap_out=""
+                if ! cap_out="$(cd "$repo_root" && _run 8 python3 "$docs_lint" \
+                    --limits "$doc_limits" "$FILE" 2>&1)"; then
+                    printf 'lint-on-edit: %s:\n%s\n' "$FILE" "$cap_out" >&2
+                fi
+            fi
         fi
         ;;
     *)
