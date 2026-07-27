@@ -56,7 +56,7 @@ description: "Task list for APM-Based Deploy Pipeline (Drift Elimination)"
 - [ ] T010 Build the **ownership diagnostic** into `env-check`/`config-audit` now, reporting which pipeline owns each area and flagging any area claimed by both. Review moved this *before* the coexistence window: a diagnostic delivered afterwards polices a window that has already closed. → FR-015, SC-006
 - [ ] T011 Add a **per-domain selector** to the legacy deploy path (`deploy_configs()` is monolithic today, R6) so unmigrated domains can be redeployed without touching migrated ones. This is the mechanism FR-019's rollback depends on; without it, "re-run bootstrap for unmigrated domains" is not an available action. → FR-019, R6
 - [ ] T012 [P] Write `migration-inventory.md`: classify every deployed artifact as markdown primitive / script / config YAML / generated. **Decide explicitly** what happens to the 54 top-level (88 recursive) scripts and the config YAMLs — a deferral leaves the drift fix partial by definition and must be stated as such. Include the `command_config.yml` case: it is mutated by `install_issue_hooks.sh` in the *deployed* copy, so scripted mutation must be distinguishable from a human edit or the first opt-in freezes the file permanently under retention. → FR-020, FR-034, R3
-- [ ] T013 [P] Decide and document how `.apm/skills` relates to `.skillshare/skills` **without a third physical location**, and **resolve the symlink fan-out**: today four harnesses symlink to one physical `~/.claude/skills`; per-target compiled output would create independent copies that can diverge per harness. Justify the choice against FR-033's four criteria — divergence as feature vs defect, disk/build cost of N×107 skills, skill-lifecycle tooling still resolving its source of truth, and which model leaves fewer ambiguously-owned paths. Verify skillshare's `install`/`audit`/`update` still work and that tree-walkers follow symlinks (`find -L`). **Start from T005(i)'s recorded behavior** — this task chooses an arrangement, it does not re-discover what the tool does to a symlinked target. → FR-021, FR-033, R2
+- [ ] T013 **Decided by FR-021a (amended 2026-07-27) — this task now implements, it no longer chooses.** `.apm/skills` is the sole physical source of truth; `.skillshare/` is removed (see T056–T059). The symlink fan-out question FR-033 posed is **measured, not assumed**: T005 cell (i) recorded that apm *preserves* a symlinked target directory rather than replacing it with an independent copy, so `~/.cursor/skills -> ~/.claude/skills` survives an APM deploy and no per-harness divergence is introduced. Document that result against FR-033's four criteria and record the disk/build cost as N=1 (single tree, fan-out by symlink). → FR-021a, FR-033, R2
 - [ ] T051 Implement the mechanism that distinguishes **installer-written mutation from a human edit**, so retention does not permanently freeze a file that Manifest's own scripts modify (`install_issue_hooks.sh` → deployed `command_config.yml`). T012 only records the case; this builds the answer, and it must land **before** any config YAML migrates. **Built on T005(ii)**: if the spike showed the tool cannot distinguish the two, this task is the wrapper that supplies the distinction externally (e.g. re-running the installer through the package rather than against the deployed copy) — say which, rather than discovering the constraint here. → FR-034, R3
 - [ ] T054 Implement `apm` **binary acquisition and integrity verification in `bootstrap.sh`**: download the pinned v0.26.0 artifact, verify it against the checksum/signature recorded by T001, and **fail closed** — no fallback to an unverified binary, no "warn and continue". T001 records the value and T042 asserts the gate fails closed; without this task neither has a subject, and the binary that writes hooks and MCP entries into five home trees arrives unverified. Distinct from T050, which verifies *packages* at install time — this verifies the tool doing the installing. → FR-029, E8
 
@@ -68,7 +68,7 @@ description: "Task list for APM-Based Deploy Pipeline (Drift Elimination)"
 
 **Purpose**: The MVP domain (`~/.claude/skills`) currently has **two** live writers — `deploy_home_skills()` on every `./bootstrap.sh`, and `sync-skills.sh` in `~/.local/bin`, the documented daily skill-dev workflow. Shipping an APM-managed domain before gating them guarantees an ordinary contributor action clobbers APM-owned files under a different ownership model. **Gating a writer is only half the job** — T055 lands the replacement daily workflow first, so this phase removes a path instead of removing the *only* path.
 
-- [ ] T055 **Land the publish-free local development loop before removing the writer it replaces** (per T005 cell (d)): a contributor edits a skill under `.skillshare/skills/` and sees it in their own `HOME` without publishing to a registry. This was T044 in Phase 7 — five phases *after* T015 gates `sync-skills.sh`, which left every contributor (including whoever is implementing Phases 3–6) with a registry publish as the only way to test a one-line skill edit. FR-021 requires the existing lifecycle workflow keep functioning; FR-027 removes its writer; this task is what makes both true at once. Document the new loop in the same change that gates the old one. → FR-032, FR-021, FR-027
+- [ ] T055 **Land the publish-free local development loop before removing the writer it replaces** (per T005 cell (d)): a contributor edits a skill under `.apm/skills/` (post-FR-021a; `.skillshare/skills/` no longer exists) and sees it in their own `HOME` without publishing to a registry. This was T044 in Phase 7 — five phases *after* T015 gates `sync-skills.sh`, which left every contributor (including whoever is implementing Phases 3–6) with a registry publish as the only way to test a one-line skill edit. FR-021 requires the existing lifecycle workflow keep functioning; FR-027 removes its writer; this task is what makes both true at once. Document the new loop in the same change that gates the old one. → FR-032, FR-021, FR-027
 - [ ] T014 Gate `deploy_home_skills()` (`bootstrap/lib/common.sh`, called from `deploy_configs()`) per-domain: skip any domain `.apm/` owns, continue deploying the rest. → FR-027, FR-014
 - [ ] T015 Gate `sync-skills.sh` the same way, including the copy installed at `~/.local/bin/sync-skills` — and make it **say** it skipped a domain rather than silently no-op, or contributors will read the silence as success. The skip message must **name T055's replacement command**: a contributor told only that their daily tool declined to do anything has been handed a dead end. → FR-027, FR-021
 - [ ] T016 Re-run `apm_ownership_boundary.bats` and confirm the MVP domain has **zero** writers pending APM's arrival (not two, not one-plus-a-stale-CLI). → FR-014, FR-027
@@ -212,3 +212,46 @@ Four drift properties green in an isolated `HOME`, against real content, each wi
 - **New scripts inherit the `--help` gate.** As of `origin/main` (merged 2026-07-25), every user-facing entry point — `.sh` **and** `.py` — must handle `--help` (usage + flags, ≤15 lines, exit 0, **before any config/state lookup**), and coverage is *enumerated*, not listed, by `tests/bats/help_coverage.bats`. The scripts this feature adds (T011's selective deploy, T048's scan, T049's provenance gate, T050's integrity check, T054's binary verification, T055's local-loop entry point) are all in scope automatically; opt out only with `# help-coverage: exempt — <why>` under the shebang. Run that suite as part of T027, not as a surprise at PR time.
 - Constitution II requires parallel-agent cross-verification before merge. Judge on completed agents plus substantive findings: in this feature's own review round, two of four panel agents failed on environment errors and collapsed consensus to 0.00 — a false BLOCKED.
 - Commit after each task or logical group.
+
+---
+
+## Phase 8: Deprecate skillshare completely (FR-021a) 🗑️
+
+*Added 2026-07-27 by maintainer decision. This inverts a former non-goal — see
+the amendment note in `spec.md` Non-Goals and FR-021a. Gated by the same Phase 0
+checkpoint as everything else: the decision record must read GO first.*
+
+**Invariant (FR-021a)**: no commit that ships may leave two authoritative skill
+trees. Each task below moves consumers *before* the tree, so the repo is never
+in a state where the catalog resolves to nothing.
+
+- [ ] T056 **Inventory every consumer of `.skillshare/`** and record it as a
+  checklist in the same doc T013 writes — do not rely on a grep at implementation
+  time. Known at authoring: `configs/claude/skills` (compat symlink),
+  `command_catalog.py` (`COMMAND_CATALOG_SKILLS_DIR` default),
+  `generate_commands_doc.py`, `deploy_home_skills` in `bootstrap/lib/deploy.sh`,
+  `tests/bats/subagent_policy.bats`, `tests/bats/skill_naming.bats`,
+  `.skillshare/config.yaml`, `.skillshare/.gitignore`, `sync-skills.sh`, and the
+  SkillClaw `/skill-evolve` PR target. Re-derive the list with
+  `grep -rn skillshare` and treat any consumer not on it as a finding.
+  **Measured 2026-07-27**: 151 non-spec files reference `skillshare`
+  (plus 5 inside `.skillshare/skills` itself, and the historical spec
+  records, which are dated artifacts and MUST NOT be rewritten). The
+  authoring-time list above is therefore a starting point, not the inventory —
+  the blast radius is roughly an order of magnitude larger, and includes
+  user-facing docs (`README.md`, `CONTRIBUTING.md`, `AGENTS.md`, `CLAUDE.md`)
+  and `bootstrap/lib/common.sh`. → FR-021a
+- [ ] T057 **Repoint every consumer to `.apm/skills` in one change**, keeping the
+  tree in place. The suite must be green with `.skillshare/` still on disk but
+  nothing reading it — that is the proof the move is safe, and it is the only
+  point where a rollback is free. → FR-021a
+- [ ] T058 **Move the skills and delete `.skillshare/`.** `git mv` so history
+  follows. Remove `.skillshare/config.yaml`, `.skillshare/.gitignore`, and the
+  `configs/claude/skills` compat symlink. Verify the deployed home still
+  resolves: `~/.claude/skills` populated and the four harness symlinks intact.
+  → FR-021a, FR-033
+- [ ] T059 **Retire the skillshare tooling and its documentation.** `sync-skills.sh`
+  and any `skillshare install|audit|check|update` guidance in `CLAUDE.md`,
+  `.claude/CLAUDE.md`, `docs/`, and SkillClaw's `/skill-evolve` target. A skill
+  that still tells a contributor to run `skillshare` after the tree is gone is a
+  broken instruction, not a stale doc. → FR-021a, FR-027

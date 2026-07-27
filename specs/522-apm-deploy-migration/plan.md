@@ -70,7 +70,7 @@ Checked against primary sources 2026-07-25 and re-checked under adversarial revi
 | **I. Configuration-as-Code** *(redefined)* | ✅ Satisfied | Was mechanism-named (`bootstrap.sh`, `--reconfigure`), which made *any* deployer change a constitutional violation by construction. Now property-first: version-controlled source, reproducible-from-manifest deploy, single-owner paths, detectable and correctable drift. Adds that a *preserved* user edit must surface as drift — closing the quiet-drift hole. |
 | **II. Parallel Agent Orchestration** | ✅ Satisfied | Architectural + >200 lines → cross-verification required. Five reviews run on these artifacts. **Note**: the panel returned consensus 0.00 because two of four agents failed on environment errors (tier ineligibility; workspace-trust prompt) — a false BLOCKED, judged on completed agents plus substantive findings, as the known failure mode prescribes. |
 | **III. Consensus-Driven Decisions** | ✅ Satisfied | Verdicts use APPROVED/NEEDS_REVIEW/BLOCKED with the caveat above. |
-| **IV. Skill-First Extensibility** | ✅ Satisfied | Delivery change, not capability change; skills stay in `.skillshare/skills/` (FR-021). |
+| **IV. Skill-First Extensibility** | ✅ Satisfied | Delivery change, not capability change. Skills move to `.apm/skills` as the sole source of truth (FR-021a, amended 2026-07-27); the catalog itself is unchanged. |
 | **V. Reproducible, Idempotent Deployment** *(redefined)* | ✅ Satisfied | Widened from one script to *every* deploy mechanism, and raised: byte-identical no-change re-runs, orphan removal, user-edit preservation, **single ownership**, fail-closed. FR-014/FR-027 implement property 5 directly. |
 | **VI. State-Gated Lifecycle** | ✅ Satisfied | Running in order; Verify gate backed by the deploy smoke suite; FR-023 requires a per-property regression test with asserted preconditions. |
 | **VII. Published Artifact Integrity** *(new)* | ⚠️ Binding | Activated by the publish-and-install decision. Provenance, pinning, integrity, pre-publish scrubbing, offline path, and a publish-free local dev loop are now constitutional requirements, implemented by FR-018 and FR-029 – FR-032. |
@@ -124,7 +124,17 @@ tests/bats/
 └── manifest_plugin_naming.bats             # US4 — prefix + partition + functional partial enablement
 ```
 
-**Structure Decision**: Additive-then-subtractive. `.apm/` is added alongside the existing pipeline; `configs/` and `bootstrap/lib/` shrink only as each domain is proven equivalent **and its legacy writers are gated**. `.skillshare/skills` remains the physical source of truth; `.apm/skills` is a view, never a copy.
+**Structure Decision**: Additive-then-subtractive. `.apm/` is added alongside the
+existing pipeline; `configs/` and `bootstrap/lib/` shrink only as each domain is
+proven equivalent **and its legacy writers are gated**.
+
+~~`.skillshare/skills` remains the physical source of truth; `.apm/skills` is a
+view, never a copy.~~ **AMENDED 2026-07-27 (FR-021a)**: `.apm/skills` becomes
+the sole physical source of truth and `.skillshare/` is removed. The
+view-never-a-copy rule existed to avoid a third skill location while skillshare
+stayed authoritative; with skillshare deprecated there are two locations during
+the migration and one after, so the rule is replaced by FR-021a's stricter
+invariant: **no shipped commit may leave two authoritative skill trees**.
 
 ### Plugin compartmentalization (US4) — status: **hypothesis invalidated, redesign required**
 

@@ -182,7 +182,24 @@ A user installs Manifest's Claude-facing configuration as **several domain-scope
 - **FR-017**: The build tool version MUST be pinned, and an upgrade MUST re-run the equivalence and idempotence checks — enforced by a gate, not by documentation alone.
 - **FR-019**: A rollback MUST exist and be proven, which requires a **per-domain selective deploy capability** in the legacy path; the current monolithic deploy cannot redeploy only unmigrated domains.
 - **FR-020**: Non-markdown payloads MUST either be given an explicit home in the new layout or be documented as remaining on the legacy pipeline, with the resulting partial coverage stated plainly.
-- **FR-021**: The existing skills source of truth and its external lifecycle tooling MUST continue to function; no third physical location for skills.
+- **FR-021** *(superseded 2026-07-27 by FR-021a)*: ~~The existing skills source
+  of truth and its external lifecycle tooling MUST continue to function; no
+  third physical location for skills.~~
+- **FR-021a**: `.apm/skills` becomes the **sole** physical source of truth for
+  skills. The `.skillshare/` tree and the skillshare lifecycle (`install`,
+  `audit`, `check`, `update`) MUST be removed, not merely bypassed. The
+  migration MUST NOT leave two physical skill locations at any commit that
+  ships: either `.skillshare/skills` is still authoritative, or it is gone.
+  Every consumer resolving `.skillshare/skills` MUST be repointed in the same
+  change that moves the tree — at minimum `command_catalog.py`
+  (`COMMAND_CATALOG_SKILLS_DIR`), `generate_commands_doc.py`,
+  `subagent_policy.bats`, `skill_naming.bats`, `deploy_home_skills`, and the
+  `configs/claude/skills` compat symlink.
+  **Feasibility measured (T005 cell i, 2026-07-27)**: apm preserves a symlinked
+  target directory rather than replacing it with an independent copy, so the
+  existing `~/.cursor/skills -> ~/.claude/skills` fan-out survives an APM
+  deploy. That was the risk most likely to make a single-source-of-truth model
+  impossible; it is cleared.
 - **FR-033**: The migration MUST decide explicitly whether per-harness skill output replaces today's symlink fan-out (independent copies, per-harness divergence possible) or whether the build writes only the primary home and the fan-out survives. Either is acceptable; leaving it undecided is not. The decision MUST be justified against stated criteria: (a) whether per-harness divergence is a *feature* (harness-specific skill shaping) or a *defect* (four copies silently drifting); (b) disk and build cost of N copies of 107 skills; (c) whether the external skill-lifecycle tooling still resolves its source of truth under the chosen model; (d) which model leaves fewer paths with ambiguous ownership under FR-014.
 - **FR-034**: Files mutated by Manifest's own installers MUST be distinguishable from human edits, so scripted mutation does not permanently freeze a file under user-edit retention.
 
@@ -236,7 +253,13 @@ Each criterion names the evidence that satisfies it. "Migrated domains" is not a
 
 - Installing CLIs, running authentication flows, or replacing MCP configuration and the settings merge.
 - Reducing the skill catalog or improving skill-description signal density. US1–US3 change **how** skills are deployed, not **how many** load per session. US4's compartmentalization makes per-domain scoping *possible*, but only if domains are actually left disabled; a default installing every `manifest-` plugin reproduces today's catalog exactly and MUST NOT be described as an improvement.
-- Replacing speckit or the skillshare skill-supply-chain lifecycle.
+- Replacing speckit.
+- ~~Replacing the skillshare skill-supply-chain lifecycle.~~ **AMENDED
+  2026-07-27 (maintainer decision): skillshare is to be deprecated completely
+  and replaced by APM. This was previously a non-goal and FR-021 was written to
+  protect it; both are superseded by FR-021a below. The amendment is recorded
+  rather than silently applied because it inverts a stated non-goal and changes
+  the plan's structural decision.**
 - Migrating to a Claude plugin *instead of* this work.
 - Changing what Manifest configures. This is a delivery-mechanism change.
 
