@@ -74,3 +74,24 @@ apm_owns_domain() {
 # Centralised so the skip message and the docs cannot drift apart.
 # shellcheck disable=SC2034  # consumed by sourcing scripts (sync-skills.sh, common.sh)
 APM_DOMAIN_REPLACEMENT_CMD="apm-dev-sync"
+
+# deploy_domain_selected <name> — should this deploy run touch the domain?
+# T011/FR-019: deploy_configs() is monolithic, so without a selector "re-run
+# bootstrap for the unmigrated domains only" is not an available action — and
+# that action is exactly what FR-019's rollback and T053's un-gate depend on.
+#
+# MANIFEST_DEPLOY_DOMAINS is a comma-separated allow-list. UNSET OR EMPTY MEANS
+# ALL, deliberately: the selector must be inert unless someone asks for it, or
+# every existing bootstrap run silently becomes a partial deploy.
+deploy_domain_selected() {
+    local want="$1" list="${MANIFEST_DEPLOY_DOMAINS:-}" item
+    [[ -z "$list" ]] && return 0
+    local IFS=,
+    for item in $list; do
+        # Trim surrounding whitespace so "a, b" behaves like "a,b".
+        item="${item#"${item%%[![:space:]]*}"}"
+        item="${item%"${item##*[![:space:]]}"}"
+        [[ "$item" == "$want" ]] && return 0
+    done
+    return 1
+}

@@ -208,6 +208,21 @@ This is expected and does **not** indicate config drift:
 
 See `docs/EMDASH.md` for the full coexistence caveat.
 
+### Deploy Ownership (feature 522)
+
+Report which pipeline owns each deployed domain, and flag any domain claimed by
+**both** (the drift condition) or by **neither** (it silently stops updating):
+
+```bash
+~/.claude/scripts/apm_ownership_report.sh          # human-readable
+~/.claude/scripts/apm_ownership_report.sh --json   # machine-readable
+```
+
+Read-only. Exit 1 means a domain is double-claimed or unowned — report the
+`DOUBLE-CLAIMED` / `UNOWNED` line verbatim, and note that `UNOWNED` is expected
+only during a hand-over window (`apm_ungate_domain.sh <domain> --apply` returns
+it to the legacy pipeline).
+
 ## Output Format
 
 ```text

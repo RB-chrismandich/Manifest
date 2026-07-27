@@ -134,6 +134,12 @@ deploy_home_skills() {
     # rest. Per-domain, never a global off-switch — the domain name defaults to
     # the destination's basename ("skills") so callers need no new argument.
     local domain="${3:-$(basename "$dest")}"
+    # T011/FR-019: an explicit per-domain selection skips everything else, so an
+    # unmigrated domain can be redeployed without touching a migrated one.
+    if declare -f deploy_domain_selected > /dev/null 2>&1 && ! deploy_domain_selected "$domain"; then
+        print_info "Skipping $domain — not in MANIFEST_DEPLOY_DOMAINS"
+        return 0
+    fi
     if declare -f apm_owns_domain > /dev/null 2>&1 && apm_owns_domain "$domain"; then
         print_info "Skipping $domain — APM owns this domain (deploy it with $APM_DOMAIN_REPLACEMENT_CMD)"
         return 0
