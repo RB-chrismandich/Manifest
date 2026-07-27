@@ -1,29 +1,10 @@
 {
-  "sentry": {
-    "url": "https://mcp.sentry.dev/mcp"
-  },
   "context7": {
     "command": "npx",
     "args": [
       "-y",
       "mcp-remote",
       "https://mcp.context7.com/mcp/oauth"
-    ]
-  },
-  "linear": {
-    "command": "npx",
-    "args": [
-      "-y",
-      "mcp-remote",
-      "https://mcp.linear.app/mcp"
-    ]
-  },
-  "atlassian": {
-    "command": "npx",
-    "args": [
-      "-y",
-      "mcp-remote",
-      "https://mcp.atlassian.com/v1/mcp"
     ]
   }
 }
