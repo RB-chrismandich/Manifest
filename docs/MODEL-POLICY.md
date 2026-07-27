@@ -54,8 +54,29 @@ $10/$50 per MTok, 2x Opus. Start there.
 - **T7/T8 verify the documents, not the dispatch.** They prove
   `command_config.yml` says Sonnet; they cannot observe which model a dispatch
   actually ran on. Ad-hoc dispatches outside a skill (Explore, general-purpose,
-  one-off fan-out) are not reachable by that gate at all, so the default is also
-  stated in the Token Economy section of the always-loaded orchestration guides.
+  one-off fan-out) are not reachable by that gate at all.
+- **The mechanism is a hook, not a sentence.** A prose default was already
+  loaded in every session — including every session that inherited; measured pin
+  compliance under prose alone was 7.3%. `subagent_model_default.py` runs as a
+  `PreToolUse` hook on the `Agent` tool and returns
+  `hookSpecificOutput.updatedInput` with `model: sonnet` when, and only when,
+  the dispatch named none. It deliberately does not touch an explicit `model`
+  (layer 1), an agent whose frontmatter sets `model:` (layer 2 — a call-site
+  model outranks frontmatter, so injecting would silently revoke the Opus
+  permission this policy grants), or `fork` (which ignores `model` by design, so
+  injecting would record a requested model that never served and corrupt the
+  audit).
+- **Deployment caveat — hooks must land in `settings.json`.** Measured
+  2026-07-26 on Claude Code 2.1.220 by controlled A/B (same hook, same absolute
+  command, only the file differing): a hook in `~/.claude/settings.local.json`
+  fired **zero** times, the same hook in `~/.claude/settings.json` fired on
+  every dispatch. An absolute path in `settings.local.json` also never fired, so
+  tilde expansion is not the cause — `settings.local.json` is a *project*-scope
+  file and a copy at `~/.claude/` is inert. This hook is therefore shipped in
+  `configs/claude/settings.hooks.json` and merged into `~/.claude/settings.json`
+  by `merge_claude_runtime_hooks`. Every other hook Manifest ships is still
+  registered in `configs/claude/settings.local.json` and inherits the same
+  defect; see the open item at the end of this section.
 
 **Measured check (the only one that confirms behaviour).** The attribution
 report splits by class *and* model, so one command reads the lever directly:
@@ -75,13 +96,66 @@ deploy. The policy existed only in the repo until `./bootstrap.sh` copied it int
 baseline, not evidence of failure.
 
 The rule above permits Opus for adversarial verification, so a non-zero premium
-cell is not by itself a violation; the matrix cannot distinguish a permitted
-exception from an inherited default. Until a post-deploy interval reads premium
-sub-agent cells at (or near) zero, lever 1 stays **declared, not landed**.
+cell is not by itself a violation.
 
-Closing that last ambiguity needs the dispatch to record its own intent —
-transcripts carry the model a sub-agent ran on, not the reason it was chosen.
-That is a separate change; do not read the matrix as proving intent.
+**Correction (2026-07-26): a permitted exception and an inherited default ARE
+distinguishable.** This document previously said they were not, and that the
+dispatch would have to "record its own intent" before they could be told apart.
+It already does. Every dispatch writes an `agent-<id>.meta.json` sidecar beside
+its transcript: `meta.model` records the model *requested*, the transcript
+records the model that *served*. So
+
+| requested | served | reading |
+|---|---|---|
+| `opus` | claude-opus-5 | permitted exception — deliberate |
+| frontmatter `model:` | claude-opus-5 | permitted exception — deliberate (layer 2; not in `meta.model`, resolved from the agent definition) |
+| *absent* | claude-opus-5 | **inherited default — a violation** |
+
+Measured over the full corpus: only 6 dispatches ever explicitly requested
+`opus`. Essentially all premium sub-agent spend was inherited, not chosen. The
+claim that intent was unrecoverable was wrong, and it mattered — it is the
+reason this lever sat on a documentation check while 11,000 inherited premium
+requests accumulated under a policy that was already written down.
+
+**Behavioural gate (item 2 of this change).** The sidecars make the check
+executable, so it is no longer a matter of reading a matrix:
+
+```bash
+# Defaults --since to deployed_at in ~/.claude/config/deploy_stamp.
+configs/claude/scripts/subagent_breakdown.py --audit
+```
+
+Exit 1 with a per-dispatch list on any inherited premium dispatch; exit 0 when
+clean. It shares `declared_model()` with the hook, so the audit cannot flag the
+frontmatter-pinned agents the hook is required to leave alone.
+
+**Lever-1 verdict: split — landed inside Manifest, not globally.** The
+post-deploy read is clean for Manifest-repo sessions (sub-agents 100% Sonnet,
+zero Opus). It is *not* clean everywhere: the post-deploy Opus-5 sub-agent
+traffic came from sessions in repos Manifest's configuration never reaches. The
+lever is landed where Manifest's config applies and undetermined outside it —
+recorded as a split verdict rather than a single pass/fail, because averaging
+the two would hide both facts.
+
+**Two channels, one of them still open.** The `Agent` PreToolUse hook
+(`configs/claude/scripts/subagent_model_default.py`) fills in an omitted model
+on Agent-tool dispatches. Workflow-tool agents (`agent()` inside a Workflow
+script) do **not** pass through it — they are governed by the script's own
+`model` option or `CLAUDE_CODE_SUBAGENT_MODEL`. That is the largest single
+premium block measured ($919.32, workflow-subagent x Fable 5). `--audit` scopes
+its exit code with `--channel` and always reports the other channel's count, so
+a clean agent-tool result can never be read as "sub-agent spend is under
+control".
+
+**Open item — the other Manifest hooks are believed inert.** The A/B above was
+run for one hook, but the defect is a property of the file, not the hook:
+`guidance_hint.py`, `version_pin_hook.sh`, `spec_review.sh`, `lint_on_edit_hook.sh`
+and the `SessionStart`/`UserPromptSubmit` entries are all registered in
+`configs/claude/settings.local.json` and deployed to the same inert path. They
+were left in place deliberately rather than migrated as a side effect of this
+change: they fire on every `Write`/`Edit`, so activating five dormant hooks at
+once is a behavioural change that deserves its own decision and its own
+verification, not a silent ride-along.
 
 Full dispatch rules: [configs/claude/references/sub-agent-dispatch.md](../configs/claude/references/sub-agent-dispatch.md).
 

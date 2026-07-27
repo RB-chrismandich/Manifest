@@ -11,7 +11,7 @@ REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
 # non-zero and prints offending skills on failure.
 run_check() {
     python3 - "$REPO_ROOT" "$1" <<'PY'
-import os, sys
+import os, re, sys
 import yaml
 
 repo, check = sys.argv[1], sys.argv[2]
@@ -82,9 +82,28 @@ elif check == "body_trigger":          # T5
             elif "sub-agent-dispatch.md" not in b:
                 fail.append(f"{s}: dispatch section does not link the shared selection rules")
 elif check == "no_contradiction":      # T6
+    # Two ways a `never` skill can contradict its disposition. The section
+    # heading is the obvious one; the DISPATCH ITSELF is the one that actually
+    # leaked. plan-manage declared `never` — which exempts it from the T7/T8
+    # model-pin gate — while SKILL.md step 4 dispatched
+    # `Task(subagent_type: "general-purpose")` with no model. It carried no
+    # `## Sub-agent dispatch` heading, so the heading-only check passed it, and
+    # the one dispatch it made inherited the session's premium model unchecked.
+    # Matching the call syntax closes the exemption for good.
+    DISPATCH_RE = re.compile(r"subagent_type\s*[:=]", re.I)
     for s in skills:
-        if entry(s).get("subagents") == "never" and MARKER in body(s):
+        if entry(s).get("subagents") != "never":
+            continue
+        b = body(s)
+        if MARKER in b:
             fail.append(f"{s}: never but body contains a '{MARKER}' section")
+        hits = [i + 1 for i, line in enumerate(b.splitlines()) if DISPATCH_RE.search(line)]
+        if hits:
+            fail.append(
+                f"{s}: never but body dispatches a sub-agent at line(s) "
+                f"{', '.join(map(str, hits))} (subagent_type=...) — reclassify as "
+                f"conditional and pin subagent_model, or remove the dispatch"
+            )
 elif check == "model_pinned":          # T7
     # A dispatch site that names no model inherits the parent session's model,
     # which bills the premium main-loop tier for fan-out work. Measured

@@ -1,0 +1,37 @@
+{
+  "_comment": [
+    "Hooks that MUST reach Claude Code's own runtime, merged by bootstrap into",
+    "~/.claude/settings.json (NOT settings.local.json).",
+    "",
+    "Measured 2026-07-26 on Claude Code 2.1.220: a hook registered in",
+    "~/.claude/settings.local.json never fires. Controlled A/B — same hook, same",
+    "absolute command, only the file differed — the settings.json registration",
+    "fired on every Agent dispatch and the settings.local.json one fired zero",
+    "times. Path style was ruled out separately: an absolute command in",
+    "settings.local.json also never fired, so the tilde is not the cause. At USER",
+    "scope Claude Code reads settings.json; settings.local.json is a PROJECT-scope",
+    "file (.claude/settings.local.json), and a copy at ~/.claude/ is inert.",
+    "",
+    "Everything still registered in configs/claude/settings.local.json inherits",
+    "that defect and is believed inert on a deployed machine. Moving those is a",
+    "separate decision (they fire on every Write/Edit and would change behaviour",
+    "the moment they activate), so this file carries only the hook whose whole",
+    "purpose is to be enforced.",
+    "",
+    "The `~` in the command below is expanded by merge_claude_runtime_hooks at",
+    "deploy time; Claude Code is given an absolute path."
+  ],
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Agent",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/scripts/subagent_model_default.py"
+          }
+        ]
+      }
+    ]
+  }
+}

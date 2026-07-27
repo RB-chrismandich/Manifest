@@ -12,6 +12,8 @@
       "Bash(~/.claude/scripts/command_catalog.py:*)",
       "Bash(~/.claude/scripts/generate_commands_doc.py:*)",
       "Bash(~/.claude/scripts/guidance_hint.py:*)",
+      "Bash(~/.claude/scripts/subagent_model_default.py:*)",
+      "Bash(~/.claude/scripts/subagent_breakdown.py:*)",
       "Bash(shellcheck:*)",
       "Bash(python3:*)",
       "Bash(pip3 install:*)",
