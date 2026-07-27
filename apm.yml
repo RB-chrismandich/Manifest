@@ -1,0 +1,33 @@
+# Manifest as an APM package — feature 522, T018.
+#
+# Scope: ONE domain (skills), per the migration's staged plan. Extending to the
+# other harnesses is T024; agents and config YAML follow once skills is proven on
+# real content.
+#
+# targets: [claude] implements T013's arrangement, and it is measured rather than
+# assumed. T005 cell (i) recorded that apm PRESERVES a symlinked target directory
+# instead of replacing it with an independent copy, so ~/.cursor/skills,
+# ~/.gemini/skills, ~/.codex/skills and ~/.antigravity/skills — all symlinks to
+# ~/.claude/skills — inherit this deploy for free. Naming the other harnesses here
+# would replace one shared tree with five independent copies free to drift apart,
+# which is the outcome FR-033 exists to prevent. Do not "fix" this by adding them.
+#
+# antigravity is excluded deliberately and separately (E2): apm reports
+# `antigravity (instructions, hooks)` unsupported at user scope, and those are
+# exactly the two primitive classes deploy_antigravity_configs() already declines
+# to send there. Skills reach it by symlink.
+#
+# A NOTE ON INSTALLING THIS FROM A LOCAL CHECKOUT: it will fail. `apm install
+# <path>` copies the whole package root and hard-fails on any symlink resolving
+# outside it, and a working checkout has configs/claude/.venv/bin/python from the
+# ordinary `uv sync` dev setup. That symlink is UNTRACKED, so it does not exist in
+# the published git tree and a git-host install is unaffected. For local
+# iteration use `apm-dev-sync`, which stages a clean package.
+name: manifest-skills
+version: 0.1.0
+description: Manifest agent skills — orchestration, review, spec, and infra workflows
+author: ReefBytes
+license: MIT
+targets:
+  - claude
+includes: auto

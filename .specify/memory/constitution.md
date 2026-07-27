@@ -1,6 +1,28 @@
 <!--
 SYNC IMPACT REPORT
 ==================
+Version change: 2.0.0 → 3.0.0 (MAJOR — Principle V.4 redefined, V.5 scoped)
+Modified principles:
+  - V.4 User-edit preservation → User-edit DETECTION. REDEFINED. The v2.0.0 wording
+    required a modified deployed file be "preserved and reported". Feature 522 measured
+    that a package-manager deployer performs the write itself, so preservation is not
+    expressible by the repository — only detection is. A MUST that no capable mechanism
+    can satisfy is decorative; it was violated by construction the moment the deployer
+    changed. Now: detect and report, with deployed trees explicitly build outputs.
+  - V.3 Orphan removal — SCOPED (not weakened) to paths a mechanism claims ownership of.
+    Executables installed onto PATH with relative siblings have no ownership-tracking
+    deployer, so a reconciliation pass remains necessary for them and must be recorded.
+  Source: specs/522-apm-deploy-migration (feature 522), T035.
+Added: N/A
+Removed sections: N/A
+Consequence: FR-034's build-output semantics are now constitutionally grounded rather
+than in conflict. The detection half is a live obligation — see
+configs/claude/scripts/apm_drift_report.sh.
+-->
+
+<!--
+SYNC IMPACT REPORT
+==================
 Version change: 1.0.0 → 1.1.0 (MINOR — new principle + section added; no removals/redefinitions)
 Modified principles: N/A (I–V unchanged)
 Added:
@@ -147,8 +169,26 @@ manager, or any successor — MUST satisfy all of the following. These are prope
    MUST be guarded by existence checks.
 3. **Orphan removal**: a file a previous deploy wrote and the current sources no longer
    produce MUST be removed by the deploy itself, not by a separate reconciliation pass.
-4. **User-edit preservation**: a deployed file the user has modified MUST NOT be silently
-   overwritten; it MUST be preserved and reported (see Principle I).
+   This applies to every path a mechanism claims ownership of. A domain a mechanism does
+   NOT claim — because no ownership-tracking deployer exists for it yet — is out of scope
+   for this property, and its reliance on a reconciliation pass MUST be recorded rather
+   than left implicit. *(Scoped v3.0.0: feature 522 established that executables installed
+   onto `PATH` with relative siblings have no ownership-tracking deployer, so
+   `deploy_reconcile.sh` remains necessary for them; see
+   specs/522-apm-deploy-migration/migration-inventory.md.)*
+4. **User-edit detection**: a deployed file the user has modified MUST NOT be *silently*
+   overwritten — the modification MUST be detected and reported. Preservation is NOT
+   required: deployed trees are build outputs, reproducible from versioned source, and a
+   mechanism MAY overwrite a modified file provided it says so. Source is the editable
+   surface; the deployed tree is not (see Principle I).
+
+   *Amended v3.0.0. The prior wording required the file be "preserved and reported".
+   Feature 522 measured that a package-manager deployer performs the write itself, so
+   preservation is not expressible by the repository at all — only detection is. Requiring
+   an unachievable property does not protect users; it guarantees the constitution is
+   violated by every mechanism that can actually do the job, which is how a MUST becomes
+   decorative. Installers that store user state MUST therefore write source or a
+   user-scope file no package owns, never a deployed copy.*
 5. **Single ownership**: each deployed path MUST have **exactly one** owning mechanism.
    Two mechanisms writing the same path is a defect, not an acceptable intermediate
    state, including during a migration between mechanisms.
@@ -310,4 +350,4 @@ review of all principles is RECOMMENDED to ensure alignment with project evoluti
 **Runtime guidance**: Use `configs/claude/CLAUDE.md` for session-level development
 guidance; it is the deployed document that governs active Claude Code sessions.
 
-**Version**: 2.0.0 | **Ratified**: 2026-05-31 | **Last Amended**: 2026-07-25
+**Version**: 3.0.0 | **Ratified**: 2026-05-31 | **Last Amended**: 2026-07-27
