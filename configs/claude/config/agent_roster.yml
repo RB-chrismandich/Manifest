@@ -11,7 +11,7 @@
 #     not a migration.
 #   - `bootstrap/lib/config.sh` write_services_config() is the source for
 #     `enabled_default` (all 5 agents default to true there).
-#   - `.skillshare/skills/env-check/SKILL.md` documents claude/gemini
+#   - `.apm/skills/env-check/SKILL.md` documents claude/gemini
 #     `auth_check` verbatim; it has no Authentication Status entries for
 #     codex/antigravity and its cursor entry says `cursor --version` (missing
 #     the `-agent` suffix used by the actual binary everywhere else in this

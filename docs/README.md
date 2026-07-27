@@ -37,7 +37,7 @@
 |----------|-------------|----------|
 | [Architecture Diagrams](ARCHITECTURE_DIAGRAMS.md) | System design and data flows | Understanding internals |
 | [CLAUDE.md](../CLAUDE.md) | Repository context and structure | Contributing code |
-| [.claude/CLAUDE.md](../.claude/CLAUDE.md) | Repo developer guide (skillshare, tests, conventions) | Working inside this repo |
+| [.claude/CLAUDE.md](../.claude/CLAUDE.md) | Repo developer guide (skills, tests, conventions) | Working inside this repo |
 | [configs/claude/CLAUDE.md](../configs/claude/CLAUDE.md) | Orchestration guide (deployed to `~/.claude/`) | Deep dive into orchestration |
 
 ### For Contributors

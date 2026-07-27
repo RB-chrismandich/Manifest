@@ -53,7 +53,7 @@ orchestration guides, skills, prompts, and scripts that enable parallel LLM agen
 configs/                             # Deployment source configs (deployed to ~/ via bootstrap.sh)
 ├── claude/                          # → ~/.claude/ (primary configuration)
 │   ├── CLAUDE.md                    # Orchestration guide
-│   ├── skills/                      # → ../../.skillshare/skills (symlink; source of truth)
+│   ├── skills/                      # → ../../.apm/skills (symlink; source of truth)
 │   ├── prompts/                     # Agent orchestration prompt templates
 │   ├── config/                      # YAML configuration files
 │   │   └── mcp_servers.yml          # Default MCP server registry (OAuth-capable)
@@ -189,7 +189,7 @@ Required CLI tools (install those you want to use):
 
 ## Available Skills
 
-All agents share the same skill library from `.skillshare/skills/` (70+ skills;
+All agents share the same skill library from `.apm/skills/` (70+ skills;
 exposed via the `configs/claude/skills/` symlink).
 Skills are invoked as slash commands (e.g., `/python-refactor src/`).
 
@@ -231,7 +231,7 @@ Skills are invoked as slash commands (e.g., `/python-refactor src/`).
 | `/ux-review` | UX audit: accessibility, responsive design, performance budgets | NO |
 | `/project-verify` | Run linters, tests, and security scans in parallel | CONDITIONAL |
 
-**CLI tool** (installed to `~/.local/bin/`): `sync-skills` — sync `.skillshare/skills/`
+**CLI tool** (installed to `~/.local/bin/`): `sync-skills` — sync `.apm/skills/`
 to all home targets (daily skill dev workflow).
 
 ### Cursor Rules
@@ -352,7 +352,7 @@ Lifecycle: `CREATE -> ACTIVE -> COMPLETED (.archive/) or ABANDONED (.abandoned/)
 
 ### Adding a Claude Code Skill
 
-1. Create a `SKILL.md` file in `.skillshare/skills/my-skill/` (the source of
+1. Create a `SKILL.md` file in `.apm/skills/my-skill/` (the source of
    truth; `configs/claude/skills/` is a compat symlink to it)
 2. Add tool policies to `configs/claude/config/command_config.yml`
 3. Skills are automatically available in Claude Code after deploying via bootstrap

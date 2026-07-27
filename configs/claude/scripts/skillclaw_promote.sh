@@ -37,7 +37,7 @@ REJECTED="${SKILLCLAW_REJECTED:-$HOME/.skillclaw/skills/rejected}"
 # Committed library: the physical skillshare source of truth. The deployed script
 # lives in ~/.claude/scripts, so locate the repo via MANIFEST_ROOT (exported by
 # bootstrap into the shell profile); fall back to repo-relative when run in-tree.
-COMMITTED="${SKILLCLAW_COMMITTED:-${MANIFEST_ROOT:-${SCRIPT_DIR}/../../..}/.skillshare/skills}"
+COMMITTED="${SKILLCLAW_COMMITTED:-${MANIFEST_ROOT:-${SCRIPT_DIR}/../../..}/.apm/skills}"
 
 # Shared audit storage; evolve.py reads SKILLCLAW_AUDIT_DIR too (default ~/.skillclaw).
 export SKILLCLAW_AUDIT_DIR="${SKILLCLAW_AUDIT_DIR:-$HOME/.skillclaw}"
@@ -244,7 +244,7 @@ audit log "$run_id" promote stage_start
 count="$(echo "$promote_names" | wc -w | tr -d ' ')"
 if [[ ! -d "$COMMITTED" ]]; then
     err "committed skills dir not found: $COMMITTED"
-    err "set MANIFEST_ROOT (or SKILLCLAW_COMMITTED) to the repo's .skillshare/skills"
+    err "set MANIFEST_ROOT (or SKILLCLAW_COMMITTED) to the repo's .apm/skills"
     exit 2
 fi
 branch="${BRANCH_PREFIX}${count}-$(git rev-parse --short HEAD)"

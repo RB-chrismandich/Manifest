@@ -80,7 +80,7 @@ are built from each skill's `SKILL.md` frontmatter, the authoritative source.
 
 | Tool | Description |
 |------|-------------|
-| `sync-skills` | Sync `.skillshare/skills/` to all home targets; uses `MANIFEST_ROOT` env var |
+| `sync-skills` | Sync `.apm/skills/` to all home targets; uses `MANIFEST_ROOT` env var |
 
 The `code-audit` skill auto-triggers on security-sensitive code, large files (>500 lines),
 or complex files (>10 functions or >5 classes).
@@ -1011,7 +1011,7 @@ Expected output:
 <!-- BEGIN GENERATED COMMANDS (command_catalog.py) — do not edit by hand -->
 <!-- Regenerate: configs/claude/scripts/generate_commands_doc.py -->
 
-_108 commands, generated from `.skillshare/skills/*/SKILL.md`._
+_108 commands, generated from `.apm/skills/*/SKILL.md`._
 
 ### Git & PRs
 

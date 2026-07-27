@@ -1,6 +1,6 @@
 # Skill Naming Standard
 
-> Naming convention for every skill in `.skillshare/skills/` — ratified by
+> Naming convention for every skill in `.apm/skills/` — ratified by
 > [specs/480-skill-naming-taxonomy](../specs/480-skill-naming-taxonomy/spec.md)
 > (issue #478), enforced by `tests/bats/skill_naming.bats`.
 
@@ -151,8 +151,8 @@ upload-to-stitch
 
 | Name | Rationale |
 |---|---|
-| `ai-hooks-integration` | Externally installed via skillshare (`github.com/runkids/ai-hooks-integration`); not ours to rename. |
-| `code-to-design`, `design-md`, `enhance-prompt`, `extract-design-md`, `extract-static-html`, `generate-design`, `manage-design-system`, `react-components`, `react-native`, `react-vite-dashboard`, `remotion`, `shadcn-ui`, `stitch-loop`, `taste-design`, `upload-to-stitch` | Externally installed via skillshare (`github.com/google-labs-code/stitch-skills`); Stitch MCP design/build/utility skills — not ours to rename. |
+| `ai-hooks-integration` | Vendored from `github.com/runkids/ai-hooks-integration`; not ours to rename. |
+| `code-to-design`, `design-md`, `enhance-prompt`, `extract-design-md`, `extract-static-html`, `generate-design`, `manage-design-system`, `react-components`, `react-native`, `react-vite-dashboard`, `remotion`, `shadcn-ui`, `stitch-loop`, `taste-design`, `upload-to-stitch` | Vendored from `github.com/google-labs-code/stitch-skills`; Stitch MCP design/build/utility skills — not ours to rename. |
 | `automation-rework-breakeven` | SkillClaw-evolved break-even analysis skill; descriptive compound name encodes the trade-off being modeled. |
 | `false-green-check-audit` | SkillClaw-evolved health-check audit; "false green" is the domain term being guarded against. |
 | `graphify` | Named for the managed `graphify` CLI it wraps (`--enable-graphify` toggle, installed binary). |

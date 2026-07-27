@@ -97,7 +97,7 @@ teardown() {
 @test "restore_runtime_state excludes a repo-owned 'skills' compat symlink" {
     # configs/claude/skills is a (possibly broken) symlink; it must be excluded
     # so rsync -a does not copy a dangling link from the backup into target.
-    ln -s "../../.skillshare/skills" "$SRC/skills"   # broken on purpose
+    ln -s "../../.apm/skills" "$SRC/skills"   # broken on purpose
     mkdir -p "$BK/skills/should-not-restore"
     echo x > "$BK/skills/should-not-restore/SKILL.md"
 

@@ -150,7 +150,7 @@ deploy_configs() {
                     # Merge mode - copy only new files (skills handled separately
                     # below; the skills compat symlink must not be copied verbatim)
                     rsync -av --ignore-existing --exclude '/skills' --exclude '/agents' --exclude '/agents-devpanel' --exclude '/references/pilotfish-delegation.md' --exclude '/references/devpanel-delegation.md' "${claude_md_exclude[@]+"${claude_md_exclude[@]}"}" "$source_dir/" "$TARGET_DIR/"
-                    deploy_home_skills "$SCRIPT_DIR/.skillshare/skills" "$TARGET_DIR/skills"
+                    deploy_home_skills "$SCRIPT_DIR/.apm/skills" "$TARGET_DIR/skills"
                     gate_graphify_skill "$TARGET_DIR/skills"
                     gate_pilotfish_agents "$TARGET_DIR" "$source_dir/agents"
                     gate_devpanel_agents "$TARGET_DIR" "$source_dir/agents-devpanel"
@@ -186,7 +186,6 @@ deploy_configs() {
                     deploy_gemini_configs
                     deploy_codex_configs
                     deploy_antigravity_configs
-                    sync_skillshare_targets
                     deploy_sync_skills
                     cp "$SCRIPT_DIR/configs/claude/pyproject.toml" "$TARGET_DIR/pyproject.toml"
                     cp "$SCRIPT_DIR/configs/claude/uv.lock" "$TARGET_DIR/uv.lock"
@@ -217,7 +216,7 @@ deploy_configs() {
     if [[ "${ENABLE_CLAUDE:-true}" != true ]]; then
         print_info "Claude disabled — not deploying CLAUDE.md"
     fi
-    # Copy everything EXCEPT skills (skills is a symlink -> .skillshare/skills;
+    # Copy everything EXCEPT skills (skills is a symlink -> .apm/skills;
     # copying it verbatim would create a broken link in ~/.claude), agents/
     # (pilotfish role files are deployed by gate_pilotfish_agents under its toggle,
     # so a disabled or foreign ~/.claude/agents is never clobbered — spec FR-008),
@@ -247,7 +246,7 @@ deploy_configs() {
 
     # Deploy skills from the PHYSICAL skillshare source into ~/.claude/skills.
     # Must run before link_shared_assets (create_symlink skips missing targets).
-    deploy_home_skills "$SCRIPT_DIR/.skillshare/skills" "$TARGET_DIR/skills"
+    deploy_home_skills "$SCRIPT_DIR/.apm/skills" "$TARGET_DIR/skills"
     # Gate /graphify on its service toggle (FR-012) and reconcile any foreign
     # 'graphify install' residue (FR-010). Runs before the assistant skill symlinks.
     gate_graphify_skill "$TARGET_DIR/skills"
@@ -285,7 +284,6 @@ deploy_configs() {
     deploy_antigravity_configs
 
     # Project-scoped Copilot sync (non-blocking)
-    sync_skillshare_targets
 
     # Deploy sync-skills CLI
     deploy_sync_skills
@@ -709,9 +707,9 @@ write_deploy_stamp() {
     }
     local tree_configs tree_skills head_sha dirty
     tree_configs="$(git -C "$repo_root" rev-parse HEAD:configs 2> /dev/null)" || return 0
-    tree_skills="$(git -C "$repo_root" rev-parse HEAD:.skillshare/skills 2> /dev/null)" || return 0
+    tree_skills="$(git -C "$repo_root" rev-parse HEAD:.apm/skills 2> /dev/null)" || return 0
     head_sha="$(git -C "$repo_root" rev-parse HEAD 2> /dev/null)" || return 0
-    if [[ -n "$(git -C "$repo_root" status --porcelain -- configs .skillshare/skills 2> /dev/null)" ]]; then
+    if [[ -n "$(git -C "$repo_root" status --porcelain -- configs .apm/skills 2> /dev/null)" ]]; then
         dirty=true
     else
         dirty=false
@@ -988,24 +986,11 @@ deploy_antigravity_configs() {
     print_success "Antigravity configuration deployed to $ANTIGRAVITY_TARGET_DIR"
 }
 
-# Project-scoped Copilot sync via skillshare. Non-blocking: skillshare is an
-# enhancement, never load-bearing. Home deploy already happened in deploy_configs.
-sync_skillshare_targets() {
-    if ! command -v skillshare > /dev/null 2>&1; then
-        print_info "skillshare not installed — skipping project-scoped Copilot sync"
-        return 0
-    fi
-    if [[ ! -f "$SCRIPT_DIR/.skillshare/config.yaml" ]]; then
-        print_info "No .skillshare/config.yaml — skipping skillshare sync"
-        return 0
-    fi
-    print_step "Syncing skillshare project targets (Copilot)..."
-    if (cd "$SCRIPT_DIR" && skillshare sync); then
-        print_success "skillshare project targets synced"
-    else
-        print_warning "skillshare sync failed (non-fatal) — home deploy unaffected"
-    fi
-}
+# NOTE: sync_skillshare_targets was removed 2026-07-27 (FR-021a). skillshare is
+# deprecated; skills now live in .apm/skills as the sole source of truth. This
+# also retires the project-scoped Copilot sync (.github/skills) that skillshare
+# owned — a real capability loss, recorded rather than glossed. Home deploy is
+# unaffected: deploy_home_skills has always owned ~/.claude/skills.
 
 # Deploy sync-skills CLI to ~/.local/bin/ and ensure it is on PATH.
 # Depends on SHELL_PROFILE_FILE being set by configure_shell_profile_state.

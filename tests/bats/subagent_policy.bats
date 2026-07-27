@@ -15,7 +15,7 @@ import os, re, sys
 import yaml
 
 repo, check = sys.argv[1], sys.argv[2]
-skills_dir = os.path.join(repo, ".skillshare/skills")
+skills_dir = os.path.join(repo, ".apm/skills")
 cfg = os.path.join(repo, "configs/claude/config/command_config.yml")
 
 skills = sorted(

@@ -1,6 +1,6 @@
 #!/usr/bin/env bats
 # ci_mirror_drift.bats — asserts the pr-smoke regression mirror
-# (.skillshare/skills/pr-smoke/scripts/run_pr_regression.sh) stays a
+# (.apm/skills/pr-smoke/scripts/run_pr_regression.sh) stays a
 # superset of the canonical checks declared in .github/workflows/ci.yml.
 #
 # Intent: nothing else catches ci.yml growing a check the mirror doesn't
@@ -33,7 +33,7 @@
 
 REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
 CI_YML="$REPO_ROOT/.github/workflows/ci.yml"
-MIRROR="$REPO_ROOT/.skillshare/skills/pr-smoke/scripts/run_pr_regression.sh"
+MIRROR="$REPO_ROOT/.apm/skills/pr-smoke/scripts/run_pr_regression.sh"
 
 setup() {
     [ -f "$CI_YML" ] || { echo "missing $CI_YML" >&2; return 1; }

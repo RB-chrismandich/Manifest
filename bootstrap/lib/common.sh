@@ -112,7 +112,7 @@ link_shared_assets() {
 }
 
 # Deploy skills into a tool's real skills dir from the PHYSICAL skillshare source.
-# Always sources the real .skillshare/skills dir (never the compat symlink).
+# Always sources the real .apm/skills dir (never the compat symlink).
 # Manifest-scoped prune (FR-005a, specs/003): skills we previously deployed and
 # that have since been removed from the source of truth are pruned from dest,
 # but ~/.claude/skills can legitimately hold skills installed by other
@@ -133,7 +133,7 @@ deploy_home_skills() {
     # files never show as untracked, so nothing flags it there. rsync/cp copy
     # the FILESYSTEM, not the git tree, so such a directory would otherwise
     # deploy as a phantom skill and break repo<->home parity (observed:
-    # `.skillshare/skills/<old-name>` deployed as an extra 108th "skill").
+    # `.apm/skills/<old-name>` deployed as an extra 108th "skill").
     # Warn loudly rather than silently skip — a silent skip would just as
     # easily hide a genuinely malformed real skill — and exclude it from the
     # deploy so this class of drift can't recur.
@@ -218,7 +218,7 @@ gate_graphify_skill() {
     local skill="$home_skills/graphify"
 
     if [[ "${ENABLE_GRAPHIFY:-true}" == false ]]; then
-        # Clean opt-out: remove the deployed skill (the .skillshare source stays in the
+        # Clean opt-out: remove the deployed skill (the .apm/skills source stays in the
         # repo). Defensively prune any independent (non-symlink) graphify dir under the
         # assistant skill targets in case a future target stops symlinking to home.
         if [[ -e "$skill" || -L "$skill" ]]; then

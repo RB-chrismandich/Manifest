@@ -34,8 +34,8 @@ cd Manifest
 ```
 
 > **`./bootstrap.sh` is not side-effect-free on the working tree.** Every run
-> invokes skillshare, which writes its project-scoped Copilot target
-> `.github/skills/` into the repo. That path is gitignored and is skillshare's
+> no longer invokes skillshare (removed 2026-07-27, feature 522 FR-021a).
+> The project-scoped Copilot target `.github/skills/` is no longer synced.
 > to own, so the write is expected — but do not run bootstrap expecting a clean
 > `git status`, and do not commit `.github/skills/`.
 
@@ -91,7 +91,7 @@ cd Manifest
   validators independently gate the candidate, and the loop terminates only on dual `APPROVED`
   with zero pending changes. Config-only; does not change your main-session model. Enable with
   `--enable-devpanel`
-- **Stitch Design Skills** (15 skills, externally installed via skillshare from
+- **Stitch Design Skills** (15 skills, vendored in `.apm/skills`; originally from
   [`google-labs-code/stitch-skills`](https://github.com/google-labs-code/stitch-skills)):
   design workflows (`generate-design`, `code-to-design`, `manage-design-system`, ...), code
   generation (`react-components`, `react-native`, `react-vite-dashboard`, `remotion`,
@@ -152,7 +152,7 @@ Mermaid flowcharts showing bootstrap, execution, validation, and consensus flows
 
 | Tool | Description |
 |------|-------------|
-| `sync-skills` | Sync `.skillshare/skills/` to all home targets; requires `MANIFEST_ROOT` env var |
+| `sync-skills` | Sync `.apm/skills/` to all home targets; requires `MANIFEST_ROOT` env var |
 
 ---
 
@@ -241,7 +241,7 @@ Manifest/
 ├── configs/                         # Deployment source configs (deployed to ~/ via bootstrap)
 │   ├── claude/                      # → ~/.claude/ (primary configuration)
 │   │   ├── CLAUDE.md                # Orchestration guide
-│   │   ├── skills/                  # → ../../.skillshare/skills (symlink; source of truth)
+│   │   ├── skills/                  # → ../../.apm/skills (symlink; source of truth)
 │   │   ├── prompts/                 # Agent orchestration templates
 │   │   ├── config/                  # YAML configuration files
 │   │   │   ├── services.yml         # Agent enable/disable states
@@ -295,7 +295,7 @@ Manifest/
 │       ├── node/                    # Node.js project starter
 │       ├── python/                  # Python project starter
 │       └── terraform/               # Terraform project starter
-├── .skillshare/                     # Skill source of truth (managed by skillshare)
+├── .apm/skills/                     # Skill source of truth (sole; skillshare removed 2026-07-27)
 │   └── skills/                      # skill library deployed to ~/.claude/skills/ by bootstrap
 ├── tests/                           # Test suites
 │   ├── python/                      # pytest tests for parallel_agent and agents/

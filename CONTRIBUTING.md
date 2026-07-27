@@ -60,8 +60,8 @@ PR touches. Do not reduce coverage.
 
 ### Skills
 
-New skills go in `.skillshare/skills/<skill-name>/SKILL.md`. See [.claude/CLAUDE.md](.claude/CLAUDE.md)
-for the skillshare architecture and how skills are deployed.
+New skills go in `.apm/skills/<skill-name>/SKILL.md`. See [.claude/CLAUDE.md](.claude/CLAUDE.md)
+for the skill-management architecture and how skills are deployed.
 
 ### Commit Messages
 

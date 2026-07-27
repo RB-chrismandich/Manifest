@@ -34,7 +34,6 @@ setup() {
     deploy_gemini_configs()      { :; }
     deploy_codex_configs()       { :; }
     deploy_antigravity_configs() { :; }
-    sync_skillshare_targets()    { :; }
     deploy_sync_skills()         { :; }
 
     # Pre-populate a realistic live ~/.claude: runtime state + a stale/extra

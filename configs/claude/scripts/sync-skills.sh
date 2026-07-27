@@ -7,10 +7,9 @@ if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
     cat << 'USAGE'
 Usage: sync-skills
 
-Sync .skillshare/skills/ (source of truth) to all home targets
-(~/.claude/skills + Cursor/Gemini/Codex/Antigravity symlinks) and run
-skillshare sync for the Copilot target. No flags. Requires MANIFEST_ROOT
-(set by bootstrap.sh).
+Sync .apm/skills/ (source of truth) to all home targets
+(~/.claude/skills + Cursor/Gemini/Codex/Antigravity symlinks). No flags.
+Requires MANIFEST_ROOT (set by bootstrap.sh).
 USAGE
     exit 0
 fi
@@ -24,7 +23,7 @@ fi
     exit 1
 }
 
-SKILLS_SRC="$MANIFEST_ROOT/.skillshare/skills"
+SKILLS_SRC="$MANIFEST_ROOT/.apm/skills"
 [[ ! -d "$SKILLS_SRC" ]] && {
     err "skills source not found: $SKILLS_SRC"
     exit 1
@@ -156,12 +155,8 @@ for i in "${!ROSTER_NAMES[@]}"; do
     secondary_dirs+=("$home/skills")
 done
 
-# Copilot sync via skillshare (warn and continue if not installed or fails)
-if command -v skillshare > /dev/null 2>&1; then
-    (cd "$MANIFEST_ROOT" && skillshare sync) || err "Warning: skillshare sync failed — continuing"
-else
-    err "Warning: skillshare not installed — skipping Copilot sync"
-fi
+# The Copilot (.github/skills) sync that skillshare owned was retired
+# 2026-07-27 with skillshare itself (FR-021a). Home targets below are unaffected.
 
 # real_dir DIR — resolve a directory's physical path (portable; no readlink -f)
 real_dir() { (cd "$1" 2> /dev/null && pwd -P); }

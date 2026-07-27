@@ -377,7 +377,7 @@ If you encounter issues:
 
 ### For Advanced Usage
 
-- **Custom Skills**: Create new slash commands in `.skillshare/skills/` (exposed via `configs/claude/skills/`)
+- **Custom Skills**: Create new slash commands in `.apm/skills/` (exposed via `configs/claude/skills/`)
 - **Validation Rules**: Customize security/quality checks in `configs/claude/config/validation_criteria.yml`
 - **Model Fallbacks**: Configure credit exhaustion fallback chains
 - **Environment Variables**: Override defaults with `CURSOR_MODEL_ADVANCED`, `GEMINI_INCLUDE_DIRS`, etc.

@@ -104,7 +104,7 @@ jobs:
         run: |
           if ! configs/claude/scripts/generate_commands_doc.py --check; then
             echo ""
-            echo "FAIL: docs/COMMANDS.md is out of sync with .skillshare/skills/."
+            echo "FAIL: docs/COMMANDS.md is out of sync with .apm/skills/."
             echo "Run 'configs/claude/scripts/generate_commands_doc.py' and commit the result."
             exit 1
           fi
@@ -280,8 +280,8 @@ jobs:
             fi
           }
 
-          # configs/claude skills source-of-truth symlink (-> .skillshare/skills)
-          check_symlink "configs/claude/skills"   "../../.skillshare/skills"
+          # configs/claude skills source-of-truth symlink (-> .apm/skills)
+          check_symlink "configs/claude/skills"   "../../.apm/skills"
 
           # configs/cursor symlinks
           check_symlink "configs/cursor/scripts"  "../claude/scripts"
@@ -356,7 +356,7 @@ jobs:
       - name: Count and verify skills and scripts
         run: |
           echo "=== Skills ==="
-          # -L follows the configs/claude/skills symlink into .skillshare/skills
+          # -L follows the configs/claude/skills symlink into .apm/skills
           # (the source of truth). Without -L, find does not traverse the symlink.
           SKILL_COUNT=$(find -L configs/claude/skills -name 'SKILL.md' | wc -l | tr -d ' ')
           echo "Found $SKILL_COUNT skills:"

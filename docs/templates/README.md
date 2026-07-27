@@ -368,7 +368,7 @@ To add a new template:
 
 - [Main Documentation](../README.md)
 - [Configuration Guide](../CONFIGURATION.md)
-- [Skills Documentation](../../.skillshare/skills/)
+- [Skills Documentation](../../.apm/skills/)
 - [Validation Criteria](../../configs/claude/config/validation_criteria.yml)
 - [Parallel Agent Guide](../../configs/claude/CLAUDE.md)
 

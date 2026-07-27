@@ -80,7 +80,7 @@ def render_section(catalog: dict) -> str:
         "<!-- Regenerate: configs/claude/scripts/generate_commands_doc.py -->",
         "",
         f"_{len(catalog['commands'])} commands, generated from "
-        f"`.skillshare/skills/*/SKILL.md`._",
+        f"`.apm/skills/*/SKILL.md`._",
         "",
     ]
     for label, members in _grouped(catalog):
