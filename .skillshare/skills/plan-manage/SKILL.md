@@ -77,11 +77,15 @@ Otherwise → single-agent planning (Step 2b).
 
 3. **If consensus >= 80%**: Merge into a unified plan directly.
 
-4. **If consensus 50-79%**: Spawn a Task(general-purpose) synthesis agent:
+4. **If consensus 50-79%**: Spawn a general-purpose synthesis sub-agent. Pin
+   `model: sonnet` — synthesising three proposals that are already written is
+   not reasoning-hard, and omitting the model inherits the session's premium
+   model (see `## Sub-agent dispatch` below):
 
    ```text
-   Task(
+   Agent(
      subagent_type: "general-purpose",
+     model: "sonnet",
      prompt: "Using ~/.claude/prompts/synthesis.md, synthesize these planning proposals:
               Task: <DESCRIPTION>
               Cursor: <CURSOR_OUTPUT>
@@ -247,6 +251,16 @@ If the plan is linked to an issue:
 3. Move the plan to `~/.claude/.plans/.abandoned/`
 
 ---
+
+## Sub-agent dispatch
+
+**Model: `sonnet`.** One synthesis sub-agent, dispatched only on the
+consensus 50-79% branch of `create` (step 4 above). It merges planning
+proposals that the parallel-agent panel has already produced — a summarising
+task, not a reasoning-hard one — so it is pinned to Sonnet and never left to
+inherit the session model.
+
+Selection rules: [sub-agent-dispatch.md](../../../configs/claude/references/sub-agent-dispatch.md).
 
 ## Parallel Agent Trigger Criteria
 

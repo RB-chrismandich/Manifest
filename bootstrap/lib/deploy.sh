@@ -168,6 +168,9 @@ deploy_configs() {
                     # ...and repo session defaults (env vars, skillListingBudgetFraction)
                     # the same --ignore-existing skip would strand on existing installs.
                     merge_claude_settings_defaults "$source_dir/settings.local.json" "$TARGET_DIR/settings.local.json"
+                    # Hooks that must reach Claude Code's own runtime go to
+                    # settings.json; settings.local.json is inert at user scope.
+                    merge_claude_runtime_hooks "$source_dir/settings.hooks.json" "$TARGET_DIR/settings.json"
                     write_deploy_stamp "$SCRIPT_DIR" "$TARGET_DIR"
                     print_success "Configurations merged"
                     # Still write services config
@@ -233,6 +236,10 @@ deploy_configs() {
     # Restore runtime-mutated issue-sync opt-in gates the copy just overwrote.
     preserve_issue_sync_gates "$preserved_cmdcfg" "$TARGET_DIR/config/command_config.yml"
     [[ -n "$preserved_cmdcfg" ]] && rm -f "$preserved_cmdcfg"
+
+    # Hooks that must reach Claude Code's own runtime go to settings.json;
+    # settings.local.json is inert at user scope (see merge_claude_runtime_hooks).
+    merge_claude_runtime_hooks "$source_dir/settings.hooks.json" "$TARGET_DIR/settings.json"
 
     # Deploy skills from the PHYSICAL skillshare source into ~/.claude/skills.
     # Must run before link_shared_assets (create_symlink skips missing targets).
@@ -456,6 +463,73 @@ PYEOF
         0) print_success "Merged repo hooks into existing settings.json" ;;
         3) print_info "Existing settings.json already has repo hooks - preserved" ;;
         *) print_warning "Could not merge hooks into existing settings.json (manual merge may be needed)" ;;
+    esac
+}
+
+# Union repo-shipped RUNTIME hooks (configs/claude/settings.hooks.json) into
+# ~/.claude/settings.json — the file Claude Code actually reads at user scope.
+#
+# Measured 2026-07-26 on Claude Code 2.1.220: a hook registered in
+# ~/.claude/settings.local.json never fires. Controlled A/B, same hook and same
+# absolute command with only the file differing — settings.json fired on every
+# Agent dispatch, settings.local.json fired zero times; an absolute path in
+# settings.local.json also never fired, ruling out tilde expansion. So a hook
+# whose whole purpose is enforcement cannot be shipped via settings.local.json.
+#
+# Creates the target if absent, expands `~` to an absolute command (the shipped
+# settings.json hooks use absolute paths), and is idempotent + additive: an
+# entry the user already has is never duplicated and nothing is removed.
+# Fail-open like its siblings — a missing python3 is a skip, not a stop.
+merge_claude_runtime_hooks() {
+    local src="$1" tgt="$2"
+    [[ -f "$src" ]] || return 0
+    if ! command_exists python3; then
+        print_info "python3 unavailable — skipped runtime hooks merge into settings.json"
+        return 0
+    fi
+    local rc=0
+    python3 - "$src" "$tgt" << 'PYEOF' || rc=$?
+import json, os, sys
+
+src_path, tgt_path = sys.argv[1], sys.argv[2]
+try:
+    src = json.load(open(src_path))
+except (OSError, ValueError):
+    sys.exit(4)
+try:
+    with open(tgt_path) as fh:
+        tgt = json.load(fh)
+except FileNotFoundError:
+    tgt = {}
+except (OSError, ValueError):
+    sys.exit(4)
+if not isinstance(tgt, dict):
+    sys.exit(4)
+
+changed = False
+for event, entries in (src.get("hooks") or {}).items():
+    cur = tgt.setdefault("hooks", {}).setdefault(event, [])
+    for entry in entries:
+        resolved = json.loads(json.dumps(entry))
+        for hook in resolved.get("hooks", []):
+            cmd = hook.get("command", "")
+            if cmd.startswith("~"):
+                hook["command"] = os.path.expanduser(cmd)
+        # Compare on the resolved form so a re-run never appends a second copy.
+        if resolved not in cur:
+            cur.append(resolved)
+            changed = True
+
+if changed:
+    with open(tgt_path, "w") as fh:
+        json.dump(tgt, fh, indent=2)
+        fh.write("\n")
+sys.exit(0 if changed else 3)
+PYEOF
+    case $rc in
+        0) print_success "Merged Manifest runtime hooks into settings.json" ;;
+        3) print_info "settings.json already has Manifest runtime hooks - preserved" ;;
+        *) print_warning "Could not merge runtime hooks into settings.json (manual merge may be needed)" ;;
     esac
 }
 

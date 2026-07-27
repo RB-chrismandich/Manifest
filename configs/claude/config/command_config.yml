@@ -345,8 +345,14 @@ tool_policies:
       - glean      # Internal team knowledge, runbooks, ADRs
       - opentofu   # OpenTofu registry docs when planning IaC changes
 
-    subagents: never
-    subagent_rationale: Interactive plan-lifecycle management acting on one plan per action.
+    # Was `never` while SKILL.md step 4 dispatched a general-purpose synthesis
+    # agent with no model — `never` exempts a skill from the T7/T8 model-pin
+    # gate, so the one dispatch it made inherited the session's premium model
+    # unchecked. Reclassified to match what the skill actually does.
+    subagents: conditional
+    subagent_trigger: consensus 50-79% on `create` — one synthesis agent merges the panel's proposals
+    subagent_rationale: Interactive plan-lifecycle management acting on one plan per action; the sole dispatch is the consensus-synthesis agent.
+    subagent_model: sonnet
   code-audit:  # skill
     allowed:
       - Read
