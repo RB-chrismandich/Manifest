@@ -98,7 +98,7 @@ The `bootstrap.sh` script automates installation, deployment, and authentication
 ```
 
 Service toggles (`--enable-*/--disable-*` for claude, gemini, cursor, codex,
-antigravity, graphify, skillclaw, browser-use, smoke, gh, glab), other flags (`--skip-install`,
+antigravity, graphify, skillclaw, apm, browser-use, smoke, gh, glab), other flags (`--skip-install`,
 `--skip-auth`, `--force`, `--reconfigure`, `--install-mcp`), and the full step
 list are documented in [README.md](README.md) and `./bootstrap.sh --help`.
 

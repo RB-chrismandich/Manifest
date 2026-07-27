@@ -72,6 +72,12 @@ cd Manifest
 - **SkillClaw Integration** (opt-in): Passively ingests Claude Code's own `~/.claude/projects/**/*.jsonl`
   transcripts, runs a `claude -p` map-reduce evolve pass (Max subscription, no API key), and proposes
   evolved skills via a review PR. No proxy, no daemon, no port. Enable with `--enable-skillclaw`
+- **apm (Agent Package Manager)** (opt-in, under evaluation): Installs the pinned `apm` CLI, the
+  candidate build/deploy layer for agent primitives (feature 522). Acquisition is **fail-closed** —
+  the wheel is downloaded, checksum-verified against a recorded digest, and installed from the
+  verified bytes; a mismatch, a failed download, or a missing checksum tool leaves apm uninstalled
+  rather than falling back to an unverified binary. Installing it hands it no deploy domain; the
+  legacy pipeline still owns everything. Enable with `--enable-apm`
 - **Proton Pass Credential Retrieval** (`/pass-cli`): Retrieve passwords, API keys, and tokens from Proton Pass
   vaults without storing PATs in files or memory
 - **Graphify Knowledge Graphs** (`/graphify`): Map a codebase or docs into a queryable knowledge graph

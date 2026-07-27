@@ -30,6 +30,10 @@ set_bootstrap_defaults() {
     ENABLE_GRAPHIFY=true
     ENABLE_SKILLCLAW=false
     ENABLE_PILOTFISH=false
+    # apm (Agent Package Manager) — opt-in while the legacy deploy pipeline is
+    # still the live one (feature 522, Phase 1). Installing apm does not hand it
+    # any domain; deploy ownership is gated separately.
+    ENABLE_APM=false
     ENABLE_DEVPANEL=false
     ENABLE_BROWSER_USE=false
     ENABLE_SMOKE=false
@@ -44,6 +48,7 @@ set_bootstrap_defaults() {
     ANTIGRAVITY_SET=false
     GRAPHIFY_SET=false
     SKILLCLAW_SET=false
+    APM_SET=false
     PILOTFISH_SET=false
     DEVPANEL_SET=false
     BROWSER_USE_SET=false
@@ -73,6 +78,8 @@ print_bootstrap_help() {
     echo "  --disable-antigravity  Disable Antigravity IDE"
     echo "  --enable-graphify      Enable Graphify knowledge-graph CLI (default: enabled)"
     echo "  --disable-graphify     Disable Graphify knowledge-graph CLI"
+    echo "  --enable-apm           Enable the apm (Agent Package Manager) CLI (default: disabled)"
+    echo "  --disable-apm          Disable the apm CLI"
     echo "  --enable-skillclaw     Enable SkillClaw session capture (default: disabled)"
     echo "  --disable-skillclaw    Disable SkillClaw session capture"
     echo "  --enable-pilotfish     Enable pilotfish cost-tiered role-agents (default: disabled)"
@@ -166,6 +173,16 @@ parse_bootstrap_args() {
             --disable-graphify)
                 ENABLE_GRAPHIFY=false
                 GRAPHIFY_SET=true
+                shift
+                ;;
+            --enable-apm)
+                ENABLE_APM=true
+                APM_SET=true
+                shift
+                ;;
+            --disable-apm)
+                ENABLE_APM=false
+                APM_SET=true
                 shift
                 ;;
             --enable-skillclaw)
@@ -302,6 +319,7 @@ parse_services_config() {
             /^[[:space:]]*antigravity:/ { section="antigravity"; subsection="" }
             /^[[:space:]]*graphify:/ { section="graphify"; subsection="" }
             /^[[:space:]]*skillclaw:/ { section="skillclaw"; subsection="" }
+            /^[[:space:]]*apm:/ { section="apm"; subsection="" }
             /^[[:space:]]*pilotfish:/ { section="pilotfish"; subsection="" }
             /^[[:space:]]*devpanel:/ { section="devpanel"; subsection="" }
             /^[[:space:]]*browser_use:/ { section="browser_use"; subsection="" }
@@ -317,6 +335,7 @@ parse_services_config() {
                 if (section == "antigravity") print "FILE_ANTIGRAVITY=true"
                 if (section == "graphify") print "FILE_GRAPHIFY=true"
                 if (section == "skillclaw") print "FILE_SKILLCLAW=true"
+                if (section == "apm") print "FILE_APM=true"
                 if (section == "pilotfish") print "FILE_PILOTFISH=true"
                 if (section == "devpanel") print "FILE_DEVPANEL=true"
                 if (section == "browser_use") print "FILE_BROWSER_USE=true"
@@ -332,6 +351,7 @@ parse_services_config() {
                 if (section == "antigravity") print "FILE_ANTIGRAVITY=false"
                 if (section == "graphify") print "FILE_GRAPHIFY=false"
                 if (section == "skillclaw") print "FILE_SKILLCLAW=false"
+                if (section == "apm") print "FILE_APM=false"
                 if (section == "pilotfish") print "FILE_PILOTFISH=false"
                 if (section == "devpanel") print "FILE_DEVPANEL=false"
                 if (section == "browser_use") print "FILE_BROWSER_USE=false"
@@ -397,6 +417,10 @@ load_existing_config() {
 
         if [[ "$SKILLCLAW_SET" == false && -n "$FILE_SKILLCLAW" ]]; then
             ENABLE_SKILLCLAW=$FILE_SKILLCLAW
+        fi
+
+        if [[ "$APM_SET" == false && -n "$FILE_APM" ]]; then
+            ENABLE_APM=$FILE_APM
         fi
 
         if [[ "$PILOTFISH_SET" == false && -n "$FILE_PILOTFISH" ]]; then
@@ -507,6 +531,13 @@ services:
     enabled: $ENABLE_GRAPHIFY
     command: graphify
     description: "Maps a codebase/docs into a queryable knowledge graph (/graphify)"
+
+  # apm (Agent Package Manager) - build/deploy layer under evaluation (feature 522).
+  # Installed by install_apm_cli() with a pinned version + sha256, fail-closed.
+  apm:
+    enabled: ${ENABLE_APM:-false}
+    command: apm
+    description: "Agent primitive package manager; pinned + checksum-verified install (opt-in)"
 
   # SkillClaw - evolves SKILL.md skills from Claude Code transcripts (proxy-free)
   # Managed by bootstrap/lib/skillclaw.sh; no install, no daemon, no proxy.
