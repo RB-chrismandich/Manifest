@@ -163,7 +163,7 @@ deploy_configs() {
                     [[ -n "$preserved_cmdcfg" ]] && rm -f "$preserved_cmdcfg"
                     # NOTE: Claude hooks are no longer merged into settings.local.json.
                     # That file is inert at user scope (measured; see
-                    # merge_claude_runtime_hooks), so hooks merged there never fired.
+                    # merge_claude_runtime_settings), so hooks merged there never fired.
                     # They now ship in settings.hooks.json and are merged into
                     # settings.json below. merge_settings_hooks is still used by the
                     # Gemini path, which reads its own settings.json.
@@ -172,7 +172,8 @@ deploy_configs() {
                     merge_claude_settings_defaults "$source_dir/settings.local.json" "$TARGET_DIR/settings.local.json"
                     # Hooks that must reach Claude Code's own runtime go to
                     # settings.json; settings.local.json is inert at user scope.
-                    merge_claude_runtime_hooks "$source_dir/settings.hooks.json" "$TARGET_DIR/settings.json"
+                    merge_claude_runtime_settings "$source_dir/settings.runtime.json" "$TARGET_DIR/settings.json"
+                    install_claude_mcp_servers "$source_dir/config/mcp_user_servers.json" "$TARGET_DIR/settings.local.json"
                     write_deploy_stamp "$SCRIPT_DIR" "$TARGET_DIR"
                     print_success "Configurations merged"
                     # Still write services config
@@ -240,8 +241,9 @@ deploy_configs() {
     [[ -n "$preserved_cmdcfg" ]] && rm -f "$preserved_cmdcfg"
 
     # Hooks that must reach Claude Code's own runtime go to settings.json;
-    # settings.local.json is inert at user scope (see merge_claude_runtime_hooks).
-    merge_claude_runtime_hooks "$source_dir/settings.hooks.json" "$TARGET_DIR/settings.json"
+    # settings.local.json is inert at user scope (see merge_claude_runtime_settings).
+    merge_claude_runtime_settings "$source_dir/settings.runtime.json" "$TARGET_DIR/settings.json"
+    install_claude_mcp_servers "$source_dir/config/mcp_user_servers.json" "$TARGET_DIR/settings.local.json"
 
     # Deploy skills from the PHYSICAL skillshare source into ~/.claude/skills.
     # Must run before link_shared_assets (create_symlink skips missing targets).
@@ -468,8 +470,12 @@ PYEOF
     esac
 }
 
-# Union repo-shipped RUNTIME hooks (configs/claude/settings.hooks.json) into
-# ~/.claude/settings.json — the file Claude Code actually reads at user scope.
+# Union repo-shipped RUNTIME settings (configs/claude/settings.runtime.json)
+# into ~/.claude/settings.json — the file Claude Code actually reads at user
+# scope. Covers hooks, permissions.allow and top-level scalar defaults
+# (skillListingBudgetFraction). NOT mcpServers: measured, settings.json does not
+# read that key at all — those are registered with `claude mcp add --scope user`
+# by install_claude_mcp_servers below.
 #
 # Measured 2026-07-26 on Claude Code 2.1.220: a hook registered in
 # ~/.claude/settings.local.json never fires. Controlled A/B, same hook and same
@@ -484,11 +490,125 @@ PYEOF
 # settings.json hooks use absolute paths), and is idempotent + additive: an
 # entry the user already has is never duplicated and nothing is removed.
 # Fail-open like its siblings — a missing python3 is a skip, not a stop.
-merge_claude_runtime_hooks() {
+# Register repo-shipped MCP servers with Claude Code's OWN store.
+#
+# Measured 2026-07-27 (Claude Code 2.1.220): an `mcpServers` block is read from
+# ~/.claude.json but NOT from ~/.claude/settings.json, and not at all from
+# ~/.claude/settings.local.json where Manifest used to ship it. So sentry,
+# context7, linear and atlassian have never been available on a deployed
+# machine. `claude mcp add --scope user` is the supported interface and writes
+# ~/.claude.json, verified by `claude mcp list` picking the entry up.
+#
+# Idempotent (skips a name already registered) and USER-WINS (never overwrites
+# or removes an existing server of the same name). Fail-open: no `claude` on
+# PATH, or a single failed add, is a warning and not a stop.
+install_claude_mcp_servers() {
+    local src="$1" legacy="${2:-}"
+    [[ -f "$src" ]] || return 0
+    # Unlike every other deploy step, this one writes OUTSIDE $TARGET_DIR:
+    # `claude mcp add --scope user` writes $HOME/.claude.json. It does respect
+    # HOME (verified), but a caller that redirects TARGET_DIR into a sandbox and
+    # leaves HOME alone — which is exactly what several deploy tests do — would
+    # otherwise mutate the developer's real MCP config. Only act when the deploy
+    # target actually lives under this HOME.
+    case "$TARGET_DIR" in
+        "$HOME"/*) ;;
+        *)
+            print_info "MCP registration skipped (deploy target outside \$HOME)"
+            return 0
+            ;;
+    esac
+    if ! command_exists claude; then
+        print_info "claude CLI unavailable — skipped MCP server registration"
+        return 0
+    fi
+    if ! command_exists python3; then
+        print_info "python3 unavailable — skipped MCP server registration"
+        return 0
+    fi
+
+    # Read the user-scope store directly rather than `claude mcp list`: that
+    # command health-CHECKS every server over the network, which would add tens
+    # of seconds to each bootstrap (and to every test that exercises a deploy).
+    # ~/.claude.json is where `claude mcp add --scope user` writes, so it is also
+    # the more precise question — plugin and connector servers are not ours.
+    local existing
+    existing="$(
+        python3 - "$HOME/.claude.json" << 'PYEOF'
+import json, sys
+
+try:
+    d = json.load(open(sys.argv[1]))
+except (OSError, ValueError):
+    sys.exit(0)
+for name in (d.get("mcpServers") or {}):
+    print(name)
+PYEOF
+    )"
+
+    local added=0 skipped=0 failed=0 name spec kind
+    while IFS=$'\t' read -r name kind spec; do
+        [[ -n "$name" ]] || continue
+        if printf '%s\n' "$existing" | grep -qx "$name"; then
+            skipped=$((skipped + 1))
+            continue
+        fi
+        # shellcheck disable=SC2086 # spec is a deliberately word-split argv
+        if [[ "$kind" == "http" ]]; then
+            claude mcp add --scope user --transport http "$name" "$spec" > /dev/null 2>&1 &&
+                added=$((added + 1)) || failed=$((failed + 1))
+        else
+            claude mcp add --scope user "$name" -- $spec > /dev/null 2>&1 &&
+                added=$((added + 1)) || failed=$((failed + 1))
+        fi
+    done < <(
+        python3 - "$src" "$legacy" << 'PYEOF'
+import json, sys
+
+
+def load(path):
+    if not path:
+        return {}
+    try:
+        data = json.load(open(path))
+    except (OSError, ValueError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+servers = load(sys.argv[1])
+# A user who added an MCP server to the (inert) settings.local.json got nothing
+# for it. Register those too, so the migration rescues them instead of silently
+# stranding them. Repo defaults lose to a user entry of the same name.
+legacy = load(sys.argv[2] if len(sys.argv) > 2 else "").get("mcpServers") or {}
+servers = {**servers, **legacy}
+if not isinstance(servers, dict):
+    sys.exit(0)
+for name, cfg in servers.items():
+    if not isinstance(cfg, dict):
+        continue
+    if cfg.get("url"):
+        print(f"{name}\thttp\t{cfg['url']}")
+    elif cfg.get("command"):
+        argv = " ".join([cfg["command"], *(cfg.get("args") or [])])
+        print(f"{name}\tstdio\t{argv}")
+PYEOF
+    )
+
+    if ((failed > 0)); then
+        print_warning "MCP servers: $added added, $skipped already present, $failed failed"
+    elif ((added > 0)); then
+        print_success "MCP servers: $added added, $skipped already present"
+    else
+        print_info "MCP servers already registered - preserved"
+    fi
+}
+
+merge_claude_runtime_settings() {
     local src="$1" tgt="$2"
     [[ -f "$src" ]] || return 0
     if ! command_exists python3; then
-        print_info "python3 unavailable — skipped runtime hooks merge into settings.json"
+        print_info "python3 unavailable — skipped runtime settings merge into settings.json"
         return 0
     fi
     local rc=0
@@ -511,6 +631,26 @@ if not isinstance(tgt, dict):
     sys.exit(4)
 
 changed = False
+
+# permissions.allow: union, order-stable, never removes a user's own rule.
+src_allow = ((src.get("permissions") or {}).get("allow")) or []
+if src_allow:
+    tgt_perms = tgt.setdefault("permissions", {})
+    tgt_allow = tgt_perms.setdefault("allow", [])
+    for rule in src_allow:
+        if rule not in tgt_allow:
+            tgt_allow.append(rule)
+            changed = True
+
+# Top-level scalar defaults: USER-WINS. A key the user already set is never
+# overwritten; only genuinely absent keys are seeded.
+for key, value in src.items():
+    if key in ("hooks", "permissions", "_comment"):
+        continue
+    if key not in tgt:
+        tgt[key] = value
+        changed = True
+
 for event, entries in (src.get("hooks") or {}).items():
     cur = tgt.setdefault("hooks", {}).setdefault(event, [])
     for entry in entries:
@@ -531,9 +671,9 @@ if changed:
 sys.exit(0 if changed else 3)
 PYEOF
     case $rc in
-        0) print_success "Merged Manifest runtime hooks into settings.json" ;;
-        3) print_info "settings.json already has Manifest runtime hooks - preserved" ;;
-        *) print_warning "Could not merge runtime hooks into settings.json (manual merge may be needed)" ;;
+        0) print_success "Merged Manifest runtime settings into settings.json" ;;
+        3) print_info "settings.json already has Manifest runtime settings - preserved" ;;
+        *) print_warning "Could not merge runtime settings into settings.json (manual merge may be needed)" ;;
     esac
 }
 
