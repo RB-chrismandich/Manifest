@@ -157,3 +157,39 @@ YML
         bash "$REPO_ROOT/configs/claude/scripts/sync-skills.sh"
     refute_output --partial "APM owns this domain"
 }
+
+@test "after un-gating, the ownership REPORT also reads single-owner" {
+    # Regression. The suite previously asserted only the writer side — that
+    # deploy_home_skills resumed — and never re-read the report. It didn't:
+    # reclaiming the files left the lockfile still listing them, so
+    # apm_ownership_report.sh stayed on DOUBLE-CLAIMED forever after a
+    # successful rollback. Caught by running the tool, not by these tests.
+    run "$SCRIPT" skills --apply
+    assert_success
+
+    run env HOME="$HOME" MANIFEST_APM_DOMAINS="$MANIFEST_APM_DOMAINS" \
+        APM_LOCKFILE="$APM_LOCKFILE" \
+        "$REPO_ROOT/configs/claude/scripts/apm_ownership_report.sh"
+    assert_success
+    assert_output --partial "legacy"
+    refute_output --partial "DOUBLE-CLAIMED"
+}
+
+@test "un-gating drops only the target domain's claim from the lockfile" {
+    # A blunt "delete the lockfile" would also discard other domains' records.
+    cat > "$APM_LOCKFILE" << 'YML'
+dependencies:
+- repo_url: _local/manifest-skills
+  deployed_files:
+  - .claude/skills/alpha/SKILL.md
+- repo_url: _local/manifest-agents
+  deployed_files:
+  - .claude/agents/keep-me.md
+YML
+    run "$SCRIPT" skills --apply
+    assert_success
+
+    run cat "$APM_LOCKFILE"
+    assert_output --partial "keep-me.md"
+    refute_output --partial ".claude/skills/alpha"
+}

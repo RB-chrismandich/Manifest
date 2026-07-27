@@ -37,7 +37,20 @@ USAGE
 fi
 
 JSON=false
-[[ "${1:-}" == "--json" ]] && JSON=true
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --json)
+            JSON=true
+            shift
+            ;;
+        *)
+            # Silently ignoring an unknown flag is how a typo'd --jsonn hands
+            # human-readable text to a caller that asked for JSON.
+            err "unknown argument: $1 (see --help)"
+            exit 2
+            ;;
+    esac
+done
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
@@ -124,10 +137,13 @@ if [[ "$JSON" == true ]]; then
     exit "$rc"
 fi
 
+# Literal tilde via a variable: an inline \~ in the replacement is emitted
+# as a backslash-tilde, and an unescaped ~ would tilde-expand.
+HOME_TILDE="~"
 printf '%-10s %-34s %s\n' "DOMAIN" "PATH" "OWNER"
 for row in ${rows[@]+"${rows[@]}"}; do
     IFS='|' read -r d path status _ _ <<< "$row"
-    printf '%-10s %-34s %s\n' "$d" "${path/#$HOME/\~}" "$status"
+    printf '%-10s %-34s %s\n' "$d" "${path/#$HOME/$HOME_TILDE}" "$status"
 done
 
 if [[ $rc -ne 0 ]]; then

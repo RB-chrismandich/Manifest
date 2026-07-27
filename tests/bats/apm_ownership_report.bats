@@ -147,3 +147,20 @@ YML
     MANIFEST_DEPLOY_DOMAINS="skills" deploy_home_skills "$SRC" "$HOME/.claude/skills" > /dev/null
     [ -f "$HOME/.claude/skills/alpha/SKILL.md" ]
 }
+
+@test "an unknown flag is rejected, not silently ignored" {
+    # Regression: --json was matched positionally and anything else fell through
+    # to the human-readable report with exit 0, so a typo'd --jsonn handed
+    # human text to a caller that asked for JSON.
+    run "$REPORT" --bogus
+    assert_failure
+    assert_output --partial "unknown argument"
+}
+
+@test "the path column renders a real tilde, not an escaped one" {
+    # Regression: the substitution emitted a literal backslash — "\~/.claude".
+    run "$REPORT"
+    assert_success
+    assert_output --partial "~/.claude/skills"
+    refute_output --partial '\~'
+}
