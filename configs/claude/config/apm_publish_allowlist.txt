@@ -25,3 +25,36 @@
 ^/Users/<name>(/.*)?$
 ^/home/<name>(/.*)?$
 ^~<name>$
+
+# RFC 2606 / RFC 6761 reserved names, which exist precisely so documentation can
+# show an address without it belonging to anyone. Blocking these rejects every
+# publish carrying a code example or test fixture, and a fail-closed gate that
+# fires on documentation is one people learn to bypass — which costs more than
+# the false positives it prevents.
+#
+# Anchored to the reserved domains only. A real address at a real domain is
+# still a finding.
+^[A-Za-z0-9._%+-]+@([A-Za-z0-9.-]+[.])?example[.](com|org|net)$
+^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]*[.](test|invalid|localhost)$
+
+# GitLab CI component-version syntax, documented in
+# ci-audit-triggers/references/gitlab-ci-triggers.md as a moving ref NOT to pin
+# to. The machine-local-path rule targets `~username` forms (it requires a letter
+# after the tilde, so plain `~/.claude` never matches); `~latest` is that shape by
+# coincidence. Anchored to the literal, per this file's own guidance.
+^~latest$
+
+# A dot-segment directly after /home/ or /Users/ is a dotfile directory, never a
+# username, so it cannot be the leak these rules exist to catch. This shape shows
+# up because the rules match a SUBSTRING: "$SANDBOX/home/.antigravity" contains
+# "/home/.antigravity". Exempting it leaves /home/<username> and /Users/<username>
+# — the actual leak — fully covered.
+^/home/[.][A-Za-z0-9._-]+$
+^/Users/[.][A-Za-z0-9._-]+$
+
+# Generic placeholder usernames in prose. These are the conventional stand-ins
+# documentation uses when illustrating a path shape ("paths like /home/user/repo
+# are often wrong"). Enumerated deliberately rather than matched by wildcard: a
+# broad ^/home/[a-z]+$ would exempt every real short username too.
+^/home/(user|username|you|me|someuser)$
+^/Users/(user|username|you|me|x|someuser)$
