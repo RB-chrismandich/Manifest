@@ -7,7 +7,8 @@ app: manifest
 #   - deploy shape: what bootstrap links/copies (reconcile, antigravity, shared).
 #   - deploy preservation: user runtime state that survives a redeploy — MCP
 #     servers, opted-in issue-sync gates, and repo top-level defaults such as
-#     skillListingBudgetFraction unioned into an existing settings.local.json
+#     skillListingBudgetFraction unioned into an existing settings.json via
+#     settings.runtime.json
 #     user-wins — the invariants whose silent regression corrupts a real
 #     ~/.claude on the next `git pull && ./bootstrap.sh`.
 #   - workflow critical path: CDDL orchestration is sub-agent only (manifest cddl
@@ -147,7 +148,7 @@ tests:
             \ gate wrongly mutated (over-broad preserve)\")\nPY\necho \"RESULT gate_preserve=ok\"\
             \n"
   - id: settings-defaults-preserve
-    title: merge_claude_settings_defaults delivers repo top-level default, user value
+    title: merge_claude_runtime_settings delivers repo top-level default, user value
       wins
     tier: Lite
     steps:
@@ -161,28 +162,28 @@ tests:
           - -c
           - "set -euo pipefail\nGREEN='' CYAN='' NC='' BLUE='' YELLOW='' RED='' BOLD=''\n\
             root=\"$(git rev-parse --show-toplevel 2>/dev/null || pwd)\"\nsb=\"$(mktemp\
-            \ -d)\"; trap 'rm -rf \"$sb\"' EXIT\n# src = the repo's own deployed settings.local.json\
-            \ (real source of defaults)\nsrc=\"$root/configs/claude/settings.local.json\"\
-            \n# tgt = an already-bootstrapped user file: has NO skill budget (must\
-            \ be added)\n# alongside a custom key that must survive untouched.\nprintf\
-            \ '{\"permissions\":{\"allow\":[\"Bash(ls:*)\"]}}' > \"$sb/tgt.json\"\n\
-            # shellcheck disable=SC1090\nsource \"$root/bootstrap/lib/common.sh\"\n\
-            # shellcheck disable=SC1090\nsource \"$root/bootstrap/lib/deploy.sh\"\n\
-            merge_claude_settings_defaults \"$src\" \"$sb/tgt.json\" > /dev/null\n\
+            \ -d)\"; trap 'rm -rf \"$sb\"' EXIT\n# src = the repo's own deployed settings.runtime.json\
+            \ (real source of defaults)\nsrc=\"$root/configs/claude/settings.runtime.json\"\
+            \n# tgt = an already-bootstrapped user settings.json: has NO skill budget\
+            \ (must be added)\n# alongside a custom key that must survive untouched.\n\
+            printf '{\"permissions\":{\"allow\":[\"Bash(ls:*)\"]}}' > \"$sb/tgt.json\"\
+            \n# shellcheck disable=SC1090\nsource \"$root/bootstrap/lib/common.sh\"\
+            \n# shellcheck disable=SC1090\nsource \"$root/bootstrap/lib/deploy.sh\"\
+            \nmerge_claude_runtime_settings \"$src\" \"$sb/tgt.json\" > /dev/null\n\
             python3 - \"$sb/tgt.json\" \"$src\" <<'PY'\nimport json, sys\ntgt = json.load(open(sys.argv[1]))\n\
             src = json.load(open(sys.argv[2]))\n# repo must actually ship the top-level\
             \ default we claim to propagate\nif src.get(\"skillListingBudgetFraction\"\
-            ) != 0.05:\n    sys.exit(\"FAIL: repo settings.local.json no longer ships\
-            \ skillListingBudgetFraction=0.05\")\n# the missing default must have\
-            \ been unioned into the existing file\nif tgt.get(\"skillListingBudgetFraction\"\
+            ) != 0.05:\n    sys.exit(\"FAIL: repo settings.runtime.json no longer\
+            \ ships skillListingBudgetFraction=0.05\")\n# the missing default must\
+            \ have been unioned into the existing file\nif tgt.get(\"skillListingBudgetFraction\"\
             ) != 0.05:\n    sys.exit(\"FAIL: repo default not delivered to an existing\
-            \ install\")\n# the user's own unrelated key must survive untouched\n\
-            if tgt.get(\"permissions\", {}).get(\"allow\") != [\"Bash(ls:*)\"]:\n\
-            \    sys.exit(\"FAIL: user's own settings mutated by the defaults merge\"\
-            )\n# env must NOT be shipped in settings.json (subprocess-only, no-op\
-            \ for caching)\nif \"env\" in src:\n    sys.exit(\"FAIL: settings.local.json\
-            \ ships an env block (subprocess-only, misleading)\")\nPY\necho \"RESULT\
-            \ settings_defaults=ok\"\n"
+            \ install\")\n# the user's own permission rule must survive (union, never\
+            \ remove)\nallow = tgt.get(\"permissions\", {}).get(\"allow\") or []\n\
+            if \"Bash(ls:*)\" not in allow:\n    sys.exit(\"FAIL: user's own settings\
+            \ mutated by the runtime merge\")\n# env must NOT be shipped in settings.runtime.json\
+            \ (subprocess-only, no-op for caching)\nif \"env\" in src:\n    sys.exit(\"\
+            FAIL: settings.runtime.json ships an env block (subprocess-only, misleading)\"\
+            )\nPY\necho \"RESULT settings_defaults=ok\"\n"
 
   - id: deploy-force-runtime-preserve
     title: deploy_configs --force keeps plugins, sessions, and user MCP across redeploy
