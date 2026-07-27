@@ -1,6 +1,7 @@
 # Handoff — Feature 522, at the Phase 2/3 boundary
 
-**Written**: 2026-07-27 · **Branch**: `522-apm-deploy-migration` · **State**: Phases 0–2 complete (30/59 tasks), nothing activated.
+**Written**: 2026-07-27 · **Branch**: `522-apm-deploy-migration`
+**State**: Phases 0–2 complete, nothing activated.
 
 ## Why the branch stops here
 
@@ -17,7 +18,7 @@ The branch is therefore mergeable as-is **and changes no behaviour for anyone**:
   harness are all new files nothing calls by default.
 
 Verify that claim rather than take it: `apm_ownership_report.sh` prints
-`skills … legacy` on a current checkout, and `bats tests/bats/` is 1356/1356.
+`skills … legacy` on a current checkout, and `bats tests/bats/` is green.
 
 ## What Phase 3 will do, precisely
 
@@ -43,6 +44,25 @@ domain to the legacy pipeline *and* reclaims what APM wrote (driven by the
 lockfile's `deployed_files`, so other tools' skills in the same directory
 survive). Then `./bootstrap.sh` repopulates. Proven by
 `tests/bats/apm_ungate_domain.bats`.
+
+## ⛔ Blocking: the constitution contradicts the shipped mechanism
+
+Found by T035 after the rest of this handoff was written. **Phase 3 should not
+start until this is decided**, because it is a decision, not an implementation.
+
+Constitution v2.0.0 — authored by this feature, before the spike measured
+anything — states as a MUST that a user-modified deployed file "MUST NOT be
+silently overwritten; it MUST be preserved and reported" (Principle V.4). apm
+silently overwrites, and cannot report. FR-034 was rewritten to match the
+measurement, which moved the conflict out of the spec and into a contradiction
+with the constitution rather than resolving it.
+
+No Manifest-side guard fixes this. Re-hashing against `deployed_file_hashes`
+buys *reported*; nothing buys *preserved*, because apm does the write. The
+options are amend V.4, abandon apm for the homegrown fallback, or record a
+scoped exception — see `constitution-consistency.md`. Principle V.3 (orphan
+removal without a separate reconciliation pass) is also violated for the 170
+scripts still on rsync.
 
 ## Things a reviewer should push back on
 
@@ -87,7 +107,7 @@ Listed because they are judgement calls I made, not facts.
 ## Verification commands
 
 ```bash
-bats tests/bats/                                  # 1356/1356
+bats tests/bats/
 uv run --project configs/claude pytest tests/python/ -q   # 737 passed
 configs/claude/scripts/apm_ownership_report.sh    # skills … legacy, exit 0
 pre-commit run --from-ref origin/main --to-ref HEAD
