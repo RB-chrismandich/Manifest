@@ -1015,7 +1015,17 @@ deploy_sync_skills() {
     # sourced until next terminal open, but the user may run sync-skills right away).
     export PATH="$HOME/.local/bin:$PATH"
 
+    # T055/FR-032: the publish-free local development loop, deployed alongside
+    # the writer it will replace. Installed UNCONDITIONALLY, not gated on
+    # ENABLE_APM: T015 will make `sync-skills` name this command when it skips a
+    # domain, and a skip message pointing at a command that does not exist hands
+    # the contributor a dead end. The script itself explains how to get apm when
+    # apm is absent, which is the right place for that conditional.
+    cp "$SCRIPT_DIR/configs/claude/scripts/apm_dev_sync.sh" "$HOME/.local/bin/apm-dev-sync"
+    chmod +x "$HOME/.local/bin/apm-dev-sync"
+
     print_success "Deployed sync-skills to $HOME/.local/bin/sync-skills"
+    print_success "Deployed apm-dev-sync to $HOME/.local/bin/apm-dev-sync"
 }
 
 # Verify installation

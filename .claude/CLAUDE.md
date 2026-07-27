@@ -22,6 +22,7 @@ it with a real directory.
 - **Home deploy** (`~/.claude/skills` + Cursor/Gemini/Codex/Antigravity symlinks)
   is owned by `bootstrap.sh` (`deploy_home_skills` copies `.apm/skills/` →
   `~/.claude/skills`).
+- **Local skill-dev**: `apm-dev-sync` — publish-free; removes deleted skills.
 - **skillshare was removed 2026-07-27** (feature 522, FR-021a). There is no
   `.skillshare/` tree, no `.skillshare/config.yaml`, and no `skillshare`
   invocation anywhere in the repo. Do not reintroduce one: `.apm/skills` is
