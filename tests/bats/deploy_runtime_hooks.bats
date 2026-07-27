@@ -37,21 +37,54 @@ teardown() {
     [[ -n "$SANDBOX" && -d "$SANDBOX" ]] && rm -rf "$SANDBOX"
 }
 
-matchers() {
-    python3 -c "import json,sys; print(','.join(e.get('matcher','') for e in json.load(open(sys.argv[1]))['hooks']['PreToolUse']))" "$1"
+# Commands registered for one event in the target, comma-joined.
+commands_for() {
+    python3 -c "
+import json,sys
+d=json.load(open(sys.argv[1]))
+print(','.join(h['command'].split('/')[-1] for e in d['hooks'].get(sys.argv[2],[]) for h in e['hooks']))" "$1" "$2"
+}
+
+events_in() {
+    python3 -c "import json,sys; print(','.join(sorted(json.load(open(sys.argv[1]))['hooks'])))" "$1"
 }
 
 @test "the repo ships the Agent hook in settings.hooks.json" {
-    run python3 -c "import json,sys; h=json.load(open(sys.argv[1]))['hooks']['PreToolUse']; print(h[0]['matcher'], h[0]['hooks'][0]['command'])" "$SRC"
+    run commands_for "$SRC" PreToolUse
     assert_success
-    assert_output --partial "Agent"
     assert_output --partial "subagent_model_default.py"
+}
+
+@test "EVERY Claude hook ships here, not in the inert settings.local.json" {
+    # settings.local.json is inert at user scope (measured), so a hook left there
+    # never runs. This is the regression guard: if someone adds a hook back to
+    # settings.local.json it is silently dead, and this test is what says so.
+    run python3 -c "import json,sys; print('hooks' in json.load(open(sys.argv[1])))" \
+        "$REPO_ROOT/configs/claude/settings.local.json"
+    assert_output "False"
+}
+
+@test "all four hook events survive the migration" {
+    run events_in "$SRC"
+    assert_success
+    assert_output "PostToolUse,PreToolUse,SessionStart,UserPromptSubmit"
+}
+
+@test "the previously-inert hooks are all present" {
+    run commands_for "$SRC" PostToolUse
+    assert_output --partial "version_pin_hook.sh"
+    assert_output --partial "spec_review.sh --silent"
+    assert_output --partial "lint_on_edit_hook.sh"
+    run commands_for "$SRC" PreToolUse
+    assert_output --partial "guidance_hint.py"
+    run commands_for "$SRC" SessionStart
+    assert_output --partial "deploy_stamp_check.sh"
 }
 
 @test "creates the target when it does not exist" {
     run merge_claude_runtime_hooks "$SRC" "$SANDBOX/settings.json"
     assert_success
-    assert_equal "$(matchers "$SANDBOX/settings.json")" "Agent"
+    assert_equal "$(events_in "$SANDBOX/settings.json")" "PostToolUse,PreToolUse,SessionStart,UserPromptSubmit"
 }
 
 @test "unions into an existing file without clobbering other keys or hooks" {
@@ -59,7 +92,9 @@ matchers() {
         > "$SANDBOX/settings.json"
     run merge_claude_runtime_hooks "$SRC" "$SANDBOX/settings.json"
     assert_success
-    assert_equal "$(matchers "$SANDBOX/settings.json")" "Bash,Agent"
+    run commands_for "$SANDBOX/settings.json" PreToolUse
+    assert_output --partial "existing.sh"
+    assert_output --partial "subagent_model_default.py"
     run python3 -c "import json,sys; print(json.load(open(sys.argv[1]))['model'])" "$SANDBOX/settings.json"
     assert_output "opus"
 }
@@ -69,7 +104,11 @@ matchers() {
     run merge_claude_runtime_hooks "$SRC" "$SANDBOX/settings.json"
     assert_success
     assert_output --partial "already has"
-    assert_equal "$(matchers "$SANDBOX/settings.json")" "Agent"
+    run python3 -c "
+import json,sys
+d=json.load(open(sys.argv[1]))
+print(sum(len(e['hooks']) for ev in d['hooks'].values() for e in ev))" "$SANDBOX/settings.json"
+    assert_output "7"
 }
 
 @test "expands ~ so Claude Code receives an absolute command" {

@@ -161,10 +161,12 @@ deploy_configs() {
                     [[ -n "$preserved_mcp" ]] && rm -f "$preserved_mcp"
                     preserve_issue_sync_gates "$preserved_cmdcfg" "$TARGET_DIR/config/command_config.yml"
                     [[ -n "$preserved_cmdcfg" ]] && rm -f "$preserved_cmdcfg"
-                    # rsync --ignore-existing skipped the repo settings.local.json,
-                    # so a pre-existing live file never gains repo-shipped hooks
-                    # (e.g. the new SessionStart nudge). Union them in explicitly.
-                    merge_settings_hooks "$source_dir/settings.local.json" "$TARGET_DIR/settings.local.json"
+                    # NOTE: Claude hooks are no longer merged into settings.local.json.
+                    # That file is inert at user scope (measured; see
+                    # merge_claude_runtime_hooks), so hooks merged there never fired.
+                    # They now ship in settings.hooks.json and are merged into
+                    # settings.json below. merge_settings_hooks is still used by the
+                    # Gemini path, which reads its own settings.json.
                     # ...and repo session defaults (env vars, skillListingBudgetFraction)
                     # the same --ignore-existing skip would strand on existing installs.
                     merge_claude_settings_defaults "$source_dir/settings.local.json" "$TARGET_DIR/settings.local.json"
@@ -472,9 +474,11 @@ PYEOF
 # Measured 2026-07-26 on Claude Code 2.1.220: a hook registered in
 # ~/.claude/settings.local.json never fires. Controlled A/B, same hook and same
 # absolute command with only the file differing — settings.json fired on every
-# Agent dispatch, settings.local.json fired zero times; an absolute path in
-# settings.local.json also never fired, ruling out tilde expansion. So a hook
-# whose whole purpose is enforcement cannot be shipped via settings.local.json.
+# dispatch, settings.local.json fired zero times; an absolute path in
+# settings.local.json also never fired, ruling out tilde expansion. A second
+# A/B on a different event (PostToolUse:Write) reproduced it, establishing the
+# defect as FILE-level rather than event- or matcher-specific. Every Claude hook
+# Manifest ships therefore lives in settings.hooks.json and lands here.
 #
 # Creates the target if absent, expands `~` to an absolute command (the shipped
 # settings.json hooks use absolute paths), and is idempotent + additive: an

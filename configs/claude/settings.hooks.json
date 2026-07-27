@@ -4,21 +4,35 @@
     "~/.claude/settings.json (NOT settings.local.json).",
     "",
     "Measured 2026-07-26 on Claude Code 2.1.220: a hook registered in",
-    "~/.claude/settings.local.json never fires. Controlled A/B — same hook, same",
-    "absolute command, only the file differed — the settings.json registration",
+    "~/.claude/settings.local.json never fires. Controlled A/B \u2014 same hook, same",
+    "absolute command, only the file differed \u2014 the settings.json registration",
     "fired on every Agent dispatch and the settings.local.json one fired zero",
     "times. Path style was ruled out separately: an absolute command in",
     "settings.local.json also never fired, so the tilde is not the cause. At USER",
     "scope Claude Code reads settings.json; settings.local.json is a PROJECT-scope",
     "file (.claude/settings.local.json), and a copy at ~/.claude/ is inert.",
     "",
-    "Everything still registered in configs/claude/settings.local.json inherits",
-    "that defect and is believed inert on a deployed machine. Moving those is a",
-    "separate decision (they fire on every Write/Edit and would change behaviour",
-    "the moment they activate), so this file carries only the hook whose whole",
-    "purpose is to be enforced.",
+    "The defect is FILE-level, not event- or matcher-level. Confirmed with a",
+    "second controlled A/B on a different event: the same PostToolUse:Write probe",
+    "fired zero times from settings.local.json and fired from settings.json. So",
+    "EVERY hook Manifest used to register in settings.local.json was inert on a",
+    "deployed machine, which is why all of them now live here.",
     "",
-    "The `~` in the command below is expanded by merge_claude_runtime_hooks at",
+    "Before migrating, each hook was probed with a representative payload to check",
+    "it behaves when it finally runs (these had never executed in production): all",
+    "exit 0 (non-blocking), guidance_hint/version_pin/spec_review are silent on",
+    "ordinary edits, lint_on_edit emits advisory output only on a genuine lint",
+    "error, and all three PostToolUse hooks chained on one edit cost ~240ms.",
+    "",
+    "STILL INERT, deliberately not moved here: settings.local.json also carries",
+    "`permissions` (31 allow-rules), `mcpServers` (sentry, context7, linear,",
+    "atlassian) and `skillListingBudgetFraction: 0.05`. Those have the same",
+    "root cause but different blast radii — granting permissions changes the",
+    "security posture and enabling MCP servers opens connections to external",
+    "services — so they are a separate, explicit decision rather than a",
+    "ride-along. See docs/MODEL-POLICY.md.",
+    "",
+    "The `~` in the commands below is expanded by merge_claude_runtime_hooks at",
     "deploy time; Claude Code is given an absolute path."
   ],
   "hooks": {
@@ -29,6 +43,64 @@
           {
             "type": "command",
             "command": "~/.claude/scripts/subagent_model_default.py"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/scripts/guidance_hint.py"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/scripts/version_pin_hook.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/scripts/spec_review.sh --silent"
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/scripts/lint_on_edit_hook.sh"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo 'token-conserve: lead with result; terse; surgical edits; one targeted question if ambiguous'"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/scripts/deploy_stamp_check.sh"
           }
         ]
       }
