@@ -309,8 +309,10 @@ STUB
     assert_success
 }
 
-@test "settings.local.json registers the spec_review silent save hook" {
-    local s="$REPO_ROOT/configs/claude/settings.local.json"
+@test "settings.hooks.json registers the spec_review silent save hook" {
+    # settings.local.json is inert at user scope; hooks live in the runtime
+    # fragment that bootstrap merges into ~/.claude/settings.json.
+    local s="$REPO_ROOT/configs/claude/settings.hooks.json"
     run python3 -c "import json; d=json.load(open('$s')); cmds=[h['command'] for m in d['hooks']['PostToolUse'] for h in m['hooks']]; assert any('spec_review.sh' in c and '--silent' in c for c in cmds), cmds"
     assert_success
 }
@@ -320,8 +322,8 @@ STUB
     assert_success
 }
 
-@test "settings.local.json still has the pre-existing version_pin hook" {
-    local s="$REPO_ROOT/configs/claude/settings.local.json"
+@test "settings.hooks.json still has the pre-existing version_pin hook" {
+    local s="$REPO_ROOT/configs/claude/settings.hooks.json"
     run python3 -c "import json; d=json.load(open('$s')); cmds=[h['command'] for m in d['hooks']['PostToolUse'] for h in m['hooks']]; assert any('version_pin' in c for c in cmds), cmds"
     assert_success
 }

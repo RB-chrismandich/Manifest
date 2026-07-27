@@ -147,15 +147,36 @@ its exit code with `--channel` and always reports the other channel's count, so
 a clean agent-tool result can never be read as "sub-agent spend is under
 control".
 
-**Open item — the other Manifest hooks are believed inert.** The A/B above was
-run for one hook, but the defect is a property of the file, not the hook:
-`guidance_hint.py`, `version_pin_hook.sh`, `spec_review.sh`, `lint_on_edit_hook.sh`
-and the `SessionStart`/`UserPromptSubmit` entries are all registered in
-`configs/claude/settings.local.json` and deployed to the same inert path. They
-were left in place deliberately rather than migrated as a side effect of this
-change: they fire on every `Write`/`Edit`, so activating five dormant hooks at
-once is a behavioural change that deserves its own decision and its own
-verification, not a silent ride-along.
+**Resolved — every Claude hook now ships in `settings.hooks.json`.** The A/B
+above was run for one hook; a second A/B on a different event
+(`PostToolUse:Write`, same probe, zero fires from `settings.local.json` and a
+fire from `settings.json`) established the defect as a property of the **file**,
+not of the hook or the event. So `guidance_hint.py`, `version_pin_hook.sh`,
+`spec_review.sh`, `lint_on_edit_hook.sh` and the
+`SessionStart`/`UserPromptSubmit` entries had all been inert on every deployed
+machine, and all of them were migrated.
+
+Because none had ever executed in production, each was probed with a
+representative payload before being activated: all exit 0 (non-blocking),
+`guidance_hint`/`version_pin`/`spec_review` stay silent on ordinary edits,
+`lint_on_edit` emits advisory output only on a genuine lint error, and all three
+`PostToolUse` hooks chained on a single edit cost ~240ms. Gated by
+`tests/bats/deploy_runtime_hooks.bats`, which fails if a hook is ever added back
+to the inert file.
+
+**Still open — the rest of `settings.local.json` has the same root cause.** That
+file also carries `permissions` (31 allow-rules), `mcpServers` (`sentry`,
+`context7`, `linear`, `atlassian`) and `skillListingBudgetFraction: 0.05`, and
+at user scope none of them are read either. Corroborating evidence: `sentry`,
+`linear` and `atlassian` are absent from a running session's tool list, and the
+`context7` that *is* present comes from a plugin. The budget key silently falls
+back to the `0.01` default — which matters, because skill descriptions are
+rivalrous and budget exhaustion stops a skill triggering at all.
+
+These are **not** migrated here on purpose: granting 31 permissions changes the
+security posture and enabling MCP servers opens connections to external
+services. Same one-line mechanism, materially different blast radius, so it is a
+separate explicit decision.
 
 Full dispatch rules: [configs/claude/references/sub-agent-dispatch.md](../configs/claude/references/sub-agent-dispatch.md).
 
