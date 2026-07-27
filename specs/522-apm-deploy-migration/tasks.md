@@ -56,7 +56,7 @@ description: "Task list for APM-Based Deploy Pipeline (Drift Elimination)"
 - [ ] T010 Build the **ownership diagnostic** into `env-check`/`config-audit` now, reporting which pipeline owns each area and flagging any area claimed by both. Review moved this *before* the coexistence window: a diagnostic delivered afterwards polices a window that has already closed. → FR-015, SC-006
 - [ ] T011 Add a **per-domain selector** to the legacy deploy path (`deploy_configs()` is monolithic today, R6) so unmigrated domains can be redeployed without touching migrated ones. This is the mechanism FR-019's rollback depends on; without it, "re-run bootstrap for unmigrated domains" is not an available action. → FR-019, R6
 - [ ] T012 [P] Write `migration-inventory.md`: classify every deployed artifact as markdown primitive / script / config YAML / generated. **Decide explicitly** what happens to the 54 top-level (88 recursive) scripts and the config YAMLs — a deferral leaves the drift fix partial by definition and must be stated as such. Include the `command_config.yml` case: it is mutated by `install_issue_hooks.sh` in the *deployed* copy, so scripted mutation must be distinguishable from a human edit or the first opt-in freezes the file permanently under retention. → FR-020, FR-034, R3
-- [ ] T013 **Decided by FR-021a (amended 2026-07-27) — this task now implements, it no longer chooses.** `.apm/skills` is the sole physical source of truth; `.skillshare/` is removed (see T056–T059). The symlink fan-out question FR-033 posed is **measured, not assumed**: T005 cell (i) recorded that apm *preserves* a symlinked target directory rather than replacing it with an independent copy, so `~/.cursor/skills -> ~/.claude/skills` survives an APM deploy and no per-harness divergence is introduced. Document that result against FR-033's four criteria and record the disk/build cost as N=1 (single tree, fan-out by symlink). → FR-021a, FR-033, R2
+- [x] T013 **Decided by FR-021a (amended 2026-07-27) — this task now implements, it no longer chooses.** `.apm/skills` is the sole physical source of truth; `.skillshare/` is removed (see T056–T059). The symlink fan-out question FR-033 posed is **measured, not assumed**: T005 cell (i) recorded that apm *preserves* a symlinked target directory rather than replacing it with an independent copy, so `~/.cursor/skills -> ~/.claude/skills` survives an APM deploy and no per-harness divergence is introduced. Document that result against FR-033's four criteria and record the disk/build cost as N=1 (single tree, fan-out by symlink). → FR-021a, FR-033, R2
 - [ ] T051 Implement the mechanism that distinguishes **installer-written mutation from a human edit**, so retention does not permanently freeze a file that Manifest's own scripts modify (`install_issue_hooks.sh` → deployed `command_config.yml`). T012 only records the case; this builds the answer, and it must land **before** any config YAML migrates. **Built on T005(ii)**: if the spike showed the tool cannot distinguish the two, this task is the wrapper that supplies the distinction externally (e.g. re-running the installer through the package rather than against the deployed copy) — say which, rather than discovering the constraint here. → FR-034, R3
 - [ ] T054 Implement `apm` **binary acquisition and integrity verification in `bootstrap.sh`**: download the pinned v0.26.0 artifact, verify it against the checksum/signature recorded by T001, and **fail closed** — no fallback to an unverified binary, no "warn and continue". T001 records the value and T042 asserts the gate fails closed; without this task neither has a subject, and the binary that writes hooks and MCP entries into five home trees arrives unverified. Distinct from T050, which verifies *packages* at install time — this verifies the tool doing the installing. → FR-029, E8
 
@@ -218,14 +218,21 @@ Four drift properties green in an isolated `HOME`, against real content, each wi
 ## Phase 8: Deprecate skillshare completely (FR-021a) 🗑️
 
 *Added 2026-07-27 by maintainer decision. This inverts a former non-goal — see
-the amendment note in `spec.md` Non-Goals and FR-021a. Gated by the same Phase 0
-checkpoint as everything else: the decision record must read GO first.*
+the amendment note in `spec.md` Non-Goals and FR-021a.*
+
+**NOT gated by the Phase 0 checkpoint** (corrected 2026-07-27). That checkpoint
+exists to stop a working pipeline being deleted before its replacement is
+proven, and it asks whether the **published-package** path deploys primitives.
+Phase 8 asks a different question — which repo directory is the skills source of
+truth, and does skillshare tooling exist — and introduces no APM runtime
+dependency: deployment still runs through `bootstrap.sh`'s `deploy_home_skills`.
+The original blanket gating note was over-cautious.
 
 **Invariant (FR-021a)**: no commit that ships may leave two authoritative skill
 trees. Each task below moves consumers *before* the tree, so the repo is never
 in a state where the catalog resolves to nothing.
 
-- [ ] T056 **Inventory every consumer of `.skillshare/`** and record it as a
+- [x] T056 **Inventory every consumer of `.skillshare/`** and record it as a
   checklist in the same doc T013 writes — do not rely on a grep at implementation
   time. Known at authoring: `configs/claude/skills` (compat symlink),
   `command_catalog.py` (`COMMAND_CATALOG_SKILLS_DIR` default),
@@ -241,16 +248,16 @@ in a state where the catalog resolves to nothing.
   the blast radius is roughly an order of magnitude larger, and includes
   user-facing docs (`README.md`, `CONTRIBUTING.md`, `AGENTS.md`, `CLAUDE.md`)
   and `bootstrap/lib/common.sh`. → FR-021a
-- [ ] T057 **Repoint every consumer to `.apm/skills` in one change**, keeping the
+- [x] T057 **Repoint every consumer to `.apm/skills` in one change**, keeping the
   tree in place. The suite must be green with `.skillshare/` still on disk but
   nothing reading it — that is the proof the move is safe, and it is the only
   point where a rollback is free. → FR-021a
-- [ ] T058 **Move the skills and delete `.skillshare/`.** `git mv` so history
+- [x] T058 **Move the skills and delete `.skillshare/`.** `git mv` so history
   follows. Remove `.skillshare/config.yaml`, `.skillshare/.gitignore`, and the
   `configs/claude/skills` compat symlink. Verify the deployed home still
   resolves: `~/.claude/skills` populated and the four harness symlinks intact.
   → FR-021a, FR-033
-- [ ] T059 **Retire the skillshare tooling and its documentation.** `sync-skills.sh`
+- [x] T059 **Retire the skillshare tooling and its documentation.** `sync-skills.sh`
   and any `skillshare install|audit|check|update` guidance in `CLAUDE.md`,
   `.claude/CLAUDE.md`, `docs/`, and SkillClaw's `/skill-evolve` target. A skill
   that still tells a contributor to run `skillshare` after the tree is gone is a
