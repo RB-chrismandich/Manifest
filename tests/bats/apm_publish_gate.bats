@@ -228,12 +228,14 @@ gitleaks_stub_path() {
     # or grepped by any Decision-D category — cmd_scan could PASS a tree
     # whose newline-named file held private material. The walk is now
     # NUL-delimited end to end; this proves the fix by planting a genuine
-    # private-email violation inside a newline-named file's CONTENT.
+    # private-email violation inside a newline-named file's CONTENT. Use a
+    # real-looking domain — not @example.com/@*.test (RFC 2606 allowlisted
+    # since 1f8fd26) — so the hit is not suppressed before F7 is exercised.
     mkdir -p "$SANDBOX/newline_pkg"
     local evil_name
     evil_name=$'evil\nleak.txt'
     local evil_path="$SANDBOX/newline_pkg/$evil_name"
-    printf 'contact me at exposed-operator-fixture@example.com for details\n' > "$evil_path"
+    printf 'contact me at exposed-operator-fixture@realcorp-fixture.com for details\n' > "$evil_path"
 
     if [ ! -f "$evil_path" ]; then
         skip "this platform/filesystem could not create a filename with an embedded newline"
@@ -242,7 +244,7 @@ gitleaks_stub_path() {
     # Precondition: the file's CONTENT genuinely matches the Decision-D
     # private-email pattern when grepped directly — proves this is not a
     # vacuous fixture (Standing Constraint 6).
-    grep -q "exposed-operator-fixture@example.com" "$evil_path"
+    grep -q "exposed-operator-fixture@realcorp-fixture.com" "$evil_path"
 
     run "$SCRIPT" scan "$SANDBOX/newline_pkg"
     assert_failure 1
