@@ -197,8 +197,7 @@ tool_policies:
       - Read
       - Glob
       - Grep
-    forbidden:
-      - Bash
+      - Bash   # docs_lint.py only — the line cap must be measured, not judged
     parallel_agents: never
     validation_tier: 2
 
@@ -227,8 +226,7 @@ tool_policies:
       - Read
       - Glob
       - Grep
-    forbidden:
-      - Bash  # No shell for security
+      - Bash   # docs_lint.py only — the page/diagram caps must be measured
     parallel_agents: conditional
     trigger_condition: unique_imports >= 5
     validation_tier: 2
@@ -240,8 +238,7 @@ tool_policies:
       - Read
       - Glob
       - Grep
-    forbidden:
-      - Bash
+      - Bash   # docs_lint.py only — before/after caps are a measured delta
     parallel_agents: conditional
     trigger_condition: total_doc_lines >= 500
     validation_tier: 2
@@ -249,8 +246,13 @@ tool_policies:
       - deepwiki   # Cross-reference dependency docs for accuracy
       - context7   # Library/API docs for code examples in documentation
 
-    subagents: never
-    subagent_rationale: Holistic docs-set audit with one health score; not independent units.
+    subagents: conditional
+    subagent_trigger: doc_topics >= 10
+    subagent_model: sonnet
+    subagent_rationale: >-
+      Was `never` when the output was one holistic health score. The unit of
+      work is now a topic directory held to its own line cap, and those are
+      independent — above ~10 docs, one sub-agent per topic.
   shell-refactor:
     allowed:
       - Read
@@ -519,8 +521,7 @@ tool_policies:
       - Glob
       - Grep
       - Task   # Dispatches docs-improve-readme / docs-generate-diagrams / docs-improve as sub-agents
-    forbidden:
-      - Bash
+      - Bash   # docs_lint.py only — brackets the run to report a real delta
     parallel_agents: conditional
     validation_tier: 2
 
