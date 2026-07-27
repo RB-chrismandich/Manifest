@@ -184,7 +184,11 @@ print('siblings-intact')"
 import json
 d = json.load(open('$REPO_ROOT/configs/claude/settings.local.json'))
 assert 'env' not in d, 'settings.local.json must not ship an env block: %s' % list(d)
-assert d.get('skillListingBudgetFraction') == 0.05, d.get('skillListingBudgetFraction')
+# The budget key moved to settings.runtime.json (destination ~/.claude/settings.json):
+# settings.local.json is inert at user scope, so the key was never read there.
+r = json.load(open('$REPO_ROOT/configs/claude/settings.runtime.json'))
+assert 'env' not in r, 'settings.runtime.json must not ship an env block: %s' % list(r)
+assert r.get('skillListingBudgetFraction') == 0.05, r.get('skillListingBudgetFraction')
 print('no-env-block')"
     assert_output --partial "no-env-block"
 }

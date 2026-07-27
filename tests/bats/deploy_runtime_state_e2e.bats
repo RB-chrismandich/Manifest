@@ -71,7 +71,10 @@ import json
 d = json.load(open('$TARGET_DIR/settings.local.json'))
 s = d.get('mcpServers', {})
 assert s.get('my-private', {}).get('url') == 'https://mcp.internal.example/mcp', s
-assert 'sentry' in s, s  # repo default still present
+# The repo no longer ships MCP defaults here: settings.local.json is inert at
+# user scope, so an `mcpServers` block in it was never read. Defaults are now
+# registered with `claude mcp add --scope user` (install_claude_mcp_servers),
+# which also rescues any user entry stranded in this file.
 print('mcp-preserved')"
     assert_output --partial "mcp-preserved"
 }
@@ -142,15 +145,18 @@ assert_config_deployed() {
 
     # Merge keeps the user's settings.local.json (and its MCP server) intact AND
     # unions in the repo's top-level session defaults (skillListingBudgetFraction)
-    # that rsync --ignore-existing would otherwise strand — proving
-    # merge_claude_settings_defaults is actually wired into the merge path (the
-    # fixture at setup seeds NO skillListingBudgetFraction).
+    # that rsync --ignore-existing would otherwise strand. The scalar-defaults
+    # proof moved to deploy_runtime_settings.bats along with the keys themselves.
     run python3 -c "
 import json
 d = json.load(open('$TARGET_DIR/settings.local.json'))
 s = d.get('mcpServers', {})
 assert s.get('my-private', {}).get('url') == 'https://mcp.internal.example/mcp', s
-assert d.get('skillListingBudgetFraction') == 0.05, d.get('skillListingBudgetFraction')
+# The budget default now lands in settings.json (settings.local.json is inert
+# at user scope), so it is NOT asserted here: this fixture deliberately seeds a
+# non-JSON settings.json as a 'must survive untouched' sentinel, and the merger
+# correctly refuses to rewrite an unparseable file. The defaults-seeding proof
+# lives in deploy_runtime_settings.bats, which uses a real JSON target.
 print('mcp-intact-defaults-merged')"
     assert_output --partial "mcp-intact-defaults-merged"
 }

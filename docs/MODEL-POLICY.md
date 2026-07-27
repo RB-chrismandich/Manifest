@@ -164,19 +164,30 @@ representative payload before being activated: all exit 0 (non-blocking),
 `tests/bats/deploy_runtime_hooks.bats`, which fails if a hook is ever added back
 to the inert file.
 
-**Still open — the rest of `settings.local.json` has the same root cause.** That
-file also carries `permissions` (31 allow-rules), `mcpServers` (`sentry`,
-`context7`, `linear`, `atlassian`) and `skillListingBudgetFraction: 0.05`, and
-at user scope none of them are read either. Corroborating evidence: `sentry`,
-`linear` and `atlassian` are absent from a running session's tool list, and the
-`context7` that *is* present comes from a plugin. The budget key silently falls
-back to the `0.01` default — which matters, because skill descriptions are
-rivalrous and budget exhaustion stops a skill triggering at all.
+**Resolved — but each key needed a *different* destination.** The rest of
+`settings.local.json` (`permissions`, `mcpServers`,
+`skillListingBudgetFraction`) was equally unread. The obvious fix — move it all
+next to the hooks in `settings.json` — is **wrong for `mcpServers`**: probing
+that key into each file showed `settings.json` does not read it either, so the
+migration would have looked complete and changed nothing.
 
-These are **not** migrated here on purpose: granting 31 permissions changes the
-security posture and enabling MCP servers opens connections to external
-services. Same one-line mechanism, materially different blast radius, so it is a
-separate explicit decision.
+| Key | Destination that works | How it gets there |
+|---|---|---|
+| `hooks`, `permissions`, scalar defaults | `~/.claude/settings.json` | `settings.runtime.json` → `merge_claude_runtime_settings` |
+| `mcpServers` | **`~/.claude.json` only** | `config/mcp_user_servers.json` → `claude mcp add --scope user` |
+
+`settings.local.json` is now an empty stub kept only as a path other code still
+references. The MCP step also rescues any server a user had added to that inert
+file. It is guarded to no-op when `TARGET_DIR` is outside `$HOME`, because it is
+the one deploy step that writes outside the target tree and would otherwise let
+a sandboxed test edit a developer's real config.
+
+**Caveat, stated rather than glossed:** permission *enforcement* was not
+successfully verified. The obvious probe — a rule present vs absent under
+`claude -p` — is useless, because headless mode ran the command with **no rule
+anywhere**, so the control could not fail. The permissions destination is
+therefore inferred from the file-level result, not measured. The `mcpServers`
+and `hooks` destinations *were* measured directly.
 
 Full dispatch rules: [configs/claude/references/sub-agent-dispatch.md](../configs/claude/references/sub-agent-dispatch.md).
 

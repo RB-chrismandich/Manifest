@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# bootstrap/lib/deploy.sh merge_claude_runtime_hooks.
+# bootstrap/lib/deploy.sh merge_claude_runtime_settings.
 #
 # Hooks that must reach Claude Code's own runtime go to ~/.claude/settings.json.
 # Measured 2026-07-26 on Claude Code 2.1.220 by controlled A/B (same hook, same
@@ -27,10 +27,10 @@ setup() {
     # Extract to a REAL file, not `source <(...)`: the function embeds a
     # heredoc, and bash cannot re-read a heredoc body from a non-seekable
     # process-substitution FIFO, so the function silently fails to define.
-    sed -n '/^merge_claude_runtime_hooks()/,/^}/p' "$REPO_ROOT/bootstrap/lib/deploy.sh" > "$SANDBOX/fn.sh"
+    sed -n '/^merge_claude_runtime_settings()/,/^}/p' "$REPO_ROOT/bootstrap/lib/deploy.sh" > "$SANDBOX/fn.sh"
     # shellcheck disable=SC1090
     source "$SANDBOX/fn.sh"
-    SRC="$REPO_ROOT/configs/claude/settings.hooks.json"
+    SRC="$REPO_ROOT/configs/claude/settings.runtime.json"
 }
 
 teardown() {
@@ -49,7 +49,7 @@ events_in() {
     python3 -c "import json,sys; print(','.join(sorted(json.load(open(sys.argv[1]))['hooks'])))" "$1"
 }
 
-@test "the repo ships the Agent hook in settings.hooks.json" {
+@test "the repo ships the Agent hook in settings.runtime.json" {
     run commands_for "$SRC" PreToolUse
     assert_success
     assert_output --partial "subagent_model_default.py"
@@ -82,7 +82,7 @@ events_in() {
 }
 
 @test "creates the target when it does not exist" {
-    run merge_claude_runtime_hooks "$SRC" "$SANDBOX/settings.json"
+    run merge_claude_runtime_settings "$SRC" "$SANDBOX/settings.json"
     assert_success
     assert_equal "$(events_in "$SANDBOX/settings.json")" "PostToolUse,PreToolUse,SessionStart,UserPromptSubmit"
 }
@@ -90,7 +90,7 @@ events_in() {
 @test "unions into an existing file without clobbering other keys or hooks" {
     printf '%s' '{"model":"opus","hooks":{"PreToolUse":[{"matcher":"Bash","hooks":[{"type":"command","command":"/existing.sh"}]}]}}' \
         > "$SANDBOX/settings.json"
-    run merge_claude_runtime_hooks "$SRC" "$SANDBOX/settings.json"
+    run merge_claude_runtime_settings "$SRC" "$SANDBOX/settings.json"
     assert_success
     run commands_for "$SANDBOX/settings.json" PreToolUse
     assert_output --partial "existing.sh"
@@ -100,8 +100,8 @@ events_in() {
 }
 
 @test "is idempotent: a second run does not duplicate the entry" {
-    merge_claude_runtime_hooks "$SRC" "$SANDBOX/settings.json"
-    run merge_claude_runtime_hooks "$SRC" "$SANDBOX/settings.json"
+    merge_claude_runtime_settings "$SRC" "$SANDBOX/settings.json"
+    run merge_claude_runtime_settings "$SRC" "$SANDBOX/settings.json"
     assert_success
     assert_output --partial "already has"
     run python3 -c "
@@ -112,14 +112,14 @@ print(sum(len(e['hooks']) for ev in d['hooks'].values() for e in ev))" "$SANDBOX
 }
 
 @test "expands ~ so Claude Code receives an absolute command" {
-    merge_claude_runtime_hooks "$SRC" "$SANDBOX/settings.json"
+    merge_claude_runtime_settings "$SRC" "$SANDBOX/settings.json"
     run python3 -c "import json,sys; print(json.load(open(sys.argv[1]))['hooks']['PreToolUse'][0]['hooks'][0]['command'])" "$SANDBOX/settings.json"
     assert_success
     [[ "$output" == /* ]] || { echo "command not absolute: $output"; false; }
 }
 
 @test "the deployed hook command points at a real script" {
-    merge_claude_runtime_hooks "$SRC" "$SANDBOX/settings.json"
+    merge_claude_runtime_settings "$SRC" "$SANDBOX/settings.json"
     cmd="$(python3 -c "import json,sys; print(json.load(open(sys.argv[1]))['hooks']['PreToolUse'][0]['hooks'][0]['command'])" "$SANDBOX/settings.json")"
     # The deployed copy may be absent on a machine that never bootstrapped, so
     # assert against the repo source, which must always exist.
@@ -128,21 +128,21 @@ print(sum(len(e['hooks']) for ev in d['hooks'].values() for e in ev))" "$SANDBOX
 }
 
 @test "a missing source is a skip, not a failure (fail-open)" {
-    run merge_claude_runtime_hooks "$SANDBOX/absent.json" "$SANDBOX/settings.json"
+    run merge_claude_runtime_settings "$SANDBOX/absent.json" "$SANDBOX/settings.json"
     assert_success
     [ ! -f "$SANDBOX/settings.json" ] || { echo "created a target from a missing source"; false; }
 }
 
 @test "an unparseable target is a warning, not a clobber" {
     printf 'not json' > "$SANDBOX/settings.json"
-    run merge_claude_runtime_hooks "$SRC" "$SANDBOX/settings.json"
+    run merge_claude_runtime_settings "$SRC" "$SANDBOX/settings.json"
     assert_success
     assert_output --partial "WARN"
     assert_equal "$(cat "$SANDBOX/settings.json")" "not json"
 }
 
 @test "deploy.sh calls the merger in both the merge and full-copy paths" {
-    run grep -c 'merge_claude_runtime_hooks "\$source_dir/settings.hooks.json"' "$REPO_ROOT/bootstrap/lib/deploy.sh"
+    run grep -c 'merge_claude_runtime_settings "\$source_dir/settings.runtime.json"' "$REPO_ROOT/bootstrap/lib/deploy.sh"
     assert_success
     assert_output "2"
 }

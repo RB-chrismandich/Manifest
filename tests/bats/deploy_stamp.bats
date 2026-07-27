@@ -308,17 +308,16 @@ EOF
     assert_success
 }
 
-@test "wiring: repo settings.hooks.json registers the SessionStart hook" {
-    # Hooks moved out of settings.local.json: that file is inert at user scope
-    # (measured), so a SessionStart hook registered there never fired. The
-    # permissions allow-entry stays in settings.local.json.
+@test "wiring: repo settings.runtime.json registers the SessionStart hook" {
+    # Hooks AND permissions moved out of settings.local.json: that file is inert
+    # at user scope (measured), so a SessionStart hook registered there never
+    # fired and its allow-entry was never read.
     run python3 -c "
 import json
-d = json.load(open('$REPO_ROOT/configs/claude/settings.hooks.json'))
-loc = json.load(open('$REPO_ROOT/configs/claude/settings.local.json'))
+d = json.load(open('$REPO_ROOT/configs/claude/settings.runtime.json'))
 cmds = [h['command'] for m in d['hooks']['SessionStart'] for h in m['hooks']]
 assert any(c.endswith('deploy_stamp_check.sh') for c in cmds), cmds
-allow = loc['permissions']['allow']
+allow = d['permissions']['allow']
 assert any('deploy_stamp_check.sh' in a for a in allow), 'missing allow entry'
 print('wired')"
     assert_success
