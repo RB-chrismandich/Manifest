@@ -131,9 +131,7 @@ def gh_open_sizes(errors: list[str]) -> dict[int, dict]:
     try:
         data = json.loads(stdout_str)
         if not isinstance(data, list):
-            errors.append(
-                "gh pr list sizes returned invalid JSON: not a JSON array"
-            )
+            errors.append("gh pr list sizes returned invalid JSON: not a JSON array")
             return {}
     except json.JSONDecodeError as e:
         errors.append(f"gh pr list sizes returned invalid JSON: {e}")
