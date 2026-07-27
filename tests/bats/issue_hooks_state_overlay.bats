@@ -91,7 +91,9 @@ read_cfg() {
 @test "the overlay is created outside any package-owned directory" {
     run "$INSTALLER" --enable
     assert_success
-    [[ "$ISSUE_HOOKS_STATE" == "$HOME/.manifest/"* ]]
+    # `|| return 1` is required: a bare non-final [[ ]] silently passes on
+    # macOS Bash 3.2, so this assertion would never have been able to fail.
+    [[ "$ISSUE_HOOKS_STATE" == "$HOME/.manifest/"* ]] || return 1
     [ ! -e "$HOME/.claude/config/issue_hooks.yml" ]
 }
 
