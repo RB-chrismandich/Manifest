@@ -518,38 +518,34 @@ install_claude_mcp_servers() {
             return 0
             ;;
     esac
-    if ! command_exists claude; then
-        print_info "claude CLI unavailable — skipped MCP server registration"
-        return 0
-    fi
-    if ! command_exists python3; then
-        print_info "python3 unavailable — skipped MCP server registration"
+    if ! command_exists claude || ! command_exists python3; then
+        print_info "claude CLI or python3 unavailable — skipped MCP server registration"
         return 0
     fi
 
-    # Read the user-scope store directly rather than `claude mcp list`: that
-    # command health-CHECKS every server over the network, which would add tens
-    # of seconds to each bootstrap (and to every test that exercises a deploy).
-    # ~/.claude.json is where `claude mcp add --scope user` writes, so it is also
-    # the more precise question — plugin and connector servers are not ours.
-    local existing
-    existing="$(
-        python3 - "$HOME/.claude.json" << 'PYEOF'
-import json, sys
+    # The plan is generated into a TEMP FILE rather than piped from a process
+    # substitution wrapping a heredoc. That construct works standalone but
+    # misbehaves once deploy.sh is sourced by bootstrap: the heredoc body stops
+    # being treated as quoted, bash brace-expands `{**a, **b}` inside the Python,
+    # and the parser dies with a SyntaxError while the caller sees zero rows and
+    # cheerfully reports "already registered". Same hazard as sourcing a function
+    # containing a heredoc through a process-substitution FIFO. A temp file has
+    # no such edge.
+    local plan
+    plan="$(mktemp)" || return 0
+    # shellcheck disable=SC2064 # expand $plan now, not at trap time
+    trap "rm -f '$plan'" RETURN
 
-try:
-    d = json.load(open(sys.argv[1]))
-except (OSError, ValueError):
-    sys.exit(0)
-for name in (d.get("mcpServers") or {}):
-    print(name)
-PYEOF
-    )"
+    MCP_SRC="$src" MCP_LEGACY="$legacy" MCP_HOME="$HOME/.claude.json" \
+        python3 "$SCRIPT_DIR/configs/claude/scripts/mcp_plan.py" > "$plan" 2> /dev/null || {
+        print_warning "Could not read MCP server definitions — skipped registration"
+        return 0
+    }
 
-    local added=0 skipped=0 failed=0 name spec kind
+    local added=0 skipped=0 failed=0 name kind spec
     while IFS=$'\t' read -r name kind spec; do
         [[ -n "$name" ]] || continue
-        if printf '%s\n' "$existing" | grep -qx "$name"; then
+        if [[ "$kind" == "present" ]]; then
             skipped=$((skipped + 1))
             continue
         fi
@@ -561,39 +557,7 @@ PYEOF
             claude mcp add --scope user "$name" -- $spec > /dev/null 2>&1 &&
                 added=$((added + 1)) || failed=$((failed + 1))
         fi
-    done < <(
-        python3 - "$src" "$legacy" << 'PYEOF'
-import json, sys
-
-
-def load(path):
-    if not path:
-        return {}
-    try:
-        data = json.load(open(path))
-    except (OSError, ValueError):
-        return {}
-    return data if isinstance(data, dict) else {}
-
-
-servers = load(sys.argv[1])
-# A user who added an MCP server to the (inert) settings.local.json got nothing
-# for it. Register those too, so the migration rescues them instead of silently
-# stranding them. Repo defaults lose to a user entry of the same name.
-legacy = load(sys.argv[2] if len(sys.argv) > 2 else "").get("mcpServers") or {}
-servers = {**servers, **legacy}
-if not isinstance(servers, dict):
-    sys.exit(0)
-for name, cfg in servers.items():
-    if not isinstance(cfg, dict):
-        continue
-    if cfg.get("url"):
-        print(f"{name}\thttp\t{cfg['url']}")
-    elif cfg.get("command"):
-        argv = " ".join([cfg["command"], *(cfg.get("args") or [])])
-        print(f"{name}\tstdio\t{argv}")
-PYEOF
-    )
+    done < "$plan"
 
     if ((failed > 0)); then
         print_warning "MCP servers: $added added, $skipped already present, $failed failed"
