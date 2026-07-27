@@ -18,7 +18,7 @@
 # check_status.sh and sync-skills.sh embed their fallback as literal bash
 # array assignments, which a Python-side test can't evaluate cleanly. These
 # two bats tests extract those EXACT lines straight out of the live script
-# source (not a copy pasted into the test) and eval them in isolation, then
+# source (not a copy pasted into the test) and execute them in isolation, then
 # diff the result against a live yaml.safe_load() of the REAL
 # agent_roster.yml -- so editing either agent_roster.yml or a script's
 # fallback without updating the other fails here, not silently.

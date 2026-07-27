@@ -201,11 +201,11 @@ def run_handler(handler_path: str, event: dict) -> dict:
         if raw_out.strip():
             try:
                 parsed = json.loads(raw_out)
-                if isinstance(parsed, (dict, list)):
+                if isinstance(parsed, dict):
                     return parsed
                 else:
                     print(
-                        "Handler invalid JSON: not a JSON object/array", file=sys.stderr
+                        "Handler invalid JSON: not a JSON object", file=sys.stderr
                     )
                     return allow_response(event_type)
             except json.JSONDecodeError as e:

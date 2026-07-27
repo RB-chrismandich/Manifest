@@ -92,9 +92,9 @@ def gh_refs(state: str, errors: list[str]) -> dict[str, int]:
 
     try:
         data = json.loads(stdout_str)
-        if not isinstance(data, (dict, list)):
+        if not isinstance(data, list):
             errors.append(
-                f"gh pr list --state {state} returned invalid JSON: not a JSON object/array"
+                f"gh pr list --state {state} returned invalid JSON: not a JSON array"
             )
             return {}
     except json.JSONDecodeError as e:
@@ -130,9 +130,9 @@ def gh_open_sizes(errors: list[str]) -> dict[int, dict]:
 
     try:
         data = json.loads(stdout_str)
-        if not isinstance(data, (dict, list)):
+        if not isinstance(data, list):
             errors.append(
-                "gh pr list sizes returned invalid JSON: not a JSON object/array"
+                "gh pr list sizes returned invalid JSON: not a JSON array"
             )
             return {}
     except json.JSONDecodeError as e:
@@ -165,9 +165,9 @@ def glab_refs(flag: str, errors: list[str]) -> dict[str, int]:
 
     try:
         data = json.loads(stdout_str)
-        if not isinstance(data, (dict, list)):
+        if not isinstance(data, list):
             errors.append(
-                f"glab mr list {flag} returned invalid JSON: not a JSON object/array"
+                f"glab mr list {flag} returned invalid JSON: not a JSON array"
             )
             return {}
     except json.JSONDecodeError as e:
