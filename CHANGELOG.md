@@ -48,6 +48,7 @@ All notable changes are documented here in reverse chronological order.
   `**`-vs-`*` glob distinction that `fnmatch` would collapse.
   `lint_on_edit_hook.bats` gains 6 covering opt-in, silence-when-clean,
   per-type classification, `.mdc` exclusion, and non-mutation.
+
 ### APM Publish Gates (feature 522, Phase 0 — T048–T050)
 
 - **Supply-chain gates now precede any APM registry publish** — implemented
