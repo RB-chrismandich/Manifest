@@ -113,6 +113,8 @@ Read on demand (NOT auto-loaded). You MUST read the reference before related tas
   planning artifacts: speckit vs superpowers layout detection + precedence.
 - `~/.claude/references/antipatterns.md` — Read before writing or refactoring code:
   guardrail registry (detection cues + prevention rules).
+- `~/.claude/references/doc-concision.md` — Read before writing or auditing docs:
+  per-type line caps, fan-out-to-sub-pages rule, fluff blocklist (`docs_lint.py`).
 
 ---
 

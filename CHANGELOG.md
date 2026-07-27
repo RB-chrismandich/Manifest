@@ -10,6 +10,35 @@ All notable changes are documented here in reverse chronological order.
 
 ## [Unreleased]
 
+### Doc Concision Contract (docs-* skills)
+
+- **`configs/claude/scripts/docs_lint.py`** — per-type line caps for a docs set,
+  read from `configs/claude/config/doc_limits.yml`. Exit 1 when a doc is over
+  cap; fluff phrases are advisory only (a wording blocklist that fails a build
+  is one people route around). `wc -l` parity, code blocks included.
+- **Caps**: hub 120, root README 200, tutorial/how-to 200, explanation 250,
+  reference 400, diagram page 300 (max 4 diagrams). Generated files, vendored
+  trees, and dated records (specs, plans, reports, ADRs) are exempt — rewriting
+  a record to fit a cap falsifies it. In-file `<!-- doc-type: -->` and
+  `<!-- doc-limit: N — why -->` overrides; a limit override without a rationale
+  is a hard failure, same contract as help-coverage exemptions.
+- **`configs/claude/references/doc-concision.md`** — the fan-out rule (split by
+  subject into a hub plus sub-pages, never `-part-2`; caps apply recursively),
+  the fluff list, and the rewrite order (cut before you split). Indexed in the
+  Claude and Cursor Reference Indexes.
+- **All four docs-* skills** now measure before and after and report a
+  line-count delta instead of asserting improvement. `docs-improve` trades its
+  100-point health score for the linter's numbers; `docs-generate-diagrams`
+  moves Mermaid syntax traps to a loaded-on-demand reference. Skill bodies:
+  616 → 359 lines.
+- **Policy follows the code**: the three skills that run the linter have `Bash`
+  un-forbidden (scoped to `docs_lint.py`), and `docs-improve` moves
+  `subagents: never` → `conditional` because its unit of work is now an
+  independently-capped topic directory, not one holistic score.
+- **Tests**: `tests/bats/docs_lint.bats` (19 cases) pins classification, cap
+  arithmetic, override rationale enforcement, exempt handling, and the
+  `**`-vs-`*` glob distinction that `fnmatch` would collapse.
+
 ### Model-Routing Verification (class x model matrix)
 
 - **`opus_attribution_report.py` is no longer Opus-only.** A hardcoded

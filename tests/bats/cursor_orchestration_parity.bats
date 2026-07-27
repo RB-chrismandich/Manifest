@@ -11,11 +11,12 @@ load '../test_helper/bats-assert/load'
 REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
 RULE_FILE="$REPO_ROOT/configs/cursor/rules/orchestration.mdc"
 
-@test "orchestration.mdc contains the Reference Index section with all 7 references" {
+@test "orchestration.mdc contains the Reference Index section with all 8 references" {
     run grep -c '^## Reference Index$' "$RULE_FILE"
     assert_output "1"
     for ref in parallel-agent.md orchestration.md git-platform.md layout.md \
-               sub-agent-dispatch.md spec-artifact-discovery.md antipatterns.md; do
+               sub-agent-dispatch.md spec-artifact-discovery.md antipatterns.md \
+               doc-concision.md; do
         grep -qF "~/.claude/references/$ref" "$RULE_FILE" || {
             echo "orchestration.mdc: missing reference $ref" >&2
             return 1

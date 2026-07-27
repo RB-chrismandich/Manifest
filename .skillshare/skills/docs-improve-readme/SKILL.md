@@ -1,141 +1,90 @@
 ---
 name: docs-improve-readme
-description: Analyze and improve repository README documentation using code-derived facts, clear structure, and practical onboarding guidance.
+description: Improve or create a repository README from code-derived facts, held to a 200-line cap — anything past the first ten minutes moves to docs/ and gets linked. Use for "fix the README", "our README is too long".
 ---
 
-# README Improvement Command
+# Improve the README
 
-Analyze the project structure and improve or create comprehensive README documentation following best practices.
+A README answers three questions: what is this, how do I run it, where do I go
+next. Everything else belongs in `docs/` behind a link.
 
-## Task
+The cap is 200 lines, enforced by `docs_lint.py`; the split and fluff rules are
+in `configs/claude/references/doc-concision.md`. Read it first.
 
-You are a documentation expert improving the README.md for the project. Your goals are to:
+## Steps
 
-1. Analyze the codebase to understand its actual functionality
-2. Identify missing, outdated, or incomplete README sections
-3. Generate accurate, well-structured documentation
-4. Ensure all information is derived from actual code, not assumptions
-5. Follow established README best practices and formatting conventions
+### 1. Measure
 
-## Instructions
+```bash
+python3 configs/claude/scripts/docs_lint.py README.md
+```
 
-### Step 1: Gather Project Context
+### 2. Derive facts from code, not from the old README
 
-Read these files to understand the project:
+Every claim must trace to something on disk:
 
-- Read existing documentation: README.md, AGENTS.md, CLAUDE.md
-- Check for dependencies: requirements.txt, package.json, pyproject.toml
-- Scan key directories with Glob: src/**/*.py, lib/**/*.ts, tests/**/*
+| Section | Source of truth |
+|---------|-----------------|
+| What it is | main module docstring, AGENTS.md |
+| Requirements | requirements.txt, package.json, pyproject.toml |
+| Quick start | the setup script / Makefile targets that actually exist |
+| Configuration | the config file's own keys and defaults |
+| Usage | the entry point's real flow |
+| Testing | the test commands CI runs |
 
-### Step 2: Analyze Current README State
+If a claim has no source, it is not a claim. Mark it `TODO` rather than
+guessing — a confident wrong default costs more than a gap.
 
-Evaluate the existing README.md (if present) for:
+### 3. Write to the cap
 
-- **Missing sections**: Compare against the standard sections list below
-- **Outdated information**: Config defaults, feature lists, version numbers
-- **Broken links**: Internal doc references, external URLs
-- **Inconsistent formatting**: Code blocks, tables, headings
-- **Inaccurate descriptions**: Features that don't match actual code
+- **Title + description**: 1-3 lines. What it does, why it exists. No
+  marketing adjectives.
+- **Quick start**: 4-6 steps, copy-pasteable, ending in something that runs.
+- **Key features**: 5-10 one-line bullets, or drop the section.
+- **Requirements**: versions and external services only.
+- **Configuration**: the 5 options most people change. The full table lives in
+  `docs/CONFIGURATION.md`.
+- **Everything else**: a link.
 
-### Step 3: Generate Improved Content
+Sections a README does not need: an exhaustive option table, a full directory
+tree, a changelog, a roadmap, badges past the ones people act on.
 
-For each section that needs improvement, follow these guidelines:
+### 4. Fan out what does not fit
 
-#### Project Title & Description (1-3 lines)
+Over cap means content is in the wrong file, not that the README is
+under-written. Move whole sections out:
 
-- Extract purpose from AGENTS.md or main module docstrings
-- One sentence explaining what it does and why it's useful
-- Avoid marketing language - be factual
+| Overgrown section | Moves to |
+|-------------------|----------|
+| Full config table | `docs/CONFIGURATION.md` |
+| Install variants, first-run walkthrough | `docs/GETTING_STARTED.md` |
+| Error/fix table | `docs/TROUBLESHOOTING.md` |
+| Directory tree, design rationale | `docs/ARCHITECTURE.md` |
 
-#### Key Features (5-10 bullets)
+Leave a one-line pointer where the section was. Create the target doc if it
+does not exist; never move content into a link that 404s.
 
-- Scan src/ for actual capabilities
-- One line per feature, focus on user benefits
+### 5. Validate
 
-#### Quick Start (4-6 steps max)
+- Every relative link resolves.
+- Every command in a code block runs as written.
+- Code fences declare a language.
+- Re-run `docs_lint.py README.md` — exit 0.
 
-- Minimum steps to get running
-- Use actual commands from setup scripts or AGENTS.md
-- Include config setup and run command
+## Report
 
-#### Requirements
-
-- Extract from requirements.txt or package.json
-- Note language version requirements
-- List external services needed
-
-#### Project Structure
-
-- Generate tree from actual directory structure
-- Add one-line comments explaining each key file
-- Group related files logically
-
-#### Configuration
-
-- Extract ALL options from config files
-- Use tables: Key | Default | Description
-- Include example YAML/JSON snippets
-
-#### Usage/Workflow
-
-- Describe the actual execution flow from main entry point
-- Include sample output or log examples
-- Reference AGENTS.md workflow sections
-
-#### Troubleshooting
-
-- Use table format: Issue | Fix
-- Extract common errors from code (try/except blocks)
-- Include actual error messages users might see
-
-#### Testing
-
-- List actual test commands that work
-- Document test environment variables
-
-### Step 4: Validate and Format
-
-Before finalizing:
-
-1. **Verify all links**: Check that linked files exist
-2. **Test code blocks**: Ensure commands are correct
-3. **Check table alignment**: Proper markdown table syntax
-4. **Consistent style**: Same heading levels, bullet styles
-
-## Standard README Sections
-
-| Section | Purpose | Source Files |
-|---------|---------|--------------|
-| Title & Description | Project identity | AGENTS.md, main module docstring |
-| Key Features | Capability overview | src/ analysis |
-| Quick Start | Get running fast | Setup scripts |
-| Requirements | Prerequisites | requirements.txt, package.json |
-| Project Structure | Code organization | Directory tree |
-| Configuration | All options | config/ files |
-| Usage/Workflow | How it works | main entry point |
-| Troubleshooting | Common issues | Error handling code |
-| Testing | Run tests | tests/ directory |
-
-## Formatting Standards
-
-- **Headings**: Use `##` for main sections, `###` for subsections
-- **Code blocks**: Always specify language (`bash`, `yaml`, `python`)
-- **Tables**: Use for configuration options and troubleshooting
-- **Links**: Relative paths for internal docs (`[Guide](docs/GUIDE.md)`)
-- **Separators**: Use `---` between major sections
-
-## Output Format
-
-Present your improvements as:
-
-1. **Summary of changes**: What sections were added/updated
-2. **Full updated README**: Complete markdown ready to save
-3. **Validation notes**: Any issues found (broken links, missing info)
+```text
+docs-improve-readme
+Lines:  464 → 186 (cap 200)
+Moved:  config table → docs/CONFIGURATION.md; error table → docs/TROUBLESHOOTING.md
+Fixed:  2 stale defaults, 1 broken link
+Fluff:  4 hits → 0
+TODO:   Windows install path unverified — no script on disk
+```
 
 ## Notes
 
-- **Accuracy over completeness**: Only document what actually exists in the code
-- **Preserve custom content**: Keep project-specific sections the user added
-- **Update defaults**: Ensure all config defaults match actual code
-- **Link validation**: Every `[text](path)` should point to a real file
-- **No assumptions**: If information isn't in the code, note it as "TODO" rather than guessing
+- **Preserve custom content**: keep project-specific sections the author added;
+  relocate them rather than deleting them.
+- **Update defaults**: a default in the README that disagrees with the code is
+  the most expensive kind of doc bug. Check each one.
