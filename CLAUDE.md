@@ -248,9 +248,8 @@ approaches), review stale plans, or archive/abandon completed work.
 <!-- SPECKIT START -->
 ## Active Spec Kit Feature
 
-- **`483-emdash-support`** (emdash full config inheritance) — PLANNED. emdash is
-  an external harness (no deploy tree); support = transitive inheritance +
-  hybrid verification + `.emdash.json`. Plan:
-  [specs/483-emdash-support/plan.md](specs/483-emdash-support/plan.md). Next:
-  `/speckit-tasks`.
-<!-- SPECKIT END -->
+- **`522-apm-deploy-migration`** — Phases 0–2 done, **paused for review** at the
+  Phase 3 boundary. Nothing activated (`apm_domains.yml` empty, `--enable-apm`
+  off); behaviour unchanged. Phase 3 publishes and deletes live components —
+  read [HANDOFF.md](specs/522-apm-deploy-migration/HANDOFF.md) first. Drift fix
+  is **partial**: 170 scripts stay on legacy rsync.
