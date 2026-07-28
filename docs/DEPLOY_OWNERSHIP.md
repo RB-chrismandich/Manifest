@@ -60,11 +60,25 @@ and they are opposite problems:
 
 `/env-check` and `/config-audit` both surface this.
 
-**What this does not detect**: content drift inside a deployed file. `apm audit`
-sounds like it would, and does not — apm implements ref, orphan, config-MCP and
-stale-file drift, and deployed-file *content* drift is not one of them. If you
-hand-edit a deployed skill, nothing will tell you; it will simply be overwritten
-on the next deploy.
+### Detecting user edits to deployed files
+
+```bash
+configs/claude/scripts/apm_drift_report.sh          # human-readable
+configs/claude/scripts/apm_drift_report.sh --json   # machine-readable
+```
+
+Exit **0** clean, **1** drift found, **2** usage error *or* indeterminate. The
+third matters if you wire this as a gate: a lockfile with no per-file hashes (a
+local-path install produces one) cannot be checked, and exiting 0 there would
+make "we never checked" and "we checked and it was fine" the same signal.
+
+This is what Constitution V.4 requires and `apm audit` cannot provide — content
+drift is not one of apm's four drift categories.
+
+**What the ownership report does not detect**: content drift inside a deployed
+file. `apm audit` does not either — it implements ref, orphan, config-MCP and
+stale-file drift, and deployed-file *content* drift is not one of them. That gap
+is covered separately, below.
 
 ## Deployed files are build outputs
 

@@ -36,7 +36,8 @@ content drift is not one of its four drift categories.
 
   --json   Machine-readable output.
 
-Exit: 0 no drift, 1 drift found, 2 usage error. Read-only.
+Exit: 0 no drift, 1 drift found, 2 usage error OR indeterminate
+(a lockfile with no per-file hashes cannot be checked). Read-only.
 USAGE
     exit 0
 fi
@@ -62,7 +63,7 @@ if [[ ! -f "$LOCKFILE" ]]; then
     # "nothing is wrong" — say which, so an absent lockfile is never mistaken
     # for a clean bill of health.
     if [[ "$JSON" == true ]]; then
-        printf '{"checked":0,"drifted":[],"status":"no-lockfile"}\n'
+        printf '{"checked":0,"drifted":[],"missing":[],"status":"no-lockfile"}\n'
     else
         echo "No APM lockfile at $LOCKFILE — nothing is APM-managed, so nothing was checked."
     fi
@@ -116,16 +117,23 @@ for dep in data.get("dependencies") or []:
             drifted.append({"path": rel, "recorded": want[:16], "actual": digest[:16]})
 
 if as_json:
+    if checked == 0:
+        status = "unverifiable"
+    elif drifted or missing:
+        status = "drift"
+    else:
+        status = "clean"
     print(json.dumps({
         "checked": checked,
         "drifted": drifted,
         "missing": missing,
-        "status": "drift" if (drifted or missing) else "clean",
+        "status": status,
     }))
 else:
     if checked == 0:
         print("Lockfile records no per-file hashes — content drift CANNOT be checked.")
         print("  A local-path install produces this; a published install records hashes.")
+        print("  Exiting 2 (indeterminate): an unverifiable state must not read as clean.")
     elif not drifted and not missing:
         print(f"No drift: {checked} deployed file(s) match what was installed.")
     else:
@@ -137,5 +145,11 @@ else:
         print("Deployed files are build outputs — the next deploy WILL overwrite these.")
         print("Move any change you want to keep into the source tree (.apm/skills, configs/).")
 
+# Exit codes: 0 clean, 1 drift found, 2 INDETERMINATE. The third is the one
+# that matters — a gate whose subject it could not verify must never report
+# success, or "we never checked" and "we checked and it was fine" become the
+# same signal to CI.
+if checked == 0:
+    sys.exit(2)
 sys.exit(1 if (drifted or missing) else 0)
 PY

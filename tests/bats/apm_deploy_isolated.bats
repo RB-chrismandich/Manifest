@@ -170,3 +170,29 @@ tree_hash() {
     assert_output --partial "mine"
     [ -f "$HOME/.claude/skills/foreign-tool/SKILL.md" ]
 }
+
+@test "an unverifiable lockfile exits 2, not 0 — cannot-check must not read as clean" {
+    # Regression. The hashless (local-install) lockfile shape reported exit 0
+    # with a message saying content drift CANNOT be checked. A caller wiring
+    # this as a gate would read that as a pass, making "we never checked" and
+    # "we checked and it was fine" the same signal.
+    printf "lockfile_version: '1'\ndependencies:\n- repo_url: _local/x\n  deployed_files:\n  - .claude/skills/a\n" \
+        > "$SANDBOX/nohash.yml"
+
+    run env HOME="$HOME" APM_LOCKFILE="$SANDBOX/nohash.yml" \
+        "$REPO_ROOT/configs/claude/scripts/apm_drift_report.sh"
+    [ "$status" -eq 2 ]
+    assert_output --partial "CANNOT be checked"
+}
+
+@test "the JSON schema is identical across clean, drift, and unverifiable" {
+    # Regression: the no-lockfile branch omitted "missing", so a consumer doing
+    # d["missing"] KeyError'd on that path only.
+    printf "lockfile_version: '1'\ndependencies:\n- repo_url: _local/x\n  deployed_files:\n  - .claude/skills/a\n" \
+        > "$SANDBOX/nohash.yml"
+
+    for lock in "$SANDBOX/absent.yml" "$SANDBOX/nohash.yml"; do
+        run bash -c "HOME='$HOME' APM_LOCKFILE='$lock' '$REPO_ROOT/configs/claude/scripts/apm_drift_report.sh' --json 2>/dev/null | python3 -c 'import json,sys; print(\",\".join(sorted(json.load(sys.stdin))))'"
+        assert_output "checked,drifted,missing,status"
+    done
+}
