@@ -16,8 +16,8 @@ def test_registry_exists_and_parses():
     assert "bots" in data
 
 
-def test_all_four_bots_present():
-    assert set(load()["bots"]) == {"copilot", "jules", "palette", "bolt"}
+def test_all_known_bots_present():
+    assert set(load()["bots"]) == {"copilot", "jules", "palette", "bolt", "forge"}
 
 
 def test_every_bot_declares_author_login_key_and_role():
@@ -35,11 +35,11 @@ def test_reviewer_bots_have_a_real_author_login():
 
 
 def test_persona_author_bots_have_no_fabricated_login():
-    # palette/bolt are Jules personas with no distinct GitHub identity;
-    # asserting a fake "palette[bot]"/"bolt[bot]" login would be a guess, not
-    # a fact, so author_login must stay null and identification must fall
-    # back to the title/branch prefix instead.
-    for name in ("palette", "bolt"):
+    # palette/bolt/forge are Jules personas with no distinct GitHub identity;
+    # asserting a fake "palette[bot]"/"bolt[bot]"/"forge[bot]" login would be a
+    # guess, not a fact, so author_login must stay null and identification must
+    # fall back to the title/branch prefix instead.
+    for name in ("palette", "bolt", "forge"):
         bot = load()["bots"][name]
         assert bot["author_login"] is None, name
         assert bot["identified_by"] == "title_prefix", name
