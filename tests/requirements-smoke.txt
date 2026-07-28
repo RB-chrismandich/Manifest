@@ -3,6 +3,6 @@
 #
 # Pins verified importable on the repo's CI Python (3.14): playwright 1.49.x hard-pins
 # greenlet==3.1.1, which has no cp314 wheel and fails to build from source on 3.14.
-# 1.60.0 pulls greenlet>=3.5 (cp314 wheels) and installs cleanly.
-playwright==1.60.0
+# 1.61.0 pulls greenlet>=3.5 (cp314 wheels) and installs cleanly.
+playwright==1.61.0
 PyYAML==6.0.3
