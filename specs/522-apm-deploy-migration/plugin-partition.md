@@ -1,7 +1,7 @@
 # Skill→Plugin Partition and Shared-Script Graph
 
 **Produced by**: T036 + T037 (US4, FR-025/FR-026) · **Measured**: 2026-07-27
-**Status**: analysis only — no plugin is packaged, no script is moved.
+**Status**: closed measured-limited — `apm pack` measured 2026-07-27; nothing published.
 
 US4 (plugin packaging) is explicitly optional and deferrable. This document
 settles the two questions that must be answered *before* anyone runs `apm pack`,
@@ -92,7 +92,7 @@ Three options, and the reason the third wins:
    three plugins with a cross-plugin dependency APM's plugin model does not
    express.
 3. **A `manifest-core` plugin holding the shared scripts, which the others
-   depend on.** ✅ **Chosen.** One copy, one place to patch, and the dependency
+   depend on.** ⛔ **Chosen, then measured impossible — see below.** One copy, one place to patch, and the dependency
    is declared rather than implied.
 
 **Caveat that must not be lost**: this is a *recommendation on paper*. Option 3
@@ -104,9 +104,43 @@ does not exist, option 3 collapses and the honest answer becomes "skills that
 depend on shared scripts cannot be packaged as plugins", which would cut the
 plugin story to the 80% that are self-contained.
 
-## What this does NOT do
+## ⛔ MEASURED 2026-07-27: the chosen design is not expressible
 
-No plugin is generated, no `apm pack` is run, no script is moved. US4 remains
-deferrable, and T038–T040 stay open. This document exists so that whoever picks
-US4 up inherits the analysis and the unverified assumption, rather than
-rediscovering both.
+`apm pack` was run against the real 108-skill package. It produces
+`.claude-plugin/plugin.json` with exactly five keys:
+
+```json
+{"name": "manifest-skills", "version": "0.1.0", "description": "…",
+ "author": {"name": "ReefBytes"}, "license": "MIT"}
+```
+
+**There is no dependency field.** The caveat this document recorded — "assumes
+APM plugins can declare a dependency on another plugin … NEITHER IS MEASURED" —
+resolves against option 3. `manifest-core` cannot exist as a plugin others
+depend on, because the manifest format has nowhere to say so.
+
+Consequences, which close US4 rather than defer it:
+
+- The **22 skills (20%) that depend on shared scripts cannot ship as plugins**
+  that resolve those scripts. The plugin story is limited to the 80% that are
+  self-contained.
+- `apm pack` derives ONE plugin from ONE `apm.yml` `name:`. There is no
+  domain-partition mechanism, so T036's map has nothing to partition *into*
+  without maintaining N separate packages by hand — which reintroduces exactly
+  the multi-source-of-truth problem feature 522 exists to remove.
+- The `manifest-` prefix requirement (FR-025/FR-026, SC-010) is trivially
+  satisfied for the single plugin (`name: manifest-skills` flows from `apm.yml`),
+  but "in **both** locations" cannot be checked — no marketplace entry is
+  produced without a `marketplace:` block, which is a separate publishing model
+  this feature never scoped.
+
+**Disposition**: T038–T040 are closed as **measured-limited**. US4 was always
+explicitly optional and deferrable; it is now also known to be structurally
+narrower than the spec assumed. Reopen if apm gains plugin dependencies.
+
+## What was and was not done
+
+`apm pack` WAS run (in a sandbox) — that is where the measurement above comes
+from. No plugin was published, no script was moved, and no marketplace entry
+exists. This document carries the analysis and the now-resolved assumption so
+US4 is closed on evidence rather than left open to be rediscovered.

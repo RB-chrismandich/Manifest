@@ -248,8 +248,7 @@ approaches), review stale plans, or archive/abandon completed work.
 <!-- SPECKIT START -->
 ## Active Spec Kit Feature
 
-- **`522-apm-deploy-migration`** — Phases 0–2 done, **paused for review** at the
-  Phase 3 boundary. Nothing activated (`apm_domains.yml` empty, `--enable-apm`
-  off); behaviour unchanged. Phase 3 publishes and deletes live components —
-  read [HANDOFF.md](specs/522-apm-deploy-migration/HANDOFF.md) first. Drift fix
-  is **partial**: 170 scripts stay on legacy rsync.
+- **`522-apm-deploy-migration`** — **59/59 closed.** US1 delivered; US2/US4
+  closed measured-void (apm emits no Cursor `.mdc`; plugin manifests have no
+  dependency field). Constitution now v3.0.0. **Nothing activated.** Read
+  [HANDOFF.md](specs/522-apm-deploy-migration/HANDOFF.md) before acting.
