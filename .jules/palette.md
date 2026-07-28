@@ -77,3 +77,13 @@ components that are not strictly required for the core application to function.
 creates a false sense of error for users. A missing optional file is an expected, neutral state.
 **Action:** Use a yellow circle (`○`) for missing optional files, reserving the red cross strictly for required
 files or critical errors.
+
+## 2026-07-23 - Warning symbols for check_optional_file
+
+**Learning:** By modifying `check_optional_file` and `check_optional_dir` in bash utilities to use
+semantic yellow circle icons (○) or warning icons for optional files instead of a red cross or
+standard checkmark, we clarify to the user that missing optional configurations are neutral,
+inactive, or non-blocking, thus reducing false-error anxiety during status commands.
+**Action:** Use variant bash functions like `check_optional_file` rather than overriding base
+`check_file` behavior to ensure global required errors aren't inadvertently suppressed, applying
+standard semantic formatting for DX terminal outputs.

@@ -4,7 +4,16 @@
 # fail on whether ~/.claude/.venv happens to exist (green locally, red in CI).
 set -euo pipefail
 
-err() { printf 'manifest: %s\n' "$*" >&2; }
+# Red only on an interactive stderr, and never when NO_COLOR is set to a
+# non-empty value (https://no-color.org). Piped/redirected output stays plain so
+# callers parsing stderr do not have to strip escapes.
+err() {
+    if [[ -t 2 && -z ${NO_COLOR:-} ]]; then
+        printf '\033[0;31m%s\033[0m\n' "manifest: $*" >&2
+    else
+        printf '%s\n' "manifest: $*" >&2
+    fi
+}
 
 if ! command -v uv > /dev/null 2>&1 && [[ ! -x "${HOME}/.local/bin/uv" ]]; then
     err "uv not found — re-run ./bootstrap.sh"
