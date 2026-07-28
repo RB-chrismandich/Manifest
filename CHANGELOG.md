@@ -10,6 +10,30 @@ All notable changes are documented here in reverse chronological order.
 
 ## [Unreleased]
 
+### Live-cwd deletion guard (`block_cwd_delete.py`)
+
+- **`configs/claude/scripts/block_cwd_delete.py`** — PreToolUse:Bash hook that
+  denies a directory removal whose target is, or contains, the working
+  directory of any live Claude session. Registered in
+  `settings.runtime.json` → `~/.claude/settings.json`, so it is armed in every
+  repository. Override: append `# cwd-verified` to the command.
+- **Why**: deleting a session's cwd breaks every later process spawn in it with
+  `ENOENT ... posix_spawn '/bin/sh'` — the shell is present; the missing path is
+  the *child's* working directory, which Node reports against the binary.
+  Measured 2026-07-28: a `git worktree remove` sweep in one repo took out the
+  live cwd of a session in another, because its exclusion list held only its own
+  cwd. The pre-existing `block-cwd-delete` hookify rule could not fire there —
+  hookify globs `.claude/hookify.*.local.md` relative to cwd, with no user-scope
+  fallback.
+- **Detection** is two-strength: literal arguments to a delete verb match on
+  equality or containment; a bare path mention anywhere in a command containing
+  a delete verb matches on equality only. The loose pass is what catches sweeps
+  that pass `"$wt"` to the verb and keep their targets in a `for` list; the
+  equality restriction keeps a `cd` argument from reading as a delete target.
+- Fail-open by construction, and verified by observation in a fresh `claude -p`
+  rather than by reading settings: a decoy session cwd was blocked, an ordinary
+  directory still deleted.
+
 ### Doc Concision Contract (docs-* skills)
 
 - **`configs/claude/scripts/docs_lint.py`** — per-type line caps for a docs set,
