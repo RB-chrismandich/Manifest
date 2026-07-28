@@ -20,6 +20,12 @@ load '../test_helper/isolated_home'
 REPO_ROOT="$BATS_TEST_DIRNAME/../.."
 
 setup() {
+    # Isolate the APM domain registry — this suite drives the LEGACY writer, which
+    # correctly stands down for a domain APM owns. Without this it passes in CI
+    # and fails on any machine where a domain has been activated (SC-006).
+    export MANIFEST_APM_DOMAINS="$BATS_TEST_TMPDIR/no-apm-domains.yml"
+    printf 'domains: []\n' > "$MANIFEST_APM_DOMAINS"
+
     export BATS_TMPDIR="${BATS_TMPDIR:-/tmp}"
     SANDBOX="$(mktemp -d "$BATS_TMPDIR/apm_isolation.XXXXXX")"
     isolated_home_begin "$SANDBOX"

@@ -10,6 +10,14 @@ load '../test_helper/bats-assert/load'
 REPO_ROOT="$BATS_TEST_DIRNAME/../.."
 
 setup() {
+    # Isolate the APM domain registry: this suite asserts the LEGACY deploy path
+    # puts real skills in TARGET_DIR, which only holds while no mechanism has
+    # been handed that domain. Once SC-006 registered `skills`,
+    # deploy_home_skills correctly stands down and every such assertion fails on
+    # a developer machine while passing in CI. Ambient state must not decide it.
+    export MANIFEST_APM_DOMAINS="$BATS_TEST_TMPDIR/no-apm-domains.yml"
+    printf 'domains: []\n' > "$MANIFEST_APM_DOMAINS"
+
     export BATS_TMPDIR="${BATS_TMPDIR:-/tmp}"
     SANDBOX=$(mktemp -d "$BATS_TMPDIR/deploy_e2e.XXXXXX")
 

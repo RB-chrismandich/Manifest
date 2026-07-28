@@ -23,7 +23,7 @@ re-run it rather than trust this table.
 
 ## Summary
 
-**7 met, 2 amended-or-pending, 1 void, 1 N/A.**
+**8 met, 1 amended, 1 void, 1 N/A.**
 
 The two that did not survive contact with measurement are the two the spec was
 most confident about:
@@ -38,8 +38,16 @@ Neither is a shortfall in execution. Both are cases where the criterion encoded
 an assumption about the tool that the tool does not satisfy, and the honest
 close is to say so rather than to restate the criterion until it passes.
 
-**SC-006 is the one genuinely outstanding item**, and it is outstanding by
-choice: the gating mechanism is complete and proven under fixture, but the live
-registry is deliberately empty so that no user's `~/.claude/skills` is left
-writer-less before the APM deploy is real. Flipping it is a one-line change; the
-prerequisite is a decision about the constitutional trade-off, not more code.
+**SC-006 was activated 2026-07-28** and is now met. The order used on the live
+machine was **deploy first, then gate** — the reverse of the phase plan, and
+deliberately so: gating first leaves the domain writer-less in between, which on
+a repo branch is a documented window and on a running machine is skills silently
+not updating. A brief double-claim is the safer failure of the two.
+
+One adoption blocker surfaced and is worth knowing: apm **skipped**
+`ai-hooks-integration` on the first pass — the deployed copy carried 10 local
+build artifacts (`.pytest_cache`, two `__pycache__`) from running that skill's
+tests, and apm declines to adopt a directory holding files it did not place.
+Removing the regenerable artifacts and re-installing took it to 108/108. Had the
+gate been flipped before noticing, that one skill would have been owned by
+neither pipeline.
