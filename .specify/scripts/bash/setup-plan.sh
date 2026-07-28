@@ -29,7 +29,7 @@ source "$SCRIPT_DIR/common.sh"
 
 # Get all paths and variables from common functions
 _paths_output=$(get_feature_paths) || {
-    echo "ERROR: Failed to resolve feature paths" >&2
+    echo -e "\033[0;31mERROR:\033[0m Failed to resolve feature paths" >&2
     exit 1
 }
 while IFS= read -r line; do

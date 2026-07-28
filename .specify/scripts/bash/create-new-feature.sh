@@ -86,7 +86,7 @@ fi
 # Trim whitespace and validate description is not empty (e.g., user passed only whitespace)
 FEATURE_DESCRIPTION=$(echo "$FEATURE_DESCRIPTION" | sed -E 's/^[[:space:]]+|[[:space:]]+$//g')
 if [ -z "$FEATURE_DESCRIPTION" ]; then
-    echo "Error: Feature description cannot be empty or contain only whitespace" >&2
+    echo -e "\033[0;31mError:\033[0m Feature description cannot be empty or contain only whitespace" >&2
     exit 1
 fi
 
@@ -344,21 +344,21 @@ if [ "$DRY_RUN" != true ]; then
                         :
                     # Otherwise switch to the existing branch instead of failing.
                     elif ! switch_branch_error=$(git checkout -q "$BRANCH_NAME" 2>&1); then
-                        >&2 echo "Error: Failed to switch to existing branch '$BRANCH_NAME'. Please resolve any local changes or conflicts and try again."
+                        >&2 echo -e "\033[0;31mError:\033[0m Failed to switch to existing branch '$BRANCH_NAME'. Please resolve any local changes or conflicts and try again."
                         if [ -n "$switch_branch_error" ]; then
                             >&2 printf '%s\n' "$switch_branch_error"
                         fi
                         exit 1
                     fi
                 elif [ "$USE_TIMESTAMP" = true ]; then
-                    >&2 echo "Error: Branch '$BRANCH_NAME' already exists. Rerun to get a new timestamp or use a different --short-name."
+                    >&2 echo -e "\033[0;31mError:\033[0m Branch '$BRANCH_NAME' already exists. Rerun to get a new timestamp or use a different --short-name."
                     exit 1
                 else
-                    >&2 echo "Error: Branch '$BRANCH_NAME' already exists. Please use a different feature name or specify a different number with --number."
+                    >&2 echo -e "\033[0;31mError:\033[0m Branch '$BRANCH_NAME' already exists. Please use a different feature name or specify a different number with --number."
                     exit 1
                 fi
             else
-                >&2 echo "Error: Failed to create git branch '$BRANCH_NAME'."
+                >&2 echo -e "\033[0;31mError:\033[0m Failed to create git branch '$BRANCH_NAME'."
                 if [ -n "$branch_create_error" ]; then
                     >&2 printf '%s\n' "$branch_create_error"
                 else
