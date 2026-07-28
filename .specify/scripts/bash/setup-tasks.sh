@@ -15,7 +15,7 @@ for arg in "$@"; do
             exit 0
             ;;
         *)
-            echo "ERROR: Unknown option '$arg'" >&2
+            echo -e "\033[0;31mERROR:\033[0m Unknown option '$arg'" >&2
             exit 1
             ;;
     esac
@@ -27,7 +27,7 @@ source "$SCRIPT_DIR/common.sh"
 
 # Get feature paths
 _paths_output=$(get_feature_paths) || {
-    echo "ERROR: Failed to resolve feature paths" >&2
+    echo -e "\033[0;31mERROR:\033[0m Failed to resolve feature paths" >&2
     exit 1
 }
 while IFS= read -r line; do
@@ -53,13 +53,13 @@ if ! feature_json_matches_feature_dir "$REPO_ROOT" "$FEATURE_DIR"; then
 fi
 
 if [[ ! -f "$IMPL_PLAN" ]]; then
-    echo "ERROR: plan.md not found in $FEATURE_DIR" >&2
+    echo -e "\033[0;31mERROR:\033[0m plan.md not found in $FEATURE_DIR" >&2
     echo "Run /speckit.plan first to create the implementation plan." >&2
     exit 1
 fi
 
 if [[ ! -f "$FEATURE_SPEC" ]]; then
-    echo "ERROR: spec.md not found in $FEATURE_DIR" >&2
+    echo -e "\033[0;31mERROR:\033[0m spec.md not found in $FEATURE_DIR" >&2
     echo "Run /speckit.specify first to create the feature structure." >&2
     exit 1
 fi
@@ -76,7 +76,7 @@ fi
 # Resolve tasks template through override stack
 TASKS_TEMPLATE=$(resolve_template "tasks-template" "$REPO_ROOT") || true
 if [[ -z "$TASKS_TEMPLATE" ]] || [[ ! -f "$TASKS_TEMPLATE" ]]; then
-    echo "ERROR: Could not resolve required tasks-template from the template override stack for $REPO_ROOT" >&2
+    echo -e "\033[0;31mERROR:\033[0m Could not resolve required tasks-template from the template override stack for $REPO_ROOT" >&2
     echo "Template 'tasks-template' was not found in any supported location (overrides, presets, extensions, or shared core). Add an override at .specify/templates/overrides/tasks-template.md, or run 'specify init' / reinstall shared infra to restore the core .specify/templates/tasks-template.md template." >&2
     exit 1
 fi

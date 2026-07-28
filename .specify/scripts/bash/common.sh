@@ -149,7 +149,7 @@ check_feature_branch() {
         is_sequential=true
     fi
     if [[ "$is_sequential" != "true" ]] && [[ ! "$branch" =~ ^[0-9]{8}-[0-9]{6}- ]]; then
-        echo "ERROR: Not on a feature branch. Current branch: $raw" >&2
+        echo -e "\033[0;31mERROR:\033[0m Not on a feature branch. Current branch: $raw" >&2
         echo "Feature branches should be named like: 001-feature-name, 1234-feature-name, or 20260319-143022-feature-name" >&2
         return 1
     fi
@@ -252,7 +252,7 @@ find_feature_dir_by_prefix() {
         echo "$specs_dir/${matches[0]}"
     else
         # Multiple matches - this shouldn't happen with proper naming convention
-        echo "ERROR: Multiple spec directories found with prefix '$prefix': ${matches[*]}" >&2
+        echo -e "\033[0;31mERROR:\033[0m Multiple spec directories found with prefix '$prefix': ${matches[*]}" >&2
         echo "Please ensure only one spec directory exists per prefix." >&2
         return 1
     fi
@@ -288,11 +288,11 @@ get_feature_paths() {
             # Normalize relative paths to absolute under repo root
             [[ "$feature_dir" != /* ]] && feature_dir="$repo_root/$feature_dir"
         elif ! feature_dir=$(find_feature_dir_by_prefix "$repo_root" "$current_branch"); then
-            echo "ERROR: Failed to resolve feature directory" >&2
+            echo -e "\033[0;31mERROR:\033[0m Failed to resolve feature directory" >&2
             return 1
         fi
     elif ! feature_dir=$(find_feature_dir_by_prefix "$repo_root" "$current_branch"); then
-        echo "ERROR: Failed to resolve feature directory" >&2
+        echo -e "\033[0;31mERROR:\033[0m Failed to resolve feature directory" >&2
         return 1
     fi
 
@@ -643,7 +643,7 @@ except Exception:
                 case "$layer_content" in
                     *'{CORE_TEMPLATE}'*) ;;
                     *)
-                        echo "Error: wrap strategy missing {CORE_TEMPLATE} placeholder" >&2
+                        echo -e "\033[0;31mError:\033[0m wrap strategy missing {CORE_TEMPLATE} placeholder" >&2
                         return 1
                         ;;
                 esac
@@ -655,7 +655,7 @@ except Exception:
                 content="$layer_content"
                 ;;
             *)
-                echo "Error: unknown strategy '$strat'" >&2
+                echo -e "\033[0;31mError:\033[0m unknown strategy '$strat'" >&2
                 return 1
                 ;;
         esac

@@ -68,7 +68,7 @@ EOF
             exit 0
             ;;
         *)
-            echo "ERROR: Unknown option '$arg'. Use --help for usage information." >&2
+            echo -e "\033[0;31mERROR:\033[0m Unknown option '$arg'. Use --help for usage information." >&2
             exit 1
             ;;
     esac
@@ -80,7 +80,7 @@ source "$SCRIPT_DIR/common.sh"
 
 # Get feature paths and validate branch
 _paths_output=$(get_feature_paths) || {
-    echo "ERROR: Failed to resolve feature paths" >&2
+    echo -e "\033[0;31mERROR:\033[0m Failed to resolve feature paths" >&2
     exit 1
 }
 while IFS= read -r line; do
@@ -130,20 +130,20 @@ fi
 
 # Validate required directories and files
 if [[ ! -d "$FEATURE_DIR" ]]; then
-    echo "ERROR: Feature directory not found: $FEATURE_DIR" >&2
+    echo -e "\033[0;31mERROR:\033[0m Feature directory not found: $FEATURE_DIR" >&2
     echo "Run /speckit.specify first to create the feature structure." >&2
     exit 1
 fi
 
 if [[ ! -f "$IMPL_PLAN" ]]; then
-    echo "ERROR: plan.md not found in $FEATURE_DIR" >&2
+    echo -e "\033[0;31mERROR:\033[0m plan.md not found in $FEATURE_DIR" >&2
     echo "Run /speckit.plan first to create the implementation plan." >&2
     exit 1
 fi
 
 # Check for tasks.md if required
 if $REQUIRE_TASKS && [[ ! -f "$TASKS" ]]; then
-    echo "ERROR: tasks.md not found in $FEATURE_DIR" >&2
+    echo -e "\033[0;31mERROR:\033[0m tasks.md not found in $FEATURE_DIR" >&2
     echo "Run /speckit.tasks first to create the task list." >&2
     exit 1
 fi
