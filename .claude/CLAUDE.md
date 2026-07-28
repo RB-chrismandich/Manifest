@@ -13,28 +13,31 @@ Repository purpose and the full directory tree are in the root
 dot-directories. This prevents project-level config from overriding your active
 session when working in this repo.
 
-## Skill Management (skillshare)
+## Skill Management
 
-Skills physically live in `.skillshare/skills/` (the source of truth, managed by
-`skillshare`). `configs/claude/skills` is a backward-compat **symlink** to it —
-do not replace it with a real directory.
+Skills physically live in `.apm/skills/` — the **sole** source of truth.
+`configs/claude/skills` is a backward-compat **symlink** to it; do not replace
+it with a real directory.
 
 - **Home deploy** (`~/.claude/skills` + Cursor/Gemini/Codex/Antigravity symlinks)
-  is owned by `bootstrap.sh` (`deploy_home_skills` copies the physical
-  `.skillshare/skills/` → `~/.claude/skills`). skillshare cannot expand `~`, so
-  it is NOT the home deployer.
-- **skillshare** owns the project-scoped Copilot target (`.github/skills`) and the
-  supply-chain lifecycle: `skillshare install <repo>`, `audit`, `check`, `update`.
-- `.skillshare/config.yaml` is **committed** (central infra) — edit it only when
-  intentionally changing the shared setup, to avoid per-clone drift. skillshare
-  may re-add ignore entries on `install`/`upgrade`; re-check `.skillshare/.gitignore`
-  so committed skills (e.g. `ai-hooks-integration`) stay tracked.
-- Automation must read the physical `.skillshare/skills/`; shell globs are
+  is owned by `bootstrap.sh` (`deploy_home_skills` copies `.apm/skills/` →
+  `~/.claude/skills`).
+- **Local skill-dev**: `apm-dev-sync` — publish-free; removes deleted skills.
+- **skillshare was removed 2026-07-27** (feature 522, FR-021a). There is no
+  `.skillshare/` tree, no `.skillshare/config.yaml`, and no `skillshare`
+  invocation anywhere in the repo. Do not reintroduce one: `.apm/skills` is
+  authoritative and a second skill tree is a spec violation, not a convenience.
+  Retired with it: the project-scoped Copilot target (`.github/skills`) and the
+  `skillshare install|audit|check|update` supply-chain lifecycle. Externally
+  sourced skills (Stitch, `ai-hooks-integration`) are now vendored in
+  `.apm/skills` with no re-sync path until APM's published-package model is
+  verified — see `specs/522-apm-deploy-migration/decision-record.md`.
+- Automation must read the physical `.apm/skills/`; shell globs are
   symlink-safe, but `find`/`os.walk` over `configs/claude/skills` need
   `-L`/`followlinks`.
 - **SkillClaw** (optional, opt-in via `./bootstrap.sh --enable-skillclaw`) is a *proposer*:
   it evolves skills from captured CLI-agent sessions and opens review PRs into
-  `.skillshare/skills/` via `/skill-evolve`. It never writes the source of truth
+  `.apm/skills/` via `/skill-evolve`. It never writes the source of truth
   directly. Capture is fail-open (passive ingestion of `~/.claude/projects` JSONL; a
   failed ingest run logs and continues rather than blocking) and storage is
   `chmod 700`. See `docs/SKILLCLAW.md`.

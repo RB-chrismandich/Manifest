@@ -198,8 +198,8 @@ EOF
     chmod +x "$MOCK_BIN/rsync"
 
     export MANIFEST_ROOT="$TEST_DIR/repo"
-    mkdir -p "$MANIFEST_ROOT/.skillshare/skills/demo-skill"
-    echo "body" > "$MANIFEST_ROOT/.skillshare/skills/demo-skill/SKILL.md"
+    mkdir -p "$MANIFEST_ROOT/.apm/skills/demo-skill"
+    echo "body" > "$MANIFEST_ROOT/.apm/skills/demo-skill/SKILL.md"
 
     export PATH="$MOCK_BIN:$PATH"
     unset OPENAI_API_KEY CODEX_HOME ANTHROPIC_API_KEY GOOGLE_API_KEY GEMINI_API_KEY

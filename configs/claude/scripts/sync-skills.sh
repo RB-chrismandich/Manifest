@@ -7,10 +7,9 @@ if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
     cat << 'USAGE'
 Usage: sync-skills
 
-Sync .skillshare/skills/ (source of truth) to all home targets
-(~/.claude/skills + Cursor/Gemini/Codex/Antigravity symlinks) and run
-skillshare sync for the Copilot target. No flags. Requires MANIFEST_ROOT
-(set by bootstrap.sh).
+Sync .apm/skills/ (source of truth) to all home targets
+(~/.claude/skills + Cursor/Gemini/Codex/Antigravity symlinks). No flags.
+Requires MANIFEST_ROOT (set by bootstrap.sh).
 USAGE
     exit 0
 fi
@@ -24,13 +23,35 @@ fi
     exit 1
 }
 
-SKILLS_SRC="$MANIFEST_ROOT/.skillshare/skills"
+SKILLS_SRC="$MANIFEST_ROOT/.apm/skills"
 [[ ! -d "$SKILLS_SRC" ]] && {
     err "skills source not found: $SKILLS_SRC"
     exit 1
 }
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# T015/FR-027: stand down for a domain APM owns. Deployed to ~/.local/bin, so
+# the library is resolved from the repo first and the deployed sibling second.
+# shellcheck disable=SC1090,SC1091
+for _lib in "$MANIFEST_ROOT/configs/claude/scripts/apm_domains_lib.sh" \
+    "$SCRIPT_DIR/apm_domains_lib.sh" "$HOME/.claude/scripts/apm_domains_lib.sh"; do
+    [[ -f "$_lib" ]] && {
+        source "$_lib"
+        break
+    }
+done
+unset _lib
+
+if declare -f apm_owns_domain > /dev/null 2>&1 && apm_owns_domain skills; then
+    # SAY it. A silent no-op reads as success, and a contributor whose skill
+    # edit never reached their home will debug the edit, not the tool. Naming
+    # the replacement matters just as much: "declined to act" with no
+    # alternative is a dead end (FR-021 requires the workflow keep working).
+    echo "sync-skills: skipping 'skills' — APM owns this domain now."
+    echo "sync-skills: use ${APM_DOMAIN_REPLACEMENT_CMD:-apm-dev-sync} instead (publish-free; also removes deleted skills)."
+    exit 0
+fi
 
 # resolve_agent_roster_path -> the agent_roster.yml to read. Same precedence
 # as check_status.sh's resolve_agent_roster_path: MANIFEST_AGENT_ROSTER (test
@@ -156,12 +177,8 @@ for i in "${!ROSTER_NAMES[@]}"; do
     secondary_dirs+=("$home/skills")
 done
 
-# Copilot sync via skillshare (warn and continue if not installed or fails)
-if command -v skillshare > /dev/null 2>&1; then
-    (cd "$MANIFEST_ROOT" && skillshare sync) || err "Warning: skillshare sync failed — continuing"
-else
-    err "Warning: skillshare not installed — skipping Copilot sync"
-fi
+# The Copilot (.github/skills) sync that skillshare owned was retired
+# 2026-07-27 with skillshare itself (FR-021a). Home targets below are unaffected.
 
 # real_dir DIR — resolve a directory's physical path (portable; no readlink -f)
 real_dir() { (cd "$1" 2> /dev/null && pwd -P); }

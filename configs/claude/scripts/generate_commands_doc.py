@@ -1,6 +1,23 @@
 #!/usr/bin/env python3
 """Render the Manifest command catalog into docs/COMMANDS.md (spec 362, US1).
 
+RETAINED DELIBERATELY — feature 522 / T029. The APM migration replaces the three
+per-harness generators (cursor rules, agents, mcp) with a targeted build, and it
+does NOT replace this one. Two reasons, and the first is the load-bearing one:
+
+  1. This produces REPOSITORY DOCUMENTATION, not per-harness deploy config. It
+     renders docs/COMMANDS.md and injects a command index into
+     configs/gemini/GEMINI.md and AGENTS.md — files that live in the repo and are
+     read by humans and by agents reading the repo, not files deployed into an
+     assistant home. Nothing about who deploys ~/.claude changes that.
+  2. apm's own target matrix generates no catalog or documentation index. There
+     is no target to migrate this to, so "replace it with the build tool" has no
+     referent.
+
+US2's "no hand-run generator remains" claim explicitly does not cover this
+script. If a future change migrates it anyway, that claim needs revisiting
+rather than this comment being deleted.
+
 The command reference is GENERATED from the skill source of truth, never hand
 edited — that is the only way to satisfy FR-004 / SC-002 (zero drift). The
 generated table lives inside a marker-delimited block so the surrounding
@@ -80,7 +97,7 @@ def render_section(catalog: dict) -> str:
         "<!-- Regenerate: configs/claude/scripts/generate_commands_doc.py -->",
         "",
         f"_{len(catalog['commands'])} commands, generated from "
-        f"`.skillshare/skills/*/SKILL.md`._",
+        f"`.apm/skills/*/SKILL.md`._",
         "",
     ]
     for label, members in _grouped(catalog):

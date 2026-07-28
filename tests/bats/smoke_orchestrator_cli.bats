@@ -108,7 +108,7 @@ YAML
 
 # --- skill wrapper present ---
 @test "skill wrapper SKILL.md is present with name + description" {
-    run cat "$REPO_ROOT/.skillshare/skills/smoke-manage/SKILL.md"
+    run cat "$REPO_ROOT/.apm/skills/smoke-manage/SKILL.md"
     assert_success
     assert_output --partial "name: smoke-manage"
     assert_output --partial "description:"

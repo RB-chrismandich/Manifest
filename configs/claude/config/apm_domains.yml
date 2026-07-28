@@ -1,0 +1,21 @@
+# APM domain ownership registry — feature 522, FR-014 / FR-027.
+#
+# A "domain" is a deployed area with exactly one writer. This file names the
+# domains APM owns. Legacy writers (`deploy_home_skills`, `sync-skills`) consult
+# it via `apm_owns_domain()` and skip any domain listed here, so a domain is
+# never written by two pipelines under two different ownership models.
+#
+# THIS FILE IS THE ONLY OWNERSHIP SIGNAL, and it deliberately lives in the repo
+# rather than in the deployed tree. A marker shipped inside the rsync stream is
+# present after ANY deploy — including one that was supposed to be disabled — so
+# it cannot answer "is this ours?". (Learned the hard way in feature 481.)
+#
+# Adding a domain here makes it writer-less until APM actually deploys it. That
+# gap is intentional and is what Phase 2 of the migration is for, but it is only
+# safe because T053's un-gate procedure can hand a domain back to the legacy
+# writer mid-migration. Do not add a domain without checking that escape hatch
+# still works.
+#
+# Values are bare domain names, matched exactly. Known domains:
+#   skills   ~/.claude/skills (+ the Cursor/Gemini/Codex/Antigravity symlinks)
+domains: []

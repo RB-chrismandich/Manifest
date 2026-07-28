@@ -86,7 +86,7 @@ flowchart TB
         SKILLCLAW_SCRUB["skillclaw_scrub.py\n(secret redaction)"]:::process
         SKILLCLAW_EVOLVE["skillclaw_evolve.py\n(map-reduce via claude -p)"]:::process
         SKILLCLAW_PROMOTE["skillclaw_promote.sh\n(classify → reject-dir → PR)"]:::process
-        SKILLSHARE[".skillshare/skills/\n(committed library)"]:::config
+        SKILLSHARE[".apm/skills/\n(committed library)"]:::config
         SKILLCLAW_INGEST --> SKILLCLAW_SCRUB --> SKILLCLAW_EVOLVE --> SKILLCLAW_PROMOTE --> SKILLSHARE
     end
 
@@ -123,7 +123,7 @@ flowchart TB
   through CLIAgent paths
 - **SkillClaw Subsystem**: Passive transcript ingestion pipeline — reads existing Claude Code
   session `.jsonl` files, scrubs secrets, distills candidate skills via `claude -p` (Max-backed
-  map-reduce), and opens a PR-gated review into `.skillshare/skills/`; no daemon, no proxy
+  map-reduce), and opens a PR-gated review into `.apm/skills/`; no daemon, no proxy
 
 ---
 
@@ -1565,7 +1565,7 @@ flowchart LR
     GIT_BRANCH["git switch -c\nskillclaw/evolve-N-SHA"]:::process
     PR["git_ops.sh pr-create\n(needs-review + follow-up labels)"]:::process
 
-    SKILLSHARE[".skillshare/skills/\n(committed library)"]:::output
+    SKILLSHARE[".apm/skills/\n(committed library)"]:::output
 
     TRANSCRIPTS --> INGEST
     INGEST --> SCRUB

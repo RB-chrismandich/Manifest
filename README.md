@@ -34,8 +34,8 @@ cd Manifest
 ```
 
 > **`./bootstrap.sh` is not side-effect-free on the working tree.** Every run
-> invokes skillshare, which writes its project-scoped Copilot target
-> `.github/skills/` into the repo. That path is gitignored and is skillshare's
+> no longer invokes skillshare (removed 2026-07-27, feature 522 FR-021a).
+> The project-scoped Copilot target `.github/skills/` is no longer synced.
 > to own, so the write is expected — but do not run bootstrap expecting a clean
 > `git status`, and do not commit `.github/skills/`.
 
@@ -72,6 +72,15 @@ cd Manifest
 - **SkillClaw Integration** (opt-in): Passively ingests Claude Code's own `~/.claude/projects/**/*.jsonl`
   transcripts, runs a `claude -p` map-reduce evolve pass (Max subscription, no API key), and proposes
   evolved skills via a review PR. No proxy, no daemon, no port. Enable with `--enable-skillclaw`
+- **apm (Agent Package Manager)** (opt-in, under evaluation): Installs the pinned `apm` CLI, the
+  candidate build/deploy layer for agent primitives (feature 522). Acquisition is **fail-closed** —
+  the wheel is downloaded, checksum-verified against a recorded digest, and installed from the
+  verified bytes; a mismatch, a failed download, or a missing checksum tool leaves apm uninstalled
+  rather than falling back to an unverified binary. Installing it hands it no deploy domain; the
+  legacy pipeline still owns everything. Enable with `--enable-apm`
+- **Publish-Free Skill Dev Loop** (`apm-dev-sync`): Deploy `.apm/skills/` into your own home through
+  apm with no publish and no registry. Unlike `sync-skills`, it **removes** skills you deleted from the
+  source, because apm tracks what it deployed in a lockfile
 - **Proton Pass Credential Retrieval** (`/pass-cli`): Retrieve passwords, API keys, and tokens from Proton Pass
   vaults without storing PATs in files or memory
 - **Graphify Knowledge Graphs** (`/graphify`): Map a codebase or docs into a queryable knowledge graph
@@ -91,7 +100,7 @@ cd Manifest
   validators independently gate the candidate, and the loop terminates only on dual `APPROVED`
   with zero pending changes. Config-only; does not change your main-session model. Enable with
   `--enable-devpanel`
-- **Stitch Design Skills** (15 skills, externally installed via skillshare from
+- **Stitch Design Skills** (15 skills, vendored in `.apm/skills`; originally from
   [`google-labs-code/stitch-skills`](https://github.com/google-labs-code/stitch-skills)):
   design workflows (`generate-design`, `code-to-design`, `manage-design-system`, ...), code
   generation (`react-components`, `react-native`, `react-vite-dashboard`, `remotion`,
@@ -152,7 +161,7 @@ Mermaid flowcharts showing bootstrap, execution, validation, and consensus flows
 
 | Tool | Description |
 |------|-------------|
-| `sync-skills` | Sync `.skillshare/skills/` to all home targets; requires `MANIFEST_ROOT` env var |
+| `sync-skills` | Sync `.apm/skills/` to all home targets; requires `MANIFEST_ROOT` env var |
 
 ---
 
@@ -241,7 +250,7 @@ Manifest/
 ├── configs/                         # Deployment source configs (deployed to ~/ via bootstrap)
 │   ├── claude/                      # → ~/.claude/ (primary configuration)
 │   │   ├── CLAUDE.md                # Orchestration guide
-│   │   ├── skills/                  # → ../../.skillshare/skills (symlink; source of truth)
+│   │   ├── skills/                  # → ../../.apm/skills (symlink; source of truth)
 │   │   ├── prompts/                 # Agent orchestration templates
 │   │   ├── config/                  # YAML configuration files
 │   │   │   ├── services.yml         # Agent enable/disable states
@@ -295,7 +304,7 @@ Manifest/
 │       ├── node/                    # Node.js project starter
 │       ├── python/                  # Python project starter
 │       └── terraform/               # Terraform project starter
-├── .skillshare/                     # Skill source of truth (managed by skillshare)
+├── .apm/skills/                     # Skill source of truth (sole; skillshare removed 2026-07-27)
 │   └── skills/                      # skill library deployed to ~/.claude/skills/ by bootstrap
 ├── tests/                           # Test suites
 │   ├── python/                      # pytest tests for parallel_agent and agents/

@@ -34,7 +34,7 @@ tests:
           - "set -euo pipefail\nroot=\"$(git rev-parse --show-toplevel 2>/dev/null\
             \ || pwd)\"\nsb=\"$(mktemp -d)\"; trap 'rm -rf \"$sb\"' EXIT\nmkdir -p\
             \ \"$sb/home/.claude/skills/dead\" \"$sb/home/.claude/config\"\nmkdir\
-            \ -p \"$sb/repo/.skillshare/skills/live\" \"$sb/repo/configs/claude/config\"\
+            \ -p \"$sb/repo/.apm/skills/live\" \"$sb/repo/configs/claude/config\"\
             \necho x > \"$sb/home/.claude/skills/dead/SKILL.md\"\necho \"y: 1\" >\
             \ \"$sb/home/.claude/config/command_config.yml\"\necho \"y: 1\" > \"$sb/repo/configs/claude/config/command_config.yml\"\
             \n\"$root/configs/claude/scripts/deploy_reconcile.sh\" \\\n  --home \"\
@@ -458,3 +458,23 @@ tests:
             echo "RESULT hooks_idempotent=ok"
 
             '
+  - id: apm-ownership-single-owner
+    title: apm_ownership_report.sh reports one owner, and can detect when it is zero
+    tier: Lite
+    steps:
+      - name: apm_ownership_gate
+        type: cli
+        expect_exit: 0
+        command:
+          - bash
+          - -c
+          - "set -euo pipefail\nroot=\"$(git rev-parse --show-toplevel 2>/dev/null\
+            \ || pwd)\"\nsb=\"$(mktemp -d)\"; trap 'rm -rf \"$sb\"' EXIT\nmkdir\
+            \ -p \"$sb/home/.claude/skills\"\nprintf 'domains: []\\n' > \"$sb/d.yml\"\
+            \nHOME=\"$sb/home\" MANIFEST_APM_DOMAINS=\"$sb/d.yml\" APM_LOCKFILE=\"\
+            $sb/absent.yml\" \\\n  \"$root/configs/claude/scripts/apm_ownership_report.sh\"\
+            \nprintf 'domains:\\n  - skills\\n' > \"$sb/d.yml\"\nif HOME=\"$sb/home\"\
+            \ MANIFEST_APM_DOMAINS=\"$sb/d.yml\" APM_LOCKFILE=\"$sb/absent.yml\"\
+            \ \\\n     \"$root/configs/claude/scripts/apm_ownership_report.sh\"\
+            \ > /dev/null; then\n  echo 'ownership gate missed an unowned domain'\
+            \ >&2; exit 1\nfi\necho 'apm ownership gate verified'\n"

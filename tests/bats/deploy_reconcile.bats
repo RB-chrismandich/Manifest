@@ -24,7 +24,7 @@ setup() {
     echo "stale" > "$BASE/.claude/config/old_layout.yml"
     echo "{}" > "$BASE/.claude/config/config.json"
     ln -s "$BASE/.claude/skills" "$BASE/.cursor/skills"   # shared parent-dir symlink
-    mkdir -p "$PROJ/.skillshare/skills/live" "$PROJ/configs/claude/config"
+    mkdir -p "$PROJ/.apm/skills/live" "$PROJ/configs/claude/config"
     echo "y: 1" > "$PROJ/configs/claude/config/command_config.yml"
 }
 

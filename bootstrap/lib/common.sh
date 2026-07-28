@@ -111,8 +111,18 @@ link_shared_assets() {
     done
 }
 
+# Ownership registry helper. Sourced from configs/claude/scripts/ because
+# sync-skills.sh — a standalone CLI in ~/.local/bin — needs the same function and
+# cannot source the bootstrap libraries. One implementation, two callers.
+# shellcheck disable=SC1090,SC1091
+if [[ -n "${SCRIPT_DIR:-}" && -f "$SCRIPT_DIR/configs/claude/scripts/apm_domains_lib.sh" ]]; then
+    source "$SCRIPT_DIR/configs/claude/scripts/apm_domains_lib.sh"
+elif [[ -f "${BASH_SOURCE[0]%/*}/../../configs/claude/scripts/apm_domains_lib.sh" ]]; then
+    source "${BASH_SOURCE[0]%/*}/../../configs/claude/scripts/apm_domains_lib.sh"
+fi
+
 # Deploy skills into a tool's real skills dir from the PHYSICAL skillshare source.
-# Always sources the real .skillshare/skills dir (never the compat symlink).
+# Always sources the real .apm/skills dir (never the compat symlink).
 # Manifest-scoped prune (FR-005a, specs/003): skills we previously deployed and
 # that have since been removed from the source of truth are pruned from dest,
 # but ~/.claude/skills can legitimately hold skills installed by other
@@ -120,6 +130,20 @@ link_shared_assets() {
 deploy_home_skills() {
     local src="$1"
     local dest="$2"
+    # T014/FR-027: stand down for a domain APM owns, and keep deploying the
+    # rest. Per-domain, never a global off-switch — the domain name defaults to
+    # the destination's basename ("skills") so callers need no new argument.
+    local domain="${3:-$(basename "$dest")}"
+    # T011/FR-019: an explicit per-domain selection skips everything else, so an
+    # unmigrated domain can be redeployed without touching a migrated one.
+    if declare -f deploy_domain_selected > /dev/null 2>&1 && ! deploy_domain_selected "$domain"; then
+        print_info "Skipping $domain — not in MANIFEST_DEPLOY_DOMAINS"
+        return 0
+    fi
+    if declare -f apm_owns_domain > /dev/null 2>&1 && apm_owns_domain "$domain"; then
+        print_info "Skipping $domain — APM owns this domain (deploy it with $APM_DOMAIN_REPLACEMENT_CMD)"
+        return 0
+    fi
 
     if [[ ! -d "$src" ]]; then
         print_error "Skill source not found: $src"
@@ -133,7 +157,7 @@ deploy_home_skills() {
     # files never show as untracked, so nothing flags it there. rsync/cp copy
     # the FILESYSTEM, not the git tree, so such a directory would otherwise
     # deploy as a phantom skill and break repo<->home parity (observed:
-    # `.skillshare/skills/<old-name>` deployed as an extra 108th "skill").
+    # `.apm/skills/<old-name>` deployed as an extra 108th "skill").
     # Warn loudly rather than silently skip — a silent skip would just as
     # easily hide a genuinely malformed real skill — and exclude it from the
     # deploy so this class of drift can't recur.
@@ -218,7 +242,7 @@ gate_graphify_skill() {
     local skill="$home_skills/graphify"
 
     if [[ "${ENABLE_GRAPHIFY:-true}" == false ]]; then
-        # Clean opt-out: remove the deployed skill (the .skillshare source stays in the
+        # Clean opt-out: remove the deployed skill (the .apm/skills source stays in the
         # repo). Defensively prune any independent (non-symlink) graphify dir under the
         # assistant skill targets in case a future target stops symlinking to home.
         if [[ -e "$skill" || -L "$skill" ]]; then

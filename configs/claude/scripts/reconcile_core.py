@@ -239,7 +239,7 @@ def _entries(path):
 def expected_keys(project):
     """Logical keys the current project would deploy into ~/.claude.
 
-    skills from ``<project>/.skillshare/skills/*``; config from
+    skills from ``<project>/.apm/skills/*``; config from
     ``<project>/configs/claude/config/*``; scripts from
     ``<project>/configs/claude/scripts/*``; prompts from
     ``<project>/configs/claude/prompts/*``. Returns a set of
@@ -247,7 +247,7 @@ def expected_keys(project):
     ``"prompts/<name>"`` keys.
     """
     keys = set()
-    skills_src = os.path.join(project, ".skillshare", "skills")
+    skills_src = os.path.join(project, ".apm", "skills")
     for name in _entries(skills_src):
         path = os.path.join(skills_src, name)
         if os.path.isdir(path):

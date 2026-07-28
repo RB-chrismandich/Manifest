@@ -81,7 +81,7 @@ teardown() {
 }
 
 @test "skill-evolve SKILL.md has valid frontmatter and points at the script" {
-    local f="$REPO_ROOT/.skillshare/skills/skill-evolve/SKILL.md"
+    local f="$REPO_ROOT/.apm/skills/skill-evolve/SKILL.md"
     [ -f "$f" ]
     head -1 "$f" | grep -q '^---$'
     grep -q "^name: skill-evolve$" "$f"

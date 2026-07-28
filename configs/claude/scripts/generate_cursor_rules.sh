@@ -190,7 +190,7 @@ alwaysApply: true
 
 ${index_body}
 
-<!-- Auto-generated from .skillshare/skills/ via generate_commands_doc.py --compact -->
+<!-- Auto-generated from .apm/skills/ via generate_commands_doc.py --compact -->
 <!-- Regenerate: configs/claude/scripts/generate_cursor_rules.sh -->
 "
         if [[ -f "$index_rule" ]]; then

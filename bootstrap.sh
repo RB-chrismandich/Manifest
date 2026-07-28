@@ -20,6 +20,8 @@
 #   --disable-graphify    Disable Graphify knowledge-graph CLI
 #   --enable-skillclaw    Enable SkillClaw session capture (default: disabled)
 #   --disable-skillclaw   Disable SkillClaw session capture
+#   --enable-apm          Enable the apm (Agent Package Manager) CLI (default: disabled)
+#   --disable-apm         Disable the apm CLI
 #   --enable-browser-use  Enable browser-use for smoke-manage UI steps (default: disabled)
 #   --disable-browser-use Disable browser-use
 #   --enable-gh           Enable GitHub CLI (default: auto-detect)
@@ -134,6 +136,7 @@ run_reconfigure() {
         local old_antigravity=${FILE_ANTIGRAVITY:-unknown}
         local old_graphify=${FILE_GRAPHIFY:-unknown}
         local old_skillclaw=${FILE_SKILLCLAW:-unknown}
+        local old_apm=${FILE_APM:-unknown}
         local old_browser_use=${FILE_BROWSER_USE:-unknown}
 
         echo "  Claude:      $old_claude → $ENABLE_CLAUDE"
@@ -143,6 +146,7 @@ run_reconfigure() {
         echo "  Antigravity: $old_antigravity → $ENABLE_ANTIGRAVITY"
         echo "  Graphify:    $old_graphify → $ENABLE_GRAPHIFY"
         echo "  SkillClaw:   $old_skillclaw → $ENABLE_SKILLCLAW"
+        echo "  apm:         $old_apm → $ENABLE_APM"
         echo "  browser-use: $old_browser_use → $ENABLE_BROWSER_USE"
     else
         echo "  Claude:      (new) → $ENABLE_CLAUDE"
@@ -152,6 +156,7 @@ run_reconfigure() {
         echo "  Antigravity: (new) → $ENABLE_ANTIGRAVITY"
         echo "  Graphify:    (new) → $ENABLE_GRAPHIFY"
         echo "  SkillClaw:   (new) → $ENABLE_SKILLCLAW"
+        echo "  apm:         (new) → $ENABLE_APM"
         echo "  browser-use: (new) → $ENABLE_BROWSER_USE"
     fi
     echo ""
@@ -171,6 +176,12 @@ run_reconfigure() {
         check_uv || print_warning "uv not available — home runtime sync may be skipped"
         uv_sync_home_runtime
         install_graphify
+        # Fail-closed by design (T054/FR-029): apm writes hooks and MCP entries
+        # into five home trees, so a failed integrity check must leave it
+        # uninstalled rather than fall back to an unverified binary. The failure
+        # is loud but non-fatal — apm is opt-in and owns no domain yet, so an
+        # absent apm is a correct outcome, not a broken bootstrap.
+        install_apm_cli || print_error "apm install failed integrity verification — apm is NOT installed"
 
         # Gate the deployed /graphify skill to match the new toggle — the gate
         # otherwise only runs inside deploy_configs, so a reconfigure-time
@@ -228,6 +239,7 @@ main() {
     echo "  Antigravity: $(if [[ "$ENABLE_ANTIGRAVITY" == true ]]; then echo "enabled"; else echo "disabled"; fi)"
     echo "  Graphify:    $(if [[ "$ENABLE_GRAPHIFY" == true ]]; then echo "enabled"; else echo "disabled"; fi)"
     echo "  SkillClaw:   $(if [[ "$ENABLE_SKILLCLAW" == true ]]; then echo "enabled"; else echo "disabled"; fi)"
+    echo "  apm:         $(if [[ "$ENABLE_APM" == true ]]; then echo "enabled (pinned v$APM_PINNED_VERSION)"; else echo "disabled"; fi)"
     echo "  browser-use: $(if [[ "$ENABLE_BROWSER_USE" == true ]]; then echo "enabled"; else echo "disabled"; fi)"
     echo ""
 
@@ -284,6 +296,7 @@ main() {
     print_header "Syncing Home Python Runtime"
     uv_sync_home_runtime
     install_graphify
+    install_apm_cli || print_error "apm install failed integrity verification — apm is NOT installed"
 
     # Configure default MCP servers when requested
     if [[ "$INSTALL_MCP" == true ]]; then

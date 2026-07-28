@@ -8,7 +8,7 @@
 
 SkillClaw distills reusable `SKILL.md` skills from your Claude Code session transcripts
 and proposes them as pull requests. It is a **PR-gated proposer**: nothing reaches the
-committed `.skillshare/skills/` library without a merged PR.
+committed `.apm/skills/` library without a merged PR.
 
 SkillClaw is a set of Manifest-owned scripts. `~/.skillclaw/` is solely managed by
 this repo. The legacy upstream `~/.skillclaw/config.yaml` and `dashboard.db` are

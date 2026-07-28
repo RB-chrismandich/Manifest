@@ -72,6 +72,13 @@ services:
     command: graphify
     description: "Maps a codebase/docs into a queryable knowledge graph (/graphify)"
 
+  # apm (Agent Package Manager) - build/deploy layer under evaluation (feature 522).
+  # Installed by install_apm_cli() with a pinned version + sha256, fail-closed.
+  apm:
+    enabled: false
+    command: apm
+    description: "Agent primitive package manager; pinned + checksum-verified install (opt-in)"
+
   # SkillClaw - evolves SKILL.md skills from Claude Code transcripts (proxy-free)
   # Managed by bootstrap/lib/skillclaw.sh; no install, no daemon, no proxy.
   skillclaw:

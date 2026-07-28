@@ -30,7 +30,7 @@ that enable parallel LLM agent coordination (Cursor, Gemini CLI, Claude CLI, Cod
 configs/                             # Deployment source configs (deployed to ~/ via bootstrap.sh)
 ├── claude/                          # → ~/.claude/ (primary configuration)
 │   ├── CLAUDE.md                    # Orchestration guide
-│   ├── skills/                      # → ../../.skillshare/skills (symlink; source of truth)
+│   ├── skills/                      # → ../../.apm/skills (symlink; source of truth)
 │   ├── prompts/                     # Agent orchestration prompt templates
 │   ├── config/                      # YAML configuration files
 │   │   └── mcp_servers.yml          # Default MCP server registry (OAuth-capable)
@@ -98,7 +98,7 @@ The `bootstrap.sh` script automates installation, deployment, and authentication
 ```
 
 Service toggles (`--enable-*/--disable-*` for claude, gemini, cursor, codex,
-antigravity, graphify, skillclaw, browser-use, smoke, gh, glab), other flags (`--skip-install`,
+antigravity, graphify, skillclaw, apm, browser-use, smoke, gh, glab), other flags (`--skip-install`,
 `--skip-auth`, `--force`, `--reconfigure`, `--install-mcp`), and the full step
 list are documented in [README.md](README.md) and `./bootstrap.sh --help`.
 
@@ -137,15 +137,16 @@ Antigravity) and required CLI installs are in
 
 ## Available Commands
 
-Skills (70+, invoked as `/skill-name`) live in `.skillshare/skills/` — each
+Skills (70+, invoked as `/skill-name`) live in `.apm/skills/` — each
 directory's `SKILL.md` frontmatter is the authoritative name and description,
 and Claude Code auto-loads every description at session start, so no table is
 duplicated here. Per-skill parallel-agent policy lives in
 `configs/claude/config/command_config.yml` under `tool_policies`. See
 [docs/COMMANDS.md](docs/COMMANDS.md) for the human-readable command reference.
 
-**CLI tool** (installed to `~/.local/bin/`): `sync-skills` — sync
-`.skillshare/skills/` to all home targets (daily skill dev workflow).
+**CLI tools** (installed to `~/.local/bin/`): `sync-skills` — sync
+`.apm/skills/` to all home targets; `apm-dev-sync` — same loop via apm,
+publish-free, and also removes deleted skills.
 
 ## Testing Changes
 
@@ -193,8 +194,8 @@ See [docs/COMMANDS.md](docs/COMMANDS.md#label-management) for full label referen
 
 ## Adding New Skills
 
-1. Create a skill directory in `.skillshare/skills/` (the source of truth) with a
-   `SKILL.md` — e.g. `.skillshare/skills/my-skill/SKILL.md` — containing `name` and
+1. Create a skill directory in `.apm/skills/` (the source of truth) with a
+   `SKILL.md` — e.g. `.apm/skills/my-skill/SKILL.md` — containing `name` and
    `description` frontmatter. (`configs/claude/skills/` is a compat symlink to it.)
 2. Add tool policies to `configs/claude/config/command_config.yml` under `tool_policies`
 3. If needed, add validation overrides to `configs/claude/config/validation_criteria.yml`
@@ -247,9 +248,7 @@ approaches), review stale plans, or archive/abandon completed work.
 <!-- SPECKIT START -->
 ## Active Spec Kit Feature
 
-- **`483-emdash-support`** (emdash full config inheritance) — PLANNED. emdash is
-  an external harness (no deploy tree); support = transitive inheritance +
-  hybrid verification + `.emdash.json`. Plan:
-  [specs/483-emdash-support/plan.md](specs/483-emdash-support/plan.md). Next:
-  `/speckit-tasks`.
-<!-- SPECKIT END -->
+- **`522-apm-deploy-migration`** — **59/59 closed.** US1 delivered; US2/US4
+  closed measured-void (apm emits no Cursor `.mdc`; plugin manifests have no
+  dependency field). Constitution now v3.0.0. **Nothing activated.** Read
+  [HANDOFF.md](specs/522-apm-deploy-migration/HANDOFF.md) before acting.

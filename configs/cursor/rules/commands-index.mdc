@@ -17,6 +17,6 @@ alwaysApply: true
 
 Run `/help <query>` for descriptions and when-to-use.
 
-<!-- Auto-generated from .skillshare/skills/ via generate_commands_doc.py --compact -->
+<!-- Auto-generated from .apm/skills/ via generate_commands_doc.py --compact -->
 <!-- Regenerate: configs/claude/scripts/generate_cursor_rules.sh -->
 

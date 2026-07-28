@@ -88,7 +88,7 @@ teardown() {
     home_base="$SANDBOX/home"
     project="$SANDBOX/project"
     mkdir -p "$home_base/.claude/prompts/cddl" "$home_base/.claude/prompts/keepme" \
-             "$project/configs/claude/prompts/keepme" "$project/.skillshare/skills"
+             "$project/configs/claude/prompts/keepme" "$project/.apm/skills"
     echo x > "$home_base/.claude/prompts/cddl/implementer.md"
     echo y > "$home_base/.claude/prompts/keepme/note.md"
     echo y > "$project/configs/claude/prompts/keepme/note.md"
@@ -106,7 +106,7 @@ teardown() {
     home_base="$SANDBOX/home"
     project="$SANDBOX/project"
     mkdir -p "$home_base/.claude/prompts/cddl" \
-             "$project/configs/claude/prompts/cddl" "$project/.skillshare/skills"
+             "$project/configs/claude/prompts/cddl" "$project/.apm/skills"
     echo x > "$home_base/.claude/prompts/cddl/implementer.md"
     echo x > "$project/configs/claude/prompts/cddl/implementer.md"
 

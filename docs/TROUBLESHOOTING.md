@@ -479,7 +479,7 @@ SYNTH_PROVIDER=cursor manifest parallel-agent --json ...
 | SkillClaw evolve | `skillclaw_evolve.py`, `/skill-evolve` | `EVOLVE_PROVIDER`, `EVOLVE_CLI` |
 
 On Gemini/Codex/Antigravity without native Task, CDDL critics use
-`cddl_invoke.py` (see `.skillshare/skills/spec-implement-loop/prompts/cli-dispatch.md`).
+`cddl_invoke.py` (see `.apm/skills/spec-implement-loop/prompts/cli-dispatch.md`).
 
 ---
 

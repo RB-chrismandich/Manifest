@@ -294,7 +294,6 @@ teardown() {
     deploy_gemini_configs() { :; }
     deploy_codex_configs() { :; }
     deploy_antigravity_configs() { :; }
-    sync_skillshare_targets() { :; }
     deploy_sync_skills() { :; }
 
     run deploy_configs
@@ -365,45 +364,6 @@ teardown() {
     link_target=$(readlink -f "$ANTIGRAVITY_TARGET_DIR/skills" 2>/dev/null || true)
     [ -e "$link_target" ] || (echo "Symlink target not resolvable: $link_target" && false)
     [ -d "$link_target" ]
-}
-
-@test "sync_skillshare_targets runs skillshare sync when present" {
-    export SCRIPT_DIR="$SANDBOX/repo"
-    mkdir -p "$SCRIPT_DIR/.skillshare"
-    echo "targets: []" > "$SCRIPT_DIR/.skillshare/config.yaml"
-
-    # Stub skillshare on PATH that records invocation.
-    MOCK_BIN="$SANDBOX/bin"; mkdir -p "$MOCK_BIN"
-    cat > "$MOCK_BIN/skillshare" <<'STUB'
-#!/usr/bin/env bash
-echo "skillshare $*" >> "$SKILLSHARE_LOG"
-STUB
-    chmod +x "$MOCK_BIN/skillshare"
-    export PATH="$MOCK_BIN:$PATH"
-    export SKILLSHARE_LOG="$SANDBOX/ss.log"
-
-    # shellcheck disable=SC1090
-    source "$REPO_ROOT/bootstrap/lib/deploy.sh"
-
-    run sync_skillshare_targets
-    assert_success
-    assert_output --partial "Syncing"
-    grep -q "skillshare sync" "$SKILLSHARE_LOG"
-}
-
-@test "sync_skillshare_targets is a no-op (success) when skillshare absent" {
-    export SCRIPT_DIR="$SANDBOX/repo"
-    mkdir -p "$SCRIPT_DIR/.skillshare"
-    echo "targets: []" > "$SCRIPT_DIR/.skillshare/config.yaml"
-
-    # shellcheck disable=SC1090
-    source "$REPO_ROOT/bootstrap/lib/deploy.sh"
-
-    # Minimal PATH that keeps coreutils but excludes Homebrew (where skillshare
-    # lives), so `command -v skillshare` finds nothing. Scoped to `run`.
-    PATH="/usr/bin:/bin" run sync_skillshare_targets
-    assert_success
-    assert_output --partial "skipping"
 }
 
 # ── configure_shell_profile_state — MANIFEST_ROOT ───────────────────────────

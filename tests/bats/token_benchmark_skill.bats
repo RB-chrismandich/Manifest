@@ -16,7 +16,7 @@ load '../test_helper/bats-support/load'
 load '../test_helper/bats-assert/load'
 
 REPO_ROOT="$BATS_TEST_DIRNAME/../.."
-SKILL_MD="$REPO_ROOT/.skillshare/skills/token-benchmark/SKILL.md"
+SKILL_MD="$REPO_ROOT/.apm/skills/token-benchmark/SKILL.md"
 
 # Pulls out the fenced ```bash block that immediately follows "## Execution".
 extract_execution_block() {

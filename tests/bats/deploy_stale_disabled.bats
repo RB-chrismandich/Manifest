@@ -139,7 +139,6 @@ setup_e2e_deploy() {
     deploy_gemini_configs()      { :; }
     deploy_codex_configs()       { :; }
     deploy_antigravity_configs() { :; }
-    sync_skillshare_targets()    { :; }
     deploy_sync_skills()         { :; }
 }
 

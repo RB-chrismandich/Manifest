@@ -110,7 +110,7 @@ Typo/comment/formatting fixes, single-line changes, documentation updates, simpl
 ## Skills
 
 Skills live in `~/.claude/skills/` (deployed from the repo's
-`.skillshare/skills/`). Each skill's `SKILL.md` frontmatter (`name`,
+`.apm/skills/`). Each skill's `SKILL.md` frontmatter (`name`,
 `description`) is the **authoritative registry** — Claude Code auto-loads every
 description at session start, so no table is duplicated here. Per-skill
 parallel-agent policy (always/conditional/never) lives in
@@ -125,7 +125,7 @@ Common entry points: `/git-commit`, `/project-verify`, `/refactor-<lang>`,
 counts.
 
 **CLI tool** (installed to `~/.local/bin/`): `sync-skills` — push
-`.skillshare/skills/` changes to all home targets (daily skill dev workflow).
+`.apm/skills/` changes to all home targets (daily skill dev workflow).
 
 ### Auto-Triggered Skill
 

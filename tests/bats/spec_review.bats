@@ -297,7 +297,7 @@ STUB
 }
 
 @test "spec-review SKILL.md has valid frontmatter and points at the engine" {
-    local skill="$REPO_ROOT/.skillshare/skills/spec-review/SKILL.md"
+    local skill="$REPO_ROOT/.apm/skills/spec-review/SKILL.md"
     assert [ -f "$skill" ]
     run head -1 "$skill"; assert_output "---"
     run grep -E '^name: spec-review' "$skill"; assert_success

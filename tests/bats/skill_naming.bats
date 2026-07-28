@@ -1,7 +1,7 @@
 #!/usr/bin/env bats
 # Skill naming taxonomy conformance gate (specs/480-skill-naming-taxonomy, #478).
 #
-# Every skill in .skillshare/skills/ must be named <purpose>-<verb>[-<qualifier>]:
+# Every skill in .apm/skills/ must be named <purpose>-<verb>[-<qualifier>]:
 # lowercase a-z0-9 tokens, 2-4 tokens, first token(s) drawn from the domain
 # vocabulary in docs/SKILL-NAMING.md — unless listed in that doc's exception
 # block. Frontmatter name: must always equal the directory name.
@@ -10,7 +10,7 @@
 # add a domain token / exception there WITH rationale in the same PR.
 
 REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
-SKILLS_DIR="$REPO_ROOT/.skillshare/skills"
+SKILLS_DIR="$REPO_ROOT/.apm/skills"
 NAMING_DOC="$REPO_ROOT/docs/SKILL-NAMING.md"
 
 # Extract one-token-per-line list from a fenced block between

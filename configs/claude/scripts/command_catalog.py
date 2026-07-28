@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Build the machine catalog of Manifest commands from the skill source of truth.
 
-Parses every ``.skillshare/skills/*/SKILL.md`` frontmatter (the single source of
+Parses every ``.apm/skills/*/SKILL.md`` frontmatter (the single source of
 truth — spec 362, FR-003) into an in-memory catalog, deriving the "when to use"
 cue, resolving each command's category against the curated taxonomy, and
 computing availability. The catalog is a pure function of (skill sources,
@@ -35,7 +35,7 @@ PROG = "command_catalog.py"
 
 # Repo-relative defaults (script lives in configs/claude/scripts/).
 _REPO_ROOT = Path(__file__).resolve().parents[3]
-DEFAULT_SKILLS_DIR = _REPO_ROOT / ".skillshare" / "skills"
+DEFAULT_SKILLS_DIR = _REPO_ROOT / ".apm" / "skills"
 DEFAULT_CATEGORIES = (
     _REPO_ROOT / "configs" / "claude" / "config" / "command_categories.yml"
 )

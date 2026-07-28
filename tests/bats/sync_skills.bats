@@ -23,8 +23,8 @@ STUB
 
     # Fake manifest root with a skills source
     export MANIFEST_ROOT="$SANDBOX/repo"
-    mkdir -p "$MANIFEST_ROOT/.skillshare/skills/demo-skill"
-    echo "body" > "$MANIFEST_ROOT/.skillshare/skills/demo-skill/SKILL.md"
+    mkdir -p "$MANIFEST_ROOT/.apm/skills/demo-skill"
+    echo "body" > "$MANIFEST_ROOT/.apm/skills/demo-skill/SKILL.md"
 
     # Fake home with required ~/.claude/skills target
     export HOME="$SANDBOX/home"
@@ -49,33 +49,11 @@ teardown() {
     assert_output --partial "not found"
 }
 
-@test "exits non-zero when .skillshare/skills/ is missing" {
-    rm -rf "$MANIFEST_ROOT/.skillshare/skills"
+@test "exits non-zero when .apm/skills/ is missing" {
+    rm -rf "$MANIFEST_ROOT/.apm/skills"
     run bash "$SCRIPT"
     assert_failure
     assert_output --partial "skills source not found"
-}
-
-@test "runs rsync to ~/.claude/skills/ when skillshare is absent" {
-    # Use restricted PATH that excludes Homebrew (/usr/local/bin, /opt/homebrew/bin)
-    # to ensure skillshare is not found and the "not installed" path is tested
-    PATH="$MOCK_BIN:/usr/bin:/bin" run bash "$SCRIPT"
-    assert_success
-    assert_output --partial "skillshare not installed"
-    grep -q ".claude/skills" "$RSYNC_LOG"
-}
-
-@test "calls skillshare sync when skillshare is on PATH" {
-    export SKILLSHARE_LOG="$SANDBOX/ss.log"
-    cat > "$MOCK_BIN/skillshare" <<'STUB'
-#!/usr/bin/env bash
-echo "skillshare $*" >> "$SKILLSHARE_LOG"
-STUB
-    chmod +x "$MOCK_BIN/skillshare"
-
-    run bash "$SCRIPT"
-    assert_success
-    grep -q "skillshare sync" "$SKILLSHARE_LOG"
 }
 
 @test "skips IDE target when directory does not exist" {
