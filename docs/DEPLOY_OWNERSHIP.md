@@ -116,6 +116,28 @@ Prefer `apm-dev-sync` when iterating: it tracks what it deployed, so a skill you
 copies, and a copy cannot un-copy — deleted skills linger until someone notices.
 `apm-dev-sync` needs `./bootstrap.sh --enable-apm`.
 
+## Activating a domain on a running machine
+
+The migration plan gates a domain first, then deploys it. **On a live machine,
+reverse that.** Gating first leaves the domain with no writer in between — on a
+branch that is a documented window, on a running machine it means your skills
+silently stop updating. A brief double-claim is the safer of the two failures.
+
+```bash
+apm install --global 'OWNER/REPO#TAG' --target claude   # 1. deploy
+# 2. add the domain to configs/claude/config/apm_domains.yml
+./bootstrap.sh                                          # 3. propagate the registry
+configs/claude/scripts/apm_ownership_report.sh          # 4. expect: one owner, exit 0
+```
+
+**Check step 4 before trusting the handover.** apm will not adopt a directory
+holding files it did not place, so a skill whose deployed copy carries local
+build artifacts (`__pycache__`, `.pytest_cache` from running its tests) is
+*skipped* — announced only as a single `[!] 1 file skipped` line that is easy to
+miss. Gate the domain anyway and that skill is owned by neither pipeline. The
+ownership report catches this and reports `PARTIAL`; clear the artifacts and
+re-install.
+
 ## Rollback
 
 To hand a domain back to the legacy pipeline mid-migration:

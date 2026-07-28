@@ -100,6 +100,30 @@ apm_deployed() {
     grep -q "\.claude/${domain}" "$LOCKFILE" 2> /dev/null
 }
 
+# Files present in a domain that the lockfile does NOT claim. Domain-level
+# ownership is not enough: a domain can be gated and apm-deployed — reporting a
+# clean single owner — while individual entries inside it belong to nobody,
+# because the legacy writer has stood down and apm declined to adopt them.
+#
+# This is not hypothetical. Activating SC-006 hit exactly it: apm skipped
+# ai-hooks-integration (its deployed copy held local __pycache__/.pytest_cache
+# that apm will not adopt), emitting one easily-missed "[!] 1 file skipped" line.
+# Without this check the report would have said "apm, exit 0" over an orphan.
+#
+# Entries other tools own are excluded by name, not guessed at: ~/.claude/skills
+# legitimately holds foreign installs (e.g. .system, which is Codex's).
+unowned_entries() {
+    local domain="$1" path="$2" entry base
+    [[ -d "$path" ]] || return 0
+    [[ -f "$LOCKFILE" ]] || return 0
+    for entry in "$path"/*/; do
+        [[ -d "$entry" ]] || continue
+        base="$(basename "$entry")"
+        [[ "$base" == .* ]] && continue
+        grep -q "\.claude/${domain}/${base}\b" "$LOCKFILE" 2> /dev/null || echo "$base"
+    done
+}
+
 rc=0
 rows=()
 for d in "${DOMAINS[@]}"; do
@@ -116,7 +140,15 @@ for d in "${DOMAINS[@]}"; do
         status="UNOWNED"
         rc=1
     elif [[ "$apm" == true ]]; then
-        status="apm"
+        # Adopted, but completely? A partial adoption leaves orphans owned by
+        # neither pipeline, which is the drift condition at file granularity.
+        orphans="$(unowned_entries "$d" "$path")"
+        if [[ -n "$orphans" ]]; then
+            status="PARTIAL"
+            rc=1
+        else
+            status="apm"
+        fi
     else
         status="legacy"
     fi
@@ -154,6 +186,16 @@ if [[ $rc -ne 0 ]]; then
             DOUBLE-CLAIMED)
                 echo "! $d is written by BOTH pipelines — this is the drift condition."
                 echo "  Gate the legacy writer (apm_domains.yml) or remove the APM package."
+                ;;
+            PARTIAL)
+                echo "! $d is APM-owned but NOT fully adopted — these entries are owned by neither pipeline:"
+                # Deliberate word-splitting: one entry per line is the payload.
+                # shellcheck disable=SC2046
+                printf '    %s\n' $(unowned_entries "$d" "$(declare_path "$d")")
+                echo "  The legacy writer has stood down for this domain, so nothing updates them."
+                echo "  Common cause: local build artifacts (__pycache__, .pytest_cache) in the"
+                echo "  deployed copy — apm will not adopt a directory holding files it did not place."
+                echo "  Clear them and re-install, or un-gate the domain."
                 ;;
             UNOWNED)
                 echo "! $d is written by NEITHER pipeline — it will silently stop updating."

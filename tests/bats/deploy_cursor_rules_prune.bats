@@ -12,6 +12,12 @@ load '../test_helper/bats-assert/load'
 REPO_ROOT="$BATS_TEST_DIRNAME/../.."
 
 setup() {
+    # Isolate the APM domain registry — this suite drives a writer that stands
+    # down for an APM-owned domain, so without this it reads the developer's
+    # live registry instead of a fixture (see apm_test_isolation_guard.bats).
+    export MANIFEST_APM_DOMAINS="$BATS_TEST_TMPDIR/no-apm-domains.yml"
+    printf 'domains: []\n' > "$MANIFEST_APM_DOMAINS"
+
     export BATS_TMPDIR="${BATS_TMPDIR:-/tmp}"
     SANDBOX=$(mktemp -d "$BATS_TMPDIR/deploy_cursor_prune.XXXXXX")
 
