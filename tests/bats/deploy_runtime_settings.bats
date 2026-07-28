@@ -104,11 +104,16 @@ events_in() {
     run merge_claude_runtime_settings "$SRC" "$SANDBOX/settings.json"
     assert_success
     assert_output --partial "already has"
+    # Expected count comes from the source, not a literal: the invariant under
+    # test is "a second merge adds nothing", and a hardcoded total makes every
+    # legitimately-added hook look like a duplication bug.
     run python3 -c "
 import json,sys
-d=json.load(open(sys.argv[1]))
-print(sum(len(e['hooks']) for ev in d['hooks'].values() for e in ev))" "$SANDBOX/settings.json"
-    assert_output "7"
+count = lambda p: sum(len(e['hooks']) for ev in json.load(open(p))['hooks'].values() for e in ev)
+merged, source = count(sys.argv[1]), count(sys.argv[2])
+print('%d hooks (source ships %d)' % (merged, source))
+sys.exit(0 if merged == source else 1)" "$SANDBOX/settings.json" "$SRC"
+    assert_success
 }
 
 @test "expands ~ so Claude Code receives an absolute command" {
