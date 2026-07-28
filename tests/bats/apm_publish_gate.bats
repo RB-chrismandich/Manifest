@@ -233,7 +233,12 @@ gitleaks_stub_path() {
     local evil_name
     evil_name=$'evil\nleak.txt'
     local evil_path="$SANDBOX/newline_pkg/$evil_name"
-    printf 'contact me at exposed-operator-fixture@example.com for details\n' > "$evil_path"
+    # Payload must be a GENUINE finding. It used to be an @example.com address,
+    # which the allowlist now exempts as an RFC 2606 reserved domain — correctly,
+    # since those belong to nobody. That exemption silently defused this test:
+    # it kept passing the walk but stopped proving the scan found anything.
+    # A real-looking domain restores the assertion without weakening either.
+    printf 'contact me at exposed-operator-fixture@acme-internal.io for details\n' > "$evil_path"
 
     if [ ! -f "$evil_path" ]; then
         skip "this platform/filesystem could not create a filename with an embedded newline"
@@ -242,7 +247,7 @@ gitleaks_stub_path() {
     # Precondition: the file's CONTENT genuinely matches the Decision-D
     # private-email pattern when grepped directly — proves this is not a
     # vacuous fixture (Standing Constraint 6).
-    grep -q "exposed-operator-fixture@example.com" "$evil_path"
+    grep -q "exposed-operator-fixture@acme-internal.io" "$evil_path"
 
     run "$SCRIPT" scan "$SANDBOX/newline_pkg"
     assert_failure 1
