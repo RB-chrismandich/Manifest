@@ -32,6 +32,12 @@ SYNC_SKILLS="$REPO_ROOT/configs/claude/scripts/sync-skills.sh"
 ROSTER="$REPO_ROOT/configs/claude/config/agent_roster.yml"
 
 setup() {
+    # Isolate the APM domain registry — this suite drives a writer that stands
+    # down for an APM-owned domain, so without this it reads the developer's
+    # live registry instead of a fixture (see apm_test_isolation_guard.bats).
+    export MANIFEST_APM_DOMAINS="$BATS_TEST_TMPDIR/no-apm-domains.yml"
+    printf 'domains: []\n' > "$MANIFEST_APM_DOMAINS"
+
     export BATS_TMPDIR="${BATS_TMPDIR:-/tmp}"
     TEST_TMP=$(mktemp -d "$BATS_TMPDIR/agent_roster_drift_guard.XXXXXX")
 }

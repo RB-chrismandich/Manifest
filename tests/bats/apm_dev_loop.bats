@@ -155,16 +155,19 @@ teardown() {
 }
 
 @test "a missing apm names the flag that installs it" {
-    # Shadow the stub with an exit-127 entry rather than emptying PATH: on
-    # merged-/usr Linux a 'minimal PATH' still resolves real binaries.
-    cat > "$BIN/apm" << 'SH'
-#!/usr/bin/env bash
-exit 127
-SH
-    chmod +x "$BIN/apm"
+    # apm must be genuinely absent for this case, and an exit-127 shim does NOT
+    # achieve that: the script resolves with `command -v apm`, which succeeds for
+    # any executable. Removing only the sandbox stub is also not enough once the
+    # developer has actually installed apm — ~/.local/bin is on the real PATH,
+    # and the test then silently stopped testing anything. (Observed: this went
+    # red the moment SC-006 was activated on a live machine.)
+    #
+    # HOME is already the sandbox, so $HOME/.local/bin/apm cannot exist; the only
+    # other lookup is PATH, which is narrowed here to the stub dir plus system
+    # locations that never contain apm.
     rm -f "$BIN/apm"
 
-    run "$SCRIPT"
+    PATH="$BIN:/usr/bin:/bin" run "$SCRIPT"
     assert_failure
     assert_output --partial "--enable-apm"
 }

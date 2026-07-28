@@ -12,6 +12,14 @@ load '../test_helper/bats-assert/load'
 REPO_ROOT="$BATS_TEST_DIRNAME/../.."
 
 setup() {
+    # Isolate the APM domain registry. Without this the suite reads the REPO's
+    # live apm_domains.yml, so activating a domain there (SC-006) makes
+    # deploy_home_skills stand down and every skill assertion below fails on a
+    # developer machine while passing in CI. Ambient state must not decide a
+    # test's outcome.
+    export MANIFEST_APM_DOMAINS="$BATS_TEST_TMPDIR/no-apm-domains.yml"
+    printf 'domains: []\n' > "$MANIFEST_APM_DOMAINS"
+
     SANDBOX=$(mktemp -d "${BATS_TMPDIR:-/tmp}/deploy_stale.XXXXXX")
     export TARGET_DIR="$SANDBOX/dotclaude"
     export GEMINI_TARGET_DIR="$SANDBOX/dotgemini"

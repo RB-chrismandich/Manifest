@@ -18,4 +18,14 @@
 #
 # Values are bare domain names, matched exactly. Known domains:
 #   skills   ~/.claude/skills (+ the Cursor/Gemini/Codex/Antigravity symlinks)
-domains: []
+domains:
+  # Activated 2026-07-28 (SC-006). apm owns ~/.claude/skills; deploy_home_skills
+  # and sync-skills stand down for it. The four sibling harness homes inherit by
+  # symlink (T005 cell (i)), so this one entry covers all five.
+  #
+  # Deployed BEFORE gating, deliberately: the reverse order leaves the domain
+  # writer-less in between, and on a live machine that is a window where skills
+  # silently stop updating. A brief double-claim is the safer failure.
+  #
+  # To hand it back: configs/claude/scripts/apm_ungate_domain.sh skills --apply
+  - skills
