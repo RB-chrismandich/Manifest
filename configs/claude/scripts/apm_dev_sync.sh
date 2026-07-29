@@ -63,18 +63,35 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-# MANIFEST_ROOT is set by bootstrap.sh. Fall back to the enclosing checkout so
-# the loop also works for someone who just cloned and has not bootstrapped yet.
+# MANIFEST_ROOT is exported into the shell profile by bootstrap.sh. Fall back to
+# the enclosing checkout so the loop also works for someone who just cloned and
+# has not bootstrapped yet.
+#
+# ROOT_SOURCE is tracked so a wrong root is a diagnosable error rather than a
+# puzzle: with several Manifest clones on one machine (or a profile MANIFEST_ROOT
+# left over from an older clone) the resolved root can be a real repo that simply
+# has no .apm/skills, and "is this a Manifest checkout?" is then the least useful
+# question to ask — the caller needs to know WHICH path was used and how to
+# override it. Observed in the field on a machine with two clones.
 ROOT="${MANIFEST_ROOT:-}"
+ROOT_SOURCE="MANIFEST_ROOT"
 if [[ -z "$ROOT" ]] && git rev-parse --show-toplevel > /dev/null 2>&1; then
     ROOT="$(git rev-parse --show-toplevel)"
+    ROOT_SOURCE="the git checkout enclosing $PWD"
 fi
 [[ -n "$ROOT" ]] || {
-    err "MANIFEST_ROOT not set and not inside a git checkout. Re-run bootstrap.sh."
+    err "MANIFEST_ROOT not set and not inside a git checkout. Re-run bootstrap.sh,"
+    err "or: MANIFEST_ROOT=/path/to/Manifest apm-dev-sync"
     exit 1
 }
 [[ -d "$ROOT/.apm/skills" ]] || {
-    err "no .apm/skills/ under '$ROOT' — is this a Manifest checkout?"
+    err "no .apm/skills/ under '$ROOT' (resolved from $ROOT_SOURCE)"
+    if [[ -d "$ROOT/.skillshare/skills" ]]; then
+        err "that checkout predates the .apm migration (it still has .skillshare/skills) — update it,"
+        err "or point at a current checkout: MANIFEST_ROOT=/path/to/Manifest apm-dev-sync"
+    else
+        err "point at a Manifest checkout: MANIFEST_ROOT=/path/to/Manifest apm-dev-sync"
+    fi
     exit 1
 }
 
@@ -144,14 +161,39 @@ if [[ "$deployed" == "0" ]]; then
 fi
 echo "apm-dev-sync: $deployed skill(s) deployed to ~/.claude/skills (no publish)"
 
-# Until T014/T015 gate them, two other writers still own this domain. Both copy
-# from the same .apm/skills source, so the bytes match and nothing is lost — but
-# ownership is genuinely ambiguous in this window, and a contributor should be
-# told rather than left to infer it from surprising behaviour.
+# BEFORE the domain is gated, two other writers still own it. Both copy from the
+# same .apm/skills source, so the bytes match and nothing is lost — but ownership
+# is genuinely ambiguous in that window, and a contributor should be told rather
+# than left to infer it from surprising behaviour.
+#
+# AFTER gating (SC-006 did this for `skills`) the same note is simply false:
+# deploy_home_skills and sync-skills stand down, so telling someone that
+# ./bootstrap.sh "also writes" the tree sends them to a command that will not
+# refresh their skills at all. Ownership is a fact the registry already answers —
+# so read it instead of hardcoding the migration's mid-state.
 if [[ "${APM_DEV_SYNC_QUIET:-}" != "1" ]]; then
-    echo ""
-    echo "Note: ./bootstrap.sh and sync-skills also write ~/.claude/skills until"
-    echo "      they are gated (feature 522, T014/T015). They deploy the same"
-    echo "      source, so re-running either is safe — but only apm-dev-sync"
-    echo "      removes skills you deleted."
+    _apm_lib=""
+    for _cand in "$ROOT/configs/claude/scripts/apm_domains_lib.sh" \
+        "$HOME/.claude/scripts/apm_domains_lib.sh"; do
+        [[ -f "$_cand" ]] && {
+            _apm_lib="$_cand"
+            break
+        }
+    done
+    # Absent registry (or absent library) means "APM owns nothing" — the same
+    # fail-safe direction apm_owns_domain uses, so the note appears in exactly
+    # the ungated case it describes.
+    _gated=1
+    if [[ -n "$_apm_lib" ]]; then
+        # shellcheck disable=SC1090
+        source "$_apm_lib"
+        apm_owns_domain skills && _gated=0
+    fi
+    if [[ "$_gated" != "0" ]]; then
+        echo ""
+        echo "Note: ./bootstrap.sh and sync-skills also write ~/.claude/skills until"
+        echo "      the 'skills' domain is gated in apm_domains.yml. They deploy the"
+        echo "      same source, so re-running either is safe — but only apm-dev-sync"
+        echo "      removes skills you deleted."
+    fi
 fi

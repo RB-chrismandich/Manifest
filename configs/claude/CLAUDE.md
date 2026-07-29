@@ -124,8 +124,8 @@ Common entry points: `/git-commit`, `/project-verify`, `/refactor-<lang>`,
 (`--enable-graphify`, default on) but excluded from `manifest parallel-agent`
 counts.
 
-**CLI tool** (installed to `~/.local/bin/`): `sync-skills` — push
-`.apm/skills/` changes to all home targets (daily skill dev workflow).
+**CLI tool** (installed to `~/.local/bin/`): `apm-dev-sync` — push
+`.apm/skills/` to every home (apm owns skills; `sync-skills` stands down).
 
 ### Auto-Triggered Skill
 

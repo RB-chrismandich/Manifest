@@ -296,8 +296,8 @@ are toggled via `--enable-graphify`/`--disable-graphify` (default: enabled), but
 graphify never participates in `manifest parallel-agent` consensus and is not counted
 toward orchestration readiness.
 
-**CLI tool** (installed to `~/.local/bin/`): `sync-skills` — push
-`.apm/skills/` changes to all home targets (daily skill dev workflow).
+**CLI tool** (installed to `~/.local/bin/`): `apm-dev-sync` — push
+`.apm/skills/` to every home (apm owns skills; `sync-skills` stands down).
 
 ### Auto-Triggered Rule
 

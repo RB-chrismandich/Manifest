@@ -200,3 +200,78 @@ teardown() {
     assert_success
     [ -d "$SANDBOX/stage-alt/manifest-skills" ]
 }
+
+# --- root resolution diagnostics ---------------------------------------------
+#
+# A machine with two Manifest clones resolves ROOT to a real repo that simply has
+# no .apm/skills. "is this a Manifest checkout?" is unanswerable feedback there;
+# the message must name the path's ORIGIN and the override.
+
+@test "a wrong root names where the path came from and how to override it" {
+    export MANIFEST_ROOT="$SANDBOX/other-clone"
+    mkdir -p "$MANIFEST_ROOT"
+
+    run "$SCRIPT"
+    assert_failure
+    assert_output --partial "no .apm/skills"
+    assert_output --partial "resolved from MANIFEST_ROOT"
+    assert_output --partial "MANIFEST_ROOT=/path/to/Manifest apm-dev-sync"
+}
+
+@test "a pre-migration checkout is named as such, not as a non-checkout" {
+    export MANIFEST_ROOT="$SANDBOX/old-clone"
+    mkdir -p "$MANIFEST_ROOT/.skillshare/skills"
+
+    run "$SCRIPT"
+    assert_failure
+    assert_output --partial "predates the .apm migration"
+}
+
+@test "a cwd-derived root is reported as cwd-derived, not as MANIFEST_ROOT" {
+    unset MANIFEST_ROOT
+    local clone="$SANDBOX/cwd-clone"
+    mkdir -p "$clone"
+    git -C "$clone" init -q
+    git -C "$clone" config user.email t@example.com
+    git -C "$clone" config user.name t
+
+    run bash -c "cd '$clone' && '$SCRIPT'"
+    assert_failure
+    assert_output --partial "resolved from the git checkout enclosing"
+}
+
+# --- the double-writer note tracks the registry, not the migration's mid-state -
+
+@test "the double-writer note is printed while the skills domain is ungated" {
+    unset APM_DEV_SYNC_QUIET
+    export MANIFEST_APM_DOMAINS="$SANDBOX/domains-empty.yml"
+    printf 'domains: []\n' > "$MANIFEST_APM_DOMAINS"
+    install_domains_lib
+
+    run "$SCRIPT"
+    assert_success
+    assert_output --partial "also write ~/.claude/skills"
+}
+
+@test "the double-writer note is suppressed once apm owns the skills domain" {
+    # Post-SC-006 the note is false: bootstrap.sh and sync-skills stand down, so
+    # naming them as writers sends the reader to a command that will not refresh
+    # their skills.
+    unset APM_DEV_SYNC_QUIET
+    export MANIFEST_APM_DOMAINS="$SANDBOX/domains-skills.yml"
+    printf 'domains:\n  - skills\n' > "$MANIFEST_APM_DOMAINS"
+    install_domains_lib
+
+    run "$SCRIPT"
+    assert_success
+    assert_output --partial "skill(s) deployed"
+    refute_output --partial "also write ~/.claude/skills"
+}
+
+# The library is discovered under the resolved ROOT, so the fake checkout needs
+# the real one — a stub would assert nothing about ownership resolution.
+install_domains_lib() {
+    mkdir -p "$MANIFEST_ROOT/configs/claude/scripts"
+    cp "$BATS_TEST_DIRNAME/../../configs/claude/scripts/apm_domains_lib.sh" \
+        "$MANIFEST_ROOT/configs/claude/scripts/apm_domains_lib.sh"
+}

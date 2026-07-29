@@ -28,9 +28,14 @@ RULE_FILE="$REPO_ROOT/configs/cursor/rules/orchestration.mdc"
     grep -qF '**Graphify** is a managed *tool*, not a parallel-orchestration agent' "$RULE_FILE"
 }
 
-@test "orchestration.mdc contains the sync-skills CLI note" {
-    grep -qF 'sync-skills' "$RULE_FILE"
-    grep -qF 'daily skill dev workflow' "$RULE_FILE"
+@test "orchestration.mdc contains the skill-sync CLI note" {
+    # Names apm-dev-sync, not sync-skills: apm owns the `skills` domain since
+    # SC-006, so sync-skills stands down and pointing a reader at it hands them a
+    # command that will not refresh their skills. The old assertion pinned the
+    # phrase "daily skill dev workflow" to sync-skills and would have preserved
+    # exactly that error.
+    grep -qF 'apm-dev-sync' "$RULE_FILE"
+    grep -qF '`sync-skills` stands down' "$RULE_FILE"
 }
 
 @test "orchestration.mdc contains the CONSIDER Parallel Agents For tier" {
