@@ -980,3 +980,202 @@ class TestCLIFlagsAntigravity:
         assert "--antigravity-model" in result.stdout
         assert "--antigravity-only" in result.stdout
         assert "--no-antigravity" in result.stdout
+
+
+async def _wrap(proc):
+    """Return *proc* from an async factory — lets a test hand
+    asyncio.create_subprocess_exec a ready-made fake via a lambda."""
+    return proc
+
+
+class TestDevinCreditCheck:
+    """check_credits' devin probe.
+
+    Devin is the only agent whose probe spends no tokens: `devin models list`
+    prints the account catalog when logged in and fails with "Not logged in."
+    when it is not, so account state is readable without an inference call.
+    That also makes it the one probe with a `not_authenticated` status, which
+    is new vocabulary these tests exist to pin.
+    """
+
+    @staticmethod
+    def _only_devin_on_path(monkeypatch):
+        monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+        monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
+        monkeypatch.setattr(
+            "agents.orchestrator.shutil.which",
+            lambda cmd: "/opt/homebrew/bin/devin" if cmd == "devin" else None,
+        )
+
+    @pytest.mark.asyncio
+    async def test_check_credits_devin_available(self, tmp_path, monkeypatch):
+        """rc=0 with a catalog on stdout -> available."""
+        self._only_devin_on_path(monkeypatch)
+
+        class FakeProc:
+            returncode = 0
+
+            async def communicate(self):
+                return (b"Claude Opus 4.8\nGPT-5.5\nSWE-1.6\n", b"")
+
+        monkeypatch.setattr(
+            asyncio, "create_subprocess_exec", lambda *a, **k: _wrap(FakeProc())
+        )
+        config = Config(config_path=str(tmp_path / "nonexistent.yml"))
+        results = await check_credits(config)
+        assert results["devin"] == {"status": "available"}
+
+    @pytest.mark.asyncio
+    async def test_check_credits_devin_not_authenticated(self, tmp_path, monkeypatch):
+        """Logged out is its OWN status, not a generic error: `devin models
+        list` exits 1 saying "Not logged in.", which is actionable
+        (`devin auth login`) rather than a failure to investigate."""
+        self._only_devin_on_path(monkeypatch)
+
+        class FakeProc:
+            returncode = 1
+
+            async def communicate(self):
+                return (b"", b"Error: Not logged in. Run `devin auth login`.")
+
+        monkeypatch.setattr(
+            asyncio, "create_subprocess_exec", lambda *a, **k: _wrap(FakeProc())
+        )
+        config = Config(config_path=str(tmp_path / "nonexistent.yml"))
+        results = await check_credits(config)
+        assert results["devin"]["status"] == "not_authenticated"
+        assert "Not logged in" in results["devin"]["error"]
+
+    @pytest.mark.asyncio
+    async def test_check_credits_devin_not_installed(self, tmp_path, monkeypatch):
+        """Absent binary -> not_installed, never a probe attempt."""
+        monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+        monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
+        monkeypatch.setattr("agents.orchestrator.shutil.which", lambda cmd: None)
+        config = Config(config_path=str(tmp_path / "nonexistent.yml"))
+        results = await check_credits(config)
+        assert results["devin"] == {"status": "not_installed"}
+
+    @pytest.mark.asyncio
+    async def test_check_credits_devin_probes_models_not_auth_status(
+        self, tmp_path, monkeypatch
+    ):
+        """The false-green guard. `devin auth status` prints "Not logged in."
+        and still EXITS 0 (measured, devin 3000.2.17), so a probe built on it
+        could only ever report green. This pins the actual argv.
+        """
+        self._only_devin_on_path(monkeypatch)
+        seen = []
+
+        class FakeProc:
+            returncode = 0
+
+            async def communicate(self):
+                return (b"catalog", b"")
+
+        async def fake_exec(*args, **kwargs):
+            seen.append(list(args))
+            return FakeProc()
+
+        monkeypatch.setattr(asyncio, "create_subprocess_exec", fake_exec)
+        config = Config(config_path=str(tmp_path / "nonexistent.yml"))
+        await check_credits(config)
+
+        devin_calls = [argv for argv in seen if argv and argv[0] == "devin"]
+        assert devin_calls == [["devin", "models", "list"]]
+        assert not any("auth" in argv for argv in devin_calls)
+
+    @pytest.mark.asyncio
+    async def test_check_credits_devin_reads_stdout_when_stderr_is_empty(
+        self, tmp_path, monkeypatch
+    ):
+        """Some CLIs print the login error on stdout. The probe concatenates
+        both streams before classifying, so a stdout-only message must still
+        classify as not_authenticated rather than a bare error."""
+        self._only_devin_on_path(monkeypatch)
+
+        class FakeProc:
+            returncode = 1
+
+            async def communicate(self):
+                return (b"Not logged in.", b"")
+
+        monkeypatch.setattr(
+            asyncio, "create_subprocess_exec", lambda *a, **k: _wrap(FakeProc())
+        )
+        config = Config(config_path=str(tmp_path / "nonexistent.yml"))
+        results = await check_credits(config)
+        assert results["devin"]["status"] == "not_authenticated"
+
+    @pytest.mark.asyncio
+    async def test_check_credits_devin_hang_times_out(self, tmp_path, monkeypatch):
+        """Mirrors the codex/agy hang guards (issue #307): the timeout must
+        cover communicate(), not just the spawn."""
+        self._only_devin_on_path(monkeypatch)
+
+        class HangingProc:
+            def __init__(self):
+                self.killed = False
+                self.returncode = None
+
+            async def communicate(self):
+                await asyncio.sleep(3600)
+
+            def kill(self):
+                self.killed = True
+
+            async def wait(self):
+                return 0
+
+        proc = HangingProc()
+
+        async def fake_exec(*args, **kwargs):
+            return proc
+
+        monkeypatch.setattr(asyncio, "create_subprocess_exec", fake_exec)
+        config = Config(config_path=str(tmp_path / "nonexistent.yml"))
+        results = await check_credits(config, probe_timeout=0.1)
+        assert results["devin"]["status"] == "error"
+        assert "timed out" in results["devin"]["error"]
+        assert proc.killed is True
+
+
+class TestCLIFlagsDevin:
+    """Devin's CLI surface is roster-gated, unlike the other five agents.
+
+    With no agent_roster.yml, cli.py falls back to _FALLBACK_ROSTER, which
+    lists only the DEFAULT-ON agents. Devin's flags are absent there by
+    design: with no registry, ServiceConfig.is_enabled() has no
+    `enabled_default` to read and returns True, so advertising the flags would
+    put an opt-in, login-gated agent into the panel on exactly the machines
+    that never opted in.
+    """
+
+    SCRIPT = str(REPO_ROOT / "configs" / "claude" / "scripts" / "parallel_agent.py")
+    CONFIG_DIR = str(REPO_ROOT / "configs" / "claude" / "config")
+
+    @_REQUIRES_MANIFEST_RUNTIME
+    def test_help_omits_devin_flags_without_a_roster(self):
+        result = subprocess.run(
+            [sys.executable, self.SCRIPT, "--help"],
+            capture_output=True,
+            text=True,
+            env=_stub_home_env(),
+        )
+        assert "--antigravity-only" in result.stdout  # control: fallback works
+        assert "--devin-only" not in result.stdout
+        assert "--no-devin" not in result.stdout
+
+    @_REQUIRES_MANIFEST_RUNTIME
+    def test_help_lists_devin_flags_with_the_repo_roster(self):
+        env = dict(_stub_home_env())
+        env["MANIFEST_CONFIG_DIR"] = self.CONFIG_DIR
+        result = subprocess.run(
+            [sys.executable, self.SCRIPT, "--help"],
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+        assert "--devin-model" in result.stdout
+        assert "--devin-only" in result.stdout
+        assert "--no-devin" in result.stdout
