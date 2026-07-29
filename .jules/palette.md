@@ -87,3 +87,12 @@ inactive, or non-blocking, thus reducing false-error anxiety during status comma
 **Action:** Use variant bash functions like `check_optional_file` rather than overriding base
 `check_file` behavior to ensure global required errors aren't inadvertently suppressed, applying
 standard semantic formatting for DX terminal outputs.
+
+## 2026-07-29 - Semantic Colors for CLI Standard Errors
+
+**Learning:** When errors are printed to the terminal without distinct red color
+formatting, they easily blend in with standard text, reducing the user's ability
+to quickly spot failures in busy output streams.
+**Action:** Consistently apply semantic red styling (`\033[0;31m`) to standard
+error messages in bash scripts to ensure they stand out visually and draw
+immediate attention.

@@ -19,7 +19,7 @@
 # Read-only. Consumed by /env-check and /config-audit.
 set -euo pipefail
 
-err() { printf 'apm_ownership_report.sh: %s\n' "$*" >&2; }
+err() { if [[ -t 2 ]]; then printf '\033[0;31m%s\033[0m\n' "apm_ownership_report.sh: $*" >&2; else printf '%s\n' "apm_ownership_report.sh: $*" >&2; fi; }
 
 if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
     cat << 'USAGE'

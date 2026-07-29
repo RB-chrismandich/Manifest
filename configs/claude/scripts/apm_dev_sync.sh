@@ -26,7 +26,7 @@
 # would silently stop working.
 set -euo pipefail
 
-err() { printf 'apm-dev-sync: %s\n' "$*" >&2; }
+err() { if [[ -t 2 ]]; then printf '\033[0;31m%s\033[0m\n' "apm-dev-sync: $*" >&2; else printf '%s\n' "apm-dev-sync: $*" >&2; fi; }
 
 if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
     cat << 'USAGE'

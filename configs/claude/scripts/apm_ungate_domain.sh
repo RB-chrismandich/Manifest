@@ -29,7 +29,7 @@
 # Dry-run by default, like every other destructive tool in this repo.
 set -euo pipefail
 
-err() { printf 'apm_ungate_domain.sh: %s\n' "$*" >&2; }
+err() { if [[ -t 2 ]]; then printf '\033[0;31m%s\033[0m\n' "apm_ungate_domain.sh: $*" >&2; else printf '%s\n' "apm_ungate_domain.sh: $*" >&2; fi; }
 
 if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
     cat << 'USAGE'

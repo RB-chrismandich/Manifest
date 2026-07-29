@@ -30,7 +30,7 @@
 
 set -euo pipefail
 
-err() { echo "apm_install_verify.sh: $*" >&2; }
+err() { if [[ -t 2 ]]; then printf '\033[0;31m%s\033[0m\n' "apm_install_verify.sh: $*" >&2; else printf '%s\n' "apm_install_verify.sh: $*" >&2; fi; }
 
 usage() {
     cat << 'USAGE'
