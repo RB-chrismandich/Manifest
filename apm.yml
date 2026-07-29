@@ -12,6 +12,12 @@
 # would replace one shared tree with five independent copies free to drift apart,
 # which is the outcome FR-033 exists to prevent. Do not "fix" this by adding them.
 #
+# devin is excluded for a different reason again: it has no skills directory to
+# target. The Devin CLI reads ~/.claude/skills directly (config.json
+# read_config_from.claude, pinned by deploy_devin_config), and a second tree
+# under ~/.config/devin/skills would register every skill twice —
+# /devin:<name> beside /claude:<name>. Do not add it as a target.
+#
 # antigravity is excluded deliberately and separately (E2): apm reports
 # `antigravity (instructions, hooks)` unsupported at user scope, and those are
 # exactly the two primitive classes deploy_antigravity_configs() already declines

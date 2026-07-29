@@ -29,6 +29,8 @@ Manifest deploys a parallel LLM agent orchestration system that enables Claude C
 - **Claude CLI**: Deep reasoning and security analysis
 - **Codex CLI**: Terminal-based coding agent with sandbox execution
 - **Antigravity (agy)**: Independent IDE-backed agent for cross-family verification
+- **Devin CLI** *(opt-in)*: Cognition's terminal agent, off by default — enable with
+  `./bootstrap.sh --enable-devin` after `devin auth login`
 
 These agents run in parallel, analyze the same task from different perspectives,
 and their outputs are synthesized with consensus scoring to provide higher-quality
@@ -207,7 +209,8 @@ Analyzes Python codebases for security, architecture, and code quality issues.
 
 **What it does:**
 
-1. Runs all 5 agents in parallel (Cursor, Gemini, Claude, Codex, Antigravity)
+1. Runs every enabled agent in parallel (Cursor, Gemini, Claude, Codex, Antigravity,
+   plus Devin when enabled)
 2. Each agent analyzes for: security vulnerabilities, bugs, performance issues
 3. Synthesizes results with consensus scoring
 4. Validates against Tier 1 (security) and Tier 2 (quality) checks
@@ -290,6 +293,8 @@ services:
     enabled: true  # Enable/disable Codex CLI
   antigravity:
     enabled: true  # Enable/disable Antigravity CLI (agy)
+  devin:
+    enabled: false  # Devin CLI — opt-in; needs `devin auth login`
   git_cli:
     github:
       enabled: auto  # auto | true | false (auto-detect if installed)
@@ -336,6 +341,10 @@ Choose models based on task complexity:
 | Balanced | gpt-5.1-codex | claude-sonnet-4-6 | gemini-3-flash-preview | gpt-5.4 | Gemini 3.5 Flash (High) | Code review |
 | Maximum | gpt-5.2 | claude-opus-4-8 | gemini-3-pro-preview | gpt-5.5 | Claude Opus 4.6 (Thinking) | Security analysis |
 | Security | - | claude-fable-5 | - | - | - | Critical security tasks |
+
+Devin is absent from this table on purpose: its catalog is login-gated, so nothing
+is pinned. `--devin-model` defaults to `auto` (no `--model` flag) and otherwise
+passes your value through verbatim.
 
 **See**: [Configuration Guide](CONFIGURATION.md) for all options
 

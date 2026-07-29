@@ -108,6 +108,50 @@ class TestServiceConfig:
         svc = ServiceConfig(config_path=str(tmp_path / "none.yml"))
         assert svc.is_enabled("unknown_service") is True
 
+    def test_service_absent_from_yaml_falls_back_to_roster_default(
+        self, tmp_path, monkeypatch
+    ):
+        """A services.yml written before an agent existed must not silently
+        ENABLE that agent. Without the roster fallback, every machine that has
+        not re-bootstrapped would put an opt-in, login-gated agent into the
+        panel un-asked — and an unauthenticated agent errors rather than
+        abstaining, which drags the consensus metric down.
+        """
+        roster = tmp_path / "agent_roster.yml"
+        roster.write_text(
+            "agents:\n"
+            "  devin:\n"
+            "    name: devin\n"
+            "    enabled_default: false\n"
+            "  cursor:\n"
+            "    name: cursor\n"
+            "    enabled_default: true\n"
+        )
+        monkeypatch.setenv("MANIFEST_CONFIG_DIR", str(tmp_path))
+
+        cfg = tmp_path / "services.yml"
+        cfg.write_text("services:\n  claude:\n    enabled: true\n")
+        svc = ServiceConfig(config_path=str(cfg))
+
+        assert svc.is_enabled("devin") is False  # roster says opt-in
+        assert svc.is_enabled("cursor") is True  # roster says default-on
+        assert svc.is_enabled("claude") is True  # explicit in services.yml
+
+    def test_explicit_services_yml_entry_beats_roster_default(
+        self, tmp_path, monkeypatch
+    ):
+        """The roster is only the fallback: a user who turned devin ON in
+        services.yml keeps it on."""
+        roster = tmp_path / "agent_roster.yml"
+        roster.write_text(
+            "agents:\n  devin:\n    name: devin\n    enabled_default: false\n"
+        )
+        monkeypatch.setenv("MANIFEST_CONFIG_DIR", str(tmp_path))
+
+        cfg = tmp_path / "services.yml"
+        cfg.write_text("services:\n  devin:\n    enabled: true\n")
+        assert ServiceConfig(config_path=str(cfg)).is_enabled("devin") is True
+
     def test_graphify_enabled_by_default(self, tmp_path):
         # graphify is a default-enabled managed tool; with no file it resolves
         # enabled via the unknown-service default (it is NOT in the agent-defaults

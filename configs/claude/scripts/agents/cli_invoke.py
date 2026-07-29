@@ -21,6 +21,9 @@ DEFAULT_CLI_PROVIDER_ORDER = (
     "gemini",
     "codex",
     "claude",
+    # Last: devin is login-gated and ships opt-in, so it is the fallback of
+    # last resort when nothing else is on PATH.
+    "devin",
 )
 
 # Providers whose default headless entry reads the prompt from stdin (large payloads).

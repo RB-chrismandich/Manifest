@@ -468,7 +468,13 @@ class CLIAgent(BaseAgent):
         self.model_name = self._resolve_model(model)
 
     def _resolve_model(self, tier: str) -> str | None:
-        """Resolve model tier to full model name. Returns None for 'auto'."""
+        """Resolve model tier to full model name. Returns None for 'auto'.
+
+        A provider with no `model_tiers.<name>` block (devin) passes the
+        requested value through verbatim, so `--devin-model opus` sends
+        `--model opus` — the right behavior for a CLI that takes real model
+        names and whose catalog this repo cannot enumerate offline.
+        """
         if tier == "auto":
             return None
         resolved = self.config.get(f"model_tiers.{self.name}.{tier}")

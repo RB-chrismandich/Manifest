@@ -7,7 +7,7 @@ alwaysApply: true
 # Agent Orchestration Guide
 
 This rule defines how the Cursor agent should leverage parallel LLM agents
-(Gemini CLI, Cursor Agent, Claude CLI, Codex, Antigravity) for cross-verification, planning, and validation.
+(Gemini CLI, Cursor Agent, Claude CLI, Codex, Antigravity, Devin) for cross-verification, planning, and validation.
 
 <!-- Adapted from: .claude/CLAUDE.md -->
 
@@ -78,11 +78,14 @@ manifest parallel-agent --json "Your question here"
 | `--gemini-only` | Run only Gemini CLI |
 | `--claude-only` | Run only Claude CLI |
 | `--antigravity-only` | Run only Antigravity (agy) |
+| `--devin-only` | Run only Devin (opt-in: `--enable-devin` + `devin auth login`) |
 | `--no-claude` | Disable Claude CLI |
 | `--no-antigravity` | Disable Antigravity for this run |
+| `--no-devin` | Disable Devin for this run |
 | `--cursor-model <tier>` | Cursor model: mini, flash, advanced, auto |
 | `--claude-model <tier>` | Claude model: haiku, sonnet, opus, fable |
 | `--antigravity-model <tier>` | Antigravity model: mini, flash, advanced |
+| `--devin-model <name>` | Devin model: verbatim name (default `auto` = no pin) |
 | `--timeout <sec>` | Timeout per agent (default: 120) |
 
 ### Model Selection

@@ -220,12 +220,39 @@ check_codex_auth() {
 # kill_tree: a plain `kill $pid` orphans grandchildren (e.g. a CLI's node
 # workers), and an orphan still holding our stdout pipe would re-introduce the
 # very stall we're bounding.
-_antigravity_kill_tree() {
+_auth_kill_tree() {
     local pid="$1" child
     for child in $(pgrep -P "$pid" 2> /dev/null); do
-        _antigravity_kill_tree "$child"
+        _auth_kill_tree "$child"
     done
     kill -9 "$pid" 2> /dev/null
+}
+
+# _auth_bounded_probe SECONDS CMD [ARG...] -> exit status of CMD, or non-zero
+# if it outlived SECONDS. Prefer timeout(1)/gtimeout(1) (TIMEOUT_CMD, set by
+# initialize_platform_runtime); otherwise fall back to a background+kill
+# watchdog, because bare `timeout` is absent on stock macOS and gtimeout is
+# not guaranteed either (see agy-batchD-groundtruth.md).
+_auth_bounded_probe() {
+    local secs="$1"
+    shift
+    if [[ -n "$TIMEOUT_CMD" ]]; then
+        "$TIMEOUT_CMD" "$secs" "$@" &> /dev/null
+        return $?
+    fi
+
+    "$@" &> /dev/null &
+    local cmd_pid=$!
+    {
+        sleep "$secs"
+        _auth_kill_tree "$cmd_pid"
+    } &
+    local watcher_pid=$!
+    wait "$cmd_pid" 2> /dev/null
+    local rc=$?
+    _auth_kill_tree "$watcher_pid" 2> /dev/null
+    wait "$watcher_pid" 2> /dev/null
+    return "$rc"
 }
 
 # Run `agy models` bounded to 5s. `agy models` lists models only when logged
@@ -235,23 +262,7 @@ _antigravity_kill_tree() {
 # hanging agy can't stall bootstrap — bare `timeout` is absent on stock macOS
 # and gtimeout is not guaranteed either (see agy-batchD-groundtruth.md).
 _antigravity_models_bounded() {
-    if [[ -n "$TIMEOUT_CMD" ]]; then
-        "$TIMEOUT_CMD" 5 agy models &> /dev/null
-        return $?
-    fi
-
-    agy models &> /dev/null &
-    local cmd_pid=$!
-    {
-        sleep 5
-        _antigravity_kill_tree "$cmd_pid"
-    } &
-    local watcher_pid=$!
-    wait "$cmd_pid" 2> /dev/null
-    local rc=$?
-    _antigravity_kill_tree "$watcher_pid" 2> /dev/null
-    wait "$watcher_pid" 2> /dev/null
-    return "$rc"
+    _auth_bounded_probe 5 agy models
 }
 
 # Check Antigravity (agy) CLI authentication.
@@ -284,6 +295,42 @@ check_antigravity_auth() {
     echo "  (it ships via the IDE, or 'agy install'). To authenticate:"
     echo ""
     echo -e "    ${CYAN}agy${NC}  # launch the CLI/IDE session and sign in when prompted"
+    echo ""
+    return 1
+}
+
+# Check Devin CLI authentication.
+# `devin auth status` is NOT usable as the signal: it prints "Not logged in."
+# and still exits 0 (measured, devin 3000.2.17) — a check that can only ever
+# report green. `devin models list` exits 1 with "Error: Not logged in." when
+# logged out and prints the account catalog when logged in, so it is the
+# honest probe. Bounded like agy's: an auth-blocked CLI must not stall
+# bootstrap.
+check_devin_auth() {
+    if [[ "${ENABLE_DEVIN:-false}" == false ]]; then
+        return 0
+    fi
+
+    print_step "Checking Devin CLI authentication..."
+
+    if ! command_exists devin; then
+        print_warning "Devin CLI not installed - skipping auth check"
+        return 1
+    fi
+
+    if _auth_bounded_probe 15 devin models list; then
+        print_success "Devin CLI is authenticated"
+        return 0
+    fi
+
+    print_error "Devin CLI is NOT authenticated"
+    echo ""
+    echo "  Devin is login-gated behind a Cognition account. To authenticate:"
+    echo ""
+    echo -e "    ${CYAN}devin auth login${NC}"
+    echo ""
+    echo "  Until then, leave it disabled (--disable-devin): an unauthenticated"
+    echo "  agent errors in the parallel-agent panel instead of abstaining."
     echo ""
     return 1
 }
@@ -392,6 +439,9 @@ setup_manifest_state_dirs() {
         "$MANIFEST_STATE_DIR/antigravity"
         "$MANIFEST_STATE_DIR/antigravity/outputs"
         "$MANIFEST_STATE_DIR/antigravity/tmp"
+        "$MANIFEST_STATE_DIR/devin"
+        "$MANIFEST_STATE_DIR/devin/outputs"
+        "$MANIFEST_STATE_DIR/devin/tmp"
     )
 
     for dir in "${state_dirs[@]}"; do

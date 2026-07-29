@@ -1,6 +1,6 @@
-# agent_roster.yml — single enumeration of the 5-agent fleet
-# (claude/gemini/cursor/codex/antigravity). This is the canonical source for
-# binary/home_dir/auth_check facts; consumers in Tasks 24-26.
+# agent_roster.yml — single enumeration of the 6-agent fleet
+# (claude/gemini/cursor/codex/antigravity/devin). This is the canonical source
+# for binary/home_dir/auth_check facts; consumers in Tasks 24-26.
 #
 # This registry EXTRACTS facts already declared elsewhere — it does not
 # replace them:
@@ -23,12 +23,26 @@
 #   name             agent key, repeated as a value for lookup convenience
 #   binary           CLI executable name (must match parallel_agent.yml
 #                    cli_agents[name].binary — enforced by drift-guard test)
-#   home_dir         this agent's deployed config home, always `~/.<name>`
+#   home_dir         this agent's deployed config home. `~/.<name>` for the
+#                    five original agents; devin is the exception — its CLI
+#                    reads `~/.config/devin` (XDG), and `~/.devin` is already
+#                    taken by the Devin *Desktop* app's data folder
+#                    (product.json dataFolderName), so deploying there would
+#                    collide with an unrelated product.
 #   prompt_args      argv template for passing the prompt (default trailing
 #                    positional is spelled out explicitly here, not omitted)
 #   model_args       argv template appended only when a model is resolved
 #   auth_check       non-interactive command that verifies authentication
 #   enabled_default  whether bootstrap.sh enables this agent out of the box
+#   skills_sync      whether sync-skills.sh/bootstrap copy `.apm/skills` into
+#                    `home_dir/skills`. False only for devin: the Devin CLI
+#                    already discovers `~/.claude/skills` natively (gated by
+#                    its config.json `read_config_from.claude`), so a second
+#                    copy does not add a skill — it registers every skill
+#                    twice under two namespaces (`/devin:env-check` AND
+#                    `/claude:env-check`, measured 2026-07-29 against devin
+#                    3000.2.17), halving the signal density of the skill
+#                    listing. See deploy_devin_config() in bootstrap/lib/deploy.sh.
 
 agents:
   claude:
@@ -39,6 +53,7 @@ agents:
     model_args: ["--model", "{model}"]
     auth_check: "claude auth status"
     enabled_default: true
+    skills_sync: true
 
   gemini:
     name: gemini
@@ -48,6 +63,7 @@ agents:
     model_args: ["-m", "{model}"]
     auth_check: "gemini auth status"
     enabled_default: true
+    skills_sync: true
 
   cursor:
     name: cursor
@@ -57,6 +73,7 @@ agents:
     model_args: ["--model", "{model}"]
     auth_check: "cursor-agent --version"
     enabled_default: true
+    skills_sync: true
 
   codex:
     name: codex
@@ -66,6 +83,7 @@ agents:
     model_args: ["--model", "{model}"]
     auth_check: "codex login status"
     enabled_default: true
+    skills_sync: true
 
   antigravity:
     name: antigravity
@@ -75,3 +93,29 @@ agents:
     model_args: ["--model", "{model}"]
     auth_check: "agy models"
     enabled_default: true
+    skills_sync: true
+
+  # Devin CLI (Cognition). Facts below probed live against devin 3000.2.17 on
+  # 2026-07-29, not inferred:
+  #   - `devin -p "<prompt>"` is the documented non-interactive mode
+  #     (`-p, --print [<PROMPT>]` — "Print response and exit").
+  #   - auth_check is `devin models list`, NOT `devin auth status`: the latter
+  #     prints "Not logged in." and still exits 0 (false green), while
+  #     `devin models list` exits 1 with "Error: Not logged in." when logged
+  #     out and lists the account catalog when logged in.
+  #   - home_dir is `~/.config/devin` (`devin --help`: "Override the default
+  #     user config file (~/.config/devin/config.json)"), NOT `~/.devin`.
+  #   - enabled_default is false (the only agent that ships off): Devin is a
+  #     paid, login-gated product, and an unauthenticated agent in the panel
+  #     does not abstain — it returns an error that drags the consensus metric
+  #     down into a verdict that is not a finding. Turn it on deliberately
+  #     with `./bootstrap.sh --enable-devin` after `devin auth login`.
+  devin:
+    name: devin
+    binary: devin
+    home_dir: ~/.config/devin
+    prompt_args: ["-p", "{prompt}"]
+    model_args: ["--model", "{model}"]
+    auth_check: "devin models list"
+    enabled_default: false
+    skills_sync: false

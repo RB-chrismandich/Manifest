@@ -6,7 +6,7 @@ REPO = Path(__file__).resolve().parents[2]
 ROSTER = REPO / "configs/claude/config/agent_roster.yml"
 PARALLEL_AGENT = REPO / "configs/claude/config/parallel_agent.yml"
 
-EXPECTED_AGENTS = {"claude", "gemini", "cursor", "codex", "antigravity"}
+EXPECTED_AGENTS = {"claude", "gemini", "cursor", "codex", "antigravity", "devin"}
 REQUIRED_KEYS = {
     "name",
     "binary",
@@ -15,6 +15,7 @@ REQUIRED_KEYS = {
     "model_args",
     "auth_check",
     "enabled_default",
+    "skills_sync",
 }
 
 
@@ -32,11 +33,11 @@ def test_roster_exists_and_parses():
     assert "agents" in data
 
 
-def test_all_five_agents_present():
+def test_all_roster_agents_present():
     assert set(load_roster()["agents"]) == EXPECTED_AGENTS
 
 
-def test_every_entry_has_all_six_keys():
+def test_every_entry_has_all_required_keys():
     for name, entry in load_roster()["agents"].items():
         assert set(entry) == REQUIRED_KEYS, name
 
@@ -56,6 +57,37 @@ def test_enabled_default_is_bool():
         assert isinstance(entry["enabled_default"], bool), name
 
 
+def test_skills_sync_is_bool():
+    for name, entry in load_roster()["agents"].items():
+        assert isinstance(entry["skills_sync"], bool), name
+
+
+def test_only_devin_opts_out_of_skill_sync():
+    """devin is the one agent that must NOT receive a copy of the skills:
+    its CLI already discovers ~/.claude/skills, so a second copy registers
+    every skill twice (/devin:<name> beside /claude:<name>) instead of
+    adding one. Any other agent flipping to false is a mistake."""
+    roster = load_roster()["agents"]
+    opted_out = {n for n, e in roster.items() if not e["skills_sync"]}
+    assert opted_out == {"devin"}
+
+
+def test_devin_home_is_xdg_config_not_dot_devin():
+    """~/.devin is the Devin *Desktop* app's data folder (its product.json
+    dataFolderName). The CLI reads ~/.config/devin, and deploying to the
+    former would write into an unrelated product's tree."""
+    devin = load_roster()["agents"]["devin"]
+    assert devin["home_dir"] == "~/.config/devin"
+
+
+def test_devin_auth_check_is_not_the_false_green_command():
+    """`devin auth status` prints "Not logged in." and still exits 0, so it
+    can only ever report green. `devin models list` exits non-zero when
+    logged out."""
+    devin = load_roster()["agents"]["devin"]
+    assert devin["auth_check"] == "devin models list"
+
+
 def test_prompt_args_and_model_args_are_lists():
     for name, entry in load_roster()["agents"].items():
         assert isinstance(entry["prompt_args"], list), name
@@ -63,7 +95,7 @@ def test_prompt_args_and_model_args_are_lists():
 
 
 # Drift guard: parallel_agent.yml's cli_agents[agent].binary must match
-# agent_roster.yml's agents[agent].binary for all 5 agents. parallel_agent.yml
+# agent_roster.yml's agents[agent].binary for every roster agent. parallel_agent.yml
 # keeps its own tuning tables (model_tiers, rate limits, credit_fallback) —
 # this is not a migration, just a guard that the two files agree on the fact
 # they share.

@@ -6,7 +6,7 @@ Used by ``/spec-implement-loop`` on platforms without native Task sub-agents
 body; this script prepends the role charter and invokes the configured CLI.
 
 Environment:
-  CDDL_INVOKE_PROVIDER — provider key (antigravity, cursor, gemini, codex, claude)
+  CDDL_INVOKE_PROVIDER — provider key (antigravity, cursor, gemini, codex, claude, devin)
   CDDL_INVOKE_CLI      — binary override (e.g. agy, cursor-agent)
 
 Usage:

@@ -252,3 +252,72 @@ EOF
     # If claude leaked into the secondary loop this would be 2.
     [ "$(grep -c "rsync " "$RSYNC_LOG")" -eq 1 ]
 }
+
+@test "an agent with skills_sync: false is skipped (devin inherits ~/.claude/skills)" {
+    # Devin's CLI already discovers ~/.claude/skills, so syncing a copy into
+    # its home does not add a skill — it registers every skill a SECOND time
+    # (/devin:<name> beside /claude:<name>). The roster expresses that with
+    # `skills_sync: false`; this pins that the sync loop honors it even though
+    # the home directory exists.
+    export MANIFEST_AGENT_ROSTER="$SANDBOX/agent_roster.yml"
+    cat > "$MANIFEST_AGENT_ROSTER" << 'EOF'
+agents:
+  claude:
+    name: claude
+    binary: claude
+    home_dir: ~/.claude
+    prompt_args: ["-p", "{prompt}"]
+    model_args: ["--model", "{model}"]
+    auth_check: "claude auth status"
+    enabled_default: true
+    skills_sync: true
+
+  devin:
+    name: devin
+    binary: devin
+    home_dir: ~/.config/devin
+    prompt_args: ["-p", "{prompt}"]
+    model_args: ["--model", "{model}"]
+    auth_check: "devin models list"
+    enabled_default: false
+    skills_sync: false
+EOF
+    mkdir -p "$HOME/.config/devin"
+    run bash "$SCRIPT"
+    assert_success
+    refute_output --partial ".config/devin/skills"
+    ! grep -q ".config/devin/skills" "$RSYNC_LOG"
+    # Only the primary ~/.claude/skills sync ran.
+    [ "$(grep -c "rsync " "$RSYNC_LOG")" -eq 1 ]
+}
+
+@test "skills_sync defaults to true when the roster predates the field" {
+    # An older agent_roster.yml has no skills_sync key at all; every agent in
+    # it must keep syncing, or a stale registry would silently stop deploying
+    # skills to the secondary homes.
+    export MANIFEST_AGENT_ROSTER="$SANDBOX/agent_roster.yml"
+    cat > "$MANIFEST_AGENT_ROSTER" << 'EOF'
+agents:
+  claude:
+    name: claude
+    binary: claude
+    home_dir: ~/.claude
+    prompt_args: ["-p", "{prompt}"]
+    model_args: ["--model", "{model}"]
+    auth_check: "claude auth status"
+    enabled_default: true
+
+  beta:
+    name: beta
+    binary: beta-agent
+    home_dir: ~/.beta
+    prompt_args: ["{prompt}"]
+    model_args: ["--model", "{model}"]
+    auth_check: "beta-agent --version"
+    enabled_default: true
+EOF
+    mkdir -p "$HOME/.beta/skills"
+    PATH="$MOCK_BIN:/usr/bin:/bin" run bash "$SCRIPT"
+    assert_success
+    grep -q ".beta/skills" "$RSYNC_LOG"
+}

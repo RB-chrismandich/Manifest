@@ -64,6 +64,26 @@ services:
       - flash    # Balanced (default)
       - advanced  # Maximum capability
 
+  # Devin CLI - Cognition's terminal coding agent (devin)
+  # Install: brew install --cask devin-cli
+  #          (or curl -fsSL https://cli.devin.ai/install.sh | bash)
+  # Then:    devin auth login
+  # Opt-in (--enable-devin): login-gated behind a paid account, and an
+  # unauthenticated agent errors rather than abstaining from the panel.
+  # Skills are NOT copied into its home — the CLI already reads
+  # ~/.claude/skills natively (config.json read_config_from.claude).
+  devin:
+    enabled: false
+    command: devin
+    description: "Devin CLI for cross-vendor verification (Cognition; multi-model catalog)"
+    model_tiers:
+      - mini     # Lightweight
+      - flash    # Balanced
+      - advanced  # Maximum capability
+      - auto     # Use the account's default model (default)
+    auth:
+      - ~/.local/share/devin/credentials.toml
+
   # Graphify - AI-powered knowledge-graph generator (/graphify skill + CLI)
   # Install: uv tool install graphifyy (handled by bootstrap/lib/install.sh)
   # Default backend is host-agent (uses the running assistant as the LLM; no key required).

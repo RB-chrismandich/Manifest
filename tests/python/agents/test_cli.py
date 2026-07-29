@@ -394,14 +394,26 @@ class TestHyphenatedRosterAgentName:
 
 
 class TestCliFallbackDriftGuard:
-    def test_fallback_roster_names_match_real_registry(self):
+    def test_fallback_roster_names_match_real_default_on_registry_agents(self):
+        """The no-roster-file fallback carries the DEFAULT-ON agents only.
+
+        With no registry, ServiceConfig.is_enabled() has no `enabled_default`
+        to consult and returns True, so an opt-in agent listed here would join
+        the panel on precisely the machines that never opted in.
+        """
         import yaml
         from agents.cli import _FALLBACK_ROSTER
 
         roster_path = REPO_ROOT / "configs" / "claude" / "config" / "agent_roster.yml"
         with open(roster_path, encoding="utf-8") as fh:
-            real_names = set(yaml.safe_load(fh)["agents"])
-        assert set(_FALLBACK_ROSTER) == real_names
+            agents = yaml.safe_load(fh)["agents"]
+        default_on = {n for n, e in agents.items() if e["enabled_default"]}
+        assert set(_FALLBACK_ROSTER) == default_on
+
+    def test_opt_in_agent_is_absent_from_the_no_registry_fallback(self):
+        from agents.cli import _FALLBACK_ROSTER
+
+        assert "devin" not in _FALLBACK_ROSTER
 
     def test_model_tier_defaults_names_match_real_registry(self):
         import yaml

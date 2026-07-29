@@ -27,6 +27,11 @@ set_bootstrap_defaults() {
     ENABLE_CURSOR=true
     ENABLE_CODEX=true
     ENABLE_ANTIGRAVITY=true
+    # devin (Cognition's Devin CLI) — opt-in. It is login-gated behind a paid
+    # account, and an unauthenticated agent does not abstain from the
+    # parallel-agent panel, it errors, which drags the consensus metric down.
+    # Mirrors agent_roster.yml's `devin.enabled_default: false`.
+    ENABLE_DEVIN=false
     ENABLE_GRAPHIFY=true
     ENABLE_SKILLCLAW=false
     ENABLE_PILOTFISH=false
@@ -46,6 +51,7 @@ set_bootstrap_defaults() {
     CURSOR_SET=false
     CODEX_SET=false
     ANTIGRAVITY_SET=false
+    DEVIN_SET=false
     GRAPHIFY_SET=false
     SKILLCLAW_SET=false
     APM_SET=false
@@ -76,6 +82,8 @@ print_bootstrap_help() {
     echo "  --disable-codex     Disable Codex CLI"
     echo "  --enable-antigravity   Enable Antigravity IDE (default: enabled)"
     echo "  --disable-antigravity  Disable Antigravity IDE"
+    echo "  --enable-devin         Enable Devin CLI (default: disabled; needs devin auth login)"
+    echo "  --disable-devin        Disable Devin CLI"
     echo "  --enable-graphify      Enable Graphify knowledge-graph CLI (default: enabled)"
     echo "  --disable-graphify     Disable Graphify knowledge-graph CLI"
     echo "  --enable-apm           Enable the apm (Agent Package Manager) CLI (default: disabled)"
@@ -163,6 +171,16 @@ parse_bootstrap_args() {
             --disable-antigravity)
                 ENABLE_ANTIGRAVITY=false
                 ANTIGRAVITY_SET=true
+                shift
+                ;;
+            --enable-devin)
+                ENABLE_DEVIN=true
+                DEVIN_SET=true
+                shift
+                ;;
+            --disable-devin)
+                ENABLE_DEVIN=false
+                DEVIN_SET=true
                 shift
                 ;;
             --enable-graphify)
@@ -299,6 +317,7 @@ parse_services_config() {
     FILE_CURSOR=""
     FILE_CODEX=""
     FILE_ANTIGRAVITY=""
+    FILE_DEVIN=""
     FILE_GRAPHIFY=""
     FILE_SKILLCLAW=""
     FILE_PILOTFISH=""
@@ -317,6 +336,7 @@ parse_services_config() {
             /^[[:space:]]*cursor:/ { section="cursor"; subsection="" }
             /^[[:space:]]*codex:/ { section="codex"; subsection="" }
             /^[[:space:]]*antigravity:/ { section="antigravity"; subsection="" }
+            /^[[:space:]]*devin:/ { section="devin"; subsection="" }
             /^[[:space:]]*graphify:/ { section="graphify"; subsection="" }
             /^[[:space:]]*skillclaw:/ { section="skillclaw"; subsection="" }
             /^[[:space:]]*apm:/ { section="apm"; subsection="" }
@@ -333,6 +353,7 @@ parse_services_config() {
                 if (section == "cursor") print "FILE_CURSOR=true"
                 if (section == "codex") print "FILE_CODEX=true"
                 if (section == "antigravity") print "FILE_ANTIGRAVITY=true"
+                if (section == "devin") print "FILE_DEVIN=true"
                 if (section == "graphify") print "FILE_GRAPHIFY=true"
                 if (section == "skillclaw") print "FILE_SKILLCLAW=true"
                 if (section == "apm") print "FILE_APM=true"
@@ -349,6 +370,7 @@ parse_services_config() {
                 if (section == "cursor") print "FILE_CURSOR=false"
                 if (section == "codex") print "FILE_CODEX=false"
                 if (section == "antigravity") print "FILE_ANTIGRAVITY=false"
+                if (section == "devin") print "FILE_DEVIN=false"
                 if (section == "graphify") print "FILE_GRAPHIFY=false"
                 if (section == "skillclaw") print "FILE_SKILLCLAW=false"
                 if (section == "apm") print "FILE_APM=false"
@@ -373,7 +395,7 @@ parse_services_config() {
                     val="${val%\"}"
                     val="${val#\"}"
                     case "$key" in
-                        FILE_CLAUDE | FILE_GEMINI | FILE_CURSOR | FILE_CODEX | FILE_ANTIGRAVITY | FILE_GRAPHIFY | FILE_SKILLCLAW | FILE_PILOTFISH | FILE_DEVPANEL | FILE_BROWSER_USE | FILE_SMOKE | FILE_GH | FILE_GLAB)
+                        FILE_CLAUDE | FILE_GEMINI | FILE_CURSOR | FILE_CODEX | FILE_ANTIGRAVITY | FILE_DEVIN | FILE_GRAPHIFY | FILE_SKILLCLAW | FILE_PILOTFISH | FILE_DEVPANEL | FILE_BROWSER_USE | FILE_SMOKE | FILE_GH | FILE_GLAB)
                             printf -v "$key" "%s" "$val"
                             ;;
                     esac
@@ -409,6 +431,10 @@ load_existing_config() {
 
         if [[ "$ANTIGRAVITY_SET" == false && -n "$FILE_ANTIGRAVITY" ]]; then
             ENABLE_ANTIGRAVITY=$FILE_ANTIGRAVITY
+        fi
+
+        if [[ "$DEVIN_SET" == false && -n "$FILE_DEVIN" ]]; then
+            ENABLE_DEVIN=$FILE_DEVIN
         fi
 
         if [[ "$GRAPHIFY_SET" == false && -n "$FILE_GRAPHIFY" ]]; then
@@ -523,6 +549,26 @@ services:
       - mini     # Lightweight
       - flash    # Balanced (default)
       - advanced  # Maximum capability
+
+  # Devin CLI - Cognition's terminal coding agent (devin)
+  # Install: brew install --cask devin-cli
+  #          (or curl -fsSL https://cli.devin.ai/install.sh | bash)
+  # Then:    devin auth login
+  # Opt-in (--enable-devin): login-gated behind a paid account, and an
+  # unauthenticated agent errors rather than abstaining from the panel.
+  # Skills are NOT copied into its home — the CLI already reads
+  # ~/.claude/skills natively (config.json read_config_from.claude).
+  devin:
+    enabled: $ENABLE_DEVIN
+    command: devin
+    description: "Devin CLI for cross-vendor verification (Cognition; multi-model catalog)"
+    model_tiers:
+      - mini     # Lightweight
+      - flash    # Balanced
+      - advanced  # Maximum capability
+      - auto     # Use the account's default model (default)
+    auth:
+      - ~/.local/share/devin/credentials.toml
 
   # Graphify - AI-powered knowledge-graph generator (/graphify skill + CLI)
   # Install: uv tool install graphifyy (handled by bootstrap/lib/install.sh)

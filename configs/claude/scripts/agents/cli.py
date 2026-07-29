@@ -39,6 +39,9 @@ _MODEL_TIER_DEFAULTS = {
     "cursor": "flash",
     "codex": "auto",
     "antigravity": "flash",
+    # "auto" (no --model) — devin's catalog is login-gated, so nothing is
+    # pinned; see parallel_agent.yml model_tiers.devin.
+    "devin": "auto",
 }
 
 # Fallback roster names used only if agent_roster.yml is missing/unreadable
@@ -46,7 +49,15 @@ _MODEL_TIER_DEFAULTS = {
 # depends on the roster being non-empty, so this is the cli.py-level safety
 # net that keeps the 5 shipped agents' flags alive even on a machine that
 # hasn't been re-bootstrapped with agent_roster.yml yet.
-_FALLBACK_ROSTER = {name: {} for name in _MODEL_TIER_DEFAULTS}
+#
+# devin is deliberately NOT here even though it has a tier default above. With
+# no roster file, ServiceConfig.is_enabled() has no `enabled_default` to read
+# and falls back to True — so listing devin would put an opt-in, login-gated
+# agent into the panel on exactly the machines that never opted in. Its flags
+# come back the moment a roster file exists.
+_FALLBACK_ROSTER = {
+    name: {} for name in ("claude", "gemini", "cursor", "codex", "antigravity")
+}
 
 # Historical per-agent flag ordering, pinned so `--help` output stays
 # byte-identical to the pre-refactor hardcoded declarations. The --*-model

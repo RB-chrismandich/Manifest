@@ -694,4 +694,47 @@ async def check_credits(
     else:
         results["codex"] = {"status": "not_installed"}
 
+    # Devin credit check. Unlike the codex/agy probes above this spends no
+    # tokens: `devin models list` prints the account's catalog when logged in
+    # and exits 1 with "Not logged in." when it is not, so the account state
+    # is readable without an inference call. `devin auth status` is NOT usable
+    # here — it prints "Not logged in." and still exits 0.
+    if shutil.which("devin"):
+        try:
+            proc = await asyncio.create_subprocess_exec(
+                "devin",
+                "models",
+                "list",
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            try:
+                stdout, stderr = await asyncio.wait_for(
+                    proc.communicate(), timeout=probe_timeout
+                )
+            except TimeoutError as err:
+                proc.kill()
+                await proc.wait()
+                raise TimeoutError(
+                    f"devin probe timed out after {probe_timeout}s"
+                ) from err
+            combined = (stderr + stdout).decode("utf-8", errors="ignore")
+            lowered = combined.lower()
+
+            if "not logged in" in lowered or "unauthorized" in lowered:
+                results["devin"] = {
+                    "status": "not_authenticated",
+                    "error": combined.strip(),
+                }
+            elif any(p in lowered for p in ("quota", "credit", "rate limit", "429")):
+                results["devin"] = {"status": "quota_exceeded", "error": combined}
+            elif proc.returncode == 0:
+                results["devin"] = {"status": "available"}
+            else:
+                results["devin"] = {"status": "error", "error": combined}
+        except (TimeoutError, Exception) as e:
+            results["devin"] = {"status": "error", "error": str(e)}
+    else:
+        results["devin"] = {"status": "not_installed"}
+
     return results

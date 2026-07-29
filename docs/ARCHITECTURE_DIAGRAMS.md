@@ -77,6 +77,7 @@ flowchart TB
         CLAUDE_API["Claude<br/>(SDK or claude CLI)"]:::external
         CODEX["Codex CLI"]:::external
         AGY["Antigravity CLI (agy)"]:::external
+        DEVIN["Devin CLI (opt-in)"]:::external
         GH["GitHub CLI (gh)"]:::external
         GLAB["GitLab CLI (glab)"]:::external
     end
@@ -164,7 +165,7 @@ flowchart TB
         BASE["BaseAgent<br/>(rate limiting, timeout, fallback)"]:::active
         CLAUDE_AG["ClaudeAgent<br/>(SDK, streaming support)"]:::active
         GEMINI_AG["GeminiAgent<br/>(SDK, dual package support)"]:::active
-        CLI_AG["CLIAgent<br/>(claude | gemini | cursor | codex | antigravity,<br/>config-driven)"]:::active
+        CLI_AG["CLIAgent<br/>(claude | gemini | cursor | codex | antigravity | devin,<br/>config-driven)"]:::active
     end
 
     subgraph "agents/validation.py + synthesis.py"
@@ -246,8 +247,8 @@ flowchart TB
   SDK when package + API key are both present, else OAuth-authenticated CLI binary via CLIAgent,
   else SDK-own-auth (ADC/OAuth), else skip with a warning — never a crashed orchestration
 - **CLIAgent**: Generic YAML-driven subprocess agent; provider variation (claude | gemini |
-  cursor | codex | antigravity) is config data in the `cli_agents:` block — no per-provider
-  subclass needed. The claude/gemini entries back the OAuth CLI fallback
+  cursor | codex | antigravity | devin) is config data in the `cli_agents:` block — no
+  per-provider subclass needed. The claude/gemini entries back the OAuth CLI fallback
 - **Dual Package Support**: google-genai (new) with fallback to google-generativeai (legacy), unified interface
 
 **Execution Flow**:
@@ -255,8 +256,9 @@ flowchart TB
 1. **Initialization**: Load config + services.yml, create logger with correlation ID, set up rate limiters
 2. **Agent Selection**: services.yml state -> `--*-only` exclusive flags -> `--no-*` overrides -> minimum agent check
 3. **Backend Selection**: `select_backend()` picks SDK vs CLI fallback for Claude/Gemini;
-   Cursor/Codex/Antigravity always run via CLIAgent
-4. **Agent Execution**: Run Claude/Gemini/Cursor/Codex/Antigravity in parallel with streaming or progress display
+   Cursor/Codex/Antigravity/Devin always run via CLIAgent
+4. **Agent Execution**: Run every enabled agent (Claude/Gemini/Cursor/Codex/Antigravity, plus
+   opt-in Devin) in parallel with streaming or progress display
 5. **Consensus**: Calculate consensus score using keyword-based analysis
 6. **Synthesis**: If consensus < 50%, trigger SynthesisEngine for unified recommendation
 7. **Validation**: Run ValidationEngine if `--validate` flag set
@@ -268,7 +270,7 @@ flowchart TB
 - Classes: 11 (Config, ServiceConfig, Logger, RateLimiter, ValidationEngine, SynthesisEngine,
   BaseAgent, ClaudeAgent, GeminiAgent, CLIAgent, Orchestrator)
 - CLI Flags: 28 (argparse in `agents/cli.py`)
-- Agents: 5 (Claude, Gemini, Cursor, Codex, Antigravity)
+- Agents: 6 (Claude, Gemini, Cursor, Codex, Antigravity, Devin — Devin opt-in, default off)
 - Total lines: ~2,540 across package (27-line entry point)
 
 ---
@@ -379,7 +381,7 @@ flowchart TD
 
 **Key points**:
 
-- **Cursor / Codex / Antigravity** have no SDK path — they always run via CLIAgent and bypass
+- **Cursor / Codex / Antigravity / Devin** have no SDK path — they always run via CLIAgent and bypass
   `select_backend()` entirely
 - **All five providers** can therefore execute through CLIAgent paths; the `cli_agents:` block
   in `parallel_agent.yml` carries the per-provider argv shape (`base_args`, `model_args`,
@@ -991,7 +993,7 @@ flowchart TD
 | claude | `GET /v1/models` listing | `MODEL_CHECK_PROBE=1`: one tiny `claude --model <pin> -p` call per pin; else SKIPPED | Probe needed because OAuth-only machines have no key — broken pins would otherwise read as green |
 | gemini | `GET /v1beta/models` listing | `MODEL_CHECK_PROBE=1`: one tiny `gemini -m <pin> -p` call per pin; else SKIPPED | Current pins: `gemini-3-flash-preview` / `gemini-3-pro-preview` |
 | antigravity | n/a | `agy models` listing (no key needed) | CLI listing only |
-| cursor / codex | n/a | n/a | UNSUPPORTED — no model-listing command |
+| cursor / codex / devin | n/a | n/a | UNSUPPORTED — cursor/codex have no listing command; devin's `models list` is login-gated and pins nothing to check |
 
 **Honest reporting** (`check_status.sh`):
 

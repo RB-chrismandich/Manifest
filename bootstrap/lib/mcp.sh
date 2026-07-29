@@ -503,6 +503,20 @@ install_mcp_servers() {
         print_info "Antigravity (agy) has no scriptable MCP CLI — configure servers via the IDE's /mcp panel or 'agy plugin import'"
     fi
 
+    # Devin is intentionally NOT configured here either, but for the opposite
+    # reason: it DOES have a scriptable surface (`devin mcp add <name> --url`),
+    # and it does not need it, because it already reads the MCP configs this
+    # function just wrote. Measured on devin 3000.2.17 (2026-07-29) against a
+    # Manifest-configured home: `devin mcp list` returned 11 servers with the
+    # CLI's default read_config_from, and 3 with `cursor: false` — the missing
+    # 8 are exactly the ones configure_cursor_mcp_config writes to
+    # ~/.cursor/mcp.json (the remaining 3 come from ~/.claude.json). Adding an
+    # install_devin_mcp_server would create a FOURTH independent copy of the
+    # same registry, free to drift, to re-add servers Devin can already see.
+    if [[ "${ENABLE_DEVIN:-false}" == true ]]; then
+        print_info "Devin inherits these MCP servers from the Claude/Cursor configs above (verify: devin mcp list)"
+    fi
+
     # 5. OAuth notes & summary
     echo ""
     echo -e "${BOLD}OAuth Notes:${NC}"

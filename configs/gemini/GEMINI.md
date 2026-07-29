@@ -1,7 +1,7 @@
 # Gemini Orchestration Guide
 
 This document defines how Gemini should leverage parallel LLM agents
-(Gemini, Cursor, Claude CLI, Codex, Antigravity) for cross-verification, planning, and validation.
+(Gemini, Cursor, Claude CLI, Codex, Antigravity, Devin) for cross-verification, planning, and validation.
 
 **Symlink Strategy**: The `.gemini/` directory shares most assets with `.claude/`
 via symlinks. Prompts, configuration, scripts, plans, and all skills
@@ -82,6 +82,7 @@ Default MCP/tool routing — use the matching tool when the task domain matches:
 | `--gemini-only` | Run only Gemini CLI |
 | `--claude-only` | Run only Claude CLI |
 | `--antigravity-only` | Run only Antigravity (agy) |
+| `--devin-only` | Run only Devin (opt-in; `--enable-devin` + `devin auth login`) |
 | `--no-claude` | Disable Claude CLI (enabled by default) |
 | `--no-antigravity` | Disable Antigravity for this run |
 | `--cursor-model <tier>` | Cursor model: mini, flash, advanced, auto (default: flash) |

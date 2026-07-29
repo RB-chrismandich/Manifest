@@ -67,7 +67,7 @@ resolve_agent_roster_path() {
     fi
 }
 
-# load_agent_roster_home_dirs -> "name<TAB>home_dir" lines, one per agent, in
+# load_agent_roster_home_dirs -> "name<TAB>home_dir<TAB>skills_sync" lines, one per agent, in
 # the registry's declaration order. Missing/malformed registry yields no
 # lines. Mirrors check_status.sh's load_agent_roster_tsv two-tier parse:
 # python3 + PyYAML primary (this codebase's established idiom for a bash
@@ -97,7 +97,10 @@ try:
     for name, entry in agents.items():
         if not isinstance(entry, dict):
             continue
-        print(f"{name}\t{entry.get('home_dir', '')}")
+        # skills_sync defaults to "true" when absent so a roster written
+        # before the field existed keeps syncing every secondary home.
+        sync = entry.get("skills_sync", True)
+        print(f"{name}\t{entry.get('home_dir', '')}\t{'true' if sync else 'false'}")
 except Exception:
     pass
 PY
@@ -119,12 +122,13 @@ load_agent_roster_home_dirs_fallback() {
         /^agents:[[:space:]]*$/ { in_agents = 1; next }
         in_agents && /^[^[:space:]]/ { in_agents = 0 }
         in_agents && /^  [A-Za-z0-9_-]+:[[:space:]]*$/ {
-            if (name != "") { print name "\t" home }
+            if (name != "") { print name "\t" home "\t" sync }
             line = $0
             sub(/^  /, "", line)
             sub(/:[[:space:]]*$/, "", line)
             name = line
             home = ""
+            sync = "true"
             next
         }
         in_agents && /^    home_dir:/ {
@@ -134,7 +138,14 @@ load_agent_roster_home_dirs_fallback() {
             home = val
             next
         }
-        END { if (name != "") print name "\t" home }
+        in_agents && /^    skills_sync:/ {
+            val = $0
+            sub(/^    skills_sync:[[:space:]]*/, "", val)
+            gsub(/^"|"$/, "", val)
+            sync = val
+            next
+        }
+        END { if (name != "") print name "\t" home "\t" sync }
     ' "$1"
 }
 
@@ -143,10 +154,14 @@ load_agent_roster_home_dirs_fallback() {
 # has no `declare -A`).
 declare -a ROSTER_NAMES=()
 declare -a ROSTER_HOME_DIRS=()
-while IFS=$'\t' read -r r_name r_home; do
+declare -a ROSTER_SKILLS_SYNC=()
+while IFS=$'\t' read -r r_name r_home r_sync; do
     [[ -z "$r_name" ]] && continue
     ROSTER_NAMES+=("$r_name")
     ROSTER_HOME_DIRS+=("$r_home")
+    # Absent/blank field -> "true": only an explicit `skills_sync: false`
+    # opts an agent out, so an older roster keeps its historical behavior.
+    [[ "$r_sync" == "false" ]] && ROSTER_SKILLS_SYNC+=("false") || ROSTER_SKILLS_SYNC+=("true")
 done < <(load_agent_roster_home_dirs)
 
 # Third tier: both the python3+PyYAML parse AND the awk fallback above
@@ -164,16 +179,28 @@ if [[ ${#ROSTER_NAMES[@]} -eq 0 ]]; then
     # tier populated this array.
     # shellcheck disable=SC2088 # intentional: literal ~ kept unexpanded, see above
     ROSTER_HOME_DIRS=("~/.claude" "~/.gemini" "~/.cursor" "~/.codex" "~/.antigravity")
+    # devin is deliberately absent: it has no skills directory of its own to
+    # sync (see the skills_sync note below), so the pre-devin 4 secondary
+    # targets remain exactly the right fallback set.
+    ROSTER_SKILLS_SYNC=("true" "true" "true" "true" "true")
 fi
 
 # Secondary sync targets = every roster agent's home_dir/skills EXCEPT
-# claude, which is the primary target (dispatched above, unconditionally).
+# claude (the primary target, dispatched above unconditionally) and any agent
+# whose roster entry sets `skills_sync: false`.
+#
+# devin is the only skills_sync: false agent: the Devin CLI already discovers
+# ~/.claude/skills natively, so writing a second copy under its home would
+# register every skill TWICE (`/devin:env-check` alongside `/claude:env-check`
+# — measured against devin 3000.2.17), which halves the signal density of the
+# skill listing instead of adding a single new skill.
 secondary_dirs=()
 for i in "${!ROSTER_NAMES[@]}"; do
     [[ "${ROSTER_NAMES[$i]}" == "claude" ]] && continue
+    [[ "${ROSTER_SKILLS_SYNC[$i]}" == "false" ]] && continue
     home="${ROSTER_HOME_DIRS[$i]}"
     [[ -z "$home" ]] && continue
-    home="${home/#\~/$HOME}" # agent_roster.yml home_dir values are always ~/.<name>
+    home="${home/#\~/$HOME}"
     secondary_dirs+=("$home/skills")
 done
 

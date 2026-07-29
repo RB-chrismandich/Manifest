@@ -168,6 +168,34 @@ class TestCLIAgentCommandAssembly:
         i = cmd.index("--model")
         assert cmd[i + 1] == "auto"
 
+    def test_devin_headless_invocation_and_permission_mode(self, tmp_path):
+        # Regression guard: devin must run headless (-p) so it cannot sit on an
+        # interactive prompt, and --permission-mode auto keeps auto-approval to
+        # read-only tools (nothing can answer an edit/exec prompt in this mode).
+        agent = CLIAgent(
+            "devin",
+            model="auto",
+            rate_limiter=_make_limiter(),
+            config=_make_config(tmp_path),
+        )
+        cmd = agent._build_command("hello")
+        assert cmd == ["devin", "--permission-mode", "auto", "-p", "hello"]
+        assert "--model" not in cmd  # "auto" pins nothing
+
+    def test_devin_model_is_passed_through_verbatim(self, tmp_path):
+        # devin has no model_tiers block on purpose (login-gated catalog), so a
+        # requested model reaches the CLI unchanged instead of being mapped to
+        # an invented tier name.
+        agent = CLIAgent(
+            "devin",
+            model="opus",
+            rate_limiter=_make_limiter(),
+            config=_make_config(tmp_path),
+        )
+        cmd = agent._build_command("hello")
+        i = cmd.index("--model")
+        assert cmd[i + 1] == "opus"
+
     def test_cursor_headless_invocation(self, tmp_path):
         # Regression guard: cursor-agent must run headless (--print) and
         # read-only (--mode ask), or it launches interactively and hangs.

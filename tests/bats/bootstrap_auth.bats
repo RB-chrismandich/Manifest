@@ -323,3 +323,100 @@ EOF
     assert_output --partial "Antigravity CLI is NOT authenticated"
     [ "$elapsed" -lt 15 ]
 }
+
+# --- check_devin_auth (devin) ---
+
+# Write an executable `devin` stub. `models list` exits $1 (default 0);
+# `auth status` always exits 0 while printing "Not logged in.", mirroring the
+# real CLI's false-green behavior that check_devin_auth must not rely on.
+make_devin_stub() {
+    local exit_code="${1:-0}"
+    cat > "$FAKE_BIN/devin" << EOF
+#!/bin/bash
+case "\$1 \$2" in
+    "models list") exit $exit_code ;;
+    "auth status") echo "Not logged in."; exit 0 ;;
+    *) exit 0 ;;
+esac
+EOF
+    chmod +x "$FAKE_BIN/devin"
+}
+
+@test "check_devin_auth returns success without checking when ENABLE_DEVIN is false" {
+    run run_in_harness '
+        ENABLE_DEVIN=false
+        check_devin_auth
+        echo "exit=$?"
+    '
+    assert_success
+    assert_output --partial "exit=0"
+    refute_output --partial "Checking Devin"
+}
+
+@test "check_devin_auth defaults to skipping when ENABLE_DEVIN is unset (opt-in service)" {
+    run run_in_harness '
+        check_devin_auth
+        echo "exit=$?"
+    '
+    assert_success
+    assert_output --partial "exit=0"
+    refute_output --partial "Checking Devin"
+}
+
+@test "check_devin_auth warns and returns 1 when the CLI is not installed" {
+    run run_in_harness '
+        ENABLE_DEVIN=true
+        check_devin_auth
+        echo "exit=$?"
+    '
+    assert_success
+    assert_output --partial "Devin CLI not installed"
+    assert_output --partial "exit=1"
+}
+
+@test "check_devin_auth succeeds when 'devin models list' exits 0" {
+    make_devin_stub 0
+    run run_in_harness '
+        ENABLE_DEVIN=true
+        TIMEOUT_CMD=""
+        check_devin_auth
+        echo "exit=$?"
+    '
+    assert_success
+    assert_output --partial "Devin CLI is authenticated"
+    assert_output --partial "exit=0"
+}
+
+@test "check_devin_auth errors when 'devin models list' exits nonzero (logged out)" {
+    # The real CLI's `auth status` would exit 0 here — this is the regression
+    # guard that the auth signal is the catalog command, not that false green.
+    make_devin_stub 1
+    run run_in_harness '
+        ENABLE_DEVIN=true
+        TIMEOUT_CMD=""
+        check_devin_auth
+        echo "exit=$?"
+    '
+    assert_success
+    assert_output --partial "Devin CLI is NOT authenticated"
+    assert_output --partial "devin auth login"
+    assert_output --partial "exit=1"
+}
+
+@test "check_devin_auth uses TIMEOUT_CMD when available" {
+    cat > "$FAKE_BIN/timeout" << 'EOF'
+#!/bin/bash
+shift
+exec "$@"
+EOF
+    chmod +x "$FAKE_BIN/timeout"
+    make_devin_stub 0
+    run run_in_harness '
+        ENABLE_DEVIN=true
+        TIMEOUT_CMD="timeout"
+        check_devin_auth
+        echo "exit=$?"
+    '
+    assert_success
+    assert_output --partial "Devin CLI is authenticated"
+}
