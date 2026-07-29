@@ -32,6 +32,9 @@ rate_limits:
   antigravity:
     requests_per_minute: 100
     burst_size: 10
+  devin:
+    requests_per_minute: 100
+    burst_size: 10
 
 # Model tier mappings
 model_tiers:
@@ -58,6 +61,13 @@ model_tiers:
     mini: "Gemini 3.5 Flash (Low)"
     flash: "Gemini 3.5 Flash (High)"
     advanced: "Claude Opus 4.6 (Thinking)"
+# devin has NO tier block on purpose. `devin models list` is login-gated, so
+# this repo cannot enumerate the account's real catalog, and pinning names
+# copied off a doc page is exactly how the gemini tiers ended up 404-ing.
+# With no block, CLIAgent passes --devin-model through verbatim, so a user
+# can name a real model (`--devin-model opus`) while the default tier "auto"
+# sends no --model at all and the account default stands. Add a block here
+# only once `devin models list` has printed the IDs on a logged-in machine.
 
 # Timeout configuration (seconds)
 timeouts:
@@ -102,6 +112,10 @@ credit_fallback:
     - advanced
     - flash
     - mini
+  # Empty by design: a downgrade chain needs known cheaper tiers, and devin's
+  # catalog is not enumerable here (see model_tiers). An empty chain means no
+  # fallback attempt rather than a retry against invented tier names.
+  devin: []
 
 # CLI agent command definitions (consumed by CLIAgent in agents/runners.py).
 # base_args: always passed. model_args: appended only when a model is resolved
@@ -146,6 +160,21 @@ cli_agents:
     model_args: ["--model", "{model}"]
     prompt_args: ["--print", "{prompt}"]
     output: stdout
+  # devin runs headless via -p/--print. --permission-mode auto (the CLI's own
+  # default, pinned here so a user-level config.json cannot silently widen it)
+  # auto-approves read-only tools only; edit/exec approvals have no one to
+  # answer them in non-interactive mode. Install: brew install --cask devin-cli
+  # (or curl -fsSL https://cli.devin.ai/install.sh | bash), then devin auth login.
+  # Follow-up (unverified while logged out): devin also has --prompt-file FILE,
+  # which would sidestep ARG_MAX for very large synthesis payloads the way the
+  # claude/gemini stdin path does. Verify it on an authenticated machine before
+  # wiring it in — do not assume the flag's semantics from --help alone.
+  devin:
+    binary: devin
+    base_args: ["--permission-mode", "auto"]
+    model_args: ["--model", "{model}"]
+    prompt_args: ["-p", "{prompt}"]
+    output: stdout
 
 # Logging configuration
 logging:
@@ -161,7 +190,7 @@ synthesis:
   model: "sonnet"
   timeout: 300  # 5 minutes
   backend: auto   # auto | cli | sdk (cli = CLI only; sdk = Anthropic SDK only)
-  provider: auto  # auto | antigravity | cursor | gemini | codex | claude | sdk
+  provider: auto  # auto | antigravity | cursor | gemini | codex | claude | devin | sdk
   # First on PATH wins when provider=auto. Override: SYNTH_PROVIDER or SYNTH_CLI.
   provider_order:
     - antigravity
@@ -169,6 +198,7 @@ synthesis:
     - gemini
     - codex
     - claude
+    - devin
 
 # Headless CLI seams (CDDL personas, SkillClaw evolve) — inherit provider_order
 # from synthesis when omitted.

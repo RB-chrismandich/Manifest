@@ -110,6 +110,10 @@ per agent, applying these per-agent quirks:
 - **antigravity**: `agy models` is a deliberate live probe, not a version
   check — `agy` has no persisted auth-file to inspect, so this command only
   succeeds when logged in (see `bootstrap/lib/auth.sh`'s `check_antigravity_auth`).
+- **devin**: `devin models list` is the auth probe. Do NOT substitute
+  `devin auth status` — it prints "Not logged in." and still exits 0, so it can
+  only ever report a green. Devin is opt-in (`enabled: false` by default): when
+  `services.yml` has it disabled, report "not enabled", not "unauthenticated".
 
 Also check these non-fleet services, which are not in `agent_roster.yml`:
 
@@ -186,6 +190,19 @@ gains one), the standard link set is:
 `agy` is a `parallel_agent.py` CLI provider, not an orchestrator that reads
 scripts/prompts directly. Don't report its missing `scripts`/`prompts`
 symlinks as broken or missing.
+
+**Quirk — devin is not a mirror at all:** its `home_dir` is
+`~/.config/devin` (the CLI's XDG config dir; `~/.devin` belongs to the Devin
+*Desktop* app), and it holds exactly one deployed file, `config.json`. The
+`devin` CLI reads `~/.claude/skills` and `~/.claude/CLAUDE.md` directly when
+that file sets `read_config_from.claude: true`, so there are no symlinks and
+no `skills/` directory here — a copy would register every skill twice
+(`/devin:<name>` beside `/claude:<name>`). Verify inheritance instead:
+`devin skills list | grep -c '~/.claude/skills'` should be non-zero,
+`devin rules list` should show a `CLAUDE` entry, and `devin mcp list` should
+show the servers written to `~/.cursor/mcp.json` / `~/.claude.json` (Devin
+reads both — it needs no MCP config of its own). Report a missing/false
+`read_config_from.claude` as the defect; never report missing symlinks.
 
 Only check symlinks for services marked `enabled: true` in
 `~/.claude/config/services.yml` (e.g. skip `.cursor`/`.codex` when disabled).

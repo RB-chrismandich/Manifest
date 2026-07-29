@@ -46,12 +46,12 @@ teardown() {
     [[ -n "$TEST_TMP" && -d "$TEST_TMP" ]] && rm -rf "$TEST_TMP"
 }
 
-@test "check_status.sh tier-3 fallback binary+auth_check match agent_roster.yml for all 5 known agents" {
+@test "check_status.sh tier-3 fallback binary+auth_check match agent_roster.yml for all 6 known agents" {
     # Extract ONLY the 3 array-assignment lines inside check_status.sh's
     # `if [[ \${#ROSTER_NAMES[@]} -eq 0 ]]; then ... fi` tier-3 block and eval
     # them in an isolated bash subshell -- this is the script's real, current
     # fallback literal, not a value hand-copied into this test.
-    fallback_src="$(sed -n '/^    ROSTER_NAMES=(claude gemini cursor codex antigravity)$/,/^    ROSTER_AUTH_CHECKS=/p' "$CHECK_STATUS")"
+    fallback_src="$(sed -n '/^    ROSTER_NAMES=(claude gemini cursor codex antigravity devin)$/,/^    ROSTER_AUTH_CHECKS=/p' "$CHECK_STATUS")"
     [ -n "$fallback_src" ] # sanity: the anchor pattern must still match the live script
 
     fallback_tsv="$(bash -c "
@@ -67,7 +67,7 @@ import yaml
 
 with open(sys.argv[1], encoding="utf-8") as fh:
     agents = yaml.safe_load(fh)["agents"]
-for name in ("claude", "gemini", "cursor", "codex", "antigravity"):
+for name in ("claude", "gemini", "cursor", "codex", "antigravity", "devin"):
     entry = agents[name]
     print(f"{name}\t{entry['binary']}\t{entry['auth_check']}")
 PY
@@ -76,7 +76,12 @@ PY
     assert_equal "$fallback_tsv" "$roster_tsv"
 }
 
-@test "sync-skills.sh tier-3 fallback home_dir matches agent_roster.yml for all 5 known agents" {
+# sync-skills.sh's tier-3 array intentionally stops at the 5 agents that
+# receive a skills copy: devin sets `skills_sync: false` (its CLI reads
+# ~/.claude/skills directly, so a copy would double-register every skill), and
+# a fallback that listed it would sync exactly the directory the roster says
+# not to create. The companion test below pins that exclusion.
+@test "sync-skills.sh tier-3 fallback home_dir matches agent_roster.yml for all 5 skill-synced agents" {
     fallback_src="$(sed -n '/^    ROSTER_NAMES=(claude gemini cursor codex antigravity)$/,/^    ROSTER_HOME_DIRS=/p' "$SYNC_SKILLS")"
     [ -n "$fallback_src" ] # sanity: the anchor pattern must still match the live script
 

@@ -45,7 +45,7 @@ Default MCP/tool routing — use the matching tool when the task domain matches:
 This repository manages AI agent configurations for deployment to `~/.claude/` (and mirrored
 to `~/.cursor/`, `~/.gemini/`, `~/.codex/`, and `~/.antigravity/`) on target machines. It contains
 orchestration guides, skills, prompts, and scripts that enable parallel LLM agent coordination
-(Cursor, Gemini CLI, Claude CLI, Codex CLI, Antigravity).
+(Cursor, Gemini CLI, Claude CLI, Codex CLI, Antigravity, Devin CLI).
 
 ## Repository Structure
 
@@ -144,6 +144,7 @@ The `bootstrap.sh` script automates installation, deployment, and authentication
 --enable-cursor / --disable-cursor   # Cursor agent (default: enabled)
 --enable-codex / --disable-codex     # Codex CLI (default: enabled)
 --enable-antigravity / --disable-antigravity  # Antigravity IDE (default: enabled)
+--enable-devin / --disable-devin              # Devin CLI (default: DISABLED; needs devin auth login)
 --enable-graphify / --disable-graphify  # Graphify knowledge-graph CLI + /graphify skill (default: enabled)
 --enable-skillclaw / --disable-skillclaw  # SkillClaw session capture (default: disabled)
 --enable-browser-use / --disable-browser-use  # browser-use deps for smoke agent steps (default: disabled)
@@ -252,6 +253,11 @@ Skills are shared across all platforms via symlinks from `configs/claude/skills/
 - **Gemini CLI**: Skills loaded from `~/.gemini/skills/` (symlink to `~/.claude/skills/`)
 - **Codex CLI**: Skills loaded from `~/.codex/skills/` (symlink to `~/.claude/skills/`)
 - **Antigravity**: Skills loaded from `~/.antigravity/skills/` (symlink to `~/.claude/skills/`)
+- **Devin**: Skills are NOT copied or symlinked. The `devin` CLI reads
+  `~/.claude/skills/` (and `~/.claude/CLAUDE.md`) directly, gated by
+  `read_config_from.claude` in `~/.config/devin/config.json`, which bootstrap pins.
+  A second copy under its home would register every skill twice
+  (`/devin:<name>` beside `/claude:<name>`), so there deliberately is none.
 
 ### emdash (external harness, not a deploy target)
 

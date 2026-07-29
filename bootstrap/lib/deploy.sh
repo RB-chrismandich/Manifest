@@ -284,6 +284,9 @@ deploy_configs() {
     # Deploy Antigravity configuration
     deploy_antigravity_configs
 
+    # Deploy Devin CLI configuration (opt-in; inheritance pin only)
+    deploy_devin_config
+
     # Project-scoped Copilot sync (non-blocking)
 
     # Deploy sync-skills CLI
@@ -999,6 +1002,86 @@ deploy_antigravity_configs() {
     print_success "Antigravity configuration deployed to $ANTIGRAVITY_TARGET_DIR"
 }
 
+# Deploy Devin CLI configuration.
+#
+# Deliberately NOT a mirror of the Cursor/Gemini/Codex/Antigravity trees: the
+# Devin CLI already discovers Manifest's deployed Claude home on its own.
+# Measured against devin 3000.2.17 (2026-07-29):
+#   - `devin skills list` lists every ~/.claude/skills/<name>/SKILL.md as
+#     /claude:<name>, and returns ZERO of them once config.json sets
+#     read_config_from.claude=false. That key — not a copy of the files — is
+#     what the integration hangs on, so it is the one key deploy pins.
+#   - Copying the skills into ~/.config/devin/skills does not add a skill; it
+#     registers every skill a SECOND time (/devin:<name> beside /claude:<name>),
+#     halving the signal density of the listing. Hence agent_roster.yml's
+#     `devin.skills_sync: false` and no skills/ link here.
+#   - Rules work the same way (`devin rules list` reads ~/.claude/CLAUDE.md),
+#     so no duplicate global AGENTS.md is deployed either.
+#
+# config.json is merged user-wins, never overwritten: it is the user's own file
+# (models, permissions, MCP servers, proxy). An explicit `claude: false` is
+# reported, not silently flipped — the user's stated intent wins over ours.
+deploy_devin_config() {
+    if [[ "${ENABLE_DEVIN:-false}" != true ]]; then
+        print_info "Devin disabled — skipping config deployment"
+        return 0
+    fi
+
+    print_step "Deploying Devin CLI configuration..."
+    mkdir -p "$DEVIN_TARGET_DIR"
+
+    local cfg="$DEVIN_TARGET_DIR/config.json"
+
+    if ! command_exists python3; then
+        print_info "python3 unavailable — skipped $cfg inheritance pin"
+        return 0
+    fi
+
+    local rc=0
+    python3 - "$cfg" << 'PYEOF' || rc=$?
+import json
+import sys
+
+cfg_path = sys.argv[1]
+try:
+    with open(cfg_path) as f:
+        cfg = json.load(f)
+except FileNotFoundError:
+    cfg = {}
+except Exception:
+    sys.exit(2)  # present but unreadable/invalid — never clobber it
+if not isinstance(cfg, dict):
+    sys.exit(2)
+
+sources = cfg.get("read_config_from")
+if not isinstance(sources, dict):
+    sources = {}
+
+if sources.get("claude") is False:
+    sys.exit(4)  # explicit user opt-out — reported, not overridden
+if sources.get("claude") is True:
+    sys.exit(3)  # already pinned
+
+sources["claude"] = True
+cfg["read_config_from"] = sources
+with open(cfg_path, "w") as f:
+    json.dump(cfg, f, indent=2)
+    f.write("\n")
+sys.exit(0)
+PYEOF
+
+    case $rc in
+        0) print_success "Devin CLI configured to read ~/.claude (skills + rules) — $cfg" ;;
+        3) print_info "Devin CLI already reads ~/.claude - preserved" ;;
+        4)
+            print_warning "Devin config.json sets read_config_from.claude=false — Manifest skills will NOT load"
+            print_info "Set it to true in $cfg to inherit ~/.claude/skills"
+            ;;
+        *) print_warning "Could not update $cfg (manual edit may be needed)" ;;
+    esac
+    return 0
+}
+
 # NOTE: sync_skillshare_targets was removed 2026-07-27 (FR-021a). skillshare is
 # deprecated; skills now live in .apm/skills as the sole source of truth. This
 # also retires the project-scoped Copilot sync (.github/skills) that skillshare
@@ -1104,6 +1187,12 @@ verify_installation() {
     if [[ "$ENABLE_ANTIGRAVITY" == true ]]; then
         required_files+=("$ANTIGRAVITY_TARGET_DIR/skills/code-audit/SKILL.md")
     fi
+    # Devin deploys exactly one file (the read_config_from pin) — it inherits
+    # skills/rules from ~/.claude rather than receiving a copy, so there is no
+    # skills/<name>/SKILL.md of its own to assert.
+    if [[ "${ENABLE_DEVIN:-false}" == true ]]; then
+        required_files+=("$DEVIN_TARGET_DIR/config.json")
+    fi
 
     for file in "${required_files[@]}"; do
         if [[ -f "$file" ]]; then
@@ -1206,6 +1295,18 @@ verify_installation() {
         print_info "antigravity is disabled"
     fi
 
+    if [[ "${ENABLE_DEVIN:-false}" == true ]]; then
+        enabled_count=$((enabled_count + 1))
+        if command_exists devin; then
+            print_success "devin is available (enabled)"
+            available_tools=$((available_tools + 1))
+        else
+            print_warning "devin is not available (enabled but not installed)"
+        fi
+    else
+        print_info "devin is disabled"
+    fi
+
     # Check Git CLI tools
     if [[ "$ENABLE_GH" == true ]]; then
         if command_exists gh; then
@@ -1265,6 +1366,7 @@ warn_stale_disabled_configs() {
         "cursor|${ENABLE_CURSOR:-true}|$CURSOR_TARGET_DIR/rules"
         "codex|${ENABLE_CODEX:-true}|$CODEX_TARGET_DIR/AGENTS.md"
         "antigravity|${ENABLE_ANTIGRAVITY:-true}|$ANTIGRAVITY_TARGET_DIR/config"
+        "devin|${ENABLE_DEVIN:-false}|$DEVIN_TARGET_DIR/config.json"
     )
     local entry service enabled path rest
     for entry in "${entries[@]}"; do
@@ -1291,6 +1393,9 @@ print_summary() {
     echo "  Codex Config:   $CODEX_TARGET_DIR"
     if [[ "$ENABLE_ANTIGRAVITY" == true ]]; then
         echo "  Antigravity Config: $ANTIGRAVITY_TARGET_DIR"
+    fi
+    if [[ "${ENABLE_DEVIN:-false}" == true ]]; then
+        echo "  Devin Config:   $DEVIN_TARGET_DIR"
     fi
     echo "  State Root:     $MANIFEST_STATE_DIR"
     echo "  Agent Outputs:  $MANIFEST_OUTPUT_DIR"
@@ -1368,6 +1473,17 @@ print_summary() {
     else
         echo -e "  ${YELLOW}○${NC} antigravity (disabled)"
     fi
+
+    if [[ "${ENABLE_DEVIN:-false}" == true ]]; then
+        if command -v devin > /dev/null 2>&1; then
+            echo -e "  ${GREEN}✓${NC} devin CLI installed"
+        else
+            echo -e "  ${YELLOW}○${NC} devin CLI not found — parallel-agent participation needs it"
+            echo -e "    ${BLUE}→${NC} Install: brew install --cask devin-cli"
+        fi
+    else
+        echo -e "  ${YELLOW}○${NC} devin (disabled)"
+    fi
     echo ""
 
     # Flag any disabled service whose deployed config is still present (#549).
@@ -1388,6 +1504,9 @@ print_summary() {
     fi
     if [[ "$ENABLE_ANTIGRAVITY" == true ]]; then
         echo -e "    Antigravity: ${CYAN}agy${NC}  (launch the CLI/IDE to sign in — no separate login subcommand)"
+    fi
+    if [[ "${ENABLE_DEVIN:-false}" == true ]]; then
+        echo -e "    Devin:   ${CYAN}devin auth login${NC}"
     fi
     if [[ "$ENABLE_GH" == true ]]; then
         echo -e "    GitHub:  ${CYAN}gh auth login${NC}"

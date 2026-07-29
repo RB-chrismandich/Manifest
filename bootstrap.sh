@@ -66,6 +66,11 @@ GEMINI_TARGET_DIR="$HOME/.gemini"
 CODEX_TARGET_DIR="$HOME/.codex"
 # shellcheck disable=SC2034
 ANTIGRAVITY_TARGET_DIR="$HOME/.antigravity"
+# shellcheck disable=SC2034
+# The Devin CLI reads ~/.config/devin (XDG), NOT ~/.devin — that name is
+# already the Devin *Desktop* app's data folder, so deploying there would
+# write into an unrelated product's tree.
+DEVIN_TARGET_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/devin"
 MANIFEST_STATE_DIR="$HOME/.manifest"
 # shellcheck disable=SC2034
 MANIFEST_OUTPUT_DIR="$MANIFEST_STATE_DIR/orchestration/outputs"
@@ -274,6 +279,7 @@ main() {
         check_jq || install_failures=$((install_failures + 1))
         check_rsync || install_failures=$((install_failures + 1))
         check_cursor || install_failures=$((install_failures + 1))
+        check_devin || install_failures=$((install_failures + 1))
         if [[ $install_failures -gt 0 ]]; then
             print_warning "$install_failures install step(s) failed — continuing with remaining setup"
         fi
@@ -327,6 +333,11 @@ main() {
         # Antigravity (agy) auth check
         if [[ "$ENABLE_ANTIGRAVITY" == true ]]; then
             check_antigravity_auth || auth_failures=$((auth_failures + 1))
+        fi
+
+        # Devin auth check (opt-in service; no-op when disabled)
+        if [[ "${ENABLE_DEVIN:-false}" == true ]]; then
+            check_devin_auth || auth_failures=$((auth_failures + 1))
         fi
 
         # GitHub CLI auth check

@@ -10,6 +10,45 @@ All notable changes are documented here in reverse chronological order.
 
 ## [Unreleased]
 
+### Devin CLI support (6th parallel agent, opt-in)
+
+- **`agent_roster.yml`** — adds `devin` (binary `devin`, home `~/.config/devin`,
+  `enabled_default: false`) plus a new `skills_sync` field on every agent.
+  `parallel_agent.yml` / `agents/config.py` gain matching rate limits, a
+  `cli_agents.devin` command shape (`devin --permission-mode auto -p <prompt>`),
+  and a synthesis `provider_order` slot; `--devin-only`, `--no-devin`, and
+  `--devin-model` are generated from the roster.
+- **Bootstrap** — `--enable-devin` / `--disable-devin`, `check_devin` (Homebrew
+  cask, curl installer fallback), `check_devin_auth`, a `devin:` block in
+  `services.yml`, and `deploy_devin_config`, which merges — never overwrites —
+  `~/.config/devin/config.json`.
+- **Skills, rules, and MCP servers are inherited, not copied.** Measured against
+  devin 3000.2.17 (2026-07-29): `devin skills list` already resolves every
+  `~/.claude/skills/<name>/SKILL.md`, and returns none of them when
+  `read_config_from.claude` is false — so deploy pins that one key and ships
+  nothing else. A second copy under `~/.config/devin/skills` would register each
+  skill TWICE (`/devin:<name>` beside `/claude:<name>`), which is why the roster
+  marks devin `skills_sync: false` and `sync-skills.sh` honors it. MCP is the
+  same story: `devin mcp list` returned 11 servers on a Manifest-configured home
+  and 3 with `read_config_from.cursor` false — the other 8 are the ones
+  `--install-mcp` writes to `~/.cursor/mcp.json` — so no `install_devin_mcp_server`
+  exists by design.
+- **Three measured traps, encoded rather than documented away**:
+  `devin auth status` prints "Not logged in." and still exits 0, so the auth
+  probe is `devin models list` (which also spends no tokens, unlike the agy/codex
+  probes); `~/.devin` is the Devin *Desktop* app's data folder, so devin is
+  excluded from reconcile's fleet tags, which every consumer resolves to
+  `$HOME/.<tag>`; and `ServiceConfig.is_enabled()` now falls back to the roster's
+  `enabled_default` so a `services.yml` predating an agent cannot silently
+  ENABLE it.
+- **No model tiers on purpose** — `devin models list` is login-gated, so nothing
+  is pinned (`--devin-model` defaults to `auto` = no `--model` flag, any other
+  value passes through verbatim) and `credit_fallback.devin` is empty. Pinning
+  names read off a docs page is how the gemini tiers once 404'd.
+- **Why opt-in**: Devin is login-gated behind a paid account, and an
+  unauthenticated agent does not abstain from the panel — it errors, dragging the
+  consensus metric into a verdict that is not a finding.
+
 ### Retired-tree references swept (`.skillshare/` → `.apm/`, `linear_triage.yml`)
 
 - **Four skills carried paths into the tree deleted on 2026-07-27**, two of them

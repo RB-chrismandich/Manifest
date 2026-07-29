@@ -766,6 +766,59 @@ check_cursor() {
     fi
 }
 
+# Install the Devin CLI (Cognition's headless coding agent, `devin`).
+# Opt-in: only runs when --enable-devin / services.yml turned it on.
+# Homebrew cask first (the vendor's documented macOS path, and the only one
+# that gives brew the uninstall record); the vendor install script is the
+# fallback for Linux and brew-less machines.
+check_devin() {
+    if [[ "${ENABLE_DEVIN:-false}" == false ]]; then
+        print_info "Devin is disabled - skipping installation"
+        return 0
+    fi
+
+    print_step "Checking for Devin CLI..."
+
+    if command_exists devin || [[ -x "$HOME/.local/bin/devin" ]]; then
+        print_success "Devin CLI is installed"
+        return 0
+    fi
+
+    print_warning "Devin CLI not found"
+    echo ""
+    echo -e "${BOLD}Devin CLI Installation:${NC}"
+    if command_exists brew; then
+        echo "  brew install --cask devin-cli"
+    else
+        echo "  curl -fsSL https://cli.devin.ai/install.sh | bash"
+    fi
+    echo ""
+
+    if prompt_yes_no "Install the Devin CLI now?"; then
+        local installed=false
+        if command_exists brew; then
+            brew install --cask devin-cli && installed=true
+        else
+            curl -fsSL https://cli.devin.ai/install.sh | bash && installed=true
+        fi
+
+        if [[ "$installed" == true ]] && { command_exists devin || [[ -x "$HOME/.local/bin/devin" ]]; }; then
+            print_success "Devin CLI installed"
+            print_info "Authenticate with: devin auth login"
+        else
+            print_warning "Devin CLI installation failed"
+            if prompt_yes_no "Disable Devin in service configuration?"; then
+                ENABLE_DEVIN=false
+            fi
+        fi
+    else
+        print_warning "Devin CLI not installed"
+        if prompt_yes_no "Disable Devin in service configuration?"; then
+            ENABLE_DEVIN=false
+        fi
+    fi
+}
+
 # Ensure the uv Python tool installer is present (graphify's install prerequisite).
 # Idempotent and existence-guarded (Principle V): no-op if uv is already available,
 # even when it lives at ~/.local/bin and is not yet on this shell's PATH. Prefers a

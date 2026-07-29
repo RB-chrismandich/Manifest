@@ -690,6 +690,41 @@ result reports `command_overrides_applied: true`.
 API (e.g. Opus 4.6 vs 4.8). Run `agy models` to see the live model list, which is
 validated by `model_check.sh`.
 
+#### Devin Models
+
+Devin has **no tier table on purpose**. `devin models list` is login-gated, so the
+account's real catalog cannot be enumerated from this repo, and pinning names read
+off a docs page is how a stale pin turns into a runtime 404. Consequences:
+
+- `--devin-model` defaults to `auto`, which sends no `--model` flag at all and lets
+  the account default stand.
+- Any other value is passed through verbatim, so you can name a real model
+  (`--devin-model opus`) once `devin models list` shows you what your account has.
+- `credit_fallback.devin` is empty: there is no known cheaper tier to fall back to.
+
+**Skills, rules, and MCP servers are inherited, not copied.** `devin` reads
+`~/.claude/skills` and `~/.claude/CLAUDE.md` directly when
+`~/.config/devin/config.json` sets `read_config_from.claude: true` (bootstrap pins
+it). Copying the skills into `~/.config/devin/skills` would register each one twice
+— `/devin:<name>` beside `/claude:<name>` — so `agent_roster.yml` marks devin
+`skills_sync: false`. MCP servers arrive the same way: `devin mcp list` showed 11
+servers on a Manifest-configured home and 3 with `read_config_from.cursor: false`,
+the missing 8 being exactly what `--install-mcp` wrote to `~/.cursor/mcp.json`.
+Verify the whole inheritance chain with:
+
+```bash
+devin skills list | grep -c '~/.claude/skills'   # expect your skill count
+devin rules list                                 # expect a CLAUDE entry
+devin mcp list                                   # expect your registry
+```
+
+**Known interaction:** `devin rules list` reports a YAML parse error for each
+generated Cursor rule (`~/.cursor/rules/*.mdc`), because `generate_cursor_rules.sh`
+emits `globs:` as a string and Devin's parser requires a sequence. Those rules are
+per-skill duplicates of skills Devin already loads from `~/.claude/skills`, so the
+errors are noise, not lost capability; the fix (emit a YAML list) is deferred
+because Cursor's own tolerance for the list form is unverified.
+
 ### Selecting Models
 
 **Via CLI flags:**
@@ -870,7 +905,7 @@ Claude and Gemini pick an execution backend per run (`agents/config.py`
    skipped with a warning.
 
 The CLI fallback uses the `cli_agents.claude` / `cli_agents.gemini` command shapes
-above. Cursor, Codex, and Antigravity always run via their CLI entries.
+above. Cursor, Codex, Antigravity, and Devin always run via their CLI entries.
 
 ---
 
@@ -884,12 +919,19 @@ above. Cursor, Codex, and Antigravity always run via their CLI entries.
 --claude-only          # Run only Claude CLI
 --codex-only           # Run only Codex CLI
 --antigravity-only     # Run only Antigravity (agy)
+--devin-only           # Run only Devin (opt-in; see below)
 --no-claude            # Disable Claude CLI
 --no-cursor            # Disable Cursor Agent
 --no-gemini            # Disable Gemini CLI
 --no-codex             # Disable Codex CLI
 --no-antigravity       # Disable Antigravity for this run
+--no-devin             # Disable Devin for this run
 ```
+
+Devin ships **disabled** (`agent_roster.yml: devin.enabled_default: false`). Enable
+it with `./bootstrap.sh --enable-devin` after `devin auth login` — an
+unauthenticated agent errors instead of abstaining, which drags the consensus
+metric into a verdict that is not a finding.
 
 ### Model Selection
 
@@ -899,6 +941,7 @@ above. Cursor, Codex, and Antigravity always run via their CLI entries.
 --gemini-model <tier>       # Gemini model: flash, pro (default: flash)
 --codex-model <tier>        # Codex model: mini, flash, advanced, auto (default: auto)
 --antigravity-model <tier>  # Antigravity model: mini, flash, advanced (default: flash)
+--devin-model <name>        # Devin model: passed through verbatim (default: auto = no pin)
 ```
 
 ### Execution Modes

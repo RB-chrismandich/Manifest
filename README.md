@@ -2,14 +2,17 @@
 
 [![Manifest CI](https://github.com/ReefBytes/Manifest/actions/workflows/ci.yml/badge.svg)](https://github.com/ReefBytes/Manifest/actions/workflows/ci.yml)
 
-> Parallel LLM agent orchestration framework for Claude Code, Cursor IDE, Gemini CLI, Codex CLI, and Antigravity IDE
+> Parallel LLM agent orchestration framework for Claude Code, Cursor IDE, Gemini CLI,
+> Codex CLI, Antigravity IDE, and the Devin CLI
 
 **Last Updated**: 2026-06-21
 
 Manifest is a configuration repository that deploys a sophisticated parallel agent
-orchestration system to `~/.claude/`, `~/.cursor/`, `~/.gemini/`, `~/.codex/`, and `~/.antigravity/`, enabling Claude Code,
-Cursor IDE, Gemini CLI, Codex CLI, and Antigravity IDE to share guides, skills, prompts, and scripts while leveraging
-multiple AI agents for cross-verification, consensus scoring, and enhanced code analysis.
+orchestration system to `~/.claude/`, `~/.cursor/`, `~/.gemini/`, `~/.codex/`, and
+`~/.antigravity/`, enabling Claude Code, Cursor IDE, Gemini CLI, Codex CLI, Antigravity
+IDE, and the Devin CLI (which reads `~/.claude` in place, see below) to share guides,
+skills, prompts, and scripts while leveraging multiple AI agents for cross-verification,
+consensus scoring, and enhanced code analysis.
 
 **Core Capabilities**: Multi-agent orchestration | Consensus scoring | Model fallback
 | Two-tier validation | Production-grade templates
@@ -47,7 +50,7 @@ cd Manifest
 ## Features
 
 - **Parallel Agent Orchestration**: Run 2-5 AI agents simultaneously
-  (Cursor, Gemini, Claude, Codex, Antigravity) with real-time streaming display
+  (Cursor, Gemini, Claude, Codex, Antigravity, and opt-in Devin) with real-time streaming display
 - **Modular `agents/` Package**: `parallel_agent.py` backed by `agents/` subpackage —
   `cli.py`, `config.py`, `orchestrator.py`, `runners.py`, `synthesis.py`, `validation.py`
 - **Comprehensive Logging**: Structured JSON logs with correlation IDs, rotation (10MB, 5 backups), performance metrics
@@ -68,6 +71,11 @@ cd Manifest
   branches across GitHub, GitLab, and local
 - **Issue-Linking Git Hooks** (`/issue-sync-pr`, `/issue-sync-commit`): Fail-open PostToolUse hooks that keep
   the linked issue's status label and back-links in sync as commits land and PRs open (installable via `install_issue_hooks.sh`)
+- **Devin CLI Support** (opt-in): Adds Cognition's `devin` as a sixth panel agent
+  (`--devin-only`, `--no-devin`). Its skills are **inherited, not copied** — the CLI reads
+  `~/.claude/skills` and `~/.claude/CLAUDE.md` directly once bootstrap pins
+  `read_config_from.claude` in `~/.config/devin/config.json`, so nothing is duplicated.
+  Enable with `--enable-devin` after `devin auth login`
 - **Production Templates**: Pre-configured permission templates for Django, Express, Go microservices, Python monorepos
 - **SkillClaw Integration** (opt-in): Passively ingests Claude Code's own `~/.claude/projects/**/*.jsonl`
   transcripts, runs a `claude -p` map-reduce evolve pass (Max subscription, no API key), and proposes
@@ -115,13 +123,13 @@ cd Manifest
 ```text
 User → Claude Code → /command → parallel_agent.py
                                           ↓
-                    ┌──────────┬──────────┼──────────┬──────────┐
-                    ↓          ↓          ↓          ↓          ↓
-              Cursor Agent Gemini CLI Claude CLI Codex CLI  Antigravity
-              (IDE Context)(Broad     (Deep      (Terminal  (agy)
-                           Knowledge) Reasoning)  Coding)
-                    ↓          ↓          ↓          ↓          ↓
-                    └──────────┴──────────┼──────────┴──────────┘
+      ┌──────────┬──────────┬──────────┼──────────┬──────────┐
+      ↓          ↓          ↓          ↓          ↓          ↓
+Cursor Agent Gemini CLI Claude CLI Codex CLI  Antigravity  Devin
+(IDE Context)(Broad     (Deep      (Terminal  (agy)        (opt-in)
+             Knowledge) Reasoning)  Coding)
+      ↓          ↓          ↓          ↓          ↓          ↓
+      └──────────┴──────────┴──────────┼──────────┴──────────┘
                                           ↓
                               Synthesis & Validation
                                           ↓

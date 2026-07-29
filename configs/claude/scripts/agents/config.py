@@ -144,6 +144,7 @@ class Config:
                 "cursor": {"requests_per_minute": 100, "burst_size": 10},
                 "codex": {"requests_per_minute": 100, "burst_size": 10},
                 "antigravity": {"requests_per_minute": 100, "burst_size": 10},
+                "devin": {"requests_per_minute": 100, "burst_size": 10},
             },
             "timeouts": {"default": 120, "review": 600},
             "model_tiers": {
@@ -176,6 +177,9 @@ class Config:
                     "flash": "Gemini 3.5 Flash (High)",
                     "advanced": "Claude Opus 4.6 (Thinking)",
                 },
+                # devin has no tier block on purpose — its catalog is
+                # login-gated and cannot be enumerated here, so --devin-model
+                # passes through verbatim (see parallel_agent.yml).
             },
             "cli_agents": {
                 # claude/gemini entries back the OAuth CLI fallback used when
@@ -228,6 +232,16 @@ class Config:
                     "prompt_args": ["--print", "{prompt}"],
                     "output": "stdout",
                 },
+                # devin: headless via -p/--print; --permission-mode auto
+                # auto-approves read-only tools only (mirrors
+                # parallel_agent.yml cli_agents.devin).
+                "devin": {
+                    "binary": "devin",
+                    "base_args": ["--permission-mode", "auto"],
+                    "model_args": ["--model", "{model}"],
+                    "prompt_args": ["-p", "{prompt}"],
+                    "output": "stdout",
+                },
             },
             "credit_fallback": {
                 "claude": ["fable", "opus", "sonnet", "haiku"],
@@ -235,6 +249,8 @@ class Config:
                 "gemini": ["pro", "flash"],
                 "codex": ["advanced", "flash", "mini"],
                 "antigravity": ["advanced", "flash", "mini"],
+                # Empty by design: no known cheaper tiers to fall back to.
+                "devin": [],
             },
             "synthesis": {
                 "enabled": True,
@@ -249,6 +265,7 @@ class Config:
                     "gemini",
                     "codex",
                     "claude",
+                    "devin",
                 ],
             },
             "cddl_invoke": {"provider": "auto"},
@@ -352,15 +369,29 @@ class ServiceConfig:
                 "cursor": {"enabled": True},
                 "codex": {"enabled": True},
                 "antigravity": {"enabled": True},
+                "devin": {"enabled": False},
             },
             "minimum_agents": 2,
         }
 
     def is_enabled(self, service_name: str) -> bool:
-        """Check if a service is enabled in services.yml."""
+        """Check if a service is enabled in services.yml.
+
+        A service absent from services.yml falls back to agent_roster.yml's
+        `enabled_default`, and only then to True. Without that middle step,
+        every machine whose services.yml predates a newly added agent would
+        silently ENABLE it — the opt-in agents (devin) would join the panel
+        un-asked on exactly the machines that never opted in, and an
+        unauthenticated agent returns an error rather than abstaining.
+        """
         services = self._data.get("services", {})
-        svc = services.get(service_name, {})
-        return bool(svc.get("enabled", True))
+        if service_name in services:
+            svc = services.get(service_name) or {}
+            return bool(svc.get("enabled", True))
+        roster_entry = load_agent_roster().get(service_name)
+        if isinstance(roster_entry, dict) and "enabled_default" in roster_entry:
+            return bool(roster_entry["enabled_default"])
+        return True
 
     @property
     def minimum_agents(self) -> int:

@@ -32,9 +32,17 @@ import sys
 
 # --------------------------------------------------------------------------- #
 # Fleet tags — derived from agent_roster.yml (single enumeration of the
-# 5-agent fleet; see agent_roster.yml's header). Previously a hardcoded
-# tuple; a 6th agent now needs only a registry entry, no source change here
+# fleet; see agent_roster.yml's header). Previously a hardcoded tuple; a new
+# agent now needs only a registry entry, no source change here
 # (tests/python/test_reconcile_policy.py::test_sixth_agent_extends_fleet_via_config_only).
+#
+# A tag is a MANAGED ROOT: every consumer resolves it to "$HOME/.<tag>"
+# (deploy_reconcile.sh, the --root flag, the trash-dir containment check), so
+# only roster agents whose home_dir is literally "~/.<name>" may appear here.
+# devin is excluded by that rule and deliberately so: its home is
+# ~/.config/devin, and "$HOME/.devin" is the Devin *Desktop* app's data
+# folder — treating it as a managed root would put an unrelated product's
+# files in front of a removal prompt.
 # --------------------------------------------------------------------------- #
 _DEFAULT_ROOT_TAGS = ("claude", "cursor", "gemini", "codex", "antigravity")
 
@@ -73,14 +81,31 @@ def _agent_roster_loader():
         return None
 
 
+def _is_managed_root(name, home_dir):
+    """Whether agent *name* lives at the "$HOME/.<name>" root every fleet-tag
+    consumer assumes. A missing home_dir keeps the historical behavior
+    (treated as managed) so an older registry is never silently narrowed.
+    """
+    if not home_dir:
+        return True
+    return home_dir.strip().strip('"').strip("'") == f"~/.{name}"
+
+
 def _fallback_roster_tags(path):
-    """PyYAML-free extraction of the top-level keys under ``agents:`` —
-    mirrors ``_parse_protected_yaml``'s manual fallback parser (no hard yaml
+    """PyYAML-free extraction of the top-level keys under ``agents:`` whose
+    home_dir is a managed "$HOME/.<name>" root — mirrors
+    ``_parse_protected_yaml``'s manual fallback parser (no hard yaml
     dependency at runtime).
     """
     if not path or not os.path.isfile(path):
         return []
     tags, in_block = [], False
+    name, home = None, None
+
+    def flush():
+        if name is not None and _is_managed_root(name, home):
+            tags.append(name)
+
     with open(path, encoding="utf-8") as fh:
         for raw in fh:
             line = raw.rstrip("\n")
@@ -96,9 +121,13 @@ def _fallback_roster_tags(path):
                     and not line.startswith("    ")
                     and stripped.endswith(":")
                 ):
-                    tags.append(stripped[:-1])
+                    flush()
+                    name, home = stripped[:-1], None
+                elif line.startswith("    ") and stripped.startswith("home_dir:"):
+                    home = stripped.split(":", 1)[1].strip()
                 elif not line.startswith(" "):
                     break
+    flush()
     return tags
 
 
@@ -122,8 +151,10 @@ def load_fleet_tags(roster_path=None):
 
     Resolution order: explicit ``roster_path`` arg > ``MANIFEST_AGENT_ROSTER``
     env var (mirrors ``RECONCILE_CONFIG``/``MANIFEST_RECONCILE_CONFIG``
-    below) > the sibling ``../config/agent_roster.yml``. Falls back to the
-    hardcoded 5-tag default if the registry is missing, unparseable, or the
+    below) > the sibling ``../config/agent_roster.yml``. Only agents whose
+    home_dir is a managed "$HOME/.<name>" root are returned (see the
+    _DEFAULT_ROOT_TAGS header). Falls back to the hardcoded 5-tag default if
+    the registry is missing, unparseable, or the
     ``agents/config.py`` loader can't be imported — this CLI must keep
     working with no config file present (same invariant as
     ``_parse_protected_yaml``).
@@ -137,7 +168,14 @@ def load_fleet_tags(roster_path=None):
         try:
             roster = loader(path)
             if isinstance(roster, dict) and roster:
-                tags = list(roster.keys())
+                tags = [
+                    name
+                    for name, entry in roster.items()
+                    if _is_managed_root(
+                        name,
+                        entry.get("home_dir") if isinstance(entry, dict) else None,
+                    )
+                ]
         except Exception:
             tags = []
     if not tags:

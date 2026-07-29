@@ -496,15 +496,35 @@ def test_load_fleet_tags_hardcoded_default_when_registry_missing(tmp_path, monke
 # _MODEL_TIER_DEFAULTS in tests/python/agents/test_cli.py, and
 # check_status.sh's/sync-skills.sh's tier-3 arrays in
 # tests/bats/agent_roster_drift_guard.bats). _DEFAULT_ROOT_TAGS carries no
-# binary/home_dir/auth_check fields -- just the 5 agent names -- so the only
+# binary/home_dir/auth_check fields -- just the agent names -- so the only
 # meaningful guard here is name-set equality, read live from the REAL
 # agent_roster.yml (not a hardcoded expectation in this test), so a future
 # agent rename/removal not mirrored into _DEFAULT_ROOT_TAGS fails here
 # instead of shipping a silently stale fully-degraded fallback.
+#
+# Compared against the MANAGED-ROOT subset, not every roster agent: a tag is
+# resolved to "$HOME/.<tag>" by every consumer, so an agent whose home_dir is
+# not "~/.<name>" (devin -> ~/.config/devin) is not a root and must not be a
+# tag. That exclusion is asserted directly below.
 # --------------------------------------------------------------------------- #
 def test_default_root_tags_matches_real_registry_name_set():
     import yaml
 
     with open(_REAL_ROSTER, encoding="utf-8") as fh:
-        real_names = set(yaml.safe_load(fh)["agents"])
-    assert set(core._DEFAULT_ROOT_TAGS) == real_names
+        agents = yaml.safe_load(fh)["agents"]
+    managed = {n for n, e in agents.items() if e.get("home_dir") == f"~/.{n}"}
+    assert set(core._DEFAULT_ROOT_TAGS) == managed
+
+
+def test_agent_with_non_standard_home_is_not_a_managed_root():
+    """devin lives at ~/.config/devin. If it leaked into the fleet tags,
+    every consumer would resolve it to "$HOME/.devin" — the Devin Desktop
+    app's data folder — and offer an unrelated product's files for removal.
+    """
+    import yaml
+
+    with open(_REAL_ROSTER, encoding="utf-8") as fh:
+        agents = yaml.safe_load(fh)["agents"]
+    assert agents["devin"]["home_dir"] == "~/.config/devin"
+    assert "devin" not in core.load_fleet_tags(_REAL_ROSTER)
+    assert "devin" not in core._fallback_roster_tags(str(_REAL_ROSTER))

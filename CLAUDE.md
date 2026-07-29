@@ -22,7 +22,7 @@ routing"). Use the matching server when the task domain matches.
 
 This repository manages Claude Code agent configurations for deployment to `~/.claude/`
 on target machines. It contains orchestration guides, commands, skills, prompts, and scripts
-that enable parallel LLM agent coordination (Cursor, Gemini CLI, Claude CLI, Codex, Antigravity).
+that enable parallel LLM agent coordination (Cursor, Gemini CLI, Claude CLI, Codex, Antigravity, Devin).
 
 ## Repository Structure
 
@@ -98,7 +98,7 @@ The `bootstrap.sh` script automates installation, deployment, and authentication
 ```
 
 Service toggles (`--enable-*/--disable-*` for claude, gemini, cursor, codex,
-antigravity, graphify, skillclaw, apm, browser-use, smoke, gh, glab), other flags (`--skip-install`,
+antigravity, devin, graphify, skillclaw, apm, browser-use, smoke, gh, glab), other flags (`--skip-install`,
 `--skip-auth`, `--force`, `--reconfigure`, `--install-mcp`), and the full step
 list are documented in [README.md](README.md) and `./bootstrap.sh --help`.
 

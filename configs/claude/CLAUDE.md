@@ -1,7 +1,7 @@
 # Claude Orchestration Guide
 
 This document defines how Claude should leverage parallel LLM agents
-(Gemini, Cursor, Claude CLI, Codex, Antigravity) for cross-verification, planning, and validation.
+(Gemini, Cursor, Claude CLI, Codex, Antigravity, Devin) for cross-verification, planning, and validation.
 
 ## Token Economy (always on)
 

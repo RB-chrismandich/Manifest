@@ -57,7 +57,7 @@ teardown() {
 # --- Fixture helpers ---
 
 write_services_yml() {
-    # write_services_yml <claude> <gemini> <cursor> <codex> [antigravity] [graphify]
+    # write_services_yml <claude> <gemini> <cursor> <codex> [antigravity] [graphify] [devin]
     cat > "$HOME/.claude/config/services.yml" << EOF
 services:
   claude:
@@ -72,6 +72,8 @@ services:
     enabled: ${5:-false}
   graphify:
     enabled: ${6:-false}
+  devin:
+    enabled: ${7:-false}
 EOF
 }
 
@@ -110,20 +112,21 @@ EOF
     assert_output --partial "Codex (disabled)"
 }
 
-@test "counts enabled services (1/5)" {
+@test "counts enabled services (1/6)" {
     write_services_yml true false false false
     run bash "$SCRIPT_UNDER_TEST"
     assert_success
-    assert_output --partial "Enabled Services (1/5):"
+    assert_output --partial "Enabled Services (1/6):"
 }
 
-@test "counts enabled services (5/5)" {
+@test "counts enabled services (6/6)" {
     # graphify (6th arg) enabled too, so no "(disabled)" marker appears; the count
-    # stays 5/5 because graphify is a tool, not a counted orchestration agent (D4).
-    write_services_yml true true true true true true
+    # stays at the agent total because graphify is a tool, not a counted
+    # orchestration agent (D4). devin (7th arg) IS a counted agent.
+    write_services_yml true true true true true true true
     run bash "$SCRIPT_UNDER_TEST"
     assert_success
-    assert_output --partial "Enabled Services (5/5):"
+    assert_output --partial "Enabled Services (6/6):"
     refute_output --partial "(disabled)"
 }
 
@@ -197,12 +200,12 @@ EOF
 }
 
 @test "graphify does not count toward the orchestration agent total (D4)" {
-    # claude + gemini = 2 agents; graphify enabled must NOT make it 3/6.
+    # claude + gemini = 2 agents; graphify enabled must NOT make it 3/7.
     write_services_yml true true false false false true
     run bash "$SCRIPT_UNDER_TEST"
     assert_success
-    assert_output --partial "Enabled Services (2/5):"
-    refute_output --partial "/6"
+    assert_output --partial "Enabled Services (2/6):"
+    refute_output --partial "/7"
 }
 
 @test "verbose mode shows CLI location and version" {
@@ -292,6 +295,46 @@ EOF
     assert_success
     assert_output --partial "Antigravity authentication unknown"
     assert_output --partial "Verify: agy models"
+}
+
+# Mock `devin`. `models list` exits $1; `auth status` mirrors the real CLI's
+# false green — it prints "Not logged in." and STILL exits 0 — so a check built
+# on it would report authenticated for a logged-out account. The two tests
+# below pin that check_status.sh probes the catalog command instead.
+make_mock_devin() {
+    local models_rc="${1:-0}"
+    cat > "$MOCK_BIN/devin" << EOF
+#!/bin/bash
+case "\$1 \$2" in
+    "models list") exit $models_rc ;;
+    "auth status") echo "Not logged in."; exit 0 ;;
+esac
+case "\$1" in
+    --version) echo "devin 3000.2.17-mock"; exit 0 ;;
+    *) exit 0 ;;
+esac
+EOF
+    chmod +x "$MOCK_BIN/devin"
+}
+
+@test "devin authenticated when 'devin models list' succeeds" {
+    write_services_yml false false false false false false true
+    make_mock_devin 0
+    run bash "$SCRIPT_UNDER_TEST"
+    assert_success
+    assert_output --partial "Devin authenticated"
+}
+
+@test "devin reported unauthenticated when 'devin models list' fails" {
+    # The regression guard: this mock's `auth status` exits 0, so a check that
+    # used it would print "authenticated" here.
+    write_services_yml false false false false false false true
+    make_mock_devin 1
+    run bash "$SCRIPT_UNDER_TEST"
+    assert_success
+    assert_output --partial "Devin not authenticated"
+    assert_output --partial "devin auth login"
+    refute_output --partial "Devin authenticated"
 }
 
 # --- Auth probe timeout fallback (no GNU coreutils on PATH) ---
@@ -595,7 +638,7 @@ EOF
     assert_output --partial "Beta CLI not installed (optional)"
 }
 
-@test "total roster-parse failure falls back to the 5 historical hardcoded agents, not 0/0" {
+@test "total roster-parse failure falls back to the historical hardcoded agents, not 0/0" {
     # Reproduce the reviewer's exact total-failure scenario: MANIFEST_AGENT_ROSTER
     # points at a file that exists but is garbage -- it fails BOTH the
     # python3+PyYAML parse (yaml.safe_load succeeds but yields a bare string,
@@ -617,9 +660,9 @@ EOF
     run bash "$SCRIPT_UNDER_TEST"
     assert_success
 
-    # Denominator is the 5 historical agents, not 0 -- proves the third
-    # fallback tier populated ROSTER_NAMES instead of leaving it empty.
-    assert_output --partial "Enabled Services (2/5):"
+    # Denominator is the hardcoded historical agents, not 0 -- proves the
+    # third fallback tier populated ROSTER_NAMES instead of leaving it empty.
+    assert_output --partial "Enabled Services (2/6):"
     refute_output --partial "Enabled Services (0/0)"
     refute_output --partial "Claude (disabled)"
     refute_output --partial "Gemini (disabled)"

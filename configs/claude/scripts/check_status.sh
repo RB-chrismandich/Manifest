@@ -225,9 +225,9 @@ done < <(load_agent_roster_tsv)
 # agent_roster.yml's own committed content -- one source of truth, not a
 # fourth independent set of values.
 if [[ ${#ROSTER_NAMES[@]} -eq 0 ]]; then
-    ROSTER_NAMES=(claude gemini cursor codex antigravity)
-    ROSTER_BINARIES=(claude gemini cursor-agent codex agy)
-    ROSTER_AUTH_CHECKS=("claude auth status" "gemini auth status" "cursor-agent --version" "codex login status" "agy models")
+    ROSTER_NAMES=(claude gemini cursor codex antigravity devin)
+    ROSTER_BINARIES=(claude gemini cursor-agent codex agy devin)
+    ROSTER_AUTH_CHECKS=("claude auth status" "gemini auth status" "cursor-agent --version" "codex login status" "agy models" "devin models list")
 fi
 
 # roster_binary/roster_auth_check NAME -> field for NAME (empty if not
@@ -267,11 +267,13 @@ gemini_installed=false
 cursor_installed=false
 codex_installed=false
 antigravity_installed=false
+devin_installed=false
 claude_enabled=""
 gemini_enabled=""
 cursor_enabled=""
 codex_enabled=""
 antigravity_enabled=""
+devin_enabled=""
 
 manifest_state_root="${MANIFEST_STATE_ROOT:-$HOME/.manifest}"
 manifest_tmp_dir="${MANIFEST_TMP_DIR:-$manifest_state_root/tmp}"
@@ -281,6 +283,7 @@ cursor_state_dir="${CURSOR_STATE_DIR:-$manifest_state_root/cursor}"
 codex_state_dir="${CODEX_STATE_DIR:-${CODEX_HOME:-$manifest_state_root/codex}}"
 export CODEX_HOME="${CODEX_HOME:-$codex_state_dir}"
 antigravity_state_dir="${ANTIGRAVITY_STATE_DIR:-$manifest_state_root/antigravity}"
+devin_state_dir="${DEVIN_STATE_DIR:-$manifest_state_root/devin}"
 
 echo -e "${BOLD}${BLUE}═══════════════════════════════════════════════════════${NC}"
 echo -e "${BOLD}${BLUE}  Parallel Agent System Health Check${NC}"
@@ -359,6 +362,7 @@ agent_installed_msg() {
         cursor) echo "cursor-agent CLI available" ;;
         codex) echo "Codex CLI installed" ;;
         antigravity) echo "Antigravity CLI (agy) installed" ;;
+        devin) echo "Devin CLI installed" ;;
         *) echo "$(cap_name "$1") CLI installed" ;;
     esac
 }
@@ -369,6 +373,7 @@ agent_not_installed_msg() {
         cursor) echo "cursor-agent not available (optional)" ;;
         codex) echo "Codex CLI not installed" ;;
         antigravity) echo "Antigravity CLI (agy) not installed (optional)" ;;
+        devin) echo "Devin CLI not installed (optional)" ;;
         *) echo "$(cap_name "$1") CLI not installed (optional)" ;;
     esac
 }
@@ -379,6 +384,7 @@ agent_install_hint() {
         cursor) echo "curl https://cursor.com/install -fsS | bash" ;;
         codex) echo "npm install -g @openai/codex" ;;
         antigravity) echo "Install via the Antigravity IDE (agy install)" ;;
+        devin) echo "brew install --cask devin-cli  (or curl -fsSL https://cli.devin.ai/install.sh | bash)" ;;
         *) echo "no install hint configured for $1" ;;
     esac
 }
@@ -387,7 +393,7 @@ agent_install_hint() {
 # -- preserved exactly from the pre-roster-loop behavior.
 agent_shows_version() {
     case "$1" in
-        claude | gemini | codex) return 0 ;;
+        claude | gemini | codex | devin) return 0 ;;
         *) return 1 ;;
     esac
 }
@@ -515,6 +521,20 @@ if [[ "$antigravity_installed" == true ]]; then
     fi
 fi
 
+# devin: NOT roster-driven in the sense the claude/cursor loop above is --
+# the roster's auth_check ("devin models list") IS what runs here, but as a
+# bound probe. `devin auth status` is deliberately NOT used: it prints
+# "Not logged in." and still exits 0 (measured, devin 3000.2.17), so it can
+# only ever report a green.
+if [[ "$devin_installed" == true ]]; then
+    if run_with_timeout devin models list &> /dev/null; then
+        echo -e "  ${GREEN}✓${NC} Devin authenticated"
+    else
+        echo -e "  ${YELLOW}⚠${NC}  Devin not authenticated"
+        echo -e "    ${BLUE}→${NC} Sign in: devin auth login"
+    fi
+fi
+
 codex_runtime_ready=true
 if [[ "$codex_installed" == true && "$codex_enabled" == "true" ]]; then
     codex_home_dir="$CODEX_HOME"
@@ -547,7 +567,7 @@ echo ""
 
 echo -e "${BOLD}State Directories:${NC}"
 state_ok=true
-for state_dir in "$manifest_tmp_dir" "$claude_state_dir" "$gemini_state_dir" "$cursor_state_dir" "$codex_state_dir" "$antigravity_state_dir"; do
+for state_dir in "$manifest_tmp_dir" "$claude_state_dir" "$gemini_state_dir" "$cursor_state_dir" "$codex_state_dir" "$antigravity_state_dir" "$devin_state_dir"; do
     if mkdir -p "$state_dir" 2> /dev/null && [[ -w "$state_dir" ]]; then
         if [[ "$VERBOSE" == true ]]; then
             echo -e "  ${GREEN}✓${NC} $state_dir"
@@ -609,17 +629,18 @@ echo ""
 echo -e "${BOLD}${BLUE}═══════════════════════════════════════════════════════${NC}"
 echo -e "${BOLD}Overall Status:${NC}"
 
-# NOTE: this tally still only recognizes the 5 hardcoded agent names above —
-# a roster-only 6th+ agent (hyphenated or not) has its enabled/installed
-# state correctly read via ROSTER_NAMES elsewhere in this script, but is
-# never counted toward orchestration readiness here. Pre-existing limitation,
-# not introduced or fixed by the hyphen-sanitization work above.
+# NOTE: this tally recognizes only the 6 hardcoded agent names above — a
+# roster-only 7th+ agent (hyphenated or not) has its enabled/installed state
+# correctly read via ROSTER_NAMES elsewhere in this script, but is never
+# counted toward orchestration readiness here. Pre-existing limitation;
+# devin was added to the tally when it joined the roster.
 working_agents=0
 [[ "$claude_installed" == true && "$claude_enabled" == "true" ]] && working_agents=$((working_agents + 1))
 [[ "$gemini_installed" == true && "$gemini_enabled" == "true" ]] && working_agents=$((working_agents + 1))
 [[ "$cursor_installed" == true && "$cursor_enabled" == "true" ]] && working_agents=$((working_agents + 1))
 [[ "$codex_installed" == true && "$codex_enabled" == "true" && "$codex_runtime_ready" == true ]] && working_agents=$((working_agents + 1))
 [[ "$antigravity_installed" == true && "$antigravity_enabled" == "true" ]] && working_agents=$((working_agents + 1))
+[[ "$devin_installed" == true && "$devin_enabled" == "true" ]] && working_agents=$((working_agents + 1))
 
 if [[ $working_agents -ge 2 ]]; then
     echo -e "  ${GREEN}✓${NC} System ready for parallel orchestration (${working_agents} agents available)"
