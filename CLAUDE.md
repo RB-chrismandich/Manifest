@@ -248,7 +248,9 @@ approaches), review stale plans, or archive/abandon completed work.
 <!-- SPECKIT START -->
 ## Active Spec Kit Feature
 
-- **`522-apm-deploy-migration`** — **59/59 closed.** US1 delivered; US2/US4
-  closed measured-void (apm emits no Cursor `.mdc`; plugin manifests have no
-  dependency field). Constitution now v3.0.0. **Nothing activated.** Read
-  [HANDOFF.md](specs/522-apm-deploy-migration/HANDOFF.md) before acting.
+- **`522-apm-deploy-migration`** — **59/59 closed. SC-006 activated 2026-07-28**
+  (#654): apm owns `~/.claude/skills`, `deploy_home_skills`/`sync-skills` stand
+  down, sibling homes inherit by symlink. Undo:
+  `apm_ungate_domain.sh skills --apply` then `./bootstrap.sh`. US2/US4 closed
+  measured-void; constitution v3.0.0. Caveats:
+  [HANDOFF.md](specs/522-apm-deploy-migration/HANDOFF.md).

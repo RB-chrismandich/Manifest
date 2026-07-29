@@ -10,6 +10,26 @@ All notable changes are documented here in reverse chronological order.
 
 ## [Unreleased]
 
+### Feature 522 status corrected (session-loaded facts)
+
+- **`CLAUDE.md`** — the "Active Spec Kit Feature" block still said **"Nothing
+  activated"** after SC-006 landed (#654). It now records what is live: apm owns
+  `~/.claude/skills`, `deploy_home_skills`/`sync-skills` stand down, sibling
+  homes inherit by symlink, and the tested undo is
+  `apm_ungate_domain.sh skills --apply` + `./bootstrap.sh`. This block is
+  always-loaded, so a stale fact there is the most expensive kind.
+- **`specs/522-apm-deploy-migration/HANDOFF.md`** — superseded rather than
+  rewritten: a status banner corrects the three claims that no longer hold
+  (nothing activated; Phase 3 pending; the constitution blocker), the ⛔ section
+  is marked resolved by constitution v3.0.0 (V.4 → detect-and-report), and the
+  reasoning is kept because it is why the sequence was safe. The banner is
+  explicit that Phase 3's **deletions were refused** — T028/T030 closed VOID, so
+  the four generators and 109 `.mdc` files are retained on purpose and a future
+  reader must not "finish" them.
+- Loose ends reconciled: the `apm-spike-522` throwaway repo is gone, T017/T018
+  landed together, and a new one is recorded — a retired skill is **not** pruned
+  from an already-deployed home (`print-tune-bambu` survived #656 locally).
+
 ### Live-cwd deletion guard (`block_cwd_delete.py`)
 
 - **`configs/claude/scripts/block_cwd_delete.py`** — PreToolUse:Bash hook that
