@@ -26,7 +26,20 @@ Apply at all times, in every session:
 
 ## MCP Default Policy
 
-Default MCP/tool routing — use the matching tool when the task domain matches:
+Default MCP/tool routing — use the matching tool when the task domain matches
+**and that server is actually registered for your platform**. The registered set
+differs per platform, so check your own tool list before routing; the list below
+is a domain map, not a promise of availability:
+
+| Platform | Registered by Manifest |
+|----------|------------------------|
+| Claude | Context7 only (`mcp_user_servers.json`, #646) |
+| Gemini | Context7, Sentry, Linear (`configs/gemini/settings.json`) |
+| Cursor | all of the below (`configs/cursor/mcp.json`) |
+| Codex, Antigravity | none — they symlink the config, they do not register servers |
+
+Anything unregistered is opt-in via `./bootstrap.sh --install-mcp`. Semgrep is a
+CLI, so it is available wherever it is installed, independent of MCP.
 
 - **Context7 MCP** — library/API docs, code generation, setup, configuration
 - **Sentry MCP** — production/runtime errors, stack traces, release regressions

@@ -39,19 +39,22 @@ Apply at all times, in every session:
 - Always use a **large timeout** (600-900s) for complex analyses; the 120s
   default is often insufficient.
 
-Default MCP/tool routing — use the matching tool when the task domain matches:
+Default MCP/tool routing — use the matching tool when the task domain matches.
+`configs/gemini/settings.json` registers the first three; everything marked
+*opt-in* is absent until `./bootstrap.sh --install-mcp` adds it, so check your
+tool list before routing to one.
 
 - **Context7 MCP** — library/API docs, code generation, setup, configuration
 - **Sentry MCP** — production/runtime errors, stack traces, release regressions
 - **Linear MCP** — issue requirements, acceptance criteria, project planning
 - **Semgrep CLI** (`semgrep scan`) — local SAST, vulnerability and secrets
-  checks (install: `brew install semgrep`)
-- **DeepWiki MCP** — unfamiliar repos, dependency internals, upstream API contracts
-- **Glean MCP** — internal team knowledge, runbooks, ADRs
-- **Google Dev Docs MCP** — Firebase/Cloud/Android/Maps documentation
-- **Atlassian MCP** — Jira issues, Confluence pages, Compass components
-- **Apify MCP** — web scraping/crawling for structured external data
-- **OpenTofu MCP** — Terraform/OpenTofu registry, provider/module docs
+  checks (install: `brew install semgrep`; a CLI, so unaffected by MCP setup)
+- *opt-in* **DeepWiki MCP** — unfamiliar repos, dependency internals, upstream API contracts
+- *opt-in* **Glean MCP** — internal team knowledge, runbooks, ADRs
+- *opt-in* **Google Dev Docs MCP** — Firebase/Cloud/Android/Maps documentation
+- *opt-in* **Atlassian MCP** — Jira issues, Confluence pages, Compass components
+- *opt-in* **Apify MCP** — web scraping/crawling for structured external data
+- *opt-in* **OpenTofu MCP** — Terraform/OpenTofu registry, provider/module docs
 
 ```bash
 # Basic code review with JSON output (all 5 agents, 10 min timeout)

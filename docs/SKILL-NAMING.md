@@ -174,6 +174,52 @@ upload-to-stitch
 | `refactor-python` | wrong altitude (rule 5) |
 | `dashboard` | bare noun; no domain, no verb |
 
+## Lifecycle: adding, renaming, retiring
+
+A skill's name and description are **derived into four other places**. Editing
+`.apm/skills/<name>/SKILL.md` alone leaves the repo in a state CI rejects, so
+run the generators in the same commit.
+
+| Command | Writes |
+|---|---|
+| `configs/claude/scripts/generate_commands_doc.py` | `docs/COMMANDS.md` |
+| `configs/claude/scripts/generate_commands_doc.py --inject-guides` | `configs/gemini/GEMINI.md`, `AGENTS.md` (the compact index) |
+| `configs/claude/scripts/generate_cursor_rules.sh` | `configs/cursor/rules/*.mdc` |
+
+The two `generate_commands_doc.py` invocations write **different files** — running
+the bare form does not update the guides, and that asymmetry is the usual reason
+a "just add a skill" commit fails CI.
+
+### Add or rename
+
+1. Create/edit `.apm/skills/<name>/SKILL.md` with `name` + `description`
+   frontmatter (`configs/claude/skills/` is a compat symlink — never a real dir).
+2. Add `tool_policies` in `configs/claude/config/command_config.yml`; add
+   `validation_criteria.yml` overrides only if the skill needs them.
+3. Run all three generators above and commit what they change.
+4. Verify: `generate_commands_doc.py --check` (exit 1 = drift), then
+   `bats tests/bats/context_budget.bats tests/bats/skill_naming.bats`.
+   Frontmatter across all skills is capped at 29,000 chars — a new skill may
+   need a trim pass elsewhere before it fits.
+5. Refresh your home with `apm-dev-sync`. `./bootstrap.sh` no longer deploys
+   skills — apm has owned `~/.claude/skills` since SC-006.
+
+### Retire
+
+Deleting the directory is not enough. Also prune: the **Exceptions** block *and*
+table above if the name was listed there, its `tool_policies` entry, and any
+surviving cross-references (`grep -rn '<name>'`). Then regenerate and verify as
+above.
+
+Two traps worth knowing:
+
+- A rename leaves an untracked `__pycache__` behind. The orphan directory trips
+  `skill_naming.bats` locally while CI stays green, and makes apm skip the skill
+  entirely — it declines any directory holding files it did not place. Remove it
+  from the repo *and* `~/.claude/skills`, repo-first.
+- Changed `.mdc` files fight `end-of-file-fixer`; `configs/cursor/rules/` is
+  excluded from that hook so the generator stays authoritative.
+
 ## History
 
 The 2026-07 migration (91 → 88 skills: 68 renames, 2 duplicate merges, 1 deprecated

@@ -39,7 +39,10 @@ Legacy shim `~/.claude/scripts/parallel_agent.py` still forwards but prints a de
 - Always use **absolute paths** when specifying files to analyze or review.
 - Always use a **large timeout** (600-900 seconds) for complex analyses.
 
-Default MCP/tool routing — use the matching tool when the task domain matches:
+Default MCP/tool routing — use the matching tool when the task domain matches.
+`configs/cursor/mcp.json` registers all of the following, so Cursor is the one
+platform where they are present by default (Claude ships Context7 only). Semgrep
+is a CLI and is available wherever it is installed.
 
 - **Context7 MCP** — library/API docs, code generation, setup, configuration
 - **Sentry MCP** — production/runtime errors, stack traces, release regressions
