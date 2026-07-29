@@ -1,12 +1,12 @@
 ---
 name: skill-evolve
-description: Turn SkillClaw-evolved skills into a reviewed PR into .skillshare/skills/. Dry-run by default; --apply opens one PR with one commit per skill. Requires --enable-skillclaw and claude CLI login. Never writes source of truth directly — all changes go through PR review.
+description: Turn SkillClaw-evolved skills into a reviewed PR into .apm/skills/. Dry-run by default; --apply opens one PR with one commit per skill. Requires --enable-skillclaw and claude CLI login. Never writes source of truth directly — all changes go through PR review.
 ---
 
 # Evolve Skills (SkillClaw)
 
 Promote skills SkillClaw has evolved from your Claude Code session transcripts
-into the committed `.skillshare/skills/` library — gated behind PR review.
+into the committed `.apm/skills/` library — gated behind PR review.
 
 Backed by `~/.claude/scripts/skillclaw_promote.sh`, which ingests your recent
 Claude Code transcripts (`~/.claude/projects/**/*.jsonl`), scrubs them of secrets,
@@ -73,5 +73,5 @@ regardless of `EVOLVE_CLI`.
   (`./bootstrap.sh --enable-skillclaw`), the `claude` CLI is logged in, and there
   are recent transcripts within the window (`window_days` in
   `~/.claude/config/skillclaw.yml`). Rejected candidates land in
-  `~/.skillclaw/skills/rejected/`. Nothing here mutates `.skillshare/skills/`
+  `~/.skillclaw/skills/rejected/`. Nothing here mutates `.apm/skills/`
   without a merged PR.

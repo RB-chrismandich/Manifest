@@ -121,7 +121,7 @@ elif [[ -f "${BASH_SOURCE[0]%/*}/../../configs/claude/scripts/apm_domains_lib.sh
     source "${BASH_SOURCE[0]%/*}/../../configs/claude/scripts/apm_domains_lib.sh"
 fi
 
-# Deploy skills into a tool's real skills dir from the PHYSICAL skillshare source.
+# Deploy skills into a tool's real skills dir from the PHYSICAL source tree.
 # Always sources the real .apm/skills dir (never the compat symlink).
 # Manifest-scoped prune (FR-005a, specs/003): skills we previously deployed and
 # that have since been removed from the source of truth are pruned from dest,

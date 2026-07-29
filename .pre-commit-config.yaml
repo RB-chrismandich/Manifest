@@ -91,11 +91,11 @@ repos:
         #   - docs/templates/, docs/SHELL_ANALYSIS_REPORT.md,
         #     docs/VALIDATION_REPORT.md — pre-existing report/template docs
         #     (feature 366).
-        #   - .apm/skills/ — skillshare-vendored skill content (e.g.
-        #     ai-hooks-integration, the Stitch Design Skills family): synced
+        #   - .apm/skills/ — externally-sourced skill content (e.g.
+        #     ai-hooks-integration, the Stitch Design Skills family): vendored
         #     from upstream repos not authored to this repo's 120-col/heading
-        #     conventions; rewrapping prose to fit would fight every
-        #     `skillshare update` re-sync instead of diffing cleanly.
+        #     conventions; rewrapping prose to fit would fight every upstream
+        #     re-sync instead of diffing cleanly.
         # This keeps the changed-files CI gate (pre-commit run --files ...)
         # from failing on files the repo does not control the prose of.
         exclude: ^(\.Jules/|\.jules/|specs/|docs/superpowers/|docs/templates/|docs/SHELL_ANALYSIS_REPORT\.md|docs/VALIDATION_REPORT\.md|\.specify/|\.claude/skills/speckit-[^/]+/|node_modules/|\.apm/skills/)

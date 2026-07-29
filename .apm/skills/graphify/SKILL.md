@@ -12,7 +12,7 @@ modifies your source files.
 
 > Manifest manages graphify as a deployed skill + CLI. Do **not** run
 > `graphify install` — the skill is delivered through Manifest's
-> `.skillshare/skills/` pipeline, and graphify's own installer would patch each
+> `.apm/skills/` pipeline, and graphify's own installer would patch each
 > assistant's `CLAUDE.md`/`GEMINI.md` out-of-band.
 
 ## Arguments

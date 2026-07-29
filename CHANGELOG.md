@@ -10,6 +10,29 @@ All notable changes are documented here in reverse chronological order.
 
 ## [Unreleased]
 
+### Retired-tree references swept (`.skillshare/` → `.apm/`, `linear_triage.yml`)
+
+- **Four skills carried paths into the tree deleted on 2026-07-27**, two of them
+  as instructions that could not work: `pr-smoke/SKILL.md` handed out
+  `.skillshare/skills/pr-smoke/scripts/run_pr_regression.sh` as a copy-paste
+  command, and `spec-implement-loop/prompts/reviewer-dispatch.md` sent every
+  critic sub-agent to read a verdict-format file at a path that no longer
+  exists. Also fixed: `skill-evolve`'s always-loaded description (it advertised
+  PRs into `.skillshare/skills/`), `graphify`, and `test-isolate-ambient` —
+  whose isolation recipe stubbed `sync_skillshare_targets()`, a function removed
+  with the tree, so the recipe silently no longer covered what it claimed.
+- Same dead stub removed from `smoke-catalog/manifest.yaml`; stale comments in
+  `bootstrap/lib/{common,deploy}.sh`, `.gitignore` and `.pre-commit-config.yaml`
+  now name `.apm/skills`, and `deploy.sh`'s "home deploy is unaffected" note
+  records that SC-006 has since handed that domain to apm.
+- **`configs/claude/config/linear_triage.yml` deleted** — it was marked
+  "deletion in Phase 2 cleanup", and Phase 2 closed. `tracker_triage.yml` is a
+  strict superset (same thresholds; `same_team_boost` → `same_scope_boost`,
+  `cancel_issue` → `close_issue`), and nothing in `tests/`, `bootstrap/` or
+  `configs/claude/scripts/` ever read either file. References repointed in
+  `issue-triage/README.md`, `env-check/SKILL.md`, `references/layout.md` and the
+  root `CLAUDE.md` key-file table.
+
 ### Feature 522 status corrected (session-loaded facts)
 
 - **`CLAUDE.md`** — the "Active Spec Kit Feature" block still said **"Nothing

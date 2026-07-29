@@ -294,7 +294,7 @@ graphify never participates in `manifest parallel-agent` consensus and is not co
 toward orchestration readiness.
 
 **CLI tool** (installed to `~/.local/bin/`): `sync-skills` — push
-`.skillshare/skills/` changes to all home targets (daily skill dev workflow).
+`.apm/skills/` changes to all home targets (daily skill dev workflow).
 
 ### Auto-Triggered Rule
 

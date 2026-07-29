@@ -31,7 +31,7 @@ The deterministic work lives in a bundled runner so the verdict is reproducible
 and the exit code can gate a merge or feed a hook. From the repo root:
 
 ```bash
-.skillshare/skills/pr-smoke/scripts/run_pr_regression.sh
+.apm/skills/pr-smoke/scripts/run_pr_regression.sh
 ```
 
 Useful flags (the script self-documents via `--help`):
