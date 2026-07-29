@@ -1,28 +1,67 @@
 # Handoff — Feature 522, at the Phase 2/3 boundary
 
-**Written**: 2026-07-27 · **Branch**: `522-apm-deploy-migration`
-**State**: Phases 0–2 complete, nothing activated.
+**Written**: 2026-07-27 · **Branch**: `522-apm-deploy-migration` (merged, #636)
+**State when written**: Phases 0–2 complete, nothing activated.
+**State now**: superseded — see the status update below.
 
-## Why the branch stops here
+## ⚠️ Status update — 2026-07-28 (read this first)
+
+This document describes the branch as it stood before merge. Three of its
+claims no longer hold; the rest still does. Corrected rather than deleted,
+because the reasoning below is why the sequence was safe.
+
+- **"Nothing activated" is no longer true.** SC-006 landed in #654:
+  `apm_domains.yml` now lists `skills`, apm owns `~/.claude/skills` (108 skills
+  adopted), and `deploy_home_skills`/`sync-skills` stand down for the domain.
+  Deploy preceded gating, deliberately — the reverse order leaves the domain
+  writer-less on a live machine. Rollback is tested:
+  `configs/claude/scripts/apm_ungate_domain.sh skills --apply`, then
+  `./bootstrap.sh`.
+- **Phase 3 ran — but only its first half.** `v0.0.1-apm-preview.1` is published
+  (T018) and T017 is green. **The deletions did not happen and must not**:
+  T028 (four generators) and T030 (109 committed `.mdc`) closed **VOID** because
+  apm emits zero `.mdc` for a 108-skill package, so deleting them would destroy
+  Cursor's rule integration with nothing taking over. `generate_cursor_rules.sh`,
+  `generate_cursor_agents.py`, `generate_cursor_mcp.py`, `deploy_reconcile.sh`
+  and all 109 `.mdc` files are **retained on purpose**. T032 closed
+  not-applicable — though its stated reopen condition ("if and when SC-006 is
+  decided and a domain is genuinely handed over") is now met and it deserves a
+  second look. All 59 tasks closed: 42 delivered, 6 void, 1 not-applicable,
+  3 measured-limited.
+- **The ⛔ blocker below is resolved.** Constitution v3.0.0 amended Principle
+  V.4 from preserve-and-report to **detect**-and-report, which is expressible
+  with apm doing the write. The section is kept for the decision trail.
+
+Still true and still worth reading: the reviewer push-backs (§"Things a
+reviewer should push back on") — in particular that `deploy_reconcile.sh`
+cannot be retired, since 170 script files remain on legacy rsync.
+
+## Why the branch stopped here
 
 Phase 3 is the first phase that cannot be undone by `git revert`. It publishes a
 package to a real git host, deletes 109 tracked files and four generators, and
 switches the live deploy. Everything before it is additive and inert.
 
-The branch is therefore mergeable as-is **and changes no behaviour for anyone**:
+The branch was therefore mergeable as-is **and changed no behaviour for anyone**
+at the time of merge:
 
-- `apm_domains.yml` is `domains: []` — nothing is gated, both legacy writers run
-  exactly as before.
+- `apm_domains.yml` was `domains: []` — nothing gated, both legacy writers ran
+  exactly as before. (Now `domains: [skills]`, see the status update.)
 - `--enable-apm` defaults to **false** — no machine installs apm unless asked.
 - The publish-free loop, the ownership report, the un-gate tool and the isolation
-  harness are all new files nothing calls by default.
+  harness were all new files nothing called by default.
 
-Verify that claim rather than take it: `apm_ownership_report.sh` prints
-`skills … legacy` on a current checkout, and `bats tests/bats/` is green.
+Verify rather than take it: `apm_ownership_report.sh` printed `skills … legacy`
+on that checkout; it prints `skills … apm` today.
 
-## What Phase 3 will do, precisely
+## What Phase 3 did, precisely
 
-Read this before authorizing, because three of the four steps are one-way.
+Written as a pre-authorization warning — three of the four steps are one-way.
+Steps 1–3 have since run, step 3 in the reverse order described (deploy first,
+gate second), which is why the writer-less window never opened on a live
+machine. **Step 4 was refused**: T028/T030 closed VOID rather than delete a
+capability apm cannot replace. The gating that caught it (T025/T026 as
+preconditions) is the part worth copying.
 
 1. **T017** — write `apm_deploy_isolated.bats` and demonstrate each case FAILS
    against the current pipeline. Safe, but it lands red until T018 exists, so it
@@ -45,7 +84,11 @@ lockfile's `deployed_files`, so other tools' skills in the same directory
 survive). Then `./bootstrap.sh` repopulates. Proven by
 `tests/bats/apm_ungate_domain.bats`.
 
-## ⛔ Blocking: the constitution contradicts the shipped mechanism
+## ✅ Resolved (was blocking): the constitution contradicted the shipped mechanism
+
+**Resolved by constitution v3.0.0** — V.4 became detect-and-report, V.5 was
+scoped. Kept for the decision trail; the analysis below is the reasoning that
+forced the amendment.
 
 Found by T035 after the rest of this handoff was written. **Phase 3 should not
 start until this is decided**, because it is a decision, not an implementation.
@@ -91,8 +134,9 @@ Listed because they are judgement calls I made, not facts.
 
 ## Loose ends
 
-- **Throwaway repo `RB-chrismandich/apm-spike-522` still exists** (private). Kept
-  so cell (b) stays reproducible. Delete once Phase 1 no longer needs to re-run
+- ~~**Throwaway repo `RB-chrismandich/apm-spike-522` still exists**~~ — deleted;
+  the API no longer resolves it under a token that can see that owner's private
+  repos. Cell (b) is no longer re-runnable from it; `decision-record.md` holds
   the measurement.
 - **`.claude/CLAUDE.md` is at 3895/3900 bytes.** Five bytes of headroom. The next
   addition needs a real decision — delete something or raise the budget — not a
@@ -101,14 +145,18 @@ Listed because they are judgement calls I made, not facts.
 - **`preserve_issue_sync_gates()` is now a migration shim** with a delete-me
   note. It can go once existing issue-hook opt-ins are assumed migrated (a
   re-run of `install_issue_hooks.sh --enable` moves one).
-- **T017 is coupled to T018.** It is pure test code and otherwise safe, but it
-  is red until the package exists, so the two land together or not at all.
+- ~~**T017 is coupled to T018.**~~ — both landed together, as required.
+- **A retired skill is not pruned from an already-deployed home.** Retiring
+  `print-tune-bambu` (#656) left `~/.claude/skills/print-tune-bambu/` and its
+  `command_config.yml` `tool_policies` block in place on this machine. Whether
+  apm reclaims a deleted skill on the next deploy, or a prune step is owed, is
+  unmeasured — check before assuming the lockfile covers deletions.
 
 ## Verification commands
 
 ```bash
 bats tests/bats/
 uv run --project configs/claude pytest tests/python/ -q   # 737 passed
-configs/claude/scripts/apm_ownership_report.sh    # skills … legacy, exit 0
+configs/claude/scripts/apm_ownership_report.sh    # skills … apm, exit 0
 pre-commit run --from-ref origin/main --to-ref HEAD
 ```
