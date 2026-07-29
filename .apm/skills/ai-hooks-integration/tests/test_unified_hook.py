@@ -272,5 +272,60 @@ class TestMainStdinFailOpen(unittest.TestCase):
         )
 
 
+class TestNoBytecodeInSkillDirs(unittest.TestCase):
+    """Hook execution must not write __pycache__ into a skill directory.
+
+    Regression: handlers and the runtime live under the apm-managed skills tree.
+    Any sibling module they import leaves a .pyc there — a file apm did not
+    place — after which apm refuses to remove or replace that skill. Deleting
+    the directory does not stick; only never writing it does.
+
+    Asserted behaviourally (run it, look for the directory) rather than by
+    grepping for "-B", so the test still fails if the flag is dropped anywhere
+    along the spawn path.
+    """
+
+    def test_run_handler_leaves_no_pycache(self):
+        """A handler importing a sibling must not litter its own directory."""
+        import tempfile
+        from pathlib import Path
+
+        from runtime.unified_hook import run_handler
+
+        with tempfile.TemporaryDirectory() as tmp:
+            skill_dir = Path(tmp)
+            (skill_dir / "sibling_module.py").write_text("VALUE = 1\n")
+            handler = skill_dir / "handler.py"
+            handler.write_text(
+                "import json, sys\n"
+                "import sibling_module\n"  # the import that creates the .pyc
+                "sys.stdin.read()\n"
+                'print(json.dumps({"decision": "allow"}))\n'
+            )
+
+            run_handler(str(handler), {"event_type": "PreToolUse"})
+
+            leftovers = list(skill_dir.rglob("__pycache__"))
+            self.assertEqual(
+                leftovers,
+                [],
+                f"handler spawn wrote bytecode into the skill dir: {leftovers}",
+            )
+
+    def test_installer_emits_no_bytecode_flag(self):
+        """install_all.py must build a hook command that suppresses bytecode."""
+        installer = os.path.join(
+            os.path.dirname(__file__), "..", "scripts", "install_all.py"
+        )
+        with open(installer, encoding="utf-8") as fh:
+            source = fh.read()
+        self.assertIn(
+            "-B {UNIFIED_HOOK}",
+            source,
+            "the installed hook command must pass -B; without it every hook "
+            "fire can re-lock the skill against apm",
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

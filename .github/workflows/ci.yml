@@ -229,6 +229,15 @@ jobs:
             echo "No Python tests found in tests/python/ - skipping"
           fi
 
+      - name: Run skill-local Python tests (ai-hooks-integration runtime)
+        # Separate invocation on purpose: this suite is its own `tests` package,
+        # so adding it to pytest testpaths collides with the repo's tests/
+        # (ModuleNotFoundError: tests.test_unified_hook). It guards code that
+        # runs on every hook fire, so it must not stay outside CI. No
+        # "skipping" branch — the path is known to exist, and a check that
+        # silently skips is a false green.
+        run: pytest .apm/skills/ai-hooks-integration/tests/ -v
+
       - name: Run smoke tests (tier Lite — P-VI Verify gate)
         # Deterministic, browser-free critical-path smoke (smoke-catalog/*.yaml).
         run: |
