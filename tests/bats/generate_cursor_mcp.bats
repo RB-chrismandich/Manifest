@@ -37,7 +37,9 @@ teardown() {
 }
 
 # Helper: write a fixture registry with the given server names (each gets a
-# distinct fake URL so per-server assertions can pin exact content).
+# distinct fake URL so per-server assertions can pin exact content). Entries are
+# marked `shipped: true` because these tests exercise the emit path; the
+# shipped gate itself is covered separately below.
 make_registry() {
     {
         echo "mcp_servers:"
@@ -45,6 +47,7 @@ make_registry() {
             echo "  $name:"
             echo "    url: \"https://example.com/$name\""
             echo "    transport: \"http\""
+            echo "    shipped: true"
         done
     } > "$REGISTRY"
 }
@@ -105,8 +108,10 @@ print('schema-ok')
 mcp_servers:
   has-url:
     url: "https://example.com/has-url"
+    shipped: true
   no-url:
     transport: "stdio"
+    shipped: true
 EOF
     run "$GEN"
     assert_success
@@ -115,6 +120,45 @@ EOF
     run cat "$OUTPUT"
     assert_output --partial '"has-url"'
     refute_output --partial '"no-url"'
+}
+
+# ── shipped gate (#646 prune extended to Cursor) ────────────────────────────
+
+@test "catalog-only entry (no shipped key) is not registered" {
+    cat > "$REGISTRY" << 'EOF'
+mcp_servers:
+  shipped-one:
+    url: "https://example.com/shipped-one"
+    shipped: true
+  catalog-only:
+    url: "https://example.com/catalog-only"
+EOF
+    run "$GEN"
+    assert_success
+    assert_output --partial "1 servers"
+
+    run cat "$OUTPUT"
+    assert_output --partial '"shipped-one"'
+    refute_output --partial '"catalog-only"'
+}
+
+@test "shipped must be true, not merely present or truthy-looking" {
+    cat > "$REGISTRY" << 'EOF'
+mcp_servers:
+  explicit-false:
+    url: "https://example.com/explicit-false"
+    shipped: false
+  string-yes:
+    url: "https://example.com/string-yes"
+    shipped: "yes"
+EOF
+    run "$GEN"
+    assert_success
+    assert_output --partial "0 servers"
+
+    run cat "$OUTPUT"
+    refute_output --partial '"explicit-false"'
+    refute_output --partial '"string-yes"'
 }
 
 # ── Idempotence / change detection ──────────────────────────────────────────
@@ -140,6 +184,7 @@ EOF
 mcp_servers:
   alpha:
     url: "https://example.com/alpha-v2"
+    shipped: true
 EOF
     run "$GEN"
     assert_success
@@ -232,21 +277,42 @@ EOF
 
 # ── Real repo (read-only-ish guarded check) ─────────────────────────────────
 
-@test "real repo: mcp.json contains all registry servers with matching URLs" {
+@test "real repo: mcp.json contains exactly the shipped registry servers" {
     run python3 -c "
 import yaml, json
 registry = yaml.safe_load(open('$REPO_ROOT/configs/claude/config/mcp_servers.yml'))['mcp_servers']
 cursor = json.load(open('$REPO_ROOT/configs/cursor/mcp.json'))['mcpServers']
-expected = {name: cfg['url'] for name, cfg in registry.items() if 'url' in cfg}
+url_entries = {name: cfg for name, cfg in registry.items() if 'url' in cfg}
+expected = {n: c['url'] for n, c in url_entries.items() if c.get('shipped') is True}
 missing = sorted(set(expected) - set(cursor))
+extra = sorted(set(cursor) - set(expected))
 mismatched = sorted(n for n in expected if n in cursor and cursor[n].get('url') != expected[n])
-assert not missing, f'missing servers: {missing}'
+assert not missing, f'missing shipped servers: {missing}'
+assert not extra, f'registered but not shipped: {extra}'
 assert not mismatched, f'mismatched urls: {mismatched}'
-assert len(expected) == 9, f'expected 9 registry servers, found {len(expected)}'
+# The catalog stays full even though the shipped set is small — that is the
+# point of the split, and a prune that emptied the catalog would be a bug.
+assert len(url_entries) == 9, f'expected 9 catalog servers, found {len(url_entries)}'
+assert expected == {'context7': url_entries['context7']['url']}, f'shipped set drifted: {sorted(expected)}'
 print('real-repo-ok')
 "
     assert_success
     assert_output --partial "real-repo-ok"
+}
+
+@test "real repo: gemini and cursor register the same shipped set" {
+    run python3 -c "
+import yaml, json
+registry = yaml.safe_load(open('$REPO_ROOT/configs/claude/config/mcp_servers.yml'))['mcp_servers']
+shipped = {n for n, c in registry.items() if c.get('shipped') is True}
+cursor = set(json.load(open('$REPO_ROOT/configs/cursor/mcp.json'))['mcpServers'])
+gemini = set(json.load(open('$REPO_ROOT/configs/gemini/settings.json'))['mcpServers'])
+assert cursor == shipped, f'cursor {sorted(cursor)} != shipped {sorted(shipped)}'
+assert gemini == shipped, f'gemini {sorted(gemini)} != shipped {sorted(shipped)}'
+print('parity-ok')
+"
+    assert_success
+    assert_output --partial "parity-ok"
 }
 
 @test "real repo: regenerating mcp.json leaves the tree git-clean" {

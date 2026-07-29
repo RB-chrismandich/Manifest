@@ -49,7 +49,10 @@ for name, info in servers.items():
     # --- Fallback: awk ---
     if [[ -z "$parsed" ]]; then
         parsed=$(awk '
-            /^[[:space:]]*[a-zA-Z0-9_-]+:/ && !/^[[:space:]]*mcp_servers:/ && !/^[[:space:]]*(url|transport|oauth|purpose|note):/ {
+            # Any key not excluded here is read as a server NAME, so every
+            # per-server field must be listed — `shipped` included, or a
+            # pyyaml-less machine invents a tenth server called "shipped".
+            /^[[:space:]]*[a-zA-Z0-9_-]+:/ && !/^[[:space:]]*mcp_servers:/ && !/^[[:space:]]*(url|transport|oauth|shipped|purpose|note):/ {
                 gsub(/^[[:space:]]+|:[[:space:]]*$/, "")
                 name = $0; transport = "http"
             }

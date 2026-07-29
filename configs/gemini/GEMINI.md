@@ -40,13 +40,13 @@ Apply at all times, in every session:
   default is often insufficient.
 
 Default MCP/tool routing — use the matching tool when the task domain matches.
-`configs/gemini/settings.json` registers the first three; everything marked
+`configs/gemini/settings.json` registers Context7 only; everything marked
 *opt-in* is absent until `./bootstrap.sh --install-mcp` adds it, so check your
 tool list before routing to one.
 
 - **Context7 MCP** — library/API docs, code generation, setup, configuration
-- **Sentry MCP** — production/runtime errors, stack traces, release regressions
-- **Linear MCP** — issue requirements, acceptance criteria, project planning
+- *opt-in* **Sentry MCP** — production/runtime errors, stack traces, release regressions
+- *opt-in* **Linear MCP** — issue requirements, acceptance criteria, project planning
 - **Semgrep CLI** (`semgrep scan`) — local SAST, vulnerability and secrets
   checks (install: `brew install semgrep`; a CLI, so unaffected by MCP setup)
 - *opt-in* **DeepWiki MCP** — unfamiliar repos, dependency internals, upstream API contracts
