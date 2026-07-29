@@ -50,7 +50,7 @@ export FORCE=true
 source "$REPO_ROOT/bootstrap/lib/deploy.sh"
 write_services_config() { :; }; deploy_cursor_configs() { :; }
 deploy_gemini_configs() { :; }; deploy_codex_configs() { :; }
-deploy_antigravity_configs() { :; }; sync_skillshare_targets() { :; }
+deploy_antigravity_configs() { :; }
 deploy_sync_skills() { :; }
 ```
 
@@ -84,9 +84,9 @@ attempt at this got it wrong precisely there).
 
 ```bash
 CLONE="$TMP/clone"
-mkdir -p "$CLONE/configs/claude" "$CLONE/.skillshare/skills/demo"
+mkdir -p "$CLONE/configs/claude" "$CLONE/.apm/skills/demo"
 echo x > "$CLONE/configs/claude/CLAUDE.md"
-echo y > "$CLONE/.skillshare/skills/demo/SKILL.md"
+echo y > "$CLONE/.apm/skills/demo/SKILL.md"
 git -C "$CLONE" init -q
 git -C "$CLONE" config user.email t@t.test && git -C "$CLONE" config user.name test
 git -C "$CLONE" add -A && git -C "$CLONE" commit -qm init

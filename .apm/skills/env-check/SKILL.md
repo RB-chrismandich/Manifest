@@ -135,7 +135,7 @@ Files to check:
 - `~/.claude/config/parallel_agent.yml`
 - `~/.claude/config/services.yml`
 - `~/.claude/config/validation_criteria.yml`
-- `~/.claude/config/linear_triage.yml`
+- `~/.claude/config/tracker_triage.yml`
 - `~/.claude/config/mcp_servers.yml`
 - `~/.claude/config/labels.yml`
 - `.claude/settings.local.json`

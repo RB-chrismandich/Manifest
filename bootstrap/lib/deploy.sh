@@ -244,7 +244,8 @@ deploy_configs() {
     merge_claude_runtime_settings "$source_dir/settings.runtime.json" "$TARGET_DIR/settings.json"
     install_claude_mcp_servers "$source_dir/config/mcp_user_servers.json" "$TARGET_DIR/settings.local.json"
 
-    # Deploy skills from the PHYSICAL skillshare source into ~/.claude/skills.
+    # Deploy skills from the PHYSICAL .apm/skills source into ~/.claude/skills.
+    # No-op once apm owns the `skills` domain (SC-006) — see apm_domains.yml.
     # Must run before link_shared_assets (create_symlink skips missing targets).
     deploy_home_skills "$SCRIPT_DIR/.apm/skills" "$TARGET_DIR/skills"
     # Gate /graphify on its service toggle (FR-012) and reconcile any foreign
@@ -1001,8 +1002,9 @@ deploy_antigravity_configs() {
 # NOTE: sync_skillshare_targets was removed 2026-07-27 (FR-021a). skillshare is
 # deprecated; skills now live in .apm/skills as the sole source of truth. This
 # also retires the project-scoped Copilot sync (.github/skills) that skillshare
-# owned — a real capability loss, recorded rather than glossed. Home deploy is
-# unaffected: deploy_home_skills has always owned ~/.claude/skills.
+# owned — a real capability loss, recorded rather than glossed. Home deploy was
+# unaffected at the time: deploy_home_skills owned ~/.claude/skills until
+# SC-006 (2026-07-28) handed that domain to apm.
 
 # Deploy sync-skills CLI to ~/.local/bin/ and ensure it is on PATH.
 # Depends on SHELL_PROFILE_FILE being set by configure_shell_profile_state.

@@ -41,7 +41,7 @@
 │   └── validation.md
 ├── config/
 │   ├── command_config.yml
-│   ├── linear_triage.yml
+│   ├── tracker_triage.yml
 │   ├── mcp_servers.yml
 │   ├── parallel_agent.yml           # Canonical model tiers source
 │   ├── services.yml

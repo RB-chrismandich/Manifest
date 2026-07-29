@@ -228,8 +228,6 @@ tests:
 
             deploy_antigravity_configs() { :; }
 
-            sync_skillshare_targets() { :; }
-
             deploy_sync_skills() { :; }
 
             mkdir -p "$TARGET_DIR/plugins/cache" "$TARGET_DIR/projects" "$TARGET_DIR/config"

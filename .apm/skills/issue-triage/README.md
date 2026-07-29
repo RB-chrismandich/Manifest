@@ -119,7 +119,7 @@ Consensus thresholds:
 
 ## Configuration
 
-Edit `~/.claude/config/linear_triage.yml` to customize:
+Edit `~/.claude/config/tracker_triage.yml` to customize:
 
 - Duplicate detection thresholds
 - Staleness criteria (inactivity days, file deletion ratio)
@@ -152,7 +152,7 @@ Edit `~/.claude/config/linear_triage.yml` to customize:
 |------|---------|
 | `SKILL.md` | Main skill implementation |
 | `~/.claude/scripts/linear_ops.sh` | Linear MCP wrapper |
-| `~/.claude/config/linear_triage.yml` | Configuration |
+| `~/.claude/config/tracker_triage.yml` | Configuration (provider-neutral) |
 
 ## See Also
 

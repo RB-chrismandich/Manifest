@@ -6,7 +6,7 @@ any file.** Read-only analysis only.
 Read first:
 
 1. Role charter: `configs/claude/prompts/cddl/{{CHARTER_FILE}}`
-2. Verdict format: `.skillshare/skills/spec-implement-loop/prompts/verdict-format.md`
+2. Verdict format: `.apm/skills/spec-implement-loop/prompts/verdict-format.md`
 3. Run context: `<RUN_DIR>/context.md`
 4. This iteration: `<RUN_DIR>/iterations/<N>/developer-report.md`
 5. Diff: run `git diff` and `git diff --cached` from the repo root (or read
