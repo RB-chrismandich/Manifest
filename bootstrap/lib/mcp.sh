@@ -30,6 +30,16 @@ parse_mcp_registry() {
     local parsed=""
 
     # --- Primary: python3 ---
+    #
+    # The `|| parsed=""` is what makes the awk fallback below reachable. This is
+    # the exact case the fallback exists for — python3 present but PyYAML
+    # missing, so the interpreter exits non-zero — and bootstrap.sh runs under
+    # `set -e`, where a bare `parsed=$(failing-cmd)` aborts the caller. It has
+    # not bitten yet only because the sole call site is `if ! parse_mcp_registry`,
+    # and a function invoked in a condition has errexit suspended for its whole
+    # body. Any direct call would have died at this assignment instead of
+    # falling back. Do not drop the guard on the assumption of a condition-context
+    # caller.
     if command_exists python3; then
         parsed=$(python3 -c "
 import yaml, sys
@@ -43,41 +53,45 @@ for name, info in servers.items():
     transport = info.get('transport', 'http')
     purpose = info.get('purpose', '')
     print(f'{name}|{url}|{transport}|{purpose}')
-" "$yaml_file" 2> /dev/null)
+" "$yaml_file" 2> /dev/null) || parsed=""
     fi
 
     # --- Fallback: awk ---
+    #
+    # Keyed on STRUCTURE, not on a list of known field names. A server key sits
+    # at exactly two spaces of indent and carries no inline value; its fields sit
+    # deeper. The previous version matched any key not in a deny-list of field
+    # names, which made every new registry field a latent parser bug: adding
+    # `shipped:` did not invent a tenth server, it silently REPLACED context7 —
+    # dropping the only shipped server on exactly the machines that cannot use
+    # the python path. Indentation cannot be forgotten the way a deny-list can.
+    #
+    # Records flush on the next server key (or EOF) rather than on `purpose:`,
+    # so field order is free and a server without a purpose is still emitted.
     if [[ -z "$parsed" ]]; then
         parsed=$(awk '
-            # Any key not excluded here is read as a server NAME, so every
-            # per-server field must be listed — `shipped` included, or a
-            # pyyaml-less machine invents a tenth server called "shipped".
-            /^[[:space:]]*[a-zA-Z0-9_-]+:/ && !/^[[:space:]]*mcp_servers:/ && !/^[[:space:]]*(url|transport|oauth|shipped|purpose|note):/ {
-                gsub(/^[[:space:]]+|:[[:space:]]*$/, "")
-                name = $0; transport = "http"
-            }
-            /^[[:space:]]*url:/ {
-                val = $0
-                sub(/^[[:space:]]*url:[[:space:]]*"?/, "", val)
-                sub(/"[[:space:]]*$/, "", val)
-                url = val
-            }
-            /^[[:space:]]*transport:/ {
-                val = $0
-                sub(/^[[:space:]]*transport:[[:space:]]*"?/, "", val)
-                sub(/"[[:space:]]*$/, "", val)
-                transport = val
-            }
-            /^[[:space:]]*purpose:/ {
-                val = $0
-                sub(/^[[:space:]]*purpose:[[:space:]]*"?/, "", val)
-                sub(/"[[:space:]]*$/, "", val)
-                purpose = val
+            function emit() {
                 if (name != "" && url != "") {
                     print name "|" url "|" transport "|" purpose
                 }
-                name = ""; url = ""; transport = "http"; purpose = ""
             }
+            function value(line, key) {
+                sub("^[ \t]*" key ":[ \t]*", "", line)
+                sub(/^"/, "", line); sub(/"[ \t]*$/, "", line)
+                sub(/[ \t]+$/, "", line)
+                return line
+            }
+            /^  [a-zA-Z0-9_-]+:[ \t]*$/ {
+                emit()
+                name = $0
+                gsub(/^[ \t]+|:[ \t]*$/, "", name)
+                url = ""; transport = "http"; purpose = ""
+                next
+            }
+            /^[ \t]+url:/       { url = value($0, "url") }
+            /^[ \t]+transport:/ { transport = value($0, "transport") }
+            /^[ \t]+purpose:/   { purpose = value($0, "purpose") }
+            END { emit() }
         ' "$yaml_file" 2> /dev/null)
     fi
 
