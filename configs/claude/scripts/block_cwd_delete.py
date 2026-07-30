@@ -31,7 +31,11 @@ ways.
   * TARGETS — literal arguments to a deletion verb (``git worktree remove``,
     recursive ``rm``, ``rmdir``) inside their own shell clause. Strong evidence:
     matched on equality OR containment, so removing a parent of a live cwd is
-    caught too.
+    caught too. A relative target (``.``, ``..``, ``sub/dir``) resolves against
+    the directory the clause runs in, which a ``cd`` in an earlier clause has
+    already changed — so ``cd`` arguments are followed for the base even though
+    they are never targets themselves. Skipping that made every
+    ``cd <anywhere> && rm -rf .`` deny while naming this session's cwd.
   * LOOSE — every path-shaped token anywhere in a command that contains a
     deletion verb. Needed because the incident command carried its targets in a
     ``for`` list and passed ``"$wt"`` to the verb, leaving argument parsing
@@ -219,6 +223,31 @@ _LEADING_DELETION = re.compile(
 )
 
 
+def _cd_destination(clause: str, base: str) -> str | None:
+    """Where a leading `cd`/`pushd` clause moves to, resolved against `base`.
+
+    The exemption above stops a `cd` argument being read as a deletion TARGET.
+    But that argument is also the directory a later relative target resolves
+    against, and dropping it entirely lost that half: `.` was still resolved
+    against the payload's cwd, which is a directory the command had already
+    left. Since a session's own cwd is always among the holders, every
+    `cd <anywhere> && rm -rf .` denied and named the session's own cwd — a
+    harmless scratch cleanup blocked, and a real cross-session deletion blamed
+    on the wrong path. Both push the operator toward the `# cwd-verified`
+    override, which then suppresses the check for the whole command.
+
+    Returns None when the destination cannot be known (no argument, an option,
+    an unexpanded token), leaving `base` untouched rather than guessing.
+    """
+    tokens = _tokenize(clause)
+    if len(tokens) < 2 or tokens[0] not in _NON_DELETING_VERBS:
+        return None
+    arg = tokens[1]
+    if not arg or arg.startswith("-") or any(c in arg for c in "$*?"):
+        return None
+    return normalize(os.path.join(base, os.path.expanduser(arg)))
+
+
 def _without_known_non_deleting_args(tokens: list[str]) -> list[str]:
     """Drop tokens whose role is known and harmless (the argument of `cd`, ...)."""
     out: list[str] = []
@@ -266,6 +295,12 @@ def deletion_targets(command: str, cwd: str | None) -> list[str]:
     base = cwd or os.getcwd()
     out: list[str] = []
     for clause in re.split(r"[;&|\n]+", command):
+        # A `cd` moves the directory that later relative targets resolve
+        # against, so it must be applied before this clause is inspected and
+        # must persist into the clauses that follow it.
+        moved = _cd_destination(clause, base)
+        if moved:
+            base = moved
         match = DELETION_VERB.search(clause)
         if not match:
             continue

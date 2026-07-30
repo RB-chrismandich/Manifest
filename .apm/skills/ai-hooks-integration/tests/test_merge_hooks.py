@@ -255,6 +255,65 @@ class TestUnreadableConfigIsNeverOverwritten(unittest.TestCase):
             self.assertIn("hooks", data)
 
 
+class TestInstallAllIsolatesPerTargetFailures(unittest.TestCase):
+    """One tool's bad config must not decide whether the others get their hook.
+
+    merge_hooks now (correctly) exits non-zero on a config it cannot parse. With
+    a bare check=True that aborted install_all partway — so whether Cursor got
+    its hook depended on whether Gemini's file happened to be valid — and raised
+    CalledProcessError on top of the child's actionable message.
+    """
+
+    SCRIPTS = Path(__file__).resolve().parent.parent / "scripts"
+
+    def _install(self, home):
+        env = dict(os.environ, HOME=str(home))
+        env.pop("PYTHONPATH", None)
+        return subprocess.run(
+            [
+                sys.executable,
+                str(self.SCRIPTS / "install_all.py"),
+                "--unified",
+                "--name",
+                "probe-hook",
+            ],
+            capture_output=True,
+            text=True,
+            env=env,
+            cwd=str(self.SCRIPTS),
+        )
+
+    def test_a_later_target_is_still_installed_and_the_run_fails(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            home = Path(tmpdir)
+            gemini = home / ".gemini" / "settings.json"
+            gemini.parent.mkdir(parents=True)
+            gemini.write_text('{"contextFileName": "GEMINI.md",}')  # trailing comma
+            before = gemini.read_bytes()
+
+            proc = self._install(home)
+            combined = proc.stdout + proc.stderr
+
+            self.assertNotEqual(proc.returncode, 0, "a failed target must fail the run")
+            self.assertIn("gemini", combined)
+            self.assertEqual(
+                gemini.read_bytes(), before, "malformed file was rewritten"
+            )
+
+            # Cursor is attempted AFTER gemini — the point of the change.
+            cursor = home / ".cursor" / "hooks.json"
+            self.assertTrue(cursor.exists(), "cursor was skipped after gemini failed")
+            self.assertIn("hooks", json.loads(cursor.read_text()))
+
+            claude = home / ".claude" / "settings.json"
+            self.assertTrue(claude.exists(), "claude was not installed")
+
+    def test_a_clean_home_succeeds(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            proc = self._install(Path(tmpdir))
+            self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+
+
 class TestSaveJsonDurability(unittest.TestCase):
     def test_backup_is_written_before_overwrite(self):
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -285,6 +344,49 @@ class TestSaveJsonDurability(unittest.TestCase):
 
             self.assertTrue(link.is_symlink(), "symlink was replaced by a file")
             self.assertEqual(json.loads(real.read_text()), {"replaced": True})
+
+
+class TestSaveJsonPermissions(unittest.TestCase):
+    """os.replace swaps inodes, so the new file must carry the old mode.
+
+    Without this, mkstemp's private 0600 won: a group/world-readable config went
+    owner-only just because a hook was added, while the copy2 backup kept the
+    original mode — leaving the .bak more permissive than the live file.
+    """
+
+    def test_existing_mode_is_preserved(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = Path(tmpdir) / "settings.json"
+            path.write_text(json.dumps({"a": 1}))
+            os.chmod(path, 0o644)
+            save_json(path, {"a": 1, "b": 2}, dry_run=False)
+            self.assertEqual(path.stat().st_mode & 0o777, 0o644)
+
+    def test_a_restrictive_mode_is_not_widened(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = Path(tmpdir) / "settings.json"
+            path.write_text(json.dumps({"a": 1}))
+            os.chmod(path, 0o600)
+            save_json(path, {"a": 1, "b": 2}, dry_run=False)
+            self.assertEqual(path.stat().st_mode & 0o777, 0o600)
+
+    def test_backup_is_not_more_permissive_than_the_live_file(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = Path(tmpdir) / "settings.json"
+            path.write_text(json.dumps({"a": 1}))
+            os.chmod(path, 0o600)
+            save_json(path, {"a": 2}, dry_run=False)
+            backup = path.with_suffix(path.suffix + ".bak")
+            live_mode = path.stat().st_mode & 0o777
+            self.assertEqual(backup.stat().st_mode & 0o777 & ~live_mode, 0)
+
+    def test_a_new_config_is_readable_not_mkstemp_private(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = Path(tmpdir) / "fresh.json"
+            save_json(path, {"a": 1}, dry_run=False)
+            mask = os.umask(0o022)
+            os.umask(mask)
+            self.assertEqual(path.stat().st_mode & 0o777, 0o666 & ~mask)
 
 
 if __name__ == "__main__":

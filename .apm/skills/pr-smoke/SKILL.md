@@ -65,6 +65,9 @@ the gating signal.
   classic way a green local run still red-CIs
 - `bats tests/bats/` (full suite)
 - `pytest tests/python/` (full suite)
+- `pytest .apm/skills/ai-hooks-integration/tests/` — a separate invocation, as in
+  CI: that suite is its own `tests` package and collides if collected alongside
+  `tests/python/`. It covers code that runs on every hook fire
 
 **Smoke (deployed environment — what unit tests can't see):**
 
