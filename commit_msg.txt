@@ -1,9 +1,0 @@
-feat: restructure meta-prompt-optimize SKILL.md template
-
-💡 What
-Renamed `prompt-optimize` skill to `meta-prompt-optimize` and regenerated related files to fix
-failing specs. Fixed `COMMANDS.md` synchronization.
-
-🎯 Why
-To address the missing `meta-prompt-optimize` skill and its frontmatter structure check that was
-failing in `docs/superpowers/specs/exercise-matrix-2026-06-29.json`.

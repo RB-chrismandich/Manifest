@@ -137,6 +137,7 @@ generate-design
 graphify
 help
 manage-design-system
+meta-prompt-optimize
 pass-cli
 react-components
 react-native
@@ -157,6 +158,7 @@ upload-to-stitch
 | `false-green-check-audit` | SkillClaw-evolved health-check audit; "false green" is the domain term being guarded against. |
 | `graphify` | Named for the managed `graphify` CLI it wraps (`--enable-graphify` toggle, installed binary). |
 | `help` | Universal single-word entry point; ergonomics beat conformance. |
+| `meta-prompt-optimize` | Vendored from prompt-optimize but renamed to meta-prompt-optimize. |
 | `pass-cli` | Named for the `pass-cli` binary it wraps; `token-*` here means LLM token economy, so a credential fetcher must not move there. |
 
 ## Examples

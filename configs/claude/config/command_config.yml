@@ -734,7 +734,7 @@ tool_policies:
   pr-merge-stacked:
     subagents: never
     subagent_rationale: Strictly ordered bottom-up merge choreography mutating shared git/PR state.
-  prompt-optimize:
+  meta-prompt-optimize:
     subagents: never
     subagent_rationale: Optimizes one prompt through a fixed sequential pipeline; single target.
   cache-warm-oob:
