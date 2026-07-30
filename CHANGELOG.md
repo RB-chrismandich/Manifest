@@ -10,6 +10,19 @@ All notable changes are documented here in reverse chronological order.
 
 ## [Unreleased]
 
+### New plugin: adversarial-design-loop, and the repo becomes a plugin marketplace
+
+`plugins/adversarial-design-loop/` codifies the Lumient One design-pass
+process as a reusable Claude Code plugin: an orchestrating `design-loop`
+skill plus five phase skills (scaffold, colorless screen prompts, faithful
+render gate, adversarial review rounds, spec amendments), two sonnet-pinned
+agents (`design-lens-reviewer`, `skeptic-verifier`), and a generalized
+`render_and_scan.py` (fonts-ready hard-fail capture + per-ink radial scan)
+with unit tests under `tests/python/`. A root `.claude-plugin/marketplace.json`
+registers the repo as a directory marketplace named `manifest`, mirroring the
+part-forge convention. Plugins are installed via `claude plugin marketplace
+add` or `--plugin-dir`; bootstrap does not deploy them.
+
 ### The cwd guard resolves relative deletion targets against the directory the command is actually in
 
 `#671` exempted a `cd` argument from being read as a deletion *target* — correct,

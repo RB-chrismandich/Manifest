@@ -1,0 +1,45 @@
+# {{PROJECT_TITLE}} — Design System
+
+> This document is the design system: the visual decisions that fill the
+> upstream spec's token schema ({{SPEC_PATH}}) and constrain every screen
+> prompt in `prompts/`. Exact hex codes and font names live here and in
+> `TOKENS.md`; they are deliberately absent from the screen prompts
+> themselves. `TOKENS.md` and the shipped renders are ground truth; this
+> file must track them — a rule here that lags a token change is a blocking
+> defect (audit it every review round).
+
+## 1. Visual theme & atmosphere
+
+<!-- The mood in one paragraph (e.g. "cockpit instrument: calm, legible,
+     nothing decorative"), plus what the theme forbids. -->
+
+## 2. Color palette & roles
+
+<!-- Every color as a ROLE (face.bg, ui.accent, ...) with its purpose and
+     rationale in prose. Exact values live in TOKENS.md; repeat them here
+     only when the prose needs them to make an argument. -->
+
+## 3. Typography rules
+
+<!-- Family: {{FONT_FAMILY}}; weights: {{FONT_WEIGHTS}}. Which type role is
+     used where, size floors, and why. -->
+
+## 4. Component stylings
+
+<!-- Per recurring component (ring, marker, list row, ...): geometry rules
+     and the rationale. State rules as testable claims ("the minute hand
+     terminates below the major tick's inward reach"), not vibes. -->
+
+## 5. Layout principles
+
+<!-- Frame: {{FRAME}}, {{DISPLAY_SHAPE}}. Safe margins / chord clearance,
+     composition order, alignment rules. -->
+
+## 6. Motion & interaction
+
+<!-- Durations, easings, and what may never animate. -->
+
+## 7. Anti-patterns
+
+<!-- Explicit bans, stated so a reviewer can point at a violation (e.g. "no
+     toggle switches, no chevrons, no full-circumference scrollbars"). -->

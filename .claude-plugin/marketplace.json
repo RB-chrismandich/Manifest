@@ -1,0 +1,25 @@
+{
+  "name": "manifest",
+  "description": "Plugins from the Manifest repository.",
+  "owner": {
+    "name": "Chris Mandich",
+    "email": "mandichc@gmail.com"
+  },
+  "plugins": [
+    {
+      "name": "adversarial-design-loop",
+      "description": "Spec-first UI design loop: colorless screen prompts, faithful render gates, multi-lens adversarial review with skeptic-verified blockers, upstream spec amendments.",
+      "source": "./plugins/adversarial-design-loop",
+      "version": "0.1.0",
+      "category": "design",
+      "keywords": [
+        "design",
+        "ui",
+        "stitch",
+        "adversarial-review",
+        "design-system",
+        "render-verification"
+      ]
+    }
+  ]
+}

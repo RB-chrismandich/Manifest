@@ -1,0 +1,34 @@
+# {{GENERATOR}} prompt — {{SCREEN_NAME}}
+
+<!-- Shared opening: the frame contract, near-verbatim in every prompt. For a
+     round display: -->
+A single mobile screen on a solid black canvas. Centered on that canvas is one
+perfect circle, edge to edge — this circle is the entire round display; every
+piece of content lives inside it, nothing outside its edge, nothing anchored
+to a canvas corner. <!-- For rectangular frames, state the frame and its safe
+margins with the same finality. --> This is a <one-sentence statement of what
+state this screen is and when it is shown>.
+
+Composition, centre-out, deliberately minimal — no extra chrome beyond what is
+listed:
+
+- **<primary element>**: geometry only — position by clock-face bearing or
+  fraction of the frame, size by dominance relative to other elements
+  ("the single biggest element on the whole screen"), emphasis by relative
+  brightness/quietness of treatment. Never a hex value, color name, font
+  name, or weight.
+- **<secondary element>**: <same vocabulary>.
+
+Nothing else appears on this screen — no icons, no secondary text, no
+additional marks beyond those listed. <!-- Restate the design system's
+anti-pattern bans that this screen is most at risk of (e.g. "no chevrons, no
+toggle switches, no scrollbars"). -->
+
+No photographic or image content. Do not specify colors or font names — this
+is a structural/layout-only wireframe; a separate design system supplies color
+and typography.
+
+<!-- Post-round appendices: when a later round changes this screen, append a
+     dated section below (## Night variant (round N)) cross-referencing
+     DECISIONS.md / SPEC-AMENDMENTS.md by number — never rewrite the
+     original prompt text above. -->

@@ -1,0 +1,39 @@
+# Spec amendments — {{PROJECT_TITLE}} design pass
+
+Gaps this design pass found in the upstream spec ({{SPEC_PATH}}), each with
+the resolution already adopted in the design system and the exact spec
+section to amend. Two states, tracked separately:
+
+- **adopted** — the resolution is in force in this tree (DESIGN.md/TOKENS.md
+  and the renders follow it).
+- **landed** — the upstream spec file itself has been edited, in place, with
+  a pointer back to this file. An amendment is not done until it is landed;
+  a "recommended" note in this side file is not an accepted spec change.
+
+Entry format:
+
+```markdown
+## N. <title> — §<target section>
+
+**What the spec says:** <quote or faithful paraphrase>
+
+**The gap (found round N, <lens> lens):** <the contradiction or hole, argued
+from the spec's own text>
+
+**Resolution already adopted:** <what this tree does instead, with values>
+
+**Recommended spec change:** <the exact edit, ready to land>
+
+**Source:** DECISIONS.md round N; <other artifacts>
+```
+
+---
+
+<!-- Amendments append here, numbered from 1. -->
+
+## Amendment status note
+
+<!-- Maintain continuously: which amendments are landed and in what commit;
+     which are adopted-not-landed and why; landing order when amendments
+     have dependencies ("11 first (pure addition), then 10, then 9 — gated
+     on firmware confirming the stage model"). -->

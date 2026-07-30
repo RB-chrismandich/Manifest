@@ -1,0 +1,30 @@
+# Decisions — {{PROJECT_TITLE}} design pass
+
+Append-only round log. Every debatable call lands here with its rationale;
+every reversal is a **correction that names what it withdraws**, never a
+silent rewrite. Round numbers are the cross-reference key used by every
+artifact in this tree — cite "round N", not dates.
+
+Entry formats (see the review-round skill's `references/decisions-format.md`
+for verbatim worked examples):
+
+- **Ruling**: `- **<what changed, with values>.** <rationale, with the
+  numbers re-derived this round>`
+- **Correction**: `*Correction (round N):* <withdrawn claim>, <why it is
+  withdrawn>, <what stands instead>` — left in place beside the original.
+- **Panel round header**: which lenses APPROVEd, which blocked, and each
+  blocking finding tagged **REFUTED** or **UPHELD** with the skeptic's
+  ground.
+- **Consensus round**: what each lens independently re-derived — a closing
+  round must show re-measurement, not agreement.
+
+---
+
+## Round 0 — scaffold
+
+- Spec: {{SPEC_PATH}}
+- Frame: {{FRAME}} ({{DISPLAY_SHAPE}}); fonts: {{FONT_FAMILY}}
+  {{FONT_WEIGHTS}}; generator: {{GENERATOR}}
+- Lens roster: {{LENS_ROSTER}}
+- Render gate pinned: `tools/render_and_scan.py` (adversarial-design-loop
+  plugin v{{PLUGIN_VERSION}})
