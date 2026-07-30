@@ -1,0 +1,18 @@
+{
+  "$comment": "Screen registry. Every screen gets an entry keyed by screen name: generator-backed screens carry id + sourceScreen (the generator's identifiers) and the generator's canvas width/height; hand-authored screens set id/sourceScreen null and localOnly true. Every in-place revision sets supersedes to the replaced id and says why in note. A screen with no entry does not exist.",
+  "title": "{{PROJECT_TITLE}}",
+  "generator": "{{GENERATOR}}",
+  "project": null,
+  "designSystem": null,
+  "screens": {
+    "example-screen": {
+      "id": "<generator screen id, or null>",
+      "sourceScreen": "<generator screen path, or null>",
+      "width": 0,
+      "height": 0,
+      "supersedes": "<replaced id — only on revisions>",
+      "localOnly": false,
+      "note": "<round provenance; what changed and why; render-fidelity caveats>"
+    }
+  }
+}
