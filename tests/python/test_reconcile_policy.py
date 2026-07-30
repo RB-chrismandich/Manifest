@@ -528,3 +528,33 @@ def test_agent_with_non_standard_home_is_not_a_managed_root():
     assert agents["devin"]["home_dir"] == "~/.config/devin"
     assert "devin" not in core.load_fleet_tags(_REAL_ROSTER)
     assert "devin" not in core._fallback_roster_tags(str(_REAL_ROSTER))
+
+
+# --------------------------------------------------------------------------- #
+# deploy_reconcile.sh keeps a system-python3 fallback (design doc, Revision
+# 2026-07-29) — a scoped exception to "no fail-open to system python3". The
+# exception is only safe while this module resolves nothing outside the stdlib:
+# with no third-party imports there is no wrong environment for it to land in.
+# If someone adds a hard `import yaml` (or any dependency), this fails and the
+# fallback in deploy_reconcile.sh:91 must be removed with it.
+# --------------------------------------------------------------------------- #
+def test_reconcile_core_has_no_hard_third_party_imports():
+    import ast
+    import sys
+
+    with open(_CORE, encoding="utf-8") as fh:
+        tree = ast.parse(fh.read())
+
+    module_level: set[str] = set()
+    for node in tree.body:  # module scope only — lazy imports are the point
+        if isinstance(node, ast.Import):
+            module_level.update(alias.name.split(".")[0] for alias in node.names)
+        elif isinstance(node, ast.ImportFrom) and node.module and node.level == 0:
+            module_level.add(node.module.split(".")[0])
+
+    third_party = sorted(module_level - sys.stdlib_module_names - {"__future__"})
+    assert third_party == [], (
+        f"reconcile_core.py gained hard third-party import(s) {third_party}; "
+        "deploy_reconcile.sh's python3 fallback is no longer safe — drop the "
+        "fallback or make the import lazy with a stdlib fallback path"
+    )

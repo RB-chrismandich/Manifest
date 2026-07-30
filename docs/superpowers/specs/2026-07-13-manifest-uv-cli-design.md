@@ -290,9 +290,10 @@ is the console script inside the venv, reached via the wrapper.
 
 **Shell wrappers** (`spec_review.sh`, `verification_gate.sh`, `skillclaw_promote.sh`,
 `lifecycle.sh`) update to call `manifest …` directly in the **same release** (not via shims).
-`deploy_reconcile.sh` is **not** a `manifest` subcommand in v1; it must use
-`"$HOME/.claude/.venv/bin/python"` for **all** Python invocations (`reconcile_core.py` and
-inline `-c` snippets) — no system `python3`.
+`deploy_reconcile.sh` is **not** a `manifest` subcommand in v1; it prefers
+`"$HOME/.claude/.venv/bin/python"` for all Python invocations (`reconcile_core.py` and inline
+`-c` snippets) but carries **one scoped exception** to the no-system-`python3` rule — see
+"Revision 2026-07-29 — deploy_reconcile.sh keeps a stdlib-only python3 fallback" below.
 
 **Release N+1:** remove shims; a missing shim is acceptable because docs/skills/hooks will
 have migrated. Optional hard-fail stub: "removed; use manifest …".
@@ -303,13 +304,66 @@ have migrated. Optional hard-fail stub: "removed; use manifest …".
 
 | Condition | Behavior |
 |-----------|----------|
-| `~/.claude/.venv` missing | stderr: `manifest: home runtime not installed — re-run ./bootstrap.sh`; exit 1 |
-| `uv` missing | stderr: `manifest: uv not found — re-run ./bootstrap.sh`; exit 1 |
-| `uv sync` failed during bootstrap | bootstrap **warns** for parallel-agent (today's behavior) but `env-check` reports **BLOCKED** |
+| `~/.claude` missing | stderr: `manifest: home runtime not installed — <root> is missing; re-run <clone>/bootstrap.sh`; exit 1 |
+| `~/.claude/.venv` missing | stderr: `manifest: home runtime not installed — no venv at …`; exit 1 |
+| venv present, console script absent | stderr: `manifest: home runtime incomplete — … (interrupted sync?)`; exit 1 |
+| console script not executable | stderr: `manifest: home runtime not executable — … lost its executable bit`; exit 1 |
+| console script has no shebang (truncated) | stderr: `manifest: home runtime is corrupt — … has no interpreter line`; exit 1 |
+| shebang interpreter missing (Python upgraded, venv copied from another home) | stderr: `manifest: home runtime is broken — its interpreter (…) is missing or unusable`; exit 1 |
+| `exec` itself fails (wrong architecture, noexec mount) | stderr: `manifest: could not start the home runtime (…)`; exit 1 |
+| `HOME` unset (launchd/cron/systemd) | resolve via the passwd entry; only a wholly unresolvable home is fatal (exit 78) |
+| `uv` missing | **runs normally.** Revised 2026-07-29 — see below |
+| `uv sync` failed during bootstrap | bootstrap **warns** (fail-open) but `manifest doctor` / `env-check` report **BLOCKED** |
 | Import error inside subcommand | propagate; do not fall back to system Python |
-| Smoke group not installed | `manifest smoke` stderr: `smoke deps not installed — re-run ./bootstrap.sh --enable-smoke`; exit 1 |
+| Optional group not installed | `manifest <cmd>` stderr: `smoke deps not installed — re-run ./bootstrap.sh --enable-smoke` (per group); exit 1 |
+| Core module missing (interrupted sync) | stderr: `home runtime is incomplete — module 'X' is missing …`; exit 1 |
 
-**No fail-open to system `python3`.** The whole point is to stop silent wrong-environment execution.
+**No fail-open to system `python3`.** The whole point is to stop silent wrong-environment
+execution. Exactly one scoped exception exists, recorded below.
+
+### Revision 2026-07-29 — `deploy_reconcile.sh` keeps a stdlib-only `python3` fallback
+
+Audited against this constraint, `deploy_reconcile.sh:91`
+(`[[ -x "$VENV_PY" ]] || VENV_PY="$(command -v python3 || echo python3)"`) contradicted it. The
+fallback is kept and the constraint scoped, because both halves of the rule's premise fail here:
+
+- **It is necessary.** `bootstrap.sh` runs `reconcile_deploy_report` (line 293) *before*
+  `uv_sync_home_runtime` (line 297), so on a first bootstrap `~/.claude/.venv` does not exist
+  when the report runs. Failing closed would remove the orphan-review from every fresh install
+  — and from the read-only `--dry-run` preview a user runs before bootstrapping at all.
+- **It cannot execute in the wrong environment.** The rule exists to stop *dependency*
+  resolution differing between interpreters. `reconcile_core.py` is deliberately
+  dependency-free (`_agent_roster_loader`'s docstring: "would make PyYAML a hard runtime
+  dependency of this module, which currently has none"); `yaml` is a lazy import inside
+  `_parse_protected_yaml` with a PyYAML-free fallback parser, and every inline `-c` snippet
+  uses `json`/`os`/`sys` only. With no third-party imports there is no wrong environment to
+  land in.
+
+The exception is **enforced, not just documented**:
+`tests/python/test_reconcile_policy.py::test_reconcile_core_has_no_hard_third_party_imports`
+fails if a hard third-party import is ever added, at which point the fallback must go.
+
+Everything else in the home runtime keeps the original rule: the shims and the wrapper
+`exec` only the venv console script and never fall back to `python3`.
+
+### Revision 2026-07-29 — the wrapper no longer gates on `uv`
+
+The original contract failed closed when `uv` was absent. Measured on a healthy
+install: `env PATH=/usr/bin:/bin manifest doctor` → `manifest: uv not found`,
+exit 1. `check_uv()` installs uv via Homebrew (`/opt/homebrew/bin/uv`), which is
+not on a launchd/cron/minimal-PATH `PATH`, and `~/.local/bin/uv` only exists on
+the portable-installer path — so every such context refused to run against a
+runtime that worked. The wrapper `exec`s the venv console script and never
+invokes uv, so uv was never a runtime dependency. uv absence is now reported by
+`manifest doctor` as a **warning** (it is needed to re-sync, not to run), and
+checks are ordered by what the exec path actually needs so the first failure
+names the real cause.
+
+Remediation strings now name the deploying clone
+(`re-run /path/to/Manifest/bootstrap.sh`), read from
+`$MANIFEST_STATE_ROOT/runtime.env` — written outside `~/.claude` so it survives
+that tree being deleted — falling back to `~/.claude/config/deploy_stamp`, then
+to the generic `./bootstrap.sh`.
 
 ---
 

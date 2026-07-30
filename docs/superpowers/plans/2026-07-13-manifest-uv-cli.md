@@ -1,5 +1,25 @@
 # manifest uv CLI Implementation Plan
 
+**Status: COMPLETED — shipped; audited by evidence 2026-07-29 (11/11 tasks verified).**
+
+> **Do not execute this plan.** It is kept as the implementation record. The step
+> checkboxes below still read `- [ ]` because the original execution never ticked them —
+> that staleness is the artifact's, not the feature's. A `/spec-audit-tasks` pass on
+> 2026-07-29 verified all 11 tasks against the tree instead (files present, tests green,
+> no stubs) and found two real gaps, both since closed:
+>
+> | Task | Gap found | Closed by |
+> |------|-----------|-----------|
+> | Task 7 | `deploy_reconcile.sh:91` fell back to system `python3`, contradicting the spec's "no fail-open to system `python3`" | Spec amended with a scoped, **enforced** exception (design doc, Revision 2026-07-29): the fallback is necessary (reconcile runs at `bootstrap.sh:293`, before the venv exists at `:297`) and safe (`reconcile_core.py` is stdlib-only), pinned by `test_reconcile_core_has_no_hard_third_party_imports` |
+> | Task 9 | 6 skill sites still routed through the deprecated `parallel_agent.py` shim — they would have broken at "Release N+1: delete shims" | Repointed to `manifest parallel-agent` (`issue-triage`, `issue-prioritize`: 3 command sites + 3 dispatch-guidance mentions) |
+>
+> Step-level boxes were deliberately **not** bulk-ticked: several are process steps
+> ("Run tests — expect FAIL") whose occurrence cannot be verified after the fact, and
+> ticking them would assert knowledge nobody has. Per-task verdicts above are
+> evidence-backed; the boxes are not.
+>
+> Still open by design: design-checklist item 14, "Release N+1: delete shims".
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Ship a uv-managed home runtime at `~/.claude/.venv` with a unified `manifest` CLI, replacing `pip install --user` and eliminating missing-package / host-Python-pollution / pin-drift failures for deployed Python tools.
@@ -20,7 +40,12 @@
 - Retire `install_python_dependencies()`, `install_smoke_deps()`, `install_browser_use()`; smoke browser via `"$TARGET_DIR/.venv/bin/playwright" install chromium` when smoke group installed.
 - `browser_use.enabled: true` → `uv sync --group smoke --group smoke-agent` (both groups).
 - `pyyaml` is a **core** dependency (not smoke-only).
-- `~/.local/bin/manifest` is a **shell wrapper** (checks uv + venv), not a symlink into `.venv`.
+- `~/.local/bin/manifest` is a **shell wrapper**, not a symlink into `.venv`. ~~(checks uv + venv)~~
+  **Superseded 2026-07-29:** the wrapper checks only what `exec` needs (runtime root → venv →
+  entry point → `+x` → shebang target) and **never** checks uv. Measured: `check_uv()` installs
+  uv outside a minimal PATH, so the uv check turned every launchd/cron/hook caller into a hard
+  failure against a healthy runtime. uv is reported by `manifest doctor` as a warning. See the
+  design doc's "Revision 2026-07-29 — the wrapper no longer gates on `uv`".
 - Repo CI stays on `pip` for pytest; additive CI steps only (`uv lock --check`, `uv build`, drift test).
 - Preserve existing exit codes (especially `cddl` 0/2/3/4/5/6/7).
 
@@ -828,9 +853,17 @@ git commit -m "chore(runtime): remove pip --user requirements and retired instal
 | skills + env-check | Task 9 |
 | CI coexistence + drift | Task 10 |
 | retire requirements.txt | Task 11 |
+| Error handling: optional group not installed → `smoke deps not installed — re-run ./bootstrap.sh --enable-smoke`; exit 1 | **Was missing from this table** — no task implemented it, so the shipped router raised a bare `ModuleNotFoundError` traceback for a full release. Added 2026-07-29: `manifest_cli.guarded_imports` (per-group toggle hints + incomplete-runtime message), covered by `tests/python/manifest_cli/test_router.py` |
+| Error handling: `~/.claude/.venv` / `uv` missing, exit codes | Task 4 (wrapper) + Task 6 (shims); contract revised 2026-07-29 — see the design doc's error-handling table |
 | Release N+1 shim removal | **Future** — not in this plan |
 
 No TBD placeholders. Task order respects “venv before shims”.
+
+**Coverage lesson (2026-07-29 audit).** This table was the only spec↔task mapping, and one
+Error-handling row of the design never appeared in it — so nothing flagged that the friendly
+"optional group not installed" message was never built. A design row that reaches no task is
+invisible to every later audit that trusts this table. When amending the design's error-handling
+table, add the row here in the same change.
 
 ---
 

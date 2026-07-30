@@ -85,9 +85,20 @@ done
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 VENV_PY="${MANIFEST_VENV_PY:-${HOME}/.claude/.venv/bin/python}"
-# Fall back to python3 when the deployed home-runtime venv is absent (e.g. CI
-# smoke, or running this read-only preview before bootstrap). reconcile_core.py
-# only needs PyYAML, which python3 provides.
+# Scoped exception to the design's "no fail-open to system python3" rule, kept
+# because two facts make it safe and necessary here (design doc, Revision
+# 2026-07-29):
+#   1. Necessary: bootstrap.sh runs reconcile_deploy_report BEFORE
+#      uv_sync_home_runtime, so on a first bootstrap the venv does not exist yet.
+#      Failing closed would kill the report on every fresh install.
+#   2. Safe: reconcile_core.py and every inline snippet below are stdlib-only —
+#      yaml is a lazy import with a PyYAML-free fallback parser (see
+#      _parse_protected_yaml / _fallback_roster_tags), so there is no
+#      third-party resolution that could differ between interpreters. Pinned by
+#      test_reconcile_core_has_no_hard_third_party_imports.
+# The earlier note here claimed the module "only needs PyYAML, which python3
+# provides" — wrong on both halves, and the same false premise that made the
+# CLI's uv gate look reasonable.
 [[ -x "$VENV_PY" ]] || VENV_PY="$(command -v python3 || echo python3)"
 CORE="$SCRIPT_DIR/reconcile_core.py"
 [[ -f "$CORE" ]] || {

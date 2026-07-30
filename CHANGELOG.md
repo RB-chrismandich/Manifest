@@ -10,6 +10,125 @@ All notable changes are documented here in reverse chronological order.
 
 ## [Unreleased]
 
+### `manifest` CLI hardened against install, deletion, and drift edge cases
+
+- **The wrapper no longer gates on `uv`, which was a live outage.** Measured on a
+  healthy install: `env PATH=/usr/bin:/bin manifest doctor` → `manifest: uv not
+  found`, exit 1. `check_uv()` installs uv to `/opt/homebrew/bin` (macOS) and
+  `~/.local/bin/uv` exists only on the portable-installer path, so every
+  launchd/cron/minimal-PATH caller refused to run against a runtime that worked —
+  while the wrapper only ever `exec`s the venv console script and never invokes
+  uv. uv absence is now a `manifest doctor` **warning** (needed to re-sync, not to
+  run). Checks are ordered by what the exec path needs, so the first failure names
+  the real cause instead of blaming uv.
+- **Present-but-unusable runtimes are diagnosed instead of exec'd.** The wrapper
+  distinguishes: `~/.claude` deleted · venv deleted · console script missing
+  (interrupted sync) · script not executable · script truncated to zero bytes
+  (ENOEXEC made bash reinterpret it as a shell script) · shebang interpreter gone
+  (Python upgraded away, or the tree copied from another machine/home — previously
+  `bad interpreter: … Undefined error: 0`) · `exec` failing outright (wrong
+  architecture after a machine migration, `noexec` mount), via `shopt -s
+  execfail`. `HOME` unset no longer aborts with `HOME: unbound variable`; it
+  resolves through the passwd entry, and `MANIFEST_HOME` relocates the root.
+- **Remediation names the clone**: `re-run /path/to/Manifest/bootstrap.sh`, read
+  from `$MANIFEST_STATE_ROOT/runtime.env` — written outside `~/.claude` so it
+  survives that tree being deleted — falling back to `config/deploy_stamp`.
+- **Wrapper install is collision-safe and idempotent.** `install_manifest_wrapper()`
+  replaces a plain `cp` that wrote *through* a symlink at `~/.local/bin/manifest`
+  (silently overwriting whatever it pointed at) and clobbered a same-named CLI
+  from another project. Now: symlinks are replaced not followed, a foreign file is
+  backed up to `manifest.pre-manifest.bak` (existing backups are never
+  overwritten), a directory at the destination is refused with a message, writes
+  go to a temp file and are renamed then re-verified with `cmp` (a short write can
+  no longer become the wrapper), an unchanged wrapper reports "already current"
+  and only heals a lost `+x` bit, and an unwritable `~/.local/bin` reports instead
+  of aborting the bootstrap under `set -e`.
+- **`uv sync` no longer runs against an incomplete deploy**: missing
+  `pyproject.toml`/`uv.lock` is reported as such rather than surfacing as a raw uv
+  error. A venv whose interpreter no longer runs is removed so uv rebuilds it, and
+  the playwright/browser step is skipped with a message when the smoke group did
+  not land.
+- **Optional dependency groups can no longer be dropped silently.** The three
+  `python3 -c "import yaml…" | grep -q 1` probes made a probe failure (host
+  `python3` without PyYAML) indistinguishable from "service disabled": an enabled
+  smoke/browser-use/claude service got no deps and failed later, inside the
+  runtime. One probe now prefers the runtime's own interpreter, and an
+  unresolvable `services.yml` warns and reuses the previous sync's groups from the
+  runtime stamp instead of downgrading to core.
+- **`browser_use.enabled` now also installs the Chromium binary.** It pulls in the
+  `smoke` group (playwright the package) but left `install_playwright` false, so a
+  browser-use-only install had the driver and no browser. The two toggles now fold
+  into one deduplicated group list, which is also what lands in the runtime stamp.
+- **Scripts that shell out to `manifest`** (`skillclaw_promote.sh`,
+  `verification_gate.sh`, `lifecycle.sh`, `spec_review.sh`) put `~/.local/bin` back
+  on PATH first: their command seams are word-split strings, so prepending the
+  directory is safe where hardcoding a path would break on a `$HOME` with spaces.
+  The block uses `${HOME:-}` — a bare `$HOME` above a `--help` path aborts under
+  `set -u` in a clean env, which `spec_review_mode.bats` catches and
+  `PATH=/usr/bin:/bin` does not (it still carries `HOME`). `manifest_wrapper.bats`
+  now gates the idiom at source level so the unguarded form cannot return.
+- **`manifest --version`** (previously exit 2, `No such option`) reports runtime
+  version, interpreter, root, and deploy sha/dirty flag — the drift-detection
+  surface `env-check` lacked.
+- **A missing module is one line, not a traceback**: optional groups name their
+  toggle (`--enable-smoke`, `--enable-browser-use`, `--enable-claude`) and a
+  missing core module reports an incomplete runtime.
+- **`manifest doctor` stopped false-greening.** A missing `services.yml` read as
+  "all services disabled", so a half-deleted tree passed; malformed YAML and a
+  non-mapping document raised tracebacks; the sole core check (`yaml`) was vacuous
+  because the module imported it at module scope. Doctor now sweeps every core
+  module, validates `services.yml` shape, and audits install integrity —
+  pyproject/uv.lock present, venv interpreter and console script present, wrapper
+  installed/executable/unshadowed/undrifted, uv availability, deploy provenance —
+  with an explicit failure-vs-warning split, `--json` output, and an announcement
+  when `--services` puts the install audit out of scope rather than skipping it
+  silently.
+
+### Task-completion audit of the shipped manifest CLI — two gaps closed
+
+A `/spec-audit-tasks` pass over `docs/superpowers/plans/2026-07-13-manifest-uv-cli.md`
+verified all 11 tasks against the tree (the plan's 50 step boxes had never been ticked, so
+nothing rested on them) and found two real gaps:
+
+- **`deploy_reconcile.sh` contradicted the spec's "no fail-open to system `python3`".** Line 91
+  falls back to `python3` when the venv is absent. Resolved by scoping the constraint rather
+  than failing closed, because failing closed was the wrong fix: `bootstrap.sh` runs
+  `reconcile_deploy_report` (line 293) *before* `uv_sync_home_runtime` (line 297), so on a first
+  bootstrap the venv does not exist yet and the orphan review would vanish from every fresh
+  install. It is also safe — `reconcile_core.py` is deliberately dependency-free (`yaml` is a
+  lazy import behind a PyYAML-free fallback parser; inline snippets use `json`/`os`/`sys`), so
+  there is no third-party resolution that could differ between interpreters. The exception is
+  now **enforced**: `test_reconcile_core_has_no_hard_third_party_imports` fails if a hard
+  dependency is added, at which point the fallback must go. The old code comment claimed the
+  module "only needs PyYAML, which python3 provides" — wrong on both halves, and the same false
+  premise that made the CLI's uv gate look reasonable.
+- **Six skill sites still routed through the deprecated `parallel_agent.py` shim** and would
+  have broken at the planned "Release N+1: delete shims": three copy-paste commands
+  (`issue-triage/references/workflow.md` ×2, `issue-prioritize/references/workflow.md`) and
+  three dispatch-guidance mentions (`issue-triage/SKILL.md` ×2, `issue-prioritize/SKILL.md`),
+  all repointed to `manifest parallel-agent`. Seven other references are correct as written and
+  left alone: a historical-failure lesson quoted verbatim (`test-isolate-ambient`), an explicit
+  "this shim is deprecated" note (`smoke-manage`), a prohibition (`spec-implement-loop`), and
+  provider-role prose (`config-audit`, `env-check`).
+- **Traceability fix for why the first gap of this release survived one:** the design's
+  error-handling row for an uninstalled optional group had no entry in the plan's spec↔task
+  table, so no audit that trusted that table could see it was never built. The row is now in
+  the table, alongside a note to add design error-handling rows to it in the same change.
+- Plan marked **COMPLETED** with per-task evidence instead of 50 bulk-ticked boxes — several
+  are process steps ("Run tests — expect FAIL") whose occurrence cannot be verified after the
+  fact, and ticking them would assert knowledge nobody has. The stale
+  "wrapper (checks uv + venv)" constraint is struck with a pointer to the revision that
+  removed it.
+
+- Coverage: `tests/bats/manifest_wrapper.bats` 1 → 16 cases,
+  `tests/bats/uv_sync_home_runtime.bats` 8 → 25,
+  `tests/python/manifest_cli/` 21 → 58. Shim tests now build a real runtime tree
+  under `MANIFEST_HOME` instead of monkeypatching `os.path` internals. Each new
+  guard was mutation-verified: reinstating the uv gate, dropping the shebang
+  check, restoring the plain-`cp` install, removing the pyproject precheck,
+  restoring doctor's missing-file default, and removing the import guard each fail
+  exactly their own tests.
+
 ### Devin CLI support (6th parallel agent, opt-in)
 
 - **`agent_roster.yml`** — adds `devin` (binary `devin`, home `~/.config/devin`,

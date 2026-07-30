@@ -58,24 +58,36 @@ MANIFEST_PY="${HOME}/.claude/.venv/bin/python"
 
 command -v uv &>/dev/null && uv --version 2>/dev/null
 [[ -x "$MANIFEST_PY" ]] && "$MANIFEST_PY" --version 2>/dev/null
-command -v manifest &>/dev/null && manifest --help &>/dev/null
-manifest doctor
+command -v manifest &>/dev/null && manifest --version
+manifest doctor --json   # machine-readable: {ok, version, failures[], warnings[]}
 ```
 
 Report per check:
 
 | Check | pass | fail (BLOCKED) |
 |-------|------|----------------|
-| `uv` on PATH | version shown | missing |
+| `uv` on PATH | version shown | missing → `doctor` **warning**, not BLOCKED: uv installs the runtime, it is not needed to run it |
 | `~/.claude/.venv` | `$MANIFEST_PY` exists and runs | absent or not executable |
-| `manifest` on PATH | help exits 0 | missing or broken wrapper |
-| `manifest doctor` | exit 0 (core imports: `anthropic`, `yaml`, etc.) | exit non-zero |
+| `manifest` on PATH | `--version` exits 0 | missing or broken wrapper |
+| `manifest doctor` | exit 0 | exit non-zero |
+
+`doctor` owns the severity split, so read its own classification instead of
+re-deciding: `failures[]` (exit 1) are environment-independent — missing
+`pyproject.toml`/`uv.lock`, unimportable core module, absent or unparseable
+`services.yml`, missing `~/.local/bin/manifest`. `warnings[]` (exit 0) depend on
+the calling context or on intent — `manifest` absent from *this* process's PATH,
+a shadowing binary, wrapper drift, missing uv, a dirty-clone deploy. Report
+warnings; do not upgrade them to BLOCKED.
 
 When `smoke.enabled: true` in `~/.claude/config/services.yml`, `manifest doctor`
 must also import `playwright` — treat failure as **BLOCKED**. When
 `browser_use.enabled: true`, `doctor` must import `browser_use` — also
 **BLOCKED**. Missing optional deps when the corresponding service is disabled
 are **warn** only.
+
+A `manifest doctor` run that used `--services` pointing outside `~/.claude`
+prints `install integrity not audited` — that run is a dependency check only, so
+do not report the install as verified.
 
 ### 3. Authentication Status
 

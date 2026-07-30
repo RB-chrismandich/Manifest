@@ -19,6 +19,17 @@ set -euo pipefail
 
 err() { if [[ -t 2 ]]; then printf '\033[0;31m%s\033[0m\n' "verification-gate: $*" >&2; else printf '%s\n' "verification-gate: $*" >&2; fi; }
 
+# The `manifest` CLI lives in ~/.local/bin, which a login shell gets from the
+# user's profile but hooks, launchd/systemd jobs and cron do not. Put it back on
+# PATH rather than hardcoding the path: the command seams below are word-split
+# strings, so an absolute path would break on a $HOME containing spaces.
+# ${HOME:-} because a clean env (env -i, some CI/hook contexts) has no HOME and
+# these scripts run under `set -u` — the --help path must not need it.
+case ":${PATH:-}:" in
+    *":${HOME:-}/.local/bin:"*) ;;
+    *) [[ -n "${HOME:-}" ]] && PATH="$HOME/.local/bin:${PATH:-}" ;;
+esac
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 HIGH="${VERIFICATION_GATE_HIGH:-0.80}"
 LOW="${VERIFICATION_GATE_LOW:-0.50}"

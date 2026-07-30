@@ -27,6 +27,17 @@ STATE_DIR="${LIFECYCLE_STATE_DIR:-${MANIFEST_STATE_ROOT:-$HOME/.manifest}/lifecy
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Injectable smoke-manage seam (FR-012: consume as-is). Default = deployed runtime.
+# The `manifest` CLI lives in ~/.local/bin, which a login shell gets from the
+# user's profile but hooks, launchd/systemd jobs and cron do not. Put it back on
+# PATH rather than hardcoding the path: the command seams below are word-split
+# strings, so an absolute path would break on a $HOME containing spaces.
+# ${HOME:-} because a clean env (env -i, some CI/hook contexts) has no HOME and
+# these scripts run under `set -u` — the --help path must not need it.
+case ":${PATH:-}:" in
+    *":${HOME:-}/.local/bin:"*) ;;
+    *) [[ -n "${HOME:-}" ]] && PATH="$HOME/.local/bin:${PATH:-}" ;;
+esac
+
 SMOKE_CMD="${LIFECYCLE_SMOKE_CMD:-manifest smoke}"
 smoke() {
     local arr
