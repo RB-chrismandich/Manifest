@@ -14,7 +14,13 @@ Behavior:
 import argparse
 from pathlib import Path
 
-from runtime.tool_config import JSON_TOOLS, get_config, load_json, save_json
+from runtime.tool_config import (
+    JSON_TOOLS,
+    ConfigUnreadable,
+    get_config,
+    load_json,
+    save_json,
+)
 
 
 def filter_hooks(hooks, nested: bool, command: str):
@@ -55,7 +61,14 @@ def main() -> None:
     args = ap.parse_args()
 
     path = Path(args.path).expanduser()
-    data = load_json(path)
+    # Uninstall shares the read-modify-write shape, so it shares the hazard: an
+    # unparseable file read as "empty" would be rewritten with the hook stripped
+    # and everything else gone. Refuse instead — there is nothing to remove from
+    # a file we cannot read.
+    try:
+        data = load_json(path)
+    except ConfigUnreadable as exc:
+        raise SystemExit(f"remove_hooks: {exc}") from exc
 
     hooks = data.get("hooks", {})
     cfg = get_config(args.tool)

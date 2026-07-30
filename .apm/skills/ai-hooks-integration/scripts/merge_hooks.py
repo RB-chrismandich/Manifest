@@ -17,7 +17,14 @@ Behavior:
 import argparse
 from pathlib import Path
 
-from runtime.tool_config import TOOL_CONFIG, get_config, has_hook, load_json, save_json
+from runtime.tool_config import (
+    TOOL_CONFIG,
+    ConfigUnreadable,
+    get_config,
+    has_hook,
+    load_json,
+    save_json,
+)
 
 OPENCODE_TEMPLATE = """\
 export const PluginHook = async () => {{
@@ -86,7 +93,13 @@ def main() -> None:
         return
 
     cfg = get_config(args.tool)
-    data = load_json(path)
+    # Abort rather than merge into a file we could not parse: the write below
+    # replaces the whole file, so proceeding on an "empty" read would delete
+    # every setting the user has (permissions, env, model, statusLine, ...).
+    try:
+        data = load_json(path)
+    except ConfigUnreadable as exc:
+        raise SystemExit(f"merge_hooks: {exc}") from exc
 
     if args.tool == "cursor" and "version" not in data:
         data["version"] = cfg.get("version", 1)
