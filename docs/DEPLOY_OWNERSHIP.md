@@ -3,24 +3,24 @@
 > Who writes what into your home directories, how to detect when that goes
 > wrong, and how to put it back.
 
-**Last Updated**: 2026-07-27
+**Last Updated**: 2026-07-29
 **Audience**: contributors and anyone debugging a deployed environment
-**Status**: the APM pipeline is **built but not activated** — see *Current state*
+**Status**: one domain (`skills`) is **APM-owned**; everything else is legacy
 
 ---
 
 ## Current state, in one line
 
-**Everything is deployed by the legacy `bootstrap.sh` pipeline today.** The APM
-pipeline exists, is tested, and is switched off (`apm_domains.yml` is empty,
-`--enable-apm` defaults to false). Nothing in this document changes your setup
-until a domain is registered.
+**`~/.claude/skills` is APM-owned (SC-006, 2026-07-28); every other domain is
+still deployed by the legacy `bootstrap.sh` pipeline.** `--enable-apm` still
+defaults to false — the toggle governs whether bootstrap *installs* apm, not who
+owns a registered domain.
 
 Check it yourself rather than trusting that sentence:
 
 ```bash
 configs/claude/scripts/apm_ownership_report.sh
-# skills   ~/.claude/skills   legacy
+# skills   ~/.claude/skills   apm
 ```
 
 ## The core idea: one writer per domain
@@ -35,7 +35,7 @@ Every legacy writer consults it and stands down for a listed domain.
 
 | Domain | Path | Owner today |
 |---|---|---|
-| `skills` | `~/.claude/skills` (+ four harness symlinks) | legacy |
+| `skills` | `~/.claude/skills` (+ four harness symlinks) | apm |
 
 Everything else — scripts, prompts, agents, config YAML — is legacy-owned and
 **not part of the registry**. See
@@ -115,6 +115,25 @@ Prefer `apm-dev-sync` when iterating: it tracks what it deployed, so a skill you
 **delete** from `.apm/skills/` is also removed from your home. `sync-skills`
 copies, and a copy cannot un-copy — deleted skills linger until someone notices.
 `apm-dev-sync` needs `./bootstrap.sh --enable-apm`.
+
+With more than one clone on the machine, say which one — it otherwise uses the
+profile's `MANIFEST_ROOT` (last bootstrap's checkout) or the clone you are
+standing in, which may be a real repo with no `.apm/skills`. The error names the
+path it used.
+
+```bash
+MANIFEST_ROOT=/path/to/Manifest apm-dev-sync
+```
+
+### Who populates an APM-owned domain on a fresh machine
+
+`./bootstrap.sh` runs the dev loop for an APM-owned skills domain **only when it
+is empty** — otherwise a machine whose registry already gates `skills` gets none
+at all, since bootstrap stands down and nothing takes over. A *populated* domain
+is never touched: pushing a working tree over apm's published-tag deploy every
+run is the double-claim the registry exists to prevent. An unpopulated domain is
+a `verify_installation` **warning** naming `apm-dev-sync`, not a bootstrap error
+— bootstrap is not the writer and must not take the blame.
 
 ## Activating a domain on a running machine
 

@@ -80,7 +80,8 @@ are built from each skill's `SKILL.md` frontmatter, the authoritative source.
 
 | Tool | Description |
 |------|-------------|
-| `sync-skills` | Sync `.apm/skills/` to all home targets; uses `MANIFEST_ROOT` env var |
+| `apm-dev-sync` | Sync `.apm/skills/` to all home targets via apm (removes deleted skills); uses `MANIFEST_ROOT` |
+| `sync-skills` | Legacy copy-based sync; stands down for apm-owned domains (`skills`) |
 
 The `code-audit` skill auto-triggers on security-sensitive code, large files (>500 lines),
 or complex files (>10 functions or >5 classes).

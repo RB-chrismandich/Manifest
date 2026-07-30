@@ -1146,6 +1146,63 @@ reconcile_deploy_report() {
     return 0
 }
 
+# Populate an APM-owned skills domain that nothing has written yet.
+#
+# SC-006 gated the `skills` domain (apm_domains.yml) so deploy_home_skills stands
+# down, but bootstrap gained no replacement writer — the activation procedure in
+# docs/DEPLOY_OWNERSHIP.md is human-driven (`apm install --global 'OWNER/REPO#TAG'`
+# BEFORE gating). That is correct on a machine that is already live and wrong on a
+# fresh one: bootstrap alone then leaves ~/.claude/skills absent, and with it the
+# four sibling homes that symlink to it, until someone remembers apm-dev-sync.
+#
+# Deliberately narrow, so this cannot reclaim ownership by the back door:
+#   - only when apm owns the domain (otherwise deploy_home_skills already wrote it)
+#   - only when the domain is EMPTY. Populating a populated tree would push the
+#     local working tree over whatever apm deployed from a published tag on every
+#     single bootstrap run — exactly the double-writer state SC-006 removed.
+#   - only when the apm binary exists. ENABLE_APM governs whether bootstrap
+#     INSTALLS apm, not whether an apm-owned domain is allowed to be populated;
+#     the domain registry is the ownership signal, not the service toggle.
+#
+# Fail-open: a failure here warns and returns 0. The domain being unpopulated is
+# already reported by verify_installation, which is the right place for the
+# verdict — aborting the deploy over it would take the rest of the environment
+# down with a skills tree the caller can fix with one command.
+populate_apm_owned_skills() {
+    declare -f apm_owns_domain > /dev/null 2>&1 || return 0
+    apm_owns_domain skills || return 0
+    if declare -f deploy_domain_selected > /dev/null 2>&1 && ! deploy_domain_selected skills; then
+        return 0
+    fi
+
+    if [[ -d "$TARGET_DIR/skills" ]] &&
+        [[ -n "$(find "$TARGET_DIR/skills" -maxdepth 2 -name SKILL.md -print -quit 2> /dev/null)" ]]; then
+        return 0 # apm (or a prior run) already populated it — not ours to rewrite
+    fi
+
+    if ! command -v apm > /dev/null 2>&1 && [[ ! -x "$HOME/.local/bin/apm" ]]; then
+        print_warning "skills is apm-owned but apm is not installed — run './bootstrap.sh --enable-apm', then ${APM_DOMAIN_REPLACEMENT_CMD:-apm-dev-sync}"
+        return 0
+    fi
+
+    local dev_sync="$SCRIPT_DIR/configs/claude/scripts/apm_dev_sync.sh"
+    if [[ ! -f "$dev_sync" ]]; then
+        print_warning "skills is apm-owned but $dev_sync is missing — cannot populate ~/.claude/skills"
+        return 0
+    fi
+
+    print_step "Populating apm-owned skills domain (empty ~/.claude/skills)..."
+    # MANIFEST_ROOT is passed explicitly: the script otherwise falls back to the
+    # enclosing git checkout, and on a machine with several Manifest clones that
+    # resolves to whichever one the caller happened to be standing in.
+    if MANIFEST_ROOT="$SCRIPT_DIR" APM_DEV_SYNC_QUIET=1 bash "$dev_sync"; then
+        print_success "Skills deployed via apm (source: $SCRIPT_DIR/.apm/skills)"
+    else
+        print_warning "apm-dev-sync failed — ~/.claude/skills is still unpopulated (see above)"
+    fi
+    return 0
+}
+
 verify_installation() {
     print_header "Verifying Installation"
 
@@ -1165,10 +1222,25 @@ verify_installation() {
         "$CURSOR_TARGET_DIR/rules/orchestration.mdc"
         "$CURSOR_TARGET_DIR/mcp.json"
         "$CURSOR_TARGET_DIR/hooks.json"
-        "$CURSOR_TARGET_DIR/skills/code-audit/SKILL.md"
         "$GEMINI_TARGET_DIR/GEMINI.md"
-        "$GEMINI_TARGET_DIR/skills/code-audit/SKILL.md"
         "$CODEX_TARGET_DIR/AGENTS.md"
+    )
+
+    # Skill files are verified SEPARATELY from required_files because bootstrap
+    # is no longer necessarily their writer: SC-006 handed the `skills` domain to
+    # apm (configs/claude/config/apm_domains.yml), so deploy_home_skills stands
+    # down and these paths are populated by apm instead. Counting them as
+    # bootstrap errors made a correctly-standing-down deploy exit 1 with three
+    # "Missing: .cursor/skills/code-audit/SKILL.md" lines and no hint of who
+    # should fix it — observed on a machine where apm had not yet run.
+    #
+    # The check is NOT skipped when apm owns the domain: a home with no skills is
+    # genuinely broken for the user, and a check that quietly stops looking is how
+    # this would go unnoticed next time. It degrades to a warning that names the
+    # populate command, which is visible without blaming the wrong pipeline.
+    local -a skill_files=(
+        "$CURSOR_TARGET_DIR/skills/code-audit/SKILL.md"
+        "$GEMINI_TARGET_DIR/skills/code-audit/SKILL.md"
         "$CODEX_TARGET_DIR/skills/code-audit/SKILL.md"
     )
 
@@ -1185,7 +1257,7 @@ verify_installation() {
     # checking this file unconditionally would false-positive "Missing" on a
     # deliberately-disabled service.
     if [[ "$ENABLE_ANTIGRAVITY" == true ]]; then
-        required_files+=("$ANTIGRAVITY_TARGET_DIR/skills/code-audit/SKILL.md")
+        skill_files+=("$ANTIGRAVITY_TARGET_DIR/skills/code-audit/SKILL.md")
     fi
     # Devin deploys exactly one file (the read_config_from pin) — it inherits
     # skills/rules from ~/.claude rather than receiving a copy, so there is no
@@ -1202,6 +1274,26 @@ verify_installation() {
             errors=$((errors + 1))
         fi
     done
+
+    local skills_apm_owned=false
+    if declare -f apm_owns_domain > /dev/null 2>&1 && apm_owns_domain skills; then
+        skills_apm_owned=true
+    fi
+    local skills_missing=0
+    for file in "${skill_files[@]}"; do
+        if [[ -f "$file" ]]; then
+            print_success "Found: ${file#"$HOME"/}"
+        elif [[ "$skills_apm_owned" == true ]]; then
+            print_warning "Missing (apm-owned domain): ${file#"$HOME"/}"
+            skills_missing=$((skills_missing + 1))
+        else
+            print_error "Missing: ${file#"$HOME"/}"
+            errors=$((errors + 1))
+        fi
+    done
+    if [[ $skills_missing -gt 0 ]]; then
+        print_warning "apm owns the 'skills' domain but has not populated it — run: ${APM_DOMAIN_REPLACEMENT_CMD:-apm-dev-sync}"
+    fi
 
     echo ""
     print_step "Checking shared state directories..."

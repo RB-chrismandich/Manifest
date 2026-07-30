@@ -49,6 +49,31 @@ All notable changes are documented here in reverse chronological order.
   unauthenticated agent does not abstain from the panel — it errors, dragging the
   consensus metric into a verdict that is not a finding.
 
+### Bootstrap stopped failing on the skills domain it handed to apm
+
+- **`verify_installation` counted three files bootstrap no longer writes.**
+  SC-006 gated the `skills` domain, so `deploy_home_skills` stands down — but the
+  verify step still listed `~/.cursor|.gemini|.codex/skills/code-audit/SKILL.md`
+  among its own required files. A correct stand-down therefore exited 1 with
+  three `Missing:` errors and no remediation. The checks stay (a home with no
+  skills is genuinely broken) but degrade to warnings naming `apm-dev-sync` when
+  apm owns the domain.
+- **Nothing populated the domain.** `./bootstrap.sh` now runs the dev loop for an
+  APM-owned skills domain **only when it is empty**, so a fresh machine whose
+  registry already gates `skills` is no longer left with none. A populated domain
+  is never touched — overwriting apm's published-tag deploy with a working tree
+  on every run is the double-claim the registry exists to prevent.
+- **`apm-dev-sync` diagnostics.** A wrong root now names *where the path came
+  from* (`MANIFEST_ROOT` vs the enclosing checkout) and how to override it, and
+  says so explicitly when the checkout predates the `.apm` migration — the old
+  "is this a Manifest checkout?" was unanswerable on a machine with two clones.
+  Its closing note about `bootstrap.sh`/`sync-skills` also writing the tree now
+  reads the registry instead of hardcoding the migration's mid-state; post-gating
+  it was false and pointed at commands that no longer refresh skills.
+- `docs/DEPLOY_OWNERSHIP.md` said the APM pipeline was switched off and
+  `apm_domains.yml` empty — untrue since 2026-07-28. Corrected, with the
+  multi-clone `MANIFEST_ROOT` recipe and who-populates-what.
+
 ### Retired-tree references swept (`.skillshare/` → `.apm/`, `linear_triage.yml`)
 
 - **Four skills carried paths into the tree deleted on 2026-07-27**, two of them
