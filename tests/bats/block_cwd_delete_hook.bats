@@ -133,6 +133,65 @@ print(json.load(sys.stdin)["hookSpecificOutput"]["permissionDecisionReason"])')"
     assert_equal "$(verdict "cd / && rm -rf $BATS_TEST_TMPDIR/worktrees/other-repo")" "deny"
 }
 
+# --------------------------------------------------------------------------- #
+# `cd <exact live cwd>` must not be read as a deletion target.
+#
+# Restricting the loose scan to equality implemented the docstring's rule only
+# for ANCESTORS: an exact `cd <live cwd>` still matched, and agent shells prefix
+# nearly every command with `cd <repo>`. So any command that merely MENTIONED a
+# deletion verb — in a grep pattern, a comment, an echo string — was denied.
+# All four of these were observed denying real read-only work.
+# --------------------------------------------------------------------------- #
+
+@test "cd to the exact cwd is not a deletion target: verb inside a grep pattern" {
+    assert_equal "$(verdict "cd $ACTOR
+grep -rnE 'rm -rf|rmtree' --include='*.sh' src lib | head")" ""
+}
+
+@test "cd to the exact cwd is not a deletion target: verb only in a comment" {
+    assert_equal "$(verdict "cd $ACTOR && ls   # not going to rmdir anything")" ""
+}
+
+@test "cd to the exact cwd is not a deletion target: verb only inside echo" {
+    assert_equal "$(verdict "cd $ACTOR && echo 'run rmdir later'")" ""
+}
+
+@test "cd to the exact cwd then deleting a temp dir is allowed" {
+    # The shape that kept firing during real work: cd into the repo, then clean
+    # up a mktemp dir. The rm target is a $-token the hook cannot resolve, so the
+    # only cwd-equal token was the cd argument.
+    assert_equal "$(verdict "cd $ACTOR
+T=\$(mktemp -d); rm -rf \"\$T\"")" ""
+}
+
+@test "cd to another session's cwd is still not a deletion target" {
+    # Same rule, victim-side: mentioning a path is not requesting its deletion.
+    assert_equal "$(verdict "cd $VICTIM && grep -r rmdir .")" ""
+}
+
+@test "cd does not launder a real deletion in a later clause" {
+    # The cd argument is exempt; the rm argument is not.
+    assert_equal "$(verdict "cd $ACTOR && rm -rf $VICTIM")" "deny"
+}
+
+@test "rm -rf . is caught when the cwd is a live session dir" {
+    # Previously a hole: "." was discarded as non-path-shaped, so deleting the
+    # cwd via a relative target slipped through both passes entirely.
+    assert_equal "$(verdict 'rm -rf .')" "deny"
+}
+
+@test "rm -rf .. is caught when it resolves onto a live session dir" {
+    local child="$VICTIM/subdir"
+    mkdir -p "$child"
+    assert_equal "$(verdict 'rm -rf ..' "$child")" "deny"
+}
+
+@test "a bare . elsewhere in a deleting command is not itself a target" {
+    # `.` counts only as a deletion-verb argument. As a bare mention it would
+    # match every cwd and deny everything.
+    assert_equal "$(verdict "grep -r rmdir . && rm -rf $ACTOR/build")" ""
+}
+
 @test "a relative target that is not a session cwd is left alone" {
     assert_equal "$(verdict 'rm -rf build/artifacts')" ""
 }

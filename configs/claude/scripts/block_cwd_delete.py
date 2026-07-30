@@ -197,12 +197,60 @@ def _tokenize(text: str) -> list[str]:
         return re.findall(r"[^\s;&|()'\"]+", text)
 
 
-def _paths(tokens: list[str], base: str) -> list[str]:
-    """The tokens that could name a directory, resolved against base."""
+# Commands whose argument is a directory they move to or read — never one they
+# delete. The token after one of these has a KNOWN, non-deleting role, so the
+# loose scan must not treat it as a deletion target. The docstring above states
+# this rule ("a cd argument ... must not be treated as a deletion target"), but
+# restricting loose matching to equality only implemented it for ancestors: an
+# exact `cd <live cwd>` still matched. That shape is ubiquitous — agent shells
+# prefix commands with `cd <repo>` — so any command merely MENTIONING a deletion
+# verb (in a grep pattern, a comment, an echo string, a heredoc) was denied.
+_NON_DELETING_VERBS = frozenset({"cd", "pushd", "chdir"})
+
+# A clause whose LEADING command is a deletion verb, allowing for the wrappers
+# that legitimately precede one (`sudo rm`, and the `do`/`then` that a shell loop
+# or conditional puts in front — the original sweep incident ran inside `do`).
+# Used only to decide whether a bare `.`/`..` is a deletion target.
+_LEADING_DELETION = re.compile(
+    r"""(?x) ^ \s*
+    (?: (?: sudo | command | do | then | else ) \s+ )*
+    (?: \brm\b | \brmdir\b | \bgit\b [^;&|]*? \bworktree \s+ remove \b )
+    """
+)
+
+
+def _without_known_non_deleting_args(tokens: list[str]) -> list[str]:
+    """Drop tokens whose role is known and harmless (the argument of `cd`, ...)."""
+    out: list[str] = []
+    skip = False
+    for token in tokens:
+        if skip:
+            skip = False
+            continue
+        if token in _NON_DELETING_VERBS:
+            skip = True
+            continue
+        out.append(token)
+    return out
+
+
+def _paths(tokens: list[str], base: str, *, allow_dot: bool = False) -> list[str]:
+    """The tokens that could name a directory, resolved against base.
+
+    `allow_dot` admits `.` and `..`, which are real targets when they are the
+    argument of a deletion verb (`rm -rf .` in a live cwd destroys it) but
+    meaningless as a bare mention — almost every command contains a `.`
+    somewhere, and treating that as a target would deny everything.
+    """
     out: list[str] = []
     for token in tokens:
         token = token.strip().rstrip(";")
-        if not token or _NOT_A_PATH.match(token):
+        if not token:
+            continue
+        if allow_dot and token in (".", ".."):
+            out.append(normalize(os.path.join(base, token)))
+            continue
+        if _NOT_A_PATH.match(token):
             continue
         if "$" in token or "*" in token or "?" in token:
             continue  # unexpanded — nothing reliable to compare
@@ -221,13 +269,19 @@ def deletion_targets(command: str, cwd: str | None) -> list[str]:
         match = DELETION_VERB.search(clause)
         if not match:
             continue
-        out.extend(_paths(_tokenize(clause[match.end() :]), base))
+        # `.`/`..` count only when the clause is LED by a deletion command.
+        # `grep -r rmdir .` contains a deletion verb and a dot, but the verb is a
+        # search pattern and the dot is grep's search root — admitting it there
+        # would deny ordinary searches, the very failure this guard must avoid.
+        allow_dot = bool(_LEADING_DELETION.match(clause))
+        out.extend(_paths(_tokenize(clause[match.end() :]), base, allow_dot=allow_dot))
     return out
 
 
 def mentioned_paths(command: str, cwd: str | None) -> list[str]:
-    """Every path-shaped token in the command, whatever its role."""
-    return _paths(_tokenize(command), cwd or os.getcwd())
+    """Every path-shaped token whose role is not known to be harmless."""
+    tokens = _without_known_non_deleting_args(_tokenize(command))
+    return _paths(tokens, cwd or os.getcwd())
 
 
 def endangered(
