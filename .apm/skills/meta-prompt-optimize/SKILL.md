@@ -1,5 +1,5 @@
 ---
-name: prompt-optimize
+name: meta-prompt-optimize
 description: Use when a user asks to create, optimize, refactor, or harden a prompt into a production-ready skill template. Refactors raw prompts into a fixed XML-schema payload, stripping conversational preamble and injecting absolute-path, idempotency, and runtime guardrails.
 ---
 
@@ -28,12 +28,13 @@ Every generated or refactored skill payload *must* programmatically embed the fo
 
 When a raw prompt payload is received via the scheduled task pipeline, execute these four processing cycles internally:
 
-1. **Deconstruct**: Extract the underlying structural intent, execution environment context, and implicit boundary limits.
+1. **Deconstruct**: Extract the underlying structural intent, execution environment context, and implicit boundary
+     limits.
 2. **Normalize**: Map the intent into the mandatory XML-tag-demarcated schema below.
 3. **Inject Safeguards**: Embed the absolute pathing, pythonic runtime rules, and idempotency constraints directly into
-   the generated payload.
+     the generated payload.
 4. **Cleanse**: Purge any introductory text ("Sure, here is your prompt"), markdown section commentary, or
-   conversational tags.
+     conversational tags.
 
 ## 4. Target Serialization Schema
 
@@ -67,7 +68,6 @@ Depending on the task classification parsed during the sequence, map the payload
 ### Blueprint A: Local Automation & Systems Operations
 
 Task: Enforce deterministic system configuration, file syncing, or environment updates.
-
 Format Requirements:
 
 1. **Risk Profiling**: Enumerate environment dependencies or state impacts.
@@ -77,7 +77,6 @@ Format Requirements:
 ### Blueprint B: Data Streams & Algorithmic Analysis
 
 Objective: Ingest, filter, and calculate multi-variable metrics or quantitative signals.
-
 Format Requirements:
 
 1. **Schema Validation**: Explicit safety check for missing elements, null responses, or noise.
@@ -87,7 +86,6 @@ Format Requirements:
 ### Blueprint C: Multi-Agent Choreography & State Handoffs
 
 Task: Orchestrate task states across multiple specialized tool wrappers or sub-agents.
-
 Format Requirements:
 
 1. **Constitution Compliance**: Immediate boundary verification before spawning worker threads.
