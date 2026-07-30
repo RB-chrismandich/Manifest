@@ -24,6 +24,17 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 GITOPS="${SKILLCLAW_GITOPS:-${SCRIPT_DIR}/git_ops.sh}"
+# The `manifest` CLI lives in ~/.local/bin, which a login shell gets from the
+# user's profile but hooks, launchd/systemd jobs and cron do not. Put it back on
+# PATH rather than hardcoding the path: the command seams below are word-split
+# strings, so an absolute path would break on a $HOME containing spaces.
+# ${HOME:-} because a clean env (env -i, some CI/hook contexts) has no HOME and
+# these scripts run under `set -u` — the --help path must not need it.
+case ":${PATH:-}:" in
+    *":${HOME:-}/.local/bin:"*) ;;
+    *) [[ -n "${HOME:-}" ]] && PATH="$HOME/.local/bin:${PATH:-}" ;;
+esac
+
 MANIFEST="${MANIFEST:-manifest}"
 # shellcheck disable=SC2034  # CFG is a test/future-use seam; not used in this version
 CFG="${SKILLCLAW_CONFIG:-${SCRIPT_DIR}/../config/skillclaw.yml}"

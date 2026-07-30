@@ -111,6 +111,36 @@ link_shared_assets() {
     done
 }
 
+# Make ~/.local/bin usable for the CLIs bootstrap installs there (sync-skills,
+# apm-dev-sync, manifest): create it, add it to the user's profile once, and put it
+# on PATH for the rest of this run (the profile is not sourced until the next
+# shell, but the user may run the CLI immediately).
+#
+# Shared because every installer that drops a binary there needs it — a
+# --reconfigure run installs the manifest wrapper without going through
+# deploy_configs, which is where this logic used to live exclusively.
+ensure_local_bin_on_path() {
+    mkdir -p "$HOME/.local/bin" 2> /dev/null || true
+
+    local profile="${SHELL_PROFILE_FILE:-}"
+    if [[ -n "$profile" ]] && ! grep -Eq '\.local/bin' "$profile" 2> /dev/null; then
+        {
+            echo ""
+            echo "# User-installed tools (managed by bootstrap.sh)"
+            # Single-quoted intentionally: $HOME/$PATH must stay literal so they
+            # expand in the user's shell at profile-load time, not here.
+            # shellcheck disable=SC2016
+            echo 'export PATH="$HOME/.local/bin:$PATH"'
+        } >> "$profile"
+    fi
+
+    # Idempotent: repeated calls must not stack duplicate entries onto PATH.
+    case ":$PATH:" in
+        *":$HOME/.local/bin:"*) ;;
+        *) export PATH="$HOME/.local/bin:$PATH" ;;
+    esac
+}
+
 # Ownership registry helper. Sourced from configs/claude/scripts/ because
 # sync-skills.sh — a standalone CLI in ~/.local/bin — needs the same function and
 # cannot source the bootstrap libraries. One implementation, two callers.

@@ -1093,24 +1093,12 @@ PYEOF
 # Depends on SHELL_PROFILE_FILE being set by configure_shell_profile_state.
 deploy_sync_skills() {
     print_step "Deploying sync-skills CLI..."
-    mkdir -p "$HOME/.local/bin"
+    # Creates ~/.local/bin, adds it to the profile once, and exports it for this
+    # run (PATH Catch-22: the profile is not sourced until the next terminal, but
+    # the user may run sync-skills right away).
+    ensure_local_bin_on_path
     cp "$SCRIPT_DIR/configs/claude/scripts/sync-skills.sh" "$HOME/.local/bin/sync-skills"
     chmod +x "$HOME/.local/bin/sync-skills"
-
-    if ! grep -Eq '\.local/bin' "$SHELL_PROFILE_FILE" 2> /dev/null; then
-        {
-            echo ""
-            echo "# User-installed tools (managed by bootstrap.sh)"
-            # Single-quoted intentionally: $HOME/$PATH must stay literal so they
-            # expand in the user's shell at profile-load time, not here.
-            # shellcheck disable=SC2016
-            echo 'export PATH="$HOME/.local/bin:$PATH"'
-        } >> "$SHELL_PROFILE_FILE"
-    fi
-
-    # Update PATH for the current bootstrap session (PATH Catch-22: profile not
-    # sourced until next terminal open, but the user may run sync-skills right away).
-    export PATH="$HOME/.local/bin:$PATH"
 
     # T055/FR-032: the publish-free local development loop, deployed alongside
     # the writer it will replace. Installed UNCONDITIONALLY, not gated on
