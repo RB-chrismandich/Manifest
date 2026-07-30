@@ -75,6 +75,47 @@ tiers.
 Also: `test_get_dot_notation` asserted a hardcoded haiku model ID, so it failed on
 every model refresh for a reason unrelated to what it covers. It now asserts the
 lookup mechanism (verified by mutation: breaking `get()` still fails it).
+### Two audit findings fixed: config wipe on unparseable JSON, and a guard that cried wolf
+
+**An unparseable `settings.json` was silently replaced with only the hook block.**
+Measured before the fix: a file holding `model`, `statusLine`, `env`, `permissions`
+and a user `PreToolUse` hook, with one trailing comma, went 309 bytes → 256 bytes
+on a `merge_hooks.py` run — exit 0, one stderr warning, no backup. Valid JSON that
+was not an object (`["a","b"]`) took the same path with *no warning at all*.
+`load_json()` collapsed absent, unreadable, and not-an-object into `{}`, and
+callers read → insert → rewrite the whole file, so "empty" meant "truncate".
+Blast radius was three files per run (`~/.claude/settings.json`,
+`~/.gemini/settings.json`, `~/.cursor/hooks.json`), and `remove_hooks.py` shared
+the same pair, so uninstall wiped identically. `check=True` could not catch it,
+because the wipe exits 0.
+
+- `load_json` returns `{}` only for an absent or empty file, and raises
+  `ConfigUnreadable` otherwise; both callers abort with the file intact.
+- `save_json` writes atomically (same-directory temp + `os.replace`) after
+  copying prior content to a sibling `.bak`, so an interrupted write can no
+  longer truncate a config and a bad merge is undoable. Symlinked configs are
+  updated at their target rather than replaced by a regular file.
+
+**`block_cwd_delete` denied commands that only *mentioned* a deletion verb.** Its
+loose scan treated a `cd` argument as a deletion target, so any command that
+cd'd into a live session's cwd — the shape agent shells emit constantly — was
+denied if a deletion verb appeared anywhere in it, including inside a `grep`
+search pattern, a comment, or an echo string. The docstring already stated the
+rule ("a `cd` argument … must not be treated as a deletion target"), but
+restricting loose matching to equality implemented it only for *ancestors*. The
+cost was not merely friction: the sanctioned workaround is appending
+`# cwd-verified`, so a guard that cries wolf on read-only greps trains the
+operator to disarm it by reflex.
+
+- `mentioned_paths` drops the argument of `cd`/`pushd`/`chdir`. `deletion_targets`
+  is untouched, so `cd /x && rm -rf <live cwd>` still denies, as does the
+  original sweep-loop incident shape.
+- Closes a separate pre-existing hole: `rm -rf .` / `rm -rf ..` were discarded as
+  non-path-shaped and slipped past **both** passes. They now resolve against the
+  cwd — but only when the clause is *led* by a deletion command, since
+  `grep -r rmdir .` contains both a deletion verb and a dot and must stay allowed.
+
+Both fixes are mutation-verified in both directions.
 
 ### `manifest` CLI hardened against install, deletion, and drift edge cases
 
