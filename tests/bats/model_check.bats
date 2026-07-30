@@ -269,11 +269,11 @@ EOF
     refute_output --partial "OK:"
 }
 
-@test "check_cli_provider falls back to 'no probe shape' SKIPPED for cursor (shared maybe_probe path)" {
-    # cursor has no probe shape in probe_pins' case statement — pins the
-    # message drift this batch introduces for the pre-existing cursor call in
-    # main() (SKIPPED: cursor (model listing failed) -> SKIPPED: cursor (no
-    # probe shape) once MODEL_CHECK_PROBE=1 is set and cursor-agent is on PATH).
+@test "cursor listing failure now falls back to a per-pin probe, not 'no probe shape'" {
+    # Inverts the previous assertion on purpose: cursor gained a probe shape, so
+    # a failed listing must reach probe_pins and report PER PIN. An auth-shaped
+    # failure is not evidence about model identity, so it degrades to SKIPPED
+    # rather than STALE.
     cat > "$SANDBOX/cursor.yml" <<'YAML'
 model_tiers:
   cursor:
@@ -291,6 +291,69 @@ FAKE
     MODEL_CHECK_PROBE=1 run check_cli_provider cursor "$SANDBOX/bin/fakecursor" \
         "$SANDBOX/bin/fakecursor" --list-models
     assert_success
-    assert_output --partial "SKIPPED: cursor (no probe shape)"
-    refute_output --partial "SKIPPED: cursor (model listing failed)"
+    assert_output --partial "SKIPPED: model_tiers.cursor.flash (probe failed)"
+    refute_output --partial "no probe shape"
+}
+
+@test "cursor 'Cannot use this model' classifies as STALE, not SKIPPED" {
+    # cursor-agent's real wording for a dead pin (measured 2026-07-29). Before
+    # this pattern existed the pin read as "couldn't check", hiding a broken
+    # pin behind the same label as a transient auth failure.
+    cat > "$SANDBOX/cursor.yml" <<'YAML'
+model_tiers:
+  cursor:
+    flash: "retired-model"
+YAML
+    mkdir -p "$SANDBOX/bin"
+    cat > "$SANDBOX/bin/fakecursor" <<'FAKE'
+#!/usr/bin/env bash
+echo "Cannot use this model: retired-model. Available models: auto, composer-2.5" >&2
+exit 1
+FAKE
+    chmod +x "$SANDBOX/bin/fakecursor"
+    source "$SCRIPT"
+    MODEL_CHECK_CONFIG="$SANDBOX/cursor.yml"
+    MODEL_CHECK_PROBE=1 run probe_pins cursor "$SANDBOX/bin/fakecursor"
+    assert_success
+    assert_output --partial "STALE: model_tiers.cursor.flash = retired-model not served (live probe)"
+    refute_output --partial "probe failed"
+}
+
+@test "devin is never probed: a probe would start an interactive login" {
+    # devin -p on a logged-out machine launches a login flow instead of failing,
+    # so probe_pins must refuse devin outright rather than call it.
+    cat > "$SANDBOX/devin.yml" <<'YAML'
+model_tiers:
+  devin:
+    advanced: "some-devin-model"
+YAML
+    mkdir -p "$SANDBOX/bin"
+    # Fails the test loudly if it is ever executed.
+    cat > "$SANDBOX/bin/fakedevin" <<'FAKE'
+#!/usr/bin/env bash
+echo "DEVIN-WAS-INVOKED" >&2
+exit 1
+FAKE
+    chmod +x "$SANDBOX/bin/fakedevin"
+    source "$SCRIPT"
+    MODEL_CHECK_CONFIG="$SANDBOX/devin.yml"
+    MODEL_CHECK_PROBE=1 run probe_pins devin "$SANDBOX/bin/fakedevin"
+    assert_success
+    assert_output --partial "no probe — devin -p starts an interactive login"
+    refute_output --partial "DEVIN-WAS-INVOKED"
+}
+
+@test "check_devin reports the unpinned-by-design state instead of staying silent" {
+    # devin ships no model_tiers block; a provider missing from the report reads
+    # as "checked and fine" in the check_status.sh summary. SKIPPED (not a new
+    # label) because check_status.sh only counts OK/STALE/SKIPPED/UNSUPPORTED.
+    cat > "$SANDBOX/nodevin.yml" <<'YAML'
+model_tiers:
+  claude:
+    opus: "claude-opus-5"
+YAML
+    source "$SCRIPT"
+    MODEL_CHECK_CONFIG="$SANDBOX/nodevin.yml" run check_devin
+    assert_success
+    assert_output --partial "SKIPPED: devin (unpinned by design"
 }

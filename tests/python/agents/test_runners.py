@@ -158,15 +158,22 @@ class TestCLIAgentCommandAssembly:
     def test_cursor_tier_resolves_via_model_tiers(self, tmp_path):
         # Deliberate behavior change: cursor now honors model_tiers.cursor
         # (the old CursorAgent passed the raw tier string through).
+        # Asserts the RESOLUTION, not a particular pin: comparing against the
+        # config value keeps this test about "flash maps through model_tiers"
+        # instead of failing every time a provider ships a new model. The
+        # inequality is what gives it teeth — a passthrough bug would leave the
+        # raw tier name "flash" in the command.
+        config = _make_config(tmp_path)
         agent = CLIAgent(
             "cursor",
             model="flash",
             rate_limiter=_make_limiter(),
-            config=_make_config(tmp_path),
+            config=config,
         )
         cmd = agent._build_command("hello")
         i = cmd.index("--model")
-        assert cmd[i + 1] == "auto"
+        assert cmd[i + 1] == config.get("model_tiers.cursor.flash")
+        assert cmd[i + 1] != "flash"
 
     def test_devin_headless_invocation_and_permission_mode(self, tmp_path):
         # Regression guard: devin must run headless (-p) so it cannot sit on an
@@ -249,16 +256,25 @@ class TestCLIAgentCommandAssembly:
         assert agent.model_name == "custom-model-123"
 
     def test_antigravity_command_shape(self, tmp_path):
+        config = _make_config(tmp_path)
         agent = CLIAgent(
             "antigravity",
             model="flash",
             rate_limiter=_make_limiter(),
-            config=_make_config(tmp_path),
+            config=config,
         )
         cmd = agent._build_command("hello")
         # agy takes --print as a flag whose VALUE is the prompt, so the correct
-        # shape is: agy --model <model> --print <prompt>
-        assert cmd == ["agy", "--model", "Gemini 3.5 Flash (High)", "--print", "hello"]
+        # shape is: agy --model <model> --print <prompt>. The model is read from
+        # config rather than hardcoded — this test is about argv ORDER, and
+        # pinning an ID here made it fail on every model refresh.
+        assert cmd == [
+            "agy",
+            "--model",
+            config.get("model_tiers.antigravity.flash"),
+            "--print",
+            "hello",
+        ]
 
     def test_claude_cli_command_shape(self, tmp_path):
         # claude headless: -p/--print is a BOOLEAN flag enabling print mode;
@@ -534,11 +550,12 @@ class TestCLIAgentExecution:
         configured credit_fallback.antigravity tier walk (advanced -> flash)."""
         from unittest.mock import AsyncMock, patch
 
+        config = _make_config(tmp_path)
         agent = CLIAgent(
             "antigravity",
             model="advanced",
             rate_limiter=_make_limiter(),
-            config=_make_config(tmp_path),
+            config=config,
         )
         calls = []
 
@@ -563,7 +580,11 @@ class TestCLIAgentExecution:
 
         assert result["status"] == "complete"
         assert result["credit_fallback"] is True
-        assert agent.model_name == "Gemini 3.5 Flash (High)"
+        # The walk started at `advanced` and must have landed on `flash` — read
+        # both from config so the assertion survives a model refresh, and assert
+        # they differ so a no-op "walk" can't pass.
+        assert agent.model_name == config.get("model_tiers.antigravity.flash")
+        assert agent.model_name != config.get("model_tiers.antigravity.advanced")
         assert len(calls) == 2
 
     def test_timeout_kills_subprocess(self, tmp_path):

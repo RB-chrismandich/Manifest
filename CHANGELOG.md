@@ -10,6 +10,72 @@ All notable changes are documented here in reverse chronological order.
 
 ## [Unreleased]
 
+### Model pins re-verified against live provider CLIs, and tiers established for cursor/devin
+
+Every `model_tiers` pin was re-checked by a **real one-shot call through the
+provider's own CLI** on 2026-07-29, not against documentation. Each pin now
+carries a VERIFIED or UNVERIFIED status inline, because the two are not
+interchangeable — doc-sourced IDs are what produced this repo's 404ing Gemini
+tiers.
+
+- **claude** — `opus` was a generation stale at `claude-opus-4-8`; now
+  `claude-opus-5`. `haiku` drops its needless date suffix
+  (`claude-haiku-4-5-20251001` → `claude-haiku-4-5`), matching the canonical name
+  the API itself reports. All four pins verified via `--output-format json`'s
+  `modelUsage.canonicalModel`, which echoed the pinned string exactly. Full IDs
+  are pinned rather than the `opus`/`sonnet` aliases: an alias is a moving target
+  the provider can remap, which would change a tier with no diff here.
+- **cursor** — all three tiers were the literal string `"auto"`, which made the
+  tier abstraction inert (every role resolved to the same model) while
+  `model_check.sh` reported `OK`, because `auto` is genuinely in the listing — a
+  green check on a placeholder. Now a verified grok-4.5 effort ladder
+  (`low`/`medium`/`high`). The newer premium ladder
+  (`claude-opus-5-thinking-*`, `claude-fable-5-thinking-*`, `gpt-5.6-sol-*`,
+  `kimi-k3-high`) is deliberately **not** pinned: all of it returned an account
+  usage-limit `ActionRequiredError` (resets 2026-08-12), making it unverifiable
+  rather than broken.
+- **antigravity** — format migration. `agy models` emits **slugs** under 1.1.8
+  (`gemini-3.6-flash-low`) where 1.1.1 emitted display labels
+  (`Gemini 3.5 Flash (Low)`). agy still *accepts* the labels — re-probed, they
+  answer — so the old pins were never broken at runtime; they had silently stopped
+  matching the catalog, so `model_check.sh` scored all three STALE for a purely
+  cosmetic reason. `mini`/`flash` also move up to the 3.6 flash family now that it
+  exists; `advanced` is the same model in slug form, so the `spec_review.sh` agy
+  reviewer is unchanged.
+- **gemini — UNVERIFIED, and the CLI is non-functional.** Every invocation now
+  fails at the eligibility layer, before model selection: `IneligibleTierError`,
+  free-tier Gemini Code Assist for individuals is discontinued, "migrate to the
+  Antigravity suite". With no API key set the REST listing is unavailable too, so
+  neither pin can be confirmed. Left in place so tier lookups resolve, marked
+  unproven, with Antigravity documented as Google's own stated remedy.
+- **codex — UNVERIFIED.** `codex login status` reports "Not logged in" and probes
+  return HTTP 401. Re-confirmed the CLI still has no listing command.
+
+`model_check.sh` gained the verification paths those gaps exposed:
+
+- **devin is now reported instead of silently absent.** It had no check line at
+  all, and a provider missing from the report reads as "checked and fine" in the
+  `check_status.sh` summary. Reported as `SKIPPED` rather than a new label,
+  because `check_status.sh` cases on exactly OK/STALE/SKIPPED/UNSUPPORTED and
+  would drop a fifth word uncounted — turning an unchecked provider green.
+- **devin is deliberately never probed.** While logged out, `devin --model X -p`
+  does not fail — it *launches an interactive login* ("Welcome to Devin CLI!" →
+  "Error: Login canceled"). A health check must never try to log the operator in.
+- **cursor and codex gained probe shapes.** Codex has no listing command, so a
+  probe is the *only* way to verify its pins. The cursor probe runs inside a
+  throwaway temp dir: `cursor-agent` aborts with "Workspace Trust Required" and
+  needs `--trust`, and trusting whatever directory the operator ran `/env-check`
+  from is not this script's call. Neither probe passes `--full-auto` or
+  `--permission-mode auto` — a staleness check must not be able to execute code.
+- **A dead cursor pin now reports STALE instead of SKIPPED.** cursor-agent says
+  `Cannot use this model: X`, which the classifier didn't recognise, so a broken
+  pin hid behind the same "couldn't check" label as a transient auth failure.
+- Sourcing the script no longer trips `set -u` on an unset `BASH_SOURCE`.
+
+Also: `test_get_dot_notation` asserted a hardcoded haiku model ID, so it failed on
+every model refresh for a reason unrelated to what it covers. It now asserts the
+lookup mechanism (verified by mutation: breaking `get()` still fails it).
+
 ### `manifest` CLI hardened against install, deletion, and drift edge cases
 
 - **The wrapper no longer gates on `uv`, which was a live outage.** Measured on a

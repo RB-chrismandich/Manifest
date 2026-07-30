@@ -337,10 +337,15 @@ Choose models based on task complexity:
 
 | Tier | Cursor | Claude | Gemini | Codex | Antigravity | Use For |
 |------|--------|--------|--------|-------|-------------|---------|
-| Lightweight | gpt-5.1-codex-mini | claude-haiku-4-5-20251001 | - | gpt-5.4-mini | Gemini 3.5 Flash (Low) | Quick questions |
-| Balanced | gpt-5.1-codex | claude-sonnet-4-6 | gemini-3-flash-preview | gpt-5.4 | Gemini 3.5 Flash (High) | Code review |
-| Maximum | gpt-5.2 | claude-opus-4-8 | gemini-3-pro-preview | gpt-5.5 | Claude Opus 4.6 (Thinking) | Security analysis |
+| Lightweight | cursor-grok-4.5-low | claude-haiku-4-5 | - | gpt-5.4-mini | gemini-3.6-flash-low | Quick questions |
+| Balanced | cursor-grok-4.5-medium | claude-sonnet-5 | gemini-3-flash-preview | gpt-5.4 | gemini-3.6-flash-high | Code review |
+| Maximum | cursor-grok-4.5-high | claude-opus-5 | gemini-3-pro-preview | gpt-5.5 | claude-opus-4-6-thinking | Security analysis |
 | Security | - | claude-fable-5 | - | - | - | Critical security tasks |
+
+Verified 2026-07-29 by a live one-shot call per pin, **except** the Gemini and
+Codex columns: the `gemini` CLI is ineligible on a free-tier account (migrate to
+Antigravity) and the `codex` CLI is logged out, so neither could be confirmed.
+See [CONFIGURATION.md](CONFIGURATION.md#model-tiers) for per-provider status.
 
 Devin is absent from this table on purpose: its catalog is login-gated, so nothing
 is pinned. `--devin-model` defaults to `auto` (no `--model` flag) and otherwise
