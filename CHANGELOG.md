@@ -75,6 +75,7 @@ tiers.
 Also: `test_get_dot_notation` asserted a hardcoded haiku model ID, so it failed on
 every model refresh for a reason unrelated to what it covers. It now asserts the
 lookup mechanism (verified by mutation: breaking `get()` still fails it).
+
 ### Two audit findings fixed: config wipe on unparseable JSON, and a guard that cried wolf
 
 **An unparseable `settings.json` was silently replaced with only the hook block.**
