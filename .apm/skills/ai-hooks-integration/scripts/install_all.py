@@ -32,8 +32,13 @@ def install_unified(args) -> None:
     """Install unified hook with automatic source detection."""
     dry = ["--dry-run"] if args.dry_run else []
 
-    # Build the unified hook command
-    unified_cmd = f"{sys.executable} {UNIFIED_HOOK}"
+    # Build the unified hook command.
+    # -B is load-bearing, not cosmetic: the runtime lives inside the
+    # apm-managed skills tree, so bytecode written next to the source is a file
+    # apm did not place. apm then refuses to remove or replace the skill, and a
+    # hook that fires every tool call re-creates __pycache__ every session —
+    # deleting it does not stick, only not writing it does.
+    unified_cmd = f"{sys.executable} -B {UNIFIED_HOOK}"
     if args.handler:
         unified_cmd += f" --handler {args.handler}"
 

@@ -186,7 +186,11 @@ def run_handler(handler_path: str, event: dict) -> dict:
     event_type = event.get("event_type", "PreToolUse")
     try:
         result = subprocess.run(
-            [sys.executable, handler_path],
+            # -B: handlers live in apm-managed skill directories, and any
+            # sibling module a handler imports would leave __pycache__ there —
+            # a file apm did not place, which makes it refuse to update that
+            # skill. See install_all.py for the same guard on the hook command.
+            [sys.executable, "-B", handler_path],
             input=json.dumps(event),
             capture_output=True,
             text=True,
