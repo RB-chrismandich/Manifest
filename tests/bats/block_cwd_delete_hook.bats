@@ -196,6 +196,47 @@ T=\$(mktemp -d); rm -rf \"\$T\"")" ""
     assert_equal "$(verdict 'rm -rf build/artifacts')" ""
 }
 
+# A relative deletion target resolves against the directory the command is IN,
+# which a `cd` in an earlier clause has already changed. Exempting the cd
+# argument from being a target (above) without also following it left `.` bound
+# to the payload's cwd — and since a session's own cwd is always a holder, that
+# made every `cd <anywhere> && rm -rf .` deny, naming the wrong directory.
+@test "cd into a scratch dir then rm -rf . is allowed" {
+    local scratch="$BATS_TEST_TMPDIR/scratch"
+    mkdir -p "$scratch"
+    assert_equal "$(verdict "cd $scratch && rm -rf .")" ""
+}
+
+@test "cd into another session's cwd then rm -rf . is denied" {
+    assert_equal "$(verdict "cd $VICTIM && rm -rf .")" "deny"
+}
+
+@test "the denial after a cd names the directory the command moved to" {
+    # Not merely "deny": naming the actor's own cwd for a command that never
+    # touches it is a claim the operator can see is false, and the sanctioned
+    # response to a wrong denial is the override marker.
+    reason="$(decide "cd $VICTIM && rm -rf ." | python3 -c 'import json,sys
+print(json.load(sys.stdin)["hookSpecificOutput"]["permissionDecisionReason"])')"
+    printf '%s' "$reason" | grep -q "fancy-comics"
+    refute [ "$(printf '%s' "$reason" | grep -c "beige-emus")" != 0 ]
+}
+
+@test "cd into a child of another session then rm -rf .. is denied" {
+    local child="$VICTIM/subdir"
+    mkdir -p "$child"
+    assert_equal "$(verdict "cd $child && rm -rf ..")" "deny"
+}
+
+@test "a cd base persists into later clauses" {
+    assert_equal "$(verdict "cd $VICTIM && ls -la && rm -rf .")" "deny"
+}
+
+@test "an unresolvable cd target leaves the base alone" {
+    # `cd $UNSET` cannot be resolved, so the base must stay put rather than be
+    # guessed — the actor's own cwd is still protected from `rm -rf .`.
+    assert_equal "$(verdict 'cd $SOME_UNSET_VAR && rm -rf .')" "deny"
+}
+
 @test "a session idle past the window no longer holds its directory" {
     rm -rf "${SESSIONS:?}"/*
     live_session stale "$VICTIM" 600

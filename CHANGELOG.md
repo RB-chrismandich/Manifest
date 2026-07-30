@@ -10,6 +10,58 @@ All notable changes are documented here in reverse chronological order.
 
 ## [Unreleased]
 
+### The cwd guard resolves relative deletion targets against the directory the command is actually in
+
+`#671` exempted a `cd` argument from being read as a deletion *target* — correct,
+and it killed a large class of false denials. But that argument is also the
+directory a later relative target resolves against, and only the first half
+landed: `.` was still resolved against the hook payload's cwd, a directory the
+command had already left.
+
+Because a session's own cwd is always among the holders, the effect was that
+**every** `cd <anywhere> && rm -rf .` denied and named the session's own cwd:
+
+- A scratch cleanup — `cd /tmp/scratch && rm -rf .`, the shape that follows every
+  `mktemp -d` — was denied outright.
+- A genuine cross-session deletion — `cd <other session> && rm -rf .` — denied,
+  but blamed the actor's own cwd.
+
+The second is the dangerous one. The sanctioned response to a denial is
+`# cwd-verified`, and an operator who can see the named directory is wrong will
+reach for it — suppressing the check for the whole command, including the real
+target. A guard that mis-attributes is worse than one that stays quiet.
+
+- `_cd_destination()` reads a leading `cd`/`pushd`/`chdir` clause and advances the
+  base that `deletion_targets()` resolves against; the base persists into later
+  clauses. An argument that cannot be resolved (absent, an option, an unexpanded
+  `$VAR`) leaves the base alone rather than guessing.
+- `mentioned_paths()` is unchanged — a `cd` argument is still not a target.
+
+Six bats tests cover both directions, and mutation-verified in both: removing the
+base advance fails the scratch-dir false positive and the
+denial-names-the-right-directory assertion; removing the unresolvable-token guard
+fails the `cd $UNSET` case. The pre-existing 26 tests still pass — the four that
+already denied these shapes were passing for the wrong reason, which is why the
+new attribution assertion, not the verdict, is the load-bearing one.
+
+### Adding a hook no longer changes who can read a config, or skips a tool when another one fails
+
+Two defects in the `#671` hardening, found by review of the same change:
+
+- `save_json()` wrote through `mkstemp` + `os.replace`, which swaps inodes — so a
+  `0644` config silently became `0600` while the `copy2` backup kept `0644`,
+  leaving the `.bak` **more** permissive than the live file. The prior mode is now
+  carried onto the replacement; a newly created config gets the mode an ordinary
+  `open()` would have produced instead of mkstemp's private `0600`.
+- `install_all.py`'s `run()` used a bare `check=True`. Now that `merge_hooks`
+  correctly exits non-zero on a config it cannot parse, that aborted the install
+  partway: whether Cursor got its hook depended on whether Gemini's file happened
+  to be valid, and the child's actionable message was buried under a
+  `CalledProcessError` traceback. All four targets are now attempted and the run
+  fails once, naming each that failed.
+
+Six new unit tests, mutation-verified.
+
 ### Model pins re-verified against live provider CLIs, and tiers established for cursor/devin
 
 Every `model_tiers` pin was re-checked by a **real one-shot call through the

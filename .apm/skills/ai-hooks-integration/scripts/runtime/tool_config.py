@@ -145,6 +145,18 @@ def load_json(path: Path) -> dict:
     return parsed
 
 
+def _current_umask() -> int:
+    """The process umask, read without leaving it changed.
+
+    os.umask only reports by setting, so the value has to be put back. New
+    configs then land at the mode an ordinary `open()` would have produced,
+    rather than mkstemp's private 0600.
+    """
+    mask = os.umask(0o022)
+    os.umask(mask)
+    return mask
+
+
 def save_json(path: Path, data: dict, dry_run: bool = False) -> None:
     """Write `data` to `path` atomically, keeping a backup of any prior content.
 
@@ -160,13 +172,20 @@ def save_json(path: Path, data: dict, dry_run: bool = False) -> None:
     Symlinks are resolved before writing so a symlinked config (a common dotfile
     layout) is updated at its real location instead of being replaced by a
     regular file.
+
+    The prior mode is carried onto the replacement. os.replace swaps inodes, so
+    without this the file inherits mkstemp's 0600 and a 0644 config silently
+    became owner-only — while the copy2 backup kept 0644, leaving the BACKUP
+    more permissive than the live file. Adding a hook must not change who can
+    read a config.
     """
     if dry_run:
         print(f"[dry-run] write {path}")
         return
     path.parent.mkdir(parents=True, exist_ok=True)
     target = path.resolve() if path.is_symlink() else path
-    if target.exists():
+    existed = target.exists()
+    if existed:
         backup = target.with_suffix(target.suffix + ".bak")
         shutil.copy2(target, backup)
     payload = json.dumps(data, indent=2, ensure_ascii=False) + "\n"
@@ -176,6 +195,10 @@ def save_json(path: Path, data: dict, dry_run: bool = False) -> None:
     try:
         with os.fdopen(fd, "w") as handle:
             handle.write(payload)
+        if existed:
+            shutil.copymode(target, tmp)
+        else:
+            os.chmod(tmp, 0o666 & ~_current_umask())
         os.replace(tmp, target)
     except BaseException:
         with contextlib.suppress(OSError):

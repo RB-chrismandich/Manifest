@@ -24,8 +24,36 @@ UNIFIED_HOOK = ROOT / "runtime" / "unified_hook.py"
 OPENCODE_INSTALLER = ROOT / "install_opencode_plugin.py"
 
 
-def run(cmd: list[str]) -> None:
-    subprocess.run(cmd, check=True)
+# The four targets are independent files owned by different tools, so one
+# tool's problem must not decide whether the others get their hook. That only
+# started to matter once merge_hooks began exiting non-zero on a config it could
+# not parse (previously it "succeeded" by truncating the file): a bare
+# check=True aborts partway, leaving some tools installed and some not, and
+# buries the child's actionable message under a CalledProcessError traceback.
+# Every target is attempted; the run then fails once, naming all of them.
+_FAILURES: list[str] = []
+
+
+def run(cmd: list[str], label: str | None = None) -> bool:
+    """Attempt one installer step. Records a failure instead of raising."""
+    try:
+        subprocess.run(cmd, check=True)
+    except subprocess.CalledProcessError as exc:
+        _FAILURES.append(f"{label or Path(cmd[0]).name} (exit {exc.returncode})")
+        return False
+    return True
+
+
+def report_failures() -> None:
+    """Exit non-zero naming every target that failed, once all were attempted."""
+    if not _FAILURES:
+        return
+    raise SystemExit(
+        "install_all: failed for "
+        + ", ".join(_FAILURES)
+        + " — see the message printed above each one for the file to fix. "
+        "The remaining targets were installed."
+    )
 
 
 def install_unified(args) -> None:
@@ -53,7 +81,8 @@ def install_unified(args) -> None:
             "--command",
             f"{unified_cmd} --source claude",
             *dry,
-        ]
+        ],
+        "claude",
     )
 
     # Install for Gemini
@@ -67,7 +96,8 @@ def install_unified(args) -> None:
             "--command",
             f"{unified_cmd} --source gemini",
             *dry,
-        ]
+        ],
+        "gemini",
     )
 
     # Install for Cursor
@@ -81,7 +111,8 @@ def install_unified(args) -> None:
             "--command",
             f"{unified_cmd} --source cursor",
             *dry,
-        ]
+        ],
+        "cursor",
     )
 
     # Install OpenCode advanced plugin (has its own source detection)
@@ -95,7 +126,8 @@ def install_unified(args) -> None:
             "--advanced",
         ]
         + (["--force"] if args.force else [])
-        + dry
+        + dry,
+        "opencode",
     )
 
 
@@ -114,7 +146,8 @@ def install_classic(args) -> None:
             "--command",
             f"{cmd} --claude",
             *dry,
-        ]
+        ],
+        "claude",
     )
 
     run(
@@ -127,7 +160,8 @@ def install_classic(args) -> None:
             "--command",
             f"{cmd} --gemini",
             *dry,
-        ]
+        ],
+        "gemini",
     )
 
     run(
@@ -140,7 +174,8 @@ def install_classic(args) -> None:
             "--command",
             f"{cmd} --cursor",
             *dry,
-        ]
+        ],
+        "cursor",
     )
 
     run(
@@ -151,7 +186,8 @@ def install_classic(args) -> None:
             "--path",
             str(Path("~/.config/opencode/plugins").expanduser() / f"{args.name}.js"),
             *dry,
-        ]
+        ],
+        "opencode",
     )
 
 
@@ -200,6 +236,7 @@ Examples:
         if not args.command:
             raise SystemExit("--command is required in classic mode (or use --unified)")
         install_classic(args)
+    report_failures()
 
 
 if __name__ == "__main__":

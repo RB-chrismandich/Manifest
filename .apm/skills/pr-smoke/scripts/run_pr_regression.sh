@@ -177,12 +177,21 @@ run_regression() {
     if [ "$QUICK" = 1 ]; then
         record Regression pytest skip "--quick mode"
         echo "▶ Regression: pytest — skip (--quick)"
+        record Regression pytest-skills skip "--quick mode"
+        echo "▶ Regression: pytest-skills — skip (--quick)"
         record Regression smoke-lite skip "--quick mode"
         echo "▶ Regression: smoke-lite — skip (--quick)"
         return
     fi
     if need python3 Regression pytest; then
         run_step Regression pytest hard 'python3 -m pytest tests/python/ -q'
+        # Separate invocation, mirroring ci.yml's "Run skill-local Python tests"
+        # step: this suite is its own `tests` package, so collecting it together
+        # with tests/python/ collides (ModuleNotFoundError: tests.*). It guards
+        # code that runs on every hook fire and was missing from this mirror,
+        # which meant a change to it could pass here and fail CI.
+        run_step Regression pytest-skills hard \
+            'python3 -m pytest .apm/skills/ai-hooks-integration/tests/ -q'
     fi
     # Lite-tier smoke catalog run — part of CI's test job (Verify gate).
     # manifest smoke imports pyyaml, so gate on the module (covers a missing
