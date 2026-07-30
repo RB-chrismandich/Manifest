@@ -645,32 +645,59 @@ result reports `command_overrides_applied: true`.
 
 ### Model Tiers
 
-#### Cursor Models
+Every pin below carries its verification status as of **2026-07-29**. VERIFIED
+means a real one-shot call through that provider's own CLI answered; UNVERIFIED
+means the pin is retained so tier lookups resolve, but nothing has confirmed it.
+The distinction is load-bearing — pins transcribed from documentation are what
+produced this repo's 404ing Gemini tiers. Re-check with `model_check.sh`
+(`MODEL_CHECK_PROBE=1` on machines with no API key).
+
+#### Cursor Models — VERIFIED
 
 | Tier | Model Name | Use Case | Cost |
 |------|------------|----------|------|
-| `mini` | gpt-5.1-codex-mini | Quick queries | Lowest |
-| `flash` | gpt-5.1-codex | Code review (default) | Medium |
-| `advanced` | gpt-5.2 | Security analysis | Highest |
+| `mini` | cursor-grok-4.5-low | Quick queries | Lowest |
+| `flash` | cursor-grok-4.5-medium | Code review (default) | Medium |
+| `advanced` | cursor-grok-4.5-high | Security analysis | Highest |
 | `auto` | (Cursor decides) | Let Cursor optimize | Variable |
 
-#### Claude Models
+One effort ladder from a single family, so the tiers genuinely differ — all three
+previously read `auto`, which made the tier abstraction inert. `auto` and
+`composer-2.5` also verified and remain valid alternates. Cursor's newer premium
+ladder (`claude-opus-5-thinking-*`, `claude-fable-5-thinking-*`, `gpt-5.6-sol-*`,
+`kimi-k3-high`) is **not** pinned: every one returned an account usage-limit
+`ActionRequiredError` (resets **2026-08-12**), making them unverifiable rather
+than broken. Re-probe after that date and promote `advanced` if they answer.
+
+#### Claude Models — VERIFIED
 
 | Tier | Model Name | Use Case | Cost |
 |------|------------|----------|------|
-| `haiku` | claude-haiku-4-5-20251001 | Quick queries | Lowest |
-| `sonnet` | claude-sonnet-4-6 | Code review (default) | Medium |
-| `opus` | claude-opus-4-8 | Security analysis | Higher |
+| `haiku` | claude-haiku-4-5 | Quick queries | Lowest |
+| `sonnet` | claude-sonnet-5 | Code review (default) | Medium |
+| `opus` | claude-opus-5 | Security analysis | Higher |
 | `fable` | claude-fable-5 | Security tasks (default) | Highest |
 
-#### Gemini Models
+Full IDs, not the `opus`/`sonnet`/`haiku`/`fable` aliases (which also work): an
+alias is a moving target the provider can remap, so pinning one would let a tier
+change model without a diff in this repo.
+
+#### Gemini Models — UNVERIFIED
 
 | Tier | Model Name | Use Case | Cost |
 |------|------------|----------|------|
 | `flash` | gemini-3-flash-preview | General use (default) | Lower |
 | `pro` | gemini-3-pro-preview | Complex analysis | Higher |
 
-#### Codex Models
+**The `gemini` CLI is non-functional on a free-tier account.** Every invocation
+fails at the eligibility layer — before model selection — with
+`IneligibleTierError`: *"no longer supported for Gemini Code Assist for
+individuals … migrate to the Antigravity suite"*. With no `GOOGLE_API_KEY` /
+`GEMINI_API_KEY` set, the REST models endpoint cannot confirm these IDs either,
+so both pins are unproven. Google's own stated remedy is the Antigravity table
+below, which serves Gemini models and *is* verified.
+
+#### Codex Models — UNVERIFIED
 
 | Tier | Model Name | Use Case | Cost |
 |------|------------|----------|------|
@@ -678,17 +705,29 @@ result reports `command_overrides_applied: true`.
 | `flash` | gpt-5.4 | Code review (default) | Medium |
 | `advanced` | gpt-5.5 | Security analysis | Highest |
 
-#### Antigravity Models
+`codex login status` reports *"Not logged in"* and probe calls return HTTP 401,
+so nothing here is confirmed. The CLI also still exposes no model-listing
+command (re-tested: no `models`, `models list`, `--list-models`), so
+`model_check.sh` has no listing source — a probe is the only verification path.
+Run `codex login`, then `MODEL_CHECK_PROBE=1 model_check.sh`.
+
+#### Antigravity Models — VERIFIED
 
 | Tier | Model Name | Use Case | Cost |
 |------|------------|----------|------|
-| `mini` | Gemini 3.5 Flash (Low) | Quick queries | Lowest |
-| `flash` | Gemini 3.5 Flash (High) | General use (default) | Medium |
-| `advanced` | Claude Opus 4.6 (Thinking) | Complex analysis | Highest |
+| `mini` | gemini-3.6-flash-low | Quick queries | Lowest |
+| `flash` | gemini-3.6-flash-high | General use (default) | Medium |
+| `advanced` | claude-opus-4-6-thinking | Complex analysis | Highest |
 
-**Note**: Antigravity's catalog is managed by the `agy` CLI and may lag the direct
-API (e.g. Opus 4.6 vs 4.8). Run `agy models` to see the live model list, which is
-validated by `model_check.sh`.
+**Note**: these are slugs, not display labels. `agy models` emitted labels like
+`Gemini 3.5 Flash (Low)` under agy 1.1.1 and emits slugs under 1.1.8. agy still
+*accepts* the old labels, so the previous pins were never broken at runtime —
+they had merely stopped matching the catalog, which made `model_check.sh` score
+them STALE for a cosmetic reason. `mini`/`flash` keep the prior low/high effort
+split, moved up to the 3.6 flash family now that it exists. Antigravity's
+catalog is managed by the `agy` CLI and may lag the direct API (its top Claude
+entry is Opus 4.6, where the Claude table above is on Opus 5). Run `agy models`
+for the live list, which `model_check.sh` validates.
 
 #### Devin Models
 

@@ -578,10 +578,10 @@ flowchart TB
 
     subgraph "Agent Execution (Parallel)"
         GEMINI_EXEC["Gemini — SDK or gemini CLI<br/>(gemini-3-flash-preview / 3-pro-preview)"]:::process
-        CURSOR_EXEC["Cursor Agent<br/>(gpt-5.1/5.2)"]:::process
+        CURSOR_EXEC["Cursor Agent<br/>(cursor-grok-4.5-low/medium/high)"]:::process
         CLAUDE_EXEC["Claude — SDK or claude CLI<br/>(haiku/sonnet/opus/fable)"]:::process
         CODEX_EXEC["Codex CLI<br/>(gpt-5.4-mini/gpt-5.4/gpt-5.5)"]:::process
-        AGY_EXEC["Antigravity CLI<br/>(agy, Gemini 3.5 Flash (High))"]:::process
+        AGY_EXEC["Antigravity CLI<br/>(agy, gemini-3.6-flash-high)"]:::process
     end
 
     COLLECT["Collect Outputs<br/>(with retry + fallback)"]:::process
@@ -991,9 +991,11 @@ flowchart TD
 | Provider | With API key | Without API key | Notes |
 |----------|--------------|-----------------|-------|
 | claude | `GET /v1/models` listing | `MODEL_CHECK_PROBE=1`: one tiny `claude --model <pin> -p` call per pin; else SKIPPED | Probe needed because OAuth-only machines have no key — broken pins would otherwise read as green |
-| gemini | `GET /v1beta/models` listing | `MODEL_CHECK_PROBE=1`: one tiny `gemini -m <pin> -p` call per pin; else SKIPPED | Current pins: `gemini-3-flash-preview` / `gemini-3-pro-preview` |
-| antigravity | n/a | `agy models` listing (no key needed) | CLI listing only |
-| cursor / codex / devin | n/a | n/a | UNSUPPORTED — cursor/codex have no listing command; devin's `models list` is login-gated and pins nothing to check |
+| gemini | `GET /v1beta/models` listing | `MODEL_CHECK_PROBE=1`: one tiny `gemini -m <pin> -p` call per pin; else SKIPPED | Pins UNVERIFIED — the CLI is ineligible on a free-tier account (`IneligibleTierError`, migrate to Antigravity), so the probe cannot reach model selection either |
+| antigravity | n/a | `agy models` listing (no key needed) | CLI listing only. Match the **slug** form (`gemini-3.6-flash-low`) — agy ≥1.1.8 lists slugs, not the display labels 1.1.1 emitted |
+| cursor | n/a | `cursor-agent --list-models` listing, plus a `MODEL_CHECK_PROBE=1` per-pin fallback | The probe runs inside a throwaway temp dir: `cursor-agent` demands `--trust`, and trusting the operator's cwd is not this script's call |
+| codex | n/a | `MODEL_CHECK_PROBE=1` probe only | UNSUPPORTED for listing — the CLI exposes no `models`/`--list-models`, so a probe is the only verification path. Needs `--skip-git-repo-check` |
+| devin | n/a | listing only, never probed | `devin models list` is login-gated, and `devin -p` **starts an interactive login** when logged out — so probing it would try to log the operator in. Reports SKIPPED (unpinned by design) |
 
 **Honest reporting** (`check_status.sh`):
 

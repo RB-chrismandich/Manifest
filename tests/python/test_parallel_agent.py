@@ -811,7 +811,12 @@ class TestAntigravityAgent:
         limiter = RateLimiter()
         agent = CLIAgent("antigravity", "advanced", 60, limiter, config=config)
         assert agent.name == "antigravity"
-        assert agent.model_name == "Claude Opus 4.6 (Thinking)"
+        # Resolved from config, not a hardcoded ID: this asserts that the
+        # "advanced" TIER resolves through model_tiers, which is the behavior
+        # under test. The inequality catches a passthrough bug (raw tier name
+        # reaching the CLI) without re-pinning a model on every refresh.
+        assert agent.model_name == config.get("model_tiers.antigravity.advanced")
+        assert agent.model_name != "advanced"
         assert agent.binary == "agy"
 
     @pytest.mark.asyncio

@@ -59,7 +59,9 @@ cd Manifest
 - **Automatic Synthesis**: Disagreement resolution when consensus < 50% using Claude Sonnet
 - **Streaming Responses**: Real-time Rich Live display with progressive updates (4 updates/sec)
 - **Consensus Scoring**: Variance-based algorithm calculates agreement (≥80% = high confidence, <50% = escalate + synthesis)
-- **Intelligent Model Selection**: Task-based routing (security→opus/gpt-5.2, review→sonnet/gpt-5.1-codex, quick→haiku/mini)
+- **Intelligent Model Selection**: Task-based routing by *tier* (security→`opus`/`advanced`,
+  review→`sonnet`/`flash`, quick→`haiku`/`mini`). Each tier maps to a provider-native model
+  in `model_tiers`, verified against live provider CLIs by `model_check.sh`
 - **Credit Exhaustion Fallback**: Automatic detection and retry with cheaper models (opus→sonnet→haiku)
 - **OAuth-Only Friendly**: Claude/Gemini agents auto-select SDK or CLI backends — no API keys
   needed when the `claude`/`gemini` CLIs are logged in (SDK + API key still preferred when present)

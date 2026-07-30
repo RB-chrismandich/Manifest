@@ -147,35 +147,47 @@ class Config:
                 "devin": {"requests_per_minute": 100, "burst_size": 10},
             },
             "timeouts": {"default": 120, "review": 600},
+            # Mirrors parallel_agent.yml model_tiers, which carries the full
+            # per-provider rationale and the VERIFIED/UNVERIFIED status of every
+            # pin. test_defaults_match_repo_yaml asserts the two are equal, so
+            # edit both together or the suite goes red.
             "model_tiers": {
+                # VERIFIED 2026-07-29 via `claude --model <id> -p`.
                 "claude": {
-                    "haiku": "claude-haiku-4-5-20251001",
+                    "haiku": "claude-haiku-4-5",
                     "sonnet": "claude-sonnet-5",
-                    "opus": "claude-opus-4-8",
+                    "opus": "claude-opus-5",
                     "fable": "claude-fable-5",
                 },
+                # UNVERIFIED — the gemini CLI is ineligible on this account
+                # (free-tier Code Assist discontinued) and no API key is set.
                 "gemini": {
                     "flash": "gemini-3-flash-preview",
                     "pro": "gemini-3-pro-preview",
                 },
+                # VERIFIED 2026-07-29 via `cursor-agent --model <slug> -p`;
+                # replaces the inert all-"auto" placeholder. The premium ladder
+                # is usage-limited until 2026-08-12, hence a grok effort ladder.
                 "cursor": {
-                    "mini": "auto",
-                    "flash": "auto",
-                    "advanced": "auto",
+                    "mini": "cursor-grok-4.5-low",
+                    "flash": "cursor-grok-4.5-medium",
+                    "advanced": "cursor-grok-4.5-high",
                 },
+                # UNVERIFIED — codex CLI is logged out (probes 401) and exposes
+                # no model-listing command.
                 "codex": {
                     "mini": "gpt-5.4-mini",
                     "flash": "gpt-5.4",
                     "advanced": "gpt-5.5",
                 },
-                # Verified current against the live `agy models` catalog on
-                # 2026-07-11 (agy 1.1.1) — mirrors parallel_agent.yml
-                # model_tiers.antigravity; re-verify with `agy models` before
-                # changing, do not "bump" opportunistically.
+                # VERIFIED 2026-07-29 via `agy --model <slug> --print` (agy
+                # 1.1.8). Slugs, not the display labels agy 1.1.1 listed — agy
+                # accepts both, but only slugs match today's `agy models`
+                # output, which is what model_check.sh greps.
                 "antigravity": {
-                    "mini": "Gemini 3.5 Flash (Low)",
-                    "flash": "Gemini 3.5 Flash (High)",
-                    "advanced": "Claude Opus 4.6 (Thinking)",
+                    "mini": "gemini-3.6-flash-low",
+                    "flash": "gemini-3.6-flash-high",
+                    "advanced": "claude-opus-4-6-thinking",
                 },
                 # devin has no tier block on purpose — its catalog is
                 # login-gated and cannot be enumerated here, so --devin-model

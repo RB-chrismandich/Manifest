@@ -37,33 +37,87 @@ rate_limits:
     burst_size: 10
 
 # Model tier mappings
+#
+# Each pin is either VERIFIED (a real one-shot call through the provider's own
+# CLI answered on the date noted) or explicitly marked UNVERIFIED. Nothing here
+# is transcribed from a documentation page: doc-sourced IDs are what produced
+# the 404ing gemini tiers this file used to ship. Re-check with
+# `model_check.sh`; add MODEL_CHECK_PROBE=1 on OAuth-only machines, where no
+# listing endpoint exists and a live probe is the only proof.
 model_tiers:
+  # VERIFIED 2026-07-29 — `claude --model <id> -p` on an OAuth (claude.ai max)
+  # login; each call's modelUsage.canonicalModel in --output-format json echoed
+  # the pinned string exactly. Full IDs rather than the aliases (opus/sonnet/
+  # haiku/fable), which also answer: an alias is a moving target the provider
+  # can remap, so pinning it would let a tier change model without a diff here.
   claude:
-    haiku: "claude-haiku-4-5-20251001"
+    haiku: "claude-haiku-4-5"
     sonnet: "claude-sonnet-5"
-    opus: "claude-opus-4-8"
+    opus: "claude-opus-5"
     fable: "claude-fable-5"
+  # UNVERIFIED — retained only so tier lookups resolve to something.
+  # Measured 2026-07-29: the gemini CLI is non-functional on this account. Every
+  # invocation dies at the eligibility layer, before model selection, with
+  # IneligibleTierError ("no longer supported for Gemini Code Assist for
+  # individuals ... migrate to the Antigravity suite", tierId free-tier), and
+  # neither GOOGLE_API_KEY nor GEMINI_API_KEY is set, so the REST models
+  # endpoint cannot confirm these IDs either. Google's own stated remedy is the
+  # antigravity block below, which serves Gemini models and IS verified. Treat
+  # these two as unproven until a probe passes.
   gemini:
     flash: "gemini-3-flash-preview"
     pro: "gemini-3-pro-preview"
+  # VERIFIED 2026-07-29 — `cursor-agent --model <slug> -p` answered for all
+  # three. Replaces "auto" in all three tiers, which made the tier abstraction
+  # inert for cursor (every role resolved to the same model). One effort ladder
+  # from a single family, so the tiers genuinely differ.
+  # Deliberately NOT the newer premium ladder (claude-opus-5-thinking-*,
+  # claude-fable-5-thinking-*, gpt-5.6-sol-*, kimi-k3-high, gpt-5.3-codex-*):
+  # every one of those returned an account-level ActionRequiredError usage limit
+  # (resets 2026-08-12), so they are unverifiable this cycle — NOT confirmed
+  # broken. Re-probe after that date and promote `advanced` if they answer.
+  # `auto` and `composer-2.5` also proved served and remain valid alternates.
   cursor:
-    mini: "auto"
-    flash: "auto"
-    advanced: "auto"
+    mini: "cursor-grok-4.5-low"
+    flash: "cursor-grok-4.5-medium"
+    advanced: "cursor-grok-4.5-high"
+  # UNVERIFIED — retained only so tier lookups resolve to something.
+  # Measured 2026-07-29: `codex login status` reports "Not logged in" (exit 1)
+  # and probe calls return HTTP 401, so no pin here can be confirmed. The CLI
+  # still exposes no model-listing command (re-tested: no `models`, `models
+  # list`, or `--list-models`), so model_check.sh has no listing source and
+  # falls back to a probe. Run `codex login`, then MODEL_CHECK_PROBE=1
+  # model_check.sh to verify or replace these.
   codex:
     mini: "gpt-5.4-mini"
     flash: "gpt-5.4"
     advanced: "gpt-5.5"
-  # Verified current against the live `agy models` catalog on 2026-07-11
-  # (agy 1.1.1) — these are agy's real current entries, not placeholders.
-  # Re-verify with `agy models` before changing; do not "bump" opportunistically.
+  # VERIFIED 2026-07-29 — `agy --model <slug> --print` answered for all three
+  # (agy 1.1.8).
+  # FORMAT MIGRATION: `agy models` now emits slugs (gemini-3.6-flash-low), where
+  # on 2026-07-11 (agy 1.1.1) it emitted display labels ("Gemini 3.5 Flash
+  # (Low)"). agy still ACCEPTS the old labels — re-probed, they answer — so the
+  # previous pins were never broken at runtime; they had silently stopped
+  # matching the catalog, which makes model_check.sh score them STALE for a
+  # cosmetic reason. Slugs match the catalog and keep that check honest.
+  # mini/flash keep the prior low/high effort split, moved to the 3.6 flash
+  # family now that it exists. `advanced` is the same model as before in slug
+  # form — spec_review.sh reads this exact pin for its agy reviewer, so the
+  # reviewer's capability is unchanged.
   antigravity:
-    mini: "Gemini 3.5 Flash (Low)"
-    flash: "Gemini 3.5 Flash (High)"
-    advanced: "Claude Opus 4.6 (Thinking)"
+    mini: "gemini-3.6-flash-low"
+    flash: "gemini-3.6-flash-high"
+    advanced: "claude-opus-4-6-thinking"
 # devin has NO tier block on purpose. `devin models list` is login-gated, so
 # this repo cannot enumerate the account's real catalog, and pinning names
 # copied off a doc page is exactly how the gemini tiers ended up 404-ing.
+# Re-measured 2026-07-29 and the decision stands: `devin models list` returns
+# "Error: Not logged in." (exit 1), and `devin auth status` prints "Not logged
+# in." while still exiting 0 — so an exit code cannot be used to detect auth
+# here. Worse, a one-shot probe is not a safe substitute: `devin --model X -p
+# ...` while logged out LAUNCHES an interactive login flow rather than failing,
+# which is why model_check.sh refuses to probe devin at all. To pin real tiers:
+# `devin auth login`, then `devin models list`, then add a block here.
 # With no block, CLIAgent passes --devin-model through verbatim, so a user
 # can name a real model (`--devin-model opus`) while the default tier "auto"
 # sends no --model at all and the account default stands. Add a block here

@@ -43,7 +43,13 @@ class TestConfig:
     def test_get_dot_notation(self, tmp_path):
         config = Config(config_path=str(tmp_path / "none.yml"))
         result = config.get("model_tiers.claude.haiku")
-        assert result == "claude-haiku-4-5-20251001"
+        # Assert the lookup mechanism, not the pin. This test is about dot
+        # notation resolving to the right leaf; hardcoding a model ID here made
+        # it fail on every model refresh for a reason unrelated to what it
+        # covers. The nested-access comparison still catches a wrong key or a
+        # None return (the .startswith would raise on None).
+        assert result == config.config["model_tiers"]["claude"]["haiku"]
+        assert result.startswith("claude-haiku-")
 
     def test_get_returns_default_for_missing_key(self, tmp_path):
         config = Config(config_path=str(tmp_path / "none.yml"))

@@ -632,6 +632,19 @@ If a pin reports `STALE`, update the corresponding `model_tiers` entry in
 `~/.claude/config/parallel_agent.yml` (current Gemini pins:
 `gemini-3-flash-preview` / `gemini-3-pro-preview`).
 
+**If the `gemini` probe fails with `IneligibleTierError`**, the pin is not the
+problem: free-tier Gemini Code Assist for individuals has been discontinued, and
+the CLI dies at the eligibility layer before it ever validates a model
+("migrate to the Antigravity suite of products"). Either set `GOOGLE_API_KEY` /
+`GEMINI_API_KEY` to reach the API directly, or use the `antigravity` provider —
+`agy` serves Gemini models and its pins *are* verified.
+
+**A `SKIPPED: devin (unpinned by design)` line is expected, not a failure.**
+devin ships no `model_tiers` block because its catalog is login-gated; `--model`
+passes through and the account default stands. To pin real tiers, run
+`devin auth login`, then `devin models list`. Note `devin auth status` prints
+"Not logged in." while still exiting **0**, so never test devin auth by exit code.
+
 ---
 
 ## Performance Issues

@@ -75,9 +75,9 @@ Breakdown of model tiers selected for orchestrated tasks.
 
 | Tier | Cursor Model | Claude Model | Gemini Model | Codex Model | Antigravity Model | Usage Count |
 |------|--------------|--------------|--------------|-------------|-------------------|-------------|
-| mini / haiku | gpt-5.1-codex-mini | claude-haiku-4-5-20251001 | -- | gpt-5.4-mini | Gemini 3.5 Flash (Low) | |
-| flash / sonnet | gpt-5.1-codex | claude-sonnet-4-6 | gemini-3-flash-preview | gpt-5.4 | Gemini 3.5 Flash (High) | |
-| advanced / opus / pro | gpt-5.2 | claude-opus-4-8 | gemini-3-pro-preview | gpt-5.5 | Claude Opus 4.6 (Thinking) | |
+| mini / haiku | cursor-grok-4.5-low | claude-haiku-4-5 | -- | gpt-5.4-mini | gemini-3.6-flash-low | |
+| flash / sonnet | cursor-grok-4.5-medium | claude-sonnet-5 | gemini-3-flash-preview | gpt-5.4 | gemini-3.6-flash-high | |
+| advanced / opus / pro | cursor-grok-4.5-high | claude-opus-5 | gemini-3-pro-preview | gpt-5.5 | claude-opus-4-6-thinking | |
 | fable (security) | -- | claude-fable-5 | -- | -- | -- | |
 
 ---
