@@ -85,7 +85,7 @@ overrides:
   data-wire-field: planning
   # skills
   ai-hooks-integration: skills
-  prompt-optimize: skills
+  meta-prompt-optimize: skills
   skill-evolve: skills
   # ci-cd, testing & quality
   a11y-audit: ci-cd
