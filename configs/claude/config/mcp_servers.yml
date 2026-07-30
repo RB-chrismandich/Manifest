@@ -3,6 +3,16 @@
 #
 # Adding a new server here is all that's needed — the bootstrap interactive
 # prompt (--install-mcp) picks it up automatically with no code changes.
+#
+# `shipped: true` means "register this by default on every platform". Everything
+# else is catalog-only: offered by --install-mcp, absent until asked for. The
+# default is deliberately Context7 alone — each remote server is launched via
+# `npx mcp-remote`, i.e. one subprocess per agent invocation, and registering
+# four of them took local bats runs from ~7 minutes to not finishing (#646).
+# Consumers: generate_cursor_mcp.py filters on this key; bootstrap/lib/mcp.sh
+# must keep listing ALL entries so --install-mcp stays a full catalog (its awk
+# fallback treats any unrecognised key as a server name, so `shipped` is in that
+# parser's exclusion list too).
 
 mcp_servers:
   # ── Core (enabled by default in most workflows) ──────────────────────
@@ -17,6 +27,7 @@ mcp_servers:
     url: "https://mcp.context7.com/mcp/oauth"
     transport: "http"
     oauth: true
+    shipped: true
     purpose: "Library/API documentation, setup guides, configuration examples"
 
   linear:

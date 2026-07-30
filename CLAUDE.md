@@ -12,11 +12,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## MCP Default Policy
 
-Default MCP/tool routing (Context7, Sentry, Linear, Semgrep CLI, DeepWiki,
-Glean, Google Dev Docs, Atlassian, Apify, OpenTofu) is defined once in the
-deployed orchestration guide — see
-[configs/claude/CLAUDE.md](configs/claude/CLAUDE.md) ("Default MCP/tool
-routing"). Use the matching server when the task domain matches.
+Default MCP/tool routing is defined once in the deployed orchestration guide —
+see [configs/claude/CLAUDE.md](configs/claude/CLAUDE.md) ("Default MCP/tool
+routing"), which is also the authority on which servers are actually registered
+versus opt-in. Only Context7 ships registered (#646); do not assume the rest are
+available. The full catalog is `configs/claude/config/mcp_servers.yml`.
 
 ## Repository Purpose
 
@@ -193,11 +193,12 @@ See [docs/COMMANDS.md](docs/COMMANDS.md#label-management) for full label referen
 
 ## Adding New Skills
 
-1. Create a skill directory in `.apm/skills/` (the source of truth) with a
-   `SKILL.md` — e.g. `.apm/skills/my-skill/SKILL.md` — containing `name` and
-   `description` frontmatter. (`configs/claude/skills/` is a compat symlink to it.)
-2. Add tool policies to `configs/claude/config/command_config.yml` under `tool_policies`
-3. If needed, add validation overrides to `configs/claude/config/validation_criteria.yml`
+Create `.apm/skills/<name>/SKILL.md` (source of truth) with `name` +
+`description` frontmatter and add `tool_policies` in `command_config.yml` — then
+**run the generators**, or CI fails: name/description is derived into
+`docs/COMMANDS.md`, the `GEMINI.md`/`AGENTS.md` index (`--inject-guides` — a
+*different* file set), and `configs/cursor/rules/`. Add/rename/retire procedure
+and traps: [docs/SKILL-NAMING.md](docs/SKILL-NAMING.md#lifecycle-adding-renaming-retiring).
 
 Skills are invoked as `/my-skill` in Claude Code.
 

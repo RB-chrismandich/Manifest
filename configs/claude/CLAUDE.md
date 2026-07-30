@@ -32,15 +32,18 @@ Apply at all times, in every session:
 - Always use a **large timeout** (600-900s) for complex analyses; the 120s
   default is often insufficient.
 
-Default MCP/tool routing — use the matching tool when the task domain matches:
+Default MCP/tool routing — use the matching tool when the task domain matches.
+**Always registered**: **Context7** library/API docs, setup, config · **Semgrep
+CLI** local SAST, vulnerabilities, secrets (a CLI, not MCP).
 
-**Context7** library/API docs, setup, config · **Sentry** production/runtime
-errors, stack traces, release regressions · **Linear** / **Atlassian** issue
-requirements, acceptance criteria · **Semgrep CLI** local SAST, vulnerabilities,
-secrets · **DeepWiki** unfamiliar repos, dependency internals, upstream API
-contracts · **Glean** internal runbooks, ADRs · **Google Dev Docs**
-Firebase/Cloud/Android/Maps · **Apify** web scraping · **OpenTofu** Terraform
-registry, provider/module docs.
+**Opt-in, not present unless installed** (`./bootstrap.sh --install-mcp`; every
+`npx mcp-remote` server costs a subprocess per invocation, so the shipped set is
+deliberately Context7 only — #646): **Sentry** runtime errors, stack traces,
+release regressions · **Linear** / **Atlassian** issue requirements, acceptance
+criteria · **DeepWiki** unfamiliar repos, dependency internals · **Glean**
+internal runbooks, ADRs · **Google Dev Docs** Firebase/Cloud/Android/Maps ·
+**Apify** web scraping · **OpenTofu** provider/module docs. Check the tool list
+before routing to one of these; do not assume it is available.
 
 ```bash
 # Basic code review with JSON output (all 5 agents, 10 min timeout)

@@ -3,9 +3,17 @@
 
 configs/claude/config/mcp_servers.yml is the single source of truth for
 Manifest-managed MCP servers (spec 2026-07-11 cursor-feature-parity, WS-1).
-Every entry with a `url` key is remote-HTTP and Cursor-eligible under Cursor's
-`{"mcpServers": {"<name>": {"url": "<url>"}}}` schema, so this script emits
-one Cursor entry per registry server, in registry (YAML document) order.
+An entry is emitted when it has a `url` (remote-HTTP, so Cursor-eligible under
+`{"mcpServers": {"<name>": {"url": "<url>"}}}`) AND is marked `shipped: true`.
+Order follows the registry (YAML document) order.
+
+The `shipped` gate exists because registering every catalog server is not free:
+each is launched via `npx mcp-remote`, one subprocess per agent invocation, and
+four of them took local bats runs from ~7 minutes to not finishing (#646). That
+prune originally covered Claude only, leaving Cursor with all nine registered;
+the flag makes one registry field decide the default for every platform.
+Catalog-only servers stay in the registry and stay installable via
+`./bootstrap.sh --install-mcp`.
 
 The committed configs/cursor/mcp.json was previously hand-maintained and
 drifted (3 of 9 servers present). This generator is the fix: it is invoked
@@ -47,11 +55,15 @@ def load_registry(registry_path: Path) -> dict:
 
 
 def url_servers(servers: dict) -> dict:
-    """Registry entries eligible for Cursor's remote-MCP schema (have a url)."""
+    """Registry entries Cursor should register: remote-HTTP (url) and shipped.
+
+    Absent `shipped` means catalog-only, so the default is deny — a new registry
+    entry costs nothing at startup until someone opts it in.
+    """
     return {
         name: {"url": cfg["url"]}
         for name, cfg in servers.items()
-        if isinstance(cfg, dict) and "url" in cfg
+        if isinstance(cfg, dict) and "url" in cfg and cfg.get("shipped") is True
     }
 
 
