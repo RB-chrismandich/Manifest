@@ -137,3 +137,4 @@ assert "config/config.json" in names and "skills/.deployed-skills" in names, nam
     assert_output --partial "requires confirmation"
     [ -d "$BASE/.claude/skills/dead" ]                   # still present
 }
+

@@ -22,6 +22,22 @@ import sys
 
 import yaml
 
+USAGE = """Usage: apm_drop_domain_claim.py <lockfile> <domain>
+
+Remove one domain's deployed_files claim from an apm lockfile.
+Exit 0 on success or when there is nothing to drop; 1 on failure.
+"""
+
+# Before touching argv positionally or opening the lockfile, per this repo's
+# help contract. The extracted heredoc had no argv guard at all, so `--help`
+# raised IndexError and exited 1.
+if "--help" in sys.argv[1:] or "-h" in sys.argv[1:]:
+    print(USAGE.strip())
+    sys.exit(0)
+if len(sys.argv) < 3:
+    print(USAGE.strip(), file=sys.stderr)
+    sys.exit(2)
+
 path, domain = sys.argv[1], sys.argv[2]
 prefix = f".claude/{domain}"
 try:

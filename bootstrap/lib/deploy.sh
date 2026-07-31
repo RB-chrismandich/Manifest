@@ -79,8 +79,16 @@ verify_plugin_cache_after_restore() {
     local helper="$SCRIPT_DIR/configs/claude/scripts/unresolved_plugins.py"
     [[ -r "$helper" ]] || return 0
 
-    local missing
-    missing="$(python3 "$helper" "$installed" 2> /dev/null || true)"
+    # Exit 3 is "cannot tell", not "nothing wrong". `|| true` alone collapses
+    # the two, and a corrupt installed_plugins.json after a restore is exactly
+    # what this check exists to surface.
+    local missing status
+    missing="$(python3 "$helper" "$installed" 2> /dev/null)" && status=0 || status=$?
+    if [[ "$status" -eq 3 ]]; then
+        print_warning "Could not read $installed — plugin resolution is UNKNOWN."
+        print_warning "    Check it by hand: claude plugin list"
+        return 0
+    fi
     [[ -n "$missing" ]] || return 0
 
     print_warning "These installed plugins no longer resolve in the cache:"
