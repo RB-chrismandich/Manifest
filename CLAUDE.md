@@ -56,9 +56,8 @@ configs/                             # Deployment source configs (deployed to ~/
 ├── skills/                          # speckit-* project-scoped skills (loaded in this repo's sessions)
 └── settings.local.json              # Repo-relevant permissions only (no MCP servers)
 
-.claude-plugin/                      # marketplace.json — the repo doubles as a Claude Code plugin marketplace ("manifest")
-plugins/                             # Claude Code plugins (installed via marketplace or --plugin-dir, NOT deployed by bootstrap)
-└── adversarial-design-loop/         # Spec-first adversarial UI design loop (6 skills, 2 agents, render gate)
+.claude-plugin/                      # plugin marketplace manifest
+plugins/                             # install via marketplace/--plugin-dir (not bootstrap)
 bootstrap.sh                         # macOS/Linux bootstrap script
 bootstrap/                           # Modular bootstrap libraries + hookable modules
 ├── lib/                             # Shared bootstrap logic split by concern
@@ -129,7 +128,7 @@ Antigravity) and required CLI installs are in
 | `configs/claude/scripts/linear_ops.sh` | Linear API wrapper for issue management (GraphQL) |
 | `configs/claude/config/tracker_providers.yml` | Issue-tracker provider registry — access precedence, phase-to-status mapping, per-provider config |
 | `configs/claude/scripts/tracker_registry.py` | Read-only resolver CLI for `tracker_providers.yml` (status/access/default-provider/mcp-tool lookups) |
-| `configs/claude/scripts/tracker_ops.sh` | Provider-agnostic issue verb dispatcher (github/gitlab/linear; jira exit 3) — resolve-provider, issue-list/view/create/comment/transition/label/close, duplicate-mark |
+| `configs/claude/scripts/tracker_ops.sh` | Provider-agnostic issue verb dispatcher (github/gitlab/linear) |
 | `configs/claude/config/command_config.yml` | Thresholds, tool policies, model selection, error recovery |
 | `configs/claude/config/tracker_triage.yml` | Provider-neutral triage scoring, duplicate detection, staleness thresholds (replaced `linear_triage.yml`, deleted 2026-07-29) |
 | `configs/claude/config/validation_criteria.yml` | Tier 1 (critical) and Tier 2 (quality) validation rules |
@@ -216,22 +215,9 @@ approaches), review stale plans, or archive/abandon completed work.
 
 ## Configuration Reference
 
-**Consensus thresholds** (in `command_config.yml`):
-
-- `>=80%`: High confidence - auto-proceed
-- `50-79%`: Medium confidence - highlight disagreements
-- `<50%`: Low confidence - escalate for human review
-
-**Validation tiers** (in `validation_criteria.yml`):
-
-- Tier 1 (blocking): Security, error handling, breaking changes, cross-verification
-- Tier 2 (advisory): Bug detection, performance, maintainability, test coverage
-
-**Verdicts**:
-
-- `APPROVED`: Tier 1 passes, Tier 2 score >= 0.60
-- `NEEDS_REVIEW`: Tier 1 passes, Tier 2 score < 0.60
-- `BLOCKED`: Any Tier 1 check fails
+Consensus thresholds, validation tiers, and verdicts live in
+`command_config.yml` and `validation_criteria.yml`; see
+[docs/CONFIGURATION.md](docs/CONFIGURATION.md).
 
 ---
 
