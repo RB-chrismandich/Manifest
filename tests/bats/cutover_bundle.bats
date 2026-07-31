@@ -30,6 +30,29 @@ teardown() {
     return 0
 }
 
+# A sandbox HOME satisfying every precondition EXCEPT the one under test, so a
+# case asserting success is not silently passing on an unrelated refusal.
+full_sandbox_home() {
+    export HOME="$SANDBOX/home"
+    export DEVIN_SKILLS_LINK="$HOME/.config/devin/skills"
+    mkdir -p "$HOME/.claude/skills" "$MANIFEST_SKILLS_DIR/code-audit" "$SANDBOX/bin"
+    echo "x" > "$MANIFEST_SKILLS_DIR/code-audit/SKILL.md"
+    local h
+    for h in .cursor .gemini .codex .antigravity; do
+        mkdir -p "$HOME/$h"
+        ln -sfn "$MANIFEST_SKILLS_DIR" "$HOME/$h/skills"
+    done
+    : > "$MANIFEST_STATE_DIR/pre-cutover-20260101_000000.tgz"
+    # cutover_snapshot.sh --verify must pass; stub it alongside devin.
+    printf '#!/bin/sh\nexit 0\n' > "$SANDBOX/bin/cutover_snapshot.sh"
+    chmod +x "$SANDBOX/bin/cutover_snapshot.sh"
+}
+
+devin_stub() {  # $1 = the path text devin should print
+    printf '#!/bin/sh\necho "  /alpha (%s/alpha)"\n' "$1" > "$SANDBOX/bin/devin"
+    chmod +x "$SANDBOX/bin/devin"
+}
+
 @test "--help exits 0 and is at most 15 lines" {
     run "$SCRIPT" --help
     assert_success
@@ -135,4 +158,93 @@ teardown() {
     # avoided, so grepping raw source tests the prose, not the behaviour.
     run bash -c "grep -vE '^[[:space:]]*#' '$SCRIPT' | grep -c 'skillOverride' || true"
     assert_output "0"
+}
+
+# --- the two defects that only a LIVE run exposed --------------------------
+#
+# Both passed every stubbed test above. They were found by running the tool
+# against the real machine, which is the argument for doing that before
+# trusting a suite of stubs.
+
+@test "--dry-run creates no symlink" {
+    # The gate runs BEFORE the dry-run branch, so it created a real
+    # ~/.config/devin/skills on the live machine during what the user was told
+    # was a preview.
+    full_sandbox_home
+    devin_stub "$MANIFEST_SKILLS_DIR"
+    run env PATH="$SANDBOX/bin:$PATH" "$SCRIPT" manifest-docs --dry-run
+    assert_success
+    assert_output --partial "would link"
+    [ ! -e "$DEVIN_SKILLS_LINK" ]
+}
+
+@test "--dry-run reports the plan without installing or deleting" {
+    full_sandbox_home
+    devin_stub "$MANIFEST_SKILLS_DIR"
+    run env PATH="$SANDBOX/bin:$PATH" "$SCRIPT" manifest-docs --dry-run
+    assert_success
+    assert_output --partial "would install"
+}
+
+@test "Devin's tilde-abbreviated output satisfies the check" {
+    # `devin skills list` prints `~/.manifest/skills/<name>`. Grepping only the
+    # ABSOLUTE path refused on a machine whose link was already correct -- and
+    # every stub above happened to echo the absolute form, so the whole suite
+    # stayed green through the bug.
+    full_sandbox_home
+    # The harness tree must live UNDER the sandbox HOME or the abbreviation is
+    # not an abbreviation: with the tree outside HOME, `~$tree` still contains
+    # the absolute path, so the absolute branch matches and dropping the tilde
+    # branch changes nothing. The first version of this test did exactly that
+    # and stayed green through the mutation.
+    export MANIFEST_SKILLS_DIR="$HOME/.manifest/skills"
+    mkdir -p "$MANIFEST_SKILLS_DIR/code-audit" "$(dirname "$DEVIN_SKILLS_LINK")"
+    echo "x" > "$MANIFEST_SKILLS_DIR/code-audit/SKILL.md"
+    local h
+    for h in .cursor .gemini .codex .antigravity; do
+        ln -sfn "$MANIFEST_SKILLS_DIR" "$HOME/$h/skills"
+    done
+    ln -sfn "$MANIFEST_SKILLS_DIR" "$DEVIN_SKILLS_LINK"
+    # Prints ONLY the tilde form -- the absolute path appears nowhere.
+    devin_stub "~${MANIFEST_SKILLS_DIR#"$HOME"}"
+    run env PATH="$SANDBOX/bin:$PATH" "$SCRIPT" manifest-docs --dry-run
+    assert_success
+    refute_output --partial "does not report any skill"
+}
+
+@test "a REAL run still stops at the first unmet precondition" {
+    # The dry-run change made gate_fail report-and-continue. If that leaked into
+    # the destructive path, every refusal above would degrade to a warning and
+    # the tool would delete on a machine it had just declared broken.
+    mkdir -p "$SANDBOX/bin"
+    printf '#!/bin/sh\necho "  /alpha (%s/alpha)"\n' "$MANIFEST_SKILLS_DIR" > "$SANDBOX/bin/devin"
+    chmod +x "$SANDBOX/bin/devin"
+    run env PATH="$SANDBOX/bin:$PATH" "$SCRIPT" manifest-docs
+    [ "$status" -eq 3 ]
+    refute_output --partial "would remove"
+    refute_output --partial "WOULD BLOCK"
+}
+
+@test "the preview names EVERY unmet precondition, not just the first" {
+    # A preview that exits at the first blocker cannot be used to plan: you fix
+    # one thing, re-run, and discover the next.
+    mkdir -p "$SANDBOX/bin"
+    printf '#!/bin/sh\necho "nothing"\n' > "$SANDBOX/bin/devin"
+    chmod +x "$SANDBOX/bin/devin"
+    export HOME="$SANDBOX/emptyhome"
+    mkdir -p "$HOME"
+    run env PATH="$SANDBOX/bin:$PATH" "$SCRIPT" manifest-docs --dry-run
+    assert_output --partial "no Phase 0 snapshot"
+    assert_output --partial "does not resolve into"
+    assert_output --partial "WOULD NOT RUN"
+}
+
+@test "the preview says Devin is UNVERIFIABLE rather than silently passing it" {
+    # --dry-run declines to create the link, so it cannot observe what Devin
+    # would see. Absence of a WOULD BLOCK line must not read as "verified".
+    mkdir -p "$SANDBOX/bin"
+    printf '#!/bin/sh\necho "nothing"\n' > "$SANDBOX/bin/devin"
+    chmod +x "$SANDBOX/bin/devin"
+    run env PATH="$SANDBOX/bin:$PATH" "$SCRIPT" manifest-docs --dry-run
+    assert_output --partial "UNVERIFIABLE"
 }

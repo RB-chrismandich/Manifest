@@ -95,6 +95,26 @@ DEVIN_SKILLS_LINK="${DEVIN_SKILLS_LINK:-$HOME/.config/devin/skills}"
 # <name>@skills-dir and is the user's own work.
 ALLOWLIST_RE='^(\.system|\.metadata\.json|README\.md|\.deployed-skills)$'
 
+# A refusal, routed by mode. In a real run the first unmet precondition stops
+# everything, which is the fail-closed behaviour this tool exists for. In
+# --dry-run it is REPORTED and the walk continues: a preview whose whole job is
+# "tell me what would happen" is useless if it exits at the first thing that
+# would stop it -- and requiring a verified rollback tarball before you may even
+# LOOK inverts the natural order of preview, decide, snapshot, run.
+GATE_BLOCKED=0
+gate_fail() {
+    if [[ "$DRY_RUN" -eq 1 ]]; then
+        GATE_BLOCKED=1
+        printf '  WOULD BLOCK   : %s\n' "$1" >&2
+        shift
+        local line
+        for line in "$@"; do printf '                  %s\n' "$line" >&2; done
+        return 0
+    fi
+    err "$@"
+    exit 3
+}
+
 # --- preconditions ---------------------------------------------------------
 
 # 1. Devin. Asked FIRST: it is the cheapest check and it answers 'should this
@@ -108,24 +128,43 @@ if [[ "$ALLOW_DEVIN" -ne 1 ]] && command -v devin > /dev/null 2>&1; then
     devin_link="$DEVIN_SKILLS_LINK"
     if [[ "$(readlink "$devin_link" 2> /dev/null || true)" != "$SKILLS_DIR" ]]; then
         if [[ -e "$devin_link" && ! -L "$devin_link" ]]; then
-            err "$devin_link exists and is not a symlink — Devin serves its own skills there."
-            err "Resolve by hand, or pass --allow-unverified-devin to proceed regardless."
-            exit 3
+            gate_fail "$devin_link exists and is not a symlink — Devin serves its own skills there." \
+                "Resolve by hand, or pass --allow-unverified-devin to proceed regardless."
         fi
         # Additive and reversible: one symlink. Created here rather than in
         # Phase 2 because until this script runs, BOTH trees are populated and
         # Devin would register every skill twice (measured: 231).
-        mkdir -p "$(dirname "$devin_link")"
-        ln -sfn "$SKILLS_DIR" "$devin_link"
-        printf 'cutover_bundle.sh: linked %s -> %s\n' "$devin_link" "$SKILLS_DIR"
+        if [[ "$DRY_RUN" -eq 1 ]]; then
+            printf '  would link    : %s -> %s\n' "$devin_link" "$SKILLS_DIR"
+        else
+            mkdir -p "$(dirname "$devin_link")"
+            ln -sfn "$SKILLS_DIR" "$devin_link"
+            printf 'cutover_bundle.sh: linked %s -> %s\n' "$devin_link" "$SKILLS_DIR"
+        fi
     fi
     # Verify by observation, not by the symlink's existence. `devin skills list`
     # reads local config and makes no API call, so this works logged out.
-    if ! devin skills list 2> /dev/null | grep -q "$SKILLS_DIR"; then
-        err "Devin does not report any skill from $SKILLS_DIR."
-        err "Emptying ~/.claude/skills would leave it with no catalog at all."
-        err "Pass --allow-unverified-devin to accept that explicitly."
-        exit 3
+    #
+    # Matched against BOTH forms: devin prints `~/.manifest/skills/<name>`, so
+    # grepping only the absolute path refused on a machine whose link was
+    # already correct -- a false red of exactly the kind this cutover keeps
+    # producing. Found by running the tool, not by the unit tests, which pass a
+    # stub that echoes whatever the test chose.
+    devin_seen=0
+    if [[ "$DRY_RUN" -eq 1 && ! -e "$devin_link" ]]; then
+        # Reported, not silently passed: the preview genuinely cannot observe a
+        # link it declined to create, and "no WOULD BLOCK line" must not be
+        # readable as "Devin is verified".
+        printf '  UNVERIFIABLE  : Devin — cannot observe until the link above exists\n' >&2
+        devin_seen=1
+    elif devin skills list 2> /dev/null |
+        grep -qE "(${SKILLS_DIR//\//\\/}|~${SKILLS_DIR#"$HOME"})"; then
+        devin_seen=1
+    fi
+    if [[ "$devin_seen" -ne 1 ]]; then
+        gate_fail "Devin does not report any skill from $SKILLS_DIR." \
+            "Emptying ~/.claude/skills would leave it with no catalog at all." \
+            "Pass --allow-unverified-devin to accept that explicitly."
     fi
 fi
 
@@ -135,12 +174,9 @@ fi
 #    tarball is the only one that survives.
 snapshot="$(find "$STATE_DIR" -maxdepth 1 -name 'pre-cutover-*.tgz' 2> /dev/null | sort | tail -1)"
 if [[ -z "$snapshot" ]]; then
-    err "no Phase 0 snapshot under $STATE_DIR — run cutover_snapshot.sh first"
-    exit 3
-fi
-if ! "$(dirname "${BASH_SOURCE[0]}")/cutover_snapshot.sh" --verify > /dev/null 2>&1; then
-    err "the snapshot does not verify — refusing to delete anything"
-    exit 3
+    gate_fail "no Phase 0 snapshot under $STATE_DIR — run cutover_snapshot.sh first"
+elif ! "$(dirname "${BASH_SOURCE[0]}")/cutover_snapshot.sh" --verify > /dev/null 2>&1; then
+    gate_fail "the snapshot does not verify — refusing to delete anything"
 fi
 
 # 3. Every sibling home must already resolve into the harness root with a
@@ -152,24 +188,18 @@ for home_dir in "$HOME/.cursor" "$HOME/.gemini" "$HOME/.codex" "$HOME/.antigravi
     case "$target" in
         "$SKILLS_DIR") ;;
         *)
-            err "$link does not resolve into $SKILLS_DIR (got: ${target:-<not a symlink>})"
-            err "run ./bootstrap.sh first — Phase 2 must be complete before Phase 4"
-            exit 3
+            gate_fail "$link does not resolve into $SKILLS_DIR (got: ${target:-<not a symlink>})" \
+                "run ./bootstrap.sh first — Phase 2 must be complete before Phase 4"
             ;;
     esac
-    [[ -s "$link/code-audit/SKILL.md" ]] || {
-        err "canary unreadable through $link — the harness tree is not serving content"
-        exit 3
-    }
+    [[ -s "$link/code-audit/SKILL.md" ]] ||
+        gate_fail "canary unreadable through $link — the harness tree is not serving content"
 done
 
 
 # --- the delete list -------------------------------------------------------
 
-[[ -r "$REGISTRY" ]] || {
-    err "registry not readable: $REGISTRY"
-    exit 3
-}
+[[ -r "$REGISTRY" ]] || gate_fail "registry not readable: $REGISTRY"
 
 # Names assigned to THIS bundle, straight from the registry.
 BUNDLE_SKILLS=()
@@ -191,6 +221,9 @@ fi
 printf 'cutover_bundle.sh: %s owns %s skill(s)\n' "$BUNDLE" "${#BUNDLE_SKILLS[@]}"
 
 if [[ "$DRY_RUN" -eq 1 ]]; then
+    if [[ "$GATE_BLOCKED" -eq 1 ]]; then
+        printf '  ---\n  %s WOULD NOT RUN: fix the WOULD BLOCK item(s) above.\n' "$BUNDLE"
+    fi
     printf '  would install : %s@manifest\n' "$BUNDLE"
     for s in ${BUNDLE_SKILLS[@]+"${BUNDLE_SKILLS[@]}"}; do
         [[ -d "$CLAUDE_SKILLS/$s" ]] && printf '  would remove  : ~/.claude/skills/%s\n' "$s"
