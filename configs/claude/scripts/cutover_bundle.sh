@@ -19,10 +19,28 @@
 #   uninstall` does NOT clear them, and the write target is the file whose
 #   read-modify-write race already lost this user's `model` key once.
 #
-# ⚠️ DEVIN: emptying ~/.claude/skills is what breaks Devin's native
+# DEVIN: emptying ~/.claude/skills is what breaks Devin's native
 # `read_config_from.claude` inheritance. Phase 2 froze that tree but left it
-# populated, so Devin was safe until now. This script REFUSES unless Devin is
-# either verified or explicitly waived, because that verification was bypassed.
+# populated, so Devin was safe until now.
+#
+# That was SETTLED BY OBSERVATION on 2026-07-30, and it needed no login --
+# `devin skills list` reads local config and makes no API call:
+#
+#   * Devin lists all 108 skills with the source `(~/.claude/skills/<name>)`,
+#     confirming the inheritance rather than inferring it from config.json.
+#   * A nonce planted in ~/.manifest/skills was INVISIBLE (0 hits) until
+#     ~/.config/devin/skills existed, and visible (1 hit) with it. So Devin
+#     follows a SYMLINKED skills dir -- the open question in T2.6, whose only
+#     measured fact was about a COPY.
+#   * With both trees live, Devin registered 231 skills: 108 from
+#     ~/.claude/skills, 108 from ~/.manifest/skills, 14 project-scoped. The
+#     double-registration is real and measured, which is why the link is created
+#     HERE and not in Phase 2.
+#
+# The gate therefore checks the thing that matters -- can Devin still reach a
+# skills tree after this delete -- instead of `devin models list`, which tests
+# AUTHENTICATION and would refuse on a machine where inheritance is perfectly
+# fine.
 set -euo pipefail
 
 err() { printf 'cutover_bundle.sh: %s\n' "$*" >&2; }
@@ -35,7 +53,7 @@ Install one bundle from the Manifest marketplace, then remove exactly that
 bundle's skill directories from ~/.claude/skills.
 
   --dry-run                  report what would be installed/removed; change nothing
-  --allow-unverified-devin   proceed while Devin's inheritance is unverified
+  --allow-unverified-devin   skip the Devin inheritance check entirely
   --help                     this text
 USAGE
     exit 0
@@ -65,6 +83,12 @@ STATE_DIR="${MANIFEST_STATE_DIR:-$HOME/.manifest}"
 SKILLS_DIR="${MANIFEST_SKILLS_DIR:-$STATE_DIR/skills}"
 CLAUDE_SKILLS="$HOME/.claude/skills"
 REGISTRY="${MANIFEST_SKILL_REGISTRY:-$HOME/.claude/config/skill_policies.yml}"
+# Overridable so the tests cannot reach the real machine. They do not override
+# HOME, and the first version of this gate created a REAL ~/.config/devin/skills
+# pointing into a sandbox that teardown then deleted -- a dangling link on the
+# user's machine, left by a suite that reported 7/8 green. This repo's own rule
+# (T5.6) is to diff apm/plugin state around any suite that touches it.
+DEVIN_SKILLS_LINK="${DEVIN_SKILLS_LINK:-$HOME/.config/devin/skills}"
 
 # Foreign entries that are NOT Manifest's and must survive untouched. `.system`
 # is Codex's; a `claude plugin init <name>` scaffold auto-loads as
@@ -74,14 +98,33 @@ ALLOWLIST_RE='^(\.system|\.metadata\.json|README\.md|\.deployed-skills)$'
 # --- preconditions ---------------------------------------------------------
 
 # 1. Devin. Asked FIRST: it is the cheapest check and it answers 'should this
-#    run at all', settled before any state is inspected. This is the exposure
-#    the Phase 0 bypass accepted — see the header.
-if [[ "$ALLOW_DEVIN" -ne 1 ]]; then
-    if ! devin models list > /dev/null 2>&1; then
-        err "Devin is not logged in, so its inheritance was never verified by observation."
-        err "Emptying ~/.claude/skills is what breaks its read_config_from.claude path."
-        err "Run: devin auth login && configs/claude/scripts/probe_devin_inheritance.sh"
-        err "Or pass --allow-unverified-devin to accept the risk explicitly."
+#    run at all', settled before any state is inspected.
+#
+#    Not `devin models list` — that tests authentication, and a logged-out
+#    Devin whose ~/.config/devin/skills resolves correctly is FINE. What must
+#    hold is that Devin can still reach a skills tree once this delete empties
+#    the one it inherits.
+if [[ "$ALLOW_DEVIN" -ne 1 ]] && command -v devin > /dev/null 2>&1; then
+    devin_link="$DEVIN_SKILLS_LINK"
+    if [[ "$(readlink "$devin_link" 2> /dev/null || true)" != "$SKILLS_DIR" ]]; then
+        if [[ -e "$devin_link" && ! -L "$devin_link" ]]; then
+            err "$devin_link exists and is not a symlink — Devin serves its own skills there."
+            err "Resolve by hand, or pass --allow-unverified-devin to proceed regardless."
+            exit 3
+        fi
+        # Additive and reversible: one symlink. Created here rather than in
+        # Phase 2 because until this script runs, BOTH trees are populated and
+        # Devin would register every skill twice (measured: 231).
+        mkdir -p "$(dirname "$devin_link")"
+        ln -sfn "$SKILLS_DIR" "$devin_link"
+        printf 'cutover_bundle.sh: linked %s -> %s\n' "$devin_link" "$SKILLS_DIR"
+    fi
+    # Verify by observation, not by the symlink's existence. `devin skills list`
+    # reads local config and makes no API call, so this works logged out.
+    if ! devin skills list 2> /dev/null | grep -q "$SKILLS_DIR"; then
+        err "Devin does not report any skill from $SKILLS_DIR."
+        err "Emptying ~/.claude/skills would leave it with no catalog at all."
+        err "Pass --allow-unverified-devin to accept that explicitly."
         exit 3
     fi
 fi
