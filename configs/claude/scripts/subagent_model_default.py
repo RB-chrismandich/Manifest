@@ -82,35 +82,80 @@ def usage() -> None:
     )
 
 
-def agent_definition_roots() -> list[str]:
-    """Directories that can hold agent definitions, narrowest scope first."""
+def installed_plugin_state(home: str) -> tuple[set[str], set[str]] | None:
+    """(installed plugin names, installed cache paths), or None when unknown.
+
+    `installed_plugins.json` records the exact `installPath` Claude Code loads,
+    which is the only authority on WHICH version is live. Skipping
+    `.orphaned_at` alone left two holes: marketplace roots carry no marker, so
+    an uninstalled plugin resurrected its pin from there; and between two live
+    versions the lexicographically-first won, handing an upgrade window to the
+    OLDER pin.
+
+    None means the record is absent or unreadable, and every caller must then
+    fall back to scanning everything. A hook that honoured no pins at all
+    because one JSON file went missing would be worse than the bug it fixes.
+    """
+    path = os.path.join(home, ".claude", "plugins", "installed_plugins.json")
+    try:
+        with open(path, encoding="utf-8") as handle:
+            data = json.load(handle)
+    except (OSError, ValueError):
+        return None
+    plugins = data.get("plugins") if isinstance(data, dict) else None
+    if not isinstance(plugins, dict):
+        return None
+    names: set[str] = set()
+    paths: set[str] = set()
+    for key, entries in plugins.items():
+        names.add(key.split("@", 1)[0])
+        for entry in entries if isinstance(entries, list) else []:
+            if isinstance(entry, dict) and entry.get("installPath"):
+                paths.add(os.path.normpath(str(entry["installPath"])))
+    return names, paths
+
+
+def agent_definition_roots() -> list[tuple[str, str]]:
+    """(directory, owning plugin) pairs, narrowest scope first; "" = no plugin.
+
+    The plugin name comes from the glob that MATCHED the directory, never from
+    re-parsing the path afterwards. Deriving it by index cannot work: the two
+    layouts put the name at different depths, and anchoring on a path segment
+    equal to the literal ``plugins`` or ``cache`` lets a plugin whose own
+    directory carries that name impersonate the marker and reintroduce the very
+    off-by-one the anchor was added to remove.
+
+    Orphaned versions are skipped. ``claude plugin uninstall`` leaves the tree
+    in place with an ``.orphaned_at`` marker instead of deleting it, and glob
+    order is filesystem order, so an uninstalled version could otherwise beat
+    the live one and pin a model the user has already removed. Sorted so the
+    resolution order is reproducible rather than whatever the OS listed first.
+    """
     home = os.path.expanduser("~")
-    roots = []
+    roots: list[tuple[str, str]] = []
     project = os.environ.get("CLAUDE_PROJECT_DIR")
     if project:
-        roots.append(os.path.join(project, ".claude", "agents"))
-    roots.append(os.path.join(home, ".claude", "agents"))
-    # Plugin layouts: marketplaces/<market>/plugins/<plugin>/agents/<agent>.md
-    #                 cache/<market>/<plugin>/<version>/agents/<agent>.md
-    roots.extend(
-        glob.glob(
-            os.path.join(
-                home,
-                ".claude",
-                "plugins",
-                "marketplaces",
-                "*",
-                "plugins",
-                "*",
-                "agents",
-            )
-        )
-    )
-    roots.extend(
-        glob.glob(
-            os.path.join(home, ".claude", "plugins", "cache", "*", "*", "*", "agents")
-        )
-    )
+        roots.append((os.path.join(project, ".claude", "agents"), ""))
+    roots.append((os.path.join(home, ".claude", "agents"), ""))
+
+    base = os.path.join(home, ".claude", "plugins")
+    state = installed_plugin_state(home)
+    # marketplaces/<market>/plugins/<plugin>/agents
+    for root in sorted(
+        glob.glob(os.path.join(base, "marketplaces", "*", "plugins", "*", "agents"))
+    ):
+        name = os.path.basename(os.path.dirname(root))
+        if state is not None and name not in state[0]:
+            continue
+        roots.append((root, name))
+    # cache/<market>/<plugin>/<version>/agents
+    for root in sorted(glob.glob(os.path.join(base, "cache", "*", "*", "*", "agents"))):
+        version_dir = os.path.dirname(root)
+        if os.path.exists(os.path.join(version_dir, ".orphaned_at")):
+            continue
+        if state is not None and os.path.normpath(version_dir) not in state[1]:
+            continue
+        roots.append((root, os.path.basename(os.path.dirname(version_dir))))
     return roots
 
 
@@ -154,21 +199,15 @@ def declared_model(subagent_type: str) -> str | None:
     if not subagent_type:
         return None
     wanted = subagent_type.strip()
-    _, _, bare = wanted.rpartition(":")
-    for root in agent_definition_roots():
-        # Plugin name is the directory two or three levels up depending on layout;
-        # comparing every alias below makes the exact layout irrelevant.
-        parts = root.split(os.sep)
-        plugin = parts[-2] if len(parts) >= 2 else ""
-        for path in glob.glob(os.path.join(root, "*.md")):
+    for root, plugin in agent_definition_roots():
+        for path in sorted(glob.glob(os.path.join(root, "*.md"))):
             fm = frontmatter(path)
             stem = os.path.splitext(os.path.basename(path))[0]
             name = fm.get("name", "")
-            aliases = {stem, name, f"{plugin}:{stem}", f"{plugin}:{name}"}
-            matches = wanted in aliases or (
-                bare and bare in {stem, name} and not plugin
-            )
-            if matches and fm.get("model"):
+            aliases = {stem, name}
+            if plugin:
+                aliases |= {f"{plugin}:{stem}", f"{plugin}:{name}"}
+            if wanted in aliases and fm.get("model"):
                 return fm["model"]
     return None
 
