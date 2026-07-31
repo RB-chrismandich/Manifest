@@ -814,9 +814,14 @@ write_deploy_stamp() {
     }
     local tree_configs tree_skills head_sha dirty
     tree_configs="$(git -C "$repo_root" rev-parse HEAD:configs 2> /dev/null)" || return 0
-    tree_skills="$(git -C "$repo_root" rev-parse HEAD:.apm/skills 2> /dev/null)" || return 0
+    # T3.8 (spec 674): keyed on plugins/, not .apm/skills. The skills moved to
+    # plugins/<bundle>/skills/ and .apm/skills is now a GITIGNORED generated
+    # mirror, so HEAD:.apm/skills holds only the two root files and the dirty
+    # check can never see a skill edit. Left alone, the "your deployed config
+    # is stale, re-run bootstrap" nudge would never fire again.
+    tree_skills="$(git -C "$repo_root" rev-parse HEAD:plugins 2> /dev/null)" || return 0
     head_sha="$(git -C "$repo_root" rev-parse HEAD 2> /dev/null)" || return 0
-    if [[ -n "$(git -C "$repo_root" status --porcelain -- configs .apm/skills 2> /dev/null)" ]]; then
+    if [[ -n "$(git -C "$repo_root" status --porcelain -- configs plugins 2> /dev/null)" ]]; then
         dirty=true
     else
         dirty=false

@@ -94,7 +94,7 @@ main() {
         return 0
     }
 
-    [[ -z "$(git -C "$clone_path" status --porcelain -- configs .apm/skills 2> /dev/null)" ]] || {
+    [[ -z "$(git -C "$clone_path" status --porcelain -- configs plugins 2> /dev/null)" ]] || {
         debug "dirty sources"
         return 0
     }
@@ -134,7 +134,9 @@ main() {
 
     local cur_configs cur_skills
     cur_configs="$(git -C "$clone_path" rev-parse HEAD:configs 2> /dev/null)" || return 0
-    cur_skills="$(git -C "$clone_path" rev-parse HEAD:.apm/skills 2> /dev/null)" || return 0
+    # T3.8 (spec 674): plugins/ is the source of truth; .apm/skills is a
+    # gitignored generated mirror and would make this check permanently blind.
+    cur_skills="$(git -C "$clone_path" rev-parse HEAD:plugins 2> /dev/null)" || return 0
 
     if [[ "$cur_configs" == "$tree_configs" && "$cur_skills" == "$tree_skills" && "$dirty" == "false" ]]; then
         debug "up to date"

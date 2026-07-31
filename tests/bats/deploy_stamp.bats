@@ -11,9 +11,12 @@ setup() {
     TMP="$(mktemp -d)"
     CLONE="$TMP/clone"
     TGT="$TMP/target"
-    mkdir -p "$CLONE/configs/claude" "$CLONE/.apm/skills/demo" "$TGT/config"
+    # T3.8 (spec 674): the stamp keys on plugins/, the source of truth, not on
+    # .apm/skills, which is now a gitignored generated mirror and would make the
+    # staleness check permanently blind.
+    mkdir -p "$CLONE/configs/claude" "$CLONE/plugins/manifest-docs/skills/demo" "$TGT/config"
     echo "orchestration guide" > "$CLONE/configs/claude/CLAUDE.md"
-    echo "demo skill" > "$CLONE/.apm/skills/demo/SKILL.md"
+    echo "demo skill" > "$CLONE/plugins/manifest-docs/skills/demo/SKILL.md"
     git -C "$CLONE" init -q
     git -C "$CLONE" config user.email t@t.test
     git -C "$CLONE" config user.name test
@@ -36,7 +39,7 @@ stamp_val() { grep "^$1=" "$TGT/config/deploy_stamp" | cut -d= -f2-; }
     assert_success
     [ -f "$TGT/config/deploy_stamp" ]
     assert_equal "$(stamp_val tree_configs)" "$(git -C "$CLONE" rev-parse HEAD:configs)"
-    assert_equal "$(stamp_val tree_skills)" "$(git -C "$CLONE" rev-parse HEAD:.apm/skills)"
+    assert_equal "$(stamp_val tree_skills)" "$(git -C "$CLONE" rev-parse HEAD:plugins)"
     assert_equal "$(stamp_val head_sha)" "$(git -C "$CLONE" rev-parse HEAD)"
     assert_equal "$(stamp_val dirty)" "false"
     assert_equal "$(stamp_val clone_path)" "$CLONE"
@@ -75,7 +78,7 @@ write_fake_stamp() {
     mkdir -p "$FHOME/.claude/config"
     cat > "$FHOME/.claude/config/deploy_stamp" << EOF
 tree_configs=$(git -C "$CLONE" rev-parse HEAD:configs)
-tree_skills=$(git -C "$CLONE" rev-parse HEAD:.apm/skills)
+tree_skills=$(git -C "$CLONE" rev-parse HEAD:plugins)
 head_sha=$(git -C "$CLONE" rev-parse HEAD)
 dirty=$dirty
 clone_path=$CLONE
