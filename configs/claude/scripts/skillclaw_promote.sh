@@ -7,7 +7,7 @@
 # directly, never force-pushes. Implements Option A: aborts if an open
 # skillclaw/evolve-* PR already exists (override with --force-new).
 #
-# Usage: skillclaw_promote.sh [--apply] [--skill NAME] [--no-evolve] [--force-new]
+# Usage: skillclaw_promote.sh --bundle NAME [--apply] [--skill NAME] [--no-evolve] [--force-new]
 #
 # Env overrides (for tests): SKILLCLAW_EVOLVED, SKILLCLAW_COMMITTED,
 #   SKILLCLAW_SESSIONS, SKILLCLAW_GITOPS, SKILLCLAW_OPEN_PR, SKILLCLAW_TRANSCRIPTS,
@@ -48,7 +48,17 @@ REJECTED="${SKILLCLAW_REJECTED:-$HOME/.skillclaw/skills/rejected}"
 # Committed library: the physical skillshare source of truth. The deployed script
 # lives in ~/.claude/scripts, so locate the repo via MANIFEST_ROOT (exported by
 # bootstrap into the shell profile); fall back to repo-relative when run in-tree.
-COMMITTED="${SKILLCLAW_COMMITTED:-${MANIFEST_ROOT:-${SCRIPT_DIR}/../../..}/.apm/skills}"
+# T3.9 (spec 674): promote into plugins/<bundle>/skills/, NOT .apm/skills.
+#
+# .apm/skills is now a GITIGNORED generated mirror (T3.3). Writing a promoted
+# skill there puts it somewhere the next generate_skill_mirror.sh run deletes
+# and `git add` silently ignores -- the PR would open with no skill in it.
+# --bundle is REQUIRED rather than defaulted: a guessed bundle ships an
+# unrelated skill into a domain the user installed on purpose, and the partition
+# gate cannot see a MISplacement, only a duplicate or an omission.
+REPO_ROOT_FOR_PROMOTE="${MANIFEST_ROOT:-${SCRIPT_DIR}/../../..}"
+PROMOTE_BUNDLE="${SKILLCLAW_BUNDLE:-}"
+COMMITTED="${SKILLCLAW_COMMITTED:-}"
 
 # Shared audit storage; evolve.py reads SKILLCLAW_AUDIT_DIR too (default ~/.skillclaw).
 export SKILLCLAW_AUDIT_DIR="${SKILLCLAW_AUDIT_DIR:-$HOME/.skillclaw}"
@@ -76,11 +86,12 @@ usage_error() {
 
 usage() {
     cat << 'USAGE'
-Usage: skillclaw_promote.sh [--apply] [--skill NAME] [--no-evolve]
+Usage: skillclaw_promote.sh --bundle NAME [--apply] [--skill NAME] [--no-evolve]
                             [--force-new] [--status]
 
 Turn evolved SkillClaw skills into a review PR. Dry-run by default.
 
+  --bundle NAME  REQUIRED. Target bundle under plugins/<NAME>/skills/.
   --apply       Branch, commit per skill, and open the review PR
   --skill NAME  Limit the run to a single evolved skill
   --no-evolve   Skip the evolve step (promote existing candidates only)
@@ -98,6 +109,10 @@ while [[ $# -gt 0 ]]; do
         --status)
             skillclaw_cmd audit status
             exit 0
+            ;;
+        --bundle)
+            shift
+            PROMOTE_BUNDLE="${1:-}"
             ;;
         --apply)
             APPLY=true
@@ -253,9 +268,18 @@ _t0=$SECONDS
 echo "▸ promote…"
 audit log "$run_id" promote stage_start
 count="$(echo "$promote_names" | wc -w | tr -d ' ')"
+if [[ -z "$COMMITTED" ]]; then
+    if [[ -z "$PROMOTE_BUNDLE" ]]; then
+        err "--bundle is required: promoted skills land in plugins/<bundle>/skills/."
+        err "Pick the bundle this skill belongs to (configs/claude/config/skill_policies.yml)."
+        err "A guessed bundle ships an unrelated skill into a domain the user chose to install."
+        exit 2
+    fi
+    COMMITTED="$REPO_ROOT_FOR_PROMOTE/plugins/$PROMOTE_BUNDLE/skills"
+fi
 if [[ ! -d "$COMMITTED" ]]; then
-    err "committed skills dir not found: $COMMITTED"
-    err "set MANIFEST_ROOT (or SKILLCLAW_COMMITTED) to the repo's .apm/skills"
+    err "target bundle dir not found: $COMMITTED"
+    err "check --bundle against the bundles in configs/claude/config/skill_policies.yml"
     exit 2
 fi
 branch="${BRANCH_PREFIX}${count}-$(git rev-parse --short HEAD)"
