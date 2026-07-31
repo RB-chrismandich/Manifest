@@ -50,9 +50,45 @@ restore_runtime_state() {
     if [[ "$rc" -ne 0 ]]; then
         print_warning "Runtime state only partially restored (rsync exit $rc)."
         print_warning "Nothing was lost — the full backup is at: $backup_dir"
-        return 0
+    else
+        print_success "Runtime state restored (repo-owned config redeployed fresh)"
     fi
-    print_success "Runtime state restored (repo-owned config redeployed fresh)"
+
+    verify_plugin_cache_after_restore "$target_dir"
+    return 0
+}
+
+# verify_plugin_cache_after_restore — is every installed bundle still resolvable
+# in the cache after a "Backup and replace" restore? (T4.5, spec 674)
+#
+# The rsync above deliberately swallows failure, which is correct: by then the
+# live directory has been mv'd into the backup, so a non-zero exit under `set -e`
+# would leave the user with NO ~/.claude at all. But swallowing it makes a
+# PARTIAL restore invisible -- and post-cutover ~/.claude/plugins holds the ONLY
+# copy of the user's Claude skills. One unreadable file in a 929 MB tree becomes
+# an unknown subset of 108 skills silently vanishing.
+#
+# So: name the bundles that no longer resolve and print the exact command to get
+# each back. Never fails the deploy — the deploy is not what broke.
+verify_plugin_cache_after_restore() {
+    local target_dir="$1"
+    local installed="$target_dir/plugins/installed_plugins.json"
+    [[ -r "$installed" ]] || return 0
+    command_exists python3 || return 0
+
+    local helper="$SCRIPT_DIR/configs/claude/scripts/unresolved_plugins.py"
+    [[ -r "$helper" ]] || return 0
+
+    local missing
+    missing="$(python3 "$helper" "$installed" 2> /dev/null || true)"
+    [[ -n "$missing" ]] || return 0
+
+    print_warning "These installed plugins no longer resolve in the cache:"
+    local key
+    for key in $missing; do
+        print_warning "    $key  ->  claude plugin install $key"
+    done
+    print_warning "Also useful: claude plugin prune (removes orphaned auto-installed deps)"
 }
 
 # Deploy configuration files
