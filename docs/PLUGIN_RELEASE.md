@@ -47,3 +47,24 @@ to `~/.apm/apm.yml` on every invocation; ten accumulated there during this
 feature's own test development before anyone noticed, because nothing asserts on
 that file. Diff `~/.apm/apm.yml` and `~/.claude/plugins/installed_plugins.json`
 before and after any new suite that touches apm or plugins.
+
+## Qualified names
+
+Once a skill ships inside a bundle it is reachable **only** as
+`<bundle>:<name>` — `/manifest-docs:docs-all`, not `/docs-all`. There is no bare
+alias and no fallback: a bare `/name` is an Unknown command. This is the single
+largest accepted cost of the cutover (spec 674) and it applies to all 108
+skills, including the ones skills invoke from inside their own bodies.
+
+Two consequences when adding, renaming, or moving a skill:
+
+- **The bundle is part of the name.** Moving a skill between bundles is a
+  user-visible rename, which is why the table above treats it as a major bump.
+- **Cross-skill references must be resolved, not hardcoded.** Write
+  `[[skill:other-name]]` in a SKILL.md body and let
+  `configs/claude/scripts/skill_ref.py` render it. A literal `/other-name` is
+  caught by `configs/claude/scripts/skill_reference_check.py`, which is
+  **blocking** for slash-form and dispatch-form references and advisory
+  (ratcheted) for prose mentions.
+
+See [SKILL-NAMING.md](SKILL-NAMING.md) for the naming grammar itself.

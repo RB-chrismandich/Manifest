@@ -5,16 +5,43 @@
 
 **Last Updated**: 2026-07-29
 **Audience**: contributors and anyone debugging a deployed environment
-**Status**: one domain (`skills`) is **APM-owned**; everything else is legacy
+**Status**: mid-cutover — `skills` is APM-owned **and retired**; the harness
+tree has moved; plugin bundles are not installed yet
 
 ---
 
 ## Current state, in one line
 
-**`~/.claude/skills` is APM-owned (SC-006, 2026-07-28); every other domain is
-still deployed by the legacy `bootstrap.sh` pipeline.** `--enable-apm` still
+**`~/.claude/skills` is APM-owned (SC-006, 2026-07-28) and, since spec 674
+Phase 2, also `retired:` — the three writers stand down and the four sibling
+harness homes now resolve into `~/.manifest/skills`.** Every other domain is
+still deployed by the legacy `bootstrap.sh` pipeline. `--enable-apm` still
 defaults to false — the toggle governs whether bootstrap *installs* apm, not who
 owns a registered domain.
+
+### The three ownership states
+
+`apm_domains.yml` was strictly two-state, and **unlisted meant the legacy writer
+writes** — so handing a domain to plugins by deleting it from `domains:` would
+re-arm two writers rather than stand any down. `retired:` is the third state:
+nobody writes.
+
+| Domain | Path | Writer today |
+|---|---|---|
+| `skills` | `~/.claude/skills` | nobody — apm-owned, `retired:`, tree frozen and still populated |
+| `harness-skills` | `~/.manifest/skills` | `bootstrap.sh` (`deploy_home_skills … harness-skills`) |
+| `plugins` | `~/.claude/plugins` | `claude plugin install` — **no bundle installed yet** |
+
+`apm_ownership_report.sh` prints the rows that apply; the last two are
+self-disabling, so their **absence is not a failure** pre-cutover.
+
+**Not yet run anywhere**: Phase 4 (install the nine bundles, delete the
+`~/.claude/skills` copies) and Phase 5 (retire the apm apparatus). Until then
+`apm-dev-sync` is still how you refresh skills and `apm_drift_report.sh` is
+still the per-file integrity check. Rollback for what *has* run is the Phase 0
+tarball (`~/.manifest/pre-cutover-*.tgz`) — **not** `apm_ungate_domain.sh`,
+since every apm-based rollback path is itself retired by this cutover and is
+therefore circular.
 
 Check it yourself rather than trusting that sentence:
 
@@ -178,42 +205,9 @@ so skills that other tools installed into the same directory are left alone.
 
 ## The pinned `apm` version
 
-`apm` is pinned by version **and** sha256 in `bootstrap/lib/install.sh`, and
-installed fail-closed: a checksum mismatch, a failed download, or a missing
-checksum tool leaves apm uninstalled rather than falling back to an unverified
-binary.
-
-The digest is not a corruption check — it is the **provenance**. PyPI ties
-`apm-cli` to no repository (no `home_page`, no `project_urls`, no author), so
-the digest recorded at verification time is the only thing asserting the
-artifact's identity.
-
-### Upgrading
-
-Bumping the version without re-recording the digest silently disables the only
-check there is, so the pin is gated:
-
-1. Re-run the deployment matrix against the new version in an isolated HOME.
-2. Confirm idempotence — install twice, assert byte-identical.
-3. Confirm equivalence — the new version's output matches the old one's for an
-   unchanged source tree.
-4. Update **both** `bootstrap/lib/install.sh` and
-   `configs/claude/config/apm_pin_verified.txt`.
-
-`tests/bats/apm_upgrade_gate.bats` fails if the two disagree. That forces a bump
-to arrive with an explicit "I re-verified this" — it cannot prove you ran steps
-1–3, and its own record file says so.
-
-### Offline / air-gapped install
-
-```bash
-APM_WHEEL_LOCAL=/path/to/apm_cli-0.26.0-py3-none-any.whl ./bootstrap.sh --enable-apm
-```
-
-Skips resolution and download entirely — no network, no registry. **The checksum
-is still verified**: bringing your own file is not evidence about what is in it,
-and an air-gapped install is exactly when nobody is watching. A missing local
-artifact is an error, never a silent fallback to the network.
+Pinning, hash verification, and the upgrade gate live in
+[APM_PINNING.md](APM_PINNING.md). That whole apparatus is scheduled for
+retirement by spec 674 Phase 5 (T5.4), which is why it is a separate page.
 
 ## Related
 
@@ -221,6 +215,8 @@ artifact is an error, never a silent fallback to the network.
   every artifact classified, and what is *not* migrating
 - [decision-record.md](../specs/522-apm-deploy-migration/decision-record.md) — the measured evidence behind these choices
 - [HANDOFF.md](../specs/522-apm-deploy-migration/HANDOFF.md) — state at the Phase 2/3 boundary
+- [APM_PINNING.md](APM_PINNING.md) — pinning and hash-verifying the `apm` binary (retiring with spec 674 Phase 5)
+- [SKILL-NAMING.md](SKILL-NAMING.md) — the naming grammar and the add/rename/retire procedure
 
 ## Plugin bundles
 

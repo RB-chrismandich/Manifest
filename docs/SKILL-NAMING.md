@@ -1,6 +1,6 @@
 # Skill Naming Standard
 
-> Naming convention for every skill in `.apm/skills/` — ratified by
+> Naming convention for every skill in `plugins/<bundle>/skills/` — ratified by
 > [specs/480-skill-naming-taxonomy](../specs/480-skill-naming-taxonomy/spec.md)
 > (issue #478), enforced by `tests/bats/skill_naming.bats`.
 
@@ -177,8 +177,8 @@ upload-to-stitch
 ## Lifecycle: adding, renaming, retiring
 
 A skill's name and description are **derived into four other places**. Editing
-`.apm/skills/<name>/SKILL.md` alone leaves the repo in a state CI rejects, so
-run the generators in the same commit.
+the `SKILL.md` alone leaves the repo in a state CI rejects, so run the
+generators in the same commit.
 
 | Command | Writes |
 |---|---|
@@ -192,17 +192,35 @@ a "just add a skill" commit fails CI.
 
 ### Add or rename
 
-1. Create/edit `.apm/skills/<name>/SKILL.md` with `name` + `description`
-   frontmatter (`configs/claude/skills/` is a compat symlink — never a real dir).
+1. Create/edit `plugins/<bundle>/skills/<name>/SKILL.md` with `name` +
+   `description` frontmatter, and add the skill to that bundle's
+   `plugins/<bundle>/.claude-plugin/plugin.json` `skills[]` **and** to
+   `configs/claude/config/skill_policies.yml` under the same bundle.
+   **Do not edit `.apm/skills/`** — since spec 674 T3.3 it is a *generated*
+   mirror (`generate_skill_mirror.sh`, gitignored), and an edit there is
+   silently destroyed by the next rebuild. `configs/claude/skills/` is a compat
+   symlink to that mirror — also never a real dir, also never edited.
 2. Add `tool_policies` in `configs/claude/config/command_config.yml`; add
    `validation_criteria.yml` overrides only if the skill needs them.
 3. Run all three generators above and commit what they change.
-4. Verify: `generate_commands_doc.py --check` (exit 1 = drift), then
-   `bats tests/bats/context_budget.bats tests/bats/skill_naming.bats`.
+4. Regenerate the mirror (`configs/claude/scripts/generate_skill_mirror.sh`),
+   then verify: `generate_commands_doc.py --check` (exit 1 = drift), then
+   `bats tests/bats/context_budget.bats tests/bats/skill_naming.bats
+   tests/bats/bundle_partition.bats`. The partition check is the one that fails
+   if the skill is in a manifest but not the registry, or in neither.
    Frontmatter across all skills is capped at 29,000 chars — a new skill may
    need a trim pass elsewhere before it fits.
 5. Refresh your home with `apm-dev-sync`. `./bootstrap.sh` no longer deploys
    skills — apm has owned `~/.claude/skills` since SC-006.
+
+### Qualified vs bare names
+
+Once a skill ships inside a plugin bundle it is reachable **only** as
+`<bundle>:<name>` — `/manifest-docs:docs-all`, not `/docs-all`. There is no bare
+alias and no fallback. The bundle is therefore part of the name, and moving a
+skill between bundles is a user-visible rename: see
+[PLUGIN_RELEASE.md](PLUGIN_RELEASE.md#qualified-names) for what that means for
+versioning and for cross-skill references.
 
 ### Retire
 
