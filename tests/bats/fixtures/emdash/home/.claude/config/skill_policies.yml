@@ -1,0 +1,3 @@
+# Fixture registry. D1 compares the home's SKILL.md count against this,
+# so a fixture must declare what IT contains — not the real catalog size.
+expected_total: 1
