@@ -1,6 +1,6 @@
 {
   "name": "stitch-design",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Google Stitch design workflows: generate and edit screens, extract and manage design systems, and convert designs to React, React Native or Remotion.",
   "author": {
     "name": "ReefBytes"

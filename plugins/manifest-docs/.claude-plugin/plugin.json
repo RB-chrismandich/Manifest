@@ -1,6 +1,6 @@
 {
   "name": "manifest-docs",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Documentation: README and doc-set improvement, Mermaid architecture diagrams, and a one-pass orchestrator. Requires Manifest bootstrap for ~/.claude/scripts.",
   "author": {
     "name": "ReefBytes"

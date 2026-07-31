@@ -1,6 +1,6 @@
 {
   "name": "manifest-spec-planning",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Planning artifacts: spec/plan/task consistency review, completion audit, trade-off records and critic-gated implementation. Requires Manifest bootstrap for ~/.claude/scripts.",
   "author": {
     "name": "ReefBytes"

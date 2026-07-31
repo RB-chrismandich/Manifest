@@ -1,6 +1,6 @@
 {
   "name": "manifest-security",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Security review and hardening: diff review, finding triage and refutation, MCP and proxy audits, CI pwn-request analysis. Requires Manifest bootstrap for ~/.claude/scripts.",
   "author": {
     "name": "ReefBytes"

@@ -1,6 +1,6 @@
 {
   "name": "manifest-code-quality",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Analysis of code that already exists: per-language refactor roadmaps, constitution audit, AI-defect audits, verification gates and test craft. Requires Manifest bootstrap for ~/.claude/scripts.",
   "author": {
     "name": "ReefBytes"

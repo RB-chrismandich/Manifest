@@ -71,6 +71,28 @@ for why, including the scripts that are deliberately **not** migrating.
 
 ## Detecting drift
 
+**Since spec 674 Phase 5, drift detection for the skill catalog is
+[`plugin_drift_report.sh`](../configs/claude/scripts/plugin_drift_report.sh)**,
+not `apm_drift_report.sh`. Constitution Principle V.3 makes detection a live
+obligation for any path a mechanism claims, so retiring the tool without a
+successor would have removed the control rather than migrated it.
+
+What changed, stated plainly: apm recorded a sha256 per deployed file. Plugins
+record only `gitCommitSha` + `version`, and `reconcile.yml` ignore-lists
+`plugins`, so a hand-edit inside `~/.claude/plugins/cache/.../SKILL.md` is
+invisible to `claude plugin` itself. The replacement compares the installed
+bundle against its **directory-source** tree — the repo — which is exact for
+this marketplace and honest about the rest: a git- or registry-sourced bundle
+reports `UNCHECKED`, never clean, and "nothing checkable" exits 2 rather than 0.
+
+One operational consequence worth knowing before you go looking for a bug:
+`claude plugin update` is a **no-op when the version is unchanged**, so a body
+edit does not reach users until `plugin.json` is bumped. That is what the patch
+tier in [PLUGIN_RELEASE.md](PLUGIN_RELEASE.md) is for, and the drift report is
+what tells you it was skipped.
+
+
+
 ```bash
 configs/claude/scripts/apm_ownership_report.sh          # human-readable
 configs/claude/scripts/apm_ownership_report.sh --json   # machine-readable
