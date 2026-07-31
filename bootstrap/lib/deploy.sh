@@ -302,9 +302,15 @@ deploy_configs() {
     # No-op once apm owns the `skills` domain (SC-006) — see apm_domains.yml.
     # Must run before link_shared_assets (create_symlink skips missing targets).
     deploy_home_skills "$SCRIPT_DIR/.apm/skills" "${MANIFEST_SKILLS_DIR:-$TARGET_DIR/skills}" harness-skills
+    # T2.5 (spec 674): repoint every sibling home at the harness root, from HERE
+    # and unconditionally. Doing it inside the per-assistant deploy functions
+    # leaves --disable-<assistant> pointing at a tree Manifest no longer writes,
+    # and Devin (ENABLE_DEVIN defaults FALSE) never repointed at all.
+    repoint_sibling_skill_links
+
     # Gate /graphify on its service toggle (FR-012) and reconcile any foreign
     # 'graphify install' residue (FR-010). Runs before the assistant skill symlinks.
-    gate_graphify_skill "$TARGET_DIR/skills"
+    gate_graphify_skill "${MANIFEST_SKILLS_DIR:-$TARGET_DIR/skills}"
     gate_pilotfish_agents "$TARGET_DIR" "$source_dir/agents"
     gate_devpanel_agents "$TARGET_DIR" "$source_dir/agents-devpanel"
 
@@ -411,6 +417,49 @@ prune_cursor_rules() {
 }
 
 # Deploy Cursor IDE configuration (mirrors .claude with symlinks)
+# repoint_sibling_skill_links — point every non-Claude home's `skills` entry at
+# the harness root (T2.5, spec 674).
+#
+# UNCONDITIONAL by design. Every existing repoint sits inside a per-assistant
+# deploy function behind an early-return toggle: deploy_cursor_configs guards on
+# ENABLE_CURSOR, and deploy_devin_config guards on ENABLE_DEVIN which DEFAULTS
+# FALSE. So `./bootstrap.sh --disable-cursor` would leave ~/.cursor/skills
+# pointing at a tree Manifest no longer writes, and Devin would get zero skills
+# on a default machine -- both silently, because a stale symlink is not an error.
+#
+# Disabling an assistant means Manifest stops deploying ITS configs. It has never
+# meant "leave that assistant's skills pointing somewhere wrong", and the two
+# only became separable once the shared root moved.
+repoint_sibling_skill_links() {
+    local root="${MANIFEST_SKILLS_DIR:-$TARGET_DIR/skills}"
+    if [[ ! -d "$root" ]]; then
+        print_warning "Harness skills root missing: $root (siblings not repointed)"
+        return 0
+    fi
+
+    # DEVIN IS DELIBERATELY ABSENT FROM THIS LIST UNTIL PHASE 4 (T2.6).
+    #
+    # Devin discovers ~/.claude/skills natively via its config.json
+    # `read_config_from.claude`. Phase 2 FREEZES that tree but does not empty it
+    # -- emptying is Phase 4. So creating ~/.config/devin/skills now would give
+    # Devin two views of the same catalog and register every skill twice under
+    # two namespaces (/devin:env-check AND /claude:env-check, measured against
+    # devin 3000.2.17), halving the listing's signal density.
+    #
+    # The plan's argument for adding it here is that the double-registration
+    # "inverts once ~/.claude/skills is empty" -- which is true, and true only
+    # AFTER Phase 4. Until then Devin keeps inheriting natively and needs
+    # nothing. Adding it in Phase 4, together with the emptying, is the step
+    # that is actually safe.
+    local home_dir
+    for home_dir in "$CURSOR_TARGET_DIR" "$GEMINI_TARGET_DIR" "$CODEX_TARGET_DIR" \
+        "$ANTIGRAVITY_TARGET_DIR"; do
+        [[ -n "$home_dir" ]] || continue
+        mkdir -p "$home_dir"
+        create_symlink "$home_dir/skills" "$root" "$(basename "$home_dir") skills"
+    done
+}
+
 deploy_cursor_configs() {
     # Honor the service toggle — deploying while disabled rewrote ~/.cursor
     # against the user's explicit request (issue #321)
