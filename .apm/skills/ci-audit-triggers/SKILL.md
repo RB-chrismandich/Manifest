@@ -20,7 +20,7 @@ either platform — only the vocabulary changes:
 
 - `github-actions` → the trigger/variable/injection vocabulary in steps 1-9 below
   applies as written.
-- `gitlab-ci` → load `references/gitlab-ci-triggers.md` for the real GitLab
+- `gitlab-ci` → load `~/.claude/references/ci/gitlab-ci-triggers.md` for the real GitLab
   equivalents (pipelines for merge requests from forks, `CI_MERGE_REQUEST_*`
   variables, `$[[ inputs.* ]]` interpolation, protected variables/branches in place of
   `author_association`) and apply the same method through that vocabulary instead.

@@ -133,3 +133,57 @@ teardown() {
     [ -f "$TGT/plugins/config/data.json" ]           # nested 'config' survives
     [ ! -e "$TGT/config" ]                            # top-level 'config' dropped
 }
+
+# --- a partial restore must not destroy the home -----------------------------
+#
+# The live directory has already been `mv`'d into the backup by the time this
+# runs. Under `set -e` an unguarded rsync turns one unreadable file into an
+# aborted deploy with NO ~/.claude at all. Observed 2026-07-30: a stale
+# __pycache__ entry inside a bundled venv changed under rsync mid-copy, rsync
+# exited non-zero, bootstrap stopped, and the home was left with runtime state
+# only — no scripts/, config/, or references/.
+
+@test "restore_runtime_state survives a failing rsync instead of aborting" {
+    local target="$SANDBOX/target"
+    mkdir -p "$target"
+    # Shadow rsync with a stub that always fails, the way a vanished source file
+    # makes the real one exit 23/24.
+    mkdir -p "$SANDBOX/stub"
+    printf '#!/bin/sh\necho "rsync: some files vanished" >&2\nexit 23\n' > "$SANDBOX/stub/rsync"
+    chmod +x "$SANDBOX/stub/rsync"
+
+    run env PATH="$SANDBOX/stub:$PATH" bash -c "
+        source '$REPO_ROOT/bootstrap/lib/common.sh'
+        source '$REPO_ROOT/bootstrap/lib/deploy.sh'
+        set -e
+        restore_runtime_state '$BK' '$target' '$SRC'
+        echo REACHED_END
+    "
+    assert_success
+    assert_output --partial "REACHED_END"
+}
+
+@test "restore_runtime_state names the backup when the restore is incomplete" {
+    local target="$SANDBOX/target2"
+    mkdir -p "$target" "$SANDBOX/stub2"
+    printf '#!/bin/sh\nexit 23\n' > "$SANDBOX/stub2/rsync"
+    chmod +x "$SANDBOX/stub2/rsync"
+
+    run env PATH="$SANDBOX/stub2:$PATH" bash -c "
+        source '$REPO_ROOT/bootstrap/lib/common.sh'
+        source '$REPO_ROOT/bootstrap/lib/deploy.sh'
+        set -e
+        restore_runtime_state '$BK' '$target' '$SRC'
+    "
+    assert_success
+    assert_output --partial "$BK"
+}
+
+@test "restore_runtime_state skips regenerable bytecode caches" {
+    local target="$SANDBOX/target3"
+    mkdir -p "$target" "$BK/security/venv/lib/__pycache__"
+    echo "stale" > "$BK/security/venv/lib/__pycache__/mod.cpython-311.pyc"
+    run restore_runtime_state "$BK" "$target" "$SRC"
+    assert_success
+    [ ! -e "$target/security/venv/lib/__pycache__/mod.cpython-311.pyc" ]
+}

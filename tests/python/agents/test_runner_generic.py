@@ -20,51 +20,17 @@ sys.path.insert(0, SCRIPTS_DIR)
 from agents.config import Config, RateLimiter
 from agents.runners import CLIAgent
 
-# The 5 real agents plus a 6th synthetic "widget" agent that exists nowhere
-# else in the codebase — not in parallel_agent.yml, not in config.py's
-# _default_config(), and with no dedicated runner class.
-SYNTHETIC_ROSTER = """
-agents:
-  claude:
-    name: claude
-    binary: claude
-    home_dir: ~/.claude
-    prompt_args: ["-p", "{prompt}"]
-    model_args: ["--model", "{model}"]
-    auth_check: "claude auth status"
-    enabled_default: true
-  gemini:
-    name: gemini
-    binary: gemini
-    home_dir: ~/.gemini
-    prompt_args: ["-p", "{prompt}"]
-    model_args: ["-m", "{model}"]
-    auth_check: "gemini auth status"
-    enabled_default: true
-  cursor:
-    name: cursor
-    binary: cursor-agent
-    home_dir: ~/.cursor
-    prompt_args: ["{prompt}"]
-    model_args: ["--model", "{model}"]
-    auth_check: "cursor-agent --version"
-    enabled_default: true
-  codex:
-    name: codex
-    binary: codex
-    home_dir: ~/.codex
-    prompt_args: ["{prompt}"]
-    model_args: ["--model", "{model}"]
-    auth_check: "codex login status"
-    enabled_default: true
-  antigravity:
-    name: antigravity
-    binary: agy
-    home_dir: ~/.antigravity
-    prompt_args: ["--print", "{prompt}"]
-    model_args: ["--model", "{model}"]
-    auth_check: "agy models"
-    enabled_default: true
+# The 5 real agents (shared with tests/python/test_reconcile_policy.py) plus
+# a 6th synthetic "widget" agent that exists nowhere else in the codebase —
+# not in parallel_agent.yml, not in config.py's _default_config(), and with
+# no dedicated runner class. widget's prompt_args deliberately use a
+# "--ask <prompt>" pattern distinct from every other agent above (and from
+# test_reconcile_policy.py's own synthetic "beta" agent), so the assertion in
+# test_generic_cli_agent_builds_command_for_roster_only_provider below can't
+# pass by accident — that field difference is load-bearing, so this 6th-agent
+# block stays local to this file rather than merging into the shared fixture.
+_ROSTER_FIXTURE = REPO_ROOT / "tests" / "fixtures" / "agent_roster_synthetic.yml"
+_WIDGET_AGENT = """\
   widget:
     name: widget
     binary: widget-cli
@@ -74,6 +40,7 @@ agents:
     auth_check: "widget-cli whoami"
     enabled_default: true
 """
+SYNTHETIC_ROSTER = _ROSTER_FIXTURE.read_text(encoding="utf-8") + _WIDGET_AGENT
 
 
 def _make_config(tmp_path):

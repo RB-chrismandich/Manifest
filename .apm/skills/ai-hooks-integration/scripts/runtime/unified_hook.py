@@ -33,10 +33,19 @@ import os
 import sys
 from pathlib import Path
 
+# No __pycache__ beside this skill: ~/.claude/skills is apm-owned and apm
+# declines to adopt a directory holding files it did not place, so a cache dir
+# here makes deploy silently skip the whole skill. The importing process — not
+# the imported module — decides this, because by the time runtime/detect_source
+# could set the flag its own .pyc is already on disk. Complements the `-B` this
+# script's own spawn sites pass (install_all.py, run_handler below): those cover
+# the hook path, this covers every other way the script gets run.
+sys.dont_write_bytecode = True
+
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from runtime.detect_source import detect_parent_source
+from runtime.detect_source import detect_parent_source  # noqa: E402
 
 
 def debug_log(msg: str) -> None:

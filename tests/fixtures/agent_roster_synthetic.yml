@@ -1,0 +1,41 @@
+agents:
+  claude:
+    name: claude
+    binary: claude
+    home_dir: ~/.claude
+    prompt_args: ["-p", "{prompt}"]
+    model_args: ["--model", "{model}"]
+    auth_check: "claude auth status"
+    enabled_default: true
+  gemini:
+    name: gemini
+    binary: gemini
+    home_dir: ~/.gemini
+    prompt_args: ["-p", "{prompt}"]
+    model_args: ["-m", "{model}"]
+    auth_check: "gemini auth status"
+    enabled_default: true
+  cursor:
+    name: cursor
+    binary: cursor-agent
+    home_dir: ~/.cursor
+    prompt_args: ["{prompt}"]
+    model_args: ["--model", "{model}"]
+    auth_check: "cursor-agent --version"
+    enabled_default: true
+  codex:
+    name: codex
+    binary: codex
+    home_dir: ~/.codex
+    prompt_args: ["{prompt}"]
+    model_args: ["--model", "{model}"]
+    auth_check: "codex login status"
+    enabled_default: true
+  antigravity:
+    name: antigravity
+    binary: agy
+    home_dir: ~/.antigravity
+    prompt_args: ["--print", "{prompt}"]
+    model_args: ["--model", "{model}"]
+    auth_check: "agy models"
+    enabled_default: true

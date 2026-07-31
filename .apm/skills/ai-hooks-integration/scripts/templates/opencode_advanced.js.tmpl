@@ -1,0 +1,205 @@
+/**
+ * {plugin_name} Plugin for OpenCode (Advanced)
+ *
+ * Features:
+ * - WebSocket + HTTP fallback for reliable event delivery
+ * - Session ID generation from cwd hash
+ * - Idle timeout detection (triggers SessionEnd)
+ * - Other AI tool detection (avoids duplicates)
+ */
+
+const WEBSOCKET_URL = "ws://127.0.0.1:8765";
+const HTTP_URL = "http://127.0.0.1:8766/event";
+const IDLE_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+const SOURCE = "opencode";
+
+// State
+let ws = null;
+let wsConnected = false;
+let lastActivity = Date.now();
+let idleTimer = null;
+let currentSessionId = null;
+
+// Generate session ID from cwd
+function generateSessionId(cwd) {{
+  let hash = 0;
+  for (let i = 0; i < cwd.length; i++) {{
+    hash = ((hash << 5) - hash) + cwd.charCodeAt(i);
+    hash |= 0;
+  }}
+  return `opencode-${{Math.abs(hash).toString(16)}}`;
+}}
+
+// Check if running inside another AI tool (to avoid duplicates)
+function isRunningInOtherAI() {{
+  const ppid = process.ppid;
+  // This is a simplified check - real implementation would walk process tree
+  const env = process.env;
+  if (env.CLAUDE_SESSION || env.CURSOR_SESSION || env.GEMINI_SESSION) {{
+    return true;
+  }}
+  return false;
+}}
+
+// Normalize tool names
+function normalizeToolName(name) {{
+  const map = {{
+    shell: "Bash", bash: "Bash",
+    read: "Read", read_file: "Read",
+    write: "Write", write_file: "Write",
+    edit: "Edit", edit_file: "Edit",
+    grep: "Grep", search_files: "Grep",
+    glob: "Glob", list_files: "Glob",
+  }};
+  return map[(name || "").toLowerCase()] || name || "Unknown";
+}}
+
+// Send event via HTTP (fallback)
+async function sendHttp(event) {{
+  try {{
+    const response = await fetch(HTTP_URL, {{
+      method: "POST",
+      headers: {{ "Content-Type": "application/json" }},
+      body: JSON.stringify(event),
+      signal: AbortSignal.timeout(1000),
+    }});
+    return response.ok;
+  }} catch (e) {{
+    console.error("HTTP send failed:", e.message);
+    return false;
+  }}
+}}
+
+// Send event via WebSocket
+async function sendWs(event) {{
+  return new Promise((resolve) => {{
+    if (ws && wsConnected) {{
+      try {{
+        ws.send(JSON.stringify(event));
+        resolve(true);
+        return;
+      }} catch (e) {{
+        console.error("WebSocket send failed:", e.message);
+      }}
+    }}
+
+    // Try to connect
+    try {{
+      const WebSocket = require("ws");
+      ws = new WebSocket(WEBSOCKET_URL);
+
+      const timeout = setTimeout(() => {{
+        ws.close();
+        resolve(false);
+      }}, 1000);
+
+      ws.on("open", () => {{
+        wsConnected = true;
+        clearTimeout(timeout);
+        ws.send(JSON.stringify(event));
+        resolve(true);
+      }});
+
+      ws.on("close", () => {{
+        wsConnected = false;
+        ws = null;
+      }});
+
+      ws.on("error", () => {{
+        clearTimeout(timeout);
+        wsConnected = false;
+        ws = null;
+        resolve(false);
+      }});
+    }} catch (e) {{
+      console.error("WebSocket connect failed:", e.message);
+      resolve(false);
+    }}
+  }});
+}}
+
+// Send event with fallback
+async function sendEvent(eventType, payload) {{
+  const event = {{
+    event_type: eventType,
+    source: SOURCE,
+    timestamp: new Date().toISOString(),
+    ...payload,
+  }};
+
+  // Try WebSocket first, then HTTP
+  const wsSent = await sendWs(event);
+  if (!wsSent) {{
+    await sendHttp(event);
+  }}
+}}
+
+// Reset idle timer
+function resetIdleTimer(sessionId) {{
+  lastActivity = Date.now();
+
+  if (idleTimer) {{
+    clearTimeout(idleTimer);
+  }}
+
+  idleTimer = setTimeout(async () => {{
+    await sendEvent("SessionEnd", {{
+      session_id: sessionId,
+      reason: "idle_timeout",
+    }});
+    currentSessionId = null;
+  }}, IDLE_TIMEOUT_MS);
+}}
+
+module.exports = async function {export_name}(pluginInput) {{
+  const cwd = pluginInput?.directory || process.cwd();
+
+  // Check for other AI tools
+  if (isRunningInOtherAI()) {{
+    // Return empty hooks to avoid duplicates
+    return {{}};
+  }}
+
+  // Generate session ID
+  currentSessionId = generateSessionId(cwd);
+
+  // Send SessionStart
+  await sendEvent("SessionStart", {{
+    session_id: currentSessionId,
+    cwd: cwd,
+  }});
+
+  resetIdleTimer(currentSessionId);
+
+  return {{
+    "tool.execute.before": async function (input, output) {{
+      resetIdleTimer(currentSessionId);
+
+      await sendEvent("PreToolUse", {{
+        session_id: currentSessionId,
+        cwd: cwd,
+        tool_name: normalizeToolName(input.tool),
+        tool_input: output?.args || {{}},
+      }});
+
+      // Example: Block if command accesses other AI configs
+      if (input.tool === "bash") {{
+        const command = output?.args?.command || "";
+        if (command.includes(".claude/") || command.includes(".cursor/")) {{
+          throw new Error("Cross-tool config access blocked");
+        }}
+      }}
+    }},
+
+    "tool.execute.after": async function (input, output) {{
+      resetIdleTimer(currentSessionId);
+
+      await sendEvent("PostToolUse", {{
+        session_id: currentSessionId,
+        cwd: cwd,
+        tool_name: normalizeToolName(input.tool),
+        output: output?.output?.substring?.(0, 500) || "",
+      }});
+    }},
+  }};
+}};

@@ -31,10 +31,17 @@ import os
 import sys
 from pathlib import Path
 
+# No __pycache__ beside this skill: ~/.claude/skills is apm-owned and apm
+# declines to adopt a directory holding files it did not place, so a cache dir
+# here makes deploy silently skip the whole skill. The importing process — not
+# the imported module — decides, because by the time runtime/cli_wrapper could
+# set the flag its own .pyc is already on disk.
+sys.dont_write_bytecode = True
+
 # Add runtime module to path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from runtime.cli_wrapper import (
+from runtime.cli_wrapper import (  # noqa: E402
     find_original_binary,
     generate_wrapper,
     write_wrapper,

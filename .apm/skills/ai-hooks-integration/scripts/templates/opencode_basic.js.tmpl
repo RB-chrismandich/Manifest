@@ -1,0 +1,32 @@
+/**
+ * {plugin_name} Plugin for OpenCode
+ */
+
+module.exports = async function {export_name}(pluginInput) {{
+  const cwd = pluginInput?.directory || process.cwd();
+
+  return {{
+    "tool.execute.before": async function (input, output) {{
+      // input.tool - Tool name (string)
+      // input.sessionID - Session identifier
+      // input.callID - Unique call ID
+      // output.args - Tool arguments (mutable)
+
+      // Example: Block dangerous commands
+      if (input.tool === "bash") {{
+        const command = output?.args?.command || "";
+        if (command.includes("rm -rf /")) {{
+          throw new Error("Dangerous command blocked");
+        }}
+      }}
+    }},
+
+    "tool.execute.after": async function (input, output) {{
+      // output.title - Execution title
+      // output.output - Tool output
+      // output.metadata - Additional data
+
+      console.log(`Tool ${{input.tool}} completed`);
+    }},
+  }};
+}};

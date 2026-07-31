@@ -21,7 +21,7 @@ changes:
   `include:` directives first — the job that runs the linter may be defined in an
   included file, not the top-level `.gitlab-ci.yml` (`glab ci config compile` prints
   the fully merged, include-resolved config; see
-  `~/.claude/skills/ci-reproduce-failure/references/gitlab-ci-reproduction.md` for
+  `~/.claude/references/ci/gitlab-ci-reproduction.md` for
   the command). Then check the GitLab-specific override locations in step 2 below.
 - `none` → report that no CI configuration was detected and stop; don't guess at a
   platform.

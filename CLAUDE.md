@@ -128,6 +128,8 @@ Antigravity) and required CLI installs are in
 | `configs/claude/scripts/tracker_registry.py` | Read-only resolver CLI for `tracker_providers.yml` (status/access/default-provider/mcp-tool lookups) |
 | `configs/claude/scripts/tracker_ops.sh` | Provider-agnostic issue verb dispatcher (github/gitlab/linear; jira exit 3) — resolve-provider, issue-list/view/create/comment/transition/label/close, duplicate-mark |
 | `configs/claude/config/command_config.yml` | Thresholds, tool policies, model selection, error recovery |
+| `configs/claude/config/code_constitution.yml` | Code Constitution: 12 pre-write articles + per-language ceilings |
+| `configs/claude/scripts/constitution_check.py` | Constitution checker (ratcheted); hook `constitution_hook.py` |
 | `configs/claude/config/tracker_triage.yml` | Provider-neutral triage scoring, duplicate detection, staleness thresholds (replaced `linear_triage.yml`, deleted 2026-07-29) |
 | `configs/claude/config/validation_criteria.yml` | Tier 1 (critical) and Tier 2 (quality) validation rules |
 | `configs/claude/config/labels.yml` | Canonical label registry for GitHub, GitLab, and Linear |
@@ -149,20 +151,15 @@ publish-free, and also removes deleted skills.
 
 ## Testing Changes
 
-Test the parallel agent script locally:
+Test the parallel agent locally:
 
 ```bash
-# Test with all agents
-configs/claude/scripts/parallel_agent.py --json "Test prompt"
-
-# Test specific mode
-configs/claude/scripts/parallel_agent.py --json --review /path/to/file
-
-# Test with single agent
-configs/claude/scripts/parallel_agent.py --cursor-only "Test prompt"
+manifest parallel-agent --json "Test prompt"          # all agents
+manifest parallel-agent --json --review /abs/path     # review mode
+manifest parallel-agent --cursor-only "Test prompt"   # single agent
 ```
 
-Validate YAML configuration syntax:
+Validate YAML syntax:
 
 ```bash
 python3 -c "import yaml; yaml.safe_load(open('configs/claude/config/command_config.yml'))"
@@ -179,17 +176,10 @@ labels incl. the auto-dev lifecycle set); the full registry table lives in
 [docs/COMMANDS.md](docs/COMMANDS.md#label-management).
 
 ```bash
-# Sync all labels to the current platform
-configs/claude/scripts/label_sync.sh
-
-# Dry-run to preview changes
-configs/claude/scripts/label_sync.sh --dry-run
-
-# Sync via git_ops.sh wrapper
-configs/claude/scripts/git_ops.sh label-sync
+configs/claude/scripts/label_sync.sh             # sync to current platform
+configs/claude/scripts/label_sync.sh --dry-run  # preview
+configs/claude/scripts/git_ops.sh label-sync    # via wrapper
 ```
-
-See [docs/COMMANDS.md](docs/COMMANDS.md#label-management) for full label reference.
 
 ## Adding New Skills
 

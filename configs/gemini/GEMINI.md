@@ -285,7 +285,9 @@ Apply while writing or refactoring code, in every session:
 Registry of anti-patterns (detection cues + prevention rules):
 `~/.claude/config/knowledge_base.yml` (guardrail tags: arch, async-state,
 error-handling, security, dependency, iteration). Full reference:
-`~/.claude/references/antipatterns.md`. On-demand deep audit: `/ai-code-audit`.
+`~/.claude/references/antipatterns.md`. Pre-write doctrine (13 articles, size
+ceilings, per-language annexes): `~/.claude/references/code-constitution.md`,
+enforced by `constitution_check.py`. On-demand deep audit: `/ai-code-audit`.
 
 ---
 
@@ -575,7 +577,7 @@ plans untouched 7+ days should be updated, completed, or abandoned. Use
 - **CI/CD, Testing & Quality**: `/a11y-audit` · `/ai-code-audit` · `/ci-diagnose-drift` · `/ci-reproduce-failure` · `/ci-setup` · `/data-validate-live` · `/go-refactor` · `/node-refactor` · `/performance-check` · `/project-verify` · `/python-refactor` · `/shell-refactor` · `/smoke-manage` · `/terraform-refactor` · `/test-pin-bug` · `/test-vary-fixtures` · `/ux-review`
 - **Infrastructure & Config**: `/api-optimize-bulk` · `/cache-warm-oob` · `/cli-audit-help` · `/config-audit` · `/config-debug-substitution` · `/config-validate-native` · `/data-design-ingestion` · `/deploy-diagnose-drift` · `/deploy-retire-component` · `/docker-probe-internal` · `/llm-invoke-stdin` · `/pass-cli` · `/process-diagnose-stall` · `/project-scaffold` · `/shell-audit-errexit` · `/shell-audit-pipefail` · `/version-pin`
 - **Meta & Orchestration**: `/antipattern-detect` · `/code-audit` · `/env-check` · `/graphify` · `/help` · `/learning-capture` · `/memory-compress` · `/metrics-report` · `/session-checkpoint` · `/token-benchmark` · `/token-conserve`
-- **Uncategorized**: `/automation-rework-breakeven` · `/code-to-design` · `/deploy-reconcile` · `/design-md` · `/enhance-prompt` · `/extract-design-md` · `/extract-static-html` · `/false-green-check-audit` · `/generate-design` · `/lifecycle-run` · `/manage-design-system` · `/pr-smoke` · `/react-components` · `/react-native` · `/react-vite-dashboard` · `/remotion` · `/shadcn-ui` · `/spec-implement-loop` · `/stitch-loop` · `/taste-design` · `/test-isolate-ambient` · `/upload-to-stitch`
+- **Uncategorized**: `/automation-rework-breakeven` · `/code-audit-constitution` · `/code-to-design` · `/deploy-reconcile` · `/design-md` · `/enhance-prompt` · `/extract-design-md` · `/extract-static-html` · `/false-green-check-audit` · `/generate-design` · `/lifecycle-run` · `/manage-design-system` · `/pr-smoke` · `/react-components` · `/react-native` · `/react-vite-dashboard` · `/remotion` · `/shadcn-ui` · `/spec-implement-loop` · `/stitch-loop` · `/taste-design` · `/test-isolate-ambient` · `/upload-to-stitch`
 
 Run `/help <query>` for descriptions and when-to-use.
 

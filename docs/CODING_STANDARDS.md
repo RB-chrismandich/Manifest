@@ -1,9 +1,10 @@
+<!-- doc-type: reference -->
 # Coding Standards
 
 > Authoritative per-language coding standards for the Manifest repo and how they
 > are enforced.
 
-**Last Updated**: 2026-06-29
+**Last Updated**: 2026-07-29
 **Audience**: Contributors, AI coding agents
 **Spec**: [specs/366-coding-standards/spec.md](../specs/366-coding-standards/spec.md)
 
@@ -14,22 +15,54 @@ and tool are named.
 
 ## Enforcement Layers
 
-Standards are enforced in four complementary layers, fastest/earliest to latest:
+Standards are enforced in five complementary layers, fastest/earliest to latest:
 
 | Layer | When it runs | Blocks? | Auto-fix? | Mechanism |
 |-------|--------------|---------|-----------|-----------|
 | Editor | As you type / on save | No | Per editor | `.editorconfig`, LSP |
-| Edit-time | After every agent `Write`/`Edit` | **No** (advisory) | **No** | `configs/claude/scripts/lint_on_edit_hook.sh` (PostToolUse) |
-| Commit | On `git commit` (if `pre-commit install` was run) | Yes | Yes | `.pre-commit-config.yaml` |
+| Pre-write | Before every agent `Read`/`Write`/`Edit`/`MultiEdit` | **No** (advisory) | **No** | `configs/claude/scripts/constitution_hook.py` (PreToolUse) |
+| Edit-time | After every agent `Write`/`Edit` | **No** (advisory) | **No** | `configs/claude/scripts/lint_on_edit_hook.sh` (PostToolUse), which also dispatches `constitution_check.py` |
+| Commit | On `git commit` (if `pre-commit install` was run) | Yes | Yes | `.pre-commit-config.yaml`, incl. the ratcheted `constitution-check` hook |
 | Gate of record | On every PR/push (CI) | Yes | No | `.github/workflows/ci.yml` runs pre-commit on changed files |
 
-The **edit-time** layer is advisory only: it lints the just-edited file and writes
-findings to stderr, but never blocks the edit, never rewrites the file, and fails
-open when a linter is absent. The **gate of record** runs the same
-`.pre-commit-config.yaml` against the files changed in a PR/push, so standards
-cannot be bypassed by skipping local hooks. It is scoped to changed files (not the
-whole tree) so pre-existing debt does not block unrelated work; debt is paid down
-as files are touched.
+The **pre-write** layer injects the Code Constitution doctrine once per language
+per session plus per-file measurements on every call; it never denies a tool call
+and always exits 0. The **edit-time** layer is advisory only: it lints the
+just-edited file and writes findings to stderr, but never blocks the edit, never
+rewrites the file, and fails open when a linter is absent. The **gate of record**
+runs the same `.pre-commit-config.yaml` against the files changed in a PR/push, so
+standards cannot be bypassed by skipping local hooks. It is scoped to changed files
+(not the whole tree) so pre-existing debt does not block unrelated work; debt is
+paid down as files are touched.
+
+## Code Constitution
+
+Language-independent doctrine applied *before* code is written, complementing (not
+replacing) the per-language rules below: thirteen articles `CON-001`–`CON-013`, of
+which eight checks (`C-SIZE`, `C-DUPE`, `C-DATA`, `C-TYPE`, `C-ERR`, `C-TEST`,
+`C-STRUCT`, `C-DOC`) enforce the mechanically provable subset; the rest is judgement.
+
+Source of truth: [configs/claude/config/code_constitution.yml](../configs/claude/config/code_constitution.yml).
+The prose derives from it — [code-constitution.md](../configs/claude/references/code-constitution.md)
+for the universal articles, plus five annexes:
+[python](../configs/claude/references/constitution/python.md) ·
+[node](../configs/claude/references/constitution/node.md) ·
+[go](../configs/claude/references/constitution/go.md) ·
+[shell](../configs/claude/references/constitution/shell.md) ·
+[terraform](../configs/claude/references/constitution/terraform.md).
+
+**The gate is ratcheted, not retroactive.**
+[constitution_baseline.json](../configs/claude/config/constitution_baseline.json)
+records each file's violation count per check, and only a *rise* blocks. Fixing a
+violation lowers the entry permanently; raising one needs the reason in the commit
+message. Regenerate a file's entries with `--update-baseline`.
+
+```bash
+configs/claude/scripts/constitution_check.py FILE              # vs the ratchet
+configs/claude/scripts/constitution_check.py --no-baseline FILE  # every violation
+```
+
+Exit codes: `0` clean, `1` blocking findings, `2` usage or registry error.
 
 ## Scope Verdicts
 
@@ -77,6 +110,8 @@ Each language carries one verdict:
 - Never `eval` or interpolate untrusted input into shell source.
 - Inline `# shellcheck disable=SCxxxx` with a reason only; never blanket file-level
   disables.
+
+**Constitution annex:** [shell](../configs/claude/references/constitution/shell.md).
 
 **Enforcement:** shellcheck `--severity=warning` (commit + CI) and
 `--severity=info` (edit-time advisory); `shfmt -i 4 -ci -sr -ln bash`; the
@@ -137,6 +172,8 @@ array-expansion lint at commit and CI.
   3. **Nothing else.** A script that is neither gated nor marked fails the
      `coverage is enumerated, not listed` test.
 
+**Constitution annex:** [python](../configs/claude/references/constitution/python.md).
+
 **Enforcement:** `ruff check` + `ruff format` (commit + CI on changed files);
 `ruff check` advisory at edit-time; pyright is available as an opt-in manual hook
 (`pre-commit run pyright --hook-stage manual`) until typed coverage grows. The CI
@@ -186,6 +223,8 @@ scripts under `.specify/extensions/git/scripts/powershell/` become load-bearing.
 interfaces; avoid goroutine leaks and package-level mutable state; wrap errors with
 `%w`; `ctx` as the first argument; run tests with `-race`.
 
+**Constitution annex:** [go](../configs/claude/references/constitution/go.md).
+
 **Enforcement:** a `golangci-lint` (v2) hook is configured but **dormant** (no real
 `.go` files); it fires only when Go sources appear.
 
@@ -204,6 +243,8 @@ only when `.rs` files are staged and a `Cargo.toml` exists. The unmaintained
 **Rules:** `terraform fmt`; pin provider and module versions (`required_version`,
 `~>`); use typed, described variables and locals instead of magic strings; store
 state remotely with locking; minimise blast radius by separating environments.
+
+**Constitution annex:** [terraform](../configs/claude/references/constitution/terraform.md).
 
 **Enforcement:** `terraform_fmt`/`terraform_validate`/`terraform_tflint` plus
 **Trivy** (`terraform_trivy`) hooks are configured but **dormant** (no real `.tf`

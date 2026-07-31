@@ -32,7 +32,10 @@ repos:
         # .bats carry a `#!/usr/bin/env bats` shebang for tooling but are run via
         # the bats runner (not executed directly), so they are intentionally
         # non-executable — matches all existing tests/bats/*.bats (feature 366).
-        exclude: \.bats$
+        # .tmpl are script TEMPLATES rendered to a destination path by a loader;
+        # the shebang belongs to the rendered output, not to the template file,
+        # which is never executed in place (CON-004 extraction, 2026-07-30).
+        exclude: \.(bats|tmpl)$
       - id: detect-private-key
       - id: mixed-line-ending
         args: ['--fix=lf']
@@ -164,6 +167,29 @@ repos:
   # Custom checks
   - repo: local
     hooks:
+      # Code Constitution structural gate (configs/claude/config/code_constitution.yml).
+      # Catches what the language linters do not look for: size ceilings, god
+      # objects, duplicated blocks, embedded JSON/YAML/Markdown payloads, and
+      # swallowed exceptions.
+      #
+      # RATCHETED, not retroactive. At adoption this repo carried 71 blocking
+      # violations across 37 files; gating on those would have failed the first
+      # PR to touch any of them on debt it did not create, which is how a gate
+      # teaches people to bypass it. So counts are recorded in
+      # configs/claude/config/constitution_baseline.json and only a RISE blocks.
+      # Fixing a violation lowers the entry permanently; raising one needs the
+      # reason in the commit message.
+      #   regenerate: configs/claude/scripts/constitution_check.py --update-baseline FILE
+      #   see everything: configs/claude/scripts/constitution_check.py --no-baseline FILE
+      - id: constitution-check
+        name: Code Constitution (size, duplication, payloads, errors, dangerous ops)
+        entry: configs/claude/scripts/constitution_check.py
+        language: system
+        files: \.(py|pyi|sh|bash|go|tf|tfvars|ts|tsx|js|jsx|mjs|cjs)$
+        # Scaffold templates are not product code; .Jules/ and node_modules are
+        # vendored. Matches the exclusions the other language hooks already use.
+        exclude: ^(\.Jules/|\.jules/|node_modules/|templates/scaffold/|specs/)
+
       # Validate bootstrap.sh syntax
       - id: validate-bootstrap
         name: Validate bootstrap.sh syntax

@@ -60,7 +60,7 @@ The sanitized name is used as:
 Copy boilerplate files from the appropriate template directory. The templates live at:
 
 ```text
-~/.claude/skills/project-scaffold/  (this skill)
+<this skill's own directory>          (illustrative; never hard-code the path)
 templates/scaffold/{language}/  (in the Manifest repo)
 ```
 

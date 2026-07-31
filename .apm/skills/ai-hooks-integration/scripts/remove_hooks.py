@@ -12,9 +12,17 @@ Behavior:
 """
 
 import argparse
+import sys
 from pathlib import Path
 
-from runtime.tool_config import (
+# No __pycache__ beside this skill: ~/.claude/skills is apm-owned and apm
+# declines to adopt a directory holding files it did not place, so a cache dir
+# here makes deploy silently skip the whole skill. The importing process — not
+# the imported module — decides, because by the time runtime/tool_config could
+# set the flag its own .pyc is already on disk.
+sys.dont_write_bytecode = True
+
+from runtime.tool_config import (  # noqa: E402
     JSON_TOOLS,
     ConfigUnreadable,
     get_config,

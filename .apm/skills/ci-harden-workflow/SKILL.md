@@ -17,7 +17,7 @@ privilege, gate on real identity, protect the control file, least-privilege scop
 SHA-pin dependencies) applies on either platform:
 
 - `github-actions` → steps 1-9 below apply as written.
-- `gitlab-ci` → load `~/.claude/skills/ci-audit-triggers/references/gitlab-ci-triggers.md`
+- `gitlab-ci` → load `~/.claude/references/ci/gitlab-ci-triggers.md`
   (specifically its "Hardening-side quick reference" section) for the real GitLab
   controls in place of GitHub-specific ones: protected variables/branches instead of
   `author_association`, protected environments with required approvals instead of

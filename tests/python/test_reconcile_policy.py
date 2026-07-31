@@ -7,6 +7,7 @@ no real ~/.claude is ever touched.
 
 import importlib.util
 import os
+from pathlib import Path
 
 import pytest
 
@@ -321,48 +322,19 @@ def test_repo_sourced_top_level_file_is_reconciled_not_orphan(world):
 # --------------------------------------------------------------------------- #
 # Fleet tags — derived from agent_roster.yml (config-only extensibility)
 # --------------------------------------------------------------------------- #
-_SIXTH_AGENT_ROSTER = """\
-agents:
-  claude:
-    name: claude
-    binary: claude
-    home_dir: ~/.claude
-    prompt_args: ["-p", "{prompt}"]
-    model_args: ["--model", "{model}"]
-    auth_check: "claude auth status"
-    enabled_default: true
-  gemini:
-    name: gemini
-    binary: gemini
-    home_dir: ~/.gemini
-    prompt_args: ["-p", "{prompt}"]
-    model_args: ["-m", "{model}"]
-    auth_check: "gemini auth status"
-    enabled_default: true
-  cursor:
-    name: cursor
-    binary: cursor-agent
-    home_dir: ~/.cursor
-    prompt_args: ["{prompt}"]
-    model_args: ["--model", "{model}"]
-    auth_check: "cursor-agent --version"
-    enabled_default: true
-  codex:
-    name: codex
-    binary: codex
-    home_dir: ~/.codex
-    prompt_args: ["{prompt}"]
-    model_args: ["--model", "{model}"]
-    auth_check: "codex login status"
-    enabled_default: true
-  antigravity:
-    name: antigravity
-    binary: agy
-    home_dir: ~/.antigravity
-    prompt_args: ["--print", "{prompt}"]
-    model_args: ["--model", "{model}"]
-    auth_check: "agy models"
-    enabled_default: true
+# The 5 real agents (shared with tests/python/agents/test_runner_generic.py)
+# plus a 6th synthetic "beta" agent. beta's enabled_default is deliberately
+# false and its binary/home_dir/prompt_args/auth_check are unrelated to
+# test_runner_generic.py's "widget" agent — this file's assertions only care
+# that a roster-only agent's *name* surfaces in ROOT_TAGS/SECONDARY_TAGS and
+# --list-tags, not its other fields, so those fields are free to differ.
+# That difference is what test_runner_generic.py's "widget" agent exercises
+# instead (a distinct prompt_args pattern) — genuinely different concerns,
+# so the 6th-agent block stays local to each file rather than merging.
+_ROSTER_FIXTURE = (
+    Path(__file__).resolve().parent.parent / "fixtures" / "agent_roster_synthetic.yml"
+)
+_BETA_AGENT = """\
   beta:
     name: beta
     binary: beta-agent
@@ -372,6 +344,7 @@ agents:
     auth_check: "beta-agent --version"
     enabled_default: false
 """
+_SIXTH_AGENT_ROSTER = _ROSTER_FIXTURE.read_text(encoding="utf-8") + _BETA_AGENT
 
 
 def _load_core_with_roster(roster_path, monkeypatch):

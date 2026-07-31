@@ -405,6 +405,24 @@ jobs:
 
           echo "Structure validation passed: $SKILL_COUNT skills, $SCRIPT_COUNT scripts"
 
+      - name: No absolute skills-tree paths in skill bodies
+        # T1.4 (spec 674). A skill body citing ~/.claude/skills/<other>/... reads
+        # a path that will not exist once skills live in a version-pathed plugin
+        # cache. It fails SILENTLY: on a GitLab repo /ci-harden-workflow would
+        # load nothing, harden using only the GitHub branch of its own body,
+        # leave the pwn-request surface open, and report success. Shared
+        # references belong in ~/.claude/references/, which bootstrap owns.
+        run: |
+          if grep -rn --include='SKILL.md' -e '\.claude/skills/' .apm/skills/; then
+            echo ""
+            echo "FAIL: a skill body hard-codes a path into the skills tree."
+            echo "      Move the shared file under configs/claude/references/ and"
+            echo "      cite it as ~/.claude/references/..., or keep it in the"
+            echo "      skill's OWN references/ dir and cite it relatively."
+            exit 1
+          fi
+          echo "No absolute skills-tree paths in skill bodies"
+
       - name: Cross-skill references resolve after plugin scoping
         # T1.3 (spec 674). Post-cutover a skill is reachable only as
         # <plugin>:<skill>, so a bare cross-skill reference stops resolving and

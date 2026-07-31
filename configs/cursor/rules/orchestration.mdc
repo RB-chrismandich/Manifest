@@ -118,6 +118,8 @@ Read on demand (NOT auto-loaded). You MUST read the reference before related tas
   `manifest parallel-agent`, when-to-dispatch threshold, model pinning, cross-platform fallback.
 - `~/.claude/references/spec-artifact-discovery.md` — Read before a spec-* rule reads
   planning artifacts: speckit vs superpowers layout detection + precedence.
+- `~/.claude/references/code-constitution.md` — Read BEFORE creating or modifying
+  source: 13 articles, ceilings, per-language annexes (`constitution/<lang>.md`).
 - `~/.claude/references/antipatterns.md` — Read before writing or refactoring code:
   guardrail registry (detection cues + prevention rules).
 - `~/.claude/references/doc-concision.md` — Read before writing or auditing docs:
@@ -205,7 +207,9 @@ Apply while writing or refactoring code, in every session:
 Registry of anti-patterns (detection cues + prevention rules):
 `~/.claude/config/knowledge_base.yml` (guardrail tags: arch, async-state,
 error-handling, security, dependency, iteration). Full reference:
-`~/.claude/references/antipatterns.md`. On-demand deep audit: `/ai-code-audit`.
+`~/.claude/references/antipatterns.md`. Pre-write doctrine (13 articles, size
+ceilings, per-language annexes): `~/.claude/references/code-constitution.md`,
+enforced by `constitution_check.py`. On-demand deep audit: `/ai-code-audit`.
 
 ---
 

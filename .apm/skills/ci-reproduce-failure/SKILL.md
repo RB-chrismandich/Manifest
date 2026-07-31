@@ -15,7 +15,7 @@ from the API, pin the commit, find its real definition, reproduce locally) appli
 either platform — only the commands and the job-definition lookup change:
 
 - `github-actions` → steps 1-7 below apply as written.
-- `gitlab-ci` → load `references/gitlab-ci-reproduction.md` for the real `glab
+- `gitlab-ci` → load `~/.claude/references/ci/gitlab-ci-reproduction.md` for the real `glab
   ci`/`glab api`/`glab job` equivalents (job-level, not step-level, granularity;
   `.gitlab-ci.yml` plus resolved `include:` in place of `.github/workflows/*.yml`) and
   apply the same method through that vocabulary instead.

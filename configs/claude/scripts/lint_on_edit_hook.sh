@@ -165,4 +165,16 @@ case "$ext" in
         ;;
 esac
 
+# Code Constitution (CON-*) — structural findings the language linters do not
+# look for: size ceilings, duplicated blocks, embedded data payloads, swallowed
+# errors. Advisory like everything else here, and ratcheted against the recorded
+# baseline so an edit to a legacy file reports only what this edit added.
+constitution_check="$(dirname "${BASH_SOURCE[0]}")/constitution_check.py"
+if [[ -f "$constitution_check" ]] && command -v python3 > /dev/null 2>&1; then
+    con_out=""
+    if ! con_out="$(_run 10 python3 "$constitution_check" "$FILE" 2>&1)"; then
+        [[ -n "$con_out" ]] && printf 'constitution: %s\n' "$con_out" >&2
+    fi
+fi
+
 exit 0

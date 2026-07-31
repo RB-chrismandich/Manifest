@@ -208,6 +208,22 @@ tool_policies:
     subagents: conditional
     subagent_trigger: independent_units >= 3
     subagent_model: sonnet
+  code-audit-constitution:
+    allowed:
+      - Read
+      - Glob
+      - Grep
+      - Bash    # constitution_check.py, the language toolchain, the test suite
+      - Write   # extracted payload/template files and their tests
+      - Edit    # remediation: this skill changes source, unlike <lang>-refactor
+    parallel_agents: conditional
+    validation_tier: 2
+    mcp_servers:
+      - context7   # library/API docs when a loader or dependency is evaluated
+
+    subagents: conditional
+    subagent_trigger: independent_units >= 3
+    subagent_model: sonnet
   docs-generate-diagrams:
     allowed:
       - Read

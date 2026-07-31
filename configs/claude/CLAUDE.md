@@ -46,7 +46,7 @@ internal runbooks, ADRs · **Google Dev Docs** Firebase/Cloud/Android/Maps ·
 before routing to one of these; do not assume it is available.
 
 ```bash
-# Basic code review with JSON output (all 5 agents, 10 min timeout)
+# Code review, all 5 agents, 10 min timeout
 manifest parallel-agent --json --timeout 600 --review /absolute/path/to/file
 
 # Full analysis (flags: references/parallel-agent.md)
@@ -65,6 +65,8 @@ Read on demand (NOT auto-loaded). You MUST read the reference before related tas
   `manifest parallel-agent`, when-to-dispatch threshold, model pinning, cross-platform fallback.
 - `~/.claude/references/spec-artifact-discovery.md` — Read before a spec-* skill reads
   planning artifacts: speckit vs superpowers layout detection + precedence.
+- `~/.claude/references/code-constitution.md` — Read BEFORE creating or modifying
+  source: 13 articles, ceilings, per-language annexes (`constitution/<lang>.md`).
 - `~/.claude/references/antipatterns.md` — Read before writing or refactoring code:
   guardrail registry (detection cues + prevention rules).
 - `~/.claude/references/doc-concision.md` — Read before writing or auditing docs:
@@ -119,13 +121,12 @@ description at session start, so no table is duplicated here. Per-skill
 parallel-agent policy (always/conditional/never) lives in
 `~/.claude/config/command_config.yml` under `tool_policies`.
 
-Common entry points: `/git-commit`, `/project-verify`, `/refactor-<lang>`,
+Common entry points: `/git-commit`, `/project-verify`, `/<lang>-refactor`,
 `/docs-all`, `/plan-manage`, `/env-check`, `/session-checkpoint`,
-`/version-pin`, `/graphify`. `/help` searches the full catalog by task.
+`/version-pin`. `/help` searches the full catalog by task.
 
-**Graphify** is a managed tool, not a consensus agent: toggled via bootstrap
-(`--enable-graphify`, default on) but excluded from `manifest parallel-agent`
-counts.
+**Graphify**: a managed tool, not a consensus agent — excluded from
+`manifest parallel-agent` counts.
 
 **CLI tool** (installed to `~/.local/bin/`): `apm-dev-sync` — push
 `.apm/skills/` to every home (apm owns skills; `sync-skills` stands down).
@@ -133,8 +134,8 @@ counts.
 ### Auto-Triggered Skill
 
 `code-audit` auto-triggers on security-sensitive patterns (auth, crypto,
-secrets, input validation) or complexity (>500 lines, >10 functions, or >5
-classes per file), giving inline feedback without blocking the workflow.
+secrets, input validation) or complexity (>500 lines, >10 functions):
+inline, non-blocking.
 
 ---
 
