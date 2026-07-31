@@ -155,6 +155,77 @@ for d in "${DOMAINS[@]}"; do
     rows+=("$d|$path|$status|$legacy|$apm")
 done
 
+# --- the additive owners (T1.11, spec 674) ---------------------------------
+#
+# Appended AFTER the two-writer matrix above, and only when there is something
+# real to report. Adding them to DOMAINS unconditionally inverts the very
+# failure this task targets: pre-cutover no bundle is installed and the harness
+# tree does not exist, so both rows would read UNOWNED and turn /env-check red
+# on a CORRECT machine. A permanently-red gate is a disabled gate in either
+# direction -- two weeks of noise and a genuinely missing symlink is invisible.
+#
+# So each row is self-disabling on EVIDENCE, matching this script's existing
+# rule that the registry states an intention and the filesystem states a fact.
+
+PLUGINS_STATE="${CLAUDE_PLUGINS_STATE:-$HOME/.claude/plugins/installed_plugins.json}"
+HARNESS_SKILLS="${MANIFEST_SKILLS_DIR:-$HOME/.manifest/skills}"
+
+# Installed bundle names. Matched with the trailing colon so a key is matched
+# and a mere value is not; keys are "<name>@<marketplace>". Deliberately grep
+# and not python3 -- this script has no interpreter dependency today and the
+# report must still run on a machine where that is what broke.
+installed_manifest_bundles() {
+    [[ -f "$PLUGINS_STATE" ]] || return 0
+    grep -oE '"manifest-[A-Za-z0-9_-]+@[A-Za-z0-9_-]+"[[:space:]]*:' "$PLUGINS_STATE" 2> /dev/null |
+        sed -e 's/^"//' -e 's/@.*//' | sort -u
+}
+
+# Sibling harness homes whose skills entry does NOT resolve into the tree.
+# Devin is deliberately absent: its ~/.config/devin/skills is not created until
+# Phase 4, so including it would redden every correct Phase-2 machine.
+diverted_siblings() {
+    local home_dir link
+    for home_dir in "$HOME/.cursor" "$HOME/.gemini" "$HOME/.codex" "$HOME/.antigravity"; do
+        link="$home_dir/skills"
+        [[ -e "$link" || -L "$link" ]] || continue
+        [[ "$(readlink "$link" 2> /dev/null || true)" == "$HARNESS_SKILLS" ]] || basename "$home_dir"
+    done
+}
+
+# `|| true`: no installed bundle is the NORMAL pre-cutover state, but grep
+# exits 1 on no-match and pipefail propagates it, so without this the report
+# aborts with no output at all on every machine that has not cut over yet.
+bundles="$(installed_manifest_bundles || true)"
+if [[ -n "$bundles" ]]; then
+    n_bundles="$(printf '%s\n' "$bundles" | wc -l | tr -d ' ')"
+    # A name served by an installed bundle AND still present in ~/.claude/skills
+    # double-loads: two SKILL.md under one name, no dedup, no error, and both
+    # descriptions charged against the session listing budget.
+    dupes=""
+    for b in $bundles; do
+        for sk in "$HOME/.claude/plugins/cache"/*/"$b"/skills/*/; do
+            [[ -d "$sk" ]] || continue
+            [[ -d "$HOME/.claude/skills/$(basename "$sk")" ]] && dupes="$dupes $(basename "$sk")"
+        done
+    done
+    if [[ -n "$dupes" ]]; then
+        rows+=("plugins|$HOME/.claude/plugins|DOUBLE-CLAIMED|true|false")
+        rc=1
+    else
+        rows+=("plugins|$HOME/.claude/plugins ($n_bundles bundle(s))|plugins|false|false")
+    fi
+fi
+
+if [[ -d "$HARNESS_SKILLS" ]]; then
+    diverted="$(diverted_siblings)"
+    if [[ -n "$diverted" ]]; then
+        rows+=("harness-skills|$HARNESS_SKILLS|PARTIAL|false|false")
+        rc=1
+    else
+        rows+=("harness-skills|$HARNESS_SKILLS|manifest|false|false")
+    fi
+fi
+
 if [[ "$JSON" == true ]]; then
     printf '{"domains":['
     first=true
@@ -172,10 +243,10 @@ fi
 # Literal tilde via a variable: an inline \~ in the replacement is emitted
 # as a backslash-tilde, and an unescaped ~ would tilde-expand.
 HOME_TILDE="~"
-printf '%-10s %-34s %s\n' "DOMAIN" "PATH" "OWNER"
+printf '%-15s %-34s %s\n' "DOMAIN" "PATH" "OWNER"
 for row in ${rows[@]+"${rows[@]}"}; do
     IFS='|' read -r d path status _ _ <<< "$row"
-    printf '%-10s %-34s %s\n' "$d" "${path/#$HOME/$HOME_TILDE}" "$status"
+    printf '%-15s %-34s %s\n' "$d" "${path/#$HOME/$HOME_TILDE}" "$status"
 done
 
 if [[ $rc -ne 0 ]]; then
@@ -184,10 +255,27 @@ if [[ $rc -ne 0 ]]; then
         IFS='|' read -r d _ status _ _ <<< "$row"
         case "$status" in
             DOUBLE-CLAIMED)
+                if [[ "$d" == plugins ]]; then
+                    echo "! these skills exist in BOTH an installed bundle and ~/.claude/skills:"
+                    # Deliberate word-splitting: one name per line is the payload.
+                    # shellcheck disable=SC2086
+                    printf '    %s\n' $dupes
+                    echo "  Both load, neither wins, and both descriptions are charged against"
+                    echo "  the session listing budget. Remove the ~/.claude/skills copy."
+                    continue
+                fi
                 echo "! $d is written by BOTH pipelines — this is the drift condition."
                 echo "  Gate the legacy writer (apm_domains.yml) or remove the APM package."
                 ;;
             PARTIAL)
+                if [[ "$d" == harness-skills ]]; then
+                    echo "! these harness homes do NOT resolve into $HARNESS_SKILLS:"
+                    # shellcheck disable=SC2046
+                    printf '    %s\n' $(diverted_siblings)
+                    echo "  They are served by something else and will not see updates."
+                    echo "  Re-run ./bootstrap.sh to repoint them."
+                    continue
+                fi
                 echo "! $d is APM-owned but NOT fully adopted — these entries are owned by neither pipeline:"
                 # Deliberate word-splitting: one entry per line is the payload.
                 # shellcheck disable=SC2046

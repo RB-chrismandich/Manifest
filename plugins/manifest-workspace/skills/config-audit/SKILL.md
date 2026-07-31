@@ -219,9 +219,15 @@ Report which pipeline owns each deployed domain, and flag any domain claimed by
 ```
 
 Read-only. Exit 1 means a domain is double-claimed or unowned — report the
-`DOUBLE-CLAIMED` / `UNOWNED` line verbatim, and note that `UNOWNED` is expected
-only during a hand-over window (`apm_ungate_domain.sh <domain> --apply` returns
-it to the legacy pipeline).
+`DOUBLE-CLAIMED` / `UNOWNED` / `PARTIAL` line verbatim, and note that `UNOWNED`
+is expected only during a hand-over window (`apm_ungate_domain.sh <domain>
+--apply` returns it to the legacy pipeline).
+
+`plugins` and `harness-skills` appear only when there is something to report, so
+**absence is not a failure**. `plugins` `DOUBLE-CLAIMED` = a skill served by both
+a bundle and `~/.claude/skills` (both load, neither wins, both charged to the
+listing budget). `harness-skills` `PARTIAL` = a sibling home pointing away from
+the harness tree; `./bootstrap.sh` repoints it.
 
 ## Output Format
 
