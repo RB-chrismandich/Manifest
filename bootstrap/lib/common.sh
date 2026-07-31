@@ -2,6 +2,12 @@
 
 # Shared helpers for bootstrap.sh. This file is sourced, not executed.
 
+# Skill-prune policy lives in its own module: common.sh hit its 600-line
+# constitution ceiling, and "which deployed dirs should go" is a distinct
+# responsibility from "copy the tree".
+# shellcheck source=bootstrap/lib/skill_prune.sh
+source "$(dirname "${BASH_SOURCE[0]}")/skill_prune.sh"
+
 print_header() {
     echo ""
     echo -e "${BOLD}${BLUE}══════════════════════════════════════════════════════════════${NC}"
@@ -234,18 +240,7 @@ deploy_home_skills() {
     local src_count
     src_count=$(find "$src" -mindepth 1 -maxdepth 1 -type d ! -name '.*' | wc -l | tr -d ' ')
     src_count=$((src_count - ${#bogus_names[@]}))
-    if [[ -f "$manifest" && "$src_count" -gt 0 ]]; then
-        local name
-        while IFS= read -r name; do
-            case "$name" in
-                '' | */* | .* | *..*) continue ;; # empty, path-y, hidden, traversal -> never prune
-            esac
-            if [[ ! -d "$src/$name" && -d "$dest/$name" ]]; then
-                rm -rf "${dest:?}/${name}"
-                print_info "Pruned removed skill: $name"
-            fi
-        done < "$manifest"
-    fi
+    prune_removed_skills "$src" "$dest" "$src_count"
     # Atomic manifest write: a failed subshell must not truncate the previous
     # manifest (that would silently disable future pruning). Bogus (non-skill)
     # directories are filtered out so they can never become a manifest entry.
