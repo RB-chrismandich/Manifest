@@ -50,6 +50,7 @@ teardown() {
 
 gate_skills() { printf 'domains:\n  - skills\n' > "$MANIFEST_APM_DOMAINS"; }
 ungate_skills() { printf 'domains: []\n' > "$MANIFEST_APM_DOMAINS"; }
+retire_skills() { printf 'domains:\n  - skills\nretired:\n  - skills\n' > "$MANIFEST_APM_DOMAINS"; }
 
 # Everything verify_installation checks EXCEPT the skill files, so a non-zero
 # exit can only come from the skills assertions under test.
@@ -78,14 +79,34 @@ deploy_skill_files() {
 
 # --- verify_installation ------------------------------------------------------
 
-@test "an apm-owned domain with no skills warns and does not fail the deploy" {
+@test "an apm-owned domain with no skills is a HARD error (T1.7, spec 674)" {
+    # This assertion was INVERTED by T1.7, deliberately. It used to require a
+    # warning and exit 0, which meant a user with no skills at all saw
+    # "Deployment verified" -- a total failure reported as success. Verifying a
+    # deployment must not pass when the deployment is empty, however legitimate
+    # the reason the writer stood down.
     gate_skills
     fabricate_verified_install
 
     run verify_installation
-    assert_success # the count that main() turns into exit 1
+    assert_failure
     assert_output --partial "Missing (apm-owned domain)"
     assert_output --partial "apm-dev-sync"
+}
+
+@test "a RETIRED domain with no skills is correct, and says nothing at all" {
+    # The post-cutover target state: the plugin bundles serve the catalog and
+    # ~/.claude/skills is EMPTY on purpose. T1.7's hard error landed in Phase 1,
+    # before `retired:` existed, so leaving it unconditional would print
+    # "Missing" 108 times and fail verification on every correct machine --
+    # the mirror image of the false green T1.7 removed.
+    retire_skills
+    fabricate_verified_install
+
+    run verify_installation
+    assert_success
+    refute_output --partial "Missing (apm-owned domain)"
+    refute_output --partial "has not populated it"
 }
 
 @test "an unowned domain with no skills is still a hard bootstrap error" {

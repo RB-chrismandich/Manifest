@@ -1457,10 +1457,23 @@ verify_installation() {
     if declare -f apm_owns_domain > /dev/null 2>&1 && apm_owns_domain skills; then
         skills_apm_owned=true
     fi
+    # RETIRED is the third state, and it inverts the verdict below. T1.7 made an
+    # empty apm-owned tree a hard error in Phase 1, before `retired:` existed.
+    # After the Phase 4 cutover an EMPTY ~/.claude/skills is the goal — the
+    # bundles serve the catalog — so leaving T1.7's check unconditional would
+    # print "Missing" 108 times and fail verification on every correct
+    # post-cutover machine, which is the false RED this cutover keeps producing
+    # in the mirror image of the false green T1.7 removed.
+    local skills_retired=false
+    if declare -f domain_retired > /dev/null 2>&1 && domain_retired skills; then
+        skills_retired=true
+    fi
     local skills_missing=0
     for file in "${skill_files[@]}"; do
         if [[ -f "$file" ]]; then
             print_success "Found: ${file#"$HOME"/}"
+        elif [[ "$skills_retired" == true ]]; then
+            : # expected: the plugin bundles serve this catalog now
         elif [[ "$skills_apm_owned" == true ]]; then
             print_warning "Missing (apm-owned domain): ${file#"$HOME"/}"
             skills_missing=$((skills_missing + 1))
