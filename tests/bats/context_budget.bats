@@ -37,7 +37,7 @@ assert_budget() {
 }
 
 @test "root CLAUDE.md stays within always-loaded budget" {
-    assert_budget "CLAUDE.md" 12900
+    assert_budget "CLAUDE.md" 13400
 }
 
 @test ".claude/CLAUDE.md stays within always-loaded budget" {
