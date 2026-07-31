@@ -197,7 +197,7 @@ deploy_configs() {
                     # and agents/agents-devpanel plus their delegation docs are
                     # owned by the gate_* toggles.
                     rsync -av "${copy_mode[@]+"${copy_mode[@]}"}" --exclude '/skills' --exclude '/agents' --exclude '/agents-devpanel' --exclude '/references/pilotfish-delegation.md' --exclude '/references/devpanel-delegation.md' "${claude_md_exclude[@]+"${claude_md_exclude[@]}"}" "$source_dir/" "$TARGET_DIR/"
-                    deploy_home_skills "$SCRIPT_DIR/.apm/skills" "$TARGET_DIR/skills"
+                    deploy_home_skills "$SCRIPT_DIR/.apm/skills" "${MANIFEST_SKILLS_DIR:-$TARGET_DIR/skills}" harness-skills
                     gate_graphify_skill "$TARGET_DIR/skills"
                     gate_pilotfish_agents "$TARGET_DIR" "$source_dir/agents"
                     gate_devpanel_agents "$TARGET_DIR" "$source_dir/agents-devpanel"
@@ -301,7 +301,7 @@ deploy_configs() {
     # Deploy skills from the PHYSICAL .apm/skills source into ~/.claude/skills.
     # No-op once apm owns the `skills` domain (SC-006) — see apm_domains.yml.
     # Must run before link_shared_assets (create_symlink skips missing targets).
-    deploy_home_skills "$SCRIPT_DIR/.apm/skills" "$TARGET_DIR/skills"
+    deploy_home_skills "$SCRIPT_DIR/.apm/skills" "${MANIFEST_SKILLS_DIR:-$TARGET_DIR/skills}" harness-skills
     # Gate /graphify on its service toggle (FR-012) and reconcile any foreign
     # 'graphify install' residue (FR-010). Runs before the assistant skill symlinks.
     gate_graphify_skill "$TARGET_DIR/skills"

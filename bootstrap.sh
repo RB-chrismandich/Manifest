@@ -72,6 +72,18 @@ ANTIGRAVITY_TARGET_DIR="$HOME/.antigravity"
 # write into an unrelated product's tree.
 DEVIN_TARGET_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/devin"
 MANIFEST_STATE_DIR="$HOME/.manifest"
+# T2.3 (spec 674): the shared skills root for the NON-Claude assistants.
+#
+# Not ~/.claude/skills, for two reasons. Claude Code hardcodes its user skills
+# dir to <configDir>/skills with no relocation setting, so a tree it must NOT
+# load cannot live there. And ~/.manifest survives the `mv` that deploy_configs'
+# "Backup and replace" path performs on ~/.claude, where .agent_outputs already
+# lives by the same precedent.
+#
+# Consumed by the sourced libs (link_shared_assets, deploy_home_skills), not
+# here, so it needs the same SC2034 waiver its neighbours carry.
+# shellcheck disable=SC2034
+MANIFEST_SKILLS_DIR="$MANIFEST_STATE_DIR/skills"
 # shellcheck disable=SC2034
 MANIFEST_OUTPUT_DIR="$MANIFEST_STATE_DIR/orchestration/outputs"
 # shellcheck disable=SC2034

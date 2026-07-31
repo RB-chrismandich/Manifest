@@ -103,7 +103,10 @@ link_shared_assets() {
         ".plans:$TARGET_DIR/.plans"
     )
     if [[ "$include_skills" == "true" ]]; then
-        symlinks+=("skills:$TARGET_DIR/skills")
+        # T2.4 (spec 674): siblings follow the harness root, not ~/.claude/skills.
+        # Falls back to the old target when MANIFEST_SKILLS_DIR is unset, so a
+        # partially-updated checkout links somewhere real rather than nowhere.
+        symlinks+=("skills:${MANIFEST_SKILLS_DIR:-$TARGET_DIR/skills}")
     fi
 
     local entry

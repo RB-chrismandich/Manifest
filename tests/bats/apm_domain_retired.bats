@@ -124,3 +124,47 @@ teardown() {
     run grep -E '^retired: \[\]' "$REPO_ROOT/configs/claude/config/apm_domains.yml"
     assert_success
 }
+
+# --- T2.4: the mandatory domain argument -----------------------------------
+
+@test "deploy_home_skills is silently a no-op for <root>/skills without the domain arg" {
+    # The trap: the domain defaults to basename("$dest"), which stays "skills"
+    # even after the tree moves to ~/.manifest/skills -- and apm owns "skills".
+    # Without an explicit third argument the new harness tree is NEVER written,
+    # and every sibling gets a dangling symlink with no error anywhere.
+    printf 'domains:\n  - skills\nretired: []\n' > "$SANDBOX/apmowned.yml"
+    mkdir -p "$SANDBOX/manifest/skills"
+    run bash -c "
+        print_info() { :; }; print_error() { :; }; print_success() { :; }; print_warning() { :; }
+        source '$REPO_ROOT/configs/claude/scripts/apm_domains_lib.sh'
+        source '$REPO_ROOT/bootstrap/lib/skill_prune.sh'
+        export MANIFEST_APM_DOMAINS='$SANDBOX/apmowned.yml'
+        source '$REPO_ROOT/bootstrap/lib/common.sh' 2>/dev/null
+        deploy_home_skills '$SANDBOX/src' '$SANDBOX/manifest/skills' >/dev/null 2>&1
+        find '$SANDBOX/manifest/skills' -name SKILL.md | wc -l | tr -d ' '"
+    assert_output --partial "0"
+}
+
+@test "deploy_home_skills writes <root>/skills WITH the harness-skills domain" {
+    printf 'domains:\n  - skills\nretired: []\n' > "$SANDBOX/apmowned.yml"
+    mkdir -p "$SANDBOX/manifest/skills"
+    run bash -c "
+        print_info() { :; }; print_error() { :; }; print_success() { :; }; print_warning() { :; }
+        source '$REPO_ROOT/configs/claude/scripts/apm_domains_lib.sh'
+        source '$REPO_ROOT/bootstrap/lib/skill_prune.sh'
+        export MANIFEST_APM_DOMAINS='$SANDBOX/apmowned.yml'
+        source '$REPO_ROOT/bootstrap/lib/common.sh' 2>/dev/null
+        deploy_home_skills '$SANDBOX/src' '$SANDBOX/manifest/skills' harness-skills >/dev/null 2>&1
+        find '$SANDBOX/manifest/skills' -name SKILL.md | wc -l | tr -d ' '"
+    assert_output --partial "1"
+}
+
+@test "both deploy.sh call sites pass the harness-skills domain" {
+    # Guards the actual wiring: a call site that loses the third argument
+    # reproduces the silent no-op above, and no runtime test would catch it
+    # because the failure is an empty tree, not an error.
+    run grep -c 'deploy_home_skills "\$SCRIPT_DIR/.apm/skills" "\${MANIFEST_SKILLS_DIR:-\$TARGET_DIR/skills}" harness-skills' \
+        "$REPO_ROOT/bootstrap/lib/deploy.sh"
+    assert_success
+    [ "$output" -eq 2 ]
+}
