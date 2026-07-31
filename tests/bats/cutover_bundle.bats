@@ -110,16 +110,23 @@ devin_stub() {  # $1 = the path text devin should print
     [ "$(readlink "$DEVIN_SKILLS_LINK")" = "$MANIFEST_SKILLS_DIR" ]
 }
 
-@test "the gate never touches a path outside its configured roots" {
+@test "the gate writes only where DEVIN_SKILLS_LINK points" {
     # The defect this closes: the tests do not override HOME, so the first
     # version of this gate created a REAL ~/.config/devin/skills pointing into a
     # sandbox that teardown then deleted -- and the suite still reported green.
+    #
+    # Asserted against the DEFAULT location rather than the real machine's:
+    # once the cutover has legitimately run, ~/.config/devin/skills exists and a
+    # test keyed on the live machine flips to failing for the right reason,
+    # which is indistinguishable from failing for the wrong one.
+    export HOME="$SANDBOX/home"
+    export DEVIN_SKILLS_LINK="$SANDBOX/elsewhere/devin-skills"
+    mkdir -p "$HOME/.config" "$SANDBOX/bin"
     : > "$MANIFEST_STATE_DIR/pre-cutover-20260101_000000.tgz"
-    mkdir -p "$SANDBOX/bin"
-    printf '#!/bin/sh\necho "  /alpha (%s/alpha)"\n' "$MANIFEST_SKILLS_DIR" \
-        > "$SANDBOX/bin/devin"
+    printf '#!/bin/sh\necho "  /alpha (%s/alpha)"\n' "$MANIFEST_SKILLS_DIR" > "$SANDBOX/bin/devin"
     chmod +x "$SANDBOX/bin/devin"
     run env PATH="$SANDBOX/bin:$PATH" "$SCRIPT" manifest-docs
+    [ -L "$DEVIN_SKILLS_LINK" ]
     [ ! -e "$HOME/.config/devin/skills" ]
 }
 
@@ -247,4 +254,30 @@ devin_stub() {  # $1 = the path text devin should print
     chmod +x "$SANDBOX/bin/devin"
     run env PATH="$SANDBOX/bin:$PATH" "$SCRIPT" manifest-docs --dry-run
     assert_output --partial "UNVERIFIABLE"
+}
+
+@test "a matching devin that exits non-zero still satisfies the gate" {
+    # The defect only the real binary exposed. `grep -q` exits on the first
+    # match and closes the pipe; devin dies of SIGPIPE (141); `set -o pipefail`
+    # turns a SUCCESSFUL match into a failed pipeline. The gate then refused on
+    # a machine where Devin could see all 107 skills.
+    #
+    # Every stub above is a one-line echo that finishes before grep exits, so
+    # the suite could not see it. This stub prints the match AND exits non-zero,
+    # which is the same thing pipefail observes.
+    full_sandbox_home
+    export MANIFEST_SKILLS_DIR="$HOME/.manifest/skills"
+    mkdir -p "$MANIFEST_SKILLS_DIR/code-audit" "$(dirname "$DEVIN_SKILLS_LINK")"
+    echo "x" > "$MANIFEST_SKILLS_DIR/code-audit/SKILL.md"
+    local h
+    for h in .cursor .gemini .codex .antigravity; do
+        ln -sfn "$MANIFEST_SKILLS_DIR" "$HOME/$h/skills"
+    done
+    ln -sfn "$MANIFEST_SKILLS_DIR" "$DEVIN_SKILLS_LINK"
+    printf '#!/bin/sh\necho "  /alpha (~%s/alpha)"\nexit 141\n' \
+        "${MANIFEST_SKILLS_DIR#"$HOME"}" > "$SANDBOX/bin/devin"
+    chmod +x "$SANDBOX/bin/devin"
+    run env PATH="$SANDBOX/bin:$PATH" "$SCRIPT" manifest-docs --dry-run
+    assert_success
+    refute_output --partial "does not report any skill"
 }

@@ -157,9 +157,24 @@ if [[ "$ALLOW_DEVIN" -ne 1 ]] && command -v devin > /dev/null 2>&1; then
         # readable as "Devin is verified".
         printf '  UNVERIFIABLE  : Devin — cannot observe until the link above exists\n' >&2
         devin_seen=1
-    elif devin skills list 2> /dev/null |
-        grep -qE "(${SKILLS_DIR//\//\\/}|~${SKILLS_DIR#"$HOME"})"; then
-        devin_seen=1
+    else
+        # Captured, NOT piped into grep. Two reasons, both measured against the
+        # real binary:
+        #
+        #   * `grep -q` exits on the first match and closes the pipe. devin then
+        #     dies of SIGPIPE (141), and `set -o pipefail` turns a SUCCESSFUL
+        #     match into a failed pipeline -- so the gate refused on a machine
+        #     where Devin could see all 107 skills. The stub in the tests is a
+        #     one-line echo that finishes before grep exits, so the suite never
+        #     saw it.
+        #   * devin prints the tilde form (`~/.manifest/skills/<name>`), so the
+        #     absolute path alone does not match. Both forms are accepted; the
+        #     slashes need no escaping, they are not special in ERE.
+        devin_out="$(devin skills list 2> /dev/null || true)"
+        if printf '%s' "$devin_out" |
+            grep -qE "($SKILLS_DIR|~${SKILLS_DIR#"$HOME"})"; then
+            devin_seen=1
+        fi
     fi
     if [[ "$devin_seen" -ne 1 ]]; then
         gate_fail "Devin does not report any skill from $SKILLS_DIR." \
