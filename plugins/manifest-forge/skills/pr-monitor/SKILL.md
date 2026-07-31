@@ -33,7 +33,7 @@ URL if the user gave one.
   `configs/claude/scripts/git_platform.sh`.
 
 If no PR exists for the branch, say so and ask whether to create one (or point
-the user at `/git-commit`) rather than guessing. If the PR is a **draft**,
+the user at `/manifest-forge:git-commit`) rather than guessing. If the PR is a **draft**,
 note it — Copilot/Jules often won't auto-review a draft; offer to mark it ready.
 
 See `references/platform-commands.md` for the full GitHub/GitLab command
@@ -55,7 +55,7 @@ When a check **fails**, don't just report it — diagnose and fix:
    CI often means CI overrides the local linter config — the `ci-diagnose-drift`
    skill is the right tool there.
 3. Apply a **scoped** fix. Re-run the same checks locally first (lean on the
-   `project-verify` skill — it runs the lint/test/scan chain CI runs) so you are not
+   `/manifest-code-quality:project-verify` skill — it runs the lint/test/scan chain CI runs) so you are not
    pushing on faith.
 4. Commit with a message naming the failure you fixed, push, and go back to
    watching. Each push restarts CI, so loop here until green.

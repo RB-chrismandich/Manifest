@@ -161,7 +161,7 @@ exists, create one using `create_project`.
 
 #### 2. Upload the Image
 
-Delegate to the **upload-to-stitch** skill to upload the image to the project.
+Delegate to the **/stitch-design:upload-to-stitch** skill to upload the image to the project.
 This creates a new screen with the image as its content.
 
 #### 3. Refine with Edit

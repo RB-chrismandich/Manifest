@@ -106,7 +106,7 @@ For each iteration until all three reviewers approve or iterations exhaust:
 1. **Developer** (`generalPurpose`, **not** readonly) — `developer-dispatch.md`.
    Only this sub-agent may modify the repo.
 2. **Verification** (orchestrator): run the verify command from context (or
-   `/project-verify`). On failure, write deficiencies to
+   `/manifest-code-quality:project-verify`). On failure, write deficiencies to
    `iterations/<n>/verify.log`, skip critics, next iteration with verify output
    as developer feedback.
 3. Generate review package: `git diff` + `git diff --cached` →

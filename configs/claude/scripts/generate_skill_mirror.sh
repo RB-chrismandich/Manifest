@@ -132,4 +132,53 @@ if [[ -d "$PRESERVE" ]]; then
 fi
 unset _f
 
+# --- qualified -> bare, for the flat-tree consumers -------------------------
+#
+# The plugin bodies carry QUALIFIED names (`/manifest-docs:docs-all`) because
+# that is the only form Claude Code resolves once a skill ships in a bundle.
+# The mirror feeds a different world: ~/.manifest/skills is a FLAT tree read by
+# cursor, gemini, codex, antigravity and devin, none of which know a bundle
+# namespace. Shipping `/manifest-docs:docs-all` there names a command that
+# cannot exist on those harnesses.
+#
+# So the same body is rendered twice from one source, and the mapping is
+# mechanical: strip the bundle prefix the registry assigned.
+REGISTRY="${MANIFEST_SKILL_REGISTRY:-$ROOT/configs/claude/config/skill_policies.yml}"
+if [[ -r "$REGISTRY" ]]; then
+    bare_count="$(python3 - "$MIRROR" "$REGISTRY" << 'PY'
+import pathlib, re, sys
+
+mirror, registry = pathlib.Path(sys.argv[1]), pathlib.Path(sys.argv[2])
+bundles, cur, seen = set(), None, False
+for line in registry.read_text(encoding="utf-8").splitlines():
+    stripped = line.split("#", 1)[0].rstrip()
+    if stripped.startswith("bundles:"):
+        seen = True
+        continue
+    if not seen:
+        continue
+    if stripped.startswith("  ") and stripped.endswith(":") and not stripped.startswith("    "):
+        cur = stripped.strip()[:-1]
+        bundles.add(cur)
+    elif stripped and not stripped.startswith(" "):
+        seen = False
+
+if not bundles:
+    print(0)
+    raise SystemExit(0)
+
+pattern = re.compile(r"/(?:" + "|".join(re.escape(b) for b in sorted(bundles, key=len, reverse=True)) + r"):")
+changed = 0
+for skill_md in sorted(mirror.rglob("*.md")):
+    text = skill_md.read_text(encoding="utf-8")
+    new = pattern.sub("/", text)
+    if new != text:
+        skill_md.write_text(new, encoding="utf-8")
+        changed += 1
+print(changed)
+PY
+)"
+    echo "Rendered bare names in $bare_count mirror file(s)"
+fi
+
 echo "Mirrored ${#SKILL_DIRS[@]} skills -> ${MIRROR#"$ROOT"/} (preserved $restored root file(s))"

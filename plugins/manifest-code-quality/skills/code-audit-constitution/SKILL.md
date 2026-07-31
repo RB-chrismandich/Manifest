@@ -110,7 +110,7 @@ For every dependency the change adds or bumps:
    `govulncheck`, `trivy` — the annex names the one for your language).
 5. Any secret is read from the environment. Never a literal, never a default.
 
-Pinning mechanics are `/version-pin`'s job — do not reimplement them here.
+Pinning mechanics are `/manifest-ops:version-pin`'s job — do not reimplement them here.
 
 ### CON-012 — Delete before you add
 

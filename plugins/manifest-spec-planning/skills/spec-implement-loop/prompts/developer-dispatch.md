@@ -12,7 +12,7 @@ Read first (in order):
 ## Your job
 
 Implement the feature per spec and plan. Address every prior finding. Run the
-verification command recorded in context (or `/project-verify` if none). **Do
+verification command recorded in context (or `/manifest-code-quality:project-verify` if none). **Do
 not** review your own work — critics handle that.
 
 ## Report

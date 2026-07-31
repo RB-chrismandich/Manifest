@@ -90,7 +90,7 @@ entries:
 
 When the captured learning is an **antipattern**, additionally populate the
 guardrail-registry fields so the entry is immediately consumed by write-time
-guidance (`code-audit`) and `/ai-code-audit` (capture-to-active in one step):
+guidance (`code-audit`) and `/manifest-code-quality:ai-code-audit` (capture-to-active in one step):
 
 - `severity`: `critical` | `high` | `medium` | `low` | `info`
 - `detection_cue`: how to spot it in code (string, or per-language map)

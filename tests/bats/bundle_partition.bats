@@ -207,3 +207,27 @@ sys.exit(1 if wrong else 0)
 PY
     assert_success
 }
+
+@test "plugin bodies carry QUALIFIED cross-skill names" {
+    # Post-cutover a bare /name is an Unknown command in Claude Code. This is
+    # the shipped form, so it is the one that must be qualified.
+    run bash -c "python3 '$REPO_ROOT/configs/claude/scripts/skill_reference_check.py' 2>/dev/null | tail -1"
+    assert_output --partial "blocking=0"
+}
+
+@test "the MIRROR carries BARE names, because its consumers have no namespace" {
+    # ~/.manifest/skills is a FLAT tree read by cursor, gemini, codex,
+    # antigravity and devin. None of them know a bundle namespace, so a
+    # qualified name there points at a command that cannot exist. One source,
+    # two renderings.
+    run bash -c "grep -rlE '/manifest-[a-z-]+:|/stitch-design:' '$REPO_ROOT/.apm/skills/' 2>/dev/null | wc -l | tr -d ' '"
+    assert_output "0"
+}
+
+@test "the mirror still carries the reference, just unqualified" {
+    # Guards against the bare-rendering being a blunt delete: stripping the
+    # whole reference would also produce zero qualified names.
+    run bash -c "grep -c '/docs-improve' '$REPO_ROOT/.apm/skills/docs-all/SKILL.md'"
+    assert_success
+    [ "$output" -ge 1 ]
+}

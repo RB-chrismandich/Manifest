@@ -17,7 +17,7 @@ GitHub state or know about PR numbers — it validates the code in front of it.
 
 ## When to reach for this vs. neighbors
 
-- **`project-verify`** runs a *single project's* lint/test/security for one language. Use
+- **`/manifest-code-quality:project-verify`** runs a *single project's* lint/test/security for one language. Use
   it for a quick quality pass on a subdirectory. This skill is the whole-repo,
   CI-equivalent gate plus a smoke pass — heavier and PR-scoped.
 - **`env-check`** validates only the deployed environment (configs, symlinks,

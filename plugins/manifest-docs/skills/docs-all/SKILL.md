@@ -27,19 +27,19 @@ result. Concision rules: `configs/claude/references/doc-concision.md`.
 
 2. **Decide the order for this run.** Inspect what changed (recent diff, or the
    target path) and choose an order, honoring the one hard dependency:
-   **`docs-improve` runs last** — its audit must see the README and diagram
+   **`/manifest-docs:docs-improve` runs last** — its audit must see the README and diagram
    updates the other two produce.
 
    - **Default (no strong signal):** `docs-improve-readme` →
      `docs-generate-diagrams` → `docs-improve`.
    - Changes in architecture/module structure or imports → run
      `docs-generate-diagrams` early.
-   - Changes mostly in prose/onboarding → run `docs-improve-readme` early.
+   - Changes mostly in prose/onboarding → run `/manifest-docs:docs-improve-readme` early.
    - `--order a,b,c` from the user is used verbatim; warn if it violates the
      dependency.
 
 3. **Dispatch each docs skill as a sub-agent**, one per skill, passing the
-   target path. Independent skills may run concurrently; `docs-improve` waits.
+   target path. Independent skills may run concurrently; `/manifest-docs:docs-improve` waits.
 
 4. **Continue on failure.** Capture a failing sub-agent's error and still run
    the rest — never abort the whole run because one failed.

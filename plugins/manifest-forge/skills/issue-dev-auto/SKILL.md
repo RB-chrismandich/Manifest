@@ -13,7 +13,7 @@ this skill with fresh context for the next issue.
 1. **Merge only through the verified gate (supersedes the former "never merge" rule).**
    The develop step still stops at PR-open. A PR is merged to main *only* by the
    PR-monitoring loop below, and only when every clear condition holds (CI green, no
-   actionable human comment, `/pr-review`=merge, `/project-verify` pass, #360 gate Tier-1 pass, and
+   actionable human comment, `/manifest-forge:pr-review`=merge, `/manifest-code-quality:project-verify` pass, #360 gate Tier-1 pass, and
    consensus ≥ 0.80) — a tested decision (`merge_decision.sh`), never a judgment call. Merges
    are **opt-in** (`PR_MERGE_LOOP_APPLY=1`); the default is dry-run. Anything short of fully
    clear → the PR goes to a human, never a partial/forced merge.
@@ -49,7 +49,7 @@ is the user's to make. Everything shorter than this runs on Opus by default
 4. **Develop test-first.** Invoke `superpowers:test-driven-development`: write a
    failing test for the issue's acceptance criteria, implement minimally, get green.
    Keep scope to the issue.
-5. **Verify.** Run `/project-verify`. Lint warnings are non-blocking; test or security
+5. **Verify.** Run `/manifest-code-quality:project-verify`. Lint warnings are non-blocking; test or security
    failures are blocking.
 6. **Outcome:**
    - **Success** → `configs/claude/scripts/git_ops.sh pr-create --title "<...>" --body "<...>"`.
@@ -78,7 +78,7 @@ deterministic primitives so the irreversible step is never a judgment call:
    returns `{action}` — one of `merge | revise | wait | update-branch | hand-human | halt`.
    Take the lock first: `loop_lock.sh acquire <pr>` (skip if held), release in all paths.
 3. **Act on the action:**
-   - `revise` → run one cycle: `/pr-address-comments`, then `/project-verify`, then `/pr-review`
+   - `revise` → run one cycle: `/manifest-forge:pr-address-comments`, then `/manifest-code-quality:project-verify`, then `/manifest-forge:pr-review`
      (fan independent reviews out in parallel — FR-015); push; `pr_merge_loop.sh address-cycle <pr>`
      records the revision. After **3** cycles without clearing, the decision returns
      `hand-human` → label `needs-human`, move on (FR-005/006).

@@ -18,7 +18,7 @@ review PR per batch. No proxy, no daemon — transcripts are read passively.
 
 The distillation step shells out to `EVOLVE_CLI="${EVOLVE_CLI:-claude}" -p`
 (`configs/claude/scripts/skillclaw_evolve.py`, `subprocess_runner()`) — a
-role-named, injectable seam per the `llm-invoke-stdin` pattern. Swapping
+role-named, injectable seam per the `/manifest-code-quality:llm-invoke-stdin` pattern. Swapping
 vendors (`claude` -> `gemini`, `agy`, etc.) is a one-line env-var change:
 
 ```bash

@@ -17,13 +17,13 @@ gate signal. Constitution: Principle VI + "Development Lifecycle". Contracts:
 |---|-------|-----------|-----------------------|
 | 1 | specify | `/speckit-specify` | artifact: `spec.md` exists |
 | 2 | clarify | `/speckit-clarify` | artifact: clarifications resolved |
-| 3 | spec_review_product | `/spec-review --mode product` | verdict: APPROVED |
+| 3 | spec_review_product | `/manifest-spec-planning:spec-review --mode product` | verdict: APPROVED |
 | 4 | plan | `/speckit-plan` | artifact: `plan.md` + design |
 | 5 | task_creation | `/speckit-tasks` + `/speckit-taskstoissues` | artifact: `tasks.md` + hierarchy provisioned |
 | 6 | analyze | `/speckit-analyze` | verdict: 0 critical |
-| 7 | spec_review_tech | `/spec-review --mode technical` | verdict: APPROVED |
+| 7 | spec_review_tech | `/manifest-spec-planning:spec-review --mode technical` | verdict: APPROVED |
 | 8 | implement | `/speckit-implement` | coverage: every shipped user-facing workflow has a smoke test (or exempt) |
-| 9 | verify | `/spec-audit-tasks` + `manifest smoke run --tier Lite` | runner: exit 0 |
+| 9 | verify | `/manifest-spec-planning:spec-audit-tasks` + `manifest smoke run --tier Lite` | runner: exit 0 |
 
 > The `--mode product|technical` flag routes the state dir and selects the
 > matching template (`prompts/spec_review.md` vs `prompts/spec_review_technical.md`).

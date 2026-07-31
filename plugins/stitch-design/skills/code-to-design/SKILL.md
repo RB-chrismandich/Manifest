@@ -32,7 +32,7 @@ Follow these steps to convert your existing code.
 
 #### 1. Extract Self-Contained HTML
 
-Delegate to the `extract-static-html` skill to generate a standalone HTML file.
+Delegate to the `/stitch-design:extract-static-html` skill to generate a standalone HTML file.
 Read [skills/extract-static-html/SKILL.md](../extract-static-html/SKILL.md) for detailed instructions and script usage.
 
 Expected output: A single file like `/path/to/extracted/standalone.html`.
@@ -47,7 +47,7 @@ If the user reports issues after reviewing, fix them before continuing.
 
 #### 3. Extract Design System (File)
 
-Delegate to the `extract-design-md` skill to analyze the project's source files
+Delegate to the `/stitch-design:extract-design-md` skill to analyze the project's source files
 (components, stylesheets, theme configs) and produce a design system. Read
 [skills/extract-design-md/SKILL.md](../extract-design-md/SKILL.md) for the
 full analysis workflow.
@@ -57,7 +57,7 @@ structure.
 
 #### 4. Upload DESIGN.md and Create Design System in Stitch
 
-Delegate to the `manage-design-system` skill to upload the `DESIGN.md` and
+Delegate to the `/stitch-design:manage-design-system` skill to upload the `DESIGN.md` and
 create the design system in Stitch. Read
 [skills/manage-design-system/SKILL.md](../manage-design-system/SKILL.md) for
 the full workflow (upload script usage, `create_design_system_from_design_md`

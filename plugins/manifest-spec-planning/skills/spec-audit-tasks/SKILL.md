@@ -36,7 +36,7 @@ implementer's call — this skill's job is to tell the truth about what is actua
    - **Artifact exists** — the file(s)/symbol(s) the task describes are actually present in
      the working tree, not merely planned.
    - **Tests are real and green** — any test the task promised exists and passes. Run
-     `/project-verify` (or the task's specific test) rather than trusting the box; test/security
+     `/manifest-code-quality:project-verify` (or the task's specific test) rather than trusting the box; test/security
      failures are blocking, lint is advisory.
    - **No stub left** — no `TODO`/`FIXME`/`pass`/`NotImplemented`/placeholder sitting where
      the task required real behavior.
@@ -91,7 +91,7 @@ ALWAYS use this structure so the gap between claimed and actual is unmistakable:
   moment implementation finishes and before the auto-commit hook — gaps are cheapest to fix
   before the work is committed. In superpowers or standalone, invoke it directly after the
   implement step; it re-audits any time.
-- Complements `/project-verify` (deterministic lint/test/scan) and the cross-artifact
+- Complements `/manifest-code-quality:project-verify` (deterministic lint/test/scan) and the cross-artifact
   consistency pass (`speckit-analyze` / `spec-review`): this skill is specifically about
   **did we actually finish every task**.
 

@@ -78,7 +78,7 @@ write `GRAPH_REPORT.md`.
 Unlike `skill-evolve`, graphify's LLM backend really is a first-class CLI flag
 (`graphify --help` confirms it), so this one is a genuine seam, not a
 workaround: `GRAPHIFY_LLM_CLI="${GRAPHIFY_LLM_CLI:-claude-cli}"`, role-named
-per the `llm-invoke-stdin` pattern, plumbed into `--backend`. Verified against
+per the `/manifest-code-quality:llm-invoke-stdin` pattern, plumbed into `--backend`. Verified against
 this environment's installed `graphify` CLI:
 
 - `graphify extract --help` lists `--backend B` as

@@ -90,7 +90,7 @@ For each new antipattern, store it in the YAML knowledge base:
 exactly ONE of `arch`, `async-state`, `error-handling`, `security`,
 `dependency`, `iteration` in `--tags` — this is how the entry joins the
 guardrail registry consumed by write-time guidance (`code-audit`) and
-`/ai-code-audit`. Pick by the defect's nature: structure/duplication/tests →
+`/manifest-code-quality:ai-code-audit`. Pick by the defect's nature: structure/duplication/tests →
 `arch`; async/lifecycle/races → `async-state`; swallowed errors/validation →
 `error-handling`; vulns/secrets → `security`; packages/env → `dependency`;
 refinement/session-drift → `iteration`. The severity, detection cue, and

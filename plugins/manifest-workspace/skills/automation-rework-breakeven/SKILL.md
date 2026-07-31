@@ -4,7 +4,7 @@ description: Use when deciding whether a more-thorough-but-costlier automation o
 ---
 # Break-Even Analysis for a More-Correct, Costlier Automation
 
-When a v2 of a skill/automation is more correct but spends more tokens per run, "is it worth it?" is a measurable question, not a vibe. Distinct from `token-benchmark` (config-deployment overhead) and `skill-creator` benchmarking (raw pass/time/tokens): this models the *correctness-for-tokens trade* with an empirically measured rework cost.
+When a v2 of a skill/automation is more correct but spends more tokens per run, "is it worth it?" is a measurable question, not a vibe. Distinct from `/manifest-workspace:token-benchmark` (config-deployment overhead) and `skill-creator` benchmarking (raw pass/time/tokens): this models the *correctness-for-tokens trade* with an empirically measured rework cost.
 
 1. **Separate the two axes.** Correctness (pass rate) and cost (tokens/time) are independent — a version that "finds more" is not automatically cheaper. State both; never let a pass-rate win imply a token saving.
 2. **Compute extra spend.** Take per-run token means for each version (averaged across evals) and the delta. Project it over N runs — that is the known cost the costlier version must earn back.

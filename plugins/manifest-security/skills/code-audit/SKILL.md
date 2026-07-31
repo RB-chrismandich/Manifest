@@ -113,7 +113,7 @@ added after this skill shipped — defines a `detection_cue` and a
   never gate or interrupt the workflow. Blocking remains exclusive to the
   Tier 1 validation gates (`validation_criteria.yml`).
 - Full per-entry detail: `~/.claude/references/antipatterns.md`. For a
-  systematic whole-codebase review, suggest `/ai-code-audit` instead of
+  systematic whole-codebase review, suggest `/manifest-code-quality:ai-code-audit` instead of
   expanding inline feedback.
 
 ## Output Format
@@ -156,7 +156,7 @@ This skill provides information without interrupting user workflow:
 
 ## Integration with Commands
 
-This skill works alongside the `/python-refactor` command:
+This skill works alongside the `/manifest-code-quality:python-refactor` command:
 
 - **Skill**: Lightweight, auto-triggered, inline feedback
 - **Command**: Comprehensive, user-invoked, full report
@@ -164,7 +164,7 @@ This skill works alongside the `/python-refactor` command:
 When both trigger:
 
 1. Skill provides immediate feedback
-2. User can invoke `/python-refactor` for detailed analysis
+2. User can invoke `/manifest-code-quality:python-refactor` for detailed analysis
 3. Results are complementary, not duplicated
 
 ## Configuration
