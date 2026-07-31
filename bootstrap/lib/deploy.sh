@@ -302,6 +302,8 @@ deploy_configs() {
     # No-op once apm owns the `skills` domain (SC-006) — see apm_domains.yml.
     # Must run before link_shared_assets (create_symlink skips missing targets).
     deploy_home_skills "$SCRIPT_DIR/.apm/skills" "${MANIFEST_SKILLS_DIR:-$TARGET_DIR/skills}" harness-skills
+    register_manifest_marketplace "$SCRIPT_DIR"
+
     # T2.5 (spec 674): repoint every sibling home at the harness root, from HERE
     # and unconditionally. Doing it inside the per-assistant deploy functions
     # leaves --disable-<assistant> pointing at a tree Manifest no longer writes,
@@ -1299,6 +1301,42 @@ populate_apm_owned_skills() {
     return 0
 }
 
+# register_manifest_marketplace — point Claude Code at this checkout's plugin
+# marketplace (T4.1, spec 674).
+#
+# A DIRECTORY source, not a git URL. Verified working: part-forge is configured
+# exactly this way, with real version dirs in the cache. It is the mitigation
+# for the measured dev-loop regression -- one `apm-dev-sync` with zero restarts
+# becomes up to 9 `claude plugin update` calls plus a marketplace update and one
+# session restart per iteration. A directory source removes publish and tag from
+# that loop, though not the copy, the update, or the restart.
+#
+# NON-FATAL by design: a contributor without the claude CLI, or who declines
+# plugins entirely, must still get a working bootstrap. This registers the
+# marketplace; it deliberately does NOT install anything -- installing is
+# cutover_bundle.sh's job, and it has preconditions this function has no
+# business asserting.
+register_manifest_marketplace() {
+    local repo_root="$1"
+    [[ -f "$repo_root/.claude-plugin/marketplace.json" ]] || return 0
+    command_exists claude || {
+        print_info "claude CLI not found — skipping marketplace registration"
+        return 0
+    }
+
+    if claude plugin marketplace list 2> /dev/null | grep -q '\bmanifest\b'; then
+        print_success "Marketplace already registered: manifest"
+        return 0
+    fi
+    if claude plugin marketplace add "$repo_root" > /dev/null 2>&1; then
+        print_success "Registered plugin marketplace: $repo_root"
+    else
+        # Not an error: the CLI may be too old, unauthenticated, or the user may
+        # have removed it deliberately. Say so rather than failing the deploy.
+        print_warning "Could not register the plugin marketplace (continuing)"
+    fi
+}
+
 verify_installation() {
     print_header "Verifying Installation"
 
@@ -1529,6 +1567,36 @@ verify_installation() {
         print_success "jq is installed (required by git_ops.sh)"
     else
         print_warning "jq is not installed - git_ops.sh will have limited functionality"
+    fi
+
+    # T4.4 (spec 674): verify the CLAUDE side, which nothing else does.
+    #
+    # Before this, verify_installation canaried exactly one file under the skills
+    # tree and asserted NOTHING about ~/.claude/plugins. A user who ran
+    # ./bootstrap.sh and never ran `claude plugin install` got "Installation
+    # verified" with zero Manifest skills in Claude Code.
+    #
+    # SELF-DISABLING on purpose. It only runs once the cutover has actually
+    # started -- i.e. installed_plugins.json already names at least one manifest-*
+    # bundle. Checking unconditionally would report a shortfall on a correct
+    # PRE-cutover machine, which is the same "permanently red gate" failure this
+    # plan flags in T1.11; a gate that is always red is a gate nobody reads.
+    local installed_json="$TARGET_DIR/plugins/installed_plugins.json"
+    if [[ -r "$installed_json" ]] && grep -q '"manifest-' "$installed_json" 2> /dev/null; then
+        local registry="$TARGET_DIR/config/skill_policies.yml"
+        if [[ -r "$registry" ]]; then
+            print_step "Checking installed Manifest bundles..."
+            local bundle
+            while IFS= read -r bundle; do
+                [[ -n "$bundle" ]] || continue
+                if grep -q "\"$bundle@" "$installed_json" 2> /dev/null; then
+                    print_success "Bundle installed: $bundle"
+                else
+                    print_error "Bundle NOT installed: $bundle — run: claude plugin install $bundle@manifest"
+                    errors=$((errors + 1))
+                fi
+            done < <(sed -n 's/^  \([a-z][a-z0-9-]*\):.*$/\1/p' "$registry")
+        fi
     fi
 
     # Summary
