@@ -339,3 +339,33 @@ teardown_t111() { [[ -n "${T111:-}" ]] && rm -rf "$T111"; return 0; }
     refute_output --partial "bundle(s)"
     teardown_t111
 }
+
+@test "T5.x: a retired domain reports 'retired' and exits 0, not UNOWNED" {
+    # Post-cutover, "written by neither pipeline" is the CORRECT end state. The
+    # UNOWNED branch would exit 1 and advise `apm_ungate_domain.sh skills
+    # --apply`, walking the user straight back out of the cutover.
+    setup_t111
+    printf 'domains: []\nretired:\n  - skills\n' > "$T111/domains.yml"
+    : > "$T111/.apm/apm.lock.yaml"
+    run_report
+    assert_output --partial "retired"
+    refute_output --partial "UNOWNED"
+    refute_output --partial "apm_ungate_domain.sh"
+    [ "$status" -eq 0 ]
+    teardown_t111
+}
+
+@test "T5.x: a NON-retired unowned domain still reports UNOWNED and exits 1" {
+    # The direction that proves the short-circuit is conditional. If retirement
+    # swallowed every case, the drift condition would go unreported forever.
+    setup_t111
+    # UNOWNED needs apm to OWN the domain and not have deployed it. With
+    # `domains: []` the legacy writer is armed and the status is merely
+    # "legacy" -- a fixture that never reaches the branch it names.
+    printf 'domains:\n  - skills\nretired: []\n' > "$T111/domains.yml"
+    : > "$T111/.apm/apm.lock.yaml"
+    run_report
+    assert_output --partial "UNOWNED"
+    [ "$status" -eq 1 ]
+    teardown_t111
+}

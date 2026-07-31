@@ -133,7 +133,13 @@ for d in "${DOMAINS[@]}"; do
     legacy_writes "$d" && legacy=true
     apm_deployed "$d" && apm=true
 
-    if [[ "$legacy" == true && "$apm" == true ]]; then
+    # RETIRED short-circuits the whole matrix. Once a domain is handed to the
+    # plugins, "written by neither pipeline" is the CORRECT end state, not the
+    # drift condition -- and the UNOWNED advice ("hand it back with
+    # apm_ungate_domain.sh") would walk a user straight back out of the cutover.
+    if declare -f domain_retired > /dev/null 2>&1 && domain_retired "$d"; then
+        status="retired"
+    elif [[ "$legacy" == true && "$apm" == true ]]; then
         status="DOUBLE-CLAIMED"
         rc=1
     elif [[ "$legacy" == false && "$apm" == false ]]; then
@@ -304,6 +310,9 @@ if [[ $rc -ne 0 ]]; then
                 echo "  Common cause: local build artifacts (__pycache__, .pytest_cache) in the"
                 echo "  deployed copy — apm will not adopt a directory holding files it did not place."
                 echo "  Clear them and re-install, or un-gate the domain."
+                ;;
+            retired)
+                : # nothing to say: the plugins row above is the live owner
                 ;;
             UNOWNED)
                 echo "! $d is written by NEITHER pipeline — it will silently stop updating."
