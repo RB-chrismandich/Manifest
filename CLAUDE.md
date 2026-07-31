@@ -56,9 +56,7 @@ configs/                             # Deployment source configs (deployed to ~/
 ├── skills/                          # speckit-* project-scoped skills (loaded in this repo's sessions)
 └── settings.local.json              # Repo-relevant permissions only (no MCP servers)
 
-.claude-plugin/                      # marketplace.json — the repo doubles as a Claude Code plugin marketplace ("manifest")
-plugins/                             # Claude Code plugins (installed via marketplace or --plugin-dir, NOT deployed by bootstrap)
-└── adversarial-design-loop/         # Spec-first adversarial UI design loop (6 skills, 2 agents, render gate)
+.claude-plugin/ + plugins/           # Claude Code plugin marketplace (not bootstrap-deployed)
 bootstrap.sh                         # macOS/Linux bootstrap script
 bootstrap/                           # Modular bootstrap libraries + hookable modules
 ├── lib/                             # Shared bootstrap logic split by concern
@@ -127,11 +125,11 @@ Antigravity) and required CLI installs are in
 | `configs/claude/scripts/git_platform.sh` | Platform detection script (github, gitlab, git) |
 | `configs/claude/scripts/git_ops.sh` | Platform-agnostic Git operations wrapper (issue/PR management) |
 | `configs/claude/scripts/linear_ops.sh` | Linear API wrapper for issue management (GraphQL) |
-| `configs/claude/config/tracker_providers.yml` | Issue-tracker provider registry — access precedence, phase-to-status mapping, per-provider config |
-| `configs/claude/scripts/tracker_registry.py` | Read-only resolver CLI for `tracker_providers.yml` (status/access/default-provider/mcp-tool lookups) |
-| `configs/claude/scripts/tracker_ops.sh` | Provider-agnostic issue verb dispatcher (github/gitlab/linear; jira exit 3) — resolve-provider, issue-list/view/create/comment/transition/label/close, duplicate-mark |
+| `configs/claude/config/tracker_providers.yml` | Issue-tracker provider registry |
+| `configs/claude/scripts/tracker_registry.py` | Read-only resolver CLI for `tracker_providers.yml` |
+| `configs/claude/scripts/tracker_ops.sh` | Provider-agnostic issue verb dispatcher |
 | `configs/claude/config/command_config.yml` | Thresholds, tool policies, model selection, error recovery |
-| `configs/claude/config/tracker_triage.yml` | Provider-neutral triage scoring, duplicate detection, staleness thresholds (replaced `linear_triage.yml`, deleted 2026-07-29) |
+| `configs/claude/config/tracker_triage.yml` | Provider-neutral triage scoring and duplicate detection |
 | `configs/claude/config/validation_criteria.yml` | Tier 1 (critical) and Tier 2 (quality) validation rules |
 | `configs/claude/config/labels.yml` | Canonical label registry for GitHub, GitLab, and Linear |
 | `configs/claude/scripts/label_sync.sh` | Label sync script — reads registry, provisions labels across platforms |
