@@ -27,6 +27,7 @@ they must never be flagged.
 
 from __future__ import annotations
 
+import importlib.util
 import json
 import subprocess
 import sys
@@ -36,6 +37,16 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 CHECKER = REPO_ROOT / "configs" / "claude" / "scripts" / "skill_reference_check.py"
+
+# Most cases drive the CLI as a subprocess; the root-defaulting cases need the
+# function itself, since its whole job is choosing what to scan.
+_spec = importlib.util.spec_from_file_location("skill_reference_check", CHECKER)
+src = importlib.util.module_from_spec(_spec)
+# Registered BEFORE exec: the module defines dataclasses, and dataclasses
+# resolves annotations via sys.modules[cls.__module__] -- absent, that is an
+# AttributeError on None at import time.
+sys.modules[_spec.name] = src
+_spec.loader.exec_module(src)
 
 
 def write_skill(
@@ -377,3 +388,27 @@ def test_real_repo_measurement_is_stable():
         "expected the known 33-site surface pre-remediation"
     )
     assert payload["warning_count"] > 0
+
+
+def test_default_roots_prefer_the_plugin_trees_over_the_generated_mirror(tmp_path):
+    """`.apm/skills` is a generated, gitignored mirror since T3.3.
+
+    Reporting hits there sends whoever reads the output to edit files the next
+    generate_skill_mirror.sh run destroys: the fix passes review, passes this
+    gate on the spot, and is gone by the next rebuild.
+    """
+    (tmp_path / "plugins/manifest-demo/skills/alpha").mkdir(parents=True)
+    (tmp_path / ".apm/skills/alpha").mkdir(parents=True)
+    roots = src.default_roots(tmp_path)
+    assert roots == [tmp_path / "plugins/manifest-demo/skills"]
+
+
+def test_default_roots_fall_back_to_the_mirror_on_a_pre_cutover_checkout(tmp_path):
+    (tmp_path / ".apm/skills/alpha").mkdir(parents=True)
+    assert src.default_roots(tmp_path) == [tmp_path / ".apm" / "skills"]
+
+
+def test_default_roots_span_every_bundle(tmp_path):
+    for bundle in ("manifest-a", "manifest-b", "manifest-c"):
+        (tmp_path / f"plugins/{bundle}/skills/one").mkdir(parents=True)
+    assert len(src.default_roots(tmp_path)) == 3

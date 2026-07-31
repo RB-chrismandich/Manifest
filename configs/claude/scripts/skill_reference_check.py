@@ -36,8 +36,8 @@ Usage: skill_reference_check.py [--roots P[:P...]] [--baseline F] [--json] [--he
 
 Find cross-skill references that stop resolving once skills are plugin-scoped.
 
-  --roots P[:P...]  Skill root dirs (default: .apm/skills). Accepts a colon list
-                    so it keeps working after the move to plugins/*/skills.
+  --roots P[:P...]  Skill root dirs (default: plugins/*/skills, else the
+                    .apm/skills mirror). Colon-separated.
   --baseline F      JSON ratchet: warning_total / blocking_total ceilings.
   --registry F      skill_policies.yml; its expected_total must equal the
                     catalog found on disk. Exogenous check against silent loss.
@@ -371,6 +371,22 @@ def check_registry(path: Path, catalog: set[str]) -> bool:
     return ok
 
 
+def default_roots(repo: Path) -> list[Path]:
+    """Where the skills actually live, source-first.
+
+    `.apm/skills` became a GENERATED, gitignored mirror in T3.3. Reporting hits
+    there sends whoever reads this output to edit files the next
+    generate_skill_mirror.sh run destroys -- a fix that passes review, passes
+    the gate on the spot, and is gone by the next rebuild. So the plugin trees
+    win when they exist, and the mirror remains the fallback for a checkout
+    from before the move.
+    """
+    plugin_skills = sorted(
+        d for d in repo.glob("plugins/*/skills") if d.is_dir()
+    )
+    return plugin_skills or [repo / ".apm" / "skills"]
+
+
 def parse_args(argv: list[str]) -> tuple[list[Path], Path | None, Path | None, bool]:
     """Return (roots, baseline, registry, as_json). Exits 2 on an unknown or
     incomplete flag rather than silently ignoring it -- a typo'd --roots that
@@ -396,7 +412,7 @@ def parse_args(argv: list[str]) -> tuple[list[Path], Path | None, Path | None, b
             raise SystemExit(2)
         index += 1
     if roots_arg is None:
-        roots = [Path(__file__).resolve().parents[3] / ".apm" / "skills"]
+        roots = default_roots(Path(__file__).resolve().parents[3])
     else:
         roots = [Path(p) for p in roots_arg.split(":") if p]
     return roots, baseline, registry, as_json
