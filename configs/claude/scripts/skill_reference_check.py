@@ -339,13 +339,36 @@ def check_registry(path: Path, catalog: set[str]) -> bool:
         err(f"registry {path} declares no expected_total")
         raise SystemExit(2)
     expected = int(match.group(1))
+    ok = True
     if expected != len(catalog):
         err(
             f"registry expected_total is {expected} but {len(catalog)} skills are "
             "on disk - a skill was added or lost without updating the registry"
         )
-        return False
-    return True
+        ok = False
+
+    # T1.6's deferred half. Every skill needs exactly one bundle: an unassigned
+    # skill ships nowhere, and a doubly-assigned one installs twice. Neither is
+    # visible to a total, which is why both directions are asserted rather than
+    # a count compared.
+    assigned: list[str] = []
+    for line in text.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("- ") and line.startswith("    "):
+            assigned.append(stripped[2:].strip())
+    if assigned:
+        seen = set(assigned)
+        duplicated = sorted({n for n in seen if assigned.count(n) > 1})
+        for name in sorted(catalog - seen):
+            err(f"skill has no bundle in the registry: {name}")
+            ok = False
+        for name in sorted(seen - catalog):
+            err(f"registry assigns a bundle to a skill that is not on disk: {name}")
+            ok = False
+        for name in duplicated:
+            err(f"skill is assigned to more than one bundle: {name}")
+            ok = False
+    return ok
 
 
 def parse_args(argv: list[str]) -> tuple[list[Path], Path | None, Path | None, bool]:

@@ -1,4 +1,4 @@
-# Skill registry — the EXOGENOUS truth about the catalog (T0.7, spec 674).
+# Skill registry — the EXOGENOUS truth about the catalog (T0.7 + T1.5, spec 674).
 #
 # Exists because every partition gate the cutover needs would otherwise derive
 # BOTH sides of its equality from the tree produced by the move. If one skill
@@ -6,19 +6,171 @@
 # disk would agree with each other and disagree with reality, and every gate
 # would stay green. A committed integer is the only thing the move cannot edit.
 #
-# A PR that legitimately adds or removes a skill MUST change this number in the
-# same commit. That is the point, not an inconvenience.
+# A PR that adds or removes a skill MUST change expected_total in the same
+# commit, and give the new skill a bundle. That is the point, not friction.
 expected_total: 108
 
 # Recorded so no later phase keys anything on it: ~/.claude/skills/.deployed-skills
-# is ALREADY WRONG on a live machine. Measured 2026-07-30 — mtime Jul 27 20:56,
-# which predates SC-006 handing the domain to apm on 2026-07-28; 108 entries
-# against 109 on-disk dirs; code-audit-constitution present on disk and unlisted;
-# print-tune-bambu listed and gone. Its only two writers (deploy_home_skills and
-# sync-skills.sh) were both stood down while apm kept mutating the tree, so it is
-# dead state presenting as live. T1.12 fixes it; until then, do not read it.
+# is ALREADY WRONG on a live machine (measured 2026-07-30 — mtime predates SC-006,
+# 108 entries against 109 dirs, code-audit-constitution unlisted, print-tune-bambu
+# listed and gone). Its only two writers were both stood down while apm kept
+# mutating the tree, so it is dead state presenting as live. T1.12 fixes it.
 deployed_skills_manifest_trustworthy: false
 
-# bundle: assignments land in T1.5 alongside the tool_policies split. Absent
-# here rather than guessed: a wrong bundle silently ships a skill into the wrong
-# installed domain, and the partition map still has open disputes.
+# --- bundle assignment (T1.5) --------------------------------------------- #
+#
+# Derived from partition-map.md's ten bundle tables, which parse clean: 108
+# distinct skills, none unassigned, none duplicated, every count matching its
+# declared header. Then the shipping transformation from cutover-plan.md:
+# manifest-data-pipelines DELETED, manifest-ci DISSOLVED, manifest-runtime-ops
+# renamed manifest-ops, graphify extracted to its own bundle.
+#
+# ASSUMPTION, STATED BECAUSE IT WAS A REAL FORK. The plan's scatter rule ("along
+# their members' own subject-lens votes") and T3.1's declared counts DISAGREE:
+# subject votes alone send +7/+2, giving code-quality 25 and ops 8, while T3.1
+# declares 22/11. Both total 108, so no count gate can catch the difference and
+# T3.6's disjointness check cannot see a MISplacement either.
+#
+# Resolved in favour of T3.1's counts, because they are load-bearing in more
+# places (T4.3's install order, T3.6's per-bundle assertions) than a heuristic
+# for placing nine orphans. The nine are then split on the strongest recorded
+# signal rather than arbitrarily:
+#
+#   -> manifest-ops   ci-setup (journey=deploy-ops, explicit), ci-diagnose-drift
+#                     and ci-reproduce-failure (pipeline-environment work, and
+#                     their subject=ci-testing bundle no longer exists),
+#                     cache-warm-oob + process-diagnose-stall (subject=environment)
+#   -> manifest-code-quality
+#                     api-optimize-bulk, data-design-ingestion, data-wire-field
+#                     (subject=code-quality), data-validate-live (subject=ci-testing;
+#                     the test/validation craft cluster lives here)
+#
+# That lands exactly on 22/11. REVISABLE: if the scatter rule is meant to be
+# authoritative instead, move the three CI skills to code-quality and update
+# T3.1 to 25/8. Nothing else depends on which way this went.
+bundles:
+  manifest-code-quality:  # 22 skills
+    - ai-code-audit
+    - antipattern-detect
+    - api-optimize-bulk
+    - cli-audit-help
+    - code-audit-constitution
+    - data-design-ingestion
+    - data-validate-live
+    - data-wire-field
+    - false-green-check-audit
+    - go-refactor
+    - llm-invoke-stdin
+    - node-refactor
+    - project-scaffold
+    - project-verify
+    - python-refactor
+    - shell-audit-errexit
+    - shell-audit-pipefail
+    - shell-refactor
+    - smoke-manage
+    - terraform-refactor
+    - test-pin-bug
+    - test-vary-fixtures
+
+  manifest-docs:  # 4 skills
+    - docs-all
+    - docs-generate-diagrams
+    - docs-improve
+    - docs-improve-readme
+
+  manifest-forge:  # 18 skills
+    - branch-clean
+    - git-commit
+    - git-find-artifact
+    - issue-dev-auto
+    - issue-prep-auto
+    - issue-prioritize
+    - issue-sync-commit
+    - issue-sync-pr
+    - issue-triage
+    - lifecycle-run
+    - pr-address-comments
+    - pr-clean-base
+    - pr-merge-stacked
+    - pr-monitor
+    - pr-reset-reapply
+    - pr-review
+    - pr-triage-bots
+    - repo-clean
+
+  manifest-graphify:  # 1 skills
+    - graphify
+
+  manifest-ops:  # 11 skills
+    - cache-warm-oob
+    - ci-diagnose-drift
+    - ci-reproduce-failure
+    - ci-setup
+    - config-debug-substitution
+    - config-validate-native
+    - deploy-diagnose-drift
+    - deploy-retire-component
+    - docker-probe-internal
+    - process-diagnose-stall
+    - version-pin
+
+  manifest-security:  # 10 skills
+    - ci-audit-triggers
+    - ci-harden-workflow
+    - code-audit
+    - docker-audit-firewall
+    - llm-audit-traversal
+    - mcp-audit
+    - security-harden-proxy
+    - security-refute-findings
+    - security-review-diff
+    - security-triage-findings
+
+  manifest-spec-planning:  # 7 skills
+    - design-validate
+    - plan-manage
+    - premise-verify
+    - spec-audit-tasks
+    - spec-decide-tradeoffs
+    - spec-implement-loop
+    - spec-review
+
+  manifest-workspace:  # 17 skills
+    - ai-hooks-integration
+    - automation-rework-breakeven
+    - config-audit
+    - deploy-reconcile
+    - env-check
+    - help
+    - learning-capture
+    - memory-compress
+    - metrics-report
+    - pass-cli
+    - pr-smoke
+    - prompt-optimize
+    - session-checkpoint
+    - skill-evolve
+    - test-isolate-ambient
+    - token-benchmark
+    - token-conserve
+
+  stitch-design:  # 18 skills
+    - a11y-audit
+    - code-to-design
+    - design-md
+    - enhance-prompt
+    - extract-design-md
+    - extract-static-html
+    - generate-design
+    - manage-design-system
+    - performance-check
+    - react-components
+    - react-native
+    - react-vite-dashboard
+    - remotion
+    - shadcn-ui
+    - stitch-loop
+    - taste-design
+    - upload-to-stitch
+    - ux-review
