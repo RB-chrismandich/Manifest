@@ -146,8 +146,8 @@ duplicated here. Per-skill parallel-agent policy lives in
 [docs/COMMANDS.md](docs/COMMANDS.md) for the human-readable command reference.
 
 **CLI tools** (installed to `~/.local/bin/`): `sync-skills` — sync
-`.apm/skills/` to all home targets; `apm-dev-sync` — same loop via apm,
-publish-free, and also removes deleted skills.
+`.apm/skills/` to all home targets. Skills ship as plugin bundles: refresh
+with `claude plugin update <bundle>@manifest`.
 
 ## Testing Changes
 

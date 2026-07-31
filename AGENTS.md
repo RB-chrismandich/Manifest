@@ -245,8 +245,8 @@ Skills are invoked as slash commands (e.g., `/python-refactor src/`).
 | `/ux-review` | UX audit: accessibility, responsive design, performance budgets | NO |
 | `/project-verify` | Run linters, tests, and security scans in parallel | CONDITIONAL |
 
-**CLI tool** (installed to `~/.local/bin/`): `apm-dev-sync` — sync `.apm/skills/`
-to every home target. `sync-skills` stands down: apm owns the `skills` domain.
+**Skills are plugin bundles**: `/<bundle>:<name>`; refresh with
+`claude plugin update <bundle>@manifest`. Others read `~/.manifest/skills`.
 
 ### Cursor Rules
 

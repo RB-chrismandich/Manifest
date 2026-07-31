@@ -128,8 +128,8 @@ Common entry points: `/git-commit`, `/project-verify`, `/<lang>-refactor`,
 **Graphify**: a managed tool, not a consensus agent — excluded from
 `manifest parallel-agent` counts.
 
-**CLI tool** (installed to `~/.local/bin/`): `apm-dev-sync` — push
-`.apm/skills/` to every home (apm owns skills; `sync-skills` stands down).
+**Skills are plugin bundles**: `/<bundle>:<name>`; refresh with
+`claude plugin update <bundle>@manifest`. Others read `~/.manifest/skills`.
 
 ### Auto-Triggered Skill
 
