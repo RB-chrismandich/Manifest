@@ -1,0 +1,24 @@
+# Skill registry — the EXOGENOUS truth about the catalog (T0.7, spec 674).
+#
+# Exists because every partition gate the cutover needs would otherwise derive
+# BOTH sides of its equality from the tree produced by the move. If one skill
+# directory failed to move, the union of the plugin manifests and the count on
+# disk would agree with each other and disagree with reality, and every gate
+# would stay green. A committed integer is the only thing the move cannot edit.
+#
+# A PR that legitimately adds or removes a skill MUST change this number in the
+# same commit. That is the point, not an inconvenience.
+expected_total: 108
+
+# Recorded so no later phase keys anything on it: ~/.claude/skills/.deployed-skills
+# is ALREADY WRONG on a live machine. Measured 2026-07-30 — mtime Jul 27 20:56,
+# which predates SC-006 handing the domain to apm on 2026-07-28; 108 entries
+# against 109 on-disk dirs; code-audit-constitution present on disk and unlisted;
+# print-tune-bambu listed and gone. Its only two writers (deploy_home_skills and
+# sync-skills.sh) were both stood down while apm kept mutating the tree, so it is
+# dead state presenting as live. T1.12 fixes it; until then, do not read it.
+deployed_skills_manifest_trustworthy: false
+
+# bundle: assignments land in T1.5 alongside the tool_policies split. Absent
+# here rather than guessed: a wrong bundle silently ships a skill into the wrong
+# installed domain, and the partition map still has open disputes.

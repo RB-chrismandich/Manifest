@@ -390,6 +390,23 @@ jobs:
 
           echo "Structure validation passed: $SKILL_COUNT skills, $SCRIPT_COUNT scripts"
 
+      - name: Cross-skill references resolve after plugin scoping
+        # T1.3 (spec 674). Post-cutover a skill is reachable only as
+        # <plugin>:<skill>, so a bare cross-skill reference stops resolving and
+        # the sub-agent that hit it improvises and reports SUCCESS — no error,
+        # no log line. This gate is the only thing that can catch that class,
+        # because no runtime test can: the failure mode is a green report.
+        #
+        # Deliberately NOT a `grep '/<name>'`. That form sees 20 of the 35
+        # blocking references and is blind to dispatches written without a slash —
+        # including docs-all, whose whole failure mode is a fabricated
+        # per-skill success table, and generate-design's **bold** delegation.
+        run: |
+          python3 configs/claude/scripts/skill_reference_check.py \
+            --roots .apm/skills \
+            --registry configs/claude/config/skill_policies.yml \
+            --baseline configs/claude/config/skill_reference_baseline.json
+
       - name: Verify Cursor rules are up-to-date with skills
         run: |
           bash configs/claude/scripts/generate_cursor_rules.sh
