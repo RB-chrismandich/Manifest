@@ -278,6 +278,26 @@ false-green the plan already warns about.
 force it too, and Cursor reads `~/.claude/skills` directly. The optimistic "if Probe A returns INERT
 for all four, Phase 2 shrinks a lot" branch is closed for at least two of the four.
 
+> ### ⚠️ Phase 0 gate BYPASSED for the Devin arm — accepted risk, 2026-07-30
+>
+> The maintainer chose to settle Devin's inheritance from DOCUMENTATION rather than observation
+> and proceed to Phase 2. Recorded as an accepted risk, not a pass.
+>
+> **What is documented**: `~/.config/devin/skills` is ABSENT and `agent_roster.yml` sets
+> `read_config_from.claude: true`, so Devin is believed to inherit by reading `~/.claude`
+> natively rather than through a skills dir.
+>
+> **What is NOT observed**: `devin models list` reports `Not logged in`, so no nonce differential
+> was run. The gate exists precisely because documented and observed behaviour have already
+> diverged twice in this feature — `.deployed-skills` was documented as the prune manifest and was
+> measurably stale; `declared_model()`'s comment claimed layout-independence the code did not have.
+>
+> **The specific exposure**: if Devin in fact reads `<home>/skills`, T2.6 creating
+> `~/.config/devin/skills` covers it; if it reads `~/.claude/skills` directly, freezing that tree
+> in Phase 2 is still safe because Phase 2 does not empty it — the emptying is Phase 4. So the
+> bypass is survivable through Phase 2/3 and must be revisited before Phase 4 deletes anything.
+> `configs/claude/scripts/probe_devin_inheritance.sh` closes it in one command after a login.
+
 **Gate** (observable): `cutover_snapshot.sh --verify` extracts a tarball containing exactly 108 readable SKILL.md files plus the recorded sibling readlinks; AND a written probe table names every CLI as DEPENDS/INERT/UNKNOWN with the nonce string observed present-with-tree and absent-without-tree for each DEPENDS verdict. No UNKNOWN may remain for Devin.
 
 **Rollback**: Nothing to roll back — read-only plus one tarball. `rm ~/.manifest/pre-cutover-*.tgz` if abandoning.
