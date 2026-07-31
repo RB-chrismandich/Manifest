@@ -117,11 +117,11 @@ teardown() {
 
 # --- the shipped registry --------------------------------------------------
 
-@test "the shipped registry declares retired: and leaves it EMPTY" {
-    # Moving `skills` here before ~/.manifest/skills exists (T2.3/T2.4) would
-    # leave all five assistants with no skills at all: every writer correctly
-    # declines and nothing has taken over yet.
-    run grep -E '^retired: \[\]' "$REPO_ROOT/configs/claude/config/apm_domains.yml"
+@test "the shipped registry declares retired: with skills activated" {
+    # Activated 2026-07-30 once ~/.manifest/skills existed and all four siblings
+    # resolved into it. Activating before that would have left every assistant
+    # with nothing: each writer correctly declines, nothing had taken over yet.
+    run grep -A1 -E '^retired:' "$REPO_ROOT/configs/claude/config/apm_domains.yml"
     assert_success
 }
 

@@ -45,8 +45,21 @@ domains:
 #   apm_dev_sync.sh   — refuses BEFORE staging; its pre-existing apm_owns_domain
 #                       calls run after `apm install` and gate only a printed note
 #
-# DELIBERATELY EMPTY until the harness tree exists. Moving `skills` here before
-# T2.3/T2.4 stand up ~/.manifest/skills would leave all five assistants with no
-# skills at all — every writer would correctly decline, and nothing would have
-# taken over yet.
-retired: []
+# ACTIVATED 2026-07-30, once ~/.manifest/skills existed and all four sibling
+# homes resolved into it with a readable canary. Activating earlier would have
+# left every assistant with nothing: each writer correctly declines, and until
+# T2.3/T2.4 nothing had taken over.
+#
+# NOTE the harness tree is unaffected. deploy_home_skills is called for it with
+# the explicit domain `harness-skills`, not `skills`, which is exactly why that
+# third argument is mandatory rather than defaulted.
+#
+# `skills` appears in BOTH lists during the transition, and that is coherent
+# rather than contradictory — they answer different questions:
+#   domains:  who POPULATES ~/.claude/skills (apm, until Phase 5 stands it down)
+#   retired:  which of MANIFEST's legacy writers must not touch it (all of them)
+# The writers check `retired` first, so it wins where they overlap. Removing the
+# `domains:` entry now would silently no-op populate_apm_owned_skills, which is
+# T5.3's job to DELETE deliberately, not something to trip into here.
+retired:
+  - skills

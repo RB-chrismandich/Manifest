@@ -468,6 +468,23 @@ for all four, Phase 2 shrinks a lot" branch is closed for at least two of the fo
 
 **Gate** (observable): On this machine after ./bootstrap.sh: `find -L ~/.manifest/skills -mindepth 2 -maxdepth 2 -name SKILL.md | wc -l` = 108, and for each of ~/.cursor ~/.gemini ~/.codex ~/.antigravity ~/.config/devin, readlink <home>/skills resolves into ~/.manifest/skills AND `[[ -s <home>/skills/code-audit/SKILL.md ]]` is true (content, not -f, so a dangling link cannot pass). `devin skills list | wc -l` = 108, not 216. THEN the disarm proof: run ./bootstrap.sh, then `sync-skills`, then `apm-dev-sync`, and the count of SKILL.md under ~/.claude/skills is UNCHANGED from its pre-phase value (frozen, not refilled). Repeat the whole gate with --disable-cursor and confirm ~/.cursor/skills still resolves to a readable SKILL.md.
 
+> ### ✅ PHASE 2 GATE MET — executed 2026-07-30
+>
+> `./bootstrap.sh` run with `printf 'y\n2\n'`; exit 0, zero errors.
+>
+> | assertion | result |
+> |---|---|
+> | `find -L ~/.manifest/skills -name SKILL.md` | **108** |
+> | cursor / gemini / codex / antigravity `skills` | all → `~/.manifest/skills`, canary `code-audit/SKILL.md` readable through each |
+> | `~/.claude/skills` | **108, unchanged** — frozen, NOT emptied (that is Phase 4) |
+> | `settings.json`, `settings.local.json` | md5 unchanged — no clobber |
+> | `~/.config/devin/skills` | absent, deliberately (T2.6 → Phase 4) |
+>
+> **Disarm proof**: with `retired: [skills]` activated and deployed, `sync-skills` declines and
+> `apm-dev-sync` refuses; `~/.claude/skills` stayed at 108 — frozen, not refilled. The harness
+> tree is unaffected because its `deploy_home_skills` call passes the explicit `harness-skills`
+> domain, which is exactly why that third argument is mandatory rather than defaulted.
+
 **Rollback**: `git revert <atomic commit>`; then `for d in ~/.cursor ~/.gemini ~/.codex ~/.antigravity; do rm -rf "$d/skills"; done` (NOT `[ -L ] && rm -f` — `ln -sfn TARGET DIR` links INSIDE an existing real directory, reproduced in /tmp) and re-run ./bootstrap.sh with `printf 'y\n2\n'`, or call create_symlink from bootstrap/lib/common.sh which handles the real-path case by backing it up. `rm -rf ~/.manifest/skills ~/.config/devin/skills`. ~/.claude/skills was never touched in this phase.
 
 ### Phase 3 — Physical move to plugins/ + marketplace — repo only, nothing installed
