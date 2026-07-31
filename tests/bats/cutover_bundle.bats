@@ -20,7 +20,17 @@ setup() {
     # Never the real ~/.config/devin/skills: the gate CREATES this path, and an
     # earlier version of these tests left a dangling link on the live machine.
     export DEVIN_SKILLS_LINK="$SANDBOX/devin/skills"
-    mkdir -p "$MANIFEST_STATE_DIR" "$MANIFEST_SKILLS_DIR"
+    mkdir -p "$MANIFEST_STATE_DIR" "$MANIFEST_SKILLS_DIR" "$SANDBOX/bin"
+    # `claude` is stubbed for EVERY case, unconditionally. Several tests run the
+    # script in real (non-dry-run) mode, and the script's install step shells
+    # out to `claude plugin install <bundle>@manifest` -- which is GLOBAL and
+    # ignores every sandbox variable here. That is not hypothetical: it
+    # installed manifest-docs on the live machine during this suite's own run,
+    # leaving four skills registered twice (bundle + user dir) until the real
+    # cutover removed them. A stub cannot be forgotten per-test the way a PATH
+    # prefix can.
+    printf '#!/bin/sh\necho "stub: claude $*"\n' > "$SANDBOX/bin/claude"
+    chmod +x "$SANDBOX/bin/claude"
     printf 'expected_total: 2\nbundles:\n  manifest-docs:  # 2 skills\n    - alpha\n    - beta\n' \
         > "$MANIFEST_SKILL_REGISTRY"
 }
@@ -68,7 +78,7 @@ devin_stub() {  # $1 = the path text devin should print
 @test "refuses when no Phase 0 snapshot exists" {
     # The tarball is the ONLY rollback that survives Phase 5 -- every rollback
     # the input designs proposed calls a script this cutover retires.
-    run "$SCRIPT" manifest-docs --allow-unverified-devin
+    run env PATH="$SANDBOX/bin:$PATH" "$SCRIPT" manifest-docs --allow-unverified-devin
     assert_failure
     assert_output --partial "no Phase 0 snapshot"
 }
@@ -144,7 +154,7 @@ devin_stub() {  # $1 = the path text devin should print
 
 @test "refuses a bundle that owns no skills in the registry" {
     : > "$MANIFEST_STATE_DIR/pre-cutover-20260101_000000.tgz"
-    run "$SCRIPT" not-a-bundle --allow-unverified-devin
+    run env PATH="$SANDBOX/bin:$PATH" "$SCRIPT" not-a-bundle --allow-unverified-devin
     assert_failure
 }
 
@@ -280,4 +290,18 @@ devin_stub() {  # $1 = the path text devin should print
     run env PATH="$SANDBOX/bin:$PATH" "$SCRIPT" manifest-docs --dry-run
     assert_success
     refute_output --partial "does not report any skill"
+}
+
+@test "no case reaches the real claude CLI" {
+    # Enumerated, not trusted: a future case that forgets the PATH prefix would
+    # silently install a plugin on the developer's machine, and the only symptom
+    # is a bundle appearing in `claude plugin list` that nobody asked for.
+    # Only an invocation carrying a BUNDLE NAME can reach the install step;
+    # `--help` and the no-argument case exit long before it.
+    run grep -cE 'run "\$SCRIPT" [a-z]' "$BATS_TEST_FILENAME"
+    [ "$output" -eq 0 ] || {
+        echo "bundle invocations without the stub PATH: $output"
+        grep -nE 'run "\$SCRIPT" [a-z]' "$BATS_TEST_FILENAME"
+        false
+    }
 }
