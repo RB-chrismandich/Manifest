@@ -453,6 +453,14 @@ jobs:
           fi
           echo "No absolute skills-tree paths in skill bodies"
 
+      - name: Bundle partition invariants
+        # T3.6 (spec 674). Pure python3 + bats, NO claude CLI: `grep -c
+        # 'claude plugin' ci.yml` was 0 before this feature, so any gate phrased
+        # as `claude plugin validate --strict` is unrunnable here or skips
+        # green, and a skip that renders as a pass is the false green this phase
+        # exists to remove.
+        run: npx bats tests/bats/bundle_partition.bats
+
       - name: Cross-skill references resolve after plugin scoping
         # T1.3 (spec 674). Post-cutover a skill is reachable only as
         # <plugin>:<skill>, so a bare cross-skill reference stops resolving and
