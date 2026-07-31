@@ -1,0 +1,72 @@
+{
+  "name": "manifest",
+  "owner": {
+    "name": "ReefBytes"
+  },
+  "description": "Manifest agent skills for Claude Code, partitioned into nine bundles. Requires the Manifest bootstrap for the shared ~/.claude/scripts and config that many skills invoke.",
+  "plugins": [
+    {
+      "name": "manifest-code-quality",
+      "source": "./plugins/manifest-code-quality",
+      "description": "Analysis of code that already exists: per-language refactor roadmaps, constitution audit, AI-defect audits, verification gates and test craft. Requires Manifest bootstrap for ~/.claude/scripts.",
+      "version": "0.1.0",
+      "category": "code-quality"
+    },
+    {
+      "name": "manifest-docs",
+      "source": "./plugins/manifest-docs",
+      "description": "Documentation: README and doc-set improvement, Mermaid architecture diagrams, and a one-pass orchestrator. Requires Manifest bootstrap for ~/.claude/scripts.",
+      "version": "0.1.0",
+      "category": "documentation"
+    },
+    {
+      "name": "manifest-forge",
+      "source": "./plugins/manifest-forge",
+      "description": "Code-forge and issue-tracker workflows: commits, branches, PR/MR review threads, triage and autonomous issue-to-PR development. Requires Manifest bootstrap for ~/.claude/scripts.",
+      "version": "0.1.0",
+      "category": "version-control"
+    },
+    {
+      "name": "manifest-graphify",
+      "source": "./plugins/manifest-graphify",
+      "description": "Map a codebase, docs or repo into a queryable knowledge graph. Requires Manifest bootstrap and the graphify CLI.",
+      "version": "0.1.0",
+      "category": "code-quality"
+    },
+    {
+      "name": "manifest-ops",
+      "source": "./plugins/manifest-ops",
+      "description": "Runtime and deployment operations: environment config validation, deploy diagnosis, version pinning, CI pipelines and data-ingestion design. Requires Manifest bootstrap for ~/.claude/scripts.",
+      "version": "0.1.0",
+      "category": "deployment"
+    },
+    {
+      "name": "manifest-security",
+      "source": "./plugins/manifest-security",
+      "description": "Security review and hardening: diff review, finding triage and refutation, MCP and proxy audits, CI pwn-request analysis. Requires Manifest bootstrap for ~/.claude/scripts.",
+      "version": "0.1.0",
+      "category": "security"
+    },
+    {
+      "name": "manifest-spec-planning",
+      "source": "./plugins/manifest-spec-planning",
+      "description": "Planning artifacts: spec/plan/task consistency review, completion audit, trade-off records and critic-gated implementation. Requires Manifest bootstrap for ~/.claude/scripts.",
+      "version": "0.1.0",
+      "category": "project-management"
+    },
+    {
+      "name": "manifest-workspace",
+      "source": "./plugins/manifest-workspace",
+      "description": "Workspace and session tooling: environment checks, config audit, memory, plans, prompts and skill evolution. Requires Manifest bootstrap for ~/.claude/scripts.",
+      "version": "0.1.0",
+      "category": "productivity"
+    },
+    {
+      "name": "stitch-design",
+      "source": "./plugins/stitch-design",
+      "description": "Google Stitch design workflows: generate and edit screens, extract and manage design systems, and convert designs to React, React Native or Remotion.",
+      "version": "0.1.0",
+      "category": "design"
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "name": "manifest-spec-planning",
+  "version": "0.1.0",
+  "description": "Planning artifacts: spec/plan/task consistency review, completion audit, trade-off records and critic-gated implementation. Requires Manifest bootstrap for ~/.claude/scripts.",
+  "author": {
+    "name": "ReefBytes"
+  },
+  "homepage": "https://github.com/ReefBytes-Owner/Manifest",
+  "license": "Proprietary",
+  "skills": [
+    "./skills/design-validate",
+    "./skills/plan-manage",
+    "./skills/premise-verify",
+    "./skills/spec-audit-tasks",
+    "./skills/spec-decide-tradeoffs",
+    "./skills/spec-implement-loop",
+    "./skills/spec-review"
+  ]
+}

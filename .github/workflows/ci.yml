@@ -25,6 +25,16 @@ jobs:
           # Full history so pre-commit can diff changed files against the base ref.
           fetch-depth: 0
 
+      # .apm/skills is GENERATED from plugins/*/skills/* (T3.3, spec 674) and is
+      # gitignored, so a fresh clone has no mirror. Every consumer below still
+      # reads that path -- the COMMANDS.md drift check, the ai-hooks pytest, the
+      # structure count, and the configs/claude/skills symlink -- so the mirror
+      # must exist before any of them run. Without this the jobs fail on an
+      # EMPTY tree, which several of them would otherwise report as agreeing
+      # with itself.
+      - name: Generate skill mirror (.apm/skills from plugins/)
+        run: configs/claude/scripts/generate_skill_mirror.sh
+
       # --- ShellCheck ---
 
       # Distro package = effectively pinned per runner image; record the
@@ -162,6 +172,16 @@ jobs:
           # bats-support / bats-assert under tests/test_helper are git submodules
           submodules: true
 
+      # .apm/skills is GENERATED from plugins/*/skills/* (T3.3, spec 674) and is
+      # gitignored, so a fresh clone has no mirror. Every consumer below still
+      # reads that path -- the COMMANDS.md drift check, the ai-hooks pytest, the
+      # structure count, and the configs/claude/skills symlink -- so the mirror
+      # must exist before any of them run. Without this the jobs fail on an
+      # EMPTY tree, which several of them would otherwise report as agreeing
+      # with itself.
+      - name: Generate skill mirror (.apm/skills from plugins/)
+        run: configs/claude/scripts/generate_skill_mirror.sh
+
       # --- Bats tests (helpers provided by the submodules above) ---
 
       # Cache keyed on the pinned version string so a pin bump invalidates
@@ -253,6 +273,16 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+
+      # .apm/skills is GENERATED from plugins/*/skills/* (T3.3, spec 674) and is
+      # gitignored, so a fresh clone has no mirror. Every consumer below still
+      # reads that path -- the COMMANDS.md drift check, the ai-hooks pytest, the
+      # structure count, and the configs/claude/skills symlink -- so the mirror
+      # must exist before any of them run. Without this the jobs fail on an
+      # EMPTY tree, which several of them would otherwise report as agreeing
+      # with itself.
+      - name: Generate skill mirror (.apm/skills from plugins/)
+        run: configs/claude/scripts/generate_skill_mirror.sh
 
       # generate_cursor_rules.sh emits the command-index rule via
       # generate_commands_doc.py (imports pyyaml), and regenerates

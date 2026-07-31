@@ -1,6 +1,6 @@
 ---
 name: pr-address-comments
-description: Use when your open PR receives review feedback (inline comments, Copilot/CodeRabbit, review-body, issue discussion) — resolve every item truthfully: fix real issues, decline wrong ones with evidence, never mark resolved without a verified fix. Distinct from analysis-only pr-review.
+description: "Use when your open PR receives review feedback (inline comments, Copilot/CodeRabbit, review-body, issue discussion) — resolve every item truthfully: fix real issues, decline wrong ones with evidence, never mark resolved without a verified fix. Distinct from analysis-only pr-review."
 ---
 
 # Address PR Review Comments
