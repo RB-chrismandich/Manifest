@@ -201,7 +201,8 @@ jobs:
       - name: Sync manifest runtime (bats tests stub ~/.claude/.venv from this tree)
         run: uv sync --project configs/claude
 
-      # apm_publish_gate.sh fails CLOSED when gitleaks is absent (no regex-only
+      # Retained after spec 674 Phase 5 retired apm_publish_gate.sh: gitleaks is
+      # still the repo's secret scanner. Formerly justified as (no regex-only
       # degrade), so without this the APM publish-gate bats fail in CI while
       # passing on any dev box that has it from Homebrew — an ambient-dependency
       # split. Pinned and checksum-verified against the release's own

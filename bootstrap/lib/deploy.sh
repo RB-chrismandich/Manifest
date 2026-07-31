@@ -1254,17 +1254,13 @@ deploy_sync_skills() {
     cp "$SCRIPT_DIR/configs/claude/scripts/sync-skills.sh" "$HOME/.local/bin/sync-skills"
     chmod +x "$HOME/.local/bin/sync-skills"
 
-    # T055/FR-032: the publish-free local development loop, deployed alongside
-    # the writer it will replace. Installed UNCONDITIONALLY, not gated on
-    # ENABLE_APM: T015 will make `sync-skills` name this command when it skips a
-    # domain, and a skip message pointing at a command that does not exist hands
-    # the contributor a dead end. The script itself explains how to get apm when
-    # apm is absent, which is the right place for that conditional.
-    cp "$SCRIPT_DIR/configs/claude/scripts/apm_dev_sync.sh" "$HOME/.local/bin/apm-dev-sync"
-    chmod +x "$HOME/.local/bin/apm-dev-sync"
+    # apm-dev-sync was retired by spec 674 Phase 5 (T5.4) with its subject:
+    # skills ship as plugin bundles, so there is nothing for it to sync.
+    # A stale copy on PATH is worse than none -- it would run and report
+    # success against a tree nothing reads any more.
+    rm -f "$HOME/.local/bin/apm-dev-sync"
 
     print_success "Deployed sync-skills to $HOME/.local/bin/sync-skills"
-    print_success "Deployed apm-dev-sync to $HOME/.local/bin/apm-dev-sync"
 }
 
 # Verify installation

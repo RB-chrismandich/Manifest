@@ -93,32 +93,17 @@ teardown() {
     assert_output --partial "claude plugin update"
 }
 
-# --- writer (c): apm-dev-sync ---------------------------------------------
+# --- writer (c): apm-dev-sync — RETIRED by spec 674 Phase 5 (T5.4) ----------
+#
+# The script is gone with its subject, so its two cases go with it. The disarm
+# they proved is now unconditional: there is no apm-dev-sync to refuse.
 
-@test "apm-dev-sync REFUSES a retired domain before staging anything" {
-    # The pre-existing apm_owns_domain calls in this script run AFTER
-    # `apm install` and gate only a printed note. A refusal placed there would
-    # print after the tree had already been refilled, which is the whole bug.
-    local stage="$SANDBOX/stage"
-    run env MANIFEST_ROOT="$REPO_ROOT" MANIFEST_APM_DOMAINS="$RETIRED" \
-        MANIFEST_APM_DEV_STAGE="$stage" \
-        bash "$REPO_ROOT/configs/claude/scripts/apm_dev_sync.sh"
-    [ "$status" -eq 3 ]
-    assert_output --partial "refusing to deploy"
-    [ ! -d "$stage" ]
-}
-
-@test "apm-dev-sync does NOT refuse when the domain is not retired" {
-    # Deliberately given a PATH with no `apm`, so the script gets past the
-    # retired gate and then fails on the missing binary. The earlier version let
-    # it run the real deploy, which appended a dangling TMPDIR dependency to the
-    # user's ~/.apm/apm.yml on every single run -- a test that mutates the
-    # machine it is testing.
-    run env PATH="/usr/bin:/bin" HOME="$SANDBOX/fakehome" \
-        MANIFEST_ROOT="$REPO_ROOT" MANIFEST_APM_DOMAINS="$NORMAL" \
-        MANIFEST_APM_DEV_STAGE="$SANDBOX/stage2" \
-        bash "$REPO_ROOT/configs/claude/scripts/apm_dev_sync.sh"
-    refute_output --partial "retired from both pipelines"
+@test "apm-dev-sync is gone, and bootstrap no longer installs it" {
+    # A stale copy on PATH is worse than none: it would run, report success, and
+    # sync a tree nothing reads any more.
+    [ ! -f "$REPO_ROOT/configs/claude/scripts/apm_dev_sync.sh" ]
+    run grep -c 'local/bin/apm-dev-sync"$' "$REPO_ROOT/bootstrap/lib/deploy.sh"
+    [ "$output" -eq 1 ]  # the `rm -f` prune only
 }
 
 # --- the shipped registry --------------------------------------------------

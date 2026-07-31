@@ -198,7 +198,6 @@ run_reconfigure() {
         # uninstalled rather than fall back to an unverified binary. The failure
         # is loud but non-fatal — apm is opt-in and owns no domain yet, so an
         # absent apm is a correct outcome, not a broken bootstrap.
-        install_apm_cli || print_error "apm install failed integrity verification — apm is NOT installed"
         # Also here, not only in main(): `--reconfigure --enable-apm` is the
         # documented way to turn apm on on a running machine, and that is exactly
         # the run after which the apm-owned skills domain may still be empty.
@@ -259,7 +258,6 @@ main() {
     echo "  Antigravity: $(if [[ "$ENABLE_ANTIGRAVITY" == true ]]; then echo "enabled"; else echo "disabled"; fi)"
     echo "  Graphify:    $(if [[ "$ENABLE_GRAPHIFY" == true ]]; then echo "enabled"; else echo "disabled"; fi)"
     echo "  SkillClaw:   $(if [[ "$ENABLE_SKILLCLAW" == true ]]; then echo "enabled"; else echo "disabled"; fi)"
-    echo "  apm:         $(if [[ "$ENABLE_APM" == true ]]; then echo "enabled (pinned v$APM_PINNED_VERSION)"; else echo "disabled"; fi)"
     echo "  browser-use: $(if [[ "$ENABLE_BROWSER_USE" == true ]]; then echo "enabled"; else echo "disabled"; fi)"
     echo ""
 
@@ -317,8 +315,6 @@ main() {
     print_header "Syncing Home Python Runtime"
     uv_sync_home_runtime
     install_graphify
-    install_apm_cli || print_error "apm install failed integrity verification — apm is NOT installed"
-    # Must follow install_apm_cli (it needs the binary) and precede
     # verify_installation (which reports an unpopulated domain).
 
     # Configure default MCP servers when requested
