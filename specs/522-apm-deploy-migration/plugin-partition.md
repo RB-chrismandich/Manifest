@@ -77,8 +77,25 @@ Measured by grepping `.apm/skills/*/SKILL.md` for each script name.
 `git_platform.sh` consumers: `ci-setup`, `pr-monitor`, `pr-review`,
 `repo-clean`.
 
-**22 of 108 skills (20%) depend on at least one shared script.** The other 80%
-are self-contained markdown.
+> ⛔ **CORRECTED 2026-07-30 (spec 674 T1.14).** Both halves of the sentence
+> below are wrong. Left in place because feature 522's disposition cites it.
+>
+> The direction is not in doubt: far more than 22 skills have a dependency, and
+> far fewer than 80% are self-contained. The original counted `scripts/`
+> references alone and treated "no shared script" as "self-contained", which
+> ignores the `~/.claude/config`, `references/` and state paths that a skill
+> equally cannot resolve from a plugin cache.
+>
+> **The exact figure is method-sensitive, so take the range, not a point.**
+> `specs/674-plugin-architecture/spec.md`'s audit reports **43/108 dependent
+> and 44/108 (41%) self-contained**. An independent recount for this correction,
+> counting any mention of a shipped script filename or `manifest parallel-agent`,
+> gives **56 dependent and 50 self-contained** — it cannot tell a prose mention
+> from an invocation. Both refute 22/80%; neither should be quoted as exact
+> without stating which rule it used.
+
+~~**22 of 108 skills (20%) depend on at least one shared script.** The other 80%
+are self-contained markdown.~~
 
 ### The decision T037 asks for
 
@@ -114,16 +131,39 @@ plugin story to the 80% that are self-contained.
  "author": {"name": "ReefBytes"}, "license": "MIT"}
 ```
 
-**There is no dependency field.** The caveat this document recorded — "assumes
+> ⛔ **REFUTED 2026-07-30 (spec 674).** `dependencies` IS a supported
+> `plugin.json` field — an array of `"name"`, `"name@marketplace"`, or
+> `{"name","version"}` — verified directly against Claude Code's own validator,
+> and `claude plugin prune` exists to "remove auto-installed **dependencies**
+> that are no longer needed". Transitive install is verified working. The error
+> was measuring `apm pack`'s five-key output and generalising it to the Claude
+> Code plugin FORMAT; the two are not the same thing, and this never depended on
+> apm.
+>
+> **But the reopen condition below is still the wrong condition, for a new
+> reason.** `${CLAUDE_PLUGIN_ROOT}` resolves only to the LOADING plugin's own
+> directory, with no cross-plugin path form — so `dependencies` buys
+> INSTALLATION, not RESOLUTION, and a shared script inside `manifest-core` is
+> unreachable from a dependent anyway. `manifest-core` remains impossible *as a
+> shared-script host*, which was its only purpose here. See
+> `specs/674-plugin-architecture/spec.md` and `cutover-plan.md`.
+
+~~**There is no dependency field.** The caveat this document recorded — "assumes
 APM plugins can declare a dependency on another plugin … NEITHER IS MEASURED" —
 resolves against option 3. `manifest-core` cannot exist as a plugin others
-depend on, because the manifest format has nowhere to say so.
+depend on, because the manifest format has nowhere to say so.~~
 
 Consequences, which close US4 rather than defer it:
 
-- The **22 skills (20%) that depend on shared scripts cannot ship as plugins**
+- ~~The **22 skills (20%) that depend on shared scripts cannot ship as plugins**
   that resolve those scripts. The plugin story is limited to the 80% that are
-  self-contained.
+  self-contained.~~ **Corrected: the dependent set is roughly double
+  the stated 22 and the self-contained share roughly half the stated 80% — see
+  the method note above before quoting a figure.** The conclusion that they cannot resolve those scripts
+  survives the correction — but for the `${CLAUDE_PLUGIN_ROOT}` reason above,
+  not for the absent-`dependencies` reason given here. Spec 674 resolves it by
+  having no plugin ship `scripts/` at all: bootstrap keeps owning
+  `~/.claude/scripts/`, which every bundle reaches identically.
 - `apm pack` derives ONE plugin from ONE `apm.yml` `name:`. There is no
   domain-partition mechanism, so T036's map has nothing to partition *into*
   without maintaining N separate packages by hand — which reintroduces exactly
