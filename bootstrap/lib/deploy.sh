@@ -32,9 +32,26 @@ restore_runtime_state() {
     # outputs directory. The authoritative outputs were never moved, so skip it.
     excludes+=("--exclude=/.agent_outputs")
 
+    # Regenerable bytecode caches, and a live source of rsync failures: a
+    # bundled venv's __pycache__ can change under rsync mid-copy, which is
+    # exactly what aborted a deploy on 2026-07-30. Nothing needs them restored.
+    excludes+=("--exclude=__pycache__/" "--exclude=*.pyc")
+
     print_step "Restoring runtime state (plugins, sessions, settings.json, history) from backup"
     # -a preserves symlinks and attributes; trailing slashes copy contents.
-    rsync -a "${excludes[@]}" "$backup_dir"/ "$target_dir"/ # array-safe (unconditional += above)
+    #
+    # NEVER let this abort the caller. By the time we get here the live
+    # directory has already been `mv`'d into the backup, so under `set -e` a
+    # non-zero rsync leaves the user with NO ~/.claude at all — one unreadable
+    # file destroys the home. Runtime state is best-effort; the deploy that
+    # follows is what actually matters, and the backup still holds everything.
+    local rc=0
+    rsync -a "${excludes[@]}" "$backup_dir"/ "$target_dir"/ || rc=$? # array-safe
+    if [[ "$rc" -ne 0 ]]; then
+        print_warning "Runtime state only partially restored (rsync exit $rc)."
+        print_warning "Nothing was lost — the full backup is at: $backup_dir"
+        return 0
+    fi
     print_success "Runtime state restored (repo-owned config redeployed fresh)"
 }
 
@@ -124,11 +141,17 @@ deploy_configs() {
             print_warning "Existing installation found at $TARGET_DIR"
             echo ""
             echo "Options:"
-            echo "  1. Backup and replace"
-            echo "  2. Merge (keep existing, add new)"
+            echo "  1. Backup and replace (destructive: moves $TARGET_DIR aside first)"
+            echo "  2. Add new files only (existing files are NOT updated)"
             echo "  3. Cancel"
+            echo "  4. Update config: refresh repo-owned files, keep runtime state"
             echo ""
-            read -r -p "Choose option [1/2/3]: " choice
+            echo "  Most re-runs want 4 — it deploys edited config without moving anything."
+            echo ""
+            # Options 1-3 keep their historical numbers so an operator's muscle
+            # memory (and any scripted answer) still means what it always did;
+            # the new non-destructive path is appended as 4.
+            read -r -p "Choose option [1/2/3/4]: " choice
 
             case $choice in
                 1)
@@ -142,21 +165,47 @@ deploy_configs() {
                     restore_from="$backup_dir"
                     print_success "Backup created"
                     ;;
-                2)
-                    print_step "Merging configurations..."
+                2 | 4)
+                    # Two non-destructive copy modes that differ ONLY in whether
+                    # an already-deployed file may be overwritten. Everything
+                    # after the rsync is shared so both land in the same state.
+                    #
+                    #   2 = add-only   (--ignore-existing): never touches a file
+                    #       that already exists, so an edited repo-owned config
+                    #       is silently NOT deployed.
+                    #   4 = update     (no --ignore-existing): refreshes
+                    #       repo-owned files in place.
+                    #
+                    # NEITHER passes --delete: a file present in $TARGET_DIR but
+                    # absent from the repo is user/runtime state (plugins, chat
+                    # sessions, notes) and is never removed. That is what makes 4
+                    # a safe default and the reason it exists — without it the
+                    # only way to deploy an edited config was option 1, which
+                    # `mv`s the entire live home aside.
+                    local copy_mode=()
+                    if [[ "$choice" == 2 ]]; then
+                        print_step "Adding new configuration files (existing files left as-is)..."
+                        copy_mode=(--ignore-existing)
+                    else
+                        print_step "Updating repo-owned configuration (runtime state kept)..."
+                    fi
                     if [[ "${ENABLE_CLAUDE:-true}" != true ]]; then
                         print_info "Claude disabled — not deploying CLAUDE.md"
                     fi
-                    # Merge mode - copy only new files (skills handled separately
-                    # below; the skills compat symlink must not be copied verbatim)
-                    rsync -av --ignore-existing --exclude '/skills' --exclude '/agents' --exclude '/agents-devpanel' --exclude '/references/pilotfish-delegation.md' --exclude '/references/devpanel-delegation.md' "${claude_md_exclude[@]+"${claude_md_exclude[@]}"}" "$source_dir/" "$TARGET_DIR/"
+                    # Same excludes as every other copy path: skills is a compat
+                    # symlink (deployed separately below, never copied verbatim),
+                    # and agents/agents-devpanel plus their delegation docs are
+                    # owned by the gate_* toggles.
+                    rsync -av "${copy_mode[@]+"${copy_mode[@]}"}" --exclude '/skills' --exclude '/agents' --exclude '/agents-devpanel' --exclude '/references/pilotfish-delegation.md' --exclude '/references/devpanel-delegation.md' "${claude_md_exclude[@]+"${claude_md_exclude[@]}"}" "$source_dir/" "$TARGET_DIR/"
                     deploy_home_skills "$SCRIPT_DIR/.apm/skills" "$TARGET_DIR/skills"
                     gate_graphify_skill "$TARGET_DIR/skills"
                     gate_pilotfish_agents "$TARGET_DIR" "$source_dir/agents"
                     gate_devpanel_agents "$TARGET_DIR" "$source_dir/agents-devpanel"
-                    # --ignore-existing keeps the user's settings.local.json as-is,
-                    # but if it was absent the repo copy lands fresh; union back any
-                    # MCP servers captured from the live file either way.
+                    # Option 2 keeps an existing settings.local.json as-is; option 4
+                    # (like the main copy path) overwrites it with the repo copy, and
+                    # if it was absent the repo copy lands fresh either way. Union
+                    # back the MCP servers snapshotted from the live file in all
+                    # three cases.
                     merge_claude_mcp_servers "$preserved_mcp" "$TARGET_DIR/settings.local.json"
                     [[ -n "$preserved_mcp" ]] && rm -f "$preserved_mcp"
                     preserve_issue_sync_gates "$preserved_cmdcfg" "$TARGET_DIR/config/command_config.yml"
@@ -168,14 +217,19 @@ deploy_configs() {
                     # settings.json below. merge_settings_hooks is still used by the
                     # Gemini path, which reads its own settings.json.
                     # ...and repo session defaults (env vars, skillListingBudgetFraction)
-                    # the same --ignore-existing skip would strand on existing installs.
+                    # that option 2's --ignore-existing skip would strand on existing
+                    # installs. Idempotent, so option 4 runs it too.
                     merge_claude_settings_defaults "$source_dir/settings.local.json" "$TARGET_DIR/settings.local.json"
                     # Hooks that must reach Claude Code's own runtime go to
                     # settings.json; settings.local.json is inert at user scope.
                     merge_claude_runtime_settings "$source_dir/settings.runtime.json" "$TARGET_DIR/settings.json"
                     install_claude_mcp_servers "$source_dir/config/mcp_user_servers.json" "$TARGET_DIR/settings.local.json"
                     write_deploy_stamp "$SCRIPT_DIR" "$TARGET_DIR"
-                    print_success "Configurations merged"
+                    if [[ "$choice" == 2 ]]; then
+                        print_success "New configuration files added (existing files unchanged)"
+                    else
+                        print_success "Configuration updated (runtime state kept)"
+                    fi
                     # Still write services config
                     write_services_config
                     # Keep legacy output path aligned with shared state root
@@ -1280,7 +1334,15 @@ verify_installation() {
         fi
     done
     if [[ $skills_missing -gt 0 ]]; then
-        print_warning "apm owns the 'skills' domain but has not populated it — run: ${APM_DOMAIN_REPLACEMENT_CMD:-apm-dev-sync}"
+        # T1.7 (spec 674): a HARD error, not a warning. This branch means the
+        # user has no skills at all — the domain is gated to apm and apm has not
+        # populated it — yet without incrementing `errors` the function returns
+        # 0 and bootstrap prints "Deployment verified". A total skills failure
+        # that exits 0 is the exact false-green the cutover's gates exist to
+        # remove; verifying a deployment must not pass when the deployment is
+        # empty, however legitimate the reason the writer stood down.
+        print_error "apm owns the 'skills' domain but has not populated it ($skills_missing missing) — run: ${APM_DOMAIN_REPLACEMENT_CMD:-apm-dev-sync}"
+        errors=$((errors + 1))
     fi
 
     echo ""
