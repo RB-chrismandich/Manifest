@@ -138,3 +138,64 @@ assert "config/config.json" in names and "skills/.deployed-skills" in names, nam
     [ -d "$BASE/.claude/skills/dead" ]                   # still present
 }
 
+
+# --- T1.8 (spec 674): the user's own plugin-init scaffold is not an orphan ---
+#
+# `claude plugin init <name>` scaffolds into ~/.claude/skills/<name>/ and
+# auto-loads it as <name>@skills-dir. Once Manifest stops sourcing that tree,
+# every such directory looks exactly like an orphan to this engine, and the
+# documented-as-recoverable `--remove` would sweep up the user's own work.
+#
+# The fix is deliberately NOT a blanket `skills/*`: that protects the whole tree
+# and silently disables orphan detection inside it -- the same class of failure
+# as the incident that ate deploy_stamp/.migrated, only inverted. Protection is
+# keyed on skill_policies.yml, so both directions are asserted below.
+
+setup_registry_project() {
+    # A project that IS a Manifest project: it carries the registry, and the
+    # registry names `dead` (Manifest's own, retired from the project) but not
+    # `mine` (the user's scaffold).
+    mkdir -p "$BASE/.claude/skills/mine"
+    echo "x" > "$BASE/.claude/skills/mine/SKILL.md"
+    printf 'expected_total: 1\nbundles:\n  manifest-demo:\n    - dead\n' \
+        > "$PROJ/configs/claude/config/skill_policies.yml"
+}
+
+verdict_of() {
+    python3 -c '
+import json, sys
+d = json.load(sys.stdin)
+hits = [i for i in d["items"] if i["display_path"].endswith(sys.argv[1])]
+print(hits[0]["verdict"] + " " + hits[0]["reason_code"] if hits else "ABSENT")
+' "$1"
+}
+
+@test "T1.8: a hand-created skill absent from the registry is KEEP, not an orphan" {
+    setup_registry_project
+    run_review --json
+    assert_success
+    result="$(printf '%s' "$output" | verdict_of "skills/mine")"
+    [ "$result" = "KEEP user_owned_skill" ] || { echo "got: $result"; false; }
+}
+
+@test "T1.8: a registry-named skill with no project source is still REMOVE" {
+    # The direction that proves the protection is SELECTIVE. If this goes KEEP,
+    # orphan detection inside skills/ is off and nothing else reports it.
+    setup_registry_project
+    run_review --json
+    assert_success
+    result="$(printf '%s' "$output" | verdict_of "skills/dead")"
+    [ "${result%% *}" = "REMOVE" ] || { echo "got: $result"; false; }
+}
+
+@test "T1.8: a project with no registry protects nothing — the pre-existing behaviour" {
+    # No skill_policies.yml means "not a Manifest project", which must stay
+    # distinct from "a Manifest project shipping no skills". Collapsing the two
+    # protects every skills/ entry on every non-Manifest project at once.
+    mkdir -p "$BASE/.claude/skills/mine"
+    echo "x" > "$BASE/.claude/skills/mine/SKILL.md"
+    run_review --json
+    assert_success
+    result="$(printf '%s' "$output" | verdict_of "skills/mine")"
+    [ "${result%% *}" = "REMOVE" ] || { echo "got: $result"; false; }
+}

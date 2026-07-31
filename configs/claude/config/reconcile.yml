@@ -33,6 +33,13 @@ reconcile:
     - ".agent_outputs"              # symlink into ~/.manifest (deploy.sh)
     - "projects"                    # chat sessions / transcripts
     - "plugins"
+    # NOTE: there is deliberately no "skills" or "skills/*" entry here.
+    # A glob protecting that tree protects ALL of it, which silently disables
+    # orphan detection inside it -- the same class as the incident that ate
+    # deploy_stamp/.migrated, only inverted. The engine instead protects skill
+    # directories NOT named in skill_policies.yml (reconcile_core.py's
+    # user_owned_skill), so `claude plugin init <name>` scaffolds survive while
+    # Manifest's own retired skills stay removable. T1.8, spec 674.
     - "commands"
     - "ide"
     - "sessions"
