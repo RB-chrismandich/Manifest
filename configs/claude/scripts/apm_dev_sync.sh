@@ -106,6 +106,31 @@ else
     exit 1
 fi
 
+# T2.2 (spec 674): refuse a RETIRED domain, before anything is staged.
+#
+# This must sit in the top-level flow, not beside the advisory note further
+# down. The note's own apm_owns_domain calls run AFTER `apm install` and gate
+# only what is printed -- this script writes its own `targets:` staging manifest
+# and installs without consulting the registry at all. Placed there, a refusal
+# would print after the tree had already been refilled and every skill was
+# double-loading against its plugin twin.
+_apm_lib_gate=""
+for _c in "${MANIFEST_ROOT:-}/configs/claude/scripts/apm_domains_lib.sh" \
+    "$HOME/.claude/scripts/apm_domains_lib.sh"; do
+    [[ -r "$_c" ]] && { _apm_lib_gate="$_c"; break; }
+done
+if [[ -n "$_apm_lib_gate" ]]; then
+    # shellcheck disable=SC1090
+    source "$_apm_lib_gate"
+    if declare -f domain_retired > /dev/null 2>&1 && domain_retired skills; then
+        err "'skills' is retired from both pipelines — refusing to deploy."
+        err "plugins own it now. Use:"
+        err "    claude plugin marketplace update manifest && claude plugin update <bundle>"
+        exit 3
+    fi
+fi
+unset _apm_lib_gate _c
+
 STAGE_ROOT="${MANIFEST_APM_DEV_STAGE:-${TMPDIR:-/tmp}/manifest-apm-dev}"
 STAGE="$STAGE_ROOT/manifest-skills"
 

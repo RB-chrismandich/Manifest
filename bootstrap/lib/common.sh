@@ -176,6 +176,14 @@ deploy_home_skills() {
         print_info "Skipping $domain — not in MANIFEST_DEPLOY_DOMAINS"
         return 0
     fi
+    # T2.2 (spec 674). RETIRED means owned by neither pipeline. Checked BEFORE
+    # the apm branch: a retired domain is not apm's either, and falling through
+    # to the two-state logic would read "unlisted" as "the legacy writer writes",
+    # refill the tree, and double-load every skill against its plugin twin.
+    if declare -f domain_retired > /dev/null 2>&1 && domain_retired "$domain"; then
+        print_info "Skipping $domain — retired from both pipelines; plugins own it now (claude plugin update <bundle>)"
+        return 0
+    fi
     if declare -f apm_owns_domain > /dev/null 2>&1 && apm_owns_domain "$domain"; then
         print_info "Skipping $domain — APM owns this domain (deploy it with $APM_DOMAIN_REPLACEMENT_CMD)"
         return 0

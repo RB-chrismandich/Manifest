@@ -1,0 +1,126 @@
+#!/usr/bin/env bats
+# T2.1 + T2.2 (spec 674) — the third ownership state, and the three writers.
+#
+# The registry was strictly two-state: listed under `domains:` meant APM writes,
+# and UNLISTED MEANT THE LEGACY WRITER WRITES. So handing `skills` to plugins by
+# removing it from `domains:` would not stand a writer down -- it would RE-ARM
+# two of them, refill ~/.claude/skills, and double-load all 108 skills against
+# their plugin twins with no dedup and no error.
+#
+# These tests are the disarm proof. Each writer is checked in BOTH directions,
+# because a gate that always declines is indistinguishable from a working one
+# until the day someone needs it to act.
+
+load '../test_helper/bats-support/load'
+load '../test_helper/bats-assert/load'
+
+REPO_ROOT="$BATS_TEST_DIRNAME/../.."
+
+setup() {
+    SANDBOX="$(mktemp -d "${BATS_TMPDIR:-/tmp}/retired.XXXXXX")"
+    RETIRED="$SANDBOX/retired.yml"
+    NORMAL="$SANDBOX/normal.yml"
+    printf 'domains: []\nretired:\n  - skills\n' > "$RETIRED"
+    printf 'domains: []\nretired: []\n' > "$NORMAL"
+    mkdir -p "$SANDBOX/src/demo" "$SANDBOX/dest"
+    echo body > "$SANDBOX/src/demo/SKILL.md"
+}
+
+teardown() {
+    [[ -n "${SANDBOX:-}" && -d "$SANDBOX" ]] && rm -rf "$SANDBOX"
+    return 0
+}
+
+# --- the state itself ------------------------------------------------------
+
+@test "domain_retired reads the retired: list" {
+    source "$REPO_ROOT/configs/claude/scripts/apm_domains_lib.sh"
+    MANIFEST_APM_DOMAINS="$RETIRED" domain_retired skills
+}
+
+@test "domain_retired is false for a domain that is merely unlisted" {
+    source "$REPO_ROOT/configs/claude/scripts/apm_domains_lib.sh"
+    run env MANIFEST_APM_DOMAINS="$NORMAL" bash -c "
+        source '$REPO_ROOT/configs/claude/scripts/apm_domains_lib.sh'; domain_retired skills"
+    assert_failure
+}
+
+@test "retired and owned are independent states" {
+    printf 'domains:\n  - skills\nretired:\n  - other\n' > "$SANDBOX/both.yml"
+    run env MANIFEST_APM_DOMAINS="$SANDBOX/both.yml" bash -c "
+        source '$REPO_ROOT/configs/claude/scripts/apm_domains_lib.sh'
+        apm_owns_domain skills && echo OWNS
+        domain_retired other && echo RETIRED
+        domain_retired skills || echo SKILLS_NOT_RETIRED"
+    assert_output --partial "OWNS"
+    assert_output --partial "RETIRED"
+    assert_output --partial "SKILLS_NOT_RETIRED"
+}
+
+# --- writer (a): deploy_home_skills ---------------------------------------
+
+@test "deploy_home_skills writes nothing when the domain is retired" {
+    run bash -c "
+        print_info() { :; }; print_error() { :; }; print_success() { :; }; print_warning() { :; }
+        source '$REPO_ROOT/configs/claude/scripts/apm_domains_lib.sh'
+        source '$REPO_ROOT/bootstrap/lib/skill_prune.sh'
+        export MANIFEST_APM_DOMAINS='$RETIRED'
+        source '$REPO_ROOT/bootstrap/lib/common.sh' 2>/dev/null
+        deploy_home_skills '$SANDBOX/src' '$SANDBOX/dest' skills >/dev/null 2>&1
+        find '$SANDBOX/dest' -name SKILL.md | wc -l | tr -d ' '"
+    assert_output --partial "0"
+}
+
+@test "deploy_home_skills still writes when the domain is NOT retired" {
+    # The direction that proves the gate is a gate and not a permanent decline.
+    run bash -c "
+        print_info() { :; }; print_error() { :; }; print_success() { :; }; print_warning() { :; }
+        source '$REPO_ROOT/configs/claude/scripts/apm_domains_lib.sh'
+        source '$REPO_ROOT/bootstrap/lib/skill_prune.sh'
+        export MANIFEST_APM_DOMAINS='$NORMAL'
+        source '$REPO_ROOT/bootstrap/lib/common.sh' 2>/dev/null
+        deploy_home_skills '$SANDBOX/src' '$SANDBOX/dest' skills >/dev/null 2>&1
+        find '$SANDBOX/dest' -name SKILL.md | wc -l | tr -d ' '"
+    assert_output --partial "1"
+}
+
+# --- writer (b): sync-skills ----------------------------------------------
+
+@test "sync-skills declines a retired domain and names the replacement" {
+    run env MANIFEST_ROOT="$REPO_ROOT" MANIFEST_APM_DOMAINS="$RETIRED" \
+        bash "$REPO_ROOT/configs/claude/scripts/sync-skills.sh"
+    assert_output --partial "retired from both pipelines"
+    assert_output --partial "claude plugin update"
+}
+
+# --- writer (c): apm-dev-sync ---------------------------------------------
+
+@test "apm-dev-sync REFUSES a retired domain before staging anything" {
+    # The pre-existing apm_owns_domain calls in this script run AFTER
+    # `apm install` and gate only a printed note. A refusal placed there would
+    # print after the tree had already been refilled, which is the whole bug.
+    local stage="$SANDBOX/stage"
+    run env MANIFEST_ROOT="$REPO_ROOT" MANIFEST_APM_DOMAINS="$RETIRED" \
+        MANIFEST_APM_DEV_STAGE="$stage" \
+        bash "$REPO_ROOT/configs/claude/scripts/apm_dev_sync.sh"
+    [ "$status" -eq 3 ]
+    assert_output --partial "refusing to deploy"
+    [ ! -d "$stage" ]
+}
+
+@test "apm-dev-sync does NOT refuse when the domain is not retired" {
+    run env MANIFEST_ROOT="$REPO_ROOT" MANIFEST_APM_DOMAINS="$NORMAL" \
+        MANIFEST_APM_DEV_STAGE="$SANDBOX/stage2" \
+        bash "$REPO_ROOT/configs/claude/scripts/apm_dev_sync.sh"
+    refute_output --partial "retired from both pipelines"
+}
+
+# --- the shipped registry --------------------------------------------------
+
+@test "the shipped registry declares retired: and leaves it EMPTY" {
+    # Moving `skills` here before ~/.manifest/skills exists (T2.3/T2.4) would
+    # leave all five assistants with no skills at all: every writer correctly
+    # declines and nothing has taken over yet.
+    run grep -E '^retired: \[\]' "$REPO_ROOT/configs/claude/config/apm_domains.yml"
+    assert_success
+}

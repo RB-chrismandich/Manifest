@@ -29,3 +29,24 @@ domains:
   #
   # To hand it back: configs/claude/scripts/apm_ungate_domain.sh skills --apply
   - skills
+
+# --- third state (T2.1, spec 674) ----------------------------------------- #
+#
+# A domain listed here is owned by NEITHER pipeline. It exists because the
+# registry was strictly two-state: listed meant APM writes, and UNLISTED MEANT
+# THE LEGACY WRITER WRITES. So handing `skills` to plugins by simply removing it
+# from `domains:` would not stand a writer down — it would re-arm two of them,
+# refill ~/.claude/skills, and double-load all 108 skills against their plugin
+# twins with no dedup and no error.
+#
+# All three writers consult this via `domain_retired()` and refuse:
+#   deploy_home_skills (bootstrap/lib/common.sh)
+#   sync-skills.sh
+#   apm_dev_sync.sh   — refuses BEFORE staging; its pre-existing apm_owns_domain
+#                       calls run after `apm install` and gate only a printed note
+#
+# DELIBERATELY EMPTY until the harness tree exists. Moving `skills` here before
+# T2.3/T2.4 stand up ~/.manifest/skills would leave all five assistants with no
+# skills at all — every writer would correctly decline, and nothing would have
+# taken over yet.
+retired: []
