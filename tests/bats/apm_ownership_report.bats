@@ -180,12 +180,16 @@ setup_t111() {
         > "$T111/.apm/apm.lock.yaml"
     mkdir -p "$T111/.claude/skills/demo"
     printf 'domains:\n  - skills\nretired: []\n' > "$T111/domains.yml"
+    # Bundle names come from the registry, never a name prefix.
+    printf 'expected_total: 2\nbundles:\n  manifest-docs:  # 1\n    - a\n  stitch-design:  # 1\n    - b\nother_key: x\n' \
+        > "$T111/skill_policies.yml"
 }
 
 run_report() {
     run env HOME="$T111" MANIFEST_APM_DOMAINS="$T111/domains.yml" \
         APM_LOCKFILE="$T111/.apm/apm.lock.yaml" \
         CLAUDE_PLUGINS_STATE="$T111/.claude/plugins/installed_plugins.json" \
+        MANIFEST_SKILL_REGISTRY="$T111/skill_policies.yml" \
         MANIFEST_SKILLS_DIR="$T111/.manifest/skills" \
         bash "$REPO_ROOT/configs/claude/scripts/apm_ownership_report.sh" "$@"
 }
@@ -297,5 +301,38 @@ teardown_t111() { [[ -n "${T111:-}" ]] && rm -rf "$T111"; return 0; }
     done
     run_report
     [ "$status" -eq 0 ]
+    teardown_t111
+}
+
+@test "T1.11: a bundle without the manifest- prefix is still counted" {
+    # `manifest-*` looked like a safe assumption and was wrong on the first real
+    # run: stitch-design carries no prefix, so the report said 8 bundles with 9
+    # installed -- an undercount that reads as a partial install.
+    setup_t111
+    printf '{"plugins":{"stitch-design@manifest":{}}}\n' \
+        > "$T111/.claude/plugins/installed_plugins.json"
+    run_report
+    assert_output --partial "plugins"
+    teardown_t111
+}
+
+@test "T1.11: every bundle in the registry is parsed, not just the first" {
+    # The awk mutated $0, so the block-exit rule tested the STRIPPED line, which
+    # no longer starts with a space. inb cleared after bundle one and the report
+    # claimed 1 of 9 installed.
+    setup_t111
+    printf '{"plugins":{"manifest-docs@manifest":{},"stitch-design@manifest":{}}}\n' \
+        > "$T111/.claude/plugins/installed_plugins.json"
+    run_report
+    assert_output --partial "2 bundle(s)"
+    teardown_t111
+}
+
+@test "T1.11: a key after the bundles block is not read as a bundle" {
+    setup_t111
+    printf '{"plugins":{"other_key@manifest":{}}}\n' \
+        > "$T111/.claude/plugins/installed_plugins.json"
+    run_report
+    refute_output --partial "bundle(s)"
     teardown_t111
 }

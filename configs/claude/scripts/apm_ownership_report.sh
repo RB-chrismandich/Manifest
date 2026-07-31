@@ -168,16 +168,36 @@ done
 # rule that the registry states an intention and the filesystem states a fact.
 
 PLUGINS_STATE="${CLAUDE_PLUGINS_STATE:-$HOME/.claude/plugins/installed_plugins.json}"
+REGISTRY="${MANIFEST_SKILL_REGISTRY:-$HOME/.claude/config/skill_policies.yml}"
 HARNESS_SKILLS="${MANIFEST_SKILLS_DIR:-$HOME/.manifest/skills}"
 
-# Installed bundle names. Matched with the trailing colon so a key is matched
-# and a mere value is not; keys are "<name>@<marketplace>". Deliberately grep
-# and not python3 -- this script has no interpreter dependency today and the
-# report must still run on a machine where that is what broke.
+# Bundle names come from the REGISTRY, never from a name prefix. `manifest-*`
+# looked like a safe assumption and was wrong on the very first run: the
+# `stitch-design` bundle carries no prefix, so the report said 8 bundles with 9
+# installed -- an undercount that reads as a partial install.
+#
+# Matched with the trailing colon so a key is matched and a mere value is not;
+# keys are "<name>@<marketplace>". Deliberately grep and not python3 -- this
+# script has no interpreter dependency today and the report must still run on a
+# machine where that is what broke.
+known_bundles() {
+    [[ -r "$REGISTRY" ]] || return 0
+    # `name` is a COPY. Mutating $0 in the middle rule made the last rule test
+    # the STRIPPED line, which no longer starts with a space, so inb was cleared
+    # after the very first bundle and the report claimed 1 of 9 installed.
+    awk '/^bundles:/ {inb=1; next}
+         inb && /^[^ ]/ {inb=0}
+         inb && /^  [A-Za-z0-9_-]+:/ {name=$1; sub(/:$/, "", name); print name}' "$REGISTRY"
+}
+
 installed_manifest_bundles() {
     [[ -f "$PLUGINS_STATE" ]] || return 0
-    grep -oE '"manifest-[A-Za-z0-9_-]+@[A-Za-z0-9_-]+"[[:space:]]*:' "$PLUGINS_STATE" 2> /dev/null |
-        sed -e 's/^"//' -e 's/@.*//' | sort -u
+    local bundle
+    while IFS= read -r bundle; do
+        [[ -n "$bundle" ]] || continue
+        grep -qE "\"${bundle}@[A-Za-z0-9_-]+\"[[:space:]]*:" "$PLUGINS_STATE" 2> /dev/null &&
+            printf '%s\n' "$bundle"
+    done < <(known_bundles)
 }
 
 # Sibling harness homes whose skills entry does NOT resolve into the tree.
