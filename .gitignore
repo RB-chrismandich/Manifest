@@ -71,3 +71,12 @@ uv.lock
 !configs/claude/uv.lock
 benchmark_data/
 .claude/settings.local.json
+
+# .apm/skills is GENERATED from plugins/*/skills/* by
+# configs/claude/scripts/generate_skill_mirror.sh (T3.3, spec 674).
+# The source of truth is plugins/<bundle>/skills/<name>/. The mirror keeps the
+# flat view that 87 references across 35 files still read, so moving the source
+# required no retargeting. Real files, never symlinks -- both copy paths in
+# bootstrap/lib/common.sh preserve symlinks-as-symlinks, which would deploy 108
+# dangling links while every repo-side gate stayed green.
+.apm/skills/
