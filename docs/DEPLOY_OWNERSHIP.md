@@ -221,3 +221,9 @@ artifact is an error, never a silent fallback to the network.
   every artifact classified, and what is *not* migrating
 - [decision-record.md](../specs/522-apm-deploy-migration/decision-record.md) — the measured evidence behind these choices
 - [HANDOFF.md](../specs/522-apm-deploy-migration/HANDOFF.md) — state at the Phase 2/3 boundary
+
+## Plugin bundles
+
+Nine plugin bundles carry the skill catalog after spec 674's cutover.
+Versioning rules, the release ritual, and the caution about tests that mutate
+apm state live in [PLUGIN_RELEASE.md](PLUGIN_RELEASE.md).
