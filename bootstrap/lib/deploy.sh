@@ -1288,62 +1288,12 @@ reconcile_deploy_report() {
     return 0
 }
 
-# Populate an APM-owned skills domain that nothing has written yet.
-#
-# SC-006 gated the `skills` domain (apm_domains.yml) so deploy_home_skills stands
-# down, but bootstrap gained no replacement writer — the activation procedure in
-# docs/DEPLOY_OWNERSHIP.md is human-driven (`apm install --global 'OWNER/REPO#TAG'`
-# BEFORE gating). That is correct on a machine that is already live and wrong on a
-# fresh one: bootstrap alone then leaves ~/.claude/skills absent, and with it the
-# four sibling homes that symlink to it, until someone remembers apm-dev-sync.
-#
-# Deliberately narrow, so this cannot reclaim ownership by the back door:
-#   - only when apm owns the domain (otherwise deploy_home_skills already wrote it)
-#   - only when the domain is EMPTY. Populating a populated tree would push the
-#     local working tree over whatever apm deployed from a published tag on every
-#     single bootstrap run — exactly the double-writer state SC-006 removed.
-#   - only when the apm binary exists. ENABLE_APM governs whether bootstrap
-#     INSTALLS apm, not whether an apm-owned domain is allowed to be populated;
-#     the domain registry is the ownership signal, not the service toggle.
-#
-# Fail-open: a failure here warns and returns 0. The domain being unpopulated is
-# already reported by verify_installation, which is the right place for the
-# verdict — aborting the deploy over it would take the rest of the environment
-# down with a skills tree the caller can fix with one command.
-populate_apm_owned_skills() {
-    declare -f apm_owns_domain > /dev/null 2>&1 || return 0
-    apm_owns_domain skills || return 0
-    if declare -f deploy_domain_selected > /dev/null 2>&1 && ! deploy_domain_selected skills; then
-        return 0
-    fi
-
-    if [[ -d "$TARGET_DIR/skills" ]] &&
-        [[ -n "$(find "$TARGET_DIR/skills" -maxdepth 2 -name SKILL.md -print -quit 2> /dev/null)" ]]; then
-        return 0 # apm (or a prior run) already populated it — not ours to rewrite
-    fi
-
-    if ! command -v apm > /dev/null 2>&1 && [[ ! -x "$HOME/.local/bin/apm" ]]; then
-        print_warning "skills is apm-owned but apm is not installed — run './bootstrap.sh --enable-apm', then ${APM_DOMAIN_REPLACEMENT_CMD:-apm-dev-sync}"
-        return 0
-    fi
-
-    local dev_sync="$SCRIPT_DIR/configs/claude/scripts/apm_dev_sync.sh"
-    if [[ ! -f "$dev_sync" ]]; then
-        print_warning "skills is apm-owned but $dev_sync is missing — cannot populate ~/.claude/skills"
-        return 0
-    fi
-
-    print_step "Populating apm-owned skills domain (empty ~/.claude/skills)..."
-    # MANIFEST_ROOT is passed explicitly: the script otherwise falls back to the
-    # enclosing git checkout, and on a machine with several Manifest clones that
-    # resolves to whichever one the caller happened to be standing in.
-    if MANIFEST_ROOT="$SCRIPT_DIR" APM_DEV_SYNC_QUIET=1 bash "$dev_sync"; then
-        print_success "Skills deployed via apm (source: $SCRIPT_DIR/.apm/skills)"
-    else
-        print_warning "apm-dev-sync failed — ~/.claude/skills is still unpopulated (see above)"
-    fi
-    return 0
-}
+# populate_apm_owned_skills() was deleted here by spec 674 Phase 5 (T5.3).
+# Its premise was that apm owns ~/.claude/skills and bootstrap must never
+# leave that tree empty. Post-cutover EMPTY IS THE GOAL: the nine plugin
+# bundles serve the catalog and the flat harness tree lives at
+# $MANIFEST_SKILLS_DIR. Restoring it would refill ~/.claude/skills and
+# double-load all 108 skills against their plugin twins.
 
 # register_manifest_marketplace — point Claude Code at this checkout's plugin
 # marketplace (T4.1, spec 674).

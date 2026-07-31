@@ -202,7 +202,6 @@ run_reconfigure() {
         # Also here, not only in main(): `--reconfigure --enable-apm` is the
         # documented way to turn apm on on a running machine, and that is exactly
         # the run after which the apm-owned skills domain may still be empty.
-        populate_apm_owned_skills
 
         # Gate the deployed /graphify skill to match the new toggle — the gate
         # otherwise only runs inside deploy_configs, so a reconfigure-time
@@ -321,7 +320,6 @@ main() {
     install_apm_cli || print_error "apm install failed integrity verification — apm is NOT installed"
     # Must follow install_apm_cli (it needs the binary) and precede
     # verify_installation (which reports an unpopulated domain).
-    populate_apm_owned_skills
 
     # Configure default MCP servers when requested
     if [[ "$INSTALL_MCP" == true ]]; then
