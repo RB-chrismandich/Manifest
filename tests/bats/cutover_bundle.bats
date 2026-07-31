@@ -305,3 +305,32 @@ devin_stub() {  # $1 = the path text devin should print
         false
     }
 }
+
+@test "refuses when a hook still points into a skill this bundle deletes" {
+    # The outage this closes. ~/.claude/settings.json ran a PreToolUse hook out
+    # of ~/.claude/skills/ai-hooks-integration/, so deleting that skill killed
+    # every Bash tool call in the live session -- from a step whose own
+    # postcondition reported "no residue". It has to be checked BEFORE the
+    # delete: afterwards the tool that would fix it cannot run.
+    full_sandbox_home
+    devin_stub "$MANIFEST_SKILLS_DIR"
+    mkdir -p "$HOME/.claude/skills/alpha"
+    printf '{"hooks":{"PreToolUse":[{"hooks":[{"command":"%s/.claude/skills/alpha/run.py"}]}]}}\n' \
+        "$HOME" > "$HOME/.claude/settings.json"
+    run env PATH="$SANDBOX/bin:$PATH" "$SCRIPT" manifest-docs --dry-run
+    assert_output --partial "about to delete"
+    assert_output --partial "alpha"
+    [ -d "$HOME/.claude/skills/alpha" ]
+}
+
+@test "a hook pointing at a skill in ANOTHER bundle does not block this one" {
+    # The direction that proves it is not a blanket refusal: a config
+    # referencing something this bundle never touches must not stop it.
+    full_sandbox_home
+    devin_stub "$MANIFEST_SKILLS_DIR"
+    mkdir -p "$HOME/.claude/skills/not-mine"
+    printf '{"hooks":{"PreToolUse":[{"hooks":[{"command":"%s/.claude/skills/not-mine/run.py"}]}]}}\n' \
+        "$HOME" > "$HOME/.claude/settings.json"
+    run env PATH="$SANDBOX/bin:$PATH" "$SCRIPT" manifest-docs --dry-run
+    refute_output --partial "about to delete"
+}

@@ -235,6 +235,40 @@ if [[ ${#BUNDLE_SKILLS[@]} -eq 0 ]]; then
 fi
 printf 'cutover_bundle.sh: %s owns %s skill(s)\n' "$BUNDLE" "${#BUNDLE_SKILLS[@]}"
 
+# 4. Nothing outside the skills tree may still POINT INTO it. Hooks are the
+#    case the plan missed entirely: ~/.claude/settings.json and
+#    ~/.gemini/settings.json each ran a PreToolUse hook out of
+#    ~/.claude/skills/ai-hooks-integration/, so deleting that skill killed every
+#    Bash tool call in the session -- a total outage from a step whose own
+#    postcondition reported "no residue". Checked BEFORE the delete, because
+#    afterwards the tool that would fix it cannot run.
+hook_refs=()
+while IFS= read -r cfg; do
+    [[ -f "$cfg" ]] || continue
+    while IFS= read -r ref; do
+        [[ -n "$ref" ]] && hook_refs+=("${cfg}|${ref}")
+    done < <(grep -ohE "$CLAUDE_SKILLS/[A-Za-z0-9_./-]+" "$cfg" 2> /dev/null | sort -u)
+done < <(printf '%s\n' "$HOME/.claude/settings.json" "$HOME/.claude/settings.local.json" \
+    "$HOME/.gemini/settings.json" "$HOME/.codex/config.toml")
+
+doomed=()
+for entry in ${hook_refs[@]+"${hook_refs[@]}"}; do
+    ref="${entry#*|}"
+    # Only a reference to a skill THIS bundle removes is a problem here.
+    for s in ${BUNDLE_SKILLS[@]+"${BUNDLE_SKILLS[@]}"}; do
+        [[ "$ref" == "$CLAUDE_SKILLS/$s"* ]] && doomed+=("${entry%%|*} -> $ref")
+    done
+done
+if [[ ${#doomed[@]} -gt 0 ]]; then
+    # gate_fail, not a bare exit: a preview must be able to REPORT this. It is
+    # the one precondition a user cannot discover any other way, and finding it
+    # by running the real thing means finding it with the session already dead.
+    gate_fail "these config files reference a skill this bundle is about to delete:" \
+        ${doomed[@]+"${doomed[@]}"} \
+        "Repoint them at \$MANIFEST_SKILLS_DIR first — a hook that vanishes mid-session" \
+        "blocks every tool call and cannot be fixed by the tool that broke it."
+fi
+
 if [[ "$DRY_RUN" -eq 1 ]]; then
     if [[ "$GATE_BLOCKED" -eq 1 ]]; then
         printf '  ---\n  %s WOULD NOT RUN: fix the WOULD BLOCK item(s) above.\n' "$BUNDLE"
