@@ -1,0 +1,66 @@
+diff --git a/.claude-plugin/marketplace.json b/.claude-plugin/marketplace.json
+index 1a4ffa4..64ece87 100644
+--- a/.claude-plugin/marketplace.json
++++ b/.claude-plugin/marketplace.json
+@@ -19,7 +19,8 @@
+         "adversarial-review",
+         "design-system",
+         "render-verification"
+-      ]
++      ],
++      "homepage": "https://github.com/ReefBytes-Owner/Manifest"
+     }
+   ]
+ }
+diff --git a/plugins/adversarial-design-loop/skills/loop-scaffold/SKILL.md b/plugins/adversarial-design-loop/skills/loop-scaffold/SKILL.md
+index e9e24b8..674293a 100644
+--- a/plugins/adversarial-design-loop/skills/loop-scaffold/SKILL.md
++++ b/plugins/adversarial-design-loop/skills/loop-scaffold/SKILL.md
+@@ -60,8 +60,11 @@ Steps:
+    `{{PROJECT_TITLE}}` if the user did not state one. Delete any template
+    guidance comments that do not apply.
+ 2. Copy the render gate from the sibling skill —
+-   `../render-verify/scripts/render_and_scan.py` (resolve relative to this
+-   skill's directory) — into `<artifact-dir>/tools/`. The project owns and
++   `${CLAUDE_PLUGIN_ROOT}/skills/render-verify/scripts/render_and_scan.py` —
++   into `<artifact-dir>/tools/`. Use the variable, not a relative path: a
++   shell command runs with the cwd set to the user's project, not to this
++   skill's directory, so `../render-verify/...` resolves against the wrong
++   root and the copy silently lands nowhere or fails. The project owns and
+    pins its copy: gates must not change under a project because a plugin
+    updated. Record the copy's provenance in the Round 0 entry — fill
+    `{{PLUGIN_VERSION}}` from the plugin's `.claude-plugin/plugin.json`.
+diff --git a/plugins/adversarial-design-loop/skills/render-verify/SKILL.md b/plugins/adversarial-design-loop/skills/render-verify/SKILL.md
+index 38d5def..35ac786 100644
+--- a/plugins/adversarial-design-loop/skills/render-verify/SKILL.md
++++ b/plugins/adversarial-design-loop/skills/render-verify/SKILL.md
+@@ -29,12 +29,16 @@ before a review round judges it and before anything ships.
+ 
+ ## Running the gate
+ 
+-Use the project's pinned copy at `<artifact-dir>/tools/render_and_scan.py`
+-(placed by the `loop-scaffold` skill; source of truth in this skill's
+-`scripts/`). Dependencies: Python 3.11+, `playwright` (with Chromium
+-installed), and `Pillow`.
++Use the project's pinned copy at `<artifact-dir>/tools/render_and_scan.py`,
++placed there by `loop-scaffold`. This path is PROJECT-relative and correct as
++written — run the command from `<artifact-dir>`. It is deliberately not the
++plugin's own copy, which lives at
++`${CLAUDE_PLUGIN_ROOT}/skills/render-verify/scripts/render_and_scan.py` and is
++the source the scaffold copies from. Dependencies: Python 3.11+, `playwright`
++(with Chromium installed), and `Pillow`.
+ 
+ ```bash
++cd <artifact-dir>
+ python3 tools/render_and_scan.py designs/<screen>.html designs/<screen>.png \
+   --frame 360x360 --scale 2 \
+   --font-family "Space Grotesk" --font-weights 400,700 \
+@@ -73,5 +77,6 @@ is a finding (the generator introduced a value outside the design system).
+ 
+ ## Additional resources
+ 
+-- **`scripts/render_and_scan.py`** — the generalized gate (source of the
+-  project-pinned copy). `--help` documents all flags.
++- **`${CLAUDE_PLUGIN_ROOT}/skills/render-verify/scripts/render_and_scan.py`** —
++  the generalized gate (source of the project-pinned copy). `--help` documents
++  all flags.
