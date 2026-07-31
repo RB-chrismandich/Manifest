@@ -93,7 +93,9 @@ services:
     description: "Maps a codebase/docs into a queryable knowledge graph (/graphify)"
 
   # apm (Agent Package Manager) - build/deploy layer under evaluation (feature 522).
-  # Installed by install_apm_cli() with a pinned version + sha256, fail-closed.
+  # No longer installed by bootstrap: the pinned-wheel path was retired with
+  # apm's last domain (spec 674 Phase 5). The toggle is inert and kept only so an
+  # existing services.yml still parses.
   apm:
     enabled: false
     command: apm
