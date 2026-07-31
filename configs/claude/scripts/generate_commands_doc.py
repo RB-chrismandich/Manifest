@@ -38,6 +38,7 @@ from __future__ import annotations
 import argparse
 import difflib
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -113,7 +114,7 @@ def render_section(catalog: dict) -> str:
                 else f"unavailable — {av['reason']}"
             )
             lines.append(
-                f"| `/{c['name']}` | {_escape_cell(c['description'])} "
+                f"| `{command_name(c['name'], 'claude')}` | {_escape_cell(c['description'])} "
                 f"| {_escape_cell(c['when_to_use'])} | {status} |"
             )
         lines.append("")
@@ -130,7 +131,7 @@ def render_compact_index(catalog: dict) -> str:
     lines = []
     for label, members in _grouped(catalog):
         names = " · ".join(
-            f"`/{c['name']}`"
+            f"`{command_name(c['name'], 'sibling')}`"
             for c in members
             if c["availability"]["status"] == "available"
         )
@@ -246,6 +247,57 @@ def inject_index(text: str, block: str) -> str:
         return text.replace(existing, block)
     base = text.rstrip("\n")  # exactly one blank line at the append seam (MD012)
     return f"{base}\n\n## Command Index\n\n{block}\n"
+
+
+# --------------------------------------------------------------------------- #
+# Naming era (T1.2, spec 674)
+# --------------------------------------------------------------------------- #
+# Post-cutover a skill is reachable only as `<bundle>:<skill>`, and the two
+# audiences diverge: docs/COMMANDS.md and /help must show what a Claude Code
+# user types, while the Gemini/Codex/Cursor index must keep showing BARE names,
+# because those harnesses read the sibling skills tree and never learn about
+# plugins. One string cannot serve both, which is why this forks.
+#
+# Default is bare/bare and MUST stay that way until the bundles are installed:
+# emitting `/manifest-forge:git-commit` today documents a command that returns
+# Unknown command. Phase 4 flips SKILL_NAME_ERA=qualified once install lands.
+def _bundle_map() -> dict:
+    """skill -> bundle from skill_policies.yml, or {} when unreadable."""
+    registry = os.environ.get(
+        "MANIFEST_SKILL_REGISTRY",
+        str(_REPO_ROOT / "configs" / "claude" / "config" / "skill_policies.yml"),
+    )
+    try:
+        text = Path(registry).read_text(encoding="utf-8")
+    except OSError:
+        return {}
+    mapping, bundle, seen = {}, None, False
+    for line in text.splitlines():
+        if line.startswith("bundles:"):
+            seen = True
+            continue
+        if not seen or not line.strip() or line.lstrip().startswith("#"):
+            continue
+        if re.match(r"^  [A-Za-z0-9_-]+:", line):
+            bundle = line.strip().split(":", 1)[0]
+        elif line.startswith("    - ") and bundle:
+            mapping[line.strip()[2:].strip()] = bundle
+        elif not line.startswith(" "):
+            seen = False
+    return mapping
+
+
+def command_name(skill: str, audience: str) -> str:
+    """The slash command a reader of `audience` should type for `skill`.
+
+    audience is "claude" (COMMANDS.md, /help) or "sibling" (the injected guide
+    index). Siblings always get bare names; Claude gets whatever the era says.
+    """
+    era = os.environ.get("SKILL_NAME_ERA", "bare")
+    if audience == "sibling" or era != "qualified":
+        return f"/{skill}"
+    bundle = _bundle_map().get(skill)
+    return f"/{bundle}:{skill}" if bundle else f"/{skill}"
 
 
 def _guide_paths():
