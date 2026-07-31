@@ -181,7 +181,10 @@ setup_t111() {
     mkdir -p "$T111/.claude/skills/demo"
     printf 'domains:\n  - skills\nretired: []\n' > "$T111/domains.yml"
     # Bundle names come from the registry, never a name prefix.
-    printf 'expected_total: 2\nbundles:\n  manifest-docs:  # 1\n    - a\n  stitch-design:  # 1\n    - b\nother_key: x\n' \
+    # The trailing block matters: `not_a_bundle` is INDENTED like a bundle key
+    # and only the block boundary keeps it out. A top-level key would be
+    # rejected by the indentation pattern anyway and prove nothing.
+    printf 'expected_total: 2\nbundles:\n  manifest-docs:  # 1\n    - a\n  stitch-design:  # 1\n    - b\nother_block:\n  not_a_bundle:\n    - x\n' \
         > "$T111/skill_policies.yml"
 }
 
@@ -328,9 +331,9 @@ teardown_t111() { [[ -n "${T111:-}" ]] && rm -rf "$T111"; return 0; }
     teardown_t111
 }
 
-@test "T1.11: a key after the bundles block is not read as a bundle" {
+@test "T1.11: an indented key AFTER the bundles block is not read as a bundle" {
     setup_t111
-    printf '{"plugins":{"other_key@manifest":{}}}\n' \
+    printf '{"plugins":{"not_a_bundle@manifest":{}}}\n' \
         > "$T111/.claude/plugins/installed_plugins.json"
     run_report
     refute_output --partial "bundle(s)"
