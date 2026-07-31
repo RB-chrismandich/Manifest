@@ -378,9 +378,24 @@ jobs:
           find configs/claude/scripts -name '*.sh' | sort | sed 's|configs/claude/scripts/||;s/^/  /'
           echo ""
 
-          # Verify minimum expected counts
-          if [ "$SKILL_COUNT" -lt 10 ]; then
-            echo "FAIL: Expected at least 10 skills, found $SKILL_COUNT"
+          # T1.6 (spec 674): EXACT, against an exogenous committed integer.
+          # This was `-lt 10`, which is not a gate: a bundle silently losing 17
+          # skills during the plugin move stays green, and so does any accident
+          # that drops 98 of them. Both sides of a `-lt` floor are derived from
+          # the same tree, so it can only ever confirm the tree agrees with
+          # itself. expected_total lives in skill_policies.yml precisely because
+          # the move cannot edit it -- a PR that legitimately adds or removes a
+          # skill must change that integer in the same commit.
+          EXPECTED=$(sed -n 's/^expected_total:[[:space:]]*\([0-9][0-9]*\).*/\1/p' \
+            configs/claude/config/skill_policies.yml)
+          if [ -z "$EXPECTED" ]; then
+            echo "FAIL: configs/claude/config/skill_policies.yml declares no expected_total"
+            exit 1
+          fi
+          if [ "$SKILL_COUNT" -ne "$EXPECTED" ]; then
+            echo "FAIL: expected exactly $EXPECTED skills, found $SKILL_COUNT."
+            echo "      If this change adds or removes a skill, update expected_total"
+            echo "      in configs/claude/config/skill_policies.yml in the same commit."
             exit 1
           fi
           if [ "$SCRIPT_COUNT" -lt 1 ]; then
