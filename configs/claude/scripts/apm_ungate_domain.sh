@@ -187,6 +187,19 @@ if [[ -f "$LOCKFILE" ]] && command -v python3 > /dev/null 2>&1; then
     fi
 fi
 
+# --- 4. prune apm.yml's dangling local-path deps ----------------------------
+#
+# apm-dev-sync registers its staging directory as a local-path dependency, and
+# that default lives under TMPDIR -- so the OS deletes it and the entry stays.
+# Measured: eleven accumulated here, and while they cannot resurrect a deploy on
+# their own, they are exactly the kind of stale claim that made `skills` look
+# owned long after nothing was writing it.
+APM_YML="${APM_CONFIG:-$HOME/.apm/apm.yml}"
+if [[ -f "$APM_YML" ]] && command -v python3 > /dev/null 2>&1; then
+    python3 "$SCRIPT_DIR_UNGATE/apm_prune_dangling_deps.py" "$APM_YML" || \
+        err "could not prune $APM_YML (continuing: the un-gate itself succeeded)"
+fi
+
 echo ""
 echo "'$DOMAIN' is back under the legacy pipeline and currently EMPTY."
 echo "Run ./bootstrap.sh to repopulate it."
