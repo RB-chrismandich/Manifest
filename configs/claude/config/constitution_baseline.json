@@ -2,52 +2,52 @@
   "version": 1,
   "_comment": "Recorded violation counts at the time the Code Constitution was adopted. The gate blocks when a file's count for a check RISES above its entry. Lower these by fixing; regenerate with constitution_check.py --update-baseline. An entry may never be raised without the reason in the commit message.",
   "files": {
-    ".apm/skills/ai-hooks-integration/scripts/install_all.py": {
+    "plugins/manifest-workspace/skills/ai-hooks-integration/scripts/install_all.py": {
       "C-DATA": 1,
       "C-DUPE": 2,
       "C-SIZE": 1
     },
-    ".apm/skills/ai-hooks-integration/scripts/install_cli_wrapper.py": {
+    "plugins/manifest-workspace/skills/ai-hooks-integration/scripts/install_cli_wrapper.py": {
       "C-DATA": 1,
       "C-SIZE": 1
     },
-    ".apm/skills/ai-hooks-integration/scripts/merge_hooks.py": {
+    "plugins/manifest-workspace/skills/ai-hooks-integration/scripts/merge_hooks.py": {
       "C-SIZE": 1
     },
-    ".apm/skills/ai-hooks-integration/scripts/runtime/cli_wrapper.py": {
+    "plugins/manifest-workspace/skills/ai-hooks-integration/scripts/runtime/cli_wrapper.py": {
       "C-SIZE": 1
     },
-    ".apm/skills/ai-hooks-integration/scripts/runtime/detect_source.py": {
+    "plugins/manifest-workspace/skills/ai-hooks-integration/scripts/runtime/detect_source.py": {
       "C-ERR": 12
     },
-    ".apm/skills/ai-hooks-integration/scripts/runtime/tool_config.py": {
+    "plugins/manifest-workspace/skills/ai-hooks-integration/scripts/runtime/tool_config.py": {
       "C-DATA": 1,
       "C-ERR": 1
     },
-    ".apm/skills/ai-hooks-integration/scripts/runtime/unified_hook.py": {
+    "plugins/manifest-workspace/skills/ai-hooks-integration/scripts/runtime/unified_hook.py": {
       "C-ERR": 1,
       "C-SIZE": 1
     },
-    ".apm/skills/ai-hooks-integration/tests/test_merge_hooks.py": {
+    "plugins/manifest-workspace/skills/ai-hooks-integration/tests/test_merge_hooks.py": {
       "C-DATA": 1
     },
-    ".apm/skills/extract-static-html/scripts/extract_inline_html.ts": {
+    "plugins/stitch-design/skills/extract-static-html/scripts/extract_inline_html.ts": {
       "C-DUPE": 1,
       "C-SIZE": 1
     },
-    ".apm/skills/extract-static-html/scripts/post_process.ts": {
+    "plugins/stitch-design/skills/extract-static-html/scripts/post_process.ts": {
       "C-DUPE": 1,
       "C-SIZE": 1
     },
-    ".apm/skills/extract-static-html/scripts/snapshot.ts": {
+    "plugins/stitch-design/skills/extract-static-html/scripts/snapshot.ts": {
       "C-DUPE": 3,
       "C-SIZE": 1
     },
-    ".apm/skills/repo-clean/scripts/hygiene_gather.py": {
+    "plugins/manifest-forge/skills/repo-clean/scripts/hygiene_gather.py": {
       "C-ERR": 1,
       "C-SIZE": 3
     },
-    ".apm/skills/upload-to-stitch/scripts/upload_to_stitch.py": {
+    "plugins/stitch-design/skills/upload-to-stitch/scripts/upload_to_stitch.py": {
       "C-SIZE": 2
     },
     ".specify/scripts/bash/check-prerequisites.sh": {
