@@ -109,7 +109,13 @@ teardown() {
 }
 
 @test "apm-dev-sync does NOT refuse when the domain is not retired" {
-    run env MANIFEST_ROOT="$REPO_ROOT" MANIFEST_APM_DOMAINS="$NORMAL" \
+    # Deliberately given a PATH with no `apm`, so the script gets past the
+    # retired gate and then fails on the missing binary. The earlier version let
+    # it run the real deploy, which appended a dangling TMPDIR dependency to the
+    # user's ~/.apm/apm.yml on every single run -- a test that mutates the
+    # machine it is testing.
+    run env PATH="/usr/bin:/bin" HOME="$SANDBOX/fakehome" \
+        MANIFEST_ROOT="$REPO_ROOT" MANIFEST_APM_DOMAINS="$NORMAL" \
         MANIFEST_APM_DEV_STAGE="$SANDBOX/stage2" \
         bash "$REPO_ROOT/configs/claude/scripts/apm_dev_sync.sh"
     refute_output --partial "retired from both pipelines"

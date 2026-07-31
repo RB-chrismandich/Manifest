@@ -94,6 +94,10 @@ fi
 # CANNOT be verified, which is a different situation from a clean one.
 reclaim_list=""
 if [[ -f "$LOCKFILE" ]]; then
+    # Harvest EVERY entry deliberately: filtering by domain HERE would hide a
+    # corrupted path from the escape check below, and silently not reclaiming a
+    # suspicious entry is worse than loudly refusing it. The domain filter is
+    # applied in the reclaim loop instead, AFTER that check (T5.2, spec 674).
     reclaim_list="$(awk '
         /^[[:space:]]*deployed_files:[[:space:]]*$/ { inlist = 1; next }
         inlist && /^[[:space:]]*-[[:space:]]*/ {
@@ -147,6 +151,14 @@ for rel in $reclaim_list; do
             err "refusing to reclaim suspicious path: $rel"
             continue
             ;;
+    esac
+    # T5.2 (spec 674): reclaim only THIS domain's files. Without it the loop
+    # rm -rf's every domain's deployed files whenever any one is un-gated — safe
+    # today only by accident (one dependency, all 363 paths .claude/skills-
+    # prefixed), and none of the 12 bats cases covers a second domain.
+    case "$rel" in
+        ".claude/$DOMAIN"/*) ;;
+        *) continue ;;
     esac
     target="$HOME/$rel"
     if [[ -e "$target" ]]; then
