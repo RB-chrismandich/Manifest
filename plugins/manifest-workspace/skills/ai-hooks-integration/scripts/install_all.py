@@ -60,15 +60,21 @@ def install_unified(args) -> None:
     """Install unified hook with automatic source detection."""
     dry = ["--dry-run"] if args.dry_run else []
 
-    # Build the unified hook command.
-    # -B is load-bearing, not cosmetic: the runtime lives inside the
-    # apm-managed skills tree, so bytecode written next to the source is a file
-    # apm did not place. apm then refuses to remove or replace the skill, and a
-    # hook that fires every tool call re-creates __pycache__ every session —
-    # deleting it does not stick, only not writing it does.
-    unified_cmd = f"{sys.executable} -B {UNIFIED_HOOK}"
+    # Build the unified hook command. Skill storage has moved three times in
+    # ~5 weeks (bootstrap copy -> apm-managed ~/.manifest/skills -> plugin
+    # bundles, PR #685) and each move broke a settings.json hook command that
+    # hardcoded THIS script's own install-time absolute path, taking every
+    # Bash tool call down (specs/674-plugin-architecture/cutover-plan.md
+    # T4.3). Route through the stable dispatcher instead: it lives at
+    # ~/.claude/scripts/, deployed by bootstrap.sh and untouched by
+    # skill/plugin churn, and resolves the real unified_hook.py + handler
+    # locations at fire-time. Only applies to the default (pr-monitor)
+    # handler it knows about -- a caller-supplied --handler path is still a
+    # raw absolute path today, no more or less fragile than before this fix.
     if args.handler:
-        unified_cmd += f" --handler {args.handler}"
+        unified_cmd = f"{sys.executable} -B {UNIFIED_HOOK} --handler {args.handler}"
+    else:
+        unified_cmd = str(Path("~/.claude/scripts/hook_dispatch.py").expanduser())
 
     # Install for Claude (unified hook handles source detection)
     run(

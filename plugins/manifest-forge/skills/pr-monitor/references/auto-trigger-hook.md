@@ -33,18 +33,26 @@ wedge your normal workflow.
 
 ## Install across all three hook-capable tools (recommended)
 
-Use the `ai-hooks-integration` skill's unified installer — one handler, source
-detection, registered on the right event for each tool:
+Use the `ai-hooks-integration` skill's unified installer — no path to supply,
+since skill storage has moved three times already (bootstrap copy ->
+apm-managed `~/.manifest/skills` -> plugin bundles, PR #685) and every
+hand-written `~/.claude/skills/...` path in this doc has gone stale at least
+once as a result. Locate the installer via the plugin cache or a repo
+checkout (`find ~/.claude/plugins/cache -name install_all.py -path
+'*ai-hooks-integration*'`, or `plugins/manifest-workspace/skills/ai-hooks-integration/scripts/install_all.py`
+in a Manifest checkout) and run it with the built-in default handler — no
+`--handler` needed for pr-monitor, it's the installer's default:
 
 ```bash
-HANDLER="$HOME/.claude/skills/pr-monitor/scripts/pr_create_trigger.py"
-
-~/.claude/skills/ai-hooks-integration/scripts/install_all.py \
-  --unified \
-  --handler "$HANDLER" \
-  --name pr-monitor \
-  --dry-run        # drop --dry-run to apply
+install_all.py --unified --name pr-monitor --dry-run   # drop --dry-run to apply
 ```
+
+This writes `~/.claude/scripts/hook_dispatch.py --source <tool>` into each
+config instead of an absolute path to `unified_hook.py`/`pr_create_trigger.py`.
+`hook_dispatch.py` lives at `~/.claude/scripts/` — deployed by `bootstrap.sh`,
+untouched by skill/plugin churn — and resolves the real script locations at
+fire-time, so the installed command never goes stale again even if skill
+storage moves a fourth time.
 
 Unified mode registers the handler on each tool's tool-lifecycle event and
 normalizes the payload; the handler (`pr_create_trigger.py`) does its own
@@ -68,21 +76,23 @@ ai-hooks-integration.
 
 ## Single tool only
 
-```bash
-~/.claude/skills/ai-hooks-integration/scripts/merge_hooks.py \
-  --tool claude --path ~/.claude/settings.json \
-  --command "python3 $HOME/.claude/skills/pr-monitor/scripts/pr_create_trigger.py"
-```
+Prefer the unified installer above — it's what wires in `hook_dispatch.py`'s
+stale-path protection. `merge_hooks.py --command` is the raw lower-level
+primitive it calls and takes whatever command string you give it verbatim, so
+pointing it straight at a script path reintroduces the staleness problem this
+doc exists to warn about.
 
 ## Verify / debug / remove
 
 ```bash
-# Debug: log decisions to stderr
+# Debug: log decisions to stderr (once installed, run the live command with
+# HOOK_DEBUG=1 rather than invoking pr_create_trigger.py by a hand-typed path)
 echo '{"tool_input":{"command":"gh pr create --fill"},"tool_response":{"success":true}}' \
-  | HOOK_DEBUG=1 python3 ~/.claude/skills/pr-monitor/scripts/pr_create_trigger.py
+  | HOOK_DEBUG=1 ~/.claude/scripts/hook_dispatch.py --source claude
 
-# Remove from all tools
-~/.claude/skills/ai-hooks-integration/scripts/remove_all.py --name pr-monitor
+# Remove from all tools (same directory as install_all.py — see "Install
+# across all three hook-capable tools" above for how to locate it)
+remove_all.py --name pr-monitor
 ```
 
 ## Why a hook, not a slash command
