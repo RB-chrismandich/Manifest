@@ -1,6 +1,44 @@
 {
   "description": "Documentation improvement, diagram generation, and doc-set orchestration.",
   "forbidden": [],
+  "harnesses": {
+    "antigravity": {
+      "mode": "imported",
+      "skills": [
+        "skills/docs-all",
+        "skills/docs-generate-diagrams",
+        "skills/docs-improve",
+        "skills/docs-improve-readme"
+      ]
+    },
+    "codex": {
+      "mode": "native",
+      "skills": [
+        "skills/docs-all",
+        "skills/docs-generate-diagrams",
+        "skills/docs-improve",
+        "skills/docs-improve-readme"
+      ]
+    },
+    "cursor": {
+      "mode": "generated",
+      "skills": [
+        "skills/docs-all",
+        "skills/docs-generate-diagrams",
+        "skills/docs-improve",
+        "skills/docs-improve-readme"
+      ]
+    },
+    "devin": {
+      "mode": "native",
+      "skills": [
+        "skills/docs-all",
+        "skills/docs-generate-diagrams",
+        "skills/docs-improve",
+        "skills/docs-improve-readme"
+      ]
+    }
+  },
   "name": "manifest-docs",
   "optional": [],
   "required": [],

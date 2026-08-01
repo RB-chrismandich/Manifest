@@ -13,7 +13,20 @@ from typing import Any
 from manifest_agent.contracts import DOMAIN_BUNDLES, Component, load_domain_contracts
 
 _ADDON_NAME = "adversarial-design-loop"
+_ADDON_SOURCE = Path(
+    "plugins/adversarial-design-loop/.claude-plugin/marketplace-entry.json"
+)
+_ALL_HARNESSES = (
+    "antigravity",
+    "claude",
+    "codex",
+    "cursor",
+    "devin",
+    "gemini",
+)
+_GENERIC_HARNESSES = ("antigravity", "codex", "cursor", "devin")
 _COMPONENT_TYPES = ("agents", "guidance", "hooks", "runtime")
+_RENDERABLE_MODES = frozenset(("native", "generated", "imported"))
 
 
 class GenerationError(ValueError):
@@ -25,6 +38,7 @@ class GenerationReport:
     """The bundles rendered and any generated paths written or found drifted."""
 
     bundles: tuple[str, ...]
+    harnesses: tuple[str, ...]
     drifted_paths: tuple[Path, ...]
     written_paths: tuple[Path, ...]
 
@@ -43,10 +57,13 @@ def _discover_skills(bundle_path: Path, contract: Any) -> tuple[str, ...]:
     return tuple(sorted(skill_names))
 
 
-def _component_record(component_type: str, component: Component) -> dict[str, str]:
+def _component_record(
+    component_type: str, component: Component, mode: str
+) -> dict[str, str]:
     return {
         "component_id": component.id,
         "component_type": component_type,
+        "mode": mode,
         "path": component.path,
     }
 
@@ -65,9 +82,10 @@ def _degradation(
     component_type: str,
     component: Component,
     reason: str | None = None,
+    mode: str = "degraded",
 ) -> dict[str, str]:
     return {
-        **_component_record(component_type, component),
+        **_component_record(component_type, component, mode),
         "reason": reason
         or (
             f"{harness} native manifest cannot encode {component_type} component "
@@ -76,18 +94,23 @@ def _degradation(
     }
 
 
+def _component_status(contract: Any, harness: str, component: Component) -> Any:
+    compatibility = component.compatibility or contract.compatibility
+    return compatibility[harness]
+
+
 def _declared_degradation(
     contract: Any, harness: str, component_type: str, component: Component
 ) -> dict[str, str] | None:
-    compatibility = component.compatibility or contract.compatibility
-    status = compatibility[harness]
-    if status.mode not in {"degraded", "unsupported"}:
+    status = _component_status(contract, harness, component)
+    if status.mode in _RENDERABLE_MODES:
         return None
     return _degradation(
         harness,
         component_type,
         component,
         reason=status.reason,
+        mode=status.mode,
     )
 
 
@@ -104,33 +127,30 @@ def _validate_component_assets(bundle_path: Path, contract: Any) -> None:
         )
 
 
-def _add_compatibility(
-    view: dict[str, Any],
-    *,
-    native: list[dict[str, str]],
-    degraded: list[dict[str, str]],
+def _add_record(
+    records: dict[str, list[dict[str, str]]], mode: str, record: dict[str, str]
 ) -> None:
-    if not native and not degraded:
+    key = mode if mode in _RENDERABLE_MODES else "degraded"
+    records.setdefault(key, []).append(record)
+
+
+def _add_compatibility(
+    view: dict[str, Any], records: dict[str, list[dict[str, str]]]
+) -> None:
+    if not records:
         return
-    view["compatibility"] = {}
-    if native:
-        view["compatibility"]["native"] = sorted(
-            native,
+    view["compatibility"] = {
+        mode: sorted(
+            mode_records,
             key=lambda record: (
                 record["component_type"],
                 record["component_id"],
                 record["path"],
             ),
         )
-    if degraded:
-        view["compatibility"]["degraded"] = sorted(
-            degraded,
-            key=lambda record: (
-                record["component_type"],
-                record["component_id"],
-                record["path"],
-            ),
-        )
+        for mode, mode_records in sorted(records.items())
+        if mode_records
+    }
 
 
 def _claude_view(contract: Any, skills: tuple[str, ...]) -> dict[str, Any]:
@@ -141,8 +161,7 @@ def _claude_view(contract: Any, skills: tuple[str, ...]) -> dict[str, Any]:
         "skills": [f"./skills/{name}" for name in skills],
         "version": contract.version,
     }
-    native: list[dict[str, str]] = []
-    degraded: list[dict[str, str]] = []
+    records: dict[str, list[dict[str, str]]] = {}
     for component_type in _COMPONENT_TYPES:
         components = _components(contract, component_type)
         if not components:
@@ -153,22 +172,27 @@ def _claude_view(contract: Any, skills: tuple[str, ...]) -> dict[str, Any]:
                 contract, "claude", component_type, component
             )
             if declared is not None:
-                degraded.append(declared)
+                _add_record(records, declared["mode"], declared)
             elif component_type in {"agents", "hooks"}:
+                status = _component_status(contract, "claude", component)
                 exposed.append(component)
-                native.append(_component_record(component_type, component))
+                _add_record(
+                    records,
+                    status.mode,
+                    _component_record(component_type, component, status.mode),
+                )
             else:
-                degraded.append(_degradation("claude", component_type, component))
+                fallback = _degradation("claude", component_type, component)
+                _add_record(records, fallback["mode"], fallback)
         if exposed:
             view[component_type] = [f"./{component.path}" for component in exposed]
-    _add_compatibility(view, native=native, degraded=degraded)
+    _add_compatibility(view, records)
     return view
 
 
 def _gemini_view(contract: Any) -> dict[str, Any]:
     view: dict[str, Any] = {"name": contract.name, "version": contract.version}
-    native: list[dict[str, str]] = []
-    degraded: list[dict[str, str]] = []
+    records: dict[str, list[dict[str, str]]] = {}
 
     guidance = _components(contract, "guidance")
     if guidance:
@@ -176,10 +200,15 @@ def _gemini_view(contract: Any) -> dict[str, Any]:
         for component in guidance:
             declared = _declared_degradation(contract, "gemini", "guidance", component)
             if declared is not None:
-                degraded.append(declared)
+                _add_record(records, declared["mode"], declared)
             else:
+                status = _component_status(contract, "gemini", component)
                 exposed_guidance.append(component)
-                native.append(_component_record("guidance", component))
+                _add_record(
+                    records,
+                    status.mode,
+                    _component_record("guidance", component, status.mode),
+                )
         paths = [component.path for component in exposed_guidance]
         if paths:
             view["contextFileName"] = paths[0] if len(paths) == 1 else paths
@@ -187,70 +216,109 @@ def _gemini_view(contract: Any) -> dict[str, Any]:
     for component in _components(contract, "agents"):
         declared = _declared_degradation(contract, "gemini", "agents", component)
         if declared is not None:
-            degraded.append(declared)
+            _add_record(records, declared["mode"], declared)
         elif component.path.startswith("agents/"):
-            native.append(_component_record("agents", component))
+            status = _component_status(contract, "gemini", component)
+            _add_record(
+                records,
+                status.mode,
+                _component_record("agents", component, status.mode),
+            )
         else:
-            degraded.append(_degradation("gemini", "agents", component))
+            fallback = _degradation("gemini", "agents", component)
+            _add_record(records, fallback["mode"], fallback)
     for component in _components(contract, "hooks"):
         declared = _declared_degradation(contract, "gemini", "hooks", component)
         if declared is not None:
-            degraded.append(declared)
+            _add_record(records, declared["mode"], declared)
         elif component.path == "hooks/hooks.json":
-            native.append(_component_record("hooks", component))
+            status = _component_status(contract, "gemini", component)
+            _add_record(
+                records,
+                status.mode,
+                _component_record("hooks", component, status.mode),
+            )
         else:
-            degraded.append(_degradation("gemini", "hooks", component))
+            fallback = _degradation("gemini", "hooks", component)
+            _add_record(records, fallback["mode"], fallback)
     for component in _components(contract, "runtime"):
-        degraded.append(
-            _declared_degradation(contract, "gemini", "runtime", component)
-            or _degradation("gemini", "runtime", component)
-        )
-    _add_compatibility(view, native=native, degraded=degraded)
+        record = _declared_degradation(contract, "gemini", "runtime", component)
+        record = record or _degradation("gemini", "runtime", component)
+        _add_record(records, record["mode"], record)
+    _add_compatibility(view, records)
     return view
 
 
+def _generic_harness_surface(
+    contract: Any, skills: tuple[str, ...], harness: str
+) -> dict[str, Any]:
+    bundle_status = contract.compatibility[harness]
+    surface: dict[str, Any] = {
+        "mode": bundle_status.mode,
+        "skills": [f"skills/{name}" for name in skills],
+    }
+    if bundle_status.reason is not None:
+        surface["reason"] = bundle_status.reason
+    components_by_type: dict[str, list[dict[str, str]]] = {}
+    records: dict[str, list[dict[str, str]]] = {}
+    for component_type in _COMPONENT_TYPES:
+        for component in _components(contract, component_type):
+            status = _component_status(contract, harness, component)
+            if status.mode not in _RENDERABLE_MODES:
+                record = _degradation(
+                    harness,
+                    component_type,
+                    component,
+                    reason=status.reason,
+                    mode=status.mode,
+                )
+                _add_record(records, status.mode, record)
+                continue
+            components_by_type.setdefault(component_type, []).append(
+                {"id": component.id, "path": component.path}
+            )
+            _add_record(
+                records,
+                status.mode,
+                _component_record(component_type, component, status.mode),
+            )
+    if components_by_type:
+        surface["components"] = components_by_type
+    _add_compatibility(surface, records)
+    return surface
+
+
 def _generic_view(contract: Any, skills: tuple[str, ...]) -> dict[str, Any]:
-    view: dict[str, Any] = {
+    return {
         "description": contract.description,
         "forbidden": [],
+        "harnesses": {
+            harness: _generic_harness_surface(contract, skills, harness)
+            for harness in _GENERIC_HARNESSES
+        },
         "name": contract.name,
         "optional": [],
         "required": [],
         "skills": [f"skills/{name}" for name in skills],
         "version": contract.version,
     }
-    native: list[dict[str, str]] = []
-    for component_type in _COMPONENT_TYPES:
-        components = _components(contract, component_type)
-        if components:
-            view[component_type] = [
-                {"id": component.id, "path": component.path} for component in components
-            ]
-            native.extend(
-                _component_record(component_type, component) for component in components
-            )
-    _add_compatibility(view, native=native, degraded=[])
-    return view
 
 
 def _addon_entry(repo_root: Path) -> dict[str, Any]:
-    marketplace_path = repo_root / ".claude-plugin" / "marketplace.json"
+    addon_path = repo_root / _ADDON_SOURCE
     try:
-        marketplace = json.loads(marketplace_path.read_text(encoding="utf-8"))
+        addon = json.loads(addon_path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as error:
         raise GenerationError(
-            f"unable to preserve addon from {marketplace_path}: {error}"
+            f"unable to load canonical addon metadata from {addon_path}: {error}"
         ) from error
-    addons = [
-        entry
-        for entry in marketplace.get("plugins", [])
-        if entry.get("name") == _ADDON_NAME
-    ]
-    if len(addons) != 1:
+    if not isinstance(addon, dict) or addon.get("name") != _ADDON_NAME:
         raise GenerationError(
-            f"{marketplace_path}: expected exactly one {_ADDON_NAME!r} entry"
+            f"{addon_path}: expected one {_ADDON_NAME!r} marketplace entry object"
         )
-    return addons[0]
+    if addon.get("source") != f"./plugins/{_ADDON_NAME}":
+        raise GenerationError(f"{addon_path}: addon source must target its plugin root")
+    return addon
 
 
 def _marketplace(contracts: tuple[Any, ...], addon: dict[str, Any]) -> dict[str, Any]:
@@ -341,6 +409,7 @@ def render_views(
     drifted, written = _emit(expected, check=check)
     return GenerationReport(
         bundles=tuple(contract.name for contract in contracts),
+        harnesses=_ALL_HARNESSES,
         drifted_paths=drifted,
         written_paths=written,
     )

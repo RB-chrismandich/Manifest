@@ -1,6 +1,96 @@
 {
   "description": "Workspace configuration, environment, session, and learning workflows.",
   "forbidden": [],
+  "harnesses": {
+    "antigravity": {
+      "mode": "imported",
+      "skills": [
+        "skills/ai-hooks-integration",
+        "skills/automation-rework-breakeven",
+        "skills/config-audit",
+        "skills/deploy-reconcile",
+        "skills/env-check",
+        "skills/help",
+        "skills/learning-capture",
+        "skills/memory-compress",
+        "skills/metrics-report",
+        "skills/pass-cli",
+        "skills/pr-smoke",
+        "skills/prompt-optimize",
+        "skills/session-checkpoint",
+        "skills/skill-evolve",
+        "skills/test-isolate-ambient",
+        "skills/token-benchmark",
+        "skills/token-conserve"
+      ]
+    },
+    "codex": {
+      "mode": "native",
+      "skills": [
+        "skills/ai-hooks-integration",
+        "skills/automation-rework-breakeven",
+        "skills/config-audit",
+        "skills/deploy-reconcile",
+        "skills/env-check",
+        "skills/help",
+        "skills/learning-capture",
+        "skills/memory-compress",
+        "skills/metrics-report",
+        "skills/pass-cli",
+        "skills/pr-smoke",
+        "skills/prompt-optimize",
+        "skills/session-checkpoint",
+        "skills/skill-evolve",
+        "skills/test-isolate-ambient",
+        "skills/token-benchmark",
+        "skills/token-conserve"
+      ]
+    },
+    "cursor": {
+      "mode": "generated",
+      "skills": [
+        "skills/ai-hooks-integration",
+        "skills/automation-rework-breakeven",
+        "skills/config-audit",
+        "skills/deploy-reconcile",
+        "skills/env-check",
+        "skills/help",
+        "skills/learning-capture",
+        "skills/memory-compress",
+        "skills/metrics-report",
+        "skills/pass-cli",
+        "skills/pr-smoke",
+        "skills/prompt-optimize",
+        "skills/session-checkpoint",
+        "skills/skill-evolve",
+        "skills/test-isolate-ambient",
+        "skills/token-benchmark",
+        "skills/token-conserve"
+      ]
+    },
+    "devin": {
+      "mode": "native",
+      "skills": [
+        "skills/ai-hooks-integration",
+        "skills/automation-rework-breakeven",
+        "skills/config-audit",
+        "skills/deploy-reconcile",
+        "skills/env-check",
+        "skills/help",
+        "skills/learning-capture",
+        "skills/memory-compress",
+        "skills/metrics-report",
+        "skills/pass-cli",
+        "skills/pr-smoke",
+        "skills/prompt-optimize",
+        "skills/session-checkpoint",
+        "skills/skill-evolve",
+        "skills/test-isolate-ambient",
+        "skills/token-benchmark",
+        "skills/token-conserve"
+      ]
+    }
+  },
   "name": "manifest-workspace",
   "optional": [],
   "required": [],

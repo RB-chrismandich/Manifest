@@ -14,10 +14,71 @@ from manifest_agent.models import CapabilityTier
 from tools.generate_plugin_views import render_views
 from tools.skill_ref import expand, load_bundles
 
+ALL_HARNESSES = (
+    "antigravity",
+    "claude",
+    "codex",
+    "cursor",
+    "devin",
+    "gemini",
+)
+GENERIC_HARNESSES = ("antigravity", "codex", "cursor", "devin")
+EXPECTED_ADDON_ENTRY = {
+    "category": "design",
+    "description": (
+        "Spec-first UI design loop: colorless screen prompts, faithful render "
+        "gates, multi-lens adversarial review with skeptic-verified blockers, "
+        "upstream spec amendments."
+    ),
+    "homepage": "https://github.com/RB-chrismandich/Manifest",
+    "keywords": [
+        "design",
+        "ui",
+        "stitch",
+        "adversarial-review",
+        "design-system",
+        "render-verification",
+    ],
+    "name": "adversarial-design-loop",
+    "source": "./plugins/adversarial-design-loop",
+    "version": "0.1.0",
+}
+
 
 @pytest.fixture
 def repo_root() -> Path:
     return Path(__file__).resolve().parents[3]
+
+
+def _build_fixture_repo(repo_root: Path, fixture_root: Path) -> None:
+    fixture_plugins = fixture_root / "plugins"
+    for bundle_name in DOMAIN_BUNDLES:
+        source_bundle = repo_root / "plugins" / bundle_name
+        target_bundle = fixture_plugins / bundle_name
+        (target_bundle / "skills/example").mkdir(parents=True)
+        shutil.copy2(
+            source_bundle / "manifest-capabilities.yml",
+            target_bundle / "manifest-capabilities.yml",
+        )
+        (target_bundle / "skills/example/SKILL.md").write_text(
+            "---\nname: example\ndescription: Example fixture skill.\n---\n",
+            encoding="utf-8",
+        )
+
+    marketplace_path = fixture_root / ".claude-plugin/marketplace.json"
+    marketplace_path.parent.mkdir(parents=True)
+    shutil.copy2(repo_root / ".claude-plugin/marketplace.json", marketplace_path)
+
+    addon_source = (
+        fixture_plugins
+        / "adversarial-design-loop/.claude-plugin/marketplace-entry.json"
+    )
+    addon_source.parent.mkdir(parents=True)
+    canonical_source = (
+        repo_root
+        / "plugins/adversarial-design-loop/.claude-plugin/marketplace-entry.json"
+    )
+    shutil.copy2(canonical_source, addon_source)
 
 
 def test_generator_emits_three_native_views_per_domain(
@@ -26,9 +87,13 @@ def test_generator_emits_three_native_views_per_domain(
     report = render_views(repo_root, output_root=tmp_path, check=False)
 
     assert report.bundles == DOMAIN_BUNDLES
+    assert report.harnesses == ALL_HARNESSES
     assert (tmp_path / "manifest-docs/.claude-plugin/plugin.json").is_file()
     assert (tmp_path / "manifest-docs/gemini-extension.json").is_file()
-    assert (tmp_path / "manifest-docs/plugin.json").is_file()
+    generic_path = tmp_path / "manifest-docs/plugin.json"
+    assert generic_path.is_file()
+    generic = json.loads(generic_path.read_text())
+    assert set(report.harnesses) == {"claude", "gemini", *generic["harnesses"]}
 
 
 def test_marketplace_excludes_optional_addon_from_parity_count(
@@ -148,11 +213,15 @@ def test_check_reports_all_drift_without_writing(
 def test_marketplace_preserves_independent_addon_entry(
     repo_root: Path, tmp_path: Path
 ) -> None:
-    source = json.loads((repo_root / ".claude-plugin/marketplace.json").read_text())
-    expected = next(
-        entry
-        for entry in source["plugins"]
-        if entry["name"] == "adversarial-design-loop"
+    canonical_source = (
+        repo_root
+        / "plugins/adversarial-design-loop/.claude-plugin/marketplace-entry.json"
+    )
+    assert canonical_source.is_file()
+    expected = json.loads(canonical_source.read_text())
+    assert expected == EXPECTED_ADDON_ENTRY
+    assert canonical_source.read_text() == (
+        json.dumps(EXPECTED_ADDON_ENTRY, indent=2, sort_keys=True) + "\n"
     )
 
     render_views(repo_root, output_root=tmp_path, check=False)
@@ -167,27 +236,34 @@ def test_marketplace_preserves_independent_addon_entry(
     assert len(generated["plugins"]) == 10
 
 
+def test_check_detects_tampered_generated_addon_entry(
+    repo_root: Path, tmp_path: Path
+) -> None:
+    fixture_root = tmp_path / "fixture-repo"
+    _build_fixture_repo(repo_root, fixture_root)
+    render_views(fixture_root, check=False)
+    marketplace_path = fixture_root / ".claude-plugin/marketplace.json"
+    marketplace = json.loads(marketplace_path.read_text())
+    addon = next(
+        entry
+        for entry in marketplace["plugins"]
+        if entry["name"] == "adversarial-design-loop"
+    )
+    addon["description"] = "tampered generated addon metadata"
+    marketplace_path.write_text(json.dumps(marketplace, indent=2) + "\n")
+
+    report = render_views(fixture_root, check=True)
+
+    assert marketplace_path in report.drifted_paths
+    assert "tampered" in marketplace_path.read_text()
+
+
 def test_every_component_is_exposed_or_explicitly_degraded(
     repo_root: Path, tmp_path: Path
 ) -> None:
     fixture_root = tmp_path / "fixture-repo"
+    _build_fixture_repo(repo_root, fixture_root)
     fixture_plugins = fixture_root / "plugins"
-    fixture_marketplace = fixture_root / ".claude-plugin/marketplace.json"
-    fixture_marketplace.parent.mkdir(parents=True)
-    shutil.copy2(repo_root / ".claude-plugin/marketplace.json", fixture_marketplace)
-    for bundle_name in DOMAIN_BUNDLES:
-        source_bundle = repo_root / "plugins" / bundle_name
-        target_bundle = fixture_plugins / bundle_name
-        (target_bundle / "skills/example").mkdir(parents=True)
-        shutil.copy2(
-            source_bundle / "manifest-capabilities.yml",
-            target_bundle / "manifest-capabilities.yml",
-        )
-        (target_bundle / "skills/example/SKILL.md").write_text(
-            "---\nname: example\ndescription: Example fixture skill.\n---\n",
-            encoding="utf-8",
-        )
-
     docs_bundle = fixture_plugins / "manifest-docs"
     contract_path = docs_bundle / "manifest-capabilities.yml"
     document = yaml.safe_load(contract_path.read_text(encoding="utf-8"))
@@ -204,11 +280,18 @@ def test_every_component_is_exposed_or_explicitly_degraded(
         asset_path.write_text("fixture\n", encoding="utf-8")
     document["components"]["runtime"][0]["compatibility"] = {
         "claude": {"mode": "degraded", "reason": "claude fixture runtime"},
-        "codex": {"mode": "native"},
+        "codex": {"mode": "degraded", "reason": "codex fixture runtime"},
         "gemini": {"mode": "unsupported", "reason": "gemini fixture runtime"},
-        "cursor": {"mode": "generated"},
-        "antigravity": {"mode": "imported"},
-        "devin": {"mode": "native"},
+        "cursor": {"mode": "unsupported", "reason": "cursor fixture runtime"},
+        "antigravity": {
+            "mode": "degraded",
+            "reason": "antigravity fixture runtime",
+        },
+        "devin": {"mode": "unsupported", "reason": "devin fixture runtime"},
+    }
+    document["compatibility"]["devin"] = {
+        "mode": "degraded",
+        "reason": "devin fixture bundle",
     }
     contract_path.write_text(
         yaml.safe_dump(document, sort_keys=False), encoding="utf-8"
@@ -224,7 +307,6 @@ def test_every_component_is_exposed_or_explicitly_degraded(
         "gemini": json.loads(
             (output_root / "manifest-docs/gemini-extension.json").read_text()
         ),
-        "generic": json.loads((output_root / "manifest-docs/plugin.json").read_text()),
     }
     for harness, view in views.items():
         exposed = set()
@@ -239,9 +321,11 @@ def test_every_component_is_exposed_or_explicitly_degraded(
                     }
                 ) or component in {relative_path, f"./{relative_path}"}:
                     exposed.add((kind, component_id))
-        native = {
+        represented = {
             (record["component_type"], record["component_id"])
-            for record in view.get("compatibility", {}).get("native", [])
+            for mode, records in view.get("compatibility", {}).items()
+            if mode != "degraded"
+            for record in records
         }
         degraded = {
             (record["component_type"], record["component_id"])
@@ -250,7 +334,7 @@ def test_every_component_is_exposed_or_explicitly_degraded(
         expected = {
             (kind, component_id) for kind, (component_id, _) in fixtures.items()
         }
-        assert expected <= exposed | native | degraded, harness
+        assert expected <= exposed | represented | degraded, harness
 
     for harness, expected_reason in {
         "claude": "claude fixture runtime",
@@ -262,6 +346,45 @@ def test_every_component_is_exposed_or_explicitly_degraded(
             if record["component_type"] == "runtime"
         )
         assert runtime_record["reason"] == expected_reason
+
+    generic = json.loads((output_root / "manifest-docs/plugin.json").read_text())
+    assert tuple(sorted(generic["harnesses"])) == GENERIC_HARNESSES
+    expected_modes = {
+        "antigravity": "imported",
+        "codex": "native",
+        "cursor": "generated",
+        "devin": "degraded",
+    }
+    for harness, expected_mode in expected_modes.items():
+        surface = generic["harnesses"][harness]
+        assert surface["mode"] == expected_mode
+        agent_record = next(
+            record
+            for record in surface["compatibility"][expected_mode]
+            if record["component_type"] == "agents"
+        )
+        assert agent_record["component_id"] == "reviewer"
+        assert agent_record["mode"] == expected_mode
+        runtime_record = next(
+            record
+            for record in surface["compatibility"]["degraded"]
+            if record["component_type"] == "runtime"
+        )
+        assert runtime_record["reason"] == f"{harness} fixture runtime"
+    runtime_modes = {
+        "antigravity": "degraded",
+        "codex": "degraded",
+        "cursor": "unsupported",
+        "devin": "unsupported",
+    }
+    for harness, expected_mode in runtime_modes.items():
+        runtime_record = next(
+            record
+            for record in generic["harnesses"][harness]["compatibility"]["degraded"]
+            if record["component_type"] == "runtime"
+        )
+        assert runtime_record["mode"] == expected_mode
+    assert generic["harnesses"]["devin"]["reason"] == "devin fixture bundle"
 
 
 def test_tools_skill_ref_preserves_qualified_mapping_semantics(

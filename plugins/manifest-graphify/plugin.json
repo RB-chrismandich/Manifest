@@ -1,6 +1,32 @@
 {
   "description": "Repository knowledge-graph generation and query workflows.",
   "forbidden": [],
+  "harnesses": {
+    "antigravity": {
+      "mode": "imported",
+      "skills": [
+        "skills/graphify"
+      ]
+    },
+    "codex": {
+      "mode": "native",
+      "skills": [
+        "skills/graphify"
+      ]
+    },
+    "cursor": {
+      "mode": "generated",
+      "skills": [
+        "skills/graphify"
+      ]
+    },
+    "devin": {
+      "mode": "native",
+      "skills": [
+        "skills/graphify"
+      ]
+    }
+  },
   "name": "manifest-graphify",
   "optional": [],
   "required": [],

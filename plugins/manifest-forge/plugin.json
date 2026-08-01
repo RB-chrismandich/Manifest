@@ -1,6 +1,100 @@
 {
   "description": "Git forge, issue tracking, pull request, and release lifecycle workflows.",
   "forbidden": [],
+  "harnesses": {
+    "antigravity": {
+      "mode": "imported",
+      "skills": [
+        "skills/branch-clean",
+        "skills/git-commit",
+        "skills/git-find-artifact",
+        "skills/issue-dev-auto",
+        "skills/issue-prep-auto",
+        "skills/issue-prioritize",
+        "skills/issue-sync-commit",
+        "skills/issue-sync-pr",
+        "skills/issue-triage",
+        "skills/lifecycle-run",
+        "skills/pr-address-comments",
+        "skills/pr-clean-base",
+        "skills/pr-merge-stacked",
+        "skills/pr-monitor",
+        "skills/pr-reset-reapply",
+        "skills/pr-review",
+        "skills/pr-triage-bots",
+        "skills/repo-clean"
+      ]
+    },
+    "codex": {
+      "mode": "native",
+      "skills": [
+        "skills/branch-clean",
+        "skills/git-commit",
+        "skills/git-find-artifact",
+        "skills/issue-dev-auto",
+        "skills/issue-prep-auto",
+        "skills/issue-prioritize",
+        "skills/issue-sync-commit",
+        "skills/issue-sync-pr",
+        "skills/issue-triage",
+        "skills/lifecycle-run",
+        "skills/pr-address-comments",
+        "skills/pr-clean-base",
+        "skills/pr-merge-stacked",
+        "skills/pr-monitor",
+        "skills/pr-reset-reapply",
+        "skills/pr-review",
+        "skills/pr-triage-bots",
+        "skills/repo-clean"
+      ]
+    },
+    "cursor": {
+      "mode": "generated",
+      "skills": [
+        "skills/branch-clean",
+        "skills/git-commit",
+        "skills/git-find-artifact",
+        "skills/issue-dev-auto",
+        "skills/issue-prep-auto",
+        "skills/issue-prioritize",
+        "skills/issue-sync-commit",
+        "skills/issue-sync-pr",
+        "skills/issue-triage",
+        "skills/lifecycle-run",
+        "skills/pr-address-comments",
+        "skills/pr-clean-base",
+        "skills/pr-merge-stacked",
+        "skills/pr-monitor",
+        "skills/pr-reset-reapply",
+        "skills/pr-review",
+        "skills/pr-triage-bots",
+        "skills/repo-clean"
+      ]
+    },
+    "devin": {
+      "mode": "native",
+      "skills": [
+        "skills/branch-clean",
+        "skills/git-commit",
+        "skills/git-find-artifact",
+        "skills/issue-dev-auto",
+        "skills/issue-prep-auto",
+        "skills/issue-prioritize",
+        "skills/issue-sync-commit",
+        "skills/issue-sync-pr",
+        "skills/issue-triage",
+        "skills/lifecycle-run",
+        "skills/pr-address-comments",
+        "skills/pr-clean-base",
+        "skills/pr-merge-stacked",
+        "skills/pr-monitor",
+        "skills/pr-reset-reapply",
+        "skills/pr-review",
+        "skills/pr-triage-bots",
+        "skills/repo-clean"
+      ]
+    }
+  },
   "name": "manifest-forge",
   "optional": [],
   "required": [],

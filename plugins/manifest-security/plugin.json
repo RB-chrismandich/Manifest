@@ -1,6 +1,68 @@
 {
   "description": "Security review, threat analysis, hardening, and finding-triage workflows.",
   "forbidden": [],
+  "harnesses": {
+    "antigravity": {
+      "mode": "imported",
+      "skills": [
+        "skills/ci-audit-triggers",
+        "skills/ci-harden-workflow",
+        "skills/code-audit",
+        "skills/docker-audit-firewall",
+        "skills/llm-audit-traversal",
+        "skills/mcp-audit",
+        "skills/security-harden-proxy",
+        "skills/security-refute-findings",
+        "skills/security-review-diff",
+        "skills/security-triage-findings"
+      ]
+    },
+    "codex": {
+      "mode": "native",
+      "skills": [
+        "skills/ci-audit-triggers",
+        "skills/ci-harden-workflow",
+        "skills/code-audit",
+        "skills/docker-audit-firewall",
+        "skills/llm-audit-traversal",
+        "skills/mcp-audit",
+        "skills/security-harden-proxy",
+        "skills/security-refute-findings",
+        "skills/security-review-diff",
+        "skills/security-triage-findings"
+      ]
+    },
+    "cursor": {
+      "mode": "generated",
+      "skills": [
+        "skills/ci-audit-triggers",
+        "skills/ci-harden-workflow",
+        "skills/code-audit",
+        "skills/docker-audit-firewall",
+        "skills/llm-audit-traversal",
+        "skills/mcp-audit",
+        "skills/security-harden-proxy",
+        "skills/security-refute-findings",
+        "skills/security-review-diff",
+        "skills/security-triage-findings"
+      ]
+    },
+    "devin": {
+      "mode": "native",
+      "skills": [
+        "skills/ci-audit-triggers",
+        "skills/ci-harden-workflow",
+        "skills/code-audit",
+        "skills/docker-audit-firewall",
+        "skills/llm-audit-traversal",
+        "skills/mcp-audit",
+        "skills/security-harden-proxy",
+        "skills/security-refute-findings",
+        "skills/security-review-diff",
+        "skills/security-triage-findings"
+      ]
+    }
+  },
   "name": "manifest-security",
   "optional": [],
   "required": [],

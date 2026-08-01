@@ -1,6 +1,100 @@
 {
   "description": "Design generation, review, extraction, and implementation workflows.",
   "forbidden": [],
+  "harnesses": {
+    "antigravity": {
+      "mode": "imported",
+      "skills": [
+        "skills/a11y-audit",
+        "skills/code-to-design",
+        "skills/design-md",
+        "skills/enhance-prompt",
+        "skills/extract-design-md",
+        "skills/extract-static-html",
+        "skills/generate-design",
+        "skills/manage-design-system",
+        "skills/performance-check",
+        "skills/react-components",
+        "skills/react-native",
+        "skills/react-vite-dashboard",
+        "skills/remotion",
+        "skills/shadcn-ui",
+        "skills/stitch-loop",
+        "skills/taste-design",
+        "skills/upload-to-stitch",
+        "skills/ux-review"
+      ]
+    },
+    "codex": {
+      "mode": "native",
+      "skills": [
+        "skills/a11y-audit",
+        "skills/code-to-design",
+        "skills/design-md",
+        "skills/enhance-prompt",
+        "skills/extract-design-md",
+        "skills/extract-static-html",
+        "skills/generate-design",
+        "skills/manage-design-system",
+        "skills/performance-check",
+        "skills/react-components",
+        "skills/react-native",
+        "skills/react-vite-dashboard",
+        "skills/remotion",
+        "skills/shadcn-ui",
+        "skills/stitch-loop",
+        "skills/taste-design",
+        "skills/upload-to-stitch",
+        "skills/ux-review"
+      ]
+    },
+    "cursor": {
+      "mode": "generated",
+      "skills": [
+        "skills/a11y-audit",
+        "skills/code-to-design",
+        "skills/design-md",
+        "skills/enhance-prompt",
+        "skills/extract-design-md",
+        "skills/extract-static-html",
+        "skills/generate-design",
+        "skills/manage-design-system",
+        "skills/performance-check",
+        "skills/react-components",
+        "skills/react-native",
+        "skills/react-vite-dashboard",
+        "skills/remotion",
+        "skills/shadcn-ui",
+        "skills/stitch-loop",
+        "skills/taste-design",
+        "skills/upload-to-stitch",
+        "skills/ux-review"
+      ]
+    },
+    "devin": {
+      "mode": "native",
+      "skills": [
+        "skills/a11y-audit",
+        "skills/code-to-design",
+        "skills/design-md",
+        "skills/enhance-prompt",
+        "skills/extract-design-md",
+        "skills/extract-static-html",
+        "skills/generate-design",
+        "skills/manage-design-system",
+        "skills/performance-check",
+        "skills/react-components",
+        "skills/react-native",
+        "skills/react-vite-dashboard",
+        "skills/remotion",
+        "skills/shadcn-ui",
+        "skills/stitch-loop",
+        "skills/taste-design",
+        "skills/upload-to-stitch",
+        "skills/ux-review"
+      ]
+    }
+  },
   "name": "stitch-design",
   "optional": [],
   "required": [],

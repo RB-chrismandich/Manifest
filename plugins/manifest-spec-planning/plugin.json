@@ -1,6 +1,56 @@
 {
   "description": "Specification, planning, trade-off, and implementation-loop workflows.",
   "forbidden": [],
+  "harnesses": {
+    "antigravity": {
+      "mode": "imported",
+      "skills": [
+        "skills/design-validate",
+        "skills/plan-manage",
+        "skills/premise-verify",
+        "skills/spec-audit-tasks",
+        "skills/spec-decide-tradeoffs",
+        "skills/spec-implement-loop",
+        "skills/spec-review"
+      ]
+    },
+    "codex": {
+      "mode": "native",
+      "skills": [
+        "skills/design-validate",
+        "skills/plan-manage",
+        "skills/premise-verify",
+        "skills/spec-audit-tasks",
+        "skills/spec-decide-tradeoffs",
+        "skills/spec-implement-loop",
+        "skills/spec-review"
+      ]
+    },
+    "cursor": {
+      "mode": "generated",
+      "skills": [
+        "skills/design-validate",
+        "skills/plan-manage",
+        "skills/premise-verify",
+        "skills/spec-audit-tasks",
+        "skills/spec-decide-tradeoffs",
+        "skills/spec-implement-loop",
+        "skills/spec-review"
+      ]
+    },
+    "devin": {
+      "mode": "native",
+      "skills": [
+        "skills/design-validate",
+        "skills/plan-manage",
+        "skills/premise-verify",
+        "skills/spec-audit-tasks",
+        "skills/spec-decide-tradeoffs",
+        "skills/spec-implement-loop",
+        "skills/spec-review"
+      ]
+    }
+  },
   "name": "manifest-spec-planning",
   "optional": [],
   "required": [],
