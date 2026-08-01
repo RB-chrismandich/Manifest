@@ -1,0 +1,15 @@
+---
+description: "Record design-pass findings that are upstream spec gaps, then land them as normative spec edits."
+globs: ".claude/skills/spec-amend/**"
+alwaysApply: false
+---
+
+# spec-amend
+
+Record design-pass findings that are upstream spec gaps, then land them as normative spec edits.
+
+<!-- Auto-generated from .claude/skills/spec-amend/SKILL.md -->
+<!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
+
+Refer to `.cursor/skills/spec-amend/SKILL.md` for the full skill definition.
+

@@ -848,6 +848,30 @@ tool_policies:
     subagents: never
     subagent_rationale: Single health-check/validation gate audit; sequential checklist.
 
+  # adversarial-design-loop (merged from main, #674). Dispositions read off what
+  # each skill body actually does, not off the bundle: only review-round
+  # dispatches — it ships the two agents (design-lens-reviewer, skeptic-verifier)
+  # and its independence is structural, lenses running with no shared context.
+  design-loop:
+    subagents: never
+    subagent_rationale: Phase orchestrator; it invokes sibling skills, and review-round owns the dispatch.
+  loop-scaffold:
+    subagents: never
+    subagent_rationale: Writes one artifact tree from templates; single-target file scaffolding.
+  render-verify:
+    subagents: never
+    subagent_rationale: Runs one pinned render/scan script over one artifact directory.
+  review-round:
+    subagents: always
+    subagent_model: sonnet
+    subagent_rationale: One design-lens-reviewer per lens plus one skeptic-verifier per blocker, all in parallel.
+  screen-prompts:
+    subagents: never
+    subagent_rationale: Authors one prompt file per screen; sequential, no independent verification units.
+  spec-amend:
+    subagents: never
+    subagent_rationale: Records gaps and lands one batch of in-place spec edits; single-target.
+
 # Version-pinning rule set (consumed by scripts/version_pin.sh).
 # Maps file globs to an ecosystem and hash form. Notes on the fields:
 #   ecosystem   - selects the parser AND the native resolver inside the script

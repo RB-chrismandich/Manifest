@@ -1,6 +1,6 @@
 ---
 name: screen-prompts
-description: This skill should be used when the user asks to "write the screen prompts", "author a Stitch prompt", "write a colorless wireframe prompt", "prompt the generator for a screen", or when a design loop reaches its prompt-authoring phase. Enforces one literal, geometry-only prompt file per screen with colors and fonts banned from prompt text.
+description: Author one colorless, geometry-only Stitch prompt per screen; colors and fonts banned from prompt text.
 version: 0.1.0
 ---
 

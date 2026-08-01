@@ -1,6 +1,6 @@
 ---
 name: loop-scaffold
-description: This skill should be used when the user asks to "scaffold the design loop", "set up the .stitch directory", "initialize the design-pass artifacts", "create the design loop tree", or starts an adversarial design pass in a repo that has no artifact directory yet. Creates the six governance artifacts, prompts/designs/tools directories, and the pinned render gate from templates.
+description: Scaffold a design-pass artifact tree (.stitch/) — governance docs, prompts, designs, pinned render gate.
 version: 0.1.0
 ---
 

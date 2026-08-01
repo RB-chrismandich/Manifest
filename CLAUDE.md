@@ -56,9 +56,8 @@ configs/                             # Deployment source configs (deployed to ~/
 ├── skills/                          # speckit-* project-scoped skills (loaded in this repo's sessions)
 └── settings.local.json              # Repo-relevant permissions only (no MCP servers)
 
-.claude-plugin/                      # marketplace.json — the repo doubles as a Claude Code plugin marketplace ("manifest")
-plugins/                             # Claude Code plugins (installed via marketplace or --plugin-dir, NOT deployed by bootstrap)
-└── adversarial-design-loop/         # Spec-first adversarial UI design loop (6 skills, 2 agents, render gate)
+.claude-plugin/marketplace.json      # this repo IS the "manifest" plugin marketplace
+plugins/                             # ten plugin bundles, 114 skills (installed via marketplace, NOT bootstrap)
 bootstrap.sh                         # macOS/Linux bootstrap script
 bootstrap/                           # Modular bootstrap libraries + hookable modules
 ├── lib/                             # Shared bootstrap logic split by concern
@@ -171,11 +170,9 @@ python3 -c "import yaml; yaml.safe_load(open('configs/claude/config/validation_c
 
 ## Label Management
 
-Issue labels are managed centrally in `configs/claude/config/labels.yml` and synced across
-GitHub, GitLab, and Linear via `label_sync.sh`.
-
 **Labels**: managed centrally in `configs/claude/config/labels.yml` (12 active
-labels incl. the auto-dev lifecycle set); the full registry table lives in
+labels incl. the auto-dev lifecycle set), synced across GitHub, GitLab and
+Linear by `label_sync.sh`; the full registry table lives in
 [docs/COMMANDS.md](docs/COMMANDS.md#label-management).
 
 ```bash
@@ -186,12 +183,12 @@ configs/claude/scripts/git_ops.sh label-sync    # via wrapper
 
 ## Adding New Skills
 
-Create `.apm/skills/<name>/SKILL.md` (source of truth) with `name` +
-`description` frontmatter and add `tool_policies` in `command_config.yml` — then
-**run the generators**, or CI fails: name/description is derived into
-`docs/COMMANDS.md`, the `GEMINI.md`/`AGENTS.md` index (`--inject-guides` — a
-*different* file set), and `configs/cursor/rules/`. Add/rename/retire procedure
-and traps: [docs/SKILL-NAMING.md](docs/SKILL-NAMING.md#lifecycle-adding-renaming-retiring).
+Create `plugins/<bundle>/skills/<name>/SKILL.md` (source of truth; `.apm/skills`
+is the generated mirror), give it a bundle in `skill_policies.yml` + the bundle's
+`plugin.json`, and add `tool_policies` in `command_config.yml` — then **run the
+generators**, or CI fails: `docs/COMMANDS.md`, the `GEMINI.md`/`AGENTS.md` index
+(`--inject-guides` — a *different* file set), and `configs/cursor/rules/`. Traps:
+[docs/SKILL-NAMING.md](docs/SKILL-NAMING.md#lifecycle-adding-renaming-retiring).
 
 Skills are invoked as `/my-skill` in Claude Code.
 
@@ -228,11 +225,8 @@ approaches), review stale plans, or archive/abandon completed work.
 ## Related Documents
 
 - [README.md](README.md) - Project overview and quick start
-- [docs/README.md](docs/README.md) - Documentation hub
-- [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md) - First-time setup walkthrough
-- [docs/CONFIGURATION.md](docs/CONFIGURATION.md) - Complete configuration reference
-- [docs/ARCHITECTURE_DIAGRAMS.md](docs/ARCHITECTURE_DIAGRAMS.md) - Visual system documentation
-- [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) - Common problems and solutions
+- [docs/README.md](docs/README.md) - Documentation hub: it indexes GETTING_STARTED,
+  CONFIGURATION, ARCHITECTURE_DIAGRAMS and TROUBLESHOOTING
 - [configs/claude/.plans/README.md](configs/claude/.plans/README.md) - Plan management quick reference
 - [configs/claude/CLAUDE.md](configs/claude/CLAUDE.md) - Orchestration guide (deployed to ~/.claude/)
 - [docs/CODING_STANDARDS.md](docs/CODING_STANDARDS.md) - Per-language coding standards and enforcement layers
@@ -241,9 +235,8 @@ approaches), review stale plans, or archive/abandon completed work.
 <!-- SPECKIT START -->
 ## Active Spec Kit Feature
 
-- **`522-apm-deploy-migration`** — **59/59 closed. SC-006 activated 2026-07-28**
-  (#654): apm owns `~/.claude/skills`, `deploy_home_skills`/`sync-skills` stand
-  down, sibling homes inherit by symlink. Undo:
-  `apm_ungate_domain.sh skills --apply` then `./bootstrap.sh`. US2/US4 closed
-  measured-void; constitution v3.0.0. Caveats:
-  [HANDOFF.md](specs/522-apm-deploy-migration/HANDOFF.md).
+- **`674-plugin-architecture`** — cutover complete (phases 0–5): plugins are the
+  SOLE skill source, `~/.claude/skills` is retired and apm stood down (this
+  supersedes 522's SC-006). Undo: `apm_ungate_domain.sh skills --apply` then
+  `./bootstrap.sh`. Record:
+  [cutover-plan.md](specs/674-plugin-architecture/cutover-plan.md).

@@ -136,12 +136,16 @@ false-green-check-audit
 generate-design
 graphify
 help
+loop-scaffold
 manage-design-system
 pass-cli
 react-components
 react-native
 react-vite-dashboard
 remotion
+render-verify
+review-round
+screen-prompts
 shadcn-ui
 stitch-loop
 taste-design
@@ -158,6 +162,7 @@ upload-to-stitch
 | `graphify` | Named for the managed `graphify` CLI it wraps (`--enable-graphify` toggle, installed binary). |
 | `help` | Universal single-word entry point; ergonomics beat conformance. |
 | `pass-cli` | Named for the `pass-cli` binary it wraps; `token-*` here means LLM token economy, so a credential fetcher must not move there. |
+| `loop-scaffold`, `render-verify`, `review-round`, `screen-prompts` | Internal phase names of the `adversarial-design-loop` plugin (merged from #674). They are `<phase>-<noun>` within one closed loop, not catalog-wide verbs, and the plugin's own bodies, README and cross-references key on them. |
 
 ## Examples
 

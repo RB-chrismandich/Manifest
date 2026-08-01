@@ -1,6 +1,6 @@
 ---
 name: design-loop
-description: This skill should be used when the user asks to "run the adversarial design loop", "start a design pass", "design the screens against the spec", "take this UI spec through the design loop", or wants the full spec-first generate/verify/review/amend workflow for UI screens. Orchestrates the other adversarial-design-loop skills phase by phase; for a single phase, invoke that skill directly.
+description: Orchestrate a full spec-first UI design pass — scaffold, prompt, generate, verify, review, amend.
 version: 0.1.0
 ---
 

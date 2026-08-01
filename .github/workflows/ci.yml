@@ -274,6 +274,13 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+        with:
+          # This job runs bats too (bundle partition invariants, below), and
+          # bats-support / bats-assert live under tests/test_helper as git
+          # submodules. Without this the suite dies in bats-gather-tests on a
+          # bats_load_safe failure -- before a single assertion runs, so the
+          # gate reports a load error rather than an invariant.
+          submodules: true
 
       # .apm/skills is GENERATED from plugins/*/skills/* (T3.3, spec 674) and is
       # gitignored, so a fresh clone has no mirror. Every consumer below still

@@ -1,6 +1,6 @@
 ---
 name: render-verify
-description: This skill should be used when the user asks to "verify the renders", "capture faithful screenshots of the screens", "run the render gate", "the fonts look wrong in the captures", "check chord clearance", or when a design loop needs its mechanical gates run before a review round or a ship. Renders exported HTML with hard-failing font/frame assertions and pixel-scans every ink color against the project's geometric limits.
+description: Run the render gate — faithful screenshots, hard font/frame assertions, pixel-scanned geometric limits.
 version: 0.1.0
 ---
 

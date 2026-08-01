@@ -1,6 +1,6 @@
 ---
 name: spec-audit-tasks
-description: After an implement step, audit that every task in the task list was genuinely completed — catch skipped tasks, stubbed work, missing tests, or unimplemented spec requirements. Works with speckit (tasks.md) and superpowers (tasks embedded in the plan) layouts; auto-discovers or takes explicit paths. Runs automatically as the speckit after_implement hook; invoke directly to re-audit.
+description: After an implement step, audit that every task was genuinely completed — catch skipped tasks, stubbed work, missing tests, unimplemented spec requirements. Works with speckit (tasks.md) and superpowers layouts; auto-discovers or takes paths. Runs as the speckit after_implement hook.
 ---
 
 # Task-Completion Audit
