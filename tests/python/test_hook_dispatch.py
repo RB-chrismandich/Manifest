@@ -121,19 +121,38 @@ def test_unresolvable_targets_fail_open_instead_of_blocking_the_tool_call(
 
 
 def test_resolved_targets_are_dispatched_with_stdin_forwarded(tmp_path):
-    unified_dir = tmp_path / "cache" / "mp" / "manifest-workspace" / "0.1.0" / "skills" / "ai-hooks-integration" / "scripts" / "runtime"
+    unified_dir = (
+        tmp_path
+        / "cache"
+        / "mp"
+        / "manifest-workspace"
+        / "0.1.0"
+        / "skills"
+        / "ai-hooks-integration"
+        / "scripts"
+        / "runtime"
+    )
     unified_dir.mkdir(parents=True)
     unified = unified_dir / "unified_hook.py"
-    unified.write_text(
-        "import sys\n"
-        "print(sys.stdin.read().strip())\n"
-    )
+    unified.write_text("import sys\nprint(sys.stdin.read().strip())\n")
 
-    handler_dir = tmp_path / "cache" / "mp" / "manifest-forge" / "0.1.0" / "skills" / "pr-monitor" / "scripts"
+    handler_dir = (
+        tmp_path
+        / "cache"
+        / "mp"
+        / "manifest-forge"
+        / "0.1.0"
+        / "skills"
+        / "pr-monitor"
+        / "scripts"
+    )
     handler_dir.mkdir(parents=True)
     (handler_dir / "pr_create_trigger.py").write_text("")
 
-    env = {**__import__("os").environ, "HOOK_DISPATCH_CACHE_ROOT": str(tmp_path / "cache")}
+    env = {
+        **__import__("os").environ,
+        "HOOK_DISPATCH_CACHE_ROOT": str(tmp_path / "cache"),
+    }
     result = _run("--source", "claude", env=env)
     assert result.returncode == 0
     assert result.stdout.strip() == "{}"
