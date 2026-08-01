@@ -1,16 +1,24 @@
 # issue-prioritize: Full Workflow
 
-The complete step-by-step procedure for this skill. Execute each step in order in the same shell session — later steps depend on env vars and intermediate files produced by earlier ones.
+The complete step-by-step procedure for this skill. Execute each step in order in the same shell session — later steps
+depend on env vars and intermediate files produced by earlier ones.
 
 ## Contents
 
 - ### Step 1: Resolve Provider
+
 - ### Step 2: Fetch Open Issues
+
 - ### Step 3: Normalize
+
 - ### Step 4: Heuristic Pre-Scoring
+
 - ### Step 5: Agent-Refined Scoring for Top Candidates
+
 - ### Step 6: Codebase Context Validation (Optional)
+
 - ### Step 7: Generate Report
+
 - ### Step 8: STOP
 
 ## Workflow

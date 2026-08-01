@@ -196,7 +196,7 @@ fi
 # owned long after nothing was writing it.
 APM_YML="${APM_CONFIG:-$HOME/.apm/apm.yml}"
 if [[ -f "$APM_YML" ]] && command -v python3 > /dev/null 2>&1; then
-    python3 "$SCRIPT_DIR_UNGATE/apm_prune_dangling_deps.py" "$APM_YML" || \
+    python3 "$SCRIPT_DIR_UNGATE/apm_prune_dangling_deps.py" "$APM_YML" ||
         err "could not prune $APM_YML (continuing: the un-gate itself succeeded)"
 fi
 

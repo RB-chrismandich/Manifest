@@ -46,7 +46,9 @@ This skill performs comprehensive issue triage by:
 
 ## Workflow
 
-The full step-by-step workflow — including the exact scripts to run at each step — lives in [references/workflow.md](references/workflow.md). **Read that file and execute each step in order in one shell session** (later steps consume env vars and intermediate files set by earlier ones). Steps:
+The full step-by-step workflow — including the exact scripts to run at each step — lives in
+[references/workflow.md](references/workflow.md). **Read that file and execute each step in order in one shell
+session** (later steps consume env vars and intermediate files set by earlier ones). Steps:
 
 1. Step 1: Load Configuration
 2. Step 2: Fetch Issues

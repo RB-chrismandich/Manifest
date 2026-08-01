@@ -10,7 +10,7 @@ Session Overview · Key Decisions · Code Changes · Commands Executed · Blocke
 Resolutions · User Preferences · Action Items · Next Steps · Context for
 Continuation · Preserved Code Snippets · Technical Context
 
-```markdown
+````markdown
 # Conversation Summary - [YYYY-MM-DD HH:MM]
 
 **Context Usage**: X/<window> (Z%)
@@ -118,4 +118,5 @@ If conversation continues after checkpoint:
 - Platform: [macOS/Linux]
 - Key dependencies: [list]
 - Configuration files: [relevant configs]
-```
+
+````

@@ -87,7 +87,7 @@ fi
 
 if [[ "$MODE" == "check" ]]; then
     missing=0
-    for d in "${SKILL_DIRS[@]}"; do  # array-safe: the empty case exited 2 above
+    for d in "${SKILL_DIRS[@]}"; do # array-safe: the empty case exited 2 above
         name="$(basename "$d")"
         if [[ ! -d "$MIRROR/$name" ]]; then
             err "mirror missing: $name"
@@ -115,7 +115,7 @@ fi
 
 rm -rf "${MIRROR:?}"
 mkdir -p "$MIRROR"
-for d in "${SKILL_DIRS[@]}"; do  # array-safe: the empty case exited 2 above
+for d in "${SKILL_DIRS[@]}"; do # array-safe: the empty case exited 2 above
     # -L dereferences: a symlink in the source becomes a real file here, which
     # is the whole point (see the header).
     rsync -aL "$d" "$MIRROR/"
@@ -145,7 +145,8 @@ unset _f
 # mechanical: strip the bundle prefix the registry assigned.
 REGISTRY="${MANIFEST_SKILL_REGISTRY:-$ROOT/configs/claude/config/skill_policies.yml}"
 if [[ -r "$REGISTRY" ]]; then
-    bare_count="$(python3 - "$MIRROR" "$REGISTRY" << 'PY'
+    bare_count="$(
+        python3 - "$MIRROR" "$REGISTRY" << 'PY'
 import pathlib, re, sys
 
 mirror, registry = pathlib.Path(sys.argv[1]), pathlib.Path(sys.argv[2])
@@ -177,7 +178,7 @@ for skill_md in sorted(mirror.rglob("*.md")):
         changed += 1
 print(changed)
 PY
-)"
+    )"
     echo "Rendered bare names in $bare_count mirror file(s)"
 fi
 

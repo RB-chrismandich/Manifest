@@ -41,8 +41,13 @@ if len(sys.argv) < 3:
 path, domain = sys.argv[1], sys.argv[2]
 prefix = f".claude/{domain}"
 try:
-    data = yaml.safe_load(open(path)) or {}
-except Exception:
+    with open(path) as fh:
+        data = yaml.safe_load(fh) or {}
+# UnicodeDecodeError is a ValueError, not an OSError: a lockfile that is not
+# valid UTF-8 fails in the read, past the point OSError covers. It is listed
+# explicitly so that case still exits 1 instead of leaking a traceback. The
+# caller (apm_ungate_domain.sh) reports the failure, so this stays silent.
+except (OSError, UnicodeDecodeError, yaml.YAMLError):
     sys.exit(1)
 
 
@@ -73,7 +78,8 @@ if isinstance(deps, list):
 depl = data.get("deployments")
 if isinstance(depl, list):
     data["deployments"] = [
-        d for d in depl
+        d
+        for d in depl
         if not (isinstance(d, dict) and str(d.get("value", "")).startswith(prefix))
     ]
 

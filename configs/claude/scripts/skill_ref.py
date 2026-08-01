@@ -42,9 +42,7 @@ that reaches a shipped body is the silent failure this exists to prevent.
 
 TOKEN = re.compile(r"\[\[skill:([A-Za-z0-9_-]+)\]\]")
 
-DEFAULT_REGISTRY = (
-    Path(__file__).resolve().parents[1] / "config" / "skill_policies.yml"
-)
+DEFAULT_REGISTRY = Path(__file__).resolve().parents[1] / "config" / "skill_policies.yml"
 
 
 def err(message: str) -> None:
@@ -86,7 +84,9 @@ def load_bundles(path: Path) -> dict[str, str]:
     return mapping
 
 
-def expand(text: str, mode: str, bundles: dict[str, str]) -> tuple[str, list[str], list[str]]:
+def expand(
+    text: str, mode: str, bundles: dict[str, str]
+) -> tuple[str, list[str], list[str]]:
     """Return (rewritten text, skills referenced, names not in the registry)."""
     seen: list[str] = []
     unknown: list[str] = []

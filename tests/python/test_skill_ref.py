@@ -45,13 +45,25 @@ def test_help_exits_zero():
 
 
 def test_bare_mode_emits_the_unqualified_command():
-    out = run("--mode", "bare", "--registry", str(REGISTRY), stdin="Run [[skill:project-verify]].")
+    out = run(
+        "--mode",
+        "bare",
+        "--registry",
+        str(REGISTRY),
+        stdin="Run [[skill:project-verify]].",
+    )
     assert out.returncode == 0
     assert out.stdout.strip() == "Run /project-verify."
 
 
 def test_qualified_mode_emits_the_bundle_scoped_command():
-    out = run("--mode", "qualified", "--registry", str(REGISTRY), stdin="Run [[skill:project-verify]].")
+    out = run(
+        "--mode",
+        "qualified",
+        "--registry",
+        str(REGISTRY),
+        stdin="Run [[skill:project-verify]].",
+    )
     assert out.returncode == 0
     assert out.stdout.strip() == "Run /manifest-code-quality:project-verify."
 
@@ -67,7 +79,9 @@ def test_qualified_mode_emits_the_bundle_scoped_command():
     ],
 )
 def test_every_bundle_resolves(skill: str, bundle: str):
-    out = run("--mode", "qualified", "--registry", str(REGISTRY), stdin=f"[[skill:{skill}]]")
+    out = run(
+        "--mode", "qualified", "--registry", str(REGISTRY), stdin=f"[[skill:{skill}]]"
+    )
     assert out.stdout.strip() == f"/{bundle}:{skill}"
 
 
@@ -77,7 +91,13 @@ def test_unknown_skill_fails_loudly(tmp_path: Path):
     Silently emitting `[[skill:projct-verify]]` into a shipped body is the same
     silent failure the whole naming workstream exists to remove.
     """
-    out = run("--mode", "bare", "--registry", str(REGISTRY), stdin="Run [[skill:projct-verify]].")
+    out = run(
+        "--mode",
+        "bare",
+        "--registry",
+        str(REGISTRY),
+        stdin="Run [[skill:projct-verify]].",
+    )
     assert out.returncode != 0
     assert "projct-verify" in out.stderr
 
@@ -97,11 +117,23 @@ def test_text_without_tokens_round_trips_byte_for_byte():
 
 
 def test_missing_registry_fails_closed(tmp_path: Path):
-    out = run("--mode", "qualified", "--registry", str(tmp_path / "nope.yml"), stdin="[[skill:git-commit]]")
+    out = run(
+        "--mode",
+        "qualified",
+        "--registry",
+        str(tmp_path / "nope.yml"),
+        stdin="[[skill:git-commit]]",
+    )
     assert out.returncode != 0
 
 
 def test_check_mode_reports_tokens_without_rewriting():
-    out = run("--mode", "check", "--registry", str(REGISTRY), stdin="a [[skill:git-commit]] b [[skill:pr-review]]")
+    out = run(
+        "--mode",
+        "check",
+        "--registry",
+        str(REGISTRY),
+        stdin="a [[skill:git-commit]] b [[skill:pr-review]]",
+    )
     assert out.returncode == 0
     assert "git-commit" in out.stdout and "pr-review" in out.stdout

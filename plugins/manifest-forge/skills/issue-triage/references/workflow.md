@@ -1,17 +1,26 @@
 # issue-triage: Full Workflow
 
-The complete step-by-step procedure for this skill. Execute each step in order in the same shell session — later steps depend on env vars and intermediate files produced by earlier ones.
+The complete step-by-step procedure for this skill. Execute each step in order in the same shell session — later steps
+depend on env vars and intermediate files produced by earlier ones.
 
 ## Contents
 
 - ### Step 1: Load Configuration
+
 - ### Step 2: Fetch Issues
+
 - ### Step 3: Normalize to Common Schema
+
 - ### Step 4: Extract Components
+
 - ### Step 5: Duplicate Detection
+
 - ### Step 6: Staleness Detection
+
 - ### Step 7: Priority Validation
+
 - ### Step 8: Generate Recommendations
+
 - ### Step 9: Execute Actions
 
 ## Workflow

@@ -211,7 +211,6 @@ for home_dir in "$HOME/.cursor" "$HOME/.gemini" "$HOME/.codex" "$HOME/.antigravi
         gate_fail "canary unreadable through $link — the harness tree is not serving content"
 done
 
-
 # --- the delete list -------------------------------------------------------
 
 [[ -r "$REGISTRY" ]] || gate_fail "registry not readable: $REGISTRY"

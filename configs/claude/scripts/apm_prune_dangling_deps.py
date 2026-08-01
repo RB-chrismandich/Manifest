@@ -37,7 +37,6 @@ def prune(lines: list[str]) -> tuple[list[str], list[str]]:
     removed: list[str] = []
     in_deps = False
     in_list = False
-    list_indent = ""
     for line in lines:
         stripped = line.rstrip("\n")
         # Any top-level key ends the dependencies block.
@@ -46,10 +45,13 @@ def prune(lines: list[str]) -> tuple[list[str], list[str]]:
             in_list = False
             out.append(line)
             continue
-        if in_deps and stripped.strip().endswith(":") and not stripped.strip().startswith("-"):
+        if (
+            in_deps
+            and stripped.strip().endswith(":")
+            and not stripped.strip().startswith("-")
+        ):
             # A sub-key such as `apm:` or `mcp:` opens a list.
             in_list = True
-            list_indent = stripped[: len(stripped) - len(stripped.lstrip())]
             out.append(line)
             continue
         if in_deps and in_list and stripped.strip().startswith("- "):
@@ -113,7 +115,9 @@ def main(argv: list[str]) -> int:
         with open(tmp, "w", encoding="utf-8") as fh:
             fh.writelines(new_lines)
         os.replace(tmp, path)
-        print(f"apm_prune_dangling_deps.py: pruned {len(removed)} entry(ies) from {path}")
+        print(
+            f"apm_prune_dangling_deps.py: pruned {len(removed)} entry(ies) from {path}"
+        )
     return 0
 
 

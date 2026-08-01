@@ -8,7 +8,6 @@ pruner that removes everything passes every "did it prune?" assertion.
 
 import importlib.util
 import pathlib
-import sys
 
 import pytest
 

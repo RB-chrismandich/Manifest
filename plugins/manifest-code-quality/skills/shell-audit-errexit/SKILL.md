@@ -28,7 +28,8 @@ the trigger is control flow, not `$()` parsing.
    right after the thing you counted. It is **CI-only**: bash 3.2 (macOS default `/bin/bash`) does not trip errexit on
    `((...))`, bash ≥4 (Linux runners) does — green on your Mac, red in CI. Confirm with `bash -c 'set -e; v=0; ((v++));
    echo ok'` on `/bin/bash` vs a bash-5. Fix to an always-success form: `var=$((var + 1))` (shellcheck-clean), or `:
-   $((var++))` / `((var++)) || true`. Sweep: `grep -rnE '\(\([a-zA-Z_]+(\+\+|--)\)\)' scripts/`. Confirm on `/bin/bash` (3.2) vs `/opt/homebrew/bin/bash` (5.x); consider a repo lint guard so the pattern can't return.
+   $((var++))` / `((var++)) || true`. Sweep: `grep -rnE '\(\([a-zA-Z_]+(\+\+|--)\)\)' scripts/`. Confirm on
+   `/bin/bash` (3.2) vs `/opt/homebrew/bin/bash` (5.x); consider a repo lint guard so the pattern can't return.
 6. **Audit the whole sourced chain.** A top-level `set -e` propagates into every sourced lib; check the last statement
    of each helper, not just the entrypoint.
 7. **Prove each fix red-first.** Write the failing test reproducing the production condition (absent file, large input,

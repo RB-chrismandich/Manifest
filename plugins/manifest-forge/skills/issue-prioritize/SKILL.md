@@ -64,7 +64,9 @@ report. Works with GitHub, GitLab, Linear, and Jira (agent-context only, via MCP
 
 ## Workflow
 
-The full step-by-step workflow — including the exact scripts to run at each step — lives in [references/workflow.md](references/workflow.md). **Read that file and execute each step in order in one shell session** (later steps consume env vars and intermediate files set by earlier ones). Steps:
+The full step-by-step workflow — including the exact scripts to run at each step — lives in
+[references/workflow.md](references/workflow.md). **Read that file and execute each step in order in one shell
+session** (later steps consume env vars and intermediate files set by earlier ones). Steps:
 
 1. Step 1: Resolve Provider
 2. Step 2: Fetch Open Issues

@@ -381,9 +381,7 @@ def default_roots(repo: Path) -> list[Path]:
     win when they exist, and the mirror remains the fallback for a checkout
     from before the move.
     """
-    plugin_skills = sorted(
-        d for d in repo.glob("plugins/*/skills") if d.is_dir()
-    )
+    plugin_skills = sorted(d for d in repo.glob("plugins/*/skills") if d.is_dir())
     return plugin_skills or [repo / ".apm" / "skills"]
 
 
