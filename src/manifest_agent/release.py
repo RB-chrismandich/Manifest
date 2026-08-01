@@ -225,7 +225,9 @@ def _resolve_published(version: str) -> ResolvedRelease:
     if not archive.exists():
         _download_file(archive_url, archive)
     verify_sha256(archive, checksum)
-    if not cache.exists():
+    if cache.exists():
+        _verify_extracted_cache(archive, cache)
+    else:
         _extract_archive_atomic(archive, cache)
     release_root = _content_root(cache)
     if not (release_root / "plugins").is_dir():
@@ -339,6 +341,46 @@ def _extract_archive_atomic(archive: Path, destination: Path) -> None:
         raise ReleaseError("unable to extract published release archive") from error
     finally:
         shutil.rmtree(temporary, ignore_errors=True)
+
+
+def _verify_extracted_cache(archive: Path, cache: Path) -> None:
+    verification_parent = Path(
+        tempfile.mkdtemp(prefix=f".{cache.name}.verify.", dir=cache.parent)
+    )
+    fresh = verification_parent / "release"
+    try:
+        _extract_archive_atomic(archive, fresh)
+        expected = _directory_content_sha256(fresh)
+        actual = _directory_content_sha256(cache)
+        if not hmac.compare_digest(actual, expected):
+            raise ReleaseError("published release cache integrity check failed")
+    finally:
+        shutil.rmtree(verification_parent, ignore_errors=True)
+
+
+def _directory_content_sha256(root: Path) -> str:
+    digest = hashlib.sha256()
+    try:
+        paths = sorted(
+            root.rglob("*"), key=lambda path: path.relative_to(root).as_posix()
+        )
+        for path in paths:
+            relative = path.relative_to(root).as_posix().encode()
+            digest.update(len(relative).to_bytes(8, "big") + relative)
+            if path.is_symlink():
+                raise ReleaseError("published release cache integrity check failed")
+            if path.is_dir():
+                digest.update(b"d")
+                continue
+            if not path.is_file():
+                raise ReleaseError("published release cache integrity check failed")
+            metadata = path.stat()
+            size, file_digest = _file_sha256(path)
+            executable = b"x" if metadata.st_mode & 0o111 else b"-"
+            digest.update(b"f" + executable + size.to_bytes(8, "big") + file_digest)
+    except OSError as error:
+        raise ReleaseError("published release cache integrity check failed") from error
+    return digest.hexdigest()
 
 
 def _content_root(extracted: Path) -> Path:

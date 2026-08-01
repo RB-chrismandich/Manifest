@@ -80,6 +80,28 @@ def test_receipt_rejects_credential_shaped_capability_keys(tmp_path):
         write_receipt_atomic(tmp_path / "installation.json", receipt)
 
 
+@pytest.mark.parametrize(
+    "leak",
+    [
+        "native failed --token super-secret",
+        "native failed --api-key API-KEY-VALUE",
+        "native failed --API_KEY UNDERSCORE-VALUE",
+        "native failed --password=PASSWORD-VALUE",
+    ],
+)
+def test_receipt_rejects_cli_flag_credentials(tmp_path, leak):
+    harness = replace(
+        SAMPLE_RECEIPT.harnesses["claude"],
+        verified=False,
+        capabilities={"plugins.install": "failed"},
+        errors=(leak,),
+    )
+    receipt = replace(SAMPLE_RECEIPT, harnesses={"claude": harness})
+
+    with pytest.raises(StateError, match="credential material"):
+        write_receipt_atomic(tmp_path / "installation.json", receipt)
+
+
 def test_partial_receipt_preserves_verified_and_failed_harness_facts(tmp_path):
     failed = HarnessReceipt(
         harness="cursor",
@@ -129,6 +151,22 @@ def test_unverified_harness_cannot_claim_verified_capabilities(tmp_path):
         write_receipt_atomic(tmp_path / "installation.json", receipt)
 
 
+@pytest.mark.parametrize("bypass", ["active", "enabled", "installed (unverified)"])
+def test_unverified_harness_rejects_unknown_or_success_like_capabilities(
+    tmp_path, bypass
+):
+    false_claim = replace(
+        SAMPLE_RECEIPT.harnesses["claude"],
+        verified=False,
+        capabilities={"plugins.install": bypass},
+        errors=("verification failed",),
+    )
+    receipt = replace(SAMPLE_RECEIPT, harnesses={"claude": false_claim})
+
+    with pytest.raises(StateError, match="capabilities"):
+        write_receipt_atomic(tmp_path / "installation.json", receipt)
+
+
 def test_receipt_reader_rejects_unknown_fields(tmp_path):
     path = tmp_path / "installation.json"
     write_receipt_atomic(path, SAMPLE_RECEIPT)
@@ -137,6 +175,27 @@ def test_receipt_reader_rejects_unknown_fields(tmp_path):
     path.write_text(json.dumps(document), encoding="utf-8")
 
     with pytest.raises(StateError, match="credential material"):
+        read_receipt(path)
+
+
+@pytest.mark.parametrize(
+    ("mutation", "message"),
+    [
+        (("schema_version", 2), "schema version"),
+        (("source_commit", "main"), "source commit"),
+        (("archive_sha256", "not-a-checksum"), "archive SHA-256"),
+        (("bundle_checksums", {"manifest-core": "bad"}), "bundle checksum"),
+    ],
+)
+def test_receipt_reader_rejects_invalid_immutable_identity(tmp_path, mutation, message):
+    path = tmp_path / "installation.json"
+    write_receipt_atomic(path, SAMPLE_RECEIPT)
+    document = json.loads(path.read_text(encoding="utf-8"))
+    field, value = mutation
+    document[field] = value
+    path.write_text(json.dumps(document), encoding="utf-8")
+
+    with pytest.raises(StateError, match=message):
         read_receipt(path)
 
 

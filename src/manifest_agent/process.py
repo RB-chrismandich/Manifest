@@ -8,7 +8,12 @@ from collections.abc import Mapping, Sequence
 from manifest_agent.models import CommandResult
 
 _REDACTIONS = (
+    re.compile(
+        r"(?i)(-{1,2}(?:api[-_]?key|access[-_]?token|refresh[-_]?token|"
+        r"password|secret|token)(?:=|\s+))[^\s,;]+"
+    ),
     re.compile(r"(?i)(authorization\s*:\s*(?:bearer|basic)\s+)[^\s,;]+"),
+    re.compile(r"(?i)(\bbearer\s+)[^\s,;]+"),
     re.compile(
         r"(?i)((?:api[_-]?key|access[_-]?token|refresh[_-]?token|password|secret)"
         r"\s*[=:]\s*)[^\s,;]+"
@@ -27,6 +32,11 @@ def redact_text(value: str) -> str:
         else:
             redacted = pattern.sub("[REDACTED]", redacted)
     return redacted
+
+
+def contains_credential_material(value: str) -> bool:
+    """Return whether reportable text contains a recognized credential form."""
+    return redact_text(value) != value
 
 
 class CommandRunner:

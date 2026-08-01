@@ -13,20 +13,28 @@ from typing import Any
 
 from manifest_agent.models import HarnessReceipt, InstallationReceipt, OwnedEntry
 from manifest_agent.paths import xdg_paths
+from manifest_agent.process import contains_credential_material
 
 _CREDENTIAL_KEY = re.compile(
     r"(?:^|[._-])(?:authorization|credential|password|private[_-]?key|secret|token|"
     r"api[_-]?key|access[_-]?key)(?:$|[._-])",
     re.I,
 )
-_CREDENTIAL_VALUE = re.compile(
-    r"(?i)(?:authorization\s*:\s*(?:bearer|basic)\s+\S+|"
-    r"\bbearer\s+\S+|"
-    r"(?:password|secret|token|api[_-]?key|access[_-]?key)\s*[=:]\s*\S+|"
-    r"\b(?:sk|ghp|glpat)-[A-Za-z0-9_-]{8,}\b|"
-    r"\bgithub_pat_[A-Za-z0-9_]{8,}\b)"
+_FULL_COMMIT = re.compile(r"^[0-9a-fA-F]{40}(?:[0-9a-fA-F]{24})?$")
+_SHA256 = re.compile(r"^[0-9a-fA-F]{64}$")
+_NON_SUCCESS_CAPABILITY_VALUES = frozenset(
+    {
+        "blocked",
+        "degraded",
+        "drifted",
+        "failed",
+        "not-installed",
+        "not_installed",
+        "skipped",
+        "unavailable",
+        "unsupported",
+    }
 )
-_READY_CAPABILITY_VALUES = frozenset({"installed", "ready", "supported", "verified"})
 
 
 class StateError(RuntimeError):
@@ -78,7 +86,7 @@ def write_receipt_atomic(
 
     document = asdict(receipt)
     _assert_secret_free(document)
-    _validate_partial_facts(receipt)
+    _validate_receipt(receipt)
     payload = (json.dumps(document, indent=2, sort_keys=True) + "\n").encode()
     destination.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
 
@@ -121,7 +129,7 @@ def read_receipt(path: Path | None = None) -> InstallationReceipt | None:
         receipt = _decode_receipt(document)
     except (KeyError, TypeError, ValueError) as error:
         raise StateError("installation receipt has an invalid schema") from error
-    _validate_partial_facts(receipt)
+    _validate_receipt(receipt)
     return receipt
 
 
@@ -144,21 +152,34 @@ def _assert_secret_free(value: Any, *, key: str | None = None) -> None:
     elif isinstance(value, (list, tuple)):
         for child in value:
             _assert_secret_free(child)
-    elif isinstance(value, str) and _CREDENTIAL_VALUE.search(value):
+    elif isinstance(value, str) and contains_credential_material(value):
         raise StateError("receipt contains credential material")
 
 
-def _validate_partial_facts(receipt: InstallationReceipt) -> None:
+def _validate_receipt(receipt: InstallationReceipt) -> None:
+    if receipt.schema_version != 1:
+        raise StateError("unsupported installation receipt schema version")
+    if not _FULL_COMMIT.fullmatch(receipt.source_commit):
+        raise StateError("installation receipt source commit must be a full SHA")
+    if not _SHA256.fullmatch(receipt.archive_sha256):
+        raise StateError("installation receipt archive SHA-256 is invalid")
+    if any(
+        not name or not _SHA256.fullmatch(checksum)
+        for name, checksum in receipt.bundle_checksums.items()
+    ):
+        raise StateError("installation receipt bundle checksum is invalid")
     for name, harness in receipt.harnesses.items():
         if name != harness.harness:
             raise StateError("receipt harness key does not match its identity")
         if not harness.verified and not harness.errors:
             raise StateError("an unverified harness must record an explicit error")
         if not harness.verified and any(
-            value.strip().lower() in _READY_CAPABILITY_VALUES
+            value.strip().lower() not in _NON_SUCCESS_CAPABILITY_VALUES
             for value in harness.capabilities.values()
         ):
-            raise StateError("an unverified harness cannot claim verified capabilities")
+            raise StateError(
+                "an unverified harness must use explicit non-success capabilities"
+            )
 
 
 def _decode_receipt(value: Any) -> InstallationReceipt:

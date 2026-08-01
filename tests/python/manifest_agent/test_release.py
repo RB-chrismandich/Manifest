@@ -164,6 +164,41 @@ def test_published_release_validates_index_and_archive(monkeypatch, tmp_path):
     assert requested_urls[0][0] == RELEASE_INDEX_URL.format(version="1.2.3")
 
 
+def test_published_release_rejects_tampered_extracted_cache(monkeypatch, tmp_path):
+    archive, checksum = _release_archive(tmp_path)
+    archive_url = "https://example.invalid/releases/1.2.3/manifest-release.tar.gz"
+    index = {
+        "version": "1.2.3",
+        "commit": "a" * 40,
+        "archive_url": archive_url,
+        "archive_sha256": checksum,
+    }
+
+    class Response(io.BytesIO):
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            self.close()
+
+    def fake_urlopen(request, timeout):
+        if request.full_url == RELEASE_INDEX_URL.format(version="1.2.3"):
+            return Response(json.dumps(index).encode())
+        if request.full_url == archive_url:
+            return Response(archive.read_bytes())
+        raise AssertionError(request.full_url)
+
+    monkeypatch.setattr("manifest_agent.release.urlopen", fake_urlopen)
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
+    release = resolve_release("1.2.3")
+    (release.release_root / "plugins" / "bundle.txt").write_text(
+        "tampered\n", encoding="utf-8"
+    )
+
+    with pytest.raises(ReleaseError, match="cache integrity"):
+        resolve_release("1.2.3")
+
+
 @pytest.mark.parametrize(
     ("change", "message"),
     [
