@@ -73,6 +73,7 @@ indent-style = "space"
 [tool.pytest.ini_options]
 addopts = "--strict-markers --strict-config"
 testpaths = ["tests/python"]
+markers = ["native: isolated-home smoke tests requiring a native harness CLI"]
 # pytest-asyncio's future default, pinned explicitly (unset emits PytestDeprecationWarning).
 asyncio_default_fixture_loop_scope = "function"
 
