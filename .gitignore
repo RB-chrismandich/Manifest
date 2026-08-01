@@ -52,6 +52,7 @@ records/
 
 # skill-creator eval workspaces (iteration outputs, benchmarks, rework runs)
 *-workspace/
+!plugins/manifest-workspace/
 
 # spec 362: user-local guidance overrides are machine-local (created lazily on
 # first opt-out under ~/.claude/config/) — never commit them. The shipped
