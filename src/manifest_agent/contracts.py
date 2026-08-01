@@ -106,7 +106,7 @@ def _schema_validator() -> Draft202012Validator:
     return Draft202012Validator(schema)
 
 
-def _format_schema_error(error: Any) -> str:
+def _format_schema_error(error: Any) -> list[str]:
     location = ".".join(str(part) for part in error.absolute_path) or "<root>"
     path = tuple(error.absolute_path)
     if error.validator == "additionalProperties" and path in {
@@ -115,8 +115,10 @@ def _format_schema_error(error: Any) -> str:
     }:
         unexpected = re.findall(r"'([^']+)'", error.message)
         if unexpected:
-            return f"{location}: unknown capability tier {unexpected[0]!r}"
-    return f"{location}: {error.message}"
+            return [
+                f"{location}: unknown capability tier {tier!r}" for tier in unexpected
+            ]
+    return [f"{location}: {error.message}"]
 
 
 def _load_yaml(path: Path) -> Any:
@@ -129,36 +131,54 @@ def _load_yaml(path: Path) -> Any:
         raise ContractError(f"{path}: invalid YAML: {error}") from error
 
 
-def _semantic_errors(document: dict[str, Any]) -> list[str]:
+def _semantic_errors(document: Any) -> list[str]:
     errors: list[str] = []
-    capabilities = document["capabilities"]
-    for capability_type in ("mcp", "executables"):
-        tiers = capabilities[capability_type]
-        unknown_tiers = sorted(set(tiers) - _TIER_NAMES)
-        errors.extend(
-            f"capabilities.{capability_type}: unknown capability tier {tier!r}"
-            for tier in unknown_tiers
-        )
-        declared_tiers: dict[str, str] = {}
-        for tier in CapabilityTier:
-            for identifier in tiers[tier.value]:
-                previous_tier = declared_tiers.setdefault(identifier, tier.value)
-                if previous_tier != tier.value:
-                    errors.append(
-                        f"capabilities.{capability_type}: {identifier!r} is declared "
-                        f"in both {previous_tier!r} and {tier.value!r} tiers"
-                    )
+    if not isinstance(document, dict):
+        return errors
 
-    components = document["components"]
-    for component_kind in _COMPONENT_KINDS:
-        seen_ids: set[str] = set()
-        for component in components[component_kind]:
-            component_id = component["id"]
-            if component_id in seen_ids:
-                errors.append(
-                    f"components.{component_kind}: duplicate component id {component_id!r}"
-                )
-            seen_ids.add(component_id)
+    capabilities = document.get("capabilities")
+    if isinstance(capabilities, dict):
+        for capability_type in ("mcp", "executables"):
+            tiers = capabilities.get(capability_type)
+            if not isinstance(tiers, dict):
+                continue
+            unknown_tiers = sorted(set(tiers) - _TIER_NAMES)
+            errors.extend(
+                f"capabilities.{capability_type}: unknown capability tier {tier!r}"
+                for tier in unknown_tiers
+            )
+            declared_tiers: dict[str, str] = {}
+            for tier in CapabilityTier:
+                identifiers = tiers.get(tier.value)
+                if not isinstance(identifiers, list):
+                    continue
+                for identifier in identifiers:
+                    if not isinstance(identifier, str):
+                        continue
+                    previous_tier = declared_tiers.setdefault(identifier, tier.value)
+                    if previous_tier != tier.value:
+                        errors.append(
+                            f"capabilities.{capability_type}: {identifier!r} is declared "
+                            f"in both {previous_tier!r} and {tier.value!r} tiers"
+                        )
+    components = document.get("components")
+    if isinstance(components, dict):
+        for component_kind in _COMPONENT_KINDS:
+            raw_components = components.get(component_kind)
+            if not isinstance(raw_components, list):
+                continue
+            seen_ids: set[str] = set()
+            for component in raw_components:
+                if not isinstance(component, dict):
+                    continue
+                component_id = component.get("id")
+                if not isinstance(component_id, str):
+                    continue
+                if component_id in seen_ids:
+                    errors.append(
+                        f"components.{component_kind}: duplicate component id {component_id!r}"
+                    )
+                seen_ids.add(component_id)
     return errors
 
 
@@ -237,12 +257,15 @@ def load_contract(path: Path) -> BundleContract:
         _schema_validator().iter_errors(document),
         key=lambda error: (tuple(map(str, error.absolute_path)), error.message),
     )
-    if schema_errors:
-        raise ContractError([_format_schema_error(error) for error in schema_errors])
-
     semantic_errors = _semantic_errors(document)
-    if semantic_errors:
-        raise ContractError(semantic_errors)
+    errors = [
+        formatted_error
+        for schema_error in schema_errors
+        for formatted_error in _format_schema_error(schema_error)
+    ]
+    errors = list(dict.fromkeys([*errors, *semantic_errors]))
+    if errors:
+        raise ContractError(errors)
     return _to_contract(document)
 
 
@@ -257,11 +280,26 @@ def _inside_bundle(bundle_path: Path, declared_path: str) -> bool:
 
 def _component_path_errors(bundle_path: Path, contract: BundleContract) -> list[str]:
     errors: list[str] = []
+    skills_root = bundle_path / contract.components.skills_root
     if not _inside_bundle(bundle_path, contract.components.skills_root):
         errors.append(
             f"{bundle_path}: components.skills.root "
             f"{contract.components.skills_root!r} escapes its bundle"
         )
+    elif not skills_root.is_dir():
+        errors.append(
+            f"{bundle_path}: components.skills.root "
+            f"{contract.components.skills_root!r} must exist and be a directory"
+        )
+    else:
+        for include_glob in contract.components.skills_include:
+            for included_path in skills_root.glob(include_glob):
+                relative_path = included_path.relative_to(bundle_path)
+                if not _inside_bundle(bundle_path, str(relative_path)):
+                    errors.append(
+                        f"{bundle_path}: components.skills.include {include_glob!r} "
+                        f"expands outside its bundle via {included_path}"
+                    )
     for component_kind in _COMPONENT_KINDS:
         for component in getattr(contract.components, component_kind):
             if not _inside_bundle(bundle_path, component.path):
