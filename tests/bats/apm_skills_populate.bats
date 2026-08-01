@@ -50,6 +50,7 @@ teardown() {
 
 gate_skills() { printf 'domains:\n  - skills\n' > "$MANIFEST_APM_DOMAINS"; }
 ungate_skills() { printf 'domains: []\n' > "$MANIFEST_APM_DOMAINS"; }
+retire_skills() { printf 'domains:\n  - skills\nretired:\n  - skills\n' > "$MANIFEST_APM_DOMAINS"; }
 
 # Everything verify_installation checks EXCEPT the skill files, so a non-zero
 # exit can only come from the skills assertions under test.
@@ -78,14 +79,34 @@ deploy_skill_files() {
 
 # --- verify_installation ------------------------------------------------------
 
-@test "an apm-owned domain with no skills warns and does not fail the deploy" {
+@test "an apm-owned domain with no skills is a HARD error (T1.7, spec 674)" {
+    # This assertion was INVERTED by T1.7, deliberately. It used to require a
+    # warning and exit 0, which meant a user with no skills at all saw
+    # "Deployment verified" -- a total failure reported as success. Verifying a
+    # deployment must not pass when the deployment is empty, however legitimate
+    # the reason the writer stood down.
     gate_skills
     fabricate_verified_install
 
     run verify_installation
-    assert_success # the count that main() turns into exit 1
+    assert_failure
     assert_output --partial "Missing (apm-owned domain)"
     assert_output --partial "apm-dev-sync"
+}
+
+@test "a RETIRED domain with no skills is correct, and says nothing at all" {
+    # The post-cutover target state: the plugin bundles serve the catalog and
+    # ~/.claude/skills is EMPTY on purpose. T1.7's hard error landed in Phase 1,
+    # before `retired:` existed, so leaving it unconditional would print
+    # "Missing" 108 times and fail verification on every correct machine --
+    # the mirror image of the false green T1.7 removed.
+    retire_skills
+    fabricate_verified_install
+
+    run verify_installation
+    assert_success
+    refute_output --partial "Missing (apm-owned domain)"
+    refute_output --partial "has not populated it"
 }
 
 @test "an unowned domain with no skills is still a hard bootstrap error" {
@@ -128,117 +149,20 @@ deploy_skill_files() {
     refute_output --partial ".antigravity/skills"
 }
 
-# --- populate_apm_owned_skills ------------------------------------------------
+# --- populate_apm_owned_skills: DELETED by spec 674 Phase 5 (T5.3) -----------
+#
+# The function and its 8 cases are gone with their subject. Its premise was that
+# apm owns ~/.claude/skills and bootstrap must never leave that tree empty;
+# post-cutover EMPTY IS THE GOAL. The verify_installation cases above are kept
+# and now assert the three-state behaviour, including that a RETIRED domain with
+# no skills is correct and silent.
 
-# SCRIPT_DIR is the repo bootstrap deploys FROM; stub the dev-sync script there
-# so the test observes the invocation without running apm.
-stub_dev_sync() {
-    export SCRIPT_DIR="$SANDBOX/repo"
-    mkdir -p "$SCRIPT_DIR/configs/claude/scripts" "$SCRIPT_DIR/.apm/skills"
-    CALLS="$SANDBOX/dev_sync.log"
-    : > "$CALLS"
-    cat > "$SCRIPT_DIR/configs/claude/scripts/apm_dev_sync.sh" << SH
-#!/usr/bin/env bash
-{
-  echo "root=\$MANIFEST_ROOT"
-  echo "quiet=\${APM_DEV_SYNC_QUIET:-}"
-} >> "$CALLS"
-exit "\${STUB_DEV_SYNC_EXIT:-0}"
-SH
-    chmod +x "$SCRIPT_DIR/configs/claude/scripts/apm_dev_sync.sh"
-
-    # apm's mere presence is what the function gates on.
-    BIN="$SANDBOX/bin"
-    mkdir -p "$BIN"
-    printf '#!/usr/bin/env bash\nexit 0\n' > "$BIN/apm"
-    chmod +x "$BIN/apm"
-    export PATH="$BIN:$PATH"
-}
-
-@test "populates an empty apm-owned domain, pinning the root to the deploy source" {
-    gate_skills
-    stub_dev_sync
-
-    run populate_apm_owned_skills
-    assert_success
-    assert_output --partial "Populating apm-owned skills domain"
-    grep -q "root=$SCRIPT_DIR" "$CALLS"
-    grep -q "quiet=1" "$CALLS"
-}
-
-@test "does not touch a populated domain" {
-    # Re-running the working-tree loop over an apm tag deploy would restore the
-    # double-writer state SC-006 removed.
-    gate_skills
-    stub_dev_sync
-    mkdir -p "$TARGET_DIR/skills/code-audit"
-    touch "$TARGET_DIR/skills/code-audit/SKILL.md"
-
-    run populate_apm_owned_skills
-    assert_success
-    [ ! -s "$CALLS" ]
-}
-
-@test "does nothing when apm does not own the domain" {
-    ungate_skills
-    stub_dev_sync
-
-    run populate_apm_owned_skills
-    assert_success
-    [ ! -s "$CALLS" ]
-    refute_output --partial "Populating"
-}
-
-@test "an empty skills directory counts as unpopulated" {
-    gate_skills
-    stub_dev_sync
-    mkdir -p "$TARGET_DIR/skills"
-
-    run populate_apm_owned_skills
-    assert_success
-    [ -s "$CALLS" ]
-}
-
-@test "respects an explicit domain selection that excludes skills" {
-    gate_skills
-    stub_dev_sync
-    export MANIFEST_DEPLOY_DOMAINS=config
-
-    run populate_apm_owned_skills
-    assert_success
-    [ ! -s "$CALLS" ]
-}
-
-@test "a missing apm names the flag that installs it instead of silently skipping" {
-    gate_skills
-    stub_dev_sync
-    rm "$BIN/apm"
-
-    # A minimal PATH, not just a removed stub: the developer's real
-    # ~/.local/bin/apm is otherwise still on PATH and the ambient install decides
-    # the test's outcome (it did, on the first run of this very test).
-    PATH="$BIN:/usr/bin:/bin" run populate_apm_owned_skills
-    assert_success
-    assert_output --partial "--enable-apm"
-    assert_output --partial "apm-dev-sync"
-}
-
-@test "a failing populate warns and never aborts the deploy" {
-    gate_skills
-    stub_dev_sync
-    export STUB_DEV_SYNC_EXIT=1
-
-    run populate_apm_owned_skills
-    assert_success # fail-open: the verdict belongs to verify_installation
-    assert_output --partial "still unpopulated"
-}
-
-@test "a missing dev-sync script is reported, not assumed present" {
-    gate_skills
-    stub_dev_sync
-    rm "$SCRIPT_DIR/configs/claude/scripts/apm_dev_sync.sh"
-
-    run populate_apm_owned_skills
-    assert_success
-    assert_output --partial "cannot populate"
+@test "populate_apm_owned_skills is gone, and nothing still calls it" {
+    # Retired deliberately rather than by attrition: a surviving call site would
+    # refill ~/.claude/skills on the next bootstrap and double-load all 108
+    # skills against their plugin twins, with no error anywhere.
+    run bash -c "grep -rn 'populate_apm_owned_skills' \
+        '$REPO_ROOT/bootstrap.sh' '$REPO_ROOT/bootstrap/lib/' 2>/dev/null \
+        | grep -v 'deleted here by spec 674' | wc -l | tr -d ' '"
+    assert_output "0"
 }

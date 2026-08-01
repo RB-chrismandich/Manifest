@@ -2,6 +2,54 @@
 
 # Deployment, verification, and summary helpers for bootstrap.sh. This file is sourced, not executed.
 
+# foreign_state_rules BACKUP_DIR — emit rsync rules (one per line) for state that
+# lives under a repo-owned NAME but that no copy path actually redeploys.
+#
+# restore_runtime_state excludes every top-level name present in configs/claude,
+# on the premise that the redeploy right after provides the authoritative copy.
+# That premise has since lapsed for two of them, and where it lapsed the exclude
+# stopped meaning "the fresh deploy wins" and started meaning "delete":
+#
+#   skills/  — since the domain retired (SC-006, spec 674) deploy_home_skills
+#              writes MANIFEST_SKILLS_DIR (~/.manifest/skills); nothing recreates
+#              $TARGET_DIR/skills at all.
+#   agents/  — gate_pilotfish_agents/gate_devpanel_agents deploy exactly their own
+#              role files, and are documented to let a coexisting user-authored
+#              agent survive an opt-out (FR-008/SC-003) — which only holds if the
+#              restore carries that agent back.
+#
+# Measured 2026-07-31: an option-1 rerun took ~/.claude/skills/.system with it
+# (Codex's own installs — imagegen, openai-docs, plugin-creator, skill-creator,
+# skill-installer) and nothing put it back.
+foreign_state_rules() {
+    local backup_dir="$1"
+
+    # Order matters: rsync takes the FIRST matching rule, so the re-includes must
+    # precede the blanket exclude the caller would otherwise have emitted.
+    #
+    # Only .system is carried back. Manifest's own skill dirs stay excluded (the
+    # deploy is authoritative for those), as do the apm-era manifests
+    # .deployed-skills/.metadata.json, which skill_policies.yml already records as
+    # untrustworthy dead state — resurrecting them restores noise, not state.
+    # Guarded on .system existing so a backup without one does not leave an empty
+    # skills/ dir behind.
+    if [[ -d "$backup_dir/skills/.system" ]]; then
+        printf '%s\n' '--include=/skills/' '--include=/skills/.system/***' '--exclude=/skills/*'
+    fi
+    printf '%s\n' '--exclude=/skills'
+
+    # agents/ is restored WHOLESALE minus the files the gates own, so a user's own
+    # agent survives while a stale role file or ownership marker never comes back:
+    # the gate is the sole writer of both, and a restored marker would read as
+    # "Manifest-owned" over files this deploy never placed.
+    local role
+    for role in ${PILOTFISH_AGENT_FILES[@]+"${PILOTFISH_AGENT_FILES[@]}"} \
+        ${DEVPANEL_AGENT_FILES[@]+"${DEVPANEL_AGENT_FILES[@]}"}; do
+        printf -- '--exclude=/agents/%s\n' "$role"
+    done
+    printf '%s\n' '--exclude=/agents/.pilotfish' '--exclude=/agents/.devpanel'
+}
+
 # Restore user/runtime state from a "Backup and replace" backup.
 #
 # The repo only owns the contents of configs/claude (CLAUDE.md, config/,
@@ -19,11 +67,32 @@ restore_runtime_state() {
     # Build rsync excludes from the repo-owned entries (top level of source_dir,
     # including dotfiles like .plans). These are redeployed, so the fresh config
     # wins; everything else in the backup is runtime state and is restored.
-    local excludes=() entry
+    local excludes=() entry base
     for entry in "$source_dir"/* "$source_dir"/.[!.]*; do
         [[ -e "$entry" || -L "$entry" ]] || continue
-        excludes+=("--exclude=/$(basename "$entry")")
+        base="$(basename "$entry")"
+        # skills/ and agents/ hold entries no copy path redeploys, so a blanket
+        # exclude there is a delete, not a deferral — foreign_state_rules emits
+        # the finer rules for both (and still excludes what the deploy owns).
+        case "$base" in
+            skills | agents) continue ;;
+        esac
+        excludes+=("--exclude=/$base")
     done
+    # Regenerable bytecode caches, and a live source of rsync failures: a
+    # bundled venv's __pycache__ can change under rsync mid-copy, which is
+    # exactly what aborted a deploy on 2026-07-30. Nothing needs them restored.
+    #
+    # Ordered BEFORE foreign_state_rules on purpose: rsync takes the first
+    # matching rule, and those rules re-include whole subtrees (skills/.system/***),
+    # so a __pycache__ living inside one would otherwise match the include first
+    # and walk straight back into the failure this exclude exists to prevent.
+    excludes+=("--exclude=__pycache__/" "--exclude=*.pyc")
+
+    local rule
+    while IFS= read -r rule; do
+        [[ -n "$rule" ]] && excludes+=("$rule")
+    done < <(foreign_state_rules "$backup_dir")
 
     # .agent_outputs is recreated below as a symlink into $MANIFEST_OUTPUT_DIR
     # (under ~/.manifest, outside ~/.claude and therefore never part of the
@@ -34,8 +103,64 @@ restore_runtime_state() {
 
     print_step "Restoring runtime state (plugins, sessions, settings.json, history) from backup"
     # -a preserves symlinks and attributes; trailing slashes copy contents.
-    rsync -a "${excludes[@]}" "$backup_dir"/ "$target_dir"/ # array-safe (unconditional += above)
-    print_success "Runtime state restored (repo-owned config redeployed fresh)"
+    #
+    # NEVER let this abort the caller. By the time we get here the live
+    # directory has already been `mv`'d into the backup, so under `set -e` a
+    # non-zero rsync leaves the user with NO ~/.claude at all — one unreadable
+    # file destroys the home. Runtime state is best-effort; the deploy that
+    # follows is what actually matters, and the backup still holds everything.
+    local rc=0
+    rsync -a "${excludes[@]}" "$backup_dir"/ "$target_dir"/ || rc=$? # array-safe
+    if [[ "$rc" -ne 0 ]]; then
+        print_warning "Runtime state only partially restored (rsync exit $rc)."
+        print_warning "Nothing was lost — the full backup is at: $backup_dir"
+    else
+        print_success "Runtime state restored (repo-owned config redeployed fresh)"
+    fi
+
+    verify_plugin_cache_after_restore "$target_dir"
+    return 0
+}
+
+# verify_plugin_cache_after_restore — is every installed bundle still resolvable
+# in the cache after a "Backup and replace" restore? (T4.5, spec 674)
+#
+# The rsync above deliberately swallows failure, which is correct: by then the
+# live directory has been mv'd into the backup, so a non-zero exit under `set -e`
+# would leave the user with NO ~/.claude at all. But swallowing it makes a
+# PARTIAL restore invisible -- and post-cutover ~/.claude/plugins holds the ONLY
+# copy of the user's Claude skills. One unreadable file in a 929 MB tree becomes
+# an unknown subset of 108 skills silently vanishing.
+#
+# So: name the bundles that no longer resolve and print the exact command to get
+# each back. Never fails the deploy — the deploy is not what broke.
+verify_plugin_cache_after_restore() {
+    local target_dir="$1"
+    local installed="$target_dir/plugins/installed_plugins.json"
+    [[ -r "$installed" ]] || return 0
+    command_exists python3 || return 0
+
+    local helper="$SCRIPT_DIR/configs/claude/scripts/unresolved_plugins.py"
+    [[ -r "$helper" ]] || return 0
+
+    # Exit 3 is "cannot tell", not "nothing wrong". `|| true` alone collapses
+    # the two, and a corrupt installed_plugins.json after a restore is exactly
+    # what this check exists to surface.
+    local missing status
+    missing="$(python3 "$helper" "$installed" 2> /dev/null)" && status=0 || status=$?
+    if [[ "$status" -eq 3 ]]; then
+        print_warning "Could not read $installed — plugin resolution is UNKNOWN."
+        print_warning "    Check it by hand: claude plugin list"
+        return 0
+    fi
+    [[ -n "$missing" ]] || return 0
+
+    print_warning "These installed plugins no longer resolve in the cache:"
+    local key
+    for key in $missing; do
+        print_warning "    $key  ->  claude plugin install $key"
+    done
+    print_warning "Also useful: claude plugin prune (removes orphaned auto-installed deps)"
 }
 
 # Deploy configuration files
@@ -124,11 +249,17 @@ deploy_configs() {
             print_warning "Existing installation found at $TARGET_DIR"
             echo ""
             echo "Options:"
-            echo "  1. Backup and replace"
-            echo "  2. Merge (keep existing, add new)"
+            echo "  1. Backup and replace (destructive: moves $TARGET_DIR aside first)"
+            echo "  2. Add new files only (existing files are NOT updated)"
             echo "  3. Cancel"
+            echo "  4. Update config: refresh repo-owned files, keep runtime state"
             echo ""
-            read -r -p "Choose option [1/2/3]: " choice
+            echo "  Most re-runs want 4 — it deploys edited config without moving anything."
+            echo ""
+            # Options 1-3 keep their historical numbers so an operator's muscle
+            # memory (and any scripted answer) still means what it always did;
+            # the new non-destructive path is appended as 4.
+            read -r -p "Choose option [1/2/3/4]: " choice
 
             case $choice in
                 1)
@@ -142,21 +273,47 @@ deploy_configs() {
                     restore_from="$backup_dir"
                     print_success "Backup created"
                     ;;
-                2)
-                    print_step "Merging configurations..."
+                2 | 4)
+                    # Two non-destructive copy modes that differ ONLY in whether
+                    # an already-deployed file may be overwritten. Everything
+                    # after the rsync is shared so both land in the same state.
+                    #
+                    #   2 = add-only   (--ignore-existing): never touches a file
+                    #       that already exists, so an edited repo-owned config
+                    #       is silently NOT deployed.
+                    #   4 = update     (no --ignore-existing): refreshes
+                    #       repo-owned files in place.
+                    #
+                    # NEITHER passes --delete: a file present in $TARGET_DIR but
+                    # absent from the repo is user/runtime state (plugins, chat
+                    # sessions, notes) and is never removed. That is what makes 4
+                    # a safe default and the reason it exists — without it the
+                    # only way to deploy an edited config was option 1, which
+                    # `mv`s the entire live home aside.
+                    local copy_mode=()
+                    if [[ "$choice" == 2 ]]; then
+                        print_step "Adding new configuration files (existing files left as-is)..."
+                        copy_mode=(--ignore-existing)
+                    else
+                        print_step "Updating repo-owned configuration (runtime state kept)..."
+                    fi
                     if [[ "${ENABLE_CLAUDE:-true}" != true ]]; then
                         print_info "Claude disabled — not deploying CLAUDE.md"
                     fi
-                    # Merge mode - copy only new files (skills handled separately
-                    # below; the skills compat symlink must not be copied verbatim)
-                    rsync -av --ignore-existing --exclude '/skills' --exclude '/agents' --exclude '/agents-devpanel' --exclude '/references/pilotfish-delegation.md' --exclude '/references/devpanel-delegation.md' "${claude_md_exclude[@]+"${claude_md_exclude[@]}"}" "$source_dir/" "$TARGET_DIR/"
-                    deploy_home_skills "$SCRIPT_DIR/.apm/skills" "$TARGET_DIR/skills"
+                    # Same excludes as every other copy path: skills is a compat
+                    # symlink (deployed separately below, never copied verbatim),
+                    # and agents/agents-devpanel plus their delegation docs are
+                    # owned by the gate_* toggles.
+                    rsync -av "${copy_mode[@]+"${copy_mode[@]}"}" --exclude '/skills' --exclude '/agents' --exclude '/agents-devpanel' --exclude '/references/pilotfish-delegation.md' --exclude '/references/devpanel-delegation.md' "${claude_md_exclude[@]+"${claude_md_exclude[@]}"}" "$source_dir/" "$TARGET_DIR/"
+                    deploy_home_skills "$SCRIPT_DIR/.apm/skills" "${MANIFEST_SKILLS_DIR:-$TARGET_DIR/skills}" harness-skills
                     gate_graphify_skill "$TARGET_DIR/skills"
                     gate_pilotfish_agents "$TARGET_DIR" "$source_dir/agents"
                     gate_devpanel_agents "$TARGET_DIR" "$source_dir/agents-devpanel"
-                    # --ignore-existing keeps the user's settings.local.json as-is,
-                    # but if it was absent the repo copy lands fresh; union back any
-                    # MCP servers captured from the live file either way.
+                    # Option 2 keeps an existing settings.local.json as-is; option 4
+                    # (like the main copy path) overwrites it with the repo copy, and
+                    # if it was absent the repo copy lands fresh either way. Union
+                    # back the MCP servers snapshotted from the live file in all
+                    # three cases.
                     merge_claude_mcp_servers "$preserved_mcp" "$TARGET_DIR/settings.local.json"
                     [[ -n "$preserved_mcp" ]] && rm -f "$preserved_mcp"
                     preserve_issue_sync_gates "$preserved_cmdcfg" "$TARGET_DIR/config/command_config.yml"
@@ -168,14 +325,19 @@ deploy_configs() {
                     # settings.json below. merge_settings_hooks is still used by the
                     # Gemini path, which reads its own settings.json.
                     # ...and repo session defaults (env vars, skillListingBudgetFraction)
-                    # the same --ignore-existing skip would strand on existing installs.
+                    # that option 2's --ignore-existing skip would strand on existing
+                    # installs. Idempotent, so option 4 runs it too.
                     merge_claude_settings_defaults "$source_dir/settings.local.json" "$TARGET_DIR/settings.local.json"
                     # Hooks that must reach Claude Code's own runtime go to
                     # settings.json; settings.local.json is inert at user scope.
                     merge_claude_runtime_settings "$source_dir/settings.runtime.json" "$TARGET_DIR/settings.json"
                     install_claude_mcp_servers "$source_dir/config/mcp_user_servers.json" "$TARGET_DIR/settings.local.json"
                     write_deploy_stamp "$SCRIPT_DIR" "$TARGET_DIR"
-                    print_success "Configurations merged"
+                    if [[ "$choice" == 2 ]]; then
+                        print_success "New configuration files added (existing files unchanged)"
+                    else
+                        print_success "Configuration updated (runtime state kept)"
+                    fi
                     # Still write services config
                     write_services_config
                     # Keep legacy output path aligned with shared state root
@@ -247,10 +409,18 @@ deploy_configs() {
     # Deploy skills from the PHYSICAL .apm/skills source into ~/.claude/skills.
     # No-op once apm owns the `skills` domain (SC-006) — see apm_domains.yml.
     # Must run before link_shared_assets (create_symlink skips missing targets).
-    deploy_home_skills "$SCRIPT_DIR/.apm/skills" "$TARGET_DIR/skills"
+    deploy_home_skills "$SCRIPT_DIR/.apm/skills" "${MANIFEST_SKILLS_DIR:-$TARGET_DIR/skills}" harness-skills
+    register_manifest_marketplace "$SCRIPT_DIR"
+
+    # T2.5 (spec 674): repoint every sibling home at the harness root, from HERE
+    # and unconditionally. Doing it inside the per-assistant deploy functions
+    # leaves --disable-<assistant> pointing at a tree Manifest no longer writes,
+    # and Devin (ENABLE_DEVIN defaults FALSE) never repointed at all.
+    repoint_sibling_skill_links
+
     # Gate /graphify on its service toggle (FR-012) and reconcile any foreign
     # 'graphify install' residue (FR-010). Runs before the assistant skill symlinks.
-    gate_graphify_skill "$TARGET_DIR/skills"
+    gate_graphify_skill "${MANIFEST_SKILLS_DIR:-$TARGET_DIR/skills}"
     gate_pilotfish_agents "$TARGET_DIR" "$source_dir/agents"
     gate_devpanel_agents "$TARGET_DIR" "$source_dir/agents-devpanel"
 
@@ -357,6 +527,49 @@ prune_cursor_rules() {
 }
 
 # Deploy Cursor IDE configuration (mirrors .claude with symlinks)
+# repoint_sibling_skill_links — point every non-Claude home's `skills` entry at
+# the harness root (T2.5, spec 674).
+#
+# UNCONDITIONAL by design. Every existing repoint sits inside a per-assistant
+# deploy function behind an early-return toggle: deploy_cursor_configs guards on
+# ENABLE_CURSOR, and deploy_devin_config guards on ENABLE_DEVIN which DEFAULTS
+# FALSE. So `./bootstrap.sh --disable-cursor` would leave ~/.cursor/skills
+# pointing at a tree Manifest no longer writes, and Devin would get zero skills
+# on a default machine -- both silently, because a stale symlink is not an error.
+#
+# Disabling an assistant means Manifest stops deploying ITS configs. It has never
+# meant "leave that assistant's skills pointing somewhere wrong", and the two
+# only became separable once the shared root moved.
+repoint_sibling_skill_links() {
+    local root="${MANIFEST_SKILLS_DIR:-$TARGET_DIR/skills}"
+    if [[ ! -d "$root" ]]; then
+        print_warning "Harness skills root missing: $root (siblings not repointed)"
+        return 0
+    fi
+
+    # DEVIN IS DELIBERATELY ABSENT FROM THIS LIST UNTIL PHASE 4 (T2.6).
+    #
+    # Devin discovers ~/.claude/skills natively via its config.json
+    # `read_config_from.claude`. Phase 2 FREEZES that tree but does not empty it
+    # -- emptying is Phase 4. So creating ~/.config/devin/skills now would give
+    # Devin two views of the same catalog and register every skill twice under
+    # two namespaces (/devin:env-check AND /claude:env-check, measured against
+    # devin 3000.2.17), halving the listing's signal density.
+    #
+    # The plan's argument for adding it here is that the double-registration
+    # "inverts once ~/.claude/skills is empty" -- which is true, and true only
+    # AFTER Phase 4. Until then Devin keeps inheriting natively and needs
+    # nothing. Adding it in Phase 4, together with the emptying, is the step
+    # that is actually safe.
+    local home_dir
+    for home_dir in "$CURSOR_TARGET_DIR" "$GEMINI_TARGET_DIR" "$CODEX_TARGET_DIR" \
+        "$ANTIGRAVITY_TARGET_DIR"; do
+        [[ -n "$home_dir" ]] || continue
+        mkdir -p "$home_dir"
+        create_symlink "$home_dir/skills" "$root" "$(basename "$home_dir") skills"
+    done
+}
+
 deploy_cursor_configs() {
     # Honor the service toggle — deploying while disabled rewrote ~/.cursor
     # against the user's explicit request (issue #321)
@@ -711,9 +924,14 @@ write_deploy_stamp() {
     }
     local tree_configs tree_skills head_sha dirty
     tree_configs="$(git -C "$repo_root" rev-parse HEAD:configs 2> /dev/null)" || return 0
-    tree_skills="$(git -C "$repo_root" rev-parse HEAD:.apm/skills 2> /dev/null)" || return 0
+    # T3.8 (spec 674): keyed on plugins/, not .apm/skills. The skills moved to
+    # plugins/<bundle>/skills/ and .apm/skills is now a GITIGNORED generated
+    # mirror, so HEAD:.apm/skills holds only the two root files and the dirty
+    # check can never see a skill edit. Left alone, the "your deployed config
+    # is stale, re-run bootstrap" nudge would never fire again.
+    tree_skills="$(git -C "$repo_root" rev-parse HEAD:plugins 2> /dev/null)" || return 0
     head_sha="$(git -C "$repo_root" rev-parse HEAD 2> /dev/null)" || return 0
-    if [[ -n "$(git -C "$repo_root" status --porcelain -- configs .apm/skills 2> /dev/null)" ]]; then
+    if [[ -n "$(git -C "$repo_root" status --porcelain -- configs plugins 2> /dev/null)" ]]; then
         dirty=true
     else
         dirty=false
@@ -1100,17 +1318,13 @@ deploy_sync_skills() {
     cp "$SCRIPT_DIR/configs/claude/scripts/sync-skills.sh" "$HOME/.local/bin/sync-skills"
     chmod +x "$HOME/.local/bin/sync-skills"
 
-    # T055/FR-032: the publish-free local development loop, deployed alongside
-    # the writer it will replace. Installed UNCONDITIONALLY, not gated on
-    # ENABLE_APM: T015 will make `sync-skills` name this command when it skips a
-    # domain, and a skip message pointing at a command that does not exist hands
-    # the contributor a dead end. The script itself explains how to get apm when
-    # apm is absent, which is the right place for that conditional.
-    cp "$SCRIPT_DIR/configs/claude/scripts/apm_dev_sync.sh" "$HOME/.local/bin/apm-dev-sync"
-    chmod +x "$HOME/.local/bin/apm-dev-sync"
+    # apm-dev-sync was retired by spec 674 Phase 5 (T5.4) with its subject:
+    # skills ship as plugin bundles, so there is nothing for it to sync.
+    # A stale copy on PATH is worse than none -- it would run and report
+    # success against a tree nothing reads any more.
+    rm -f "$HOME/.local/bin/apm-dev-sync"
 
     print_success "Deployed sync-skills to $HOME/.local/bin/sync-skills"
-    print_success "Deployed apm-dev-sync to $HOME/.local/bin/apm-dev-sync"
 }
 
 # Verify installation
@@ -1134,61 +1348,47 @@ reconcile_deploy_report() {
     return 0
 }
 
-# Populate an APM-owned skills domain that nothing has written yet.
+# populate_apm_owned_skills() was deleted here by spec 674 Phase 5 (T5.3).
+# Its premise was that apm owns ~/.claude/skills and bootstrap must never
+# leave that tree empty. Post-cutover EMPTY IS THE GOAL: the nine plugin
+# bundles serve the catalog and the flat harness tree lives at
+# $MANIFEST_SKILLS_DIR. Restoring it would refill ~/.claude/skills and
+# double-load all 108 skills against their plugin twins.
+
+# register_manifest_marketplace — point Claude Code at this checkout's plugin
+# marketplace (T4.1, spec 674).
 #
-# SC-006 gated the `skills` domain (apm_domains.yml) so deploy_home_skills stands
-# down, but bootstrap gained no replacement writer — the activation procedure in
-# docs/DEPLOY_OWNERSHIP.md is human-driven (`apm install --global 'OWNER/REPO#TAG'`
-# BEFORE gating). That is correct on a machine that is already live and wrong on a
-# fresh one: bootstrap alone then leaves ~/.claude/skills absent, and with it the
-# four sibling homes that symlink to it, until someone remembers apm-dev-sync.
+# A DIRECTORY source, not a git URL. Verified working: part-forge is configured
+# exactly this way, with real version dirs in the cache. It is the mitigation
+# for the measured dev-loop regression -- one `apm-dev-sync` with zero restarts
+# becomes up to 9 `claude plugin update` calls plus a marketplace update and one
+# session restart per iteration. A directory source removes publish and tag from
+# that loop, though not the copy, the update, or the restart.
 #
-# Deliberately narrow, so this cannot reclaim ownership by the back door:
-#   - only when apm owns the domain (otherwise deploy_home_skills already wrote it)
-#   - only when the domain is EMPTY. Populating a populated tree would push the
-#     local working tree over whatever apm deployed from a published tag on every
-#     single bootstrap run — exactly the double-writer state SC-006 removed.
-#   - only when the apm binary exists. ENABLE_APM governs whether bootstrap
-#     INSTALLS apm, not whether an apm-owned domain is allowed to be populated;
-#     the domain registry is the ownership signal, not the service toggle.
-#
-# Fail-open: a failure here warns and returns 0. The domain being unpopulated is
-# already reported by verify_installation, which is the right place for the
-# verdict — aborting the deploy over it would take the rest of the environment
-# down with a skills tree the caller can fix with one command.
-populate_apm_owned_skills() {
-    declare -f apm_owns_domain > /dev/null 2>&1 || return 0
-    apm_owns_domain skills || return 0
-    if declare -f deploy_domain_selected > /dev/null 2>&1 && ! deploy_domain_selected skills; then
+# NON-FATAL by design: a contributor without the claude CLI, or who declines
+# plugins entirely, must still get a working bootstrap. This registers the
+# marketplace; it deliberately does NOT install anything -- installing is
+# cutover_bundle.sh's job, and it has preconditions this function has no
+# business asserting.
+register_manifest_marketplace() {
+    local repo_root="$1"
+    [[ -f "$repo_root/.claude-plugin/marketplace.json" ]] || return 0
+    command_exists claude || {
+        print_info "claude CLI not found — skipping marketplace registration"
+        return 0
+    }
+
+    if claude plugin marketplace list 2> /dev/null | grep -q '\bmanifest\b'; then
+        print_success "Marketplace already registered: manifest"
         return 0
     fi
-
-    if [[ -d "$TARGET_DIR/skills" ]] &&
-        [[ -n "$(find "$TARGET_DIR/skills" -maxdepth 2 -name SKILL.md -print -quit 2> /dev/null)" ]]; then
-        return 0 # apm (or a prior run) already populated it — not ours to rewrite
-    fi
-
-    if ! command -v apm > /dev/null 2>&1 && [[ ! -x "$HOME/.local/bin/apm" ]]; then
-        print_warning "skills is apm-owned but apm is not installed — run './bootstrap.sh --enable-apm', then ${APM_DOMAIN_REPLACEMENT_CMD:-apm-dev-sync}"
-        return 0
-    fi
-
-    local dev_sync="$SCRIPT_DIR/configs/claude/scripts/apm_dev_sync.sh"
-    if [[ ! -f "$dev_sync" ]]; then
-        print_warning "skills is apm-owned but $dev_sync is missing — cannot populate ~/.claude/skills"
-        return 0
-    fi
-
-    print_step "Populating apm-owned skills domain (empty ~/.claude/skills)..."
-    # MANIFEST_ROOT is passed explicitly: the script otherwise falls back to the
-    # enclosing git checkout, and on a machine with several Manifest clones that
-    # resolves to whichever one the caller happened to be standing in.
-    if MANIFEST_ROOT="$SCRIPT_DIR" APM_DEV_SYNC_QUIET=1 bash "$dev_sync"; then
-        print_success "Skills deployed via apm (source: $SCRIPT_DIR/.apm/skills)"
+    if claude plugin marketplace add "$repo_root" > /dev/null 2>&1; then
+        print_success "Registered plugin marketplace: $repo_root"
     else
-        print_warning "apm-dev-sync failed — ~/.claude/skills is still unpopulated (see above)"
+        # Not an error: the CLI may be too old, unauthenticated, or the user may
+        # have removed it deliberately. Say so rather than failing the deploy.
+        print_warning "Could not register the plugin marketplace (continuing)"
     fi
-    return 0
 }
 
 verify_installation() {
@@ -1267,10 +1467,23 @@ verify_installation() {
     if declare -f apm_owns_domain > /dev/null 2>&1 && apm_owns_domain skills; then
         skills_apm_owned=true
     fi
+    # RETIRED is the third state, and it inverts the verdict below. T1.7 made an
+    # empty apm-owned tree a hard error in Phase 1, before `retired:` existed.
+    # After the Phase 4 cutover an EMPTY ~/.claude/skills is the goal — the
+    # bundles serve the catalog — so leaving T1.7's check unconditional would
+    # print "Missing" 108 times and fail verification on every correct
+    # post-cutover machine, which is the false RED this cutover keeps producing
+    # in the mirror image of the false green T1.7 removed.
+    local skills_retired=false
+    if declare -f domain_retired > /dev/null 2>&1 && domain_retired skills; then
+        skills_retired=true
+    fi
     local skills_missing=0
     for file in "${skill_files[@]}"; do
         if [[ -f "$file" ]]; then
             print_success "Found: ${file#"$HOME"/}"
+        elif [[ "$skills_retired" == true ]]; then
+            : # expected: the plugin bundles serve this catalog now
         elif [[ "$skills_apm_owned" == true ]]; then
             print_warning "Missing (apm-owned domain): ${file#"$HOME"/}"
             skills_missing=$((skills_missing + 1))
@@ -1280,7 +1493,15 @@ verify_installation() {
         fi
     done
     if [[ $skills_missing -gt 0 ]]; then
-        print_warning "apm owns the 'skills' domain but has not populated it — run: ${APM_DOMAIN_REPLACEMENT_CMD:-apm-dev-sync}"
+        # T1.7 (spec 674): a HARD error, not a warning. This branch means the
+        # user has no skills at all — the domain is gated to apm and apm has not
+        # populated it — yet without incrementing `errors` the function returns
+        # 0 and bootstrap prints "Deployment verified". A total skills failure
+        # that exits 0 is the exact false-green the cutover's gates exist to
+        # remove; verifying a deployment must not pass when the deployment is
+        # empty, however legitimate the reason the writer stood down.
+        print_error "apm owns the 'skills' domain but has not populated it ($skills_missing missing) — run: ${APM_DOMAIN_REPLACEMENT_CMD:-apm-dev-sync}"
+        errors=$((errors + 1))
     fi
 
     echo ""
@@ -1413,6 +1634,36 @@ verify_installation() {
         print_success "jq is installed (required by git_ops.sh)"
     else
         print_warning "jq is not installed - git_ops.sh will have limited functionality"
+    fi
+
+    # T4.4 (spec 674): verify the CLAUDE side, which nothing else does.
+    #
+    # Before this, verify_installation canaried exactly one file under the skills
+    # tree and asserted NOTHING about ~/.claude/plugins. A user who ran
+    # ./bootstrap.sh and never ran `claude plugin install` got "Installation
+    # verified" with zero Manifest skills in Claude Code.
+    #
+    # SELF-DISABLING on purpose. It only runs once the cutover has actually
+    # started -- i.e. installed_plugins.json already names at least one manifest-*
+    # bundle. Checking unconditionally would report a shortfall on a correct
+    # PRE-cutover machine, which is the same "permanently red gate" failure this
+    # plan flags in T1.11; a gate that is always red is a gate nobody reads.
+    local installed_json="$TARGET_DIR/plugins/installed_plugins.json"
+    if [[ -r "$installed_json" ]] && grep -q '"manifest-' "$installed_json" 2> /dev/null; then
+        local registry="$TARGET_DIR/config/skill_policies.yml"
+        if [[ -r "$registry" ]]; then
+            print_step "Checking installed Manifest bundles..."
+            local bundle
+            while IFS= read -r bundle; do
+                [[ -n "$bundle" ]] || continue
+                if grep -q "\"$bundle@" "$installed_json" 2> /dev/null; then
+                    print_success "Bundle installed: $bundle"
+                else
+                    print_error "Bundle NOT installed: $bundle — run: claude plugin install $bundle@manifest"
+                    errors=$((errors + 1))
+                fi
+            done < <(sed -n 's/^  \([a-z][a-z0-9-]*\):.*$/\1/p' "$registry")
+        fi
     fi
 
     # Summary

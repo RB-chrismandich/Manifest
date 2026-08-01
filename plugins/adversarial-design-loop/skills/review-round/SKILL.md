@@ -1,6 +1,6 @@
 ---
 name: review-round
-description: This skill should be used when the user asks to "run a review round", "run the design panel", "put the screens through adversarial review", "run a production round", "ship the deferred screens", or when a design loop's screens exist and need multi-lens review with skeptic-verified blockers. Runs one full round — parallel lens reviewers, skeptic verification, DECISIONS.md logging, consensus gating — or a declared mechanical-gates-only production round.
+description: Run one adversarial design review round — parallel lens reviewers, skeptic-verified blockers, consensus gate.
 version: 0.1.0
 ---
 
@@ -76,6 +76,20 @@ scope that simply ran late):
 - **Advisories left standing are tracked**, not forgotten — sweep them at
   production rounds ("closes two cheap advisories left standing at round
   18").
+
+## Sub-agent dispatch
+
+Every round dispatches: one `design-lens-reviewer` per lens, all in a single
+message so they run concurrently, then one `skeptic-verifier` per BLOCKING
+finding. That is the point of the round — independence is structural, so the
+lenses must not be collapsed into one inline pass sharing context. Pick the
+mechanism per the shared Sub-Agent Selection Rules
+(`configs/claude/references/sub-agent-dispatch.md`): native Task sub-agents on
+Claude, `manifest parallel-agent` or sequential re-reads elsewhere.
+
+Dispatch on **Sonnet** (`subagent_model: sonnet` in `command_config.yml`). Pass
+the model explicitly; do not inherit the session's — a lens panel is wide, and
+inheriting an Opus session multiplies its cost by the number of lenses.
 
 ## Additional resources
 

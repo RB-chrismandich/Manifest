@@ -1,0 +1,30 @@
+{
+  "name": "stitch-design",
+  "version": "0.1.1",
+  "description": "Google Stitch design workflows: generate and edit screens, extract and manage design systems, and convert designs to React, React Native or Remotion.",
+  "author": {
+    "name": "ReefBytes"
+  },
+  "homepage": "https://github.com/ReefBytes-Owner/Manifest",
+  "license": "Proprietary",
+  "skills": [
+    "./skills/a11y-audit",
+    "./skills/code-to-design",
+    "./skills/design-md",
+    "./skills/enhance-prompt",
+    "./skills/extract-design-md",
+    "./skills/extract-static-html",
+    "./skills/generate-design",
+    "./skills/manage-design-system",
+    "./skills/performance-check",
+    "./skills/react-components",
+    "./skills/react-native",
+    "./skills/react-vite-dashboard",
+    "./skills/remotion",
+    "./skills/shadcn-ui",
+    "./skills/stitch-loop",
+    "./skills/taste-design",
+    "./skills/upload-to-stitch",
+    "./skills/ux-review"
+  ]
+}

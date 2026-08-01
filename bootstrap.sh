@@ -72,6 +72,18 @@ ANTIGRAVITY_TARGET_DIR="$HOME/.antigravity"
 # write into an unrelated product's tree.
 DEVIN_TARGET_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/devin"
 MANIFEST_STATE_DIR="$HOME/.manifest"
+# T2.3 (spec 674): the shared skills root for the NON-Claude assistants.
+#
+# Not ~/.claude/skills, for two reasons. Claude Code hardcodes its user skills
+# dir to <configDir>/skills with no relocation setting, so a tree it must NOT
+# load cannot live there. And ~/.manifest survives the `mv` that deploy_configs'
+# "Backup and replace" path performs on ~/.claude, where .agent_outputs already
+# lives by the same precedent.
+#
+# Consumed by the sourced libs (link_shared_assets, deploy_home_skills), not
+# here, so it needs the same SC2034 waiver its neighbours carry.
+# shellcheck disable=SC2034
+MANIFEST_SKILLS_DIR="$MANIFEST_STATE_DIR/skills"
 # shellcheck disable=SC2034
 MANIFEST_OUTPUT_DIR="$MANIFEST_STATE_DIR/orchestration/outputs"
 # shellcheck disable=SC2034
@@ -186,11 +198,9 @@ run_reconfigure() {
         # uninstalled rather than fall back to an unverified binary. The failure
         # is loud but non-fatal — apm is opt-in and owns no domain yet, so an
         # absent apm is a correct outcome, not a broken bootstrap.
-        install_apm_cli || print_error "apm install failed integrity verification — apm is NOT installed"
         # Also here, not only in main(): `--reconfigure --enable-apm` is the
         # documented way to turn apm on on a running machine, and that is exactly
         # the run after which the apm-owned skills domain may still be empty.
-        populate_apm_owned_skills
 
         # Gate the deployed /graphify skill to match the new toggle — the gate
         # otherwise only runs inside deploy_configs, so a reconfigure-time
@@ -248,7 +258,6 @@ main() {
     echo "  Antigravity: $(if [[ "$ENABLE_ANTIGRAVITY" == true ]]; then echo "enabled"; else echo "disabled"; fi)"
     echo "  Graphify:    $(if [[ "$ENABLE_GRAPHIFY" == true ]]; then echo "enabled"; else echo "disabled"; fi)"
     echo "  SkillClaw:   $(if [[ "$ENABLE_SKILLCLAW" == true ]]; then echo "enabled"; else echo "disabled"; fi)"
-    echo "  apm:         $(if [[ "$ENABLE_APM" == true ]]; then echo "enabled (pinned v$APM_PINNED_VERSION)"; else echo "disabled"; fi)"
     echo "  browser-use: $(if [[ "$ENABLE_BROWSER_USE" == true ]]; then echo "enabled"; else echo "disabled"; fi)"
     echo ""
 
@@ -306,10 +315,7 @@ main() {
     print_header "Syncing Home Python Runtime"
     uv_sync_home_runtime
     install_graphify
-    install_apm_cli || print_error "apm install failed integrity verification — apm is NOT installed"
-    # Must follow install_apm_cli (it needs the binary) and precede
     # verify_installation (which reports an unpopulated domain).
-    populate_apm_owned_skills
 
     # Configure default MCP servers when requested
     if [[ "$INSTALL_MCP" == true ]]; then

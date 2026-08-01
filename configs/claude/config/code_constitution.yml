@@ -1,0 +1,376 @@
+---
+# Code Constitution — the pre-write doctrine every source change must satisfy.
+#
+# This file is the SINGLE SOURCE OF TRUTH for:
+#   - the article set injected before every Write/Edit (constitution_hook.py)
+#   - the machine-checkable thresholds enforced by constitution_check.py
+#   - the per-language annexes under references/constitution/
+#
+# Relationship to the other two registries (deliberate, non-overlapping):
+#   knowledge_base.yml  — REACTIVE. Antipatterns captured from observed failures
+#                         (ANTI-*). Answers "what went wrong before?".
+#   validation_criteria.yml — VERDICT. Tier 1/2 weights for review gates.
+#   code_constitution.yml   — PROACTIVE. Positive doctrine applied BEFORE code is
+#                         written. Answers "what must be true of this change?".
+# Articles cite the ANTI-* entries they subsume via `see_also`; never restate one.
+#
+# Prose lives in references/code-constitution.md (universal) and
+# references/constitution/<lang>.md (annexes). tests/python/test_constitution_registry.py
+# asserts this file and those documents cannot drift apart.
+
+version: 1.0.0
+ratified: '2026-07-29'
+
+# ---------------------------------------------------------------------------
+# Universal articles. Every article applies to every supported language; the
+# language sections below supply the concrete thresholds and idioms.
+#
+# Fields:
+#   id          CON-NNN, stable forever. Cited by checks, hooks, and reviews.
+#   title       Imperative, <= 40 chars. Must match the annex/reference heading.
+#   rule        The single MUST sentence. Identical (whitespace-normalized) to
+#               the quoted rule under the matching heading in the reference doc.
+#   severity    critical | high | medium — drives the check exit contract.
+#   checks      IDs of the automated checks that partially enforce this article.
+#               Empty list = judgement-only (no automation can prove it).
+#   see_also    knowledge_base.yml entries this article subsumes.
+# ---------------------------------------------------------------------------
+articles:
+  - id: CON-001
+    title: Search before you write
+    rule: >-
+      Before adding a function, constant, model, or module, search the codebase
+      for one that already does the job and extend it instead of forking it.
+    severity: high
+    checks: []
+    see_also: [ANTI-014]
+
+  - id: CON-002
+    title: One reason to change
+    rule: >-
+      Every file, class, and function has one responsibility; when it crosses
+      the size ceiling for its language, split it along a seam rather than
+      raising the ceiling or suppressing the warning.
+    severity: high
+    checks: [C-SIZE]
+    see_also: [ANTI-014]
+
+  - id: CON-003
+    title: Third time, centralize
+    rule: >-
+      Write it once, note the second occurrence, and on the third extract it to
+      a shared module every caller imports — never copy a block that already
+      exists somewhere else in the repository.
+    severity: high
+    checks: [C-DUPE]
+    see_also: []
+
+  - id: CON-004
+    title: Data is not code
+    rule: >-
+      JSON, YAML, Markdown, HTML, SQL, and prompt payloads live in their own
+      files under a data/, templates/, or fixtures/ directory and are loaded by
+      one loader — never pasted into a source file as a literal.
+    severity: high
+    checks: [C-DATA]
+    see_also: []
+
+  - id: CON-005
+    title: Typed, validated boundaries
+    rule: >-
+      Every value crossing a module, process, network, or file boundary is
+      typed and validated at the boundary by a declared model, never passed as
+      an untyped mapping and never trusted because the caller looked fine.
+    severity: critical
+    checks: [C-TYPE]
+    see_also: [ANTI-006, ANTI-009]
+
+  - id: CON-006
+    title: Extension by addition
+    rule: >-
+      New behavior arrives as a new registry row, plugin, or config entry rather
+      than a new branch inside a growing conditional — and the abstraction is
+      introduced on the third real case, never speculatively on the first.
+    severity: medium
+    checks: []
+    see_also: [ANTI-014, ANTI-030]
+
+  - id: CON-007
+    title: Errors travel
+    rule: >-
+      Catch the narrowest exception that can occur, attach the context the
+      caller needs, and re-raise with the original cause attached; a caught
+      error is never logged and dropped, and fail-open is a documented decision
+      with a stated blast radius, never a default.
+    severity: critical
+    checks: [C-ERR]
+    see_also: [ANTI-007, ANTI-008]
+
+  - id: CON-008
+    title: Tests first
+    rule: >-
+      A failing test that pins the intended behavior is written and observed
+      failing before the implementation, and a new guard is not proven until the
+      source has been mutated to the wrong behavior and exactly that test failed.
+    severity: high
+    checks: [C-TEST]
+    see_also: []
+
+  - id: CON-009
+    title: Structure is a contract
+    rule: >-
+      Mirror the layout, module naming, error-output convention, and CLI
+      contract already established in the tree, and place each test at the path
+      that mirrors the source it covers.
+    severity: medium
+    checks: [C-STRUCT]
+    see_also: []
+
+  - id: CON-010
+    title: Comments earn their place
+    rule: >-
+      Document the public surface and explain why a non-obvious decision was
+      made; delete commented-out code and any comment the adjacent code has
+      already outgrown.
+    severity: medium
+    checks: [C-DOC]
+    see_also: []
+
+  - id: CON-011
+    title: Dependencies are liabilities
+    rule: >-
+      Exhaust the standard library first, evaluate a candidate on maintenance,
+      typing, transitive footprint, and license before adopting it, declare
+      bounded ranges, resolve them into a committed lockfile, and audit that
+      lockfile for known vulnerabilities.
+    severity: critical
+    checks: []
+    see_also: [ANTI-021, ANTI-022]
+
+  - id: CON-012
+    title: Delete before you add
+    rule: >-
+      Remove the dead branch, unused import, superseded config key, and orphaned
+      test in the same change that obsoletes them; refactor the shape you need
+      before accreting onto the shape you have.
+    severity: medium
+    checks: []
+    see_also: [ANTI-030]
+
+  - id: CON-013
+    title: No arbitrary execution
+    rule: >-
+      Never hand caller-influenced input to an evaluator, a deserializer, or a
+      shell, and never assemble a query by string formatting; use the safe
+      counterpart and bind parameters instead.
+    severity: critical
+    checks: [C-DANGER]
+    see_also: [ANTI-001, ANTI-025]
+
+# ---------------------------------------------------------------------------
+# Automated checks. Each maps to exactly one article and one implementation
+# module under scripts/constitution/checks/.
+#
+#   advisory: true  -> reported, never fails the commit gate (heuristic, or the
+#                      repo has pre-existing debt the ratchet has not reached).
+# ---------------------------------------------------------------------------
+checks:
+  C-SIZE:
+    article: CON-002
+    module: size
+    advisory: false
+    summary: File, class, function, parameter, and nesting ceilings.
+  C-DUPE:
+    article: CON-003
+    module: duplication
+    advisory: false
+    summary: Normalized token-block repetition within and across the changed files.
+  C-DATA:
+    article: CON-004
+    module: payloads
+    advisory: false
+    summary: Structured-data payloads embedded as source literals.
+    # Severity by span length, in lines. Shared across languages: the argument
+    # for externalizing is about reviewability, which does not vary by syntax.
+    tiers:
+      info: 0
+      warn: 40
+      error: 80
+    # A span whose interpolation density exceeds this is a code/prompt TEMPLATE,
+    # not a data payload. Still reported, but the remedy differs: extract to a
+    # template file and keep the interpolation, rather than to a data file.
+    template_interpolation_ratio: 0.08
+  C-DANGER:
+    article: CON-013
+    module: dangerous
+    advisory: false
+    summary: Evaluators, unsafe deserializers, shell execution, built queries.
+  C-TYPE:
+    article: CON-005
+    module: boundaries
+    advisory: true
+    summary: Untyped or unvalidated values crossing a public boundary.
+  C-ERR:
+    article: CON-007
+    module: errors
+    advisory: false
+    summary: Over-broad catches, swallowed exceptions, lost causes.
+  C-TEST:
+    article: CON-008
+    module: structure
+    advisory: true
+    summary: Source file with no test at the mirroring test path.
+  C-STRUCT:
+    article: CON-009
+    module: structure
+    advisory: true
+    summary: Entry point missing the repo's --help/error-output contract.
+  C-DOC:
+    article: CON-010
+    module: structure
+    advisory: true
+    summary: Undocumented public surface; commented-out code blocks.
+
+# ---------------------------------------------------------------------------
+# Per-language sections.
+#
+#   extensions   file suffixes that select this language (lowercase, with dot).
+#   annex        reference document carrying this language's full doctrine.
+#   thresholds   the numbers C-SIZE and C-DUPE enforce. Calibrated against the
+#                measured distribution of THIS repo (see the annex for the
+#                p50/p90/p95 that justify each number) so the ceiling flags the
+#                tail, not the norm.
+#   data_dirs    where CON-004 payloads are relocated to, in preference order.
+#   toolchain    the canonical, non-negotiable tools for this language.
+#
+# C-DATA is size-TIERED rather than a single cutoff, because a 20-line inline
+# fixture next to its assertion is correct and a 200-line one is not. The tiers
+# were set from a survey of all 138 .py files in this repo (49 qualifying spans
+# across 29 files): every span the survey judged "legitimately inline" fell
+# under 60 lines, and every span it judged "externalize" but under 60 lines was
+# a duplicate of another span rather than merely large.
+#
+# Escape hatch, mirroring the repo's existing `# help-coverage: exempt` idiom:
+#   # constitution: exempt C-DATA — <reason>
+# on the line above the span. A bare exempt with no reason is a hard failure.
+# ---------------------------------------------------------------------------
+languages:
+  python:
+    extensions: ['.py', '.pyi']
+    annex: constitution/python.md
+    thresholds:
+      file_lines: 500
+      class_lines: 250
+      function_lines: 60
+      methods_per_class: 12
+      parameters: 5
+      nesting_depth: 4
+      duplicate_block_lines: 8
+      payload_string_lines: 8
+      payload_container_lines: 15
+      comment_prefix: '#'
+    data_dirs: [data, templates, tests/fixtures]
+    toolchain:
+      manifest: pyproject.toml
+      packager: uv
+      linter: ruff
+      formatter: ruff format
+      typechecker: pyright
+      tests: pytest
+      audit: pip-audit
+
+  node:
+    extensions: ['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs']
+    annex: constitution/node.md
+    thresholds:
+      file_lines: 400
+      class_lines: 200
+      function_lines: 50
+      methods_per_class: 12
+      parameters: 4
+      nesting_depth: 4
+      duplicate_block_lines: 8
+      payload_string_lines: 8
+      payload_container_lines: 15
+      comment_prefix: '//'
+    data_dirs: [data, templates, test/fixtures]
+    toolchain:
+      manifest: package.json
+      packager: npm
+      linter: eslint
+      formatter: prettier
+      typechecker: tsc
+      tests: vitest
+      audit: npm audit
+
+  go:
+    extensions: ['.go']
+    annex: constitution/go.md
+    thresholds:
+      file_lines: 500
+      class_lines: 250
+      function_lines: 60
+      methods_per_class: 12
+      parameters: 4
+      nesting_depth: 3
+      duplicate_block_lines: 8
+      payload_string_lines: 8
+      payload_container_lines: 15
+      comment_prefix: '//'
+    data_dirs: [data, templates, testdata]
+    toolchain:
+      manifest: go.mod
+      packager: go
+      linter: golangci-lint
+      formatter: gofumpt
+      typechecker: go vet
+      tests: go test
+      audit: govulncheck
+
+  shell:
+    extensions: ['.sh', '.bash']
+    annex: constitution/shell.md
+    thresholds:
+      file_lines: 600
+      class_lines: 0
+      function_lines: 60
+      methods_per_class: 0
+      parameters: 5
+      nesting_depth: 4
+      duplicate_block_lines: 8
+      payload_string_lines: 12
+      payload_container_lines: 0
+      comment_prefix: '#'
+    data_dirs: [config, templates, tests/fixtures]
+    toolchain:
+      manifest: ''
+      packager: ''
+      linter: shellcheck
+      formatter: shfmt
+      typechecker: ''
+      tests: bats
+      audit: ''
+
+  terraform:
+    extensions: ['.tf', '.tfvars']
+    annex: constitution/terraform.md
+    thresholds:
+      file_lines: 300
+      class_lines: 0
+      function_lines: 0
+      methods_per_class: 0
+      parameters: 0
+      nesting_depth: 4
+      duplicate_block_lines: 10
+      payload_string_lines: 12
+      payload_container_lines: 0
+      comment_prefix: '#'
+    data_dirs: [templates, files]
+    toolchain:
+      manifest: versions.tf
+      packager: terraform
+      linter: tflint
+      formatter: terraform fmt
+      typechecker: terraform validate
+      tests: terraform test
+      audit: trivy

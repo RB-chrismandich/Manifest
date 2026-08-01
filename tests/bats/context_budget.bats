@@ -180,3 +180,62 @@ assert_budget() {
         fi
     done
 }
+
+# --- per-bundle caps (T3.7, spec 674) --------------------------------------
+#
+# Post-cutover the always-on cost a user pays is the sum over the bundles they
+# INSTALLED, not the whole catalog. A single total cannot express that: someone
+# with two bundles and someone with nine both pass or both fail together.
+#
+# What this measures is REPO BYTES. The invariant it is a proxy for -- the
+# session's actual listing budget -- is a property of the user's install set,
+# which no bats test can see. That check belongs in /env-check as a runtime
+# observation. This repo has already been burned once by a budget test
+# measuring the wrong universe, so the limitation is stated rather than implied.
+
+@test "no single bundle's frontmatter exceeds its per-bundle cap" {
+    # 6000 against a measured max of 4904 (manifest-code-quality, 2026-07-30).
+    # NOTE the plan's figures are stale -- it cites stitch-design at 4866 and a
+    # 28138 total, both measured under the pre-dissolution 10-bundle partition.
+    cd "$REPO_ROOT"
+    run python3 - <<'PY'
+import pathlib, sys, yaml
+CAP = 6000
+over = []
+for b in sorted(pathlib.Path("plugins").iterdir()):
+    if not b.is_dir():
+        continue
+    n = 0
+    for f in b.glob("skills/*/SKILL.md"):
+        t = f.read_text(encoding="utf-8")
+        if t.startswith("---"):
+            d = yaml.safe_load(t.split("---", 2)[1]) or {}
+            n += len(str(d.get("name", ""))) + len(str(d.get("description", "")))
+    if n > CAP:
+        over.append(f"{b.name}={n}")
+if over:
+    print("OVER CAP:", over)
+sys.exit(1 if over else 0)
+PY
+    [ "$status" -eq 0 ] || { echo "$output"; false; }
+}
+
+@test "the catalog-wide sum is a SECONDARY guard, not the session budget" {
+    # Demoted deliberately. It no longer claims to guard what a session loads --
+    # after the cutover nobody loads the whole catalog at once, and treating this
+    # number as the session budget is what made the old comment wrong.
+    cd "$REPO_ROOT"
+    run python3 - <<'PY'
+import pathlib, sys, yaml
+CAP = 29000
+total = 0
+for f in pathlib.Path("plugins").glob("*/skills/*/SKILL.md"):
+    t = f.read_text(encoding="utf-8")
+    if t.startswith("---"):
+        d = yaml.safe_load(t.split("---", 2)[1]) or {}
+        total += len(str(d.get("name", ""))) + len(str(d.get("description", "")))
+print(f"total={total}")
+sys.exit(1 if total > CAP else 0)
+PY
+    [ "$status" -eq 0 ] || { echo "$output"; false; }
+}

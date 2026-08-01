@@ -1,0 +1,23 @@
+{
+  "name": "manifest-ops",
+  "version": "0.1.1",
+  "description": "Runtime and deployment operations: environment config validation, deploy diagnosis, version pinning, CI pipelines and data-ingestion design. Requires Manifest bootstrap for ~/.claude/scripts.",
+  "author": {
+    "name": "ReefBytes"
+  },
+  "homepage": "https://github.com/ReefBytes-Owner/Manifest",
+  "license": "Proprietary",
+  "skills": [
+    "./skills/cache-warm-oob",
+    "./skills/ci-diagnose-drift",
+    "./skills/ci-reproduce-failure",
+    "./skills/ci-setup",
+    "./skills/config-debug-substitution",
+    "./skills/config-validate-native",
+    "./skills/deploy-diagnose-drift",
+    "./skills/deploy-retire-component",
+    "./skills/docker-probe-internal",
+    "./skills/process-diagnose-stall",
+    "./skills/version-pin"
+  ]
+}

@@ -164,3 +164,208 @@ YML
     assert_output --partial "~/.claude/skills"
     refute_output --partial '\~'
 }
+
+# --- T1.11 (spec 674): the two additive, self-disabling owners --------------
+#
+# Every case below is checked in BOTH directions. A row that is always absent
+# and a row that is always red are indistinguishable from a working gate until
+# the day someone needs it to fire.
+
+setup_t111() {
+    T111="$(mktemp -d "${BATS_TMPDIR:-/tmp}/t111.XXXXXX")"
+    mkdir -p "$T111/.claude/skills" "$T111/.claude/plugins" "$T111/.apm"
+    # A lockfile claiming the skills domain keeps the pre-existing `skills` row
+    # at OWNER=apm and exit 0, so anything red below comes from the new rows.
+    printf 'dependencies:\n  - deployed_files:\n      - .claude/skills/demo/SKILL.md\n' \
+        > "$T111/.apm/apm.lock.yaml"
+    mkdir -p "$T111/.claude/skills/demo"
+    printf 'domains:\n  - skills\nretired: []\n' > "$T111/domains.yml"
+    # Bundle names come from the registry, never a name prefix.
+    # The trailing block matters: `not_a_bundle` is INDENTED like a bundle key
+    # and only the block boundary keeps it out. A top-level key would be
+    # rejected by the indentation pattern anyway and prove nothing.
+    printf 'expected_total: 2\nbundles:\n  manifest-docs:  # 1\n    - a\n  stitch-design:  # 1\n    - b\nother_block:\n  not_a_bundle:\n    - x\n' \
+        > "$T111/skill_policies.yml"
+}
+
+run_report() {
+    run env HOME="$T111" MANIFEST_APM_DOMAINS="$T111/domains.yml" \
+        APM_LOCKFILE="$T111/.apm/apm.lock.yaml" \
+        CLAUDE_PLUGINS_STATE="$T111/.claude/plugins/installed_plugins.json" \
+        MANIFEST_SKILL_REGISTRY="$T111/skill_policies.yml" \
+        MANIFEST_SKILLS_DIR="$T111/.manifest/skills" \
+        bash "$REPO_ROOT/configs/claude/scripts/apm_ownership_report.sh" "$@"
+}
+
+teardown_t111() { [[ -n "${T111:-}" ]] && rm -rf "$T111"; return 0; }
+
+@test "T1.11: neither new row appears on a pre-cutover machine, and exit stays 0" {
+    # The regression the task exists to prevent. Adding these owners to DOMAINS
+    # unconditionally reports UNOWNED twice and reddens a CORRECT machine.
+    setup_t111
+    run_report
+    refute_output --partial "harness-skills"
+    refute_output --partial "plugins"
+    [ "$status" -eq 0 ]
+    teardown_t111
+}
+
+@test "T1.11: a no-match grep does not abort the report" {
+    # installed_manifest_bundles greps a file with no manifest-* key. grep exits
+    # 1, pipefail propagates, and `set -e` killed the whole script -- no header,
+    # no rows, exit 1 -- on every machine that has not cut over.
+    setup_t111
+    printf '{"version":1,"plugins":{"remember@claude-plugins-official":{}}}\n' \
+        > "$T111/.claude/plugins/installed_plugins.json"
+    run_report
+    assert_output --partial "DOMAIN"
+    [ "$status" -eq 0 ]
+    teardown_t111
+}
+
+@test "T1.11: the plugins row appears once a manifest bundle is installed" {
+    setup_t111
+    printf '{"plugins":{"manifest-docs@manifest":{},"remember@claude-plugins-official":{}}}\n' \
+        > "$T111/.claude/plugins/installed_plugins.json"
+    run_report
+    assert_output --partial "plugins"
+    [ "$status" -eq 0 ]
+    teardown_t111
+}
+
+@test "T1.11: a bundle name is matched as a KEY, never as a value" {
+    # '"manifest-x@y"' appearing as a value would otherwise conjure a row on a
+    # machine with nothing installed.
+    setup_t111
+    printf '{"plugins":{},"note":"manifest-docs@manifest"}\n' \
+        > "$T111/.claude/plugins/installed_plugins.json"
+    run_report
+    refute_output --partial "plugins  "
+    [ "$status" -eq 0 ]
+    teardown_t111
+}
+
+@test "T1.11: a skill in BOTH a bundle and ~/.claude/skills is DOUBLE-CLAIMED" {
+    setup_t111
+    printf '{"plugins":{"manifest-docs@manifest":{}}}\n' \
+        > "$T111/.claude/plugins/installed_plugins.json"
+    mkdir -p "$T111/.claude/plugins/cache/manifest/manifest-docs/skills/demo"
+    run_report
+    assert_output --partial "DOUBLE-CLAIMED"
+    assert_output --partial "demo"
+    [ "$status" -eq 1 ]
+    teardown_t111
+}
+
+@test "T1.11: harness-skills reports manifest when every sibling resolves" {
+    setup_t111
+    mkdir -p "$T111/.manifest/skills/demo"
+    for h in .cursor .gemini .codex .antigravity; do
+        mkdir -p "$T111/$h"
+        ln -s "$T111/.manifest/skills" "$T111/$h/skills"
+    done
+    run_report
+    assert_output --partial "harness-skills"
+    assert_output --partial "manifest"
+    [ "$status" -eq 0 ]
+    teardown_t111
+}
+
+@test "T1.11: a diverted sibling is PARTIAL and is named" {
+    setup_t111
+    mkdir -p "$T111/.manifest/skills/demo" "$T111/elsewhere"
+    for h in .cursor .gemini .codex; do
+        mkdir -p "$T111/$h"
+        ln -s "$T111/.manifest/skills" "$T111/$h/skills"
+    done
+    mkdir -p "$T111/.antigravity"
+    ln -s "$T111/elsewhere" "$T111/.antigravity/skills"
+    run_report
+    assert_output --partial "PARTIAL"
+    assert_output --partial ".antigravity"
+    [ "$status" -eq 1 ]
+    teardown_t111
+}
+
+@test "T1.11: Devin is deliberately NOT a checked sibling" {
+    # ~/.config/devin/skills is not created until Phase 4. Checking it here
+    # would turn every correct Phase-2 machine red.
+    #
+    # The devin path must EXIST for this to prove anything: the loop skips a
+    # sibling whose skills entry is absent, so an empty ~/.config/devin leaves
+    # the assertion green whether devin is checked or not. A real directory --
+    # devin serving its own skills, resolving nowhere near the harness tree --
+    # is the state where the exclusion is load-bearing.
+    setup_t111
+    mkdir -p "$T111/.manifest/skills/demo" "$T111/.config/devin/skills/its-own"
+    for h in .cursor .gemini .codex .antigravity; do
+        mkdir -p "$T111/$h"
+        ln -s "$T111/.manifest/skills" "$T111/$h/skills"
+    done
+    run_report
+    [ "$status" -eq 0 ]
+    teardown_t111
+}
+
+@test "T1.11: a bundle without the manifest- prefix is still counted" {
+    # `manifest-*` looked like a safe assumption and was wrong on the first real
+    # run: stitch-design carries no prefix, so the report said 8 bundles with 9
+    # installed -- an undercount that reads as a partial install.
+    setup_t111
+    printf '{"plugins":{"stitch-design@manifest":{}}}\n' \
+        > "$T111/.claude/plugins/installed_plugins.json"
+    run_report
+    assert_output --partial "plugins"
+    teardown_t111
+}
+
+@test "T1.11: every bundle in the registry is parsed, not just the first" {
+    # The awk mutated $0, so the block-exit rule tested the STRIPPED line, which
+    # no longer starts with a space. inb cleared after bundle one and the report
+    # claimed 1 of 9 installed.
+    setup_t111
+    printf '{"plugins":{"manifest-docs@manifest":{},"stitch-design@manifest":{}}}\n' \
+        > "$T111/.claude/plugins/installed_plugins.json"
+    run_report
+    assert_output --partial "2 bundle(s)"
+    teardown_t111
+}
+
+@test "T1.11: an indented key AFTER the bundles block is not read as a bundle" {
+    setup_t111
+    printf '{"plugins":{"not_a_bundle@manifest":{}}}\n' \
+        > "$T111/.claude/plugins/installed_plugins.json"
+    run_report
+    refute_output --partial "bundle(s)"
+    teardown_t111
+}
+
+@test "T5.x: a retired domain reports 'retired' and exits 0, not UNOWNED" {
+    # Post-cutover, "written by neither pipeline" is the CORRECT end state. The
+    # UNOWNED branch would exit 1 and advise `apm_ungate_domain.sh skills
+    # --apply`, walking the user straight back out of the cutover.
+    setup_t111
+    printf 'domains: []\nretired:\n  - skills\n' > "$T111/domains.yml"
+    : > "$T111/.apm/apm.lock.yaml"
+    run_report
+    assert_output --partial "retired"
+    refute_output --partial "UNOWNED"
+    refute_output --partial "apm_ungate_domain.sh"
+    [ "$status" -eq 0 ]
+    teardown_t111
+}
+
+@test "T5.x: a NON-retired unowned domain still reports UNOWNED and exits 1" {
+    # The direction that proves the short-circuit is conditional. If retirement
+    # swallowed every case, the drift condition would go unreported forever.
+    setup_t111
+    # UNOWNED needs apm to OWN the domain and not have deployed it. With
+    # `domains: []` the legacy writer is armed and the status is merely
+    # "legacy" -- a fixture that never reaches the branch it names.
+    printf 'domains:\n  - skills\nretired: []\n' > "$T111/domains.yml"
+    : > "$T111/.apm/apm.lock.yaml"
+    run_report
+    assert_output --partial "UNOWNED"
+    [ "$status" -eq 1 ]
+    teardown_t111
+}

@@ -9,6 +9,7 @@ import asyncio
 import sys
 from pathlib import Path
 
+import pytest
 import yaml
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent.parent
@@ -298,3 +299,50 @@ class TestSynthesisConfig:
             repo = yaml.safe_load(f)
         defaults = Config(config_path=str(tmp_path / "none.yml")).config
         assert repo["synthesis"] == defaults["synthesis"]
+
+
+class TestConfigLoadFailures:
+    """What happens when parallel_agent.yml exists but cannot be used.
+
+    The split is deliberate: an EMPTY file states no intent, so defaults are the
+    honest reading; a MALFORMED file states an intent that could not be parsed,
+    and silently substituting defaults there would hand the user a running
+    system that ignores the config they just edited (CON-007 — a caught error is
+    never dropped).
+    """
+
+    def test_empty_file_falls_back_to_defaults(self, tmp_path):
+        path = tmp_path / "parallel_agent.yml"
+        path.write_text("", encoding="utf-8")
+        config = Config(config_path=str(path))
+        assert config.config["model_tiers"]["claude"]["opus"]
+
+    def test_whitespace_and_comments_only_falls_back_to_defaults(self, tmp_path):
+        path = tmp_path / "parallel_agent.yml"
+        path.write_text("# just a comment\n\n   \n", encoding="utf-8")
+        config = Config(config_path=str(path))
+        assert "model_tiers" in config.config
+
+    def test_malformed_yaml_raises_naming_the_file(self, tmp_path):
+        path = tmp_path / "parallel_agent.yml"
+        path.write_text("model_tiers:\n  claude: [unclosed\n", encoding="utf-8")
+        with pytest.raises(ValueError) as excinfo:
+            Config(config_path=str(path))
+        assert str(path) in str(excinfo.value)
+        assert excinfo.value.__cause__ is not None, "original parse error was discarded"
+
+    def test_non_mapping_yaml_raises(self, tmp_path):
+        """A list parses fine but every later .get() would fail far from here."""
+        path = tmp_path / "parallel_agent.yml"
+        path.write_text("- one\n- two\n", encoding="utf-8")
+        with pytest.raises(ValueError) as excinfo:
+            Config(config_path=str(path))
+        assert str(path) in str(excinfo.value)
+
+    def test_valid_file_is_still_loaded_verbatim(self, tmp_path):
+        path = tmp_path / "parallel_agent.yml"
+        path.write_text(
+            "model_tiers:\n  claude:\n    opus: probe-model\n", encoding="utf-8"
+        )
+        config = Config(config_path=str(path))
+        assert config.get("model_tiers.claude.opus") == "probe-model"

@@ -133,12 +133,34 @@ if [[ -d "${home_claude}/skills" ]]; then
         skills_count=$((skills_count + 1))
     done < <(find "${home_claude}/skills" -mindepth 2 -maxdepth 2 -name 'SKILL.md' -type f 2> /dev/null)
 fi
-if [[ "$skills_count" -ge 1 ]]; then
+# T1.10 (spec 674): compare against the registry, not against `-ge 1`.
+# A floor of one passes a home that inherited a single skill out of 108 — the
+# check reports "inherited" for a machine that is 99% empty. The expected count
+# is exogenous (skill_policies.yml) precisely so the tree cannot satisfy a
+# threshold derived from itself.
+# Read the registry from the HOME being checked, never from the repo: the
+# question is "did THIS home inherit the catalog", and a repo-relative fallback
+# would answer it with a number the home has nothing to do with.
+d1_expected=""
+_reg="${home_claude}/config/skill_policies.yml"
+if [[ -r "$_reg" ]]; then
+    d1_expected="$(sed -n 's/^expected_total:[[:space:]]*\([0-9][0-9]*\).*/\1/p' "$_reg" | head -1)"
+fi
+
+if [[ -z "$d1_expected" ]]; then
+    # Unverifiable is NOT a pass. A check that cannot find its own yardstick
+    # must say so rather than fall back to a threshold it knows is meaningless.
+    d1_status="FAIL"
+    d1_detail="cannot verify: no readable skill_policies.yml (found ${skills_count} SKILL.md)"
+elif [[ "$skills_count" -eq "$d1_expected" ]]; then
     d1_status="PASS"
-    d1_detail="${skills_count} reachable"
+    d1_detail="${skills_count}/${d1_expected} reachable"
+elif [[ "$skills_count" -eq 0 ]]; then
+    d1_status="FAIL"
+    d1_detail="no SKILL.md under ${home_claude}/skills (expected ${d1_expected})"
 else
     d1_status="FAIL"
-    d1_detail="no SKILL.md under ${home_claude}/skills"
+    d1_detail="${skills_count}/${d1_expected} reachable — partial inheritance"
 fi
 
 # --- D2 Subagents ------------------------------------------------------------

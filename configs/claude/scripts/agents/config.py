@@ -107,6 +107,185 @@ def load_agent_roster(roster_path: str | None = None) -> dict[str, dict]:
     return agents if isinstance(agents, dict) else {}
 
 
+def _default_config() -> dict:
+    """Default configuration if file doesn't exist.
+
+    CON-004 says data belongs in a data file, and this is the one shape that
+    cannot: the function exists precisely for the case where
+    `self.config_path` does not exist, so reading a file here would either
+    do nothing new (deployed home — same file already checked) or, in a
+    repo checkout, silently read `parallel_agent.yml` and make
+    `test_defaults_match_repo_yaml` compare that file to itself. A drift
+    guard that passes tautologically is worse than the duplication it
+    guards, so the literal stays and the test keeps it honest.
+    """
+    # constitution: exempt C-DATA — the no-file fallback cannot read a file
+    return {
+        "rate_limits": {
+            "claude": {
+                "requests_per_minute": 60,
+                "tokens_per_minute": 160000,
+                "burst_size": 5,
+            },
+            "gemini": {
+                "requests_per_minute": 30,
+                "tokens_per_minute": 32000,
+                "burst_size": 3,
+            },
+            "cursor": {"requests_per_minute": 100, "burst_size": 10},
+            "codex": {"requests_per_minute": 100, "burst_size": 10},
+            "antigravity": {"requests_per_minute": 100, "burst_size": 10},
+            "devin": {"requests_per_minute": 100, "burst_size": 10},
+        },
+        "timeouts": {"default": 120, "review": 600},
+        # Mirrors parallel_agent.yml model_tiers, which carries the full
+        # per-provider rationale and the VERIFIED/UNVERIFIED status of every
+        # pin. test_defaults_match_repo_yaml asserts the two are equal, so
+        # edit both together or the suite goes red.
+        "model_tiers": {
+            # VERIFIED 2026-07-29 via `claude --model <id> -p`.
+            "claude": {
+                "haiku": "claude-haiku-4-5",
+                "sonnet": "claude-sonnet-5",
+                "opus": "claude-opus-5",
+                "fable": "claude-fable-5",
+            },
+            # UNVERIFIED — the gemini CLI is ineligible on this account
+            # (free-tier Code Assist discontinued) and no API key is set.
+            "gemini": {
+                "flash": "gemini-3-flash-preview",
+                "pro": "gemini-3-pro-preview",
+            },
+            # VERIFIED 2026-07-29 via `cursor-agent --model <slug> -p`;
+            # replaces the inert all-"auto" placeholder. The premium ladder
+            # is usage-limited until 2026-08-12, hence a grok effort ladder.
+            "cursor": {
+                "mini": "cursor-grok-4.5-low",
+                "flash": "cursor-grok-4.5-medium",
+                "advanced": "cursor-grok-4.5-high",
+            },
+            # UNVERIFIED — codex CLI is logged out (probes 401) and exposes
+            # no model-listing command.
+            "codex": {
+                "mini": "gpt-5.4-mini",
+                "flash": "gpt-5.4",
+                "advanced": "gpt-5.5",
+            },
+            # VERIFIED 2026-07-29 via `agy --model <slug> --print` (agy
+            # 1.1.8). Slugs, not the display labels agy 1.1.1 listed — agy
+            # accepts both, but only slugs match today's `agy models`
+            # output, which is what model_check.sh greps.
+            "antigravity": {
+                "mini": "gemini-3.6-flash-low",
+                "flash": "gemini-3.6-flash-high",
+                "advanced": "claude-opus-4-6-thinking",
+            },
+            # devin has no tier block on purpose — its catalog is
+            # login-gated and cannot be enumerated here, so --devin-model
+            # passes through verbatim (see parallel_agent.yml).
+        },
+        "cli_agents": {
+            # claude/gemini entries back the OAuth CLI fallback used when
+            # the provider SDK or its API key is unavailable (see
+            # agents.config.select_backend).
+            "claude": {
+                "binary": "claude",
+                "base_args": [],
+                "model_args": ["--model", "{model}"],
+                "prompt_args": ["-p", "{prompt}"],
+                "output": "stdout",
+            },
+            "gemini": {
+                "binary": "gemini",
+                "base_args": [],
+                "model_args": ["-m", "{model}"],
+                "prompt_args": ["-p", "{prompt}"],
+                "output": "stdout",
+            },
+            "cursor": {
+                "binary": "cursor-agent",
+                "base_args": [
+                    "--print",
+                    "--output-format",
+                    "text",
+                    "--mode",
+                    "ask",
+                ],
+                "model_args": ["--model", "{model}"],
+                "prompt_args": ["{prompt}"],
+                "output": "stdout",
+            },
+            "codex": {
+                "binary": "codex",
+                "base_args": [
+                    "exec",
+                    "--full-auto",
+                    "--color",
+                    "never",
+                    "--output-last-message",
+                    "{output_file}",
+                ],
+                "model_args": ["--model", "{model}"],
+                "output": "file_then_stdout",
+            },
+            "antigravity": {
+                "binary": "agy",
+                "base_args": [],
+                "model_args": ["--model", "{model}"],
+                "prompt_args": ["--print", "{prompt}"],
+                "output": "stdout",
+            },
+            # devin: headless via -p/--print; --permission-mode auto
+            # auto-approves read-only tools only (mirrors
+            # parallel_agent.yml cli_agents.devin).
+            "devin": {
+                "binary": "devin",
+                "base_args": ["--permission-mode", "auto"],
+                "model_args": ["--model", "{model}"],
+                "prompt_args": ["-p", "{prompt}"],
+                "output": "stdout",
+            },
+        },
+        "credit_fallback": {
+            "claude": ["fable", "opus", "sonnet", "haiku"],
+            "cursor": ["advanced", "flash", "mini"],
+            "gemini": ["pro", "flash"],
+            "codex": ["advanced", "flash", "mini"],
+            "antigravity": ["advanced", "flash", "mini"],
+            # Empty by design: no known cheaper tiers to fall back to.
+            "devin": [],
+        },
+        "synthesis": {
+            "enabled": True,
+            "threshold": 0.50,
+            "model": "sonnet",
+            "timeout": 300,
+            "backend": "auto",
+            "provider": "auto",
+            "provider_order": [
+                "antigravity",
+                "cursor",
+                "gemini",
+                "codex",
+                "claude",
+                "devin",
+            ],
+        },
+        "cddl_invoke": {"provider": "auto"},
+        "skillclaw_evolve": {"provider": "auto"},
+        "validation": {"consensus_threshold": {"high": 0.80, "medium": 0.50}},
+    }
+
+
+class ConfigError(ValueError):
+    """parallel_agent.yml exists but cannot be used.
+
+    Subclasses ValueError so the existing `except (OSError, ValueError)` guards
+    around config loading keep working — yaml.YAMLError is already a ValueError
+    subclass, so this widens nothing that was not already catchable.
+    """
+
+
 class Config:
     """Configuration manager for parallel agent"""
 
@@ -120,170 +299,38 @@ class Config:
         self._roster: dict[str, dict] | None = None
 
     def _load_config(self) -> dict:
-        """Load configuration from YAML file"""
+        """Load configuration from YAML, or fail with the file named.
+
+        Three outcomes, split on what the file actually says:
+          - absent, or empty/comments-only  -> defaults (it states no intent)
+          - valid mapping                   -> used verbatim
+          - unparseable, or not a mapping   -> ConfigError
+
+        The last case deliberately does not fall back. Substituting defaults for
+        a config the user just edited and typo'd would leave a running system
+        quietly ignoring them — the silent-wrong-answer failure CON-007 exists
+        to prevent — and the AttributeError it used to cause surfaced far from
+        the file that caused it.
+        """
         if not os.path.exists(self.config_path):
-            return self._default_config()
+            return _default_config()
 
-        with open(self.config_path) as f:
-            return yaml.safe_load(f)
+        try:
+            with open(self.config_path) as f:
+                loaded = yaml.safe_load(f)
+        except yaml.YAMLError as err:
+            raise ConfigError(f"{self.config_path} is not valid YAML: {err}") from err
+        except OSError as err:
+            raise ConfigError(f"cannot read {self.config_path}: {err}") from err
 
-    def _default_config(self) -> dict:
-        """Default configuration if file doesn't exist"""
-        return {
-            "rate_limits": {
-                "claude": {
-                    "requests_per_minute": 60,
-                    "tokens_per_minute": 160000,
-                    "burst_size": 5,
-                },
-                "gemini": {
-                    "requests_per_minute": 30,
-                    "tokens_per_minute": 32000,
-                    "burst_size": 3,
-                },
-                "cursor": {"requests_per_minute": 100, "burst_size": 10},
-                "codex": {"requests_per_minute": 100, "burst_size": 10},
-                "antigravity": {"requests_per_minute": 100, "burst_size": 10},
-                "devin": {"requests_per_minute": 100, "burst_size": 10},
-            },
-            "timeouts": {"default": 120, "review": 600},
-            # Mirrors parallel_agent.yml model_tiers, which carries the full
-            # per-provider rationale and the VERIFIED/UNVERIFIED status of every
-            # pin. test_defaults_match_repo_yaml asserts the two are equal, so
-            # edit both together or the suite goes red.
-            "model_tiers": {
-                # VERIFIED 2026-07-29 via `claude --model <id> -p`.
-                "claude": {
-                    "haiku": "claude-haiku-4-5",
-                    "sonnet": "claude-sonnet-5",
-                    "opus": "claude-opus-5",
-                    "fable": "claude-fable-5",
-                },
-                # UNVERIFIED — the gemini CLI is ineligible on this account
-                # (free-tier Code Assist discontinued) and no API key is set.
-                "gemini": {
-                    "flash": "gemini-3-flash-preview",
-                    "pro": "gemini-3-pro-preview",
-                },
-                # VERIFIED 2026-07-29 via `cursor-agent --model <slug> -p`;
-                # replaces the inert all-"auto" placeholder. The premium ladder
-                # is usage-limited until 2026-08-12, hence a grok effort ladder.
-                "cursor": {
-                    "mini": "cursor-grok-4.5-low",
-                    "flash": "cursor-grok-4.5-medium",
-                    "advanced": "cursor-grok-4.5-high",
-                },
-                # UNVERIFIED — codex CLI is logged out (probes 401) and exposes
-                # no model-listing command.
-                "codex": {
-                    "mini": "gpt-5.4-mini",
-                    "flash": "gpt-5.4",
-                    "advanced": "gpt-5.5",
-                },
-                # VERIFIED 2026-07-29 via `agy --model <slug> --print` (agy
-                # 1.1.8). Slugs, not the display labels agy 1.1.1 listed — agy
-                # accepts both, but only slugs match today's `agy models`
-                # output, which is what model_check.sh greps.
-                "antigravity": {
-                    "mini": "gemini-3.6-flash-low",
-                    "flash": "gemini-3.6-flash-high",
-                    "advanced": "claude-opus-4-6-thinking",
-                },
-                # devin has no tier block on purpose — its catalog is
-                # login-gated and cannot be enumerated here, so --devin-model
-                # passes through verbatim (see parallel_agent.yml).
-            },
-            "cli_agents": {
-                # claude/gemini entries back the OAuth CLI fallback used when
-                # the provider SDK or its API key is unavailable (see
-                # agents.config.select_backend).
-                "claude": {
-                    "binary": "claude",
-                    "base_args": [],
-                    "model_args": ["--model", "{model}"],
-                    "prompt_args": ["-p", "{prompt}"],
-                    "output": "stdout",
-                },
-                "gemini": {
-                    "binary": "gemini",
-                    "base_args": [],
-                    "model_args": ["-m", "{model}"],
-                    "prompt_args": ["-p", "{prompt}"],
-                    "output": "stdout",
-                },
-                "cursor": {
-                    "binary": "cursor-agent",
-                    "base_args": [
-                        "--print",
-                        "--output-format",
-                        "text",
-                        "--mode",
-                        "ask",
-                    ],
-                    "model_args": ["--model", "{model}"],
-                    "prompt_args": ["{prompt}"],
-                    "output": "stdout",
-                },
-                "codex": {
-                    "binary": "codex",
-                    "base_args": [
-                        "exec",
-                        "--full-auto",
-                        "--color",
-                        "never",
-                        "--output-last-message",
-                        "{output_file}",
-                    ],
-                    "model_args": ["--model", "{model}"],
-                    "output": "file_then_stdout",
-                },
-                "antigravity": {
-                    "binary": "agy",
-                    "base_args": [],
-                    "model_args": ["--model", "{model}"],
-                    "prompt_args": ["--print", "{prompt}"],
-                    "output": "stdout",
-                },
-                # devin: headless via -p/--print; --permission-mode auto
-                # auto-approves read-only tools only (mirrors
-                # parallel_agent.yml cli_agents.devin).
-                "devin": {
-                    "binary": "devin",
-                    "base_args": ["--permission-mode", "auto"],
-                    "model_args": ["--model", "{model}"],
-                    "prompt_args": ["-p", "{prompt}"],
-                    "output": "stdout",
-                },
-            },
-            "credit_fallback": {
-                "claude": ["fable", "opus", "sonnet", "haiku"],
-                "cursor": ["advanced", "flash", "mini"],
-                "gemini": ["pro", "flash"],
-                "codex": ["advanced", "flash", "mini"],
-                "antigravity": ["advanced", "flash", "mini"],
-                # Empty by design: no known cheaper tiers to fall back to.
-                "devin": [],
-            },
-            "synthesis": {
-                "enabled": True,
-                "threshold": 0.50,
-                "model": "sonnet",
-                "timeout": 300,
-                "backend": "auto",
-                "provider": "auto",
-                "provider_order": [
-                    "antigravity",
-                    "cursor",
-                    "gemini",
-                    "codex",
-                    "claude",
-                    "devin",
-                ],
-            },
-            "cddl_invoke": {"provider": "auto"},
-            "skillclaw_evolve": {"provider": "auto"},
-            "validation": {"consensus_threshold": {"high": 0.80, "medium": 0.50}},
-        }
+        if loaded is None:
+            return _default_config()
+        if not isinstance(loaded, dict):
+            raise ConfigError(
+                f"{self.config_path} must contain a mapping, "
+                f"got {type(loaded).__name__}"
+            )
+        return loaded
 
     def get(self, key: str, default: Any = None) -> Any:
         """Get configuration value by dot-notation key"""

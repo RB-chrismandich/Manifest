@@ -39,36 +39,48 @@ def is_quota_error(output: str) -> bool:
     return any(ind in output.lower() for ind in indicators)
 
 
+# The wrapper is invoked as the CLI binary; parallel_agent.yml is keyed by
+# provider. This is the only mapping that has to live here, and it mirrors
+# `cli_agents.<provider>.binary`.
+BINARY_TO_PROVIDER = {
+    "claude": "claude",
+    "gemini": "gemini",
+    "cursor-agent": "cursor",
+    "codex": "codex",
+    "agy": "antigravity",
+}
+
+
+def fallback_chain(binary: str) -> list[str]:
+    """Concrete models a provider falls through, cheapest last.
+
+    Resolved from parallel_agent.yml rather than restated here. This module
+    used to carry its own copy and it had already drifted: it still named
+    claude-opus-4-8 and an entire pre-grok cursor ladder while every other
+    consumer had moved on (CON-003).
+    """
+    provider = BINARY_TO_PROVIDER.get(binary)
+    if provider is None:
+        return []
+    from agents.config import Config
+
+    config = Config()
+    tier_map = config.get(f"model_tiers.{provider}", {}) or {}
+    tiers = config.get(f"credit_fallback.{provider}", []) or []
+    return [tier_map[tier] for tier in tiers if tier in tier_map]
+
+
 def get_fallback_model(binary: str, current_model: str) -> str | None:
-    """Return the next fallback model for a provider."""
-    # Simple hardcoded fallback chains matching parallel_agent.yml
-    chains = {
-        "claude": [
-            "claude-fable-5",
-            "claude-opus-4-8",
-            "claude-sonnet-4-6",
-            "claude-haiku-4-5-20251001",
-        ],
-        "cursor-agent": ["gpt-5.2", "gpt-5.1-codex", "gpt-5.1-codex-mini"],
-        "gemini": ["gemini-3-pro-preview", "gemini-3-flash-preview"],
-        "codex": ["gpt-5.5", "gpt-5.4", "gpt-5.4-mini"],
-        "agy": [
-            "Claude Opus 4.6 (Thinking)",
-            "Gemini 3.5 Flash (High)",
-            "Gemini 3.5 Flash (Low)",
-        ],
-    }
-    chain = chains.get(binary)
+    """Return the next fallback model for a provider, or None at the bottom."""
+    chain = fallback_chain(binary)
     if not chain:
         return None
     try:
         idx = chain.index(current_model)
-        if idx + 1 < len(chain):
-            return chain[idx + 1]
     except ValueError:
-        # If model is not found in chain, default to cheapest
+        # An unrecognized model means "start at the bottom", not an error.
         return chain[-1]
-    return None
+    return chain[idx + 1] if idx + 1 < len(chain) else None
 
 
 def run_command(cmd: list[str]) -> subprocess.CompletedProcess:

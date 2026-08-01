@@ -1,6 +1,7 @@
 # git_fixture.bash — shared git-identity fixture for bats suites that
-# create real git repos as test fixtures (apm_publish_gate.bats,
-# apm_install_verify.bats). Pins a deterministic, non-interactive commit
+# create real git repos as test fixtures. (Its original consumers,
+# apm_publish_gate.bats and apm_install_verify.bats, were retired by spec 674
+# Phase 5; it is kept for any suite needing one.) Pins a deterministic commit
 # identity and disables GPG signing via GIT_CONFIG_* environment overrides
 # (git >= 2.31) so the suite neither depends on nor fights the operator's
 # global git config or commit/tag signing setup.

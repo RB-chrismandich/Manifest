@@ -1,0 +1,13 @@
+{
+  "name": "manifest-graphify",
+  "version": "0.1.1",
+  "description": "Map a codebase, docs or repo into a queryable knowledge graph. Requires Manifest bootstrap and the graphify CLI.",
+  "author": {
+    "name": "ReefBytes"
+  },
+  "homepage": "https://github.com/ReefBytes-Owner/Manifest",
+  "license": "Proprietary",
+  "skills": [
+    "./skills/graphify"
+  ]
+}

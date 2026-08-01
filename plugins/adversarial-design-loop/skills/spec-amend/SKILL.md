@@ -1,6 +1,6 @@
 ---
 name: spec-amend
-description: This skill should be used when the user says "the design pass found a spec gap", "record a spec amendment", "land the amendments", "the spec doesn't cover this", or when a design-loop review round exposes a genuine hole or contradiction in the upstream spec. Keeps design-side fixes and spec-side gaps separate — recording each gap with its adopted resolution and landing the batch upstream as in-place normative edits.
+description: Record design-pass findings that are upstream spec gaps, then land them as normative spec edits.
 version: 0.1.0
 ---
 

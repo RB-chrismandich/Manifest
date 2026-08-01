@@ -1,6 +1,6 @@
 ---
 name: render-verify
-description: This skill should be used when the user asks to "verify the renders", "capture faithful screenshots of the screens", "run the render gate", "the fonts look wrong in the captures", "check chord clearance", or when a design loop needs its mechanical gates run before a review round or a ship. Renders exported HTML with hard-failing font/frame assertions and pixel-scans every ink color against the project's geometric limits.
+description: Run the render gate — faithful screenshots, hard font/frame assertions, pixel-scanned geometric limits.
 version: 0.1.0
 ---
 
@@ -29,12 +29,16 @@ before a review round judges it and before anything ships.
 
 ## Running the gate
 
-Use the project's pinned copy at `<artifact-dir>/tools/render_and_scan.py`
-(placed by the `loop-scaffold` skill; source of truth in this skill's
-`scripts/`). Dependencies: Python 3.11+, `playwright` (with Chromium
-installed), and `Pillow`.
+Use the project's pinned copy at `<artifact-dir>/tools/render_and_scan.py`,
+placed there by `loop-scaffold`. This path is PROJECT-relative and correct as
+written — run the command from `<artifact-dir>`. It is deliberately not the
+plugin's own copy, which lives at
+`${CLAUDE_PLUGIN_ROOT}/skills/render-verify/scripts/render_and_scan.py` and is
+the source the scaffold copies from. Dependencies: Python 3.11+, `playwright`
+(with Chromium installed), and `Pillow`.
 
 ```bash
+cd <artifact-dir>
 python3 tools/render_and_scan.py designs/<screen>.html designs/<screen>.png \
   --frame 360x360 --scale 2 \
   --font-family "Space Grotesk" --font-weights 400,700 \
@@ -73,5 +77,6 @@ is a finding (the generator introduced a value outside the design system).
 
 ## Additional resources
 
-- **`scripts/render_and_scan.py`** — the generalized gate (source of the
-  project-pinned copy). `--help` documents all flags.
+- **`${CLAUDE_PLUGIN_ROOT}/skills/render-verify/scripts/render_and_scan.py`** —
+  the generalized gate (source of the project-pinned copy). `--help` documents
+  all flags.

@@ -1,6 +1,6 @@
 ---
 name: loop-scaffold
-description: This skill should be used when the user asks to "scaffold the design loop", "set up the .stitch directory", "initialize the design-pass artifacts", "create the design loop tree", or starts an adversarial design pass in a repo that has no artifact directory yet. Creates the six governance artifacts, prompts/designs/tools directories, and the pinned render gate from templates.
+description: Scaffold a design-pass artifact tree (.stitch/) — governance docs, prompts, designs, pinned render gate.
 version: 0.1.0
 ---
 
@@ -60,8 +60,11 @@ Steps:
    `{{PROJECT_TITLE}}` if the user did not state one. Delete any template
    guidance comments that do not apply.
 2. Copy the render gate from the sibling skill —
-   `../render-verify/scripts/render_and_scan.py` (resolve relative to this
-   skill's directory) — into `<artifact-dir>/tools/`. The project owns and
+   `${CLAUDE_PLUGIN_ROOT}/skills/render-verify/scripts/render_and_scan.py` —
+   into `<artifact-dir>/tools/`. Use the variable, not a relative path: a
+   shell command runs with the cwd set to the user's project, not to this
+   skill's directory, so `../render-verify/...` resolves against the wrong
+   root and the copy silently lands nowhere or fails. The project owns and
    pins its copy: gates must not change under a project because a plugin
    updated. Record the copy's provenance in the Round 0 entry — fill
    `{{PLUGIN_VERSION}}` from the plugin's `.claude-plugin/plugin.json`.

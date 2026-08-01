@@ -88,9 +88,10 @@ cd Manifest
   verified bytes; a mismatch, a failed download, or a missing checksum tool leaves apm uninstalled
   rather than falling back to an unverified binary. Installing it hands it no deploy domain; the
   legacy pipeline still owns everything. Enable with `--enable-apm`
-- **Publish-Free Skill Dev Loop** (`apm-dev-sync`): Deploy `.apm/skills/` into your own home through
-  apm with no publish and no registry. Unlike `sync-skills`, it **removes** skills you deleted from the
-  source, because apm tracks what it deployed in a lockfile
+- **Plugin Bundles** (spec 674): the 108 skills ship as nine Claude Code plugin
+  bundles, each skill reachable as `/<bundle>:<name>`. Refresh one with
+  `claude plugin update <bundle>@manifest`. Cursor, Gemini, Codex,
+  Antigravity and Devin read the flat tree at `~/.manifest/skills`.
 - **Proton Pass Credential Retrieval** (`/pass-cli`): Retrieve passwords, API keys, and tokens from Proton Pass
   vaults without storing PATs in files or memory
 - **Graphify Knowledge Graphs** (`/graphify`): Map a codebase or docs into a queryable knowledge graph

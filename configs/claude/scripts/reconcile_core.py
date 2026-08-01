@@ -384,6 +384,61 @@ def _claude_units(base, only_root):
     return units
 
 
+def registry_skill_names(project):
+    """Skill names ``skill_policies.yml`` says this project ships (T1.8, spec 674).
+
+    Returns ``None`` when the project has no registry, which is meaningfully
+    different from an empty set:
+
+      * ``None``  -- not a Manifest project. Protect nothing under ``skills/``;
+        behave exactly as this engine did before.
+      * ``set()`` -- a Manifest project that ships no skills. Every entry in the
+        tree is then somebody else's, and all of it is protected.
+
+    Getting that distinction wrong in either direction is a silent failure. A
+    blanket ``skills/*`` protection disables orphan detection for the whole tree
+    -- the same class as the incident that ate ``deploy_stamp``/``.migrated``,
+    only inverted. Treating a missing registry as "ships nothing" would do it on
+    every non-Manifest project at once.
+    """
+    if not project:
+        return None
+    path = os.path.join(project, "configs", "claude", "config", "skill_policies.yml")
+    if not os.path.isfile(path):
+        return None
+    names = set()
+    in_bundles = False
+    try:
+        with open(path, encoding="utf-8") as fh:
+            for line in fh:
+                stripped = line.split("#", 1)[0].rstrip()
+                if stripped[:1] not in (" ", "", "\t"):
+                    in_bundles = stripped.startswith("bundles:")
+                    continue
+                if in_bundles and stripped.startswith("    - "):
+                    names.add(stripped[6:].strip())
+    except OSError:
+        return None
+    return names
+
+
+def user_owned_skill(rel_key, registry):
+    """Is this a skill directory the project never shipped?
+
+    ``claude plugin init <name>`` scaffolds into ``~/.claude/skills/<name>/`` and
+    auto-loads it as ``<name>@skills-dir``. Once Manifest stops sourcing that
+    tree, every such directory looks exactly like an orphan.
+    """
+    if registry is None:
+        return False
+    parts = rel_key.split("/")
+    if len(parts) < 2 or parts[0] != "skills":
+        return False
+    name = parts[1]
+    # Dotfiles in the tree are handled by the explicit globs, not by name.
+    return not name.startswith(".") and name not in registry
+
+
 # --------------------------------------------------------------------------- #
 # Classification
 # --------------------------------------------------------------------------- #
@@ -391,6 +446,7 @@ def classify(base, project, patterns, only_root=None):
     """Return the list of orphan items (dicts matching contract §7 item shape)."""
     exp = expected_keys(project)
     edges = dependent_edges(base)
+    registry = registry_skill_names(project)
     units = _claude_units(base, only_root)
     items = []
     for canon, rec in units.items():
@@ -405,7 +461,19 @@ def classify(base, project, patterns, only_root=None):
         }
         matched = protect_match(rel_key, patterns)
         deps = has_active_dependent(canon, edges)
-        if matched:
+        if not matched and user_owned_skill(rel_key, registry):
+            # Reported under its own reason_code rather than dressed up as a
+            # glob match: "protected: skills/*" would claim a pattern the
+            # config does not contain, and the whole point of this verdict is
+            # that the config CANNOT name it -- the user chose the name.
+            item.update(
+                verdict="KEEP",
+                reason_code="user_owned_skill",
+                reason="user-owned: not in skill_policies.yml",
+                matched_pattern=None,
+                dependents=[],
+            )
+        elif matched:
             item.update(
                 verdict="KEEP",
                 reason_code="protected",

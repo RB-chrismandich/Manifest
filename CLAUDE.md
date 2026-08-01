@@ -56,9 +56,8 @@ configs/                             # Deployment source configs (deployed to ~/
 ├── skills/                          # speckit-* project-scoped skills (loaded in this repo's sessions)
 └── settings.local.json              # Repo-relevant permissions only (no MCP servers)
 
-.claude-plugin/                      # marketplace.json — the repo doubles as a Claude Code plugin marketplace ("manifest")
-plugins/                             # Claude Code plugins (installed via marketplace or --plugin-dir, NOT deployed by bootstrap)
-└── adversarial-design-loop/         # Spec-first adversarial UI design loop (6 skills, 2 agents, render gate)
+.claude-plugin/marketplace.json      # this repo IS the "manifest" plugin marketplace
+plugins/                             # ten plugin bundles, 114 skills (installed via marketplace, NOT bootstrap)
 bootstrap.sh                         # macOS/Linux bootstrap script
 bootstrap/                           # Modular bootstrap libraries + hookable modules
 ├── lib/                             # Shared bootstrap logic split by concern
@@ -131,6 +130,8 @@ Antigravity) and required CLI installs are in
 | `configs/claude/scripts/tracker_registry.py` | Read-only resolver CLI for `tracker_providers.yml` (status/access/default-provider/mcp-tool lookups) |
 | `configs/claude/scripts/tracker_ops.sh` | Provider-agnostic issue verb dispatcher (github/gitlab/linear; jira exit 3) — resolve-provider, issue-list/view/create/comment/transition/label/close, duplicate-mark |
 | `configs/claude/config/command_config.yml` | Thresholds, tool policies, model selection, error recovery |
+| `configs/claude/config/code_constitution.yml` | Code Constitution: 12 pre-write articles + per-language ceilings |
+| `configs/claude/scripts/constitution_check.py` | Constitution checker (ratcheted); hook `constitution_hook.py` |
 | `configs/claude/config/tracker_triage.yml` | Provider-neutral triage scoring, duplicate detection, staleness thresholds (replaced `linear_triage.yml`, deleted 2026-07-29) |
 | `configs/claude/config/validation_criteria.yml` | Tier 1 (critical) and Tier 2 (quality) validation rules |
 | `configs/claude/config/labels.yml` | Canonical label registry for GitHub, GitLab, and Linear |
@@ -147,25 +148,20 @@ duplicated here. Per-skill parallel-agent policy lives in
 [docs/COMMANDS.md](docs/COMMANDS.md) for the human-readable command reference.
 
 **CLI tools** (installed to `~/.local/bin/`): `sync-skills` — sync
-`.apm/skills/` to all home targets; `apm-dev-sync` — same loop via apm,
-publish-free, and also removes deleted skills.
+`.apm/skills/` to all home targets. Skills ship as plugin bundles: refresh
+with `claude plugin update <bundle>@manifest`.
 
 ## Testing Changes
 
-Test the parallel agent script locally:
+Test the parallel agent locally:
 
 ```bash
-# Test with all agents
-configs/claude/scripts/parallel_agent.py --json "Test prompt"
-
-# Test specific mode
-configs/claude/scripts/parallel_agent.py --json --review /path/to/file
-
-# Test with single agent
-configs/claude/scripts/parallel_agent.py --cursor-only "Test prompt"
+manifest parallel-agent --json "Test prompt"          # all agents
+manifest parallel-agent --json --review /abs/path     # review mode
+manifest parallel-agent --cursor-only "Test prompt"   # single agent
 ```
 
-Validate YAML configuration syntax:
+Validate YAML syntax:
 
 ```bash
 python3 -c "import yaml; yaml.safe_load(open('configs/claude/config/command_config.yml'))"
@@ -174,34 +170,25 @@ python3 -c "import yaml; yaml.safe_load(open('configs/claude/config/validation_c
 
 ## Label Management
 
-Issue labels are managed centrally in `configs/claude/config/labels.yml` and synced across
-GitHub, GitLab, and Linear via `label_sync.sh`.
-
 **Labels**: managed centrally in `configs/claude/config/labels.yml` (12 active
-labels incl. the auto-dev lifecycle set); the full registry table lives in
+labels incl. the auto-dev lifecycle set), synced across GitHub, GitLab and
+Linear by `label_sync.sh`; the full registry table lives in
 [docs/COMMANDS.md](docs/COMMANDS.md#label-management).
 
 ```bash
-# Sync all labels to the current platform
-configs/claude/scripts/label_sync.sh
-
-# Dry-run to preview changes
-configs/claude/scripts/label_sync.sh --dry-run
-
-# Sync via git_ops.sh wrapper
-configs/claude/scripts/git_ops.sh label-sync
+configs/claude/scripts/label_sync.sh             # sync to current platform
+configs/claude/scripts/label_sync.sh --dry-run  # preview
+configs/claude/scripts/git_ops.sh label-sync    # via wrapper
 ```
-
-See [docs/COMMANDS.md](docs/COMMANDS.md#label-management) for full label reference.
 
 ## Adding New Skills
 
-Create `.apm/skills/<name>/SKILL.md` (source of truth) with `name` +
-`description` frontmatter and add `tool_policies` in `command_config.yml` — then
-**run the generators**, or CI fails: name/description is derived into
-`docs/COMMANDS.md`, the `GEMINI.md`/`AGENTS.md` index (`--inject-guides` — a
-*different* file set), and `configs/cursor/rules/`. Add/rename/retire procedure
-and traps: [docs/SKILL-NAMING.md](docs/SKILL-NAMING.md#lifecycle-adding-renaming-retiring).
+Create `plugins/<bundle>/skills/<name>/SKILL.md` (source of truth; `.apm/skills`
+is the generated mirror), give it a bundle in `skill_policies.yml` + the bundle's
+`plugin.json`, and add `tool_policies` in `command_config.yml` — then **run the
+generators**, or CI fails: `docs/COMMANDS.md`, the `GEMINI.md`/`AGENTS.md` index
+(`--inject-guides` — a *different* file set), and `configs/cursor/rules/`. Traps:
+[docs/SKILL-NAMING.md](docs/SKILL-NAMING.md#lifecycle-adding-renaming-retiring).
 
 Skills are invoked as `/my-skill` in Claude Code.
 
@@ -238,11 +225,8 @@ approaches), review stale plans, or archive/abandon completed work.
 ## Related Documents
 
 - [README.md](README.md) - Project overview and quick start
-- [docs/README.md](docs/README.md) - Documentation hub
-- [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md) - First-time setup walkthrough
-- [docs/CONFIGURATION.md](docs/CONFIGURATION.md) - Complete configuration reference
-- [docs/ARCHITECTURE_DIAGRAMS.md](docs/ARCHITECTURE_DIAGRAMS.md) - Visual system documentation
-- [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) - Common problems and solutions
+- [docs/README.md](docs/README.md) - Documentation hub: it indexes GETTING_STARTED,
+  CONFIGURATION, ARCHITECTURE_DIAGRAMS and TROUBLESHOOTING
 - [configs/claude/.plans/README.md](configs/claude/.plans/README.md) - Plan management quick reference
 - [configs/claude/CLAUDE.md](configs/claude/CLAUDE.md) - Orchestration guide (deployed to ~/.claude/)
 - [docs/CODING_STANDARDS.md](docs/CODING_STANDARDS.md) - Per-language coding standards and enforcement layers
@@ -251,9 +235,8 @@ approaches), review stale plans, or archive/abandon completed work.
 <!-- SPECKIT START -->
 ## Active Spec Kit Feature
 
-- **`522-apm-deploy-migration`** — **59/59 closed. SC-006 activated 2026-07-28**
-  (#654): apm owns `~/.claude/skills`, `deploy_home_skills`/`sync-skills` stand
-  down, sibling homes inherit by symlink. Undo:
-  `apm_ungate_domain.sh skills --apply` then `./bootstrap.sh`. US2/US4 closed
-  measured-void; constitution v3.0.0. Caveats:
-  [HANDOFF.md](specs/522-apm-deploy-migration/HANDOFF.md).
+- **`674-plugin-architecture`** — cutover complete (phases 0–5): plugins are the
+  SOLE skill source, `~/.claude/skills` is retired and apm stood down (this
+  supersedes 522's SC-006). Undo: `apm_ungate_domain.sh skills --apply` then
+  `./bootstrap.sh`. Record:
+  [cutover-plan.md](specs/674-plugin-architecture/cutover-plan.md).

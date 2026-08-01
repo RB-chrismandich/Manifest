@@ -193,3 +193,26 @@ YML
     assert_output --partial "keep-me.md"
     refute_output --partial ".claude/skills/alpha"
 }
+
+@test "un-gating one domain leaves another domain's files intact (T5.2)" {
+    # The bug this pins: the reclaim harvest reads EVERY deployed_files list in
+    # the lockfile. Un-gating `skills` would rm -rf `agents` too. Safe today only
+    # by accident -- one dependency, all 363 paths .claude/skills-prefixed -- and
+    # no existing case covers a second domain.
+    mkdir -p "$HOME/.claude/skills/alpha" "$HOME/.claude/agents"
+    echo body > "$HOME/.claude/skills/alpha/SKILL.md"
+    echo body > "$HOME/.claude/agents/keepme.md"
+    cat > "$APM_LOCKFILE" << 'YML'
+dependencies:
+- repo_url: _local/manifest-skills
+  deployed_files:
+  - .claude/skills/alpha/SKILL.md
+- repo_url: _local/manifest-agents
+  deployed_files:
+  - .claude/agents/keepme.md
+YML
+    run "$SCRIPT" skills --apply
+    assert_success
+    [ ! -e "$HOME/.claude/skills/alpha/SKILL.md" ]
+    [ -f "$HOME/.claude/agents/keepme.md" ]
+}

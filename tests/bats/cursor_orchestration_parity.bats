@@ -28,14 +28,15 @@ RULE_FILE="$REPO_ROOT/configs/cursor/rules/orchestration.mdc"
     grep -qF '**Graphify** is a managed *tool*, not a parallel-orchestration agent' "$RULE_FILE"
 }
 
-@test "orchestration.mdc contains the skill-sync CLI note" {
-    # Names apm-dev-sync, not sync-skills: apm owns the `skills` domain since
-    # SC-006, so sync-skills stands down and pointing a reader at it hands them a
-    # command that will not refresh their skills. The old assertion pinned the
-    # phrase "daily skill dev workflow" to sync-skills and would have preserved
-    # exactly that error.
-    grep -qF 'apm-dev-sync' "$RULE_FILE"
-    grep -qF '`sync-skills` stands down' "$RULE_FILE"
+@test "orchestration.mdc names the plugin refresh command, not a retired one" {
+    # This assertion has now been wrong twice in the same way, so it is pinned to
+    # the mechanism rather than to a tool name. It first pinned "daily skill dev
+    # workflow" to sync-skills; SC-006 made apm-dev-sync the answer; spec 674
+    # Phase 5 retires apm-dev-sync too. Each time, the failure mode is identical
+    # -- handing a reader a command that will not refresh their skills.
+    grep -qF 'claude plugin update' "$RULE_FILE"
+    grep -qF '~/.manifest/skills' "$RULE_FILE"
+    ! grep -qE '^\*\*CLI tool\*\*.*apm-dev-sync' "$RULE_FILE"
 }
 
 @test "orchestration.mdc contains the CONSIDER Parallel Agents For tier" {

@@ -29,6 +29,10 @@
 # Dry-run by default, like every other destructive tool in this repo.
 set -euo pipefail
 
+# Where this script lives, so the extracted claim-drop helper is findable
+# whether run from the repo or from ~/.claude/scripts.
+SCRIPT_DIR_UNGATE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 err() { printf 'apm_ungate_domain.sh: %s\n' "$*" >&2; }
 
 if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
@@ -94,6 +98,10 @@ fi
 # CANNOT be verified, which is a different situation from a clean one.
 reclaim_list=""
 if [[ -f "$LOCKFILE" ]]; then
+    # Harvest EVERY entry deliberately: filtering by domain HERE would hide a
+    # corrupted path from the escape check below, and silently not reclaiming a
+    # suspicious entry is worse than loudly refusing it. The domain filter is
+    # applied in the reclaim loop instead, AFTER that check (T5.2, spec 674).
     reclaim_list="$(awk '
         /^[[:space:]]*deployed_files:[[:space:]]*$/ { inlist = 1; next }
         inlist && /^[[:space:]]*-[[:space:]]*/ {
@@ -148,6 +156,14 @@ for rel in $reclaim_list; do
             continue
             ;;
     esac
+    # T5.2 (spec 674): reclaim only THIS domain's files. Without it the loop
+    # rm -rf's every domain's deployed files whenever any one is un-gated — safe
+    # today only by accident (one dependency, all 363 paths .claude/skills-
+    # prefixed), and none of the 12 bats cases covers a second domain.
+    case "$rel" in
+        ".claude/$DOMAIN"/*) ;;
+        *) continue ;;
+    esac
     target="$HOME/$rel"
     if [[ -e "$target" ]]; then
         rm -rf "$target"
@@ -164,57 +180,24 @@ echo "Reclaimed: $reclaimed APM-deployed path(s) under \$HOME"
 # restore. Found by running the tool, not by the unit tests, which asserted the
 # writer side and never re-read the report.
 if [[ -f "$LOCKFILE" ]] && command -v python3 > /dev/null 2>&1; then
-    if python3 - "$LOCKFILE" "$DOMAIN" << 'PYEOF'; then
-import sys
-
-import yaml
-
-path, domain = sys.argv[1], sys.argv[2]
-prefix = f".claude/{domain}"
-try:
-    data = yaml.safe_load(open(path)) or {}
-except Exception:
-    sys.exit(1)
-
-
-def strip(entry):
-    for key in ("deployed_files", "deployed_file_hashes"):
-        val = entry.get(key)
-        if isinstance(val, list):
-            entry[key] = [v for v in val if not str(v).startswith(prefix)]
-        elif isinstance(val, dict):
-            entry[key] = {k: v for k, v in val.items() if not str(k).startswith(prefix)}
-    return entry
-
-
-deps = data.get("dependencies")
-if isinstance(deps, list):
-    # Drop a dependency entirely once it produces nothing for any domain;
-    # a husk with empty lists still reads as "apm deployed something here".
-    kept = []
-    for dep in deps:
-        if not isinstance(dep, dict):
-            kept.append(dep)
-            continue
-        strip(dep)
-        if dep.get("deployed_files"):
-            kept.append(dep)
-    data["dependencies"] = kept
-
-depl = data.get("deployments")
-if isinstance(depl, list):
-    data["deployments"] = [
-        d for d in depl
-        if not (isinstance(d, dict) and str(d.get("value", "")).startswith(prefix))
-    ]
-
-with open(path, "w") as f:
-    yaml.safe_dump(data, f, default_flow_style=False, sort_keys=True)
-PYEOF
+    if python3 "$SCRIPT_DIR_UNGATE/apm_drop_domain_claim.py" "$LOCKFILE" "$DOMAIN"; then
         echo "Lockfile: dropped APM's claim on '$DOMAIN'"
     else
         err "could not update $LOCKFILE — apm may still appear to own '$DOMAIN'"
     fi
+fi
+
+# --- 4. prune apm.yml's dangling local-path deps ----------------------------
+#
+# apm-dev-sync registers its staging directory as a local-path dependency, and
+# that default lives under TMPDIR -- so the OS deletes it and the entry stays.
+# Measured: eleven accumulated here, and while they cannot resurrect a deploy on
+# their own, they are exactly the kind of stale claim that made `skills` look
+# owned long after nothing was writing it.
+APM_YML="${APM_CONFIG:-$HOME/.apm/apm.yml}"
+if [[ -f "$APM_YML" ]] && command -v python3 > /dev/null 2>&1; then
+    python3 "$SCRIPT_DIR_UNGATE/apm_prune_dangling_deps.py" "$APM_YML" ||
+        err "could not prune $APM_YML (continuing: the un-gate itself succeeded)"
 fi
 
 echo ""

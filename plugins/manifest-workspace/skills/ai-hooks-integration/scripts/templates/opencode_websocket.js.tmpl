@@ -1,0 +1,65 @@
+/**
+ * {plugin_name} Plugin for OpenCode
+ *
+ * Sends tool execution events to WebSocket server.
+ */
+
+const WEBSOCKET_URL = "ws://127.0.0.1:8765";
+
+async function sendEvent(eventType, payload) {{
+  try {{
+    const WebSocket = (await import("ws")).default;
+    const ws = new WebSocket(WEBSOCKET_URL);
+
+    return new Promise((resolve) => {{
+      const timeout = setTimeout(() => {{ ws.close(); resolve(); }}, 1000);
+
+      ws.on("open", () => {{
+        ws.send(JSON.stringify({{ type: eventType, payload }}));
+        clearTimeout(timeout);
+        ws.close();
+        resolve();
+      }});
+
+      ws.on("error", () => {{ clearTimeout(timeout); resolve(); }});
+    }});
+  }} catch (e) {{
+    console.error("WebSocket init failed:", e.message);
+  }}
+}}
+
+function normalizeToolName(name) {{
+  const map = {{
+    shell: "Bash", bash: "Bash",
+    read: "Read", read_file: "Read",
+    write: "Write", write_file: "Write",
+    edit: "Edit", edit_file: "Edit",
+    grep: "Grep", search_files: "Grep",
+    glob: "Glob", list_files: "Glob",
+  }};
+  return map[(name || "").toLowerCase()] || name || "Unknown";
+}}
+
+module.exports = async function {export_name}(pluginInput) {{
+  const cwd = pluginInput?.directory || process.cwd();
+
+  return {{
+    "tool.execute.before": async function (input, output) {{
+      await sendEvent("PreToolUse", {{
+        source: "opencode",
+        session_id: input.sessionID,
+        cwd: cwd,
+        tool_name: normalizeToolName(input.tool),
+      }});
+    }},
+
+    "tool.execute.after": async function (input, output) {{
+      await sendEvent("PostToolUse", {{
+        source: "opencode",
+        session_id: input.sessionID,
+        cwd: cwd,
+        tool_name: normalizeToolName(input.tool),
+      }});
+    }},
+  }};
+}};

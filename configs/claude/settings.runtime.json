@@ -63,6 +63,15 @@
             "command": "~/.claude/scripts/block_cwd_delete.py"
           }
         ]
+      },
+      {
+        "matcher": "Read|Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/scripts/constitution_hook.py"
+          }
+        ]
       }
     ],
     "PostToolUse": [
@@ -131,6 +140,8 @@
       "Bash(~/.claude/scripts/block_cwd_delete.py:*)",
       "Bash(~/.claude/scripts/subagent_model_default.py:*)",
       "Bash(~/.claude/scripts/subagent_breakdown.py:*)",
+      "Bash(~/.claude/scripts/constitution_check.py:*)",
+      "Bash(~/.claude/scripts/constitution_hook.py:*)",
       "Bash(shellcheck:*)",
       "Bash(python3:*)",
       "Bash(pip3 install:*)",

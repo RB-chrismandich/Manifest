@@ -25,6 +25,16 @@ jobs:
           # Full history so pre-commit can diff changed files against the base ref.
           fetch-depth: 0
 
+      # .apm/skills is GENERATED from plugins/*/skills/* (T3.3, spec 674) and is
+      # gitignored, so a fresh clone has no mirror. Every consumer below still
+      # reads that path -- the COMMANDS.md drift check, the ai-hooks pytest, the
+      # structure count, and the configs/claude/skills symlink -- so the mirror
+      # must exist before any of them run. Without this the jobs fail on an
+      # EMPTY tree, which several of them would otherwise report as agreeing
+      # with itself.
+      - name: Generate skill mirror (.apm/skills from plugins/)
+        run: configs/claude/scripts/generate_skill_mirror.sh
+
       # --- ShellCheck ---
 
       # Distro package = effectively pinned per runner image; record the
@@ -162,6 +172,16 @@ jobs:
           # bats-support / bats-assert under tests/test_helper are git submodules
           submodules: true
 
+      # .apm/skills is GENERATED from plugins/*/skills/* (T3.3, spec 674) and is
+      # gitignored, so a fresh clone has no mirror. Every consumer below still
+      # reads that path -- the COMMANDS.md drift check, the ai-hooks pytest, the
+      # structure count, and the configs/claude/skills symlink -- so the mirror
+      # must exist before any of them run. Without this the jobs fail on an
+      # EMPTY tree, which several of them would otherwise report as agreeing
+      # with itself.
+      - name: Generate skill mirror (.apm/skills from plugins/)
+        run: configs/claude/scripts/generate_skill_mirror.sh
+
       # --- Bats tests (helpers provided by the submodules above) ---
 
       # Cache keyed on the pinned version string so a pin bump invalidates
@@ -181,7 +201,8 @@ jobs:
       - name: Sync manifest runtime (bats tests stub ~/.claude/.venv from this tree)
         run: uv sync --project configs/claude
 
-      # apm_publish_gate.sh fails CLOSED when gitleaks is absent (no regex-only
+      # Retained after spec 674 Phase 5 retired apm_publish_gate.sh: gitleaks is
+      # still the repo's secret scanner. Formerly justified as (no regex-only
       # degrade), so without this the APM publish-gate bats fail in CI while
       # passing on any dev box that has it from Homebrew — an ambient-dependency
       # split. Pinned and checksum-verified against the release's own
@@ -253,6 +274,23 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+        with:
+          # This job runs bats too (bundle partition invariants, below), and
+          # bats-support / bats-assert live under tests/test_helper as git
+          # submodules. Without this the suite dies in bats-gather-tests on a
+          # bats_load_safe failure -- before a single assertion runs, so the
+          # gate reports a load error rather than an invariant.
+          submodules: true
+
+      # .apm/skills is GENERATED from plugins/*/skills/* (T3.3, spec 674) and is
+      # gitignored, so a fresh clone has no mirror. Every consumer below still
+      # reads that path -- the COMMANDS.md drift check, the ai-hooks pytest, the
+      # structure count, and the configs/claude/skills symlink -- so the mirror
+      # must exist before any of them run. Without this the jobs fail on an
+      # EMPTY tree, which several of them would otherwise report as agreeing
+      # with itself.
+      - name: Generate skill mirror (.apm/skills from plugins/)
+        run: configs/claude/scripts/generate_skill_mirror.sh
 
       # generate_cursor_rules.sh emits the command-index rule via
       # generate_commands_doc.py (imports pyyaml), and regenerates
@@ -378,9 +416,24 @@ jobs:
           find configs/claude/scripts -name '*.sh' | sort | sed 's|configs/claude/scripts/||;s/^/  /'
           echo ""
 
-          # Verify minimum expected counts
-          if [ "$SKILL_COUNT" -lt 10 ]; then
-            echo "FAIL: Expected at least 10 skills, found $SKILL_COUNT"
+          # T1.6 (spec 674): EXACT, against an exogenous committed integer.
+          # This was `-lt 10`, which is not a gate: a bundle silently losing 17
+          # skills during the plugin move stays green, and so does any accident
+          # that drops 98 of them. Both sides of a `-lt` floor are derived from
+          # the same tree, so it can only ever confirm the tree agrees with
+          # itself. expected_total lives in skill_policies.yml precisely because
+          # the move cannot edit it -- a PR that legitimately adds or removes a
+          # skill must change that integer in the same commit.
+          EXPECTED=$(sed -n 's/^expected_total:[[:space:]]*\([0-9][0-9]*\).*/\1/p' \
+            configs/claude/config/skill_policies.yml)
+          if [ -z "$EXPECTED" ]; then
+            echo "FAIL: configs/claude/config/skill_policies.yml declares no expected_total"
+            exit 1
+          fi
+          if [ "$SKILL_COUNT" -ne "$EXPECTED" ]; then
+            echo "FAIL: expected exactly $EXPECTED skills, found $SKILL_COUNT."
+            echo "      If this change adds or removes a skill, update expected_total"
+            echo "      in configs/claude/config/skill_policies.yml in the same commit."
             exit 1
           fi
           if [ "$SCRIPT_COUNT" -lt 1 ]; then
@@ -389,6 +442,49 @@ jobs:
           fi
 
           echo "Structure validation passed: $SKILL_COUNT skills, $SCRIPT_COUNT scripts"
+
+      - name: No absolute skills-tree paths in skill bodies
+        # T1.4 (spec 674). A skill body citing ~/.claude/skills/<other>/... reads
+        # a path that will not exist once skills live in a version-pathed plugin
+        # cache. It fails SILENTLY: on a GitLab repo /ci-harden-workflow would
+        # load nothing, harden using only the GitHub branch of its own body,
+        # leave the pwn-request surface open, and report success. Shared
+        # references belong in ~/.claude/references/, which bootstrap owns.
+        run: |
+          if grep -rn --include='SKILL.md' -e '\.claude/skills/' .apm/skills/; then
+            echo ""
+            echo "FAIL: a skill body hard-codes a path into the skills tree."
+            echo "      Move the shared file under configs/claude/references/ and"
+            echo "      cite it as ~/.claude/references/..., or keep it in the"
+            echo "      skill's OWN references/ dir and cite it relatively."
+            exit 1
+          fi
+          echo "No absolute skills-tree paths in skill bodies"
+
+      - name: Bundle partition invariants
+        # T3.6 (spec 674). Pure python3 + bats, NO claude CLI: `grep -c
+        # 'claude plugin' ci.yml` was 0 before this feature, so any gate phrased
+        # as `claude plugin validate --strict` is unrunnable here or skips
+        # green, and a skip that renders as a pass is the false green this phase
+        # exists to remove.
+        run: npx bats tests/bats/bundle_partition.bats
+
+      - name: Cross-skill references resolve after plugin scoping
+        # T1.3 (spec 674). Post-cutover a skill is reachable only as
+        # <plugin>:<skill>, so a bare cross-skill reference stops resolving and
+        # the sub-agent that hit it improvises and reports SUCCESS — no error,
+        # no log line. This gate is the only thing that can catch that class,
+        # because no runtime test can: the failure mode is a green report.
+        #
+        # Deliberately NOT a `grep '/<name>'`. That form sees 20 of the 35
+        # blocking references and is blind to dispatches written without a slash —
+        # including docs-all, whose whole failure mode is a fabricated
+        # per-skill success table, and generate-design's **bold** delegation.
+        run: |
+          python3 configs/claude/scripts/skill_reference_check.py \
+            --roots .apm/skills \
+            --registry configs/claude/config/skill_policies.yml \
+            --baseline configs/claude/config/skill_reference_baseline.json
 
       - name: Verify Cursor rules are up-to-date with skills
         run: |

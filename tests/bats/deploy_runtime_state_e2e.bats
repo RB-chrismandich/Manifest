@@ -131,6 +131,22 @@ assert_config_deployed() {
     [ -f "$bak/plugins/installed_plugins.json" ]
 }
 
+@test "e2e Backup-and-replace: foreign skill installs and a user's own agent survive" {
+    # Both live under a name the repo owns, and neither is anything this deploy
+    # writes: .system is Codex's (measured loss on a real machine, 2026-07-31)
+    # and my-own-agent.md is the user's — the gates deploy only their own role
+    # files and are documented to let a coexisting agent survive (FR-008/SC-003).
+    mkdir -p "$TARGET_DIR/skills/.system/imagegen" "$TARGET_DIR/agents"
+    echo 'codex-owned' > "$TARGET_DIR/skills/.system/imagegen/SKILL.md"
+    echo 'mine'        > "$TARGET_DIR/agents/my-own-agent.md"
+
+    export FORCE=false
+    deploy_configs <<< "1"
+
+    assert_equal "$(cat "$TARGET_DIR/skills/.system/imagegen/SKILL.md")" "codex-owned"
+    assert_equal "$(cat "$TARGET_DIR/agents/my-own-agent.md")" "mine"
+}
+
 @test "e2e --force: additive deploy keeps plugins and leaves runtime untouched" {
     export FORCE=true
     deploy_configs

@@ -43,6 +43,15 @@ for _lib in "$MANIFEST_ROOT/configs/claude/scripts/apm_domains_lib.sh" \
 done
 unset _lib
 
+# T2.2 (spec 674): a retired domain has no writer at all. Checked first, because
+# this script declines ONLY while apm owns the domain — under the two-state
+# registry, moving `skills` out of `domains:` would have re-armed it.
+if declare -f domain_retired > /dev/null 2>&1 && domain_retired skills; then
+    echo "sync-skills: skipping 'skills' — retired from both pipelines."
+    echo "sync-skills: plugins own it now; use 'claude plugin update <bundle>'."
+    exit 0
+fi
+
 if declare -f apm_owns_domain > /dev/null 2>&1 && apm_owns_domain skills; then
     # SAY it. A silent no-op reads as success, and a contributor whose skill
     # edit never reached their home will debug the edit, not the tool. Naming
