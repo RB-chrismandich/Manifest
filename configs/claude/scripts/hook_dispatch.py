@@ -45,12 +45,34 @@ PLUGIN_CACHE_ROOTS = [
     if os.environ.get("HOOK_DISPATCH_CACHE_ROOT")
     else Path.home() / ".claude" / "plugins" / "cache"
 ]
+# No hardcoded personal checkout path here: this script deploys to every
+# user's ~/.claude/scripts/, and a machine that happens to have an unrelated
+# directory at a guessed convention path would silently resolve to it.
+# MANIFEST_REPO_DIR is the only, explicit, opt-in override.
 REPO_FALLBACKS = [
     Path(os.environ["MANIFEST_REPO_DIR"]).expanduser()
     if os.environ.get("MANIFEST_REPO_DIR")
     else None,
-    Path.home() / "Documents" / "GitHub" / "Manifest",
 ]
+INSTALLED_PLUGINS_PATH = (
+    Path(os.environ["HOOK_DISPATCH_INSTALLED_PLUGINS"]).expanduser()
+    if os.environ.get("HOOK_DISPATCH_INSTALLED_PLUGINS")
+    else Path.home() / ".claude" / "plugins" / "installed_plugins.json"
+)
+
+
+def _version_sort_key(name: str) -> tuple:
+    """Numeric tuple for a dotted-integer version dir name (0.1.9 < 0.1.10).
+
+    A plain string sort gets this backwards once a component reaches double
+    digits. Anything that doesn't parse as dotted integers sorts before every
+    real version instead of raising, so a stray directory name can't shadow
+    one by string luck.
+    """
+    try:
+        return (1, tuple(int(part) for part in name.split(".")))
+    except ValueError:
+        return (0, name)
 
 
 def _cache_version_dirs(bundle: str) -> list[Path]:
@@ -66,14 +88,48 @@ def _cache_version_dirs(bundle: str) -> list[Path]:
             for version_dir in bundle_dir.iterdir():
                 if version_dir.is_dir() and not (version_dir / ".orphaned_at").exists():
                     found.append(version_dir)
-    # Version dirs in this repo are plain dotted-integer strings (0.1.0,
-    # 0.1.1, ...); lexicographic sort matches semver order for that shape.
-    found.sort(key=lambda p: p.name)
+    found.sort(key=lambda p: _version_sort_key(p.name))
     return found
 
 
-def resolve_skill_script(bundle: str, skill: str, rel_path: str) -> Path | None:
-    """Find `rel_path` inside `skill` inside `bundle`, newest cached install first."""
+def _installed_plugin_dir(bundle: str, marketplace: str) -> Path | None:
+    """The exact installPath installed_plugins.json records for bundle@marketplace.
+
+    Scoped to one marketplace on purpose: scanning the cache by bundle name
+    alone (the fallback below) can't tell Manifest's `manifest-workspace`
+    apart from a same-named bundle in some other configured marketplace.
+    """
+    try:
+        with open(INSTALLED_PLUGINS_PATH, encoding="utf-8") as handle:
+            data = json.load(handle)
+    except (OSError, ValueError):
+        return None
+    entries = data.get("plugins", {}).get(f"{bundle}@{marketplace}")
+    if not isinstance(entries, list) or not entries or not isinstance(entries[0], dict):
+        return None
+    install_path = entries[0].get("installPath")
+    if not install_path:
+        return None
+    path = Path(install_path)
+    return path if path.is_dir() else None
+
+
+def resolve_skill_script(
+    bundle: str, skill: str, rel_path: str, marketplace: str = "manifest"
+) -> Path | None:
+    """Find `rel_path` inside `skill` inside `bundle`.
+
+    Tries, in order: the exact installed_plugins.json record for
+    `bundle@marketplace` (immune to a same-named bundle elsewhere); the
+    newest non-orphaned cached version by number, scanned across all
+    marketplaces, as a fallback for when that record is missing or stale;
+    then a repo checkout via MANIFEST_REPO_DIR.
+    """
+    install_dir = _installed_plugin_dir(bundle, marketplace)
+    if install_dir is not None:
+        candidate = install_dir / "skills" / skill / rel_path
+        if candidate.is_file():
+            return candidate
     for version_dir in reversed(_cache_version_dirs(bundle)):
         candidate = version_dir / "skills" / skill / rel_path
         if candidate.is_file():
@@ -139,12 +195,19 @@ def main(argv: list[str]) -> int:
 
     args = _build_args().parse_args(argv)
 
-    unified = resolve_skill_script(
-        args.unified_bundle, args.unified_skill, args.unified_rel
-    )
-    handler = resolve_skill_script(
-        args.handler_bundle, args.handler_skill, args.handler_rel
-    )
+    try:
+        unified = resolve_skill_script(
+            args.unified_bundle, args.unified_skill, args.unified_rel
+        )
+        handler = resolve_skill_script(
+            args.handler_bundle, args.handler_skill, args.handler_rel
+        )
+    except OSError:
+        # A marketplace dir removed or made unreadable mid-scan raises here.
+        # Failing open beats a traceback: this hook exists to never be the
+        # thing that blocks a tool call.
+        unified = handler = None
+
     if unified is None or handler is None:
         print(json.dumps(allow_response()))
         return 0

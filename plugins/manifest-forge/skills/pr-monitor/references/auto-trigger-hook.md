@@ -38,13 +38,12 @@ since skill storage has moved three times already (bootstrap copy ->
 apm-managed `~/.manifest/skills` -> plugin bundles, PR #685) and every
 hand-written `~/.claude/skills/...` path in this doc has gone stale at least
 once as a result. Locate the installer inside that skill's own `scripts/`
-directory — via the plugin cache (`find ~/.claude/plugins/cache -name
-install_all.py`) or a Manifest repo checkout — and run it with the built-in
-default handler — no
-`--handler` needed for pr-monitor, it's the installer's default:
+directory — via the plugin cache or a Manifest repo checkout — and run it
+with `--default-handler` to install pr-monitor's built-in handler:
 
 ```bash
-install_all.py --unified --name pr-monitor --dry-run   # drop --dry-run to apply
+installer=$(find ~/.claude/plugins/cache -name install_all.py -path '*manifest-workspace*' | head -1)
+"$installer" --unified --default-handler --name pr-monitor --dry-run   # drop --dry-run to apply
 ```
 
 This writes `~/.claude/scripts/hook_dispatch.py --source <tool>` into each
@@ -92,7 +91,9 @@ echo '{"tool_input":{"command":"gh pr create --fill"},"tool_response":{"success"
 
 # Remove from all tools (same directory as install_all.py — see "Install
 # across all three hook-capable tools" above for how to locate it)
-remove_all.py --name pr-monitor
+"$(dirname "$installer")/remove_all.py" \
+  --command "$HOME/.claude/scripts/hook_dispatch.py" \
+  --plugin ~/.config/opencode/plugins/pr-monitor.js
 ```
 
 ## Why a hook, not a slash command
