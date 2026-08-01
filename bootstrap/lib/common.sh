@@ -310,12 +310,13 @@ gate_graphify_skill() {
 #
 # configs/claude/agents/ is EXCLUDED from the wholesale rsync (deploy.sh) so a
 # disabled or foreign ~/.claude/agents is never copied over — the gate is the sole
-# deployer of the six role files and the .pilotfish ownership marker (it writes the
-# marker itself; a shipped marker would falsely read as "Manifest-owned" after a
-# disabled deploy). references/pilotfish-delegation.md still lands via rsync (unique
-# name, no collision risk) and is pruned on disable. When on, the gate copies the six
-# agents, stamps the marker, and injects the one-line delegation pointer into the
-# deployed CLAUDE.md; when off it manifest-scoped-prunes exactly its own artifacts.
+# deployer of the PILOTFISH_AGENT_FILES role files and the .pilotfish ownership
+# marker (it writes the marker itself; a shipped marker would falsely read as
+# "Manifest-owned" after a disabled deploy). references/pilotfish-delegation.md is
+# rsync-excluded on the same grounds and deployed here too, so a disabled run never
+# lands it; it is pruned on disable. When on, the gate copies the role files, stamps
+# the marker, and injects the one-line delegation pointer into the deployed CLAUDE.md;
+# when off it manifest-scoped-prunes exactly its own artifacts.
 # settings.json is never touched (spec FR-016).
 # ---------------------------------------------------------------------------
 
@@ -335,7 +336,7 @@ PILOTFISH_AGENT_FILES=(scout.md Explore.md mech-executor.md executor.md verifier
 
 # Pre-deploy collision guard (spec FR-008). Called BEFORE any destructive copy: if
 # pilotfish is enabled and ~/.claude/agents exists but is NOT Manifest-owned (no
-# .pilotfish marker), abort ONLY when one of the six role files we would deploy is
+# .pilotfish marker), abort ONLY when one of the role files we would deploy is
 # already present — overwriting a user's same-named agent is the real hazard. A
 # differently-named user agent is no collision and must NOT block enabling (else a
 # disable that left a coexisting user agent behind would deadlock the next enable).
@@ -356,7 +357,7 @@ check_pilotfish_collision() {
 }
 
 # Post-copy gate (called next to gate_graphify_skill). Prune the pilotfish artifacts
-# when the toggle is off (removing exactly them, SC-003); when on, deploy the six
+# when the toggle is off (removing exactly them, SC-003); when on, deploy the
 # role files + the delegation reference from source (both rsync-excluded), stamp the
 # owner marker, and inject the delegation pointer. Idempotent across both rsync paths.
 #   $1 home        — deploy target home (e.g. ~/.claude)
@@ -375,7 +376,7 @@ gate_pilotfish_agents() {
 
     if [[ "${ENABLE_PILOTFISH:-false}" == false ]]; then
         # Opt-out: remove exactly the deployed pilotfish artifacts and NOTHING else.
-        # Manifest-scoped prune (mirrors deploy_home_skills): delete only our six role
+        # Manifest-scoped prune (mirrors deploy_home_skills): delete only our own role
         # files + the marker, then rmdir the agents dir ONLY if it is now empty — a
         # user-authored agent coexisting in ~/.claude/agents survives (SC-003).
         if [[ -f "$agents/.pilotfish" ]]; then
@@ -392,7 +393,7 @@ gate_pilotfish_agents() {
         return 0
     fi
 
-    # Enabled: agents/ is rsync-excluded, so deploy the six role files here. The
+    # Enabled: agents/ is rsync-excluded, so deploy the role files here. The
     # collision guard (check_pilotfish_collision, pre-rsync) already ensured no
     # non-Manifest same-named file will be overwritten. Idempotent: cp overwrites our
     # own files, the marker is re-stamped, and the pointer inject is grep-guarded — so
@@ -464,7 +465,7 @@ remove_pilotfish_pointer() {
 # filenames — the two toggles are fully independent and may be enabled
 # together. Mirrors gate_pilotfish_agents' mechanics exactly (own marker,
 # own pointer, own manifest-scoped prune) rather than extending pilotfish's
-# closed six-role set, which has its own contract (exactly six files).
+# closed role set, which has its own contract (the PILOTFISH_AGENT_FILES list).
 # ---------------------------------------------------------------------------
 
 # shellcheck disable=SC2016

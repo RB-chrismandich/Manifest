@@ -2,6 +2,54 @@
 
 # Deployment, verification, and summary helpers for bootstrap.sh. This file is sourced, not executed.
 
+# foreign_state_rules BACKUP_DIR — emit rsync rules (one per line) for state that
+# lives under a repo-owned NAME but that no copy path actually redeploys.
+#
+# restore_runtime_state excludes every top-level name present in configs/claude,
+# on the premise that the redeploy right after provides the authoritative copy.
+# That premise has since lapsed for two of them, and where it lapsed the exclude
+# stopped meaning "the fresh deploy wins" and started meaning "delete":
+#
+#   skills/  — since the domain retired (SC-006, spec 674) deploy_home_skills
+#              writes MANIFEST_SKILLS_DIR (~/.manifest/skills); nothing recreates
+#              $TARGET_DIR/skills at all.
+#   agents/  — gate_pilotfish_agents/gate_devpanel_agents deploy exactly their own
+#              role files, and are documented to let a coexisting user-authored
+#              agent survive an opt-out (FR-008/SC-003) — which only holds if the
+#              restore carries that agent back.
+#
+# Measured 2026-07-31: an option-1 rerun took ~/.claude/skills/.system with it
+# (Codex's own installs — imagegen, openai-docs, plugin-creator, skill-creator,
+# skill-installer) and nothing put it back.
+foreign_state_rules() {
+    local backup_dir="$1"
+
+    # Order matters: rsync takes the FIRST matching rule, so the re-includes must
+    # precede the blanket exclude the caller would otherwise have emitted.
+    #
+    # Only .system is carried back. Manifest's own skill dirs stay excluded (the
+    # deploy is authoritative for those), as do the apm-era manifests
+    # .deployed-skills/.metadata.json, which skill_policies.yml already records as
+    # untrustworthy dead state — resurrecting them restores noise, not state.
+    # Guarded on .system existing so a backup without one does not leave an empty
+    # skills/ dir behind.
+    if [[ -d "$backup_dir/skills/.system" ]]; then
+        printf '%s\n' '--include=/skills/' '--include=/skills/.system/***' '--exclude=/skills/*'
+    fi
+    printf '%s\n' '--exclude=/skills'
+
+    # agents/ is restored WHOLESALE minus the files the gates own, so a user's own
+    # agent survives while a stale role file or ownership marker never comes back:
+    # the gate is the sole writer of both, and a restored marker would read as
+    # "Manifest-owned" over files this deploy never placed.
+    local role
+    for role in ${PILOTFISH_AGENT_FILES[@]+"${PILOTFISH_AGENT_FILES[@]}"} \
+        ${DEVPANEL_AGENT_FILES[@]+"${DEVPANEL_AGENT_FILES[@]}"}; do
+        printf -- '--exclude=/agents/%s\n' "$role"
+    done
+    printf '%s\n' '--exclude=/agents/.pilotfish' '--exclude=/agents/.devpanel'
+}
+
 # Restore user/runtime state from a "Backup and replace" backup.
 #
 # The repo only owns the contents of configs/claude (CLAUDE.md, config/,
@@ -19,11 +67,32 @@ restore_runtime_state() {
     # Build rsync excludes from the repo-owned entries (top level of source_dir,
     # including dotfiles like .plans). These are redeployed, so the fresh config
     # wins; everything else in the backup is runtime state and is restored.
-    local excludes=() entry
+    local excludes=() entry base
     for entry in "$source_dir"/* "$source_dir"/.[!.]*; do
         [[ -e "$entry" || -L "$entry" ]] || continue
-        excludes+=("--exclude=/$(basename "$entry")")
+        base="$(basename "$entry")"
+        # skills/ and agents/ hold entries no copy path redeploys, so a blanket
+        # exclude there is a delete, not a deferral — foreign_state_rules emits
+        # the finer rules for both (and still excludes what the deploy owns).
+        case "$base" in
+            skills | agents) continue ;;
+        esac
+        excludes+=("--exclude=/$base")
     done
+    # Regenerable bytecode caches, and a live source of rsync failures: a
+    # bundled venv's __pycache__ can change under rsync mid-copy, which is
+    # exactly what aborted a deploy on 2026-07-30. Nothing needs them restored.
+    #
+    # Ordered BEFORE foreign_state_rules on purpose: rsync takes the first
+    # matching rule, and those rules re-include whole subtrees (skills/.system/***),
+    # so a __pycache__ living inside one would otherwise match the include first
+    # and walk straight back into the failure this exclude exists to prevent.
+    excludes+=("--exclude=__pycache__/" "--exclude=*.pyc")
+
+    local rule
+    while IFS= read -r rule; do
+        [[ -n "$rule" ]] && excludes+=("$rule")
+    done < <(foreign_state_rules "$backup_dir")
 
     # .agent_outputs is recreated below as a symlink into $MANIFEST_OUTPUT_DIR
     # (under ~/.manifest, outside ~/.claude and therefore never part of the
@@ -31,11 +100,6 @@ restore_runtime_state() {
     # moments later — and would be slow if the backup holds a large legacy
     # outputs directory. The authoritative outputs were never moved, so skip it.
     excludes+=("--exclude=/.agent_outputs")
-
-    # Regenerable bytecode caches, and a live source of rsync failures: a
-    # bundled venv's __pycache__ can change under rsync mid-copy, which is
-    # exactly what aborted a deploy on 2026-07-30. Nothing needs them restored.
-    excludes+=("--exclude=__pycache__/" "--exclude=*.pyc")
 
     print_step "Restoring runtime state (plugins, sessions, settings.json, history) from backup"
     # -a preserves symlinks and attributes; trailing slashes copy contents.

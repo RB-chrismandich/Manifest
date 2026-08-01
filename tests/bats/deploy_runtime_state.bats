@@ -108,6 +108,66 @@ teardown() {
     [ -f "$TGT/plugins/installed_plugins.json" ]     # runtime still restored
 }
 
+# --- foreign entries inside a repo-owned name ---------------------------------
+#
+# Excluding a top-level name from the restore is only safe while the deploy
+# REDEPLOYS that name. Two of them no longer are:
+#
+#   skills/  — since the domain retired (SC-006/spec 674) deploy_home_skills
+#              writes MANIFEST_SKILLS_DIR (~/.manifest/skills), never
+#              $TARGET_DIR/skills, so nothing recreates the tree.
+#   agents/  — gate_pilotfish_agents/gate_devpanel_agents deploy exactly their
+#              own role files and are documented to let a coexisting
+#              user-authored agent survive an opt-out.
+#
+# For both, a blanket exclude turns "the fresh deploy wins" into a silent
+# delete of state that belongs to somebody else. Measured 2026-07-31: an
+# option-1 rerun took ~/.claude/skills/.system (Codex's own installs —
+# imagegen, openai-docs, plugin-creator, skill-creator, skill-installer) with
+# it, and nothing put it back.
+
+@test "restore_runtime_state restores foreign skill installs nothing redeploys (.system)" {
+    ln -s "../../.apm/skills" "$SRC/skills"          # the compat symlink, as shipped
+    mkdir -p "$BK/skills/.system/imagegen"
+    echo "codex-owned" > "$BK/skills/.system/imagegen/SKILL.md"
+
+    run restore_runtime_state "$BK" "$TGT" "$SRC"
+    assert_success
+
+    [ -f "$TGT/skills/.system/imagegen/SKILL.md" ]
+    assert_equal "$(cat "$TGT/skills/.system/imagegen/SKILL.md")" "codex-owned"
+}
+
+@test "restore_runtime_state still skips bytecode inside a re-included foreign subtree" {
+    # The .system re-include matches a whole subtree, and rsync takes the FIRST
+    # matching rule — so if it were ordered ahead of the __pycache__ exclude it
+    # would drag the exact thing back that aborted the 2026-07-30 deploy.
+    ln -s "../../.apm/skills" "$SRC/skills"
+    mkdir -p "$BK/skills/.system/imagegen/__pycache__"
+    echo "keep" > "$BK/skills/.system/imagegen/SKILL.md"
+    echo "junk" > "$BK/skills/.system/imagegen/__pycache__/m.cpython-311.pyc"
+
+    run restore_runtime_state "$BK" "$TGT" "$SRC"
+    assert_success
+
+    [ -f "$TGT/skills/.system/imagegen/SKILL.md" ]                 # foreign install restored
+    [ ! -e "$TGT/skills/.system/imagegen/__pycache__" ]            # bytecode still skipped
+}
+
+@test "restore_runtime_state restores a user-authored agent but not Manifest's role files" {
+    mkdir -p "$SRC/agents" "$BK/agents"
+    echo "mine"      > "$BK/agents/my-own-agent.md"   # user's, nothing redeploys it
+    echo "stale"     > "$BK/agents/scout.md"          # Manifest's; the gate owns it
+    : > "$BK/agents/.pilotfish"                       # marker; the gate is sole writer
+
+    run restore_runtime_state "$BK" "$TGT" "$SRC"
+    assert_success
+
+    [ -f "$TGT/agents/my-own-agent.md" ]              # survives (spec FR-008/SC-003)
+    [ ! -e "$TGT/agents/scout.md" ]                   # gate redeploys or prunes it
+    [ ! -e "$TGT/agents/.pilotfish" ]                 # never restored stale
+}
+
 @test "restore_runtime_state excludes .agent_outputs (recreated as a symlink later)" {
     # .agent_outputs is rebuilt by create_symlink into $MANIFEST_OUTPUT_DIR, so
     # restoring it from the backup is wasted/expensive work that gets wiped.
