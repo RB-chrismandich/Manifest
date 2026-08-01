@@ -1,0 +1,87 @@
+#!/usr/bin/env -S python3 -I
+"""Hermetic response-driven fake for native harness CLIs."""
+
+import fcntl
+import json
+import os
+import sys
+from pathlib import Path
+
+
+def _fail(message: str) -> "None":
+    sys.stderr.write(f"harness-stub: {message}\n")
+    raise SystemExit(2)
+
+
+def _load_response() -> dict[str, object]:
+    encoded = os.environ.get("HARNESS_STUB_RESPONSES")
+    if encoded is None:
+        _fail("HARNESS_STUB_RESPONSES is required")
+    try:
+        response = json.loads(encoded)
+    except json.JSONDecodeError as error:
+        _fail(f"invalid HARNESS_STUB_RESPONSES JSON: {error}")
+    if not isinstance(response, dict):
+        _fail("HARNESS_STUB_RESPONSES must be a JSON object")
+    return _select_response(response)
+
+
+def _select_response(config: dict[str, object]) -> dict[str, object]:
+    configured = config.get("responses")
+    if configured is None:
+        return config
+    if not isinstance(configured, list):
+        _fail("response field 'responses' must be an array")
+    full_argv = [Path(sys.argv[0]).name, *sys.argv[1:]]
+    argument_argv = sys.argv[1:]
+    for candidate in configured:
+        if not isinstance(candidate, dict):
+            _fail("each configured response must be an object")
+        expected = candidate.get("argv")
+        if expected in (full_argv, argument_argv):
+            return candidate
+    default = config.get("default")
+    if isinstance(default, dict):
+        return default
+    _fail(f"no configured response for argv {json.dumps(full_argv)}")
+
+
+def _append_argv() -> None:
+    log_path = os.environ.get("HARNESS_STUB_LOG")
+    if log_path is None:
+        _fail("HARNESS_STUB_LOG is required")
+    argv = [Path(sys.argv[0]).name, *sys.argv[1:]]
+    line = (json.dumps(argv, ensure_ascii=True, separators=(",", ":")) + "\n").encode()
+    descriptor = os.open(log_path, os.O_APPEND | os.O_CREAT | os.O_WRONLY, 0o600)
+    try:
+        fcntl.flock(descriptor, fcntl.LOCK_EX)
+        remaining = memoryview(line)
+        while remaining:
+            written = os.write(descriptor, remaining)
+            if written == 0:
+                _fail("short write while appending argv")
+            remaining = remaining[written:]
+    finally:
+        os.close(descriptor)
+
+
+def _text(response: dict[str, object], field: str) -> str:
+    value = response.get(field, "")
+    if not isinstance(value, str):
+        _fail(f"response field {field!r} must be a string")
+    return value
+
+
+def main() -> int:
+    response = _load_response()
+    _append_argv()
+    sys.stdout.write(_text(response, "stdout"))
+    sys.stderr.write(_text(response, "stderr"))
+    returncode = response.get("returncode", response.get("code", 0))
+    if not isinstance(returncode, int) or isinstance(returncode, bool):
+        _fail("response returncode must be an integer")
+    return returncode
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
