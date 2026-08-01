@@ -38,8 +38,8 @@ since skill storage has moved three times already (bootstrap copy ->
 apm-managed `~/.manifest/skills` -> plugin bundles, PR #685) and every
 hand-written `~/.claude/skills/...` path in this doc has gone stale at least
 once as a result. Locate the installer via the plugin cache or a repo
-checkout (`find ~/.claude/plugins/cache -name install_all.py -path
-'*ai-hooks-integration*'`, or `plugins/manifest-workspace/skills/ai-hooks-integration/scripts/install_all.py`
+checkout (`find ~/.claude/plugins/cache -path '*/manifest-workspace/*' -name
+install_all.py`, or `plugins/manifest-workspace/skills/ai-hooks-integration/scripts/install_all.py`
 in a Manifest checkout) and run it with the built-in default handler — no
 `--handler` needed for pr-monitor, it's the installer's default:
 
