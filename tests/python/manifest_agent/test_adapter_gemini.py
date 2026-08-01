@@ -93,20 +93,26 @@ def desired(tmp_path: Path) -> DesiredState:
     )
 
 
-def extensions_json(desired: DesiredState, version: str = "0.2.0") -> str:
+def extensions_json(
+    desired: DesiredState,
+    version: str = "0.2.0",
+    *,
+    inactive: str | None = None,
+) -> str:
     return json.dumps(
         [
             {
                 "name": name,
                 "version": version,
                 "path": f"/native/extensions/{name}",
+                "isActive": name != inactive,
             }
             for name in DOMAIN_BUNDLES
         ]
     )
 
 
-def skills_text(*, missing: str | None = None) -> str:
+def skills_text(*, missing: str | None = None, disabled: str | None = None) -> str:
     rows = ["Discovered Agent Skills:", ""]
     for name in DOMAIN_BUNDLES:
         skill = f"skill-{name}"
@@ -114,7 +120,7 @@ def skills_text(*, missing: str | None = None) -> str:
             continue
         rows.extend(
             [
-                f"{skill} [Enabled]",
+                f"{skill} [{'Disabled' if skill == disabled else 'Enabled'}]",
                 "  Description: fixture",
                 f"  Location:    /native/extensions/{name}/skills/{skill}/SKILL.md",
                 "",
@@ -187,6 +193,38 @@ def test_gemini_inspect_requires_every_declared_skill(desired: DesiredState) -> 
 
     assert result.state is ResultState.BLOCKED
     assert missing in " ".join(result.errors)
+
+
+def test_gemini_inspect_blocks_inactive_extension(desired: DesiredState) -> None:
+    inactive = DOMAIN_BUNDLES[-1]
+    runner = QueueRunner(
+        [
+            command(stdout=extensions_json(desired, inactive=inactive)),
+            command(stdout=skills_text()),
+        ]
+    )
+
+    result = GeminiAdapter(runner=runner, which=lambda name: name).inspect(desired)
+
+    assert result.state is ResultState.BLOCKED
+    assert f"extension {inactive} is inactive" in " ".join(result.errors)
+
+
+def test_gemini_inspect_ignores_disabled_skill_evidence(
+    desired: DesiredState,
+) -> None:
+    disabled = f"skill-{DOMAIN_BUNDLES[-1]}"
+    runner = QueueRunner(
+        [
+            command(stdout=extensions_json(desired)),
+            command(stdout=skills_text(disabled=disabled)),
+        ]
+    )
+
+    result = GeminiAdapter(runner=runner, which=lambda name: name).inspect(desired)
+
+    assert result.state is ResultState.BLOCKED
+    assert disabled in " ".join(result.errors)
 
 
 def test_gemini_rejects_noncanonical_inventory_before_mutation(

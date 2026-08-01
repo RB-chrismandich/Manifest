@@ -199,6 +199,7 @@ def _verify_extensions(
     installed: list[str] = []
     errors: list[str] = []
     drifted = False
+    inactive = False
     for contract in desired.contracts:
         row = by_name.get(contract.name)
         if row is None:
@@ -213,11 +214,14 @@ def _verify_extensions(
                     f"extension {contract.name} expected {contract.version}, found {version}"
                 )
             )
+        if row.get("isActive") is not True:
+            inactive = True
+            errors.append(f"extension {contract.name} is inactive")
     state = ResultState.READY
     if errors:
         state = (
             ResultState.DRIFTED
-            if drifted and len(installed) == len(desired.contracts)
+            if drifted and not inactive and len(installed) == len(desired.contracts)
             else ResultState.BLOCKED
         )
     return HarnessResult("gemini", state, tuple(installed), {}, tuple(errors))
@@ -268,8 +272,10 @@ def _skill_rows(stdout: str) -> tuple[tuple[str, Path], ...]:
     rows: list[tuple[str, Path]] = []
     skill: str | None = None
     for line in stdout.splitlines():
-        if line and not line[0].isspace() and " [" in line:
+        if line and not line[0].isspace() and " [Enabled]" in line:
             skill = line.split(" [", 1)[0].strip()
+        elif line and not line[0].isspace():
+            skill = None
         elif skill is not None and line.lstrip().startswith("Location:"):
             location = line.split("Location:", 1)[1].strip()
             if location:

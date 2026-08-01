@@ -6,7 +6,6 @@ import json
 import re
 import shutil
 from collections.abc import Callable, Mapping, Sequence
-from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit, urlunsplit
 
@@ -14,8 +13,6 @@ from manifest_agent.adapters.base import (
     Detection,
     combine_results,
     native_command_result,
-    normalize_component_identity,
-    verify_declared_components,
 )
 from manifest_agent.contracts import DOMAIN_BUNDLES
 from manifest_agent.models import (
@@ -28,9 +25,11 @@ from manifest_agent.models import (
     ResultState,
 )
 from manifest_agent.process import CommandRunner, redact_text
+from manifest_agent.release import REPOSITORY_URL
 
 _ADAPTER_VERSION = "1"
 _COMMIT = re.compile(r"^[0-9a-fA-F]{40}(?:[0-9a-fA-F]{24})?$")
+_OWNERSHIP_MARKER = "manifest"
 
 
 class CursorAdapter:
@@ -46,10 +45,12 @@ class CursorAdapter:
         *,
         which: Callable[[str], str | None] = shutil.which,
         env: Mapping[str, str] | None = None,
+        repository_url: str = REPOSITORY_URL,
     ) -> None:
         self.runner = runner or CommandRunner()
         self._which = which
         self._env = env
+        self._repository_url = repository_url
 
     def detect(self) -> Detection:
         """Report Cursor Agent availability and its native version."""
@@ -102,16 +103,7 @@ class CursorAdapter:
             (),
             {"marketplace:manifest": "verified"},
         )
-        plugins, evidence = _verify_inventory(desired, row, self._which)
-        components = verify_declared_components(self.name, desired, evidence)
-        activation = HarnessResult(
-            self.name,
-            ResultState.DEGRADED,
-            (),
-            {"plugins.activation": "unsupported"},
-            errors=("Cursor exposes no native user-scope plugin activation API",),
-        )
-        return combine_results(marketplace, plugins, components, activation)
+        return combine_results(marketplace, self._inspect_plugin_support())
 
     def install(self, desired: DesiredState) -> HarnessResult:
         """Index the exact recorded Git commit and report activation truthfully."""
@@ -144,13 +136,22 @@ class CursorAdapter:
             )
         if tuple(receipt.plugin_ids) != DOMAIN_BUNDLES:
             return _blocked("receipt must contain the exact nine canonical domains")
+        if not _is_url(self._repository_url):
+            return _blocked("configured Manifest repository URL is invalid")
         marketplace_urls = tuple(
             entry.identifier
             for entry in receipt.owned_entries
-            if entry.kind == "marketplace" and _is_url(entry.identifier)
+            if entry.kind == "marketplace"
+            and entry.ownership_marker == _OWNERSHIP_MARKER
+            and _is_url(entry.identifier)
+            and _normalized_url(entry.identifier)
+            == _normalized_url(self._repository_url)
         )
         if len(marketplace_urls) != 1:
-            return _blocked("receipt must contain exactly one owned marketplace URL")
+            return _blocked(
+                "receipt must contain exactly one owned marketplace URL with the "
+                "Manifest marker and canonical repository identity"
+            )
         command, error = self._execute(
             (
                 self.executable,
@@ -166,6 +167,29 @@ class CursorAdapter:
         if command.returncode != 0:
             return native_command_result(self.name, command, CapabilityTier.REQUIRED)
         return HarnessResult(self.name, ResultState.READY, (), {})
+
+    def _inspect_plugin_support(self) -> HarnessResult:
+        command, error = self._execute((self.executable, "plugin", "--help"))
+        if error is not None:
+            return _unsupported_plugins(error.errors)
+        assert command is not None
+        if command.returncode != 0:
+            diagnostic = native_command_result(
+                self.name, command, CapabilityTier.REQUIRED
+            )
+            return _unsupported_plugins(diagnostic.errors)
+        commands = _documented_plugin_commands(command.stdout)
+        if commands <= {"marketplace"}:
+            return _unsupported_plugins(
+                (
+                    "Cursor plugin help exposes marketplace management only; "
+                    "no documented user-scope plugin inventory or activation API",
+                )
+            )
+        return _blocked(
+            "Cursor exposes new native plugin commands that require adapter support "
+            "before inventory can be verified"
+        )
 
     def _execute(
         self, argv: Sequence[str]
@@ -236,91 +260,32 @@ def _identity_error(desired: DesiredState, row: Mapping[str, Any]) -> str | None
     return None
 
 
-def _verify_inventory(
-    desired: DesiredState,
-    marketplace: Mapping[str, Any],
-    which: Callable[[str], str | None],
-) -> tuple[HarnessResult, set[str]]:
-    raw_plugins = marketplace.get("plugins")
-    if not isinstance(raw_plugins, list) or any(
-        not isinstance(row, dict) for row in raw_plugins
-    ):
-        return _blocked(
-            "Cursor marketplace JSON lacks documented plugin inventory"
-        ), set()
-    rows: Sequence[Mapping[str, Any]] = raw_plugins
-    by_name = {row.get("name"): row for row in rows if isinstance(row.get("name"), str)}
-    installed: list[str] = []
-    errors: list[str] = []
-    evidence: set[str] = set()
-    drifted = False
-    for contract in desired.contracts:
-        row = by_name.get(contract.name)
-        if row is None:
-            errors.append(f"missing indexed Cursor plugin: {contract.name}")
+def _documented_plugin_commands(stdout: str) -> set[str]:
+    commands: set[str] = set()
+    in_commands = False
+    for line in stdout.splitlines():
+        if line.strip() == "Commands:":
+            in_commands = True
             continue
-        installed.append(contract.name)
-        if row.get("version") != contract.version:
-            drifted = True
-            errors.append(
-                redact_text(
-                    f"Cursor plugin {contract.name} expected {contract.version}, "
-                    f"found {row.get('version')}"
-                )
-            )
-        evidence.update(_inventory_evidence(contract.name, row))
-        for tier in CapabilityTier:
-            evidence.update(
-                normalize_component_identity(contract.name, "executable", executable)
-                for executable in contract.capabilities.executables[tier]
-                if which(executable) is not None
-            )
-    state = ResultState.READY
-    if errors:
-        state = (
-            ResultState.DRIFTED
-            if drifted and len(installed) == len(desired.contracts)
-            else ResultState.BLOCKED
-        )
-    return HarnessResult("cursor", state, tuple(installed), {}, tuple(errors)), evidence
-
-
-def _inventory_evidence(bundle: str, row: Mapping[str, Any]) -> set[str]:
-    evidence: set[str] = set()
-    fields = {
-        "skills": "skill",
-        "subagents": "agent",
-        "hooks": "hook",
-        "runtime": "runtime",
-        "rules": "guidance",
-        "mcpServers": "mcp",
-        "executables": "executable",
-    }
-    for field, kind in fields.items():
-        values = row.get(field)
-        if isinstance(values, Mapping):
-            identifiers = (key for key in values if isinstance(key, str))
-        elif isinstance(values, list):
-            identifiers = (
-                _inventory_identifier(value)
-                for value in values
-                if isinstance(value, str)
-            )
-        else:
+        if not in_commands or not line.startswith("  "):
             continue
-        evidence.update(
-            normalize_component_identity(bundle, kind, identifier)
-            for identifier in identifiers
-            if identifier
-        )
-    return evidence
+        command = line.strip().split(maxsplit=1)[0]
+        if command:
+            commands.add(command)
+    return commands
 
 
-def _inventory_identifier(value: str) -> str:
-    path = Path(value)
-    if path.name in {"SKILL.md", "plugin.json"}:
-        return path.parent.name
-    return path.stem
+def _unsupported_plugins(errors: Sequence[str]) -> HarnessResult:
+    return HarnessResult(
+        "cursor",
+        ResultState.DEGRADED,
+        (),
+        {
+            "plugins.inventory": "unsupported",
+            "plugins.activation": "unsupported",
+        },
+        errors=tuple(redact_text(error) for error in errors),
+    )
 
 
 def _normalized_url(value: str) -> str:
