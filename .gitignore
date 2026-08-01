@@ -69,11 +69,8 @@ smoke-report.xml
 # Transient per-catalog write lock (smoke_test.py append)
 smoke-catalog/*.lock
 
-# uv lockfile — intentionally untracked (#523). pyproject.toml is the source
-# of truth (ruff/pytest/pyright config + the optional [dependency-groups]
-# benchmark group, #547); resolution is reproducible from it on demand.
-uv.lock
-# Home runtime lock is committed (manifest uv CLI — configs/claude/pyproject.toml).
+# Root coordinator and home-runtime lockfiles are committed.
+!uv.lock
 !configs/claude/uv.lock
 benchmark_data/
 .claude/settings.local.json
