@@ -24,6 +24,16 @@ class CapabilityTier(StrEnum):
 
 
 @dataclass(frozen=True)
+class CommandResult:
+    """Captured result of one argv-only native command."""
+
+    argv: tuple[str, ...]
+    returncode: int
+    stdout: str
+    stderr: str
+
+
+@dataclass(frozen=True)
 class BundleContract:
     """Validated portable metadata for one plugin bundle.
 
