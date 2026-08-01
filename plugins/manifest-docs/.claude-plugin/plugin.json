@@ -1,16 +1,14 @@
 {
-  "name": "manifest-docs",
-  "version": "0.1.1",
-  "description": "Documentation: README and doc-set improvement, Mermaid architecture diagrams, and a one-pass orchestrator. Requires Manifest bootstrap for ~/.claude/scripts.",
   "author": {
     "name": "ReefBytes"
   },
-  "homepage": "https://github.com/ReefBytes-Owner/Manifest",
-  "license": "Proprietary",
+  "description": "Documentation improvement, diagram generation, and doc-set orchestration.",
+  "name": "manifest-docs",
   "skills": [
     "./skills/docs-all",
     "./skills/docs-generate-diagrams",
     "./skills/docs-improve",
     "./skills/docs-improve-readme"
-  ]
+  ],
+  "version": "0.2.0"
 }

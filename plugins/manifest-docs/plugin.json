@@ -1,0 +1,14 @@
+{
+  "description": "Documentation improvement, diagram generation, and doc-set orchestration.",
+  "forbidden": [],
+  "name": "manifest-docs",
+  "optional": [],
+  "required": [],
+  "skills": [
+    "skills/docs-all",
+    "skills/docs-generate-diagrams",
+    "skills/docs-improve",
+    "skills/docs-improve-readme"
+  ],
+  "version": "0.2.0"
+}

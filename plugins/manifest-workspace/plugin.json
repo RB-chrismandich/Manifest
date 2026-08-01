@@ -1,0 +1,27 @@
+{
+  "description": "Workspace configuration, environment, session, and learning workflows.",
+  "forbidden": [],
+  "name": "manifest-workspace",
+  "optional": [],
+  "required": [],
+  "skills": [
+    "skills/ai-hooks-integration",
+    "skills/automation-rework-breakeven",
+    "skills/config-audit",
+    "skills/deploy-reconcile",
+    "skills/env-check",
+    "skills/help",
+    "skills/learning-capture",
+    "skills/memory-compress",
+    "skills/metrics-report",
+    "skills/pass-cli",
+    "skills/pr-smoke",
+    "skills/prompt-optimize",
+    "skills/session-checkpoint",
+    "skills/skill-evolve",
+    "skills/test-isolate-ambient",
+    "skills/token-benchmark",
+    "skills/token-conserve"
+  ],
+  "version": "0.2.0"
+}

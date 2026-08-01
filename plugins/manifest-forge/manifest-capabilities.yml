@@ -1,0 +1,35 @@
+schema_version: 1
+bundle:
+  name: manifest-forge
+  version: 0.2.0
+  description: Git forge, issue tracking, pull request, and release lifecycle workflows.
+  category: version-control
+components:
+  skills:
+    root: skills
+    include: ["*/SKILL.md"]
+  agents: []
+  hooks: []
+  runtime: []
+  guidance: []
+capabilities:
+  mcp:
+    required: []
+    default: []
+    optional: [atlassian, github, linear]
+  executables:
+    required: [bash, git, python3]
+    default: []
+    optional: [gh, glab]
+compatibility:
+  claude: {mode: native}
+  codex: {mode: native}
+  gemini: {mode: generated}
+  cursor: {mode: generated}
+  antigravity: {mode: imported}
+  devin: {mode: native}
+provenance:
+  repository: https://github.com/RB-chrismandich/Manifest
+  license: MIT
+  license_file: LICENSE
+  generated_by: tools/generate_plugin_views.py

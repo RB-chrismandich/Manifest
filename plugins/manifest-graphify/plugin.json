@@ -1,11 +1,11 @@
 {
-  "author": {
-    "name": "ReefBytes"
-  },
   "description": "Repository knowledge-graph generation and query workflows.",
+  "forbidden": [],
   "name": "manifest-graphify",
+  "optional": [],
+  "required": [],
   "skills": [
-    "./skills/graphify"
+    "skills/graphify"
   ],
   "version": "0.2.0"
 }

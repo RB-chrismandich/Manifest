@@ -1,0 +1,35 @@
+schema_version: 1
+bundle:
+  name: stitch-design
+  version: 0.2.0
+  description: Design generation, review, extraction, and implementation workflows.
+  category: design
+components:
+  skills:
+    root: skills
+    include: ["*/SKILL.md"]
+  agents: []
+  hooks: []
+  runtime: []
+  guidance: []
+capabilities:
+  mcp:
+    required: []
+    default: []
+    optional: [stitch]
+  executables:
+    required: [bash, git, python3]
+    default: [node]
+    optional: [chromium]
+compatibility:
+  claude: {mode: native}
+  codex: {mode: native}
+  gemini: {mode: generated}
+  cursor: {mode: generated}
+  antigravity: {mode: imported}
+  devin: {mode: native}
+provenance:
+  repository: https://github.com/RB-chrismandich/Manifest
+  license: MIT
+  license_file: LICENSE
+  generated_by: tools/generate_plugin_views.py

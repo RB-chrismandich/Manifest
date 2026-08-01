@@ -1,0 +1,35 @@
+schema_version: 1
+bundle:
+  name: manifest-graphify
+  version: 0.2.0
+  description: Repository knowledge-graph generation and query workflows.
+  category: code-quality
+components:
+  skills:
+    root: skills
+    include: ["*/SKILL.md"]
+  agents: []
+  hooks: []
+  runtime: []
+  guidance: []
+capabilities:
+  mcp:
+    required: []
+    default: []
+    optional: []
+  executables:
+    required: [git]
+    default: [graphify]
+    optional: []
+compatibility:
+  claude: {mode: native}
+  codex: {mode: native}
+  gemini: {mode: generated}
+  cursor: {mode: generated}
+  antigravity: {mode: imported}
+  devin: {mode: native}
+provenance:
+  repository: https://github.com/RB-chrismandich/Manifest
+  license: MIT
+  license_file: LICENSE
+  generated_by: tools/generate_plugin_views.py

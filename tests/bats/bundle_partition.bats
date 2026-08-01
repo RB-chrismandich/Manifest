@@ -66,23 +66,40 @@ PY
     assert_success
 }
 
-@test "bundles are disjoint and total the registry's expected_total" {
+@test "domain and addon partitions are disjoint and match their explicit totals" {
     run py <<'PY'
 import json, pathlib, re, sys
 text = pathlib.Path("configs/claude/config/skill_policies.yml").read_text()
+domain_expected = int(re.search(r"^domain_expected_total:\s*(\d+)", text, re.M).group(1))
+addon_expected = int(re.search(r"^addon_expected_total:\s*(\d+)", text, re.M).group(1))
 expected = int(re.search(r"^expected_total:\s*(\d+)", text, re.M).group(1))
-seen, dupes, total = {}, [], 0
-for pj in sorted(pathlib.Path(".").glob("plugins/*/.claude-plugin/plugin.json")):
+seen, dupes, domain_total = {}, [], 0
+for pj in sorted(pathlib.Path(".").glob("plugins/manifest-*/.claude-plugin/plugin.json")) + [pathlib.Path("plugins/stitch-design/.claude-plugin/plugin.json")]:
     man = json.loads(pj.read_text())
     for rel in man.get("skills", []):
         name = rel.rsplit("/", 1)[-1]
-        total += 1
+        domain_total += 1
         if name in seen:
             dupes.append(f"{name} in {seen[name]} and {man['name']}")
         seen[name] = man["name"]
+addon_names = {
+    path.parent.name
+    for path in pathlib.Path("plugins/adversarial-design-loop/skills").glob("*/SKILL.md")
+}
+addon_total = len(addon_names)
+overlap = sorted(set(seen) & addon_names)
 if dupes: print("DUPLICATED:", dupes)
-if total != expected: print(f"TOTAL {total} != expected_total {expected}")
-sys.exit(1 if (dupes or total != expected) else 0)
+if overlap: print("DOMAIN/ADDON OVERLAP:", overlap)
+if domain_total != domain_expected:
+    print(f"DOMAIN {domain_total} != domain_expected_total {domain_expected}")
+if addon_total != addon_expected:
+    print(f"ADDON {addon_total} != addon_expected_total {addon_expected}")
+if domain_total + addon_total != expected:
+    print(f"TOTAL {domain_total + addon_total} != expected_total {expected}")
+sys.exit(1 if (
+    dupes or overlap or domain_total != domain_expected or
+    addon_total != addon_expected or domain_total + addon_total != expected
+) else 0)
 PY
     assert_success
 }

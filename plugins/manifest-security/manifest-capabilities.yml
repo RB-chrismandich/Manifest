@@ -1,0 +1,35 @@
+schema_version: 1
+bundle:
+  name: manifest-security
+  version: 0.2.0
+  description: Security review, threat analysis, hardening, and finding-triage workflows.
+  category: security
+components:
+  skills:
+    root: skills
+    include: ["*/SKILL.md"]
+  agents: []
+  hooks: []
+  runtime: []
+  guidance: []
+capabilities:
+  mcp:
+    required: []
+    default: []
+    optional: []
+  executables:
+    required: [bash, git, python3]
+    default: []
+    optional: [semgrep]
+compatibility:
+  claude: {mode: native}
+  codex: {mode: native}
+  gemini: {mode: generated}
+  cursor: {mode: generated}
+  antigravity: {mode: imported}
+  devin: {mode: native}
+provenance:
+  repository: https://github.com/RB-chrismandich/Manifest
+  license: MIT
+  license_file: LICENSE
+  generated_by: tools/generate_plugin_views.py

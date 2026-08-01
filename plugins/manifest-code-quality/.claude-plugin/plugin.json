@@ -1,12 +1,9 @@
 {
-  "name": "manifest-code-quality",
-  "version": "0.1.1",
-  "description": "Analysis of code that already exists: per-language refactor roadmaps, constitution audit, AI-defect audits, verification gates and test craft. Requires Manifest bootstrap for ~/.claude/scripts.",
   "author": {
     "name": "ReefBytes"
   },
-  "homepage": "https://github.com/ReefBytes-Owner/Manifest",
-  "license": "Proprietary",
+  "description": "Code analysis, refactoring, verification, and test-quality workflows.",
+  "name": "manifest-code-quality",
   "skills": [
     "./skills/ai-code-audit",
     "./skills/antipattern-detect",
@@ -30,5 +27,6 @@
     "./skills/terraform-refactor",
     "./skills/test-pin-bug",
     "./skills/test-vary-fixtures"
-  ]
+  ],
+  "version": "0.2.0"
 }

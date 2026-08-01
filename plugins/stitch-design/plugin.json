@@ -1,0 +1,28 @@
+{
+  "description": "Design generation, review, extraction, and implementation workflows.",
+  "forbidden": [],
+  "name": "stitch-design",
+  "optional": [],
+  "required": [],
+  "skills": [
+    "skills/a11y-audit",
+    "skills/code-to-design",
+    "skills/design-md",
+    "skills/enhance-prompt",
+    "skills/extract-design-md",
+    "skills/extract-static-html",
+    "skills/generate-design",
+    "skills/manage-design-system",
+    "skills/performance-check",
+    "skills/react-components",
+    "skills/react-native",
+    "skills/react-vite-dashboard",
+    "skills/remotion",
+    "skills/shadcn-ui",
+    "skills/stitch-loop",
+    "skills/taste-design",
+    "skills/upload-to-stitch",
+    "skills/ux-review"
+  ],
+  "version": "0.2.0"
+}

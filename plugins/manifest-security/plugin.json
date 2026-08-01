@@ -1,0 +1,20 @@
+{
+  "description": "Security review, threat analysis, hardening, and finding-triage workflows.",
+  "forbidden": [],
+  "name": "manifest-security",
+  "optional": [],
+  "required": [],
+  "skills": [
+    "skills/ci-audit-triggers",
+    "skills/ci-harden-workflow",
+    "skills/code-audit",
+    "skills/docker-audit-firewall",
+    "skills/llm-audit-traversal",
+    "skills/mcp-audit",
+    "skills/security-harden-proxy",
+    "skills/security-refute-findings",
+    "skills/security-review-diff",
+    "skills/security-triage-findings"
+  ],
+  "version": "0.2.0"
+}

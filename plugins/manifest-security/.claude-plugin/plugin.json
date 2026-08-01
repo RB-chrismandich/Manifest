@@ -1,12 +1,9 @@
 {
-  "name": "manifest-security",
-  "version": "0.1.1",
-  "description": "Security review and hardening: diff review, finding triage and refutation, MCP and proxy audits, CI pwn-request analysis. Requires Manifest bootstrap for ~/.claude/scripts.",
   "author": {
     "name": "ReefBytes"
   },
-  "homepage": "https://github.com/ReefBytes-Owner/Manifest",
-  "license": "Proprietary",
+  "description": "Security review, threat analysis, hardening, and finding-triage workflows.",
+  "name": "manifest-security",
   "skills": [
     "./skills/ci-audit-triggers",
     "./skills/ci-harden-workflow",
@@ -18,5 +15,6 @@
     "./skills/security-refute-findings",
     "./skills/security-review-diff",
     "./skills/security-triage-findings"
-  ]
+  ],
+  "version": "0.2.0"
 }

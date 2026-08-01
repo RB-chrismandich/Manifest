@@ -1,0 +1,21 @@
+{
+  "description": "CI, deployment, configuration, container, and runtime operations workflows.",
+  "forbidden": [],
+  "name": "manifest-ops",
+  "optional": [],
+  "required": [],
+  "skills": [
+    "skills/cache-warm-oob",
+    "skills/ci-diagnose-drift",
+    "skills/ci-reproduce-failure",
+    "skills/ci-setup",
+    "skills/config-debug-substitution",
+    "skills/config-validate-native",
+    "skills/deploy-diagnose-drift",
+    "skills/deploy-retire-component",
+    "skills/docker-probe-internal",
+    "skills/process-diagnose-stall",
+    "skills/version-pin"
+  ],
+  "version": "0.2.0"
+}
