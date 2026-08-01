@@ -87,7 +87,7 @@ fi
 
 if [[ "$MODE" == "check" ]]; then
     missing=0
-    for d in "${SKILL_DIRS[@]}"; do
+    for d in "${SKILL_DIRS[@]}"; do # array-safe (non-empty: exited above at ${#SKILL_DIRS[@]} -eq 0)
         name="$(basename "$d")"
         if [[ ! -d "$MIRROR/$name" ]]; then
             err "mirror missing: $name"
@@ -115,7 +115,7 @@ fi
 
 rm -rf "${MIRROR:?}"
 mkdir -p "$MIRROR"
-for d in "${SKILL_DIRS[@]}"; do
+for d in "${SKILL_DIRS[@]}"; do # array-safe (non-empty: exited above at ${#SKILL_DIRS[@]} -eq 0)
     # -L dereferences: a symlink in the source becomes a real file here, which
     # is the whole point (see the header).
     rsync -aL "$d" "$MIRROR/"
