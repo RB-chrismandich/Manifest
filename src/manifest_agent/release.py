@@ -15,6 +15,7 @@ from typing import Any
 from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 
+from manifest_agent.models import MarketplaceSource, MarketplaceSourceKind
 from manifest_agent.paths import xdg_paths
 from manifest_agent.process import CommandRunner
 
@@ -39,6 +40,7 @@ class ResolvedRelease:
     version: str
     source_commit: str
     source: str
+    marketplace_source: MarketplaceSource
     release_root: Path
     repository_url: str
     source_dirty: bool
@@ -207,6 +209,9 @@ def _resolve_local(candidate: Path) -> ResolvedRelease:
         version=f"local-{commit[:12]}",
         source_commit=commit,
         source=str(root),
+        marketplace_source=MarketplaceSource(
+            MarketplaceSourceKind.LOCAL, str(root), None
+        ),
         release_root=root,
         repository_url=REPOSITORY_URL,
         source_dirty=bool(status_result.stdout),
@@ -236,6 +241,9 @@ def _resolve_published(version: str) -> ResolvedRelease:
         version=version,
         source_commit=commit,
         source=index_url,
+        marketplace_source=MarketplaceSource(
+            MarketplaceSourceKind.GIT, f"{REPOSITORY_URL}.git", commit
+        ),
         release_root=release_root,
         repository_url=REPOSITORY_URL,
         source_dirty=False,

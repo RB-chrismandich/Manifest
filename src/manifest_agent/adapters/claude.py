@@ -5,12 +5,15 @@ from __future__ import annotations
 import json
 import shutil
 from collections.abc import Callable, Mapping, Sequence
+from pathlib import Path
 from typing import Any
 
 from manifest_agent.adapters.base import (
     Detection,
+    collect_native_component_evidence,
     combine_results,
     native_command_result,
+    verify_declared_components,
 )
 from manifest_agent.contracts import DOMAIN_BUNDLES
 from manifest_agent.models import (
@@ -19,6 +22,7 @@ from manifest_agent.models import (
     DesiredState,
     HarnessReceipt,
     HarnessResult,
+    MarketplaceSourceKind,
     ResultState,
 )
 from manifest_agent.process import CommandRunner, redact_text
@@ -62,10 +66,13 @@ class ClaudeAdapter:
         return Detection(True, executable, redact_text(version) if version else None)
 
     def inspect(self, desired: DesiredState) -> HarnessResult:
-        """Verify exact user-scope bundle IDs and selected contract versions."""
+        """Verify marketplace identity, plugins, and declared native evidence."""
         invalid = _validate_desired(desired)
         if invalid is not None:
             return invalid
+        marketplace = self._inspect_marketplace(desired)
+        if marketplace.state is not ResultState.READY:
+            return marketplace
         command, error = self._execute((self.name, "plugin", "list", "--json"))
         if error is not None:
             return error
@@ -75,7 +82,10 @@ class ClaudeAdapter:
         rows, parse_error = _plugin_rows(command.stdout)
         if parse_error is not None:
             return _blocked(parse_error)
-        return _verify_rows(desired, rows, require_user_scope=True)
+        plugins = _verify_rows(desired, rows, require_user_scope=True)
+        evidence = _component_evidence(desired, rows, self._which)
+        components = verify_declared_components(self.name, desired, evidence)
+        return combine_results(marketplace, plugins, components)
 
     def install(self, desired: DesiredState) -> HarnessResult:
         """Converge the marketplace and all canonical bundles at user scope."""
@@ -83,18 +93,22 @@ class ClaudeAdapter:
         if invalid is not None:
             return invalid
 
+        source = _marketplace_command_source(desired)
+        add_command = (
+            self.name,
+            "plugin",
+            "marketplace",
+            "add",
+            source,
+            "--scope",
+            "user",
+        )
+        add_failures, add_conflicts = self._run_install_mutations([add_command])
+        marketplace = self._inspect_marketplace(desired)
+        if marketplace.state is not ResultState.READY or add_failures:
+            return combine_results(*add_failures, *add_conflicts, marketplace)
+
         commands: list[Sequence[str]] = [
-            (
-                self.name,
-                "plugin",
-                "marketplace",
-                "add",
-                desired.source,
-                "--scope",
-                "user",
-            )
-        ]
-        commands.extend(
             (
                 self.name,
                 "plugin",
@@ -104,14 +118,41 @@ class ClaudeAdapter:
                 "user",
             )
             for bundle in DOMAIN_BUNDLES
-        )
+        ]
         failures, already_present = self._run_install_mutations(commands)
         inspected = self.inspect(desired)
-        if inspected.state is not ResultState.READY:
+        if not _selected_plugins_match(desired, inspected):
             failures.extend(already_present)
         if not failures:
             return inspected
         return combine_results(*failures, inspected)
+
+    def _inspect_marketplace(self, desired: DesiredState) -> HarnessResult:
+        command, error = self._execute(
+            (self.name, "plugin", "marketplace", "list", "--json")
+        )
+        if error is not None:
+            return error
+        assert command is not None
+        if command.returncode != 0:
+            return native_command_result(self.name, command, CapabilityTier.REQUIRED)
+        row, parse_error = _marketplace_row(command.stdout)
+        if parse_error is not None:
+            return _blocked(parse_error)
+        expected = _marketplace_command_source(desired)
+        observed = row.get("path")
+        if row.get("source") != "directory" or not isinstance(observed, str):
+            return _blocked("manifest marketplace is not a native directory source")
+        if _resolved_path(observed) != _resolved_path(expected):
+            return _blocked(
+                f"manifest marketplace source mismatch: expected {expected}, found {observed}"
+            )
+        return HarnessResult(
+            self.name,
+            ResultState.READY,
+            (),
+            {"marketplace:manifest": "verified"},
+        )
 
     def uninstall(self, receipt: HarnessReceipt) -> HarnessResult:
         """Remove receipt-owned plugins and an unreferenced owned marketplace."""
@@ -242,9 +283,37 @@ def _validate_desired(desired: DesiredState) -> HarnessResult | None:
         )
     if any(not contract.version for contract in desired.contracts):
         return _blocked("desired plugin versions must be non-empty")
-    if not desired.source:
+    if not desired.marketplace_source.source:
         return _blocked("desired marketplace source must be non-empty")
+    if (
+        desired.marketplace_source.kind is MarketplaceSourceKind.GIT
+        and desired.marketplace_source.ref != desired.source_commit
+    ):
+        return _blocked("desired marketplace ref must match the release commit")
     return None
+
+
+def _marketplace_command_source(desired: DesiredState) -> str:
+    if desired.marketplace_source.kind is MarketplaceSourceKind.LOCAL:
+        return desired.marketplace_source.source
+    return str(desired.release_root)
+
+
+def _marketplace_row(
+    stdout: str,
+) -> tuple[Mapping[str, Any], str | None]:
+    try:
+        document = json.loads(stdout)
+    except json.JSONDecodeError:
+        return {}, "claude marketplace list did not return valid JSON"
+    if not isinstance(document, list) or any(
+        not isinstance(row, dict) for row in document
+    ):
+        return {}, "claude marketplace list JSON has an invalid schema"
+    matches = [row for row in document if row.get("name") == _MARKETPLACE]
+    if len(matches) != 1:
+        return {}, "claude marketplace list must contain exactly one manifest source"
+    return matches[0], None
 
 
 def _plugin_rows(stdout: str) -> tuple[list[Mapping[str, Any]], str | None]:
@@ -297,6 +366,41 @@ def _verify_rows(
     else:
         state = ResultState.BLOCKED
     return HarnessResult("claude", state, tuple(installed), {}, tuple(errors))
+
+
+def _component_evidence(
+    desired: DesiredState,
+    rows: Sequence[Mapping[str, Any]],
+    which: Callable[[str], str | None],
+) -> set[str]:
+    roots: dict[str, Path] = {}
+    mcp_servers: dict[str, tuple[str, ...]] = {}
+    by_id = {row.get("id"): row for row in rows if isinstance(row.get("id"), str)}
+    for contract in desired.contracts:
+        row = by_id.get(f"{contract.name}@{_MARKETPLACE}")
+        if row is None:
+            continue
+        root_value = row.get("installPath")
+        if isinstance(root_value, str):
+            roots[contract.name] = Path(root_value)
+        native_mcp = row.get("mcpServers")
+        if isinstance(native_mcp, Mapping):
+            mcp_servers[contract.name] = tuple(
+                server for server in native_mcp if isinstance(server, str)
+            )
+    return collect_native_component_evidence(desired, roots, mcp_servers, which)
+
+
+def _selected_plugins_match(desired: DesiredState, result: HarnessResult) -> bool:
+    expected = {f"{contract.name}@{_MARKETPLACE}" for contract in desired.contracts}
+    return set(result.installed_plugin_ids) == expected and not any(
+        error.startswith(("missing required plugin:", "plugin "))
+        for error in result.errors
+    )
+
+
+def _resolved_path(value: str) -> str:
+    return str(Path(value).expanduser().resolve(strict=False))
 
 
 def _receipt_plugin_ids(

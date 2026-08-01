@@ -2,16 +2,26 @@
 
 from __future__ import annotations
 
-import json
 import re
 import shutil
 from collections.abc import Callable, Mapping, Sequence
+from pathlib import Path
 from typing import Any
 
 from manifest_agent.adapters.base import (
     Detection,
+    collect_native_component_evidence,
     combine_results,
     native_command_result,
+    verify_declared_components,
+)
+from manifest_agent.adapters.codex_native import (
+    marketplace_row,
+    normalized_git_source,
+    plugin_rows,
+    validate_marketplace_add_json,
+    validate_plugin_add_json,
+    validate_remove_json,
 )
 from manifest_agent.contracts import DOMAIN_BUNDLES
 from manifest_agent.models import (
@@ -20,6 +30,7 @@ from manifest_agent.models import (
     DesiredState,
     HarnessReceipt,
     HarnessResult,
+    MarketplaceSourceKind,
     ResultState,
 )
 from manifest_agent.process import CommandRunner, redact_text
@@ -64,53 +75,84 @@ class CodexAdapter:
         return Detection(True, executable, redact_text(version) if version else None)
 
     def inspect(self, desired: DesiredState) -> HarnessResult:
-        """Verify exact installed bundle IDs and selected contract versions."""
+        """Verify marketplace identity, plugins, and declared native evidence."""
         invalid = _validate_desired(desired)
         if invalid is not None:
             return invalid
+        marketplace = self._inspect_marketplace(desired)
+        if marketplace.state is not ResultState.READY:
+            return marketplace
         command, error = self._execute((self.name, "plugin", "list", "--json"))
         if error is not None:
             return error
         assert command is not None
         if command.returncode != 0:
             return native_command_result(self.name, command, CapabilityTier.REQUIRED)
-        rows, parse_error = _plugin_rows(command.stdout)
+        rows, parse_error = plugin_rows(command.stdout)
         if parse_error is not None:
             return _blocked(parse_error)
-        return _verify_rows(desired, rows)
+        plugins = _verify_rows(desired, rows)
+        evidence = _component_evidence(desired, rows, self._which)
+        components = verify_declared_components(self.name, desired, evidence)
+        return combine_results(marketplace, plugins, components)
 
     def install(self, desired: DesiredState) -> HarnessResult:
         """Install an immutable marketplace snapshot and all canonical bundles."""
         invalid = _validate_desired(desired)
         if invalid is not None:
             return invalid
-        commands: list[Sequence[str]] = [
-            (
+        add_command = _marketplace_add_argv(desired)
+        add_command_result, add_execution_error = self._execute(add_command)
+        add_failure = add_execution_error
+        if add_command_result is not None:
+            add_failure = _validate_marketplace_add(add_command_result)
+        marketplace = self._inspect_marketplace(desired)
+        if marketplace.state is not ResultState.READY or add_failure is not None:
+            results = [result for result in (add_failure, marketplace) if result]
+            return combine_results(*results)
+
+        failures: list[HarnessResult] = []
+        for contract in desired.contracts:
+            argv = (
                 self.name,
                 "plugin",
-                "marketplace",
                 "add",
-                desired.source,
-                "--ref",
-                desired.source_commit,
+                f"{contract.name}@{_MARKETPLACE}",
                 "--json",
             )
-        ]
-        commands.extend(
-            (
-                self.name,
-                "plugin",
-                "add",
-                f"{bundle}@{_MARKETPLACE}",
-                "--json",
-            )
-            for bundle in DOMAIN_BUNDLES
-        )
-        failures = self._run_json_mutations(commands)
+            command, error = self._execute(argv)
+            if error is not None:
+                failures.append(error)
+            elif command is not None:
+                failure = _validate_plugin_add(command, contract.name, contract.version)
+                if failure is not None:
+                    failures.append(failure)
         inspected = self.inspect(desired)
         if not failures:
             return inspected
         return combine_results(*failures, inspected)
+
+    def _inspect_marketplace(self, desired: DesiredState) -> HarnessResult:
+        command, error = self._execute(
+            (self.name, "plugin", "marketplace", "list", "--json")
+        )
+        if error is not None:
+            return error
+        assert command is not None
+        if command.returncode != 0:
+            return native_command_result(self.name, command, CapabilityTier.REQUIRED)
+        row, parse_error = marketplace_row(command.stdout)
+        if parse_error is not None:
+            return _blocked(parse_error)
+        identity_error = _marketplace_identity_error(self, desired, row)
+        if identity_error is not None:
+            return _blocked(identity_error)
+        return HarnessResult(
+            self.name,
+            ResultState.READY,
+            (),
+            {"marketplace:manifest": "verified"},
+        )
 
     def uninstall(self, receipt: HarnessReceipt) -> HarnessResult:
         """Remove receipt-owned plugins and an unreferenced owned marketplace."""
@@ -190,7 +232,7 @@ class CodexAdapter:
             return None, native_command_result(
                 self.name, command, CapabilityTier.REQUIRED
             )
-        rows, parse_error = _plugin_rows(command.stdout)
+        rows, parse_error = plugin_rows(command.stdout)
         if parse_error is not None:
             return None, _blocked(parse_error)
         return _installed_manifest_ids(rows), None
@@ -210,7 +252,7 @@ class CodexAdapter:
                     native_command_result(self.name, command, CapabilityTier.REQUIRED)
                 )
                 continue
-            json_error = _validate_mutation_json(command.stdout)
+            json_error = validate_remove_json(argv, command.stdout)
             if json_error is not None:
                 failures.append(_blocked(json_error))
         return failures
@@ -228,6 +270,52 @@ class CodexAdapter:
             return None, _blocked(diagnostic)
 
 
+def _marketplace_identity_error(
+    adapter: CodexAdapter, desired: DesiredState, row: Mapping[str, Any]
+) -> str | None:
+    native_source = row.get("marketplaceSource")
+    if not isinstance(native_source, Mapping):
+        return "manifest marketplace JSON is missing native source identity"
+    source_type = native_source.get("sourceType")
+    observed = native_source.get("source")
+    if not isinstance(observed, str):
+        return "manifest marketplace JSON is missing its source"
+    expected = desired.marketplace_source.source
+    if desired.marketplace_source.kind is MarketplaceSourceKind.LOCAL:
+        if source_type != "local" or _resolved_path(observed) != _resolved_path(
+            expected
+        ):
+            return (
+                f"manifest marketplace source mismatch: expected {expected}, "
+                f"found {observed}"
+            )
+        return None
+    if source_type != "git" or normalized_git_source(observed) != normalized_git_source(
+        expected
+    ):
+        return (
+            f"manifest marketplace source mismatch: expected {expected}, "
+            f"found {observed}"
+        )
+    root = row.get("root")
+    if not isinstance(root, str):
+        return "manifest Git marketplace JSON is missing its checkout root"
+    command, error = adapter._execute(("git", "-C", root, "rev-parse", "HEAD"))
+    if error is not None:
+        return error.errors[0]
+    assert command is not None
+    if command.returncode != 0:
+        result = native_command_result("codex", command, CapabilityTier.REQUIRED)
+        return result.errors[0]
+    observed_ref = command.stdout.strip().lower()
+    if observed_ref != desired.marketplace_source.ref:
+        return (
+            "manifest marketplace ref mismatch: expected "
+            f"{desired.marketplace_source.ref}, found {observed_ref}"
+        )
+    return None
+
+
 def _validate_desired(desired: DesiredState) -> HarnessResult | None:
     names = tuple(contract.name for contract in desired.contracts)
     if names != DOMAIN_BUNDLES:
@@ -236,40 +324,51 @@ def _validate_desired(desired: DesiredState) -> HarnessResult | None:
         )
     if any(not contract.version for contract in desired.contracts):
         return _blocked("desired plugin versions must be non-empty")
-    if not desired.source:
+    if not desired.marketplace_source.source:
         return _blocked("desired marketplace source must be non-empty")
     if not _COMMIT.fullmatch(desired.source_commit):
         return _blocked("Codex marketplace source commit must be immutable")
-    return None
-
-
-def _validate_mutation_json(stdout: str) -> str | None:
-    try:
-        document = json.loads(stdout)
-    except json.JSONDecodeError:
-        return "Codex native mutation did not return valid JSON"
-    if not isinstance(document, dict):
-        return "Codex native mutation JSON must be an object"
-    if document.get("success") is False or document.get("installed") is False:
-        return "Codex native mutation JSON reported failure"
-    if document.get("error"):
-        return "Codex native mutation JSON reported an error"
-    return None
-
-
-def _plugin_rows(stdout: str) -> tuple[list[Mapping[str, Any]], str | None]:
-    try:
-        document = json.loads(stdout)
-    except json.JSONDecodeError:
-        return [], "codex plugin list did not return valid JSON"
-    if not isinstance(document, dict) or not isinstance(
-        document.get("installed"), list
+    if (
+        desired.marketplace_source.kind is MarketplaceSourceKind.GIT
+        and desired.marketplace_source.ref != desired.source_commit
     ):
-        return [], "codex plugin list JSON has an invalid installed-plugin schema"
-    rows = document["installed"]
-    if any(not isinstance(row, dict) for row in rows):
-        return [], "codex plugin list JSON has an invalid installed-plugin schema"
-    return rows, None
+        return _blocked("desired marketplace ref must match the release commit")
+    return None
+
+
+def _marketplace_add_argv(desired: DesiredState) -> tuple[str, ...]:
+    argv = [
+        "codex",
+        "plugin",
+        "marketplace",
+        "add",
+        desired.marketplace_source.source,
+    ]
+    if desired.marketplace_source.kind is MarketplaceSourceKind.GIT:
+        assert desired.marketplace_source.ref is not None
+        argv.extend(("--ref", desired.marketplace_source.ref))
+    argv.append("--json")
+    return tuple(argv)
+
+
+def _validate_marketplace_add(command: CommandResult) -> HarnessResult | None:
+    if command.returncode != 0:
+        return native_command_result("codex", command, CapabilityTier.REQUIRED)
+    error = validate_marketplace_add_json(command.stdout)
+    if error is not None:
+        return _blocked(error)
+    return None
+
+
+def _validate_plugin_add(
+    command: CommandResult, bundle: str, version: str
+) -> HarnessResult | None:
+    if command.returncode != 0:
+        return native_command_result("codex", command, CapabilityTier.REQUIRED)
+    error = validate_plugin_add_json(command.stdout, bundle, version)
+    if error is not None:
+        return _blocked(error)
+    return None
 
 
 def _verify_rows(
@@ -307,6 +406,36 @@ def _verify_rows(
     else:
         state = ResultState.BLOCKED
     return HarnessResult("codex", state, tuple(installed), {}, tuple(errors))
+
+
+def _component_evidence(
+    desired: DesiredState,
+    rows: Sequence[Mapping[str, Any]],
+    which: Callable[[str], str | None],
+) -> set[str]:
+    roots: dict[str, Path] = {}
+    mcp_servers: dict[str, tuple[str, ...]] = {}
+    by_id = {
+        row.get("pluginId"): row for row in rows if isinstance(row.get("pluginId"), str)
+    }
+    for contract in desired.contracts:
+        row = by_id.get(f"{contract.name}@{_MARKETPLACE}")
+        if row is None:
+            continue
+        source = row.get("source")
+        root_value = source.get("path") if isinstance(source, Mapping) else None
+        if isinstance(root_value, str):
+            roots[contract.name] = Path(root_value)
+        native_mcp = row.get("mcpServers")
+        if isinstance(native_mcp, Mapping):
+            mcp_servers[contract.name] = tuple(
+                server for server in native_mcp if isinstance(server, str)
+            )
+    return collect_native_component_evidence(desired, roots, mcp_servers, which)
+
+
+def _resolved_path(value: str) -> str:
+    return str(Path(value).expanduser().resolve(strict=False))
 
 
 def _receipt_plugin_ids(

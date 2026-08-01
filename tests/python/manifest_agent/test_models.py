@@ -11,6 +11,8 @@ from manifest_agent.models import (
     HarnessReceipt,
     HarnessResult,
     InstallationReceipt,
+    MarketplaceSource,
+    MarketplaceSourceKind,
     OwnedEntry,
     ResultState,
 )
@@ -38,6 +40,7 @@ def test_capability_tiers_are_stable_strings():
     [
         BundleContract,
         DesiredState,
+        MarketplaceSource,
         OwnedEntry,
         HarnessReceipt,
         HarnessResult,
@@ -53,6 +56,7 @@ def test_desired_state_fields_are_stable():
         "release_version",
         "source_commit",
         "source",
+        "marketplace_source",
         "release_root",
         "repository_url",
         "source_dirty",
@@ -61,6 +65,10 @@ def test_desired_state_fields_are_stable():
         "selected_optional",
         "requested_harnesses",
     ]
+
+
+def test_marketplace_source_modes_are_stable_strings():
+    assert [kind.value for kind in MarketplaceSourceKind] == ["local", "git"]
 
 
 def test_receipt_fields_do_not_include_secret_payloads():

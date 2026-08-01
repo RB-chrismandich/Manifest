@@ -7,8 +7,10 @@ from pathlib import Path
 
 import pytest
 
+from manifest_agent.models import MarketplaceSourceKind
 from manifest_agent.release import (
     RELEASE_INDEX_URL,
+    REPOSITORY_URL,
     ReleaseError,
     deterministic_tree_sha256,
     resolve_release,
@@ -79,6 +81,9 @@ def test_local_checkout_records_head_dirty_and_deterministic_digest(tmp_path):
     assert release.source_dirty is False
     assert release.archive_sha256 == deterministic_tree_sha256(repo)
     assert release.release_root == repo.resolve()
+    assert release.marketplace_source.kind is MarketplaceSourceKind.LOCAL
+    assert release.marketplace_source.source == str(repo.resolve())
+    assert release.marketplace_source.ref is None
 
 
 def test_local_checkout_digest_and_dirty_flag_detect_uncommitted_drift(tmp_path):
@@ -160,6 +165,9 @@ def test_published_release_validates_index_and_archive(monkeypatch, tmp_path):
     assert release.source_commit == commit
     assert release.source_dirty is False
     assert release.archive_sha256 == checksum
+    assert release.marketplace_source.kind is MarketplaceSourceKind.GIT
+    assert release.marketplace_source.source == f"{REPOSITORY_URL}.git"
+    assert release.marketplace_source.ref == commit
     assert (release.release_root / "plugins" / "bundle.txt").read_text() == "portable\n"
     assert requested_urls[0][0] == RELEASE_INDEX_URL.format(version="1.2.3")
 

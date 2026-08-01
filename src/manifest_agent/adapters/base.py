@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-from collections.abc import Collection, Mapping, Sequence
+from collections.abc import Callable, Collection, Mapping, Sequence
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Protocol, runtime_checkable
 
 from manifest_agent.contracts import CompatibilityStatus, Component
@@ -173,6 +174,60 @@ def verify_declared_components(
     if not results:
         return HarnessResult(harness, ResultState.READY, (), {})
     return combine_results(*results)
+
+
+def collect_native_component_evidence(
+    desired: DesiredState,
+    plugin_roots: Mapping[str, Path],
+    native_mcp_servers: Mapping[str, Collection[str]],
+    which: Callable[[str], str | None],
+) -> set[str]:
+    """Collect file and native capability evidence without assuming exposure."""
+    evidence: set[str] = set()
+    for contract in desired.contracts:
+        root = plugin_roots.get(contract.name)
+        if root is not None:
+            _add_installed_file_evidence(evidence, desired, contract, root)
+        evidence.update(
+            normalize_component_identity(contract.name, "mcp", server)
+            for server in native_mcp_servers.get(contract.name, ())
+        )
+        for tier in CapabilityTier:
+            evidence.update(
+                normalize_component_identity(contract.name, "executable", executable)
+                for executable in contract.capabilities.executables[tier]
+                if which(executable) is not None
+            )
+    return evidence
+
+
+def _add_installed_file_evidence(
+    evidence: set[str],
+    desired: DesiredState,
+    contract: BundleContract,
+    root: Path,
+) -> None:
+    desired_skills = (
+        desired.bundle_path(contract.name) / contract.components.skills_root
+    )
+    installed_skills = root / contract.components.skills_root
+    for pattern in contract.components.skills_include:
+        for path in desired_skills.glob(pattern):
+            if (
+                path.is_file()
+                and (installed_skills / path.relative_to(desired_skills)).is_file()
+            ):
+                evidence.add(
+                    normalize_component_identity(
+                        contract.name, "skill", path.parent.name
+                    )
+                )
+    for kind, attribute in _COMPONENT_GROUPS:
+        for component in getattr(contract.components, attribute):
+            if (root / component.path).is_file():
+                evidence.add(
+                    normalize_component_identity(contract.name, kind, component.id)
+                )
 
 
 def _verify_contract(

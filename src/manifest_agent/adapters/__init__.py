@@ -3,6 +3,7 @@
 from manifest_agent.adapters.base import (
     Detection,
     HarnessAdapter,
+    collect_native_component_evidence,
     combine_results,
     native_command_result,
     normalize_component_identity,
@@ -16,6 +17,7 @@ __all__ = [
     "AdapterRegistry",
     "Detection",
     "HarnessAdapter",
+    "collect_native_component_evidence",
     "combine_results",
     "native_command_result",
     "normalize_component_identity",

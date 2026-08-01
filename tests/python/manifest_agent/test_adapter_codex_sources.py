@@ -1,0 +1,164 @@
+"""Codex Git-source and isolated native lifecycle tests."""
+
+from __future__ import annotations
+
+import os
+import shutil
+from dataclasses import replace
+from pathlib import Path
+
+import pytest
+
+from manifest_agent.adapters.codex import CodexAdapter
+from manifest_agent.contracts import DOMAIN_BUNDLES, load_domain_contracts
+from manifest_agent.models import (
+    DesiredState,
+    HarnessReceipt,
+    MarketplaceSource,
+    MarketplaceSourceKind,
+    OwnedEntry,
+    ResultState,
+)
+from manifest_agent.process import CommandRunner
+from tests.python.manifest_agent.test_adapter_codex import (
+    QueueRunner,
+    command,
+    installed_json,
+    marketplace_add_json,
+    marketplace_json,
+    plugin_add_json,
+)
+from tests.python.manifest_agent.test_adapter_codex import (
+    desired as desired_fixture,
+)
+
+desired = desired_fixture
+
+
+def test_codex_published_release_pins_git_marketplace_ref(
+    desired: DesiredState,
+) -> None:
+    git_root = desired.release_root / "codex-marketplace"
+    published = replace(
+        desired,
+        source="https://example.invalid/releases/manifest-release.json",
+        marketplace_source=MarketplaceSource(
+            MarketplaceSourceKind.GIT,
+            "https://example.invalid/Manifest.git",
+            desired.source_commit,
+        ),
+    )
+    marketplace = command(
+        stdout=marketplace_json(
+            published.marketplace_source.source, git_root, source_type="git"
+        )
+    )
+    runner = QueueRunner(
+        [
+            command(stdout=marketplace_add_json(git_root)),
+            marketplace,
+            command(stdout=published.source_commit),
+            *[
+                command(stdout=plugin_add_json(published, name))
+                for name in DOMAIN_BUNDLES
+            ],
+            marketplace,
+            command(stdout=published.source_commit),
+            command(stdout=installed_json(published)),
+        ]
+    )
+
+    result = CodexAdapter(runner=runner, which=lambda name: name).install(published)
+
+    assert result.state is ResultState.READY
+    assert runner.log[0] == [
+        "codex",
+        "plugin",
+        "marketplace",
+        "add",
+        published.marketplace_source.source,
+        "--ref",
+        published.source_commit,
+        "--json",
+    ]
+    assert ["git", "-C", str(git_root), "rev-parse", "HEAD"] in runner.log
+
+
+def test_codex_marketplace_ref_collision_blocks_before_plugin_install(
+    desired: DesiredState,
+) -> None:
+    git_root = desired.release_root / "codex-marketplace"
+    published = replace(
+        desired,
+        marketplace_source=MarketplaceSource(
+            MarketplaceSourceKind.GIT,
+            "https://example.invalid/Manifest.git",
+            desired.source_commit,
+        ),
+    )
+    runner = QueueRunner(
+        [
+            command(stdout=marketplace_add_json(git_root, already_added=True)),
+            command(
+                stdout=marketplace_json(
+                    published.marketplace_source.source,
+                    git_root,
+                    source_type="git",
+                )
+            ),
+            command(stdout="b" * 40),
+        ]
+    )
+
+    result = CodexAdapter(runner=runner, which=lambda name: name).install(published)
+
+    assert result.state is ResultState.BLOCKED
+    assert "marketplace ref mismatch" in " ".join(result.errors)
+    assert not any(row[1:3] == ["plugin", "add"] for row in runner.log)
+
+
+@pytest.mark.native
+def test_native_codex_adapter_lifecycle_uses_an_isolated_home(tmp_path: Path) -> None:
+    executable = shutil.which("codex")
+    if executable is None:
+        pytest.skip("codex CLI not present")
+    isolated_home = tmp_path / "home"
+    (isolated_home / ".codex").mkdir(parents=True)
+    env = {
+        "HOME": str(isolated_home),
+        "CODEX_HOME": str(isolated_home / ".codex"),
+        "PATH": os.environ["PATH"],
+    }
+    repository = Path(__file__).parents[3]
+    desired_state = DesiredState(
+        release_version="0.2.0",
+        source_commit="a" * 40,
+        source=str(repository),
+        marketplace_source=MarketplaceSource(
+            MarketplaceSourceKind.LOCAL, str(repository), None
+        ),
+        release_root=repository,
+        repository_url="https://example.invalid/Manifest",
+        source_dirty=True,
+        archive_sha256="b" * 64,
+        contracts=load_domain_contracts(repository / "plugins"),
+        selected_optional=frozenset(),
+        requested_harnesses=("codex",),
+    )
+    adapter = CodexAdapter(runner=CommandRunner(), env=env)
+
+    result = adapter.install(desired_state)
+    receipt = HarnessReceipt(
+        harness="codex",
+        adapter_version=adapter.adapter_version,
+        native_version="native-smoke",
+        plugin_ids=result.installed_plugin_ids,
+        owned_entries=(OwnedEntry("marketplace", "manifest", "native-smoke"),),
+        capabilities=result.capabilities,
+        verified=result.state is not ResultState.BLOCKED,
+    )
+    removed = adapter.uninstall(receipt)
+
+    assert len(result.installed_plugin_ids) == 9
+    assert result.state in {ResultState.READY, ResultState.DEGRADED}
+    assert removed.state is ResultState.READY

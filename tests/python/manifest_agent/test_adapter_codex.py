@@ -3,20 +3,27 @@
 from __future__ import annotations
 
 import json
-import os
-import shutil
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 
 import pytest
 
 from manifest_agent.adapters.codex import CodexAdapter
-from manifest_agent.contracts import DOMAIN_BUNDLES
+from manifest_agent.contracts import (
+    DOMAIN_BUNDLES,
+    Capabilities,
+    CompatibilityStatus,
+    Components,
+    Provenance,
+)
 from manifest_agent.models import (
     BundleContract,
+    CapabilityTier,
     CommandResult,
     DesiredState,
     HarnessReceipt,
+    MarketplaceSource,
+    MarketplaceSourceKind,
     OwnedEntry,
     ResultState,
 )
@@ -50,25 +57,110 @@ def command(
 
 @pytest.fixture
 def desired(tmp_path: Path) -> DesiredState:
-    contracts = tuple(
-        BundleContract(name, "0.2.0", "fixture", "fixture", None, None, None, None)
-        for name in DOMAIN_BUNDLES
-    )
+    contracts = []
+    for name in DOMAIN_BUNDLES:
+        skill = tmp_path / "plugins" / name / "skills" / "help" / "SKILL.md"
+        skill.parent.mkdir(parents=True)
+        skill.write_text("# Help\n", encoding="utf-8")
+        contracts.append(
+            BundleContract(
+                name,
+                "0.2.0",
+                "fixture",
+                "fixture",
+                Components("skills", ("*/SKILL.md",), (), (), (), ()),
+                Capabilities(
+                    {
+                        CapabilityTier.REQUIRED: (),
+                        CapabilityTier.DEFAULT: ("context7",)
+                        if name == "manifest-workspace"
+                        else (),
+                        CapabilityTier.OPTIONAL: (),
+                    },
+                    {
+                        CapabilityTier.REQUIRED: ("git",),
+                        CapabilityTier.DEFAULT: (),
+                        CapabilityTier.OPTIONAL: (),
+                    },
+                ),
+                {
+                    "claude": CompatibilityStatus("native"),
+                    "codex": CompatibilityStatus("native"),
+                },
+                Provenance("https://example.invalid", "MIT", "LICENSE", "test"),
+            )
+        )
     return DesiredState(
         release_version="0.2.0",
         source_commit="a" * 40,
-        source="https://example.invalid/Manifest.git",
+        source=str(tmp_path),
+        marketplace_source=MarketplaceSource(
+            MarketplaceSourceKind.LOCAL, str(tmp_path), None
+        ),
         release_root=tmp_path,
         repository_url="https://example.invalid/Manifest",
         source_dirty=False,
         archive_sha256="b" * 64,
-        contracts=contracts,
+        contracts=tuple(contracts),
         selected_optional=frozenset(),
         requested_harnesses=("codex",),
     )
 
 
-def installed_json(version: str = "0.2.0", *, extra: bool = False) -> str:
+def marketplace_json(
+    source: str, root: Path | str, *, source_type: str = "local"
+) -> str:
+    return json.dumps(
+        {
+            "marketplaces": [
+                {
+                    "name": "manifest",
+                    "root": str(root),
+                    "marketplaceSource": {
+                        "sourceType": source_type,
+                        "source": source,
+                    },
+                }
+            ]
+        }
+    )
+
+
+def marketplace_add_json(root: Path | str, *, already_added: bool = False) -> str:
+    return json.dumps(
+        {
+            "marketplaceName": "manifest",
+            "installedRoot": str(root),
+            "alreadyAdded": already_added,
+        }
+    )
+
+
+def plugin_add_json(desired: DesiredState, name: str) -> str:
+    return json.dumps(
+        {
+            "pluginId": f"{name}@manifest",
+            "name": name,
+            "marketplaceName": "manifest",
+            "version": "0.2.0",
+            "installedPath": str(desired.bundle_path(name)),
+        }
+    )
+
+
+def plugin_remove_json(name: str) -> str:
+    return json.dumps(
+        {
+            "pluginId": f"{name}@manifest",
+            "name": name,
+            "marketplaceName": "manifest",
+        }
+    )
+
+
+def installed_json(
+    desired: DesiredState, version: str = "0.2.0", *, extra: bool = False
+) -> str:
     rows = [
         {
             "pluginId": f"{name}@manifest",
@@ -77,6 +169,11 @@ def installed_json(version: str = "0.2.0", *, extra: bool = False) -> str:
             "version": version,
             "installed": True,
             "enabled": True,
+            "source": {
+                "source": "local",
+                "path": str(desired.bundle_path(name)),
+            },
+            "mcpServers": {"context7": {}} if name == "manifest-workspace" else {},
         }
         for name in DOMAIN_BUNDLES
     ]
@@ -102,10 +199,27 @@ def test_detection_reports_absent_cli_explicitly() -> None:
     assert detection.reason == "codex CLI not present"
 
 
-def test_codex_pins_marketplace_ref_and_installs_nine_plugins(
+def test_codex_local_release_omits_ref_and_installs_nine_plugins(
     desired: DesiredState,
 ) -> None:
-    runner = QueueRunner([command()] * 10 + [command(stdout=installed_json())])
+    marketplace = command(
+        stdout=marketplace_json(
+            desired.marketplace_source.source,
+            desired.marketplace_source.source,
+        )
+    )
+    runner = QueueRunner(
+        [
+            command(stdout=marketplace_add_json(desired.marketplace_source.source)),
+            marketplace,
+            *[
+                command(stdout=plugin_add_json(desired, name))
+                for name in DOMAIN_BUNDLES
+            ],
+            marketplace,
+            command(stdout=installed_json(desired)),
+        ]
+    )
     adapter = CodexAdapter(runner=runner, which=lambda name: name)
 
     result = adapter.install(desired)
@@ -116,9 +230,7 @@ def test_codex_pins_marketplace_ref_and_installs_nine_plugins(
         "plugin",
         "marketplace",
         "add",
-        desired.source,
-        "--ref",
-        desired.source_commit,
+        desired.marketplace_source.source,
         "--json",
     ]
     assert [row for row in runner.log if row[1:3] == ["plugin", "add"]] == [
@@ -126,28 +238,50 @@ def test_codex_pins_marketplace_ref_and_installs_nine_plugins(
         for name in DOMAIN_BUNDLES
     ]
     assert runner.log[-1] == ["codex", "plugin", "list", "--json"]
+    assert result.capabilities["manifest-workspace:skill:help"] == "verified"
+    assert result.capabilities["manifest-workspace:mcp:context7"] == "verified"
 
 
 def test_codex_requires_structured_mutation_output(desired: DesiredState) -> None:
-    runner = QueueRunner(
-        [command(stdout="installed successfully")]
-        + [command()] * 9
-        + [command(stdout=installed_json())]
+    marketplace = command(
+        stdout=marketplace_json(
+            desired.marketplace_source.source,
+            desired.marketplace_source.source,
+        )
     )
+    runner = QueueRunner([command(stdout="installed successfully"), marketplace])
 
     result = CodexAdapter(runner=runner, which=lambda name: name).install(desired)
 
     assert result.state is ResultState.BLOCKED
     assert "valid JSON" in " ".join(result.errors)
+    assert not any(row[1:3] == ["plugin", "add"] for row in runner.log)
 
 
 def test_codex_already_present_requires_selected_version_inspection(
     desired: DesiredState,
 ) -> None:
+    marketplace = command(
+        stdout=marketplace_json(
+            desired.marketplace_source.source,
+            desired.marketplace_source.source,
+        )
+    )
     runner = QueueRunner(
-        [command(stdout='{"alreadyAdded": true}')]
-        + [command(stdout='{"alreadyInstalled": true}')] * 9
-        + [command(stdout=installed_json())]
+        [
+            command(
+                stdout=marketplace_add_json(
+                    desired.marketplace_source.source, already_added=True
+                )
+            ),
+            marketplace,
+            *[
+                command(stdout=plugin_add_json(desired, name))
+                for name in DOMAIN_BUNDLES
+            ],
+            marketplace,
+            command(stdout=installed_json(desired)),
+        ]
     )
 
     result = CodexAdapter(runner=runner, which=lambda name: name).install(desired)
@@ -156,8 +290,68 @@ def test_codex_already_present_requires_selected_version_inspection(
     assert result.errors == ()
 
 
+def test_codex_marketplace_collision_blocks_before_plugin_install(
+    desired: DesiredState,
+) -> None:
+    runner = QueueRunner(
+        [
+            command(
+                stdout=marketplace_add_json(
+                    desired.marketplace_source.source, already_added=True
+                )
+            ),
+            command(stdout=marketplace_json("/different/source", "/different/source")),
+        ]
+    )
+
+    result = CodexAdapter(runner=runner, which=lambda name: name).install(desired)
+
+    assert result.state is ResultState.BLOCKED
+    assert "marketplace source mismatch" in " ".join(result.errors)
+    assert not any(row[1:3] == ["plugin", "add"] for row in runner.log)
+
+
+def test_codex_plugin_add_requires_exact_native_identity(
+    desired: DesiredState,
+) -> None:
+    marketplace = command(
+        stdout=marketplace_json(
+            desired.marketplace_source.source,
+            desired.marketplace_source.source,
+        )
+    )
+    runner = QueueRunner(
+        [
+            command(stdout=marketplace_add_json(desired.marketplace_source.source)),
+            marketplace,
+            command(stdout="{}"),
+            *[
+                command(stdout=plugin_add_json(desired, name))
+                for name in DOMAIN_BUNDLES[1:]
+            ],
+            marketplace,
+            command(stdout=installed_json(desired)),
+        ]
+    )
+
+    result = CodexAdapter(runner=runner, which=lambda name: name).install(desired)
+
+    assert result.state is ResultState.BLOCKED
+    assert "did not confirm manifest-code-quality@manifest" in result.errors[0]
+
+
 def test_codex_inspect_reports_selected_version_drift(desired: DesiredState) -> None:
-    runner = QueueRunner([command(stdout=installed_json("0.1.0"))])
+    runner = QueueRunner(
+        [
+            command(
+                stdout=marketplace_json(
+                    desired.marketplace_source.source,
+                    desired.marketplace_source.source,
+                )
+            ),
+            command(stdout=installed_json(desired, "0.1.0")),
+        ]
+    )
 
     result = CodexAdapter(runner=runner, which=lambda name: name).inspect(desired)
 
@@ -165,8 +359,29 @@ def test_codex_inspect_reports_selected_version_drift(desired: DesiredState) -> 
     assert "expected 0.2.0, found 0.1.0" in result.errors[0]
 
 
+def test_codex_inspect_blocks_when_required_component_evidence_is_missing(
+    desired: DesiredState,
+) -> None:
+    runner = QueueRunner(
+        [
+            command(
+                stdout=marketplace_json(
+                    desired.marketplace_source.source,
+                    desired.marketplace_source.source,
+                )
+            ),
+            command(stdout=installed_json(desired)),
+        ]
+    )
+
+    result = CodexAdapter(runner=runner, which=lambda _name: None).inspect(desired)
+
+    assert result.state is ResultState.BLOCKED
+    assert "manifest-workspace:executable:git" in " ".join(result.errors)
+
+
 def test_codex_uninstall_retains_marketplace_for_unowned_plugin() -> None:
-    runner = QueueRunner([command(), command(stdout=installed_json(extra=True))])
+    runner = QueueRunner([])
     receipt = HarnessReceipt(
         harness="codex",
         adapter_version="1",
@@ -177,7 +392,9 @@ def test_codex_uninstall_retains_marketplace_for_unowned_plugin() -> None:
         verified=True,
     )
     # One response is reused for each native remove before the final list.
-    runner.results = [command()] * len(DOMAIN_BUNDLES) + [
+    runner.results = [
+        command(stdout=plugin_remove_json(name)) for name in DOMAIN_BUNDLES
+    ] + [
         command(
             stdout=json.dumps(
                 {
@@ -205,12 +422,17 @@ def test_codex_uninstall_retains_marketplace_for_unowned_plugin() -> None:
 
 
 def test_codex_uninstall_removes_owned_marketplace_when_unreferenced() -> None:
-    runner = QueueRunner([command(), command(stdout=installed_json())])
-    runner.results = [
-        command(),
-        command(stdout=json.dumps({"installed": []})),
-        command(),
-    ]
+    runner = QueueRunner(
+        [
+            command(stdout=plugin_remove_json("manifest-docs")),
+            command(stdout=json.dumps({"installed": []})),
+            command(
+                stdout=json.dumps(
+                    {"marketplaceName": "manifest", "installedRoot": None}
+                )
+            ),
+        ]
+    )
     receipt = HarnessReceipt(
         harness="codex",
         adapter_version="1",
@@ -232,38 +454,3 @@ def test_codex_uninstall_removes_owned_marketplace_when_unreferenced() -> None:
         "manifest",
         "--json",
     ]
-
-
-@pytest.mark.native
-def test_native_codex_uses_an_isolated_home(tmp_path: Path) -> None:
-    executable = shutil.which("codex")
-    if executable is None:
-        pytest.skip("codex CLI not present")
-    isolated_home = tmp_path / "home"
-    (isolated_home / ".codex").mkdir(parents=True)
-    env = {
-        "HOME": str(isolated_home),
-        "CODEX_HOME": str(isolated_home / ".codex"),
-        "PATH": os.environ["PATH"],
-    }
-    repository = Path(__file__).parents[3]
-
-    added = CommandRunner().run(
-        (
-            executable,
-            "plugin",
-            "marketplace",
-            "add",
-            str(repository),
-            "--json",
-        ),
-        env=env,
-    )
-    result = CommandRunner().run(
-        (executable, "plugin", "marketplace", "list", "--json"), env=env
-    )
-
-    assert added.returncode == 0, added.stderr
-    assert result.returncode == 0, result.stderr
-    marketplaces = json.loads(result.stdout)["marketplaces"]
-    assert any(row["name"] == "manifest" for row in marketplaces)

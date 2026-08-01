@@ -1,5 +1,6 @@
 """Immutable public contracts shared by coordinator layers."""
 
+import re
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
@@ -21,6 +22,33 @@ class CapabilityTier(StrEnum):
     REQUIRED = "required"
     DEFAULT = "default"
     OPTIONAL = "optional"
+
+
+class MarketplaceSourceKind(StrEnum):
+    """Whether a native marketplace is local content or an immutable Git tree."""
+
+    LOCAL = "local"
+    GIT = "git"
+
+
+@dataclass(frozen=True)
+class MarketplaceSource:
+    """Native marketplace location separated from release acquisition metadata."""
+
+    kind: MarketplaceSourceKind
+    source: str
+    ref: str | None
+
+    def __post_init__(self) -> None:
+        if not self.source:
+            raise ValueError("marketplace source must be non-empty")
+        if self.kind is MarketplaceSourceKind.LOCAL and self.ref is not None:
+            raise ValueError("local marketplace source must not carry a Git ref")
+        if self.kind is MarketplaceSourceKind.GIT and (
+            self.ref is None
+            or re.fullmatch(r"[0-9a-fA-F]{40}(?:[0-9a-fA-F]{24})?", self.ref) is None
+        ):
+            raise ValueError("Git marketplace source requires an immutable commit ref")
 
 
 @dataclass(frozen=True)
@@ -59,6 +87,7 @@ class DesiredState:
     release_version: str
     source_commit: str
     source: str
+    marketplace_source: MarketplaceSource
     release_root: Path
     repository_url: str
     source_dirty: bool
