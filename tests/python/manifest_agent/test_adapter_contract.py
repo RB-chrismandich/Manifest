@@ -3,7 +3,7 @@
 import json
 import os
 import subprocess
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 
 import pytest
@@ -14,6 +14,7 @@ from manifest_agent.adapters import (
     HarnessAdapter,
     combine_results,
     native_command_result,
+    run_native_command,
     verify_declared_components,
     verify_required_plugins,
 )
@@ -33,6 +34,7 @@ from manifest_agent.models import (
     HarnessResult,
     ResultState,
 )
+from manifest_agent.process import CommandRunner
 
 
 class QueueRunner:
@@ -47,6 +49,22 @@ class QueueRunner:
     def run(self, argv: Sequence[str]) -> CommandResult:
         assert tuple(argv) == ("fake", "native")
         return self.results.pop(0)
+
+
+class RaisingRunner(CommandRunner):
+    def __init__(self, error: Exception) -> None:
+        self.error = error
+        self.calls: list[tuple[str, ...]] = []
+
+    def run(
+        self,
+        argv: Sequence[str],
+        *,
+        env: Mapping[str, str] | None = None,
+    ) -> CommandResult:
+        del env
+        self.calls.append(tuple(argv))
+        raise self.error
 
 
 class FakeAdapter:
@@ -202,13 +220,66 @@ def test_selected_optional_native_command_failure_is_warning_only() -> None:
     assert "optional unavailable" in result.warnings[0]
 
 
-def test_optional_native_command_must_be_explicitly_selected() -> None:
-    with pytest.raises(ValueError, match="explicitly selected"):
-        native_command_result(
-            "claude",
-            CommandResult(("fake",), 1, "", "should not run"),
-            CapabilityTier.OPTIONAL,
-        )
+@pytest.mark.parametrize("returncode", [0, 1])
+def test_optional_native_command_must_be_explicitly_selected(returncode: int) -> None:
+    result = native_command_result(
+        "claude",
+        CommandResult(("fake",), returncode, "", "should not run"),
+        CapabilityTier.OPTIONAL,
+    )
+
+    assert result.state is ResultState.BLOCKED
+    assert result.errors == ("optional native command was not explicitly selected",)
+
+
+def test_unselected_optional_command_is_not_executed() -> None:
+    runner = RaisingRunner(AssertionError("runner must not be called"))
+
+    result = run_native_command(
+        "claude", runner, ("fake", "optional"), CapabilityTier.OPTIONAL
+    )
+
+    assert result.state is ResultState.BLOCKED
+    assert runner.calls == []
+
+
+@pytest.mark.parametrize(
+    ("tier", "selected", "expected_state", "diagnostic_field"),
+    [
+        (CapabilityTier.REQUIRED, False, ResultState.BLOCKED, "errors"),
+        (CapabilityTier.DEFAULT, False, ResultState.DEGRADED, "errors"),
+        (CapabilityTier.OPTIONAL, True, ResultState.READY, "warnings"),
+    ],
+)
+@pytest.mark.parametrize(
+    "execution_error",
+    [
+        FileNotFoundError("--token native-exception-secret executable not found"),
+        RuntimeError("--token native-exception-secret runner crashed"),
+    ],
+)
+def test_native_execution_exceptions_are_classified_and_redacted(
+    tier: CapabilityTier,
+    selected: bool,
+    expected_state: ResultState,
+    diagnostic_field: str,
+    execution_error: Exception,
+) -> None:
+    runner = RaisingRunner(execution_error)
+
+    result = run_native_command(
+        "claude",
+        runner,
+        ("missing-native", "list"),
+        tier,
+        selected=selected,
+    )
+
+    diagnostics = getattr(result, diagnostic_field)
+    assert result.state is expected_state
+    assert type(execution_error).__name__ in diagnostics[0]
+    assert "native-exception-secret" not in diagnostics[0]
+    assert "[REDACTED]" in diagnostics[0]
 
 
 def test_missing_declared_component_is_blocked(

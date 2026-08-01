@@ -6,6 +6,7 @@ from manifest_agent.adapters.base import (
     combine_results,
     native_command_result,
     normalize_component_identity,
+    run_native_command,
     verify_declared_components,
     verify_required_plugins,
 )
@@ -18,6 +19,7 @@ __all__ = [
     "combine_results",
     "native_command_result",
     "normalize_component_identity",
+    "run_native_command",
     "verify_declared_components",
     "verify_required_plugins",
 ]

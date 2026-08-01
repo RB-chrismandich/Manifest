@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Collection, Mapping
+from collections.abc import Collection, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Protocol, runtime_checkable
 
@@ -16,7 +16,7 @@ from manifest_agent.models import (
     HarnessResult,
     ResultState,
 )
-from manifest_agent.process import redact_text
+from manifest_agent.process import CommandRunner, redact_text
 
 _COMPONENT_GROUPS = (
     ("agent", "agents"),
@@ -84,12 +84,39 @@ def native_command_result(
     selected: bool = False,
 ) -> HarnessResult:
     """Classify one native command without losing or leaking its diagnostics."""
+    if tier is CapabilityTier.OPTIONAL and not selected:
+        return _unselected_optional_result(harness)
     if command.returncode == 0:
         return HarnessResult(harness, ResultState.READY, (), {})
-    if tier is CapabilityTier.OPTIONAL and not selected:
-        raise ValueError("optional native commands must be explicitly selected")
 
-    diagnostic = _command_diagnostic(command)
+    return _classified_diagnostic_result(harness, tier, _command_diagnostic(command))
+
+
+def run_native_command(
+    harness: str,
+    runner: CommandRunner,
+    argv: Sequence[str],
+    tier: CapabilityTier,
+    *,
+    selected: bool = False,
+    env: Mapping[str, str] | None = None,
+) -> HarnessResult:
+    """Run and classify a native command without leaking execution exceptions."""
+    if tier is CapabilityTier.OPTIONAL and not selected:
+        return _unselected_optional_result(harness)
+    try:
+        command = runner.run(argv, env=env)
+    except Exception as error:
+        diagnostic = redact_text(
+            f"native command execution failed ({type(error).__name__}): {error}"
+        )
+        return _classified_diagnostic_result(harness, tier, diagnostic)
+    return native_command_result(harness, command, tier, selected=selected)
+
+
+def _classified_diagnostic_result(
+    harness: str, tier: CapabilityTier, diagnostic: str
+) -> HarnessResult:
     if tier is CapabilityTier.REQUIRED:
         return HarnessResult(harness, ResultState.BLOCKED, (), {}, errors=(diagnostic,))
     if tier is CapabilityTier.DEFAULT:
@@ -97,6 +124,16 @@ def native_command_result(
             harness, ResultState.DEGRADED, (), {}, errors=(diagnostic,)
         )
     return HarnessResult(harness, ResultState.READY, (), {}, warnings=(diagnostic,))
+
+
+def _unselected_optional_result(harness: str) -> HarnessResult:
+    return HarnessResult(
+        harness,
+        ResultState.BLOCKED,
+        (),
+        {},
+        errors=("optional native command was not explicitly selected",),
+    )
 
 
 def verify_required_plugins(
