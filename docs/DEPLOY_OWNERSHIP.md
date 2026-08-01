@@ -91,8 +91,6 @@ edit does not reach users until `plugin.json` is bumped. That is what the patch
 tier in [PLUGIN_RELEASE.md](PLUGIN_RELEASE.md) is for, and the drift report is
 what tells you it was skipped.
 
-
-
 ```bash
 configs/claude/scripts/apm_ownership_report.sh          # human-readable
 configs/claude/scripts/apm_ownership_report.sh --json   # machine-readable
