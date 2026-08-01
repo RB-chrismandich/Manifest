@@ -8,7 +8,7 @@
 #
 # A PR that adds or removes a skill MUST change expected_total in the same
 # commit, and give the new skill a bundle. That is the point, not friction.
-expected_total: 108
+expected_total: 114
 
 # Recorded so no later phase keys anything on it: ~/.claude/skills/.deployed-skills
 # is ALREADY WRONG on a live machine (measured 2026-07-30 — mtime predates SC-006,
@@ -174,3 +174,17 @@ bundles:
     - taste-design
     - upload-to-stitch
     - ux-review
+
+  # Merged in from main (#674), not part of the 108 the cutover partitioned. Its
+  # own plugin, its own version line, and it auto-discovers its skills rather
+  # than listing them in a `skills[]` manifest — so the union gates above never
+  # see it and only the on-disk count does. Registered here because the count
+  # gate is the exogenous truth, and an unregistered skill is indistinguishable
+  # from one that went missing.
+  adversarial-design-loop:  # 6 skills
+    - design-loop
+    - loop-scaffold
+    - render-verify
+    - review-round
+    - screen-prompts
+    - spec-amend

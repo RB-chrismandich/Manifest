@@ -15,5 +15,13 @@
     "adversarial-review",
     "render-verification",
     "spec-amendments"
+  ],
+  "skills": [
+    "./skills/design-loop",
+    "./skills/loop-scaffold",
+    "./skills/render-verify",
+    "./skills/review-round",
+    "./skills/screen-prompts",
+    "./skills/spec-amend"
   ]
 }

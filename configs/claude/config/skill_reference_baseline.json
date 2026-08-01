@@ -1,8 +1,8 @@
 {
   "_comment": "T1.3 (spec 674) ratchet for prose-tier cross-skill references. Blocking-tier refs are never baselined - they fail outright. This number may only go DOWN; raising it requires a deliberate commit that says why.",
   "_measured": "2026-07-30",
-  "_history": "90 -> 122 on 2026-07-30 when the prose tier was widened from code-spans-only to every markup form a skill body actually uses (bold, italic, links, angle brackets), and fenced-code hits were demoted into this tier rather than discarded. Not a regression: the same references were always there, the earlier detector could not see them.",
-  "warning_total": 120,
+  "_history": "90 -> 122 on 2026-07-30 when the prose tier was widened from code-spans-only to every markup form a skill body actually uses (bold, italic, links, angle brackets), and fenced-code hits were demoted into this tier rather than discarded. Not a regression: the same references were always there, the earlier detector could not see them. 120 -> 133 on 2026-07-31 when main's adversarial-design-loop plugin (#674) merged in: six skills that cross-reference each other in prose. Attributed, not assumed - the same tree with those six directories removed still measures exactly 120, and blocking stayed at 35 across the merge.",
+  "warning_total": 133,
   "blocking_total": 35,
   "_blocking_note": "TEMPORARY, and the only reason it is not 0: wiring this gate into CI while 35 pre-existing blocking references sat in the tree turned every PR red for a condition the PR did not cause. T1.1 is the remediation - rewrite each site to {{skill:<name>}} - and this number must fall to 0 when it lands. Any INCREASE fails the build today. Do not raise it.",
   "blocking_sites": [
