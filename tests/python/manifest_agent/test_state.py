@@ -87,6 +87,10 @@ def test_receipt_rejects_credential_shaped_capability_keys(tmp_path):
         "native failed --api-key API-KEY-VALUE",
         "native failed --API_KEY UNDERSCORE-VALUE",
         "native failed --password=PASSWORD-VALUE",
+        "native failed --credential CREDENTIAL-VALUE",
+        "native failed --credential=CREDENTIAL-EQUALS-VALUE",
+        "native failed --authorization AUTHORIZATION-VALUE",
+        "native failed --authorization=AUTHORIZATION-EQUALS-VALUE",
     ],
 )
 def test_receipt_rejects_cli_flag_credentials(tmp_path, leak):

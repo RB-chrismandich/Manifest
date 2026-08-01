@@ -10,7 +10,7 @@ from manifest_agent.models import CommandResult
 _REDACTIONS = (
     re.compile(
         r"(?i)(-{1,2}(?:api[-_]?key|access[-_]?token|refresh[-_]?token|"
-        r"password|secret|token)(?:=|\s+))[^\s,;]+"
+        r"authorization|credential|password|secret|token)(?:=|\s+))[^\s,;]+"
     ),
     re.compile(r"(?i)(authorization\s*:\s*(?:bearer|basic)\s+)[^\s,;]+"),
     re.compile(r"(?i)(\bbearer\s+)[^\s,;]+"),

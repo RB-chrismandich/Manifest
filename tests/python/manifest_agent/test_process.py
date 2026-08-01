@@ -55,6 +55,10 @@ def test_runner_redacts_credentials_from_native_stderr():
         "--api-key API-KEY-VALUE",
         "--API_KEY UNDERSCORE-VALUE",
         "--password=PASSWORD-VALUE",
+        "--credential CREDENTIAL-VALUE",
+        "--credential=CREDENTIAL-EQUALS-VALUE",
+        "--authorization AUTHORIZATION-VALUE",
+        "--authorization=AUTHORIZATION-EQUALS-VALUE",
     ],
 )
 def test_runner_redacts_cli_flag_credentials_from_native_stderr(flag):
