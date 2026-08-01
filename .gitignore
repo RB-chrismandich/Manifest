@@ -52,6 +52,12 @@ records/
 
 # skill-creator eval workspaces (iteration outputs, benchmarks, rework runs)
 *-workspace/
+# ...but NOT the plugin bundle of that name. This pattern silently swallowed
+# plugins/manifest-workspace/.claude-plugin/, so a fresh clone got the bundle's
+# 17 skills with no manifest and the partition gate counted 97 of 114. The
+# skills themselves were already tracked when the rule landed, which is why
+# nothing went red locally -- only a clean checkout could see it.
+!plugins/manifest-workspace/
 
 # spec 362: user-local guidance overrides are machine-local (created lazily on
 # first opt-out under ~/.claude/config/) — never commit them. The shipped

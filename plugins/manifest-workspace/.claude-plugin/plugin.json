@@ -1,0 +1,29 @@
+{
+  "name": "manifest-workspace",
+  "version": "0.1.1",
+  "description": "Workspace and session tooling: environment checks, config audit, memory, plans, prompts and skill evolution. Requires Manifest bootstrap for ~/.claude/scripts.",
+  "author": {
+    "name": "ReefBytes"
+  },
+  "homepage": "https://github.com/ReefBytes-Owner/Manifest",
+  "license": "Proprietary",
+  "skills": [
+    "./skills/ai-hooks-integration",
+    "./skills/automation-rework-breakeven",
+    "./skills/config-audit",
+    "./skills/deploy-reconcile",
+    "./skills/env-check",
+    "./skills/help",
+    "./skills/learning-capture",
+    "./skills/memory-compress",
+    "./skills/metrics-report",
+    "./skills/pass-cli",
+    "./skills/pr-smoke",
+    "./skills/prompt-optimize",
+    "./skills/session-checkpoint",
+    "./skills/skill-evolve",
+    "./skills/test-isolate-ambient",
+    "./skills/token-benchmark",
+    "./skills/token-conserve"
+  ]
+}
