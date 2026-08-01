@@ -2,7 +2,7 @@
 
 > Repository context and guidance for Claude Code when working with this codebase
 
-**Last Updated**: 2026-07-02
+**Last Updated**: 2026-07-30
 **Audience**: AI assistants (Claude Code), contributors
 **Purpose**: Provide Claude Code with repository structure, deployment process, and testing guidelines
 
@@ -56,6 +56,9 @@ configs/                             # Deployment source configs (deployed to ~/
 ├── skills/                          # speckit-* project-scoped skills (loaded in this repo's sessions)
 └── settings.local.json              # Repo-relevant permissions only (no MCP servers)
 
+.claude-plugin/                      # marketplace.json — the repo doubles as a Claude Code plugin marketplace ("manifest")
+plugins/                             # Claude Code plugins (installed via marketplace or --plugin-dir, NOT deployed by bootstrap)
+└── adversarial-design-loop/         # Spec-first adversarial UI design loop (6 skills, 2 agents, render gate)
 bootstrap.sh                         # macOS/Linux bootstrap script
 bootstrap/                           # Modular bootstrap libraries + hookable modules
 ├── lib/                             # Shared bootstrap logic split by concern

@@ -1,0 +1,60 @@
+# Tokens — {{PROJECT_TITLE}}
+
+Fills the schema defined in {{SPEC_PATH}}. Consumers reference role names,
+never literals — this file is the single place values change. This file is
+**normative over `DESIGN.md` prose**: when they disagree, this file and the
+shipped renders win, and the disagreement itself is a defect to log.
+
+Every value change cites the round that ruled it (`// round N`), and stale
+values are corrected in place with the old value noted — not silently
+replaced.
+
+## color
+
+```text
+color {
+  <role>   <variant-a> #RRGGBB   <variant-b> #RRGGBB   // provenance note
+}
+```
+
+### Contrast proof table
+
+<!-- Recompute, do not copy: every text/background and mark/background pair
+     with its measured ratio against the floor it must clear. -->
+
+| pair | ratio | floor | pass |
+|------|-------|-------|------|
+
+## radius
+
+```text
+radius {
+  <role>   <fraction of R>   →  <px at R={{FRAME_RADIUS}}>
+}
+```
+
+<!-- Store radii as fractions of the reference frame, never raw pixels; show
+     the pixel conversion as a convenience only. -->
+
+## stroke
+
+```text
+stroke {
+  <tier>   <px>
+}
+```
+
+## type
+
+```text
+type {
+  <role>   {{FONT_FAMILY}} <weight> <size>   // usage
+}
+```
+
+## duration / easing
+
+```text
+duration { <role> <ms> }
+easing   { <role> <curve> }
+```

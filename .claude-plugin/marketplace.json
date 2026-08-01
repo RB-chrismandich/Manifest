@@ -3,7 +3,7 @@
   "owner": {
     "name": "ReefBytes"
   },
-  "description": "Manifest agent skills for Claude Code, partitioned into nine bundles. Requires the Manifest bootstrap for the shared ~/.claude/scripts and config that many skills invoke.",
+  "description": "Manifest agent skills for Claude Code, partitioned into nine bundles, plus the adversarial-design-loop plugin. Requires the Manifest bootstrap for the shared ~/.claude/scripts and config that many skills invoke.",
   "plugins": [
     {
       "name": "manifest-code-quality",
@@ -67,6 +67,22 @@
       "description": "Google Stitch design workflows: generate and edit screens, extract and manage design systems, and convert designs to React, React Native or Remotion.",
       "version": "0.1.1",
       "category": "design"
+    },
+    {
+      "name": "adversarial-design-loop",
+      "source": "./plugins/adversarial-design-loop",
+      "description": "Spec-first UI design loop: colorless screen prompts, faithful render gates, multi-lens adversarial review with skeptic-verified blockers, upstream spec amendments.",
+      "version": "0.1.0",
+      "category": "design",
+      "keywords": [
+        "design",
+        "ui",
+        "stitch",
+        "adversarial-review",
+        "design-system",
+        "render-verification"
+      ],
+      "homepage": "https://github.com/RB-chrismandich/Manifest"
     }
   ]
 }
