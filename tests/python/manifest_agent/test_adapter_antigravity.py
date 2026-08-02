@@ -217,6 +217,21 @@ def test_antigravity_redacts_untrusted_inventory_source(
     assert "[REDACTED]" in " ".join(result.errors)
 
 
+def test_antigravity_rejects_structured_source_without_serializing_it(
+    desired: DesiredState,
+) -> None:
+    document = json.loads(inventory_json())
+    document["imports"][0]["source"] = {"token": "mapping-secret"}
+    runner = QueueRunner([command(stdout=json.dumps(document))])
+
+    result = AntigravityAdapter(runner=runner).inspect(desired)
+
+    assert result.state is ResultState.BLOCKED
+    assert "source must be a string" in " ".join(result.errors)
+    assert "mapping-secret" not in " ".join(result.errors)
+    assert "token" not in " ".join(result.errors)
+
+
 def test_antigravity_rejects_noncanonical_inventory_before_native_validation(
     desired: DesiredState,
 ) -> None:

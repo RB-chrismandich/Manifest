@@ -266,12 +266,16 @@ def _verify_imports(
             continue
         row = matches[0]
         installed.append(contract.name)
-        if row.get("source") != _MARKETPLACE:
+        source = row.get("source")
+        if not isinstance(source, str):
+            identity_error = True
+            errors.append(f"plugin {contract.name} source must be a string")
+        elif source != _MARKETPLACE:
             identity_error = True
             errors.append(
                 redact_text(
                     f"plugin {contract.name} expected source {_MARKETPLACE}, "
-                    f"found {row.get('source')}"
+                    f"found {source}"
                 )
             )
         version = row.get("version")
