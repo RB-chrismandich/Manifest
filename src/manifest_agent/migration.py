@@ -361,7 +361,6 @@ class MigrationService:
         self.home = home or Path(os.environ.get("HOME", str(Path.home())))
         self.event_log = event_log
         self.state_path = paths.state / "migration.json"
-        self._mixed_backups: dict[str, dict[Path, bytes]] = {}
 
     @classmethod
     def from_manifest_service(
@@ -500,31 +499,16 @@ class MigrationService:
 
     def _surgically_handle_mixed(self, harnesses: Sequence[str]) -> tuple[str, ...]:
         errors = []
-        backups: dict[Path, bytes] = {}
-        candidates = []
         for entry in self.inventory.entries:
             if entry.classification != "mixed" or not set(entry.harnesses).intersection(
                 harnesses
             ):
                 continue
             path = _expand_home(entry.path, self.home)
-            if path.exists():
-                try:
-                    backups[path] = path.read_bytes()
-                except OSError as error:
-                    return (f"unable to snapshot mixed settings {entry.path}: {error}",)
-            candidates.append((entry, path))
-        for entry, path in candidates:
             error = _surgical_mixed_cleanup(path, entry, self.home)
             if error is not None:
                 errors.append(error)
-        if errors:
-            for path, content in backups.items():
-                path.write_bytes(content)
-            return tuple(errors)
-        for harness in harnesses:
-            self._mixed_backups.setdefault(harness, {}).update(backups)
-        return ()
+        return tuple(errors)
 
     def _unproven_legacy_writers(self, harnesses: Sequence[str]) -> tuple[str, ...]:
         messages = []
@@ -804,8 +788,6 @@ class MigrationService:
             # Restoring legacy output while an unverified native copy remains
             # would create two writers. Leave the durable quarantine in place.
             return uninstall_error
-        for path, content in self._mixed_backups.pop(harness, {}).items():
-            path.write_bytes(content)
         backup = Path(state["backup"])
         for record in state["harnesses"][harness]["entries"]:
             source = _expand_home(record["path"], self.home)

@@ -251,6 +251,29 @@ def test_absolute_legacy_hook_blocks_without_mutation(tmp_path: Path):
     assert path.read_bytes() == before
 
 
+def test_mixed_historical_hook_blocks_before_legacy_disable(tmp_path: Path):
+    events: list[str] = []
+    home, link = _legacy_home(tmp_path)
+    settings = home / ".claude" / "settings.json"
+    settings.write_text(
+        '{"hooks":{"PostToolUse":[{"command":"~/.claude/scripts/version_pin.sh"}]}}',
+        encoding="utf-8",
+    )
+    before = settings.read_bytes()
+    service = _service(tmp_path, MigrationAdapter(events))
+    migration = MigrationService.from_manifest_service(
+        service, paths=xdg_paths({"HOME": str(home)}), home=home, event_log=events
+    )
+
+    result = migration.migrate(service._desired_state()[0])
+
+    assert result.state is ResultState.BLOCKED
+    assert events[-1] == "shadow-verify"
+    assert link.is_symlink()
+    assert settings.read_bytes() == before
+    assert not service.receipt_path.exists()
+
+
 def test_completed_migration_is_idempotent(tmp_path: Path):
     events: list[str] = []
     home, _link = _legacy_home(tmp_path)
