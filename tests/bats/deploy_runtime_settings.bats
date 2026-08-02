@@ -109,7 +109,7 @@ target.write_text(source.read_text().replace('__HOME__', str(home)))" \
     assert_output "opus"
 }
 
-@test "existing Claude home drops only the legacy version-pin hook" {
+@test "existing Claude home drops only retired version-pin hook and permissions" {
     materialize_existing_home "$SANDBOX/settings.json"
 
     run merge_claude_runtime_settings "$SRC" "$SANDBOX/settings.json"
@@ -126,7 +126,18 @@ assert not any(c.endswith('/.claude/scripts/version_pin_hook.sh') for c in comma
 for expected in ('guidance_hint.py', 'spec_review.sh --silent', 'lint_on_edit_hook.sh', 'deploy_stamp_check.sh', '/opt/user-hooks/keep-me.sh'):
     assert sum(c.endswith(expected) for c in commands) == 1, (expected, commands)
 assert d['model'] == 'opus'
-assert 'Bash(/opt/user-hooks/keep-me.sh:*)' in d['permissions']['allow']
+allow = d['permissions']['allow']
+retired = {
+    'Bash(~/.claude/scripts/version_pin.sh:*)',
+    'Bash(~/.claude/scripts/version_pin_hook.sh:*)',
+}
+assert retired.isdisjoint(allow), allow
+assert allow[:4] == [
+    'Bash(/opt/user-hooks/keep-before.sh:*)',
+    'Bash(~/.claude/scripts/guidance_hint.py:*)',
+    'Bash(~/.claude/scripts/version_pin.sh --check:*)',
+    'Bash(/opt/user-hooks/keep-after.sh:*)',
+], allow
 print('legacy-removed-unrelated-preserved')" "$SANDBOX/settings.json"
     assert_success
     assert_output "legacy-removed-unrelated-preserved"

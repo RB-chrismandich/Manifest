@@ -63,7 +63,12 @@
   },
   "permissions": {
     "allow": [
-      "Bash(/opt/user-hooks/keep-me.sh:*)"
+      "Bash(/opt/user-hooks/keep-before.sh:*)",
+      "Bash(~/.claude/scripts/version_pin.sh:*)",
+      "Bash(~/.claude/scripts/guidance_hint.py:*)",
+      "Bash(~/.claude/scripts/version_pin.sh --check:*)",
+      "Bash(~/.claude/scripts/version_pin_hook.sh:*)",
+      "Bash(/opt/user-hooks/keep-after.sh:*)"
     ]
   }
 }

@@ -731,8 +731,9 @@ PYEOF
 #
 # Creates the target if absent, expands `~` to an absolute command (the shipped
 # settings.json hooks use absolute paths), and is idempotent + additive: an
-# entry the user already has is never duplicated. The sole removal is the exact
-# shared-home version-pin hook retired in favor of manifest-ops ownership.
+# entry the user already has is never duplicated. The only removals are the
+# exact shared-home version-pin hook and permission grants retired in favor of
+# manifest-ops ownership.
 # Fail-open like its siblings — a missing python3 is a skip, not a stop.
 # Register repo-shipped MCP servers with Claude Code's OWN store.
 #
@@ -866,7 +867,21 @@ for event, entries in list((tgt.get("hooks") or {}).items()):
             retained_entries.append(entry)
     tgt["hooks"][event] = retained_entries
 
-# permissions.allow: union, order-stable, never removes a user's own rule.
+# Remove only the two historical Manifest grants. Literal matching preserves
+# user rules that merely mention version_pin or constrain it differently.
+retired_version_pin_rules = (
+    "Bash(~/.claude/scripts/version_pin.sh:*)",
+    "Bash(~/.claude/scripts/version_pin_hook.sh:*)",
+)
+tgt_permissions = tgt.get("permissions")
+if isinstance(tgt_permissions, dict) and isinstance(tgt_permissions.get("allow"), list):
+    current_allow = tgt_permissions["allow"]
+    retained_allow = [rule for rule in current_allow if rule not in retired_version_pin_rules]
+    if len(retained_allow) != len(current_allow):
+        tgt_permissions["allow"] = retained_allow
+        changed = True
+
+# permissions.allow: union, order-stable, preserves every remaining user rule.
 src_allow = ((src.get("permissions") or {}).get("allow")) or []
 if src_allow:
     tgt_perms = tgt.setdefault("permissions", {})

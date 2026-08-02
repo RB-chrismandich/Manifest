@@ -21,8 +21,9 @@ absent.
 - GREEN: the focused suite now passes 33/33, including helper behavior parity,
   stdlib-only JSON policy loading, sibling-bundle absence, and complete
   generated hook/runtime views.
-- P1 GREEN: both hook mergers now remove only the retired shared-home command,
-  preserve sibling and user-owned hooks, and remain idempotent on a second run.
+- P1 GREEN: both hook mergers now remove only the retired shared-home command;
+  Claude also removes the two exact historical permission grants. Sibling and
+  user-owned hooks/rules retain their order, and a second run is idempotent.
 - GREEN: the expanded Task 14 Bats matrix passes 126/126.
 
 ## Ops Runtime
@@ -42,6 +43,9 @@ absent.
 - Added a bootstrap migration for existing Claude and Gemini homes. It prunes
   only the exact retired `~/.claude/scripts/version_pin_hook.sh` command, drops
   an emptied matcher wrapper, and retains every unrelated nested hook.
+- Existing Claude homes also prune only the exact historical grants for
+  `version_pin.sh` and `version_pin_hook.sh`; near-matches and all remaining
+  permission rules preserve their original order.
 - Missing explicit targets now return exit 2 before printing a summary.
   Malformed adjacent JSON policies return a concise exit-2 config diagnostic
   without a Python traceback.
