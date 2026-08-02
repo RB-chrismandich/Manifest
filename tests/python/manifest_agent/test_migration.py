@@ -170,7 +170,7 @@ def test_partial_migration_resumes_after_rechecking_shadow(tmp_path: Path):
     )
     desired, error = service._desired_state()
     assert error is None and desired is not None
-    state = migration._load_or_snapshot(("claude",))
+    state = migration._load_or_snapshot(("claude",), desired)
     state["harnesses"]["claude"]["phase"] = "shadow-installed"
     migration._write_state(state)
     events.clear()

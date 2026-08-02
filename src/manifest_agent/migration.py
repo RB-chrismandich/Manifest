@@ -182,6 +182,12 @@ def _decode_inventory_entry(value: Any) -> LegacyInventoryEntry:
         and proof.get("type") not in _DESTRUCTIVE_PROOFS
     ):
         raise ValueError("destructive legacy entry lacks ownership proof")
+    if proof.get("type") == "generated-hash" and (
+        not isinstance(proof.get("value"), str)
+        or len(proof["value"]) != 64
+        or any(char not in "0123456789abcdef" for char in proof["value"].lower())
+    ):
+        raise ValueError("generated-hash ownership proof must be an exact SHA-256")
     destination = value["destination"].lower()
     if any(forbidden in destination for forbidden in _FORBIDDEN_DESTINATIONS):
         raise ValueError("legacy ownership inventory has a forbidden destination")
@@ -268,7 +274,9 @@ def _proves_ownership(target: Path, proof: OwnershipProof) -> bool:
         )
         return observed == expected.resolve()
     if proof.type == "exact-marker":
-        return target.is_file() and proof.value in _read_text_limited(target)
+        # A substring marker can be copied into a user script. Legacy releases
+        # did not issue a signed marker, so it is never sufficient to mutate.
+        return False
     if proof.type == "deploy-stamp":
         home = _home_for(target)
         if proof.value.startswith("~/"):
@@ -281,13 +289,11 @@ def _proves_ownership(target: Path, proof: OwnershipProof) -> bool:
             stamp = home / harness_root / proof.value
         return stamp.is_file() and "Manifest" in _read_text_limited(stamp)
     if proof.type == "generated-hash":
-        if not target.is_file():
+        if not target.is_file() or len(proof.value) != 64:
             return False
-        if len(proof.value) == 64 and all(
-            char in "0123456789abcdef" for char in proof.value.lower()
-        ):
-            return _file_digest(target) == proof.value.lower()
-        return proof.value in _read_text_limited(target)
+        if not all(char in "0123456789abcdef" for char in proof.value.lower()):
+            return False
+        return _file_digest(target) == proof.value.lower()
     return False
 
 
@@ -375,7 +381,9 @@ class MigrationService:
     def migrate(self, desired: DesiredState) -> ServiceReport:
         """Shadow-verify, hand off one writer, and commit only native success."""
         try:
-            with self.lock_factory(self.paths.state / "migration.lock"):
+            # Share the lifecycle lock: a normal install/uninstall cannot run
+            # while legacy output is temporarily quarantined.
+            with self.lock_factory(self.receipt_path.parent / "install.lock"):
                 completed = read_receipt(self.receipt_path)
                 selected = self._selected(desired)
                 if self._already_migrated(completed, selected):
@@ -438,7 +446,7 @@ class MigrationService:
                 )
         if unavailable:
             return report("migrate", ordered(unavailable, self.harness_order))
-        state = self._load_or_snapshot(active)
+        state = self._load_or_snapshot(active, desired)
         results: dict[str, HarnessResult] = {}
         for name in active:
             phase = state["harnesses"].get(name, {}).get("phase", "snapshot")
@@ -506,9 +514,24 @@ class MigrationService:
                 os.close(descriptor)
         return None
 
-    def _load_or_snapshot(self, harnesses: Sequence[str]) -> dict[str, Any]:
+    def _load_or_snapshot(
+        self, harnesses: Sequence[str], desired: DesiredState
+    ) -> dict[str, Any]:
         existing = self._read_state()
         if existing is not None:
+            if existing.get("identity") != _migration_identity(desired):
+                raise ValueError(
+                    "migration recovery state targets a different release, checksum, options, or harness scope"
+                )
+            backup = Path(existing["backup"])
+            for name in harnesses:
+                if name not in existing["harnesses"]:
+                    existing["harnesses"][name] = {
+                        "phase": "snapshot",
+                        "entries": self._snapshot_harness(name, backup),
+                    }
+            self._write_recovery(backup, existing)
+            self._write_state(existing)
             return existing
         timestamp = f"{int(time.time() * 1000)}-{os.getpid()}"
         backup = self.paths.state / "migration-backups" / timestamp
@@ -516,6 +539,7 @@ class MigrationService:
         state: dict[str, Any] = {
             "schema_version": 1,
             "backup": str(backup),
+            "identity": _migration_identity(desired),
             "harnesses": {},
         }
         for name in harnesses:
@@ -655,8 +679,14 @@ class MigrationService:
             disabled = source.parent / f".{source.name}.manifest-disabled-{backup.name}"
             if disabled.exists() or disabled.is_symlink():
                 raise ValueError(f"migration quarantine already exists: {disabled}")
+            # Record the intended rename before it occurs so recovery can tell a
+            # crash before the rename from one immediately after it.
+            record["pending_disabled_path"] = str(disabled)
+            self._write_state(state)
             os.replace(source, disabled)
             record["disabled_path"] = str(disabled)
+            record.pop("pending_disabled_path", None)
+            self._write_state(state)
         self._event("disable-legacy")
 
     def _remove_disabled(self, harness: str, state: dict[str, Any]) -> None:
@@ -688,6 +718,10 @@ class MigrationService:
                 adapter.uninstall(provisional)
             except Exception as exception:
                 uninstall_error = diagnostic(exception)
+        if uninstall_error is not None:
+            # Restoring legacy output while an unverified native copy remains
+            # would create two writers. Leave the durable quarantine in place.
+            return uninstall_error
         backup = Path(state["backup"])
         for record in state["harnesses"][harness]["entries"]:
             source = _expand_home(record["path"], self.home)
@@ -800,20 +834,40 @@ def target(value):
         raise ValueError("unsafe recovery path")
     return HOME / value[2:]
 
-def remove(path):
-    if path.is_symlink() or path.is_file(): path.unlink()
-    elif path.is_dir(): shutil.rmtree(path)
+def digest(path):
+    import hashlib
+    if path.is_symlink(): return hashlib.sha256(os.fsencode(os.readlink(path))).hexdigest()
+    if path.is_file(): return hashlib.sha256(path.read_bytes()).hexdigest()
+    value = hashlib.sha256()
+    for child in sorted(path.rglob("*")):
+        value.update(child.relative_to(path).as_posix().encode())
+    return value.hexdigest()
 
 for harness in STATE["harnesses"].values():
     for entry in harness["entries"]:
         source = ROOT / entry["artifact"]
         destination = target(entry["path"])
-        if destination.exists() or destination.is_symlink(): remove(destination)
+        # Never overwrite a post-crash user/native path. A matching snapshot is
+        # already restored; any other existing value requires manual recovery.
+        if destination.exists() or destination.is_symlink():
+            if digest(destination) != entry["sha256"]:
+                raise RuntimeError("refusing to overwrite changed path: " + str(destination))
+            continue
         destination.parent.mkdir(parents=True, exist_ok=True)
         if source.is_symlink(): destination.symlink_to(source.readlink())
         elif source.is_dir(): shutil.copytree(source, destination, symlinks=True)
         else: shutil.copy2(source, destination, follow_symlinks=False)
 '''
+
+
+def _migration_identity(desired: DesiredState) -> dict[str, object]:
+    return {
+        "release_version": desired.release_version,
+        "source_commit": desired.source_commit,
+        "archive_sha256": desired.archive_sha256,
+        "selected_optional": sorted(desired.selected_optional),
+        "requested_harnesses": list(desired.requested_harnesses),
+    }
 
 
 def _with_rollback_error(

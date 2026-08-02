@@ -155,9 +155,17 @@ class ManifestService:
             harnesses = " ".join(
                 f"--harness {name}" for name in (self.harnesses or ("all",))
             )
+            source = (
+                f"--source {self.source}"
+                if self.source is not None
+                else f"--release {self.release or desired.release_version}"
+            )
+            optional = " ".join(
+                f"--with {capability}" for capability in self.selected_optional
+            )
             command = (
                 "uvx --from manifest-agent manifest migrate "
-                f"--release {desired.release_version} {harnesses} --non-interactive"
+                f"{source} {harnesses} {optional} --non-interactive"
             )
             return replace(result, notes=(*result.notes, f"resume with: {command}"))
         return result

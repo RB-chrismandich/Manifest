@@ -43,6 +43,33 @@ def test_destructive_entries_require_ownership_proof(legacy_inventory):
             }
 
 
+def test_inventory_covers_known_legacy_home_outputs(legacy_inventory):
+    identifiers = {entry.id for entry in legacy_inventory.entries}
+    assert {
+        "claude-agent-outputs-link",
+        "cursor-hooks",
+        "cursor-agents",
+        "cursor-scripts-link",
+        "cursor-rule-manifest",
+        "gemini-scripts-link",
+        "codex-scripts-link",
+    } <= identifiers
+
+
+def test_placeholder_generated_hash_is_rejected(tmp_path: Path):
+    inventory = tmp_path / "inventory.yml"
+    inventory.write_text(
+        "categories: [skills, agents, guidance, hooks, permissions, mcp, scripts, optional_tools, configuration, diagnostics, updates, uninstall]\n"
+        "entries:\n  - id: bad\n    category: scripts\n    path: ~/.local/bin/bad\n"
+        "    harnesses: [claude]\n    classification: bundle-owned\n    destination: domain-bundle-runtime\n"
+        "    ownership_proof: {type: generated-hash, value: placeholder}\n"
+        "    action: remove\n    recovery: restore-file\n    parity_test: test\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(ValueError, match="exact SHA-256"):
+        load_legacy_inventory(inventory)
+
+
 def test_unknown_files_are_always_user_owned(tmp_path: Path, monkeypatch):
     home = tmp_path / "home"
     custom = home / ".claude" / "custom.txt"

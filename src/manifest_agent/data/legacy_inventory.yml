@@ -51,9 +51,9 @@ entries:
     harnesses: [cursor]
     classification: bundle-owned
     destination: generated-cursor-native-view
-    ownership_proof: {type: deploy-stamp, value: config/deploy_stamp}
-    action: disable
-    recovery: restore-tree
+    ownership_proof: {type: unproven, value: deploy-stamp-is-not-a-content-proof}
+    action: retain
+    recovery: user-directed-removal-after-parity
     parity_test: plugin_migration.bats
   - id: claude-guidance
     category: guidance
@@ -61,9 +61,9 @@ entries:
     harnesses: [claude]
     classification: bundle-owned
     destination: manifest-workspace
-    ownership_proof: {type: deploy-stamp, value: config/deploy_stamp}
-    action: disable
-    recovery: restore-file
+    ownership_proof: {type: unproven, value: deploy-stamp-is-not-a-content-proof}
+    action: retain
+    recovery: user-directed-removal-after-parity
     parity_test: plugin_migration.bats
   - id: claude-hooks
     category: hooks
@@ -101,9 +101,9 @@ entries:
     harnesses: [claude, codex, gemini, cursor, antigravity, devin]
     classification: coordinator-owned
     destination: ephemeral-uvx-coordinator
-    ownership_proof: {type: generated-hash, value: manifest-cli-router-v1}
-    action: remove
-    recovery: restore-file
+    ownership_proof: {type: unproven, value: legacy-wrapper-hash-not-recorded}
+    action: retain
+    recovery: user-directed-removal-after-parity
     parity_test: plugin_migration.bats
   - id: sync-skills-cli
     category: scripts
@@ -111,9 +111,9 @@ entries:
     harnesses: [claude, codex, gemini, cursor, antigravity, devin]
     classification: bundle-owned
     destination: manifest-workspace
-    ownership_proof: {type: generated-hash, value: sync-skills-router-v1}
-    action: remove
-    recovery: restore-file
+    ownership_proof: {type: unproven, value: legacy-wrapper-hash-not-recorded}
+    action: retain
+    recovery: user-directed-removal-after-parity
     parity_test: plugin_migration.bats
   - id: graphify-cli
     category: optional_tools
@@ -121,9 +121,9 @@ entries:
     harnesses: [claude, codex, gemini, cursor, antigravity, devin]
     classification: bundle-owned
     destination: manifest-graphify
-    ownership_proof: {type: generated-hash, value: graphify-wrapper-v1}
-    action: remove
-    recovery: restore-file
+    ownership_proof: {type: unproven, value: legacy-wrapper-hash-not-recorded}
+    action: retain
+    recovery: user-directed-removal-after-parity
     parity_test: test_graphify_runtime.py
   - id: claude-config
     category: configuration
@@ -141,9 +141,9 @@ entries:
     harnesses: [claude]
     classification: coordinator-owned
     destination: installation-receipt
-    ownership_proof: {type: exact-marker, value: manifest-deploy-stamp-v1}
-    action: remove
-    recovery: restore-file
+    ownership_proof: {type: unproven, value: historical-stamp-format-varies}
+    action: retain
+    recovery: user-directed-removal-after-parity
     parity_test: plugin_migration.bats
   - id: apm-drift-report
     category: updates
@@ -151,9 +151,9 @@ entries:
     harnesses: [claude]
     classification: retired
     destination: retired-plugin-drift-report
-    ownership_proof: {type: generated-hash, value: apm-drift-report-v1}
-    action: remove
-    recovery: restore-file
+    ownership_proof: {type: unproven, value: legacy-wrapper-hash-not-recorded}
+    action: retain
+    recovery: user-directed-removal-after-parity
     parity_test: plugin_migration.bats
   - id: bootstrap-uninstall-marker
     category: uninstall
@@ -161,9 +161,9 @@ entries:
     harnesses: [claude, codex, gemini, cursor, antigravity, devin]
     classification: coordinator-owned
     destination: native-receipt-uninstall
-    ownership_proof: {type: exact-marker, value: manifest-bootstrap-uninstall-v1}
-    action: remove
-    recovery: restore-file
+    ownership_proof: {type: unproven, value: historical-uninstall-marker-varies}
+    action: retain
+    recovery: user-directed-removal-after-parity
     parity_test: plugin_migration.bats
   - id: native-credentials
     category: configuration
@@ -181,9 +181,9 @@ entries:
     harnesses: [claude]
     classification: bundle-owned
     destination: manifest-workspace
-    ownership_proof: {type: deploy-stamp, value: config/deploy_stamp}
-    action: disable
-    recovery: restore-tree
+    ownership_proof: {type: unproven, value: deploy-stamp-is-not-a-content-proof}
+    action: retain
+    recovery: user-directed-removal-after-parity
     parity_test: plugin_migration.bats
   - id: claude-prompts
     category: guidance
@@ -191,9 +191,9 @@ entries:
     harnesses: [claude]
     classification: bundle-owned
     destination: domain-bundle-runtime
-    ownership_proof: {type: deploy-stamp, value: config/deploy_stamp}
-    action: disable
-    recovery: restore-tree
+    ownership_proof: {type: unproven, value: deploy-stamp-is-not-a-content-proof}
+    action: retain
+    recovery: user-directed-removal-after-parity
     parity_test: plugin_migration.bats
   - id: claude-references
     category: guidance
@@ -201,9 +201,9 @@ entries:
     harnesses: [claude]
     classification: bundle-owned
     destination: domain-bundle-runtime
-    ownership_proof: {type: deploy-stamp, value: config/deploy_stamp}
-    action: disable
-    recovery: restore-tree
+    ownership_proof: {type: unproven, value: deploy-stamp-is-not-a-content-proof}
+    action: retain
+    recovery: user-directed-removal-after-parity
     parity_test: plugin_migration.bats
   - id: claude-plans
     category: configuration
@@ -221,9 +221,9 @@ entries:
     harnesses: [claude]
     classification: bundle-owned
     destination: domain-bundle-runtime
-    ownership_proof: {type: deploy-stamp, value: config/deploy_stamp}
-    action: disable
-    recovery: restore-tree
+    ownership_proof: {type: unproven, value: deploy-stamp-is-not-a-content-proof}
+    action: retain
+    recovery: user-directed-removal-after-parity
     parity_test: plugin_migration.bats
   - id: cursor-config-link
     category: configuration
@@ -271,9 +271,9 @@ entries:
     harnesses: [gemini]
     classification: bundle-owned
     destination: manifest-workspace
-    ownership_proof: {type: deploy-stamp, value: config/deploy_stamp}
-    action: disable
-    recovery: restore-file
+    ownership_proof: {type: unproven, value: deploy-stamp-is-not-a-content-proof}
+    action: retain
+    recovery: user-directed-removal-after-parity
     parity_test: plugin_migration.bats
   - id: gemini-settings
     category: configuration
@@ -321,9 +321,9 @@ entries:
     harnesses: [codex]
     classification: bundle-owned
     destination: manifest-workspace
-    ownership_proof: {type: deploy-stamp, value: config/deploy_stamp}
-    action: disable
-    recovery: restore-symlink
+    ownership_proof: {type: unproven, value: deploy-stamp-is-not-a-content-proof}
+    action: retain
+    recovery: user-directed-removal-after-parity
     parity_test: plugin_migration.bats
   - id: codex-config-link
     category: configuration
@@ -401,7 +401,7 @@ entries:
     harnesses: [claude, codex, gemini, cursor, antigravity, devin]
     classification: bundle-owned
     destination: native-plugin-managers
-    ownership_proof: {type: deploy-stamp, value: ~/.manifest/deploy_stamp}
+    ownership_proof: {type: unproven, value: deploy-stamp-is-not-a-content-proof}
     action: retain
     recovery: user-directed-removal-after-parity
     parity_test: plugin_migration.bats
@@ -411,7 +411,77 @@ entries:
     harnesses: [claude, codex, gemini, cursor, antigravity, devin]
     classification: coordinator-owned
     destination: xdg-release-metadata
-    ownership_proof: {type: exact-marker, value: manifest-release-v1}
-    action: remove
-    recovery: restore-file
+    ownership_proof: {type: unproven, value: legacy-release-format-varies}
+    action: retain
+    recovery: user-directed-removal-after-parity
+    parity_test: plugin_migration.bats
+  - id: claude-agent-outputs-link
+    category: diagnostics
+    path: ~/.claude/.agent_outputs
+    harnesses: [claude]
+    classification: bundle-owned
+    destination: xdg-agent-output-store
+    ownership_proof: {type: symlink-target, value: ~/.manifest/agent_outputs}
+    action: disable
+    recovery: restore-symlink
+    parity_test: plugin_migration.bats
+  - id: cursor-hooks
+    category: hooks
+    path: ~/.cursor/hooks.json
+    harnesses: [cursor]
+    classification: mixed
+    destination: native-hook-registration
+    ownership_proof: {type: unproven, value: copied-json-without-owner-proof}
+    action: retain
+    recovery: restore-owned-hook-entry
+    parity_test: plugin_migration.bats
+  - id: cursor-agents
+    category: agents
+    path: ~/.cursor/agents
+    harnesses: [cursor]
+    classification: mixed
+    destination: generated-cursor-native-view
+    ownership_proof: {type: unproven, value: generated-files-lack-owner-proof}
+    action: retain
+    recovery: user-directed-removal-after-parity
+    parity_test: plugin_migration.bats
+  - id: cursor-scripts-link
+    category: scripts
+    path: ~/.cursor/scripts
+    harnesses: [cursor]
+    classification: bundle-owned
+    destination: domain-bundle-runtime
+    ownership_proof: {type: symlink-target, value: ~/.claude/scripts}
+    action: disable
+    recovery: restore-symlink
+    parity_test: plugin_migration.bats
+  - id: cursor-rule-manifest
+    category: diagnostics
+    path: ~/.cursor/rules/.deployed-rules
+    harnesses: [cursor]
+    classification: coordinator-owned
+    destination: generated-cursor-native-view
+    ownership_proof: {type: unproven, value: legacy-rule-manifest-unsealed}
+    action: retain
+    recovery: user-directed-removal-after-parity
+    parity_test: plugin_migration.bats
+  - id: gemini-scripts-link
+    category: scripts
+    path: ~/.gemini/scripts
+    harnesses: [gemini]
+    classification: bundle-owned
+    destination: domain-bundle-runtime
+    ownership_proof: {type: symlink-target, value: ~/.claude/scripts}
+    action: disable
+    recovery: restore-symlink
+    parity_test: plugin_migration.bats
+  - id: codex-scripts-link
+    category: scripts
+    path: ~/.codex/scripts
+    harnesses: [codex]
+    classification: bundle-owned
+    destination: domain-bundle-runtime
+    ownership_proof: {type: symlink-target, value: ~/.claude/scripts}
+    action: disable
+    recovery: restore-symlink
     parity_test: plugin_migration.bats

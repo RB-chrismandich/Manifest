@@ -34,6 +34,21 @@ git diff --check                              PASS
 - Mixed settings, credential stores, and all unlisted paths are retained; the
   native adapter remains responsible for its explicit owned-entry merge/removal.
 
-## Commit
+## Review Repair
 
-Pending commit creation.
+- Hardened ownership proofs: symbolic generated hashes and deploy-stamp text are
+  never destructive evidence; only exact SHA-256 or exact symlink-target proof
+  can retire an output. Legacy artifacts without such proof remain retained.
+- Added missing Cursor, Gemini, Codex, Claude output, hook, agent, script, and
+  managed-rule inventory records and corresponding completeness regression test.
+- Migration shares `install.lock`, binds recovery state to release/checksum/
+  optional capability/harness scope, journals quarantines before rename, and
+  refuses unsafe recovery overwrites or legacy restoration after native cleanup
+  failure. Resume now adds safely requested harness snapshots.
+- Resume guidance preserves original `--source` or `--release`, repeated
+  harness selectors, and all selected `--with` capabilities.
+
+## Commits
+
+- Initial implementation: `98707f9d2bd3b8a86d81438d0a829174ee24ab3c`
+- Review repair: recorded by the subsequent Task 16 repair commit.
