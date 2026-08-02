@@ -30,7 +30,7 @@ FORGE_STATE_DIR="${XDG_STATE_ROOT}/manifest/forge"
 export FORGE_RUNTIME_DIR FORGE_CONFIG_DIR FORGE_STATE_DIR
 STATE_DIR="${FORGE_STATE_DIR}/lifecycle"
 SCRIPT_DIR="$FORGE_RUNTIME_DIR/bin"
-STATE_PATH_VALIDATOR="${FORGE_RUNTIME_DIR}/python/lifecycle_state.py"
+STATE_HELPER="${FORGE_RUNTIME_DIR}/python/lifecycle_state.py"
 
 # Smoke execution is an explicit argv seam; the Forge bundle never traverses
 # into another plugin or guesses a harness-global executable path.
@@ -186,58 +186,58 @@ validate_track_id() {
     esac
 }
 
-validate_state_path() {
-    if ! python3 "${STATE_PATH_VALIDATOR}" "${XDG_STATE_ROOT}" "${STATE_DIR}"; then
-        err "unsafe lifecycle state path: ${STATE_DIR}"
-        return 64
-    fi
+state_failure() {
+    local id="$1" rc="$2"
+    case "${rc}" in
+        2)
+            err "no such track: ${id}"
+            return 2
+            ;;
+        65)
+            err "unsafe track path: ${STATE_DIR}/${id}.json"
+            return 64
+            ;;
+        66)
+            err "invalid track id: ${id:-<empty>}"
+            return 64
+            ;;
+        64)
+            err "unsafe lifecycle state path: ${STATE_DIR}"
+            return 64
+            ;;
+        *)
+            err "lifecycle state operation failed for ${id} (exit ${rc})"
+            return "${rc}"
+            ;;
+    esac
 }
 
-track_path() {
-    local id="$1" path
+state_read_raw() {
+    local id="$1"
     validate_track_id "${id}" || return $?
-    validate_state_path || return $?
-    path="${STATE_DIR}/${id}.json"
-    if [ -L "${path}" ]; then
-        err "unsafe track path: ${path}"
-        return 64
-    fi
-    printf '%s\n' "${path}"
-}
-
-ensure_state_dir() {
-    validate_state_path || return $?
-    if [ ! -d "${STATE_DIR}" ]; then
-        mkdir -p "${STATE_DIR}"
-        validate_state_path || return $?
-        chmod 700 "${STATE_DIR}"
-    fi
+    python3 "${STATE_HELPER}" read "${XDG_STATE_ROOT}" "${id}"
 }
 
 read_track() {
-    local p
-    p="$(track_path "$1")"
-    [ -f "${p}" ] || {
-        err "no such track: $1"
-        return 2
-    }
-    cat "${p}"
+    local id="$1" track rc
+    if track="$(state_read_raw "${id}")"; then
+        printf '%s\n' "${track}"
+        return 0
+    else
+        rc=$?
+    fi
+    state_failure "${id}" "${rc}"
 }
 
 write_track() {
-    # write_track <track-id> <json>  — atomic, 0600
-    ensure_state_dir
-    local p tmp
-    p="$(track_path "$1")" || return $?
-    tmp="$(mktemp "${STATE_DIR}/.track.XXXXXX")" || return $?
-    printf '%s\n' "$2" > "${tmp}"
-    chmod 600 "${tmp}"
-    p="$(track_path "$1")" || {
-        local rc=$?
-        rm -f "${tmp}"
-        return "${rc}"
-    }
-    mv "${tmp}" "${p}"
+    local id="$1" rc
+    validate_track_id "${id}" || return $?
+    if printf '%s\n' "$2" | python3 "${STATE_HELPER}" write "${XDG_STATE_ROOT}" "${id}"; then
+        return 0
+    else
+        rc="${PIPESTATUS[1]}"
+    fi
+    state_failure "${id}" "${rc}"
 }
 
 cmd_init() {
@@ -257,11 +257,16 @@ cmd_init() {
         }
     local track_id
     track_id="${provider}__$(sanitize "${entity}")"
-    local p
-    p="$(track_path "${track_id}")"
-    if [ -f "${p}" ]; then
-        echo "track exists: ${track_id} (phase: $(json_get "$(cat "${p}")" current_phase))"
+    local existing rc
+    if existing="$(state_read_raw "${track_id}")"; then
+        echo "track exists: ${track_id} (phase: $(json_get "${existing}" current_phase))"
         return 0
+    else
+        rc=$?
+    fi
+    if [ "${rc}" -ne 2 ]; then
+        state_failure "${track_id}" "${rc}"
+        return $?
     fi
     local now
     now="$(date -u +%Y-%m-%dT%H:%M:%SZ)"

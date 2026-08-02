@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib.util
 import json
 import os
 import re
@@ -50,6 +51,14 @@ def _run(
         capture_output=True,
         check=False,
     )
+
+
+def _load_module(path: Path):
+    spec = importlib.util.spec_from_file_location(path.stem, path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 @pytest.mark.parametrize(
@@ -296,6 +305,46 @@ def test_lifecycle_rejects_symlinked_xdg_ancestor_without_external_write(
     assert result.returncode != 0
     assert "unsafe lifecycle state path" in result.stderr
     assert list(outside.iterdir()) == []
+
+
+def test_lifecycle_state_write_survives_ancestor_swap_without_external_write(
+    forge_bundle: Path,
+    isolated_env: dict[str, str],
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    state_root = Path(isolated_env["XDG_STATE_HOME"])
+    lifecycle_dir = state_root / "manifest/forge/lifecycle"
+    lifecycle_dir.mkdir(parents=True)
+    track_name = "jira__RACE-1.json"
+    (lifecycle_dir / track_name).write_text('{"version": 1}\n', encoding="utf-8")
+    outside = tmp_path / "outside-state"
+    outside.mkdir()
+
+    state_module = _load_module(forge_bundle / "runtime/python/lifecycle_state.py")
+    original_write = state_module._write_atomic
+
+    def swap_ancestor_then_write(*args, **kwargs):
+        (state_root / "manifest").rename(state_root / "manifest-opened")
+        (state_root / "manifest").symlink_to(outside, target_is_directory=True)
+        return original_write(*args, **kwargs)
+
+    monkeypatch.setattr(state_module, "_write_atomic", swap_ancestor_then_write)
+    state_module.write_track(str(state_root), "jira__RACE-1", b'{"version": 2}\n')
+
+    safe_track = state_root / "manifest-opened/forge/lifecycle" / track_name
+    assert json.loads(safe_track.read_text(encoding="utf-8")) == {"version": 2}
+    assert list(outside.iterdir()) == []
+
+
+def test_lifecycle_shell_delegates_state_io_to_python_helper(
+    forge_bundle: Path,
+) -> None:
+    lifecycle = (forge_bundle / "runtime/bin/lifecycle.sh").read_text(encoding="utf-8")
+
+    assert 'mktemp "${STATE_DIR}' not in lifecycle
+    assert 'cat "${p}"' not in lifecycle
+    assert 'mv "${tmp}"' not in lifecycle
 
 
 def test_lifecycle_ignores_arbitrary_provider_config_and_merges_xdg_overlay(
