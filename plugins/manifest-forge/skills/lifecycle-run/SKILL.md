@@ -5,7 +5,7 @@ description: Use when a feature or issue needs to move through the state-gated s
 
 # Lifecycle Orchestrator
 
-Thin front-end over `configs/claude/scripts/lifecycle.sh` (the shared, bats-tested state
+Thin front-end over `../../runtime/bin/lifecycle.sh` (the shared, bats-tested state
 machine). The script holds the gate logic and per-track state; this skill maps each phase to
 the command that executes it, runs it, then calls `lifecycle.sh advance` with the phase's
 gate signal. Constitution: Principle VI + "Development Lifecycle". Contracts:
@@ -69,7 +69,7 @@ lifecycle.sh advance <track-id> --actor <agent|human> --gate '<phase-gate-json>'
 ## Providers (GitHub / GitLab / Linear / Jira)
 
 Entry is a ticket URL or issue key; `lifecycle.sh init` detects the provider. Hierarchy
-and status rendering come from `configs/claude/config/tracker_providers.yml`
+and status rendering come from `../../runtime/config/tracker_providers.json`
 (`lifecycle.sh status-map <provider> <canonical>` resolves a label vs. a Jira transition).
 
 **Jira is reached via the pre-authenticated Atlassian MCP** (wired in `settings.local.json`)

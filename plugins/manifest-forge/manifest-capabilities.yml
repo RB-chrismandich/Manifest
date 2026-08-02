@@ -10,7 +10,11 @@ components:
     include: ["*/SKILL.md"]
   agents: []
   hooks: []
-  runtime: []
+  runtime:
+    - {id: forge-bin, path: runtime/bin}
+    - {id: forge-python, path: runtime/python}
+    - {id: forge-config, path: runtime/config}
+    - {id: forge-references, path: runtime/references}
   guidance: []
 capabilities:
   mcp:

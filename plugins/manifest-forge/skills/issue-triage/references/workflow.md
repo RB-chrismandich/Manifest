@@ -32,7 +32,7 @@ depend on env vars and intermediate files produced by earlier ones.
 set -euo pipefail
 
 # Load triage configuration
-CONFIG_FILE="${HOME}/.claude/config/tracker_triage.yml"
+CONFIG_FILE="../../runtime/config/tracker_triage.json"
 
 if [[ ! -f "$CONFIG_FILE" ]]; then
     echo "Error: Configuration file not found: $CONFIG_FILE" >&2
@@ -106,19 +106,19 @@ done
 TEMP_DIR=$(mktemp -d)
 RAW_ISSUES_FILE="$TEMP_DIR/raw_issues.json"
 
-PROVIDER=$(~/.claude/scripts/tracker_ops.sh resolve-provider)
+PROVIDER=$(../../runtime/bin/tracker_ops.sh resolve-provider)
 echo "Fetching issues from ${PROVIDER}..."
 
 case "$PROVIDER" in
     github)
         # No "team" scope on issue-list; --team filters by label/milestone
         # instead (caller's responsibility — see Arguments table).
-        ~/.claude/scripts/tracker_ops.sh issue-list --state open --limit "$LIMIT" \
+        ../../runtime/bin/tracker_ops.sh issue-list --state open --limit "$LIMIT" \
             --json number,title,body,labels,createdAt,updatedAt,state \
             > "$RAW_ISSUES_FILE"
         ;;
     gitlab)
-        ~/.claude/scripts/tracker_ops.sh issue-list --state opened --per-page "$LIMIT" \
+        ../../runtime/bin/tracker_ops.sh issue-list --state opened --per-page "$LIMIT" \
             --output-format json \
             > "$RAW_ISSUES_FILE"
         ;;
@@ -127,7 +127,7 @@ case "$PROVIDER" in
         # tracker_ops.sh equivalent (engine-level, linear-only concept — it isn't
         # part of the canonical verb set), so it stays a direct linear_ops.sh call.
         if [[ -n "$TEAM_FILTER" ]]; then
-            ~/.claude/scripts/tracker_ops.sh issue-list \
+            ../../runtime/bin/tracker_ops.sh issue-list \
                 --team "$TEAM_FILTER" \
                 --limit "$LIMIT" \
                 --json > "$RAW_ISSUES_FILE"
@@ -137,8 +137,8 @@ case "$PROVIDER" in
             # needs a single valid JSON array, not a concatenated stream).
             TEAM_PARTS="$TEMP_DIR/raw_issues_by_team.ndjson"
             : > "$TEAM_PARTS"
-            ~/.claude/scripts/linear_ops.sh team-list --json | jq -r '.[].key' | while read -r team; do
-                ~/.claude/scripts/tracker_ops.sh issue-list \
+            ../../runtime/bin/linear_ops.sh team-list --json | jq -r '.[].key' | while read -r team; do
+                ../../runtime/bin/tracker_ops.sh issue-list \
                     --team "$team" \
                     --limit "$LIMIT" \
                     --json >> "$TEAM_PARTS"
@@ -149,7 +149,7 @@ case "$PROVIDER" in
     jira)
         # jira is MCP-only (tracker_ops.sh exits 3) — fetch via the Atlassian
         # MCP search tool (name resolved via
-        # `~/.claude/scripts/tracker_registry.py mcp-tool jira search`,
+        # `../../runtime/python/tracker_registry.py mcp-tool jira search`,
         # currently `searchJiraIssuesUsingJql`) from agent context instead of
         # this shell block. Extract the `issues` array so $RAW_ISSUES_FILE is
         # a JSON list, consistent with the other providers.
@@ -169,7 +169,7 @@ schema — never a provider's raw shape. Fields and their honest per-provider ma
 | `identifier` | human-facing id used by `tracker_ops.sh` verbs | `number` | `iid` | `identifier` | `key` |
 | `title` | issue title | `title` | `title` | `title` | `fields.summary` |
 | `description` | issue body | `body` | `description` | `description` | `fields.description` |
-| `priority` | canonical 0-4 (1=Urgent…4=Low, 0=None — Linear's native scale, `tracker_triage.yml priority.labels`) | derived from priority-shaped labels (`urgent`/`p0`/`critical`/`blocker`→1, `high`/`p1`→2, `medium`/`p2`→3, `low`/`p3`/`p4`→4, else 0) | same label derivation as github | native `priority` field | derived from `fields.priority.name` (Highest/Blocker→1, High→2, Medium→3, Low/Lowest→4, else 0) |
+| `priority` | canonical 0-4 (1=Urgent…4=Low, 0=None — Linear's native scale, `tracker_triage.json priority.labels`) | derived from priority-shaped labels (`urgent`/`p0`/`critical`/`blocker`→1, `high`/`p1`→2, `medium`/`p2`→3, `low`/`p3`/`p4`→4, else 0) | same label derivation as github | native `priority` field | derived from `fields.priority.name` (Highest/Blocker→1, High→2, Medium→3, Low/Lowest→4, else 0) |
 | `state` | canonical workflow state (`backlog`/`started`/`completed`/`canceled`) | open + no status label→`backlog`; open + `in-progress`/`needs-review` label→`started`; closed→`completed` (or `canceled` if a `wontfix`/`duplicate`/`invalid` label is present) | same derivation as github | native `state.type` | `fields.status.statusCategory.key` (`new`→backlog, `indeterminate`→started, `done`→completed; a cancellation-worded resolution→`canceled`) |
 | `team` | scope key used for the duplicate-detection same-scope boost | `""` (no native scope on issue-list; the boost is skipped when empty — Step 5) | `""` (same — no native scope) | `team.key` | `fields.project.key` |
 | `labels` | label names | `labels[].name` | `labels[]` (already strings) | `labels.nodes[].name` | `fields.labels` |
@@ -193,7 +193,7 @@ with open(sys.argv[2]) as f:
 
 # Priority labels honored on github/gitlab (and as a jira fallback) when the
 # tracker has no native 0-4 field. Mirrors Linear's own scale
-# (tracker_triage.yml priority.labels): 1=Urgent 2=High 3=Medium 4=Low
+# (tracker_triage.json priority.labels): 1=Urgent 2=High 3=Medium 4=Low
 # 0=None (no matching label — an honest default, not a guess).
 PRIORITY_LABEL_MAP = {
     "urgent": 1, "p0": 1, "critical": 1, "blocker": 1,
@@ -210,7 +210,7 @@ def priority_from_labels(labels):
                 return val
     return 0
 
-# Canonical status labels (tracker_providers.yml status_map / tracker_ops.sh
+# Canonical status labels (tracker_providers.json status_map / tracker_ops.sh
 # CANONICAL_STATUSES): planned, in-progress, needs-review, done.
 def state_from_open_closed(is_closed, labels):
     label_set = {l.lower() for l in labels}
@@ -765,7 +765,7 @@ if [ "$DRY_RUN" = false ]; then
         duplicate_id=$(echo "$dup" | jq -r '.duplicate_issue.identifier')
         primary_id=$(echo "$dup" | jq -r '.primary_issue.identifier')
 
-        ~/.claude/scripts/tracker_ops.sh duplicate-mark "$duplicate_id" --duplicate-of "$primary_id"
+        ../../runtime/bin/tracker_ops.sh duplicate-mark "$duplicate_id" --duplicate-of "$primary_id"
 
         # Log action
         jq --arg action "mark_duplicate" \
@@ -785,7 +785,7 @@ if [ "$DRY_RUN" = false ]; then
             issue_id=$(echo "$stale" | jq -r '.identifier')
             reasons=$(echo "$stale" | jq -r '.reasons | join("; ")')
 
-            ~/.claude/scripts/tracker_ops.sh issue-close "$issue_id" \
+            ../../runtime/bin/tracker_ops.sh issue-close "$issue_id" \
                 --comment "Closing as stale: $reasons. Reopen if still relevant."
 
             # Log action
@@ -808,7 +808,7 @@ if [ "$DRY_RUN" = false ]; then
     jq -r '.[] | "[\(.timestamp | todate)] \(.action): \(.issue) \(.target // .reason // "")"' "$ACTIONS_LOG"
 
     # Copy audit to permanent location
-    AUDIT_DIR="${HOME}/.claude/.agent_outputs/triage_audits"
+    AUDIT_DIR="${XDG_STATE_HOME:-${HOME}/.local/state}/manifest/forge/triage_audits"
     mkdir -p "$AUDIT_DIR"
     cp "$ACTIONS_LOG" "$AUDIT_DIR/triage_$(date +%Y%m%d_%H%M%S).json"
     echo "Audit saved to $AUDIT_DIR"

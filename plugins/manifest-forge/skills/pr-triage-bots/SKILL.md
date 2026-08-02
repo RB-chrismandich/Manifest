@@ -9,7 +9,7 @@ close, or hold.
 Bots over-produce: duplicate one-line changes across many PRs, overstate in marketing-prose bodies, and over-generalize
 narrow changes into blanket policy. Judge the diff, not the title.
 
-Bot identities live in `configs/claude/config/review_bots.yml`, not hardcoded
+Bot identities live in `../../runtime/config/review_bots.json`, not hardcoded
 here: for each bot in the registry with `role: author` (currently `palette`,
 `bolt`) or `role: reviewer` (`copilot`, `jules`, when it opens a sibling PR),
 identify its PRs per the entry's `identified_by` field — `author_login` for
@@ -47,7 +47,7 @@ skill.
 
 When ≥3 bot PRs are open, dispatch one sub-agent per PR (or batch) to triage it, then consolidate
 dispositions; below that, triage inline. Pick the mechanism per the shared Sub-Agent Selection Rules
-(`configs/claude/references/sub-agent-dispatch.md`): native Task sub-agents on Claude, or
+(`the current harness native sub-agent dispatch contract`): native Task sub-agents on Claude, or
 `[[skill:parallel-agent]]` / inline on other assistants. Dispatched sub-agents execute their task directly and
 do not re-dispatch.
 

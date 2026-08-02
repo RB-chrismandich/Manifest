@@ -22,7 +22,7 @@ pr-clean-base instead.
    including unrelated prior edits.
 6. Commit as one focused, reviewable commit and `git push --force-with-lease`.
 7. Open a fresh PR if the previous one was already merged; never reopen merged history. Verify with
-   `~/.claude/scripts/git_ops.sh pr-view <n> --json state,commits` that the new PR contains only the intended
+   `../../runtime/bin/git_ops.sh pr-view <n> --json state,commits` that the new PR contains only the intended
    commit(s).
 8. Never `git rebase -i` interactively in a non-interactive agent shell and never force-push without
    `--force-with-lease`.

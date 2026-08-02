@@ -31,69 +31,37 @@ The handler is **fail-open**: malformed payloads, non-matching commands, and
 failed PR creations all produce no output and exit 0, so the hook can never
 wedge your normal workflow.
 
-## Install across all three hook-capable tools (recommended)
+## Install through the active harness coordinator
 
-Use the `ai-hooks-integration` skill's unified installer — no path to supply,
-since skill storage has moved three times already (bootstrap copy ->
-apm-managed `~/.manifest/skills` -> plugin bundles, PR #685) and every
-hand-written `~/.claude/skills/...` path in this doc has gone stale at least
-once as a result. Locate the installer inside that skill's own `scripts/`
-directory — via the plugin cache or a Manifest repo checkout — and run it
-with `--default-handler` to install pr-monitor's built-in handler:
+The bundle does not guess a harness home or edit another plugin. Ask the active
+harness coordinator to install an ownership-marked lifecycle hook named
+`manifest-forge:pr-monitor`. The handler command must invoke
+`scripts/pr_create_trigger.py` relative to this skill directory, with an argv
+array equivalent to:
 
-```bash
-installer=$(find ~/.claude/plugins/cache -name install_all.py -path '*manifest-workspace*' | head -1)
-"$installer" --unified --default-handler --name pr-monitor --dry-run   # drop --dry-run to apply
+```text
+["python3", "<installed-pr-monitor-skill>/scripts/pr_create_trigger.py"]
 ```
 
-This writes `~/.claude/scripts/hook_dispatch.py --source <tool>` into each
-config instead of an absolute path to `unified_hook.py`/`pr_create_trigger.py`.
-`hook_dispatch.py` lives at `~/.claude/scripts/` — deployed by `bootstrap.sh`,
-untouched by skill/plugin churn — and resolves the real script locations at
-fire-time, so the installed command never goes stale again even if skill
-storage moves a fourth time.
+The coordinator resolves `<installed-pr-monitor-skill>`, chooses the native
+event for the active harness, records bundle ownership, and performs an atomic
+merge into that harness's configuration. The handler filters successful
+`gh pr create` / `glab mr create` commands itself, so no shell interpolation or
+credential lookup belongs in the hook declaration.
 
-Unified mode registers the handler on each tool's tool-lifecycle event and
-normalizes the payload; the handler (`pr_create_trigger.py`) does its own
-filtering — it only acts on a successful `gh pr create` / `glab mr create` and
-no-ops on everything else, so there's no per-event/matcher flag to set.
-
-This registers the equivalent event per tool:
-
-| Tool        | Config                     | Event               |
-|-------------|----------------------------|----------------------|
-| Claude Code | `~/.claude/settings.json`  | PostToolUse (Bash)   |
-| Gemini CLI  | `~/.gemini/settings.json`  | AfterTool            |
-| Cursor      | `~/.cursor/hooks.json`     | afterShellExecution  |
-
-Codex and Antigravity have no event-hook substrate — `configs/antigravity/`
-symlinks only config/skills/.plans, not a `settings.json` for hooks to live in
-— so neither tool can auto-trigger this skill; run `/pr-monitor` by hand after
-opening a PR from either one (see AGENTS.md's Workflow Reminders). OpenCode, if
-used, takes a plugin instead — see `install_opencode_plugin.py` in
-ai-hooks-integration.
-
-## Single tool only
-
-Prefer the unified installer above — it's what wires in `hook_dispatch.py`'s
-stale-path protection. `merge_hooks.py --command` is the raw lower-level
-primitive it calls and takes whatever command string you give it verbatim, so
-pointing it straight at a script path reintroduces the staleness problem this
-doc exists to warn about.
+Codex and Antigravity have no event-hook substrate. On those harnesses the
+coordinator reports the capability as degraded and the operator runs
+`/pr-monitor` manually after opening a PR.
 
 ## Verify / debug / remove
 
 ```bash
-# Debug: log decisions to stderr (once installed, run the live command with
-# HOOK_DEBUG=1 rather than invoking pr_create_trigger.py by a hand-typed path)
+# Debug: log decisions to stderr
 echo '{"tool_input":{"command":"gh pr create --fill"},"tool_response":{"success":true}}' \
-  | HOOK_DEBUG=1 ~/.claude/scripts/hook_dispatch.py --source claude
+  | HOOK_DEBUG=1 python3 scripts/pr_create_trigger.py
 
-# Remove from all tools (same directory as install_all.py — see "Install
-# across all three hook-capable tools" above for how to locate it)
-"$(dirname "$installer")/remove_all.py" \
-  --command "$HOME/.claude/scripts/hook_dispatch.py" \
-  --plugin ~/.config/opencode/plugins/pr-monitor.js
+# Remove by asking the active coordinator to remove ownership marker
+# manifest-forge:pr-monitor.
 ```
 
 ## Why a hook, not a slash command

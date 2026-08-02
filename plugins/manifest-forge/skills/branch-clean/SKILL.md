@@ -8,9 +8,9 @@ description: Identify and safely prune stale git branches — merged into the de
 Find local branches that are safe to delete and remove them with confirmation.
 Groups candidates by reason and previews before doing anything destructive.
 
-This skill is backed by `~/.claude/scripts/branch_clean.sh`. Protected globs and
-the staleness threshold come from the `branch_clean` block of
-`config/command_config.yml`.
+This skill is backed by `../../runtime/bin/branch_clean.sh`. Protected globs and
+the staleness threshold can be overridden with
+`$XDG_CONFIG_HOME/manifest/forge/branch_clean.json`.
 
 ## When to use
 
@@ -23,7 +23,7 @@ the staleness threshold come from the `branch_clean` block of
 1. **Preview first** (dry-run is the default — deletes nothing):
 
    ```bash
-   ~/.claude/scripts/branch_clean.sh
+   ../../runtime/bin/branch_clean.sh
    ```
 
    Candidates are grouped by reason: **Merged into <default>**, **Gone upstream**,
@@ -33,13 +33,13 @@ the staleness threshold come from the `branch_clean` block of
 
    ```bash
    # Delete the local candidates (prompts for confirmation)
-   ~/.claude/scripts/branch_clean.sh --apply
+   ../../runtime/bin/branch_clean.sh --apply
 
    # Also delete the matching remote branches (opt-in)
-   ~/.claude/scripts/branch_clean.sh --apply --include-remote
+   ../../runtime/bin/branch_clean.sh --apply --include-remote
 
    # Tune staleness / add protected patterns
-   ~/.claude/scripts/branch_clean.sh --stale-days 60 --protect 'wip/*'
+   ../../runtime/bin/branch_clean.sh --stale-days 60 --protect 'wip/*'
    ```
 
 3. **Review the outcome.** Each deletion reports `deleted` or `FAILED`. A

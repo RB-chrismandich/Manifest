@@ -3,6 +3,54 @@
   "forbidden": [],
   "harnesses": {
     "antigravity": {
+      "compatibility": {
+        "imported": [
+          {
+            "component_id": "forge-bin",
+            "component_type": "runtime",
+            "mode": "imported",
+            "path": "runtime/bin"
+          },
+          {
+            "component_id": "forge-config",
+            "component_type": "runtime",
+            "mode": "imported",
+            "path": "runtime/config"
+          },
+          {
+            "component_id": "forge-python",
+            "component_type": "runtime",
+            "mode": "imported",
+            "path": "runtime/python"
+          },
+          {
+            "component_id": "forge-references",
+            "component_type": "runtime",
+            "mode": "imported",
+            "path": "runtime/references"
+          }
+        ]
+      },
+      "components": {
+        "runtime": [
+          {
+            "id": "forge-bin",
+            "path": "runtime/bin"
+          },
+          {
+            "id": "forge-config",
+            "path": "runtime/config"
+          },
+          {
+            "id": "forge-python",
+            "path": "runtime/python"
+          },
+          {
+            "id": "forge-references",
+            "path": "runtime/references"
+          }
+        ]
+      },
       "mode": "imported",
       "skills": [
         "skills/branch-clean",
@@ -26,6 +74,54 @@
       ]
     },
     "codex": {
+      "compatibility": {
+        "native": [
+          {
+            "component_id": "forge-bin",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "runtime/bin"
+          },
+          {
+            "component_id": "forge-config",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "runtime/config"
+          },
+          {
+            "component_id": "forge-python",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "runtime/python"
+          },
+          {
+            "component_id": "forge-references",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "runtime/references"
+          }
+        ]
+      },
+      "components": {
+        "runtime": [
+          {
+            "id": "forge-bin",
+            "path": "runtime/bin"
+          },
+          {
+            "id": "forge-config",
+            "path": "runtime/config"
+          },
+          {
+            "id": "forge-python",
+            "path": "runtime/python"
+          },
+          {
+            "id": "forge-references",
+            "path": "runtime/references"
+          }
+        ]
+      },
       "mode": "native",
       "skills": [
         "skills/branch-clean",
@@ -49,6 +145,54 @@
       ]
     },
     "cursor": {
+      "compatibility": {
+        "generated": [
+          {
+            "component_id": "forge-bin",
+            "component_type": "runtime",
+            "mode": "generated",
+            "path": "runtime/bin"
+          },
+          {
+            "component_id": "forge-config",
+            "component_type": "runtime",
+            "mode": "generated",
+            "path": "runtime/config"
+          },
+          {
+            "component_id": "forge-python",
+            "component_type": "runtime",
+            "mode": "generated",
+            "path": "runtime/python"
+          },
+          {
+            "component_id": "forge-references",
+            "component_type": "runtime",
+            "mode": "generated",
+            "path": "runtime/references"
+          }
+        ]
+      },
+      "components": {
+        "runtime": [
+          {
+            "id": "forge-bin",
+            "path": "runtime/bin"
+          },
+          {
+            "id": "forge-config",
+            "path": "runtime/config"
+          },
+          {
+            "id": "forge-python",
+            "path": "runtime/python"
+          },
+          {
+            "id": "forge-references",
+            "path": "runtime/references"
+          }
+        ]
+      },
       "mode": "generated",
       "skills": [
         "skills/branch-clean",
@@ -72,6 +216,54 @@
       ]
     },
     "devin": {
+      "compatibility": {
+        "native": [
+          {
+            "component_id": "forge-bin",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "runtime/bin"
+          },
+          {
+            "component_id": "forge-config",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "runtime/config"
+          },
+          {
+            "component_id": "forge-python",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "runtime/python"
+          },
+          {
+            "component_id": "forge-references",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "runtime/references"
+          }
+        ]
+      },
+      "components": {
+        "runtime": [
+          {
+            "id": "forge-bin",
+            "path": "runtime/bin"
+          },
+          {
+            "id": "forge-config",
+            "path": "runtime/config"
+          },
+          {
+            "id": "forge-python",
+            "path": "runtime/python"
+          },
+          {
+            "id": "forge-references",
+            "path": "runtime/references"
+          }
+        ]
+      },
       "mode": "native",
       "skills": [
         "skills/branch-clean",

@@ -28,7 +28,7 @@ depend on env vars and intermediate files produced by earlier ones.
 ```bash
 # Auto-detect provider via tracker_ops.sh (--provider > MANIFEST_TRACKER >
 # .manifest-tracker file > git remote > registry default_provider)
-PROVIDER="${FORCED_PROVIDER:-$(~/.claude/scripts/tracker_ops.sh resolve-provider)}"
+PROVIDER="${FORCED_PROVIDER:-$(../../runtime/bin/tracker_ops.sh resolve-provider)}"
 echo "Tracker provider: $PROVIDER"
 ```
 
@@ -37,7 +37,7 @@ loudly (exit 1) if not, or exit 3 if the provider is MCP-only in shell context (
 
 ### Step 2: Fetch Open Issues
 
-Fetch issues via `~/.claude/scripts/tracker_ops.sh --provider "$PROVIDER" issue-list …` (jira is
+Fetch issues via `../../runtime/bin/tracker_ops.sh --provider "$PROVIDER" issue-list …` (jira is
 the exception — see below). Normalize output to a common JSON schema.
 
 #### GitHub
@@ -49,7 +49,7 @@ REPO_FLAG=""
 LABEL_FLAG=""
 [[ "$FILTER_ALL" != true && -n "$FILTER_LABEL" ]] && LABEL_FLAG="--label $FILTER_LABEL"
 
-~/.claude/scripts/tracker_ops.sh --provider github issue-list --state open --limit "$LIMIT" \
+../../runtime/bin/tracker_ops.sh --provider github issue-list --state open --limit "$LIMIT" \
     --json number,title,labels,createdAt,updatedAt,body,comments,assignees \
     $REPO_FLAG $LABEL_FLAG > "$TEMP_DIR/raw_issues.json"
 ```
@@ -63,7 +63,7 @@ REPO_FLAG=""
 LABEL_FLAG=""
 [[ "$FILTER_ALL" != true && -n "$FILTER_LABEL" ]] && LABEL_FLAG="--label $FILTER_LABEL"
 
-~/.claude/scripts/tracker_ops.sh --provider gitlab issue-list --state opened --per-page "$LIMIT" \
+../../runtime/bin/tracker_ops.sh --provider gitlab issue-list --state opened --per-page "$LIMIT" \
     --output-format json \
     $REPO_FLAG $LABEL_FLAG > "$TEMP_DIR/raw_issues.json"
 ```
@@ -77,7 +77,7 @@ TEAM_FLAG=""
 LABEL_FLAG=""
 [[ "$FILTER_ALL" != true && -n "$FILTER_LABEL" ]] && LABEL_FLAG="--label $FILTER_LABEL"
 
-~/.claude/scripts/tracker_ops.sh --provider linear issue-list \
+../../runtime/bin/tracker_ops.sh --provider linear issue-list \
     --limit "$LIMIT" \
     --json $TEAM_FLAG $LABEL_FLAG > "$TEMP_DIR/raw_issues.json"
 ```
@@ -86,7 +86,7 @@ LABEL_FLAG=""
 
 Jira is agent-context only (MCP) — `tracker_ops.sh` exits 3 for this provider. Instead, call the
 Atlassian MCP search tool directly (tool name resolved via
-`~/.claude/scripts/tracker_registry.py mcp-tool jira search`, currently `searchJiraIssuesUsingJql`)
+`../../runtime/python/tracker_registry.py mcp-tool jira search`, currently `searchJiraIssuesUsingJql`)
 with a JQL query scoped to open issues, e.g. `project = "$JIRA_PROJECT" AND statusCategory != Done`
 plus `AND labels = "$FILTER_LABEL"` unless `--all` was passed. Extract the `issues` array from the
 MCP response (so `raw_issues.json` is a JSON list, consistent with the other providers) and save it

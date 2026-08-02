@@ -8,7 +8,7 @@ description: "Keep the linked GitHub/GitLab issue in sync when commits land on a
 When a commit lands on a feature branch, this skill moves the linked issue into
 "active" status so the tracker reflects work-in-progress as soon as it starts. It is
 one half of the issue-linking hooks (see also [`/manifest-forge:issue-sync-pr`]); both delegate to the
-shared engine `configs/claude/scripts/issue_support.sh`.
+shared engine `../../runtime/bin/issue_support.sh`.
 
 ## What it does
 
@@ -29,12 +29,12 @@ the commit. A timed-out run self-heals on the next commit or a manual re-run.
 ## Invocation
 
 ```bash
-configs/claude/scripts/issue_support.sh sync-commit HEAD [--dry-run] [--no-create]
+../../runtime/bin/issue_support.sh sync-commit HEAD [--dry-run] [--no-create]
 ```
 
 ## Hook trigger
 
-Installed via `configs/claude/scripts/install_issue_hooks.sh --enable` (unified
+Installed via `../../runtime/bin/install_issue_hooks.sh --enable` (unified
 `PostToolUse`, matched to `git commit`) and optionally `--native` to add a guarded
 git `post-commit` hook for commits made outside an AI tool. Opt-in: gated by
 `tool_policies.issue-sync-commit.enabled`.

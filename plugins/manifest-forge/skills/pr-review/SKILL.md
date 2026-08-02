@@ -9,7 +9,7 @@ Triage the entire open-PR queue in one pass so you can quickly see which PRs are
 ready, which are stale or superseded, and which need work. Reuses the repo's
 platform abstraction (`git_platform.sh` / `git_ops.sh`).
 
-This skill is backed by `~/.claude/scripts/pr_review.sh`.
+This skill is backed by `../../runtime/bin/pr_review.sh`.
 
 ## When to use
 
@@ -23,13 +23,13 @@ This skill is backed by `~/.claude/scripts/pr_review.sh`.
 
    ```bash
    # Triage every open PR on the auto-detected platform
-   ~/.claude/scripts/pr_review.sh
+   ../../runtime/bin/pr_review.sh
 
    # Custom staleness window + machine-readable output
-   ~/.claude/scripts/pr_review.sh --stale-days 14 --json
+   ../../runtime/bin/pr_review.sh --stale-days 14 --json
 
    # Force a platform
-   ~/.claude/scripts/pr_review.sh --platform gitlab
+   ../../runtime/bin/pr_review.sh --platform gitlab
    ```
 
 2. **Read the recommendations.** Each PR gets a disposition with a one-line
@@ -57,9 +57,10 @@ This skill is backed by `~/.claude/scripts/pr_review.sh`.
 ## Sub-agent dispatch
 
 When ≥3 open PRs exist, dispatch one sub-agent per PR to assess mergeability, then consolidate; below that, review
-inline. Pick the mechanism per the shared Sub-Agent Selection Rules
-(`configs/claude/references/sub-agent-dispatch.md`): native Task sub-agents on Claude, or `[[skill:parallel-agent]]` /
-inline on other assistants. Dispatched sub-agents execute their task directly and do not re-dispatch.
+inline. Pick the mechanism from the current harness's native sub-agent dispatch
+contract: native Task sub-agents where available, or `[[skill:parallel-agent]]`
+/ inline on other assistants. Dispatched sub-agents execute their task directly
+and do not re-dispatch.
 
 Dispatch on **Sonnet** (`subagent_model: sonnet` in `command_config.yml`) — pass the model
 explicitly; inheriting the session's model bills premium rates for fan-out work.

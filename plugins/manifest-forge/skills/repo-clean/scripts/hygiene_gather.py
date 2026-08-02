@@ -28,8 +28,11 @@ import shutil
 import subprocess
 import sys
 import time
+from pathlib import Path
 
 DEFAULT_PROTECTED = ["main", "master", "release/*", "hotfix/*"]
+FORGE_RUNTIME = Path(__file__).resolve().parents[3] / "runtime"
+GIT_PLATFORM = FORGE_RUNTIME / "bin" / "git_platform.sh"
 
 
 def err(msg: str) -> None:
@@ -49,12 +52,8 @@ def git(*args: str) -> str:
 
 
 def detect_platform() -> str:
-    url = git("remote", "get-url", "origin").lower()
-    if "gitlab" in url:
-        return "gitlab"
-    if "github" in url:
-        return "github"
-    return "git"
+    result = run([str(GIT_PLATFORM)])
+    return result.stdout.strip() if result.returncode == 0 else "git"
 
 
 def is_protected(name: str, default: str, current: str, globs: list[str]) -> bool:

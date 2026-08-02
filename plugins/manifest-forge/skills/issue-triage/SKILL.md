@@ -41,8 +41,8 @@ This skill performs comprehensive issue triage by:
      shell context; run jira triage from agent context and call the Atlassian MCP tools directly instead
      of shelling out)
 2. **Tools installed**: `jq`, `python3`
-3. **Scripts available**: `~/.claude/scripts/tracker_ops.sh`, `[[skill:parallel-agent]]`
-4. **Config loaded**: `~/.claude/config/tracker_triage.yml`
+3. **Scripts available**: `../../runtime/bin/tracker_ops.sh`, `[[skill:parallel-agent]]`
+4. **Config loaded**: `../../runtime/config/tracker_triage.json`
 
 ## Workflow
 
@@ -70,7 +70,31 @@ session** (later steps consume env vars and intermediate files set by earlier on
 
 ## Error Handling
 
-Verify the Prerequisites above before starting; report the first missing one and stop.
+```bash
+# Wrapper for safe execution
+trap 'echo "Error on line $LINENO. Exiting."; exit 1' ERR
+
+# Validate prerequisites before starting
+if ! command -v jq &> /dev/null; then
+    echo "Error: jq is required but not installed" >&2
+    exit 1
+fi
+
+if ! command -v python3 &> /dev/null; then
+    echo "Error: python3 is required but not installed" >&2
+    exit 1
+fi
+
+if [[ ! -x ../../runtime/bin/tracker_ops.sh ]]; then
+    echo "Error: tracker_ops.sh not found or not executable" >&2
+    exit 1
+fi
+
+if [[ ! -f ../../runtime/config/tracker_triage.json ]]; then
+    echo "Error: Configuration file not found" >&2
+    exit 1
+fi
+```
 
 ## Example Usage
 
@@ -94,7 +118,7 @@ Verify the Prerequisites above before starting; report the first missing one and
 ## Output
 
 - **Markdown report** to console and temp file
-- **JSON audit log** in `~/.claude/.agent_outputs/triage_audits/`
+- **JSON audit log** in `$XDG_STATE_HOME/manifest/forge/triage_audits/`
 - **Action summary** with counts and recommendations
 
 ## Integration with Parallel Agents
@@ -115,7 +139,7 @@ Consensus thresholds:
 ## Sub-agent dispatch
 
 When ≥3 issues need auditing, dispatch one sub-agent per issue batch to triage, then consolidate; below that, triage
-inline. Pick the mechanism per the shared Sub-Agent Selection Rules (`configs/claude/references/sub-agent-dispatch.md`):
+inline. Pick the mechanism per the shared Sub-Agent Selection Rules (`the current harness native sub-agent dispatch contract`):
 native Task sub-agents on Claude, or `[[skill:parallel-agent]]` / inline on other assistants. Dispatched sub-agents execute
 their task directly and do not re-dispatch.
 
