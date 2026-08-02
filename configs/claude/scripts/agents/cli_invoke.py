@@ -170,11 +170,35 @@ def resolve_role_model_tier(charter_path: str | os.PathLike) -> str:
     return "sonnet"
 
 
+# Cross-provider tier equivalence, mirroring the documented tier tables
+# (mini/haiku, flash/sonnet, advanced/opus/pro; fable is claude-only and
+# degrades to the advanced class elsewhere). Callers hand a *role* tier to
+# whichever provider answers the route — e.g. synthesis passes "sonnet" to
+# antigravity — so an alias must translate before falling back to verbatim
+# passthrough, or the raw alias leaks to the provider CLI as --model.
+_TIER_EQUIVALENTS = {
+    "mini": ("haiku",),
+    "haiku": ("mini",),
+    "flash": ("sonnet",),
+    "sonnet": ("flash",),
+    "advanced": ("opus", "pro"),
+    "opus": ("advanced", "pro"),
+    "pro": ("advanced", "opus"),
+    "fable": ("advanced", "opus", "pro"),
+}
+
+
 def resolve_provider_model(config: Config, provider: str, tier: str) -> str | None:
     if tier == "auto":
         return None
     resolved = config.get(f"model_tiers.{provider}.{tier}")
-    return resolved if resolved else tier
+    if resolved:
+        return resolved
+    for alias in _TIER_EQUIVALENTS.get(tier, ()):
+        resolved = config.get(f"model_tiers.{provider}.{alias}")
+        if resolved:
+            return resolved
+    return tier
 
 
 async def invoke_cli(
