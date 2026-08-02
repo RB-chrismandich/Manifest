@@ -131,8 +131,9 @@ class GeminiAdapter(CapabilityAdapterMixin):
                 failures.append(
                     native_command_result(self.name, command, CapabilityTier.REQUIRED)
                 )
+        capabilities = self.install_capabilities(desired)
         inspected = self.inspect(desired)
-        return combine_results(*failures, inspected) if failures else inspected
+        return combine_results(*failures, capabilities, inspected)
 
     def uninstall(self, receipt: HarnessReceipt) -> HarnessResult:
         """Uninstall only canonical extension names recorded by the receipt."""
@@ -140,6 +141,7 @@ class GeminiAdapter(CapabilityAdapterMixin):
             return _blocked(
                 f"receipt harness {receipt.harness!r} does not match {self.name!r}"
             )
+        capabilities = self.remove_capabilities(receipt)
         plugin_ids, id_errors = _receipt_plugin_ids(receipt)
         failures = [_blocked(error) for error in id_errors]
         for plugin_id in plugin_ids:
@@ -153,7 +155,7 @@ class GeminiAdapter(CapabilityAdapterMixin):
                     native_command_result(self.name, command, CapabilityTier.REQUIRED)
                 )
         success = HarnessResult(self.name, ResultState.READY, (), {})
-        return combine_results(*failures, success) if failures else success
+        return combine_results(capabilities, *failures, success)
 
     def _execute(
         self, argv: Sequence[str]

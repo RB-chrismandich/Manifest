@@ -133,7 +133,8 @@ class CursorAdapter(CapabilityAdapterMixin):
         assert command is not None
         if command.returncode != 0:
             return native_command_result(self.name, command, CapabilityTier.REQUIRED)
-        return self.inspect(desired)
+        capabilities = self.install_capabilities(desired)
+        return combine_results(capabilities, self.inspect(desired))
 
     def uninstall(self, receipt: HarnessReceipt) -> HarnessResult:
         """Remove only the singular marketplace URL owned by the receipt."""
@@ -141,6 +142,7 @@ class CursorAdapter(CapabilityAdapterMixin):
             return _blocked(
                 f"receipt harness {receipt.harness!r} does not match {self.name!r}"
             )
+        capabilities = self.remove_capabilities(receipt)
         if tuple(receipt.plugin_ids) != DOMAIN_BUNDLES:
             return _blocked("receipt must contain the exact nine canonical domains")
         if not _is_url(self._repository_url):
@@ -169,11 +171,13 @@ class CursorAdapter(CapabilityAdapterMixin):
             )
         )
         if error is not None:
-            return error
+            return combine_results(capabilities, error)
         assert command is not None
         if command.returncode != 0:
-            return native_command_result(self.name, command, CapabilityTier.REQUIRED)
-        return HarnessResult(self.name, ResultState.READY, (), {})
+            failure = native_command_result(self.name, command, CapabilityTier.REQUIRED)
+            return combine_results(capabilities, failure)
+        success = HarnessResult(self.name, ResultState.READY, (), {})
+        return combine_results(capabilities, success)
 
     def _inspect_plugin_support(self) -> HarnessResult:
         command, error = self._execute((self.executable, "plugin", "--help"))

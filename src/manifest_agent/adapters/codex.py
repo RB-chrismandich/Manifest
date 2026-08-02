@@ -134,10 +134,9 @@ class CodexAdapter(CapabilityAdapterMixin):
                 failure = _validate_plugin_add(command, contract.name, contract.version)
                 if failure is not None:
                     failures.append(failure)
+        capabilities = self.install_capabilities(desired)
         inspected = self.inspect(desired)
-        if not failures:
-            return inspected
-        return combine_results(*failures, inspected)
+        return combine_results(*failures, capabilities, inspected)
 
     def _inspect_marketplace(self, desired: DesiredState) -> HarnessResult:
         command, error = self._execute(
@@ -167,6 +166,7 @@ class CodexAdapter(CapabilityAdapterMixin):
             return _blocked(
                 f"receipt harness {receipt.harness!r} does not match {self.name!r}"
             )
+        capabilities = self.remove_capabilities(receipt)
         plugin_ids, id_errors = _receipt_plugin_ids(receipt)
         receipt_failures = [*_error_results(id_errors)]
         removal_failures = self._run_json_mutations(
@@ -178,9 +178,10 @@ class CodexAdapter(CapabilityAdapterMixin):
         failures = receipt_failures + removal_failures
         installed_ids, list_error = self._list_installed_manifest_ids()
         if list_error is not None:
-            return combine_results(*failures, list_error) if failures else list_error
+            return combine_results(capabilities, *failures, list_error)
         assert installed_ids is not None
-        return self._finish_uninstall(receipt, plugin_ids, failures, installed_ids)
+        plugins = self._finish_uninstall(receipt, plugin_ids, failures, installed_ids)
+        return combine_results(capabilities, plugins)
 
     def _finish_uninstall(
         self,

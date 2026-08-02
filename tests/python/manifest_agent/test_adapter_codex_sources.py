@@ -10,8 +10,10 @@ from pathlib import Path
 import pytest
 
 from manifest_agent.adapters.codex import CodexAdapter
-from manifest_agent.contracts import DOMAIN_BUNDLES, load_domain_contracts
+from manifest_agent.capabilities import load_mcp_catalog
+from manifest_agent.contracts import DOMAIN_BUNDLES, Capabilities, load_domain_contracts
 from manifest_agent.models import (
+    CapabilityTier,
     DesiredState,
     HarnessReceipt,
     MarketplaceSource,
@@ -68,7 +70,11 @@ def test_codex_published_release_pins_git_marketplace_ref(
         ]
     )
 
-    result = CodexAdapter(runner=runner, which=lambda name: name).install(published)
+    result = CodexAdapter(
+        runner=runner,
+        which=lambda name: name,
+        native_mcp_inventory={"context7": load_mcp_catalog()["context7"]},
+    ).install(published)
 
     assert result.state is ResultState.READY
     assert runner.log[0] == [
@@ -141,7 +147,16 @@ def test_native_codex_adapter_lifecycle_uses_an_isolated_home(tmp_path: Path) ->
         repository_url="https://example.invalid/Manifest",
         source_dirty=True,
         archive_sha256="b" * 64,
-        contracts=load_domain_contracts(repository / "plugins"),
+        contracts=tuple(
+            replace(
+                contract,
+                capabilities=Capabilities(
+                    dict.fromkeys(CapabilityTier, ()),
+                    dict.fromkeys(CapabilityTier, ()),
+                ),
+            )
+            for contract in load_domain_contracts(repository / "plugins")
+        ),
         selected_optional=frozenset(),
         requested_harnesses=("codex",),
     )

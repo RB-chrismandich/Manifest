@@ -138,10 +138,9 @@ class AntigravityAdapter(CapabilityAdapterMixin):
                 for name in DOMAIN_BUNDLES
             ]
         )
+        capabilities = self.install_capabilities(desired)
         inspected = self.inspect(desired)
-        if install_failures:
-            return combine_results(*install_failures, inspected)
-        return inspected
+        return combine_results(*install_failures, capabilities, inspected)
 
     def uninstall(self, receipt: HarnessReceipt) -> HarnessResult:
         """Uninstall only canonical plugin identifiers recorded in the receipt."""
@@ -149,6 +148,7 @@ class AntigravityAdapter(CapabilityAdapterMixin):
             return _blocked(
                 f"receipt harness {receipt.harness!r} does not match {self.name!r}"
             )
+        capabilities = self.remove_capabilities(receipt)
         plugin_ids, id_errors = _receipt_plugin_ids(receipt)
         failures = [_blocked(error) for error in id_errors]
         failures.extend(
@@ -160,7 +160,7 @@ class AntigravityAdapter(CapabilityAdapterMixin):
             )
         )
         success = HarnessResult(self.name, ResultState.READY, (), {})
-        return combine_results(*failures, success) if failures else success
+        return combine_results(capabilities, *failures, success)
 
     def _run_mutations(self, commands: Sequence[Sequence[str]]) -> list[HarnessResult]:
         failures: list[HarnessResult] = []

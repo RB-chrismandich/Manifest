@@ -15,9 +15,21 @@ from manifest_agent.adapters.cursor import CursorAdapter
 from manifest_agent.adapters.devin import DevinAdapter
 from manifest_agent.adapters.gemini import GeminiAdapter
 from manifest_agent.capabilities import CapabilityPlan, McpDefinition, load_mcp_catalog
+from manifest_agent.contracts import (
+    DOMAIN_BUNDLES,
+    Capabilities,
+    CompatibilityStatus,
+    Components,
+    Provenance,
+)
 from manifest_agent.models import (
+    BundleContract,
+    CapabilityTier,
     CommandResult,
+    DesiredState,
     HarnessReceipt,
+    MarketplaceSource,
+    MarketplaceSourceKind,
     OwnedEntry,
     ResultState,
 )
@@ -58,6 +70,66 @@ def _plan(*, optional: tuple[str, ...] = (), selected: frozenset[str] = frozense
         selected_optional=selected,
         mcp_definitions={name: catalog[name] for name in names},
         executable_definitions={},
+    )
+
+
+def _antigravity_plan(tier: CapabilityTier) -> CapabilityPlan:
+    values = {
+        CapabilityTier.REQUIRED: (),
+        CapabilityTier.DEFAULT: (),
+        CapabilityTier.OPTIONAL: (),
+    }
+    values[tier] = ("context7",)
+    selected = (
+        frozenset({"context7"}) if tier is CapabilityTier.OPTIONAL else frozenset()
+    )
+    return CapabilityPlan(
+        required_mcp=values[CapabilityTier.REQUIRED],
+        default_mcp=values[CapabilityTier.DEFAULT],
+        optional_mcp=values[CapabilityTier.OPTIONAL],
+        required_executables=(),
+        default_executables=(),
+        optional_executables=(),
+        selected_optional=selected,
+        mcp_definitions={"context7": load_mcp_catalog()["context7"]},
+        executable_definitions={},
+    )
+
+
+def _cursor_desired(tmp_path: Path) -> DesiredState:
+    contracts = []
+    for name in DOMAIN_BUNDLES:
+        mcp = dict.fromkeys(CapabilityTier, ())
+        if name == "manifest-workspace":
+            mcp = {**mcp, CapabilityTier.DEFAULT: ("context7",)}
+        contracts.append(
+            BundleContract(
+                name,
+                "0.2.0",
+                "fixture",
+                "fixture",
+                Components("skills", (), (), (), (), ()),
+                Capabilities(mcp, dict.fromkeys(CapabilityTier, ())),
+                {"cursor": CompatibilityStatus("generated")},
+                Provenance("https://example.invalid", "MIT", "LICENSE", "test"),
+            )
+        )
+    return DesiredState(
+        release_version="0.2.0",
+        source_commit="a" * 40,
+        source=str(tmp_path),
+        marketplace_source=MarketplaceSource(
+            MarketplaceSourceKind.GIT,
+            "https://example.invalid/Manifest.git",
+            "a" * 40,
+        ),
+        release_root=tmp_path,
+        repository_url="https://example.invalid/Manifest.git",
+        source_dirty=False,
+        archive_sha256="b" * 64,
+        contracts=tuple(contracts),
+        selected_optional=frozenset(),
+        requested_harnesses=("cursor",),
     )
 
 
@@ -275,8 +347,88 @@ def test_antigravity_reports_exact_default_mcp_as_degraded_when_not_declared() -
     ).apply_capabilities(_plan())
 
     assert result.state is ResultState.DEGRADED
-    assert result.capabilities["mcp:context7"] == "degraded"
+    assert result.capabilities["mcp:context7"] == "failed"
     assert "context7" in " ".join(result.errors)
+
+
+@pytest.mark.parametrize(
+    ("tier", "state", "field"),
+    [
+        (CapabilityTier.REQUIRED, ResultState.BLOCKED, "errors"),
+        (CapabilityTier.DEFAULT, ResultState.DEGRADED, "errors"),
+        (CapabilityTier.OPTIONAL, ResultState.READY, "warnings"),
+    ],
+)
+def test_antigravity_unsupported_http_mcp_uses_normal_tier_policy(
+    tier: CapabilityTier, state: ResultState, field: str
+) -> None:
+    result = AntigravityAdapter(
+        native_mcp_inventory=(), which=lambda name: name
+    ).apply_capabilities(_antigravity_plan(tier))
+
+    assert result.state is state
+    assert result.capabilities["mcp:context7"] == (
+        "missing" if tier is CapabilityTier.OPTIONAL else "failed"
+    )
+    assert "context7" in " ".join(getattr(result, field))
+
+
+def test_normal_cursor_lifecycle_applies_and_removes_owned_mcp(tmp_path: Path) -> None:
+    desired = _cursor_desired(tmp_path)
+    marketplace = json.dumps(
+        [
+            {
+                "name": "manifest",
+                "gitUrl": desired.repository_url,
+                "gitRef": desired.source_commit,
+                "scope": "user",
+            }
+        ]
+    )
+    runner = RecordingRunner(
+        [
+            CommandResult(("fixture",), 0, "", ""),
+            CommandResult(("fixture",), 0, marketplace, ""),
+            CommandResult(("fixture",), 0, "Commands:\n  marketplace\n", ""),
+            CommandResult(("fixture",), 0, "", ""),
+        ]
+    )
+    adapter = CursorAdapter(
+        runner=runner,
+        which=lambda name: name,
+        env={"HOME": str(tmp_path)},
+        repository_url=desired.repository_url,
+    )
+
+    installed = adapter.install(desired)
+    path = tmp_path / ".cursor" / "mcp.json"
+    receipt = HarnessReceipt(
+        "cursor",
+        "1",
+        "1",
+        DOMAIN_BUNDLES,
+        (
+            *installed.owned_entries,
+            OwnedEntry("marketplace", desired.repository_url, "manifest", None, None),
+        ),
+        installed.capabilities,
+        True,
+    )
+    removed = adapter.uninstall(receipt)
+
+    assert json.loads(path.read_text(encoding="utf-8"))["mcpServers"] == {}
+    assert installed.capabilities["mcp:context7"] == "installed-by-manifest"
+    assert [(entry.kind, entry.identifier) for entry in installed.owned_entries] == [
+        ("mcp", "context7")
+    ]
+    assert removed.state is ResultState.READY
+    assert runner.calls[-1] == (
+        "cursor-agent",
+        "plugin",
+        "marketplace",
+        "remove",
+        desired.repository_url,
+    )
 
 
 def test_native_existing_is_only_checked_when_explicitly_selected() -> None:

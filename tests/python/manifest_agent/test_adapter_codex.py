@@ -9,6 +9,7 @@ from pathlib import Path
 import pytest
 
 from manifest_agent.adapters.codex import CodexAdapter
+from manifest_agent.capabilities import load_mcp_catalog
 from manifest_agent.contracts import (
     DOMAIN_BUNDLES,
     Capabilities,
@@ -220,7 +221,11 @@ def test_codex_local_release_omits_ref_and_installs_nine_plugins(
             command(stdout=installed_json(desired)),
         ]
     )
-    adapter = CodexAdapter(runner=runner, which=lambda name: name)
+    adapter = CodexAdapter(
+        runner=runner,
+        which=lambda name: name,
+        native_mcp_inventory={"context7": load_mcp_catalog()["context7"]},
+    )
 
     result = adapter.install(desired)
 
@@ -251,7 +256,11 @@ def test_codex_requires_structured_mutation_output(desired: DesiredState) -> Non
     )
     runner = QueueRunner([command(stdout="installed successfully"), marketplace])
 
-    result = CodexAdapter(runner=runner, which=lambda name: name).install(desired)
+    result = CodexAdapter(
+        runner=runner,
+        which=lambda name: name,
+        native_mcp_inventory={"context7": load_mcp_catalog()["context7"]},
+    ).install(desired)
 
     assert result.state is ResultState.BLOCKED
     assert "valid JSON" in " ".join(result.errors)
@@ -284,7 +293,11 @@ def test_codex_already_present_requires_selected_version_inspection(
         ]
     )
 
-    result = CodexAdapter(runner=runner, which=lambda name: name).install(desired)
+    result = CodexAdapter(
+        runner=runner,
+        which=lambda name: name,
+        native_mcp_inventory={"context7": load_mcp_catalog()["context7"]},
+    ).install(desired)
 
     assert result.state is ResultState.READY
     assert result.errors == ()

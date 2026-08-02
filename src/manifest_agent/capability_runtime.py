@@ -3,18 +3,25 @@
 from __future__ import annotations
 
 import json
-import os
 import re
-import tempfile
 from collections.abc import Callable, Collection, Mapping
+from dataclasses import replace
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from manifest_agent.capability_cursor import (
+    cursor_mcp_path as default_cursor_mcp_path,
+)
+from manifest_agent.capability_cursor import (
+    read_cursor_document,
+    write_json_atomic,
+)
 from manifest_agent.models import (
     CapabilityTier,
     CommandResult,
     HarnessReceipt,
     HarnessResult,
+    OwnedEntry,
     ResultState,
 )
 from manifest_agent.process import CommandRunner, redact_text
@@ -142,7 +149,9 @@ def remove_owned_capabilities(
         )
     if harness == "cursor":
         results.extend(
-            _remove_cursor_entries(receipt, cursor_mcp_path or _cursor_path(env))
+            _remove_cursor_entries(
+                receipt, cursor_mcp_path or default_cursor_mcp_path(env)
+            )
         )
     return _combine(harness, results)
 
@@ -158,9 +167,19 @@ def _apply_executable(harness, plan, name, runner, which, env):
     if executable is not None:
         if recipe is None:
             return _success(harness, identity, "verified")
-        return _verify_recipe(harness, recipe, runner, tier, identity, env, "verified")
+        verified = _verify_recipe(
+            harness, recipe, runner, tier, identity, env, "verified"
+        )
+        if verified.state is ResultState.READY:
+            return verified
+        if "version does not match" not in " ".join(verified.errors):
+            return verified
     if recipe is None:
         return _failure(harness, tier, f"executable {name} is not available", identity)
+    return _install_recipe(harness, recipe, runner, which, tier, identity, env)
+
+
+def _install_recipe(harness, recipe, runner, which, tier, identity, env):
     try:
         manager = which("uv")
     except Exception as error:
@@ -184,9 +203,12 @@ def _apply_executable(harness, plan, name, runner, which, env):
         return _failure(harness, tier, str(error), identity)
     if installed_executable is None:
         return _failure(
-            harness, tier, f"installed {name} executable is not discoverable", identity
+            harness,
+            tier,
+            f"installed {recipe.executable} executable is not discoverable",
+            identity,
         )
-    return _verify_recipe(
+    verified = _verify_recipe(
         harness,
         recipe,
         runner,
@@ -194,6 +216,14 @@ def _apply_executable(harness, plan, name, runner, which, env):
         identity,
         env,
         "installed-by-manifest",
+    )
+    if verified.state is not ResultState.READY:
+        return verified
+    return replace(
+        verified,
+        owned_entries=(
+            OwnedEntry("executable", recipe.executable, _MARKER, None, None),
+        ),
     )
 
 
@@ -250,29 +280,21 @@ def _apply_mcp(harness, plan, name, runner, env, inventory, cursor_path):
         )
     if harness == "cursor":
         return _apply_cursor_mcp(
-            definition, tier, cursor_path or _cursor_path(env), harness
+            definition, tier, cursor_path or default_cursor_mcp_path(env), harness
         )
     if harness == "antigravity":
-        result = _failure(
+        return _failure(
             harness,
             tier,
             f"Antigravity imported plugin has no native declaration for MCP {name}",
             identity,
-        )
-        return HarnessResult(
-            harness,
-            ResultState.DEGRADED,
-            (),
-            {identity: "degraded"},
-            errors=result.errors,
-            warnings=result.warnings,
         )
     command_builder = _NATIVE_HTTP_COMMANDS.get(harness)
     if command_builder is None or definition.url is None:
         return _failure(
             harness, tier, f"unsupported MCP transport for {name}", identity
         )
-    return _run(
+    result = _run(
         harness,
         runner,
         command_builder(name, definition.url),
@@ -281,6 +303,12 @@ def _apply_mcp(harness, plan, name, runner, env, inventory, cursor_path):
         env,
         success="installed-by-manifest",
     )[0]
+    if result.state is not ResultState.READY:
+        return result
+    return replace(
+        result,
+        owned_entries=(OwnedEntry("mcp", name, _MARKER, None, None),),
+    )
 
 
 def _existing_mcp_result(harness, definition, tier, identity, inventory):
@@ -310,7 +338,7 @@ def _apply_cursor_mcp(definition, tier, path, harness):
     identity = f"mcp:{definition.name}"
     desired = {"url": definition.url}
     try:
-        document = _read_cursor_document(path)
+        document = read_cursor_document(path)
         servers = document.setdefault("mcpServers", {})
         if not isinstance(servers, dict):
             raise CapabilityConflict("Cursor mcpServers must be a JSON object")
@@ -320,8 +348,16 @@ def _apply_cursor_mcp(definition, tier, path, harness):
                 raise CapabilityConflict(f"conflicting Cursor MCP entry {key}")
             return _success(harness, identity, "verified")
         servers[key] = desired
-        _write_json_atomic(path, document)
-        return _success(harness, identity, "installed-by-manifest")
+        write_json_atomic(path, document)
+        return HarnessResult(
+            harness,
+            ResultState.READY,
+            (),
+            {identity: "installed-by-manifest"},
+            owned_entries=(
+                OwnedEntry("mcp", definition.name, _MARKER, str(path), None),
+            ),
+        )
     except (CapabilityConflict, OSError, UnicodeError, json.JSONDecodeError) as error:
         return _failure(harness, tier, str(error), identity)
 
@@ -339,7 +375,7 @@ def _remove_cursor_entries(receipt, path):
     if not owned:
         return []
     try:
-        document = _read_cursor_document(path)
+        document = read_cursor_document(path)
         servers = document.get("mcpServers", {})
         if not isinstance(servers, dict):
             raise CapabilityConflict("Cursor mcpServers must be a JSON object")
@@ -356,7 +392,7 @@ def _remove_cursor_entries(receipt, path):
                 del servers[key]
                 removed.append(_success("cursor", f"mcp:{name}", "removed"))
         if removed:
-            _write_json_atomic(path, document)
+            write_json_atomic(path, document)
         return removed
     except (CapabilityConflict, OSError, UnicodeError, json.JSONDecodeError) as error:
         return [_failure("cursor", CapabilityTier.REQUIRED, str(error))]
@@ -415,6 +451,9 @@ def _combine(harness, results):
         {key: value for item in results for key, value in item.capabilities.items()},
         errors=tuple(value for item in results for value in item.errors),
         warnings=tuple(value for item in results for value in item.warnings),
+        owned_entries=tuple(
+            dict.fromkeys(entry for item in results for entry in item.owned_entries)
+        ),
     )
 
 
@@ -427,54 +466,11 @@ def _inventory_definition(inventory, name):
 def _native_inventory_names(harness, inventory, cursor_path, env):
     names = set(inventory.keys() if isinstance(inventory, Mapping) else inventory)
     if harness == "cursor":
-        path = cursor_path or _cursor_path(env)
+        path = cursor_path or default_cursor_mcp_path(env)
         try:
-            servers = _read_cursor_document(path).get("mcpServers", {})
+            servers = read_cursor_document(path).get("mcpServers", {})
         except (OSError, UnicodeError, json.JSONDecodeError):
             servers = {}
         if isinstance(servers, dict):
             names.update(name for name in servers if isinstance(name, str))
     return names
-
-
-def _cursor_path(env):
-    home = Path(env["HOME"]) if env and "HOME" in env else Path.home()
-    return home / ".cursor" / "mcp.json"
-
-
-def _read_cursor_document(path):
-    from manifest_agent.capabilities import CapabilityConflict
-
-    if not path.exists():
-        return {}
-    document = json.loads(path.read_text(encoding="utf-8"))
-    if not isinstance(document, dict):
-        raise CapabilityConflict("Cursor MCP configuration must be a JSON object")
-    return document
-
-
-def _write_json_atomic(path, document):
-    path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-    descriptor, name = tempfile.mkstemp(
-        prefix=f".{path.name}.", suffix=".tmp", dir=path.parent
-    )
-    temporary = Path(name)
-    try:
-        os.fchmod(descriptor, 0o600)
-        with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
-            descriptor = -1
-            # Dict insertion order keeps unrelated nested values byte-equivalent.
-            json.dump(document, stream, indent=2)
-            stream.write("\n")
-            stream.flush()
-            os.fsync(stream.fileno())
-        os.replace(temporary, path)
-        directory = os.open(path.parent, os.O_RDONLY)
-        try:
-            os.fsync(directory)
-        finally:
-            os.close(directory)
-    finally:
-        if descriptor >= 0:
-            os.close(descriptor)
-        temporary.unlink(missing_ok=True)

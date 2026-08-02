@@ -17,6 +17,8 @@ from manifest_agent.adapters.base import (
     normalize_component_identity,
     verify_declared_components,
 )
+from manifest_agent.adapters.devin_lifecycle import blocked as _blocked
+from manifest_agent.adapters.devin_lifecycle import uninstall_devin
 from manifest_agent.contracts import DOMAIN_BUNDLES
 from manifest_agent.models import (
     CapabilityTier,
@@ -150,67 +152,15 @@ class DevinAdapter(CapabilityAdapterMixin):
                 (already_present if _already_present(command) else failures).append(
                     result
                 )
+        capabilities = self.install_capabilities(desired)
         inspected = self.inspect(desired)
         if set(inspected.installed_plugin_ids) != set(DOMAIN_BUNDLES):
             failures.extend(already_present)
-        return combine_results(*failures, inspected) if failures else inspected
+        return combine_results(*failures, capabilities, inspected)
 
     def uninstall(self, receipt: HarnessReceipt) -> HarnessResult:
         """Remove receipt plugins and prune only after proving unowned safety."""
-        if receipt.harness != self.name:
-            return _blocked(
-                f"receipt harness {receipt.harness!r} does not match {self.name!r}"
-            )
-        plugin_ids, id_errors = _receipt_plugin_ids(receipt)
-        if id_errors:
-            return combine_results(*(_blocked(error) for error in id_errors))
-
-        before, error = self._list_installed()
-        if error is not None:
-            return error
-        assert before is not None
-        unowned = before - set(plugin_ids)
-
-        failures: list[HarnessResult] = []
-        for plugin_id in plugin_ids:
-            command, error = self._execute((self.name, "plugins", "remove", plugin_id))
-            if error is not None:
-                failures.append(error)
-            elif command is not None and command.returncode != 0:
-                failures.append(
-                    native_command_result(self.name, command, CapabilityTier.REQUIRED)
-                )
-
-        after, list_error = self._list_installed()
-        if list_error is not None:
-            return combine_results(*failures, list_error) if failures else list_error
-        assert after is not None
-        ownership = _uninstall_inventory_result(plugin_ids, unowned, after)
-        if failures or ownership.state is ResultState.BLOCKED:
-            return combine_results(*failures, ownership) if failures else ownership
-
-        if len(plugin_ids) != len(DOMAIN_BUNDLES) or set(plugin_ids) != set(
-            DOMAIN_BUNDLES
-        ):
-            warnings = (
-                "Devin prune skipped because the receipt does not own all nine domains",
-            )
-            return HarnessResult(
-                self.name, ResultState.READY, (), {}, warnings=warnings
-            )
-
-        command, error = self._execute((self.name, "plugins", "prune"))
-        if error is not None:
-            return error
-        assert command is not None
-        if command.returncode != 0:
-            return native_command_result(self.name, command, CapabilityTier.REQUIRED)
-
-        final, final_error = self._list_installed()
-        if final_error is not None:
-            return final_error
-        assert final is not None
-        return _uninstall_inventory_result(plugin_ids, unowned, final)
+        return uninstall_devin(self, receipt)
 
     def _list_installed(self) -> tuple[set[str] | None, HarnessResult | None]:
         command, error = self._execute((self.name, "plugins", "list"))
@@ -449,40 +399,6 @@ def _component_evidence(
     return evidence
 
 
-def _receipt_plugin_ids(
-    receipt: HarnessReceipt,
-) -> tuple[tuple[str, ...], tuple[str, ...]]:
-    ids: list[str] = []
-    errors: list[str] = []
-    for identifier in receipt.plugin_ids:
-        if identifier not in DOMAIN_BUNDLES:
-            errors.append(f"receipt contains non-canonical plugin ID: {identifier}")
-        elif identifier not in ids:
-            ids.append(identifier)
-    return tuple(ids), tuple(errors)
-
-
-def _uninstall_inventory_result(
-    owned: Sequence[str], unowned: set[str], observed: set[str]
-) -> HarnessResult:
-    remaining = tuple(plugin_id for plugin_id in owned if plugin_id in observed)
-    missing_unowned = tuple(sorted(unowned - observed))
-    errors = tuple(
-        f"receipt-owned plugin remains installed: {plugin_id}"
-        for plugin_id in remaining
-    ) + tuple(
-        f"unowned plugin disappeared during uninstall: {plugin_id}"
-        for plugin_id in missing_unowned
-    )
-    return HarnessResult(
-        "devin",
-        ResultState.BLOCKED if errors else ResultState.READY,
-        remaining,
-        {},
-        errors=errors,
-    )
-
-
 def _resolved_path(value: str) -> str:
     return str(Path(value).expanduser().resolve(strict=False))
 
@@ -491,10 +407,4 @@ def _already_present(command: CommandResult) -> bool:
     diagnostic = f"{command.stdout}\n{command.stderr}".lower()
     return "already" in diagnostic and any(
         word in diagnostic for word in ("installed", "exists", "present", "up to date")
-    )
-
-
-def _blocked(error: str) -> HarnessResult:
-    return HarnessResult(
-        "devin", ResultState.BLOCKED, (), {}, errors=(redact_text(error),)
     )

@@ -136,6 +136,7 @@ class HarnessResult:
     capabilities: dict[str, str]
     errors: tuple[str, ...] = ()
     warnings: tuple[str, ...] = ()
+    owned_entries: tuple[OwnedEntry, ...] = ()
 
 
 @dataclass(frozen=True)

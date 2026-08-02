@@ -12,6 +12,7 @@ from pathlib import Path
 import pytest
 
 from manifest_agent.adapters.claude import ClaudeAdapter
+from manifest_agent.capabilities import load_mcp_catalog
 from manifest_agent.contracts import (
     DOMAIN_BUNDLES,
     Capabilities,
@@ -162,7 +163,11 @@ def test_claude_installs_marketplace_and_nine_user_plugins(
         + [command()] * 9
         + [marketplace, command(stdout=installed_json(desired))]
     )
-    adapter = ClaudeAdapter(runner=runner, which=lambda name: name)
+    adapter = ClaudeAdapter(
+        runner=runner,
+        which=lambda name: name,
+        native_mcp_inventory={"context7": load_mcp_catalog()["context7"]},
+    )
 
     result = adapter.install(desired)
 
@@ -208,7 +213,11 @@ def test_claude_published_release_uses_verified_extracted_marketplace(
         + [marketplace, command(stdout=installed_json(published))]
     )
 
-    result = ClaudeAdapter(runner=runner, which=lambda name: name).install(published)
+    result = ClaudeAdapter(
+        runner=runner,
+        which=lambda name: name,
+        native_mcp_inventory={"context7": load_mcp_catalog()["context7"]},
+    ).install(published)
 
     assert result.state is ResultState.READY
     assert runner.log[0] == [
@@ -232,7 +241,11 @@ def test_already_present_is_idempotent_only_after_selected_version_inspection(
         + [marketplace, command(stdout=installed_json(desired))]
     )
 
-    result = ClaudeAdapter(runner=runner, which=lambda name: name).install(desired)
+    result = ClaudeAdapter(
+        runner=runner,
+        which=lambda name: name,
+        native_mcp_inventory={"context7": load_mcp_catalog()["context7"]},
+    ).install(desired)
 
     assert result.state is ResultState.READY
     assert result.errors == ()
@@ -408,7 +421,16 @@ def test_native_claude_adapter_lifecycle_uses_an_isolated_home(tmp_path: Path) -
         repository_url="https://example.invalid/Manifest",
         source_dirty=True,
         archive_sha256="b" * 64,
-        contracts=load_domain_contracts(repository / "plugins"),
+        contracts=tuple(
+            replace(
+                contract,
+                capabilities=Capabilities(
+                    dict.fromkeys(CapabilityTier, ()),
+                    dict.fromkeys(CapabilityTier, ()),
+                ),
+            )
+            for contract in load_domain_contracts(repository / "plugins")
+        ),
         selected_optional=frozenset(),
         requested_harnesses=("claude",),
     )

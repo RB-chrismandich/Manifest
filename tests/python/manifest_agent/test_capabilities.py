@@ -29,10 +29,13 @@ from manifest_agent.models import (
 
 
 class ExecutableRunner:
-    def __init__(self, *, install_succeeds: bool = True) -> None:
+    def __init__(
+        self, *, install_succeeds: bool = True, version: str = "0.9.31"
+    ) -> None:
         self.calls: list[tuple[str, ...]] = []
         self.installed = False
         self.install_succeeds = install_succeeds
+        self.version = version
 
     def run(self, argv, *, env=None):
         del env
@@ -40,9 +43,11 @@ class ExecutableRunner:
         self.calls.append(command)
         if command == ("uv", "tool", "install", "graphifyy==0.9.31"):
             self.installed = self.install_succeeds
+            if self.install_succeeds:
+                self.version = "0.9.31"
             return CommandResult(command, 0 if self.install_succeeds else 1, "", "")
         if command == ("graphify", "--version"):
-            return CommandResult(command, 0, "graphify 0.9.31\n", "")
+            return CommandResult(command, 0, f"graphify {self.version}\n", "")
         if command == ("uv", "tool", "uninstall", "graphifyy"):
             return CommandResult(command, 0, "", "")
         raise AssertionError(f"unexpected command: {command}")
@@ -182,6 +187,32 @@ def test_matching_preexisting_graphify_is_preserved(contracts) -> None:
     assert result.state is ResultState.READY
     assert runner.calls == [("graphify", "--version")]
     assert result.capabilities["executable:graphify"] == "verified"
+
+
+def test_mismatched_preexisting_graphify_is_reconciled_to_exact_pin(
+    contracts,
+) -> None:
+    plan = resolve_capabilities(contracts, selected_optional=set())
+    runner = ExecutableRunner(version="0.9.30")
+
+    result = apply_capability_plan(
+        "claude",
+        plan,
+        runner=runner,
+        which=lambda name: name,
+        configure_mcp=False,
+    )
+
+    assert result.state is ResultState.READY
+    assert runner.calls == [
+        ("graphify", "--version"),
+        ("uv", "tool", "install", "graphifyy==0.9.31"),
+        ("graphify", "--version"),
+    ]
+    assert result.capabilities["executable:graphify"] == "installed-by-manifest"
+    assert [(entry.kind, entry.identifier) for entry in result.owned_entries] == [
+        ("executable", "graphify")
+    ]
 
 
 def test_graphify_uninstall_requires_receipt_ownership() -> None:
