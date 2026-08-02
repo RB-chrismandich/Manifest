@@ -66,12 +66,12 @@ def fake_lock(path=None):
     yield path
 
 
-def _service(tmp_path: Path, adapter: MigrationAdapter):
+def _service(tmp_path: Path, adapter: MigrationAdapter, harness: str = "claude"):
     release = fake_release(tmp_path)
     return ManifestService(
         source=release.release_root,
-        harnesses=("claude",),
-        adapters={"claude": adapter},
+        harnesses=(harness,),
+        adapters={harness: adapter},
         receipt_path=tmp_path / "state" / "installation.json",
         release_resolver=lambda selector: release,
         contract_loader=lambda root: fake_contracts(),
@@ -283,6 +283,29 @@ def test_mixed_historical_state_blocks_before_legacy_disable(
     )
     before = settings.read_bytes()
     service = _service(tmp_path, MigrationAdapter(events))
+    migration = MigrationService.from_manifest_service(
+        service, paths=xdg_paths({"HOME": str(home)}), home=home, event_log=events
+    )
+
+    result = migration.migrate(service._desired_state()[0])
+
+    assert result.state is ResultState.BLOCKED
+    assert events[-1] == "shadow-verify"
+    assert link.is_symlink()
+    assert settings.read_bytes() == before
+    assert not service.receipt_path.exists()
+
+
+def test_devin_inheritance_blocks_before_legacy_disable(tmp_path: Path):
+    events: list[str] = []
+    home, link = _legacy_home(tmp_path)
+    settings = home / ".config" / "devin" / "config.json"
+    settings.parent.mkdir(parents=True)
+    settings.write_text('{"read_config_from":{"claude":true}}', encoding="utf-8")
+    before = settings.read_bytes()
+    adapter = MigrationAdapter(events)
+    adapter.name = "devin"
+    service = _service(tmp_path, adapter, harness="devin")
     migration = MigrationService.from_manifest_service(
         service, paths=xdg_paths({"HOME": str(home)}), home=home, event_log=events
     )
