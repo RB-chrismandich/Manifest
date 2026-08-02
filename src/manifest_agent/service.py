@@ -289,6 +289,19 @@ def _reconcile_desired(service, receipt, desired, *, apply):
     selected, detections, missing, notes = _detect_reconcile(service, receipt)
     results = dict(missing)
     release_errors = identity_errors(receipt, desired, bundle_checksums(desired))
+    owned_harnesses = set(receipt.harnesses)
+    scoped_owned = (set(selected) | set(missing)) & owned_harnesses
+    scope_error = _identity_scope_error(
+        apply, release_errors, scoped_owned, owned_harnesses
+    )
+    if scope_error is not None:
+        return report(
+            "reconcile",
+            results,
+            notes,
+            (scope_error,),
+        )
+    mutated_owned = set()
     for name in selected:
         adapter = service.adapters[name]
         inspected = _adapter_call(name, adapter.inspect, desired)
@@ -304,26 +317,66 @@ def _reconcile_desired(service, receipt, desired, *, apply):
             and current.state in {ResultState.DRIFTED, ResultState.DEGRADED}
         ):
             installed = _adapter_call(name, adapter.install, desired)
+            mutated_owned.add(name)
             verified = _adapter_call(name, adapter.inspect, desired)
             current = combine_results(installed, verified)
         results[name] = current
     results = ordered(results, HARNESS_ORDER)
-    if apply:
-        owned_results = {
-            name: result
-            for name, result in results.items()
-            if name in receipt.harnesses
-        }
-        updated = build_receipt(
-            desired,
-            owned_results,
-            detections,
-            service.adapters,
-            HARNESS_ORDER,
-            previous=receipt,
-        )
-        write_receipt_atomic(service.receipt_path, updated)
+    persist_error = _persist_reconcile(
+        service,
+        receipt,
+        desired,
+        results,
+        detections,
+        release_errors,
+        owned_harnesses,
+        mutated_owned,
+    )
+    if persist_error is not None:
+        return report("reconcile", results, notes, (persist_error,))
     return report("reconcile", results, notes)
+
+
+def _identity_scope_error(apply, release_errors, scoped_owned, owned_harnesses):
+    if apply and release_errors and scoped_owned and scoped_owned != owned_harnesses:
+        return (
+            "release identity change requires a full reconcile or migration; "
+            "partial apply would create mixed receipt identity"
+        )
+    return None
+
+
+def _persist_reconcile(
+    service,
+    receipt,
+    desired,
+    results,
+    detections,
+    release_errors,
+    owned_harnesses,
+    mutated_owned,
+):
+    if not mutated_owned:
+        return None
+    if release_errors and not all(
+        name in results
+        and results[name].state in {ResultState.READY, ResultState.DEGRADED}
+        for name in owned_harnesses
+    ):
+        return "release identity remains unchanged until every owned harness converges"
+    owned_results = {
+        name: result for name, result in results.items() if name in receipt.harnesses
+    }
+    updated = build_receipt(
+        desired,
+        owned_results,
+        detections,
+        service.adapters,
+        HARNESS_ORDER,
+        previous=receipt,
+    )
+    write_receipt_atomic(service.receipt_path, updated)
+    return None
 
 
 def _detect_reconcile(service, receipt):

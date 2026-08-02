@@ -167,3 +167,128 @@ def test_reconcile_apply_locks_before_reading_receipt(service_factory, monkeypat
     service.reconcile(apply=True)
 
     assert events[:2] == ["lock", "read"]
+
+
+def test_reconcile_apply_unowned_v2_target_does_not_rewrite_v1_receipt(
+    service_factory,
+):
+    claude = FakeAdapter("claude", harness_result("claude"))
+    codex = FakeAdapter("codex", harness_result("codex"))
+    service = service_factory({"claude": claude, "codex": codex}, harnesses=("codex",))
+    service.install()
+    before = service.receipt_path.read_bytes()
+    previous = read_receipt(service.receipt_path)
+    assert previous is not None
+    old_release = service.release_resolver(service.source)
+    service.release_resolver = lambda selector: type(old_release)(
+        "2.0.0",
+        "c" * 40,
+        "v2",
+        old_release.marketplace_source,
+        old_release.release_root,
+        old_release.repository_url,
+        False,
+        "d" * 64,
+    )
+    service.harnesses = ("claude",)
+    claude.calls.clear()
+
+    report = service.reconcile(apply=True)
+
+    assert report.state is ResultState.DRIFTED
+    assert claude.calls == ["detect", "inspect"]
+    assert service.receipt_path.read_bytes() == before
+    assert read_receipt(service.receipt_path) == previous
+
+
+def test_reconcile_apply_blocks_partial_owned_release_identity_change(
+    service_factory,
+):
+    claude = FakeAdapter("claude", harness_result("claude"))
+    codex = FakeAdapter("codex", harness_result("codex"))
+    service = service_factory({"claude": claude, "codex": codex})
+    service.install()
+    before = service.receipt_path.read_bytes()
+    old_release = service.release_resolver(service.source)
+    service.release_resolver = lambda selector: type(old_release)(
+        "2.0.0",
+        "c" * 40,
+        "v2",
+        old_release.marketplace_source,
+        old_release.release_root,
+        old_release.repository_url,
+        False,
+        "d" * 64,
+    )
+    service.harnesses = ("claude",)
+    claude.calls.clear()
+    codex.calls.clear()
+
+    report = service.reconcile(apply=True)
+
+    assert report.state is ResultState.BLOCKED
+    assert any("full reconcile or migration" in error for error in report.errors)
+    assert "install" not in claude.calls
+    assert codex.calls == []
+    assert service.receipt_path.read_bytes() == before
+
+
+def test_reconcile_apply_partial_same_identity_preserves_other_receipt(
+    service_factory,
+):
+    class RepairingAdapter(FakeAdapter):
+        def install(self, desired):
+            self.inspection = harness_result(self.name)
+            return super().install(desired)
+
+    claude = RepairingAdapter("claude", harness_result("claude"))
+    codex = FakeAdapter("codex", harness_result("codex"))
+    service = service_factory({"claude": claude, "codex": codex})
+    service.install()
+    before = read_receipt(service.receipt_path)
+    assert before is not None
+    service.harnesses = ("claude",)
+    claude.inspection = harness_result("claude", ResultState.DRIFTED)
+
+    report = service.reconcile(apply=True)
+
+    assert report.state is ResultState.READY
+    after = read_receipt(service.receipt_path)
+    assert after is not None
+    assert after.release_version == before.release_version
+    assert after.source_commit == before.source_commit
+    assert after.bundle_checksums == before.bundle_checksums
+    assert after.harnesses["codex"] == before.harnesses["codex"]
+    assert after.harnesses["claude"].verified is True
+
+
+def test_reconcile_apply_full_scope_can_advance_release_identity(service_factory):
+    claude = FakeAdapter("claude", harness_result("claude"))
+    codex = FakeAdapter("codex", harness_result("codex"))
+    service = service_factory({"claude": claude, "codex": codex})
+    service.install()
+    old_release = service.release_resolver(service.source)
+    service.release_resolver = lambda selector: type(old_release)(
+        "2.0.0",
+        "c" * 40,
+        "v2",
+        old_release.marketplace_source,
+        old_release.release_root,
+        old_release.repository_url,
+        False,
+        "d" * 64,
+    )
+    service.harnesses = ()
+    claude.calls.clear()
+    codex.calls.clear()
+
+    report = service.reconcile(apply=True)
+
+    assert report.state is ResultState.READY
+    assert "install" in claude.calls
+    assert "install" in codex.calls
+    receipt = read_receipt(service.receipt_path)
+    assert receipt is not None
+    assert receipt.release_version == "2.0.0"
+    assert receipt.source_commit == "c" * 40
+    assert all(harness.verified for harness in receipt.harnesses.values())
