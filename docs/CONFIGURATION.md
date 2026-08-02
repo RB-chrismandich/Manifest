@@ -131,9 +131,9 @@ services:
     command: codex
     description: "Terminal coding assistant for codebase edits and automation"
     model_tiers:
-      - mini     # Lightweight (gpt-5.4-mini)
-      - flash    # Balanced (gpt-5.4, default)
-      - advanced # Maximum capability (gpt-5.5)
+      - mini     # Lightweight (gpt-5.6-luna)
+      - flash    # Balanced (gpt-5.6-terra, default)
+      - advanced # Maximum capability (gpt-5.6-sol)
       - auto     # Use Codex config default model
 
   # Graphify - knowledge-graph generator (managed tool, not an orchestration agent)
@@ -697,19 +697,20 @@ individuals … migrate to the Antigravity suite"*. With no `GOOGLE_API_KEY` /
 so both pins are unproven. Google's own stated remedy is the Antigravity table
 below, which serves Gemini models and *is* verified.
 
-#### Codex Models — UNVERIFIED
+#### Codex Models — VERIFIED (2026-08-02)
 
 | Tier | Model Name | Use Case | Cost |
 |------|------------|----------|------|
-| `mini` | gpt-5.4-mini | Quick queries | Lowest |
-| `flash` | gpt-5.4 | Code review (default) | Medium |
-| `advanced` | gpt-5.5 | Security analysis | Highest |
+| `mini` | gpt-5.6-luna | Quick queries | Lowest |
+| `flash` | gpt-5.6-terra | Code review (default) | Medium |
+| `advanced` | gpt-5.6-sol | Security analysis | Highest |
 
-`codex login status` reports *"Not logged in"* and probe calls return HTTP 401,
-so nothing here is confirmed. The CLI also still exposes no model-listing
-command (re-tested: no `models`, `models list`, `--list-models`), so
-`model_check.sh` has no listing source — a probe is the only verification path.
-Run `codex login`, then `MODEL_CHECK_PROBE=1 model_check.sh`.
+VERIFIED 2026-08-02: all three pins answered a live
+`codex exec --skip-git-repo-check --model <id>` probe on a ChatGPT login.
+The CLI still exposes no model-listing command (no `models`, `models list`,
+`--list-models`), so `model_check.sh` has no listing source — re-verify with
+`MODEL_CHECK_PROBE=1 model_check.sh`. gpt-5.4* retire from ChatGPT-login
+Codex on 2026-08-31.
 
 #### Antigravity Models — VERIFIED
 

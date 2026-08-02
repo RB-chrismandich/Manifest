@@ -153,7 +153,7 @@ class TestCLIAgentCommandAssembly:
         )
         cmd = agent._build_command("hello", output_file=str(tmp_path / "out.txt"))
         i = cmd.index("--model")
-        assert cmd[i + 1] == "gpt-5.4-mini"
+        assert cmd[i + 1] == "gpt-5.6-luna"
 
     def test_cursor_tier_resolves_via_model_tiers(self, tmp_path):
         # Deliberate behavior change: cursor now honors model_tiers.cursor

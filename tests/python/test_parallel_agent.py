@@ -684,7 +684,7 @@ class TestCodexViaCLIAgent:
         config = Config(config_path=str(tmp_path / "nonexistent.yml"))
         limiter = RateLimiter()
         agent = CLIAgent("codex", "mini", 60, limiter, config=config)
-        assert agent.model_name == "gpt-5.4-mini"
+        assert agent.model_name == "gpt-5.6-luna"
 
     def test_resolve_model_custom(self, tmp_path):
         """Custom model name passes through as-is."""

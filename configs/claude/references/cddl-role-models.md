@@ -23,9 +23,9 @@ Examples (see repo `parallel_agent.yml` for authoritative pins):
 
 | Tier | Claude | Cursor | Antigravity |
 |------|--------|--------|-------------|
-| `sonnet` | claude-sonnet-4-6 | (cursor tier) | Claude Sonnet 4.6 (Thinking) |
-| `flash` | … | … | Gemini 3.5 Flash (High) |
-| `opus` | … | … | Claude Opus 4.6 (Thinking) |
+| `sonnet` | claude-sonnet-5 | (cursor tier) | claude-sonnet-4-6 |
+| `flash` | … | … | gemini-3.6-flash-high |
+| `opus` | … | … | claude-opus-4-6-thinking |
 
 ## Editing tiers
 
