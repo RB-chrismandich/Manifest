@@ -154,7 +154,7 @@ def test_learning_sync_docs_uses_jsonl_without_shared_settings(
     assert not list(tmp_path.rglob("*.yml"))
 
 
-def test_unified_hook_emits_native_deny_shapes(
+def test_unified_hook_emits_complete_native_response_contracts(
     workspace_bundle: Path, tmp_path: Path
 ) -> None:
     env = isolated_env(tmp_path)
@@ -166,12 +166,24 @@ def test_unified_hook_emits_native_deny_shapes(
         'import json, sys\nsys.stdin.read()\nprint(json.dumps({"decision": "deny", "reason": "blocked"}))\n',
         encoding="utf-8",
     )
-    expected = {
-        "claude": ("hookSpecificOutput", "permissionDecision"),
-        "gemini": (None, "decision"),
-        "cursor": (None, "permission"),
+    expected_denies = {
+        "claude": {
+            "hookSpecificOutput": {
+                "hookEventName": "PreToolUse",
+                "permissionDecision": "deny",
+                "permissionDecisionReason": "blocked",
+            },
+            "continue": False,
+        },
+        "gemini": {"decision": "deny", "reason": "blocked"},
+        "cursor": {
+            "permission": "deny",
+            "continue": False,
+            "user_message": "blocked",
+            "agent_message": "blocked",
+        },
     }
-    for source, (container, field) in expected.items():
+    for source, expected in expected_denies.items():
         result = subprocess.run(
             [
                 sys.executable,
@@ -190,9 +202,27 @@ def test_unified_hook_emits_native_deny_shapes(
             check=False,
         )
         assert result.returncode == 0, result.stderr
-        response = json.loads(result.stdout)
-        payload = response[container] if container else response
-        assert payload[field] == "deny", source
+        assert json.loads(result.stdout) == expected, source
+
+
+def test_unified_hook_emits_complete_cursor_allow_contract(
+    workspace_bundle: Path, tmp_path: Path
+) -> None:
+    env = isolated_env(tmp_path)
+    script = (
+        workspace_bundle / "skills/ai-hooks-integration/scripts/runtime/unified_hook.py"
+    )
+    result = subprocess.run(
+        [sys.executable, "-B", str(script), "--source", "cursor"],
+        input='{"command":"true"}',
+        cwd=tmp_path,
+        env=env,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    assert json.loads(result.stdout) == {"permission": "allow", "continue": True}
 
 
 def test_hook_installer_records_native_harness_identity(

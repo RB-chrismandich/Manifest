@@ -147,7 +147,7 @@ def allow_response(event_type: str = "PreToolUse", source: str = "claude") -> di
     if source == "gemini":
         return {"decision": "allow"}
     if source == "cursor":
-        return {"permission": "allow"}
+        return {"permission": "allow", "continue": True}
     return {
         "hookSpecificOutput": {
             "hookEventName": event_type,
@@ -166,6 +166,7 @@ def deny_response(
     if source == "cursor":
         return {
             "permission": "deny",
+            "continue": False,
             "user_message": reason,
             "agent_message": reason,
         }

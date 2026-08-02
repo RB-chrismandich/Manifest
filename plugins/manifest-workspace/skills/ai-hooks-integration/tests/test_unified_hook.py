@@ -214,12 +214,13 @@ class TestResponses(unittest.TestCase):
         """Cursor shell hooks consume permission and optional messages."""
         self.assertEqual(
             allow_response("beforeShellExecution", "cursor"),
-            {"permission": "allow"},
+            {"permission": "allow", "continue": True},
         )
         self.assertEqual(
             deny_response("blocked", "beforeShellExecution", "cursor"),
             {
                 "permission": "deny",
+                "continue": False,
                 "user_message": "blocked",
                 "agent_message": "blocked",
             },
