@@ -1006,16 +1006,19 @@ def _surgical_mixed_cleanup(
         and "claude" in inheritance
     ):
         markers = (*markers, "read_config_from")
-    if entry.id == "claude-hooks" and isinstance(hooks, dict):
-        if any(
+    if (
+        entry.id == "claude-hooks"
+        and isinstance(hooks, dict)
+        and any(
             isinstance(item, dict)
             and isinstance(item.get("command"), str)
             and _is_exact_legacy_hook(item["command"], home)
             for items in hooks.values()
             if isinstance(items, list)
             for item in items
-        ):
-            markers = (*markers, "~/.claude/scripts/")
+        )
+    ):
+        markers = (*markers, "~/.claude/scripts/")
     if any(marker in encoded for marker in markers):
         return f"mixed legacy settings {entry.path} contain an unproven Manifest entry; remove only that entry before migrating"
     return None
