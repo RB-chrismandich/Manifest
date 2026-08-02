@@ -21,8 +21,35 @@ try:
     from rich.progress import Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
     from rich.table import Table
 except ImportError:
-    print("Error: Missing dependencies. Install with: pip install -r requirements.txt")
-    sys.exit(1)
+    # CLI orchestration remains usable without optional terminal rendering.
+    class Console:
+        def print(self, value=""):
+            print(value)
+
+    class Panel:
+        def __init__(self, value, **_kwargs): self.value = value
+        def __str__(self): return str(self.value)
+
+    class Table:
+        def __init__(self, title=None): self.title, self.rows = title, []
+        def add_column(self, *_args, **_kwargs): return None
+        def add_row(self, *values, **_kwargs): self.rows.append(values)
+        def __str__(self): return "\n".join(([self.title] if self.title else []) + [" | ".join(map(str, row)) for row in self.rows])
+
+    class Progress:
+        def __init__(self, *_args, **_kwargs): pass
+        def __enter__(self): return self
+        def __exit__(self, *_args): return False
+        def add_task(self, *_args, **_kwargs): return 0
+        def update(self, *_args, **_kwargs): return None
+
+    class Live(Progress):
+        def update(self, *_args, **_kwargs): return None
+
+    class SpinnerColumn: pass
+    class TextColumn:
+        def __init__(self, *_args, **_kwargs): pass
+    class TimeElapsedColumn: pass
 
 import contextlib
 

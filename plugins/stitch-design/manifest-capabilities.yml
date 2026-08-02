@@ -27,7 +27,7 @@ capabilities:
   executables:
     required: [bash, git, python3]
     default: [node]
-    optional: [chromium]
+    optional: [chromium, curl]
 compatibility:
   claude: {mode: native}
   codex: {mode: native}

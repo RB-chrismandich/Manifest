@@ -10,6 +10,30 @@ from pathlib import Path
 import pytest
 
 from manifest_agent.contracts import DOMAIN_BUNDLES, load_domain_contracts
+from manifest_agent.models import HarnessReceipt, HarnessResult, ResultState
+
+
+class FakeBundleAdapter:
+    """Fixture-native adapter that installs only a copied release tree."""
+
+    def __init__(self, name: str, home: Path) -> None:
+        self.name = name
+        self.home = home
+        self.root = home / ".manifest-fixture" / name
+
+    def install(self, release: Path) -> HarnessResult:
+        shutil.copytree(release / "plugins", self.root / "plugins")
+        return HarnessResult(self.name, ResultState.READY, DOMAIN_BUNDLES, {})
+
+    def list(self) -> tuple[str, ...]:
+        return tuple(sorted(path.name for path in (self.root / "plugins").iterdir()))
+
+    def info(self, bundle: str) -> Path:
+        return self.root / "plugins" / bundle / "manifest-capabilities.yml"
+
+    def uninstall(self, _receipt: HarnessReceipt) -> HarnessResult:
+        shutil.rmtree(self.root)
+        return HarnessResult(self.name, ResultState.READY, (), {})
 
 
 @pytest.fixture
@@ -48,3 +72,22 @@ def test_remote_capability_declaration_is_not_mistaken_for_offline_local_runtime
     graphify = contracts["manifest-graphify"]
     assert graphify.capabilities.executables[next(tier for tier in graphify.capabilities.executables if tier.value == "default")] == ("graphify",)
     assert (installed_release / "plugins/manifest-graphify/runtime/graphify.json").is_file()
+
+
+def test_all_six_fake_adapters_install_list_info_and_uninstall_offline(
+    installed_release: Path, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setenv("UV_NO_NETWORK", "1")
+    monkeypatch.setattr(socket, "create_connection", lambda *args, **kwargs: (_ for _ in ()).throw(OSError("network disabled")))
+    for harness in ("claude", "codex", "gemini", "cursor", "antigravity", "devin"):
+        adapter = FakeBundleAdapter(harness, tmp_path / "homes" / harness)
+        installed = adapter.install(installed_release)
+        assert installed.state is ResultState.READY
+        assert adapter.list() == DOMAIN_BUNDLES
+        for bundle in DOMAIN_BUNDLES:
+            assert adapter.info(bundle).is_file()
+        removed = adapter.uninstall(
+            HarnessReceipt(harness, "fixture", "fixture-1", DOMAIN_BUNDLES, (), {}, True)
+        )
+        assert removed.state is ResultState.READY
+        assert not adapter.root.exists()

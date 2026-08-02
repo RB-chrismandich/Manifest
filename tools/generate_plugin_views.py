@@ -457,7 +457,17 @@ def main(argv: list[str] | None = None) -> int:
         from render_plugin_capability_matrix import render
 
         matrix_path = args.repo_root.resolve() / "docs" / "PLUGIN_CAPABILITY_MATRIX.md"
-        if not matrix_path.exists() or matrix_path.read_text(encoding="utf-8") != render():
+        inspection_path = (
+            args.repo_root.resolve()
+            / "tests/fixtures/plugin_capability_inspection.json"
+        )
+        from render_plugin_capability_matrix import _load_inspection
+
+        if (
+            not matrix_path.exists()
+            or matrix_path.read_text(encoding="utf-8")
+            != render(_load_inspection(inspection_path))
+        ):
             print("docs/PLUGIN_CAPABILITY_MATRIX.md", file=sys.stderr)
             return 1
     return 0

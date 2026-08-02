@@ -41,17 +41,23 @@ def _status(status: Any, *, optional: bool = False) -> str:
     return f"BLOCKED(unknown contract compatibility mode {status.mode!r})"
 
 
-def _inspection_cells(document: dict[str, Any], key: str) -> dict[str, str]:
-    record = document.get(key)
-    if not isinstance(record, dict):
-        return {}
+def _inspection_cells(document: dict[str, Any] | None) -> dict[str, str]:
+    if document is None:
+        return {harness: "BLOCKED(adapter inspection missing)" for harness in HARNESSES}
+    records = document.get("harnesses")
+    if not isinstance(records, dict):
+        raise MatrixError("inspection evidence must contain a harnesses object")
     cells: dict[str, str] = {}
-    for harness, raw in record.items():
-        if harness not in HARNESSES:
-            raise MatrixError(f"inspection {key!r} names unknown harness {harness!r}")
-        if not isinstance(raw, str) or not raw.startswith(_ALLOWED_PREFIXES):
-            raise MatrixError(f"inspection {key!r}/{harness!r} is not a verified state")
-        cells[harness] = raw
+    for harness in HARNESSES:
+        record = records.get(harness)
+        if not isinstance(record, dict):
+            raise MatrixError(f"inspection is missing harness {harness!r}")
+        state, version, verified = record.get("state"), record.get("version"), record.get("verified")
+        if not isinstance(state, str) or not state.startswith(_ALLOWED_PREFIXES):
+            raise MatrixError(f"inspection {harness!r} has an invalid state")
+        if not isinstance(version, str) or not version.strip() or verified is not True:
+            raise MatrixError(f"inspection {harness!r} is missing a verified native version")
+        cells[harness] = state
     return cells
 
 
@@ -60,11 +66,19 @@ def _rows(inspection: dict[str, Any] | None = None) -> list[tuple[str, str, list
     if tuple(contract.name for contract in contracts) != DOMAIN_BUNDLES:
         raise MatrixError("domain contracts are incomplete or unexpectedly ordered")
     rows: list[tuple[str, str, list[str]]] = []
-    evidence = inspection or {}
+    inspection_cells = _inspection_cells(inspection)
     for contract in contracts:
         def add(identity: str, source: str, statuses: dict[str, Any], optional: bool = False) -> None:
-            live = _inspection_cells(evidence, identity)
-            cells = [live.get(harness, _status(statuses[harness], optional=optional)) for harness in HARNESSES]
+            cells = []
+            for harness in HARNESSES:
+                observed = inspection_cells[harness]
+                contract_state = _status(statuses[harness], optional=optional)
+                if observed != "READY":
+                    cells.append(observed)
+                elif contract_state != "READY":
+                    cells.append(contract_state)
+                else:
+                    cells.append("READY")
             if any(not cell or not cell.startswith(_ALLOWED_PREFIXES) for cell in cells):
                 raise MatrixError(f"{identity}: blank or unverified harness evidence")
             rows.append((identity, source, cells))
@@ -99,8 +113,8 @@ def render(inspection: dict[str, Any] | None = None) -> str:
     lines = [
         "# Plugin Capability Matrix",
         "",
-        "Generated from portable contracts and optional adapter inspection evidence; do not edit by hand.",
-        "`READY` is a contract/native-view representation result. The protected six-harness release workflow supplies the live executable verdict.",
+        "Generated from portable contracts and verified adapter inspection evidence; do not edit by hand.",
+        "`READY` requires a native adapter inspection with a non-empty version. Missing inspection remains `BLOCKED`.",
         "",
         "| Capability | Evidence | Claude | Codex | Gemini | Cursor | Antigravity | Devin |",
         "| --- | --- | --- | --- | --- | --- | --- | --- |",
@@ -127,6 +141,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--check", action="store_true")
     parser.add_argument("--inspection", type=Path)
     args = parser.parse_args(argv)
+    if args.check and args.inspection is None:
+        print("render_plugin_capability_matrix.py: --check requires --inspection evidence", file=sys.stderr)
+        return 2
     try:
         output = render(_load_inspection(args.inspection))
     except MatrixError as error:

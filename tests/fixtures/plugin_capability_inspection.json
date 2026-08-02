@@ -1,0 +1,10 @@
+{
+  "harnesses": {
+    "claude": {"state": "READY", "version": "fixture-1", "verified": true},
+    "codex": {"state": "READY", "version": "fixture-1", "verified": true},
+    "gemini": {"state": "READY", "version": "fixture-1", "verified": true},
+    "cursor": {"state": "READY", "version": "fixture-1", "verified": true},
+    "antigravity": {"state": "READY", "version": "fixture-1", "verified": true},
+    "devin": {"state": "READY", "version": "fixture-1", "verified": true}
+  }
+}

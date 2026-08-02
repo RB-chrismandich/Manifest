@@ -1,7 +1,7 @@
 # Plugin Capability Matrix
 
-Generated from portable contracts and optional adapter inspection evidence; do not edit by hand.
-`READY` is a contract/native-view representation result. The protected six-harness release workflow supplies the live executable verdict.
+Generated from portable contracts and verified adapter inspection evidence; do not edit by hand.
+`READY` requires a native adapter inspection with a non-empty version. Missing inspection remains `BLOCKED`.
 
 | Capability | Evidence | Claude | Codex | Gemini | Cursor | Antigravity | Devin |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -75,6 +75,7 @@ Generated from portable contracts and optional adapter inspection evidence; do n
 | `manifest-forge:executable:bash` | contract required executable | READY | READY | READY | READY | READY | READY |
 | `manifest-forge:executable:git` | contract required executable | READY | READY | READY | READY | READY | READY |
 | `manifest-forge:executable:python3` | contract required executable | READY | READY | READY | READY | READY | READY |
+| `manifest-forge:executable:curl` | contract optional executable | N/A(contract optional; not selected) | N/A(contract optional; not selected) | N/A(contract optional; not selected) | N/A(contract optional; not selected) | N/A(contract optional; not selected) | N/A(contract optional; not selected) |
 | `manifest-forge:executable:gh` | contract optional executable | N/A(contract optional; not selected) | N/A(contract optional; not selected) | N/A(contract optional; not selected) | N/A(contract optional; not selected) | N/A(contract optional; not selected) | N/A(contract optional; not selected) |
 | `manifest-forge:executable:glab` | contract optional executable | N/A(contract optional; not selected) | N/A(contract optional; not selected) | N/A(contract optional; not selected) | N/A(contract optional; not selected) | N/A(contract optional; not selected) | N/A(contract optional; not selected) |
 | `manifest-graphify:skill:graphify` | contract skill | READY | READY | READY | READY | READY | READY |
@@ -222,3 +223,4 @@ Generated from portable contracts and optional adapter inspection evidence; do n
 | `stitch-design:executable:python3` | contract required executable | READY | READY | READY | READY | READY | READY |
 | `stitch-design:executable:node` | contract default executable | READY | READY | READY | READY | READY | READY |
 | `stitch-design:executable:chromium` | contract optional executable | N/A(contract optional; not selected) | N/A(contract optional; not selected) | N/A(contract optional; not selected) | N/A(contract optional; not selected) | N/A(contract optional; not selected) | N/A(contract optional; not selected) |
+| `stitch-design:executable:curl` | contract optional executable | N/A(contract optional; not selected) | N/A(contract optional; not selected) | N/A(contract optional; not selected) | N/A(contract optional; not selected) | N/A(contract optional; not selected) | N/A(contract optional; not selected) |

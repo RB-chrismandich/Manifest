@@ -22,7 +22,17 @@ from typing import Any, Iterable
 import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
-DOMAIN_PREFIX = "manifest-"
+DOMAIN_BUNDLES = (
+    "manifest-code-quality",
+    "manifest-docs",
+    "manifest-forge",
+    "manifest-graphify",
+    "manifest-ops",
+    "manifest-security",
+    "manifest-spec-planning",
+    "manifest-workspace",
+    "stitch-design",
+)
 FORBIDDEN_RUNTIME_PATTERNS = (
     "bootstrap.sh",
     "bootstrap/",
@@ -137,13 +147,30 @@ _SHELL_COMMAND = re.compile(
 _NODE_IMPORT = re.compile(
     r"(?:import\s+(?:[^'\"]+?\s+from\s+)?|require\()['\"]([^'\"]+)['\"]"
 )
-_OFFLINE_DEGRADATION_IMPORTS = {
-    # These SDKs are imported only behind their matching HAS_* capability
-    # guards; the parallel-agent runner falls back to a native CLI or returns
-    # a surfaced degraded result when the SDK is unavailable.
-    "plugins/manifest-workspace/skills/parallel-agent/scripts/agents/runners.py": frozenset({"anthropic"}),
-    "plugins/manifest-workspace/skills/parallel-agent/scripts/agents/synthesis.py": frozenset({"anthropic"}),
+_COMPONENT_DEGRADATION_IMPORTS = {
+    # The parallel-agent component deliberately supports native-CLI fallback
+    # when an SDK or Rich rendering is unavailable.  This exception is scoped
+    # to the declared component, never a bundle directory.
+    ("manifest-workspace", "parallel-agent-scripts"): frozenset(
+        {"anthropic", "google", "rich"}
+    ),
 }
+_COMPONENT_NODE_DEPENDENCIES = {
+    # This is a generated-project template, not a dependency of Manifest's
+    # installed runtime.  The exact scaffold component declares the two
+    # project dependencies in its adjacent package manifest.
+    ("manifest-code-quality", "scaffold-templates"): frozenset(
+        {"@eslint/js", "typescript-eslint"}
+    ),
+}
+_EXTERNAL_COMMAND_CANDIDATES = frozenset(
+    {
+        "agy", "bash", "browser-use", "claude", "codex", "curl", "cursor-agent",
+        "devin", "docker", "gemini", "gh", "glab", "graphify", "manifest", "node",
+        "npm", "npx", "pass-cli", "playwright", "python", "python3", "semgrep",
+        "sh", "terraform", "tflint", "tofu", "uv", "uvx", "bootstrap.sh", "git",
+    }
+)
 
 
 @dataclass(frozen=True)
@@ -173,7 +200,11 @@ def _contract_files(repo_root: Path) -> Iterable[tuple[str, Path, dict[str, Any]
     if not plugins.exists():
         return ()
     records = []
-    for contract_path in sorted(plugins.glob(f"{DOMAIN_PREFIX}*/manifest-capabilities.yml")):
+    for bundle in DOMAIN_BUNDLES:
+        contract_path = plugins / bundle / "manifest-capabilities.yml"
+        if not contract_path.is_file():
+            records.append((bundle, contract_path, {"_error": "required domain contract is missing"}))
+            continue
         try:
             document = yaml.safe_load(contract_path.read_text(encoding="utf-8"))
         except (OSError, yaml.YAMLError) as error:
@@ -183,22 +214,27 @@ def _contract_files(repo_root: Path) -> Iterable[tuple[str, Path, dict[str, Any]
     return tuple(records)
 
 
-def _component_paths(bundle_root: Path, document: dict[str, Any]) -> Iterable[tuple[Path, str]]:
+def _component_paths(
+    bundle_root: Path, document: dict[str, Any]
+) -> Iterable[tuple[Path, str, str | None]]:
     components = document.get("components", {})
     skills = components.get("skills", {})
     skills_root = bundle_root / str(skills.get("root", "skills"))
     if skills_root.exists():
-        yield from ((path, "skills") for path in sorted(skills_root.rglob("SKILL.md")))
+        yield from (
+            (path, "skills", path.parent.name)
+            for path in sorted(skills_root.rglob("SKILL.md"))
+        )
     for kind in ("agents", "hooks", "runtime", "guidance"):
         for component in components.get(kind, ()):
             if not isinstance(component, dict) or not isinstance(component.get("path"), str):
                 continue
             path = bundle_root / component["path"]
             if path.is_file():
-                yield path, kind
+                yield path, kind, component.get("id")
             elif path.is_dir():
                 yield from (
-                    (candidate, kind)
+                    (candidate, kind, component.get("id"))
                     for candidate in sorted(path.rglob("*"))
                     if candidate.is_file()
                     and candidate.suffix in _TEXT_SUFFIXES
@@ -244,7 +280,12 @@ def _path_violations(bundle: str, kind: str, path: Path, text: str) -> list[Viol
 
 
 def _python_import_violations(
-    path: Path, text: str, bundle_root: Path, declared: set[str]
+    path: Path,
+    text: str,
+    bundle: str,
+    bundle_root: Path,
+    component_id: str | None,
+    declared: set[str],
 ) -> list[Violation]:
     try:
         tree = ast.parse(text, filename=str(path))
@@ -280,17 +321,10 @@ def _python_import_violations(
                 "browser_use": "browser-use",
                 "playwright": "playwright",
             }.get(module)
-            relative_path = f"plugins/{path.relative_to(bundle_root.parent).as_posix()}"
-            explicit_degradation = module in _OFFLINE_DEGRADATION_IMPORTS.get(
-                relative_path, frozenset()
+            explicit_degradation = module in _COMPONENT_DEGRADATION_IMPORTS.get(
+                (bundle, component_id), frozenset()
             )
             if module and module not in stdlib and not local_package and capability_package not in declared and not explicit_degradation:
-                # Optional SDK imports which have an explicit runtime fallback
-                # are not a permanent dependency.  The implementation must
-                # still raise a visible degraded result when unavailable.
-                source_line = text.splitlines()[node.lineno - 1]
-                if "try:" in text[: text.find(source_line) + len(source_line)]:
-                    continue
                 violations.append(
                     Violation(
                         path,
@@ -303,11 +337,11 @@ def _python_import_violations(
     return violations
 
 
-def _node_import_violations(path: Path, text: str) -> list[Violation]:
+def _node_import_violations(
+    path: Path, text: str, bundle: str, component_id: str | None
+) -> list[Violation]:
     # Dist is already generated and self-contained.  Build inputs may import a
     # package only when its adjacent lockfile pins it exactly.
-    if "runtime/dist/" in path.as_posix() or "/templates/" in path.as_posix():
-        return []
     lockfile = path.parent / "package-lock.json"
     if not lockfile.exists():
         lockfile = next((parent / "package-lock.json" for parent in path.parents if (parent / "package-lock.json").exists()), None)
@@ -318,7 +352,7 @@ def _node_import_violations(path: Path, text: str) -> list[Violation]:
         if imported.startswith((".", "/", "node:")):
             continue
         package = imported.split("/", 1)[0] if not imported.startswith("@") else "/".join(imported.split("/")[:2])
-        if f'"node_modules/{package}"' in lock_text:
+        if f'"node_modules/{package}"' in lock_text or package in _COMPONENT_NODE_DEPENDENCIES.get((bundle, component_id), frozenset()):
             continue
         violations.append(
             Violation(path, _line_number(text, match.start(1)), "undeclared-node-dependency", package, f"runtime Node import {package!r} is not lockfile-declared")
@@ -327,23 +361,48 @@ def _node_import_violations(path: Path, text: str) -> list[Violation]:
 
 
 def _shell_command_violations(path: Path, text: str, declared: set[str]) -> list[Violation]:
-    """Check executable probes without treating shell data as commands.
-
-    Shell heredocs frequently embed Python, JSON, and user content.  A regex
-    pretending those strings are shell commands causes false dependency
-    findings.  The reliable shell dependency seam is ``command -v``: every
-    optional executable in the bundled runtimes is probed there.  Direct uses
-    of the coordinator/legacy tools are covered by the forbidden-path scan.
-    """
+    """Validate direct shell command positions and ``command -v`` probes."""
     violations: list[Violation] = []
+    local_functions = set(
+        re.findall(r"^\s*(?:function\s+)?([A-Za-z_][A-Za-z0-9_-]*)\s*\(\)", text, re.M)
+    )
+    harness_commands = {"claude", "codex", "gemini", "cursor-agent", "agy", "devin"}
+    heredoc: str | None = None
+    quoted_assignment = False
     for number, line in enumerate(text.splitlines(), 1):
-        probe = re.search(r"\bcommand\s+-v\s+['\"]?([A-Za-z0-9_.-]+)", line)
-        if probe is None:
+        stripped = line.strip()
+        if quoted_assignment:
+            if stripped.endswith("'"):
+                quoted_assignment = False
             continue
-        command = probe.group(1)
-        if command in _SHELL_BUILTINS or command in _POSIX_UTILITIES or command in declared:
+        if heredoc:
+            if stripped == heredoc:
+                heredoc = None
             continue
-        if command in {"bootstrap.sh", "manifest", "uv", "uvx", "npm", "npx"}:
+        marker = re.search(r"<<-?\s*['\"]?([A-Za-z_][A-Za-z0-9_]*)", stripped)
+        if marker:
+            heredoc = marker.group(1)
+        if not stripped or stripped.startswith("#"):
+            continue
+        if re.match(r"^[A-Za-z_][A-Za-z0-9_]*='", stripped):
+            quoted_assignment = stripped.count("'") % 2 == 1
+            continue
+        if re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*=.*", stripped):
+            continue
+        candidate = stripped
+        candidate = re.sub(r"^(?:[A-Za-z_][A-Za-z0-9_]*=\S+\s+)+", "", candidate)
+        probe = re.match(r"command\s+-v\s+['\"]?([A-Za-z0-9_.-]+)", candidate)
+        direct = re.match(r"([A-Za-z_][A-Za-z0-9_.-]*)", candidate)
+        command = probe.group(1) if probe else direct.group(1) if direct else ""
+        if direct and candidate[direct.end() :].lstrip().startswith("="):
+            continue
+        if not command or command not in _EXTERNAL_COMMAND_CANDIDATES:
+            continue
+        if command in declared or command in harness_commands or command in local_functions:
+            continue
+        if command in {"source", "readonly", "shopt"}:
+            continue
+        if command not in {"if", "then", "else", "elif", "fi", "do", "done", "case", "esac", "in"}:
             violations.append(
                 Violation(path, number, "undeclared-shell-dependency", command, f"runtime shell command {command!r} is not contract-declared")
             )
@@ -365,7 +424,7 @@ def scan(repo_root: Path = ROOT) -> ScanReport:
             for value in group
             if isinstance(value, str)
         }
-        for path, kind in _component_paths(contract_path.parent, document):
+        for path, kind, component_id in _component_paths(contract_path.parent, document):
             try:
                 text = path.read_text(encoding="utf-8")
             except UnicodeDecodeError:
@@ -375,9 +434,20 @@ def scan(repo_root: Path = ROOT) -> ScanReport:
                 continue
             violations.extend(_path_violations(bundle, kind, path, text))
             if path.suffix == ".py":
-                violations.extend(_python_import_violations(path, text, contract_path.parent, declared))
+                violations.extend(
+                    _python_import_violations(
+                        path,
+                        text,
+                        bundle,
+                        contract_path.parent,
+                        component_id,
+                        declared,
+                    )
+                )
             elif path.suffix in {".mjs", ".js"}:
-                violations.extend(_node_import_violations(path, text))
+                violations.extend(
+                    _node_import_violations(path, text, bundle, component_id)
+                )
             elif path.suffix == ".sh" or text.startswith("#!") and "sh" in text.splitlines()[0]:
                 violations.extend(_shell_command_violations(path, text, declared))
     ordered = tuple(sorted(violations, key=lambda item: (str(item.path), item.line, item.kind, item.value)))

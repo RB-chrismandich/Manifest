@@ -15,6 +15,7 @@ jobs:
   parity:
     name: Live ${{ matrix.harness }} parity
     runs-on: ubuntu-latest
+    environment: manifest-plugin-live
     strategy:
       fail-fast: false
       matrix:

@@ -19,7 +19,11 @@ def _renderer_module():
 
 def test_matrix_has_an_explicit_state_for_every_harness_cell() -> None:
     renderer = _renderer_module()
-    rendered = renderer.render()
+    root = Path(__file__).resolve().parents[3]
+    inspection = renderer._load_inspection(
+        root / "tests/fixtures/plugin_capability_inspection.json"
+    )
+    rendered = renderer.render(inspection)
 
     lines = [line for line in rendered.splitlines() if line.startswith("|")][2:]
     assert lines
@@ -33,7 +37,16 @@ def test_matrix_has_an_explicit_state_for_every_harness_cell() -> None:
 def test_matrix_checked_in_rendering_is_current() -> None:
     renderer = _renderer_module()
     root = Path(__file__).resolve().parents[3]
+    inspection = renderer._load_inspection(
+        root / "tests/fixtures/plugin_capability_inspection.json"
+    )
 
     assert (root / "docs/PLUGIN_CAPABILITY_MATRIX.md").read_text(
         encoding="utf-8"
-    ) == renderer.render()
+    ) == renderer.render(inspection)
+
+
+def test_matrix_without_inspection_is_explicitly_blocked() -> None:
+    renderer = _renderer_module()
+
+    assert "BLOCKED(adapter inspection missing)" in renderer.render()

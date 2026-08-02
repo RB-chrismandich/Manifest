@@ -140,7 +140,7 @@ def test_contracts_declare_explicit_capability_tiers(repo_root: Path) -> None:
             (),
             (),
             (),
-            ("bash", "git", "python3"),
+            ("git", "python3"),
             (),
             ("browser-use", "playwright", "semgrep"),
         ),
@@ -151,7 +151,7 @@ def test_contracts_declare_explicit_capability_tiers(repo_root: Path) -> None:
             ("atlassian", "github", "linear"),
             ("bash", "git", "python3"),
             (),
-            ("gh", "glab"),
+            ("curl", "gh", "glab"),
         ),
         "manifest-graphify": ((), (), (), ("git",), ("graphify",), ()),
         "manifest-ops": (
@@ -176,7 +176,7 @@ def test_contracts_declare_explicit_capability_tiers(repo_root: Path) -> None:
             (),
             ("bash", "git", "python3"),
             (),
-            ("agy",),
+            ("agy", "devin"),
         ),
         "manifest-workspace": (
             (),
@@ -192,7 +192,7 @@ def test_contracts_declare_explicit_capability_tiers(repo_root: Path) -> None:
             ("stitch",),
             ("bash", "git", "python3"),
             ("node",),
-            ("chromium",),
+            ("chromium", "curl"),
         ),
     }
 
