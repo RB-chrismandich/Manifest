@@ -209,7 +209,7 @@ Report the outcome per item (`closed` / `deleted` / `FAILED` + reason).
 
 When ≥3 open PRs or stale branches exist, dispatch one sub-agent per PR/branch batch to assess disposition, then
 consolidate; below that, sweep inline. Pick the mechanism per the shared Sub-Agent Selection Rules
-(`configs/claude/references/sub-agent-dispatch.md`): native Task sub-agents on Claude, or `manifest parallel-agent` /
+(`configs/claude/references/sub-agent-dispatch.md`): native Task sub-agents on Claude, or `[[skill:parallel-agent]]` /
 inline on other assistants. Dispatched sub-agents execute their task directly and do not re-dispatch.
 
 Dispatch on **Sonnet** (`subagent_model: sonnet` in `command_config.yml`) — pass the model

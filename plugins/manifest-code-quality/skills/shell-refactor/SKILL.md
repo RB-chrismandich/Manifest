@@ -12,7 +12,7 @@ with prioritized recommendations.
 ## Parallel Agent Integration
 
 This command ALWAYS uses parallel agents (security-critical).
-Executes: `manifest parallel-agent --json --full-output --validate`
+Executes: `[[skill:parallel-agent]] --json --full-output --validate`
 
 ## Task
 
@@ -34,7 +34,7 @@ You are a Senior DevOps/Infrastructure Engineer analyzing production shell scrip
 Before starting analysis, check for known patterns relevant to this codebase:
 
 ```bash
-~/.claude/scripts/learning_capture.sh query --language bash --format llm
+[[skill:learning-capture]] query --language bash --format llm
 ```
 
 If the knowledge base contains relevant antipatterns or insights for Bash/Shell:
@@ -210,7 +210,7 @@ After completing the analysis, capture the most significant findings:
    - Run:
 
      ```bash
-     ~/.claude/scripts/learning_capture.sh add \
+     [[skill:learning-capture]] add \
        --category antipattern --language bash \
        --title "<finding title>" \
        --description "<finding description and recommended fix>" \
@@ -221,7 +221,7 @@ After completing the analysis, capture the most significant findings:
    - Run:
 
      ```bash
-     ~/.claude/scripts/learning_capture.sh add \
+     [[skill:learning-capture]] add \
        --category tool_discovery --language bash \
        --title "<tool recommendation>" \
        --description "<why this tool is better>" \
@@ -234,7 +234,7 @@ After completing the analysis, capture the most significant findings:
 
 When ≥3 independent scripts exist, dispatch one sub-agent per script to analyze it, then merge findings; below
 that, analyze inline. Pick the mechanism per the shared Sub-Agent Selection Rules
-(`configs/claude/references/sub-agent-dispatch.md`): native Task sub-agents on Claude, or `manifest parallel-agent` /
+(`configs/claude/references/sub-agent-dispatch.md`): native Task sub-agents on Claude, or `[[skill:parallel-agent]]` /
 inline on other assistants. Dispatched sub-agents execute their task directly and do not re-dispatch.
 
 Dispatch on **Sonnet** (`subagent_model: sonnet` in `command_config.yml`) — pass the model

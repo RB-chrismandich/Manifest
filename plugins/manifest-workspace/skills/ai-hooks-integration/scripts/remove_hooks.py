@@ -31,7 +31,7 @@ from runtime.tool_config import (  # noqa: E402
 )
 
 
-def filter_hooks(hooks, nested: bool, command: str):
+def filter_hooks(hooks, nested: bool, command: str, owner: str | None = None):
     """Remove hooks containing the given command string."""
     if not isinstance(hooks, list):
         return []
@@ -45,7 +45,10 @@ def filter_hooks(hooks, nested: bool, command: str):
             new_inner = []
             for ih in inner:
                 cmd = ih.get("command", "") if isinstance(ih, dict) else ""
-                if command not in cmd:
+                owned = not owner or (
+                    isinstance(ih, dict) and ih.get("manifest_owner") == owner
+                )
+                if command not in cmd or not owned:
                     new_inner.append(ih)
             if new_inner:
                 h = dict(h)
@@ -53,7 +56,8 @@ def filter_hooks(hooks, nested: bool, command: str):
                 kept.append(h)
         else:
             cmd = h.get("command", "") if isinstance(h, dict) else ""
-            if command not in cmd:
+            owned = not owner or h.get("manifest_owner") == owner
+            if command not in cmd or not owned:
                 kept.append(h)
     return kept
 
@@ -63,6 +67,7 @@ def main() -> None:
     ap.add_argument("--tool", choices=JSON_TOOLS, required=True)
     ap.add_argument("--path", required=True)
     ap.add_argument("--command", required=True)
+    ap.add_argument("--owner", help="Remove only entries with this ownership marker")
     ap.add_argument(
         "--dry-run", action="store_true", help="Print actions without writing"
     )
@@ -84,7 +89,7 @@ def main() -> None:
     nested = cfg.get("nested", False)
 
     if key in hooks:
-        hooks[key] = filter_hooks(hooks[key], nested, args.command)
+        hooks[key] = filter_hooks(hooks[key], nested, args.command, args.owner)
         if not hooks[key]:
             hooks.pop(key, None)
 

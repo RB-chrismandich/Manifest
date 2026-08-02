@@ -263,7 +263,7 @@ Never claim a command passed that you did not run, and quote real output.
 When ≥3 independent files or articles exist, dispatch one sub-agent per file to analyze it,
 then merge findings; below that, analyze inline. Pick the mechanism per the shared Sub-Agent Selection Rules
 (`configs/claude/references/sub-agent-dispatch.md`): native Task sub-agents on Claude, or
-`manifest parallel-agent` / inline on other assistants. Dispatched sub-agents execute their task directly and
+`[[skill:parallel-agent]]` / inline on other assistants. Dispatched sub-agents execute their task directly and
 do not re-dispatch.
 
 Dispatch on **Sonnet** (`subagent_model: sonnet` in `command_config.yml`) — pass the model

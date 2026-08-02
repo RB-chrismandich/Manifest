@@ -13,7 +13,7 @@ find. Concision is measured, not judged: read
 ## Parallel Agent Integration
 
 Uses parallel agents CONDITIONALLY when total documentation lines > 500:
-`manifest parallel-agent --json --validate`
+`[[skill:parallel-agent]] --json --validate`
 
 ## Steps
 

@@ -210,6 +210,7 @@ def classify_line(line: str, source: str, catalog: set[str]) -> list[tuple[str, 
     # pattern below excludes a name preceded by ':' -- and adding one was dead
     # code that survived a mutation test, which is how it was caught.
     line = re.sub(r"\{\{skill:(?:" + alt + r")\}\}", MASK, line)
+    line = re.sub(r"\[\[skill:(?:" + alt + r")\]\]", MASK, line)
 
     # Relative file links. Reported separately: they are paths, not commands,
     # and they survive the cutover whenever source and target share a bundle.

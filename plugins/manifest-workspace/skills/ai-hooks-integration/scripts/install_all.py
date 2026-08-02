@@ -7,16 +7,10 @@ Usage:
   # Unified mode (recommended): Uses unified_hook.py with automatic source detection
   install_all.py --unified --handler "/abs/path/to/handler" --name my-hook
 
-  # Unified mode with the built-in default handler (pr-monitor), routed
-  # through the stable dispatcher so the installed command never goes stale:
-  install_all.py --unified --default-handler --name pr-monitor
-
 Notes:
   - Adds tool-specific suffixes: --claude/--gemini/--cursor
   - Writes OpenCode plugin to ~/.config/opencode/plugins/<name>.js
   - Unified mode automatically detects the actual source tool and filters noise events
-  - --unified with neither --handler nor --default-handler: normalization/filtering
-    only, no handler dispatch -- the original unified-mode behavior
 """
 
 import argparse
@@ -24,17 +18,12 @@ import subprocess
 import sys
 from pathlib import Path
 
+from runtime.tool_config import get_default_path
+
 ROOT = Path(__file__).resolve().parent
 MERGE = ROOT / "merge_hooks.py"
-REMOVE = ROOT / "remove_hooks.py"
 UNIFIED_HOOK = ROOT / "runtime" / "unified_hook.py"
 OPENCODE_INSTALLER = ROOT / "install_opencode_plugin.py"
-DISPATCHER = Path("~/.claude/scripts/hook_dispatch.py").expanduser()
-JSON_CONFIG_TARGETS = [
-    ("claude", "~/.claude/settings.json"),
-    ("gemini", "~/.gemini/settings.json"),
-    ("cursor", "~/.cursor/hooks.json"),
-]
 
 
 # The four targets are independent files owned by different tools, so one
@@ -69,86 +58,73 @@ def report_failures() -> None:
     )
 
 
-def _merge_json_hook_for_each_tool(command_for, dry: list[str]) -> None:
-    """Install `command_for(tool)` into claude/gemini/cursor's hook config."""
-    for tool, path in JSON_CONFIG_TARGETS:
-        run(
-            [
-                str(MERGE),
-                "--tool",
-                tool,
-                "--path",
-                str(Path(path).expanduser()),
-                "--command",
-                command_for(tool),
-                *dry,
-            ],
-            tool,
-        )
-
-
-def _strip_legacy_unified_entries(dry: list[str]) -> None:
-    """Remove any pre-existing raw unified_hook.py command before installing
-    the new one. Skill storage has moved three times in ~5 weeks (bootstrap
-    copy -> apm-managed ~/.manifest/skills -> plugin bundles, PR #685), and
-    each move broke a settings.json command hardcoding THIS script's own
-    install-time absolute path (specs/674-plugin-architecture/cutover-plan.md
-    T4.3). Re-running this installer after that fix would otherwise leave the
-    old, permanently-broken entry running alongside the new stable one: both
-    fire on every matching event, and the dead one alone is enough to block
-    the tool call.
-    """
-    for tool, path in JSON_CONFIG_TARGETS:
-        run(
-            [
-                str(REMOVE),
-                "--tool",
-                tool,
-                "--path",
-                str(Path(path).expanduser()),
-                "--command",
-                "unified_hook.py",
-                *dry,
-            ],
-            f"{tool}-legacy-cleanup",
-        )
-
-
-def _build_unified_command(args) -> str:
-    """The command line written into each tool's hook config.
-
-    --default-handler routes through the stable dispatcher at
-    ~/.claude/scripts/ (bootstrap-deployed, untouched by skill/plugin churn),
-    which resolves the real unified_hook.py + handler locations at fire-time
-    instead of baking in an install-time path. It only knows the one
-    integration built into it today (pr-monitor) -- a caller-supplied
-    --handler path still gets the old self-referential command, no more or
-    less fragile than before this fix. Neither flag: original behavior,
-    normalization/filtering with no handler at all.
-    """
-    if args.handler:
-        return f"{sys.executable} -B {UNIFIED_HOOK} --handler {args.handler}"
-    if not args.default_handler:
-        return f"{sys.executable} -B {UNIFIED_HOOK}"
-    if not DISPATCHER.is_file():
-        raise SystemExit(
-            "install_all: --default-handler needs the stable dispatcher at "
-            f"{DISPATCHER}, which does not exist yet. Run ./bootstrap.sh first "
-            "(it deploys configs/claude/scripts/ to ~/.claude/scripts/), then "
-            "re-run this installer -- writing a hook command that points at a "
-            "file that doesn't exist would reproduce the exact outage this "
-            "fix exists to prevent."
-        )
-    return str(DISPATCHER)
+def ownership_args(name: str) -> list[str]:
+    """Return metadata marking a hook entry as Manifest-owned."""
+    return ["--owner", f"manifest:{name}"]
 
 
 def install_unified(args) -> None:
     """Install unified hook with automatic source detection."""
     dry = ["--dry-run"] if args.dry_run else []
-    _strip_legacy_unified_entries(dry)
-    unified_cmd = _build_unified_command(args)
+    ownership = ["--owner", f"manifest:{args.name}"]
 
-    _merge_json_hook_for_each_tool(lambda tool: f"{unified_cmd} --source {tool}", dry)
+    # Build the unified hook command.
+    # -B is load-bearing, not cosmetic: the runtime lives inside the
+    # apm-managed skills tree, so bytecode written next to the source is a file
+    # apm did not place. apm then refuses to remove or replace the skill, and a
+    # hook that fires every tool call re-creates __pycache__ every session —
+    # deleting it does not stick, only not writing it does.
+    unified_cmd = f"{sys.executable} -B {UNIFIED_HOOK}"
+    if args.handler:
+        unified_cmd += f" --handler {args.handler}"
+
+    # Install for Claude (unified hook handles source detection)
+    run(
+        [
+            str(MERGE),
+            "--tool",
+            "claude",
+            "--path",
+            str(get_default_path("claude")),
+            "--command",
+            f"{unified_cmd} --source claude",
+            *ownership,
+            *dry,
+        ],
+        "claude",
+    )
+
+    # Install for Gemini
+    run(
+        [
+            str(MERGE),
+            "--tool",
+            "gemini",
+            "--path",
+            str(get_default_path("gemini")),
+            "--command",
+            f"{unified_cmd} --source gemini",
+            *ownership,
+            *dry,
+        ],
+        "gemini",
+    )
+
+    # Install for Cursor
+    run(
+        [
+            str(MERGE),
+            "--tool",
+            "cursor",
+            "--path",
+            str(get_default_path("cursor")),
+            "--command",
+            f"{unified_cmd} --source cursor",
+            *ownership,
+            *dry,
+        ],
+        "cursor",
+    )
 
     # Install OpenCode advanced plugin (has its own source detection)
     run(
@@ -157,7 +133,7 @@ def install_unified(args) -> None:
             "--name",
             args.name,
             "--output",
-            str(Path("~/.config/opencode/plugins").expanduser()),
+            str(get_default_path("opencode")),
             "--advanced",
         ]
         + (["--force"] if args.force else [])
@@ -171,7 +147,48 @@ def install_classic(args) -> None:
     cmd = args.command
     dry = ["--dry-run"] if args.dry_run else []
 
-    _merge_json_hook_for_each_tool(lambda tool: f"{cmd} --{tool}", dry)
+    run(
+        [
+            str(MERGE),
+            "--tool",
+            "claude",
+            "--path",
+            str(get_default_path("claude")),
+            "--command",
+            f"{cmd} --claude",
+            *ownership_args(args.name),
+            *dry,
+        ],
+        "claude",
+    )
+    run(
+        [
+            str(MERGE),
+            "--tool",
+            "gemini",
+            "--path",
+            str(get_default_path("gemini")),
+            "--command",
+            f"{cmd} --gemini",
+            *ownership_args(args.name),
+            *dry,
+        ],
+        "gemini",
+    )
+    run(
+        [
+            str(MERGE),
+            "--tool",
+            "cursor",
+            "--path",
+            str(get_default_path("cursor")),
+            "--command",
+            f"{cmd} --cursor",
+            *ownership_args(args.name),
+            *dry,
+        ],
+        "cursor",
+    )
 
     run(
         [
@@ -179,7 +196,7 @@ def install_classic(args) -> None:
             "--tool",
             "opencode",
             "--path",
-            str(Path("~/.config/opencode/plugins").expanduser() / f"{args.name}.js"),
+            str(get_default_path("opencode") / f"{args.name}.js"),
             *dry,
         ],
         "opencode",
@@ -200,10 +217,6 @@ Examples:
 
   # Unified mode without handler (just normalization and filtering)
   install_all.py --unified --name my-hook
-
-  # Unified mode with the built-in default handler (pr-monitor), via the
-  # stable dispatcher -- never goes stale when skill storage moves
-  install_all.py --unified --default-handler --name pr-monitor
 """,
     )
     ap.add_argument("--command", help="Base hook command (classic mode)")
@@ -221,18 +234,6 @@ Examples:
     ap.add_argument(
         "--handler",
         help="Handler script path (unified mode only, receives normalized events)",
-    )
-    ap.add_argument(
-        "--default-handler",
-        action="store_true",
-        help=(
-            "Unified mode only, mutually exclusive with --handler: install the "
-            "built-in default handler (pr-monitor) via the stable dispatcher "
-            "at ~/.claude/scripts/hook_dispatch.py, which resolves the real "
-            "script locations at fire-time so the installed command never "
-            "goes stale when skill storage moves. Fails if the dispatcher "
-            "hasn't been deployed yet (run ./bootstrap.sh first)."
-        ),
     )
     ap.add_argument(
         "--force",

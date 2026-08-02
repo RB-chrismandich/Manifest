@@ -56,7 +56,7 @@ When triggered, this skill:
 0. **Consults knowledge base** for known issues in the detected language:
 
    ```bash
-   ~/.claude/scripts/learning_capture.sh query --language <detected-language> --format llm
+   [[skill:learning-capture]] query --language <detected-language> --format llm
    ```
 
    If relevant entries exist, include them as additional check items. This is
@@ -66,7 +66,7 @@ When triggered, this skill:
 2. **Invokes parallel agents** for cross-verification:
 
    ```bash
-   manifest parallel-agent --json --validate --analyze <file>
+   [[skill:parallel-agent]] --json --validate --analyze <file>
    ```
 
    **Sub-agent dispatch**: pin this fan-out call to Sonnet explicitly

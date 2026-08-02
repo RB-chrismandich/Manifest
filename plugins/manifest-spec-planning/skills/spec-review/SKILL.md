@@ -25,7 +25,7 @@ model (or self-review) misses.
 ```
 
 Findings print as a tree of `CLARIFICATION REQUIRED` blocks, or
-`✓ No inconsistencies found.` Requires `manifest parallel-agent` plus at least one
+`✓ No inconsistencies found.` Requires `[[skill:parallel-agent]]` plus at least one
 non-Claude agent CLI; it falls back to a single `agy` review when the panel is
 unavailable. This skill is analysis-only; apply the recommendations yourself.
 

@@ -360,7 +360,7 @@ fi
 # Build scoring prompt
 CANDIDATES=$(jq -r '.[] | "### #\(.number) — \(.title)\nBody: \(.body // "No description" | .[0:300])\nLabels: \(.labels | join(", "))\nHeuristic scores: Impact=\(.scores.impact) Urgency=\(.scores.urgency) Readiness=\(.scores.readiness) Risk=\(.scores.risk) Score=\(.scores.score)\n"' "$TEMP_DIR/top_candidates.json")
 
-manifest parallel-agent --json --full-output --timeout 600 \
+[[skill:parallel-agent]] --json --full-output --timeout 600 \
     --cursor-model flash --claude-model sonnet \
     "You are an issue prioritization analyst. Score these open issues for a software project.
 

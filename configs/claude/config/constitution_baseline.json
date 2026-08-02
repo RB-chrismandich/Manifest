@@ -2,54 +2,6 @@
   "version": 1,
   "_comment": "Recorded violation counts at the time the Code Constitution was adopted. The gate blocks when a file's count for a check RISES above its entry. Lower these by fixing; regenerate with constitution_check.py --update-baseline. An entry may never be raised without the reason in the commit message.",
   "files": {
-    "plugins/manifest-workspace/skills/ai-hooks-integration/scripts/install_all.py": {
-      "C-DATA": 1,
-      "C-DUPE": 2,
-      "C-SIZE": 1
-    },
-    "plugins/manifest-workspace/skills/ai-hooks-integration/scripts/install_cli_wrapper.py": {
-      "C-DATA": 1,
-      "C-SIZE": 1
-    },
-    "plugins/manifest-workspace/skills/ai-hooks-integration/scripts/merge_hooks.py": {
-      "C-SIZE": 1
-    },
-    "plugins/manifest-workspace/skills/ai-hooks-integration/scripts/runtime/cli_wrapper.py": {
-      "C-SIZE": 1
-    },
-    "plugins/manifest-workspace/skills/ai-hooks-integration/scripts/runtime/detect_source.py": {
-      "C-ERR": 12
-    },
-    "plugins/manifest-workspace/skills/ai-hooks-integration/scripts/runtime/tool_config.py": {
-      "C-DATA": 1,
-      "C-ERR": 1
-    },
-    "plugins/manifest-workspace/skills/ai-hooks-integration/scripts/runtime/unified_hook.py": {
-      "C-ERR": 1,
-      "C-SIZE": 1
-    },
-    "plugins/manifest-workspace/skills/ai-hooks-integration/tests/test_merge_hooks.py": {
-      "C-DATA": 1
-    },
-    "plugins/stitch-design/skills/extract-static-html/scripts/extract_inline_html.ts": {
-      "C-DUPE": 1,
-      "C-SIZE": 1
-    },
-    "plugins/stitch-design/skills/extract-static-html/scripts/post_process.ts": {
-      "C-DUPE": 1,
-      "C-SIZE": 1
-    },
-    "plugins/stitch-design/skills/extract-static-html/scripts/snapshot.ts": {
-      "C-DUPE": 3,
-      "C-SIZE": 1
-    },
-    "plugins/manifest-forge/skills/repo-clean/scripts/hygiene_gather.py": {
-      "C-ERR": 1,
-      "C-SIZE": 3
-    },
-    "plugins/stitch-design/skills/upload-to-stitch/scripts/upload_to_stitch.py": {
-      "C-SIZE": 2
-    },
     ".specify/scripts/bash/check-prerequisites.sh": {
       "C-DATA": 1
     },
@@ -228,6 +180,85 @@
     "configs/claude/scripts/token_cost_report.py": {
       "C-SIZE": 3
     },
+    "plugins/manifest-forge/skills/repo-clean/scripts/hygiene_gather.py": {
+      "C-ERR": 1,
+      "C-SIZE": 3
+    },
+    "plugins/manifest-workspace/skills/ai-hooks-integration/scripts/install_all.py": {
+      "C-DATA": 1,
+      "C-DUPE": 2,
+      "C-SIZE": 1
+    },
+    "plugins/manifest-workspace/skills/ai-hooks-integration/scripts/install_cli_wrapper.py": {
+      "C-DATA": 1,
+      "C-SIZE": 1
+    },
+    "plugins/manifest-workspace/skills/ai-hooks-integration/scripts/merge_hooks.py": {
+      "C-SIZE": 1
+    },
+    "plugins/manifest-workspace/skills/ai-hooks-integration/scripts/runtime/cli_wrapper.py": {
+      "C-SIZE": 1
+    },
+    "plugins/manifest-workspace/skills/ai-hooks-integration/scripts/runtime/detect_source.py": {
+      "C-ERR": 12
+    },
+    "plugins/manifest-workspace/skills/ai-hooks-integration/scripts/runtime/tool_config.py": {
+      "C-DATA": 1,
+      "C-ERR": 1
+    },
+    "plugins/manifest-workspace/skills/ai-hooks-integration/scripts/runtime/unified_hook.py": {
+      "C-ERR": 1,
+      "C-SIZE": 1
+    },
+    "plugins/manifest-workspace/skills/ai-hooks-integration/tests/test_merge_hooks.py": {
+      "C-DATA": 1
+    },
+    "plugins/manifest-workspace/skills/parallel-agent/scripts/agents/__init__.py": {
+      "C-DATA": 1
+    },
+    "plugins/manifest-workspace/skills/parallel-agent/scripts/agents/cli.py": {
+      "C-ERR": 3,
+      "C-SIZE": 2
+    },
+    "plugins/manifest-workspace/skills/parallel-agent/scripts/agents/cli_invoke.py": {
+      "C-DUPE": 1,
+      "C-SIZE": 2
+    },
+    "plugins/manifest-workspace/skills/parallel-agent/scripts/agents/config.py": {
+      "C-SIZE": 2
+    },
+    "plugins/manifest-workspace/skills/parallel-agent/scripts/agents/orchestrator.py": {
+      "C-DUPE": 2,
+      "C-ERR": 6,
+      "C-SIZE": 8
+    },
+    "plugins/manifest-workspace/skills/parallel-agent/scripts/agents/runners.py": {
+      "C-DUPE": 2,
+      "C-ERR": 4,
+      "C-SIZE": 7
+    },
+    "plugins/manifest-workspace/skills/parallel-agent/scripts/agents/synthesis.py": {
+      "C-ERR": 1,
+      "C-SIZE": 1
+    },
+    "plugins/manifest-workspace/skills/parallel-agent/scripts/agents/validation.py": {
+      "C-SIZE": 4
+    },
+    "plugins/stitch-design/skills/extract-static-html/scripts/extract_inline_html.ts": {
+      "C-DUPE": 1,
+      "C-SIZE": 1
+    },
+    "plugins/stitch-design/skills/extract-static-html/scripts/post_process.ts": {
+      "C-DUPE": 1,
+      "C-SIZE": 1
+    },
+    "plugins/stitch-design/skills/extract-static-html/scripts/snapshot.ts": {
+      "C-DUPE": 3,
+      "C-SIZE": 1
+    },
+    "plugins/stitch-design/skills/upload-to-stitch/scripts/upload_to_stitch.py": {
+      "C-SIZE": 2
+    },
     "tests/python/agents/test_orchestrator.py": {
       "C-DATA": 1
     },
@@ -254,6 +285,10 @@
     },
     "tests/python/constitution/test_docs_drift.py": {
       "C-SIZE": 1
+    },
+    "tests/python/manifest_agent/test_generate_plugin_views.py": {
+      "C-DATA": 2,
+      "C-SIZE": 2
     },
     "tests/python/manifest_cli/test_doctor.py": {
       "C-DUPE": 1

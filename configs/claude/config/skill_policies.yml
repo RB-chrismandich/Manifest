@@ -8,9 +8,9 @@
 #
 # A PR that adds or removes a skill MUST change the matching partition count and
 # expected_total in the same commit, and give the new skill a bundle.
-domain_expected_total: 108
+domain_expected_total: 109
 addon_expected_total: 6
-expected_total: 114
+expected_total: 115
 
 # Recorded so no later phase keys anything on it: ~/.claude/skills/.deployed-skills
 # is ALREADY WRONG on a live machine (measured 2026-07-30 — mtime predates SC-006,
@@ -138,7 +138,7 @@ bundles:
     - spec-implement-loop
     - spec-review
 
-  manifest-workspace:  # 17 skills
+  manifest-workspace:  # 18 skills
     - ai-hooks-integration
     - automation-rework-breakeven
     - config-audit
@@ -149,6 +149,7 @@ bundles:
     - memory-compress
     - metrics-report
     - pass-cli
+    - parallel-agent
     - pr-smoke
     - prompt-optimize
     - session-checkpoint

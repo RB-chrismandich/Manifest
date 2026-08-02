@@ -20,7 +20,7 @@ and produces a unified report.
 After detecting the project language (Phase 1), check for known issues:
 
 ```bash
-~/.claude/scripts/learning_capture.sh query --language <detected-language> --format llm
+[[skill:learning-capture]] query --language <detected-language> --format llm
 ```
 
 If the knowledge base contains relevant antipatterns or insights:
@@ -178,7 +178,7 @@ After producing the quality report, if any checks failed:
    - Run:
 
      ```bash
-     ~/.claude/scripts/learning_capture.sh add \
+     [[skill:learning-capture]] add \
        --category antipattern --language <detected> \
        --title "Verify: <tool> failures" \
        --description "<summary of failures>" \

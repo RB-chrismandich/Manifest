@@ -48,7 +48,7 @@ skill.
 When ≥3 bot PRs are open, dispatch one sub-agent per PR (or batch) to triage it, then consolidate
 dispositions; below that, triage inline. Pick the mechanism per the shared Sub-Agent Selection Rules
 (`configs/claude/references/sub-agent-dispatch.md`): native Task sub-agents on Claude, or
-`manifest parallel-agent` / inline on other assistants. Dispatched sub-agents execute their task directly and
+`[[skill:parallel-agent]]` / inline on other assistants. Dispatched sub-agents execute their task directly and
 do not re-dispatch.
 
 Dispatch on **Sonnet** (`subagent_model: sonnet` in `command_config.yml`) — pass the model

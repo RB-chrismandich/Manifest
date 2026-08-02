@@ -40,7 +40,7 @@ Do **not** invoke slash commands in this pipeline. Execute the equivalent workfl
    - Use traffic-light classes (`active`, `pending`, `error`, `external`) and keep Mermaid compatible:
      no class assignment on subgraphs, avoid unstable diagram types, avoid syntax-breaking labels.
    - If analyzing 5+ unique imports/modules, run:
-     `manifest parallel-agent --json --validate`
+     `[[skill:parallel-agent]] --json --validate`
      and incorporate findings before finalizing.
 
 2. **Improve documentation**
@@ -59,7 +59,7 @@ Do **not** invoke slash commands in this pipeline. Execute the equivalent workfl
      before proceeding to commit.
    - Compute/update a documentation health score summary.
    - If total documentation lines > 500, run:
-     `manifest parallel-agent --json --validate`
+     `[[skill:parallel-agent]] --json --validate`
      and incorporate findings before finalizing.
 
 3. **Improve README**
@@ -72,7 +72,7 @@ Do **not** invoke slash commands in this pipeline. Execute the equivalent workfl
 4. **Regenerate knowledge base docs**
 
    ```bash
-   ~/.claude/scripts/learning_capture.sh sync-docs
+   [[skill:learning-capture]] sync-docs
    ```
 
    This regenerates `docs/KNOWLEDGE_BASE.md` from the YAML source of truth
@@ -273,7 +273,7 @@ capture the failure patterns for the knowledge base:
    - Run:
 
      ```bash
-     ~/.claude/scripts/learning_capture.sh add \
+     [[skill:learning-capture]] add \
        --category antipattern --language <detected> \
        --title "Pre-commit: <hook> failure" \
        --description "<what failed and how it was fixed>" \

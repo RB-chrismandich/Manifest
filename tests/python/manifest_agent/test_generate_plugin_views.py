@@ -60,6 +60,18 @@ def _build_fixture_repo(repo_root: Path, fixture_root: Path) -> None:
             source_bundle / "manifest-capabilities.yml",
             target_bundle / "manifest-capabilities.yml",
         )
+        contract_document = yaml.safe_load(
+            (source_bundle / "manifest-capabilities.yml").read_text(encoding="utf-8")
+        )
+        for component_type in ("agents", "hooks", "runtime", "guidance"):
+            for component in contract_document["components"][component_type]:
+                source = source_bundle / component["path"]
+                target = target_bundle / component["path"]
+                if source.is_dir():
+                    target.mkdir(parents=True, exist_ok=True)
+                else:
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    target.write_text("fixture\n", encoding="utf-8")
         (target_bundle / "skills/example/SKILL.md").write_text(
             "---\nname: example\ndescription: Example fixture skill.\n---\n",
             encoding="utf-8",
@@ -94,6 +106,20 @@ def test_generator_emits_three_native_views_per_domain(
     assert generic_path.is_file()
     generic = json.loads(generic_path.read_text())
     assert set(report.harnesses) == {"claude", "gemini", *generic["harnesses"]}
+
+
+def test_generator_emits_release_command_catalog(
+    repo_root: Path, tmp_path: Path
+) -> None:
+    render_views(repo_root, output_root=tmp_path, check=False)
+    catalog_path = tmp_path / "manifest-workspace/skills/help/catalog/commands.json"
+    catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
+
+    assert len(catalog["commands"]) == 109
+    assert any(
+        command["qualified_name"] == "manifest-workspace:parallel-agent"
+        for command in catalog["commands"]
+    )
 
 
 def test_marketplace_excludes_optional_addon_from_parity_count(

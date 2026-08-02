@@ -149,7 +149,7 @@ Static analysis checks that indicate Core Web Vitals risk:
 
 When ≥3 independent pages or flows need review, dispatch one sub-agent per page/flow to review it, then merge findings;
 below that, review inline. Pick the mechanism per the shared Sub-Agent Selection Rules
-(`configs/claude/references/sub-agent-dispatch.md`): native Task sub-agents on Claude, or `manifest parallel-agent` / inline
+(`configs/claude/references/sub-agent-dispatch.md`): native Task sub-agents on Claude, or `[[skill:parallel-agent]]` / inline
 on other assistants. Dispatched sub-agents execute their task directly and do not re-dispatch.
 
 Dispatch on **Sonnet** (`subagent_model: sonnet` in `command_config.yml`) — pass the model

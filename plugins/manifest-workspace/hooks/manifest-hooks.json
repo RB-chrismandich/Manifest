@@ -1,0 +1,17 @@
+{
+  "hooks": [
+    {
+      "id": "workspace-context-budget-reminder",
+      "event": "context-budget",
+      "owner": "manifest-workspace",
+      "skill": "session-checkpoint"
+    },
+    {
+      "id": "workspace-learning-advisory",
+      "event": "task-completed",
+      "owner": "manifest-workspace",
+      "skill": "learning-capture"
+    }
+  ],
+  "schema_version": 1
+}

@@ -86,7 +86,7 @@ either platform — only the vocabulary changes:
 
 When ≥3 workflow files need auditing, dispatch one sub-agent per workflow to audit it, then merge findings;
 below that, audit inline. Pick the mechanism per the shared Sub-Agent Selection Rules
-(`configs/claude/references/sub-agent-dispatch.md`): native Task sub-agents on Claude, or `manifest parallel-agent` /
+(`configs/claude/references/sub-agent-dispatch.md`): native Task sub-agents on Claude, or `[[skill:parallel-agent]]` /
 inline on other assistants. Dispatched sub-agents execute their task directly and do not re-dispatch.
 
 Dispatch on **Sonnet** (`subagent_model: sonnet` in `command_config.yml`) — pass the model

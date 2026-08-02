@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from manifest_agent.command_catalog import CommandCatalogError, build_command_catalog
 from manifest_agent.contracts import DOMAIN_BUNDLES, Component, load_domain_contracts
 
 _ADDON_NAME = "adversarial-design-loop"
@@ -403,6 +404,11 @@ def render_views(
         expected[target / "gemini-extension.json"] = _json(_gemini_view(contract))
         expected[target / "plugin.json"] = _json(_generic_view(contract, skills))
 
+    catalog_target = (
+        bundle_output_root / "manifest-workspace/skills/help/catalog/commands.json"
+    )
+    expected[catalog_target] = _json(build_command_catalog(source_plugins, contracts))
+
     expected[marketplace_output] = _json(
         _marketplace(contracts, _addon_entry(repo_root))
     )
@@ -433,7 +439,7 @@ def main(argv: list[str] | None = None) -> int:
     args = _parse_args(sys.argv[1:] if argv is None else argv)
     try:
         report = render_views(args.repo_root, check=args.check)
-    except (GenerationError, ValueError) as error:
+    except (CommandCatalogError, GenerationError, ValueError) as error:
         print(f"generate_plugin_views.py: {error}", file=sys.stderr)
         return 2
     if args.check and report.drifted_paths:

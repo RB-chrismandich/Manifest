@@ -1,13 +1,7 @@
 #!/usr/bin/env python3
-"""Unified hook script with automatic source detection and event filtering.
-
-This script solves cross-tool interference issues:
-1. Source misidentification: Cursor/OpenCode triggering Claude hooks
-2. Noise events: Cursor reading .claude/ directory
-3. Duplicate events: OpenCode triggering both Claude hook and its own plugin
+"""Unified hook normalization for explicitly selected native harness targets.
 
 Features:
-- Automatic source detection via parent process tree
 - Configurable event filtering
 - Debug logging (HOOK_DEBUG=1)
 - Event normalization to canonical format
@@ -44,8 +38,6 @@ sys.dont_write_bytecode = True
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-
-from runtime.detect_source import detect_parent_source  # noqa: E402
 
 
 def debug_log(msg: str) -> None:
@@ -119,17 +111,6 @@ def should_drop_event(source: str, payload: dict) -> tuple[bool, str]:
     # to avoid duplicate processing
     if source == "opencode":
         return True, "OpenCode events handled by dedicated plugin"
-
-    # Cursor reading .claude/ directory is noise
-    if source == "cursor":
-        cwd = extract_cwd(payload)
-        if ".claude" in cwd:
-            return True, "Cursor reading .claude directory"
-
-        # Also filter by command if it's accessing .claude
-        cmd = extract_command(payload)
-        if ".claude" in cmd:
-            return True, "Cursor command accessing .claude"
 
     return False, ""
 
@@ -243,7 +224,7 @@ def main() -> None:
         "--source",
         default="claude",
         choices=["claude", "gemini", "cursor", "opencode"],
-        help="Claimed source tool (may be overridden by detection)",
+        help="Native source tool selected by the installer",
     )
     ap.add_argument(
         "--event-type",
@@ -254,11 +235,7 @@ def main() -> None:
         "--handler",
         help="Path to handler script to process events",
     )
-    ap.add_argument(
-        "--no-detect",
-        action="store_true",
-        help="Disable automatic source detection",
-    )
+    ap.add_argument("--no-detect", action="store_true", help=argparse.SUPPRESS)
     ap.add_argument(
         "--no-filter",
         action="store_true",
@@ -296,14 +273,7 @@ def main() -> None:
 
     debug_log(f"Received payload: {json.dumps(payload)[:200]}...")
 
-    # Source detection
     source = args.source
-    if not args.no_detect:
-        inferred = detect_parent_source()
-        if inferred and inferred != source:
-            debug_log(f"Source override: {source} -> {inferred}")
-            source = inferred
-
     debug_log(f"Effective source: {source}")
 
     # Event filtering

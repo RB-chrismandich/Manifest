@@ -41,7 +41,7 @@ This skill performs comprehensive issue triage by:
      shell context; run jira triage from agent context and call the Atlassian MCP tools directly instead
      of shelling out)
 2. **Tools installed**: `jq`, `python3`
-3. **Scripts available**: `~/.claude/scripts/tracker_ops.sh`, `manifest parallel-agent`
+3. **Scripts available**: `~/.claude/scripts/tracker_ops.sh`, `[[skill:parallel-agent]]`
 4. **Config loaded**: `~/.claude/config/tracker_triage.yml`
 
 ## Workflow
@@ -116,7 +116,7 @@ Consensus thresholds:
 
 When ≥3 issues need auditing, dispatch one sub-agent per issue batch to triage, then consolidate; below that, triage
 inline. Pick the mechanism per the shared Sub-Agent Selection Rules (`configs/claude/references/sub-agent-dispatch.md`):
-native Task sub-agents on Claude, or `manifest parallel-agent` / inline on other assistants. Dispatched sub-agents execute
+native Task sub-agents on Claude, or `[[skill:parallel-agent]]` / inline on other assistants. Dispatched sub-agents execute
 their task directly and do not re-dispatch.
 
 Dispatch on **Sonnet** (`subagent_model: sonnet` in `command_config.yml`) — pass the model

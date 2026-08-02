@@ -62,7 +62,7 @@ Otherwise → single-agent planning (Step 2b).
 1. Run parallel agents with the task description:
 
    ```bash
-   manifest parallel-agent --json --full-output --validate --timeout 600 \
+   [[skill:parallel-agent]] --json --full-output --validate --timeout 600 \
      --cursor-model flash --claude-model sonnet \
      "Propose an implementation plan for: <DESCRIPTION>.
       For each proposal, include:
@@ -207,7 +207,7 @@ If the plan is linked to an issue:
 1. Run a cross-verified review of all changes:
 
    ```bash
-   manifest parallel-agent --json --validate --timeout 600 \
+   [[skill:parallel-agent]] --json --validate --timeout 600 \
      --cursor-model flash --claude-model sonnet \
      "Review the implementation for issue #N. Changes: <SUMMARY_OF_CHANGES>"
    ```
@@ -279,7 +279,7 @@ Selection rules: [sub-agent-dispatch.md](../../../configs/claude/references/sub-
 ## Tool Usage
 
 - **Read**, **Glob**, **Grep**: Inspect plans, explore codebase during planning
-- **Bash**: Run `manifest parallel-agent` (create/review/execute), `git_ops.sh`
+- **Bash**: Run `[[skill:parallel-agent]]` (create/review/execute), `git_ops.sh`
   (issue operations), `mv` (archive/abandon), `date`
 - **Write**: Save new plans from template
 - **Edit**: Check off deliverables (`- [x]`) during execute

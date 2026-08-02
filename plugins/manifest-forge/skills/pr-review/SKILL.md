@@ -58,7 +58,7 @@ This skill is backed by `~/.claude/scripts/pr_review.sh`.
 
 When ≥3 open PRs exist, dispatch one sub-agent per PR to assess mergeability, then consolidate; below that, review
 inline. Pick the mechanism per the shared Sub-Agent Selection Rules
-(`configs/claude/references/sub-agent-dispatch.md`): native Task sub-agents on Claude, or `manifest parallel-agent` /
+(`configs/claude/references/sub-agent-dispatch.md`): native Task sub-agents on Claude, or `[[skill:parallel-agent]]` /
 inline on other assistants. Dispatched sub-agents execute their task directly and do not re-dispatch.
 
 Dispatch on **Sonnet** (`subagent_model: sonnet` in `command_config.yml`) — pass the model
