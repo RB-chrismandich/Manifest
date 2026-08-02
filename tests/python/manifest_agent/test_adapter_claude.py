@@ -338,13 +338,13 @@ def test_uninstall_removes_only_receipt_plugins_and_retains_shared_marketplace()
     None
 ):
     runner = QueueRunner(
-        [
-            command(),
+        [command() for _name in DOMAIN_BUNDLES]
+        + [
             command(
                 stdout=json.dumps(
                     [
                         {
-                            "id": "adversarial-design-loop@manifest",
+                            "id": "other-team@manifest",
                             "version": "0.1.0",
                             "scope": "user",
                         }
@@ -357,7 +357,7 @@ def test_uninstall_removes_only_receipt_plugins_and_retains_shared_marketplace()
         harness="claude",
         adapter_version="1",
         native_version="2",
-        plugin_ids=("manifest-docs@manifest",),
+        plugin_ids=tuple(f"{name}@manifest" for name in DOMAIN_BUNDLES),
         owned_entries=(OwnedEntry("marketplace", "manifest", "receipt"),),
         capabilities={},
         verified=True,
@@ -366,20 +366,22 @@ def test_uninstall_removes_only_receipt_plugins_and_retains_shared_marketplace()
     result = ClaudeAdapter(runner=runner, which=lambda name: name).uninstall(receipt)
 
     assert result.state is ResultState.READY
-    assert runner.log == [
-        ["claude", "plugin", "uninstall", "manifest-docs@manifest"],
-        ["claude", "plugin", "list", "--json"],
+    assert runner.log[:-1] == [
+        ["claude", "plugin", "uninstall", f"{name}@manifest"] for name in DOMAIN_BUNDLES
     ]
+    assert runner.log[-1] == ["claude", "plugin", "list", "--json"]
     assert "unowned plugin" in result.warnings[0]
 
 
 def test_uninstall_removes_owned_marketplace_when_no_plugins_reference_it() -> None:
-    runner = QueueRunner([command(), command(stdout="[]"), command()])
+    runner = QueueRunner(
+        [command() for _name in DOMAIN_BUNDLES] + [command(stdout="[]"), command()]
+    )
     receipt = HarnessReceipt(
         harness="claude",
         adapter_version="1",
         native_version="2",
-        plugin_ids=("manifest-docs",),
+        plugin_ids=DOMAIN_BUNDLES,
         owned_entries=(OwnedEntry("marketplace", "manifest", "receipt"),),
         capabilities={},
         verified=True,

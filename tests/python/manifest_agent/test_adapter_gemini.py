@@ -240,7 +240,7 @@ def test_gemini_rejects_noncanonical_inventory_before_mutation(
 
 
 def test_gemini_uninstall_removes_only_canonical_receipt_ids() -> None:
-    runner = QueueRunner([command()])
+    runner = QueueRunner([])
     receipt = HarnessReceipt(
         harness="gemini",
         adapter_version="1",
@@ -254,7 +254,7 @@ def test_gemini_uninstall_removes_only_canonical_receipt_ids() -> None:
     result = GeminiAdapter(runner=runner, which=lambda name: name).uninstall(receipt)
 
     assert result.state is ResultState.BLOCKED
-    assert runner.log == [["gemini", "extensions", "uninstall", "manifest-docs"]]
+    assert runner.log == []
     assert "non-canonical" in " ".join(result.errors)
 
 

@@ -261,7 +261,7 @@ def test_antigravity_rejects_mismatched_generic_view_before_mutation(
 
 
 def test_antigravity_uninstall_removes_only_canonical_receipt_ids() -> None:
-    runner = QueueRunner([command()])
+    runner = QueueRunner([])
     receipt = HarnessReceipt(
         harness="antigravity",
         adapter_version="1",
@@ -275,5 +275,5 @@ def test_antigravity_uninstall_removes_only_canonical_receipt_ids() -> None:
     result = AntigravityAdapter(runner=runner).uninstall(receipt)
 
     assert result.state is ResultState.BLOCKED
-    assert runner.log == [["agy", "plugin", "uninstall", "manifest-docs"]]
+    assert runner.log == []
     assert "non-canonical" in " ".join(result.errors)

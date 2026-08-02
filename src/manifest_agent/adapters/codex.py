@@ -40,6 +40,7 @@ from manifest_agent.process import CommandRunner, redact_text
 
 _MARKETPLACE = "manifest"
 _ADAPTER_VERSION = "1"
+_CANONICAL_PLUGIN_IDS = tuple(f"{name}@{_MARKETPLACE}" for name in DOMAIN_BUNDLES)
 _COMMIT = re.compile(r"^[0-9a-fA-F]{40}(?:[0-9a-fA-F]{24})?$")
 
 
@@ -162,20 +163,24 @@ class CodexAdapter(CapabilityAdapterMixin):
 
     def uninstall(self, receipt: HarnessReceipt) -> HarnessResult:
         """Remove receipt-owned plugins and an unreferenced owned marketplace."""
-        if receipt.harness != self.name:
-            return _blocked(
-                f"receipt harness {receipt.harness!r} does not match {self.name!r}"
-            )
-        capabilities = self.remove_capabilities(receipt)
         plugin_ids, id_errors = _receipt_plugin_ids(receipt)
-        receipt_failures = [*_error_results(id_errors)]
+        invalid = self.validate_uninstall_receipt(
+            receipt,
+            plugin_ids,
+            _CANONICAL_PLUGIN_IDS,
+            identity_errors=id_errors,
+            marketplace_identifier=_MARKETPLACE,
+        )
+        if invalid is not None:
+            return invalid
+        capabilities = self.remove_capabilities(receipt)
         removal_failures = self._run_json_mutations(
             [
                 (self.name, "plugin", "remove", plugin_id, "--json")
                 for plugin_id in plugin_ids
             ]
         )
-        failures = receipt_failures + removal_failures
+        failures = removal_failures
         installed_ids, list_error = self._list_installed_manifest_ids()
         if list_error is not None:
             return combine_results(capabilities, *failures, list_error)
@@ -484,10 +489,6 @@ def _owns_marketplace(receipt: HarnessReceipt) -> bool:
         entry.kind == "marketplace" and entry.identifier == _MARKETPLACE
         for entry in receipt.owned_entries
     )
-
-
-def _error_results(errors: Sequence[str]) -> tuple[HarnessResult, ...]:
-    return tuple(_blocked(error) for error in errors)
 
 
 def _blocked(error: str) -> HarnessResult:

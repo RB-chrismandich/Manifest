@@ -21,14 +21,16 @@ if TYPE_CHECKING:
 
 def uninstall_devin(adapter: DevinAdapter, receipt: HarnessReceipt) -> HarnessResult:
     """Remove receipt plugins and prune only after proving unowned safety."""
-    if receipt.harness != adapter.name:
-        return blocked(
-            f"receipt harness {receipt.harness!r} does not match {adapter.name!r}"
-        )
-    capabilities = adapter.remove_capabilities(receipt)
     plugin_ids, id_errors = _receipt_plugin_ids(receipt)
-    if id_errors:
-        return combine_results(capabilities, *(blocked(error) for error in id_errors))
+    invalid = adapter.validate_uninstall_receipt(
+        receipt,
+        plugin_ids,
+        DOMAIN_BUNDLES,
+        identity_errors=id_errors,
+    )
+    if invalid is not None:
+        return invalid
+    capabilities = adapter.remove_capabilities(receipt)
 
     before, error = adapter._list_installed()
     if error is not None:
@@ -45,18 +47,6 @@ def uninstall_devin(adapter: DevinAdapter, receipt: HarnessReceipt) -> HarnessRe
     ownership = _uninstall_inventory_result(plugin_ids, unowned, after)
     if failures or ownership.state is ResultState.BLOCKED:
         return combine_results(capabilities, *failures, ownership)
-
-    if len(plugin_ids) != len(DOMAIN_BUNDLES) or set(plugin_ids) != set(DOMAIN_BUNDLES):
-        plugins = HarnessResult(
-            adapter.name,
-            ResultState.READY,
-            (),
-            {},
-            warnings=(
-                "Devin prune skipped because the receipt does not own all nine domains",
-            ),
-        )
-        return combine_results(capabilities, plugins)
 
     command, error = adapter._execute((adapter.name, "plugins", "prune"))
     if error is not None:

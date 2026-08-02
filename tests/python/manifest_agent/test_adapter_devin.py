@@ -379,25 +379,31 @@ def test_devin_uninstall_parses_documented_table_inventory_variants() -> None:
     before = (
         "\x1b[1mInstalled plugins\x1b[0m\n"
         "Name │ Version │ Blocked\n"
-        "manifest-docs │ v0.2.0-beta.1 │ no\n"
-        "other-team/private │ unversioned │ required\n"
+        + "".join(f"{name} │ v0.2.0-beta.1 │ no\n" for name in DOMAIN_BUNDLES)
+        + "other-team/private │ unversioned │ required\n"
     )
     after = (
         "Installed plugins\n"
         "Name | Version | Blocked\n"
         "other-team/private | unversioned | required\n"
     )
-    runner = QueueRunner([command(stdout=before), command(), command(stdout=after)])
-    receipt = HarnessReceipt(
-        "devin", "1", "3000.2.17", ("manifest-docs",), (), {}, True
+    runner = QueueRunner(
+        [command(stdout=before)]
+        + [command() for _name in DOMAIN_BUNDLES]
+        + [command(stdout=after), command(), command(stdout=after)]
     )
+    receipt = HarnessReceipt("devin", "1", "3000.2.17", DOMAIN_BUNDLES, (), {}, True)
 
     result = DevinAdapter(runner=runner).uninstall(receipt)
 
     assert result.state is ResultState.READY
-    assert runner.log == [
+    assert runner.log[0] == ["devin", "plugins", "list"]
+    assert runner.log[1:10] == [
+        ["devin", "plugins", "remove", name] for name in DOMAIN_BUNDLES
+    ]
+    assert runner.log[-3:] == [
         ["devin", "plugins", "list"],
-        ["devin", "plugins", "remove", "manifest-docs"],
+        ["devin", "plugins", "prune"],
         ["devin", "plugins", "list"],
     ]
 

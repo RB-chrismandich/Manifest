@@ -436,8 +436,8 @@ def test_codex_uninstall_retains_marketplace_for_unowned_plugin() -> None:
 
 def test_codex_uninstall_removes_owned_marketplace_when_unreferenced() -> None:
     runner = QueueRunner(
-        [
-            command(stdout=plugin_remove_json("manifest-docs")),
+        [command(stdout=plugin_remove_json(name)) for name in DOMAIN_BUNDLES]
+        + [
             command(stdout=json.dumps({"installed": []})),
             command(
                 stdout=json.dumps(
@@ -450,7 +450,7 @@ def test_codex_uninstall_removes_owned_marketplace_when_unreferenced() -> None:
         harness="codex",
         adapter_version="1",
         native_version="0.146",
-        plugin_ids=("manifest-docs",),
+        plugin_ids=DOMAIN_BUNDLES,
         owned_entries=(OwnedEntry("marketplace", "manifest", "receipt"),),
         capabilities={},
         verified=True,

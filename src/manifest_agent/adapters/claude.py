@@ -32,6 +32,7 @@ from manifest_agent.process import CommandRunner, redact_text
 
 _MARKETPLACE = "manifest"
 _ADAPTER_VERSION = "1"
+_CANONICAL_PLUGIN_IDS = tuple(f"{name}@{_MARKETPLACE}" for name in DOMAIN_BUNDLES)
 
 
 class ClaudeAdapter(CapabilityAdapterMixin):
@@ -162,68 +163,29 @@ class ClaudeAdapter(CapabilityAdapterMixin):
 
     def uninstall(self, receipt: HarnessReceipt) -> HarnessResult:
         """Remove receipt-owned plugins and an unreferenced owned marketplace."""
-        if receipt.harness != self.name:
-            return _blocked(
-                f"receipt harness {receipt.harness!r} does not match {self.name!r}"
-            )
-        capabilities = self.remove_capabilities(receipt)
         plugin_ids, id_errors = _receipt_plugin_ids(receipt)
-        receipt_failures = [*_error_results(id_errors)]
+        invalid = self.validate_uninstall_receipt(
+            receipt,
+            plugin_ids,
+            _CANONICAL_PLUGIN_IDS,
+            identity_errors=id_errors,
+            marketplace_identifier=_MARKETPLACE,
+        )
+        if invalid is not None:
+            return invalid
+        capabilities = self.remove_capabilities(receipt)
         removal_commands = [
             (self.name, "plugin", "uninstall", plugin_id) for plugin_id in plugin_ids
         ]
         removal_failures = self._run_mutations(removal_commands)
-        failures = receipt_failures + removal_failures
         installed_ids, list_error = self._list_installed_manifest_ids()
         if list_error is not None:
-            return combine_results(capabilities, *failures, list_error)
+            return combine_results(capabilities, *removal_failures, list_error)
         assert installed_ids is not None
-        plugins = self._finish_uninstall(receipt, plugin_ids, failures, installed_ids)
+        plugins = _finish_uninstall(
+            self, receipt, plugin_ids, removal_failures, installed_ids
+        )
         return combine_results(capabilities, plugins)
-
-    def _finish_uninstall(
-        self,
-        receipt: HarnessReceipt,
-        plugin_ids: Sequence[str],
-        failures: list[HarnessResult],
-        installed_ids: set[str],
-    ) -> HarnessResult:
-        owned_remaining = tuple(
-            plugin_id for plugin_id in plugin_ids if plugin_id in installed_ids
-        )
-        unowned = sorted(installed_ids - set(plugin_ids))
-        warnings: tuple[str, ...] = ()
-        if unowned:
-            warnings = (
-                "manifest marketplace retained because an unowned plugin references it: "
-                + ", ".join(unowned),
-            )
-        elif not owned_remaining and not failures and _owns_marketplace(receipt):
-            marketplace_failure = self._run_mutations(
-                [
-                    (
-                        self.name,
-                        "plugin",
-                        "marketplace",
-                        "remove",
-                        _MARKETPLACE,
-                    )
-                ]
-            )
-            failures.extend(marketplace_failure)
-
-        result = HarnessResult(
-            self.name,
-            ResultState.BLOCKED if owned_remaining else ResultState.READY,
-            owned_remaining,
-            {},
-            errors=tuple(
-                f"receipt-owned plugin remains installed: {item}"
-                for item in owned_remaining
-            ),
-            warnings=warnings,
-        )
-        return combine_results(*failures, result) if failures else result
 
     def _list_installed_manifest_ids(
         self,
@@ -281,6 +243,51 @@ class ClaudeAdapter(CapabilityAdapterMixin):
                 f"native command execution failed ({type(error).__name__}): {error}"
             )
             return None, _blocked(diagnostic)
+
+
+def _finish_uninstall(
+    adapter: ClaudeAdapter,
+    receipt: HarnessReceipt,
+    plugin_ids: Sequence[str],
+    failures: list[HarnessResult],
+    installed_ids: set[str],
+) -> HarnessResult:
+    owned_remaining = tuple(
+        plugin_id for plugin_id in plugin_ids if plugin_id in installed_ids
+    )
+    unowned = sorted(installed_ids - set(plugin_ids))
+    warnings: tuple[str, ...] = ()
+    if unowned:
+        warnings = (
+            "manifest marketplace retained because an unowned plugin references it: "
+            + ", ".join(unowned),
+        )
+    elif not owned_remaining and not failures and _owns_marketplace(receipt):
+        marketplace_failure = adapter._run_mutations(
+            [
+                (
+                    adapter.name,
+                    "plugin",
+                    "marketplace",
+                    "remove",
+                    _MARKETPLACE,
+                )
+            ]
+        )
+        failures.extend(marketplace_failure)
+
+    result = HarnessResult(
+        adapter.name,
+        ResultState.BLOCKED if owned_remaining else ResultState.READY,
+        owned_remaining,
+        {},
+        errors=tuple(
+            f"receipt-owned plugin remains installed: {item}"
+            for item in owned_remaining
+        ),
+        warnings=warnings,
+    )
+    return combine_results(*failures, result) if failures else result
 
 
 def _validate_desired(desired: DesiredState) -> HarnessResult | None:
@@ -455,10 +462,6 @@ def _already_present(command: CommandResult) -> bool:
     return "already" in diagnostic and any(
         word in diagnostic for word in ("added", "exists", "installed", "present")
     )
-
-
-def _error_results(errors: Sequence[str]) -> tuple[HarnessResult, ...]:
-    return tuple(_blocked(error) for error in errors)
 
 
 def _blocked(error: str) -> HarnessResult:

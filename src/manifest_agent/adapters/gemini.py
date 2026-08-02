@@ -137,13 +137,17 @@ class GeminiAdapter(CapabilityAdapterMixin):
 
     def uninstall(self, receipt: HarnessReceipt) -> HarnessResult:
         """Uninstall only canonical extension names recorded by the receipt."""
-        if receipt.harness != self.name:
-            return _blocked(
-                f"receipt harness {receipt.harness!r} does not match {self.name!r}"
-            )
-        capabilities = self.remove_capabilities(receipt)
         plugin_ids, id_errors = _receipt_plugin_ids(receipt)
-        failures = [_blocked(error) for error in id_errors]
+        invalid = self.validate_uninstall_receipt(
+            receipt,
+            plugin_ids,
+            DOMAIN_BUNDLES,
+            identity_errors=id_errors,
+        )
+        if invalid is not None:
+            return invalid
+        capabilities = self.remove_capabilities(receipt)
+        failures: list[HarnessResult] = []
         for plugin_id in plugin_ids:
             command, error = self._execute(
                 (self.name, "extensions", "uninstall", plugin_id)

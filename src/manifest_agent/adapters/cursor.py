@@ -138,13 +138,11 @@ class CursorAdapter(CapabilityAdapterMixin):
 
     def uninstall(self, receipt: HarnessReceipt) -> HarnessResult:
         """Remove only the singular marketplace URL owned by the receipt."""
-        if receipt.harness != self.name:
-            return _blocked(
-                f"receipt harness {receipt.harness!r} does not match {self.name!r}"
-            )
-        capabilities = self.remove_capabilities(receipt)
-        if tuple(receipt.plugin_ids) != DOMAIN_BUNDLES:
-            return _blocked("receipt must contain the exact nine canonical domains")
+        invalid = self.validate_uninstall_receipt(
+            receipt, receipt.plugin_ids, DOMAIN_BUNDLES
+        )
+        if invalid is not None:
+            return invalid
         if not _is_url(self._repository_url):
             return _blocked("configured Manifest repository URL is invalid")
         marketplace_urls = tuple(
@@ -161,6 +159,7 @@ class CursorAdapter(CapabilityAdapterMixin):
                 "receipt must contain exactly one owned marketplace URL with the "
                 "Manifest marker and canonical repository identity"
             )
+        capabilities = self.remove_capabilities(receipt)
         command, error = self._execute(
             (
                 self.executable,
