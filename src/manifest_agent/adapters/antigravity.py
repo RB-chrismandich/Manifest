@@ -269,8 +269,10 @@ def _verify_imports(
         if row.get("source") != _MARKETPLACE:
             identity_error = True
             errors.append(
-                f"plugin {contract.name} expected source {_MARKETPLACE}, "
-                f"found {row.get('source')}"
+                redact_text(
+                    f"plugin {contract.name} expected source {_MARKETPLACE}, "
+                    f"found {row.get('source')}"
+                )
             )
         version = row.get("version")
         if version is not None and version != contract.version:

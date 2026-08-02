@@ -203,6 +203,20 @@ def test_antigravity_requires_exact_manifest_source_inventory(
     assert "expected source manifest" in " ".join(result.errors)
 
 
+def test_antigravity_redacts_untrusted_inventory_source(
+    desired: DesiredState,
+) -> None:
+    runner = QueueRunner(
+        [command(stdout=inventory_json(source="--token exposed-credential"))]
+    )
+
+    result = AntigravityAdapter(runner=runner).inspect(desired)
+
+    assert result.state is ResultState.BLOCKED
+    assert "exposed-credential" not in " ".join(result.errors)
+    assert "[REDACTED]" in " ".join(result.errors)
+
+
 def test_antigravity_rejects_noncanonical_inventory_before_native_validation(
     desired: DesiredState,
 ) -> None:

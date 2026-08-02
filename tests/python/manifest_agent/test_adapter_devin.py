@@ -362,6 +362,46 @@ def test_devin_uninstall_refuses_prune_when_unowned_preservation_is_unverified()
     assert not any(row[1:] == ["plugins", "prune"] for row in runner.log)
 
 
+def test_devin_uninstall_blocks_unparsed_inventory_before_removal() -> None:
+    stdout = list_text() + "\n@other/private 1.0\n"
+    runner = QueueRunner([command(stdout=stdout)])
+    receipt = HarnessReceipt("devin", "1", "3000.2.17", DOMAIN_BUNDLES, (), {}, True)
+
+    result = DevinAdapter(runner=runner).uninstall(receipt)
+
+    assert result.state is ResultState.BLOCKED
+    assert "unrecognized inventory row" in " ".join(result.errors)
+    assert runner.log == [["devin", "plugins", "list"]]
+    assert not any(row[1:] == ["plugins", "prune"] for row in runner.log)
+
+
+def test_devin_uninstall_parses_documented_table_inventory_variants() -> None:
+    before = (
+        "\x1b[1mInstalled plugins\x1b[0m\n"
+        "Name │ Version │ Blocked\n"
+        "manifest-docs │ v0.2.0-beta.1 │ no\n"
+        "other-team/private │ unversioned │ required\n"
+    )
+    after = (
+        "Installed plugins\n"
+        "Name | Version | Blocked\n"
+        "other-team/private | unversioned | required\n"
+    )
+    runner = QueueRunner([command(stdout=before), command(), command(stdout=after)])
+    receipt = HarnessReceipt(
+        "devin", "1", "3000.2.17", ("manifest-docs",), (), {}, True
+    )
+
+    result = DevinAdapter(runner=runner).uninstall(receipt)
+
+    assert result.state is ResultState.READY
+    assert runner.log == [
+        ["devin", "plugins", "list"],
+        ["devin", "plugins", "remove", "manifest-docs"],
+        ["devin", "plugins", "list"],
+    ]
+
+
 def test_devin_uninstall_removes_only_canonical_receipt_ids() -> None:
     runner = QueueRunner([])
     receipt = HarnessReceipt(

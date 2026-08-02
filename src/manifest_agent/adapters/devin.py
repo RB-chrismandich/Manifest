@@ -29,11 +29,17 @@ from manifest_agent.process import CommandRunner, redact_text
 
 _ADAPTER_VERSION = "1"
 _ANSI = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
-_PLUGIN_ID = re.compile(r"(?:[A-Za-z0-9][A-Za-z0-9._-]*/)?[A-Za-z0-9][A-Za-z0-9._-]*")
-_LIST_HEADINGS = frozenset({"installed", "plugin", "plugins", "name", "version"})
-_INFO_FIELDS = frozenset({"plugin", "version", "source"})
-_INFO_SECTION_ENDS = frozenset(
-    {"required plugins", "optional plugins", "forbidden plugins"}
+_PLUGIN_ID_PATTERN = r"(?:[A-Za-z0-9][A-Za-z0-9._-]*/)?[A-Za-z0-9][A-Za-z0-9._-]*"
+_PLUGIN_ID = re.compile(_PLUGIN_ID_PATTERN)
+_PLUGIN_VERSION_PATTERN = r"(?:v?\d+(?:\.\d+)+(?:[-+][0-9A-Za-z.-]+)?|unversioned)"
+_LIST_ROW = re.compile(
+    rf"^(?P<name>{_PLUGIN_ID_PATTERN})\s+"
+    rf"(?P<version>{_PLUGIN_VERSION_PATTERN})(?:\s+.*)?$",
+    re.IGNORECASE,
+)
+_LIST_SEPARATOR = re.compile(r"^[+|│─━═┄┈╌╍┅┉┴┬┼= _-]+$")
+_LIST_HEADINGS = frozenset(
+    {"installed", "plugin", "plugins", "name", "version", "blocked", "status"}
 )
 
 
@@ -182,7 +188,6 @@ class DevinAdapter:
         if failures or ownership.state is ResultState.BLOCKED:
             return combine_results(*failures, ownership) if failures else ownership
 
-        warnings: tuple[str, ...] = ()
         if len(plugin_ids) != len(DOMAIN_BUNDLES) or set(plugin_ids) != set(
             DOMAIN_BUNDLES
         ):
@@ -206,9 +211,7 @@ class DevinAdapter:
         assert final is not None
         return _uninstall_inventory_result(plugin_ids, unowned, final)
 
-    def _list_installed(
-        self,
-    ) -> tuple[set[str] | None, HarnessResult | None]:
+    def _list_installed(self) -> tuple[set[str] | None, HarnessResult | None]:
         command, error = self._execute((self.name, "plugins", "list"))
         if error is not None:
             return None, error
@@ -292,21 +295,54 @@ def _expected_skill_paths(desired: DesiredState, bundle: str) -> tuple[str, ...]
 
 def _list_plugin_ids(stdout: str) -> tuple[set[str], str | None]:
     plain = _ANSI.sub("", stdout).strip()
-    if plain == "No plugins installed.":
-        return set(), None
+    if not plain:
+        return set(), "devin plugins list returned an empty inventory"
     plugin_ids: set[str] = set()
-    for raw_line in plain.splitlines():
-        line = raw_line.strip().lstrip("?*+-|│├└ ").strip()
+    saw_empty_inventory = False
+    for line_number, raw_line in enumerate(plain.splitlines(), start=1):
+        line = _normalized_list_line(raw_line)
         if not line:
             continue
-        candidate = line.split(maxsplit=1)[0].rstrip(":")
-        if candidate.lower() in _LIST_HEADINGS or candidate.lower() == "no":
+        if line.lower() == "no plugins installed.":
+            saw_empty_inventory = True
             continue
-        if _PLUGIN_ID.fullmatch(candidate):
-            plugin_ids.add(candidate)
+        if _is_list_header(line) or _LIST_SEPARATOR.fullmatch(line):
+            continue
+        match = _LIST_ROW.fullmatch(line)
+        if match is None:
+            return (
+                set(),
+                f"devin plugins list contains an unrecognized inventory row "
+                f"at line {line_number}",
+            )
+        plugin_ids.add(match.group("name"))
+    if saw_empty_inventory and plugin_ids:
+        return set(), "devin plugins list returned a contradictory inventory"
+    if saw_empty_inventory:
+        return set(), None
     if not plugin_ids:
-        return set(), "devin plugins list returned an unrecognized inventory"
+        return set(), "devin plugins list returned no parseable inventory rows"
     return plugin_ids, None
+
+
+def _normalized_list_line(raw_line: str) -> str:
+    line = raw_line.strip()
+    if _LIST_SEPARATOR.fullmatch(line):
+        return line
+    line = line.strip("|│ ").lstrip("?*+!•├└ ").strip()
+    return " ".join(line.replace("│", " ").replace("|", " ").split())
+
+
+def _is_list_header(line: str) -> bool:
+    lowered = line.lower().rstrip(":")
+    if lowered == "installed plugins":
+        return True
+    words = set(lowered.split())
+    return (
+        bool(words)
+        and words <= _LIST_HEADINGS
+        and bool(words & {"name", "plugin", "plugins"})
+    )
 
 
 def _parse_info(stdout: str) -> tuple[Mapping[str, Any], str | None]:
@@ -320,7 +356,7 @@ def _parse_info(stdout: str) -> tuple[Mapping[str, Any], str | None]:
         lowered = stripped.lower()
         key, separator, value = stripped.partition(":")
         field = key.lower()
-        if separator and field in _INFO_FIELDS:
+        if separator and field in {"plugin", "version", "source"}:
             row["name" if field == "plugin" else field] = value.strip()
             in_skills = False
             continue
@@ -328,7 +364,7 @@ def _parse_info(stdout: str) -> tuple[Mapping[str, Any], str | None]:
         if header == "skills":
             in_skills = True
             continue
-        if header in _INFO_SECTION_ENDS:
+        if header in {"required plugins", "optional plugins", "forbidden plugins"}:
             in_skills = False
             continue
         if not in_skills or lowered == "(none)":
