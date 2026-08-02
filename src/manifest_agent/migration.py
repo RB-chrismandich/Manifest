@@ -457,6 +457,9 @@ class MigrationService:
         if unproven:
             return report("migrate", {}, errors=unproven)
         state = self._load_or_snapshot(active, desired)
+        mixed_errors = self._surgically_handle_mixed(active)
+        if mixed_errors:
+            return report("migrate", {}, errors=mixed_errors)
         results: dict[str, HarnessResult] = {}
         for name in active:
             phase = state["harnesses"].get(name, {}).get("phase", "snapshot")
@@ -497,6 +500,19 @@ class MigrationService:
         self._write_state(state)
         return report("migrate", ordered(results, self.harness_order))
 
+    def _surgically_handle_mixed(self, harnesses: Sequence[str]) -> tuple[str, ...]:
+        errors = []
+        for entry in self.inventory.entries:
+            if entry.classification != "mixed" or not set(entry.harnesses).intersection(
+                harnesses
+            ):
+                continue
+            path = _expand_home(entry.path, self.home)
+            error = _surgical_mixed_cleanup(path, entry, self.home)
+            if error is not None:
+                errors.append(error)
+        return tuple(errors)
+
     def _unproven_legacy_writers(self, harnesses: Sequence[str]) -> tuple[str, ...]:
         messages = []
         for entry in self.inventory.entries:
@@ -509,10 +525,6 @@ class MigrationService:
                 continue
             path = _expand_home(entry.path, self.home)
             if entry.classification == "mixed":
-                mixed_error = _mixed_legacy_error(path, entry)
-                if mixed_error is None:
-                    continue
-                messages.append(mixed_error)
                 continue
             if path.exists() or path.is_symlink():
                 messages.append(
@@ -930,28 +942,72 @@ def _migration_identity(desired: DesiredState) -> dict[str, object]:
     }
 
 
-def _mixed_legacy_error(path: Path, entry: LegacyInventoryEntry) -> str | None:
-    """Leave user-only JSON untouched; fail closed on legacy-shaped state."""
+def _surgical_mixed_cleanup(
+    path: Path, entry: LegacyInventoryEntry, home: Path
+) -> str | None:
+    """Remove only structurally exact legacy entries from a mixed JSON file."""
     if not path.exists():
         return None
     try:
         value = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, UnicodeError, json.JSONDecodeError):
         return f"mixed legacy settings {entry.path} are not valid JSON; remove the Manifest entry manually before migrating"
+    if not isinstance(value, dict):
+        return f"mixed legacy settings {entry.path} have an unsupported structure; remove the Manifest entry manually before migrating"
+    changed = False
+    # Context7 has a stable server key; remove it only as that exact map entry.
+    servers = value.get("mcpServers")
+    if isinstance(servers, dict) and "context7" in servers:
+        servers.pop("context7")
+        changed = True
+    # Devin's bootstrap pin is a single documented boolean, never a broad
+    # settings rewrite. Other read_config_from values are left alone.
+    inheritance = value.get("read_config_from")
+    if isinstance(inheritance, dict) and inheritance.get("claude") is True:
+        inheritance.pop("claude")
+        changed = True
+        if not inheritance:
+            value.pop("read_config_from")
+    # Hooks are lists of objects. A legacy command is exact only when it points
+    # at the retired Claude scripts tree and a known file, in tilde or absolute
+    # form. Preserve sibling ordering and objects byte-for-byte semantically.
+    hooks = value.get("hooks")
+    if isinstance(hooks, dict):
+        for event, items in list(hooks.items()):
+            if not isinstance(items, list):
+                continue
+            retained = []
+            for item in items:
+                command = item.get("command") if isinstance(item, dict) else None
+                if isinstance(command, str) and _is_exact_legacy_hook(command, home):
+                    changed = True
+                    continue
+                retained.append(item)
+            hooks[event] = retained
     encoded = json.dumps(value, sort_keys=True).lower()
-    # These are legacy Manifest identifiers, never inferred from a generic hook
-    # or user setting. Without an ownership receipt, removing them in-place is
-    # unsafe, so require a small targeted user repair instead.
     markers = (
         "manifest-hook-envelope-v1",
         "manifest-permission-v1",
         "~/.claude/scripts/",
-        "~/.manifest/",
+        str(home / ".claude" / "scripts").lower(),
         "manifest-agent",
     )
     if any(marker in encoded for marker in markers):
         return f"mixed legacy settings {entry.path} contain an unproven Manifest entry; remove only that entry before migrating"
+    if changed:
+        _write_json_atomic(path, value)
     return None
+
+
+def _is_exact_legacy_hook(command: str, home: Path) -> bool:
+    normalized = (
+        command.replace("~", str(home), 1) if command.startswith("~") else command
+    )
+    root = str(home / ".claude" / "scripts") + "/"
+    return normalized.startswith(root) and normalized.rsplit("/", 1)[-1] in {
+        "version_pin.sh",
+        "version_pin_hook.sh",
+    }
 
 
 def _receipt_identity_errors(

@@ -153,7 +153,7 @@ def test_manifest_shaped_mixed_settings_block_without_rewriting_user_data(
     home, _link = _legacy_home(tmp_path)
     settings = home / ".claude" / "settings.local.json"
     settings.write_text(
-        '{"user": true, "hook": "~/.claude/scripts/version_pin.sh"}', encoding="utf-8"
+        '{"user": true, "hook": "~/.claude/scripts/unknown.sh"}', encoding="utf-8"
     )
     before = settings.read_bytes()
     service = _service(tmp_path, MigrationAdapter(events))
