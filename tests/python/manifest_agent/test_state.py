@@ -229,6 +229,19 @@ def test_receipt_reader_rejects_unknown_fields(tmp_path):
         read_receipt(path)
 
 
+def test_receipt_reader_rejects_unknown_harness_identity(tmp_path):
+    path = tmp_path / "installation.json"
+    write_receipt_atomic(path, SAMPLE_RECEIPT)
+    document = json.loads(path.read_text(encoding="utf-8"))
+    unknown = dict(document["harnesses"]["claude"])
+    unknown["harness"] = "future-harness"
+    document["harnesses"]["future-harness"] = unknown
+    path.write_text(json.dumps(document), encoding="utf-8")
+
+    with pytest.raises(StateError, match="unsupported receipt harness"):
+        read_receipt(path)
+
+
 @pytest.mark.parametrize(
     ("mutation", "message"),
     [

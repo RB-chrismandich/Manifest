@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+from contextlib import contextmanager
+
 import pytest
 
+import manifest_agent.service as service_module
+import manifest_agent.service_state as service_state_module
 from manifest_agent.models import OwnedEntry, ResultState
-from manifest_agent.state import read_receipt
+from manifest_agent.state import StateError, read_receipt
 from tests.python.manifest_agent.test_service_install import (
     FakeAdapter,
     harness_result,
@@ -104,3 +108,84 @@ def test_uninstall_harness_all_blocks_for_missing_cli(service_factory):
     receipt = read_receipt(service.receipt_path)
     assert receipt is not None
     assert tuple(receipt.harnesses) == ("codex",)
+
+
+def test_uninstall_locks_before_reading_receipt(service_factory, monkeypatch):
+    claude = FakeAdapter("claude", harness_result("claude"))
+    service = service_factory({"claude": claude}, harnesses=("claude",))
+    service.install()
+    events = []
+    real_read = service_module.read_receipt
+
+    @contextmanager
+    def recording_lock(path=None):
+        events.append("lock")
+        yield path
+
+    def recording_read(path=None):
+        events.append("read")
+        return real_read(path)
+
+    service.lock_factory = recording_lock
+    monkeypatch.setattr(service_module, "read_receipt", recording_read)
+
+    service.uninstall()
+
+    assert events[:2] == ["lock", "read"]
+
+
+def test_uninstall_persists_each_success_before_later_adapter(service_factory):
+    observed_receipt_keys = []
+    codex = FakeAdapter("codex", harness_result("codex"))
+
+    class FailingClaude(FakeAdapter):
+        def uninstall(self, receipt):
+            current = read_receipt(service.receipt_path)
+            assert current is not None
+            observed_receipt_keys.append(tuple(current.harnesses))
+            return harness_result(
+                "claude", ResultState.BLOCKED, errors=("removal failed",)
+            )
+
+    claude = FailingClaude("claude", harness_result("claude"))
+    service = service_factory({"claude": claude, "codex": codex})
+    service.install()
+
+    report = service.uninstall()
+
+    assert report.state is ResultState.BLOCKED
+    assert observed_receipt_keys == [("claude",)]
+
+
+def test_uninstall_retries_progress_write_before_next_removal(
+    service_factory, monkeypatch
+):
+    writes = []
+    real_write = service_state_module.write_receipt_atomic
+    codex = FakeAdapter("codex", harness_result("codex"))
+
+    class ObservingClaude(FakeAdapter):
+        def uninstall(self, receipt):
+            current = read_receipt(service.receipt_path)
+            assert current is not None
+            assert tuple(current.harnesses) == ("claude",)
+            return harness_result(
+                "claude", ResultState.BLOCKED, errors=("removal failed",)
+            )
+
+    claude = ObservingClaude("claude", harness_result("claude"))
+    service = service_factory({"claude": claude, "codex": codex})
+    service.install()
+
+    def flaky_write(path, receipt):
+        writes.append(tuple(receipt.harnesses))
+        if len(writes) == 1:
+            raise StateError("transient write failure")
+        return real_write(path, receipt)
+
+    monkeypatch.setattr(service_state_module, "write_receipt_atomic", flaky_write)
+
+    report = service.uninstall()
+
+    assert report.state is ResultState.BLOCKED
+    assert writes[:2] == [("claude",), ("claude",)]

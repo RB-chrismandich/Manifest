@@ -23,6 +23,9 @@ _CREDENTIAL_KEY = re.compile(
 )
 _FULL_COMMIT = re.compile(r"^[0-9a-fA-F]{40}(?:[0-9a-fA-F]{24})?$")
 _SHA256 = re.compile(r"^[0-9a-fA-F]{64}$")
+_SUPPORTED_HARNESSES = frozenset(
+    {"claude", "codex", "gemini", "cursor", "antigravity", "devin"}
+)
 _NON_SUCCESS_CAPABILITY_VALUES = frozenset(
     {
         "blocked",
@@ -171,6 +174,11 @@ def _validate_receipt(
         for name, checksum in receipt.bundle_checksums.items()
     ):
         raise StateError("installation receipt bundle checksum is invalid")
+    unknown_harnesses = set(receipt.harnesses) - _SUPPORTED_HARNESSES
+    if unknown_harnesses:
+        raise StateError(
+            "unsupported receipt harness: " + ", ".join(sorted(unknown_harnesses))
+        )
     for name, harness in receipt.harnesses.items():
         if name != harness.harness:
             raise StateError("receipt harness key does not match its identity")

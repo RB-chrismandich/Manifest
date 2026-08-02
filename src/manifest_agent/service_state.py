@@ -122,6 +122,9 @@ def _safe_result(result: HarnessResult) -> HarnessResult:
 
 def ordered(values, harness_order):
     """Return harness-keyed values in the public deterministic order."""
+    unknown = set(values) - set(harness_order)
+    if unknown:
+        raise ValueError(f"unsupported harness keys: {', '.join(sorted(unknown))}")
     return {name: values[name] for name in harness_order if name in values}
 
 

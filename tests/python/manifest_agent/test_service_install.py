@@ -235,3 +235,53 @@ def test_install_snapshots_only_adapter_declared_files(service_factory, tmp_path
     assert len(snapshots) == 1
     assert snapshots[0].read_text(encoding="utf-8") == "owned-before"
     assert all("foreign-settings" not in path.name for path in snapshots)
+
+
+def test_targeted_install_preserves_unrequested_receipt_ownership(service_factory):
+    codex_owned = OwnedEntry("plugin", "codex-owned", "manifest")
+    claude = FakeAdapter("claude", harness_result("claude"))
+    codex = FakeAdapter("codex", harness_result("codex", owned_entries=(codex_owned,)))
+    service = service_factory({"claude": claude, "codex": codex})
+    service.install()
+    before = read_receipt(service.receipt_path)
+    assert before is not None
+    service.harnesses = ("claude",)
+    claude.result = harness_result(
+        "claude", owned_entries=(OwnedEntry("plugin", "claude-owned", "manifest"),)
+    )
+
+    report = service.install()
+
+    assert report.state is ResultState.READY
+    after = read_receipt(service.receipt_path)
+    assert after is not None
+    assert after.harnesses["codex"] == before.harnesses["codex"]
+    assert after.harnesses["codex"].owned_entries == (codex_owned,)
+
+
+def test_targeted_install_blocks_incompatible_existing_release(service_factory):
+    claude = FakeAdapter("claude", harness_result("claude"))
+    codex = FakeAdapter("codex", harness_result("codex"))
+    service = service_factory({"claude": claude, "codex": codex})
+    service.install()
+    before = read_receipt(service.receipt_path)
+    assert before is not None
+    old_release = service.release_resolver(service.source)
+    service.release_resolver = lambda selector: type(old_release)(
+        "2.0.0",
+        "c" * 40,
+        "replacement",
+        old_release.marketplace_source,
+        old_release.release_root,
+        old_release.repository_url,
+        False,
+        "d" * 64,
+    )
+    service.harnesses = ("claude",)
+    claude.calls.clear()
+
+    report = service.install()
+
+    assert report.state is ResultState.BLOCKED
+    assert "install" not in claude.calls
+    assert read_receipt(service.receipt_path) == before

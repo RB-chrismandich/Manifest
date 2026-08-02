@@ -96,6 +96,20 @@ class ManifestService:
         results = dict(missing)
         try:
             with self.lock_factory(self.receipt_path.parent / "install.lock"):
+                previous = read_receipt(self.receipt_path)
+                if previous is not None:
+                    conflicts = identity_errors(
+                        previous, desired, bundle_checksums(desired)
+                    )
+                    if conflicts:
+                        return report(
+                            "install",
+                            {},
+                            errors=(
+                                "existing receipt has incompatible release identity; "
+                                "use deliberate migration: " + "; ".join(conflicts),
+                            ),
+                        )
                 failures = snapshot_declared(
                     selected, desired, self.adapters, self.snapshot_root
                 )
@@ -114,6 +128,7 @@ class ManifestService:
                     detections,
                     self.adapters,
                     HARNESS_ORDER,
+                    previous=previous,
                 )
                 write_receipt_atomic(self.receipt_path, receipt)
         # constitution: exempt C-ERR -- service boundary converts failures to BLOCKED.
@@ -128,11 +143,24 @@ class ManifestService:
 
     def reconcile(self, apply: bool = False) -> ServiceReport:
         """Inspect desired state and optionally repair only drift or degradation."""
+        if apply:
+            try:
+                with self.lock_factory(self.receipt_path.parent / "install.lock"):
+                    receipt = read_receipt(self.receipt_path)
+                    return self._reconcile(receipt, apply=True)
+            # constitution: exempt C-ERR -- service boundary converts failures to BLOCKED.
+            except Exception as exception:
+                return report("reconcile", {}, errors=(diagnostic(exception),))
         try:
             receipt = read_receipt(self.receipt_path)
         # constitution: exempt C-ERR -- service boundary converts failures to BLOCKED.
         except Exception as exception:
             return report("reconcile", {}, errors=(diagnostic(exception),))
+        return self._reconcile(receipt, apply=False)
+
+    def _reconcile(
+        self, receipt: InstallationReceipt | None, *, apply: bool
+    ) -> ServiceReport:
         if receipt is None:
             return report(
                 "reconcile", {}, errors=("no installation receipt is available",)
@@ -141,33 +169,26 @@ class ManifestService:
         if error is not None:
             return report("reconcile", {}, errors=(error,))
         assert desired is not None
-        if not apply:
-            return self._reconcile_locked(receipt, desired, apply=False)
-        try:
-            with self.lock_factory(self.receipt_path.parent / "install.lock"):
-                return self._reconcile_locked(receipt, desired, apply=True)
-        # constitution: exempt C-ERR -- service boundary converts failures to BLOCKED.
-        except Exception as exception:
-            return report("reconcile", {}, errors=(diagnostic(exception),))
+        return _reconcile_desired(self, receipt, desired, apply=apply)
 
     def uninstall(self) -> ServiceReport:
         """Remove only receipt-recorded ownership in reverse harness order."""
-        try:
-            receipt = read_receipt(self.receipt_path)
-        # constitution: exempt C-ERR -- service boundary converts failures to BLOCKED.
-        except Exception as exception:
-            return report("uninstall", {}, errors=(diagnostic(exception),))
-        if receipt is None:
-            return report("uninstall", {}, notes=("nothing is installed",))
         results = {}
         notes = []
-        remaining = dict(receipt.harnesses)
         try:
             with self.lock_factory(self.receipt_path.parent / "install.lock"):
+                receipt = read_receipt(self.receipt_path)
+                if receipt is None:
+                    return report("uninstall", {}, notes=("nothing is installed",))
+                remaining = dict(receipt.harnesses)
                 for name in reversed(_uninstall_selection(self, receipt)):
                     adapter = self.adapters.get(name)
                     owned = receipt.harnesses.get(name)
                     if adapter is None:
+                        results[name] = _missing_result(
+                            name,
+                            Detection(False, None, None, "harness adapter unavailable"),
+                        )
                         continue
                     detection = _detect(name, adapter)
                     if not detection.present:
@@ -180,7 +201,9 @@ class ManifestService:
                     results[name] = result
                     if result.state is ResultState.READY:
                         remaining.pop(name, None)
-                persist_remaining(self.receipt_path, receipt, remaining, HARNESS_ORDER)
+                        _persist_progress(
+                            self.receipt_path, receipt, remaining, HARNESS_ORDER
+                        )
         # constitution: exempt C-ERR -- service boundary converts failures to BLOCKED.
         except Exception as exception:
             return report(
@@ -189,43 +212,6 @@ class ManifestService:
                 errors=(diagnostic(exception),),
             )
         return report("uninstall", ordered(results, HARNESS_ORDER), notes)
-
-    def _reconcile_locked(
-        self,
-        receipt: InstallationReceipt,
-        desired: DesiredState,
-        *,
-        apply: bool,
-    ) -> ServiceReport:
-        selected, detections, missing, notes = self._detect_requested()
-        results = dict(missing)
-        release_errors = identity_errors(receipt, desired, bundle_checksums(desired))
-        for name in selected:
-            adapter = self.adapters[name]
-            inspected = _adapter_call(name, adapter.inspect, desired)
-            drift_errors = _harness_drift_errors(receipt, name, adapter, release_errors)
-            current = (
-                combine_results(_drift_result(name, drift_errors), inspected)
-                if drift_errors
-                else inspected
-            )
-            if apply and current.state in {ResultState.DRIFTED, ResultState.DEGRADED}:
-                installed = _adapter_call(name, adapter.install, desired)
-                verified = _adapter_call(name, adapter.inspect, desired)
-                current = combine_results(installed, verified)
-            results[name] = current
-        results = ordered(results, HARNESS_ORDER)
-        if apply:
-            updated = build_receipt(
-                desired,
-                results,
-                detections,
-                self.adapters,
-                HARNESS_ORDER,
-                previous=receipt,
-            )
-            write_receipt_atomic(self.receipt_path, updated)
-        return report("reconcile", results, notes)
 
     def _desired_state(
         self, receipt_release: str | None = None
@@ -299,6 +285,71 @@ def _adapter_call(name: str, operation: Callable[..., Any], arg: Any) -> Harness
         )
 
 
+def _reconcile_desired(service, receipt, desired, *, apply):
+    selected, detections, missing, notes = _detect_reconcile(service, receipt)
+    results = dict(missing)
+    release_errors = identity_errors(receipt, desired, bundle_checksums(desired))
+    for name in selected:
+        adapter = service.adapters[name]
+        inspected = _adapter_call(name, adapter.inspect, desired)
+        drift_errors = _harness_drift_errors(receipt, name, adapter, release_errors)
+        current = (
+            combine_results(_drift_result(name, drift_errors), inspected)
+            if drift_errors
+            else inspected
+        )
+        if (
+            apply
+            and name in receipt.harnesses
+            and current.state in {ResultState.DRIFTED, ResultState.DEGRADED}
+        ):
+            installed = _adapter_call(name, adapter.install, desired)
+            verified = _adapter_call(name, adapter.inspect, desired)
+            current = combine_results(installed, verified)
+        results[name] = current
+    results = ordered(results, HARNESS_ORDER)
+    if apply:
+        owned_results = {
+            name: result
+            for name, result in results.items()
+            if name in receipt.harnesses
+        }
+        updated = build_receipt(
+            desired,
+            owned_results,
+            detections,
+            service.adapters,
+            HARNESS_ORDER,
+            previous=receipt,
+        )
+        write_receipt_atomic(service.receipt_path, updated)
+    return report("reconcile", results, notes)
+
+
+def _detect_reconcile(service, receipt):
+    if not service.harnesses:
+        candidates = tuple(receipt.harnesses)
+    elif service.harnesses == ("all",):
+        candidates = tuple(service.adapters)
+    else:
+        candidates = service.harnesses
+    candidates = tuple(name for name in HARNESS_ORDER if name in candidates)
+    selected, detections, missing = [], {}, {}
+    for name in candidates:
+        adapter = service.adapters.get(name)
+        detection = (
+            Detection(False, None, None, "harness adapter unavailable")
+            if adapter is None
+            else _detect(name, adapter)
+        )
+        detections[name] = detection
+        if detection.present:
+            selected.append(name)
+        else:
+            missing[name] = _missing_result(name, detection)
+    return tuple(selected), detections, missing, ()
+
+
 def _missing_result(name: str, detection: Detection) -> HarnessResult:
     return HarnessResult(
         name,
@@ -339,6 +390,19 @@ def _uninstall_selection(service, receipt) -> tuple[str, ...]:
     else:
         names = service.harnesses
     return tuple(name for name in HARNESS_ORDER if name in names)
+
+
+def _persist_progress(receipt_path, receipt, remaining, harness_order) -> None:
+    error = None
+    for _attempt in range(2):
+        try:
+            persist_remaining(receipt_path, receipt, remaining, harness_order)
+            return
+        # constitution: exempt C-ERR -- retry one transient durable-state failure.
+        except Exception as exception:
+            error = exception
+    assert error is not None
+    raise error
 
 
 def _normalize_harnesses(values: Sequence[str]) -> tuple[str, ...]:
