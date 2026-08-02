@@ -39,11 +39,8 @@ refuted one, each reason citing concrete `file:line` evidence. An empty survived
 
 ## Sub-agent dispatch
 
-When ≥3 candidate findings need refutation, dispatch one sub-agent per finding to attempt refutation, then
-aggregate verdicts; below that, refute inline. Pick the mechanism per the shared Sub-Agent Selection Rules
-(`configs/claude/references/sub-agent-dispatch.md`): native Task sub-agents on Claude, or `[[skill:parallel-agent]]` /
-inline on other assistants. Dispatched sub-agents execute their task directly and do not re-dispatch.
-
-Dispatch on **Opus** (`subagent_model: opus` in `command_config.yml`) — adversarial
-verification is the documented escalation case. Pass the model explicitly; do not inherit
-the session's.
+When ≥3 candidate findings need refutation, invoke `[[skill:parallel-agent]]`
+with one finding per review unit, adversarial verification enabled, and a bounded
+timeout, then aggregate its structured verdicts. If structured skill output is
+unavailable, perform the same refutations inline and report `DEGRADED`. Below
+the threshold, refute inline.

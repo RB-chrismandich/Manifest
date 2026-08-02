@@ -10,12 +10,12 @@ offline. Broader than `ci-diagnose-drift` (that's the config-override sub-case);
 
 ### Step 0: Detect platform
 
-Run `~/.claude/scripts/ci_platform.sh`. The method below (pinpoint the failing unit
+Run `../../runtime/bin/ci_platform.sh` relative to this skill directory. The method below (pinpoint the failing unit
 from the API, pin the commit, find its real definition, reproduce locally) applies on
 either platform — only the commands and the job-definition lookup change:
 
 - `github-actions` → steps 1-7 below apply as written.
-- `gitlab-ci` → load `~/.claude/references/ci/gitlab-ci-reproduction.md` for the real `glab
+- `gitlab-ci` → load `../../runtime/references/ci/gitlab-ci-reproduction.md` for the real `glab
   ci`/`glab api`/`glab job` equivalents (job-level, not step-level, granularity;
   `.gitlab-ci.yml` plus resolved `include:` in place of `.github/workflows/*.yml`) and
   apply the same method through that vocabulary instead.

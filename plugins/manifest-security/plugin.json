@@ -3,6 +3,34 @@
   "forbidden": [],
   "harnesses": {
     "antigravity": {
+      "compatibility": {
+        "imported": [
+          {
+            "component_id": "security-bin",
+            "component_type": "runtime",
+            "mode": "imported",
+            "path": "runtime/bin"
+          },
+          {
+            "component_id": "security-references",
+            "component_type": "runtime",
+            "mode": "imported",
+            "path": "runtime/references"
+          }
+        ]
+      },
+      "components": {
+        "runtime": [
+          {
+            "id": "security-bin",
+            "path": "runtime/bin"
+          },
+          {
+            "id": "security-references",
+            "path": "runtime/references"
+          }
+        ]
+      },
       "mode": "imported",
       "skills": [
         "skills/ci-audit-triggers",
@@ -18,6 +46,34 @@
       ]
     },
     "codex": {
+      "compatibility": {
+        "native": [
+          {
+            "component_id": "security-bin",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "runtime/bin"
+          },
+          {
+            "component_id": "security-references",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "runtime/references"
+          }
+        ]
+      },
+      "components": {
+        "runtime": [
+          {
+            "id": "security-bin",
+            "path": "runtime/bin"
+          },
+          {
+            "id": "security-references",
+            "path": "runtime/references"
+          }
+        ]
+      },
       "mode": "native",
       "skills": [
         "skills/ci-audit-triggers",
@@ -33,6 +89,34 @@
       ]
     },
     "cursor": {
+      "compatibility": {
+        "generated": [
+          {
+            "component_id": "security-bin",
+            "component_type": "runtime",
+            "mode": "generated",
+            "path": "runtime/bin"
+          },
+          {
+            "component_id": "security-references",
+            "component_type": "runtime",
+            "mode": "generated",
+            "path": "runtime/references"
+          }
+        ]
+      },
+      "components": {
+        "runtime": [
+          {
+            "id": "security-bin",
+            "path": "runtime/bin"
+          },
+          {
+            "id": "security-references",
+            "path": "runtime/references"
+          }
+        ]
+      },
       "mode": "generated",
       "skills": [
         "skills/ci-audit-triggers",
@@ -48,6 +132,34 @@
       ]
     },
     "devin": {
+      "compatibility": {
+        "native": [
+          {
+            "component_id": "security-bin",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "runtime/bin"
+          },
+          {
+            "component_id": "security-references",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "runtime/references"
+          }
+        ]
+      },
+      "components": {
+        "runtime": [
+          {
+            "id": "security-bin",
+            "path": "runtime/bin"
+          },
+          {
+            "id": "security-references",
+            "path": "runtime/references"
+          }
+        ]
+      },
       "mode": "native",
       "skills": [
         "skills/ci-audit-triggers",

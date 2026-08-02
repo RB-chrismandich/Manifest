@@ -2,7 +2,43 @@
   "author": {
     "name": "ReefBytes"
   },
+  "compatibility": {
+    "degraded": [
+      {
+        "component_id": "ops-bin",
+        "component_type": "runtime",
+        "mode": "degraded",
+        "path": "runtime/bin",
+        "reason": "claude native manifest cannot encode runtime component 'ops-bin' at 'runtime/bin'"
+      },
+      {
+        "component_id": "ops-config",
+        "component_type": "runtime",
+        "mode": "degraded",
+        "path": "runtime/config",
+        "reason": "claude native manifest cannot encode runtime component 'ops-config' at 'runtime/config'"
+      },
+      {
+        "component_id": "ops-references",
+        "component_type": "runtime",
+        "mode": "degraded",
+        "path": "runtime/references",
+        "reason": "claude native manifest cannot encode runtime component 'ops-references' at 'runtime/references'"
+      }
+    ],
+    "native": [
+      {
+        "component_id": "version-pin",
+        "component_type": "hooks",
+        "mode": "native",
+        "path": "hooks/version-pin.json"
+      }
+    ]
+  },
   "description": "CI, deployment, configuration, container, and runtime operations workflows.",
+  "hooks": [
+    "./hooks/version-pin.json"
+  ],
   "name": "manifest-ops",
   "skills": [
     "./skills/cache-warm-oob",

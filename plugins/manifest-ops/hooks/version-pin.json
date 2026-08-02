@@ -1,0 +1,22 @@
+{
+  "_manifest": {
+    "id": "version-pin",
+    "mode": "advisory",
+    "owner": "manifest-ops"
+  },
+  "description": "Warn after edits to dependency files without rewriting them.",
+  "hooks": {
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "command": "${CLAUDE_PLUGIN_ROOT}/runtime/bin/version_pin_hook.sh",
+            "timeout": 30,
+            "type": "command"
+          }
+        ],
+        "matcher": "Write|Edit"
+      }
+    ]
+  }
+}

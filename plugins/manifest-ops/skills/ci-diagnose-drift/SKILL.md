@@ -9,7 +9,7 @@ stricter threshold than the repo's committed config declares.
 
 ### Step 0: Detect platform
 
-Run `~/.claude/scripts/ci_platform.sh`. The diagnosis method below (compare the
+Run `../../runtime/bin/ci_platform.sh` relative to this skill directory. The diagnosis method below (compare the
 repo's committed linter config against how CI actually invokes the linter, confirm
 the mismatch is the root cause, fix in the deliberate direction, verify at the
 annotation level) applies on either platform — only where CI's overrides live
@@ -21,7 +21,7 @@ changes:
   `include:` directives first — the job that runs the linter may be defined in an
   included file, not the top-level `.gitlab-ci.yml` (`glab ci config compile` prints
   the fully merged, include-resolved config; see
-  `~/.claude/references/ci/gitlab-ci-reproduction.md` for
+  `../../runtime/references/ci/gitlab-ci-reproduction.md` for
   the command). Then check the GitLab-specific override locations in step 2 below.
 - `none` → report that no CI configuration was detected and stop; don't guess at a
   platform.

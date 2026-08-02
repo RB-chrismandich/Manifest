@@ -10,7 +10,9 @@ components:
     include: ["*/SKILL.md"]
   agents: []
   hooks: []
-  runtime: []
+  runtime:
+    - {id: security-bin, path: runtime/bin}
+    - {id: security-references, path: runtime/references}
   guidance: []
 capabilities:
   mcp:

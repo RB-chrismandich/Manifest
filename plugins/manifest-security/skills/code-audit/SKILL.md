@@ -53,7 +53,10 @@ Activate when file metrics exceed thresholds:
 
 When triggered, this skill:
 
-0. **Consults knowledge base** for known issues in the detected language:
+0. **Loads local doctrine and known issues.** Read
+   `../../runtime/references/code-constitution.md` and
+   `../../runtime/references/antipatterns.md`, then consult the mutable knowledge
+   base for the detected language:
 
    ```bash
    [[skill:learning-capture]] query --language <detected-language> --format llm
@@ -117,9 +120,17 @@ a `detection_cue` and a `prevention_rule`.
 - These findings are **advisory and non-blocking** (spec 457 FR-011): they
   never gate or interrupt the workflow. Blocking remains exclusive to the
   Tier 1 validation gates (`validation_criteria.yml`).
-- Full per-entry detail: `~/.claude/references/antipatterns.md`. For a
-  systematic whole-codebase review, suggest `/manifest-code-quality:ai-code-audit` instead of
+- Full per-entry detail: `../../runtime/references/antipatterns.md`. For a
+  systematic whole-codebase review, suggest `[[skill:ai-code-audit]]` instead of
   expanding inline feedback.
+
+### Optional Semgrep pass
+
+Semgrep is optional. Run it only when the user selected the `semgrep`
+capability or the requested audit mode explicitly requires Semgrep. Its absence
+must not fail the default inline audit. If a selected or explicitly requested
+Semgrep mode lacks the executable, fail that mode with an actionable capability
+message instead of silently claiming the scan ran.
 
 ## Output Format
 
@@ -161,7 +172,7 @@ This skill provides information without interrupting user workflow:
 
 ## Integration with Commands
 
-This skill works alongside the `/manifest-code-quality:python-refactor` command:
+This skill works alongside `[[skill:python-refactor]]`:
 
 - **Skill**: Lightweight, auto-triggered, inline feedback
 - **Command**: Comprehensive, user-invoked, full report
@@ -169,12 +180,13 @@ This skill works alongside the `/manifest-code-quality:python-refactor` command:
 When both trigger:
 
 1. Skill provides immediate feedback
-2. User can invoke `/manifest-code-quality:python-refactor` for detailed analysis
+2. User can invoke `[[skill:python-refactor]]` for detailed analysis
 3. Results are complementary, not duplicated
 
 ## Configuration
 
-Thresholds can be customized in `~/.claude/config/command_config.yml`:
+Use these bundle-owned defaults unless the user supplies explicit thresholds for
+the current invocation:
 
 ```yaml
 thresholds:
