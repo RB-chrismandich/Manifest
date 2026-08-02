@@ -2,6 +2,7 @@
 """Resolve immutable Forge tracker defaults with optional XDG JSON overlays.
 
 Usage:
+  tracker_registry.py dump-registry
   tracker_registry.py status <provider> <canonical-status>
   tracker_registry.py access <provider>
   tracker_registry.py default-provider
@@ -98,6 +99,9 @@ def main(argv: list[str]) -> int:
         die(2, str(exc))
 
     command, rest = argv[0], argv[1:]
+    if command == "dump-registry":
+        print(json.dumps(data, sort_keys=True))
+        return 0
     if command == "default-provider":
         print(data["default_provider"])
         return 0

@@ -53,7 +53,11 @@ print(json.dumps(j))' "${j}" "${to}" "${reason}" "${now}")"
 
 # --- US3: four-tier hierarchy provisioning (FR-013..FR-017) -----------------------------
 
-LIFECYCLE_PROVIDERS_CONFIG="${LIFECYCLE_PROVIDERS_CONFIG:-${FORGE_CONFIG_DIR}/tracker_providers.json}"
+TRACKER_REGISTRY="${FORGE_RUNTIME_DIR}/python/tracker_registry.py"
+
+provider_registry_json() {
+    python3 "${TRACKER_REGISTRY}" dump-registry
+}
 
 # Provider tool seam: create ONE remote node, echo its external id; non-zero = failure.
 # args: <provider> <construct> <title> <parent-external-id-or-empty>. Real backends route to
@@ -98,16 +102,15 @@ provision_remote() {
 
 # Resolve a tier -> native construct from config. Echoes the construct, or ERR:* / MISSING:<behavior>.
 resolve_tier_construct() {
-    local provider="$1" tier="$2"
-    [ -f "${LIFECYCLE_PROVIDERS_CONFIG}" ] || {
-        echo "ERR:no-config"
+    local provider="$1" tier="$2" registry
+    registry="$(provider_registry_json)" || {
+        echo "ERR:unreadable-config"
         return 0
     }
     python3 -c '
 import json, sys
 try:
-    with open(sys.argv[1], encoding="utf-8") as stream:
-        cfg = json.load(stream) or {}
+    cfg = json.loads(sys.argv[1]) or {}
 except Exception:
     print("ERR:unreadable-config"); sys.exit(0)
 p = (cfg.get("providers") or {}).get(sys.argv[2])
@@ -115,7 +118,7 @@ if not p:
     print("ERR:unknown-provider"); sys.exit(0)
 c = (p.get("tier_map") or {}).get(int(sys.argv[3]))
 print(str(c) if c is not None else "MISSING:%s" % p.get("missing_tier_behavior", "error"))
-' "${LIFECYCLE_PROVIDERS_CONFIG}" "${provider}" "${tier}"
+' "${registry}" "${provider}" "${tier}"
 }
 
 # provision <track-id> --tier N --title T [--key K] [--parent-tier M] [--parent-id P] [--external-id X]
@@ -187,7 +190,7 @@ cmd_provision() {
     construct="$(resolve_tier_construct "${provider}" "${tier}")"
     case "${construct}" in
         ERR:*)
-            err "provider config error: ${construct#ERR:} (${LIFECYCLE_PROVIDERS_CONFIG})"
+            err "provider config error: ${construct#ERR:} (tracker registry)"
             return 2
             ;;
         MISSING:collapse-to-label) construct="label:tier${tier}" ;; # the ONLY declared fallback
@@ -269,27 +272,26 @@ print(json.dumps(j))' "${tier}" "${key}" "${construct}" "${new_ext}" "${rc}" "${
 # Jira/Linear render as a workflow TRANSITION/state (Jira ids resolved at runtime via the
 # Atlassian MCP getTransitionsForJiraIssue, never free-text); GitHub/GitLab render as a label.
 cmd_status_map() {
-    local provider="${1:-}" canonical="${2:-}"
+    local provider="${1:-}" canonical="${2:-}" registry
     [ -n "${provider}" ] && [ -n "${canonical}" ] || {
         err "status-map requires <provider> <canonical-status>"
         return 64
     }
-    [ -f "${LIFECYCLE_PROVIDERS_CONFIG}" ] || {
-        err "no providers config (${LIFECYCLE_PROVIDERS_CONFIG})"
+    registry="$(provider_registry_json)" || {
+        err "cannot load tracker registry"
         return 2
     }
     python3 -c '
 import json, sys
 try:
-    with open(sys.argv[1], encoding="utf-8") as stream:
-        cfg = json.load(stream) or {}
+    cfg = json.loads(sys.argv[1]) or {}
 except Exception: sys.exit(2)
 p = (cfg.get("providers") or {}).get(sys.argv[2])
 if not p: sys.exit(2)
 val = (p.get("status_map") or {}).get(sys.argv[3])
 if val is None: sys.exit(2)
 print("%s\t%s" % (p.get("status_via", "label"), val))
-' "${LIFECYCLE_PROVIDERS_CONFIG}" "${provider}" "${canonical}" ||
+' "${registry}" "${provider}" "${canonical}" ||
         {
             err "status-map: no mapping for ${provider}/${canonical}"
             return 2
@@ -299,15 +301,19 @@ print("%s\t%s" % (p.get("status_via", "label"), val))
 # --- US5: review-gate verdict, loop-safe reconciliation, drift audit (FR-021,FR-026,FR-027) ---
 
 phase_canonical() {
+    local registry
+    registry="$(provider_registry_json)" || {
+        echo "in-progress"
+        return 0
+    }
     python3 -c '
 import json, sys
 try:
-    with open(sys.argv[1], encoding="utf-8") as stream:
-        m=(json.load(stream) or {}).get("phase_to_canonical_status") or {}
+    m=(json.loads(sys.argv[1]) or {}).get("phase_to_canonical_status") or {}
     print(m.get(sys.argv[2],"in-progress"))
 except Exception:
     print("in-progress")
-' "${LIFECYCLE_PROVIDERS_CONFIG}" "$1"
+' "${registry}" "$1"
 }
 
 # verdict [--from <file>|--stdin]: map a /spec-review --format json result to a gate signal

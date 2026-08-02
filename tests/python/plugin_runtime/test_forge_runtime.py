@@ -243,6 +243,99 @@ def test_lifecycle_rejects_symlink_track_escape(
     assert outside.read_text(encoding="utf-8") == '{"sentinel": true}\n'
 
 
+def test_lifecycle_ignores_external_state_override_for_init_and_advance(
+    forge_bundle: Path, isolated_env: dict[str, str], tmp_path: Path
+) -> None:
+    outside = tmp_path / "outside-state"
+    outside.mkdir()
+    sentinel = outside / "sentinel"
+    sentinel.write_text("untouched\n", encoding="utf-8")
+    env = {**isolated_env, "LIFECYCLE_STATE_DIR": str(outside)}
+    lifecycle = forge_bundle / "runtime/bin/lifecycle.sh"
+
+    initialized = _run(lifecycle, "init", "PROJ-777", env=env, cwd=tmp_path)
+    advanced = _run(
+        lifecycle,
+        "advance",
+        "jira__PROJ-777",
+        "--actor",
+        "agent",
+        "--gate",
+        '{"gate_type":"artifact","present":true}',
+        env=env,
+        cwd=tmp_path,
+    )
+
+    assert initialized.returncode == 0, initialized.stderr
+    assert advanced.returncode == 0, advanced.stderr
+    expected = (
+        Path(isolated_env["XDG_STATE_HOME"])
+        / "manifest/forge/lifecycle/jira__PROJ-777.json"
+    )
+    assert expected.is_file()
+    assert list(outside.iterdir()) == [sentinel]
+    assert sentinel.read_text(encoding="utf-8") == "untouched\n"
+
+
+def test_lifecycle_rejects_symlinked_xdg_ancestor_without_external_write(
+    forge_bundle: Path, isolated_env: dict[str, str], tmp_path: Path
+) -> None:
+    outside = tmp_path / "outside-state"
+    outside.mkdir()
+    state_root = Path(isolated_env["XDG_STATE_HOME"])
+    (state_root / "manifest").symlink_to(outside, target_is_directory=True)
+
+    result = _run(
+        forge_bundle / "runtime/bin/lifecycle.sh",
+        "init",
+        "PROJ-888",
+        env=isolated_env,
+        cwd=tmp_path,
+    )
+
+    assert result.returncode != 0
+    assert "unsafe lifecycle state path" in result.stderr
+    assert list(outside.iterdir()) == []
+
+
+def test_lifecycle_ignores_arbitrary_provider_config_and_merges_xdg_overlay(
+    forge_bundle: Path, isolated_env: dict[str, str], tmp_path: Path
+) -> None:
+    lifecycle = forge_bundle / "runtime/bin/lifecycle.sh"
+    hostile = tmp_path / "providers.json"
+    hostile.write_text(
+        json.dumps(
+            {
+                "default_provider": "github",
+                "providers": {
+                    "github": {
+                        "status_via": "label",
+                        "status_map": {"planned": "hostile"},
+                    }
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    env = {**isolated_env, "LIFECYCLE_PROVIDERS_CONFIG": str(hostile)}
+
+    bundled = _run(lifecycle, "status-map", "github", "planned", env=env, cwd=tmp_path)
+
+    assert bundled.returncode == 0, bundled.stderr
+    assert bundled.stdout.strip() == "label\tplanned"
+
+    overlay_dir = Path(isolated_env["XDG_CONFIG_HOME"]) / "manifest/forge"
+    overlay_dir.mkdir(parents=True)
+    (overlay_dir / "tracker_providers.json").write_text(
+        json.dumps({"providers": {"github": {"status_map": {"planned": "queued"}}}}),
+        encoding="utf-8",
+    )
+    overlaid = _run(lifecycle, "status-map", "github", "planned", env=env, cwd=tmp_path)
+
+    assert overlaid.returncode == 0, overlaid.stderr
+    assert overlaid.stdout.strip() == "label\tqueued"
+
+
 def test_forge_runtime_uses_json_and_has_no_legacy_runtime_dependencies(
     forge_bundle: Path,
 ) -> None:
@@ -263,6 +356,8 @@ def test_forge_runtime_uses_json_and_has_no_legacy_runtime_dependencies(
         "TRACKER_OPS_BIN",
         "ISSUE_SUPPORT_ENGINE",
         "PR_REVIEW_FETCH",
+        "LIFECYCLE_STATE_DIR",
+        "LIFECYCLE_PROVIDERS_CONFIG",
     )
     sources = [
         *forge_bundle.glob("runtime/bin/*.sh"),

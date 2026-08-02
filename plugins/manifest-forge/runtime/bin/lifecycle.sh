@@ -16,7 +16,7 @@
 #   anchor <track-id>                  Re-emit the active phase (drift re-anchoring).
 #   regress <track-id> --to <phase> --reason <text>
 #
-# State: ${LIFECYCLE_STATE_DIR:-$XDG_STATE_HOME/manifest/forge/lifecycle}
+# State: $XDG_STATE_HOME/manifest/forge/lifecycle
 #        track-id == <provider>__<sanitized-entity-id>; files 0600 in a 0700 dir.
 
 set -euo pipefail
@@ -25,10 +25,12 @@ err() { if [[ -t 2 ]]; then printf '\033[0;31m%s\033[0m\n' "lifecycle: $*" >&2; 
 
 FORGE_RUNTIME_DIR=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd -P)
 FORGE_CONFIG_DIR="$FORGE_RUNTIME_DIR/config"
-FORGE_STATE_DIR="${XDG_STATE_HOME:-${HOME}/.local/state}/manifest/forge"
+XDG_STATE_ROOT="${XDG_STATE_HOME:-${HOME}/.local/state}"
+FORGE_STATE_DIR="${XDG_STATE_ROOT}/manifest/forge"
 export FORGE_RUNTIME_DIR FORGE_CONFIG_DIR FORGE_STATE_DIR
-STATE_DIR="${LIFECYCLE_STATE_DIR:-${FORGE_STATE_DIR}/lifecycle}"
+STATE_DIR="${FORGE_STATE_DIR}/lifecycle"
 SCRIPT_DIR="$FORGE_RUNTIME_DIR/bin"
+STATE_PATH_VALIDATOR="${FORGE_RUNTIME_DIR}/python/lifecycle_state.py"
 
 # Smoke execution is an explicit argv seam; the Forge bundle never traverses
 # into another plugin or guesses a harness-global executable path.
@@ -184,13 +186,17 @@ validate_track_id() {
     esac
 }
 
+validate_state_path() {
+    if ! python3 "${STATE_PATH_VALIDATOR}" "${XDG_STATE_ROOT}" "${STATE_DIR}"; then
+        err "unsafe lifecycle state path: ${STATE_DIR}"
+        return 64
+    fi
+}
+
 track_path() {
     local id="$1" path
     validate_track_id "${id}" || return $?
-    if [ -L "${STATE_DIR}" ]; then
-        err "unsafe lifecycle state directory: ${STATE_DIR}"
-        return 64
-    fi
+    validate_state_path || return $?
     path="${STATE_DIR}/${id}.json"
     if [ -L "${path}" ]; then
         err "unsafe track path: ${path}"
@@ -199,10 +205,14 @@ track_path() {
     printf '%s\n' "${path}"
 }
 
-ensure_state_dir() { [ -d "${STATE_DIR}" ] || {
-    mkdir -p "${STATE_DIR}"
-    chmod 700 "${STATE_DIR}"
-}; }
+ensure_state_dir() {
+    validate_state_path || return $?
+    if [ ! -d "${STATE_DIR}" ]; then
+        mkdir -p "${STATE_DIR}"
+        validate_state_path || return $?
+        chmod 700 "${STATE_DIR}"
+    fi
+}
 
 read_track() {
     local p
@@ -222,6 +232,11 @@ write_track() {
     tmp="$(mktemp "${STATE_DIR}/.track.XXXXXX")" || return $?
     printf '%s\n' "$2" > "${tmp}"
     chmod 600 "${tmp}"
+    p="$(track_path "$1")" || {
+        local rc=$?
+        rm -f "${tmp}"
+        return "${rc}"
+    }
     mv "${tmp}" "${p}"
 }
 
