@@ -191,9 +191,14 @@ def test_registry_match_passes(skills: Path, tmp_path: Path):
 def test_real_registry_matches_the_tree():
     """The committed integer must equal the catalog it guards, today."""
     registry = REPO_ROOT / "configs" / "claude" / "config" / "skill_policies.yml"
+    roots = ":".join(
+        str(path / "skills")
+        for path in sorted((REPO_ROOT / "plugins").iterdir())
+        if (path / "skills").is_dir()
+    )
     result = run_checker(
         "--roots",
-        str(REPO_ROOT / ".apm" / "skills"),
+        roots,
         "--registry",
         str(registry),
         "--baseline",
