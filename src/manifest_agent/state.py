@@ -87,7 +87,7 @@ def write_receipt_atomic(
 
     document = asdict(receipt)
     _assert_secret_free(document)
-    _validate_receipt(receipt)
+    _validate_receipt(receipt, ownership_key_path=destination.parent / "ownership.key")
     payload = (json.dumps(document, indent=2, sort_keys=True) + "\n").encode()
     destination.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
 
@@ -130,7 +130,7 @@ def read_receipt(path: Path | None = None) -> InstallationReceipt | None:
         receipt = _decode_receipt(document)
     except (KeyError, TypeError, ValueError) as error:
         raise StateError("installation receipt has an invalid schema") from error
-    _validate_receipt(receipt)
+    _validate_receipt(receipt, ownership_key_path=source.parent / "ownership.key")
     return receipt
 
 
@@ -157,7 +157,9 @@ def _assert_secret_free(value: Any, *, key: str | None = None) -> None:
         raise StateError("receipt contains credential material")
 
 
-def _validate_receipt(receipt: InstallationReceipt) -> None:
+def _validate_receipt(
+    receipt: InstallationReceipt, *, ownership_key_path: Path
+) -> None:
     if receipt.schema_version != 1:
         raise StateError("unsupported installation receipt schema version")
     if not _FULL_COMMIT.fullmatch(receipt.source_commit):
@@ -181,7 +183,9 @@ def _validate_receipt(receipt: InstallationReceipt) -> None:
             raise StateError(
                 "an unverified harness must use explicit non-success capabilities"
             )
-        ownership_errors = capability_ownership_errors(harness)
+        ownership_errors = capability_ownership_errors(
+            harness, key_path=ownership_key_path
+        )
         if ownership_errors:
             raise StateError("; ".join(ownership_errors))
 

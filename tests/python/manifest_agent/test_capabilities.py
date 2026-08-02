@@ -146,7 +146,9 @@ def test_catalogs_are_exact_secret_free_coordinator_data() -> None:
     assert not {"bash", "git", "node", "python3"} & set(executable_catalog)
 
 
-def test_missing_default_graphify_uses_one_pinned_user_scope_recipe(contracts) -> None:
+def test_missing_default_graphify_uses_one_pinned_user_scope_recipe(
+    contracts, tmp_path: Path
+) -> None:
     plan = resolve_capabilities(contracts, selected_optional=set())
     runner = ExecutableRunner()
 
@@ -162,6 +164,7 @@ def test_missing_default_graphify_uses_one_pinned_user_scope_recipe(contracts) -
         plan,
         runner=runner,
         which=which,
+        env={"HOME": str(tmp_path)},
         configure_mcp=False,
     )
 
@@ -191,7 +194,7 @@ def test_matching_preexisting_graphify_is_preserved(contracts) -> None:
 
 
 def test_mismatched_preexisting_graphify_is_reconciled_to_exact_pin(
-    contracts,
+    contracts, tmp_path: Path
 ) -> None:
     plan = resolve_capabilities(contracts, selected_optional=set())
     runner = ExecutableRunner(version="0.9.30")
@@ -201,6 +204,7 @@ def test_mismatched_preexisting_graphify_is_reconciled_to_exact_pin(
         plan,
         runner=runner,
         which=lambda name: name,
+        env={"HOME": str(tmp_path)},
         configure_mcp=False,
     )
 
@@ -216,8 +220,9 @@ def test_mismatched_preexisting_graphify_is_reconciled_to_exact_pin(
     ]
 
 
-def test_graphify_uninstall_requires_receipt_ownership() -> None:
+def test_graphify_uninstall_requires_receipt_ownership(tmp_path: Path) -> None:
     runner = ExecutableRunner()
+    env = {"HOME": str(tmp_path)}
     unowned = HarnessReceipt("claude", "1", "1", (), (), {}, True)
     forged = replace(
         unowned,
@@ -225,13 +230,13 @@ def test_graphify_uninstall_requires_receipt_ownership() -> None:
     )
     owned = replace(
         unowned,
-        owned_entries=(owned_capability_entry("executable", "graphify"),),
+        owned_entries=(owned_capability_entry("executable", "graphify", env=env),),
         capabilities={"executable:graphify": "installed-by-manifest"},
     )
 
-    first = remove_owned_capabilities("claude", unowned, runner=runner)
-    second = remove_owned_capabilities("claude", forged, runner=runner)
-    third = remove_owned_capabilities("claude", owned, runner=runner)
+    first = remove_owned_capabilities("claude", unowned, runner=runner, env=env)
+    second = remove_owned_capabilities("claude", forged, runner=runner, env=env)
+    third = remove_owned_capabilities("claude", owned, runner=runner, env=env)
 
     assert first.state is ResultState.READY
     assert second.state is ResultState.BLOCKED

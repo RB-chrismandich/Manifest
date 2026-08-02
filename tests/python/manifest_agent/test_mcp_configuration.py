@@ -191,9 +191,13 @@ def _cursor_desired(tmp_path: Path) -> DesiredState:
         ),
     ],
 )
-def test_documented_native_mcp_commands_are_exact(adapter_type, expected) -> None:
+def test_documented_native_mcp_commands_are_exact(
+    adapter_type, expected, tmp_path: Path
+) -> None:
     runner = RecordingRunner()
-    adapter = adapter_type(runner=runner, which=lambda name: name)
+    adapter = adapter_type(
+        runner=runner, which=lambda name: name, env={"HOME": str(tmp_path)}
+    )
 
     result = adapter.apply_capabilities(_plan())
 
@@ -202,14 +206,16 @@ def test_documented_native_mcp_commands_are_exact(adapter_type, expected) -> Non
     assert result.capabilities["mcp:context7"] == "installed-by-manifest"
 
 
-def test_native_mcp_failure_is_redacted_and_tier_truthful() -> None:
+def test_native_mcp_failure_is_redacted_and_tier_truthful(tmp_path: Path) -> None:
     runner = RecordingRunner(
         [CommandResult(("fixture",), 1, "", "--token native-secret rejected")]
     )
 
-    result = ClaudeAdapter(runner=runner, which=lambda name: name).apply_capabilities(
-        _plan()
-    )
+    result = ClaudeAdapter(
+        runner=runner,
+        which=lambda name: name,
+        env={"HOME": str(tmp_path)},
+    ).apply_capabilities(_plan())
 
     assert result.state is ResultState.DEGRADED
     assert result.capabilities["mcp:context7"] == "failed"

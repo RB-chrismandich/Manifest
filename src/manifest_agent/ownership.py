@@ -1,70 +1,93 @@
-"""Deterministic receipt linkage for coordinator-created capabilities."""
+"""Secret-backed ownership authority for coordinator-created capabilities."""
 
 from __future__ import annotations
 
+import fcntl
 import hashlib
+import hmac
 import json
+import os
+import secrets
+import stat
+import tempfile
+from collections.abc import Iterator, Mapping
+from contextlib import contextmanager
 from pathlib import Path
 
-from manifest_agent.capabilities import load_mcp_catalog
+from manifest_agent.capability_identity import capability_identity
 from manifest_agent.models import HarnessReceipt, OwnedEntry
+from manifest_agent.paths import xdg_paths
 
 _MARKER = "manifest"
 _OWNED_STATUS = "installed-by-manifest"
 _CAPABILITY_KINDS = frozenset({"executable", "mcp"})
+_SECRET_BYTES = 32
+_PROOF_VERSION = "manifest-capability-ownership-v1"
+
+
+class OwnershipError(RuntimeError):
+    """Ownership authority is missing, corrupt, unsafe, or unavailable."""
+
+
+def ownership_key_path(env: Mapping[str, str] | None = None) -> Path:
+    """Return the private XDG authority path, never a receipt path."""
+    return xdg_paths(env).state / "ownership.key"
 
 
 def owned_capability_entry(
-    kind: str, identifier: str, target_path: str | None = None
+    kind: str,
+    identifier: str,
+    target_path: str | None = None,
+    *,
+    env: Mapping[str, str] | None = None,
+    key_path: Path | None = None,
 ) -> OwnedEntry:
-    """Create an owned entry linked to its canonical capability result."""
-    checksum = capability_ownership_checksum(kind, identifier, target_path)
-    return OwnedEntry(kind, identifier, _MARKER, target_path, checksum)
-
-
-def capability_ownership_checksum(
-    kind: str, identifier: str, target_path: str | None
-) -> str:
-    """Hash the exact non-secret metadata that authorizes later removal."""
-    identity = _capability_identity(kind, identifier)
-    payload = json.dumps(
-        {
-            "capability": identity,
-            "identifier": identifier,
-            "kind": kind,
-            "ownership_marker": _MARKER,
-            "status": _OWNED_STATUS,
-            "target_path": target_path,
-        },
-        sort_keys=True,
-        separators=(",", ":"),
-    ).encode()
-    return hashlib.sha256(payload).hexdigest()
+    """Issue one owned entry using private authority outside the receipt."""
+    authority = key_path or ownership_key_path(env)
+    secret = _load_or_create_secret(authority)
+    proof = _ownership_proof(secret, kind, identifier, target_path)
+    return OwnedEntry(kind, identifier, _MARKER, target_path, proof)
 
 
 def capability_ownership_errors(
-    receipt: HarnessReceipt, *, expected_cursor_path: Path | None = None
+    receipt: HarnessReceipt,
+    *,
+    expected_cursor_path: Path | None = None,
+    env: Mapping[str, str] | None = None,
+    key_path: Path | None = None,
 ) -> tuple[str, ...]:
-    """Validate bidirectional ownership facts before destructive cleanup."""
+    """Validate bidirectional ownership facts without creating authority."""
+    relevant_entries = tuple(
+        entry for entry in receipt.owned_entries if entry.kind in _CAPABILITY_KINDS
+    )
+    expected_identities = {
+        identity
+        for identity, status in receipt.capabilities.items()
+        if status == _OWNED_STATUS and identity.partition(":")[0] in _CAPABILITY_KINDS
+    }
+    if not relevant_entries and not expected_identities:
+        return ()
+    try:
+        secret = _load_secret(key_path or ownership_key_path(env))
+    except OwnershipError as error:
+        return (str(error),)
+
     errors: list[str] = []
     owned_identities: set[str] = set()
-    for entry in receipt.owned_entries:
-        if entry.kind not in _CAPABILITY_KINDS:
-            continue
+    for entry in relevant_entries:
         identity = f"{entry.kind}:{entry.identifier}"
         if identity in owned_identities:
             errors.append(f"receipt repeats owned capability {identity}")
             continue
         owned_identities.add(identity)
         errors.extend(
-            _entry_errors(receipt, entry, expected_cursor_path=expected_cursor_path)
+            _entry_errors(
+                receipt,
+                entry,
+                secret,
+                expected_cursor_path=expected_cursor_path,
+            )
         )
-
-    expected_identities = {
-        identity
-        for identity, status in receipt.capabilities.items()
-        if status == _OWNED_STATUS and identity.partition(":")[0] in _CAPABILITY_KINDS
-    }
     for identity in sorted(expected_identities - owned_identities):
         errors.append(f"receipt lacks ownership metadata for {identity}")
     return tuple(errors)
@@ -73,15 +96,16 @@ def capability_ownership_errors(
 def _entry_errors(
     receipt: HarnessReceipt,
     entry: OwnedEntry,
+    secret: bytes,
     *,
     expected_cursor_path: Path | None,
 ) -> list[str]:
     identity = f"{entry.kind}:{entry.identifier}"
     errors: list[str] = []
     try:
-        canonical_identity = _capability_identity(entry.kind, entry.identifier)
+        canonical_identity = capability_identity(entry.kind, entry.identifier)
     except ValueError as error:
-        return [str(error)]
+        return [f"receipt contains {error}"]
     if identity != canonical_identity or entry.ownership_marker != _MARKER:
         errors.append(f"receipt has invalid ownership metadata for {identity}")
     if receipt.capabilities.get(identity) != _OWNED_STATUS:
@@ -93,11 +117,13 @@ def _entry_errors(
             receipt.harness, entry, expected_cursor_path=expected_cursor_path
         )
     )
-    expected_checksum = capability_ownership_checksum(
-        entry.kind, entry.identifier, entry.target_path
+    expected_proof = _ownership_proof(
+        secret, entry.kind, entry.identifier, entry.target_path
     )
-    if entry.previous_checksum != expected_checksum:
-        errors.append(f"receipt ownership checksum does not match {identity}")
+    if not isinstance(entry.previous_checksum, str) or not hmac.compare_digest(
+        entry.previous_checksum, expected_proof
+    ):
+        errors.append(f"receipt ownership proof does not match {identity}")
     return errors
 
 
@@ -105,11 +131,7 @@ def _target_errors(
     harness: str, entry: OwnedEntry, *, expected_cursor_path: Path | None
 ) -> list[str]:
     identity = f"{entry.kind}:{entry.identifier}"
-    if entry.kind == "executable":
-        return (
-            [] if entry.target_path is None else [f"invalid target path for {identity}"]
-        )
-    if harness != "cursor":
+    if entry.kind == "executable" or harness != "cursor":
         return (
             [] if entry.target_path is None else [f"invalid target path for {identity}"]
         )
@@ -124,11 +146,96 @@ def _target_errors(
     return []
 
 
-def _capability_identity(kind: str, identifier: str) -> str:
-    if kind == "executable" and identifier == "graphify":
-        return "executable:graphify"
-    if kind == "mcp" and identifier in load_mcp_catalog():
-        return f"mcp:{identifier}"
-    raise ValueError(
-        f"receipt contains unsupported owned capability {kind}:{identifier}"
+def _ownership_proof(
+    secret: bytes, kind: str, identifier: str, target_path: str | None
+) -> str:
+    identity = capability_identity(kind, identifier)
+    payload = json.dumps(
+        {
+            "capability": identity,
+            "identifier": identifier,
+            "kind": kind,
+            "ownership_marker": _MARKER,
+            "proof_version": _PROOF_VERSION,
+            "status": _OWNED_STATUS,
+            "target_path": target_path,
+        },
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode()
+    return hmac.new(secret, payload, hashlib.sha256).hexdigest()
+
+
+def _load_or_create_secret(path: Path) -> bytes:
+    path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    with _authority_lock(path.parent / "ownership.lock"):
+        if path.exists():
+            return _load_secret(path)
+        secret = secrets.token_bytes(_SECRET_BYTES)
+        _write_secret_atomic(path, secret)
+        return secret
+
+
+def _load_secret(path: Path) -> bytes:
+    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
+    try:
+        descriptor = os.open(path, flags)
+    except FileNotFoundError as error:
+        raise OwnershipError("ownership authority is missing") from error
+    except OSError as error:
+        raise OwnershipError("ownership authority is unavailable") from error
+    try:
+        metadata = os.fstat(descriptor)
+        if (
+            not stat.S_ISREG(metadata.st_mode)
+            or stat.S_IMODE(metadata.st_mode) != 0o600
+        ):
+            raise OwnershipError("ownership authority permissions are unsafe")
+        secret = os.read(descriptor, _SECRET_BYTES + 1)
+    finally:
+        os.close(descriptor)
+    if len(secret) != _SECRET_BYTES:
+        raise OwnershipError("ownership authority is corrupt")
+    return secret
+
+
+@contextmanager
+def _authority_lock(path: Path) -> Iterator[None]:
+    flags = os.O_RDWR | os.O_CREAT | getattr(os, "O_NOFOLLOW", 0)
+    try:
+        descriptor = os.open(path, flags, 0o600)
+    except OSError as error:
+        raise OwnershipError("ownership authority lock is unavailable") from error
+    try:
+        os.fchmod(descriptor, 0o600)
+        fcntl.flock(descriptor, fcntl.LOCK_EX)
+        yield
+    finally:
+        fcntl.flock(descriptor, fcntl.LOCK_UN)
+        os.close(descriptor)
+
+
+def _write_secret_atomic(path: Path, secret: bytes) -> None:
+    descriptor, name = tempfile.mkstemp(
+        prefix=f".{path.name}.", suffix=".tmp", dir=path.parent
     )
+    temporary = Path(name)
+    try:
+        os.fchmod(descriptor, 0o600)
+        with os.fdopen(descriptor, "wb") as stream:
+            descriptor = -1
+            stream.write(secret)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temporary, path)
+        directory = os.open(path.parent, os.O_RDONLY)
+        try:
+            os.fsync(directory)
+        finally:
+            os.close(directory)
+    except OSError as error:
+        raise OwnershipError("ownership authority could not be persisted") from error
+    finally:
+        if descriptor >= 0:
+            os.close(descriptor)
+        temporary.unlink(missing_ok=True)

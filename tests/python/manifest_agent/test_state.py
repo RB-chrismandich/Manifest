@@ -1,6 +1,8 @@
 import json
 import os
 import stat
+import subprocess
+import sys
 from contextlib import ExitStack
 from dataclasses import replace
 from pathlib import Path
@@ -57,6 +59,17 @@ def test_receipt_write_is_atomic_private_and_round_trips(tmp_path):
     assert stat.S_IMODE(path.stat().st_mode) == 0o600
 
 
+def test_state_module_imports_in_a_fresh_interpreter() -> None:
+    result = subprocess.run(
+        [sys.executable, "-c", "import manifest_agent.state"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0, result.stderr
+
+
 def test_receipt_rejects_secret_fields(tmp_path):
     secret_entry = OwnedEntry(
         kind="mcp",
@@ -80,14 +93,20 @@ def test_receipt_rejects_unlinked_capability_ownership(tmp_path):
     )
     receipt = replace(SAMPLE_RECEIPT, harnesses={"claude": harness})
 
-    with pytest.raises(StateError, match="ownership checksum"):
+    with pytest.raises(StateError, match="ownership authority"):
         write_receipt_atomic(tmp_path / "installation.json", receipt)
 
 
 def test_receipt_round_trips_linked_capability_ownership(tmp_path):
     harness = replace(
         SAMPLE_RECEIPT.harnesses["claude"],
-        owned_entries=(owned_capability_entry("executable", "graphify"),),
+        owned_entries=(
+            owned_capability_entry(
+                "executable",
+                "graphify",
+                key_path=tmp_path / "ownership.key",
+            ),
+        ),
         capabilities={"executable:graphify": "installed-by-manifest"},
     )
     receipt = replace(SAMPLE_RECEIPT, harnesses={"claude": harness})

@@ -1,6 +1,7 @@
 """XDG locations owned by the ephemeral Manifest coordinator."""
 
 import os
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -15,13 +16,13 @@ class XdgPaths:
     cache: Path
 
 
-def xdg_paths() -> XdgPaths:
+def xdg_paths(env: Mapping[str, str] | None = None) -> XdgPaths:
     """Resolve coordinator state paths according to the XDG Base Directory spec."""
-    home = Path.home()
+    source = os.environ if env is None else env
+    home = Path(source["HOME"]) if "HOME" in source else Path.home()
     return XdgPaths(
-        config=Path(os.environ.get("XDG_CONFIG_HOME", home / ".config")) / "manifest",
-        data=Path(os.environ.get("XDG_DATA_HOME", home / ".local/share")) / "manifest",
-        state=Path(os.environ.get("XDG_STATE_HOME", home / ".local/state"))
-        / "manifest",
-        cache=Path(os.environ.get("XDG_CACHE_HOME", home / ".cache")) / "manifest",
+        config=Path(source.get("XDG_CONFIG_HOME", home / ".config")) / "manifest",
+        data=Path(source.get("XDG_DATA_HOME", home / ".local/share")) / "manifest",
+        state=Path(source.get("XDG_STATE_HOME", home / ".local/state")) / "manifest",
+        cache=Path(source.get("XDG_CACHE_HOME", home / ".cache")) / "manifest",
     )

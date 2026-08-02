@@ -110,6 +110,7 @@ class CapabilityAdapterMixin:
         errors.extend(
             capability_ownership_errors(
                 receipt,
+                env=self._env,
                 expected_cursor_path=(
                     cursor_mcp_path(self._env) if self.name == "cursor" else None
                 ),

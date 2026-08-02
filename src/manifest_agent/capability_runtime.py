@@ -14,6 +14,7 @@ from manifest_agent.capability_cursor import (
 )
 from manifest_agent.capability_cursor import (
     read_cursor_document,
+    remove_owned_cursor_mcp,
     write_json_atomic,
 )
 from manifest_agent.models import (
@@ -24,6 +25,7 @@ from manifest_agent.models import (
     ResultState,
 )
 from manifest_agent.ownership import (
+    OwnershipError,
     capability_ownership_errors,
     owned_capability_entry,
 )
@@ -134,6 +136,7 @@ def remove_owned_capabilities(
         )
     ownership_errors = capability_ownership_errors(
         receipt,
+        env=env,
         expected_cursor_path=(
             cursor_mcp_path or default_cursor_mcp_path(env)
             if harness == "cursor"
@@ -203,6 +206,10 @@ def _install_recipe(harness, recipe, runner, which, tier, identity, env):
         return _failure(harness, tier, str(error), identity)
     if recipe.manager != "uv-tool" or manager is None:
         return _failure(harness, tier, "uv tool manager is not available", identity)
+    try:
+        owned_entry = owned_capability_entry("executable", recipe.executable, env=env)
+    except OwnershipError as error:
+        return _failure(harness, tier, str(error), identity)
     installed, _command = _run(
         harness,
         runner,
@@ -238,7 +245,7 @@ def _install_recipe(harness, recipe, runner, which, tier, identity, env):
         return verified
     return replace(
         verified,
-        owned_entries=(owned_capability_entry("executable", recipe.executable),),
+        owned_entries=(owned_entry,),
     )
 
 
@@ -295,7 +302,11 @@ def _apply_mcp(harness, plan, name, runner, env, inventory, cursor_path):
         )
     if harness == "cursor":
         return _apply_cursor_mcp(
-            definition, tier, cursor_path or default_cursor_mcp_path(env), harness
+            definition,
+            tier,
+            cursor_path or default_cursor_mcp_path(env),
+            harness,
+            env,
         )
     if harness == "antigravity":
         return _failure(
@@ -309,6 +320,10 @@ def _apply_mcp(harness, plan, name, runner, env, inventory, cursor_path):
         return _failure(
             harness, tier, f"unsupported MCP transport for {name}", identity
         )
+    try:
+        owned_entry = owned_capability_entry("mcp", name, env=env)
+    except OwnershipError as error:
+        return _failure(harness, tier, str(error), identity)
     result = _run(
         harness,
         runner,
@@ -322,7 +337,7 @@ def _apply_mcp(harness, plan, name, runner, env, inventory, cursor_path):
         return result
     return replace(
         result,
-        owned_entries=(owned_capability_entry("mcp", name),),
+        owned_entries=(owned_entry,),
     )
 
 
@@ -347,7 +362,7 @@ def _existing_mcp_result(harness, definition, tier, identity, inventory):
     return _success(harness, identity, "verified")
 
 
-def _apply_cursor_mcp(definition, tier, path, harness):
+def _apply_cursor_mcp(definition, tier, path, harness, env):
     from manifest_agent.capabilities import CapabilityConflict
 
     identity = f"mcp:{definition.name}"
@@ -362,6 +377,7 @@ def _apply_cursor_mcp(definition, tier, path, harness):
             if servers[key] != desired:
                 raise CapabilityConflict(f"conflicting Cursor MCP entry {key}")
             return _success(harness, identity, "verified")
+        owned_entry = owned_capability_entry("mcp", definition.name, str(path), env=env)
         servers[key] = desired
         write_json_atomic(path, document)
         return HarnessResult(
@@ -369,44 +385,26 @@ def _apply_cursor_mcp(definition, tier, path, harness):
             ResultState.READY,
             (),
             {identity: "installed-by-manifest"},
-            owned_entries=(owned_capability_entry("mcp", definition.name, str(path)),),
+            owned_entries=(owned_entry,),
         )
-    except (CapabilityConflict, OSError, UnicodeError, json.JSONDecodeError) as error:
+    except (
+        CapabilityConflict,
+        OwnershipError,
+        OSError,
+        UnicodeError,
+        json.JSONDecodeError,
+    ) as error:
         return _failure(harness, tier, str(error), identity)
 
 
 def _remove_cursor_entries(receipt, path):
-    from manifest_agent.capabilities import CapabilityConflict, load_mcp_catalog
+    from manifest_agent.capabilities import CapabilityConflict
 
-    owned = {
-        entry.identifier
-        for entry in receipt.owned_entries
-        if entry.kind == "mcp"
-        and entry.ownership_marker == _MARKER
-        and entry.target_path == str(path)
-    }
-    if not owned:
-        return []
     try:
-        document = read_cursor_document(path)
-        servers = document.get("mcpServers", {})
-        if not isinstance(servers, dict):
-            raise CapabilityConflict("Cursor mcpServers must be a JSON object")
-        catalog = load_mcp_catalog()
-        removed = []
-        for name in sorted(owned):
-            key = f"{_CURSOR_KEY_PREFIX}{name}"
-            expected = {"url": catalog[name].url} if name in catalog else None
-            if key in servers and servers[key] != expected:
-                raise CapabilityConflict(
-                    f"receipt-owned Cursor MCP entry {key} changed"
-                )
-            if key in servers:
-                del servers[key]
-                removed.append(_success("cursor", f"mcp:{name}", "removed"))
-        if removed:
-            write_json_atomic(path, document)
-        return removed
+        return [
+            _success("cursor", f"mcp:{name}", "removed")
+            for name in remove_owned_cursor_mcp(receipt, path)
+        ]
     except (CapabilityConflict, OSError, UnicodeError, json.JSONDecodeError) as error:
         return [_failure("cursor", CapabilityTier.REQUIRED, str(error))]
 

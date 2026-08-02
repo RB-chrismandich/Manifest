@@ -148,7 +148,9 @@ def test_detection_reports_absent_cli_explicitly() -> None:
     assert detection.reason == "cursor-agent CLI not present"
 
 
-def test_cursor_indexes_immutable_marketplace_ref(desired: DesiredState) -> None:
+def test_cursor_indexes_immutable_marketplace_ref(
+    desired: DesiredState, tmp_path: Path
+) -> None:
     runner = QueueRunner(
         [
             command(),
@@ -156,7 +158,9 @@ def test_cursor_indexes_immutable_marketplace_ref(desired: DesiredState) -> None
             command(stdout=plugin_help()),
         ]
     )
-    adapter = CursorAdapter(runner=runner, which=lambda name: name)
+    adapter = CursorAdapter(
+        runner=runner, which=lambda name: name, env={"HOME": str(tmp_path)}
+    )
 
     result = adapter.install(desired)
 

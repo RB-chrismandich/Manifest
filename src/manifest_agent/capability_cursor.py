@@ -8,7 +8,11 @@ import tempfile
 from collections.abc import Mapping
 from pathlib import Path
 
-from manifest_agent.capabilities import CapabilityConflict
+from manifest_agent.capabilities import CapabilityConflict, load_mcp_catalog
+from manifest_agent.models import HarnessReceipt
+
+_OWNERSHIP_MARKER = "manifest"
+_CURSOR_KEY_PREFIX = "manifest-"
 
 
 def cursor_mcp_path(env: Mapping[str, str] | None) -> Path:
@@ -53,3 +57,33 @@ def write_json_atomic(path: Path, document: dict) -> None:
         if descriptor >= 0:
             os.close(descriptor)
         temporary.unlink(missing_ok=True)
+
+
+def remove_owned_cursor_mcp(receipt: HarnessReceipt, path: Path) -> tuple[str, ...]:
+    """Remove unchanged Cursor MCP entries authenticated by a receipt."""
+    owned = {
+        entry.identifier
+        for entry in receipt.owned_entries
+        if entry.kind == "mcp"
+        and entry.ownership_marker == _OWNERSHIP_MARKER
+        and entry.target_path == str(path)
+    }
+    if not owned:
+        return ()
+    document = read_cursor_document(path)
+    servers = document.get("mcpServers", {})
+    if not isinstance(servers, dict):
+        raise CapabilityConflict("Cursor mcpServers must be a JSON object")
+    catalog = load_mcp_catalog()
+    removed: list[str] = []
+    for name in sorted(owned):
+        key = f"{_CURSOR_KEY_PREFIX}{name}"
+        expected = {"url": catalog[name].url} if name in catalog else None
+        if key in servers and servers[key] != expected:
+            raise CapabilityConflict(f"receipt-owned Cursor MCP entry {key} changed")
+        if key in servers:
+            del servers[key]
+            removed.append(name)
+    if removed:
+        write_json_atomic(path, document)
+    return tuple(removed)
