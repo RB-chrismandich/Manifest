@@ -12,12 +12,14 @@ from manifest_agent.capabilities import (
     remove_owned_capabilities,
     resolve_capabilities,
 )
+from manifest_agent.capability_cursor import cursor_mcp_path
 from manifest_agent.models import (
     DesiredState,
     HarnessReceipt,
     HarnessResult,
     ResultState,
 )
+from manifest_agent.ownership import capability_ownership_errors
 from manifest_agent.process import CommandRunner, redact_text
 
 NativeMcpInventory = Collection[str] | Mapping[str, McpDefinition]
@@ -105,6 +107,14 @@ class CapabilityAdapterMixin:
                 for entry in marketplace_entries
             ):
                 errors.append("receipt contains invalid marketplace ownership")
+        errors.extend(
+            capability_ownership_errors(
+                receipt,
+                expected_cursor_path=(
+                    cursor_mcp_path(self._env) if self.name == "cursor" else None
+                ),
+            )
+        )
         if not errors:
             return None
         return HarnessResult(

@@ -21,8 +21,11 @@ from manifest_agent.models import (
     CommandResult,
     HarnessReceipt,
     HarnessResult,
-    OwnedEntry,
     ResultState,
+)
+from manifest_agent.ownership import (
+    capability_ownership_errors,
+    owned_capability_entry,
 )
 from manifest_agent.process import CommandRunner, redact_text
 
@@ -129,6 +132,20 @@ def remove_owned_capabilities(
             CapabilityTier.REQUIRED,
             f"receipt harness {receipt.harness!r} does not match {harness!r}",
         )
+    ownership_errors = capability_ownership_errors(
+        receipt,
+        expected_cursor_path=(
+            cursor_mcp_path or default_cursor_mcp_path(env)
+            if harness == "cursor"
+            else None
+        ),
+    )
+    if ownership_errors:
+        return _failure(
+            harness,
+            CapabilityTier.REQUIRED,
+            "; ".join(ownership_errors),
+        )
     results: list[HarnessResult] = []
     if any(
         entry.kind == "executable"
@@ -221,9 +238,7 @@ def _install_recipe(harness, recipe, runner, which, tier, identity, env):
         return verified
     return replace(
         verified,
-        owned_entries=(
-            OwnedEntry("executable", recipe.executable, _MARKER, None, None),
-        ),
+        owned_entries=(owned_capability_entry("executable", recipe.executable),),
     )
 
 
@@ -307,7 +322,7 @@ def _apply_mcp(harness, plan, name, runner, env, inventory, cursor_path):
         return result
     return replace(
         result,
-        owned_entries=(OwnedEntry("mcp", name, _MARKER, None, None),),
+        owned_entries=(owned_capability_entry("mcp", name),),
     )
 
 
@@ -354,9 +369,7 @@ def _apply_cursor_mcp(definition, tier, path, harness):
             ResultState.READY,
             (),
             {identity: "installed-by-manifest"},
-            owned_entries=(
-                OwnedEntry("mcp", definition.name, _MARKER, str(path), None),
-            ),
+            owned_entries=(owned_capability_entry("mcp", definition.name, str(path)),),
         )
     except (CapabilityConflict, OSError, UnicodeError, json.JSONDecodeError) as error:
         return _failure(harness, tier, str(error), identity)

@@ -26,6 +26,7 @@ from manifest_agent.models import (
     OwnedEntry,
     ResultState,
 )
+from manifest_agent.ownership import owned_capability_entry
 
 
 class ExecutableRunner:
@@ -218,14 +219,21 @@ def test_mismatched_preexisting_graphify_is_reconciled_to_exact_pin(
 def test_graphify_uninstall_requires_receipt_ownership() -> None:
     runner = ExecutableRunner()
     unowned = HarnessReceipt("claude", "1", "1", (), (), {}, True)
-    owned = replace(
+    forged = replace(
         unowned,
         owned_entries=(OwnedEntry("executable", "graphify", "manifest", None, None),),
     )
+    owned = replace(
+        unowned,
+        owned_entries=(owned_capability_entry("executable", "graphify"),),
+        capabilities={"executable:graphify": "installed-by-manifest"},
+    )
 
     first = remove_owned_capabilities("claude", unowned, runner=runner)
-    second = remove_owned_capabilities("claude", owned, runner=runner)
+    second = remove_owned_capabilities("claude", forged, runner=runner)
+    third = remove_owned_capabilities("claude", owned, runner=runner)
 
     assert first.state is ResultState.READY
-    assert second.state is ResultState.READY
+    assert second.state is ResultState.BLOCKED
+    assert third.state is ResultState.READY
     assert runner.calls == [("uv", "tool", "uninstall", "graphifyy")]

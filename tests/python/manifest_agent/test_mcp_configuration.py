@@ -273,15 +273,7 @@ def test_cursor_atomic_merge_and_receipt_owned_removal_preserve_unrelated_values
         "1",
         "1",
         (),
-        (
-            OwnedEntry(
-                "mcp",
-                "context7",
-                "manifest",
-                str(path),
-                None,
-            ),
-        ),
+        installed.owned_entries,
         installed.capabilities,
         True,
     )

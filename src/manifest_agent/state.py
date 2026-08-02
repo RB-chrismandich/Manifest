@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from manifest_agent.models import HarnessReceipt, InstallationReceipt, OwnedEntry
+from manifest_agent.ownership import capability_ownership_errors
 from manifest_agent.paths import xdg_paths
 from manifest_agent.process import contains_credential_material
 
@@ -180,6 +181,9 @@ def _validate_receipt(receipt: InstallationReceipt) -> None:
             raise StateError(
                 "an unverified harness must use explicit non-success capabilities"
             )
+        ownership_errors = capability_ownership_errors(harness)
+        if ownership_errors:
+            raise StateError("; ".join(ownership_errors))
 
 
 def _decode_receipt(value: Any) -> InstallationReceipt:

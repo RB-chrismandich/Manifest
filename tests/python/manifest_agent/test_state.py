@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 
 from manifest_agent.models import HarnessReceipt, InstallationReceipt, OwnedEntry
+from manifest_agent.ownership import owned_capability_entry
 from manifest_agent.state import (
     StateError,
     installation_lock,
@@ -68,6 +69,33 @@ def test_receipt_rejects_secret_fields(tmp_path):
 
     with pytest.raises(StateError, match="credential material"):
         write_receipt_atomic(tmp_path / "installation.json", receipt)
+
+
+def test_receipt_rejects_unlinked_capability_ownership(tmp_path):
+    forged = OwnedEntry("executable", "graphify", "manifest", None, None)
+    harness = replace(
+        SAMPLE_RECEIPT.harnesses["claude"],
+        owned_entries=(forged,),
+        capabilities={"executable:graphify": "installed-by-manifest"},
+    )
+    receipt = replace(SAMPLE_RECEIPT, harnesses={"claude": harness})
+
+    with pytest.raises(StateError, match="ownership checksum"):
+        write_receipt_atomic(tmp_path / "installation.json", receipt)
+
+
+def test_receipt_round_trips_linked_capability_ownership(tmp_path):
+    harness = replace(
+        SAMPLE_RECEIPT.harnesses["claude"],
+        owned_entries=(owned_capability_entry("executable", "graphify"),),
+        capabilities={"executable:graphify": "installed-by-manifest"},
+    )
+    receipt = replace(SAMPLE_RECEIPT, harnesses={"claude": harness})
+    path = tmp_path / "installation.json"
+
+    write_receipt_atomic(path, receipt)
+
+    assert read_receipt(path) == receipt
 
 
 def test_receipt_rejects_credential_shaped_capability_keys(tmp_path):
