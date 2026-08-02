@@ -75,9 +75,8 @@ Do **not** invoke slash commands in this pipeline. Execute the equivalent workfl
    [[skill:learning-capture]] sync-docs
    ```
 
-   This regenerates `docs/KNOWLEDGE_BASE.md` from the YAML source of truth
-   (`~/.claude/config/knowledge_base.yml`). Non-blocking — skip if the script
-   is not available or fails.
+   This regenerates `docs/KNOWLEDGE_BASE.md` from the XDG-owned JSONL source of
+   truth. Non-blocking — skip if the skill is not available or fails.
 
 After all four complete, run `git status` to confirm documentation files were modified.
 

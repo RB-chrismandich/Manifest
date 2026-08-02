@@ -1,15 +1,15 @@
 ---
 name: antipattern-detect
-description: Auto-triggered skill that analyzes linting failures, test results, and code review feedback to detect recurring antipatterns. Stores findings in knowledge_base.yml (YAML source of truth) via [[skill:learning-capture]].
+description: Auto-triggered skill that analyzes linting failures, test results, and code review feedback to detect recurring antipatterns. Stores findings in the XDG-owned JSONL knowledge base via [[skill:learning-capture]].
 ---
 
 # Antipattern Detection Skill
 
 This skill automatically activates after linting failures, test failures, or code
-review feedback to identify recurring antipatterns. It stores findings in
-`~/.claude/config/knowledge_base.yml` (the YAML source of truth) via
-`[[skill:learning-capture]]`. The human-readable `docs/KNOWLEDGE_BASE.md` is auto-generated
-from the YAML by `[[skill:learning-capture]] sync-docs`.
+review feedback to identify recurring antipatterns. It stores findings in the
+XDG-owned JSONL source of truth via `[[skill:learning-capture]]`. The
+human-readable `docs/KNOWLEDGE_BASE.md` is generated from those records by
+`[[skill:learning-capture]] sync-docs`.
 
 ## Trigger Criteria
 
@@ -69,7 +69,7 @@ Before adding a new antipattern, check for existing entries in the knowledge bas
 
 ### Step 4: Store Entry
 
-For each new antipattern, store it in the YAML knowledge base:
+For each new antipattern, store it in the JSONL knowledge base:
 
 ```bash
 [[skill:learning-capture]] add \
@@ -107,13 +107,13 @@ After storing all new entries, regenerate the human-readable docs:
 
 ## Storage
 
-**Source of truth**: `~/.claude/config/knowledge_base.yml` (machine-readable YAML)
+**Source of truth**: `$XDG_DATA_HOME/manifest/knowledge/entries.jsonl`
 
 Entries are stored via `[[skill:learning-capture]] add` which handles:
 
 - Automatic ID generation (KB-NNN format)
-- YAML validation before writing
-- Header comment preservation
+- JSON record validation before writing
+- Atomic occurrence updates without dropping records
 
 **Human-readable view**: `docs/KNOWLEDGE_BASE.md` (auto-generated)
 
@@ -127,7 +127,7 @@ This skill follows the same non-blocking pattern as `code-audit`:
 
 - **Never blocks** user workflow or command execution
 - **Reports inline** when an antipattern is detected
-- **Writes to knowledge_base.yml** via [[skill:learning-capture]] after primary task completes
+- **Writes to XDG JSONL** via [[skill:learning-capture]] after primary task completes
 - **Suggests fixes** but does not auto-apply changes
 
 ---
@@ -139,7 +139,7 @@ This skill complements other skills:
 | Skill | Relationship |
 |-------|-------------|
 | `code-audit` | Feeds security/quality findings into antipattern detection |
-| `learning-capture` | Shares knowledge_base.yml as the common data store |
+| `learning-capture` | Owns the shared XDG JSONL data store |
 | `project-verify` | Lint/test failures trigger antipattern analysis |
 
 When both `code-audit` and `antipattern-detect` trigger:
@@ -152,8 +152,8 @@ When both `code-audit` and `antipattern-detect` trigger:
 
 ## Safety Checks
 
-- Never modify source code -- only writes to knowledge_base.yml via [[skill:learning-capture]]
-- [[skill:learning-capture]] validates YAML before writing
+- Never modify source code -- only write through [[skill:learning-capture]]
+- [[skill:learning-capture]] validates every JSON record before writing
 - Cap entries at 500 per knowledge base file ([[skill:learning-capture]] limit)
 - Sanitize code examples to remove actual secrets or credentials
 - sync-docs regenerates docs/KNOWLEDGE_BASE.md -- do not edit that file directly

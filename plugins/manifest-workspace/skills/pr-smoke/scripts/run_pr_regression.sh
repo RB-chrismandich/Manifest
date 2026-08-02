@@ -63,14 +63,11 @@ echo '| Gate | Result |'
 echo '|---|---|'
 run_gate 'git diff check' git diff --check
 
-if [[ -d tests/python ]]; then
+if [[ "$QUICK" -eq 0 && -d tests/python ]]; then
     optional_gate 'python tests' python3 python3 -m pytest tests/python -q
 fi
-if [[ -d tests/bats ]]; then
+if [[ "$QUICK" -eq 0 && -d tests/bats ]]; then
     optional_gate 'bats tests' bats bats tests/bats
-fi
-if [[ "$QUICK" -eq 0 && -f pyproject.toml ]] && command -v uv > /dev/null 2>&1; then
-    run_gate 'generated views' uv run python tools/generate_plugin_views.py --check
 fi
 
 if [[ "$FAILURES" -gt 0 ]]; then

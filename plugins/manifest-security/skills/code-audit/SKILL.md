@@ -103,12 +103,12 @@ When triggered, this skill:
 
 ### Registry Anti-Patterns (advisory)
 
-On trigger, additionally consult the guardrail registry
-`~/.claude/config/knowledge_base.yml`: every entry carrying exactly one
-guardrail-category tag (`arch`, `async-state`, `error-handling`, `security`,
-`dependency`, `iteration`) — including `provenance: session-capture` entries
-added after this skill shipped — defines a `detection_cue` and a
-`prevention_rule`.
+On trigger, additionally consult the antipattern entries returned by the
+bundle-local `[[skill:learning-capture]] query` call above. Every entry carrying
+exactly one guardrail-category tag (`arch`, `async-state`, `error-handling`,
+`security`, `dependency`, `iteration`) — including
+`provenance: session-capture` entries added after this skill shipped — defines
+a `detection_cue` and a `prevention_rule`.
 
 - Match the code being written/reviewed against the entries' detection cues
   (use the cue for the file's language when the cue is a per-language map).

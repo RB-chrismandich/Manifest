@@ -30,7 +30,12 @@ components:
       compatibility:
         claude: {mode: generated}
         codex: {mode: unsupported, reason: Codex has no native lifecycle hook surface.}
-        gemini: {mode: generated}
+        gemini:
+          mode: degraded
+          reason: >-
+            Gemini extensions cannot install the bundle's advisory manifest-hooks
+            catalog as native BeforeTool hooks; use ai-hooks-integration for
+            explicit installation.
         cursor: {mode: generated}
         antigravity: {mode: unsupported, reason: Antigravity has no native lifecycle hook surface.}
         devin: {mode: unsupported, reason: Devin has no native lifecycle hook surface.}

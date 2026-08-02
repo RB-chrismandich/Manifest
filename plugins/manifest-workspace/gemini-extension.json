@@ -6,7 +6,7 @@
         "component_type": "hooks",
         "mode": "degraded",
         "path": "hooks/manifest-hooks.json",
-        "reason": "gemini native manifest cannot encode hooks component 'manifest-hooks' at 'hooks/manifest-hooks.json'"
+        "reason": "Gemini extensions cannot install the bundle's advisory manifest-hooks catalog as native BeforeTool hooks; use ai-hooks-integration for explicit installation."
       },
       {
         "component_id": "command-catalog",

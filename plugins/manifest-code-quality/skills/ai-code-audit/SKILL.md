@@ -6,9 +6,9 @@ description: "Seven-pass audit of a codebase for AI-generation defects (architec
 # AI-Code Audit (seven-pass guardrail audit)
 
 Structured audit of a **local** codebase for the defects characteristic of
-AI-generated/iterated code, driven by the guardrail registry
-(`~/.claude/config/knowledge_base.yml`) and reported in the repo's standard
-verdict vocabulary. Analysis-only: never modify the target.
+AI-generated/iterated code, driven by the XDG-owned guardrail records exposed
+through `[[skill:learning-capture]]` and reported in the repo's standard verdict
+vocabulary. Analysis-only: never modify the target.
 
 ## Invocation
 
@@ -33,12 +33,12 @@ verdict vocabulary. Analysis-only: never modify the target.
    minified/bundled artifacts where line numbers are meaningless, cite the
    pre-bundle source (or source map) if traceable; otherwise record in P0:
    "bundled artifact — source-level audit not possible".
-3. **Registry-driven**: load the guardrail entries (tags `arch`, `async-state`,
-   `error-handling`, `security`, `dependency`, `iteration`) from
-   `~/.claude/config/knowledge_base.yml` before starting — including
-   `provenance: session-capture` entries added after this skill shipped — and
-   use their `detection_cue`s per pass. Reference detail:
-   `~/.claude/references/antipatterns.md`.
+3. **Registry-driven**: run
+   `[[skill:learning-capture]] query --category antipattern --format json`
+   before starting. Use entries tagged `arch`, `async-state`, `error-handling`,
+   `security`, `dependency`, or `iteration` — including
+   `provenance: session-capture` records — and apply their `detection_cue`s per
+   pass.
 4. **No fabrication**: a clean target yields an empty findings table and an
    explicit "no Critical/High findings" statement. Never invent defects to
    appear thorough.

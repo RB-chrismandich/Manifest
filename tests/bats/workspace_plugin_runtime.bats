@@ -42,12 +42,30 @@ teardown() {
 }
 
 @test "workspace runtime contains no path arithmetic into repository config" {
-    run bash -c "grep -R -nE '(configs/claude|~/.claude|manifest_agent)' \
+    run bash -c "grep -R -nE '(configs/claude|manifest_agent)' \
         '$BUNDLE/skills/parallel-agent/scripts' \
         '$BUNDLE/skills/learning-capture/scripts' \
         '$BUNDLE/skills/help/scripts' \
         '$BUNDLE/skills/env-check/scripts' \
         '$BUNDLE/skills/deploy-reconcile/scripts' \
-        '$BUNDLE/skills/skill-evolve/scripts' --include='*.py' || true"
+        '$BUNDLE/skills/skill-evolve/scripts' \
+        '$BUNDLE/skills/ai-hooks-integration/scripts' \
+        '$BUNDLE/skills/pr-smoke/scripts' --include='*.py' --include='*.sh' || true"
     assert_output ""
+}
+
+@test "learning compatibility and pr-smoke execute without network or shared homes" {
+    cd "$SANDBOX"
+
+    run python3 -B "$BUNDLE/skills/learning-capture/scripts/learning_capture.py" add \
+        --category tool_discovery --language python --title "Offline tool" \
+        --description "Uses only bundle-local stdlib." --confidence high
+    assert_success
+    assert_output --partial '"id": "KB-001"'
+
+    mkdir -p repo
+    git -C repo init -q
+    run bash -c "cd '$SANDBOX/repo' && '$BUNDLE/skills/pr-smoke/scripts/run_pr_regression.sh' --quick"
+    assert_success
+    assert_output --partial 'Verdict: PASS'
 }

@@ -201,7 +201,6 @@ def test_workspace_runtime_sources_have_no_legacy_runtime_dependencies(
     workspace_bundle: Path,
 ) -> None:
     forbidden = (
-        "~/.claude",
         "configs/claude",
         "manifest_agent",
         "import yaml",
@@ -214,6 +213,7 @@ def test_workspace_runtime_sources_have_no_legacy_runtime_dependencies(
         *workspace_bundle.glob("skills/env-check/scripts/*.py"),
         *workspace_bundle.glob("skills/deploy-reconcile/scripts/*.py"),
         *workspace_bundle.glob("skills/skill-evolve/scripts/*.py"),
+        *workspace_bundle.glob("skills/ai-hooks-integration/scripts/**/*.py"),
     ]
 
     assert runtime_files

@@ -142,8 +142,12 @@ def normalize_event(source: str, payload: dict, event_type: str = "PreToolUse") 
     }
 
 
-def allow_response(event_type: str = "PreToolUse") -> dict:
-    """Generate an allow response."""
+def allow_response(event_type: str = "PreToolUse", source: str = "claude") -> dict:
+    """Generate an allow response in the selected harness's native shape."""
+    if source == "gemini":
+        return {"decision": "allow"}
+    if source == "cursor":
+        return {"permission": "allow"}
     return {
         "hookSpecificOutput": {
             "hookEventName": event_type,
@@ -153,8 +157,18 @@ def allow_response(event_type: str = "PreToolUse") -> dict:
     }
 
 
-def deny_response(reason: str, event_type: str = "PreToolUse") -> dict:
-    """Generate a deny response."""
+def deny_response(
+    reason: str, event_type: str = "PreToolUse", source: str = "claude"
+) -> dict:
+    """Generate a blocking response in the selected harness's native shape."""
+    if source == "gemini":
+        return {"decision": "deny", "reason": reason}
+    if source == "cursor":
+        return {
+            "permission": "deny",
+            "user_message": reason,
+            "agent_message": reason,
+        }
     return {
         "hookSpecificOutput": {
             "hookEventName": event_type,
@@ -173,7 +187,6 @@ def run_handler(handler_path: str, event: dict) -> dict:
     """
     import subprocess
 
-    event_type = event.get("event_type", "PreToolUse")
     try:
         result = subprocess.run(
             # -B: handlers live in apm-managed skill directories, and any
@@ -189,7 +202,7 @@ def run_handler(handler_path: str, event: dict) -> dict:
 
         if result.returncode != 0:
             debug_log(f"Handler error: {result.stderr}")
-            return allow_response(event_type)
+            return {"decision": "allow"}
 
         raw_out = result.stdout
         if raw_out.strip():
@@ -199,23 +212,38 @@ def run_handler(handler_path: str, event: dict) -> dict:
                     return parsed
                 else:
                     print("Handler invalid JSON: not a JSON object", file=sys.stderr)
-                    return allow_response(event_type)
+                    return {"decision": "allow"}
             except json.JSONDecodeError as e:
                 print(f"Handler invalid JSON: {e}", file=sys.stderr)
-                return allow_response(event_type)
-        return allow_response(event_type)
+                return {"decision": "allow"}
+        return {"decision": "allow"}
 
     except subprocess.TimeoutExpired:
         debug_log("Handler timeout")
-        return allow_response(event_type)
+        return {"decision": "allow"}
     except json.JSONDecodeError as e:
         debug_log(f"Handler invalid JSON: {e}")
         print(f"Handler invalid JSON: {e}", file=sys.stderr)
-        return allow_response(event_type)
+        return {"decision": "allow"}
     except Exception as e:
         debug_log(f"Handler exception: {e}")
         print(f"Handler exception: {e}", file=sys.stderr)
-        return allow_response(event_type)
+        return {"decision": "allow"}
+
+
+def adapt_handler_response(source: str, event_type: str, response: dict) -> dict:
+    """Translate a canonical or native handler response to the target contract."""
+    nested = response.get("hookSpecificOutput", {})
+    if not isinstance(nested, dict):
+        nested = {}
+    decision = response.get("decision") or response.get("permission")
+    decision = decision or nested.get("permissionDecision")
+    denied = decision in {"deny", "block"} or response.get("continue") is False
+    reason = response.get("reason") or response.get("user_message")
+    reason = reason or nested.get("permissionDecisionReason") or "Blocked by hook"
+    if denied:
+        return deny_response(str(reason), event_type, source)
+    return allow_response(event_type, source)
 
 
 def main() -> None:
@@ -253,7 +281,7 @@ def main() -> None:
     payload = {}
     if not isinstance(raw_input, str):
         print("Invalid input: not a string", file=sys.stderr)
-        print(json.dumps(allow_response(args.event_type)))
+        print(json.dumps(allow_response(args.event_type, args.source)))
         return
 
     if raw_input.strip():
@@ -264,11 +292,11 @@ def main() -> None:
             # payload.get(...) and must fail open like a parse error.
             if not isinstance(payload, dict):
                 print("Invalid input JSON: not a JSON object", file=sys.stderr)
-                print(json.dumps(allow_response(args.event_type)))
+                print(json.dumps(allow_response(args.event_type, args.source)))
                 return
         except json.JSONDecodeError as e:
             print(f"Invalid input JSON: {e}", file=sys.stderr)
-            print(json.dumps(allow_response(args.event_type)))
+            print(json.dumps(allow_response(args.event_type, args.source)))
             return
 
     debug_log(f"Received payload: {json.dumps(payload)[:200]}...")
@@ -281,7 +309,7 @@ def main() -> None:
         should_drop, reason = should_drop_event(source, payload)
         if should_drop:
             debug_log(f"Event dropped: {reason}")
-            print(json.dumps(allow_response(args.event_type)))
+            print(json.dumps(allow_response(args.event_type, args.source)))
             return
 
     # Normalize event
@@ -295,9 +323,11 @@ def main() -> None:
 
     # Run handler if specified
     if args.handler:
-        response = run_handler(args.handler, event)
+        response = adapt_handler_response(
+            source, args.event_type, run_handler(args.handler, event)
+        )
     else:
-        response = allow_response(args.event_type)
+        response = allow_response(args.event_type, source)
 
     print(json.dumps(response))
 

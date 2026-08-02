@@ -201,6 +201,29 @@ class TestResponses(unittest.TestCase):
             allow_response("PostToolUse")["hookSpecificOutput"]["hookEventName"],
             "PostToolUse",
         )
+
+    def test_gemini_responses_use_decision_contract(self):
+        """Gemini BeforeTool hooks consume decision/reason, not Claude output."""
+        self.assertEqual(allow_response("BeforeTool", "gemini"), {"decision": "allow"})
+        self.assertEqual(
+            deny_response("blocked", "BeforeTool", "gemini"),
+            {"decision": "deny", "reason": "blocked"},
+        )
+
+    def test_cursor_responses_use_permission_contract(self):
+        """Cursor shell hooks consume permission and optional messages."""
+        self.assertEqual(
+            allow_response("beforeShellExecution", "cursor"),
+            {"permission": "allow"},
+        )
+        self.assertEqual(
+            deny_response("blocked", "beforeShellExecution", "cursor"),
+            {
+                "permission": "deny",
+                "user_message": "blocked",
+                "agent_message": "blocked",
+            },
+        )
         self.assertEqual(
             deny_response("x", "PostToolUse")["hookSpecificOutput"]["hookEventName"],
             "PostToolUse",
