@@ -49,6 +49,23 @@ class QueueRunner(CommandRunner):
         )
 
 
+class ProbeFailureRunner(QueueRunner):
+    def __init__(self, marketplace: CommandResult, error: Exception) -> None:
+        super().__init__([marketplace])
+        self.error = error
+
+    def run(
+        self,
+        argv: Sequence[str],
+        *,
+        env: Mapping[str, str] | None = None,
+    ) -> CommandResult:
+        if self.results:
+            return super().run(argv, env=env)
+        self.log.append(list(argv))
+        raise self.error
+
+
 def command(
     *, returncode: int = 0, stdout: str = "", stderr: str = ""
 ) -> CommandResult:
@@ -213,7 +230,7 @@ def test_cursor_real_marketplace_schema_degrades_when_inventory_api_is_absent(
     assert result.capabilities["plugins.activation"] == "unsupported"
 
 
-def test_cursor_unavailable_inventory_discovery_is_redacted_degraded(
+def test_cursor_nonzero_inventory_discovery_is_redacted_blocked(
     desired: DesiredState,
 ) -> None:
     runner = QueueRunner(
@@ -225,9 +242,36 @@ def test_cursor_unavailable_inventory_discovery_is_redacted_degraded(
 
     result = CursorAdapter(runner=runner, which=lambda name: name).inspect(desired)
 
-    assert result.state is ResultState.DEGRADED
+    assert result.state is ResultState.BLOCKED
     assert "native-secret" not in " ".join(result.errors)
     assert "[REDACTED]" in " ".join(result.errors)
+
+
+@pytest.mark.parametrize(
+    "error",
+    [FileNotFoundError("cursor-agent missing"), PermissionError("permission denied")],
+)
+def test_cursor_inventory_probe_execution_failure_is_blocked(
+    desired: DesiredState,
+    error: Exception,
+) -> None:
+    runner = ProbeFailureRunner(command(stdout=marketplace_json(desired)), error)
+
+    result = CursorAdapter(runner=runner, which=lambda name: name).inspect(desired)
+
+    assert result.state is ResultState.BLOCKED
+    assert runner.log[-1] == ["cursor-agent", "plugin", "--help"]
+
+
+def test_cursor_malformed_inventory_probe_is_blocked(desired: DesiredState) -> None:
+    runner = QueueRunner(
+        [command(stdout=marketplace_json(desired)), command(stdout="not help output")]
+    )
+
+    result = CursorAdapter(runner=runner, which=lambda name: name).inspect(desired)
+
+    assert result.state is ResultState.BLOCKED
+    assert "valid command inventory" in " ".join(result.errors)
 
 
 def test_cursor_rejects_noncanonical_inventory_before_mutation(
@@ -302,6 +346,8 @@ def test_cursor_uninstall_without_owned_marketplace_is_non_mutating() -> None:
         ("https://other.invalid/repo", "manifest"),
         ("ssh://git@other.invalid/repo", "manifest"),
         ("https://example.invalid/Manifest.git", "receipt"),
+        ("https://example.invalid/Manifest.git?ref=main", "manifest"),
+        ("https://example.invalid/Manifest.git#forged", "manifest"),
     ],
 )
 def test_cursor_uninstall_rejects_forged_marketplace_receipt_without_invocation(

@@ -171,20 +171,21 @@ class CursorAdapter:
     def _inspect_plugin_support(self) -> HarnessResult:
         command, error = self._execute((self.executable, "plugin", "--help"))
         if error is not None:
-            return _unsupported_plugins(error.errors)
+            return error
         assert command is not None
         if command.returncode != 0:
-            diagnostic = native_command_result(
-                self.name, command, CapabilityTier.REQUIRED
-            )
-            return _unsupported_plugins(diagnostic.errors)
+            return native_command_result(self.name, command, CapabilityTier.REQUIRED)
         commands = _documented_plugin_commands(command.stdout)
-        if commands <= {"marketplace"}:
+        if commands == {"marketplace"}:
             return _unsupported_plugins(
                 (
                     "Cursor plugin help exposes marketplace management only; "
                     "no documented user-scope plugin inventory or activation API",
                 )
+            )
+        if not commands:
+            return _blocked(
+                "Cursor plugin help did not expose a valid command inventory"
             )
         return _blocked(
             "Cursor exposes new native plugin commands that require adapter support "
@@ -242,9 +243,11 @@ def _marketplace_row(
 
 def _identity_error(desired: DesiredState, row: Mapping[str, Any]) -> str | None:
     observed_url = row.get("gitUrl")
-    if not isinstance(observed_url, str) or _normalized_url(
-        observed_url
-    ) != _normalized_url(desired.repository_url):
+    if (
+        not isinstance(observed_url, str)
+        or not _is_url(observed_url)
+        or _normalized_url(observed_url) != _normalized_url(desired.repository_url)
+    ):
         return (
             "Cursor marketplace source mismatch: expected "
             f"{desired.repository_url}, found {observed_url}"
@@ -296,7 +299,12 @@ def _normalized_url(value: str) -> str:
 
 def _is_url(value: str) -> bool:
     parsed = urlsplit(value)
-    return parsed.scheme in {"https", "ssh"} and bool(parsed.netloc)
+    return (
+        parsed.scheme in {"https", "ssh"}
+        and bool(parsed.netloc)
+        and not parsed.query
+        and not parsed.fragment
+    )
 
 
 def _blocked(error: str) -> HarnessResult:
