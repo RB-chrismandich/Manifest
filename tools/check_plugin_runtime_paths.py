@@ -15,9 +15,10 @@ import ast
 import json
 import re
 import sys
+from collections.abc import Iterable
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
 import yaml
 
@@ -448,7 +449,9 @@ def scan(repo_root: Path = ROOT) -> ScanReport:
                 violations.extend(
                     _node_import_violations(path, text, bundle, component_id)
                 )
-            elif path.suffix == ".sh" or text.startswith("#!") and "sh" in text.splitlines()[0]:
+            elif path.suffix == ".sh" or (
+                text.startswith("#!") and "sh" in text.splitlines()[0]
+            ):
                 violations.extend(_shell_command_violations(path, text, declared))
     ordered = tuple(sorted(violations, key=lambda item: (str(item.path), item.line, item.kind, item.value)))
     return ScanReport(ordered)

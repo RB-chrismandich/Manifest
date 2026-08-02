@@ -46,10 +46,14 @@ except ImportError:
     class Live(Progress):
         def update(self, *_args, **_kwargs): return None
 
-    class SpinnerColumn: pass
+    class SpinnerColumn:
+        pass
+
     class TextColumn:
         def __init__(self, *_args, **_kwargs): pass
-    class TimeElapsedColumn: pass
+
+    class TimeElapsedColumn:
+        pass
 
 import contextlib
 

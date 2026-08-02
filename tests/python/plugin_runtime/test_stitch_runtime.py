@@ -189,4 +189,7 @@ def test_stitch_contract_declares_generated_runtime(stitch_bundle: Path) -> None
         "skills/react-native/scripts",
     }
     assert contract.capabilities.mcp[CapabilityTier.OPTIONAL] == ("stitch",)
-    assert contract.capabilities.executables[CapabilityTier.OPTIONAL] == ("chromium",)
+    assert contract.capabilities.executables[CapabilityTier.OPTIONAL] == (
+        "chromium",
+        "curl",
+    )

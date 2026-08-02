@@ -18,7 +18,11 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from manifest_agent.contracts import DOMAIN_BUNDLES, CapabilityTier, load_domain_contracts  # noqa: E402
+from manifest_agent.contracts import (  # noqa: E402
+    DOMAIN_BUNDLES,
+    CapabilityTier,
+    load_domain_contracts,
+)
 
 HARNESSES = ("claude", "codex", "gemini", "cursor", "antigravity", "devin")
 _COMPONENT_KINDS = (("skill", "skills"), ("agent", "agents"), ("hook", "hooks"), ("runtime", "runtime"), ("guidance", "guidance"))
@@ -43,7 +47,7 @@ def _status(status: Any, *, optional: bool = False) -> str:
 
 def _inspection_cells(document: dict[str, Any] | None) -> dict[str, str]:
     if document is None:
-        return {harness: "BLOCKED(adapter inspection missing)" for harness in HARNESSES}
+        return dict.fromkeys(HARNESSES, "BLOCKED(adapter inspection missing)")
     records = document.get("harnesses")
     if not isinstance(records, dict):
         raise MatrixError("inspection evidence must contain a harnesses object")

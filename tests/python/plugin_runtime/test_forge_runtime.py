@@ -497,4 +497,8 @@ def test_forge_contract_lists_all_runtime_directories(forge_bundle: Path) -> Non
         "github",
         "linear",
     }
-    assert set(contract.capabilities.executables["optional"]) == {"gh", "glab"}
+    assert set(contract.capabilities.executables["optional"]) == {
+        "curl",
+        "gh",
+        "glab",
+    }
