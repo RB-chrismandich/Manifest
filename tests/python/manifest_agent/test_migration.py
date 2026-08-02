@@ -10,8 +10,11 @@ import pytest
 
 from manifest_agent.adapters.base import Detection
 from manifest_agent.contracts import DOMAIN_BUNDLES
-from manifest_agent.migration import MigrationService, load_legacy_inventory
-from manifest_agent.migration import _surgical_mixed_cleanup
+from manifest_agent.migration import (
+    MigrationService,
+    _surgical_mixed_cleanup,
+    load_legacy_inventory,
+)
 from manifest_agent.models import HarnessResult, ResultState
 from manifest_agent.paths import xdg_paths
 from manifest_agent.service import ManifestService
