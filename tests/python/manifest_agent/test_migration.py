@@ -141,6 +141,28 @@ def test_migration_preserves_unowned_settings(tmp_path: Path):
 
     report = migration.migrate(service._desired_state()[0])
 
+    assert report.state is ResultState.READY
+    assert settings.read_bytes() == before
+    assert service.receipt_path.exists()
+
+
+def test_manifest_shaped_mixed_settings_block_without_rewriting_user_data(
+    tmp_path: Path,
+):
+    events: list[str] = []
+    home, _link = _legacy_home(tmp_path)
+    settings = home / ".claude" / "settings.local.json"
+    settings.write_text(
+        '{"user": true, "hook": "~/.claude/scripts/version_pin.sh"}', encoding="utf-8"
+    )
+    before = settings.read_bytes()
+    service = _service(tmp_path, MigrationAdapter(events))
+    migration = MigrationService.from_manifest_service(
+        service, paths=xdg_paths({"HOME": str(home)}), home=home, event_log=events
+    )
+
+    report = migration.migrate(service._desired_state()[0])
+
     assert report.state is ResultState.BLOCKED
     assert settings.read_bytes() == before
     assert not service.receipt_path.exists()

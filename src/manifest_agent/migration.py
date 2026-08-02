@@ -508,6 +508,12 @@ class MigrationService:
             if not set(entry.harnesses).intersection(harnesses):
                 continue
             path = _expand_home(entry.path, self.home)
+            if entry.classification == "mixed":
+                mixed_error = _mixed_legacy_error(path, entry)
+                if mixed_error is None:
+                    continue
+                messages.append(mixed_error)
+                continue
             if path.exists() or path.is_symlink():
                 messages.append(
                     f"legacy writer {entry.path} has no deterministic ownership proof; remove it after verifying native parity"
@@ -922,6 +928,30 @@ def _migration_identity(desired: DesiredState) -> dict[str, object]:
         "archive_sha256": desired.archive_sha256,
         "selected_optional": sorted(desired.selected_optional),
     }
+
+
+def _mixed_legacy_error(path: Path, entry: LegacyInventoryEntry) -> str | None:
+    """Leave user-only JSON untouched; fail closed on legacy-shaped state."""
+    if not path.exists():
+        return None
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        return f"mixed legacy settings {entry.path} are not valid JSON; remove the Manifest entry manually before migrating"
+    encoded = json.dumps(value, sort_keys=True).lower()
+    # These are legacy Manifest identifiers, never inferred from a generic hook
+    # or user setting. Without an ownership receipt, removing them in-place is
+    # unsafe, so require a small targeted user repair instead.
+    markers = (
+        "manifest-hook-envelope-v1",
+        "manifest-permission-v1",
+        "~/.claude/scripts/",
+        "~/.manifest/",
+        "manifest-agent",
+    )
+    if any(marker in encoded for marker in markers):
+        return f"mixed legacy settings {entry.path} contain an unproven Manifest entry; remove only that entry before migrating"
+    return None
 
 
 def _receipt_identity_errors(

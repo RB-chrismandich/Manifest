@@ -69,6 +69,13 @@ git diff --check                              PASS
   credential state is excluded. The regression creates the legacy `manifest`
   coordinator and proves migration is BLOCKED without writing a receipt.
 
+## Mixed Settings Repair
+
+- User-only mixed JSON files are now preserved and no longer block migration.
+  Invalid or Manifest-shaped mixed entries fail closed with a path-specific
+  instruction to remove only the legacy entry; neither the file nor unrelated
+  user settings are rewritten. Regression coverage verifies both outcomes.
+
 ## Commits
 
 - Initial implementation: `98707f9d2bd3b8a86d81438d0a829174ee24ab3c`
