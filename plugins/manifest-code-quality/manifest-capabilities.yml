@@ -10,7 +10,14 @@ components:
     include: ["*/SKILL.md"]
   agents: []
   hooks: []
-  runtime: []
+  runtime:
+    - {id: constitution-scripts, path: skills/code-audit-constitution/scripts}
+    - {id: constitution-config, path: skills/code-audit-constitution/config}
+    - {id: constitution-references, path: skills/code-audit-constitution/references}
+    - {id: smoke-scripts, path: skills/smoke-manage/scripts}
+    - {id: smoke-vendor, path: skills/smoke-manage/vendor}
+    - {id: scaffold-templates, path: skills/project-scaffold/templates}
+    - {id: code-audit-references, path: skills/code-audit/references}
   guidance: []
 capabilities:
   mcp:
@@ -18,7 +25,7 @@ capabilities:
     default: []
     optional: []
   executables:
-    required: [bash, git, python3]
+    required: [git, python3]
     default: []
     optional: [browser-use, playwright, semgrep]
 compatibility:

@@ -1,0 +1,24 @@
+# __PROJECT_NAME__ - Main Terraform configuration
+
+terraform {
+  backend "s3" {
+    # Configure your backend here
+    # bucket         = "my-terraform-state"
+    # key            = "__PROJECT_NAME__/terraform.tfstate"
+    # region         = "us-east-1"
+    # dynamodb_table = "terraform-locks"
+    # encrypt        = true
+  }
+}
+
+provider "aws" {
+  region = var.aws_region
+
+  default_tags {
+    tags = {
+      Project     = "__PROJECT_NAME__"
+      Environment = var.environment
+      ManagedBy   = "terraform"
+    }
+  }
+}

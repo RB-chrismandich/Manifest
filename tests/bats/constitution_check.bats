@@ -20,7 +20,7 @@ load '../test_helper/bats-support/load'
 load '../test_helper/bats-assert/load'
 
 setup() {
-    CLI="$(cd "$(dirname "$BATS_TEST_FILENAME")/../../configs/claude/scripts" && pwd)/constitution_check.py"
+    CLI="$(cd "$(dirname "$BATS_TEST_FILENAME")/../../plugins/manifest-code-quality/skills/code-audit-constitution/scripts" && pwd)/constitution_check.py"
     SANDBOX="$BATS_TEST_TMPDIR/sandbox"
     mkdir -p "$SANDBOX"
 }

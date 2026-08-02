@@ -64,8 +64,8 @@ vocabulary. Analysis-only: never modify the target.
 ## Cross-verification (critical/high only)
 
 Before reporting, every candidate `critical` or `high` finding gets an
-independent adversarial re-check: dispatch one sub-agent (native Task; see
-`~/.claude/references/sub-agent-dispatch.md`) with ONLY the cited evidence and
+independent adversarial re-check: dispatch one native Task sub-agent or invoke
+`[[skill:parallel-agent]]` with ONLY the cited evidence and
 the instruction to **refute** the finding. Refuted — or the evidence cannot be
 re-confirmed — → downgrade to **Unverified observations** (a status change —
 never re-label the severity) or drop. Mark surviving findings "verified
@@ -119,15 +119,13 @@ and record the dissent under Unverified observations for transparency.
 ## Sub-agent dispatch
 
 Dispatch sub-agents ONLY for the cross-verification step: one adversarial
-refuter per candidate `critical`/`high` finding (the `subagent_trigger` in
-`command_config.yml`). The passes themselves run inline — they share the P0
-orientation context and must not be split. Pick the mechanism per the shared
-Sub-Agent Selection Rules (`configs/claude/references/sub-agent-dispatch.md`):
+refuter per candidate `critical`/`high` finding. The passes themselves run
+inline — they share the P0 orientation context and must not be split. Use
 native Task sub-agents on Claude, or `[[skill:parallel-agent]]` / inline adversarial
 re-reads on other assistants. Dispatched refuters judge only the evidence they
 are given and do not re-dispatch.
 
-Dispatch on **Opus** (`subagent_model: opus` in `command_config.yml`) — adversarial
+Dispatch on **Opus** (`subagent_model: opus`) — adversarial
 verification is the documented escalation case. Pass the model explicitly; do not inherit
 the session's.
 

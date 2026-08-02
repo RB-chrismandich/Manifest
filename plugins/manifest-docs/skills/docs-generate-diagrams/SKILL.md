@@ -7,7 +7,7 @@ description: Generate and maintain Mermaid architecture diagrams that match curr
 
 Diagrams that reflect what the code does now. A diagram page is capped at 300
 lines and 4 diagrams; past that it becomes a hub plus one page per subject.
-Rules: `configs/claude/references/doc-concision.md`. Mermaid syntax traps and
+Rules: `../../runtime/references/doc-concision.md`. Mermaid syntax traps and
 the palette: [references/mermaid.md](references/mermaid.md).
 
 ## Parallel Agent Integration
@@ -59,7 +59,7 @@ platform's markdown. A broken diagram is worse than no diagram: it renders as a
 wall of error text.
 
 ```bash
-python3 configs/claude/scripts/docs_lint.py docs/diagrams docs/ARCHITECTURE_DIAGRAMS.md
+python3 ../../runtime/docs_lint.py docs/diagrams docs/ARCHITECTURE_DIAGRAMS.md
 ```
 
 ## Report

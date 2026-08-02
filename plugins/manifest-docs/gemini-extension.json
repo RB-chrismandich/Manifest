@@ -1,4 +1,22 @@
 {
+  "compatibility": {
+    "degraded": [
+      {
+        "component_id": "docs-lint",
+        "component_type": "runtime",
+        "mode": "degraded",
+        "path": "runtime/docs_lint.py",
+        "reason": "gemini native manifest cannot encode runtime component 'docs-lint' at 'runtime/docs_lint.py'"
+      },
+      {
+        "component_id": "docs-references",
+        "component_type": "runtime",
+        "mode": "degraded",
+        "path": "runtime/references",
+        "reason": "gemini native manifest cannot encode runtime component 'docs-references' at 'runtime/references'"
+      }
+    ]
+  },
   "name": "manifest-docs",
   "version": "0.2.0"
 }

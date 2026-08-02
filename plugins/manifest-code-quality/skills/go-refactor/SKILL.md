@@ -297,10 +297,9 @@ After completing the analysis, capture the most significant findings:
 ## Sub-agent dispatch
 
 When ≥3 independent packages or analysis dimensions exist, dispatch one sub-agent per package to analyze it,
-then merge findings; below that, analyze inline. Pick the mechanism per the shared Sub-Agent Selection Rules
-(`configs/claude/references/sub-agent-dispatch.md`): native Task sub-agents on Claude, or
+then merge findings; below that, analyze inline. Use native Task sub-agents on Claude, or
 `[[skill:parallel-agent]]` / inline on other assistants. Dispatched sub-agents execute their task directly and
 do not re-dispatch.
 
-Dispatch on **Sonnet** (`subagent_model: sonnet` in `command_config.yml`) — pass the model
+Dispatch on **Sonnet** (`subagent_model: sonnet`) — pass the model
 explicitly; inheriting the session's model bills premium rates for fan-out work.

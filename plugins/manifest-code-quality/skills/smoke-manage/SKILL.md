@@ -9,8 +9,8 @@ Declarative, config-driven E2E smoke tests an agent can author and run. A
 per-app YAML catalog (`smoke-catalog/<app>.yaml`) holds tiered, chainable tests
 spanning three step types — **UI** (Playwright), **API/HTTP**, and **CLI/shell** —
 so multi-language targets are reachable by one engine. The engine lives in
-`configs/claude/scripts/smoke_orchestrator/`; drive it via
-`manifest smoke` (canonical CLI; legacy shim `~/.claude/scripts/smoke_test.py` is deprecated).
+`scripts/smoke_orchestrator/`; drive it via
+`python3 scripts/smoke.py`.
 
 Trigger phrases: "add a smoke test", "smoke-test this feature", "gate the PR with
 a Lite run", "run the nightly smoke suite", "what smoke coverage exists".
@@ -30,7 +30,7 @@ echo '{
     {"name":"view","type":"ui","action":"goto",
      "value":"/invoices/${state.invoice_id}","needs":["invoice_id"]}
   ]
-}' | manifest smoke append --stdin
+}' | python3 scripts/smoke.py append --stdin
 ```
 
 Append is **idempotent by `id`** (re-appending updates in place; FR-004) and
@@ -51,10 +51,10 @@ a broader run is a superset. Use `Lite` for the fast critical-path PR gate,
 
 ```bash
 # PR gate — fast critical path. exit 0 = merge-safe; 1 = a test failed/blocked; 2 = empty/usage.
-manifest smoke run --app billing --tier Lite --junit smoke-lite.xml
+python3 scripts/smoke.py run --app billing --tier Lite --junit smoke-lite.xml
 
 # Nightly — cumulative Lite + Full.
-manifest smoke run --app billing --tier Full --junit smoke-full.xml
+python3 scripts/smoke.py run --app billing --tier Full --junit smoke-full.xml
 ```
 
 The runner emits **JUnit XML** (CI annotations) + a console summary; the **exit
@@ -76,9 +76,9 @@ distinctly (exit 2), never as a false pass.
 ## Lifecycle
 
 ```bash
-manifest smoke list --app billing            # coverage: id, tier, step count
-manifest smoke list --json                   # machine-readable, all apps
-manifest smoke prune --app billing --id old-test   # idempotent remove-by-id
+python3 scripts/smoke.py list --app billing            # coverage: id, tier, step count
+python3 scripts/smoke.py list --json                   # machine-readable, all apps
+python3 scripts/smoke.py prune --app billing --id old-test   # idempotent remove-by-id
 ```
 
 ## Safety
@@ -118,7 +118,7 @@ two engines by value (`captures`/`needs`), not shared cookies.
 Migrate existing legacy browser-use YAML prompts into a catalog:
 
 ```bash
-manifest smoke migrate tests/browser --app <app>  # → smoke-catalog/<app>.yaml (tier Full)
+python3 scripts/smoke.py migrate tests/browser --app <app>  # → smoke-catalog/<app>.yaml (tier Full)
 ```
 
 ## Install (opt-in runtime deps)

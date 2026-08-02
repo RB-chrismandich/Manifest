@@ -3,6 +3,84 @@
   "forbidden": [],
   "harnesses": {
     "antigravity": {
+      "compatibility": {
+        "imported": [
+          {
+            "component_id": "code-audit-references",
+            "component_type": "runtime",
+            "mode": "imported",
+            "path": "skills/code-audit/references"
+          },
+          {
+            "component_id": "constitution-config",
+            "component_type": "runtime",
+            "mode": "imported",
+            "path": "skills/code-audit-constitution/config"
+          },
+          {
+            "component_id": "constitution-references",
+            "component_type": "runtime",
+            "mode": "imported",
+            "path": "skills/code-audit-constitution/references"
+          },
+          {
+            "component_id": "constitution-scripts",
+            "component_type": "runtime",
+            "mode": "imported",
+            "path": "skills/code-audit-constitution/scripts"
+          },
+          {
+            "component_id": "scaffold-templates",
+            "component_type": "runtime",
+            "mode": "imported",
+            "path": "skills/project-scaffold/templates"
+          },
+          {
+            "component_id": "smoke-scripts",
+            "component_type": "runtime",
+            "mode": "imported",
+            "path": "skills/smoke-manage/scripts"
+          },
+          {
+            "component_id": "smoke-vendor",
+            "component_type": "runtime",
+            "mode": "imported",
+            "path": "skills/smoke-manage/vendor"
+          }
+        ]
+      },
+      "components": {
+        "runtime": [
+          {
+            "id": "code-audit-references",
+            "path": "skills/code-audit/references"
+          },
+          {
+            "id": "constitution-config",
+            "path": "skills/code-audit-constitution/config"
+          },
+          {
+            "id": "constitution-references",
+            "path": "skills/code-audit-constitution/references"
+          },
+          {
+            "id": "constitution-scripts",
+            "path": "skills/code-audit-constitution/scripts"
+          },
+          {
+            "id": "scaffold-templates",
+            "path": "skills/project-scaffold/templates"
+          },
+          {
+            "id": "smoke-scripts",
+            "path": "skills/smoke-manage/scripts"
+          },
+          {
+            "id": "smoke-vendor",
+            "path": "skills/smoke-manage/vendor"
+          }
+        ]
+      },
       "mode": "imported",
       "skills": [
         "skills/ai-code-audit",
@@ -30,6 +108,84 @@
       ]
     },
     "codex": {
+      "compatibility": {
+        "native": [
+          {
+            "component_id": "code-audit-references",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "skills/code-audit/references"
+          },
+          {
+            "component_id": "constitution-config",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "skills/code-audit-constitution/config"
+          },
+          {
+            "component_id": "constitution-references",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "skills/code-audit-constitution/references"
+          },
+          {
+            "component_id": "constitution-scripts",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "skills/code-audit-constitution/scripts"
+          },
+          {
+            "component_id": "scaffold-templates",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "skills/project-scaffold/templates"
+          },
+          {
+            "component_id": "smoke-scripts",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "skills/smoke-manage/scripts"
+          },
+          {
+            "component_id": "smoke-vendor",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "skills/smoke-manage/vendor"
+          }
+        ]
+      },
+      "components": {
+        "runtime": [
+          {
+            "id": "code-audit-references",
+            "path": "skills/code-audit/references"
+          },
+          {
+            "id": "constitution-config",
+            "path": "skills/code-audit-constitution/config"
+          },
+          {
+            "id": "constitution-references",
+            "path": "skills/code-audit-constitution/references"
+          },
+          {
+            "id": "constitution-scripts",
+            "path": "skills/code-audit-constitution/scripts"
+          },
+          {
+            "id": "scaffold-templates",
+            "path": "skills/project-scaffold/templates"
+          },
+          {
+            "id": "smoke-scripts",
+            "path": "skills/smoke-manage/scripts"
+          },
+          {
+            "id": "smoke-vendor",
+            "path": "skills/smoke-manage/vendor"
+          }
+        ]
+      },
       "mode": "native",
       "skills": [
         "skills/ai-code-audit",
@@ -57,6 +213,84 @@
       ]
     },
     "cursor": {
+      "compatibility": {
+        "generated": [
+          {
+            "component_id": "code-audit-references",
+            "component_type": "runtime",
+            "mode": "generated",
+            "path": "skills/code-audit/references"
+          },
+          {
+            "component_id": "constitution-config",
+            "component_type": "runtime",
+            "mode": "generated",
+            "path": "skills/code-audit-constitution/config"
+          },
+          {
+            "component_id": "constitution-references",
+            "component_type": "runtime",
+            "mode": "generated",
+            "path": "skills/code-audit-constitution/references"
+          },
+          {
+            "component_id": "constitution-scripts",
+            "component_type": "runtime",
+            "mode": "generated",
+            "path": "skills/code-audit-constitution/scripts"
+          },
+          {
+            "component_id": "scaffold-templates",
+            "component_type": "runtime",
+            "mode": "generated",
+            "path": "skills/project-scaffold/templates"
+          },
+          {
+            "component_id": "smoke-scripts",
+            "component_type": "runtime",
+            "mode": "generated",
+            "path": "skills/smoke-manage/scripts"
+          },
+          {
+            "component_id": "smoke-vendor",
+            "component_type": "runtime",
+            "mode": "generated",
+            "path": "skills/smoke-manage/vendor"
+          }
+        ]
+      },
+      "components": {
+        "runtime": [
+          {
+            "id": "code-audit-references",
+            "path": "skills/code-audit/references"
+          },
+          {
+            "id": "constitution-config",
+            "path": "skills/code-audit-constitution/config"
+          },
+          {
+            "id": "constitution-references",
+            "path": "skills/code-audit-constitution/references"
+          },
+          {
+            "id": "constitution-scripts",
+            "path": "skills/code-audit-constitution/scripts"
+          },
+          {
+            "id": "scaffold-templates",
+            "path": "skills/project-scaffold/templates"
+          },
+          {
+            "id": "smoke-scripts",
+            "path": "skills/smoke-manage/scripts"
+          },
+          {
+            "id": "smoke-vendor",
+            "path": "skills/smoke-manage/vendor"
+          }
+        ]
+      },
       "mode": "generated",
       "skills": [
         "skills/ai-code-audit",
@@ -84,6 +318,84 @@
       ]
     },
     "devin": {
+      "compatibility": {
+        "native": [
+          {
+            "component_id": "code-audit-references",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "skills/code-audit/references"
+          },
+          {
+            "component_id": "constitution-config",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "skills/code-audit-constitution/config"
+          },
+          {
+            "component_id": "constitution-references",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "skills/code-audit-constitution/references"
+          },
+          {
+            "component_id": "constitution-scripts",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "skills/code-audit-constitution/scripts"
+          },
+          {
+            "component_id": "scaffold-templates",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "skills/project-scaffold/templates"
+          },
+          {
+            "component_id": "smoke-scripts",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "skills/smoke-manage/scripts"
+          },
+          {
+            "component_id": "smoke-vendor",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "skills/smoke-manage/vendor"
+          }
+        ]
+      },
+      "components": {
+        "runtime": [
+          {
+            "id": "code-audit-references",
+            "path": "skills/code-audit/references"
+          },
+          {
+            "id": "constitution-config",
+            "path": "skills/code-audit-constitution/config"
+          },
+          {
+            "id": "constitution-references",
+            "path": "skills/code-audit-constitution/references"
+          },
+          {
+            "id": "constitution-scripts",
+            "path": "skills/code-audit-constitution/scripts"
+          },
+          {
+            "id": "scaffold-templates",
+            "path": "skills/project-scaffold/templates"
+          },
+          {
+            "id": "smoke-scripts",
+            "path": "skills/smoke-manage/scripts"
+          },
+          {
+            "id": "smoke-vendor",
+            "path": "skills/smoke-manage/vendor"
+          }
+        ]
+      },
       "mode": "native",
       "skills": [
         "skills/ai-code-audit",

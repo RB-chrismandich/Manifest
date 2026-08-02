@@ -10,8 +10,7 @@ load '../test_helper/bats-assert/load'
 
 setup() {
     REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
-    LINT="$REPO_ROOT/configs/claude/scripts/docs_lint.py"
-    LIMITS="$REPO_ROOT/configs/claude/config/doc_limits.yml"
+    LINT="$REPO_ROOT/plugins/manifest-docs/runtime/docs_lint.py"
     WORK="$BATS_TEST_TMPDIR/docs"
     mkdir -p "$WORK"
 }
@@ -29,7 +28,7 @@ make_doc() {
 
 run_lint() {
     cd "$WORK" || return 1
-    run python3 "$LINT" --limits "$LIMITS" "$@"
+    run python3 -S -B "$LINT" "$@"
 }
 
 @test "a doc within its cap exits 0" {
@@ -195,6 +194,6 @@ print(r['type'], r['lines'], r['cap'], r['status'])
 
 @test "the repo's own concision reference stays within its cap" {
     cd "$REPO_ROOT" || return 1
-    run python3 "$LINT" --limits "$LIMITS" configs/claude/references/doc-concision.md
+    run python3 -S -B "$LINT" plugins/manifest-docs/runtime/references/doc-concision.md
     assert_success
 }

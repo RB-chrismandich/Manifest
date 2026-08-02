@@ -60,9 +60,11 @@ The sanitized name is used as:
 Copy boilerplate files from the appropriate template directory. The templates live at:
 
 ```text
-<this skill's own directory>          (illustrative; never hard-code the path)
-templates/scaffold/{language}/  (in the Manifest repo)
+<this skill's own directory>/templates/{language}/
 ```
+
+Resolve that adjacent directory from the installed skill. Do not read the
+repository-level compatibility templates or an assistant home.
 
 For each language, copy and process the following files:
 
@@ -70,8 +72,8 @@ For each language, copy and process the following files:
 
 | Template | Destination | Processing |
 |----------|-------------|------------|
-| `templates/scaffold/python/pyproject.toml` | `pyproject.toml` | Replace `__PROJECT_NAME__` with project name |
-| `templates/scaffold/python/.pre-commit-config.yaml` | `.pre-commit-config.yaml` | Copy as-is |
+| `templates/python/pyproject.toml` | `pyproject.toml` | Replace `__PROJECT_NAME__` with project name |
+| `templates/python/.pre-commit-config.yaml` | `.pre-commit-config.yaml` | Copy as-is |
 
 Create these additional files if they do not exist:
 
@@ -84,9 +86,9 @@ Create these additional files if they do not exist:
 
 | Template | Destination | Processing |
 |----------|-------------|------------|
-| `templates/scaffold/go/go.mod.tmpl` | `go.mod` | Replace `__MODULE_PATH__` with module path |
-| `templates/scaffold/go/Makefile` | `Makefile` | Copy as-is |
-| `templates/scaffold/go/.golangci.yml` | `.golangci.yml` | Copy as-is |
+| `templates/go/go.mod.tmpl` | `go.mod` | Replace `__MODULE_PATH__` with module path |
+| `templates/go/Makefile` | `Makefile` | Copy as-is |
+| `templates/go/.golangci.yml` | `.golangci.yml` | Copy as-is |
 
 Create these additional files if they do not exist:
 
@@ -98,9 +100,9 @@ Create these additional files if they do not exist:
 
 | Template | Destination | Processing |
 |----------|-------------|------------|
-| `templates/scaffold/node/package.json.tmpl` | `package.json` | Replace `__PROJECT_NAME__` with project name |
-| `templates/scaffold/node/tsconfig.json` | `tsconfig.json` | Copy as-is |
-| `templates/scaffold/node/eslint.config.js` | `eslint.config.js` | Copy as-is |
+| `templates/node/package.json.tmpl` | `package.json` | Replace `__PROJECT_NAME__` with project name |
+| `templates/node/tsconfig.json` | `tsconfig.json` | Copy as-is |
+| `templates/node/eslint.config.js` | `eslint.config.js` | Copy as-is |
 
 Create these additional files if they do not exist:
 
@@ -112,9 +114,9 @@ Create these additional files if they do not exist:
 
 | Template | Destination | Processing |
 |----------|-------------|------------|
-| `templates/scaffold/terraform/main.tf.tmpl` | `main.tf` | Replace `__PROJECT_NAME__` with project name |
-| `templates/scaffold/terraform/.tflint.hcl` | `.tflint.hcl` | Copy as-is |
-| `templates/scaffold/terraform/versions.tf.tmpl` | `versions.tf` | Copy as-is (no substitution needed) |
+| `templates/terraform/main.tf.tmpl` | `main.tf` | Replace `__PROJECT_NAME__` with project name |
+| `templates/terraform/.tflint.hcl` | `.tflint.hcl` | Copy as-is |
+| `templates/terraform/versions.tf.tmpl` | `versions.tf` | Copy as-is (no substitution needed) |
 
 Create these additional files if they do not exist:
 
@@ -230,7 +232,7 @@ For Node.js projects that include a web framework (detected via `next`, `vite`, 
    ```bash
    echo '{"app": "<app>", "id": "homepage-loads", "tier": "Lite",
           "workflow": "Load the homepage; assert 200 and the app shell renders"}' |
-     manifest smoke append --stdin --dry-run   # drop --dry-run to write
+     [[skill:smoke-manage]] append --stdin --dry-run   # drop --dry-run to write
    ```
 
 2. **Add a note to the summary** suggesting the optional runtime deps and gate:
@@ -238,7 +240,7 @@ For Node.js projects that include a web framework (detected via `next`, `vite`, 
    ```text
    Smoke testing (optional):
      Playwright + Chromium for deterministic UI steps (see smoke-manage install)
-     manifest smoke run --app <app> --tier Lite
+     [[skill:smoke-manage]] run --app <app> --tier Lite
    ```
 
 This phase is **non-blocking** — only suggests, does not require installation.
@@ -330,7 +332,7 @@ Substitute `{test-command}` with:
 - **Check template directory exists** -- if templates are missing, report clearly:
 
   ```text
-  Warning: Template directory not found at templates/scaffold/{language}/
+  Warning: Template directory not found at templates/{language}/
   Generating minimal configuration inline instead.
   ```
 
@@ -338,14 +340,3 @@ Substitute `{test-command}` with:
   the specifications in Phase 4 as the reference.
 
 ---
-
-## Configuration
-
-Template locations can be customized in `~/.claude/config/command_config.yml`:
-
-```yaml
-scaffold:
-  template_dir: templates/scaffold
-  default_language: null
-  manifest_integration: true
-```

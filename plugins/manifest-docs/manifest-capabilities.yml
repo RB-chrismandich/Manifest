@@ -10,7 +10,9 @@ components:
     include: ["*/SKILL.md"]
   agents: []
   hooks: []
-  runtime: []
+  runtime:
+    - {id: docs-lint, path: runtime/docs_lint.py}
+    - {id: docs-references, path: runtime/references}
   guidance: []
 capabilities:
   mcp:
