@@ -34,7 +34,7 @@ same iteration. Any findings → feed back to the developer and iterate.
 **Primary (Claude Code, Cursor):** native Task sub-agents per
 `../../runtime/references/sub-agent-dispatch.md`.
 
-**CLI fallback (Gemini, Codex, Antigravity):** critics and developer-reviewer via
+**CLI fallback (Gemini, Codex, Antigravity, Devin):** critics and developer-reviewer via
 `../../runtime/cddl/cddl_invoke.py` — see `prompts/cli-dispatch.md`. Model tiers:
 `../../runtime/references/cddl-role-models.md`. The developer role still
 requires a writer — run implementation in the main session when Task is absent, or
@@ -55,11 +55,10 @@ Dispatch templates live in this skill's `prompts/` directory. Hand sub-agents
 This skill is **long-horizon**: the CDDL loop re-runs four personas over the whole tree every round,
 until the gates clear.
 
-Before starting, check the session's model. If it is not Fable 5, **ask the user to switch**
-(`/model` → Fable 5) and wait for the answer. Do not assume Fable is active, and do not silently
-proceed on the default model — the choice trades ~2x the per-token cost against capability, so it
-is the user's to make. Everything shorter than this runs on Opus by default
-(`session_model` in `command_config.yml`; rationale in `docs/MODEL-POLICY.md`).
+Use a high-capability reasoning model for the orchestration session. CLI critic
+models resolve only through the adjacent
+`../../runtime/config/review_models.json`; Devin uses its documented no-model
+route.
 
 ## Prerequisites
 
@@ -76,7 +75,7 @@ is the user's to make. Everything shorter than this runs on Opus by default
 2. Resolve spec + plan; write `<RUN_DIR>/context.md` (paths, layout, verify cmd,
    iteration/round limits, clarification answers).
 3. Create run dir:
-   `${MANIFEST_STATE_ROOT:-~/.manifest}/cddl/runs/<repo-slug>/<run-id>/`
+   `${XDG_STATE_HOME:-$HOME/.local/state}/manifest/cddl/runs/<repo-slug>/<run-id>/`
    with `state.json` (`phase`, `iteration`, `round`, `status`).
 
 Defaults: clarification rounds **3**, implementation iterations **10**.

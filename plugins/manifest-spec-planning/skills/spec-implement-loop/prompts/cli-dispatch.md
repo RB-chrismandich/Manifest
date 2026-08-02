@@ -1,7 +1,7 @@
 # CLI fallback dispatch (platforms without Task)
 
 Use when the session **does not** expose native Task / sub-agent tools (Gemini
-CLI, Codex, Antigravity, etc.). **Claude Code** and **Cursor** should use Task
+CLI, Codex, Antigravity, Devin, etc.). **Claude Code** and **Cursor** should use Task
 sub-agents instead (`developer-dispatch.md`, `reviewer-dispatch.md`).
 
 ## Invoke seam
@@ -17,8 +17,8 @@ Environment overrides (same precedence as synthesis):
 
 | Variable | Meaning |
 |----------|---------|
-| `CDDL_INVOKE_PROVIDER` | `antigravity`, `cursor`, `gemini`, `codex`, `claude` |
-| `CDDL_INVOKE_CLI` | Binary override (`agy`, `cursor-agent`, …) |
+| `CDDL_INVOKE_PROVIDER` | `antigravity`, `cursor`, `gemini`, `codex`, `claude`, `devin` |
+| `CDDL_INVOKE_CLI` | Binary override (`agy`, `cursor-agent`, `devin`, …) |
 
 Default `provider: auto` walks `runtime/config/review_models.json` → `provider_order`
 (first CLI on PATH wins).
@@ -28,6 +28,9 @@ Default `provider: auto` walks `runtime/config/review_models.json` → `provider
 Role charters use `model: sonnet` (etc.) in frontmatter. `cddl_invoke.py`
 resolves the tier via `providers.<provider>.models.<tier>` in `runtime/config/review_models.json`.
 Override per call with `--model-tier flash`.
+
+Devin is a native no-model route: it invokes
+`devin --permission-mode auto -p <prompt>` and ignores charter model tiers.
 
 ## Orchestrator duties (unchanged)
 

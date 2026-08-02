@@ -4,7 +4,8 @@
     "cursor",
     "gemini",
     "codex",
-    "claude"
+    "claude",
+    "devin"
   ],
   "providers": {
     "antigravity": {
@@ -38,6 +39,10 @@
         "flash": "cursor-grok-4.5-medium",
         "sonnet": "cursor-grok-4.5-high"
       }
+    },
+    "devin": {
+      "binary": "devin",
+      "models": {}
     },
     "gemini": {
       "binary": "gemini",

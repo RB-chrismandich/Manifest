@@ -105,6 +105,8 @@ def _command(
         return [binary, "exec", "--color", "never", *model_args, "-"], prompt
     if provider == "claude":
         return [binary, *model_args, "-p"], prompt
+    if provider == "devin":
+        return [binary, "--permission-mode", "auto", "-p", prompt], None
     return [binary, *model_args, prompt], None
 
 

@@ -202,6 +202,9 @@ run_reviewer() {
             [[ -n "$model" ]] && claude_args+=(--model "$model")
             printf '%s' "$prompt" | "$SPEC_REVIEW_CLI" "${claude_args[@]+"${claude_args[@]}"}" -p
             ;;
+        devin)
+            "$SPEC_REVIEW_CLI" --permission-mode auto -p "$prompt"
+            ;;
         *) printf '%s' "$prompt" | "$SPEC_REVIEW_CLI" ;;
     esac
 }

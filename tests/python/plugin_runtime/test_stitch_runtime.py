@@ -105,6 +105,9 @@ def test_generated_artifacts_are_standalone_and_include_notices(
     assert "THIRD-PARTY LICENSE NOTICES" in source
     result = _run_node(script, "--help", cwd=tmp_path, env=_offline_env(tmp_path))
     assert result.returncode == 0, result.stderr
+    if artifact in {"extract-inline-html", "post-process", "snapshot"}:
+        assert f"node runtime/dist/{artifact}.mjs" in result.stdout
+        assert "<BUNDLE_ROOT>" not in result.stdout
 
 
 def test_snapshot_reports_missing_optional_chromium(
@@ -165,6 +168,11 @@ def test_stitch_docs_use_bundle_paths_and_qualified_skills(stitch_bundle: Path) 
         source = document.read_text(encoding="utf-8")
         for marker in forbidden:
             assert marker not in source, f"{document}: forbidden marker {marker}"
+
+    shadcn_readme = (stitch_bundle / "skills/shadcn-ui/README.md").read_text()
+    assert "../../CONTRIBUTING.md" not in shadcn_readme
+    assert "../../LICENSE" not in shadcn_readme
+    assert (stitch_bundle / "manifest-capabilities.yml").is_file()
 
 
 def test_stitch_contract_declares_generated_runtime(stitch_bundle: Path) -> None:

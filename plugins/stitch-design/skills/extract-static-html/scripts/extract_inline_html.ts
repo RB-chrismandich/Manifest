@@ -6,7 +6,7 @@
  * Replaces the old extract_inline_html.py script.
  *
  * Usage:
- *   node <BUNDLE_ROOT>/runtime/dist/extract-inline-html.mjs \
+ *   node runtime/dist/extract-inline-html.mjs \
  *     --page src/MockPage.jsx:home.html:"Home Page" \
  *     --index-css src/index.css \
  *     --extra-css index.html \
@@ -120,7 +120,7 @@ function parseArgs(): Opts {
       case '--json': opts.json = true; break;
       case '--help':
         console.log(`
-Usage: node <BUNDLE_ROOT>/runtime/dist/extract-inline-html.mjs --page <spec> [options]
+Usage: node runtime/dist/extract-inline-html.mjs --page <spec> [options]
 
 Options:
   --page             src_file:dst_filename:title (repeatable)

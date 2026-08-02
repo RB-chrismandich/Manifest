@@ -8,9 +8,9 @@
  * plain HTML, etc.) — no MockPage.jsx needed.
  *
  * Usage:
- *   node <BUNDLE_ROOT>/runtime/dist/snapshot.mjs --url http://localhost:5173 --output .stitch/home.html
- *   node <BUNDLE_ROOT>/runtime/dist/snapshot.mjs --url http://localhost:3000/pricing --output .stitch/pricing.html --html-class dark
- *   node <BUNDLE_ROOT>/runtime/dist/snapshot.mjs --url http://localhost:5173 --output .stitch/page.html --wait 5000 --viewport 1440x900
+ *   node runtime/dist/snapshot.mjs --url http://localhost:5173 --output .stitch/home.html
+ *   node runtime/dist/snapshot.mjs --url http://localhost:3000/pricing --output .stitch/pricing.html --html-class dark
+ *   node runtime/dist/snapshot.mjs --url http://localhost:5173 --output .stitch/page.html --wait 5000 --viewport 1440x900
  *
  * Flags:
  *   --url           URL to capture (required)
@@ -145,7 +145,7 @@ function parseArgs(): Opts {
         break;
       case '--help':
         console.log(`
-Usage: node <BUNDLE_ROOT>/runtime/dist/snapshot.mjs --url <URL> --output <FILE> [options]
+Usage: node runtime/dist/snapshot.mjs --url <URL> --output <FILE> [options]
 
 Options:
   --url           URL to capture (required)

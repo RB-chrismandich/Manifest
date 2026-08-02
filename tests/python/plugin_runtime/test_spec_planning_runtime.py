@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-from manifest_agent.contracts import load_contract
+from manifest_agent.contracts import CapabilityTier, load_contract
 
 
 @pytest.fixture
@@ -130,6 +130,44 @@ def test_cddl_cli_invokes_selected_native_reviewer(
     assert result.stdout == "approved fixture\n"
 
 
+def test_cddl_cli_invokes_devin_without_model(
+    spec_bundle: Path, tmp_path: Path
+) -> None:
+    env = _isolated_env(tmp_path)
+    capture = tmp_path / "devin-args"
+    fake = tmp_path / "devin"
+    fake.write_text(
+        '#!/bin/sh\nprintf \'%s\\0\' "$@" > "$CDDL_CAPTURE_ARGS"\n'
+        "printf 'approved devin fixture\\n'\n",
+        encoding="utf-8",
+    )
+    fake.chmod(0o755)
+    env.update(
+        {
+            "CDDL_CAPTURE_ARGS": str(capture),
+            "CDDL_INVOKE_PROVIDER": "devin",
+            "CDDL_INVOKE_CLI": str(fake),
+        }
+    )
+    script = spec_bundle / "runtime/cddl/cddl_invoke.py"
+    result = subprocess.run(
+        [sys.executable, "-S", "-B", str(script), "--charter", "qa-critic"],
+        input="Review the Devin fixture.",
+        cwd=tmp_path,
+        env=env,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "approved devin fixture\n"
+    arguments = capture.read_bytes().split(b"\0")[:-1]
+    assert arguments[:3] == [b"--permission-mode", b"auto", b"-p"]
+    assert b"Review the Devin fixture." in arguments[3]
+    assert b"--model" not in arguments
+
+
 def test_default_plan_store_is_xdg(spec_bundle: Path, tmp_path: Path) -> None:
     env = _isolated_env(tmp_path)
     module = _load_plan_store(spec_bundle)
@@ -169,6 +207,8 @@ def test_spec_runtime_uses_stdlib_and_bundle_assets(spec_bundle: Path) -> None:
         "configs/claude",
         "~/.claude",
         "/.claude/",
+        "~/.manifest",
+        "command_config.yml",
         "import yaml",
         "from yaml",
     )
@@ -182,11 +222,29 @@ def test_spec_runtime_uses_stdlib_and_bundle_assets(spec_bundle: Path) -> None:
 def test_spec_skills_use_bundle_runtime_and_qualified_interfaces(
     spec_bundle: Path,
 ) -> None:
-    forbidden = ("configs/claude", "~/.claude", "git_ops.sh", "manifest parallel-agent")
+    forbidden = (
+        "configs/claude",
+        "~/.claude",
+        "~/.manifest",
+        "command_config.yml",
+        "MODEL-POLICY.md",
+        "git_ops.sh",
+        "manifest parallel-agent",
+    )
     for skill in spec_bundle.glob("skills/*/SKILL.md"):
         text = skill.read_text(encoding="utf-8")
         for marker in forbidden:
             assert marker not in text, f"{skill}: forbidden marker {marker}"
+
+    for reference in spec_bundle.glob("runtime/references/*.md"):
+        text = reference.read_text(encoding="utf-8")
+        for marker in ("command_config.yml", "MODEL-POLICY.md", "~/.manifest"):
+            assert marker not in text, f"{reference}: forbidden marker {marker}"
+
+    implement_loop = (spec_bundle / "skills/spec-implement-loop/SKILL.md").read_text(
+        encoding="utf-8"
+    )
+    assert "${XDG_STATE_HOME:-$HOME/.local/state}/manifest/cddl/runs" in implement_loop
 
 
 def test_spec_contract_declares_all_runtime_assets(spec_bundle: Path) -> None:
@@ -207,3 +265,6 @@ def test_spec_contract_declares_all_runtime_assets(spec_bundle: Path) -> None:
     assert json.loads((spec_bundle / "runtime/config/review_models.json").read_text())[
         "providers"
     ]
+    config = json.loads((spec_bundle / "runtime/config/review_models.json").read_text())
+    assert config["providers"]["devin"] == {"binary": "devin", "models": {}}
+    assert "devin" in contract.capabilities.executables[CapabilityTier.OPTIONAL]
