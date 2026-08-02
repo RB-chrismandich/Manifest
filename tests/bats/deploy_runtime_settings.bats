@@ -31,6 +31,7 @@ setup() {
     # shellcheck disable=SC1090
     source "$SANDBOX/fn.sh"
     SRC="$REPO_ROOT/configs/claude/settings.runtime.json"
+    EXISTING_HOME_FIXTURE="$REPO_ROOT/tests/bats/fixtures/deploy_hooks/existing-claude-settings.json"
 }
 
 teardown() {
@@ -47,6 +48,15 @@ print(','.join(h['command'].split('/')[-1] for e in d['hooks'].get(sys.argv[2],[
 
 events_in() {
     python3 -c "import json,sys; print(','.join(sorted(json.load(open(sys.argv[1]))['hooks'])))" "$1"
+}
+
+materialize_existing_home() {
+    python3 -c "
+from pathlib import Path
+import sys
+source, target, home = map(Path, sys.argv[1:])
+target.write_text(source.read_text().replace('__HOME__', str(home)))" \
+        "$EXISTING_HOME_FIXTURE" "$1" "$HOME"
 }
 
 @test "the repo ships the Agent hook in settings.runtime.json" {
@@ -97,6 +107,29 @@ events_in() {
     assert_output --partial "subagent_model_default.py"
     run python3 -c "import json,sys; print(json.load(open(sys.argv[1]))['model'])" "$SANDBOX/settings.json"
     assert_output "opus"
+}
+
+@test "existing Claude home drops only the legacy version-pin hook" {
+    materialize_existing_home "$SANDBOX/settings.json"
+
+    run merge_claude_runtime_settings "$SRC" "$SANDBOX/settings.json"
+    assert_success
+    run merge_claude_runtime_settings "$SRC" "$SANDBOX/settings.json"
+    assert_success
+    assert_output --partial "already has"
+
+    run python3 -c "
+import json, sys
+d = json.load(open(sys.argv[1]))
+commands = [h.get('command', '') for entries in d['hooks'].values() for entry in entries for h in entry.get('hooks', [])]
+assert not any(c.endswith('/.claude/scripts/version_pin_hook.sh') for c in commands), commands
+for expected in ('guidance_hint.py', 'spec_review.sh --silent', 'lint_on_edit_hook.sh', 'deploy_stamp_check.sh', '/opt/user-hooks/keep-me.sh'):
+    assert sum(c.endswith(expected) for c in commands) == 1, (expected, commands)
+assert d['model'] == 'opus'
+assert 'Bash(/opt/user-hooks/keep-me.sh:*)' in d['permissions']['allow']
+print('legacy-removed-unrelated-preserved')" "$SANDBOX/settings.json"
+    assert_success
+    assert_output "legacy-removed-unrelated-preserved"
 }
 
 @test "is idempotent: a second run does not duplicate the entry" {

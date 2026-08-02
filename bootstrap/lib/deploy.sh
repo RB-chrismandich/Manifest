@@ -651,7 +651,8 @@ deploy_cursor_configs() {
 
 # Union repo-shipped hooks into an EXISTING settings JSON that rsync's
 # --ignore-existing would otherwise skip. Event-agnostic: works for any
-# hooks.<event>[] shape (Gemini BeforeAgent, Claude SessionStart, …).
+# hooks.<event>[] shape (Gemini BeforeAgent, Claude SessionStart, …). Also
+# retires the exact shared-home version-pin hook now owned by manifest-ops.
 # Shared by deploy_gemini_configs and the Claude merge-mode path.
 merge_settings_hooks() {
     local src="$1" tgt="$2"
@@ -666,6 +667,33 @@ src_path, tgt_path = sys.argv[1], sys.argv[2]
 src = json.load(open(src_path))
 tgt = json.load(open(tgt_path))
 changed = False
+
+def is_legacy_version_pin_hook(hook):
+    command = hook.get("command") if isinstance(hook, dict) else None
+    return isinstance(command, str) and (
+        command == "~/.claude/scripts/version_pin_hook.sh"
+        or command.endswith("/.claude/scripts/version_pin_hook.sh")
+    )
+
+# The Ops plugin owns this hook now. Remove only its retired shared-home
+# command, preserving sibling hooks inside the same matcher entry.
+for event, entries in list((tgt.get("hooks") or {}).items()):
+    retained_entries = []
+    for entry in entries:
+        hooks = entry.get("hooks") if isinstance(entry, dict) else None
+        if not isinstance(hooks, list):
+            retained_entries.append(entry)
+            continue
+        retained_hooks = [hook for hook in hooks if not is_legacy_version_pin_hook(hook)]
+        if len(retained_hooks) != len(hooks):
+            changed = True
+            if retained_hooks:
+                entry["hooks"] = retained_hooks
+                retained_entries.append(entry)
+        else:
+            retained_entries.append(entry)
+    tgt["hooks"][event] = retained_entries
+
 for event, entries in src.get("hooks", {}).items():
     cur = tgt.setdefault("hooks", {}).setdefault(event, [])
     for e in entries:
@@ -703,7 +731,8 @@ PYEOF
 #
 # Creates the target if absent, expands `~` to an absolute command (the shipped
 # settings.json hooks use absolute paths), and is idempotent + additive: an
-# entry the user already has is never duplicated and nothing is removed.
+# entry the user already has is never duplicated. The sole removal is the exact
+# shared-home version-pin hook retired in favor of manifest-ops ownership.
 # Fail-open like its siblings — a missing python3 is a skip, not a stop.
 # Register repo-shipped MCP servers with Claude Code's OWN store.
 #
@@ -810,6 +839,32 @@ if not isinstance(tgt, dict):
     sys.exit(4)
 
 changed = False
+
+def is_legacy_version_pin_hook(hook):
+    command = hook.get("command") if isinstance(hook, dict) else None
+    return isinstance(command, str) and (
+        command == "~/.claude/scripts/version_pin_hook.sh"
+        or command.endswith("/.claude/scripts/version_pin_hook.sh")
+    )
+
+# Existing homes may still contain the pre-plugin registration. Remove only
+# that command and preserve any sibling hooks sharing its matcher entry.
+for event, entries in list((tgt.get("hooks") or {}).items()):
+    retained_entries = []
+    for entry in entries:
+        hooks = entry.get("hooks") if isinstance(entry, dict) else None
+        if not isinstance(hooks, list):
+            retained_entries.append(entry)
+            continue
+        retained_hooks = [hook for hook in hooks if not is_legacy_version_pin_hook(hook)]
+        if len(retained_hooks) != len(hooks):
+            changed = True
+            if retained_hooks:
+                entry["hooks"] = retained_hooks
+                retained_entries.append(entry)
+        else:
+            retained_entries.append(entry)
+    tgt["hooks"][event] = retained_entries
 
 # permissions.allow: union, order-stable, never removes a user's own rule.
 src_allow = ((src.get("permissions") or {}).get("allow")) or []

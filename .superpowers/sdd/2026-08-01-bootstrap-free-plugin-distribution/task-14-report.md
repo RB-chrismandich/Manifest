@@ -15,10 +15,15 @@ absent.
 - REPAIR RED: three focused tests and two Ops Bats cases reproduced duplicate
   shared-home hook registration, missing-target success, and malformed-policy
   traceback behavior.
+- P1 RED: existing-home Claude and Gemini fixtures reproduced the additive-only
+  bootstrap gap: removing the source registrations left already-deployed
+  `version_pin_hook.sh` entries active indefinitely.
 - GREEN: the focused suite now passes 33/33, including helper behavior parity,
   stdlib-only JSON policy loading, sibling-bundle absence, and complete
   generated hook/runtime views.
-- GREEN: the named plugin and legacy Bats suites pass 38/38.
+- P1 GREEN: both hook mergers now remove only the retired shared-home command,
+  preserve sibling and user-owned hooks, and remain idempotent on a second run.
+- GREEN: the expanded Task 14 Bats matrix passes 126/126.
 
 ## Ops Runtime
 
@@ -34,6 +39,9 @@ absent.
 - Retired the duplicate shared-home registrations and permissions from the
   Claude, Cursor, and Gemini config sources. Existing spec-review, lint,
   guidance, session, MCP, and user-owned hook entries remain unchanged.
+- Added a bootstrap migration for existing Claude and Gemini homes. It prunes
+  only the exact retired `~/.claude/scripts/version_pin_hook.sh` command, drops
+  an emptied matcher wrapper, and retains every unrelated nested hook.
 - Missing explicit targets now return exit 2 before printing a summary.
   Malformed adjacent JSON policies return a concise exit-2 config diagnostic
   without a Python traceback.
@@ -67,7 +75,7 @@ bats tests/bats/ops_plugin_runtime.bats \
 
 bats tests/bats/deploy_runtime_settings.bats tests/bats/spec_review.bats \
   tests/bats/cursor_hooks.bats tests/bats/gemini_hooks_merge.bats
-# expanded runtime/config matrix: 124 passed total with the named suites
+# expanded runtime/config matrix: 126 passed total with the named suites
 
 uv run python tools/generate_plugin_views.py --check
 # passed
