@@ -166,10 +166,16 @@ def test_report_redacts_credential_values_and_keys():
     assert "[REDACTED]" in rendered
 
 
-def test_migrate_remains_explicitly_unimplemented(monkeypatch):
-    monkeypatch.setattr(cli_module, "_service", lambda **options: object())
+def test_migrate_runs_the_lifecycle_service(monkeypatch):
+    report = ServiceReport("migrate", ResultState.READY, {})
+
+    class FakeService:
+        def migrate(self):
+            return report
+
+    monkeypatch.setattr(cli_module, "_service", lambda **options: FakeService())
 
     result = CliRunner().invoke(cli_module.cli, ["migrate"])
 
-    assert result.exit_code != 0
-    assert "not implemented" in result.output
+    assert result.exit_code == 0
+    assert "migrate: READY" in result.output

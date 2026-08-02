@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Mapping, Sequence
 from contextlib import AbstractContextManager
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
@@ -12,6 +13,7 @@ from manifest_agent.adapters.base import Detection, HarnessAdapter, combine_resu
 from manifest_agent.adapters.registry import AdapterRegistry
 from manifest_agent.capabilities import resolve_capabilities
 from manifest_agent.contracts import load_domain_contracts
+from manifest_agent.migration import MigrationService
 from manifest_agent.models import (
     DesiredState,
     HarnessResult,
@@ -140,6 +142,25 @@ class ManifestService:
                 (diagnostic(exception),),
             )
         return report("install", results, notes)
+
+    def migrate(self) -> ServiceReport:
+        """Atomically hand bootstrap-owned writers to verified native plugins."""
+        desired, error = self._desired_state()
+        if error is not None:
+            return report("migrate", {}, errors=(error,))
+        assert desired is not None
+        migration = MigrationService.from_manifest_service(self, paths=xdg_paths())
+        result = migration.migrate(desired)
+        if result.state is ResultState.BLOCKED:
+            harnesses = " ".join(
+                f"--harness {name}" for name in (self.harnesses or ("all",))
+            )
+            command = (
+                "uvx --from manifest-agent manifest migrate "
+                f"--release {desired.release_version} {harnesses} --non-interactive"
+            )
+            return replace(result, notes=(*result.notes, f"resume with: {command}"))
+        return result
 
     def reconcile(self, apply: bool = False) -> ServiceReport:
         """Inspect desired state and optionally repair only drift or degradation."""

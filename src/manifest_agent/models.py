@@ -153,3 +153,8 @@ class InstallationReceipt:
     selected_optional: tuple[str, ...]
     harnesses: dict[str, HarnessReceipt]
     migration_backup: str | None = None
+
+    @property
+    def migration_complete(self) -> bool:
+        """Whether this receipt was committed by a completed legacy handoff."""
+        return self.migration_backup is not None

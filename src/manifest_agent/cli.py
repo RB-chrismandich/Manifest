@@ -98,10 +98,11 @@ def install(context: click.Context, **options: Any) -> None:
 
 @cli.command()
 @_lifecycle_options
-def migrate(**options: Any) -> None:
+@click.pass_context
+def migrate(context: click.Context, **options: Any) -> None:
     """Migrate a legacy Manifest installation."""
-    _service(**options)
-    raise click.ClickException("not implemented")
+    service = _service(**options)
+    _emit(context, service.migrate(), options["as_json"])
 
 
 @cli.command()

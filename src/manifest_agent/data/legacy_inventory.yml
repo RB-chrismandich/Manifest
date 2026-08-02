@@ -1,0 +1,417 @@
+# Bootstrap outputs that may be changed during the native-plugin cutover.
+# Paths are deliberately literal and use only HOME expansion; anything not
+# listed here is user-owned and is never mutated by the coordinator.
+categories:
+  - skills
+  - agents
+  - guidance
+  - hooks
+  - permissions
+  - mcp
+  - scripts
+  - optional_tools
+  - configuration
+  - diagnostics
+  - updates
+  - uninstall
+entries:
+  - id: claude-shared-skills
+    category: skills
+    path: ~/.claude/skills
+    harnesses: [claude]
+    classification: bundle-owned
+    destination: native-plugin-managers
+    ownership_proof: {type: symlink-target, value: ~/.manifest/skills}
+    action: disable
+    recovery: restore-symlink
+    parity_test: plugin_migration.bats
+  - id: codex-shared-skills
+    category: skills
+    path: ~/.codex/skills
+    harnesses: [codex]
+    classification: bundle-owned
+    destination: native-plugin-managers
+    ownership_proof: {type: symlink-target, value: ~/.manifest/skills}
+    action: disable
+    recovery: restore-symlink
+    parity_test: plugin_migration.bats
+  - id: gemini-shared-skills
+    category: skills
+    path: ~/.gemini/skills
+    harnesses: [gemini]
+    classification: bundle-owned
+    destination: native-plugin-managers
+    ownership_proof: {type: symlink-target, value: ~/.manifest/skills}
+    action: disable
+    recovery: restore-symlink
+    parity_test: plugin_migration.bats
+  - id: cursor-generated-rules
+    category: agents
+    path: ~/.cursor/rules
+    harnesses: [cursor]
+    classification: bundle-owned
+    destination: generated-cursor-native-view
+    ownership_proof: {type: deploy-stamp, value: config/deploy_stamp}
+    action: disable
+    recovery: restore-tree
+    parity_test: plugin_migration.bats
+  - id: claude-guidance
+    category: guidance
+    path: ~/.claude/CLAUDE.md
+    harnesses: [claude]
+    classification: bundle-owned
+    destination: manifest-workspace
+    ownership_proof: {type: deploy-stamp, value: config/deploy_stamp}
+    action: disable
+    recovery: restore-file
+    parity_test: plugin_migration.bats
+  - id: claude-hooks
+    category: hooks
+    path: ~/.claude/settings.json
+    harnesses: [claude]
+    classification: mixed
+    destination: native-hook-registration
+    ownership_proof: {type: exact-marker, value: manifest-hook-envelope-v1}
+    action: retain
+    recovery: restore-owned-hook-entry
+    parity_test: plugin_migration.bats
+  - id: claude-permissions
+    category: permissions
+    path: ~/.claude/settings.local.json
+    harnesses: [claude]
+    classification: mixed
+    destination: native-permission-registration
+    ownership_proof: {type: exact-marker, value: manifest-permission-v1}
+    action: retain
+    recovery: restore-owned-permission-entry
+    parity_test: plugin_migration.bats
+  - id: claude-context7
+    category: mcp
+    path: ~/.claude.json
+    harnesses: [claude]
+    classification: mixed
+    destination: native-mcp-context7
+    ownership_proof: {type: exact-marker, value: context7}
+    action: retain
+    recovery: restore-owned-mcp-entry
+    parity_test: plugin_migration.bats
+  - id: manifest-cli
+    category: scripts
+    path: ~/.local/bin/manifest
+    harnesses: [claude, codex, gemini, cursor, antigravity, devin]
+    classification: coordinator-owned
+    destination: ephemeral-uvx-coordinator
+    ownership_proof: {type: generated-hash, value: manifest-cli-router-v1}
+    action: remove
+    recovery: restore-file
+    parity_test: plugin_migration.bats
+  - id: sync-skills-cli
+    category: scripts
+    path: ~/.local/bin/sync-skills
+    harnesses: [claude, codex, gemini, cursor, antigravity, devin]
+    classification: bundle-owned
+    destination: manifest-workspace
+    ownership_proof: {type: generated-hash, value: sync-skills-router-v1}
+    action: remove
+    recovery: restore-file
+    parity_test: plugin_migration.bats
+  - id: graphify-cli
+    category: optional_tools
+    path: ~/.local/bin/graphify
+    harnesses: [claude, codex, gemini, cursor, antigravity, devin]
+    classification: bundle-owned
+    destination: manifest-graphify
+    ownership_proof: {type: generated-hash, value: graphify-wrapper-v1}
+    action: remove
+    recovery: restore-file
+    parity_test: test_graphify_runtime.py
+  - id: claude-config
+    category: configuration
+    path: ~/.claude/config
+    harnesses: [claude]
+    classification: bundle-owned
+    destination: domain-bundle-runtime
+    ownership_proof: {type: symlink-target, value: ~/.manifest/config}
+    action: disable
+    recovery: restore-symlink
+    parity_test: plugin_migration.bats
+  - id: deploy-stamp
+    category: diagnostics
+    path: ~/.claude/config/deploy_stamp
+    harnesses: [claude]
+    classification: coordinator-owned
+    destination: installation-receipt
+    ownership_proof: {type: exact-marker, value: manifest-deploy-stamp-v1}
+    action: remove
+    recovery: restore-file
+    parity_test: plugin_migration.bats
+  - id: apm-drift-report
+    category: updates
+    path: ~/.claude/scripts/apm_drift_report.sh
+    harnesses: [claude]
+    classification: retired
+    destination: retired-plugin-drift-report
+    ownership_proof: {type: generated-hash, value: apm-drift-report-v1}
+    action: remove
+    recovery: restore-file
+    parity_test: plugin_migration.bats
+  - id: bootstrap-uninstall-marker
+    category: uninstall
+    path: ~/.manifest/bootstrap-uninstall.json
+    harnesses: [claude, codex, gemini, cursor, antigravity, devin]
+    classification: coordinator-owned
+    destination: native-receipt-uninstall
+    ownership_proof: {type: exact-marker, value: manifest-bootstrap-uninstall-v1}
+    action: remove
+    recovery: restore-file
+    parity_test: plugin_migration.bats
+  - id: native-credentials
+    category: configuration
+    path: ~/.config/manifest/credentials.json
+    harnesses: [claude, codex, gemini, cursor, antigravity, devin]
+    classification: harness-native
+    destination: native-credential-store
+    ownership_proof: {type: exact-marker, value: never-migrate}
+    action: retain
+    recovery: none
+    parity_test: manual-credential-preservation
+  - id: claude-agents
+    category: agents
+    path: ~/.claude/agents
+    harnesses: [claude]
+    classification: bundle-owned
+    destination: manifest-workspace
+    ownership_proof: {type: deploy-stamp, value: config/deploy_stamp}
+    action: disable
+    recovery: restore-tree
+    parity_test: plugin_migration.bats
+  - id: claude-prompts
+    category: guidance
+    path: ~/.claude/prompts
+    harnesses: [claude]
+    classification: bundle-owned
+    destination: domain-bundle-runtime
+    ownership_proof: {type: deploy-stamp, value: config/deploy_stamp}
+    action: disable
+    recovery: restore-tree
+    parity_test: plugin_migration.bats
+  - id: claude-references
+    category: guidance
+    path: ~/.claude/references
+    harnesses: [claude]
+    classification: bundle-owned
+    destination: domain-bundle-runtime
+    ownership_proof: {type: deploy-stamp, value: config/deploy_stamp}
+    action: disable
+    recovery: restore-tree
+    parity_test: plugin_migration.bats
+  - id: claude-plans
+    category: configuration
+    path: ~/.claude/.plans
+    harnesses: [claude]
+    classification: user-owned
+    destination: xdg-plan-store
+    ownership_proof: {type: exact-marker, value: manifest-plan-template-v1}
+    action: retain
+    recovery: none
+    parity_test: test_spec_planning_runtime.py
+  - id: claude-scripts
+    category: scripts
+    path: ~/.claude/scripts
+    harnesses: [claude]
+    classification: bundle-owned
+    destination: domain-bundle-runtime
+    ownership_proof: {type: deploy-stamp, value: config/deploy_stamp}
+    action: disable
+    recovery: restore-tree
+    parity_test: plugin_migration.bats
+  - id: cursor-config-link
+    category: configuration
+    path: ~/.cursor/config
+    harnesses: [cursor]
+    classification: bundle-owned
+    destination: domain-bundle-runtime
+    ownership_proof: {type: symlink-target, value: ~/.claude/config}
+    action: disable
+    recovery: restore-symlink
+    parity_test: plugin_migration.bats
+  - id: cursor-prompts-link
+    category: guidance
+    path: ~/.cursor/prompts
+    harnesses: [cursor]
+    classification: bundle-owned
+    destination: domain-bundle-runtime
+    ownership_proof: {type: symlink-target, value: ~/.claude/prompts}
+    action: disable
+    recovery: restore-symlink
+    parity_test: plugin_migration.bats
+  - id: cursor-plans-link
+    category: configuration
+    path: ~/.cursor/.plans
+    harnesses: [cursor]
+    classification: bundle-owned
+    destination: xdg-plan-store
+    ownership_proof: {type: symlink-target, value: ~/.claude/.plans}
+    action: disable
+    recovery: restore-symlink
+    parity_test: plugin_migration.bats
+  - id: cursor-mcp
+    category: mcp
+    path: ~/.cursor/mcp.json
+    harnesses: [cursor]
+    classification: mixed
+    destination: native-mcp-context7
+    ownership_proof: {type: exact-marker, value: context7}
+    action: retain
+    recovery: restore-owned-mcp-entry
+    parity_test: plugin_migration.bats
+  - id: gemini-guidance
+    category: guidance
+    path: ~/.gemini/GEMINI.md
+    harnesses: [gemini]
+    classification: bundle-owned
+    destination: manifest-workspace
+    ownership_proof: {type: deploy-stamp, value: config/deploy_stamp}
+    action: disable
+    recovery: restore-file
+    parity_test: plugin_migration.bats
+  - id: gemini-settings
+    category: configuration
+    path: ~/.gemini/settings.json
+    harnesses: [gemini]
+    classification: mixed
+    destination: native-settings-registration
+    ownership_proof: {type: exact-marker, value: manifest-settings-v1}
+    action: retain
+    recovery: restore-owned-settings-entry
+    parity_test: plugin_migration.bats
+  - id: gemini-config-link
+    category: configuration
+    path: ~/.gemini/config
+    harnesses: [gemini]
+    classification: bundle-owned
+    destination: domain-bundle-runtime
+    ownership_proof: {type: symlink-target, value: ~/.claude/config}
+    action: disable
+    recovery: restore-symlink
+    parity_test: plugin_migration.bats
+  - id: gemini-prompts-link
+    category: guidance
+    path: ~/.gemini/prompts
+    harnesses: [gemini]
+    classification: bundle-owned
+    destination: domain-bundle-runtime
+    ownership_proof: {type: symlink-target, value: ~/.claude/prompts}
+    action: disable
+    recovery: restore-symlink
+    parity_test: plugin_migration.bats
+  - id: gemini-plans-link
+    category: configuration
+    path: ~/.gemini/.plans
+    harnesses: [gemini]
+    classification: bundle-owned
+    destination: xdg-plan-store
+    ownership_proof: {type: symlink-target, value: ~/.claude/.plans}
+    action: disable
+    recovery: restore-symlink
+    parity_test: plugin_migration.bats
+  - id: codex-guidance
+    category: guidance
+    path: ~/.codex/AGENTS.md
+    harnesses: [codex]
+    classification: bundle-owned
+    destination: manifest-workspace
+    ownership_proof: {type: deploy-stamp, value: config/deploy_stamp}
+    action: disable
+    recovery: restore-symlink
+    parity_test: plugin_migration.bats
+  - id: codex-config-link
+    category: configuration
+    path: ~/.codex/config
+    harnesses: [codex]
+    classification: bundle-owned
+    destination: domain-bundle-runtime
+    ownership_proof: {type: symlink-target, value: ~/.claude/config}
+    action: disable
+    recovery: restore-symlink
+    parity_test: plugin_migration.bats
+  - id: codex-prompts-link
+    category: guidance
+    path: ~/.codex/prompts
+    harnesses: [codex]
+    classification: bundle-owned
+    destination: domain-bundle-runtime
+    ownership_proof: {type: symlink-target, value: ~/.claude/prompts}
+    action: disable
+    recovery: restore-symlink
+    parity_test: plugin_migration.bats
+  - id: codex-plans-link
+    category: configuration
+    path: ~/.codex/.plans
+    harnesses: [codex]
+    classification: bundle-owned
+    destination: xdg-plan-store
+    ownership_proof: {type: symlink-target, value: ~/.claude/.plans}
+    action: disable
+    recovery: restore-symlink
+    parity_test: plugin_migration.bats
+  - id: antigravity-config-link
+    category: configuration
+    path: ~/.antigravity/config
+    harnesses: [antigravity]
+    classification: bundle-owned
+    destination: domain-bundle-runtime
+    ownership_proof: {type: symlink-target, value: ~/.claude/config}
+    action: disable
+    recovery: restore-symlink
+    parity_test: plugin_migration.bats
+  - id: antigravity-skills-link
+    category: skills
+    path: ~/.antigravity/skills
+    harnesses: [antigravity]
+    classification: bundle-owned
+    destination: native-plugin-managers
+    ownership_proof: {type: symlink-target, value: ~/.manifest/skills}
+    action: disable
+    recovery: restore-symlink
+    parity_test: plugin_migration.bats
+  - id: antigravity-plans-link
+    category: configuration
+    path: ~/.antigravity/.plans
+    harnesses: [antigravity]
+    classification: bundle-owned
+    destination: xdg-plan-store
+    ownership_proof: {type: symlink-target, value: ~/.claude/.plans}
+    action: disable
+    recovery: restore-symlink
+    parity_test: plugin_migration.bats
+  - id: devin-claude-inheritance
+    category: configuration
+    path: ~/.config/devin/config.json
+    harnesses: [devin]
+    classification: mixed
+    destination: native-plugin-registration
+    ownership_proof: {type: exact-marker, value: read_config_from}
+    action: retain
+    recovery: restore-owned-settings-entry
+    parity_test: plugin_migration.bats
+  - id: manifest-skills-hub
+    category: skills
+    path: ~/.manifest/skills
+    harnesses: [claude, codex, gemini, cursor, antigravity, devin]
+    classification: bundle-owned
+    destination: native-plugin-managers
+    ownership_proof: {type: deploy-stamp, value: ~/.manifest/deploy_stamp}
+    action: retain
+    recovery: user-directed-removal-after-parity
+    parity_test: plugin_migration.bats
+  - id: manifest-release-metadata
+    category: updates
+    path: ~/.manifest/releases.json
+    harnesses: [claude, codex, gemini, cursor, antigravity, devin]
+    classification: coordinator-owned
+    destination: xdg-release-metadata
+    ownership_proof: {type: exact-marker, value: manifest-release-v1}
+    action: remove
+    recovery: restore-file
+    parity_test: plugin_migration.bats
