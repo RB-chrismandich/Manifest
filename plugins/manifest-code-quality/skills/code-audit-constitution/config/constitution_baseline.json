@@ -180,6 +180,32 @@
     "configs/claude/scripts/token_cost_report.py": {
       "C-SIZE": 3
     },
+    "plugins/manifest-code-quality/skills/smoke-manage/scripts/smoke_orchestrator/cli.py": {
+      "C-SIZE": 1
+    },
+    "plugins/manifest-code-quality/skills/smoke-manage/scripts/smoke_orchestrator/executor.py": {
+      "C-ERR": 1,
+      "C-SIZE": 1
+    },
+    "plugins/manifest-code-quality/skills/smoke-manage/scripts/smoke_orchestrator/state.py": {
+      "C-SIZE": 1
+    },
+    "plugins/manifest-code-quality/skills/smoke-manage/scripts/smoke_orchestrator/steps/agent.py": {
+      "C-ERR": 5
+    },
+    "plugins/manifest-code-quality/skills/smoke-manage/scripts/smoke_orchestrator/steps/api.py": {
+      "C-ERR": 2
+    },
+    "plugins/manifest-code-quality/skills/smoke-manage/scripts/smoke_orchestrator/steps/ui.py": {
+      "C-ERR": 1,
+      "C-SIZE": 1
+    },
+    "plugins/manifest-code-quality/skills/smoke-manage/scripts/smoke_orchestrator/validation.py": {
+      "C-SIZE": 1
+    },
+    "plugins/manifest-docs/runtime/docs_lint.py": {
+      "C-SIZE": 1
+    },
     "plugins/manifest-forge/skills/repo-clean/scripts/hygiene_gather.py": {
       "C-ERR": 1,
       "C-SIZE": 3

@@ -37,6 +37,14 @@ teardown() {
     refute_output --partial "manifest_cli"
 }
 
+@test "smoke append treats malformed stdin JSON as invalid input" {
+    cd "$SANDBOX"
+
+    run bash -c "printf '{not-json\n' | python3 -S -B '$BUNDLE/skills/smoke-manage/scripts/smoke.py' append --stdin"
+    assert_failure 2
+    assert_output --partial "invalid workflow description JSON"
+}
+
 @test "code-quality instructions contain no legacy runtime commands" {
     run bash -c "grep -R -nE '(configs/claude/scripts|~/.claude/scripts|manifest smoke|parallel_agent.py|learning_capture.sh)' '$BUNDLE/skills' --include='SKILL.md' || true"
     assert_output ""

@@ -56,6 +56,48 @@ def test_docs_lint_runs_from_installed_bundle_offline(
     assert "configs/claude" not in result.stderr
 
 
+@pytest.mark.parametrize(
+    ("policy_name", "policy", "message"),
+    [
+        ("limits.yaml", "defaults:\n  max_lines: 1\n", "JSON policy files only"),
+        ("limits.json", "{not-json\n", "invalid JSON limits policy"),
+    ],
+)
+def test_docs_lint_rejects_unusable_explicit_policy_without_fallback(
+    docs_bundle: Path,
+    tmp_path: Path,
+    policy_name: str,
+    policy: str,
+    message: str,
+) -> None:
+    readme = tmp_path / "README.md"
+    readme.write_text("# Example\n", encoding="utf-8")
+    limits = tmp_path / policy_name
+    limits.write_text(policy, encoding="utf-8")
+    script = docs_bundle / "runtime/docs_lint.py"
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-S",
+            "-B",
+            str(script),
+            str(readme),
+            "--limits",
+            str(limits),
+        ],
+        cwd=tmp_path,
+        env=_isolated_env(tmp_path),
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    assert result.returncode == 2
+    assert message in result.stderr
+    assert "built-in" not in result.stderr
+
+
 def test_docs_concision_reference_is_bundle_local(
     docs_bundle: Path,
 ) -> None:

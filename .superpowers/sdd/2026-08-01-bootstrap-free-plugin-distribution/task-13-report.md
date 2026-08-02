@@ -11,9 +11,12 @@ home, the legacy `manifest` router, or runtime network access.
 
 - RED: focused pytest failed 9/9 on missing scripts, assets, contracts, and
   legacy runtime references; the new Bats suites failed 4/4 at the same seams.
-- GREEN: focused pytest passes 12/12 under empty homes, `UV_NO_NETWORK=1`,
+- RED follow-up: malformed smoke stdin returned exit 1, unusable docs policies
+  silently fell back, and immutable vendor paths were not excluded from
+  formatting hooks.
+- GREEN: focused pytest passes 17/17 under empty homes, `UV_NO_NETWORK=1`,
   empty `PYTHONPATH`, and `python -S -B`.
-- GREEN: the combined plugin and migrated legacy Bats suites pass 38/38.
+- GREEN: the combined plugin and migrated legacy Bats suites pass 40/40.
 
 ## Implementation
 
@@ -22,7 +25,7 @@ home, the legacy `manifest` router, or runtime network access.
   retained its baseline and language annexes, and removed runtime PyYAML use.
 - Packaged the complete smoke orchestrator and schemas beside `smoke-manage`.
   `scripts/smoke.py` prepends only the adjacent vendor directory and preserves
-  exit codes 0/1/2.
+  exit codes 0/1/2, including exit 2 for malformed workflow JSON.
 - Added deterministic PyYAML vendoring from the exact `uv.lock` 6.0.3 sdist.
   The tool verifies the official PyPI source, locked SHA-256, hard-allowlisted
   pure-Python package files, MIT license, and committed per-file hashes. It
@@ -32,10 +35,16 @@ home, the legacy `manifest` router, or runtime network access.
 - Packaged the code-audit antipattern reference and changed all cross-domain
   collaboration to `[[skill:...]]` interfaces.
 - Packaged docs lint, its concision doctrine, and an adjacent stdlib-readable
-  JSON limits policy. All docs skills use bundle-relative runtime paths.
+  JSON limits policy. Explicit overrides are JSON-only and fail closed with
+  exit 2; the runtime never imports ambient YAML or silently changes policy.
 - Declared every runtime directory and exact required/optional executable tier,
   then regenerated the Claude, Gemini, and generic native views.
 - Migrated the named legacy Bats suites to execute plugin copies only.
+- Added narrow immutable-vendor exclusions to byte-mutating and style hooks.
+  Owned bundle runtime and `VENDOR.json` remain checked, while AST, debug,
+  secret, and JSON hooks continue to inspect the upstream tree. The relocated
+  smoke runtime retains the legacy constitution ratchet rather than bypassing
+  the gate, and the exact Node scaffold is excluded only from root ESLint.
 
 ## Dependency Review
 
@@ -50,18 +59,24 @@ home, the legacy `manifest` router, or runtime network access.
 ```text
 uv run pytest tests/python/plugin_runtime/test_code_quality_runtime.py \
   tests/python/plugin_runtime/test_docs_runtime.py -q
-# 12 passed
+# 17 passed
 
 bats tests/bats/code_quality_plugin_runtime.bats \
   tests/bats/docs_plugin_runtime.bats tests/bats/constitution_check.bats \
   tests/bats/smoke_orchestrator_cli.bats tests/bats/docs_lint.bats
-# 38 passed
+# 40 passed
 
 uv run python tools/vendor_bundle_dependencies.py --check
 # vendored PyYAML 6.0.3 is current
 
 uv run python tools/generate_plugin_views.py --check
 # passed
+
+{ git diff-tree --no-commit-id --name-only -r HEAD; \
+  printf '%s\n' .pre-commit-config.yaml \
+    configs/claude/config/constitution_baseline.json; } \
+  | sort -u | xargs pre-commit run --files
+# passed without --no-verify
 ```
 
 Scoped Ruff, Ruff format, Pyright, ShellCheck, yamllint, JSON/YAML validation,
@@ -69,12 +84,9 @@ secret checks, markdown lint, stale-path checks, and the Code Constitution
 passed for authored and adapted Task 13 files. The no-baseline constitution
 audit reported advisory findings only.
 
-An intentionally broader pre-commit probe over every copied compatibility file
-found two pre-existing integration gaps: ESLint tries to lint the byte-identical
-Node scaffold without a root flat config, and the legacy constitution hook's
-baseline still keys the smoke parser at its old `configs/claude` path. The
-required Task 13 suites execute the relocated copies and pass; changing copied
-scaffold bytes or the legacy global baseline would violate this task's scope.
+The full Task 13 changed-file pre-commit gate passes. Running it over every
+vendor path leaves the tree unchanged, and the subsequent offline vendor check
+confirms every `VENDOR.json` hash still matches the committed bytes.
 
 ## Scope Preservation
 

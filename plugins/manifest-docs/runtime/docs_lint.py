@@ -3,10 +3,10 @@
 
 The docs-* skills need one measurable definition of "concise" rather than a
 per-run judgement call, so the adjacent JSON policy is the installed default and
-``--limits`` accepts an explicit project policy. A doc over its cap is a hard finding
-(exit 1) because the fix is mechanical: split it into a hub plus sub-pages, per
-references/doc-concision.md. Fluff phrases are advisory only -- a wording
-blocklist that failed a build would be a blocklist people route around.
+``--limits`` accepts an explicit JSON project policy. A doc over its cap is a
+hard finding (exit 1) because the fix is mechanical: split it into a hub plus
+sub-pages, per references/doc-concision.md. Fluff phrases are advisory only --
+a wording blocklist that failed a build would be a blocklist people route around.
 
 Line counting is `wc -l` parity, deliberately including code blocks: the reader
 scrolling a 900-line page does not get a discount for the fences.
@@ -16,7 +16,7 @@ Usage:
 
 Options:
   PATHS         files/dirs to scan (default: current directory)
-  --limits FILE caps config (default: adjacent references/doc-limits.json)
+  --limits FILE JSON caps config (default: adjacent references/doc-limits.json)
   --json PATH   also write the machine-readable report to PATH
   --warn-only   report over-cap docs but always exit 0
   --quiet       suppress the per-file table; print the summary only
@@ -32,33 +32,6 @@ import sys
 from pathlib import Path
 
 PROG = "docs_lint.py"
-
-# Last-resort safety net if the adjacent JSON policy is unreadable. The normal
-# installed path stays stdlib-only and never consults an assistant home.
-BUILTIN_LIMITS: dict = {
-    "defaults": {"max_lines": 250, "warn_at": 0.8},
-    "types": {
-        "hub": {"max_lines": 120},
-        "readme_root": {"max_lines": 200},
-        "tutorial": {"max_lines": 200},
-        "howto": {"max_lines": 200},
-        "reference": {"max_lines": 400},
-        "explanation": {"max_lines": 250},
-        "diagram": {"max_lines": 300, "max_diagrams": 4},
-    },
-    "classify": [
-        {"glob": "README.md", "type": "readme_root"},
-        {"glob": "**/docs/README.md", "type": "hub"},
-        {"glob": "docs/README.md", "type": "hub"},
-        {"glob": "**/index.md", "type": "hub"},
-    ],
-    "exempt": {
-        "globs": ["**/node_modules/**", "**/.venv/**", "**/CHANGELOG.md"],
-        "markers": ["<!-- generated", "DO NOT EDIT", "AUTO-GENERATED"],
-    },
-    "overrides": {"type_marker": "doc-type:", "limit_marker": "doc-limit:"},
-    "fluff": {"phrases": [], "structure": {}},
-}
 
 # Directories never worth walking, independent of the exempt globs.
 SKIP_DIRS = {".git", "node_modules", ".venv", "venv", "__pycache__", "site-packages"}
@@ -110,35 +83,33 @@ def matches_any(rel: str, patterns: list[str]) -> bool:
 
 
 def load_limits(explicit: str | None) -> tuple[dict, str]:
-    """Return (limits, source). Falls back to BUILTIN_LIMITS, never raises."""
-    candidates = (
-        [Path(explicit).expanduser()]
+    """Load the explicit or adjacent JSON policy, failing closed if unusable."""
+    path = (
+        Path(explicit).expanduser()
         if explicit
-        else [Path(__file__).resolve().parent / "references/doc-limits.json"]
+        else Path(__file__).resolve().parent / "references/doc-limits.json"
     )
-
-    for path in candidates:
-        if not path.is_file():
-            continue
-        try:
-            if path.suffix.lower() == ".json":
-                data = json.loads(path.read_text(encoding="utf-8"))
-            else:
-                import yaml  # deferred: explicit YAML is a compatibility input
-
-                data = yaml.safe_load(path.read_text(encoding="utf-8"))
-        except (ImportError, OSError, ValueError) as exc:
-            err(f"{path}: unreadable ({exc}); using built-in caps")
-            return BUILTIN_LIMITS, "built-in (unreadable config)"
-        if not isinstance(data, dict):
-            err(f"{path}: not a mapping; using built-in caps")
-            return BUILTIN_LIMITS, "built-in (bad config)"
-        return data, str(path)
-
-    if explicit:
-        err(f"{explicit}: no such limits file")
+    if path.suffix.lower() != ".json":
+        err(
+            f"{path}: unsupported limits format; "
+            "offline runtime accepts JSON policy files only"
+        )
         raise SystemExit(2)
-    return BUILTIN_LIMITS, "built-in"
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        err(f"{path}: no such limits file")
+        raise SystemExit(2) from None
+    except OSError as exc:
+        err(f"{path}: unreadable limits policy ({exc})")
+        raise SystemExit(2) from exc
+    except json.JSONDecodeError as exc:
+        err(f"{path}: invalid JSON limits policy ({exc})")
+        raise SystemExit(2) from exc
+    if not isinstance(data, dict):
+        err(f"{path}: limits policy must contain a JSON object")
+        raise SystemExit(2)
+    return data, str(path)
 
 
 def discover(paths: list[str], root: Path, exempt_globs: list[str]) -> list[Path]:
@@ -399,7 +370,7 @@ def main(argv: list[str] | None = None) -> int:
         "--limits",
         metavar="FILE",
         default=None,
-        help="caps config (default: adjacent references/doc-limits.json)",
+        help="JSON caps config (default: adjacent references/doc-limits.json)",
     )
     p.add_argument(
         "--json",

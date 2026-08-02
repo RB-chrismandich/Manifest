@@ -5,6 +5,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import os
+import re
 import subprocess
 import sys
 import tarfile
@@ -112,6 +113,25 @@ def test_smoke_cli_uses_adjacent_vendored_yaml_offline(
     assert (skill / "vendor/LICENSE.PyYAML").is_file()
 
 
+def test_smoke_append_rejects_malformed_stdin_as_invalid_input(
+    code_quality_bundle: Path, tmp_path: Path
+) -> None:
+    script = code_quality_bundle / "skills/smoke-manage/scripts/smoke.py"
+
+    result = subprocess.run(
+        [sys.executable, "-S", "-B", str(script), "append", "--stdin"],
+        cwd=tmp_path,
+        env=_isolated_env(tmp_path),
+        input="{not-json\n",
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    assert result.returncode == 2
+    assert "invalid workflow description JSON" in result.stderr
+
+
 def test_vendored_yaml_provenance_matches_lock_and_committed_hashes(
     repo_root: Path, code_quality_bundle: Path, tmp_path: Path
 ) -> None:
@@ -142,6 +162,85 @@ def test_vendored_yaml_provenance_matches_lock_and_committed_hashes(
         check=False,
     )
     assert result.returncode == 0, result.stderr
+
+
+def test_precommit_preserves_only_immutable_upstream_vendor_bytes(
+    repo_root: Path,
+) -> None:
+    import yaml
+
+    config = yaml.safe_load(
+        (repo_root / ".pre-commit-config.yaml").read_text(encoding="utf-8")
+    )
+    hooks = {
+        hook["id"]: hook
+        for repository in config["repos"]
+        for hook in repository["hooks"]
+    }
+    upstream_python = (
+        "plugins/manifest-code-quality/skills/smoke-manage/vendor/yaml/parser.py"
+    )
+    upstream_license = (
+        "plugins/manifest-code-quality/skills/smoke-manage/vendor/LICENSE.PyYAML"
+    )
+    owned_runtime = "plugins/manifest-code-quality/skills/smoke-manage/scripts/smoke.py"
+    owned_metadata = (
+        "plugins/manifest-code-quality/skills/smoke-manage/vendor/VENDOR.json"
+    )
+
+    for hook_id in ("trailing-whitespace", "end-of-file-fixer", "mixed-line-ending"):
+        exclude = hooks[hook_id]["exclude"]
+        assert re.search(exclude, upstream_python)
+        assert re.search(exclude, upstream_license)
+        assert not re.search(exclude, owned_runtime)
+        assert not re.search(exclude, owned_metadata)
+
+    for hook_id in ("ruff", "ruff-format", "constitution-check"):
+        exclude = hooks[hook_id]["exclude"]
+        assert re.search(exclude, upstream_python)
+        assert not re.search(exclude, owned_runtime)
+        assert not re.search(exclude, owned_metadata)
+
+    scaffold_js = (
+        "plugins/manifest-code-quality/skills/project-scaffold/"
+        "templates/node/eslint.config.js"
+    )
+    eslint_exclude = hooks["eslint"]["exclude"]
+    assert re.search(eslint_exclude, scaffold_js)
+    assert not re.search(eslint_exclude, owned_runtime)
+
+
+def test_relocated_smoke_debt_keeps_the_existing_constitution_ratchet(
+    repo_root: Path, code_quality_bundle: Path
+) -> None:
+    global_baseline = json.loads(
+        (repo_root / "configs/claude/config/constitution_baseline.json").read_text(
+            encoding="utf-8"
+        )
+    )["files"]
+    bundle_baseline = json.loads(
+        (
+            code_quality_bundle
+            / "skills/code-audit-constitution/config/constitution_baseline.json"
+        ).read_text(encoding="utf-8")
+    )["files"]
+    legacy_prefix = "configs/claude/scripts/smoke_orchestrator/"
+    plugin_prefix = (
+        "plugins/manifest-code-quality/skills/smoke-manage/scripts/smoke_orchestrator/"
+    )
+
+    for relative in (
+        "cli.py",
+        "executor.py",
+        "state.py",
+        "steps/agent.py",
+        "steps/api.py",
+        "steps/ui.py",
+        "validation.py",
+    ):
+        expected = global_baseline[f"{legacy_prefix}{relative}"]
+        assert global_baseline[f"{plugin_prefix}{relative}"] == expected
+        assert bundle_baseline[f"{plugin_prefix}{relative}"] == expected
 
 
 @pytest.mark.parametrize(

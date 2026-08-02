@@ -7,6 +7,10 @@ the adjacent `doc-limits.json`; from an installed docs skill, check them with:
 python3 ../../runtime/docs_lint.py docs README.md
 ```
 
+Project overrides passed with `--limits` must also be JSON. The offline bundle
+rejects YAML or an unreadable policy with exit 2 instead of importing an
+ambient parser or silently reverting to different limits.
+
 Exit 1 means at least one doc is over cap. The fix is always the same: split.
 
 ## Caps
