@@ -226,6 +226,7 @@ def test_lifecycle_rejects_track_ids_outside_xdg_state(
 
         assert result.returncode != 0
         assert "invalid track id" in result.stderr
+        assert "unsafe lifecycle state path" not in result.stderr
         assert outside.read_text(encoding="utf-8") == '{"sentinel": true}\n'
 
 

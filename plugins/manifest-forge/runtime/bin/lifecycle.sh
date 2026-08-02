@@ -214,7 +214,6 @@ state_failure() {
 
 state_read_raw() {
     local id="$1"
-    validate_track_id "${id}" || return $?
     python3 "${STATE_HELPER}" read "${XDG_STATE_ROOT}" "${id}"
 }
 
