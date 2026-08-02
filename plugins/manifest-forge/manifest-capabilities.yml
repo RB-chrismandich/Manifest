@@ -24,7 +24,7 @@ capabilities:
   executables:
     required: [bash, git, python3]
     default: []
-    optional: [curl, gh, glab]
+    optional: [curl, gh, glab, gtimeout, jq, timeout]
 compatibility:
   claude: {mode: native}
   codex: {mode: native}

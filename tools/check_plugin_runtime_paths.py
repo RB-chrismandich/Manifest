@@ -71,6 +71,7 @@ _SHELL_BUILTINS = frozenset(
         "cd",
         "command",
         "continue",
+        "declare",
         "do",
         "done",
         "echo",
@@ -78,6 +79,7 @@ _SHELL_BUILTINS = frozenset(
         "else",
         "esac",
         "eval",
+        "exec",
         "exit",
         "export",
         "false",
@@ -87,11 +89,16 @@ _SHELL_BUILTINS = frozenset(
         "if",
         "in",
         "local",
+        "mapfile",
         "printf",
         "read",
+        "readarray",
+        "readonly",
         "return",
         "set",
         "shift",
+        "shopt",
+        "source",
         "test",
         "then",
         "time",
@@ -164,14 +171,6 @@ _COMPONENT_NODE_DEPENDENCIES = {
         {"@eslint/js", "typescript-eslint"}
     ),
 }
-_EXTERNAL_COMMAND_CANDIDATES = frozenset(
-    {
-        "agy", "bash", "browser-use", "claude", "codex", "curl", "cursor-agent",
-        "devin", "docker", "gemini", "gh", "glab", "graphify", "manifest", "node",
-        "npm", "npx", "pass-cli", "playwright", "python", "python3", "semgrep",
-        "sh", "terraform", "tflint", "tofu", "uv", "uvx", "bootstrap.sh", "git",
-    }
-)
 
 
 @dataclass(frozen=True)
@@ -361,15 +360,38 @@ def _node_import_violations(
     return violations
 
 
-def _shell_command_violations(path: Path, text: str, declared: set[str]) -> list[Violation]:
-    """Validate direct shell command positions and ``command -v`` probes."""
+def _shell_command_violations(
+    path: Path,
+    text: str,
+    declared: set[str],
+    component_functions: set[str],
+) -> list[Violation]:
+    """Require every direct shell executable to be declared or a shell builtin.
+
+    This intentionally does not use a command-name allowlist. A new executable
+    is a runtime dependency even when the checker has never heard of it.
+    """
     violations: list[Violation] = []
     local_functions = set(
         re.findall(r"^\s*(?:function\s+)?([A-Za-z_][A-Za-z0-9_-]*)\s*\(\)", text, re.M)
     )
+    local_functions.update(component_functions)
     harness_commands = {"claude", "codex", "gemini", "cursor-agent", "agy", "devin"}
     heredoc: str | None = None
     quoted_assignment = False
+    inline_python = False
+    double_quoted_python = False
+    double_quoted_message = False
+    case_depth = 0
+
+    def unclosed_quote(value: str) -> str | None:
+        # Shell snippets often embed Python through a multi-line quoted -c
+        # argument.  Its body is data, not a sequence of shell commands.
+        for quote in ('"', "'"):
+            if value.count(quote) % 2:
+                return quote
+        return None
+
     for number, line in enumerate(text.splitlines(), 1):
         stripped = line.strip()
         if quoted_assignment:
@@ -380,32 +402,122 @@ def _shell_command_violations(path: Path, text: str, declared: set[str]) -> list
             if stripped == heredoc:
                 heredoc = None
             continue
+        if inline_python:
+            if "'" in stripped:
+                inline_python = False
+            continue
+        if double_quoted_python:
+            if stripped.startswith('"'):
+                double_quoted_python = False
+            continue
+        if double_quoted_message:
+            if re.search(r"(?<!\\)\"$", stripped):
+                double_quoted_message = False
+            continue
         marker = re.search(r"<<-?\s*['\"]?([A-Za-z_][A-Za-z0-9_]*)", stripped)
         if marker:
             heredoc = marker.group(1)
         if not stripped or stripped.startswith("#"):
             continue
-        if re.match(r"^[A-Za-z_][A-Za-z0-9_]*='", stripped):
-            quoted_assignment = stripped.count("'") % 2 == 1
+        # A single-quoted ``python -c`` payload can span many lines. Its body
+        # is not shell syntax, even when it contains words that look like
+        # commands. Shell cannot contain an unescaped single quote in that
+        # payload, so the next quote ends it.
+        inline = re.search(r"(?:^|\s)-c\s+'", stripped)
+        if inline:
+            payload = stripped[inline.end() :]
+            inline_python = "'" not in payload
+            continue
+        if re.search(r"(?:^|\s)-c\s+\"$", stripped):
+            double_quoted_python = True
+            continue
+        if re.search(r"\bcase\s+.+\s+in\b", stripped) and "esac" in stripped:
+            continue
+        if re.match(r"^case\s+.+\s+in", stripped):
+            if "esac" not in stripped:
+                case_depth += 1
+            continue
+        if case_depth:
+            if stripped.startswith("esac"):
+                case_depth -= 1
+                continue
+            pattern = re.match(
+                r"^(?:[A-Za-z0-9_*.-]+(?:\s*\|\s*[A-Za-z0-9_*.-]+)*)\)\s*(.*)$",
+                stripped,
+            )
+            if pattern is None:
+                continue
+            stripped = pattern.group(1)
+            if not stripped:
+                continue
+            if re.match(r"['\"]?\$", stripped):
+                continue
+        if re.match(r"^(?:(?:local|readonly|declare)\s+)?[A-Za-z_][A-Za-z0-9_]*='", stripped):
+            quoted_assignment = unclosed_quote(stripped) == "'"
             continue
         if re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*=.*", stripped):
             continue
-        candidate = stripped
-        candidate = re.sub(r"^(?:[A-Za-z_][A-Za-z0-9_]*=\S+\s+)+", "", candidate)
-        probe = re.match(r"command\s+-v\s+['\"]?([A-Za-z0-9_.-]+)", candidate)
-        direct = re.match(r"([A-Za-z_][A-Za-z0-9_.-]*)", candidate)
-        command = probe.group(1) if probe else direct.group(1) if direct else ""
-        if direct and candidate[direct.end() :].lstrip().startswith("="):
+        if re.search(r"\b(?:error|err)\s+\"[^\"]*$", stripped):
+            double_quoted_message = True
             continue
-        if not command or command not in _EXTERNAL_COMMAND_CANDIDATES:
+        if stripped.startswith("for (("):
             continue
-        if command in declared or command in harness_commands or command in local_functions:
+        # Do not split control syntax or quoted messages. Splitting only the
+        # quote-stripped form finds pipeline and boolean-chain command heads
+        # without mistaking their arguments for executables.
+        if re.match(
+            r"^(?:(?:if|then|else|elif|do|while|until)\s+|!\s*)*"
+            r"(?:[A-Za-z_][A-Za-z0-9_]*=\S+\s+)*['\"]?\$",
+            stripped,
+        ):
             continue
-        if command in {"source", "readonly", "shopt"}:
-            continue
-        if command not in {"if", "then", "else", "elif", "fi", "do", "done", "case", "esac", "in"}:
+        unquoted = re.sub(r"'(?:[^'\\]|\\.)*'|\"(?:[^\"\\]|\\.)*\"", "", stripped)
+        for segment in re.split(r";|&&|\|\||(?<!\|)\|(?!\|)", unquoted):
+            if segment.lstrip().startswith("for "):
+                continue
+            candidate = re.sub(
+                r"^(?:(?:if|then|else|elif|do|while|until)\s+|!\s*)+", "", segment.strip()
+            )
+            if re.match(r"^[A-Za-z_][A-Za-z0-9_]*=", candidate):
+                continue
+            if candidate.startswith(("for ", "for ((")):
+                continue
+            candidate = re.sub(r"^[^\s)]*\)\s*", "", candidate)
+            candidate = re.sub(
+                r"^(?:[A-Za-z_][A-Za-z0-9_]*=\S+\s+)+", "", candidate
+            )
+            if candidate.endswith(")") and re.fullmatch(
+                r"\*|[A-Za-z0-9_.-]+\)?", candidate
+            ):
+                continue
+            probe = re.match(r"command\s+-v\s+['\"]?([A-Za-z0-9_.-]+)", candidate)
+            direct = re.match(r"([A-Za-z_][A-Za-z0-9_.-]*)", candidate)
+            command = (
+                probe.group(1)
+                if probe
+                else direct.group(1)
+                if direct
+                else ""
+            )
+            if direct and candidate[direct.end() :].lstrip().startswith(("=", "+=")):
+                continue
+            if (
+                not command
+                or command in _SHELL_BUILTINS
+                or command in _POSIX_UTILITIES
+                or command in declared
+                or command in harness_commands
+                or command in local_functions
+            ):
+                continue
             violations.append(
-                Violation(path, number, "undeclared-shell-dependency", command, f"runtime shell command {command!r} is not contract-declared")
+                Violation(
+                    path,
+                    number,
+                    "undeclared-shell-dependency",
+                    command,
+                    f"runtime shell command {command!r} is not contract-declared",
+                )
             )
     return violations
 
@@ -425,7 +537,22 @@ def scan(repo_root: Path = ROOT) -> ScanReport:
             for value in group
             if isinstance(value, str)
         }
-        for path, kind, component_id in _component_paths(contract_path.parent, document):
+        paths = tuple(_component_paths(contract_path.parent, document))
+        component_functions: set[str] = set()
+        for candidate, _kind, _component_id in paths:
+            if candidate.suffix != ".sh":
+                continue
+            try:
+                component_functions.update(
+                    re.findall(
+                        r"^\s*(?:function\s+)?([A-Za-z_][A-Za-z0-9_-]*)\s*\(\)",
+                        candidate.read_text(encoding="utf-8"),
+                        re.M,
+                    )
+                )
+            except (OSError, UnicodeDecodeError):
+                continue
+        for path, kind, component_id in paths:
             try:
                 text = path.read_text(encoding="utf-8")
             except UnicodeDecodeError:
@@ -452,7 +579,11 @@ def scan(repo_root: Path = ROOT) -> ScanReport:
             elif path.suffix == ".sh" or (
                 text.startswith("#!") and "sh" in text.splitlines()[0]
             ):
-                violations.extend(_shell_command_violations(path, text, declared))
+                violations.extend(
+                    _shell_command_violations(
+                        path, text, declared, component_functions
+                    )
+                )
     ordered = tuple(sorted(violations, key=lambda item: (str(item.path), item.line, item.kind, item.value)))
     return ScanReport(ordered)
 

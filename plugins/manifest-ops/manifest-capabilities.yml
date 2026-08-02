@@ -40,7 +40,7 @@ capabilities:
   executables:
     required: [bash, git, python3]
     default: []
-    optional: [docker, terraform, tflint, tofu]
+    optional: [docker, shasum, sha256sum, terraform, tflint, tofu]
 compatibility:
   claude: {mode: native}
   codex: {mode: native}

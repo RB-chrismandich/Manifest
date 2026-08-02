@@ -110,3 +110,54 @@ def test_runtime_path_gate_reports_direct_undeclared_shell_command(
         violation.kind == "undeclared-shell-dependency" and violation.value == "curl"
         for violation in report.violations
     )
+
+
+def test_runtime_path_gate_rejects_unknown_direct_shell_command(tmp_path: Path) -> None:
+    checker = _checker_module()
+    bundle = tmp_path / "plugins/manifest-docs"
+    (bundle / "runtime").mkdir(parents=True)
+    (bundle / "runtime/runner.sh").write_text(
+        "future-tool --offline\n", encoding="utf-8"
+    )
+    (bundle / "manifest-capabilities.yml").write_text(
+        "schema_version: 1\nbundle: {name: manifest-docs, version: 0.1.0, description: x, category: x}\n"
+        "components: {skills: {root: skills, include: ['*/SKILL.md']}, agents: [], hooks: [], runtime: [{id: runner, path: runtime/runner.sh}], guidance: []}\n"
+        "capabilities: {mcp: {required: [], default: [], optional: []}, executables: {required: [], default: [], optional: []}}\n"
+        "compatibility: {claude: {mode: native}, codex: {mode: native}, gemini: {mode: generated}, cursor: {mode: generated}, antigravity: {mode: imported}, devin: {mode: native}}\n"
+        "provenance: {repository: x, license: MIT, license_file: LICENSE, generated_by: x}\n",
+        encoding="utf-8",
+    )
+
+    report = checker.scan(tmp_path)
+
+    assert any(
+        violation.kind == "undeclared-shell-dependency"
+        and violation.value == "future-tool"
+        for violation in report.violations
+    )
+
+
+def test_runtime_path_gate_ignores_embedded_python_and_dynamic_command(tmp_path: Path) -> None:
+    checker = _checker_module()
+    bundle = tmp_path / "plugins/manifest-docs"
+    (bundle / "runtime").mkdir(parents=True)
+    (bundle / "runtime/runner.sh").write_text(
+        "runner=\"$(command -v python3)\"\n"
+        "\"$runner\" -c '\n"
+        "import json\n"
+        "print(json.dumps({\"command\": \"future-tool\"}))\n"
+        "'\n",
+        encoding="utf-8",
+    )
+    (bundle / "manifest-capabilities.yml").write_text(
+        "schema_version: 1\nbundle: {name: manifest-docs, version: 0.1.0, description: x, category: x}\n"
+        "components: {skills: {root: skills, include: ['*/SKILL.md']}, agents: [], hooks: [], runtime: [{id: runner, path: runtime/runner.sh}], guidance: []}\n"
+        "capabilities: {mcp: {required: [], default: [], optional: []}, executables: {required: [python3], default: [], optional: []}}\n"
+        "compatibility: {claude: {mode: native}, codex: {mode: native}, gemini: {mode: generated}, cursor: {mode: generated}, antigravity: {mode: imported}, devin: {mode: native}}\n"
+        "provenance: {repository: x, license: MIT, license_file: LICENSE, generated_by: x}\n",
+        encoding="utf-8",
+    )
+
+    report = checker.scan(tmp_path)
+
+    assert not any(violation.path.name == "runner.sh" for violation in report.violations)
