@@ -189,6 +189,41 @@ def test_version_pin_uses_only_adjacent_json_and_stdlib(
     assert "version_pin.json" in source
 
 
+def test_version_pin_rejects_missing_target_without_success_summary(
+    ops_bundle: Path, tmp_path: Path
+) -> None:
+    result = _run(
+        ops_bundle / "runtime/bin/version_pin.sh",
+        str(tmp_path / "missing-requirements.txt"),
+        env=_isolated_env(tmp_path),
+        cwd=tmp_path,
+    )
+
+    assert result.returncode != 0
+    assert "path not found" in result.stderr
+    assert "Summary:" not in result.stdout
+
+
+def test_version_pin_rejects_malformed_json_without_traceback(
+    ops_bundle: Path, tmp_path: Path
+) -> None:
+    policy = tmp_path / "version_pin.json"
+    policy.write_text("{not-json\n", encoding="utf-8")
+    env = {**_isolated_env(tmp_path), "VERSION_PIN_CONFIG": str(policy)}
+
+    result = _run(
+        ops_bundle / "runtime/bin/version_pin.sh", "--help", env=env, cwd=tmp_path
+    )
+    assert result.returncode == 0
+
+    result = _run(ops_bundle / "runtime/bin/version_pin.sh", ".", env=env, cwd=tmp_path)
+
+    assert result.returncode == 2
+    assert "invalid JSON config" in result.stderr
+    assert "Traceback" not in result.stderr
+    assert "Summary:" not in result.stdout
+
+
 def test_version_pin_hook_is_owned_advisory_and_fail_open(
     ops_bundle: Path, tmp_path: Path
 ) -> None:
@@ -284,6 +319,37 @@ def test_generated_ops_views_represent_every_hook_harness(ops_bundle: Path) -> N
         assert hook["mode"] == mode
         if mode == "degraded":
             assert hook["reason"]
+
+
+def test_legacy_harness_configs_do_not_duplicate_the_ops_hook(repo_root: Path) -> None:
+    claude_path = repo_root / "configs/claude/settings.runtime.json"
+    cursor_path = repo_root / "configs/cursor/hooks.json"
+    gemini_path = repo_root / "configs/gemini/settings.json"
+    configs = {
+        "claude": json.loads(claude_path.read_text(encoding="utf-8")),
+        "cursor": json.loads(cursor_path.read_text(encoding="utf-8")),
+        "gemini": json.loads(gemini_path.read_text(encoding="utf-8")),
+    }
+
+    for harness, document in configs.items():
+        encoded = json.dumps(document)
+        assert "version_pin_hook.sh" not in encoded, harness
+        assert "version-pin" not in encoded, harness
+
+    claude = configs["claude"]
+    claude_commands = json.dumps(claude["hooks"]["PostToolUse"])
+    assert "spec_review.sh --silent" in claude_commands
+    assert "lint_on_edit_hook.sh" in claude_commands
+
+    cursor = configs["cursor"]
+    cursor_commands = json.dumps(cursor["hooks"]["afterFileEdit"])
+    assert "spec_review.sh --silent" in cursor_commands
+    assert "lint_on_edit_hook.sh" in cursor_commands
+
+    gemini = configs["gemini"]
+    gemini_commands = json.dumps(gemini["hooks"]["AfterTool"])
+    assert "spec-review" in gemini_commands
+    assert "lint-on-edit" in gemini_commands
 
 
 def test_ops_skills_use_bundle_runtime_not_shared_home(ops_bundle: Path) -> None:

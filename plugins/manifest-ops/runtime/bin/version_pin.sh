@@ -134,9 +134,35 @@ load_rules() {
 import json
 import sys
 
-with open(sys.argv[1], encoding="utf-8") as config_file:
-    cfg = json.load(config_file)
-for r in cfg.get("rules") or []:
+path = sys.argv[1]
+try:
+    with open(path, encoding="utf-8") as config_file:
+        cfg = json.load(config_file)
+except json.JSONDecodeError as error:
+    print(
+        f"version-pin: invalid JSON config {path}: "
+        f"line {error.lineno} column {error.colno}: {error.msg}",
+        file=sys.stderr,
+    )
+    raise SystemExit(2)
+except OSError as error:
+    print(f"version-pin: unable to read config {path}: {error}", file=sys.stderr)
+    raise SystemExit(2)
+
+if not isinstance(cfg, dict):
+    print(f"version-pin: invalid JSON config {path}: root must be an object", file=sys.stderr)
+    raise SystemExit(2)
+rules = cfg.get("rules")
+if not isinstance(rules, list):
+    print(f"version-pin: invalid JSON config {path}: rules must be an array", file=sys.stderr)
+    raise SystemExit(2)
+for index, r in enumerate(rules):
+    if not isinstance(r, dict):
+        print(
+            f"version-pin: invalid JSON config {path}: rules[{index}] must be an object",
+            file=sys.stderr,
+        )
+        raise SystemExit(2)
     globs = ",".join(r.get("match") or [])
     print("\t".join([str(r.get("id","")), str(r.get("ecosystem","")),
                      str(r.get("hash","none")), globs]))
@@ -449,7 +475,7 @@ build_find_globs() {
 }
 
 collect_files() {
-    local p g args first
+    local p g args first failed=false
     for p in "${PATHS[@]+"${PATHS[@]}"}"; do
         if [[ -f "$p" ]]; then
             echo "$p"
@@ -462,19 +488,30 @@ collect_files() {
                     first=false
                 else args+=(-o -name "$g"); fi
             done
-            [[ ${#args[@]} -gt 0 ]] && find "$p" -type f \( "${args[@]}" \) 2> /dev/null # array-safe (length-guarded)
+            if [[ ${#args[@]} -gt 0 ]] && ! find "$p" -type f \( "${args[@]+"${args[@]}"}" \) 2> /dev/null; then
+                err "unable to scan directory: $p"
+                failed=true
+            fi
         else
             err "path not found: $p"
+            failed=true
         fi
     done
+    [[ "$failed" == false ]]
 }
 
 main() {
     parse_args "$@"
-    local rules
-    rules="$(load_rules)"
+    local rules files
+    if ! rules="$(load_rules)"; then
+        return 2
+    fi
     [[ -n "$rules" ]] || usage_error "no version-pin rules in $CONFIG"
     build_find_globs "$rules"
+
+    if ! files="$(collect_files)"; then
+        return 2
+    fi
 
     local explicit_unmatched=true
     [[ -d "${PATHS[0]}" ]] && explicit_unmatched=false
@@ -497,7 +534,7 @@ main() {
             echo "version-pin: ${file}"
             report unresolved "no applicable rules"
         fi
-    done < <(collect_files)
+    done <<< "$files"
 
     if $CHECK_ONLY; then
         echo "Summary: ${N_FILES} files, ${N_VIOLATION} violations reported, ${N_COMPLIANT} compliant, ${N_BYPASSED} bypassed, ${N_UNRESOLVED} unresolved"

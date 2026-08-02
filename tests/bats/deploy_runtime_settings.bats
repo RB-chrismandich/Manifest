@@ -55,7 +55,7 @@ events_in() {
     assert_output --partial "subagent_model_default.py"
 }
 
-@test "EVERY Claude hook ships here, not in the inert settings.local.json" {
+@test "every global Claude hook ships here, not in the inert settings.local.json" {
     # settings.local.json is inert at user scope (measured), so a hook left there
     # never runs. This is the regression guard: if someone adds a hook back to
     # settings.local.json it is silently dead, and this test is what says so.
@@ -70,11 +70,11 @@ events_in() {
     assert_output "PostToolUse,PreToolUse,SessionStart,UserPromptSubmit"
 }
 
-@test "the previously-inert hooks are all present" {
+@test "the remaining global hooks are present and version-pin is plugin-owned" {
     run commands_for "$SRC" PostToolUse
-    assert_output --partial "version_pin_hook.sh"
     assert_output --partial "spec_review.sh --silent"
     assert_output --partial "lint_on_edit_hook.sh"
+    refute_output --partial "version_pin_hook.sh"
     run commands_for "$SRC" PreToolUse
     assert_output --partial "guidance_hint.py"
     run commands_for "$SRC" SessionStart

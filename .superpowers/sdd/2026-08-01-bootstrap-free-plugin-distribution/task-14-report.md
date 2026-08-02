@@ -12,7 +12,10 @@ absent.
 - RED: the new focused runtime suite collected 22 tests and failed 22 on the
   missing CI/git helpers, Ops version-pin runtime and hook contract, Security
   references, shared-home skill paths, and empty contract inventories.
-- GREEN: the focused suite now passes 30/30, including helper behavior parity,
+- REPAIR RED: three focused tests and two Ops Bats cases reproduced duplicate
+  shared-home hook registration, missing-target success, and malformed-policy
+  traceback behavior.
+- GREEN: the focused suite now passes 33/33, including helper behavior parity,
   stdlib-only JSON policy loading, sibling-bundle absence, and complete
   generated hook/runtime views.
 - GREEN: the named plugin and legacy Bats suites pass 38/38.
@@ -28,6 +31,12 @@ absent.
   adapter. Claude and Cursor receive native/generated hook states; Gemini,
   Codex, Antigravity, and Devin explicitly report degraded hook coverage while
   retaining the on-demand skill.
+- Retired the duplicate shared-home registrations and permissions from the
+  Claude, Cursor, and Gemini config sources. Existing spec-review, lint,
+  guidance, session, MCP, and user-owned hook entries remain unchanged.
+- Missing explicit targets now return exit 2 before printing a summary.
+  Malformed adjacent JSON policies return a concise exit-2 config diagnostic
+  without a Python traceback.
 - Packaged the GitLab CI reproduction reference and rewired Ops skills to
   bundle-relative runtime paths. CI setup no longer searches assistant homes or
   emits a dependency on the shared Manifest coordinator.
@@ -49,12 +58,16 @@ absent.
 ```text
 uv run pytest tests/python/plugin_runtime/test_ops_runtime.py \
   tests/python/plugin_runtime/test_security_runtime.py -q
-# 30 passed
+# 33 passed
 
 bats tests/bats/ops_plugin_runtime.bats \
   tests/bats/security_plugin_runtime.bats tests/bats/ci_platform.bats \
   tests/bats/version_pin.bats
 # 38 passed
+
+bats tests/bats/deploy_runtime_settings.bats tests/bats/spec_review.bats \
+  tests/bats/cursor_hooks.bats tests/bats/gemini_hooks_merge.bats
+# expanded runtime/config matrix: 124 passed total with the named suites
 
 uv run python tools/generate_plugin_views.py --check
 # passed

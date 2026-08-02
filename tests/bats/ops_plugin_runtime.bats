@@ -53,6 +53,27 @@ teardown() {
     assert_output ""
 }
 
+@test "version-pin rejects a missing explicit target without a success summary" {
+    cd "$SANDBOX/repo"
+
+    run "$BUNDLE/runtime/bin/version_pin.sh" missing-requirements.txt
+    assert_failure
+    assert_output --partial "path not found"
+    refute_output --partial "Summary:"
+}
+
+@test "version-pin rejects malformed JSON policy without a traceback" {
+    cd "$SANDBOX/repo"
+    printf '{not-json\n' > "$SANDBOX/version_pin.json"
+    export VERSION_PIN_CONFIG="$SANDBOX/version_pin.json"
+
+    run "$BUNDLE/runtime/bin/version_pin.sh" .
+    assert_failure 2
+    assert_output --partial "invalid JSON config"
+    refute_output --partial "Traceback"
+    refute_output --partial "Summary:"
+}
+
 @test "ops instructions contain no shared runtime commands" {
     run bash -c "grep -R -nE '(configs/claude|~/.claude/(scripts|references)|version_pin_hook.sh)' '$BUNDLE/skills' --include='SKILL.md' || true"
     assert_output ""

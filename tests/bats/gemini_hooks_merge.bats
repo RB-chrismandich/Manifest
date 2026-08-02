@@ -93,3 +93,17 @@ assert any('token-conserve' in json.dumps(e) for e in entries)
 print('source-hook-present')"
     assert_output --partial "source-hook-present"
 }
+
+@test "repo settings source keeps version-pin degraded instead of duplicating its plugin hook" {
+    run python3 -c "
+import json
+d = json.load(open('$REPO_ROOT/configs/gemini/settings.json'))
+encoded = json.dumps(d)
+assert 'version_pin_hook.sh' not in encoded, encoded
+assert '\"name\": \"version-pin\"' not in encoded, encoded
+after = json.dumps(d['hooks']['AfterTool'])
+assert 'spec-review' in after and 'lint-on-edit' in after, after
+print('plugin-owned-version-pin')"
+    assert_success
+    assert_output --partial "plugin-owned-version-pin"
+}
