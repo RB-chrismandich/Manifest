@@ -9,10 +9,13 @@ from pathlib import Path
 from typing import Any
 
 from manifest_agent.adapters.base import (
+    CapabilityAdapterMixin,
     Detection,
+    NativeMcpInventory,
     collect_native_component_evidence,
     combine_results,
     native_command_result,
+    normalize_native_mcp_inventory,
     verify_declared_components,
 )
 from manifest_agent.contracts import DOMAIN_BUNDLES
@@ -31,7 +34,7 @@ _MARKETPLACE = "manifest"
 _ADAPTER_VERSION = "1"
 
 
-class ClaudeAdapter:
+class ClaudeAdapter(CapabilityAdapterMixin):
     """Install and verify the nine Manifest bundles through Claude Code."""
 
     name = "claude"
@@ -43,10 +46,14 @@ class ClaudeAdapter:
         *,
         which: Callable[[str], str | None] = shutil.which,
         env: Mapping[str, str] | None = None,
+        native_mcp_inventory: NativeMcpInventory = (),
     ) -> None:
         self.runner = runner or CommandRunner()
         self._which = which
         self._env = env
+        self._native_mcp_inventory = normalize_native_mcp_inventory(
+            native_mcp_inventory
+        )
 
     def detect(self) -> Detection:
         """Report the Claude executable and native version, including absence."""

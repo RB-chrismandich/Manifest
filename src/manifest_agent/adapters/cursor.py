@@ -10,9 +10,12 @@ from typing import Any
 from urllib.parse import urlsplit, urlunsplit
 
 from manifest_agent.adapters.base import (
+    CapabilityAdapterMixin,
     Detection,
+    NativeMcpInventory,
     combine_results,
     native_command_result,
+    normalize_native_mcp_inventory,
 )
 from manifest_agent.contracts import DOMAIN_BUNDLES
 from manifest_agent.models import (
@@ -32,7 +35,7 @@ _COMMIT = re.compile(r"^[0-9a-fA-F]{40}(?:[0-9a-fA-F]{24})?$")
 _OWNERSHIP_MARKER = "manifest"
 
 
-class CursorAdapter:
+class CursorAdapter(CapabilityAdapterMixin):
     """Index Manifest in Cursor without inventing an activation mechanism."""
 
     name = "cursor"
@@ -46,11 +49,15 @@ class CursorAdapter:
         which: Callable[[str], str | None] = shutil.which,
         env: Mapping[str, str] | None = None,
         repository_url: str = REPOSITORY_URL,
+        native_mcp_inventory: NativeMcpInventory = (),
     ) -> None:
         self.runner = runner or CommandRunner()
         self._which = which
         self._env = env
         self._repository_url = repository_url
+        self._native_mcp_inventory = normalize_native_mcp_inventory(
+            native_mcp_inventory
+        )
 
     def detect(self) -> Detection:
         """Report Cursor Agent availability and its native version."""

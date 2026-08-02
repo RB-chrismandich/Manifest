@@ -1,0 +1,5 @@
+graphify:
+  manager: uv-tool
+  distribution: graphifyy
+  version: 0.9.31
+  executable: graphify

@@ -1,0 +1,18 @@
+context7:
+  transport: http
+  url: https://mcp.context7.com/mcp/oauth
+github:
+  transport: http
+  url: https://api.githubcopilot.com/mcp/
+linear:
+  transport: http
+  url: https://mcp.linear.app/mcp
+atlassian:
+  transport: http
+  url: https://mcp.atlassian.com/v1/mcp
+sentry:
+  transport: http
+  url: https://mcp.sentry.dev/mcp
+stitch:
+  transport: native-existing
+  discovery_prefixes: [stitch, mcp_stitch]

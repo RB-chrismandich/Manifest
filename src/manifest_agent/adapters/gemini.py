@@ -9,11 +9,14 @@ from pathlib import Path
 from typing import Any
 
 from manifest_agent.adapters.base import (
+    CapabilityAdapterMixin,
     Detection,
+    NativeMcpInventory,
     collect_native_component_evidence,
     combine_results,
     native_command_result,
     normalize_component_identity,
+    normalize_native_mcp_inventory,
     verify_declared_components,
 )
 from manifest_agent.contracts import DOMAIN_BUNDLES
@@ -30,7 +33,7 @@ from manifest_agent.process import CommandRunner, redact_text
 _ADAPTER_VERSION = "1"
 
 
-class GeminiAdapter:
+class GeminiAdapter(CapabilityAdapterMixin):
     """Install and verify bundle-local Gemini extensions."""
 
     name = "gemini"
@@ -42,10 +45,14 @@ class GeminiAdapter:
         *,
         which: Callable[[str], str | None] = shutil.which,
         env: Mapping[str, str] | None = None,
+        native_mcp_inventory: NativeMcpInventory = (),
     ) -> None:
         self.runner = runner or CommandRunner()
         self._which = which
         self._env = env
+        self._native_mcp_inventory = normalize_native_mcp_inventory(
+            native_mcp_inventory
+        )
 
     def detect(self) -> Detection:
         """Report Gemini CLI availability and its native version."""

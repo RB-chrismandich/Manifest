@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from manifest_agent.adapters.base import (
+    CapabilityAdapterMixin,
     Detection,
     combine_results,
     native_command_result,
@@ -43,7 +44,7 @@ _LIST_HEADINGS = frozenset(
 )
 
 
-class DevinAdapter:
+class DevinAdapter(CapabilityAdapterMixin):
     """Install and verify acquired generic bundle views without Claude inheritance."""
 
     name = "devin"

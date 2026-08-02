@@ -9,10 +9,13 @@ from pathlib import Path
 from typing import Any
 
 from manifest_agent.adapters.base import (
+    CapabilityAdapterMixin,
     Detection,
+    NativeMcpInventory,
     collect_native_component_evidence,
     combine_results,
     native_command_result,
+    normalize_native_mcp_inventory,
     verify_declared_components,
 )
 from manifest_agent.adapters.codex_native import (
@@ -40,7 +43,7 @@ _ADAPTER_VERSION = "1"
 _COMMIT = re.compile(r"^[0-9a-fA-F]{40}(?:[0-9a-fA-F]{24})?$")
 
 
-class CodexAdapter:
+class CodexAdapter(CapabilityAdapterMixin):
     """Install and verify the nine Manifest bundles through Codex."""
 
     name = "codex"
@@ -52,10 +55,14 @@ class CodexAdapter:
         *,
         which: Callable[[str], str | None] = shutil.which,
         env: Mapping[str, str] | None = None,
+        native_mcp_inventory: NativeMcpInventory = (),
     ) -> None:
         self.runner = runner or CommandRunner()
         self._which = which
         self._env = env
+        self._native_mcp_inventory = normalize_native_mcp_inventory(
+            native_mcp_inventory
+        )
 
     def detect(self) -> Detection:
         """Report the Codex executable and native version, including absence."""

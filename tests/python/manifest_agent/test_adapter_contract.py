@@ -83,6 +83,10 @@ class FakeAdapter:
         command = self.runner.run(("fake", "native"))
         return native_command_result(self.name, command, CapabilityTier.REQUIRED)
 
+    def apply_capabilities(self, plan) -> HarnessResult:
+        del plan
+        return HarnessResult(self.name, ResultState.READY, (), {})
+
     def uninstall(self, receipt: HarnessReceipt) -> HarnessResult:
         del receipt
         return HarnessResult(self.name, ResultState.READY, (), {})

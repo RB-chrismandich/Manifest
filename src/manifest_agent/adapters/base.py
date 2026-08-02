@@ -7,6 +7,12 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol, runtime_checkable
 
+from manifest_agent.capabilities import (
+    CapabilityPlan,
+    McpDefinition,
+    apply_capability_plan,
+    remove_owned_capabilities,
+)
 from manifest_agent.contracts import CompatibilityStatus, Component
 from manifest_agent.models import (
     BundleContract,
@@ -33,6 +39,7 @@ _STATE_PRIORITY = {
     ResultState.DRIFTED: 2,
     ResultState.BLOCKED: 3,
 }
+NativeMcpInventory = Collection[str] | Mapping[str, McpDefinition]
 
 
 @dataclass(frozen=True)
@@ -63,9 +70,58 @@ class HarnessAdapter(Protocol):
         """Converge one harness and return its truthful effective state."""
         ...
 
+    def apply_capabilities(self, plan: CapabilityPlan) -> HarnessResult:
+        """Apply the resolved cross-bundle capability union."""
+        ...
+
     def uninstall(self, receipt: HarnessReceipt) -> HarnessResult:
         """Remove only resources owned by the supplied receipt."""
         ...
+
+
+class CapabilityAdapterMixin:
+    """Shared concrete implementation of the adapter capability seam."""
+
+    name: str
+    runner: CommandRunner
+    _which: Callable[[str], str | None]
+    _env: Mapping[str, str] | None
+    _native_mcp_inventory: NativeMcpInventory = ()
+
+    def apply_capabilities(self, plan: CapabilityPlan) -> HarnessResult:
+        """Apply MCP and executable capabilities without adapter duplication."""
+        return apply_capability_plan(
+            self.name,
+            plan,
+            runner=self.runner,
+            which=self._which,
+            env=self._env,
+            native_mcp_inventory=self._native_mcp_inventory,
+        )
+
+    def remove_capabilities(self, receipt: HarnessReceipt) -> HarnessResult:
+        """Remove only shared capabilities proven owned by the receipt."""
+        return remove_owned_capabilities(
+            self.name, receipt, runner=self.runner, env=self._env
+        )
+
+
+def normalize_native_mcp_inventory(
+    inventory: NativeMcpInventory,
+) -> tuple[str, ...] | Mapping[str, McpDefinition]:
+    """Freeze injected native inventory without discarding transport identity."""
+    if isinstance(inventory, Mapping):
+        if any(
+            not isinstance(name, str) or not isinstance(value, McpDefinition)
+            for name, value in inventory.items()
+        ):
+            raise TypeError("native MCP inventory mappings require MCP definitions")
+        return dict(inventory)
+    if isinstance(inventory, str) or any(
+        not isinstance(name, str) for name in inventory
+    ):
+        raise TypeError("native MCP inventory must contain string identities")
+    return tuple(inventory)
 
 
 def normalize_component_identity(bundle: str, kind: str, stable_id: str) -> str:

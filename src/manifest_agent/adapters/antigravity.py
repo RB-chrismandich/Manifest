@@ -9,10 +9,13 @@ from pathlib import Path
 from typing import Any
 
 from manifest_agent.adapters.base import (
+    CapabilityAdapterMixin,
     Detection,
+    NativeMcpInventory,
     combine_results,
     native_command_result,
     normalize_component_identity,
+    normalize_native_mcp_inventory,
     verify_declared_components,
 )
 from manifest_agent.contracts import DOMAIN_BUNDLES
@@ -30,7 +33,7 @@ _ADAPTER_VERSION = "1"
 _MARKETPLACE = "manifest"
 
 
-class AntigravityAdapter:
+class AntigravityAdapter(CapabilityAdapterMixin):
     """Validate and import the exact verified Manifest release through ``agy``."""
 
     name = "antigravity"
@@ -43,10 +46,14 @@ class AntigravityAdapter:
         *,
         which: Callable[[str], str | None] = shutil.which,
         env: Mapping[str, str] | None = None,
+        native_mcp_inventory: NativeMcpInventory = (),
     ) -> None:
         self.runner = runner or CommandRunner()
         self._which = which
         self._env = env
+        self._native_mcp_inventory = normalize_native_mcp_inventory(
+            native_mcp_inventory
+        )
 
     def detect(self) -> Detection:
         """Report Antigravity CLI availability and its native version."""
