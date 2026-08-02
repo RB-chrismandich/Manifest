@@ -251,12 +251,34 @@ def test_absolute_legacy_hook_blocks_without_mutation(tmp_path: Path):
     assert path.read_bytes() == before
 
 
-def test_mixed_historical_hook_blocks_before_legacy_disable(tmp_path: Path):
+@pytest.mark.parametrize(
+    ("relative", "payload"),
+    (
+        (
+            ".claude.json",
+            '{"mcpServers":{"context7":{"url":"https://example.invalid"}}}',
+        ),
+        (
+            ".claude/settings.json",
+            '{"hooks":{"PostToolUse":[{"command":"~/.claude/scripts/version_pin.sh"}]}}',
+        ),
+        (
+            ".claude/settings.json",
+            '{"hooks":{"PostToolUse":[{"command":"{absolute}"}]}}',
+        ),
+    ),
+)
+def test_mixed_historical_state_blocks_before_legacy_disable(
+    tmp_path: Path, relative: str, payload: str
+):
     events: list[str] = []
     home, link = _legacy_home(tmp_path)
-    settings = home / ".claude" / "settings.json"
+    settings = home / relative
+    settings.parent.mkdir(parents=True, exist_ok=True)
     settings.write_text(
-        '{"hooks":{"PostToolUse":[{"command":"~/.claude/scripts/version_pin.sh"}]}}',
+        payload.replace(
+            "{absolute}", str(home / ".claude/scripts/version_pin_hook.sh")
+        ),
         encoding="utf-8",
     )
     before = settings.read_bytes()
