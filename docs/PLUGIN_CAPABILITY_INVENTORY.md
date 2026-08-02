@@ -8,6 +8,7 @@ Unlisted paths and credential stores are user-owned and are never changed by mig
 | antigravity-config-link | `~/.antigravity/config` | bundle-owned | domain-bundle-runtime | symlink-target: `~/.claude/config` | disable | restore-symlink | `plugin_migration.bats` |
 | antigravity-plans-link | `~/.antigravity/.plans` | bundle-owned | xdg-plan-store | symlink-target: `~/.claude/.plans` | disable | restore-symlink | `plugin_migration.bats` |
 | antigravity-skills-link | `~/.antigravity/skills` | bundle-owned | native-plugin-managers | symlink-target: `~/.manifest/skills` | disable | restore-symlink | `plugin_migration.bats` |
+| apm-dev-sync-cli | `~/.local/bin/apm-dev-sync` | retired | retired-apm-runtime | unproven: `retired-wrapper-without-hash` | retain | user-directed-removal-after-parity | `plugin_migration.bats` |
 | apm-drift-report | `~/.claude/scripts/apm_drift_report.sh` | retired | retired-plugin-drift-report | unproven: `legacy-wrapper-hash-not-recorded` | retain | user-directed-removal-after-parity | `plugin_migration.bats` |
 | bootstrap-uninstall-marker | `~/.manifest/bootstrap-uninstall.json` | coordinator-owned | native-receipt-uninstall | unproven: `historical-uninstall-marker-varies` | retain | user-directed-removal-after-parity | `plugin_migration.bats` |
 | claude-agent-outputs-link | `~/.claude/.agent_outputs` | bundle-owned | xdg-agent-output-store | symlink-target: `~/.manifest/agent_outputs` | disable | restore-symlink | `plugin_migration.bats` |
@@ -19,6 +20,8 @@ Unlisted paths and credential stores are user-owned and are never changed by mig
 | claude-permissions | `~/.claude/settings.local.json` | mixed | native-permission-registration | exact-marker: `manifest-permission-v1` | retain | restore-owned-permission-entry | `plugin_migration.bats` |
 | claude-plans | `~/.claude/.plans` | user-owned | xdg-plan-store | exact-marker: `manifest-plan-template-v1` | retain | none | `test_spec_planning_runtime.py` |
 | claude-prompts | `~/.claude/prompts` | bundle-owned | domain-bundle-runtime | unproven: `deploy-stamp-is-not-a-content-proof` | retain | user-directed-removal-after-parity | `plugin_migration.bats` |
+| claude-python-lock | `~/.claude/uv.lock` | bundle-owned | domain-bundle-runtime | unproven: `copied-lock-without-hash` | retain | user-directed-removal-after-parity | `plugin_migration.bats` |
+| claude-python-project | `~/.claude/pyproject.toml` | bundle-owned | domain-bundle-runtime | unproven: `copied-project-file-without-hash` | retain | user-directed-removal-after-parity | `plugin_migration.bats` |
 | claude-references | `~/.claude/references` | bundle-owned | domain-bundle-runtime | unproven: `deploy-stamp-is-not-a-content-proof` | retain | user-directed-removal-after-parity | `plugin_migration.bats` |
 | claude-scripts | `~/.claude/scripts` | bundle-owned | domain-bundle-runtime | unproven: `deploy-stamp-is-not-a-content-proof` | retain | user-directed-removal-after-parity | `plugin_migration.bats` |
 | claude-shared-skills | `~/.claude/skills` | bundle-owned | native-plugin-managers | symlink-target: `~/.manifest/skills` | disable | restore-symlink | `plugin_migration.bats` |
@@ -49,6 +52,6 @@ Unlisted paths and credential stores are user-owned and are never changed by mig
 | graphify-cli | `~/.local/bin/graphify` | bundle-owned | manifest-graphify | unproven: `legacy-wrapper-hash-not-recorded` | retain | user-directed-removal-after-parity | `test_graphify_runtime.py` |
 | manifest-cli | `~/.local/bin/manifest` | coordinator-owned | ephemeral-uvx-coordinator | unproven: `legacy-wrapper-hash-not-recorded` | retain | user-directed-removal-after-parity | `plugin_migration.bats` |
 | manifest-release-metadata | `~/.manifest/releases.json` | coordinator-owned | xdg-release-metadata | unproven: `legacy-release-format-varies` | retain | user-directed-removal-after-parity | `plugin_migration.bats` |
-| manifest-skills-hub | `~/.manifest/skills` | bundle-owned | native-plugin-managers | unproven: `deploy-stamp-is-not-a-content-proof` | retain | user-directed-removal-after-parity | `plugin_migration.bats` |
+| manifest-skills-hub | `~/.manifest/skills` | coordinator-owned | native-plugin-managers | unproven: `deploy-stamp-is-not-a-content-proof` | retain | user-directed-removal-after-parity | `plugin_migration.bats` |
 | native-credentials | `~/.config/manifest/credentials.json` | harness-native | native-credential-store | exact-marker: `never-migrate` | retain | none | `manual-credential-preservation` |
 | sync-skills-cli | `~/.local/bin/sync-skills` | bundle-owned | manifest-workspace | unproven: `legacy-wrapper-hash-not-recorded` | retain | user-directed-removal-after-parity | `plugin_migration.bats` |

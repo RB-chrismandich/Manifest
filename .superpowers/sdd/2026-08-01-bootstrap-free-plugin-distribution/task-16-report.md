@@ -48,6 +48,20 @@ git diff --check                              PASS
 - Resume guidance preserves original `--source` or `--release`, repeated
   harness selectors, and all selected `--with` capabilities.
 
+## Second Review Repair
+
+- Completed receipts now reject a differing release, source commit, archive
+  checksum, or optional capability set before returning READY. Compatible
+  sequential harness migrations extend recovery state rather than treating the
+  original harness list as immutable.
+- Native cleanup must return READY before legacy output is restored, including
+  interrupted installs. Each rename rechecks its proof and snapshot digest;
+  pending quarantine locations are usable by rollback and standalone recovery.
+- Standalone recovery uses the same tree digest as snapshots and never deletes
+  a changed destination. Added remaining deployed Python project/lock and
+  retired APM helper inventory records; unproven retained writers block with
+  explicit manual-parity guidance.
+
 ## Commits
 
 - Initial implementation: `98707f9d2bd3b8a86d81438d0a829174ee24ab3c`

@@ -53,6 +53,9 @@ def test_inventory_covers_known_legacy_home_outputs(legacy_inventory):
         "cursor-rule-manifest",
         "gemini-scripts-link",
         "codex-scripts-link",
+        "claude-python-project",
+        "claude-python-lock",
+        "apm-dev-sync-cli",
     } <= identifiers
 
 
@@ -67,6 +70,20 @@ def test_placeholder_generated_hash_is_rejected(tmp_path: Path):
         encoding="utf-8",
     )
     with pytest.raises(ValueError, match="exact SHA-256"):
+        load_legacy_inventory(inventory)
+
+
+def test_deploy_stamp_cannot_authorize_a_destructive_entry(tmp_path: Path):
+    inventory = tmp_path / "inventory.yml"
+    inventory.write_text(
+        "categories: [skills, agents, guidance, hooks, permissions, mcp, scripts, optional_tools, configuration, diagnostics, updates, uninstall]\n"
+        "entries:\n  - id: bad\n    category: scripts\n    path: ~/.local/bin/bad\n"
+        "    harnesses: [claude]\n    classification: bundle-owned\n    destination: domain-bundle-runtime\n"
+        "    ownership_proof: {type: deploy-stamp, value: config/deploy_stamp}\n"
+        "    action: remove\n    recovery: restore-file\n    parity_test: test\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(ValueError, match="not deterministic"):
         load_legacy_inventory(inventory)
 
 

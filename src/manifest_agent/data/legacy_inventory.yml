@@ -399,7 +399,7 @@ entries:
     category: skills
     path: ~/.manifest/skills
     harnesses: [claude, codex, gemini, cursor, antigravity, devin]
-    classification: bundle-owned
+    classification: coordinator-owned
     destination: native-plugin-managers
     ownership_proof: {type: unproven, value: deploy-stamp-is-not-a-content-proof}
     action: retain
@@ -484,4 +484,34 @@ entries:
     ownership_proof: {type: symlink-target, value: ~/.claude/scripts}
     action: disable
     recovery: restore-symlink
+    parity_test: plugin_migration.bats
+  - id: claude-python-project
+    category: configuration
+    path: ~/.claude/pyproject.toml
+    harnesses: [claude]
+    classification: bundle-owned
+    destination: domain-bundle-runtime
+    ownership_proof: {type: unproven, value: copied-project-file-without-hash}
+    action: retain
+    recovery: user-directed-removal-after-parity
+    parity_test: plugin_migration.bats
+  - id: claude-python-lock
+    category: updates
+    path: ~/.claude/uv.lock
+    harnesses: [claude]
+    classification: bundle-owned
+    destination: domain-bundle-runtime
+    ownership_proof: {type: unproven, value: copied-lock-without-hash}
+    action: retain
+    recovery: user-directed-removal-after-parity
+    parity_test: plugin_migration.bats
+  - id: apm-dev-sync-cli
+    category: scripts
+    path: ~/.local/bin/apm-dev-sync
+    harnesses: [claude, codex, gemini, cursor, antigravity, devin]
+    classification: retired
+    destination: retired-apm-runtime
+    ownership_proof: {type: unproven, value: retired-wrapper-without-hash}
+    action: retain
+    recovery: user-directed-removal-after-parity
     parity_test: plugin_migration.bats

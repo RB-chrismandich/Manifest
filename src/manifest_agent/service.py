@@ -6,6 +6,7 @@ from collections.abc import Callable, Mapping, Sequence
 from contextlib import AbstractContextManager
 from dataclasses import replace
 from pathlib import Path
+from shlex import quote
 from typing import Any
 
 from manifest_agent import __version__
@@ -156,12 +157,12 @@ class ManifestService:
                 f"--harness {name}" for name in (self.harnesses or ("all",))
             )
             source = (
-                f"--source {self.source}"
+                f"--source {quote(str(self.source))}"
                 if self.source is not None
                 else f"--release {self.release or desired.release_version}"
             )
             optional = " ".join(
-                f"--with {capability}" for capability in self.selected_optional
+                f"--with {quote(capability)}" for capability in self.selected_optional
             )
             command = (
                 "uvx --from manifest-agent manifest migrate "

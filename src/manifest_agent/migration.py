@@ -182,6 +182,10 @@ def _decode_inventory_entry(value: Any) -> LegacyInventoryEntry:
         and proof.get("type") not in _DESTRUCTIVE_PROOFS
     ):
         raise ValueError("destructive legacy entry lacks ownership proof")
+    if value["action"] in {"disable", "remove"} and proof.get("type") == "deploy-stamp":
+        raise ValueError(
+            "deploy-stamp is not deterministic destructive ownership proof"
+        )
     if proof.get("type") == "generated-hash" and (
         not isinstance(proof.get("value"), str)
         or len(proof["value"]) != 64
@@ -386,6 +390,9 @@ class MigrationService:
             with self.lock_factory(self.receipt_path.parent / "install.lock"):
                 completed = read_receipt(self.receipt_path)
                 selected = self._selected(desired)
+                receipt_errors = _receipt_identity_errors(completed, desired)
+                if receipt_errors:
+                    return report("migrate", {}, errors=receipt_errors)
                 if self._already_migrated(completed, selected):
                     return report("migrate", {})
                 return self._migrate_locked(desired, selected, completed)
@@ -446,6 +453,9 @@ class MigrationService:
                 )
         if unavailable:
             return report("migrate", ordered(unavailable, self.harness_order))
+        unproven = self._unproven_legacy_writers(active)
+        if unproven:
+            return report("migrate", {}, errors=unproven)
         state = self._load_or_snapshot(active, desired)
         results: dict[str, HarnessResult] = {}
         for name in active:
@@ -487,6 +497,23 @@ class MigrationService:
         self._write_state(state)
         return report("migrate", ordered(results, self.harness_order))
 
+    def _unproven_legacy_writers(self, harnesses: Sequence[str]) -> tuple[str, ...]:
+        messages = []
+        for entry in self.inventory.entries:
+            if entry.action != "retain" or entry.classification not in {
+                "bundle-owned",
+                "retired",
+            }:
+                continue
+            if not set(entry.harnesses).intersection(harnesses):
+                continue
+            path = _expand_home(entry.path, self.home)
+            if path.exists() or path.is_symlink():
+                messages.append(
+                    f"legacy writer {entry.path} has no deterministic ownership proof; remove it after verifying native parity"
+                )
+        return tuple(messages)
+
     def _harness_session_locked(self, harness: str) -> str | None:
         """Refuse a handoff while a known harness session lock is held."""
         roots = {
@@ -519,7 +546,9 @@ class MigrationService:
     ) -> dict[str, Any]:
         existing = self._read_state()
         if existing is not None:
-            if existing.get("identity") != _migration_identity(desired):
+            recorded = dict(existing.get("identity", {}))
+            recorded.pop("requested_harnesses", None)
+            if recorded != _migration_identity(desired):
                 raise ValueError(
                     "migration recovery state targets a different release, checksum, options, or harness scope"
                 )
@@ -679,6 +708,16 @@ class MigrationService:
             disabled = source.parent / f".{source.name}.manifest-disabled-{backup.name}"
             if disabled.exists() or disabled.is_symlink():
                 raise ValueError(f"migration quarantine already exists: {disabled}")
+            entry = next(
+                item for item in self.inventory.entries if item.id == record["id"]
+            )
+            if (
+                not _proves_ownership(source, entry.ownership_proof)
+                or _path_digest(source) != record["sha256"]
+            ):
+                raise ValueError(
+                    f"legacy path changed after snapshot: {record['path']}"
+                )
             # Record the intended rename before it occurs so recovery can tell a
             # crash before the rename from one immediately after it.
             record["pending_disabled_path"] = str(disabled)
@@ -703,19 +742,26 @@ class MigrationService:
         result: HarnessResult | None,
     ) -> str | None:
         uninstall_error = None
-        if result is not None:
+        cleanup = result or HarnessResult(
+            harness, ResultState.BLOCKED, (), {}, errors=("native install interrupted",)
+        )
+        if cleanup is not None:
             provisional = HarnessReceipt(
                 harness,
                 getattr(adapter, "adapter_version", "unknown"),
                 "unknown",
-                result.installed_plugin_ids,
-                result.owned_entries,
-                result.capabilities,
+                cleanup.installed_plugin_ids,
+                cleanup.owned_entries,
+                cleanup.capabilities,
                 False,
-                result.errors or ("native migration verification failed",),
+                cleanup.errors or ("native migration verification failed",),
             )
             try:
-                adapter.uninstall(provisional)
+                removed = adapter.uninstall(provisional)
+                if removed.state is not ResultState.READY:
+                    uninstall_error = (
+                        "; ".join(removed.errors) or "native cleanup was not ready"
+                    )
             except Exception as exception:
                 uninstall_error = diagnostic(exception)
         if uninstall_error is not None:
@@ -725,7 +771,9 @@ class MigrationService:
         backup = Path(state["backup"])
         for record in state["harnesses"][harness]["entries"]:
             source = _expand_home(record["path"], self.home)
-            disabled = record.get("disabled_path")
+            disabled = record.get("disabled_path") or record.get(
+                "pending_disabled_path"
+            )
             if disabled and (Path(disabled).exists() or Path(disabled).is_symlink()):
                 if source.exists() or source.is_symlink():
                     raise ValueError(
@@ -841,6 +889,8 @@ def digest(path):
     value = hashlib.sha256()
     for child in sorted(path.rglob("*")):
         value.update(child.relative_to(path).as_posix().encode())
+        if child.is_symlink(): value.update(os.fsencode(os.readlink(child)))
+        elif child.is_file(): value.update(hashlib.sha256(child.read_bytes()).hexdigest().encode())
     return value.hexdigest()
 
 for harness in STATE["harnesses"].values():
@@ -849,6 +899,11 @@ for harness in STATE["harnesses"].values():
         destination = target(entry["path"])
         # Never overwrite a post-crash user/native path. A matching snapshot is
         # already restored; any other existing value requires manual recovery.
+        pending = entry.get("pending_disabled_path")
+        disabled = entry.get("disabled_path") or pending
+        if disabled and Path(disabled).exists() and not (destination.exists() or destination.is_symlink()):
+            os.replace(disabled, destination)
+            continue
         if destination.exists() or destination.is_symlink():
             if digest(destination) != entry["sha256"]:
                 raise RuntimeError("refusing to overwrite changed path: " + str(destination))
@@ -866,8 +921,29 @@ def _migration_identity(desired: DesiredState) -> dict[str, object]:
         "source_commit": desired.source_commit,
         "archive_sha256": desired.archive_sha256,
         "selected_optional": sorted(desired.selected_optional),
-        "requested_harnesses": list(desired.requested_harnesses),
     }
+
+
+def _receipt_identity_errors(
+    receipt: InstallationReceipt | None, desired: DesiredState
+) -> tuple[str, ...]:
+    if receipt is None:
+        return ()
+    comparisons = (
+        (receipt.release_version, desired.release_version, "release version"),
+        (receipt.source_commit, desired.source_commit, "source commit"),
+        (receipt.archive_sha256, desired.archive_sha256, "release checksum"),
+        (
+            receipt.selected_optional,
+            tuple(sorted(desired.selected_optional)),
+            "optional capability selection",
+        ),
+    )
+    return tuple(
+        f"migration receipt {label} differs from requested state"
+        for observed, expected, label in comparisons
+        if observed != expected
+    )
 
 
 def _with_rollback_error(
