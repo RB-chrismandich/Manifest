@@ -35,7 +35,7 @@ This skill performs comprehensive issue triage by:
 ## Prerequisites
 
 1. **Tracker authentication** — per provider (resolved via `tracker_ops.sh resolve-provider`):
-   - `linear`: `LINEAR_API_KEY` env var or `~/.config/linear/token`
+   - `linear`: `LINEAR_API_KEY` environment variable or native harness/MCP auth
    - `github` / `gitlab`: `gh` / `glab` CLI authenticated
    - `jira`: Atlassian MCP configured (jira is MCP-only — `tracker_ops.sh` exits 3 for any jira verb in
      shell context; run jira triage from agent context and call the Atlassian MCP tools directly instead

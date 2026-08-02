@@ -7,9 +7,8 @@
 #
 # Usage: pr_review.sh [--platform github|gitlab] [--stale-days N] [--json]
 #
-# Resolution: by default fetches via the platform CLI. Set PR_REVIEW_FETCH to an
-# executable that prints a normalized JSON array (see fields below) to override
-# fetching (used by tests / custom integrations). Each element:
+# Resolution: fetches through the selected native platform CLI on PATH. Each
+# normalized element has this shape:
 #   {number,title,author,updated(ISO8601),mergeable(CLEAN|CONFLICTING|UNKNOWN),
 #    checks(PASS|FAIL|PENDING|NONE),draft(bool),head(str),merged(bool)}
 #
@@ -170,21 +169,14 @@ main() {
     local platform
     platform="$(detect_platform)"
     local data rc
-    if [[ -n "${PR_REVIEW_FETCH:-}" ]]; then
-        data="$("$PR_REVIEW_FETCH" "$platform")" || {
-            err "fetch override failed"
-            exit 2
-        }
-    else
-        # Capture the real exit code (a negated `if` would mask it as 0).
-        set +e
-        data="$(default_fetch "$platform")"
-        rc=$?
-        set -e
-        if [[ $rc -ne 0 ]]; then
-            [[ $rc -eq 3 ]] && err "cannot enumerate PRs — is the platform CLI installed and authenticated?"
-            exit 2
-        fi
+    # Capture the real exit code (a negated `if` would mask it as 0).
+    set +e
+    data="$(default_fetch "$platform")"
+    rc=$?
+    set -e
+    if [[ $rc -ne 0 ]]; then
+        [[ $rc -eq 3 ]] && err "cannot enumerate PRs — is the platform CLI installed and authenticated?"
+        exit 2
     fi
 
     STALE_DAYS="$STALE_DAYS" JSON_OUT="$JSON_OUT" PLATFORM="$platform" \

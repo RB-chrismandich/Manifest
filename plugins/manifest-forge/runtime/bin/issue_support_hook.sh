@@ -15,7 +15,7 @@ FORGE_CONFIG_DIR="$FORGE_RUNTIME_DIR/config"
 FORGE_STATE_DIR="${XDG_STATE_HOME:-${HOME}/.local/state}/manifest/forge"
 export FORGE_RUNTIME_DIR FORGE_CONFIG_DIR FORGE_STATE_DIR
 SCRIPT_DIR="$FORGE_RUNTIME_DIR/bin"
-ENGINE="${ISSUE_SUPPORT_ENGINE:-${SCRIPT_DIR}/issue_support.sh}"
+ENGINE="${SCRIPT_DIR}/issue_support.sh"
 
 if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
     cat << 'USAGE'

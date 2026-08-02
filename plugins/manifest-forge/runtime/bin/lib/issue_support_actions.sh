@@ -14,7 +14,7 @@ transition_issue() {
         return 0
     fi
     local rc=0 out=""
-    out=$("${TRACKER_OPS_BIN}" issue-transition "${n}" "${target}" 2>&1) || rc=$?
+    out=$("${TRACKER_OPS}" issue-transition "${n}" "${target}" 2>&1) || rc=$?
     if [[ ${rc} -eq 3 || ${rc} -eq 4 ]]; then
         err "tracker provider limitation (rc=${rc}) — skipping sync, not failing hook"
         record_action "#${n} transition ${cur:-none}→${target} [skipped] (tracker provider limitation, rc=${rc})"
@@ -47,7 +47,7 @@ comment_backlink() {
         return 0
     fi
     local rc=0 out=""
-    out=$("${TRACKER_OPS_BIN}" issue-comment "${n}" "${body}"$'\n\n'"${marker}" 2>&1) || rc=$?
+    out=$("${TRACKER_OPS}" issue-comment "${n}" "${body}"$'\n\n'"${marker}" 2>&1) || rc=$?
     if [[ ${rc} -eq 3 || ${rc} -eq 4 ]]; then
         err "tracker provider limitation (rc=${rc}) — skipping sync, not failing hook"
         record_action "#${n} comment back-link [skipped] (tracker provider limitation, rc=${rc})"
@@ -122,7 +122,7 @@ resolve_candidates() {
 # ---- platform gate ---------------------------------------------------------
 detect_platform() {
     local p
-    p=$("${TRACKER_OPS_BIN}" resolve-provider 2> /dev/null || printf 'git')
+    p=$("${TRACKER_OPS}" resolve-provider 2> /dev/null || printf 'git')
     printf '%s' "${p}"
 }
 

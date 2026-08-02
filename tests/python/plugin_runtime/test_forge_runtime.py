@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess
 from pathlib import Path
 
@@ -154,10 +155,22 @@ def test_audit_log_defaults_to_xdg_state_and_redacts_secrets(
 def test_tracker_dispatch_propagates_engine_failure(
     forge_bundle: Path, isolated_env: dict[str, str], tmp_path: Path
 ) -> None:
-    stub = tmp_path / "git-ops-stub"
-    stub.write_text("#!/bin/sh\nexit 17\n", encoding="utf-8")
-    stub.chmod(0o755)
-    env = {**isolated_env, "MANIFEST_TRACKER": "github", "GIT_OPS_BIN": str(stub)}
+    binary_dir = tmp_path / "bin"
+    binary_dir.mkdir()
+    gh = binary_dir / "gh"
+    gh.write_text("#!/bin/sh\nexit 17\n", encoding="utf-8")
+    gh.chmod(0o755)
+    hostile = tmp_path / "hostile-git-ops"
+    marker = tmp_path / "hostile-called"
+    hostile.write_text(f"#!/bin/sh\ntouch {marker}\nexit 0\n", encoding="utf-8")
+    hostile.chmod(0o755)
+    env = {
+        **isolated_env,
+        "PATH": f"{binary_dir}:{isolated_env['PATH']}",
+        "MANIFEST_GIT_PLATFORM": "github",
+        "MANIFEST_TRACKER": "github",
+        "GIT_OPS_BIN": str(hostile),
+    }
 
     result = _run(
         forge_bundle / "runtime/bin/tracker_ops.sh",
@@ -167,6 +180,67 @@ def test_tracker_dispatch_propagates_engine_failure(
     )
 
     assert result.returncode == 17
+    assert not marker.exists()
+
+
+@pytest.mark.parametrize(
+    "track_id",
+    ["../outside", "../../outside", "/tmp/outside", ".", "..", "jira__BAD/ID"],
+)
+def test_lifecycle_rejects_track_ids_outside_xdg_state(
+    forge_bundle: Path,
+    isolated_env: dict[str, str],
+    tmp_path: Path,
+    track_id: str,
+) -> None:
+    outside = tmp_path / "outside.json"
+    outside.write_text('{"sentinel": true}\n', encoding="utf-8")
+
+    commands = (
+        ("status", track_id, "--json"),
+        (
+            "advance",
+            track_id,
+            "--actor",
+            "agent",
+            "--gate",
+            '{"gate_type":"artifact","present":true}',
+        ),
+    )
+    for command in commands:
+        result = _run(
+            forge_bundle / "runtime/bin/lifecycle.sh",
+            *command,
+            env=isolated_env,
+            cwd=tmp_path,
+        )
+
+        assert result.returncode != 0
+        assert "invalid track id" in result.stderr
+        assert outside.read_text(encoding="utf-8") == '{"sentinel": true}\n'
+
+
+def test_lifecycle_rejects_symlink_track_escape(
+    forge_bundle: Path, isolated_env: dict[str, str], tmp_path: Path
+) -> None:
+    outside = tmp_path / "outside.json"
+    outside.write_text('{"sentinel": true}\n', encoding="utf-8")
+    state = Path(isolated_env["XDG_STATE_HOME"]) / "manifest/forge/lifecycle"
+    state.mkdir(parents=True)
+    (state / "jira__SAFE-1.json").symlink_to(outside)
+
+    result = _run(
+        forge_bundle / "runtime/bin/lifecycle.sh",
+        "status",
+        "jira__SAFE-1",
+        "--json",
+        env=isolated_env,
+        cwd=tmp_path,
+    )
+
+    assert result.returncode != 0
+    assert "unsafe track path" in result.stderr
+    assert outside.read_text(encoding="utf-8") == '{"sentinel": true}\n'
 
 
 def test_forge_runtime_uses_json_and_has_no_legacy_runtime_dependencies(
@@ -183,6 +257,12 @@ def test_forge_runtime_uses_json_and_has_no_legacy_runtime_dependencies(
         "CLAUDE_PLUGIN_ROOT",
         "import yaml",
         "from yaml",
+        "GIT_OPS_BIN",
+        "LINEAR_OPS_BIN",
+        "GIT_PLATFORM_BIN",
+        "TRACKER_OPS_BIN",
+        "ISSUE_SUPPORT_ENGINE",
+        "PR_REVIEW_FETCH",
     )
     sources = [
         *forge_bundle.glob("runtime/bin/*.sh"),
@@ -199,7 +279,14 @@ def test_forge_runtime_uses_json_and_has_no_legacy_runtime_dependencies(
 def test_forge_instructions_use_bundle_relative_runtime_contract(
     forge_bundle: Path,
 ) -> None:
-    forbidden = ("configs/claude", "~/.claude", "CLAUDE_PLUGIN_ROOT")
+    forbidden = (
+        "configs/claude",
+        "~/.claude",
+        "CLAUDE_PLUGIN_ROOT",
+        "~/.config/linear/token",
+        "import yaml",
+        "yaml.safe_load",
+    )
     allowed_cross_domain = {"parallel-agent", "learning-capture"}
     documents = [
         *forge_bundle.glob("skills/**/*.md"),
@@ -217,6 +304,37 @@ def test_forge_instructions_use_bundle_relative_runtime_contract(
             assert name in allowed_cross_domain, (
                 f"{document}: unqualified cross-domain skill {name}"
             )
+
+
+@pytest.mark.parametrize(
+    "relative_path",
+    [
+        "skills/issue-triage/references/workflow.md",
+        "skills/issue-prioritize/references/workflow.md",
+        "skills/pr-monitor/references/platform-commands.md",
+    ],
+)
+def test_reference_workflows_establish_resolvable_runtime_root(
+    forge_bundle: Path, relative_path: str
+) -> None:
+    document = forge_bundle / relative_path
+    text = document.read_text(encoding="utf-8")
+    resolved = (document.parent / "../../../runtime").resolve()
+
+    assert resolved == (forge_bundle / "runtime").resolve()
+    assert "REFERENCE_DIR=$(CDPATH=" in text
+    assert "FORGE_RUNTIME_DIR=$(CDPATH=" in text
+    assert "$FORGE_RUNTIME_DIR/bin/" in text or "$FORGE_RUNTIME_DIR/config/" in text
+    assert not re.search(r"(?<!\.)\.\./\.\./runtime/(bin|config|python)", text)
+
+
+def test_triage_workflow_uses_valid_stdlib_json_heredoc(forge_bundle: Path) -> None:
+    workflow = forge_bundle / "skills/issue-triage/references/workflow.md"
+    text = workflow.read_text(encoding="utf-8")
+
+    assert "python3 - \"$CONFIG_FILE\" << 'PY'" in text
+    assert "json.load" in text
+    assert "import yaml" not in text
 
 
 def test_forge_contract_lists_all_runtime_directories(forge_bundle: Path) -> None:

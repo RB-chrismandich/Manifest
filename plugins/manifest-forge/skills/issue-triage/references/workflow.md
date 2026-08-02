@@ -25,6 +25,14 @@ depend on env vars and intermediate files produced by earlier ones.
 
 ## Workflow
 
+Before running these examples, change into the directory containing this
+reference file and establish the installed Forge runtime root:
+
+```bash
+REFERENCE_DIR=$(CDPATH='' cd -- . && pwd -P)
+FORGE_RUNTIME_DIR=$(CDPATH='' cd -- "$REFERENCE_DIR/../../../runtime" && pwd -P)
+```
+
 ### Step 1: Load Configuration
 
 ```bash
@@ -32,19 +40,21 @@ depend on env vars and intermediate files produced by earlier ones.
 set -euo pipefail
 
 # Load triage configuration
-CONFIG_FILE="../../runtime/config/tracker_triage.json"
+CONFIG_FILE="$FORGE_RUNTIME_DIR/config/tracker_triage.json"
 
 if [[ ! -f "$CONFIG_FILE" ]]; then
     echo "Error: Configuration file not found: $CONFIG_FILE" >&2
     exit 1
 fi
 
-# Parse YAML config using python
+# Parse JSON config using the Python standard library.
 read_config() {
-    python3 << 'EOF'
-import yaml, sys
-with open(sys.argv[1]) as f:
-    config = yaml.safe_load(f)
+    python3 - "$CONFIG_FILE" << 'PY'
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as stream:
+    config = json.load(stream)
 
 # Extract key thresholds
 dup = config['duplicate_detection']
@@ -54,8 +64,7 @@ print(f"STALENESS_DAYS={config['staleness']['inactivity_days']}")
 print(f"FILE_MISSING_THRESHOLD={config['staleness']['file_missing_threshold']}")
 print(f"CONSENSUS_HIGH={config['consensus']['high_threshold']}")
 print(f"CONSENSUS_MEDIUM={config['consensus']['medium_threshold']}")
-EOF
-"$CONFIG_FILE"
+PY
 }
 
 # Source config as environment variables
@@ -106,19 +115,19 @@ done
 TEMP_DIR=$(mktemp -d)
 RAW_ISSUES_FILE="$TEMP_DIR/raw_issues.json"
 
-PROVIDER=$(../../runtime/bin/tracker_ops.sh resolve-provider)
+PROVIDER=$($FORGE_RUNTIME_DIR/bin/tracker_ops.sh resolve-provider)
 echo "Fetching issues from ${PROVIDER}..."
 
 case "$PROVIDER" in
     github)
         # No "team" scope on issue-list; --team filters by label/milestone
         # instead (caller's responsibility — see Arguments table).
-        ../../runtime/bin/tracker_ops.sh issue-list --state open --limit "$LIMIT" \
+        $FORGE_RUNTIME_DIR/bin/tracker_ops.sh issue-list --state open --limit "$LIMIT" \
             --json number,title,body,labels,createdAt,updatedAt,state \
             > "$RAW_ISSUES_FILE"
         ;;
     gitlab)
-        ../../runtime/bin/tracker_ops.sh issue-list --state opened --per-page "$LIMIT" \
+        $FORGE_RUNTIME_DIR/bin/tracker_ops.sh issue-list --state opened --per-page "$LIMIT" \
             --output-format json \
             > "$RAW_ISSUES_FILE"
         ;;
@@ -127,7 +136,7 @@ case "$PROVIDER" in
         # tracker_ops.sh equivalent (engine-level, linear-only concept — it isn't
         # part of the canonical verb set), so it stays a direct linear_ops.sh call.
         if [[ -n "$TEAM_FILTER" ]]; then
-            ../../runtime/bin/tracker_ops.sh issue-list \
+            $FORGE_RUNTIME_DIR/bin/tracker_ops.sh issue-list \
                 --team "$TEAM_FILTER" \
                 --limit "$LIMIT" \
                 --json > "$RAW_ISSUES_FILE"
@@ -137,8 +146,8 @@ case "$PROVIDER" in
             # needs a single valid JSON array, not a concatenated stream).
             TEAM_PARTS="$TEMP_DIR/raw_issues_by_team.ndjson"
             : > "$TEAM_PARTS"
-            ../../runtime/bin/linear_ops.sh team-list --json | jq -r '.[].key' | while read -r team; do
-                ../../runtime/bin/tracker_ops.sh issue-list \
+            $FORGE_RUNTIME_DIR/bin/linear_ops.sh team-list --json | jq -r '.[].key' | while read -r team; do
+                $FORGE_RUNTIME_DIR/bin/tracker_ops.sh issue-list \
                     --team "$team" \
                     --limit "$LIMIT" \
                     --json >> "$TEAM_PARTS"
@@ -149,7 +158,7 @@ case "$PROVIDER" in
     jira)
         # jira is MCP-only (tracker_ops.sh exits 3) — fetch via the Atlassian
         # MCP search tool (name resolved via
-        # `../../runtime/python/tracker_registry.py mcp-tool jira search`,
+        # `$FORGE_RUNTIME_DIR/python/tracker_registry.py mcp-tool jira search`,
         # currently `searchJiraIssuesUsingJql`) from agent context instead of
         # this shell block. Extract the `issues` array so $RAW_ISSUES_FILE is
         # a JSON list, consistent with the other providers.
@@ -765,7 +774,7 @@ if [ "$DRY_RUN" = false ]; then
         duplicate_id=$(echo "$dup" | jq -r '.duplicate_issue.identifier')
         primary_id=$(echo "$dup" | jq -r '.primary_issue.identifier')
 
-        ../../runtime/bin/tracker_ops.sh duplicate-mark "$duplicate_id" --duplicate-of "$primary_id"
+        $FORGE_RUNTIME_DIR/bin/tracker_ops.sh duplicate-mark "$duplicate_id" --duplicate-of "$primary_id"
 
         # Log action
         jq --arg action "mark_duplicate" \
@@ -785,7 +794,7 @@ if [ "$DRY_RUN" = false ]; then
             issue_id=$(echo "$stale" | jq -r '.identifier')
             reasons=$(echo "$stale" | jq -r '.reasons | join("; ")')
 
-            ../../runtime/bin/tracker_ops.sh issue-close "$issue_id" \
+            $FORGE_RUNTIME_DIR/bin/tracker_ops.sh issue-close "$issue_id" \
                 --comment "Closing as stale: $reasons. Reopen if still relevant."
 
             # Log action

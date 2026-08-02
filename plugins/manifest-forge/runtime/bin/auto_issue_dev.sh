@@ -11,8 +11,8 @@
 #   mark-blocked <N> <reason>  Add needs-human label + deduped comment (exit 0)
 #   mark-dependency <N> <refs> Add blocked-dependency label + deduped comment (exit 0)
 #
-# Env seams: GIT_OPS_BIN, GIT_PLATFORM_BIN, AUTO_ISSUE_DEV_LABEL,
-#            AUTO_ISSUE_DEV_DEP_LABEL, AUTO_ISSUE_DEV_FAIL_LABEL
+# Env configuration: AUTO_ISSUE_DEV_LABEL, AUTO_ISSUE_DEV_DEP_LABEL,
+#                    AUTO_ISSUE_DEV_FAIL_LABEL
 
 set -euo pipefail
 
@@ -23,8 +23,8 @@ FORGE_CONFIG_DIR="$FORGE_RUNTIME_DIR/config"
 FORGE_STATE_DIR="${XDG_STATE_HOME:-${HOME}/.local/state}/manifest/forge"
 export FORGE_RUNTIME_DIR FORGE_CONFIG_DIR FORGE_STATE_DIR
 SCRIPT_DIR="$FORGE_RUNTIME_DIR/bin"
-GIT_OPS_BIN="${GIT_OPS_BIN:-${SCRIPT_DIR}/git_ops.sh}"
-GIT_PLATFORM_BIN="${GIT_PLATFORM_BIN:-${SCRIPT_DIR}/git_platform.sh}"
+GIT_OPS="${SCRIPT_DIR}/git_ops.sh"
+GIT_PLATFORM="${SCRIPT_DIR}/git_platform.sh"
 DEV_LABEL="${AUTO_ISSUE_DEV_LABEL:-auto-dev}"
 DEP_LABEL="${AUTO_ISSUE_DEV_DEP_LABEL:-blocked-dependency}"
 FAIL_LABEL="${AUTO_ISSUE_DEV_FAIL_LABEL:-needs-human}"
@@ -34,11 +34,11 @@ FAIL_LABEL="${AUTO_ISSUE_DEV_FAIL_LABEL:-needs-human}"
 REVIEW_LABEL="${AUTO_ISSUE_DEV_REVIEW_LABEL:-needs-review}"
 PROGRESS_LABEL="${AUTO_ISSUE_DEV_PROGRESS_LABEL:-in-progress}"
 
-git_ops() { "${GIT_OPS_BIN}" "$@"; }
+git_ops() { "${GIT_OPS}" "$@"; }
 
 # detect_platform — echo github|gitlab|git (via git_platform.sh)
 detect_platform() {
-    bash "${GIT_PLATFORM_BIN}" 2> /dev/null || {
+    bash "${GIT_PLATFORM}" 2> /dev/null || {
         err "platform detection failed; defaulting to 'git' (gh-style calls may fail)"
         printf 'git'
     }

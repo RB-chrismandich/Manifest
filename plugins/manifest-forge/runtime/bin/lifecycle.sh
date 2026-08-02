@@ -174,7 +174,30 @@ detect_provider() {
 
 sanitize() { echo "$1" | tr '/#:' '___' | tr -cd 'A-Za-z0-9_.-'; }
 
-track_path() { echo "${STATE_DIR}/$1.json"; }
+validate_track_id() {
+    local id="$1"
+    case "${id}" in
+        '' | .* | *..* | *[!A-Za-z0-9_.-]*)
+            err "invalid track id: ${id:-<empty>}"
+            return 64
+            ;;
+    esac
+}
+
+track_path() {
+    local id="$1" path
+    validate_track_id "${id}" || return $?
+    if [ -L "${STATE_DIR}" ]; then
+        err "unsafe lifecycle state directory: ${STATE_DIR}"
+        return 64
+    fi
+    path="${STATE_DIR}/${id}.json"
+    if [ -L "${path}" ]; then
+        err "unsafe track path: ${path}"
+        return 64
+    fi
+    printf '%s\n' "${path}"
+}
 
 ensure_state_dir() { [ -d "${STATE_DIR}" ] || {
     mkdir -p "${STATE_DIR}"
@@ -195,8 +218,8 @@ write_track() {
     # write_track <track-id> <json>  — atomic, 0600
     ensure_state_dir
     local p tmp
-    p="$(track_path "$1")"
-    tmp="${p}.tmp.$$"
+    p="$(track_path "$1")" || return $?
+    tmp="$(mktemp "${STATE_DIR}/.track.XXXXXX")" || return $?
     printf '%s\n' "$2" > "${tmp}"
     chmod 600 "${tmp}"
     mv "${tmp}" "${p}"

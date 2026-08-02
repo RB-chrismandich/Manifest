@@ -31,8 +31,8 @@ FORGE_STATE_DIR="${XDG_STATE_HOME:-${HOME}/.local/state}/manifest/forge"
 export FORGE_RUNTIME_DIR FORGE_CONFIG_DIR FORGE_STATE_DIR
 SCRIPT_DIR="$FORGE_RUNTIME_DIR/bin"
 REGISTRY="${FORGE_RUNTIME_DIR}/python/tracker_registry.py"
-GIT_OPS="${GIT_OPS_BIN:-${SCRIPT_DIR}/git_ops.sh}"
-LINEAR_OPS="${LINEAR_OPS_BIN:-${SCRIPT_DIR}/linear_ops.sh}"
+GIT_OPS="${SCRIPT_DIR}/git_ops.sh"
+LINEAR_OPS="${SCRIPT_DIR}/linear_ops.sh"
 CANONICAL_STATUSES=(planned in-progress needs-review "done")
 
 valid_provider() { case "$1" in github | gitlab | linear | jira) return 0 ;; *) return 1 ;; esac }

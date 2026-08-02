@@ -51,8 +51,8 @@ This skill is backed by `../../runtime/bin/pr_review.sh`.
 - **Empty queue** is reported cleanly; an **unauthenticated / missing CLI** is
   reported distinctly (not as a misleading "clean" result) so you know the
   difference between "no PRs" and "couldn't look".
-- To customize how PRs are fetched (internal mirrors, CI), set `PR_REVIEW_FETCH`
-  to an executable that prints the normalized PR JSON array.
+- Platform commands resolve through `gh` or `glab` on `PATH`; authentication is
+  owned by those native CLIs.
 
 ## Sub-agent dispatch
 

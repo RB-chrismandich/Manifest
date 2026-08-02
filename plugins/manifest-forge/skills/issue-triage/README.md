@@ -38,7 +38,7 @@ Comprehensive Linear issue audit with duplicate detection, staleness analysis, a
 ## Prerequisites
 
 - **Linear MCP** available in the active harness OR
-- **Linear API key** in `~/.config/linear/token`
+- **Linear API key** supplied through the `LINEAR_API_KEY` environment variable
 - **Tools**: `jq`, `python3`
 
 ## Arguments
@@ -132,7 +132,7 @@ without modifying the immutable bundle:
 
 ### Linear authentication required
 
-- Configure Linear MCP OR set API key in `~/.config/linear/token`
+- Configure native Linear MCP auth or export `LINEAR_API_KEY` for the CLI runtime
 
 ### jq command not found
 

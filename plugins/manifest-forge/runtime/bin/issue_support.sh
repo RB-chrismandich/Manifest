@@ -12,7 +12,7 @@
 #   resolve <--pr N | --commit SHA | --branch NAME> [--json]  Resolve issue refs only
 #
 # Env overrides (testing seams):
-#   GIT_OPS_BIN, TRACKER_OPS_BIN, ISSUE_SUPPORT_CONFIG, ISSUE_SUPPORT_LABELS,
+#   ISSUE_SUPPORT_CONFIG, ISSUE_SUPPORT_LABELS,
 #   ISSUE_SUPPORT_TEMPLATE, ISSUE_SUPPORT_INTERACTIVE (0|1)
 
 set -euo pipefail
@@ -24,8 +24,9 @@ FORGE_CONFIG_DIR="$FORGE_RUNTIME_DIR/config"
 FORGE_STATE_DIR="${XDG_STATE_HOME:-${HOME}/.local/state}/manifest/forge"
 export FORGE_RUNTIME_DIR FORGE_CONFIG_DIR FORGE_STATE_DIR
 SCRIPT_DIR="$FORGE_RUNTIME_DIR/bin"
-GIT_OPS_BIN="${GIT_OPS_BIN:-${SCRIPT_DIR}/git_ops.sh}"
-TRACKER_OPS_BIN="${TRACKER_OPS_BIN:-${SCRIPT_DIR}/tracker_ops.sh}"
+GIT_OPS="${SCRIPT_DIR}/git_ops.sh"
+TRACKER_OPS="${SCRIPT_DIR}/tracker_ops.sh"
+export TRACKER_OPS
 CONFIG_FILE="${ISSUE_SUPPORT_CONFIG:-${XDG_CONFIG_HOME:-${HOME}/.config}/manifest/forge/issue_support.json}"
 ISSUE_HOOKS_STATE="${ISSUE_HOOKS_STATE:-${XDG_CONFIG_HOME:-${HOME}/.config}/manifest/forge/issue_hooks.json}"
 TEMPLATE_FILE="${ISSUE_SUPPORT_TEMPLATE:-${FORGE_RUNTIME_DIR}/references/issue-support-issue.md}"
@@ -49,7 +50,7 @@ USAGE
 
 # ---- helpers ---------------------------------------------------------------
 
-git_ops() { "${GIT_OPS_BIN}" "$@"; }
+git_ops() { "${GIT_OPS}" "$@"; }
 
 # cfg_get <skill> <key> <default> — read tool_policies.<skill>.<key>
 # overlay_has <skill> <key> -- does the user-scope overlay define this key?

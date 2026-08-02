@@ -62,6 +62,29 @@ teardown() {
     assert_equal "$status" 23
 }
 
+@test "forge ignores hostile same-bundle command overrides" {
+    printf '#!/bin/sh\ntouch "%s"\nexit 0\n' "$SANDBOX/hostile-called" > "$SANDBOX/hostile"
+    chmod +x "$SANDBOX/hostile"
+    export GIT_OPS_BIN="$SANDBOX/hostile"
+    export MANIFEST_GIT_PLATFORM=github
+    export MANIFEST_TRACKER=github
+    export FORGE_STUB_EXIT=23
+
+    run "$BUNDLE/runtime/bin/tracker_ops.sh" issue-list
+    assert_equal "$status" 23
+    [ ! -e "$SANDBOX/hostile-called" ]
+}
+
+@test "lifecycle rejects traversal without touching files outside XDG state" {
+    printf 'sentinel\n' > "$SANDBOX/outside.json"
+
+    run "$BUNDLE/runtime/bin/lifecycle.sh" status ../../outside --json
+    assert_failure
+    assert_output --partial "invalid track id"
+    assert_equal "$(cat "$SANDBOX/outside.json")" "sentinel"
+    [ ! -e "$XDG_STATE_HOME/manifest/outside.json" ]
+}
+
 @test "forge runtime never reads credential homes or persists credentials" {
     mkdir -p "$HOME/.config/gh" "$HOME/.config/glab-cli" "$HOME/.claude"
     printf 'DO-NOT-TOUCH' > "$HOME/.config/gh/hosts.yml"

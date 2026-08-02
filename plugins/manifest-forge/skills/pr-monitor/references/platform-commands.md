@@ -3,8 +3,16 @@
 GitHub (`gh`) and GitLab (`glab`) commands for each phase, plus how to detect
 the AI review bots. Read this when you need the exact invocation.
 
+Before running these examples, change into the directory containing this
+reference file and establish the installed Forge runtime root:
+
+```bash
+REFERENCE_DIR=$(CDPATH='' cd -- . && pwd -P)
+FORGE_RUNTIME_DIR=$(CDPATH='' cd -- "$REFERENCE_DIR/../../../runtime" && pwd -P)
+```
+
 Bot identities used below (`author_login`, `mention`, `identified_by`) come
-from `../../runtime/config/review_bots.json` — the registry, not this file, is
+from `$FORGE_RUNTIME_DIR/config/review_bots.json` — the registry, not this file, is
 the source of truth if a login ever changes. Commands here embed the
 registry's current values; re-check the registry, not just this cookbook, when
 a detection query stops matching.
@@ -21,7 +29,7 @@ a detection query stops matching.
 
 ```bash
 # Platform detection (repo helper): prints github | gitlab | git
-../../runtime/bin/git_platform.sh
+$FORGE_RUNTIME_DIR/bin/git_platform.sh
 
 # GitHub — PR for the current branch
 gh pr view --json number,headRefName,baseRefName,url,state,isDraft,reviewRequests
