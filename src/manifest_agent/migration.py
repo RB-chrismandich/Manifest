@@ -500,9 +500,9 @@ class MigrationService:
     def _unproven_legacy_writers(self, harnesses: Sequence[str]) -> tuple[str, ...]:
         messages = []
         for entry in self.inventory.entries:
-            if entry.action != "retain" or entry.classification not in {
-                "bundle-owned",
-                "retired",
+            if entry.action != "retain" or entry.classification in {
+                "user-owned",
+                "harness-native",
             }:
                 continue
             if not set(entry.harnesses).intersection(harnesses):

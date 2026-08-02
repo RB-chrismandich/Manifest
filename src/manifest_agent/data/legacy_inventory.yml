@@ -399,7 +399,7 @@ entries:
     category: skills
     path: ~/.manifest/skills
     harnesses: [claude, codex, gemini, cursor, antigravity, devin]
-    classification: coordinator-owned
+    classification: user-owned
     destination: native-plugin-managers
     ownership_proof: {type: unproven, value: deploy-stamp-is-not-a-content-proof}
     action: retain

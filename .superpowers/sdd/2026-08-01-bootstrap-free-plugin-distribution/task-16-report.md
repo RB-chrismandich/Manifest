@@ -62,6 +62,13 @@ git diff --check                              PASS
   retired APM helper inventory records; unproven retained writers block with
   explicit manual-parity guidance.
 
+## Final Scoped Repair
+
+- Retained mixed and coordinator-owned legacy writers now block migration just
+  like bundle-owned and retired writers. Only explicitly user-owned or native
+  credential state is excluded. The regression creates the legacy `manifest`
+  coordinator and proves migration is BLOCKED without writing a receipt.
+
 ## Commits
 
 - Initial implementation: `98707f9d2bd3b8a86d81438d0a829174ee24ab3c`

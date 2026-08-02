@@ -141,8 +141,29 @@ def test_migration_preserves_unowned_settings(tmp_path: Path):
 
     report = migration.migrate(service._desired_state()[0])
 
-    assert report.state is ResultState.READY
+    assert report.state is ResultState.BLOCKED
     assert settings.read_bytes() == before
+    assert not service.receipt_path.exists()
+
+
+def test_unproven_legacy_writer_blocks_without_a_receipt(tmp_path: Path):
+    events: list[str] = []
+    home, _link = _legacy_home(tmp_path)
+    legacy = home / ".local" / "bin" / "manifest"
+    legacy.parent.mkdir(parents=True)
+    legacy.write_text("legacy coordinator", encoding="utf-8")
+    service = _service(tmp_path, MigrationAdapter(events))
+    migration = MigrationService.from_manifest_service(
+        service, paths=xdg_paths({"HOME": str(home)}), home=home, event_log=events
+    )
+    desired, error = service._desired_state()
+    assert error is None and desired is not None
+
+    result = migration.migrate(desired)
+
+    assert result.state is ResultState.BLOCKED
+    assert "~/.local/bin/manifest" in result.errors[0]
+    assert not service.receipt_path.exists()
 
 
 def test_completed_migration_is_idempotent(tmp_path: Path):

@@ -52,6 +52,6 @@ Unlisted paths and credential stores are user-owned and are never changed by mig
 | graphify-cli | `~/.local/bin/graphify` | bundle-owned | manifest-graphify | unproven: `legacy-wrapper-hash-not-recorded` | retain | user-directed-removal-after-parity | `test_graphify_runtime.py` |
 | manifest-cli | `~/.local/bin/manifest` | coordinator-owned | ephemeral-uvx-coordinator | unproven: `legacy-wrapper-hash-not-recorded` | retain | user-directed-removal-after-parity | `plugin_migration.bats` |
 | manifest-release-metadata | `~/.manifest/releases.json` | coordinator-owned | xdg-release-metadata | unproven: `legacy-release-format-varies` | retain | user-directed-removal-after-parity | `plugin_migration.bats` |
-| manifest-skills-hub | `~/.manifest/skills` | coordinator-owned | native-plugin-managers | unproven: `deploy-stamp-is-not-a-content-proof` | retain | user-directed-removal-after-parity | `plugin_migration.bats` |
+| manifest-skills-hub | `~/.manifest/skills` | user-owned | native-plugin-managers | unproven: `deploy-stamp-is-not-a-content-proof` | retain | user-directed-removal-after-parity | `plugin_migration.bats` |
 | native-credentials | `~/.config/manifest/credentials.json` | harness-native | native-credential-store | exact-marker: `never-migrate` | retain | none | `manual-credential-preservation` |
 | sync-skills-cli | `~/.local/bin/sync-skills` | bundle-owned | manifest-workspace | unproven: `legacy-wrapper-hash-not-recorded` | retain | user-directed-removal-after-parity | `plugin_migration.bats` |
