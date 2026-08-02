@@ -1,7 +1,7 @@
 # Proactive Coding Anti-Patterns (Guardrail Registry Reference)
 
 > Read on demand BEFORE writing or refactoring code (spec 457). The live source
-> of truth is `~/.claude/config/knowledge_base.yml` (guardrail-tagged entries,
+> of truth is `native-harness/config/knowledge_base.yml` (guardrail-tagged entries,
 > including `provenance: session-capture` additions made after this file was
 > written) — consult it when checking programmatically; this reference renders
 > the seeded set for reading. Human-readable summary: `docs/KNOWLEDGE_BASE.md`

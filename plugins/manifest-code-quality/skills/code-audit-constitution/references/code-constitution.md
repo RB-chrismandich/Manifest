@@ -282,7 +282,7 @@ before adoption and nearly impossible after.
 - Install from the lockfile in CI and fail on drift; audit for known CVEs.
 - Secrets come from the environment. Never a literal, never a default value.
 
-**Automated**: none here — pinning is enforced by `/version-pin` and the CI
+**Automated**: none here — pinning is enforced by `/manifest-ops:version-pin` and the CI
 lockfile gate.
 
 ## Article XII — CON-012 — Delete before you add
@@ -331,7 +331,7 @@ for shell, TypeScript, and Go.
 
 **Boundary**: this article covers the injection *sinks*. It does not replace the
 reactive registry — hardcoded secrets (`ANTI-025`) and unquoted shell expansion
-(`ANTI-001`) keep their entries there, and `/ai-code-audit` remains the deep
+(`ANTI-001`) keep their entries there, and `/manifest-code-quality:ai-code-audit` remains the deep
 security pass. What CON-013 adds is that the sinks are now checked before the
 code is written rather than after it is reviewed.
 

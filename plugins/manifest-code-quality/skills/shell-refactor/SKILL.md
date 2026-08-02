@@ -14,6 +14,12 @@ with prioritized recommendations.
 This command ALWAYS uses parallel agents (security-critical).
 Executes: `[[skill:parallel-agent]] --json --full-output --validate`
 
+Consensus scoring:
+
+- ≥80%: Auto-proceed with unified recommendation
+- 50-79%: Highlight disagreements to user
+- <50%: Escalate for human review
+
 ## Task
 
 You are a Senior DevOps/Infrastructure Engineer analyzing production shell scripts. Your goals are to:
@@ -174,13 +180,158 @@ local var="value"  # Function-scoped variables
 
 ## Output Format
 
-Produce a report with: Executive Summary (score by category), Scripts
-Analyzed table, Priority Matrix (Immediate/Quick Wins/Planned/Strategic),
-Detailed Findings by script (location, risk, effort, current code, fix,
-ShellCheck code), ShellCheck Summary by severity, and Recommendations
-(Immediate/Short Term/Long Term).
+### Shell Script Refactor Analysis Report
 
-Full populated template: [references/output-format.md](references/output-format.md)
+````markdown
+# Shell Script Refactor Analysis Report
+
+**Date:** YYYY-MM-DD
+**Scripts Analyzed:** N
+**Overall Score:** XX/100
+
+---
+
+## Executive Summary
+
+| Category | Score | Issues | Critical |
+|----------|-------|--------|----------|
+| Security | XX/30 | N | Y/N |
+| Error Handling | XX/20 | N | Y/N |
+| Code Quality | XX/20 | N | Y/N |
+| Documentation | XX/15 | N | Y/N |
+| Best Practices | XX/15 | N | Y/N |
+
+**Key Findings:**
+- [1-3 sentence summary of most critical issues]
+
+---
+
+## Scripts Analyzed
+
+| Script | Lines | Functions | Issues | Score |
+|--------|-------|-----------|--------|-------|
+| setup.sh | 1000 | 15 | 12 | 75/100 |
+| git_ops.sh | 1038 | 20 | 8 | 85/100 |
+
+---
+
+## Priority Matrix
+
+### Immediate (Critical Risk - Any Effort)
+
+| ID | Issue | Location | Effort | Risk |
+|----|-------|----------|--------|------|
+| SEC-001 | Unquoted variable expansion | `setup.sh:123` | Minimal | Critical |
+
+### Quick Wins (Low Risk + Minimal Effort)
+
+| ID | Issue | Location | Effort | Risk |
+|----|-------|----------|--------|------|
+| QA-001 | Add `set -euo pipefail` | `setup.sh:1` | Minimal | Low |
+
+### Planned (Medium Risk/Effort)
+
+[Table of medium priority items]
+
+### Strategic (High Effort)
+
+[Table of long-term items]
+
+---
+
+## Detailed Findings by Script
+
+### setup.sh
+
+#### SEC-001: Unquoted Variable Expansion [CRITICAL]
+- **Location:** Line 123
+- **Risk:** Critical
+- **Effort:** Minimal
+- **Current Code:**
+  ```bash
+  cd $TARGET_DIR
+  ```
+
+- **Issue:** Unquoted variable can cause word splitting and command injection
+- **Fix:**
+
+  ```bash
+  cd "$TARGET_DIR" || { echo "Failed to cd to $TARGET_DIR"; exit 1; }
+  ```
+
+- **ShellCheck:** SC2164, SC2086
+
+#### QA-001: Declare and Assign Separately [MEDIUM]
+
+- **Location:** Line 265
+- **Risk:** Low
+- **Effort:** Minimal
+- **Current Code:**
+
+  ```bash
+  local var=$(command)
+  ```
+
+- **Issue:** Masks return value of command
+- **Fix:**
+
+  ```bash
+  local var
+  var=$(command) || { echo "Command failed"; return 1; }
+  ```
+
+- **ShellCheck:** SC2155
+
+---
+
+## ShellCheck Summary
+
+### Critical Issues (Must Fix)
+
+| Code | Count | Description |
+|------|-------|-------------|
+| SC2086 | 5 | Unquoted variable expansion |
+| SC2046 | 2 | Word splitting in command substitution |
+
+### High Priority
+
+| Code | Count | Description |
+|------|-------|-------------|
+| SC2164 | 3 | cd without error check |
+| SC2155 | 8 | Declare and assign separately |
+
+### Medium Priority
+
+| Code | Count | Description |
+|------|-------|-------------|
+| SC2034 | 1 | Variable appears unused |
+| SC2129 | 5 | Consolidate redirects |
+
+---
+
+## Recommendations
+
+### Immediate (This Sprint)
+
+- [ ] Fix SEC-001: Quote all variable expansions
+- [ ] Add error checking for all `cd` commands
+- [ ] Add `set -euo pipefail` to all scripts
+
+### Short Term (Next 2 Sprints)
+
+- [ ] Separate variable declaration and assignment (SC2155)
+- [ ] Add function documentation headers
+- [ ] Create unit tests with BATS
+
+### Long Term (Roadmap)
+
+- [ ] Achieve zero ShellCheck warnings
+- [ ] Add structured logging
+- [ ] Implement debug mode
+
+````
+
+---
 
 ## Analysis Principles
 
@@ -189,6 +340,78 @@ Full populated template: [references/output-format.md](references/output-format.
 - **Prioritize security**: Command injection and unsafe operations come first
 - **Run ShellCheck**: Always include actual ShellCheck output
 - **Show examples**: Include before/after code snippets
+
+---
+
+## Common Patterns to Check
+
+### Security
+
+```bash
+# Bad: Unquoted expansion
+rm -rf $dir/*
+
+# Good: Quoted
+rm -rf "${dir:?}/"*  # :? fails if unset
+```
+
+### Error Handling
+
+```bash
+# Bad: No error check
+cd /some/path
+do_something
+
+# Good: Check or fail
+cd /some/path || exit 1
+do_something
+```
+
+### Variable Quoting
+
+```bash
+# Bad: Unquoted
+if [ $var = "value" ]; then
+
+# Good: Quoted
+if [[ "$var" = "value" ]]; then
+```
+
+### Command Substitution
+
+```bash
+# Bad: Unquoted
+files=$(ls *.txt)
+
+# Good: Array
+files=(*.txt)
+```
+
+---
+
+## Testing Recommendations
+
+### Unit Testing with BATS
+
+```bash
+# Install BATS
+npm install -g bats
+
+# Create test file: tests/bootstrap.bats
+@test "detect_platform identifies macOS" {
+  run detect_platform
+  [ "$status" -eq 0 ]
+  [[ "$PLATFORM" = "macos" ]]
+}
+```
+
+### Integration Testing
+
+```bash
+# Test in Docker containers
+docker run --rm -v "$PWD:/work" -w /work ubuntu:22.04 ./setup.sh --skip-auth
+docker run --rm -v "$PWD:/work" -w /work fedora:39 ./setup.sh --skip-auth
+```
 
 ---
 

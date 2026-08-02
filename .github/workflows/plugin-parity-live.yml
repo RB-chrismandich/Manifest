@@ -1,0 +1,116 @@
+name: Manifest Plugin Live Parity
+
+on:
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: plugin-parity-live-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  parity:
+    name: Live ${{ matrix.harness }} parity
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        harness: [claude, codex, gemini, cursor, antigravity, devin]
+    env:
+      HARNESS: ${{ matrix.harness }}
+      # This protected environment secret is intentionally required. A public
+      # PR runner cannot manufacture a licensed/authenticated native CLI and
+      # must report BLOCKED rather than passing a fake live result.
+      MANIFEST_LIVE_SETUP_COMMAND: ${{ secrets.MANIFEST_LIVE_SETUP_COMMAND }}
+      MANIFEST_LIVE_HARNESS_TOKEN: ${{ secrets.MANIFEST_LIVE_HARNESS_TOKEN }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7
+        with:
+          python-version: "3.14"
+
+      - name: Install uv
+        run: pip install uv
+
+      - name: Require licensed native harness setup
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "${MANIFEST_LIVE_HARNESS_TOKEN:-}" || -z "${MANIFEST_LIVE_SETUP_COMMAND:-}" ]]; then
+            echo "BLOCKED: protected MANIFEST_LIVE_HARNESS_TOKEN and MANIFEST_LIVE_SETUP_COMMAND are required"
+            exit 1
+          fi
+          # The protected release environment owns this audited, harness-specific
+          # installer. It must authenticate and put exactly one requested CLI on PATH.
+          bash -lc "$MANIFEST_LIVE_SETUP_COMMAND"
+          case "$HARNESS" in
+            claude) native=claude ;;
+            codex) native=codex ;;
+            gemini) native=gemini ;;
+            cursor) native=cursor-agent ;;
+            antigravity) native=agy ;;
+            devin) native=devin ;;
+          esac
+          command -v "$native" >/dev/null || { echo "BLOCKED: $native is absent after protected setup"; exit 1; }
+          "$native" --version
+
+      - name: Build immutable coordinator and release archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf dist live-release
+          uv build
+          WHEEL="$(find dist -maxdepth 1 -name 'manifest_agent-*.whl' -print -quit)"
+          test -n "$WHEEL"
+          git archive --format=tar --prefix=manifest-release/ HEAD | gzip -n > live-release.tar.gz
+          sha256sum "$WHEEL" live-release.tar.gz | tee release-checksums.txt
+          printf 'WHEEL=%s\n' "$WHEEL" >> "$GITHUB_ENV"
+
+      - name: Install, reconcile, and uninstall one native harness
+        shell: bash
+        run: |
+          set -euo pipefail
+          export HOME="$RUNNER_TEMP/manifest-live-home/$HARNESS"
+          export XDG_CONFIG_HOME="$HOME/.config"
+          export XDG_DATA_HOME="$HOME/.local/share"
+          export XDG_STATE_HOME="$HOME/.local/state"
+          export XDG_CACHE_HOME="$HOME/.cache"
+          mkdir -p "$HOME"
+          uvx --from "$WHEEL" manifest install --source "$GITHUB_WORKSPACE" --harness "$HARNESS" --non-interactive --json | tee install.json
+          uvx --from "$WHEEL" manifest reconcile --source "$GITHUB_WORKSPACE" --harness "$HARNESS" --json | tee reconcile.json
+          python3 - <<'PY'
+          import json
+          for report_path in ("install.json", "reconcile.json"):
+              report = json.load(open(report_path, encoding="utf-8"))
+              harness = report["harnesses"].get(__import__("os").environ["HARNESS"])
+              if report["state"] != "READY" or harness is None or harness["state"] != "READY":
+                  raise SystemExit(f"BLOCKED: {report_path} did not verify READY parity")
+          PY
+          uvx --from "$WHEEL" manifest uninstall --harness "$HARNESS" --json | tee uninstall.json
+
+      - name: Redact native credential stores before diagnostics
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          report_home="$RUNNER_TEMP/manifest-live-home/$HARNESS"
+          if [[ -d "$report_home" ]]; then
+            find "$report_home" -type f \( -iname '*token*' -o -iname '*credential*' -o -iname '*secret*' -o -iname '*auth*' \) -delete
+          fi
+
+      - name: Upload parity diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: plugin-parity-${{ matrix.harness }}
+          path: |
+            install.json
+            reconcile.json
+            uninstall.json
+            release-checksums.txt
+            ${{ runner.temp }}/manifest-live-home/${{ matrix.harness }}
+          if-no-files-found: warn

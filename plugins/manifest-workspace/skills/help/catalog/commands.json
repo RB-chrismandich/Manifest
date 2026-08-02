@@ -206,7 +206,7 @@
     {
       "bundle": "manifest-ops",
       "category": "deployment",
-      "description": "Use when a deployed/live environment is missing expected state (symlinks, files, config) after bootstrap/deploy \u2014 even on already-bootstrapped machines \u2014 to classify the gap (incomplete run, deployer bug, preserve-on-existing drop) and fix the source of truth.",
+      "description": "Use when a deployed/live environment is missing expected state (symlinks, files, config) after deployment \u2014 even on existing machines \u2014 to classify the gap (incomplete run, deployer bug, preserve-on-existing drop) and fix the source of truth.",
       "name": "deploy-diagnose-drift",
       "qualified_name": "manifest-ops:deploy-diagnose-drift"
     },

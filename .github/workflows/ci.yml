@@ -124,6 +124,22 @@ jobs:
       - name: Install uv
         run: pip install uv
 
+      - name: Verify bootstrap-free plugin release projections
+        run: |
+          set -euo pipefail
+          uv run python tools/generate_plugin_views.py --check
+          uv run python tools/vendor_bundle_dependencies.py --check
+          uv run python tools/check_plugin_runtime_paths.py --json
+          uv run python tools/render_capability_inventory.py --check
+          uv run python tools/render_plugin_capability_matrix.py --check
+
+      - name: Build and checksum coordinator wheel
+        run: |
+          set -euo pipefail
+          rm -rf dist
+          uv build
+          shasum -a 256 dist/*
+
       - name: uv lock --check (configs/claude)
         run: uv lock --check --project configs/claude
 

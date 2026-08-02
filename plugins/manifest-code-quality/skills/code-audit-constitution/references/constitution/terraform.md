@@ -10,7 +10,7 @@
 
 Universal articles: [code-constitution.md](../code-constitution.md).
 Adjacent machine copy: `../../config/code_constitution.json` (`languages.terraform`).
-Post-write audit of an existing tree — security posture, blast radius, state management: `/terraform-refactor`.
+Post-write audit of an existing tree — security posture, blast radius, state management: `/manifest-code-quality:terraform-refactor`.
 
 ## Toolchain
 

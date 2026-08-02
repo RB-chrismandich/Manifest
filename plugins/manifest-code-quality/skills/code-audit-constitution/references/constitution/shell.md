@@ -24,7 +24,7 @@ Adjacent machine copy: `../../config/code_constitution.json` (`languages.shell`)
 | Audit | none | No dependency audit exists for shell; the audit surface is shellcheck's injection classes (SC2086, SC2046) and the array lint. |
 | Array lint | `tests/lint/check_array_expansion.sh` | Blocking at commit and CI. Empty-array expansion uses `"${arr[@]+"${arr[@]}"}"` or carries an inline `# array-safe`. |
 | Assertion lint | `tests/lint/check_bats_assertions.sh` | Blocking on `.bats`. A non-final bare `[[ ]]` silently passes under Bash 3.2. |
-| Help gate | `tests/bats/help_coverage.bats` | Enumerates every `configs/claude/scripts/*.sh`; opting out requires `# help-coverage: exempt — <why>` under the shebang. |
+| Help gate | `tests/bats/help_coverage.bats` | Enumerates every `bundle-runtime/scripts/*.sh`; opting out requires `# help-coverage: exempt — <why>` under the shebang. |
 
 ## Size ceilings (CON-002)
 
@@ -38,7 +38,7 @@ Adjacent machine copy: `../../config/code_constitution.json` (`languages.shell`)
 | Inline payload literal | 12 lines | A heredoc or string exceeds it (CON-004). |
 | Class / methods per class | 0 — not applicable | Shell has no classes. The YAML records `class_lines: 0` and `methods_per_class: 0`; no annex may invent a substitute. |
 
-The seam is the sourced library: `bootstrap.sh` is 399 lines because `bootstrap/lib/` holds one concern per file
+The seam is the sourced library: `legacy-setup.sh` is 399 lines because `legacy-setup/lib/` holds one concern per file
 (`platform.sh` detection, `config.sh` argument parsing and services config, `auth.sh`, `deploy.sh`, `mcp.sh`), each
 sourced by a path anchored to the script. Split argument parsing and usage away from the work they configure, and
 split read-only detection away from anything that mutates the filesystem. An inline block long enough to need a
@@ -49,13 +49,13 @@ heading comment becomes a named function in the same file first; a function need
 
 | Payload | Lives in | Loaded by |
 |---|---|---|
-| YAML/JSON config emitted by a heredoc | `templates/<subject>.yml.tmpl`, or `configs/claude/config/<subject>.yml` when it is static | `envsubst < "$tmpl" > "$dest"` in one writer function |
-| Lookup tables (`case` chains, parallel arrays, provider maps) | `configs/claude/config/*.yml` | a resolver, the way `tracker_registry.py` reads `tracker_providers.yml` |
+| YAML/JSON config emitted by a heredoc | `templates/<subject>.yml.tmpl`, or `bundle-runtime/config/<subject>.yml` when it is static | `envsubst < "$tmpl" > "$dest"` in one writer function |
+| Lookup tables (`case` chains, parallel arrays, provider maps) | `bundle-runtime/config/*.yml` | a resolver, the way `tracker_registry.py` reads `tracker_providers.yml` |
 | Embedded Python / awk / jq programs in a heredoc | their own `.py` / `.awk` / `.jq` file beside the script | invoked by path: `python3 "${BASH_SOURCE[0]%/*}/x.py"` |
 | Test data (mock JSON/YAML, seeded trees) | `tests/fixtures/` | the bats test by path (`tests/fixtures/mock_config.yml`) |
 | Long report or Markdown output templates | `templates/` | `envsubst`, or a `printf` format kept beside the data it renders |
 
-The in-repo offender is `write_services_config()` in `bootstrap/lib/config.sh`: a ~155-line YAML document inside a
+The in-repo offender is `write_services_config()` in `legacy-setup/lib/config.sh`: a ~155-line YAML document inside a
 single `cat > "$SERVICES_CONFIG" << EOF` heredoc. yamllint never sees it, it diffs as one blob, and the committed
 `configs/` copy of the same file is vestigial as a result. The fix shape is a template file plus `envsubst` (or a
 generator that emits it), leaving the function holding only the substitution and the write.
@@ -70,16 +70,16 @@ a file, not a literal.
 ### CON-001 — Search before you write
 
 - Shell has no import graph, so a forked helper is invisible. Grep the function name across
-  `configs/claude/scripts/*.sh`, `bootstrap/lib/*.sh`, and `tests/lint/*.sh` before defining one.
-- Output helpers already exist: `err()` in `configs/claude/scripts/`, the `print_error()`/`print_step()` family in
-  `bootstrap/lib/common.sh`. A second one in a file that already sources them is a fork.
-- Platform probes, timeout wrappers, and path resolution live in `bootstrap/lib/platform.sh` and `common.sh`.
+  `bundle-runtime/scripts/*.sh`, `legacy-setup/lib/*.sh`, and `tests/lint/*.sh` before defining one.
+- Output helpers already exist: `err()` in `bundle-runtime/scripts/`, the `print_error()`/`print_step()` family in
+  `legacy-setup/lib/common.sh`. A second one in a file that already sources them is a fork.
+- Platform probes, timeout wrappers, and path resolution live in `legacy-setup/lib/platform.sh` and `common.sh`.
 - A new verb for an existing dispatcher (`git_ops.sh`, `tracker_ops.sh`, `label_sync.sh`) is added to that script,
   not wrapped by a new one.
 
 ### CON-003 — Third time, centralize
 
-- The third copy moves to `bootstrap/lib/<concern>.sh` for the bootstrap chain, or a `*_lib.sh` beside its callers
+- The third copy moves to `legacy-setup/lib/<concern>.sh` for the bootstrap chain, or a `*_lib.sh` beside its callers
   (`apm_domains_lib.sh` is the existing pattern).
 - Source by a path anchored to the script, never to the caller's cwd:
   `source "${BASH_SOURCE[0]%/*}/lib/common.sh"`.
@@ -107,7 +107,7 @@ rm -rf -- "${dir:?dir is required}"/*
 
 ### CON-006 — Extension by addition
 
-- A new provider, service, or platform is a row in `configs/claude/config/*.yml` read by a resolver — not another
+- A new provider, service, or platform is a row in `bundle-runtime/config/*.yml` read by a resolver — not another
   `case` arm. `tracker_providers.yml` plus `tracker_registry.py` is the shape to copy.
 - A `case` or `elif` chain reaching its third arm becomes a lookup keyed on data.
 - A parser keyed on a literal allow/deny list of keys makes every new key a code change, and a mis-added key can
@@ -117,14 +117,14 @@ rm -rf -- "${dir:?dir is required}"/*
 
 ### CON-007 — Errors travel
 
-- `set -euo pipefail` heads every standalone script. Sourced `bootstrap/lib/` files may omit `-e`, with the reason
+- `set -euo pipefail` heads every standalone script. Sourced `legacy-setup/lib/` files may omit `-e`, with the reason
   written in the file.
 - Guard every `$()` that parses external input: `v="$(cmd)" || { err "..."; exit 1; }`. A bare assignment aborts the
-  script with no message. Audit with `/shell-audit-pipefail`.
+  script with no message. Audit with `/manifest-code-quality:shell-audit-pipefail`.
 - No function or sourced file ends on `[[ cond ]] && action`: a false guard returns non-zero and aborts the caller.
-  Audit with `/shell-audit-errexit`.
+  Audit with `/manifest-code-quality:shell-audit-errexit`.
 - Route error and warning output through `err() { echo "<script-name>: $*" >&2; }`, prefixed with the script's own
-  name. `bootstrap/lib/` keeps `print_error()`. Exempt: usage text, interactive prompts, separators, success/info.
+  name. `legacy-setup/lib/` keeps `print_error()`. Exempt: usage text, interactive prompts, separators, success/info.
 - Pair setup with an `EXIT` trap (`trap 'rm -rf "$tmp"' EXIT`); `deploy_reconcile.sh` regenerates its `restore.sh`
   from one so a partial failure still leaves a rollback.
 - A check that could not verify something reports "unverified" and returns non-zero — a skipped check is never a
@@ -132,7 +132,7 @@ rm -rf -- "${dir:?dir is required}"/*
 
 ### CON-008 — Tests first
 
-- The test path mirrors the source: `configs/claude/scripts/<name>.sh` → `tests/bats/<name>.bats`.
+- The test path mirrors the source: `bundle-runtime/scripts/<name>.sh` → `tests/bats/<name>.bats`.
 - Never pipe a bats run. The pipeline reports the last command's status, so a failing suite reads as green.
 - A non-final bare `[[ ]]` inside `@test` silently passes on macOS Bash 3.2. Chain `|| return 1`, or move the
   assertion last; `tests/lint/check_bats_assertions.sh` blocks the rest.
@@ -150,7 +150,7 @@ bats tests/bats/x.bats > "$out"; rc=$?; tail -5 "$out"; exit "$rc"
 
 ### CON-009 — Structure is a contract
 
-- Entry points in `configs/claude/scripts/`, sourced libraries in a sibling `lib/`, tests in `tests/bats/`, lint
+- Entry points in `bundle-runtime/scripts/`, sourced libraries in a sibling `lib/`, tests in `tests/bats/`, lint
   gates in `tests/lint/`.
 - `--help` answers before any config read, state lookup, or dependency probe: usage ≤15 lines, exit 0. Verify it
   with an empty `HOME` — a wrapper that forwards to the home runtime exits 0 on your machine and 1 in CI.
@@ -191,7 +191,7 @@ bats tests/bats/x.bats > "$out"; rc=$?; tail -5 "$out"; exit "$rc"
 
 - No `eval` on a variable; use a `case` statement or an array.
 - No `curl … | sh`. Download to a file, verify a checksum, then run it.
-  `bootstrap/lib/install.sh` carries six of these against upstream installers
+  `legacy-setup/lib/install.sh` carries six of these against upstream installers
   that publish no checksum — each is baselined, not blessed.
 - Quote every expansion so a value cannot become a word: `"$var"`, `"${arr[@]}"`.
 
@@ -206,7 +206,7 @@ bats tests/bats/x.bats > "$out"; rc=$?; tail -5 "$out"; exit "$rc"
 - [ ] `bats tests/bats/<name>.bats` was run unpiped and its own exit status read.
 - [ ] Mutation check done: the source was flipped to the wrong behavior, exactly the new test failed, the source was
       restored, and `git diff` is clean.
-- [ ] Every error and warning path calls `err()` (or `print_error()` in `bootstrap/lib/`) and exits non-zero.
-- [ ] No heredoc over 12 lines emits JSON/YAML/config; the payload lives under `configs/claude/config/`,
+- [ ] Every error and warning path calls `err()` (or `print_error()` in `legacy-setup/lib/`) and exits non-zero.
+- [ ] No heredoc over 12 lines emits JSON/YAML/config; the payload lives under `bundle-runtime/config/`,
       `templates/`, or `tests/fixtures/`.
 - [ ] Every external binary the change introduces is probed with `command -v` and named in the failure message.

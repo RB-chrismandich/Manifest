@@ -9,175 +9,175 @@
       "C-DUPE": 1,
       "C-SIZE": 1
     },
-    "bootstrap/lib/common.sh": {
+    "legacy-setup/lib/common.sh": {
       "C-SIZE": 1
     },
-    "bootstrap/lib/config.sh": {
+    "legacy-setup/lib/config.sh": {
       "C-DATA": 1,
       "C-SIZE": 1
     },
-    "bootstrap/lib/deploy.sh": {
+    "legacy-setup/lib/deploy.sh": {
       "C-DATA": 2,
       "C-SIZE": 1
     },
-    "bootstrap/lib/install.sh": {
+    "legacy-setup/lib/install.sh": {
       "C-DANGER": 6,
       "C-SIZE": 1
     },
-    "bootstrap/lib/mcp.sh": {
+    "legacy-setup/lib/mcp.sh": {
       "C-SIZE": 1
     },
-    "configs/claude/scripts/agents/__init__.py": {
+    "bundle-runtime/scripts/agents/__init__.py": {
       "C-DATA": 1
     },
-    "configs/claude/scripts/agents/cli.py": {
+    "bundle-runtime/scripts/agents/cli.py": {
       "C-ERR": 3,
       "C-SIZE": 2
     },
-    "configs/claude/scripts/agents/cli_invoke.py": {
+    "bundle-runtime/scripts/agents/cli_invoke.py": {
       "C-DUPE": 1,
       "C-SIZE": 2
     },
-    "configs/claude/scripts/agents/config.py": {
+    "bundle-runtime/scripts/agents/config.py": {
       "C-SIZE": 2
     },
-    "configs/claude/scripts/agents/orchestrator.py": {
+    "bundle-runtime/scripts/agents/orchestrator.py": {
       "C-DUPE": 2,
       "C-ERR": 6,
       "C-SIZE": 8
     },
-    "configs/claude/scripts/agents/runners.py": {
+    "bundle-runtime/scripts/agents/runners.py": {
       "C-DUPE": 2,
       "C-ERR": 4,
       "C-SIZE": 7
     },
-    "configs/claude/scripts/agents/synthesis.py": {
+    "bundle-runtime/scripts/agents/synthesis.py": {
       "C-ERR": 1,
       "C-SIZE": 1
     },
-    "configs/claude/scripts/agents/validation.py": {
+    "bundle-runtime/scripts/agents/validation.py": {
       "C-SIZE": 4
     },
-    "configs/claude/scripts/apm_ungate_domain.sh": {
+    "bundle-runtime/scripts/apm_ungate_domain.sh": {
       "C-DATA": 1
     },
-    "configs/claude/scripts/block_cwd_delete.py": {
+    "bundle-runtime/scripts/block_cwd_delete.py": {
       "C-DATA": 2,
       "C-ERR": 1,
       "C-SIZE": 1
     },
-    "configs/claude/scripts/check_status.sh": {
+    "bundle-runtime/scripts/check_status.sh": {
       "C-DANGER": 2,
       "C-SIZE": 1
     },
-    "configs/claude/scripts/command_catalog.py": {
+    "bundle-runtime/scripts/command_catalog.py": {
       "C-SIZE": 1
     },
-    "configs/claude/scripts/constitution/checks/duplication.py": {
+    "bundle-runtime/scripts/constitution/checks/duplication.py": {
       "C-DATA": 1
     },
-    "configs/claude/scripts/constitution/checks/payloads.py": {
+    "bundle-runtime/scripts/constitution/checks/payloads.py": {
       "C-DATA": 1
     },
-    "configs/claude/scripts/constitution_hook.py": {
+    "bundle-runtime/scripts/constitution_hook.py": {
       "C-DATA": 1
     },
-    "configs/claude/scripts/docs_lint.py": {
+    "bundle-runtime/scripts/docs_lint.py": {
       "C-DATA": 1,
       "C-SIZE": 1
     },
-    "configs/claude/scripts/emdash_inherit_check.sh": {
+    "bundle-runtime/scripts/emdash_inherit_check.sh": {
       "C-DATA": 1
     },
-    "configs/claude/scripts/generate_commands_doc.py": {
+    "bundle-runtime/scripts/generate_commands_doc.py": {
       "C-ERR": 1
     },
-    "configs/claude/scripts/generate_cursor_agents.py": {
+    "bundle-runtime/scripts/generate_cursor_agents.py": {
       "C-SIZE": 1
     },
-    "configs/claude/scripts/git_ops.sh": {
+    "bundle-runtime/scripts/git_ops.sh": {
       "C-DUPE": 2,
       "C-SIZE": 1
     },
-    "configs/claude/scripts/guidance_hint.py": {
+    "bundle-runtime/scripts/guidance_hint.py": {
       "C-ERR": 5
     },
-    "configs/claude/scripts/issue_support.sh": {
+    "bundle-runtime/scripts/issue_support.sh": {
       "C-SIZE": 1
     },
-    "configs/claude/scripts/learning_capture.sh": {
+    "bundle-runtime/scripts/learning_capture.sh": {
       "C-DUPE": 1,
       "C-SIZE": 1
     },
-    "configs/claude/scripts/lifecycle.sh": {
+    "bundle-runtime/scripts/lifecycle.sh": {
       "C-SIZE": 1
     },
-    "configs/claude/scripts/linear_ops.sh": {
+    "bundle-runtime/scripts/linear_ops.sh": {
       "C-DUPE": 6,
       "C-SIZE": 1
     },
-    "configs/claude/scripts/manifest_cli/doctor.py": {
+    "bundle-runtime/scripts/manifest_cli/doctor.py": {
       "C-ERR": 1
     },
-    "configs/claude/scripts/model_check.sh": {
+    "bundle-runtime/scripts/model_check.sh": {
       "C-DATA": 1,
       "C-DUPE": 1
     },
-    "configs/claude/scripts/opus_attribution_report.py": {
+    "bundle-runtime/scripts/opus_attribution_report.py": {
       "C-SIZE": 1
     },
-    "configs/claude/scripts/pr_merge_loop.sh": {
+    "bundle-runtime/scripts/pr_merge_loop.sh": {
       "C-SIZE": 1
     },
-    "configs/claude/scripts/reconcile_core.py": {
+    "bundle-runtime/scripts/reconcile_core.py": {
       "C-ERR": 4,
       "C-SIZE": 4
     },
-    "configs/claude/scripts/skill_usage_report.py": {
+    "bundle-runtime/scripts/skill_usage_report.py": {
       "C-SIZE": 3
     },
-    "configs/claude/scripts/skillclaw/audit.py": {
+    "bundle-runtime/scripts/skillclaw/audit.py": {
       "C-ERR": 3,
       "C-SIZE": 2
     },
-    "configs/claude/scripts/skillclaw/evolve.py": {
+    "bundle-runtime/scripts/skillclaw/evolve.py": {
       "C-ERR": 1,
       "C-SIZE": 3
     },
-    "configs/claude/scripts/skillclaw/ingest.py": {
+    "bundle-runtime/scripts/skillclaw/ingest.py": {
       "C-SIZE": 2
     },
-    "configs/claude/scripts/smoke_orchestrator/cli.py": {
+    "bundle-runtime/scripts/smoke_orchestrator/cli.py": {
       "C-SIZE": 1
     },
-    "configs/claude/scripts/smoke_orchestrator/executor.py": {
+    "bundle-runtime/scripts/smoke_orchestrator/executor.py": {
       "C-ERR": 1,
       "C-SIZE": 1
     },
-    "configs/claude/scripts/smoke_orchestrator/state.py": {
+    "bundle-runtime/scripts/smoke_orchestrator/state.py": {
       "C-SIZE": 1
     },
-    "configs/claude/scripts/smoke_orchestrator/steps/agent.py": {
+    "bundle-runtime/scripts/smoke_orchestrator/steps/agent.py": {
       "C-ERR": 5
     },
-    "configs/claude/scripts/smoke_orchestrator/steps/api.py": {
+    "bundle-runtime/scripts/smoke_orchestrator/steps/api.py": {
       "C-ERR": 2
     },
-    "configs/claude/scripts/smoke_orchestrator/steps/ui.py": {
+    "bundle-runtime/scripts/smoke_orchestrator/steps/ui.py": {
       "C-ERR": 1,
       "C-SIZE": 1
     },
-    "configs/claude/scripts/smoke_orchestrator/validation.py": {
+    "bundle-runtime/scripts/smoke_orchestrator/validation.py": {
       "C-SIZE": 1
     },
-    "configs/claude/scripts/subagent_breakdown.py": {
+    "bundle-runtime/scripts/subagent_breakdown.py": {
       "C-ERR": 1,
       "C-SIZE": 2
     },
-    "configs/claude/scripts/subagent_model_default.py": {
+    "bundle-runtime/scripts/subagent_model_default.py": {
       "C-ERR": 1
     },
-    "configs/claude/scripts/token_cost_report.py": {
+    "bundle-runtime/scripts/token_cost_report.py": {
       "C-SIZE": 3
     },
     "plugins/manifest-code-quality/skills/smoke-manage/scripts/smoke_orchestrator/cli.py": {

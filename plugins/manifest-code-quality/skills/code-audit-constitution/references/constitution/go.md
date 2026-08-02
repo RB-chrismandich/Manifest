@@ -10,7 +10,7 @@
 
 Universal articles: [code-constitution.md](../code-constitution.md).
 Adjacent machine copy: `../../config/code_constitution.json` (`languages.go`).
-Post-hoc audit: `/go-refactor` (`.apm/skills/go-refactor/SKILL.md`) grades an existing tree and owns its own
+Post-hoc audit: `/manifest-code-quality:go-refactor` grades an existing tree and owns its own
 report format; this annex governs the write.
 
 ## Toolchain

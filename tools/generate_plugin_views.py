@@ -450,6 +450,16 @@ def main(argv: list[str] | None = None) -> int:
                 display_path = path
             print(display_path)
         return 1
+    # A native view and the capability matrix are the two checked release
+    # projections of the same contracts.  Keep normal test fixtures focused on
+    # native views; the CLI drift gate validates both repository artifacts.
+    if args.check:
+        from render_plugin_capability_matrix import render
+
+        matrix_path = args.repo_root.resolve() / "docs" / "PLUGIN_CAPABILITY_MATRIX.md"
+        if not matrix_path.exists() or matrix_path.read_text(encoding="utf-8") != render():
+            print("docs/PLUGIN_CAPABILITY_MATRIX.md", file=sys.stderr)
+            return 1
     return 0
 
 

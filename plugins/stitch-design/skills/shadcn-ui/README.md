@@ -264,4 +264,4 @@ contract.
 ## License
 
 This skill uses the license declared in the bundle
-[contract](../../manifest-capabilities.yml).
+bundle manifest-capabilities.yml.

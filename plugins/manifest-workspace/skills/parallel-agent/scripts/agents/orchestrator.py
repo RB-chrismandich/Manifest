@@ -410,7 +410,7 @@ class Orchestrator:
             return default_dir
         except (OSError, PermissionError) as e:
             fallback = Path(os.environ.get("TMPDIR", "/tmp")) / (
-                f"manifest-agent-outputs-{os.getpid()}"
+                f"agent_outputs-{os.getpid()}"
             )
             if self.logger:
                 self.logger.warning(
