@@ -974,32 +974,13 @@ def _surgical_mixed_cleanup(
         return f"mixed legacy settings {entry.path} are not valid JSON; remove the Manifest entry manually before migrating"
     if not isinstance(value, dict):
         return f"mixed legacy settings {entry.path} have an unsupported structure; remove the Manifest entry manually before migrating"
-    changed = False
-    owned = "manifest-bootstrap-v1"
-    # Context7 has a stable server key, but users may own a server with the
-    # same name. Require the legacy deployment's explicit ownership envelope.
+    # Bootstrap did not record per-entry ownership. Treat any supported legacy
+    # shape as ambiguous: preserving it is safer than deleting a user entry.
     servers = value.get("mcpServers")
     context7 = servers.get("context7") if isinstance(servers, dict) else None
-    if (
-        entry.id in {"claude-context7", "cursor-mcp"}
-        and isinstance(context7, dict)
-        and context7.get("_manifest_owner") == owned
-    ):
-        servers.pop("context7")
-        changed = True
     # Devin's bootstrap pin is a single documented boolean, never a broad
     # settings rewrite. Other read_config_from values are left alone.
     inheritance = value.get("read_config_from")
-    if (
-        entry.id == "devin-claude-inheritance"
-        and isinstance(inheritance, dict)
-        and inheritance.get("claude") is True
-        and inheritance.get("_manifest_owner") == owned
-    ):
-        inheritance.pop("claude")
-        changed = True
-        if not inheritance:
-            value.pop("read_config_from")
     # Hooks are lists of objects. A legacy command is exact only when it points
     # at the retired Claude scripts tree and a known file, in tilde or absolute
     # form. Preserve sibling ordering and objects byte-for-byte semantically.
@@ -1008,20 +989,7 @@ def _surgical_mixed_cleanup(
         for event, items in list(hooks.items()):
             if not isinstance(items, list):
                 continue
-            retained = []
-            for item in items:
-                command = item.get("command") if isinstance(item, dict) else None
-                if (
-                    entry.id == "claude-hooks"
-                    and isinstance(item, dict)
-                    and item.get("_manifest_owner") == owned
-                    and isinstance(command, str)
-                    and _is_exact_legacy_hook(command, home)
-                ):
-                    changed = True
-                    continue
-                retained.append(item)
-            hooks[event] = retained
+            del event
     encoded = json.dumps(value, sort_keys=True).lower()
     markers = (
         "manifest-hook-envelope-v1",
@@ -1030,10 +998,26 @@ def _surgical_mixed_cleanup(
         str(home / ".claude" / "scripts").lower(),
         "manifest-agent",
     )
+    if entry.id in {"claude-context7", "cursor-mcp"} and context7 is not None:
+        markers = (*markers, "context7")
+    if (
+        entry.id == "devin-claude-inheritance"
+        and isinstance(inheritance, dict)
+        and "claude" in inheritance
+    ):
+        markers = (*markers, "read_config_from")
+    if entry.id == "claude-hooks" and isinstance(hooks, dict):
+        if any(
+            isinstance(item, dict)
+            and isinstance(item.get("command"), str)
+            and _is_exact_legacy_hook(item["command"], home)
+            for items in hooks.values()
+            if isinstance(items, list)
+            for item in items
+        ):
+            markers = (*markers, "~/.claude/scripts/")
     if any(marker in encoded for marker in markers):
         return f"mixed legacy settings {entry.path} contain an unproven Manifest entry; remove only that entry before migrating"
-    if changed:
-        _write_json_atomic(path, value)
     return None
 
 
