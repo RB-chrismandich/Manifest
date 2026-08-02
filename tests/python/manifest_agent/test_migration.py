@@ -6,9 +6,12 @@ import shutil
 from contextlib import contextmanager
 from pathlib import Path
 
+import pytest
+
 from manifest_agent.adapters.base import Detection
 from manifest_agent.contracts import DOMAIN_BUNDLES
-from manifest_agent.migration import MigrationService
+from manifest_agent.migration import MigrationService, load_legacy_inventory
+from manifest_agent.migration import _surgical_mixed_cleanup
 from manifest_agent.models import HarnessResult, ResultState
 from manifest_agent.paths import xdg_paths
 from manifest_agent.service import ManifestService
@@ -186,6 +189,63 @@ def test_unproven_legacy_writer_blocks_without_a_receipt(tmp_path: Path):
     assert result.state is ResultState.BLOCKED
     assert "~/.local/bin/manifest" in result.errors[0]
     assert not service.receipt_path.exists()
+
+
+@pytest.mark.parametrize(
+    ("entry_id", "relative", "payload"),
+    (
+        (
+            "claude-context7",
+            ".claude.json",
+            '{"mcpServers":{"context7":{"url":"https://example.invalid"}}}',
+        ),
+        (
+            "devin-claude-inheritance",
+            ".config/devin/config.json",
+            '{"read_config_from":{"claude":true}}',
+        ),
+        (
+            "claude-hooks",
+            ".claude/settings.json",
+            '{"hooks":{"PostToolUse":[{"command":"~/.claude/scripts/version_pin.sh"}]}}',
+        ),
+    ),
+)
+def test_historical_mixed_entries_block_without_mutation(
+    tmp_path: Path, entry_id: str, relative: str, payload: str
+):
+    home = tmp_path / "home"
+    path = home / relative
+    path.parent.mkdir(parents=True)
+    path.write_text(payload, encoding="utf-8")
+    entry = next(
+        item for item in load_legacy_inventory().entries if item.id == entry_id
+    )
+    before = path.read_bytes()
+
+    error = _surgical_mixed_cleanup(path, entry, home)
+
+    assert error is not None
+    assert path.read_bytes() == before
+
+
+def test_absolute_legacy_hook_blocks_without_mutation(tmp_path: Path):
+    home = tmp_path / "Users" / "example"
+    path = home / ".claude" / "settings.json"
+    path.parent.mkdir(parents=True)
+    path.write_text(
+        '{"hooks":{"PostToolUse":[{"command":"'
+        + str(home / ".claude/scripts/version_pin_hook.sh")
+        + '"}]}}',
+        encoding="utf-8",
+    )
+    entry = next(
+        item for item in load_legacy_inventory().entries if item.id == "claude-hooks"
+    )
+    before = path.read_bytes()
+
+    assert _surgical_mixed_cleanup(path, entry, home) is not None
+    assert path.read_bytes() == before
 
 
 def test_completed_migration_is_idempotent(tmp_path: Path):
