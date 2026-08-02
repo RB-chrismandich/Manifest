@@ -361,6 +361,7 @@ class MigrationService:
         self.home = home or Path(os.environ.get("HOME", str(Path.home())))
         self.event_log = event_log
         self.state_path = paths.state / "migration.json"
+        self._mixed_backups: dict[str, dict[Path, bytes]] = {}
 
     @classmethod
     def from_manifest_service(
@@ -457,9 +458,6 @@ class MigrationService:
         if unproven:
             return report("migrate", {}, errors=unproven)
         state = self._load_or_snapshot(active, desired)
-        mixed_errors = self._surgically_handle_mixed(active)
-        if mixed_errors:
-            return report("migrate", {}, errors=mixed_errors)
         results: dict[str, HarnessResult] = {}
         for name in active:
             phase = state["harnesses"].get(name, {}).get("phase", "snapshot")
@@ -502,16 +500,31 @@ class MigrationService:
 
     def _surgically_handle_mixed(self, harnesses: Sequence[str]) -> tuple[str, ...]:
         errors = []
+        backups: dict[Path, bytes] = {}
+        candidates = []
         for entry in self.inventory.entries:
             if entry.classification != "mixed" or not set(entry.harnesses).intersection(
                 harnesses
             ):
                 continue
             path = _expand_home(entry.path, self.home)
+            if path.exists():
+                try:
+                    backups[path] = path.read_bytes()
+                except OSError as error:
+                    return (f"unable to snapshot mixed settings {entry.path}: {error}",)
+            candidates.append((entry, path))
+        for entry, path in candidates:
             error = _surgical_mixed_cleanup(path, entry, self.home)
             if error is not None:
                 errors.append(error)
-        return tuple(errors)
+        if errors:
+            for path, content in backups.items():
+                path.write_bytes(content)
+            return tuple(errors)
+        for harness in harnesses:
+            self._mixed_backups.setdefault(harness, {}).update(backups)
+        return ()
 
     def _unproven_legacy_writers(self, harnesses: Sequence[str]) -> tuple[str, ...]:
         messages = []
@@ -650,6 +663,11 @@ class MigrationService:
                 self._write_state(state)
                 phase = "shadow-verified"
             if phase == "shadow-verified":
+                mixed_error = self._surgically_handle_mixed((harness,))
+                if mixed_error:
+                    return HarnessResult(
+                        harness, ResultState.BLOCKED, (), {}, errors=mixed_error
+                    )
                 self._disable_legacy(harness, state)
                 state["harnesses"][harness]["phase"] = "legacy-disabled"
                 self._write_state(state)
@@ -786,6 +804,8 @@ class MigrationService:
             # Restoring legacy output while an unverified native copy remains
             # would create two writers. Leave the durable quarantine in place.
             return uninstall_error
+        for path, content in self._mixed_backups.pop(harness, {}).items():
+            path.write_bytes(content)
         backup = Path(state["backup"])
         for record in state["harnesses"][harness]["entries"]:
             source = _expand_home(record["path"], self.home)
@@ -955,15 +975,27 @@ def _surgical_mixed_cleanup(
     if not isinstance(value, dict):
         return f"mixed legacy settings {entry.path} have an unsupported structure; remove the Manifest entry manually before migrating"
     changed = False
-    # Context7 has a stable server key; remove it only as that exact map entry.
+    owned = "manifest-bootstrap-v1"
+    # Context7 has a stable server key, but users may own a server with the
+    # same name. Require the legacy deployment's explicit ownership envelope.
     servers = value.get("mcpServers")
-    if isinstance(servers, dict) and "context7" in servers:
+    context7 = servers.get("context7") if isinstance(servers, dict) else None
+    if (
+        entry.id in {"claude-context7", "cursor-mcp"}
+        and isinstance(context7, dict)
+        and context7.get("_manifest_owner") == owned
+    ):
         servers.pop("context7")
         changed = True
     # Devin's bootstrap pin is a single documented boolean, never a broad
     # settings rewrite. Other read_config_from values are left alone.
     inheritance = value.get("read_config_from")
-    if isinstance(inheritance, dict) and inheritance.get("claude") is True:
+    if (
+        entry.id == "devin-claude-inheritance"
+        and isinstance(inheritance, dict)
+        and inheritance.get("claude") is True
+        and inheritance.get("_manifest_owner") == owned
+    ):
         inheritance.pop("claude")
         changed = True
         if not inheritance:
@@ -979,7 +1011,13 @@ def _surgical_mixed_cleanup(
             retained = []
             for item in items:
                 command = item.get("command") if isinstance(item, dict) else None
-                if isinstance(command, str) and _is_exact_legacy_hook(command, home):
+                if (
+                    entry.id == "claude-hooks"
+                    and isinstance(item, dict)
+                    and item.get("_manifest_owner") == owned
+                    and isinstance(command, str)
+                    and _is_exact_legacy_hook(command, home)
+                ):
                     changed = True
                     continue
                 retained.append(item)
