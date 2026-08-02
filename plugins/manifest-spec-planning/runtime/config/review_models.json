@@ -1,0 +1,52 @@
+{
+  "provider_order": [
+    "antigravity",
+    "cursor",
+    "gemini",
+    "codex",
+    "claude"
+  ],
+  "providers": {
+    "antigravity": {
+      "binary": "agy",
+      "models": {
+        "advanced": "claude-opus-4-6-thinking",
+        "flash": "gemini-3.6-flash-high",
+        "sonnet": "claude-opus-4-6-thinking"
+      }
+    },
+    "claude": {
+      "binary": "claude",
+      "models": {
+        "fable": "claude-fable-5",
+        "opus": "claude-opus-5",
+        "sonnet": "claude-sonnet-5"
+      }
+    },
+    "codex": {
+      "binary": "codex",
+      "models": {
+        "advanced": "gpt-5.5",
+        "flash": "gpt-5.4",
+        "sonnet": "gpt-5.5"
+      }
+    },
+    "cursor": {
+      "binary": "cursor-agent",
+      "models": {
+        "advanced": "cursor-grok-4.5-high",
+        "flash": "cursor-grok-4.5-medium",
+        "sonnet": "cursor-grok-4.5-high"
+      }
+    },
+    "gemini": {
+      "binary": "gemini",
+      "models": {
+        "flash": "gemini-3-flash-preview",
+        "pro": "gemini-3-pro-preview",
+        "sonnet": "gemini-3-pro-preview"
+      }
+    }
+  },
+  "schema_version": 1
+}

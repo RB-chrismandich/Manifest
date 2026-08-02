@@ -1,4 +1,15 @@
 {
+  "compatibility": {
+    "degraded": [
+      {
+        "component_id": "graphify-runtime-contract",
+        "component_type": "runtime",
+        "mode": "degraded",
+        "path": "runtime/graphify.json",
+        "reason": "gemini native manifest cannot encode runtime component 'graphify-runtime-contract' at 'runtime/graphify.json'"
+      }
+    ]
+  },
   "name": "manifest-graphify",
   "version": "0.2.0"
 }

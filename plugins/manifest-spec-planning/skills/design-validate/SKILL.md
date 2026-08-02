@@ -29,8 +29,9 @@ plan, a sidecar is the only path).
 
 When ≥3 load-bearing assumptions need validation, dispatch one sub-agent per assumption to research it, then
 synthesize; below that, research inline. Pick the mechanism per the shared Sub-Agent Selection Rules
-(`configs/claude/references/sub-agent-dispatch.md`): native Task sub-agents on Claude, or `[[skill:parallel-agent]]` /
-inline on other assistants. Dispatched sub-agents execute their task directly and do not re-dispatch.
+(`../../runtime/references/sub-agent-dispatch.md`): native Task sub-agents on
+Claude, or `[[skill:manifest-workspace:parallel-agent]]` / inline on other
+assistants. Dispatched sub-agents execute their task directly and do not re-dispatch.
 
 Dispatch on **Sonnet** (`subagent_model: sonnet` in `command_config.yml`) — pass the model
 explicitly; inheriting the session's model bills premium rates for fan-out work.

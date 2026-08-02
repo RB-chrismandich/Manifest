@@ -2,6 +2,17 @@
   "author": {
     "name": "ReefBytes"
   },
+  "compatibility": {
+    "degraded": [
+      {
+        "component_id": "graphify-runtime-contract",
+        "component_type": "runtime",
+        "mode": "degraded",
+        "path": "runtime/graphify.json",
+        "reason": "claude native manifest cannot encode runtime component 'graphify-runtime-contract' at 'runtime/graphify.json'"
+      }
+    ]
+  },
   "description": "Repository knowledge-graph generation and query workflows.",
   "name": "manifest-graphify",
   "skills": [

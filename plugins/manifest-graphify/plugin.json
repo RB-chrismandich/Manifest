@@ -3,24 +3,96 @@
   "forbidden": [],
   "harnesses": {
     "antigravity": {
+      "compatibility": {
+        "imported": [
+          {
+            "component_id": "graphify-runtime-contract",
+            "component_type": "runtime",
+            "mode": "imported",
+            "path": "runtime/graphify.json"
+          }
+        ]
+      },
+      "components": {
+        "runtime": [
+          {
+            "id": "graphify-runtime-contract",
+            "path": "runtime/graphify.json"
+          }
+        ]
+      },
       "mode": "imported",
       "skills": [
         "skills/graphify"
       ]
     },
     "codex": {
+      "compatibility": {
+        "native": [
+          {
+            "component_id": "graphify-runtime-contract",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "runtime/graphify.json"
+          }
+        ]
+      },
+      "components": {
+        "runtime": [
+          {
+            "id": "graphify-runtime-contract",
+            "path": "runtime/graphify.json"
+          }
+        ]
+      },
       "mode": "native",
       "skills": [
         "skills/graphify"
       ]
     },
     "cursor": {
+      "compatibility": {
+        "generated": [
+          {
+            "component_id": "graphify-runtime-contract",
+            "component_type": "runtime",
+            "mode": "generated",
+            "path": "runtime/graphify.json"
+          }
+        ]
+      },
+      "components": {
+        "runtime": [
+          {
+            "id": "graphify-runtime-contract",
+            "path": "runtime/graphify.json"
+          }
+        ]
+      },
       "mode": "generated",
       "skills": [
         "skills/graphify"
       ]
     },
     "devin": {
+      "compatibility": {
+        "native": [
+          {
+            "component_id": "graphify-runtime-contract",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "runtime/graphify.json"
+          }
+        ]
+      },
+      "components": {
+        "runtime": [
+          {
+            "id": "graphify-runtime-contract",
+            "path": "runtime/graphify.json"
+          }
+        ]
+      },
       "mode": "native",
       "skills": [
         "skills/graphify"

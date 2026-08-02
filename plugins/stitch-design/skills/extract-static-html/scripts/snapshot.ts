@@ -1,4 +1,4 @@
-#!/usr/bin/env npx tsx
+#!/usr/bin/env node
 /**
  * snapshot.ts — Production-grade Puppeteer-based full-page HTML snapshot
  *
@@ -8,9 +8,9 @@
  * plain HTML, etc.) — no MockPage.jsx needed.
  *
  * Usage:
- *   npx tsx snapshot.ts --url http://localhost:5173 --output .stitch/home.html
- *   npx tsx snapshot.ts --url http://localhost:3000/pricing --output .stitch/pricing.html --html-class dark
- *   npx tsx snapshot.ts --url http://localhost:5173 --output .stitch/page.html --wait 5000 --viewport 1440x900
+ *   node <BUNDLE_ROOT>/runtime/dist/snapshot.mjs --url http://localhost:5173 --output .stitch/home.html
+ *   node <BUNDLE_ROOT>/runtime/dist/snapshot.mjs --url http://localhost:3000/pricing --output .stitch/pricing.html --html-class dark
+ *   node <BUNDLE_ROOT>/runtime/dist/snapshot.mjs --url http://localhost:5173 --output .stitch/page.html --wait 5000 --viewport 1440x900
  *
  * Flags:
  *   --url           URL to capture (required)
@@ -26,7 +26,8 @@
  *   --json          Output machine-readable JSON stats to stdout
  */
 
-import puppeteer, { type Browser } from 'puppeteer';
+import { ChromeLauncher } from 'puppeteer-core/internal/node/ChromeLauncher.js';
+import type { Browser } from 'puppeteer-core';
 import path from 'node:path';
 import fs from 'node:fs';
 
@@ -48,6 +49,7 @@ interface Opts {
   inlineFonts: boolean;
   removeSelectors: string | null;
   click: string | null;
+  chromium: string | null;
 }
 
 interface Stats {
@@ -65,6 +67,11 @@ interface Stats {
   durationMs: number;
   error?: string;
 }
+
+const chromeLauncher = new ChromeLauncher({
+  _isPuppeteerCore: true,
+  configuration: async () => ({ logLevel: 'silent' }),
+} as any);
 
 // ---------------------------------------------------------------------------
 // Argument parsing
@@ -86,6 +93,7 @@ function parseArgs(): Opts {
     inlineFonts: false,
     removeSelectors: null,
     click: null,
+    chromium: null,
   };
 
   for (let i = 0; i < args.length; i++) {
@@ -132,9 +140,12 @@ function parseArgs(): Opts {
       case '--click':
         opts.click = args[++i];
         break;
+      case '--chromium':
+        opts.chromium = args[++i];
+        break;
       case '--help':
         console.log(`
-Usage: npx tsx snapshot.ts --url <URL> --output <FILE> [options]
+Usage: node <BUNDLE_ROOT>/runtime/dist/snapshot.mjs --url <URL> --output <FILE> [options]
 
 Options:
   --url           URL to capture (required)
@@ -147,6 +158,7 @@ Options:
   --title         Override the page title
   --timeout       Global timeout in ms (default: 60000)
   --concurrency   Max concurrent resource fetches (default: 6)
+  --chromium      Chromium executable (default: CHROMIUM_PATH or chromium on PATH)
   --json          Output machine-readable JSON stats
 `);
         process.exit(0);
@@ -157,6 +169,28 @@ Options:
   }
 
   return opts;
+}
+
+function resolveChromiumExecutable(opts: Opts): string {
+  const explicit = opts.chromium || process.env.CHROMIUM_PATH;
+  const candidates = explicit ? [explicit] : ['chromium', 'chromium-browser'];
+  const pathEntries = (process.env.PATH || '').split(path.delimiter).filter(Boolean);
+  for (const candidate of candidates) {
+    const paths = path.isAbsolute(candidate)
+      ? [candidate]
+      : pathEntries.map((entry) => path.join(entry, candidate));
+    for (const executable of paths) {
+      try {
+        fs.accessSync(executable, fs.constants.X_OK);
+        return executable;
+      } catch {
+        // Keep looking for an already-installed optional executable.
+      }
+    }
+  }
+  throw new Error(
+    'optional chromium executable is missing; install/select it through Manifest or pass --chromium',
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -253,6 +287,7 @@ async function snapshot(opts: Opts): Promise<void> {
     durationMs: 0,
   };
   const startTime = Date.now();
+  const executablePath = resolveChromiumExecutable(opts);
 
   try {
     // Global timeout safety net — prevents zombie browser processes
@@ -271,7 +306,8 @@ async function snapshot(opts: Opts): Promise<void> {
 
     // ----- Launch browser -----
     console.log('🚀 Launching browser...');
-    browser = await puppeteer.launch({
+    browser = await chromeLauncher.launch({
+      executablePath,
       headless: true,
       args: [
         '--no-sandbox',

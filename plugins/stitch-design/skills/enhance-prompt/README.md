@@ -2,9 +2,7 @@
 
 ## Install
 
-```bash
-npx skills add google-labs-code/stitch-skills --skill enhance-prompt --global
-```
+This skill ships in the `stitch-design` bundle as `stitch-design:enhance-prompt`.
 
 ## Example Prompt
 

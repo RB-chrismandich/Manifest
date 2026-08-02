@@ -49,7 +49,7 @@ You are a frontend engineer focused on transforming designs into clean React cod
 
 ## Phase 3: Architectural rules
 
-> **GATE: Every component MUST satisfy ALL of the following rules. Violations will cause `npm run validate` to fail.**
+> **GATE: Every component MUST satisfy ALL of the following rules. Violations will cause the bundled validator to fail.**
 
 - **Modular components**: Break the design into independent files. **Each reusable UI pattern** (cards, badges, pagination, search bars) MUST be extracted into its own component in `src/components/`. Monolithic page files that contain everything are PROHIBITED.
 - **Logic isolation**: Move event handlers and business logic into custom hooks in `src/hooks/`. Examples: pagination logic → `usePagination`, filtering → `useFilter`.
@@ -67,12 +67,12 @@ You are a frontend engineer focused on transforming designs into clean React cod
 
 > **GATE: Phase 4 verification, audits, and validation checks are optional. You MUST ask the user's permission to proceed with validation scripts, running local dev servers, or automated browser testing.**
 
-1. **Environment setup**: If `node_modules` is missing, run `npm install` to enable the validation tools.
+1. **Environment setup**: The checked validator is bundled; do not install validator dependencies in the target project.
 2. **Data layer**: Create `src/data/mockData.ts` based on the design content.
 3. **Component drafting**: Use `resources/component-template.tsx` as a base. Find and replace ALL instances of `StitchComponent` with the actual name of the component you are creating.
 4. **Application wiring**: Update the project entry point (like `App.tsx`) to render the new components.
 5. **Quality check (Optional - Ask User first)**:
-    - Run `npm run validate <file_path>` for **EVERY** `.tsx` file in `src/components/` and `src/pages/` to report component validity.
+    - Run `node scripts/validate.js <file_path>` for **EVERY** `.tsx` file in `src/components/` and `src/pages/` to report component validity.
     - Run `tsc --noEmit` to verify TypeScript compile status.
     - Check output against `resources/architecture-checklist.md`.
     - Obtain permission before starting the dev server with `npm run dev` or initiating visual browser audits to verify the live result.

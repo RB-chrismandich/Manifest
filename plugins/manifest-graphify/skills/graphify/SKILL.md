@@ -5,15 +5,13 @@ description: "Map a codebase, docs, or GitHub repo into a queryable knowledge gr
 
 # Graphify Skill
 
-Thin wrapper over the `graphify` CLI (PyPI package `graphifyy`, installed by
-`bootstrap.sh` when graphify is enabled). It builds and queries a semantic
+Thin wrapper over the `graphify` CLI acquired as a default executable by the
+Manifest coordinator. It builds and queries a semantic
 knowledge graph of a directory or repository. Read-only analysis — it never
 modifies your source files.
 
-> Manifest manages graphify as a deployed skill + CLI. Do **not** run
-> `graphify install` — the skill is delivered through Manifest's
-> `.apm/skills/` pipeline, and graphify's own installer would patch each
-> assistant's `CLAUDE.md`/`GEMINI.md` out-of-band.
+> Manifest manages Graphify as a bundle capability. Do not run an installer
+> from this skill or let Graphify patch assistant configuration.
 
 ## Arguments
 
@@ -26,14 +24,17 @@ optionally followed by graphify flags (e.g. `--mode deep`, `--update`,
 
 ### Phase 1: Preflight
 
-Verify the CLI is installed; if not, report clearly and stop (do not error out):
+Verify the coordinator-provided CLI is installed. A failed default acquisition
+leaves the bundle installed with this capability explicitly degraded:
 
 ```bash
 if ! command -v graphify >/dev/null 2>&1; then
-    echo "graphify is not installed. Enable it with:  ./bootstrap.sh --enable-graphify"
-    echo "(or install manually:  uv tool install graphifyy)"
-    exit 0
+    echo "DEGRADED: the default graphify executable was not acquired; repair the Manifest capability installation." >&2
+    exit 4
 fi
+GRAPHIFY_CACHE_ROOT="${XDG_CACHE_HOME:-$HOME/.cache}/manifest/graphify"
+mkdir -p "$GRAPHIFY_CACHE_ROOT"
+export GRAPHIFY_CACHE_DIR="$GRAPHIFY_CACHE_ROOT"
 # The semantic pass (docs/papers/images, community naming) routes through the
 # authenticated Claude Code CLI — see Phase 2. A pure-code corpus does not need
 # it, but warn so a mixed corpus doesn't hard-`exit 1` on a missing backend.
@@ -108,6 +109,9 @@ Point the user at these paths; do not paste large outputs inline.
 ## Safety
 
 - Read-only: never modify source files; graphify only writes under `graphify-out/`.
+- Cache state is isolated below
+  `${XDG_CACHE_HOME:-$HOME/.cache}/manifest/graphify`; never use an assistant
+  home or a shared project cache.
 - Validate the target path/URL before invoking; do not pass unsanitized input to a shell.
-- If the CLI is missing or a backend is unavailable, report the gap with the
-  install/enable hint rather than failing silently.
+- If the CLI is missing or a backend is unavailable, report `DEGRADED` with the
+  unavailable capability rather than installing anything at runtime.

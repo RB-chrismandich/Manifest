@@ -33,19 +33,18 @@ Stitch MCP tools:
 
 ## 🧠 Synthesis from Description
 
-If you need to extract a design system from existing screens, use
-the `design-md` skill (this bundle).
+If you need to extract a design system from existing screens, use the same-bundle `stitch-design:design-md` skill.
 
 If there are no existing screens (new project), or the user provides a direct description (e.g., "dark theme, blue and purple, rounded, Inter font"):
 
-1. Map the user's vague terms to precise values using the design mappings (see the `design-md` or `generate-design` skills).
+1. Map vague terms to precise values using `stitch-design:design-md` or `stitch-design:generate-design`.
 2. Select concrete hex codes, font families, and roundness values.
-3. Generate the `DESIGN.md` file (the `design-md` skill defines the structure).
+3. Generate `DESIGN.md` using the `stitch-design:design-md` structure.
 4. Proceed to the "Create or Update Design System in Stitch" step below.
 
 ## 📝 Output Structure
 
-The `DESIGN.md` file should follow the structure defined in the `design-md` skill (this bundle).
+The `DESIGN.md` file follows the structure defined by `stitch-design:design-md`.
 
 ## 🚀 Create or Update Design System in Stitch
 
@@ -62,10 +61,10 @@ design system in Stitch.
 > before proceeding. Do **NOT** upload until the user confirms.
 
 1. **Upload `DESIGN.md`**:
-   - **Option A (Recommended - Uploader Script)**: Use the modified `upload-to-stitch` Python script which natively handles `.md` files. It base64-encodes the markdown file in-process and sends it to the `/v1/projects/{projectId}/screens:batchCreate` endpoint, bypassing output token limits.
+   - **Option A (Recommended - Uploader Script)**: Use the modified `stitch-design:upload-to-stitch` Python script which natively handles `.md` files. It base64-encodes the markdown file in-process and sends it to the `/v1/projects/{projectId}/screens:batchCreate` endpoint, bypassing output token limits.
 
      ```bash
-     python3 <SKILL_DIR>/../upload-to-stitch/scripts/upload_to_stitch.py \
+     python3 ../upload-to-stitch/scripts/upload_to_stitch.py \
        --project-id <PROJECT_ID> \
        --file-path /path/to/DESIGN.md \
        --api-key <API_KEY> \
@@ -131,4 +130,4 @@ See [reference/tool-schema.md](reference/tool-schema.md) for the full
 
 ## 💡 Best Practices
 
-Refer to the `design-md` skill for best practices on describing design elements.
+Refer to `stitch-design:design-md` for best practices on describing design elements.

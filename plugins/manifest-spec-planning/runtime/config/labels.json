@@ -1,0 +1,29 @@
+{
+  "labels": [
+    {
+      "color": "1D76DB",
+      "description": "Implementation plan exists for this issue",
+      "name": "planned",
+      "platforms": ["github", "gitlab", "linear"]
+    },
+    {
+      "color": "FBCA04",
+      "description": "Implementation is actively underway",
+      "name": "in-progress",
+      "platforms": ["github", "gitlab", "linear"]
+    },
+    {
+      "color": "E3A21A",
+      "description": "Requires human review before completion",
+      "name": "needs-review",
+      "platforms": ["github", "gitlab", "linear"]
+    },
+    {
+      "color": "0E8A16",
+      "description": "Implementation complete and validated",
+      "name": "done",
+      "platforms": ["github", "gitlab", "linear"]
+    }
+  ],
+  "schema_version": 1
+}

@@ -1,4 +1,4 @@
-#!/usr/bin/env npx tsx
+#!/usr/bin/env node
 /**
  * extract_inline_html.ts — Convert JSX/React mock files to self-contained HTML.
  *
@@ -6,7 +6,7 @@
  * Replaces the old extract_inline_html.py script.
  *
  * Usage:
- *   npx tsx extract_inline_html.ts \
+ *   node <BUNDLE_ROOT>/runtime/dist/extract-inline-html.mjs \
  *     --page src/MockPage.jsx:home.html:"Home Page" \
  *     --index-css src/index.css \
  *     --extra-css index.html \
@@ -28,8 +28,6 @@
  */
 
 import * as parser from '@babel/parser';
-import traverse from '@babel/traverse';
-import generate from '@babel/generator';
 import fs from 'node:fs';
 import path from 'node:path';
 import https from 'node:https';
@@ -122,7 +120,7 @@ function parseArgs(): Opts {
       case '--json': opts.json = true; break;
       case '--help':
         console.log(`
-Usage: npx tsx extract_inline_html.ts --page <spec> [options]
+Usage: node <BUNDLE_ROOT>/runtime/dist/extract-inline-html.mjs --page <spec> [options]
 
 Options:
   --page             src_file:dst_filename:title (repeatable)
@@ -583,6 +581,33 @@ const VOID_ELEMENTS = new Set([
   'link', 'meta', 'param', 'source', 'track', 'wbr',
 ]);
 
+function walkAst(node: unknown, visit: (node: any) => boolean | void): boolean {
+  if (!node || typeof node !== 'object') return false;
+  if (Array.isArray(node)) {
+    return node.some((child) => walkAst(child, visit));
+  }
+
+  if (visit(node)) return true;
+  for (const [key, child] of Object.entries(node)) {
+    if (key !== 'loc' && key !== 'start' && key !== 'end' && walkAst(child, visit)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function firstJsxReturn(node: unknown): Node | null {
+  let result: Node | null = null;
+  walkAst(node, (candidate) => {
+    if (candidate.type !== 'ReturnStatement') return false;
+    const argument = candidate.argument;
+    if (argument?.type !== 'JSXElement' && argument?.type !== 'JSXFragment') return false;
+    result = argument;
+    return true;
+  });
+  return result;
+}
+
 function jsxToHtml(jsxSource: string): string | null {
   let ast;
   try {
@@ -599,43 +624,19 @@ function jsxToHtml(jsxSource: string): string | null {
   // since that's the main component in the vast majority of React files.
   let returnedJSX: Node | null = null;
 
-  traverse(ast, {
-    ExportDefaultDeclaration(path) {
-      const decl = path.node.declaration;
+  walkAst(ast, (candidate) => {
+    if (candidate.type !== 'ExportDefaultDeclaration') return false;
+    const decl = candidate.declaration;
 
-      // Handle: export default function Component() { return <JSX/> }
-      if (decl.type === 'FunctionDeclaration') {
-        path.traverse({
-          ReturnStatement(retPath) {
-            const arg = retPath.node.argument;
-            if (arg && (arg.type === 'JSXElement' || arg.type === 'JSXFragment')) {
-              returnedJSX = arg;
-              retPath.stop();
-            }
-          },
-        });
-        if (returnedJSX) path.stop();
-      }
-
-      // Handle: export default () => <JSX/> or export default () => { return <JSX/> }
-      if (decl.type === 'ArrowFunctionExpression') {
-        if (decl.body.type === 'JSXElement' || decl.body.type === 'JSXFragment') {
-          returnedJSX = decl.body;
-          path.stop();
-        } else {
-          path.traverse({
-            ReturnStatement(retPath) {
-              const arg = retPath.node.argument;
-              if (arg && (arg.type === 'JSXElement' || arg.type === 'JSXFragment')) {
-                returnedJSX = arg;
-                retPath.stop();
-              }
-            },
-          });
-          if (returnedJSX) path.stop();
-        }
-      }
-    },
+    if (decl.type === 'FunctionDeclaration') {
+      returnedJSX = firstJsxReturn(decl.body);
+    } else if (decl.type === 'ArrowFunctionExpression') {
+      returnedJSX =
+        decl.body.type === 'JSXElement' || decl.body.type === 'JSXFragment'
+          ? decl.body
+          : firstJsxReturn(decl.body);
+    }
+    return Boolean(returnedJSX);
   });
 
   // Strategy 2: Fallback — find the return with the largest JSX tree.
@@ -643,17 +644,18 @@ function jsxToHtml(jsxSource: string): string | null {
   // bottom, or files without any default export at all.
   if (!returnedJSX) {
     let maxLen = -1;
-    traverse(ast, {
-      ReturnStatement(path) {
-        const arg = path.node.argument;
-        if (arg && (arg.type === 'JSXElement' || arg.type === 'JSXFragment')) {
+    walkAst(ast, (candidate) => {
+      if (candidate.type === 'ReturnStatement') {
+        const arg = candidate.argument;
+        if (arg?.type === 'JSXElement' || arg?.type === 'JSXFragment') {
           const len = (arg.end || 0) - (arg.start || 0);
           if (len > maxLen) {
             maxLen = len;
             returnedJSX = arg;
           }
         }
-      },
+      }
+      return false;
     });
   }
 

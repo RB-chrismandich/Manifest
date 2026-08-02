@@ -33,7 +33,7 @@ user's prompt.
   `list_design_systems`. If one exists, design tokens (colors, fonts, roundness)
   are already applied at the project level — do NOT include any color, font, or
   theme instructions in the generation prompt. If none exists, delegate to the
-  **manage-design-system** skill first before generating screens.
+  **`stitch-design:manage-design-system`** skill first before generating screens.
 
 ### 2. Refine UI/UX Terminology
 
@@ -50,7 +50,7 @@ adjective palettes, color roles, and shape descriptions.
 
 Format the enhanced prompt for Stitch. Focus exclusively on **layout, content,
 and structure** — never include colors, fonts, or theme instructions (these are
-handled by the manage-design-system skill at the project level).
+handled by the `stitch-design:manage-design-system` skill at the project level).
 
 For **new screens**, use this template:
 
@@ -76,7 +76,7 @@ For **edits**, be specific about what to change:
 > [!CAUTION]
 > Do NOT include hex codes, font names, color palettes, roundness values, or
 > any design system tokens in a **generation** prompt. These are applied at the
-> project level by the manage-design-system skill and will conflict if
+> project level by the `stitch-design:manage-design-system` skill and will conflict if
 > duplicated. (For **edit** prompts, hex codes are acceptable for precise
 > color adjustments.)
 
@@ -235,7 +235,7 @@ assets overwrite previous versions so local files reflect the latest edit.
 After downloading assets, update `.stitch/metadata.json` to reflect any changes
 (e.g., updated screen titles or new screen IDs from the edit). The metadata
 file tracks all screens, their device types, and design system info. See the
-**manage-design-system** skill's `examples/metadata.json` for the format.
+**`stitch-design:manage-design-system`** skill's `examples/metadata.json` for the format.
 
 #### 6. Verify and Repeat
 

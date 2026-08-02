@@ -10,7 +10,13 @@ components:
     include: ["*/SKILL.md"]
   agents: []
   hooks: []
-  runtime: []
+  runtime:
+    - {id: cddl-runtime, path: runtime/cddl}
+    - {id: planning-config, path: runtime/config}
+    - {id: plan-store, path: runtime/plan_store.py}
+    - {id: planning-prompts, path: runtime/prompts}
+    - {id: planning-references, path: runtime/references}
+    - {id: spec-review, path: runtime/spec_review.sh}
   guidance: []
 capabilities:
   mcp:

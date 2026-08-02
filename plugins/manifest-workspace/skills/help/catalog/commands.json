@@ -528,7 +528,7 @@
     {
       "bundle": "manifest-spec-planning",
       "category": "project-management",
-      "description": "Manage plan lifecycle in ~/.claude/.plans with create, review, execute, archive, and abandon flows, including optional parallel-agent orchestration.",
+      "description": "Manage XDG-backed plan lifecycle with create, review, execute, archive, and abandon flows, plus optional cross-agent review.",
       "name": "plan-manage",
       "qualified_name": "manifest-spec-planning:plan-manage"
     },
@@ -563,7 +563,7 @@
     {
       "bundle": "manifest-spec-planning",
       "category": "project-management",
-      "description": "Cross-reference spec/plan/tasks artifacts for internal consistency via the parallel-agent panel (excluding the author); deduped findings list. Analysis-only, never edits. Speckit and superpowers layouts; auto-discovers or takes explicit paths.",
+      "description": "Cross-reference spec/plan/tasks artifacts for internal consistency through a selected native reviewer. Analysis-only, never edits. Speckit and superpowers layouts; auto-discovers or takes explicit paths.",
       "name": "spec-review",
       "qualified_name": "manifest-spec-planning:spec-review"
     },

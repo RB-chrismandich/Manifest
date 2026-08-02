@@ -16,7 +16,7 @@ You are a frontend engineer building **data-dense dashboards** from Stitch scree
 ## Prerequisites
 
 - Stitch MCP configured ([setup guide](https://stitch.withgoogle.com/docs/mcp/setup/))
-- A project `DESIGN.md` (see the `design-md` skill) for token fidelity
+- A project `DESIGN.md` (see the `stitch-design:design-md` skill) for token fidelity
 - Vite + React + TypeScript scaffold (`npm create vite@latest`)
 
 ## Workflow

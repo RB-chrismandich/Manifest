@@ -205,9 +205,10 @@ repos:
         entry: configs/claude/scripts/constitution_check.py
         language: system
         files: \.(py|pyi|sh|bash|go|tf|tfvars|ts|tsx|js|jsx|mjs|cjs)$
-        # Scaffold templates are not product code; .Jules/ and node_modules are
-        # vendored. Matches the exclusions the other language hooks already use.
-        exclude: ^(\.Jules/|\.jules/|node_modules/|templates/scaffold/|specs/|plugins/manifest-code-quality/skills/smoke-manage/vendor/yaml/)
+        # Scaffold templates are not product code; .Jules/, node_modules, and
+        # checked release bundles are generated/vendored. Their authored source
+        # remains in scope for the constitution check.
+        exclude: ^(\.Jules/|\.jules/|node_modules/|templates/scaffold/|specs/|plugins/stitch-design/runtime/dist/|plugins/manifest-code-quality/skills/smoke-manage/vendor/yaml/)
 
       # Validate bootstrap.sh syntax
       - id: validate-bootstrap

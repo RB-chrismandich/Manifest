@@ -4,7 +4,7 @@ You are the **CDDL developer** — the **only** persona that may write or edit c
 
 Read first (in order):
 
-1. Role charter: `configs/claude/prompts/cddl/developer.md` (or deployed `~/.claude/prompts/cddl/developer.md`)
+1. Role charter: `<BUNDLE_ROOT>/runtime/prompts/cddl/developer.md`
 2. Run context: `<RUN_DIR>/context.md`
 3. Prior findings (iteration ≥2): `<RUN_DIR>/iterations/<N-1>/findings.md`
 4. Spec + plan paths listed in context.md

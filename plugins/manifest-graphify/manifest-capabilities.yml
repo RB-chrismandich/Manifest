@@ -10,7 +10,8 @@ components:
     include: ["*/SKILL.md"]
   agents: []
   hooks: []
-  runtime: []
+  runtime:
+    - {id: graphify-runtime-contract, path: runtime/graphify.json}
   guidance: []
 capabilities:
   mcp:

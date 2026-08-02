@@ -18,7 +18,7 @@ files, without needing to build or render the application.
 
 ## Why This Exists
 
-The `design-md` skill works from rendered HTML. But often you have a codebase
+The `stitch-design:design-md` skill works from rendered HTML. But often you have a codebase
 and want to understand its design system before you can even run the app —
 maybe dependencies are missing, the build is broken, or you just want a quick
 audit. This skill reads the source files themselves: stylesheets, component
@@ -331,7 +331,7 @@ Use the format from the example at [examples/DESIGN.md](examples/DESIGN.md) as y
 If the user wants to push the design system into Stitch:
 
 1. Hand off to the `/stitch-design:manage-design-system` skill for the MCP create/update calls
-2. The DESIGN.md you wrote is the input — the manage-design-system skill handles
+2. The DESIGN.md you wrote is the input — the `stitch-design:manage-design-system` skill handles
    the Stitch API integration
 
 If the user just wants the document, you're done after Phase 3.

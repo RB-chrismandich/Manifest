@@ -41,7 +41,7 @@ Launches headless Chrome, captures the fully rendered DOM, and produces a self-c
 ### Prerequisites
 
 - App running locally (e.g., `npm run dev`)
-- Node.js with `puppeteer` available (check: `node -e "require('puppeteer')"`)
+- Node.js and the optional contract-declared `chromium` executable
 
 ### Workflow
 
@@ -58,7 +58,7 @@ Launches headless Chrome, captures the fully rendered DOM, and produces a self-c
 2. **Run the Snapshot Script**:
 
     ```bash
-    npx tsx <SKILL_DIR>/scripts/snapshot.ts \
+    node ../../runtime/dist/snapshot.mjs \
       --url http://localhost:5173 \
       --output .stitch/home.html \
       --wait 2000
@@ -67,11 +67,11 @@ Launches headless Chrome, captures the fully rendered DOM, and produces a self-c
 3. **Multiple pages** — run once per route:
 
     ```bash
-    npx tsx <SKILL_DIR>/scripts/snapshot.ts \
+    node ../../runtime/dist/snapshot.mjs \
       --url http://localhost:5173 --output .stitch/home.html --wait 2000
-    npx tsx <SKILL_DIR>/scripts/snapshot.ts \
+    node ../../runtime/dist/snapshot.mjs \
       --url http://localhost:5173/pricing --output .stitch/pricing.html --wait 2000
-    npx tsx <SKILL_DIR>/scripts/snapshot.ts \
+    node ../../runtime/dist/snapshot.mjs \
       --url http://localhost:5173/dashboard --output .stitch/dashboard.html --wait 2000 --html-class dark
     ```
 
@@ -118,7 +118,7 @@ Launches headless Chrome, captures the fully rendered DOM, and produces a self-c
 | Dark mode not applied | `--html-class dark` |
 | Cookie banner in output | `--remove-fixed` |
 | Page requires login | Use the Static Fallback (appendix below) |
-| `Cannot find module 'puppeteer'` | `npm install -g puppeteer` |
+| Chromium unavailable | Select/install the optional `chromium` capability, or pass `--chromium /checked/path` |
 
 ***
 
@@ -155,7 +155,7 @@ Use when you need to **interact with the page** (click buttons, fill forms, navi
 ### Quick Reference
 
 ```bash
-npx tsx <SKILL_DIR>/scripts/extract_inline_html.ts \
+node ../../runtime/dist/extract-inline-html.mjs \
   --index-css src/css/App.css \
   --extra-css index.html \
   --outdir .stitch \
@@ -179,6 +179,6 @@ npx tsx <SKILL_DIR>/scripts/extract_inline_html.ts \
 Inline local images:
 
 ```bash
-npx tsx <SKILL_DIR>/scripts/post_process.ts \
+node ../../runtime/dist/post-process.mjs \
   .stitch/Page.html --base-dir <app-directory>
 ```

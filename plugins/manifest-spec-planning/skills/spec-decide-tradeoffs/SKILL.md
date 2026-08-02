@@ -28,7 +28,7 @@ fetch cadence open.
    window), promote it to a config field with a sensible default rather than hard-coding — note this in the
    recommendation.
 7. **Record the decision in the artifact immediately** — into whichever artifact set the project uses
-   (`configs/claude/references/spec-artifact-discovery.md`): for **speckit**, the spec's Clarifications/Decisions
+   (`../../runtime/references/spec-artifact-discovery.md`): for **speckit**, the spec's Clarifications/Decisions
    section (or `research.md`); for **superpowers**, the Decisions section of the design doc
    (`docs/superpowers/specs/*-design.md`). Capture the chosen option and the one-line rationale so downstream planning
    and tasks inherit it. Keep field/entity names consistent with the rest of the artifact set — a rename here is a

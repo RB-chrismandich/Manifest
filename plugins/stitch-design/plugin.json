@@ -3,6 +3,84 @@
   "forbidden": [],
   "harnesses": {
     "antigravity": {
+      "compatibility": {
+        "imported": [
+          {
+            "component_id": "react-native-validator",
+            "component_type": "runtime",
+            "mode": "imported",
+            "path": "skills/react-native/scripts"
+          },
+          {
+            "component_id": "react-validator",
+            "component_type": "runtime",
+            "mode": "imported",
+            "path": "skills/react-components/scripts"
+          },
+          {
+            "component_id": "static-html-sources",
+            "component_type": "runtime",
+            "mode": "imported",
+            "path": "skills/extract-static-html/scripts"
+          },
+          {
+            "component_id": "stitch-build",
+            "component_type": "runtime",
+            "mode": "imported",
+            "path": "runtime/node/build.mjs"
+          },
+          {
+            "component_id": "stitch-build-lock",
+            "component_type": "runtime",
+            "mode": "imported",
+            "path": "runtime/node/package-lock.json"
+          },
+          {
+            "component_id": "stitch-build-package",
+            "component_type": "runtime",
+            "mode": "imported",
+            "path": "runtime/node/package.json"
+          },
+          {
+            "component_id": "stitch-dist",
+            "component_type": "runtime",
+            "mode": "imported",
+            "path": "runtime/dist"
+          }
+        ]
+      },
+      "components": {
+        "runtime": [
+          {
+            "id": "react-native-validator",
+            "path": "skills/react-native/scripts"
+          },
+          {
+            "id": "react-validator",
+            "path": "skills/react-components/scripts"
+          },
+          {
+            "id": "static-html-sources",
+            "path": "skills/extract-static-html/scripts"
+          },
+          {
+            "id": "stitch-build",
+            "path": "runtime/node/build.mjs"
+          },
+          {
+            "id": "stitch-build-lock",
+            "path": "runtime/node/package-lock.json"
+          },
+          {
+            "id": "stitch-build-package",
+            "path": "runtime/node/package.json"
+          },
+          {
+            "id": "stitch-dist",
+            "path": "runtime/dist"
+          }
+        ]
+      },
       "mode": "imported",
       "skills": [
         "skills/a11y-audit",
@@ -26,6 +104,84 @@
       ]
     },
     "codex": {
+      "compatibility": {
+        "native": [
+          {
+            "component_id": "react-native-validator",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "skills/react-native/scripts"
+          },
+          {
+            "component_id": "react-validator",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "skills/react-components/scripts"
+          },
+          {
+            "component_id": "static-html-sources",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "skills/extract-static-html/scripts"
+          },
+          {
+            "component_id": "stitch-build",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "runtime/node/build.mjs"
+          },
+          {
+            "component_id": "stitch-build-lock",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "runtime/node/package-lock.json"
+          },
+          {
+            "component_id": "stitch-build-package",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "runtime/node/package.json"
+          },
+          {
+            "component_id": "stitch-dist",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "runtime/dist"
+          }
+        ]
+      },
+      "components": {
+        "runtime": [
+          {
+            "id": "react-native-validator",
+            "path": "skills/react-native/scripts"
+          },
+          {
+            "id": "react-validator",
+            "path": "skills/react-components/scripts"
+          },
+          {
+            "id": "static-html-sources",
+            "path": "skills/extract-static-html/scripts"
+          },
+          {
+            "id": "stitch-build",
+            "path": "runtime/node/build.mjs"
+          },
+          {
+            "id": "stitch-build-lock",
+            "path": "runtime/node/package-lock.json"
+          },
+          {
+            "id": "stitch-build-package",
+            "path": "runtime/node/package.json"
+          },
+          {
+            "id": "stitch-dist",
+            "path": "runtime/dist"
+          }
+        ]
+      },
       "mode": "native",
       "skills": [
         "skills/a11y-audit",
@@ -49,6 +205,84 @@
       ]
     },
     "cursor": {
+      "compatibility": {
+        "generated": [
+          {
+            "component_id": "react-native-validator",
+            "component_type": "runtime",
+            "mode": "generated",
+            "path": "skills/react-native/scripts"
+          },
+          {
+            "component_id": "react-validator",
+            "component_type": "runtime",
+            "mode": "generated",
+            "path": "skills/react-components/scripts"
+          },
+          {
+            "component_id": "static-html-sources",
+            "component_type": "runtime",
+            "mode": "generated",
+            "path": "skills/extract-static-html/scripts"
+          },
+          {
+            "component_id": "stitch-build",
+            "component_type": "runtime",
+            "mode": "generated",
+            "path": "runtime/node/build.mjs"
+          },
+          {
+            "component_id": "stitch-build-lock",
+            "component_type": "runtime",
+            "mode": "generated",
+            "path": "runtime/node/package-lock.json"
+          },
+          {
+            "component_id": "stitch-build-package",
+            "component_type": "runtime",
+            "mode": "generated",
+            "path": "runtime/node/package.json"
+          },
+          {
+            "component_id": "stitch-dist",
+            "component_type": "runtime",
+            "mode": "generated",
+            "path": "runtime/dist"
+          }
+        ]
+      },
+      "components": {
+        "runtime": [
+          {
+            "id": "react-native-validator",
+            "path": "skills/react-native/scripts"
+          },
+          {
+            "id": "react-validator",
+            "path": "skills/react-components/scripts"
+          },
+          {
+            "id": "static-html-sources",
+            "path": "skills/extract-static-html/scripts"
+          },
+          {
+            "id": "stitch-build",
+            "path": "runtime/node/build.mjs"
+          },
+          {
+            "id": "stitch-build-lock",
+            "path": "runtime/node/package-lock.json"
+          },
+          {
+            "id": "stitch-build-package",
+            "path": "runtime/node/package.json"
+          },
+          {
+            "id": "stitch-dist",
+            "path": "runtime/dist"
+          }
+        ]
+      },
       "mode": "generated",
       "skills": [
         "skills/a11y-audit",
@@ -72,6 +306,84 @@
       ]
     },
     "devin": {
+      "compatibility": {
+        "native": [
+          {
+            "component_id": "react-native-validator",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "skills/react-native/scripts"
+          },
+          {
+            "component_id": "react-validator",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "skills/react-components/scripts"
+          },
+          {
+            "component_id": "static-html-sources",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "skills/extract-static-html/scripts"
+          },
+          {
+            "component_id": "stitch-build",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "runtime/node/build.mjs"
+          },
+          {
+            "component_id": "stitch-build-lock",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "runtime/node/package-lock.json"
+          },
+          {
+            "component_id": "stitch-build-package",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "runtime/node/package.json"
+          },
+          {
+            "component_id": "stitch-dist",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "runtime/dist"
+          }
+        ]
+      },
+      "components": {
+        "runtime": [
+          {
+            "id": "react-native-validator",
+            "path": "skills/react-native/scripts"
+          },
+          {
+            "id": "react-validator",
+            "path": "skills/react-components/scripts"
+          },
+          {
+            "id": "static-html-sources",
+            "path": "skills/extract-static-html/scripts"
+          },
+          {
+            "id": "stitch-build",
+            "path": "runtime/node/build.mjs"
+          },
+          {
+            "id": "stitch-build-lock",
+            "path": "runtime/node/package-lock.json"
+          },
+          {
+            "id": "stitch-build-package",
+            "path": "runtime/node/package.json"
+          },
+          {
+            "id": "stitch-dist",
+            "path": "runtime/dist"
+          }
+        ]
+      },
       "mode": "native",
       "skills": [
         "skills/a11y-audit",
