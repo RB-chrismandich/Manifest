@@ -124,6 +124,8 @@ Read on demand (NOT auto-loaded). You MUST read the reference before related tas
   guardrail registry (detection cues + prevention rules).
 - `~/.claude/references/doc-concision.md` — Read before writing or auditing docs:
   per-type line caps, fan-out-to-sub-pages rule, fluff blocklist (`docs_lint.py`).
+- `~/.claude/references/harness-routing.md` — Read before cross-harness skill/agent
+  work: per-harness (claude/codex/cursor/agy) execution semantics; model IDs only in `model_tiers`.
 
 ---
 

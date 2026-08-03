@@ -470,15 +470,16 @@ class CLIAgent(BaseAgent):
     def _resolve_model(self, tier: str) -> str | None:
         """Resolve model tier to full model name. Returns None for 'auto'.
 
-        A provider with no `model_tiers.<name>` block (devin) passes the
-        requested value through verbatim, so `--devin-model opus` sends
-        `--model opus` — the right behavior for a CLI that takes real model
-        names and whose catalog this repo cannot enumerate offline.
+        Delegates to cli_invoke.resolve_provider_model: exact tier first,
+        then the cross-provider tier equivalence (a route can hand this
+        provider another provider's tier alias, e.g. synthesis's "sonnet"
+        landing on antigravity), then verbatim passthrough — which is the
+        right behavior for a provider with no `model_tiers.<name>` block
+        (devin), so `--devin-model opus` still sends `--model opus`.
         """
-        if tier == "auto":
-            return None
-        resolved = self.config.get(f"model_tiers.{self.name}.{tier}")
-        return resolved if resolved else tier
+        from agents.cli_invoke import resolve_provider_model
+
+        return resolve_provider_model(self.config, self.name, tier)
 
     def _build_command(self, prompt: str, output_file: str | None = None) -> list[str]:
         """Assemble argv: binary + base_args + optional model group + prompt_args.

@@ -11,6 +11,19 @@
 This file provides guidance to AI coding agents when working with code in this repository.
 It follows the [AGENTS.md standard](https://agents.md/) for unified coding agent instructions.
 
+## Runtime Harness Handling
+
+Skills and agents run under four harnesses. Routing is centralized in
+`configs/claude/config/command_config.yml` (`harness_routing`); model pins live
+in `configs/claude/config/parallel_agent.yml` (`model_tiers`) — never hardcode
+model IDs in skill files.
+
+- **Claude Code (`claude`)**: native tool signatures (`Read`, `Edit`, `Grep`, `Bash`)
+  and sub-agent dispatch per `tool_policies` (sub-agents pinned Sonnet by default).
+- **Codex (`codex`)**: direct shell execution; format output as standard unified diffs.
+- **Cursor (`cursor`)**: follow workspace context constraints; apply edits directly to files.
+- **Antigravity (`agy`)**: execute via the standard agent context wrapper.
+
 ## Token Economy (always on)
 
 Apply at all times, in every session:

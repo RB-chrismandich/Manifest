@@ -12,6 +12,7 @@ from agents.cli_invoke import (
     CliRoute,
     build_subprocess_argv,
     resolve_cli_route,
+    resolve_provider_model,
     resolve_role_model_tier,
 )
 from agents.config import Config
@@ -19,6 +20,33 @@ from agents.config import Config
 
 def _config(tmp_path: Path) -> Config:
     return Config(config_path=str(tmp_path / "missing.yml"))
+
+
+def test_resolve_provider_model_translates_claude_tier_alias(tmp_path):
+    # Regression: synthesis passes its claude tier ("sonnet") to whichever
+    # provider CLI answers the route; antigravity's tiers are mini/flash/
+    # advanced, so the raw alias leaked as `--model sonnet` and agy rejected
+    # it. Aliases must translate through the documented tier equivalence
+    # (mini/haiku, flash/sonnet, advanced/opus/pro).
+    cfg = _config(tmp_path)
+    resolved = resolve_provider_model(cfg, "antigravity", "sonnet")
+    assert resolved == cfg.get("model_tiers.antigravity.flash")
+    assert resolve_provider_model(cfg, "antigravity", "haiku") == cfg.get(
+        "model_tiers.antigravity.mini"
+    )
+    assert resolve_provider_model(cfg, "codex", "opus") == cfg.get(
+        "model_tiers.codex.advanced"
+    )
+
+
+def test_resolve_provider_model_keeps_custom_passthrough(tmp_path):
+    # Custom/full model names that are not tier aliases still pass through
+    # verbatim (devin relies on this), and "auto" still means no --model.
+    cfg = _config(tmp_path)
+    assert (
+        resolve_provider_model(cfg, "codex", "gpt-5.6-sol-high") == "gpt-5.6-sol-high"
+    )
+    assert resolve_provider_model(cfg, "codex", "auto") is None
 
 
 def test_resolve_role_model_tier_from_frontmatter(tmp_path):

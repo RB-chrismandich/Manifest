@@ -58,6 +58,36 @@ synthesis_priority:
   - maintainability  # Code quality
   - style           # Formatting and style
 
+# Harness routing (2026-08-02) — the four supported execution harnesses and how
+# skills/agents resolve models and execution semantics under each. Model IDs are
+# deliberately NOT duplicated here: parallel_agent.yml `model_tiers` is the
+# single verified-pin source (doc-sourced ID copies are how the gemini tiers
+# ended up 404-ing). `tier_source` names that file's model_tiers key;
+# `default_model_tier` mirrors _MODEL_TIER_DEFAULTS in scripts/agents/cli.py
+# ("auto" = no --model flag; the account default stands). Per-skill Claude
+# sub-agent/session models remain in tool_policies below.
+harness_routing:
+  claude:
+    guide: configs/claude/CLAUDE.md          # deployed to ~/.claude/CLAUDE.md
+    tier_source: claude
+    default_model_tier: sonnet               # sub-agent pin; session model via tool_policies session_model
+    execution: native-tools                  # Read/Edit/Grep/Bash signatures + Task/Agent sub-agents
+  codex:
+    guide: AGENTS.md                         # AGENTS.md standard; symlinked at configs/codex/AGENTS.md
+    tier_source: codex
+    default_model_tier: auto                 # no --model sent; account default follows OpenAI rollout
+    execution: direct-shell                  # direct shell execution; output as unified diffs
+  cursor:
+    guide: configs/cursor/rules/orchestration.mdc
+    tier_source: cursor
+    default_model_tier: flash
+    execution: workspace-edits               # workspace context constraints; edits applied to files
+  agy:
+    guide: AGENTS.md                         # antigravity ships no guide of its own (provider, not orchestrator)
+    tier_source: antigravity
+    default_model_tier: flash
+    execution: agent-context                 # standard agent context wrapper
+
 # Tool policies per command
 #
 # Sub-agent fields (feature 367 — see configs/claude/references/sub-agent-dispatch.md):

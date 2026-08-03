@@ -48,9 +48,9 @@ The orchestrating agent (Claude) selects models based on task complexity:
 
 | Tier | Cursor | Claude | Gemini | Codex | Antigravity |
 |------|--------|--------|--------|-------|-------------|
-| mini/haiku | gpt-5.1-codex-mini | claude-haiku-4-5-20251001 | - | gpt-5.4-mini | Gemini 3.5 Flash (Low) |
-| flash/sonnet | gpt-5.1-codex | claude-sonnet-4-6 | gemini-3-flash-preview | gpt-5.4 | Gemini 3.5 Flash (High) |
-| advanced/opus/pro | gpt-5.2 | claude-opus-4-8 | gemini-3-pro-preview | gpt-5.5 | Claude Opus 4.6 (Thinking) |
+| mini/haiku | cursor-grok-4.5-low | claude-haiku-4-5 | - | gpt-5.6-luna | gemini-3.6-flash-low |
+| flash/sonnet | cursor-grok-4.5-medium | claude-sonnet-5 | gemini-3-flash-preview | gpt-5.6-terra | gemini-3.6-flash-high |
+| advanced/opus/pro | cursor-grok-4.5-high | claude-opus-5 | gemini-3-pro-preview | gpt-5.6-sol | claude-opus-4-6-thinking |
 | fable (security) | - | claude-fable-5 | - | - | - |
 
 **Known correlation**: Antigravity serves Gemini/Claude model families also present via
@@ -87,9 +87,9 @@ When consensus is low, `SynthesisEngine` merges agent outputs. Configure
 
 The script automatically detects credit/quota exhaustion and falls back:
 
-- **Cursor**: gpt-5.2 → gpt-5.1-codex → gpt-5.1-codex-mini → auto
+- **Cursor**: cursor-grok-4.5-high → cursor-grok-4.5-medium → cursor-grok-4.5-low → auto
 - **Claude**: fable → opus → sonnet → haiku
-- **Codex**: gpt-5.5 → gpt-5.4 → gpt-5.4-mini
+- **Codex**: gpt-5.6-sol → gpt-5.6-terra → gpt-5.6-luna
 - **Antigravity**: advanced → flash → mini
 
 Detection methods:
@@ -108,7 +108,7 @@ Detection methods:
     "cursor": {
       "status": "complete|missing|failed",
       "validated": true|false,
-      "model": "gpt-5.1-codex|auto",
+      "model": "cursor-grok-4.5-medium|auto",
       "credit_fallback": false,
       "output": "Agent response..."
     },
@@ -152,11 +152,6 @@ Detection methods:
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `GEMINI_INCLUDE_DIRS` | Colon-separated directories for Gemini | `$(pwd):~/.claude:~/.gemini` |
-| `CURSOR_MODEL_MINI` | Model name for 'mini' tier | `gpt-5.1-codex-mini` |
-| `CURSOR_MODEL_FLASH` | Model name for 'flash' tier | `gpt-5.1-codex` |
-| `CURSOR_MODEL_ADVANCED` | Model name for 'advanced' tier | `gpt-5.2` |
-| `GEMINI_MODEL_FLASH` | Model name for 'flash' tier | `gemini-3-flash-preview` |
-| `GEMINI_MODEL_PRO` | Model name for 'pro' tier | `gemini-3-pro-preview` |
 | `CHECK_CREDITS_PREFLIGHT` | Enable pre-flight credit check | `false` |
 
 ## Output Location

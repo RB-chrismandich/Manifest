@@ -25,12 +25,9 @@ Apply at all times, in every session:
 
 ### Quick Usage
 
-**IMPORTANT**:
-
-- Always use **absolute paths** when specifying files to analyze or review
-  (agents run from different working directories).
-- Always use a **large timeout** (600-900s) for complex analyses; the 120s
-  default is often insufficient.
+**IMPORTANT**: always use **absolute paths** (agents run from different working
+directories) and a **large timeout** (600-900s; the 120s default is often
+insufficient).
 
 Default MCP/tool routing — use the matching tool when the task domain matches.
 **Always registered**: **Context7** library/API docs, setup, config · **Semgrep
@@ -49,7 +46,7 @@ before routing to one of these; do not assume it is available.
 # Code review, all 5 agents, 10 min timeout
 manifest parallel-agent --json --timeout 600 --review /absolute/path/to/file
 
-# Full analysis (flags: references/parallel-agent.md)
+# Full analysis (flags: parallel-agent.md)
 manifest parallel-agent --json --validate --timeout 900 --analyze /abs/path
 ```
 
@@ -71,6 +68,8 @@ Read on demand (NOT auto-loaded). You MUST read the reference before related tas
   guardrail registry (detection cues + prevention rules).
 - `~/.claude/references/doc-concision.md` — Read before writing or auditing docs:
   per-type line caps, fan-out-to-sub-pages rule, fluff blocklist (`docs_lint.py`).
+- `~/.claude/references/harness-routing.md` — Read before cross-harness
+  skill/agent work: per-harness execution semantics + model tiers.
 
 ## Proactive Coding Guardrails (always on)
 
@@ -80,8 +79,6 @@ setup/teardown; serialize shared writes; refactor before accreting; no
 speculative guards, single-use abstractions, or dead code; verify new deps
 exist. When refining, NEVER silently remove security controls or validation.
 Registry: `~/.claude/config/knowledge_base.yml`; `/ai-code-audit` = full audit.
-
----
 
 ## Proactive Decision Framework
 
@@ -100,8 +97,6 @@ Complex multi-file refactoring, new feature implementation, performance optimiza
 
 Typo/comment/formatting fixes, single-line changes, documentation updates, simple variable renames.
 
----
-
 ## Validation Criteria
 
 - **Tier 1 (blocking)**: cross-verification, security, error handling, breaking
@@ -109,8 +104,6 @@ Typo/comment/formatting fixes, single-line changes, documentation updates, simpl
 - Authoritative weights: `~/.claude/config/validation_criteria.yml`. Consensus
   thresholds and verdict rules (`APPROVED`/`NEEDS_REVIEW`/`BLOCKED`):
   `~/.claude/references/orchestration.md`.
-
----
 
 ## Skills
 
@@ -136,8 +129,6 @@ Common entry points: `/git-commit`, `/project-verify`, `/<lang>-refactor`,
 `code-audit` auto-triggers on security-sensitive patterns (auth, crypto,
 secrets, input validation) or complexity (>500 lines, >10 functions):
 inline, non-blocking.
-
----
 
 ## Plan Management
 

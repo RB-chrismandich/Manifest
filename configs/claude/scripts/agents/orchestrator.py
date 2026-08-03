@@ -655,7 +655,7 @@ async def check_credits(
                 "exec",
                 "--full-auto",
                 "--model",
-                config.get("model_tiers.codex.mini", "gpt-5.4-mini"),
+                config.get("model_tiers.codex.mini", "gpt-5.6-luna"),
                 "respond with OK",
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,

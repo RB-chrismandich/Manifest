@@ -164,12 +164,13 @@ def _default_config() -> dict:
                 "flash": "cursor-grok-4.5-medium",
                 "advanced": "cursor-grok-4.5-high",
             },
-            # UNVERIFIED — codex CLI is logged out (probes 401) and exposes
-            # no model-listing command.
+            # VERIFIED 2026-08-02 via `codex exec --skip-git-repo-check
+            # --model <id>` on a ChatGPT login. GPT-5.6 family (sol/terra/
+            # luna); gpt-5.4* retire from ChatGPT-login Codex 2026-08-31.
             "codex": {
-                "mini": "gpt-5.4-mini",
-                "flash": "gpt-5.4",
-                "advanced": "gpt-5.5",
+                "mini": "gpt-5.6-luna",
+                "flash": "gpt-5.6-terra",
+                "advanced": "gpt-5.6-sol",
             },
             # VERIFIED 2026-07-29 via `agy --model <slug> --print` (agy
             # 1.1.8). Slugs, not the display labels agy 1.1.1 listed — agy

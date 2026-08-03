@@ -50,6 +50,8 @@ model_tiers:
   # the pinned string exactly. Full IDs rather than the aliases (opus/sonnet/
   # haiku/fable), which also answer: an alias is a moving target the provider
   # can remap, so pinning it would let a tier change model without a diff here.
+  # Re-checked 2026-08-02 against the published lineup: sonnet-5/opus-5/fable-5/
+  # haiku-4-5 are all still the newest active IDs in their tiers; no change.
   claude:
     haiku: "claude-haiku-4-5"
     sonnet: "claude-sonnet-5"
@@ -63,7 +65,10 @@ model_tiers:
   # neither GOOGLE_API_KEY nor GEMINI_API_KEY is set, so the REST models
   # endpoint cannot confirm these IDs either. Google's own stated remedy is the
   # antigravity block below, which serves Gemini models and IS verified. Treat
-  # these two as unproven until a probe passes.
+  # these two as unproven until a probe passes. Confirmed 2026-08-02: Google
+  # retired the Gemini CLI on 2026-06-18 in favor of Antigravity CLI (agy), so
+  # this block will likely never re-verify on this account; it stays only so
+  # tier lookups resolve.
   gemini:
     flash: "gemini-3-flash-preview"
     pro: "gemini-3-pro-preview"
@@ -75,23 +80,27 @@ model_tiers:
   # claude-fable-5-thinking-*, gpt-5.6-sol-*, kimi-k3-high, gpt-5.3-codex-*):
   # every one of those returned an account-level ActionRequiredError usage limit
   # (resets 2026-08-12), so they are unverifiable this cycle — NOT confirmed
-  # broken. Re-probe after that date and promote `advanced` if they answer.
+  # broken. Re-probed 2026-08-02 with catalog-exact slugs
+  # (claude-fable-5-thinking-high, gpt-5.6-sol-high, kimi-k3-high): still the
+  # same usage-limit error, and the catalog rejection shows premium slugs
+  # REQUIRE an effort suffix (bare claude-fable-5-thinking is not a model).
+  # Re-probe after 2026-08-12 and promote `advanced` if they answer.
   # `auto` and `composer-2.5` also proved served and remain valid alternates.
   cursor:
     mini: "cursor-grok-4.5-low"
     flash: "cursor-grok-4.5-medium"
     advanced: "cursor-grok-4.5-high"
-  # UNVERIFIED — retained only so tier lookups resolve to something.
-  # Measured 2026-07-29: `codex login status` reports "Not logged in" (exit 1)
-  # and probe calls return HTTP 401, so no pin here can be confirmed. The CLI
-  # still exposes no model-listing command (re-tested: no `models`, `models
-  # list`, or `--list-models`), so model_check.sh has no listing source and
-  # falls back to a probe. Run `codex login`, then MODEL_CHECK_PROBE=1
-  # model_check.sh to verify or replace these.
+  # VERIFIED 2026-08-02 — `codex exec --skip-git-repo-check --model <id>` on a
+  # ChatGPT login answered for all three. (2026-07-29 these were unverifiable:
+  # "Not logged in"; the account has since logged in.) GPT-5.6 family tiers:
+  # sol = flagship, terra = mid, luna = fastest/cheapest. Replaces
+  # gpt-5.4-mini/gpt-5.4/gpt-5.5: gpt-5.4 and gpt-5.4-mini retire from
+  # ChatGPT-login Codex on 2026-08-31 (developers.openai.com/codex/changelog),
+  # so the old pins carried a hard expiry.
   codex:
-    mini: "gpt-5.4-mini"
-    flash: "gpt-5.4"
-    advanced: "gpt-5.5"
+    mini: "gpt-5.6-luna"
+    flash: "gpt-5.6-terra"
+    advanced: "gpt-5.6-sol"
   # VERIFIED 2026-07-29 — `agy --model <slug> --print` answered for all three
   # (agy 1.1.8).
   # FORMAT MIGRATION: `agy models` now emits slugs (gemini-3.6-flash-low), where
@@ -104,6 +113,8 @@ model_tiers:
   # family now that it exists. `advanced` is the same model as before in slug
   # form — spec_review.sh reads this exact pin for its agy reviewer, so the
   # reviewer's capability is unchanged.
+  # Re-confirmed 2026-08-02: `agy models` still lists all three pins verbatim;
+  # gemini-3.6-flash remains the newest family in the agy catalog.
   antigravity:
     mini: "gemini-3.6-flash-low"
     flash: "gemini-3.6-flash-high"

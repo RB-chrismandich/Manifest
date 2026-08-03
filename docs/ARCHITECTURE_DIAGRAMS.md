@@ -580,7 +580,7 @@ flowchart TB
         GEMINI_EXEC["Gemini — SDK or gemini CLI<br/>(gemini-3-flash-preview / 3-pro-preview)"]:::process
         CURSOR_EXEC["Cursor Agent<br/>(cursor-grok-4.5-low/medium/high)"]:::process
         CLAUDE_EXEC["Claude — SDK or claude CLI<br/>(haiku/sonnet/opus/fable)"]:::process
-        CODEX_EXEC["Codex CLI<br/>(gpt-5.4-mini/gpt-5.4/gpt-5.5)"]:::process
+        CODEX_EXEC["Codex CLI<br/>(gpt-5.6-luna/terra/sol)"]:::process
         AGY_EXEC["Antigravity CLI<br/>(agy, gemini-3.6-flash-high)"]:::process
     end
 
@@ -912,7 +912,7 @@ gemini-3-pro-preview (pro) → gemini-3-flash-preview (flash)
 **Codex Fallback Chain**:
 
 ```text
-gpt-5.5 (advanced) → gpt-5.4 (flash) → gpt-5.4-mini (mini)
+gpt-5.6-sol (advanced) → gpt-5.6-terra (flash) → gpt-5.6-luna (mini)
 ```
 
 **Error Detection**:
