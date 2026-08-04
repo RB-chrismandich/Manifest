@@ -1,0 +1,15 @@
+---
+description: "Turn SkillClaw-evolved skills into a reviewed PR into .apm/skills/. Dry-run by default; --apply opens one PR with one commit per skill. Requires --enable-skillclaw and claude CLI login. Never writes source of truth directly — all changes go through PR review."
+globs: ".claude/skills/skill-evolve/**"
+alwaysApply: false
+---
+
+# skill-evolve
+
+Turn SkillClaw-evolved skills into a reviewed PR into .apm/skills/. Dry-run by default; --apply opens one PR with one commit per skill. Requires --enable-skillclaw and claude CLI login. Never writes source of truth directly — all changes go through PR review.
+
+<!-- Auto-generated from .claude/skills/skill-evolve/SKILL.md -->
+<!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
+
+Refer to `.cursor/skills/skill-evolve/SKILL.md` for the full skill definition.
+

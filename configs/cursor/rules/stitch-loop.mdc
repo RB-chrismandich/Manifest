@@ -1,0 +1,15 @@
+---
+description: "Teaches agents to iteratively build websites using Stitch with an autonomous baton-passing loop pattern"
+globs: ".claude/skills/stitch-loop/**"
+alwaysApply: false
+---
+
+# stitch-loop
+
+Teaches agents to iteratively build websites using Stitch with an autonomous baton-passing loop pattern
+
+<!-- Auto-generated from .claude/skills/stitch-loop/SKILL.md -->
+<!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
+
+Refer to `.cursor/skills/stitch-loop/SKILL.md` for the full skill definition.
+

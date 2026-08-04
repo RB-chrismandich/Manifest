@@ -1,0 +1,15 @@
+---
+description: "Review what Manifest deployed into the assistant homes (~/.claude + mirrors) versus what the project would deploy, listing orphaned deployed items KEEP or REMOVE. Preview by default; opt-in removal is recoverable (timestamped backup, never hard-delete)."
+globs: ".claude/skills/deploy-reconcile/**"
+alwaysApply: false
+---
+
+# deploy-reconcile
+
+Review what Manifest deployed into the assistant homes (~/.claude + mirrors) versus what the project would deploy, listing orphaned deployed items KEEP or REMOVE. Preview by default; opt-in removal is recoverable (timestamped backup, never hard-delete).
+
+<!-- Auto-generated from .claude/skills/deploy-reconcile/SKILL.md -->
+<!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
+
+Refer to `.cursor/skills/deploy-reconcile/SKILL.md` for the full skill definition.
+

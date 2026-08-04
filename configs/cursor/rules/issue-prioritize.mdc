@@ -1,0 +1,15 @@
+---
+description: "Fetch open issues from GitHub, GitLab, Linear, or Jira, score them by impact/urgency/readiness/risk, and recommend the top issues to address next. Analysis-only — no mutations."
+globs: ".claude/skills/issue-prioritize/**"
+alwaysApply: false
+---
+
+# issue-prioritize
+
+Fetch open issues from GitHub, GitLab, Linear, or Jira, score them by impact/urgency/readiness/risk, and recommend the top issues to address next. Analysis-only — no mutations.
+
+<!-- Auto-generated from .claude/skills/issue-prioritize/SKILL.md -->
+<!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
+
+Refer to `.cursor/skills/issue-prioritize/SKILL.md` for the full skill definition.
+

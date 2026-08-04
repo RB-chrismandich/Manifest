@@ -1,0 +1,15 @@
+---
+description: "Improve or create a repository README from code-derived facts, held to a 200-line cap — anything past the first ten minutes moves to docs/ and gets linked. Use for \"fix the README\", \"our README is too long\"."
+globs: ".claude/skills/docs-improve-readme/**"
+alwaysApply: false
+---
+
+# docs-improve-readme
+
+Improve or create a repository README from code-derived facts, held to a 200-line cap — anything past the first ten minutes moves to docs/ and gets linked. Use for "fix the README", "our README is too long".
+
+<!-- Auto-generated from .claude/skills/docs-improve-readme/SKILL.md -->
+<!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
+
+Refer to `.cursor/skills/docs-improve-readme/SKILL.md` for the full skill definition.
+

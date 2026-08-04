@@ -1,0 +1,15 @@
+---
+description: "Perform security, architecture, and quality analysis for Python codebases and return a prioritized, actionable refactoring roadmap."
+globs: ".claude/skills/python-refactor/**"
+alwaysApply: false
+---
+
+# python-refactor
+
+Perform security, architecture, and quality analysis for Python codebases and return a prioritized, actionable refactoring roadmap.
+
+<!-- Auto-generated from .claude/skills/python-refactor/SKILL.md -->
+<!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
+
+Refer to `.cursor/skills/python-refactor/SKILL.md` for the full skill definition.
+

@@ -1,0 +1,15 @@
+---
+description: "Analyze Stitch projects and synthesize a semantic design system into DESIGN.md files"
+globs: ".claude/skills/design-md/**"
+alwaysApply: false
+---
+
+# design-md
+
+Analyze Stitch projects and synthesize a semantic design system into DESIGN.md files
+
+<!-- Auto-generated from .claude/skills/design-md/SKILL.md -->
+<!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
+
+Refer to `.cursor/skills/design-md/SKILL.md` for the full skill definition.
+

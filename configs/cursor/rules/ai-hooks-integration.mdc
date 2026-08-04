@@ -1,0 +1,15 @@
+---
+description: "Integrate lifecycle hooks across AI coding tools (Claude Code, Gemini CLI, Cursor, OpenCode) — adding/installing hooks, OpenCode plugins, auto-format/notify/security policies, or wrapping CLIs without a hooks API. Covers PreToolUse/PostToolUse and HTTP/prompt/agent/async hooks."
+globs: ".claude/skills/ai-hooks-integration/**"
+alwaysApply: false
+---
+
+# ai-hooks-integration
+
+Integrate lifecycle hooks across AI coding tools (Claude Code, Gemini CLI, Cursor, OpenCode) — adding/installing hooks, OpenCode plugins, auto-format/notify/security policies, or wrapping CLIs without a hooks API. Covers PreToolUse/PostToolUse and HTTP/prompt/agent/async hooks.
+
+<!-- Auto-generated from .claude/skills/ai-hooks-integration/SKILL.md -->
+<!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
+
+Refer to `.cursor/skills/ai-hooks-integration/SKILL.md` for the full skill definition.
+

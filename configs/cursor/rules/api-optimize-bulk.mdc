@@ -1,0 +1,15 @@
+---
+description: "Before running N sequential per-entity API calls, check vendor docs and client source for a bulk/aggregate endpoint that replaces them with one call"
+globs: ".claude/skills/api-optimize-bulk/**"
+alwaysApply: false
+---
+
+# api-optimize-bulk
+
+Before running N sequential per-entity API calls, check vendor docs and client source for a bulk/aggregate endpoint that replaces them with one call
+
+<!-- Auto-generated from .claude/skills/api-optimize-bulk/SKILL.md -->
+<!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
+
+Refer to `.cursor/skills/api-optimize-bulk/SKILL.md` for the full skill definition.
+

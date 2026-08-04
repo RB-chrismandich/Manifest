@@ -1,0 +1,15 @@
+---
+description: "Retrieve credentials (passwords, API keys, tokens, SSH keys) from Proton Pass via pass-cli. Use when a task needs a login/secret or user mentions Proton Pass, a vault, or \"get the credentials/token for X\". Covers PAT session setup and expired-session recovery."
+globs: ".claude/skills/pass-cli/**"
+alwaysApply: false
+---
+
+# pass-cli
+
+Retrieve credentials (passwords, API keys, tokens, SSH keys) from Proton Pass via pass-cli. Use when a task needs a login/secret or user mentions Proton Pass, a vault, or "get the credentials/token for X". Covers PAT session setup and expired-session recovery.
+
+<!-- Auto-generated from .claude/skills/pass-cli/SKILL.md -->
+<!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
+
+Refer to `.cursor/skills/pass-cli/SKILL.md` for the full skill definition.
+
