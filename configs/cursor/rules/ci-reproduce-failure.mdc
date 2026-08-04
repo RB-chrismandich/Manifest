@@ -1,0 +1,15 @@
+---
+description: "Use when a CI job fails but the run's logs are gated (\"still in progress\") or hard to read — pinpoint the failing step via the jobs API and reproduce that step's commands locally from the workflow file."
+globs: ".claude/skills/ci-reproduce-failure/**"
+alwaysApply: false
+---
+
+# ci-reproduce-failure
+
+Use when a CI job fails but the run's logs are gated ("still in progress") or hard to read — pinpoint the failing step via the jobs API and reproduce that step's commands locally from the workflow file.
+
+<!-- Auto-generated from .claude/skills/ci-reproduce-failure/SKILL.md -->
+<!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
+
+Refer to `.cursor/skills/ci-reproduce-failure/SKILL.md` for the full skill definition.
+

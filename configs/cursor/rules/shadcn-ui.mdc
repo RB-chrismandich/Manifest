@@ -1,0 +1,15 @@
+---
+description: "Expert guidance for integrating and building applications with shadcn/ui components, including component discovery, installation, customization, and best practices."
+globs: ".claude/skills/shadcn-ui/**"
+alwaysApply: false
+---
+
+# shadcn-ui
+
+Expert guidance for integrating and building applications with shadcn/ui components, including component discovery, installation, customization, and best practices.
+
+<!-- Auto-generated from .claude/skills/shadcn-ui/SKILL.md -->
+<!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
+
+Refer to `.cursor/skills/shadcn-ui/SKILL.md` for the full skill definition.
+

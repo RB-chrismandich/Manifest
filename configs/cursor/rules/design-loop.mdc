@@ -1,0 +1,15 @@
+---
+description: "Orchestrate a full spec-first UI design pass — scaffold, prompt, generate, verify, review, amend."
+globs: ".claude/skills/design-loop/**"
+alwaysApply: false
+---
+
+# design-loop
+
+Orchestrate a full spec-first UI design pass — scaffold, prompt, generate, verify, review, amend.
+
+<!-- Auto-generated from .claude/skills/design-loop/SKILL.md -->
+<!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
+
+Refer to `.cursor/skills/design-loop/SKILL.md` for the full skill definition.
+

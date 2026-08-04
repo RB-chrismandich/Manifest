@@ -1,0 +1,15 @@
+---
+description: "Perform security and quality analysis for Bash/Shell scripts and produce a prioritized refactor plan with risk and effort guidance."
+globs: ".claude/skills/shell-refactor/**"
+alwaysApply: false
+---
+
+# shell-refactor
+
+Perform security and quality analysis for Bash/Shell scripts and produce a prioritized refactor plan with risk and effort guidance.
+
+<!-- Auto-generated from .claude/skills/shell-refactor/SKILL.md -->
+<!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
+
+Refer to `.cursor/skills/shell-refactor/SKILL.md` for the full skill definition.
+

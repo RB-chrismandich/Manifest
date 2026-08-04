@@ -1,0 +1,15 @@
+---
+description: "Perform security, architecture, and quality analysis for Node.js/TypeScript codebases and return a prioritized, actionable refactoring roadmap."
+globs: ".claude/skills/node-refactor/**"
+alwaysApply: false
+---
+
+# node-refactor
+
+Perform security, architecture, and quality analysis for Node.js/TypeScript codebases and return a prioritized, actionable refactoring roadmap.
+
+<!-- Auto-generated from .claude/skills/node-refactor/SKILL.md -->
+<!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
+
+Refer to `.cursor/skills/node-refactor/SKILL.md` for the full skill definition.
+

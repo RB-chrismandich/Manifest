@@ -1,0 +1,15 @@
+---
+description: "Extract self-contained static HTML from a built web app or React components by inlining CSS and images. Use to capture a UI state, share a static page, or prep assets for Stitch upload."
+globs: ".claude/skills/extract-static-html/**"
+alwaysApply: false
+---
+
+# extract-static-html
+
+Extract self-contained static HTML from a built web app or React components by inlining CSS and images. Use to capture a UI state, share a static page, or prep assets for Stitch upload.
+
+<!-- Auto-generated from .claude/skills/extract-static-html/SKILL.md -->
+<!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
+
+Refer to `.cursor/skills/extract-static-html/SKILL.md` for the full skill definition.
+

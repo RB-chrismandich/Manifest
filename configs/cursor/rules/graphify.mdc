@@ -1,0 +1,15 @@
+---
+description: "Map a codebase, docs, or GitHub repo into a queryable knowledge graph (graphify CLI): graph.html, GRAPH_REPORT.md, graph.json. Use to understand large or unfamiliar code, or answer \"what connects X to Y?\"."
+globs: ".claude/skills/graphify/**"
+alwaysApply: false
+---
+
+# graphify
+
+Map a codebase, docs, or GitHub repo into a queryable knowledge graph (graphify CLI): graph.html, GRAPH_REPORT.md, graph.json. Use to understand large or unfamiliar code, or answer "what connects X to Y?".
+
+<!-- Auto-generated from .claude/skills/graphify/SKILL.md -->
+<!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
+
+Refer to `.cursor/skills/graphify/SKILL.md` for the full skill definition.
+

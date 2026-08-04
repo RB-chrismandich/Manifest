@@ -1,0 +1,15 @@
+---
+description: "Retire/remove a component after migration or uninstall — verify the artifact is gone, nothing will respawn it, and the new state landed. Covers Unix daemons (launchd/systemd), migrated tool runtimes (stale daemons, sockets), and plugins/MCP servers."
+globs: ".claude/skills/deploy-retire-component/**"
+alwaysApply: false
+---
+
+# deploy-retire-component
+
+Retire/remove a component after migration or uninstall — verify the artifact is gone, nothing will respawn it, and the new state landed. Covers Unix daemons (launchd/systemd), migrated tool runtimes (stale daemons, sockets), and plugins/MCP servers.
+
+<!-- Auto-generated from .claude/skills/deploy-retire-component/SKILL.md -->
+<!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
+
+Refer to `.cursor/skills/deploy-retire-component/SKILL.md` for the full skill definition.
+

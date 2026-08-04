@@ -1,0 +1,15 @@
+---
+description: "Convert Stitch HTML designs to React Native components, or sync existing native components with the latest Stitch designs, using StyleSheet."
+globs: ".claude/skills/react-native/**"
+alwaysApply: false
+---
+
+# react-native
+
+Convert Stitch HTML designs to React Native components, or sync existing native components with the latest Stitch designs, using StyleSheet.
+
+<!-- Auto-generated from .claude/skills/react-native/SKILL.md -->
+<!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
+
+Refer to `.cursor/skills/react-native/SKILL.md` for the full skill definition.
+

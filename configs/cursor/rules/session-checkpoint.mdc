@@ -1,0 +1,15 @@
+---
+description: "Create a compact checkpoint summary of the current session so work can continue reliably when context usage is high."
+globs: ".claude/skills/session-checkpoint/**"
+alwaysApply: false
+---
+
+# session-checkpoint
+
+Create a compact checkpoint summary of the current session so work can continue reliably when context usage is high.
+
+<!-- Auto-generated from .claude/skills/session-checkpoint/SKILL.md -->
+<!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
+
+Refer to `.cursor/skills/session-checkpoint/SKILL.md` for the full skill definition.
+
