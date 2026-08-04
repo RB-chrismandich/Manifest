@@ -2,7 +2,6 @@
 name: prompt-optimize
 description: Use when a user asks to create, optimize, refactor, or harden a prompt into a production-ready skill template. Refactors raw prompts into a fixed XML-schema payload, stripping conversational preamble and injecting absolute-path, idempotency, and runtime guardrails.
 ---
-
 # Role: Automated Meta-Prompt Optimization Engine (Jules Target)
 
 ## 1. Operational Objective
@@ -28,12 +27,13 @@ Every generated or refactored skill payload *must* programmatically embed the fo
 
 When a raw prompt payload is received via the scheduled task pipeline, execute these four processing cycles internally:
 
-1. **Deconstruct**: Extract the underlying structural intent, execution environment context, and implicit boundary limits.
+1. **Deconstruct**: Extract the underlying structural intent, execution environment context, and implicit boundary
+  limits.
 2. **Normalize**: Map the intent into the mandatory XML-tag-demarcated schema below.
 3. **Inject Safeguards**: Embed the absolute pathing, pythonic runtime rules, and idempotency constraints directly into
-   the generated payload.
+  the generated payload.
 4. **Cleanse**: Purge any introductory text ("Sure, here is your prompt"), markdown section commentary, or
-   conversational tags.
+  conversational tags.
 
 ## 4. Target Serialization Schema
 
