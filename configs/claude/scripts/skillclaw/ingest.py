@@ -96,6 +96,8 @@ def parse_transcript(
             # yielding much faster parse times without dropping valid padded JSON lines.
             if not line or (line[0] != "{" and line.lstrip()[:1] != "{"):
                 continue
+            if '"user"' not in line and '"assistant"' not in line:
+                continue
             try:
                 obj = json.loads(line)
             except json.JSONDecodeError:
