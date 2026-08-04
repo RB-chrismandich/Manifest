@@ -564,8 +564,6 @@ plans untouched 7+ days should be updated, completed, or abandoned. Use
 <!-- BEGIN COMMAND INDEX (generate_commands_doc.py --inject-guides) -->
 <!-- markdownlint-disable MD013 -->
 
-
 Run `/help <query>` for descriptions and when-to-use.
-
 <!-- markdownlint-enable MD013 -->
 <!-- END COMMAND INDEX -->

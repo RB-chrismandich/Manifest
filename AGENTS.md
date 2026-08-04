@@ -429,8 +429,6 @@ standing line instead (spec 362, FR-011 documented gap): **before a commit run
 <!-- BEGIN COMMAND INDEX (generate_commands_doc.py --inject-guides) -->
 <!-- markdownlint-disable MD013 -->
 
-
 Run `/help <query>` for descriptions and when-to-use.
-
 <!-- markdownlint-enable MD013 -->
 <!-- END COMMAND INDEX -->

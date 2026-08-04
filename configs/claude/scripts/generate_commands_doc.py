@@ -137,7 +137,8 @@ def render_compact_index(catalog: dict) -> str:
         )
         if names:
             lines.append(f"- **{label}**: {names}")
-    lines.append("")
+    if lines:
+        lines.append("")
     lines.append("Run `/help <query>` for descriptions and when-to-use.")
     return "\n".join(lines)
 
@@ -226,7 +227,6 @@ def _index_block(catalog: dict) -> str:
             "<!-- markdownlint-disable MD013 -->",
             "",
             render_compact_index(catalog),
-            "",
             "<!-- markdownlint-enable MD013 -->",
             INDEX_END,
         ]
