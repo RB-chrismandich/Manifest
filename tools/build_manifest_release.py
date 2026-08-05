@@ -13,7 +13,7 @@ import sys
 import tarfile
 import tempfile
 from dataclasses import dataclass
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from urllib.parse import urlparse
 
 import yaml
@@ -262,11 +262,9 @@ def _release_files(root: Path, marketplace: bytes) -> tuple[FileRecord, ...]:
         bundle = root / "plugins" / bundle_name
         if not bundle.is_dir():
             raise ReleaseBuildError(f"missing domain bundle directory: {bundle_name}")
-        for path in _regular_files(bundle):
-            relative = path.relative_to(root).as_posix()
+        for relative, path, mode in _tracked_bundle_files(root, bundle_name):
             try:
                 data = path.read_bytes()
-                mode = _normalized_mode(path)
             except OSError as error:
                 raise ReleaseBuildError(
                     f"unable to read release input {relative}: {error}"
@@ -280,35 +278,78 @@ def _release_files(root: Path, marketplace: bytes) -> tuple[FileRecord, ...]:
     return ordered
 
 
-def _regular_files(root: Path) -> tuple[Path, ...]:
-    files: list[Path] = []
+def _tracked_bundle_files(
+    root: Path, bundle_name: str
+) -> tuple[tuple[str, Path, int], ...]:
+    """Return only regular bundle blobs committed by the immutable HEAD."""
     try:
-        children = sorted(root.iterdir(), key=lambda path: path.name)
+        completed = subprocess.run(
+            (
+                "git",
+                "-C",
+                str(root),
+                "ls-tree",
+                "-r",
+                "-z",
+                "HEAD",
+                "--",
+                f"plugins/{bundle_name}",
+            ),
+            check=False,
+            capture_output=True,
+        )
     except OSError as error:
         raise ReleaseBuildError(
-            f"unable to list release input {root}: {error}"
+            "unable to inventory tracked release bundle files"
         ) from error
-    for path in children:
+    if completed.returncode != 0:
+        detail = completed.stderr.decode(errors="replace").strip()
+        raise ReleaseBuildError(
+            f"unable to inventory tracked release bundle files: {detail}"
+        )
+
+    prefix = ("plugins", bundle_name)
+    files: list[tuple[str, Path, int]] = []
+    for entry in completed.stdout.split(b"\0"):
+        if not entry:
+            continue
+        metadata, separator, encoded_path = entry.partition(b"\t")
+        fields = metadata.split()
+        if not separator or len(fields) != 3:
+            raise ReleaseBuildError("unable to parse tracked release bundle files")
+        mode, object_type, _object_id = fields
         try:
-            if path.is_symlink():
+            relative = encoded_path.decode("utf-8")
+        except UnicodeDecodeError as error:
+            raise ReleaseBuildError(
+                "tracked release path is not valid UTF-8"
+            ) from error
+        path_parts = PurePosixPath(relative)
+        if (
+            path_parts.is_absolute()
+            or ".." in path_parts.parts
+            or path_parts.parts[:2] != prefix
+            or len(path_parts.parts) < 3
+        ):
+            raise ReleaseBuildError(f"unsafe tracked release path: {relative}")
+        if object_type != b"blob" or mode not in {b"100644", b"100755"}:
+            raise ReleaseBuildError(f"unsupported tracked release entry: {relative}")
+        source = root.joinpath(*path_parts.parts)
+        try:
+            if source.is_symlink():
                 raise ReleaseBuildError(
-                    f"release input must not contain symlinks: {path}"
+                    f"release input must not contain symlinks: {relative}"
                 )
-            if path.is_dir():
-                files.extend(_regular_files(path))
-            elif path.is_file():
-                files.append(path)
-            else:
-                raise ReleaseBuildError(f"unsupported release input type: {path}")
+            if not source.is_file():
+                raise ReleaseBuildError(f"missing tracked release input: {relative}")
         except OSError as error:
             raise ReleaseBuildError(
-                f"unable to inspect release input {path}: {error}"
+                f"unable to inspect release input {relative}: {error}"
             ) from error
-    return tuple(files)
-
-
-def _normalized_mode(path: Path) -> int:
-    return 0o755 if path.stat().st_mode & 0o111 else 0o644
+        files.append((relative, source, 0o755 if mode == b"100755" else 0o644))
+    if not files:
+        raise ReleaseBuildError(f"domain bundle has no tracked files: {bundle_name}")
+    return tuple(sorted(files, key=lambda item: item[0]))
 
 
 def _write_archive(

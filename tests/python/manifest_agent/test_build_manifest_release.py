@@ -187,6 +187,32 @@ def test_rejects_dirty_release_source(repo_root: Path, tmp_path: Path) -> None:
         build_release(source, tmp_path / "output", _BASE_URL)
 
 
+def test_ignored_bundle_file_is_not_packaged(repo_root: Path, tmp_path: Path) -> None:
+    source = _clean_fixture(repo_root, tmp_path)
+    ignored = source / "plugins/manifest-docs/ignored-release-secret.txt"
+    exclude = source / ".git/info/exclude"
+    exclude.write_text(
+        exclude.read_text(encoding="utf-8")
+        + "/plugins/manifest-docs/ignored-release-secret.txt\n",
+        encoding="utf-8",
+    )
+    ignored.write_text("not a release artifact\n", encoding="utf-8")
+    status = subprocess.run(
+        ("git", "-C", str(source), "status", "--porcelain", "--untracked-files=all"),
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    assert status.stdout == ""
+
+    release = build_release(source, tmp_path / "output", _BASE_URL)
+    metadata = json.loads(release.metadata.read_text(encoding="utf-8"))
+    ignored_path = "plugins/manifest-docs/ignored-release-secret.txt"
+    assert ignored_path not in metadata["files"]
+    with tarfile.open(release.archive, mode="r:gz") as bundle:
+        assert all(not member.name.endswith(ignored_path) for member in bundle)
+
+
 def test_rejects_invalid_domain_contract(repo_root: Path, tmp_path: Path) -> None:
     source = _clean_fixture(repo_root, tmp_path)
     contract = source / "plugins/manifest-docs/manifest-capabilities.yml"
