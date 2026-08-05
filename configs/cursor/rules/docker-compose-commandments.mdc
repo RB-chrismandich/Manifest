@@ -1,0 +1,15 @@
+---
+description: "Use when reviewing or hardening a docker-compose file — image pinning, secrets, healthchecks, resource limits, network isolation, volumes, non-root, logs — or when chasing a DC-NNN finding. Implements the ten commandments DC-001 through DC-010."
+globs: ".claude/skills/docker-compose-commandments/**"
+alwaysApply: false
+---
+
+# docker-compose-commandments
+
+Use when reviewing or hardening a docker-compose file — image pinning, secrets, healthchecks, resource limits, network isolation, volumes, non-root, logs — or when chasing a DC-NNN finding. Implements the ten commandments DC-001 through DC-010.
+
+<!-- Auto-generated from .claude/skills/docker-compose-commandments/SKILL.md -->
+<!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
+
+Refer to `.cursor/skills/docker-compose-commandments/SKILL.md` for the full skill definition.
+

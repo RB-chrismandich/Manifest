@@ -1,0 +1,18 @@
+services:
+  web:
+    image: w:1
+    user: "1000:1000"
+    networks: [n]
+    depends_on:
+%s
+    logging: {driver: json-file, options: {max-size: 10m, max-file: "3"}}
+    deploy: {resources: {limits: {cpus: "1", memory: 1G}}}
+  db:
+    image: mydb:1
+    user: "1000:1000"
+    networks: [n]
+%s
+    logging: {driver: json-file, options: {max-size: 10m, max-file: "3"}}
+    deploy: {resources: {limits: {cpus: "1", memory: 1G}}}
+networks:
+  n: {driver: bridge}

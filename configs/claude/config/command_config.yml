@@ -554,6 +554,17 @@ tool_policies:
 
     subagents: never
     subagent_rationale: Thin wrapper running one tree-walking script that mutates files in place.
+  docker-compose-commandments:
+    allowed:
+      - Read
+      - Glob
+      - Grep
+      - Bash   # compose_check.py; may also invoke version_pin.sh for DC-001
+      - Edit   # Applies the remedy to the compose file under audit
+    parallel_agents: conditional   # Escalate when the fix touches secrets or network topology
+    validation_tier: 1             # DC-002/DC-005 are security-sensitive (Constitution II)
+    subagents: never
+    subagent_rationale: One checker over one file; the fix is a targeted edit, not a fan-out.
   docs-all:
     allowed:
       - Read

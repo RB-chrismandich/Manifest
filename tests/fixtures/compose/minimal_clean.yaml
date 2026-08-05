@@ -1,0 +1,18 @@
+services:
+  app:
+    image: myapp:1.0.0
+    user: "1000:1000"
+    networks: [app-net]
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+networks:
+  app-net:
+    driver: bridge

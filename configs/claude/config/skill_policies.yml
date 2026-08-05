@@ -8,7 +8,7 @@
 #
 # A PR that adds or removes a skill MUST change expected_total in the same
 # commit, and give the new skill a bundle. That is the point, not friction.
-expected_total: 114
+expected_total: 115
 
 # Recorded so no later phase keys anything on it: ~/.claude/skills/.deployed-skills
 # is ALREADY WRONG on a live machine (measured 2026-07-30 — mtime predates SC-006,
@@ -72,6 +72,13 @@ bundles:
     - terraform-refactor
     - test-pin-bug
     - test-vary-fixtures
+
+  # Added after the cutover partitioned the original 108. Its own plugin because
+  # it is the first bundle to ship a hook (hooks/hooks.json), which no existing
+  # bundle has a home for; manifest-ops was the alternative and would have had
+  # to widen from "runtime operations" to carry it.
+  manifest-docker:  # 1 skills
+    - docker-compose-commandments
 
   manifest-docs:  # 4 skills
     - docs-all
