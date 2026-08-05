@@ -1,6 +1,6 @@
 ---
 name: docs-all
-description: Run docs-improve-readme, docs-generate-diagrams, and docs-improve in one pass as sub-agents, bracketed by a docs_lint.py measurement so the report shows a real line-count delta. Use to refresh the whole doc set at once.
+description: Refresh a project's whole doc set (README, diagrams, audit) in one pass, in dependency order, with a measured line-count delta. Use for "refresh all the docs", "update everything at once".
 ---
 
 # All-in-One Documentation Refresh

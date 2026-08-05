@@ -25,7 +25,7 @@ When context usage exceeds the threshold (default 95%), create a compressed summ
 
 ## Instructions
 
-### Step 1: Check Current Context Usage
+### Step 1: Check Usage and Decide
 
 Parse the most recent system warning for token usage. Use the window size the
 warning actually reports as the denominator — do not hardcode it (200K on some
@@ -35,98 +35,42 @@ models, 1M on others):
 Token usage: X/<window>; Y remaining
 ```
 
-Calculate percentage used: `(X / <window>) * 100`
+Calculate percentage used: `(X / <window>) * 100`. If usage is below the
+threshold, inform the user and exit.
 
-If usage < threshold, inform user and exit.
+### Step 2: Gather and Write the Summary
 
-### Step 2: Analyze Conversation History
+Scan the conversation for decisions, code changes, commands used, blockers,
+and user preferences. Write a structured summary to the scratchpad using the
+template in [references/summary-template.md](references/summary-template.md),
+deriving `<window>` from the reported token warning and filling every
+section from the conversation:
 
-Scan the conversation for:
-
-- **Decisions**: User choices, architectural decisions, approach selections
-- **Code Changes**: Files created, modified, or deleted
-- **Commands Used**: Skills/commands invoked and their results
-- **Blockers**: Issues encountered and how they were resolved
-- **Preferences**: User-stated preferences for tools, patterns, approaches
-
-### Step 3: Create Compact Summary
-
-Generate a structured summary in the scratchpad directory:
-
-Use the template in [references/summary-template.md](references/summary-template.md).
-Derive `<window>` from the reported token warning; fill every section from the
-conversation.
-
-**Context**: [why this is important]
-
----
-
-## Technical Context
-
-- Platform: [macOS/Linux]
-- Key dependencies: [list]
-- Configuration files: [relevant configs]
-
----
-
-_
-
-```text
-
-### Step 4: Save Summary
-
-Save to scratchpad:
 ```bash
 SUMMARY_FILE="$SCRATCHPAD/conversation_summary_$(date +%Y%m%d_%H%M%S).md"
-# Write summary content
-echo "✅ Summary saved to: $SUMMARY_FILE"
-```text
+```
 
-### Step 5: Update Memory
+### Step 3: Update Memory
 
 Extract key learnings and update memory files:
 
-**Global memory** (`~/.claude/memory/MEMORY.md`):
+- **Global memory** (`~/.claude/memory/MEMORY.md`): new general patterns,
+  common errors and their solutions.
+- **Project memory** (`~/.claude/projects/.../memory/MEMORY.md`): project-specific
+  insights, recent changes, new conventions.
 
-- Add any new general patterns discovered
-- Note common errors encountered and solutions
+### Step 4: Inform User
 
-**Project memory** (`~/.claude/projects/.../memory/MEMORY.md`):
-
-- Add project-specific insights
-- Update recent changes section
-- Note new patterns or conventions
-
-### Step 6: Inform User
-
-Present summary to user:
-
-```markdown
-## 🗜️ Context Compacted
-
-**Usage**: X/<window> (Z%)
-**Summary saved**: [path]
-
-### Quick Reference
-- **Files changed**: [count]
-- **Commits**: [count]
-- **Decisions**: [count]
-- **Next steps**: [list top 3]
-
-To review full summary:
-```bash
-cat [summary_path]
-```text
-
-Conversation can continue with preserved context in memory and summary.
-
-```text
+Report usage (X/<window>, Z%), the summary path, and a quick-reference list
+(files changed, commits, decisions, top 3 next steps). Conversation can
+continue with preserved context in memory and summary.
 
 ---
 
 ## Automatic Trigger
 
 This command should be **auto-invoked** when:
+
 1. Context usage exceeds 95% of the reported window
 2. Before starting any new major task
 3. User explicitly runs `/session-checkpoint`
@@ -142,7 +86,7 @@ This command should be **auto-invoked** when:
 
 # Custom threshold
 /session-checkpoint 90
-```text
+```
 
 ---
 

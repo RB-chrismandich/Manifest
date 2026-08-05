@@ -192,16 +192,9 @@ If the plan has an `**Issue**: #N` field or was resolved from an issue number:
 2. Parse the **Deliverables** section. Identify all unchecked items (`- [ ]`).
    - If no unchecked deliverables remain, skip to Step 4 (finalize).
 3. For each unchecked deliverable, in order:
-   a. Create a task (TaskCreate) for the deliverable with subject, description, and activeForm.
-   b. Set task status to `in_progress` (TaskUpdate).
-   c. Read the **Related Files** and **Implementation Notes** sections for context.
-   d. Implement the deliverable:
-      - Use Read, Glob, Grep to understand current code.
-      - Use Edit or Write to make changes.
-      - Use Bash for any shell operations (tests, builds, etc.).
-   e. After implementation, check off the deliverable (`- [x]`) in the plan file (Edit).
-   f. Set task status to `completed` (TaskUpdate).
-   g. **Issue-linked only**: Update the progress comment via
+   a. Create/track a task, implement it using the **Related Files**/**Implementation Notes**
+      context, then check it off (`- [x]`) in the plan file (Edit) and mark the task completed.
+   b. **Issue-linked only**: Update the progress comment via
       `~/.claude/scripts/git_ops.sh issue-comment-edit-last N --body "<updated-table>"`
 
 **Error handling**: If a deliverable fails, keep its task as `in_progress`, log the failure

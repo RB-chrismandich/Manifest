@@ -1,12 +1,12 @@
 ---
-description: "Expert guidance for integrating and building applications with shadcn/ui components, including component discovery, installation, customization, and best practices."
+description: "Use when building UI with shadcn/ui — discovering, installing, or customizing components (Radix UI or Base UI + Tailwind), configuring components.json, building forms/dialogs/tables, or troubleshooting import or style conflicts."
 globs: ".claude/skills/shadcn-ui/**"
 alwaysApply: false
 ---
 
 # shadcn-ui
 
-Expert guidance for integrating and building applications with shadcn/ui components, including component discovery, installation, customization, and best practices.
+Use when building UI with shadcn/ui — discovering, installing, or customizing components (Radix UI or Base UI + Tailwind), configuring components.json, building forms/dialogs/tables, or troubleshooting import or style conflicts.
 
 <!-- Auto-generated from .claude/skills/shadcn-ui/SKILL.md -->
 <!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->

@@ -1,6 +1,6 @@
 ---
 name: test-isolate-ambient
-description: Use before verifying Manifest deploy, hook, or installer behaviour — a pass against your real ~/.claude, real settings.json, or the checked-out repo proves nothing, because the ambient state IS the fixture. Ready-made isolation handles (TARGET_DIR, ISSUE_HOOKS_SETTINGS, throwaway clone) plus the rule for making the varying thing vary.
+description: Use before verifying Manifest deploy, hook, or installer behaviour — a pass against your real ~/.claude, settings.json, or checked-out repo proves nothing; the ambient state IS the fixture. Provides isolation handles (TARGET_DIR, ISSUE_HOOKS_SETTINGS, throwaway clone) and the rule for making the varying thing vary.
 ---
 
 # Isolate Ambient State Before Verifying

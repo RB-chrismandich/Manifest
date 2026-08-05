@@ -1,6 +1,6 @@
 ---
 name: spec-amend
-description: Record design-pass findings that are upstream spec gaps, then land them as normative spec edits.
+description: "Use when a design pass finds a spec gap: record it, then land as a normative spec edit."
 version: 0.1.0
 ---
 

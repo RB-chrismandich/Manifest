@@ -113,8 +113,3 @@ Every action appends a redacted `audit_log.sh` record (FR-021/022).
 - The merge gate's safety logic is unit-tested offline (`tests/bats/merge_decision.bats`,
   `verification_gate.bats`, `loop_lock.bats`, `pr_merge_loop.bats`) — the irreversible merge
   is a tested decision, not prose.
-
-- Dependency-blocked issues are detected and tagged `blocked-dependency` by
-  `next-issue`; you never see them.
-- This skill writes code (allowed tools include Edit/Write); keep diffs scoped to
-  the selected issue.

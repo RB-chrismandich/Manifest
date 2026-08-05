@@ -1,6 +1,6 @@
 ---
 name: metrics-report
-description: "Visualize agent efficiency metrics: task completion rates, common error patterns, consensus scores, and model usage distribution. Reads from .claude/.agent_outputs/ logs and outputs markdown tables and summaries."
+description: "Use when the user wants agent-efficiency metrics — completion rates, error patterns, consensus scores, model usage — visualized from ~/.claude/.agent_outputs/ logs as markdown dashboard tables (\"agent dashboard\", \"metrics report\")."
 ---
 
 # Dashboard Skill

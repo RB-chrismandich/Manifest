@@ -1,6 +1,6 @@
 ---
 name: spec-review
-description: Cross-reference spec/plan/tasks artifacts for internal consistency via the parallel-agent panel (excluding the author); deduped findings list. Analysis-only, never edits. Speckit and superpowers layouts; auto-discovers or takes explicit paths.
+description: Use before finalizing spec/plan/tasks — cross-reference for internal consistency via the parallel-agent panel (excluding the author), deduped findings. Analysis-only, never edits. Speckit/superpowers; auto-discovers or explicit paths.
 ---
 
 # Spec Review (parallel-agent cross-reference)

@@ -34,60 +34,16 @@ This skill enables you to create walkthrough videos that showcase app screens wi
 
 ## Retrieval and Networking
 
-### Step 1: Discover Available MCP Servers
+Start by running `list_tools` to find the Stitch and Remotion MCP prefixes (`stitch:`/`mcp_stitch:` and `remotion:`/`mcp_remotion:`) — every later call needs the correct prefix, so resolve this first.
 
-Run `list_tools` to identify available MCP servers and their prefixes:
+**Gather the Stitch project.** If no Project ID is given, call `[stitch_prefix]:list_projects` with `filter: "view=owned"` and match by title (e.g., "Calculator App"), extracting the ID from the `name` field (e.g., `projects/13534454087919359824`). Then call `[stitch_prefix]:list_screens` with that project ID to enumerate every screen and its Screen ID. For each screen, call `[stitch_prefix]:get_screen` to retrieve `screenshot.downloadUrl`, optionally `htmlCode.downloadUrl` for text extraction, `width`/`height` for scaling, and the title/description for overlays. Download each screenshot with `web_fetch` or `curl`, saving to `assets/screens/{screen-name}.png` in walkthrough order — assets must be gathered before the manifest can be built (see Execution Steps below).
 
-- **Stitch MCP**: Look for `stitch:` or `mcp_stitch:` prefix
-- **Remotion MCP**: Look for `remotion:` or `mcp_remotion:` prefix
+**Set up the Remotion project.** Check for an existing `remotion.config.ts` or Remotion dependencies in `package.json` and reuse that structure if present. Otherwise scaffold a new project with `npm create video@latest -- --blank`, choosing the TypeScript template and placing it in a dedicated `video/` directory, then install transition/animation dependencies:
 
-### Step 2: Retrieve Stitch Project Information
-
-1. **Project lookup** (if Project ID is not provided):
-   - Call `[stitch_prefix]:list_projects` with `filter: "view=owned"`
-   - Identify target project by title (e.g., "Calculator App")
-   - Extract Project ID from `name` field (e.g., `projects/13534454087919359824`)
-
-2. **Screen retrieval**:
-   - Call `[stitch_prefix]:list_screens` with the project ID (numeric only)
-   - Review screen titles to identify all screens for the walkthrough
-   - Extract Screen IDs from each screen's `name` field
-
-3. **Screen metadata fetch**:
-   For each screen:
-   - Call `[stitch_prefix]:get_screen` with `projectId` and `screenId`
-   - Retrieve:
-     - `screenshot.downloadUrl` — Visual asset for the video
-     - `htmlCode.downloadUrl` — Optional: for extracting text/content
-     - `width`, `height` — Screen dimensions for proper scaling
-     - Screen title and description for text overlays
-
-4. **Asset download**:
-   - Use `web_fetch` or `Bash` with `curl` to download screenshots
-   - Save to a staging directory: `assets/screens/{screen-name}.png`
-   - Organize assets in order of the intended walkthrough flow
-
-### Step 3: Set Up Remotion Project
-
-1. **Check for existing Remotion project**:
-   - Look for `remotion.config.ts` or `package.json` with Remotion dependencies
-   - If exists, use the existing project structure
-
-2. **Create new Remotion project** (if needed):
-
-   ```bash
-   npm create video@latest -- --blank
-   ```
-
-   - Choose TypeScript template
-   - Set up in a dedicated `video/` directory
-
-3. **Install dependencies**:
-
-   ```bash
-   cd video
-   npm install @remotion/transitions @remotion/animated-emoji
-   ```
+```bash
+cd video
+npm install @remotion/transitions @remotion/animated-emoji
+```
 
 ## Video Composition Strategy
 
@@ -141,13 +97,7 @@ Add contextual information using Remotion's text rendering:
 
 ## Execution Steps
 
-### Step 1: Gather Screen Assets
-
-1. Identify target Stitch project
-2. List all screens in the project
-3. Download screenshots for each screen
-4. Organize in order of walkthrough flow
-5. Create a manifest file (`screens.json`):
+With assets gathered in the Retrieval and Networking phase above, build the manifest and components. Create a manifest file (`screens.json`) describing each screen in walkthrough order:
 
 ```json
 {
@@ -175,7 +125,7 @@ Add contextual information using Remotion's text rendering:
 }
 ```
 
-### Step 2: Generate Remotion Components
+### Generating Remotion Components
 
 Create the video components following Remotion best practices:
 
@@ -201,43 +151,19 @@ Create the video components following Remotion best practices:
 - Follow `resources/composition-checklist.md` for completeness
 - Review examples in `examples/` directory
 
-### Step 3: Preview and Refine
+### Previewing and Refining
 
-1. **Start Remotion Studio**:
+Start Remotion Studio (`npm run dev`) for a browser-based, real-time preview — always preview before rendering, since timing and transition issues are much cheaper to catch here. Adjust each screen's display duration, verify transitions are smooth, check text overlay timing, and fine-tune spring configurations and easing until the motion feels natural and text stays readable throughout.
 
-   ```bash
-   npm run dev
-   ```
+### Rendering the Video
 
-   - Opens browser-based preview
-   - Allows real-time editing and refinement
+Once the preview looks right, render with the Remotion CLI:
 
-2. **Adjust timing**:
-   - Ensure each screen has appropriate display duration
-   - Verify transitions are smooth
-   - Check text overlay timing
+```bash
+npx remotion render WalkthroughComposition output.mp4
+```
 
-3. **Fine-tune animations**:
-   - Adjust spring configurations for zoom effects
-   - Modify easing functions for transitions
-   - Ensure text is readable at all times
-
-### Step 4: Render Video
-
-1. **Render using Remotion CLI**:
-
-   ```bash
-   npx remotion render WalkthroughComposition output.mp4
-   ```
-
-2. **Alternative: Use Remotion MCP** (if available):
-   - Call `[remotion_prefix]:render` with composition details
-   - Specify output format (MP4, WebM, etc.)
-
-3. **Optimization options**:
-   - Set quality level (`--quality`)
-   - Configure codec (`--codec h264` or `h265`)
-   - Enable parallel rendering (`--concurrency`)
+Or call `[remotion_prefix]:render` via the Remotion MCP if available, specifying the output format (MP4, WebM, etc.). Tune quality (`--quality`), codec (`--codec h264` or `h265`), and parallelism (`--concurrency`) as needed.
 
 ## Advanced Features
 
@@ -368,10 +294,12 @@ Show step-by-step user journey:
 
 1. **Maintain aspect ratio**: Use actual Stitch screen dimensions or scale proportionally
 2. **Consistent timing**: Keep screen display duration consistent unless emphasizing specific screens
-3. **Readable text**: Ensure sufficient contrast; use appropriate font sizes; avoid cluttered overlays
+3. **Readable and accessible text**: Ensure sufficient contrast and appropriate font sizes, avoid cluttered overlays, and add captions for accessibility
 4. **Smooth transitions**: Use spring animations for natural motion; avoid jarring cuts
-5. **Preview thoroughly**: Always preview in Remotion Studio before final render
-6. **Optimize assets**: Compress images appropriately; use efficient formats (PNG for UI, JPG for photos)
+5. **Preview in Remotion Studio frequently**: Catch timing, transition, and readability issues early, and always preview before the final render
+6. **Start simple, follow Remotion patterns**: Begin with basic fade transitions before layering in complex animations; lean on Remotion's official skills and docs
+7. **Use manifest files**: Keep screen data organized in `screens.json` for easy updates
+8. **Optimize assets and output**: Compress images appropriately (PNG for UI, JPG for photos) and match video dimensions to the target platform
 
 ## Example Usage
 
@@ -392,15 +320,6 @@ that shows a walkthrough of the screens.
 6. Preview in Remotion Studio → Refine timing and transitions
 7. Render final video → `calculator-walkthrough.mp4`
 8. Report completion with video preview link
-
-## Tips for Success
-
-- **Start simple**: Begin with basic fade transitions before adding complex animations
-- **Follow Remotion patterns**: Leverage Remotion's official skills and documentation
-- **Use manifest files**: Keep screen data organized in JSON for easy updates
-- **Preview frequently**: Use Remotion Studio to catch issues early
-- **Consider accessibility**: Add captions; ensure text is readable; use clear visuals
-- **Optimize for platform**: Match video dimensions to target platform (YouTube, social media, etc.)
 
 ## References
 

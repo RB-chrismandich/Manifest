@@ -1,6 +1,6 @@
 ---
 name: design-loop
-description: Orchestrate a full spec-first UI design pass — scaffold, prompt, generate, verify, review, amend.
+description: Use when kicking off or resuming a full adversarial, spec-first UI design pass — scaffolds artifacts, drives generation through review rounds until every lens approves, and routes spec gaps back upstream. Entry point orchestrating the adversarial-design-loop sibling skills end to end.
 version: 0.1.0
 ---
 

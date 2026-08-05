@@ -81,7 +81,7 @@ class TestMeasureApiClaude:
             result = await measure_api_claude(
                 prompt_text="What is 2+2?",
                 system_prompt="",
-                model="claude-sonnet-4-6",
+                model="claude-sonnet-5",
             )
 
         assert result["input_tokens"] == 312
@@ -96,7 +96,7 @@ class TestMeasureApiClaude:
             patch("tests.token_benchmark.harness.HAS_ANTHROPIC", True),
             patch.dict(os.environ, env, clear=True),
         ):
-            result = await measure_api_claude("prompt", "", "claude-sonnet-4-6")
+            result = await measure_api_claude("prompt", "", "claude-sonnet-5")
         assert result["error"] is not None
         assert result["input_tokens"] is None
 
@@ -114,7 +114,7 @@ class TestMeasureApiClaude:
             ),
             patch.dict(os.environ, {"ANTHROPIC_API_KEY": "test-key"}),
         ):
-            await measure_api_claude("prompt", "SYSTEM CONTEXT", "claude-sonnet-4-6")
+            await measure_api_claude("prompt", "SYSTEM CONTEXT", "claude-sonnet-5")
 
         call_kwargs = mock_client.messages.create.call_args.kwargs
         assert call_kwargs["system"] == "SYSTEM CONTEXT"
@@ -493,7 +493,7 @@ class TestComputeCost:
             "cache_creation_tokens": None,
             "cache_read_tokens": None,
         }
-        cost = compute_cost(record, "claude-sonnet-4-6")
+        cost = compute_cost(record, "claude-sonnet-5")
         # 1000 * 3.00/1e6 + 100 * 15.00/1e6 = 0.003 + 0.0015 = 0.0045
         assert abs(cost - 0.0045) < 1e-8
 
@@ -507,12 +507,40 @@ class TestComputeCost:
             "cache_creation_tokens": None,
             "cache_read_tokens": 800,
         }
-        cost = compute_cost(record, "claude-sonnet-4-6")
+        cost = compute_cost(record, "claude-sonnet-5")
         # non-cache input: (1000-800) * 3.00/1e6 = 0.0006
         # cache read: 800 * 0.30/1e6 = 0.00024
         # output: 100 * 15.00/1e6 = 0.0015
         # total = 0.00234
         assert abs(cost - 0.00234) < 1e-8
+
+    def test_compute_cost_sonnet_4_6_still_costed(self):
+        """Back-compat: explicit --claude-model claude-sonnet-4-6 runs must keep
+        a non-null cost_usd, not silently vanish from the cost summary."""
+        from tests.token_benchmark.harness import compute_cost
+
+        record = {
+            "input_tokens": 1000,
+            "output_tokens": 100,
+            "cache_creation_tokens": None,
+            "cache_read_tokens": None,
+        }
+        cost = compute_cost(record, "claude-sonnet-4-6")
+        assert cost is not None
+        assert abs(cost - 0.0045) < 1e-8
+
+    def test_default_claude_model_has_pricing(self):
+        """The run_benchmark default model must always have a PRICING entry,
+        so compute_cost never silently returns None for default runs."""
+        import inspect
+
+        from tests.token_benchmark.harness import PRICING, run_benchmark
+
+        default_model = (
+            inspect.signature(run_benchmark).parameters["claude_model"].default
+        )
+        assert default_model == "claude-sonnet-5"
+        assert default_model in PRICING
 
 
 class TestMeasureApiClaudeCaching:
@@ -537,7 +565,7 @@ class TestMeasureApiClaudeCaching:
             patch.dict(os.environ, {"ANTHROPIC_API_KEY": "test-key"}),
         ):
             result = await measure_api_claude(
-                "What is 2+2?", "SYSTEM", "claude-sonnet-4-6", use_cache=True
+                "What is 2+2?", "SYSTEM", "claude-sonnet-5", use_cache=True
             )
 
         call_kwargs = mock_client.messages.create.call_args.kwargs
@@ -651,7 +679,7 @@ class TestSyncFixturesScrubsPii:
 
         src = tmp_path / "home"
         (src / ".claude").mkdir(parents=True)
-        content = '{"model": "claude-sonnet-4-6"}'
+        content = '{"model": "claude-sonnet-5"}'
         (src / ".claude" / "settings.json").write_text(content)
 
         dst = tmp_path / "fixtures"

@@ -1,6 +1,6 @@
 ---
 name: ux-review
-description: Automated UX audit covering accessibility (WCAG 2.2), responsive design, performance budgets (Core Web Vitals), progressive enhancement, color contrast, keyboard navigation, and screen reader compatibility.
+description: "Automated UX audit of HTML, JSX, or TSX files: accessibility (WCAG 2.2), responsive design, Core Web Vitals, progressive enhancement, contrast, keyboard navigation, screen reader compatibility."
 ---
 
 # UX Review Skill

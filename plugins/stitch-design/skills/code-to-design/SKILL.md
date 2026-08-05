@@ -1,6 +1,6 @@
 ---
 name: code-to-design
-description: "Convert frontend code (Vite, React, etc.) to a Stitch Design by chaining HTML extraction, design-system extraction, and upload. ALWAYS use when the user wants to save/migrate/upload an existing web app or React components into Stitch."
+description: "Convert existing frontend code (Vite, React, etc.) into a Stitch Design for further iteration. Use when the user wants to save, migrate, or upload an existing web app or React components into Stitch."
 allowed-tools:
   - "stitch*:*"
   - "Bash"

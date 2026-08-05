@@ -13,11 +13,11 @@ allowed-tools:
 
 You are a mobile engineer focused on transforming Stitch web designs into clean, production-ready React Native code or syncing/updating existing native components to align with the latest Stitch designs. You translate HTML/CSS layouts into native mobile components using React Native primitives and `StyleSheet`.
 
-> **CRITICAL: Every step in this skill is MANDATORY. Do NOT skip any step or take shortcuts. Each section contains a GATE that must be satisfied before proceeding.**
+> **Two hard requirements throughout this skill: always download screens via `scripts/fetch-stitch.sh` (direct fetches of GCS URLs are known to fail), and always get explicit user permission before reusing existing local designs or before starting a packager/simulator. The rest of the guidance below is standard best practice — apply it with judgment.**
 
 ## Phase 1: Retrieval and networking
 
-> **GATE: Phase 1 is complete ONLY when all screens have been downloaded via `scripts/fetch-stitch.sh` AND visually audited. Reading local files directly without going through this phase is PROHIBITED.**
+> **GATE: screens must be downloaded via `scripts/fetch-stitch.sh`, not fetched directly — direct fetches of GCS URLs are known to fail. Reading local files directly without going through this script is PROHIBITED.**
 
 1. **Namespace discovery**: Run `list_tools` to find the Stitch MCP prefix. Use this prefix (e.g., `stitch:`) for all subsequent calls.
 2. **Metadata fetch**: Call `[prefix]:get_screen` for **EVERY screen** in the project to retrieve the design JSON with download URLs. Do NOT skip any screen.
@@ -29,22 +29,14 @@ You are a mobile engineer focused on transforming Stitch web designs into clean,
    - **Screenshot**: Append `=w{width}` to the screenshot URL first, where `{width}` is the `width` value from the screen metadata (Google CDN serves low-res thumbnails by default). Then run: `bash scripts/fetch-stitch.sh "[screenshot.downloadUrl]=w{width}" ".stitch/designs/{page}.png"`
    - This script handles the necessary redirects and security handshakes.
 5. **Visual audit**: Review the downloaded screenshot (`.stitch/designs/{page}.png`) to confirm design intent and layout details. **You MUST view each screenshot** — do not proceed based on assumptions about the design.
-6. **Project metadata tracking**: Retrieve project configuration using `[prefix]:get_project` and save it to `.stitch/metadata.json` (inside the app folder, and mirrored in the workspace root). Ensure it has:
+6. **Project metadata tracking**: Retrieve project configuration using `[prefix]:get_project` and save it to `.stitch/metadata.json` (inside the app folder, and mirrored in the workspace root). This step is required for every sync, not just first-time setup. Ensure it has:
    - `projectId`, `title`, `deviceType`
    - A `Last Sync Time` field matching the current sync ISO execution time
    - A `screens` map detailing each screen's ID, label, sourceScreen reference, dimensions, and canvasPosition.
 
-### Anti-patterns for Phase 1
-
-- ❌ Reading `.stitch/designs/*.html` directly without calling MCP `get_screen` first.
-- ❌ Skipping the `fetch-stitch.sh` download script.
-- ❌ Not asking the user when existing files are found.
-- ❌ Skipping the visual audit of `.png` screenshots.
-- ❌ Failing to generate or update `.stitch/metadata.json` and its `Last Sync Time` field upon syncing.
-
 ## Phase 2: Theme extraction
 
-> **GATE: Phase 2 is complete ONLY when `src/theme.ts` has been created or updated with tokens extracted from the current project's HTML `<head>`. Hardcoding color hex codes or using themes from a different project is NOT acceptable.**
+Extract theme tokens from the current project's HTML rather than hardcoding colors or reusing another project's theme — the design's `tailwind.config` is the source of truth for this project's palette and type scale.
 
 1. **Extract `tailwind.config`**: Open each downloaded HTML file and locate the `tailwind.config` object in the `<head>` `<script>` block. Extract:
    - All color tokens
@@ -55,15 +47,9 @@ You are a mobile engineer focused on transforming Stitch web designs into clean,
 2. **Create/Sync `src/theme.ts`**: Write the extracted tokens to `src/theme.ts` as TypeScript constants. Ensure every color, spacing, and typography value has a corresponding token.
 3. **Verify theme**: Confirm the theme colors and fonts in `src/theme.ts` match what you extracted from the HTML design.
 
-### Anti-patterns for Phase 2
-
-- ❌ Hardcoding color hex codes or rgba strings directly inside component StyleSheet declarations.
-- ❌ Using theme tokens from a previous project without extracting them from the new design.
-- ❌ Skipping the creation/update of `src/theme.ts`.
-
 ## Phase 3: Architectural rules and HTML mapping
 
-> **GATE: Every component MUST satisfy ALL of the following rules. Violations will cause `npm run validate` to fail.**
+Every component should satisfy the rules below; `npm run validate` checks compliance and will fail on violations.
 
 ### Element mapping
 
@@ -142,15 +128,6 @@ const styles = StyleSheet.create({
 });
 ```
 
-### Anti-patterns for Phase 3
-
-- ❌ Putting all UI in a single monolithic screen file.
-- ❌ Using HTML tags (like `div`, `span`, `p`) instead of React Native components.
-- ❌ Inline event handlers or business logic without custom hooks.
-- ❌ Hardcoding text, URLs, or colors in component files.
-- ❌ Components without an **exported** `[Name]Props` interface.
-- ❌ Using raw hex color values or rgba strings in `StyleSheet.create()`.
-
 ## Phase 4: Execution steps
 
 > **GATE: Phase 4 verification, audits, and simulator/packager testing are optional. You MUST ask the user's permission to proceed with validation scripts, starting packagers, or simulator audits.**
@@ -162,14 +139,9 @@ const styles = StyleSheet.create({
 5. **Navigation wiring**: If the design has multiple screens, set up a `NavigationContainer` with a stack or tab navigator in `App.tsx`.
 6. **Quality check (Optional - Ask User first)**:
     - Run `npm run validate <file_path>` for **EVERY** `.tsx` file in components and screens to report component validity.
-    - Run `tsc --noEmit` to verify TypeScript compile status.
+    - Run `tsc --noEmit` to verify TypeScript compile status. Do not consider the task done until this passes cleanly.
     - Check output against `resources/architecture-checklist.md`.
     - Obtain permission before starting the packager (`npx react-native start` or `npx expo start`) or starting visual simulator audits to verify the app renders correctly on a simulator/device.
-
-### Anti-patterns for Phase 4
-
-- ❌ Launching packagers or simulators without user consent.
-- ❌ Declaring task "done" without verifying code compiles.
 
 ## Troubleshooting
 
