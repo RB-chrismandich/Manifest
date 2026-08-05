@@ -9,3 +9,8 @@ setup() {
     --inspection "$REPO_ROOT/tests/fixtures/plugin_capability_inspection.json"
   [ "$status" -eq 0 ]
 }
+
+@test "all production adapters complete response-driven isolated-home lifecycles" {
+  run uv run pytest "$REPO_ROOT/tests/python/manifest_agent/test_native_adapter_integration.py" -q
+  [ "$status" -eq 0 ]
+}

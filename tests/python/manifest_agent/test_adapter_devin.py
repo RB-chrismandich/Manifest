@@ -152,7 +152,7 @@ def install_results(
     missing_skill: str | None = None,
 ) -> list[CommandResult]:
     return (
-        [command()] * 9
+        [command()] * len(DOMAIN_BUNDLES)
         + [command(stdout=list_text())]
         + [
             command(
@@ -184,12 +184,12 @@ def test_devin_installs_and_verifies_local_bundle_views(
     result = DevinAdapter(runner=runner, which=lambda name: name).install(desired)
 
     assert result.state is ResultState.READY
-    assert runner.log[:9] == [
+    assert runner.log[: len(DOMAIN_BUNDLES)] == [
         ["devin", "plugins", "install", str(desired.bundle_path(name)), "--yes"]
         for name in DOMAIN_BUNDLES
     ]
-    assert runner.log[9] == ["devin", "plugins", "list"]
-    assert runner.log[10:] == [
+    assert runner.log[len(DOMAIN_BUNDLES)] == ["devin", "plugins", "list"]
+    assert runner.log[len(DOMAIN_BUNDLES) + 1 :] == [
         ["devin", "plugins", "info", name] for name in DOMAIN_BUNDLES
     ]
     assert all(".claude" not in part for row in runner.log for part in row)
@@ -278,10 +278,10 @@ def test_devin_rejects_invalid_generic_view_before_mutation(
 def test_devin_native_errors_are_redacted_and_aggregated(
     desired: DesiredState,
 ) -> None:
-    installs = [command()] * 9
+    installs = [command()] * len(DOMAIN_BUNDLES)
     installs[1] = command(returncode=1, stderr="--token devin-native-secret rejected")
     installs[6] = command(returncode=1, stderr="second install failed")
-    runner = QueueRunner(installs + install_results(desired)[9:])
+    runner = QueueRunner(installs + install_results(desired)[len(DOMAIN_BUNDLES) :])
 
     result = DevinAdapter(runner=runner, which=lambda name: name).install(desired)
 
@@ -297,7 +297,7 @@ def test_devin_uninstall_prunes_only_after_owned_removal_and_preserves_unowned()
     unowned = "other-team-plugin"
     runner = QueueRunner(
         [command(stdout=list_text((*DOMAIN_BUNDLES, unowned)))]
-        + [command()] * 9
+        + [command()] * len(DOMAIN_BUNDLES)
         + [command(stdout=list_text((unowned,)))]
         + [command()]
         + [command(stdout=list_text((unowned,)))]
@@ -316,7 +316,7 @@ def test_devin_uninstall_prunes_only_after_owned_removal_and_preserves_unowned()
 
     assert result.state is ResultState.READY
     assert runner.log[0] == ["devin", "plugins", "list"]
-    assert runner.log[1:10] == [
+    assert runner.log[1 : len(DOMAIN_BUNDLES) + 1] == [
         ["devin", "plugins", "remove", name] for name in DOMAIN_BUNDLES
     ]
     assert runner.log[-3:] == [
@@ -327,7 +327,7 @@ def test_devin_uninstall_prunes_only_after_owned_removal_and_preserves_unowned()
 
 
 def test_devin_uninstall_skips_prune_after_any_owned_remove_failure() -> None:
-    removals = [command()] * 9
+    removals = [command()] * len(DOMAIN_BUNDLES)
     removals[3] = command(returncode=1, stderr="remove failed")
     runner = QueueRunner(
         [
@@ -350,7 +350,7 @@ def test_devin_uninstall_refuses_prune_when_unowned_preservation_is_unverified()
     unowned = "other-team-plugin"
     runner = QueueRunner(
         [command(stdout=list_text((*DOMAIN_BUNDLES, unowned)))]
-        + [command()] * 9
+        + [command()] * len(DOMAIN_BUNDLES)
         + [command(stdout=list_text())]
     )
     receipt = HarnessReceipt("devin", "1", "3000.2.17", DOMAIN_BUNDLES, (), {}, True)
@@ -398,7 +398,7 @@ def test_devin_uninstall_parses_documented_table_inventory_variants() -> None:
 
     assert result.state is ResultState.READY
     assert runner.log[0] == ["devin", "plugins", "list"]
-    assert runner.log[1:10] == [
+    assert runner.log[1 : len(DOMAIN_BUNDLES) + 1] == [
         ["devin", "plugins", "remove", name] for name in DOMAIN_BUNDLES
     ]
     assert runner.log[-3:] == [

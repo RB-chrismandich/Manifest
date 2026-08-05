@@ -141,7 +141,7 @@ def test_gemini_installs_each_bundle_from_verified_release(
     desired: DesiredState,
 ) -> None:
     runner = QueueRunner(
-        [command()] * 9
+        [command()] * len(DOMAIN_BUNDLES)
         + [command(stdout=extensions_json(desired)), command(stdout=skills_text())]
     )
     adapter = GeminiAdapter(runner=runner, which=lambda name: name)
@@ -149,14 +149,15 @@ def test_gemini_installs_each_bundle_from_verified_release(
     result = adapter.install(desired)
 
     assert result.state is ResultState.READY
-    assert [row[:3] for row in runner.log[:9]] == [
+    assert [row[:3] for row in runner.log[: len(DOMAIN_BUNDLES)]] == [
         ["gemini", "extensions", "install"]
-    ] * 9
-    assert [row[3] for row in runner.log[:9]] == [
+    ] * len(DOMAIN_BUNDLES)
+    assert [row[3] for row in runner.log[: len(DOMAIN_BUNDLES)]] == [
         str(desired.bundle_path(name)) for name in DOMAIN_BUNDLES
     ]
     assert all(
-        "--consent" in row and "--skip-settings" in row for row in runner.log[:9]
+        "--consent" in row and "--skip-settings" in row
+        for row in runner.log[: len(DOMAIN_BUNDLES)]
     )
     assert all("--auto-update" not in row for row in runner.log)
     assert runner.log[-2:] == [

@@ -200,7 +200,7 @@ def test_detection_reports_absent_cli_explicitly() -> None:
     assert detection.reason == "codex CLI not present"
 
 
-def test_codex_local_release_omits_ref_and_installs_nine_plugins(
+def test_codex_local_release_omits_ref_and_installs_canonical_plugins(
     desired: DesiredState,
 ) -> None:
     marketplace = command(
@@ -427,7 +427,7 @@ def test_codex_uninstall_retains_marketplace_for_unowned_plugin() -> None:
     result = CodexAdapter(runner=runner, which=lambda name: name).uninstall(receipt)
 
     assert result.state is ResultState.READY
-    assert all(row[-1] == "--json" for row in runner.log[:9])
+    assert all(row[-1] == "--json" for row in runner.log[: len(DOMAIN_BUNDLES)])
     assert not any(
         row[1:4] == ["plugin", "marketplace", "remove"] for row in runner.log
     )

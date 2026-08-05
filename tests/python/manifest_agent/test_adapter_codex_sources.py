@@ -174,7 +174,7 @@ def test_native_codex_adapter_lifecycle_uses_an_isolated_home(tmp_path: Path) ->
     )
     removed = adapter.uninstall(receipt)
 
-    assert len(result.installed_plugin_ids) == 9
+    assert len(result.installed_plugin_ids) == len(DOMAIN_BUNDLES)
     assert result.state in {ResultState.READY, ResultState.DEGRADED, ResultState.BLOCKED}
     if result.state is ResultState.BLOCKED:
         assert result.errors

@@ -142,27 +142,29 @@ def test_antigravity_validates_all_bundles_before_link_and_install(
     desired: DesiredState,
 ) -> None:
     runner = QueueRunner(
-        [command()] * 9
+        [command()] * len(DOMAIN_BUNDLES)
         + [command()]
-        + [command()] * 9
+        + [command()] * len(DOMAIN_BUNDLES)
         + [command(stdout=inventory_json())]
     )
 
     result = AntigravityAdapter(runner=runner, which=lambda name: name).install(desired)
 
     assert result.state is ResultState.READY
-    assert runner.log[:9] == [
+    assert runner.log[: len(DOMAIN_BUNDLES)] == [
         ["agy", "plugin", "validate", str(desired.bundle_path(name))]
         for name in DOMAIN_BUNDLES
     ]
-    assert runner.log[9] == [
+    assert runner.log[len(DOMAIN_BUNDLES)] == [
         "agy",
         "plugin",
         "link",
         "manifest",
         str(desired.release_root),
     ]
-    assert runner.log[10:19] == [
+    assert runner.log[
+        len(DOMAIN_BUNDLES) + 1 : len(DOMAIN_BUNDLES) * 2 + 1
+    ] == [
         ["agy", "plugin", "install", f"{name}@manifest"] for name in DOMAIN_BUNDLES
     ]
     assert runner.log[-1] == ["agy", "plugin", "list"]
@@ -175,7 +177,7 @@ def test_antigravity_validates_all_bundles_before_link_and_install(
 def test_antigravity_validation_failure_blocks_every_mutation(
     desired: DesiredState,
 ) -> None:
-    validations = [command()] * 9
+    validations = [command()] * len(DOMAIN_BUNDLES)
     validations[2] = command(
         returncode=1, stderr="--token antigravity-native-secret rejected"
     )
@@ -185,7 +187,7 @@ def test_antigravity_validation_failure_blocks_every_mutation(
     result = AntigravityAdapter(runner=runner).install(desired)
 
     assert result.state is ResultState.BLOCKED
-    assert len(runner.log) == 9
+    assert len(runner.log) == len(DOMAIN_BUNDLES)
     assert all(row[1:3] == ["plugin", "validate"] for row in runner.log)
     assert "antigravity-native-secret" not in " ".join(result.errors)
     assert "[REDACTED]" in " ".join(result.errors)

@@ -154,13 +154,13 @@ def test_detection_reports_absent_cli_explicitly() -> None:
     assert detection.reason == "claude CLI not present"
 
 
-def test_claude_installs_marketplace_and_nine_user_plugins(
+def test_claude_installs_marketplace_and_canonical_user_plugins(
     desired: DesiredState,
 ) -> None:
     marketplace = command(stdout=marketplace_json(desired.marketplace_source.source))
     runner = QueueRunner(
         [command(), marketplace]
-        + [command()] * 9
+        + [command()] * len(DOMAIN_BUNDLES)
         + [marketplace, command(stdout=installed_json(desired))]
     )
     adapter = ClaudeAdapter(
@@ -209,7 +209,7 @@ def test_claude_published_release_uses_verified_extracted_marketplace(
     marketplace = command(stdout=marketplace_json(published.release_root))
     runner = QueueRunner(
         [command(), marketplace]
-        + [command()] * 9
+        + [command()] * len(DOMAIN_BUNDLES)
         + [marketplace, command(stdout=installed_json(published))]
     )
 
@@ -237,7 +237,7 @@ def test_already_present_is_idempotent_only_after_selected_version_inspection(
     marketplace = command(stdout=marketplace_json(desired.marketplace_source.source))
     runner = QueueRunner(
         [command(returncode=1, stderr="already present"), marketplace]
-        + [command(returncode=1, stderr="already installed")] * 9
+        + [command(returncode=1, stderr="already installed")] * len(DOMAIN_BUNDLES)
         + [marketplace, command(stdout=installed_json(desired))]
     )
 
@@ -450,7 +450,7 @@ def test_native_claude_adapter_lifecycle_uses_an_isolated_home(tmp_path: Path) -
     )
     removed = adapter.uninstall(receipt)
 
-    assert len(result.installed_plugin_ids) == 9
+    assert len(result.installed_plugin_ids) == len(DOMAIN_BUNDLES)
     # Native CLI versions may reject an adapter surface; that must remain an
     # explicit BLOCKED result rather than turning a developer smoke probe green.
     assert result.state in {ResultState.READY, ResultState.DEGRADED, ResultState.BLOCKED}
