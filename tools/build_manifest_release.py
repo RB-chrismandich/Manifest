@@ -28,6 +28,7 @@ from manifest_agent.models import BundleContract
 
 _COMMIT = re.compile(r"^[0-9a-f]{40}$")
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
+_GIT_OBJECT_ID = re.compile(r"^[0-9a-f]{40,64}$")
 _ARCHIVE_PREFIX = "manifest-plugins"
 _METADATA_NAME = "manifest-release.json"
 
@@ -44,6 +45,15 @@ class FileRecord:
     data: bytes
     mode: int
     sha256: str
+
+
+@dataclass(frozen=True)
+class TrackedBundleFile:
+    """A safe regular file selected from the immutable HEAD tree."""
+
+    path: str
+    object_id: str
+    mode: int
 
 
 @dataclass(frozen=True)
@@ -258,20 +268,23 @@ def _release_files(root: Path, marketplace: bytes) -> tuple[FileRecord, ...]:
             hashlib.sha256(marketplace).hexdigest(),
         )
     ]
+    tracked_files: list[TrackedBundleFile] = []
     for bundle_name in DOMAIN_BUNDLES:
         bundle = root / "plugins" / bundle_name
         if not bundle.is_dir():
             raise ReleaseBuildError(f"missing domain bundle directory: {bundle_name}")
-        for relative, path, mode in _tracked_bundle_files(root, bundle_name):
-            try:
-                data = path.read_bytes()
-            except OSError as error:
-                raise ReleaseBuildError(
-                    f"unable to read release input {relative}: {error}"
-                ) from error
-            records.append(
-                FileRecord(relative, data, mode, hashlib.sha256(data).hexdigest())
+        tracked_files.extend(_tracked_bundle_files(root, bundle_name))
+    blobs = _git_blob_bytes(root, tuple(tracked_files))
+    for tracked in tracked_files:
+        data = blobs[tracked.object_id]
+        records.append(
+            FileRecord(
+                tracked.path,
+                data,
+                tracked.mode,
+                hashlib.sha256(data).hexdigest(),
             )
+        )
     ordered = tuple(sorted(records, key=lambda record: record.path))
     if len({record.path for record in ordered}) != len(ordered):
         raise ReleaseBuildError("release file inventory contains duplicate paths")
@@ -280,7 +293,7 @@ def _release_files(root: Path, marketplace: bytes) -> tuple[FileRecord, ...]:
 
 def _tracked_bundle_files(
     root: Path, bundle_name: str
-) -> tuple[tuple[str, Path, int], ...]:
+) -> tuple[TrackedBundleFile, ...]:
     """Return only regular bundle blobs committed by the immutable HEAD."""
     try:
         completed = subprocess.run(
@@ -309,7 +322,7 @@ def _tracked_bundle_files(
         )
 
     prefix = ("plugins", bundle_name)
-    files: list[tuple[str, Path, int]] = []
+    files: list[TrackedBundleFile] = []
     for entry in completed.stdout.split(b"\0"):
         if not entry:
             continue
@@ -317,7 +330,7 @@ def _tracked_bundle_files(
         fields = metadata.split()
         if not separator or len(fields) != 3:
             raise ReleaseBuildError("unable to parse tracked release bundle files")
-        mode, object_type, _object_id = fields
+        mode, object_type, encoded_object_id = fields
         try:
             relative = encoded_path.decode("utf-8")
         except UnicodeDecodeError as error:
@@ -334,6 +347,12 @@ def _tracked_bundle_files(
             raise ReleaseBuildError(f"unsafe tracked release path: {relative}")
         if object_type != b"blob" or mode not in {b"100644", b"100755"}:
             raise ReleaseBuildError(f"unsupported tracked release entry: {relative}")
+        try:
+            object_id = encoded_object_id.decode("ascii")
+        except UnicodeDecodeError as error:
+            raise ReleaseBuildError("tracked release object ID is invalid") from error
+        if not _GIT_OBJECT_ID.fullmatch(object_id):
+            raise ReleaseBuildError("tracked release object ID is invalid")
         source = root.joinpath(*path_parts.parts)
         try:
             if source.is_symlink():
@@ -346,10 +365,68 @@ def _tracked_bundle_files(
             raise ReleaseBuildError(
                 f"unable to inspect release input {relative}: {error}"
             ) from error
-        files.append((relative, source, 0o755 if mode == b"100755" else 0o644))
+        files.append(
+            TrackedBundleFile(
+                relative,
+                object_id,
+                0o755 if mode == b"100755" else 0o644,
+            )
+        )
     if not files:
         raise ReleaseBuildError(f"domain bundle has no tracked files: {bundle_name}")
-    return tuple(sorted(files, key=lambda item: item[0]))
+    return tuple(sorted(files, key=lambda item: item.path))
+
+
+def _git_blob_bytes(
+    root: Path, tracked_files: tuple[TrackedBundleFile, ...]
+) -> dict[str, bytes]:
+    """Read selected HEAD blobs in one stream, never from the mutable checkout."""
+    object_ids = tuple(file.object_id for file in tracked_files)
+    try:
+        completed = subprocess.run(
+            ("git", "-C", str(root), "cat-file", "--batch"),
+            check=False,
+            capture_output=True,
+            input=("\n".join(object_ids) + "\n").encode("ascii"),
+        )
+    except OSError as error:
+        raise ReleaseBuildError("unable to read tracked release input blobs") from error
+    if completed.returncode != 0:
+        detail = completed.stderr.decode(errors="replace").strip()
+        raise ReleaseBuildError(f"unable to read tracked release input blobs: {detail}")
+
+    blobs: dict[str, bytes] = {}
+    offset = 0
+    for tracked in tracked_files:
+        header_end = completed.stdout.find(b"\n", offset)
+        if header_end < 0:
+            raise ReleaseBuildError("unable to parse tracked release input blobs")
+        header = completed.stdout[offset:header_end].split()
+        offset = header_end + 1
+        if len(header) != 3:
+            raise ReleaseBuildError("unable to parse tracked release input blobs")
+        object_id, object_type, encoded_size = header
+        try:
+            size = int(encoded_size)
+        except ValueError as error:
+            raise ReleaseBuildError(
+                "unable to parse tracked release input blobs"
+            ) from error
+        if (
+            object_id.decode("ascii", errors="replace") != tracked.object_id
+            or object_type != b"blob"
+            or size < 0
+            or offset + size >= len(completed.stdout)
+        ):
+            raise ReleaseBuildError("unable to parse tracked release input blobs")
+        blobs[tracked.object_id] = completed.stdout[offset : offset + size]
+        offset += size
+        if completed.stdout[offset : offset + 1] != b"\n":
+            raise ReleaseBuildError("unable to parse tracked release input blobs")
+        offset += 1
+    if offset != len(completed.stdout):
+        raise ReleaseBuildError("unable to parse tracked release input blobs")
+    return blobs
 
 
 def _write_archive(

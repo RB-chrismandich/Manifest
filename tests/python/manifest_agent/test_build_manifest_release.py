@@ -11,6 +11,7 @@ from pathlib import Path
 
 import pytest
 
+import tools.build_manifest_release as release_builder
 from manifest_agent.contracts import DOMAIN_BUNDLES
 from tools.build_manifest_release import ReleaseBuildError, build_release
 
@@ -211,6 +212,40 @@ def test_ignored_bundle_file_is_not_packaged(repo_root: Path, tmp_path: Path) ->
     assert ignored_path not in metadata["files"]
     with tarfile.open(release.archive, mode="r:gz") as bundle:
         assert all(not member.name.endswith(ignored_path) for member in bundle)
+
+
+def test_release_reads_immutable_head_blobs_after_inventory(
+    repo_root: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    source = _clean_fixture(repo_root, tmp_path)
+    relative = "plugins/manifest-docs/manifest-capabilities.yml"
+    target = source / relative
+    expected = subprocess.run(
+        ("git", "-C", str(source), "show", f"HEAD:{relative}"),
+        check=True,
+        capture_output=True,
+    ).stdout
+    original = release_builder._tracked_bundle_files
+
+    def mutate_after_inventory(root: Path, bundle_name: str):
+        tracked = original(root, bundle_name)
+        if bundle_name == "manifest-docs":
+            target.write_text("tampered after inventory\n", encoding="utf-8")
+        return tracked
+
+    monkeypatch.setattr(
+        release_builder, "_tracked_bundle_files", mutate_after_inventory
+    )
+    release = release_builder.build_release(source, tmp_path / "output", _BASE_URL)
+
+    assert target.read_text(encoding="utf-8") == "tampered after inventory\n"
+    metadata = json.loads(release.metadata.read_text(encoding="utf-8"))
+    assert metadata["files"][relative]["sha256"] == hashlib.sha256(expected).hexdigest()
+    with tarfile.open(release.archive, mode="r:gz") as bundle:
+        member = bundle.getmember(f"manifest-plugins-0.2.0/{relative}")
+        payload = bundle.extractfile(member)
+        assert payload is not None
+        assert payload.read() == expected
 
 
 def test_rejects_invalid_domain_contract(repo_root: Path, tmp_path: Path) -> None:
