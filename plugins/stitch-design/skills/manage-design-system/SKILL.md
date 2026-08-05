@@ -33,19 +33,19 @@ Stitch MCP tools:
 
 ## 🧠 Synthesis from Description
 
-If you need to extract a design system from existing screens, use the
-**/stitch-design:design-md** skill.
+If you need to extract a design system from existing screens, use
+the `design-md` skill (this bundle).
 
 If there are no existing screens (new project), or the user provides a direct description (e.g., "dark theme, blue and purple, rounded, Inter font"):
 
-1. Map the user's vague terms to precise values using the design mappings (see **/stitch-design:design-md** or **generate-design** skill).
+1. Map the user's vague terms to precise values using the design mappings (see the `design-md` or `generate-design` skills).
 2. Select concrete hex codes, font families, and roundness values.
-3. Generate the `DESIGN.md` file (refer to **/stitch-design:design-md** for structure).
+3. Generate the `DESIGN.md` file (the `design-md` skill defines the structure).
 4. Proceed to the "Create or Update Design System in Stitch" step below.
 
 ## 📝 Output Structure
 
-The `DESIGN.md` file should follow the structure defined in the **/stitch-design:design-md** skill.
+The `DESIGN.md` file should follow the structure defined in the `design-md` skill (this bundle).
 
 ## 🚀 Create or Update Design System in Stitch
 
@@ -131,4 +131,4 @@ See [reference/tool-schema.md](reference/tool-schema.md) for the full
 
 ## 💡 Best Practices
 
-Refer to **/stitch-design:design-md** for best practices on describing design elements.
+Refer to the `design-md` skill for best practices on describing design elements.
