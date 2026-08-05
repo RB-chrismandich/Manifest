@@ -282,18 +282,11 @@ class ManifestService:
                 if observation_error is not None:
                     return None, observation_error
                 if installed:
-                    try:
-                        command = self.runner.run(
-                            ("uv", "tool", "uninstall", "graphifyy")
-                        )
-                    # constitution: exempt C-ERR -- native cleanup must block the upgrade.
-                    except Exception as exception:
-                        return None, diagnostic(exception)
-                    if command.returncode != 0:
-                        return None, redact_text(
-                            "legacy Graphify cleanup failed: "
-                            f"exit {command.returncode}: {command.stderr or command.stdout}"
-                        )
+                    return None, (
+                        "legacy Graphify installation remains after an interrupted "
+                        "cleanup; it may have been reinstalled, so remove it manually "
+                        "before retrying"
+                    )
             else:
                 # read_receipt validated every ownership HMAC before the journal was created.
                 try:

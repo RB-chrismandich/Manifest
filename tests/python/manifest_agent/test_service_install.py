@@ -525,6 +525,41 @@ def test_graphify_cleanup_checkpoint_failure_does_not_repeat_native_cleanup(
     assert service.runner.calls.count(("uv", "tool", "list", "--show-paths")) == 1
 
 
+def test_graphify_reinstall_after_checkpoint_failure_blocks_without_deletion(
+    monkeypatch, service_factory
+) -> None:
+    claude = FakeAdapter("claude", harness_result("claude"))
+    service = service_factory({"claude": claude}, harnesses=("claude",))
+    _write_legacy_graphify_receipt(service)
+    original_write = service_module.write_retired_graphify_transaction_atomic
+    failed = False
+
+    def fail_first_cleanup_checkpoint(path, transaction):
+        nonlocal failed
+        if transaction.phase == "cleanup-complete" and not failed:
+            failed = True
+            raise OSError("injected cleanup checkpoint failure")
+        original_write(path, transaction)
+
+    monkeypatch.setattr(
+        service_module,
+        "write_retired_graphify_transaction_atomic",
+        fail_first_cleanup_checkpoint,
+    )
+
+    first = service.install()
+    service.runner.tool_list_stdout = (
+        "graphifyy v0.9.2 (/private/user-reinstalled-graphify)\n"
+    )
+    second = service.install()
+
+    assert first.state is ResultState.BLOCKED
+    assert second.state is ResultState.BLOCKED
+    assert "may have been reinstalled" in second.errors[0]
+    assert service.runner.calls.count(("uv", "tool", "uninstall", "graphifyy")) == 1
+    assert service.runner.calls.count(("uv", "tool", "list", "--show-paths")) == 1
+
+
 def test_corrupt_graphify_transaction_blocks_before_native_cleanup(
     service_factory,
 ) -> None:
