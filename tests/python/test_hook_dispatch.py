@@ -48,7 +48,9 @@ def _isolated_env(tmp_path, **overrides):
 
 def _make_cached_skill(cache_root, bundle_skill, version, rel_path, content=""):
     bundle, skill = bundle_skill
-    target = cache_root / "some-marketplace" / bundle / version / "skills" / skill
+    # The marketplace resolution is scoped to. Was "some-marketplace", which
+    # quietly asserted that ANY marketplace could supply the script.
+    target = cache_root / "manifest" / bundle / version / "skills" / skill
     target.mkdir(parents=True, exist_ok=True)
     script = target / pathlib.Path(rel_path)
     script.parent.mkdir(parents=True, exist_ok=True)
@@ -136,9 +138,11 @@ def test_unresolvable_targets_fail_open_instead_of_blocking_the_tool_call(tmp_pa
 
 def test_resolved_targets_are_dispatched_with_stdin_forwarded(tmp_path):
     cache = tmp_path / "cache"
+    # "manifest", not an arbitrary marketplace name: resolution is scoped to the
+    # marketplace it was asked for, so a fixture elsewhere would never be found.
     unified_dir = (
         cache
-        / "mp"
+        / "manifest"
         / "manifest-workspace"
         / "0.1.0"
         / "skills"
@@ -151,7 +155,13 @@ def test_resolved_targets_are_dispatched_with_stdin_forwarded(tmp_path):
     unified.write_text("import sys\nprint(sys.stdin.read().strip())\n")
 
     handler_dir = (
-        cache / "mp" / "manifest-forge" / "0.1.0" / "skills" / "pr-monitor" / "scripts"
+        cache
+        / "manifest"
+        / "manifest-forge"
+        / "0.1.0"
+        / "skills"
+        / "pr-monitor"
+        / "scripts"
     )
     handler_dir.mkdir(parents=True)
     (handler_dir / "pr_create_trigger.py").write_text("")
@@ -221,7 +231,16 @@ def test_unreadable_cache_directory_fails_open_rather_than_raising(
     # monkeypatch only affects this process, so this exercises main()
     # in-process rather than through _run's subprocess.
     class RaisingPath:
-        """Stands in for a marketplace dir that vanishes mid-scan."""
+        """Stands in for a cache path that vanishes mid-scan.
+
+        Resolution now indexes `cache_root / marketplace / bundle` before
+        listing versions, so the stub has to survive `/` and still blow up on
+        the listing -- otherwise it would raise TypeError and "pass" for a
+        reason that has nothing to do with the fail-open guarantee.
+        """
+
+        def __truediv__(self, _other):
+            return self
 
         def is_dir(self):
             return True
@@ -240,3 +259,79 @@ def test_unreadable_cache_directory_fails_open_rather_than_raising(
     assert rc == 0
     payload = json.loads(capsys.readouterr().out)
     assert payload["hookSpecificOutput"]["permissionDecision"] == "allow"
+
+
+# --------------------------------------------------------------------------- #
+# Marketplace scoping of the cache fallback
+#
+# `_installed_plugin_dir` is scoped to bundle@marketplace, and its docstring
+# already warned that scanning the cache by bundle name alone "can't tell
+# Manifest's manifest-workspace apart from a same-named bundle in some other
+# configured marketplace". The fallback did exactly that: it iterated every
+# marketplace directory and picked the highest version number found. Whatever it
+# picked was then EXECUTED on every matching tool event.
+#
+# This machine has ten marketplaces cached, including transient temp_git_* dirs,
+# so the collision is not hypothetical.
+# --------------------------------------------------------------------------- #
+
+
+def _cache_skill_in(cache_root, marketplace, bundle, skill, version, rel_path, content):
+    target = cache_root / marketplace / bundle / version / "skills" / skill
+    target.mkdir(parents=True, exist_ok=True)
+    script = target / rel_path
+    script.write_text(content)
+    return script
+
+
+def test_a_foreign_marketplace_cannot_supply_the_script(tmp_path, monkeypatch):
+    """The core substitution: no Manifest install, a same-named bundle cached
+    elsewhere. Resolution must decline rather than execute the stranger."""
+    foreign = _cache_skill_in(
+        tmp_path, "someone-elses-marketplace", "b", "s", "9.9.9", "run.py", "foreign"
+    )
+    monkeypatch.setattr(mod, "PLUGIN_CACHE_ROOTS", [tmp_path])
+    monkeypatch.setattr(mod, "REPO_FALLBACKS", [])
+    monkeypatch.setattr(mod, "INSTALLED_PLUGINS_PATH", tmp_path / "absent.json")
+
+    result = mod.resolve_skill_script("b", "s", "run.py", marketplace="manifest")
+    assert result is None, f"resolved a foreign marketplace's script: {result}"
+    assert result != foreign
+
+
+def test_a_higher_foreign_version_does_not_outrank_the_right_marketplace(
+    tmp_path, monkeypatch
+):
+    """Version ordering must not reach across the trust boundary: 9.9.9 in the
+    wrong marketplace loses to 0.0.1 in the right one."""
+    _cache_skill_in(
+        tmp_path, "someone-elses-marketplace", "b", "s", "9.9.9", "run.py", "foreign"
+    )
+    ours = _cache_skill_in(tmp_path, "manifest", "b", "s", "0.0.1", "run.py", "ours")
+    monkeypatch.setattr(mod, "PLUGIN_CACHE_ROOTS", [tmp_path])
+    monkeypatch.setattr(mod, "REPO_FALLBACKS", [])
+    monkeypatch.setattr(mod, "INSTALLED_PLUGINS_PATH", tmp_path / "absent.json")
+
+    assert mod.resolve_skill_script("b", "s", "run.py", marketplace="manifest") == ours
+
+
+def test_a_stale_install_record_still_cannot_fall_through_to_a_stranger(
+    tmp_path, monkeypatch
+):
+    """The exact gap: installed_plugins.json present but its path is gone, so
+    resolution proceeds to the cache fallback."""
+    foreign = _cache_skill_in(
+        tmp_path, "someone-elses-marketplace", "b", "s", "9.9.9", "run.py", "foreign"
+    )
+    stale = tmp_path / "installed_plugins.json"
+    stale.write_text(
+        json.dumps(
+            {"plugins": {"b@manifest": [{"installPath": str(tmp_path / "gone")}]}}
+        )
+    )
+    monkeypatch.setattr(mod, "PLUGIN_CACHE_ROOTS", [tmp_path])
+    monkeypatch.setattr(mod, "REPO_FALLBACKS", [])
+    monkeypatch.setattr(mod, "INSTALLED_PLUGINS_PATH", stale)
+
+    result = mod.resolve_skill_script("b", "s", "run.py", marketplace="manifest")
+    assert result is None and result != foreign
