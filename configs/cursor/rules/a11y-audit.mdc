@@ -1,0 +1,15 @@
+---
+description: "Focused accessibility audit against WCAG 2.2 AA standards. Checks ARIA best practices, semantic HTML, focus management, color contrast, keyboard navigation, skip links, alt text, form labels, and error announcements."
+globs: ".claude/skills/a11y-audit/**"
+alwaysApply: false
+---
+
+# a11y-audit
+
+Focused accessibility audit against WCAG 2.2 AA standards. Checks ARIA best practices, semantic HTML, focus management, color contrast, keyboard navigation, skip links, alt text, form labels, and error announcements.
+
+<!-- Auto-generated from .claude/skills/a11y-audit/SKILL.md -->
+<!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
+
+Refer to `.cursor/skills/a11y-audit/SKILL.md` for the full skill definition.
+

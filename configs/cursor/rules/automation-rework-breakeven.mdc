@@ -1,0 +1,15 @@
+---
+description: "Use when deciding whether a more-thorough-but-costlier automation or skill version is worth it — separate correctness from cost, model net tokens as rework-avoided minus extra spend, and measure the rework cost empirically instead of assuming it."
+globs: ".claude/skills/automation-rework-breakeven/**"
+alwaysApply: false
+---
+
+# automation-rework-breakeven
+
+Use when deciding whether a more-thorough-but-costlier automation or skill version is worth it — separate correctness from cost, model net tokens as rework-avoided minus extra spend, and measure the rework cost empirically instead of assuming it.
+
+<!-- Auto-generated from .claude/skills/automation-rework-breakeven/SKILL.md -->
+<!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
+
+Refer to `.cursor/skills/automation-rework-breakeven/SKILL.md` for the full skill definition.
+

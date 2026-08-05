@@ -1,0 +1,15 @@
+---
+description: "Verify a load-bearing assumption before building on it. Use when a spec, skill, hook, parser, or config depends on an assumed CLI subcommand/flag, tool capability, env var, API response field/date semantics, or container image runtime contract."
+globs: ".claude/skills/premise-verify/**"
+alwaysApply: false
+---
+
+# premise-verify
+
+Verify a load-bearing assumption before building on it. Use when a spec, skill, hook, parser, or config depends on an assumed CLI subcommand/flag, tool capability, env var, API response field/date semantics, or container image runtime contract.
+
+<!-- Auto-generated from .claude/skills/premise-verify/SKILL.md -->
+<!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
+
+Refer to `.cursor/skills/premise-verify/SKILL.md` for the full skill definition.
+

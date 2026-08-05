@@ -1,0 +1,15 @@
+---
+description: "Use when writing or reviewing a health-check, status, validation, or CI gate that can SKIP verifying something (missing credential, unsupported provider, absent tool) — ensure a skipped/unverifiable check never renders as a green pass, and add a verification path through the credential or channel the user actually uses (e.g. an OAuth CLI, not an assumed API key)."
+globs: ".claude/skills/false-green-check-audit/**"
+alwaysApply: false
+---
+
+# false-green-check-audit
+
+Use when writing or reviewing a health-check, status, validation, or CI gate that can SKIP verifying something (missing credential, unsupported provider, absent tool) — ensure a skipped/unverifiable check never renders as a green pass, and add a verification path through the credential or channel the user actually uses (e.g. an OAuth CLI, not an assumed API key).
+
+<!-- Auto-generated from .claude/skills/false-green-check-audit/SKILL.md -->
+<!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
+
+Refer to `.cursor/skills/false-green-check-audit/SKILL.md` for the full skill definition.
+

@@ -1,0 +1,15 @@
+---
+description: "PR/MR + branch cleanup sweep: review every open PR and stale/merged/gone branch, then after you confirm close the dead PRs and prune branches (GitHub/GitLab/local). For any \"tidy up my repo\" ask spanning both; pick over pr-review or branch-clean."
+globs: ".claude/skills/repo-clean/**"
+alwaysApply: false
+---
+
+# repo-clean
+
+PR/MR + branch cleanup sweep: review every open PR and stale/merged/gone branch, then after you confirm close the dead PRs and prune branches (GitHub/GitLab/local). For any "tidy up my repo" ask spanning both; pick over pr-review or branch-clean.
+
+<!-- Auto-generated from .claude/skills/repo-clean/SKILL.md -->
+<!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
+
+Refer to `.cursor/skills/repo-clean/SKILL.md` for the full skill definition.
+

@@ -1,0 +1,15 @@
+---
+description: "Use when a long-running background job (data pipeline, batch fetch, analysis run) stops making progress — measure its resource signature to classify the stall instead of guessing fixes."
+globs: ".claude/skills/process-diagnose-stall/**"
+alwaysApply: false
+---
+
+# process-diagnose-stall
+
+Use when a long-running background job (data pipeline, batch fetch, analysis run) stops making progress — measure its resource signature to classify the stall instead of guessing fixes.
+
+<!-- Auto-generated from .claude/skills/process-diagnose-stall/SKILL.md -->
+<!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
+
+Refer to `.cursor/skills/process-diagnose-stall/SKILL.md` for the full skill definition.
+

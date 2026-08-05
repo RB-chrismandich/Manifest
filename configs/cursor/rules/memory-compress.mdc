@@ -1,0 +1,15 @@
+---
+description: "Compress or summarize memory/log entries — distill a session/transcript into a dated one-line entry, or losslessly compress/rotate existing memory entries (daily summary, developer-shorthand rewrite, one-sentence log line) with zero information loss."
+globs: ".claude/skills/memory-compress/**"
+alwaysApply: false
+---
+
+# memory-compress
+
+Compress or summarize memory/log entries — distill a session/transcript into a dated one-line entry, or losslessly compress/rotate existing memory entries (daily summary, developer-shorthand rewrite, one-sentence log line) with zero information loss.
+
+<!-- Auto-generated from .claude/skills/memory-compress/SKILL.md -->
+<!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
+
+Refer to `.cursor/skills/memory-compress/SKILL.md` for the full skill definition.
+

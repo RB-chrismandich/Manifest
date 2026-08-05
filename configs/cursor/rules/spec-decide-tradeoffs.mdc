@@ -1,0 +1,15 @@
+---
+description: "Use when a design choice has multiple valid options — produce a dimension-by-dimension trade-off table (fidelity, accuracy, scale, maintainability), justify one recommendation against long-term failure modes, and record it in the spec. Works with speckit and superpowers layouts."
+globs: ".claude/skills/spec-decide-tradeoffs/**"
+alwaysApply: false
+---
+
+# spec-decide-tradeoffs
+
+Use when a design choice has multiple valid options — produce a dimension-by-dimension trade-off table (fidelity, accuracy, scale, maintainability), justify one recommendation against long-term failure modes, and record it in the spec. Works with speckit and superpowers layouts.
+
+<!-- Auto-generated from .claude/skills/spec-decide-tradeoffs/SKILL.md -->
+<!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
+
+Refer to `.cursor/skills/spec-decide-tradeoffs/SKILL.md` for the full skill definition.
+

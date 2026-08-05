@@ -1,0 +1,15 @@
+---
+description: "Generate and maintain Mermaid architecture diagrams that match current code, capped at 4 diagrams and 300 lines per page — more than that fans out to one page per subject. Use for \"add architecture diagrams\", \"the diagram doc is huge\"."
+globs: ".claude/skills/docs-generate-diagrams/**"
+alwaysApply: false
+---
+
+# docs-generate-diagrams
+
+Generate and maintain Mermaid architecture diagrams that match current code, capped at 4 diagrams and 300 lines per page — more than that fans out to one page per subject. Use for "add architecture diagrams", "the diagram doc is huge".
+
+<!-- Auto-generated from .claude/skills/docs-generate-diagrams/SKILL.md -->
+<!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
+
+Refer to `.cursor/skills/docs-generate-diagrams/SKILL.md` for the full skill definition.
+
