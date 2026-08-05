@@ -1,6 +1,6 @@
 ---
 name: stitch-loop
-description: Teaches agents to iteratively build websites using Stitch with an autonomous baton-passing loop pattern
+description: "Use when iteratively building a multi-page website with Stitch — an autonomous baton-passing loop driven by `.stitch/next-prompt.md`, useful for generating and wiring pages page-by-page across sessions or CI runs without manual re-briefing."
 allowed-tools:
   - "stitch*:*"
   - "chrome*:*"

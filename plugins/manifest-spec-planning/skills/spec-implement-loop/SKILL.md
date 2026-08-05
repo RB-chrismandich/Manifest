@@ -1,6 +1,6 @@
 ---
 name: spec-implement-loop
-description: Critic-gated implementation (CDDL) via sub-agents — developer writes code; developer reviewer plus QA and architecture critics review until each approves with zero findings. Never commits or pushes.
+description: "Use once spec/plan are approved and ready to implement — critic-gated loop (CDDL): developer writes, reviewer/QA/architecture critics gate on zero findings. Never commits or pushes."
 ---
 
 # Critic-Gated Implementation Loop (CDDL)

@@ -103,6 +103,21 @@ Decide which flow to use based on the user's request:
 
 ---
 
+### Post-Generation Steps (shared by all flows below)
+
+After any `generate_screen_from_text`, `edit_screens`, or `generate_variants`
+call, always do both of the following before moving on:
+
+1. **Present AI Feedback**: Show the text description and suggestions from
+   `outputComponents` to the user.
+2. **Download Design Assets**: Download the HTML and screenshot urls from
+   `outputComponents` to the `.stitch/designs` directory.
+   - **Naming**: Use the screen ID or a descriptive slug for the filename.
+   - **Tools**: Use `curl -o` via `run_command` or similar.
+   - **Directory**: Ensure `.stitch/designs` exists.
+
+---
+
 ### Generate from Text Flow (New Screen)
 
 #### 1. Enhance the User Prompt
@@ -127,21 +142,12 @@ Call the `generate_screen_from_text` tool with the enhanced prompt and the
 }
 ```
 
-#### 4. Present AI Feedback
+#### 4. Post-Generation Steps
 
-Always show the text description and suggestions from `outputComponents` to the
-user.
+Run the [Post-Generation Steps](#post-generation-steps-shared-by-all-flows-below)
+above (present AI feedback, download design assets).
 
-#### 5. Download Design Assets
-
-After generation, download the HTML and screenshot urls from `outputComponents`
-to the `.stitch/designs` directory.
-
-- **Naming**: Use the screen ID or a descriptive slug for the filename.
-- **Tools**: Use `curl -o` via `run_command` or similar.
-- **Directory**: Ensure `.stitch/designs` exists.
-
-#### 6. Review and Refine
+#### 5. Review and Refine
 
 - If the result is not exactly as expected, continue with the **Edit** flow
   to make targeted adjustments.
@@ -182,19 +188,10 @@ call `edit_screens` with a descriptive prompt to refine the design:
 > "make it look like this". For example: "This is a dashboard mockup — recreate
 > it with a proper data table, sidebar navigation, and chart widgets."
 
-#### 4. Present AI Feedback
+#### 4. Post-Generation Steps
 
-Always show the text description and suggestions from `outputComponents` to the
-user.
-
-#### 5. Download Design Assets
-
-Download the HTML and screenshot urls from `outputComponents` to the
-`.stitch/designs` directory.
-
-- **Naming**: Use the screen ID or a descriptive slug for the filename.
-- **Tools**: Use `curl -o` via `run_command` or similar.
-- **Directory**: Ensure `.stitch/designs` exists.
+Run the [Post-Generation Steps](#post-generation-steps-shared-by-all-flows-below)
+above (present AI feedback, download design assets).
 
 ---
 
@@ -227,29 +224,20 @@ Call the `edit_screens` tool.
 }
 ```
 
-#### 4. Present AI Feedback
+#### 4. Post-Generation Steps
 
-Always show the text description and suggestions from `outputComponents` to the
-user.
+Run the [Post-Generation Steps](#post-generation-steps-shared-by-all-flows-below)
+above (present AI feedback, download design assets). For edits, downloaded
+assets overwrite previous versions so local files reflect the latest edit.
 
-#### 5. Download Design Assets
-
-After editing, download the updated HTML and screenshot urls from
-`outputComponents` to the `.stitch/designs` directory, overwriting previous
-versions to ensure the local files reflect the latest edits.
-
-- **Naming**: Use the screen ID or a descriptive slug for the filename.
-- **Tools**: Use `curl -o` via `run_command` or similar.
-- **Directory**: Ensure `.stitch/designs` exists.
-
-#### 6. Update Project Metadata
+#### 5. Update Project Metadata
 
 After downloading assets, update `.stitch/metadata.json` to reflect any changes
 (e.g., updated screen titles or new screen IDs from the edit). The metadata
 file tracks all screens, their device types, and design system info. See the
 **manage-design-system** skill's `examples/metadata.json` for the format.
 
-#### 7. Verify and Repeat
+#### 6. Verify and Repeat
 
 - Check the output screen to see if the changes were applied correctly.
 - If more polish is needed, repeat the edit flow with a new specific prompt.
@@ -291,19 +279,10 @@ Call the `generate_variants` tool with the appropriate options:
 - **`aspects`**: Focus on specific dimensions — `LAYOUT`, `COLOR_SCHEME`,
   `IMAGES`, `TEXT_FONT`, `TEXT_CONTENT`, or leave empty for all
 
-#### 3. Present AI Feedback
+#### 3. Post-Generation Steps
 
-Always show the text description and suggestions from `outputComponents` to the
-user.
-
-#### 4. Download Design Assets
-
-Download the variant HTML and screenshot urls from `outputComponents` to the
-`.stitch/designs` directory.
-
-- **Naming**: Use the screen ID or a descriptive slug for the filename.
-- **Tools**: Use `curl -o` via `run_command` or similar.
-- **Directory**: Ensure `.stitch/designs` exists.
+Run the [Post-Generation Steps](#post-generation-steps-shared-by-all-flows-below)
+above (present AI feedback, download design assets).
 
 --------------------------------------------------------------------------------
 

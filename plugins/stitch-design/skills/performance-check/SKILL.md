@@ -42,7 +42,9 @@ Check for patterns that impact each vital metric.
 | Font preloading | Web fonts without `<link rel="preload" as="font">` | Medium |
 | Lazy hero image | Hero/above-fold `<img>` with `loading="lazy"` | High |
 
-### FID / INP (Interaction to Next Paint) -- Target: < 100ms / < 200ms
+### INP (Interaction to Next Paint) -- Target: < 200ms
+
+> Note: FID (First Input Delay) was retired as a Core Web Vital in March 2024, replaced by INP.
 
 | Check | Pattern | Severity |
 |-------|---------|----------|
@@ -135,7 +137,7 @@ If build output or config is available, analyze bundle efficiency.
 | Metric | Target | Risk Level | Key Issues |
 |--------|--------|------------|------------|
 | LCP | < 2.5s | Medium | Hero image not preloaded |
-| FID/INP | < 200ms | Low | Scripts properly deferred |
+| INP | < 200ms | Low | Scripts properly deferred |
 | CLS | < 0.1 | High | 5 images missing dimensions |
 
 ### Bundle Analysis

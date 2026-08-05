@@ -1,6 +1,6 @@
 ---
 name: docker-probe-internal
-description: Use to test or debug a service that only listens on an internal Docker network (no host port, no public route) when host curl/wget is unavailable or blocked
+description: Use to test or debug a service that only listens on an internal Docker network (no host port, no public route) — host curl/wget cannot reach it directly.
 ---
 # Containerized Internal-Service Probe
 

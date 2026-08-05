@@ -1,12 +1,12 @@
 ---
-description: "Analyze Stitch projects and synthesize a semantic design system into DESIGN.md files"
+description: "Analyze Stitch projects and synthesize a semantic design system into DESIGN.md files. For source-only extraction (no Stitch project), use extract-design-md."
 globs: ".claude/skills/design-md/**"
 alwaysApply: false
 ---
 
 # design-md
 
-Analyze Stitch projects and synthesize a semantic design system into DESIGN.md files
+Analyze Stitch projects and synthesize a semantic design system into DESIGN.md files. For source-only extraction (no Stitch project), use extract-design-md.
 
 <!-- Auto-generated from .claude/skills/design-md/SKILL.md -->
 <!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->

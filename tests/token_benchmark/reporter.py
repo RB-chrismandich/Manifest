@@ -24,9 +24,34 @@ def load_results(results_dir: Path) -> list[dict]:
     return records
 
 
+def _latest_model_api_records(api_recs: list[dict]) -> list[dict]:
+    """Keep only rows matching each provider's latest-run model.
+
+    Cross-run aggregates must not average two model generations into one
+    baseline (e.g. committed claude-sonnet-4-6 rows beside a new
+    claude-sonnet-5 run). Per provider, the model of the most recent run_id
+    is authoritative; older rows survive only while the model is unchanged.
+    Rows without a model field (pre-migration JSONL) pass through untouched.
+    """
+    latest_model: dict[str, str] = {}
+    latest_run: dict[str, str] = {}
+    for r in api_recs:
+        provider, run_id = r.get("provider"), r.get("run_id", "")
+        if r.get("model") and run_id >= latest_run.get(provider, ""):
+            latest_run[provider] = run_id
+            latest_model[provider] = r["model"]
+    return [
+        r
+        for r in api_recs
+        if not r.get("model") or r["model"] == latest_model.get(r.get("provider"))
+    ]
+
+
 def compute_stats(records: list[dict], *, _include_per_run: bool = True) -> dict:
     """Aggregate records into summary stats per provider."""
-    api_recs = [r for r in records if r.get("source") == "api"]
+    api_recs = _latest_model_api_records(
+        [r for r in records if r.get("source") == "api"]
+    )
     cli_recs = [r for r in records if r.get("source") == "cli"]
 
     # Providers with a verified-absent system-prompt mechanism (#546) record

@@ -1,12 +1,12 @@
 ---
-description: "Capture structured lessons learned after major tasks. Categories: pattern, antipattern, tool discovery, configuration insight. Stores in ~/.claude/config/knowledge_base.yml and queries existing learnings."
+description: "Use after a significant task, debug session, or review to capture a lesson (pattern, antipattern, tool-discovery, config-insight) in knowledge_base.yml, or query/list/stats existing entries."
 globs: ".claude/skills/learning-capture/**"
 alwaysApply: false
 ---
 
 # learning-capture
 
-Capture structured lessons learned after major tasks. Categories: pattern, antipattern, tool discovery, configuration insight. Stores in ~/.claude/config/knowledge_base.yml and queries existing learnings.
+Use after a significant task, debug session, or review to capture a lesson (pattern, antipattern, tool-discovery, config-insight) in knowledge_base.yml, or query/list/stats existing entries.
 
 <!-- Auto-generated from .claude/skills/learning-capture/SKILL.md -->
 <!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->

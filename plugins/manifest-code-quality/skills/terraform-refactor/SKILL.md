@@ -46,14 +46,14 @@ If the knowledge base contains relevant antipatterns or insights for Terraform/O
 This step is **non-blocking** — if the knowledge base is empty or the query fails,
 proceed with the standard analysis.
 
-### Step 1: Read Project Standards
+### Analysis Checklist
 
-- Read README.md, CLAUDE.md for project context
-- Check for existing tooling: .terraform-version, .tflint.hcl, .checkov.yaml
-- Inspect provider versions and required_providers blocks
-- Check backend configuration (state storage, locking)
+Read README.md and CLAUDE.md for project context; check for existing tooling
+(`.terraform-version`, `.tflint.hcl`, `.checkov.yaml`); inspect provider versions
+and `required_providers` blocks; check backend configuration (state storage,
+locking). Then work each category below — order does not matter.
 
-### Step 2: Architecture Analysis
+### Architecture
 
 - Map module structure (root vs child modules)
 - Check for module composition (DRY principles)
@@ -61,35 +61,35 @@ proceed with the standard analysis.
 - Verify proper use of workspaces vs separate state files
 - Check for hardcoded values that should be variables
 
-### Step 3: Security Analysis (CRITICAL)
+### Security (CRITICAL)
 
-**Access Control**:
+*Access Control*:
 
 - Overly permissive IAM policies (`*` actions or resources)
 - Missing least-privilege boundaries
 - Public access to storage buckets, databases, or APIs
 - Missing encryption at rest and in transit
 
-**Network Security**:
+*Network Security*:
 
 - Security groups with `0.0.0.0/0` ingress
 - Missing VPC flow logs
 - Public subnets for private resources
 - Missing WAF or DDoS protection
 
-**Secrets Management**:
+*Secrets Management*:
 
 - Hardcoded secrets in `.tf` files or `terraform.tfvars`
 - Missing integration with secret managers (Vault, AWS SSM, etc.)
 - Secrets in state file (sensitive = true missing)
 
-**State Security**:
+*State Security*:
 
 - Local state files (should be remote with locking)
 - State file without encryption
 - Missing state file access controls
 
-### Step 4: Module Quality
+### Module Quality
 
 - Input validation with `validation` blocks
 - Proper use of `locals` for computed values
@@ -97,14 +97,14 @@ proceed with the standard analysis.
 - Version constraints on modules and providers
 - Consistent file structure: main.tf, variables.tf, outputs.tf, versions.tf
 
-### Step 5: Drift and Lifecycle
+### Drift & Lifecycle
 
 - Resources with `ignore_changes` lifecycle rules (intentional or hiding drift?)
 - Missing `prevent_destroy` on critical resources
 - Proper tagging strategy (cost allocation, ownership, environment)
 - Resource naming conventions
 
-### Step 6: Testing
+### Testing
 
 - Terratest or tftest integration tests
 - `terraform validate` and `terraform plan` in CI

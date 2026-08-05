@@ -70,31 +70,7 @@ session** (later steps consume env vars and intermediate files set by earlier on
 
 ## Error Handling
 
-```bash
-# Wrapper for safe execution
-trap 'echo "Error on line $LINENO. Exiting."; exit 1' ERR
-
-# Validate prerequisites before starting
-if ! command -v jq &> /dev/null; then
-    echo "Error: jq is required but not installed" >&2
-    exit 1
-fi
-
-if ! command -v python3 &> /dev/null; then
-    echo "Error: python3 is required but not installed" >&2
-    exit 1
-fi
-
-if [[ ! -x ~/.claude/scripts/tracker_ops.sh ]]; then
-    echo "Error: tracker_ops.sh not found or not executable" >&2
-    exit 1
-fi
-
-if [[ ! -f ~/.claude/config/tracker_triage.yml ]]; then
-    echo "Error: Configuration file not found" >&2
-    exit 1
-fi
-```
+Verify the Prerequisites above before starting; report the first missing one and stop.
 
 ## Example Usage
 

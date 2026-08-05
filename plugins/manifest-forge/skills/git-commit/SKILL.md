@@ -1,6 +1,6 @@
 ---
 name: git-commit
-description: "Run the full Manifest commit pipeline — refresh docs, sync with remote, run pre-commit checks, then stage, commit, and push with safe failure handling. Use when committing and pushing through the whole pipeline, not a bare git commit."
+description: "Run Manifest's full automated commit-and-push pipeline with safe failure handling, not a bare git commit. Use for full commit-and-push requests through the whole pipeline."
 ---
 
 # Project Commit Pipeline

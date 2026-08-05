@@ -1,6 +1,6 @@
 ---
 name: ci-setup
-description: Configure CI/CD pipelines for a target repository based on detected languages, project structure, and hosting platform (GitHub Actions or GitLab CI).
+description: Use when setting up CI/CD for a repo — auto-detects languages, project structure, and hosting platform (GitHub Actions or GitLab CI) to generate pipeline configs.
 ---
 
 # CI Setup Skill

@@ -1,6 +1,6 @@
 ---
 name: docs-improve
-description: Audit and improve a project's docs set using Diataxis — enforce per-type line caps, split over-cap pages into a hub plus sub-pages, and cut fluff. Use for "improve the docs", "the docs are too long", "audit our documentation".
+description: Audit a project's docs set against Diataxis and measured line caps, fixing real gaps and fluff. Use for "improve the docs", "the docs are too long", "audit our documentation".
 ---
 
 # Improve the Docs Set

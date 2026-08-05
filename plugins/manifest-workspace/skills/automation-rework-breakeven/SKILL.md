@@ -1,6 +1,6 @@
 ---
 name: automation-rework-breakeven
-description: Use when deciding whether a more-thorough-but-costlier automation or skill version is worth it — separate correctness from cost, model net tokens as rework-avoided minus extra spend, and measure the rework cost empirically instead of assuming it.
+description: Use when deciding whether a more-thorough-but-costlier automation or skill version is worth it, e.g. weighing a v2 skill's extra token spend against the rework it avoids — measure the rework cost empirically rather than assuming it.
 ---
 # Break-Even Analysis for a More-Correct, Costlier Automation
 

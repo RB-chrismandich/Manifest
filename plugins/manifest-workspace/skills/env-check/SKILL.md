@@ -1,6 +1,6 @@
 ---
 name: env-check
-description: Verify CLI tool availability, authentication status, config syntax, MCP connectivity, and symlink integrity for the Manifest environment.
+description: Diagnoses Manifest environment health — CLI tools, auth, config syntax, MCP, symlinks — when setup seems broken or post-bootstrap.
 ---
 
 # Health Check Skill

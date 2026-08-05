@@ -132,6 +132,10 @@ skip it and note it in the summary output.
 Generate a `.pre-commit-config.yaml` with language-appropriate hooks if one was not
 already copied from templates.
 
+The hook revisions below are a known-good baseline as of authoring; verify each repo's
+latest release tag before writing the config so scaffolded projects don't silently
+inherit outdated hooks.
+
 ### Python Hooks
 
 ```yaml

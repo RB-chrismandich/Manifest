@@ -1,6 +1,6 @@
 ---
 name: antipattern-detect
-description: Auto-triggered skill that analyzes linting failures, test results, and code review feedback to detect recurring antipatterns. Stores findings in knowledge_base.yml (YAML source of truth) via learning_capture.sh.
+description: Use when lint/test failures, security findings, or repeated (3+) review feedback surface a recurring pattern worth recording in the knowledge base.
 ---
 
 # Antipattern Detection Skill

@@ -1,6 +1,6 @@
 ---
 name: shadcn-ui
-description: Expert guidance for integrating and building applications with shadcn/ui components, including component discovery, installation, customization, and best practices.
+description: Use when building UI with shadcn/ui — discovering, installing, or customizing components (Radix UI or Base UI + Tailwind), configuring components.json, building forms/dialogs/tables, or troubleshooting import or style conflicts.
 allowed-tools:
   - "shadcn*:*"
   - "mcp_shadcn*"
