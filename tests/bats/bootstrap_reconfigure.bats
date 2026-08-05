@@ -1,7 +1,6 @@
 #!/usr/bin/env bats
-# Tests for bootstrap.sh run_reconfigure wiring — the graphify skill gate must
-# run on --reconfigure (issue #459), not only inside deploy_configs. Also
-# covers warn_stale_disabled_configs (#549), which likewise must fire on
+# Tests for bootstrap.sh run_reconfigure wiring. Also covers
+# warn_stale_disabled_configs (#549), which must fire on
 # --reconfigure, not only from print_summary in the main() install path.
 
 load '../test_helper/bats-support/load'
@@ -24,7 +23,7 @@ setup() {
     # shellcheck disable=SC1090
     source "$SANDBOX/run_reconfigure.sh"
 
-    # Stub every collaborator except gate_graphify_skill
+    # Stub every reconfigure collaborator.
     print_header() { :; }
     print_success() { :; }
     print_info() { :; }
@@ -40,11 +39,9 @@ setup() {
     install_mcp_servers() { :; }
     check_uv() { :; }
     uv_sync_home_runtime() { :; }
-    install_graphify() { :; }
 
     export TARGET_DIR="$SANDBOX/home/.claude"
-    mkdir -p "$TARGET_DIR/skills/graphify"
-    echo "wrapper" > "$TARGET_DIR/skills/graphify/SKILL.md"
+    mkdir -p "$TARGET_DIR"
     export SERVICES_CONFIG="$TARGET_DIR/config/services.yml"
     export INSTALL_MCP=false
     export CURSOR_TARGET_DIR="$SANDBOX/home/.cursor"
@@ -58,27 +55,6 @@ setup() {
 
 teardown() {
     [[ -n "$SANDBOX" && -d "$SANDBOX" ]] && rm -rf "$SANDBOX"
-}
-
-@test "reconfigure with --disable-graphify removes the deployed /graphify skill" {
-    export ENABLE_GRAPHIFY=false
-    run run_reconfigure
-    assert_success
-    [ ! -d "$TARGET_DIR/skills/graphify" ]
-}
-
-@test "reconfigure with graphify enabled leaves the deployed skill intact" {
-    export ENABLE_GRAPHIFY=true
-    run run_reconfigure
-    assert_success
-    [ -d "$TARGET_DIR/skills/graphify" ]
-}
-
-@test "reconfigure tolerates a home without a skills dir" {
-    rm -rf "$TARGET_DIR/skills"
-    export ENABLE_GRAPHIFY=false
-    run run_reconfigure
-    assert_success
 }
 
 @test "reconfigure with --disable-claude warns about the stale deployed CLAUDE.md (#549)" {

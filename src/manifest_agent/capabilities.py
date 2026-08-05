@@ -175,7 +175,7 @@ def resolve_capabilities(
     names = tuple(contract.name for contract in contracts)
     if len(contracts) != len(DOMAIN_BUNDLES) or set(names) != set(DOMAIN_BUNDLES):
         raise CapabilityConflict(
-            "capability planning requires the exact nine contracts"
+            f"capability planning requires the exact {len(DOMAIN_BUNDLES)} contracts"
         )
     tiers = {
         kind: {tier: set() for tier in CapabilityTier}

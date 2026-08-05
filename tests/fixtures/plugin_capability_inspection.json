@@ -8,7 +8,6 @@
         "manifest-code-quality",
         "manifest-docs",
         "manifest-forge",
-        "manifest-graphify",
         "manifest-ops",
         "manifest-security",
         "manifest-spec-planning",
@@ -78,11 +77,6 @@
           "skill:pr-review",
           "skill:pr-triage-bots",
           "skill:repo-clean"
-        ],
-        "manifest-graphify": [
-          "runtime:graphify-offline-launcher",
-          "runtime:graphify-runtime-contract",
-          "skill:graphify"
         ],
         "manifest-ops": [
           "hook:version-pin",
@@ -221,10 +215,6 @@
           "executable:bash",
           "executable:git",
           "executable:python3"
-        ],
-        "manifest-graphify": [
-          "executable:git",
-          "executable:graphify"
         ],
         "manifest-ops": [
           "executable:bash",
@@ -263,7 +253,6 @@
         "manifest-code-quality",
         "manifest-docs",
         "manifest-forge",
-        "manifest-graphify",
         "manifest-ops",
         "manifest-security",
         "manifest-spec-planning",
@@ -333,11 +322,6 @@
           "skill:pr-review",
           "skill:pr-triage-bots",
           "skill:repo-clean"
-        ],
-        "manifest-graphify": [
-          "runtime:graphify-offline-launcher",
-          "runtime:graphify-runtime-contract",
-          "skill:graphify"
         ],
         "manifest-ops": [
           "hook:version-pin",
@@ -476,10 +460,6 @@
           "executable:bash",
           "executable:git",
           "executable:python3"
-        ],
-        "manifest-graphify": [
-          "executable:git",
-          "executable:graphify"
         ],
         "manifest-ops": [
           "executable:bash",
@@ -518,7 +498,6 @@
         "manifest-code-quality",
         "manifest-docs",
         "manifest-forge",
-        "manifest-graphify",
         "manifest-ops",
         "manifest-security",
         "manifest-spec-planning",
@@ -588,11 +567,6 @@
           "skill:pr-review",
           "skill:pr-triage-bots",
           "skill:repo-clean"
-        ],
-        "manifest-graphify": [
-          "runtime:graphify-offline-launcher",
-          "runtime:graphify-runtime-contract",
-          "skill:graphify"
         ],
         "manifest-ops": [
           "hook:version-pin",
@@ -731,10 +705,6 @@
           "executable:bash",
           "executable:git",
           "executable:python3"
-        ],
-        "manifest-graphify": [
-          "executable:git",
-          "executable:graphify"
         ],
         "manifest-ops": [
           "executable:bash",
@@ -773,7 +743,6 @@
         "manifest-code-quality",
         "manifest-docs",
         "manifest-forge",
-        "manifest-graphify",
         "manifest-ops",
         "manifest-security",
         "manifest-spec-planning",
@@ -843,11 +812,6 @@
           "skill:pr-review",
           "skill:pr-triage-bots",
           "skill:repo-clean"
-        ],
-        "manifest-graphify": [
-          "runtime:graphify-offline-launcher",
-          "runtime:graphify-runtime-contract",
-          "skill:graphify"
         ],
         "manifest-ops": [
           "hook:version-pin",
@@ -986,10 +950,6 @@
           "executable:bash",
           "executable:git",
           "executable:python3"
-        ],
-        "manifest-graphify": [
-          "executable:git",
-          "executable:graphify"
         ],
         "manifest-ops": [
           "executable:bash",
@@ -1028,7 +988,6 @@
         "manifest-code-quality",
         "manifest-docs",
         "manifest-forge",
-        "manifest-graphify",
         "manifest-ops",
         "manifest-security",
         "manifest-spec-planning",
@@ -1098,11 +1057,6 @@
           "skill:pr-review",
           "skill:pr-triage-bots",
           "skill:repo-clean"
-        ],
-        "manifest-graphify": [
-          "runtime:graphify-offline-launcher",
-          "runtime:graphify-runtime-contract",
-          "skill:graphify"
         ],
         "manifest-ops": [
           "hook:version-pin",
@@ -1241,10 +1195,6 @@
           "executable:bash",
           "executable:git",
           "executable:python3"
-        ],
-        "manifest-graphify": [
-          "executable:git",
-          "executable:graphify"
         ],
         "manifest-ops": [
           "executable:bash",
@@ -1283,7 +1233,6 @@
         "manifest-code-quality",
         "manifest-docs",
         "manifest-forge",
-        "manifest-graphify",
         "manifest-ops",
         "manifest-security",
         "manifest-spec-planning",
@@ -1353,11 +1302,6 @@
           "skill:pr-review",
           "skill:pr-triage-bots",
           "skill:repo-clean"
-        ],
-        "manifest-graphify": [
-          "runtime:graphify-offline-launcher",
-          "runtime:graphify-runtime-contract",
-          "skill:graphify"
         ],
         "manifest-ops": [
           "hook:version-pin",
@@ -1496,10 +1440,6 @@
           "executable:bash",
           "executable:git",
           "executable:python3"
-        ],
-        "manifest-graphify": [
-          "executable:git",
-          "executable:graphify"
         ],
         "manifest-ops": [
           "executable:bash",

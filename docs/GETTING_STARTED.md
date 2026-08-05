@@ -70,7 +70,6 @@ cd Manifest
 6. ✅ Opens Cursor download page in browser
 7. ✅ Copies configuration to `~/.claude/`
 8. ✅ Guides you through authentication for each service
-9. ✅ Installs the graphify CLI and deploys the `/graphify` skill when enabled (default; `--disable-graphify` to opt out)
 
 **Selective Installation**:
 

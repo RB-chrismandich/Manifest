@@ -85,11 +85,11 @@ def test_receipt_rejects_secret_fields(tmp_path):
 
 
 def test_receipt_rejects_unlinked_capability_ownership(tmp_path):
-    forged = OwnedEntry("executable", "graphify", "manifest", None, None)
+    forged = OwnedEntry("mcp", "context7", "manifest", None, None)
     harness = replace(
         SAMPLE_RECEIPT.harnesses["claude"],
         owned_entries=(forged,),
-        capabilities={"executable:graphify": "installed-by-manifest"},
+        capabilities={"mcp:context7": "installed-by-manifest"},
     )
     receipt = replace(SAMPLE_RECEIPT, harnesses={"claude": harness})
 
@@ -102,12 +102,12 @@ def test_receipt_round_trips_linked_capability_ownership(tmp_path):
         SAMPLE_RECEIPT.harnesses["claude"],
         owned_entries=(
             owned_capability_entry(
-                "executable",
-                "graphify",
+                "mcp",
+                "context7",
                 key_path=tmp_path / "ownership.key",
             ),
         ),
-        capabilities={"executable:graphify": "installed-by-manifest"},
+        capabilities={"mcp:context7": "installed-by-manifest"},
     )
     receipt = replace(SAMPLE_RECEIPT, harnesses={"claude": harness})
     path = tmp_path / "installation.json"

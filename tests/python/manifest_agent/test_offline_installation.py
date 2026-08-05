@@ -65,16 +65,6 @@ def test_all_nine_bundle_contracts_load_after_source_and_uv_are_unavailable(
     assert "uvx" not in os.environ["PATH"]
 
 
-def test_remote_capability_declaration_is_not_mistaken_for_offline_local_runtime(
-    installed_release: Path,
-) -> None:
-    contracts = {contract.name: contract for contract in load_domain_contracts(installed_release / "plugins")}
-
-    graphify = contracts["manifest-graphify"]
-    assert graphify.capabilities.executables[next(tier for tier in graphify.capabilities.executables if tier.value == "default")] == ("graphify",)
-    assert (installed_release / "plugins/manifest-graphify/runtime/graphify.json").is_file()
-
-
 def test_all_six_fake_adapters_install_list_info_and_uninstall_offline(
     installed_release: Path, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
@@ -140,15 +130,3 @@ def test_copied_bundle_local_entry_points_execute_without_coordinator_or_network
             capture_output=True,
         )
         assert completed.returncode == 0, completed.stderr
-    # Graphify is intentionally a remote/default capability: its shipped
-    # launcher, rather than a test double, must reject offline execution.
-    graphify = subprocess.run(
-        ("/bin/bash", "runtime/graphify.sh", "--help"),
-        cwd=installed / "manifest-graphify",
-        env=environment,
-        check=False,
-        text=True,
-        capture_output=True,
-    )
-    assert graphify.returncode == 4
-    assert graphify.stderr.strip() == "OFFLINE: manifest-graphify:executable:graphify requires network"

@@ -335,7 +335,7 @@ def _marketplace(contracts: tuple[Any, ...], addon: dict[str, Any]) -> dict[str,
     ]
     return {
         "description": (
-            "Manifest agent capabilities partitioned into nine portable domain "
+            "Manifest agent capabilities partitioned into eight portable domain "
             "bundles, plus the independent adversarial-design-loop addon."
         ),
         "name": "manifest",

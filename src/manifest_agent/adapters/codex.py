@@ -45,7 +45,7 @@ _COMMIT = re.compile(r"^[0-9a-fA-F]{40}(?:[0-9a-fA-F]{24})?$")
 
 
 class CodexAdapter(CapabilityAdapterMixin):
-    """Install and verify the nine Manifest bundles through Codex."""
+    """Install and verify the canonical Manifest bundles through Codex."""
 
     name = "codex"
     adapter_version = _ADAPTER_VERSION
@@ -333,7 +333,7 @@ def _validate_desired(desired: DesiredState) -> HarnessResult | None:
     names = tuple(contract.name for contract in desired.contracts)
     if names != DOMAIN_BUNDLES:
         return _blocked(
-            "desired state must contain the exact nine canonical domain plugins"
+            "desired state must contain the exact canonical domain plugins"
         )
     if any(not contract.version for contract in desired.contracts):
         return _blocked("desired plugin versions must be non-empty")

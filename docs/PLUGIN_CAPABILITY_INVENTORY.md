@@ -49,7 +49,6 @@ Unlisted paths and credential stores are user-owned and are never changed by mig
 | gemini-scripts-link | `~/.gemini/scripts` | bundle-owned | domain-bundle-runtime | symlink-target: `~/.claude/scripts` | disable | restore-symlink | `plugin_migration.bats` |
 | gemini-settings | `~/.gemini/settings.json` | mixed | native-settings-registration | exact-marker: `manifest-settings-v1` | retain | restore-owned-settings-entry | `plugin_migration.bats` |
 | gemini-shared-skills | `~/.gemini/skills` | bundle-owned | native-plugin-managers | symlink-target: `~/.manifest/skills` | disable | restore-symlink | `plugin_migration.bats` |
-| graphify-cli | `~/.local/bin/graphify` | bundle-owned | manifest-graphify | unproven: `legacy-wrapper-hash-not-recorded` | retain | user-directed-removal-after-parity | `test_graphify_runtime.py` |
 | manifest-cli | `~/.local/bin/manifest` | coordinator-owned | ephemeral-uvx-coordinator | unproven: `legacy-wrapper-hash-not-recorded` | retain | user-directed-removal-after-parity | `plugin_migration.bats` |
 | manifest-release-metadata | `~/.manifest/releases.json` | coordinator-owned | xdg-release-metadata | unproven: `legacy-release-format-varies` | retain | user-directed-removal-after-parity | `plugin_migration.bats` |
 | manifest-skills-hub | `~/.manifest/skills` | user-owned | native-plugin-managers | unproven: `deploy-stamp-is-not-a-content-proof` | retain | user-directed-removal-after-parity | `plugin_migration.bats` |

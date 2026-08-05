@@ -94,7 +94,7 @@ class AntigravityAdapter(CapabilityAdapterMixin):
         return combine_results(plugins, components)
 
     def install(self, desired: DesiredState) -> HarnessResult:
-        """Validate all nine bundles before linking or installing any plugin."""
+        """Validate all canonical bundles before linking or installing any plugin."""
         invalid = _validate_desired(desired)
         if invalid is not None:
             return invalid
@@ -193,7 +193,7 @@ class AntigravityAdapter(CapabilityAdapterMixin):
 
 def _validate_desired(desired: DesiredState) -> HarnessResult | None:
     if tuple(contract.name for contract in desired.contracts) != DOMAIN_BUNDLES:
-        return _blocked("desired state must contain the exact nine canonical domains")
+        return _blocked("desired state must contain the exact canonical domains")
     if any(not contract.version for contract in desired.contracts):
         return _blocked("desired plugin versions must be non-empty")
     errors = _generic_view_errors(desired, "antigravity", "imported")

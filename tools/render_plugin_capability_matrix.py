@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Render the checked release-evidence matrix for the nine domain bundles.
+"""Render the checked release-evidence matrix for the eight domain bundles.
 
 This rendering is deliberately contract evidence, not a substitute for the
 protected live workflow.  A live report may be supplied with ``--inspection``;

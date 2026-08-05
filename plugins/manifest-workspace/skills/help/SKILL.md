@@ -7,7 +7,7 @@ description: Search the generated offline catalog of all Manifest domain command
 
 Run `scripts/command_catalog.py` with an optional query, `--category`, `--all`,
 `--limit`, or `--json`. The command reads only the adjacent generated
-`catalog/commands.json`, built from all nine portable contracts and skill
+`catalog/commands.json`, built from all eight portable contracts and skill
 frontmatter at release time.
 
 Results use qualified names. Empty or unmatched searches are reported

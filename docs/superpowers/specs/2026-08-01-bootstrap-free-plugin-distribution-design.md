@@ -45,14 +45,13 @@ The coordinator may:
 It must not become a replacement home-tree deployer or a runtime dependency of
 installed skills.
 
-### 2.2 Nine domain bundles are the capability source
+### 2.2 Eight domain bundles are the capability source
 
 The canonical capability sources are:
 
 1. `manifest-code-quality`
 2. `manifest-docs`
 3. `manifest-forge`
-4. `manifest-graphify`
 5. `manifest-ops`
 6. `manifest-security`
 7. `manifest-spec-planning`

@@ -30,7 +30,6 @@ def test_runtime_path_gate_accepts_checked_in_domain_bundles() -> None:
         "manifest-code-quality",
         "manifest-docs",
         "manifest-forge",
-        "manifest-graphify",
         "manifest-ops",
         "manifest-security",
         "manifest-spec-planning",

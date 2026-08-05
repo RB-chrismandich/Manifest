@@ -11,19 +11,6 @@
 This file provides guidance to AI coding agents when working with code in this repository.
 It follows the [AGENTS.md standard](https://agents.md/) for unified coding agent instructions.
 
-## Runtime Harness Handling
-
-Skills and agents run under four harnesses. Routing is centralized in
-`configs/claude/config/command_config.yml` (`harness_routing`); model pins live
-in `configs/claude/config/parallel_agent.yml` (`model_tiers`) — never hardcode
-model IDs in skill files.
-
-- **Claude Code (`claude`)**: native tool signatures (`Read`, `Edit`, `Grep`, `Bash`)
-  and sub-agent dispatch per `tool_policies` (sub-agents pinned Sonnet by default).
-- **Codex (`codex`)**: direct shell execution; format output as standard unified diffs.
-- **Cursor (`cursor`)**: follow workspace context constraints; apply edits directly to files.
-- **Antigravity (`agy`)**: execute via the standard agent context wrapper.
-
 ## Token Economy (always on)
 
 Apply at all times, in every session:
@@ -171,7 +158,6 @@ The `bootstrap.sh` script automates installation, deployment, and authentication
 --enable-codex / --disable-codex     # Codex CLI (default: enabled)
 --enable-antigravity / --disable-antigravity  # Antigravity IDE (default: enabled)
 --enable-devin / --disable-devin              # Devin CLI (default: DISABLED; needs devin auth login)
---enable-graphify / --disable-graphify  # Graphify knowledge-graph CLI + /graphify skill (default: enabled)
 --enable-skillclaw / --disable-skillclaw  # SkillClaw session capture (default: disabled)
 --enable-browser-use / --disable-browser-use  # browser-use deps for smoke agent steps (default: disabled)
 --enable-smoke / --disable-smoke     # smoke-test deps: Playwright+Chromium (default: disabled)
@@ -435,8 +421,8 @@ standing line instead (spec 362, FR-011 documented gap): **before a commit run
 - **Planning & Specs**: `/data-wire-field` · `/design-validate` · `/issue-prep-auto` · `/issue-prioritize` · `/issue-triage` · `/plan-manage` · `/premise-verify` · `/spec-audit-tasks` · `/spec-decide-tradeoffs` · `/spec-review`
 - **Skill Authoring**: `/ai-hooks-integration` · `/prompt-optimize` · `/skill-evolve`
 - **CI/CD, Testing & Quality**: `/a11y-audit` · `/ai-code-audit` · `/ci-diagnose-drift` · `/ci-reproduce-failure` · `/ci-setup` · `/data-validate-live` · `/go-refactor` · `/node-refactor` · `/performance-check` · `/project-verify` · `/python-refactor` · `/shell-refactor` · `/smoke-manage` · `/terraform-refactor` · `/test-pin-bug` · `/test-vary-fixtures` · `/ux-review`
-- **Infrastructure & Config**: `/api-optimize-bulk` · `/cache-warm-oob` · `/cli-audit-help` · `/config-audit` · `/config-debug-substitution` · `/config-validate-native` · `/data-design-ingestion` · `/deploy-diagnose-drift` · `/deploy-retire-component` · `/docker-compose-commandments` · `/docker-probe-internal` · `/llm-invoke-stdin` · `/pass-cli` · `/process-diagnose-stall` · `/project-scaffold` · `/shell-audit-errexit` · `/shell-audit-pipefail` · `/version-pin`
-- **Meta & Orchestration**: `/antipattern-detect` · `/code-audit` · `/env-check` · `/graphify` · `/help` · `/learning-capture` · `/memory-compress` · `/metrics-report` · `/session-checkpoint` · `/token-benchmark` · `/token-conserve`
+- **Infrastructure & Config**: `/api-optimize-bulk` · `/cache-warm-oob` · `/cli-audit-help` · `/config-audit` · `/config-debug-substitution` · `/config-validate-native` · `/data-design-ingestion` · `/deploy-diagnose-drift` · `/deploy-retire-component` · `/docker-probe-internal` · `/llm-invoke-stdin` · `/pass-cli` · `/process-diagnose-stall` · `/project-scaffold` · `/shell-audit-errexit` · `/shell-audit-pipefail` · `/version-pin`
+- **Meta & Orchestration**: `/antipattern-detect` · `/code-audit` · `/env-check` · `/help` · `/learning-capture` · `/memory-compress` · `/metrics-report` · `/session-checkpoint` · `/token-benchmark` · `/token-conserve`
 - **Uncategorized**: `/automation-rework-breakeven` · `/code-audit-constitution` · `/code-to-design` · `/deploy-reconcile` · `/design-loop` · `/design-md` · `/enhance-prompt` · `/extract-design-md` · `/extract-static-html` · `/false-green-check-audit` · `/generate-design` · `/lifecycle-run` · `/loop-scaffold` · `/manage-design-system` · `/pr-smoke` · `/react-components` · `/react-native` · `/react-vite-dashboard` · `/remotion` · `/render-verify` · `/review-round` · `/screen-prompts` · `/shadcn-ui` · `/spec-amend` · `/spec-implement-loop` · `/stitch-loop` · `/taste-design` · `/test-isolate-ambient` · `/upload-to-stitch`
 
 Run `/help <query>` for descriptions and when-to-use.

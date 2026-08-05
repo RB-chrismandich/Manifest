@@ -118,7 +118,7 @@ def desired(tmp_path: Path) -> DesiredState:
             },
             executables={
                 CapabilityTier.REQUIRED: ("git",),
-                CapabilityTier.DEFAULT: ("graphify",),
+                CapabilityTier.DEFAULT: (),
                 CapabilityTier.OPTIONAL: ("semgrep",),
             },
         ),
@@ -155,7 +155,6 @@ def complete_evidence() -> set[str]:
         "manifest-workspace:mcp:required-mcp",
         "manifest-workspace:mcp:context7",
         "manifest-workspace:executable:git",
-        "manifest-workspace:executable:graphify",
     }
 
 

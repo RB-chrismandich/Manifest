@@ -217,7 +217,7 @@ class CursorAdapter(CapabilityAdapterMixin):
 
 def _validate_desired(desired: DesiredState) -> HarnessResult | None:
     if tuple(contract.name for contract in desired.contracts) != DOMAIN_BUNDLES:
-        return _blocked("desired state must contain the exact nine canonical domains")
+        return _blocked("desired state must contain the exact canonical domains")
     if any(not contract.version for contract in desired.contracts):
         return _blocked("desired plugin versions must be non-empty")
     if not _COMMIT.fullmatch(desired.source_commit):

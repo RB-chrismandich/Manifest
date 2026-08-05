@@ -21,7 +21,6 @@ DOMAIN_BUNDLES = (
     "manifest-code-quality",
     "manifest-docs",
     "manifest-forge",
-    "manifest-graphify",
     "manifest-ops",
     "manifest-security",
     "manifest-spec-planning",
@@ -311,7 +310,7 @@ def _component_path_errors(bundle_path: Path, contract: BundleContract) -> list[
 
 
 def load_domain_contracts(root: Path) -> tuple[BundleContract, ...]:
-    """Load the exact nine portable domain contracts rooted at ``plugins``."""
+    """Load the exact portable domain contracts rooted at ``plugins``."""
     contract_paths = sorted(root.glob("*/manifest-capabilities.yml"))
     errors: list[str] = []
     contracts_by_path: list[tuple[Path, BundleContract]] = []
@@ -323,7 +322,7 @@ def load_domain_contracts(root: Path) -> tuple[BundleContract, ...]:
 
     if len(contract_paths) != len(DOMAIN_BUNDLES):
         errors.append(
-            f"expected 9 domain contracts, found {len(contract_paths)} under {root}"
+            f"expected {len(DOMAIN_BUNDLES)} domain contracts, found {len(contract_paths)} under {root}"
         )
 
     names_to_paths: dict[str, list[Path]] = {}

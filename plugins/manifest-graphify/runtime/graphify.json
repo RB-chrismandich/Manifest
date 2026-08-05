@@ -1,7 +1,0 @@
-{
-  "cache_root": "${XDG_CACHE_HOME:-$HOME/.cache}/manifest/graphify",
-  "degraded_when_missing": true,
-  "executable": "graphify",
-  "ownership": "coordinator-default-capability",
-  "schema_version": 1
-}

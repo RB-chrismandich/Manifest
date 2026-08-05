@@ -178,7 +178,7 @@ def _name_alternation(catalog: set[str]) -> str:
     matcher sees nothing there. Hyphenated names are safe to fold because no
     ordinary English phrase looks like `pr-review`.
 
-    The three catalog names with no hyphen -- graphify, help, remotion -- stay
+    The two catalog names with no hyphen -- help and remotion -- stay
     case-sensitive: `help` is an ordinary word, and folding it would fire on
     every sentence starting with "Help". A gate that cries wolf gets switched
     off, which costs more than the references it would have found.

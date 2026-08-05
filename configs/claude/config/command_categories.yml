@@ -129,7 +129,6 @@ overrides:
   session-checkpoint: meta
   code-audit: meta
   metrics-report: meta
-  graphify: meta
   env-check: meta
   help: meta
   learning-capture: meta

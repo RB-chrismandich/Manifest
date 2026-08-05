@@ -27,7 +27,6 @@ DOMAIN_BUNDLES = (
     "manifest-code-quality",
     "manifest-docs",
     "manifest-forge",
-    "manifest-graphify",
     "manifest-ops",
     "manifest-security",
     "manifest-spec-planning",

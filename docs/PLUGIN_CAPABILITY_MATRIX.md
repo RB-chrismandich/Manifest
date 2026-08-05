@@ -81,11 +81,6 @@ Generated from portable contracts and verified adapter inspection evidence; do n
 | `manifest-forge:executable:gtimeout` | contract optional executable | N/A(contract optional; not selected) | N/A(contract optional; not selected) | N/A(contract optional; not selected) | N/A(contract optional; not selected) | N/A(contract optional; not selected) | N/A(contract optional; not selected) |
 | `manifest-forge:executable:jq` | contract optional executable | N/A(contract optional; not selected) | N/A(contract optional; not selected) | N/A(contract optional; not selected) | N/A(contract optional; not selected) | N/A(contract optional; not selected) | N/A(contract optional; not selected) |
 | `manifest-forge:executable:timeout` | contract optional executable | N/A(contract optional; not selected) | N/A(contract optional; not selected) | N/A(contract optional; not selected) | N/A(contract optional; not selected) | N/A(contract optional; not selected) | N/A(contract optional; not selected) |
-| `manifest-graphify:skill:graphify` | contract skill | READY | READY | READY | READY | READY | READY |
-| `manifest-graphify:runtime:graphify-offline-launcher` | contract runtime | READY | READY | READY | READY | READY | READY |
-| `manifest-graphify:runtime:graphify-runtime-contract` | contract runtime | READY | READY | READY | READY | READY | READY |
-| `manifest-graphify:executable:git` | contract required executable | READY | READY | READY | READY | READY | READY |
-| `manifest-graphify:executable:graphify` | contract default executable | READY | READY | READY | READY | READY | READY |
 | `manifest-ops:skill:cache-warm-oob` | contract skill | READY | READY | READY | READY | READY | READY |
 | `manifest-ops:skill:ci-diagnose-drift` | contract skill | READY | READY | READY | READY | READY | READY |
 | `manifest-ops:skill:ci-reproduce-failure` | contract skill | READY | READY | READY | READY | READY | READY |

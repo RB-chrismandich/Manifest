@@ -1,6 +1,6 @@
 """Static capability identities shared without runtime import dependencies."""
 
-SUPPORTED_EXECUTABLE_IDENTITIES = frozenset({"graphify"})
+SUPPORTED_EXECUTABLE_IDENTITIES = frozenset()
 SUPPORTED_MCP_IDENTITIES = frozenset(
     {"atlassian", "context7", "github", "linear", "sentry", "stitch"}
 )

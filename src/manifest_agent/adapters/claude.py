@@ -36,7 +36,7 @@ _CANONICAL_PLUGIN_IDS = tuple(f"{name}@{_MARKETPLACE}" for name in DOMAIN_BUNDLE
 
 
 class ClaudeAdapter(CapabilityAdapterMixin):
-    """Install and verify the nine Manifest bundles through Claude Code."""
+    """Install and verify the canonical Manifest bundles through Claude Code."""
 
     name = "claude"
     adapter_version = _ADAPTER_VERSION
@@ -294,7 +294,7 @@ def _validate_desired(desired: DesiredState) -> HarnessResult | None:
     names = tuple(contract.name for contract in desired.contracts)
     if names != DOMAIN_BUNDLES:
         return _blocked(
-            "desired state must contain the exact nine canonical domain plugins"
+            "desired state must contain the exact canonical domain plugins"
         )
     if any(not contract.version for contract in desired.contracts):
         return _blocked("desired plugin versions must be non-empty")

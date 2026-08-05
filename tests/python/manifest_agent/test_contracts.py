@@ -148,8 +148,8 @@ def test_reports_all_semantic_errors(fixtures_dir: Path, tmp_path: Path) -> None
     assert "duplicate component id 'repeated'" in str(error.value)
 
 
-def test_domain_loader_requires_exact_nine(tmp_path: Path) -> None:
-    with pytest.raises(ContractError, match="expected 9 domain contracts"):
+def test_domain_loader_requires_exact_eight(tmp_path: Path) -> None:
+    with pytest.raises(ContractError, match="expected 8 domain contracts"):
         load_domain_contracts(tmp_path)
 
 
@@ -242,7 +242,6 @@ def test_domain_bundle_catalog_is_fixed() -> None:
         "manifest-code-quality",
         "manifest-docs",
         "manifest-forge",
-        "manifest-graphify",
         "manifest-ops",
         "manifest-security",
         "manifest-spec-planning",

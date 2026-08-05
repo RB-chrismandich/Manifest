@@ -21,6 +21,7 @@ from manifest_agent.paths import xdg_paths
 _MARKER = "manifest"
 _OWNED_STATUS = "installed-by-manifest"
 _CAPABILITY_KINDS = frozenset({"executable", "mcp"})
+_RETIRED_EXECUTABLE_IDENTITIES = frozenset({"graphify"})
 _SECRET_BYTES = 32
 _PROOF_VERSION = "manifest-capability-ownership-v1"
 
@@ -103,7 +104,7 @@ def _entry_errors(
     identity = f"{entry.kind}:{entry.identifier}"
     errors: list[str] = []
     try:
-        canonical_identity = capability_identity(entry.kind, entry.identifier)
+        canonical_identity = _canonical_identity(entry.kind, entry.identifier)
     except ValueError as error:
         return [f"receipt contains {error}"]
     if identity != canonical_identity or entry.ownership_marker != _MARKER:
@@ -149,7 +150,7 @@ def _target_errors(
 def _ownership_proof(
     secret: bytes, kind: str, identifier: str, target_path: str | None
 ) -> str:
-    identity = capability_identity(kind, identifier)
+    identity = _canonical_identity(kind, identifier)
     payload = json.dumps(
         {
             "capability": identity,
@@ -164,6 +165,13 @@ def _ownership_proof(
         separators=(",", ":"),
     ).encode()
     return hmac.new(secret, payload, hashlib.sha256).hexdigest()
+
+
+def _canonical_identity(kind: str, identifier: str) -> str:
+    """Accept receipt-proven retired tools only long enough to remove them."""
+    if kind == "executable" and identifier in _RETIRED_EXECUTABLE_IDENTITIES:
+        return f"executable:{identifier}"
+    return capability_identity(kind, identifier)
 
 
 def _load_or_create_secret(path: Path) -> bytes:

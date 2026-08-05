@@ -24,10 +24,6 @@ RULE_FILE="$REPO_ROOT/configs/cursor/rules/orchestration.mdc"
     done
 }
 
-@test "orchestration.mdc contains the Graphify managed-tool paragraph" {
-    grep -qF '**Graphify** is a managed *tool*, not a parallel-orchestration agent' "$RULE_FILE"
-}
-
 @test "orchestration.mdc names the plugin refresh command, not a retired one" {
     # This assertion has now been wrong twice in the same way, so it is pinned to
     # the mechanism rather than to a tool name. It first pinned "daily skill dev

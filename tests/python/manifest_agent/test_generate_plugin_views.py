@@ -115,7 +115,7 @@ def test_generator_emits_release_command_catalog(
     catalog_path = tmp_path / "manifest-workspace/skills/help/catalog/commands.json"
     catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
 
-    assert len(catalog["commands"]) == 109
+    assert len(catalog["commands"]) == 108
     assert any(
         command["qualified_name"] == "manifest-workspace:parallel-agent"
         for command in catalog["commands"]
@@ -153,7 +153,6 @@ def test_contracts_declare_explicit_capability_tiers(repo_root: Path) -> None:
             (),
             ("curl", "gh", "glab", "gtimeout", "jq", "timeout"),
         ),
-        "manifest-graphify": ((), (), (), ("git",), ("graphify",), ()),
         "manifest-ops": (
             (),
             (),
@@ -259,7 +258,7 @@ def test_marketplace_preserves_independent_addon_entry(
     )
 
     assert actual == expected
-    assert len(generated["plugins"]) == 10
+    assert len(generated["plugins"]) == 9
 
 
 def test_check_detects_tampered_generated_addon_entry(

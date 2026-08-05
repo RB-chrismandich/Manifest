@@ -115,16 +115,6 @@ entries:
     action: retain
     recovery: user-directed-removal-after-parity
     parity_test: plugin_migration.bats
-  - id: graphify-cli
-    category: optional_tools
-    path: ~/.local/bin/graphify
-    harnesses: [claude, codex, gemini, cursor, antigravity, devin]
-    classification: bundle-owned
-    destination: manifest-graphify
-    ownership_proof: {type: unproven, value: legacy-wrapper-hash-not-recorded}
-    action: retain
-    recovery: user-directed-removal-after-parity
-    parity_test: test_graphify_runtime.py
   - id: claude-config
     category: configuration
     path: ~/.claude/config

@@ -155,13 +155,6 @@
       "qualified_name": "manifest-code-quality:test-vary-fixtures"
     },
     {
-      "bundle": "manifest-graphify",
-      "category": "code-quality",
-      "description": "Map a codebase, docs, or GitHub repo into a queryable knowledge graph (graphify CLI): graph.html, GRAPH_REPORT.md, graph.json. Use to understand large or unfamiliar code, or answer \"what connects X to Y?\".",
-      "name": "graphify",
-      "qualified_name": "manifest-graphify:graphify"
-    },
-    {
       "bundle": "manifest-ops",
       "category": "deployment",
       "description": "Use when an in-process HTTP client stalls at scale (thousands of sequential calls) but the endpoint itself is healthy \u2014 warm the cache out-of-band with a hard-deadline tool, then run the job cache-only.",

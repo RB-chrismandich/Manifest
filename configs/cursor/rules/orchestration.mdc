@@ -300,12 +300,6 @@ All configuration is symlinked from `.claude/`:
 
 ## Skills
 
-**Graphify** is a managed *tool*, not a parallel-orchestration agent: the
-`graphify` CLI (installed by bootstrap when enabled) and its `@graphify` rule
-are toggled via `--enable-graphify`/`--disable-graphify` (default: enabled), but
-graphify never participates in `manifest parallel-agent` consensus and is not counted
-toward orchestration readiness.
-
 **Skills are plugin bundles**: `/<bundle>:<name>`; refresh with
 `claude plugin update <bundle>@manifest`. Others read `~/.manifest/skills`.
 
