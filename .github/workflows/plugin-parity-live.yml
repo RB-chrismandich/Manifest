@@ -89,21 +89,147 @@ jobs:
           python3 - "$ARCHIVE" "$METADATA" "$GITHUB_SHA" "$ARCHIVE_BASE_URL" <<'PY'
           import hashlib
           import json
+          import re
           import sys
-          from pathlib import Path
+          import tarfile
+          from pathlib import Path, PurePosixPath
 
+          DOMAIN_BUNDLES = (
+              "manifest-code-quality",
+              "manifest-docs",
+              "manifest-forge",
+              "manifest-ops",
+              "manifest-security",
+              "manifest-spec-planning",
+              "manifest-workspace",
+              "stitch-design",
+          )
+          TOP_LEVEL_KEYS = {
+              "archive_sha256",
+              "archive_url",
+              "bundles",
+              "commit",
+              "files",
+              "minimum_adapter_versions",
+              "schema_version",
+              "version",
+          }
+          BUNDLE_KEYS = {"contract_schema_version", "sha256", "version"}
+          FILE_KEYS = {"mode", "sha256", "size"}
+          ADAPTERS = {"antigravity", "claude", "codex", "cursor", "devin", "gemini"}
+          COMMIT = re.compile(r"^[0-9a-f]{40}$")
+          SHA256 = re.compile(r"^[0-9a-f]{64}$")
+          VERSION = re.compile(r"^[0-9]+\.[0-9]+\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?$")
+
+          def fail(message):
+              raise SystemExit(f"release verification failed: {message}")
+
+          def require(condition, message):
+              if not condition:
+                  fail(message)
+
+          def checksum(data):
+              return hashlib.sha256(data).hexdigest()
+
+          def bundle_checksum(name, files):
+              digest = hashlib.sha256()
+              prefix = f"plugins/{name}/"
+              paths = sorted(path for path in files if path.startswith(prefix))
+              require(paths, f"{name} has no indexed files")
+              for path in paths:
+                  record = files[path]
+                  relative = path.removeprefix(prefix).encode("utf-8")
+                  digest.update(len(relative).to_bytes(8, "big"))
+                  digest.update(relative)
+                  digest.update(int(record["mode"], 8).to_bytes(2, "big"))
+                  digest.update(record["size"].to_bytes(8, "big"))
+                  digest.update(bytes.fromhex(record["sha256"]))
+              return digest.hexdigest()
+
+          require(len(sys.argv) == 5, "unexpected verifier arguments")
           archive = Path(sys.argv[1])
           metadata_path = Path(sys.argv[2])
           commit = sys.argv[3]
           base_url = sys.argv[4]
-          metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
-          if metadata["commit"] != commit:
-              raise SystemExit("release metadata commit does not match the workflow commit")
-          if metadata["archive_sha256"] != hashlib.sha256(archive.read_bytes()).hexdigest():
-              raise SystemExit("release archive checksum does not match release metadata")
+          require(archive.is_file() and metadata_path.is_file(), "release files are missing")
+          try:
+              metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+          except (OSError, ValueError) as error:
+              fail(f"metadata is unreadable: {error}")
+          require(isinstance(metadata, dict), "metadata is not an object")
+          require(set(metadata) == TOP_LEVEL_KEYS, "metadata keys are not strict")
+          version = metadata["version"]
+          require(isinstance(version, str) and VERSION.fullmatch(version), "release version is invalid")
+          require(metadata["schema_version"] == 1 and not isinstance(metadata["schema_version"], bool), "release schema version is invalid")
+          require(isinstance(metadata["commit"], str) and COMMIT.fullmatch(metadata["commit"]) is not None and metadata["commit"] == commit, "release commit differs from workflow commit")
+          require(isinstance(metadata["archive_sha256"], str) and SHA256.fullmatch(metadata["archive_sha256"]) is not None, "release archive checksum is invalid")
+          require(metadata["archive_sha256"] == checksum(archive.read_bytes()), "release archive checksum does not match metadata")
+          require(archive.name == f"manifest-plugins-{version}.tar.gz", "release archive filename is invalid")
           expected_url = f"{base_url}/{metadata['version']}/{archive.name}"
-          if metadata["archive_url"] != expected_url:
-              raise SystemExit("release archive URL does not match the workflow base URL")
+          require(metadata["archive_url"] == expected_url, "release archive URL does not match workflow base")
+
+          adapters = metadata["minimum_adapter_versions"]
+          require(isinstance(adapters, dict) and set(adapters) == ADAPTERS, "adapter version map is invalid")
+          require(all(isinstance(value, str) and value for value in adapters.values()), "adapter version map is invalid")
+          bundles = metadata["bundles"]
+          require(isinstance(bundles, dict) and tuple(bundles) == DOMAIN_BUNDLES, "bundle set is invalid")
+          files = metadata["files"]
+          require(isinstance(files, dict) and files, "file index is invalid")
+          for path, record in files.items():
+              parsed = PurePosixPath(path) if isinstance(path, str) else None
+              require(parsed is not None and parsed.as_posix() == path and not parsed.is_absolute() and ".." not in parsed.parts, "file index path is unsafe")
+              allowed = path == ".claude-plugin/marketplace.json" or any(path.startswith(f"plugins/{name}/") for name in DOMAIN_BUNDLES)
+              require(allowed, f"file index path is outside domain bundles: {path}")
+              require(isinstance(record, dict) and set(record) == FILE_KEYS, f"file index record is invalid: {path}")
+              require(isinstance(record["mode"], str) and record["mode"] in {"0644", "0755"}, f"file mode is invalid: {path}")
+              require(isinstance(record["size"], int) and not isinstance(record["size"], bool) and record["size"] >= 0, f"file size is invalid: {path}")
+              require(isinstance(record["sha256"], str) and SHA256.fullmatch(record["sha256"]) is not None, f"file checksum is invalid: {path}")
+
+          observed = {}
+          prefix = f"manifest-plugins-{version}/"
+          try:
+              with tarfile.open(archive, mode="r:gz") as release:
+                  member_names = []
+                  for member in release.getmembers():
+                      member_path = PurePosixPath(member.name)
+                      require(member.name.startswith(prefix) and member_path.as_posix() == member.name and not member_path.is_absolute() and ".." not in member_path.parts, "archive member path is unsafe")
+                      path = member.name.removeprefix(prefix)
+                      require(path and path not in observed, "archive has duplicate member")
+                      require(path in files, f"archive has unlisted member: {path}")
+                      require(member.isfile() and not member.issym() and not member.islnk() and not member.isdev(), f"archive member type is invalid: {path}")
+                      record = files[path]
+                      require(member.mode & 0o777 == int(record["mode"], 8), f"archive member mode differs: {path}")
+                      require(member.size == record["size"] and member.mtime == 0 and member.uid == 0 and member.gid == 0, f"archive member metadata differs: {path}")
+                      payload = release.extractfile(member)
+                      require(payload is not None, f"archive member is unreadable: {path}")
+                      data = payload.read()
+                      require(checksum(data) == record["sha256"], f"archive member checksum differs: {path}")
+                      observed[path] = data
+                      member_names.append(member.name)
+          except (OSError, tarfile.TarError) as error:
+              fail(f"archive is unreadable: {error}")
+          require(member_names == sorted(member_names), "archive members are not deterministic")
+          require(set(observed) == set(files), "archive members do not match file index")
+          try:
+              marketplace = json.loads(observed[".claude-plugin/marketplace.json"])
+          except (KeyError, UnicodeDecodeError, ValueError) as error:
+              fail(f"release marketplace is invalid: {error}")
+          marketplace_plugins = marketplace.get("plugins") if isinstance(marketplace, dict) else None
+          require(isinstance(marketplace_plugins, list) and all(isinstance(plugin, dict) for plugin in marketplace_plugins), "release marketplace bundle set is invalid")
+          require(tuple(plugin.get("name") for plugin in marketplace_plugins) == DOMAIN_BUNDLES, "release marketplace bundle set is invalid")
+
+          for name in DOMAIN_BUNDLES:
+              record = bundles[name]
+              require(isinstance(record, dict) and set(record) == BUNDLE_KEYS, f"bundle record is invalid: {name}")
+              require(record["version"] == version, f"bundle version differs: {name}")
+              require(record["contract_schema_version"] == 1 and not isinstance(record["contract_schema_version"], bool), f"bundle schema differs: {name}")
+              require(isinstance(record["sha256"], str) and SHA256.fullmatch(record["sha256"]) is not None, f"bundle checksum is invalid: {name}")
+              require(record["sha256"] == bundle_checksum(name, files), f"bundle checksum differs: {name}")
+              contract_path = f"plugins/{name}/manifest-capabilities.yml"
+              require(contract_path in observed, f"bundle contract is missing: {name}")
+              contract = observed[contract_path].decode("utf-8", errors="strict")
+              match = re.match(r"^schema_version: ([0-9]+)\nbundle:\n  name: ([^\n]+)\n  version: ([^\n]+)\n", contract)
+              require(match is not None and match.group(1) == str(record["contract_schema_version"]) and match.group(2) == name and match.group(3) == version, f"bundle contract differs: {name}")
           PY
 
       - name: Install, reconcile, and uninstall one native harness
