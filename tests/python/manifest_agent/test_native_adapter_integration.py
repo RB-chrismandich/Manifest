@@ -322,24 +322,43 @@ def _assert_pre_install_inspection(
     expected_errors = {
         "claude": [
             f"missing required plugin: {name}@manifest" for name in DOMAIN_BUNDLES
-        ],
+        ]
+        + _missing_skill_evidence(desired),
         "codex": [
             f"missing required plugin: {name}@manifest" for name in DOMAIN_BUNDLES
-        ],
+        ]
+        + _missing_skill_evidence(desired),
         "gemini": [
             f"missing required extension: {name}" for name in DOMAIN_BUNDLES
-        ],
+        ]
+        + _missing_skill_evidence(desired),
         "cursor": ["Cursor marketplace list must contain exactly one manifest source"],
         "antigravity": [
             f"missing required plugin: {name}" for name in DOMAIN_BUNDLES
-        ],
+        ]
+        + _missing_skill_evidence(desired),
         "devin": [f"missing required plugin: {name}" for name in DOMAIN_BUNDLES],
     }
     assert result.state is ResultState.BLOCKED
-    assert _commands_in_order(
-        [tuple(command[1:]) for command in argv], expected_commands[harness]
-    )
-    assert set(expected_errors[harness]).issubset(result.errors)
+    assert [tuple(command[1:]) for command in argv] == expected_commands[harness]
+    assert result.errors == tuple(expected_errors[harness])
+
+
+def _missing_skill_evidence(desired: DesiredState) -> list[str]:
+    errors: list[str] = []
+    for contract in desired.contracts:
+        root = desired.bundle_path(contract.name) / contract.components.skills_root
+        skill_paths = {
+            path
+            for pattern in contract.components.skills_include
+            for path in root.glob(pattern)
+            if path.is_file()
+        }
+        errors.extend(
+            f"missing adapter evidence: {contract.name}:skill:{path.parent.name}"
+            for path in sorted(skill_paths)
+        )
+    return errors
 
 
 def _logged_argv(log: Path) -> list[list[str]]:

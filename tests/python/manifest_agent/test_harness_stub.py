@@ -112,3 +112,29 @@ def test_harness_stub_advances_argv_specific_response_sequences(tmp_path: Path) 
     assert (second.returncode, second.stdout) == (0, "after")
     assert exhausted.returncode == 2
     assert "response sequence exhausted" in exhausted.stderr
+
+
+def test_harness_stub_logs_an_unconfigured_argv_before_failing(tmp_path: Path) -> None:
+    stub = Path(__file__).parents[2] / "fixtures" / "harness_bins" / "harness-stub"
+    log = tmp_path / "argv.jsonl"
+    env = {
+        "PATH": os.environ["PATH"],
+        "HARNESS_STUB_LOG": str(log),
+        "HARNESS_STUB_RESPONSES": json.dumps({"responses": []}),
+    }
+
+    result = subprocess.run(
+        (str(stub), "plugin", "unlisted"),
+        check=False,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+
+    assert result.returncode == 2
+    assert "no configured response" in result.stderr
+    assert json.loads(log.read_text(encoding="utf-8")) == [
+        "harness-stub",
+        "plugin",
+        "unlisted",
+    ]

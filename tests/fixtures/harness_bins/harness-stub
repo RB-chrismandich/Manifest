@@ -114,8 +114,8 @@ def _text(response: dict[str, object], field: str) -> str:
 
 
 def main() -> int:
-    response = _load_response()
     _append_argv()
+    response = _load_response()
     sys.stdout.write(_text(response, "stdout"))
     sys.stderr.write(_text(response, "stderr"))
     returncode = response.get("returncode", response.get("code", 0))
