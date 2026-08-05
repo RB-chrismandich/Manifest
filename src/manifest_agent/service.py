@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from collections.abc import Callable, Mapping, Sequence
 from contextlib import AbstractContextManager
 from dataclasses import replace
@@ -21,6 +22,10 @@ from manifest_agent.models import (
     HarnessResult,
     InstallationReceipt,
     ResultState,
+)
+from manifest_agent.ownership import (
+    graphify_retirement_transaction_errors,
+    graphify_retirement_transaction_proof,
 )
 from manifest_agent.paths import xdg_paths
 from manifest_agent.process import CommandRunner, redact_text
@@ -51,6 +56,7 @@ from manifest_agent.state import (
 HARNESS_ORDER = ("claude", "codex", "gemini", "cursor", "antigravity", "devin")
 _RETIRED_BUNDLE = "manifest-graphify"
 _RETIRED_EXECUTABLE = "graphify"
+_GRAPHIFY_TOOL_HEADER = re.compile(r"^graphifyy\s+v[^\s]+\s+\([^)]+\)$")
 
 
 class ManifestService:
@@ -183,15 +189,44 @@ class ManifestService:
         checksums = bundle_checksums(desired)
         transaction_path = retired_graphify_transaction_path(self.receipt_path)
         transaction = read_retired_graphify_transaction(transaction_path)
+        recovering = transaction is not None
 
         if transaction is not None:
-            target_errors = identity_errors(
-                transaction.target_receipt, desired, checksums
+            authorization_errors = graphify_retirement_transaction_errors(
+                transaction.phase,
+                transaction.legacy_receipt_digest,
+                transaction.legacy_receipt,
+                transaction.target_receipt,
+                transaction.ownership_proof,
+                key_path=self.receipt_path.parent / "ownership.key",
             )
-            if target_errors:
+            if authorization_errors:
                 return None, (
-                    "retired Graphify transaction target is incompatible with the "
-                    "current release: " + "; ".join(target_errors)
+                    "retired Graphify transaction is not authorized: "
+                    + "; ".join(authorization_errors)
+                )
+            if (
+                receipt_digest(transaction.legacy_receipt)
+                != transaction.legacy_receipt_digest
+            ):
+                return None, (
+                    "retired Graphify transaction does not match its recorded legacy "
+                    "receipt"
+                )
+            if not _is_graphify_retirement_receipt(
+                transaction.legacy_receipt, desired, checksums
+            ):
+                return None, (
+                    "retired Graphify transaction legacy receipt is incompatible with "
+                    "the current release"
+                )
+            expected = _retired_graphify_target(
+                transaction.legacy_receipt, desired, checksums
+            )
+            if transaction.target_receipt != expected:
+                return None, (
+                    "retired Graphify transaction target does not match the required "
+                    "legacy receipt upgrade"
                 )
             if receipt == transaction.target_receipt:
                 try:
@@ -200,41 +235,38 @@ class ManifestService:
                 except Exception as exception:
                     return None, diagnostic(exception)
                 return receipt, None
-            if receipt_digest(receipt) != transaction.legacy_receipt_digest:
+            if receipt != transaction.legacy_receipt:
                 return None, (
                     "retired Graphify transaction does not match the current legacy "
                     "receipt"
-                )
-            if not _is_graphify_retirement_receipt(receipt, desired, checksums):
-                return None, (
-                    "retired Graphify transaction legacy receipt is incompatible with "
-                    "the current release"
                 )
             upgraded = transaction.target_receipt
         else:
             if not _is_graphify_retirement_receipt(receipt, desired, checksums):
                 return receipt, None
-            upgraded = replace(
-                receipt,
-                release_version=desired.release_version,
-                source_commit=desired.source_commit,
-                source_dirty=desired.source_dirty,
-                archive_sha256=desired.archive_sha256,
-                bundle_checksums=checksums,
-                harnesses={
-                    name: _without_retired_graphify(harness)
-                    for name, harness in receipt.harnesses.items()
-                },
-            )
+            upgraded = _retired_graphify_target(receipt, desired, checksums)
             if identity_errors(upgraded, desired, checksums):
                 return (
                     None,
                     "retired receipt cannot be reconciled with the current release",
                 )
+            try:
+                ownership_proof = graphify_retirement_transaction_proof(
+                    "prepared",
+                    receipt_digest(receipt),
+                    receipt,
+                    upgraded,
+                    key_path=self.receipt_path.parent / "ownership.key",
+                )
+            # constitution: exempt C-ERR -- ownership authority is a trust boundary.
+            except Exception as exception:
+                return None, diagnostic(exception)
             transaction = RetiredGraphifyTransaction(
                 phase="prepared",
                 legacy_receipt_digest=receipt_digest(receipt),
+                legacy_receipt=receipt,
                 target_receipt=upgraded,
+                ownership_proof=ownership_proof,
             )
             try:
                 write_retired_graphify_transaction_atomic(
@@ -245,23 +277,56 @@ class ManifestService:
                 return None, diagnostic(exception)
 
         if transaction.phase == "prepared" and _receipt_owns_retired_graphify(receipt):
-            # read_receipt validated every ownership HMAC before the journal was created.
-            try:
-                command = self.runner.run(("uv", "tool", "uninstall", "graphifyy"))
-            # constitution: exempt C-ERR -- native cleanup must block the upgrade.
-            except Exception as exception:
-                return None, diagnostic(exception)
-            if command.returncode != 0:
-                return None, redact_text(
-                    "legacy Graphify cleanup failed: "
-                    f"exit {command.returncode}: {command.stderr or command.stdout}"
-                )
+            if recovering:
+                installed, observation_error = self._graphify_tool_installed()
+                if observation_error is not None:
+                    return None, observation_error
+                if installed:
+                    try:
+                        command = self.runner.run(
+                            ("uv", "tool", "uninstall", "graphifyy")
+                        )
+                    # constitution: exempt C-ERR -- native cleanup must block the upgrade.
+                    except Exception as exception:
+                        return None, diagnostic(exception)
+                    if command.returncode != 0:
+                        return None, redact_text(
+                            "legacy Graphify cleanup failed: "
+                            f"exit {command.returncode}: {command.stderr or command.stdout}"
+                        )
+            else:
+                # read_receipt validated every ownership HMAC before the journal was created.
+                try:
+                    command = self.runner.run(("uv", "tool", "uninstall", "graphifyy"))
+                # constitution: exempt C-ERR -- native cleanup must block the upgrade.
+                except Exception as exception:
+                    return None, diagnostic(exception)
+                if command.returncode != 0:
+                    return None, redact_text(
+                        "legacy Graphify cleanup failed: "
+                        f"exit {command.returncode}: {command.stderr or command.stdout}"
+                    )
 
         if transaction.phase == "prepared":
             try:
+                ownership_proof = graphify_retirement_transaction_proof(
+                    "cleanup-complete",
+                    transaction.legacy_receipt_digest,
+                    transaction.legacy_receipt,
+                    transaction.target_receipt,
+                    key_path=self.receipt_path.parent / "ownership.key",
+                )
+            # constitution: exempt C-ERR -- ownership authority is a trust boundary.
+            except Exception as exception:
+                return None, diagnostic(exception)
+            try:
                 write_retired_graphify_transaction_atomic(
                     transaction_path,
-                    replace(transaction, phase="cleanup-complete"),
+                    replace(
+                        transaction,
+                        phase="cleanup-complete",
+                        ownership_proof=ownership_proof,
+                    ),
                 )
             # constitution: exempt C-ERR -- cleanup completion must be durable.
             except Exception as exception:
@@ -277,6 +342,27 @@ class ManifestService:
         except Exception as exception:
             return None, diagnostic(exception)
         return upgraded, None
+
+    def _graphify_tool_installed(self) -> tuple[bool, str | None]:
+        """Observe the exact retired uv tool entry before retrying a prepared cleanup."""
+        try:
+            command = self.runner.run(("uv", "tool", "list", "--show-paths"))
+        # constitution: exempt C-ERR -- native observation must block unsafe retry.
+        except Exception as exception:
+            return False, diagnostic(exception)
+        if command.returncode != 0:
+            return False, redact_text(
+                "unable to inspect legacy Graphify installation: "
+                f"exit {command.returncode}: {command.stderr or command.stdout}"
+            )
+        graphify_lines = [
+            line for line in command.stdout.splitlines() if line.startswith("graphifyy")
+        ]
+        if any(not _GRAPHIFY_TOOL_HEADER.fullmatch(line) for line in graphify_lines):
+            return False, "legacy Graphify installation inspection returned invalid output"
+        if len(graphify_lines) > 1:
+            return False, "legacy Graphify installation inspection is ambiguous"
+        return bool(graphify_lines), None
 
     def migrate(self) -> ServiceReport:
         """Atomically hand bootstrap-owned writers to verified native plugins."""
@@ -436,6 +522,22 @@ def _is_graphify_retirement_receipt(receipt, desired, checksums) -> bool:
     if any(receipt.bundle_checksums[name] != checksums[name] for name in DOMAIN_BUNDLES):
         return False
     return receipt.selected_optional == tuple(sorted(desired.selected_optional))
+
+
+def _retired_graphify_target(receipt, desired, checksums) -> InstallationReceipt:
+    """Derive the sole permitted current receipt from a signed legacy receipt."""
+    return replace(
+        receipt,
+        release_version=desired.release_version,
+        source_commit=desired.source_commit,
+        source_dirty=desired.source_dirty,
+        archive_sha256=desired.archive_sha256,
+        bundle_checksums=checksums,
+        harnesses={
+            name: _without_retired_graphify(harness)
+            for name, harness in receipt.harnesses.items()
+        },
+    )
 
 
 def _without_retired_graphify(receipt: HarnessReceipt) -> HarnessReceipt:

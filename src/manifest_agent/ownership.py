@@ -12,6 +12,7 @@ import stat
 import tempfile
 from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
+from dataclasses import asdict
 from pathlib import Path
 
 from manifest_agent.capability_identity import capability_identity
@@ -24,6 +25,7 @@ _CAPABILITY_KINDS = frozenset({"executable", "mcp"})
 _RETIRED_EXECUTABLE_IDENTITIES = frozenset({"graphify"})
 _SECRET_BYTES = 32
 _PROOF_VERSION = "manifest-capability-ownership-v1"
+_RETIREMENT_PROOF_VERSION = "manifest-graphify-retirement-v1"
 
 
 class OwnershipError(RuntimeError):
@@ -94,6 +96,52 @@ def capability_ownership_errors(
     return tuple(errors)
 
 
+def graphify_retirement_transaction_proof(
+    phase: str,
+    legacy_receipt_digest: str,
+    legacy_receipt,
+    target_receipt,
+    *,
+    key_path: Path,
+) -> str:
+    """Sign a Graphify retirement transition with the existing ownership authority."""
+    secret = _load_secret(key_path)
+    return _retirement_proof(
+        secret,
+        phase,
+        legacy_receipt_digest,
+        legacy_receipt,
+        target_receipt,
+    )
+
+
+def graphify_retirement_transaction_errors(
+    phase: str,
+    legacy_receipt_digest: str,
+    legacy_receipt,
+    target_receipt,
+    ownership_proof: str,
+    *,
+    key_path: Path,
+) -> tuple[str, ...]:
+    """Return authority errors for a receipt-bound Graphify transaction."""
+    try:
+        expected = graphify_retirement_transaction_proof(
+            phase,
+            legacy_receipt_digest,
+            legacy_receipt,
+            target_receipt,
+            key_path=key_path,
+        )
+    except OwnershipError as error:
+        return (str(error),)
+    if not isinstance(ownership_proof, str) or not hmac.compare_digest(
+        ownership_proof, expected
+    ):
+        return ("retired Graphify transaction ownership proof does not match",)
+    return ()
+
+
 def _entry_errors(
     receipt: HarnessReceipt,
     entry: OwnedEntry,
@@ -160,6 +208,27 @@ def _ownership_proof(
             "proof_version": _PROOF_VERSION,
             "status": _OWNED_STATUS,
             "target_path": target_path,
+        },
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode()
+    return hmac.new(secret, payload, hashlib.sha256).hexdigest()
+
+
+def _retirement_proof(
+    secret: bytes,
+    phase: str,
+    legacy_receipt_digest: str,
+    legacy_receipt,
+    target_receipt,
+) -> str:
+    payload = json.dumps(
+        {
+            "legacy_receipt": asdict(legacy_receipt),
+            "legacy_receipt_digest": legacy_receipt_digest,
+            "phase": phase,
+            "proof_version": _RETIREMENT_PROOF_VERSION,
+            "target_receipt": asdict(target_receipt),
         },
         sort_keys=True,
         separators=(",", ":"),

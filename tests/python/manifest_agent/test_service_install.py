@@ -22,13 +22,17 @@ from manifest_agent.models import (
     OwnedEntry,
     ResultState,
 )
-from manifest_agent.ownership import owned_capability_entry
+from manifest_agent.ownership import (
+    graphify_retirement_transaction_proof,
+    owned_capability_entry,
+)
 from manifest_agent.release import ResolvedRelease
 from manifest_agent.service_state import bundle_checksums
 from manifest_agent.state import (
     RetiredGraphifyTransaction,
     read_receipt,
     read_retired_graphify_transaction,
+    receipt_digest,
     retired_graphify_transaction_path,
     write_receipt_atomic,
     write_retired_graphify_transaction_atomic,
@@ -80,14 +84,29 @@ class FakeAdapter:
 
 
 class RecordingRunner:
-    def __init__(self, returncode: int = 0) -> None:
+    def __init__(
+        self,
+        returncode: int = 0,
+        *,
+        tool_list_stdout: str = "",
+        tool_list_returncode: int = 0,
+    ) -> None:
         self.calls: list[tuple[str, ...]] = []
         self.returncode = returncode
+        self.tool_list_stdout = tool_list_stdout
+        self.tool_list_returncode = tool_list_returncode
 
     def run(self, argv, *, env=None) -> CommandResult:
         del env
         command = tuple(argv)
         self.calls.append(command)
+        if command == ("uv", "tool", "list", "--show-paths"):
+            return CommandResult(
+                command,
+                self.tool_list_returncode,
+                self.tool_list_stdout,
+                "native inspection failed",
+            )
         return CommandResult(command, self.returncode, "", "native cleanup failed")
 
 
@@ -371,6 +390,34 @@ def _upgraded_graphify_receipt(service) -> InstallationReceipt:
     )
 
 
+def _signed_graphify_transaction(
+    service,
+    *,
+    phase: str,
+    legacy: InstallationReceipt | None = None,
+    target: InstallationReceipt | None = None,
+    legacy_digest: str | None = None,
+) -> RetiredGraphifyTransaction:
+    legacy = legacy or read_receipt(service.receipt_path)
+    assert legacy is not None
+    target = target or _upgraded_graphify_receipt(service)
+    legacy_digest = legacy_digest or receipt_digest(legacy)
+    ownership_proof = graphify_retirement_transaction_proof(
+        phase,
+        legacy_digest,
+        legacy,
+        target,
+        key_path=service.receipt_path.parent / "ownership.key",
+    )
+    return RetiredGraphifyTransaction(
+        phase=phase,
+        legacy_receipt_digest=legacy_digest,
+        legacy_receipt=legacy,
+        target_receipt=target,
+        ownership_proof=ownership_proof,
+    )
+
+
 def test_install_upgrades_a_signed_nine_bundle_receipt(service_factory) -> None:
     # Empty result inventory preserves the receipt's upgraded plugin IDs.
     claude = FakeAdapter("claude", harness_result("claude", plugin_ids=()))
@@ -447,6 +494,37 @@ def test_graphify_receipt_write_failure_retries_without_second_native_cleanup(
     assert not transaction_path.exists()
 
 
+def test_graphify_cleanup_checkpoint_failure_does_not_repeat_native_cleanup(
+    monkeypatch, service_factory
+) -> None:
+    claude = FakeAdapter("claude", harness_result("claude"))
+    service = service_factory({"claude": claude}, harnesses=("claude",))
+    _write_legacy_graphify_receipt(service)
+    original_write = service_module.write_retired_graphify_transaction_atomic
+    failed = False
+
+    def fail_first_cleanup_checkpoint(path, transaction):
+        nonlocal failed
+        if transaction.phase == "cleanup-complete" and not failed:
+            failed = True
+            raise OSError("injected cleanup checkpoint failure")
+        original_write(path, transaction)
+
+    monkeypatch.setattr(
+        service_module,
+        "write_retired_graphify_transaction_atomic",
+        fail_first_cleanup_checkpoint,
+    )
+
+    first = service.install()
+    second = service.install()
+
+    assert first.state is ResultState.BLOCKED
+    assert second.state is ResultState.READY
+    assert service.runner.calls.count(("uv", "tool", "uninstall", "graphifyy")) == 1
+    assert service.runner.calls.count(("uv", "tool", "list", "--show-paths")) == 1
+
+
 def test_corrupt_graphify_transaction_blocks_before_native_cleanup(
     service_factory,
 ) -> None:
@@ -474,10 +552,35 @@ def test_mismatched_graphify_transaction_blocks_before_native_cleanup(
     transaction_path = retired_graphify_transaction_path(service.receipt_path)
     write_retired_graphify_transaction_atomic(
         transaction_path,
-        RetiredGraphifyTransaction(
+        _signed_graphify_transaction(
+            service,
             phase="cleanup-complete",
-            legacy_receipt_digest="f" * 64,
-            target_receipt=_upgraded_graphify_receipt(service),
+            legacy_digest="f" * 64,
+        ),
+    )
+
+    report = service.install()
+
+    assert report.state is ResultState.BLOCKED
+    assert service.runner.calls == []
+    assert service.receipt_path.read_bytes() == before
+    assert "install" not in claude.calls
+
+
+def test_semantically_forged_graphify_transaction_blocks_before_native_cleanup(
+    service_factory,
+) -> None:
+    claude = FakeAdapter("claude", harness_result("claude"))
+    service = service_factory({"claude": claude}, harnesses=("claude",))
+    before = _write_legacy_graphify_receipt(service)
+    transaction_path = retired_graphify_transaction_path(service.receipt_path)
+    forged_target = replace(
+        _upgraded_graphify_receipt(service), coordinator_version="forged"
+    )
+    write_retired_graphify_transaction_atomic(
+        transaction_path,
+        _signed_graphify_transaction(
+            service, phase="cleanup-complete", target=forged_target
         ),
     )
 

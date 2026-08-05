@@ -53,7 +53,9 @@ class RetiredGraphifyTransaction:
 
     phase: str
     legacy_receipt_digest: str
+    legacy_receipt: InstallationReceipt
     target_receipt: InstallationReceipt
+    ownership_proof: str
 
 
 def _receipt_path(path: Path | None) -> Path:
@@ -181,6 +183,9 @@ def read_retired_graphify_transaction(
     ) as error:
         raise StateError("unable to read retired Graphify transaction") from error
     _validate_receipt(
+        transaction.legacy_receipt, ownership_key_path=path.parent / "ownership.key"
+    )
+    _validate_receipt(
         transaction.target_receipt, ownership_key_path=path.parent / "ownership.key"
     )
     return transaction
@@ -194,6 +199,11 @@ def write_retired_graphify_transaction_atomic(
         raise StateError("retired Graphify transaction has an invalid phase")
     if not _SHA256.fullmatch(transaction.legacy_receipt_digest):
         raise StateError("retired Graphify transaction has an invalid receipt digest")
+    if not _SHA256.fullmatch(transaction.ownership_proof):
+        raise StateError("retired Graphify transaction has an invalid ownership proof")
+    _validate_receipt(
+        transaction.legacy_receipt, ownership_key_path=path.parent / "ownership.key"
+    )
     _validate_receipt(
         transaction.target_receipt, ownership_key_path=path.parent / "ownership.key"
     )
@@ -201,7 +211,9 @@ def write_retired_graphify_transaction_atomic(
         "schema_version": 1,
         "phase": transaction.phase,
         "legacy_receipt_digest": transaction.legacy_receipt_digest,
+        "legacy_receipt": asdict(transaction.legacy_receipt),
         "target_receipt": asdict(transaction.target_receipt),
+        "ownership_proof": transaction.ownership_proof,
     }
     _assert_secret_free(document)
     _write_private_json_atomic(path, document)
@@ -346,7 +358,14 @@ def _decode_retired_graphify_transaction(value: Any) -> RetiredGraphifyTransacti
     """Strictly reconstruct a receipt-bound Graphify retirement journal."""
     document = _object(
         value,
-        {"schema_version", "phase", "legacy_receipt_digest", "target_receipt"},
+        {
+            "schema_version",
+            "phase",
+            "legacy_receipt_digest",
+            "legacy_receipt",
+            "target_receipt",
+            "ownership_proof",
+        },
     )
     if _integer(document["schema_version"]) != 1:
         raise ValueError("unsupported retired Graphify transaction schema version")
@@ -356,10 +375,15 @@ def _decode_retired_graphify_transaction(value: Any) -> RetiredGraphifyTransacti
     legacy_receipt_digest = _string(document["legacy_receipt_digest"])
     if not _SHA256.fullmatch(legacy_receipt_digest):
         raise ValueError("invalid retired Graphify transaction receipt digest")
+    ownership_proof = _string(document["ownership_proof"])
+    if not _SHA256.fullmatch(ownership_proof):
+        raise ValueError("invalid retired Graphify transaction ownership proof")
     return RetiredGraphifyTransaction(
         phase=phase,
         legacy_receipt_digest=legacy_receipt_digest,
+        legacy_receipt=_decode_receipt(document["legacy_receipt"]),
         target_receipt=_decode_receipt(document["target_receipt"]),
+        ownership_proof=ownership_proof,
     )
 
 

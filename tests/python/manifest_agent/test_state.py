@@ -10,7 +10,10 @@ from pathlib import Path
 import pytest
 
 from manifest_agent.models import HarnessReceipt, InstallationReceipt, OwnedEntry
-from manifest_agent.ownership import owned_capability_entry
+from manifest_agent.ownership import (
+    graphify_retirement_transaction_proof,
+    owned_capability_entry,
+)
 from manifest_agent.state import (
     RetiredGraphifyTransaction,
     StateError,
@@ -67,10 +70,22 @@ def test_receipt_write_is_atomic_private_and_round_trips(tmp_path):
 def test_graphify_retirement_transaction_round_trips_strictly(tmp_path) -> None:
     receipt_path = tmp_path / "installation.json"
     path = retired_graphify_transaction_path(receipt_path)
+    legacy_digest = receipt_digest(SAMPLE_RECEIPT)
+    owned_capability_entry(
+        "executable", "graphify", key_path=tmp_path / "ownership.key"
+    )
     transaction = RetiredGraphifyTransaction(
         phase="prepared",
-        legacy_receipt_digest=receipt_digest(SAMPLE_RECEIPT),
+        legacy_receipt_digest=legacy_digest,
+        legacy_receipt=SAMPLE_RECEIPT,
         target_receipt=SAMPLE_RECEIPT,
+        ownership_proof=graphify_retirement_transaction_proof(
+            "prepared",
+            legacy_digest,
+            SAMPLE_RECEIPT,
+            SAMPLE_RECEIPT,
+            key_path=tmp_path / "ownership.key",
+        ),
     )
 
     write_retired_graphify_transaction_atomic(path, transaction)
