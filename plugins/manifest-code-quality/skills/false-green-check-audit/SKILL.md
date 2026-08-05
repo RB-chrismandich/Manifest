@@ -1,6 +1,6 @@
 ---
 name: false-green-check-audit
-description: Use when writing or reviewing a health-check, status, validation, or CI gate that can SKIP verifying something (missing credential, unsupported provider, absent tool) — ensure a skipped check never renders as a green pass, and verify through the channel the user actually uses.
+description: Use when writing or reviewing a health-check, status, validation, or CI gate that can SKIP verifying something (missing credential, unsupported provider, absent tool) — ensure a skipped/unverifiable check never renders as a green pass, and add a verification path through the credential or channel the user actually uses (e.g. an OAuth CLI, not an assumed API key).
 ---
 # Audit Checks for False-Green (Skip ≠ Pass)
 

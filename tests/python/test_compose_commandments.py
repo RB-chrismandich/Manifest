@@ -364,3 +364,37 @@ def test_the_line_tracking_loader_refuses_python_object_tags():
     with pytest.raises(Exception) as excinfo:
         load_yaml_with_lines("!!python/object/apply:os.system ['echo pwned']\n")
     assert "ConstructorError" in type(excinfo.value).__name__
+
+
+def test_dc003_flags_a_healthcheck_that_is_explicitly_disabled(tmp_path, cfg):
+    """`disable: true` is worse than absent: a dependant waiting on
+    service_healthy can never be satisfied, so compose blocks until timeout."""
+    disabled = "    healthcheck: {disable: true}"
+    body = DEPENDS % ("      db:\n        condition: service_healthy", disabled)
+    assert "DC-003" in ids_for(tmp_path, cfg, body)
+
+
+def test_dc005_flags_host_networking_on_a_stateful_service(tmp_path, cfg):
+    """network_mode: host opts out of Docker networking, so `networks:` and
+    `internal: true` stop constraining anything."""
+    body = (
+        "services:\n"
+        "  db:\n    image: postgres:16\n    network_mode: host\n"
+        '    user: "1"\n    stop_grace_period: 30s\n'
+        '    logging: {driver: json-file, options: {max-size: 10m, max-file: "3"}}\n'
+        '    deploy: {resources: {limits: {cpus: "1", memory: 1G}}}\n'
+    )
+    assert "DC-005" in ids_for(tmp_path, cfg, body)
+
+
+def test_dc005_leaves_host_networking_alone_for_a_stateless_service(tmp_path, cfg):
+    """Host mode is normal for edge proxies and metrics agents; only durable
+    state on the host network is the finding."""
+    body = (
+        "services:\n"
+        "  proxy:\n    image: nginx:1.25\n    network_mode: host\n"
+        '    user: "1"\n'
+        '    logging: {driver: json-file, options: {max-size: 10m, max-file: "3"}}\n'
+        '    deploy: {resources: {limits: {cpus: "1", memory: 1G}}}\n'
+    )
+    assert "DC-005" not in ids_for(tmp_path, cfg, body)

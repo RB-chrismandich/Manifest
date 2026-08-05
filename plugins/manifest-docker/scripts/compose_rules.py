@@ -77,16 +77,18 @@ def _rule_dc_003(ctx: Context) -> list[Finding]:
     out: list[Finding] = []
     depended = _collect_dependency_edges(ctx, out)
     for name in sorted(depended & set(ctx.services)):
-        if not ctx.services[name].get("healthcheck"):
-            out.append(
-                Finding(
-                    "DC-003",
-                    "medium",
-                    name,
-                    _header(ctx, name),
-                    "depended upon but has no healthcheck",
-                )
-            )
+        check = ctx.services[name].get("healthcheck")
+        if check and not (isinstance(check, dict) and check.get("disable")):
+            continue
+        # `healthcheck: {disable: true}` is worse than none: a dependant waiting
+        # on `condition: service_healthy` can never be satisfied, so compose
+        # blocks until it times out rather than starting degraded.
+        detail = (
+            "depended upon but its healthcheck is disabled"
+            if check
+            else "depended upon but has no healthcheck"
+        )
+        out.append(Finding("DC-003", "medium", name, _header(ctx, name), detail))
     return out
 
 
@@ -153,6 +155,22 @@ def _rule_dc_005(ctx: Context) -> list[Finding]:
     exposed = _exposed_networks(ctx)
     out = []
     for name, body in ctx.services.items():
+        if str(body.get("network_mode", "")).startswith("host"):
+            # Host networking opts out of Docker networking entirely: the
+            # container binds host interfaces directly, so `networks:` and
+            # `internal: true` no longer constrain anything. Worth flagging even
+            # for a lone service, unlike the default-bridge case below.
+            if is_stateful(ctx, body):
+                out.append(
+                    Finding(
+                        "DC-005",
+                        "high",
+                        name,
+                        line_of(body, "network_mode", _header(ctx, name)),
+                        "`network_mode: host` puts a stateful service on the host network",
+                    )
+                )
+            continue
         attached = set(service_networks(body))
         if not attached and len(ctx.services) > 1:
             out.append(
