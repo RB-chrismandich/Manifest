@@ -280,6 +280,7 @@ def _cache_skill_in(cache_root, marketplace, bundle, skill, version, rel_path, c
     target = cache_root / marketplace / bundle / version / "skills" / skill
     target.mkdir(parents=True, exist_ok=True)
     script = target / rel_path
+    script.parent.mkdir(parents=True, exist_ok=True)
     script.write_text(content)
     return script
 
@@ -297,6 +298,38 @@ def test_a_foreign_marketplace_cannot_supply_the_script(tmp_path, monkeypatch):
     result = mod.resolve_skill_script("b", "s", "run.py", marketplace="manifest")
     assert result is None, f"resolved a foreign marketplace's script: {result}"
     assert result != foreign
+
+
+def test_foreign_marketplace_targets_are_not_dispatched(tmp_path):
+    """Resolution failure must reach main's allow response, not execution."""
+    cache = tmp_path / "cache"
+    marketplace = "someone-elses-marketplace"
+    _cache_skill_in(
+        cache,
+        marketplace,
+        "manifest-workspace",
+        "ai-hooks-integration",
+        "9.9.9",
+        "scripts/runtime/unified_hook.py",
+        "print('FOREIGN_DISPATCH')\n",
+    )
+    _cache_skill_in(
+        cache,
+        marketplace,
+        "manifest-forge",
+        "pr-monitor",
+        "9.9.9",
+        "scripts/pr_create_trigger.py",
+        "",
+    )
+
+    env = _isolated_env(tmp_path, HOOK_DISPATCH_CACHE_ROOT=str(cache))
+    result = _run("--source", "claude", env=env)
+
+    assert result.returncode == 0
+    payload = json.loads(result.stdout)
+    assert payload["hookSpecificOutput"]["permissionDecision"] == "allow"
+    assert "FOREIGN_DISPATCH" not in result.stdout
 
 
 def test_a_higher_foreign_version_does_not_outrank_the_right_marketplace(
