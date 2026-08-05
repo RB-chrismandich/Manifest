@@ -1,6 +1,6 @@
 ---
 name: docker-compose-commandments
-description: Audit or harden a docker-compose.yaml against DC-001..DC-010 — pinning, secrets, healthchecks, limits, network isolation, volumes, non-root, logs. Use for "review my compose file" or a DC-NNN finding.
+description: Use when reviewing or hardening a docker-compose file — image pinning, secrets, healthchecks, resource limits, network isolation, volumes, non-root, logs — or when chasing a DC-NNN finding. Implements the ten commandments DC-001 through DC-010.
 ---
 
 # The Ten Commandments of docker-compose
@@ -39,17 +39,17 @@ Rationale, failure mode, and the exact remedy for each: `references/commandments
 
    ```bash
    # One file
-   python3 scripts/compose_check.py docker-compose.yaml
+   python3 "$CLAUDE_PLUGIN_ROOT/scripts/compose_check.py" docker-compose.yaml
 
    # Every compose file in a tree
-   python3 scripts/compose_check.py .
+   python3 "$CLAUDE_PLUGIN_ROOT/scripts/compose_check.py" .
 
    # One rule only, or machine-readable output
-   python3 scripts/compose_check.py . --rule DC-002 --rule DC-005
-   python3 scripts/compose_check.py . --json
+   python3 "$CLAUDE_PLUGIN_ROOT/scripts/compose_check.py" . --rule DC-002 --rule DC-005
+   python3 "$CLAUDE_PLUGIN_ROOT/scripts/compose_check.py" . --json
 
    # CI gate: non-zero when anything is found
-   python3 scripts/compose_check.py . --strict
+   python3 "$CLAUDE_PLUGIN_ROOT/scripts/compose_check.py" . --strict
    ```
 
 2. **Read each finding as `file:line  DC-NNN severity [service] message`.** The

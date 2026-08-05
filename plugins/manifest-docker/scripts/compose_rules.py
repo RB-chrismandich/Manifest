@@ -41,11 +41,17 @@ def _rule_dc_001(ctx: Context) -> list[Finding]:
             continue
         last = image.rsplit("/", 1)[-1]
         tag = last.rsplit(":", 1)[1] if ":" in last else ""
-        if tag and tag != "latest":
+        if tag and tag != "latest" and "${" not in tag:
             continue
-        detail = (
-            f"`{image}` is pinned to a mutable tag" if tag else f"`{image}` has no tag"
-        )
+        if not tag:
+            detail = f"`{image}` has no tag"
+        elif "${" in tag:
+            # An interpolated tag is resolved from the caller's environment or
+            # .env, so the committed file does not say which bytes deploy — it
+            # is as unpinned as `latest`, just less obviously so.
+            detail = f"`{image}` resolves its tag from the environment"
+        else:
+            detail = f"`{image}` is pinned to a mutable tag"
         line = line_of(body, "image", _header(ctx, name))
         out.append(Finding("DC-001", "high", name, line, detail))
     return out
@@ -57,7 +63,7 @@ def _rule_dc_002(ctx: Context) -> list[Finding]:
     out = []
     for name, body in ctx.services.items():
         for key, value in env_pairs(body):
-            if not isinstance(value, str) or not value or "${" in value:
+            if not _holds_literal(value):
                 continue
             if key.upper().endswith("_FILE"):
                 continue
@@ -72,13 +78,32 @@ def _rule_dc_002(ctx: Context) -> list[Finding]:
     return out
 
 
+_PURE_REFERENCE = re.compile(
+    r"^\$\{[A-Za-z_][A-Za-z0-9_]*\}$|^\$[A-Za-z_][A-Za-z0-9_]*$"
+)
+
+
+def _holds_literal(value: Any) -> bool:
+    """True when the value carries a credential the file itself supplies.
+
+    Only a *pure* environment reference is safe. ``${PASSWORD:-hunter2}`` still
+    ships the credential — compose injects the default when the variable is
+    unset — and an unquoted scalar like ``123456`` parses as an int, so a
+    string-only guard would let both through.
+    """
+    if isinstance(value, bool) or value is None:
+        return False
+    text = value if isinstance(value, str) else str(value)
+    return bool(text) and not _PURE_REFERENCE.match(text.strip())
+
+
 def _rule_dc_003(ctx: Context) -> list[Finding]:
     """Healthchecks, and dependants waiting on health rather than start."""
     out: list[Finding] = []
     depended = _collect_dependency_edges(ctx, out)
     for name in sorted(depended & set(ctx.services)):
         check = ctx.services[name].get("healthcheck")
-        if check and not (isinstance(check, dict) and check.get("disable")):
+        if check and not _healthcheck_disabled(check):
             continue
         # `healthcheck: {disable: true}` is worse than none: a dependant waiting
         # on `condition: service_healthy` can never be satisfied, so compose
@@ -90,6 +115,22 @@ def _rule_dc_003(ctx: Context) -> list[Finding]:
         )
         out.append(Finding("DC-003", "medium", name, _header(ctx, name), detail))
     return out
+
+
+def _healthcheck_disabled(check: Any) -> bool:
+    """True when the block turns the image's healthcheck off rather than on.
+
+    ``disable: true`` and ``test: ["NONE"]`` are the two spellings compose
+    accepts, and they mean the same thing: no health status exists, so a
+    dependant's ``condition: service_healthy`` can never be satisfied.
+    """
+    if not isinstance(check, dict):
+        return False
+    if check.get("disable"):
+        return True
+    test = check.get("test")
+    first = test[0] if isinstance(test, list) and test else test
+    return isinstance(first, str) and first.strip().upper() == "NONE"
 
 
 def _collect_dependency_edges(ctx: Context, out: list[Finding]) -> set[str]:
@@ -209,6 +250,11 @@ def _exposed_networks(ctx: Context) -> set[str]:
     return exposed
 
 
+def _durable(target: str, targets: list[str]) -> bool:
+    """True when a mount target is one the registry calls durable state."""
+    return any(hint in target for hint in targets)
+
+
 def _rule_dc_006(ctx: Context) -> list[Finding]:
     """Named volumes rather than host bind mounts for durable data."""
     declared = set(ctx.doc.get("volumes") or {})
@@ -219,13 +265,27 @@ def _rule_dc_006(ctx: Context) -> list[Finding]:
         for spec in mount_specs(body):
             source, _, rest = spec.partition(":")
             target = rest.split(":", 1)[0]
+            if not source and target and (stateful or _durable(target, targets)):
+                # Long-form with no `source:` is an anonymous volume: docker
+                # names it a hash, nothing references it, and the next
+                # `down -v` or recreate loses the data it was holding.
+                out.append(
+                    Finding(
+                        "DC-006",
+                        "medium",
+                        name,
+                        line_of(body, "volumes", _header(ctx, name)),
+                        f"anonymous volume at `{target}` holds durable state",
+                    )
+                )
+                continue
             if (
                 not source
                 or source in declared
                 or not source.startswith((".", "/", "~"))
             ):
                 continue
-            if not stateful and not any(hint in target for hint in targets):
+            if not stateful and not _durable(target, targets):
                 continue
             line = line_of(body, "volumes", _header(ctx, name))
             out.append(

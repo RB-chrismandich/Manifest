@@ -307,3 +307,31 @@ def test_the_hook_caps_its_own_output(tmp_path):
     stderr = run_hook(json.dumps({"tool_input": {"file_path": str(path)}})).stderr
     assert "more not shown" in stderr
     assert len(stderr.splitlines()) < 40
+
+
+def test_a_mistyped_rule_id_is_rejected_rather_than_matching_nothing(tmp_path):
+    """`--rule DC-050` filtered every rule out and --strict exited 0, turning a
+    typo into a silent no-op gate."""
+    (tmp_path / "docker-compose.yaml").write_text(
+        "services:\n  a:\n    image: nginx:latest\n", encoding="utf-8"
+    )
+    result = run_checker(str(tmp_path), "--rule", "DC-050", "--strict")
+    assert result.returncode == 2
+    assert "DC-050" in result.stderr
+
+
+def test_a_known_rule_id_still_runs(tmp_path):
+    (tmp_path / "docker-compose.yaml").write_text(
+        "services:\n  a:\n    image: nginx:latest\n", encoding="utf-8"
+    )
+    result = run_checker(str(tmp_path), "--rule", "DC-001", "--strict")
+    assert result.returncode == 1
+
+
+def test_hook_survives_a_tool_input_that_is_not_a_mapping(tmp_path):
+    """A reshaped or corrupted payload put a scalar where the mapping belongs;
+    `.get` on it raised outside the protective try and failed the edit."""
+    result = run_hook('{"tool_input": "not-a-mapping"}')
+    assert result.returncode == 0
+    result = run_hook('{"tool_input": {"file_path": 17}}')
+    assert result.returncode == 0

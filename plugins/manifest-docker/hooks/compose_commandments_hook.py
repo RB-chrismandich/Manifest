@@ -34,8 +34,13 @@ HOOK_FINDING_LIMIT = 12
 
 def edited_path(payload: dict) -> str:
     """The file the tool touched. Payload shape varies across Claude Code versions."""
-    tool_input = payload.get("tool_input") or {}
-    return tool_input.get("file_path") or payload.get("file_path") or ""
+    # Validated, not assumed: a corrupted or reshaped payload can put a scalar
+    # where the mapping belongs, and `.get` on a string would raise outside the
+    # protective try below — turning an advisory hook into a failed edit.
+    tool_input = payload.get("tool_input")
+    nested = tool_input.get("file_path") if isinstance(tool_input, dict) else None
+    raw = nested or payload.get("file_path") or ""
+    return raw if isinstance(raw, str) else ""
 
 
 def is_recognised(path: Path) -> bool:

@@ -180,9 +180,22 @@ def service_networks(body: dict[str, Any]) -> list[str]:
     return [str(item) for item in networks or []]
 
 
+def _repository(image: str) -> str:
+    """Image reference with digest and tag stripped, lowercased.
+
+    The tag is stripped from the LAST path segment only. A registry host may
+    carry a port (``registry.local:5000/postgres``), and a naive rsplit on the
+    whole reference eats the image path along with the port — which silently
+    turned every private-registry database into a stateless service.
+    """
+    repository = image.split("@", 1)[0]
+    head, slash, last = repository.rpartition("/")
+    return f"{head}{slash}{last.rsplit(':', 1)[0]}".lower()
+
+
 def is_stateful(ctx: Context, body: dict[str, Any]) -> bool:
     """True when the service holds durable state (by image family or mount)."""
-    image = image_name(body).split("@", 1)[0].rsplit(":", 1)[0].lower()
+    image = _repository(image_name(body))
     if image and any(family in image for family in ctx.cfg.get("stateful_images", [])):
         return True
     targets = ctx.cfg.get("stateful_mount_targets", [])

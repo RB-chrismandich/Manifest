@@ -40,10 +40,10 @@ PyYAML is absent rather than failing the edit.
 /manifest-docker:docker-compose-commandments   # audit + fix through the skill
 
 # or drive the checker directly
-python3 scripts/compose_check.py .           # audit a tree
-python3 scripts/compose_check.py . --json    # machine-readable
-python3 scripts/compose_check.py . --strict  # CI gate (see exit codes below)
-python3 scripts/compose_check.py --list-rules
+python3 "$CLAUDE_PLUGIN_ROOT/scripts/compose_check.py" .           # audit a tree
+python3 "$CLAUDE_PLUGIN_ROOT/scripts/compose_check.py" . --json    # machine-readable
+python3 "$CLAUDE_PLUGIN_ROOT/scripts/compose_check.py" . --strict  # CI gate (see exit codes below)
+python3 "$CLAUDE_PLUGIN_ROOT/scripts/compose_check.py" --list-rules
 ```
 
 ### `--strict` exit codes

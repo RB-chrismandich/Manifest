@@ -57,17 +57,20 @@ def is_compose_file(path: Path, cfg: dict[str, Any]) -> bool:
 def is_bypassed(ctx: Context, finding: Finding) -> bool:
     """True when a bypass marker covers this finding.
 
-    A marker on the offending line always applies. For a service-scoped
-    finding the whole service block counts, because a missing key has no line
-    of its own to annotate.
+    A marker on the offending line always applies. The whole service block
+    counts ONLY for a finding with no offending line of its own — a missing key
+    anchors to the service header, and there is nothing else to annotate.
+    Expanding for findings that DO point at a key would let one marker anywhere
+    in a service suppress unrelated rules across the whole block, which is
+    broader than the line-scoped bypass the docs promise.
     """
     marker = ctx.cfg.get("bypass_marker", "")
     if not marker:
         return False
     candidates = [finding.line]
-    if finding.service and finding.service in ctx.ranges:
-        start, end = ctx.ranges[finding.service]
-        candidates = list(range(start, end + 1))
+    span = ctx.ranges.get(finding.service or "")
+    if span and finding.line == span[0]:
+        candidates = list(range(span[0], span[1] + 1))
     return any(
         _marker_covers(ctx, marker, number, finding.rule_id) for number in candidates
     )
@@ -236,6 +239,23 @@ def _degraded(strict: bool, message: str) -> int:
     return EXIT_UNAUDITED if strict else 0
 
 
+def _rules_are_known(cfg: dict[str, Any], requested: list[str] | None) -> bool:
+    """False (having said why) when ``--rule`` names an id the registry lacks.
+
+    A mistyped id matches nothing, so every rule is filtered out and the report
+    comes back empty — which under ``--strict`` is exit 0. A typo must not be
+    able to turn the gate into a silent no-op.
+    """
+    unknown = sorted(set(requested or []) - {r.get("id") for r in cfg.get("rules", [])})
+    if unknown:
+        print(
+            f"compose_check.py: unknown rule id(s): {', '.join(unknown)}. "
+            "See --list-rules.",
+            file=sys.stderr,
+        )
+    return not unknown
+
+
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     try:
@@ -250,6 +270,9 @@ def main(argv: list[str] | None = None) -> int:
         for rule in cfg.get("rules", []):
             print(f"{rule['id']}  {rule['severity']:<6}  {rule['commandment']}")
         return 0
+
+    if not _rules_are_known(cfg, args.rule):
+        return 2
 
     target = Path(os.path.expanduser(args.target)).resolve()
     if not target.exists():
