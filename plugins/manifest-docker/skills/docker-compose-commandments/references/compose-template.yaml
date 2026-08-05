@@ -52,7 +52,7 @@ services:
 
   db:
     <<: [*service-defaults, *logging-defaults]  # DC-009
-    image: postgres:16.2-alpine@sha256:0000000000000000000000000000000000000000000000000000000000000000  # DC-001
+    image: postgres:18.4-alpine@sha256:9a8afca54e7861fd90fab5fdf4c42477a6b1cb7d293595148e674e0a3181de15  # DC-001
     user: '999:999'  # DC-007
     environment:
       POSTGRES_DB: ${DB_NAME}
