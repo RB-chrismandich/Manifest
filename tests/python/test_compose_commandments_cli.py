@@ -74,15 +74,92 @@ def test_json_output_is_parseable(tmp_path):
 
 
 def test_malformed_yaml_is_reported_without_aborting_the_sweep(tmp_path):
+    """One bad file must not stop the others being read."""
     (tmp_path / "docker-compose.yaml").write_text(
         "services: [unclosed\n", encoding="utf-8"
     )
     (tmp_path / "compose.yaml").write_text(
         "services:\n  a:\n    image: nginx:latest\n", encoding="utf-8"
     )
-    result = run_checker(str(tmp_path), "--strict")
+    result = run_checker(str(tmp_path))
     assert "skipped" in result.stderr
-    assert result.returncode == 1, "the readable file must still be checked"
+    assert "DC-001" in result.stdout, "the readable file must still be checked"
+
+
+# --------------------------------------------------------------------------- #
+# The --strict exit contract
+#
+# 0 must mean "every target was read and is compliant". The failure this guards
+# is a gate that goes green because nothing could be read: an unparseable file
+# yields zero findings, and zero findings looked exactly like clean. The first
+# version of the test above hid it by pairing the bad file with a good one that
+# produced findings, so the exit code was non-zero for the wrong reason.
+# --------------------------------------------------------------------------- #
+
+
+def test_strict_fails_when_the_only_target_cannot_be_parsed(tmp_path):
+    """The false green. Zero findings here means zero files read."""
+    (tmp_path / "docker-compose.yaml").write_text(
+        "services: [unclosed\n", encoding="utf-8"
+    )
+    result = run_checker(str(tmp_path), "--strict")
+    assert result.returncode == 2, (
+        "an unaudited target must never exit 0 under --strict"
+    )
+    assert "could not be audited" in result.stderr
+
+
+def test_strict_reports_unaudited_even_when_other_files_have_violations(tmp_path):
+    """'I could not read that one' must survive alongside real findings, not be
+    masked by them — the two facts have different remedies."""
+    (tmp_path / "docker-compose.yaml").write_text(
+        "services: [unclosed\n", encoding="utf-8"
+    )
+    (tmp_path / "compose.yaml").write_text(
+        "services:\n  a:\n    image: nginx:latest\n", encoding="utf-8"
+    )
+    assert run_checker(str(tmp_path), "--strict").returncode == 2
+
+
+def test_strict_distinguishes_violations_from_an_unreadable_target(tmp_path):
+    """1 and 2 are different answers to different questions."""
+    (tmp_path / "docker-compose.yaml").write_text(
+        "services:\n  a:\n    image: nginx:latest\n", encoding="utf-8"
+    )
+    assert run_checker(str(tmp_path), "--strict").returncode == 1
+
+
+def test_unaudited_targets_are_named_in_json_output(tmp_path):
+    """A machine consumer must be able to see the gap, not just the exit code."""
+    bad = tmp_path / "docker-compose.yaml"
+    bad.write_text("services: [unclosed\n", encoding="utf-8")
+    payload = json.loads(run_checker(str(tmp_path), "--json").stdout)
+    assert payload["unaudited"] == [str(bad)]
+
+
+def _run_without_pyyaml(*args: str) -> subprocess.CompletedProcess:
+    """Run the checker in an interpreter where importing yaml fails."""
+    stub = (
+        "import sys, runpy\n"
+        "sys.modules['yaml'] = None\n"
+        f"sys.argv = ['compose_check.py', {', '.join(repr(a) for a in args)}]\n"
+        f"runpy.run_path({str(CHECKER)!r}, run_name='__main__')\n"
+    )
+    return subprocess.run(
+        [sys.executable, "-B", "-c", stub], capture_output=True, text=True, check=False
+    )
+
+
+def test_a_missing_dependency_fails_strict_mode(tmp_path):
+    """Without PyYAML nothing is parsed, so --strict cannot report a pass."""
+    (tmp_path / "docker-compose.yaml").write_text("services: {}\n", encoding="utf-8")
+    assert _run_without_pyyaml(str(tmp_path), "--strict").returncode == 2
+
+
+def test_a_missing_dependency_stays_advisory_without_strict(tmp_path):
+    """The save hook runs without --strict and must never fail an edit."""
+    (tmp_path / "docker-compose.yaml").write_text("services: {}\n", encoding="utf-8")
+    assert _run_without_pyyaml(str(tmp_path)).returncode == 0
 
 
 # --------------------------------------------------------------------------- #

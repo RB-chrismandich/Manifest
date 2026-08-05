@@ -33,7 +33,9 @@ Rationale, failure mode, and the exact remedy for each: `references/commandments
 
 ## Task
 
-1. **Run the checker.** It is advisory (exit 0) unless `--strict`.
+1. **Run the checker.** Advisory (always exit 0) unless `--strict`, which
+   gates: `1` = violations found, `2` = a target could not be audited at
+   all. Never treat `2` as a pass — it means nothing was read.
 
    ```bash
    # One file

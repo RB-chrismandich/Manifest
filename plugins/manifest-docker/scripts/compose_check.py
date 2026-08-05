@@ -35,6 +35,12 @@ CONFIG_PATH = (
     Path(__file__).resolve().parent.parent / "config" / "compose_commandments.yml"
 )
 SEVERITY_ORDER = {"high": 0, "medium": 1, "low": 2}
+
+# --strict exit contract. 0 is reserved for "every target was read and is
+# compliant" — never for "nothing could be read", which is how a gate goes
+# falsely green.
+EXIT_VIOLATIONS = 1  # files were audited; rules were broken
+EXIT_UNAUDITED = 2  # one or more targets could not be audited at all
 SKIP_DIRS = {".git", "node_modules", ".venv", "venv", ".tox", "dist", "build"}
 
 
@@ -180,7 +186,9 @@ def build_parser() -> argparse.ArgumentParser:
         "--rule", action="append", metavar="ID", help="limit to one rule (repeatable)"
     )
     parser.add_argument(
-        "--strict", action="store_true", help="exit 1 when findings exist (CI gate)"
+        "--strict",
+        action="store_true",
+        help="CI gate: 1 = violations, 2 = could not audit",
     )
     parser.add_argument(
         "--limit", type=int, default=0, metavar="N", help="print at most N findings"
@@ -193,19 +201,39 @@ def build_parser() -> argparse.ArgumentParser:
 
 def _collect(
     target: Path, cfg: dict[str, Any], only: list[str] | None
-) -> dict[str, list[Finding]]:
-    """Check every discovered file, reporting per-file failures without aborting."""
+) -> tuple[dict[str, list[Finding]], list[str]]:
+    """Check every discovered file. Returns (results, unaudited).
+
+    ``unaudited`` names every target that could NOT be checked. It is returned
+    rather than only logged because a file that failed to parse produces zero
+    findings, and zero findings is indistinguishable from "clean" at the exit
+    code unless the caller is told the difference.
+    """
     results: dict[str, list[Finding]] = {}
+    unaudited: list[str] = []
     for path in discover(target, cfg):
         try:
             results[str(path)] = check_file(path, cfg, only)
         except MissingDependency:
             raise
         # constitution: exempt C-ERR — one unparseable compose file must not abort
-        # the sweep over the rest; the failure is named on stderr, not swallowed.
+        # the sweep over the rest; the failure is named on stderr AND recorded in
+        # `unaudited`, so --strict cannot report a pass over a file it never read.
         except Exception as exc:
             print(f"compose_check.py: skipped {path}: {exc}", file=sys.stderr)
-    return results
+            unaudited.append(str(path))
+    return results, unaudited
+
+
+def _degraded(strict: bool, message: str) -> int:
+    """Report an audit that could not run. Advisory: 0. Gating: EXIT_UNAUDITED.
+
+    The whole point of --strict is that a green exit means "these files were
+    read and are compliant". An unmet dependency means nothing was read, so
+    under --strict that must not look like a pass.
+    """
+    print(f"compose_check.py: {message}", file=sys.stderr)
+    return EXIT_UNAUDITED if strict else 0
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -213,8 +241,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         cfg = load_config()
     except MissingDependency as exc:
-        print(f"compose_check.py: {exc}", file=sys.stderr)
-        return 0
+        return _degraded(args.strict, str(exc))
     except OSError as exc:
         print(f"compose_check.py: cannot read rule registry: {exc}", file=sys.stderr)
         return 2
@@ -230,23 +257,39 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     try:
-        results = _collect(target, cfg, args.rule)
+        results, unaudited = _collect(target, cfg, args.rule)
     except MissingDependency as exc:
-        print(f"compose_check.py: {exc}", file=sys.stderr)
-        return 0
+        return _degraded(args.strict, str(exc))
 
     total = sum(len(items) for items in results.values())
     if args.json:
         payload = {
             path: [vars(f) for f in findings] for path, findings in results.items()
         }
-        print(json.dumps({"findings": payload, "total": total}, indent=2))
+        print(
+            json.dumps(
+                {"findings": payload, "total": total, "unaudited": unaudited}, indent=2
+            )
+        )
     else:
         for path, findings in results.items():
             report = render_text(Path(path), findings, cfg, args.limit)
             if report:
                 print(report)
-    return 1 if (args.strict and total) else 0
+
+    if not args.strict:
+        return 0
+    if unaudited:
+        # Distinct from EXIT_VIOLATIONS on purpose: "I could not read these" is
+        # a different fact from "I read these and they are wrong", and a CI job
+        # should be able to tell them apart.
+        print(
+            f"compose_check.py: {len(unaudited)} file(s) could not be audited; "
+            "not reporting a pass.",
+            file=sys.stderr,
+        )
+        return EXIT_UNAUDITED
+    return EXIT_VIOLATIONS if total else 0
 
 
 if __name__ == "__main__":

@@ -42,9 +42,21 @@ PyYAML is absent rather than failing the edit.
 # or drive the checker directly
 python3 scripts/compose_check.py .           # audit a tree
 python3 scripts/compose_check.py . --json    # machine-readable
-python3 scripts/compose_check.py . --strict  # exit 1 on findings (CI gate)
+python3 scripts/compose_check.py . --strict  # CI gate (see exit codes below)
 python3 scripts/compose_check.py --list-rules
 ```
+
+### `--strict` exit codes
+
+| code | meaning |
+|------|---------|
+| `0` | every target was read and is compliant |
+| `1` | files were audited; rules were broken |
+| `2` | one or more targets could **not** be audited (unparseable, unreadable, or PyYAML missing) |
+
+`0` is reserved for a verified pass. An unparseable compose file produces zero
+findings, and without code `2` that is indistinguishable from clean — which is
+how a CI gate goes green without checking anything.
 
 ## Suppressing a finding
 
