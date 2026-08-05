@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
@@ -11,14 +12,19 @@ import pytest
 from manifest_agent.contracts import DOMAIN_BUNDLES
 from manifest_agent.models import (
     BundleContract,
+    CommandResult,
+    HarnessReceipt,
     HarnessResult,
+    InstallationReceipt,
     MarketplaceSource,
     MarketplaceSourceKind,
     OwnedEntry,
     ResultState,
 )
+from manifest_agent.ownership import owned_capability_entry
 from manifest_agent.release import ResolvedRelease
-from manifest_agent.state import read_receipt
+from manifest_agent.service_state import bundle_checksums
+from manifest_agent.state import read_receipt, write_receipt_atomic
 
 
 @dataclass
@@ -66,8 +72,15 @@ class FakeAdapter:
 
 
 class RecordingRunner:
-    def __init__(self) -> None:
-        self.calls = []
+    def __init__(self, returncode: int = 0) -> None:
+        self.calls: list[tuple[str, ...]] = []
+        self.returncode = returncode
+
+    def run(self, argv, *, env=None) -> CommandResult:
+        del env
+        command = tuple(argv)
+        self.calls.append(command)
+        return CommandResult(command, self.returncode, "", "native cleanup failed")
 
 
 def harness_result(
@@ -285,3 +298,134 @@ def test_targeted_install_blocks_incompatible_existing_release(service_factory):
     assert report.state is ResultState.BLOCKED
     assert "install" not in claude.calls
     assert read_receipt(service.receipt_path) == before
+
+
+def _write_legacy_graphify_receipt(service, *, forged: bool = False) -> bytes:
+    desired, error = service._desired_state()
+    assert error is None
+    assert desired is not None
+    entry = owned_capability_entry(
+        "executable",
+        "graphify",
+        key_path=service.receipt_path.parent / "ownership.key",
+    )
+    receipt = InstallationReceipt(
+        1,
+        "0.1.0",
+        "0.1.0",
+        "c" * 40,
+        False,
+        "d" * 64,
+        {**bundle_checksums(desired), "manifest-graphify": "e" * 64},
+        (),
+        {
+            "claude": HarnessReceipt(
+                "claude",
+                "1",
+                "1",
+                (*DOMAIN_BUNDLES[:3], "manifest-graphify", *DOMAIN_BUNDLES[3:]),
+                (entry,),
+                {"executable:graphify": "installed-by-manifest"},
+                True,
+            )
+        },
+    )
+    write_receipt_atomic(service.receipt_path, receipt)
+    if forged:
+        document = json.loads(service.receipt_path.read_text(encoding="utf-8"))
+        document["harnesses"]["claude"]["owned_entries"][0][
+            "previous_checksum"
+        ] = "forged"
+        service.receipt_path.write_text(
+            json.dumps(document, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+    return service.receipt_path.read_bytes()
+
+
+def test_install_upgrades_a_signed_nine_bundle_receipt(service_factory) -> None:
+    # Empty result inventory preserves the receipt's upgraded plugin IDs.
+    claude = FakeAdapter("claude", harness_result("claude", plugin_ids=()))
+    service = service_factory({"claude": claude}, harnesses=("claude",))
+    before = _write_legacy_graphify_receipt(service)
+
+    report = service.install()
+
+    assert report.state is ResultState.READY
+    assert service.runner.calls == [("uv", "tool", "uninstall", "graphifyy")]
+    after = read_receipt(service.receipt_path)
+    assert after is not None
+    assert before != service.receipt_path.read_bytes()
+    assert set(after.bundle_checksums) == set(DOMAIN_BUNDLES)
+    assert after.release_version == "1.0.0"
+    assert after.source_commit == "a" * 40
+    assert after.harnesses["claude"].plugin_ids == DOMAIN_BUNDLES
+    assert "executable:graphify" not in after.harnesses["claude"].capabilities
+    assert not any(
+        entry.identifier == "graphify"
+        for entry in after.harnesses["claude"].owned_entries
+    )
+
+
+def test_graphify_cleanup_failure_leaves_the_legacy_receipt_unchanged(
+    service_factory,
+) -> None:
+    claude = FakeAdapter("claude", harness_result("claude"))
+    service = service_factory({"claude": claude}, harnesses=("claude",))
+    service.runner.returncode = 1
+    before = _write_legacy_graphify_receipt(service)
+
+    report = service.install()
+
+    assert report.state is ResultState.BLOCKED
+    assert service.runner.calls == [("uv", "tool", "uninstall", "graphifyy")]
+    assert service.receipt_path.read_bytes() == before
+    assert "install" not in claude.calls
+
+
+def test_unproven_graphify_receipt_never_invokes_cleanup(service_factory) -> None:
+    claude = FakeAdapter("claude", harness_result("claude"))
+    service = service_factory({"claude": claude}, harnesses=("claude",))
+    before = _write_legacy_graphify_receipt(service, forged=True)
+
+    report = service.install()
+
+    assert report.state is ResultState.BLOCKED
+    assert service.runner.calls == []
+    assert service.receipt_path.read_bytes() == before
+    assert "install" not in claude.calls
+
+
+def test_graphify_upgrade_requires_the_current_canonical_bundle_inventory(
+    service_factory,
+) -> None:
+    claude = FakeAdapter("claude", harness_result("claude"))
+    service = service_factory({"claude": claude}, harnesses=("claude",))
+    _write_legacy_graphify_receipt(service)
+    legacy = read_receipt(service.receipt_path)
+    assert legacy is not None
+    corrupt_checksums = dict(legacy.bundle_checksums)
+    corrupt_checksums[DOMAIN_BUNDLES[0]] = "f" * 64
+    write_receipt_atomic(
+        service.receipt_path,
+        InstallationReceipt(
+            legacy.schema_version,
+            legacy.coordinator_version,
+            legacy.release_version,
+            legacy.source_commit,
+            legacy.source_dirty,
+            legacy.archive_sha256,
+            corrupt_checksums,
+            legacy.selected_optional,
+            legacy.harnesses,
+            legacy.migration_backup,
+        ),
+    )
+    before = service.receipt_path.read_bytes()
+
+    report = service.install()
+
+    assert report.state is ResultState.BLOCKED
+    assert service.runner.calls == []
+    assert service.receipt_path.read_bytes() == before
+    assert "install" not in claude.calls

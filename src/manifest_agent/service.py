@@ -13,10 +13,11 @@ from manifest_agent import __version__
 from manifest_agent.adapters.base import Detection, HarnessAdapter, combine_results
 from manifest_agent.adapters.registry import AdapterRegistry
 from manifest_agent.capabilities import resolve_capabilities
-from manifest_agent.contracts import load_domain_contracts
+from manifest_agent.contracts import DOMAIN_BUNDLES, load_domain_contracts
 from manifest_agent.migration import MigrationService
 from manifest_agent.models import (
     DesiredState,
+    HarnessReceipt,
     HarnessResult,
     InstallationReceipt,
     ResultState,
@@ -38,6 +39,8 @@ from manifest_agent.service_state import (
 from manifest_agent.state import installation_lock, read_receipt, write_receipt_atomic
 
 HARNESS_ORDER = ("claude", "codex", "gemini", "cursor", "antigravity", "devin")
+_RETIRED_BUNDLE = "manifest-graphify"
+_RETIRED_EXECUTABLE = "graphify"
 
 
 class ManifestService:
@@ -101,6 +104,12 @@ class ManifestService:
             with self.lock_factory(self.receipt_path.parent / "install.lock"):
                 previous = read_receipt(self.receipt_path)
                 if previous is not None:
+                    previous, upgrade_error = self._upgrade_retired_graphify_receipt(
+                        previous, desired
+                    )
+                    if upgrade_error is not None:
+                        return report("install", {}, errors=(upgrade_error,))
+                    assert previous is not None
                     conflicts = identity_errors(
                         previous, desired, bundle_checksums(desired)
                     )
@@ -143,6 +152,52 @@ class ManifestService:
                 (diagnostic(exception),),
             )
         return report("install", results, notes)
+
+    def _upgrade_retired_graphify_receipt(
+        self, receipt: InstallationReceipt, desired: DesiredState
+    ) -> tuple[InstallationReceipt | None, str | None]:
+        """Atomically replace a validated nine-bundle receipt with the current inventory."""
+        checksums = bundle_checksums(desired)
+        if not _is_graphify_retirement_receipt(receipt, desired, checksums):
+            return receipt, None
+
+        # read_receipt already validated every ownership HMAC before this point.
+        if any(
+            entry.kind == "executable" and entry.identifier == _RETIRED_EXECUTABLE
+            for harness in receipt.harnesses.values()
+            for entry in harness.owned_entries
+        ):
+            try:
+                command = self.runner.run(("uv", "tool", "uninstall", "graphifyy"))
+            # constitution: exempt C-ERR -- native cleanup must block the upgrade.
+            except Exception as exception:
+                return None, diagnostic(exception)
+            if command.returncode != 0:
+                return None, redact_text(
+                    "legacy Graphify cleanup failed: "
+                    f"exit {command.returncode}: {command.stderr or command.stdout}"
+                )
+
+        upgraded = replace(
+            receipt,
+            release_version=desired.release_version,
+            source_commit=desired.source_commit,
+            source_dirty=desired.source_dirty,
+            archive_sha256=desired.archive_sha256,
+            bundle_checksums=checksums,
+            harnesses={
+                name: _without_retired_graphify(harness)
+                for name, harness in receipt.harnesses.items()
+            },
+        )
+        if identity_errors(upgraded, desired, checksums):
+            return None, "retired receipt cannot be reconciled with the current release"
+        try:
+            write_receipt_atomic(self.receipt_path, upgraded)
+        # constitution: exempt C-ERR -- atomic state persistence is a service boundary.
+        except Exception as exception:
+            return None, diagnostic(exception)
+        return upgraded, None
 
     def migrate(self) -> ServiceReport:
         """Atomically hand bootstrap-owned writers to verified native plugins."""
@@ -292,6 +347,46 @@ class ManifestService:
             else:
                 notes.append(f"{name}: {detection.reason or 'CLI not present'}")
         return tuple(selected), detections, missing, tuple(notes)
+
+
+def _is_graphify_retirement_receipt(receipt, desired, checksums) -> bool:
+    """Accept only a signed receipt whose sole bundle delta is retired Graphify."""
+    legacy_bundles = set(DOMAIN_BUNDLES) | {_RETIRED_BUNDLE}
+    if set(receipt.bundle_checksums) != legacy_bundles:
+        return False
+    if any(receipt.bundle_checksums[name] != checksums[name] for name in DOMAIN_BUNDLES):
+        return False
+    return receipt.selected_optional == tuple(sorted(desired.selected_optional))
+
+
+def _without_retired_graphify(receipt: HarnessReceipt) -> HarnessReceipt:
+    """Drop only retired bundle and capability facts after native cleanup succeeds."""
+    retired_plugin_ids = {_RETIRED_BUNDLE, f"{_RETIRED_BUNDLE}@manifest"}
+    retired_capabilities = {
+        f"executable:{_RETIRED_EXECUTABLE}",
+        f"{_RETIRED_BUNDLE}:executable:{_RETIRED_EXECUTABLE}",
+    }
+    return replace(
+        receipt,
+        plugin_ids=tuple(
+            plugin_id
+            for plugin_id in receipt.plugin_ids
+            if plugin_id not in retired_plugin_ids
+        ),
+        owned_entries=tuple(
+            entry
+            for entry in receipt.owned_entries
+            if not (
+                entry.kind == "executable"
+                and entry.identifier == _RETIRED_EXECUTABLE
+            )
+        ),
+        capabilities={
+            identity: state
+            for identity, state in receipt.capabilities.items()
+            if identity not in retired_capabilities
+        },
+    )
 
 
 def _detect(name: str, adapter: HarnessAdapter) -> Detection:
