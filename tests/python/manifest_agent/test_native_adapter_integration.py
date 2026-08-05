@@ -82,23 +82,25 @@ def _desired(harness: str) -> DesiredState:
     )
 
 
-def _response(argv: list[str], stdout: str = "") -> dict[str, object]:
-    return {"argv": argv, "stdout": stdout}
+def _response(
+    argv: list[str], stdout: str = "", *, returncode: int = 0
+) -> dict[str, object]:
+    return {"argv": argv, "stdout": stdout, "returncode": returncode}
 
 
-def _responses(harness: str, desired: DesiredState, *, installed: bool) -> str:
+def _responses(harness: str, desired: DesiredState, phase: str) -> str:
     if harness == "claude":
-        return _claude_responses(desired, installed)
+        return _claude_responses(desired, phase)
     if harness == "codex":
-        return _codex_responses(desired, installed)
+        return _codex_responses(desired, phase)
     if harness == "gemini":
-        return _gemini_responses(desired, installed)
+        return _gemini_responses(desired, phase)
     if harness == "cursor":
-        return _cursor_responses(desired)
+        return _cursor_responses(desired, phase)
     if harness == "antigravity":
-        return _antigravity_responses(desired)
+        return _antigravity_responses(desired, phase)
     if harness == "devin":
-        return _devin_responses(desired, installed)
+        return _devin_responses(desired, phase)
     raise AssertionError(f"unsupported fixture harness: {harness}")
 
 
@@ -112,7 +114,8 @@ def _configured_environment(tmp_path: Path, harness: str, desired: DesiredState)
         "HOME": str(tmp_path / "home"),
         "PATH": f"{bin_dir}:{os.environ['PATH']}",
         "HARNESS_STUB_LOG": str(log),
-        "HARNESS_STUB_RESPONSES": _responses(harness, desired, installed=True),
+        "HARNESS_STUB_RESPONSES": _responses(harness, desired, "detect"),
+        "HARNESS_STUB_STATE": str(tmp_path / "stub-state.json"),
     }
 
 
@@ -175,10 +178,15 @@ def test_response_driven_production_adapters_complete_receipt_lifecycles(
     adapter = _adapter(harness, environment)
 
     detection = adapter.detect()
+    environment["HARNESS_STUB_RESPONSES"] = _responses(harness, desired, "pre")
+    before = adapter.inspect(desired)
+    environment["HARNESS_STUB_RESPONSES"] = _responses(
+        harness, desired, "installed"
+    )
     installed = adapter.install(desired)
     inspected = adapter.inspect(desired)
     environment["HARNESS_STUB_RESPONSES"] = _responses(
-        harness, desired, installed=False
+        harness, desired, "removed"
     )
     plugin_ids = (
         tuple(f"{name}@manifest" for name in DOMAIN_BUNDLES)
@@ -189,18 +197,26 @@ def test_response_driven_production_adapters_complete_receipt_lifecycles(
 
     assert detection.present is True
     assert len(desired.contracts) == len(DOMAIN_BUNDLES)
-    assert set(installed.installed_plugin_ids) <= set(plugin_ids)
-    assert inspected.state in {ResultState.READY, ResultState.DEGRADED}
+    assert before.state is not ResultState.READY
+    if harness == "cursor":
+        assert installed.state is ResultState.DEGRADED
+        assert inspected.state is ResultState.DEGRADED
+    else:
+        assert installed.state is ResultState.READY
+        assert installed.installed_plugin_ids == plugin_ids
+        assert inspected.state is ResultState.READY
+        assert inspected.installed_plugin_ids == plugin_ids
     assert removed.state is ResultState.READY
     argv = [
         json.loads(line) for line in (tmp_path / "argv.jsonl").read_text().splitlines()
     ]
     assert [row[1:] for row in argv if row[1:] == ["--version"]]
-    _assert_lifecycle_commands(harness, argv)
+    _assert_lifecycle_commands(harness, desired, argv)
 
 
+@pytest.mark.native
 @pytest.mark.parametrize("harness", tuple(_HARNESS_EXECUTABLES))
-def test_local_native_cli_probe_never_skips_absent_harnesses(harness: str) -> None:
+def test_local_native_cli_probe_reports_blocked_absence(harness: str) -> None:
     adapter = _local_adapter(harness)
     detection = adapter.detect()
 
@@ -211,68 +227,90 @@ def test_local_native_cli_probe_never_skips_absent_harnesses(harness: str) -> No
         harness, ResultState.BLOCKED, (), {}, errors=(detection.reason or "",)
     )
     assert probe.state is ResultState.BLOCKED
-    assert "CLI not present" in probe.errors[0]
+    pytest.fail(f"BLOCKED native probe: {probe.errors[0]}")
 
 
-def _assert_lifecycle_commands(harness: str, argv: list[list[str]]) -> None:
+def _assert_lifecycle_commands(
+    harness: str, desired: DesiredState, argv: list[list[str]]
+) -> None:
     commands = [tuple(row[1:]) for row in argv]
-    expected = {
-        "claude": (
-            ("plugin", "marketplace", "add"),
-            ("plugin", "marketplace", "list", "--json"),
-            ("plugin", "list", "--json"),
-            ("plugin", "uninstall"),
-        ),
-        "codex": (
-            ("plugin", "marketplace", "add"),
-            ("plugin", "marketplace", "list", "--json"),
-            ("plugin", "add"),
-            ("plugin", "list", "--json"),
-            ("plugin", "remove"),
-        ),
-        "gemini": (
-            ("extensions", "install"),
-            ("extensions", "list", "--output-format", "json"),
-            ("skills", "list", "--all"),
-            ("extensions", "uninstall"),
-        ),
-        "cursor": (
-            ("plugin", "marketplace", "add"),
-            ("plugin", "marketplace", "list", "--format", "json"),
-            ("plugin", "--help"),
-            ("plugin", "marketplace", "remove"),
-        ),
-        "antigravity": (
-            ("plugin", "validate"),
-            ("plugin", "link"),
-            ("plugin", "install"),
-            ("plugin", "list"),
-            ("plugin", "uninstall"),
-        ),
-        "devin": (
-            ("plugins", "install"),
-            ("plugins", "list"),
-            ("plugins", "info"),
-            ("plugins", "remove"),
-            ("plugins", "prune"),
-        ),
+    bundle_paths = tuple(str(desired.bundle_path(name)) for name in DOMAIN_BUNDLES)
+    expected_installs = {
+        "claude": [
+            ("plugin", "install", f"{name}@manifest", "--scope", "user")
+            for name in DOMAIN_BUNDLES
+        ],
+        "codex": [
+            ("plugin", "add", f"{name}@manifest", "--json")
+            for name in DOMAIN_BUNDLES
+        ],
+        "gemini": [
+            ("extensions", "install", path, "--consent", "--skip-settings")
+            for path in bundle_paths
+        ],
+        "cursor": [
+            (
+                "plugin",
+                "marketplace",
+                "add",
+                desired.repository_url,
+                "--git-ref",
+                desired.source_commit,
+            )
+        ],
+        "antigravity": [
+            ("plugin", "validate", path) for path in bundle_paths
+        ]
+        + [("plugin", "link", "manifest", str(desired.release_root))]
+        + [
+            ("plugin", "install", f"{name}@manifest") for name in DOMAIN_BUNDLES
+        ],
+        "devin": [
+            ("plugins", "install", path, "--yes") for path in bundle_paths
+        ],
     }
-    for prefix in expected[harness]:
-        assert any(command[: len(prefix)] == prefix for command in commands)
-    repeated_prefix = {
-        "claude": ("plugin", "install"),
-        "codex": ("plugin", "add"),
-        "gemini": ("extensions", "install"),
-        "antigravity": ("plugin", "install"),
-        "devin": ("plugins", "install"),
-    }.get(harness)
-    if repeated_prefix is not None:
-        assert sum(
-            command[: len(repeated_prefix)] == repeated_prefix for command in commands
-        ) == len(DOMAIN_BUNDLES)
+    expected_removals = {
+        "claude": [
+            ("plugin", "uninstall", f"{name}@manifest") for name in DOMAIN_BUNDLES
+        ]
+        + [("plugin", "marketplace", "remove", "manifest")],
+        "codex": [
+            ("plugin", "remove", f"{name}@manifest", "--json")
+            for name in DOMAIN_BUNDLES
+        ]
+        + [("plugin", "marketplace", "remove", "manifest", "--json")],
+        "gemini": [("extensions", "uninstall", name) for name in DOMAIN_BUNDLES],
+        "cursor": [
+            ("plugin", "marketplace", "remove", desired.repository_url)
+        ],
+        "antigravity": [
+            ("plugin", "uninstall", name) for name in DOMAIN_BUNDLES
+        ],
+        "devin": [("plugins", "remove", name) for name in DOMAIN_BUNDLES]
+        + [("plugins", "prune")],
+    }
+    assert _commands_in_order(commands, expected_installs[harness])
+    assert _commands_in_order(commands, expected_removals[harness])
 
 
-def _claude_responses(desired: DesiredState, installed: bool) -> str:
+def _commands_in_order(
+    commands: list[tuple[str, ...]], expected: list[tuple[str, ...]]
+) -> bool:
+    """Match each expected exact argv once, while preserving adapter command order."""
+    matched = [command for command in commands if command in expected]
+    return matched == expected
+
+
+def _fixture(responses: list[dict[str, object]]) -> str:
+    return json.dumps(
+        {
+            "responses": responses,
+            "default": {"stderr": "unconfigured harness argv", "returncode": 97},
+        }
+    )
+
+
+def _claude_responses(desired: DesiredState, phase: str) -> str:
     marketplace = json.dumps(
         [{"name": "manifest", "source": "directory", "path": str(_REPOSITORY)}]
     )
@@ -286,14 +324,46 @@ def _claude_responses(desired: DesiredState, installed: bool) -> str:
         }
         for name in DOMAIN_BUNDLES
     ]
-    responses = [
+    inspect_responses = [
         _response(["plugin", "marketplace", "list", "--json"], marketplace),
-        _response(["plugin", "list", "--json"], json.dumps(rows if installed else [])),
+        _response(["plugin", "list", "--json"], json.dumps(rows)),
     ]
-    return json.dumps({"responses": responses, "default": {"stdout": "0.2.0\n"}})
+    if phase == "detect":
+        return _fixture([_response(["--version"], "0.2.0\n")])
+    if phase == "pre":
+        return _fixture(
+            [inspect_responses[0], _response(["plugin", "list", "--json"], "[]")]
+        )
+    if phase == "installed":
+        responses = [
+            _response(
+                ["plugin", "marketplace", "add", str(_REPOSITORY), "--scope", "user"]
+            ),
+            *inspect_responses,
+        ]
+        responses.extend(
+            _response(
+                ["plugin", "install", f"{name}@manifest", "--scope", "user"]
+            )
+            for name in DOMAIN_BUNDLES
+        )
+        return _fixture(responses)
+    if phase == "removed":
+        responses = [
+            _response(["plugin", "uninstall", f"{name}@manifest"])
+            for name in DOMAIN_BUNDLES
+        ]
+        responses.extend(
+            [
+                _response(["plugin", "list", "--json"], "[]"),
+                _response(["plugin", "marketplace", "remove", "manifest"]),
+            ]
+        )
+        return _fixture(responses)
+    raise AssertionError(f"unsupported fixture phase: {phase}")
 
 
-def _codex_responses(desired: DesiredState, installed: bool) -> str:
+def _codex_responses(desired: DesiredState, phase: str) -> str:
     marketplace = json.dumps(
         {
             "marketplaces": [
@@ -320,7 +390,21 @@ def _codex_responses(desired: DesiredState, installed: bool) -> str:
         }
         for name in DOMAIN_BUNDLES
     ]
-    responses = [
+    inspect_responses = [
+        _response(["plugin", "marketplace", "list", "--json"], marketplace),
+        _response(["plugin", "list", "--json"], json.dumps({"installed": rows})),
+    ]
+    if phase == "detect":
+        return _fixture([_response(["--version"], "0.2.0\n")])
+    if phase == "pre":
+        return _fixture(
+            [
+                inspect_responses[0],
+                _response(["plugin", "list", "--json"], json.dumps({"installed": []})),
+            ]
+        )
+    if phase == "installed":
+        responses = [
         _response(
             ["plugin", "marketplace", "add", str(_REPOSITORY), "--json"],
             json.dumps(
@@ -331,32 +415,44 @@ def _codex_responses(desired: DesiredState, installed: bool) -> str:
                 }
             ),
         ),
-        _response(["plugin", "marketplace", "list", "--json"], marketplace),
-        _response(["plugin", "list", "--json"], json.dumps({"installed": rows if installed else []})),
-    ]
-    for name in DOMAIN_BUNDLES:
-        responses.append(
+            *inspect_responses,
+        ]
+        for name in DOMAIN_BUNDLES:
+            responses.append(
             _response(
                 ["plugin", "add", f"{name}@manifest", "--json"],
                 json.dumps({"pluginId": f"{name}@manifest", "name": name, "marketplaceName": "manifest", "version": "0.2.0", "installedPath": str(desired.bundle_path(name))}),
             )
-        )
-        responses.append(
+            )
+        return _fixture(responses)
+    if phase == "removed":
+        responses = [
             _response(
                 ["plugin", "remove", f"{name}@manifest", "--json"],
-                json.dumps({"pluginId": f"{name}@manifest", "name": name, "marketplaceName": "manifest"}),
+                json.dumps(
+                    {
+                        "pluginId": f"{name}@manifest",
+                        "name": name,
+                        "marketplaceName": "manifest",
+                    }
+                ),
             )
+            for name in DOMAIN_BUNDLES
+        ]
+        responses.extend(
+            [
+                _response(["plugin", "list", "--json"], json.dumps({"installed": []})),
+                _response(
+                    ["plugin", "marketplace", "remove", "manifest", "--json"],
+                    json.dumps({"marketplaceName": "manifest"}),
+                ),
+            ]
         )
-    responses.append(
-        _response(
-            ["plugin", "marketplace", "remove", "manifest", "--json"],
-            json.dumps({"marketplaceName": "manifest"}),
-        )
-    )
-    return json.dumps({"responses": responses, "default": {"stdout": "0.2.0\n"}})
+        return _fixture(responses)
+    raise AssertionError(f"unsupported fixture phase: {phase}")
 
 
-def _gemini_responses(desired: DesiredState, installed: bool) -> str:
+def _gemini_responses(desired: DesiredState, phase: str) -> str:
     rows = [
         {
             "name": name,
@@ -378,21 +474,52 @@ def _gemini_responses(desired: DesiredState, installed: bool) -> str:
                         "",
                     ]
                 )
-    return json.dumps(
-        {
-            "responses": [
+    inspect_responses = [
+        _response(
+            ["extensions", "list", "--output-format", "json"], json.dumps(rows)
+        ),
+        _response(["skills", "list", "--all"], "\n".join(skills)),
+    ]
+    if phase == "detect":
+        return _fixture([_response(["--version"], "0.2.0\n")])
+    if phase == "pre":
+        return _fixture(
+            [
                 _response(
-                    ["extensions", "list", "--output-format", "json"],
-                    json.dumps(rows if installed else []),
+                    ["extensions", "list", "--output-format", "json"], "[]"
                 ),
-                _response(["skills", "list", "--all"], "\n".join(skills)),
-            ],
-            "default": {"stdout": "0.2.0\n"},
-        }
-    )
+                inspect_responses[1],
+            ]
+        )
+    if phase == "installed":
+        return _fixture(
+            [
+                *[
+                    _response(
+                        [
+                            "extensions",
+                            "install",
+                            str(desired.bundle_path(name)),
+                            "--consent",
+                            "--skip-settings",
+                        ]
+                    )
+                    for name in DOMAIN_BUNDLES
+                ],
+                *inspect_responses,
+            ]
+        )
+    if phase == "removed":
+        return _fixture(
+            [
+                _response(["extensions", "uninstall", name])
+                for name in DOMAIN_BUNDLES
+            ]
+        )
+    raise AssertionError(f"unsupported fixture phase: {phase}")
 
 
-def _cursor_responses(desired: DesiredState) -> str:
+def _cursor_responses(desired: DesiredState, phase: str) -> str:
     marketplace = json.dumps(
         [
             {
@@ -403,21 +530,46 @@ def _cursor_responses(desired: DesiredState) -> str:
             }
         ]
     )
-    return json.dumps(
-        {
-            "responses": [
-                _response(["plugin", "marketplace", "list", "--format", "json"], marketplace),
+    if phase == "detect":
+        return _fixture([_response(["--version"], "0.2.0\n")])
+    if phase == "pre":
+        return _fixture(
+            [_response(["plugin", "marketplace", "list", "--format", "json"], "[]")]
+        )
+    if phase == "installed":
+        return _fixture(
+            [
+                _response(
+                    [
+                        "plugin",
+                        "marketplace",
+                        "add",
+                        desired.repository_url,
+                        "--git-ref",
+                        desired.source_commit,
+                    ]
+                ),
+                _response(
+                    ["plugin", "marketplace", "list", "--format", "json"], marketplace
+                ),
                 _response(
                     ["plugin", "--help"],
                     "Commands:\n  marketplace  Manage plugin marketplaces\n",
                 ),
-            ],
-            "default": {"stdout": "0.2.0\n"},
-        }
-    )
+            ]
+        )
+    if phase == "removed":
+        return _fixture(
+            [
+                _response(
+                    ["plugin", "marketplace", "remove", desired.repository_url]
+                )
+            ]
+        )
+    raise AssertionError(f"unsupported fixture phase: {phase}")
 
 
-def _antigravity_responses(desired: DesiredState) -> str:
+def _antigravity_responses(desired: DesiredState, phase: str) -> str:
     inventory = json.dumps(
         {
             "imports": [
@@ -426,20 +578,36 @@ def _antigravity_responses(desired: DesiredState) -> str:
             ]
         }
     )
-    return json.dumps(
-        {
-            "responses": [_response(["plugin", "list"], inventory)],
-            "default": {"stdout": "0.2.0\n"},
-        }
-    )
+    if phase == "detect":
+        return _fixture([_response(["--version"], "0.2.0\n")])
+    if phase == "pre":
+        return _fixture([_response(["plugin", "list"], '{"imports":[]}')])
+    if phase == "installed":
+        responses = [
+            _response(["plugin", "validate", str(desired.bundle_path(name))])
+            for name in DOMAIN_BUNDLES
+        ]
+        responses.append(
+            _response(["plugin", "link", "manifest", str(desired.release_root)])
+        )
+        responses.extend(
+            _response(["plugin", "install", f"{name}@manifest"])
+            for name in DOMAIN_BUNDLES
+        )
+        responses.append(_response(["plugin", "list"], inventory))
+        return _fixture(responses)
+    if phase == "removed":
+        return _fixture(
+            [_response(["plugin", "uninstall", name]) for name in DOMAIN_BUNDLES]
+        )
+    raise AssertionError(f"unsupported fixture phase: {phase}")
 
 
-def _devin_responses(desired: DesiredState, installed: bool) -> str:
-    names = DOMAIN_BUNDLES if installed else ()
-    listing = "No plugins installed.\n" if not names else "Installed plugins\n" + "\n".join(
-        f"{name} 0.2.0" for name in names
+def _devin_responses(desired: DesiredState, phase: str) -> str:
+    installed_listing = "Installed plugins\n" + "\n".join(
+        f"{name} 0.2.0" for name in DOMAIN_BUNDLES
     )
-    responses = [_response(["plugins", "list"], listing)]
+    info_responses: list[dict[str, object]] = []
     for contract in desired.contracts:
         root = desired.bundle_path(contract.name) / contract.components.skills_root
         skills = "\n".join(
@@ -447,10 +615,40 @@ def _devin_responses(desired: DesiredState, installed: bool) -> str:
             for pattern in contract.components.skills_include
             for path in sorted(root.glob(pattern))
         )
-        responses.append(
+        info_responses.append(
             _response(
                 ["plugins", "info", contract.name],
                 f"Plugin: {contract.name}\nversion: 0.2.0\nsource: {desired.bundle_path(contract.name)}\nSkills\n{skills}\nRequired plugins\n",
             )
         )
-    return json.dumps({"responses": responses, "default": {"stdout": "0.2.0\n"}})
+    if phase == "detect":
+        return _fixture([_response(["--version"], "0.2.0\n")])
+    if phase == "pre":
+        return _fixture([_response(["plugins", "list"], "No plugins installed.\n"), *info_responses])
+    if phase == "installed":
+        responses = [
+            _response(
+                ["plugins", "install", str(desired.bundle_path(name)), "--yes"]
+            )
+            for name in DOMAIN_BUNDLES
+        ]
+        responses.extend([_response(["plugins", "list"], installed_listing), *info_responses])
+        return _fixture(responses)
+    if phase == "removed":
+        return _fixture(
+            [
+                {
+                    "argv": ["plugins", "list"],
+                    "sequence": [
+                        {"stdout": installed_listing},
+                        {"stdout": "No plugins installed.\n"},
+                        {"stdout": "No plugins installed.\n"},
+                    ],
+                },
+                *[
+                    _response(["plugins", "remove", name]) for name in DOMAIN_BUNDLES
+                ],
+                _response(["plugins", "prune"]),
+            ]
+        )
+    raise AssertionError(f"unsupported fixture phase: {phase}")

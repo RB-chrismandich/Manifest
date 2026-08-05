@@ -11,6 +11,7 @@ setup() {
 }
 
 @test "all production adapters complete response-driven isolated-home lifecycles" {
-  run uv run pytest "$REPO_ROOT/tests/python/manifest_agent/test_native_adapter_integration.py" -q
+  run uv run pytest "$REPO_ROOT/tests/python/manifest_agent/test_native_adapter_integration.py" \
+    -m 'not native' -q
   [ "$status" -eq 0 ]
 }
