@@ -37,13 +37,19 @@ if str(REPO_ROOT) not in sys.path:
 FIXTURES_DIR = Path(__file__).parent / "fixtures" / "manifest"
 RESULTS_DIR = Path(__file__).parent / "results"
 
+# Rates mirror configs/claude/scripts/model_pricing.py (canonical $/MTok table);
+# both Sonnet generations stay listed so --claude-model claude-sonnet-4-6 runs
+# keep non-null cost_usd.
+_SONNET_RATES: dict[str, float] = {
+    "input": 3.00 / 1_000_000,
+    "output": 15.00 / 1_000_000,
+    "cache_write": 3.75 / 1_000_000,
+    "cache_read": 0.30 / 1_000_000,
+}
+
 PRICING: dict[str, dict[str, float]] = {
-    "claude-sonnet-4-6": {
-        "input": 3.00 / 1_000_000,
-        "output": 15.00 / 1_000_000,
-        "cache_write": 3.75 / 1_000_000,
-        "cache_read": 0.30 / 1_000_000,
-    },
+    "claude-sonnet-5": _SONNET_RATES,
+    "claude-sonnet-4-6": _SONNET_RATES,
     "gemini-3-flash-preview": {
         "input": 0.10 / 1_000_000,
         "output": 0.40 / 1_000_000,
@@ -303,7 +309,7 @@ async def run_benchmark(
     conditions: list[str] | None = None,
     fixtures_dir: Path | None = None,
     results_dir: Path | None = None,
-    claude_model: str = "claude-sonnet-4-6",
+    claude_model: str = "claude-sonnet-5",
     gemini_model: str = "gemini-3-flash-preview",
 ) -> list[dict]:
     """Run all benchmark prompts for each provider in the specified conditions."""
@@ -579,7 +585,7 @@ def main(argv: list[str] | None = None) -> None:
         help="If set, also write a fixtures-compressed/ with first N%% of lines",
     )
     parser.add_argument("--report-only", action="store_true")
-    parser.add_argument("--claude-model", default="claude-sonnet-4-6")
+    parser.add_argument("--claude-model", default="claude-sonnet-5")
     parser.add_argument("--gemini-model", default="gemini-3-flash-preview")
     parser.add_argument(
         "--conditions",

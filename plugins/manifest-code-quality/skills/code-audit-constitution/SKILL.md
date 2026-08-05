@@ -1,6 +1,6 @@
 ---
 name: code-audit-constitution
-description: Audit and remediate code against the Code Constitution (CON-001..013) — "audit this against the constitution", "is this file compliant", "extract embedded JSON/YAML out of this .py", "split this god class". Edits files; judges what no checker can prove. <lang>-refactor is read-only; constitution_check.py only measures.
+description: Audit and remediate code against the Code Constitution (CON-001..013) — "audit this against the constitution", "is this file compliant", "split this god class". Edits files; judges what no checker can prove. <lang>-refactor is read-only; constitution_check.py only measures.
 ---
 
 # Constitution Audit and Remediation

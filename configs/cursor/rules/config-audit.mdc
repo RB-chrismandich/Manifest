@@ -1,12 +1,12 @@
 ---
-description: "Verify cross-platform configuration consistency, check symlink integrity, and detect config drift between Claude, Cursor, Gemini, and Codex platforms."
+description: "Verify cross-platform config drift and symlink integrity across Claude, Cursor, Gemini, Codex, and Antigravity."
 globs: ".claude/skills/config-audit/**"
 alwaysApply: false
 ---
 
 # config-audit
 
-Verify cross-platform configuration consistency, check symlink integrity, and detect config drift between Claude, Cursor, Gemini, and Codex platforms.
+Verify cross-platform config drift and symlink integrity across Claude, Cursor, Gemini, Codex, and Antigravity.
 
 <!-- Auto-generated from .claude/skills/config-audit/SKILL.md -->
 <!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->

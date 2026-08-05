@@ -69,6 +69,11 @@ When triggered, this skill:
    manifest parallel-agent --json --validate --analyze <file>
    ```
 
+   **Sub-agent dispatch**: pin this fan-out call to Sonnet explicitly
+   (`subagent_model: sonnet` per `command_config.yml`) — never inherit the
+   session's model, which can silently bill premium rates for a routine
+   verification pass.
+
 3. **Reports findings inline** without blocking user workflow
 4. **Escalates critical issues** that require immediate attention
 
@@ -140,8 +145,8 @@ When triggered, report findings in this format:
 - Medium: X issues (refactor when possible)
 
 ### Parallel Agent Consensus
-- Gemini: [Key finding]
-- Cursor: [Key finding]
+- Agent A: [Key finding]
+- Agent B: [Key finding]
 - Consensus: XX% (HIGH/MEDIUM/LOW)
 ```
 

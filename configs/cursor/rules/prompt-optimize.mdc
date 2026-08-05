@@ -1,12 +1,12 @@
 ---
-description: "Use when a user asks to create, optimize, refactor, or harden a prompt into a production-ready skill template. Refactors raw prompts into a fixed XML-schema payload, stripping conversational preamble and injecting absolute-path, idempotency, and runtime guardrails."
+description: "Use when a user asks to create, optimize, refactor, or harden a raw prompt into a production-ready skill template (\"optimize this prompt\", \"turn this into a skill\", \"harden this prompt for automation\")."
 globs: ".claude/skills/prompt-optimize/**"
 alwaysApply: false
 ---
 
 # prompt-optimize
 
-Use when a user asks to create, optimize, refactor, or harden a prompt into a production-ready skill template. Refactors raw prompts into a fixed XML-schema payload, stripping conversational preamble and injecting absolute-path, idempotency, and runtime guardrails.
+Use when a user asks to create, optimize, refactor, or harden a raw prompt into a production-ready skill template ("optimize this prompt", "turn this into a skill", "harden this prompt for automation").
 
 <!-- Auto-generated from .claude/skills/prompt-optimize/SKILL.md -->
 <!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->

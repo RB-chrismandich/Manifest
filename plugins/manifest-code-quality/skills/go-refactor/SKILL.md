@@ -1,6 +1,6 @@
 ---
 name: go-refactor
-description: Perform security, architecture, and quality analysis for Go codebases and return a prioritized, actionable refactoring roadmap.
+description: Security, architecture, and quality analysis for Go codebases with a prioritized fix roadmap. Use for "refactor this Go service", "audit this Go code", "Go code review".
 ---
 
 # Go Codebase Refactor Analysis

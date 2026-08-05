@@ -1,12 +1,12 @@
 ---
-description: "Run the full Manifest commit pipeline — refresh docs, sync with remote, run pre-commit checks, then stage, commit, and push with safe failure handling. Use when committing and pushing through the whole pipeline, not a bare git commit."
+description: "Run Manifest's full automated commit-and-push pipeline with safe failure handling, not a bare git commit. Use for full commit-and-push requests through the whole pipeline."
 globs: ".claude/skills/git-commit/**"
 alwaysApply: false
 ---
 
 # git-commit
 
-Run the full Manifest commit pipeline — refresh docs, sync with remote, run pre-commit checks, then stage, commit, and push with safe failure handling. Use when committing and pushing through the whole pipeline, not a bare git commit.
+Run Manifest's full automated commit-and-push pipeline with safe failure handling, not a bare git commit. Use for full commit-and-push requests through the whole pipeline.
 
 <!-- Auto-generated from .claude/skills/git-commit/SKILL.md -->
 <!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->

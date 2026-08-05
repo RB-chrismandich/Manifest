@@ -1,6 +1,6 @@
 ---
 name: project-verify
-description: Run linters, unit tests, and security scans in parallel for a target project. Auto-detects language from project files and runs the appropriate tool chain. Produces a unified quality report with pass/warn/fail per category.
+description: Use when the user wants a pass/fail quality check on a project — before merging, shipping, or as a PR gate. Detects Python, Go, Node.js, or Terraform and runs lint, test, and security scans, producing one report. Read-only; installs nothing.
 ---
 
 # Verify Skill

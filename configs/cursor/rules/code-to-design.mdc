@@ -1,12 +1,12 @@
 ---
-description: "Convert frontend code (Vite, React, etc.) to a Stitch Design by chaining HTML extraction, design-system extraction, and upload. ALWAYS use when the user wants to save/migrate/upload an existing web app or React components into Stitch."
+description: "Convert existing frontend code (Vite, React, etc.) into a Stitch Design for further iteration. Use when the user wants to save, migrate, or upload an existing web app or React components into Stitch."
 globs: ".claude/skills/code-to-design/**"
 alwaysApply: false
 ---
 
 # code-to-design
 
-Convert frontend code (Vite, React, etc.) to a Stitch Design by chaining HTML extraction, design-system extraction, and upload. ALWAYS use when the user wants to save/migrate/upload an existing web app or React components into Stitch.
+Convert existing frontend code (Vite, React, etc.) into a Stitch Design for further iteration. Use when the user wants to save, migrate, or upload an existing web app or React components into Stitch.
 
 <!-- Auto-generated from .claude/skills/code-to-design/SKILL.md -->
 <!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->

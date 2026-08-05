@@ -1,6 +1,6 @@
 ---
 name: lifecycle-run
-description: Drive a feature/issue through the codified state-gated lifecycle (specify→…→verify) with hard phase-gating and a smoke-test Verify gate; entry is a ticket URL/issue key.
+description: Use when a feature or issue needs to move through the state-gated specify→verify lifecycle with hard phase-gating and a smoke-test Verify gate; entry is a ticket URL or issue key.
 ---
 
 # Lifecycle Orchestrator

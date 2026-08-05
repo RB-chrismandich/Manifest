@@ -14,12 +14,6 @@ recommendations.
 This command ALWAYS uses parallel agents (security-critical).
 Executes: `manifest parallel-agent --json --full-output --validate --analyze`
 
-Consensus scoring:
-
-- ≥80%: Auto-proceed with unified recommendation
-- 50-79%: Highlight disagreements to user
-- <50%: Escalate for human review
-
 ## Task
 
 You are a Senior Principal Security Software Engineer analyzing a production Python codebase. Your goals are to:
@@ -52,47 +46,35 @@ If the knowledge base contains relevant antipatterns or insights for Python:
 This step is **non-blocking** — if the knowledge base is empty or the query fails,
 proceed with the standard analysis.
 
-### Step 1: Read Project Standards and Configuration
+### Analysis Checklist
+
+Work through each category; the sequence within and across categories does not matter.
+
+**Project Standards**:
 
 - Read AGENTS.md, CLAUDE.md for project context
 - Check for existing tooling: pyproject.toml, ruff.toml, mypy.ini, .pre-commit-config.yaml
-- Check package manager: `uv` (recommended 2026), pip, poetry, pdm
+- Check package manager: `uv` (recommended), pip, poetry, pdm
 - Read pyproject.toml for dependencies (prefer over requirements.txt)
 - Check for PEP 735 dependency groups in pyproject.toml
 - Check Python version target (>=3.12 recommended for modern features)
 
-### Step 2: Architecture Analysis
+**Architecture**:
 
 - List all Python files and check structure
 - Check file sizes (detect God classes >500 lines)
 - Check for module-level global state
 - Check for proper package structure with **init**.py
 
-### Step 3: Security Analysis (CRITICAL)
+**Security (CRITICAL)**:
 
-Scan for these patterns:
+- SQL injection: f-strings in queries (`f"SELECT...WHERE {var}"`)
+- Hardcoded secrets: `password =`, `secret =`, `api_key =`, `token =`; hardcoded URLs, emails, hostnames
+- Error handling: bare exceptions (`except:`), silent failures without logging
+- Dangerous operations: `import pickle`, `eval()`, `exec()`, `yaml.load()` (should be
+  `yaml.safe_load()`), `subprocess`, `os.system`, `os.popen`
 
-**SQL Injection**:
-
-- f-strings in queries: `f"SELECT...WHERE {var}"`
-
-**Hardcoded Secrets**:
-
-- `password =`, `secret =`, `api_key =`, `token =`
-- Hardcoded URLs, emails, hostnames
-
-**Error Handling**:
-
-- Bare exceptions: `except:`
-- Silent failures without logging
-
-**Dangerous Operations**:
-
-- `import pickle`, `eval()`, `exec()`
-- `yaml.load()` (should be `yaml.safe_load()`)
-- `subprocess`, `os.system`, `os.popen`
-
-### Step 4: Code Quality Analysis
+**Code Quality**:
 
 - Long functions (>100 lines)
 - Duplicate code patterns
@@ -100,7 +82,7 @@ Scan for these patterns:
 - Dead/unused imports
 - Inconsistent naming (snake_case for functions)
 
-### Step 5: Type Safety Analysis
+**Type Safety**:
 
 - Missing type hints on functions
 - Overuse of `Any` type
@@ -111,13 +93,13 @@ Scan for these patterns:
 - Prefer `collections.abc` over `typing` for generic types (Sequence, Mapping)
 - Check for structured logging (structlog) over print/basic logging
 
-### Step 6: Documentation Analysis
+**Documentation**:
 
 - Module docstrings
 - Functions without docstrings
 - TODO/FIXME comments
 
-### Step 7: Testing Analysis
+**Testing**:
 
 - Test file inventory
 - Test coverage gaps
@@ -247,6 +229,8 @@ asyncio_mode = "auto"
 ```
 
 ### .pre-commit-config.yaml
+
+Verify this pin against the tool's latest release before recommending it.
 
 ```yaml
 repos:

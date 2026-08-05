@@ -1,12 +1,12 @@
 ---
-description: "Verify CLI tool availability, authentication status, config syntax, MCP connectivity, and symlink integrity for the Manifest environment."
+description: "Diagnoses Manifest environment health — CLI tools, auth, config syntax, MCP, symlinks — when setup seems broken or post-bootstrap."
 globs: ".claude/skills/env-check/**"
 alwaysApply: false
 ---
 
 # env-check
 
-Verify CLI tool availability, authentication status, config syntax, MCP connectivity, and symlink integrity for the Manifest environment.
+Diagnoses Manifest environment health — CLI tools, auth, config syntax, MCP, symlinks — when setup seems broken or post-bootstrap.
 
 <!-- Auto-generated from .claude/skills/env-check/SKILL.md -->
 <!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->

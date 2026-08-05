@@ -1,6 +1,6 @@
 ---
 name: skill-evolve
-description: Turn SkillClaw-evolved skills into a reviewed PR into .apm/skills/. Dry-run by default; --apply opens one PR with one commit per skill. Requires --enable-skillclaw and claude CLI login. Never writes source of truth directly — all changes go through PR review.
+description: Use after a stretch of work to harvest SkillClaw-evolved skills from Claude Code session transcripts into a reviewed PR against .apm/skills/. Dry-run by default; requires --enable-skillclaw and claude CLI login. Never writes source of truth directly.
 ---
 
 # Evolve Skills (SkillClaw)

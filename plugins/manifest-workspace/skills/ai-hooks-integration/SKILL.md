@@ -58,23 +58,14 @@ scripts/remove_cli_wrapper.py --cli gh
 
 | Tool | Config | Events | Hook Types | Has Hooks API |
 |------|--------|--------|------------|---------------|
-| Claude | `~/.claude/settings.json` | 17 events | command, http, prompt, agent | Yes |
-| Gemini CLI | `~/.gemini/settings.json` | 11 events | command | Yes |
-| Cursor | `~/.cursor/hooks.json` | 3 events | command | Yes |
-| OpenCode | `~/.config/opencode/plugins/*.js` | 10 events | ES module | Yes (plugin) |
+| Claude | `~/.claude/settings.json` | See reference | command, http, prompt, agent | Yes |
+| Gemini CLI | `~/.gemini/settings.json` | See reference | command | Yes |
+| Cursor | `~/.cursor/hooks.json` | See reference | command | Yes |
+| OpenCode | `~/.config/opencode/plugins/*.js` | See reference | ES module | Yes (plugin) |
 | Gemini IDE | N/A | N/A | N/A | **No** |
 | gh, aws, etc. | N/A | N/A | N/A | **No** → Use wrapper |
 
-### Claude Code Events (17 total)
-
-SessionStart, UserPromptSubmit, PreToolUse, PermissionRequest, PostToolUse, PostToolUseFailure,
-Notification, SubagentStart, SubagentStop, Stop, TeammateIdle, TaskCompleted, ConfigChange,
-WorktreeCreate, WorktreeRemove, PreCompact, SessionEnd
-
-### Gemini CLI Events (11 total)
-
-SessionStart, SessionEnd, BeforeAgent, AfterAgent, BeforeModel, AfterModel, BeforeToolSelection, BeforeTool,
-AfterTool, PreCompress, Notification
+Full event lists per tool: `references/tool-reference.md`.
 
 ## References
 
