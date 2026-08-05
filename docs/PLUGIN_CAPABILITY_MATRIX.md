@@ -1,7 +1,7 @@
 # Plugin Capability Matrix
 
 Generated from portable contracts and verified adapter inspection evidence; do not edit by hand.
-`READY` requires a native adapter inspection with a non-empty version. Missing inspection remains `BLOCKED`.
+`READY` requires a native adapter inspection with a non-empty version plus matching installed plugin, component, and capability evidence.
 
 | Capability | Evidence | Claude | Codex | Gemini | Cursor | Antigravity | Devin |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -78,6 +78,9 @@ Generated from portable contracts and verified adapter inspection evidence; do n
 | `manifest-forge:executable:curl` | contract optional executable | N/A(contract optional; not selected) | N/A(contract optional; not selected) | N/A(contract optional; not selected) | N/A(contract optional; not selected) | N/A(contract optional; not selected) | N/A(contract optional; not selected) |
 | `manifest-forge:executable:gh` | contract optional executable | N/A(contract optional; not selected) | N/A(contract optional; not selected) | N/A(contract optional; not selected) | N/A(contract optional; not selected) | N/A(contract optional; not selected) | N/A(contract optional; not selected) |
 | `manifest-forge:executable:glab` | contract optional executable | N/A(contract optional; not selected) | N/A(contract optional; not selected) | N/A(contract optional; not selected) | N/A(contract optional; not selected) | N/A(contract optional; not selected) | N/A(contract optional; not selected) |
+| `manifest-forge:executable:gtimeout` | contract optional executable | N/A(contract optional; not selected) | N/A(contract optional; not selected) | N/A(contract optional; not selected) | N/A(contract optional; not selected) | N/A(contract optional; not selected) | N/A(contract optional; not selected) |
+| `manifest-forge:executable:jq` | contract optional executable | N/A(contract optional; not selected) | N/A(contract optional; not selected) | N/A(contract optional; not selected) | N/A(contract optional; not selected) | N/A(contract optional; not selected) | N/A(contract optional; not selected) |
+| `manifest-forge:executable:timeout` | contract optional executable | N/A(contract optional; not selected) | N/A(contract optional; not selected) | N/A(contract optional; not selected) | N/A(contract optional; not selected) | N/A(contract optional; not selected) | N/A(contract optional; not selected) |
 | `manifest-graphify:skill:graphify` | contract skill | READY | READY | READY | READY | READY | READY |
 | `manifest-graphify:runtime:graphify-runtime-contract` | contract runtime | READY | READY | READY | READY | READY | READY |
 | `manifest-graphify:executable:git` | contract required executable | READY | READY | READY | READY | READY | READY |
@@ -102,6 +105,8 @@ Generated from portable contracts and verified adapter inspection evidence; do n
 | `manifest-ops:executable:git` | contract required executable | READY | READY | READY | READY | READY | READY |
 | `manifest-ops:executable:python3` | contract required executable | READY | READY | READY | READY | READY | READY |
 | `manifest-ops:executable:docker` | contract optional executable | N/A(contract optional; not selected) | N/A(contract optional; not selected) | N/A(contract optional; not selected) | N/A(contract optional; not selected) | N/A(contract optional; not selected) | N/A(contract optional; not selected) |
+| `manifest-ops:executable:shasum` | contract optional executable | N/A(contract optional; not selected) | N/A(contract optional; not selected) | N/A(contract optional; not selected) | N/A(contract optional; not selected) | N/A(contract optional; not selected) | N/A(contract optional; not selected) |
+| `manifest-ops:executable:sha256sum` | contract optional executable | N/A(contract optional; not selected) | N/A(contract optional; not selected) | N/A(contract optional; not selected) | N/A(contract optional; not selected) | N/A(contract optional; not selected) | N/A(contract optional; not selected) |
 | `manifest-ops:executable:terraform` | contract optional executable | N/A(contract optional; not selected) | N/A(contract optional; not selected) | N/A(contract optional; not selected) | N/A(contract optional; not selected) | N/A(contract optional; not selected) | N/A(contract optional; not selected) |
 | `manifest-ops:executable:tflint` | contract optional executable | N/A(contract optional; not selected) | N/A(contract optional; not selected) | N/A(contract optional; not selected) | N/A(contract optional; not selected) | N/A(contract optional; not selected) | N/A(contract optional; not selected) |
 | `manifest-ops:executable:tofu` | contract optional executable | N/A(contract optional; not selected) | N/A(contract optional; not selected) | N/A(contract optional; not selected) | N/A(contract optional; not selected) | N/A(contract optional; not selected) | N/A(contract optional; not selected) |
@@ -139,6 +144,7 @@ Generated from portable contracts and verified adapter inspection evidence; do n
 | `manifest-spec-planning:executable:python3` | contract required executable | READY | READY | READY | READY | READY | READY |
 | `manifest-spec-planning:executable:agy` | contract optional executable | N/A(contract optional; not selected) | N/A(contract optional; not selected) | N/A(contract optional; not selected) | N/A(contract optional; not selected) | N/A(contract optional; not selected) | N/A(contract optional; not selected) |
 | `manifest-spec-planning:executable:devin` | contract optional executable | N/A(contract optional; not selected) | N/A(contract optional; not selected) | N/A(contract optional; not selected) | N/A(contract optional; not selected) | N/A(contract optional; not selected) | N/A(contract optional; not selected) |
+| `manifest-spec-planning:executable:shasum` | contract optional executable | N/A(contract optional; not selected) | N/A(contract optional; not selected) | N/A(contract optional; not selected) | N/A(contract optional; not selected) | N/A(contract optional; not selected) | N/A(contract optional; not selected) |
 | `manifest-workspace:skill:ai-hooks-integration` | contract skill | READY | READY | READY | READY | READY | READY |
 | `manifest-workspace:skill:automation-rework-breakeven` | contract skill | READY | READY | READY | READY | READY | READY |
 | `manifest-workspace:skill:config-audit` | contract skill | READY | READY | READY | READY | READY | READY |

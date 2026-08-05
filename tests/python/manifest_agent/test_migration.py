@@ -133,6 +133,40 @@ def test_failed_native_verify_restores_legacy_writer(tmp_path: Path):
     assert not service.receipt_path.exists()
 
 
+def test_failed_migration_preserves_every_unowned_harness_surface(tmp_path: Path):
+    events: list[str] = []
+    home, link = _legacy_home(tmp_path)
+    unowned = {
+        ".claude/plugins/user-plugin.json": b'{"plugin":"user"}\n',
+        ".claude/hooks/user-hook.sh": b"#!/bin/sh\necho user\n",
+        ".cursor/mcp.json": b'{"mcpServers":{"user":{}}}\n',
+        ".cursor/rules/user.mdc": b"---\ndescription: user\n---\n",
+        ".codex/config.toml": b"approval_policy = 'never'\n",
+        ".gemini/settings.json": b'{"permissions":{"user":true}}\n',
+    }
+    paths: dict[Path, bytes] = {}
+    for relative, payload in unowned.items():
+        target = home / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(payload)
+        paths[target] = payload
+    adapter = MigrationAdapter(events)
+    adapter.verify_result = HarnessResult(
+        "claude", ResultState.BLOCKED, (), {}, errors=("native verify failed",)
+    )
+    service = _service(tmp_path, adapter)
+    migration = MigrationService.from_manifest_service(
+        service, paths=xdg_paths({"HOME": str(home)}), home=home, event_log=events
+    )
+
+    result = migration.migrate(service._desired_state()[0])
+
+    assert result.state is ResultState.BLOCKED
+    assert link.is_symlink()
+    assert {path: path.read_bytes() for path in paths} == paths
+    assert not service.receipt_path.exists()
+
+
 def test_migration_preserves_unowned_settings(tmp_path: Path):
     events: list[str] = []
     home, _link = _legacy_home(tmp_path)

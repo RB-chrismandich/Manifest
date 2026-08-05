@@ -151,7 +151,7 @@ def test_contracts_declare_explicit_capability_tiers(repo_root: Path) -> None:
             ("atlassian", "github", "linear"),
             ("bash", "git", "python3"),
             (),
-            ("curl", "gh", "glab"),
+            ("curl", "gh", "glab", "gtimeout", "jq", "timeout"),
         ),
         "manifest-graphify": ((), (), (), ("git",), ("graphify",), ()),
         "manifest-ops": (
@@ -160,7 +160,7 @@ def test_contracts_declare_explicit_capability_tiers(repo_root: Path) -> None:
             ("sentry",),
             ("bash", "git", "python3"),
             (),
-            ("docker", "terraform", "tflint", "tofu"),
+            ("docker", "shasum", "sha256sum", "terraform", "tflint", "tofu"),
         ),
         "manifest-security": (
             (),
@@ -176,7 +176,7 @@ def test_contracts_declare_explicit_capability_tiers(repo_root: Path) -> None:
             (),
             ("bash", "git", "python3"),
             (),
-            ("agy", "devin"),
+            ("agy", "devin", "shasum"),
         ),
         "manifest-workspace": (
             (),

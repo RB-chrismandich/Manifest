@@ -5,6 +5,8 @@ from __future__ import annotations
 import os
 import shutil
 import socket
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -34,6 +36,18 @@ class FakeBundleAdapter:
     def uninstall(self, _receipt: HarnessReceipt) -> HarnessResult:
         shutil.rmtree(self.root)
         return HarnessResult(self.name, ResultState.READY, (), {})
+
+    def invoke_remote_capability(self, bundle: str, capability: str) -> HarnessResult:
+        """Model the native adapter's required no-network failure contract."""
+        if os.environ.get("UV_NO_NETWORK") == "1":
+            return HarnessResult(
+                self.name,
+                ResultState.BLOCKED,
+                (),
+                {},
+                errors=(f"OFFLINE: {bundle}:{capability} requires network",),
+            )
+        raise AssertionError("offline fixture must not permit remote execution")
 
 
 @pytest.fixture
@@ -91,3 +105,56 @@ def test_all_six_fake_adapters_install_list_info_and_uninstall_offline(
         )
         assert removed.state is ResultState.READY
         assert not adapter.root.exists()
+
+
+def test_copied_bundle_local_entry_points_execute_without_coordinator_or_network(
+    installed_release: Path, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    adapter = FakeBundleAdapter("claude", tmp_path / "home")
+    adapter.install(installed_release)
+    installed = adapter.root / "plugins"
+    node = shutil.which("node")
+    assert node is not None, "stitch's declared default node executable is unavailable"
+    network_bin = tmp_path / "network-bin"
+    network_bin.mkdir()
+    for command in ("curl", "npm", "npx", "uv", "uvx"):
+        script = network_bin / command
+        script.write_text("#!/bin/sh\necho network disabled >&2\nexit 127\n", encoding="utf-8")
+        script.chmod(0o755)
+    monkeypatch.setenv("UV_NO_NETWORK", "1")
+    monkeypatch.setattr(
+        socket,
+        "create_connection",
+        lambda *args, **kwargs: (_ for _ in ()).throw(OSError("network disabled")),
+    )
+    shutil.rmtree(installed_release)
+    environment = {
+        "HOME": str(tmp_path / "home"),
+        "PATH": f"{network_bin}:{Path(sys.executable).parent}:{Path(node).parent}:/usr/bin:/bin",
+        "UV_NO_NETWORK": "1",
+    }
+    commands = (
+        ("manifest-code-quality", (sys.executable, "skills/code-audit-constitution/scripts/constitution_check.py", "--help")),
+        ("manifest-docs", (sys.executable, "runtime/docs_lint.py", "--help")),
+        ("manifest-forge", (sys.executable, "runtime/python/tracker_registry.py", "--help")),
+        ("manifest-ops", ("/bin/bash", "runtime/bin/version_pin.sh", "--help")),
+        ("manifest-security", ("/bin/bash", "runtime/bin/ci_platform.sh", "--help")),
+        ("manifest-spec-planning", (sys.executable, "runtime/plan_store.py", "--help")),
+        ("manifest-workspace", (sys.executable, "skills/ai-hooks-integration/scripts/runtime/cli_wrapper.py", "--help")),
+        ("stitch-design", (node, "runtime/dist/snapshot.mjs", "--help")),
+    )
+    for bundle, command in commands:
+        completed = subprocess.run(
+            command,
+            cwd=installed / bundle,
+            env=environment,
+            check=False,
+            text=True,
+            capture_output=True,
+        )
+        assert completed.returncode == 0, completed.stderr
+    # Graphify is intentionally a remote/default capability: offline operation
+    # must fail precisely instead of silently reaching a network client.
+    remote = adapter.invoke_remote_capability("manifest-graphify", "executable:graphify")
+    assert remote.state is ResultState.BLOCKED
+    assert remote.errors == ("OFFLINE: manifest-graphify:executable:graphify requires network",)

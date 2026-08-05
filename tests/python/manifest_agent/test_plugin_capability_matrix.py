@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import copy
 import importlib.util
+import json
 from pathlib import Path
 
 
@@ -50,3 +52,28 @@ def test_matrix_without_inspection_is_explicitly_blocked() -> None:
     renderer = _renderer_module()
 
     assert "BLOCKED(adapter inspection missing)" in renderer.render()
+
+
+def test_matrix_blocks_ready_harness_without_matching_plugin_component_or_capability(
+    tmp_path: Path,
+) -> None:
+    renderer = _renderer_module()
+    root = Path(__file__).resolve().parents[3]
+    inspection = renderer._load_inspection(
+        root / "tests/fixtures/plugin_capability_inspection.json"
+    )
+    assert inspection is not None
+    missing = copy.deepcopy(inspection)
+    claude = missing["harnesses"]["claude"]
+    claude["installed_plugin_ids"].remove("manifest-docs")
+    claude["components"]["manifest-code-quality"].remove("skill:ai-code-audit")
+    claude["capabilities"]["manifest-code-quality"].remove("executable:git")
+
+    rendered = renderer.render(missing)
+
+    assert "BLOCKED(plugin 'manifest-docs' is not installed)" in rendered
+    assert "BLOCKED(components evidence missing manifest-code-quality:skill:ai-code-audit)" in rendered
+    assert "BLOCKED(capabilities evidence missing manifest-code-quality:executable:git)" in rendered
+    evidence_path = tmp_path / "inspection.json"
+    evidence_path.write_text(json.dumps(missing), encoding="utf-8")
+    assert renderer.main(["--check", "--inspection", str(evidence_path)]) == 2
