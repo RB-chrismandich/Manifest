@@ -178,8 +178,13 @@ def test_response_driven_production_adapters_complete_receipt_lifecycles(
     adapter = _adapter(harness, environment)
 
     detection = adapter.detect()
+    log = tmp_path / "argv.jsonl"
+    pre_inspection_start = len(_logged_argv(log))
     environment["HARNESS_STUB_RESPONSES"] = _responses(harness, desired, "pre")
     before = adapter.inspect(desired)
+    _assert_pre_install_inspection(
+        harness, desired, before, _logged_argv(log)[pre_inspection_start:]
+    )
     environment["HARNESS_STUB_RESPONSES"] = _responses(
         harness, desired, "installed"
     )
@@ -197,7 +202,6 @@ def test_response_driven_production_adapters_complete_receipt_lifecycles(
 
     assert detection.present is True
     assert len(desired.contracts) == len(DOMAIN_BUNDLES)
-    assert before.state is not ResultState.READY
     if harness == "cursor":
         assert installed.state is ResultState.DEGRADED
         assert inspected.state is ResultState.DEGRADED
@@ -207,9 +211,7 @@ def test_response_driven_production_adapters_complete_receipt_lifecycles(
         assert inspected.state is ResultState.READY
         assert inspected.installed_plugin_ids == plugin_ids
     assert removed.state is ResultState.READY
-    argv = [
-        json.loads(line) for line in (tmp_path / "argv.jsonl").read_text().splitlines()
-    ]
+    argv = _logged_argv(log)
     assert [row[1:] for row in argv if row[1:] == ["--version"]]
     _assert_lifecycle_commands(harness, desired, argv)
 
@@ -291,6 +293,57 @@ def _assert_lifecycle_commands(
     }
     assert _commands_in_order(commands, expected_installs[harness])
     assert _commands_in_order(commands, expected_removals[harness])
+
+
+def _assert_pre_install_inspection(
+    harness: str,
+    desired: DesiredState,
+    result: HarnessResult,
+    argv: list[list[str]],
+) -> None:
+    expected_commands = {
+        "claude": [
+            ("plugin", "marketplace", "list", "--json"),
+            ("plugin", "list", "--json"),
+        ],
+        "codex": [
+            ("plugin", "marketplace", "list", "--json"),
+            ("plugin", "list", "--json"),
+        ],
+        "gemini": [
+            ("extensions", "list", "--output-format", "json"),
+            ("skills", "list", "--all"),
+        ],
+        "cursor": [("plugin", "marketplace", "list", "--format", "json")],
+        "antigravity": [("plugin", "list")],
+        "devin": [("plugins", "list")]
+        + [("plugins", "info", name) for name in DOMAIN_BUNDLES],
+    }
+    expected_errors = {
+        "claude": [
+            f"missing required plugin: {name}@manifest" for name in DOMAIN_BUNDLES
+        ],
+        "codex": [
+            f"missing required plugin: {name}@manifest" for name in DOMAIN_BUNDLES
+        ],
+        "gemini": [
+            f"missing required extension: {name}" for name in DOMAIN_BUNDLES
+        ],
+        "cursor": ["Cursor marketplace list must contain exactly one manifest source"],
+        "antigravity": [
+            f"missing required plugin: {name}" for name in DOMAIN_BUNDLES
+        ],
+        "devin": [f"missing required plugin: {name}" for name in DOMAIN_BUNDLES],
+    }
+    assert result.state is ResultState.BLOCKED
+    assert _commands_in_order(
+        [tuple(command[1:]) for command in argv], expected_commands[harness]
+    )
+    assert set(expected_errors[harness]).issubset(result.errors)
+
+
+def _logged_argv(log: Path) -> list[list[str]]:
+    return [json.loads(line) for line in log.read_text().splitlines()]
 
 
 def _commands_in_order(
