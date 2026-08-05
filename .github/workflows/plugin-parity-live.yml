@@ -59,7 +59,7 @@ jobs:
           command -v "$native" >/dev/null || { echo "BLOCKED: $native is absent after protected setup"; exit 1; }
           "$native" --version
 
-      - name: Build immutable coordinator and release archive
+      - name: Build immutable coordinator and release artifacts
         shell: bash
         run: |
           set -euo pipefail
@@ -67,9 +67,44 @@ jobs:
           uv build
           WHEEL="$(find dist -maxdepth 1 -name 'manifest_agent-*.whl' -print -quit)"
           test -n "$WHEEL"
-          git archive --format=tar --prefix=manifest-release/ HEAD | gzip -n > live-release.tar.gz
-          sha256sum "$WHEEL" live-release.tar.gz | tee release-checksums.txt
+          ARCHIVE_BASE_URL="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/artifacts"
+          uv run python tools/build_manifest_release.py \
+            --repo-root "$GITHUB_WORKSPACE" \
+            --output-dir live-release \
+            --archive-base-url "$ARCHIVE_BASE_URL"
+          ARCHIVE="$(find live-release -maxdepth 1 -name 'manifest-plugins-*.tar.gz' -print -quit)"
+          METADATA="live-release/manifest-release.json"
+          test -n "$ARCHIVE"
+          test -f "$METADATA"
+          sha256sum "$WHEEL" "$ARCHIVE" "$METADATA" | tee release-checksums.txt
           printf 'WHEEL=%s\n' "$WHEEL" >> "$GITHUB_ENV"
+
+      - name: Verify immutable release metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          ARCHIVE="$(find live-release -maxdepth 1 -name 'manifest-plugins-*.tar.gz' -print -quit)"
+          METADATA="live-release/manifest-release.json"
+          ARCHIVE_BASE_URL="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/artifacts"
+          python3 - "$ARCHIVE" "$METADATA" "$GITHUB_SHA" "$ARCHIVE_BASE_URL" <<'PY'
+          import hashlib
+          import json
+          import sys
+          from pathlib import Path
+
+          archive = Path(sys.argv[1])
+          metadata_path = Path(sys.argv[2])
+          commit = sys.argv[3]
+          base_url = sys.argv[4]
+          metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+          if metadata["commit"] != commit:
+              raise SystemExit("release metadata commit does not match the workflow commit")
+          if metadata["archive_sha256"] != hashlib.sha256(archive.read_bytes()).hexdigest():
+              raise SystemExit("release archive checksum does not match release metadata")
+          expected_url = f"{base_url}/{metadata['version']}/{archive.name}"
+          if metadata["archive_url"] != expected_url:
+              raise SystemExit("release archive URL does not match the workflow base URL")
+          PY
 
       - name: Install, reconcile, and uninstall one native harness
         shell: bash
@@ -113,5 +148,7 @@ jobs:
             reconcile.json
             uninstall.json
             release-checksums.txt
+            live-release/manifest-plugins-*.tar.gz
+            live-release/manifest-release.json
             ${{ runner.temp }}/manifest-live-home/${{ matrix.harness }}
           if-no-files-found: warn
