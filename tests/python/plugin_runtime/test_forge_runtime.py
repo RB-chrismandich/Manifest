@@ -501,4 +501,7 @@ def test_forge_contract_lists_all_runtime_directories(forge_bundle: Path) -> Non
         "curl",
         "gh",
         "glab",
+        "gtimeout",
+        "jq",
+        "timeout",
     }

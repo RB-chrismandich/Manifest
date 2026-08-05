@@ -37,19 +37,6 @@ class FakeBundleAdapter:
         shutil.rmtree(self.root)
         return HarnessResult(self.name, ResultState.READY, (), {})
 
-    def invoke_remote_capability(self, bundle: str, capability: str) -> HarnessResult:
-        """Model the native adapter's required no-network failure contract."""
-        if os.environ.get("UV_NO_NETWORK") == "1":
-            return HarnessResult(
-                self.name,
-                ResultState.BLOCKED,
-                (),
-                {},
-                errors=(f"OFFLINE: {bundle}:{capability} requires network",),
-            )
-        raise AssertionError("offline fixture must not permit remote execution")
-
-
 @pytest.fixture
 def installed_release(tmp_path: Path) -> Path:
     """Copy all domain bundles as a harness adapter would at user scope."""
@@ -153,8 +140,15 @@ def test_copied_bundle_local_entry_points_execute_without_coordinator_or_network
             capture_output=True,
         )
         assert completed.returncode == 0, completed.stderr
-    # Graphify is intentionally a remote/default capability: offline operation
-    # must fail precisely instead of silently reaching a network client.
-    remote = adapter.invoke_remote_capability("manifest-graphify", "executable:graphify")
-    assert remote.state is ResultState.BLOCKED
-    assert remote.errors == ("OFFLINE: manifest-graphify:executable:graphify requires network",)
+    # Graphify is intentionally a remote/default capability: its shipped
+    # launcher, rather than a test double, must reject offline execution.
+    graphify = subprocess.run(
+        ("/bin/bash", "runtime/graphify.sh", "--help"),
+        cwd=installed / "manifest-graphify",
+        env=environment,
+        check=False,
+        text=True,
+        capture_output=True,
+    )
+    assert graphify.returncode == 4
+    assert graphify.stderr.strip() == "OFFLINE: manifest-graphify:executable:graphify requires network"

@@ -27,7 +27,7 @@ def test_graphify_skill_uses_coordinator_executable_and_xdg_cache(
 ) -> None:
     skill = (graphify_bundle / "skills/graphify/SKILL.md").read_text(encoding="utf-8")
 
-    assert "command -v graphify" in skill
+    assert "runtime/graphify.sh" in skill
     assert "${XDG_CACHE_HOME:-$HOME/.cache}/manifest/graphify" in skill
     assert "DEGRADED" in skill
     assert "bootstrap.sh" not in skill
@@ -42,4 +42,4 @@ def test_graphify_contract_declares_default_executable_and_cache(
     runtime_paths = {component.path for component in contract.components.runtime}
 
     assert contract.capabilities.executables[CapabilityTier.DEFAULT] == ("graphify",)
-    assert runtime_paths == {"runtime/graphify.json"}
+    assert runtime_paths == {"runtime/graphify.json", "runtime/graphify.sh"}

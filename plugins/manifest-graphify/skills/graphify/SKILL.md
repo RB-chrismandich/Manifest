@@ -24,14 +24,11 @@ optionally followed by graphify flags (e.g. `--mode deep`, `--update`,
 
 ### Phase 1: Preflight
 
-Verify the coordinator-provided CLI is installed. A failed default acquisition
-leaves the bundle installed with this capability explicitly degraded:
+Verify the coordinator-provided CLI through the bundle-local launcher. A failed
+default acquisition or an offline session leaves the bundle explicitly degraded:
 
 ```bash
-if ! command -v graphify >/dev/null 2>&1; then
-    echo "DEGRADED: the default graphify executable was not acquired; repair the Manifest capability installation." >&2
-    exit 4
-fi
+"${MANIFEST_GRAPHIFY_RUNTIME:-runtime/graphify.sh}" --help
 GRAPHIFY_CACHE_ROOT="${XDG_CACHE_HOME:-$HOME/.cache}/manifest/graphify"
 mkdir -p "$GRAPHIFY_CACHE_ROOT"
 export GRAPHIFY_CACHE_DIR="$GRAPHIFY_CACHE_ROOT"

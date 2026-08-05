@@ -12,6 +12,7 @@ components:
   hooks: []
   runtime:
     - {id: graphify-runtime-contract, path: runtime/graphify.json}
+    - {id: graphify-offline-launcher, path: runtime/graphify.sh}
   guidance: []
 capabilities:
   mcp:

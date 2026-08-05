@@ -80,6 +80,7 @@
           "skill:repo-clean"
         ],
         "manifest-graphify": [
+          "runtime:graphify-offline-launcher",
           "runtime:graphify-runtime-contract",
           "skill:graphify"
         ],
@@ -334,6 +335,7 @@
           "skill:repo-clean"
         ],
         "manifest-graphify": [
+          "runtime:graphify-offline-launcher",
           "runtime:graphify-runtime-contract",
           "skill:graphify"
         ],
@@ -588,6 +590,7 @@
           "skill:repo-clean"
         ],
         "manifest-graphify": [
+          "runtime:graphify-offline-launcher",
           "runtime:graphify-runtime-contract",
           "skill:graphify"
         ],
@@ -842,6 +845,7 @@
           "skill:repo-clean"
         ],
         "manifest-graphify": [
+          "runtime:graphify-offline-launcher",
           "runtime:graphify-runtime-contract",
           "skill:graphify"
         ],
@@ -1096,6 +1100,7 @@
           "skill:repo-clean"
         ],
         "manifest-graphify": [
+          "runtime:graphify-offline-launcher",
           "runtime:graphify-runtime-contract",
           "skill:graphify"
         ],
@@ -1350,6 +1355,7 @@
           "skill:repo-clean"
         ],
         "manifest-graphify": [
+          "runtime:graphify-offline-launcher",
           "runtime:graphify-runtime-contract",
           "skill:graphify"
         ],

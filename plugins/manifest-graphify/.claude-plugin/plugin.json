@@ -5,6 +5,13 @@
   "compatibility": {
     "degraded": [
       {
+        "component_id": "graphify-offline-launcher",
+        "component_type": "runtime",
+        "mode": "degraded",
+        "path": "runtime/graphify.sh",
+        "reason": "claude native manifest cannot encode runtime component 'graphify-offline-launcher' at 'runtime/graphify.sh'"
+      },
+      {
         "component_id": "graphify-runtime-contract",
         "component_type": "runtime",
         "mode": "degraded",

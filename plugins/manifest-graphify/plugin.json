@@ -6,6 +6,12 @@
       "compatibility": {
         "imported": [
           {
+            "component_id": "graphify-offline-launcher",
+            "component_type": "runtime",
+            "mode": "imported",
+            "path": "runtime/graphify.sh"
+          },
+          {
             "component_id": "graphify-runtime-contract",
             "component_type": "runtime",
             "mode": "imported",
@@ -15,6 +21,10 @@
       },
       "components": {
         "runtime": [
+          {
+            "id": "graphify-offline-launcher",
+            "path": "runtime/graphify.sh"
+          },
           {
             "id": "graphify-runtime-contract",
             "path": "runtime/graphify.json"
@@ -30,6 +40,12 @@
       "compatibility": {
         "native": [
           {
+            "component_id": "graphify-offline-launcher",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "runtime/graphify.sh"
+          },
+          {
             "component_id": "graphify-runtime-contract",
             "component_type": "runtime",
             "mode": "native",
@@ -39,6 +55,10 @@
       },
       "components": {
         "runtime": [
+          {
+            "id": "graphify-offline-launcher",
+            "path": "runtime/graphify.sh"
+          },
           {
             "id": "graphify-runtime-contract",
             "path": "runtime/graphify.json"
@@ -54,6 +74,12 @@
       "compatibility": {
         "generated": [
           {
+            "component_id": "graphify-offline-launcher",
+            "component_type": "runtime",
+            "mode": "generated",
+            "path": "runtime/graphify.sh"
+          },
+          {
             "component_id": "graphify-runtime-contract",
             "component_type": "runtime",
             "mode": "generated",
@@ -63,6 +89,10 @@
       },
       "components": {
         "runtime": [
+          {
+            "id": "graphify-offline-launcher",
+            "path": "runtime/graphify.sh"
+          },
           {
             "id": "graphify-runtime-contract",
             "path": "runtime/graphify.json"
@@ -78,6 +108,12 @@
       "compatibility": {
         "native": [
           {
+            "component_id": "graphify-offline-launcher",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "runtime/graphify.sh"
+          },
+          {
             "component_id": "graphify-runtime-contract",
             "component_type": "runtime",
             "mode": "native",
@@ -87,6 +123,10 @@
       },
       "components": {
         "runtime": [
+          {
+            "id": "graphify-offline-launcher",
+            "path": "runtime/graphify.sh"
+          },
           {
             "id": "graphify-runtime-contract",
             "path": "runtime/graphify.json"
