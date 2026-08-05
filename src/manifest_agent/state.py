@@ -1,13 +1,14 @@
 """XDG locking and secret-free atomic installation receipts."""
 
 import fcntl
+import hashlib
 import json
 import os
 import re
 import tempfile
 from collections.abc import Iterator
 from contextlib import contextmanager
-from dataclasses import asdict
+from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
@@ -23,6 +24,7 @@ _CREDENTIAL_KEY = re.compile(
 )
 _FULL_COMMIT = re.compile(r"^[0-9a-fA-F]{40}(?:[0-9a-fA-F]{24})?$")
 _SHA256 = re.compile(r"^[0-9a-fA-F]{64}$")
+_RETIREMENT_PHASES = frozenset({"prepared", "cleanup-complete"})
 _SUPPORTED_HARNESSES = frozenset(
     {"claude", "codex", "gemini", "cursor", "antigravity", "devin"}
 )
@@ -43,6 +45,15 @@ _NON_SUCCESS_CAPABILITY_VALUES = frozenset(
 
 class StateError(RuntimeError):
     """Durable state is unsafe, malformed, unavailable, or concurrently locked."""
+
+
+@dataclass(frozen=True)
+class RetiredGraphifyTransaction:
+    """Crash-recoverable state for the one-time legacy Graphify cleanup."""
+
+    phase: str
+    legacy_receipt_digest: str
+    target_receipt: InstallationReceipt
 
 
 def _receipt_path(path: Path | None) -> Path:
@@ -137,12 +148,109 @@ def read_receipt(path: Path | None = None) -> InstallationReceipt | None:
     return receipt
 
 
+def retired_graphify_transaction_path(receipt_path: Path) -> Path:
+    """Return the private journal path paired with one installation receipt."""
+    return receipt_path.with_name(f".{receipt_path.name}.retired-graphify.json")
+
+
+def receipt_digest(receipt: InstallationReceipt) -> str:
+    """Return a stable identity for a validated legacy receipt."""
+    payload = json.dumps(
+        asdict(receipt), sort_keys=True, separators=(",", ":")
+    ).encode()
+    return hashlib.sha256(payload).hexdigest()
+
+
+def read_retired_graphify_transaction(
+    path: Path,
+) -> RetiredGraphifyTransaction | None:
+    """Read a validated Graphify retirement journal without changing state."""
+    if not path.exists():
+        return None
+    try:
+        document = json.loads(path.read_text(encoding="utf-8"))
+        _assert_secret_free(document)
+        transaction = _decode_retired_graphify_transaction(document)
+    except (
+        OSError,
+        UnicodeError,
+        json.JSONDecodeError,
+        KeyError,
+        TypeError,
+        ValueError,
+    ) as error:
+        raise StateError("unable to read retired Graphify transaction") from error
+    _validate_receipt(
+        transaction.target_receipt, ownership_key_path=path.parent / "ownership.key"
+    )
+    return transaction
+
+
+def write_retired_graphify_transaction_atomic(
+    path: Path, transaction: RetiredGraphifyTransaction
+) -> None:
+    """Durably record the cleanup phase before advancing a native mutation."""
+    if transaction.phase not in _RETIREMENT_PHASES:
+        raise StateError("retired Graphify transaction has an invalid phase")
+    if not _SHA256.fullmatch(transaction.legacy_receipt_digest):
+        raise StateError("retired Graphify transaction has an invalid receipt digest")
+    _validate_receipt(
+        transaction.target_receipt, ownership_key_path=path.parent / "ownership.key"
+    )
+    document = {
+        "schema_version": 1,
+        "phase": transaction.phase,
+        "legacy_receipt_digest": transaction.legacy_receipt_digest,
+        "target_receipt": asdict(transaction.target_receipt),
+    }
+    _assert_secret_free(document)
+    _write_private_json_atomic(path, document)
+
+
+def clear_retired_graphify_transaction(path: Path) -> None:
+    """Remove the completed private cleanup journal."""
+    try:
+        path.unlink(missing_ok=True)
+        if path.parent.exists():
+            _fsync_directory(path.parent)
+    except OSError as error:
+        raise StateError("unable to clear retired Graphify transaction") from error
+
+
 def _fsync_directory(directory: Path) -> None:
     descriptor = os.open(directory, os.O_RDONLY)
     try:
         os.fsync(descriptor)
     finally:
         os.close(descriptor)
+
+
+def _write_private_json_atomic(path: Path, document: dict[str, Any]) -> None:
+    payload = (json.dumps(document, indent=2, sort_keys=True) + "\n").encode()
+    path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    descriptor = -1
+    temporary: Path | None = None
+    try:
+        descriptor, temporary_name = tempfile.mkstemp(
+            prefix=f".{path.name}.", suffix=".tmp", dir=path.parent
+        )
+        temporary = Path(temporary_name)
+        os.fchmod(descriptor, 0o600)
+        with os.fdopen(descriptor, "wb") as stream:
+            descriptor = -1
+            stream.write(payload)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temporary, path)
+        temporary = None
+        _fsync_directory(path.parent)
+    except OSError as error:
+        raise StateError("unable to write private state atomically") from error
+    finally:
+        if descriptor >= 0:
+            os.close(descriptor)
+        if temporary is not None:
+            temporary.unlink(missing_ok=True)
 
 
 def _assert_secret_free(value: Any, *, key: str | None = None) -> None:
@@ -231,6 +339,27 @@ def _decode_receipt(value: Any) -> InstallationReceipt:
         selected_optional=_string_tuple(document["selected_optional"]),
         harnesses=harnesses,
         migration_backup=migration_backup,
+    )
+
+
+def _decode_retired_graphify_transaction(value: Any) -> RetiredGraphifyTransaction:
+    """Strictly reconstruct a receipt-bound Graphify retirement journal."""
+    document = _object(
+        value,
+        {"schema_version", "phase", "legacy_receipt_digest", "target_receipt"},
+    )
+    if _integer(document["schema_version"]) != 1:
+        raise ValueError("unsupported retired Graphify transaction schema version")
+    phase = _string(document["phase"])
+    if phase not in _RETIREMENT_PHASES:
+        raise ValueError("invalid retired Graphify transaction phase")
+    legacy_receipt_digest = _string(document["legacy_receipt_digest"])
+    if not _SHA256.fullmatch(legacy_receipt_digest):
+        raise ValueError("invalid retired Graphify transaction receipt digest")
+    return RetiredGraphifyTransaction(
+        phase=phase,
+        legacy_receipt_digest=legacy_receipt_digest,
+        target_receipt=_decode_receipt(document["target_receipt"]),
     )
 
 

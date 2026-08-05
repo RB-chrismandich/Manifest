@@ -12,10 +12,15 @@ import pytest
 from manifest_agent.models import HarnessReceipt, InstallationReceipt, OwnedEntry
 from manifest_agent.ownership import owned_capability_entry
 from manifest_agent.state import (
+    RetiredGraphifyTransaction,
     StateError,
     installation_lock,
     read_receipt,
+    read_retired_graphify_transaction,
+    receipt_digest,
+    retired_graphify_transaction_path,
     write_receipt_atomic,
+    write_retired_graphify_transaction_atomic,
 )
 
 SAMPLE_RECEIPT = InstallationReceipt(
@@ -57,6 +62,29 @@ def test_receipt_write_is_atomic_private_and_round_trips(tmp_path):
     assert read_receipt(path) == SAMPLE_RECEIPT
     assert not list(tmp_path.glob("*.tmp"))
     assert stat.S_IMODE(path.stat().st_mode) == 0o600
+
+
+def test_graphify_retirement_transaction_round_trips_strictly(tmp_path) -> None:
+    receipt_path = tmp_path / "installation.json"
+    path = retired_graphify_transaction_path(receipt_path)
+    transaction = RetiredGraphifyTransaction(
+        phase="prepared",
+        legacy_receipt_digest=receipt_digest(SAMPLE_RECEIPT),
+        target_receipt=SAMPLE_RECEIPT,
+    )
+
+    write_retired_graphify_transaction_atomic(path, transaction)
+
+    assert read_retired_graphify_transaction(path) == transaction
+    assert stat.S_IMODE(path.stat().st_mode) == 0o600
+
+
+def test_graphify_retirement_transaction_rejects_unknown_fields(tmp_path) -> None:
+    path = retired_graphify_transaction_path(tmp_path / "installation.json")
+    path.write_text('{"schema_version": 1, "unexpected": true}', encoding="utf-8")
+
+    with pytest.raises(StateError, match="retired Graphify transaction"):
+        read_retired_graphify_transaction(path)
 
 
 def test_state_module_imports_in_a_fresh_interpreter() -> None:

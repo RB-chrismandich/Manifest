@@ -36,7 +36,17 @@ from manifest_agent.service_state import (
     report,
     snapshot_declared,
 )
-from manifest_agent.state import installation_lock, read_receipt, write_receipt_atomic
+from manifest_agent.state import (
+    RetiredGraphifyTransaction,
+    clear_retired_graphify_transaction,
+    installation_lock,
+    read_receipt,
+    read_retired_graphify_transaction,
+    receipt_digest,
+    retired_graphify_transaction_path,
+    write_receipt_atomic,
+    write_retired_graphify_transaction_atomic,
+)
 
 HARNESS_ORDER = ("claude", "codex", "gemini", "cursor", "antigravity", "devin")
 _RETIRED_BUNDLE = "manifest-graphify"
@@ -122,6 +132,19 @@ class ManifestService:
                                 "use deliberate migration: " + "; ".join(conflicts),
                             ),
                         )
+                elif retired_graphify_transaction_path(self.receipt_path).exists():
+                    # A journal without its bound receipt cannot prove safe recovery.
+                    read_retired_graphify_transaction(
+                        retired_graphify_transaction_path(self.receipt_path)
+                    )
+                    return report(
+                        "install",
+                        {},
+                        errors=(
+                            "retired Graphify transaction has no matching installation "
+                            "receipt",
+                        ),
+                    )
                 failures = snapshot_declared(
                     selected, desired, self.adapters, self.snapshot_root
                 )
@@ -156,17 +179,73 @@ class ManifestService:
     def _upgrade_retired_graphify_receipt(
         self, receipt: InstallationReceipt, desired: DesiredState
     ) -> tuple[InstallationReceipt | None, str | None]:
-        """Atomically replace a validated nine-bundle receipt with the current inventory."""
+        """Durably replace a validated nine-bundle receipt with the current inventory."""
         checksums = bundle_checksums(desired)
-        if not _is_graphify_retirement_receipt(receipt, desired, checksums):
-            return receipt, None
+        transaction_path = retired_graphify_transaction_path(self.receipt_path)
+        transaction = read_retired_graphify_transaction(transaction_path)
 
-        # read_receipt already validated every ownership HMAC before this point.
-        if any(
-            entry.kind == "executable" and entry.identifier == _RETIRED_EXECUTABLE
-            for harness in receipt.harnesses.values()
-            for entry in harness.owned_entries
-        ):
+        if transaction is not None:
+            target_errors = identity_errors(
+                transaction.target_receipt, desired, checksums
+            )
+            if target_errors:
+                return None, (
+                    "retired Graphify transaction target is incompatible with the "
+                    "current release: " + "; ".join(target_errors)
+                )
+            if receipt == transaction.target_receipt:
+                try:
+                    clear_retired_graphify_transaction(transaction_path)
+                # constitution: exempt C-ERR -- journal cleanup is a state boundary.
+                except Exception as exception:
+                    return None, diagnostic(exception)
+                return receipt, None
+            if receipt_digest(receipt) != transaction.legacy_receipt_digest:
+                return None, (
+                    "retired Graphify transaction does not match the current legacy "
+                    "receipt"
+                )
+            if not _is_graphify_retirement_receipt(receipt, desired, checksums):
+                return None, (
+                    "retired Graphify transaction legacy receipt is incompatible with "
+                    "the current release"
+                )
+            upgraded = transaction.target_receipt
+        else:
+            if not _is_graphify_retirement_receipt(receipt, desired, checksums):
+                return receipt, None
+            upgraded = replace(
+                receipt,
+                release_version=desired.release_version,
+                source_commit=desired.source_commit,
+                source_dirty=desired.source_dirty,
+                archive_sha256=desired.archive_sha256,
+                bundle_checksums=checksums,
+                harnesses={
+                    name: _without_retired_graphify(harness)
+                    for name, harness in receipt.harnesses.items()
+                },
+            )
+            if identity_errors(upgraded, desired, checksums):
+                return (
+                    None,
+                    "retired receipt cannot be reconciled with the current release",
+                )
+            transaction = RetiredGraphifyTransaction(
+                phase="prepared",
+                legacy_receipt_digest=receipt_digest(receipt),
+                target_receipt=upgraded,
+            )
+            try:
+                write_retired_graphify_transaction_atomic(
+                    transaction_path, transaction
+                )
+            # constitution: exempt C-ERR -- durable intent is a state boundary.
+            except Exception as exception:
+                return None, diagnostic(exception)
+
+        if transaction.phase == "prepared" and _receipt_owns_retired_graphify(receipt):
+            # read_receipt validated every ownership HMAC before the journal was created.
             try:
                 command = self.runner.run(("uv", "tool", "uninstall", "graphifyy"))
             # constitution: exempt C-ERR -- native cleanup must block the upgrade.
@@ -178,23 +257,23 @@ class ManifestService:
                     f"exit {command.returncode}: {command.stderr or command.stdout}"
                 )
 
-        upgraded = replace(
-            receipt,
-            release_version=desired.release_version,
-            source_commit=desired.source_commit,
-            source_dirty=desired.source_dirty,
-            archive_sha256=desired.archive_sha256,
-            bundle_checksums=checksums,
-            harnesses={
-                name: _without_retired_graphify(harness)
-                for name, harness in receipt.harnesses.items()
-            },
-        )
-        if identity_errors(upgraded, desired, checksums):
-            return None, "retired receipt cannot be reconciled with the current release"
+        if transaction.phase == "prepared":
+            try:
+                write_retired_graphify_transaction_atomic(
+                    transaction_path,
+                    replace(transaction, phase="cleanup-complete"),
+                )
+            # constitution: exempt C-ERR -- cleanup completion must be durable.
+            except Exception as exception:
+                return None, diagnostic(exception)
         try:
             write_receipt_atomic(self.receipt_path, upgraded)
         # constitution: exempt C-ERR -- atomic state persistence is a service boundary.
+        except Exception as exception:
+            return None, diagnostic(exception)
+        try:
+            clear_retired_graphify_transaction(transaction_path)
+        # constitution: exempt C-ERR -- journal cleanup is a state boundary.
         except Exception as exception:
             return None, diagnostic(exception)
         return upgraded, None
@@ -386,6 +465,15 @@ def _without_retired_graphify(receipt: HarnessReceipt) -> HarnessReceipt:
             for identity, state in receipt.capabilities.items()
             if identity not in retired_capabilities
         },
+    )
+
+
+def _receipt_owns_retired_graphify(receipt: InstallationReceipt) -> bool:
+    """Require receipt-proven executable ownership before native cleanup."""
+    return any(
+        entry.kind == "executable" and entry.identifier == _RETIRED_EXECUTABLE
+        for harness in receipt.harnesses.values()
+        for entry in harness.owned_entries
     )
 
 
