@@ -1,0 +1,253 @@
+#!/usr/bin/env python3
+"""Audit docker-compose files against the Ten Commandments (DC-001..DC-010).
+
+Drives the check: loads the rule registry, finds compose files, applies bypass
+markers, and renders the report. The rules themselves live in compose_rules.py
+and the document model in compose_model.py.
+
+Advisory by default — exit 0 even with findings, so the save hook never blocks
+an edit. ``--strict`` flips findings to exit 1 for CI use.
+"""
+
+from __future__ import annotations
+
+import argparse
+import fnmatch
+import json
+import os
+import re
+import sys
+from pathlib import Path
+from typing import Any
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from compose_model import (
+    Context,
+    Finding,
+    MissingDependency,
+    build_context,
+    load_yaml_with_lines,
+)
+from compose_rules import run_rules
+
+CONFIG_PATH = (
+    Path(__file__).resolve().parent.parent / "config" / "compose_commandments.yml"
+)
+SEVERITY_ORDER = {"high": 0, "medium": 1, "low": 2}
+SKIP_DIRS = {".git", "node_modules", ".venv", "venv", ".tox", "dist", "build"}
+
+
+def load_config(path: Path = CONFIG_PATH) -> dict[str, Any]:
+    """Load the rule registry."""
+    return load_yaml_with_lines(path.read_text(encoding="utf-8"))
+
+
+def is_compose_file(path: Path, cfg: dict[str, Any]) -> bool:
+    """True when the filename matches a recognised compose filename pattern."""
+    return any(fnmatch.fnmatch(path.name, pat) for pat in cfg.get("filenames", []))
+
+
+def is_bypassed(ctx: Context, finding: Finding) -> bool:
+    """True when a bypass marker covers this finding.
+
+    A marker on the offending line always applies. For a service-scoped
+    finding the whole service block counts, because a missing key has no line
+    of its own to annotate.
+    """
+    marker = ctx.cfg.get("bypass_marker", "")
+    if not marker:
+        return False
+    candidates = [finding.line]
+    if finding.service and finding.service in ctx.ranges:
+        start, end = ctx.ranges[finding.service]
+        candidates = list(range(start, end + 1))
+    return any(
+        _marker_covers(ctx, marker, number, finding.rule_id) for number in candidates
+    )
+
+
+def _marker_covers(ctx: Context, marker: str, number: int, rule_id: str) -> bool:
+    """True when line ``number`` carries a marker applying to ``rule_id``."""
+    if not 1 <= number <= len(ctx.raw_lines):
+        return False
+    text = ctx.raw_lines[number - 1]
+    if marker not in text:
+        return False
+    named = re.findall(r"DC-\d{3}", text.split(marker, 1)[1])
+    return not named or rule_id in named
+
+
+def check_file(
+    path: Path, cfg: dict[str, Any], only: list[str] | None = None
+) -> list[Finding]:
+    """Run every enabled rule over one compose file, minus bypassed findings."""
+    text = path.read_text(encoding="utf-8")
+    if cfg.get("file_bypass_marker", "\0") in text:
+        return []
+    ctx = build_context(path, cfg, text)
+    if ctx is None:
+        return []
+    kept = [f for f in run_rules(ctx, only) if not is_bypassed(ctx, f)]
+    kept.sort(key=lambda f: (SEVERITY_ORDER.get(f.severity, 9), f.rule_id, f.line))
+    return kept
+
+
+def discover(target: Path, cfg: dict[str, Any]) -> list[Path]:
+    """Compose files under ``target``, or ``target`` itself when it is a file."""
+    if target.is_file():
+        return [target]
+    return [
+        candidate
+        for candidate in sorted(target.rglob("*"))
+        if candidate.is_file()
+        and is_compose_file(candidate, cfg)
+        and not SKIP_DIRS.intersection(candidate.parts)
+    ]
+
+
+def _display_path(path: Path) -> str:
+    """Path relative to the working directory when possible, else absolute."""
+    try:
+        return str(path.relative_to(Path.cwd()))
+    except ValueError:
+        return str(path)
+
+
+def render_text(
+    path: Path, findings: list[Finding], cfg: dict[str, Any], limit: int = 0
+) -> str:
+    """Human-readable report for one file. Empty string when clean.
+
+    Every finding keeps its own ``file:line`` so a terminal or editor can jump
+    to it; the commandment and its remedy print once per rule rather than once
+    per finding, which is what made the raw output unreadable.
+
+    ``limit`` caps how many findings are printed. Findings arrive sorted by
+    severity, so a cap shows the worst first. Real compose files run ~5 findings
+    per service, and the save hook audits the WHOLE file on every edit — without
+    a cap, touching one line of a 26-service stack emits 134 findings.
+    """
+    if not findings:
+        return ""
+    by_id = {rule["id"]: rule for rule in cfg.get("rules", [])}
+    shown = _display_path(path)
+    lines = [f"docker-compose commandments — {shown}"]
+    visible = findings[:limit] if limit else findings
+    cited: set[str] = set()
+    for finding in visible:
+        rule = by_id.get(finding.rule_id, {})
+        scope = f"[{finding.service}] " if finding.service else ""
+        lines.append(
+            f"  {shown}:{finding.line}  {finding.rule_id} "
+            f"{finding.severity:<6} {scope}{finding.message}"
+        )
+        if finding.rule_id in cited:
+            continue
+        cited.add(finding.rule_id)
+        lines.append(
+            f"      {rule.get('commandment', '')} — {rule.get('fix', '')}".rstrip()
+        )
+        hint = rule.get("delegate_hint")
+        if hint:
+            lines.append(f"      {hint}")
+    hidden = len(findings) - len(visible)
+    if hidden:
+        # Never let a cap read as "that was all of it".
+        lines.append(
+            f"  … {hidden} more not shown. Full report: compose_check.py {shown}"
+        )
+    lines.append(
+        f"  {len(findings)} finding(s). Suppress one with a trailing "
+        f"`# {cfg.get('bypass_marker')} DC-NNN` comment."
+    )
+    return "\n".join(lines)
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="compose_check.py",
+        # Explicit compact usage: the auto-generated one wraps to three lines and
+        # pushes --help past the repo's 15-line ceiling.
+        usage="compose_check.py [options] [target]",
+        description="Audit docker-compose files against the Ten Commandments (DC-001..DC-010).",
+    )
+    parser.add_argument(
+        "target", nargs="?", default=".", help="compose file or dir (default: .)"
+    )
+    parser.add_argument("--json", action="store_true", help="emit findings as JSON")
+    parser.add_argument(
+        "--rule", action="append", metavar="ID", help="limit to one rule (repeatable)"
+    )
+    parser.add_argument(
+        "--strict", action="store_true", help="exit 1 when findings exist (CI gate)"
+    )
+    parser.add_argument(
+        "--limit", type=int, default=0, metavar="N", help="print at most N findings"
+    )
+    parser.add_argument(
+        "--list-rules", action="store_true", help="print the registry and exit"
+    )
+    return parser
+
+
+def _collect(
+    target: Path, cfg: dict[str, Any], only: list[str] | None
+) -> dict[str, list[Finding]]:
+    """Check every discovered file, reporting per-file failures without aborting."""
+    results: dict[str, list[Finding]] = {}
+    for path in discover(target, cfg):
+        try:
+            results[str(path)] = check_file(path, cfg, only)
+        except MissingDependency:
+            raise
+        # constitution: exempt C-ERR — one unparseable compose file must not abort
+        # the sweep over the rest; the failure is named on stderr, not swallowed.
+        except Exception as exc:
+            print(f"compose_check.py: skipped {path}: {exc}", file=sys.stderr)
+    return results
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = build_parser().parse_args(argv)
+    try:
+        cfg = load_config()
+    except MissingDependency as exc:
+        print(f"compose_check.py: {exc}", file=sys.stderr)
+        return 0
+    except OSError as exc:
+        print(f"compose_check.py: cannot read rule registry: {exc}", file=sys.stderr)
+        return 2
+
+    if args.list_rules:
+        for rule in cfg.get("rules", []):
+            print(f"{rule['id']}  {rule['severity']:<6}  {rule['commandment']}")
+        return 0
+
+    target = Path(os.path.expanduser(args.target)).resolve()
+    if not target.exists():
+        print(f"compose_check.py: no such path: {target}", file=sys.stderr)
+        return 2
+
+    try:
+        results = _collect(target, cfg, args.rule)
+    except MissingDependency as exc:
+        print(f"compose_check.py: {exc}", file=sys.stderr)
+        return 0
+
+    total = sum(len(items) for items in results.values())
+    if args.json:
+        payload = {
+            path: [vars(f) for f in findings] for path, findings in results.items()
+        }
+        print(json.dumps({"findings": payload, "total": total}, indent=2))
+    else:
+        for path, findings in results.items():
+            report = render_text(Path(path), findings, cfg, args.limit)
+            if report:
+                print(report)
+    return 1 if (args.strict and total) else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

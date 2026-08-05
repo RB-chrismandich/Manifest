@@ -1,0 +1,6 @@
+services:
+  web:
+    image: nginx:latest
+    environment:
+      SAFE: "yes"
+      DB_PASSWORD: literal

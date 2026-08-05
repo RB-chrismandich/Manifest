@@ -107,6 +107,7 @@ overrides:
   project-verify: ci-cd
   # infra & config
   api-optimize-bulk: infra
+  docker-compose-commandments: infra
   config-validate-native: infra
   cli-audit-help: infra
   docker-probe-internal: infra

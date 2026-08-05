@@ -1,0 +1,15 @@
+---
+description: "Audit or harden a docker-compose.yaml against DC-001..DC-010 — pinning, secrets, healthchecks, limits, network isolation, volumes, non-root, logs. Use for \"review my compose file\" or a DC-NNN finding."
+globs: ".claude/skills/docker-compose-commandments/**"
+alwaysApply: false
+---
+
+# docker-compose-commandments
+
+Audit or harden a docker-compose.yaml against DC-001..DC-010 — pinning, secrets, healthchecks, limits, network isolation, volumes, non-root, logs. Use for "review my compose file" or a DC-NNN finding.
+
+<!-- Auto-generated from .claude/skills/docker-compose-commandments/SKILL.md -->
+<!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
+
+Refer to `.cursor/skills/docker-compose-commandments/SKILL.md` for the full skill definition.
+

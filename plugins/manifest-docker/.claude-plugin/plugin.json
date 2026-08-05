@@ -1,0 +1,13 @@
+{
+  "name": "manifest-docker",
+  "version": "0.1.0",
+  "description": "The Ten Commandments of docker-compose (DC-001..DC-010): an advisory save-hook and an on-demand audit for image pinning, secrets, healthchecks, resource limits, network isolation, volumes, non-root, logging, DRY and graceful shutdown.",
+  "author": {
+    "name": "ReefBytes"
+  },
+  "homepage": "https://github.com/ReefBytes-Owner/Manifest",
+  "license": "Proprietary",
+  "skills": [
+    "./skills/docker-compose-commandments"
+  ]
+}

@@ -1,0 +1,92 @@
+---
+# A checker-clean production compose file. Every line carrying a `# DC-NNN`
+# comment is there to satisfy that commandment; delete one and the checker will
+# tell you which.
+#
+# Deliberately omits `version:` — obsolete since Compose v2, and current
+# `docker compose` emits a warning when it is present.
+
+# DC-009: hoist anything three or more services would repeat.
+x-logging-defaults: &logging-defaults
+  logging:
+    driver: json-file
+    options:
+      max-size: 10m  # DC-008: cap size...
+      max-file: '3'  # DC-008: ...and file count.
+
+x-service-defaults: &service-defaults
+  restart: unless-stopped
+  security_opt:
+    - no-new-privileges:true
+
+services:
+  web:
+    <<: [*service-defaults, *logging-defaults]  # DC-009
+    image: myapp:1.2.0@sha256:0000000000000000000000000000000000000000000000000000000000000000  # DC-001
+    user: '1000:1000'  # DC-007
+    ports:
+      - '8080:8080'
+    environment:
+      DB_HOST: db
+      DB_NAME: ${DB_NAME}  # DC-002: interpolated, never a literal
+    depends_on:
+      db:
+        condition: service_healthy  # DC-003: wait for ready, not for spawned
+    # DC-005: the edge service joins BOTH networks. This is the step most
+    # published templates get wrong — with `web` on app-net alone and `db` on
+    # db-net alone, the two can never reach each other.
+    networks:
+      - app-net
+      - db-net
+    healthcheck:  # DC-003
+      test: ['CMD-SHELL', 'curl -fsS http://localhost:8080/healthz || exit 1']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'  # DC-004
+          memory: 512M  # DC-004
+
+  db:
+    <<: [*service-defaults, *logging-defaults]  # DC-009
+    image: postgres:16.2-alpine@sha256:0000000000000000000000000000000000000000000000000000000000000000  # DC-001
+    user: '999:999'  # DC-007
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      # DC-002: the _FILE convention keeps the value out of the process
+      # environment as well as out of git.
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
+    secrets:
+      - db_password  # DC-002
+    volumes:
+      - db_data:/var/lib/postgresql/data  # DC-006: named, not a bind mount
+    networks:
+      - db-net  # DC-005: internal only — no route to or from the internet
+    healthcheck:  # DC-003
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d ${DB_NAME}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'  # DC-004
+          memory: 1G  # DC-004
+    stop_grace_period: 30s  # DC-010: time to flush and close cleanly
+
+volumes:
+  db_data:  # DC-006
+
+networks:
+  app-net:
+    driver: bridge
+  db-net:
+    internal: true  # DC-005
+
+secrets:
+  db_password:
+    # DC-002: the file itself is gitignored; only this path is committed.
+    file: ./secrets/db_password.txt
