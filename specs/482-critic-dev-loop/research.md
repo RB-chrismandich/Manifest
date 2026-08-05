@@ -208,7 +208,7 @@ testing conventions).
 
 ## D12 — Skill and registration (FR-015, FR-016)
 
-- **Decision**: Skill `spec-implement-loop` in `.skillshare/skills/spec-implement-loop/SKILL.md`
+- **Decision**: Skill `spec-implement-loop` in `.retired skill supply/skills/spec-implement-loop/SKILL.md`
   (domain `spec`, verb `implement`, qualifier `loop` — taxonomy-compliant; dual-workflow
   `spec-` prefix per the c343a34 rename precedent). `command_config.yml` `tool_policies`
   entry: allowed `[Bash, Read]`, `parallel_agents: never`, `validation_tier: 1`,
@@ -221,7 +221,7 @@ testing conventions).
   and an `err()` stderr helper per script conventions (specs/003 R6/R7).
 - **Alternatives considered**: name `spec-loop-dev` (rejected: verb must be second
   token); `speckit-loop-dev` + project-local skills-dir placement (rejected in spec
-  Assumptions: dual-workflow skills use `spec-`, source of truth is `.skillshare/`).
+  Assumptions: dual-workflow skills use `spec-`, source of truth is `.retired skill supply/`).
 
 ## D13 — Test strategy (Constitution VI Verify gate)
 

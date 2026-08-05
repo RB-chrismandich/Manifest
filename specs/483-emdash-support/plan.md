@@ -89,8 +89,8 @@ tests/bats/fixtures/emdash/                     # synthetic HOME + worktree + em
 docs/EMDASH.md                                  # emdash usage, prerequisites, coexistence caveat (FR-009, FR-012)
 
 # MODIFIED files
-.skillshare/skills/env-check/SKILL.md           # add "emdash Inheritance" check calling the probe (FR-010)
-.skillshare/skills/config-audit/SKILL.md        # add emdash hook-coexistence awareness note (FR-010)
+.retired skill supply/skills/env-check/SKILL.md           # add "emdash Inheritance" check calling the probe (FR-010)
+.retired skill supply/skills/config-audit/SKILL.md        # add emdash hook-coexistence awareness note (FR-010)
 README.md                                       # "Running agents via emdash" pointer → docs/EMDASH.md
 docs/GETTING_STARTED.md                          # "Using Manifest with emdash" subsection
 AGENTS.md                                        # brief note: emdash-launched agents inherit config transitively

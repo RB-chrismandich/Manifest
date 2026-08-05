@@ -37,7 +37,7 @@ cd Manifest
 ```
 
 > **`./bootstrap.sh` is not side-effect-free on the working tree.** Every run
-> no longer invokes skillshare (removed 2026-07-27, feature 522 FR-021a).
+> no longer invokes retired skill supply (removed 2026-07-27, feature 522 FR-021a).
 > The project-scoped Copilot target `.github/skills/` is no longer synced.
 > to own, so the write is expected — but do not run bootstrap expecting a clean
 > `git status`, and do not commit `.github/skills/`.
@@ -94,9 +94,6 @@ cd Manifest
   Antigravity and Devin read the flat tree at `~/.manifest/skills`.
 - **Proton Pass Credential Retrieval** (`/pass-cli`): Retrieve passwords, API keys, and tokens from Proton Pass
   vaults without storing PATs in files or memory
-- **Graphify Knowledge Graphs** (`/graphify`): Map a codebase or docs into a queryable knowledge graph
-  (GRAPH_REPORT.md, graph.json, graph.html) via the bundled `graphify` CLI + skill — default-enabled
-  (host-agent backend, no API key); `--disable-graphify` to opt out
 - **Pilotfish Cost-Tiered Orchestration** (opt-in): Deploys six role-agents (scout, Explore,
   mech-executor, executor, verifier, security-executor) to both the Claude home
   (`~/.claude/agents/`, bound to built-in model aliases haiku/sonnet/opus) and the Cursor home
@@ -315,7 +312,7 @@ Manifest/
 │       ├── node/                    # Node.js project starter
 │       ├── python/                  # Python project starter
 │       └── terraform/               # Terraform project starter
-├── .apm/skills/                     # Skill source of truth (sole; skillshare removed 2026-07-27)
+├── .apm/skills/                     # Skill source of truth (sole; retired skill supply removed 2026-07-27)
 │   └── skills/                      # skill library deployed to ~/.claude/skills/ by bootstrap
 ├── tests/                           # Test suites
 │   ├── python/                      # pytest tests for parallel_agent and agents/

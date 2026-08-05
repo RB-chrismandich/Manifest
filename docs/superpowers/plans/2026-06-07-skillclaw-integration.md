@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Capture CLI-agent sessions through SkillClaw's local proxy and turn evolved `SKILL.md` files into reviewed PRs into `.skillshare/skills/`, fully managed by `bootstrap.sh` and fail-open by design.
+**Goal:** Capture CLI-agent sessions through SkillClaw's local proxy and turn evolved `SKILL.md` files into reviewed PRs into `.retired skill supply/skills/`, fully managed by `bootstrap.sh` and fail-open by design.
 
-**Architecture:** A new `bootstrap/lib/skillclaw.sh` installs/configures SkillClaw, `chmod 700`s its storage, writes fail-open runtime shell-wrapper functions, and supervises the proxy daemon. Capture is always-on and lossy; evolution + promotion run on demand via `scripts/skillclaw_promote.sh` (orchestrator) + `scripts/skillclaw_promote.py` (classify/validate) + `scripts/skillclaw_scrub.py` (secret redaction), reusing `git_ops.sh pr-create`. A `/skill-evolve` skill is the user entry point. Nothing reaches `.skillshare/skills/` without a merged PR.
+**Architecture:** A new `bootstrap/lib/skillclaw.sh` installs/configures SkillClaw, `chmod 700`s its storage, writes fail-open runtime shell-wrapper functions, and supervises the proxy daemon. Capture is always-on and lossy; evolution + promotion run on demand via `scripts/skillclaw_promote.sh` (orchestrator) + `scripts/skillclaw_promote.py` (classify/validate) + `scripts/skillclaw_scrub.py` (secret redaction), reusing `git_ops.sh pr-create`. A `/skill-evolve` skill is the user entry point. Nothing reaches `.retired skill supply/skills/` without a merged PR.
 
 **Tech Stack:** Bash (3.2-compatible, `set -euo pipefail`), Python 3.10+ (stdlib + PyYAML), bats (bats-support/bats-assert) for shell tests, pytest for Python tests, `git_ops.sh` for platform-agnostic PR creation, SkillClaw (Python, OpenAI/Anthropic-compatible proxy).
 
@@ -36,9 +36,9 @@
 | `configs/claude/scripts/skillclaw_scrub.py` (create) | Redact secrets from captured session files before evolve. |
 | `configs/claude/scripts/skillclaw_promote.py` (create) | Classify evolved skills (NEW/CHANGED/UNCHANGED) + validate frontmatter → JSON. |
 | `configs/claude/scripts/skillclaw_promote.sh` (create) | Orchestrate scrub→evolve→classify→verify→branch→`pr-create`. Dry-run default. |
-| `.skillshare/skills/skill-evolve/SKILL.md` (create) | `/skill-evolve` entry point. |
-| `.skillshare/skills/health-check/SKILL.md` (modify) | Add SkillClaw daemon/port/wrappers/perms checks. |
-| `.skillshare/skills/sync-configs/SKILL.md` (modify) | Cover `skillclaw.yml` drift. |
+| `.retired skill supply/skills/skill-evolve/SKILL.md` (create) | `/skill-evolve` entry point. |
+| `.retired skill supply/skills/health-check/SKILL.md` (modify) | Add SkillClaw daemon/port/wrappers/perms checks. |
+| `.retired skill supply/skills/sync-configs/SKILL.md` (modify) | Cover `skillclaw.yml` drift. |
 | `tests/bats/skillclaw_config.bats` (create) | Toggle plumbing tests. |
 | `tests/bats/skillclaw_lib.bats` (create) | Wrapper write/remove, chmod 700, daemon helper tests. |
 | `tests/bats/skillclaw_promote.bats` (create) | Orchestrator idempotency + dry-run (mocked) tests. |
@@ -1355,10 +1355,10 @@ CFG="${SKILLCLAW_CONFIG:-${SCRIPT_DIR}/../config/skillclaw.yml}"
 
 EVOLVED="${SKILLCLAW_EVOLVED:-$HOME/.skillclaw/skills}"
 SESSIONS="${SKILLCLAW_SESSIONS:-$HOME/.skillclaw/sessions}"
-# Committed library: the physical skillshare source of truth. The deployed script
+# Committed library: the physical retired skill supply source of truth. The deployed script
 # lives in ~/.claude/scripts, so locate the repo via MANIFEST_ROOT (exported by
 # bootstrap into the shell profile); fall back to repo-relative when run in-tree.
-COMMITTED="${SKILLCLAW_COMMITTED:-${MANIFEST_ROOT:-${SCRIPT_DIR}/../../..}/.skillshare/skills}"
+COMMITTED="${SKILLCLAW_COMMITTED:-${MANIFEST_ROOT:-${SCRIPT_DIR}/../../..}/.retired skill supply/skills}"
 BRANCH_PREFIX="skillclaw/evolve-"
 PR_BASE="main"
 
@@ -1498,7 +1498,7 @@ git commit -m "feat(scripts): skillclaw_promote orchestrator (dry-run default, O
 ## Task 10: `/skill-evolve` skill
 
 **Files:**
-- Create: `.skillshare/skills/skill-evolve/SKILL.md`
+- Create: `.retired skill supply/skills/skill-evolve/SKILL.md`
 - Test: `tests/bats/skillclaw_promote.bats` (append a presence/lint check)
 
 - [ ] **Step 1: Write the failing test**
@@ -1507,7 +1507,7 @@ Append to `tests/bats/skillclaw_promote.bats`:
 
 ```bash
 @test "skill-evolve SKILL.md has valid frontmatter and points at the script" {
-    local f="$REPO_ROOT/.skillshare/skills/skill-evolve/SKILL.md"
+    local f="$REPO_ROOT/.retired skill supply/skills/skill-evolve/SKILL.md"
     [ -f "$f" ]
     head -1 "$f" | grep -q '^---$'
     grep -q "^name: skill-evolve$" "$f"
@@ -1522,13 +1522,13 @@ Expected: FAIL — file not found.
 
 - [ ] **Step 3: Create the skill**
 
-Create `.skillshare/skills/skill-evolve/SKILL.md`:
+Create `.retired skill supply/skills/skill-evolve/SKILL.md`:
 
 ```markdown
 ---
 name: skill-evolve
 description: |
-  Turn SkillClaw's evolved skills into a reviewed PR into .skillshare/skills/.
+  Turn SkillClaw's evolved skills into a reviewed PR into .retired skill supply/skills/.
   Dry-run by default (shows the diff table and makes no changes); --apply opens a
   single review PR with one commit per skill. Requires the SkillClaw daemon
   (enable via ./bootstrap.sh --enable-skillclaw). Never writes to the source of
@@ -1538,7 +1538,7 @@ description: |
 # Evolve Skills (SkillClaw)
 
 Promote skills SkillClaw has evolved from captured CLI-agent sessions into the
-committed `.skillshare/skills/` library — gated behind PR review.
+committed `.retired skill supply/skills/` library — gated behind PR review.
 
 Backed by `~/.claude/scripts/skillclaw_promote.sh`, which classifies evolved
 skills (NEW/CHANGED/UNCHANGED), drops any that fail `verify`/frontmatter checks,
@@ -1582,7 +1582,7 @@ scrubs captured sessions of secrets, and opens one review PR per batch.
 
 - If the daemon is down, capture simply didn't happen — fix it with
   `/health-check` then `./bootstrap.sh --enable-skillclaw`. Nothing here mutates
-  `.skillshare/skills/` without a merged PR.
+  `.retired skill supply/skills/` without a merged PR.
 ```
 
 - [ ] **Step 4: Run test to verify it passes**
@@ -1593,7 +1593,7 @@ Expected: PASS.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add .skillshare/skills/skill-evolve/SKILL.md tests/bats/skillclaw_promote.bats
+git add .retired skill supply/skills/skill-evolve/SKILL.md tests/bats/skillclaw_promote.bats
 git commit -m "feat(skill): add /skill-evolve entry point for skillclaw promotion"
 ```
 
@@ -1602,16 +1602,16 @@ git commit -m "feat(skill): add /skill-evolve entry point for skillclaw promotio
 ## Task 11: health-check + sync-configs coverage
 
 **Files:**
-- Modify: `.skillshare/skills/health-check/SKILL.md`
-- Modify: `.skillshare/skills/sync-configs/SKILL.md`
+- Modify: `.retired skill supply/skills/health-check/SKILL.md`
+- Modify: `.retired skill supply/skills/sync-configs/SKILL.md`
 
 - [ ] **Step 1: Read the current health-check skill**
 
-Run: `sed -n '1,80p' .skillshare/skills/health-check/SKILL.md` to find the checks list/section.
+Run: `sed -n '1,80p' .retired skill supply/skills/health-check/SKILL.md` to find the checks list/section.
 
 - [ ] **Step 2: Add a SkillClaw section to health-check**
 
-In `.skillshare/skills/health-check/SKILL.md`, under the existing checks, add:
+In `.retired skill supply/skills/health-check/SKILL.md`, under the existing checks, add:
 
 ```markdown
 ## SkillClaw (if enabled)
@@ -1635,7 +1635,7 @@ Report `daemon: down` as INFO (capture paused, agents unaffected), but
 
 - [ ] **Step 3: Add a SkillClaw drift check to sync-configs**
 
-In `.skillshare/skills/sync-configs/SKILL.md`, where it lists config files to diff, add `skillclaw.yml`:
+In `.retired skill supply/skills/sync-configs/SKILL.md`, where it lists config files to diff, add `skillclaw.yml`:
 
 ```markdown
 - `config/skillclaw.yml` — SkillClaw runtime config (port, storage, evolve provider,
@@ -1647,13 +1647,13 @@ In `.skillshare/skills/sync-configs/SKILL.md`, where it lists config files to di
 
 Run:
 ```bash
-head -1 .skillshare/skills/health-check/SKILL.md | grep -q '^---$' && echo OK
-head -1 .skillshare/skills/sync-configs/SKILL.md | grep -q '^---$' && echo OK
+head -1 .retired skill supply/skills/health-check/SKILL.md | grep -q '^---$' && echo OK
+head -1 .retired skill supply/skills/sync-configs/SKILL.md | grep -q '^---$' && echo OK
 ```
 Expected: `OK` twice.
 
 ```bash
-git add .skillshare/skills/health-check/SKILL.md .skillshare/skills/sync-configs/SKILL.md
+git add .retired skill supply/skills/health-check/SKILL.md .retired skill supply/skills/sync-configs/SKILL.md
 git commit -m "docs(skills): add skillclaw checks to health-check + sync-configs"
 ```
 
@@ -1681,12 +1681,12 @@ In the "Available Commands" table add:
 
 - [ ] **Step 2: Note the proposer/source-of-truth boundary in `.claude/CLAUDE.md`**
 
-In `.claude/CLAUDE.md` under "Skill Management (skillshare)", add a bullet:
+In `.claude/CLAUDE.md` under "Skill Management (retired skill supply)", add a bullet:
 
 ```markdown
 - **SkillClaw** (optional, opt-in via `./bootstrap.sh --enable-skillclaw`) is a *proposer*:
   it evolves skills from captured CLI-agent sessions and opens review PRs into
-  `.skillshare/skills/` via `/skill-evolve`. It never writes the source of truth
+  `.retired skill supply/skills/` via `/skill-evolve`. It never writes the source of truth
   directly. Capture is fail-open (a dead daemon degrades to direct-to-provider) and
   storage is `chmod 700`. See `docs/SKILLCLAW.md`.
 ```
@@ -1700,7 +1700,7 @@ Create `docs/SKILLCLAW.md`:
 
 SkillClaw captures CLI-agent sessions through a local proxy and evolves reusable
 `SKILL.md` skills. In Manifest it is a **PR-gated proposer**: nothing reaches the
-committed `.skillshare/skills/` library without a merged PR.
+committed `.retired skill supply/skills/` library without a merged PR.
 
 ## Enable / disable
 

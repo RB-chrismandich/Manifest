@@ -57,7 +57,7 @@ review-state classification, (3) PR + post-merge-`main` CI status (pass/pending/
 
 | Principle | Status | Notes |
 |-----------|--------|-------|
-| I. Configuration-as-Code | ✅ PASS | All logic in `configs/claude/scripts/`, `.skillshare/skills/`, `.specify/`, `configs/claude/config/`; deployed via `bootstrap.sh`. No manual `~/.claude` edits. |
+| I. Configuration-as-Code | ✅ PASS | All logic in `configs/claude/scripts/`, `.retired skill supply/skills/`, `.specify/`, `configs/claude/config/`; deployed via `bootstrap.sh`. No manual `~/.claude` edits. |
 | II. Parallel Agent Orchestration | ⚠️ PASS w/ design constraint | Security-sensitive change (merge authority). The runtime honors it: **no PR is auto-merged without parallel-agent cross-verification** (the #360 gate runs `parallel_agent.py` as a merge precondition). Crucially, **for the merge gate, consensus `cross_verification` is BLOCKING** — stricter than #360's PR-open gate where it is advisory. The bar to *merge autonomously* is higher than the bar to *open a PR*. See Complexity Tracking. |
 | III. Consensus-Driven Decisions | ✅ PASS | The merge decision references the canonical thresholds: consensus ≥0.80 → eligible to auto-merge; 0.50–0.79 → hand to human (do not auto-merge); <0.50 → block + synthesize. No consensus bypass — the gate *runs* consensus, it does not skip it. |
 | IV. Skill-First Extensibility | ✅ PASS | Implemented as `auto-issue-dev` skill extensions + discrete testable shell helpers. `parallel_agent.py` is *consumed*, never expanded (Principle IV prohibition respected). |
@@ -109,7 +109,7 @@ configs/claude/config/
 └── labels.yml               # EDIT — add `ready-to-merge`, `loop-active` (lock), `hold`;
                              #   reuse existing `needs-human`, `blocked-dependency`.
 
-.skillshare/skills/auto-issue-dev/
+.retired skill supply/skills/auto-issue-dev/
 └── SKILL.md                 # EDIT — supersede Rule #1; add the monitor/merge phase + loop
                              #   controls (self-pace, ceiling, empty-run stop, serialized merge).
 

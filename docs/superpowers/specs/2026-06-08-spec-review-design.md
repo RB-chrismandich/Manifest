@@ -110,7 +110,7 @@ One core engine script, two thin entry points:
   Reason Why` structure, or a single `NO_ISSUES` token when consistent.
   Version-controlled, deployed to `~/.claude/prompts/`.
 
-- **`.skillshare/skills/spec-review/SKILL.md`** — the on-demand `/spec-review`
+- **`.retired skill supply/skills/spec-review/SKILL.md`** — the on-demand `/spec-review`
   entry point. Frontmatter (`name`, `description`); body instructs Claude to run
   `spec_review.sh` (auto-discover or with explicit paths) and present the findings.
 

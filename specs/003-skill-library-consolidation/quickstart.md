@@ -6,7 +6,7 @@ Per-story verification commands (run from repo root).
 
 ```bash
 # Count: expect 69 (±1)
-find .skillshare/skills -name SKILL.md | wc -l
+find .retired skill supply/skills -name SKILL.md | wc -l
 
 # Deleted names gone + unreferenced (expect no output)
 for n in address-pr-review-comments address-review-comments session-memory-digest \
@@ -16,7 +16,7 @@ for n in address-pr-review-comments address-review-comments session-memory-diges
   verify-api-schema-before-trust verify-image-runtime-contract \
   daemon-migration-verification retire-migrated-tool-runtime \
   plugin-mcp-clean-removal; do
-  [[ -d .skillshare/skills/$n ]] && echo "STILL EXISTS: $n"
+  [[ -d .retired skill supply/skills/$n ]] && echo "STILL EXISTS: $n"
   grep -rn "$n" --include="*.md" --include="*.sh" --include="*.py" --include="*.yml" . \
     | grep -v "specs/003-" | grep -v CHANGELOG && echo "REFERENCED: $n"
 done

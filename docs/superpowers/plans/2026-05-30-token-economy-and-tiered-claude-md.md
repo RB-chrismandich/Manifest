@@ -6,7 +6,7 @@
 
 **Architecture:** Deliverable A is a self-contained skill in the library (zero baseline cost, opt-in). Deliverable B moves ~450 lines of reference tables/prose out of the always-loaded core into four `references/*.md` files that bootstrap already deploys via `rsync -a`, leaving a ~180–220 line core that points to them with action-verb triggers.
 
-**Tech Stack:** Markdown (skills + CLAUDE.md), YAML (`command_config.yml`), bash (`bootstrap.sh`/`deploy.sh`), `skillshare`, `markdownlint-cli2`, `bats`.
+**Tech Stack:** Markdown (skills + CLAUDE.md), YAML (`command_config.yml`), bash (`bootstrap.sh`/`deploy.sh`), `retired skill supply`, `markdownlint-cli2`, `bats`.
 
 **Spec:** `docs/superpowers/specs/2026-05-30-token-economy-and-tiered-claude-md-design.md`
 
@@ -16,7 +16,7 @@
 
 | File | Responsibility | Change |
 |------|----------------|--------|
-| `.skillshare/skills/token-economy/SKILL.md` | The session-mutator skill | **Create** |
+| `.retired skill supply/skills/token-economy/SKILL.md` | The session-mutator skill | **Create** |
 | `configs/claude/config/command_config.yml` | Tool policy registry | **Modify** (add `token-economy`) |
 | `configs/claude/references/parallel-agent.md` | parallel_agent.sh flags/models/schema/env/output | **Create** (moved) |
 | `configs/claude/references/orchestration.md` | cross-verification, workflow integration, error handling, orchestrated review | **Create** (moved) |
@@ -47,19 +47,19 @@
 ## Task 1: Create the `token-economy` skill
 
 **Files:**
-- Create: `.skillshare/skills/token-economy/SKILL.md`
+- Create: `.retired skill supply/skills/token-economy/SKILL.md`
 
 - [ ] **Step 1: Create the skill directory and file**
 
 Run:
 ```bash
 cd /Users/chrismandich/Documents/GitHub/Manifest
-mkdir -p .skillshare/skills/token-economy
+mkdir -p .retired skill supply/skills/token-economy
 ```
 
 - [ ] **Step 2: Write `SKILL.md` with the exact content below**
 
-Create `.skillshare/skills/token-economy/SKILL.md`:
+Create `.retired skill supply/skills/token-economy/SKILL.md`:
 ```markdown
 ---
 name: token-economy
@@ -115,7 +115,7 @@ Run:
 cd /Users/chrismandich/Documents/GitHub/Manifest
 python3 -c "
 import re, sys
-t = open('.skillshare/skills/token-economy/SKILL.md').read()
+t = open('.retired skill supply/skills/token-economy/SKILL.md').read()
 m = re.match(r'^---\n(.*?)\n---\n', t, re.S)
 assert m, 'no frontmatter'
 import yaml
@@ -132,7 +132,7 @@ Expected: `frontmatter OK: token-economy`
 Run:
 ```bash
 cd /Users/chrismandich/Documents/GitHub/Manifest
-./node_modules/.bin/markdownlint-cli2 ".skillshare/skills/token-economy/SKILL.md" 2>&1 | tail -3
+./node_modules/.bin/markdownlint-cli2 ".retired skill supply/skills/token-economy/SKILL.md" 2>&1 | tail -3
 ```
 Expected: `Summary: 0 error(s)` (install bats/markdownlint first if missing: `npm install --no-save markdownlint-cli2`).
 
@@ -140,7 +140,7 @@ Expected: `Summary: 0 error(s)` (install bats/markdownlint first if missing: `np
 
 ```bash
 cd /Users/chrismandich/Documents/GitHub/Manifest
-git add .skillshare/skills/token-economy/SKILL.md
+git add .retired skill supply/skills/token-economy/SKILL.md
 git commit -m "feat: add token-economy session-mutator skill"
 ```
 
@@ -461,7 +461,7 @@ Expected: exit 0, "core deployed", four reference `.md` listed + "references dep
 Run:
 ```bash
 cd /Users/chrismandich/Documents/GitHub/Manifest
-skillshare sync 2>&1 | tail -2
+retired skill supply sync 2>&1 | tail -2
 test -d .github/skills/token-economy && echo "synced to copilot" || echo "FAIL sync"
 ```
 Expected: "synced to copilot" (`.github/skills` is gitignored, so no tree dirt).

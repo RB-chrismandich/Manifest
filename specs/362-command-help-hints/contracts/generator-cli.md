@@ -9,7 +9,7 @@ source of truth and render the committed reference doc.
 command_catalog.py [--json] [--platform <name>]
 ```
 
-- Walks `.skillshare/skills/*/SKILL.md` (symlink-following per repo convention).
+- Walks `.retired skill supply/skills/*/SKILL.md` (symlink-following per repo convention).
 - Emits the catalog (see `catalog-schema.md`). `--json` → machine output; default → human summary.
 - `--platform` sets the active platform for `availability` resolution (default: detect).
 - **Exit**: `0` ok; non-zero on malformed/duplicate/empty skill (names the offending file).

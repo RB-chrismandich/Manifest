@@ -25,11 +25,11 @@ exempt from per-task smoke tests (no new user-facing runtime workflow).
 ## Phase 2: Merges + Deletion (US2)
 
 - [x] T004 [US2] Merge `memory-log-compress` + `session-memory-compress` →
-      `.skillshare/skills/memory-compress/SKILL.md` (union of triggers/guidance);
+      `.retired skill supply/skills/memory-compress/SKILL.md` (union of triggers/guidance);
       `git rm` predecessors.
 - [x] T005 [US2] Merge `bot-pr-triage` + `triage-bot-pr-flood` →
-      `.skillshare/skills/pr-triage-bots/SKILL.md` (union); `git rm` predecessors.
-- [x] T006 [US2] Delete `.skillshare/skills/browser-test/` and every reference to it.
+      `.retired skill supply/skills/pr-triage-bots/SKILL.md` (union); `git rm` predecessors.
+- [x] T006 [US2] Delete `.retired skill supply/skills/browser-test/` and every reference to it.
 - [x] T007 [US2] Update all references to the four merged-away names to the two
       successors (configs, docs, tests, skill bodies).
 

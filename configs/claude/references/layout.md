@@ -20,7 +20,7 @@
 ```text
 ~/.claude/
 ├── CLAUDE.md                        # This orchestration guide
-├── skills/                          # Skill library (28; source: .skillshare/skills/)
+├── skills/                          # Skill library (28; source: .retired skill supply/skills/)
 │   ├── checkpoint/SKILL.md
 │   ├── code-audit/SKILL.md       # Auto-triggered quality/security
 │   ├── docs-generate-diagrams/SKILL.md

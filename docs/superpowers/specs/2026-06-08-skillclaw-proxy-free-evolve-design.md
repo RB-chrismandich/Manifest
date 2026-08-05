@@ -80,7 +80,7 @@ entirely. Reuse the existing, working scrub + classify + PR-gating machinery.
  skillclaw_promote.sh   REUSED — classify NEW/CHANGED vs committed library,
         │               validate frontmatter, PR-gate (one open PR at a time)
         ▼
-   review PR → .skillshare/skills/   (human merge = source of truth)
+   review PR → .retired skill supply/skills/   (human merge = source of truth)
 ```
 
 No socket. No request-path interception. Runs only when invoked.
@@ -252,4 +252,4 @@ promotion:
 
 - [2026-06-07 SkillClaw Integration (original)](2026-06-07-skillclaw-integration-design.md)
 - [docs/SKILLCLAW.md](../../SKILLCLAW.md)
-- [/skill-evolve skill](../../../.skillshare/skills/skill-evolve/SKILL.md)
+- [/skill-evolve skill](../../../.retired skill supply/skills/skill-evolve/SKILL.md)

@@ -61,7 +61,7 @@ specs/480-skill-naming-taxonomy/
 ### Source Code (repository root)
 
 ```text
-.skillshare/skills/<name>/SKILL.md      # renamed dirs + frontmatter (source of truth)
+.retired skill supply/skills/<name>/SKILL.md      # renamed dirs + frontmatter (source of truth)
 docs/SKILL-NAMING.md                    # NEW: convention, vocabulary, exceptions
 tests/bats/skill_naming.bats            # NEW: conformance gate
 configs/claude/config/command_config.yml        # tool_policies keys (1:1)
@@ -84,7 +84,7 @@ tests/bats/*.bats, tests/python/**      # hardcoded names updated
 
 1. **Standard + gate**: `docs/SKILL-NAMING.md` (pattern, domain vocabulary, verb
    guidance, exceptions + rationale, new-domain process) and
-   `tests/bats/skill_naming.bats` validating every `.skillshare/skills/*/`:
+   `tests/bats/skill_naming.bats` validating every `.retired skill supply/skills/*/`:
    (a) name matches `^<domain>(-<token>){1,3}$` with first token(s) in the vocabulary,
    (b) name in exception list bypasses (a), (c) frontmatter `name:` == dir name.
    Vocabulary lives in a machine-readable block inside `docs/SKILL-NAMING.md` parsed by
@@ -94,7 +94,7 @@ tests/bats/*.bats, tests/python/**      # hardcoded names updated
    unique triggers/steps), `git rm` the four predecessors + `browser-test`; update all
    references to these five names in the same commit.
 3. **Renames**: scripted loop over `specs/480-skill-naming-taxonomy/rename-map.tsv`:
-   `git mv .skillshare/skills/<old> .skillshare/skills/<new>` + in-place frontmatter
+   `git mv .retired skill supply/skills/<old> .retired skill supply/skills/<new>` + in-place frontmatter
    `name:` edit. No other content edits in this commit (clean rename detection).
 4. **Registry + reference sweep**: update name-keyed YAML registries, extension hook
    wiring, curated doc tables, cross-skill `/old-name` mentions, and hardcoded test
@@ -123,8 +123,8 @@ tests/bats/*.bats, tests/python/**      # hardcoded names updated
 - **Deployed homes**: out of this PR (runtime); post-merge `./bootstrap.sh` +
   `/deploy-reconcile` preview is recorded in the issue closeout as the user's step —
   `.deployed-skills` manifest prune behavior verified in #457.
-- **skillshare tracking**: `ai-hooks-integration` untouched (exception);
-  `.skillshare/.gitignore` re-checked after any skillshare-touching change.
+- **retired skill supply tracking**: `ai-hooks-integration` untouched (exception);
+  `.retired skill supply/.gitignore` re-checked after any retired skill supply-touching change.
 
 ## Complexity Tracking
 

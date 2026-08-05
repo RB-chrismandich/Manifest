@@ -57,7 +57,7 @@ No runtime transitions; this is a one-time classification recorded in config.
 ## Entity: Enforcement Test
 
 - **Where**: `tests/bats/subagent_policy.bats` (or `tests/python/test_subagent_policy.py`).
-- **Inputs**: the live `.skillshare/skills/` directory listing + parsed `tool_policies`.
+- **Inputs**: the live `.retired skill supply/skills/` directory listing + parsed `tool_policies`.
 - **Asserts**: VR-1 … VR-5 (VR-6 advisory). Counts skills dynamically.
 
 ## Relationships

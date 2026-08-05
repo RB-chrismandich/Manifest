@@ -6,7 +6,7 @@
 
 ## Summary
 
-Audit every skill in `.skillshare/skills/` and give each a sub-agent **disposition** plus, where it
+Audit every skill in `.retired skill supply/skills/` and give each a sub-agent **disposition** plus, where it
 dispatches, a concrete in-body **trigger**. The existing `tool_policies` block in
 `command_config.yml` is the single canonical store: its `parallel_agents` field already governs the
 external `parallel_agent.py` harness; this feature adds a parallel `subagents` field (+ optional
@@ -17,7 +17,7 @@ scale threshold) keeps small inputs inline. An automated test wired into CI enfo
 skill has a disposition and that prose triggers never contradict the config.
 
 **Authoritative skill count**: **88** skill directories (each with a `SKILL.md`). The spec's "89"
-counted `.skillshare/skills/README.md` in an `ls`. The enforcement test counts skill directories
+counted `.retired skill supply/skills/README.md` in an `ls`. The enforcement test counts skill directories
 **dynamically**, so coverage stays correct as skills are added or removed — no number is hardcoded.
 
 **Current gap**: `tool_policies` has 30 entries; **58 skills have no entry** and must be added.
@@ -28,7 +28,7 @@ counted `.skillshare/skills/README.md` in an `ls`. The enforcement test counts s
 Python 3 (pytest) for the enforcement test — matching existing `tests/bats/` + `tests/python/`.
 
 **Primary Dependencies**: `configs/claude/config/command_config.yml` (`tool_policies`), the
-orchestration guide `configs/claude/CLAUDE.md`, `.skillshare/skills/*/SKILL.md`, `parallel_agent.py`
+orchestration guide `configs/claude/CLAUDE.md`, `.retired skill supply/skills/*/SKILL.md`, `parallel_agent.py`
 (referenced, not modified), the Task/Agent tool (Claude-native, referenced).
 
 **Storage**: Files only — config YAML, Markdown skill bodies, a shared reference doc, a test file.
@@ -59,7 +59,7 @@ selection-rules section, 1 enforcement test, 1 contributor-convention doc.
 
 | Principle | Assessment |
 |-----------|------------|
-| I. Configuration-as-Code | **PASS** — all edits land in version-controlled `configs/` and `.skillshare/skills/`; deployed via `bootstrap.sh`. No manual edits to `~/.claude/`. |
+| I. Configuration-as-Code | **PASS** — all edits land in version-controlled `configs/` and `.retired skill supply/skills/`; deployed via `bootstrap.sh`. No manual edits to `~/.claude/`. |
 | II. Parallel Agent Orchestration | **APPLIES** — this is an architecture decision touching the whole skill library. The design itself was cross-verified via `/speckit-clarify` (4 locked decisions); the implementation PR MUST be cross-verified per the Tier-1 gate. The enforcement test additionally codifies the rule. |
 | III. Consensus-Driven Decisions | **PASS** — PR review applies the standard consensus thresholds; no bypass. |
 | IV. Skill-First Extensibility | **PASS** — no new behavior is absorbed into `parallel_agent.py`; guidance lives in skills + config + a reference doc. The enforcement test is a thin verifier, not a core-engine expansion. |
@@ -103,7 +103,7 @@ configs/claude/references/sub-agent-dispatch.md  # NEW read-on-demand reference:
 configs/claude/CLAUDE.md                       # ADD ONE pointer line to the "Reference Index"
                                               #   (only ~537 bytes headroom under context_budget.bats).
 
-.skillshare/skills/<skill>/SKILL.md            # For "always"/"conditional" skills: ADD a concrete
+.retired skill supply/skills/<skill>/SKILL.md            # For "always"/"conditional" skills: ADD a concrete
                                               #   in-body dispatch trigger that links to the shared
                                               #   rules. For "never": one-line rationale.
 

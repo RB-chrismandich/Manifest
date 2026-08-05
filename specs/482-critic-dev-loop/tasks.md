@@ -22,7 +22,7 @@ independently testable increment.
 Monorepo layout per plan.md Project Structure: orchestrator package at
 `configs/claude/scripts/cddl/` with entry shim `configs/claude/scripts/cddl_loop.py`;
 role prompts at `configs/claude/prompts/cddl/`; tests at `tests/python/cddl/` and
-`tests/bats/`; skill source of truth at `.skillshare/skills/`.
+`tests/bats/`; skill source of truth at `.retired skill supply/skills/`.
 
 ---
 
@@ -162,7 +162,7 @@ iteration, without re-running.
 
 **Purpose**: Skill packaging, registration, derived artifacts, smoke coverage, repo gates.
 
-- [X] T036 Create the skill `.skillshare/skills/spec-implement-loop/SKILL.md`: frontmatter (name + description ≤ ~290 chars, fitting the 22 000-byte aggregate budget at deployed size) and body wiring the conversational flow — run `start`, relay `questions.md` to the operator, re-invoke `answer` until the gate resolves, then report the phase-2 outcome (research D6/D12)
+- [X] T036 Create the skill `.retired skill supply/skills/spec-implement-loop/SKILL.md`: frontmatter (name + description ≤ ~290 chars, fitting the 22 000-byte aggregate budget at deployed size) and body wiring the conversational flow — run `start`, relay `questions.md` to the operator, re-invoke `answer` until the gate resolves, then report the phase-2 outcome (research D6/D12)
 - [X] T037 [P] Add the `tool_policies` entry for `spec-implement-loop` in `configs/claude/config/command_config.yml`: allowed `[Bash, Read]`, `parallel_agents: never`, `validation_tier: 1`, `subagents: never` with rationale (research D12)
 - [X] T038 Regenerate derived artifacts after skill add: `generate_cursor_rules.sh` (cursor `.mdc`), `generate_commands_doc.py --inject-guides` (docs/COMMANDS.md + GEMINI/AGENTS command-index blocks), and skill-count strings (research D12 regeneration chain)
 - [X] T039 Append the Lite-tier smoke entry to `smoke-catalog/manifest.yaml` via `smoke_test.py append`: hermetic mktemp fixture repo + stub CLI approving on iteration 1; asserts exit 0, staged file present, `report.md` exists — constitution Principle VI Verify gate for the shipped user-facing workflow (MANDATORY, research D13)

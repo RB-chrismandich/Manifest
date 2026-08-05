@@ -306,7 +306,6 @@ deploy_configs() {
                     # owned by the gate_* toggles.
                     rsync -av "${copy_mode[@]+"${copy_mode[@]}"}" --exclude '/skills' --exclude '/agents' --exclude '/agents-devpanel' --exclude '/references/pilotfish-delegation.md' --exclude '/references/devpanel-delegation.md' "${claude_md_exclude[@]+"${claude_md_exclude[@]}"}" "$source_dir/" "$TARGET_DIR/"
                     deploy_home_skills "$SCRIPT_DIR/.apm/skills" "${MANIFEST_SKILLS_DIR:-$TARGET_DIR/skills}" harness-skills
-                    gate_graphify_skill "$TARGET_DIR/skills"
                     gate_pilotfish_agents "$TARGET_DIR" "$source_dir/agents"
                     gate_devpanel_agents "$TARGET_DIR" "$source_dir/agents-devpanel"
                     # Option 2 keeps an existing settings.local.json as-is; option 4
@@ -418,9 +417,6 @@ deploy_configs() {
     # and Devin (ENABLE_DEVIN defaults FALSE) never repointed at all.
     repoint_sibling_skill_links
 
-    # Gate /graphify on its service toggle (FR-012) and reconcile any foreign
-    # 'graphify install' residue (FR-010). Runs before the assistant skill symlinks.
-    gate_graphify_skill "${MANIFEST_SKILLS_DIR:-$TARGET_DIR/skills}"
     gate_pilotfish_agents "$TARGET_DIR" "$source_dir/agents"
     gate_devpanel_agents "$TARGET_DIR" "$source_dir/agents-devpanel"
 
@@ -526,9 +522,66 @@ prune_cursor_rules() {
     fi
 }
 
+# codex_manifest_plugins_cover_catalog — true when every plugin in this
+# checkout's Manifest marketplace is installed and enabled in Codex.
+codex_manifest_plugins_cover_catalog() {
+    local marketplace="$SCRIPT_DIR/.claude-plugin/marketplace.json"
+    local plugin_state
+
+    [[ -r "$marketplace" ]] || return 1
+    command_exists codex && command_exists python3 || return 1
+    plugin_state="$(codex plugin list --marketplace manifest --json 2> /dev/null)" || return 1
+
+    python3 -c '
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as handle:
+    expected = {plugin["name"] for plugin in json.load(handle).get("plugins", [])}
+state = json.load(sys.stdin)
+enabled = {
+    plugin.get("name")
+    for plugin in state.get("installed", [])
+    if plugin.get("installed") and plugin.get("enabled")
+}
+raise SystemExit(0 if expected and expected <= enabled else 1)
+' "$marketplace" <<< "$plugin_state" 2> /dev/null
+}
+
+# configure_codex_skill_source — retain the flat harness catalog until Codex
+# has complete plugin coverage, then keep only Codex's own system skills.
+configure_codex_skill_source() {
+    local root="${MANIFEST_SKILLS_DIR:-$TARGET_DIR/skills}"
+    local skills_dir="$CODEX_TARGET_DIR/skills"
+    local current_target
+
+    if ! codex_manifest_plugins_cover_catalog; then
+        create_symlink "$skills_dir" "$root" "Codex skills"
+        return 0
+    fi
+
+    if [[ -L "$skills_dir" ]]; then
+        current_target="$(readlink "$skills_dir")"
+        if [[ "$current_target" != "$root" ]]; then
+            print_warning "Codex skills points to user-managed target: $current_target (leaving unchanged)"
+            return 0
+        fi
+        unlink "$skills_dir"
+    elif [[ -e "$skills_dir" && ! -d "$skills_dir" ]]; then
+        print_warning "Codex skills is user-managed and not a directory (leaving unchanged)"
+        return 0
+    fi
+
+    mkdir -p "$skills_dir"
+    if [[ -d "$root/.system" ]]; then
+        create_symlink "$skills_dir/.system" "$root/.system" "Codex system skills"
+    fi
+    print_success "Codex uses Manifest plugins; retired the flat legacy skill catalog"
+}
+
 # Deploy Cursor IDE configuration (mirrors .claude with symlinks)
-# repoint_sibling_skill_links — point every non-Claude home's `skills` entry at
-# the harness root (T2.5, spec 674).
+# repoint_sibling_skill_links — point flat-catalog sibling homes at the harness
+# root, while letting Codex choose between that catalog and plugins.
 #
 # UNCONDITIONAL by design. Every existing repoint sits inside a per-assistant
 # deploy function behind an early-return toggle: deploy_cursor_configs guards on
@@ -562,12 +615,12 @@ repoint_sibling_skill_links() {
     # nothing. Adding it in Phase 4, together with the emptying, is the step
     # that is actually safe.
     local home_dir
-    for home_dir in "$CURSOR_TARGET_DIR" "$GEMINI_TARGET_DIR" "$CODEX_TARGET_DIR" \
-        "$ANTIGRAVITY_TARGET_DIR"; do
+    for home_dir in "$CURSOR_TARGET_DIR" "$GEMINI_TARGET_DIR" "$ANTIGRAVITY_TARGET_DIR"; do
         [[ -n "$home_dir" ]] || continue
         mkdir -p "$home_dir"
         create_symlink "$home_dir/skills" "$root" "$(basename "$home_dir") skills"
     done
+    configure_codex_skill_source
 }
 
 deploy_cursor_configs() {
@@ -1229,14 +1282,16 @@ deploy_codex_configs() {
         print_warning "No AGENTS.md source found for Codex config"
     fi
 
-    # Link shared assets from ~/.claude to avoid duplicate copies, including shared skills.
-    link_shared_assets "$CODEX_TARGET_DIR" "Codex" "true"
+    # Codex skills need their own source decision: flat catalog before plugin
+    # cutover, system-only once every Manifest plugin is installed and enabled.
+    link_shared_assets "$CODEX_TARGET_DIR" "Codex" "false"
+    configure_codex_skill_source
 
     print_success "Codex configuration deployed to $CODEX_TARGET_DIR"
 }
 
 # Deploy Antigravity configuration (mirrors .claude with symlinks, matching
-# Cursor/Gemini/Codex). Antigravity shares the single source of truth in
+# Cursor/Gemini; Codex may be plugin-native). Antigravity shares the source in
 # ~/.claude via symlinks for config, skills, and .plans.
 #
 # It deliberately does NOT link scripts/ (parallel_agent.py) or prompts/ (the
@@ -1370,9 +1425,9 @@ PYEOF
     return 0
 }
 
-# NOTE: sync_skillshare_targets was removed 2026-07-27 (FR-021a). skillshare is
+# NOTE: sync_retired skill supply_targets was removed 2026-07-27 (FR-021a). retired skill supply is
 # deprecated; skills now live in .apm/skills as the sole source of truth. This
-# also retires the project-scoped Copilot sync (.github/skills) that skillshare
+# also retires the project-scoped Copilot sync (.github/skills) that retired skill supply
 # owned — a real capability loss, recorded rather than glossed. Home deploy was
 # unaffected at the time: deploy_home_skills owned ~/.claude/skills until
 # SC-006 (2026-07-28) handed that domain to apm.

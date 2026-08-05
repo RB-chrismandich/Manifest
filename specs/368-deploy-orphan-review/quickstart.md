@@ -60,8 +60,8 @@ done
 
 # --- Fake project source: only the LIVE skill exists upstream ---
 PROJECT="$SANDBOX/repo"
-mkdir -p "$PROJECT/.skillshare/skills/branch-clean" "$PROJECT/configs/claude/config"
-echo "name: branch-clean" > "$PROJECT/.skillshare/skills/branch-clean/SKILL.md"
+mkdir -p "$PROJECT/.retired skill supply/skills/branch-clean" "$PROJECT/configs/claude/config"
+echo "name: branch-clean" > "$PROJECT/.retired skill supply/skills/branch-clean/SKILL.md"
 ```
 
 **Fixture inventory**

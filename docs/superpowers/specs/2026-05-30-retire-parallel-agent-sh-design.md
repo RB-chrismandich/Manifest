@@ -74,7 +74,7 @@ mentions:
 - `docs/SHELL_ANALYSIS_REPORT.md` — dated analysis ("Scripts Analyzed:
   bootstrap.sh, parallel_agent.sh", line counts, per-script findings).
 - `docs/VALIDATION_REPORT.md` — dated validation report referencing the `.sh`.
-- `docs/superpowers/plans/2026-05-30-skillshare-centralized-setup.md` and
+- `docs/superpowers/plans/2026-05-30-retired skill supply-centralized-setup.md` and
   `…-token-economy-and-tiered-claude-md.md` — prior session plans that reference
   the `.sh` as historical context.
 

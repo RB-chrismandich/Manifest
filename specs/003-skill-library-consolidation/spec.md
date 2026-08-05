@@ -13,7 +13,7 @@
 ### Session 2026-06-10
 
 - Q: Is propagating skill deletions to deploy targets (home deploys copied by
-  bootstrap, skillshare-managed targets) in scope, given stale copies would
+  bootstrap, retired skill supply-managed targets) in scope, given stale copies would
   otherwise linger on deployed machines and negate the consolidation's
   benefit in live sessions? → A: In scope — deploy/sync tooling must remove
   skills no longer present in the source of truth (prune on deploy), verified
@@ -43,7 +43,7 @@ context cost drops accordingly.
 triggering (the library's core function) in every session, on every deployed
 machine. The owner has explicitly approved merge/delete.
 
-**Independent Test**: Can be fully tested by listing `.skillshare/skills/`,
+**Independent Test**: Can be fully tested by listing `.retired skill supply/skills/`,
 confirming each consolidated cluster has exactly one surviving skill whose
 SKILL.md covers the merged variants' content, and confirming the deleted
 variants are gone.

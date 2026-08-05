@@ -47,7 +47,7 @@ Inspection of the skill library shows the "Use when…" convention is already do
 
 ## D3 — Catalog generation + drift detection
 
-**Decision**: `command_catalog.py` parses every `.skillshare/skills/*/SKILL.md` frontmatter
+**Decision**: `command_catalog.py` parses every `.retired skill supply/skills/*/SKILL.md` frontmatter
 (walking with symlink-following per repo convention) into an in-memory catalog;
 `generate_commands_doc.py` renders it to `docs/COMMANDS.md`. A `--check` mode regenerates
 in memory and diffs against the committed file, exiting non-zero on drift (mirrors

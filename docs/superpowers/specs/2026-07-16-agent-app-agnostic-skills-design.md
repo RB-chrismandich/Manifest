@@ -9,7 +9,7 @@ stack (Jira instead of Linear, Codex instead of Claude) and skills just work.
 
 ## 1. Problem
 
-An audit of all 98 skills in `.skillshare/skills/` found that agent coupling is
+An audit of all 98 skills in `.retired skill supply/skills/` found that agent coupling is
 already largely solved (~20 audit/refactor skills delegate to
 `parallel_agent.py`, which abstracts five agent backends via config), but app
 coupling is concentrated and structural:

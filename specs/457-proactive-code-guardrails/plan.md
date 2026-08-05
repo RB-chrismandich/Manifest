@@ -34,7 +34,7 @@ Encode proactive anti-pattern prevention into the toolkit in three layers: (1) s
 
 | Principle | Status | Notes |
 |-----------|--------|-------|
-| I. Configuration-as-Code | PASS | All changes land in `configs/claude/config/`, `configs/claude/references/`, and `.skillshare/skills/`; deployed via existing bootstrap paths. No manual home-dir edits. |
+| I. Configuration-as-Code | PASS | All changes land in `configs/claude/config/`, `configs/claude/references/`, and `.retired skill supply/skills/`; deployed via existing bootstrap paths. No manual home-dir edits. |
 | II. Parallel Agent Orchestration | PASS | Feature PR will exceed 200 lines and touches security guidance → parallel-agent cross-verification required before merge (planned in tasks). The audit skill itself encodes cross-verification for Critical/High findings (FR-012). |
 | III. Consensus-Driven Decisions | PASS | Audit verdict mapping reuses APPROVED/NEEDS_REVIEW/BLOCKED and existing thresholds; no new consensus scheme introduced (FR-006). |
 | IV. Skill-First Extensibility | PASS | New capability is a discrete skill (`ai-code-audit`); `parallel_agent.py` and other core scripts are not expanded. `learning_capture.sh` gains only additive optional fields. |
@@ -81,7 +81,7 @@ configs/gemini/GEMINI.md              # EXTEND: mirrored guardrails digest
 configs/cursor/rules/orchestration.mdc # EXTEND: mirrored guardrails digest
 AGENTS.md                             # EXTEND: mirrored digest (codex target via configs/codex symlink)
 
-.skillshare/skills/
+.retired skill supply/skills/
 ├── ai-code-audit/SKILL.md            # NEW: seven-pass audit skill
 ├── code-quality/SKILL.md             # EXTEND: consult registry; advisory anti-pattern flags
 └── antipattern-detect/SKILL.md       # EXTEND: capture writes new optional fields

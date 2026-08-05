@@ -20,7 +20,7 @@ description: "Task list for 002-new-agent-skills implementation"
 
 ## Path Conventions
 
-Agent-configuration repo (single project): skills in `.skillshare/skills/<name>/SKILL.md`
+Agent-configuration repo (single project): skills in `.retired skill supply/skills/<name>/SKILL.md`
 (source of truth; `configs/claude/skills` is a symlink), helper scripts in
 `configs/claude/scripts/`, config in `configs/claude/config/`, tests in `tests/bats/`.
 
@@ -30,7 +30,7 @@ Agent-configuration repo (single project): skills in `.skillshare/skills/<name>/
 
 **Purpose**: Create the skill directories and confirm the deploy/test harness covers them.
 
-- [x] T001 [P] Create skill directories with placeholder SKILL.md frontmatter in `.skillshare/skills/version-pin/SKILL.md`, `.skillshare/skills/docs-all/SKILL.md`, `.skillshare/skills/pr-review/SKILL.md`, `.skillshare/skills/branch-clean/SKILL.md`
+- [x] T001 [P] Create skill directories with placeholder SKILL.md frontmatter in `.retired skill supply/skills/version-pin/SKILL.md`, `.retired skill supply/skills/docs-all/SKILL.md`, `.retired skill supply/skills/pr-review/SKILL.md`, `.retired skill supply/skills/branch-clean/SKILL.md`
 - [x] T002 [P] Verify `bootstrap.sh` `deploy_home_skills` globs the new directories (symlink-safe) and that `configs/claude/skills` remains a symlink — record finding in `specs/002-new-agent-skills/quickstart.md` if any change is needed
 
 **Checkpoint**: Four discoverable (empty) skills exist and deploy without breaking the symlink.
@@ -64,7 +64,7 @@ a second run is a no-op.
 
 - [x] T007 [P] [US1] Write `tests/bats/version_pin.bats` covering: loose-detection per ecosystem, on-demand rewrite to version+hash, `--check` makes no edits + non-zero exit, compliant left unchanged, `# version-pin:ignore` bypass preserved, unresolved/offline → warning + untouched, idempotent second run, AND hook-scoping — a recognized file (e.g. `requirements.txt`) IS processed while an unrelated file (e.g. `README.md`) is NOT (the negative case of SC-003) (SC-001/SC-002/SC-003, contract `version-pin.md`)
 - [x] T008 [US1] Implement `configs/claude/scripts/version_pin.sh`: read `version_pin` rule set from `command_config.yml`; parse Dependency References (data-model §1); classify compliant/violation/bypassed/unresolved; resolve via native tools (pip/pip-compile, `docker manifest`, npm, `git ls-remote` for GHA) per research §R1; on-demand rewrite vs `--check` warn-only per §R2; emit the contract output schema + exit codes
-- [x] T009 [US1] Author `.skillshare/skills/version-pin/SKILL.md` (name/description frontmatter; workflow: invoke `version_pin.sh`, present results, apply/confirm; document flags from contract; document non-fatal failure handling FR-007)
+- [x] T009 [US1] Author `.retired skill supply/skills/version-pin/SKILL.md` (name/description frontmatter; workflow: invoke `version_pin.sh`, present results, apply/confirm; document flags from contract; document non-fatal failure handling FR-007)
 - [x] T010 [US1] Register the warn-only save-hook as a `PostToolUse` entry (matcher `Write|Edit`) in `configs/claude/settings.local.json` that calls `version_pin.sh --check "$file_path"`; the script — not the matcher — enforces the recognized-glob scoping (so non-tracked files no-op, per T007). Make the insertion idempotent (skip if an equivalent entry already exists) per Constitution V, and mirror the cross-tool wiring via `ai-hooks-integration` conventions. Document the recipe in the SKILL.md and `specs/002-new-agent-skills/quickstart.md`
 - [x] T011 [US1] Run `shellcheck configs/claude/scripts/version_pin.sh` and `bats tests/bats/version_pin.bats`; fix to green
 
@@ -81,7 +81,7 @@ choosing order per run with a documented default fallback, into one consolidated
 the report states the order + rationale + per-sub-skill outcome, and a forced sub-skill
 failure does not abort the others.
 
-- [x] T012 [US2] Author `.skillshare/skills/docs-all/SKILL.md`: dispatch the three docs skills via the Agent tool; per-run ordering from changed-file signals with default precedence `readme → diagrams → improve` and `docs-improve` always last (research §R7); continue-on-failure; emit the consolidated Docs Run Report (data-model §5, contract `docs-all.md`)
+- [x] T012 [US2] Author `.retired skill supply/skills/docs-all/SKILL.md`: dispatch the three docs skills via the Agent tool; per-run ordering from changed-file signals with default precedence `readme → diagrams → improve` and `docs-improve` always last (research §R7); continue-on-failure; emit the consolidated Docs Run Report (data-model §5, contract `docs-all.md`)
 - [x] T013 [US2] Add a manual verification scenario to `specs/002-new-agent-skills/quickstart.md` confirming order/rationale/failure-surfacing behavior (no script ⇒ no bats; orchestration is exercised manually)
 
 **Checkpoint**: `/docs-all` delivers a one-command docs refresh.
@@ -99,7 +99,7 @@ and clean empty-queue / unauthenticated handling.
 
 - [x] T014 [P] [US3] Write `tests/bats/pr_review.bats` covering: enumeration via mocked `git_ops.sh pr-list`, disposition heuristic (merged/superseded→close, conflicting/failing→needs-rebase, clean+passing→merge, else keep), empty-queue clean output, unauthenticated distinct message, analysis-only (no mutating calls) (contract `pr-review.md`, data-model §3)
 - [x] T015 [US3] Implement `configs/claude/scripts/pr_review.sh`: detect platform via `git_platform.sh`; enumerate via `git_ops.sh pr-list` and enrich with `pr-view`/`pr-diff`/`pr-checks`; compute PR Assessment fields + disposition; support `--stale-days`, `--platform`, `--json`; never call mutating subcommands (research §R5)
-- [x] T016 [US3] Author `.skillshare/skills/pr-review/SKILL.md` (frontmatter; invoke `pr_review.sh`; present prioritized table; explicit analysis-only contract FR-014)
+- [x] T016 [US3] Author `.retired skill supply/skills/pr-review/SKILL.md` (frontmatter; invoke `pr_review.sh`; present prioritized table; explicit analysis-only contract FR-014)
 - [x] T017 [US3] Run `shellcheck configs/claude/scripts/pr_review.sh` and `bats tests/bats/pr_review.bats`; fix to green
 
 **Checkpoint**: `/pr-review` triages the open-PR queue read-only.
@@ -118,7 +118,7 @@ never listed, dry-run deletes nothing, and `--apply` deletes only confirmed bran
 - [x] T018 [P] [US4] Write `tests/bats/branch_clean.bats` covering: candidate grouping (merged/gone/stale), protected + current-HEAD exclusion, unmerged never in `merged` category, dry-run default deletes nothing, `--apply` deletes + reports outcomes incl. failures, local-only default vs `--include-remote` (contract `branch-clean.md`, data-model §4)
 - [x] T019 [US4] Implement `configs/claude/scripts/branch_clean.sh`: classify via `git branch --merged`, `git for-each-ref ... upstream:track [gone]`, last-commit-date staleness; read protected globs + `--stale-days` from `command_config.yml` `branch_clean` block; dry-run default, `--apply` + confirmation, `--include-remote` opt-in via `git_platform.sh`; report each outcome (research §R6)
 - [x] T020 [US4] Add the `branch_clean` config block (protected globs, default stale-days) to `configs/claude/config/command_config.yml`
-- [x] T021 [US4] Author `.skillshare/skills/branch-clean/SKILL.md` (frontmatter; invoke `branch_clean.sh`; present grouped candidates; safety/confirmation contract FR-017/FR-018/FR-020)
+- [x] T021 [US4] Author `.retired skill supply/skills/branch-clean/SKILL.md` (frontmatter; invoke `branch_clean.sh`; present grouped candidates; safety/confirmation contract FR-017/FR-018/FR-020)
 - [x] T022 [US4] Run `shellcheck configs/claude/scripts/branch_clean.sh` and `bats tests/bats/branch_clean.bats`; fix to green
 
 **Checkpoint**: `/branch-clean` prunes branches safely.
@@ -131,7 +131,7 @@ never listed, dry-run deletes nothing, and `--apply` deletes only confirmed bran
 
 - [x] T023 [P] Run full lint sweep: `shellcheck configs/claude/scripts/version_pin.sh configs/claude/scripts/pr_review.sh configs/claude/scripts/branch_clean.sh` and `yamllint configs/claude/config/*.yml`
 - [x] T024 [P] Run full test suite: `bats tests/bats/` (all new + existing) to confirm no regressions
-- [x] T025 [P] Deploy check: `./bootstrap.sh` then confirm `ls ~/.claude/skills | grep -E 'version-pin|docs-all|pr-review|branch-clean'` lists all four (Constitution V idempotency: re-run is a no-op). *Verified 2026-06-11*: all four present in `.skillshare/skills/` and deployed in `~/.claude/skills/`
+- [x] T025 [P] Deploy check: `./bootstrap.sh` then confirm `ls ~/.claude/skills | grep -E 'version-pin|docs-all|pr-review|branch-clean'` lists all four (Constitution V idempotency: re-run is a no-op). *Verified 2026-06-11*: all four present in `.retired skill supply/skills/` and deployed in `~/.claude/skills/`
 - [x] T026 Final docs consistency pass: ensure CLAUDE.md / configs/claude/CLAUDE.md / docs/COMMANDS.md tables, `Available Commands`, and `Adding New Skills` references are consistent across all four skills
 - [x] T027 [P] Constitution Principle II gate — cross-verify the security-sensitive shell helpers with parallel agents before merge: `~/.claude/scripts/parallel_agent.py --json --timeout 600 --review <abs-path>/configs/claude/scripts/version_pin.sh` and the same for `branch_clean.sh` (its destructive `--apply` path). Resolve any ≥HIGH consensus findings; record the consensus verdict in the PR description. *Closed 2026-06-11*: equivalent gate applied retroactively during specs/003 — version_pin.sh and branch_clean.sh were hardened (US3, PR #293) and independently reviewed by Copilot + Gemini CLI + an isolated Claude reviewer across PRs #289-#294 (parallel_agent.py SDK backends unavailable on this machine)
 

@@ -213,8 +213,8 @@ for i in "${!ROSTER_NAMES[@]}"; do
     secondary_dirs+=("$home/skills")
 done
 
-# The Copilot (.github/skills) sync that skillshare owned was retired
-# 2026-07-27 with skillshare itself (FR-021a). Home targets below are unaffected.
+# The Copilot (.github/skills) sync that retired skill supply owned was retired
+# 2026-07-27 with retired skill supply itself (FR-021a). Home targets below are unaffected.
 
 # real_dir DIR — resolve a directory's physical path (portable; no readlink -f)
 real_dir() { (cd "$1" 2> /dev/null && pwd -P); }

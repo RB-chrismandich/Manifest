@@ -34,7 +34,7 @@ Deliver two companion, hook-triggered skills — **`pr-issue-sync`** (fires when
 
 | Principle | Assessment | Status |
 |-----------|-----------|--------|
-| **I. Configuration-as-Code** | All artifacts land in `configs/` (engine script, config) and `.skillshare/skills/` (the two skills); nothing edits deployed `~/.claude` directly; hook install is reproducible. | ✅ PASS |
+| **I. Configuration-as-Code** | All artifacts land in `configs/` (engine script, config) and `.retired skill supply/skills/` (the two skills); nothing edits deployed `~/.claude` directly; hook install is reproducible. | ✅ PASS |
 | **II. Parallel Agent Orchestration** | The engine handles a platform token and creates/mutates external issues; the change will exceed 200 lines. Tier 1 cross-verification via `parallel_agent.py` is REQUIRED at PR review (recorded as a process obligation, not a code change). | ✅ PASS (review gate noted) |
 | **III. Consensus-Driven Decisions** | Applies at review time against the standard thresholds; no plan-level conflict. | ✅ PASS |
 | **IV. Skill-First Extensibility** | New capability ships as two discrete, independently-invocable skills. The shared engine is a new sibling ops script (analogous to `git_ops.sh`/`linear_ops.sh`), NOT new behavior bolted onto `parallel_agent.py`. The one core-script edit — adding `pr-edit` to `git_ops.sh` — is a missing platform-ops primitive (sibling to existing `pr-create`/`pr-merge`/`issue-edit`), not skill logic absorbed into the core. | ✅ PASS |
@@ -73,9 +73,9 @@ configs/claude/
 ├── config/
 │   ├── command_config.yml        # EDIT — tool_policies.pr-issue-sync: {enabled, hook_timeout_seconds}; tool_policies.commit-issue-sync: {enabled, hook_timeout_seconds, commit_hook_mode}. `enabled` defaults false (runtime gate the engine checks before acting); commit_hook_mode is commit-only.
 │   └── labels.yml                # REUSE — canonical labels (no change)
-└── skills/                       # symlink → ../../.skillshare/skills (do not replace)
+└── skills/                       # symlink → ../../.retired skill supply/skills (do not replace)
 
-.skillshare/skills/
+.retired skill supply/skills/
 ├── pr-issue-sync/
 │   └── SKILL.md                  # NEW — PR-triggered skill (invokes `issue_support.sh sync-pr`)
 └── commit-issue-sync/

@@ -50,7 +50,7 @@ defines "exists in our project" (spec Key Entities; FR-001).
 | Field | Type | Notes |
 |-------|------|-------|
 | `unit_key` | string | Identity used for the present/absent comparison (skill top-level name, or config relative path). Must align with a Deployed Unit's `unit_key`. |
-| `source_path` | path | Repo location: skills from `.skillshare/skills/`, configs from `configs/claude/` + `configs/<assistant>/` (Topic 5). |
+| `source_path` | path | Repo location: skills from `.retired skill supply/skills/`, configs from `configs/claude/` + `configs/<assistant>/` (Topic 5). |
 | `target_root` | enum (Managed Root.tag) | Which home this item deploys into. |
 | `would_deploy` | bool | Honors `services.yml` toggles, graphify gating, and merge-vs-full mode (Topic 5 risk: a toggled-off assistant must not be mis-reconciled). |
 

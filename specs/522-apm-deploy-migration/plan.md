@@ -57,7 +57,7 @@ Checked against primary sources 2026-07-25 and re-checked under adversarial revi
 | R4 | `git_ops.sh` is invoked by 12 skills spanning four proposed plugin domains; `git_platform.sh` spans two | Compartmentalization must handle the shared-script graph or be cosmetic (FR-028) |
 | R5 | `configs/claude/scripts/config.py` does **not** exist; the real file is `configs/claude/scripts/agents/config.py`, and its constructors already accept `config_path` | The prerequisite shrinks to wiring a flag/env var to an existing parameter |
 | R6 | `deploy_configs()` is monolithic — no per-domain selector | FR-019's rollback needs a selective-deploy capability built, not just documented |
-| R7 | ~~`test-isolate-ambient` exists only in the deployed home, not in committed source~~ — **RESOLVED** by merging `origin/main` (PR #622) on 2026-07-25, which committed the skill to `.skillshare/skills/` | Tasks may now cite it as an isolation handle; a fresh clone and CI can follow them. Re-verify before Phase 0 rather than trusting this row |
+| R7 | ~~`test-isolate-ambient` exists only in the deployed home, not in committed source~~ — **RESOLVED** by merging `origin/main` (PR #622) on 2026-07-25, which committed the skill to `.retired skill supply/skills/` | Tasks may now cite it as an isolation handle; a fresh clone and CI can follow them. Re-verify before Phase 0 rather than trusting this row |
 
 ## Constitution Check
 
@@ -94,7 +94,7 @@ specs/522-apm-deploy-migration/
 
 ```text
 .apm/                                  # NEW — single source primitive tree (post-GO)
-├── skills/                            # view of .skillshare/skills — never a copy (FR-021)
+├── skills/                            # view of .retired skill supply/skills — never a copy (FR-021)
 ├── agents/  hooks/  instructions/  context/
 apm.yml                                # NEW — package manifest (pinned tool version, explicit targets)
 apm.lock.yaml                          # NEW — committed lockfile: resolved tree + per-file hashes
@@ -128,11 +128,11 @@ tests/bats/
 existing pipeline; `configs/` and `bootstrap/lib/` shrink only as each domain is
 proven equivalent **and its legacy writers are gated**.
 
-~~`.skillshare/skills` remains the physical source of truth; `.apm/skills` is a
+~~`.retired skill supply/skills` remains the physical source of truth; `.apm/skills` is a
 view, never a copy.~~ **AMENDED 2026-07-27 (FR-021a)**: `.apm/skills` becomes
-the sole physical source of truth and `.skillshare/` is removed. The
-view-never-a-copy rule existed to avoid a third skill location while skillshare
-stayed authoritative; with skillshare deprecated there are two locations during
+the sole physical source of truth and `.retired skill supply/` is removed. The
+view-never-a-copy rule existed to avoid a third skill location while retired skill supply
+stayed authoritative; with retired skill supply deprecated there are two locations during
 the migration and one after, so the rule is replaced by FR-021a's stricter
 invariant: **no shipped commit may leave two authoritative skill trees**.
 
@@ -228,5 +228,5 @@ Changes made in v2, by source finding:
 - **HIGH — contributor dead zone, Phases 2–6**: T015 gated `sync-skills.sh` in Phase 2 while its replacement, the publish-free local loop (FR-032), sat in T044 in Phase 7 — leaving a registry publish as the only way to test a one-line skill edit for four phases, and putting FR-021 and FR-027 in direct conflict. → new **T055**, sequenced *before* T014/T015; T044 keeps the offline path only; T015's skip message must name the replacement command.
 - **HIGH — structural blockers measured after the gate that they should inform**: the spike settled deploy mechanics but deferred three assumptions the GO rests on. → T005 gains cell **(d)** publish-free loop, **(i)** symlinked-target behavior against the real fan-out, **(ii)** installer-written vs human mutation; T006 must record a GO/NO-GO input for each, where *not measured is a NO-GO for that cell*. T013 and T051 now consume that evidence instead of re-discovering it.
 - **MEDIUM — rollback restored the writer but not the ownership**: T053 returned a domain to the legacy writer, which overwrites only the paths it knows about — anything APM added survives as an orphan owned by neither pipeline, i.e. the untracked-hybrid state this feature exists to remove. → T053 gains a reclamation step plus an ownership-boundary assertion; T034 proves it by diffing against a never-migrated tree.
-- **LOW (conditional) — `generate_commands_doc.py` coupling**: verified the generator resolves its catalog from `_REPO_ROOT / .skillshare/skills` (override: `COMMAND_CATALOG_SKILLS_DIR`) — the *repo* source of truth, not a deployed home — so the migration alone cannot break it. The panel's proposed verification step was heavier than the risk. → T029 gains a one-line conditional tied to T013 changing the repo-side path.
+- **LOW (conditional) — `generate_commands_doc.py` coupling**: verified the generator resolves its catalog from `_REPO_ROOT / .retired skill supply/skills` (override: `COMMAND_CATALOG_SKILLS_DIR`) — the *repo* source of truth, not a deployed home — so the migration alone cannot break it. The panel's proposed verification step was heavier than the risk. → T029 gains a one-line conditional tied to T013 changing the repo-side path.
 - **Panel finding not applied as written**: the FR-034 and FR-032 findings were filed separately from the symlink one; all three share a single root cause (a feasibility gate that did not gate everything downstream of it), so they were applied as one change to T005/T006 rather than three independent tasks.

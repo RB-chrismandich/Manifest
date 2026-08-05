@@ -15,7 +15,7 @@ whether a skill fires. The CI gate `tests/bats/context_budget.bats` counts the r
 bytes of each skill's front-matter (everything between the two `---` markers) and
 enforces a hard cap.
 
-Measured current state (`.skillshare/skills/*/SKILL.md`, 88 skills):
+Measured current state (`.retired skill supply/skills/*/SKILL.md`, 88 skills):
 
 | Metric | Value |
 |---|---|
@@ -106,10 +106,10 @@ preserving every distinct trigger token and "use-when" cue.
 ## Scope guards
 
 - **Exclude externally-managed skills** from all edits. Derive the excluded set
-  from `.skillshare/config.yaml` ownership metadata (skillshare-installed skills),
+  from `.retired skill supply/config.yaml` ownership metadata (retired skill supply-installed skills),
   not a single hardcoded name. `ai-hooks-integration` is externally installed via
-  skillshare — local edits are overwritten on the next `skillshare install`, so it
-  is out of scope. `.skillshare/config.yaml` is committed infrastructure (per
+  retired skill supply — local edits are overwritten on the next `retired skill supply install`, so it
+  is out of scope. `.retired skill supply/config.yaml` is committed infrastructure (per
   `.claude/CLAUDE.md`) and always present; if it is missing or unparseable the
   tooling **fails closed** — errors out and edits nothing rather than guessing an
   exclusion set — so an externally-managed skill is never touched by accident.
@@ -164,7 +164,7 @@ verified (from `run_eval.py --help`): `--eval-set`, `--skill-path`,
 | Over-trim silently drops a trigger cue | Eval gate (should-trigger ≥ baseline) on every Lever B change |
 | Trim makes a sibling skill fire instead | Sibling-derived negative queries in the eval set |
 | Inlining a colon-space description breaks YAML | Quote the 11 identified skills; `yamllint`/parse check in CI |
-| Editing an externally-managed skill (reverted upstream) | Exclude by skillshare provenance |
+| Editing an externally-managed skill (reverted upstream) | Exclude by retired skill supply provenance |
 | D1 ratchet too tight → future CI friction | Leave ~800 bytes headroom |
 | Literal block was genuine multi-line, merged wrongly | Verified: 0 of 31 are multi-line |
 

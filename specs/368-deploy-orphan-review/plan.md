@@ -92,7 +92,7 @@ truth for the wire format).
 
 | Principle | Verdict | Notes / Gate |
 |---|---|---|
-| I. Configuration-as-Code | **PASS** | Script → `configs/claude/scripts/deploy_reconcile.sh`; policy → `configs/claude/config/reconcile.yml` (auto-deploys via `rsync config/`, deploy.sh:144); skill → `.skillshare/skills/deploy-reconcile/`. Machine-local override at `~/.manifest/reconcile.local.yml` (outside `~/.claude`), so users add protections without editing the deployed tree. The feature **is** drift correction and is *complementary* to `./bootstrap.sh --reconfigure`: reconfigure re-asserts what *should* exist; this prunes what *should not*. Removal is a sanctioned, recoverable reconciliation (move-aside), not a prohibited manual `~/.claude` edit. |
+| I. Configuration-as-Code | **PASS** | Script → `configs/claude/scripts/deploy_reconcile.sh`; policy → `configs/claude/config/reconcile.yml` (auto-deploys via `rsync config/`, deploy.sh:144); skill → `.retired skill supply/skills/deploy-reconcile/`. Machine-local override at `~/.manifest/reconcile.local.yml` (outside `~/.claude`), so users add protections without editing the deployed tree. The feature **is** drift correction and is *complementary* to `./bootstrap.sh --reconfigure`: reconfigure re-asserts what *should* exist; this prunes what *should not*. Removal is a sanctioned, recoverable reconciliation (move-aside), not a prohibited manual `~/.claude` edit. |
 | II. Parallel Agent Orchestration | **APPLIES (obligation at PR)** | Implementation performs destructive file removal (security-sensitive) and the aggregate diff exceeds 200 lines → the PR MUST be cross-verified by ≥2 agents via `parallel_agent.py` before merge. (Planning already used a multi-agent workflow with an adversarial verify pass.) Discharged at `/speckit-implement-review` + PR. |
 | III. Consensus-Driven Decisions | **PASS (deferred to review)** | Cross-verification at PR time must meet the ≥80 / 50–79 / <50 thresholds; document any bypass. |
 | IV. Skill-First Extensibility | **PASS** | New user capability is the `/deploy-reconcile` skill wrapping a dedicated script (branch-clean precedent). No behavior added to `parallel_agent.py` or other core scripts. |
@@ -131,7 +131,7 @@ configs/claude/
 │   ├── reconcile.yml               # NEW — protection policy (flat reconcile.protected: glob list)
 │   └── command_config.yml          # MODIFIED — add tool_policies.deploy-reconcile (Bash; parallel_agents conditional; subagents never)
 
-.skillshare/skills/deploy-reconcile/
+.retired skill supply/skills/deploy-reconcile/
 └── SKILL.md                        # NEW — /deploy-reconcile (Preview → Apply-with-confirm → Review → Safety)
 
 bootstrap/lib/deploy.sh             # MODIFIED — add fail-open reconcile_deploy_report()
@@ -150,7 +150,7 @@ docs/COMMANDS.md                    # MODIFIED — regenerated from SKILL.md (ge
 ```
 
 **Structure Decision**: Single-project layout. The deployable runtime artifacts (the script,
-the policy YAML, the skill) live under `configs/` and `.skillshare/skills/` per
+the policy YAML, the skill) live under `configs/` and `.retired skill supply/skills/` per
 Configuration-as-Code; the bootstrap integration lives in `bootstrap/lib/` + `bootstrap.sh`;
 the smoke catalog is a new repo-root `smoke-catalog/` (the orchestrator's default catalog dir);
 tests follow the repo's bats-first convention for shell/deploy logic.

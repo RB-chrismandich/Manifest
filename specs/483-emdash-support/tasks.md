@@ -80,8 +80,8 @@ description: "Task list for emdash Support (Full Config Inheritance)"
 
 **Independent Test**: `/env-check` reports emdash presence + inheritance status (via the probe); `docs/EMDASH.md` lets a new user reach a working session unaided.
 
-- [x] T011 [P] [US3] Add an "emdash Inheritance" section to `.skillshare/skills/env-check/SKILL.md` (new numbered check) that invokes `configs/claude/scripts/emdash_inherit_check.sh`, renders the per-dimension report, surfaces the `BLOCKED` (home-deploy-missing) prerequisite and the hook-coexistence caveat (FR-010, SC-005) — reuses the T002 probe. Opportunistic pre-existing fix while in this file (spec-review F4): remove the stale `.antigravity/scripts` and `.antigravity/prompts` entries from the Symlink Integrity expected-list (bootstrap prunes them as obsolete per commit 5e347fa, so they yield false env-check warnings). [F4]
-- [x] T012 [P] [US3] Add an emdash hook-coexistence awareness note to `.skillshare/skills/config-audit/SKILL.md` (emdash appends its own `Stop` hook to `.claude/settings.local.json` + gitignores it; Manifest hooks are preserved; the machine-local injected hook should stay uncommitted) (FR-010).
+- [x] T011 [P] [US3] Add an "emdash Inheritance" section to `.retired skill supply/skills/env-check/SKILL.md` (new numbered check) that invokes `configs/claude/scripts/emdash_inherit_check.sh`, renders the per-dimension report, surfaces the `BLOCKED` (home-deploy-missing) prerequisite and the hook-coexistence caveat (FR-010, SC-005) — reuses the T002 probe. Opportunistic pre-existing fix while in this file (spec-review F4): remove the stale `.antigravity/scripts` and `.antigravity/prompts` entries from the Symlink Integrity expected-list (bootstrap prunes them as obsolete per commit 5e347fa, so they yield false env-check warnings). [F4]
+- [x] T012 [P] [US3] Add an emdash hook-coexistence awareness note to `.retired skill supply/skills/config-audit/SKILL.md` (emdash appends its own `Stop` hook to `.claude/settings.local.json` + gitignores it; Manifest hooks are preserved; the machine-local injected hook should stay uncommitted) (FR-010).
 - [x] T013 [P] [US3] Write `docs/EMDASH.md`: what emdash is; prerequisites (run `./bootstrap.sh` first, install a supported agent); setup; the `.emdash.json` pattern for other repos; the coexistence caveat (uncommitted injected hook, `.gitignore` interaction); Claude Code = verified, Codex/Gemini/Cursor = best-effort transitive; agents emdash launches that Manifest doesn't configure = out of guaranteed parity (FR-009, FR-012). Also document the remaining spec edge cases (FR-012 boundary/version basis): the **emdash release/version basis** for the guarantees [C6]; that **parallel worktrees may race on home-scoped settings writes** (emdash-internal; Manifest doesn't guard) [C1]; and that emdash **worktrees live outside the main checkout**, so any Manifest behavior assuming a main-checkout absolute path is a documented limitation [C1].
 - [x] T014 [P] [US3] Add emdash pointers to the platform-facing docs: `README.md` ("running agents via emdash" → `docs/EMDASH.md`), `docs/GETTING_STARTED.md` ("Using Manifest with emdash" subsection), `AGENTS.md` (brief "emdash-launched agents inherit config transitively" note). Framed as a harness, NOT a deploy platform (FR-009).
 
@@ -133,8 +133,8 @@ description: "Task list for emdash Support (Full Config Inheritance)"
 
 ```bash
 # All US3 tasks touch different files — launch together:
-Task: "Add emdash Inheritance section to .skillshare/skills/env-check/SKILL.md"        # T011
-Task: "Add coexistence note to .skillshare/skills/config-audit/SKILL.md"               # T012
+Task: "Add emdash Inheritance section to .retired skill supply/skills/env-check/SKILL.md"        # T011
+Task: "Add coexistence note to .retired skill supply/skills/config-audit/SKILL.md"               # T012
 Task: "Write docs/EMDASH.md"                                                            # T013
 Task: "Add emdash pointers to README.md, docs/GETTING_STARTED.md, AGENTS.md"           # T014
 ```

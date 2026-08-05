@@ -45,7 +45,7 @@ TEMPLATE="${SKILLCLAW_TEMPLATE:-${SCRIPT_DIR}/../prompts/skillclaw_evolve.md}"
 TRANSCRIPTS="${SKILLCLAW_TRANSCRIPTS:-$HOME/.claude/projects}"
 STATE="${SKILLCLAW_STATE:-$HOME/.skillclaw/.ingest-state.json}"
 REJECTED="${SKILLCLAW_REJECTED:-$HOME/.skillclaw/skills/rejected}"
-# Committed library: the physical skillshare source of truth. The deployed script
+# Committed library: the physical retired skill supply source of truth. The deployed script
 # lives in ~/.claude/scripts, so locate the repo via MANIFEST_ROOT (exported by
 # bootstrap into the shell profile); fall back to repo-relative when run in-tree.
 # T3.9 (spec 674): promote into plugins/<bundle>/skills/, NOT .apm/skills.

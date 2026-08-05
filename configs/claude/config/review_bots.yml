@@ -114,5 +114,5 @@ bots:
       wording, whitespace reflow). Triage caution — observed 2026-07-27:
       titles overstate the diff (#651 claimed "explicit instructions" for a
       pure line-rejoin), and edits may target paths that have since moved
-      (both PRs wrote to `.skillshare/`, removed by feature 522). Judge the
+      (both PRs wrote to `.retired skill supply/`, removed by feature 522). Judge the
       diff against current main, not the title.

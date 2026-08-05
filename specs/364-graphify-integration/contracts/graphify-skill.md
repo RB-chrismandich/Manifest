@@ -1,6 +1,6 @@
 # Contract: `/graphify` Skill
 
-**Surface**: `.skillshare/skills/graphify/SKILL.md` (vendored, Manifest-native thin wrapper). Deployed by `deploy_home_skills()` to every enabled assistant.
+**Surface**: `.retired skill supply/skills/graphify/SKILL.md` (vendored, Manifest-native thin wrapper). Deployed by `deploy_home_skills()` to every enabled assistant.
 
 ## Frontmatter
 
@@ -11,7 +11,7 @@ description: <one line — when to invoke: map a codebase/dir into a queryable k
 ---
 ```
 
-- `name` MUST be `graphify` and MUST be unique across `.skillshare/skills/` (duplicate → `command_catalog.py` `CatalogError`, rejecting both).
+- `name` MUST be `graphify` and MUST be unique across `.retired skill supply/skills/` (duplicate → `command_catalog.py` `CatalogError`, rejecting both).
 
 ## Body behavior
 
@@ -22,7 +22,7 @@ description: <one line — when to invoke: map a codebase/dir into a queryable k
 ## Guarantees
 
 - The skill is a thin wrapper over the upstream CLI — Manifest does not reimplement graph generation (graphify internals are a black box).
-- Manifest does NOT run `graphify install`; the skill is delivered solely via the `.skillshare/skills/` pipeline (no patching of assistant `CLAUDE.md`/`GEMINI.md`).
+- Manifest does NOT run `graphify install`; the skill is delivered solely via the `.retired skill supply/skills/` pipeline (no patching of assistant `CLAUDE.md`/`GEMINI.md`).
 - Deploys to claude/cursor/gemini/codex/antigravity when enabled; skipped for disabled assistants.
 
 ## Acceptance

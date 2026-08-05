@@ -6,7 +6,7 @@
 
 ## Problem
 
-The repo deliberately splits *source* (`configs/`, `.skillshare/skills/`) from
+The repo deliberately splits *source* (`configs/`, `.retired skill supply/skills/`) from
 *live* (`~/.claude/` and mirrors): edits in the repo do nothing until
 `./bootstrap.sh` redeploys. Nothing surfaces the gap between the two — drift is
 discovered only when a stale skill or config misbehaves. This has bitten
@@ -56,9 +56,9 @@ The stamp contents:
 
 ```
 tree_configs=<git rev-parse HEAD:configs>
-tree_skills=<git rev-parse HEAD:.skillshare/skills>
+tree_skills=<git rev-parse HEAD:.retired skill supply/skills>
 head_sha=<git rev-parse HEAD>
-dirty=<true|false>          # configs/ or .skillshare/skills/ had uncommitted changes at deploy time
+dirty=<true|false>          # configs/ or .retired skill supply/skills/ had uncommitted changes at deploy time
 clone_path=<absolute path of the deploying clone>
 deployed_at=<ISO-8601 UTC>
 ```
@@ -68,7 +68,7 @@ deployed_at=<ISO-8601 UTC>
 - Recording `clone_path` solves clone discovery for the checker — no reliance
   on `MANIFEST_ROOT` being exported in the hook's environment.
 - `dirty` is scoped to the two deploy-source paths only —
-  `git status --porcelain -- configs .skillshare/skills` — **not** the whole
+  `git status --porcelain -- configs .retired skill supply/skills` — **not** the whole
   worktree. This mirrors the checker's step 4 exactly; an unrelated
   uncommitted change (a WIP test, a doc edit) must not mark the stamp dirty,
   or step 5 would nudge on a clean-main deploy whose configs/skills were in
@@ -100,8 +100,8 @@ Logic, in order — every early exit is a silent `exit 0`:
    is expected WIP). Default branch resolved from
    `refs/remotes/origin/HEAD`, falling back to `main`.
 4. Worktree dirty (`git status --porcelain` non-empty for `configs/` or
-   `.skillshare/skills/`) → exit (uncommitted WIP).
-5. Compute current `git rev-parse HEAD:configs HEAD:.skillshare/skills` in the
+   `.retired skill supply/skills/`) → exit (uncommitted WIP).
+5. Compute current `git rev-parse HEAD:configs HEAD:.retired skill supply/skills` in the
    clone. Both match the stamp's tree hashes **and** stamp `dirty=false` →
    exit (deploy is fresh). A `dirty=true` stamp never matches — the stamp's
    tree hashes did not reflect what was actually deployed, so the next
@@ -150,7 +150,7 @@ actionable by Claude in whatever project the session starts in.
 - Detecting manual edits to the live `~/.claude` tree (user-owned;
   `deploy-reconcile` covers that direction).
 - Re-stamping from `sync-skills`. `sync-skills.sh` is a *partial* deploy: it
-  rsyncs only `.skillshare/skills/` into `~/.claude/skills` and does not ship
+  rsyncs only `.retired skill supply/skills/` into `~/.claude/skills` and does not ship
   `configs/`, scripts, or `services.yml`, so it deliberately does not write the
   stamp. Consequence: after a skills-only `sync-skills` on a clean default
   branch, the checker may fire once ("run `./bootstrap.sh`") even though the
@@ -164,12 +164,12 @@ actionable by Claude in whatever project the session starts in.
 ## Testing
 
 Bats (new file `tests/bats/deploy_stamp.bats`, following existing fixture
-patterns — temp git repo with `configs/` + `.skillshare/skills/`):
+patterns — temp git repo with `configs/` + `.retired skill supply/skills/`):
 
 Stamp writer:
 1. Successful deploy writes a stamp with all six keys and correct tree hashes.
 2. Uncommitted change under `configs/` at deploy time → stamp `dirty=true`.
-2b. Uncommitted change OUTSIDE `configs/`+`.skillshare/skills/` (e.g. a WIP
+2b. Uncommitted change OUTSIDE `configs/`+`.retired skill supply/skills/` (e.g. a WIP
     file under `tests/`) → stamp `dirty=false` (scope isolation; guards the
     finding-3 false positive).
 3. Non-git source dir → no stamp written, deploy still succeeds.
