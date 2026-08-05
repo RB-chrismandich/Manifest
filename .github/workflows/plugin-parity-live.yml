@@ -146,6 +146,33 @@ jobs:
                   digest.update(bytes.fromhex(record["sha256"]))
               return digest.hexdigest()
 
+          def canonical_marketplace(version):
+              entries = (
+                  ("manifest-code-quality", "code-quality", "Code analysis, refactoring, verification, and test-quality workflows."),
+                  ("manifest-docs", "documentation", "Documentation improvement, diagram generation, and doc-set orchestration."),
+                  ("manifest-forge", "version-control", "Git forge, issue tracking, pull request, and release lifecycle workflows."),
+                  ("manifest-ops", "deployment", "CI, deployment, configuration, container, and runtime operations workflows."),
+                  ("manifest-security", "security", "Security review, threat analysis, hardening, and finding-triage workflows."),
+                  ("manifest-spec-planning", "project-management", "Specification, planning, trade-off, and implementation-loop workflows."),
+                  ("manifest-workspace", "productivity", "Workspace configuration, environment, session, and learning workflows."),
+                  ("stitch-design", "design", "Design generation, review, extraction, and implementation workflows."),
+              )
+              return {
+                  "description": "Manifest agent capabilities partitioned into eight portable domain bundles.",
+                  "name": "manifest",
+                  "owner": {"name": "ReefBytes"},
+                  "plugins": [
+                      {
+                          "category": category,
+                          "description": description,
+                          "name": name,
+                          "source": f"./plugins/{name}",
+                          "version": version,
+                      }
+                      for name, category, description in entries
+                  ],
+              }
+
           require(len(sys.argv) == 5, "unexpected verifier arguments")
           archive = Path(sys.argv[1])
           metadata_path = Path(sys.argv[2])
@@ -198,8 +225,8 @@ jobs:
                       require(path in files, f"archive has unlisted member: {path}")
                       require(member.isfile() and not member.issym() and not member.islnk() and not member.isdev(), f"archive member type is invalid: {path}")
                       record = files[path]
-                      require(member.mode & 0o777 == int(record["mode"], 8), f"archive member mode differs: {path}")
-                      require(member.size == record["size"] and member.mtime == 0 and member.uid == 0 and member.gid == 0, f"archive member metadata differs: {path}")
+                      require(member.mode == int(record["mode"], 8), f"archive member mode differs: {path}")
+                      require(member.size == record["size"] and member.mtime == 0 and member.uid == 0 and member.gid == 0 and member.uname == "" and member.gname == "", f"archive member metadata differs: {path}")
                       payload = release.extractfile(member)
                       require(payload is not None, f"archive member is unreadable: {path}")
                       data = payload.read()
@@ -217,6 +244,7 @@ jobs:
           marketplace_plugins = marketplace.get("plugins") if isinstance(marketplace, dict) else None
           require(isinstance(marketplace_plugins, list) and all(isinstance(plugin, dict) for plugin in marketplace_plugins), "release marketplace bundle set is invalid")
           require(tuple(plugin.get("name") for plugin in marketplace_plugins) == DOMAIN_BUNDLES, "release marketplace bundle set is invalid")
+          require(marketplace == canonical_marketplace(version), "release marketplace metadata differs")
 
           for name in DOMAIN_BUNDLES:
               record = bundles[name]
