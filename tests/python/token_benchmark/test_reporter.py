@@ -588,3 +588,53 @@ class TestCostAnalysis:
         # cached should show large savings vs after
         # (0.000594 - 0.000075) / 0.000594 ≈ 0.874 → +87%
         assert "+87%" in md
+
+
+class TestLatestModelAggregation:
+    """Cross-run aggregates must not mix Claude model generations (#700)."""
+
+    def _rec(self, run_id, model, tokens, cond="before"):
+        return {
+            "run_id": run_id,
+            "provider": "claude",
+            "model": model,
+            "condition": cond,
+            "category": "mmlu",
+            "prompt_id": "mmlu_001",
+            "source": "api",
+            "input_tokens": tokens,
+            "output_tokens": 4,
+            "quality_score": 1,
+        }
+
+    def test_old_generation_rows_excluded_from_aggregates(self):
+        records = [
+            self._rec("2026-06-13T06-58-25", "claude-sonnet-4-6", 100),
+            self._rec("2026-06-13T06-58-25", "claude-sonnet-4-6", 100, "after"),
+            self._rec("2026-08-05T12-00-00", "claude-sonnet-5", 500),
+            self._rec("2026-08-05T12-00-00", "claude-sonnet-5", 500, "after"),
+        ]
+        stats = compute_stats(records)
+        overhead = stats["token_overhead"]["claude"]
+        # Only sonnet-5 rows (500 tokens) aggregate; mixing in the 100-token
+        # sonnet-4-6 rows would average to 300 and corrupt the baseline.
+        assert overhead["avg_input_before"] == 500
+
+    def test_same_model_history_still_aggregates(self):
+        records = [
+            self._rec("2026-06-13T06-58-25", "claude-sonnet-5", 100),
+            self._rec("2026-08-05T12-00-00", "claude-sonnet-5", 300),
+            self._rec("2026-08-05T12-00-00", "claude-sonnet-5", 300, "after"),
+        ]
+        stats = compute_stats(records)
+        assert stats["token_overhead"]["claude"]["avg_input_before"] == 200
+
+    def test_modelless_legacy_rows_pass_through(self):
+        records = [
+            self._rec("2026-06-13T06-58-25", None, 100),
+            self._rec("2026-08-05T12-00-00", None, 300, "after"),
+        ]
+        for r in records:
+            r.pop("model")
+        stats = compute_stats(records)
+        assert stats["token_overhead"]["claude"]["avg_input_before"] == 100

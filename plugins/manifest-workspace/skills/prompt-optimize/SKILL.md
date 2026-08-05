@@ -26,11 +26,11 @@ Optimized:
 ```xml
 <problem_structure>
   <problem_definition>
-    Sync .apm/skills/ to every configured home deploy target (~/.claude, Cursor, Gemini, Codex, Antigravity)
+    Sync the plugin skill tree (plugins/<bundle>/skills/) to every configured home deploy target (~/.claude, Cursor, Gemini, Codex, Antigravity)
     and report which targets changed.
   </problem_definition>
   <preliminary_context>
-    Repo root contains .apm/skills/ (source of truth); home targets are listed in
+    Repo root contains plugins/<bundle>/skills/ (source of truth; .apm/skills is a generated mirror); home targets are listed in
     configs/claude/config/services.yml.
   </preliminary_context>
   <constraints>
