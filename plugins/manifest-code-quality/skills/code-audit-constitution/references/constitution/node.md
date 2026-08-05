@@ -25,7 +25,7 @@ Adjacent machine copy: `../../config/code_constitution.json` (`languages.node`).
 | Runtime | `node` (`engines.node`) | Declared in `engines`, matched by the CI matrix, and builtins imported with the `node:` prefix. |
 | Boundary schema | `zod` or equivalent | One schema module per boundary; the TypeScript type is `z.infer`-ed from the schema, never declared beside it. |
 
-The canonical settings live in `templates/scaffold/node/` — `tsconfig.json` (`strict`,
+The canonical settings live in the bundle-local `project-scaffold` templates — `tsconfig.json` (`strict`,
 `noUncheckedIndexedAccess`, `noImplicitReturns`, `noUnusedLocals`, `isolatedModules`,
 `verbatimModuleSyntax`), `eslint.config.js`, and `package.json.tmpl` (`"type": "module"`,
 `engines.node >= 20`). Start from those rather than re-deriving them.
@@ -34,7 +34,7 @@ In this repository the `mirrors-eslint` pre-commit hook is pinned at v9.18.0 and
 `templates/`, `.Jules/`, and `.apm/skills/`; there is no root flat config, so a tracked `.ts`
 or `.js` outside those paths must resolve to an `eslint.config.js` or the commit gate fails on
 a missing config rather than on real findings. `docs/CODING_STANDARDS.md` has no Node section
-yet — until it does, this table and `templates/scaffold/node/` are the authority.
+yet — until it does, this table and the `project-scaffold` templates are the authority.
 
 ## Size ceilings (CON-002)
 

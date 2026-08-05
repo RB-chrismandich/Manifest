@@ -16,7 +16,7 @@ Post-write audit of an existing tree — security posture, blast radius, state m
 
 The `terraform_*` pre-commit hooks are configured but dormant — this repo has no real `.tf` files yet, and
 `types_or: [terraform]` arms all four the moment one lands. The `tofu` binary substitutes for `terraform` in
-every command below. Start from `templates/scaffold/terraform/` — `versions.tf.tmpl`, `main.tf.tmpl`, and a
+every command below. Start from the bundle-local `project-scaffold` Terraform templates — `versions.tf.tmpl`, `main.tf.tmpl`, and a
 `.tflint.hcl` already carrying the `recommended` preset — rather than re-deriving them.
 
 | Role | Tool | Rule |

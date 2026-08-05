@@ -15,6 +15,12 @@
         ],
         "imported": [
           {
+            "component_id": "ci-setup-templates",
+            "component_type": "runtime",
+            "mode": "imported",
+            "path": "skills/ci-setup/templates"
+          },
+          {
             "component_id": "ops-bin",
             "component_type": "runtime",
             "mode": "imported",
@@ -36,6 +42,10 @@
       },
       "components": {
         "runtime": [
+          {
+            "id": "ci-setup-templates",
+            "path": "skills/ci-setup/templates"
+          },
           {
             "id": "ops-bin",
             "path": "runtime/bin"
@@ -78,6 +88,12 @@
         ],
         "native": [
           {
+            "component_id": "ci-setup-templates",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "skills/ci-setup/templates"
+          },
+          {
             "component_id": "ops-bin",
             "component_type": "runtime",
             "mode": "native",
@@ -99,6 +115,10 @@
       },
       "components": {
         "runtime": [
+          {
+            "id": "ci-setup-templates",
+            "path": "skills/ci-setup/templates"
+          },
           {
             "id": "ops-bin",
             "path": "runtime/bin"
@@ -138,6 +158,12 @@
             "path": "hooks/version-pin.json"
           },
           {
+            "component_id": "ci-setup-templates",
+            "component_type": "runtime",
+            "mode": "generated",
+            "path": "skills/ci-setup/templates"
+          },
+          {
             "component_id": "ops-bin",
             "component_type": "runtime",
             "mode": "generated",
@@ -165,6 +191,10 @@
           }
         ],
         "runtime": [
+          {
+            "id": "ci-setup-templates",
+            "path": "skills/ci-setup/templates"
+          },
           {
             "id": "ops-bin",
             "path": "runtime/bin"
@@ -207,6 +237,12 @@
         ],
         "native": [
           {
+            "component_id": "ci-setup-templates",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "skills/ci-setup/templates"
+          },
+          {
             "component_id": "ops-bin",
             "component_type": "runtime",
             "mode": "native",
@@ -228,6 +264,10 @@
       },
       "components": {
         "runtime": [
+          {
+            "id": "ci-setup-templates",
+            "path": "skills/ci-setup/templates"
+          },
           {
             "id": "ops-bin",
             "path": "runtime/bin"

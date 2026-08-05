@@ -9,6 +9,13 @@
         "reason": "Gemini exposes the on-demand version-pin skill but cannot install this advisory plugin hook natively."
       },
       {
+        "component_id": "ci-setup-templates",
+        "component_type": "runtime",
+        "mode": "degraded",
+        "path": "skills/ci-setup/templates",
+        "reason": "gemini native manifest cannot encode runtime component 'ci-setup-templates' at 'skills/ci-setup/templates'"
+      },
+      {
         "component_id": "ops-bin",
         "component_type": "runtime",
         "mode": "degraded",

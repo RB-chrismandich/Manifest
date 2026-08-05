@@ -303,15 +303,6 @@ Manifest/
 ├── .claude/                         # Repo-specific config only (does NOT override sessions)
 │   ├── CLAUDE.md                    # Developer guide for working in this repo
 │   └── settings.local.json          # Repo-relevant permissions only
-├── templates/                       # Starter templates for CI and project scaffolding
-│   ├── ci/                          # CI configuration templates
-│   │   ├── github/                  # GitHub Actions workflow templates
-│   │   └── gitlab/                  # GitLab CI pipeline templates
-│   └── scaffold/                    # Project scaffolding templates
-│       ├── go/                      # Go project starter
-│       ├── node/                    # Node.js project starter
-│       ├── python/                  # Python project starter
-│       └── terraform/               # Terraform project starter
 ├── .apm/skills/                     # Skill source of truth (sole; retired skill supply removed 2026-07-27)
 │   └── skills/                      # skill library deployed to ~/.claude/skills/ by bootstrap
 ├── tests/                           # Test suites

@@ -263,6 +263,7 @@ def test_ops_contract_declares_runtime_and_explicit_hook_cells(
         "runtime/bin",
         "runtime/config",
         "runtime/references",
+        "skills/ci-setup/templates",
     }
     assert len(contract.components.hooks) == 1
     hook = contract.components.hooks[0]
@@ -280,6 +281,23 @@ def test_ops_contract_declares_runtime_and_explicit_hook_cells(
         "git",
         "python3",
     )
+
+
+def test_ci_setup_templates_are_bundle_local_and_complete(
+    repo_root: Path, ops_bundle: Path
+) -> None:
+    templates = ops_bundle / "skills/ci-setup/templates"
+
+    assert not (repo_root / "templates").exists()
+    assert {path.relative_to(templates) for path in templates.rglob("*") if path.is_file()} == {
+        Path("github/ci.yml"),
+        Path("github/release.yml"),
+        Path("github/security.yml"),
+        Path("gitlab/.gitlab-ci.yml"),
+    }
+    skill = (ops_bundle / "skills/ci-setup/SKILL.md").read_text(encoding="utf-8")
+    assert "templates/github/release.yml" in skill
+    assert "templates/gitlab/.gitlab-ci.yml" in skill
 
 
 def test_generated_ops_views_represent_every_hook_harness(ops_bundle: Path) -> None:

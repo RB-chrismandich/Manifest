@@ -277,23 +277,26 @@ def test_vendor_tool_rejects_native_and_unexpected_archive_members(
         module._validated_members(handle, "pyyaml-6.0.3")
 
 
-def test_scaffold_and_audit_assets_are_bundle_local_and_exact(
+def test_scaffold_and_audit_assets_are_bundle_local(
     repo_root: Path, code_quality_bundle: Path
 ) -> None:
-    compatibility = repo_root / "templates/scaffold"
     packaged = code_quality_bundle / "skills/project-scaffold/templates"
-    expected = {
-        path.relative_to(compatibility): path.read_bytes()
-        for path in compatibility.rglob("*")
-        if path.is_file()
+    assert not (repo_root / "templates").exists()
+    assert {
+        path.relative_to(packaged) for path in packaged.rglob("*") if path.is_file()
+    } == {
+        Path("go/.golangci.yml"),
+        Path("go/Makefile"),
+        Path("go/go.mod.tmpl"),
+        Path("node/eslint.config.js"),
+        Path("node/package.json.tmpl"),
+        Path("node/tsconfig.json"),
+        Path("python/.pre-commit-config.yaml"),
+        Path("python/pyproject.toml"),
+        Path("terraform/.tflint.hcl"),
+        Path("terraform/main.tf.tmpl"),
+        Path("terraform/versions.tf.tmpl"),
     }
-    actual = {
-        path.relative_to(packaged): path.read_bytes()
-        for path in packaged.rglob("*")
-        if path.is_file()
-    }
-
-    assert actual == expected
     assert (
         code_quality_bundle / "skills/code-audit/references/antipatterns.md"
     ).read_bytes() == (

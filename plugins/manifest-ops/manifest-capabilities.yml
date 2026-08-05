@@ -31,6 +31,7 @@ components:
     - {id: ops-bin, path: runtime/bin}
     - {id: ops-config, path: runtime/config}
     - {id: ops-references, path: runtime/references}
+    - {id: ci-setup-templates, path: skills/ci-setup/templates}
   guidance: []
 capabilities:
   mcp:

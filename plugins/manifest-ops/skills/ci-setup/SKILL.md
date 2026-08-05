@@ -90,6 +90,18 @@ Generate the workflow from the detected project facts and the structures below.
 Do not search an assistant home or another plugin for templates. If the target
 repository already contains a project-owned template, ask before using it.
 
+Use the templates packaged beside this skill as the starting point:
+
+| Target | Bundle-local template |
+|--------|-----------------------|
+| `.github/workflows/ci.yml` | `templates/github/ci.yml` |
+| `.github/workflows/security.yml` | `templates/github/security.yml` |
+| `.github/workflows/release.yml` | `templates/github/release.yml` |
+| `.gitlab-ci.yml` | `templates/gitlab/.gitlab-ci.yml` |
+
+Resolve these paths from the `ci-setup` skill directory. Copy only the template
+for the selected platform, then apply the customizations below.
+
 **Customizations to apply:**
 
 1. **Remove unused language blocks** — If the project does not use Go, remove all Go jobs.

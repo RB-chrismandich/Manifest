@@ -93,6 +93,7 @@ Generated from portable contracts and verified adapter inspection evidence; do n
 | `manifest-ops:skill:process-diagnose-stall` | contract skill | READY | READY | READY | READY | READY | READY |
 | `manifest-ops:skill:version-pin` | contract skill | READY | READY | READY | READY | READY | READY |
 | `manifest-ops:hook:version-pin` | contract hook | READY | DEGRADED(Codex exposes the on-demand version-pin skill but has no native file-save hook surface.) | DEGRADED(Gemini exposes the on-demand version-pin skill but cannot install this advisory plugin hook natively.) | READY | DEGRADED(Antigravity exposes the on-demand version-pin skill but has no native file-save hook surface.) | DEGRADED(Devin exposes the on-demand version-pin skill but has no native file-save hook surface.) |
+| `manifest-ops:runtime:ci-setup-templates` | contract runtime | READY | READY | READY | READY | READY | READY |
 | `manifest-ops:runtime:ops-bin` | contract runtime | READY | READY | READY | READY | READY | READY |
 | `manifest-ops:runtime:ops-config` | contract runtime | READY | READY | READY | READY | READY | READY |
 | `manifest-ops:runtime:ops-references` | contract runtime | READY | READY | READY | READY | READY | READY |
