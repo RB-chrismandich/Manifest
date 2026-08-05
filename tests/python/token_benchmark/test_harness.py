@@ -529,6 +529,14 @@ class TestComputeCost:
         assert cost is not None
         assert abs(cost - 0.0045) < 1e-8
 
+    def test_sonnet_pricing_aliasing_is_intentional(self):
+        """Both Sonnet generations share one _SONNET_RATES object on purpose
+        (identical list rates). If they ever diverge, replace the alias with
+        independent dicts — this assertion is the reminder."""
+        from tests.token_benchmark.harness import PRICING
+
+        assert PRICING["claude-sonnet-5"] is PRICING["claude-sonnet-4-6"]
+
     def test_default_claude_model_has_pricing(self):
         """The run_benchmark default model must always have a PRICING entry,
         so compute_cost never silently returns None for default runs."""
