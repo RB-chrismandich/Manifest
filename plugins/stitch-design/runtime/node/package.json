@@ -7,9 +7,9 @@
     "check": "node build.mjs --check"
   },
   "devDependencies": {
-    "@babel/generator": "7.29.8",
-    "@babel/parser": "7.29.8",
-    "@babel/traverse": "7.29.8",
+    "@babel/generator": "8.0.0",
+    "@babel/parser": "8.0.4",
+    "@babel/traverse": "8.0.4",
     "esbuild": "0.28.1",
     "puppeteer-core": "25.5.0"
   },
