@@ -147,9 +147,8 @@ Static analysis checks that indicate Core Web Vitals risk:
 
 ## Sub-agent dispatch
 
-Follow the shared
-[Sub-Agent Selection Rules](../../../../configs/claude/references/sub-agent-dispatch.md). Dispatches use
-the pinned `sonnet` model.
+Follow the bundled `sub-agent-dispatch.md` selection rules. Dispatches use the
+pinned `sonnet` model.
 
 When ≥3 independent pages or flows need review, dispatch one sub-agent per page/flow to review it, then merge findings;
 below that, review inline. Pick the mechanism per the shared Sub-Agent Selection Rules

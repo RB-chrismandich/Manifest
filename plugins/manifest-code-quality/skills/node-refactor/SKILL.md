@@ -238,9 +238,8 @@ After completing the analysis, capture the most significant findings:
 
 ## Sub-agent dispatch
 
-Follow the shared
-[Sub-Agent Selection Rules](../../../../configs/claude/references/sub-agent-dispatch.md). Dispatches use
-the pinned `sonnet` model.
+Follow the bundled `sub-agent-dispatch.md` selection rules. Dispatches use the
+pinned `sonnet` model.
 
 When ≥3 independent modules or analysis dimensions exist, dispatch one sub-agent per module to analyze it,
 then merge findings; below that, analyze inline. Use native Task sub-agents on Claude, or

@@ -38,9 +38,8 @@ for each). An empty `survived` means every candidate was refuted.
 
 ## Sub-agent dispatch
 
-Follow the shared
-[Sub-Agent Selection Rules](../../../../configs/claude/references/sub-agent-dispatch.md). Dispatches use
-the pinned `opus` model.
+Follow the bundled `sub-agent-dispatch.md` selection rules. Dispatches use the
+pinned `opus` model.
 
 When ≥3 candidate findings need triage, invoke `[[skill:parallel-agent]]` with
 one finding per review unit, adversarial verification enabled, and a bounded

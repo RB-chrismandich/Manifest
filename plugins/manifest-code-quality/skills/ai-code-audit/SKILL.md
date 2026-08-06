@@ -118,9 +118,8 @@ and record the dissent under Unverified observations for transparency.
 
 ## Sub-agent dispatch
 
-Follow the shared
-[Sub-Agent Selection Rules](../../../../configs/claude/references/sub-agent-dispatch.md). Dispatches use
-the pinned `opus` model.
+Follow the bundled `sub-agent-dispatch.md` selection rules. Dispatches use the
+pinned `opus` model.
 
 Dispatch sub-agents ONLY for the cross-verification step: one adversarial
 refuter per candidate `critical`/`high` finding. The passes themselves run
