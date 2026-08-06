@@ -97,22 +97,16 @@ assert_mirrored() {
         "tests/lint/check_bats_assertions.sh"
 }
 
-@test "yamllint mirrors configs/claude/config/*.yml" {
-    assert_mirrored "yamllint configs/claude/config/" \
-        "yamllint|configs/claude/config/*.yml" \
-        "yamllint|manifest_config_dir"
-}
+# YAML linting is CI-owned: requiring yamllint would add a tool dependency to
+# the portable pr-smoke plugin solely to mirror a project-config validation.
 
 @test "markdownlint mirrors the key-docs globs" {
     assert_mirrored "markdownlint key docs" \
         "markdownlint-cli2|AGENTS.md|CLAUDE.md|README.md|docs/*.md"
 }
 
-@test "python yaml.safe_load validation loop is mirrored" {
-    assert_mirrored "python yaml.safe_load loop over configs/claude/config/" \
-        "yaml.safe_load|configs/claude/config" \
-        "yaml.safe_load|manifest_config_dir"
-}
+# Python YAML validation is coordinator-owned in CI. The released pr-smoke
+# plugin intentionally uses only its declared executables and no Python packages.
 
 @test "generate_commands_doc.py --check (docs/COMMANDS.md drift) is mirrored" {
     assert_mirrored "generate_commands_doc.py --check" \

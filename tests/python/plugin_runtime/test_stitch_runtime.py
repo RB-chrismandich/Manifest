@@ -117,7 +117,7 @@ def test_snapshot_reports_missing_optional_chromium(
     result = _run_node(
         snapshot,
         "--url",
-        "http://127.0.0.1:9",
+        "http://127.0.0.1:65534",
         "--output",
         str(tmp_path / "page.html"),
         cwd=tmp_path,

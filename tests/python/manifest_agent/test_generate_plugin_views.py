@@ -197,7 +197,7 @@ def test_contracts_declare_explicit_capability_tiers(repo_root: Path) -> None:
             (),
             ("bash", "git", "python3"),
             (),
-            ("pass-cli",),
+            ("pass-cli", "shellcheck", "markdownlint-cli2", "pytest", "bats"),
         ),
         "stitch-design": (
             (),
