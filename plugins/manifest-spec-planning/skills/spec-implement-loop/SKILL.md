@@ -52,6 +52,8 @@ Dispatch templates live in this skill's `prompts/` directory. Hand sub-agents
 
 ## Session model
 
+This workflow requires Fable; ask the user to switch to Fable before starting the loop.
+
 This skill is **long-horizon**: the CDDL loop re-runs four personas over the whole tree every round,
 until the gates clear.
 

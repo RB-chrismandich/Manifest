@@ -641,6 +641,9 @@ tool_policies:
     subagents: conditional
     subagent_trigger: target_files >= 3
     subagent_model: sonnet
+  parallel-agent:
+    subagents: never
+    subagent_rationale: The skill is the cross-harness invocation mechanism itself; nested fan-out would duplicate its bounded worker set.
   pr-address-comments:
     subagents: never
     subagent_rationale: Single PR; fixes mutate one working tree and must be re-tested/pushed sequentially.

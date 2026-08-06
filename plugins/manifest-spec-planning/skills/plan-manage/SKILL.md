@@ -93,9 +93,10 @@ Require every deliverable to be checked, then move the plan to
 Confirm with the user, record the reason, and move the plan to
 `$PLAN_ROOT/.abandoned/`.
 
-## Dispatch
+## Sub-agent dispatch
 
 Use the bundle-local selection rules in
-`../../runtime/references/sub-agent-dispatch.md`. Pin the create-flow synthesis
-agent to Sonnet. Cross-model reviews use the qualified Workspace skill; no
+`../../runtime/references/sub-agent-dispatch.md`, which link to the shared
+`sub-agent-dispatch.md` rules. Pin the create-flow synthesis agent to `sonnet`.
+Cross-model reviews use the qualified Workspace skill; no
 shell command or sibling-bundle path is assumed.
