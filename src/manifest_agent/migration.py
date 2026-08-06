@@ -61,6 +61,7 @@ _CATEGORIES = frozenset(
 _DESTRUCTIVE_PROOFS = frozenset(
     {"symlink-target", "deploy-stamp", "generated-hash", "exact-marker"}
 )
+# Reject manifest-core, bootstrap, and shared-plugin destinations in migration inventory.
 _FORBIDDEN_DESTINATIONS = ("manifest-core", "bootstrap", "shared-plugin")
 
 
