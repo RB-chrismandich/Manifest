@@ -63,7 +63,7 @@ capabilities:
   executables:
     required: [bash, git, python3]
     default: []
-    optional: [pass-cli]
+    optional: [pass-cli, shellcheck, yamllint, markdownlint-cli2, pytest, bats]
 compatibility:
   claude: {mode: native}
   codex: {mode: native}
