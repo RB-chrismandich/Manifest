@@ -30,8 +30,8 @@ Optimized:
     and report which targets changed.
   </problem_definition>
   <preliminary_context>
-    Repo root contains plugins/<bundle>/skills/ (source of truth; .apm/skills is a generated mirror); home targets are listed in
-    configs/claude/config/services.yml.
+    Repo root contains plugins/<bundle>/skills/ (source of truth; .apm/skills is a generated mirror); home targets are the
+    standard Manifest platform homes (~/.claude, ~/.cursor, ~/.gemini, ~/.codex, ~/.antigravity).
   </preliminary_context>
   <constraints>
     - Use absolute paths for source and every target; no tilde expansion left unresolved.
