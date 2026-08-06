@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "manifest-delegate/result-envelope.schema.json",
+  "title": "Delegation Result Envelope (FR-002)",
+  "description": "Normalized outcome of a delegated task; identical shape for every backend so any backend's result reads the same way. Extraction contract (technical review 2026-08-05): the delegation prompt requires the backend to END its final message with a fenced JSON block conforming to this schema; the dispatcher extracts the LAST fenced JSON block, validates required fields with stdlib json, and never derives fields from prose. Fabricating content is forbidden: when no valid block is present, outcome=failure ('backend returned nothing usable'), attempted/changes stay empty, and the raw output is preserved at raw_output_path.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["backend", "model", "outcome", "attempted", "changes", "succeeded", "failed", "follow_ups"],
+  "properties": {
+    "backend": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Registry id of the producing backend (attribution, US3)"
+    },
+    "model": {
+      "type": ["string", "null"],
+      "description": "Resolved model/tier actually used; null when the backend default was used and not reported"
+    },
+    "outcome": {
+      "enum": ["success", "partial", "failure"],
+      "description": "partial = timed out or interrupted with salvageable state (FR-012)"
+    },
+    "attempted": {
+      "type": "string",
+      "description": "What the backend attempted, in its own words (may be empty only when outcome=failure)"
+    },
+    "changes": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "description": "Files/paths the backend reports touching; [] for read-only runs"
+    },
+    "succeeded": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "description": "Explicit success signals (tests passed, repro confirmed, ...)"
+    },
+    "failed": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "description": "Explicit failure signals; non-empty when outcome != success"
+    },
+    "follow_ups": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "description": "Recommended next steps; includes the resume invocation when session_ref exists"
+    },
+    "session_ref": {
+      "type": ["string", "null"],
+      "description": "Backend thread/session/conversation id enabling resume (FR-015); null when not captured or unsupported"
+    },
+    "raw_output_path": {
+      "type": ["string", "null"],
+      "description": "Path to the job's output.txt (verbatim backend final message)"
+    },
+    "error": {
+      "type": ["string", "null"],
+      "description": "Actionable cause when outcome=failure (SC-004: never empty in that case)"
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "outcome": { "const": "failure" } } },
+      "then": { "required": ["error"], "properties": { "error": { "type": "string", "minLength": 1 } } }
+    }
+  ]
+}
