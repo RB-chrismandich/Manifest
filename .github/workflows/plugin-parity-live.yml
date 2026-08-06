@@ -3,6 +3,8 @@ name: Manifest Plugin Live Parity
 on:
   workflow_dispatch:
   workflow_call:
+  pull_request:
+    types: [labeled]
 
 permissions:
   contents: read
@@ -14,6 +16,12 @@ concurrency:
 jobs:
   parity:
     name: Live ${{ matrix.harness }} parity
+    # A label event may run before this workflow reaches the default branch.
+    # Fork PRs never receive the protected live environment or its secrets.
+    if: >-
+      github.event_name != 'pull_request' ||
+      (github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.label.name == 'manifest-live-parity')
     runs-on: ubuntu-latest
     environment: manifest-plugin-live
     strategy:

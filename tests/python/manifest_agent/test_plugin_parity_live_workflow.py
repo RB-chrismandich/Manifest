@@ -115,6 +115,24 @@ def test_live_parity_workflow_builds_and_uploads_immutable_release_artifacts() -
     assert 'uvx --from "$WHEEL" manifest uninstall' in workflow
 
 
+def test_live_parity_workflow_only_runs_pull_requests_with_the_live_label() -> None:
+    repo_root = Path(__file__).resolve().parents[3]
+    workflow = _workflow(repo_root)
+
+    assert "  workflow_dispatch:\n" in workflow
+    assert "  workflow_call:\n" in workflow
+    assert "  pull_request:\n    types: [labeled]\n" in workflow
+    assert "pull_request_target:" not in workflow
+    assert "types: [opened" not in workflow
+    assert "types: [synchronize" not in workflow
+    assert "types: [reopened" not in workflow
+    assert "github.event_name != 'pull_request' ||" in workflow
+    assert (
+        "github.event.pull_request.head.repo.full_name == github.repository" in workflow
+    )
+    assert "github.event.label.name == 'manifest-live-parity'" in workflow
+
+
 def test_live_parity_workflow_embeds_a_strict_archive_verifier() -> None:
     repo_root = Path(__file__).resolve().parents[3]
     verifier = _verifier(_workflow(repo_root))
