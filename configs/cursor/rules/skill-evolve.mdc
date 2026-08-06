@@ -1,12 +1,12 @@
 ---
-description: "Use after a stretch of work to harvest SkillClaw-evolved skills from Claude Code session transcripts into a reviewed PR against .apm/skills/. Dry-run by default; requires --enable-skillclaw and claude CLI login. Never writes source of truth directly."
+description: "Preview skill proposals stored in XDG data and require a separate explicit repository workflow before opening a review PR."
 globs: ".claude/skills/skill-evolve/**"
 alwaysApply: false
 ---
 
 # skill-evolve
 
-Use after a stretch of work to harvest SkillClaw-evolved skills from Claude Code session transcripts into a reviewed PR against .apm/skills/. Dry-run by default; requires --enable-skillclaw and claude CLI login. Never writes source of truth directly.
+Preview skill proposals stored in XDG data and require a separate explicit repository workflow before opening a review PR.
 
 <!-- Auto-generated from .claude/skills/skill-evolve/SKILL.md -->
 <!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->

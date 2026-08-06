@@ -1,12 +1,12 @@
 ---
-description: "Use before finalizing spec/plan/tasks — cross-reference for internal consistency via the parallel-agent panel (excluding the author), deduped findings. Analysis-only, never edits. Speckit/superpowers; auto-discovers or explicit paths."
+description: "Cross-reference spec/plan/tasks artifacts for internal consistency through a selected native reviewer. Analysis-only, never edits. Speckit and superpowers layouts; auto-discovers or takes explicit paths."
 globs: ".claude/skills/spec-review/**"
 alwaysApply: false
 ---
 
 # spec-review
 
-Use before finalizing spec/plan/tasks — cross-reference for internal consistency via the parallel-agent panel (excluding the author), deduped findings. Analysis-only, never edits. Speckit/superpowers; auto-discovers or explicit paths.
+Cross-reference spec/plan/tasks artifacts for internal consistency through a selected native reviewer. Analysis-only, never edits. Speckit and superpowers layouts; auto-discovers or takes explicit paths.
 
 <!-- Auto-generated from .claude/skills/spec-review/SKILL.md -->
 <!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->

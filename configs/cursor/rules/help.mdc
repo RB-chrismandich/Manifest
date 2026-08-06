@@ -1,12 +1,12 @@
 ---
-description: "Use when you need to find the right Manifest command for a task — searches and lists every command by category with a one-line description and when-to-use cue, flagging ones unavailable here. Read-only; never runs or modifies."
+description: "Search the generated offline catalog of all Manifest domain commands by name, category, or description without scanning sibling installed plugins."
 globs: ".claude/skills/help/**"
 alwaysApply: false
 ---
 
 # help
 
-Use when you need to find the right Manifest command for a task — searches and lists every command by category with a one-line description and when-to-use cue, flagging ones unavailable here. Read-only; never runs or modifies.
+Search the generated offline catalog of all Manifest domain commands by name, category, or description without scanning sibling installed plugins.
 
 <!-- Auto-generated from .claude/skills/help/SKILL.md -->
 <!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
