@@ -1,0 +1,207 @@
+{
+  "compatibility": {
+    "degraded": [
+      {
+        "component_id": "manifest-hooks",
+        "component_type": "hooks",
+        "mode": "degraded",
+        "path": "hooks/manifest-hooks.json",
+        "reason": "Gemini extensions cannot install the bundle's advisory manifest-hooks catalog as native BeforeTool hooks; use ai-hooks-integration for explicit installation."
+      },
+      {
+        "component_id": "command-catalog",
+        "component_type": "runtime",
+        "mode": "degraded",
+        "path": "skills/help/catalog/commands.json",
+        "reason": "gemini native manifest cannot encode runtime component 'command-catalog' at 'skills/help/catalog/commands.json'"
+      },
+      {
+        "component_id": "deploy-reconcile-scripts",
+        "component_type": "runtime",
+        "mode": "degraded",
+        "path": "skills/deploy-reconcile/scripts",
+        "reason": "gemini native manifest cannot encode runtime component 'deploy-reconcile-scripts' at 'skills/deploy-reconcile/scripts'"
+      },
+      {
+        "component_id": "env-check-scripts",
+        "component_type": "runtime",
+        "mode": "degraded",
+        "path": "skills/env-check/scripts",
+        "reason": "gemini native manifest cannot encode runtime component 'env-check-scripts' at 'skills/env-check/scripts'"
+      },
+      {
+        "component_id": "help-scripts",
+        "component_type": "runtime",
+        "mode": "degraded",
+        "path": "skills/help/scripts",
+        "reason": "gemini native manifest cannot encode runtime component 'help-scripts' at 'skills/help/scripts'"
+      },
+      {
+        "component_id": "hook-integration-scripts",
+        "component_type": "runtime",
+        "mode": "degraded",
+        "path": "skills/ai-hooks-integration/scripts",
+        "reason": "gemini native manifest cannot encode runtime component 'hook-integration-scripts' at 'skills/ai-hooks-integration/scripts'"
+      },
+      {
+        "component_id": "learning-capture-scripts",
+        "component_type": "runtime",
+        "mode": "degraded",
+        "path": "skills/learning-capture/scripts",
+        "reason": "gemini native manifest cannot encode runtime component 'learning-capture-scripts' at 'skills/learning-capture/scripts'"
+      },
+      {
+        "component_id": "parallel-agent-config",
+        "component_type": "runtime",
+        "mode": "degraded",
+        "path": "skills/parallel-agent/config",
+        "reason": "gemini native manifest cannot encode runtime component 'parallel-agent-config' at 'skills/parallel-agent/config'"
+      },
+      {
+        "component_id": "parallel-agent-prompts",
+        "component_type": "runtime",
+        "mode": "degraded",
+        "path": "skills/parallel-agent/prompts",
+        "reason": "gemini native manifest cannot encode runtime component 'parallel-agent-prompts' at 'skills/parallel-agent/prompts'"
+      },
+      {
+        "component_id": "parallel-agent-references",
+        "component_type": "runtime",
+        "mode": "degraded",
+        "path": "skills/parallel-agent/references",
+        "reason": "gemini native manifest cannot encode runtime component 'parallel-agent-references' at 'skills/parallel-agent/references'"
+      },
+      {
+        "component_id": "parallel-agent-scripts",
+        "component_type": "runtime",
+        "mode": "degraded",
+        "path": "skills/parallel-agent/scripts",
+        "reason": "gemini native manifest cannot encode runtime component 'parallel-agent-scripts' at 'skills/parallel-agent/scripts'"
+      },
+      {
+        "component_id": "pr-smoke-scripts",
+        "component_type": "runtime",
+        "mode": "degraded",
+        "path": "skills/pr-smoke/scripts",
+        "reason": "gemini native manifest cannot encode runtime component 'pr-smoke-scripts' at 'skills/pr-smoke/scripts'"
+      },
+      {
+        "component_id": "skill-evolve-scripts",
+        "component_type": "runtime",
+        "mode": "degraded",
+        "path": "skills/skill-evolve/scripts",
+        "reason": "gemini native manifest cannot encode runtime component 'skill-evolve-scripts' at 'skills/skill-evolve/scripts'"
+      }
+    ],
+    "generated": [
+      {
+        "component_id": "compatibility-translator",
+        "component_type": "agents",
+        "mode": "generated",
+        "path": "agents/orchestration/compatibility-translator.md"
+      },
+      {
+        "component_id": "context-chronicler",
+        "component_type": "agents",
+        "mode": "generated",
+        "path": "agents/orchestration/context-chronicler.md"
+      },
+      {
+        "component_id": "dependency-guardian",
+        "component_type": "agents",
+        "mode": "generated",
+        "path": "agents/orchestration/dependency-guardian.md"
+      },
+      {
+        "component_id": "devpanel-chaos-engineer",
+        "component_type": "agents",
+        "mode": "generated",
+        "path": "agents/devpanel/chaos-engineer.md"
+      },
+      {
+        "component_id": "devpanel-debugger",
+        "component_type": "agents",
+        "mode": "generated",
+        "path": "agents/devpanel/debugger.md"
+      },
+      {
+        "component_id": "devpanel-developer",
+        "component_type": "agents",
+        "mode": "generated",
+        "path": "agents/devpanel/developer.md"
+      },
+      {
+        "component_id": "devpanel-performance-auditor",
+        "component_type": "agents",
+        "mode": "generated",
+        "path": "agents/devpanel/performance-auditor.md"
+      },
+      {
+        "component_id": "devpanel-spec-guard",
+        "component_type": "agents",
+        "mode": "generated",
+        "path": "agents/devpanel/spec-guard.md"
+      },
+      {
+        "component_id": "devpanel-tester",
+        "component_type": "agents",
+        "mode": "generated",
+        "path": "agents/devpanel/tester.md"
+      },
+      {
+        "component_id": "executor",
+        "component_type": "agents",
+        "mode": "generated",
+        "path": "agents/orchestration/executor.md"
+      },
+      {
+        "component_id": "explore",
+        "component_type": "agents",
+        "mode": "generated",
+        "path": "agents/orchestration/Explore.md"
+      },
+      {
+        "component_id": "mech-executor",
+        "component_type": "agents",
+        "mode": "generated",
+        "path": "agents/orchestration/mech-executor.md"
+      },
+      {
+        "component_id": "scout",
+        "component_type": "agents",
+        "mode": "generated",
+        "path": "agents/orchestration/scout.md"
+      },
+      {
+        "component_id": "security-executor",
+        "component_type": "agents",
+        "mode": "generated",
+        "path": "agents/orchestration/security-executor.md"
+      },
+      {
+        "component_id": "verifier",
+        "component_type": "agents",
+        "mode": "generated",
+        "path": "agents/orchestration/verifier.md"
+      },
+      {
+        "component_id": "workspace-orchestration",
+        "component_type": "guidance",
+        "mode": "generated",
+        "path": "guidance/orchestration.md"
+      },
+      {
+        "component_id": "workspace-token-economy",
+        "component_type": "guidance",
+        "mode": "generated",
+        "path": "guidance/token-economy.md"
+      }
+    ]
+  },
+  "contextFileName": [
+    "guidance/orchestration.md",
+    "guidance/token-economy.md"
+  ],
+  "name": "manifest-workspace",
+  "version": "0.2.0"
+}

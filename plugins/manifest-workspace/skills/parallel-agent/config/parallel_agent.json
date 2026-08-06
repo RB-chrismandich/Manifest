@@ -1,0 +1,224 @@
+{
+  "cddl_invoke": {
+    "provider": "auto"
+  },
+  "cli_agents": {
+    "antigravity": {
+      "base_args": [],
+      "binary": "agy",
+      "model_args": [
+        "--model",
+        "{model}"
+      ],
+      "output": "stdout",
+      "prompt_args": [
+        "--print",
+        "{prompt}"
+      ]
+    },
+    "claude": {
+      "base_args": [],
+      "binary": "claude",
+      "model_args": [
+        "--model",
+        "{model}"
+      ],
+      "output": "stdout",
+      "prompt_args": [
+        "-p",
+        "{prompt}"
+      ]
+    },
+    "codex": {
+      "base_args": [
+        "exec",
+        "--full-auto",
+        "--color",
+        "never",
+        "--output-last-message",
+        "{output_file}"
+      ],
+      "binary": "codex",
+      "model_args": [
+        "--model",
+        "{model}"
+      ],
+      "output": "file_then_stdout"
+    },
+    "cursor": {
+      "base_args": [
+        "--print",
+        "--output-format",
+        "text",
+        "--mode",
+        "ask"
+      ],
+      "binary": "cursor-agent",
+      "model_args": [
+        "--model",
+        "{model}"
+      ],
+      "output": "stdout",
+      "prompt_args": [
+        "{prompt}"
+      ]
+    },
+    "devin": {
+      "base_args": [
+        "--permission-mode",
+        "auto"
+      ],
+      "binary": "devin",
+      "model_args": [
+        "--model",
+        "{model}"
+      ],
+      "output": "stdout",
+      "prompt_args": [
+        "-p",
+        "{prompt}"
+      ]
+    },
+    "gemini": {
+      "base_args": [],
+      "binary": "gemini",
+      "model_args": [
+        "-m",
+        "{model}"
+      ],
+      "output": "stdout",
+      "prompt_args": [
+        "-p",
+        "{prompt}"
+      ]
+    }
+  },
+  "credit_fallback": {
+    "antigravity": [
+      "advanced",
+      "flash",
+      "mini"
+    ],
+    "claude": [
+      "fable",
+      "opus",
+      "sonnet",
+      "haiku"
+    ],
+    "codex": [
+      "advanced",
+      "flash",
+      "mini"
+    ],
+    "cursor": [
+      "advanced",
+      "flash",
+      "mini"
+    ],
+    "devin": [],
+    "gemini": [
+      "pro",
+      "flash"
+    ]
+  },
+  "logging": {
+    "backup_count": 5,
+    "level": "INFO",
+    "max_bytes": 10485760
+  },
+  "model_tiers": {
+    "antigravity": {
+      "advanced": "claude-opus-4-6-thinking",
+      "flash": "gemini-3.6-flash-high",
+      "mini": "gemini-3.6-flash-low"
+    },
+    "claude": {
+      "fable": "claude-fable-5",
+      "haiku": "claude-haiku-4-5",
+      "opus": "claude-opus-5",
+      "sonnet": "claude-sonnet-5"
+    },
+    "codex": {
+      "advanced": "gpt-5.5",
+      "flash": "gpt-5.4",
+      "mini": "gpt-5.4-mini"
+    },
+    "cursor": {
+      "advanced": "cursor-grok-4.5-high",
+      "flash": "cursor-grok-4.5-medium",
+      "mini": "cursor-grok-4.5-low"
+    },
+    "gemini": {
+      "flash": "gemini-3-flash-preview",
+      "pro": "gemini-3-pro-preview"
+    }
+  },
+  "output": {
+    "keep_last": 50
+  },
+  "rate_limits": {
+    "antigravity": {
+      "burst_size": 10,
+      "requests_per_minute": 100
+    },
+    "claude": {
+      "burst_size": 5,
+      "requests_per_minute": 60,
+      "tokens_per_minute": 160000
+    },
+    "codex": {
+      "burst_size": 10,
+      "requests_per_minute": 100
+    },
+    "cursor": {
+      "burst_size": 10,
+      "requests_per_minute": 100
+    },
+    "devin": {
+      "burst_size": 10,
+      "requests_per_minute": 100
+    },
+    "gemini": {
+      "burst_size": 3,
+      "requests_per_minute": 30,
+      "tokens_per_minute": 32000
+    }
+  },
+  "skillclaw_evolve": {
+    "provider": "auto"
+  },
+  "streaming": {
+    "enabled": true,
+    "max_display_chars": 500,
+    "refresh_rate": 4
+  },
+  "synthesis": {
+    "backend": "auto",
+    "enabled": true,
+    "model": "sonnet",
+    "provider": "auto",
+    "provider_order": [
+      "antigravity",
+      "cursor",
+      "gemini",
+      "codex",
+      "claude",
+      "devin"
+    ],
+    "threshold": 0.5,
+    "timeout": 300
+  },
+  "timeouts": {
+    "analyze": 900,
+    "default": 120,
+    "improve": 300,
+    "review": 600
+  },
+  "validation": {
+    "consensus_threshold": {
+      "high": 0.8,
+      "low": 0.3,
+      "medium": 0.5
+    }
+  }
+}

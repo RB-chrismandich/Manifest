@@ -12,6 +12,7 @@ setup() {
     TMPDIR_T="$(mktemp -d)"
     SRC="$TMPDIR_T/src.json"
     TGT="$TMPDIR_T/tgt.json"
+    EXISTING_HOME_FIXTURE="$REPO_ROOT/tests/bats/fixtures/deploy_hooks/existing-gemini-settings.json"
 
     # Minimal stubs for the helpers merge_settings_hooks uses
     command_exists() { command -v "$1" > /dev/null 2>&1; }
@@ -74,6 +75,29 @@ print('no-duplicates')"
     assert_output --partial "no-duplicates"
 }
 
+@test "existing Gemini home drops only the legacy version-pin hook" {
+    cp "$EXISTING_HOME_FIXTURE" "$TGT"
+
+    run merge_settings_hooks "$REPO_ROOT/configs/gemini/settings.json" "$TGT"
+    assert_success
+    run merge_settings_hooks "$REPO_ROOT/configs/gemini/settings.json" "$TGT"
+    assert_success
+    assert_output --partial "already has"
+
+    run python3 -c "
+import json
+d = json.load(open('$TGT'))
+hooks = [h for entries in d['hooks'].values() for entry in entries for h in entry.get('hooks', [])]
+commands = [h.get('command', '') for h in hooks]
+assert not any(c.endswith('/.claude/scripts/version_pin_hook.sh') for c in commands), hooks
+for expected in ('guidance_hint.py', 'spec_review.sh --silent', 'lint_on_edit_hook.sh', 'deploy_stamp_check.sh', '/opt/user-hooks/keep-me.sh'):
+    assert sum(c.endswith(expected) for c in commands) == 1, (expected, hooks)
+assert d['mcpServers']['user-server']['url'] == 'https://example.test'
+print('legacy-removed-unrelated-preserved')"
+    assert_success
+    assert_output "legacy-removed-unrelated-preserved"
+}
+
 @test "malformed existing settings.json fails open (file untouched, warning)" {
     echo '{ not json' > "$TGT"
     local before
@@ -92,4 +116,18 @@ entries = d['hooks']['BeforeAgent']
 assert any('token-conserve' in json.dumps(e) for e in entries)
 print('source-hook-present')"
     assert_output --partial "source-hook-present"
+}
+
+@test "repo settings source keeps version-pin degraded instead of duplicating its plugin hook" {
+    run python3 -c "
+import json
+d = json.load(open('$REPO_ROOT/configs/gemini/settings.json'))
+encoded = json.dumps(d)
+assert 'version_pin_hook.sh' not in encoded, encoded
+assert '\"name\": \"version-pin\"' not in encoded, encoded
+after = json.dumps(d['hooks']['AfterTool'])
+assert 'spec-review' in after and 'lint-on-edit' in after, after
+print('plugin-owned-version-pin')"
+    assert_success
+    assert_output --partial "plugin-owned-version-pin"
 }

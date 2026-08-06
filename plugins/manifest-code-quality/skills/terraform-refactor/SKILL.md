@@ -12,7 +12,7 @@ refactoring report with prioritized recommendations.
 ## Parallel Agent Integration
 
 This command ALWAYS uses parallel agents (security-critical).
-Executes: `manifest parallel-agent --json --full-output --validate --analyze`
+Executes: `[[skill:parallel-agent]] --json --full-output --validate --analyze`
 
 ## Task
 
@@ -34,7 +34,7 @@ Your goals:
 Before starting analysis, check for known patterns relevant to this codebase:
 
 ```bash
-~/.claude/scripts/learning_capture.sh query --language terraform --format llm
+[[skill:learning-capture]] query --language terraform --format llm
 ```
 
 If the knowledge base contains relevant antipatterns or insights for Terraform/OpenTofu:
@@ -206,7 +206,7 @@ After completing the analysis, capture the most significant findings:
    - Run:
 
      ```bash
-     ~/.claude/scripts/learning_capture.sh add \
+     [[skill:learning-capture]] add \
        --category antipattern --language terraform \
        --title "<finding title>" \
        --description "<finding description and recommended fix>" \
@@ -217,7 +217,7 @@ After completing the analysis, capture the most significant findings:
    - Run:
 
      ```bash
-     ~/.claude/scripts/learning_capture.sh add \
+     [[skill:learning-capture]] add \
        --category tool_discovery --language terraform \
        --title "<tool recommendation>" \
        --description "<why this tool is better>" \
@@ -228,10 +228,12 @@ After completing the analysis, capture the most significant findings:
 
 ## Sub-agent dispatch
 
+Follow the bundled `sub-agent-dispatch.md` selection rules. Dispatches use the
+pinned `sonnet` model.
+
 When ≥3 independent modules or stacks exist, dispatch one sub-agent per module to analyze it, then merge findings;
-below that, analyze inline. Pick the mechanism per the shared Sub-Agent Selection Rules
-(`configs/claude/references/sub-agent-dispatch.md`): native Task sub-agents on Claude, or `manifest parallel-agent` /
+below that, analyze inline. Use native Task sub-agents on Claude, or `[[skill:parallel-agent]]` /
 inline on other assistants. Dispatched sub-agents execute their task directly and do not re-dispatch.
 
-Dispatch on **Sonnet** (`subagent_model: sonnet` in `command_config.yml`) — pass the model
+Dispatch on **Sonnet** (`subagent_model: sonnet`) — pass the model
 explicitly; inheriting the session's model bills premium rates for fan-out work.

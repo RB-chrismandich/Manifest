@@ -9,6 +9,8 @@ import argparse
 import subprocess
 from pathlib import Path
 
+from runtime.tool_config import get_default_path
+
 ROOT = Path(__file__).resolve().parent
 REMOVE = ROOT / "remove_hooks.py"
 REMOVE_PLUGIN = ROOT / "remove_opencode_plugin.py"
@@ -27,6 +29,7 @@ def main() -> None:
     )
     args = ap.parse_args()
     dry = ["--dry-run"] if args.dry_run else []
+    owner = ["--owner", f"manifest:{Path(args.plugin).stem}"]
 
     run(
         [
@@ -34,9 +37,10 @@ def main() -> None:
             "--tool",
             "claude",
             "--path",
-            str(Path("~/.claude/settings.json").expanduser()),
+            str(get_default_path("claude")),
             "--command",
             args.command,
+            *owner,
             *dry,
         ]
     )
@@ -47,9 +51,10 @@ def main() -> None:
             "--tool",
             "gemini",
             "--path",
-            str(Path("~/.gemini/settings.json").expanduser()),
+            str(get_default_path("gemini")),
             "--command",
             args.command,
+            *owner,
             *dry,
         ]
     )
@@ -60,9 +65,10 @@ def main() -> None:
             "--tool",
             "cursor",
             "--path",
-            str(Path("~/.cursor/hooks.json").expanduser()),
+            str(get_default_path("cursor")),
             "--command",
             args.command,
+            *owner,
             *dry,
         ]
     )

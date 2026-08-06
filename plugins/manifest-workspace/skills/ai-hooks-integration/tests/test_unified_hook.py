@@ -83,19 +83,19 @@ class TestShouldDropEvent(unittest.TestCase):
         self.assertTrue(should_drop)
         self.assertIn("dedicated plugin", reason)
 
-    def test_drop_cursor_reading_claude_dir(self):
-        """Cursor reading .claude/ directory should be dropped."""
+    def test_cursor_payload_is_not_rerouted_through_claude_storage(self):
+        """A Cursor-native hook keeps its declared source and payload."""
         payload = {"cwd": "/Users/user/.claude/settings"}
         should_drop, reason = should_drop_event("cursor", payload)
-        self.assertTrue(should_drop)
-        self.assertIn(".claude", reason)
+        self.assertFalse(should_drop)
+        self.assertEqual(reason, "")
 
-    def test_drop_cursor_command_accessing_claude(self):
-        """Cursor command accessing .claude should be dropped."""
+    def test_cursor_command_is_not_used_for_source_inference(self):
+        """Command text never changes the selected native harness."""
         payload = {"tool_input": {"command": "cat ~/.claude/settings.json"}}
         should_drop, reason = should_drop_event("cursor", payload)
-        self.assertTrue(should_drop)
-        self.assertIn(".claude", reason)
+        self.assertFalse(should_drop)
+        self.assertEqual(reason, "")
 
     def test_allow_cursor_normal_events(self):
         """Normal Cursor events should be allowed."""
@@ -200,6 +200,30 @@ class TestResponses(unittest.TestCase):
         self.assertEqual(
             allow_response("PostToolUse")["hookSpecificOutput"]["hookEventName"],
             "PostToolUse",
+        )
+
+    def test_gemini_responses_use_decision_contract(self):
+        """Gemini BeforeTool hooks consume decision/reason, not Claude output."""
+        self.assertEqual(allow_response("BeforeTool", "gemini"), {"decision": "allow"})
+        self.assertEqual(
+            deny_response("blocked", "BeforeTool", "gemini"),
+            {"decision": "deny", "reason": "blocked"},
+        )
+
+    def test_cursor_responses_use_permission_contract(self):
+        """Cursor shell hooks consume permission and optional messages."""
+        self.assertEqual(
+            allow_response("beforeShellExecution", "cursor"),
+            {"permission": "allow", "continue": True},
+        )
+        self.assertEqual(
+            deny_response("blocked", "beforeShellExecution", "cursor"),
+            {
+                "permission": "deny",
+                "continue": False,
+                "user_message": "blocked",
+                "agent_message": "blocked",
+            },
         )
         self.assertEqual(
             deny_response("x", "PostToolUse")["hookSpecificOutput"]["hookEventName"],

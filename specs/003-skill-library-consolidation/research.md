@@ -121,7 +121,7 @@ Implementation: convert bare `echo ... >&2` and any `print_error` usages inside
 
 ## R8. Cluster inventory verification (FR-001)
 
-All 19 cluster member directories verified present in `.skillshare/skills/`.
+All 19 cluster member directories verified present in `.retired skill supply/skills/`.
 Deletion math: PR comments −2, session memory −1, live-data −3, premise
 verification −4, component retirement −2 = **12 deletions**, 81 → **69**
 skills. (Spec corrected from the review's "~14/67" estimate.)

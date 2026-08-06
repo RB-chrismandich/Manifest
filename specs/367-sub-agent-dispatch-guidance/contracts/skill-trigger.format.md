@@ -35,7 +35,7 @@ cross-platform fallback. Dispatched sub-agents execute their task directly and d
 ```
 
 > **Reference style**: use a deployment-stable *descriptive* pointer to the reference doc, NOT a
-> relative markdown link. `SKILL.md` lives three levels deep in source (`.skillshare/skills/<skill>/`)
+> relative markdown link. `SKILL.md` lives three levels deep in source (`.retired skill supply/skills/<skill>/`)
 > and deploys to a different root than the reference (`~/.claude/skills/` vs
 > `~/.claude/references/`), so no relative path resolves in both places.
 

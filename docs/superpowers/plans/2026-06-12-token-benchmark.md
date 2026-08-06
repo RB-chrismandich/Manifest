@@ -38,7 +38,7 @@ python -m pytest tests/python/token_benchmark/ -v
 | `tests/python/token_benchmark/test_harness.py` | Create | Harness unit tests (mocked APIs) |
 | `tests/python/token_benchmark/test_reporter.py` | Create | Reporter unit tests |
 | `docs/TOKEN_BENCHMARK.md` | Create | Living report template (initially empty tables) |
-| `.skillshare/skills/token-benchmark/SKILL.md` | Create | `/token-benchmark` skill |
+| `.retired skill supply/skills/token-benchmark/SKILL.md` | Create | `/token-benchmark` skill |
 | `configs/claude/config/command_config.yml` | Modify | Add `tool_policies` entry for token-benchmark |
 
 ---
@@ -1733,12 +1733,12 @@ git commit -m "feat: add manifest fixture snapshot and empty TOKEN_BENCHMARK.md 
 ## Task 7: /token-benchmark SKILL.md + command_config.yml
 
 **Files:**
-- Create: `.skillshare/skills/token-benchmark/SKILL.md`
+- Create: `.retired skill supply/skills/token-benchmark/SKILL.md`
 - Modify: `configs/claude/config/command_config.yml`
 
 - [ ] **Step 1: Create the skill**
 
-Create `.skillshare/skills/token-benchmark/SKILL.md`:
+Create `.retired skill supply/skills/token-benchmark/SKILL.md`:
 
 ```markdown
 ---
@@ -1850,8 +1850,8 @@ python3 -c "import yaml; yaml.safe_load(open('configs/claude/config/command_conf
 - [ ] **Step 3: Verify skill is discoverable**
 
 ```bash
-ls .skillshare/skills/token-benchmark/SKILL.md
-grep "^name:" .skillshare/skills/token-benchmark/SKILL.md
+ls .retired skill supply/skills/token-benchmark/SKILL.md
+grep "^name:" .retired skill supply/skills/token-benchmark/SKILL.md
 ```
 
 Expected: `name: token-benchmark`
@@ -1859,7 +1859,7 @@ Expected: `name: token-benchmark`
 - [ ] **Step 4: Commit**
 
 ```bash
-git add .skillshare/skills/token-benchmark/SKILL.md configs/claude/config/command_config.yml
+git add .retired skill supply/skills/token-benchmark/SKILL.md configs/claude/config/command_config.yml
 git commit -m "feat: add /token-benchmark skill and command_config tool_policies entry"
 ```
 

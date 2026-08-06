@@ -12,9 +12,9 @@ on the stale items once they confirm.
 This skill is an **orchestrator**. It does not reimplement PR or branch logic;
 it composes two existing, hardened skills:
 
-- `pr-review` → `~/.claude/scripts/pr_review.sh` (platform detection, CI rollup,
+- `pr-review` → `../../runtime/bin/pr_review.sh` (platform detection, CI rollup,
   mergeability, per-PR disposition). Analysis-only.
-- `branch-clean` → `~/.claude/scripts/branch_clean.sh` (merged / `[gone]` /
+- `branch-clean` → `../../runtime/bin/branch_clean.sh` (merged / `[gone]` /
   stale grouping, protected-glob and current-branch guards). Dry-run by default.
 
 Reusing them means this skill inherits their safety rails and stays correct when
@@ -43,10 +43,10 @@ Run three read-only sources and capture their output. None mutates anything.
 
 ```bash
 # (a) Per-PR disposition: mergeability, checks, staleness, superseded
-~/.claude/scripts/pr_review.sh --json            # add --stale-days N to tune
+../../runtime/bin/pr_review.sh --json            # add --stale-days N to tune
 
 # (b) Conservative branch candidates (merged-by-fast-forward / [gone] / stale-by-date)
-~/.claude/scripts/branch_clean.sh                # dry-run; add --stale-days N
+../../runtime/bin/branch_clean.sh                # dry-run; add --stale-days N
 
 # (c) Squash-merge-aware enrichment the other two can't provide:
 #     open-PR diff sizes (empty-PR detection) + branch<->PR-state correlation
@@ -70,7 +70,7 @@ normal repo:
 
 Use a consistent staleness window across all three (default to the repo's
 configured value; if the user names a number, pass the same `--stale-days N` to
-each). Detect the platform with `~/.claude/scripts/git_platform.sh` if you need
+each). Detect the platform with `../../runtime/bin/git_platform.sh` if you need
 to name it (github / gitlab / git).
 
 Handle the distinct failure modes: an **empty queue / no candidates** is a clean
@@ -95,7 +95,7 @@ _<date> · stale threshold: <N>d_
 
 ### ✅ Ready to merge (<n>)
 - **#<num>** <title> — `<branch>` · checks ✓ · <age>
-  → Next: merge — `~/.claude/scripts/git_ops.sh pr-merge <num>`
+  → Next: merge — `../../runtime/bin/git_ops.sh pr-merge <num>`
 
 ### 🔧 Needs work (<n>)
 - **#<num>** <title> — <conflict / failing checks / draft-with-activity>
@@ -154,7 +154,7 @@ on `keep`, `needs-work`, or `confirm-individually` items without a separate OK.
 trail explains *why*:
 
 ```bash
-~/.claude/scripts/git_ops.sh pr-close <num> --comment "Closing as stale: <reason>. Reopen if still needed."
+../../runtime/bin/git_ops.sh pr-close <num> --comment "Closing as stale: <reason>. Reopen if still needed."
 ```
 
 **Delete branches**, by class. The split matters because force-delete is only
@@ -162,7 +162,7 @@ safe when something else proves the work is preserved:
 
 ```bash
 # merged-ff + [gone]: hand to branch_clean.sh — its guarded -d path is enough
-~/.claude/scripts/branch_clean.sh --apply              # local, prompts (--yes to skip)
+../../runtime/bin/branch_clean.sh --apply              # local, prompts (--yes to skip)
 
 # merged-pr (squash-merged): branch_clean refuses these (-d sees them as unmerged),
 # but the merged PR proves the work landed, so -D is safe HERE and only here.
@@ -207,10 +207,14 @@ Report the outcome per item (`closed` / `deleted` / `FAILED` + reason).
 
 ## Sub-agent dispatch
 
+Follow the bundled `sub-agent-dispatch.md` selection rules. Dispatches use the
+pinned `sonnet` model.
+
 When ≥3 open PRs or stale branches exist, dispatch one sub-agent per PR/branch batch to assess disposition, then
-consolidate; below that, sweep inline. Pick the mechanism per the shared Sub-Agent Selection Rules
-(`configs/claude/references/sub-agent-dispatch.md`): native Task sub-agents on Claude, or `manifest parallel-agent` /
-inline on other assistants. Dispatched sub-agents execute their task directly and do not re-dispatch.
+consolidate; below that, sweep inline. Pick the mechanism from the current
+harness's native sub-agent dispatch contract: native Task sub-agents where
+available, or `[[skill:parallel-agent]]` / inline on other assistants. Dispatched
+sub-agents execute their task directly and do not re-dispatch.
 
 Dispatch on **Sonnet** (`subagent_model: sonnet` in `command_config.yml`) — pass the model
 explicitly; inheriting the session's model bills premium rates for fan-out work.

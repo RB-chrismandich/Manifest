@@ -1,6 +1,6 @@
 ---
 name: deploy-diagnose-drift
-description: Use when a deployed/live environment is missing expected state (symlinks, files, config) after bootstrap/deploy — even on already-bootstrapped machines — to classify the gap (incomplete run, deployer bug, preserve-on-existing drop) and fix the source of truth.
+description: Use when a deployed/live environment is missing expected state (symlinks, files, config) after deployment — even on existing machines — to classify the gap (incomplete run, deployer bug, preserve-on-existing drop) and fix the source of truth.
 ---
 # Root-Cause Deploy Drift, Don't Just Backfill
 
@@ -9,7 +9,7 @@ symlinks exists), resist patching only the live symptom.
 
 1. **Triangulate the sources of truth.** A deploy concern usually has three: the source definition
    (`configs/<x>/`), the human docs (`CLAUDE.md` / README manual-deploy section), and the deploy
-   function that actually runs (`bootstrap/lib/*.sh`). Read all three and compare counts/contents.
+   function that actually runs in the owning bundle or harness integration. Read all three and compare counts/contents.
 2. **Classify the gap.** Read both the deployer's fresh-install and existing-install branches, then pick one class:
    - **Incomplete run** — the deployer is correct but didn't finish; a re-run fixes it.
    - **Deployer bug** — source + docs agree on N but the deployer produces fewer on every run. State
@@ -17,7 +17,7 @@ symlinks exists), resist patching only the live symptom.
    - **Preserve-on-existing drop** — the deployer overwrites only *fresh* installs and **preserves**
      the file on already-bootstrapped machines (logs "existing found — preserving / manual merge may
      be needed" and skips). Then every repo-owned entry you later add to that file works on a clean
-     machine and in tests but **silently never reaches existing installs**. Suspect this when the
+   machine and in tests but **silently never reaches existing installs**. Suspect this when the
      missing item is a recently-added entry in a config the deployer treats as user-owned
      (`settings.json`, `mcpServers`, files mixing auth tokens + repo defaults).
 3. **Fix at the deployer, reusing existing helpers.** Prefer the shared helper siblings already use
@@ -28,7 +28,7 @@ symlinks exists), resist patching only the live symptom.
    It must be idempotent (re-run adds nothing), fail-open on parse error (leave the file untouched
    and warn), and skip cleanly if the merge tool (`python3`/`jq`) is unavailable. Files the deployer
    already redeploys wholesale have no gap — don't add a merge path there.
-4. **Backfill the live environment** so the user doesn't need a full re-bootstrap — for symlinks,
+4. **Backfill the live environment** so the user doesn't need a full redeploy — for symlinks,
    relink the missing items; for a preserve-on-existing file, run the new merge into the live config
    now and confirm the entry resolves:
 

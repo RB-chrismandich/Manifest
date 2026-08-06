@@ -13,7 +13,7 @@
 - **Fail-open always:** every error/edge path in the hook and the stamp writer exits 0 / returns 0. A broken check must never block session start or fail a deploy.
 - **Error output convention:** `err() { echo "deploy_stamp_check.sh: $*" >&2; }` is canonical; route diagnostics through it, gated behind `DEPLOY_STAMP_DEBUG=1` (a hook must not print on every session).
 - **`--help` required** on the user-invocable script: usage + flags, ≤15 lines, exit 0, and the help path runs BEFORE any stamp/git lookup (works in a clean env).
-- **Dirty check is scoped to `configs` and `.skillshare/skills` only** — never the whole worktree — in both the writer and the checker. Unrelated WIP must not poison the stamp or the check.
+- **Dirty check is scoped to `configs` and `.retired skill supply/skills` only** — never the whole worktree — in both the writer and the checker. Unrelated WIP must not poison the stamp or the check.
 - **Stamp format:** flat `key=value` lines, six keys: `tree_configs`, `tree_skills`, `head_sha`, `dirty`, `clone_path`, `deployed_at`.
 - **State root:** dedupe state lives at `${MANIFEST_STATE_ROOT:-$HOME/.manifest}/deploy_stamp_warned`.
 - Bats assertions use the repo's `bats-support`/`bats-assert` helpers (`load '../test_helper/bats-*/load'`).
@@ -85,7 +85,7 @@ The unit that records what was deployed. Pure function: given a clone root and a
 
 **Interfaces:**
 - Consumes: `print_info`, `print_success` (bootstrap output helpers, stubbed in tests).
-- Produces: `write_deploy_stamp <repo_root> <tgt_dir>` — writes `<tgt_dir>/config/deploy_stamp` with six `key=value` lines. Non-git `repo_root` → no stamp, return 0. `dirty` reflects `git status --porcelain -- configs .skillshare/skills` only.
+- Produces: `write_deploy_stamp <repo_root> <tgt_dir>` — writes `<tgt_dir>/config/deploy_stamp` with six `key=value` lines. Non-git `repo_root` → no stamp, return 0. `dirty` reflects `git status --porcelain -- configs .retired skill supply/skills` only.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -105,9 +105,9 @@ setup() {
     TMP="$(mktemp -d)"
     CLONE="$TMP/clone"
     TGT="$TMP/target"
-    mkdir -p "$CLONE/configs/claude" "$CLONE/.skillshare/skills/demo" "$TGT/config"
+    mkdir -p "$CLONE/configs/claude" "$CLONE/.retired skill supply/skills/demo" "$TGT/config"
     echo "orchestration guide" > "$CLONE/configs/claude/CLAUDE.md"
-    echo "demo skill" > "$CLONE/.skillshare/skills/demo/SKILL.md"
+    echo "demo skill" > "$CLONE/.retired skill supply/skills/demo/SKILL.md"
     git -C "$CLONE" init -q
     git -C "$CLONE" config user.email t@t.test
     git -C "$CLONE" config user.name test
@@ -130,7 +130,7 @@ stamp_val() { grep "^$1=" "$TGT/config/deploy_stamp" | cut -d= -f2-; }
     assert_success
     [ -f "$TGT/config/deploy_stamp" ]
     assert_equal "$(stamp_val tree_configs)" "$(git -C "$CLONE" rev-parse HEAD:configs)"
-    assert_equal "$(stamp_val tree_skills)" "$(git -C "$CLONE" rev-parse HEAD:.skillshare/skills)"
+    assert_equal "$(stamp_val tree_skills)" "$(git -C "$CLONE" rev-parse HEAD:.retired skill supply/skills)"
     assert_equal "$(stamp_val head_sha)" "$(git -C "$CLONE" rev-parse HEAD)"
     assert_equal "$(stamp_val dirty)" "false"
     assert_equal "$(stamp_val clone_path)" "$CLONE"
@@ -185,9 +185,9 @@ write_deploy_stamp() {
     }
     local tree_configs tree_skills head_sha dirty
     tree_configs="$(git -C "$repo_root" rev-parse HEAD:configs 2> /dev/null)" || return 0
-    tree_skills="$(git -C "$repo_root" rev-parse HEAD:.skillshare/skills 2> /dev/null)" || return 0
+    tree_skills="$(git -C "$repo_root" rev-parse HEAD:.retired skill supply/skills 2> /dev/null)" || return 0
     head_sha="$(git -C "$repo_root" rev-parse HEAD 2> /dev/null)" || return 0
-    if [[ -n "$(git -C "$repo_root" status --porcelain -- configs .skillshare/skills 2> /dev/null)" ]]; then
+    if [[ -n "$(git -C "$repo_root" status --porcelain -- configs .retired skill supply/skills 2> /dev/null)" ]]; then
         dirty=true
     else
         dirty=false
@@ -250,7 +250,7 @@ write_fake_stamp() {
     mkdir -p "$FHOME/.claude/config"
     cat > "$FHOME/.claude/config/deploy_stamp" << EOF
 tree_configs=$(git -C "$CLONE" rev-parse HEAD:configs)
-tree_skills=$(git -C "$CLONE" rev-parse HEAD:.skillshare/skills)
+tree_skills=$(git -C "$CLONE" rev-parse HEAD:.retired skill supply/skills)
 head_sha=$(git -C "$CLONE" rev-parse HEAD)
 dirty=$dirty
 clone_path=$CLONE
@@ -444,14 +444,14 @@ main() {
         return 0
     }
 
-    [[ -z "$(git -C "$clone_path" status --porcelain -- configs .skillshare/skills 2> /dev/null)" ]] || {
+    [[ -z "$(git -C "$clone_path" status --porcelain -- configs .retired skill supply/skills 2> /dev/null)" ]] || {
         debug "dirty sources"
         return 0
     }
 
     local cur_configs cur_skills
     cur_configs="$(git -C "$clone_path" rev-parse HEAD:configs 2> /dev/null)" || return 0
-    cur_skills="$(git -C "$clone_path" rev-parse HEAD:.skillshare/skills 2> /dev/null)" || return 0
+    cur_skills="$(git -C "$clone_path" rev-parse HEAD:.retired skill supply/skills 2> /dev/null)" || return 0
 
     if [[ "$cur_configs" == "$tree_configs" && "$cur_skills" == "$tree_skills" && "$dirty" == "false" ]]; then
         debug "up to date"
@@ -634,7 +634,7 @@ Claude-Session: https://claude.ai/code/session_019iHRkgHqwYE2sDty2oroA6"
 - Nudge format → Task 3 implementation + `--partial "Manifest deploy is stale"` assertions. ✓
 - Error handling (fail-open, `err()`, `DEPLOY_STAMP_DEBUG`, `--help`) → Global Constraints + Task 3 script + `--help` test. ✓
 - Merge-mode hook gap (spec-review finding 1) → Task 1 (generalize helper) + Task 4 Step 4. ✓
-- Dirty-scope mismatch (spec-review finding 3) → Global Constraint + Task 2 writer + Task 3 checker both scope to `configs .skillshare/skills`; test "uncommitted change OUTSIDE deploy sources keeps dirty=false". ✓
+- Dirty-scope mismatch (spec-review finding 3) → Global Constraint + Task 2 writer + Task 3 checker both scope to `configs .retired skill supply/skills`; test "uncommitted change OUTSIDE deploy sources keeps dirty=false". ✓
 - `permissions.allow` consistency entry (finding 2) → Task 4 Step 1 + wiring test. ✓
 - Out-of-scope items (auto-redeploy, mirror hooks, multi-clone) → not implemented, as intended. ✓
 

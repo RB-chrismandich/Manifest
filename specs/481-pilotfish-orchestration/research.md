@@ -112,7 +112,7 @@ rejected by the clarify decision (partial deploys and surprising mutation of for
 **Decision**: No changes needed to the naming gate or derived-doc generators; add coverage
 that confirms they stay green.
 
-**Rationale**: `skill_naming.bats` scans **only** `.skillshare/skills/` (`SKILLS_DIR`,
+**Rationale**: `skill_naming.bats` scans **only** `.retired skill supply/skills/` (`SKILLS_DIR`,
 line 13) — it does not scan `configs/claude/agents/`, so the six agent filenames (scout.md,
 Explore.md, mech-executor.md, …) do not trip the `<purpose>-<verb>` taxonomy. `generate_
 cursor_rules.sh` and `generate_commands_doc.py` derive from skills, not agents, so the new

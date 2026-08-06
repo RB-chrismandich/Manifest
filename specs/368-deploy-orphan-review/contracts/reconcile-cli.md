@@ -8,7 +8,7 @@
 > schema, exit codes, and the confirm-before-remove + recoverable-backup
 > behavior. It is the authoritative interface spec; implementation lives in
 > `configs/claude/scripts/deploy_reconcile.sh` and the skill in
-> `.skillshare/skills/deploy-reconcile/SKILL.md`.
+> `.retired skill supply/skills/deploy-reconcile/SKILL.md`.
 
 ---
 
@@ -17,7 +17,7 @@
 | Surface | Name |
 |---------|------|
 | Script | `configs/claude/scripts/deploy_reconcile.sh` (deployed to `~/.claude/scripts/deploy_reconcile.sh`) |
-| Skill | `/deploy-reconcile` (`.skillshare/skills/deploy-reconcile/SKILL.md`) |
+| Skill | `/deploy-reconcile` (`.retired skill supply/skills/deploy-reconcile/SKILL.md`) |
 | Deploy-time hook | `reconcile_deploy_report()` in `bootstrap/lib/deploy.sh`, called from `bootstrap.sh main()` after `deploy_configs` (preview-only, fail-open) |
 
 Hyphen-skill / underscore-script symmetry mirrors `branch-clean` ↔ `branch_clean.sh`.
@@ -49,7 +49,7 @@ Default invocation (no flags) = **read-only preview** of all five managed roots.
 | `--remove` | — | off | Destructive mode: move REMOVE orphans to the recoverable backup. Requires confirmation unless `--yes`. Never deletes KEEP items (FR-010/SC-005). |
 | `--yes` | `RECONCILE_ASSUME_YES=1` | off | Non-interactive confirm for `--remove` (documented automation path, FR-010). Ignored without `--remove`. |
 | `--json` | — | off | Emit the machine-readable report to stdout instead of the human preview (FR-004). Valid in both preview and `--remove` modes. |
-| `--project DIR` | `MANIFEST_REPO` | auto-detect | Repo source root used to compute "what the project would deploy" (skills from `.skillshare/skills`, configs from `configs/claude` + `configs/<assistant>`, honoring `services.yml` toggles + graphify gating + merge/full mode). Auto-detects a git repo containing `configs/claude/` upward from the script location; **exit 2** if unresolved. |
+| `--project DIR` | `MANIFEST_REPO` | auto-detect | Repo source root used to compute "what the project would deploy" (skills from `.retired skill supply/skills`, configs from `configs/claude` + `configs/<assistant>`, honoring `services.yml` toggles + graphify gating + merge/full mode). Auto-detects a git repo containing `configs/claude/` upward from the script location; **exit 2** if unresolved. |
 | `--home DIR` | `MANIFEST_RECONCILE_HOME` | `$HOME` | Override the base for **all five** managed roots (`<DIR>/.claude`, `<DIR>/.cursor`, …). Testability hook for hermetic bats + the P-VI smoke gate; the real `~/.claude` is never touched in tests. |
 | `--root DIR` | — | all 5 roots | Scope the review to a single managed root instead of all five. |
 | `--config PATH` | `RECONCILE_CONFIG` | `$SCRIPT_DIR/../config/reconcile.yml` | Protection-policy file (flat glob list under `reconcile.protected:`). Resolves to `~/.claude/config/reconcile.yml` when deployed, repo copy when tested. |

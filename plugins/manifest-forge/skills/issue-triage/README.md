@@ -37,8 +37,8 @@ Comprehensive Linear issue audit with duplicate detection, staleness analysis, a
 
 ## Prerequisites
 
-- **Linear MCP** configured in `~/.claude/config/mcp_servers.yml` OR
-- **Linear API key** in `~/.config/linear/token`
+- **Linear MCP** available in the active harness OR
+- **Linear API key** supplied through the `LINEAR_API_KEY` environment variable
 - **Tools**: `jq`, `python3`
 
 ## Arguments
@@ -62,7 +62,7 @@ Comprehensive Linear issue audit with duplicate detection, staleness analysis, a
 ## Output
 
 - **Markdown report** with recommendations
-- **JSON audit log** in `~/.claude/.agent_outputs/triage_audits/`
+- **JSON audit log** in `$XDG_STATE_HOME/manifest/forge/triage_audits/`
 - **Action summary** with counts
 
 ## Example Workflows
@@ -119,7 +119,8 @@ Consensus thresholds:
 
 ## Configuration
 
-Edit `~/.claude/config/tracker_triage.yml` to customize:
+Create `$XDG_CONFIG_HOME/manifest/forge/tracker_triage.json` to override defaults
+without modifying the immutable bundle:
 
 - Duplicate detection thresholds
 - Staleness criteria (inactivity days, file deletion ratio)
@@ -131,7 +132,7 @@ Edit `~/.claude/config/tracker_triage.yml` to customize:
 
 ### Linear authentication required
 
-- Configure Linear MCP OR set API key in `~/.config/linear/token`
+- Configure native Linear MCP auth or export `LINEAR_API_KEY` for the CLI runtime
 
 ### jq command not found
 
@@ -142,20 +143,20 @@ Edit `~/.claude/config/tracker_triage.yml` to customize:
 - Check team filter (`--team`) and priority filter (`--priority`)
 - Verify Linear API access
 
-### Permission denied: ~/.claude/scripts/linear_ops.sh
+### Permission denied: ../../runtime/bin/linear_ops.sh
 
-- Make executable: `chmod +x ~/.claude/scripts/linear_ops.sh`
+- Make executable: `chmod +x ../../runtime/bin/linear_ops.sh`
 
 ## Files
 
 | File | Purpose |
 |------|---------|
 | `SKILL.md` | Main skill implementation |
-| `~/.claude/scripts/linear_ops.sh` | Linear MCP wrapper |
-| `~/.claude/config/tracker_triage.yml` | Configuration (provider-neutral) |
+| `../../runtime/bin/linear_ops.sh` | Linear MCP wrapper |
+| `../../runtime/config/tracker_triage.json` | Configuration (provider-neutral) |
 
 ## See Also
 
 - [Linear API Documentation](https://developers.linear.app/docs)
-- [Parallel Agent Guide](~/.claude/CLAUDE.md)
-- [Plan Management](~/.claude/.plans/README.md)
+- `[[skill:parallel-agent]]` for optional consensus checks
+- The active harness's native plan-management documentation

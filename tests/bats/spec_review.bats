@@ -322,9 +322,9 @@ STUB
     assert_success
 }
 
-@test "settings.runtime.json still has the pre-existing version_pin hook" {
+@test "settings.runtime.json does not duplicate the plugin-owned version-pin hook" {
     local s="$REPO_ROOT/configs/claude/settings.runtime.json"
-    run python3 -c "import json; d=json.load(open('$s')); cmds=[h['command'] for m in d['hooks']['PostToolUse'] for h in m['hooks']]; assert any('version_pin' in c for c in cmds), cmds"
+    run python3 -c "import json; d=json.load(open('$s')); cmds=[h['command'] for m in d['hooks']['PostToolUse'] for h in m['hooks']]; assert not any('version_pin' in c for c in cmds), cmds"
     assert_success
 }
 

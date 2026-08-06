@@ -1,12 +1,12 @@
 ---
-description: "Use when the user wants agent-efficiency metrics — completion rates, error patterns, consensus scores, model usage — visualized from ~/.claude/.agent_outputs/ logs as markdown dashboard tables (\"agent dashboard\", \"metrics report\")."
+description: "Analyze bundle-owned agent result artifacts for completion, consensus, failure, latency, and provider trends without mutating runtime state."
 globs: ".claude/skills/metrics-report/**"
 alwaysApply: false
 ---
 
 # metrics-report
 
-Use when the user wants agent-efficiency metrics — completion rates, error patterns, consensus scores, model usage — visualized from ~/.claude/.agent_outputs/ logs as markdown dashboard tables ("agent dashboard", "metrics report").
+Analyze bundle-owned agent result artifacts for completion, consensus, failure, latency, and provider trends without mutating runtime state.
 
 <!-- Auto-generated from .claude/skills/metrics-report/SKILL.md -->
 <!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->

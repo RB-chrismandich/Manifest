@@ -150,7 +150,7 @@ configs/claude/
         ├── verify.py                # project-gate auto-detect + --verify-cmd (D8)
         └── persistence.py           # run dirs, state.json, report.md, audit (D7)
 
-.skillshare/skills/spec-implement-loop/SKILL.md   # user-facing skill (D12)
+.retired skill supply/skills/spec-implement-loop/SKILL.md   # user-facing skill (D12)
 configs/claude/config/command_config.yml          # + tool_policies entry (D12)
 smoke-catalog/manifest.yaml                       # + cddl Lite smoke entry (D13)
 
@@ -166,7 +166,7 @@ configs/cursor/rules/*.mdc, docs/COMMANDS.md, GEMINI/AGENTS command-index blocks
 
 **Structure Decision**: single-project layout inside the existing monorepo, mirroring
 the `smoke_test.py` → `smoke_orchestrator/` entry-shim-plus-package precedent; role
-prompts under the already-deployed `prompts/` tree; skill in the `.skillshare/skills/`
+prompts under the already-deployed `prompts/` tree; skill in the `.retired skill supply/skills/`
 source of truth. No new top-level directories.
 
 ## Phase 2 Approach: Task Generation

@@ -20,7 +20,7 @@ description: "Task list for Issue-Linking Git Hooks implementation"
 
 ## Path Conventions
 
-Shell-and-config layout (repo default). Engine + installer in `configs/claude/scripts/`; skills in `.skillshare/skills/`; config in `configs/claude/config/`; tests in `tests/bats/` + `tests/fixtures/`.
+Shell-and-config layout (repo default). Engine + installer in `configs/claude/scripts/`; skills in `.retired skill supply/skills/`; config in `configs/claude/config/`; tests in `tests/bats/` + `tests/fixtures/`.
 
 ---
 
@@ -28,7 +28,7 @@ Shell-and-config layout (repo default). Engine + installer in `configs/claude/sc
 
 **Purpose**: Scaffolding and offline test fixtures
 
-- [X] T001 Create directory scaffolding: `.skillshare/skills/pr-issue-sync/`, `.skillshare/skills/commit-issue-sync/`, `configs/claude/scripts/templates/`, `tests/fixtures/issue_support/`
+- [X] T001 Create directory scaffolding: `.retired skill supply/skills/pr-issue-sync/`, `.retired skill supply/skills/commit-issue-sync/`, `configs/claude/scripts/templates/`, `tests/fixtures/issue_support/`
 - [X] T002 [P] Add offline mock fixtures (sample `pr-view`, `issue-view`, `issue-list` JSON payloads for github & gitlab) in `tests/fixtures/issue_support/`
 - [X] T003 [P] Create `tests/bats/issue_support.bats` skeleton with `setup()`/`teardown()` that stubs `git_ops.sh`/`git_platform.sh` on `PATH` so tests run with no live tracker
 
@@ -68,7 +68,7 @@ Shell-and-config layout (repo default). Engine + installer in `configs/claude/sc
 
 - [X] T014 [US1] Add minimal `pr-edit <N>` subcommand to `configs/claude/scripts/git_ops.sh` (wraps `gh pr edit --body` / `glab mr update --description`), update its `--help`; non-destructive body append. Because `pr-edit` is a permanent public `git_ops.sh` primitive, add direct bats cases in `tests/bats/git_ops.bats` (append on github, append on gitlab, idempotent when keyword already present, graceful failure when the PR is not editable) — not only transitive coverage via `sync-pr`
 - [X] T015 [US1] Implement `sync-pr <PR_NUMBER> [--dry-run] [--no-create]` in `configs/claude/scripts/issue_support.sh`: resolve → for each open issue transition → `needs-review` (T010), back-link comment (T011), ensure `Closes #N` via `git_ops.sh pr-edit` appending when missing (FR-005); all wrapped fail-open (T009)
-- [X] T016 [US1] Create `.skillshare/skills/pr-issue-sync/SKILL.md` with `name`/`description` frontmatter; document `sync-pr` invocation, the PostToolUse trigger, fail-open behavior, and `--no-create`
+- [X] T016 [US1] Create `.retired skill supply/skills/pr-issue-sync/SKILL.md` with `name`/`description` frontmatter; document `sync-pr` invocation, the PostToolUse trigger, fail-open behavior, and `--no-create`
 - [X] T017 [US1] Create `configs/claude/scripts/install_issue_hooks.sh` with `--help`, `--enable`/`--remove`, and the unified PR PostToolUse matcher (`pr-create`|`gh pr create`|`glab mr create` → `sync-pr <N>`) via `ai-hooks-integration`; idempotent re-install (H1), opt-in no-op when not enabled (H3), fires only on the underlying command's success (H4)
 - [X] T018 [US1] Register `pr-issue-sync` per `.claude/CLAUDE.md` "Adding New Skills": add `parallel_agents`/`validation_tier` under `tool_policies.pr-issue-sync` in `command_config.yml`; verify `configs/claude/skills` symlink is intact (not replaced)
 
@@ -89,7 +89,7 @@ Shell-and-config layout (repo default). Engine + installer in `configs/claude/sc
 ### Implementation for User Story 2
 
 - [X] T020 [US2] Implement `sync-commit <SHA|HEAD> [--dry-run] [--no-create]` in `configs/claude/scripts/issue_support.sh`: resolve → transition `planned` → `in-progress` (only issues already carrying the `planned` label; unlabeled issues are outside the managed lifecycle and left untouched, per FR-006) → dedup back-link comment; read `commit_hook_mode` and on `background` fall back to `sync` + `err()` warning (v1; reserved value per FR-016)
-- [X] T021 [US2] Create `.skillshare/skills/commit-issue-sync/SKILL.md` with `name`/`description` frontmatter; document `sync-commit`, the commit trigger, dedup/idempotency, and fail-open
+- [X] T021 [US2] Create `.retired skill supply/skills/commit-issue-sync/SKILL.md` with `name`/`description` frontmatter; document `sync-commit`, the commit trigger, dedup/idempotency, and fail-open
 - [X] T022 [US2] Extend `configs/claude/scripts/install_issue_hooks.sh`: unified commit PostToolUse matcher (`git commit` → `sync-commit HEAD`) plus `--native` guarded `post-commit` installer (refuses to clobber a foreign hook H2, writes a delimited managed block) and `--remove` cleanup of both surfaces (H5)
 - [X] T023 [US2] Register `commit-issue-sync` per "Adding New Skills": add `parallel_agents`/`validation_tier` under `tool_policies.commit-issue-sync` in `command_config.yml`
 

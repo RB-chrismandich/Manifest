@@ -85,7 +85,7 @@ finding. That is the point of the round — independence is structural, so the
 lenses must not be collapsed into one inline pass sharing context. Pick the
 mechanism per the shared Sub-Agent Selection Rules
 (`configs/claude/references/sub-agent-dispatch.md`): native Task sub-agents on
-Claude, `manifest parallel-agent` or sequential re-reads elsewhere.
+Claude, `[[skill:parallel-agent]]` or sequential re-reads elsewhere.
 
 Dispatch on **Sonnet** (`subagent_model: sonnet` in `command_config.yml`). Pass
 the model explicitly; do not inherit the session's — a lens panel is wide, and

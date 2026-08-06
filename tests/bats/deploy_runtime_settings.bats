@@ -31,6 +31,7 @@ setup() {
     # shellcheck disable=SC1090
     source "$SANDBOX/fn.sh"
     SRC="$REPO_ROOT/configs/claude/settings.runtime.json"
+    EXISTING_HOME_FIXTURE="$REPO_ROOT/tests/bats/fixtures/deploy_hooks/existing-claude-settings.json"
 }
 
 teardown() {
@@ -49,13 +50,22 @@ events_in() {
     python3 -c "import json,sys; print(','.join(sorted(json.load(open(sys.argv[1]))['hooks'])))" "$1"
 }
 
+materialize_existing_home() {
+    python3 -c "
+from pathlib import Path
+import sys
+source, target, home = map(Path, sys.argv[1:])
+target.write_text(source.read_text().replace('__HOME__', str(home)))" \
+        "$EXISTING_HOME_FIXTURE" "$1" "$HOME"
+}
+
 @test "the repo ships the Agent hook in settings.runtime.json" {
     run commands_for "$SRC" PreToolUse
     assert_success
     assert_output --partial "subagent_model_default.py"
 }
 
-@test "EVERY Claude hook ships here, not in the inert settings.local.json" {
+@test "every global Claude hook ships here, not in the inert settings.local.json" {
     # settings.local.json is inert at user scope (measured), so a hook left there
     # never runs. This is the regression guard: if someone adds a hook back to
     # settings.local.json it is silently dead, and this test is what says so.
@@ -70,11 +80,11 @@ events_in() {
     assert_output "PostToolUse,PreToolUse,SessionStart,UserPromptSubmit"
 }
 
-@test "the previously-inert hooks are all present" {
+@test "the remaining global hooks are present and version-pin is plugin-owned" {
     run commands_for "$SRC" PostToolUse
-    assert_output --partial "version_pin_hook.sh"
     assert_output --partial "spec_review.sh --silent"
     assert_output --partial "lint_on_edit_hook.sh"
+    refute_output --partial "version_pin_hook.sh"
     run commands_for "$SRC" PreToolUse
     assert_output --partial "guidance_hint.py"
     run commands_for "$SRC" SessionStart
@@ -97,6 +107,40 @@ events_in() {
     assert_output --partial "subagent_model_default.py"
     run python3 -c "import json,sys; print(json.load(open(sys.argv[1]))['model'])" "$SANDBOX/settings.json"
     assert_output "opus"
+}
+
+@test "existing Claude home drops only retired version-pin hook and permissions" {
+    materialize_existing_home "$SANDBOX/settings.json"
+
+    run merge_claude_runtime_settings "$SRC" "$SANDBOX/settings.json"
+    assert_success
+    run merge_claude_runtime_settings "$SRC" "$SANDBOX/settings.json"
+    assert_success
+    assert_output --partial "already has"
+
+    run python3 -c "
+import json, sys
+d = json.load(open(sys.argv[1]))
+commands = [h.get('command', '') for entries in d['hooks'].values() for entry in entries for h in entry.get('hooks', [])]
+assert not any(c.endswith('/.claude/scripts/version_pin_hook.sh') for c in commands), commands
+for expected in ('guidance_hint.py', 'spec_review.sh --silent', 'lint_on_edit_hook.sh', 'deploy_stamp_check.sh', '/opt/user-hooks/keep-me.sh'):
+    assert sum(c.endswith(expected) for c in commands) == 1, (expected, commands)
+assert d['model'] == 'opus'
+allow = d['permissions']['allow']
+retired = {
+    'Bash(~/.claude/scripts/version_pin.sh:*)',
+    'Bash(~/.claude/scripts/version_pin_hook.sh:*)',
+}
+assert retired.isdisjoint(allow), allow
+assert allow[:4] == [
+    'Bash(/opt/user-hooks/keep-before.sh:*)',
+    'Bash(~/.claude/scripts/guidance_hint.py:*)',
+    'Bash(~/.claude/scripts/version_pin.sh --check:*)',
+    'Bash(/opt/user-hooks/keep-after.sh:*)',
+], allow
+print('legacy-removed-unrelated-preserved')" "$SANDBOX/settings.json"
+    assert_success
+    assert_output "legacy-removed-unrelated-preserved"
 }
 
 @test "is idempotent: a second run does not duplicate the entry" {

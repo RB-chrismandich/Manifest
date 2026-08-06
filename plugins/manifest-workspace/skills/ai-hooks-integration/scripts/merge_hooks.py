@@ -83,6 +83,7 @@ def main() -> None:
     ap.add_argument("--path", required=True)
     ap.add_argument("--command", help="Hook command to inject")
     ap.add_argument("--matcher", help="Override matcher for nested hooks")
+    ap.add_argument("--owner", help="Ownership marker added to Manifest entries")
     ap.add_argument(
         "--force", action="store_true", help="Overwrite existing plugin file (opencode)"
     )
@@ -132,12 +133,18 @@ def main() -> None:
                     {
                         "type": "command",
                         "command": args.command,
+                        **({"manifest_owner": args.owner} if args.owner else {}),
                     }
                 ],
             }
         )
     else:
-        hooks[hook_key].append({"command": args.command})
+        hooks[hook_key].append(
+            {
+                "command": args.command,
+                **({"manifest_owner": args.owner} if args.owner else {}),
+            }
+        )
 
     save_json(path, data, args.dry_run)
 

@@ -641,6 +641,9 @@ tool_policies:
     subagents: conditional
     subagent_trigger: target_files >= 3
     subagent_model: sonnet
+  parallel-agent:
+    subagents: never
+    subagent_rationale: The skill is the cross-harness invocation mechanism itself; nested fan-out would duplicate its bounded worker set.
   pr-address-comments:
     subagents: never
     subagent_rationale: Single PR; fixes mutate one working tree and must be re-tested/pushed sequentially.
@@ -649,49 +652,49 @@ tool_policies:
     subagent_rationale: Single hook-install operation editing shared config files; not a multi-item fan-out.
   code-to-design:
     subagents: never
-    subagent_rationale: "Vendored Stitch MCP skill (skillshare): single sequential design-upload workflow, not a fan-out."
+    subagent_rationale: "Vendored Stitch MCP skill (retired skill supply): single sequential design-upload workflow, not a fan-out."
   design-md:
     subagents: never
-    subagent_rationale: "Vendored Stitch MCP skill (skillshare): single-project analysis producing one DESIGN.md."
+    subagent_rationale: "Vendored Stitch MCP skill (retired skill supply): single-project analysis producing one DESIGN.md."
   enhance-prompt:
     subagents: never
-    subagent_rationale: "Vendored Stitch MCP skill (skillshare): single-prompt rewrite, not a multi-item fan-out."
+    subagent_rationale: "Vendored Stitch MCP skill (retired skill supply): single-prompt rewrite, not a multi-item fan-out."
   extract-design-md:
     subagents: never
-    subagent_rationale: "Vendored Stitch MCP skill (skillshare): single-project source scan producing one DESIGN.md."
+    subagent_rationale: "Vendored Stitch MCP skill (retired skill supply): single-project source scan producing one DESIGN.md."
   extract-static-html:
     subagents: never
-    subagent_rationale: "Vendored Stitch MCP skill (skillshare): single-target HTML extraction."
+    subagent_rationale: "Vendored Stitch MCP skill (retired skill supply): single-target HTML extraction."
   generate-design:
     subagents: never
-    subagent_rationale: "Vendored Stitch MCP skill (skillshare): single design-generation request against the Stitch MCP server."
+    subagent_rationale: "Vendored Stitch MCP skill (retired skill supply): single design-generation request against the Stitch MCP server."
   manage-design-system:
     subagents: never
-    subagent_rationale: "Vendored Stitch MCP skill (skillshare): single design-system upload/apply operation."
+    subagent_rationale: "Vendored Stitch MCP skill (retired skill supply): single design-system upload/apply operation."
   react-components:
     subagents: never
-    subagent_rationale: "Vendored Stitch MCP skill (skillshare): sequential fetch-then-convert workflow with its own validation gates."
+    subagent_rationale: "Vendored Stitch MCP skill (retired skill supply): sequential fetch-then-convert workflow with its own validation gates."
   react-native:
     subagents: never
-    subagent_rationale: "Vendored Stitch MCP skill (skillshare): sequential fetch-then-convert workflow with its own validation gates."
+    subagent_rationale: "Vendored Stitch MCP skill (retired skill supply): sequential fetch-then-convert workflow with its own validation gates."
   react-vite-dashboard:
     subagents: never
-    subagent_rationale: "Vendored Stitch MCP skill (skillshare): sequential fetch-then-convert workflow with its own validation gates."
+    subagent_rationale: "Vendored Stitch MCP skill (retired skill supply): sequential fetch-then-convert workflow with its own validation gates."
   remotion:
     subagents: never
-    subagent_rationale: "Vendored Stitch MCP skill (skillshare): single video-render pipeline, not a multi-item fan-out."
+    subagent_rationale: "Vendored Stitch MCP skill (retired skill supply): single video-render pipeline, not a multi-item fan-out."
   shadcn-ui:
     subagents: never
-    subagent_rationale: "Vendored Stitch MCP skill (skillshare): reference/setup guidance skill, not a multi-item fan-out."
+    subagent_rationale: "Vendored Stitch MCP skill (retired skill supply): reference/setup guidance skill, not a multi-item fan-out."
   stitch-loop:
     subagents: never
-    subagent_rationale: "Vendored Stitch MCP skill (skillshare): single-agent baton-passing loop across iterations, not a fan-out."
+    subagent_rationale: "Vendored Stitch MCP skill (retired skill supply): single-agent baton-passing loop across iterations, not a fan-out."
   taste-design:
     subagents: never
-    subagent_rationale: "Vendored Stitch MCP skill (skillshare): single DESIGN.md generation, not a multi-item fan-out."
+    subagent_rationale: "Vendored Stitch MCP skill (retired skill supply): single DESIGN.md generation, not a multi-item fan-out."
   upload-to-stitch:
     subagents: never
-    subagent_rationale: "Vendored Stitch MCP skill (skillshare): single asset-upload operation."
+    subagent_rationale: "Vendored Stitch MCP skill (retired skill supply): single asset-upload operation."
   ai-code-audit:
     allowed:
       - Read
@@ -758,9 +761,6 @@ tool_policies:
   docker-audit-firewall:
     subagents: never
     subagent_rationale: Single firewall/port audit of one deploy config; sequential chain analysis.
-  graphify:
-    subagents: never
-    subagent_rationale: Thin wrapper over a single graphify CLI invocation; sequential.
   llm-invoke-stdin:
     subagents: never
     subagent_rationale: Single coding pattern for wiring one LLM CLI call behind a stdin seam.

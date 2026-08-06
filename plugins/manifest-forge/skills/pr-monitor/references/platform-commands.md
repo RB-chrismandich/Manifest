@@ -3,8 +3,16 @@
 GitHub (`gh`) and GitLab (`glab`) commands for each phase, plus how to detect
 the AI review bots. Read this when you need the exact invocation.
 
+Before running these examples, change into the directory containing this
+reference file and establish the installed Forge runtime root:
+
+```bash
+REFERENCE_DIR=$(CDPATH='' cd -- . && pwd -P)
+FORGE_RUNTIME_DIR=$(CDPATH='' cd -- "$REFERENCE_DIR/../../../runtime" && pwd -P)
+```
+
 Bot identities used below (`author_login`, `mention`, `identified_by`) come
-from `configs/claude/config/review_bots.yml` — the registry, not this file, is
+from `$FORGE_RUNTIME_DIR/config/review_bots.json` — the registry, not this file, is
 the source of truth if a login ever changes. Commands here embed the
 registry's current values; re-check the registry, not just this cookbook, when
 a detection query stops matching.
@@ -21,7 +29,7 @@ a detection query stops matching.
 
 ```bash
 # Platform detection (repo helper): prints github | gitlab | git
-configs/claude/scripts/git_platform.sh
+$FORGE_RUNTIME_DIR/bin/git_platform.sh
 
 # GitHub — PR for the current branch
 gh pr view --json number,headRefName,baseRefName,url,state,isDraft,reviewRequests
@@ -59,7 +67,7 @@ glab ci trace <job-id>          # job log
 ## Detect Copilot
 
 GitHub Copilot code review posts as a bot. Identify it by login, not display
-name — `review_bots.yml`'s `copilot.author_login`, verified via `gh api
+name — `review_bots.json`'s `copilot.author_login`, verified via `gh api
 .../pulls/<N>/reviews` against real reviews on this repo (PRs #533-#563).
 
 ```bash
@@ -68,7 +76,7 @@ gh pr view <N> --json reviewRequests \
   --jq '.reviewRequests[] | select(.login // .name | test("[Cc]opilot"))'
 
 # Has Copilot submitted a review? (bot login: copilot-pull-request-reviewer[bot],
-# i.e. review_bots.yml -> bots.copilot.author_login)
+# i.e. review_bots.json -> bots.copilot.author_login)
 gh api repos/{owner}/{repo}/pulls/<N>/reviews \
   --jq '.[] | select(.user.login | test("copilot")) | {state, id, body}'
 ```
@@ -77,14 +85,14 @@ gh api repos/{owner}/{repo}/pulls/<N>/reviews \
   `copilot` substring is a safe filter).
 - If neither query returns anything, Copilot review is not on this PR — skip the
   Copilot phase. Do not try to add it; whether it runs is a repo/org setting
-  (`review_bots.yml`'s `copilot.invoke: automatic`).
+  (`review_bots.json`'s `copilot.invoke: automatic`).
 
 GitLab: GitHub Copilot PR review is GitHub-specific; on GitLab this phase is a
 no-op unless an equivalent review bot is configured.
 
 ## Detect / tag Jules
 
-Jules is triggered by a **comment mention** (`review_bots.yml`'s
+Jules is triggered by a **comment mention** (`review_bots.json`'s
 `jules.mention`), acted on by `.github/workflows/jules-trigger.yml`. Its login
 (`jules.author_login` = `google-labs-jules[bot]`) was confirmed via its own
 greeting comment on real PRs (#580, #581) — `gh api
@@ -115,7 +123,7 @@ glab mr note <N> --message "@google-labs-jules please review this PR"
 gh api repos/{owner}/{repo}/issues/<N>/comments \
   --jq '.[] | select(.user.login | test("jules"; "i"))'
 
-# 1b. Sibling PRs opened under a Jules persona (palette/bolt — see review_bots.yml;
+# 1b. Sibling PRs opened under a Jules persona (palette/bolt — see review_bots.json;
 # these have NO distinct bot login, so match by title/branch prefix, not author).
 # NOTE: GitHub search ANDs repeated qualifiers, so two `in:title` clauses would
 # require a single PR title containing BOTH strings (impossible) — use `OR`.

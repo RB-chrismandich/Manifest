@@ -1,12 +1,12 @@
 ---
-description: "Use when lint/test failures, security findings, or repeated (3+) review feedback surface a recurring pattern worth recording in the knowledge base."
+description: "Auto-triggered skill that analyzes linting failures, test results, and code review feedback to detect recurring antipatterns. Stores findings in the XDG-owned JSONL knowledge base via [[skill:learning-capture]]."
 globs: ".claude/skills/antipattern-detect/**"
 alwaysApply: false
 ---
 
 # antipattern-detect
 
-Use when lint/test failures, security findings, or repeated (3+) review feedback surface a recurring pattern worth recording in the knowledge base.
+Auto-triggered skill that analyzes linting failures, test results, and code review feedback to detect recurring antipatterns. Stores findings in the XDG-owned JSONL knowledge base via [[skill:learning-capture]].
 
 <!-- Auto-generated from .claude/skills/antipattern-detect/SKILL.md -->
 <!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->

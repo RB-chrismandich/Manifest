@@ -23,7 +23,7 @@ it lives in Phase 6 (US3) because it verifies the full-coverage outcome.
 
 This is a configuration-as-code repo (no app runtime). Work touches:
 `configs/claude/config/command_config.yml`, `configs/claude/CLAUDE.md`,
-`.skillshare/skills/<skill>/SKILL.md`, and `tests/bats/`.
+`.retired skill supply/skills/<skill>/SKILL.md`, and `tests/bats/`.
 
 ⚠️ **Same-file serialization**: Many tasks edit the single file
 `configs/claude/config/command_config.yml`. Tasks editing it are **NOT** `[P]` with each other.
@@ -36,7 +36,7 @@ Tasks editing distinct `SKILL.md` files **are** `[P]`.
 **Purpose**: Confirm a green baseline before any edits.
 
 - [X] T001 Confirm baseline is green: run `bats tests/bats/` and `yamllint configs/claude/config/command_config.yml`; record current pass state.
-- [X] T002 Confirm authoritative skill count dynamically: `find .skillshare/skills -mindepth 1 -maxdepth 1 -type d -exec test -f '{}/SKILL.md' \; -print | wc -l` (expect 88) and that 58 lack a `tool_policies` entry — capture the missing list for Phase 6.
+- [X] T002 Confirm authoritative skill count dynamically: `find .retired skill supply/skills -mindepth 1 -maxdepth 1 -type d -exec test -f '{}/SKILL.md' \; -print | wc -l` (expect 88) and that 58 lack a `tool_policies` entry — capture the missing list for Phase 6.
 
 ---
 
@@ -64,16 +64,16 @@ per-agent task + link to shared rules) is present, and its threshold matches `su
 `command_config.yml`.
 
 - [X] T005 [US1] Set `subagents` (+ `subagent_trigger` where conditional) for the MVP set in `configs/claude/config/command_config.yml` (single-file, serial edit): `docs-all`=always; `deep-research`=always; `refactor-python`/`refactor-node`/`refactor-go`/`refactor-shell`/`refactor-terraform`=conditional `subagent_trigger: "independent_units >= 3"`; `repo-hygiene`=conditional; `pr-review`=conditional; `issue-triage`=conditional.
-- [X] T006 [P] [US1] Reconcile existing dispatch prose in `.skillshare/skills/docs-all/SKILL.md` into the standard trigger form (per `contracts/skill-trigger.format.md`), linking `#sub-agent-selection-rules`; do not duplicate the rules.
-- [X] T007 [P] [US1] Add dispatch trigger to `.skillshare/skills/deep-research/SKILL.md` (one sub-agent per independent search/source cluster).
-- [X] T008 [P] [US1] Add dispatch trigger to `.skillshare/skills/refactor-python/SKILL.md` (one sub-agent per independent module/dimension when ≥3).
-- [X] T009 [P] [US1] Add dispatch trigger to `.skillshare/skills/refactor-node/SKILL.md`.
-- [X] T010 [P] [US1] Add dispatch trigger to `.skillshare/skills/refactor-go/SKILL.md`.
-- [X] T011 [P] [US1] Add dispatch trigger to `.skillshare/skills/refactor-shell/SKILL.md`.
-- [X] T012 [P] [US1] Add dispatch trigger to `.skillshare/skills/refactor-terraform/SKILL.md`.
-- [X] T013 [P] [US1] Add dispatch trigger to `.skillshare/skills/repo-hygiene/SKILL.md` (one sub-agent per PR/branch batch).
-- [X] T014 [P] [US1] Add dispatch trigger to `.skillshare/skills/pr-review/SKILL.md` (one sub-agent per open PR when ≥3).
-- [X] T015 [P] [US1] Add dispatch trigger to `.skillshare/skills/issue-triage/SKILL.md` (one sub-agent per issue batch).
+- [X] T006 [P] [US1] Reconcile existing dispatch prose in `.retired skill supply/skills/docs-all/SKILL.md` into the standard trigger form (per `contracts/skill-trigger.format.md`), linking `#sub-agent-selection-rules`; do not duplicate the rules.
+- [X] T007 [P] [US1] Add dispatch trigger to `.retired skill supply/skills/deep-research/SKILL.md` (one sub-agent per independent search/source cluster).
+- [X] T008 [P] [US1] Add dispatch trigger to `.retired skill supply/skills/refactor-python/SKILL.md` (one sub-agent per independent module/dimension when ≥3).
+- [X] T009 [P] [US1] Add dispatch trigger to `.retired skill supply/skills/refactor-node/SKILL.md`.
+- [X] T010 [P] [US1] Add dispatch trigger to `.retired skill supply/skills/refactor-go/SKILL.md`.
+- [X] T011 [P] [US1] Add dispatch trigger to `.retired skill supply/skills/refactor-shell/SKILL.md`.
+- [X] T012 [P] [US1] Add dispatch trigger to `.retired skill supply/skills/refactor-terraform/SKILL.md`.
+- [X] T013 [P] [US1] Add dispatch trigger to `.retired skill supply/skills/repo-hygiene/SKILL.md` (one sub-agent per PR/branch batch).
+- [X] T014 [P] [US1] Add dispatch trigger to `.retired skill supply/skills/pr-review/SKILL.md` (one sub-agent per open PR when ≥3).
+- [X] T015 [P] [US1] Add dispatch trigger to `.retired skill supply/skills/issue-triage/SKILL.md` (one sub-agent per issue batch).
 - [X] T016 [US1] Verify each MVP trigger's threshold equals its `subagent_trigger` in config (manual cross-check; precursor to the automated test).
 
 **Checkpoint**: MVP — a representative set demonstrates the full convention and is independently reviewable.
@@ -175,10 +175,10 @@ directory; spot-check rationales and triggers.
 
 ```text
 # After T005 sets dispositions in config, dispatch trigger-writing in parallel (distinct files):
-Task: "Add dispatch trigger to .skillshare/skills/refactor-python/SKILL.md"
-Task: "Add dispatch trigger to .skillshare/skills/refactor-node/SKILL.md"
-Task: "Add dispatch trigger to .skillshare/skills/refactor-go/SKILL.md"
-Task: "Add dispatch trigger to .skillshare/skills/deep-research/SKILL.md"
+Task: "Add dispatch trigger to .retired skill supply/skills/refactor-python/SKILL.md"
+Task: "Add dispatch trigger to .retired skill supply/skills/refactor-node/SKILL.md"
+Task: "Add dispatch trigger to .retired skill supply/skills/refactor-go/SKILL.md"
+Task: "Add dispatch trigger to .retired skill supply/skills/deep-research/SKILL.md"
 ```
 
 ## Parallel Example: User Story 3 audit fan-out (the feature, applied to itself)

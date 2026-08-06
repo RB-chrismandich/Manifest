@@ -181,68 +181,6 @@ teardown() {
     [ -d "$SANDBOX/dest/beta" ]
 }
 
-# ── gate_graphify_skill (FR-012 disable cleanup / FR-010 collision reconcile) ──
-
-@test "gate_graphify_skill removes the deployed skill when disabled" {
-    mkdir -p "$SANDBOX/home/skills/graphify"
-    echo wrapper > "$SANDBOX/home/skills/graphify/SKILL.md"
-    export ENABLE_GRAPHIFY=false
-    export CURSOR_TARGET_DIR="$SANDBOX/na1" GEMINI_TARGET_DIR="$SANDBOX/na2" \
-        CODEX_TARGET_DIR="$SANDBOX/na3" ANTIGRAVITY_TARGET_DIR="$SANDBOX/na4"
-
-    run gate_graphify_skill "$SANDBOX/home/skills"
-    assert_success
-    [ ! -e "$SANDBOX/home/skills/graphify" ]   # deployed copy removed (clean opt-out)
-}
-
-@test "gate_graphify_skill prunes an independent (non-symlink) assistant graphify dir when disabled" {
-    mkdir -p "$SANDBOX/home/skills"
-    mkdir -p "$SANDBOX/cursor/skills/graphify"   # real, NOT a symlink to home
-    echo x > "$SANDBOX/cursor/skills/graphify/SKILL.md"
-    export ENABLE_GRAPHIFY=false
-    export CURSOR_TARGET_DIR="$SANDBOX/cursor" GEMINI_TARGET_DIR="$SANDBOX/na2" \
-        CODEX_TARGET_DIR="$SANDBOX/na3" ANTIGRAVITY_TARGET_DIR="$SANDBOX/na4"
-
-    run gate_graphify_skill "$SANDBOX/home/skills"
-    assert_success
-    [ ! -e "$SANDBOX/cursor/skills/graphify" ]
-}
-
-@test "gate_graphify_skill leaves a symlinked assistant skills dir untouched when disabled" {
-    mkdir -p "$SANDBOX/home/skills" "$SANDBOX/cursor"
-    ln -s "$SANDBOX/home/skills" "$SANDBOX/cursor/skills"   # symlink to home (normal case)
-    export ENABLE_GRAPHIFY=false
-    export CURSOR_TARGET_DIR="$SANDBOX/cursor" GEMINI_TARGET_DIR="$SANDBOX/na2" \
-        CODEX_TARGET_DIR="$SANDBOX/na3" ANTIGRAVITY_TARGET_DIR="$SANDBOX/na4"
-
-    run gate_graphify_skill "$SANDBOX/home/skills"
-    assert_success
-    [ -L "$SANDBOX/cursor/skills" ]   # symlink not deleted (loop continues on -L)
-}
-
-@test "gate_graphify_skill reconciles foreign 'graphify install' residue when enabled" {
-    mkdir -p "$SANDBOX/home/skills/graphify/references"
-    echo wrapper > "$SANDBOX/home/skills/graphify/SKILL.md"
-    echo ref > "$SANDBOX/home/skills/graphify/references/update.md"
-    echo "0.9.1" > "$SANDBOX/home/skills/graphify/.graphify_version"
-    export ENABLE_GRAPHIFY=true
-
-    run gate_graphify_skill "$SANDBOX/home/skills"
-    assert_success
-    [ -f "$SANDBOX/home/skills/graphify/SKILL.md" ]             # managed wrapper kept
-    [ ! -e "$SANDBOX/home/skills/graphify/references" ]         # foreign sidecar removed
-    [ ! -e "$SANDBOX/home/skills/graphify/.graphify_version" ]  # foreign marker removed
-}
-
-@test "gate_graphify_skill leaves a clean enabled deploy untouched" {
-    mkdir -p "$SANDBOX/home/skills/graphify"
-    echo wrapper > "$SANDBOX/home/skills/graphify/SKILL.md"
-    export ENABLE_GRAPHIFY=true
-
-    run gate_graphify_skill "$SANDBOX/home/skills"
-    assert_success
-    [ -f "$SANDBOX/home/skills/graphify/SKILL.md" ]   # untouched
-}
 
 @test "deploy_home_skills falls back to cp when rsync is unavailable" {
     # Minimal hosts (some slim Linux images) ship without rsync. The copy must

@@ -11,7 +11,7 @@ If the mess comes from the branch's own commits having already merged (e.g. squa
 base — use pr-reset-reapply instead.
 
 1. Diagnose the base, don't assume it:
-   `~/.claude/scripts/git_ops.sh pr-view <n> --json mergeable,mergeStateStatus,baseRefName` (look for
+   `../../runtime/bin/git_ops.sh pr-view <n> --json mergeable,mergeStateStatus,baseRefName` (look for
    CONFLICTING/DIRTY) and `git log --oneline origin/main..HEAD` (commits you didn't author = stale base).
 2. Identify the SHA(s) of only the commit(s) you actually intend to ship (`git log --oneline`).
 3. Abort any in-progress rebase: `git rebase --abort`.

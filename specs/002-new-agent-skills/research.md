@@ -142,7 +142,7 @@ parallel with no ordering — rejected because `docs-improve` depends on prior o
 
 ## R8. Skill authoring + deployment conventions (all four)
 
-**Decision**: Each skill is `.skillshare/skills/<name>/SKILL.md` with `name` +
+**Decision**: Each skill is `.retired skill supply/skills/<name>/SKILL.md` with `name` +
 `description` frontmatter (Constitution IV). Tool policies added to
 `command_config.yml.tool_policies`; validation overrides to
 `validation_criteria.yml.command_overrides`. Deployment relies on existing

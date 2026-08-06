@@ -37,8 +37,8 @@ Parse $ARGUMENTS to extract:
 If no platform is specified, detect it:
 
 ```bash
-# Use git_platform.sh if available, otherwise check remote URL
-platform=$(~/.claude/scripts/git_platform.sh 2>/dev/null || echo "github")
+# Resolve through the helper owned by this bundle.
+platform=$(../../runtime/bin/git_platform.sh 2>/dev/null || echo "github")
 ```
 
 ### Step 2: Detect Project Languages
@@ -84,20 +84,23 @@ For each detected language, gather details:
 - Provider list: parse `required_providers`
 - Module structure: check for `modules/` directory
 
-### Step 4: Select and Customize Templates
+### Step 4: Generate and Customize the Workflow
 
-Templates are located in the Manifest repository (or deployed location):
+Generate the workflow from the detected project facts and the structures below.
+Do not search an assistant home or another plugin for templates. If the target
+repository already contains a project-owned template, ask before using it.
 
-- **GitHub**: `templates/ci/github/ci.yml`, `security.yml`, `release.yml`
-- **GitLab**: `templates/ci/gitlab/.gitlab-ci.yml`
+Use the templates packaged beside this skill as the starting point:
 
-For the canonical template source, check these paths in order:
+| Target | Bundle-local template |
+|--------|-----------------------|
+| `.github/workflows/ci.yml` | `templates/github/ci.yml` |
+| `.github/workflows/security.yml` | `templates/github/security.yml` |
+| `.github/workflows/release.yml` | `templates/github/release.yml` |
+| `.gitlab-ci.yml` | `templates/gitlab/.gitlab-ci.yml` |
 
-1. `./templates/ci/` (if running inside the Manifest repo)
-2. `~/.claude/../templates/ci/` (if Manifest is deployed)
-3. Inline generation as fallback
-
-Read the selected template(s) and customize:
+Resolve these paths from the `ci-setup` skill directory. Copy only the template
+for the selected platform, then apply the customizations below.
 
 **Customizations to apply:**
 
@@ -122,8 +125,10 @@ Read the selected template(s) and customize:
 ### Step 4.5: E2E Smoke Test Job (Optional)
 
 If `smoke-catalog/` exists in the project and contains `*.yaml` or `*.yml` files,
-add a smoke test job running the deterministic `Lite` tier (see the
-smoke-manage skill) to the CI pipeline:
+invoke `[[skill:smoke-manage]]` to identify the target project's supported
+non-interactive smoke command. Add a `Lite` smoke job only when that command is
+available in the target repository; otherwise report the omitted optional job
+instead of emitting a dependency on a Manifest coordinator CLI.
 
 **GitHub Actions** — add after the test job:
 
@@ -142,7 +147,7 @@ smoke-manage skill) to the CI pipeline:
           pip install playwright pyyaml
           python3 -m playwright install --with-deps chromium
       - name: Run smoke tests (Lite tier)
-        run: manifest smoke run --tier Lite --junit smoke-report.xml
+        run: <project-smoke-command> --tier Lite --junit smoke-report.xml
 ```
 
 **GitLab CI** — add after the test stage:
@@ -155,7 +160,7 @@ smoke-tests:
     - pip install playwright pyyaml
     - python3 -m playwright install --with-deps chromium
   script:
-    - manifest smoke run --tier Lite --junit smoke-report.xml
+    - <project-smoke-command> --tier Lite --junit smoke-report.xml
   rules:
     - exists:
         - smoke-catalog/*.yaml

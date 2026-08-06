@@ -10,27 +10,17 @@ genuinely gone.
 
 ## Shared retirement-verification core
 
-1. **Map every reference first.** Grep case-insensitively across both the repo and live home configs so you know what is
-   repo-managed vs. local-only. The home list is not hardcoded — it's every agent's `home_dir` in
-   `~/.claude/config/agent_roster.yml`:
+1. **Map every reference first.** Grep case-insensitively across the repo and the
+   selected harness's native inventory so you know what is repo-managed versus
+   local-only. Ask which harnesses are in scope; do not discover them from a
+   shared Manifest config or inspect unrelated homes:
 
    ```bash
    grep -rnil "<name>" . --exclude-dir=.git
 
-   # while-read (not mapfile — macOS ships bash 3.2, mapfile needs bash 4+)
-   agent_homes=()
-   while IFS= read -r home; do
-       agent_homes+=("$home")
-   done < <(python3 -c "
-   import yaml, os
-   roster = yaml.safe_load(open(os.path.expanduser('~/.claude/config/agent_roster.yml')))['agents']
-   for agent in roster.values():
-       print(os.path.expanduser(agent['home_dir']))
-   ")
-   grep -rnil "<name>" "${agent_homes[@]}" ~/.claude.json
+   # Repeat only for native inventory files the user selected and approved.
+   grep -nil "<name>" <selected-native-inventory-files>
    ```
-
-   `~/.claude.json` stays listed explicitly — it's a root-level runtime file, not an agent `home_dir`.
 
    If it appears in no repo files, state that the change is purely local (nothing to commit).
 2. **Verify the new artifacts actually landed**, not just that the deploy/uninstall exited 0. Check each surface

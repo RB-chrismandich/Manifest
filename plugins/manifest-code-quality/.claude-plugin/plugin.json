@@ -1,12 +1,62 @@
 {
-  "name": "manifest-code-quality",
-  "version": "0.1.1",
-  "description": "Analysis of code that already exists: per-language refactor roadmaps, constitution audit, AI-defect audits, verification gates and test craft. Requires Manifest bootstrap for ~/.claude/scripts.",
   "author": {
     "name": "ReefBytes"
   },
-  "homepage": "https://github.com/ReefBytes-Owner/Manifest",
-  "license": "Proprietary",
+  "compatibility": {
+    "degraded": [
+      {
+        "component_id": "code-audit-references",
+        "component_type": "runtime",
+        "mode": "degraded",
+        "path": "skills/code-audit/references",
+        "reason": "claude native manifest cannot encode runtime component 'code-audit-references' at 'skills/code-audit/references'"
+      },
+      {
+        "component_id": "constitution-config",
+        "component_type": "runtime",
+        "mode": "degraded",
+        "path": "skills/code-audit-constitution/config",
+        "reason": "claude native manifest cannot encode runtime component 'constitution-config' at 'skills/code-audit-constitution/config'"
+      },
+      {
+        "component_id": "constitution-references",
+        "component_type": "runtime",
+        "mode": "degraded",
+        "path": "skills/code-audit-constitution/references",
+        "reason": "claude native manifest cannot encode runtime component 'constitution-references' at 'skills/code-audit-constitution/references'"
+      },
+      {
+        "component_id": "constitution-scripts",
+        "component_type": "runtime",
+        "mode": "degraded",
+        "path": "skills/code-audit-constitution/scripts",
+        "reason": "claude native manifest cannot encode runtime component 'constitution-scripts' at 'skills/code-audit-constitution/scripts'"
+      },
+      {
+        "component_id": "scaffold-templates",
+        "component_type": "runtime",
+        "mode": "degraded",
+        "path": "skills/project-scaffold/templates",
+        "reason": "claude native manifest cannot encode runtime component 'scaffold-templates' at 'skills/project-scaffold/templates'"
+      },
+      {
+        "component_id": "smoke-scripts",
+        "component_type": "runtime",
+        "mode": "degraded",
+        "path": "skills/smoke-manage/scripts",
+        "reason": "claude native manifest cannot encode runtime component 'smoke-scripts' at 'skills/smoke-manage/scripts'"
+      },
+      {
+        "component_id": "smoke-vendor",
+        "component_type": "runtime",
+        "mode": "degraded",
+        "path": "skills/smoke-manage/vendor",
+        "reason": "claude native manifest cannot encode runtime component 'smoke-vendor' at 'skills/smoke-manage/vendor'"
+      }
+    ]
+  },
+  "description": "Code analysis, refactoring, verification, and test-quality workflows.",
+  "name": "manifest-code-quality",
   "skills": [
     "./skills/ai-code-audit",
     "./skills/antipattern-detect",
@@ -30,5 +80,6 @@
     "./skills/terraform-refactor",
     "./skills/test-pin-bug",
     "./skills/test-vary-fixtures"
-  ]
+  ],
+  "version": "0.2.0"
 }

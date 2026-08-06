@@ -188,12 +188,40 @@ def test_registry_match_passes(skills: Path, tmp_path: Path):
     assert result.returncode == 0, result.stdout
 
 
+def test_registry_allows_a_declared_independent_marketplace_addon(
+    skills: Path, tmp_path: Path
+):
+    write_skill(skills, "domain-skill", "Body.")
+    write_skill(skills, "addon-skill", "Body.")
+
+    registry = tmp_path / "skill_policies.yml"
+    registry.write_text(
+        "expected_total: 2\\n"
+        "independent_addon_expected_total: 1\\n"
+        "bundles:\\n"
+        "  manifest-demo:\\n"
+        "    - domain-skill\\n"
+        "independent_addons:\\n"
+        "  manifest-addon:\\n"
+        "    - addon-skill\\n",
+        encoding="utf-8",
+    )
+
+    result = run_checker("--roots", str(skills), "--registry", str(registry), "--json")
+    assert result.returncode == 0, result.stderr
+
+
 def test_real_registry_matches_the_tree():
     """The committed integer must equal the catalog it guards, today."""
     registry = REPO_ROOT / "configs" / "claude" / "config" / "skill_policies.yml"
+    roots = ":".join(
+        str(path / "skills")
+        for path in sorted((REPO_ROOT / "plugins").iterdir())
+        if (path / "skills").is_dir()
+    )
     result = run_checker(
         "--roots",
-        str(REPO_ROOT / ".apm" / "skills"),
+        roots,
         "--registry",
         str(registry),
         "--baseline",

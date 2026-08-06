@@ -76,10 +76,10 @@
 | `configs/claude/scripts/lifecycle.sh` | Modify | `manifest smoke` default |
 | `configs/claude/scripts/deploy_reconcile.sh` | Modify | Venv python for all Python |
 | `configs/claude/scripts/skillclaw_promote.sh` | Modify | `manifest skillclaw …` where applicable |
-| `.skillshare/skills/**/SKILL.md` | Modify | `manifest parallel-agent` / `manifest smoke` |
+| `.retired skill supply/skills/**/SKILL.md` | Modify | `manifest parallel-agent` / `manifest smoke` |
 | `configs/claude/CLAUDE.md` | Modify | Document `manifest` CLI |
 | `configs/cursor/rules/orchestration.mdc` | Regenerate | Via `generate_cursor_rules.sh` after skill edits |
-| `.skillshare/skills/env-check/SKILL.md` | Modify | Home Python Runtime + venv python snippets |
+| `.retired skill supply/skills/env-check/SKILL.md` | Modify | Home Python Runtime + venv python snippets |
 | `tests/bats/uv_sync_home_runtime.bats` | Create | SANDBOX bootstrap seam tests |
 | `tests/bats/manifest_wrapper.bats` | Create | Wrapper fail-closed tests |
 | `tests/python/manifest_cli/test_router.py` | Create | Subcommand dispatch |
@@ -725,8 +725,8 @@ git commit -m "chore(services): point smoke service at manifest smoke command"
 ### Task 9: Skills, orchestration docs, env-check
 
 **Files:**
-- Modify: `.skillshare/skills/**/SKILL.md` (parallel_agent / smoke_test references)
-- Modify: `.skillshare/skills/env-check/SKILL.md`
+- Modify: `.retired skill supply/skills/**/SKILL.md` (parallel_agent / smoke_test references)
+- Modify: `.retired skill supply/skills/env-check/SKILL.md`
 - Modify: `configs/claude/CLAUDE.md`, `AGENTS.md` orchestration sections
 - Run: `configs/claude/scripts/generate_cursor_rules.sh`
 
@@ -739,7 +739,7 @@ git commit -m "chore(services): point smoke service at manifest smoke command"
 # configs/claude/scripts/smoke_test.py → manifest smoke (repo-relative examples)
 ```
 
-Use `rg -l 'parallel_agent\.py|smoke_test\.py' .skillshare/skills` and update each SKILL.
+Use `rg -l 'parallel_agent\.py|smoke_test\.py' .retired skill supply/skills` and update each SKILL.
 
 - [ ] **Step 2: env-check skill**
 
@@ -755,7 +755,7 @@ configs/claude/scripts/generate_cursor_rules.sh
 - [ ] **Step 4: Commit**
 
 ```bash
-git add .skillshare/skills configs/claude/CLAUDE.md AGENTS.md configs/cursor/rules
+git add .retired skill supply/skills configs/claude/CLAUDE.md AGENTS.md configs/cursor/rules
 git commit -m "docs(skills): migrate to manifest CLI; extend env-check runtime checks"
 ```
 

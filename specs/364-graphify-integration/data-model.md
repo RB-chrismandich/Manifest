@@ -48,7 +48,7 @@ Derived status surfaced by `check_status.sh`:
 
 Reportable states (SC-004): enabled-and-ready, enabled-but-not-installed, enabled-but-unauthenticated (only when an optional backend is selected).
 
-### Skill artifact: `.skillshare/skills/graphify/SKILL.md`
+### Skill artifact: `.retired skill supply/skills/graphify/SKILL.md`
 
 | Field | Value |
 |-------|-------|
@@ -73,7 +73,7 @@ An enabled AI assistant (claude/cursor/gemini/codex/antigravity) whose `skills/`
         ▼
   uv tool install graphifyy ──▶ graphify CLI on PATH
                                        ▲
-.skillshare/skills/graphify/SKILL.md ──┘ (shells the CLI)
+.retired skill supply/skills/graphify/SKILL.md ──┘ (shells the CLI)
         │
         ▼ deploy_home_skills()
   ~/.claude/skills/graphify ──▶ {cursor,gemini,codex,antigravity}/skills (symlink, enabled only)

@@ -62,7 +62,7 @@ All within the existing spec-review system.
     with no `SPEC_REVIEW_CLI` set, invokes a stub named `agy` placed on PATH).
 
 - **Docs**
-  - `.skillshare/skills/spec-review/SKILL.md` — description "independent model
+  - `.retired skill supply/skills/spec-review/SKILL.md` — description "independent model
     (Gemini)" → "independent model (Antigravity / `agy`)".
   - The `/spec-review` rows in `docs/COMMANDS.md`, `CLAUDE.md`, and
     `configs/claude/CLAUDE.md` — replace "Gemini" with "Antigravity (`agy`)".

@@ -34,6 +34,6 @@
 - Both scope questions ("these" = all 89 skills; sub-agent = both paradigms) were resolved up front
   via clarification, so no [NEEDS CLARIFICATION] markers remain.
 - Some named artifacts (`command_config.yml` `tool_policies`, `parallel_agent.py`,
-  `.skillshare/skills/`) are referenced as existing-system dependencies, not as implementation
+  `.retired skill supply/skills/`) are referenced as existing-system dependencies, not as implementation
   prescriptions — they bound scope and integration points rather than dictate the solution.
 - Items marked incomplete require spec updates before `/speckit-clarify` or `/speckit-plan`.

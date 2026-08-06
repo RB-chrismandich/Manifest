@@ -18,7 +18,6 @@
     "docs-all -> docs-improve-readme",
     "extract-design-md -> manage-design-system",
     "generate-design -> upload-to-stitch",
-    "graphify -> llm-invoke-stdin",
     "issue-dev-auto -> pr-address-comments",
     "issue-dev-auto -> pr-review",
     "issue-dev-auto -> project-verify",

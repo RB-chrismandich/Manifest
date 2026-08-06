@@ -19,21 +19,21 @@ change ends with the checker re-run and the tests green.
 
 Read first, do not restate:
 
-- `configs/claude/references/code-constitution.md` — the universal articles
-- `configs/claude/references/constitution/<lang>.md` — the annex for the
+- `references/code-constitution.md` — the universal articles
+- `references/constitution/<lang>.md` — the annex for the
   language you are touching (thresholds, `data_dirs`, toolchain)
-- `configs/claude/config/code_constitution.yml` — the machine copy
+- `config/code_constitution.json` — the machine copy
 
 ---
 
 ## Step 1 — Measure the whole picture
 
 ```bash
-python3 configs/claude/scripts/constitution_check.py --no-baseline <target>
+python3 scripts/constitution_check.py --no-baseline <target>
 ```
 
 `--no-baseline` is the correct flag **for an audit**, and the wrong one for a
-gate. The baseline (`configs/claude/config/constitution_baseline.json`) is a
+gate. The baseline (`config/constitution_baseline.json`) is a
 ratchet: it records the violation count each file already carried when the
 constitution was adopted, and the commit hook only fails when a count *rises*.
 That is exactly right for a pre-commit gate — nobody should be blocked on debt
@@ -51,8 +51,8 @@ the output.
 Findings look like this (real output, `--no-baseline`):
 
 ```text
-.apm/skills/ai-hooks-integration/scripts/install_opencode_plugin.py:124: error: [C-DATA/CON-004] `TEMPLATE_ADVANCED` embeds a 206-line structured payload as a literal
-configs/claude/scripts/agents/cli.py:132: error: [C-SIZE/CON-002] function `build_parser` is 73 lines (ceiling 60)
+src/hooks/install_plugin.py:124: error: [C-DATA/CON-004] `TEMPLATE_ADVANCED` embeds a 206-line structured payload as a literal
+src/agent_cli/agents.py:132: error: [C-SIZE/CON-002] function `build_parser` is 73 lines (ceiling 60)
 ```
 
 Record the counts per check now. They are the before-number you will compare
@@ -61,7 +61,7 @@ against in Step 5.
 ## Step 2 — Judge the four articles no checker can reach
 
 `CON-001`, `CON-006`, `CON-011`, and `CON-012` carry `checks: []` in
-`code_constitution.yml`. That empty list is the reason this skill exists. No
+`code_constitution.json`. That empty list is the reason this skill exists. No
 tool can prove a search happened, that an abstraction was earned, that a
 dependency was evaluated, or that the thing being replaced was deleted. Work
 each one explicitly and write down the answer — an unstated judgement is
@@ -89,8 +89,7 @@ Two symmetric failures, both live:
 - **Growing conditional.** Count the branches in each `if/elif` or `switch`
   chain the change touches. At the third real case, replace the chain with a
   lookup — a dict, a registry table, a config row — and make the new case a row
-  rather than a branch. This repo's own registries (`tracker_providers.yml`,
-  `labels.yml`, `command_config.yml`) are the shape to copy.
+  rather than a branch. Existing typed registry tables are the shape to copy.
 - **Speculative abstraction.** Flag every parameter, hook, protocol, or
   interface with exactly one implementation and no second caller in the tree.
   Delete it or inline it; it is CON-012 debt wearing a design pattern's name.
@@ -133,7 +132,7 @@ For each `C-DATA` finding, in order:
    it is. Data moves to a data file; a template moves to a template file **and
    keeps its interpolation** — do not flatten a template into data.
 2. **Choose the target.** Use the first fitting directory from the language's
-   `data_dirs` in `code_constitution.yml` (python: `data`, `templates`,
+   `data_dirs` in `code_constitution.json` (python: `data`, `templates`,
    `tests/fixtures` — the annex's "payload extraction map" gives the per-kind
    destination and the extension). Name the file for its subject, never for its
    host module.
@@ -193,7 +192,7 @@ arguments that always travel together are a record, not arguments.
 ## Step 5 — Re-run, then exempt only what is genuinely correct
 
 ```bash
-python3 configs/claude/scripts/constitution_check.py --no-baseline <target>
+python3 scripts/constitution_check.py --no-baseline <target>
 ```
 
 Compare against the Step 1 counts, per check. State the delta. A count that did
@@ -231,7 +230,7 @@ attempted is a suppression, and a suppressed article stops being an article.
 Fixed violations should lower the recorded ceiling permanently:
 
 ```bash
-python3 configs/claude/scripts/constitution_check.py --update-baseline <target>
+python3 scripts/constitution_check.py --update-baseline <target>
 ```
 
 Review the resulting `constitution_baseline.json` diff before committing. Counts
@@ -260,13 +259,15 @@ Never claim a command passed that you did not run, and quote real output.
 
 ## Sub-agent dispatch
 
+Follow the bundled `sub-agent-dispatch.md` selection rules. Dispatches use the
+pinned `sonnet` model.
+
 When ≥3 independent files or articles exist, dispatch one sub-agent per file to analyze it,
-then merge findings; below that, analyze inline. Pick the mechanism per the shared Sub-Agent Selection Rules
-(`configs/claude/references/sub-agent-dispatch.md`): native Task sub-agents on Claude, or
-`manifest parallel-agent` / inline on other assistants. Dispatched sub-agents execute their task directly and
+then merge findings; below that, analyze inline. Use native Task sub-agents on Claude, or
+`[[skill:parallel-agent]]` / inline on other assistants. Dispatched sub-agents execute their task directly and
 do not re-dispatch.
 
-Dispatch on **Sonnet** (`subagent_model: sonnet` in `command_config.yml`) — pass the model
+Dispatch on **Sonnet** (`subagent_model: sonnet`) — pass the model
 explicitly; inheriting the session's model bills premium rates for fan-out work.
 
 Sub-agents may *analyze* in parallel; the edits from Step 3 and Step 4 are applied in the main

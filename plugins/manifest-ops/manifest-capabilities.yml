@@ -1,0 +1,56 @@
+schema_version: 1
+bundle:
+  name: manifest-ops
+  version: 0.2.0
+  description: CI, deployment, configuration, container, and runtime operations workflows.
+  category: deployment
+components:
+  skills:
+    root: skills
+    include: ["*/SKILL.md"]
+  agents: []
+  hooks:
+    - id: version-pin
+      path: hooks/version-pin.json
+      compatibility:
+        claude: {mode: native}
+        codex:
+          mode: degraded
+          reason: Codex exposes the on-demand version-pin skill but has no native file-save hook surface.
+        gemini:
+          mode: degraded
+          reason: Gemini exposes the on-demand version-pin skill but cannot install this advisory plugin hook natively.
+        cursor: {mode: generated}
+        antigravity:
+          mode: degraded
+          reason: Antigravity exposes the on-demand version-pin skill but has no native file-save hook surface.
+        devin:
+          mode: degraded
+          reason: Devin exposes the on-demand version-pin skill but has no native file-save hook surface.
+  runtime:
+    - {id: ops-bin, path: runtime/bin}
+    - {id: ops-config, path: runtime/config}
+    - {id: ops-references, path: runtime/references}
+    - {id: ci-setup-templates, path: skills/ci-setup/templates}
+  guidance: []
+capabilities:
+  mcp:
+    required: []
+    default: []
+    optional: [sentry]
+  executables:
+    required: [bash, git, python3]
+    default: []
+    optional: [docker, shasum, sha256sum, terraform, tflint, tofu]
+compatibility:
+  claude: {mode: native}
+  codex: {mode: native}
+  gemini: {mode: generated}
+  cursor: {mode: generated}
+  antigravity: {mode: imported}
+  devin: {mode: native}
+provenance:
+  repository: https://github.com/RB-chrismandich/Manifest
+  license: MIT
+  license_file: LICENSE
+  generated_by: tools/generate_plugin_views.py

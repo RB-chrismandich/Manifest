@@ -4,9 +4,7 @@ Convert Stitch screens into production React dashboards with Vite, TanStack Quer
 
 ## Install
 
-```bash
-npx skills add google-labs-code/stitch-skills --skill react-vite-dashboard --global
-```
+This skill ships in the `stitch-design` bundle as `stitch-design:react-vite-dashboard`.
 
 ## Example prompts
 
@@ -20,5 +18,5 @@ Wire the portfolio summary cards with TanStack Query and ethers read-only calls
 
 ## Related skills
 
-- `design-md` — author and lint DESIGN.md before building UI
-- `shadcn-ui` — add accessible component primitives on top of generated layouts
+- `stitch-design:design-md` — author and lint DESIGN.md before building UI
+- `stitch-design:shadcn-ui` — add accessible component primitives on top of generated layouts

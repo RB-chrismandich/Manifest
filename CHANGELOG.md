@@ -366,16 +366,16 @@ nothing rested on them) and found two real gaps:
   `apm_domains.yml` empty — untrue since 2026-07-28. Corrected, with the
   multi-clone `MANIFEST_ROOT` recipe and who-populates-what.
 
-### Retired-tree references swept (`.skillshare/` → `.apm/`, `linear_triage.yml`)
+### Retired-tree references swept (`.retired skill supply/` → `.apm/`, `linear_triage.yml`)
 
 - **Four skills carried paths into the tree deleted on 2026-07-27**, two of them
   as instructions that could not work: `pr-smoke/SKILL.md` handed out
-  `.skillshare/skills/pr-smoke/scripts/run_pr_regression.sh` as a copy-paste
+  `.retired skill supply/skills/pr-smoke/scripts/run_pr_regression.sh` as a copy-paste
   command, and `spec-implement-loop/prompts/reviewer-dispatch.md` sent every
   critic sub-agent to read a verdict-format file at a path that no longer
   exists. Also fixed: `skill-evolve`'s always-loaded description (it advertised
-  PRs into `.skillshare/skills/`), `graphify`, and `test-isolate-ambient` —
-  whose isolation recipe stubbed `sync_skillshare_targets()`, a function removed
+  PRs into `.retired skill supply/skills/`), `graphify`, and `test-isolate-ambient` —
+  whose isolation recipe stubbed `sync_retired skill supply_targets()`, a function removed
   with the tree, so the recipe silently no longer covered what it claimed.
 - Same dead stub removed from `smoke-catalog/manifest.yaml`; stale comments in
   `bootstrap/lib/{common,deploy}.sh`, `.gitignore` and `.pre-commit-config.yaml`
@@ -552,7 +552,7 @@ nothing rested on them) and found two real gaps:
   matching HEAD exactly) never warned. It now also checks the already-fetched
   remote-tracking ref — no `git fetch`, preserving the fail-open SessionStart design.
 - **Git-invisible directories could deploy as skills.** A directory under
-  `.skillshare/skills/` containing only ignored files (e.g. `__pycache__` left by a
+  `.retired skill supply/skills/` containing only ignored files (e.g. `__pycache__` left by a
   rename) is reported by git as ignored, never untracked, but `deploy_home_skills`
   rsyncs the filesystem. Directories without a `SKILL.md` are now warned about and
   excluded.
@@ -750,13 +750,13 @@ nothing rested on them) and found two real gaps:
 - **`agents/` package** (PR #260) — `parallel_agent.py` modularized into a proper Python package:
   `agents/cli.py`, `config.py`, `orchestrator.py`, `runners.py`, `synthesis.py`, `validation.py`
 - **`sync-skills` CLI command** (PR #258) — native binary at `~/.local/bin/sync-skills` for daily
-  skill development; deploys `.skillshare/skills/` to all home targets with `MANIFEST_ROOT` support
+  skill development; deploys `.retired skill supply/skills/` to all home targets with `MANIFEST_ROOT` support
 - **CI drift guard** (PR #259) — detects stale cursor rules and config drift in CI
 - **speckit integration** — spec/plan/task workflow tooling initialized
 
 ### Changed
 
-- **Skillshare centralization** (PR #255) — `.skillshare/skills/` is now the source of truth;
+- **retired skill supply centralization** (PR #255) — `.retired skill supply/skills/` is now the source of truth;
   `configs/claude/skills/` is a compatibility symlink; bootstrap uses additive rsync (no `--delete`)
 - **CLAUDE.md tiered** (PR #255) — core guide + reference index pattern adopted
 

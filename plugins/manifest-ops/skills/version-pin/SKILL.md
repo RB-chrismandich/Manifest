@@ -10,9 +10,9 @@ supply-chain-safe. Pins to a **specific version** (latest stable by default, or
 a requested version) and includes an **integrity hash/digest** wherever the
 ecosystem supports it.
 
-This skill is backed by `~/.claude/scripts/version_pin.sh`. The recognized file
-types and their resolvers are defined in the `version_pin` block of
-`config/command_config.yml` (extensible without code changes).
+This skill is backed by `../../runtime/bin/version_pin.sh` relative to this
+skill directory. Recognized file types and resolvers are defined in the adjacent
+`../../runtime/config/version_pin.json` registry (extensible without code changes).
 
 ## When to use
 
@@ -29,16 +29,16 @@ types and their resolvers are defined in the `version_pin` block of
 
    ```bash
    # Audit + auto-fix every recognized file in the working tree
-   ~/.claude/scripts/version_pin.sh
+   ../../runtime/bin/version_pin.sh
 
    # One file, warn-only (no edits) — same mode the hook runs
-   ~/.claude/scripts/version_pin.sh requirements.txt --check
+   ../../runtime/bin/version_pin.sh requirements.txt --check
 
    # Pin a specific requested version instead of latest stable
-   ~/.claude/scripts/version_pin.sh requirements.txt --requested requests=2.31.0
+   ../../runtime/bin/version_pin.sh requirements.txt --requested requests=2.31.0
 
    # Limit to one rule
-   ~/.claude/scripts/version_pin.sh . --rule docker-compose
+   ../../runtime/bin/version_pin.sh . --rule docker-compose
    ```
 
 2. **Read the report.** Each entry is classified:
@@ -71,11 +71,11 @@ deterministic CI), set `VERSION_PIN_RESOLVER` to an executable called as
 
 ## Automatic hook (warn-only)
 
-The skill is wired as a `PostToolUse` (`Write|Edit`) hook in
-`settings.local.json` via `~/.claude/scripts/version_pin_hook.sh`. On save of a
-recognized file it runs `version_pin.sh --check` (advisory, never blocks, never
-edits) and prints any violations. The wrapper pre-filters by file name so
-unrelated edits stay quiet.
+The bundle declares an ownership-marked advisory `PostToolUse` (`Write|Edit`)
+hook. On supported harnesses it runs the packaged checker in `--check` mode for
+recognized files, never blocks, and never edits. Harnesses without native file
+hooks expose this on-demand skill and must report `hooks.version-pin=DEGRADED`;
+unrelated edits remain quiet.
 
 ## Guarantees
 
@@ -83,4 +83,6 @@ unrelated edits stay quiet.
 - **No silent failures**: unresolvable/unsupported/malformed cases are reported,
   never swallowed, and never leave a partially-rewritten file.
 - **Security-sensitive**: this is a supply-chain control (Tier 1); changes to the
-  script itself warrant parallel-agent review before merge.
+  script itself warrant `[[skill:parallel-agent]] --json --validate --review`
+  before merge when that interface is available, or an equivalent inline review
+  reported as degraded.

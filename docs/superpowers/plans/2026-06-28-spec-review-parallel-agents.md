@@ -29,7 +29,7 @@
 - `configs/claude/scripts/spec_review.sh` — add config defaults, `assemble_merge_prompt`, `parse_panel_json`, `run_synthesizer`, `run_panel`; rewire `review()` + `_silent_review_inline()` to call `run_panel`; update status line. (existing seams `run_reviewer`, `assemble_prompt`, `format_findings`, hook funcs unchanged)
 - `configs/claude/prompts/spec_review_merge.md` — NEW: synthesizer/merge instruction, same output contract.
 - `tests/bats/spec_review.bats` — add tests for the four new functions + rewired entry points; keep all existing tests green.
-- `.skillshare/skills/spec-review/SKILL.md` — description + body reflect the panel.
+- `.retired skill supply/skills/spec-review/SKILL.md` — description + body reflect the panel.
 - `configs/gemini/GEMINI.md`, `configs/cursor/rules/spec-review.mdc` — engine-description references.
 
 All test patterns follow the existing harness: `source "$SCRIPT"`, call functions directly, stub CLIs as executable files in `$SANDBOX`.
@@ -573,7 +573,7 @@ git commit -m "feat(spec-review): route on-demand + hook review through the pane
 ### Task 6: Docs + skill + final verification
 
 **Files:**
-- Modify: `.skillshare/skills/spec-review/SKILL.md`, `configs/claude/scripts/spec_review.sh` (header comment ~L1-7), `configs/gemini/GEMINI.md`, `configs/cursor/rules/spec-review.mdc`
+- Modify: `.retired skill supply/skills/spec-review/SKILL.md`, `configs/claude/scripts/spec_review.sh` (header comment ~L1-7), `configs/gemini/GEMINI.md`, `configs/cursor/rules/spec-review.mdc`
 - Test: `tests/bats/spec_review.bats` (existing SKILL.md frontmatter test must still pass), shellcheck
 
 **Interfaces:** none (docs only).
@@ -603,7 +603,7 @@ Expected: shellcheck clean (no new findings); all bats PASS
 - [ ] **Step 6: Commit**
 
 ```bash
-git add .skillshare/skills/spec-review/SKILL.md configs/claude/scripts/spec_review.sh configs/gemini/GEMINI.md configs/cursor/rules/spec-review.mdc
+git add .retired skill supply/skills/spec-review/SKILL.md configs/claude/scripts/spec_review.sh configs/gemini/GEMINI.md configs/cursor/rules/spec-review.mdc
 git commit -m "docs(spec-review): describe parallel-agent panel engine"
 ```
 

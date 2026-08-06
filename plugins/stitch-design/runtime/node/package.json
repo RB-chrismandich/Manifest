@@ -1,0 +1,19 @@
+{
+  "name": "@manifest/stitch-design-build",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "check": "node build.mjs --check"
+  },
+  "devDependencies": {
+    "@babel/generator": "7.29.8",
+    "@babel/parser": "7.29.8",
+    "@babel/traverse": "7.29.8",
+    "esbuild": "0.28.1",
+    "puppeteer-core": "25.4.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

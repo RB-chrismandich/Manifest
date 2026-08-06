@@ -35,12 +35,6 @@
         "matcher": "write_file|replace",
         "hooks": [
           {
-            "name": "version-pin",
-            "type": "command",
-            "command": "~/.claude/scripts/version_pin_hook.sh",
-            "timeout": 30000
-          },
-          {
             "name": "spec-review",
             "type": "command",
             "command": "~/.claude/scripts/spec_review.sh --silent",

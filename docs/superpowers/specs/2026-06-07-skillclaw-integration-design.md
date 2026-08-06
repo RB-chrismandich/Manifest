@@ -10,7 +10,7 @@
 ## 1. Goal & Scope
 
 Use **SkillClaw** as an automatic skill author/refiner whose output flows back into
-Manifest's committed source of truth (`.skillshare/skills/`) **only through a reviewed PR**.
+Manifest's committed source of truth (`.retired skill supply/skills/`) **only through a reviewed PR**.
 
 SkillClaw is a Python 3.10+ system with two parts:
 
@@ -25,7 +25,7 @@ SkillClaw is a Python 3.10+ system with two parts:
 
 | Decision | Choice |
 |----------|--------|
-| Primary outcome | **Auto-evolve our skills** — feed refinements back into `.skillshare/skills/` |
+| Primary outcome | **Auto-evolve our skills** — feed refinements back into `.retired skill supply/skills/` |
 | Promotion gate | **PR-gated review** — nothing enters the source of truth without a merged PR |
 | Capture scope | **Shell-invoked CLI agents only** — Claude Code, Codex, Gemini CLI, cursor-agent CLI. GUI Cursor is **out of scope** (see §5.1). |
 | Capture mechanism | **Runtime wrapper functions** (per-invocation health check), **not** a shell-init env export (see §5) |
@@ -66,20 +66,20 @@ SkillClaw is a Python 3.10+ system with two parts:
 │  skillclaw evolve (workflow mode)  ──► staged SKILL.md     │
 │      ▼                                                     │
 │  scripts/skillclaw_promote.sh                              │
-│   1. diff staged vs .skillshare/skills/                    │
+│   1. diff staged vs .retired skill supply/skills/                    │
 │   2. run `verify` skill on each candidate                  │
 │   3. git branch + git_ops.sh pr-create  ──► review PR      │
 └────────────────────────────────────────────────────────────┘
                                    │ you merge
                                    ▼
-                    .skillshare/skills/  (source of truth)
+                    .retired skill supply/skills/  (source of truth)
                                    │ bootstrap.sh deploy_home_skills
                                    ▼
             ~/.claude/skills + Cursor/Gemini/Codex/Antigravity
 ```
 
 **Invariant:** data flows *one way into* the source of truth, and only through a PR.
-SkillClaw never writes to `.skillshare/skills/` directly.
+SkillClaw never writes to `.retired skill supply/skills/` directly.
 
 ### Component boundaries (each independently testable)
 
@@ -102,7 +102,7 @@ SkillClaw never writes to `.skillshare/skills/` directly.
 | `bootstrap/lib/skillclaw.sh` | New lib module (split-by-concern like `mcp.sh`/`auth.sh`): install SkillClaw, run non-interactive `skillclaw setup`, `chmod 700` storage, write runtime wrapper functions, start the supervised daemon. Loaded via `modules.sh`. |
 | `configs/claude/config/skillclaw.yml` | Provider, model, storage path (`~/.skillclaw`, local FS), evolve mode (`workflow`), proxy port, staging dir, promotion settings (branch prefix, PR labels). |
 | `configs/claude/scripts/skillclaw_promote.sh` | The bridge: evolve → diff → `verify` → branch → `git_ops.sh pr-create`. |
-| `.skillshare/skills/skill-evolve/SKILL.md` | `/skill-evolve` slash command — thin wrapper that invokes the promote script and reports the PR. |
+| `.retired skill supply/skills/skill-evolve/SKILL.md` | `/skill-evolve` slash command — thin wrapper that invokes the promote script and reports the PR. |
 | `tests/bats/skillclaw.bats` | Toggle parsing, services.yml write, fail-open runtime wrappers, storage `chmod 700`, promote idempotency + dry-run (mocked). |
 | `tests/python/test_skillclaw_promote.py` | Diff classification, frontmatter validation, candidate-drop-on-verify-fail, PR-payload shape. |
 
@@ -112,8 +112,8 @@ SkillClaw never writes to `.skillshare/skills/` directly.
 |------|--------|
 | `bootstrap/lib/config.sh` | Add `--enable/--disable-skillclaw` (default **disabled**), `SKILLCLAW_SET` tracking, services.yml read/write. |
 | `configs/claude/config/services.yml` | New `skillclaw:` entry (enabled, command, description, proxy port, storage). |
-| `.skillshare/skills/health-check/SKILL.md` | Daemon-up + port-listening + `/health` + wrappers-sane + storage-perms checks. |
-| `.skillshare/skills/sync-configs/SKILL.md` | Cover `skillclaw.yml` drift + staging dir. |
+| `.retired skill supply/skills/health-check/SKILL.md` | Daemon-up + port-listening + `/health` + wrappers-sane + storage-perms checks. |
+| `.retired skill supply/skills/sync-configs/SKILL.md` | Cover `skillclaw.yml` drift + staging dir. |
 | `CLAUDE.md`, `.claude/CLAUDE.md`, `docs/` | Document the toggle, the evolve→PR loop, and the kill switch. SkillClaw is a *proposer*; the source of truth stays git-reviewed. |
 
 **Default disabled** because routing all agents through the proxy is opt-in by nature;
@@ -134,7 +134,7 @@ skillclaw_promote.sh [--apply] [--skill NAME] [--no-evolve] [--force-new]
                  [Option A — never branch off an unmerged machine-authored proposal.]
 1. Preflight   : daemon healthy? evolved lib exists? git clean? on a branch?
 2. Evolve      : `skillclaw evolve --mode workflow`   (skip with --no-evolve)
-3. Diff        : compare ~/.skillclaw/skills/*/SKILL.md  vs  .skillshare/skills/*/SKILL.md
+3. Diff        : compare ~/.skillclaw/skills/*/SKILL.md  vs  .retired skill supply/skills/*/SKILL.md
                  → classify each: NEW | CHANGED | UNCHANGED(skip)
 4. Validate    : per candidate — frontmatter (name+description) lint + run `verify` skill;
                  drop any that fail, log why (NO silent drops)
@@ -265,7 +265,7 @@ proprietary code, and any secrets pasted into prompts.
   shape — mocked SkillClaw lib + mocked `git_ops.sh`.
 - **shellcheck / yamllint** clean on new shell + yml.
 - **Docs**: toggle + evolve loop + kill switch in `CLAUDE.md`, `.claude/CLAUDE.md`
-  (skillshare section — SkillClaw is a *proposer*; source of truth stays git-reviewed),
+  (retired skill supply section — SkillClaw is a *proposer*; source of truth stays git-reviewed),
   and a short `docs/` section.
 
 ---
@@ -300,7 +300,7 @@ the user's critical path — ideal for **local compute**.
 2. With the daemon **down**, every wrapped CLI agent still reaches its provider directly,
    with no measurable launch delay (fail-open + no-init-latency verified by test).
 3. `/skill-evolve` (or `skillclaw_promote.sh --apply`) produces a review PR into
-   `.skillshare/skills/` with per-skill commits, provenance, and only `verify`-passing
+   `.retired skill supply/skills/` with per-skill commits, provenance, and only `verify`-passing
    candidates — and **aborts** (Option A) if an open `skillclaw/evolve-*` PR exists.
 4. Dry-run makes zero git mutations.
 5. Captured payloads are stored under `chmod 700`, and (if SkillClaw lacks built-in

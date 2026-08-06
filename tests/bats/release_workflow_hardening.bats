@@ -1,11 +1,11 @@
 #!/usr/bin/env bats
 # release_workflow_hardening.bats — CI template security gate for release.yml
 #
-# Ensures templates/ci/github/release.yml has no run-shell-injection findings
+# Ensures the ci-setup bundle release template has no run-shell-injection findings
 # and no direct ${{ }} interpolation inside run: shell scripts.
 
 REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
-RELEASE_YML="$REPO_ROOT/templates/ci/github/release.yml"
+RELEASE_YML="$REPO_ROOT/plugins/manifest-ops/skills/ci-setup/templates/github/release.yml"
 
 setup() {
     [ -f "$RELEASE_YML" ] || { echo "missing $RELEASE_YML" >&2; return 1; }

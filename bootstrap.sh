@@ -16,8 +16,6 @@
 #   --disable-codex       Disable Codex CLI
 #   --enable-antigravity  Enable Antigravity IDE (default: enabled)
 #   --disable-antigravity Disable Antigravity IDE
-#   --enable-graphify     Enable Graphify knowledge-graph CLI (default: enabled)
-#   --disable-graphify    Disable Graphify knowledge-graph CLI
 #   --enable-skillclaw    Enable SkillClaw session capture (default: disabled)
 #   --disable-skillclaw   Disable SkillClaw session capture
 #   --enable-apm          Enable the apm (Agent Package Manager) CLI (default: disabled)
@@ -151,7 +149,6 @@ run_reconfigure() {
         local old_cursor=${FILE_CURSOR:-unknown}
         local old_codex=${FILE_CODEX:-unknown}
         local old_antigravity=${FILE_ANTIGRAVITY:-unknown}
-        local old_graphify=${FILE_GRAPHIFY:-unknown}
         local old_skillclaw=${FILE_SKILLCLAW:-unknown}
         local old_apm=${FILE_APM:-unknown}
         local old_browser_use=${FILE_BROWSER_USE:-unknown}
@@ -161,7 +158,6 @@ run_reconfigure() {
         echo "  Cursor:      $old_cursor → $ENABLE_CURSOR"
         echo "  Codex:       $old_codex → $ENABLE_CODEX"
         echo "  Antigravity: $old_antigravity → $ENABLE_ANTIGRAVITY"
-        echo "  Graphify:    $old_graphify → $ENABLE_GRAPHIFY"
         echo "  SkillClaw:   $old_skillclaw → $ENABLE_SKILLCLAW"
         echo "  apm:         $old_apm → $ENABLE_APM"
         echo "  browser-use: $old_browser_use → $ENABLE_BROWSER_USE"
@@ -171,7 +167,6 @@ run_reconfigure() {
         echo "  Cursor:      (new) → $ENABLE_CURSOR"
         echo "  Codex:       (new) → $ENABLE_CODEX"
         echo "  Antigravity: (new) → $ENABLE_ANTIGRAVITY"
-        echo "  Graphify:    (new) → $ENABLE_GRAPHIFY"
         echo "  SkillClaw:   (new) → $ENABLE_SKILLCLAW"
         echo "  apm:         (new) → $ENABLE_APM"
         echo "  browser-use: (new) → $ENABLE_BROWSER_USE"
@@ -192,7 +187,6 @@ run_reconfigure() {
         print_header "Updating Python Dependencies"
         check_uv || print_warning "uv not available — home runtime sync may be skipped"
         uv_sync_home_runtime
-        install_graphify
         # Fail-closed by design (T054/FR-029): apm writes hooks and MCP entries
         # into five home trees, so a failed integrity check must leave it
         # uninstalled rather than fall back to an unverified binary. The failure
@@ -201,13 +195,6 @@ run_reconfigure() {
         # Also here, not only in main(): `--reconfigure --enable-apm` is the
         # documented way to turn apm on on a running machine, and that is exactly
         # the run after which the apm-owned skills domain may still be empty.
-
-        # Gate the deployed /graphify skill to match the new toggle — the gate
-        # otherwise only runs inside deploy_configs, so a reconfigure-time
-        # --disable-graphify would leave the skill deployed (issue #459).
-        if [[ -d "$TARGET_DIR/skills" ]]; then
-            gate_graphify_skill "$TARGET_DIR/skills"
-        fi
 
         # Flag any disabled service whose deployed config is still present
         # (#549). warn_stale_disabled_configs is otherwise only called from
@@ -256,7 +243,6 @@ main() {
     echo "  Cursor:      $(if [[ "$ENABLE_CURSOR" == true ]]; then echo "enabled"; else echo "disabled"; fi)"
     echo "  Codex CLI:   $(if [[ "$ENABLE_CODEX" == true ]]; then echo "enabled"; else echo "disabled"; fi)"
     echo "  Antigravity: $(if [[ "$ENABLE_ANTIGRAVITY" == true ]]; then echo "enabled"; else echo "disabled"; fi)"
-    echo "  Graphify:    $(if [[ "$ENABLE_GRAPHIFY" == true ]]; then echo "enabled"; else echo "disabled"; fi)"
     echo "  SkillClaw:   $(if [[ "$ENABLE_SKILLCLAW" == true ]]; then echo "enabled"; else echo "disabled"; fi)"
     echo "  browser-use: $(if [[ "$ENABLE_BROWSER_USE" == true ]]; then echo "enabled"; else echo "disabled"; fi)"
     echo ""
@@ -300,7 +286,7 @@ main() {
         print_info "Skipping installation (--skip-install)"
     fi
 
-    # Ensure uv is present before deploy (required for home runtime sync + graphify)
+    # Ensure uv is present before deploy for the home runtime sync.
     check_uv || print_warning "uv not available — home runtime sync may be skipped"
 
     # Deploy configurations
@@ -314,7 +300,6 @@ main() {
     # Sync home Python runtime (uv) after deploy — pyproject/lock land in $TARGET_DIR
     print_header "Syncing Home Python Runtime"
     uv_sync_home_runtime
-    install_graphify
     # verify_installation (which reports an unpopulated domain).
 
     # Configure default MCP servers when requested

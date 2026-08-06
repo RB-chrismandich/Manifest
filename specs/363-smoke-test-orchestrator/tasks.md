@@ -9,7 +9,7 @@
 
 ## Path Conventions
 
-Single project. Engine package: `configs/claude/scripts/smoke_orchestrator/`. CLI shim: `configs/claude/scripts/smoke_test.py`. Skill: `.skillshare/skills/smoke-orchestrator/`. Catalog: `smoke-catalog/`. Tests: `tests/python/smoke_orchestrator/`, `tests/bats/`.
+Single project. Engine package: `configs/claude/scripts/smoke_orchestrator/`. CLI shim: `configs/claude/scripts/smoke_test.py`. Skill: `.retired skill supply/skills/smoke-orchestrator/`. Catalog: `smoke-catalog/`. Tests: `tests/python/smoke_orchestrator/`, `tests/bats/`.
 
 ---
 
@@ -89,7 +89,7 @@ Single project. Engine package: `configs/claude/scripts/smoke_orchestrator/`. CL
 
 ## Phase 7: Polish & Cross-Cutting Concerns
 
-- [X] T031 [P] Author `.skillshare/skills/smoke-orchestrator/SKILL.md` (when to append after shipping a feature; how to run `Lite`/`Full`; trigger phrases) — keep frontmatter within `context_budget`
+- [X] T031 [P] Author `.retired skill supply/skills/smoke-orchestrator/SKILL.md` (when to append after shipping a feature; how to run `Lite`/`Full`; trigger phrases) — keep frontmatter within `context_budget`
 - [X] T032 [P] Create executable shim `configs/claude/scripts/smoke_test.py` (dispatch to `smoke_orchestrator.cli`; `--help` succeeds before any dependency lookup; `chmod +x`; `err()` convention)
 - [X] T033 [P] Write `tests/bats/smoke_orchestrator_cli.bats`: `--help` exits 0 with Usage, exit codes 0/1/2, skill wrapper present
 - [X] T034 Add idempotent opt-in install of smoke deps (Chromium-only `playwright install chromium`, existence-guarded) to the bootstrap/CI smoke path

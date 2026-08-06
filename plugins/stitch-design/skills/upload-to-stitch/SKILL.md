@@ -27,20 +27,14 @@ Use `list_projects` to find the correct `projectId`.
 
 ### 2. Get the API Key
 
-Locate your active MCP server configuration file and extract the API key:
-
-- **Antigravity**: `.gemini/antigravity/mcp_config.json` or `.gemini/jetski/mcp_config.json`
-- **Gemini CLI**: `~/.gemini/settings.json` or `~/.gemini/extensions/Stitch/gemini-extension.json`
-- **Claude Code**: `~/.claude.json`
-
-Extract:
-
-- **API Key**: From the `X-Goog-Api-Key` header or auth argument
-- **MCP URL** (optional): From the `httpUrl` or endpoint argument (defaults to
-  `https://stitch.googleapis.com`)
+Require the secret through the `STITCH_API_KEY` environment variable. Never
+read an assistant configuration or persist the key in a project file. The
+optional `STITCH_API_URL` environment variable overrides the default
+`https://stitch.googleapis.com` endpoint.
 
 > [!IMPORTANT]
-> If you cannot find the API key in any of these locations, or if you cannot access these files, you MUST ask the user to provide the Stitch API key. Do not proceed without a valid API key.
+> If `STITCH_API_KEY` is absent, ask the user to provide it through their secure
+> environment and stop. Do not echo the value or continue without it.
 
 ### 3. Run Upload Script
 
@@ -56,8 +50,7 @@ Use `run_command` to execute the Python script:
 python3 <SKILL_DIR>/scripts/upload_to_stitch.py \
   --project-id <PROJECT_ID> \
   --file-path <PATH_TO_FILE> \
-  --api-key <API_KEY> \
-  [--api-url <STITCH_API_URL>] \
+  [--api-url "${STITCH_API_URL:-https://stitch.googleapis.com}"] \
   [--title <SCREEN_TITLE>] \
   [--generated-by <GENERATED_BY>]
 ```

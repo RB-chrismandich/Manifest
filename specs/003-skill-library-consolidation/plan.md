@@ -24,7 +24,7 @@ user story, P1 → P5.
 
 **Primary Dependencies**: rsync, git, gh CLI, pre-commit, bats-core, pytest, PyYAML (all already in use)
 
-**Storage**: Files only — `.skillshare/skills/` (source of truth), deploy targets under `~/`, YAML configs
+**Storage**: Files only — `.retired skill supply/skills/` (source of truth), deploy targets under `~/`, YAML configs
 
 **Testing**: bats (`tests/bats/`), pytest (`tests/python/`), shellcheck, yamllint, pre-commit; CI = `.github/workflows/ci.yml`
 
@@ -47,7 +47,7 @@ user story, P1 → P5.
 | I. Configuration-as-Code | Strengthened: prune-on-deploy makes deploy targets converge to the repo source of truth; `records/` ambiguity removed. No manual deploy-target edits introduced. |
 | II. Parallel Agent Orchestration | The consolidation PR rewrites >200 lines of skill content → cross-verify with parallel agents before merge (review gate noted in tasks). The P3 robustness PR touches security-adjacent quoting → same gate applies. |
 | III. Consensus-Driven Decisions | Standard thresholds apply to the parallel reviews above; no bypasses planned. |
-| IV. Skill-First Extensibility | Consolidation edits skills in `.skillshare/skills/` via PR; survivors keep valid `name`/`description` frontmatter and stay independently invocable. No core-script absorption of skill behavior. |
+| IV. Skill-First Extensibility | Consolidation edits skills in `.retired skill supply/skills/` via PR; survivors keep valid `name`/`description` frontmatter and stay independently invocable. No core-script absorption of skill behavior. |
 | V. Bootstrap Reproducibility | `deploy_home_skills` gains manifest-scoped prune-on-deploy (removes only skills it previously deployed that left the source; externally-added skills preserved — see contracts/prune-on-deploy.md) → *more* idempotent (converges to source). Bats coverage added for the new behavior. |
 | Quality Gates | Each story-PR runs full bats + pytest + lint; Tier 1 security check covers the FR-009 quoting fixes. |
 
@@ -76,7 +76,7 @@ specs/003-skill-library-consolidation/
 ### Source Code (repository root)
 
 ```text
-.skillshare/skills/                  # P1: 12 dirs deleted, 2 new survivors added,
+.retired skill supply/skills/                  # P1: 12 dirs deleted, 2 new survivors added,
 │                                    #     5 existing survivors edited (merged content)
 configs/claude/scripts/
 ├── skillclaw_evolve.py              # P1: library prompt descriptions; P3: chunk timeout

@@ -395,7 +395,7 @@ correctly; only the lockfile's own label disagrees. Relevant to FR-014
 ### Raw artifacts
 
 Rig lives in the spike scratch dir (outside the repo, per the Phase 0 isolation
-rule — T001–T006 modified nothing under `configs/`, `bootstrap*`, `.skillshare/`
+rule — T001–T006 modified nothing under `configs/`, `bootstrap*`, `.retired skill supply/`
 or `tests/`):
 
 - `sentinel.sh` — T003, with control case and churn exclusions (v3)

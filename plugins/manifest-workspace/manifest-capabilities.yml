@@ -1,0 +1,78 @@
+schema_version: 1
+bundle:
+  name: manifest-workspace
+  version: 0.2.0
+  description: Workspace configuration, environment, session, and learning workflows.
+  category: productivity
+components:
+  skills:
+    root: skills
+    include: ["*/SKILL.md"]
+  agents:
+    - {id: explore, path: agents/orchestration/Explore.md}
+    - {id: compatibility-translator, path: agents/orchestration/compatibility-translator.md}
+    - {id: context-chronicler, path: agents/orchestration/context-chronicler.md}
+    - {id: dependency-guardian, path: agents/orchestration/dependency-guardian.md}
+    - {id: executor, path: agents/orchestration/executor.md}
+    - {id: mech-executor, path: agents/orchestration/mech-executor.md}
+    - {id: scout, path: agents/orchestration/scout.md}
+    - {id: security-executor, path: agents/orchestration/security-executor.md}
+    - {id: verifier, path: agents/orchestration/verifier.md}
+    - {id: devpanel-chaos-engineer, path: agents/devpanel/chaos-engineer.md}
+    - {id: devpanel-debugger, path: agents/devpanel/debugger.md}
+    - {id: devpanel-developer, path: agents/devpanel/developer.md}
+    - {id: devpanel-performance-auditor, path: agents/devpanel/performance-auditor.md}
+    - {id: devpanel-spec-guard, path: agents/devpanel/spec-guard.md}
+    - {id: devpanel-tester, path: agents/devpanel/tester.md}
+  hooks:
+    - id: manifest-hooks
+      path: hooks/manifest-hooks.json
+      compatibility:
+        claude: {mode: generated}
+        codex: {mode: unsupported, reason: Codex has no native lifecycle hook surface.}
+        gemini:
+          mode: degraded
+          reason: >-
+            Gemini extensions cannot install the bundle's advisory manifest-hooks
+            catalog as native BeforeTool hooks; use ai-hooks-integration for
+            explicit installation.
+        cursor: {mode: generated}
+        antigravity: {mode: unsupported, reason: Antigravity has no native lifecycle hook surface.}
+        devin: {mode: unsupported, reason: Devin has no native lifecycle hook surface.}
+  runtime:
+    - {id: parallel-agent-scripts, path: skills/parallel-agent/scripts}
+    - {id: parallel-agent-config, path: skills/parallel-agent/config}
+    - {id: parallel-agent-prompts, path: skills/parallel-agent/prompts}
+    - {id: parallel-agent-references, path: skills/parallel-agent/references}
+    - {id: learning-capture-scripts, path: skills/learning-capture/scripts}
+    - {id: help-scripts, path: skills/help/scripts}
+    - {id: command-catalog, path: skills/help/catalog/commands.json}
+    - {id: env-check-scripts, path: skills/env-check/scripts}
+    - {id: deploy-reconcile-scripts, path: skills/deploy-reconcile/scripts}
+    - {id: hook-integration-scripts, path: skills/ai-hooks-integration/scripts}
+    - {id: skill-evolve-scripts, path: skills/skill-evolve/scripts}
+    - {id: pr-smoke-scripts, path: skills/pr-smoke/scripts}
+  guidance:
+    - {id: workspace-orchestration, path: guidance/orchestration.md}
+    - {id: workspace-token-economy, path: guidance/token-economy.md}
+capabilities:
+  mcp:
+    required: []
+    default: [context7]
+    optional: []
+  executables:
+    required: [bash, git, python3]
+    default: []
+    optional: [pass-cli, shellcheck, markdownlint-cli2, pytest, bats]
+compatibility:
+  claude: {mode: native}
+  codex: {mode: native}
+  gemini: {mode: generated}
+  cursor: {mode: generated}
+  antigravity: {mode: imported}
+  devin: {mode: native}
+provenance:
+  repository: https://github.com/RB-chrismandich/Manifest
+  license: MIT
+  license_file: LICENSE
+  generated_by: tools/generate_plugin_views.py

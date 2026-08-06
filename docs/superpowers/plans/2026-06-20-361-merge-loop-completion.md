@@ -26,7 +26,7 @@
 |------|----------------|--------|
 | `configs/claude/scripts/pr_merge_loop.sh` | loop orchestration + signals + merge | Modify: add `_now`, `_net`, `cmd_run`, real `count_unresolved_human`, dispatch + usage/header |
 | `tests/bats/pr_merge_loop.bats` | offline seamed tests | Modify: add `run`/ceiling/empty-run, review-thread parser, address-cycle cases |
-| `.skillshare/skills/auto-issue-dev/SKILL.md` | loop-control prose (T028) | Modify: call `run` instead of re-describing the loop |
+| `.retired skill supply/skills/auto-issue-dev/SKILL.md` | loop-control prose (T028) | Modify: call `run` instead of re-describing the loop |
 | `specs/361-auto-dev-merge-loop/tasks.md` | task tracking | Modify: check off T004/T011/T024/T026; T003/T034 notes |
 | `docs/COMMANDS.md` | command reference | Modify: document `run` subcommand (if merge-loop section exists) |
 
@@ -416,7 +416,7 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 ## Task 4: reconcile SKILL.md, tasks.md, and docs (T026/T004 prose; T034 note)
 
 **Files:**
-- Modify: `.skillshare/skills/auto-issue-dev/SKILL.md`
+- Modify: `.retired skill supply/skills/auto-issue-dev/SKILL.md`
 - Modify: `specs/361-auto-dev-merge-loop/tasks.md`
 - Modify: `docs/COMMANDS.md` (if a merge-loop section exists)
 
@@ -424,7 +424,7 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 
 - [ ] **Step 1: Point SKILL.md loop-control at `run`**
 
-In `.skillshare/skills/auto-issue-dev/SKILL.md`, replace the **"4. Loop control."** paragraph (the one describing empty-run reset/incr, 5-empty, one-merge-in-flight — around line 85) with:
+In `.retired skill supply/skills/auto-issue-dev/SKILL.md`, replace the **"4. Loop control."** paragraph (the one describing empty-run reset/incr, 5-empty, one-merge-in-flight — around line 85) with:
 
 ```markdown
 4. **Loop control.** Run one bounded pass with `pr_merge_loop.sh run` (set
@@ -464,7 +464,7 @@ If `docs/COMMANDS.md` has an auto-issue-dev / merge-loop section, add a bullet f
 - [ ] **Step 5: Commit**
 
 ```bash
-git add .skillshare/skills/auto-issue-dev/SKILL.md specs/361-auto-dev-merge-loop/tasks.md docs/COMMANDS.md
+git add .retired skill supply/skills/auto-issue-dev/SKILL.md specs/361-auto-dev-merge-loop/tasks.md docs/COMMANDS.md
 git commit -S -m "docs(specs): reconcile run-loop + review-thread design; defer T034 (#361)
 
 Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"

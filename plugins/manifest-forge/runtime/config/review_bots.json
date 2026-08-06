@@ -1,0 +1,46 @@
+{
+  "bots": {
+    "bolt": {
+      "author_login": null,
+      "branch_prefix": "bolt/",
+      "identified_by": "title_prefix",
+      "invoke": "n/a",
+      "notes": "Checked 2026-07-17: PRs #530, #534, #541, #573, #580, #590, #595 (title-prefixed \"\u26a1 Bolt:\") all show author.login = RB-chrismandich (is_bot: false) via `gh pr list --json author`, and their commits[].authors are the same account (`gh pr view <N> --json commits`). Same situation as palette: Bolt is a Jules persona, not a distinct GitHub bot account \u2014 identify by the \"\u26a1 Bolt:\" title prefix and/or \"bolt/\" branch prefix. Live-verified 2026-07-17: `gh pr list --search \"head:bolt-\"` returns 0 results; `gh pr list --search \"head:bolt/\"` returns the real open Bolt PRs (#590, #595). Only #580 used the older \"bolt-\" convention \u2014 6 of 7 cited PRs plus both currently-open ones use \"bolt/\", so that's the value this field must carry to actually match anything today. Focus: performance micro-optimizations (fast-path checks, avoided re-parses/re-reads).\n",
+      "role": "author",
+      "title_prefix": "\u26a1 Bolt:"
+    },
+    "copilot": {
+      "author_login": "copilot-pull-request-reviewer[bot]",
+      "identified_by": "author_login",
+      "invoke": "automatic",
+      "notes": "Verified 2026-07-17 via `gh api repos/RB-chrismandich/Manifest/pulls/<N>/reviews` on PRs #533, #538, #543, #550, #554, #559, #563 \u2014 login confirmed copilot-pull-request-reviewer[bot], displays as \"Copilot\" in the UI. Reviews land automatically when repo/org settings enable Copilot code review; if neither requested-reviewers nor submitted-reviews show it, the phase is a no-op (don't try to force it \u2014 it's a repo/org setting, not something a comment can summon).\n",
+      "role": "reviewer"
+    },
+    "forge": {
+      "author_login": null,
+      "branch_prefix": "forge/",
+      "identified_by": "title_prefix",
+      "invoke": "n/a",
+      "notes": "Added 2026-07-27 after a pr-triage-bots run surfaced PRs #649 and #651 (title-prefixed \"\ud83d\udee0\ufe0f Forge:\"), neither of which any registry entry matched. Both show author.login = RB-chrismandich (is_bot: false) via `gh pr list --json author` \u2014 the same situation as palette and bolt, so Forge is treated as a third Jules persona rather than a distinct GitHub bot account. There is no \"forge[bot]\" login to verify; asserting one would be a guess. Identify these PRs by the \"\ud83d\udee0\ufe0f Forge:\" title prefix and/or \"forge/\" branch prefix. Branch names carry a long random numeric suffix (e.g. forge/fix-json-type-checks-eval-15803128462631602317), so match the prefix, never the whole name. Focus: correctness/compliance micro-edits (type narrowing, comment wording, whitespace reflow). Triage caution \u2014 observed 2026-07-27: titles overstate the diff (#651 claimed \"explicit instructions\" for a pure line-rejoin), and edits may target paths that have since moved (both PRs wrote to `.retired skill supply/`, removed by feature 522). Judge the diff against current main, not the title.\n",
+      "role": "author",
+      "title_prefix": "\ud83d\udee0\ufe0f Forge:"
+    },
+    "jules": {
+      "author_login": "google-labs-jules[bot]",
+      "identified_by": "author_login",
+      "invoke": "mention",
+      "mention": "@google-labs-jules",
+      "notes": "Verified 2026-07-17 via `gh api repos/RB-chrismandich/Manifest/issues/<N>/comments` on PRs #580 and #581 \u2014 the bot's own \"\ud83d\udc4b Jules, reporting for duty!\" greeting comment carries login google-labs-jules[bot]. Not a GitHub-native reviewer: requesting it as reviewer/assignee is silently ignored; the only working trigger is a comment mention acted on by .github/workflows/jules-trigger.yml, gated to author_association OWNER/MEMBER/COLLABORATOR. Jules does not leave inline GitHub review comments the way Copilot does \u2014 its feedback surfaces as PR comments, commits pushed to the PR branch, or a separate linked PR (see the palette/bolt entries below, which are Jules acting under its personas).\n",
+      "role": "reviewer"
+    },
+    "palette": {
+      "author_login": null,
+      "branch_prefix": "palette/",
+      "identified_by": "title_prefix",
+      "invoke": "n/a",
+      "notes": "Checked 2026-07-17: PRs #535, #539, #540, #555, #564, #581, #589, #594 (title-prefixed \"\ud83c\udfa8 Palette:\") all show author.login = RB-chrismandich (is_bot: false) via `gh pr list --json author`, and their commits[].authors are the same account (`gh pr view <N> --json commits`). Palette is a Jules persona (docs/superpowers/specs/2026-06-14-jules-trigger-workflow-design.md; .jules/palette.md is its learning journal) \u2014 it opens PRs under whichever account's credentials invoked the Jules session, not a separate bot account. There is no \"palette[bot]\" GitHub login to verify or refute; asserting one would be a guess, not a fact. Identify these PRs by the \"\ud83c\udfa8 Palette:\" title prefix and/or \"palette/\" branch prefix instead. Focus: CLI/terminal UX polish (colors, spacing, semantic status icons).\n",
+      "role": "author",
+      "title_prefix": "\ud83c\udfa8 Palette:"
+    }
+  }
+}

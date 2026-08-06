@@ -6,8 +6,22 @@
 # disk would agree with each other and disagree with reality, and every gate
 # would stay green. A committed integer is the only thing the move cannot edit.
 #
-# A PR that adds or removes a skill MUST change expected_total in the same
-# commit, and give the new skill a bundle. That is the point, not friction.
+# A PR that adds or removes a skill MUST change the matching partition count and
+# catalog expected_total in the same commit, and give the new skill a bundle or
+# classify it as an independent marketplace addon.
+domain_expected_total: 108
+addon_expected_total: 6
+# Eight canonical domains plus the policy addon. This deliberately excludes
+# independent marketplace addons from the policy partition.
+policy_expected_total: 114
+independent_addon_expected_total: 1
+# Marketplace addons are intentionally installable without selecting a domain
+# bundle, but still appear in the global catalog and reference-validation gate.
+independent_addons:
+  manifest-docker:
+    - docker-compose-commandments
+# The exact global mirror/catalog count, including independent marketplace
+# addons. Consumers that inspect every installed skill must use this field.
 expected_total: 115
 
 # Recorded so no later phase keys anything on it: ~/.claude/skills/.deployed-skills
@@ -23,7 +37,7 @@ deployed_skills_manifest_trustworthy: false
 # distinct skills, none unassigned, none duplicated, every count matching its
 # declared header. Then the shipping transformation from cutover-plan.md:
 # manifest-data-pipelines DELETED, manifest-ci DISSOLVED, manifest-runtime-ops
-# renamed manifest-ops, graphify extracted to its own bundle.
+# renamed manifest-ops.
 #
 # ASSUMPTION, STATED BECAUSE IT WAS A REAL FORK. The plan's scatter rule ("along
 # their members' own subject-lens votes") and T3.1's declared counts DISAGREE:
@@ -73,13 +87,6 @@ bundles:
     - test-pin-bug
     - test-vary-fixtures
 
-  # Added after the cutover partitioned the original 108. Its own plugin because
-  # it is the first bundle to ship a hook (hooks/hooks.json), which no existing
-  # bundle has a home for; manifest-ops was the alternative and would have had
-  # to widen from "runtime operations" to carry it.
-  manifest-docker:  # 1 skills
-    - docker-compose-commandments
-
   manifest-docs:  # 4 skills
     - docs-all
     - docs-generate-diagrams
@@ -106,8 +113,6 @@ bundles:
     - pr-triage-bots
     - repo-clean
 
-  manifest-graphify:  # 1 skills
-    - graphify
 
   manifest-ops:  # 11 skills
     - cache-warm-oob
@@ -143,7 +148,7 @@ bundles:
     - spec-implement-loop
     - spec-review
 
-  manifest-workspace:  # 17 skills
+  manifest-workspace:  # 18 skills
     - ai-hooks-integration
     - automation-rework-breakeven
     - config-audit
@@ -154,6 +159,7 @@ bundles:
     - memory-compress
     - metrics-report
     - pass-cli
+    - parallel-agent
     - pr-smoke
     - prompt-optimize
     - session-checkpoint

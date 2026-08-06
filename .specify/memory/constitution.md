@@ -148,7 +148,7 @@ human escalation for routine, low-risk changes.
 ### IV. Skill-First Extensibility
 
 New capabilities MUST be implemented as discrete, self-contained skills in
-`.skillshare/skills/<skill-name>/SKILL.md` with `name` and `description` frontmatter.
+`.retired skill supply/skills/<skill-name>/SKILL.md` with `name` and `description` frontmatter.
 Skills MUST be independently invocable via `/skill-name` in Claude Code. Expanding
 `parallel_agent.py` or other core scripts to absorb new behaviors is prohibited when a
 skill is sufficient.
@@ -313,10 +313,10 @@ auditable via `lifecycle.sh audit`.
 `pytest tests/python/`. Lint with `shellcheck` (shell scripts) and `yamllint` (YAML
 configs) before opening a PR.
 
-**Skills**: New skills are added to `.skillshare/skills/` (source of truth). The path
+**Skills**: New skills are added to `.retired skill supply/skills/` (source of truth). The path
 `configs/claude/skills/` is a backward-compatibility symlink and MUST NOT be replaced
 with a real directory. Home deployment (`~/.claude/skills`) is managed by whichever
-mechanism owns that path under Principle V — exactly one at any time — and skillshare
+mechanism owns that path under Principle V — exactly one at any time — and retired skill supply
 manages project-scoped targets (`.github/skills`).
 
 **Plans**: Implementation plans live in `configs/claude/.plans/` as

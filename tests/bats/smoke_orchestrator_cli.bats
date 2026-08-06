@@ -5,27 +5,22 @@
 
 load '../test_helper/bats-support/load'
 load '../test_helper/bats-assert/load'
-# shellcheck disable=SC1091
-load '../test_helper/stub_home_runtime'
-
 REPO_ROOT="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)"
-SHIM="$REPO_ROOT/configs/claude/scripts/smoke_test.py"
+SHIM="$REPO_ROOT/plugins/manifest-code-quality/skills/smoke-manage/scripts/smoke.py"
 CLI_TOOL="$REPO_ROOT/tests/python/smoke_orchestrator/fixtures/cli_tool.py"
 
 setup() {
     SANDBOX=$(mktemp -d "${BATS_TMPDIR:-/tmp}/smoke_cli.XXXXXX")
     export HOME="$SANDBOX/home"
+    export UV_NO_NETWORK=1
+    export PYTHONNOUSERSITE=1
+    export PYTHONPATH=
     export PYTHONWARNINGS=ignore::DeprecationWarning
     mkdir -p "$HOME"
-    stub_home_manifest_runtime "$REPO_ROOT"
 }
 
 teardown() {
     [[ -n "$SANDBOX" && -d "$SANDBOX" ]] && rm -rf "$SANDBOX"
-}
-
-needs_pyyaml() {
-    python3 -c "import yaml" 2>/dev/null || skip "PyYAML not installed (opt-in smoke dep)"
 }
 
 write_catalog() {  # $1 tier  $2 cli_tool subcommand
@@ -60,7 +55,6 @@ YAML
 
 # --- gate exit codes 0 / 1 / 2 ---
 @test "run exits 0 when the selected test passes (and writes JUnit)" {
-    needs_pyyaml
     write_catalog Lite ok
     run "$SHIM" run --app demo --tier Lite --catalog-dir "$SANDBOX/cat" --junit "$SANDBOX/r.xml"
     assert_success
@@ -68,21 +62,18 @@ YAML
 }
 
 @test "run exits 1 when a selected test fails" {
-    needs_pyyaml
     write_catalog Lite fail
     run "$SHIM" run --app demo --tier Lite --catalog-dir "$SANDBOX/cat" --junit ""
     [ "$status" -eq 1 ]
 }
 
 @test "run exits 2 on empty selection (Lite over a Full-only catalog)" {
-    needs_pyyaml
     write_catalog Full ok
     run "$SHIM" run --app demo --tier Lite --catalog-dir "$SANDBOX/cat" --junit ""
     [ "$status" -eq 2 ]
 }
 
 @test "run exits 2 on an unknown tier (usage error)" {
-    needs_pyyaml
     write_catalog Lite ok
     run "$SHIM" run --app demo --tier Mega --catalog-dir "$SANDBOX/cat" --junit ""
     [ "$status" -eq 2 ]
@@ -90,7 +81,6 @@ YAML
 
 # --- append: idempotent + validation rejection ---
 @test "append is idempotent by id and rejects invalid input (exit 2)" {
-    needs_pyyaml
     printf '%s' '{"app":"demo","id":"a","tier":"Lite","steps":[{"name":"s","type":"api","method":"GET","path":"/health"}]}' \
         > "$SANDBOX/wf.json"
     run "$SHIM" append --from "$SANDBOX/wf.json" --catalog-dir "$SANDBOX/cat"
@@ -108,7 +98,7 @@ YAML
 
 # --- skill wrapper present ---
 @test "skill wrapper SKILL.md is present with name + description" {
-    run cat "$REPO_ROOT/.apm/skills/smoke-manage/SKILL.md"
+    run cat "$REPO_ROOT/plugins/manifest-code-quality/skills/smoke-manage/SKILL.md"
     assert_success
     assert_output --partial "name: smoke-manage"
     assert_output --partial "description:"

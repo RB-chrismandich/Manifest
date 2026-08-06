@@ -1,0 +1,2 @@
+The concrete skills symlink target is materialized in a temporary HOME by the
+migration tests.

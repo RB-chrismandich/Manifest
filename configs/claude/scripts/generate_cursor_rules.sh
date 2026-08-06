@@ -191,8 +191,7 @@ alwaysApply: true
 ${index_body}
 
 <!-- Auto-generated from .apm/skills/ via generate_commands_doc.py --compact -->
-<!-- Regenerate: configs/claude/scripts/generate_cursor_rules.sh -->
-"
+<!-- Regenerate: configs/claude/scripts/generate_cursor_rules.sh -->"
         if [[ -f "$index_rule" ]]; then
             existing=$(
                 cat "$index_rule"

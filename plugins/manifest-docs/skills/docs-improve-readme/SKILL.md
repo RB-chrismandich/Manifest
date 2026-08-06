@@ -9,14 +9,14 @@ A README answers three questions: what is this, how do I run it, where do I go
 next. Everything else belongs in `docs/` behind a link.
 
 The cap is 200 lines, enforced by `docs_lint.py`; the split and fluff rules are
-in `configs/claude/references/doc-concision.md`. Read it first.
+in `../../runtime/references/doc-concision.md`. Read it first.
 
 ## Steps
 
 ### 1. Measure
 
 ```bash
-python3 configs/claude/scripts/docs_lint.py README.md
+python3 ../../runtime/docs_lint.py README.md
 ```
 
 ### 2. Derive facts from code, not from the old README

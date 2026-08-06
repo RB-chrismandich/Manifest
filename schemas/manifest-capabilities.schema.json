@@ -1,0 +1,167 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Manifest portable capability contract",
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+        "schema_version",
+        "bundle",
+        "components",
+        "capabilities",
+        "compatibility",
+        "provenance"
+    ],
+    "properties": {
+        "schema_version": {"const": 1},
+        "bundle": {"$ref": "#/$defs/bundle"},
+        "components": {"$ref": "#/$defs/components"},
+        "capabilities": {"$ref": "#/$defs/capabilities"},
+        "compatibility": {"$ref": "#/$defs/compatibility-map"},
+        "provenance": {"$ref": "#/$defs/provenance"}
+    },
+    "$defs": {
+        "identifier": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$"},
+        "relative-path": {
+            "type": "string",
+            "pattern": "^(?!/)(?!.*//)(?!.*(?:^|/)\\.\\.?(/|$))(?=.*[^/]$)[A-Za-z0-9][A-Za-z0-9._/-]*$"
+        },
+        "relative-glob": {
+            "type": "string",
+            "pattern": "^(?!/)(?!.*//)(?!.*(?:^|/)\\.\\.?(/|$))(?=.*[^/]$)[A-Za-z0-9*?\\[\\]._/{}-]+$"
+        },
+        "bundle": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "version", "description", "category"],
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "pattern": "^(manifest-[a-z0-9-]+|stitch-design)$"
+                },
+                "version": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"},
+                "description": {"type": "string", "minLength": 20},
+                "category": {"type": "string", "minLength": 1}
+            }
+        },
+        "compatibility-status": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["mode"],
+            "properties": {
+                "mode": {
+                    "enum": [
+                        "native",
+                        "generated",
+                        "imported",
+                        "degraded",
+                        "unsupported"
+                    ]
+                },
+                "reason": {"type": "string", "minLength": 1}
+            },
+            "allOf": [
+                {
+                    "if": {
+                        "properties": {"mode": {"enum": ["degraded", "unsupported"]}}
+                    },
+                    "then": {"required": ["reason"]},
+                    "else": {"not": {"required": ["reason"]}}
+                }
+            ]
+        },
+        "compatibility-map": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["claude", "codex", "gemini", "cursor", "antigravity", "devin"],
+            "properties": {
+                "claude": {"$ref": "#/$defs/compatibility-status"},
+                "codex": {"$ref": "#/$defs/compatibility-status"},
+                "gemini": {"$ref": "#/$defs/compatibility-status"},
+                "cursor": {"$ref": "#/$defs/compatibility-status"},
+                "antigravity": {"$ref": "#/$defs/compatibility-status"},
+                "devin": {"$ref": "#/$defs/compatibility-status"}
+            }
+        },
+        "component": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "path"],
+            "properties": {
+                "id": {"$ref": "#/$defs/identifier"},
+                "path": {"$ref": "#/$defs/relative-path"},
+                "compatibility": {"$ref": "#/$defs/compatibility-map"}
+            }
+        },
+        "skills": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["root", "include"],
+            "properties": {
+                "root": {"$ref": "#/$defs/relative-path"},
+                "include": {
+                    "type": "array",
+                    "minItems": 1,
+                    "uniqueItems": true,
+                    "items": {"$ref": "#/$defs/relative-glob"}
+                }
+            }
+        },
+        "components": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["skills", "agents", "hooks", "runtime", "guidance"],
+            "properties": {
+                "skills": {"$ref": "#/$defs/skills"},
+                "agents": {"type": "array", "items": {"$ref": "#/$defs/component"}},
+                "hooks": {"type": "array", "items": {"$ref": "#/$defs/component"}},
+                "runtime": {"type": "array", "items": {"$ref": "#/$defs/component"}},
+                "guidance": {"type": "array", "items": {"$ref": "#/$defs/component"}}
+            }
+        },
+        "capability-tiers": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["required", "default", "optional"],
+            "properties": {
+                "required": {
+                    "type": "array",
+                    "uniqueItems": true,
+                    "items": {"$ref": "#/$defs/identifier"}
+                },
+                "default": {
+                    "type": "array",
+                    "uniqueItems": true,
+                    "items": {"$ref": "#/$defs/identifier"}
+                },
+                "optional": {
+                    "type": "array",
+                    "uniqueItems": true,
+                    "items": {"$ref": "#/$defs/identifier"}
+                }
+            }
+        },
+        "capabilities": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["mcp", "executables"],
+            "properties": {
+                "mcp": {"$ref": "#/$defs/capability-tiers"},
+                "executables": {"$ref": "#/$defs/capability-tiers"}
+            }
+        },
+        "provenance": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["repository", "license", "license_file", "generated_by"],
+            "properties": {
+                "repository": {"const": "https://github.com/RB-chrismandich/Manifest"},
+                "license": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9.-]*(?: (?:AND|OR|WITH) [A-Za-z0-9][A-Za-z0-9.-]*)*$"
+                },
+                "license_file": {"$ref": "#/$defs/relative-path"},
+                "generated_by": {"const": "tools/generate_plugin_views.py"}
+            }
+        }
+    }
+}

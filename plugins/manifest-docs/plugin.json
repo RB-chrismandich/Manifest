@@ -1,0 +1,164 @@
+{
+  "description": "Documentation improvement, diagram generation, and doc-set orchestration.",
+  "forbidden": [],
+  "harnesses": {
+    "antigravity": {
+      "compatibility": {
+        "imported": [
+          {
+            "component_id": "docs-lint",
+            "component_type": "runtime",
+            "mode": "imported",
+            "path": "runtime/docs_lint.py"
+          },
+          {
+            "component_id": "docs-references",
+            "component_type": "runtime",
+            "mode": "imported",
+            "path": "runtime/references"
+          }
+        ]
+      },
+      "components": {
+        "runtime": [
+          {
+            "id": "docs-lint",
+            "path": "runtime/docs_lint.py"
+          },
+          {
+            "id": "docs-references",
+            "path": "runtime/references"
+          }
+        ]
+      },
+      "mode": "imported",
+      "skills": [
+        "skills/docs-all",
+        "skills/docs-generate-diagrams",
+        "skills/docs-improve",
+        "skills/docs-improve-readme"
+      ]
+    },
+    "codex": {
+      "compatibility": {
+        "native": [
+          {
+            "component_id": "docs-lint",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "runtime/docs_lint.py"
+          },
+          {
+            "component_id": "docs-references",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "runtime/references"
+          }
+        ]
+      },
+      "components": {
+        "runtime": [
+          {
+            "id": "docs-lint",
+            "path": "runtime/docs_lint.py"
+          },
+          {
+            "id": "docs-references",
+            "path": "runtime/references"
+          }
+        ]
+      },
+      "mode": "native",
+      "skills": [
+        "skills/docs-all",
+        "skills/docs-generate-diagrams",
+        "skills/docs-improve",
+        "skills/docs-improve-readme"
+      ]
+    },
+    "cursor": {
+      "compatibility": {
+        "generated": [
+          {
+            "component_id": "docs-lint",
+            "component_type": "runtime",
+            "mode": "generated",
+            "path": "runtime/docs_lint.py"
+          },
+          {
+            "component_id": "docs-references",
+            "component_type": "runtime",
+            "mode": "generated",
+            "path": "runtime/references"
+          }
+        ]
+      },
+      "components": {
+        "runtime": [
+          {
+            "id": "docs-lint",
+            "path": "runtime/docs_lint.py"
+          },
+          {
+            "id": "docs-references",
+            "path": "runtime/references"
+          }
+        ]
+      },
+      "mode": "generated",
+      "skills": [
+        "skills/docs-all",
+        "skills/docs-generate-diagrams",
+        "skills/docs-improve",
+        "skills/docs-improve-readme"
+      ]
+    },
+    "devin": {
+      "compatibility": {
+        "native": [
+          {
+            "component_id": "docs-lint",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "runtime/docs_lint.py"
+          },
+          {
+            "component_id": "docs-references",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "runtime/references"
+          }
+        ]
+      },
+      "components": {
+        "runtime": [
+          {
+            "id": "docs-lint",
+            "path": "runtime/docs_lint.py"
+          },
+          {
+            "id": "docs-references",
+            "path": "runtime/references"
+          }
+        ]
+      },
+      "mode": "native",
+      "skills": [
+        "skills/docs-all",
+        "skills/docs-generate-diagrams",
+        "skills/docs-improve",
+        "skills/docs-improve-readme"
+      ]
+    }
+  },
+  "name": "manifest-docs",
+  "optional": [],
+  "required": [],
+  "skills": [
+    "skills/docs-all",
+    "skills/docs-generate-diagrams",
+    "skills/docs-improve",
+    "skills/docs-improve-readme"
+  ],
+  "version": "0.2.0"
+}

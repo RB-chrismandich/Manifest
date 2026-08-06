@@ -1,0 +1,15 @@
+---
+description: "Run installed agent harness CLIs in parallel for review, analysis, synthesis, and structured cross-verification without bootstrap or shared-home runtime files."
+globs: ".claude/skills/parallel-agent/**"
+alwaysApply: false
+---
+
+# parallel-agent
+
+Run installed agent harness CLIs in parallel for review, analysis, synthesis, and structured cross-verification without bootstrap or shared-home runtime files.
+
+<!-- Auto-generated from .claude/skills/parallel-agent/SKILL.md -->
+<!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
+
+Refer to `.cursor/skills/parallel-agent/SKILL.md` for the full skill definition.
+

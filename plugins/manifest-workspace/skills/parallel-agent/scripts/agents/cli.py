@@ -1,0 +1,435 @@
+"""CLI entry point: argument parsing and top-level main() coroutine.
+
+Dependency graph: config + runners + orchestrator → cli (highest fan-in by design).
+"""
+
+import argparse
+import json
+import os
+import shutil
+import sys
+from datetime import datetime
+from pathlib import Path
+
+from agents.config import (
+    HAS_ANTHROPIC,
+    HAS_GENAI,
+    Config,
+    Logger,
+    RateLimiter,
+    ServiceConfig,
+    load_agent_roster,
+    select_backend,
+)
+from agents.orchestrator import Orchestrator, check_credits
+from agents.runners import (
+    ClaudeAgent,
+    CLIAgent,
+    GeminiAgent,
+)
+
+# model-tier defaults, not in agent_roster.yml's schema (see roster header) —
+# a small local map, same pattern as the install-hint map used elsewhere in
+# this program. Mirrors the original hardcoded argparse defaults for the 5
+# shipped agents. A roster agent with no entry here gets "auto" (CLIAgent
+# already treats "auto" as "no model override" — see runners._resolve_model).
+_MODEL_TIER_DEFAULTS = {
+    "claude": "sonnet",
+    "gemini": "flash",
+    "cursor": "flash",
+    "codex": "auto",
+    "antigravity": "flash",
+    # "auto" (no --model) — devin's catalog is login-gated, so nothing is
+    # pinned; see parallel_agent.yml model_tiers.devin.
+    "devin": "auto",
+}
+
+# Fallback roster names used only if agent_roster.yml is missing/unreadable
+# (load_agent_roster() degrades to {} in that case). Flag generation below
+# depends on the roster being non-empty, so this is the cli.py-level safety
+# net that keeps the 5 shipped agents' flags alive even on a machine that
+# hasn't been re-bootstrapped with agent_roster.yml yet.
+#
+# devin is deliberately NOT here even though it has a tier default above. With
+# no roster file, ServiceConfig.is_enabled() has no `enabled_default` to read
+# and falls back to True — so listing devin would put an opt-in, login-gated
+# agent into the panel on exactly the machines that never opted in. Its flags
+# come back the moment a roster file exists.
+_FALLBACK_ROSTER = {
+    name: {} for name in ("claude", "gemini", "cursor", "codex", "antigravity")
+}
+
+# Historical per-agent flag ordering, pinned so `--help` output stays
+# byte-identical to the pre-refactor hardcoded declarations. The --*-model
+# and --*-only flags were declared claude/gemini/cursor/codex/antigravity;
+# the --no-* flags were declared in a different order
+# (claude/cursor/gemini/codex/antigravity) in the original file. Any roster
+# agent not in a hint (e.g. a newly added one) is appended in roster order.
+_ONLY_ORDER_HINT = ["claude", "gemini", "cursor", "codex", "antigravity"]
+_NO_ORDER_HINT = ["claude", "cursor", "gemini", "codex", "antigravity"]
+
+
+def _ordered(roster: dict, hint: list[str]) -> list[str]:
+    ordered = [n for n in hint if n in roster]
+    ordered += [n for n in roster if n not in hint]
+    return ordered
+
+
+def _dest(name: str) -> str:
+    """Normalize a roster agent name into argparse's dest-name mangling.
+
+    argparse builds a flag's dest by replacing '-' with '_' when it turns
+    `--{name}-only` into an attribute name (e.g. a roster agent named
+    "gemini-pro" gets flag `--gemini-pro-only` but dest `gemini_pro_only`).
+    Every getattr(args, ...) lookup below re-derives that dest from the raw
+    roster name and must apply the same normalization argparse itself does,
+    or a hyphenated roster name raises AttributeError on any real invocation
+    (roster names are hyphen-free today, so this is a no-op for them).
+    """
+    return name.replace("-", "_")
+
+
+def resolve_enabled_agents(
+    roster: dict, args: argparse.Namespace, enabled: dict[str, bool]
+) -> dict[str, bool]:
+    """Apply --*-only (exclusive) and --no-* (always-wins) overrides on top
+    of the services.yml-derived `enabled` state. Split out from main() so
+    the dest-name derivation — the site of the hyphenated-roster-name
+    AttributeError bug — is directly unit-testable without a subprocess.
+    """
+    enabled = dict(enabled)
+    only_flags = {name: getattr(args, f"{_dest(name)}_only") for name in roster}
+    if any(only_flags.values()):
+        for agent_name in enabled:
+            enabled[agent_name] = only_flags[agent_name]
+    for name in roster:
+        if getattr(args, f"no_{_dest(name)}"):
+            enabled[name] = False
+    return enabled
+
+
+def resolve_cli_models(
+    cli_only_providers: list[str], args: argparse.Namespace
+) -> dict[str, str]:
+    """Model-tier overrides for CLI-only roster agents, keyed by roster name.
+
+    Split out for the same reason as resolve_enabled_agents — the dest-name
+    derivation is another site of the hyphenated-roster-name bug.
+    """
+    return {name: getattr(args, f"{_dest(name)}_model") for name in cli_only_providers}
+
+
+def cli_only_provider_names(roster: dict, sdk_providers: dict) -> list[str]:
+    """Roster agent names not handled via sdk_providers (claude/gemini's SDK
+    backend selection) — the CLI-only dispatch set. Any roster agent here
+    (cursor/codex/antigravity today, plus any future roster-only agent)
+    flows through the generic CLIAgent dispatch with no code change.
+    Factored out so cli.py's dispatch-set logic is directly unit-testable.
+    """
+    return [name for name in roster if name not in sdk_providers]
+
+
+def build_parser(roster: dict) -> argparse.ArgumentParser:
+    """Build the CLI argument parser.
+
+    Per-agent flags (--<name>-model, --<name>-only, --no-<name>) are
+    generated by looping over `roster` (agent_roster.yml's `agents:` map,
+    or `_FALLBACK_ROSTER`) instead of being individually hardcoded — this is
+    what lets a roster-only agent (no code change) get working flags. Split
+    out from main() so it's directly unit-testable via parse_args() without
+    touching argv/filesystem.
+    """
+    parser = argparse.ArgumentParser(description="Parallel Agent Orchestrator")
+    parser.add_argument("prompt", nargs="?", help="Prompt to send to agents")
+    parser.add_argument("--json", action="store_true", help="Output JSON format")
+    parser.add_argument("--validate", action="store_true", help="Validate results")
+    parser.add_argument("--review", metavar="FILE", help="Code review mode")
+    parser.add_argument("--analyze", metavar="FILE", help="Bug/security analysis mode")
+    parser.add_argument(
+        "--improve", metavar="FILE", help="Improve observation YAML mode"
+    )
+    parser.add_argument(
+        "--check-credits", action="store_true", help="Pre-flight credit check"
+    )
+    parser.add_argument("--output", metavar="DIR", help="Custom output directory")
+    parser.add_argument(
+        "--full-output",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Include complete outputs (--no-full-output truncates to 1000 chars)",
+    )
+    parser.add_argument(
+        "--no-stream", action="store_true", help="Disable streaming output"
+    )
+    parser.add_argument(
+        "--synthesize",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Enable synthesis for low consensus (--no-synthesize disables)",
+    )
+    parser.add_argument(
+        "--timeout",
+        type=int,
+        default=None,
+        help="Timeout per agent (seconds). Defaults: review=600, analyze=900, improve=300, prompt=600",
+    )
+
+    model_and_only_order = _ordered(roster, _ONLY_ORDER_HINT)
+    for name in model_and_only_order:
+        default = _MODEL_TIER_DEFAULTS.get(name, "auto")
+        parser.add_argument(
+            f"--{name}-model",
+            default=default,
+            help=f"{name.capitalize()} model tier",
+        )
+    for name in model_and_only_order:
+        parser.add_argument(
+            f"--{name}-only",
+            action="store_true",
+            help=f"Run only {name.capitalize()}",
+        )
+
+    for name in _ordered(roster, _NO_ORDER_HINT):
+        parser.add_argument(
+            f"--no-{name}",
+            action="store_true",
+            help=f"Disable {name.capitalize()} agent",
+        )
+
+    parser.add_argument(
+        "--status",
+        action="store_true",
+        help="Check agent status (delegates to check_status.sh)",
+    )
+    return parser
+
+
+async def main():
+    """Main entry point"""
+    roster = load_agent_roster() or _FALLBACK_ROSTER
+    parser = build_parser(roster)
+    args = parser.parse_args()
+
+    # Load configuration
+    config = Config()
+
+    # Load service configuration
+    services = ServiceConfig()
+
+    # Create logger
+    logger = Logger(config)
+    logger.set_correlation_id(
+        f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{os.getpid()}"
+    )
+
+    # Status check mode — delegate to check_status.sh
+    if args.status:
+        # Go up one level from agents/ to scripts/ to find sibling scripts
+        script_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        status_script = os.path.join(script_dir, "check_status.sh")
+        if os.path.exists(status_script):
+            os.execv("/bin/bash", ["/bin/bash", status_script])
+        else:
+            print(f"Error: {status_script} not found", file=sys.stderr)
+            sys.exit(1)
+
+    # Credit check mode
+    if args.check_credits:
+        print("Checking API credits...")
+        results = await check_credits(config, logger)
+        print(json.dumps(results, indent=2))
+        sys.exit(0)
+
+    # Determine mode and prompt
+    mode = "prompt"
+    command = None
+
+    if args.review:
+        if not Path(args.review).exists():
+            print(f"Error: file not found: {args.review}", file=sys.stderr)
+            sys.exit(1)
+        mode = "review"
+        prompt = f"Review this file for code quality, security, and best practices: {args.review}"
+    elif args.analyze:
+        if not Path(args.analyze).exists():
+            print(f"Error: file not found: {args.analyze}", file=sys.stderr)
+            sys.exit(1)
+        mode = "analyze"
+        prompt = f"Analyze this file for bugs and security issues: {args.analyze}"
+    elif args.improve:
+        if not Path(args.improve).exists():
+            print(f"Error: file not found: {args.improve}", file=sys.stderr)
+            sys.exit(1)
+        mode = "improve"
+        prompt = f"Review and improve this observation YAML: {args.improve}"
+    elif args.prompt:
+        mode = "prompt"
+        prompt = args.prompt
+    else:
+        parser.print_help()
+        sys.exit(1)
+
+    # Resolve timeout: explicit flag wins, then mode-based default from config
+    if args.timeout is not None:
+        timeout = args.timeout
+    else:
+        mode_timeouts = {
+            "review": config.get("timeouts.review", 600),
+            "analyze": config.get("timeouts.analyze", 900),
+            "improve": config.get("timeouts.improve", 300),
+            "prompt": config.get("timeouts.default", 600),
+        }
+        timeout = mode_timeouts.get(mode, 600)
+
+    # Create rate limiters (claude/gemini only — used directly by
+    # sdk_providers below; the CLI-only providers' limiters are built from
+    # the roster loop further down)
+    claude_limiter = RateLimiter(**config.get("rate_limits.claude", {}))
+    gemini_limiter = RateLimiter(**config.get("rate_limits.gemini", {}))
+
+    # Determine streaming mode
+    streaming = not args.no_stream and config.get("streaming.enabled", True)
+
+    # --- Agent selection logic ---
+    # 1. Start with services.yml enabled state
+    enabled = {name: services.is_enabled(name) for name in roster}
+
+    # 2. Apply --*-only flags (exclusive: if any set, only those run) and
+    #    --no-* overrides (always win)
+    enabled = resolve_enabled_agents(roster, args, enabled)
+
+    # Build agents list
+    agents = []
+
+    sdk_providers = {
+        "claude": {
+            "agent_cls": ClaudeAgent,
+            "has_sdk": HAS_ANTHROPIC,
+            "key_env": "ANTHROPIC_API_KEY",
+            "model": args.claude_model,
+            "limiter": claude_limiter,
+        },
+        "gemini": {
+            "agent_cls": GeminiAgent,
+            "has_sdk": HAS_GENAI,
+            "key_env": "GOOGLE_API_KEY",
+            "model": args.gemini_model,
+            "limiter": gemini_limiter,
+        },
+    }
+    for provider, spec in sdk_providers.items():
+        if not enabled[provider]:
+            continue
+        binary = config.get(f"cli_agents.{provider}.binary", provider)
+        backend = select_backend(
+            has_sdk=spec["has_sdk"],
+            has_key=bool(os.environ.get(spec["key_env"])),
+            has_cli=bool(shutil.which(binary)),
+        )
+        try:
+            if backend == "sdk":
+                agents.append(
+                    spec["agent_cls"](
+                        spec["model"],
+                        timeout,
+                        spec["limiter"],
+                        config=config,
+                        logger=logger,
+                        streaming=streaming,
+                    )
+                )
+            elif backend == "cli":
+                agents.append(
+                    CLIAgent(
+                        provider,
+                        spec["model"],
+                        timeout,
+                        spec["limiter"],
+                        config=config,
+                        logger=logger,
+                        streaming=streaming,
+                    )
+                )
+            else:
+                msg = (
+                    f"Warning: skipping {provider} agent: neither the SDK "
+                    f"(+{spec['key_env']}) nor the {binary} CLI is available"
+                )
+                print(msg, file=sys.stderr)
+                logger.warning(msg)
+        except Exception as e:
+            # SDK construction can raise (missing key, broken auth) and a
+            # malformed cli_agents block raises ValueError — degrade to a
+            # skipped provider, never a crashed orchestration.
+            print(
+                f"Warning: skipping {provider} agent ({backend}): {e}",
+                file=sys.stderr,
+            )
+            logger.warning(f"Skipping {provider} agent ({backend}): {e}")
+
+    # CLI-only dispatch: any roster agent not handled via sdk_providers above
+    # flows through here with no code change required.
+    cli_only_providers = cli_only_provider_names(roster, sdk_providers)
+    cli_limiters = {
+        name: RateLimiter(**config.get(f"rate_limits.{name}", {}))
+        for name in cli_only_providers
+    }
+    cli_models = resolve_cli_models(cli_only_providers, args)
+    for provider in cli_only_providers:
+        if enabled[provider]:
+            try:
+                agents.append(
+                    CLIAgent(
+                        provider,
+                        cli_models[provider],
+                        timeout,
+                        cli_limiters[provider],
+                        config=config,
+                        logger=logger,
+                        streaming=streaming,
+                    )
+                )
+            except ValueError as e:
+                print(
+                    f"Warning: skipping {provider} agent: {e}",
+                    file=sys.stderr,
+                )
+                logger.warning(f"Skipping {provider} agent: {e}")
+
+    # Check minimum agents
+    min_warning = services.check_minimum_agents(len(agents))
+    if min_warning:
+        print(min_warning, file=sys.stderr)
+        logger.warning(min_warning)
+
+    if not agents:
+        print(
+            "Error: No agents available. Check services.yml or install dependencies.",
+            file=sys.stderr,
+        )
+        logger.error("No agents available")
+        sys.exit(1)
+
+    # Create orchestrator and execute
+    orchestrator = Orchestrator(
+        agents,
+        config,
+        validate=args.validate,
+        logger=logger,
+        enable_synthesis=args.synthesize,
+        streaming=streaming,
+    )
+
+    result = await orchestrator.execute(prompt, mode, command)
+
+    # Write output files (with custom directory if provided)
+    if args.output or not args.full_output:
+        result["output_files"] = await orchestrator._write_output_files(
+            result,
+            result["timestamp"],
+            custom_output_dir=args.output,
+            full_output=args.full_output,
+        )
+
+    # Print results
+    orchestrator.print_results(result, json_output=args.json)

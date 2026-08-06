@@ -45,7 +45,7 @@ fi
 **Create:**
 - `configs/claude/scripts/spec_review.sh` — the engine
 - `configs/claude/prompts/spec_review.md` — the gemini prompt template
-- `.skillshare/skills/spec-review/SKILL.md` — the `/spec-review` on-demand entry point
+- `.retired skill supply/skills/spec-review/SKILL.md` — the `/spec-review` on-demand entry point
 - `tests/bats/spec_review.bats` — engine tests
 
 **Modify:**
@@ -684,7 +684,7 @@ git commit -m "feat(spec-review): orchestration + fail-open detached silent mode
 ## Task 7: /spec-review skill + .gitignore
 
 **Files:**
-- Create: `.skillshare/skills/spec-review/SKILL.md`
+- Create: `.retired skill supply/skills/spec-review/SKILL.md`
 - Modify: `.gitignore`
 - Test: `tests/bats/spec_review.bats`
 
@@ -692,7 +692,7 @@ git commit -m "feat(spec-review): orchestration + fail-open detached silent mode
 
 ```bash
 @test "spec-review SKILL.md has valid frontmatter and points at the engine" {
-    local skill="$REPO_ROOT/.skillshare/skills/spec-review/SKILL.md"
+    local skill="$REPO_ROOT/.retired skill supply/skills/spec-review/SKILL.md"
     assert [ -f "$skill" ]
     run head -1 "$skill"; assert_output "---"
     run grep -E '^name: spec-review' "$skill"; assert_success
@@ -712,7 +712,7 @@ Expected: FAIL — skill + ignore entry absent.
 
 - [ ] **Step 3: Create the skill and ignore entry**
 
-`.skillshare/skills/spec-review/SKILL.md`:
+`.retired skill supply/skills/spec-review/SKILL.md`:
 
 ```markdown
 ---
@@ -766,7 +766,7 @@ Expected: PASS (20 tests).
 - [ ] **Step 5: Commit**
 
 ```bash
-git add .skillshare/skills/spec-review/SKILL.md .gitignore tests/bats/spec_review.bats
+git add .retired skill supply/skills/spec-review/SKILL.md .gitignore tests/bats/spec_review.bats
 git commit -m "feat(spec-review): /spec-review skill + .spec-review gitignore"
 ```
 
@@ -859,7 +859,7 @@ Expected: all green; shellcheck clean; JSON valid.
 
 - [ ] **Step 3: Markdownlint the new docs**
 
-Run: `markdownlint .skillshare/skills/spec-review/SKILL.md configs/claude/prompts/spec_review.md docs/superpowers/specs/2026-06-08-spec-review-design.md docs/superpowers/plans/2026-06-08-spec-review.md` (or the repo's configured linter; honor `.markdownlint.jsonc`). Fix violations.
+Run: `markdownlint .retired skill supply/skills/spec-review/SKILL.md configs/claude/prompts/spec_review.md docs/superpowers/specs/2026-06-08-spec-review-design.md docs/superpowers/plans/2026-06-08-spec-review.md` (or the repo's configured linter; honor `.markdownlint.jsonc`). Fix violations.
 
 - [ ] **Step 4: Commit**
 

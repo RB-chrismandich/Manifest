@@ -242,7 +242,7 @@ project/
 Remotion maintains its own Agent Skills that define best practices. Review these for advanced techniques:
 
 - **Repository**: <https://github.com/remotion-dev/remotion/tree/main/packages/skills>
-- **Installation**: `npx skills add remotion-dev/skills`
+- **Bundle identity**: `stitch-design:remotion`
 
 Key Remotion skills to leverage:
 

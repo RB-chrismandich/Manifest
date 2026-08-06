@@ -109,7 +109,7 @@ Typo/comment/formatting fixes, single-line changes, documentation updates, simpl
 ## Skills
 
 Skills live in `~/.claude/skills/` (70+ skills, deployed from the repo's
-`.skillshare/skills/`). Each skill's `SKILL.md` frontmatter (`name`,
+`.retired skill supply/skills/`). Each skill's `SKILL.md` frontmatter (`name`,
 `description`) is the **authoritative registry** — Claude Code auto-loads every
 description at session start, so no table is duplicated here. Per-skill
 parallel-agent policy (always/conditional/never) lives in
@@ -129,7 +129,7 @@ graphify never participates in `parallel_agent.py` consensus and is not counted
 toward orchestration readiness.
 
 **CLI tool** (installed to `~/.local/bin/`): `sync-skills` — push
-`.skillshare/skills/` changes to all home targets (daily skill dev workflow).
+`.retired skill supply/skills/` changes to all home targets (daily skill dev workflow).
 
 ### Auto-Triggered Skill
 

@@ -5,7 +5,7 @@
 ## Entities
 
 ### Skill
-- **Identity**: directory name under `.skillshare/skills/` (kebab-case, unique)
+- **Identity**: directory name under `.retired skill supply/skills/` (kebab-case, unique)
 - **Fields**: `name` (frontmatter, MUST equal directory name), `description`
   (frontmatter, trigger surface — loaded into every session), body (procedure)
 - **States**: `active` → `absorbed` (content merged into a survivor, directory
@@ -22,9 +22,9 @@
 
 ### Deploy Target
 - **Instances**: `~/.claude/skills` (bootstrap + sync-skills), Cursor/Gemini/
-  Codex/Antigravity symlinks (follow home), `.github/skills` (skillshare-owned)
+  Codex/Antigravity symlinks (follow home), `.github/skills` (retired skill supply-owned)
 - **Fields**: path, deployer (bootstrap `deploy_home_skills` | `sync-skills.sh`
-  | skillshare), mirror semantics (post-change: all mirror = prune on deploy)
+  | retired skill supply), mirror semantics (post-change: all mirror = prune on deploy)
 - **Invariant (FR-005a)**: pruning scoped to the skills directory only; paths
   outside it untouched by skill deploys
 

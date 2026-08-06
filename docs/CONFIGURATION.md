@@ -136,11 +136,6 @@ services:
       - advanced # Maximum capability (gpt-5.6-sol)
       - auto     # Use Codex config default model
 
-  # Graphify - knowledge-graph generator (managed tool, not an orchestration agent)
-  graphify:
-    enabled: true            # default-enabled; --disable-graphify to opt out
-    command: graphify
-    description: "Knowledge-graph generator (/graphify); host-agent backend, no key required"
 
   # pilotfish - cost-tiered role-agents (~/.claude/agents/) + delegation policy reference.
   # Opt-in, config-only, Claude-only. Enabling deploys six role-agents (scout, Explore,
@@ -203,8 +198,6 @@ fallback:
 # Enable browser-use (Python E2E browser automation for smoke-manage UI steps)
 ./bootstrap.sh --reconfigure --enable-browser-use
 
-# Disable Graphify (managed knowledge-graph tool; default-enabled)
-./bootstrap.sh --reconfigure --disable-graphify
 ```
 
 ### Option 2: Edit services.yml manually

@@ -11,7 +11,7 @@
 ## Global Constraints
 
 - Scope is **descriptions only** — never touch skill `name:`, skill bodies, or the naming taxonomy. **One approved exception** (surfaced during Task 6, user-approved): `plan-manage`'s body had 12 pre-existing stale `.claude/.plans/` / `labels.yml` paths prefixed to `~/.claude/…` (path-prefix only, no prose/logic), because touching its description dragged the whole file into the `check-stale-repo-paths` changed-file gate. Task 6 Step 3 excludes `plan-manage` body diffs accordingly.
-- **Exclude externally-managed skills**: any skill listed under `skills:` with a `source:` in `.skillshare/config.yaml` (currently only `ai-hooks-integration`). Never edit those files.
+- **Exclude externally-managed skills**: any skill listed under `skills:` with a `source:` in `.retired skill supply/config.yaml` (currently only `ai-hooks-integration`). Never edit those files.
 - House style: inline single-line description; **double-quote** iff the text contains `: ` (colon-space) or begins with a YAML indicator (`- ? : [ ] { } # & * ! | > ' " % @ \``); escape embedded `"` as `\"`.
 - Non-trimmable content (Lever B): security keywords, negative-space cross-references ("Analysis-only; use X instead"), the skill's name-match cue and primary "use when" phrase.
 - Every task ends green on `bats tests/bats/context_budget.bats` and a YAML-parse check of all touched SKILL.md files.
@@ -24,7 +24,7 @@
 
 | Path | Responsibility | Change |
 |---|---|---|
-| `.skillshare/skills/*/SKILL.md` | Per-skill front-matter (the edits) | Modify (excl. externally-managed) |
+| `.retired skill supply/skills/*/SKILL.md` | Per-skill front-matter (the edits) | Modify (excl. externally-managed) |
 | `$SCRATCH/measure_frontmatter.sh` | Byte/style/parse audit used across tasks | Create (scratch only) |
 | `$SCRATCH/parse_check.py` | PyYAML validity + `name`/`description` presence check | Create (scratch only) |
 | `$SCRATCH/normalize_frontmatter.py` | One-off Lever A in-place inline transform | Create (scratch only) |
@@ -37,13 +37,13 @@
 | `tests/python/command_help/test_command_catalog.py` | Embedded-quote round-trip test (Task 2b) | Modify |
 | `configs/cursor/rules/*.mdc` | Regenerated cursor rules for trimmed skills (Lever B) | Modify (generated) |
 | `docs/COMMANDS.md` | Regenerated command index for trimmed skills (Lever B) | Modify (generated) |
-| `.skillshare/skills/plan-manage/SKILL.md` | Approved body path-prefix fix (Task 6, gate-forced) | Modify (body — the one exception) |
+| `.retired skill supply/skills/plan-manage/SKILL.md` | Approved body path-prefix fix (Task 6, gate-forced) | Modify (body — the one exception) |
 | `tests/bats/context_budget.bats:116-127` | Total front-matter byte cap | Modify (D1 ratchet) |
 | `docs/SKILL-NAMING.md` | Naming + now front-matter house style | Modify (D2) |
 
 `$SCRATCH` is the session scratchpad directory (defined in Task 1 Step 0). Every
 scratch script and data file lives under it and is **never committed** — only the
-resulting `.skillshare/skills/*.md`, `tests/`, and `docs/` diffs enter the repo.
+resulting `.retired skill supply/skills/*.md`, `tests/`, and `docs/` diffs enter the repo.
 
 ---
 
@@ -60,10 +60,10 @@ resulting `.skillshare/skills/*.md`, `tests/`, and `docs/` diffs enter the repo.
 ```bash
 export SCRATCH="/private/tmp/claude-501/-Users-chrismandich-Documents-GitHub-Manifest/<session>/scratchpad"
 mkdir -p "$SCRATCH/evalsets"
-# .skillshare/config.yaml is committed infra; if it is missing/unparseable we
+# .retired skill supply/config.yaml is committed infra; if it is missing/unparseable we
 # cannot determine externally-managed skills -> STOP (never risk editing them).
-python3 -c "import yaml,sys; yaml.safe_load(open('.skillshare/config.yaml'))" \
-  || { echo "FATAL: .skillshare/config.yaml missing/unparseable — aborting (fail closed)"; exit 1; }
+python3 -c "import yaml,sys; yaml.safe_load(open('.retired skill supply/config.yaml'))" \
+  || { echo "FATAL: .retired skill supply/config.yaml missing/unparseable — aborting (fail closed)"; exit 1; }
 ```
 Expected: `$SCRATCH` exists; the config parses. If it aborts, do not proceed with any task.
 
@@ -74,9 +74,9 @@ cat > "$SCRATCH/measure_frontmatter.sh" <<'EOF'
 #!/usr/bin/env bash
 # Audit skill front-matter: bytes (bats method), scalar style, YAML validity.
 set -euo pipefail
-ROOT="${1:-.skillshare/skills}"
-excluded() { # skills with a source: in .skillshare/config.yaml
-  awk '/^skills:/{s=1} s&&/^ *- name:/{n=$3} s&&/source:/{print n}' .skillshare/config.yaml
+ROOT="${1:-.retired skill supply/skills}"
+excluded() { # skills with a source: in .retired skill supply/config.yaml
+  awk '/^skills:/{s=1} s&&/^ *- name:/{n=$3} s&&/source:/{print n}' .retired skill supply/config.yaml
 }
 EXCL="$(excluded)"
 total=0
@@ -104,7 +104,7 @@ chmod +x "$SCRATCH/measure_frontmatter.sh"
 # $SCRATCH/parse_check.py — invoked by --parse
 import sys, glob, yaml
 bad = 0
-for f in glob.glob(".skillshare/skills/*/SKILL.md"):
+for f in glob.glob(".retired skill supply/skills/*/SKILL.md"):
     fm = []
     with open(f) as fh:
         lines = fh.read().splitlines()
@@ -132,7 +132,7 @@ Expected: TOTAL ≈ 21656; parse check exits 0; `ai-hooks-integration` tagged EX
 ## Task 2: Lever A — inline-normalize the 39 block-scalar descriptions
 
 **Files:**
-- Modify: each `.skillshare/skills/<name>/SKILL.md` whose style is `literal` or `folded` and is not EXCLUDED
+- Modify: each `.retired skill supply/skills/<name>/SKILL.md` whose style is `literal` or `folded` and is not EXCLUDED
 - Create: `$SCRATCH/normalize_frontmatter.py` (not committed)
 
 **Interfaces:**
@@ -147,16 +147,16 @@ Expected: TOTAL ≈ 21656; parse check exits 0; `ai-hooks-integration` tagged EX
 # (name, any future keys) and the body are left byte-for-byte unchanged.
 import glob, re, yaml
 YAML_INDICATORS = set("-?:[]{}#&*!|>'\"%@`\\")  # includes backslash per spec
-# Derive excluded set dynamically from skillshare provenance (spec constraint) —
+# Derive excluded set dynamically from retired skill supply provenance (spec constraint) —
 # any skill with a `source:` is externally managed. No hardcoded name.
-cfg = yaml.safe_load(open(".skillshare/config.yaml")) or {}
+cfg = yaml.safe_load(open(".retired skill supply/config.yaml")) or {}
 EXCL = {s["name"] for s in (cfg.get("skills") or []) if s.get("source")}
 def needs_quote(v):
     return (": " in v) or (v[:1] in YAML_INDICATORS)
 def emit(v):
     v = " ".join(v.split())           # fold whitespace/newlines to single spaces
     return '"' + v.replace('"', '\\"') + '"' if needs_quote(v) else v
-for f in glob.glob(".skillshare/skills/*/SKILL.md"):
+for f in glob.glob(".retired skill supply/skills/*/SKILL.md"):
     name = f.split("/")[-2]
     if name in EXCL: continue
     text = open(f).read()
@@ -181,7 +181,7 @@ This edits the `description` span only — `name:` and any other keys pass throu
 
 - [ ] **Step 2: Dry-run guard — confirm no genuine multi-line loss**
 
-Run: `awk '/^description: *\|/{c=1;next} c&&/^[a-zA-Z_-]+:/{exit} c&&/^---/{exit} c{print}' .skillshare/skills/*/SKILL.md | grep -nE '^\s*$|^\s*[-*] ' || echo "SAFE: no blank lines / list markers in any literal block"`
+Run: `awk '/^description: *\|/{c=1;next} c&&/^[a-zA-Z_-]+:/{exit} c&&/^---/{exit} c{print}' .retired skill supply/skills/*/SKILL.md | grep -nE '^\s*$|^\s*[-*] ' || echo "SAFE: no blank lines / list markers in any literal block"`
 Expected: `SAFE: …` (verified during design — 0 of 31 are genuine multi-line). If any line prints, STOP and hand that skill to Lever B manual review instead.
 
 - [ ] **Step 3: Apply the transform**
@@ -198,7 +198,7 @@ def parse(text):
     lines = text.splitlines(); end = lines.index("---", 1)
     return yaml.safe_load("\n".join(lines[1:end]))["description"]
 fails = 0
-for f in glob.glob(".skillshare/skills/*/SKILL.md"):
+for f in glob.glob(".retired skill supply/skills/*/SKILL.md"):
     old = subprocess.run(["git","show",f"HEAD:{f}"],capture_output=True,text=True).stdout
     if not old: continue
     o = " ".join(parse(old).split()); n = " ".join(parse(open(f).read()).split())
@@ -219,7 +219,7 @@ Expected: parse exits 0; TOTAL dropped below 21656; all context_budget tests pas
 - [ ] **Step 6: Commit Lever A**
 
 ```bash
-git add .skillshare/skills/
+git add .retired skill supply/skills/
 git commit -m "refactor(skills): inline-normalize block-scalar front-matter (Lever A)
 
 Convert literal/folded description block scalars to inline single-line,
@@ -276,7 +276,7 @@ clean. Two isolated fix commits — generators + tests only, no `.mdc`/`SKILL.md
 ## Task 3: Lever B — eval-guarded content trim of over-norm descriptions
 
 **Files:**
-- Modify: each non-excluded `.skillshare/skills/<name>/SKILL.md` with front-matter > 290 bytes (from Task 1 audit, re-measured post-Lever-A)
+- Modify: each non-excluded `.retired skill supply/skills/<name>/SKILL.md` with front-matter > 290 bytes (from Task 1 audit, re-measured post-Lever-A)
 - Create: `$SCRATCH/evalsets/<name>.json`, `$SCRATCH/eval-evidence.md` (not committed; evidence pasted into commit body)
 
 **Interfaces:**
@@ -315,7 +315,7 @@ EVALDIR="$SCRATCH/evalscripts"; cp -r "$SCDIR"/. "$EVALDIR/"
 # for a Skill/Read tool_use naming the temp skill (instead of aborting on the first
 # non-Skill tool_use). All eval steps below run from $EVALDIR, not $SCDIR.
 ( cd "$EVALDIR" && python3 -m scripts.run_eval \
-    --skill-path "$PWD_REPO/.skillshare/skills/<name>" \
+    --skill-path "$PWD_REPO/.retired skill supply/skills/<name>" \
     --eval-set "$SCRATCH/evalsets/<name>.json" \
     --runs-per-query 3 --num-workers 6 --verbose ) | tee "$SCRATCH/base-<name>.json"
 ```
@@ -329,7 +329,7 @@ Rewrite the description shorter, keeping: name-match cue, primary "use when" phr
 
 ```bash
 ( cd "$EVALDIR" && python3 -m scripts.run_eval \
-    --skill-path "$PWD_REPO/.skillshare/skills/<name>" \
+    --skill-path "$PWD_REPO/.retired skill supply/skills/<name>" \
     --eval-set "$SCRATCH/evalsets/<name>.json" \
     --description "<trimmed description>" \
     --runs-per-query 3 --num-workers 6 --verbose ) | tee "$SCRATCH/cand-<name>.json"
@@ -355,7 +355,7 @@ The trims change description text, so the derived docs must be regenerated (Task
 ```bash
 configs/claude/scripts/generate_commands_doc.py     # rewrites docs/COMMANDS.md
 configs/claude/scripts/generate_cursor_rules.sh     # rewrites the trimmed skills' configs/cursor/rules/*.mdc
-git add .skillshare/skills/ docs/COMMANDS.md configs/cursor/rules/
+git add .retired skill supply/skills/ docs/COMMANDS.md configs/cursor/rules/
 git commit -m "refactor(skills): trim over-norm descriptions, eval-verified (Lever B)
 
 Trim N descriptions toward the ~275-byte norm. Each trim gated by a
@@ -477,7 +477,7 @@ Expected: all pass (naming untouched → green; budget at new cap → green).
 
 - [ ] **Step 3: Confirm no skill body or name changed** (scope: SKILL.md only, except the one approved plan-manage path fix)
 
-Run: `git diff origin/main --name-only -- '.skillshare/skills/*/SKILL.md' | grep -v '/plan-manage/' | xargs -I{} git diff origin/main -- {} | grep -E '^\+' | grep -vE '^\+\+\+|^\+(name: |description: )' || echo "OK: only description lines changed in skill files"`
+Run: `git diff origin/main --name-only -- '.retired skill supply/skills/*/SKILL.md' | grep -v '/plan-manage/' | xargs -I{} git diff origin/main -- {} | grep -E '^\+' | grep -vE '^\+\+\+|^\+(name: |description: )' || echo "OK: only description lines changed in skill files"`
 Expected: `OK: …` — within SKILL.md files (excluding `plan-manage`) the only added lines are `description:` (name + bodies untouched). `plan-manage`'s body path-prefix fix is the single approved exception (see Global Constraints). Derived files (COMMANDS.md, `configs/cursor/rules/*.mdc`), the generator fixes (`generate_cursor_rules.sh` + `command_catalog.py` + their tests), and `context_budget.bats` legitimately change and are covered by Steps 3b/2b.
 
 - [ ] **Step 3b: Confirm derived docs are in sync (the two CI gates)**
@@ -494,10 +494,10 @@ Expected: `--check` exits 0; `git status` is empty. Any dirty file = a stale der
 
 Run:
 ```bash
-EXCL=$(awk '/^skills:/{s=1} s&&/^ *- name:/{n=$3} s&&/source:/{print n}' .skillshare/config.yaml)
+EXCL=$(awk '/^skills:/{s=1} s&&/^ *- name:/{n=$3} s&&/source:/{print n}' .retired skill supply/config.yaml)
 rc=0
 for n in $EXCL; do
-  d=$(git diff origin/main -- ".skillshare/skills/$n/" | wc -l | tr -d ' ')
+  d=$(git diff origin/main -- ".retired skill supply/skills/$n/" | wc -l | tr -d ' ')
   [ "$d" = 0 ] || { echo "MODIFIED externally-managed skill: $n ($d diff lines)"; rc=1; }
 done
 [ "$rc" = 0 ] && echo "OK: all externally-managed skills untouched"

@@ -34,7 +34,7 @@ Codify the repo's nine-phase development lifecycle (Specify→Clarify→Spec-Rev
 
 | Principle | Status | Notes |
 |---|---|---|
-| I. Configuration-as-Code | ✅ PASS | All artifacts in `configs/` + `.skillshare/skills/`; deployed via `bootstrap.sh`. Requires redeploy (noted as a task). No manual edits to `~/.claude/`. |
+| I. Configuration-as-Code | ✅ PASS | All artifacts in `configs/` + `.retired skill supply/skills/`; deployed via `bootstrap.sh`. Requires redeploy (noted as a task). No manual edits to `~/.claude/`. |
 | II. Parallel Agent Orchestration | ✅ PASS | `lifecycle.sh` is safety-gate logic (>200 lines, security-adjacent) → cross-verified via the spec-review panel + `parallel_agent.py` before merge (already exercised in this feature's own lifecycle). |
 | III. Consensus-Driven Decisions | ✅ PASS | Review/analyze gates reuse the APPROVED/NEEDS_REVIEW/BLOCKED + ≥80% consensus model (FR-027); no new thresholds invented. |
 | IV. Skill-First Extensibility | ✅ PASS | User-facing capability is the `/lifecycle` skill delegating to a discrete testable helper — not an expansion of `parallel_agent.py` (the 361 precedent). |
@@ -79,7 +79,7 @@ configs/claude/
 │   └── mcp_servers.yml              # REUSED — atlassian (Jira) MCP; wire into settings.local.json
 └── settings.local.json             # MODIFIED — register atlassian MCP server
 
-.skillshare/skills/lifecycle/SKILL.md   # NEW — /lifecycle (thin front-end; phase→command mapping, human/agent)
+.retired skill supply/skills/lifecycle/SKILL.md   # NEW — /lifecycle (thin front-end; phase→command mapping, human/agent)
 
 .specify/memory/constitution.md          # MODIFIED — Principle VI + "Development Lifecycle" section, v1.1.0
 .specify/templates/{plan,tasks}-template.md  # MODIFIED — Constitution Check + smoke-coverage task category

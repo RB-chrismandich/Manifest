@@ -1,12 +1,12 @@
 ---
-description: "Use after a significant task, debug session, or review to capture a lesson (pattern, antipattern, tool-discovery, config-insight) in knowledge_base.yml, or query/list/stats existing entries."
+description: "Append, query, increment, and render structured lessons from an XDG-owned JSONL knowledge base; capture is advisory and independent of the primary task verdict."
 globs: ".claude/skills/learning-capture/**"
 alwaysApply: false
 ---
 
 # learning-capture
 
-Use after a significant task, debug session, or review to capture a lesson (pattern, antipattern, tool-discovery, config-insight) in knowledge_base.yml, or query/list/stats existing entries.
+Append, query, increment, and render structured lessons from an XDG-owned JSONL knowledge base; capture is advisory and independent of the primary task verdict.
 
 <!-- Auto-generated from .claude/skills/learning-capture/SKILL.md -->
 <!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->

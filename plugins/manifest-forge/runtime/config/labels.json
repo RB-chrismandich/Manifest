@@ -1,0 +1,138 @@
+{
+  "deprecated": [
+    {
+      "name": "processed",
+      "reason": "Redundant with 'done' \u2014 same color and purpose",
+      "replacement": "done"
+    }
+  ],
+  "labels": [
+    {
+      "color": "1D76DB",
+      "description": "Implementation plan exists for this issue",
+      "name": "planned",
+      "platforms": [
+        "github",
+        "gitlab",
+        "linear"
+      ]
+    },
+    {
+      "color": "FBCA04",
+      "description": "Implementation is actively underway",
+      "name": "in-progress",
+      "platforms": [
+        "github",
+        "gitlab",
+        "linear"
+      ]
+    },
+    {
+      "color": "E3A21A",
+      "description": "Requires human review before completion",
+      "name": "needs-review",
+      "platforms": [
+        "github",
+        "gitlab",
+        "linear"
+      ]
+    },
+    {
+      "color": "0E8A16",
+      "description": "Implementation complete and validated",
+      "name": "done",
+      "platforms": [
+        "github",
+        "gitlab",
+        "linear"
+      ]
+    },
+    {
+      "color": "D4C5F9",
+      "description": "Spawned from another issue during implementation",
+      "name": "follow-up",
+      "platforms": [
+        "github",
+        "gitlab",
+        "linear"
+      ]
+    },
+    {
+      "color": "C2E0C6",
+      "description": "Queued for future prioritization and scheduling",
+      "name": "future",
+      "platforms": [
+        "github",
+        "gitlab",
+        "linear"
+      ]
+    },
+    {
+      "color": "5319E7",
+      "description": "Eligible for the autonomous issue developer (/issue-dev-auto)",
+      "name": "auto-dev",
+      "platforms": [
+        "github",
+        "gitlab",
+        "linear"
+      ]
+    },
+    {
+      "color": "B60205",
+      "description": "Auto-dev could not complete; needs a human",
+      "name": "needs-human",
+      "platforms": [
+        "github",
+        "gitlab",
+        "linear"
+      ]
+    },
+    {
+      "color": "6A737D",
+      "description": "Has an unmet dependency; excluded from the auto-dev loop until the blocker merges",
+      "name": "blocked-dependency",
+      "platforms": [
+        "github",
+        "gitlab",
+        "linear"
+      ]
+    },
+    {
+      "color": "0E8A16",
+      "description": "Auto-dev verified the PR but lacked merge authority; ready for a human to merge",
+      "name": "ready-to-merge",
+      "platforms": [
+        "github",
+        "gitlab"
+      ]
+    },
+    {
+      "color": "FBCA04",
+      "description": "Transient lock \u2014 the auto-dev merge loop is acting on this PR",
+      "name": "loop-active",
+      "platforms": [
+        "github",
+        "gitlab"
+      ]
+    },
+    {
+      "color": "D93F0B",
+      "description": "Do not auto-merge; the loop must route this PR to a human",
+      "name": "hold",
+      "platforms": [
+        "github",
+        "gitlab"
+      ]
+    },
+    {
+      "color": "CFD3D7",
+      "description": "Duplicate of another issue",
+      "name": "duplicate",
+      "platforms": [
+        "github",
+        "gitlab",
+        "linear"
+      ]
+    }
+  ]
+}
