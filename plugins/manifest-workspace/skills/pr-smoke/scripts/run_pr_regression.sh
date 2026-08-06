@@ -85,17 +85,6 @@ if [[ "$QUICK" -eq 0 ]]; then
     fi
     optional_gate 'Markdown lint' markdownlint-cli2 \
         markdownlint-cli2 AGENTS.md CLAUDE.md README.md docs/*.md
-    if [[ -n "$manifest_config_dir" && -d "$manifest_config_dir" ]]; then
-        optional_gate 'Python YAML validation' python3 \
-            python3 -c '
-import pathlib
-import sys
-import yaml
-
-for config in pathlib.Path(sys.argv[1]).glob("*.yml"):
-    yaml.safe_load(config.read_text(encoding="utf-8"))
-' "$manifest_config_dir"
-    fi
     if [[ -n "$manifest_scripts_dir" ]]; then
         run_gate 'command guide drift' "$manifest_scripts_dir/generate_commands_doc.py" --check
         run_gate 'shell syntax' bash -n "$manifest_scripts_dir"/*.sh

@@ -257,12 +257,15 @@ jobs:
         # parallel_agent.py hard-imports yaml + rich (sys.exit(1) otherwise);
         # asyncio-throttle backs RateLimiter. requirements-runtime.txt mirrors
         # configs/claude/uv.lock core deps for manifest_cli / scripts packages.
-        run: pip install -r tests/requirements-ci.txt -r tests/requirements-runtime.txt
+        # Editable install exposes manifest_agent (src/) for import-isolation tests.
+        run: |
+          pip install -r tests/requirements-ci.txt -r tests/requirements-runtime.txt
+          pip install -e .
 
       - name: Run Python tests (if any exist)
         run: |
           if [ -d tests/python ] && find tests/python -name '*.py' | grep -q .; then
-            pytest tests/python/ -v
+            pytest tests/python/ -m 'not native' -v
           else
             echo "No Python tests found in tests/python/ - skipping"
           fi

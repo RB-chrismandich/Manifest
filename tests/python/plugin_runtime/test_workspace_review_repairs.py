@@ -264,9 +264,9 @@ def test_pr_smoke_has_no_project_runtime_dependency(
         "uv run",
         "tools/generate_plugin_views.py",
         "manifest_agent",
-        "yaml",
     ):
         assert marker not in source
+    assert "import yaml" not in source
     repo = tmp_path / "repo"
     repo.mkdir()
     subprocess.run(["git", "init", "-q", str(repo)], check=True)

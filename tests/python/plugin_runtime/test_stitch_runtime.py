@@ -121,7 +121,11 @@ def test_snapshot_reports_missing_optional_chromium(
         "--output",
         str(tmp_path / "page.html"),
         cwd=tmp_path,
-        env={**_offline_env(tmp_path), "PATH": "/usr/bin:/bin"},
+        env={
+            **_offline_env(tmp_path),
+            "PATH": "/usr/bin:/bin",
+            "CHROMIUM_PATH": str(tmp_path / "missing-chromium"),
+        },
     )
 
     assert result.returncode != 0
