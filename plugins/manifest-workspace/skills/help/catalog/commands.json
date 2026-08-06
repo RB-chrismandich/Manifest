@@ -31,7 +31,7 @@
     {
       "bundle": "manifest-code-quality",
       "category": "code-quality",
-      "description": "Audit and remediate code against the Code Constitution (CON-001..013) \u2014 \"audit this against the constitution\", \"is this file compliant\", \"extract embedded JSON/YAML out of this .py\", \"split this god class\". Edits files; judges what no checker can prove. <lang>-refactor is read-only; constitution_check.py only measures.",
+      "description": "Audit and remediate code against the Code Constitution (CON-001..013) \u2014 \"audit this against the constitution\", \"is this file compliant\", \"split this god class\". Edits files; judges what no checker can prove. <lang>-refactor is read-only; constitution_check.py only measures.",
       "name": "code-audit-constitution",
       "qualified_name": "manifest-code-quality:code-audit-constitution"
     },
@@ -59,14 +59,14 @@
     {
       "bundle": "manifest-code-quality",
       "category": "code-quality",
-      "description": "Use when writing or reviewing a health-check, status, validation, or CI gate that can SKIP verifying something (missing credential, unsupported provider, absent tool) \u2014 ensure a skipped/unverifiable check never renders as a green pass, and add a verification path through the credential or channel the user actually uses (e.g. an OAuth CLI, not an assumed API key).",
+      "description": "Use when writing or reviewing a health-check, status, validation, or CI gate that can skip verifying something (missing credential, unsupported provider, absent tool); ensure a skipped/unverifiable check never renders as a green pass, and add verification through the channel the user actually uses (e.g. OAuth CLI, not an assumed API key).",
       "name": "false-green-check-audit",
       "qualified_name": "manifest-code-quality:false-green-check-audit"
     },
     {
       "bundle": "manifest-code-quality",
       "category": "code-quality",
-      "description": "Perform security, architecture, and quality analysis for Go codebases and return a prioritized, actionable refactoring roadmap.",
+      "description": "Security, architecture, and quality analysis for Go codebases with a prioritized fix roadmap. Use for \"refactor this Go service\", \"audit this Go code\", \"Go code review\".",
       "name": "go-refactor",
       "qualified_name": "manifest-code-quality:go-refactor"
     },
@@ -94,7 +94,7 @@
     {
       "bundle": "manifest-code-quality",
       "category": "code-quality",
-      "description": "Run linters, unit tests, and security scans in parallel for a target project. Auto-detects language from project files and runs the appropriate tool chain. Produces a unified quality report with pass/warn/fail per category.",
+      "description": "Use when the user wants a pass/fail quality check on a project \u2014 before merging, shipping, or as a PR gate. Detects Python, Go, Node.js, or Terraform and runs lint, test, and security scans, producing one report. Read-only; installs nothing.",
       "name": "project-verify",
       "qualified_name": "manifest-code-quality:project-verify"
     },
@@ -178,7 +178,7 @@
     {
       "bundle": "manifest-ops",
       "category": "deployment",
-      "description": "Configure CI/CD pipelines for a target repository based on detected languages, project structure, and hosting platform (GitHub Actions or GitLab CI).",
+      "description": "Use when setting up CI/CD for a repo \u2014 auto-detects languages, project structure, and hosting platform (GitHub Actions or GitLab CI) to generate pipeline configs.",
       "name": "ci-setup",
       "qualified_name": "manifest-ops:ci-setup"
     },
@@ -213,7 +213,7 @@
     {
       "bundle": "manifest-ops",
       "category": "deployment",
-      "description": "Use to test or debug a service that only listens on an internal Docker network (no host port, no public route) when host curl/wget is unavailable or blocked",
+      "description": "Use to test or debug a service that only listens on an internal Docker network (no host port, no public route) \u2014 host curl/wget cannot reach it directly.",
       "name": "docker-probe-internal",
       "qualified_name": "manifest-ops:docker-probe-internal"
     },
@@ -241,21 +241,21 @@
     {
       "bundle": "stitch-design",
       "category": "design",
-      "description": "Convert frontend code (Vite, React, etc.) to a Stitch Design by chaining HTML extraction, design-system extraction, and upload. ALWAYS use when the user wants to save/migrate/upload an existing web app or React components into Stitch.",
+      "description": "Convert existing frontend code (Vite, React, etc.) into a Stitch Design for further iteration. Use when the user wants to save, migrate, or upload an existing web app or React components into Stitch.",
       "name": "code-to-design",
       "qualified_name": "stitch-design:code-to-design"
     },
     {
       "bundle": "stitch-design",
       "category": "design",
-      "description": "Analyze Stitch projects and synthesize a semantic design system into DESIGN.md files",
+      "description": "Analyze Stitch projects and synthesize a semantic design system into DESIGN.md files. For source-only extraction (no Stitch project), use extract-design-md.",
       "name": "design-md",
       "qualified_name": "stitch-design:design-md"
     },
     {
       "bundle": "stitch-design",
       "category": "design",
-      "description": "Transforms vague UI ideas into polished, Stitch-optimized prompts. Enhances specificity, adds UI/UX keywords, injects design system context, and structures output for better generation results.",
+      "description": "Transforms a vague UI idea into a polished, Stitch-optimized prompt. Use when polishing a prompt before sending to Stitch, fixing one that produced poor results, or adding design-system context.",
       "name": "enhance-prompt",
       "qualified_name": "stitch-design:enhance-prompt"
     },
@@ -325,21 +325,21 @@
     {
       "bundle": "stitch-design",
       "category": "design",
-      "description": "Expert guidance for integrating and building applications with shadcn/ui components, including component discovery, installation, customization, and best practices.",
+      "description": "Use when building UI with shadcn/ui \u2014 discovering, installing, or customizing components (Radix UI or Base UI + Tailwind), configuring components.json, building forms/dialogs/tables, or troubleshooting import or style conflicts.",
       "name": "shadcn-ui",
       "qualified_name": "stitch-design:shadcn-ui"
     },
     {
       "bundle": "stitch-design",
       "category": "design",
-      "description": "Teaches agents to iteratively build websites using Stitch with an autonomous baton-passing loop pattern",
+      "description": "Use when iteratively building a multi-page website with Stitch \u2014 an autonomous baton-passing loop driven by `.stitch/next-prompt.md`, useful for generating and wiring pages page-by-page across sessions or CI runs without manual re-briefing.",
       "name": "stitch-loop",
       "qualified_name": "stitch-design:stitch-loop"
     },
     {
       "bundle": "stitch-design",
       "category": "design",
-      "description": "Generates agent-friendly DESIGN.md files for Google Stitch enforcing premium, anti-generic UI standards \u2014 strict typography, calibrated color, asymmetric layouts, micro-motion.",
+      "description": "Use when generating a DESIGN.md for Google Stitch: encodes premium, anti-generic UI rules \u2014 typography, color, layout, motion, banned AI-slop patterns.",
       "name": "taste-design",
       "qualified_name": "stitch-design:taste-design"
     },
@@ -353,14 +353,14 @@
     {
       "bundle": "stitch-design",
       "category": "design",
-      "description": "Automated UX audit covering accessibility (WCAG 2.2), responsive design, performance budgets (Core Web Vitals), progressive enhancement, color contrast, keyboard navigation, and screen reader compatibility.",
+      "description": "Automated UX audit of HTML, JSX, or TSX files: accessibility (WCAG 2.2), responsive design, Core Web Vitals, progressive enhancement, contrast, keyboard navigation, screen reader compatibility.",
       "name": "ux-review",
       "qualified_name": "stitch-design:ux-review"
     },
     {
       "bundle": "manifest-docs",
       "category": "documentation",
-      "description": "Run docs-improve-readme, docs-generate-diagrams, and docs-improve in one pass as sub-agents, bracketed by a docs_lint.py measurement so the report shows a real line-count delta. Use to refresh the whole doc set at once.",
+      "description": "Refresh a project's whole doc set (README, diagrams, audit) in one pass, in dependency order, with a measured line-count delta. Use for \"refresh all the docs\", \"update everything at once\".",
       "name": "docs-all",
       "qualified_name": "manifest-docs:docs-all"
     },
@@ -374,7 +374,7 @@
     {
       "bundle": "manifest-docs",
       "category": "documentation",
-      "description": "Audit and improve a project's docs set using Diataxis \u2014 enforce per-type line caps, split over-cap pages into a hub plus sub-pages, and cut fluff. Use for \"improve the docs\", \"the docs are too long\", \"audit our documentation\".",
+      "description": "Audit a project's docs set against Diataxis and measured line caps, fixing real gaps and fluff. Use for \"improve the docs\", \"the docs are too long\", \"audit our documentation\".",
       "name": "docs-improve",
       "qualified_name": "manifest-docs:docs-improve"
     },
@@ -395,7 +395,7 @@
     {
       "bundle": "manifest-workspace",
       "category": "productivity",
-      "description": "Use when deciding whether a more-thorough-but-costlier automation or skill version is worth it \u2014 separate correctness from cost, model net tokens as rework-avoided minus extra spend, and measure the rework cost empirically instead of assuming it.",
+      "description": "Use when deciding whether a more-thorough-but-costlier automation or skill version is worth it, e.g. weighing a v2 skill's extra token spend against the rework it avoids \u2014 measure the rework cost empirically rather than assuming it.",
       "name": "automation-rework-breakeven",
       "qualified_name": "manifest-workspace:automation-rework-breakeven"
     },
@@ -472,7 +472,7 @@
     {
       "bundle": "manifest-workspace",
       "category": "productivity",
-      "description": "Use when a user asks to create, optimize, refactor, or harden a prompt into a production-ready skill template. Refactors raw prompts into a fixed XML-schema payload, stripping conversational preamble and injecting absolute-path, idempotency, and runtime guardrails.",
+      "description": "Use when a user asks to create, optimize, refactor, or harden a raw prompt into a production-ready skill template (\"optimize this prompt\", \"turn this into a skill\", \"harden this prompt for automation\").",
       "name": "prompt-optimize",
       "qualified_name": "manifest-workspace:prompt-optimize"
     },
@@ -549,7 +549,7 @@
     {
       "bundle": "manifest-spec-planning",
       "category": "project-management",
-      "description": "Critic-gated implementation (CDDL) via sub-agents \u2014 developer writes code; developer reviewer plus QA and architecture critics review until each approves with zero findings. Never commits or pushes.",
+      "description": "Use once spec/plan are approved and ready to implement \u2014 critic-gated loop (CDDL): developer writes, reviewer/QA/architecture critics gate on zero findings. Never commits or pushes.",
       "name": "spec-implement-loop",
       "qualified_name": "manifest-spec-planning:spec-implement-loop"
     },
@@ -619,7 +619,7 @@
     {
       "bundle": "manifest-security",
       "category": "security",
-      "description": "Use when asked to \"review this change/diff for security vulnerabilities\" \u2014 applies a disciplined source\u2192sink method that reports only real security findings, not robustness or best-practice nits. Generates findings from a diff; to verify/refute an existing candidate list, use security-refute-findings.",
+      "description": "Use when asked to review a change or diff for security vulnerabilities \u2014 applies a disciplined source-to-sink method that reports only real findings, not robustness or best-practice nits. To verify/refute an existing candidate list, use security-refute-findings.",
       "name": "security-review-diff",
       "qualified_name": "manifest-security:security-review-diff"
     },
@@ -640,7 +640,7 @@
     {
       "bundle": "manifest-forge",
       "category": "version-control",
-      "description": "Run the full Manifest commit pipeline \u2014 refresh docs, sync with remote, run pre-commit checks, then stage, commit, and push with safe failure handling. Use when committing and pushing through the whole pipeline, not a bare git commit.",
+      "description": "Run Manifest's full automated commit-and-push pipeline with safe failure handling, not a bare git commit. Use for full commit-and-push requests through the whole pipeline.",
       "name": "git-commit",
       "qualified_name": "manifest-forge:git-commit"
     },
@@ -696,7 +696,7 @@
     {
       "bundle": "manifest-forge",
       "category": "version-control",
-      "description": "Drive a feature/issue through the codified state-gated lifecycle (specify\u2192\u2026\u2192verify) with hard phase-gating and a smoke-test Verify gate; entry is a ticket URL/issue key.",
+      "description": "Use when a feature or issue needs to move through the state-gated specify\u2192verify lifecycle with hard phase-gating and a smoke-test Verify gate; entry is a ticket URL or issue key.",
       "name": "lifecycle-run",
       "qualified_name": "manifest-forge:lifecycle-run"
     },
@@ -724,7 +724,7 @@
     {
       "bundle": "manifest-forge",
       "category": "version-control",
-      "description": "Babysit a just-opened pull/merge request: watch CI to green, address GitHub Copilot findings, and tag Google Jules (@google-labs-jules) then handle its feedback. Use when a PR/MR is just opened: \"babysit my PR\", \"get the bots to review it\", \"tag jules\".",
+      "description": "Babysit a just-opened pull/merge request until CI is green and every reviewer is satisfied. Use when a PR/MR is just opened: \"babysit my PR\", \"get the bots to review it\", \"tag jules\".",
       "name": "pr-monitor",
       "qualified_name": "manifest-forge:pr-monitor"
     },
