@@ -332,9 +332,7 @@ def _marketplace_identity_error(
 def _validate_desired(desired: DesiredState) -> HarnessResult | None:
     names = tuple(contract.name for contract in desired.contracts)
     if names != DOMAIN_BUNDLES:
-        return _blocked(
-            "desired state must contain the exact canonical domain plugins"
-        )
+        return _blocked("desired state must contain the exact canonical domain plugins")
     if any(not contract.version for contract in desired.contracts):
         return _blocked("desired plugin versions must be non-empty")
     if not desired.marketplace_source.source:

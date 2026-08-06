@@ -28,7 +28,8 @@ report format; this annex governs the write.
 
 The Go gate in this repo is **dormant** (no tracked `.go` files); the `golangci-lint` pre-commit hook is
 configured with `types_or: [go]` and fires the moment a `.go` file is staged. Adding Go means adding the config
-it needs in the same change, not after the first red run. The bundle-local `/manifest-code-quality:project-scaffold` Go templates are the starting point, but their
+it needs in the same change, not after the first red run. The bundle-local
+`/manifest-code-quality:project-scaffold` Go templates are the starting point, but their
 `.golangci.yml` is still v1-shaped (`linters-settings`, `issues`, no `version` key) and its `Makefile` formats
 with `gofmt`/`goimports`: migrate both to the v2 schema and `gofumpt` in the change that lands the first package.
 

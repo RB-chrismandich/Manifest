@@ -453,7 +453,11 @@ def test_native_claude_adapter_lifecycle_uses_an_isolated_home(tmp_path: Path) -
     assert len(result.installed_plugin_ids) == len(DOMAIN_BUNDLES)
     # Native CLI versions may reject an adapter surface; that must remain an
     # explicit BLOCKED result rather than turning a developer smoke probe green.
-    assert result.state in {ResultState.READY, ResultState.DEGRADED, ResultState.BLOCKED}
+    assert result.state in {
+        ResultState.READY,
+        ResultState.DEGRADED,
+        ResultState.BLOCKED,
+    }
     if result.state is ResultState.BLOCKED:
         assert result.errors
         assert removed.state is ResultState.BLOCKED

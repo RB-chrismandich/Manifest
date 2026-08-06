@@ -123,20 +123,8 @@ def test_codex_marketplace_ref_collision_blocks_before_plugin_install(
     assert not any(row[1:3] == ["plugin", "add"] for row in runner.log)
 
 
-@pytest.mark.native
-def test_native_codex_adapter_lifecycle_uses_an_isolated_home(tmp_path: Path) -> None:
-    executable = shutil.which("codex")
-    if executable is None:
-        pytest.skip("codex CLI not present")
-    isolated_home = tmp_path / "home"
-    (isolated_home / ".codex").mkdir(parents=True)
-    env = {
-        "HOME": str(isolated_home),
-        "CODEX_HOME": str(isolated_home / ".codex"),
-        "PATH": os.environ["PATH"],
-    }
-    repository = Path(__file__).parents[3]
-    desired_state = DesiredState(
+def _native_codex_desired_state(repository: Path) -> DesiredState:
+    return DesiredState(
         release_version="0.2.0",
         source_commit="a" * 40,
         source=str(repository),
@@ -160,6 +148,21 @@ def test_native_codex_adapter_lifecycle_uses_an_isolated_home(tmp_path: Path) ->
         selected_optional=frozenset(),
         requested_harnesses=("codex",),
     )
+
+
+@pytest.mark.native
+def test_native_codex_adapter_lifecycle_uses_an_isolated_home(tmp_path: Path) -> None:
+    if shutil.which("codex") is None:
+        pytest.skip("codex CLI not present")
+    isolated_home = tmp_path / "home"
+    (isolated_home / ".codex").mkdir(parents=True)
+    env = {
+        "HOME": str(isolated_home),
+        "CODEX_HOME": str(isolated_home / ".codex"),
+        "PATH": os.environ["PATH"],
+    }
+    repository = Path(__file__).parents[3]
+    desired_state = _native_codex_desired_state(repository)
     adapter = CodexAdapter(runner=CommandRunner(), env=env)
 
     result = adapter.install(desired_state)
@@ -175,7 +178,11 @@ def test_native_codex_adapter_lifecycle_uses_an_isolated_home(tmp_path: Path) ->
     removed = adapter.uninstall(receipt)
 
     assert len(result.installed_plugin_ids) == len(DOMAIN_BUNDLES)
-    assert result.state in {ResultState.READY, ResultState.DEGRADED, ResultState.BLOCKED}
+    assert result.state in {
+        ResultState.READY,
+        ResultState.DEGRADED,
+        ResultState.BLOCKED,
+    }
     if result.state is ResultState.BLOCKED:
         assert result.errors
         assert removed.state is ResultState.BLOCKED

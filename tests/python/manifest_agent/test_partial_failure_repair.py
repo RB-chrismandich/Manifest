@@ -16,7 +16,10 @@ def test_failed_harness_does_not_roll_back_verified_unrelated_harness(tmp_path) 
         {
             "claude": FakeAdapter("claude", harness_result("claude")),
             "codex": FakeAdapter(
-                "codex", harness_result("codex", ResultState.BLOCKED, errors=("fixture failure",))
+                "codex",
+                harness_result(
+                    "codex", ResultState.BLOCKED, errors=("fixture failure",)
+                ),
             ),
         }
     )

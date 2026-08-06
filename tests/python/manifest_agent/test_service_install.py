@@ -360,9 +360,9 @@ def _write_legacy_graphify_receipt(service, *, forged: bool = False) -> bytes:
     write_receipt_atomic(service.receipt_path, receipt)
     if forged:
         document = json.loads(service.receipt_path.read_text(encoding="utf-8"))
-        document["harnesses"]["claude"]["owned_entries"][0][
-            "previous_checksum"
-        ] = "forged"
+        document["harnesses"]["claude"]["owned_entries"][0]["previous_checksum"] = (
+            "forged"
+        )
         service.receipt_path.write_text(
             json.dumps(document, indent=2, sort_keys=True) + "\n",
             encoding="utf-8",
@@ -474,7 +474,9 @@ def test_graphify_receipt_write_failure_retries_without_second_native_cleanup(
             raise OSError("injected receipt write failure")
         original_write(path, receipt)
 
-    monkeypatch.setattr(service_module, "write_receipt_atomic", fail_first_receipt_write)
+    monkeypatch.setattr(
+        service_module, "write_receipt_atomic", fail_first_receipt_write
+    )
 
     first = service.install()
 
@@ -490,7 +492,9 @@ def test_graphify_receipt_write_failure_retries_without_second_native_cleanup(
 
     assert second.state is ResultState.READY
     assert service.runner.calls == [("uv", "tool", "uninstall", "graphifyy")]
-    assert set(read_receipt(service.receipt_path).bundle_checksums) == set(DOMAIN_BUNDLES)
+    assert set(read_receipt(service.receipt_path).bundle_checksums) == set(
+        DOMAIN_BUNDLES
+    )
     assert not transaction_path.exists()
 
 

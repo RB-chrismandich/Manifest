@@ -38,16 +38,15 @@ def _receipt() -> InstallationReceipt:
         archive_sha256="b" * 64,
         bundle_checksums={"manifest-docs": "c" * 64},
         selected_optional=(),
-        harnesses={
-            "claude": HarnessReceipt(
-                "claude", "test", "1", (), (), {}, True
-            )
-        },
+        harnesses={"claude": HarnessReceipt("claude", "test", "1", (), (), {}, True)},
     )
 
 
 def _hold_lifecycle_lock(
-    lock_path: str, entered: multiprocessing.synchronize.Event, release: multiprocessing.synchronize.Event, result: multiprocessing.queues.Queue
+    lock_path: str,
+    entered: multiprocessing.synchronize.Event,
+    release: multiprocessing.synchronize.Event,
+    result: multiprocessing.queues.Queue,
 ) -> None:
     """Run one lifecycle-shaped operation in a separate process."""
     try:
@@ -80,7 +79,9 @@ class _WorkerAdapter:
 
 
 @contextmanager
-def _worker_lock(path: Path, entered, release, writer: Path, operation: str, hold: bool):
+def _worker_lock(
+    path: Path, entered, release, writer: Path, operation: str, hold: bool
+):
     with installation_lock(path):
         with writer.open("a", encoding="utf-8") as stream:
             stream.write(f"{operation}\n")
@@ -134,7 +135,9 @@ def _service_lifecycle_worker(
     results.put(operation_result.state.value)
 
 
-def test_second_concurrent_operation_cannot_acquire_machine_lock(tmp_path: Path) -> None:
+def test_second_concurrent_operation_cannot_acquire_machine_lock(
+    tmp_path: Path,
+) -> None:
     lock_path = tmp_path / "state/install.lock"
 
     with (
@@ -157,13 +160,29 @@ def test_concurrent_lifecycle_operations_have_one_process_lock_winner(
     resolved = fake_release(tmp_path / "release-source")
     first = context.Process(
         target=_service_lifecycle_worker,
-        args=(operation, str(tmp_path), str(resolved.release_root), entered, release, results, True),
+        args=(
+            operation,
+            str(tmp_path),
+            str(resolved.release_root),
+            entered,
+            release,
+            results,
+            True,
+        ),
     )
     first.start()
     assert entered.wait(timeout=5), f"{operation} worker did not acquire lock"
     second = context.Process(
         target=_service_lifecycle_worker,
-        args=(operation, str(tmp_path), str(resolved.release_root), context.Event(), context.Event(), results, False),
+        args=(
+            operation,
+            str(tmp_path),
+            str(resolved.release_root),
+            context.Event(),
+            context.Event(),
+            results,
+            False,
+        ),
     )
     second.start()
     second.join(timeout=5)

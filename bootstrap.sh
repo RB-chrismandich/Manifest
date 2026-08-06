@@ -196,7 +196,6 @@ run_reconfigure() {
         # documented way to turn apm on on a running machine, and that is exactly
         # the run after which the apm-owned skills domain may still be empty.
 
-
         # Flag any disabled service whose deployed config is still present
         # (#549). warn_stale_disabled_configs is otherwise only called from
         # print_summary, which main() never reaches in --reconfigure mode —

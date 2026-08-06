@@ -162,9 +162,7 @@ def test_antigravity_validates_all_bundles_before_link_and_install(
         "manifest",
         str(desired.release_root),
     ]
-    assert runner.log[
-        len(DOMAIN_BUNDLES) + 1 : len(DOMAIN_BUNDLES) * 2 + 1
-    ] == [
+    assert runner.log[len(DOMAIN_BUNDLES) + 1 : len(DOMAIN_BUNDLES) * 2 + 1] == [
         ["agy", "plugin", "install", f"{name}@manifest"] for name in DOMAIN_BUNDLES
     ]
     assert runner.log[-1] == ["agy", "plugin", "list"]

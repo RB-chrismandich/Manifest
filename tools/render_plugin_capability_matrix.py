@@ -25,7 +25,13 @@ from manifest_agent.contracts import (  # noqa: E402
 )
 
 HARNESSES = ("claude", "codex", "gemini", "cursor", "antigravity", "devin")
-_COMPONENT_KINDS = (("skill", "skills"), ("agent", "agents"), ("hook", "hooks"), ("runtime", "runtime"), ("guidance", "guidance"))
+_COMPONENT_KINDS = (
+    ("skill", "skills"),
+    ("agent", "agents"),
+    ("hook", "hooks"),
+    ("runtime", "runtime"),
+    ("guidance", "guidance"),
+)
 _ALLOWED_PREFIXES = ("READY", "DEGRADED(", "BLOCKED(", "N/A(")
 
 
@@ -59,28 +65,41 @@ def _inspection_records(document: dict[str, Any] | None) -> dict[str, dict[str, 
         record = records.get(harness)
         if not isinstance(record, dict):
             raise MatrixError(f"inspection is missing harness {harness!r}")
-        state, version, verified = record.get("state"), record.get("version"), record.get("verified")
+        state, version, verified = (
+            record.get("state"),
+            record.get("version"),
+            record.get("verified"),
+        )
         if not isinstance(state, str) or not state.startswith(_ALLOWED_PREFIXES):
             raise MatrixError(f"inspection {harness!r} has an invalid state")
         if not isinstance(version, str) or not version.strip() or verified is not True:
-            raise MatrixError(f"inspection {harness!r} is missing a verified native version")
+            raise MatrixError(
+                f"inspection {harness!r} is missing a verified native version"
+            )
         plugin_ids = record.get("installed_plugin_ids")
         components = record.get("components")
         capabilities = record.get("capabilities")
-        if not isinstance(plugin_ids, list) or not all(isinstance(item, str) for item in plugin_ids):
+        if not isinstance(plugin_ids, list) or not all(
+            isinstance(item, str) for item in plugin_ids
+        ):
             raise MatrixError(f"inspection {harness!r} must list installed plugin IDs")
         if not isinstance(components, dict) or not isinstance(capabilities, dict):
             raise MatrixError(
                 f"inspection {harness!r} must map plugin components and capabilities"
             )
-        for label, values in (("components", components), ("capabilities", capabilities)):
+        for label, values in (
+            ("components", components),
+            ("capabilities", capabilities),
+        ):
             if any(
                 not isinstance(bundle, str)
                 or not isinstance(entries, list)
                 or not all(isinstance(entry, str) for entry in entries)
                 for bundle, entries in values.items()
             ):
-                raise MatrixError(f"inspection {harness!r} has invalid {label} evidence")
+                raise MatrixError(
+                    f"inspection {harness!r} has invalid {label} evidence"
+                )
         validated[harness] = record
     return validated
 
@@ -94,12 +113,43 @@ def _evidence_status(
         return state
     if bundle not in record["installed_plugin_ids"]:
         return f"BLOCKED(plugin {bundle!r} is not installed)"
-    collection = "components" if kind in {"skill", "agent", "hook", "runtime", "guidance"} else "capabilities"
+    collection = (
+        "components"
+        if kind in {"skill", "agent", "hook", "runtime", "guidance"}
+        else "capabilities"
+    )
     expected = f"{kind}:{identifier}"
     observed = record[collection].get(bundle, [])
     if expected not in observed:
         return f"BLOCKED({collection} evidence missing {bundle}:{expected})"
     return None
+
+
+def _append_row(
+    rows: list[tuple[str, str, list[str]]],
+    inspection_records: dict[str, dict[str, Any]],
+    identity: str,
+    source: str,
+    statuses: dict[str, Any],
+    bundle_name: str,
+    evidence_kind: str,
+    evidence_id: str,
+    optional: bool = False,
+) -> None:
+    """Append one verified contract row to the capability matrix."""
+    cells = []
+    for harness in HARNESSES:
+        contract_state = _status(statuses[harness], optional=optional)
+        if contract_state != "READY":
+            cells.append(contract_state)
+            continue
+        evidence_state = _evidence_status(
+            inspection_records[harness], bundle_name, evidence_kind, evidence_id
+        )
+        cells.append(evidence_state or "READY")
+    if any(not cell or not cell.startswith(_ALLOWED_PREFIXES) for cell in cells):
+        raise MatrixError(f"{identity}: blank or unverified harness evidence")
+    rows.append((identity, source, cells))
 
 
 def _rows(inspection: dict[str, Any] | None = None) -> list[tuple[str, str, list[str]]]:
@@ -109,54 +159,53 @@ def _rows(inspection: dict[str, Any] | None = None) -> list[tuple[str, str, list
     rows: list[tuple[str, str, list[str]]] = []
     inspection_records = _inspection_records(inspection)
     for contract in contracts:
-        def add(
-            identity: str,
-            source: str,
-            statuses: dict[str, Any],
-            evidence_kind: str,
-            evidence_id: str,
-            bundle_name: str = contract.name,
-            optional: bool = False,
-        ) -> None:
-            cells = []
-            for harness in HARNESSES:
-                contract_state = _status(statuses[harness], optional=optional)
-                if contract_state != "READY":
-                    cells.append(contract_state)
-                else:
-                    evidence_state = _evidence_status(
-                        inspection_records[harness], bundle_name, evidence_kind, evidence_id
-                    )
-                    cells.append(evidence_state or "READY")
-            if any(not cell or not cell.startswith(_ALLOWED_PREFIXES) for cell in cells):
-                raise MatrixError(f"{identity}: blank or unverified harness evidence")
-            rows.append((identity, source, cells))
-
         skill_names: set[str] = set()
         root = ROOT / "plugins" / contract.name / contract.components.skills_root
         for include in contract.components.skills_include:
-            skill_names.update(path.parent.name for path in root.glob(include) if path.is_file())
+            skill_names.update(
+                path.parent.name for path in root.glob(include) if path.is_file()
+            )
         for name in sorted(skill_names):
-            add(f"{contract.name}:skill:{name}", "contract skill", dict(contract.compatibility), "skill", name)
+            _append_row(
+                rows,
+                inspection_records,
+                f"{contract.name}:skill:{name}",
+                "contract skill",
+                dict(contract.compatibility),
+                contract.name,
+                "skill",
+                name,
+            )
         for kind, attribute in _COMPONENT_KINDS[1:]:
-            for component in sorted(getattr(contract.components, attribute), key=lambda item: item.id):
-                add(
+            for component in sorted(
+                getattr(contract.components, attribute), key=lambda item: item.id
+            ):
+                _append_row(
+                    rows,
+                    inspection_records,
                     f"{contract.name}:{kind}:{component.id}",
                     f"contract {kind}",
                     dict(component.compatibility or contract.compatibility),
+                    contract.name,
                     kind,
                     component.id,
                 )
-        for capability_kind, values in (("mcp", contract.capabilities.mcp), ("executable", contract.capabilities.executables)):
+        for capability_kind, values in (
+            ("mcp", contract.capabilities.mcp),
+            ("executable", contract.capabilities.executables),
+        ):
             for tier in CapabilityTier:
                 for identifier in values[tier]:
-                    add(
+                    _append_row(
+                        rows,
+                        inspection_records,
                         f"{contract.name}:{capability_kind}:{identifier}",
                         f"contract {tier.value} {capability_kind}",
                         dict(contract.compatibility),
+                        contract.name,
                         capability_kind,
                         identifier,
-                        optional=tier is CapabilityTier.OPTIONAL,
+                        tier is CapabilityTier.OPTIONAL,
                     )
     return rows
 
@@ -196,7 +245,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--inspection", type=Path)
     args = parser.parse_args(argv)
     if args.check and args.inspection is None:
-        print("render_plugin_capability_matrix.py: --check requires --inspection evidence", file=sys.stderr)
+        print(
+            "render_plugin_capability_matrix.py: --check requires --inspection evidence",
+            file=sys.stderr,
+        )
         return 2
     try:
         output = render(_load_inspection(args.inspection))
@@ -206,10 +258,15 @@ def main(argv: list[str] | None = None) -> int:
     target = ROOT / "docs/PLUGIN_CAPABILITY_MATRIX.md"
     if args.check:
         if "BLOCKED(" in output:
-            print("inspection evidence contains blocked capability cells", file=sys.stderr)
+            print(
+                "inspection evidence contains blocked capability cells", file=sys.stderr
+            )
             return 2
         if not target.exists() or target.read_text(encoding="utf-8") != output:
-            print("docs/PLUGIN_CAPABILITY_MATRIX.md is stale; run tools/render_plugin_capability_matrix.py", file=sys.stderr)
+            print(
+                "docs/PLUGIN_CAPABILITY_MATRIX.md is stale; run tools/render_plugin_capability_matrix.py",
+                file=sys.stderr,
+            )
             return 1
         return 0
     target.write_text(output, encoding="utf-8")

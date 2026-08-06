@@ -46,12 +46,16 @@ def _select_response(config: dict[str, object]) -> dict[str, object]:
     _fail(f"no configured response for argv {json.dumps(full_argv)}")
 
 
-def _sequence_response(candidate: dict[str, object], argv: list[str]) -> dict[str, object]:
+def _sequence_response(
+    candidate: dict[str, object], argv: list[str]
+) -> dict[str, object]:
     sequence = candidate.get("sequence")
     if sequence is None:
         return candidate
-    if not isinstance(sequence, list) or not sequence or any(
-        not isinstance(item, dict) for item in sequence
+    if (
+        not isinstance(sequence, list)
+        or not sequence
+        or any(not isinstance(item, dict) for item in sequence)
     ):
         _fail("response field 'sequence' must be a non-empty array of objects")
     state_value = os.environ.get("HARNESS_STUB_STATE")

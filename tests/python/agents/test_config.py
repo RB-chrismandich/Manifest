@@ -159,6 +159,7 @@ class TestServiceConfig:
         cfg.write_text("services:\n  devin:\n    enabled: true\n")
         assert ServiceConfig(config_path=str(cfg)).is_enabled("devin") is True
 
+
 # ---------------------------------------------------------------------------
 # Logger
 # ---------------------------------------------------------------------------

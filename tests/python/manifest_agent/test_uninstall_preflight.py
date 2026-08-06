@@ -66,6 +66,7 @@ def test_cursor_incomplete_receipt_cannot_remove_owned_mcp(tmp_path: Path) -> No
     assert runner.calls == []
     assert json.loads(path.read_text(encoding="utf-8")) == original
 
+
 def test_cursor_forged_mcp_ownership_is_non_mutating(tmp_path: Path) -> None:
     repository_url = "https://example.invalid/Manifest.git"
     path = tmp_path / ".cursor" / "mcp.json"

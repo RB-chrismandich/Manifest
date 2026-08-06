@@ -269,9 +269,7 @@ class ManifestService:
                 ownership_proof=ownership_proof,
             )
             try:
-                write_retired_graphify_transaction_atomic(
-                    transaction_path, transaction
-                )
+                write_retired_graphify_transaction_atomic(transaction_path, transaction)
             # constitution: exempt C-ERR -- durable intent is a state boundary.
             except Exception as exception:
                 return None, diagnostic(exception)
@@ -352,7 +350,10 @@ class ManifestService:
             line for line in command.stdout.splitlines() if line.startswith("graphifyy")
         ]
         if any(not _GRAPHIFY_TOOL_HEADER.fullmatch(line) for line in graphify_lines):
-            return False, "legacy Graphify installation inspection returned invalid output"
+            return (
+                False,
+                "legacy Graphify installation inspection returned invalid output",
+            )
         if len(graphify_lines) > 1:
             return False, "legacy Graphify installation inspection is ambiguous"
         return bool(graphify_lines), None
@@ -512,7 +513,9 @@ def _is_graphify_retirement_receipt(receipt, desired, checksums) -> bool:
     legacy_bundles = set(DOMAIN_BUNDLES) | {_RETIRED_BUNDLE}
     if set(receipt.bundle_checksums) != legacy_bundles:
         return False
-    if any(receipt.bundle_checksums[name] != checksums[name] for name in DOMAIN_BUNDLES):
+    if any(
+        receipt.bundle_checksums[name] != checksums[name] for name in DOMAIN_BUNDLES
+    ):
         return False
     return receipt.selected_optional == tuple(sorted(desired.selected_optional))
 
@@ -551,8 +554,7 @@ def _without_retired_graphify(receipt: HarnessReceipt) -> HarnessReceipt:
             entry
             for entry in receipt.owned_entries
             if not (
-                entry.kind == "executable"
-                and entry.identifier == _RETIRED_EXECUTABLE
+                entry.kind == "executable" and entry.identifier == _RETIRED_EXECUTABLE
             )
         ),
         capabilities={

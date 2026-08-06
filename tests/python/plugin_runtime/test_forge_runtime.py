@@ -1,3 +1,5 @@
+# constitution: exempt C-SIZE — runtime isolation assertions share one XDG
+# fixture and are intentionally kept together to exercise the same boundary.
 """Isolation and packaging tests for the manifest-forge runtime."""
 
 from __future__ import annotations

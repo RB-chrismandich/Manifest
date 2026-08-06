@@ -419,7 +419,6 @@ load_existing_config() {
             ENABLE_DEVIN=$FILE_DEVIN
         fi
 
-
         if [[ "$SKILLCLAW_SET" == false && -n "$FILE_SKILLCLAW" ]]; then
             ENABLE_SKILLCLAW=$FILE_SKILLCLAW
         fi

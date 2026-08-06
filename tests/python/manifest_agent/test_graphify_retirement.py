@@ -33,7 +33,10 @@ def test_graphify_is_absent_from_current_bundle_and_marketplace_surfaces() -> No
     assert not (root / "plugins/manifest-graphify").exists()
     assert not (root / "configs/cursor/rules/graphify.mdc").exists()
     assert "manifest-graphify" not in {item["name"] for item in marketplace["plugins"]}
-    assert tuple(contract.name for contract in load_domain_contracts(root / "plugins")) == DOMAIN_BUNDLES
+    assert (
+        tuple(contract.name for contract in load_domain_contracts(root / "plugins"))
+        == DOMAIN_BUNDLES
+    )
 
 
 def test_receipt_proven_legacy_graphify_is_removed_once(tmp_path: Path) -> None:

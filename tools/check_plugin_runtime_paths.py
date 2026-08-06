@@ -147,7 +147,9 @@ _POSIX_UTILITIES = frozenset(
         "xargs",
     }
 )
-_SHELL_CONTROL = re.compile(r"^(?:if|then|else|elif|fi|for|while|until|do|done|case|esac|in)$")
+_SHELL_CONTROL = re.compile(
+    r"^(?:if|then|else|elif|fi|for|while|until|do|done|case|esac|in)$"
+)
 _SHELL_COMMAND = re.compile(
     r"(?:^|[;|&]\s*|\$\()\s*(?:command\s+)?([A-Za-z_][A-Za-z0-9_.-]*)"
 )
@@ -202,12 +204,20 @@ def _contract_files(repo_root: Path) -> Iterable[tuple[str, Path, dict[str, Any]
     for bundle in DOMAIN_BUNDLES:
         contract_path = plugins / bundle / "manifest-capabilities.yml"
         if not contract_path.is_file():
-            records.append((bundle, contract_path, {"_error": "required domain contract is missing"}))
+            records.append(
+                (
+                    bundle,
+                    contract_path,
+                    {"_error": "required domain contract is missing"},
+                )
+            )
             continue
         try:
             document = yaml.safe_load(contract_path.read_text(encoding="utf-8"))
         except (OSError, yaml.YAMLError) as error:
-            records.append((contract_path.parent.name, contract_path, {"_error": str(error)}))
+            records.append(
+                (contract_path.parent.name, contract_path, {"_error": str(error)})
+            )
             continue
         records.append((contract_path.parent.name, contract_path, document or {}))
     return tuple(records)
@@ -226,7 +236,9 @@ def _component_paths(
         )
     for kind in ("agents", "hooks", "runtime", "guidance"):
         for component in components.get(kind, ()):
-            if not isinstance(component, dict) or not isinstance(component.get("path"), str):
+            if not isinstance(component, dict) or not isinstance(
+                component.get("path"), str
+            ):
                 continue
             path = bundle_root / component["path"]
             if path.is_file():
@@ -235,8 +247,7 @@ def _component_paths(
                 yield from (
                     (candidate, kind, component.get("id"))
                     for candidate in sorted(path.rglob("*"))
-                    if candidate.is_file()
-                    and candidate.suffix in _TEXT_SUFFIXES
+                    if candidate.is_file() and candidate.suffix in _TEXT_SUFFIXES
                 )
 
 
@@ -246,7 +257,11 @@ def _line_number(text: str, start: int) -> int:
 
 def _allowed_native_path(bundle: str, kind: str, text: str) -> bool:
     permitted = set()
-    for (allowed_bundle, allowed_kind, _harness), paths in NATIVE_PATH_ALLOWLIST.items():
+    for (
+        allowed_bundle,
+        allowed_kind,
+        _harness,
+    ), paths in NATIVE_PATH_ALLOWLIST.items():
         if bundle == allowed_bundle and kind == allowed_kind:
             permitted.update(paths)
     return text in permitted
@@ -290,7 +305,13 @@ def _python_import_violations(
         tree = ast.parse(text, filename=str(path))
     except SyntaxError as error:
         return [
-            Violation(path, error.lineno or 1, "invalid-python", "", f"invalid Python: {error.msg}")
+            Violation(
+                path,
+                error.lineno or 1,
+                "invalid-python",
+                "",
+                f"invalid Python: {error.msg}",
+            )
         ]
     stdlib = getattr(sys, "stdlib_module_names", frozenset())
     violations: list[Violation] = []
@@ -309,9 +330,7 @@ def _python_import_violations(
         for imported in names:
             module = (imported or "").split(".", 1)[0]
             local_package = any(
-                (
-                    candidate / f"{module}.py"
-                ).exists()
+                (candidate / f"{module}.py").exists()
                 or (candidate / module).is_dir()
                 or (candidate / "vendor" / module).is_dir()
                 for candidate in (*path.parents, bundle_root, bundle_root / "vendor")
@@ -323,7 +342,13 @@ def _python_import_violations(
             explicit_degradation = module in _COMPONENT_DEGRADATION_IMPORTS.get(
                 (bundle, component_id), frozenset()
             )
-            if module and module not in stdlib and not local_package and capability_package not in declared and not explicit_degradation:
+            if (
+                module
+                and module not in stdlib
+                and not local_package
+                and capability_package not in declared
+                and not explicit_degradation
+            ):
                 violations.append(
                     Violation(
                         path,
@@ -343,18 +368,39 @@ def _node_import_violations(
     # package only when its adjacent lockfile pins it exactly.
     lockfile = path.parent / "package-lock.json"
     if not lockfile.exists():
-        lockfile = next((parent / "package-lock.json" for parent in path.parents if (parent / "package-lock.json").exists()), None)
+        lockfile = next(
+            (
+                parent / "package-lock.json"
+                for parent in path.parents
+                if (parent / "package-lock.json").exists()
+            ),
+            None,
+        )
     lock_text = lockfile.read_text(encoding="utf-8") if lockfile else ""
     violations: list[Violation] = []
     for match in _NODE_IMPORT.finditer(text):
         imported = match.group(1)
         if imported.startswith((".", "/", "node:")):
             continue
-        package = imported.split("/", 1)[0] if not imported.startswith("@") else "/".join(imported.split("/")[:2])
-        if f'"node_modules/{package}"' in lock_text or package in _COMPONENT_NODE_DEPENDENCIES.get((bundle, component_id), frozenset()):
+        package = (
+            imported.split("/", 1)[0]
+            if not imported.startswith("@")
+            else "/".join(imported.split("/")[:2])
+        )
+        if (
+            f'"node_modules/{package}"' in lock_text
+            or package
+            in _COMPONENT_NODE_DEPENDENCIES.get((bundle, component_id), frozenset())
+        ):
             continue
         violations.append(
-            Violation(path, _line_number(text, match.start(1)), "undeclared-node-dependency", package, f"runtime Node import {package!r} is not lockfile-declared")
+            Violation(
+                path,
+                _line_number(text, match.start(1)),
+                "undeclared-node-dependency",
+                package,
+                f"runtime Node import {package!r} is not lockfile-declared",
+            )
         )
     return violations
 
@@ -451,7 +497,9 @@ def _shell_command_violations(
                 continue
             if re.match(r"['\"]?\$", stripped):
                 continue
-        if re.match(r"^(?:(?:local|readonly|declare)\s+)?[A-Za-z_][A-Za-z0-9_]*='", stripped):
+        if re.match(
+            r"^(?:(?:local|readonly|declare)\s+)?[A-Za-z_][A-Za-z0-9_]*='", stripped
+        ):
             quoted_assignment = unclosed_quote(stripped) == "'"
             continue
         if re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*=.*", stripped):
@@ -475,29 +523,23 @@ def _shell_command_violations(
             if segment.lstrip().startswith("for "):
                 continue
             candidate = re.sub(
-                r"^(?:(?:if|then|else|elif|do|while|until)\s+|!\s*)+", "", segment.strip()
+                r"^(?:(?:if|then|else|elif|do|while|until)\s+|!\s*)+",
+                "",
+                segment.strip(),
             )
             if re.match(r"^[A-Za-z_][A-Za-z0-9_]*=", candidate):
                 continue
             if candidate.startswith(("for ", "for ((")):
                 continue
             candidate = re.sub(r"^[^\s)]*\)\s*", "", candidate)
-            candidate = re.sub(
-                r"^(?:[A-Za-z_][A-Za-z0-9_]*=\S+\s+)+", "", candidate
-            )
+            candidate = re.sub(r"^(?:[A-Za-z_][A-Za-z0-9_]*=\S+\s+)+", "", candidate)
             if candidate.endswith(")") and re.fullmatch(
                 r"\*|[A-Za-z0-9_.-]+\)?", candidate
             ):
                 continue
             probe = re.match(r"command\s+-v\s+['\"]?([A-Za-z0-9_.-]+)", candidate)
             direct = re.match(r"([A-Za-z_][A-Za-z0-9_.-]*)", candidate)
-            command = (
-                probe.group(1)
-                if probe
-                else direct.group(1)
-                if direct
-                else ""
-            )
+            command = probe.group(1) if probe else direct.group(1) if direct else ""
             if direct and candidate[direct.end() :].lstrip().startswith(("=", "+=")):
                 continue
             if (
@@ -527,11 +569,15 @@ def scan(repo_root: Path = ROOT) -> ScanReport:
     violations: list[Violation] = []
     for bundle, contract_path, document in _contract_files(repo_root):
         if "_error" in document:
-            violations.append(Violation(contract_path, 1, "invalid-contract", "", document["_error"]))
+            violations.append(
+                Violation(contract_path, 1, "invalid-contract", "", document["_error"])
+            )
             continue
         declared = {
             value
-            for group in document.get("capabilities", {}).get("executables", {}).values()
+            for group in document.get("capabilities", {})
+            .get("executables", {})
+            .values()
             if isinstance(group, list)
             for value in group
             if isinstance(value, str)
@@ -557,7 +603,9 @@ def scan(repo_root: Path = ROOT) -> ScanReport:
             except UnicodeDecodeError:
                 continue
             except OSError as error:
-                violations.append(Violation(path, 1, "unreadable-runtime", "", str(error)))
+                violations.append(
+                    Violation(path, 1, "unreadable-runtime", "", str(error))
+                )
                 continue
             violations.extend(_path_violations(bundle, kind, path, text))
             if path.suffix == ".py":
@@ -579,11 +627,14 @@ def scan(repo_root: Path = ROOT) -> ScanReport:
                 text.startswith("#!") and "sh" in text.splitlines()[0]
             ):
                 violations.extend(
-                    _shell_command_violations(
-                        path, text, declared, component_functions
-                    )
+                    _shell_command_violations(path, text, declared, component_functions)
                 )
-    ordered = tuple(sorted(violations, key=lambda item: (str(item.path), item.line, item.kind, item.value)))
+    ordered = tuple(
+        sorted(
+            violations,
+            key=lambda item: (str(item.path), item.line, item.kind, item.value),
+        )
+    )
     return ScanReport(ordered)
 
 
@@ -594,7 +645,18 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     report = scan(args.repo_root)
     if args.as_json:
-        print(json.dumps({"violations": [item.as_json(args.repo_root.resolve()) for item in report.violations]}, indent=2, sort_keys=True))
+        print(
+            json.dumps(
+                {
+                    "violations": [
+                        item.as_json(args.repo_root.resolve())
+                        for item in report.violations
+                    ]
+                },
+                indent=2,
+                sort_keys=True,
+            )
+        )
     else:
         for violation in report.violations:
             try:

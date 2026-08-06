@@ -38,7 +38,9 @@ def test_runtime_path_gate_accepts_checked_in_domain_bundles() -> None:
     )
 
 
-def test_runtime_path_gate_reports_forbidden_instruction_dependency(tmp_path: Path) -> None:
+def test_runtime_path_gate_reports_forbidden_instruction_dependency(
+    tmp_path: Path,
+) -> None:
     checker = _checker_module()
     bundle = tmp_path / "plugins/manifest-docs"
     (bundle / "skills/demo").mkdir(parents=True)
@@ -82,7 +84,8 @@ def test_runtime_path_gate_reports_undeclared_python_runtime_dependency(
     report = checker.scan(tmp_path)
 
     assert any(
-        violation.kind == "undeclared-python-dependency" and violation.value == "requests"
+        violation.kind == "undeclared-python-dependency"
+        and violation.value == "requests"
         for violation in report.violations
     )
 
@@ -93,7 +96,9 @@ def test_runtime_path_gate_reports_direct_undeclared_shell_command(
     checker = _checker_module()
     bundle = tmp_path / "plugins/manifest-docs"
     (bundle / "runtime").mkdir(parents=True)
-    (bundle / "runtime/runner.sh").write_text("curl https://example.invalid\n", encoding="utf-8")
+    (bundle / "runtime/runner.sh").write_text(
+        "curl https://example.invalid\n", encoding="utf-8"
+    )
     (bundle / "manifest-capabilities.yml").write_text(
         "schema_version: 1\nbundle: {name: manifest-docs, version: 0.1.0, description: x, category: x}\n"
         "components: {skills: {root: skills, include: ['*/SKILL.md']}, agents: [], hooks: [], runtime: [{id: runner, path: runtime/runner.sh}], guidance: []}\n"
@@ -136,15 +141,17 @@ def test_runtime_path_gate_rejects_unknown_direct_shell_command(tmp_path: Path) 
     )
 
 
-def test_runtime_path_gate_ignores_embedded_python_and_dynamic_command(tmp_path: Path) -> None:
+def test_runtime_path_gate_ignores_embedded_python_and_dynamic_command(
+    tmp_path: Path,
+) -> None:
     checker = _checker_module()
     bundle = tmp_path / "plugins/manifest-docs"
     (bundle / "runtime").mkdir(parents=True)
     (bundle / "runtime/runner.sh").write_text(
-        "runner=\"$(command -v python3)\"\n"
-        "\"$runner\" -c '\n"
+        'runner="$(command -v python3)"\n'
+        '"$runner" -c \'\n'
         "import json\n"
-        "print(json.dumps({\"command\": \"future-tool\"}))\n"
+        'print(json.dumps({"command": "future-tool"}))\n'
         "'\n",
         encoding="utf-8",
     )
@@ -159,4 +166,6 @@ def test_runtime_path_gate_ignores_embedded_python_and_dynamic_command(tmp_path:
 
     report = checker.scan(tmp_path)
 
-    assert not any(violation.path.name == "runner.sh" for violation in report.violations)
+    assert not any(
+        violation.path.name == "runner.sh" for violation in report.violations
+    )

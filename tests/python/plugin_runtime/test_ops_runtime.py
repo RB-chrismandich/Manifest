@@ -289,7 +289,9 @@ def test_ci_setup_templates_are_bundle_local_and_complete(
     templates = ops_bundle / "skills/ci-setup/templates"
 
     assert not (repo_root / "templates").exists()
-    assert {path.relative_to(templates) for path in templates.rglob("*") if path.is_file()} == {
+    assert {
+        path.relative_to(templates) for path in templates.rglob("*") if path.is_file()
+    } == {
         Path("github/ci.yml"),
         Path("github/release.yml"),
         Path("github/security.yml"),
