@@ -139,9 +139,8 @@ Beyond WCAG, check for common ARIA misuse:
 
 ## Sub-agent dispatch
 
-Follow the shared
-[Sub-Agent Selection Rules](../../../../configs/claude/references/sub-agent-dispatch.md). Dispatches use
-the pinned `sonnet` model.
+Follow the bundled `sub-agent-dispatch.md` selection rules. Dispatches use the
+pinned `sonnet` model.
 
 When ≥3 target files or pages need auditing, dispatch one sub-agent per file/page to audit it, then merge
 findings; below that, audit inline. Pick the mechanism per the shared Sub-Agent Selection Rules

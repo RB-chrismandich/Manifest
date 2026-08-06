@@ -45,9 +45,8 @@ skill.
 
 ## Sub-agent dispatch
 
-Follow the shared
-[Sub-Agent Selection Rules](../../../../configs/claude/references/sub-agent-dispatch.md). Dispatches use
-the pinned `sonnet` model.
+Follow the bundled `sub-agent-dispatch.md` selection rules. Dispatches use the
+pinned `sonnet` model.
 
 When ≥3 bot PRs are open, dispatch one sub-agent per PR (or batch) to triage it, then consolidate
 dispositions; below that, triage inline. Pick the mechanism per the shared Sub-Agent Selection Rules

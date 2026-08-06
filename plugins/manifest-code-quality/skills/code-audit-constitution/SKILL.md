@@ -259,9 +259,8 @@ Never claim a command passed that you did not run, and quote real output.
 
 ## Sub-agent dispatch
 
-Follow the shared
-[Sub-Agent Selection Rules](../../../../configs/claude/references/sub-agent-dispatch.md). Dispatches use
-the pinned `sonnet` model.
+Follow the bundled `sub-agent-dispatch.md` selection rules. Dispatches use the
+pinned `sonnet` model.
 
 When ≥3 independent files or articles exist, dispatch one sub-agent per file to analyze it,
 then merge findings; below that, analyze inline. Use native Task sub-agents on Claude, or
