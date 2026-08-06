@@ -118,6 +118,8 @@ def test_snapshot_reports_missing_optional_chromium(
         snapshot,
         "--url",
         "http://127.0.0.1:65534",
+        "--chromium",
+        str(tmp_path / "missing-chromium"),
         "--output",
         str(tmp_path / "page.html"),
         cwd=tmp_path,
