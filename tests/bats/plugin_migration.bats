@@ -10,7 +10,7 @@ setup() {
 }
 
 @test "migration inventory rejects forbidden shared runtime destinations" {
-  run rg -n 'manifest-core.*bootstrap.*shared-plugin' \
+  run grep -nE 'manifest-core.*bootstrap.*shared-plugin' \
     "$REPO_ROOT/src/manifest_agent/migration.py"
   [ "$status" -eq 0 ]
 }
