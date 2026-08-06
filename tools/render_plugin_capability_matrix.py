@@ -167,7 +167,7 @@ def render(inspection: dict[str, Any] | None = None) -> str:
         "# Plugin Capability Matrix",
         "",
         "Generated from portable contracts and verified adapter inspection evidence; do not edit by hand.",
-        "`READY` requires a native adapter inspection with a non-empty version plus matching installed plugin, component, and capability evidence.",
+        "`READY` needs native adapter inspection with version plus matching plugin, component, and capability evidence.",
         "",
         "| Capability | Evidence | Claude | Codex | Gemini | Cursor | Antigravity | Devin |",
         "| --- | --- | --- | --- | --- | --- | --- | --- |",

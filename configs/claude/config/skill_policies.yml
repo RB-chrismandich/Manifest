@@ -75,6 +75,13 @@ bundles:
     - test-pin-bug
     - test-vary-fixtures
 
+  # Added after the cutover partitioned the original 108. Its own plugin because
+  # it is the first bundle to ship a hook (hooks/hooks.json), which no existing
+  # bundle has a home for; manifest-ops was the alternative and would have had
+  # to widen from "runtime operations" to carry it.
+  manifest-docker:  # 1 skills
+    - docker-compose-commandments
+
   manifest-docs:  # 4 skills
     - docs-all
     - docs-generate-diagrams
