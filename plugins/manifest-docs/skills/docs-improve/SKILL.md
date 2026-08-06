@@ -100,7 +100,9 @@ reads as a pass it did not earn.
 
 ## Sub-agent dispatch
 
-Follow the shared [Sub-Agent Selection Rules](../../../../configs/claude/references/sub-agent-dispatch.md); dispatches use the pinned `sonnet` model.
+Follow the shared
+[Sub-Agent Selection Rules](../../../../configs/claude/references/sub-agent-dispatch.md). Dispatches use
+the pinned `sonnet` model.
 
 Above ~10 docs, fan out one sub-agent per topic directory through
 `[[skill:parallel-agent]]`, or use native Task sub-agents on Claude. Dispatch on

@@ -455,7 +455,9 @@ After completing the analysis, capture the most significant findings:
 
 ## Sub-agent dispatch
 
-Follow the shared [Sub-Agent Selection Rules](../../../../configs/claude/references/sub-agent-dispatch.md); dispatches use the pinned `sonnet` model.
+Follow the shared
+[Sub-Agent Selection Rules](../../../../configs/claude/references/sub-agent-dispatch.md). Dispatches use
+the pinned `sonnet` model.
 
 When ≥3 independent scripts exist, dispatch one sub-agent per script to analyze it, then merge findings; below
 that, analyze inline. Use native Task sub-agents on Claude, or `[[skill:parallel-agent]]` /

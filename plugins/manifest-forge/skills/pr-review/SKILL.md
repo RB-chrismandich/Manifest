@@ -56,7 +56,9 @@ This skill is backed by `../../runtime/bin/pr_review.sh`.
 
 ## Sub-agent dispatch
 
-Follow the shared [Sub-Agent Selection Rules](../../../../configs/claude/references/sub-agent-dispatch.md); dispatches use the pinned `sonnet` model.
+Follow the shared
+[Sub-Agent Selection Rules](../../../../configs/claude/references/sub-agent-dispatch.md). Dispatches use
+the pinned `sonnet` model.
 
 When ≥3 open PRs exist, dispatch one sub-agent per PR to assess mergeability, then consolidate; below that, review
 inline. Pick the mechanism from the current harness's native sub-agent dispatch

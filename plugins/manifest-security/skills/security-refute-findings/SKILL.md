@@ -39,7 +39,9 @@ refuted one, each reason citing concrete `file:line` evidence. An empty survived
 
 ## Sub-agent dispatch
 
-Follow the shared [Sub-Agent Selection Rules](../../../../configs/claude/references/sub-agent-dispatch.md); dispatches use the pinned `opus` model.
+Follow the shared
+[Sub-Agent Selection Rules](../../../../configs/claude/references/sub-agent-dispatch.md). Dispatches use
+the pinned `opus` model.
 
 When ≥3 candidate findings need refutation, invoke `[[skill:parallel-agent]]`
 with one finding per review unit, adversarial verification enabled, and a bounded

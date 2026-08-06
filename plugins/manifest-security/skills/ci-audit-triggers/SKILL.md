@@ -84,7 +84,9 @@ either platform — only the vocabulary changes:
 
 ## Sub-agent dispatch
 
-Follow the shared [Sub-Agent Selection Rules](../../../../configs/claude/references/sub-agent-dispatch.md); dispatches use the pinned `sonnet` model.
+Follow the shared
+[Sub-Agent Selection Rules](../../../../configs/claude/references/sub-agent-dispatch.md). Dispatches use
+the pinned `sonnet` model.
 
 When ≥3 workflow files need auditing, invoke `[[skill:parallel-agent]]` with one
 workflow per review unit, security-analysis mode, validation enabled, and a

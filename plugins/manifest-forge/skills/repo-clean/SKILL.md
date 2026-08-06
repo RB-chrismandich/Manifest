@@ -207,7 +207,9 @@ Report the outcome per item (`closed` / `deleted` / `FAILED` + reason).
 
 ## Sub-agent dispatch
 
-Follow the shared [Sub-Agent Selection Rules](../../../../configs/claude/references/sub-agent-dispatch.md); dispatches use the pinned `sonnet` model.
+Follow the shared
+[Sub-Agent Selection Rules](../../../../configs/claude/references/sub-agent-dispatch.md). Dispatches use
+the pinned `sonnet` model.
 
 When ≥3 open PRs or stale branches exist, dispatch one sub-agent per PR/branch batch to assess disposition, then
 consolidate; below that, sweep inline. Pick the mechanism from the current

@@ -71,7 +71,9 @@ result. Concision rules: `../../runtime/references/doc-concision.md`.
 
 ## Sub-agent dispatch
 
-Follow the shared [Sub-Agent Selection Rules](../../../../configs/claude/references/sub-agent-dispatch.md); dispatches use the pinned `sonnet` model.
+Follow the shared
+[Sub-Agent Selection Rules](../../../../configs/claude/references/sub-agent-dispatch.md). Dispatches use
+the pinned `sonnet` model.
 
 This skill always fans out: one sub-agent per docs sub-skill. Use native Task
 sub-agents on Claude, or `[[skill:parallel-agent]]` / inline on other assistants. Dispatched

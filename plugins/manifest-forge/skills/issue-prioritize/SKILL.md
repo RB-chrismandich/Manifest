@@ -196,7 +196,9 @@ in the repository. The report includes:
 
 ## Sub-agent dispatch
 
-Follow the shared [Sub-Agent Selection Rules](../../../../configs/claude/references/sub-agent-dispatch.md); dispatches use the pinned `sonnet` model.
+Follow the shared
+[Sub-Agent Selection Rules](../../../../configs/claude/references/sub-agent-dispatch.md). Dispatches use
+the pinned `sonnet` model.
 
 When ≥10 open issues need scoring, dispatch one sub-agent per issue batch to score them, then merge into one ranking;
 below that, score inline. Pick the mechanism from the current harness's native
