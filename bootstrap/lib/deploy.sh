@@ -556,6 +556,7 @@ configure_codex_skill_source() {
     local current_target
 
     if ! codex_manifest_plugins_cover_catalog; then
+        mkdir -p "$CODEX_TARGET_DIR"
         create_symlink "$skills_dir" "$root" "Codex skills"
         return 0
     fi
