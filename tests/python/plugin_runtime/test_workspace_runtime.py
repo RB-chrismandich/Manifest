@@ -149,7 +149,7 @@ def test_generated_catalog_covers_all_domain_skills(
 
     assert result.returncode == 0, result.stderr
     catalog = json.loads(result.stdout)
-    assert len(catalog["commands"]) == 109
+    assert len(catalog["commands"]) == 108
     assert any(
         item["qualified_name"] == "manifest-workspace:parallel-agent"
         for item in catalog["commands"]

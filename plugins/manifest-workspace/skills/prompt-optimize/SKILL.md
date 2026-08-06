@@ -26,12 +26,12 @@ Optimized:
 ```xml
 <problem_structure>
   <problem_definition>
-    Sync the plugin skill tree (plugins/<bundle>/skills/) to every configured home deploy target (~/.claude, Cursor, Gemini, Codex, Antigravity)
-    and report which targets changed.
+    Install the selected plugin bundles into each requested harness at user scope
+    and report which harness installations changed.
   </problem_definition>
   <preliminary_context>
-    Repo root contains plugins/<bundle>/skills/ (source of truth; .apm/skills is a generated mirror); home targets are listed in
-    configs/claude/config/services.yml.
+    Repo root contains plugins/<bundle>/skills/ as the source of truth; each
+    harness uses its native plugin installation mechanism.
   </preliminary_context>
   <constraints>
     - Use absolute paths for source and every target; no tilde expansion left unresolved.
