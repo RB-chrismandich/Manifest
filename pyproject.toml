@@ -75,7 +75,7 @@ indent-style = "space"
 # contaminating one another during full collection.
 addopts = "--strict-markers --strict-config --import-mode=importlib"
 testpaths = ["tests/python"]
-pythonpath = ["."]
+pythonpath = [".", "src", "tests/python"]
 markers = ["native: isolated-home smoke tests requiring a native harness CLI"]
 # pytest-asyncio's future default, pinned explicitly (unset emits PytestDeprecationWarning).
 asyncio_default_fixture_loop_scope = "function"
