@@ -84,6 +84,10 @@ either platform — only the vocabulary changes:
 
 ## Sub-agent dispatch
 
+Dispatch on **Sonnet** (`subagent_model: sonnet`) — pass the model explicitly; inheriting the session's model bills premium rates for fan-out work.
+
+Follow `../../runtime/references/sub-agent-dispatch.md` for sub-agent mechanism selection.
+
 When ≥3 workflow files need auditing, invoke `[[skill:parallel-agent]]` with one
 workflow per review unit, security-analysis mode, validation enabled, and a
 bounded timeout; consume its structured result and merge findings. If the

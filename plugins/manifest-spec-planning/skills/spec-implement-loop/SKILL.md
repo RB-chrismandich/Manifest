@@ -55,6 +55,10 @@ Dispatch templates live in this skill's `prompts/` directory. Hand sub-agents
 This skill is **long-horizon**: the CDDL loop re-runs four personas over the whole tree every round,
 until the gates clear.
 
+Before starting, check the session's model. If it is not Fable 5, **ask the user to switch**
+(`/model` → Fable 5) and wait for the answer. Do not assume Fable is active, and do not silently
+proceed on the default model.
+
 Use a high-capability reasoning model for the orchestration session. CLI critic
 models resolve only through the adjacent
 `../../runtime/config/review_models.json`; Devin uses its documented no-model

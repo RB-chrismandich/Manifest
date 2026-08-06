@@ -207,6 +207,8 @@ Report the outcome per item (`closed` / `deleted` / `FAILED` + reason).
 
 ## Sub-agent dispatch
 
+Follow `../../runtime/references/sub-agent-dispatch.md` for sub-agent mechanism selection.
+
 When ≥3 open PRs or stale branches exist, dispatch one sub-agent per PR/branch batch to assess disposition, then
 consolidate; below that, sweep inline. Pick the mechanism from the current
 harness's native sub-agent dispatch contract: native Task sub-agents where

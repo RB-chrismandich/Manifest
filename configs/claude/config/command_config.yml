@@ -743,6 +743,9 @@ tool_policies:
   metrics-report:
     subagents: never
     subagent_rationale: Aggregates logs into one dashboard report; single sequential aggregation.
+  parallel-agent:
+    subagents: never
+    subagent_rationale: Orchestrates installed harness CLIs via parallel_agent.py; fan-out is external CLI coordination, not native Task sub-agents.
   config-debug-substitution:
     subagents: never
     subagent_rationale: Single sequential debugging investigation of one app's config layer.

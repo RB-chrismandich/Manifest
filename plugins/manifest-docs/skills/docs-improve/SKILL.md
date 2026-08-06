@@ -100,6 +100,8 @@ reads as a pass it did not earn.
 
 ## Sub-agent dispatch
 
+Follow `../../runtime/references/sub-agent-dispatch.md` for sub-agent mechanism selection.
+
 Above ~10 docs, fan out one sub-agent per topic directory through
 `[[skill:parallel-agent]]`, or use native Task sub-agents on Claude. Dispatch on
 **Sonnet** (`subagent_model: sonnet`) — pass the model

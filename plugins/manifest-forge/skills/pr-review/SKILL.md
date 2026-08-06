@@ -56,6 +56,8 @@ This skill is backed by `../../runtime/bin/pr_review.sh`.
 
 ## Sub-agent dispatch
 
+Follow `../../runtime/references/sub-agent-dispatch.md` for sub-agent mechanism selection.
+
 When ≥3 open PRs exist, dispatch one sub-agent per PR to assess mergeability, then consolidate; below that, review
 inline. Pick the mechanism from the current harness's native sub-agent dispatch
 contract: native Task sub-agents where available, or `[[skill:parallel-agent]]`

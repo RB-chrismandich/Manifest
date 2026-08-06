@@ -93,7 +93,7 @@ Require every deliverable to be checked, then move the plan to
 Confirm with the user, record the reason, and move the plan to
 `$PLAN_ROOT/.abandoned/`.
 
-## Dispatch
+## Sub-agent dispatch
 
 Use the bundle-local selection rules in
 `../../runtime/references/sub-agent-dispatch.md`. Pin the create-flow synthesis

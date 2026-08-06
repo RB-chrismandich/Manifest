@@ -139,6 +139,8 @@ Beyond WCAG, check for common ARIA misuse:
 
 ## Sub-agent dispatch
 
+Follow `../../runtime/references/sub-agent-dispatch.md` for sub-agent mechanism selection.
+
 When ≥3 target files or pages need auditing, dispatch one sub-agent per file/page to audit it, then merge
 findings; below that, audit inline. Pick the mechanism per the shared Sub-Agent Selection Rules
 use native sub-agents when available, or `[[skill:manifest-workspace:parallel-agent]]` /

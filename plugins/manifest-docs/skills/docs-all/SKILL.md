@@ -71,6 +71,8 @@ result. Concision rules: `../../runtime/references/doc-concision.md`.
 
 ## Sub-agent dispatch
 
+Follow `../../runtime/references/sub-agent-dispatch.md` for sub-agent mechanism selection.
+
 This skill always fans out: one sub-agent per docs sub-skill. Use native Task
 sub-agents on Claude, or `[[skill:parallel-agent]]` / inline on other assistants. Dispatched
 sub-agents execute their task directly and do not re-dispatch.

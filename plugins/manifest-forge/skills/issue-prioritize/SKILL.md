@@ -196,6 +196,8 @@ in the repository. The report includes:
 
 ## Sub-agent dispatch
 
+Follow `../../runtime/references/sub-agent-dispatch.md` for sub-agent mechanism selection.
+
 When ≥10 open issues need scoring, dispatch one sub-agent per issue batch to score them, then merge into one ranking;
 below that, score inline. Pick the mechanism from the current harness's native
 sub-agent dispatch contract: native Task sub-agents where available, or

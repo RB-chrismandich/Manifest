@@ -138,6 +138,8 @@ Consensus thresholds:
 
 ## Sub-agent dispatch
 
+Follow `../../runtime/references/sub-agent-dispatch.md` for sub-agent mechanism selection.
+
 When ≥3 issues need auditing, dispatch one sub-agent per issue batch to triage, then consolidate; below that, triage
 inline. Pick the mechanism per the shared Sub-Agent Selection Rules (`the current harness native sub-agent dispatch contract`):
 native Task sub-agents on Claude, or `[[skill:parallel-agent]]` / inline on other assistants. Dispatched sub-agents execute

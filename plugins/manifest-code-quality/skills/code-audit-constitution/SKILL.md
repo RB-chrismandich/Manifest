@@ -259,6 +259,8 @@ Never claim a command passed that you did not run, and quote real output.
 
 ## Sub-agent dispatch
 
+Follow `../../runtime/references/sub-agent-dispatch.md` for sub-agent mechanism selection.
+
 When ≥3 independent files or articles exist, dispatch one sub-agent per file to analyze it,
 then merge findings; below that, analyze inline. Use native Task sub-agents on Claude, or
 `[[skill:parallel-agent]]` / inline on other assistants. Dispatched sub-agents execute their task directly and

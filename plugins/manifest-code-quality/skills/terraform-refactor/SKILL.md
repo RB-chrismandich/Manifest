@@ -228,6 +228,8 @@ After completing the analysis, capture the most significant findings:
 
 ## Sub-agent dispatch
 
+Follow `../../runtime/references/sub-agent-dispatch.md` for sub-agent mechanism selection.
+
 When ≥3 independent modules or stacks exist, dispatch one sub-agent per module to analyze it, then merge findings;
 below that, analyze inline. Use native Task sub-agents on Claude, or `[[skill:parallel-agent]]` /
 inline on other assistants. Dispatched sub-agents execute their task directly and do not re-dispatch.
