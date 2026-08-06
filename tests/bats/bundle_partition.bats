@@ -86,13 +86,15 @@ PY
     assert_success
 }
 
-@test "domain and addon partitions are disjoint and match their explicit totals" {
+@test "domain, policy, and independent addon partitions match explicit totals" {
     run py <<'PY'
 import json, pathlib, re, sys
 text = pathlib.Path("configs/claude/config/skill_policies.yml").read_text()
 domain_expected = int(re.search(r"^domain_expected_total:\s*(\d+)", text, re.M).group(1))
 addon_expected = int(re.search(r"^addon_expected_total:\s*(\d+)", text, re.M).group(1))
 expected = int(re.search(r"^expected_total:\s*(\d+)", text, re.M).group(1))
+policy_expected = int(re.search(r"^policy_expected_total:\s*(\d+)", text, re.M).group(1))
+independent_expected = int(re.search(r"^independent_addon_expected_total:\s*(\d+)", text, re.M).group(1))
 seen, dupes, domain_total = {}, [], 0
 docker_skills = set()
 for pj in sorted(pathlib.Path(".").glob("plugins/manifest-*/.claude-plugin/plugin.json")) + [pathlib.Path("plugins/stitch-design/.claude-plugin/plugin.json")]:
@@ -121,12 +123,18 @@ if domain_total != domain_expected:
     print(f"DOMAIN {domain_total} != domain_expected_total {domain_expected}")
 if addon_total != addon_expected:
     print(f"ADDON {addon_total} != addon_expected_total {addon_expected}")
-if domain_total + addon_total != expected:
-    print(f"TOTAL {domain_total + addon_total} != expected_total {expected}")
+if domain_total + addon_total != policy_expected:
+    print(f"POLICY TOTAL {domain_total + addon_total} != policy_expected_total {policy_expected}")
+if len(docker_skills) != independent_expected:
+    print(f"INDEPENDENT ADDON {len(docker_skills)} != independent_addon_expected_total {independent_expected}")
+if domain_total + addon_total + len(docker_skills) != expected:
+    print(f"CATALOG TOTAL {domain_total + addon_total + len(docker_skills)} != expected_total {expected}")
 sys.exit(1 if (
     dupes or overlap or not docker_skills or independent_overlap or
     domain_total != domain_expected or addon_total != addon_expected or
-    domain_total + addon_total != expected
+    domain_total + addon_total != policy_expected or
+    len(docker_skills) != independent_expected or
+    domain_total + addon_total + len(docker_skills) != expected
 ) else 0)
 PY
     assert_success

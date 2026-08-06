@@ -7,12 +7,22 @@
 # would stay green. A committed integer is the only thing the move cannot edit.
 #
 # A PR that adds or removes a skill MUST change the matching partition count and
-# expected_total in the same commit, and give the new skill a bundle.
+# catalog expected_total in the same commit, and give the new skill a bundle or
+# classify it as an independent marketplace addon.
 domain_expected_total: 108
 addon_expected_total: 6
-expected_total: 114
-# Independent marketplace addons, including manifest-docker, are intentionally
-# outside this domain-plus-adversarial policy partition.
+# Eight canonical domains plus the policy addon. This deliberately excludes
+# independent marketplace addons from the policy partition.
+policy_expected_total: 114
+independent_addon_expected_total: 1
+# Marketplace addons are intentionally installable without selecting a domain
+# bundle, but still appear in the global catalog and reference-validation gate.
+independent_addons:
+  manifest-docker:
+    - docker-compose-commandments
+# The exact global mirror/catalog count, including independent marketplace
+# addons. Consumers that inspect every installed skill must use this field.
+expected_total: 115
 
 # Recorded so no later phase keys anything on it: ~/.claude/skills/.deployed-skills
 # is ALREADY WRONG on a live machine (measured 2026-07-30 — mtime predates SC-006,

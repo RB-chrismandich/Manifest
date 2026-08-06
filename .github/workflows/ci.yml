@@ -438,9 +438,9 @@ jobs:
           # skills during the plugin move stays green, and so does any accident
           # that drops 98 of them. Both sides of a `-lt` floor are derived from
           # the same tree, so it can only ever confirm the tree agrees with
-          # itself. expected_total lives in skill_policies.yml precisely because
-          # the move cannot edit it -- a PR that legitimately adds or removes a
-          # skill must change that integer in the same commit.
+          # itself. The global catalog expected_total lives in skill_policies.yml
+          # precisely because the move cannot edit it -- a PR that legitimately
+          # adds or removes a skill must change that integer in the same commit.
           EXPECTED=$(sed -n 's/^expected_total:[[:space:]]*\([0-9][0-9]*\).*/\1/p' \
             configs/claude/config/skill_policies.yml)
           if [ -z "$EXPECTED" ]; then
@@ -499,7 +499,6 @@ jobs:
         # per-skill success table, and generate-design's **bold** delegation.
         run: |
           python3 configs/claude/scripts/skill_reference_check.py \
-            --roots .apm/skills \
             --registry configs/claude/config/skill_policies.yml \
             --baseline configs/claude/config/skill_reference_baseline.json
 

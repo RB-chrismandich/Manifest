@@ -348,26 +348,57 @@ def check_registry(path: Path, catalog: set[str]) -> bool:
         )
         ok = False
 
-    # T1.6's deferred half. Every skill needs exactly one bundle: an unassigned
-    # skill ships nowhere, and a doubly-assigned one installs twice. Neither is
-    # visible to a total, which is why both directions are asserted rather than
-    # a count compared.
+    # T1.6's deferred half. Every skill needs exactly one classification: a
+    # policy bundle or an explicitly declared independent marketplace addon.
+    # Neither missing nor duplicate assignments are visible to a total, so both
+    # directions are asserted rather than a count comparison.
     assigned: list[str] = []
+    independent: list[str] = []
+    section: str | None = None
     for line in text.splitlines():
+        if line.startswith("bundles:"):
+            section = "bundles"
+            continue
+        if line.startswith("independent_addons:"):
+            section = "independent"
+            continue
+        if line and not line.startswith((" ", "#")):
+            section = None
+            continue
         stripped = line.strip()
         if stripped.startswith("- ") and line.startswith("    "):
-            assigned.append(stripped[2:].strip())
-    if assigned:
-        seen = set(assigned)
-        duplicated = sorted({n for n in seen if assigned.count(n) > 1})
+            if section == "bundles":
+                assigned.append(stripped[2:].strip())
+            elif section == "independent":
+                independent.append(stripped[2:].strip())
+    classified = assigned + independent
+    if classified:
+        seen = set(classified)
+        duplicated = sorted({n for n in seen if classified.count(n) > 1})
         for name in sorted(catalog - seen):
-            err(f"skill has no bundle in the registry: {name}")
+            err(
+                f"skill has no bundle or independent addon classification in the registry: {name}"
+            )
             ok = False
         for name in sorted(seen - catalog):
-            err(f"registry assigns a bundle to a skill that is not on disk: {name}")
+            err(f"registry classifies a skill that is not on disk: {name}")
             ok = False
         for name in duplicated:
-            err(f"skill is assigned to more than one bundle: {name}")
+            err(f"skill is classified more than once in the registry: {name}")
+            ok = False
+        independent_match = re.search(
+            r"^independent_addon_expected_total:\s*(\d+)", text, re.MULTILINE
+        )
+        if independent and not independent_match:
+            err(
+                "registry declares independent addons without independent_addon_expected_total"
+            )
+            ok = False
+        elif independent_match and len(independent) != int(independent_match.group(1)):
+            err(
+                "registry independent_addon_expected_total is "
+                f"{independent_match.group(1)} but {len(independent)} independent addon skills are assigned"
+            )
             ok = False
     return ok
 
