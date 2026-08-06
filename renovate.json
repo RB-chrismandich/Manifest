@@ -3,5 +3,17 @@
   "extends": [
     "config:recommended",
     "helpers:pinGitHubActionDigests"
+  ],
+  "packageRules": [
+    {
+      "description": "Babel 8 requires node >=22.18; the stitch runtime declares node >=20. Block @babel/* majors until the engine floor is deliberately raised (see PR #720).",
+      "matchPackagePatterns": [
+        "^@babel/"
+      ],
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "enabled": false
+    }
   ]
 }
