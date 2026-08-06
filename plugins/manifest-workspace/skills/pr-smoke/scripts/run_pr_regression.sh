@@ -38,10 +38,8 @@ cd "$ROOT" || exit 2
 # a deployed home or a fixed source-tree path.
 manifest_generator="$(git ls-files -- '*/generate_commands_doc.py' | head -n 1)"
 manifest_scripts_dir=""
-manifest_config_dir=""
 if [[ -n "$manifest_generator" ]]; then
     manifest_scripts_dir="${manifest_generator%/generate_commands_doc.py}"
-    manifest_config_dir="${manifest_scripts_dir%/scripts}/config"
 fi
 
 FAILURES=0
