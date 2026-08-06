@@ -1,0 +1,110 @@
+{
+  "$schema": "../../../specs/675-multi-agent-delegation/contracts/backend-registry.schema.json",
+  "backends": [
+    {
+      "id": "codex",
+      "aliases": [],
+      "display_name": "Codex",
+      "binary": "codex",
+      "invoke": ["codex", "exec", "--json", "--output-last-message", "{output_file}", "-"],
+      "resume": ["codex", "exec", "resume", "{session_ref}", "--json", "--output-last-message", "{output_file}", "-"],
+      "model_args": ["--model", "{model}"],
+      "tier_source": "model_tiers",
+      "default_tier": "auto",
+      "session_id_capture": {
+        "method": "jsonl_event",
+        "event": "thread.started",
+        "field": "thread_id"
+      },
+      "input": {
+        "transport": "stdin",
+        "max_payload_bytes": 10485760,
+        "max_context_bytes": null
+      },
+      "readiness": {
+        "version_cmd": ["codex", "--version"],
+        "auth_probe_cmd": ["codex", "login", "status"],
+        "install_fix": "npm install -g @openai/codex (or: brew install codex)",
+        "login_fix": "codex login",
+        "retired_check": null
+      },
+      "sandbox": {
+        "read_only_args": ["--sandbox", "read-only"],
+        "write_args": ["--sandbox", "workspace-write"]
+      },
+      "prompting_ref": "skills/delegate/references/prompting-codex.md",
+      "services_key": "codex",
+      "transfer": {
+        "method": "app_server_import"
+      }
+    },
+    {
+      "id": "claude",
+      "aliases": [],
+      "display_name": "Claude",
+      "binary": "claude",
+      "invoke": ["claude", "-p", "--output-format", "json"],
+      "resume": ["claude", "-p", "--resume", "{session_ref}", "--output-format", "json"],
+      "model_args": ["--model", "{model}"],
+      "tier_source": "model_tiers",
+      "default_tier": "sonnet",
+      "session_id_capture": {
+        "method": "json_field",
+        "field": "session_id"
+      },
+      "input": {
+        "transport": "stdin",
+        "max_payload_bytes": 10485760,
+        "max_context_bytes": null
+      },
+      "readiness": {
+        "version_cmd": ["claude", "--version"],
+        "auth_probe_cmd": ["claude", "config", "get", "-g", "hasCompletedOnboarding"],
+        "install_fix": "npm install -g @anthropic-ai/claude-code",
+        "login_fix": "claude /login",
+        "retired_check": null
+      },
+      "sandbox": {
+        "read_only_args": ["--permission-mode", "plan", "--disallowedTools", "Bash,Edit,Write,MultiEdit,NotebookEdit"],
+        "write_args": ["--permission-mode", "acceptEdits"]
+      },
+      "prompting_ref": "skills/delegate/references/prompting-claude.md",
+      "services_key": "claude",
+      "transfer": null
+    },
+    {
+      "id": "antigravity",
+      "aliases": ["agy"],
+      "display_name": "Antigravity",
+      "binary": "agy",
+      "invoke": ["agy", "-p"],
+      "resume": ["agy", "-p", "--conversation", "{session_ref}"],
+      "model_args": ["--model", "{model}"],
+      "tier_source": "model_tiers",
+      "default_tier": "flash",
+      "session_id_capture": {
+        "method": "output_scan",
+        "pattern": "conversation[_-]id[:=]\\s*(\\S+)"
+      },
+      "input": {
+        "transport": "stdin",
+        "max_payload_bytes": 10485760,
+        "max_context_bytes": null
+      },
+      "readiness": {
+        "version_cmd": ["agy", "--version"],
+        "auth_probe_cmd": ["agy", "auth", "status"],
+        "install_fix": "Install the Antigravity IDE, then run: agy install",
+        "login_fix": "agy login",
+        "retired_check": null
+      },
+      "sandbox": {
+        "read_only_args": ["--sandbox", "--mode", "plan"],
+        "write_args": ["--sandbox", "--mode", "accept-edits"]
+      },
+      "prompting_ref": "skills/delegate/references/prompting-agy.md",
+      "services_key": "antigravity",
+      "transfer": null
+    }
+  ]
+}

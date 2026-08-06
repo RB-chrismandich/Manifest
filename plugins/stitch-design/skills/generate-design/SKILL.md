@@ -32,7 +32,7 @@ user's prompt.
 - **Design System**: Check if a design system exists for the project via
   `list_design_systems`. If one exists, design tokens (colors, fonts, roundness)
   are already applied at the project level — do NOT include any color, font, or
-  theme instructions in the generation prompt. If none exists, delegate to the
+  theme instructions in the generation prompt. If none exists, hand off to the
   **manage-design-system** skill first before generating screens.
 
 ### 2. Refine UI/UX Terminology
@@ -161,7 +161,7 @@ exists, create one using `create_project`.
 
 #### 2. Upload the Image
 
-Delegate to the **/stitch-design:upload-to-stitch** skill to upload the image to the project.
+Hand off to the **/stitch-design:upload-to-stitch** skill to upload the image to the project.
 This creates a new screen with the image as its content.
 
 #### 3. Refine with Edit

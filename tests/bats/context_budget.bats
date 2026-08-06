@@ -144,14 +144,22 @@ assert_budget() {
     # ~1191 chars, 29648 -> 28457); the residual still exceeded 25000. Measured
     # total with all 15 present is 28457. Headroom after this is ~543 — the next
     # addition needs a trim pass first.
+    # Raised 29000 -> 29300 (2026-08-06) for two genuinely-new skills: `delegate`
+    # and `delegate-setup` (spec 675, the only multi-agent-delegation entry
+    # points; no prior coverage to fold into). Trim pass done first: both
+    # descriptions cut to ~120-140 chars each (well under the ~290 norm),
+    # combined frontmatter only 310 chars; the residual still exceeded 29000
+    # because catalog growth since the July pass had already used most of the
+    # ~543 headroom. Measured total with both present is 29258. Headroom after
+    # this is ~42 — the next addition needs a trim pass first.
     total=0
     for f in "$REPO_ROOT"/.apm/skills/*/SKILL.md; do
         # frontmatter = up to the second '---' line
         chars=$(awk '/^---$/{c++; next} c==1' "$f" | wc -c)
         total=$((total + chars))
     done
-    if [ "$total" -gt 29000 ]; then
-        echo "Skill frontmatter totals $total chars (budget: 29000)." >&2
+    if [ "$total" -gt 29300 ]; then
+        echo "Skill frontmatter totals $total chars (budget: 29300)." >&2
         echo "Trim verbose descriptions; bodies are pay-per-use, frontmatter is not." >&2
         return 1
     fi

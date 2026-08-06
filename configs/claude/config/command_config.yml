@@ -901,6 +901,38 @@ tool_policies:
   spec-amend:
     subagents: never
     subagent_rationale: Records gaps and lands one batch of in-place spec edits; single-target.
+  delegate:
+    allowed:
+      - Read
+      - Glob
+      - Grep
+      - Bash    # invokes codex/claude/antigravity CLIs, background jobs
+    forbidden:
+      - Write
+      - Edit    # delegation only; the delegate backend edits, not this skill
+      - Task
+    parallel_agents: never
+    validation_tier: 2
+
+    subagents: never
+    subagent_rationale: Dispatches to one external CLI backend per invocation; no independent verification units to fan out.
+    subagent_model: sonnet
+  delegate-setup:
+    allowed:
+      - Read
+      - Glob
+      - Grep
+      - Bash    # CLI auth/version checks for codex/claude/antigravity backends
+    forbidden:
+      - Write
+      - Edit
+      - Task
+    parallel_agents: never
+    validation_tier: 2
+
+    subagents: never
+    subagent_rationale: One-time readiness check across backends; sequential probes, no fan-out.
+    subagent_model: sonnet
 
 # Version-pinning rule set (consumed by scripts/version_pin.sh).
 # Maps file globs to an ecosystem and hash form. Notes on the fields:

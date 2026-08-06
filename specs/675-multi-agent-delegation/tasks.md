@@ -43,12 +43,12 @@ repo root / `configs/claude/config/` + `tests/{python,bats}/` +
 
 **Purpose**: Plugin skeleton + manifest so every later task has a home.
 
-- [ ] T001 Create the bundle skeleton `plugins/manifest-delegate/` with
+- [x] T001 Create the bundle skeleton `plugins/manifest-delegate/` with
       subdirs `.claude-plugin/`, `config/`, `scripts/`, `hooks/`, `agents/`,
       `skills/delegate/references/`, `skills/delegate-setup/`
       (plan.md Project Structure; read
       `~/.claude/references/code-constitution.md` before any source file)
-- [ ] T002 Author `plugins/manifest-delegate/.claude-plugin/plugin.json` with
+- [x] T002 Author `plugins/manifest-delegate/.claude-plugin/plugin.json` with
       name `manifest-delegate`, version `0.1.0`, description, and an EXPLICIT
       `skills` array listing `./skills/delegate` and `./skills/delegate-setup`
       — no auto-discovery (repo rule; baseline's discovery-based plugin.json is
@@ -61,7 +61,7 @@ repo root / `configs/claude/config/` + `tests/{python,bats}/` +
 **Purpose**: Registry, config resolution, job store, and envelope — every user
 story routes through these. **No user-story work before this phase completes.**
 
-- [ ] T003 [P] Author the backend registry
+- [x] T003 [P] Author the backend registry
       `plugins/manifest-delegate/config/backends.json` conforming to
       `specs/675-multi-agent-delegation/contracts/backend-registry.schema.json`:
       exactly `codex`, `claude`, `antigravity` (alias `agy`); per entry:
@@ -98,7 +98,7 @@ story routes through these. **No user-story work before this phase completes.**
       ARG_MAX-safe transport bound, `max_context_bytes` from the backend's
       documented context window or explicit `null` with rationale — no
       invented numbers
-- [ ] T004 Scaffold `plugins/manifest-delegate/scripts/delegate.py`:
+- [x] T004 Scaffold `plugins/manifest-delegate/scripts/delegate.py`:
       stdlib-only argparse dispatcher with subcommand stubs
       `task|review|status|result|cancel|setup|transfer|gate|resume-candidate`
       plus the hidden internal worker mode (background supervisor, excluded
@@ -113,7 +113,7 @@ story routes through these. **No user-story work before this phase completes.**
       except stdin-transport prompt delivery (payload then EOF; large prompts
       never via argv — 0600 temp file `{prompt_file}` otherwise)
       (contracts/delegate-cli.md Global rules)
-- [ ] T005 [P] Write failing config/registry unit tests in
+- [x] T005 [P] Write failing config/registry unit tests in
       `tests/python/test_delegate_dispatcher.py`: registry validation (unique
       ids/aliases, no shell metacharacters in templates; a fixture registry
       containing a `dangerously|bypass` token is refused at dispatcher load
@@ -129,7 +129,7 @@ story routes through these. **No user-story work before this phase completes.**
       synthetic fourth backend in a fixture registry is honored by the
       resolution/readiness surfaces with zero backend-name branching in
       `delegate.py`
-- [ ] T006 Implement config loading in
+- [x] T006 Implement config loading in
       `plugins/manifest-delegate/scripts/delegate.py`: compiled factory
       defaults (codex default, all enabled, 600s budgets, gate off);
       `delegation.{json,yml}` per research.md D3 report-and-proceed error
@@ -138,7 +138,7 @@ story routes through these. **No user-story work before this phase completes.**
       `write_services_config()` in `bootstrap/lib/config.sh` (never requires
       PyYAML); `parallel_agent.yml` `model_tiers` consulted only when PyYAML
       importable
-- [ ] T007 Implement the job-record store in
+- [x] T007 Implement the job-record store in
       `plugins/manifest-delegate/scripts/delegate.py`: per-job dirs
       `~/.claude/.agent_outputs/delegations/<ws-slug>-<sha256(cwd)[:16]>/<job-id>/`
       with `record.json`/`output.txt`/`job.log` (data-model.md field list);
@@ -152,7 +152,7 @@ story routes through these. **No user-story work before this phase completes.**
       non-terminal ⇒ kill the recorded backend pgid if still alive, then
       `failed` "process died without result";
       keep-last-50 prune on write; `MANIFEST_DELEGATIONS_DIR` env override
-- [ ] T008 Implement result-envelope normalization in
+- [x] T008 Implement result-envelope normalization in
       `plugins/manifest-delegate/scripts/delegate.py` per
       `specs/675-multi-agent-delegation/contracts/result-envelope.schema.json`:
       mechanical extraction per the schema's contract — take the LAST fenced
@@ -176,7 +176,7 @@ management, resume/follow-up, and transfer — the baseline's core generalized.
 mocked CLIs in tests); each ready backend returns the same envelope shape; an
 unready backend returns cause + remediation + ready alternatives (US1 AS1–AS5).
 
-- [ ] T009 [P] [US1] Write failing job-lifecycle tests in
+- [x] T009 [P] [US1] Write failing job-lifecycle tests in
       `tests/python/test_delegate_jobs.py` using stub backend CLIs on PATH:
       foreground completion; background spawn → status → result → cancel;
       launcher-exit: a background job reaches its terminal state with a
@@ -214,7 +214,7 @@ unready backend returns cause + remediation + ready alternatives (US1 AS1–AS5)
       claude/agy no-import fallback offers `task` with re-sent context;
       spawn-overhead timing: wall-clock minus stub-backend runtime < 2s
       (plan.md performance goal)
-- [ ] T010 [US1] Implement `task` foreground path in
+- [x] T010 [US1] Implement `task` foreground path in
       `plugins/manifest-delegate/scripts/delegate.py`: backend resolution via
       registry ids/aliases (unknown ⇒ exit 2 + known-backend list; unavailable
       ⇒ exit 3 + cause + remediation + ready alternatives, never silent
@@ -233,7 +233,7 @@ unready backend returns cause + remediation + ready alternatives (US1 AS1–AS5)
       explicit error naming the specific limit, never silent truncation
       (data-model.md Delegation Request
       validation; spec edge case); always state the chosen backend (US1-AS4)
-- [ ] T011 [US1] Implement `--background` mode plus `status`/`result`/`cancel`
+- [x] T011 [US1] Implement `--background` mode plus `status`/`result`/`cancel`
       subcommands in `plugins/manifest-delegate/scripts/delegate.py` per
       contracts/delegate-cli.md: `--background` spawns the detached worker
       supervisor (owns budget timeout + process-group kill, atomic envelope
@@ -243,7 +243,7 @@ unready backend returns cause + remediation + ready alternatives (US1 AS1–AS5)
       `raw_output_path`, active ⇒ exit 1; prefix
       matching with ambiguity ⇒ exit 2; cancel = pgid kill + CAS cancellation
       of non-terminal records only, terminal ⇒ reported no-op (FR-014)
-- [ ] T012 [US1] Implement resume/follow-up in
+- [x] T012 [US1] Implement resume/follow-up in
       `plugins/manifest-delegate/scripts/delegate.py`: `session_id_capture`
       per registry entry on every run (incl. `jsonl_event`: scan codex
       `--json` stdout JSONL for `thread.started` → thread id; event absent ⇒
@@ -253,7 +253,7 @@ unready backend returns cause + remediation + ready alternatives (US1 AS1–AS5)
       backends ⇒ disclosed + context re-sent fresh (FR-015); implement
       `resume-candidate --json` reporting
       `{available, job_id, backend, session_ref, age}`
-- [ ] T013 [US1] Implement `transfer` in
+- [x] T013 [US1] Implement `transfer` in
       `plugins/manifest-delegate/scripts/delegate.py`: backends whose
       registry `transfer.method` is `app_server_import` (shipped: codex) —
       short-lived direct `codex app-server` external-session-import call
@@ -264,7 +264,7 @@ unready backend returns cause + remediation + ready alternatives (US1 AS1–AS5)
       SessionStart-captured transcript and must canonicalize (realpath) to a
       path under `~/.claude/projects/` or `~/.claude/transcripts/`
       (path-traversal guard — covers both harness transcript roots)
-- [ ] T014 [P] [US1] Author the four reference files under
+- [x] T014 [P] [US1] Author the four reference files under
       `plugins/manifest-delegate/skills/delegate/references/`:
       `result-envelope.md` (FR-002 presentation rules),
       `prompting-codex.md`, `prompting-claude.md`, `prompting-agy.md` —
@@ -275,7 +275,7 @@ unready backend returns cause + remediation + ready alternatives (US1 AS1–AS5)
       output contract, constraint framing, style/effort conventions —
       recorded as a checklist comment at the top of each file (the FR-007
       "matching quality" proxy)
-- [ ] T015 [US1] Author `plugins/manifest-delegate/skills/delegate/SKILL.md`:
+- [x] T015 [US1] Author `plugins/manifest-delegate/skills/delegate/SKILL.md`:
       delegation + follow-up + job verbs + transfer entry point, backend as
       parameter, read-only default + `--write` scope statement; body instructs
       loading the matching `references/prompting-<backend>.md` before
@@ -284,11 +284,11 @@ unready backend returns cause + remediation + ready alternatives (US1 AS1–AS5)
       ≈250 chars (catalog frontmatter 25110/29000); body contains ZERO prose
       cross-skill references (ratchet 133/133 — file-path links only) and no
       model IDs (tiers by name, `configs/claude/references/harness-routing.md`)
-- [ ] T016 [P] [US1] Author `plugins/manifest-delegate/agents/delegate-runner.md`:
+- [x] T016 [P] [US1] Author `plugins/manifest-delegate/agents/delegate-runner.md`:
       thin forwarder — `model: sonnet` (tier name), `tools: Bash`; contract:
       one dispatcher call, stdout verbatim, no independent solving (baseline
       `codex-rescue` non-autonomy generalized, research.md D6)
-- [ ] T017 [US1] Append delegate-workflow smoke entries (tier Lite, type cli,
+- [x] T017 [US1] Append delegate-workflow smoke entries (tier Lite, type cli,
       hermetic fixture home, stub backend CLI, expect_exit 0) to
       `smoke-catalog/manifest.yaml` via
       `configs/claude/scripts/smoke_test.py`: one foreground delegate, one
@@ -307,7 +307,7 @@ exact remediation for all registry backends in <30s.
 **Independent Test**: Run readiness with one backend ready and one not (stubs);
 the report distinguishes states and gives an actionable fix (US2 AS1–AS3).
 
-- [ ] T018 [P] [US2] Write failing readiness tests in
+- [x] T018 [P] [US2] Write failing readiness tests in
       `tests/python/test_delegate_dispatcher.py`: probes run in parallel with
       per-probe ≤10s timeout; states `ready|not_installed|not_authenticated|
       disabled_workspace|disabled_user|retired|error` each reachable via
@@ -316,15 +316,15 @@ the report distinguishes states and gives an actionable fix (US2 AS1–AS3).
       for input; when the auth probe output carries an account/login
       identity, the readiness row's `identity` field is populated (fixture
       asserts it); absent ⇒ null
-- [ ] T019 [US2] Implement `setup` readiness mode in
+- [x] T019 [US2] Implement `setup` readiness mode in
       `plugins/manifest-delegate/scripts/delegate.py`: parallel probes, total
       <30s (SC-003), per-backend row `state/version/fix/probe_seconds`, human
       table per contracts/delegate-cli.md sample + `--json`
-- [ ] T020 [US2] Author `plugins/manifest-delegate/skills/delegate-setup/SKILL.md`:
+- [x] T020 [US2] Author `plugins/manifest-delegate/skills/delegate-setup/SKILL.md`:
       readiness report + user-config guidance (`delegation.{json,yml}` factory
       defaults, precedence); description ≈250 chars; zero prose cross-skill
       refs; no model IDs (gate-toggle docs land in US4)
-- [ ] T021 [US2] Append readiness smoke entry (one stubbed-unready backend,
+- [x] T021 [US2] Append readiness smoke entry (one stubbed-unready backend,
       asserts remediation text present) to `smoke-catalog/manifest.yaml` via
       `configs/claude/scripts/smoke_test.py`
 
@@ -341,19 +341,19 @@ attribution, reusing US1 plumbing.
 opinion on backend B; B receives shared context, both results attributed;
 naming A again warns and offers alternatives (US3 AS1–AS2).
 
-- [ ] T022 [P] [US3] Write failing second-opinion tests in
+- [x] T022 [P] [US3] Write failing second-opinion tests in
       `tests/python/test_delegate_dispatcher.py`: `--second-opinion --of
       <job-id>` injects the referenced job's task context + attributed prior
       findings; same-backend request warns and lists other READY backends;
       kind forces read-only regardless of `--write`
-- [ ] T023 [US3] Implement `task --second-opinion --of <job-id>` in
+- [x] T023 [US3] Implement `task --second-opinion --of <job-id>` in
       `plugins/manifest-delegate/scripts/delegate.py`: load referenced
       record, compose comparison context, force read-only, attribute both
       passes in output (FR-005)
-- [ ] T024 [US3] Extend `plugins/manifest-delegate/skills/delegate/SKILL.md`
+- [x] T024 [US3] Extend `plugins/manifest-delegate/skills/delegate/SKILL.md`
       body with the second-opinion flow (frontmatter/description unchanged —
       budget already spent)
-- [ ] T025 [US3] Append second-opinion smoke entry (stub two backends, assert
+- [x] T025 [US3] Append second-opinion smoke entry (stub two backends, assert
       attribution of both) to `smoke-catalog/manifest.yaml` via
       `configs/claude/scripts/smoke_test.py`
 
@@ -367,18 +367,18 @@ naming A again warns and offers alternatives (US3 AS1–AS2).
 `/codex:adversarial-review` — required by FR-011/SC-002, ordered here by
 plan.md's Phase 2 prescription. Not a spec user story: no story labels.
 
-- [ ] T026 [P] Write failing review tests in
+- [x] T026 [P] Write failing review tests in
       `tests/python/test_delegate_dispatcher.py`: diff assembly honors
       `--base`/`--scope auto|working-tree|branch`; `--adversarial` switches
       prompt and accepts free-text focus; kind=review forces registry
       read-only args; findings severity-first in the envelope; `--background`
       reuses the same job records as `task`
-- [ ] T027 Implement `review` subcommand (incl. `--adversarial [FOCUS...]`) in
+- [x] T027 Implement `review` subcommand (incl. `--adversarial [FOCUS...]`) in
       `plugins/manifest-delegate/scripts/delegate.py` per
       contracts/delegate-cli.md — findings never auto-applied (FR-008)
-- [ ] T028 Extend `plugins/manifest-delegate/skills/delegate/SKILL.md` body
+- [x] T028 Extend `plugins/manifest-delegate/skills/delegate/SKILL.md` body
       with review/adversarial usage (frontmatter unchanged)
-- [ ] T029 Append review smoke entry (stub backend over a fixture git repo
+- [x] T029 Append review smoke entry (stub backend over a fixture git repo
       with a working-tree change) to `smoke-catalog/manifest.yaml` via
       `configs/claude/scripts/smoke_test.py`
 
@@ -396,7 +396,7 @@ repo.
 declare completion → gate pauses once with findings; disable → no pause;
 unready gate backend → completion proceeds with a note (US4 AS1–AS3).
 
-- [ ] T030 [P] [US4] Write failing gate tests in
+- [x] T030 [P] [US4] Write failing gate tests in
       `tests/python/test_delegate_dispatcher.py`: disabled ⇒ allow; no code
       edits in finishing turn ⇒ allow; `stop_hook_active: true` in the Stop
       payload ⇒ immediate allow (harness re-entry indicator = at-most-once,
@@ -416,7 +416,7 @@ unready gate backend → completion proceeds with a note (US4 AS1–AS3).
       gate with no config creates `delegation.json`; with an existing `.yml`
       + PyYAML the `.yml` is updated in place; with a `.yml` and no PyYAML,
       `delegation.json` is written + precedence reported
-- [ ] T031 [US4] Implement `gate --transcript <path> [--stop-hook-active]`
+- [x] T031 [US4] Implement `gate --transcript <path> [--stop-hook-active]`
       in `plugins/manifest-delegate/scripts/delegate.py` per D9:
       `--stop-hook-active` fast-path allow (at-most-once via the harness
       re-entry indicator); deterministic finishing-turn edit detection
@@ -428,7 +428,7 @@ unready gate backend → completion proceeds with a note (US4 AS1–AS3).
       "developer decides"; every fail-open path emits
       `{"systemMessage": "review gate skipped: <cause>"}`
       (defined-visibility channel) in addition to stderr
-- [ ] T032 [US4] Implement `setup` gate toggles in
+- [x] T032 [US4] Implement `setup` gate toggles in
       `plugins/manifest-delegate/scripts/delegate.py`:
       `--enable-review-gate [--gate-backend <id>]` / `--disable-review-gate`
       writing `review_gate.*` to `delegation.json` — the canonical
@@ -437,7 +437,7 @@ unready gate backend → completion proceeds with a note (US4 AS1–AS3).
       when PyYAML is importable, else reported unreadable + `delegation.json`
       written and takes precedence (D3 migration rule); budget validated
       1–840, new state confirmed (US4/FR-006)
-- [ ] T033 [P] [US4] Author `plugins/manifest-delegate/scripts/stop_gate_hook.py`
+- [x] T033 [P] [US4] Author `plugins/manifest-delegate/scripts/stop_gate_hook.py`
       (parses the Stop stdin JSON — `session_id`, `transcript_path`, `cwd`,
       `hook_event_name`, `stop_hook_active` — and forwards the transcript
       path plus `--stop-hook-active` to `delegate.py gate`, decision
@@ -447,19 +447,19 @@ unready gate backend → completion proceeds with a note (US4 AS1–AS3).
       gate/job cleanup — reap: kill recorded backend pgids of non-terminal
       jobs whose worker died) — thin wrappers, `--help` compliant (repo
       gate), each opening with the D11 version probe
-- [ ] T034 [US4] Author `plugins/manifest-delegate/hooks/hooks.json`: Stop
+- [x] T034 [US4] Author `plugins/manifest-delegate/hooks/hooks.json`: Stop
       hook timeout 900s, SessionStart/SessionEnd 5s, script paths via
       `${CLAUDE_PLUGIN_ROOT}` (plan.md Complexity Tracking row 1)
-- [ ] T035 [US4] Create `tests/bats/delegate_plugin.bats` with the NEW plugin
+- [x] T035 [US4] Create `tests/bats/delegate_plugin.bats` with the NEW plugin
       hook-wiring gate (no repo precedent exists): hooks.json parses, declares
       exactly Stop/SessionStart/SessionEnd with timeouts 900/5/5, referenced
       scripts exist and are executable, `${CLAUDE_PLUGIN_ROOT}` used (no
       absolute paths), and the code-level gate-budget cap (≤840s) is asserted
-- [ ] T036 [US4] Extend
+- [x] T036 [US4] Extend
       `plugins/manifest-delegate/skills/delegate-setup/SKILL.md` body with
       gate enable/disable usage + the one-gate-at-a-time exclusivity warning
       (frontmatter unchanged)
-- [ ] T037 [US4] Append gate smoke entries (enabled: pauses once with stub
+- [x] T037 [US4] Append gate smoke entries (enabled: pauses once with stub
       findings; disabled: no pause) to `smoke-catalog/manifest.yaml` via
       `configs/claude/scripts/smoke_test.py`
 
@@ -469,7 +469,7 @@ unready gate backend → completion proceeds with a note (US4 AS1–AS3).
 
 ## Phase 8: Supersession (FR-011 / SC-002 / SC-006)
 
-- [ ] T038 Author `plugins/manifest-delegate/MIGRATION.md`: traceability table
+- [x] T038 Author `plugins/manifest-delegate/MIGRATION.md`: traceability table
       mapping ALL 13 baseline entry points (research.md baseline inventory) to
       their replacements + covering test each; uninstall instructions
       (`claude plugin uninstall codex`); gate-exclusivity rule (disable the
@@ -479,7 +479,7 @@ unready gate backend → completion proceeds with a note (US4 AS1–AS3).
       not a dispatcher flag — effort selection folds into `--model` tier
       selection, recorded so the SC-002 traceability row is settled;
       Principle VII activation note if ever published
-- [ ] T039 Verify supersession claims: every row in the MIGRATION.md table has
+- [x] T039 Verify supersession claims: every row in the MIGRATION.md table has
       a shipped replacement + test (zero uncovered — SC-002); `grep -r
       'openai-codex\|codex-plugin-cc'` over the repo returns nothing outside
       `specs/675-multi-agent-delegation/` (D7); record results in the PR
@@ -489,21 +489,21 @@ unready gate backend → completion proceeds with a note (US4 AS1–AS3).
 
 ## Phase 9: Registration & Generators (SKILL-NAMING.md lifecycle)
 
-- [ ] T040 Add the `manifest-delegate` entry (name, `source:
+- [x] T040 Add the `manifest-delegate` entry (name, `source:
       ./plugins/manifest-delegate`, description, version 0.1.0, category
       `productivity`) to `.claude-plugin/marketplace.json`
-- [ ] T041 Add the bundle block (2 skills: delegate, delegate-setup) to
+- [x] T041 Add the bundle block (2 skills: delegate, delegate-setup) to
       `configs/claude/config/skill_policies.yml` and bump `expected_total:
       114` → `116` in the same change; and add a `delegation.*`
       protected-glob entry to `configs/claude/config/reconcile.yml` so a
       user-authored `delegation.yml` is never classified as an orphan by
       deploy-reconcile (Constitution V.4)
-- [ ] T042 Add `tool_policies` entries for `delegate` and `delegate-setup` in
+- [x] T042 Add `tool_policies` entries for `delegate` and `delegate-setup` in
       `configs/claude/config/command_config.yml` — each with
       allowed/forbidden tools, `parallel_agents`, `validation_tier`,
       `subagents` disposition (+ `subagent_trigger` if conditional) and
       `subagent_model: sonnet` (enforced by `tests/bats/subagent_policy.bats`)
-- [ ] T043 Run the generators and commit their output:
+- [x] T043 Run the generators and commit their output:
       `configs/claude/scripts/generate_skill_mirror.sh` (`.apm/skills/`
       mirror — never hand-edit);
       `configs/claude/scripts/generate_commands_doc.py` for `docs/COMMANDS.md`
@@ -512,10 +512,10 @@ unready gate backend → completion proceeds with a note (US4 AS1–AS3).
       `configs/claude/scripts/generate_cursor_rules.sh`; verify
       `configs/claude/scripts/generate_cursor_agents.py` picks up
       `delegate-runner` and the diff is intentional
-- [ ] T044 Update root `CLAUDE.md` (SPECKIT/agent-context block → feature 675
+- [x] T044 Update root `CLAUDE.md` (SPECKIT/agent-context block → feature 675
       status) staying ≤12900 bytes — compact the completed-674 entry if
       needed; make NO additions to `.claude/CLAUDE.md` (at its 3900-byte cap)
-- [ ] T045 Extend `tests/bats/delegate_plugin.bats` with registration gates:
+- [x] T045 Extend `tests/bats/delegate_plugin.bats` with registration gates:
       plugin.json declares the explicit `skills` array; marketplace.json entry
       present; skill_policies bundle block + count matches; registry↔
       `cli_agents` drift test (argv templates in
@@ -528,7 +528,7 @@ unready gate backend → completion proceeds with a note (US4 AS1–AS3).
 
 ## Phase 10: Polish & Cross-Cutting Verification
 
-- [ ] T046 [P] Complete the SC-004 fault-injection matrix in
+- [x] T046 [P] Complete the SC-004 fault-injection matrix in
       `tests/python/test_delegate_dispatcher.py` — one test per fault:
       missing binary, unauthenticated, disabled-by-workspace,
       disabled-by-user, timeout, malformed output, unknown backend, oversize
@@ -539,20 +539,20 @@ unready gate backend → completion proceeds with a note (US4 AS1–AS3).
       come back denied/errored by the backend sandbox stub — never approved;
       assert every failure message is
       explicit, attributed, and actionable (100%)
-- [ ] T047 Run the budget/quality gates and fix regressions:
+- [x] T047 Run the budget/quality gates and fix regressions:
       `bats tests/bats/context_budget.bats` (frontmatter ≤29000, per-bundle
       ≤6000), skill-reference ratchet (warning stays ≤133, blocking 0),
       `bats tests/bats/skill_naming.bats` + `help_coverage.bats` +
       `subagent_policy.bats`,
       `configs/claude/scripts/constitution_check.py` on the new Python,
       `yamllint` on edited YAML
-- [ ] T048 Full-suite verification: `uv sync --project configs/claude` + `git
+- [x] T048 Full-suite verification: `uv sync --project configs/claude` + `git
       submodule update --init` first (fresh-worktree requirement), then
       `pytest tests/python/` and `bats tests/bats/`; then the Verify gate:
       `python3 configs/claude/scripts/smoke_test.py run --tier Lite` must
       exit 0 (executing the appended delegate smoke entries), and run
       /spec-audit-tasks against this tasks.md — all green, zero regressions
-- [ ] T049 Execute `specs/675-multi-agent-delegation/quickstart.md` end to end
+- [x] T049 Execute `specs/675-multi-agent-delegation/quickstart.md` end to end
       (stub backends where real ones are unready; note: gemini CLI retired,
       cursor usage-limited — real-CLI checks run on codex + agy + claude),
       including the D11 no-bootstrap check: install → readiness → one stubbed

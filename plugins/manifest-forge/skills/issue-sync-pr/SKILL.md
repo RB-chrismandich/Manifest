@@ -7,7 +7,7 @@ description: "Keep the linked GitHub/GitLab issue in sync when a pull/merge requ
 
 When a pull/merge request is opened, this skill updates each issue the PR relates
 to so the tracker reflects "up for review" without manual upkeep. It is one half of
-the issue-linking hooks (see also [`/manifest-forge:issue-sync-commit`]); both delegate to the shared
+the issue-linking hooks (see also [`/manifest-forge:issue-sync-commit`]); both defer to the shared
 engine `configs/claude/scripts/issue_support.sh`.
 
 ## What it does

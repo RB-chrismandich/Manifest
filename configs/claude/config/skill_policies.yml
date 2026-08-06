@@ -8,7 +8,7 @@
 #
 # A PR that adds or removes a skill MUST change expected_total in the same
 # commit, and give the new skill a bundle. That is the point, not friction.
-expected_total: 114
+expected_total: 116
 
 # Recorded so no later phase keys anything on it: ~/.claude/skills/.deployed-skills
 # is ALREADY WRONG on a live machine (measured 2026-07-30 — mtime predates SC-006,
@@ -188,3 +188,7 @@ bundles:
     - review-round
     - screen-prompts
     - spec-amend
+
+  manifest-delegate:  # 2 skills
+    - delegate
+    - delegate-setup

@@ -1,0 +1,15 @@
+---
+description: "Delegate a task to another agent CLI (Codex, Claude, Antigravity) for a second opinion or follow-up; background, status, cancel, resume."
+globs: ".claude/skills/delegate/**"
+alwaysApply: false
+---
+
+# delegate
+
+Delegate a task to another agent CLI (Codex, Claude, Antigravity) for a second opinion or follow-up; background, status, cancel, resume.
+
+<!-- Auto-generated from .claude/skills/delegate/SKILL.md -->
+<!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
+
+Refer to `.cursor/skills/delegate/SKILL.md` for the full skill definition.
+

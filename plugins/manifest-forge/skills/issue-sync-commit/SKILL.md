@@ -7,7 +7,7 @@ description: "Keep the linked GitHub/GitLab issue in sync when commits land on a
 
 When a commit lands on a feature branch, this skill moves the linked issue into
 "active" status so the tracker reflects work-in-progress as soon as it starts. It is
-one half of the issue-linking hooks (see also [`/manifest-forge:issue-sync-pr`]); both delegate to the
+one half of the issue-linking hooks (see also [`/manifest-forge:issue-sync-pr`]); both defer to the
 shared engine `configs/claude/scripts/issue_support.sh`.
 
 ## What it does

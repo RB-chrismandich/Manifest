@@ -235,9 +235,9 @@ approaches), review stale plans, or archive/abandon completed work.
 <!-- SPECKIT START -->
 ## Active Spec Kit Feature
 
-- **`675-multi-agent-delegation`** — Plan done:
+- **`675-multi-agent-delegation`** — Implementation in progress via CDDL;
+  `plugins/manifest-delegate` bundle landed, remaining: verification gates.
   [plan.md](specs/675-multi-agent-delegation/plan.md) (+ research, data-model,
-  contracts/, quickstart). Next: `/speckit-tasks`.
-- `674-plugin-architecture` — complete; record:
-  [cutover-plan.md](specs/674-plugin-architecture/cutover-plan.md).
+  contracts/, quickstart).
+- `674-plugin-architecture` — complete ([record](specs/674-plugin-architecture/cutover-plan.md)).
 <!-- SPECKIT END -->

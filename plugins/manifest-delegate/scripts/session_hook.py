@@ -1,0 +1,149 @@
+#!/usr/bin/env python3
+# help-coverage: covered by tests/bats/help_coverage.bats
+"""SessionStart/SessionEnd thin wrapper for manifest-delegate.
+
+SessionStart: records session_id + transcript_path for later transfer
+lookups. SessionEnd: reaps orphaned gate/job records — jobs left
+non-terminal whose recorded backend process group is no longer alive.
+"""
+
+import sys
+
+# --- Early interpreter version probe (D11) --------------------------------
+if sys.version_info < (3, 9):
+    sys.stderr.write(
+        "session_hook.py: unsupported Python version %s.%s — "
+        "manifest-delegate requires Python 3.9 or newer.\n"
+        "Install a supported interpreter, e.g.:\n"
+        "  macOS:  brew install python@3.11\n"
+        "  Linux:  use your distro's python3.9+ package\n"
+        "Then re-run with that interpreter's `python3` on PATH.\n"
+        % (sys.version_info[0], sys.version_info[1])
+    )
+    sys.exit(2)
+
+import argparse  # noqa: E402
+import fcntl  # noqa: E402
+import json  # noqa: E402
+import os  # noqa: E402
+import stat  # noqa: E402
+import sys as _sys  # noqa: E402
+import tempfile  # noqa: E402
+
+_SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+if _SCRIPT_DIR not in _sys.path:
+    _sys.path.insert(0, _SCRIPT_DIR)
+import delegate  # noqa: E402
+
+def _load_sessions():
+    if not os.path.exists(delegate.SESSIONS_CAPTURE_FILE):
+        return {}
+    try:
+        return json.load(open(delegate.SESSIONS_CAPTURE_FILE))
+    except ValueError:
+        return {}
+
+
+def _capture_session(session_id, entry):
+    """Add one session entry to the shared capture file under an inter-process
+    flock, so concurrent SessionStart hooks (parallel harness sessions are
+    supported) cannot lose each other's writes. Load+merge+atomic-replace all
+    happen inside the lock; the temp file is unique (mkstemp) and fsync'd before
+    the rename so a crash cannot leave a torn file."""
+    path = delegate.SESSIONS_CAPTURE_FILE
+    dest_dir = os.path.dirname(path)
+    os.makedirs(dest_dir, exist_ok=True)
+    lock_fd = os.open(path + ".lock", os.O_CREAT | os.O_RDWR, 0o600)
+    try:
+        fcntl.flock(lock_fd, fcntl.LOCK_EX)
+        sessions = _load_sessions()
+        sessions[session_id] = entry
+        fd, tmp = tempfile.mkstemp(dir=dest_dir, prefix=".sessions.", suffix=".tmp")
+        try:
+            with os.fdopen(fd, "w") as fh:
+                json.dump(sessions, fh)
+                fh.flush()
+                os.fsync(fh.fileno())
+            os.chmod(tmp, stat.S_IRUSR | stat.S_IWUSR)
+            os.replace(tmp, path)
+        except OSError:
+            try:
+                os.unlink(tmp)
+            except OSError:  # constitution: exempt C-ERR — cleanup of a temp we are already failing on; nothing to recover
+                pass
+            raise
+    finally:
+        fcntl.flock(lock_fd, fcntl.LOCK_UN)
+        os.close(lock_fd)
+
+
+def handle_session_start(payload):
+    session_id = payload.get("session_id")
+    if not session_id:
+        return 0
+    entry = {
+        "transcript_path": payload.get("transcript_path"),
+        "cwd": payload.get("cwd"),
+    }
+    try:
+        _capture_session(session_id, entry)
+    except OSError as exc:
+        # SessionStart's contract is to always exit 0; a capture I/O failure
+        # must not crash the hook. Report and continue.
+        _sys.stderr.write("session_hook: failed to capture session %s: %s\n" % (session_id, exc))
+    return 0
+
+
+def handle_session_end(payload):
+    """Reap orphaned non-terminal jobs for this session's workspace.
+
+    Delegates entirely to delegate.JobStore.reap_if_dead, the dispatcher's
+    own locked reaper, so state vocabulary (TERMINAL_STATES/NON_TERMINAL_
+    STATES) and pgid-liveness semantics (EPERM == alive) stay in exactly one
+    place instead of being duplicated here.
+    """
+    store = delegate.JobStore(cwd=payload.get("cwd"))
+    for job_id in store.list_job_ids():
+        try:
+            store.reap_if_dead(job_id)
+        except (OSError, ValueError):
+            continue
+    return 0
+
+
+def main(argv=None):
+    # type: (list[str] | None) -> int
+    """Dispatch a SessionStart/SessionEnd hook payload to its handler.
+
+    Reads the hook JSON from stdin (or --stdin-json for tests), routes on
+    `hook_event_name`, and always returns 0 — a hook must never block the
+    session it is attached to.
+    """
+    parser = argparse.ArgumentParser(
+        prog="session_hook.py",
+        description="SessionStart/SessionEnd wrapper: session tracking + orphan job reap.",
+    )
+    parser.add_argument(
+        "--stdin-json",
+        metavar="FILE",
+        default=None,
+        help="read hook payload from FILE instead of stdin (testing)",
+    )
+    args = parser.parse_args(argv)
+
+    raw = open(args.stdin_json).read() if args.stdin_json else sys.stdin.read()
+    try:
+        payload = json.loads(raw) if raw.strip() else {}
+    except ValueError:
+        payload = {}
+
+    event = payload.get("hook_event_name")
+    if event == "SessionStart":
+        return handle_session_start(payload)
+    if event == "SessionEnd":
+        return handle_session_end(payload)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

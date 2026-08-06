@@ -1012,7 +1012,7 @@ Expected output:
 <!-- BEGIN GENERATED COMMANDS (command_catalog.py) — do not edit by hand -->
 <!-- Regenerate: configs/claude/scripts/generate_commands_doc.py -->
 
-_114 commands, generated from `.apm/skills/*/SKILL.md`._
+_116 commands, generated from `.apm/skills/*/SKILL.md`._
 
 ### Git & PRs
 
@@ -1146,6 +1146,8 @@ _114 commands, generated from `.apm/skills/*/SKILL.md`._
 | `/automation-rework-breakeven` | Use when deciding whether a more-thorough-but-costlier automation or skill version is worth it — separate correctness from cost, model net tokens as rework-avoided minus extra spend, and measure the rework cost empirically instead of assuming it. | Use when deciding whether a more-thorough-but-costlier automation or skill version is worth it — separate correctness from cost, model net tokens as rework-avoided minus extra spend, and measure the rework cost empirically instead of assuming it. | available |
 | `/code-audit-constitution` | Audit and remediate code against the Code Constitution (CON-001..013) — "audit this against the constitution", "is this file compliant", "extract embedded JSON/YAML out of this .py", "split this god class". Edits files; judges what no checker can prove. <lang>-refactor is read-only; constitution_check.py only measures. | Audit and remediate code against the Code Constitution (CON-001. | available |
 | `/code-to-design` | Convert frontend code (Vite, React, etc.) to a Stitch Design by chaining HTML extraction, design-system extraction, and upload. ALWAYS use when the user wants to save/migrate/upload an existing web app or React components into Stitch. | use when the user wants to save/migrate/upload an existing web app or React components into Stitch. | available |
+| `/delegate` | Delegate a task, review, or follow-up to another backend (Codex, Claude, Antigravity) — foreground or background, read-only by default with explicit --write scope, plus job status/result/cancel and session transfer. Use when handing work to a named backend/model tier. | Use when handing work to a named backend/model tier. | available |
+| `/delegate-setup` | Check readiness of delegation backends (Codex, Claude, Antigravity) — parallel probes report ready/not-installed/not-authenticated/disabled/retired per backend with exact remediation and which config layer (workspace services.yml vs user delegation.json/.yml) is blocking it. | Check readiness of delegation backends (Codex, Claude, Antigravity) — parallel probes report ready/not-installed/not-authenticated/disabled/retired per backend with exact remediation and which config layer (workspace services. | available |
 | `/deploy-reconcile` | Review what Manifest deployed into the assistant homes (~/.claude + mirrors) versus what the project would deploy, listing orphaned deployed items KEEP or REMOVE. Preview by default; opt-in removal is recoverable (timestamped backup, never hard-delete). | Review what Manifest deployed into the assistant homes (~/. | available |
 | `/design-loop` | Orchestrate a full spec-first UI design pass — scaffold, prompt, generate, verify, review, amend. | Orchestrate a full spec-first UI design pass — scaffold, prompt, generate, verify, review, amend. | available |
 | `/design-md` | Analyze Stitch projects and synthesize a semantic design system into DESIGN.md files | Analyze Stitch projects and synthesize a semantic design system into DESIGN. | available |

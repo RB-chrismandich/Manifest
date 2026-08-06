@@ -62,6 +62,13 @@
       "category": "productivity"
     },
     {
+      "name": "manifest-delegate",
+      "source": "./plugins/manifest-delegate",
+      "description": "Delegate tasks, second opinions, and reviews to Codex, Claude, or Antigravity backends with resumable follow-ups, background jobs, and an optional finish-time review gate.",
+      "version": "0.1.0",
+      "category": "productivity"
+    },
+    {
       "name": "stitch-design",
       "source": "./plugins/stitch-design",
       "description": "Google Stitch design workflows: generate and edit screens, extract and manage design systems, and convert designs to React, React Native or Remotion.",
