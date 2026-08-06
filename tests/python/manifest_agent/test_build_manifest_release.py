@@ -142,7 +142,11 @@ def test_builds_exact_deterministic_eight_bundle_release(
         or any(path.startswith(f"plugins/{name}/") for name in DOMAIN_BUNDLES)
         for path in files
     )
-    assert not any("adversarial-design-loop" in path for path in files)
+    assert not any(
+        addon in path
+        for addon in ("adversarial-design-loop", "manifest-docker")
+        for path in files
+    )
     for forbidden in ("bootstrap", "configs", ".apm", "templates", "src"):
         assert not any(
             path == forbidden or path.startswith(f"{forbidden}/") for path in files

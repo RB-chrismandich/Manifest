@@ -23,26 +23,41 @@ ALL_HARNESSES = (
     "gemini",
 )
 GENERIC_HARNESSES = ("antigravity", "codex", "cursor", "devin")
-EXPECTED_ADDON_ENTRY = {
-    "category": "design",
-    "description": (
-        "Spec-first UI design loop: colorless screen prompts, faithful render "
-        "gates, multi-lens adversarial review with skeptic-verified blockers, "
-        "upstream spec amendments."
-    ),
-    "homepage": "https://github.com/RB-chrismandich/Manifest",
-    "keywords": [
-        "design",
-        "ui",
-        "stitch",
-        "adversarial-review",
-        "design-system",
-        "render-verification",
-    ],
-    "name": "adversarial-design-loop",
-    "source": "./plugins/adversarial-design-loop",
-    "version": "0.1.0",
-}
+EXPECTED_ADDON_ENTRIES = (
+    {
+        "category": "design",
+        "description": (
+            "Spec-first UI design loop: colorless screen prompts, faithful render "
+            "gates, multi-lens adversarial review with skeptic-verified blockers, "
+            "upstream spec amendments."
+        ),
+        "homepage": "https://github.com/RB-chrismandich/Manifest",
+        "keywords": [
+            "design",
+            "ui",
+            "stitch",
+            "adversarial-review",
+            "design-system",
+            "render-verification",
+        ],
+        "name": "adversarial-design-loop",
+        "source": "./plugins/adversarial-design-loop",
+        "version": "0.1.0",
+    },
+    {
+        "category": "deployment",
+        "description": (
+            "The Ten Commandments of docker-compose (DC-001..DC-010): an advisory "
+            "save-hook and an on-demand audit for image pinning, secrets, healthchecks, "
+            "resource limits, network isolation, volumes, non-root, logging, DRY and "
+            "graceful shutdown."
+        ),
+        "homepage": "https://github.com/ReefBytes-Owner/Manifest",
+        "name": "manifest-docker",
+        "source": "./plugins/manifest-docker",
+        "version": "0.1.0",
+    },
+)
 
 
 @pytest.fixture
@@ -81,16 +96,14 @@ def _build_fixture_repo(repo_root: Path, fixture_root: Path) -> None:
     marketplace_path.parent.mkdir(parents=True)
     shutil.copy2(repo_root / ".claude-plugin/marketplace.json", marketplace_path)
 
-    addon_source = (
-        fixture_plugins
-        / "adversarial-design-loop/.claude-plugin/marketplace-entry.json"
-    )
-    addon_source.parent.mkdir(parents=True)
-    canonical_source = (
-        repo_root
-        / "plugins/adversarial-design-loop/.claude-plugin/marketplace-entry.json"
-    )
-    shutil.copy2(canonical_source, addon_source)
+    for canonical_source in sorted(
+        (repo_root / "plugins").glob("*/.claude-plugin/marketplace-entry.json")
+    ):
+        addon_source = fixture_plugins / canonical_source.relative_to(
+            repo_root / "plugins"
+        )
+        addon_source.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(canonical_source, addon_source)
 
 
 def test_generator_emits_three_native_views_per_domain(
@@ -122,12 +135,13 @@ def test_generator_emits_release_command_catalog(
     )
 
 
-def test_marketplace_excludes_optional_addon_from_parity_count(
+def test_marketplace_excludes_independent_addons_from_parity_count(
     repo_root: Path,
 ) -> None:
     contracts = load_domain_contracts(repo_root / "plugins")
 
     assert {contract.name for contract in contracts} == set(DOMAIN_BUNDLES)
+    assert "manifest-docker" not in DOMAIN_BUNDLES
 
 
 def test_contracts_declare_explicit_capability_tiers(repo_root: Path) -> None:
@@ -235,30 +249,25 @@ def test_check_reports_all_drift_without_writing(
     assert gemini_path.read_text(encoding="utf-8") == "drifted gemini\n"
 
 
-def test_marketplace_preserves_independent_addon_entry(
+def test_marketplace_preserves_independent_addon_entries(
     repo_root: Path, tmp_path: Path
 ) -> None:
-    canonical_source = (
-        repo_root
-        / "plugins/adversarial-design-loop/.claude-plugin/marketplace-entry.json"
+    canonical_sources = sorted(
+        (repo_root / "plugins").glob("*/.claude-plugin/marketplace-entry.json")
     )
-    assert canonical_source.is_file()
-    expected = json.loads(canonical_source.read_text())
-    assert expected == EXPECTED_ADDON_ENTRY
-    assert canonical_source.read_text() == (
-        json.dumps(EXPECTED_ADDON_ENTRY, indent=2, sort_keys=True) + "\n"
-    )
+    expected = tuple(json.loads(source.read_text()) for source in canonical_sources)
+    assert expected == EXPECTED_ADDON_ENTRIES
+    for source, entry in zip(canonical_sources, expected, strict=True):
+        assert source.read_text() == json.dumps(entry, indent=2, sort_keys=True) + "\n"
 
     render_views(repo_root, output_root=tmp_path, check=False)
     generated = json.loads((tmp_path / ".claude-plugin/marketplace.json").read_text())
-    actual = next(
-        entry
-        for entry in generated["plugins"]
-        if entry["name"] == "adversarial-design-loop"
+    actual = tuple(
+        entry for entry in generated["plugins"] if entry["name"] not in DOMAIN_BUNDLES
     )
 
     assert actual == expected
-    assert len(generated["plugins"]) == 9
+    assert len(generated["plugins"]) == len(DOMAIN_BUNDLES) + len(expected)
 
 
 def test_check_detects_tampered_generated_addon_entry(
@@ -270,9 +279,7 @@ def test_check_detects_tampered_generated_addon_entry(
     marketplace_path = fixture_root / ".claude-plugin/marketplace.json"
     marketplace = json.loads(marketplace_path.read_text())
     addon = next(
-        entry
-        for entry in marketplace["plugins"]
-        if entry["name"] == "adversarial-design-loop"
+        entry for entry in marketplace["plugins"] if entry["name"] == "manifest-docker"
     )
     addon["description"] = "tampered generated addon metadata"
     marketplace_path.write_text(json.dumps(marketplace, indent=2) + "\n")

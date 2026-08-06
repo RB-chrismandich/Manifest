@@ -13,10 +13,7 @@ from typing import Any
 from manifest_agent.command_catalog import CommandCatalogError, build_command_catalog
 from manifest_agent.contracts import DOMAIN_BUNDLES, Component, load_domain_contracts
 
-_ADDON_NAME = "adversarial-design-loop"
-_ADDON_SOURCE = Path(
-    "plugins/adversarial-design-loop/.claude-plugin/marketplace-entry.json"
-)
+_ADDON_ENTRY = Path(".claude-plugin/marketplace-entry.json")
 _ALL_HARNESSES = (
     "antigravity",
     "claude",
@@ -305,24 +302,41 @@ def _generic_view(contract: Any, skills: tuple[str, ...]) -> dict[str, Any]:
     }
 
 
-def _addon_entry(repo_root: Path) -> dict[str, Any]:
-    addon_path = repo_root / _ADDON_SOURCE
-    try:
-        addon = json.loads(addon_path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as error:
-        raise GenerationError(
-            f"unable to load canonical addon metadata from {addon_path}: {error}"
-        ) from error
-    if not isinstance(addon, dict) or addon.get("name") != _ADDON_NAME:
-        raise GenerationError(
-            f"{addon_path}: expected one {_ADDON_NAME!r} marketplace entry object"
-        )
-    if addon.get("source") != f"./plugins/{_ADDON_NAME}":
-        raise GenerationError(f"{addon_path}: addon source must target its plugin root")
-    return addon
+def _addon_entries(repo_root: Path) -> tuple[dict[str, Any], ...]:
+    """Load independent marketplace entries from their owning plugin directories."""
+    entries: list[dict[str, Any]] = []
+    for addon_path in sorted((repo_root / "plugins").glob(f"*/{_ADDON_ENTRY}")):
+        try:
+            addon = json.loads(addon_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as error:
+            raise GenerationError(
+                f"unable to load canonical addon metadata from {addon_path}: {error}"
+            ) from error
+        name = addon.get("name") if isinstance(addon, dict) else None
+        if not isinstance(name, str) or not name:
+            raise GenerationError(
+                f"{addon_path}: marketplace entry must declare a non-empty name"
+            )
+        if name != addon_path.parent.parent.name:
+            raise GenerationError(
+                f"{addon_path}: addon name must match its plugin root"
+            )
+        if name in DOMAIN_BUNDLES:
+            raise GenerationError(f"{addon_path}: domain bundles cannot be addons")
+        if addon.get("source") != f"./plugins/{name}":
+            raise GenerationError(
+                f"{addon_path}: addon source must target its plugin root"
+            )
+        entries.append(addon)
+    ordered = tuple(sorted(entries, key=lambda entry: entry["name"]))
+    if len({entry["name"] for entry in ordered}) != len(ordered):
+        raise GenerationError("independent marketplace addon names must be unique")
+    return ordered
 
 
-def _marketplace(contracts: tuple[Any, ...], addon: dict[str, Any]) -> dict[str, Any]:
+def _marketplace(
+    contracts: tuple[Any, ...], addons: tuple[dict[str, Any], ...]
+) -> dict[str, Any]:
     domain_entries = [
         {
             "category": contract.category,
@@ -336,11 +350,11 @@ def _marketplace(contracts: tuple[Any, ...], addon: dict[str, Any]) -> dict[str,
     return {
         "description": (
             "Manifest agent capabilities partitioned into eight portable domain "
-            "bundles, plus the independent adversarial-design-loop addon."
+            "bundles, plus independent addons."
         ),
         "name": "manifest",
         "owner": {"name": "ReefBytes"},
-        "plugins": [*domain_entries, addon],
+        "plugins": [*domain_entries, *addons],
     }
 
 
@@ -377,7 +391,7 @@ def _emit(
 def render_views(
     repo_root: Path, check: bool, output_root: Path | None = None
 ) -> GenerationReport:
-    """Render the nine contracts without changing files when ``check`` is true."""
+    """Render canonical domain contracts without writing when ``check`` is true."""
     repo_root = repo_root.resolve()
     source_plugins = repo_root / "plugins"
     contracts = load_domain_contracts(source_plugins)
@@ -410,7 +424,7 @@ def render_views(
     expected[catalog_target] = _json(build_command_catalog(source_plugins, contracts))
 
     expected[marketplace_output] = _json(
-        _marketplace(contracts, _addon_entry(repo_root))
+        _marketplace(contracts, _addon_entries(repo_root))
     )
     drifted, written = _emit(expected, check=check)
     return GenerationReport(
@@ -463,11 +477,9 @@ def main(argv: list[str] | None = None) -> int:
         )
         from render_plugin_capability_matrix import _load_inspection
 
-        if (
-            not matrix_path.exists()
-            or matrix_path.read_text(encoding="utf-8")
-            != render(_load_inspection(inspection_path))
-        ):
+        if not matrix_path.exists() or matrix_path.read_text(
+            encoding="utf-8"
+        ) != render(_load_inspection(inspection_path)):
             print("docs/PLUGIN_CAPABILITY_MATRIX.md", file=sys.stderr)
             return 1
     return 0
