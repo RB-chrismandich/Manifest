@@ -174,8 +174,10 @@ directory per skill carrying a `SKILL.md` with `name` and `description`
 frontmatter — in the repository's designated skills source-of-truth tree. That
 tree's location is recorded in `docs/SKILL-NAMING.md` (currently
 `plugins/<bundle>/skills/`), not in this constitution, so improving the layout
-is engineering, not amendment. Skills MUST be independently invocable via
-`/skill-name` in Claude Code. Expanding `parallel_agent.py` or other core
+is engineering, not amendment. Skills MUST be independently invocable in
+Claude Code under the invocation contract recorded in `docs/SKILL-NAMING.md`
+(currently `/<bundle>:<name>`, e.g. `/manifest-docs:docs-all`; there is no
+bare-name alias). Expanding `parallel_agent.py` or other core
 scripts to absorb new behaviors is prohibited when a skill is sufficient.
 
 **Rationale**: Composable skills enable independent testing, per-platform deployment, and
@@ -376,4 +378,4 @@ review of all principles is RECOMMENDED to ensure alignment with project evoluti
 **Runtime guidance**: Use `configs/claude/CLAUDE.md` for session-level development
 guidance; it is the deployed document that governs active Claude Code sessions.
 
-**Version**: 4.0.0 | **Ratified**: 2026-05-31 | **Last Amended**: 2026-08-05
+**Version**: 4.0.1 | **Ratified**: 2026-05-31 | **Last Amended**: 2026-08-06

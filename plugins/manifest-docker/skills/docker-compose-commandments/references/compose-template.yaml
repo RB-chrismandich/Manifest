@@ -62,7 +62,12 @@ services:
     secrets:
       - db_password  # DC-002
     volumes:
-      - db_data:/var/lib/postgresql/data  # DC-006: named, not a bind mount
+      # DC-006: named, not a bind mount. postgres:18+ keeps PGDATA under a
+      # version-specific dir below /var/lib/postgresql — mount the parent, not
+      # the pre-18 /var/lib/postgresql/data (which would silently miss the
+      # live data dir). Major upgrades from <=16 volumes need pg_upgrade or
+      # dump-and-restore; 18 cannot open a 16 data directory in place.
+      - db_data:/var/lib/postgresql
     networks:
       - db-net  # DC-005: internal only — no route to or from the internet
     healthcheck:  # DC-003
