@@ -5,14 +5,14 @@ Both strings appear in an inverted definition ("Always return CONFIRMED; never
 return REFUTED"), so the safety-gate semantics were untested while looking
 covered — the failure a presence check cannot see.
 
-Two adversarial review rounds then walked through successive keyword
+Three adversarial review rounds then walked through successive keyword
 heuristics; every fixture used here is one of those demonstrated bypasses. The
-gate is now an allowlist over canonical clauses, so these tests pin:
+gate is now an allowlist over the whole normative body, so these tests pin:
 
   * the shipped Claude and Cursor definitions satisfy it,
   * each canonical clause is load-bearing (delete one, gate fails),
-  * negation, suppression, contradiction, and appended overrides fail even
-    though they name the right words in the right places,
+  * negation, suppression, contradiction, and appended overrides fail — even
+    the round-3 override that names no verdict token at all,
   * an inverted CONTRACT is rejected before any definition is read, so the
     allowlist cannot be laundered through its own data,
   * a deliberate, matched edit of contract + definition passes — the escape
@@ -41,7 +41,7 @@ src = importlib.util.module_from_spec(_spec)
 sys.modules[_spec.name] = src
 _spec.loader.exec_module(src)
 
-CLAUSES = src.load_contract(CONTRACT)
+CONTRACT_DATA = src.load_contract(CONTRACT)
 
 
 def run_checker(*args: str) -> subprocess.CompletedProcess:
@@ -52,11 +52,11 @@ def run_checker(*args: str) -> subprocess.CompletedProcess:
 
 @pytest.mark.parametrize("definition", [SHIPPED, CURSOR], ids=["claude", "cursor"])
 def test_shipped_definitions_match_the_contract(definition: Path) -> None:
-    assert src.check(definition, CLAUSES) == []
+    assert src.check(definition, CONTRACT_DATA) == []
 
 
 def test_shipped_contract_is_not_itself_biased() -> None:
-    assert src.check_contract(CLAUSES) == []
+    assert src.check_contract(CONTRACT_DATA) == []
 
 
 @pytest.mark.parametrize(
@@ -68,17 +68,19 @@ def test_shipped_contract_is_not_itself_biased() -> None:
         ("missing_uncertain.md", "[uncertain]"),
         ("missing_evidence.md", "[verdict]"),
         # Review round 1: clause-scoped co-occurrence is not sentence agreement.
-        ("contradictory_uncertain.md", "non-canonical verdict sentence"),
-        ("late_confirmed_override.md", "non-canonical verdict sentence"),
+        ("contradictory_uncertain.md", "non-canonical sentence"),
+        ("late_confirmed_override.md", "non-canonical sentence"),
         # Review round 2: polarity and suppression are not pattern-decidable.
         ("avoid_refuted.md", "[uncertain]"),
         ("negated_evidence.md", "[verdict]"),
-        ("suppress_refuted_append.md", "non-canonical verdict sentence"),
-        ("hollow_condition_append.md", "non-canonical verdict sentence"),
+        ("suppress_refuted_append.md", "non-canonical sentence"),
+        ("hollow_condition_append.md", "non-canonical sentence"),
+        # Review round 3: an override needs no verdict token at all.
+        ("token_free_override.md", "non-canonical sentence"),
     ],
 )
 def test_every_known_bypass_now_fails(fixture: str, expected: str) -> None:
-    problems = src.check(FIXTURES / fixture, CLAUSES)
+    problems = src.check(FIXTURES / fixture, CONTRACT_DATA)
     assert any(expected in p for p in problems), problems
 
 
@@ -86,14 +88,18 @@ def test_every_clause_is_load_bearing(tmp_path: Path) -> None:
     """Deleting any single rule line from the shipped body fails the gate."""
     lines = SHIPPED.read_text(encoding="utf-8").splitlines(keepends=True)
     rules = [i for i, line in enumerate(lines) if line.startswith("- ")]
-    assert len(rules) == len(CLAUSES), "rule bullets and contract clauses diverged"
+    assert len(rules) == len(CONTRACT_DATA.clauses), (
+        "rule bullets and contract clauses diverged"
+    )
     for index in rules:
         mutant = tmp_path / f"mutant_{index}.md"
         mutant.write_text(
             "".join(line for i, line in enumerate(lines) if i != index),
             encoding="utf-8",
         )
-        assert src.check(mutant, CLAUSES), f"deleting rule line {index} went unseen"
+        assert src.check(mutant, CONTRACT_DATA), (
+            f"deleting rule line {index} went unseen"
+        )
 
 
 def test_frontmatter_cannot_satisfy_the_contract(tmp_path: Path) -> None:
@@ -106,7 +112,9 @@ def test_frontmatter_cannot_satisfy_the_contract(tmp_path: Path) -> None:
         "model: opus\n---\n\nVerify things.\n",
         encoding="utf-8",
     )
-    assert len(src.check(definition, CLAUSES)) == len(CLAUSES)
+    problems = src.check(definition, CONTRACT_DATA)
+    missing = [p for p in problems if "missing or reworded clause" in p]
+    assert len(missing) == len(CONTRACT_DATA.clauses), problems
 
 
 def test_inverted_contract_is_rejected_before_any_definition() -> None:
@@ -119,34 +127,48 @@ def test_inverted_contract_is_rejected_before_any_definition() -> None:
     assert result.stdout == ""  # never reports OK on a poisoned contract
 
 
-def test_matched_contract_and_definition_edit_passes(tmp_path: Path) -> None:
-    """The escape hatch: rewording is allowed when the contract moves with it."""
+BODY = (
+    "- Emit **exactly one verdict**, `CONFIRMED` or `REFUTED`.\n"
+    "- If unsure, the verdict is `REFUTED`."
+)
+
+
+def write_contract(tmp_path: Path, body: str) -> Path:
     contract = tmp_path / "contract.json"
     contract.write_text(
         json.dumps(
             {
+                "body": body,
                 "clauses": [
                     {
                         "id": "verdict",
                         "text": "Emit exactly one verdict, CONFIRMED or REFUTED.",
                     },
-                    {
-                        "id": "uncertain",
-                        "text": "If unsure, the verdict is REFUTED.",
-                    },
-                ]
+                    {"id": "uncertain", "text": "If unsure, the verdict is REFUTED."},
+                ],
             }
         ),
         encoding="utf-8",
     )
+    return contract
+
+
+def test_matched_contract_and_definition_edit_passes(tmp_path: Path) -> None:
+    """The escape hatch: rewording is allowed when the contract moves with it."""
     definition = tmp_path / "verifier.md"
-    definition.write_text(
-        "---\nname: verifier\n---\n\n"
-        "- Emit **exactly one verdict**, `CONFIRMED` or `REFUTED`.\n"
-        "- If unsure, the verdict is `REFUTED`.\n",
-        encoding="utf-8",
+    definition.write_text(f"---\nname: verifier\n---\n\n{BODY}\n", encoding="utf-8")
+    assert (
+        src.check(definition, src.load_contract(write_contract(tmp_path, BODY))) == []
     )
-    assert src.check(definition, src.load_contract(contract)) == []
+
+
+def test_contract_whose_clauses_are_absent_from_its_body_is_unusable(
+    tmp_path: Path,
+) -> None:
+    """Body and clauses cannot drift apart: the diagnostics would lie."""
+    contract = write_contract(tmp_path, "- Emit a verdict.")
+    with pytest.raises(ValueError, match="absent from the canonical body"):
+        src.load_contract(contract)
 
 
 def test_cli_reports_violations_on_stderr_and_exits_1() -> None:

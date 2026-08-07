@@ -2,10 +2,10 @@
 # Contract gate for the verifier role-agent (issue #689, ANTI-015).
 #
 # The gate this replaces grepped verifier.md for CONFIRMED and REFUTED, so an
-# inverted definition passed. Two adversarial review rounds then walked through
-# successive keyword heuristics, so the gate is now an allowlist: the canonical
-# clauses in configs/claude/config/verifier_contract.json must appear verbatim,
-# and no other sentence in the body may name a verdict.
+# inverted definition passed. Three adversarial review rounds then walked through
+# successive keyword heuristics, so the gate is now an allowlist: the body must
+# equal the canonical body in configs/claude/config/verifier_contract.json,
+# normalized — an added sentence fails whatever words it uses.
 #
 # Every fixture here is one demonstrated bypass of an earlier heuristic gate.
 
@@ -71,13 +71,21 @@ setup() {
 @test "bypass: REFUTED suppressed by an imperative that names it" {
     run python3 "$CHECK" "$FIXTURES/suppress_refuted_append.md"
     assert_failure
-    assert_output --partial 'non-canonical verdict sentence'
+    assert_output --partial 'non-canonical sentence'
 }
 
 @test "bypass: CONFIRMED gated on a hollow condition" {
     run python3 "$CHECK" "$FIXTURES/hollow_condition_append.md"
     assert_failure
-    assert_output --partial 'non-canonical verdict sentence'
+    assert_output --partial 'non-canonical sentence'
+}
+
+@test "bypass: a token-free semantic override is rejected" {
+    # Names no verdict at all: "deciding whether new prose is normative" is the
+    # judgment the allowlist refuses to make, so the whole body is frozen.
+    run python3 "$CHECK" "$FIXTURES/token_free_override.md"
+    assert_failure
+    assert_output --partial 'non-canonical sentence'
 }
 
 @test "bypass: uncertainty clause negated in place (avoid REFUTED)" {
