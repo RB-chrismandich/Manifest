@@ -51,6 +51,23 @@ or on verdict-biasing text such as "always return CONFIRMED".
 # One clause = one bullet or paragraph, continuation lines folded in.
 _CLAUSE_SPLIT = re.compile(r"\n(?=\s*(?:[-*+]|\d+\.)\s)|\n\s*\n")
 
+# One sentence = the unit a directive is actually read in. Clause-scoped matching
+# alone is too coarse: "When uncertain, mark REFUTED in the notes. The verdict
+# remains CONFIRMED." satisfies an uncertain-and-refuted co-occurrence test while
+# operationally defaulting to CONFIRMED.
+_SENTENCE_SPLIT = re.compile(r"(?<=[.;:!?])\s+")
+
+# A sentence may name CONFIRMED only as one branch of the verdict (REFUTED named
+# too), as a negation ("not confirmed"), or under an explicit sufficiency
+# condition. A bare "the verdict remains CONFIRMED" is a unilateral directive.
+_PAIRED = re.compile(r"\brefuted\b")
+_NEGATED_CONFIRMED = re.compile(r"\b(?:not|never|n't|no)\b[^.]{0,20}?confirmed")
+_CONDITIONAL = re.compile(r"\b(?:if|when|unless|once|provided|only)\b")
+_SUFFICIENCY = re.compile(
+    r"\b(?:holds?|held|hold up|holds up|passes|passed|verified|verifies"
+    r"|supported|survives|survived|proven|proves|checks out|correct|true)\b"
+)
+
 # Text that steers the verdict rather than deriving it. Any hit fails the gate,
 # however many clauses the file also satisfies.
 BIAS_PATTERNS: tuple[tuple[str, str], ...] = (
@@ -99,15 +116,38 @@ def clauses(body: str) -> list[str]:
     return out
 
 
+def sentences(clause_list: list[str]) -> list[str]:
+    """Flatten clauses to sentences: the unit a reader applies a directive in."""
+    return [s for clause in clause_list for s in _SENTENCE_SPLIT.split(clause) if s]
+
+
 def _has(clause: str, *words: str) -> bool:
     return all(re.search(w, clause) for w in words)
 
 
-# Each rule: (id, requirement text, predicate over one clause).
-RULES: tuple[tuple[str, str, object], ...] = (
+def unilateral_confirmed(sentence: str) -> bool:
+    """True when a sentence asserts CONFIRMED without branch or condition.
+
+    This is the structural invariant the co-occurrence rules cannot express: a
+    faithful definition never states CONFIRMED on its own authority. It either
+    names REFUTED as the other branch, negates confirmation, or gates it behind
+    a stated sufficiency condition. Anything else overrides the verdict.
+    """
+    if "confirmed" not in sentence:
+        return False
+    if _PAIRED.search(sentence) or _NEGATED_CONFIRMED.search(sentence):
+        return False
+    return not (_CONDITIONAL.search(sentence) and _SUFFICIENCY.search(sentence))
+
+
+# Each rule: (id, requirement text, scope, predicate over one unit of that scope).
+# Scope matters: "uncertain" is sentence-scoped because a bullet can satisfy it in
+# one sentence and revoke it in the next.
+RULES: tuple[tuple[str, str, str, object], ...] = (
     (
         "grounding",
         "check the claim against the actual code/tests/spec",
+        "clause",
         lambda c: (
             _has(c, r"\b(check|verif|assess|evaluat|test)", r"\bclaim|\bchange\b")
             and _has(c, r"\bcode\b", r"\btest", r"\bspec")
@@ -116,6 +156,7 @@ RULES: tuple[tuple[str, str, object], ...] = (
     (
         "verdict",
         "return exactly one verdict: CONFIRMED or REFUTED",
+        "clause",
         lambda c: _has(
             c, r"\bexactly one\b", r"\bverdict", r"\bconfirmed\b", r"\brefuted\b"
         ),
@@ -123,6 +164,7 @@ RULES: tuple[tuple[str, str, object], ...] = (
     (
         "evidence",
         "REFUTED carries a specific, concrete reason and evidence",
+        "clause",
         lambda c: (
             _has(c, r"\brefuted\b", r"\breason", r"\bevidence\b")
             and _has(c, r"\b(specific|concrete|precise|exact)")
@@ -131,15 +173,17 @@ RULES: tuple[tuple[str, str, object], ...] = (
     (
         "uncertain",
         "default to REFUTED when uncertain",
-        lambda c: (
-            _has(c, r"\b(uncertain|unsure|in doubt|unverified|not sure)")
-            and _has(c, r"\brefuted\b")
-            and not re.search(r"\bconfirmed\b(?![^.]*\bnot\b)", c.split("refuted")[0])
+        "sentence",
+        lambda s: (
+            _has(s, r"\b(uncertain|unsure|in doubt|unverified|not sure)")
+            and _has(s, r"\brefuted\b")
+            and not unilateral_confirmed(s)
         ),
     ),
     (
         "no-fix",
         "report the problem; do not fix it",
+        "clause",
         lambda c: (
             _has(c, r"\b(do not|don't|never)\s+(fix|repair|patch|correct)")
             and _has(c, r"\breport")
@@ -156,17 +200,25 @@ def check(path: Path) -> list[str]:
         return [f"unreadable: {exc}"]
 
     found = clauses(body)
+    units = {"clause": found, "sentence": sentences(found)}
     problems = [
         f"missing clause [{rule_id}]: {requirement}"
-        for rule_id, requirement, matches in RULES
-        if not any(matches(c) for c in found)
+        for rule_id, requirement, scope, matches in RULES
+        if not any(matches(unit) for unit in units[scope])
     ]
-    flat = " ".join(found)
-    problems += [
-        f"verdict bias: {why}"
-        for pattern, why in BIAS_PATTERNS
-        if re.search(pattern, flat)
-    ]
+    # Bias and unilateral-verdict scans run per sentence, never over the joined
+    # body: a cross-sentence window both misses contradictions and invents them.
+    for sentence in units["sentence"]:
+        problems += [
+            f"verdict bias: {why}"
+            for pattern, why in BIAS_PATTERNS
+            if re.search(pattern, sentence)
+        ]
+        if unilateral_confirmed(sentence):
+            problems.append(
+                "unilateral CONFIRMED directive (no REFUTED branch, negation, or "
+                f"stated sufficiency condition): {sentence.strip()!r}"
+            )
     return problems
 
 

@@ -61,11 +61,36 @@ def test_reworded_but_faithful_definition_passes() -> None:
         ("tokens_only.md", "[grounding]"),
         ("missing_uncertain.md", "[uncertain]"),
         ("missing_evidence.md", "[evidence]"),
+        # Codex adversarial review, #689: co-occurrence inside one bullet is not
+        # agreement between its sentences.
+        ("contradictory_uncertain.md", "unilateral CONFIRMED directive"),
+        ("late_confirmed_override.md", "unilateral CONFIRMED directive"),
     ],
 )
 def test_contract_rot_is_reported(fixture: str, expected: str) -> None:
     problems = src.check(FIXTURES / fixture)
     assert any(expected in p for p in problems), problems
+
+
+def test_conditional_confirmed_rule_is_not_a_false_positive() -> None:
+    """One rule per verdict branch is legitimate when the condition is stated."""
+    assert src.check(FIXTURES / "conditional_confirmed_valid.md") == []
+
+
+@pytest.mark.parametrize(
+    ("sentence", "unilateral"),
+    [
+        ("the verdict remains confirmed.", True),
+        ("report confirmed.", True),
+        ("return confirmed or refuted.", False),
+        ("an unverified claim is not confirmed.", False),
+        ("return confirmed only when the claim holds up.", False),
+        ("once the review is written, the verdict is confirmed.", True),
+    ],
+)
+def test_unilateral_confirmed_classification(sentence: str, unilateral: bool) -> None:
+    """Pin the boundary: branch, negation, or stated condition — else it fails."""
+    assert src.unilateral_confirmed(sentence) is unilateral
 
 
 def test_inverted_definition_carries_both_tokens_yet_fails() -> None:

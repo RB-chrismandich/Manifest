@@ -69,6 +69,27 @@ setup() {
     assert_output --partial '[evidence]'
 }
 
+@test "adversarial: an uncertain clause revoked by the next sentence fails" {
+    # Clause-scoped co-occurrence alone passes this: "uncertain" and REFUTED sit
+    # in one bullet while the operative verdict is CONFIRMED (codex review, #689).
+    run python3 "$CHECK" "$FIXTURES/contradictory_uncertain.md"
+    assert_failure
+    assert_output --partial 'unilateral CONFIRMED directive'
+}
+
+@test "adversarial: a later CONFIRMED override after a correct REFUTED rule fails" {
+    run python3 "$CHECK" "$FIXTURES/late_confirmed_override.md"
+    assert_failure
+    assert_output --partial 'unilateral CONFIRMED directive'
+}
+
+@test "boundary: a CONFIRMED rule with a stated sufficiency condition passes" {
+    # The unilateral-verdict rule must not block a legitimate split of the
+    # verdict into one rule per branch.
+    run python3 "$CHECK" "$FIXTURES/conditional_confirmed_valid.md"
+    assert_success
+}
+
 @test "semantic, not literal: a reworded but faithful definition passes" {
     # Guards the gate against degrading into a copy-match of the shipped text.
     run diff "$FIXTURES/reworded_valid.md" "$CLAUDE_VERIFIER"
