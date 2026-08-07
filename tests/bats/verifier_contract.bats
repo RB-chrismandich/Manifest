@@ -23,14 +23,15 @@ setup() {
 
 # ---- shipped definitions ---------------------------------------------------
 
-@test "shipped: the Claude verifier matches the canonical contract" {
-    run python3 "$CHECK" "$CLAUDE_VERIFIER"
+@test "shipped: EVERY tracked verifier.md matches the canonical contract" {
+    # Enumerated, never listed: the manifest-workspace plugin ships its own copy
+    # and was ungated by a hard-coded two-file list until review round 5.
+    local files
+    files=$(cd "$REPO_ROOT" && git ls-files | grep -E '(^|/)verifier\.md$')
+    [ -n "$files" ] || { echo "no verifier.md found: the gate would be empty"; false; }
+    run bash -c "cd '$REPO_ROOT' && python3 '$CHECK' \$(git ls-files | grep -E '(^|/)verifier\\.md\$')"
     assert_success
-}
-
-@test "shipped: the generated Cursor verifier matches the same contract" {
-    run python3 "$CHECK" "$CURSOR_VERIFIER"
-    assert_success
+    assert_output --partial 'plugins/manifest-workspace/agents/orchestration/verifier.md'
 }
 
 @test "shipped: Claude and Cursor verifier bodies are identical (frontmatter aside)" {
@@ -149,7 +150,7 @@ setup() {
         "$FIXTURES/poisoned_body_definition.md"
     assert_failure
     assert_output --partial 'contract body is biased'
-    assert_output --partial 'verdict outside every clause'
+    assert_output --partial 'covered by no clause'
 }
 
 @test "contract: an unusable contract path is a usage error, never a pass" {

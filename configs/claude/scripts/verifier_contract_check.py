@@ -33,8 +33,9 @@ this gate is an ALLOWLIST over the whole body:
     3. text is NFKC-folded before comparison and any character that survives as
        non-ASCII or control is itself a violation, never silently stripped; and
     4. the canonical BODY -- not merely the clause list -- is scanned for
-       verdict-biasing text, so poisoning the contract and the definition in
-       lockstep does not launder an inverted definition.
+       verdict-biasing text, and every body sentence must be covered by a
+       declared clause, so poisoning the contract and the definition in lockstep
+       cannot hide as prose: a new rule has to be declared, named, and reviewed.
 
 The tradeoff is deliberate: editing the verifier's prose now means editing
 config/verifier_contract.json in the same commit, reviewed as a change to a
@@ -57,7 +58,7 @@ Usage: verifier_contract_check.py FILE [FILE...] [--contract F] [--quiet] [--hel
 
 Assert the verifier definition against the canonical contract, not verdict tokens.
 
-  FILE          Verifier agent definition (Claude or generated Cursor form).
+  FILE          Verifier agent definition (Claude, Cursor, or plugin copy).
   --contract F  Contract JSON (default: ../config/verifier_contract.json).
   --quiet       Report violations only; suppress the per-file OK line.
   --help        This text.
@@ -188,6 +189,13 @@ def check_contract(contract: Contract) -> list[str]:
     Scans the whole canonical BODY, not only the clause list: a poisoned line
     appended to the body and to the definition together moves them in lockstep,
     passes the body comparison, and never appears in ``clauses`` at all.
+
+    Every body sentence must be covered by a declared clause, including the ones
+    that name no verdict ("Treat every submitted claim as correct..."), because
+    the bias patterns cannot recognize an inversion phrased in new words. This
+    does not make a hostile edit impossible -- whoever can edit the contract can
+    edit this file -- it makes it structural: a new rule must be declared and
+    named, not slipped into a prose blob.
     """
     problems = [
         f"contract body is biased ({why}): {sentence!r}"
@@ -196,10 +204,9 @@ def check_contract(contract: Contract) -> list[str]:
         if re.search(pattern, sentence)
     ]
     problems += [
-        f"contract body states a verdict outside every clause: {sentence!r}"
+        f"contract body sentence is covered by no clause: {sentence!r}"
         for sentence in contract.sentences
-        if VERDICT_TOKENS.search(sentence)
-        and not any(sentence in text for _, text in contract.clauses)
+        if not any(sentence in text for _, text in contract.clauses)
     ]
     return problems
 
