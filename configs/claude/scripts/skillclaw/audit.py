@@ -300,10 +300,13 @@ def _parse_kv(pairs):
         def _maybe_json(val: str):
             try:
                 parsed = json.loads(val)
-                if isinstance(parsed, (dict, list, int, float, bool, str)) or parsed is None:
+                if (
+                    isinstance(parsed, (dict, list, int, float, bool, str))
+                    or parsed is None
+                ):
                     return parsed
             except json.JSONDecodeError:
-                pass
+                return val  # not valid JSON — keep the raw string
             return val
 
         out[k] = _maybe_json(v)
