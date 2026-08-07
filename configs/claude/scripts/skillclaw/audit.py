@@ -253,6 +253,9 @@ def trim(max_runs=MAX_RUNS):
         # iteration drastically reduces peak memory usage on huge log files.
         with path.open("r", encoding="utf-8") as fd:
             for ln in fd:
+                # ⚡ Bolt: Fast-path prefix check to bypass json.loads exception overhead for noise lines
+                if not ln or (ln[0] != "{" and ln.lstrip()[:1] != "{"):
+                    continue
                 try:
                     obj = json.loads(ln)
                     # A valid-JSON non-dict line (torn write leaving `123`/`null`)
@@ -271,6 +274,9 @@ def trim(max_runs=MAX_RUNS):
         # Pass 2: only collect kept lines
         with path.open("r", encoding="utf-8") as fd:
             for ln in fd:
+                # ⚡ Bolt: Fast-path prefix check to bypass json.loads exception overhead for noise lines
+                if not ln or (ln[0] != "{" and ln.lstrip()[:1] != "{"):
+                    continue
                 try:
                     obj = json.loads(ln)
                     if isinstance(obj, dict) and obj.get("run_id") in keep:
@@ -290,18 +296,17 @@ def _parse_kv(pairs):
             continue
         k, v = p.split("=", 1)
 
+        # 🛠️ Forge: Removed brittle fast-path prefix heuristics in favor of direct exception handling.
+        def _maybe_json(val: str):
+            try:
+                parsed = json.loads(val)
+                if isinstance(parsed, (dict, list, int, float, bool, str)) or parsed is None:
+                    return parsed
+            except json.JSONDecodeError:
+                pass
+            return val
 
-        try:
-            parsed = json.loads(v)
-            if (
-                isinstance(parsed, (dict, list, int, float, bool, str))
-                or parsed is None
-            ):
-                out[k] = parsed
-            else:
-                out[k] = v
-        except json.JSONDecodeError:
-            out[k] = v
+        out[k] = _maybe_json(v)
     return out
 
 
