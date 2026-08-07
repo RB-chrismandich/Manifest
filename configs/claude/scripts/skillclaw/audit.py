@@ -253,8 +253,7 @@ def trim(max_runs=MAX_RUNS):
         # iteration drastically reduces peak memory usage on huge log files.
         with path.open("r", encoding="utf-8") as fd:
             for ln in fd:
-                # ⚡ Bolt: Fast-path prefix check to bypass json.loads exception overhead for noise lines
-                if not ln or (ln[0] != "{" and ln.lstrip()[:1] != "{"):
+                if not ln:
                     continue
                 try:
                     obj = json.loads(ln)
@@ -274,8 +273,7 @@ def trim(max_runs=MAX_RUNS):
         # Pass 2: only collect kept lines
         with path.open("r", encoding="utf-8") as fd:
             for ln in fd:
-                # ⚡ Bolt: Fast-path prefix check to bypass json.loads exception overhead for noise lines
-                if not ln or (ln[0] != "{" and ln.lstrip()[:1] != "{"):
+                if not ln:
                     continue
                 try:
                     obj = json.loads(ln)
@@ -296,11 +294,7 @@ def _parse_kv(pairs):
             continue
         k, v = p.split("=", 1)
 
-        # ⚡ Bolt: Fast-path check for obvious non-JSON strings to avoid exception overhead
-        if not v or (
-            v[0] not in '{["tf-0123456789NIn'
-            and v.lstrip()[:1] not in '{["tf-0123456789NIn'
-        ):
+        if not v:
             out[k] = v
             continue
 

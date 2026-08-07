@@ -92,9 +92,7 @@ def parse_transcript(
     turns: list[dict] = []
     with path.open(encoding="utf-8", errors="replace") as fh:
         for line in fh:
-            # ⚡ Bolt: Fast-path prefix check bypasses exception overhead for noise lines,
-            # yielding much faster parse times without dropping valid padded JSON lines.
-            if not line or (line[0] != "{" and line.lstrip()[:1] != "{"):
+            if not line:
                 continue
             try:
                 obj = json.loads(line)
