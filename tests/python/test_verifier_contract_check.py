@@ -77,6 +77,9 @@ def test_shipped_contract_is_not_itself_biased() -> None:
         ("hollow_condition_append.md", "non-canonical sentence"),
         # Review round 3: an override needs no verdict token at all.
         ("token_free_override.md", "non-canonical sentence"),
+        # Review round 4: ASCII-only normalization erased fullwidth text.
+        ("fullwidth_override.md", "non-canonical sentence"),
+        ("zero_width_override.md", "non-ASCII or control characters"),
     ],
 )
 def test_every_known_bypass_now_fails(fixture: str, expected: str) -> None:
@@ -117,13 +120,39 @@ def test_frontmatter_cannot_satisfy_the_contract(tmp_path: Path) -> None:
     assert len(missing) == len(CONTRACT_DATA.clauses), problems
 
 
+def test_poisoned_contract_body_is_rejected_even_when_clauses_are_clean() -> None:
+    """Body and definition can move together; only a body-wide scan sees it."""
+    result = run_checker(
+        "--contract",
+        str(FIXTURES / "poisoned_body_contract.json"),
+        str(FIXTURES / "poisoned_body_definition.md"),
+    )
+    assert result.returncode == 1
+    assert "contract body is biased" in result.stderr
+    assert result.stdout == ""
+
+
+@pytest.mark.parametrize(
+    "text",
+    ["\uff21\uff4c\uff57\uff41\uff59\uff53", "al\u200bways", "\u00a0always"],
+    ids=["fullwidth", "zero-width", "nbsp"],
+)
+def test_confusable_input_never_normalizes_to_nothing(text: str) -> None:
+    """Folding must preserve or flag, never delete: deletion was the bypass."""
+    assert normalize_or_flagged(text)
+
+
+def normalize_or_flagged(text: str) -> bool:
+    return bool(src.normalize(text)) or bool(src.foreign_characters(text))
+
+
 def test_inverted_contract_is_rejected_before_any_definition() -> None:
     """The allowlist must not be laundered by editing its own data."""
     result = run_checker(
         "--contract", str(FIXTURES / "inverted_contract.json"), str(SHIPPED)
     )
     assert result.returncode == 1
-    assert "is itself biased" in result.stderr
+    assert "contract body is biased" in result.stderr
     assert result.stdout == ""  # never reports OK on a poisoned contract
 
 

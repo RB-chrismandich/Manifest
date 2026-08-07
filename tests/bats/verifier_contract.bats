@@ -100,6 +100,20 @@ setup() {
     assert_output --partial '[verdict]'
 }
 
+@test "bypass: a fullwidth-Unicode override is folded, then rejected" {
+    # ASCII-only normalization deleted these characters outright, so the body
+    # compared equal while a model still read the instruction (codex r4).
+    run python3 "$CHECK" "$FIXTURES/fullwidth_override.md"
+    assert_failure
+    assert_output --partial 'non-canonical sentence'
+}
+
+@test "bypass: zero-width characters are a violation, never silently stripped" {
+    run python3 "$CHECK" "$FIXTURES/zero_width_override.md"
+    assert_failure
+    assert_output --partial 'U+200B'
+}
+
 # ---- deletion ---------------------------------------------------------------
 
 @test "rot: a definition naming both verdicts but stating no rules fails" {
@@ -125,7 +139,17 @@ setup() {
 @test "contract: an inverted contract file is rejected before any definition" {
     run python3 "$CHECK" --contract "$FIXTURES/inverted_contract.json" "$CLAUDE_VERIFIER"
     assert_failure
-    assert_output --partial 'is itself biased'
+    assert_output --partial 'contract body is biased'
+}
+
+@test "contract: poisoning the body outside the clause list is rejected" {
+    # Body and definition move in lockstep, so the comparison passes; only a
+    # body-wide bias scan sees it (codex r4).
+    run python3 "$CHECK" --contract "$FIXTURES/poisoned_body_contract.json" \
+        "$FIXTURES/poisoned_body_definition.md"
+    assert_failure
+    assert_output --partial 'contract body is biased'
+    assert_output --partial 'verdict outside every clause'
 }
 
 @test "contract: an unusable contract path is a usage error, never a pass" {
