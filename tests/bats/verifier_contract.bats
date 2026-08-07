@@ -1,11 +1,13 @@
 #!/usr/bin/env bats
-# Semantic contract gate for the verifier role-agent (issue #689, ANTI-015).
+# Contract gate for the verifier role-agent (issue #689, ANTI-015).
 #
-# The previous gate grepped verifier.md for the strings CONFIRMED and REFUTED.
-# An inverted definition ("Always return CONFIRMED; never return REFUTED")
-# contains both tokens, so the safety-gate semantics were untested. These tests
-# drive configs/claude/scripts/verifier_contract_check.py over the shipped
-# definitions and over fixtures that isolate each way the contract can rot.
+# The gate this replaces grepped verifier.md for CONFIRMED and REFUTED, so an
+# inverted definition passed. Two adversarial review rounds then walked through
+# successive keyword heuristics, so the gate is now an allowlist: the canonical
+# clauses in configs/claude/config/verifier_contract.json must appear verbatim,
+# and no other sentence in the body may name a verdict.
+#
+# Every fixture here is one demonstrated bypass of an earlier heuristic gate.
 
 load '../test_helper/bats-support/load'
 load '../test_helper/bats-assert/load'
@@ -14,30 +16,35 @@ setup() {
     REPO_ROOT="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)"
     CHECK="$REPO_ROOT/configs/claude/scripts/verifier_contract_check.py"
     FIXTURES="$REPO_ROOT/tests/fixtures/verifier_contract"
+    CONTRACT="$REPO_ROOT/configs/claude/config/verifier_contract.json"
     CLAUDE_VERIFIER="$REPO_ROOT/configs/claude/agents/verifier.md"
     CURSOR_VERIFIER="$REPO_ROOT/configs/cursor/agents/verifier.md"
 }
 
 # ---- shipped definitions ---------------------------------------------------
 
-@test "shipped: the Claude verifier satisfies every normative clause" {
+@test "shipped: the Claude verifier matches the canonical contract" {
     run python3 "$CHECK" "$CLAUDE_VERIFIER"
     assert_success
 }
 
-@test "shipped: the generated Cursor verifier satisfies the same contract" {
+@test "shipped: the generated Cursor verifier matches the same contract" {
     run python3 "$CHECK" "$CURSOR_VERIFIER"
     assert_success
 }
 
-@test "shipped: Claude and Cursor verifier bodies are byte-identical (frontmatter aside)" {
-    # The generator copies the body verbatim; only frontmatter may differ.
+@test "shipped: Claude and Cursor verifier bodies are identical (frontmatter aside)" {
     run diff <(sed -n '/^---$/,/^---$/!p' "$CLAUDE_VERIFIER" | sed '1{/^$/d}') \
              <(sed -n '/^---$/,/^---$/!p' "$CURSOR_VERIFIER" | sed '1{/^$/d}')
     assert_success
 }
 
-# ---- contract rot: one fixture per failure mode ----------------------------
+@test "shipped: the contract data itself carries no verdict bias" {
+    run python3 "$CHECK" --contract "$CONTRACT" "$CLAUDE_VERIFIER"
+    assert_success
+}
+
+# ---- inversion: the original #689 regression -------------------------------
 
 @test "adversarial: an inverted definition fails despite carrying both tokens" {
     run grep -qF 'CONFIRMED' "$FIXTURES/inverted.md"
@@ -46,15 +53,51 @@ setup() {
     assert_success                      # ...on both counts
     run python3 "$CHECK" "$FIXTURES/inverted.md"
     assert_failure
-    assert_output --partial 'mandates CONFIRMED unconditionally'
-    assert_output --partial 'forbids the REFUTED verdict'
 }
+
+# ---- bypasses of the heuristic gates that preceded the allowlist -----------
+# Each of these passed a keyword/co-occurrence gate while inverting the control.
+
+@test "bypass: uncertainty clause revoked by the next sentence" {
+    run python3 "$CHECK" "$FIXTURES/contradictory_uncertain.md"
+    assert_failure
+}
+
+@test "bypass: CONFIRMED override appended after correct rules" {
+    run python3 "$CHECK" "$FIXTURES/late_confirmed_override.md"
+    assert_failure
+}
+
+@test "bypass: REFUTED suppressed by an imperative that names it" {
+    run python3 "$CHECK" "$FIXTURES/suppress_refuted_append.md"
+    assert_failure
+    assert_output --partial 'non-canonical verdict sentence'
+}
+
+@test "bypass: CONFIRMED gated on a hollow condition" {
+    run python3 "$CHECK" "$FIXTURES/hollow_condition_append.md"
+    assert_failure
+    assert_output --partial 'non-canonical verdict sentence'
+}
+
+@test "bypass: uncertainty clause negated in place (avoid REFUTED)" {
+    run python3 "$CHECK" "$FIXTURES/avoid_refuted.md"
+    assert_failure
+    assert_output --partial '[uncertain]'
+}
+
+@test "bypass: evidence requirement negated in place (no reason or evidence)" {
+    run python3 "$CHECK" "$FIXTURES/negated_evidence.md"
+    assert_failure
+    assert_output --partial '[verdict]'
+}
+
+# ---- deletion ---------------------------------------------------------------
 
 @test "rot: a definition naming both verdicts but stating no rules fails" {
     run python3 "$CHECK" "$FIXTURES/tokens_only.md"
     assert_failure
     assert_output --partial '[grounding]'
-    assert_output --partial '[verdict]'
 }
 
 @test "rot: dropping the uncertain-defaults-to-REFUTED clause fails" {
@@ -66,36 +109,21 @@ setup() {
 @test "rot: a REFUTED verdict without reason and evidence fails" {
     run python3 "$CHECK" "$FIXTURES/missing_evidence.md"
     assert_failure
-    assert_output --partial '[evidence]'
+    assert_output --partial '[verdict]'
 }
 
-@test "adversarial: an uncertain clause revoked by the next sentence fails" {
-    # Clause-scoped co-occurrence alone passes this: "uncertain" and REFUTED sit
-    # in one bullet while the operative verdict is CONFIRMED (codex review, #689).
-    run python3 "$CHECK" "$FIXTURES/contradictory_uncertain.md"
+# ---- the allowlist cannot be laundered through its own data -----------------
+
+@test "contract: an inverted contract file is rejected before any definition" {
+    run python3 "$CHECK" --contract "$FIXTURES/inverted_contract.json" "$CLAUDE_VERIFIER"
     assert_failure
-    assert_output --partial 'unilateral CONFIRMED directive'
+    assert_output --partial 'is itself biased'
 }
 
-@test "adversarial: a later CONFIRMED override after a correct REFUTED rule fails" {
-    run python3 "$CHECK" "$FIXTURES/late_confirmed_override.md"
-    assert_failure
-    assert_output --partial 'unilateral CONFIRMED directive'
-}
-
-@test "boundary: a CONFIRMED rule with a stated sufficiency condition passes" {
-    # The unilateral-verdict rule must not block a legitimate split of the
-    # verdict into one rule per branch.
-    run python3 "$CHECK" "$FIXTURES/conditional_confirmed_valid.md"
-    assert_success
-}
-
-@test "semantic, not literal: a reworded but faithful definition passes" {
-    # Guards the gate against degrading into a copy-match of the shipped text.
-    run diff "$FIXTURES/reworded_valid.md" "$CLAUDE_VERIFIER"
-    assert_failure                      # genuinely different wording
-    run python3 "$CHECK" "$FIXTURES/reworded_valid.md"
-    assert_success
+@test "contract: an unusable contract path is a usage error, never a pass" {
+    run python3 "$CHECK" --contract "$FIXTURES/does-not-exist.json" "$CLAUDE_VERIFIER"
+    [ "$status" -eq 2 ]
+    assert_output --partial 'unusable contract'
 }
 
 # ---- CLI contract ----------------------------------------------------------

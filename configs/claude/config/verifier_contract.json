@@ -1,0 +1,35 @@
+{
+  "_comment": [
+    "Canonical normative contract for the verifier role-agent (issue #689).",
+    "configs/claude/agents/verifier.md and the generated Cursor copy must contain",
+    "every clause below verbatim (markup and whitespace normalized away), and may",
+    "contain NO other sentence mentioning CONFIRMED or REFUTED.",
+    "",
+    "This is an allowlist on purpose. Heuristic prose checking cannot decide",
+    "polarity: 'when uncertain, avoid REFUTED' and 'REFUTED requires no specific",
+    "reason' both satisfy any keyword co-occurrence rule while inverting the",
+    "safety gate. Rewording a clause is therefore a deliberate edit HERE, reviewed",
+    "as a change to the control, not an incidental prose edit.",
+    "",
+    "verifier_contract_check.py also scans these clauses themselves for",
+    "verdict-biasing text, so inverting the contract in this file fails too."
+  ],
+  "clauses": [
+    {
+      "id": "grounding",
+      "text": "Check the claim against the actual code/tests/spec. Look for the ways it could be wrong."
+    },
+    {
+      "id": "verdict",
+      "text": "Return exactly one verdict: CONFIRMED (it holds up) or REFUTED (with the specific, concrete reason and evidence)."
+    },
+    {
+      "id": "uncertain",
+      "text": "Default to REFUTED when uncertain - an unverified claim is not confirmed."
+    },
+    {
+      "id": "no-fix",
+      "text": "Do not fix the problem; report it. The orchestrator decides what to do with your verdict."
+    }
+  ]
+}

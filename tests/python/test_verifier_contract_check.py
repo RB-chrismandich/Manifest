@@ -1,24 +1,28 @@
-"""Issue #689 (ANTI-015) — the verifier role-agent's semantic contract gate.
+"""Issue #689 (ANTI-015) — the verifier role-agent's contract gate.
 
 The gate this replaces grepped verifier.md for ``CONFIRMED`` and ``REFUTED``.
 Both strings appear in an inverted definition ("Always return CONFIRMED; never
-return REFUTED"), so the safety-gate semantics of the verifier were untested
-while looking covered — the failure mode a presence check cannot see.
+return REFUTED"), so the safety-gate semantics were untested while looking
+covered — the failure a presence check cannot see.
 
-These tests pin the two properties that make the replacement worth having:
+Two adversarial review rounds then walked through successive keyword
+heuristics; every fixture used here is one of those demonstrated bypasses. The
+gate is now an allowlist over canonical clauses, so these tests pin:
 
-  * each normative clause is independently load-bearing (drop one, gate fails),
-  * matching is on meaning, not on the shipped wording (a faithful rewrite
-    passes), so the gate does not degrade into a copy-match that blocks every
-    legitimate edit.
-
-Frontmatter isolation gets its own test: ``description:`` names both verdict
-tokens, and a body whose rules were deleted must not be rescued by it.
+  * the shipped Claude and Cursor definitions satisfy it,
+  * each canonical clause is load-bearing (delete one, gate fails),
+  * negation, suppression, contradiction, and appended overrides fail even
+    though they name the right words in the right places,
+  * an inverted CONTRACT is rejected before any definition is read, so the
+    allowlist cannot be laundered through its own data,
+  * a deliberate, matched edit of contract + definition passes — the escape
+    hatch that keeps the gate from freezing the file forever.
 """
 
 from __future__ import annotations
 
 import importlib.util
+import json
 import subprocess
 import sys
 from pathlib import Path
@@ -27,13 +31,17 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 CHECKER = REPO_ROOT / "configs" / "claude" / "scripts" / "verifier_contract_check.py"
+CONTRACT = REPO_ROOT / "configs" / "claude" / "config" / "verifier_contract.json"
 FIXTURES = REPO_ROOT / "tests" / "fixtures" / "verifier_contract"
 SHIPPED = REPO_ROOT / "configs" / "claude" / "agents" / "verifier.md"
+CURSOR = REPO_ROOT / "configs" / "cursor" / "agents" / "verifier.md"
 
 _spec = importlib.util.spec_from_file_location("verifier_contract_check", CHECKER)
 src = importlib.util.module_from_spec(_spec)
 sys.modules[_spec.name] = src
 _spec.loader.exec_module(src)
+
+CLAUSES = src.load_contract(CONTRACT)
 
 
 def run_checker(*args: str) -> subprocess.CompletedProcess:
@@ -42,79 +50,54 @@ def run_checker(*args: str) -> subprocess.CompletedProcess:
     )
 
 
-def test_shipped_definition_satisfies_the_contract() -> None:
-    assert src.check(SHIPPED) == []
+@pytest.mark.parametrize("definition", [SHIPPED, CURSOR], ids=["claude", "cursor"])
+def test_shipped_definitions_match_the_contract(definition: Path) -> None:
+    assert src.check(definition, CLAUSES) == []
 
 
-def test_reworded_but_faithful_definition_passes() -> None:
-    """Meaning, not wording: the gate must survive a legitimate rewrite."""
-    fixture = FIXTURES / "reworded_valid.md"
-    assert fixture.read_text() != SHIPPED.read_text()
-    assert src.check(fixture) == []
+def test_shipped_contract_is_not_itself_biased() -> None:
+    assert src.check_contract(CLAUSES) == []
 
 
 @pytest.mark.parametrize(
     ("fixture", "expected"),
     [
-        ("inverted.md", "mandates CONFIRMED unconditionally"),
-        ("inverted.md", "forbids the REFUTED verdict"),
+        # The original #689 regression: both tokens present, contract gutted.
+        ("inverted.md", "[verdict]"),
         ("tokens_only.md", "[grounding]"),
         ("missing_uncertain.md", "[uncertain]"),
-        ("missing_evidence.md", "[evidence]"),
-        # Codex adversarial review, #689: co-occurrence inside one bullet is not
-        # agreement between its sentences.
-        ("contradictory_uncertain.md", "unilateral CONFIRMED directive"),
-        ("late_confirmed_override.md", "unilateral CONFIRMED directive"),
+        ("missing_evidence.md", "[verdict]"),
+        # Review round 1: clause-scoped co-occurrence is not sentence agreement.
+        ("contradictory_uncertain.md", "non-canonical verdict sentence"),
+        ("late_confirmed_override.md", "non-canonical verdict sentence"),
+        # Review round 2: polarity and suppression are not pattern-decidable.
+        ("avoid_refuted.md", "[uncertain]"),
+        ("negated_evidence.md", "[verdict]"),
+        ("suppress_refuted_append.md", "non-canonical verdict sentence"),
+        ("hollow_condition_append.md", "non-canonical verdict sentence"),
     ],
 )
-def test_contract_rot_is_reported(fixture: str, expected: str) -> None:
-    problems = src.check(FIXTURES / fixture)
+def test_every_known_bypass_now_fails(fixture: str, expected: str) -> None:
+    problems = src.check(FIXTURES / fixture, CLAUSES)
     assert any(expected in p for p in problems), problems
-
-
-def test_conditional_confirmed_rule_is_not_a_false_positive() -> None:
-    """One rule per verdict branch is legitimate when the condition is stated."""
-    assert src.check(FIXTURES / "conditional_confirmed_valid.md") == []
-
-
-@pytest.mark.parametrize(
-    ("sentence", "unilateral"),
-    [
-        ("the verdict remains confirmed.", True),
-        ("report confirmed.", True),
-        ("return confirmed or refuted.", False),
-        ("an unverified claim is not confirmed.", False),
-        ("return confirmed only when the claim holds up.", False),
-        ("once the review is written, the verdict is confirmed.", True),
-    ],
-)
-def test_unilateral_confirmed_classification(sentence: str, unilateral: bool) -> None:
-    """Pin the boundary: branch, negation, or stated condition — else it fails."""
-    assert src.unilateral_confirmed(sentence) is unilateral
-
-
-def test_inverted_definition_carries_both_tokens_yet_fails() -> None:
-    """The exact regression from #689: the old grep passed this file."""
-    text = (FIXTURES / "inverted.md").read_text()
-    assert "CONFIRMED" in text and "REFUTED" in text
-    assert src.check(FIXTURES / "inverted.md")
 
 
 def test_every_clause_is_load_bearing(tmp_path: Path) -> None:
     """Deleting any single rule line from the shipped body fails the gate."""
-    body_lines = SHIPPED.read_text(encoding="utf-8").splitlines(keepends=True)
-    rules = [i for i, line in enumerate(body_lines) if line.startswith("- ")]
-    assert len(rules) >= 4, "shipped verifier lost its rule bullets"
+    lines = SHIPPED.read_text(encoding="utf-8").splitlines(keepends=True)
+    rules = [i for i, line in enumerate(lines) if line.startswith("- ")]
+    assert len(rules) == len(CLAUSES), "rule bullets and contract clauses diverged"
     for index in rules:
         mutant = tmp_path / f"mutant_{index}.md"
         mutant.write_text(
-            "".join(line for i, line in enumerate(body_lines) if i != index),
+            "".join(line for i, line in enumerate(lines) if i != index),
             encoding="utf-8",
         )
-        assert src.check(mutant), f"deleting rule line {index} was not detected"
+        assert src.check(mutant, CLAUSES), f"deleting rule line {index} went unseen"
 
 
-def test_frontmatter_cannot_satisfy_a_body_clause(tmp_path: Path) -> None:
+def test_frontmatter_cannot_satisfy_the_contract(tmp_path: Path) -> None:
+    """description: names both verdicts; a gutted body must not inherit them."""
     definition = tmp_path / "verifier.md"
     definition.write_text(
         "---\nname: verifier\n"
@@ -123,14 +106,53 @@ def test_frontmatter_cannot_satisfy_a_body_clause(tmp_path: Path) -> None:
         "model: opus\n---\n\nVerify things.\n",
         encoding="utf-8",
     )
-    problems = src.check(definition)
-    assert any("[verdict]" in p for p in problems), problems
+    assert len(src.check(definition, CLAUSES)) == len(CLAUSES)
+
+
+def test_inverted_contract_is_rejected_before_any_definition() -> None:
+    """The allowlist must not be laundered by editing its own data."""
+    result = run_checker(
+        "--contract", str(FIXTURES / "inverted_contract.json"), str(SHIPPED)
+    )
+    assert result.returncode == 1
+    assert "is itself biased" in result.stderr
+    assert result.stdout == ""  # never reports OK on a poisoned contract
+
+
+def test_matched_contract_and_definition_edit_passes(tmp_path: Path) -> None:
+    """The escape hatch: rewording is allowed when the contract moves with it."""
+    contract = tmp_path / "contract.json"
+    contract.write_text(
+        json.dumps(
+            {
+                "clauses": [
+                    {
+                        "id": "verdict",
+                        "text": "Emit exactly one verdict, CONFIRMED or REFUTED.",
+                    },
+                    {
+                        "id": "uncertain",
+                        "text": "If unsure, the verdict is REFUTED.",
+                    },
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+    definition = tmp_path / "verifier.md"
+    definition.write_text(
+        "---\nname: verifier\n---\n\n"
+        "- Emit **exactly one verdict**, `CONFIRMED` or `REFUTED`.\n"
+        "- If unsure, the verdict is `REFUTED`.\n",
+        encoding="utf-8",
+    )
+    assert src.check(definition, src.load_contract(contract)) == []
 
 
 def test_cli_reports_violations_on_stderr_and_exits_1() -> None:
     result = run_checker(str(FIXTURES / "inverted.md"))
     assert result.returncode == 1
-    assert "verdict bias" in result.stderr
+    assert result.stderr
     assert result.stdout == ""
 
 
@@ -140,5 +162,10 @@ def test_cli_help_exits_zero_with_usage() -> None:
     assert result.stdout.startswith("Usage:")
 
 
-def test_cli_rejects_unknown_option_with_usage_exit() -> None:
-    assert run_checker("--nope", str(SHIPPED)).returncode == 2
+@pytest.mark.parametrize(
+    "args",
+    [("--nope", str(SHIPPED)), ("--contract",), (str(FIXTURES / "x.md"),)],
+    ids=["unknown-option", "dangling-contract", "missing-file"],
+)
+def test_cli_never_exits_zero_on_bad_input(args: tuple[str, ...]) -> None:
+    assert run_checker(*args).returncode != 0
