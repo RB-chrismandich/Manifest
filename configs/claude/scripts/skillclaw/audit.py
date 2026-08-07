@@ -140,7 +140,7 @@ def _apply_event(status: dict, stage: str, event: str, fields: dict) -> dict:
     return status
 
 
-def log(run_id, stage, event, **fields):
+def log(run_id: str, stage: str, event: str, **fields) -> None:
     """Append one JSONL audit line and update the live status snapshot. Fail-open."""
     try:
         _ensure_storage()
@@ -236,7 +236,7 @@ def render_status():
         return "no recent run"
 
 
-def trim(max_runs=MAX_RUNS):
+def trim(max_runs: int = MAX_RUNS) -> None:
     """Keep only events for the most recent max_runs run_ids. Atomic. Fail-open."""
     try:
         # Clamp to >=1 so a non-positive max_runs can never keep all/an unexpected
@@ -300,10 +300,13 @@ def _parse_kv(pairs):
         def _maybe_json(val: str):
             try:
                 parsed = json.loads(val)
-                if isinstance(parsed, (dict, list, int, float, bool, str)) or parsed is None:
+                if (
+                    isinstance(parsed, (dict, list, int, float, bool, str))
+                    or parsed is None
+                ):
                     return parsed
             except json.JSONDecodeError:
-                pass
+                return val
             return val
 
         out[k] = _maybe_json(v)
@@ -311,6 +314,10 @@ def _parse_kv(pairs):
 
 
 def main(argv: list[str]) -> int:
+    """Executes the CLI logic based on the provided arguments, returning an exit code."""
+    if argv and argv[0] in ("-h", "--help"):
+        print("usage: audit.py [status|trim|kv ...]")
+        return 0
     if not argv or argv[0] == "status":
         print(render_status())
         return 0
@@ -333,7 +340,7 @@ def main(argv: list[str]) -> int:
     return 0  # unknown subcommand: fail-open
 
 
-def compute_eta(chunks_done, chunks_total, elapsed_s):
+def compute_eta(chunks_done: int, chunks_total: int, elapsed_s: float) -> str:
     """Return (eta_s|None, label).
 
     `estimating…` until >=2 chunks are done and inputs are sane; otherwise a
