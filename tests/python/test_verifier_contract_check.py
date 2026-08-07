@@ -112,6 +112,8 @@ def test_shipped_contract_is_not_itself_biased() -> None:
         ("quoted_body.md", "same words, different markup"),
         ("fenced_body.md", "non-canonical sentence"),
         ("struck_body.md", "non-canonical sentence"),
+        # Review round 7: four spaces turns the rules into a code block.
+        ("indented_body.md", "indented as a Markdown code block"),
     ],
 )
 def test_every_known_bypass_now_fails(fixture: str, expected: str) -> None:
@@ -131,6 +133,22 @@ def test_markup_changes_strict_form_even_when_words_are_identical(
     rule = "Default to REFUTED when uncertain."
     assert src.normalize(wrapper.format(rule)) == src.normalize(rule)
     assert src.strict_form(wrapper.format(rule)) != src.strict_form(rule)
+
+
+def test_a_single_indented_clause_is_enough_to_fail(tmp_path: Path) -> None:
+    """Not just whole-body indentation: one rule demoted to sample text fails."""
+    lines = SHIPPED.read_text(encoding="utf-8").splitlines()
+    target = next(i for i, line in enumerate(lines) if line.startswith("- Default"))
+    lines[target] = "    " + lines[target]
+    mutant = tmp_path / "one_indented.md"
+    mutant.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    problems = src.check(mutant, CONTRACT_DATA)
+    assert any("indented as a Markdown code block" in p for p in problems), problems
+
+
+def test_shipped_continuation_indent_stays_legal() -> None:
+    """The canonical body wraps a bullet with two spaces: that must not trip."""
+    assert src.code_block_indents(SHIPPED.read_text(encoding="utf-8")) == []
 
 
 def test_every_clause_is_load_bearing(tmp_path: Path) -> None:

@@ -119,7 +119,7 @@ setup() {
     # Same words, different force: a fence, comment, blockquote, or strikethrough
     # decides whether a model reads the rules as instructions (codex r6).
     local f
-    for f in fenced_body commented_body quoted_body struck_body; do
+    for f in fenced_body commented_body quoted_body struck_body indented_body; do
         run python3 "$CHECK" "$FIXTURES/$f.md"
         assert_failure
     done

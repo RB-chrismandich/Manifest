@@ -28,8 +28,8 @@ this gate is an ALLOWLIST over the whole body:
     1. the definition body must equal the canonical body in the contract data,
        compared with only Unicode folding and whitespace collapsed, so any
        added, removed, negated, or reworded sentence fails whatever it says --
-       and so does a code fence, HTML comment, blockquote, or strikethrough
-       that keeps the words while retracting their force;
+       and so does a code fence, HTML comment, blockquote, strikethrough, or
+       code-block indentation that keeps the words while retracting their force;
     2. per-clause diagnostics say WHICH normative clause went missing rather
        than only that the body differs; and
     3. text is NFKC-folded before comparison and any character that survives as
@@ -150,6 +150,22 @@ def strict_form(text: str) -> str:
     return re.sub(r"\s+", " ", folded).strip()
 
 
+def code_block_indents(text: str) -> list[str]:
+    """Lines indented enough to become a Markdown code block, so not instructions.
+
+    ``strict_form`` collapses whitespace so prose can re-wrap freely, which also
+    collapses leading indentation. Four spaces (or a tab) in front of every line
+    turns the whole contract into a code block that reads as sample text, not
+    rules — same characters, no force. Indentation is therefore checked, not
+    normalized. The shipped body's two-space continuation indent stays legal.
+    """
+    return [
+        line.rstrip()[:48]
+        for line in text.splitlines()
+        if line.strip() and re.match(r"(?: {4,}|\t)", line)
+    ]
+
+
 def foreign_characters(text: str) -> list[str]:
     """Characters that survive folding as non-ASCII or control: fail, never strip.
 
@@ -245,6 +261,10 @@ def check(path: Path, contract: Contract) -> list[str]:
         f"non-ASCII or control characters in the body: {', '.join(foreign)}"
         for foreign in [foreign_characters(body)]
         if foreign
+    ]
+    problems += [
+        f"line indented as a Markdown code block, not a rule: {line!r}"
+        for line in code_block_indents(body)
     ]
     if strict_form(body) == contract.strict:
         return problems
