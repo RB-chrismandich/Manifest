@@ -2,6 +2,7 @@
 name: prompt-optimize
 description: "Use when a user asks to create, optimize, refactor, or harden a raw prompt into a production-ready skill template (\"optimize this prompt\", \"turn this into a skill\", \"harden this prompt for automation\")."
 ---
+
 # Role: Automated Meta-Prompt Optimization Engine (Jules Target)
 
 ## 1. Operational Objective
@@ -16,10 +17,10 @@ Every generated or refactored skill payload *must* programmatically embed the fo
 into its `<constraints>` block:
 
 - **Absolute Path Enforcement:** Prohibit the use of tildes (`~`) or unexpanded environment variables in paths.
-  Force absolute, fully qualified target paths (e.g., `~/.claude/skills` must be written out or resolved via
-  absolute parameters).
-- **Runtime Compliance:** Align all script steps with active system definitions. Deprecate legacy shell
-  variations (`*.sh`) in favor of programmatic pythonic drop-in replacements (`*.py`).
+  Force absolute, fully qualified target paths.
+- **Match the target project's existing script-language convention**: do not assume Python over Bash, or vice
+  versa — check what the surrounding codebase already uses (e.g. this repo's canonical convention is `.sh`,
+  documented in `docs/CODING_STANDARDS.md`) and follow it.
 - **Idempotency Execution:** Ensure all operations can be run continuously on a schedule without creating
   duplicate structures, breaking environment state, or fragmenting folders.
 
@@ -29,10 +30,40 @@ When a raw prompt payload is received via the scheduled task pipeline, execute t
 
 1. **Deconstruct**: Extract the underlying structural intent, execution environment context, and implicit boundary limits.
 2. **Normalize**: Map the intent into the mandatory XML-tag-demarcated schema below.
-3. **Inject Safeguards**: Embed the absolute pathing, pythonic runtime rules, and idempotency constraints directly
+3. **Inject Safeguards**: Embed the absolute pathing, convention-matching rules, and idempotency constraints directly
    into the generated payload.
 4. **Cleanse**: Purge any introductory text ("Sure, here is your prompt"), markdown section commentary,
    or conversational tags.
+
+## Worked example
+
+Raw prompt: "write something that syncs skills to all the home targets"
+
+Optimized:
+
+```xml
+<problem_structure>
+  <problem_definition>
+    Install the selected plugin bundles into each requested harness at user scope
+    and report which harness installations changed.
+  </problem_definition>
+  <preliminary_context>
+    Repo root contains plugins/<bundle>/skills/ as the source of truth; each
+    harness uses its native plugin installation mechanism.
+  </preliminary_context>
+  <constraints>
+    - Use absolute paths for source and every target; no tilde expansion left unresolved.
+    - Follow the repo's existing script convention (bash, per docs/CODING_STANDARDS.md) rather than
+      introducing a new language.
+    - Re-running the sync must be a no-op when nothing changed (idempotent).
+  </constraints>
+  <desired_output>
+    A summary table: target path, sync status (updated/unchanged/skipped), and reason if skipped.
+  </desired_output>
+</problem_structure>
+```
+
+Use judgment on which optional sections below apply to a given prompt — these are not a mandatory checklist.
 
 ## 4. Target Serialization Schema
 
@@ -49,7 +80,7 @@ The output must be returned strictly using this layout so downstream agent layer
 
   <constraints>
     - Enforce absolute path strings; no raw tilde (~) directory configurations allowed.
-    - Execute changes utilizing current Python-based utilities; explicitly omit deprecated shell (.sh) actions.
+    - Match the target project's existing script-language convention rather than assuming Python.
     - All actions must be structurally idempotent to prevent environmental state corruption during re-runs.
     - [Additional task-specific constraints]
   </constraints>
