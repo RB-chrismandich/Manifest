@@ -26,8 +26,10 @@ pattern-matching prose, and neither is "is this new sentence normative?", so
 this gate is an ALLOWLIST over the whole body:
 
     1. the definition body must equal the canonical body in the contract data,
-       compared with markup, dashes, and whitespace normalized away, so any
-       added, removed, negated, or reworded sentence fails whatever it says;
+       compared with only Unicode folding and whitespace collapsed, so any
+       added, removed, negated, or reworded sentence fails whatever it says --
+       and so does a code fence, HTML comment, blockquote, or strikethrough
+       that keeps the words while retracting their force;
     2. per-clause diagnostics say WHICH normative clause went missing rather
        than only that the body differs; and
     3. text is NFKC-folded before comparison and any character that survives as
@@ -135,6 +137,19 @@ def normalize(text: str) -> str:
     return re.sub(r"[^a-z0-9]+", " ", folded.lower()).strip()
 
 
+def strict_form(text: str) -> str:
+    """Fold Unicode and collapse whitespace — and change NOTHING else.
+
+    ``normalize`` drops every non-alphanumeric character, which makes a code
+    fence, an HTML comment, a blockquote, and strikethrough all compare equal to
+    the plain body while flipping whether a model reads the text as operative
+    instruction. Wrapping is still free (generators re-wrap prose); markup is
+    not.
+    """
+    folded = unicodedata.normalize("NFKC", text).translate(_TYPOGRAPHY)
+    return re.sub(r"\s+", " ", folded).strip()
+
+
 def foreign_characters(text: str) -> list[str]:
     """Characters that survive folding as non-ASCII or control: fail, never strip.
 
@@ -163,6 +178,7 @@ class Contract:
     """The canonical body plus its clauses, all normalized for comparison."""
 
     body: str
+    strict: str
     sentences: tuple[str, ...]
     clauses: tuple[tuple[str, str], ...]
 
@@ -172,6 +188,7 @@ def load_contract(path: Path) -> Contract:
     data = json.loads(path.read_text(encoding="utf-8"))
     contract = Contract(
         body=normalize(data["body"]),
+        strict=strict_form(data["body"]),
         sentences=tuple(sentences_of(data["body"])),
         clauses=tuple((c["id"], normalize(c["text"])) for c in data["clauses"]),
     )
@@ -229,9 +246,10 @@ def check(path: Path, contract: Contract) -> list[str]:
         for foreign in [foreign_characters(body)]
         if foreign
     ]
-    flat = normalize(body)
-    if flat == contract.body:
+    if strict_form(body) == contract.strict:
         return problems
+
+    flat = normalize(body)
 
     problems += [
         f"missing or reworded clause [{clause_id}]: expected verbatim {text!r}"
@@ -244,7 +262,15 @@ def check(path: Path, contract: Contract) -> list[str]:
         for sentence in sentences_of(body)
         if sentence not in canonical
     ]
-    return problems or ["body differs from the canonical contract body"]
+    if problems:
+        return problems
+    if flat == contract.body:
+        return [
+            "same words, different markup: the canonical rules are wrapped in a "
+            "code fence, comment, blockquote, or strikethrough that changes "
+            "whether they read as instructions"
+        ]
+    return ["body differs from the canonical contract body"]
 
 
 def parse_args(args: list[str]) -> tuple[list[Path], Path, bool] | None:

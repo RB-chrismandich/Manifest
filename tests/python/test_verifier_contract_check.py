@@ -107,11 +107,30 @@ def test_shipped_contract_is_not_itself_biased() -> None:
         # Review round 4: ASCII-only normalization erased fullwidth text.
         ("fullwidth_override.md", "non-canonical sentence"),
         ("zero_width_override.md", "non-ASCII or control characters"),
+        # Review round 5/6: neutralizing markup, same words.
+        ("commented_body.md", "same words, different markup"),
+        ("quoted_body.md", "same words, different markup"),
+        ("fenced_body.md", "non-canonical sentence"),
+        ("struck_body.md", "non-canonical sentence"),
     ],
 )
 def test_every_known_bypass_now_fails(fixture: str, expected: str) -> None:
     problems = src.check(FIXTURES / fixture, CONTRACT_DATA)
     assert any(expected in p for p in problems), problems
+
+
+@pytest.mark.parametrize(
+    "wrapper",
+    ["```\n{}\n```", "<!--\n{}\n-->", "> {}", "~~{}~~"],
+    ids=["fence", "comment", "blockquote", "strikethrough"],
+)
+def test_markup_changes_strict_form_even_when_words_are_identical(
+    wrapper: str,
+) -> None:
+    """The property behind the fixtures: markup must survive normalization."""
+    rule = "Default to REFUTED when uncertain."
+    assert src.normalize(wrapper.format(rule)) == src.normalize(rule)
+    assert src.strict_form(wrapper.format(rule)) != src.strict_form(rule)
 
 
 def test_every_clause_is_load_bearing(tmp_path: Path) -> None:

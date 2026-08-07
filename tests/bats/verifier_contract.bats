@@ -115,6 +115,16 @@ setup() {
     assert_output --partial 'U+200B'
 }
 
+@test "bypass: markup that neutralizes the rules is rejected" {
+    # Same words, different force: a fence, comment, blockquote, or strikethrough
+    # decides whether a model reads the rules as instructions (codex r6).
+    local f
+    for f in fenced_body commented_body quoted_body struck_body; do
+        run python3 "$CHECK" "$FIXTURES/$f.md"
+        assert_failure
+    done
+}
+
 # ---- deletion ---------------------------------------------------------------
 
 @test "rot: a definition naming both verdicts but stating no rules fails" {
