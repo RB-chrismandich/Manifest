@@ -34,7 +34,10 @@ this gate is an ALLOWLIST over the whole body:
        than only that the body differs; and
     3. text is NFKC-folded before comparison and any character that survives as
        non-ASCII or control is itself a violation, never silently stripped; and
-    4. the canonical BODY -- not merely the clause list -- is scanned for
+    4. the contract's own body digest and clause-ID set are pinned in THIS
+       file, so a contract edit is inert until a reviewed code change matches
+       it; and
+    5. the canonical BODY -- not merely the clause list -- is scanned for
        verdict-biasing text, and every body sentence must be covered by a
        declared clause, so poisoning the contract and the definition in lockstep
        cannot hide as prose: a new rule has to be declared, named, and reviewed.
@@ -48,6 +51,7 @@ Exit codes: 0 clean, 1 contract violation, 2 usage.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import sys
@@ -69,6 +73,24 @@ The body must equal the contract's canonical body (markup and whitespace
 normalized): any added, removed, or reworded sentence fails, as does
 verdict-biasing text in the contract itself.
 """
+
+# The trust root. Everything above the contract is data the same commit can
+# edit, so eight review rounds kept finding the same shape of attack: move the
+# inversion into the contract and the definition together. Pinning the digest
+# and the clause-ID set HERE means a contract edit is inert until this file
+# changes too -- one more reviewed file, in code, where an unexplained constant
+# bump is conspicuous. It does not make a hostile edit impossible; it makes it
+# impossible to do quietly, which is the most a repo-side gate can offer.
+CANONICAL_DIGEST = "33cbdf022cd3442bb823a00211f93f287864c41696fd5e18acc5d0386b6d0eb7"
+REQUIRED_CLAUSE_IDS = (
+    "role",
+    "scope",
+    "rules-heading",
+    "grounding",
+    "verdict",
+    "uncertain",
+    "no-fix",
+)
 
 DEFAULT_CONTRACT = (
     Path(__file__).resolve().parent.parent / "config" / "verifier_contract.json"
@@ -236,6 +258,20 @@ def check_contract(contract: Contract) -> list[str]:
         for pattern, why in BIAS_PATTERNS
         if re.search(pattern, sentence)
     ]
+    digest = hashlib.sha256(contract.strict.encode("utf-8")).hexdigest()
+    if digest != CANONICAL_DIGEST:
+        problems.append(
+            f"contract body digest {digest} does not match the digest pinned in "
+            "verifier_contract_check.py: update CANONICAL_DIGEST in the same "
+            "reviewed change, or revert the contract edit"
+        )
+    declared = tuple(cid for cid, _ in contract.clauses)
+    if declared != REQUIRED_CLAUSE_IDS:
+        problems.append(
+            f"contract declares clauses {declared}, not the required "
+            f"{REQUIRED_CLAUSE_IDS}: a new normative clause needs an explicit, "
+            "reviewed entry in REQUIRED_CLAUSE_IDS"
+        )
     problems += [
         f"contract body sentence is covered by no clause: {sentence!r}"
         for sentence in contract.sentences

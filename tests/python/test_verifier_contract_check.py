@@ -254,6 +254,32 @@ def test_matched_contract_and_definition_edit_passes(tmp_path: Path) -> None:
     )
 
 
+def test_declared_token_free_clause_is_still_rejected() -> None:
+    """Round 8: the inversion is added to the body AND declared as a clause.
+
+    Coverage passes, the bias vocabulary does not recognize it, and a matching
+    definition passes the strict comparison. Only the digest and clause-ID set
+    pinned in the checker catch it — that pinning is the trust root.
+    """
+    result = run_checker(
+        "--contract",
+        str(FIXTURES / "declared_poison_contract.json"),
+        str(FIXTURES / "declared_poison_definition.md"),
+    )
+    assert result.returncode == 1
+    assert "does not match the digest pinned" in result.stderr
+    assert "REQUIRED_CLAUSE_IDS" in result.stderr
+    assert result.stdout == ""
+
+
+def test_pinned_digest_matches_the_shipped_contract() -> None:
+    """The pin must track the shipped contract, or every run fails closed."""
+    import hashlib
+
+    digest = hashlib.sha256(CONTRACT_DATA.strict.encode("utf-8")).hexdigest()
+    assert digest == src.CANONICAL_DIGEST
+
+
 def test_token_free_poisoning_of_the_contract_body_is_rejected(tmp_path: Path) -> None:
     """A new rule must be declared as a clause, not slipped into the body prose.
 

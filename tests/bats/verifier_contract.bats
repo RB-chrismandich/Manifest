@@ -163,6 +163,16 @@ setup() {
     assert_output --partial 'covered by no clause'
 }
 
+@test "contract: a poisoned clause declared in the contract is still rejected" {
+    # Body + clause + definition all move together; only the digest and the
+    # clause-ID set pinned in the checker catch it (codex r8).
+    run python3 "$CHECK" --contract "$FIXTURES/declared_poison_contract.json" \
+        "$FIXTURES/declared_poison_definition.md"
+    assert_failure
+    assert_output --partial 'does not match the digest pinned'
+    assert_output --partial 'REQUIRED_CLAUSE_IDS'
+}
+
 @test "contract: an unusable contract path is a usage error, never a pass" {
     run python3 "$CHECK" --contract "$FIXTURES/does-not-exist.json" "$CLAUDE_VERIFIER"
     [ "$status" -eq 2 ]
