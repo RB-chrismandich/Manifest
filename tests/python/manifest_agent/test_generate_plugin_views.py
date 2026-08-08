@@ -23,40 +23,18 @@ ALL_HARNESSES = (
     "gemini",
 )
 GENERIC_HARNESSES = ("antigravity", "codex", "cursor", "devin")
-EXPECTED_ADDON_ENTRIES = (
-    {
-        "category": "design",
-        "description": (
-            "Spec-first UI design loop: colorless screen prompts, faithful render "
-            "gates, multi-lens adversarial review with skeptic-verified blockers, "
-            "upstream spec amendments."
-        ),
-        "homepage": "https://github.com/RB-chrismandich/Manifest",
-        "keywords": [
-            "design",
-            "ui",
-            "stitch",
-            "adversarial-review",
-            "design-system",
-            "render-verification",
-        ],
-        "name": "adversarial-design-loop",
-        "source": "./plugins/adversarial-design-loop",
-        "version": "0.1.0",
-    },
-    {
-        "category": "deployment",
-        "description": (
-            "The Ten Commandments of docker-compose (DC-001..DC-010): an advisory "
-            "save-hook and an on-demand audit for image pinning, secrets, healthchecks, "
-            "resource limits, network isolation, volumes, non-root, logging, DRY and "
-            "graceful shutdown."
-        ),
-        "homepage": "https://github.com/ReefBytes-Owner/Manifest",
-        "name": "manifest-docker",
-        "source": "./plugins/manifest-docker",
-        "version": "0.1.0",
-    },
+# Pinned independently of plugins/*/.claude-plugin/marketplace-entry.json — the
+# whole point of the assertion is that a change to those canonical files is
+# deliberate, so this fixture is hand-maintained and must NOT be regenerated
+# from them. Held as data rather than a source literal (CON-004).
+EXPECTED_ADDON_ENTRIES = tuple(
+    json.loads(
+        (
+            Path(__file__).resolve().parents[1]
+            / "fixtures"
+            / "expected_addon_marketplace_entries.json"
+        ).read_text()
+    )
 )
 
 

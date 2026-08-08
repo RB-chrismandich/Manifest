@@ -311,6 +311,18 @@ def cmd_task(args, backends, user_config, services_disabled):
     )
 
     model_tier = backend.resolve_model_tier(entry, user_config, args.model)
+
+    # Input validation precedes the readiness probe. An unreadable --prompt-file
+    # is the caller's typo and has nothing to do with any backend; probing first
+    # meant a mistyped path reported "backend not ready" (exit 3) on a machine
+    # without that backend installed, and the documented exit 2 only where it
+    # happened to be installed. It also spares a subprocess probe for a request
+    # that can never run.
+    prompt, write, prompt_error = _build_task_prompt(args, second_opinion_record)
+    if prompt_error:
+        print(prompt_error, file=sys.stderr)
+        return 2
+
     ready_error, ready_code = _check_task_backend_ready(
         entry, user_config, services_disabled, model_tier
     )
@@ -318,10 +330,6 @@ def cmd_task(args, backends, user_config, services_disabled):
         print(ready_error, file=sys.stderr)
         return ready_code
 
-    prompt, write, prompt_error = _build_task_prompt(args, second_opinion_record)
-    if prompt_error:
-        print(prompt_error, file=sys.stderr)
-        return 2
     prompt_bytes = prompt.encode("utf-8")
     limit_error = backend.check_payload_limits(entry, prompt_bytes)
     if limit_error:
