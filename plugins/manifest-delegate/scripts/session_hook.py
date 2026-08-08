@@ -10,9 +10,9 @@ non-terminal whose recorded backend process group is no longer alive.
 import sys
 
 # --- Early interpreter version probe (D11) --------------------------------
-if sys.version_info < (3, 9):
+if sys.version_info < (3, 9):  # noqa: UP036 — deliberate runtime guard, see D11
     sys.stderr.write(
-        "session_hook.py: unsupported Python version %s.%s — "
+        "session_hook.py: unsupported Python version %s.%s — "  # noqa: UP031
         "manifest-delegate requires Python 3.9 or newer.\n"
         "Install a supported interpreter, e.g.:\n"
         "  macOS:  brew install python@3.11\n"
@@ -22,18 +22,20 @@ if sys.version_info < (3, 9):
     )
     sys.exit(2)
 
-import argparse  # noqa: E402
-import fcntl  # noqa: E402
-import json  # noqa: E402
-import os  # noqa: E402
-import stat  # noqa: E402
-import sys as _sys  # noqa: E402
-import tempfile  # noqa: E402
+import argparse
+import contextlib
+import fcntl
+import json
+import os
+import stat
+import sys as _sys
+import tempfile
 
 _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 if _SCRIPT_DIR not in _sys.path:
     _sys.path.insert(0, _SCRIPT_DIR)
 import delegate  # noqa: E402
+
 
 def _load_sessions():
     if not os.path.exists(delegate.SESSIONS_CAPTURE_FILE):
@@ -67,10 +69,9 @@ def _capture_session(session_id, entry):
             os.chmod(tmp, stat.S_IRUSR | stat.S_IWUSR)
             os.replace(tmp, path)
         except OSError:
-            try:
+            # constitution: exempt C-ERR — cleanup of a temp we are already failing on; nothing to recover
+            with contextlib.suppress(OSError):
                 os.unlink(tmp)
-            except OSError:  # constitution: exempt C-ERR — cleanup of a temp we are already failing on; nothing to recover
-                pass
             raise
     finally:
         fcntl.flock(lock_fd, fcntl.LOCK_UN)
@@ -90,7 +91,9 @@ def handle_session_start(payload):
     except OSError as exc:
         # SessionStart's contract is to always exit 0; a capture I/O failure
         # must not crash the hook. Report and continue.
-        _sys.stderr.write("session_hook: failed to capture session %s: %s\n" % (session_id, exc))
+        _sys.stderr.write(
+            f"session_hook: failed to capture session {session_id}: {exc}\n"
+        )
     return 0
 
 
@@ -131,7 +134,11 @@ def main(argv=None):
     )
     args = parser.parse_args(argv)
 
-    raw = open(args.stdin_json).read() if args.stdin_json else sys.stdin.read()
+    if args.stdin_json:
+        with open(args.stdin_json, encoding="utf-8") as fh:
+            raw = fh.read()
+    else:
+        raw = sys.stdin.read()
     try:
         payload = json.loads(raw) if raw.strip() else {}
     except ValueError:

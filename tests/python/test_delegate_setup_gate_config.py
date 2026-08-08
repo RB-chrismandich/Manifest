@@ -2,9 +2,10 @@
 unreadable/invalid delegation.json with factory defaults, and a successful
 write must be atomic with a .bak backup of the prior valid config.
 """
+
 import json
 
-from _delegate_harness import _run, env_factory  # noqa: F401  (fixture import)
+from _delegate_harness import _run
 
 
 def test_setup_gate_refuses_to_overwrite_invalid_existing_config(env_factory):

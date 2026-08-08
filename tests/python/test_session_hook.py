@@ -38,7 +38,9 @@ def _isolated_sessions_file(tmp_path, monkeypatch):
     """Redirect both modules' sessions.json to a per-test tmp path."""
     sessions_file = tmp_path / "sessions.json"
     monkeypatch.setattr(delegate, "SESSIONS_CAPTURE_FILE", str(sessions_file))
-    monkeypatch.setattr(session_hook.delegate, "SESSIONS_CAPTURE_FILE", str(sessions_file))
+    monkeypatch.setattr(
+        session_hook.delegate, "SESSIONS_CAPTURE_FILE", str(sessions_file)
+    )
     return sessions_file
 
 
@@ -68,7 +70,9 @@ class TestSessionEndReap:
         after = store.read(job_id)
         assert after["state"] == "failed"
 
-    def test_session_end_startup_grace_does_not_fail_a_young_job(self, tmp_path, monkeypatch):
+    def test_session_end_startup_grace_does_not_fail_a_young_job(
+        self, tmp_path, monkeypatch
+    ):
         """L3: a freshly-created job whose worker has not yet acquired its lock
         (no live worker, age < startup grace) must NOT be reaped as failed."""
         monkeypatch.setenv(delegate.DELEGATIONS_DIR_ENV, str(tmp_path / "delegations"))
@@ -76,7 +80,10 @@ class TestSessionEndReap:
         store = delegate.JobStore(cwd=cwd)
         job_id = store.create("codex")["job_id"]
         # Running, no live worker, but just created (within the grace window).
-        store.mutate(job_id, lambda rec: dict(rec, state="running", worker_pid=999999999, pgid=None))
+        store.mutate(
+            job_id,
+            lambda rec: dict(rec, state="running", worker_pid=999999999, pgid=None),
+        )
 
         assert session_hook.handle_session_end({"cwd": cwd}) == 0
         assert store.read(job_id)["state"] == "running"
@@ -100,6 +107,7 @@ class TestSessionEndReap:
         # os.kill(pid, 0). Hold that lock for the duration of the check so the
         # reaper sees the worker as genuinely alive and leaves the job untouched.
         import fcntl
+
         lock_path = os.path.join(store.job_dir(job_id), delegate.WORKER_LOCK_FILENAME)
         lock_fd = os.open(lock_path, os.O_CREAT | os.O_RDWR, 0o600)
         fcntl.flock(lock_fd, fcntl.LOCK_EX)
@@ -151,15 +159,22 @@ class TestSessionStartCapture:
         lost. Threads each open their own fd → flock conflicts still serialize
         them, exercising the lock. Without it, the unlocked RMW would clobber."""
         import threading
+
         sessions_file = tmp_path / "sessions.json"
-        monkeypatch.setattr(session_hook.delegate, "SESSIONS_CAPTURE_FILE", str(sessions_file))
+        monkeypatch.setattr(
+            session_hook.delegate, "SESSIONS_CAPTURE_FILE", str(sessions_file)
+        )
         n = 25
         barrier = threading.Barrier(n)
 
         def _start(i):
             barrier.wait()  # maximize contention
             session_hook.handle_session_start(
-                {"session_id": "s%02d" % i, "transcript_path": "/t/%d" % i, "cwd": "/w/%d" % i}
+                {
+                    "session_id": f"s{i:02d}",
+                    "transcript_path": f"/t/{i}",
+                    "cwd": f"/w/{i}",
+                }
             )
 
         threads = [threading.Thread(target=_start, args=(i,)) for i in range(n)]
@@ -169,13 +184,16 @@ class TestSessionStartCapture:
             t.join()
 
         import json as _json
+
         saved = _json.loads(sessions_file.read_text())
-        assert len(saved) == n, "lost session entries: %d of %d survived" % (len(saved), n)
-        assert {"s%02d" % i for i in range(n)} == set(saved)
+        assert len(saved) == n, f"lost session entries: {len(saved)} of {n} survived"
+        assert {f"s{i:02d}" for i in range(n)} == set(saved)
 
 
 class TestTransferSourceFallback:
-    def test_transfer_falls_back_to_captured_session_by_cwd(self, tmp_path, monkeypatch):
+    def test_transfer_falls_back_to_captured_session_by_cwd(
+        self, tmp_path, monkeypatch
+    ):
         transcript = tmp_path / "transcript.jsonl"
         transcript.write_text("{}\n")
         session_hook.handle_session_start(

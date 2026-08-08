@@ -6,15 +6,15 @@ across every race window (pgid recorded, pgid persisted only in the crash-safe
 backend.pgid file after a pre-persist worker death, and the once-only reap of a
 cancelled job's orphan). Shared harness lives in _delegate_harness.py.
 """
+
 import json
 import os
 import subprocess
 import sys
 import time
 
-from _delegate_harness import (  # noqa: F401  (env_factory is a fixture)
+from _delegate_harness import (
     SCRIPT_PATH,
-    env_factory,
     _hand_build_job,
     _kill_orphan,
     _materialize_workspace,
@@ -24,19 +24,34 @@ from _delegate_harness import (  # noqa: F401  (env_factory is a fixture)
 
 
 class TestBackendDrainBound:
-    def test_detached_descendant_holding_stdout_does_not_hang_past_budget(self, env_factory):
+    def test_detached_descendant_holding_stdout_does_not_hang_past_budget(
+        self, env_factory
+    ):
         """K1: a backend that exits immediately but leaves a detached descendant
         holding the stdout pipe open must not hang the dispatcher's drain past
         its budget. The descendant outlives the harness's 30s subprocess timeout,
         so the pre-fix unbounded reader.join would exceed it (TimeoutExpired);
         the bounded grace-join + pipe-close returns in ~5s with a valid result."""
-        env = env_factory(control={"detached_holder_secs": 45, "envelope": {
-            "backend": "stub", "model": "default", "outcome": "success",
-            "attempted": "x", "changes": [], "succeeded": [], "failed": [], "follow_ups": [],
-        }})
+        env = env_factory(
+            control={
+                "detached_holder_secs": 45,
+                "envelope": {
+                    "backend": "stub",
+                    "model": "default",
+                    "outcome": "success",
+                    "attempted": "x",
+                    "changes": [],
+                    "succeeded": [],
+                    "failed": [],
+                    "follow_ups": [],
+                },
+            }
+        )
         start = time.time()
         result = _run(env, "task", "--json", "hi")  # _run has timeout=30
-        assert time.time() - start < 25, "backend drain hung near/over the harness timeout"
+        assert time.time() - start < 25, (
+            "backend drain hung near/over the harness timeout"
+        )
         assert result.returncode in (0, 1), result.stderr
 
 
@@ -49,13 +64,27 @@ class TestForegroundOwnership:
         separate `status` call triggers reap_if_dead; the task must still finish
         successfully. Pre-fix (no foreground lock) the reap killed it → failed."""
         # grace is 15s; sleep 20s so the reap at ~16s lands after the grace.
-        env = env_factory(control={"sleep": 20, "envelope": {
-            "backend": "stub", "model": "default", "outcome": "success",
-            "attempted": "x", "changes": [], "succeeded": [], "failed": [], "follow_ups": [],
-        }})
+        env = env_factory(
+            control={
+                "sleep": 20,
+                "envelope": {
+                    "backend": "stub",
+                    "model": "default",
+                    "outcome": "success",
+                    "attempted": "x",
+                    "changes": [],
+                    "succeeded": [],
+                    "failed": [],
+                    "follow_ups": [],
+                },
+            }
+        )
         proc = subprocess.Popen(
             [sys.executable, str(SCRIPT_PATH), "task", "--json", "hi"],
-            env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+            env=env,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
         )
         try:
             # Recover the job id from the record dir (created at task start).
@@ -70,7 +99,9 @@ class TestForegroundOwnership:
             time.sleep(16)  # let the job age past WORKER_STARTUP_GRACE_SECONDS (15s)
             reap = _run(env, "status", job_id, "--json")  # triggers reap_if_dead
             assert reap.returncode == 0
-            assert json.loads(reap.stdout)["state"] == "running", "reap failed a live foreground job"
+            assert json.loads(reap.stdout)["state"] == "running", (
+                "reap failed a live foreground job"
+            )
 
             out, err = proc.communicate(timeout=20)
             assert proc.returncode == 0, err
@@ -87,13 +118,27 @@ class TestForegroundCancelSafety:
         session must kill only its backend group, NOT SIGKILL the interactive
         CLI running it (whose pid is now recorded as worker_pid). The CLI must
         exit cleanly (not returncode -SIGKILL) with the job cancelled."""
-        env = env_factory(control={"sleep": 20, "envelope": {
-            "backend": "stub", "model": "default", "outcome": "success",
-            "attempted": "x", "changes": [], "succeeded": [], "failed": [], "follow_ups": [],
-        }})
+        env = env_factory(
+            control={
+                "sleep": 20,
+                "envelope": {
+                    "backend": "stub",
+                    "model": "default",
+                    "outcome": "success",
+                    "attempted": "x",
+                    "changes": [],
+                    "succeeded": [],
+                    "failed": [],
+                    "follow_ups": [],
+                },
+            }
+        )
         proc = subprocess.Popen(
             [sys.executable, str(SCRIPT_PATH), "task", "--json", "hi"],
-            env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+            env=env,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
         )
         try:
             job_id, deadline = None, time.time() + 8
@@ -121,10 +166,21 @@ class TestCancelOrphanReaping:
         """G1 residual: cancelling a running job must actually kill the
         detached (setsid) backend process group, not just flip the record to
         'cancelled'. Proves no write-capable backend survives the cancel."""
-        env = env_factory(control={"sleep": 30, "envelope": {
-            "backend": "stub", "model": "default", "outcome": "success",
-            "attempted": "x", "changes": [], "succeeded": [], "failed": [], "follow_ups": [],
-        }})
+        env = env_factory(
+            control={
+                "sleep": 30,
+                "envelope": {
+                    "backend": "stub",
+                    "model": "default",
+                    "outcome": "success",
+                    "attempted": "x",
+                    "changes": [],
+                    "succeeded": [],
+                    "failed": [],
+                    "follow_ups": [],
+                },
+            }
+        )
         result = _run(env, "task", "--background", "--json", "hi")
         job_id = json.loads(result.stdout)["job_id"]
 
@@ -153,7 +209,7 @@ class TestCancelOrphanReaping:
                 died = True
                 break
             time.sleep(0.2)
-        assert died, "backend pgid %s survived cancel (orphaned)" % pgid
+        assert died, f"backend pgid {pgid} survived cancel (orphaned)"
 
     def test_cancel_does_not_kill_a_recycled_worker_pid(self, env_factory):
         """J1: cancel must not SIGKILL record['worker_pid'] unless the lifetime
@@ -169,10 +225,17 @@ class TestCancelOrphanReaping:
             job_id = "feedface" * 4
             job_dir = workspace_dir / job_id
             job_dir.mkdir(parents=True)
-            (job_dir / "record.json").write_text(json.dumps({
-                "job_id": job_id, "state": "running", "worker_pid": innocent.pid,
-                "created_at": time.time(), "updated_at": time.time(),
-            }))
+            (job_dir / "record.json").write_text(
+                json.dumps(
+                    {
+                        "job_id": job_id,
+                        "state": "running",
+                        "worker_pid": innocent.pid,
+                        "created_at": time.time(),
+                        "updated_at": time.time(),
+                    }
+                )
+            )
             # Deliberately NO worker.lock file → worker is not confirmably ours.
             assert _run(env, "cancel", job_id, "--json").returncode == 0
 
@@ -187,11 +250,24 @@ class TestCancelOrphanReaping:
         the backend, so record.json keeps NO stale non-null pgid. Otherwise a
         later status/reap could SIGKILL a process group the OS recycled onto the
         dead pgid number. Fails on iter-7 code (cmd_cancel left the pgid set)."""
-        env = env_factory(control={"sleep": 30, "envelope": {
-            "backend": "stub", "model": "default", "outcome": "success",
-            "attempted": "x", "changes": [], "succeeded": [], "failed": [], "follow_ups": [],
-        }})
-        job_id = json.loads(_run(env, "task", "--background", "--json", "hi").stdout)["job_id"]
+        env = env_factory(
+            control={
+                "sleep": 30,
+                "envelope": {
+                    "backend": "stub",
+                    "model": "default",
+                    "outcome": "success",
+                    "attempted": "x",
+                    "changes": [],
+                    "succeeded": [],
+                    "failed": [],
+                    "follow_ups": [],
+                },
+            }
+        )
+        job_id = json.loads(_run(env, "task", "--background", "--json", "hi").stdout)[
+            "job_id"
+        ]
 
         # Wait until the pgid is recorded (backend running).
         deadline = time.time() + 10
@@ -202,14 +278,20 @@ class TestCancelOrphanReaping:
 
         assert _run(env, "cancel", job_id, "--json").returncode == 0
         job_dir = next(
-            p.parent for p in env_factory.delegations_dir.rglob("record.json")
+            p.parent
+            for p in env_factory.delegations_dir.rglob("record.json")
             if p.parent.name == job_id
         )
-        assert json.loads((job_dir / "record.json").read_text()).get("pgid") is None, \
+        assert json.loads((job_dir / "record.json").read_text()).get("pgid") is None, (
             "cancel left a stale pgid in the record (recycled-pgid wrong-kill risk)"
-        assert not (job_dir / "backend.pgid").exists(), "cancel left the crash-safe pgid file"
+        )
+        assert not (job_dir / "backend.pgid").exists(), (
+            "cancel left the crash-safe pgid file"
+        )
 
-    def test_cancel_kills_orphan_via_pgid_file_when_worker_died_pre_persist(self, env_factory):
+    def test_cancel_kills_orphan_via_pgid_file_when_worker_died_pre_persist(
+        self, env_factory
+    ):
         """I6-A: the worst race — the worker is SIGKILLed between Popen() (backend
         forked+setsid, its group already live) and the on_pgid persist, so the
         pgid never reaches record.json. The forked child wrote its group id to
@@ -232,10 +314,10 @@ class TestCancelOrphanReaping:
             # killed the group, our sleep child is reaped.
             try:
                 orphan.wait(timeout=5)
-            except subprocess.TimeoutExpired:
+            except subprocess.TimeoutExpired as exc:
                 raise AssertionError(
-                    "orphaned backend (pgid %s) survived cancel — pgid-file fallback failed" % orphan_pgid
-                )
+                    f"orphaned backend (pgid {orphan_pgid}) survived cancel — pgid-file fallback failed"
+                ) from exc
         finally:
             _kill_orphan(orphan)
 
@@ -255,14 +337,24 @@ class TestCancelOrphanReaping:
             job_dir.mkdir(parents=True)
             # running, aged past grace, dead worker, pgid = the innocent group,
             # and NO backend.lock (the real backend is "gone", pgid recycled).
-            (job_dir / "record.json").write_text(json.dumps({
-                "job_id": job_id, "state": "running", "worker_pid": 2 ** 31 - 1,
-                "pgid": innocent_pgid, "created_at": time.time() - 100, "updated_at": time.time(),
-            }))
-            _run(env, "status", job_id, "--json")   # triggers reap_if_dead
-            _run(env, "cancel", job_id, "--json")    # triggers _terminate_job_processes
+            (job_dir / "record.json").write_text(
+                json.dumps(
+                    {
+                        "job_id": job_id,
+                        "state": "running",
+                        "worker_pid": 2**31 - 1,
+                        "pgid": innocent_pgid,
+                        "created_at": time.time() - 100,
+                        "updated_at": time.time(),
+                    }
+                )
+            )
+            _run(env, "status", job_id, "--json")  # triggers reap_if_dead
+            _run(env, "cancel", job_id, "--json")  # triggers _terminate_job_processes
             time.sleep(0.5)
-            assert innocent.poll() is None, "reap/cancel SIGKILLed a recycled (unrelated) pgid"
+            assert innocent.poll() is None, (
+                "reap/cancel SIGKILLed a recycled (unrelated) pgid"
+            )
         finally:
             innocent.kill()
             innocent.wait()
@@ -285,8 +377,8 @@ class TestCancelOrphanReaping:
             assert _run(env, "status", job_dir.name, "--json").returncode == 0
             try:
                 orphan.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                raise AssertionError("orphan survived the first reap")
+            except subprocess.TimeoutExpired as exc:
+                raise AssertionError("orphan survived the first reap") from exc
 
             # One-shot cleanup: pgid cleared from record AND the file removed, so
             # subsequent reaps have nothing to probe (no recycled-pgid wrong-kill).

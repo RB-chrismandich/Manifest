@@ -21,6 +21,8 @@ Control file keys (all optional):
                      the `sleep` delay — proves the backend executable
                      actually ran (used by cancel-race regression tests)
 """
+
+import contextlib
 import json
 import os
 import sys
@@ -30,7 +32,7 @@ def main():
     control_path = os.environ.get("STUB_CONTROL_FILE")
     control = {}
     if control_path and os.path.exists(control_path):
-        with open(control_path, "r", encoding="utf-8") as fh:
+        with open(control_path, encoding="utf-8") as fh:
             control = json.load(fh)
 
     sentinel_file = control.get("sentinel_file")
@@ -44,8 +46,13 @@ def main():
     detached_holder_secs = control.get("detached_holder_secs")
     if detached_holder_secs:
         import subprocess
+
         subprocess.Popen(
-            [sys.executable, "-c", "import time,sys; time.sleep(%d)" % int(detached_holder_secs)],
+            [
+                sys.executable,
+                "-c",
+                f"import time,sys; time.sleep({int(detached_holder_secs)})",
+            ],
             start_new_session=True,
         )  # inherits stdout; not waited on
 
@@ -56,10 +63,9 @@ def main():
         time.sleep(sleep_s)
 
     if control.get("drain_stdin", True) and not sys.stdin.isatty():
-        try:
+        # constitution: exempt C-ERR — test stub draining stdin; a read error is irrelevant to the impersonated behavior
+        with contextlib.suppress(Exception):
             sys.stdin.read()
-        except Exception:  # constitution: exempt C-ERR — test stub draining stdin; a read error is irrelevant to the impersonated behavior
-            pass
 
     session_ref = control.get("session_ref", "sess-stub")
     session_format = control.get("session_format")
@@ -68,7 +74,7 @@ def main():
     elif session_format == "json_field":
         print(json.dumps({"session_id": session_ref}))
     elif session_format == "output_scan":
-        print("session: %s" % session_ref)
+        print(f"session: {session_ref}")
 
     outfile_flag = control.get("write_outfile_flag")
     if outfile_flag:

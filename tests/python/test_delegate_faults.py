@@ -10,13 +10,10 @@ test_delegate_dispatcher.py, which this file mirrors).
 
 import importlib.util
 import json
-import os
 import stat
 import sys
 import textwrap
 from pathlib import Path
-
-import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SCRIPT_PATH = REPO_ROOT / "plugins" / "manifest-delegate" / "scripts" / "delegate.py"
@@ -34,16 +31,30 @@ delegate = _load_delegate()
 
 def _valid_backend(id_="codex", aliases=None):
     return {
-        "id": id_, "aliases": aliases or [], "display_name": id_.title(), "binary": id_,
-        "invoke": [id_, "exec", "{prompt}"], "resume": None, "model_args": ["--model", "{model}"],
-        "tier_source": id_, "default_tier": "auto", "session_id_capture": {"mode": "none"},
-        "input": {"transport": "stdin", "max_payload_bytes": 1000000, "max_context_bytes": None},
+        "id": id_,
+        "aliases": aliases or [],
+        "display_name": id_.title(),
+        "binary": id_,
+        "invoke": [id_, "exec", "{prompt}"],
+        "resume": None,
+        "model_args": ["--model", "{model}"],
+        "tier_source": id_,
+        "default_tier": "auto",
+        "session_id_capture": {"mode": "none"},
+        "input": {
+            "transport": "stdin",
+            "max_payload_bytes": 1000000,
+            "max_context_bytes": None,
+        },
         "readiness": {
-            "version_cmd": [id_, "--version"], "auth_probe_cmd": [id_, "whoami"],
-            "install_fix": f"install {id_}", "login_fix": f"login {id_}",
+            "version_cmd": [id_, "--version"],
+            "auth_probe_cmd": [id_, "whoami"],
+            "install_fix": f"install {id_}",
+            "login_fix": f"login {id_}",
         },
         "sandbox": {"read_only_args": ["--read-only"], "write_args": ["--write"]},
-        "prompting_ref": f"skills/delegate/references/{id_}.md", "services_key": id_,
+        "prompting_ref": f"skills/delegate/references/{id_}.md",
+        "services_key": id_,
     }
 
 
@@ -64,7 +75,9 @@ class _TaskArgs:
     json = True
 
 
-def _assert_explicit_attributed_actionable(message, backend_id=None, actionable_markers=()):
+def _assert_explicit_attributed_actionable(
+    message, backend_id=None, actionable_markers=()
+):
     """Shared SC-004 assertion: message is non-empty/specific, names the
     backend/limit/layer responsible, and points at what to check/do next.
     """
@@ -93,14 +106,20 @@ def _make_args(tmp_path, monkeypatch, backend="codex"):
 
 
 class TestUnknownBackendFault:
-    def test_unknown_backend_message_is_explicit_attributed_actionable(self, tmp_path, monkeypatch, capsys):
+    def test_unknown_backend_message_is_explicit_attributed_actionable(
+        self, tmp_path, monkeypatch, capsys
+    ):
         args = _make_args(tmp_path, monkeypatch, backend="not-a-real-backend")
-        rc = delegate.cmd_task(args, [_valid_backend("codex"), _valid_backend("claude")], {}, set())
+        rc = delegate.cmd_task(
+            args, [_valid_backend("codex"), _valid_backend("claude")], {}, set()
+        )
         err = capsys.readouterr().err
         assert rc == 2
         assert "not-a-real-backend" in err
         _assert_explicit_attributed_actionable(
-            err, backend_id="not-a-real-backend", actionable_markers=("known:", "codex", "claude")
+            err,
+            backend_id="not-a-real-backend",
+            actionable_markers=("known:", "codex", "claude"),
         )
 
 
@@ -110,7 +129,9 @@ class TestUnknownBackendFault:
 
 
 class TestDisabledByLayerFaults:
-    def test_disabled_by_workspace_outranks_and_names_layer(self, tmp_path, monkeypatch, capsys):
+    def test_disabled_by_workspace_outranks_and_names_layer(
+        self, tmp_path, monkeypatch, capsys
+    ):
         args = _make_args(tmp_path, monkeypatch)
         backends = [_valid_backend("codex")]
         # Both workspace-disabled AND user-enabled: workspace must win and be named.
@@ -119,10 +140,14 @@ class TestDisabledByLayerFaults:
         err = capsys.readouterr().err
         assert rc == 3
         _assert_explicit_attributed_actionable(
-            err, backend_id="codex", actionable_markers=("workspace services.yml", "delegate.py setup")
+            err,
+            backend_id="codex",
+            actionable_markers=("workspace services.yml", "delegate.py setup"),
         )
 
-    def test_disabled_by_user_names_layer_and_remediation(self, tmp_path, monkeypatch, capsys):
+    def test_disabled_by_user_names_layer_and_remediation(
+        self, tmp_path, monkeypatch, capsys
+    ):
         args = _make_args(tmp_path, monkeypatch)
         backends = [_valid_backend("codex")]
         user_config = {"backends": {"codex": {"enabled": False}}}
@@ -130,7 +155,9 @@ class TestDisabledByLayerFaults:
         err = capsys.readouterr().err
         assert rc == 3
         _assert_explicit_attributed_actionable(
-            err, backend_id="codex", actionable_markers=("user delegation config", "delegate.py setup")
+            err,
+            backend_id="codex",
+            actionable_markers=("user delegation config", "delegate.py setup"),
         )
 
 
@@ -140,10 +167,16 @@ class TestDisabledByLayerFaults:
 
 
 class TestMissingBinaryFault:
-    def test_missing_binary_message_is_explicit_attributed_actionable(self, tmp_path, monkeypatch, capsys):
+    def test_missing_binary_message_is_explicit_attributed_actionable(
+        self, tmp_path, monkeypatch, capsys
+    ):
         args = _make_args(tmp_path, monkeypatch)
         backends = [_valid_backend("codex")]
-        monkeypatch.setattr(delegate, "_executable_missing", lambda argv: "binary 'codex' not found on PATH")
+        monkeypatch.setattr(
+            delegate,
+            "_executable_missing",
+            lambda argv: "binary 'codex' not found on PATH",
+        )
         rc = delegate.cmd_task(args, backends, {}, set())
         err = capsys.readouterr().err
         assert rc == 3
@@ -188,7 +221,9 @@ class TestUnauthenticatedFault:
 
 
 class TestOversizeContextFaults:
-    def test_oversize_vs_transport_bound_names_specific_limit(self, tmp_path, monkeypatch, capsys):
+    def test_oversize_vs_transport_bound_names_specific_limit(
+        self, tmp_path, monkeypatch, capsys
+    ):
         args = _make_args(tmp_path, monkeypatch)
         args.prompt = "x" * 2_000_000
         backend = _valid_backend("codex")
@@ -206,7 +241,9 @@ class TestOversizeContextFaults:
         # Never truncated/generic: the *other* limit name must not appear.
         assert "max_context_bytes" not in err
 
-    def test_oversize_vs_model_context_bound_names_specific_limit(self, tmp_path, monkeypatch, capsys):
+    def test_oversize_vs_model_context_bound_names_specific_limit(
+        self, tmp_path, monkeypatch, capsys
+    ):
         args = _make_args(tmp_path, monkeypatch)
         args.prompt = "y" * 500_000
         backend = _valid_backend("codex")
@@ -232,7 +269,9 @@ class TestOversizeContextFaults:
 
 
 class TestTimeoutFault:
-    def test_timeout_message_is_explicit_attributed_actionable(self, tmp_path, monkeypatch, capsys):
+    def test_timeout_message_is_explicit_attributed_actionable(
+        self, tmp_path, monkeypatch, capsys
+    ):
         args = _make_args(tmp_path, monkeypatch)
         backend = _valid_backend("codex")
         monkeypatch.setattr(delegate, "_executable_missing", lambda argv: None)
@@ -262,13 +301,17 @@ class TestTimeoutFault:
 
 class TestMalformedOutputFault:
     def test_no_parseable_json_is_explicit_attributed_actionable(self):
-        envelope = delegate.normalize_envelope("not json at all, just prose", "claude", "sonnet")
+        envelope = delegate.normalize_envelope(
+            "not json at all, just prose", "claude", "sonnet"
+        )
         assert envelope["outcome"] == "failure"
         assert envelope["backend"] == "claude"
         assert envelope["error"] == "backend returned nothing usable"
         assert envelope["raw_output"] == "not json at all, just prose"
         _assert_explicit_attributed_actionable(
-            json.dumps(envelope), backend_id="claude", actionable_markers=("raw_output", "error")
+            json.dumps(envelope),
+            backend_id="claude",
+            actionable_markers=("raw_output", "error"),
         )
 
     def test_missing_required_fields_names_them(self):
@@ -278,16 +321,22 @@ class TestMalformedOutputFault:
         assert envelope["backend"] == "codex"
         assert "missing required fields" in envelope["error"]
         _assert_explicit_attributed_actionable(
-            envelope["error"], backend_id=None, actionable_markers=("missing required fields",)
+            envelope["error"],
+            backend_id=None,
+            actionable_markers=("missing required fields",),
         )
 
-    def test_cmd_task_surfaces_malformed_output_end_to_end(self, tmp_path, monkeypatch, capsys):
+    def test_cmd_task_surfaces_malformed_output_end_to_end(
+        self, tmp_path, monkeypatch, capsys
+    ):
         args = _make_args(tmp_path, monkeypatch)
         backend = _valid_backend("codex")
         monkeypatch.setattr(delegate, "_executable_missing", lambda argv: None)
 
         def fake_run(store_, job_id, entry, record, prompt_bytes):
-            envelope = delegate.normalize_envelope("garbage output", entry["id"], record.get("model"))
+            envelope = delegate.normalize_envelope(
+                "garbage output", entry["id"], record.get("model")
+            )
             return {"state": "failed", "envelope": envelope, "job_id": job_id}
 
         monkeypatch.setattr(delegate, "_run_backend_and_finish", fake_run)
@@ -298,7 +347,9 @@ class TestMalformedOutputFault:
         assert envelope["backend"] == "codex"
         assert envelope["error"] == "backend returned nothing usable"
         _assert_explicit_attributed_actionable(
-            json.dumps(envelope), backend_id="codex", actionable_markers=("raw_output", "error")
+            json.dumps(envelope),
+            backend_id="codex",
+            actionable_markers=("raw_output", "error"),
         )
 
 
@@ -353,7 +404,11 @@ def _make_sandbox_stub(tmp_path):
     stub_path.chmod(stub_path.stat().st_mode | stat.S_IEXEC)
     backend = _valid_backend("codex")
     backend["invoke"] = [sys.executable, str(stub_path)]
-    backend["input"] = {"transport": "stdin", "max_payload_bytes": 1_000_000, "max_context_bytes": None}
+    backend["input"] = {
+        "transport": "stdin",
+        "max_payload_bytes": 1_000_000,
+        "max_context_bytes": None,
+    }
     return backend
 
 
@@ -361,7 +416,9 @@ class TestPromptFileFault:
     """K4: a bad --prompt-file must exit 2 with an explicit message, never
     traceback (D3: never crash on bad input)."""
 
-    def test_nonexistent_prompt_file_exits_2_with_message(self, tmp_path, monkeypatch, capsys):
+    def test_nonexistent_prompt_file_exits_2_with_message(
+        self, tmp_path, monkeypatch, capsys
+    ):
         args = _make_args(tmp_path, monkeypatch)
         args.prompt = None
         args.prompt_file = str(tmp_path / "does-not-exist.txt")
@@ -371,7 +428,9 @@ class TestPromptFileFault:
         assert "delegate: cannot read --prompt-file" in err
         assert args.prompt_file in err
 
-    def test_directory_as_prompt_file_exits_2_with_message(self, tmp_path, monkeypatch, capsys):
+    def test_directory_as_prompt_file_exits_2_with_message(
+        self, tmp_path, monkeypatch, capsys
+    ):
         args = _make_args(tmp_path, monkeypatch)
         args.prompt = None
         args.prompt_file = str(tmp_path)
@@ -383,7 +442,9 @@ class TestPromptFileFault:
 
 
 class TestSandboxFaultPair:
-    def test_outside_workspace_write_is_denied_never_approved(self, tmp_path, monkeypatch, capsys):
+    def test_outside_workspace_write_is_denied_never_approved(
+        self, tmp_path, monkeypatch, capsys
+    ):
         backend = _make_sandbox_stub(tmp_path)
         args = _make_args(tmp_path, monkeypatch)
         args.write = True
@@ -394,15 +455,21 @@ class TestSandboxFaultPair:
         out = capsys.readouterr().out
         envelope = json.loads(out)
 
-        assert rc == 1, "an outside-workspace write must never be approved (rc must signal failure)"
+        assert rc == 1, (
+            "an outside-workspace write must never be approved (rc must signal failure)"
+        )
         assert envelope["outcome"] == "failure"
         assert envelope["backend"] == "codex"
         assert "outside the workspace" in envelope["error"]
         _assert_explicit_attributed_actionable(
-            json.dumps(envelope), backend_id="codex", actionable_markers=("outside the workspace",)
+            json.dumps(envelope),
+            backend_id="codex",
+            actionable_markers=("outside the workspace",),
         )
 
-    def test_destructive_command_is_denied_never_approved(self, tmp_path, monkeypatch, capsys):
+    def test_destructive_command_is_denied_never_approved(
+        self, tmp_path, monkeypatch, capsys
+    ):
         backend = _make_sandbox_stub(tmp_path)
         args = _make_args(tmp_path, monkeypatch)
         args.write = True
@@ -413,10 +480,14 @@ class TestSandboxFaultPair:
         out = capsys.readouterr().out
         envelope = json.loads(out)
 
-        assert rc == 1, "a destructive command must never be approved (rc must signal failure)"
+        assert rc == 1, (
+            "a destructive command must never be approved (rc must signal failure)"
+        )
         assert envelope["outcome"] == "failure"
         assert envelope["backend"] == "codex"
         assert "destructive command blocked" in envelope.get("error", "")
         _assert_explicit_attributed_actionable(
-            json.dumps(envelope), backend_id="codex", actionable_markers=("destructive command blocked",)
+            json.dumps(envelope),
+            backend_id="codex",
+            actionable_markers=("destructive command blocked",),
         )

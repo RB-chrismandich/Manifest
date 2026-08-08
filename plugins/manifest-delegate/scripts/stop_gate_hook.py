@@ -12,9 +12,9 @@ specs/675-multi-agent-delegation/contracts/delegate-cli.md ("gate").
 import sys
 
 # --- Early interpreter version probe (D11) --------------------------------
-if sys.version_info < (3, 9):
+if sys.version_info < (3, 9):  # noqa: UP036 — deliberate runtime guard, see D11
     sys.stderr.write(
-        "stop_gate_hook.py: unsupported Python version %s.%s — "
+        "stop_gate_hook.py: unsupported Python version %s.%s — "  # noqa: UP031
         "manifest-delegate requires Python 3.9 or newer.\n"
         "Install a supported interpreter, e.g.:\n"
         "  macOS:  brew install python@3.11\n"
@@ -24,10 +24,10 @@ if sys.version_info < (3, 9):
     )
     sys.exit(2)
 
-import argparse  # noqa: E402
-import json  # noqa: E402
-import os  # noqa: E402
-import subprocess  # noqa: E402
+import argparse
+import json
+import os
+import subprocess
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 DELEGATE_PY = os.path.join(SCRIPT_DIR, "delegate.py")
@@ -53,7 +53,11 @@ def main(argv=None):
     )
     args = parser.parse_args(argv)
 
-    raw = open(args.stdin_json).read() if args.stdin_json else sys.stdin.read()
+    if args.stdin_json:
+        with open(args.stdin_json, encoding="utf-8") as fh:
+            raw = fh.read()
+    else:
+        raw = sys.stdin.read()
     try:
         payload = json.loads(raw) if raw.strip() else {}
     except ValueError:
@@ -62,30 +66,49 @@ def main(argv=None):
     transcript_path = payload.get("transcript_path")
     if not transcript_path:
         # Fail open: no transcript means nothing to gate.
-        print(json.dumps({"systemMessage": "review gate skipped: no transcript_path in Stop payload"}))
+        print(
+            json.dumps(
+                {
+                    "systemMessage": "review gate skipped: no transcript_path in Stop payload"
+                }
+            )
+        )
         return 0
 
-    cmd = [sys.executable, DELEGATE_PY, "gate", "--transcript", transcript_path, "--json"]
+    cmd = [
+        sys.executable,
+        DELEGATE_PY,
+        "gate",
+        "--transcript",
+        transcript_path,
+        "--json",
+    ]
     if payload.get("stop_hook_active"):
         cmd.append("--stop-hook-active")
 
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=840)
-    except Exception as exc:  # noqa: BLE001 - hook must never crash the session
-        _fail_open("subprocess error: %s" % exc)
+    except Exception as exc:
+        _fail_open(f"subprocess error: {exc}")
         return 0
 
     out = result.stdout.strip()
     if result.returncode != 0:
-        _fail_open("delegate.py gate exited %d: %s" % (result.returncode, _tail(result.stderr)))
+        _fail_open(
+            f"delegate.py gate exited {result.returncode}: {_tail(result.stderr)}"
+        )
         return 0
     if not out:
-        _fail_open("delegate.py gate produced no output; stderr: %s" % _tail(result.stderr))
+        _fail_open(
+            f"delegate.py gate produced no output; stderr: {_tail(result.stderr)}"
+        )
         return 0
     try:
         json.loads(out)
     except ValueError as exc:
-        _fail_open("delegate.py gate produced invalid JSON (%s); stderr: %s" % (exc, _tail(result.stderr)))
+        _fail_open(
+            f"delegate.py gate produced invalid JSON ({exc}); stderr: {_tail(result.stderr)}"
+        )
         return 0
 
     sys.stdout.write(out + "\n")
@@ -102,7 +125,7 @@ def _tail(stderr, limit=500):
 def _fail_open(cause):
     # type: (str) -> None
     """Emit the fail-open hook decision so the gate visibly no-ops."""
-    print(json.dumps({"systemMessage": "review gate skipped: %s" % cause}))
+    print(json.dumps({"systemMessage": f"review gate skipped: {cause}"}))
 
 
 if __name__ == "__main__":

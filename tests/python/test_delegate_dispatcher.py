@@ -20,6 +20,7 @@ import sys
 import threading
 import time
 from pathlib import Path
+from typing import ClassVar
 
 import pytest
 
@@ -335,9 +336,13 @@ class TestUserConfig:
             json.dumps({"backends": {"codex": {"enabled": "false"}}})
         )
         reports = []
-        cfg = delegate.load_user_config(explicit_dir=str(tmp_path), reporter=reports.append)
+        cfg = delegate.load_user_config(
+            explicit_dir=str(tmp_path), reporter=reports.append
+        )
         enabled, _ = delegate.effective_backend_enabled("codex", cfg, set())
-        assert enabled is True, "a malformed enabled value must never grant a truthy enable"
+        assert enabled is True, (
+            "a malformed enabled value must never grant a truthy enable"
+        )
         assert any("enabled" in r for r in reports)
 
     def test_negative_budget_seconds_falls_back_to_default(self, tmp_path):
@@ -345,7 +350,9 @@ class TestUserConfig:
             json.dumps({"backends": {"codex": {"budget_seconds": -4}}})
         )
         reports = []
-        cfg = delegate.load_user_config(explicit_dir=str(tmp_path), reporter=reports.append)
+        cfg = delegate.load_user_config(
+            explicit_dir=str(tmp_path), reporter=reports.append
+        )
         backend_entry = {"id": "codex"}
         budget = delegate.resolve_budget(backend_entry, cfg, None)
         assert budget == delegate.DEFAULT_BUDGET_SECONDS
@@ -387,9 +394,7 @@ class TestServicesYaml:
 
     def test_user_disabled_reported_as_user_layer(self):
         user_config = {"backends": {"codex": {"enabled": False}}}
-        enabled, layer = delegate.effective_backend_enabled(
-            "codex", user_config, set()
-        )
+        enabled, layer = delegate.effective_backend_enabled("codex", user_config, set())
         assert enabled is False
         assert "user" in layer.lower()
 
@@ -580,7 +585,7 @@ class TestJobStore:
 
 
 class TestEnvelopeNormalization:
-    VALID_ENVELOPE = {
+    VALID_ENVELOPE: ClassVar[dict] = {
         "backend": "codex",
         "model": "auto",
         "outcome": "success",
@@ -882,8 +887,15 @@ class TestSessionCapturedTranscript:
 
 
 class TestSetupReadiness:
-    def _probe(self, monkeypatch, version=(0, "1.0"), auth=(0, "me@example.com"), retired=None,
-               user_config=None, services_disabled=None):
+    def _probe(
+        self,
+        monkeypatch,
+        version=(0, "1.0"),
+        auth=(0, "me@example.com"),
+        retired=None,
+        user_config=None,
+        services_disabled=None,
+    ):
         entry = _valid_backend()
 
         def fake_probe(argv, timeout=10):
@@ -897,7 +909,9 @@ class TestSetupReadiness:
             return (1, "")
 
         monkeypatch.setattr(delegate, "_run_readiness_probe", fake_probe)
-        return delegate.probe_backend_readiness(entry, user_config or {}, services_disabled or set())
+        return delegate.probe_backend_readiness(
+            entry, user_config or {}, services_disabled or set()
+        )
 
     def test_ready_state_has_identity(self, monkeypatch):
         row = self._probe(monkeypatch, auth=(0, "me@example.com"))
@@ -905,7 +919,9 @@ class TestSetupReadiness:
         assert row["identity"] == "me@example.com"
         assert row["probe_seconds"] >= 0
 
-    def test_not_authenticated_when_auth_probe_exits_zero_but_prints_error(self, monkeypatch):
+    def test_not_authenticated_when_auth_probe_exits_zero_but_prints_error(
+        self, monkeypatch
+    ):
         # Some backends' auth probes exit 0 while printing a not-logged-in
         # message (e.g. `devin auth status`). Exit code alone must not be
         # treated as sufficient readiness signal (US2, finding 2).
@@ -930,7 +946,9 @@ class TestSetupReadiness:
 
     def test_disabled_workspace_outranks_user_enable(self, monkeypatch):
         user_config = {"backends": {"codex": {"enabled": True}}}
-        row = self._probe(monkeypatch, user_config=user_config, services_disabled={"codex"})
+        row = self._probe(
+            monkeypatch, user_config=user_config, services_disabled={"codex"}
+        )
         assert row["state"] == "disabled_workspace"
         assert "services.yml" in row["fix"]
 
@@ -976,8 +994,14 @@ class TestSetupReadiness:
 
         def fake_probe(entry, user_config, services_disabled):
             calls.append(entry["id"])
-            return {"backend": entry["id"], "state": "ready", "version": "1.0",
-                    "fix": "—", "identity": None, "probe_seconds": 0.01}
+            return {
+                "backend": entry["id"],
+                "state": "ready",
+                "version": "1.0",
+                "fix": "—",
+                "identity": None,
+                "probe_seconds": 0.01,
+            }
 
         monkeypatch.setattr(delegate, "probe_backend_readiness", fake_probe)
 
@@ -989,7 +1013,9 @@ class TestSetupReadiness:
         assert rc == 0
         assert sorted(calls) == ["claude", "codex"]
 
-    def test_cmd_setup_without_gate_flags_never_writes_config(self, monkeypatch, tmp_path):
+    def test_cmd_setup_without_gate_flags_never_writes_config(
+        self, monkeypatch, tmp_path
+    ):
         # Contract (delegate-cli.md "setup"): only --enable-review-gate /
         # --disable-review-gate write review_gate.* to delegation.json.
         # Plain `setup` is read-only (probes only); no config write trigger
@@ -998,8 +1024,14 @@ class TestSetupReadiness:
         entries = [_valid_backend("codex")]
 
         def fake_probe(entry, user_config, services_disabled):
-            return {"backend": entry["id"], "state": "ready", "version": "1.0",
-                    "fix": "—", "identity": None, "probe_seconds": 0.01}
+            return {
+                "backend": entry["id"],
+                "state": "ready",
+                "version": "1.0",
+                "fix": "—",
+                "identity": None,
+                "probe_seconds": 0.01,
+            }
 
         monkeypatch.setattr(delegate, "probe_backend_readiness", fake_probe)
 
@@ -1065,8 +1097,10 @@ class TestSecondOpinion:
         )
         return store, original["job_id"]
 
-    def test_second_opinion_injects_referenced_context(self, tmp_path, monkeypatch, capsys):
-        store, of_id = self._setup(tmp_path, monkeypatch)
+    def test_second_opinion_injects_referenced_context(
+        self, tmp_path, monkeypatch, capsys
+    ):
+        _store, of_id = self._setup(tmp_path, monkeypatch)
         captured = {}
 
         def fake_run(store_, job_id, entry, record, prompt_bytes):
@@ -1078,18 +1112,22 @@ class TestSecondOpinion:
         args = _SOArgs()
         args.backend = "claude"
         args.of = of_id
-        rc = delegate.cmd_task(args, [_valid_backend("codex"), _valid_backend("claude")], {}, set())
+        rc = delegate.cmd_task(
+            args, [_valid_backend("codex"), _valid_backend("claude")], {}, set()
+        )
         assert rc == 0
         assert of_id in captured["prompt"]
         assert "review auth flow" in captured["prompt"]
         assert "uses bcrypt" in captured["prompt"]
 
-    def test_second_opinion_wait_output_attributes_original_job_id(self, tmp_path, monkeypatch, capsys):
+    def test_second_opinion_wait_output_attributes_original_job_id(
+        self, tmp_path, monkeypatch, capsys
+    ):
         """Regression test: `task --second-opinion --of <id> --wait` text output
         must surface the ORIGINAL job's id, not just the new second-opinion
         job's own id. The smoke fixture greps the second-opinion output for
         the original job id to prove attribution."""
-        store, of_id = self._setup(tmp_path, monkeypatch)
+        _store, of_id = self._setup(tmp_path, monkeypatch)
 
         def fake_run(store_, job_id, entry, record, prompt_bytes):
             return {"state": "completed", "envelope": {"outcome": "success"}}
@@ -1099,14 +1137,18 @@ class TestSecondOpinion:
         args.backend = "claude"
         args.of = of_id
         args.json = False
-        rc = delegate.cmd_task(args, [_valid_backend("codex"), _valid_backend("claude")], {}, set())
+        rc = delegate.cmd_task(
+            args, [_valid_backend("codex"), _valid_backend("claude")], {}, set()
+        )
         out = capsys.readouterr().out
         assert rc == 0
         assert of_id in out
-        assert "second_opinion_of: %s" % of_id in out
+        assert f"second_opinion_of: {of_id}" in out
 
-    def test_same_backend_warns_and_lists_ready_alternatives(self, tmp_path, monkeypatch, capsys):
-        store, of_id = self._setup(tmp_path, monkeypatch, backend_id="codex")
+    def test_same_backend_warns_and_lists_ready_alternatives(
+        self, tmp_path, monkeypatch, capsys
+    ):
+        _store, of_id = self._setup(tmp_path, monkeypatch, backend_id="codex")
 
         def fake_run(store_, job_id, entry, record, prompt_bytes):
             return {"state": "completed", "envelope": {"outcome": "success"}}
@@ -1120,7 +1162,14 @@ class TestSecondOpinion:
         args.backend = "codex"
         args.of = of_id
         rc = delegate.cmd_task(
-            args, [_valid_backend("codex"), _valid_backend("claude"), _valid_backend("gemini")], {}, set()
+            args,
+            [
+                _valid_backend("codex"),
+                _valid_backend("claude"),
+                _valid_backend("gemini"),
+            ],
+            {},
+            set(),
         )
         err = capsys.readouterr().err
         assert rc == 0
@@ -1128,8 +1177,10 @@ class TestSecondOpinion:
         assert "claude" in err
         assert "gemini" not in err.split("alternatives:")[1]
 
-    def test_second_opinion_forces_read_only_despite_write_flag(self, tmp_path, monkeypatch, capsys):
-        store, of_id = self._setup(tmp_path, monkeypatch)
+    def test_second_opinion_forces_read_only_despite_write_flag(
+        self, tmp_path, monkeypatch, capsys
+    ):
+        _store, of_id = self._setup(tmp_path, monkeypatch)
         captured = {}
 
         def fake_run(store_, job_id, entry, record, prompt_bytes):
@@ -1141,22 +1192,28 @@ class TestSecondOpinion:
         args.backend = "claude"
         args.of = of_id
         args.write = True
-        rc = delegate.cmd_task(args, [_valid_backend("codex"), _valid_backend("claude")], {}, set())
+        rc = delegate.cmd_task(
+            args, [_valid_backend("codex"), _valid_backend("claude")], {}, set()
+        )
         assert rc == 0
         assert captured["write"] is False
 
-    def test_second_opinion_without_prompt_never_reads_stdin(self, tmp_path, monkeypatch, capsys):
+    def test_second_opinion_without_prompt_never_reads_stdin(
+        self, tmp_path, monkeypatch, capsys
+    ):
         """Regression test for the --second-opinion hang: with no positional
         prompt (args.prompt is None, the real CLI shape when only --of is
         given), _build_task_prompt must not fall back to sys.stdin.read().
         A stdin.read() call here would block forever waiting for input that
         is never piped in second-opinion mode."""
-        store, of_id = self._setup(tmp_path, monkeypatch)
+        _store, of_id = self._setup(tmp_path, monkeypatch)
         captured = {}
 
         class _BoomStdin:
             def read(self):
-                raise AssertionError("sys.stdin.read() must not be called in --second-opinion mode")
+                raise AssertionError(
+                    "sys.stdin.read() must not be called in --second-opinion mode"
+                )
 
         monkeypatch.setattr(sys, "stdin", _BoomStdin())
 
@@ -1169,15 +1226,19 @@ class TestSecondOpinion:
         args.backend = "claude"
         args.of = of_id
         args.prompt = None  # no positional prompt supplied, as in real usage
-        rc = delegate.cmd_task(args, [_valid_backend("codex"), _valid_backend("claude")], {}, set())
+        rc = delegate.cmd_task(
+            args, [_valid_backend("codex"), _valid_backend("claude")], {}, set()
+        )
         assert rc == 0
         assert of_id in captured["prompt"]
 
-    def test_second_opinion_without_prompt_terminates_quickly(self, tmp_path, monkeypatch, capsys):
+    def test_second_opinion_without_prompt_terminates_quickly(
+        self, tmp_path, monkeypatch, capsys
+    ):
         """End-to-end guard: cmd_task must return well within a short timeout
         when no prompt is supplied, proving the hang is gone even if the
         stdin short-circuit above were ever bypassed by a refactor."""
-        store, of_id = self._setup(tmp_path, monkeypatch)
+        _store, of_id = self._setup(tmp_path, monkeypatch)
         monkeypatch.setattr(sys, "stdin", io.StringIO(""))
 
         def fake_run(store_, job_id, entry, record, prompt_bytes):
@@ -1199,7 +1260,9 @@ class TestSecondOpinion:
         thread = threading.Thread(target=_call, daemon=True)
         thread.start()
         thread.join(timeout=5)
-        assert not thread.is_alive(), "cmd_task did not return within 5s -- likely hung on stdin"
+        assert not thread.is_alive(), (
+            "cmd_task did not return within 5s -- likely hung on stdin"
+        )
         assert result["rc"] == 0
 
 
@@ -1224,7 +1287,7 @@ class TestSpawnBackendStdoutCapture:
         stub = tmp_path / "stub.py"
         stub.write_text(
             "import sys\n"
-            "sys.stdout.write('```json\\n' + %r + '\\n```\\n')\n" % json.dumps(envelope)
+            f"sys.stdout.write('```json\\n' + {json.dumps(envelope)!r} + '\\n```\\n')\n"
         )
         job_dir = tmp_path / "job"
         job_dir.mkdir()
@@ -1316,7 +1379,11 @@ class TestReviewCommand:
         monkeypatch.setenv(delegate.DELEGATIONS_DIR_ENV, str(tmp_path / "delegations"))
         monkeypatch.chdir(tmp_path)
         monkeypatch.setattr(delegate, "_executable_missing", lambda argv: None)
-        monkeypatch.setattr(delegate, "assemble_review_diff", lambda scope, base, cwd=None: "diff --git a b\n")
+        monkeypatch.setattr(
+            delegate,
+            "assemble_review_diff",
+            lambda scope, base, cwd=None: "diff --git a b\n",
+        )
 
     def test_review_forces_read_only_args(self, tmp_path, monkeypatch):
         self._setup(tmp_path, monkeypatch)
@@ -1353,7 +1420,9 @@ class TestReviewCommand:
         assert "adversarial" in captured["prompt"].lower()
         assert "auth boundary" in captured["prompt"] or "auth" in captured["prompt"]
 
-    def test_findings_presented_severity_first_in_envelope(self, tmp_path, monkeypatch, capsys):
+    def test_findings_presented_severity_first_in_envelope(
+        self, tmp_path, monkeypatch, capsys
+    ):
         self._setup(tmp_path, monkeypatch)
 
         def fake_run(store_, job_id, entry, record, prompt_bytes):
@@ -1405,7 +1474,11 @@ class TestGateCommand:
         monkeypatch.setenv(delegate.DELEGATIONS_DIR_ENV, str(tmp_path / "delegations"))
         monkeypatch.chdir(tmp_path)
         monkeypatch.setattr(delegate, "_executable_missing", lambda argv: None)
-        monkeypatch.setattr(delegate, "assemble_review_diff", lambda scope, base, cwd=None: "diff --git a b\n")
+        monkeypatch.setattr(
+            delegate,
+            "assemble_review_diff",
+            lambda scope, base, cwd=None: "diff --git a b\n",
+        )
 
     def _transcript(self, tmp_path, lines):
         path = tmp_path / "transcript.jsonl"
@@ -1415,8 +1488,12 @@ class TestGateCommand:
     def test_disabled_allows(self, tmp_path, monkeypatch):
         self._setup(tmp_path, monkeypatch)
         args = _GateArgs()
-        args.transcript = self._transcript(tmp_path, [{"type": "user", "message": {"role": "user", "content": "hi"}}])
-        rc = delegate.cmd_gate(args, [_valid_backend("codex")], {"review_gate": {"enabled": False}}, set())
+        args.transcript = self._transcript(
+            tmp_path, [{"type": "user", "message": {"role": "user", "content": "hi"}}]
+        )
+        rc = delegate.cmd_gate(
+            args, [_valid_backend("codex")], {"review_gate": {"enabled": False}}, set()
+        )
         assert rc == 0
 
     def test_disabled_gate_leaves_zero_active_jobs(self, tmp_path, monkeypatch):
@@ -1426,20 +1503,30 @@ class TestGateCommand:
         every time the gate is skipped."""
         self._setup(tmp_path, monkeypatch)
         args = _GateArgs()
-        args.transcript = self._transcript(tmp_path, [{"type": "user", "message": {"role": "user", "content": "hi"}}])
-        rc = delegate.cmd_gate(args, [_valid_backend("codex")], {"review_gate": {"enabled": False}}, set())
+        args.transcript = self._transcript(
+            tmp_path, [{"type": "user", "message": {"role": "user", "content": "hi"}}]
+        )
+        rc = delegate.cmd_gate(
+            args, [_valid_backend("codex")], {"review_gate": {"enabled": False}}, set()
+        )
         assert rc == 0
         store = delegate.JobStore(cwd=str(tmp_path))
         jobs = list(store.list()) if hasattr(store, "list") else []
         active = [j for j in jobs if j.get("state") in ("queued", "running")]
-        assert active == [], "disabled gate must not leave any queued/running jobs: %r" % active
+        assert active == [], (
+            f"disabled gate must not leave any queued/running jobs: {active!r}"
+        )
 
     def test_disabled_allows_prints_decision_json(self, tmp_path, monkeypatch, capsys):
         self._setup(tmp_path, monkeypatch)
         args = _GateArgs()
-        args.transcript = self._transcript(tmp_path, [{"type": "user", "message": {"role": "user", "content": "hi"}}])
+        args.transcript = self._transcript(
+            tmp_path, [{"type": "user", "message": {"role": "user", "content": "hi"}}]
+        )
         args.json = True
-        rc = delegate.cmd_gate(args, [_valid_backend("codex")], {"review_gate": {"enabled": False}}, set())
+        rc = delegate.cmd_gate(
+            args, [_valid_backend("codex")], {"review_gate": {"enabled": False}}, set()
+        )
         assert rc == 0
         out = capsys.readouterr().out.strip()
         lines = [ln for ln in out.splitlines() if ln.strip()]
@@ -1453,13 +1540,19 @@ class TestGateCommand:
             {"type": "user", "message": {"role": "user", "content": "do a thing"}},
             {
                 "type": "assistant",
-                "message": {"role": "assistant", "content": [{"type": "tool_use", "name": "Bash", "input": {}}]},
+                "message": {
+                    "role": "assistant",
+                    "content": [{"type": "tool_use", "name": "Bash", "input": {}}],
+                },
             },
         ]
         args = _GateArgs()
         args.transcript = self._transcript(tmp_path, entries)
         rc = delegate.cmd_gate(
-            args, [_valid_backend("codex")], {"review_gate": {"enabled": True, "backend": "codex"}}, set()
+            args,
+            [_valid_backend("codex")],
+            {"review_gate": {"enabled": True, "backend": "codex"}},
+            set(),
         )
         assert rc == 0
 
@@ -1469,14 +1562,20 @@ class TestGateCommand:
             {"type": "user", "message": {"role": "user", "content": "do a thing"}},
             {
                 "type": "assistant",
-                "message": {"role": "assistant", "content": [{"type": "tool_use", "name": "Edit", "input": {}}]},
+                "message": {
+                    "role": "assistant",
+                    "content": [{"type": "tool_use", "name": "Edit", "input": {}}],
+                },
             },
         ]
         args = _GateArgs()
         args.transcript = self._transcript(tmp_path, entries)
         args.stop_hook_active = True
         rc = delegate.cmd_gate(
-            args, [_valid_backend("codex")], {"review_gate": {"enabled": True, "backend": "codex"}}, set()
+            args,
+            [_valid_backend("codex")],
+            {"review_gate": {"enabled": True, "backend": "codex"}},
+            set(),
         )
         assert rc == 0
         out = capsys.readouterr().out
@@ -1485,9 +1584,13 @@ class TestGateCommand:
     def test_stop_hook_active_records_gate_job(self, tmp_path, monkeypatch):
         self._setup(tmp_path, monkeypatch)
         args = _GateArgs()
-        args.transcript = self._transcript(tmp_path, [{"type": "user", "message": {"role": "user", "content": "x"}}])
+        args.transcript = self._transcript(
+            tmp_path, [{"type": "user", "message": {"role": "user", "content": "x"}}]
+        )
         args.stop_hook_active = True
-        delegate.cmd_gate(args, [_valid_backend("codex")], {"review_gate": {"enabled": True}}, set())
+        delegate.cmd_gate(
+            args, [_valid_backend("codex")], {"review_gate": {"enabled": True}}, set()
+        )
         store = delegate.JobStore(cwd=str(tmp_path))
         jobs = list(store.list()) if hasattr(store, "list") else None
         if jobs is not None:
@@ -1502,22 +1605,40 @@ class TestGateCommand:
                 {"type": "user", "message": {"role": "user", "content": "do a thing"}},
                 {
                     "type": "assistant",
-                    "message": {"role": "assistant", "content": [{"type": "tool_use", "name": "Bash", "input": {}}]},
+                    "message": {
+                        "role": "assistant",
+                        "content": [{"type": "tool_use", "name": "Bash", "input": {}}],
+                    },
                 },
             ],
         )
         rc = delegate.cmd_gate(
-            args, [_valid_backend("codex")], {"review_gate": {"enabled": True, "backend": "codex"}}, set()
+            args,
+            [_valid_backend("codex")],
+            {"review_gate": {"enabled": True, "backend": "codex"}},
+            set(),
         )
         assert rc == 0
 
     def test_real_transcript_edit_fixture_detected(self):
-        assert delegate._finishing_turn_has_edits(str(FIXTURES_DIR / "real_transcript_edit.jsonl")) is True
+        assert (
+            delegate._finishing_turn_has_edits(
+                str(FIXTURES_DIR / "real_transcript_edit.jsonl")
+            )
+            is True
+        )
 
     def test_real_transcript_bash_only_fixture_not_detected(self):
-        assert delegate._finishing_turn_has_edits(str(FIXTURES_DIR / "real_transcript_bash_only.jsonl")) is False
+        assert (
+            delegate._finishing_turn_has_edits(
+                str(FIXTURES_DIR / "real_transcript_bash_only.jsonl")
+            )
+            is False
+        )
 
-    def test_block_reason_forbids_tools_and_ends_developer_decides(self, tmp_path, monkeypatch, capsys):
+    def test_block_reason_forbids_tools_and_ends_developer_decides(
+        self, tmp_path, monkeypatch, capsys
+    ):
         self._setup(tmp_path, monkeypatch)
 
         def fake_run(store_, job_id, entry, record, prompt_bytes):
@@ -1540,18 +1661,27 @@ class TestGateCommand:
                 {"type": "user", "message": {"role": "user", "content": "do a thing"}},
                 {
                     "type": "assistant",
-                    "message": {"role": "assistant", "content": [{"type": "tool_use", "name": "Edit", "input": {}}]},
+                    "message": {
+                        "role": "assistant",
+                        "content": [{"type": "tool_use", "name": "Edit", "input": {}}],
+                    },
                 },
             ],
         )
         rc = delegate.cmd_gate(
-            args, [_valid_backend("codex")], {"review_gate": {"enabled": True, "backend": "codex"}}, set()
+            args,
+            [_valid_backend("codex")],
+            {"review_gate": {"enabled": True, "backend": "codex"}},
+            set(),
         )
         assert rc == 0
         out = json.loads(capsys.readouterr().out)
         assert out["decision"] == "block"
         reason = out["reason"]
-        assert "no tool call" in reason.lower() or "do not make any tool call" in reason.lower()
+        assert (
+            "no tool call" in reason.lower()
+            or "do not make any tool call" in reason.lower()
+        )
         assert "ask" in reason.lower()
         assert reason.strip().endswith("developer decides.")
         assert reason.index("high") < reason.index("low")
@@ -1562,7 +1692,10 @@ class TestGateCommand:
         def fake_run(store_, job_id, entry, record, prompt_bytes):
             return {
                 "state": "completed",
-                "envelope": {"outcome": "success", "findings": [{"severity": "medium", "text": "issue"}]},
+                "envelope": {
+                    "outcome": "success",
+                    "findings": [{"severity": "medium", "text": "issue"}],
+                },
             }
 
         monkeypatch.setattr(delegate, "_run_backend_and_finish", fake_run)
@@ -1573,20 +1706,30 @@ class TestGateCommand:
                 {"type": "user", "message": {"role": "user", "content": "do a thing"}},
                 {
                     "type": "assistant",
-                    "message": {"role": "assistant", "content": [{"type": "tool_use", "name": "Write", "input": {}}]},
+                    "message": {
+                        "role": "assistant",
+                        "content": [{"type": "tool_use", "name": "Write", "input": {}}],
+                    },
                 },
             ],
         )
         rc = delegate.cmd_gate(
-            args, [_valid_backend("codex")], {"review_gate": {"enabled": True, "backend": "codex"}}, set()
+            args,
+            [_valid_backend("codex")],
+            {"review_gate": {"enabled": True, "backend": "codex"}},
+            set(),
         )
         assert rc == 0
         out_text = capsys.readouterr().out.strip()
         assert out_text.count('"decision"') == 1
 
-    def test_unready_backend_fails_open_with_system_message(self, tmp_path, monkeypatch, capsys):
+    def test_unready_backend_fails_open_with_system_message(
+        self, tmp_path, monkeypatch, capsys
+    ):
         self._setup(tmp_path, monkeypatch)
-        monkeypatch.setattr(delegate, "_executable_missing", lambda argv: "not installed")
+        monkeypatch.setattr(
+            delegate, "_executable_missing", lambda argv: "not installed"
+        )
         args = _GateArgs()
         args.transcript = self._transcript(
             tmp_path,
@@ -1594,12 +1737,18 @@ class TestGateCommand:
                 {"type": "user", "message": {"role": "user", "content": "do a thing"}},
                 {
                     "type": "assistant",
-                    "message": {"role": "assistant", "content": [{"type": "tool_use", "name": "Edit", "input": {}}]},
+                    "message": {
+                        "role": "assistant",
+                        "content": [{"type": "tool_use", "name": "Edit", "input": {}}],
+                    },
                 },
             ],
         )
         rc = delegate.cmd_gate(
-            args, [_valid_backend("codex")], {"review_gate": {"enabled": True, "backend": "codex"}}, set()
+            args,
+            [_valid_backend("codex")],
+            {"review_gate": {"enabled": True, "backend": "codex"}},
+            set(),
         )
         assert rc == 0
         captured = capsys.readouterr()
@@ -1608,9 +1757,13 @@ class TestGateCommand:
         assert "review gate skipped" in out["systemMessage"]
         assert "review gate skipped" in captured.err
 
-    def test_timeout_fails_open_with_system_message(self, tmp_path, monkeypatch, capsys):
+    def test_timeout_fails_open_with_system_message(
+        self, tmp_path, monkeypatch, capsys
+    ):
         self._setup(tmp_path, monkeypatch)
-        monkeypatch.setattr(delegate, "_run_backend_and_finish", lambda *a, **k: {"state": "timeout"})
+        monkeypatch.setattr(
+            delegate, "_run_backend_and_finish", lambda *a, **k: {"state": "timeout"}
+        )
         args = _GateArgs()
         args.transcript = self._transcript(
             tmp_path,
@@ -1618,24 +1771,35 @@ class TestGateCommand:
                 {"type": "user", "message": {"role": "user", "content": "do a thing"}},
                 {
                     "type": "assistant",
-                    "message": {"role": "assistant", "content": [{"type": "tool_use", "name": "Edit", "input": {}}]},
+                    "message": {
+                        "role": "assistant",
+                        "content": [{"type": "tool_use", "name": "Edit", "input": {}}],
+                    },
                 },
             ],
         )
         rc = delegate.cmd_gate(
-            args, [_valid_backend("codex")], {"review_gate": {"enabled": True, "backend": "codex"}}, set()
+            args,
+            [_valid_backend("codex")],
+            {"review_gate": {"enabled": True, "backend": "codex"}},
+            set(),
         )
         assert rc == 0
         out = json.loads(capsys.readouterr().out)
         assert "systemMessage" in out
 
-    def test_malformed_transcript_fails_open_with_system_message(self, tmp_path, monkeypatch, capsys):
+    def test_malformed_transcript_fails_open_with_system_message(
+        self, tmp_path, monkeypatch, capsys
+    ):
         self._setup(tmp_path, monkeypatch)
         bad_path = tmp_path / "missing.jsonl"
         args = _GateArgs()
         args.transcript = str(bad_path)
         rc = delegate.cmd_gate(
-            args, [_valid_backend("codex")], {"review_gate": {"enabled": True, "backend": "codex"}}, set()
+            args,
+            [_valid_backend("codex")],
+            {"review_gate": {"enabled": True, "backend": "codex"}},
+            set(),
         )
         assert rc == 0
         captured = capsys.readouterr()
@@ -1659,14 +1823,23 @@ class TestGateCommand:
                 {"type": "user", "message": {"role": "user", "content": "do a thing"}},
                 {
                     "type": "assistant",
-                    "message": {"role": "assistant", "content": [{"type": "tool_use", "name": "Edit", "input": {}}]},
+                    "message": {
+                        "role": "assistant",
+                        "content": [{"type": "tool_use", "name": "Edit", "input": {}}],
+                    },
                 },
             ],
         )
         rc = delegate.cmd_gate(
             args,
             [_valid_backend("codex")],
-            {"review_gate": {"enabled": True, "backend": "codex", "budget_seconds": 5000}},
+            {
+                "review_gate": {
+                    "enabled": True,
+                    "backend": "codex",
+                    "budget_seconds": 5000,
+                }
+            },
             set(),
         )
         assert rc == 0
@@ -1693,20 +1866,31 @@ class TestGateCommand:
                 {"type": "user", "message": {"role": "user", "content": "do a thing"}},
                 {
                     "type": "assistant",
-                    "message": {"role": "assistant", "content": [{"type": "tool_use", "name": "Edit", "input": {}}]},
+                    "message": {
+                        "role": "assistant",
+                        "content": [{"type": "tool_use", "name": "Edit", "input": {}}],
+                    },
                 },
             ],
         )
         rc = delegate.cmd_gate(
             args,
             [_valid_backend("codex")],
-            {"review_gate": {"enabled": True, "backend": "codex", "budget_seconds": 17}},
+            {
+                "review_gate": {
+                    "enabled": True,
+                    "backend": "codex",
+                    "budget_seconds": 17,
+                }
+            },
             set(),
         )
         assert rc == 0
         assert captured.get("budget") == 17, (
-            "expected configured budget_seconds=17 to reach the runner, got %r "
-            "(600 = silent default fallback, 840 = cap constant)" % captured.get("budget")
+            "expected configured budget_seconds=17 to reach the runner, got {!r} "
+            "(600 = silent default fallback, 840 = cap constant)".format(
+                captured.get("budget")
+            )
         )
 
     def _edit_transcript(self, tmp_path):
@@ -1716,12 +1900,17 @@ class TestGateCommand:
                 {"type": "user", "message": {"role": "user", "content": "do a thing"}},
                 {
                     "type": "assistant",
-                    "message": {"role": "assistant", "content": [{"type": "tool_use", "name": "Edit", "input": {}}]},
+                    "message": {
+                        "role": "assistant",
+                        "content": [{"type": "tool_use", "name": "Edit", "input": {}}],
+                    },
                 },
             ],
         )
 
-    def test_e2e_material_finding_blocks_through_real_envelope_parsing(self, tmp_path, monkeypatch, capsys):
+    def test_e2e_material_finding_blocks_through_real_envelope_parsing(
+        self, tmp_path, monkeypatch, capsys
+    ):
         """G4: a real fenced-JSON backend reply, parsed by the actual
         `normalize_envelope` (not a stubbed `_run_backend_and_finish`), must
         still produce a block decision when it reports a material finding."""
@@ -1743,31 +1932,55 @@ class TestGateCommand:
             "```\n"
         )
         monkeypatch.setattr(
-            delegate, "_spawn_backend", lambda entry, argv, prompt_bytes, job_dir, budget, on_pgid=None: (0, raw_output, None, False, None)
+            delegate,
+            "_spawn_backend",
+            lambda entry, argv, prompt_bytes, job_dir, budget, on_pgid=None: (
+                0,
+                raw_output,
+                None,
+                False,
+                None,
+            ),
         )
         args = _GateArgs()
         args.transcript = self._edit_transcript(tmp_path)
         rc = delegate.cmd_gate(
-            args, [_valid_backend("codex")], {"review_gate": {"enabled": True, "backend": "codex"}}, set()
+            args,
+            [_valid_backend("codex")],
+            {"review_gate": {"enabled": True, "backend": "codex"}},
+            set(),
         )
         assert rc == 0
         out = json.loads(capsys.readouterr().out)
         assert out["decision"] == "block"
         assert "sql injection" in out["reason"].lower()
 
-    def test_e2e_malformed_backend_output_never_silently_allows(self, tmp_path, monkeypatch, capsys):
+    def test_e2e_malformed_backend_output_never_silently_allows(
+        self, tmp_path, monkeypatch, capsys
+    ):
         """G4: when the backend emits no usable fenced JSON, `normalize_envelope`
         produces a failure envelope with a non-empty `error`; the gate must
         surface that as an explicit systemMessage (fail-open, not silent)."""
         self._setup(tmp_path, monkeypatch)
         raw_output = "I looked at the diff but forgot to emit any JSON block, sorry.\n"
         monkeypatch.setattr(
-            delegate, "_spawn_backend", lambda entry, argv, prompt_bytes, job_dir, budget, on_pgid=None: (0, raw_output, None, False, None)
+            delegate,
+            "_spawn_backend",
+            lambda entry, argv, prompt_bytes, job_dir, budget, on_pgid=None: (
+                0,
+                raw_output,
+                None,
+                False,
+                None,
+            ),
         )
         args = _GateArgs()
         args.transcript = self._edit_transcript(tmp_path)
         rc = delegate.cmd_gate(
-            args, [_valid_backend("codex")], {"review_gate": {"enabled": True, "backend": "codex"}}, set()
+            args,
+            [_valid_backend("codex")],
+            {"review_gate": {"enabled": True, "backend": "codex"}},
+            set(),
         )
         assert rc == 0
         captured = capsys.readouterr()
@@ -1781,7 +1994,9 @@ class TestGateCommand:
         """G4: `_gate_validate_findings` itself must reject a well-formed
         envelope (no `error`, valid `outcome`) whose `findings` is not a
         list, rather than crashing or treating it as empty/allow."""
-        findings, error_reason = delegate._gate_validate_findings({"outcome": "success", "findings": "oops"})
+        findings, error_reason = delegate._gate_validate_findings(
+            {"outcome": "success", "findings": "oops"}
+        )
         assert findings is None
         assert error_reason
         assert "malformed findings" in error_reason
@@ -1805,10 +2020,14 @@ class TestGateSetupWriteFormats:
         data = json.loads((tmp_path / "delegation.json").read_text())
         assert data["review_gate"]["enabled"] is True
 
-    def test_enable_updates_existing_yml_in_place_when_pyyaml_available(self, tmp_path, monkeypatch):
+    def test_enable_updates_existing_yml_in_place_when_pyyaml_available(
+        self, tmp_path, monkeypatch
+    ):
         yaml = pytest.importorskip("yaml")
         monkeypatch.setenv(delegate.CONFIG_DIR_ENV, str(tmp_path))
-        (tmp_path / "delegation.yml").write_text(yaml.safe_dump({"default_backend": "codex"}))
+        (tmp_path / "delegation.yml").write_text(
+            yaml.safe_dump({"default_backend": "codex"})
+        )
         args = self._SetupArgs()
         args.enable_review_gate = True
         rc = delegate._cmd_setup_gate_toggle(args, {})
@@ -1817,14 +2036,16 @@ class TestGateSetupWriteFormats:
         data = yaml.safe_load((tmp_path / "delegation.yml").read_text())
         assert data["review_gate"]["enabled"] is True
 
-    def test_yml_without_pyyaml_reports_unreadable_and_writes_json_with_precedence(self, tmp_path, monkeypatch):
+    def test_yml_without_pyyaml_reports_unreadable_and_writes_json_with_precedence(
+        self, tmp_path, monkeypatch
+    ):
         monkeypatch.setenv(delegate.CONFIG_DIR_ENV, str(tmp_path))
         (tmp_path / "delegation.yml").write_text("default_backend: codex\n")
         monkeypatch.setattr(delegate, "_yaml_module", lambda: None)
         reports = []
         args = self._SetupArgs()
         args.disable_review_gate = True
-        path, data = delegate.write_review_gate_config(
+        path, _data = delegate.write_review_gate_config(
             {"enabled": False}, explicit_dir=str(tmp_path), reporter=reports.append
         )
         assert path.endswith("delegation.json")

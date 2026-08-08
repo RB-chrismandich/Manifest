@@ -14,7 +14,7 @@ hardcode a specific model in the prompt; let the tier resolve.
   (`--resume` / `--resume-last`); a fresh invocation gets zero prior
   context, so restate every file path and constraint it needs.
 - End every prompt with the envelope instruction: emit exactly one fenced
-  ```json block as the last thing in the response, matching the
+  ` ```json ` block as the last thing in the response, matching the
   `result-envelope.md` field set. Codex will otherwise return prose only,
   and `normalize_envelope()` will mark that a `failure`.
 - Name the read-only vs write boundary explicitly in the prompt body even

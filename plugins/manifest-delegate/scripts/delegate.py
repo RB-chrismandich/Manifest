@@ -14,9 +14,9 @@ import sys
 # Must be the first executable statements and must be parseable by very old
 # interpreters (no f-strings, no type hints) so the remediation message can
 # always be printed.
-if sys.version_info < (3, 9):
+if sys.version_info < (3, 9):  # noqa: UP036 — deliberate runtime guard, see D11
     sys.stderr.write(
-        "delegate.py: unsupported Python version %s.%s — "
+        "delegate.py: unsupported Python version %s.%s — "  # noqa: UP031
         "manifest-delegate requires Python 3.9 or newer.\n"
         "Install a supported interpreter, e.g.:\n"
         "  macOS:  brew install python@3.11\n"
@@ -27,23 +27,24 @@ if sys.version_info < (3, 9):
     sys.exit(2)
 
 # Everything below this line may use 3.9+ syntax.
-import argparse  # noqa: E402
-import concurrent.futures  # noqa: E402
-import errno  # noqa: E402
-import fcntl  # noqa: E402
-import hashlib  # noqa: E402
-import logging  # noqa: E402
-import json  # noqa: E402
-import os  # noqa: E402
-import re  # noqa: E402
-import shutil  # noqa: E402
-import signal  # noqa: E402
-import stat  # noqa: E402
-import subprocess  # noqa: E402
-import tempfile  # noqa: E402
-import threading  # noqa: E402
-import time  # noqa: E402
-import uuid  # noqa: E402
+import argparse
+import concurrent.futures
+import contextlib
+import errno
+import fcntl
+import hashlib
+import json
+import logging
+import os
+import re
+import shutil
+import signal
+import stat
+import subprocess
+import tempfile
+import threading
+import time
+import uuid
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 PLUGIN_DIR = os.path.dirname(SCRIPT_DIR)
@@ -73,7 +74,7 @@ KEEP_LAST_N = 50
 
 
 def err(message):
-    sys.stderr.write("delegate.py: %s\n" % message)
+    sys.stderr.write(f"delegate.py: {message}\n")
 
 
 # ---------------------------------------------------------------------------
@@ -102,45 +103,47 @@ def _walk_strings(value):
 def _validate_argv_template(tokens, where):
     for token in tokens:
         if not isinstance(token, str):
-            raise RegistryError("%s: argv tokens must be strings" % where)
+            raise RegistryError(f"{where}: argv tokens must be strings")
         if DANGEROUS_TOKEN_RE.search(token):
             raise RegistryError(
-                "%s: token %r contains a disallowed bypass/dangerously "
-                "pattern (D8)" % (where, token)
+                f"{where}: token {token!r} contains a disallowed bypass/dangerously "
+                "pattern (D8)"
             )
         if PLACEHOLDER_RE.match(token):
             continue
         if SHELL_METACHAR_RE.search(token):
             raise RegistryError(
-                "%s: token %r contains a shell metacharacter; argv arrays "
-                "must not depend on shell interpretation" % (where, token)
+                f"{where}: token {token!r} contains a shell metacharacter; argv arrays "
+                "must not depend on shell interpretation"
             )
 
 
 def _load_registry_raw(path):
     """Read and JSON-decode the registry file, raising RegistryError on failure."""
     try:
-        with open(path, "r", encoding="utf-8") as fh:
+        with open(path, encoding="utf-8") as fh:
             return json.load(fh)
-    except FileNotFoundError:
-        raise RegistryError("registry not found: %s" % path)
+    except FileNotFoundError as exc:
+        raise RegistryError(f"registry not found: {path}") from exc
     except json.JSONDecodeError as exc:
-        raise RegistryError("registry %s is not valid JSON: %s" % (path, exc))
+        raise RegistryError(f"registry {path} is not valid JSON: {exc}") from exc
 
 
 def _validate_registry_aliases(entry, entry_id, path, seen_ids, seen_aliases):
     """Validate entry['aliases']: must be a list of non-empty, unique strings."""
     aliases = entry.get("aliases", []) or []
     if not isinstance(aliases, list):
-        raise RegistryError("registry %s: backend %r field 'aliases' must be an array" % (path, entry_id))
+        raise RegistryError(
+            f"registry {path}: backend {entry_id!r} field 'aliases' must be an array"
+        )
     for alias in aliases:
         if not isinstance(alias, str) or not alias:
             raise RegistryError(
-                "registry %s: backend %r has a non-string/empty alias %r" % (path, entry_id, alias)
+                f"registry {path}: backend {entry_id!r} has a non-string/empty alias {alias!r}"
             )
         if alias in seen_aliases or alias in seen_ids:
             raise RegistryError(
-                "registry %s: duplicate alias %r for backend %r" % (path, alias, entry_id)
+                f"registry {path}: duplicate alias {alias!r} for backend {entry_id!r}"
             )
         seen_aliases.add(alias)
 
@@ -150,23 +153,25 @@ def _validate_registry_argv_fields(entry, entry_id, path):
     invoke = entry.get("invoke")
     if not isinstance(invoke, list) or not invoke:
         raise RegistryError(
-            "registry %s: backend %r field 'invoke' must be a non-empty array" % (path, entry_id)
+            f"registry {path}: backend {entry_id!r} field 'invoke' must be a non-empty array"
         )
-    _validate_argv_template(invoke, "%s[%s].invoke" % (path, entry_id))
+    _validate_argv_template(invoke, f"{path}[{entry_id}].invoke")
 
     resume = entry.get("resume")
     if resume is not None:
         if not isinstance(resume, list):
-            raise RegistryError("registry %s: backend %r field 'resume' must be an array" % (path, entry_id))
-        _validate_argv_template(resume, "%s[%s].resume" % (path, entry_id))
+            raise RegistryError(
+                f"registry {path}: backend {entry_id!r} field 'resume' must be an array"
+            )
+        _validate_argv_template(resume, f"{path}[{entry_id}].resume")
 
     model_args = entry.get("model_args") or []
-    _validate_argv_template(model_args, "%s[%s].model_args" % (path, entry_id))
+    _validate_argv_template(model_args, f"{path}[{entry_id}].model_args")
 
     sandbox = entry.get("sandbox") or {}
     for field in ("read_only_args", "write_args"):
         _validate_argv_template(
-            sandbox.get(field) or [], "%s[%s].sandbox.%s" % (path, entry_id, field)
+            sandbox.get(field) or [], f"{path}[{entry_id}].sandbox.{field}"
         )
 
 
@@ -176,26 +181,26 @@ def _validate_registry_input_shape(entry, entry_id, path):
         section = entry.get(field)
         if section is not None and not isinstance(section, dict):
             raise RegistryError(
-                "registry %s: backend %r field %r must be an object" % (path, entry_id, field)
+                f"registry {path}: backend {entry_id!r} field {field!r} must be an object"
             )
 
     transport = (entry.get("input") or {}).get("transport")
     if transport is not None and transport != "stdin":
         raise RegistryError(
-            "registry %s: backend %r input.transport %r is unsupported "
-            "(only 'stdin' implemented)" % (path, entry_id, transport)
+            f"registry {path}: backend {entry_id!r} input.transport {transport!r} is unsupported "
+            "(only 'stdin' implemented)"
         )
 
 
 def _validate_registry_entry(entry, path, seen_ids, seen_aliases):
     """Validate a single backend entry in-place, tracking id/alias uniqueness."""
     if not isinstance(entry, dict):
-        raise RegistryError("registry %s: each backend entry must be an object" % path)
+        raise RegistryError(f"registry {path}: each backend entry must be an object")
     entry_id = entry.get("id")
     if not entry_id or not isinstance(entry_id, str):
-        raise RegistryError("registry %s: backend entry missing 'id'" % path)
+        raise RegistryError(f"registry {path}: backend entry missing 'id'")
     if entry_id in seen_ids:
-        raise RegistryError("registry %s: duplicate backend id %r" % (path, entry_id))
+        raise RegistryError(f"registry {path}: duplicate backend id {entry_id!r}")
     seen_ids.add(entry_id)
 
     _validate_registry_aliases(entry, entry_id, path, seen_ids, seen_aliases)
@@ -208,8 +213,7 @@ def _validate_registry_entry(entry, path, seen_ids, seen_aliases):
     for s in _walk_strings(entry):
         if DANGEROUS_TOKEN_RE.search(s):
             raise RegistryError(
-                "registry %s[%s]: disallowed bypass/dangerously token found in %r"
-                % (path, entry_id, s)
+                f"registry {path}[{entry_id}]: disallowed bypass/dangerously token found in {s!r}"
             )
 
 
@@ -223,11 +227,11 @@ def load_registry(path=None):
     raw = _load_registry_raw(path)
 
     if not isinstance(raw, dict):
-        raise RegistryError("registry %s: root must be a JSON object" % path)
+        raise RegistryError(f"registry {path}: root must be a JSON object")
 
     backends = raw.get("backends")
     if not isinstance(backends, list) or not backends:
-        raise RegistryError("registry %s: 'backends' must be a non-empty array" % path)
+        raise RegistryError(f"registry {path}: 'backends' must be a non-empty array")
 
     seen_ids = set()
     seen_aliases = set()
@@ -247,8 +251,8 @@ def load_registry_or_exit(path=None):
     try:
         return load_registry(path)
     except RegistryError as exc:
-        print("delegate: %s" % exc, file=sys.stderr)
-        raise SystemExit(2)
+        print(f"delegate: {exc}", file=sys.stderr)
+        raise SystemExit(2) from exc
 
 
 def resolve_backend(backends, name):
@@ -316,22 +320,22 @@ def _parse_user_config_file(chosen_path, report):
     """Parse the resolved config file. Returns (data, error_message_or_None)."""
     if chosen_path.endswith(".json"):
         try:
-            with open(chosen_path, "r", encoding="utf-8") as fh:
+            with open(chosen_path, encoding="utf-8") as fh:
                 return json.load(fh), None
         except (OSError, json.JSONDecodeError) as exc:
-            return None, "%s is unreadable (%s); using factory defaults" % (chosen_path, exc)
+            return None, f"{chosen_path} is unreadable ({exc}); using factory defaults"
 
     yaml_mod = _yaml_module()
     if yaml_mod is None:
         return None, (
-            "%s present but PyYAML is not importable; delegation.yml is "
-            "unreadable in this environment — using factory defaults" % chosen_path
+            f"{chosen_path} present but PyYAML is not importable; delegation.yml is "
+            "unreadable in this environment — using factory defaults"
         )
     try:
-        with open(chosen_path, "r", encoding="utf-8") as fh:
+        with open(chosen_path, encoding="utf-8") as fh:
             return yaml_mod.safe_load(fh) or {}, None
-    except (OSError, Exception) as exc:  # noqa: BLE001 - report, never crash
-        return None, "%s is unreadable (%s); using factory defaults" % (chosen_path, exc)
+    except (OSError, Exception) as exc:
+        return None, f"{chosen_path} is unreadable ({exc}); using factory defaults"
 
 
 def _is_positive_int(value):
@@ -345,22 +349,22 @@ def _validate_backend_entry(backend_id, entry, chosen_path, report):
     clean_entry = {}
     for key, val in entry.items():
         if key not in known_backend_keys:
-            report("%s: unknown key backends.%s.%s ignored" % (chosen_path, backend_id, key))
+            report(f"{chosen_path}: unknown key backends.{backend_id}.{key} ignored")
             continue
         if key == "enabled" and not isinstance(val, bool):
             report(
-                "%s: backends.%s.enabled must be true/false, got %r; ignored"
-                % (chosen_path, backend_id, val)
+                f"{chosen_path}: backends.{backend_id}.enabled must be true/false, got {val!r}; ignored"
             )
             continue
         if key == "budget_seconds" and not _is_positive_int(val):
             report(
-                "%s: backends.%s.budget_seconds must be a positive integer, got %r; ignored"
-                % (chosen_path, backend_id, val)
+                f"{chosen_path}: backends.{backend_id}.budget_seconds must be a positive integer, got {val!r}; ignored"
             )
             continue
         if key == "model" and not isinstance(val, str):
-            report("%s: backends.%s.model must be a string, got %r; ignored" % (chosen_path, backend_id, val))
+            report(
+                f"{chosen_path}: backends.{backend_id}.model must be a string, got {val!r}; ignored"
+            )
             continue
         clean_entry[key] = val
     return clean_entry
@@ -372,27 +376,31 @@ def _merge_review_gate(gate, chosen_path, result, report):
         result["review_gate"]["enabled"] = gate["enabled"]
     elif "enabled" in gate:
         report(
-            "%s: review_gate.enabled must be true/false, got %r; using factory default"
-            % (chosen_path, gate["enabled"])
+            "{}: review_gate.enabled must be true/false, got {!r}; using factory default".format(
+                chosen_path, gate["enabled"]
+            )
         )
 
     if isinstance(gate.get("backend"), str):
         result["review_gate"]["backend"] = gate["backend"]
     elif "backend" in gate:
-        report("%s: review_gate.backend must be a string, got %r; ignored" % (chosen_path, gate["backend"]))
+        report(
+            "{}: review_gate.backend must be a string, got {!r}; ignored".format(
+                chosen_path, gate["backend"]
+            )
+        )
 
     budget = gate.get("budget_seconds")
     if "budget_seconds" in gate:
         if not _is_positive_int(budget):
             report(
-                "%s: review_gate.budget_seconds must be a positive integer, got %r; using factory default"
-                % (chosen_path, budget)
+                f"{chosen_path}: review_gate.budget_seconds must be a positive integer, got {budget!r}; using factory default"
             )
         else:
             if budget > GATE_BUDGET_CAP_SECONDS:
                 report(
-                    "%s: review_gate.budget_seconds %d exceeds cap %d; capping"
-                    % (chosen_path, budget, GATE_BUDGET_CAP_SECONDS)
+                    f"{chosen_path}: review_gate.budget_seconds {budget} "
+                    f"exceeds cap {GATE_BUDGET_CAP_SECONDS}; capping"
                 )
                 budget = GATE_BUDGET_CAP_SECONDS
             result["review_gate"]["budget_seconds"] = budget
@@ -403,7 +411,7 @@ def _merge_user_config_data(data, chosen_path, result, report):
     known_top = {"default_backend", "review_gate", "backends"}
     for key in list(data.keys()):
         if key not in known_top:
-            report("%s: unknown top-level key %r ignored" % (chosen_path, key))
+            report(f"{chosen_path}: unknown top-level key {key!r} ignored")
             data.pop(key)
 
     if "default_backend" in data and isinstance(data["default_backend"], str):
@@ -417,9 +425,13 @@ def _merge_user_config_data(data, chosen_path, result, report):
     if isinstance(backends_cfg, dict):
         for backend_id, entry in backends_cfg.items():
             if not isinstance(entry, dict):
-                report("%s: backends.%s is not an object; ignored" % (chosen_path, backend_id))
+                report(
+                    f"{chosen_path}: backends.{backend_id} is not an object; ignored"
+                )
                 continue
-            result["backends"][backend_id] = _validate_backend_entry(backend_id, entry, chosen_path, report)
+            result["backends"][backend_id] = _validate_backend_entry(
+                backend_id, entry, chosen_path, report
+            )
 
 
 def load_user_config(explicit_dir=None, reporter=None):
@@ -444,7 +456,7 @@ def load_user_config(explicit_dir=None, reporter=None):
         return result
 
     if not isinstance(data, dict):
-        report("%s did not parse to an object; using factory defaults" % chosen_path)
+        report(f"{chosen_path} did not parse to an object; using factory defaults")
         return result
 
     _merge_user_config_data(data, chosen_path, result, report)
@@ -458,12 +470,11 @@ def _write_review_gate_yaml(changes, config_dir, yaml_path, yaml_mod, report):
     an existing unreadable config is never overwritten with defaults.
     """
     try:
-        with open(yaml_path, "r", encoding="utf-8") as fh:
+        with open(yaml_path, encoding="utf-8") as fh:
             data = yaml_mod.safe_load(fh) or {}
     except (OSError, yaml_mod.YAMLError) as exc:
         raise RegistryError(
-            "refusing to overwrite unreadable config %s (%s); fix or remove it first"
-            % (yaml_path, exc)
+            f"refusing to overwrite unreadable config {yaml_path} ({exc}); fix or remove it first"
         ) from exc
     if not isinstance(data, dict):
         data = {}
@@ -488,12 +499,11 @@ def _write_review_gate_json(changes, config_dir, json_path, report):
     data = json.loads(json.dumps(FACTORY_DEFAULTS))  # deep copy
     if os.path.isfile(json_path):
         try:
-            with open(json_path, "r", encoding="utf-8") as fh:
+            with open(json_path, encoding="utf-8") as fh:
                 existing = json.load(fh)
         except (OSError, json.JSONDecodeError) as exc:
             raise RegistryError(
-                "refusing to overwrite unreadable config %s (%s); fix or remove it first"
-                % (json_path, exc)
+                f"refusing to overwrite unreadable config {json_path} ({exc}); fix or remove it first"
             ) from exc
         if isinstance(existing, dict):
             data.update(existing)
@@ -523,13 +533,17 @@ def write_review_gate_config(changes, explicit_dir=None, reporter=None):
     yaml_path = os.path.join(config_dir, "delegation.yml")
 
     yaml_mod = _yaml_module()
-    use_yaml = yaml_mod is not None and os.path.isfile(yaml_path) and not os.path.isfile(json_path)
+    use_yaml = (
+        yaml_mod is not None
+        and os.path.isfile(yaml_path)
+        and not os.path.isfile(json_path)
+    )
 
     if os.path.isfile(yaml_path) and not os.path.isfile(json_path) and yaml_mod is None:
         report(
-            "%s present but PyYAML is not importable; delegation.yml is "
+            f"{yaml_path} present but PyYAML is not importable; delegation.yml is "
             "unreadable in this environment — writing delegation.json, "
-            "which takes precedence" % yaml_path
+            "which takes precedence"
         )
 
     if use_yaml:
@@ -552,7 +566,7 @@ def load_services_disabled(config_dir=None):
             continue
         current_key = None
         try:
-            with open(services_path, "r", encoding="utf-8") as fh:
+            with open(services_path, encoding="utf-8") as fh:
                 for line in fh:
                     stripped = line.strip()
                     if not stripped or stripped.startswith("#"):
@@ -561,12 +575,16 @@ def load_services_disabled(config_dir=None):
                     if top_match:
                         current_key = top_match.group(1)
                         continue
-                    kv_match = re.match(r"^\s+enabled:\s*(true|false)\s*$", line.rstrip("\n"))
+                    kv_match = re.match(
+                        r"^\s+enabled:\s*(true|false)\s*$", line.rstrip("\n")
+                    )
                     if kv_match and current_key:
                         if kv_match.group(1) == "false":
                             disabled.add(current_key)
                     else:
-                        flat_match = re.match(r"^([A-Za-z0-9_-]+):\s*(true|false)\s*$", line.rstrip("\n"))
+                        flat_match = re.match(
+                            r"^([A-Za-z0-9_-]+):\s*(true|false)\s*$", line.rstrip("\n")
+                        )
                         if flat_match and flat_match.group(2) == "false":
                             disabled.add(flat_match.group(1))
         except OSError:
@@ -589,9 +607,9 @@ def load_model_tiers(config_dir=None):
         if not os.path.isfile(path):
             continue
         try:
-            with open(path, "r", encoding="utf-8") as fh:
+            with open(path, encoding="utf-8") as fh:
                 data = yaml_mod.safe_load(fh) or {}
-        except Exception:  # noqa: BLE001 - degrade to passthrough
+        except Exception:
             return {}
         tiers = data.get("model_tiers")
         if isinstance(tiers, dict):
@@ -609,7 +627,9 @@ def effective_backend_enabled(backend_id, user_config, services_disabled):
         return False, "workspace services.yml"
     entry = (user_config.get("backends") or {}).get(backend_id, {})
     enabled = entry.get("enabled", True)
-    return bool(enabled), ("user delegation config" if "enabled" in entry else "factory default")
+    return bool(enabled), (
+        "user delegation config" if "enabled" in entry else "factory default"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -625,7 +645,7 @@ def workspace_slug(cwd=None):
     base = os.path.basename(os.path.normpath(cwd)) or "workspace"
     slug = re.sub(r"[^A-Za-z0-9_-]+", "-", base).strip("-").lower() or "workspace"
     digest = hashlib.sha256(cwd.encode("utf-8")).hexdigest()[:16]
-    return "%s-%s" % (slug, digest)
+    return f"{slug}-{digest}"
 
 
 def delegations_root():
@@ -663,7 +683,7 @@ def _atomic_write_0600(path, content):
         except OSError as exc:
             # Best-effort backup; never block the write on this, but the
             # operator should still know the .bak safety net didn't land.
-            err("warning: could not create backup %s.bak (%s)" % (path, exc))
+            err(f"warning: could not create backup {path}.bak ({exc})")
     fd, tmp_path = tempfile.mkstemp(prefix=".tmp-", dir=directory)
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as fh:
@@ -676,7 +696,7 @@ def _atomic_write_0600(path, content):
         try:
             os.unlink(tmp_path)
         except OSError as cleanup_exc:
-            err("warning: could not remove temp file %s (%s)" % (tmp_path, cleanup_exc))
+            err(f"warning: could not remove temp file {tmp_path} ({cleanup_exc})")
         raise
 
 
@@ -684,7 +704,9 @@ class JobStore:
     """Per-job record directories with CAS-locked record.json mutation."""
 
     def __init__(self, cwd=None, root=None):
-        self.workspace_dir = os.path.join(root or delegations_root(), workspace_slug(cwd))
+        self.workspace_dir = os.path.join(
+            root or delegations_root(), workspace_slug(cwd)
+        )
         _mkdir_0700(self.workspace_dir)
 
     def job_dir(self, job_id):
@@ -715,7 +737,7 @@ class JobStore:
 
     def read(self, job_id):
         record_path = os.path.join(self.job_dir(job_id), "record.json")
-        with open(record_path, "r", encoding="utf-8") as fh:
+        with open(record_path, encoding="utf-8") as fh:
             return json.load(fh)
 
     def mutate(self, job_id, mutator):
@@ -731,9 +753,12 @@ class JobStore:
         try:
             fcntl.flock(lock_fd, fcntl.LOCK_EX)
             record_path = os.path.join(job_dir, "record.json")
-            with open(record_path, "r", encoding="utf-8") as fh:
+            with open(record_path, encoding="utf-8") as fh:
                 current = json.load(fh)
-            if current.get("state") in TERMINAL_STATES and mutator.__name__ != "_reaper_noop":
+            if (
+                current.get("state") in TERMINAL_STATES
+                and mutator.__name__ != "_reaper_noop"
+            ):
                 # Terminal states are immutable; refuse silently (no-op).
                 allow_terminal = getattr(mutator, "allow_terminal_reentry", False)
                 if not allow_terminal:
@@ -742,7 +767,9 @@ class JobStore:
             if updated is None:
                 return current
             updated["updated_at"] = time.time()
-            fd, tmp_path = tempfile.mkstemp(dir=job_dir, prefix=".record.", suffix=".tmp")
+            fd, tmp_path = tempfile.mkstemp(
+                dir=job_dir, prefix=".record.", suffix=".tmp"
+            )
             try:
                 with os.fdopen(fd, "w", encoding="utf-8") as fh:
                     fh.write(json.dumps(updated, indent=2))
@@ -753,8 +780,7 @@ class JobStore:
                     os.unlink(tmp_path)
                 except OSError as cleanup_exc:
                     err(
-                        "job %s: failed to remove stale tempfile %s: %s"
-                        % (job_id, tmp_path, cleanup_exc)
+                        f"job {job_id}: failed to remove stale tempfile {tmp_path}: {cleanup_exc}"
                     )
                 raise
             return updated
@@ -784,7 +810,9 @@ class JobStore:
             # the detached process group alive after the record was frozen. Reap
             # that orphan ONCE, then clear the pgid and the crash-safe file so no
             # later pass re-probes: a recycled pgid must never be re-killed.
-            if record.get("state") == "cancelled" and _has_pgid_tracking(self, job_id, record):
+            if record.get("state") == "cancelled" and _has_pgid_tracking(
+                self, job_id, record
+            ):
                 _reap_cancelled_orphan(self, job_id, record)
             return record
         # Liveness via the worker's lifetime flock, not os.kill(worker_pid, 0):
@@ -951,13 +979,17 @@ def _envelope_type_errors(parsed):
     errors = []
     outcome = parsed.get("outcome")
     if outcome not in ENVELOPE_OUTCOMES:
-        errors.append("outcome must be one of %s, got %r" % (list(ENVELOPE_OUTCOMES), outcome))
+        errors.append(
+            f"outcome must be one of {list(ENVELOPE_OUTCOMES)}, got {outcome!r}"
+        )
     if not isinstance(parsed.get("attempted"), str):
         errors.append("attempted must be a string")
     for field in ENVELOPE_ARRAY_FIELDS:
         value = parsed.get(field)
-        if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
-            errors.append("%s must be an array of strings" % field)
+        if not isinstance(value, list) or not all(
+            isinstance(item, str) for item in value
+        ):
+            errors.append(f"{field} must be an array of strings")
     model = parsed.get("model")
     if model is not None and not isinstance(model, str):
         errors.append("model must be a string or null")
@@ -970,7 +1002,11 @@ def _failure_envelope(backend_id, model, error, parsed=None, raw_output=""):
 
     def _safe_list(field):
         value = parsed.get(field)
-        return value if isinstance(value, list) and all(isinstance(v, str) for v in value) else []
+        return (
+            value
+            if isinstance(value, list) and all(isinstance(v, str) for v in value)
+            else []
+        )
 
     attempted = parsed.get("attempted")
     return {
@@ -997,14 +1033,18 @@ def normalize_envelope(raw_output, backend_id, model):
     """
     parsed = _extract_last_json_block(raw_output)
     if parsed is None:
-        return _failure_envelope(backend_id, model, "backend returned nothing usable", raw_output=raw_output)
+        return _failure_envelope(
+            backend_id, model, "backend returned nothing usable", raw_output=raw_output
+        )
 
     missing = [f for f in REQUIRED_ENVELOPE_FIELDS if f not in parsed]
     if missing:
         return _failure_envelope(
             backend_id,
             model,
-            "backend envelope invalid: missing required fields: %s" % ", ".join(missing),
+            "backend envelope invalid: missing required fields: {}".format(
+                ", ".join(missing)
+            ),
             parsed=parsed,
             raw_output=raw_output,
         )
@@ -1014,7 +1054,7 @@ def normalize_envelope(raw_output, backend_id, model):
         return _failure_envelope(
             backend_id,
             model,
-            "backend envelope invalid: %s" % "; ".join(type_errors),
+            "backend envelope invalid: {}".format("; ".join(type_errors)),
             parsed=parsed,
             raw_output=raw_output,
         )
@@ -1090,18 +1130,28 @@ def resolve_budget(entry, user_config, budget_arg):
 def build_invoke_argv(entry, write, model_tier, mapping):
     argv = list(entry.get("invoke") or [])
     sandbox = entry.get("sandbox") or {}
-    argv += list((sandbox.get("write_args") if write else sandbox.get("read_only_args")) or [])
+    argv += list(
+        (sandbox.get("write_args") if write else sandbox.get("read_only_args")) or []
+    )
     if model_tier:
-        argv += [tok.replace("{model}", model_tier) for tok in (entry.get("model_args") or [])]
+        argv += [
+            tok.replace("{model}", model_tier)
+            for tok in (entry.get("model_args") or [])
+        ]
     return _substitute_argv(argv, mapping)
 
 
 def build_resume_argv(entry, session_ref, write, model_tier, mapping):
     argv = list(entry.get("resume") or [])
     sandbox = entry.get("sandbox") or {}
-    argv += list((sandbox.get("write_args") if write else sandbox.get("read_only_args")) or [])
+    argv += list(
+        (sandbox.get("write_args") if write else sandbox.get("read_only_args")) or []
+    )
     if model_tier:
-        argv += [tok.replace("{model}", model_tier) for tok in (entry.get("model_args") or [])]
+        argv += [
+            tok.replace("{model}", model_tier)
+            for tok in (entry.get("model_args") or [])
+        ]
     full_mapping = dict(mapping)
     full_mapping["session_ref"] = session_ref
     return _substitute_argv(argv, full_mapping)
@@ -1147,10 +1197,16 @@ def check_payload_limits(entry, payload_bytes):
     input_cfg = entry.get("input") or {}
     max_payload = input_cfg.get("max_payload_bytes")
     if max_payload is not None and len(payload_bytes) > max_payload:
-        return "prompt exceeds input.max_payload_bytes (%d > %d)" % (len(payload_bytes), max_payload)
+        return (
+            f"prompt exceeds input.max_payload_bytes "
+            f"({len(payload_bytes)} > {max_payload})"
+        )
     max_context = input_cfg.get("max_context_bytes")
     if max_context is not None and len(payload_bytes) > max_context:
-        return "prompt exceeds input.max_context_bytes (%d > %d)" % (len(payload_bytes), max_context)
+        return (
+            f"prompt exceeds input.max_context_bytes "
+            f"({len(payload_bytes)} > {max_context})"
+        )
     return None
 
 
@@ -1160,12 +1216,15 @@ def _read_prompt(args):
     prompt_file = getattr(args, "prompt_file", None)
     if prompt_file:
         if os.path.isdir(prompt_file):
-            return None, "delegate: cannot read --prompt-file %s: is a directory" % prompt_file
+            return (
+                None,
+                f"delegate: cannot read --prompt-file {prompt_file}: is a directory",
+            )
         try:
-            with open(prompt_file, "r", encoding="utf-8") as fh:
+            with open(prompt_file, encoding="utf-8") as fh:
                 return fh.read(), None
         except (OSError, UnicodeDecodeError) as exc:
-            return None, "delegate: cannot read --prompt-file %s: %s" % (prompt_file, exc)
+            return None, f"delegate: cannot read --prompt-file {prompt_file}: {exc}"
     if args.prompt in (None, "-"):
         return sys.stdin.read(), None
     return args.prompt, None
@@ -1176,10 +1235,10 @@ def _executable_missing(argv):
         return "empty invoke command"
     exe = argv[0]
     if os.path.dirname(exe):
-        return None if os.access(exe, os.X_OK) else "not executable: %s" % exe
+        return None if os.access(exe, os.X_OK) else f"not executable: {exe}"
     from shutil import which
 
-    return None if which(exe) else "not found on PATH: %s" % exe
+    return None if which(exe) else f"not found on PATH: {exe}"
 
 
 BACKEND_PGID_FILENAME = "backend.pgid"
@@ -1196,7 +1255,9 @@ def _acquire_worker_lifetime_lock(job_dir):
     the whole process lifetime. Because the kernel releases an flock only when
     the holding process exits, the lock's held-ness is a pid-reuse-proof liveness
     signal — unlike os.kill(pid, 0), which a recycled pid would answer for."""
-    fd = os.open(os.path.join(job_dir, WORKER_LOCK_FILENAME), os.O_CREAT | os.O_RDWR, 0o600)
+    fd = os.open(
+        os.path.join(job_dir, WORKER_LOCK_FILENAME), os.O_CREAT | os.O_RDWR, 0o600
+    )
     fcntl.flock(fd, fcntl.LOCK_EX)
     _WORKER_LOCK_FDS.append(fd)
 
@@ -1267,7 +1328,7 @@ def _read_pgid_file(job_dir):
     """Crash-safe fallback: the backend pgid the child wrote in preexec, or None.
     Used by cancel/reap when the worker died before persisting pgid to the record."""
     try:
-        with open(os.path.join(job_dir, BACKEND_PGID_FILENAME), "r", encoding="utf-8") as fh:
+        with open(os.path.join(job_dir, BACKEND_PGID_FILENAME), encoding="utf-8") as fh:
             return int(fh.read().strip())
     except (OSError, ValueError):
         return None
@@ -1302,7 +1363,9 @@ class _BoundedTail:
             return bytes(self._buf)
 
 
-SESSION_CAPTURE_HEAD_BYTES = 262_144  # 256 KiB head retained for early session-id events
+SESSION_CAPTURE_HEAD_BYTES = (
+    262_144  # 256 KiB head retained for early session-id events
+)
 
 
 class _BoundedHead:
@@ -1349,7 +1412,10 @@ def _feed_stdin(stdin, payload):
     try:
         stdin.write(payload)
         stdin.close()
-    except (BrokenPipeError, OSError):  # constitution: exempt C-ERR — backend closed stdin early; captured output is authoritative
+    except (
+        BrokenPipeError,
+        OSError,
+    ):  # constitution: exempt C-ERR — backend closed stdin early; captured output is authoritative
         pass
 
 
@@ -1362,7 +1428,7 @@ def _read_file_tail(path, cap):
                 fh.seek(size - cap)
             return fh.read().decode("utf-8", errors="replace")
     except OSError as exc:
-        err("job dir: failed to read output tail %s: %s" % (path, exc))
+        err(f"job dir: failed to read output tail {path}: {exc}")
         return ""
 
 
@@ -1376,12 +1442,18 @@ def _launch_backend(argv, transport, job_dir):
     # flock lives on the description, shared across fork), so backend.lock is held
     # continuously from the instant Popen returns until the backend exits. The
     # parent then closes its copy; the child keeps the description (and the lock).
-    lock_fd = os.open(os.path.join(job_dir, BACKEND_LOCK_FILENAME), os.O_CREAT | os.O_RDWR, 0o600)
+    lock_fd = os.open(
+        os.path.join(job_dir, BACKEND_LOCK_FILENAME), os.O_CREAT | os.O_RDWR, 0o600
+    )
     fcntl.flock(lock_fd, fcntl.LOCK_EX)
     try:
         proc = subprocess.Popen(
-            argv, stdin=stdin_arg, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-            preexec_fn=_backend_preexec(job_dir), pass_fds=(lock_fd,),
+            argv,
+            stdin=stdin_arg,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            preexec_fn=_backend_preexec(job_dir),
+            pass_fds=(lock_fd,),
         )
     finally:
         os.close(lock_fd)  # child holds the locked description; parent's copy is done
@@ -1394,7 +1466,7 @@ def _launch_backend(argv, transport, job_dir):
 def _spawn_backend(entry, argv, prompt_bytes, job_dir, budget, on_pgid=None):
     stdout_path = os.path.join(job_dir, "output.txt")
     with open(os.path.join(job_dir, "job.log"), "a", encoding="utf-8") as log_fh:
-        log_fh.write("invoke: %s\n" % " ".join(argv))
+        log_fh.write("invoke: {}\n".format(" ".join(argv)))
     transport = (entry.get("input") or {}).get("transport", "stdin")
     proc, pgid = _launch_backend(argv, transport, job_dir)
     if on_pgid:
@@ -1405,13 +1477,17 @@ def _spawn_backend(entry, argv, prompt_bytes, job_dir, budget, on_pgid=None):
     # budget independently of output volume.
     tail = _BoundedTail(MAX_CAPTURED_OUTPUT_BYTES)
     head = _BoundedHead(SESSION_CAPTURE_HEAD_BYTES)
-    reader = threading.Thread(target=_drain_into, args=(proc.stdout, (head, tail)), daemon=True)
+    reader = threading.Thread(
+        target=_drain_into, args=(proc.stdout, (head, tail)), daemon=True
+    )
     reader.start()
     if transport == "stdin":
         # Feed stdin from its own thread: a backend that never drains stdin must
         # not deadlock our write on a full pipe (the reader is draining stdout
         # concurrently, and the timeout below still bounds the whole run).
-        writer = threading.Thread(target=_feed_stdin, args=(proc.stdin, prompt_bytes), daemon=True)
+        writer = threading.Thread(
+            target=_feed_stdin, args=(proc.stdin, prompt_bytes), daemon=True
+        )
         writer.start()
     timed_out = False
     try:
@@ -1421,7 +1497,7 @@ def _spawn_backend(entry, argv, prompt_bytes, job_dir, budget, on_pgid=None):
         try:
             os.killpg(pgid, signal.SIGKILL)
         except OSError as exc:
-            err("job dir %s: failed to kill timed-out pgid %s: %s" % (job_dir, pgid, exc))
+            err(f"job dir {job_dir}: failed to kill timed-out pgid {pgid}: {exc}")
         proc.wait()
     reader.join(DRAIN_GRACE_SECONDS)
     if reader.is_alive():
@@ -1433,12 +1509,17 @@ def _spawn_backend(entry, argv, prompt_bytes, job_dir, budget, on_pgid=None):
         # the block, are already in the tail. Mark the run timed out (incomplete).
         timed_out = True
     raw = tail.value().decode("utf-8", errors="replace")
-    output_file_content = _read_file_tail(stdout_path, MAX_CAPTURED_OUTPUT_BYTES) if os.path.isfile(stdout_path) else ""
+    output_file_content = (
+        _read_file_tail(stdout_path, MAX_CAPTURED_OUTPUT_BYTES)
+        if os.path.isfile(stdout_path)
+        else ""
+    )
     combined = (output_file_content + "\n" + raw) if output_file_content else raw
     # Session ref may scroll out of the 1 MiB tail on large runs, so prefer the
     # retained head (early events) and fall back to the tail.
-    session_ref = extract_session_ref(entry, head.value().decode("utf-8", errors="replace")) \
-        or extract_session_ref(entry, combined)
+    session_ref = extract_session_ref(
+        entry, head.value().decode("utf-8", errors="replace")
+    ) or extract_session_ref(entry, combined)
     return proc.returncode, combined, pgid, timed_out, session_ref
 
 
@@ -1451,7 +1532,7 @@ def _kill_pgid(store, job_id, pgid):
         return True
     except OSError as exc:
         # pgid may have exited between a liveness check and this call.
-        err("job %s: failed to kill pgid %s: %s" % (job_id, pgid, exc))
+        err(f"job {job_id}: failed to kill pgid {pgid}: {exc}")
         return False
 
 
@@ -1472,14 +1553,15 @@ def _clear_pgid_tracking(store, job_id):
     the FINAL act of every site that kills a backend because the job went
     cancelled, so no later reap/status/list call can re-derive a stale pgid and
     SIGKILL a process group the kernel has since recycled."""
+
     def _clear(rec):
         return dict(rec, pgid=None)
+
     _clear.allow_terminal_reentry = True
     store.mutate(job_id, _clear)
-    try:
+    # constitution: exempt C-ERR — absent file is the expected steady state; nothing to recover
+    with contextlib.suppress(OSError):
         os.remove(os.path.join(store.job_dir(job_id), BACKEND_PGID_FILENAME))
-    except OSError:  # constitution: exempt C-ERR — absent file is the expected steady state; nothing to recover
-        pass
 
 
 def _reap_cancelled_orphan(store, job_id, record):
@@ -1496,8 +1578,10 @@ def _make_pgid_persister(store, job_id):
     """Return an on_pgid callback that records the backend's process group even
     after the job goes terminal (recording a pgid is bookkeeping, not a
     lifecycle transition), then kills the group if cancel already won the race."""
+
     def _record(rec):
         return dict(rec, pgid=_record.pgid_val)
+
     _record.allow_terminal_reentry = True
 
     def _persist(pgid_val):
@@ -1510,6 +1594,7 @@ def _make_pgid_persister(store, job_id):
             # stale for a later reap to re-probe.
             _kill_pgid(store, job_id, pgid_val)
             _clear_pgid_tracking(store, job_id)
+
     return _persist
 
 
@@ -1518,21 +1603,31 @@ def _run_backend_and_finish(store, job_id, entry, record, prompt_bytes):
     mapping = {"output_file": os.path.join(job_dir, "output.txt")}
     resume_from = record.get("resume_from_session_ref")
     if resume_from and entry.get("resume"):
-        argv = build_resume_argv(entry, resume_from, record.get("write", False), record.get("model"), mapping)
+        argv = build_resume_argv(
+            entry, resume_from, record.get("write", False), record.get("model"), mapping
+        )
     else:
-        argv = build_invoke_argv(entry, record.get("write", False), record.get("model"), mapping)
+        argv = build_invoke_argv(
+            entry, record.get("write", False), record.get("model"), mapping
+        )
     budget = record.get("budget_seconds", DEFAULT_BUDGET_SECONDS)
 
     returncode, raw_output, pgid, timed_out, session_ref = _spawn_backend(
-        entry, argv, prompt_bytes, job_dir, budget, on_pgid=_make_pgid_persister(store, job_id)
+        entry,
+        argv,
+        prompt_bytes,
+        job_dir,
+        budget,
+        on_pgid=_make_pgid_persister(store, job_id),
     )
     _write_0600(os.path.join(job_dir, "output.txt"), raw_output)
     envelope = normalize_envelope(raw_output, entry["id"], record.get("model"))
     if session_ref is None and entry.get("resume"):
         err(
-            "backend %r produced no capturable session id this run "
-            "(session_id_capture found nothing); a follow-up will start fresh"
-            % entry["id"]
+            "backend {!r} produced no capturable session id this run "
+            "(session_id_capture found nothing); a follow-up will start fresh".format(
+                entry["id"]
+            )
         )
     if timed_out:
         final_state = "timeout"
@@ -1559,7 +1654,9 @@ def _spawn_worker(store, job_id):
     script = os.path.abspath(__file__)
     proc = subprocess.Popen(
         [sys.executable, script, "_worker", job_id, store.workspace_dir],
-        stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
         start_new_session=True,
     )
     store.mutate(job_id, lambda rec: dict(rec, worker_pid=proc.pid))
@@ -1577,7 +1674,9 @@ def _run_backend_foreground(store, job_id, entry, record, prompt_bytes):
     # `foreground=True` marks worker_pid as THIS interactive CLI process, so
     # cancel/terminate kills only the backend group and never SIGKILLs the CLI
     # the user is running (a background worker_pid, by contrast, is killable).
-    owned = store.mutate(job_id, lambda rec: dict(rec, worker_pid=os.getpid(), foreground=True))
+    owned = store.mutate(
+        job_id, lambda rec: dict(rec, worker_pid=os.getpid(), foreground=True)
+    )
     _acquire_worker_lifetime_lock(store.job_dir(job_id))
     return _run_backend_and_finish(store, job_id, entry, owned, prompt_bytes)
 
@@ -1592,17 +1691,26 @@ def cmd_worker(job_id, workspace_dir):
     backends = load_registry_or_exit(_registry_path_override())
     entry = resolve_backend(backends, record["backend"])
     if entry is None:
-        store.mutate(job_id, lambda rec: dict(rec, state="failed", error="backend no longer in registry"))
+        store.mutate(
+            job_id,
+            lambda rec: dict(
+                rec, state="failed", error="backend no longer in registry"
+            ),
+        )
         return 1
     job_dir = store.job_dir(job_id)
     # Hold the lifetime lock before the claim so any cancel/reap that observes
     # this worker's pid can verify it is really us (not a recycled pid).
     _acquire_worker_lifetime_lock(job_dir)
-    with open(os.path.join(job_dir, "prompt.txt"), "r", encoding="utf-8") as fh:
+    with open(os.path.join(job_dir, "prompt.txt"), encoding="utf-8") as fh:
         prompt_bytes = fh.read().encode("utf-8")
     claimed = store.mutate(
         job_id,
-        lambda rec: dict(rec, state="running") if rec.get("state") not in TERMINAL_STATES else None,
+        lambda rec: (
+            dict(rec, state="running")
+            if rec.get("state") not in TERMINAL_STATES
+            else None
+        ),
     )
     if claimed.get("state") != "running":
         # Claim lost the race (job already cancelled/terminal): do not start
@@ -1620,8 +1728,8 @@ def _resolve_job_id(store, prefix):
     if len(matches) == 1:
         return matches[0], None
     if not matches:
-        return None, "no job matches %r" % prefix
-    return None, "ambiguous job id %r matches: %s" % (prefix, ", ".join(matches))
+        return None, f"no job matches {prefix!r}"
+    return None, "ambiguous job id {!r} matches: {}".format(prefix, ", ".join(matches))
 
 
 def _resolve_sole_active(store):
@@ -1637,7 +1745,7 @@ def _resolve_sole_active(store):
         return active[0], None
     if not active:
         return None, "no active job"
-    return None, "ambiguous: multiple active jobs: %s" % ", ".join(sorted(active))
+    return None, "ambiguous: multiple active jobs: {}".format(", ".join(sorted(active)))
 
 
 def _find_last_job_for_backend(store, backend_id):
@@ -1664,7 +1772,7 @@ def _resolve_task_resume(store, args, backends, user_config):
         try:
             return store.read(job_id), None
         except (OSError, ValueError) as exc:
-            return None, "delegate: cannot read job %r: %s" % (args.resume, exc)
+            return None, f"delegate: cannot read job {args.resume!r}: {exc}"
     if getattr(args, "resume_last", False):
         if args.backend:
             probe = resolve_backend(backends, args.backend)
@@ -1673,7 +1781,7 @@ def _resolve_task_resume(store, args, backends, user_config):
             probe_id = user_config.get("default_backend") or "codex"
         resume_record = _find_last_job_for_backend(store, probe_id)
         if resume_record is None:
-            return None, "delegate: no resumable job found for backend %r" % probe_id
+            return None, f"delegate: no resumable job found for backend {probe_id!r}"
         return resume_record, None
     return None, None
 
@@ -1686,11 +1794,11 @@ def _resolve_task_second_opinion(store, args):
         return None, "delegate: --second-opinion requires --of <job-id>"
     of_id, of_error = _resolve_job_id(store, args.of)
     if of_error:
-        return None, "delegate: %s" % of_error
+        return None, f"delegate: {of_error}"
     try:
         return store.read(of_id), None
     except (OSError, ValueError) as exc:
-        return None, "delegate: cannot read job %r: %s" % (args.of, exc)
+        return None, f"delegate: cannot read job {args.of!r}: {exc}"
 
 
 def _resolve_task_backend_entry(args, backends, user_config, resume_record):
@@ -1701,8 +1809,7 @@ def _resolve_task_backend_entry(args, backends, user_config, resume_record):
             explicit = resolve_backend(backends, args.backend)
             if explicit is None or explicit["id"] != backend_name:
                 return None, (
-                    "delegate: --backend %r does not match resumed job's backend %r"
-                    % (args.backend, backend_name)
+                    f"delegate: --backend {args.backend!r} does not match resumed job's backend {backend_name!r}"
                 )
     else:
         backend_name = args.backend or user_config.get("default_backend") or "codex"
@@ -1710,13 +1817,18 @@ def _resolve_task_backend_entry(args, backends, user_config, resume_record):
     entry = resolve_backend(backends, backend_name)
     if entry is None:
         known = ", ".join(sorted(b["id"] for b in backends))
-        return None, "delegate: unknown backend %r (known: %s)" % (backend_name, known)
+        return None, f"delegate: unknown backend {backend_name!r} (known: {known})"
     return entry, None
 
 
-def _warn_if_second_opinion_same_backend(second_opinion_record, entry, backends, user_config, services_disabled):
+def _warn_if_second_opinion_same_backend(
+    second_opinion_record, entry, backends, user_config, services_disabled
+):
     """Print a warning if the second-opinion backend matches the original job's backend."""
-    if second_opinion_record is None or second_opinion_record.get("backend") != entry["id"]:
+    if (
+        second_opinion_record is None
+        or second_opinion_record.get("backend") != entry["id"]
+    ):
         return
     ready_alternatives = []
     for other in backends:
@@ -1729,27 +1841,34 @@ def _warn_if_second_opinion_same_backend(second_opinion_record, entry, backends,
         if row.get("state") == "ready":
             ready_alternatives.append(other["id"])
     print(
-        "delegate: warning: second opinion backend %r is the same as the original job's backend"
-        " (ready alternatives: %s)"
-        % (entry["id"], ", ".join(sorted(ready_alternatives)) or "none"),
+        "delegate: warning: second opinion backend {!r} is the same as the original job's backend"
+        " (ready alternatives: {})".format(
+            entry["id"], ", ".join(sorted(ready_alternatives)) or "none"
+        ),
         file=sys.stderr,
     )
 
 
 def _check_task_backend_ready(entry, user_config, services_disabled, model_tier):
     """Check backend is enabled and its executable is available. Returns (error_message, exit_code)."""
-    enabled, layer = effective_backend_enabled(entry["id"], user_config, services_disabled)
+    enabled, layer = effective_backend_enabled(
+        entry["id"], user_config, services_disabled
+    )
     if not enabled:
         return (
-            "delegate: backend %r disabled by %s config; run `delegate.py setup` for alternatives"
-            % (entry["id"], layer),
+            "delegate: backend {!r} disabled by {} config; run `delegate.py setup` for alternatives".format(
+                entry["id"], layer
+            ),
             3,
         )
-    unavailable = _executable_missing(build_invoke_argv(entry, False, model_tier, {"output_file": "/dev/null"}))
+    unavailable = _executable_missing(
+        build_invoke_argv(entry, False, model_tier, {"output_file": "/dev/null"})
+    )
     if unavailable:
         return (
-            "delegate: backend %r unavailable (%s); run `delegate.py setup` to check remediation and alternatives"
-            % (entry["id"], unavailable),
+            "delegate: backend {!r} unavailable ({}); run `delegate.py setup` to check remediation and alternatives".format(
+                entry["id"], unavailable
+            ),
             3,
         )
     return None, None
@@ -1771,13 +1890,14 @@ def _build_task_prompt(args, second_opinion_record):
             return None, False, prompt_error
     if second_opinion_record is None:
         return prompt, bool(args.write), None
-    so_prompt = second_opinion_record.get("prompt_summary") or second_opinion_record.get("job_id")
+    so_prompt = second_opinion_record.get(
+        "prompt_summary"
+    ) or second_opinion_record.get("job_id")
     so_envelope = second_opinion_record.get("envelope") or {}
     prompt = (
-        "Second opinion requested on job %s (backend=%s).\n"
-        "Original task: %s\n"
-        "Prior findings: %s\n\n%s"
-        % (
+        "Second opinion requested on job {} (backend={}).\n"
+        "Original task: {}\n"
+        "Prior findings: {}\n\n{}".format(
             second_opinion_record["job_id"],
             second_opinion_record.get("backend"),
             so_prompt,
@@ -1788,7 +1908,9 @@ def _build_task_prompt(args, second_opinion_record):
     return prompt, False, None
 
 
-def _build_task_extra(args, entry, resume_record, second_opinion_record, model_tier, budget, write):
+def _build_task_extra(
+    args, entry, resume_record, second_opinion_record, model_tier, budget, write
+):
     """Assemble the job-record `extra` dict for cmd_task, warning on unsupported resume."""
     resume_from_session_ref = None
     if resume_record is not None and not getattr(args, "fresh", False):
@@ -1796,7 +1918,9 @@ def _build_task_extra(args, entry, resume_record, second_opinion_record, model_t
             resume_from_session_ref = resume_record.get("session_ref")
         else:
             print(
-                "delegate: backend %r does not support resume; sending context fresh" % entry["id"],
+                "delegate: backend {!r} does not support resume; sending context fresh".format(
+                    entry["id"]
+                ),
                 file=sys.stderr,
             )
     extra = {
@@ -1823,32 +1947,47 @@ def _dispatch_task(store, args, entry, model_tier, extra, prompt, prompt_bytes):
     job_dir = store.job_dir(record["job_id"])
     _write_0600(os.path.join(job_dir, "prompt.txt"), prompt)
 
-    print("delegate: dispatching to backend %r (model=%s)" % (entry["id"], model_tier), file=sys.stderr)
+    print(
+        "delegate: dispatching to backend {!r} (model={})".format(
+            entry["id"], model_tier
+        ),
+        file=sys.stderr,
+    )
 
     if args.background:
         _spawn_worker(store, record["job_id"])
         if args.json:
-            print(json.dumps({"job_id": record["job_id"], "backend": entry["id"], "state": "queued"}))
+            print(
+                json.dumps(
+                    {
+                        "job_id": record["job_id"],
+                        "backend": entry["id"],
+                        "state": "queued",
+                    }
+                )
+            )
         else:
-            print("job_id: %s" % record["job_id"])
-            print("check: delegate.py status %s" % record["job_id"])
+            print("job_id: {}".format(record["job_id"]))
+            print("check: delegate.py status {}".format(record["job_id"]))
         return 0
 
     store.mutate(record["job_id"], lambda rec: dict(rec, state="running"))
-    final = _run_backend_foreground(store, record["job_id"], entry, record, prompt_bytes)
+    final = _run_backend_foreground(
+        store, record["job_id"], entry, record, prompt_bytes
+    )
     envelope = final.get("envelope") or {}
     envelope.setdefault("job_id", record["job_id"])
 
     if args.json:
         print(json.dumps(envelope))
     else:
-        print("job_id: %s" % record["job_id"])
-        print("backend: %s" % entry["id"])
+        print("job_id: {}".format(record["job_id"]))
+        print("backend: {}".format(entry["id"]))
         if extra.get("second_opinion_of"):
-            print("second_opinion_of: %s" % extra["second_opinion_of"])
-        print("outcome: %s" % envelope.get("outcome"))
+            print("second_opinion_of: {}".format(extra["second_opinion_of"]))
+        print("outcome: {}".format(envelope.get("outcome")))
         if envelope.get("error"):
-            print("error: %s" % envelope["error"])
+            print("error: {}".format(envelope["error"]))
 
     if final.get("state") == "timeout":
         return 1
@@ -1857,7 +1996,9 @@ def _dispatch_task(store, args, entry, model_tier, extra, prompt, prompt_bytes):
 
 def cmd_task(args, backends, user_config, services_disabled):
     store = JobStore()
-    resume_record, resume_error = _resolve_task_resume(store, args, backends, user_config)
+    resume_record, resume_error = _resolve_task_resume(
+        store, args, backends, user_config
+    )
     if resume_error:
         print(resume_error, file=sys.stderr)
         return 2
@@ -1867,15 +2008,21 @@ def cmd_task(args, backends, user_config, services_disabled):
         print(so_error, file=sys.stderr)
         return 2
 
-    entry, backend_error = _resolve_task_backend_entry(args, backends, user_config, resume_record)
+    entry, backend_error = _resolve_task_backend_entry(
+        args, backends, user_config, resume_record
+    )
     if backend_error:
         print(backend_error, file=sys.stderr)
         return 2
 
-    _warn_if_second_opinion_same_backend(second_opinion_record, entry, backends, user_config, services_disabled)
+    _warn_if_second_opinion_same_backend(
+        second_opinion_record, entry, backends, user_config, services_disabled
+    )
 
     model_tier = resolve_model_tier(entry, user_config, args.model)
-    ready_error, ready_code = _check_task_backend_ready(entry, user_config, services_disabled, model_tier)
+    ready_error, ready_code = _check_task_backend_ready(
+        entry, user_config, services_disabled, model_tier
+    )
     if ready_error:
         print(ready_error, file=sys.stderr)
         return ready_code
@@ -1887,11 +2034,13 @@ def cmd_task(args, backends, user_config, services_disabled):
     prompt_bytes = prompt.encode("utf-8")
     limit_error = check_payload_limits(entry, prompt_bytes)
     if limit_error:
-        print("delegate: %s" % limit_error, file=sys.stderr)
+        print(f"delegate: {limit_error}", file=sys.stderr)
         return 2
 
     budget = resolve_budget(entry, user_config, args.budget)
-    extra = _build_task_extra(args, entry, resume_record, second_opinion_record, model_tier, budget, write)
+    extra = _build_task_extra(
+        args, entry, resume_record, second_opinion_record, model_tier, budget, write
+    )
     return _dispatch_task(store, args, entry, model_tier, extra, prompt, prompt_bytes)
 
 
@@ -1905,13 +2054,17 @@ class ReviewDiffError(Exception):
 def _run_git(args_list, cwd):
     """Run git, treating exit codes 0/1 as success (1 = "differs", not error)."""
     try:
-        proc = subprocess.run(["git"] + args_list, capture_output=True, text=True, cwd=cwd)
+        proc = subprocess.run(
+            ["git", *args_list], capture_output=True, text=True, cwd=cwd
+        )
     except OSError as exc:
-        raise ReviewDiffError("git %s failed to launch: %s" % (" ".join(args_list), exc)) from exc
+        raise ReviewDiffError(
+            "git {} failed to launch: {}".format(" ".join(args_list), exc)
+        ) from exc
     if proc.returncode not in (0, 1):
         raise ReviewDiffError(
-            "git %s failed (exit %d): %s"
-            % (" ".join(args_list), proc.returncode, (proc.stderr or "").strip()[:300])
+            f"git {' '.join(args_list)} failed (exit {proc.returncode}): "
+            f"{(proc.stderr or '').strip()[:300]}"
         )
     return proc.stdout or ""
 
@@ -1921,16 +2074,18 @@ def _untracked_diff(cwd):
     listing = _run_git(["ls-files", "--others", "--exclude-standard"], cwd)
     parts = []
     for path in filter(None, listing.splitlines()):
-        numstat = _run_git(["diff", "--no-index", "--numstat", "--", "/dev/null", path], cwd)
+        numstat = _run_git(
+            ["diff", "--no-index", "--numstat", "--", "/dev/null", path], cwd
+        )
         if numstat.strip().startswith("-\t-\t"):
-            parts.append("Binary file %s (untracked)\n" % path)
+            parts.append(f"Binary file {path} (untracked)\n")
             continue
         parts.append(_run_git(["diff", "--no-index", "--", "/dev/null", path], cwd))
     return "".join(parts)
 
 
 def _scope_diff(diff_args, cwd):
-    return _run_git(["diff"] + diff_args, cwd) + _untracked_diff(cwd)
+    return _run_git(["diff", *diff_args], cwd) + _untracked_diff(cwd)
 
 
 def assemble_review_diff(scope, base, cwd=None):
@@ -1943,13 +2098,13 @@ def assemble_review_diff(scope, base, cwd=None):
         return _scope_diff(["HEAD"], cwd)
     if scope == "branch":
         ref = base or "HEAD~1"
-        return _scope_diff(["%s...HEAD" % ref], cwd)
+        return _scope_diff([f"{ref}...HEAD"], cwd)
     # auto: prefer working-tree changes; fall back to branch diff against base.
     diff = _scope_diff(["HEAD"], cwd)
     if diff.strip():
         return diff
     ref = base or "HEAD~1"
-    return _scope_diff(["%s...HEAD" % ref], cwd)
+    return _scope_diff([f"{ref}...HEAD"], cwd)
 
 
 def _build_review_prompt(args):
@@ -1959,9 +2114,11 @@ def _build_review_prompt(args):
         focus = " ".join(args.adversarial).strip()
         return (
             "Adversarial review: challenge the design of the following change.\n"
-            "Focus: %s\n\n%s" % (focus or "(none specified)", diff)
+            "Focus: {}\n\n{}".format(focus or "(none specified)", diff)
         )
-    return "Review the following change for correctness, safety, and quality.\n\n%s" % diff
+    return (
+        f"Review the following change for correctness, safety, and quality.\n\n{diff}"
+    )
 
 
 def _dispatch_review(store, args, entry, model_tier, budget, prompt, prompt_bytes):
@@ -1976,36 +2133,56 @@ def _dispatch_review(store, args, entry, model_tier, budget, prompt, prompt_byte
     job_dir = store.job_dir(record["job_id"])
     _write_0600(os.path.join(job_dir, "prompt.txt"), prompt)
 
-    print("delegate: dispatching review to backend %r (model=%s)" % (entry["id"], model_tier), file=sys.stderr)
+    print(
+        "delegate: dispatching review to backend {!r} (model={})".format(
+            entry["id"], model_tier
+        ),
+        file=sys.stderr,
+    )
 
     if args.background:
         _spawn_worker(store, record["job_id"])
         if args.json:
-            print(json.dumps({"job_id": record["job_id"], "backend": entry["id"], "state": "queued"}))
+            print(
+                json.dumps(
+                    {
+                        "job_id": record["job_id"],
+                        "backend": entry["id"],
+                        "state": "queued",
+                    }
+                )
+            )
         else:
-            print("job_id: %s" % record["job_id"])
-            print("check: delegate.py status %s" % record["job_id"])
+            print("job_id: {}".format(record["job_id"]))
+            print("check: delegate.py status {}".format(record["job_id"]))
         return 0
 
     store.mutate(record["job_id"], lambda rec: dict(rec, state="running"))
-    final = _run_backend_foreground(store, record["job_id"], entry, record, prompt_bytes)
+    final = _run_backend_foreground(
+        store, record["job_id"], entry, record, prompt_bytes
+    )
     envelope = final.get("envelope") or {}
 
     findings = envelope.get("findings")
     if isinstance(findings, list):
         envelope["findings"] = sorted(
-            findings, key=lambda f: _SEVERITY_RANK.get((f or {}).get("severity"), len(_SEVERITY_RANK))
+            findings,
+            key=lambda f: _SEVERITY_RANK.get(
+                (f or {}).get("severity"), len(_SEVERITY_RANK)
+            ),
         )
 
     if args.json:
         print(json.dumps(envelope))
     else:
-        print("backend: %s" % entry["id"])
-        print("outcome: %s" % envelope.get("outcome"))
+        print("backend: {}".format(entry["id"]))
+        print("outcome: {}".format(envelope.get("outcome")))
         for finding in envelope.get("findings") or []:
-            print("[%s] %s" % (finding.get("severity", "?"), finding.get("text", "")))
+            print(
+                "[{}] {}".format(finding.get("severity", "?"), finding.get("text", ""))
+            )
         if envelope.get("error"):
-            print("error: %s" % envelope["error"])
+            print("error: {}".format(envelope["error"]))
 
     if final.get("state") == "timeout":
         return 1
@@ -2018,11 +2195,16 @@ def cmd_review(args, backends, user_config, services_disabled):
     entry = resolve_backend(backends, backend_name)
     if entry is None:
         known = ", ".join(sorted(b["id"] for b in backends))
-        print("delegate: unknown backend %r (known: %s)" % (backend_name, known), file=sys.stderr)
+        print(
+            f"delegate: unknown backend {backend_name!r} (known: {known})",
+            file=sys.stderr,
+        )
         return 2
 
     model_tier = resolve_model_tier(entry, user_config, args.model)
-    ready_error, ready_code = _check_task_backend_ready(entry, user_config, services_disabled, model_tier)
+    ready_error, ready_code = _check_task_backend_ready(
+        entry, user_config, services_disabled, model_tier
+    )
     if ready_error:
         print(ready_error, file=sys.stderr)
         return ready_code
@@ -2031,11 +2213,13 @@ def cmd_review(args, backends, user_config, services_disabled):
     prompt_bytes = prompt.encode("utf-8")
     limit_error = check_payload_limits(entry, prompt_bytes)
     if limit_error:
-        print("delegate: %s" % limit_error, file=sys.stderr)
+        print(f"delegate: {limit_error}", file=sys.stderr)
         return 2
 
     budget = resolve_budget(entry, user_config, args.budget)
-    return _dispatch_review(store, args, entry, model_tier, budget, prompt, prompt_bytes)
+    return _dispatch_review(
+        store, args, entry, model_tier, budget, prompt, prompt_bytes
+    )
 
 
 def cmd_status(args):
@@ -2051,15 +2235,24 @@ def cmd_status(args):
             print(json.dumps(rows))
         else:
             for rec in rows:
-                print("%s  %s  %s  %s" % (rec["job_id"][:12], rec.get("kind", "task"), rec.get("backend"), rec.get("state")))
+                print(
+                    "{}  {}  {}  {}".format(
+                        rec["job_id"][:12],
+                        rec.get("kind", "task"),
+                        rec.get("backend"),
+                        rec.get("state"),
+                    )
+                )
         return 0
 
     resolved, error = _resolve_job_id(store, args.job_id)
     if error:
-        print("delegate: %s" % error, file=sys.stderr)
+        print(f"delegate: {error}", file=sys.stderr)
         return 2
 
-    deadline = time.time() + (args.timeout or DEFAULT_BUDGET_SECONDS) if args.wait else None
+    deadline = (
+        time.time() + (args.timeout or DEFAULT_BUDGET_SECONDS) if args.wait else None
+    )
     record = store.reap_if_dead(resolved)
     while args.wait and record.get("state") not in TERMINAL_STATES:
         if deadline and time.time() >= deadline:
@@ -2070,9 +2263,9 @@ def cmd_status(args):
     if args.json:
         print(json.dumps(record))
     else:
-        print("job_id: %s" % record["job_id"])
-        print("backend: %s" % record.get("backend"))
-        print("state: %s" % record.get("state"))
+        print("job_id: {}".format(record["job_id"]))
+        print("backend: {}".format(record.get("backend")))
+        print("state: {}".format(record.get("state")))
     return 0
 
 
@@ -2083,26 +2276,32 @@ def cmd_result(args):
         return 2
     resolved, error = _resolve_job_id(store, args.job_id)
     if error:
-        print("delegate: %s" % error, file=sys.stderr)
+        print(f"delegate: {error}", file=sys.stderr)
         return 2
 
     record = store.reap_if_dead(resolved)
     if record.get("state") not in TERMINAL_STATES:
-        print("delegate: still running; delegate.py status %s --wait" % resolved, file=sys.stderr)
+        print(
+            f"delegate: still running; delegate.py status {resolved} --wait",
+            file=sys.stderr,
+        )
         return 1
 
     job_dir = store.job_dir(resolved)
     output_path = os.path.join(job_dir, "output.txt")
-    envelope = record.get("envelope") or {"outcome": "failure", "error": record.get("error", "no envelope recorded")}
+    envelope = record.get("envelope") or {
+        "outcome": "failure",
+        "error": record.get("error", "no envelope recorded"),
+    }
     if args.json:
         payload = dict(envelope)
         payload["raw_output_path"] = output_path
         print(json.dumps(payload))
     else:
-        print("outcome: %s" % envelope.get("outcome"))
+        print("outcome: {}".format(envelope.get("outcome")))
         if envelope.get("error"):
-            print("error: %s" % envelope["error"])
-        print("raw_output_path: %s" % output_path)
+            print("error: {}".format(envelope["error"]))
+        print(f"raw_output_path: {output_path}")
     return 0
 
 
@@ -2131,7 +2330,11 @@ def _terminate_job_processes(store, job_id, record):
         try:
             os.kill(record["worker_pid"], signal.SIGKILL)
         except OSError as exc:
-            err("job %s: failed to kill worker pid %s: %s" % (job_id, record["worker_pid"], exc))
+            err(
+                "job {}: failed to kill worker pid {}: {}".format(
+                    job_id, record["worker_pid"], exc
+                )
+            )
     return killed
 
 
@@ -2160,7 +2363,7 @@ def cmd_cancel(args):
     else:
         resolved, error = _resolve_sole_active(store)
     if error:
-        print("delegate: %s" % error, file=sys.stderr)
+        print(f"delegate: {error}", file=sys.stderr)
         return 2
 
     record = store.read(resolved)
@@ -2168,8 +2371,8 @@ def cmd_cancel(args):
         if args.json:
             print(json.dumps(record))
         else:
-            print("job_id: %s" % resolved)
-            print("state: %s (already terminal, no-op)" % record.get("state"))
+            print(f"job_id: {resolved}")
+            print("state: {} (already terminal, no-op)".format(record.get("state")))
         return 0
 
     before_pgid = record.get("pgid")
@@ -2192,9 +2395,9 @@ def cmd_cancel(args):
         payload["was_alive"] = was_alive
         print(json.dumps(payload))
     else:
-        print("job_id: %s" % resolved)
-        print("state: %s" % record.get("state"))
-        print("process_was_alive: %s" % was_alive)
+        print(f"job_id: {resolved}")
+        print("state: {}".format(record.get("state")))
+        print(f"process_was_alive: {was_alive}")
     return 0
 
 
@@ -2205,7 +2408,7 @@ class ShortHelpParser(argparse.ArgumentParser):
 
     def error(self, message):
         self.print_usage(sys.stderr)
-        sys.stderr.write("%s: error: %s\n" % (self.prog, message))
+        sys.stderr.write(f"{self.prog}: error: {message}\n")
         sys.exit(2)
 
 
@@ -2226,8 +2429,8 @@ def _validate_transcript_source(path):
         if real == real_root or real.startswith(real_root + os.sep):
             return real, None
     return None, (
-        "source path %r does not resolve under an allowed transcript root "
-        "(%s)" % (path, " or ".join(TRANSCRIPT_ROOTS))
+        "source path {!r} does not resolve under an allowed transcript root "
+        "({})".format(path, " or ".join(TRANSCRIPT_ROOTS))
     )
 
 
@@ -2239,7 +2442,7 @@ def _app_server_import(entry, source_path):
     Returns (thread_id, None) or (None, error_message)."""
     invoke = entry.get("invoke") or []
     if not invoke:
-        return None, "backend %r has no invoke command configured" % entry["id"]
+        return None, "backend {!r} has no invoke command configured".format(entry["id"])
     exe = invoke[0]
     argv = [exe, "app-server"]
     request = {
@@ -2258,11 +2461,17 @@ def _app_server_import(entry, source_path):
             timeout=30,
         )
     except FileNotFoundError:
-        return None, "backend %r executable %r not found on PATH" % (entry["id"], exe)
+        return None, "backend {!r} executable {!r} not found on PATH".format(
+            entry["id"], exe
+        )
     except subprocess.TimeoutExpired:
-        return None, "app-server import for backend %r timed out after 30s" % entry["id"]
+        return None, "app-server import for backend {!r} timed out after 30s".format(
+            entry["id"]
+        )
     except OSError as exc:
-        return None, "app-server import for backend %r failed: %s" % (entry["id"], exc)
+        return None, "app-server import for backend {!r} failed: {}".format(
+            entry["id"], exc
+        )
 
     raw = proc.stdout.decode("utf-8", errors="replace") if proc.stdout else ""
     thread_id = None
@@ -2286,8 +2495,9 @@ def _app_server_import(entry, source_path):
 
     if not thread_id:
         return None, (
-            "app-server import for backend %r returned no thread id (output: %s)"
-            % (entry["id"], raw[:200])
+            "app-server import for backend {!r} returned no thread id (output: {})".format(
+                entry["id"], raw[:200]
+            )
         )
     return thread_id, None
 
@@ -2300,7 +2510,7 @@ def cmd_resume_candidate(args, backends, user_config):
     if entry is None:
         known = ", ".join(sorted(b["id"] for b in backends))
         sys.stderr.write(
-            "delegate: unknown backend %r (known: %s)\n" % (backend_name, known)
+            f"delegate: unknown backend {backend_name!r} (known: {known})\n"
         )
         return 2
 
@@ -2331,11 +2541,12 @@ def cmd_resume_candidate(args, backends, user_config):
         print(json.dumps(result))
     elif result["available"]:
         print(
-            "resumable job %s on backend %s (age %.0fs)"
-            % (result["job_id"], result["backend"], result["age"])
+            "resumable job {} on backend {} (age {:.0f}s)".format(
+                result["job_id"], result["backend"], result["age"]
+            )
         )
     else:
-        print("no resumable job found for backend %s" % entry["id"])
+        print("no resumable job found for backend {}".format(entry["id"]))
     return 0
 
 
@@ -2345,7 +2556,7 @@ def _resolve_transfer_entry(args, backends, user_config):
     entry = resolve_backend(backends, backend_name)
     if entry is None:
         known = ", ".join(sorted(b["id"] for b in backends))
-        return None, "delegate: unknown backend %r (known: %s)\n" % (backend_name, known)
+        return None, f"delegate: unknown backend {backend_name!r} (known: {known})\n"
     return entry, None
 
 
@@ -2361,7 +2572,7 @@ def _session_captured_transcript(cwd=None):
     recent transcript from an unrelated workspace. Never raises.
     """
     try:
-        with open(SESSIONS_CAPTURE_FILE, "r", encoding="utf-8") as fh:
+        with open(SESSIONS_CAPTURE_FILE, encoding="utf-8") as fh:
             sessions = json.load(fh)
     except (OSError, ValueError):
         return None
@@ -2389,11 +2600,11 @@ def _resolve_transfer_source(args):
     if not source:
         return None, (
             "delegate: --source required (no SessionStart-captured transcript "
-            "path found; set %s or pass --source)\n" % TRANSCRIPT_PATH_ENV
+            f"path found; set {TRANSCRIPT_PATH_ENV} or pass --source)\n"
         )
     real_source, path_error = _validate_transcript_source(source)
     if path_error:
-        return None, "delegate: %s\n" % path_error
+        return None, f"delegate: {path_error}\n"
     return real_source, None
 
 
@@ -2402,21 +2613,27 @@ def _check_transfer_method(entry, args):
     transfer_cfg = entry.get("transfer")
     if transfer_cfg is None:
         message = (
-            "backend %r does not support session import; run "
-            "`delegate.py task --backend %s` to re-send context fresh"
-            % (entry["id"], entry["id"])
+            "backend {!r} does not support session import; run "
+            "`delegate.py task --backend {}` to re-send context fresh".format(
+                entry["id"], entry["id"]
+            )
         )
         if args.json:
-            print(json.dumps({"backend": entry["id"], "supported": False, "message": message}))
+            print(
+                json.dumps(
+                    {"backend": entry["id"], "supported": False, "message": message}
+                )
+            )
         else:
-            print("delegate: %s" % message)
+            print(f"delegate: {message}")
         return 1
 
     method = transfer_cfg.get("method")
     if method != "app_server_import":
         sys.stderr.write(
-            "delegate: backend %r transfer method %r not recognized\n"
-            % (entry["id"], method)
+            "delegate: backend {!r} transfer method {!r} not recognized\n".format(
+                entry["id"], method
+            )
         )
         return 1
     return None
@@ -2436,9 +2653,9 @@ def _print_transfer_result(args, entry, thread_id, resume_cmd):
             )
         )
     else:
-        print("backend: %s" % entry["id"])
-        print("thread_id: %s" % thread_id)
-        print("resume: %s" % resume_cmd)
+        print("backend: {}".format(entry["id"]))
+        print(f"thread_id: {thread_id}")
+        print(f"resume: {resume_cmd}")
 
 
 def cmd_transfer(args, backends, user_config):
@@ -2459,11 +2676,11 @@ def cmd_transfer(args, backends, user_config):
         return method_exit
 
     if not args.json:
-        print("source: %s" % real_source)
+        print(f"source: {real_source}")
 
     thread_id, import_error = _app_server_import(entry, real_source)
     if import_error:
-        sys.stderr.write("delegate: %s\n" % import_error)
+        sys.stderr.write(f"delegate: {import_error}\n")
         return 1
 
     mapping = {"output_file": "<job-output-file>"}
@@ -2511,12 +2728,20 @@ def _init_readiness_row(backend_id):
 
 def _probe_enabled_state(entry, user_config, services_disabled):
     """Check backend enablement. Returns a state/fix pair, or (None, None) if enabled."""
-    enabled, layer = effective_backend_enabled(entry["id"], user_config, services_disabled)
+    enabled, layer = effective_backend_enabled(
+        entry["id"], user_config, services_disabled
+    )
     if enabled:
         return None, None
     if layer == "workspace services.yml":
-        return "disabled_workspace", "enable in ~/.claude/config/services.yml (workspace layer outranks user enable)"
-    return "disabled_user", "delegate.py setup with an enabled entry in delegation.json/.yml (%s)" % layer
+        return (
+            "disabled_workspace",
+            "enable in ~/.claude/config/services.yml (workspace layer outranks user enable)",
+        )
+    return (
+        "disabled_user",
+        f"delegate.py setup with an enabled entry in delegation.json/.yml ({layer})",
+    )
 
 
 def _probe_retired_state(readiness):
@@ -2535,14 +2760,20 @@ def _probe_version_and_auth(backend_id, readiness, row):
     rc, out = _run_readiness_probe(readiness.get("version_cmd"), timeout=10)
     if rc is None or rc != 0:
         row["state"] = "error" if rc == -1 else "not_installed"
-        row["fix"] = "version probe timed out" if rc == -1 else readiness.get("install_fix", "install %s" % backend_id)
+        row["fix"] = (
+            "version probe timed out"
+            if rc == -1
+            else readiness.get("install_fix", f"install {backend_id}")
+        )
         return
     row["version"] = out.splitlines()[0].strip() if out else None
 
-    auth_rc, auth_out = _run_readiness_probe(readiness.get("auth_probe_cmd"), timeout=10)
+    auth_rc, auth_out = _run_readiness_probe(
+        readiness.get("auth_probe_cmd"), timeout=10
+    )
     if auth_rc is None:
         row["state"] = "not_installed"
-        row["fix"] = readiness.get("install_fix", "install %s" % backend_id)
+        row["fix"] = readiness.get("install_fix", f"install {backend_id}")
     elif auth_rc == -1:
         row["state"] = "error"
         row["fix"] = "auth probe timed out"
@@ -2613,7 +2844,9 @@ def _cmd_setup_gate_toggle(args, user_config=None):
         changes["enabled"] = False
 
     current = (user_config or {}).get("review_gate", {})
-    budget = current.get("budget_seconds", FACTORY_DEFAULTS["review_gate"]["budget_seconds"])
+    budget = current.get(
+        "budget_seconds", FACTORY_DEFAULTS["review_gate"]["budget_seconds"]
+    )
     try:
         budget = int(budget)
     except (TypeError, ValueError):
@@ -2630,8 +2863,10 @@ def _cmd_setup_gate_toggle(args, user_config=None):
         print(json.dumps({"path": path, "review_gate": gate}))
     else:
         state = "enabled" if gate.get("enabled") else "disabled"
-        backend_note = " (backend: %s)" % gate["backend"] if gate.get("backend") else ""
-        print("review gate %s%s — written to %s" % (state, backend_note, path))
+        backend_note = (
+            " (backend: {})".format(gate["backend"]) if gate.get("backend") else ""
+        )
+        print(f"review gate {state}{backend_note} — written to {path}")
     return 0
 
 
@@ -2644,11 +2879,15 @@ def _gate_allow(reason=None, json_mode=False, cause=None):
     reported in --json mode; it defaults to `reason` when omitted.
     """
     if reason:
-        sys.stderr.write("delegate: review gate skipped: %s\n" % reason)
+        sys.stderr.write(f"delegate: review gate skipped: {reason}\n")
         if not json_mode:
-            print(json.dumps({"systemMessage": "review gate skipped: %s" % reason}))
+            print(json.dumps({"systemMessage": f"review gate skipped: {reason}"}))
     if json_mode:
-        print(json.dumps({"decision": "allow", "reason": cause or reason or "gate disabled"}))
+        print(
+            json.dumps(
+                {"decision": "allow", "reason": cause or reason or "gate disabled"}
+            )
+        )
     return 0
 
 
@@ -2657,14 +2896,16 @@ def _gate_resolve_backend(gate_cfg, backends, user_config, services_disabled):
     backend_id = gate_cfg.get("backend") or user_config.get("default_backend")
     entry = resolve_backend(backends, backend_id)
     if entry is None:
-        return None, "unknown gate backend %r" % backend_id
-    enabled, layer = effective_backend_enabled(entry["id"], user_config, services_disabled)
+        return None, f"unknown gate backend {backend_id!r}"
+    enabled, layer = effective_backend_enabled(
+        entry["id"], user_config, services_disabled
+    )
     if not enabled:
-        return None, "backend %s disabled at %s layer" % (entry["id"], layer)
+        return None, "backend {} disabled at {} layer".format(entry["id"], layer)
     argv_probe = build_invoke_argv(entry, write=False, model_tier=None, mapping={})
     missing = _executable_missing(argv_probe)
     if missing:
-        return None, "backend %s unavailable (%s)" % (entry["id"], missing)
+        return None, "backend {} unavailable ({})".format(entry["id"], missing)
     return entry, None
 
 
@@ -2699,7 +2940,7 @@ def _gate_build_prompt(entry):
     try:
         diff = assemble_review_diff("auto", None, cwd=None)
     except (OSError, ValueError, RuntimeError) as exc:
-        return None, None, "could not assemble review diff (%s)" % exc
+        return None, None, f"could not assemble review diff ({exc})"
     prompt = _GATE_PROMPT_INSTRUCTIONS + diff
     prompt_bytes = prompt.encode("utf-8")
     limit_error = check_payload_limits(entry, prompt_bytes)
@@ -2723,15 +2964,21 @@ def _gate_validate_findings(envelope):
     for item in findings:
         if not isinstance(item, dict):
             return None, "gate review returned malformed findings (non-object entry)"
-        if not isinstance(item.get("severity"), str) or not isinstance(item.get("text"), str):
+        if not isinstance(item.get("severity"), str) or not isinstance(
+            item.get("text"), str
+        ):
             return None, "gate review returned malformed findings (bad field types)"
     return findings, None
 
 
 def _gate_format_block(findings):
     """Format ranked findings into a Stop-hook block decision payload."""
-    ranked = sorted(findings, key=lambda f: _SEVERITY_RANK.get(f.get("severity", "info"), 5))
-    lines = ["%s: %s" % (f.get("severity", "info"), f.get("text", "")) for f in ranked]
+    ranked = sorted(
+        findings, key=lambda f: _SEVERITY_RANK.get(f.get("severity", "info"), 5)
+    )
+    lines = [
+        "{}: {}".format(f.get("severity", "info"), f.get("text", "")) for f in ranked
+    ]
     reason = (
         "Review gate found issues before this turn ends:\n- "
         + "\n- ".join(lines)
@@ -2760,14 +3007,16 @@ def cmd_gate(args, backends, user_config, services_disabled):
         edits_present = _finishing_turn_has_edits(args.transcript)
     except (OSError, ValueError) as exc:
         return _gate_allow(
-            "could not read transcript %s (%s)" % (args.transcript, exc),
+            f"could not read transcript {args.transcript} ({exc})",
             json_mode=json_mode,
             cause="backend unready",
         )
     if not edits_present:
         return _gate_allow(json_mode=json_mode, cause="no code edits")
 
-    entry, error_reason = _gate_resolve_backend(gate_cfg, backends, user_config, services_disabled)
+    entry, error_reason = _gate_resolve_backend(
+        gate_cfg, backends, user_config, services_disabled
+    )
     if error_reason:
         return _gate_allow(error_reason, json_mode=json_mode, cause="backend unready")
 
@@ -2779,7 +3028,9 @@ def cmd_gate(args, backends, user_config, services_disabled):
         resolve_budget(entry, user_config, gate_cfg.get("budget_seconds")),
         GATE_BUDGET_CAP_SECONDS,
     )
-    return _gate_execute(store, entry, prompt, prompt_bytes, budget, json_mode, args.transcript)
+    return _gate_execute(
+        store, entry, prompt, prompt_bytes, budget, json_mode, args.transcript
+    )
 
 
 def _gate_execute(store, entry, prompt, prompt_bytes, budget, json_mode, transcript):
@@ -2802,13 +3053,17 @@ def _gate_execute(store, entry, prompt, prompt_bytes, budget, json_mode, transcr
     final = _run_backend_foreground(store, job_id, entry, record, prompt_bytes)
     if final.get("state") == "timeout":
         return _gate_allow(
-            "gate review timed out after %ss" % budget, json_mode=json_mode, cause="backend unready"
+            f"gate review timed out after {budget}s",
+            json_mode=json_mode,
+            cause="backend unready",
         )
 
     envelope = final.get("envelope") or {}
     if envelope.get("error"):
         return _gate_allow(
-            "gate review failed (%s)" % envelope["error"], json_mode=json_mode, cause="backend unready"
+            "gate review failed ({})".format(envelope["error"]),
+            json_mode=json_mode,
+            cause="backend unready",
         )
 
     findings, error_reason = _gate_validate_findings(envelope)
@@ -2837,7 +3092,9 @@ def _finishing_turn_has_edits(transcript_path):
     def _is_tool_result_carrier(entry):
         content = entry.get("message", {}).get("content")
         if isinstance(content, list):
-            return any(isinstance(b, dict) and b.get("type") == "tool_result" for b in content)
+            return any(
+                isinstance(b, dict) and b.get("type") == "tool_result" for b in content
+            )
         return False
 
     def _has_edit_tool_use(entry):
@@ -2845,12 +3102,14 @@ def _finishing_turn_has_edits(transcript_path):
         if not isinstance(content, list):
             return False
         return any(
-            isinstance(b, dict) and b.get("type") == "tool_use" and b.get("name") in edit_tool_names
+            isinstance(b, dict)
+            and b.get("type") == "tool_use"
+            and b.get("name") in edit_tool_names
             for b in content
         )
 
     edits_since_boundary = False
-    with open(transcript_path, "r", encoding="utf-8") as fh:
+    with open(transcript_path, encoding="utf-8") as fh:
         for line in fh:
             line = line.strip()
             if not line:
@@ -2868,7 +3127,9 @@ def _finishing_turn_has_edits(transcript_path):
 
 
 def cmd_setup(args, backends, user_config, services_disabled):
-    if getattr(args, "enable_review_gate", False) or getattr(args, "disable_review_gate", False):
+    if getattr(args, "enable_review_gate", False) or getattr(
+        args, "disable_review_gate", False
+    ):
         return _cmd_setup_gate_toggle(args, user_config)
 
     targets = backends
@@ -2876,14 +3137,17 @@ def cmd_setup(args, backends, user_config, services_disabled):
         entry = resolve_backend(backends, args.backend)
         if entry is None:
             sys.stderr.write(
-                "delegate: unknown backend %r; known backends: %s\n"
-                % (args.backend, ", ".join(b["id"] for b in backends))
+                "delegate: unknown backend {!r}; known backends: {}\n".format(
+                    args.backend, ", ".join(b["id"] for b in backends)
+                )
             )
             return 2
         targets = [entry]
 
     rows = []
-    with concurrent.futures.ThreadPoolExecutor(max_workers=max(1, len(targets))) as pool:
+    with concurrent.futures.ThreadPoolExecutor(
+        max_workers=max(1, len(targets))
+    ) as pool:
         futures = [
             pool.submit(probe_backend_readiness, entry, user_config, services_disabled)
             for entry in targets
@@ -2895,11 +3159,11 @@ def cmd_setup(args, backends, user_config, services_disabled):
         print(json.dumps(rows))
         return 0
 
-    print("%-12s %-18s %-9s %s" % ("backend", "state", "version", "fix"))
+    print(f"{'backend':<12} {'state':<18} {'version':<9} fix")
     for row in rows:
         print(
-            "%-12s %-18s %-9s %s"
-            % (row["backend"], row["state"], row.get("version") or "—", row.get("fix") or "—")
+            f"{row['backend']:<12} {row['state']:<18} "
+            f"{row.get('version') or '—':<9} {row.get('fix') or '—'}"
         )
     return 0
 
@@ -2916,7 +3180,15 @@ _SUBCOMMAND_HELP = {
     "resume-candidate": "Find the most recent resumable job for a backend.",
 }
 _IMPLEMENTED_SUBCOMMANDS = {
-    "task", "review", "status", "result", "cancel", "transfer", "resume-candidate", "setup", "gate",
+    "task",
+    "review",
+    "status",
+    "result",
+    "cancel",
+    "transfer",
+    "resume-candidate",
+    "setup",
+    "gate",
 }
 
 
@@ -2925,10 +3197,14 @@ def _positive_int_arg(raw):
     try:
         value = int(raw)
     except ValueError as exc:
-        raise argparse.ArgumentTypeError("--budget must be an integer, got %r" % raw) from exc
+        raise argparse.ArgumentTypeError(
+            f"--budget must be an integer, got {raw!r}"
+        ) from exc
     # Reuse the config-layer rule so the CLI and config agree on "positive int".
     if not _is_positive_int(value):
-        raise argparse.ArgumentTypeError("--budget must be a positive integer, got %r" % raw)
+        raise argparse.ArgumentTypeError(
+            f"--budget must be a positive integer, got {raw!r}"
+        )
     return value
 
 
@@ -2936,42 +3212,85 @@ def _add_task_args(p):
     """Add `task` subcommand arguments."""
     p.add_argument("--backend", help="backend id or alias")
     group = p.add_mutually_exclusive_group()
-    group.add_argument("--background", action="store_true", help="run detached, print job_id")
-    group.add_argument("--wait", action="store_true", help="run in foreground (default)")
+    group.add_argument(
+        "--background", action="store_true", help="run detached, print job_id"
+    )
+    group.add_argument(
+        "--wait", action="store_true", help="run in foreground (default)"
+    )
     p.add_argument("--write", action="store_true", help="allow sandboxed writes")
     p.add_argument("--model", help="model tier")
-    p.add_argument("--budget", type=_positive_int_arg, help="budget in seconds (positive integer)")
+    p.add_argument(
+        "--budget", type=_positive_int_arg, help="budget in seconds (positive integer)"
+    )
     resume_group = p.add_mutually_exclusive_group()
-    resume_group.add_argument("--resume", metavar="JOB_ID", help="resume a prior job's session")
-    resume_group.add_argument("--resume-last", action="store_true", help="resume the newest resumable job")
-    resume_group.add_argument("--fresh", action="store_true", help="skip resume, start fresh")
-    p.add_argument("--second-opinion", action="store_true", help="get a second opinion on a prior job")
+    resume_group.add_argument(
+        "--resume", metavar="JOB_ID", help="resume a prior job's session"
+    )
+    resume_group.add_argument(
+        "--resume-last", action="store_true", help="resume the newest resumable job"
+    )
+    resume_group.add_argument(
+        "--fresh", action="store_true", help="skip resume, start fresh"
+    )
+    p.add_argument(
+        "--second-opinion",
+        action="store_true",
+        help="get a second opinion on a prior job",
+    )
     p.add_argument("--of", metavar="JOB_ID", help="job id the second opinion is about")
     p.add_argument("--prompt-file", metavar="FILE", help="read the prompt from FILE")
-    p.add_argument("prompt", nargs="?", default=None, help="prompt text, or - for stdin")
+    p.add_argument(
+        "prompt", nargs="?", default=None, help="prompt text, or - for stdin"
+    )
 
 
 def _add_review_args(p):
     """Add `review` subcommand arguments."""
     p.add_argument("--backend", help="backend id or alias")
-    p.add_argument("--adversarial", nargs="*", default=None, metavar="FOCUS",
-                    help="challenge-the-design review; optional free-text focus")
-    p.add_argument("--base", metavar="REF", default=None, help="base ref to diff against")
-    p.add_argument("--scope", choices=["auto", "working-tree", "branch"], default="auto",
-                    help="diff scope (default: auto)")
+    p.add_argument(
+        "--adversarial",
+        nargs="*",
+        default=None,
+        metavar="FOCUS",
+        help="challenge-the-design review; optional free-text focus",
+    )
+    p.add_argument(
+        "--base", metavar="REF", default=None, help="base ref to diff against"
+    )
+    p.add_argument(
+        "--scope",
+        choices=["auto", "working-tree", "branch"],
+        default="auto",
+        help="diff scope (default: auto)",
+    )
     group = p.add_mutually_exclusive_group()
-    group.add_argument("--background", action="store_true", help="run detached, print job_id")
-    group.add_argument("--wait", action="store_true", help="run in foreground (default)")
+    group.add_argument(
+        "--background", action="store_true", help="run detached, print job_id"
+    )
+    group.add_argument(
+        "--wait", action="store_true", help="run in foreground (default)"
+    )
     p.add_argument("--model", help="model tier")
-    p.add_argument("--budget", type=_positive_int_arg, help="budget in seconds (positive integer)")
+    p.add_argument(
+        "--budget", type=_positive_int_arg, help="budget in seconds (positive integer)"
+    )
 
 
 def _add_setup_args(p):
     """Add `setup` subcommand arguments."""
     p.add_argument("--backend", help="backend id or alias")
-    p.add_argument("--enable-review-gate", action="store_true", help="enable the finish-time review gate")
+    p.add_argument(
+        "--enable-review-gate",
+        action="store_true",
+        help="enable the finish-time review gate",
+    )
     p.add_argument("--gate-backend", help="backend id for the review gate")
-    p.add_argument("--disable-review-gate", action="store_true", help="disable the finish-time review gate")
+    p.add_argument(
+        "--disable-review-gate",
+        action="store_true",
+        help="disable the finish-time review gate",
+    )
 
 
 def _add_subcommand_args(name, p):
@@ -2979,15 +3298,25 @@ def _add_subcommand_args(name, p):
     if name == "task":
         _add_task_args(p)
     elif name == "status":
-        p.add_argument("job_id", nargs="?", default=None, help="job id or unique prefix")
+        p.add_argument(
+            "job_id", nargs="?", default=None, help="job id or unique prefix"
+        )
         p.add_argument("--all", action="store_true", help="show all jobs")
-        p.add_argument("--wait", action="store_true", help="poll until terminal or timeout")
-        p.add_argument("--timeout", type=int, default=None, help="max seconds to --wait")
+        p.add_argument(
+            "--wait", action="store_true", help="poll until terminal or timeout"
+        )
+        p.add_argument(
+            "--timeout", type=int, default=None, help="max seconds to --wait"
+        )
     elif name in ("result", "cancel"):
-        p.add_argument("job_id", nargs="?", default=None, help="job id or unique prefix")
+        p.add_argument(
+            "job_id", nargs="?", default=None, help="job id or unique prefix"
+        )
     elif name == "transfer":
         p.add_argument("--backend", help="backend id or alias")
-        p.add_argument("--source", metavar="TRANSCRIPT", help="transcript path to import")
+        p.add_argument(
+            "--source", metavar="TRANSCRIPT", help="transcript path to import"
+        )
     elif name == "review":
         _add_review_args(p)
     elif name == "resume-candidate":
@@ -2995,13 +3324,21 @@ def _add_subcommand_args(name, p):
     elif name == "setup":
         _add_setup_args(p)
     elif name == "gate":
-        p.add_argument("--transcript", required=True, metavar="PATH",
-                        help="path to the session transcript JSONL")
-        p.add_argument("--stop-hook-active", action="store_true",
-                        help="harness re-entry indicator (at-most-once)")
+        p.add_argument(
+            "--transcript",
+            required=True,
+            metavar="PATH",
+            help="path to the session transcript JSONL",
+        )
+        p.add_argument(
+            "--stop-hook-active",
+            action="store_true",
+            help="harness re-entry indicator (at-most-once)",
+        )
         # Hidden: force the gate enabled without writing config, for smoke tests.
-        p.add_argument("--enable-review-gate-for-test", action="store_true",
-                        help=argparse.SUPPRESS)
+        p.add_argument(
+            "--enable-review-gate-for-test", action="store_true", help=argparse.SUPPRESS
+        )
 
 
 def build_parser():
@@ -3011,14 +3348,18 @@ def build_parser():
         description="Delegate tasks/reviews to a backend registry (codex, claude, antigravity).",
         add_help=True,
     )
-    parser.add_argument("--json", action="store_true", help="machine-readable JSON output")
+    parser.add_argument(
+        "--json", action="store_true", help="machine-readable JSON output"
+    )
     sub = parser.add_subparsers(dest="command", metavar="COMMAND")
 
     for name in SUBCOMMANDS:
         p = sub.add_parser(name, help=_SUBCOMMAND_HELP.get(name, ""))
         if name not in _IMPLEMENTED_SUBCOMMANDS:
             continue
-        p.add_argument("--json", action="store_true", help="machine-readable JSON output")
+        p.add_argument(
+            "--json", action="store_true", help="machine-readable JSON output"
+        )
         _add_subcommand_args(name, p)
 
     return parser
@@ -3038,7 +3379,9 @@ def main(argv=None):
         return 0
     args, unknown = parser.parse_known_args(argv)
     if unknown:
-        sys.stderr.write("delegate: unrecognized arguments: %s\n" % " ".join(unknown))
+        sys.stderr.write(
+            "delegate: unrecognized arguments: {}\n".format(" ".join(unknown))
+        )
         return 2
     if args.command is None:
         parser.print_help()
@@ -3077,9 +3420,7 @@ def main(argv=None):
 
     # Phase 2 only implements registry/config/job-store/envelope plumbing;
     # remaining subcommand behaviors are scaffolded stubs (Phase 3+ user stories).
-    sys.stderr.write(
-        "delegate.py %s: not yet implemented (Phase 3+)\n" % args.command
-    )
+    sys.stderr.write(f"delegate.py {args.command}: not yet implemented (Phase 3+)\n")
     return 1
 
 

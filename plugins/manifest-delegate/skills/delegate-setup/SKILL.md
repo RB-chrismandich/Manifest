@@ -12,7 +12,7 @@ usable, or when a `task`/`review` call fails with "backend unavailable".
 
 ## Running it
 
-```
+```bash
 delegate.py setup [--backend <id>] [--json]
 ```
 
@@ -21,7 +21,7 @@ under 30 seconds. No probe ever prompts for input.
 
 ## Reading the report
 
-```
+```text
 backend      state              version   fix
 codex        ready              1.x       —
 claude       not_authenticated  2.x       run: claude  (then /login)
@@ -60,7 +60,7 @@ when enabled, runs one read-only review delegation on the finishing turn's
 edits and can block with `{"decision":"block","reason":...}` for the
 developer to see. It is OFF by default.
 
-```
+```bash
 delegate.py setup --enable-review-gate [--gate-backend <id>]
 delegate.py setup --disable-review-gate
 ```

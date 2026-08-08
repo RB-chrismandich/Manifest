@@ -8,6 +8,7 @@ bare `from conftest import ...` would resolve ambiguously. Test modules import
 the helpers and the `env_factory` fixture explicitly from this unique module;
 tests/python is on sys.path[0] under pytest's default import mode.
 """
+
 import json
 import os
 import stat
@@ -20,15 +21,15 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SCRIPT_PATH = REPO_ROOT / "plugins" / "manifest-delegate" / "scripts" / "delegate.py"
-STUB_SRC = REPO_ROOT / "tests" / "python" / "fixtures" / "stub_backends" / "stub_backend.py"
+STUB_SRC = (
+    REPO_ROOT / "tests" / "python" / "fixtures" / "stub_backends" / "stub_backend.py"
+)
 
 
 def _make_stub_launcher(bin_dir, name):
     """Create an executable named `name` in bin_dir that execs stub_backend.py."""
     launcher = bin_dir / name
-    launcher.write_text(
-        "#!/bin/sh\nexec %s %s \"$@\"\n" % (sys.executable, STUB_SRC)
-    )
+    launcher.write_text(f'#!/bin/sh\nexec {sys.executable} {STUB_SRC} "$@"\n')
     launcher.chmod(launcher.stat().st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
     return launcher
 
@@ -43,7 +44,11 @@ def _stub_entry(id_="stub", resume="default", input_transport="stdin", **overrid
         "aliases": [],
         "invoke": [id_],
         "resume": [id_, "--resume", "{session_ref}"] if resume else None,
-        "input": {"transport": input_transport, "max_payload_bytes": 1_000_000, "max_context_bytes": 1_000_000},
+        "input": {
+            "transport": input_transport,
+            "max_payload_bytes": 1_000_000,
+            "max_context_bytes": 1_000_000,
+        },
         "sandbox": {"read_only_args": [], "write_args": []},
         "session_id_capture": {"method": "output_scan", "pattern": r"session: (\S+)"},
         "default_tier": "default",
@@ -86,7 +91,7 @@ def env_factory(tmp_path):
 
 def _run(env, *args, input_text=None):
     return subprocess.run(
-        [sys.executable, str(SCRIPT_PATH)] + list(args),
+        [sys.executable, str(SCRIPT_PATH), *list(args)],
         env=env,
         input=input_text,
         capture_output=True,
@@ -99,19 +104,27 @@ def _new_job_id(env_factory, known_ids=()):
     """Resolve a job id by diffing job dirs under delegations_dir."""
     delegations_dir = env_factory.delegations_dir
     current = (
-        {p.name for p in delegations_dir.rglob("*") if p.is_dir() and (p / "record.json").exists()}
+        {
+            p.name
+            for p in delegations_dir.rglob("*")
+            if p.is_dir() and (p / "record.json").exists()
+        }
         if delegations_dir.exists()
         else set()
     )
     new_ids = current - set(known_ids)
-    assert len(new_ids) == 1, "expected exactly one new job dir, found %r (known=%r)" % (new_ids, known_ids)
+    assert len(new_ids) == 1, (
+        f"expected exactly one new job dir, found {new_ids!r} (known={known_ids!r})"
+    )
     return next(iter(new_ids))
 
 
 def _materialize_workspace(env_factory, env):
     """Run a throwaway job so the workspace dir exists, and return it."""
     assert _run(env, "task", "--background", "--json", "warm").returncode == 0
-    return next(p.parent for p in env_factory.delegations_dir.rglob("record.json")).parent
+    return next(
+        p.parent for p in env_factory.delegations_dir.rglob("record.json")
+    ).parent
 
 
 def _spawn_orphan():
@@ -159,9 +172,16 @@ def _hand_build_job(workspace_dir, job_id, state, backend_pgid):
     so the CLI's os.kill on it is a harmless no-op (never a pid-reuse victim)."""
     job_dir = workspace_dir / job_id
     job_dir.mkdir(parents=True, exist_ok=True)
-    (job_dir / "record.json").write_text(json.dumps({
-        "job_id": job_id, "state": state, "worker_pid": 2 ** 31 - 1,
-        "created_at": time.time(), "updated_at": time.time(),
-    }))
+    (job_dir / "record.json").write_text(
+        json.dumps(
+            {
+                "job_id": job_id,
+                "state": state,
+                "worker_pid": 2**31 - 1,
+                "created_at": time.time(),
+                "updated_at": time.time(),
+            }
+        )
+    )
     (job_dir / "backend.pgid").write_text(str(backend_pgid))
     return job_dir
