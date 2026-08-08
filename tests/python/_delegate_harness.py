@@ -139,24 +139,50 @@ def _kill_orphan(proc):
         proc.wait()
 
 
-def _spawn_orphan_holding_backend_lock(job_dir):
+def _spawn_orphan_holding_backend_lock(job_dir, publish_pgid_after=None):
     """A real setsid'd process that holds an exclusive flock on
     <job_dir>/backend.lock — standing in for a live backend the way the real
     dispatcher's preexec does. Returns (proc, pgid) once the lock is confirmed
     held. reap/cancel now verify this lock (not just the pgid) before killing,
-    so a simulated orphan must hold it to be reapable."""
+    so a simulated orphan must hold it to be reapable.
+
+    If `publish_pgid_after` (seconds) is set, the orphan holds the lock but
+    delays writing <job_dir>/backend.pgid until then — reproducing the launch
+    race where the child holds the inherited lock before it has published its
+    pgid in preexec."""
     job_dir.mkdir(parents=True, exist_ok=True)
     lock_path = job_dir / "backend.lock"
     ready = job_dir / ".lock_ready"
-    code = (
-        "import os,sys,fcntl,time\n"
-        "fd=os.open(sys.argv[1],os.O_CREAT|os.O_RDWR,0o600)\n"
-        "fcntl.flock(fd,fcntl.LOCK_EX)\n"
-        "open(sys.argv[2],'w').write('ready')\n"
-        "time.sleep(300)\n"
-    )
+    pgid_path = job_dir / "backend.pgid"
+    if publish_pgid_after is None:
+        code = (
+            "import os,sys,fcntl,time\n"
+            "fd=os.open(sys.argv[1],os.O_CREAT|os.O_RDWR,0o600)\n"
+            "fcntl.flock(fd,fcntl.LOCK_EX)\n"
+            "open(sys.argv[2],'w').write('ready')\n"
+            "time.sleep(300)\n"
+        )
+        cmd_args = [str(lock_path), str(ready)]
+    else:
+        # Hold the lock, signal ready, then publish backend.pgid (own group)
+        # only after the delay — the race the reaper must survive.
+        code = (
+            "import os,sys,fcntl,time\n"
+            "fd=os.open(sys.argv[1],os.O_CREAT|os.O_RDWR,0o600)\n"
+            "fcntl.flock(fd,fcntl.LOCK_EX)\n"
+            "open(sys.argv[2],'w').write('ready')\n"
+            "time.sleep(float(sys.argv[4]))\n"
+            "open(sys.argv[3],'w').write(str(os.getpgid(0)))\n"
+            "time.sleep(300)\n"
+        )
+        cmd_args = [
+            str(lock_path),
+            str(ready),
+            str(pgid_path),
+            str(publish_pgid_after),
+        ]
     proc = subprocess.Popen(
-        [sys.executable, "-c", code, str(lock_path), str(ready)],
+        [sys.executable, "-c", code, *cmd_args],
         preexec_fn=os.setsid,
     )
     deadline = time.time() + 8

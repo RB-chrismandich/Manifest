@@ -127,21 +127,46 @@ def _terminate_job_processes(store, job_id, record):
     return killed
 
 
+# How long to wait for a forked-but-not-yet-published backend pgid to appear
+# while backend.lock is still held (the publication race below). Bounded so a
+# cancel cannot hang; only paid when a backend provably exists but is mid-launch.
+_RACED_PGID_PUBLISH_TIMEOUT_SECONDS = 3.0
+
+
 def _reap_raced_pgid(store, job_id, before_pgid):
     """After the cancel state transition, kill a backend pgid that appeared in
     the race — from record.json (worker persisted it late) or the crash-safe
     <job_dir>/backend.pgid file (worker died in the Popen->persist window before
-    it could persist). Returns True if a live group was killed."""
+    it could persist). Returns True if a live group was killed.
+
+    Publication race (codex round 8): the worker can be SIGKILLed after Popen
+    has forked the backend — which inherited backend.lock, held — but BEFORE the
+    child wrote its pgid to backend.pgid in preexec. A held backend.lock means a
+    backend genuinely EXISTS even though its pgid is not yet published, so a
+    single read here would miss it and the caller's _clear_pgid_tracking would
+    orphan a write-capable process. Use the lock as the launch handshake: while
+    it stays held and no pgid has appeared, wait a bounded time for the child to
+    publish, then kill the group."""
     post = store.read(job_id)
     raced = post.get("pgid")
     if raced and raced != before_pgid and process._backend_alive(store, job_id):
         process._kill_pgid(store, job_id, raced)
         return True
-    if not post.get("pgid"):
-        file_pgid = process._read_pgid_file(store.job_dir(job_id))
-        if file_pgid and process._backend_alive(store, job_id):
-            process._kill_pgid(store, job_id, file_pgid)
-            return True
+    if post.get("pgid"):
+        return False
+    job_dir = store.job_dir(job_id)
+    file_pgid = process._read_pgid_file(job_dir)
+    deadline = time.monotonic() + _RACED_PGID_PUBLISH_TIMEOUT_SECONDS
+    while (
+        not file_pgid
+        and process._backend_alive(store, job_id)
+        and time.monotonic() < deadline
+    ):
+        time.sleep(0.02)
+        file_pgid = process._read_pgid_file(job_dir)
+    if file_pgid and process._backend_alive(store, job_id):
+        process._kill_pgid(store, job_id, file_pgid)
+        return True
     return False
 
 
