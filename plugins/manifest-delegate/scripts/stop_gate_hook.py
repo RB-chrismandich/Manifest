@@ -32,6 +32,19 @@ import subprocess
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 DELEGATE_PY = os.path.join(SCRIPT_DIR, "delegate.py")
 
+# The gate caps the BACKEND alone at config.GATE_BUDGET_CAP_SECONDS (840s). This
+# outer wrapper timeout must exceed that by the gate's own overhead — diff
+# assembly, process launch, the output-drain grace, envelope parse, and result
+# persistence — so the gate reaches its OWN backend timeout and reaps the
+# detached backend process group BEFORE this timeout fires. If this fired first,
+# subprocess.run would kill only delegate.py and leave the setsid'd backend
+# group running (collected only by a later SessionEnd/status reap), while the
+# hook fails open. 840s was itself derived as "900s Stop-hook window minus
+# overhead", so the window is 900s. A drift guard lives in test_stop_gate_hook.
+# (Kept as a literal, not a package import, so a package import fault cannot
+# crash this resilience wrapper — it must always be able to fail open.)
+GATE_WRAPPER_TIMEOUT_SECONDS = 900
+
 
 def _read_payload(argv):
     # type: (list[str] | None) -> dict
@@ -121,7 +134,9 @@ def main(argv=None):
         cmd.append("--stop-hook-active")
 
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=840)
+        result = subprocess.run(
+            cmd, capture_output=True, text=True, timeout=GATE_WRAPPER_TIMEOUT_SECONDS
+        )
     except Exception as exc:
         _fail_open(f"subprocess error: {exc}")
         return 0

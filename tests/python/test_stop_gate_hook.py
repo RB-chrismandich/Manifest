@@ -60,3 +60,30 @@ def test_empty_stdin_allows_stop():
     assert result.returncode == 0
     payload = json.loads(result.stdout.strip())
     assert "systemMessage" in payload
+
+
+def test_wrapper_timeout_outlasts_backend_budget_cap():
+    """Codex HIGH: the outer wrapper timeout must exceed the gate's BACKEND
+    budget cap by real cleanup overhead. Otherwise a backend near the cap makes
+    the wrapper time out FIRST, so subprocess.run kills only delegate.py and
+    orphans the detached backend group while the hook fails open. The prior
+    test suite only bounded the wrapper at <=840s, which codified the collision
+    (equal timeouts) instead of catching it — this asserts strict layering."""
+    import importlib.util
+
+    pkg_dir = SCRIPT.parent.parent  # plugins/manifest-delegate
+    if str(pkg_dir) not in sys.path:
+        sys.path.insert(0, str(pkg_dir))
+    from manifest_delegate import config
+
+    spec = importlib.util.spec_from_file_location("stop_gate_hook", SCRIPT)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+
+    overhead = mod.GATE_WRAPPER_TIMEOUT_SECONDS - config.GATE_BUDGET_CAP_SECONDS
+    assert overhead >= 30, (
+        "wrapper timeout (%ds) must outlast the backend cap (%ds) by real "
+        "cleanup overhead so the gate reaps its backend before the wrapper "
+        "kills delegate.py; got %ds of headroom"
+        % (mod.GATE_WRAPPER_TIMEOUT_SECONDS, config.GATE_BUDGET_CAP_SECONDS, overhead)
+    )
