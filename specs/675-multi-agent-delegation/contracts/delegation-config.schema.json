@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "manifest-delegate/delegation-config.schema.json",
+  "title": "User Delegation Configuration (FR-013)",
+  "description": "Schema for the user delegation config (resolution: explicit path > $MANIFEST_CONFIG_DIR > ~/.claude/config/). Canonical files: delegation.json (parsed everywhere, stdlib) and delegation.yml (parsed when PyYAML is importable; a .yml present without PyYAML is reported as unreadable => factory defaults per FR-013; .json wins when both exist). Absent file => factory defaults (default_backend codex, all backends enabled, 600s budgets, gate off). Invalid file => report on stderr + factory defaults; the dispatcher MUST NOT crash on it and MUST NOT honor a partially-parsed broken config. Workspace services.yml disables outrank any enabled:true here. Unknown top-level or backend keys are reported and ignored. Setup writes delegation.json (the canonical setup-written format); YAML is written only when updating an existing delegation.yml with PyYAML confirmed importable — a .yml present without PyYAML is reported unreadable and delegation.json is written and takes precedence.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "default_backend": {
+      "type": "string",
+      "minLength": 1,
+      "default": "codex",
+      "description": "Registry id or alias; a value not in the registry is rejected with the known-backend list (never guessed)"
+    },
+    "review_gate": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean", "default": false },
+        "backend": {
+          "type": ["string", "null"],
+          "default": null,
+          "description": "Reviewing backend; null => default_backend"
+        },
+        "budget_seconds": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 840,
+          "default": 600,
+          "description": "Hard bound on the single gate pause (FR-006). Capped at 840s = Stop-hook timeout (900s) minus cleanup overhead; a larger configured value is capped and the cap is reported"
+        }
+      }
+    },
+    "backends": {
+      "type": "object",
+      "description": "Keys are registry ids; entries for backends not in the registry are rejected by name with the known list",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "default": true,
+            "description": "User-level toggle; workspace services.yml disable wins over enabled:true, and reports name the winning layer"
+          },
+          "model": {
+            "type": ["string", "null"],
+            "default": null,
+            "description": "Tier name (resolved via model_tiers when deployed config exists) or verbatim model string; null => registry default_tier (economical default per FR-009)"
+          },
+          "budget_seconds": {
+            "type": "integer",
+            "minimum": 1,
+            "default": 600,
+            "description": "Per-backend delegation budget; per-invocation --budget overrides (FR-012)"
+          }
+        }
+      }
+    }
+  }
+}

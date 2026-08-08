@@ -9,11 +9,11 @@
 # A PR that adds or removes a skill MUST change the matching partition count and
 # catalog expected_total in the same commit, and give the new skill a bundle or
 # classify it as an independent marketplace addon.
-domain_expected_total: 108
+domain_expected_total: 110
 addon_expected_total: 6
 # Eight canonical domains plus the policy addon. This deliberately excludes
 # independent marketplace addons from the policy partition.
-policy_expected_total: 114
+policy_expected_total: 116
 independent_addon_expected_total: 1
 # Marketplace addons are intentionally installable without selecting a domain
 # bundle, but still appear in the global catalog and reference-validation gate.
@@ -22,7 +22,7 @@ independent_addons:
     - docker-compose-commandments
 # The exact global mirror/catalog count, including independent marketplace
 # addons. Consumers that inspect every installed skill must use this field.
-expected_total: 115
+expected_total: 117
 
 # Recorded so no later phase keys anything on it: ~/.claude/skills/.deployed-skills
 # is ALREADY WRONG on a live machine (measured 2026-07-30 — mtime predates SC-006,
@@ -86,6 +86,10 @@ bundles:
     - terraform-refactor
     - test-pin-bug
     - test-vary-fixtures
+
+  manifest-delegate:  # 2 skills
+    - delegate
+    - delegate-setup
 
   manifest-docs:  # 4 skills
     - docs-all

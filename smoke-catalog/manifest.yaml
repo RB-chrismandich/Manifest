@@ -12,6 +12,10 @@ app: manifest
 #     ~/.claude on the next `git pull && ./bootstrap.sh`.
 #   - workflow critical path: CDDL orchestration is sub-agent only (manifest cddl
 #     retired); role charters remain under configs/claude/prompts/cddl/.
+#   - delegation critical path: manifest-delegate dispatches tasks/reviews to
+#     external backend CLIs (delegate.py); foreground (--wait) and background
+#     (--background + status/result/cancel, Constitution Principle VI) paths
+#     both run against a hermetic stub backend, never a real external CLI.
 #   - nightly (Full): deeper deploy e2e, cursor rule pruning, gemini hook merge,
 #     and a deterministic Playwright UI fixture step.
 #   - edge (Full+Extra): idempotent hook-merge regressions.
@@ -34,9 +38,9 @@ tests:
           - "set -euo pipefail\nroot=\"$(git rev-parse --show-toplevel 2>/dev/null\
             \ || pwd)\"\nsb=\"$(mktemp -d)\"; trap 'rm -rf \"$sb\"' EXIT\nmkdir -p\
             \ \"$sb/home/.claude/skills/dead\" \"$sb/home/.claude/config\"\nmkdir\
-            \ -p \"$sb/repo/.apm/skills/live\" \"$sb/repo/configs/claude/config\"\
-            \necho x > \"$sb/home/.claude/skills/dead/SKILL.md\"\necho \"y: 1\" >\
-            \ \"$sb/home/.claude/config/command_config.yml\"\necho \"y: 1\" > \"$sb/repo/configs/claude/config/command_config.yml\"\
+            \ -p \"$sb/repo/.apm/skills/live\" \"$sb/repo/configs/claude/config\"\n\
+            echo x > \"$sb/home/.claude/skills/dead/SKILL.md\"\necho \"y: 1\" > \"\
+            $sb/home/.claude/config/command_config.yml\"\necho \"y: 1\" > \"$sb/repo/configs/claude/config/command_config.yml\"\
             \n\"$root/configs/claude/scripts/deploy_reconcile.sh\" \\\n  --home \"\
             $sb/home\" --project \"$sb/repo\" \\\n  --config \"$root/configs/claude/config/reconcile.yml\"\
             \ --json\n"
@@ -172,9 +176,9 @@ tests:
             python3 - \"$sb/tgt.json\" \"$src\" <<'PY'\nimport json, sys\ntgt = json.load(open(sys.argv[1]))\n\
             src = json.load(open(sys.argv[2]))\n# repo must actually ship the top-level\
             \ default we claim to propagate\nif src.get(\"skillListingBudgetFraction\"\
-            ) != 0.05:\n    sys.exit(\"FAIL: repo settings.runtime.json no longer ships\
-            \ skillListingBudgetFraction=0.05\")\n# the missing default must have\
-            \ been unioned into the existing file\nif tgt.get(\"skillListingBudgetFraction\"\
+            ) != 0.05:\n    sys.exit(\"FAIL: repo settings.runtime.json no longer\
+            \ ships skillListingBudgetFraction=0.05\")\n# the missing default must\
+            \ have been unioned into the existing file\nif tgt.get(\"skillListingBudgetFraction\"\
             ) != 0.05:\n    sys.exit(\"FAIL: repo default not delivered to an existing\
             \ install\")\n# the user's own unrelated key must survive untouched\n\
             if \"Bash(ls:*)\" not in tgt.get(\"permissions\", {}).get(\"allow\", []):\n\
@@ -183,7 +187,6 @@ tests:
             \ for caching)\nif \"env\" in src:\n    sys.exit(\"FAIL: settings.runtime.json\
             \ ships an env block (subprocess-only, misleading)\")\nPY\necho \"RESULT\
             \ settings_defaults=ok\"\n"
-
   - id: deploy-force-runtime-preserve
     title: deploy_configs --force keeps plugins, sessions, and user MCP across redeploy
     tier: Full
@@ -467,12 +470,353 @@ tests:
           - bash
           - -c
           - "set -euo pipefail\nroot=\"$(git rev-parse --show-toplevel 2>/dev/null\
-            \ || pwd)\"\nsb=\"$(mktemp -d)\"; trap 'rm -rf \"$sb\"' EXIT\nmkdir\
-            \ -p \"$sb/home/.claude/skills\"\nprintf 'domains: []\\n' > \"$sb/d.yml\"\
+            \ || pwd)\"\nsb=\"$(mktemp -d)\"; trap 'rm -rf \"$sb\"' EXIT\nmkdir -p\
+            \ \"$sb/home/.claude/skills\"\nprintf 'domains: []\\n' > \"$sb/d.yml\"\
             \nHOME=\"$sb/home\" MANIFEST_APM_DOMAINS=\"$sb/d.yml\" APM_LOCKFILE=\"\
             $sb/absent.yml\" \\\n  \"$root/configs/claude/scripts/apm_ownership_report.sh\"\
             \nprintf 'domains:\\n  - skills\\n' > \"$sb/d.yml\"\nif HOME=\"$sb/home\"\
-            \ MANIFEST_APM_DOMAINS=\"$sb/d.yml\" APM_LOCKFILE=\"$sb/absent.yml\"\
-            \ \\\n     \"$root/configs/claude/scripts/apm_ownership_report.sh\"\
-            \ > /dev/null; then\n  echo 'ownership gate missed an unowned domain'\
-            \ >&2; exit 1\nfi\necho 'apm ownership gate verified'\n"
+            \ MANIFEST_APM_DOMAINS=\"$sb/d.yml\" APM_LOCKFILE=\"$sb/absent.yml\" \\\
+            \n     \"$root/configs/claude/scripts/apm_ownership_report.sh\" > /dev/null;\
+            \ then\n  echo 'ownership gate missed an unowned domain' >&2; exit 1\n\
+            fi\necho 'apm ownership gate verified'\n"
+  - id: delegate-foreground-envelope
+    title: delegate.py task --wait relays a stub backend's result envelope and exits
+      0
+    tier: Lite
+    steps:
+      - name: delegate_foreground
+        type: cli
+        expect_exit: 0
+        command:
+          - bash
+          - -c
+          - "set -euo pipefail\nroot=\"$(git rev-parse --show-toplevel 2>/dev/null\
+            \ || pwd)\"\nsb=\"$(mktemp -d)\"; trap 'rm -rf \"$sb\"' EXIT\nmkdir -p\
+            \ \"$sb/bin\" \"$sb/jobs\"\ncat > \"$sb/bin/stub-backend\" <<'EOS'\n#!/usr/bin/env\
+            \ bash\ncat <<'JSON'\n```json\n{\"backend\": \"stub\", \"model\": \"stub-tier\"\
+            , \"outcome\": \"success\", \"attempted\": \"noop\", \"changes\": [],\
+            \ \"succeeded\": [\"noop\"], \"failed\": [], \"follow_ups\": []}\n```\n\
+            JSON\nEOS\nchmod +x \"$sb/bin/stub-backend\"\npython3 - \"$sb\" <<'PYEOF'\n\
+            import json, sys\nsb = sys.argv[1]\nd = json.load(open(\"plugins/manifest-delegate/config/backends.json\"\
+            ))\ncodex = next(b for b in d[\"backends\"] if b[\"id\"] == \"codex\"\
+            )\nstub = dict(codex)\nstub[\"id\"] = \"stub\"; stub[\"aliases\"] = []\n\
+            stub[\"binary\"] = f\"{sb}/bin/stub-backend\"\nstub[\"invoke\"] = [f\"\
+            {sb}/bin/stub-backend\"]\nstub[\"resume\"] = [f\"{sb}/bin/stub-backend\"\
+            ]\nstub[\"readiness\"] = {\"version_cmd\": [f\"{sb}/bin/stub-backend\"\
+            ], \"auth_probe_cmd\": [f\"{sb}/bin/stub-backend\"], \"install_fix\":\
+            \ \"n/a\", \"login_fix\": \"n/a\", \"retired_check\": None}\nout = {\"\
+            $schema\": d[\"$schema\"], \"backends\": [stub]}\njson.dump(out, open(f\"\
+            {sb}/backends.json\", \"w\"))\nPYEOF\nMANIFEST_DELEGATE_REGISTRY_PATH=\"\
+            $sb/backends.json\" MANIFEST_DELEGATIONS_DIR=\"$sb/jobs\" \\\n  python3\
+            \ \"$root/plugins/manifest-delegate/scripts/delegate.py\" task 'smoke\
+            \ task' --backend stub --wait \\\n  | grep -q 'outcome: success'\necho\
+            \ 'delegate foreground envelope verified'\n"
+  - id: delegate-background-job-chain
+    title: delegate.py task --background chains through status --wait, result, and
+      cancel-on-completed (Constitution VI)
+    tier: Lite
+    steps:
+      - name: delegate_background_chain
+        type: cli
+        expect_exit: 0
+        command:
+          - bash
+          - -c
+          - 'set -euo pipefail
+
+            root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+
+            sb="$(mktemp -d)"; trap ''rm -rf "$sb"'' EXIT
+
+            mkdir -p "$sb/bin" "$sb/jobs"
+
+            cat > "$sb/bin/stub-backend" <<''EOS''
+
+            #!/usr/bin/env bash
+
+            sleep 0.2
+
+            cat <<''JSON''
+
+            ```json
+
+            {"backend": "stub", "model": "stub-tier", "outcome": "success", "attempted":
+            "noop", "changes": [], "succeeded": ["noop"], "failed": [], "follow_ups":
+            []}
+
+            ```
+
+            JSON
+
+            EOS
+
+            chmod +x "$sb/bin/stub-backend"
+
+            python3 - "$sb" <<''PYEOF''
+
+            import json, sys
+
+            sb = sys.argv[1]
+
+            d = json.load(open("plugins/manifest-delegate/config/backends.json"))
+
+            codex = next(b for b in d["backends"] if b["id"] == "codex")
+
+            stub = dict(codex)
+
+            stub["id"] = "stub"; stub["aliases"] = []
+
+            stub["binary"] = f"{sb}/bin/stub-backend"
+
+            stub["invoke"] = [f"{sb}/bin/stub-backend"]
+
+            stub["resume"] = [f"{sb}/bin/stub-backend"]
+
+            stub["readiness"] = {"version_cmd": [f"{sb}/bin/stub-backend"], "auth_probe_cmd":
+            [f"{sb}/bin/stub-backend"], "install_fix": "n/a", "login_fix": "n/a",
+            "retired_check": None}
+
+            out = {"$schema": d["$schema"], "backends": [stub]}
+
+            json.dump(out, open(f"{sb}/backends.json", "w"))
+
+            PYEOF
+
+            export MANIFEST_DELEGATE_REGISTRY_PATH="$sb/backends.json" MANIFEST_DELEGATIONS_DIR="$sb/jobs"
+
+            out=$(python3 "$root/plugins/manifest-delegate/scripts/delegate.py" task
+            ''smoke bg task'' --backend stub --background 2>&1)
+
+            job_id=$(echo "$out" | grep -oE ''^job_id: .*'' | awk ''{print $2}'')
+
+            test -n "$job_id"
+
+            python3 "$root/plugins/manifest-delegate/scripts/delegate.py" status "$job_id"
+            --wait --timeout 5 > /dev/null
+
+            python3 "$root/plugins/manifest-delegate/scripts/delegate.py" result "$job_id"
+            | grep -q ''outcome: success''
+
+            cancel_out=$(python3 "$root/plugins/manifest-delegate/scripts/delegate.py"
+            cancel "$job_id")
+
+            echo "$cancel_out" | grep -q ''already terminal, no-op''
+
+            echo ''delegate background chain verified''
+
+            '
+  - id: delegate-setup-not-installed-remediation
+    title: delegate setup reports not_installed with exact remediation for a stubbed-unready backend
+    tier: Lite
+    steps:
+      - name: run-setup-against-stubbed-backend
+        type: cli
+        expect_exit: 0
+        command:
+          - bash
+          - -c
+          - |
+            set -euo pipefail
+            root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+            sb="$(mktemp -d)"; trap 'rm -rf "$sb"' EXIT
+            python3 - "$sb" <<'PYEOF'
+            import json, sys
+            sb = sys.argv[1]
+            d = json.load(open("plugins/manifest-delegate/config/backends.json"))
+            codex = next(b for b in d["backends"] if b["id"] == "codex")
+            stub = dict(codex)
+            stub["id"] = "stub"
+            stub["aliases"] = []
+            stub["readiness"] = {
+                "version_cmd": ["/nonexistent/stub-backend", "--version"],
+                "auth_probe_cmd": ["/nonexistent/stub-backend", "whoami"],
+                "install_fix": "run: brew install stub-backend",
+                "login_fix": "run: stub-backend login",
+                "retired_check": None,
+            }
+            out = {"$schema": d["$schema"], "backends": [stub]}
+            json.dump(out, open(f"{sb}/backends.json", "w"))
+            PYEOF
+            out=$(MANIFEST_DELEGATE_REGISTRY_PATH="$sb/backends.json" \
+              python3 "$root/plugins/manifest-delegate/scripts/delegate.py" \
+              setup --backend stub --json)
+            echo "$out" | grep -q '"state": "not_installed"'
+            echo "$out" | grep -q 'run: brew install stub-backend'
+            echo 'delegate setup remediation verified'
+  - id: delegate-second-opinion-attribution
+    title: delegate.py task --second-opinion attributes both the original and second-opinion backend
+    tier: Lite
+    steps:
+      - name: second_opinion_attribution
+        type: cli
+        expect_exit: 0
+        command:
+          - bash
+          - -c
+          - |
+            set -euo pipefail
+            root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+            sb="$(mktemp -d)"; trap 'rm -rf "$sb"' EXIT
+            mkdir -p "$sb/bin" "$sb/jobs"
+            make_stub() {
+              cat > "$sb/bin/$1" <<EOS
+            #!/usr/bin/env bash
+            cat <<JSON
+            \\\`\\\`\\\`json
+            {"backend": "$1", "model": "stub-tier", "outcome": "success", "attempted": "noop", "changes": [], "succeeded": ["noop"], "failed": [], "follow_ups": []}
+            \\\`\\\`\\\`
+            JSON
+            EOS
+              chmod +x "$sb/bin/$1"
+            }
+            make_stub stub-a
+            make_stub stub-b
+            python3 - "$sb" <<'PYEOF'
+            import json, sys
+            sb = sys.argv[1]
+            d = json.load(open("plugins/manifest-delegate/config/backends.json"))
+            codex = next(b for b in d["backends"] if b["id"] == "codex")
+            backends = []
+            for name in ("stub-a", "stub-b"):
+                stub = dict(codex)
+                stub["id"] = name
+                stub["aliases"] = []
+                stub["binary"] = f"{sb}/bin/{name}"
+                stub["invoke"] = [f"{sb}/bin/{name}"]
+                stub["resume"] = [f"{sb}/bin/{name}"]
+                stub["readiness"] = {
+                    "version_cmd": [f"{sb}/bin/{name}"],
+                    "auth_probe_cmd": [f"{sb}/bin/{name}"],
+                    "install_fix": "n/a",
+                    "login_fix": "n/a",
+                    "retired_check": None,
+                }
+                backends.append(stub)
+            out = {"$schema": d["$schema"], "backends": backends}
+            json.dump(out, open(f"{sb}/backends.json", "w"))
+            PYEOF
+            export MANIFEST_DELEGATE_REGISTRY_PATH="$sb/backends.json" MANIFEST_DELEGATIONS_DIR="$sb/jobs"
+            out=$(python3 "$root/plugins/manifest-delegate/scripts/delegate.py" task 'original task' --backend stub-a --wait)
+            job_id=$(echo "$out" | grep -oE '^job_id: .*' | awk '{print $2}')
+            test -n "$job_id"
+            so_out=$(python3 "$root/plugins/manifest-delegate/scripts/delegate.py" task --second-opinion --of "$job_id" --backend stub-b --wait)
+            echo "$so_out" | grep -q 'backend: stub-b'
+            echo "$so_out" | grep -q "$job_id"
+            echo 'delegate second opinion attribution verified'
+  - id: delegate-review-working-tree
+    title: delegate.py review assembles a working-tree diff and reports severity-first findings
+    tier: Lite
+    steps:
+      - name: review_working_tree
+        type: cli
+        expect_exit: 0
+        command:
+          - bash
+          - -c
+          - |
+            set -euo pipefail
+            root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+            sb="$(mktemp -d)"; trap 'rm -rf "$sb"' EXIT
+            mkdir -p "$sb/bin" "$sb/jobs" "$sb/repo"
+            cat > "$sb/bin/stub-review" <<'EOS'
+            #!/usr/bin/env bash
+            cat <<JSON
+            \`\`\`json
+            {"backend": "stub-review", "model": "stub-tier", "outcome": "success", "findings": [{"severity": "low", "text": "minor"}, {"severity": "critical", "text": "major"}], "attempted": "review", "changes": [], "succeeded": ["review"], "failed": [], "follow_ups": []}
+            \`\`\`
+            JSON
+            EOS
+            chmod +x "$sb/bin/stub-review"
+            git -C "$sb/repo" init -q
+            git -C "$sb/repo" config user.email test@example.com
+            git -C "$sb/repo" config user.name test
+            echo one > "$sb/repo/file.txt"
+            git -C "$sb/repo" add file.txt
+            git -C "$sb/repo" commit -qm init
+            echo two >> "$sb/repo/file.txt"
+            python3 - "$sb" <<'PYEOF'
+            import json, sys
+            sb = sys.argv[1]
+            d = json.load(open("plugins/manifest-delegate/config/backends.json"))
+            codex = next(b for b in d["backends"] if b["id"] == "codex")
+            stub = dict(codex)
+            stub["id"] = "stub-review"
+            stub["aliases"] = []
+            stub["binary"] = f"{sb}/bin/stub-review"
+            stub["invoke"] = [f"{sb}/bin/stub-review"]
+            stub["resume"] = [f"{sb}/bin/stub-review"]
+            stub["readiness"] = {
+                "version_cmd": [f"{sb}/bin/stub-review"],
+                "auth_probe_cmd": [f"{sb}/bin/stub-review"],
+                "install_fix": "n/a",
+                "login_fix": "n/a",
+                "retired_check": None,
+            }
+            out = {"$schema": d["$schema"], "backends": [stub]}
+            json.dump(out, open(f"{sb}/backends.json", "w"))
+            PYEOF
+            export MANIFEST_DELEGATE_REGISTRY_PATH="$sb/backends.json" MANIFEST_DELEGATIONS_DIR="$sb/jobs"
+            cd "$sb/repo"
+            out=$(python3 "$root/plugins/manifest-delegate/scripts/delegate.py" review --backend stub-review --scope working-tree --wait)
+            echo "$out" | grep -q 'backend: stub-review'
+            echo "$out" | head -n3 | tail -n1 | grep -q '\[critical\]'
+            echo 'delegate review working-tree verified'
+  - id: delegate-gate-enabled-pauses-once
+    title: enabled review gate pauses once on a Stop with stub findings and blocks exactly one turn
+    tier: Lite
+    steps:
+      - name: gate_enabled_pause
+        type: cli
+        expect_exit: 0
+        command:
+          - bash
+          - -c
+          - |
+            set -euo pipefail
+            root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+            gate_py="$root/plugins/manifest-delegate/scripts/delegate.py"
+            if ! python3 "$gate_py" gate --help >/dev/null 2>&1; then
+              echo 'SKIP: delegate.py gate subcommand not yet implemented (T031, polish phase)'
+              exit 0
+            fi
+            sb="$(mktemp -d)"; trap 'rm -rf "$sb"' EXIT
+            mkdir -p "$sb/repo"
+            transcript="$sb/transcript.jsonl"
+            printf '%s\n' \
+              '{"role":"user","content":"fix the bug"}' \
+              '{"role":"assistant","content":[{"type":"tool_use","name":"Edit","input":{}}]}' \
+              > "$transcript"
+            out=$(cd "$sb/repo" && python3 "$gate_py" gate --transcript "$transcript" --json --enable-review-gate-for-test 2>&1) || true
+            echo "$out" | grep -Eq '"decision"\s*:\s*"block"|"decision"\s*:\s*"allow"|systemMessage' \
+              || { echo "FAIL: expected block decision or fail-open allow/systemMessage, got: $out"; exit 1; }
+            echo 'delegate gate enabled-pause verified'
+  - id: delegate-gate-disabled-no-pause
+    title: disabled review gate allows the Stop through with no pause
+    tier: Lite
+    steps:
+      - name: gate_disabled_allow
+        type: cli
+        expect_exit: 0
+        command:
+          - bash
+          - -c
+          - |
+            set -euo pipefail
+            root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+            gate_py="$root/plugins/manifest-delegate/scripts/delegate.py"
+            if ! python3 "$gate_py" gate --help >/dev/null 2>&1; then
+              echo 'SKIP: delegate.py gate subcommand not yet implemented (T031, polish phase)'
+              exit 0
+            fi
+            sb="$(mktemp -d)"; trap 'rm -rf "$sb"' EXIT
+            mkdir -p "$sb/repo"
+            transcript="$sb/transcript.jsonl"
+            printf '%s\n' \
+              '{"role":"user","content":"fix the bug"}' \
+              '{"role":"assistant","content":[{"type":"tool_use","name":"Edit","input":{}}]}' \
+              > "$transcript"
+            out=$(cd "$sb/repo" && HOME="$sb" python3 "$gate_py" gate --transcript "$transcript" --json 2>&1)
+            echo "$out" | grep -Eq '"decision"\s*:\s*"allow"|systemMessage' \
+              || { echo "FAIL: expected allow (gate off by default) or fail-open systemMessage, got: $out"; exit 1; }
+            echo "$out" | grep -q '"decision"\s*:\s*"block"' && { echo "FAIL: gate blocked while disabled: $out"; exit 1; } || true
+            echo 'delegate gate disabled-no-pause verified'

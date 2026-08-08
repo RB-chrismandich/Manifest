@@ -1,0 +1,123 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "manifest-delegate/backend-registry.schema.json",
+  "title": "Backend Registry Entry (FR-016)",
+  "description": "Schema for entries in plugins/manifest-delegate/config/backends.json (JSON, stdlib-parseable — SC-005). Adding a backend = adding one conforming entry (identity + readiness probe + invocation/prompting conventions); no code surface may switch on backend names. Argv templates are arrays (never shell strings); placeholders: {model}, {prompt}, {prompt_file}, {output_file}, {session_ref}, {transcript}. Dangerous bypass flags (--dangerously-*, approval-skipping/bypass modes) are unrepresentable: every argv token is screened by the safeArg pattern below, AND the dispatcher re-validates the loaded registry at runtime — a violating registry refuses to run (exit 2).",
+  "type": "object",
+  "additionalProperties": false,
+  "$defs": {
+    "safeArg": {
+      "type": "string",
+      "not": { "pattern": "dangerously|bypass" },
+      "description": "Argv token screened for dangerous bypass flags; enforced here AND re-validated by the dispatcher at registry load (violation => refuse to run, exit 2)"
+    }
+  },
+  "required": ["id", "display_name", "binary", "invoke", "resume", "default_tier", "session_id_capture", "input", "readiness", "sandbox", "prompting_ref", "services_key"],
+  "properties": {
+    "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+    "aliases": { "type": "array", "items": { "type": "string", "minLength": 1 }, "default": [] },
+    "display_name": { "type": "string", "minLength": 1 },
+    "binary": { "type": "string", "minLength": 1, "description": "Executable name probed on PATH" },
+    "invoke": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/safeArg" },
+      "minItems": 1,
+      "description": "One-shot non-interactive argv template (binary excluded)"
+    },
+    "resume": {
+      "type": ["array", "null"],
+      "items": { "$ref": "#/$defs/safeArg" },
+      "description": "Argv template resuming {session_ref}; null => backend cannot resume: dispatcher discloses and re-sends context (FR-015)"
+    },
+    "model_args": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/safeArg" },
+      "default": [],
+      "description": "Argv fragment carrying {model}; dropped atomically when the tier resolves to 'auto'"
+    },
+    "tier_source": {
+      "type": "string",
+      "description": "model_tiers key consulted when deployed parallel_agent.yml is present; values not found there pass through verbatim"
+    },
+    "default_tier": {
+      "type": "string",
+      "description": "Economical factory tier (FR-009): codex 'auto', claude 'sonnet', antigravity 'flash'"
+    },
+    "session_id_capture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["method"],
+      "description": "How the resume id is extracted from run output. jsonl_event (codex --json): scan stdout JSONL for the named event and read the named field; the event is version-gated — its absence means session_ref stays null and resume unavailability is disclosed (FR-015), never an error",
+      "properties": {
+        "method": { "enum": ["json_field", "jsonl_event", "output_scan", "none"] },
+        "field": { "type": "string", "description": "JSON pointer/field name for json_field; field within the event payload for jsonl_event (e.g. thread_id)" },
+        "event": { "type": "string", "description": "JSONL event type for jsonl_event (e.g. thread.started)" },
+        "pattern": { "type": "string", "description": "Regex with one capture group for output_scan" }
+      }
+    },
+    "input": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["transport", "max_payload_bytes"],
+      "description": "Prompt input transport + payload limits. Large prompts NEVER travel through argv: transports are stdin (payload piped, then EOF) or temp_file (0600 file inside the job dir, path substituted at {prompt_file}); argv is allowed only for prompts under max_payload_bytes. Oversize context is rejected with an error naming the specific limit — never silently truncated (spec edge case)",
+      "properties": {
+        "transport": { "enum": ["stdin", "temp_file", "argv"] },
+        "max_payload_bytes": { "type": "integer", "minimum": 1, "description": "Transport-level payload cap; exceeding it => explicit error naming this limit" },
+        "max_context_bytes": { "type": ["integer", "null"], "default": null, "description": "Best-known model-context bound; null => only the transport cap is enforced. Exceeding it => explicit error naming this limit" }
+      }
+    },
+    "readiness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version_cmd", "auth_probe_cmd", "install_fix", "login_fix"],
+      "properties": {
+        "version_cmd": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+        "auth_probe_cmd": {
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 1,
+          "description": "Non-interactive, <=10s; exit 0 = authenticated. MUST NOT prompt (US2-AS3)"
+        },
+        "install_fix": { "type": "string", "minLength": 1, "description": "Exact installation remediation (FR-003)" },
+        "login_fix": { "type": "string", "minLength": 1, "description": "Exact authentication remediation (FR-003)" },
+        "retired_check": {
+          "type": ["object", "null"],
+          "description": "Optional detector for present-but-superseded CLIs (edge case) that classifies the install as 'retired'. null on all shipped entries; either detector field may be used alone",
+          "additionalProperties": false,
+          "properties": {
+            "max_retired_version": { "type": "string", "description": "Installed version <= this classifies as retired" },
+            "probe_pattern": { "type": "string", "description": "Regex; probe output matching classifies as retired" },
+            "reason": { "type": "string", "description": "Human explanation used in the readiness row" }
+          }
+        }
+      }
+    },
+    "sandbox": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["read_only_args", "write_args"],
+      "properties": {
+        "read_only_args": { "type": "array", "items": { "$ref": "#/$defs/safeArg" }, "description": "Default posture (FR-008), enforceably read-only: codex --sandbox read-only; claude sandbox-enabled --settings + --permission-mode plan + --disallowedTools write-tool denylist (a denylist alone leaves Bash as a mutation path); agy --sandbox --mode plan (bare --sandbox does not select the read-only mode)" },
+        "write_args": { "type": "array", "items": { "$ref": "#/$defs/safeArg" }, "description": "Opt-in via --write. MUST map to a mode that pre-authorizes only sandbox-scoped workspace edits, keeping the sandbox engaged (codex --sandbox workspace-write; claude sandbox-enabled --settings + --permission-mode acceptEdits, no --add-dir beyond the workspace; agy --sandbox --mode accept-edits — the sandbox is never dropped in write mode); approval-escalating actions (network, outside-workspace paths, force-push/deletes that trip the backend's approval boundary) remain DENIED by the CLI's non-interactive mode — the dispatcher never grants approvals on the user's behalf and never uses bypass flags" }
+      }
+    },
+    "prompting_ref": {
+      "type": "string",
+      "description": "Path (plugin-relative) to the per-backend prompting guidance loaded before composing the delegation prompt (FR-007)"
+    },
+    "services_key": {
+      "type": "string",
+      "description": "services.yml services.<key>.enabled toggle honored by readiness/delegation (FR-009/FR-013; workspace disable outranks user enable)"
+    },
+    "transfer": {
+      "type": ["object", "null"],
+      "default": null,
+      "description": "Session-transfer support; null => transfer unsupported: dispatcher states so and offers context re-send (FR-015). Methods form a fixed capability vocabulary (currently app_server_import): a backend fitting an existing method is entry-only per FR-016; a wholly new transfer protocol is a deliberate dispatcher extension (new enum value + handler) outside FR-016's entry-only guarantee",
+      "additionalProperties": false,
+      "properties": {
+        "method": { "enum": ["app_server_import"] },
+        "notes": { "type": "string" }
+      }
+    }
+  }
+}

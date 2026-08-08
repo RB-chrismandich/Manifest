@@ -40,6 +40,7 @@ reconcile:
     # directories NOT named in skill_policies.yml (reconcile_core.py's
     # user_owned_skill), so `claude plugin init <name>` scaffolds survive while
     # Manifest's own retired skills stay removable. T1.8, spec 674.
+    - "delegation.*"                # user-authored delegation.yml (manifest-delegate); never an orphan
     - "commands"
     - "ide"
     - "sessions"

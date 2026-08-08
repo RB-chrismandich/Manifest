@@ -235,8 +235,9 @@ approaches), review stale plans, or archive/abandon completed work.
 <!-- SPECKIT START -->
 ## Active Spec Kit Feature
 
-- **`674-plugin-architecture`** — cutover complete (phases 0–5): plugins are the
-  SOLE skill source, `~/.claude/skills` is retired and apm stood down (this
-  supersedes 522's SC-006). Undo: `apm_ungate_domain.sh skills --apply` then
-  `./bootstrap.sh`. Record:
-  [cutover-plan.md](specs/674-plugin-architecture/cutover-plan.md).
+- **`675-multi-agent-delegation`** — Implementation in progress via CDDL;
+  `plugins/manifest-delegate` bundle landed, remaining: verification gates.
+  [plan.md](specs/675-multi-agent-delegation/plan.md) (+ research, data-model,
+  contracts/, quickstart).
+- `674-plugin-architecture` — complete ([record](specs/674-plugin-architecture/cutover-plan.md)).
+<!-- SPECKIT END -->

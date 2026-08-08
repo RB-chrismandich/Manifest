@@ -411,7 +411,7 @@
       "C-DUPE": 1
     },
     "tests/python/manifest_agent/test_generate_plugin_views.py": {
-      "C-DATA": 2,
+      "C-DATA": 1,
       "C-SIZE": 2
     },
     "tests/python/manifest_agent/test_mcp_configuration.py": {
