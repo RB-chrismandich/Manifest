@@ -37,6 +37,33 @@ ENVELOPE_OUTCOMES = ("success", "partial", "failure")
 ENVELOPE_ARRAY_FIELDS = ("changes", "succeeded", "failed", "follow_ups")
 
 
+def validate_findings(env, label="review"):
+    """Validate a review-style envelope's outcome/findings shape.
+
+    Returns (findings, error_reason). `error_reason` is set (findings None) when
+    the envelope is missing/malformed, so the caller surfaces it instead of a
+    false-green pass. A MISSING findings field is an INCOMPLETE review, not "no
+    findings": only a present empty list means the reviewer looked and found
+    nothing. Shared by the Stop gate and the standalone `review` command so both
+    fail the same way on an omitted result.
+    """
+    if env.get("outcome") not in ENVELOPE_OUTCOMES:
+        return None, f"{label} returned an invalid envelope (missing/bad outcome)"
+    if "findings" not in env:
+        return None, f"{label} returned an envelope with no findings field"
+    findings = env["findings"]
+    if not isinstance(findings, list):
+        return None, f"{label} returned malformed findings (not a list)"
+    for item in findings:
+        if not isinstance(item, dict):
+            return None, f"{label} returned malformed findings (non-object entry)"
+        if not isinstance(item.get("severity"), str) or not isinstance(
+            item.get("text"), str
+        ):
+            return None, f"{label} returned malformed findings (bad field types)"
+    return findings, None
+
+
 def _envelope_type_errors(parsed):
     """Return a list of schema type/enum violations in `parsed` (empty if valid)."""
     errors = []

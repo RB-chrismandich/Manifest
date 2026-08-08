@@ -8,7 +8,7 @@ from . import backend, config, jobstore, registry, review, worker
 
 # Imported by name, not as `from . import envelope`: several functions here take
 # a parameter called `envelope` (the dict), which would shadow the module.
-from .envelope import ENVELOPE_OUTCOMES
+from .envelope import validate_findings
 
 
 def _gate_allow(reason=None, json_mode=False, cause=None):
@@ -95,28 +95,13 @@ def _gate_build_prompt(entry):
 def _gate_validate_findings(envelope):
     """Validate the gate envelope's outcome/findings shape (G4).
 
-    Returns (findings, error_reason). `error_reason` is set (findings is
-    None) when the envelope is missing/malformed so the caller can surface
-    an explicit systemMessage instead of silently allowing.
+    Thin wrapper over the shared envelope.validate_findings so the gate and the
+    standalone `review` command reject an omitted/malformed result identically.
+    Returns (findings, error_reason); error_reason set (findings None) when the
+    envelope is missing/malformed so the caller surfaces an explicit
+    systemMessage instead of silently allowing.
     """
-    if envelope.get("outcome") not in ENVELOPE_OUTCOMES:
-        return None, "gate review returned an invalid envelope (missing/bad outcome)"
-    # A MISSING findings field is an incomplete review, not "no findings": the
-    # gate must never allow a turn on an omitted result. Only an explicitly
-    # present empty list means the reviewer looked and found nothing.
-    if "findings" not in envelope:
-        return None, "gate review returned an envelope with no findings field"
-    findings = envelope["findings"]
-    if not isinstance(findings, list):
-        return None, "gate review returned malformed findings (not a list)"
-    for item in findings:
-        if not isinstance(item, dict):
-            return None, "gate review returned malformed findings (non-object entry)"
-        if not isinstance(item.get("severity"), str) or not isinstance(
-            item.get("text"), str
-        ):
-            return None, "gate review returned malformed findings (bad field types)"
-    return findings, None
+    return validate_findings(envelope, label="gate review")
 
 
 def _gate_format_block(findings):

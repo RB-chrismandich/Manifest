@@ -6,6 +6,7 @@ import subprocess
 import sys
 
 from . import backend, jobstore, registry, task, worker
+from . import envelope as envelope_mod
 
 _SEVERITY_RANK = {"critical": 0, "high": 1, "medium": 2, "low": 3, "info": 4}
 
@@ -157,6 +158,13 @@ def _dispatch_review(store, args, entry, model_tier, budget, prompt, prompt_byte
         store, record["job_id"], entry, record, prompt_bytes
     )
     envelope = _severity_sorted(final.get("envelope") or {})
+    # A non-failure review that OMITS findings is an incomplete result, not a
+    # clean pass — mirror the Stop gate: convert it to a failure so `review`
+    # never reports success on a backend that never supplied a review result.
+    if final.get("state") != "timeout" and envelope.get("outcome") != "failure":
+        _, error_reason = envelope_mod.validate_findings(envelope, label="review")
+        if error_reason:
+            envelope = dict(envelope, outcome="failure", error=error_reason)
     _print_review_envelope(args, entry, envelope)
 
     if final.get("state") == "timeout":

@@ -96,7 +96,10 @@ class TestReviewCommand:
         def fake_run(store_, job_id, entry, record, prompt_bytes):
             captured["record"] = record
             captured["prompt"] = prompt_bytes.decode("utf-8")
-            return {"state": "completed", "envelope": {"outcome": "success"}}
+            return {
+                "state": "completed",
+                "envelope": {"outcome": "success", "findings": []},
+            }
 
         monkeypatch.setattr(delegate.worker, "_run_backend_and_finish", fake_run)
         args = _ReviewArgs()
@@ -107,13 +110,52 @@ class TestReviewCommand:
         assert captured["record"].get("write") is False
         assert "diff --git a b" in captured["prompt"]
 
+    def test_review_omitting_findings_is_a_failure_not_a_clean_pass(
+        self, tmp_path, monkeypatch, capsys
+    ):
+        """Codex HIGH: a non-failure review envelope that OMITS findings is an
+        incomplete result — `review` must not exit 0 reporting no issues. Mirror
+        the Stop gate: convert it to a failure (exit 1)."""
+        self._setup(tmp_path, monkeypatch)
+
+        def fake_run(store_, job_id, entry, record, prompt_bytes):
+            return {"state": "completed", "envelope": {"outcome": "success"}}
+
+        monkeypatch.setattr(delegate.worker, "_run_backend_and_finish", fake_run)
+        args = _ReviewArgs()
+        args.backend = "codex"
+        rc = delegate.cmd_review(args, [_valid_backend("codex")], {}, set())
+        assert rc == 1, "omitted findings must not be a clean pass"
+
+    def test_review_with_explicit_empty_findings_passes(
+        self, tmp_path, monkeypatch
+    ):
+        """The one legitimate pass: findings PRESENT and empty (reviewer looked,
+        found nothing)."""
+        self._setup(tmp_path, monkeypatch)
+
+        def fake_run(store_, job_id, entry, record, prompt_bytes):
+            return {
+                "state": "completed",
+                "envelope": {"outcome": "success", "findings": []},
+            }
+
+        monkeypatch.setattr(delegate.worker, "_run_backend_and_finish", fake_run)
+        args = _ReviewArgs()
+        args.backend = "codex"
+        rc = delegate.cmd_review(args, [_valid_backend("codex")], {}, set())
+        assert rc == 0
+
     def test_adversarial_switches_prompt_with_focus(self, tmp_path, monkeypatch):
         self._setup(tmp_path, monkeypatch)
         captured = {}
 
         def fake_run(store_, job_id, entry, record, prompt_bytes):
             captured["prompt"] = prompt_bytes.decode("utf-8")
-            return {"state": "completed", "envelope": {"outcome": "success"}}
+            return {
+                "state": "completed",
+                "envelope": {"outcome": "success", "findings": []},
+            }
 
         monkeypatch.setattr(delegate.worker, "_run_backend_and_finish", fake_run)
         args = _ReviewArgs()
