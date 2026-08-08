@@ -51,6 +51,52 @@ def _scope_diff(diff_args, cwd):
     return _run_git(["diff", *diff_args], cwd) + _untracked_diff(cwd)
 
 
+# Candidate refs to merge-base HEAD against when no explicit --base is given,
+# most-specific first: the branch's own upstream, then the repo's default branch.
+_BRANCH_BASE_CANDIDATES = (
+    "@{upstream}",
+    "origin/HEAD",
+    "origin/main",
+    "origin/master",
+    "main",
+    "master",
+)
+
+
+def _git_or_none(args_list, cwd):
+    """Run git and return stripped stdout on success, or None on any failure —
+    for probing refs that may not exist (upstream, default branch)."""
+    try:
+        proc = subprocess.run(
+            ["git", *args_list], capture_output=True, text=True, cwd=cwd
+        )
+    except OSError:
+        return None
+    return proc.stdout.strip() if proc.returncode == 0 else None
+
+
+def _resolve_branch_base(base, cwd):
+    """Resolve the base ref for a branch-scope diff.
+
+    An explicit --base wins. Otherwise merge-base HEAD against the branch's
+    upstream, then the repository's default branch. Fails VISIBLY
+    (ReviewDiffError) rather than defaulting to HEAD~1 — a branch review that
+    silently diffs only the latest commit excludes every earlier commit on the
+    branch and reports success, a false-green.
+    """
+    if base:
+        return base
+    for ref in _BRANCH_BASE_CANDIDATES:
+        merge_base = _git_or_none(["merge-base", "HEAD", ref], cwd)
+        if merge_base:
+            return merge_base
+    raise ReviewDiffError(
+        "branch review needs a base but none could be resolved (no upstream, "
+        "and no origin/HEAD, origin/main, origin/master, main, or master to "
+        "merge-base against). Pass --base <ref> explicitly."
+    )
+
+
 def assemble_review_diff(scope, base, cwd=None):
     """Build the review/gate diff: tracked+staged+untracked, fail open visibly.
 
@@ -60,13 +106,13 @@ def assemble_review_diff(scope, base, cwd=None):
     if scope == "working-tree":
         return _scope_diff(["HEAD"], cwd)
     if scope == "branch":
-        ref = base or "HEAD~1"
+        ref = _resolve_branch_base(base, cwd)
         return _scope_diff([f"{ref}...HEAD"], cwd)
-    # auto: prefer working-tree changes; fall back to branch diff against base.
+    # auto: prefer working-tree changes; fall back to the full branch diff.
     diff = _scope_diff(["HEAD"], cwd)
     if diff.strip():
         return diff
-    ref = base or "HEAD~1"
+    ref = _resolve_branch_base(base, cwd)
     return _scope_diff([f"{ref}...HEAD"], cwd)
 
 

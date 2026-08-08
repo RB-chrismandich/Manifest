@@ -162,3 +162,35 @@ class TestReviewCommand:
         store = delegate.JobStore(cwd=str(tmp_path))
         record = store.read(out["job_id"])
         assert record["kind"] == "review"
+
+
+class TestBranchBaseResolution:
+    """Codex HIGH: a branch review with no --base must not silently diff only
+    the last commit (HEAD~1); it resolves a real base or fails visibly."""
+
+    def test_explicit_base_is_used_verbatim(self):
+        assert delegate.review._resolve_branch_base("abc123", cwd=".") == "abc123"
+
+    def test_resolves_first_available_candidate_merge_base(self, monkeypatch):
+        seen = []
+
+        def fake_git_or_none(args_list, cwd):
+            # merge-base against @{upstream} "fails" (no upstream); origin/main hits.
+            ref = args_list[-1]
+            seen.append(ref)
+            return "basesha123" if ref == "origin/main" else None
+
+        monkeypatch.setattr(delegate.review, "_git_or_none", fake_git_or_none)
+        assert delegate.review._resolve_branch_base(None, cwd=".") == "basesha123"
+        assert seen[0] == "@{upstream}"  # most-specific candidate tried first
+
+    def test_no_resolvable_base_fails_visibly(self, monkeypatch):
+        monkeypatch.setattr(
+            delegate.review, "_git_or_none", lambda args_list, cwd: None
+        )
+        try:
+            delegate.review._resolve_branch_base(None, cwd=".")
+        except delegate.review.ReviewDiffError as exc:
+            assert "--base" in str(exc)
+        else:
+            raise AssertionError("expected ReviewDiffError when no base resolves")

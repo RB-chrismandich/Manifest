@@ -101,7 +101,12 @@ def _gate_validate_findings(envelope):
     """
     if envelope.get("outcome") not in ENVELOPE_OUTCOMES:
         return None, "gate review returned an invalid envelope (missing/bad outcome)"
-    findings = envelope.get("findings", [])
+    # A MISSING findings field is an incomplete review, not "no findings": the
+    # gate must never allow a turn on an omitted result. Only an explicitly
+    # present empty list means the reviewer looked and found nothing.
+    if "findings" not in envelope:
+        return None, "gate review returned an envelope with no findings field"
+    findings = envelope["findings"]
     if not isinstance(findings, list):
         return None, "gate review returned malformed findings (not a list)"
     for item in findings:

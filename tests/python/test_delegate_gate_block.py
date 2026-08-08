@@ -465,3 +465,23 @@ class TestGateEnvelopeParsing:
         assert findings is None
         assert error_reason
         assert "malformed findings" in error_reason
+
+    def test_gate_validate_findings_rejects_missing_findings_field(self):
+        """Codex HIGH: an omitted `findings` field is an INCOMPLETE review, not
+        "no findings". A schema-valid success envelope that simply omits findings
+        must NOT reach the allow path — the gate returns an error reason so the
+        Stop hook surfaces it, instead of defaulting to [] and allowing."""
+        findings, error_reason = delegate._gate_validate_findings(
+            {"outcome": "success"}
+        )
+        assert findings is None
+        assert error_reason and "no findings field" in error_reason
+
+    def test_gate_validate_findings_accepts_explicit_empty_list(self):
+        """The one legitimate allow: findings is PRESENT and empty — the
+        reviewer looked and found nothing."""
+        findings, error_reason = delegate._gate_validate_findings(
+            {"outcome": "success", "findings": []}
+        )
+        assert findings == []
+        assert error_reason is None
