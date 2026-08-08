@@ -33,14 +33,9 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 DELEGATE_PY = os.path.join(SCRIPT_DIR, "delegate.py")
 
 
-def main(argv=None):
-    # type: (list[str] | None) -> int
-    """Forward the Stop hook's transcript to `delegate.py gate` and relay its JSON.
-
-    Fails open (returns 0, emits a systemMessage) on missing transcript_path,
-    malformed stdin JSON, or any subprocess error — a hook must never crash
-    or block the session it is attached to.
-    """
+def _read_payload(argv):
+    # type: (list[str] | None) -> dict
+    """Parse args and return the Stop hook payload; malformed JSON reads as {}."""
     parser = argparse.ArgumentParser(
         prog="stop_gate_hook.py",
         description="Stop hook wrapper: forwards transcript to `delegate.py gate`.",
@@ -59,9 +54,48 @@ def main(argv=None):
     else:
         raw = sys.stdin.read()
     try:
-        payload = json.loads(raw) if raw.strip() else {}
+        return json.loads(raw) if raw.strip() else {}
     except ValueError:
-        payload = {}
+        return {}
+
+
+def _relay_gate_decision(result):
+    # type: (subprocess.CompletedProcess) -> None
+    """Pass the gate's hook JSON through, or emit a fail-open systemMessage.
+
+    Every rejection path here is a fail-open: the gate is advisory, so an
+    unusable response must never become a blocked session.
+    """
+    out = result.stdout.strip()
+    if result.returncode != 0:
+        _fail_open(
+            f"delegate.py gate exited {result.returncode}: {_tail(result.stderr)}"
+        )
+        return
+    if not out:
+        _fail_open(
+            f"delegate.py gate produced no output; stderr: {_tail(result.stderr)}"
+        )
+        return
+    try:
+        json.loads(out)
+    except ValueError as exc:
+        _fail_open(
+            f"delegate.py gate produced invalid JSON ({exc}); stderr: {_tail(result.stderr)}"
+        )
+        return
+    sys.stdout.write(out + "\n")
+
+
+def main(argv=None):
+    # type: (list[str] | None) -> int
+    """Forward the Stop hook's transcript to `delegate.py gate` and relay its JSON.
+
+    Fails open (returns 0, emits a systemMessage) on missing transcript_path,
+    malformed stdin JSON, or any subprocess error — a hook must never crash
+    or block the session it is attached to.
+    """
+    payload = _read_payload(argv)
 
     transcript_path = payload.get("transcript_path")
     if not transcript_path:
@@ -92,26 +126,7 @@ def main(argv=None):
         _fail_open(f"subprocess error: {exc}")
         return 0
 
-    out = result.stdout.strip()
-    if result.returncode != 0:
-        _fail_open(
-            f"delegate.py gate exited {result.returncode}: {_tail(result.stderr)}"
-        )
-        return 0
-    if not out:
-        _fail_open(
-            f"delegate.py gate produced no output; stderr: {_tail(result.stderr)}"
-        )
-        return 0
-    try:
-        json.loads(out)
-    except ValueError as exc:
-        _fail_open(
-            f"delegate.py gate produced invalid JSON ({exc}); stderr: {_tail(result.stderr)}"
-        )
-        return 0
-
-    sys.stdout.write(out + "\n")
+    _relay_gate_decision(result)
     return 0
 
 

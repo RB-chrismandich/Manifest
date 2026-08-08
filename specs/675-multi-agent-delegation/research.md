@@ -297,11 +297,39 @@ the same binary.
 
 ## D5 — Engine placement & language
 
-**Decision**: A single self-contained Python 3 dispatcher inside the plugin:
-`plugins/manifest-delegate/scripts/delegate.py` (stdlib-only), subcommands
-`task`, `review` (incl. `--adversarial`), `status`, `result`, `cancel`,
-`setup`, `transfer`, `gate`, `resume-candidate`. Hook scripts are thin Python
-entries in the same `scripts/` dir invoked via `${CLAUDE_PLUGIN_ROOT}`.
+**Decision**: A self-contained, stdlib-only Python 3 dispatcher inside the
+plugin, entered at `plugins/manifest-delegate/scripts/delegate.py`, with
+subcommands `task`, `review` (incl. `--adversarial`), `status`, `result`,
+`cancel`, `setup`, `transfer`, `gate`, `resume-candidate`. Hook scripts are thin
+Python entries in the same `scripts/` dir invoked via `${CLAUDE_PLUGIN_ROOT}`.
+
+**Amended 2026-08-08 (implementation)**: originally "a single self-contained
+Python 3 dispatcher … `scripts/delegate.py`". The implementation reached 3,440
+lines, against the Code Constitution's 500-line file ceiling (CON-002). The
+ceiling is a repo-wide gate with no per-path exemption mechanism, and the
+alternative — an inline whole-file `constitution: exempt C-SIZE` marker — would
+have grandfathered the largest file in the plugin rather than fixed it.
+
+The implementation therefore lives in a sibling package,
+`plugins/manifest-delegate/manifest_delegate/`, split along the responsibility
+seams the single file already had as banner comments: `constants`, `registry`,
+`config`, `jobstore`, `envelope`, `backend`, `process`, `worker`, `task`,
+`review`, `jobs_cli`, `transfer`, `readiness`, `gate`, `setup`, `cli`. Every
+module is under the ceiling.
+
+What this does **not** change: still stdlib-only, still one process, still no
+backend-name branching, still installed by the ordinary marketplace flow (the
+package ships inside the plugin bundle; SC-005 is unaffected). `scripts/
+delegate.py` remains the executable entry point every hook, skill, and contract
+names, so no external interface moved — it runs the D11 version probe, puts the
+plugin root on `sys.path`, and re-exports the package.
+
+"Self-contained" was always about the dependency boundary (no imports from
+`~/.claude/scripts/`, no PyYAML requirement), not about file count; the package
+satisfies it identically. Cross-module references inside the package are
+qualified (`registry.load_registry`) rather than `from .registry import …`, so
+the import graph tolerates the cycles the single file had for free and a test
+patching a module-level constant patches the module that owns it.
 
 **Rationale**:
 

@@ -39,10 +39,10 @@ import delegate  # noqa: E402
 
 
 def _load_sessions():
-    if not os.path.exists(delegate.SESSIONS_CAPTURE_FILE):
+    if not os.path.exists(delegate.transfer.SESSIONS_CAPTURE_FILE):
         return {}
     try:
-        return json.load(open(delegate.SESSIONS_CAPTURE_FILE))
+        return json.load(open(delegate.transfer.SESSIONS_CAPTURE_FILE))
     except ValueError:
         return {}
 
@@ -55,7 +55,7 @@ def _mutate_sessions(mutate):
     all happen inside the lock; the temp file is unique (mkstemp) and fsync'd
     before the rename so a crash cannot leave a torn file.
     """
-    path = delegate.SESSIONS_CAPTURE_FILE
+    path = delegate.transfer.SESSIONS_CAPTURE_FILE
     dest_dir = os.path.dirname(path)
     os.makedirs(dest_dir, exist_ok=True)
     lock_fd = os.open(path + ".lock", os.O_CREAT | os.O_RDWR, 0o600)
@@ -100,7 +100,7 @@ def handle_session_start(payload):
         "cwd": payload.get("cwd"),
         # Recorded so an operator can tell stale entries apart. Deliberately
         # NOT used to break a tie between two live sessions in one workspace:
-        # transfer refuses instead (see delegate._resolve_transfer_source).
+        # transfer refuses instead (see delegate.transfer._resolve_transfer_source).
         "captured_at": time.time(),
     }
     try:

@@ -285,7 +285,7 @@ class TestUserConfig:
 
     def test_yaml_unavailable_reports_and_defaults(self, tmp_path, monkeypatch):
         (tmp_path / "delegation.yml").write_text("default_backend: antigravity\n")
-        monkeypatch.setattr(delegate, "_yaml_module", lambda: None)
+        monkeypatch.setattr(delegate.config, "_yaml_module", lambda: None)
         reports = []
         cfg = delegate.load_user_config(
             explicit_dir=str(tmp_path), reporter=reports.append
@@ -374,7 +374,7 @@ class TestServicesYaml:
         assert "claude" not in disabled
 
     def test_no_services_yaml_means_nothing_disabled(self, tmp_path, monkeypatch):
-        monkeypatch.setattr(delegate, "HOME_CONFIG_DIR", str(tmp_path / "unused-home"))
+        monkeypatch.setattr(delegate.constants, "HOME_CONFIG_DIR", str(tmp_path / "unused-home"))
         disabled = delegate.load_services_disabled(config_dir=str(tmp_path))
         assert disabled == set()
 
@@ -411,13 +411,13 @@ class TestServicesYaml:
 
 class TestModelTiers:
     def test_absent_model_tiers_is_passthrough(self, tmp_path, monkeypatch):
-        monkeypatch.setattr(delegate, "HOME_CONFIG_DIR", str(tmp_path / "unused-home"))
+        monkeypatch.setattr(delegate.constants, "HOME_CONFIG_DIR", str(tmp_path / "unused-home"))
         tiers = delegate.load_model_tiers(config_dir=str(tmp_path))
         assert tiers == {}
 
     def test_pyyaml_unavailable_returns_empty(self, tmp_path, monkeypatch):
         (tmp_path / "parallel_agent.yml").write_text("model_tiers:\n  auto: gpt\n")
-        monkeypatch.setattr(delegate, "_yaml_module", lambda: None)
+        monkeypatch.setattr(delegate.config, "_yaml_module", lambda: None)
         tiers = delegate.load_model_tiers(config_dir=str(tmp_path))
         assert tiers == {}
 
@@ -728,15 +728,15 @@ class TestTransfer:
         source = transcript_root / "session.jsonl"
         source.write_text("{}\n")
         monkeypatch_roots = (str(transcript_root), str(tmp_path / "unused"))
-        orig_roots = delegate.TRANSCRIPT_ROOTS
-        delegate.TRANSCRIPT_ROOTS = monkeypatch_roots
+        orig_roots = delegate.transfer.TRANSCRIPT_ROOTS
+        delegate.transfer.TRANSCRIPT_ROOTS = monkeypatch_roots
         try:
             args = type(
                 "Args", (), {"backend": "claude", "source": str(source), "json": True}
             )()
             rc = delegate.cmd_transfer(args, [backend], {})
         finally:
-            delegate.TRANSCRIPT_ROOTS = orig_roots
+            delegate.transfer.TRANSCRIPT_ROOTS = orig_roots
         out = json.loads(capsys.readouterr().out)
         assert rc == 1
         assert out["supported"] is False
@@ -779,10 +779,10 @@ class TestTransfer:
         transcript_root.mkdir()
         source = transcript_root / "session.jsonl"
         source.write_text("{}\n")
-        orig_roots = delegate.TRANSCRIPT_ROOTS
-        delegate.TRANSCRIPT_ROOTS = (str(transcript_root), str(tmp_path / "unused"))
+        orig_roots = delegate.transfer.TRANSCRIPT_ROOTS
+        delegate.transfer.TRANSCRIPT_ROOTS = (str(transcript_root), str(tmp_path / "unused"))
         monkeypatch.setattr(
-            delegate,
+            delegate.transfer,
             "_app_server_import",
             lambda entry, path: ("thread-123", None),
         )
@@ -792,7 +792,7 @@ class TestTransfer:
             )()
             rc = delegate.cmd_transfer(args, [backend], {})
         finally:
-            delegate.TRANSCRIPT_ROOTS = orig_roots
+            delegate.transfer.TRANSCRIPT_ROOTS = orig_roots
         out = json.loads(capsys.readouterr().out)
         assert rc == 0
         assert out["thread_id"] == "thread-123"
@@ -801,28 +801,28 @@ class TestTransfer:
 
 class TestValidateTranscriptSource:
     def test_resolves_under_allowed_root(self, tmp_path):
-        orig_roots = delegate.TRANSCRIPT_ROOTS
-        delegate.TRANSCRIPT_ROOTS = (str(tmp_path),)
+        orig_roots = delegate.transfer.TRANSCRIPT_ROOTS
+        delegate.transfer.TRANSCRIPT_ROOTS = (str(tmp_path),)
         try:
             target = tmp_path / "a" / "b.jsonl"
             target.parent.mkdir(parents=True)
             target.write_text("{}")
             real, err = delegate._validate_transcript_source(str(target))
         finally:
-            delegate.TRANSCRIPT_ROOTS = orig_roots
+            delegate.transfer.TRANSCRIPT_ROOTS = orig_roots
         assert err is None
         assert real == os.path.realpath(str(target))
 
     def test_rejects_path_outside_roots(self, tmp_path):
-        orig_roots = delegate.TRANSCRIPT_ROOTS
-        delegate.TRANSCRIPT_ROOTS = (str(tmp_path / "allowed"),)
+        orig_roots = delegate.transfer.TRANSCRIPT_ROOTS
+        delegate.transfer.TRANSCRIPT_ROOTS = (str(tmp_path / "allowed"),)
         try:
             outside = tmp_path / "other" / "b.jsonl"
             outside.parent.mkdir(parents=True)
             outside.write_text("{}")
             real, err = delegate._validate_transcript_source(str(outside))
         finally:
-            delegate.TRANSCRIPT_ROOTS = orig_roots
+            delegate.transfer.TRANSCRIPT_ROOTS = orig_roots
         assert real is None
         assert err is not None
 
@@ -833,7 +833,7 @@ class TestSessionCapturedTranscript:
     def _write_sessions(self, monkeypatch, tmp_path, sessions):
         capture_file = tmp_path / "sessions.json"
         capture_file.write_text(json.dumps(sessions))
-        monkeypatch.setattr(delegate, "SESSIONS_CAPTURE_FILE", str(capture_file))
+        monkeypatch.setattr(delegate.transfer, "SESSIONS_CAPTURE_FILE", str(capture_file))
         return capture_file
 
     def test_cwd_mismatch_returns_none_no_global_fallback(self, tmp_path, monkeypatch):
@@ -908,7 +908,7 @@ class TestSetupReadiness:
                 return auth
             return (1, "")
 
-        monkeypatch.setattr(delegate, "_run_readiness_probe", fake_probe)
+        monkeypatch.setattr(delegate.readiness, "_run_readiness_probe", fake_probe)
         return delegate.probe_backend_readiness(
             entry, user_config or {}, services_disabled or set()
         )
@@ -967,7 +967,7 @@ class TestSetupReadiness:
                 return (0, "")
             return (0, "")
 
-        monkeypatch.setattr(delegate, "_run_readiness_probe", fake_probe)
+        monkeypatch.setattr(delegate.readiness, "_run_readiness_probe", fake_probe)
         row = delegate.probe_backend_readiness(entry, {}, set())
         assert row["state"] == "retired"
 
@@ -983,9 +983,9 @@ class TestSetupReadiness:
 
             return _Proc()
 
-        monkeypatch.setattr(delegate.subprocess, "run", fake_run)
+        monkeypatch.setattr(delegate.readiness.subprocess, "run", fake_run)
         delegate._run_readiness_probe(["codex", "--version"], timeout=5)
-        assert captured.get("stdin") == delegate.subprocess.DEVNULL
+        assert captured.get("stdin") == delegate.readiness.subprocess.DEVNULL
         assert captured.get("timeout") == 5
 
     def test_cmd_setup_runs_backends_in_parallel(self, monkeypatch):
@@ -1003,7 +1003,7 @@ class TestSetupReadiness:
                 "probe_seconds": 0.01,
             }
 
-        monkeypatch.setattr(delegate, "probe_backend_readiness", fake_probe)
+        monkeypatch.setattr(delegate.readiness, "probe_backend_readiness", fake_probe)
 
         class Args:
             json = True
@@ -1033,7 +1033,7 @@ class TestSetupReadiness:
                 "probe_seconds": 0.01,
             }
 
-        monkeypatch.setattr(delegate, "probe_backend_readiness", fake_probe)
+        monkeypatch.setattr(delegate.readiness, "probe_backend_readiness", fake_probe)
 
         class Args:
             json = True
@@ -1083,7 +1083,7 @@ class TestSecondOpinion:
     def _setup(self, tmp_path, monkeypatch, backend_id="claude"):
         monkeypatch.setenv(delegate.DELEGATIONS_DIR_ENV, str(tmp_path / "delegations"))
         monkeypatch.chdir(tmp_path)
-        monkeypatch.setattr(delegate, "_executable_missing", lambda argv: None)
+        monkeypatch.setattr(delegate.backend, "_executable_missing", lambda argv: None)
         store = delegate.JobStore(cwd=str(tmp_path))
         original = store.create("codex")
         store.mutate(
@@ -1108,7 +1108,7 @@ class TestSecondOpinion:
             captured["write"] = record.get("write")
             return {"state": "completed", "envelope": {"outcome": "success"}}
 
-        monkeypatch.setattr(delegate, "_run_backend_and_finish", fake_run)
+        monkeypatch.setattr(delegate.worker, "_run_backend_and_finish", fake_run)
         args = _SOArgs()
         args.backend = "claude"
         args.of = of_id
@@ -1132,7 +1132,7 @@ class TestSecondOpinion:
         def fake_run(store_, job_id, entry, record, prompt_bytes):
             return {"state": "completed", "envelope": {"outcome": "success"}}
 
-        monkeypatch.setattr(delegate, "_run_backend_and_finish", fake_run)
+        monkeypatch.setattr(delegate.worker, "_run_backend_and_finish", fake_run)
         args = _SOArgs()
         args.backend = "claude"
         args.of = of_id
@@ -1156,8 +1156,8 @@ class TestSecondOpinion:
         def fake_probe(entry, user_config, services_disabled):
             return {"state": "ready" if entry["id"] == "claude" else "unavailable"}
 
-        monkeypatch.setattr(delegate, "_run_backend_and_finish", fake_run)
-        monkeypatch.setattr(delegate, "probe_backend_readiness", fake_probe)
+        monkeypatch.setattr(delegate.worker, "_run_backend_and_finish", fake_run)
+        monkeypatch.setattr(delegate.readiness, "probe_backend_readiness", fake_probe)
         args = _SOArgs()
         args.backend = "codex"
         args.of = of_id
@@ -1187,7 +1187,7 @@ class TestSecondOpinion:
             captured["write"] = record.get("write")
             return {"state": "completed", "envelope": {"outcome": "success"}}
 
-        monkeypatch.setattr(delegate, "_run_backend_and_finish", fake_run)
+        monkeypatch.setattr(delegate.worker, "_run_backend_and_finish", fake_run)
         args = _SOArgs()
         args.backend = "claude"
         args.of = of_id
@@ -1221,7 +1221,7 @@ class TestSecondOpinion:
             captured["prompt"] = prompt_bytes.decode("utf-8")
             return {"state": "completed", "envelope": {"outcome": "success"}}
 
-        monkeypatch.setattr(delegate, "_run_backend_and_finish", fake_run)
+        monkeypatch.setattr(delegate.worker, "_run_backend_and_finish", fake_run)
         args = _SOArgs()
         args.backend = "claude"
         args.of = of_id
@@ -1244,7 +1244,7 @@ class TestSecondOpinion:
         def fake_run(store_, job_id, entry, record, prompt_bytes):
             return {"state": "completed", "envelope": {"outcome": "success"}}
 
-        monkeypatch.setattr(delegate, "_run_backend_and_finish", fake_run)
+        monkeypatch.setattr(delegate.worker, "_run_backend_and_finish", fake_run)
         args = _SOArgs()
         args.backend = "claude"
         args.of = of_id
@@ -1378,9 +1378,9 @@ class TestReviewCommand:
     def _setup(self, tmp_path, monkeypatch):
         monkeypatch.setenv(delegate.DELEGATIONS_DIR_ENV, str(tmp_path / "delegations"))
         monkeypatch.chdir(tmp_path)
-        monkeypatch.setattr(delegate, "_executable_missing", lambda argv: None)
+        monkeypatch.setattr(delegate.backend, "_executable_missing", lambda argv: None)
         monkeypatch.setattr(
-            delegate,
+            delegate.review,
             "assemble_review_diff",
             lambda scope, base, cwd=None: "diff --git a b\n",
         )
@@ -1394,7 +1394,7 @@ class TestReviewCommand:
             captured["prompt"] = prompt_bytes.decode("utf-8")
             return {"state": "completed", "envelope": {"outcome": "success"}}
 
-        monkeypatch.setattr(delegate, "_run_backend_and_finish", fake_run)
+        monkeypatch.setattr(delegate.worker, "_run_backend_and_finish", fake_run)
         args = _ReviewArgs()
         args.backend = "codex"
         rc = delegate.cmd_review(args, [_valid_backend("codex")], {}, set())
@@ -1411,7 +1411,7 @@ class TestReviewCommand:
             captured["prompt"] = prompt_bytes.decode("utf-8")
             return {"state": "completed", "envelope": {"outcome": "success"}}
 
-        monkeypatch.setattr(delegate, "_run_backend_and_finish", fake_run)
+        monkeypatch.setattr(delegate.worker, "_run_backend_and_finish", fake_run)
         args = _ReviewArgs()
         args.backend = "codex"
         args.adversarial = ["auth", "boundary"]
@@ -1437,7 +1437,7 @@ class TestReviewCommand:
                 },
             }
 
-        monkeypatch.setattr(delegate, "_run_backend_and_finish", fake_run)
+        monkeypatch.setattr(delegate.worker, "_run_backend_and_finish", fake_run)
         args = _ReviewArgs()
         args.backend = "codex"
         rc = delegate.cmd_review(args, [_valid_backend("codex")], {}, set())
@@ -1473,9 +1473,9 @@ class TestGateCommand:
     def _setup(self, tmp_path, monkeypatch):
         monkeypatch.setenv(delegate.DELEGATIONS_DIR_ENV, str(tmp_path / "delegations"))
         monkeypatch.chdir(tmp_path)
-        monkeypatch.setattr(delegate, "_executable_missing", lambda argv: None)
+        monkeypatch.setattr(delegate.backend, "_executable_missing", lambda argv: None)
         monkeypatch.setattr(
-            delegate,
+            delegate.review,
             "assemble_review_diff",
             lambda scope, base, cwd=None: "diff --git a b\n",
         )
@@ -1653,7 +1653,7 @@ class TestGateCommand:
                 },
             }
 
-        monkeypatch.setattr(delegate, "_run_backend_and_finish", fake_run)
+        monkeypatch.setattr(delegate.worker, "_run_backend_and_finish", fake_run)
         args = _GateArgs()
         args.transcript = self._transcript(
             tmp_path,
@@ -1698,7 +1698,7 @@ class TestGateCommand:
                 },
             }
 
-        monkeypatch.setattr(delegate, "_run_backend_and_finish", fake_run)
+        monkeypatch.setattr(delegate.worker, "_run_backend_and_finish", fake_run)
         args = _GateArgs()
         args.transcript = self._transcript(
             tmp_path,
@@ -1728,7 +1728,7 @@ class TestGateCommand:
     ):
         self._setup(tmp_path, monkeypatch)
         monkeypatch.setattr(
-            delegate, "_executable_missing", lambda argv: "not installed"
+            delegate.backend, "_executable_missing", lambda argv: "not installed"
         )
         args = _GateArgs()
         args.transcript = self._transcript(
@@ -1762,7 +1762,7 @@ class TestGateCommand:
     ):
         self._setup(tmp_path, monkeypatch)
         monkeypatch.setattr(
-            delegate, "_run_backend_and_finish", lambda *a, **k: {"state": "timeout"}
+            delegate.worker, "_run_backend_and_finish", lambda *a, **k: {"state": "timeout"}
         )
         args = _GateArgs()
         args.transcript = self._transcript(
@@ -1815,7 +1815,7 @@ class TestGateCommand:
             captured["budget"] = record.get("budget_seconds")
             return {"state": "completed", "envelope": {"outcome": "success"}}
 
-        monkeypatch.setattr(delegate, "_run_backend_and_finish", fake_run)
+        monkeypatch.setattr(delegate.worker, "_run_backend_and_finish", fake_run)
         args = _GateArgs()
         args.transcript = self._transcript(
             tmp_path,
@@ -1858,7 +1858,7 @@ class TestGateCommand:
             captured["budget"] = record.get("budget_seconds")
             return {"state": "completed", "envelope": {"outcome": "success"}}
 
-        monkeypatch.setattr(delegate, "_run_backend_and_finish", fake_run)
+        monkeypatch.setattr(delegate.worker, "_run_backend_and_finish", fake_run)
         args = _GateArgs()
         args.transcript = self._transcript(
             tmp_path,
@@ -1932,7 +1932,7 @@ class TestGateCommand:
             "```\n"
         )
         monkeypatch.setattr(
-            delegate,
+            delegate.process,
             "_spawn_backend",
             lambda entry, argv, prompt_bytes, job_dir, budget, on_pgid=None: (
                 0,
@@ -1964,7 +1964,7 @@ class TestGateCommand:
         self._setup(tmp_path, monkeypatch)
         raw_output = "I looked at the diff but forgot to emit any JSON block, sorry.\n"
         monkeypatch.setattr(
-            delegate,
+            delegate.process,
             "_spawn_backend",
             lambda entry, argv, prompt_bytes, job_dir, budget, on_pgid=None: (
                 0,
@@ -2041,7 +2041,7 @@ class TestGateSetupWriteFormats:
     ):
         monkeypatch.setenv(delegate.CONFIG_DIR_ENV, str(tmp_path))
         (tmp_path / "delegation.yml").write_text("default_backend: codex\n")
-        monkeypatch.setattr(delegate, "_yaml_module", lambda: None)
+        monkeypatch.setattr(delegate.config, "_yaml_module", lambda: None)
         reports = []
         args = self._SetupArgs()
         args.disable_review_gate = True

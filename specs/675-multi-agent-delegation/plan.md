@@ -138,10 +138,25 @@ plugins/manifest-delegate/
 ├── MIGRATION.md                    # baseline→replacement map (13 rows) + uninstall + gate-exclusivity note
 ├── config/
 │   └── backends.json               # extensible backend registry (D4, JSON: stdlib-parseable): codex, claude, antigravity
+├── manifest_delegate/              # dispatcher implementation (D5, amended): stdlib-only package
+│   ├── __init__.py                 # flat re-export facade; submodules are the patch targets
+│   ├── constants.py                # paths, regexes, subcommand list, err()
+│   ├── registry.py                 # backend-registry load + validation (D8)
+│   ├── config.py                   # user config / services.yml / model tiers (D3)
+│   ├── jobstore.py                 # job-record store (data-model.md)
+│   ├── envelope.py                 # result-envelope normalization (SC-004)
+│   ├── backend.py                  # argv building, tier/budget resolution, payload limits
+│   ├── process.py                  # spawn, pgid tracking, drain, locks
+│   ├── worker.py                   # background/foreground backend runs
+│   ├── task.py review.py gate.py   # the delegating subcommands
+│   ├── jobs_cli.py                 # status|result|cancel
+│   ├── transfer.py                 # transcript validation + session handover (FR-015)
+│   ├── readiness.py setup.py       # probes + `setup`
+│   └── cli.py                      # parser + main()
 ├── scripts/
-│   ├── delegate.py                 # self-contained dispatcher (D5): task|review|status|result|cancel|setup|transfer|gate|resume-candidate; --help first
+│   ├── delegate.py                 # executable entry (D5): version probe → sys.path → manifest_delegate; task|review|status|result|cancel|setup|transfer|gate|resume-candidate; --help first
 │   ├── stop_gate_hook.py           # Stop hook → delegate.py gate (soft gate, D9)
-│   └── session_hook.py             # SessionStart (env capture) / SessionEnd (orphan cleanup)
+│   └── session_hook.py             # SessionStart (env capture) / SessionEnd (capture eviction + orphan cleanup)
 ├── hooks/hooks.json                # Stop (900s; gate budget capped ≤840s) + SessionStart/SessionEnd (5s)
 ├── agents/delegate-runner.md       # thin forwarder agent, model: sonnet, tools: Bash
 └── skills/

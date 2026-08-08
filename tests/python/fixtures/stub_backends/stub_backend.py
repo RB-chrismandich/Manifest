@@ -28,13 +28,17 @@ import os
 import sys
 
 
-def main():
+def _load_control():
+    """The control file the harness wrote for this invocation, or {}."""
     control_path = os.environ.get("STUB_CONTROL_FILE")
-    control = {}
     if control_path and os.path.exists(control_path):
         with open(control_path, encoding="utf-8") as fh:
-            control = json.load(fh)
+            return json.load(fh)
+    return {}
 
+
+def _simulate_process_behavior(control):
+    """Impersonate the timing/lifetime quirks a real backend can exhibit."""
     sentinel_file = control.get("sentinel_file")
     if sentinel_file:
         with open(sentinel_file, "w", encoding="utf-8") as fh:
@@ -63,10 +67,13 @@ def main():
         time.sleep(sleep_s)
 
     if control.get("drain_stdin", True) and not sys.stdin.isatty():
-        # constitution: exempt C-ERR — test stub draining stdin; a read error is irrelevant to the impersonated behavior
+        # A read error here is irrelevant to the behavior being impersonated.
         with contextlib.suppress(Exception):
             sys.stdin.read()
 
+
+def _emit_output(control):
+    """Write the session id, side files, and result envelope a backend would."""
     session_ref = control.get("session_ref", "sess-stub")
     session_format = control.get("session_format")
     if session_format == "jsonl_event":
@@ -97,6 +104,11 @@ def main():
     elif "raw_text" in control:
         print(control["raw_text"])
 
+
+def main():
+    control = _load_control()
+    _simulate_process_behavior(control)
+    _emit_output(control)
     sys.exit(int(control.get("exit_code", 0)))
 
 

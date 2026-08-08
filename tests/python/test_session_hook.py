@@ -37,9 +37,9 @@ session_hook = _load("session_hook", SCRIPTS_DIR / "session_hook.py")
 def _isolated_sessions_file(tmp_path, monkeypatch):
     """Redirect both modules' sessions.json to a per-test tmp path."""
     sessions_file = tmp_path / "sessions.json"
-    monkeypatch.setattr(delegate, "SESSIONS_CAPTURE_FILE", str(sessions_file))
+    monkeypatch.setattr(delegate.transfer, "SESSIONS_CAPTURE_FILE", str(sessions_file))
     monkeypatch.setattr(
-        session_hook.delegate, "SESSIONS_CAPTURE_FILE", str(sessions_file)
+        session_hook.delegate.transfer, "SESSIONS_CAPTURE_FILE", str(sessions_file)
     )
     return sessions_file
 
@@ -139,7 +139,7 @@ class TestSessionStartCapture:
         rc = session_hook.handle_session_start(payload)
         assert rc == 0
 
-        sessions_file = Path(session_hook.delegate.SESSIONS_CAPTURE_FILE)
+        sessions_file = Path(session_hook.delegate.transfer.SESSIONS_CAPTURE_FILE)
         assert sessions_file.exists()
         mode = stat.S_IMODE(os.stat(sessions_file).st_mode)
         assert mode == 0o600
@@ -151,7 +151,7 @@ class TestSessionStartCapture:
     def test_session_start_missing_session_id_is_noop(self, tmp_path):
         rc = session_hook.handle_session_start({"hook_event_name": "SessionStart"})
         assert rc == 0
-        assert not Path(session_hook.delegate.SESSIONS_CAPTURE_FILE).exists()
+        assert not Path(session_hook.delegate.transfer.SESSIONS_CAPTURE_FILE).exists()
 
     def test_concurrent_session_starts_all_survive(self, tmp_path, monkeypatch):
         """L2: parallel harness sessions each call SessionStart concurrently; the
@@ -162,7 +162,7 @@ class TestSessionStartCapture:
 
         sessions_file = tmp_path / "sessions.json"
         monkeypatch.setattr(
-            session_hook.delegate, "SESSIONS_CAPTURE_FILE", str(sessions_file)
+            session_hook.delegate.transfer, "SESSIONS_CAPTURE_FILE", str(sessions_file)
         )
         n = 25
         barrier = threading.Barrier(n)
@@ -255,7 +255,7 @@ class TestTransferSourceFallback:
         )
         monkeypatch.chdir(tmp_path)
         monkeypatch.delenv(delegate.TRANSCRIPT_PATH_ENV, raising=False)
-        monkeypatch.setattr(delegate, "TRANSCRIPT_ROOTS", (str(tmp_path),))
+        monkeypatch.setattr(delegate.transfer, "TRANSCRIPT_ROOTS", (str(tmp_path),))
 
         class _Args:
             source = None
@@ -317,7 +317,7 @@ class TestTransferSessionDisambiguation:
 
         monkeypatch.chdir(tmp_path)
         monkeypatch.delenv(delegate.TRANSCRIPT_PATH_ENV, raising=False)
-        monkeypatch.setattr(delegate, "TRANSCRIPT_ROOTS", (str(tmp_path),))
+        monkeypatch.setattr(delegate.transfer, "TRANSCRIPT_ROOTS", (str(tmp_path),))
 
         class _Args:
             source = str(mine)

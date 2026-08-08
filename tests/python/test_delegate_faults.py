@@ -173,7 +173,7 @@ class TestMissingBinaryFault:
         args = _make_args(tmp_path, monkeypatch)
         backends = [_valid_backend("codex")]
         monkeypatch.setattr(
-            delegate,
+            delegate.backend,
             "_executable_missing",
             lambda argv: "binary 'codex' not found on PATH",
         )
@@ -203,7 +203,7 @@ class TestUnauthenticatedFault:
                 return (1, "")
             return (1, "")
 
-        monkeypatch.setattr(delegate, "_run_readiness_probe", fake_probe)
+        monkeypatch.setattr(delegate.readiness, "_run_readiness_probe", fake_probe)
         row = delegate.probe_backend_readiness(entry, {}, set())
         assert row["state"] == "not_authenticated"
         assert row["backend"] == "codex"
@@ -228,7 +228,7 @@ class TestOversizeContextFaults:
         args.prompt = "x" * 2_000_000
         backend = _valid_backend("codex")
         backend["input"]["max_payload_bytes"] = 1_000_000
-        monkeypatch.setattr(delegate, "_executable_missing", lambda argv: None)
+        monkeypatch.setattr(delegate.backend, "_executable_missing", lambda argv: None)
         rc = delegate.cmd_task(args, [backend], {}, set())
         err = capsys.readouterr().err
         assert rc == 2
@@ -249,7 +249,7 @@ class TestOversizeContextFaults:
         backend = _valid_backend("codex")
         backend["input"]["max_payload_bytes"] = 1_000_000
         backend["input"]["max_context_bytes"] = 100_000
-        monkeypatch.setattr(delegate, "_executable_missing", lambda argv: None)
+        monkeypatch.setattr(delegate.backend, "_executable_missing", lambda argv: None)
         rc = delegate.cmd_task(args, [backend], {}, set())
         err = capsys.readouterr().err
         assert rc == 2
@@ -274,13 +274,13 @@ class TestTimeoutFault:
     ):
         args = _make_args(tmp_path, monkeypatch)
         backend = _valid_backend("codex")
-        monkeypatch.setattr(delegate, "_executable_missing", lambda argv: None)
+        monkeypatch.setattr(delegate.backend, "_executable_missing", lambda argv: None)
 
         def fake_run(store_, job_id, entry, record, prompt_bytes):
             envelope = delegate.normalize_envelope("", entry["id"], record.get("model"))
             return {"state": "timeout", "envelope": envelope, "job_id": job_id}
 
-        monkeypatch.setattr(delegate, "_run_backend_and_finish", fake_run)
+        monkeypatch.setattr(delegate.worker, "_run_backend_and_finish", fake_run)
         rc = delegate.cmd_task(args, [backend], {}, set())
         out = capsys.readouterr().out
         assert rc == 1
@@ -331,7 +331,7 @@ class TestMalformedOutputFault:
     ):
         args = _make_args(tmp_path, monkeypatch)
         backend = _valid_backend("codex")
-        monkeypatch.setattr(delegate, "_executable_missing", lambda argv: None)
+        monkeypatch.setattr(delegate.backend, "_executable_missing", lambda argv: None)
 
         def fake_run(store_, job_id, entry, record, prompt_bytes):
             envelope = delegate.normalize_envelope(
@@ -339,7 +339,7 @@ class TestMalformedOutputFault:
             )
             return {"state": "failed", "envelope": envelope, "job_id": job_id}
 
-        monkeypatch.setattr(delegate, "_run_backend_and_finish", fake_run)
+        monkeypatch.setattr(delegate.worker, "_run_backend_and_finish", fake_run)
         rc = delegate.cmd_task(args, [backend], {}, set())
         out = capsys.readouterr().out
         assert rc == 1
@@ -449,7 +449,7 @@ class TestSandboxFaultPair:
         args = _make_args(tmp_path, monkeypatch)
         args.write = True
         args.prompt = "please write results to /outside/workspace/notes.txt"
-        monkeypatch.setattr(delegate, "_executable_missing", lambda argv: None)
+        monkeypatch.setattr(delegate.backend, "_executable_missing", lambda argv: None)
 
         rc = delegate.cmd_task(args, [backend], {}, set())
         out = capsys.readouterr().out
@@ -474,7 +474,7 @@ class TestSandboxFaultPair:
         args = _make_args(tmp_path, monkeypatch)
         args.write = True
         args.prompt = "run git push --force to origin main (force-push)"
-        monkeypatch.setattr(delegate, "_executable_missing", lambda argv: None)
+        monkeypatch.setattr(delegate.backend, "_executable_missing", lambda argv: None)
 
         rc = delegate.cmd_task(args, [backend], {}, set())
         out = capsys.readouterr().out
