@@ -3,8 +3,10 @@
 # repo precedent exists for this shape, so this file IS the gate. Asserts the
 # hooks.json declares exactly Stop/SessionStart/SessionEnd with timeouts
 # 900/5/5, referenced scripts exist and are executable, ${CLAUDE_PLUGIN_ROOT}
-# is used (no absolute paths), and the code-level gate-budget cap (<=840s,
-# data-model.md review_gate.budget_seconds) is honored by the Stop wrapper.
+# is used (no absolute paths), and the Stop wrapper subprocess timeout
+# (900s) outlasts the gate backend budget cap (840s, data-model.md
+# review_gate.budget_seconds) so delegate.py can reap before the wrapper
+# times out.
 
 setup() {
   ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
@@ -85,19 +87,22 @@ print('ok')
   [ "$status" -eq 0 ]
 }
 
-@test "stop hook subprocess call to delegate.py gate is capped <=840s" {
-  # code-level gate-budget cap assertion (data-model.md: review_gate.budget_seconds
-  # is 1-840, capped; plan.md: 840s under the 900s hook timeout).
-  run grep -n "timeout=" "$PLUGIN_DIR/scripts/stop_gate_hook.py"
-  [ "$status" -eq 0 ]
+@test "stop hook subprocess call to delegate.py gate outlasts the backend budget cap" {
+  # The Stop hook window is 900s (hooks.json). The gate's BACKEND budget is
+  # capped at GATE_BUDGET_CAP_SECONDS (840). The wrapper subprocess timeout must
+  # EXCEED that cap so delegate.py can reap its backend before subprocess.run
+  # kills the wrapper — otherwise the hook fails open and orphans the backend.
+  # Drift guard also lives in test_stop_gate_hook.py::test_wrapper_timeout_outlasts_backend_budget_cap.
   run python3 -c "
 import re
 src = open('$PLUGIN_DIR/scripts/stop_gate_hook.py').read()
-m = re.search(r'timeout=(\d+)', src)
-assert m, 'no timeout= found in subprocess call'
-val = int(m.group(1))
-assert val <= 840, val
-print('ok', val)
+const = re.search(r'GATE_WRAPPER_TIMEOUT_SECONDS\s*=\s*(\d+)', src)
+assert const, 'GATE_WRAPPER_TIMEOUT_SECONDS constant not found'
+wrapper = int(const.group(1))
+assert re.search(r'timeout=GATE_WRAPPER_TIMEOUT_SECONDS', src), 'subprocess must use named constant'
+assert wrapper == 900, wrapper
+assert wrapper > 840, wrapper
+print('ok', wrapper)
 "
   [ "$status" -eq 0 ]
   [[ "$output" == *"ok"* ]]
