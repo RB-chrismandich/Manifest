@@ -181,3 +181,26 @@ class TestVersionProbe:
         the module must NOT exit."""
         # Already imported at module level without raising SystemExit.
         assert delegate is not None
+
+
+class TestShippedClaudeSandbox:
+    def test_claude_enforces_sandbox_settings_in_both_modes(self):
+        """Codex HIGH / D8: the SHIPPED claude profile must launch with
+        sandbox-enabled --settings in BOTH read-only and write mode. Without it,
+        --write inherits the user's full Claude permissions and can modify files
+        outside the workspace (config, credentials) while claiming to be
+        sandboxed. Guards the assembled argv, not just the raw config."""
+        from _delegate_inproc import REPO_ROOT
+
+        cfg = json.loads(
+            (REPO_ROOT / "plugins/manifest-delegate/config/backends.json").read_text()
+        )
+        claude = next(b for b in cfg["backends"] if b["id"] == "claude")
+        for write in (False, True):
+            mode = "write" if write else "read-only"
+            argv = delegate.backend.build_invoke_argv(claude, write, "sonnet", {})
+            assert "--settings" in argv, f"claude {mode} mode is missing --settings"
+            settings = json.loads(argv[argv.index("--settings") + 1])
+            assert settings.get("sandbox", {}).get("enabled") is True, (
+                f"claude {mode} mode --settings does not enable the sandbox"
+            )

@@ -69,8 +69,8 @@
         "retired_check": null
       },
       "sandbox": {
-        "read_only_args": ["--permission-mode", "plan", "--disallowedTools", "Bash,Edit,Write,MultiEdit,NotebookEdit"],
-        "write_args": ["--permission-mode", "acceptEdits"]
+        "read_only_args": ["--settings", "{\"sandbox\":{\"enabled\":true}}", "--permission-mode", "plan", "--disallowedTools", "Bash,Edit,Write,MultiEdit,NotebookEdit"],
+        "write_args": ["--settings", "{\"sandbox\":{\"enabled\":true}}", "--permission-mode", "acceptEdits"]
       },
       "prompting_ref": "skills/delegate/references/prompting-claude.md",
       "services_key": "claude",
