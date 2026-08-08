@@ -109,7 +109,7 @@ token
 ux
 version
 ```
-delegate
+
 <!-- /skill-naming:domains -->
 
 ### Adding a new domain token
@@ -130,6 +130,7 @@ ai-hooks-integration
 automation-rework-breakeven
 code-to-design
 design-md
+delegate
 enhance-prompt
 extract-design-md
 extract-static-html
@@ -152,7 +153,7 @@ stitch-loop
 taste-design
 upload-to-stitch
 ```
-delegate
+
 <!-- /skill-naming:exceptions -->
 
 | Name | Rationale |
