@@ -2563,40 +2563,65 @@ def _resolve_transfer_entry(args, backends, user_config):
 SESSIONS_CAPTURE_FILE = os.path.expanduser("~/.manifest/delegate/sessions.json")
 
 
-def _session_captured_transcript(cwd=None):
-    """Best-effort lookup of the most recent SessionStart-captured transcript
-    path for `cwd`, written by session_hook.py's handle_session_start.
+def _captured_sessions_for_cwd(cwd=None):
+    """Every SessionStart-captured entry whose workspace canonicalizes to `cwd`,
+    as a list of (session_id, entry) pairs. Never raises; unreadable or
+    malformed capture files read as "nothing captured".
 
-    Requires an exact canonical-workspace match (realpath) when `cwd` is
-    supplied — fails closed (returns None) rather than leaking the most
-    recent transcript from an unrelated workspace. Never raises.
+    `cwd` is compared by realpath, so a symlinked checkout does not masquerade
+    as a different workspace. With `cwd` omitted no scoping is possible and
+    every captured entry is returned — the caller must then disambiguate.
     """
     try:
         with open(SESSIONS_CAPTURE_FILE, encoding="utf-8") as fh:
             sessions = json.load(fh)
     except (OSError, ValueError):
-        return None
-    if not isinstance(sessions, dict) or not sessions:
-        return None
-    entries = [v for v in sessions.values() if isinstance(v, dict)]
-    if not entries:
-        return None
+        return []
+    if not isinstance(sessions, dict):
+        return []
+    pairs = [(k, v) for k, v in sessions.items() if isinstance(v, dict)]
     if not cwd:
-        return entries[-1].get("transcript_path")
+        return pairs
     real_cwd = os.path.realpath(cwd)
-    matching = [e for e in entries if os.path.realpath(e.get("cwd") or "") == real_cwd]
-    if not matching:
+    return [p for p in pairs if os.path.realpath(p[1].get("cwd") or "") == real_cwd]
+
+
+def _session_captured_transcript(cwd=None):
+    """The SessionStart-captured transcript path for `cwd`, or None.
+
+    Fails closed in both directions: None when nothing matches (never leak an
+    unrelated workspace's transcript) and None when MORE than one session
+    matches. Two agent sessions open in the same worktree both capture an entry
+    here, and nothing in a `transfer` invocation identifies which one is asking
+    — picking either would hand the caller the other session's full transcript.
+    Callers that can report an error should use `_captured_sessions_for_cwd`
+    and say why, rather than treating ambiguity as "not found".
+    """
+    matching = _captured_sessions_for_cwd(cwd)
+    if len(matching) != 1:
         return None
-    return matching[-1].get("transcript_path")
+    return matching[0][1].get("transcript_path")
 
 
 def _resolve_transfer_source(args):
     """Resolve and validate the transcript source path. Returns (real_source, error_message)."""
-    source = (
-        args.source
-        or os.environ.get(TRANSCRIPT_PATH_ENV)
-        or _session_captured_transcript(os.getcwd())
-    )
+    source = args.source or os.environ.get(TRANSCRIPT_PATH_ENV)
+    if not source:
+        matching = _captured_sessions_for_cwd(os.getcwd())
+        if len(matching) > 1:
+            # Refuse rather than guess. Insertion order does not track recency
+            # (re-writing an existing key keeps its original position) and
+            # SessionEnd may not have run, so "the newest entry" is not a
+            # sound tiebreak — and guessing wrong silently imports another
+            # session's transcript.
+            names = ", ".join(sorted(sid for sid, _ in matching))
+            return None, (
+                f"delegate: --source required ({len(matching)} sessions captured "
+                f"for this workspace: {names}; pass --source <transcript> or set "
+                f"{TRANSCRIPT_PATH_ENV} to say which one)\n"
+            )
+        if len(matching) == 1:
+            source = matching[0][1].get("transcript_path")
     if not source:
         return None, (
             "delegate: --source required (no SessionStart-captured transcript "

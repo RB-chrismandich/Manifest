@@ -263,3 +263,122 @@ class TestTransferSourceFallback:
         real_source, error = delegate._resolve_transfer_source(_Args())
         assert error is None
         assert real_source is not None
+
+
+class TestTransferSessionDisambiguation:
+    """Two sessions sharing one worktree must never import each other's
+    transcript. `transfer` has no way to identify which session invoked it, so
+    an ambiguous capture set is refused rather than guessed at."""
+
+    def _capture(self, session_id, transcript, cwd):
+        session_hook.handle_session_start(
+            {
+                "hook_event_name": "SessionStart",
+                "session_id": session_id,
+                "transcript_path": str(transcript),
+                "cwd": str(cwd),
+            }
+        )
+
+    def test_two_sessions_same_cwd_refuses_instead_of_guessing(
+        self, tmp_path, monkeypatch
+    ):
+        """The bug: the fallback took the last cwd-matching entry, so whichever
+        session ran `transfer` could receive the OTHER session's transcript."""
+        mine = tmp_path / "mine.jsonl"
+        theirs = tmp_path / "theirs.jsonl"
+        mine.write_text("{}\n")
+        theirs.write_text("{}\n")
+        self._capture("sess-mine", mine, tmp_path)
+        self._capture("sess-theirs", theirs, tmp_path)
+
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.delenv(delegate.TRANSCRIPT_PATH_ENV, raising=False)
+
+        class _Args:
+            source = None
+
+        real_source, error = delegate._resolve_transfer_source(_Args())
+        assert real_source is None, "ambiguous capture must not resolve a source"
+        assert error is not None
+        # Both session ids are named so the operator knows what to pass.
+        assert "sess-mine" in error and "sess-theirs" in error
+        assert "--source" in error
+
+    def test_explicit_source_selects_the_right_transcript(
+        self, tmp_path, monkeypatch
+    ):
+        mine = tmp_path / "mine.jsonl"
+        theirs = tmp_path / "theirs.jsonl"
+        mine.write_text("{}\n")
+        theirs.write_text("{}\n")
+        self._capture("sess-mine", mine, tmp_path)
+        self._capture("sess-theirs", theirs, tmp_path)
+
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.delenv(delegate.TRANSCRIPT_PATH_ENV, raising=False)
+        monkeypatch.setattr(delegate, "TRANSCRIPT_ROOTS", (str(tmp_path),))
+
+        class _Args:
+            source = str(mine)
+
+        real_source, error = delegate._resolve_transfer_source(_Args())
+        assert error is None
+        assert os.path.realpath(real_source) == os.path.realpath(str(mine))
+
+    def test_ambiguous_capture_yields_no_transcript(self, tmp_path):
+        """The lower-level lookup fails closed on ambiguity too, so no other
+        caller can reintroduce the guess."""
+        a = tmp_path / "a.jsonl"
+        b = tmp_path / "b.jsonl"
+        a.write_text("{}\n")
+        b.write_text("{}\n")
+        self._capture("sess-a", a, tmp_path)
+        self._capture("sess-b", b, tmp_path)
+
+        assert delegate._session_captured_transcript(str(tmp_path)) is None
+        assert len(delegate._captured_sessions_for_cwd(str(tmp_path))) == 2
+
+    def test_session_end_evicts_entry_restoring_unambiguous_transfer(
+        self, tmp_path, monkeypatch
+    ):
+        """SessionEnd removing the finished session's entry is what returns the
+        remaining live session to a working no---source transfer."""
+        mine = tmp_path / "mine.jsonl"
+        theirs = tmp_path / "theirs.jsonl"
+        mine.write_text("{}\n")
+        theirs.write_text("{}\n")
+        self._capture("sess-mine", mine, tmp_path)
+        self._capture("sess-theirs", theirs, tmp_path)
+
+        rc = session_hook.handle_session_end(
+            {
+                "hook_event_name": "SessionEnd",
+                "session_id": "sess-theirs",
+                "cwd": str(tmp_path),
+            }
+        )
+        assert rc == 0
+        assert "sess-theirs" not in session_hook._load_sessions()
+        assert delegate._session_captured_transcript(str(tmp_path)) == str(mine)
+
+    def test_session_end_eviction_is_idempotent(self, tmp_path):
+        transcript = tmp_path / "t.jsonl"
+        transcript.write_text("{}\n")
+        self._capture("sess-1", transcript, tmp_path)
+        payload = {
+            "hook_event_name": "SessionEnd",
+            "session_id": "sess-1",
+            "cwd": str(tmp_path),
+        }
+        assert session_hook.handle_session_end(payload) == 0
+        assert session_hook.handle_session_end(payload) == 0
+        assert session_hook._load_sessions() == {}
+
+    def test_capture_entry_is_timestamped(self, tmp_path):
+        transcript = tmp_path / "t.jsonl"
+        transcript.write_text("{}\n")
+        before = time.time()
+        self._capture("sess-1", transcript, tmp_path)
+        entry = session_hook._load_sessions()["sess-1"]
+        assert before <= entry["captured_at"] <= time.time()

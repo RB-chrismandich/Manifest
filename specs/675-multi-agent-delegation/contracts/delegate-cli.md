@@ -159,6 +159,15 @@ it must canonicalize (realpath, symlinks resolved) to a path under
 the harness uses (path-traversal guard, widened from the baseline's
 projects-only rule).
 
+The default only applies when **exactly one** captured session matches the
+current workspace. Nothing in a `transfer` invocation identifies the calling
+session, so when two sessions are open in the same worktree the command exits
+non-zero, names the candidate session ids, and requires `--source` (or
+`MANIFEST_TRANSCRIPT_PATH`). Guessing — "the most recent cwd match" — could
+hand the caller the other session's entire transcript. SessionEnd evicts the
+finishing session's capture entry, which is what returns the surviving session
+to the no-`--source` path.
+
 ### `gate` — soft review gate engine (US4; called by the Stop hook)
 
 ```

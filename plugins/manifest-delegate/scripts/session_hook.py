@@ -30,6 +30,7 @@ import os
 import stat
 import sys as _sys
 import tempfile
+import time
 
 _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 if _SCRIPT_DIR not in _sys.path:
@@ -46,12 +47,14 @@ def _load_sessions():
         return {}
 
 
-def _capture_session(session_id, entry):
-    """Add one session entry to the shared capture file under an inter-process
-    flock, so concurrent SessionStart hooks (parallel harness sessions are
-    supported) cannot lose each other's writes. Load+merge+atomic-replace all
-    happen inside the lock; the temp file is unique (mkstemp) and fsync'd before
-    the rename so a crash cannot leave a torn file."""
+def _mutate_sessions(mutate):
+    """Apply `mutate` to the capture dict under an inter-process flock.
+
+    Concurrent SessionStart/SessionEnd hooks (parallel harness sessions are
+    supported) must not lose each other's writes, so load+mutate+atomic-replace
+    all happen inside the lock; the temp file is unique (mkstemp) and fsync'd
+    before the rename so a crash cannot leave a torn file.
+    """
     path = delegate.SESSIONS_CAPTURE_FILE
     dest_dir = os.path.dirname(path)
     os.makedirs(dest_dir, exist_ok=True)
@@ -59,7 +62,7 @@ def _capture_session(session_id, entry):
     try:
         fcntl.flock(lock_fd, fcntl.LOCK_EX)
         sessions = _load_sessions()
-        sessions[session_id] = entry
+        mutate(sessions)
         fd, tmp = tempfile.mkstemp(dir=dest_dir, prefix=".sessions.", suffix=".tmp")
         try:
             with os.fdopen(fd, "w") as fh:
@@ -78,6 +81,16 @@ def _capture_session(session_id, entry):
         os.close(lock_fd)
 
 
+def _capture_session(session_id, entry):
+    """Record one session's transcript location."""
+    _mutate_sessions(lambda sessions: sessions.__setitem__(session_id, entry))
+
+
+def _forget_session(session_id):
+    """Drop one session's capture entry. Idempotent."""
+    _mutate_sessions(lambda sessions: sessions.pop(session_id, None))
+
+
 def handle_session_start(payload):
     session_id = payload.get("session_id")
     if not session_id:
@@ -85,6 +98,10 @@ def handle_session_start(payload):
     entry = {
         "transcript_path": payload.get("transcript_path"),
         "cwd": payload.get("cwd"),
+        # Recorded so an operator can tell stale entries apart. Deliberately
+        # NOT used to break a tie between two live sessions in one workspace:
+        # transfer refuses instead (see delegate._resolve_transfer_source).
+        "captured_at": time.time(),
     }
     try:
         _capture_session(session_id, entry)
@@ -98,13 +115,30 @@ def handle_session_start(payload):
 
 
 def handle_session_end(payload):
-    """Reap orphaned non-terminal jobs for this session's workspace.
+    """Drop this session's capture entry, then reap its orphaned jobs.
 
-    Delegates entirely to delegate.JobStore.reap_if_dead, the dispatcher's
-    own locked reaper, so state vocabulary (TERMINAL_STATES/NON_TERMINAL_
-    STATES) and pgid-liveness semantics (EPERM == alive) stay in exactly one
-    place instead of being duplicated here.
+    The capture entry must go first and unconditionally: while it lingers, a
+    `delegate transfer` run from the same worktree sees two candidate sessions
+    and refuses (or, before that refusal existed, silently imported the wrong
+    transcript). Eviction is what keeps the common single-live-session case
+    working without --source.
+
+    Job reaping delegates entirely to delegate.JobStore.reap_if_dead, the
+    dispatcher's own locked reaper, so state vocabulary (TERMINAL_STATES/
+    NON_TERMINAL_STATES) and pgid-liveness semantics (EPERM == alive) stay in
+    exactly one place instead of being duplicated here.
     """
+    session_id = payload.get("session_id")
+    if session_id:
+        try:
+            _forget_session(session_id)
+        except OSError as exc:
+            # SessionEnd must still exit 0; a stale entry degrades transfer to
+            # "pass --source", it does not break the session.
+            _sys.stderr.write(
+                f"session_hook: failed to forget session {session_id}: {exc}\n"
+            )
+
     store = delegate.JobStore(cwd=payload.get("cwd"))
     for job_id in store.list_job_ids():
         try:
