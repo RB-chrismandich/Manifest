@@ -3,8 +3,8 @@
 # repo precedent exists for this shape, so this file IS the gate. Asserts the
 # hooks.json declares exactly Stop/SessionStart/SessionEnd with timeouts
 # 900/5/5, referenced scripts exist and are executable, ${CLAUDE_PLUGIN_ROOT}
-# is used (no absolute paths), and the code-level gate-budget cap (<=840s,
-# data-model.md review_gate.budget_seconds) is honored by the Stop wrapper.
+# is used (no absolute paths), and the Stop wrapper timeout outlasts the
+# code-level gate-budget cap (840s, data-model.md review_gate.budget_seconds).
 
 setup() {
   ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
@@ -85,18 +85,22 @@ print('ok')
   [ "$status" -eq 0 ]
 }
 
-@test "stop hook subprocess call to delegate.py gate is capped <=840s" {
-  # code-level gate-budget cap assertion (data-model.md: review_gate.budget_seconds
-  # is 1-840, capped; plan.md: 840s under the 900s hook timeout).
-  run grep -n "timeout=" "$PLUGIN_DIR/scripts/stop_gate_hook.py"
-  [ "$status" -eq 0 ]
+@test "stop hook wrapper timeout outlasts the gate backend budget cap" {
+  # The wrapper subprocess timeout must EXCEED the backend budget cap
+  # (GATE_BUDGET_CAP_SECONDS=840, data-model.md review_gate.budget_seconds 1-840)
+  # so the gate reaches its own backend timeout and reaps the detached backend
+  # BEFORE the wrapper kills delegate.py. Equal timeouts (the old <=840 assertion)
+  # were a guaranteed collision — codex adversarial-review fix; the 840s cap was
+  # itself "900s hook window minus overhead". Python drift guard:
+  # tests/python/test_stop_gate_hook.py.
   run python3 -c "
 import re
 src = open('$PLUGIN_DIR/scripts/stop_gate_hook.py').read()
-m = re.search(r'timeout=(\d+)', src)
-assert m, 'no timeout= found in subprocess call'
+m = re.search(r'GATE_WRAPPER_TIMEOUT_SECONDS\s*=\s*(\d+)', src)
+assert m, 'no GATE_WRAPPER_TIMEOUT_SECONDS constant found'
 val = int(m.group(1))
-assert val <= 840, val
+assert val > 840, val
+assert 'timeout=GATE_WRAPPER_TIMEOUT_SECONDS' in src, 'wrapper does not use the constant'
 print('ok', val)
 "
   [ "$status" -eq 0 ]
