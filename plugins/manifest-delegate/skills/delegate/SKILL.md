@@ -21,7 +21,10 @@ the human-facing entry point; it never talks to a backend CLI directly.
 - **Second opinion** — `--second-opinion --of JOB_ID` asks a backend to
   critique a prior job's envelope rather than redo the task.
 - **Job verbs** — `status [JOB_ID|--all] [--wait [--timeout N]]`,
-  `result JOB_ID`, `cancel JOB_ID`. `JOB_ID` accepts a unique prefix.
+  `result JOB_ID`, `cancel JOB_ID`. `JOB_ID` accepts a unique prefix. `cancel`
+  and timeout kill the backend's process group (best-effort: a descendant that
+  calls `setsid()` to detach escapes it — the backend's own sandbox still scopes
+  its writes; reliable containment of detached descendants is future hardening).
 - **Transfer** — `transfer --backend NAME --source TRANSCRIPT` hands a
   session to another surface using that backend's declared transfer
   contract (`transfer` in `backends.json`; `null` means unsupported).

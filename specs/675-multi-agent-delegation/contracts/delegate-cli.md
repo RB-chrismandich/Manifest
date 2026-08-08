@@ -126,6 +126,18 @@ terminal write wins). Already-terminal job ⇒ no-op: the existing terminal
 state is reported, the record is untouched, exit 0. Reports whether the
 process was still alive.
 
+**Containment limitation (best-effort for write jobs)**: cancellation and
+timeout kill the backend's process *group*, which reaches the backend and any
+descendant that stayed in that group. A descendant that itself calls `setsid()`
+(a new session/group) escapes `killpg` — as any daemon a subprocess spawns
+would. The backend's own sandbox (D8) still scopes its writes to the workspace,
+so this is a lifecycle-cleanup gap for a misbehaving/hostile backend that
+deliberately detaches, NOT the primary write-safety boundary. Reliable
+containment of re-parented descendants needs an OS-level boundary (Linux cgroup
+v2 / PID namespace; a sandbox or container per delegation for cross-platform),
+tracked as future hardening — do not rely on cancel/timeout to stop a
+deliberately-detached write-enabled descendant.
+
 ### `setup` — readiness (US2) + gate toggle (US4)
 
 ```
