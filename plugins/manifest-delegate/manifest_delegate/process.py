@@ -230,6 +230,30 @@ def _launch_backend(argv, transport, job_dir):
         return proc, proc.pid
 
 
+def _kill_stdout_holder(pgid, proc, job_dir):
+    """SIGKILL the descendant still holding stdout after the drain grace.
+
+    Without this, a write-capable orphan outlives its job with NO cancellation
+    path — the job becomes terminal `timeout`, which cancel/reap treat as a
+    no-op. This is the one place that can still reach it.
+
+    LIMITATION: reaches only descendants that stayed in the backend's process
+    group (the realistic runaway child). One that setsid()s into its own group
+    escapes killpg, like any daemon a subprocess can spawn; fully containing it
+    needs an OS-level lifetime boundary (Linux cgroup / PID namespace) — a
+    cross-platform design decision tracked separately, not expressible here.
+    """
+    try:
+        os.killpg(pgid, signal.SIGKILL)
+    except OSError as exc:
+        constants.err(
+            f"job dir {job_dir}: failed to kill stdout-holding descendant "
+            f"pgid {pgid}: {exc}"
+        )
+    else:
+        proc.wait()
+
+
 def _spawn_backend(entry, argv, prompt_bytes, job_dir, budget, on_pgid=None):
     stdout_path = os.path.join(job_dir, "output.txt")
     with open(os.path.join(job_dir, "job.log"), "a", encoding="utf-8") as log_fh:
@@ -270,27 +294,12 @@ def _spawn_backend(entry, argv, prompt_bytes, job_dir, budget, on_pgid=None):
         proc.wait()
     reader.join(DRAIN_GRACE_SECONDS)
     if reader.is_alive():
-        # The backend exited/was killed, but a detached descendant is still
-        # holding the stdout pipe open, so the reader is blocked in read() —
-        # which closing the fd does NOT reliably interrupt. Abandon the daemon
-        # reader (process exit reaps it) rather than hang past budget (a DoS
-        # vector): the bytes read so far, including the envelope emitted before
-        # the block, are already in the tail. Mark the run timed out (incomplete).
-        #
-        # Critically, kill that descendant's process group. It is write-capable
-        # and would otherwise keep mutating the workspace with NO cancellation
-        # path: this job is about to become terminal `timeout`, and cancel/reap
-        # treat a terminal job as a no-op. Killing the recorded pgid here is the
-        # one place that can still reach the orphan (mirrors the timeout path).
-        try:
-            os.killpg(pgid, signal.SIGKILL)
-        except OSError as exc:
-            constants.err(
-                f"job dir {job_dir}: failed to kill stdout-holding descendant "
-                f"pgid {pgid}: {exc}"
-            )
-        else:
-            proc.wait()
+        # Backend exited but a detached descendant still holds stdout open, so
+        # read() stays blocked (closing the fd does NOT reliably interrupt it).
+        # Abandon the daemon reader rather than hang past budget (a DoS vector);
+        # the envelope emitted before the block is already in the tail. Kill the
+        # holder's group and mark the run incomplete.
+        _kill_stdout_holder(pgid, proc, job_dir)
         timed_out = True
     raw = tail.value().decode("utf-8", errors="replace")
     output_file_content = (
