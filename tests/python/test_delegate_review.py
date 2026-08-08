@@ -127,9 +127,7 @@ class TestReviewCommand:
         rc = delegate.cmd_review(args, [_valid_backend("codex")], {}, set())
         assert rc == 1, "omitted findings must not be a clean pass"
 
-    def test_review_with_explicit_empty_findings_passes(
-        self, tmp_path, monkeypatch
-    ):
+    def test_review_with_explicit_empty_findings_passes(self, tmp_path, monkeypatch):
         """The one legitimate pass: findings PRESENT and empty (reviewer looked,
         found nothing)."""
         self._setup(tmp_path, monkeypatch)

@@ -49,7 +49,7 @@ class TestResponseCaptureDecoding:
     def test_no_response_capture_passes_raw_output_through(self):
         """Backends that print the fenced block directly on stdout (codex, agy)
         declare no response_capture, so extract_response_text is a pass-through."""
-        raw = "```json\n{\"outcome\": \"success\"}\n```"
+        raw = '```json\n{"outcome": "success"}\n```'
         assert delegate.backend.extract_response_text({"id": "codex"}, raw) == raw
 
     def test_undecodable_json_field_falls_back_to_raw(self):

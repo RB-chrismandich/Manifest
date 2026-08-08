@@ -305,7 +305,9 @@ class TestTransferSessionDisambiguation:
             source = None
 
         real_source, error = delegate._resolve_transfer_source(_Args())
-        assert real_source is None, "two shared-worktree sessions must not resolve a source"
+        assert real_source is None, (
+            "two shared-worktree sessions must not resolve a source"
+        )
         assert error is not None and "--source" in error
 
     def test_explicit_source_selects_the_right_transcript(self, tmp_path, monkeypatch):

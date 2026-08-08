@@ -93,8 +93,7 @@ class TestBackendDrainBound:
             time.sleep(0.2)
         assert dead, (
             "in-group stdout-holding descendant survived the drain grace "
-            "(pgid %s still alive) — no cancellation path for a terminal timeout"
-            % pgid
+            f"(pgid {pgid} still alive) — no cancellation path for a terminal timeout"
         )
 
 

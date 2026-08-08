@@ -80,10 +80,11 @@ def test_wrapper_timeout_outlasts_backend_budget_cap():
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
 
-    overhead = mod.GATE_WRAPPER_TIMEOUT_SECONDS - config.GATE_BUDGET_CAP_SECONDS
+    wrapper = mod.GATE_WRAPPER_TIMEOUT_SECONDS
+    cap = config.GATE_BUDGET_CAP_SECONDS
+    overhead = wrapper - cap
     assert overhead >= 30, (
-        "wrapper timeout (%ds) must outlast the backend cap (%ds) by real "
-        "cleanup overhead so the gate reaps its backend before the wrapper "
-        "kills delegate.py; got %ds of headroom"
-        % (mod.GATE_WRAPPER_TIMEOUT_SECONDS, config.GATE_BUDGET_CAP_SECONDS, overhead)
+        f"wrapper timeout ({wrapper}s) must outlast the backend cap ({cap}s) by "
+        f"real cleanup overhead so the gate reaps its backend before the wrapper "
+        f"kills delegate.py; got {overhead}s of headroom"
     )
