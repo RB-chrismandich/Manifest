@@ -97,7 +97,7 @@ rationale for non-dispatch skills prevent silent gaps and give the convention du
 on P1/P2 conventions but is about completeness rather than the convention itself.
 
 **Independent Test**: Produce the audit result and confirm every skill directory under
-`.skillshare/skills/` appears with a disposition; spot-check that "never" skills have a rationale and
+`.retired skill supply/skills/` appears with a disposition; spot-check that "never" skills have a rationale and
 "always"/"conditional" skills carry P1-style triggers.
 
 **Acceptance Scenarios**:
@@ -135,7 +135,7 @@ on P1/P2 conventions but is about completeness rather than the convention itself
 
 ### Functional Requirements
 
-- **FR-001**: Every skill directory under `.skillshare/skills/` (i.e., every directory containing a
+- **FR-001**: Every skill directory under `.retired skill supply/skills/` (i.e., every directory containing a
   `SKILL.md` — 88 at time of writing) MUST be reviewed and assigned exactly one sub-agent
   disposition: "always", "conditional", or "never". Coverage MUST be enumerated dynamically, not
   asserted against a hardcoded count.
@@ -185,7 +185,7 @@ on P1/P2 conventions but is about completeness rather than the convention itself
 
 ### Key Entities *(include if feature involves data)*
 
-- **Skill**: A unit in `.skillshare/skills/` with a `SKILL.md`. Gains a sub-agent disposition and,
+- **Skill**: A unit in `.retired skill supply/skills/` with a `SKILL.md`. Gains a sub-agent disposition and,
   where applicable, an in-body dispatch instruction.
 - **Disposition**: The classification of a skill's sub-agent suitability — one of "always",
   "conditional", "never" — aligned with the `tool_policies` vocabulary already in
@@ -203,7 +203,7 @@ on P1/P2 conventions but is about completeness rather than the convention itself
 
 ### Measurable Outcomes
 
-- **SC-001**: 100% of skill directories under `.skillshare/skills/` have a recorded sub-agent
+- **SC-001**: 100% of skill directories under `.retired skill supply/skills/` have a recorded sub-agent
   disposition in the `tool_policies` block of `command_config.yml` (verified by the automated
   coverage test, which enumerates skills dynamically).
 - **SC-002**: 100% of skills dispositioned "always" or "conditional" contain a checkable dispatch
@@ -222,7 +222,7 @@ on P1/P2 conventions but is about completeness rather than the convention itself
 
 ## Assumptions
 
-- "These" refers to the full skill library (skill directories under `.skillshare/skills/` — 88 at
+- "These" refers to the full skill library (skill directories under `.retired skill supply/skills/` — 88 at
   time of writing; the clarification's "89" was an `ls` count that included `README.md`), confirmed
   via clarification; `configs/claude/skills` is the compat symlink to the same source of truth.
 - "Sub-agents" covers both Claude-native Task/Agent sub-agents and the repo's existing external

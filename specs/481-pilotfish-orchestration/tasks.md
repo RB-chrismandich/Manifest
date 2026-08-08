@@ -31,7 +31,7 @@ testable. This is a config-only feature — paths are `configs/claude/`, `bootst
 
 **Purpose**: Create the new deploy-source directory the feature adds.
 
-- [X] T001 Create the `configs/claude/agents/` source directory (deploy source-of-truth) and confirm it is NOT excluded by `.gitignore` or `.skillshare/.gitignore`, per plan.md Project Structure.
+- [X] T001 Create the `configs/claude/agents/` source directory (deploy source-of-truth) and confirm it is NOT excluded by `.gitignore` or `.retired skill supply/.gitignore`, per plan.md Project Structure.
 
 ---
 

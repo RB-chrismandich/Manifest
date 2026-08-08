@@ -25,7 +25,7 @@ confirmation — or autonomously with `--apply` for unattended backlog grooming.
 ## Procedure
 
 1. **Load the issue.** Run
-   `configs/claude/scripts/tracker_ops.sh issue-view <N> --json number,title,body,state,labels,comments`.
+   `../../runtime/bin/tracker_ops.sh issue-view <N> --json number,title,body,state,labels,comments`.
    If no number is given, use the one in context or ask which issue.
 
 2. **Score against the readiness rubric.** Each item is a concrete way the autonomous

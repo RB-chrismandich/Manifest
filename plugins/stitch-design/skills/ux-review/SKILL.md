@@ -1,6 +1,6 @@
 ---
 name: ux-review
-description: Automated UX audit covering accessibility (WCAG 2.2), responsive design, performance budgets (Core Web Vitals), progressive enhancement, color contrast, keyboard navigation, and screen reader compatibility.
+description: "Automated UX audit of HTML, JSX, or TSX files: accessibility (WCAG 2.2), responsive design, Core Web Vitals, progressive enhancement, contrast, keyboard navigation, screen reader compatibility."
 ---
 
 # UX Review Skill
@@ -147,9 +147,12 @@ Static analysis checks that indicate Core Web Vitals risk:
 
 ## Sub-agent dispatch
 
+Follow the bundled `sub-agent-dispatch.md` selection rules. Dispatches use the
+pinned `sonnet` model.
+
 When ≥3 independent pages or flows need review, dispatch one sub-agent per page/flow to review it, then merge findings;
 below that, review inline. Pick the mechanism per the shared Sub-Agent Selection Rules
-(`configs/claude/references/sub-agent-dispatch.md`): native Task sub-agents on Claude, or `manifest parallel-agent` / inline
+use native sub-agents when available, or `[[skill:manifest-workspace:parallel-agent]]` / inline
 on other assistants. Dispatched sub-agents execute their task directly and do not re-dispatch.
 
 Dispatch on **Sonnet** (`subagent_model: sonnet` in `command_config.yml`) — pass the model

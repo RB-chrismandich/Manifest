@@ -1,12 +1,12 @@
 ---
-description: "Configure CI/CD pipelines for a target repository based on detected languages, project structure, and hosting platform (GitHub Actions or GitLab CI)."
+description: "Use when setting up CI/CD for a repo — auto-detects languages, project structure, and hosting platform (GitHub Actions or GitLab CI) to generate pipeline configs."
 globs: ".claude/skills/ci-setup/**"
 alwaysApply: false
 ---
 
 # ci-setup
 
-Configure CI/CD pipelines for a target repository based on detected languages, project structure, and hosting platform (GitHub Actions or GitLab CI).
+Use when setting up CI/CD for a repo — auto-detects languages, project structure, and hosting platform (GitHub Actions or GitLab CI) to generate pipeline configs.
 
 <!-- Auto-generated from .claude/skills/ci-setup/SKILL.md -->
 <!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->

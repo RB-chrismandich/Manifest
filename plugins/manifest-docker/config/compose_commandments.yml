@@ -1,0 +1,243 @@
+---
+# The Ten Commandments of docker-compose.yaml — machine-checkable registry.
+#
+# SINGLE SOURCE OF TRUTH for:
+#   - the rule set compose_check.py enforces (ids are stable forever)
+#   - the prose in skills/docker-compose-commandments/references/commandments.md
+#   - the bypass markers the checker honours
+#
+# Rule ids are DC-NNN and never change meaning. Retiring a rule means marking it
+# `retired: true`, never reusing the number for something else — bypass markers
+# in user repositories cite these ids by name.
+#
+# Relationship to the wider Manifest registries (deliberate, non-overlapping):
+#   code_constitution.yml  — doctrine for SOURCE code. Says nothing about compose.
+#   version_pin (command_config.yml) — owns image pinning + digest resolution.
+#                            DC-001 DETECTS and defers to it; it does not
+#                            re-implement tag resolution. See `delegate_to`.
+version: 1
+
+# A trailing comment on the offending line suppresses every rule on that line:
+#     image: myapp:latest  # compose-commandments:ignore
+# Naming a rule suppresses only that rule on that line:
+#     user: root  # compose-commandments:ignore DC-007
+bypass_marker: 'compose-commandments:ignore'
+# Anywhere in the file, suppresses the whole file (use for fixtures/examples):
+#     # compose-commandments:ignore-file
+file_bypass_marker: 'compose-commandments:ignore-file'
+
+# Filenames the checker recognises as compose files.
+filenames:
+  - docker-compose.yml
+  - docker-compose.yaml
+  - compose.yml
+  - compose.yaml
+  - docker-compose.*.yml
+  - docker-compose.*.yaml
+  - compose.*.yml
+  - compose.*.yaml
+
+# Image families whose containers hold durable state. Drives the rules that only
+# make sense for stateful services (DC-006 named volumes, DC-010 graceful
+# shutdown, and the DC-005 exposure check). Matched against the image name
+# segment, so `bitnami/postgresql` and `postgres` both hit `postgres`.
+stateful_images:
+  - postgres
+  - postgresql
+  - timescale
+  - mysql
+  - mariadb
+  - percona
+  - mongo
+  - redis
+  - valkey
+  - keydb
+  - elasticsearch
+  - opensearch
+  - clickhouse
+  - influxdb
+  - cassandra
+  - scylla
+  - neo4j
+  - couchdb
+  - couchbase
+  - rabbitmq
+  - kafka
+  - zookeeper
+  - etcd
+  - minio
+  - qdrant
+  - weaviate
+  - milvus
+  - surrealdb
+  - vault
+  - consul
+
+# Container paths that indicate durable state regardless of image. A bind mount
+# onto one of these is a DC-006 violation even for an unrecognised image.
+stateful_mount_targets:
+  - /var/lib/postgresql
+  - /var/lib/mysql
+  - /var/lib/clickhouse
+  - /var/lib/rabbitmq
+  - /var/lib/influxdb
+  - /var/lib/grafana
+  - /var/lib/neo4j
+  - /bitnami
+  - /data
+  - /datadir
+  - /usr/share/elasticsearch/data
+  - /opt/couchbase/var
+
+# Environment keys whose inline literal value is a credential leak (DC-002).
+# Matched case-insensitively as a substring of the key.
+secret_key_hints:
+  - PASSWORD
+  - PASSWD
+  - SECRET
+  - TOKEN
+  - APIKEY
+  - API_KEY
+  - ACCESS_KEY
+  - PRIVATE_KEY
+  - CREDENTIAL
+  - DSN
+  - CONNECTION_STRING
+
+rules:
+  - id: DC-001
+    commandment: Thou Shalt Not Use `latest`
+    title: Pin an explicit image version
+    severity: high
+    scope: service
+    rule: >-
+      Every service pins an explicit image version (and, where the registry
+      supports it, a digest) so a rebuild resolves to the same bytes tomorrow.
+    detects: image tag is `latest`, absent, or a bare mutable tag
+    fix: 'Pin the tag, e.g. `postgres:16.2-alpine`, ideally with `@sha256:...`.'
+    # DC-001 is DETECT-ONLY here. version_pin.sh already fires on the same files
+    # and owns resolving the concrete version + digest; duplicating the resolver
+    # would let two hooks warn on one line with drifting semantics.
+    delegate_to: version-pin
+    # Printed to the user on every DC-001 finding, so it must resolve for BOTH
+    # audiences: a full Manifest install (which has the script) and a standalone
+    # marketplace install of this plugin alone (which does not). A bare
+    # `/version-pin` is an Unknown command post-cutover; the qualified name only
+    # exists if manifest-ops is installed too.
+    delegate_hint: 'Resolve the pin with `~/.claude/scripts/version_pin.sh <file>` if you have the full Manifest install; otherwise pin the tag and digest by hand.'
+
+  - id: DC-002
+    commandment: Thou Shalt Keep Secrets Out of Version Control
+    title: No credential literals in the compose file
+    severity: high
+    scope: service
+    rule: >-
+      Credentials reach the container through `${VAR}` interpolation, `env_file`,
+      or a Docker `secret` — never as a literal value committed to the tree.
+    detects: a secret-shaped environment key whose value is a literal, not `${...}`
+    fix: >-
+      Replace the literal with `${DB_PASSWORD}` and put the value in an
+      untracked `.env`, or mount it via `secrets:` and the `_FILE` convention.
+
+  - id: DC-003
+    commandment: Thou Shalt Define Explicit Healthchecks
+    title: Healthcheck, and depend on health not start
+    severity: medium
+    scope: service
+    rule: >-
+      A service other services depend on declares a `healthcheck`, and its
+      dependants wait on `condition: service_healthy` rather than bare
+      `depends_on`, which only waits for the process to be spawned.
+    detects: >-
+      a depended-upon service with no healthcheck, or a `depends_on` in
+      short-list form / with a condition other than service_healthy
+    fix: >-
+      Add a `healthcheck` to the dependency and express the edge as
+      `depends_on: {dep: {condition: service_healthy}}`.
+
+  - id: DC-004
+    commandment: Thou Shalt Enforce Resource Limits
+    title: Bound CPU and memory per service
+    severity: high
+    scope: service
+    rule: >-
+      Every service caps CPU and memory so one leaking container cannot starve
+      the host and take its neighbours with it.
+    detects: no `deploy.resources.limits` (or non-swarm `mem_limit`/`cpus`)
+    fix: >-
+      Add `deploy.resources.limits: {cpus: "0.50", memory: 512M}`. On plain
+      `docker compose up`, `mem_limit`/`cpus` at service level also apply.
+
+  - id: DC-005
+    commandment: Thou Shalt Isolate Networks
+    title: Keep backing services off the public network
+    severity: high
+    scope: file
+    rule: >-
+      Stateful and internal services sit on a dedicated network — ideally
+      `internal: true` — that no internet-facing container shares.
+    detects: >-
+      a stateful service sharing a network with a port-publishing service, or
+      services relying on the implicit default network
+    fix: >-
+      Declare `app-net` for the edge and a separate `db-net` with
+      `internal: true`, and attach each service explicitly.
+
+  - id: DC-006
+    commandment: Thou Shalt Persist State via Named Volumes
+    title: Named volumes for durable data
+    severity: medium
+    scope: service
+    rule: >-
+      Durable data lives in a named volume, decoupling the container lifecycle
+      from the host filesystem layout, ownership, and platform quirks.
+    detects: a host bind mount onto a stateful path, or on a stateful image
+    fix: >-
+      Replace `./data:/var/lib/postgresql/data` with `db_data:/var/lib/postgresql/data`
+      and declare `db_data:` under a top-level `volumes:`.
+
+  - id: DC-007
+    commandment: Thou Shalt Run as Non-Root
+    title: Drop root in the container
+    severity: medium
+    scope: service
+    rule: >-
+      A service either sets a non-root `user:` or documents why root is
+      required; a root process plus a bind mount is a host-write primitive.
+    detects: no `user:` key, or `user:` set to root/0
+    fix: 'Set `user: "1000:1000"` (or the uid the image expects).'
+
+  - id: DC-008
+    commandment: Thou Shalt Cap Log Output
+    title: Bound the log driver
+    severity: medium
+    scope: service
+    rule: >-
+      Container logs are capped by size and file count so a chatty service
+      cannot fill the host disk and take down everything on it.
+    detects: no `logging.options.max-size` / `max-file` (json-file/local drivers)
+    fix: 'Add `logging: {driver: json-file, options: {max-size: 10m, max-file: "3"}}`.'
+
+  - id: DC-009
+    commandment: Thou Shalt Keep Configuration DRY
+    title: Factor repetition into anchors
+    severity: low
+    scope: file
+    rule: >-
+      Configuration repeated across three or more services is factored into a
+      YAML anchor or an `x-` extension field and merged in.
+    detects: an identical config block repeated across 3+ services with no anchor in the raw text
+    fix: >-
+      Hoist it to `x-logging-defaults: &logging-defaults` and merge with
+      `<<: *logging-defaults`.
+
+  - id: DC-010
+    commandment: Thou Shalt Configure Graceful Shutdowns
+    title: Allow time to flush and close
+    severity: medium
+    scope: service
+    rule: >-
+      Stateful services declare a `stop_grace_period` long enough to flush
+      buffers and close connections before SIGKILL arrives.
+    detects: a stateful service with no `stop_grace_period` (default is 10s)
+    fix: 'Add `stop_grace_period: 30s`.'

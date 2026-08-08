@@ -1,12 +1,12 @@
 ---
-description: "Verify CLI tool availability, authentication status, config syntax, MCP connectivity, and symlink integrity for the Manifest environment."
+description: "Inspect the Manifest installation receipt and native harness inventories for availability and capability degradation using only bundle-local code and XDG state."
 globs: ".claude/skills/env-check/**"
 alwaysApply: false
 ---
 
 # env-check
 
-Verify CLI tool availability, authentication status, config syntax, MCP connectivity, and symlink integrity for the Manifest environment.
+Inspect the Manifest installation receipt and native harness inventories for availability and capability degradation using only bundle-local code and XDG state.
 
 <!-- Auto-generated from .claude/skills/env-check/SKILL.md -->
 <!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->

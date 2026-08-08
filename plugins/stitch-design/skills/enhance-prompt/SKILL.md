@@ -1,6 +1,6 @@
 ---
 name: enhance-prompt
-description: Transforms vague UI ideas into polished, Stitch-optimized prompts. Enhances specificity, adds UI/UX keywords, injects design system context, and structures output for better generation results.
+description: Transforms a vague UI idea into a polished, Stitch-optimized prompt. Use when polishing a prompt before sending to Stitch, fixing one that produced poor results, or adding design-system context.
 allowed-tools:
   - "Read"
   - "Write"
@@ -61,7 +61,7 @@ Look for a `DESIGN.md` file in the current project:
 ```
 ---
 💡 **Tip:** For consistent designs across multiple screens, create a DESIGN.md
-file using the `design-md` skill. This ensures all generated pages share the
+file using the `stitch-design:design-md` skill. This ensures all generated pages share the
 same visual language.
 ```
 
@@ -145,7 +145,7 @@ Structure the enhanced prompt in this order:
 
 **Optional file output:** If the user requests, write to a file:
 
-- `next-prompt.md` — for use with the `stitch-loop` skill
+- `next-prompt.md` — for use with the `stitch-design:stitch-loop` skill
 - Custom filename specified by user
 
 ## Examples
@@ -179,7 +179,7 @@ A clean, trustworthy login page with a centered form and subtle branding.
 
 ---
 💡 **Tip:** For consistent designs across multiple screens, create a DESIGN.md
-file using the `design-md` skill.
+file using the `stitch-design:design-md` skill.
 ```
 
 ### Example 2: Feature Request → Targeted Edit

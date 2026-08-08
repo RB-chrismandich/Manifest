@@ -81,6 +81,11 @@ print('ok')
     assert_output --partial "ok"
 }
 
+@test "version-pin is not duplicated in the global Cursor hook config" {
+    run grep -E 'version[_-]pin' "$HOOKS_JSON"
+    assert_failure
+}
+
 @test "UserPromptSubmit's token-conserve echo has no beforeSubmitPrompt entry (excluded, unverified output contract)" {
     run python3 -c "
 import json

@@ -307,11 +307,6 @@ if [[ -f ~/.claude/config/services.yml ]]; then
         # $r_name above still targets the real services.yml key.
         printf -v "${r_name//-/_}_enabled" '%s' "$r_val"
     done
-    # graphify is a managed TOOL, not a parallel-orchestration agent (it is reported
-    # separately under CLI Tools and excluded from the agent count / working_agents)
-    # -- and it is not a fleet agent in agent_roster.yml, so it stays a standalone lookup.
-    graphify_enabled=$(grep -A1 "^  graphify:" ~/.claude/config/services.yml | grep "enabled:" | awk '{print $2}')
-
     enabled_count=0
     for r_name in ${ROSTER_NAMES[@]+"${ROSTER_NAMES[@]}"}; do
         r_var="${r_name//-/_}_enabled"
@@ -419,29 +414,6 @@ for r_name in ${ROSTER_NAMES[@]+"${ROSTER_NAMES[@]}"}; do
         fi
     fi
 done
-
-# Graphify is a managed knowledge-graph tool, NOT a parallel-orchestration agent,
-# so it is reported here but never counted toward orchestration readiness
-# (no graphify_installed flag — it must not feed working_agents; spec 364 D4).
-if [[ "$graphify_enabled" == "true" ]]; then
-    if command -v graphify &> /dev/null; then
-        echo -e "  ${GREEN}✓${NC} Graphify CLI installed"
-        if [[ "$VERBOSE" == true ]]; then
-            echo -e "    Location: $(which graphify)"
-            echo -e "    Version:  $(graphify --version 2> /dev/null || echo 'unknown')"
-            echo -e "    Backend:  host-agent (no API key required)"
-        fi
-    else
-        echo -e "  ${YELLOW}○${NC} Graphify CLI not installed"
-        if [[ "$VERBOSE" == true ]]; then
-            echo -e "    ${BLUE}→${NC} Install: ./bootstrap.sh --enable-graphify  (uv tool install graphifyy)"
-        fi
-    fi
-else
-    echo -e "  ${YELLOW}○${NC} Graphify (disabled)"
-fi
-
-echo ""
 
 # Check authentication
 echo -e "${BOLD}Authentication:${NC}"

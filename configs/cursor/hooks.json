@@ -9,10 +9,6 @@
     ],
     "afterFileEdit": [
       {
-        "command": "~/.cursor/scripts/version_pin_hook.sh",
-        "type": "command"
-      },
-      {
         "command": "~/.cursor/scripts/spec_review.sh --silent \"$CLAUDE_PROJECT_DIR\"",
         "type": "command"
       },

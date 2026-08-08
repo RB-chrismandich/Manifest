@@ -21,8 +21,8 @@
 | `configs/claude/config/labels.yml` | Add `auto-dev`, `needs-human`, `blocked-dependency` labels | Modify |
 | `configs/claude/scripts/auto_issue_dev.sh` | Selection + dependency + flagging engine | Create |
 | `tests/bats/auto_issue_dev.bats` | Engine tests (mocked `git_ops.sh`) | Create |
-| `.skillshare/skills/auto-issue-dev/SKILL.md` | Per-invocation dev procedure | Create |
-| `.skillshare/skills/auto-issue-dev/evals/evals.json` | Triggering evals | Create |
+| `.retired skill supply/skills/auto-issue-dev/SKILL.md` | Per-invocation dev procedure | Create |
+| `.retired skill supply/skills/auto-issue-dev/evals/evals.json` | Triggering evals | Create |
 | `configs/claude/config/command_config.yml` | `tool_policies.auto-issue-dev` | Modify |
 | `configs/cursor/rules/auto-issue-dev.mdc` | Cross-tool parity (generated) | Create (generated) |
 | `docs/COMMANDS.md` | Command reference entry | Modify |
@@ -644,12 +644,12 @@ git commit -m "feat(auto-issue-dev): next-issue selection with dependency skip +
 ## Task 6: `auto-issue-dev` skill + evals
 
 **Files:**
-- Create: `.skillshare/skills/auto-issue-dev/SKILL.md`
-- Create: `.skillshare/skills/auto-issue-dev/evals/evals.json`
+- Create: `.retired skill supply/skills/auto-issue-dev/SKILL.md`
+- Create: `.retired skill supply/skills/auto-issue-dev/evals/evals.json`
 
 - [ ] **Step 1: Write the SKILL.md**
 
-Create `.skillshare/skills/auto-issue-dev/SKILL.md`:
+Create `.retired skill supply/skills/auto-issue-dev/SKILL.md`:
 
 ````markdown
 ---
@@ -710,7 +710,7 @@ this skill with fresh context for the next issue.
 
 - [ ] **Step 2: Write evals.json**
 
-Create `.skillshare/skills/auto-issue-dev/evals/evals.json`:
+Create `.retired skill supply/skills/auto-issue-dev/evals/evals.json`:
 
 ```json
 {
@@ -740,13 +740,13 @@ Create `.skillshare/skills/auto-issue-dev/evals/evals.json`:
 
 - [ ] **Step 3: Validate evals.json**
 
-Run: `python3 -c "import json; d=json.load(open('.skillshare/skills/auto-issue-dev/evals/evals.json')); assert d['skill_name']=='auto-issue-dev'; assert len(d['evals'])==3; print('evals OK')"`
+Run: `python3 -c "import json; d=json.load(open('.retired skill supply/skills/auto-issue-dev/evals/evals.json')); assert d['skill_name']=='auto-issue-dev'; assert len(d['evals'])==3; print('evals OK')"`
 Expected: `evals OK`.
 
 - [ ] **Step 4: Commit**
 
 ```bash
-git add .skillshare/skills/auto-issue-dev/
+git add .retired skill supply/skills/auto-issue-dev/
 git commit -m "feat(auto-issue-dev): skill definition + evals"
 ```
 

@@ -1,12 +1,12 @@
 ---
 name: docs-all
-description: Run docs-improve-readme, docs-generate-diagrams, and docs-improve in one pass as sub-agents, bracketed by a docs_lint.py measurement so the report shows a real line-count delta. Use to refresh the whole doc set at once.
+description: Refresh a project's whole doc set (README, diagrams, audit) in one pass, in dependency order, with a measured line-count delta. Use for "refresh all the docs", "update everything at once".
 ---
 
 # All-in-One Documentation Refresh
 
 Orchestrate the three docs skills in a single pass and report a measured
-result. Concision rules: `configs/claude/references/doc-concision.md`.
+result. Concision rules: `../../runtime/references/doc-concision.md`.
 
 ## When to use
 
@@ -19,7 +19,7 @@ result. Concision rules: `configs/claude/references/doc-concision.md`.
 1. **Measure the baseline.** Before dispatching anything:
 
    ```bash
-   python3 configs/claude/scripts/docs_lint.py . --json /tmp/docs-all-before.json
+   python3 ../../runtime/docs_lint.py . --json /tmp/docs-all-before.json
    ```
 
    Without a baseline the final report can only assert improvement, not show
@@ -47,7 +47,7 @@ result. Concision rules: `configs/claude/references/doc-concision.md`.
 5. **Re-measure and report the delta.**
 
    ```bash
-   python3 configs/claude/scripts/docs_lint.py . --json /tmp/docs-all-after.json
+   python3 ../../runtime/docs_lint.py . --json /tmp/docs-all-after.json
    ```
 
    ```text
@@ -71,12 +71,13 @@ result. Concision rules: `configs/claude/references/doc-concision.md`.
 
 ## Sub-agent dispatch
 
-This skill always fans out: one sub-agent per docs sub-skill. Pick the mechanism
-per the shared Sub-Agent Selection Rules
-(`configs/claude/references/sub-agent-dispatch.md`): native Task sub-agents on
-Claude, or `manifest parallel-agent` / inline on other assistants. Dispatched
+Follow the bundled `sub-agent-dispatch.md` selection rules. Dispatches use the
+pinned `sonnet` model.
+
+This skill always fans out: one sub-agent per docs sub-skill. Use native Task
+sub-agents on Claude, or `[[skill:parallel-agent]]` / inline on other assistants. Dispatched
 sub-agents execute their task directly and do not re-dispatch.
 
-Dispatch on **Sonnet** (`subagent_model: sonnet` in `command_config.yml`) — pass
+Dispatch on **Sonnet** (`subagent_model: sonnet`) — pass
 the model explicitly; inheriting the session's model bills premium rates for
 fan-out work.

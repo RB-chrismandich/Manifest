@@ -2,9 +2,7 @@
 
 ## Install
 
-```bash
-npx skills add google-labs-code/stitch-skills --skill react-native --global
-```
+This skill ships in the `stitch-design` bundle as `stitch-design:react-native`.
 
 ## Example Prompt
 

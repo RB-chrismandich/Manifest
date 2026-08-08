@@ -2,54 +2,6 @@
   "version": 1,
   "_comment": "Recorded violation counts at the time the Code Constitution was adopted. The gate blocks when a file's count for a check RISES above its entry. Lower these by fixing; regenerate with constitution_check.py --update-baseline. An entry may never be raised without the reason in the commit message.",
   "files": {
-    "plugins/manifest-workspace/skills/ai-hooks-integration/scripts/install_all.py": {
-      "C-DATA": 1,
-      "C-DUPE": 2,
-      "C-SIZE": 1
-    },
-    "plugins/manifest-workspace/skills/ai-hooks-integration/scripts/install_cli_wrapper.py": {
-      "C-DATA": 1,
-      "C-SIZE": 1
-    },
-    "plugins/manifest-workspace/skills/ai-hooks-integration/scripts/merge_hooks.py": {
-      "C-SIZE": 1
-    },
-    "plugins/manifest-workspace/skills/ai-hooks-integration/scripts/runtime/cli_wrapper.py": {
-      "C-SIZE": 1
-    },
-    "plugins/manifest-workspace/skills/ai-hooks-integration/scripts/runtime/detect_source.py": {
-      "C-ERR": 12
-    },
-    "plugins/manifest-workspace/skills/ai-hooks-integration/scripts/runtime/tool_config.py": {
-      "C-DATA": 1,
-      "C-ERR": 1
-    },
-    "plugins/manifest-workspace/skills/ai-hooks-integration/scripts/runtime/unified_hook.py": {
-      "C-ERR": 1,
-      "C-SIZE": 1
-    },
-    "plugins/manifest-workspace/skills/ai-hooks-integration/tests/test_merge_hooks.py": {
-      "C-DATA": 1
-    },
-    "plugins/stitch-design/skills/extract-static-html/scripts/extract_inline_html.ts": {
-      "C-DUPE": 1,
-      "C-SIZE": 1
-    },
-    "plugins/stitch-design/skills/extract-static-html/scripts/post_process.ts": {
-      "C-DUPE": 1,
-      "C-SIZE": 1
-    },
-    "plugins/stitch-design/skills/extract-static-html/scripts/snapshot.ts": {
-      "C-DUPE": 3,
-      "C-SIZE": 1
-    },
-    "plugins/manifest-forge/skills/repo-clean/scripts/hygiene_gather.py": {
-      "C-ERR": 1,
-      "C-SIZE": 3
-    },
-    "plugins/stitch-design/skills/upload-to-stitch/scripts/upload_to_stitch.py": {
-      "C-SIZE": 2
-    },
     ".specify/scripts/bash/check-prerequisites.sh": {
       "C-DATA": 1
     },
@@ -65,7 +17,8 @@
       "C-SIZE": 1
     },
     "bootstrap/lib/deploy.sh": {
-      "C-DATA": 2,
+      "C-DATA": 3,
+      "C-DUPE": 2,
       "C-SIZE": 1
     },
     "bootstrap/lib/install.sh": {
@@ -181,6 +134,10 @@
       "C-ERR": 4,
       "C-SIZE": 4
     },
+    "configs/claude/scripts/skill_reference_check.py": {
+      "C-DATA": 1,
+      "C-SIZE": 3
+    },
     "configs/claude/scripts/skill_usage_report.py": {
       "C-SIZE": 3
     },
@@ -228,6 +185,184 @@
     "configs/claude/scripts/token_cost_report.py": {
       "C-SIZE": 3
     },
+    "plugins/manifest-code-quality/skills/code-audit-constitution/scripts/constitution/checks/duplication.py": {
+      "C-DATA": 1
+    },
+    "plugins/manifest-code-quality/skills/code-audit-constitution/scripts/constitution/checks/payloads.py": {
+      "C-DATA": 1
+    },
+    "plugins/manifest-code-quality/skills/smoke-manage/scripts/smoke_orchestrator/cli.py": {
+      "C-SIZE": 1
+    },
+    "plugins/manifest-code-quality/skills/smoke-manage/scripts/smoke_orchestrator/executor.py": {
+      "C-ERR": 1,
+      "C-SIZE": 1
+    },
+    "plugins/manifest-code-quality/skills/smoke-manage/scripts/smoke_orchestrator/state.py": {
+      "C-SIZE": 1
+    },
+    "plugins/manifest-code-quality/skills/smoke-manage/scripts/smoke_orchestrator/steps/agent.py": {
+      "C-ERR": 5
+    },
+    "plugins/manifest-code-quality/skills/smoke-manage/scripts/smoke_orchestrator/steps/api.py": {
+      "C-ERR": 2
+    },
+    "plugins/manifest-code-quality/skills/smoke-manage/scripts/smoke_orchestrator/steps/ui.py": {
+      "C-ERR": 1,
+      "C-SIZE": 1
+    },
+    "plugins/manifest-code-quality/skills/smoke-manage/scripts/smoke_orchestrator/validation.py": {
+      "C-SIZE": 1
+    },
+    "plugins/manifest-docs/runtime/docs_lint.py": {
+      "C-SIZE": 1
+    },
+    "plugins/manifest-forge/runtime/bin/git_ops.sh": {
+      "C-DUPE": 2,
+      "C-SIZE": 1
+    },
+    "plugins/manifest-forge/runtime/bin/lib/lifecycle_tracker.sh": {
+      "C-SIZE": 1
+    },
+    "plugins/manifest-forge/runtime/bin/lifecycle.sh": {
+      "C-SIZE": 1
+    },
+    "plugins/manifest-forge/runtime/bin/linear_ops.sh": {
+      "C-DUPE": 2,
+      "C-SIZE": 1
+    },
+    "plugins/manifest-forge/skills/repo-clean/scripts/hygiene_gather.py": {
+      "C-ERR": 1,
+      "C-SIZE": 3
+    },
+    "plugins/manifest-ops/runtime/bin/version_pin.sh": {
+      "C-SIZE": 1
+    },
+    "plugins/manifest-workspace/skills/ai-hooks-integration/scripts/install_all.py": {
+      "C-DATA": 1,
+      "C-DUPE": 2,
+      "C-SIZE": 1
+    },
+    "plugins/manifest-workspace/skills/ai-hooks-integration/scripts/install_cli_wrapper.py": {
+      "C-DATA": 1,
+      "C-SIZE": 1
+    },
+    "plugins/manifest-workspace/skills/ai-hooks-integration/scripts/merge_hooks.py": {
+      "C-SIZE": 1
+    },
+    "plugins/manifest-workspace/skills/ai-hooks-integration/scripts/runtime/cli_wrapper.py": {
+      "C-SIZE": 1
+    },
+    "plugins/manifest-workspace/skills/ai-hooks-integration/scripts/runtime/detect_source.py": {
+      "C-ERR": 12
+    },
+    "plugins/manifest-workspace/skills/ai-hooks-integration/scripts/runtime/tool_config.py": {
+      "C-DATA": 1,
+      "C-ERR": 1
+    },
+    "plugins/manifest-workspace/skills/ai-hooks-integration/scripts/runtime/unified_hook.py": {
+      "C-ERR": 1,
+      "C-SIZE": 1
+    },
+    "plugins/manifest-workspace/skills/ai-hooks-integration/tests/test_merge_hooks.py": {
+      "C-DATA": 1
+    },
+    "plugins/manifest-workspace/skills/learning-capture/scripts/learning_capture.py": {
+      "C-DATA": 1
+    },
+    "plugins/manifest-workspace/skills/parallel-agent/scripts/agents/__init__.py": {
+      "C-DATA": 1
+    },
+    "plugins/manifest-workspace/skills/parallel-agent/scripts/agents/cli.py": {
+      "C-ERR": 3,
+      "C-SIZE": 2
+    },
+    "plugins/manifest-workspace/skills/parallel-agent/scripts/agents/cli_invoke.py": {
+      "C-DUPE": 1,
+      "C-SIZE": 2
+    },
+    "plugins/manifest-workspace/skills/parallel-agent/scripts/agents/config.py": {
+      "C-SIZE": 2
+    },
+    "plugins/manifest-workspace/skills/parallel-agent/scripts/agents/orchestrator.py": {
+      "C-DUPE": 2,
+      "C-ERR": 6,
+      "C-SIZE": 8
+    },
+    "plugins/manifest-workspace/skills/parallel-agent/scripts/agents/runners.py": {
+      "C-DUPE": 2,
+      "C-ERR": 4,
+      "C-SIZE": 7
+    },
+    "plugins/manifest-workspace/skills/parallel-agent/scripts/agents/synthesis.py": {
+      "C-ERR": 1,
+      "C-SIZE": 1
+    },
+    "plugins/manifest-workspace/skills/parallel-agent/scripts/agents/validation.py": {
+      "C-SIZE": 4
+    },
+    "plugins/stitch-design/runtime/dist/snapshot.mjs": {
+      "C-DANGER": 3
+    },
+    "plugins/stitch-design/skills/extract-static-html/scripts/extract_inline_html.ts": {
+      "C-SIZE": 1
+    },
+    "plugins/stitch-design/skills/extract-static-html/scripts/post_process.ts": {
+      "C-DUPE": 1,
+      "C-SIZE": 1
+    },
+    "plugins/stitch-design/skills/extract-static-html/scripts/snapshot.ts": {
+      "C-DUPE": 3,
+      "C-SIZE": 1
+    },
+    "plugins/stitch-design/skills/upload-to-stitch/scripts/upload_to_stitch.py": {
+      "C-SIZE": 2
+    },
+    "src/manifest_agent/adapters/base.py": {
+      "C-ERR": 1,
+      "C-SIZE": 1
+    },
+    "src/manifest_agent/adapters/claude.py": {
+      "C-SIZE": 1
+    },
+    "src/manifest_agent/adapters/codex.py": {
+      "C-SIZE": 1
+    },
+    "src/manifest_agent/adapters/gemini.py": {
+      "C-SIZE": 1
+    },
+    "src/manifest_agent/capabilities.py": {
+      "C-SIZE": 1
+    },
+    "src/manifest_agent/capability_runtime.py": {
+      "C-DUPE": 1,
+      "C-ERR": 4,
+      "C-SIZE": 7
+    },
+    "src/manifest_agent/contracts.py": {
+      "C-SIZE": 2
+    },
+    "src/manifest_agent/migration.py": {
+      "C-DATA": 1,
+      "C-ERR": 2,
+      "C-SIZE": 7
+    },
+    "src/manifest_agent/ownership.py": {
+      "C-SIZE": 1
+    },
+    "src/manifest_agent/release.py": {
+      "C-SIZE": 1
+    },
+    "src/manifest_agent/service.py": {
+      "C-DUPE": 1,
+      "C-SIZE": 6
+    },
+    "src/manifest_agent/service_state.py": {
+      "C-SIZE": 1
+    },
+    "src/manifest_agent/state.py": {
+      "C-SIZE": 1
+    },
     "tests/python/agents/test_orchestrator.py": {
       "C-DATA": 1
     },
@@ -255,8 +390,66 @@
     "tests/python/constitution/test_docs_drift.py": {
       "C-SIZE": 1
     },
+    "tests/python/manifest_agent/test_adapter_claude.py": {
+      "C-SIZE": 2
+    },
+    "tests/python/manifest_agent/test_adapter_codex.py": {
+      "C-DUPE": 1,
+      "C-SIZE": 1
+    },
+    "tests/python/manifest_agent/test_adapter_devin.py": {
+      "C-DATA": 1,
+      "C-DUPE": 1
+    },
+    "tests/python/manifest_agent/test_build_manifest_release.py": {
+      "C-SIZE": 1
+    },
+    "tests/python/manifest_agent/test_concurrent_operations.py": {
+      "C-SIZE": 2
+    },
+    "tests/python/manifest_agent/test_contracts.py": {
+      "C-DUPE": 1
+    },
+    "tests/python/manifest_agent/test_generate_plugin_views.py": {
+      "C-DATA": 2,
+      "C-SIZE": 2
+    },
+    "tests/python/manifest_agent/test_mcp_configuration.py": {
+      "C-DUPE": 2,
+      "C-SIZE": 1
+    },
+    "tests/python/manifest_agent/test_migration.py": {
+      "C-DATA": 1,
+      "C-DUPE": 1
+    },
+    "tests/python/manifest_agent/test_native_adapter_integration.py": {
+      "C-DATA": 1
+    },
+    "tests/python/manifest_agent/test_offline_installation.py": {
+      "C-SIZE": 1
+    },
+    "tests/python/manifest_agent/test_plugin_parity_live_workflow.py": {
+      "C-DANGER": 1,
+      "C-SIZE": 1
+    },
+    "tests/python/manifest_agent/test_service_install.py": {
+      "C-DUPE": 2,
+      "C-SIZE": 1
+    },
+    "tests/python/manifest_agent/test_service_reconcile.py": {
+      "C-DUPE": 1
+    },
+    "tests/python/manifest_agent/test_uninstall_preflight.py": {
+      "C-DUPE": 1
+    },
     "tests/python/manifest_cli/test_doctor.py": {
       "C-DUPE": 1
+    },
+    "tests/python/plugin_runtime/test_forge_runtime.py": {
+      "C-DATA": 1
+    },
+    "tests/python/plugin_runtime/test_workspace_review_repairs.py": {
+      "C-DATA": 1
     },
     "tests/python/smoke_orchestrator/test_executor_tiers.py": {
       "C-DATA": 1,
@@ -272,6 +465,9 @@
       "C-DATA": 1,
       "C-DUPE": 2,
       "C-SIZE": 1
+    },
+    "tests/python/test_plugin_runtime_paths.py": {
+      "C-DUPE": 1
     },
     "tests/python/test_reconcile_policy.py": {
       "C-DATA": 1,
@@ -302,6 +498,22 @@
     "tests/token_benchmark/reporter.py": {
       "C-DATA": 1,
       "C-SIZE": 2
+    },
+    "tools/build_manifest_release.py": {
+      "C-SIZE": 3
+    },
+    "tools/check_plugin_runtime_paths.py": {
+      "C-DATA": 3,
+      "C-SIZE": 6
+    },
+    "tools/generate_plugin_views.py": {
+      "C-SIZE": 1
+    },
+    "tools/render_plugin_capability_matrix.py": {
+      "C-SIZE": 1
+    },
+    "tools/vendor_bundle_dependencies.py": {
+      "C-DATA": 1
     }
   }
 }

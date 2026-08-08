@@ -12,9 +12,8 @@ Does the target tool have a hooks API?
 ├── YES (Claude, Gemini CLI, Cursor, OpenCode)
 │   └── Installing hooks for multiple tools at once?
 │       ├── YES → Use install_all.py
-│       │   └── Need cross-tool source detection?
-│       │       ├── YES → --unified mode (recommended)
-│       │       └── NO  → --command mode (classic)
+│       │   ├── One normalizer per native target → --unified mode
+│       │   └── Tool-specific command → --command mode
 │       └── NO  → Use single-tool scripts
 │           ├── Claude/Gemini/Cursor → merge_hooks.py
 │           └── OpenCode → install_opencode_plugin.py
@@ -32,7 +31,7 @@ scripts/install_all.py --unified --handler "/path/to/handler" --name my-hook
 scripts/install_all.py --command "/path/to/hook" --name my-hook
 
 # Single tool
-scripts/merge_hooks.py --tool claude --path ~/.claude/settings.json --command "<hook>"
+scripts/merge_hooks.py --tool claude --path "$(native Claude settings path)" --command "<hook>"
 scripts/install_opencode_plugin.py --name my-hook --output ~/.config/opencode/plugins
 
 # CLI without hooks API
@@ -48,9 +47,9 @@ scripts/remove_cli_wrapper.py --cli gh
 
 ## Mode Comparison
 
-| Mode | When to Use | Source Detection | Event Filtering |
+| Mode | When to Use | Source Routing | Event Filtering |
 |------|-------------|------------------|-----------------|
-| **Unified** | Multiple AI tools share config files | Auto (process tree) | Yes |
+| **Unified** | Same normalizer across native targets | Explicit per target | Yes |
 | **Classic** | Single tool or explicit routing | Manual (--source flag) | No |
 | **CLI Wrapper** | Tools without hooks API | N/A | N/A |
 
@@ -58,23 +57,14 @@ scripts/remove_cli_wrapper.py --cli gh
 
 | Tool | Config | Events | Hook Types | Has Hooks API |
 |------|--------|--------|------------|---------------|
-| Claude | `~/.claude/settings.json` | 17 events | command, http, prompt, agent | Yes |
-| Gemini CLI | `~/.gemini/settings.json` | 11 events | command | Yes |
-| Cursor | `~/.cursor/hooks.json` | 3 events | command | Yes |
-| OpenCode | `~/.config/opencode/plugins/*.js` | 10 events | ES module | Yes (plugin) |
+| Claude | `~/.claude/settings.json` | See reference | command, http, prompt, agent | Yes |
+| Gemini CLI | `~/.gemini/settings.json` | See reference | command | Yes |
+| Cursor | `~/.cursor/hooks.json` | See reference | command | Yes |
+| OpenCode | `~/.config/opencode/plugins/*.js` | See reference | ES module | Yes (plugin) |
 | Gemini IDE | N/A | N/A | N/A | **No** |
 | gh, aws, etc. | N/A | N/A | N/A | **No** → Use wrapper |
 
-### Claude Code Events (17 total)
-
-SessionStart, UserPromptSubmit, PreToolUse, PermissionRequest, PostToolUse, PostToolUseFailure,
-Notification, SubagentStart, SubagentStop, Stop, TeammateIdle, TaskCompleted, ConfigChange,
-WorktreeCreate, WorktreeRemove, PreCompact, SessionEnd
-
-### Gemini CLI Events (11 total)
-
-SessionStart, SessionEnd, BeforeAgent, AfterAgent, BeforeModel, AfterModel, BeforeToolSelection, BeforeTool,
-AfterTool, PreCompress, Notification
+Full event lists per tool: `references/tool-reference.md`.
 
 ## References
 
@@ -87,5 +77,7 @@ AfterTool, PreCompress, Notification
 ## Key Behaviors
 
 - **Idempotent**: Duplicates skipped, safe to re-run
-- **Safe merge**: Only adds; never overwrites existing hooks
+- **Safe merge**: Adds ownership-marked entries and preserves unrelated hooks
+- **Native isolation**: Each harness reads and writes only its own target
+- **Degradation**: Unsupported hook events return a structured degraded result
 - **Debug**: `HOOK_DEBUG=1` enables logging

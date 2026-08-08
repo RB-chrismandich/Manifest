@@ -1,0 +1,110 @@
+{
+  "default_provider": "github",
+  "phase_to_canonical_status": {
+    "analyze": "in-progress",
+    "clarify": "planned",
+    "done": "done",
+    "implement": "in-progress",
+    "plan": "in-progress",
+    "spec_review_product": "planned",
+    "spec_review_tech": "in-progress",
+    "specify": "planned",
+    "task_creation": "in-progress",
+    "verify": "needs-review"
+  },
+  "providers": {
+    "github": {
+      "access": [
+        "cli",
+        "api"
+      ],
+      "missing_tier_behavior": "error",
+      "status_map": {
+        "done": "done",
+        "in-progress": "in-progress",
+        "needs-review": "needs-review",
+        "planned": "planned"
+      },
+      "status_via": "label",
+      "tier_map": {
+        "1": "project_v2",
+        "2": "milestone",
+        "3": "issue",
+        "4": "sub_issue"
+      },
+      "verified": true
+    },
+    "gitlab": {
+      "access": [
+        "cli",
+        "api"
+      ],
+      "missing_tier_behavior": "error",
+      "status_map": {
+        "done": "done",
+        "in-progress": "in-progress",
+        "needs-review": "needs-review",
+        "planned": "planned"
+      },
+      "status_via": "label",
+      "tier_map": {
+        "1": "epic",
+        "2": "epic",
+        "3": "issue",
+        "4": "child_issue"
+      },
+      "verified": false
+    },
+    "jira": {
+      "access": [
+        "mcp"
+      ],
+      "mcp_tools": {
+        "comment": "addCommentToJiraIssue",
+        "create": "createJiraIssue",
+        "get_issue": "getJiraIssue",
+        "issue_types": "getJiraProjectIssueTypesMetadata",
+        "search": "searchJiraIssuesUsingJql",
+        "transition": "transitionJiraIssue",
+        "transitions": "getTransitionsForJiraIssue"
+      },
+      "missing_tier_behavior": "error",
+      "status_map": {
+        "done": "Done",
+        "in-progress": "In Progress",
+        "needs-review": "In Review",
+        "planned": "To Do"
+      },
+      "status_via": "transition",
+      "tier_map": {
+        "1": "Initiative",
+        "2": "Epic",
+        "3": "Task",
+        "4": "Sub-task"
+      },
+      "verified": false
+    },
+    "linear": {
+      "access": [
+        "mcp",
+        "cli",
+        "api"
+      ],
+      "missing_tier_behavior": "error",
+      "status_map": {
+        "done": "Done",
+        "in-progress": "In Progress",
+        "needs-review": "In Review",
+        "planned": "Backlog"
+      },
+      "status_via": "transition",
+      "tier_map": {
+        "1": "initiative",
+        "2": "project",
+        "3": "issue",
+        "4": "sub_issue"
+      },
+      "verified": false
+    }
+  }
+}

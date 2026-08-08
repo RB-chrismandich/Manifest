@@ -45,11 +45,11 @@ report. Works with GitHub, GitLab, Linear, and Jira (agent-context only, via MCP
    - Linear MCP or API key — for Linear projects
    - Atlassian MCP — for Jira projects (agent-context only; see note below)
 2. **Scripts available**:
-   - `~/.claude/scripts/tracker_ops.sh` — provider-agnostic tracker operations (detection + verbs)
-   - `~/.claude/scripts/linear_ops.sh` — Linear API wrapper (invoked internally by `tracker_ops.sh` for the `linear` provider)
+   - `../../runtime/bin/tracker_ops.sh` — provider-agnostic tracker operations (detection + verbs)
+   - `../../runtime/bin/linear_ops.sh` — Linear API wrapper (invoked internally by `tracker_ops.sh` for the `linear` provider)
 3. **Tools**: `jq`, `python3`
 4. Jira is agent-context only (MCP); when `PROVIDER=jira`, fetch via the Atlassian MCP tools named
-   in `tracker_providers.yml` instead of `tracker_ops.sh` (which exits 3).
+   in `tracker_providers.json` instead of `tracker_ops.sh` (which exits 3).
 
 ## Critical Rules
 
@@ -196,10 +196,14 @@ in the repository. The report includes:
 
 ## Sub-agent dispatch
 
+Follow the bundled `sub-agent-dispatch.md` selection rules. Dispatches use the
+pinned `sonnet` model.
+
 When ≥10 open issues need scoring, dispatch one sub-agent per issue batch to score them, then merge into one ranking;
-below that, score inline. Pick the mechanism per the shared Sub-Agent Selection Rules
-(`configs/claude/references/sub-agent-dispatch.md`): native Task sub-agents on Claude, or `manifest parallel-agent` / inline
-on other assistants. Dispatched sub-agents execute their task directly and do not re-dispatch.
+below that, score inline. Pick the mechanism from the current harness's native
+sub-agent dispatch contract: native Task sub-agents where available, or
+`[[skill:parallel-agent]]` / inline on other assistants. Dispatched sub-agents
+execute their task directly and do not re-dispatch.
 
 Dispatch on **Sonnet** (`subagent_model: sonnet` in `command_config.yml`) — pass the model
 explicitly; inheriting the session's model bills premium rates for fan-out work.

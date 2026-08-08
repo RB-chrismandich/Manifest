@@ -6,7 +6,7 @@
 
 ## Inputs (read at test time)
 
-- Live listing of `.skillshare/skills/*/` directories that contain a `SKILL.md` (counted
+- Live listing of `.retired skill supply/skills/*/` directories that contain a `SKILL.md` (counted
   **dynamically** — no hardcoded total).
 - Parsed `tool_policies` from `configs/claude/config/command_config.yml`.
 - The body text of each `SKILL.md`.

@@ -12,7 +12,7 @@ with prioritized recommendations.
 ## Parallel Agent Integration
 
 This command ALWAYS uses parallel agents (security-critical).
-Executes: `manifest parallel-agent --json --full-output --validate`
+Executes: `[[skill:parallel-agent]] --json --full-output --validate`
 
 Consensus scoring:
 
@@ -40,7 +40,7 @@ You are a Senior DevOps/Infrastructure Engineer analyzing production shell scrip
 Before starting analysis, check for known patterns relevant to this codebase:
 
 ```bash
-~/.claude/scripts/learning_capture.sh query --language bash --format llm
+[[skill:learning-capture]] query --language bash --format llm
 ```
 
 If the knowledge base contains relevant antipatterns or insights for Bash/Shell:
@@ -210,7 +210,7 @@ local var="value"  # Function-scoped variables
 
 | Script | Lines | Functions | Issues | Score |
 |--------|-------|-----------|--------|-------|
-| bootstrap.sh | 1000 | 15 | 12 | 75/100 |
+| setup.sh | 1000 | 15 | 12 | 75/100 |
 | git_ops.sh | 1038 | 20 | 8 | 85/100 |
 
 ---
@@ -221,13 +221,13 @@ local var="value"  # Function-scoped variables
 
 | ID | Issue | Location | Effort | Risk |
 |----|-------|----------|--------|------|
-| SEC-001 | Unquoted variable expansion | `bootstrap.sh:123` | Minimal | Critical |
+| SEC-001 | Unquoted variable expansion | `setup.sh:123` | Minimal | Critical |
 
 ### Quick Wins (Low Risk + Minimal Effort)
 
 | ID | Issue | Location | Effort | Risk |
 |----|-------|----------|--------|------|
-| QA-001 | Add `set -euo pipefail` | `bootstrap.sh:1` | Minimal | Low |
+| QA-001 | Add `set -euo pipefail` | `setup.sh:1` | Minimal | Low |
 
 ### Planned (Medium Risk/Effort)
 
@@ -241,7 +241,7 @@ local var="value"  # Function-scoped variables
 
 ## Detailed Findings by Script
 
-### bootstrap.sh
+### setup.sh
 
 #### SEC-001: Unquoted Variable Expansion [CRITICAL]
 - **Location:** Line 123
@@ -409,8 +409,8 @@ npm install -g bats
 
 ```bash
 # Test in Docker containers
-docker run --rm -v "$PWD:/work" -w /work ubuntu:22.04 ./bootstrap.sh --skip-auth
-docker run --rm -v "$PWD:/work" -w /work fedora:39 ./bootstrap.sh --skip-auth
+docker run --rm -v "$PWD:/work" -w /work ubuntu:22.04 ./setup.sh --skip-auth
+docker run --rm -v "$PWD:/work" -w /work fedora:39 ./setup.sh --skip-auth
 ```
 
 ---
@@ -433,7 +433,7 @@ After completing the analysis, capture the most significant findings:
    - Run:
 
      ```bash
-     ~/.claude/scripts/learning_capture.sh add \
+     [[skill:learning-capture]] add \
        --category antipattern --language bash \
        --title "<finding title>" \
        --description "<finding description and recommended fix>" \
@@ -444,7 +444,7 @@ After completing the analysis, capture the most significant findings:
    - Run:
 
      ```bash
-     ~/.claude/scripts/learning_capture.sh add \
+     [[skill:learning-capture]] add \
        --category tool_discovery --language bash \
        --title "<tool recommendation>" \
        --description "<why this tool is better>" \
@@ -455,10 +455,12 @@ After completing the analysis, capture the most significant findings:
 
 ## Sub-agent dispatch
 
+Follow the bundled `sub-agent-dispatch.md` selection rules. Dispatches use the
+pinned `sonnet` model.
+
 When ≥3 independent scripts exist, dispatch one sub-agent per script to analyze it, then merge findings; below
-that, analyze inline. Pick the mechanism per the shared Sub-Agent Selection Rules
-(`configs/claude/references/sub-agent-dispatch.md`): native Task sub-agents on Claude, or `manifest parallel-agent` /
+that, analyze inline. Use native Task sub-agents on Claude, or `[[skill:parallel-agent]]` /
 inline on other assistants. Dispatched sub-agents execute their task directly and do not re-dispatch.
 
-Dispatch on **Sonnet** (`subagent_model: sonnet` in `command_config.yml`) — pass the model
+Dispatch on **Sonnet** (`subagent_model: sonnet`) — pass the model
 explicitly; inheriting the session's model bills premium rates for fan-out work.

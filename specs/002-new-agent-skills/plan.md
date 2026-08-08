@@ -8,7 +8,7 @@
 
 Add four discrete, independently-invocable Claude Code skills to the Manifest
 configuration repository, each authored as a `SKILL.md` under
-`.skillshare/skills/<name>/` (source of truth), registered in
+`.retired skill supply/skills/<name>/` (source of truth), registered in
 `command_config.yml` tool policies and `validation_criteria.yml` overrides, and
 documented in the repo's command listings:
 
@@ -57,7 +57,7 @@ through the existing `ai-hooks-integration` skill / `settings` hooks mechanism, 
 
 | Principle | Status | Notes |
 |-----------|--------|-------|
-| I. Configuration-as-Code | ✅ PASS | All four skills + scripts live in `configs/`/`.skillshare/`, deployed via `bootstrap.sh`. No manual edits to deployed `~/.claude`. |
+| I. Configuration-as-Code | ✅ PASS | All four skills + scripts live in `configs/`/`.retired skill supply/`, deployed via `bootstrap.sh`. No manual edits to deployed `~/.claude`. |
 | II. Parallel Agent Orchestration | ✅ PASS | `version-pin` is security-sensitive (supply chain) → flagged for parallel-agent review at PR time. `docs-all` itself *is* a multi-sub-agent orchestrator. |
 | III. Consensus-Driven Decisions | ✅ PASS | New skills inherit the standard consensus thresholds; `version-pin` set to Tier 1. |
 | IV. Skill-First Extensibility | ✅ PASS | Each capability is a discrete `SKILL.md`; no expansion of `parallel_agent.py`. Helper scripts are siblings of existing `git_ops.sh`, not core-engine changes. |
@@ -86,12 +86,12 @@ specs/002-new-agent-skills/
 ### Source Code (repository root)
 
 ```text
-.skillshare/skills/                  # Source of truth for skills
+.retired skill supply/skills/                  # Source of truth for skills
 ├── version-pin/SKILL.md             # NEW — pinning skill instruction body
 ├── docs-all/SKILL.md                # NEW — docs orchestration
 ├── pr-review/SKILL.md               # NEW — open-PR triage
 └── branch-clean/SKILL.md            # NEW — branch cleanup
-# (configs/claude/skills is a symlink → .skillshare/skills; not modified directly)
+# (configs/claude/skills is a symlink → .retired skill supply/skills; not modified directly)
 
 configs/claude/scripts/
 ├── version_pin.sh                   # NEW — detect/resolve/rewrite pinning logic
@@ -119,7 +119,7 @@ CLAUDE.md / configs/claude/CLAUDE.md # EDIT — add skills to command tables
 ```
 
 **Structure Decision**: Single-project layout matching the existing repo. Skills are
-instruction Markdown in `.skillshare/skills/`; their non-trivial logic lives in
+instruction Markdown in `.retired skill supply/skills/`; their non-trivial logic lives in
 companion shell scripts under `configs/claude/scripts/` (the established pattern set by
 `git_ops.sh` and `label_sync.sh`), keeping SKILL.md bodies focused on workflow and the
 scripts independently testable via `bats`. `docs-all` needs no script — it is pure

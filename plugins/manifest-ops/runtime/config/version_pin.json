@@ -1,0 +1,39 @@
+{
+  "bypass_marker": "version-pin:ignore",
+  "rules": [
+    {
+      "ecosystem": "pip",
+      "hash": "required",
+      "id": "pip-requirements",
+      "match": [
+        "requirements.txt",
+        "requirements*.txt"
+      ],
+      "resolve_cmd": "pip-compile --generate-hashes"
+    },
+    {
+      "ecosystem": "docker",
+      "hash": "digest",
+      "id": "docker-compose",
+      "match": [
+        "docker-compose.yml",
+        "docker-compose.yaml",
+        "compose.yml",
+        "compose.yaml"
+      ],
+      "resolve_cmd": "docker manifest inspect"
+    },
+    {
+      "ecosystem": "docker",
+      "hash": "digest",
+      "id": "dockerfile",
+      "match": [
+        "Dockerfile",
+        "Dockerfile.*",
+        "*.Dockerfile"
+      ],
+      "resolve_cmd": "docker manifest inspect"
+    }
+  ],
+  "schema_version": 1
+}

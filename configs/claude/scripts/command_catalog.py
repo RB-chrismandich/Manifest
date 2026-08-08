@@ -35,6 +35,7 @@ PROG = "command_catalog.py"
 
 # Repo-relative defaults (script lives in configs/claude/scripts/).
 _REPO_ROOT = Path(__file__).resolve().parents[3]
+# Pre-cutover fallback only; default_skills_dirs() prefers the plugin trees.
 DEFAULT_SKILLS_DIR = _REPO_ROOT / ".apm" / "skills"
 DEFAULT_CATEGORIES = (
     _REPO_ROOT / "configs" / "claude" / "config" / "command_categories.yml"
@@ -295,42 +296,75 @@ def parse_skill(skill_md: Path) -> dict:
     }
 
 
-def _iter_skill_files(skills_dir: Path):
-    """Yield each SKILL.md, following symlinked skill directories (repo convention)."""
-    if not skills_dir.exists():
-        raise CatalogError(f"skills directory not found: {skills_dir}")
-    for child in sorted(skills_dir.iterdir(), key=lambda p: p.name):
-        # follow symlinks; a skill dir may be reached via a symlink
-        if not (child.is_dir() or (child.is_symlink() and child.resolve().is_dir())):
-            continue
-        skill_md = child / "SKILL.md"
-        if skill_md.exists():
-            yield skill_md
+def default_skills_dirs() -> list[Path]:
+    """Where the skills actually live, source-first.
+
+    `.apm/skills` is a GENERATED, gitignored mirror. It is EMPTY in a fresh
+    checkout, and a catalog built from an empty tree silently produces a doc
+    that deletes every command row while reporting success — measured: 178
+    lines removed from COMMANDS.md, AGENTS.md and GEMINI.md, exit 0. CI happens
+    to run generate_skill_mirror.sh first, so this only ever bit locally.
+
+    So the plugin trees win when they exist, and the mirror remains the fallback
+    for a checkout from before the cutover. Deliberately the same shape as
+    default_roots() in skill_reference_check.py — same problem, same resolution.
+    """
+    plugin_skills = sorted(d for d in _REPO_ROOT.glob("plugins/*/skills") if d.is_dir())
+    return plugin_skills or [DEFAULT_SKILLS_DIR]
+
+
+def _iter_skill_files(skills_dirs: list[Path]):
+    """Yield each SKILL.md across every root, following symlinked skill dirs."""
+    for skills_dir in skills_dirs:
+        if not skills_dir.exists():
+            raise CatalogError(f"skills directory not found: {skills_dir}")
+        for child in sorted(skills_dir.iterdir(), key=lambda p: p.name):
+            # follow symlinks; a skill dir may be reached via a symlink
+            if not (
+                child.is_dir() or (child.is_symlink() and child.resolve().is_dir())
+            ):
+                continue
+            skill_md = child / "SKILL.md"
+            if skill_md.exists():
+                yield skill_md
 
 
 # --------------------------------------------------------------------------- #
 # Catalog
 # --------------------------------------------------------------------------- #
+def _resolve_sources(
+    skills_dir: str | None,
+    categories_path: str | None,
+    services_path: str | None,
+    platform: str | None,
+) -> tuple[list[Path], str, str, str]:
+    """Settle every input path. Precedence: argument > env override > default.
+
+    An explicit skills dir is honoured verbatim (tests point it at fixtures);
+    only the unset case consults default_skills_dirs(), which is source-first.
+    """
+    explicit = skills_dir or os.environ.get("COMMAND_CATALOG_SKILLS_DIR")
+    return (
+        [Path(explicit)] if explicit else default_skills_dirs(),
+        categories_path
+        or os.environ.get("COMMAND_CATALOG_CATEGORIES")
+        or str(DEFAULT_CATEGORIES),
+        services_path
+        or os.environ.get("COMMAND_CATALOG_SERVICES")
+        or str(DEFAULT_SERVICES),
+        platform or DEFAULT_PLATFORM,
+    )
+
+
 def build_catalog(
     skills_dir: str | None = None,
     categories_path: str | None = None,
     services_path: str | None = None,
     platform: str | None = None,
 ) -> dict:
-    skills_dir = Path(
-        skills_dir or os.environ.get("COMMAND_CATALOG_SKILLS_DIR") or DEFAULT_SKILLS_DIR
+    skills_dirs, categories_path, services_path, platform = _resolve_sources(
+        skills_dir, categories_path, services_path, platform
     )
-    categories_path = (
-        categories_path
-        or os.environ.get("COMMAND_CATALOG_CATEGORIES")
-        or str(DEFAULT_CATEGORIES)
-    )
-    services_path = (
-        services_path
-        or os.environ.get("COMMAND_CATALOG_SERVICES")
-        or str(DEFAULT_SERVICES)
-    )
-    platform = platform or DEFAULT_PLATFORM
 
     categories, overrides, valid_keys = load_categories(categories_path)
     services = load_services(services_path)
@@ -340,7 +374,7 @@ def build_catalog(
 
     commands = []
     seen: dict[str, Path] = {}
-    for skill_md in _iter_skill_files(skills_dir):
+    for skill_md in _iter_skill_files(skills_dirs):
         sk = parse_skill(skill_md)
         name = sk["name"]
         if name in seen:
@@ -357,6 +391,18 @@ def build_catalog(
                 "category": category,
                 "availability": resolve_availability(name, services, platform),
             }
+        )
+
+    if not commands:
+        # An empty catalog is never a legitimate result here, and it is not
+        # inert: generate_commands_doc.py renders it as a doc with every command
+        # row removed and exits 0, so the failure arrives as a silent 178-line
+        # deletion rather than an error. Fail where the emptiness originates.
+        roots = ", ".join(str(d) for d in skills_dirs)
+        raise CatalogError(
+            f"no skills found under: {roots}. "
+            "If this is .apm/skills, it is a generated mirror — run "
+            "configs/claude/scripts/generate_skill_mirror.sh first."
         )
 
     commands.sort(key=lambda c: (cat_order.get(c["category"], 999), c["name"]))

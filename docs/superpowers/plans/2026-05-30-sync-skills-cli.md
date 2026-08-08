@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Ship a `sync-skills` native CLI command that syncs `.skillshare/skills/` to all home targets and runs `skillshare sync` for the Copilot target, enabling fast day-to-day skill iteration without running bootstrap.
+**Goal:** Ship a `sync-skills` native CLI command that syncs `.retired skill supply/skills/` to all home targets and runs `retired skill supply sync` for the Copilot target, enabling fast day-to-day skill iteration without running bootstrap.
 
-**Architecture:** Bootstrap deploys a thin shell script to `~/.local/bin/sync-skills` and exports `MANIFEST_ROOT` in the shell profile. The script reads `$MANIFEST_ROOT` to locate the repo, calls `skillshare sync` (non-blocking) for the Copilot target, then runs parallel `rsync --delete` to all home targets. Bootstrap's existing `deploy_home_skills` (additive, no `--delete`) is unchanged — it handles cold install; `sync-skills` handles iteration.
+**Architecture:** Bootstrap deploys a thin shell script to `~/.local/bin/sync-skills` and exports `MANIFEST_ROOT` in the shell profile. The script reads `$MANIFEST_ROOT` to locate the repo, calls `retired skill supply sync` (non-blocking) for the Copilot target, then runs parallel `rsync --delete` to all home targets. Bootstrap's existing `deploy_home_skills` (additive, no `--delete`) is unchanged — it handles cold install; `sync-skills` handles iteration.
 
 **Tech Stack:** Bash (`set -euo pipefail`), rsync, BATS (bats-support + bats-assert)
 
@@ -44,8 +44,8 @@ STUB
 
     # Fake manifest root with a skills source
     export MANIFEST_ROOT="$SANDBOX/repo"
-    mkdir -p "$MANIFEST_ROOT/.skillshare/skills/demo-skill"
-    echo "body" > "$MANIFEST_ROOT/.skillshare/skills/demo-skill/SKILL.md"
+    mkdir -p "$MANIFEST_ROOT/.retired skill supply/skills/demo-skill"
+    echo "body" > "$MANIFEST_ROOT/.retired skill supply/skills/demo-skill/SKILL.md"
 
     # Fake home with required ~/.claude/skills target
     export HOME="$SANDBOX/home"
@@ -70,31 +70,31 @@ teardown() {
     assert_output --partial "not found"
 }
 
-@test "exits non-zero when .skillshare/skills/ is missing" {
-    rm -rf "$MANIFEST_ROOT/.skillshare/skills"
+@test "exits non-zero when .retired skill supply/skills/ is missing" {
+    rm -rf "$MANIFEST_ROOT/.retired skill supply/skills"
     run bash "$SCRIPT"
     assert_failure
     assert_output --partial "skills source not found"
 }
 
-@test "runs rsync to ~/.claude/skills/ when skillshare is absent" {
+@test "runs rsync to ~/.claude/skills/ when retired skill supply is absent" {
     PATH="$MOCK_BIN" run bash "$SCRIPT"
     assert_success
-    assert_output --partial "skillshare not installed"
+    assert_output --partial "retired skill supply not installed"
     grep -q ".claude/skills" "$RSYNC_LOG"
 }
 
-@test "calls skillshare sync when skillshare is on PATH" {
-    export SKILLSHARE_LOG="$SANDBOX/ss.log"
-    cat > "$MOCK_BIN/skillshare" <<'STUB'
+@test "calls retired skill supply sync when retired skill supply is on PATH" {
+    export retired skill supply_LOG="$SANDBOX/ss.log"
+    cat > "$MOCK_BIN/retired skill supply" <<'STUB'
 #!/usr/bin/env bash
-echo "skillshare $*" >> "$SKILLSHARE_LOG"
+echo "retired skill supply $*" >> "$retired skill supply_LOG"
 STUB
-    chmod +x "$MOCK_BIN/skillshare"
+    chmod +x "$MOCK_BIN/retired skill supply"
 
     run bash "$SCRIPT"
     assert_success
-    grep -q "skillshare sync" "$SKILLSHARE_LOG"
+    grep -q "retired skill supply sync" "$retired skill supply_LOG"
 }
 
 @test "skips IDE target when directory does not exist" {
@@ -138,14 +138,14 @@ set -euo pipefail
 [[ -z "${MANIFEST_ROOT:-}" ]] && { echo "Error: MANIFEST_ROOT not set. Re-run bootstrap.sh." >&2; exit 1; }
 [[ ! -d "$MANIFEST_ROOT" ]]  && { echo "Error: MANIFEST_ROOT '$MANIFEST_ROOT' not found." >&2; exit 1; }
 
-SKILLS_SRC="$MANIFEST_ROOT/.skillshare/skills"
+SKILLS_SRC="$MANIFEST_ROOT/.retired skill supply/skills"
 [[ ! -d "$SKILLS_SRC" ]] && { echo "Error: skills source not found: $SKILLS_SRC" >&2; exit 1; }
 
-# Copilot sync via skillshare (warn and continue if not installed or fails)
-if command -v skillshare > /dev/null 2>&1; then
-    (cd "$MANIFEST_ROOT" && skillshare sync) || echo "Warning: skillshare sync failed — continuing"
+# Copilot sync via retired skill supply (warn and continue if not installed or fails)
+if command -v retired skill supply > /dev/null 2>&1; then
+    (cd "$MANIFEST_ROOT" && retired skill supply sync) || echo "Warning: retired skill supply sync failed — continuing"
 else
-    echo "Warning: skillshare not installed — skipping Copilot sync"
+    echo "Warning: retired skill supply not installed — skipping Copilot sync"
 fi
 
 # Home targets — parallel rsync so total time = slowest single target
@@ -286,7 +286,7 @@ git commit -m "feat: write MANIFEST_ROOT to shell profile in configure_shell_pro
 ### Task 3: `bootstrap/lib/deploy.sh` — `deploy_sync_skills()` and wiring
 
 **Files:**
-- Modify: `bootstrap/lib/deploy.sh` (add function after `sync_skillshare_targets`, call it in both deploy paths)
+- Modify: `bootstrap/lib/deploy.sh` (add function after `sync_retired skill supply_targets`, call it in both deploy paths)
 - Modify: `tests/bats/deploy_skills.bats` (add three new tests, update `deploy_configs` stub)
 
 - [ ] **Step 1: Append failing tests to `tests/bats/deploy_skills.bats`**
@@ -375,7 +375,7 @@ Expected: the three new `deploy_sync_skills` tests fail; all existing tests stil
 
 - [ ] **Step 3: Add `deploy_sync_skills()` to `bootstrap/lib/deploy.sh`**
 
-Add the following function directly after the closing `}` of `sync_skillshare_targets` (after line ~242):
+Add the following function directly after the closing `}` of `sync_retired skill supply_targets` (after line ~242):
 
 ```bash
 # Deploy sync-skills CLI to ~/.local/bin/ and ensure it is on PATH.
@@ -412,12 +412,12 @@ Expected: all tests pass.
 
 - [ ] **Step 5: Wire `deploy_sync_skills` into both deploy paths**
 
-In `bootstrap/lib/deploy.sh`, add a `deploy_sync_skills` call after each `sync_skillshare_targets` call.
+In `bootstrap/lib/deploy.sh`, add a `deploy_sync_skills` call after each `sync_retired skill supply_targets` call.
 
 **Merge path** (around line 56 — the `2)` merge case, just before `return 0`):
 
 ```bash
-                    sync_skillshare_targets
+                    sync_retired skill supply_targets
                     deploy_sync_skills
                     return 0
 ```
@@ -426,7 +426,7 @@ In `bootstrap/lib/deploy.sh`, add a `deploy_sync_skills` call after each `sync_s
 
 ```bash
     # Project-scoped Copilot sync (non-blocking)
-    sync_skillshare_targets
+    sync_retired skill supply_targets
 
     # Deploy sync-skills CLI
     deploy_sync_skills
@@ -442,7 +442,7 @@ In the existing `@test "deploy_configs (fresh) puts real skill dirs in TARGET an
     deploy_gemini_configs() { :; }
     deploy_codex_configs() { :; }
     deploy_antigravity_configs() { :; }
-    sync_skillshare_targets() { :; }
+    sync_retired skill supply_targets() { :; }
     deploy_sync_skills() { :; }
 ```
 
@@ -497,7 +497,7 @@ cd /tmp
 sync-skills
 ```
 
-Expected: runs without error, syncs skills to `~/.claude/skills/`, warns if skillshare is not installed, exits 0.
+Expected: runs without error, syncs skills to `~/.claude/skills/`, warns if retired skill supply is not installed, exits 0.
 
 - [ ] **Step 5: Verify `~/.claude/skills/` was updated**
 
@@ -505,7 +505,7 @@ Expected: runs without error, syncs skills to `~/.claude/skills/`, warns if skil
 ls ~/.claude/skills/
 ```
 
-Expected: skill directories match `.skillshare/skills/` contents.
+Expected: skill directories match `.retired skill supply/skills/` contents.
 
 - [ ] **Step 6: Push to remote**
 

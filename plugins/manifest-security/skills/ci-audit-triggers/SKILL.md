@@ -13,14 +13,14 @@ such a workflow (CODEOWNERS, branch protection, environments), use `ci-harden-wo
 
 ### Step 0: Detect platform
 
-Run `~/.claude/scripts/ci_platform.sh`. The shared audit method below (classify
+Run `../../runtime/bin/ci_platform.sh` relative to this skill directory. The shared audit method below (classify
 trigger trust → enumerate attacker-controlled inputs → trace the ref/code the job
 operates on → hunt injection → audit secret reach → check cheap hardening) applies on
 either platform — only the vocabulary changes:
 
 - `github-actions` → the trigger/variable/injection vocabulary in steps 1-9 below
   applies as written.
-- `gitlab-ci` → load `~/.claude/references/ci/gitlab-ci-triggers.md` for the real GitLab
+- `gitlab-ci` → load `../../runtime/references/ci/gitlab-ci-triggers.md` for the real GitLab
   equivalents (pipelines for merge requests from forks, `CI_MERGE_REQUEST_*`
   variables, `$[[ inputs.* ]]` interpolation, protected variables/branches in place of
   `author_association`) and apply the same method through that vocabulary instead.
@@ -84,10 +84,11 @@ either platform — only the vocabulary changes:
 
 ## Sub-agent dispatch
 
-When ≥3 workflow files need auditing, dispatch one sub-agent per workflow to audit it, then merge findings;
-below that, audit inline. Pick the mechanism per the shared Sub-Agent Selection Rules
-(`configs/claude/references/sub-agent-dispatch.md`): native Task sub-agents on Claude, or `manifest parallel-agent` /
-inline on other assistants. Dispatched sub-agents execute their task directly and do not re-dispatch.
+Follow the bundled `sub-agent-dispatch.md` selection rules. Dispatches use the
+pinned `sonnet` model.
 
-Dispatch on **Sonnet** (`subagent_model: sonnet` in `command_config.yml`) — pass the model
-explicitly; inheriting the session's model bills premium rates for fan-out work.
+When ≥3 workflow files need auditing, invoke `[[skill:parallel-agent]]` with one
+workflow per review unit, security-analysis mode, validation enabled, and a
+bounded timeout; consume its structured result and merge findings. If the
+current harness cannot return structured skill output, perform the same reviews
+inline and report `DEGRADED`. Below the threshold, audit inline.

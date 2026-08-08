@@ -419,7 +419,7 @@ paths where integration tests need them.
    the `write_services_config()` heredoc in `bootstrap/lib/config.sh` (prevents `--reconfigure`
    from reverting to `smoke_test.py`).
 9. Extend `env-check` skill (venv python for inline checks + Home Python Runtime section).
-10. Migrate `.skillshare/skills/` references from `parallel_agent.py` / `smoke_test.py` to
+10. Migrate `.retired skill supply/skills/` references from `parallel_agent.py` / `smoke_test.py` to
     `manifest parallel-agent` / `manifest smoke`.
 11. Generate `tests/requirements-runtime.txt`; update CI test job to
     `pip install -r tests/requirements-ci.txt -r tests/requirements-runtime.txt`.

@@ -35,5 +35,5 @@
   1. PR Reviewer and Branch Cleaner → **two separate skills**.
   2. Version-pinning enforcement → **auto-fix in place with an explicit bypass**.
   3. Docs orchestration order → **decided per run** with a documented default precedence as fallback.
-- The spec names a few repo-internal artifacts (`.skillshare/skills/`, `git_ops.sh`, `command_config.yml`) in the Requirements/Assumptions. These are intentional: this feature's "users" are repo maintainers and the deliverables are skills within this configuration repo, so these are scope boundaries rather than premature implementation choices. The plan phase will detail the how.
+- The spec names a few repo-internal artifacts (`.retired skill supply/skills/`, `git_ops.sh`, `command_config.yml`) in the Requirements/Assumptions. These are intentional: this feature's "users" are repo maintainers and the deliverables are skills within this configuration repo, so these are scope boundaries rather than premature implementation choices. The plan phase will detail the how.
 - Items marked incomplete require spec updates before `/speckit-clarify` or `/speckit-plan`.

@@ -13,7 +13,7 @@ This document resolves every NEEDS-CLARIFICATION / open technical decision from 
 - a **pure decision core** — `lifecycle.sh decide <signals-json>` → `{action: allow|warn|refuse, missing_prereq, reason}`, always exits 0, fails **closed** (malformed input → refuse), bats-testable offline; and
 - **thin stateful subcommands** — `init`, `status`, `advance`, `anchor`, `regress` — that persist per-track JSON state.
 
-Front it with a thin **`/lifecycle` skill** (`.skillshare/skills/lifecycle/SKILL.md`) for human/agent invocation, and have the **autodev loop** (`auto_issue_dev.sh` / `pr_merge_loop.sh`) consume the **same** `decide`/`advance` core for hard enforcement. Language: **Bash with embedded `python3 -c` heredocs** for JSON/decision logic. Python is reserved for the smoke **runtime**, which Verify consumes via its CLI and never re-implements.
+Front it with a thin **`/lifecycle` skill** (`.retired skill supply/skills/lifecycle/SKILL.md`) for human/agent invocation, and have the **autodev loop** (`auto_issue_dev.sh` / `pr_merge_loop.sh`) consume the **same** `decide`/`advance` core for hard enforcement. Language: **Bash with embedded `python3 -c` heredocs** for JSON/decision logic. Python is reserved for the smoke **runtime**, which Verify consumes via its CLI and never re-implements.
 
 **Rationale**: One-for-one mirror of the repo's existing state-gated automation: specs 360 (`verification_gate.sh`) and 361 (`merge_decision.sh` + `pr_merge_loop.sh` + `loop_lock.sh`) both split a pure, bats-tested `decide` core (embedded `python3 -c`, always exit 0, fail-closed) from a side-effecting shell orchestrator behind injectable seams, wrapped by a skill. 365's gating is the same shape of safety decision (FR-004 hard-refuse for agents; SC-002). A **shared** core is mandatory because the `/lifecycle` skill drives human work (advisory gating) while the autodev loop drives agent work (hard halt) — FR-004/SC-002 require both strictness modes to derive from one tested source of truth. Constitution Principle IV (Skill-First) is satisfied the way 361 satisfied it: the user-facing capability is a skill that delegates to discrete testable helpers.
 
@@ -129,6 +129,6 @@ The local JSON is the **source of truth** for fine phase state; the tracker hold
 
 ## Cross-cutting consequences for the plan
 
-- **New artifacts**: `configs/claude/scripts/lifecycle.sh` (+ `tests/bats/lifecycle.bats`); `.skillshare/skills/lifecycle/SKILL.md`; constitution Principle VI + Development Lifecycle section; `--mode` flag on `spec_review.sh`; config map for tier→construct + canonical-status.
+- **New artifacts**: `configs/claude/scripts/lifecycle.sh` (+ `tests/bats/lifecycle.bats`); `.retired skill supply/skills/lifecycle/SKILL.md`; constitution Principle VI + Development Lifecycle section; `--mode` flag on `spec_review.sh`; config map for tier→construct + canonical-status.
 - **Reused as-is**: smoke orchestrator (`smoke_test.py`), `git_ops.sh`/`git_platform.sh`/`linear_ops.sh`, `labels.yml`/`label_sync.sh`, the Atlassian MCP, `parallel_agent.py`, the 360/361 decide-core idiom.
 - **Bootstrap**: changes to `spec_review.sh` and any deployed script require `./bootstrap.sh` redeploy (deployed vs repo drift is a known gotcha).

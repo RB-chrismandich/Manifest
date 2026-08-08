@@ -8,7 +8,7 @@ description: "Keep the linked GitHub/GitLab issue in sync when a pull/merge requ
 When a pull/merge request is opened, this skill updates each issue the PR relates
 to so the tracker reflects "up for review" without manual upkeep. It is one half of
 the issue-linking hooks (see also [`/manifest-forge:issue-sync-commit`]); both defer to the shared
-engine `configs/claude/scripts/issue_support.sh`.
+engine `../../runtime/bin/issue_support.sh`.
 
 ## What it does
 
@@ -30,9 +30,9 @@ single warning and never aborts PR creation. A timed-out run self-heals on re-ru
 
 ```bash
 # Self-resolves the current branch's PR:
-configs/claude/scripts/issue_support.sh sync-pr
+../../runtime/bin/issue_support.sh sync-pr
 # Or target a specific PR:
-configs/claude/scripts/issue_support.sh sync-pr 42 [--dry-run] [--no-create]
+../../runtime/bin/issue_support.sh sync-pr 42 [--dry-run] [--no-create]
 ```
 
 `--dry-run` previews actions without mutating; `--no-create` suppresses the
@@ -41,7 +41,7 @@ missing-issue creation offer.
 ## Hook trigger
 
 Installed as a unified `PostToolUse` hook (cross-tool) via
-`configs/claude/scripts/install_issue_hooks.sh --enable`, matched to PR/MR-create
+`../../runtime/bin/install_issue_hooks.sh --enable`, matched to PR/MR-create
 commands. Opt-in: gated by `tool_policies.issue-sync-pr.enabled` in
 `command_config.yml`. Coverage boundary: PR creation via the web UI or raw
 `gh`/`glab` outside a tool is not auto-observed — run `sync-pr` manually there.

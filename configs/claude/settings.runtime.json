@@ -20,7 +20,7 @@
     "",
     "Before migrating, each hook was probed with a representative payload to check",
     "it behaves when it finally runs (these had never executed in production): all",
-    "exit 0 (non-blocking), guidance_hint/version_pin/spec_review are silent on",
+    "exit 0 (non-blocking), guidance_hint/spec_review are silent on",
     "ordinary edits, lint_on_edit emits advisory output only on a genuine lint",
     "error, and all three PostToolUse hooks chained on one edit cost ~240ms.",
     "",
@@ -80,15 +80,6 @@
         "hooks": [
           {
             "type": "command",
-            "command": "~/.claude/scripts/version_pin_hook.sh"
-          }
-        ]
-      },
-      {
-        "matcher": "Write|Edit",
-        "hooks": [
-          {
-            "type": "command",
             "command": "~/.claude/scripts/spec_review.sh --silent"
           }
         ]
@@ -130,8 +121,6 @@
       "Bash(~/.claude/scripts/git_ops.sh:*)",
       "Bash(~/.claude/scripts/label_sync.sh:*)",
       "Bash(~/.claude/scripts/linear_ops.sh:*)",
-      "Bash(~/.claude/scripts/version_pin.sh:*)",
-      "Bash(~/.claude/scripts/version_pin_hook.sh:*)",
       "Bash(~/.claude/scripts/pr_review.sh:*)",
       "Bash(~/.claude/scripts/branch_clean.sh:*)",
       "Bash(~/.claude/scripts/command_catalog.py:*)",

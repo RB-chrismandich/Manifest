@@ -33,7 +33,7 @@
 
 - Items marked incomplete require spec updates before `/speckit-clarify` or `/speckit-plan`
 - **Clarified 2026-06-28** (see spec `## Clarifications`) — four decisions locked, no `[NEEDS CLARIFICATION]` remaining:
-  - **Skill delivery**: vendor `/graphify` into `.skillshare/skills/` and deploy via the existing pipeline; do not use graphify's own installer for skill placement (FR-009/FR-010).
+  - **Skill delivery**: vendor `/graphify` into `.retired skill supply/skills/` and deploy via the existing pipeline; do not use graphify's own installer for skill placement (FR-009/FR-010).
   - **Default enablement**: enabled by default, opt out via `--disable-graphify` (FR-004) — note this diverges from the original opt-in assumption.
   - **CLI install**: auto-install the `uv` prerequisite, then install graphify (FR-001/FR-006).
   - **Backend**: local-first, reuse existing Claude/Gemini auth for non-code extraction; never hard-fail on missing credentials (FR-011).

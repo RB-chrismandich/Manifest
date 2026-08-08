@@ -53,7 +53,7 @@ decisions plus the grounding facts gathered while planning. No `NEEDS CLARIFICAT
 
 ## R5 — Authoritative skill count (grounding)
 
-- **Decision**: There are **88** skill directories under `.skillshare/skills/` (each has a
+- **Decision**: There are **88** skill directories under `.retired skill supply/skills/` (each has a
   `SKILL.md`). The spec's "89" came from an `ls` that counted `README.md`. The enforcement test
   counts directories dynamically, so no count is hardcoded.
 - **Rationale**: Avoids a brittle magic number and a spec/impl mismatch.

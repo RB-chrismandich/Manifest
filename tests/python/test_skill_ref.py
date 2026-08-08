@@ -72,7 +72,6 @@ def test_qualified_mode_emits_the_bundle_scoped_command():
     ("skill", "bundle"),
     [
         ("git-commit", "manifest-forge"),
-        ("graphify", "manifest-graphify"),
         ("upload-to-stitch", "stitch-design"),
         ("ci-setup", "manifest-ops"),
         ("ci-harden-workflow", "manifest-security"),

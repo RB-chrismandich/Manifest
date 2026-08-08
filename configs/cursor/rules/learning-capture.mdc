@@ -1,12 +1,12 @@
 ---
-description: "Capture structured lessons learned after major tasks. Categories: pattern, antipattern, tool discovery, configuration insight. Stores in ~/.claude/config/knowledge_base.yml and queries existing learnings."
+description: "Append, query, increment, and render structured lessons from an XDG-owned JSONL knowledge base; capture is advisory and independent of the primary task verdict."
 globs: ".claude/skills/learning-capture/**"
 alwaysApply: false
 ---
 
 # learning-capture
 
-Capture structured lessons learned after major tasks. Categories: pattern, antipattern, tool discovery, configuration insight. Stores in ~/.claude/config/knowledge_base.yml and queries existing learnings.
+Append, query, increment, and render structured lessons from an XDG-owned JSONL knowledge base; capture is advisory and independent of the primary task verdict.
 
 <!-- Auto-generated from .claude/skills/learning-capture/SKILL.md -->
 <!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->

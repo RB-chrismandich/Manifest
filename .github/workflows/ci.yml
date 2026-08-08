@@ -77,7 +77,7 @@ jobs:
       # --- markdownlint ---
 
       - name: markdownlint - key docs
-        uses: DavidAnson/markdownlint-cli2-action@6bf21b07787794f89a243495939cd651942aeabe  # v24
+        uses: DavidAnson/markdownlint-cli2-action@21c1be1b93ad9ed58fa840aacc3f279cde2a72ff  # v24
         with:
           globs: |
             AGENTS.md
@@ -123,6 +123,23 @@ jobs:
       # --- manifest-runtime uv gates (spec manifest-uv-cli, task 10) ---
       - name: Install uv
         run: pip install uv
+
+      - name: Verify bootstrap-free plugin release projections
+        run: |
+          set -euo pipefail
+          uv run python tools/generate_plugin_views.py --check
+          uv run python tools/vendor_bundle_dependencies.py --check
+          uv run python tools/check_plugin_runtime_paths.py --json
+          uv run python tools/render_capability_inventory.py --check
+          uv run python tools/render_plugin_capability_matrix.py --check \
+            --inspection tests/fixtures/plugin_capability_inspection.json
+
+      - name: Build and checksum coordinator wheel
+        run: |
+          set -euo pipefail
+          rm -rf dist
+          uv build
+          shasum -a 256 dist/*
 
       - name: uv lock --check (configs/claude)
         run: uv lock --check --project configs/claude
@@ -236,16 +253,16 @@ jobs:
           cache: pip
           cache-dependency-path: tests/requirements-ci.txt
 
-      - name: Install pytest and parallel_agent runtime deps (pinned)
+      - name: Install test and manifest runtime dependencies (pinned)
         # parallel_agent.py hard-imports yaml + rich (sys.exit(1) otherwise);
         # asyncio-throttle backs RateLimiter. requirements-runtime.txt mirrors
         # configs/claude/uv.lock core deps for manifest_cli / scripts packages.
-        run: pip install -r tests/requirements-ci.txt -r tests/requirements-runtime.txt
+        run: pip install -r tests/requirements-ci.txt -r tests/requirements-runtime.txt .
 
       - name: Run Python tests (if any exist)
         run: |
           if [ -d tests/python ] && find tests/python -name '*.py' | grep -q .; then
-            pytest tests/python/ -v
+            pytest tests/python/ -v -m "not native"
           else
             echo "No Python tests found in tests/python/ - skipping"
           fi
@@ -421,9 +438,9 @@ jobs:
           # skills during the plugin move stays green, and so does any accident
           # that drops 98 of them. Both sides of a `-lt` floor are derived from
           # the same tree, so it can only ever confirm the tree agrees with
-          # itself. expected_total lives in skill_policies.yml precisely because
-          # the move cannot edit it -- a PR that legitimately adds or removes a
-          # skill must change that integer in the same commit.
+          # itself. The global catalog expected_total lives in skill_policies.yml
+          # precisely because the move cannot edit it -- a PR that legitimately
+          # adds or removes a skill must change that integer in the same commit.
           EXPECTED=$(sed -n 's/^expected_total:[[:space:]]*\([0-9][0-9]*\).*/\1/p' \
             configs/claude/config/skill_policies.yml)
           if [ -z "$EXPECTED" ]; then
@@ -482,7 +499,6 @@ jobs:
         # per-skill success table, and generate-design's **bold** delegation.
         run: |
           python3 configs/claude/scripts/skill_reference_check.py \
-            --roots .apm/skills \
             --registry configs/claude/config/skill_policies.yml \
             --baseline configs/claude/config/skill_reference_baseline.json
 

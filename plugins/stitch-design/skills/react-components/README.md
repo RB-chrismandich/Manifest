@@ -2,9 +2,7 @@
 
 ## Install
 
-```bash
-npx skills add google-labs-code/stitch-skills --skill react:components --global
-```
+This skill ships in the `stitch-design` bundle as `stitch-design:react-components`.
 
 ## Example Prompt
 
@@ -32,5 +30,5 @@ When activated, the agent follows a high-fidelity engineering pipeline:
 1. **Retrieval**: Uses a system-level `curl` script to bypass TLS/SNI issues on Google Cloud Storage.
 2. **Mapping**: Cross-references Stitch metadata with the local `style-guide.json` to ensure token consistency.
 3. **Generation**: Scaffolds components using a strict Atomic Design pattern.
-4. **Validation**: Runs an automated AST check using `@swc/core` to prevent hardcoded hex values or missing interfaces.
+4. **Validation**: Runs the bundled pure-JavaScript AST validator to prevent hardcoded hex values or missing interfaces.
 5. **Audit**: Performs a final self-correction check against a 20-point architecture checklist.

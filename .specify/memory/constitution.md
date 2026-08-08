@@ -1,6 +1,28 @@
 <!--
 SYNC IMPACT REPORT
 ==================
+Version change: 3.0.0 → 4.0.0 (MAJOR — Principle IV redefined)
+Modified principles:
+  - IV. Skill-First Extensibility — REDEFINED from mechanism-named to
+    property-first. The v3.0.0 wording hardcoded `.skillshare/skills/` as the
+    skills tree; that tree was retired 2026-07-27 (feature 522 FR-021a) and
+    superseded by the plugin-bundle layout (feature 674), so the letter of the
+    principle became unsatisfiable — the same defect class the v2.0.0
+    amendment removed from Principles I and V. The substance (discrete,
+    self-contained, independently invocable skills; no core-script accretion)
+    is unchanged. The source-of-truth path now lives in docs/SKILL-NAMING.md,
+    not in this constitution.
+Modified sections:
+  - ## Development Workflow → Skills: re-pointed to the designated
+    source-of-truth tree; retired the skillshare project-scoped-target
+    sentence (`.github/skills`, removed with feature 522).
+Removed sections: N/A
+Source: specs/675-multi-agent-delegation /speckit-analyze finding C1.
+-->
+
+<!--
+SYNC IMPACT REPORT
+==================
 Version change: 2.0.0 → 3.0.0 (MAJOR — Principle V.4 redefined, V.5 scoped)
 Modified principles:
   - V.4 User-edit preservation → User-edit DETECTION. REDEFINED. The v2.0.0 wording
@@ -147,11 +169,16 @@ human escalation for routine, low-risk changes.
 
 ### IV. Skill-First Extensibility
 
-New capabilities MUST be implemented as discrete, self-contained skills in
-`.skillshare/skills/<skill-name>/SKILL.md` with `name` and `description` frontmatter.
-Skills MUST be independently invocable via `/skill-name` in Claude Code. Expanding
-`parallel_agent.py` or other core scripts to absorb new behaviors is prohibited when a
-skill is sufficient.
+New capabilities MUST be implemented as discrete, self-contained skills — one
+directory per skill carrying a `SKILL.md` with `name` and `description`
+frontmatter — in the repository's designated skills source-of-truth tree. That
+tree's location is recorded in `docs/SKILL-NAMING.md` (currently
+`plugins/<bundle>/skills/`), not in this constitution, so improving the layout
+is engineering, not amendment. Skills MUST be independently invocable in
+Claude Code under the invocation contract recorded in `docs/SKILL-NAMING.md`
+(currently `/<bundle>:<name>`, e.g. `/manifest-docs:docs-all`; there is no
+bare-name alias). Expanding `parallel_agent.py` or other core
+scripts to absorb new behaviors is prohibited when a skill is sufficient.
 
 **Rationale**: Composable skills enable independent testing, per-platform deployment, and
 targeted updates without risk to the core orchestration engine.
@@ -313,11 +340,12 @@ auditable via `lifecycle.sh audit`.
 `pytest tests/python/`. Lint with `shellcheck` (shell scripts) and `yamllint` (YAML
 configs) before opening a PR.
 
-**Skills**: New skills are added to `.skillshare/skills/` (source of truth). The path
-`configs/claude/skills/` is a backward-compatibility symlink and MUST NOT be replaced
-with a real directory. Home deployment (`~/.claude/skills`) is managed by whichever
-mechanism owns that path under Principle V — exactly one at any time — and skillshare
-manages project-scoped targets (`.github/skills`).
+**Skills**: New skills are added to the designated source-of-truth tree (see
+`docs/SKILL-NAMING.md`). Generated mirrors (e.g. `.apm/skills/`) MUST NOT be
+hand-edited, and compatibility symlinks (e.g. `configs/claude/skills`) MUST
+NOT be replaced with real directories. Home deployment (`~/.claude/skills`) is
+managed by whichever mechanism owns that path under Principle V — exactly one
+at any time.
 
 **Plans**: Implementation plans live in `configs/claude/.plans/` as
 `YYYYMMDD-description.md`. Plans follow the lifecycle CREATE → ACTIVE → COMPLETED
@@ -350,4 +378,4 @@ review of all principles is RECOMMENDED to ensure alignment with project evoluti
 **Runtime guidance**: Use `configs/claude/CLAUDE.md` for session-level development
 guidance; it is the deployed document that governs active Claude Code sessions.
 
-**Version**: 3.0.0 | **Ratified**: 2026-05-31 | **Last Amended**: 2026-07-27
+**Version**: 4.0.1 | **Ratified**: 2026-05-31 | **Last Amended**: 2026-08-06

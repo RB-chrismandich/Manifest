@@ -67,7 +67,7 @@ def test_case_variant_on_a_dispatch_line_blocks(skills: Path):
 
 
 # --- and the reason single words stay case-sensitive ------------------------
-# Exactly three catalog names carry no hyphen: graphify, help, remotion. `help`
+# The catalog names help and remotion carry no hyphen. `help`
 # is an ordinary English word, and matching "Help" case-insensitively would fire
 # on any sentence that begins with it. A gate that cries wolf gets switched off.
 

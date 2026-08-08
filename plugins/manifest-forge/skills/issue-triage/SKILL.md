@@ -35,14 +35,14 @@ This skill performs comprehensive issue triage by:
 ## Prerequisites
 
 1. **Tracker authentication** — per provider (resolved via `tracker_ops.sh resolve-provider`):
-   - `linear`: `LINEAR_API_KEY` env var or `~/.config/linear/token`
+   - `linear`: `LINEAR_API_KEY` environment variable or native harness/MCP auth
    - `github` / `gitlab`: `gh` / `glab` CLI authenticated
    - `jira`: Atlassian MCP configured (jira is MCP-only — `tracker_ops.sh` exits 3 for any jira verb in
      shell context; run jira triage from agent context and call the Atlassian MCP tools directly instead
      of shelling out)
 2. **Tools installed**: `jq`, `python3`
-3. **Scripts available**: `~/.claude/scripts/tracker_ops.sh`, `manifest parallel-agent`
-4. **Config loaded**: `~/.claude/config/tracker_triage.yml`
+3. **Scripts available**: `../../runtime/bin/tracker_ops.sh`, `[[skill:parallel-agent]]`
+4. **Config loaded**: `../../runtime/config/tracker_triage.json`
 
 ## Workflow
 
@@ -85,12 +85,12 @@ if ! command -v python3 &> /dev/null; then
     exit 1
 fi
 
-if [[ ! -x ~/.claude/scripts/tracker_ops.sh ]]; then
+if [[ ! -x ../../runtime/bin/tracker_ops.sh ]]; then
     echo "Error: tracker_ops.sh not found or not executable" >&2
     exit 1
 fi
 
-if [[ ! -f ~/.claude/config/tracker_triage.yml ]]; then
+if [[ ! -f ../../runtime/config/tracker_triage.json ]]; then
     echo "Error: Configuration file not found" >&2
     exit 1
 fi
@@ -118,7 +118,7 @@ fi
 ## Output
 
 - **Markdown report** to console and temp file
-- **JSON audit log** in `~/.claude/.agent_outputs/triage_audits/`
+- **JSON audit log** in `$XDG_STATE_HOME/manifest/forge/triage_audits/`
 - **Action summary** with counts and recommendations
 
 ## Integration with Parallel Agents
@@ -138,9 +138,12 @@ Consensus thresholds:
 
 ## Sub-agent dispatch
 
+Follow the bundled `sub-agent-dispatch.md` selection rules. Dispatches use the
+pinned `sonnet` model.
+
 When ≥3 issues need auditing, dispatch one sub-agent per issue batch to triage, then consolidate; below that, triage
-inline. Pick the mechanism per the shared Sub-Agent Selection Rules (`configs/claude/references/sub-agent-dispatch.md`):
-native Task sub-agents on Claude, or `manifest parallel-agent` / inline on other assistants. Dispatched sub-agents execute
+inline. Pick the mechanism per the shared Sub-Agent Selection Rules (`the current harness native sub-agent dispatch contract`):
+native Task sub-agents on Claude, or `[[skill:parallel-agent]]` / inline on other assistants. Dispatched sub-agents execute
 their task directly and do not re-dispatch.
 
 Dispatch on **Sonnet** (`subagent_model: sonnet` in `command_config.yml`) — pass the model

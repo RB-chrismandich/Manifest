@@ -39,7 +39,7 @@ Delivered per the constitution's **Skill-First** principle: a thin `/smoke-orche
 | I. Configuration-as-Code | PASS | Catalog (`smoke-catalog/*.yaml`), the skill, and Python package are version-controlled; appender edits committed YAML. No edits to deployed `~/.claude` files. |
 | II. Parallel Agent Orchestration | GATE (deferred to PR) | This feature is **security-sensitive** (CLI/shell execution + secret handling) and exceeds 200 lines → Tier-1 cross-verification by ≥2 parallel agents (`parallel_agent.py`) is REQUIRED before merge. Recorded as an implementation-phase gate, not a planning blocker. |
 | III. Consensus-Driven Decisions | GATE (deferred to PR) | The Tier-1 review at merge applies the ≥80% / 50–79% / <50% thresholds. |
-| IV. Skill-First Extensibility | PASS | New capability ships as `.skillshare/skills/smoke-orchestrator/SKILL.md` invoking a discrete Python package; core scripts are not expanded to absorb it. |
+| IV. Skill-First Extensibility | PASS | New capability ships as `.retired skill supply/skills/smoke-orchestrator/SKILL.md` invoking a discrete Python package; core scripts are not expanded to absorb it. |
 | V. Bootstrap Reproducibility | PASS w/ note | The skill deploys via existing `bootstrap.sh` skill deployment. New runtime deps (Playwright + browser binaries) must be installed idempotently and gated by existence checks — see research R1. |
 
 **Quality-gate alignment**: Tier-1 security (no shell injection in CLI steps, no secret leakage) and error-handling (no silent step failures) are first-class design concerns below. Tier-2 expects accompanying `pytest`/`bats` tests (Phase 1 contracts drive these).
@@ -88,7 +88,7 @@ configs/claude/scripts/smoke_orchestrator/   # self-contained Python package
 
 configs/claude/scripts/smoke_test.py          # thin executable shim → smoke_orchestrator.cli (chmod +x, --help)
 
-.skillshare/skills/smoke-orchestrator/
+.retired skill supply/skills/smoke-orchestrator/
 └── SKILL.md               # agent-facing skill: when/how to append + run
 
 smoke-catalog/                                 # centralized catalog root (committed)

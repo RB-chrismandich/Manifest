@@ -300,12 +300,12 @@ echo "## A6 lifecycle advance + smoke gates: PASS (real smoke runtime)" >> "$SCR
 
 **Files:**
 
-- Test (exercise): `.skillshare/skills/ai-hooks-integration/scripts/runtime/{unified_hook,tool_config,cli_wrapper}.py`
+- Test (exercise): `.retired skill supply/skills/ai-hooks-integration/scripts/runtime/{unified_hook,tool_config,cli_wrapper}.py`
 
 - [ ] **Step 1: unified_hook stdin validation (incl. the `[1,2,3]` crash check)**
 
 ```bash
-cd .skillshare/skills/ai-hooks-integration/scripts
+cd .retired skill supply/skills/ai-hooks-integration/scripts
 for p in '{"tool_name":"Bash","tool_input":{"command":"ls"}}' 'not json at all' '42' '"hello"' '' '   ' '[1,2,3]'; do
   printf '%s' "$p" | python3 runtime/unified_hook.py --source claude --no-detect; echo "exit=$? for: $p"
 done

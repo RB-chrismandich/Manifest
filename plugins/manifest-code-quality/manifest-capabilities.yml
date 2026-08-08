@@ -1,0 +1,42 @@
+schema_version: 1
+bundle:
+  name: manifest-code-quality
+  version: 0.2.0
+  description: Code analysis, refactoring, verification, and test-quality workflows.
+  category: code-quality
+components:
+  skills:
+    root: skills
+    include: ["*/SKILL.md"]
+  agents: []
+  hooks: []
+  runtime:
+    - {id: constitution-scripts, path: skills/code-audit-constitution/scripts}
+    - {id: constitution-config, path: skills/code-audit-constitution/config}
+    - {id: constitution-references, path: skills/code-audit-constitution/references}
+    - {id: smoke-scripts, path: skills/smoke-manage/scripts}
+    - {id: smoke-vendor, path: skills/smoke-manage/vendor}
+    - {id: scaffold-templates, path: skills/project-scaffold/templates}
+    - {id: code-audit-references, path: skills/code-audit/references}
+  guidance: []
+capabilities:
+  mcp:
+    required: []
+    default: []
+    optional: []
+  executables:
+    required: [git, python3]
+    default: []
+    optional: [browser-use, playwright, semgrep]
+compatibility:
+  claude: {mode: native}
+  codex: {mode: native}
+  gemini: {mode: generated}
+  cursor: {mode: generated}
+  antigravity: {mode: imported}
+  devin: {mode: native}
+provenance:
+  repository: https://github.com/RB-chrismandich/Manifest
+  license: MIT
+  license_file: LICENSE
+  generated_by: tools/generate_plugin_views.py

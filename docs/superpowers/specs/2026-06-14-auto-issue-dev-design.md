@@ -85,7 +85,7 @@ Testing seams (env overrides, mirroring `issue_support.sh`): `GIT_OPS_BIN`,
 `GIT_PLATFORM_BIN`, `AUTO_ISSUE_DEV_LABEL` (default `auto-dev`),
 `AUTO_ISSUE_DEV_DEP_LABEL` (default `blocked-dependency`).
 
-### 2. `.skillshare/skills/auto-issue-dev/SKILL.md`
+### 2. `.retired skill supply/skills/auto-issue-dev/SKILL.md`
 
 Per-invocation procedure (one issue):
 
@@ -155,7 +155,7 @@ blocker merges), keeping the loop from re-commenting every pass.
 - `configs/claude/config/command_config.yml` → `tool_policies.auto-issue-dev`
   (`allowed: [Bash, Read, Edit, Write]`, since this skill writes code).
 - `docs/COMMANDS.md` → entry under the autonomous/issue section.
-- `.skillshare/skills/auto-issue-dev/evals/evals.json` → triggering evals.
+- `.retired skill supply/skills/auto-issue-dev/evals/evals.json` → triggering evals.
 
 ## Error Handling
 

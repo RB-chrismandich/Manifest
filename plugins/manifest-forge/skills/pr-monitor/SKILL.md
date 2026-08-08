@@ -1,6 +1,6 @@
 ---
 name: pr-monitor
-description: "Babysit a just-opened pull/merge request: watch CI to green, address GitHub Copilot findings, and tag Google Jules (@google-labs-jules) then handle its feedback. Use when a PR/MR is just opened: \"babysit my PR\", \"get the bots to review it\", \"tag jules\"."
+description: "Babysit a just-opened pull/merge request until CI is green and every reviewer is satisfied. Use when a PR/MR is just opened: \"babysit my PR\", \"get the bots to review it\", \"tag jules\"."
 ---
 
 # Post-PR Review Monitor
@@ -30,7 +30,7 @@ URL if the user gave one.
   branch) or `gh pr view <N> --json ...`.
 - GitLab: `glab mr view` / `glab mr view <N>`.
 - Detect the platform with the repo's helper if unsure:
-  `configs/claude/scripts/git_platform.sh`.
+  `../../runtime/bin/git_platform.sh`.
 
 If no PR exists for the branch, say so and ask whether to create one (or point
 the user at `/manifest-forge:git-commit`) rather than guessing. If the PR is a **draft**,
@@ -66,12 +66,12 @@ product choice), stop and hand back a crisp diagnosis instead of thrashing. A
 human un-sticking you in 30 seconds beats ten more failed pushes.
 
 Bot identities (logins, invoke method, mention syntax) live in
-`configs/claude/config/review_bots.yml`, not hardcoded here — for each bot in
+`../../runtime/config/review_bots.json`, not hardcoded here — for each bot in
 that registry with `role: reviewer`, check whether it's on the PR and act per
 its `invoke` field. Phases 2 and 3 below cover the two reviewer entries
 (`copilot`, `jules`) with their registry-keyed behavioral notes attached.
 
-### 2. GitHub Copilot (`review_bots.yml` bot: `copilot`) — address findings if it reviewed
+### 2. GitHub Copilot (`review_bots.json` bot: `copilot`) — address findings if it reviewed
 
 Copilot is **addressed-if-present**, not summoned: this phase only acts when
 Copilot is already on the PR. (Jules is the one you tag in phase 3.)
@@ -91,7 +91,7 @@ Copilot is already on the PR. (Jules is the one you tag in phase 3.)
   evidence, re-test, push, and reply to / resolve every thread. Don't
   re-implement that here.
 
-### 3. Google Jules (`review_bots.yml` bot: `jules`) — tag it, then watch for and address its feedback
+### 3. Google Jules (`review_bots.json` bot: `jules`) — tag it, then watch for and address its feedback
 
 Jules is **not** a GitHub-native reviewer: requesting it as a reviewer or
 assignee is silently ignored. The only programmatic trigger in this repo is a
@@ -121,7 +121,7 @@ workflow acts on.
    accepting (the `pr-triage-bots` skill covers judging bot diffs) — Jules
    over-produces and is sometimes wrong, so verify, don't rubber-stamp. Note
    that `palette`/`bolt` PRs carry no distinct GitHub bot account (see
-   `review_bots.yml`'s `identified_by: title_prefix` for those two) — they post
+   `review_bots.json`'s `identified_by: title_prefix` for those two) — they post
    under whichever account's credentials ran the Jules session, so identify
    them by title/branch prefix, not by author login.
 

@@ -1,0 +1,57 @@
+{
+  "compatibility": {
+    "degraded": [
+      {
+        "component_id": "code-audit-references",
+        "component_type": "runtime",
+        "mode": "degraded",
+        "path": "skills/code-audit/references",
+        "reason": "gemini native manifest cannot encode runtime component 'code-audit-references' at 'skills/code-audit/references'"
+      },
+      {
+        "component_id": "constitution-config",
+        "component_type": "runtime",
+        "mode": "degraded",
+        "path": "skills/code-audit-constitution/config",
+        "reason": "gemini native manifest cannot encode runtime component 'constitution-config' at 'skills/code-audit-constitution/config'"
+      },
+      {
+        "component_id": "constitution-references",
+        "component_type": "runtime",
+        "mode": "degraded",
+        "path": "skills/code-audit-constitution/references",
+        "reason": "gemini native manifest cannot encode runtime component 'constitution-references' at 'skills/code-audit-constitution/references'"
+      },
+      {
+        "component_id": "constitution-scripts",
+        "component_type": "runtime",
+        "mode": "degraded",
+        "path": "skills/code-audit-constitution/scripts",
+        "reason": "gemini native manifest cannot encode runtime component 'constitution-scripts' at 'skills/code-audit-constitution/scripts'"
+      },
+      {
+        "component_id": "scaffold-templates",
+        "component_type": "runtime",
+        "mode": "degraded",
+        "path": "skills/project-scaffold/templates",
+        "reason": "gemini native manifest cannot encode runtime component 'scaffold-templates' at 'skills/project-scaffold/templates'"
+      },
+      {
+        "component_id": "smoke-scripts",
+        "component_type": "runtime",
+        "mode": "degraded",
+        "path": "skills/smoke-manage/scripts",
+        "reason": "gemini native manifest cannot encode runtime component 'smoke-scripts' at 'skills/smoke-manage/scripts'"
+      },
+      {
+        "component_id": "smoke-vendor",
+        "component_type": "runtime",
+        "mode": "degraded",
+        "path": "skills/smoke-manage/vendor",
+        "reason": "gemini native manifest cannot encode runtime component 'smoke-vendor' at 'skills/smoke-manage/vendor'"
+      }
+    ]
+  },
+  "name": "manifest-code-quality",
+  "version": "0.2.0"
+}

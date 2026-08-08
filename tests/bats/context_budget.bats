@@ -74,103 +74,68 @@ assert_budget() {
     done
 }
 
-@test "skill frontmatter descriptions stay within per-session budget" {
-    # Claude Code injects every skill's description at session start.
-    # Budget covers the whole .apm/skills/ set.
-    # Raised 18500 -> 19000 (2026-06-14) for the new issue-dev-auto skill:
-    # per-skill frontmatter is already minimal (~250 chars each on average;
-    # this skill ~290) and a
-    # description has no read-on-demand alternative (it IS the always-loaded
-    # triggering text), so a genuinely new skill must grow this budget. Keep
-    # descriptions terse; if headroom runs low again, do a set-wide trim pass.
-    # Raised 19000 -> 20000 (2026-06-17) for two genuinely-new skills with no
-    # prior coverage: ci-audit-triggers + secure-comment-triggered-
-    # workflow (GitHub-Actions trigger security). Descriptions kept terse.
-    # Raised 20000 -> 21500 (2026-06-17) for the curated SkillClaw-evolve subset
-    # (#366): 5 net-new skills (pr-merge-stacked, cli-help-before-
-    # dependency-checks, test-pin-bug, shell-sete-silent-abort-
-    # audit, ci-reproduce-failure) after dropping 2 overlapping/
-    # niche candidates and folding errexit-safe-shell-counters into shell-sete.
-    # Headroom is now thin (~200) — the next addition needs a set-wide trim pass.
-    # Raised 21500 -> 22300 (2026-06-21) for two genuinely-new skills (#361):
-    # issue-prep-auto + speckit-audit-tasks (since renamed spec-audit-tasks). Both were trimmed from
-    # 717/595 -> 498/398 chars toward the ~290 norm first; the residual still
-    # exceeded 21500, and the descriptions are the always-loaded triggering text
-    # with no read-on-demand alternative. Headroom was ~160 — a set-wide trim
-    # pass was overdue.
-    # Lowered 22300 -> 21000 (2026-06-21): set-wide trim pass recovered ~1756
-    # chars (total 22141 -> 20385); 25 skills trimmed toward the ~290 norm,
-    # all trigger phrases preserved. New headroom: ~615 chars.
-    # Raised 21000 -> 21500 (2026-06-21) for the genuinely-new `help` discovery
-    # skill (spec 362): its description IS the always-loaded triggering text with
-    # no read-on-demand alternative. Already trimmed to ~225 chars (well under the
-    # ~290 norm) before this bump; the residual still cleared 21000 by only ~2.
-    # Raised 21500 -> 22000 (2026-06-23) for the genuinely-new `smoke-manage`
-    # skill (spec 363): the only smoke-test/E2E-coverage entry point, no prior
-    # coverage to fold into. Frontmatter is 283 chars (under the ~290 norm); the
-    # description is the always-loaded trigger text with no read-on-demand
-    # alternative. Headroom after this is ~273 — the next addition needs a trim pass.
-    # Raised 22000 -> 22300 (2026-06-28) for two genuinely-new entry-point skills
-    # added on parallel branches and merged together: `graphify` (spec 364, 242
-    # chars, the only knowledge-graph entry point) and `lifecycle` (spec 365, 205
-    # chars, the only state-gated-lifecycle driver). Both branches independently
-    # chose +300 from 22000; the merge confirmed 22300 still holds BOTH — the
-    # measured total with both present is 22189. Both descriptions are always-loaded
-    # trigger text with no read-on-demand alternative. Headroom is now only ~111 —
-    # the next addition needs a trim pass first.
-    # Raised 22300 -> 22600 (2026-06-30) for the genuinely-new `deploy-reconcile`
-    # skill (spec 368, the only deploy-orphan-reconciliation entry point; no prior
-    # coverage to fold in). Its description was trimmed to ~210 chars before the bump
-    # (always-loaded trigger text, no read-on-demand alternative); measured total
-    # with it present is 22490. Headroom after this is ~110 — next addition needs a trim.
-    # Raised 22600 -> 22800 (2026-07-01) for the genuinely-new `ai-code-audit` skill
-    # (spec 457, the only AI-defect/vibe-antipattern audit entry point; no prior
-    # coverage to fold in). Trim pass done FIRST per the rule above: pr-smoke,
-    # deploy-diagnose-drift, ci-audit-triggers trimmed ~190 chars total
-    # (trigger phrases preserved); the new description was cut to ~300 chars and the
-    # residual still exceeded 22600. Measured total with it present is 22679.
-    # Headroom after this is ~124 — the next addition needs a set-wide trim pass first.
-    # Lowered 22800 -> 22000 (2026-07-09): set-wide front-matter efficiency pass —
-    # inline-normalized 39 block-scalar descriptions (Lever A, parsed value preserved)
-    # + eval-guarded trims of 9 over-norm descriptions (Lever B) cut the total to
-    # 21166. New cap leaves ~834 bytes (~3 skills) headroom — not near-zero, so a
-    # genuinely-new skill still fits without an immediate bump. See
-    # docs/superpowers/specs/2026-07-05-skill-frontmatter-efficiency-design.md.
-    # Raised 25000 -> 29000 (2026-07-15) for 15 genuinely-new skills: the Stitch
-    # Design Skills family, externally installed via skillshare from
-    # google-labs-code/stitch-skills (the only Google-Stitch-MCP entry points; no
-    # prior coverage to fold into). Trim pass done first: 9 verbose/block-scalar
-    # descriptions inline-normalized and cut toward the ~290 norm (recovered
-    # ~1191 chars, 29648 -> 28457); the residual still exceeded 25000. Measured
-    # total with all 15 present is 28457. Headroom after this is ~543 — the next
-    # addition needs a trim pass first.
-    # Raised 29000 -> 29300 (2026-08-06) for two genuinely-new skills: `delegate`
-    # and `delegate-setup` (spec 675, the only multi-agent-delegation entry
-    # points; no prior coverage to fold into). Trim pass done first: both
-    # descriptions cut to ~120-140 chars each (well under the ~290 norm),
-    # combined frontmatter only 310 chars; the residual still exceeded 29000
-    # because catalog growth since the July pass had already used most of the
-    # ~543 headroom. Measured total with both present is 29258. Headroom after
-    # this is ~42 — the next addition needs a trim pass first.
-    total=0
-    for f in "$REPO_ROOT"/.apm/skills/*/SKILL.md; do
-        # frontmatter = up to the second '---' line
-        chars=$(awk '/^---$/{c++; next} c==1' "$f" | wc -c)
-        total=$((total + chars))
-    done
-    if [ "$total" -gt 29300 ]; then
-        echo "Skill frontmatter totals $total chars (budget: 29300)." >&2
-        echo "Trim verbose descriptions; bodies are pay-per-use, frontmatter is not." >&2
-        return 1
-    fi
+@test "no bundle's frontmatter exceeds the per-bundle session budget" {
+    # Claude Code injects a skill's description at session start, so frontmatter
+    # is always-loaded and rivalrous while bodies are pay-per-use.
+    #
+    # SCOPE IS PER BUNDLE, not the catalog. Before spec 674 every skill lived in
+    # one flat ~/.claude/skills tree, so a catalog-wide sum WAS the session cost
+    # and this test carried it (18500 -> 19000 -> 20000 -> 21500 -> 22300 ->
+    # 22000 -> 25000 -> 29000 across a year of raises). After the cutover a
+    # session loads the bundles the user installed, so the catalog sum stopped
+    # being the session budget. That was recognised at the time -- see "the
+    # catalog-wide sum is a SECONDARY guard" below, whose comment says treating
+    # it as the session budget "is what made the old comment wrong" -- but this
+    # test was left measuring the retired thing.
+    #
+    # Two tests then guarded one number with contradictory meanings, and because
+    # this one summed the RAW frontmatter block (keys, newlines and all) against
+    # the same 29000 cap the secondary applies to values only, it ran ~3740
+    # chars stricter than anyone chose. Measured 2026-08-05: raw-block catalog
+    # 28878 vs values-only 25135. It reported 4 chars of headroom and cost a real
+    # trim of three skills' trigger phrases before the duplication was spotted;
+    # those trims have been reverted.
+    #
+    # Reconciled here: raw-block accounting (the better proxy -- the harness
+    # loads keys, not just values) applied to the scope that is actually loaded.
+    # Cap 7000 against a measured max of 5238 (manifest-code-quality, 22 skills,
+    # 2026-08-05) leaves ~1760, about 7 average skills, for the largest bundle.
+    # This supersedes the separate values-only per-bundle cap that sat at 6000.
+    #
+    # Reads plugins/ (the source of truth), not .apm/skills -- that mirror is a
+    # gitignored build artifact and is EMPTY in a fresh checkout, which made the
+    # old form of this test pass vacuously there.
+    cd "$REPO_ROOT"
+    run python3 - <<'BUDGET'
+import pathlib, re, sys
+
+CAP = 7000
+over, sizes = [], []
+for bundle in sorted(p for p in pathlib.Path("plugins").iterdir() if p.is_dir()):
+    total = 0
+    for f in bundle.glob("skills/*/SKILL.md"):
+        m = re.match(r"^---\n(.*?)\n---\n", f.read_text(encoding="utf-8"), re.S)
+        if m:
+            total += len(m.group(1)) + 1  # + the trailing newline
+    if total:
+        sizes.append((total, bundle.name))
+    if total > CAP:
+        over.append(f"{bundle.name}={total}")
+
+if not sizes:
+    print("no bundle frontmatter found under plugins/ — the gate would pass vacuously")
+    sys.exit(1)
+
+sizes.sort(reverse=True)
+print(f"largest bundle: {sizes[0][1]}={sizes[0][0]} (cap {CAP})")
+if over:
+    print("OVER CAP:", ", ".join(over))
+    print("Trim that bundle's verbose descriptions, or split the bundle.")
+sys.exit(1 if over else 0)
+BUDGET
+    [ "$status" -eq 0 ] || { echo "$output"; false; }
 }
 
-# spec 362 / FR-009 / SC-006: the compact command index injected into the
-# always-loaded platform guides (GEMINI.md, AGENTS.md) must stay bounded as the
-# catalog grows. The index is description-less (category headers + /name links)
-# and links back to /help for detail; if this fails, the index has grown too
-# large for always-loaded context — trim categories or drop to header-only links,
-# do NOT raise the budget casually.
 @test "injected command index stays within always-loaded budget" {
     local budget=3500 f size
     for f in "configs/gemini/GEMINI.md" "AGENTS.md"; do
@@ -200,33 +165,6 @@ assert_budget() {
 # which no bats test can see. That check belongs in /env-check as a runtime
 # observation. This repo has already been burned once by a budget test
 # measuring the wrong universe, so the limitation is stated rather than implied.
-
-@test "no single bundle's frontmatter exceeds its per-bundle cap" {
-    # 6000 against a measured max of 4904 (manifest-code-quality, 2026-07-30).
-    # NOTE the plan's figures are stale -- it cites stitch-design at 4866 and a
-    # 28138 total, both measured under the pre-dissolution 10-bundle partition.
-    cd "$REPO_ROOT"
-    run python3 - <<'PY'
-import pathlib, sys, yaml
-CAP = 6000
-over = []
-for b in sorted(pathlib.Path("plugins").iterdir()):
-    if not b.is_dir():
-        continue
-    n = 0
-    for f in b.glob("skills/*/SKILL.md"):
-        t = f.read_text(encoding="utf-8")
-        if t.startswith("---"):
-            d = yaml.safe_load(t.split("---", 2)[1]) or {}
-            n += len(str(d.get("name", ""))) + len(str(d.get("description", "")))
-    if n > CAP:
-        over.append(f"{b.name}={n}")
-if over:
-    print("OVER CAP:", over)
-sys.exit(1 if over else 0)
-PY
-    [ "$status" -eq 0 ] || { echo "$output"; false; }
-}
 
 @test "the catalog-wide sum is a SECONDARY guard, not the session budget" {
     # Demoted deliberately. It no longer claims to guard what a session loads --

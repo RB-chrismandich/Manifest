@@ -6,9 +6,9 @@ description: "Seven-pass audit of a codebase for AI-generation defects (architec
 # AI-Code Audit (seven-pass guardrail audit)
 
 Structured audit of a **local** codebase for the defects characteristic of
-AI-generated/iterated code, driven by the guardrail registry
-(`~/.claude/config/knowledge_base.yml`) and reported in the repo's standard
-verdict vocabulary. Analysis-only: never modify the target.
+AI-generated/iterated code, driven by the XDG-owned guardrail records exposed
+through `[[skill:learning-capture]]` and reported in the repo's standard verdict
+vocabulary. Analysis-only: never modify the target.
 
 ## Invocation
 
@@ -33,12 +33,12 @@ verdict vocabulary. Analysis-only: never modify the target.
    minified/bundled artifacts where line numbers are meaningless, cite the
    pre-bundle source (or source map) if traceable; otherwise record in P0:
    "bundled artifact — source-level audit not possible".
-3. **Registry-driven**: load the guardrail entries (tags `arch`, `async-state`,
-   `error-handling`, `security`, `dependency`, `iteration`) from
-   `~/.claude/config/knowledge_base.yml` before starting — including
-   `provenance: session-capture` entries added after this skill shipped — and
-   use their `detection_cue`s per pass. Reference detail:
-   `~/.claude/references/antipatterns.md`.
+3. **Registry-driven**: run
+   `[[skill:learning-capture]] query --category antipattern --format json`
+   before starting. Use entries tagged `arch`, `async-state`, `error-handling`,
+   `security`, `dependency`, or `iteration` — including
+   `provenance: session-capture` records — and apply their `detection_cue`s per
+   pass.
 4. **No fabrication**: a clean target yields an empty findings table and an
    explicit "no Critical/High findings" statement. Never invent defects to
    appear thorough.
@@ -64,8 +64,8 @@ verdict vocabulary. Analysis-only: never modify the target.
 ## Cross-verification (critical/high only)
 
 Before reporting, every candidate `critical` or `high` finding gets an
-independent adversarial re-check: dispatch one sub-agent (native Task; see
-`~/.claude/references/sub-agent-dispatch.md`) with ONLY the cited evidence and
+independent adversarial re-check: dispatch one native Task sub-agent or invoke
+`[[skill:parallel-agent]]` with ONLY the cited evidence and
 the instruction to **refute** the finding. Refuted — or the evidence cannot be
 re-confirmed — → downgrade to **Unverified observations** (a status change —
 never re-label the severity) or drop. Mark surviving findings "verified
@@ -111,23 +111,24 @@ and record the dissent under Unverified observations for transparency.
 
 ## Capture proposals
 - <recurring anti-pattern with no registry entry — offer the full invocation to fill in:
-  `learning_capture.sh add --category antipattern --language <lang> --title "..." --description "..."
+  `[[skill:learning-capture]] add --category antipattern --language <lang> --title "..." --description "..."
   --tags "<guardrail-tag>" --severity <sev> --detection-cue "..." --prevention-rule "..."
   --provenance session-capture --source ai-code-audit`>
 ```
 
 ## Sub-agent dispatch
 
+Follow the bundled `sub-agent-dispatch.md` selection rules. Dispatches use the
+pinned `opus` model.
+
 Dispatch sub-agents ONLY for the cross-verification step: one adversarial
-refuter per candidate `critical`/`high` finding (the `subagent_trigger` in
-`command_config.yml`). The passes themselves run inline — they share the P0
-orientation context and must not be split. Pick the mechanism per the shared
-Sub-Agent Selection Rules (`configs/claude/references/sub-agent-dispatch.md`):
-native Task sub-agents on Claude, or `manifest parallel-agent` / inline adversarial
+refuter per candidate `critical`/`high` finding. The passes themselves run
+inline — they share the P0 orientation context and must not be split. Use
+native Task sub-agents on Claude, or `[[skill:parallel-agent]]` / inline adversarial
 re-reads on other assistants. Dispatched refuters judge only the evidence they
 are given and do not re-dispatch.
 
-Dispatch on **Opus** (`subagent_model: opus` in `command_config.yml`) — adversarial
+Dispatch on **Opus** (`subagent_model: opus`) — adversarial
 verification is the documented escalation case. Pass the model explicitly; do not inherit
 the session's.
 

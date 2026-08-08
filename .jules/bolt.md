@@ -88,6 +88,20 @@ to be read from disk, decoded, and allocated in memory twice per file.
 
 **Action:** Read the file content once into a local variable (`content = f.read_text()`) and use that variable
 for both the transformation and the equality check.
+
 ## 2026-06-30 - Fast Path Substring check
-**Learning:** Using `if '"test"' in content` before parsing `json.loads` avoids massive JSONDecodeError and allocation times when target strings are entirely absent in large documents (like `package.json` or `Makefile`).
-**Action:** When scanning entire file contents (e.g., `package.json` or `Makefile`) for specific keys or patterns, utilize a fast substring check (e.g., `'"test"' in content`) to short-circuit and bypass expensive parsing operations like `json.loads()` or `re.search()` if the target is absent.
+
+**Learning:** Using `if '"test"' in content` before parsing `json.loads` avoids massive JSONDecodeError and
+allocation times when target strings are entirely absent in large documents (like `package.json` or `Makefile`).
+**Action:** When scanning entire file contents (e.g., `package.json` or `Makefile`) for specific keys or patterns,
+utilize a fast substring check (e.g., `'"test"' in content`) to short-circuit and bypass expensive parsing operations
+like `json.loads()` or `re.search()` if the target is absent.
+
+## 2026-06-30 - Fast-Path JSON Parsing for Argument Values
+
+**Learning:** Using `json.loads` on arbitrary command-line arguments (like `key=value` pairs) inside a `try/except`
+block creates significant overhead due to `JSONDecodeError` being raised for common string values. This was
+observed during `audit.py`'s `_parse_kv` execution.
+
+**Action:** When speculatively parsing unknown string values as JSON, apply a fast-path prefix check (e.g.,
+checking if `v[0]` is in `'{["tf-0123456789NIn'`) to short-circuit non-JSON strings before calling `json.loads()`.

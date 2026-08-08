@@ -1,0 +1,486 @@
+{
+  "command_overrides": {
+    "auto-issue-dev-merge": {
+      "consensus_action": {
+        "high": "auto_proceed",
+        "low": "block_and_escalate",
+        "medium": "show_disagreements"
+      },
+      "consensus_threshold": 0.8,
+      "parallel_agents": true,
+      "tier1_checks": [
+        "security",
+        "error_handling",
+        "breaking_changes",
+        "cross_verification"
+      ],
+      "tier1_required": true,
+      "tier2_required": true,
+      "tier2_threshold": 0.6
+    },
+    "branch-clean": {
+      "parallel_agents_condition": {
+        "flag": "--apply",
+        "type": "destructive_flag"
+      },
+      "tier1_checks": [
+        "error_handling",
+        "breaking_changes"
+      ],
+      "tier1_required": true,
+      "tier2_checks": [
+        "maintainability"
+      ],
+      "tier2_required": true,
+      "tier2_threshold": 0.6
+    },
+    "code-audit": {
+      "auto_trigger": true,
+      "tier1_checks": [
+        "security",
+        "error_handling"
+      ],
+      "tier1_required": true,
+      "tier2_required": true,
+      "tier2_threshold": 0.6,
+      "trigger_patterns": {
+        "complexity": {
+          "class_count": 5,
+          "file_lines": 500,
+          "function_count": 10
+        },
+        "security": [
+          "auth|login|session|jwt",
+          "crypto|encrypt|hash|secret",
+          "api_key|password|token|credential",
+          "sanitize|validate|escape"
+        ]
+      }
+    },
+    "docs-all": {
+      "parallel_agents": false,
+      "tier1_required": false,
+      "tier2_checks": [
+        "maintainability"
+      ],
+      "tier2_required": true
+    },
+    "docs-generate-diagrams": {
+      "parallel_agents_condition": {
+        "threshold": 5,
+        "type": "unique_imports"
+      },
+      "tier1_required": false,
+      "tier2_required": false
+    },
+    "docs-improve": {
+      "parallel_agents_condition": {
+        "threshold": 500,
+        "type": "total_lines_changed"
+      },
+      "tier1_required": false,
+      "tier2_checks": [
+        "maintainability"
+      ],
+      "tier2_required": true
+    },
+    "docs-improve-readme": {
+      "parallel_agents": false,
+      "tier1_required": false,
+      "tier2_checks": [
+        "maintainability"
+      ],
+      "tier2_required": true
+    },
+    "issue-dev-auto": {
+      "consensus_threshold": 0.8,
+      "parallel_agents": true,
+      "tier1_checks": [
+        "security",
+        "error_handling",
+        "breaking_changes"
+      ],
+      "tier1_required": true,
+      "tier2_required": true,
+      "tier2_threshold": 0.6
+    },
+    "issue-triage": {
+      "consensus_threshold": 0.75,
+      "parallel_agents_condition": {
+        "scenarios": {
+          "duplicate_detection": {
+            "model_tier": "mini",
+            "title_similarity_range": [
+              0.7,
+              0.85
+            ]
+          },
+          "priority_scoring": {
+            "impact_variance": ">2",
+            "model_tier": "flash",
+            "multi_component": true
+          },
+          "staleness_with_context": {
+            "file_missing_ratio": ">0.5",
+            "has_planned_label": true,
+            "model_tier": "flash"
+          }
+        },
+        "type": "scenario_based"
+      },
+      "tier1_required": false,
+      "tier2_checks": [
+        "decision_consistency",
+        "false_positive_avoidance",
+        "label_accuracy"
+      ],
+      "tier2_required": true,
+      "tier2_threshold": 0.7
+    },
+    "pr-review": {
+      "parallel_agents": false,
+      "tier1_required": false,
+      "tier2_checks": [
+        "maintainability"
+      ],
+      "tier2_required": true
+    },
+    "python-refactor": {
+      "consensus_action": {
+        "high": "auto_proceed",
+        "low": "block_and_escalate",
+        "medium": "show_disagreements"
+      },
+      "consensus_threshold": 0.8,
+      "tier1_checks": [
+        "security",
+        "error_handling",
+        "breaking_changes",
+        "cross_verification"
+      ],
+      "tier1_required": true,
+      "tier2_required": true,
+      "tier2_threshold": 0.8
+    },
+    "shell-refactor": {
+      "consensus_action": {
+        "high": "auto_proceed",
+        "low": "block_and_escalate",
+        "medium": "show_disagreements"
+      },
+      "consensus_threshold": 0.75,
+      "tier1_checks": [
+        "security",
+        "error_handling",
+        "cross_verification"
+      ],
+      "tier1_required": true,
+      "tier2_required": true,
+      "tier2_threshold": 0.7
+    },
+    "version-pin": {
+      "consensus_threshold": 0.8,
+      "parallel_agents": true,
+      "tier1_checks": [
+        "security",
+        "error_handling",
+        "breaking_changes",
+        "cross_verification"
+      ],
+      "tier1_required": true,
+      "tier2_required": true,
+      "tier2_threshold": 0.7
+    }
+  },
+  "scoring": {
+    "tier1_pass_threshold": 1.0,
+    "tier2_acceptable_threshold": 0.6,
+    "verdicts": {
+      "approved": {
+        "tier1_passed": true,
+        "tier2_min_score": 0.6
+      },
+      "blocked": {
+        "tier1_passed": false
+      },
+      "needs_review": {
+        "tier1_passed": true,
+        "tier2_min_score": 0.0
+      }
+    }
+  },
+  "tier1": {
+    "breaking_changes": {
+      "checks": [
+        {
+          "description": "Public API signatures unchanged or versioned",
+          "id": "api_compatibility",
+          "severity": "high"
+        },
+        {
+          "description": "Database migrations provided for schema changes",
+          "id": "migrations_provided",
+          "severity": "high"
+        },
+        {
+          "description": "Deprecation warnings added for removed features",
+          "id": "deprecation_warnings",
+          "severity": "medium"
+        }
+      ],
+      "description": "API and data compatibility maintained",
+      "weight": 0.2
+    },
+    "cross_verification": {
+      "description": "Multiple agents agree on key findings",
+      "enabled": true,
+      "threshold": 0.8,
+      "weight": 0.3
+    },
+    "error_handling": {
+      "checks": [
+        {
+          "description": "Exceptions properly caught and handled",
+          "id": "exceptions_caught",
+          "severity": "high"
+        },
+        {
+          "description": "No silent failures that hide problems",
+          "id": "no_silent_failures",
+          "severity": "high"
+        },
+        {
+          "description": "Error messages don't leak internal details",
+          "id": "safe_error_messages",
+          "severity": "medium"
+        },
+        {
+          "description": "Resources properly cleaned up on failure",
+          "id": "resource_cleanup",
+          "severity": "medium"
+        }
+      ],
+      "description": "Errors handled gracefully without information leakage",
+      "weight": 0.2
+    },
+    "security": {
+      "checks": [
+        {
+          "description": "No hardcoded secrets or credentials",
+          "id": "no_hardcoded_secrets",
+          "severity": "critical"
+        },
+        {
+          "description": "User input is validated and sanitized",
+          "id": "input_validation",
+          "severity": "critical"
+        },
+        {
+          "description": "Parameterized queries used for database access",
+          "id": "no_sql_injection",
+          "severity": "critical"
+        },
+        {
+          "description": "User input not passed to shell commands",
+          "id": "no_command_injection",
+          "severity": "critical"
+        },
+        {
+          "description": "Output properly escaped to prevent XSS",
+          "id": "no_xss",
+          "severity": "critical"
+        },
+        {
+          "description": "Authentication/authorization properly enforced",
+          "id": "auth_checks",
+          "severity": "critical"
+        }
+      ],
+      "description": "No security vulnerabilities introduced",
+      "keywords": [
+        "auth",
+        "password",
+        "secret",
+        "token",
+        "api_key",
+        "crypto",
+        "jwt",
+        "session",
+        "cookie",
+        "credential",
+        "private_key"
+      ],
+      "weight": 0.3
+    }
+  },
+  "tier2": {
+    "bug_detection": {
+      "description": "No obvious bugs or logic errors",
+      "patterns": [
+        {
+          "description": "Potential null/undefined reference",
+          "id": "null_reference",
+          "regex": "\\.(\\w+)\\s*\\("
+        },
+        {
+          "description": "Potential off-by-one error in loops",
+          "id": "off_by_one",
+          "regex": "(<=|>=).*\\.length"
+        },
+        {
+          "description": "Potential race condition",
+          "id": "race_condition",
+          "keywords": [
+            "async",
+            "await",
+            "Promise",
+            "setTimeout",
+            "concurrent"
+          ]
+        },
+        {
+          "description": "Potential infinite loop",
+          "id": "infinite_loop",
+          "regex": "while\\s*\\(\\s*true\\s*\\)"
+        }
+      ],
+      "weight": 0.25
+    },
+    "maintainability": {
+      "checks": [
+        {
+          "description": "Variables and functions have descriptive names",
+          "id": "clear_naming"
+        },
+        {
+          "description": "Functions are not overly complex",
+          "id": "reasonable_complexity"
+        },
+        {
+          "description": "Code is well-organized",
+          "id": "proper_structure"
+        }
+      ],
+      "description": "Code is readable and maintainable",
+      "thresholds": {
+        "max_cyclomatic_complexity": 15,
+        "max_file_length": 500,
+        "max_function_length": 50,
+        "max_parameters": 5
+      },
+      "weight": 0.25
+    },
+    "performance": {
+      "antipatterns": [
+        {
+          "description": "O(n^2) or worse complexity",
+          "id": "quadratic_complexity",
+          "indicators": [
+            "nested loop",
+            "forEach inside forEach",
+            "map inside map"
+          ]
+        },
+        {
+          "description": "N+1 query pattern",
+          "id": "n_plus_one",
+          "indicators": [
+            "query in loop",
+            "fetch in map"
+          ]
+        },
+        {
+          "description": "Potential memory leak",
+          "id": "memory_leak",
+          "indicators": [
+            "global array push",
+            "event listener without cleanup"
+          ]
+        },
+        {
+          "description": "Blocking I/O in async context",
+          "id": "blocking_io",
+          "indicators": [
+            "readFileSync",
+            "execSync"
+          ]
+        }
+      ],
+      "description": "No performance anti-patterns",
+      "weight": 0.25
+    },
+    "test_coverage": {
+      "checks": [
+        {
+          "description": "Test files exist for modified code",
+          "id": "tests_exist"
+        },
+        {
+          "description": "Edge cases have test coverage",
+          "id": "edge_cases_covered"
+        }
+      ],
+      "description": "Changes have corresponding tests",
+      "thresholds": {
+        "minimum_coverage": 0.8,
+        "require_tests_for_new_functions": true
+      },
+      "weight": 0.25
+    }
+  },
+  "tier2_extended": {
+    "decision_consistency": {
+      "checks": [
+        {
+          "description": "Issue closures cite concrete evidence",
+          "id": "evidence_based_closure",
+          "severity": "high"
+        },
+        {
+          "description": "Action severity matches confidence score",
+          "id": "confidence_matches_action",
+          "severity": "medium"
+        }
+      ],
+      "description": "Recommendations align with evidence",
+      "weight": 0.35
+    },
+    "false_positive_avoidance": {
+      "checks": [
+        {
+          "description": "Never auto-close issues with 'planned' label",
+          "id": "respect_planned_label",
+          "severity": "critical"
+        },
+        {
+          "description": "Only auto-close duplicates with \u226585% consensus",
+          "id": "high_confidence_threshold",
+          "severity": "high"
+        },
+        {
+          "description": "Verify files are truly deleted before marking stale",
+          "id": "verify_file_deletion",
+          "severity": "high"
+        }
+      ],
+      "description": "Conservative approach to closures",
+      "weight": 0.35
+    },
+    "label_accuracy": {
+      "checks": [
+        {
+          "description": "bug/feature labels match description",
+          "id": "correct_issue_type",
+          "severity": "medium"
+        },
+        {
+          "description": "Component labels match file references",
+          "id": "component_labels_match",
+          "severity": "low"
+        }
+      ],
+      "description": "Label changes accurately reflect content",
+      "weight": 0.3
+    }
+  }
+}

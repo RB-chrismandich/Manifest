@@ -23,15 +23,8 @@ it with a real directory.
   is owned by `bootstrap.sh` (`deploy_home_skills` copies `.apm/skills/` →
   `~/.claude/skills`).
 - **Local skill-dev**: edit `plugins/<bundle>/skills/`, then `claude plugin update`.
-- **skillshare was removed 2026-07-27** (feature 522, FR-021a). There is no
-  `.skillshare/` tree, no `.skillshare/config.yaml`, and no `skillshare`
-  invocation anywhere in the repo. Do not reintroduce one: `.apm/skills` is
-  authoritative and a second skill tree is a spec violation, not a convenience.
-  Retired with it: the project-scoped Copilot target (`.github/skills`) and the
-  `skillshare install|audit|check|update` supply-chain lifecycle. Externally
-  sourced skills (Stitch, `ai-hooks-integration`) are now vendored in
-  `.apm/skills` with no re-sync path until APM's published-package model is
-  verified — see `specs/522-apm-deploy-migration/decision-record.md`.
+- The legacy duplicate skill tree and its Copilot sync are retired;
+  `.apm/skills` remains authoritative.
 - Automation must read the physical `.apm/skills/`; shell globs are
   symlink-safe, but `find`/`os.walk` over `configs/claude/skills` need
   `-L`/`followlinks`.

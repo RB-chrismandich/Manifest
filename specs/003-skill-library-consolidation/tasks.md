@@ -43,12 +43,12 @@
 
 ### Cluster merges (each [P] — disjoint file sets; follow contracts/merged-skill.md)
 
-- [x] T007 [P] [US1] Merge PR-comments cluster: rewrite .skillshare/skills/address-pr-comments/SKILL.md to absorb address-pr-review-comments + address-review-comments (description covers inline comments, review bodies, issue-level discussion; `> Absorbed:` footer); `git rm -r` the two absorbed dirs
-- [x] T008 [P] [US1] Merge session-memory cluster: fold any distinct content from session-memory-digest into .skillshare/skills/session-memory-compress/SKILL.md (both modes); `git rm -r` .skillshare/skills/session-memory-digest
-- [x] T009 [P] [US1] Merge live-data cluster: rewrite .skillshare/skills/live-data-validation/SKILL.md with Smoke / Before-merge / After-green-tests subsections absorbing live-data-validation-before-merge, live-data-smoke-validation, real-data-validation-after-green-tests; `git rm -r` the three absorbed dirs
-- [x] T010 [P] [US1] Create .skillshare/skills/verify-premise/SKILL.md with CLI-binary / API-schema / image-runtime subsections absorbing verify-cli-premise, verify-cli-premise-before-tooling, verify-tool-premise, verify-api-schema-before-trust, verify-image-runtime-contract; `git rm -r` the five absorbed dirs
-- [x] T011 [P] [US1] Create .skillshare/skills/retire-component-cleanup/SKILL.md with daemon / tool-runtime / plugin-MCP subsections absorbing daemon-migration-verification, retire-migrated-tool-runtime, plugin-mcp-clean-removal; `git rm -r` the three absorbed dirs
-- [x] T012 [P] [US1] Add mutual decision-anchor lines to .skillshare/skills/reset-reapply-clean-pr/SKILL.md and .skillshare/skills/clean-pr-from-stale-base/SKILL.md ("If <other root cause>, use <other> instead")
+- [x] T007 [P] [US1] Merge PR-comments cluster: rewrite .retired skill supply/skills/address-pr-comments/SKILL.md to absorb address-pr-review-comments + address-review-comments (description covers inline comments, review bodies, issue-level discussion; `> Absorbed:` footer); `git rm -r` the two absorbed dirs
+- [x] T008 [P] [US1] Merge session-memory cluster: fold any distinct content from session-memory-digest into .retired skill supply/skills/session-memory-compress/SKILL.md (both modes); `git rm -r` .retired skill supply/skills/session-memory-digest
+- [x] T009 [P] [US1] Merge live-data cluster: rewrite .retired skill supply/skills/live-data-validation/SKILL.md with Smoke / Before-merge / After-green-tests subsections absorbing live-data-validation-before-merge, live-data-smoke-validation, real-data-validation-after-green-tests; `git rm -r` the three absorbed dirs
+- [x] T010 [P] [US1] Create .retired skill supply/skills/verify-premise/SKILL.md with CLI-binary / API-schema / image-runtime subsections absorbing verify-cli-premise, verify-cli-premise-before-tooling, verify-tool-premise, verify-api-schema-before-trust, verify-image-runtime-contract; `git rm -r` the five absorbed dirs
+- [x] T011 [P] [US1] Create .retired skill supply/skills/retire-component-cleanup/SKILL.md with daemon / tool-runtime / plugin-MCP subsections absorbing daemon-migration-verification, retire-migrated-tool-runtime, plugin-mcp-clean-removal; `git rm -r` the three absorbed dirs
+- [x] T012 [P] [US1] Add mutual decision-anchor lines to .retired skill supply/skills/reset-reapply-clean-pr/SKILL.md and .retired skill supply/skills/clean-pr-from-stale-base/SKILL.md ("If <other root cause>, use <other> instead")
 
 ### Story verification & PR
 
@@ -66,8 +66,8 @@
 
 **Independent test** (quickstart.md §US2): no "28 skills" hits; tables consistent; Unreleased clean; SPEC-SYSTEMS.md exists; cursor-rules drift check green.
 
-- [x] T016 [US2] Update docs/COMMANDS.md as canonical: verify every row against `.skillshare/skills/*/SKILL.md` frontmatter and configs/claude/config/command_config.yml (post-US1 skill set), fix wording/flags (R6 note: /version-pin wording per docs/COMMANDS.md style)
-- [x] T017 [US2] Unify the three mirror tables to match T016 exactly: root CLAUDE.md, AGENTS.md, configs/claude/CLAUDE.md; refresh their "Last Updated" stamps to change date; fix skill counts in AGENTS.md:207 and README.md (use `find .skillshare/skills -name SKILL.md | wc -l` result)
+- [x] T016 [US2] Update docs/COMMANDS.md as canonical: verify every row against `.retired skill supply/skills/*/SKILL.md` frontmatter and configs/claude/config/command_config.yml (post-US1 skill set), fix wording/flags (R6 note: /version-pin wording per docs/COMMANDS.md style)
+- [x] T017 [US2] Unify the three mirror tables to match T016 exactly: root CLAUDE.md, AGENTS.md, configs/claude/CLAUDE.md; refresh their "Last Updated" stamps to change date; fix skill counts in AGENTS.md:207 and README.md (use `find .retired skill supply/skills -name SKILL.md | wc -l` result)
 - [x] T018 [P] [US2] CHANGELOG.md: move shipped Unreleased items (promote audit log etc.) into a dated `[2026-06]` section; add entries for this feature's PRs as they land
 - [x] T019 [P] [US2] Prepend archive banner to docs/SHELL_ANALYSIS_REPORT.md: `> [ARCHIVED 2026-06-10] Analyzes the retired parallel_agent.sh; superseded — see configs/claude/scripts/ for current tooling`
 - [x] T020 [P] [US2] Create docs/SPEC-SYSTEMS.md per research R9 (roles of specs/+.specify/, docs/superpowers/, configs/claude/.plans/, .Jules/); link it from README.md, docs/README.md, and .claude/CLAUDE.md

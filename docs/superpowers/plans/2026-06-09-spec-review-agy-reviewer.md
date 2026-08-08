@@ -15,7 +15,7 @@
 **Modify:**
 - `configs/claude/scripts/spec_review.sh` — rename seam + function (6 references)
 - `tests/bats/spec_review.bats` — rename stub/injections/test name (16 references) + 1 new "default reviewer is agy" test
-- `.skillshare/skills/spec-review/SKILL.md` — Gemini → Antigravity/`agy` (4 spots)
+- `.retired skill supply/skills/spec-review/SKILL.md` — Gemini → Antigravity/`agy` (4 spots)
 - `docs/COMMANDS.md`, `CLAUDE.md`, `configs/claude/CLAUDE.md` — `/spec-review` row: "Gemini" → "Antigravity (`agy`)"
 
 No new runtime files or engine components (this design + plan doc aside). No
@@ -165,19 +165,19 @@ git commit -m "test(spec-review): assert default reviewer is agy"
 ## Task 3: Update docs (skill + command tables)
 
 **Files:**
-- Modify: `.skillshare/skills/spec-review/SKILL.md`
+- Modify: `.retired skill supply/skills/spec-review/SKILL.md`
 - Modify: `docs/COMMANDS.md`
 - Modify: `CLAUDE.md`
 - Modify: `configs/claude/CLAUDE.md`
 
-- [ ] **Step 1: `.skillshare/skills/spec-review/SKILL.md` — 4 replacements**
+- [ ] **Step 1: `.retired skill supply/skills/spec-review/SKILL.md` — 4 replacements**
 
 - Line ~5: `consistency using an independent model (Gemini), and surface structured` → `consistency using an independent model (Antigravity / `agy`), and surface structured`
 - Line ~12 heading: `# Spec Review (Gemini cross-reference)` → `# Spec Review (Antigravity cross-reference)`
 - Line ~15: `artifacts. A second model (Gemini) reviews what Claude authored — catching` → `artifacts. A second model (Antigravity / `agy`) reviews what Claude authored — catching`
 - Line ~32: `` `✓ No inconsistencies found.` Requires the `gemini` CLI (logged in). This skill is `` → `` `✓ No inconsistencies found.` Requires the `agy` CLI (logged in). This skill is ``
 
-Confirm: `grep -niE 'gemini' .skillshare/skills/spec-review/SKILL.md` → no output.
+Confirm: `grep -niE 'gemini' .retired skill supply/skills/spec-review/SKILL.md` → no output.
 
 - [ ] **Step 2: The three `/spec-review` command-table rows**
 
@@ -191,7 +191,7 @@ Exact edit (same string in all three):
 
 Run:
 ```bash
-grep -rniE 'gemini' .skillshare/skills/spec-review/ docs/COMMANDS.md \
+grep -rniE 'gemini' .retired skill supply/skills/spec-review/ docs/COMMANDS.md \
   | grep -i 'spec-review\|spec_review\|cross-referenc' || echo "clean"
 grep -niE 'spec-review.*gemini|gemini.*spec-review' CLAUDE.md configs/claude/CLAUDE.md || echo "tables clean"
 ```
@@ -205,7 +205,7 @@ Expected: 0 errors. (`configs/claude/CLAUDE.md` and the skill SKILL.md are not i
 - [ ] **Step 5: Commit**
 
 ```bash
-git add .skillshare/skills/spec-review/SKILL.md docs/COMMANDS.md CLAUDE.md configs/claude/CLAUDE.md
+git add .retired skill supply/skills/spec-review/SKILL.md docs/COMMANDS.md CLAUDE.md configs/claude/CLAUDE.md
 git commit -m "docs(spec-review): reviewer is now Antigravity (agy), not Gemini"
 ```
 

@@ -583,7 +583,7 @@ Preconditions to verify while implementing (fix in the engine, not the dispatche
 ### Task 5: Migrate `issue-prioritize` off inline platform branching
 
 **Files:**
-- Modify: `.skillshare/skills/issue-prioritize/SKILL.md`
+- Modify: `.retired skill supply/skills/issue-prioritize/SKILL.md`
 
 **Interfaces:**
 - Consumes: `tracker_ops.sh resolve-provider`, `tracker_ops.sh issue-list`.
@@ -601,16 +601,16 @@ echo "Tracker provider: $PROVIDER"
   - Replace each per-platform fetch command in the fetch section with `~/.claude/scripts/tracker_ops.sh --provider "$PROVIDER" issue-list …` keeping the per-provider JSON field notes. Keep the Python normalizer, but its `platform` variable is now fed `"$PROVIDER"`, and add a `jira` branch to the normalizer that reads issues fetched via the Atlassian MCP (`searchJiraIssuesUsingJql` — tool name from `tracker_registry.py mcp-tool jira search`) and maps `key→id`, `fields.summary→title`, `fields.labels→labels`, `fields.created→created_at`, `"platform": "jira"`.
   - Add one sentence under Prerequisites: "Jira is agent-context only (MCP); when `PROVIDER=jira`, fetch via the Atlassian MCP tools named in `tracker_providers.yml` instead of `tracker_ops.sh` (which exits 3)."
 
-- [ ] **Step 2: Verify** — `grep -n "git_platform\|case \"\$PLATFORM\"" .skillshare/skills/issue-prioritize/SKILL.md` → no hits; `grep -c tracker_ops` → ≥3.
+- [ ] **Step 2: Verify** — `grep -n "git_platform\|case \"\$PLATFORM\"" .retired skill supply/skills/issue-prioritize/SKILL.md` → no hits; `grep -c tracker_ops` → ≥3.
 
 - [ ] **Step 3: Commit** — `git commit -am "refactor(issue-prioritize): route platform work through tracker_ops.sh, add jira"`
 
 ### Task 6: Generalize `issue-triage` (Linear-only → provider-agnostic)
 
 **Files:**
-- Modify: `.skillshare/skills/issue-triage/SKILL.md`
+- Modify: `.retired skill supply/skills/issue-triage/SKILL.md`
 - Create: `configs/claude/config/tracker_triage.yml` (rename+generalize of `linear_triage.yml`)
-- Modify: references to `linear_triage.yml` (`grep -rl linear_triage .skillshare configs docs`)
+- Modify: references to `linear_triage.yml` (`grep -rl linear_triage .retired skill supply configs docs`)
 
 **Interfaces:**
 - Consumes: `tracker_ops.sh` verbs `issue-list`, `issue-close`, `duplicate-mark`; `tracker_registry.py`.
@@ -624,7 +624,7 @@ echo "Tracker provider: $PROVIDER"
   - Action blocks (~lines 609, 629): `linear_ops.sh issue-mark-duplicate A --duplicate-of B` → `tracker_ops.sh duplicate-mark A --duplicate-of B`; `linear_ops.sh issue-close` → `tracker_ops.sh issue-close`.
   - Precondition checks (~lines 688-693): check `tracker_ops.sh` executable + `tracker_triage.yml` exists instead of the Linear pair.
 
-- [ ] **Step 3: Verify** — `bats tests/bats/tracker_ops.bats` still green; `grep -n "linear_ops\|linear_triage" .skillshare/skills/issue-triage/SKILL.md` → only inside the provider-specific linear note; `yamllint configs/claude/config/tracker_triage.yml` clean.
+- [ ] **Step 3: Verify** — `bats tests/bats/tracker_ops.bats` still green; `grep -n "linear_ops\|linear_triage" .retired skill supply/skills/issue-triage/SKILL.md` → only inside the provider-specific linear note; `yamllint configs/claude/config/tracker_triage.yml` clean.
 
 - [ ] **Step 4: Commit** — `git commit -am "refactor(issue-triage): provider-agnostic via tracker_ops + tracker_triage.yml"`
 
@@ -668,9 +668,9 @@ Keep `issue_record`/`ensure_closing_keyword` (PR-side, forge-specific) on `git_o
 ### Task 8: Migrate `issue-dev-auto` + `issue-prep-auto` direct `gh` calls
 
 **Files:**
-- Modify: `.skillshare/skills/issue-dev-auto/SKILL.md`, `.skillshare/skills/issue-prep-auto/SKILL.md`
+- Modify: `.retired skill supply/skills/issue-dev-auto/SKILL.md`, `.retired skill supply/skills/issue-prep-auto/SKILL.md`
 
-- [ ] **Step 1: Locate** — `grep -n '\bgh \|git_ops' .skillshare/skills/issue-dev-auto/SKILL.md .skillshare/skills/issue-prep-auto/SKILL.md`.
+- [ ] **Step 1: Locate** — `grep -n '\bgh \|git_ops' .retired skill supply/skills/issue-dev-auto/SKILL.md .retired skill supply/skills/issue-prep-auto/SKILL.md`.
 - [ ] **Step 2: Replace** every issue-scoped call: `gh issue list/view/edit/comment …` and `git_ops.sh issue-*` label mutations become `tracker_ops.sh issue-list/issue-view/issue-label/issue-comment`; status-label swaps (`--remove-label in-progress --add-label needs-review` style sequences) become single `tracker_ops.sh issue-transition N <canonical>` calls. PR-scoped calls (`gh pr create`, `pr-view`) stay on `git_ops.sh` (Phase 2 domain). The `auto-dev` opt-in label check becomes `tracker_ops.sh issue-list --label auto-dev` (github/gitlab pass-through; linear uses its label filter).
 - [ ] **Step 3: Verify** — `grep -n '\bgh issue' <both SKILL.md>` → no hits.
 - [ ] **Step 4: Commit** — `git commit -am "refactor(issue-dev-auto,issue-prep-auto): issue ops via tracker_ops"`
@@ -678,7 +678,7 @@ Keep `issue_record`/`ensure_closing_keyword` (PR-side, forge-specific) on `git_o
 ### Task 9: Re-point `lifecycle-run` and retire `lifecycle_providers.yml`
 
 **Files:**
-- Modify: every referrer — `grep -rln lifecycle_providers .skillshare configs docs tests`
+- Modify: every referrer — `grep -rln lifecycle_providers .retired skill supply configs docs tests`
 - Delete: `configs/claude/config/lifecycle_providers.yml`
 - Test: `tests/bats/lifecycle.bats` (existing)
 
@@ -690,7 +690,7 @@ Keep `issue_record`/`ensure_closing_keyword` (PR-side, forge-specific) on `git_o
 ### Task 10: Partial migrations — `repo-clean` + `pr-review` issue portions
 
 **Files:**
-- Modify: `.skillshare/skills/repo-clean/SKILL.md`, `.skillshare/skills/pr-review/SKILL.md`
+- Modify: `.retired skill supply/skills/repo-clean/SKILL.md`, `.retired skill supply/skills/pr-review/SKILL.md`
 
 - [ ] **Step 1:** In both SKILL.md files, replace issue-scoped `git_ops.sh issue-*` / direct `gh issue` calls with `tracker_ops.sh` equivalents (`grep -n 'issue' <file>` to enumerate). Leave every `pr-*` call untouched (Phase 2). In `repo-clean`, leave the raw `gh pr close`/`glab mr close` fallback in place with a comment `# TODO(phase-2): git_ops pr-close` — this is the one sanctioned deferred marker, resolved by Task 13.
 - [ ] **Step 2: Verify** — skill text has no vendor-named *issue* commands; `bats tests/bats/pr_review.bats` PASS.
@@ -771,7 +771,7 @@ Add all three to both usage texts.
 ### Task 14: Migrate `pr-address-comments` onto git_ops verbs
 
 **Files:**
-- Modify: `.skillshare/skills/pr-address-comments/SKILL.md`
+- Modify: `.retired skill supply/skills/pr-address-comments/SKILL.md`
 
 - [ ] **Step 1:** Replace each `gh api …/pulls/…/comments` fetch with `git_ops.sh pr-comments N`; top-level replies with `git_ops.sh pr-comment N "…"`. Thread-resolution (`gh api graphql resolveReviewThread`) has no glab equivalent — keep it inside a provider-conditional block labeled "github-only: thread resolution" with the gitlab branch posting a `Resolved: <summary>` note instead. Bot names (Copilot/CodeRabbit) stay — they're review *sources* being triaged, not couplings (Task 17 gives them a registry).
 - [ ] **Step 2:** Verify — `grep -n 'gh api' SKILL.md` → only inside the labeled github-only block.
@@ -780,7 +780,7 @@ Add all three to both usage texts.
 ### Task 15: Migrate the raw-`gh` PR cluster
 
 **Files:**
-- Modify: `.skillshare/skills/pr-clean-base/SKILL.md`, `.skillshare/skills/pr-reset-reapply/SKILL.md`, `.skillshare/skills/pr-merge-stacked/SKILL.md`, `.skillshare/skills/merge-stacked-pr-chain/SKILL.md`, `.skillshare/skills/premise-verify/SKILL.md`, `.skillshare/skills/api-optimize-bulk/SKILL.md`, `configs/claude/scripts/pr_merge_loop.sh`
+- Modify: `.retired skill supply/skills/pr-clean-base/SKILL.md`, `.retired skill supply/skills/pr-reset-reapply/SKILL.md`, `.retired skill supply/skills/pr-merge-stacked/SKILL.md`, `.retired skill supply/skills/merge-stacked-pr-chain/SKILL.md`, `.retired skill supply/skills/premise-verify/SKILL.md`, `.retired skill supply/skills/api-optimize-bulk/SKILL.md`, `configs/claude/scripts/pr_merge_loop.sh`
 
 - [ ] **Step 1:** Per file, `grep -n '\bgh \b'` and classify each call: (a) has a git_ops verb → replace with the verb (`pr-view`, `pr-list`, `pr-diff`, `pr-checks`, `pr-merge`, `pr-edit`, `pr-close`); (b) pure-git equivalent exists (branch reads, merge-base, cherry-pick plumbing) → replace with git (precedence: git > api); (c) genuinely API-only (e.g. retarget base via API, workflow-run queries) → keep, but move into `git_ops.sh` as a named verb with a glab twin where GitLab has the endpoint, or wrap in an explicit provider-conditional "github-only" block where it doesn't.
 - [ ] **Step 2:** Verify — `bats tests/bats/pr_merge_loop.bats tests/bats/git_ops.bats` PASS; remaining `gh api` occurrences exist only inside git_ops.sh or labeled github-only blocks.
@@ -789,7 +789,7 @@ Add all three to both usage texts.
 ### Task 16: Stacked-PR GitLab parity check
 
 **Files:**
-- Modify: `.skillshare/skills/pr-merge-stacked/SKILL.md`, `.skillshare/skills/merge-stacked-pr-chain/SKILL.md`
+- Modify: `.retired skill supply/skills/pr-merge-stacked/SKILL.md`, `.retired skill supply/skills/merge-stacked-pr-chain/SKILL.md`
 
 - [ ] **Step 1:** Both skills currently have a single token `glab` mention. After Task 15, walk each documented sequence against a scratch GitLab MR chain (retarget child MR = `glab mr update N --target-branch`), and document any true gap as a labeled gitlab-specific step.
 - [ ] **Step 2:** `git commit -am "docs(pr-stacked): verified gitlab parity for stacked-MR flows"`
@@ -798,7 +798,7 @@ Add all three to both usage texts.
 
 **Files:**
 - Create: `configs/claude/config/review_bots.yml`
-- Modify: `.skillshare/skills/pr-monitor/SKILL.md`, `.skillshare/skills/pr-monitor/references/platform-commands.md`, `.skillshare/skills/pr-triage-bots/SKILL.md`
+- Modify: `.retired skill supply/skills/pr-monitor/SKILL.md`, `.retired skill supply/skills/pr-monitor/references/platform-commands.md`, `.retired skill supply/skills/pr-triage-bots/SKILL.md`
 - Test: extend `tests/python/` with a schema test mirroring Task 1's pattern
 
 - [ ] **Step 1:** Create the registry:
@@ -855,8 +855,8 @@ bots:
 ### Task 20: Cross-platform trigger-semantics reference
 
 **Files:**
-- Create: `.skillshare/skills/ci-audit-triggers/references/gitlab-ci-triggers.md`
-- Modify: `.skillshare/skills/ci-audit-triggers/SKILL.md`, `.skillshare/skills/ci-harden-workflow/SKILL.md`
+- Create: `.retired skill supply/skills/ci-audit-triggers/references/gitlab-ci-triggers.md`
+- Modify: `.retired skill supply/skills/ci-audit-triggers/SKILL.md`, `.retired skill supply/skills/ci-harden-workflow/SKILL.md`
 
 - [ ] **Step 1:** Write the GitLab reference: the attacker-influence table mapping GitHub concepts to GitLab equivalents — `pull_request_target` ↔ pipelines for merge requests from forks (incl. "pipelines for merged results" + `CI_MERGE_REQUEST_*` variable injection), `issue_comment` triggers ↔ (no native equivalent; webhook-driven), `${{ }}` template injection ↔ `$[[ inputs.* ]]` / `rules:` variable expansion, `author_association` gates ↔ project-membership checks, fork `head.ref` checkout ↔ `CI_MERGE_REQUEST_SOURCE_BRANCH_NAME` usage, secrets exposure ↔ protected variables + protected branches.
 - [ ] **Step 2:** Both SKILL.md files gain step 0: "run `ci_platform.sh`; load the matching reference (`github-actions` semantics are the existing body; `gitlab-ci` → references/gitlab-ci-triggers.md); `none` → report and stop." Audit method (source→sink, trigger inventory) stays shared.
@@ -865,7 +865,7 @@ bots:
 ### Task 21: CI failure-reproduction skills — GitLab paths
 
 **Files:**
-- Modify: `.skillshare/skills/ci-reproduce-failure/SKILL.md`, `.skillshare/skills/reproduce-gated-ci-failure-locally/SKILL.md`, `.skillshare/skills/ci-diagnose-drift/SKILL.md`
+- Modify: `.retired skill supply/skills/ci-reproduce-failure/SKILL.md`, `.retired skill supply/skills/reproduce-gated-ci-failure-locally/SKILL.md`, `.retired skill supply/skills/ci-diagnose-drift/SKILL.md`
 
 - [ ] **Step 1:** For each `gh run view` / `gh api …/actions/…` sequence, add the gitlab branch: `glab ci list --status failed`, `glab ci get --pipeline-id N`, `glab ci trace <job-id>`; job-definition lookup reads `.gitlab-ci.yml` (+ `include:` resolution) instead of `.github/workflows/*.yml`. `ci-diagnose-drift`'s "where does CI override the repo's linter config" checklist gains the GitLab items: `variables:` blocks, `before_script`, and instance/group-level CI templates.
 - [ ] **Step 2:** Structure each skill as: detect via `ci_platform.sh` → shared diagnosis method → per-platform command appendix.
@@ -907,7 +907,7 @@ bots:
 ### Task 25: Fleet-inspection skills read the roster
 
 **Files:**
-- Modify: `.skillshare/skills/env-check/SKILL.md`, `.skillshare/skills/config-audit/SKILL.md`, `.skillshare/skills/deploy-reconcile/SKILL.md`, `.skillshare/skills/deploy-retire-component/SKILL.md`
+- Modify: `.retired skill supply/skills/env-check/SKILL.md`, `.retired skill supply/skills/config-audit/SKILL.md`, `.retired skill supply/skills/deploy-reconcile/SKILL.md`, `.retired skill supply/skills/deploy-retire-component/SKILL.md`
 
 - [ ] **Step 1:** Replace each hardcoded agent list ("check claude, gemini, cursor, codex, antigravity…") with "iterate `agent_roster.yml` entries: run each `auth_check`, verify each `home_dir` symlink set". Per-agent quirk notes stay, keyed by roster name. `~/.claude/` as the physical config home stays (documented soft assumption per spec §5).
 - [ ] **Step 2:** Regen derived docs; commit.
@@ -915,7 +915,7 @@ bots:
 ### Task 26: Role-named LLM seams for `skill-evolve` + `graphify`
 
 **Files:**
-- Modify: `.skillshare/skills/skill-evolve/SKILL.md` (+ `configs/claude/scripts/skillclaw_promote.sh` if it invokes `claude -p` directly), `.skillshare/skills/graphify/SKILL.md`
+- Modify: `.retired skill supply/skills/skill-evolve/SKILL.md` (+ `configs/claude/scripts/skillclaw_promote.sh` if it invokes `claude -p` directly), `.retired skill supply/skills/graphify/SKILL.md`
 - Test: `tests/bats/skillclaw_promote.bats` (existing — extend)
 
 - [ ] **Step 1:** Introduce `EVOLVE_CLI="${EVOLVE_CLI:-claude}"` and `GRAPHIFY_LLM_CLI="${GRAPHIFY_LLM_CLI:-claude}"` seams (llm-invoke-stdin pattern: role-named, vendor only as default). Every `claude -p` invocation becomes `"${EVOLVE_CLI}" -p` (or the graphify CLI's equivalent backend flag if it exposes one — check `graphify --help`; if the backend is baked into the graphify CLI itself, document the limitation in SKILL.md instead of faking a seam). skill-evolve's *transcript* dependency (`~/.claude/projects` JSONL) is inherent to its data source — document as claude-specific by design, not a defect.
@@ -923,7 +923,7 @@ bots:
 
 ### Task 27: Final sweep + program close-out
 
-- [ ] **Step 1:** Repo-wide audit re-run: `grep -rn 'linear_ops\|gh api\|glab api\|claude -p' .skillshare/skills --include=SKILL.md` — every remaining hit must be inside a labeled provider-conditional block, an engine script, or a documented-inherent case (pass-cli, skill-evolve transcripts). Fix strays.
+- [ ] **Step 1:** Repo-wide audit re-run: `grep -rn 'linear_ops\|gh api\|glab api\|claude -p' .retired skill supply/skills --include=SKILL.md` — every remaining hit must be inside a labeled provider-conditional block, an engine script, or a documented-inherent case (pass-cli, skill-evolve transcripts). Fix strays.
 - [ ] **Step 2:** Full regression: `bats tests/bats/ && pytest tests/python/ && shellcheck configs/claude/scripts/*.sh bootstrap.sh bootstrap/lib/*.sh && yamllint configs/claude/config/*.yml`, plus `pre-commit run --from-ref origin/main --to-ref HEAD`.
 - [ ] **Step 3:** Update the spec's §5 open items with outcomes; regenerate derived docs; final commit.
 

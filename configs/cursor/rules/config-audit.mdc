@@ -1,12 +1,12 @@
 ---
-description: "Verify cross-platform configuration consistency, check symlink integrity, and detect config drift between Claude, Cursor, Gemini, and Codex platforms."
+description: "Audit installed Manifest plugin receipts and each harness's native inventory for configuration drift without treating one harness as shared storage."
 globs: ".claude/skills/config-audit/**"
 alwaysApply: false
 ---
 
 # config-audit
 
-Verify cross-platform configuration consistency, check symlink integrity, and detect config drift between Claude, Cursor, Gemini, and Codex platforms.
+Audit installed Manifest plugin receipts and each harness's native inventory for configuration drift without treating one harness as shared storage.
 
 <!-- Auto-generated from .claude/skills/config-audit/SKILL.md -->
 <!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->

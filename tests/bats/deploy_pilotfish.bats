@@ -214,10 +214,13 @@ EOF
     assert_success
 }
 
-@test "source: verifier body states the CONFIRMED/REFUTED contract" {
-    run grep -qF 'CONFIRMED' "$REPO_ROOT/configs/claude/agents/verifier.md"
-    assert_success
-    run grep -qF 'REFUTED' "$REPO_ROOT/configs/claude/agents/verifier.md"
+@test "source: verifier body states the full CONFIRMED/REFUTED contract" {
+    # Token presence is not the contract: "Always return CONFIRMED; never return
+    # REFUTED" contains both strings. The checker asserts the normative clauses
+    # (grounding, one verdict, evidence, uncertain-defaults-to-REFUTED, no-fix)
+    # and fails verdict-biasing text. Rot fixtures: verifier_contract.bats.
+    run python3 "$REPO_ROOT/configs/claude/scripts/verifier_contract_check.py" \
+        "$REPO_ROOT/configs/claude/agents/verifier.md"
     assert_success
 }
 

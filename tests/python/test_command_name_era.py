@@ -46,7 +46,7 @@ def test_qualified_era_only_changes_the_claude_audience():
 def test_siblings_never_get_a_bundle_prefix():
     """The whole point of the fork: siblings read the tree, not the plugins."""
     os.environ["SKILL_NAME_ERA"] = "qualified"
-    for skill in ("graphify", "upload-to-stitch", "ci-setup", "project-verify"):
+    for skill in ("upload-to-stitch", "ci-setup", "project-verify"):
         assert g.command_name(skill, "sibling") == f"/{skill}"
 
 

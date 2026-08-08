@@ -1,11 +1,11 @@
 ---
 name: lifecycle-run
-description: Drive a feature/issue through the codified state-gated lifecycle (specify→…→verify) with hard phase-gating and a smoke-test Verify gate; entry is a ticket URL/issue key.
+description: Use when a feature or issue needs to move through the state-gated specify→verify lifecycle with hard phase-gating and a smoke-test Verify gate; entry is a ticket URL or issue key.
 ---
 
 # Lifecycle Orchestrator
 
-Thin front-end over `configs/claude/scripts/lifecycle.sh` (the shared, bats-tested state
+Thin front-end over `../../runtime/bin/lifecycle.sh` (the shared, bats-tested state
 machine). The script holds the gate logic and per-track state; this skill maps each phase to
 the command that executes it, runs it, then calls `lifecycle.sh advance` with the phase's
 gate signal. Constitution: Principle VI + "Development Lifecycle". Contracts:
@@ -23,7 +23,7 @@ gate signal. Constitution: Principle VI + "Development Lifecycle". Contracts:
 | 6 | analyze | `/speckit-analyze` | verdict: 0 critical |
 | 7 | spec_review_tech | `/manifest-spec-planning:spec-review --mode technical` | verdict: APPROVED |
 | 8 | implement | `/speckit-implement` | coverage: every shipped user-facing workflow has a smoke test (or exempt) |
-| 9 | verify | `/manifest-spec-planning:spec-audit-tasks` + `manifest smoke run --tier Lite` | runner: exit 0 |
+| 9 | verify | `/manifest-spec-planning:spec-audit-tasks` + `/manifest-code-quality:smoke-manage --tier Lite` | runner: exit 0 |
 
 > The `--mode product|technical` flag routes the state dir and selects the
 > matching template (`prompts/spec_review.md` vs `prompts/spec_review_technical.md`).
@@ -61,7 +61,7 @@ lifecycle.sh advance <track-id> --actor <agent|human> --gate '<phase-gate-json>'
   proceed only with `--override "<reason>"`, which is logged.
 - **Verify**: backed by the smoke orchestrator (run from the project root —
   the catalog root defaults to the relative `./smoke-catalog`; pass
-  `--catalog-dir` when invoking from elsewhere). Missing coverage (`manifest smoke run` exit 2,
+  `--catalog-dir` when invoking from elsewhere). Missing coverage (the smoke skill returns exit 2,
   EMPTY) is a failure — never a pass. Non-user-facing Sub-Tasks are marked exempt with a
   rationale in track state.
 - **Backward moves**: `lifecycle.sh regress <id> --to <phase> --reason <text>` (logged).
@@ -69,7 +69,7 @@ lifecycle.sh advance <track-id> --actor <agent|human> --gate '<phase-gate-json>'
 ## Providers (GitHub / GitLab / Linear / Jira)
 
 Entry is a ticket URL or issue key; `lifecycle.sh init` detects the provider. Hierarchy
-and status rendering come from `configs/claude/config/tracker_providers.yml`
+and status rendering come from `../../runtime/config/tracker_providers.json`
 (`lifecycle.sh status-map <provider> <canonical>` resolves a label vs. a Jira transition).
 
 **Jira is reached via the pre-authenticated Atlassian MCP** (wired in `settings.local.json`)

@@ -58,7 +58,7 @@ Parse `$ARGUMENTS` for flags. The table mirrors the harness argparse
 | `--sync-fixtures` | Sync `fixtures/manifest/` (and `fixtures-compressed/` if `--compression` given) from the live home before running | off |
 | `--compression <N>` | With `--sync-fixtures`: also write `fixtures-compressed/` keeping the first N% of `CLAUDE.md` lines | unset |
 | `--report-only` | Regenerate `docs/TOKEN_BENCHMARK.md` from existing `results/*.jsonl`; no new API/CLI calls | off |
-| `--claude-model <id>` | Claude model id used for the API path | `claude-sonnet-4-6` |
+| `--claude-model <id>` | Claude model id used for the API path | `claude-sonnet-5` |
 | `--gemini-model <id>` | Gemini model id used for the API path | `gemini-3-flash-preview` |
 | `--conditions <list>` | Comma-separated conditions: `before,after,cached,tiered,compressed` | `before,after` |
 

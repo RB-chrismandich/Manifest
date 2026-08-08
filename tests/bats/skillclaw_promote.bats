@@ -80,12 +80,12 @@ teardown() {
     assert_output "0"
 }
 
-@test "skill-evolve SKILL.md has valid frontmatter and points at the script" {
+@test "skill-evolve SKILL.md has valid frontmatter and points at its bundle-local command" {
     local f="$REPO_ROOT/.apm/skills/skill-evolve/SKILL.md"
     [ -f "$f" ]
     head -1 "$f" | grep -q '^---$'
     grep -q "^name: skill-evolve$" "$f"
-    grep -q "skillclaw_promote.sh" "$f"
+    grep -q "scripts/skill_evolve.py" "$f"
 }
 
 @test "promote runs manifest skillclaw ingest/evolve/promote instead of legacy scripts" {

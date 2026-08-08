@@ -1,6 +1,6 @@
 ---
 name: code-to-design
-description: "Convert frontend code (Vite, React, etc.) to a Stitch Design by chaining HTML extraction, design-system extraction, and upload. ALWAYS use when the user wants to save/migrate/upload an existing web app or React components into Stitch."
+description: "Convert existing frontend code (Vite, React, etc.) into a Stitch Design for further iteration. Use when the user wants to save, migrate, or upload an existing web app or React components into Stitch."
 allowed-tools:
   - "stitch*:*"
   - "Bash"
@@ -15,9 +15,9 @@ Transform your existing frontend code into a Stitch Design so you can iterate an
 
 This skill orchestrates three other skills in sequence:
 
-1. `extract-static-html`: Extract a single self-contained HTML file from your build output.
-2. `extract-design-md`: Analyze the source code to create a design system (DESIGN.md).
-3. `upload-to-stitch`: Upload that HTML file and the design system to your Stitch project.
+1. `stitch-design:extract-static-html`: Extract a single self-contained HTML file from your build output.
+2. `stitch-design:extract-design-md`: Analyze the source code to create a design system (DESIGN.md).
+3. `stitch-design:upload-to-stitch`: Upload that HTML file and the design system to your Stitch project.
 
 ## Workflow
 
@@ -52,7 +52,7 @@ Delegate to the `/stitch-design:extract-design-md` skill to analyze the project'
 [skills/extract-design-md/SKILL.md](../extract-design-md/SKILL.md) for the
 full analysis workflow.
 
-Write `.stitch/DESIGN.md` following the `extract-design-md` skill's output
+Write `.stitch/DESIGN.md` following the `stitch-design:extract-design-md` skill's output
 structure.
 
 #### 4. Upload DESIGN.md and Create Design System in Stitch
@@ -66,7 +66,7 @@ call, and required schemas). Pass
 
 #### 5. Upload HTML to Stitch
 
-Use the same `upload-to-stitch` skill's script to upload the extracted HTML file.
+Use the same `stitch-design:upload-to-stitch` skill's script to upload the extracted HTML file.
 Read [skills/upload-to-stitch/SKILL.md](../upload-to-stitch/SKILL.md) for detailed instructions and script usage.
 
 You will need:

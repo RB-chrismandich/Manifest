@@ -2,12 +2,40 @@
 # Single source of truth for ruff (lint + format), pytest, coverage, and pyright
 # (feature 366-coding-standards, FR-013). Ruff/pytest read this automatically.
 
+[project]
+name = "manifest-agent"
+version = "0.1.0"
+description = "Bootstrap-free installer for Manifest agent plugin bundles"
+requires-python = ">=3.11"
+dependencies = [
+    "click>=8.1,<9",
+    "jsonschema>=4.23,<5",
+    "pyyaml>=6.0.1,<7",
+]
+
+[project.scripts]
+manifest = "manifest_agent.cli:main"
+
+[build-system]
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/manifest_agent"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"schemas/manifest-capabilities.schema.json" = "manifest_agent/data/manifest-capabilities.schema.json"
+
 # Optional SDKs for the token-benchmark API path (#547). Not installed by
 # default; run the harness with `uv run --group benchmark ...`.
 [dependency-groups]
 benchmark = [
     "anthropic",
     "google-genai",
+]
+dev = [
+    "pytest>=9.1,<10",
+    "pytest-asyncio>=1.4,<2",
 ]
 
 [tool.ruff]
@@ -43,8 +71,12 @@ quote-style = "double"
 indent-style = "space"
 
 [tool.pytest.ini_options]
-addopts = "--strict-markers --strict-config"
+# Importlib mode keeps same-basename suites in separate test directories from
+# contaminating one another during full collection.
+addopts = "--strict-markers --strict-config --import-mode=importlib"
 testpaths = ["tests/python"]
+pythonpath = [".", "src", "tests/python"]
+markers = ["native: isolated-home smoke tests requiring a native harness CLI"]
 # pytest-asyncio's future default, pinned explicitly (unset emits PytestDeprecationWarning).
 asyncio_default_fixture_loop_scope = "function"
 

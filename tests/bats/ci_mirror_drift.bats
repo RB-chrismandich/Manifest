@@ -80,13 +80,12 @@ assert_mirrored() {
 
 @test "shellcheck mirrors configs/claude/scripts/*.sh (-S warning)" {
     assert_mirrored "shellcheck configs/claude/scripts/" \
-        "shellcheck|-S warning|configs/claude/scripts/*.sh"
+        "shellcheck|-S warning|configs/claude/scripts/*.sh" \
+        "shellcheck|-S warning|manifest_scripts_dir"
 }
 
-@test "shellcheck mirrors bootstrap.sh + bootstrap/lib/*.sh (-S warning)" {
-    assert_mirrored "shellcheck bootstrap.sh + bootstrap/lib/" \
-        "shellcheck|-S warning|bootstrap.sh|bootstrap/lib/*.sh"
-}
+# `pr-smoke` is a released plugin runtime and must not invoke retired bootstrap
+# paths. CI remains the canonical gate for bootstrap scripts (runtime-path policy).
 
 @test "lint guard: check_array_expansion.sh is mirrored" {
     assert_mirrored "check_array_expansion.sh" \
@@ -98,24 +97,21 @@ assert_mirrored() {
         "tests/lint/check_bats_assertions.sh"
 }
 
-@test "yamllint mirrors configs/claude/config/*.yml" {
-    assert_mirrored "yamllint configs/claude/config/" \
-        "yamllint|configs/claude/config/*.yml"
-}
+# YAML linting is CI-owned: requiring yamllint would add a tool dependency to
+# the portable pr-smoke plugin solely to mirror a project-config validation.
 
 @test "markdownlint mirrors the key-docs globs" {
     assert_mirrored "markdownlint key docs" \
         "markdownlint-cli2|AGENTS.md|CLAUDE.md|README.md|docs/*.md"
 }
 
-@test "python yaml.safe_load validation loop is mirrored" {
-    assert_mirrored "python yaml.safe_load loop over configs/claude/config/" \
-        "yaml.safe_load|configs/claude/config"
-}
+# Python YAML validation is coordinator-owned in CI. The released pr-smoke
+# plugin intentionally uses only its declared executables and no Python packages.
 
 @test "generate_commands_doc.py --check (docs/COMMANDS.md drift) is mirrored" {
     assert_mirrored "generate_commands_doc.py --check" \
-        "generate_commands_doc.py|--check"
+        "generate_commands_doc.py|--check" \
+        "generate_commands_doc.py|manifest_scripts_dir|--check"
 }
 
 @test "bats tests/bats/ is mirrored" {
@@ -128,10 +124,8 @@ assert_mirrored() {
         "pytest|tests/python/"
 }
 
-@test "smoke_test.py Lite-tier run (P-VI Verify gate) is mirrored" {
-    assert_mirrored "manifest smoke --tier Lite" \
-        "manifest smoke|--tier Lite"
-}
+# Smoke execution is coordinator-owned (`manifest smoke`) and forbidden from
+# plugin runtimes; CI runs this Verify gate after installing the coordinator.
 
 @test "bash -n shell-syntax validation is mirrored" {
     assert_mirrored "bash -n syntax check" \

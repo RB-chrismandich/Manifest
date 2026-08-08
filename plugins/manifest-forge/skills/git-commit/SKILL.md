@@ -1,6 +1,6 @@
 ---
 name: git-commit
-description: "Run the full Manifest commit pipeline — refresh docs, sync with remote, run pre-commit checks, then stage, commit, and push with safe failure handling. Use when committing and pushing through the whole pipeline, not a bare git commit."
+description: "Run Manifest's full automated commit-and-push pipeline with safe failure handling, not a bare git commit. Use for full commit-and-push requests through the whole pipeline."
 ---
 
 # Project Commit Pipeline
@@ -40,7 +40,7 @@ Do **not** invoke slash commands in this pipeline. Execute the equivalent workfl
    - Use traffic-light classes (`active`, `pending`, `error`, `external`) and keep Mermaid compatible:
      no class assignment on subgraphs, avoid unstable diagram types, avoid syntax-breaking labels.
    - If analyzing 5+ unique imports/modules, run:
-     `manifest parallel-agent --json --validate`
+     `[[skill:parallel-agent]] --json --validate`
      and incorporate findings before finalizing.
 
 2. **Improve documentation**
@@ -59,7 +59,7 @@ Do **not** invoke slash commands in this pipeline. Execute the equivalent workfl
      before proceeding to commit.
    - Compute/update a documentation health score summary.
    - If total documentation lines > 500, run:
-     `manifest parallel-agent --json --validate`
+     `[[skill:parallel-agent]] --json --validate`
      and incorporate findings before finalizing.
 
 3. **Improve README**
@@ -72,12 +72,11 @@ Do **not** invoke slash commands in this pipeline. Execute the equivalent workfl
 4. **Regenerate knowledge base docs**
 
    ```bash
-   ~/.claude/scripts/learning_capture.sh sync-docs
+   [[skill:learning-capture]] sync-docs
    ```
 
-   This regenerates `docs/KNOWLEDGE_BASE.md` from the YAML source of truth
-   (`~/.claude/config/knowledge_base.yml`). Non-blocking — skip if the script
-   is not available or fails.
+   This regenerates `docs/KNOWLEDGE_BASE.md` from the XDG-owned JSONL source of
+   truth. Non-blocking — skip if the skill is not available or fails.
 
 After all four complete, run `git status` to confirm documentation files were modified.
 
@@ -178,7 +177,7 @@ After all four complete, run `git status` to confirm documentation files were mo
    - Check git branch name for issue numbers (e.g., `fix/issue-296-backtest`)
    - Search staged files for comments mentioning issues (e.g., "// Fix for #288", "# Resolves issue #296")
    - For each detected issue number, verify it's open using
-     `~/.claude/scripts/git_ops.sh issue-view <number> --json state --jq '.state'`
+     `../../runtime/bin/git_ops.sh issue-view <number> --json state --jq '.state'`
    - If open issues are found, append to the commit message:
 
      ```text
@@ -273,7 +272,7 @@ capture the failure patterns for the knowledge base:
    - Run:
 
      ```bash
-     ~/.claude/scripts/learning_capture.sh add \
+     [[skill:learning-capture]] add \
        --category antipattern --language <detected> \
        --title "Pre-commit: <hook> failure" \
        --description "<what failed and how it was fixed>" \

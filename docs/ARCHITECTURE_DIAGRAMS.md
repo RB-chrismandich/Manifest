@@ -87,8 +87,8 @@ flowchart TB
         SKILLCLAW_SCRUB["skillclaw_scrub.py\n(secret redaction)"]:::process
         SKILLCLAW_EVOLVE["skillclaw_evolve.py\n(map-reduce via claude -p)"]:::process
         SKILLCLAW_PROMOTE["skillclaw_promote.sh\n(classify → reject-dir → PR)"]:::process
-        SKILLSHARE[".apm/skills/\n(committed library)"]:::config
-        SKILLCLAW_INGEST --> SKILLCLAW_SCRUB --> SKILLCLAW_EVOLVE --> SKILLCLAW_PROMOTE --> SKILLSHARE
+        retired skill supply[".apm/skills/\n(committed library)"]:::config
+        SKILLCLAW_INGEST --> SKILLCLAW_SCRUB --> SKILLCLAW_EVOLVE --> SKILLCLAW_PROMOTE --> retired skill supply
     end
 
     USER --> BOOTSTRAP
@@ -1569,7 +1569,7 @@ flowchart LR
     GIT_BRANCH["git switch -c\nskillclaw/evolve-N-SHA"]:::process
     PR["git_ops.sh pr-create\n(needs-review + follow-up labels)"]:::process
 
-    SKILLSHARE[".apm/skills/\n(committed library)"]:::output
+    retired skill supply[".apm/skills/\n(committed library)"]:::output
 
     TRANSCRIPTS --> INGEST
     INGEST --> SCRUB
@@ -1580,7 +1580,7 @@ flowchart LR
     CLASSIFY -->|rejected| EVOLVED_LIB
     PROMOTE --> GIT_BRANCH
     GIT_BRANCH --> PR
-    PR --> SKILLSHARE
+    PR --> retired skill supply
 ```
 
 **Pipeline Stages**:

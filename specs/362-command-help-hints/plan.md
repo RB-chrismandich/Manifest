@@ -24,7 +24,7 @@ through the existing `ai-hooks-integration` hook plumbing, and a **drift-check**
 
 **Primary Dependencies**: `pyyaml` (already used) for frontmatter parsing; existing repo tooling — `generate_cursor_rules.sh` (Cursor `.mdc` generation pattern), `bootstrap.sh` deploy, `ai-hooks-integration` skill (cross-tool lifecycle hooks). No new runtime dependency.
 
-**Storage**: Files only. Source of truth = `.skillshare/skills/*/SKILL.md` frontmatter. Generated artifacts = `docs/COMMANDS.md` + an intermediate machine catalog. Hint registry + **shipped** guidance defaults = committed YAML under `configs/claude/config/`. **User preference overrides** = a gitignored `~/.claude/config/guidance_local.yml` (so a single opt-out toggle never dirties the tracked tree — SC-004); effective prefs = shipped defaults ← user-local override (local wins). Rate-limit state = small local state file under the agent home (not committed).
+**Storage**: Files only. Source of truth = `.retired skill supply/skills/*/SKILL.md` frontmatter. Generated artifacts = `docs/COMMANDS.md` + an intermediate machine catalog. Hint registry + **shipped** guidance defaults = committed YAML under `configs/claude/config/`. **User preference overrides** = a gitignored `~/.claude/config/guidance_local.yml` (so a single opt-out toggle never dirties the tracked tree — SC-004); effective prefs = shipped defaults ← user-local override (local wins). Rate-limit state = small local state file under the agent home (not committed).
 
 **Testing**: `pytest` (generator, catalog, derivation, drift-check); `bats` (CLI `--help`, drift-check exit codes, hook firing, context-budget guard).
 
@@ -44,7 +44,7 @@ through the existing `ai-hooks-integration` hook plumbing, and a **drift-check**
 
 | Principle | Status | Notes |
 |-----------|--------|-------|
-| I. Configuration-as-Code | ✅ PASS | All artifacts live in `configs/` + `.skillshare/`; `docs/COMMANDS.md` is **generated** (never hand-edited) and deployed reproducibly. Drift-check enforces no manual edits. |
+| I. Configuration-as-Code | ✅ PASS | All artifacts live in `configs/` + `.retired skill supply/`; `docs/COMMANDS.md` is **generated** (never hand-edited) and deployed reproducibly. Drift-check enforces no manual edits. |
 | II. Parallel Agent Orchestration | ✅ PASS (process gate) | Change will exceed 200 lines across generator + skill + hooks → MUST be cross-verified by ≥2 parallel agents before merge (`parallel_agent.py`). Recorded as a PR-time gate, not a design violation. |
 | III. Consensus-Driven Decisions | ✅ PASS | Applies at review; thresholds unchanged. |
 | IV. Skill-First Extensibility | ✅ PASS | Discovery is a new **skill**; hints/reminders ride hooks + a registry. `parallel_agent.py` and other core scripts are NOT expanded to absorb this. The generator is a discrete support script, not core-engine growth. |
@@ -74,7 +74,7 @@ specs/362-command-help-hints/
 ### Source Code (repository root)
 
 ```text
-.skillshare/skills/
+.retired skill supply/skills/
 ├── help/                              # NEW — interactive discovery skill (/help)
 │   └── SKILL.md
 └── <existing skills>/SKILL.md         # source of truth; optional `category:` frontmatter added incrementally
@@ -110,7 +110,7 @@ tests/
     └── guidance_hint_hook.bats         # hook fires one-shot at a moment; suppressed when opted out
 ```
 
-**Structure Decision**: Single-project, follows the existing repo layout — scripts in `configs/claude/scripts/`, config in `configs/claude/config/`, the new discovery surface as a skill in `.skillshare/skills/help/`, generated reference in `docs/COMMANDS.md`, and per-platform reach via the established adapter conventions (`generate_cursor_rules.sh` for Cursor, guide injection for Gemini/Codex, symlinks for Antigravity). No new top-level directories; tests split across `pytest` and `bats` per repo convention.
+**Structure Decision**: Single-project, follows the existing repo layout — scripts in `configs/claude/scripts/`, config in `configs/claude/config/`, the new discovery surface as a skill in `.retired skill supply/skills/help/`, generated reference in `docs/COMMANDS.md`, and per-platform reach via the established adapter conventions (`generate_cursor_rules.sh` for Cursor, guide injection for Gemini/Codex, symlinks for Antigravity). No new top-level directories; tests split across `pytest` and `bats` per repo convention.
 
 ## Cross-Platform Delivery & Bounding
 
@@ -128,7 +128,7 @@ fallback rather than silently dropped.
 | Codex | `/help` skill (shared) + compact guide index | **GAP** — no hook substrate → fallback: standing reminder line in `AGENTS.md` (budget-bounded) | standing line fallback |
 | Antigravity | `/help` skill (shared, via symlink) + compact guide index | **GAP** — same fallback as Codex | standing line fallback |
 
-**Discovery parity note**: the `/help` skill in `.skillshare/skills/help/` deploys to every
+**Discovery parity note**: the `/help` skill in `.retired skill supply/skills/help/` deploys to every
 platform via the existing skill-symlink chain, so full one-line descriptions (FR-001) are
 available everywhere through `/help`. The always-loaded guide index is deliberately
 description-less (FR-009) and links back to `/help` for detail — so FR-001 is met by the

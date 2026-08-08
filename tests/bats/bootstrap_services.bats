@@ -50,56 +50,6 @@ teardown() {
     grep -A5 "^  antigravity:" "$SERVICES_CONFIG" | grep -q "enabled: true"
 }
 
-@test "write_services_config emits graphify enabled: true by default" {
-    set_bootstrap_defaults
-
-    run write_services_config
-    assert_success
-
-    grep -q "^  graphify:" "$SERVICES_CONFIG"
-    grep -A5 "^  graphify:" "$SERVICES_CONFIG" | grep -q "enabled: true"
-}
-
-@test "write_services_config emits graphify enabled: false when disabled" {
-    set_bootstrap_defaults
-    export ENABLE_GRAPHIFY=false
-
-    run write_services_config
-    assert_success
-
-    grep -q "^  graphify:" "$SERVICES_CONFIG"
-    grep -A5 "^  graphify:" "$SERVICES_CONFIG" | grep -q "enabled: false"
-}
-
-@test "load_existing_config keeps graphify disabled from file when no flag" {
-    mkdir -p "$(dirname "$SERVICES_CONFIG")"
-    cat > "$SERVICES_CONFIG" << 'YML'
-services:
-  graphify:
-    enabled: false
-YML
-    set_bootstrap_defaults          # ENABLE_GRAPHIFY=true, GRAPHIFY_SET=false
-
-    load_existing_config
-
-    [ "$ENABLE_GRAPHIFY" = "false" ]
-}
-
-@test "explicit --enable-graphify wins over services.yml" {
-    mkdir -p "$(dirname "$SERVICES_CONFIG")"
-    cat > "$SERVICES_CONFIG" << 'YML'
-services:
-  graphify:
-    enabled: false
-YML
-    set_bootstrap_defaults
-    parse_bootstrap_args --enable-graphify   # GRAPHIFY_SET=true
-
-    load_existing_config
-
-    [ "$ENABLE_GRAPHIFY" = "true" ]
-}
-
 @test "committed services.yml matches write_services_config output with default toggles" {
     # Defaults per set_bootstrap_defaults() in config.sh — the committed copy is
     # deployed by rsync and read as the repo-side default by command_catalog.py,

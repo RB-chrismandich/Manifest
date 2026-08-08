@@ -63,7 +63,7 @@ You are a mobile engineer focused on transforming Stitch web designs into clean,
 
 ## Phase 3: Architectural rules and HTML mapping
 
-> **GATE: Every component MUST satisfy ALL of the following rules. Violations will cause `npm run validate` to fail.**
+> **GATE: Every component MUST satisfy ALL of the following rules. Violations will cause the bundled validator to fail.**
 
 ### Element mapping
 
@@ -94,7 +94,7 @@ CSS and Tailwind classes do not work in React Native. Convert all styles to `Sty
   - `gap` maps to `gap` (React Native 0.71+). For older versions, use `marginBottom` on children.
 - **Dimensions**: Use numbers (not strings). `width: 100` means 100 density-independent pixels.
   - Percentage strings are supported: `width: '100%'`.
-  - For responsive sizing, use `useWindowDimensions()` from `react-native`.
+  - For responsive sizing, use `useWindowDimensions()` from `stitch-design:react-native`.
   - There is no `vw`/`vh`. Calculate from `Dimensions.get('window')`.
 - **Typography**: All text styles must be on `Text` components, never on `View`.
   - `font-size` maps to `fontSize` (number, not string).
@@ -117,7 +117,7 @@ CSS and Tailwind classes do not work in React Native. Convert all styles to `Sty
 - **No hardcoded styles**: Extract colors, spacing, and font sizes into `src/theme.ts`. Reference them in `StyleSheet.create()`. Absolutely no raw color hex codes or rgba strings are allowed in component files.
 - **Navigation**: Use React Navigation for screen transitions. Define screen types with `NativeStackScreenProps` or `BottomTabScreenProps`.
 - **Accessibility**: Every interactive element must have `accessibilityLabel` and `accessibilityRole`. Images need `accessibilityLabel`. Use `accessibilityState` for toggles and checkboxes.
-- **Safe areas**: Wrap top-level screen components with `SafeAreaView` from `react-native-safe-area-context` (not the default one from `react-native`).
+- **Safe areas**: Wrap top-level screen components with `SafeAreaView` from `react-native-safe-area-context` (not the default one from `stitch-design:react-native`).
 - **Project specific**: Focus on the target project's needs and constraints. Leave Google license headers out of the generated components.
 
 ### Platform-specific code
@@ -155,13 +155,13 @@ const styles = StyleSheet.create({
 
 > **GATE: Phase 4 verification, audits, and simulator/packager testing are optional. You MUST ask the user's permission to proceed with validation scripts, starting packagers, or simulator audits.**
 
-1. **Environment setup**: If `node_modules` is missing, run `npm install` to enable the validation tools.
+1. **Environment setup**: The checked validator is bundled; do not install validator dependencies in the target project.
 2. **Theme layer**: Create `src/theme.ts` from the extracted Tailwind config.
 3. **Data layer**: Create `src/data/mockData.ts` based on the design content.
 4. **Component drafting**: Use `resources/component-template.tsx` as a base. Find and replace ALL instances of `StitchComponent` with the actual component name. Map HTML elements to React Native primitives.
 5. **Navigation wiring**: If the design has multiple screens, set up a `NavigationContainer` with a stack or tab navigator in `App.tsx`.
 6. **Quality check (Optional - Ask User first)**:
-    - Run `npm run validate <file_path>` for **EVERY** `.tsx` file in components and screens to report component validity.
+    - Run `node scripts/validate.js <file_path>` for **EVERY** `.tsx` file in components and screens to report component validity.
     - Run `tsc --noEmit` to verify TypeScript compile status.
     - Check output against `resources/architecture-checklist.md`.
     - Obtain permission before starting the packager (`npx react-native start` or `npx expo start`) or starting visual simulator audits to verify the app renders correctly on a simulator/device.

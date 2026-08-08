@@ -49,7 +49,7 @@ These settle the open questions the issue deferred to the spec phase:
    - `graphify` — named for the managed `graphify` CLI it wraps; the service toggle
      (`--enable-graphify`) and installed binary share the name. Draft's `graph-map`
      rejected to keep skill ↔ tool discoverability.
-   - `ai-hooks-integration` — **externally installed** via skillshare
+   - `ai-hooks-integration` — **externally installed** via retired skill supply
      (`github.com/runkids/ai-hooks-integration`); not ours to rename without forking
      the upstream source. Draft's `hooks-integrate` rejected.
    - `speckit-*` is **not** an exception: `speckit` is a domain token (vendor
@@ -248,8 +248,8 @@ reconciliation preview reports no orphaned old-name skills after a fresh deploy.
   lengths and merges remove entries — headroom must be re-measured, not assumed.
 - Concurrent worktrees/branches created before the migration still reference old names;
   the mapping table in the issue closeout is the recovery path (no compatibility stubs).
-- External skillshare-managed skill (`ai-hooks-integration`) must remain untouched, and
-  the skillshare ignore/config state must not drop it from tracking.
+- External retired skill supply-managed skill (`ai-hooks-integration`) must remain untouched, and
+  the retired skill supply ignore/config state must not drop it from tracking.
 - Runtime state outside the repository (deployed homes, SkillClaw session/evolve state,
   user memory files) may reference old names; only deployed homes are in scope
   (refreshed by redeploy) — others age out naturally.

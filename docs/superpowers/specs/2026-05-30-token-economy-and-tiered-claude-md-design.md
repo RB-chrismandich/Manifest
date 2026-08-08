@@ -26,7 +26,7 @@ dependency read is cheaper than a 15K-token error-correction spiral.
 ## Deliverable A — `token-economy` skill (session mutator)
 
 ### Files
-- Create: `.skillshare/skills/token-economy/SKILL.md`
+- Create: `.retired skill supply/skills/token-economy/SKILL.md`
 - Modify: `configs/claude/config/command_config.yml` (add `tool_policies` entry)
 
 ### Behavior
@@ -134,7 +134,7 @@ Read on demand (NOT auto-loaded). You MUST read the reference before related tas
 | `references/` subdir not deployed, or dest missing | `rsync -a` (deploy.sh:76) recurses and creates dest subdirs; `deploy_configs` already `mkdir -p`s the target. Verified by the sandbox e2e (success criterion 4) rather than a code change |
 
 ## Success Criteria
-1. `/token-economy` skill exists in `.skillshare/skills/token-economy/`, has valid
+1. `/token-economy` skill exists in `.retired skill supply/skills/token-economy/`, has valid
    `name`/`description` frontmatter, and is listed in `command_config.yml`
    `tool_policies`.
 2. `configs/claude/CLAUDE.md` is reduced to the core (~180–220 lines) with a
@@ -144,7 +144,7 @@ Read on demand (NOT auto-loaded). You MUST read the reference before related tas
    moved section heading remains in core.
 4. `bootstrap.sh` (sandbox `HOME`) deploys both `~/.claude/CLAUDE.md` (core) and
    `~/.claude/references/*.md`.
-5. Skill syncs to targets (`.github/skills/token-economy` after `skillshare sync`).
+5. Skill syncs to targets (`.github/skills/token-economy` after `retired skill supply sync`).
 6. Existing tests still pass (`bats tests/bats/`, `pytest tests/python/`); lint
    clean — **markdownlint passes on `CLAUDE.md` and every new `references/*.md`**
    (each opens with an H1, no orphaned heading-level jumps).

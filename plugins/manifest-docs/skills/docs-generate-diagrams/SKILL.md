@@ -7,13 +7,13 @@ description: Generate and maintain Mermaid architecture diagrams that match curr
 
 Diagrams that reflect what the code does now. A diagram page is capped at 300
 lines and 4 diagrams; past that it becomes a hub plus one page per subject.
-Rules: `configs/claude/references/doc-concision.md`. Mermaid syntax traps and
+Rules: `../../runtime/references/doc-concision.md`. Mermaid syntax traps and
 the palette: [references/mermaid.md](references/mermaid.md).
 
 ## Parallel Agent Integration
 
 Uses parallel agents CONDITIONALLY when analyzing 5+ unique imports/modules:
-`manifest parallel-agent --json --validate`
+`[[skill:parallel-agent]] --json --validate`
 
 ## Steps
 
@@ -59,7 +59,7 @@ platform's markdown. A broken diagram is worse than no diagram: it renders as a
 wall of error text.
 
 ```bash
-python3 configs/claude/scripts/docs_lint.py docs/diagrams docs/ARCHITECTURE_DIAGRAMS.md
+python3 ../../runtime/docs_lint.py docs/diagrams docs/ARCHITECTURE_DIAGRAMS.md
 ```
 
 ## Report
@@ -77,5 +77,5 @@ Rendering: 12/12 verified in GitHub preview
 
 - Ensure diagrams match actual code structure — verify node names against real
   module and class names.
-- Where a parallel-agent run produced an architecture analysis, reconcile the
+- Where a cross-provider review produced an architecture analysis, reconcile the
   diagram against it before publishing.

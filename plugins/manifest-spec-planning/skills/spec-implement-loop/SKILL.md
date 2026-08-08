@@ -1,12 +1,12 @@
 ---
 name: spec-implement-loop
-description: Critic-gated implementation (CDDL) via sub-agents — developer writes code; developer reviewer plus QA and architecture critics review until each approves with zero findings. Never commits or pushes.
+description: "Use once spec/plan are approved and ready to implement — critic-gated loop (CDDL): developer writes, reviewer/QA/architecture critics gate on zero findings. Never commits or pushes."
 ---
 
 # Critic-Gated Implementation Loop (CDDL)
 
 Runs a completed feature through an adversarial loop orchestrated with **native
-sub-agents** (Task tool). **Do not** use `parallel_agent.py` for personas — panel
+sub-agents**. **Do not** use the parallel-review skill for personas — panel
 consensus is a different workflow.
 
 ## Personas (strict separation)
@@ -32,15 +32,15 @@ same iteration. Any findings → feed back to the developer and iterate.
 > Sequential dispatch only (no parallel critics — each must see the same tree).
 
 **Primary (Claude Code, Cursor):** native Task sub-agents per
-`configs/claude/references/sub-agent-dispatch.md`.
+`../../runtime/references/sub-agent-dispatch.md`.
 
-**CLI fallback (Gemini, Codex, Antigravity):** critics and developer-reviewer via
-`~/.claude/scripts/cddl_invoke.py` — see `prompts/cli-dispatch.md`. Model tiers:
-`configs/claude/references/cddl-role-models.md`. The developer role still
+**CLI fallback (Gemini, Codex, Antigravity, Devin):** critics and developer-reviewer via
+`../../runtime/cddl/cddl_invoke.py` — see `prompts/cli-dispatch.md`. Model tiers:
+`../../runtime/references/cddl-role-models.md`. The developer role still
 requires a writer — run implementation in the main session when Task is absent, or
 ask the operator to use Cursor / Claude Code for full separation.
 
-Charters (deployed copies under `~/.claude/prompts/cddl/` after bootstrap):
+Charters are packaged under `../../runtime/prompts/cddl/`:
 
 - `developer.md` — code author
 - `developer-reviewer.md` — spec/plan + quality gate
@@ -52,22 +52,22 @@ Dispatch templates live in this skill's `prompts/` directory. Hand sub-agents
 
 ## Session model
 
+This workflow requires Fable; ask the user to switch to Fable before starting the loop.
+
 This skill is **long-horizon**: the CDDL loop re-runs four personas over the whole tree every round,
 until the gates clear.
 
-Before starting, check the session's model. If it is not Fable 5, **ask the user to switch**
-(`/model` → Fable 5) and wait for the answer. Do not assume Fable is active, and do not silently
-proceed on the default model — the choice trades ~2x the per-token cost against capability, so it
-is the user's to make. Everything shorter than this runs on Opus by default
-(`session_model` in `command_config.yml`; rationale in `docs/MODEL-POLICY.md`).
+Use a high-capability reasoning model for the orchestration session. CLI critic
+models resolve only through the adjacent
+`../../runtime/config/review_models.json`; Devin uses its documented no-model
+route.
 
 ## Prerequisites
 
 - Feature branch (not default); clean tree unless operator passes `--allow-dirty`
 - Resolvable spec (+ optional plan): speckit feature dir or superpowers design
-  doc — discovery per `configs/claude/references/spec-artifact-discovery.md`
-- `uv sync --project configs/claude` (or home bootstrap) so verification tools
-  exist when auto-detecting gates
+  doc — discovery per `../../runtime/references/spec-artifact-discovery.md`
+- Installed verification tools for the selected project gate
 
 ## Procedure
 
@@ -77,7 +77,7 @@ is the user's to make. Everything shorter than this runs on Opus by default
 2. Resolve spec + plan; write `<RUN_DIR>/context.md` (paths, layout, verify cmd,
    iteration/round limits, clarification answers).
 3. Create run dir:
-   `${MANIFEST_STATE_ROOT:-~/.manifest}/cddl/runs/<repo-slug>/<run-id>/`
+   `${XDG_STATE_HOME:-$HOME/.local/state}/manifest/cddl/runs/<repo-slug>/<run-id>/`
    with `state.json` (`phase`, `iteration`, `round`, `status`).
 
 Defaults: clarification rounds **3**, implementation iterations **10**.
@@ -154,6 +154,6 @@ Keep everything under the run dir (manual prune: `rm -rf <run-id>`).
 
 ## What this skill does NOT do
 
-- Use `parallel_agent.py` for personas
+- Use the cross-model parallel-review interface for personas
 - Let critics or the developer reviewer write code
 - Commit or push

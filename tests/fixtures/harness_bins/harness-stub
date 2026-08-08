@@ -1,0 +1,132 @@
+#!/usr/bin/env -S python3 -I
+"""Hermetic response-driven fake for native harness CLIs."""
+
+import fcntl
+import json
+import os
+import sys
+from pathlib import Path
+
+
+def _fail(message: str) -> "None":
+    sys.stderr.write(f"harness-stub: {message}\n")
+    raise SystemExit(2)
+
+
+def _load_response() -> dict[str, object]:
+    encoded = os.environ.get("HARNESS_STUB_RESPONSES")
+    if encoded is None:
+        _fail("HARNESS_STUB_RESPONSES is required")
+    try:
+        response = json.loads(encoded)
+    except json.JSONDecodeError as error:
+        _fail(f"invalid HARNESS_STUB_RESPONSES JSON: {error}")
+    if not isinstance(response, dict):
+        _fail("HARNESS_STUB_RESPONSES must be a JSON object")
+    return _select_response(response)
+
+
+def _select_response(config: dict[str, object]) -> dict[str, object]:
+    configured = config.get("responses")
+    if configured is None:
+        return config
+    if not isinstance(configured, list):
+        _fail("response field 'responses' must be an array")
+    full_argv = [Path(sys.argv[0]).name, *sys.argv[1:]]
+    argument_argv = sys.argv[1:]
+    for candidate in configured:
+        if not isinstance(candidate, dict):
+            _fail("each configured response must be an object")
+        expected = candidate.get("argv")
+        if expected in (full_argv, argument_argv):
+            return _sequence_response(candidate, argument_argv)
+    default = config.get("default")
+    if isinstance(default, dict):
+        return _sequence_response(default, argument_argv)
+    _fail(f"no configured response for argv {json.dumps(full_argv)}")
+
+
+def _sequence_response(
+    candidate: dict[str, object], argv: list[str]
+) -> dict[str, object]:
+    sequence = candidate.get("sequence")
+    if sequence is None:
+        return candidate
+    if (
+        not isinstance(sequence, list)
+        or not sequence
+        or any(not isinstance(item, dict) for item in sequence)
+    ):
+        _fail("response field 'sequence' must be a non-empty array of objects")
+    state_value = os.environ.get("HARNESS_STUB_STATE")
+    if state_value is None:
+        _fail("HARNESS_STUB_STATE is required for sequenced responses")
+    state_path = Path(state_value)
+    key = json.dumps(argv, ensure_ascii=True, separators=(",", ":"))
+    descriptor = os.open(state_path, os.O_RDWR | os.O_CREAT, 0o600)
+    try:
+        fcntl.flock(descriptor, fcntl.LOCK_EX)
+        payload = os.read(descriptor, 1024 * 1024)
+        try:
+            state = json.loads(payload) if payload else {}
+        except json.JSONDecodeError as error:
+            _fail(f"HARNESS_STUB_STATE contains invalid JSON: {error}")
+        if not isinstance(state, dict) or any(
+            not isinstance(item, str) or not isinstance(index, int)
+            for item, index in state.items()
+        ):
+            _fail("HARNESS_STUB_STATE must be an object of command counters")
+        index = state.get(key, 0)
+        if not isinstance(index, int) or index < 0 or index >= len(sequence):
+            _fail(f"response sequence exhausted for argv {json.dumps(argv)}")
+        state[key] = index + 1
+        encoded = json.dumps(state, sort_keys=True, separators=(",", ":")).encode()
+        os.lseek(descriptor, 0, os.SEEK_SET)
+        os.ftruncate(descriptor, 0)
+        os.write(descriptor, encoded)
+        os.fsync(descriptor)
+        return sequence[index]
+    finally:
+        fcntl.flock(descriptor, fcntl.LOCK_UN)
+        os.close(descriptor)
+
+
+def _append_argv() -> None:
+    log_path = os.environ.get("HARNESS_STUB_LOG")
+    if log_path is None:
+        _fail("HARNESS_STUB_LOG is required")
+    argv = [Path(sys.argv[0]).name, *sys.argv[1:]]
+    line = (json.dumps(argv, ensure_ascii=True, separators=(",", ":")) + "\n").encode()
+    descriptor = os.open(log_path, os.O_APPEND | os.O_CREAT | os.O_WRONLY, 0o600)
+    try:
+        fcntl.flock(descriptor, fcntl.LOCK_EX)
+        remaining = memoryview(line)
+        while remaining:
+            written = os.write(descriptor, remaining)
+            if written == 0:
+                _fail("short write while appending argv")
+            remaining = remaining[written:]
+    finally:
+        os.close(descriptor)
+
+
+def _text(response: dict[str, object], field: str) -> str:
+    value = response.get(field, "")
+    if not isinstance(value, str):
+        _fail(f"response field {field!r} must be a string")
+    return value
+
+
+def main() -> int:
+    _append_argv()
+    response = _load_response()
+    sys.stdout.write(_text(response, "stdout"))
+    sys.stderr.write(_text(response, "stderr"))
+    returncode = response.get("returncode", response.get("code", 0))
+    if not isinstance(returncode, int) or isinstance(returncode, bool):
+        _fail("response returncode must be an integer")
+    return returncode
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

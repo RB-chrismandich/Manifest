@@ -35,7 +35,8 @@ from manifest_cli.runtime import (
 # Cheap core imports that a partially-applied `uv sync` leaves behind. Heavier
 # SDKs (google-genai) are deliberately excluded: they cost seconds to import and
 # their absence surfaces through the same guarded_imports path at call time.
-CORE_MODULES = ("yaml", "click", "aiohttp", "rich")
+# Terminal rendering falls back to stdlib output when Rich is unavailable.
+CORE_MODULES = ("yaml", "click")
 
 OPTIONAL_SERVICE_DEPS = (
     ("claude", "anthropic", "uv sync --group claude"),

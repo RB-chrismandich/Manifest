@@ -1,12 +1,12 @@
 ---
-description: "Teaches agents to iteratively build websites using Stitch with an autonomous baton-passing loop pattern"
+description: "Use when iteratively building a multi-page website with Stitch — an autonomous baton-passing loop driven by `.stitch/next-prompt.md`, useful for generating and wiring pages page-by-page across sessions or CI runs without manual re-briefing."
 globs: ".claude/skills/stitch-loop/**"
 alwaysApply: false
 ---
 
 # stitch-loop
 
-Teaches agents to iteratively build websites using Stitch with an autonomous baton-passing loop pattern
+Use when iteratively building a multi-page website with Stitch — an autonomous baton-passing loop driven by `.stitch/next-prompt.md`, useful for generating and wiring pages page-by-page across sessions or CI runs without manual re-briefing.
 
 <!-- Auto-generated from .claude/skills/stitch-loop/SKILL.md -->
 <!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->

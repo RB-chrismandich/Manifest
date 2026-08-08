@@ -1,12 +1,12 @@
 ---
-description: "Auto-triggered skill that analyzes linting failures, test results, and code review feedback to detect recurring antipatterns. Stores findings in knowledge_base.yml (YAML source of truth) via learning_capture.sh."
+description: "Auto-triggered skill that analyzes linting failures, test results, and code review feedback to detect recurring antipatterns. Stores findings in the XDG-owned JSONL knowledge base via [[skill:learning-capture]]."
 globs: ".claude/skills/antipattern-detect/**"
 alwaysApply: false
 ---
 
 # antipattern-detect
 
-Auto-triggered skill that analyzes linting failures, test results, and code review feedback to detect recurring antipatterns. Stores findings in knowledge_base.yml (YAML source of truth) via learning_capture.sh.
+Auto-triggered skill that analyzes linting failures, test results, and code review feedback to detect recurring antipatterns. Stores findings in the XDG-owned JSONL knowledge base via [[skill:learning-capture]].
 
 <!-- Auto-generated from .claude/skills/antipattern-detect/SKILL.md -->
 <!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->

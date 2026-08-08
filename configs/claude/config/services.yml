@@ -84,14 +84,6 @@ services:
     auth:
       - ~/.local/share/devin/credentials.toml
 
-  # Graphify - AI-powered knowledge-graph generator (/graphify skill + CLI)
-  # Install: uv tool install graphifyy (handled by bootstrap/lib/install.sh)
-  # Default backend is host-agent (uses the running assistant as the LLM; no key required).
-  graphify:
-    enabled: true
-    command: graphify
-    description: "Maps a codebase/docs into a queryable knowledge graph (/graphify)"
-
   # apm (Agent Package Manager) - build/deploy layer under evaluation (feature 522).
   # No longer installed by bootstrap: the pinned-wheel path was retired with
   # apm's last domain (spec 674 Phase 5). The toggle is inert and kept only so an

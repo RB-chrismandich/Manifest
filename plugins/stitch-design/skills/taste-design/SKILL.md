@@ -1,6 +1,6 @@
 ---
 name: taste-design
-description: "Generates agent-friendly DESIGN.md files for Google Stitch enforcing premium, anti-generic UI standards — strict typography, calibrated color, asymmetric layouts, micro-motion."
+description: "Use when generating a DESIGN.md for Google Stitch: encodes premium, anti-generic UI rules — typography, color, layout, motion, banned AI-slop patterns."
 allowed-tools:
   - "StitchMCP"
   - "Read"

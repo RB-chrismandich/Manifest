@@ -188,11 +188,11 @@ A user installs Manifest's Claude-facing configuration as **several domain-scope
   of truth and its external lifecycle tooling MUST continue to function; no
   third physical location for skills.~~
 - **FR-021a**: `.apm/skills` becomes the **sole** physical source of truth for
-  skills. The `.skillshare/` tree and the skillshare lifecycle (`install`,
+  skills. The `.retired skill supply/` tree and the retired skill supply lifecycle (`install`,
   `audit`, `check`, `update`) MUST be removed, not merely bypassed. The
   migration MUST NOT leave two physical skill locations at any commit that
-  ships: either `.skillshare/skills` is still authoritative, or it is gone.
-  Every consumer resolving `.skillshare/skills` MUST be repointed in the same
+  ships: either `.retired skill supply/skills` is still authoritative, or it is gone.
+  Every consumer resolving `.retired skill supply/skills` MUST be repointed in the same
   change that moves the tree — at minimum `command_catalog.py`
   (`COMMAND_CATALOG_SKILLS_DIR`), `generate_commands_doc.py`,
   `subagent_policy.bats`, `skill_naming.bats`, `deploy_home_skills`, and the
@@ -263,8 +263,8 @@ Each criterion names the evidence that satisfies it. "Migrated domains" is not a
 - Installing CLIs, running authentication flows, or replacing MCP configuration and the settings merge.
 - Reducing the skill catalog or improving skill-description signal density. US1–US3 change **how** skills are deployed, not **how many** load per session. US4's compartmentalization makes per-domain scoping *possible*, but only if domains are actually left disabled; a default installing every `manifest-` plugin reproduces today's catalog exactly and MUST NOT be described as an improvement.
 - Replacing speckit.
-- ~~Replacing the skillshare skill-supply-chain lifecycle.~~ **AMENDED
-  2026-07-27 (maintainer decision): skillshare is to be deprecated completely
+- ~~Replacing the retired skill supply skill-supply-chain lifecycle.~~ **AMENDED
+  2026-07-27 (maintainer decision): retired skill supply is to be deprecated completely
   and replaced by APM. This was previously a non-goal and FR-021 was written to
   protect it; both are superseded by FR-021a below. The amendment is recorded
   rather than silently applied because it inverts a stated non-goal and changes
@@ -274,7 +274,7 @@ Each criterion names the evidence that satisfies it. "Migrated domains" is not a
 
 ## Assumptions
 
-- **Repository facts** (re-verified 2026-07-25 **after merging `origin/main`**): **107** skills (`find .skillshare/skills -mindepth 1 -maxdepth 1 -type d`); **54** top-level scripts in `configs/claude/scripts` (**88** including subdirectories); **109** `.mdc` files. These moved twice: the first draft used directory-*entry* counts mislabeled as skill/script counts (107/55), review corrected them to 106/50/108, and merging main (PR #622) then added a skill, four scripts, and a rule file. **Treat every count here as a snapshot, not an invariant** — any task asserting one must re-derive it with the command shown, not copy the number.
+- **Repository facts** (re-verified 2026-07-25 **after merging `origin/main`**): **107** skills (`find .retired skill supply/skills -mindepth 1 -maxdepth 1 -type d`); **54** top-level scripts in `configs/claude/scripts` (**88** including subdirectories); **109** `.mdc` files. These moved twice: the first draft used directory-*entry* counts mislabeled as skill/script counts (107/55), review corrected them to 106/50/108, and merging main (PR #622) then added a skill, four scripts, and a rule file. **Treat every count here as a snapshot, not an invariant** — any task asserting one must re-derive it with the command shown, not copy the number.
 - **Configuration path**: the override prerequisite is smaller than first described. The file is `configs/claude/scripts/agents/config.py` (not `configs/claude/scripts/config.py`), and `Config.__init__` / `ServicesConfig.__init__` already accept a `config_path` parameter; the hardcoded home paths are defaults. The work is wiring a flag or environment variable through to the existing parameter.
 - The build tool remains actively maintained; evidence basis is v0.26.0 (published 2026-07-18), repository created 2025-09-18, ~3.4k stars, 159 open issues, roughly weekly releases. **This is motivating context, not dispositive evidence** — FR-002 governs, and no documentation or issue-tracker signal substitutes for the spike.
 - Pre-1.0 status is accepted as a known risk, mitigated by pinning, parallel-run, and rollback — not by assuming stability.

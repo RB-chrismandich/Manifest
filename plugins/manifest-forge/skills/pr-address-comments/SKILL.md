@@ -11,7 +11,7 @@ without a verified fix. Ignore non-actionable service notices
 (usage-limit/bot-connector messages).
 
 1. **Fetch all three feedback channels** — no single view is complete:
-   - Inline code comments: `~/.claude/scripts/git_ops.sh pr-comments N` —
+   - Inline code comments: `../../runtime/bin/git_ops.sh pr-comments N` —
      returns JSON `[{id, author, path, line, body}]` on both github and
      gitlab (github: PR review comments; gitlab: MR discussion notes with a
      diff `position`, i.e. genuinely inline comments only — general
@@ -48,16 +48,16 @@ without a verified fix. Ignore non-actionable service notices
    review**, push, and confirm CI green on the new run.
 8. **Reply to every item — never leave one silent**: "Fixed in {commit}" for
    accepted items; "Declining: {rationale + evidence}" for rejected ones,
-   posted via `~/.claude/scripts/git_ops.sh pr-comment N "..."`. Then post one
+   posted via `../../runtime/bin/git_ops.sh pr-comment N "..."`. Then post one
    summary disposition table (comment → verdict → action/fix at file:line) on
    the PR so a reviewer can verify at a glance.
 
 ## Inline comment threads
 
-- `~/.claude/scripts/git_ops.sh pr-comments N` already returns exact targets
+- `../../runtime/bin/git_ops.sh pr-comments N` already returns exact targets
   as `{id, author, path, line, body}` — no manual `--jq` parsing needed.
 - Reply per item as a top-level comment (per-comment threaded replies often
-  404 on both hosts): `~/.claude/scripts/git_ops.sh pr-comment N "Fixed in
+  404 on both hosts): `../../runtime/bin/git_ops.sh pr-comment N "Fixed in
   <commit>: ..."` / `"Declining: <rationale>"`. The step-8 summary disposition
   table is the reliable fallback channel regardless — post it either way.
 - **github-only: thread resolution** — GitHub supports formally resolving a
@@ -68,7 +68,7 @@ without a verified fix. Ignore non-actionable service notices
     (thread IDs come from `gh pr view <N> --json reviewThreads`, *not* from
     `pr-comments`' `id` field — those are comment IDs, not thread IDs).
   - gitlab: no thread-resolve verb exists, so instead post
-    `~/.claude/scripts/git_ops.sh pr-comment N "Resolved: <summary>"` to close
+    `../../runtime/bin/git_ops.sh pr-comment N "Resolved: <summary>"` to close
     the loop (routes to `glab mr note` under git_ops.sh).
 
 ## Review bodies

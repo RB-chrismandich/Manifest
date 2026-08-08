@@ -1,6 +1,6 @@
 # Contract: Discovery Command (`/help`)
 
-Interactive in-session discovery surface (skill `.skillshare/skills/help/`). Read-only.
+Interactive in-session discovery surface (skill `.retired skill supply/skills/help/`). Read-only.
 
 ## Invocation
 

@@ -39,10 +39,10 @@ is the user's to make. Everything shorter than this runs on Opus by default
 ## Procedure
 
 1. **Preflight.** Ensure the issue hooks are enabled:
-   `configs/claude/scripts/install_issue_hooks.sh --enable` (idempotent). Confirm
+   `../../runtime/bin/install_issue_hooks.sh --enable` (idempotent). Confirm
    `gh`/`glab` is authenticated.
 2. **Select.** Run:
-   `configs/claude/scripts/auto_issue_dev.sh next-issue --json`
+   `../../runtime/bin/auto_issue_dev.sh next-issue --json`
    - Exit 3 ⇒ read `skipped_dependency`/`skipped_other` from the JSON, announce
      "eligible queue empty — stopping (skipped N dependency-blocked)", and END.
    - Exit 0 ⇒ parse `{number,title,url,skipped_dependency}`; call the issue `#N`.
@@ -53,7 +53,7 @@ is the user's to make. Everything shorter than this runs on Opus by default
 5. **Verify.** Run `/manifest-code-quality:project-verify`. Lint warnings are non-blocking; test or security
    failures are blocking.
 6. **Outcome:**
-   - **Success** → `configs/claude/scripts/git_ops.sh pr-create --title "<...>" --body "<...>"`.
+   - **Success** → `../../runtime/bin/git_ops.sh pr-create --title "<...>" --body "<...>"`.
      The PR hook injects `Closes #N` and moves `#N` to `needs-review`. **Stop.**
    - **Failure/stuck** → push WIP and open a **draft**:
      `git_ops.sh pr-create --draft --title "[WIP] <...>" --body "Partial; needs human."`
@@ -61,7 +61,7 @@ is the user's to make. Everything shorter than this runs on Opus by default
 7. **Audit.** After determining the outcome, append one record to the audit log:
 
    ```bash
-   configs/claude/scripts/audit_log.sh append \
+   ../../runtime/bin/audit_log.sh append \
      "{\"ts\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",\"issue\":N,\"action\":\"<pr-opened|draft-pr|blocked>\",\"outcome\":\"<PR #NNN or draft or blocked: reason>\",\"reason\":\"<selection reason>\",\"skipped_dependency\":K}"
    ```
 
@@ -113,8 +113,3 @@ Every action appends a redacted `audit_log.sh` record (FR-021/022).
 - The merge gate's safety logic is unit-tested offline (`tests/bats/merge_decision.bats`,
   `verification_gate.bats`, `loop_lock.bats`, `pr_merge_loop.bats`) — the irreversible merge
   is a tested decision, not prose.
-
-- Dependency-blocked issues are detected and tagged `blocked-dependency` by
-  `next-issue`; you never see them.
-- This skill writes code (allowed tools include Edit/Write); keep diffs scoped to
-  the selected issue.

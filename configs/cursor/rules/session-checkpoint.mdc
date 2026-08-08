@@ -1,12 +1,12 @@
 ---
-description: "Create a compact checkpoint summary of the current session so work can continue reliably when context usage is high."
+description: "Write a compact continuation checkpoint to XDG state when context is high, preserving decisions, progress, blockers, and verification evidence."
 globs: ".claude/skills/session-checkpoint/**"
 alwaysApply: false
 ---
 
 # session-checkpoint
 
-Create a compact checkpoint summary of the current session so work can continue reliably when context usage is high.
+Write a compact continuation checkpoint to XDG state when context is high, preserving decisions, progress, blockers, and verification evidence.
 
 <!-- Auto-generated from .claude/skills/session-checkpoint/SKILL.md -->
 <!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->

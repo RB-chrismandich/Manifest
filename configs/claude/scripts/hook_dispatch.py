@@ -75,19 +75,25 @@ def _version_sort_key(name: str) -> tuple:
         return (0, name)
 
 
-def _cache_version_dirs(bundle: str) -> list[Path]:
-    """Non-orphaned version directories for `bundle`, newest-looking last."""
+def _cache_version_dirs(bundle: str, marketplace: str) -> list[Path]:
+    """Non-orphaned version dirs for `bundle` in `marketplace`, newest last.
+
+    Scoped to the ONE requested marketplace. Whatever this returns is executed
+    on every matching tool event, so a bundle-name-only scan would let a
+    same-named bundle cached from any other configured marketplace stand in for
+    Manifest's — and a higher version number there would win. That is the exact
+    confusion `_installed_plugin_dir` avoids; the fallback must not reintroduce
+    it. A real machine can easily carry ten marketplaces, transient ones
+    included.
+    """
     found: list[Path] = []
     for cache_root in PLUGIN_CACHE_ROOTS:
-        if not cache_root.is_dir():
+        bundle_dir = cache_root / marketplace / bundle
+        if not bundle_dir.is_dir():
             continue
-        for marketplace_dir in cache_root.iterdir():
-            bundle_dir = marketplace_dir / bundle
-            if not bundle_dir.is_dir():
-                continue
-            for version_dir in bundle_dir.iterdir():
-                if version_dir.is_dir() and not (version_dir / ".orphaned_at").exists():
-                    found.append(version_dir)
+        for version_dir in bundle_dir.iterdir():
+            if version_dir.is_dir() and not (version_dir / ".orphaned_at").exists():
+                found.append(version_dir)
     found.sort(key=lambda p: _version_sort_key(p.name))
     return found
 
@@ -120,17 +126,20 @@ def resolve_skill_script(
     """Find `rel_path` inside `skill` inside `bundle`.
 
     Tries, in order: the exact installed_plugins.json record for
-    `bundle@marketplace` (immune to a same-named bundle elsewhere); the
-    newest non-orphaned cached version by number, scanned across all
-    marketplaces, as a fallback for when that record is missing or stale;
+    `bundle@marketplace`; the newest non-orphaned cached version by number
+    *within that same marketplace*, for when the record is missing or stale;
     then a repo checkout via MANIFEST_REPO_DIR.
+
+    Every step stays inside the requested marketplace. The result is executed,
+    so widening the search to any same-named bundle is a code-execution
+    boundary, not a convenience.
     """
     install_dir = _installed_plugin_dir(bundle, marketplace)
     if install_dir is not None:
         candidate = install_dir / "skills" / skill / rel_path
         if candidate.is_file():
             return candidate
-    for version_dir in reversed(_cache_version_dirs(bundle)):
+    for version_dir in reversed(_cache_version_dirs(bundle, marketplace)):
         candidate = version_dir / "skills" / skill / rel_path
         if candidate.is_file():
             return candidate

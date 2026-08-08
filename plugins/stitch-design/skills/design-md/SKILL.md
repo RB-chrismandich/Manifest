@@ -1,6 +1,6 @@
 ---
 name: design-md
-description: Analyze Stitch projects and synthesize a semantic design system into DESIGN.md files
+description: Analyze Stitch projects and synthesize a semantic design system into DESIGN.md files. For source-only extraction (no Stitch project), use extract-design-md.
 allowed-tools:
   - "stitch*:*"
   - "Read"
@@ -30,7 +30,7 @@ The `DESIGN.md` file will serve as the "source of truth" for prompting Stitch to
 
 To analyze a Stitch project, you must retrieve screen metadata and design assets using the Stitch MCP Server tools:
 
-1. **Namespace discovery**: Run `list_tools` to find the Stitch MCP prefix. Use this prefix (e.g., `mcp_stitch:`) for all subsequent calls.
+1. **Namespace discovery**: Run `list_tools` to find the Stitch MCP prefix (e.g., `stitch:`, `mcp_stitch:`, or `mcp__stitch__`) — the prefix differs per agent platform. Use it for all subsequent calls.
 
 2. **Project lookup** (if Project ID is not provided):
    - Call `[prefix]:list_projects` with `filter: "view=owned"` to retrieve all user projects
@@ -92,12 +92,13 @@ Convert technical `border-radius` and layout values into physical descriptions:
 
 Explain how the UI handles layers. Describe the presence and quality of shadows (e.g., "Flat," "Whisper-soft diffused shadows," or "Heavy, high-contrast drop shadows").
 
-## Output Guidelines
+## Guidelines
 
-- **Language:** Use descriptive design terminology and natural language exclusively
+- **Language:** Use descriptive design terminology exclusively — avoid generic terms like "blue" or "rounded"; use "Ocean-deep Cerulean (#0077B6)" or "Gently curved edges"
 - **Format:** Generate a clean Markdown file following the structure below
-- **Precision:** Include exact hex codes for colors while using descriptive names
-- **Context:** Explain the "why" behind design decisions, not just the "what"
+- **Precision:** Include exact hex codes and pixel values in parentheses after natural language descriptions
+- **Context:** Explain the "why" and functional role behind each design decision, not just the "what"
+- **Consistency:** Use the same terminology throughout the document
 
 ## Output Format (DESIGN.md Structure)
 
@@ -157,14 +158,6 @@ To use this skill for the Furniture Collection project:
    - Ensure all color codes are accurate
    - Use evocative, designer-friendly language
 
-## Best Practices
-
-- **Be Descriptive:** Avoid generic terms like "blue" or "rounded." Use "Ocean-deep Cerulean (#0077B6)" or "Gently curved edges"
-- **Be Functional:** Always explain what each design element is used for
-- **Be Consistent:** Use the same terminology throughout the document
-- **Be Visual:** Help readers visualize the design through your descriptions
-- **Be Precise:** Include exact values (hex codes, pixel values) in parentheses after natural language descriptions
-
 ## Tips for Success
 
 1. **Start with the big picture:** Understand the overall aesthetic before diving into details
@@ -172,11 +165,3 @@ To use this skill for the Furniture Collection project:
 3. **Think semantically:** Name colors by their purpose, not just their appearance
 4. **Consider hierarchy:** Document how visual weight and importance are communicated
 5. **Reference the guide:** Use language and patterns from the Stitch Effective Prompting Guide
-
-## Common Pitfalls to Avoid
-
-- ❌ Using technical jargon without translation (e.g., "rounded-xl" instead of "generously rounded corners")
-- ❌ Omitting color codes or using only descriptive names
-- ❌ Forgetting to explain functional roles of design elements
-- ❌ Being too vague in atmosphere descriptions
-- ❌ Ignoring subtle design details like shadows or spacing patterns

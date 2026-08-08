@@ -118,9 +118,6 @@ Common entry points: `/git-commit`, `/project-verify`, `/<lang>-refactor`,
 `/docs-all`, `/plan-manage`, `/env-check`, `/session-checkpoint`,
 `/version-pin`. `/help` searches the full catalog by task.
 
-**Graphify**: a managed tool, not a consensus agent — excluded from
-`manifest parallel-agent` counts.
-
 **Skills are plugin bundles**: `/<bundle>:<name>`; refresh with
 `claude plugin update <bundle>@manifest`. Others read `~/.manifest/skills`.
 

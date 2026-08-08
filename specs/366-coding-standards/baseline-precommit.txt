@@ -50,7 +50,7 @@
     By directory:
      300 configs/claude
      193 tests/python
-      83 .skillshare/skills
+      83 .retired skill supply/skills
       54 tests/token_benchmark
 
 ## Notes

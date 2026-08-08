@@ -38,11 +38,11 @@ for each). An empty `survived` means every candidate was refuted.
 
 ## Sub-agent dispatch
 
-When ≥3 candidate findings need triage, dispatch one sub-agent per finding to verify it, then aggregate verdicts; below
-that, triage inline. Pick the mechanism per the shared Sub-Agent Selection Rules
-(`configs/claude/references/sub-agent-dispatch.md`): native Task sub-agents on Claude, or `manifest parallel-agent` / inline
-on other assistants. Dispatched sub-agents execute their task directly and do not re-dispatch.
+Follow the bundled `sub-agent-dispatch.md` selection rules. Dispatches use the
+pinned `opus` model.
 
-Dispatch on **Opus** (`subagent_model: opus` in `command_config.yml`) — adversarial
-verification is the documented escalation case. Pass the model explicitly; do not inherit
-the session's.
+When ≥3 candidate findings need triage, invoke `[[skill:parallel-agent]]` with
+one finding per review unit, adversarial verification enabled, and a bounded
+timeout, then aggregate its structured verdicts. If structured skill output is
+unavailable, perform the same triage inline and report `DEGRADED`. Below the
+threshold, triage inline.

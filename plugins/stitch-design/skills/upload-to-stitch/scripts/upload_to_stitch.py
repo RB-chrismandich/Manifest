@@ -23,7 +23,6 @@ Usage:
         --project-id <PROJECT_ID> \
         --file-path <PATH_TO_FILE> \
         [--api-url <STITCH_API_BASE_URL>] \
-        [--api-key <API_KEY>] \
         [--title <SCREEN_TITLE>] \
         [--generated-by <GENERATED_BY>] \
         [--create-screen-instances]
@@ -32,6 +31,7 @@ Usage:
 import argparse
 import base64
 import json
+import os
 import pathlib
 import sys
 import urllib.request
@@ -196,13 +196,8 @@ def parse_args():
     )
     parser.add_argument(
         "--api-url",
-        default="https://stitch.googleapis.com",
-        help="Stitch API base URL. Defaults to https://stitch.googleapis.com.",
-    )
-    parser.add_argument(
-        "--api-key",
-        required=True,
-        help="API key for the Stitch API.",
+        default=os.environ.get("STITCH_API_URL", "https://stitch.googleapis.com"),
+        help="Stitch API base URL. Defaults to STITCH_API_URL or the public API.",
     )
     parser.add_argument(
         "--title",
@@ -222,6 +217,10 @@ def parse_args():
 
 def main():
     args = parse_args()
+    api_key = os.environ.get("STITCH_API_KEY")
+    if not api_key:
+        print("Error: STITCH_API_KEY is required", file=sys.stderr)
+        return 2
 
     file_path = args.file_path
     file_suffix = file_path.suffix.lower()
@@ -259,7 +258,7 @@ def main():
 
     result = call_batch_create_screens(
         api_url=args.api_url,
-        api_key=args.api_key,
+        api_key=api_key,
         project_id=args.project_id,
         requests=[screen_request],
         create_screen_instances=True,
@@ -267,7 +266,8 @@ def main():
 
     print("\nResponse:")
     print(json.dumps(result, indent=2))
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

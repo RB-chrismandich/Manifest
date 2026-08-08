@@ -1,6 +1,6 @@
 # Contract: `ai-code-audit` Skill
 
-**Type**: User-invocable skill (`/ai-code-audit`), `.skillshare/skills/ai-code-audit/SKILL.md`
+**Type**: User-invocable skill (`/ai-code-audit`), `.retired skill supply/skills/ai-code-audit/SKILL.md`
 **Registered in**: `command_config.yml` `tool_policies` (policy: `conditional` — sub-agent dispatch only for Critical/High cross-verification)
 
 ## Invocation

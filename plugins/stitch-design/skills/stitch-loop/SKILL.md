@@ -1,6 +1,6 @@
 ---
 name: stitch-loop
-description: Teaches agents to iteratively build websites using Stitch with an autonomous baton-passing loop pattern
+description: "Use when iteratively building a multi-page website with Stitch — an autonomous baton-passing loop driven by `.stitch/next-prompt.md`, useful for generating and wiring pages page-by-page across sessions or CI runs without manual re-briefing."
 allowed-tools:
   - "stitch*:*"
   - "chrome*:*"
@@ -28,7 +28,7 @@ The Build Loop pattern enables continuous, autonomous website development throug
 
 - Access to the Stitch MCP Server
 - A Stitch project (existing or will be created)
-- A `.stitch/DESIGN.md` file (generate one using the `design-md` skill if needed)
+- A `.stitch/DESIGN.md` file (generate one using the `stitch-design:design-md` skill if needed)
 - A `.stitch/SITE.md` file documenting the site vision and roadmap
 
 **Optional:**
@@ -246,9 +246,9 @@ The skill is orchestration-agnostic — focus on the pattern, not the trigger me
 
 ## Design System Integration
 
-This skill works best with the `design-md` skill:
+This skill works best with the `stitch-design:design-md` skill:
 
-1. **First time setup**: Generate `.stitch/DESIGN.md` using the `design-md` skill from an existing Stitch screen
+1. **First time setup**: Generate `.stitch/DESIGN.md` using the `stitch-design:design-md` skill from an existing Stitch screen
 2. **Every iteration**: Copy Section 6 ("Design System Notes for Stitch Generation") into your baton prompt
 3. **Consistency**: All generated pages will share the same visual language
 

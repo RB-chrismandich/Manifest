@@ -1,26 +1,26 @@
 ---
 name: docs-improve
-description: Audit and improve a project's docs set using Diataxis — enforce per-type line caps, split over-cap pages into a hub plus sub-pages, and cut fluff. Use for "improve the docs", "the docs are too long", "audit our documentation".
+description: Audit a project's docs set against Diataxis and measured line caps, fixing real gaps and fluff. Use for "improve the docs", "the docs are too long", "audit our documentation".
 ---
 
 # Improve the Docs Set
 
 Audit `docs/` against Diataxis and the doc concision contract, then fix what you
 find. Concision is measured, not judged: read
-`configs/claude/references/doc-concision.md` first, and treat
+`../../runtime/references/doc-concision.md` first, and treat
 `docs_lint.py` as the arbiter of "too long".
 
 ## Parallel Agent Integration
 
 Uses parallel agents CONDITIONALLY when total documentation lines > 500:
-`manifest parallel-agent --json --validate`
+`[[skill:parallel-agent]] --json --validate`
 
 ## Steps
 
 ### 1. Measure first
 
 ```bash
-python3 configs/claude/scripts/docs_lint.py docs README.md --json /tmp/docs-before.json
+python3 ../../runtime/docs_lint.py docs README.md --json /tmp/docs-before.json
 ```
 
 Exit 1 means at least one doc is over its cap. Record the baseline — the report
@@ -72,7 +72,7 @@ three-link "Related" block on a 40-line page is fluff.
 Every `[text](path)` must resolve. Every page must be reachable from a hub.
 
 ```bash
-python3 configs/claude/scripts/docs_lint.py docs README.md --json /tmp/docs-after.json
+python3 ../../runtime/docs_lint.py docs README.md --json /tmp/docs-after.json
 ```
 
 ## Report
@@ -100,7 +100,10 @@ reads as a pass it did not earn.
 
 ## Sub-agent dispatch
 
-Above ~10 docs, fan out one sub-agent per topic directory per the Sub-Agent
-Selection Rules (`configs/claude/references/sub-agent-dispatch.md`). Dispatch on
-**Sonnet** (`subagent_model: sonnet` in `command_config.yml`) — pass the model
+Follow the bundled `sub-agent-dispatch.md` selection rules. Dispatches use the
+pinned `sonnet` model.
+
+Above ~10 docs, fan out one sub-agent per topic directory through
+`[[skill:parallel-agent]]`, or use native Task sub-agents on Claude. Dispatch on
+**Sonnet** (`subagent_model: sonnet`) — pass the model
 explicitly; inheriting the session's model bills premium rates for fan-out work.

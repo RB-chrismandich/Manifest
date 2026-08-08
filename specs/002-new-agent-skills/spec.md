@@ -142,7 +142,7 @@ A maintainer wants to prune branches that are no longer useful — branches alre
 
 **Cross-cutting (all four skills)**
 
-- **FR-021**: Each skill MUST follow the repo's skill-authoring conventions: a `SKILL.md` with `name` and `description` frontmatter under `.skillshare/skills/<skill-name>/` (the source of truth), reachable via the `configs/claude/skills` compat symlink.
+- **FR-021**: Each skill MUST follow the repo's skill-authoring conventions: a `SKILL.md` with `name` and `description` frontmatter under `.retired skill supply/skills/<skill-name>/` (the source of truth), reachable via the `configs/claude/skills` compat symlink.
 - **FR-022**: Each skill MUST register appropriate tool policies in `configs/claude/config/command_config.yml`, and add validation overrides in `configs/claude/config/validation_criteria.yml` where its default verdict criteria differ.
 - **FR-023**: Each new skill MUST be documented in the repo's command/skill listings (CLAUDE.md and docs/COMMANDS.md as applicable) consistent with how existing skills are listed.
 
@@ -173,7 +173,7 @@ A maintainer wants to prune branches that are no longer useful — branches alre
 - Version/hash resolution shells out to **native package-manager tooling** rather than bespoke registry calls, degrading to a warning when the tool is unavailable, per the user's clarification.
 - The branch-cleaner skill operates on **local branches only by default**, with remote deletion gated behind a separate explicit flag, per the user's clarification.
 - The docs skill **decides ordering per run** with a documented default precedence as fallback, per the user's choice.
-- Skills live in `.skillshare/skills/` (source of truth) and are deployed to home targets by `bootstrap.sh`; `configs/claude/skills` is a compat symlink and must not be replaced with a real directory.
+- Skills live in `.retired skill supply/skills/` (source of truth) and are deployed to home targets by `bootstrap.sh`; `configs/claude/skills` is a compat symlink and must not be replaced with a real directory.
 - "Latest stable" excludes pre-releases/release-candidates unless a pre-release is explicitly requested.
 - The PR-review and branch-clean skills reuse the existing platform abstraction (`git_platform.sh` / `git_ops.sh`), defaulting to GitHub while respecting GitLab where detected; Linear is out of scope for these two.
 - The version-pinning hook integration uses the repo's existing hook mechanism (the `ai-hooks-integration` skill) rather than introducing a new hook framework.

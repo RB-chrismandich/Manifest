@@ -1,0 +1,194 @@
+{
+  "description": "Security review, threat analysis, hardening, and finding-triage workflows.",
+  "forbidden": [],
+  "harnesses": {
+    "antigravity": {
+      "compatibility": {
+        "imported": [
+          {
+            "component_id": "security-bin",
+            "component_type": "runtime",
+            "mode": "imported",
+            "path": "runtime/bin"
+          },
+          {
+            "component_id": "security-references",
+            "component_type": "runtime",
+            "mode": "imported",
+            "path": "runtime/references"
+          }
+        ]
+      },
+      "components": {
+        "runtime": [
+          {
+            "id": "security-bin",
+            "path": "runtime/bin"
+          },
+          {
+            "id": "security-references",
+            "path": "runtime/references"
+          }
+        ]
+      },
+      "mode": "imported",
+      "skills": [
+        "skills/ci-audit-triggers",
+        "skills/ci-harden-workflow",
+        "skills/code-audit",
+        "skills/docker-audit-firewall",
+        "skills/llm-audit-traversal",
+        "skills/mcp-audit",
+        "skills/security-harden-proxy",
+        "skills/security-refute-findings",
+        "skills/security-review-diff",
+        "skills/security-triage-findings"
+      ]
+    },
+    "codex": {
+      "compatibility": {
+        "native": [
+          {
+            "component_id": "security-bin",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "runtime/bin"
+          },
+          {
+            "component_id": "security-references",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "runtime/references"
+          }
+        ]
+      },
+      "components": {
+        "runtime": [
+          {
+            "id": "security-bin",
+            "path": "runtime/bin"
+          },
+          {
+            "id": "security-references",
+            "path": "runtime/references"
+          }
+        ]
+      },
+      "mode": "native",
+      "skills": [
+        "skills/ci-audit-triggers",
+        "skills/ci-harden-workflow",
+        "skills/code-audit",
+        "skills/docker-audit-firewall",
+        "skills/llm-audit-traversal",
+        "skills/mcp-audit",
+        "skills/security-harden-proxy",
+        "skills/security-refute-findings",
+        "skills/security-review-diff",
+        "skills/security-triage-findings"
+      ]
+    },
+    "cursor": {
+      "compatibility": {
+        "generated": [
+          {
+            "component_id": "security-bin",
+            "component_type": "runtime",
+            "mode": "generated",
+            "path": "runtime/bin"
+          },
+          {
+            "component_id": "security-references",
+            "component_type": "runtime",
+            "mode": "generated",
+            "path": "runtime/references"
+          }
+        ]
+      },
+      "components": {
+        "runtime": [
+          {
+            "id": "security-bin",
+            "path": "runtime/bin"
+          },
+          {
+            "id": "security-references",
+            "path": "runtime/references"
+          }
+        ]
+      },
+      "mode": "generated",
+      "skills": [
+        "skills/ci-audit-triggers",
+        "skills/ci-harden-workflow",
+        "skills/code-audit",
+        "skills/docker-audit-firewall",
+        "skills/llm-audit-traversal",
+        "skills/mcp-audit",
+        "skills/security-harden-proxy",
+        "skills/security-refute-findings",
+        "skills/security-review-diff",
+        "skills/security-triage-findings"
+      ]
+    },
+    "devin": {
+      "compatibility": {
+        "native": [
+          {
+            "component_id": "security-bin",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "runtime/bin"
+          },
+          {
+            "component_id": "security-references",
+            "component_type": "runtime",
+            "mode": "native",
+            "path": "runtime/references"
+          }
+        ]
+      },
+      "components": {
+        "runtime": [
+          {
+            "id": "security-bin",
+            "path": "runtime/bin"
+          },
+          {
+            "id": "security-references",
+            "path": "runtime/references"
+          }
+        ]
+      },
+      "mode": "native",
+      "skills": [
+        "skills/ci-audit-triggers",
+        "skills/ci-harden-workflow",
+        "skills/code-audit",
+        "skills/docker-audit-firewall",
+        "skills/llm-audit-traversal",
+        "skills/mcp-audit",
+        "skills/security-harden-proxy",
+        "skills/security-refute-findings",
+        "skills/security-review-diff",
+        "skills/security-triage-findings"
+      ]
+    }
+  },
+  "name": "manifest-security",
+  "optional": [],
+  "required": [],
+  "skills": [
+    "skills/ci-audit-triggers",
+    "skills/ci-harden-workflow",
+    "skills/code-audit",
+    "skills/docker-audit-firewall",
+    "skills/llm-audit-traversal",
+    "skills/mcp-audit",
+    "skills/security-harden-proxy",
+    "skills/security-refute-findings",
+    "skills/security-review-diff",
+    "skills/security-triage-findings"
+  ],
+  "version": "0.2.0"
+}

@@ -5,7 +5,7 @@
 
 Behavior:
 1. After a deploy/sync run, every skill this tool previously deployed that is
-   now absent from `.skillshare/skills/` is removed from the target
+   now absent from `.retired skill supply/skills/` is removed from the target
    (manifest-scoped pruning via the `.deployed-skills` manifest — NOT
    `rsync --delete` full mirroring). Skills added to the target by other
    means are preserved. Safety bounds: an empty source never prunes
@@ -17,7 +17,7 @@ Behavior:
    modify any path outside it.
 3. Idempotence: a second consecutive run makes zero changes (Constitution V).
 4. Symlink targets (Cursor/Gemini/Codex/Antigravity point at the home skills
-   dir) converge automatically; `.github/skills` remains skillshare-owned and
+   dir) converge automatically; `.github/skills` remains retired skill supply-owned and
    out of this contract's scope.
 
 Test obligations (tests/bats/deploy_skills.bats):

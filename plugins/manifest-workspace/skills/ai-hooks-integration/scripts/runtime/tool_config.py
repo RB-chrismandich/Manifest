@@ -57,6 +57,27 @@ TOOL_CONFIG: dict[str, ToolConfig] = {
 JSON_TOOLS = ["claude", "gemini", "cursor"]
 
 
+def hook_support(tool: str, event: str) -> dict[str, object]:
+    """Return a structured support result for a harness hook event."""
+    config = TOOL_CONFIG.get(tool)
+    if config is None or tool == "opencode":
+        return {
+            "event": event,
+            "reason": f"{tool} has no JSON-native Manifest hook target",
+            "status": "degraded",
+            "supported": False,
+            "tool": tool,
+        }
+    supported = event == config.get("hook_key")
+    return {
+        "event": event,
+        "reason": None if supported else f"{event} is not native to {tool}",
+        "status": "native" if supported else "degraded",
+        "supported": supported,
+        "tool": tool,
+    }
+
+
 def get_config(tool: str) -> ToolConfig:
     """Get configuration for a tool.
 

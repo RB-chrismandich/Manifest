@@ -107,6 +107,7 @@ overrides:
   project-verify: ci-cd
   # infra & config
   api-optimize-bulk: infra
+  docker-compose-commandments: infra
   config-validate-native: infra
   cli-audit-help: infra
   docker-probe-internal: infra
@@ -128,7 +129,6 @@ overrides:
   session-checkpoint: meta
   code-audit: meta
   metrics-report: meta
-  graphify: meta
   env-check: meta
   help: meta
   learning-capture: meta

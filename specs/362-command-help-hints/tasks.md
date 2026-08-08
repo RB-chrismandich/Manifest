@@ -20,7 +20,7 @@ description: "Task list for Command Discovery & Workflow Guidance"
 
 ## Path Conventions
 
-Single project on the existing repo layout: scripts in `configs/claude/scripts/`, config in `configs/claude/config/`, the discovery skill in `.skillshare/skills/help/`, generated reference at `docs/COMMANDS.md`, tests in `tests/python/command_help/` and `tests/bats/`.
+Single project on the existing repo layout: scripts in `configs/claude/scripts/`, config in `configs/claude/config/`, the discovery skill in `.retired skill supply/skills/help/`, generated reference at `docs/COMMANDS.md`, tests in `tests/python/command_help/` and `tests/bats/`.
 
 ---
 
@@ -29,7 +29,7 @@ Single project on the existing repo layout: scripts in `configs/claude/scripts/`
 **Purpose**: Scaffolding and the curated taxonomy that downstream work reads.
 
 - [X] T001 Create the curated taxonomy config `configs/claude/config/command_categories.yml` with keys/labels/order (`git-pr, docs, security, planning, skills, ci-cd, infra, meta`) plus an empty `overrides:` map (per research D1)
-- [X] T002 [P] Create the discovery skill scaffold `.skillshare/skills/help/SKILL.md` with `name`/`description` frontmatter (description using the "Use when…" convention)
+- [X] T002 [P] Create the discovery skill scaffold `.retired skill supply/skills/help/SKILL.md` with `name`/`description` frontmatter (description using the "Use when…" convention)
 - [X] T003 [P] Create test scaffolds: `tests/python/command_help/__init__.py` and empty `tests/bats/command_help_cli.bats`, `tests/bats/commands_doc_drift.bats`, `tests/bats/guidance_hint_hook.bats`
 
 ---
@@ -41,7 +41,7 @@ Single project on the existing repo layout: scripts in `configs/claude/scripts/`
 **⚠️ CRITICAL**: No user story work can begin until the catalog exists.
 
 - [X] T004 [P] Write `tests/python/command_help/test_command_catalog.py` FIRST (frontmatter parse with symlink-following, `when_to_use` derivation per D2, category precedence per D1, availability resolution per D6, duplicate/empty-skill errors) — must FAIL
-- [X] T005 Implement `configs/claude/scripts/command_catalog.py` — parse `.skillshare/skills/*/SKILL.md`, derive `when_to_use`, resolve `category` (frontmatter > overrides map > uncategorized), compute `availability` (services.yml + per-platform deployment), emit machine catalog per `contracts/catalog-schema.md`; `--json`, `--platform`, and `--help`-before-deps
+- [X] T005 Implement `configs/claude/scripts/command_catalog.py` — parse `.retired skill supply/skills/*/SKILL.md`, derive `when_to_use`, resolve `category` (frontmatter > overrides map > uncategorized), compute `availability` (services.yml + per-platform deployment), emit machine catalog per `contracts/catalog-schema.md`; `--json`, `--platform`, and `--help`-before-deps
 - [X] T006 Make T004 pass; add the `--help` path test to `tests/bats/command_help_cli.bats`
 
 **Checkpoint**: Catalog parses the real ~84 skills deterministically — stories can begin.
@@ -64,7 +64,7 @@ Single project on the existing repo layout: scripts in `configs/claude/scripts/`
 
 - [X] T010 [US1] Implement discovery query/format in `configs/claude/scripts/command_catalog.py` (or a `discovery` function module) — weighted search ranking per D7, grouped output, availability marking, `--all`, and **a default row cap with `--limit <N>` override** emitting a `… N more — narrow with /help <query>` footer when truncated (spec "context-budget pressure" edge case) (depends on T005)
 - [X] T011 [US1] Implement `configs/claude/scripts/generate_commands_doc.py` — render catalog → `docs/COMMANDS.md`; `--check` drift mode (exit 0/1/2); compact-index mode for guide injection (depends on T005)
-- [X] T012 [US1] Author `.skillshare/skills/help/SKILL.md` behavior — invoke discovery with `query`/`--category`/`--all` per `contracts/discovery-command.md`; `--help` before any load
+- [X] T012 [US1] Author `.retired skill supply/skills/help/SKILL.md` behavior — invoke discovery with `query`/`--category`/`--all` per `contracts/discovery-command.md`; `--help` before any load
 - [X] T013 [US1] Generate the initial `docs/COMMANDS.md` from the catalog and commit it
 - [X] T014 [US1] Wire drift-check into CI (`.github/workflows/ci.yml`) so a stale `docs/COMMANDS.md` fails the build
 - [X] T015 [P] [US1] Cross-platform discovery parity: extend `configs/claude/scripts/generate_cursor_rules.sh` to emit the discovery `.mdc`, and inject the **compact catalog index** into `configs/gemini/GEMINI.md` and `AGENTS.md` (Antigravity via existing symlink) — per the plan capability matrix

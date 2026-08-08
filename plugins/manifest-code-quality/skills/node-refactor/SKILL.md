@@ -11,7 +11,7 @@ modern ecosystem standards. Generate a comprehensive refactoring report.
 ## Parallel Agent Integration
 
 This command ALWAYS uses parallel agents (security-critical).
-Executes: `manifest parallel-agent --json --full-output --validate --analyze`
+Executes: `[[skill:parallel-agent]] --json --full-output --validate --analyze`
 
 ## Task
 
@@ -32,7 +32,7 @@ You are a Senior Node.js/TypeScript Engineer analyzing a production codebase. Yo
 Before starting analysis, check for known patterns relevant to this codebase:
 
 ```bash
-~/.claude/scripts/learning_capture.sh query --language typescript --format llm
+[[skill:learning-capture]] query --language typescript --format llm
 ```
 
 If the knowledge base contains relevant antipatterns or insights for Node.js/TypeScript:
@@ -44,14 +44,18 @@ If the knowledge base contains relevant antipatterns or insights for Node.js/Typ
 This step is **non-blocking** — if the knowledge base is empty or the query fails,
 proceed with the standard analysis.
 
-### Step 1: Read Project Standards
+### Analysis Checklist
+
+Work through each category; the sequence within and across categories does not matter.
+
+**Project Standards**:
 
 - Read package.json, tsconfig.json, .eslintrc.*or eslint.config.*, .prettierrc
 - Check for existing tooling: Vitest/Jest, ESLint flat config, Prettier, Biome
 - Inspect dependency tree for known vulnerabilities: `npm audit --json`
 - Check Node.js engine requirements and ECMAScript target
 
-### Step 2: Architecture Analysis
+**Architecture**:
 
 - Map module structure (ESM vs CJS, barrel exports)
 - Check for proper separation of concerns (controllers/services/repositories)
@@ -59,36 +63,22 @@ proceed with the standard analysis.
 - Check for God files (>500 lines) and God functions (>80 lines)
 - Verify proper use of dependency injection patterns
 
-### Step 3: Security Analysis (CRITICAL)
+**Security (CRITICAL)**:
 
-**Injection Risks**:
+- Injection risks: template literals in SQL queries without parameterization;
+  `eval()`, `Function()` constructor, `vm.runInNewContext()`;
+  `child_process.exec()` with unsanitized input (use `execFile` instead);
+  Regex DoS (ReDoS) patterns
+- Dependency security: `npm audit` findings, outdated packages with known
+  CVEs, prototype pollution-prone dependencies, supply chain risk
+  (typosquatting, etc.)
+- Secrets handling: hardcoded API keys, tokens, credentials; `.env` files
+  committed to git; secrets in error messages or logs
+- Request handling (if web framework): missing rate limiting, missing input
+  validation (zod/joi/yup), missing CORS configuration, missing
+  helmet/security headers
 
-- Template literals in SQL queries without parameterization
-- `eval()`, `Function()` constructor, `vm.runInNewContext()`
-- `child_process.exec()` with unsanitized input (use `execFile` instead)
-- Regex DoS (ReDoS) patterns
-
-**Dependency Security**:
-
-- `npm audit` findings
-- Outdated packages with known CVEs
-- Prototype pollution-prone dependencies
-- Supply chain risk (typosquatting, etc.)
-
-**Secrets Handling**:
-
-- Hardcoded API keys, tokens, credentials
-- `.env` files committed to git
-- Secrets in error messages or logs
-
-**Request Handling** (if web framework):
-
-- Missing rate limiting
-- Missing input validation (zod/joi/yup)
-- Missing CORS configuration
-- Missing helmet/security headers
-
-### Step 4: TypeScript Quality
+**TypeScript Quality**:
 
 - `strict: true` in tsconfig.json
 - Usage of `any` type (should be minimal)
@@ -96,14 +86,14 @@ proceed with the standard analysis.
 - Zod schemas for runtime validation at boundaries
 - Consistent use of `readonly` for immutable data
 
-### Step 5: Code Quality
+**Code Quality**:
 
 - Async/await consistency (no mixing callbacks and promises)
 - Proper error handling (no swallowed rejections, no empty catch blocks)
 - Memory leak patterns (event listeners, intervals without cleanup)
 - Consistent file naming convention (kebab-case recommended)
 
-### Step 6: Testing Analysis
+**Testing**:
 
 - Test framework: Vitest (recommended), Jest, or Mocha
 - Test coverage gaps
@@ -226,7 +216,7 @@ After completing the analysis, capture the most significant findings:
    - Run:
 
      ```bash
-     ~/.claude/scripts/learning_capture.sh add \
+     [[skill:learning-capture]] add \
        --category antipattern --language typescript \
        --title "<finding title>" \
        --description "<finding description and recommended fix>" \
@@ -237,7 +227,7 @@ After completing the analysis, capture the most significant findings:
    - Run:
 
      ```bash
-     ~/.claude/scripts/learning_capture.sh add \
+     [[skill:learning-capture]] add \
        --category tool_discovery --language typescript \
        --title "<tool recommendation>" \
        --description "<why this tool is better>" \
@@ -248,11 +238,13 @@ After completing the analysis, capture the most significant findings:
 
 ## Sub-agent dispatch
 
+Follow the bundled `sub-agent-dispatch.md` selection rules. Dispatches use the
+pinned `sonnet` model.
+
 When ≥3 independent modules or analysis dimensions exist, dispatch one sub-agent per module to analyze it,
-then merge findings; below that, analyze inline. Pick the mechanism per the shared Sub-Agent Selection Rules
-(`configs/claude/references/sub-agent-dispatch.md`): native Task sub-agents on Claude, or
-`manifest parallel-agent` / inline on other assistants. Dispatched sub-agents execute their task directly and
+then merge findings; below that, analyze inline. Use native Task sub-agents on Claude, or
+`[[skill:parallel-agent]]` / inline on other assistants. Dispatched sub-agents execute their task directly and
 do not re-dispatch.
 
-Dispatch on **Sonnet** (`subagent_model: sonnet` in `command_config.yml`) — pass the model
+Dispatch on **Sonnet** (`subagent_model: sonnet`) — pass the model
 explicitly; inheriting the session's model bills premium rates for fan-out work.

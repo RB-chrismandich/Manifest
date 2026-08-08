@@ -71,7 +71,6 @@ cli
 code
 config
 data
-delegate
 deploy
 design
 docker
@@ -110,6 +109,7 @@ token
 ux
 version
 ```
+delegate
 <!-- /skill-naming:domains -->
 
 ### Adding a new domain token
@@ -129,17 +129,16 @@ conformance test parses the fenced block.
 ai-hooks-integration
 automation-rework-breakeven
 code-to-design
-delegate
 design-md
 enhance-prompt
 extract-design-md
 extract-static-html
 false-green-check-audit
 generate-design
-graphify
 help
 loop-scaffold
 manage-design-system
+parallel-agent
 pass-cli
 react-components
 react-native
@@ -153,6 +152,7 @@ stitch-loop
 taste-design
 upload-to-stitch
 ```
+delegate
 <!-- /skill-naming:exceptions -->
 
 | Name | Rationale |
@@ -161,9 +161,9 @@ upload-to-stitch
 | `code-to-design`, `design-md`, `enhance-prompt`, `extract-design-md`, `extract-static-html`, `generate-design`, `manage-design-system`, `react-components`, `react-native`, `react-vite-dashboard`, `remotion`, `shadcn-ui`, `stitch-loop`, `taste-design`, `upload-to-stitch` | Vendored from `github.com/google-labs-code/stitch-skills`; Stitch MCP design/build/utility skills — not ours to rename. |
 | `automation-rework-breakeven` | SkillClaw-evolved break-even analysis skill; descriptive compound name encodes the trade-off being modeled. |
 | `false-green-check-audit` | SkillClaw-evolved health-check audit; "false green" is the domain term being guarded against. |
-| `graphify` | Named for the managed `graphify` CLI it wraps (`--enable-graphify` toggle, installed binary). |
 | `help` | Universal single-word entry point; ergonomics beat conformance. |
 | `delegate` | spec 675 delegation surface; name is the user-facing verb. |
+| `parallel-agent` | Harness orchestration is an established user-facing command, not a domain-purpose skill name. |
 | `pass-cli` | Named for the `pass-cli` binary it wraps; `token-*` here means LLM token economy, so a credential fetcher must not move there. |
 | `loop-scaffold`, `render-verify`, `review-round`, `screen-prompts` | Internal phase names of the `adversarial-design-loop` plugin (merged from #674). They are `<phase>-<noun>` within one closed loop, not catalog-wide verbs, and the plugin's own bodies, README and cross-references key on them. |
 

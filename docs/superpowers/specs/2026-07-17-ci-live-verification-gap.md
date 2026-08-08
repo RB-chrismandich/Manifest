@@ -50,7 +50,7 @@ actually found in the skill file.
 | 19 | `configs/claude/scripts/ci_platform.sh` | **Unit-tested** | `tests/bats/ci_platform.bats` (5 cases: github-only, gitlab-only, both+github remote, both+gitlab remote, neither) — landed in `390d9e4`, run as part of this pass, PASS |
 | 20 | `ci-audit-triggers` GitLab reference (`references/gitlab-ci-triggers.md`) | **Documentation-level only** | Written against GitLab's public docs (per Task 20's own commit `8851074`); never run against a real vulnerable GitLab pipeline |
 | 21 | `ci-reproduce-failure` / `reproduce-gated-ci-failure-locally` / `ci-diagnose-drift` GitLab paths | **Documentation-level only** | Written against `glab ci`/`glab api` command shapes (Task 21 commit `d3b7ab2`); never run against a real failing GitLab pipeline |
-| 22 | `ci-setup` detection logic | **Code-reviewed, confirmed correct as-is** | Read `.skillshare/skills/ci-setup/SKILL.md` directly — see findings below |
+| 22 | `ci-setup` detection logic | **Code-reviewed, confirmed correct as-is** | Read `.retired skill supply/skills/ci-setup/SKILL.md` directly — see findings below |
 | 22 | `ci-setup` GitLab template (`templates/ci/gitlab/.gitlab-ci.yml`) | **Doc-level syntax-verified** | Checked against GitLab's current CI/CD YAML reference via live WebFetch — see findings below |
 | 22 | `ci-audit-triggers` / `ci-reproduce-failure` live run against a real GitLab project | **NOT DONE — genuinely un-live-tested** | `glab` not installed, no GitLab project/credentials available in this environment |
 
@@ -61,7 +61,7 @@ issue-tracker registry).
 
 ## `ci-setup` detection logic — finding
 
-Read `.skillshare/skills/ci-setup/SKILL.md` Step 1 in full. It already does
+Read `.retired skill supply/skills/ci-setup/SKILL.md` Step 1 in full. It already does
 the correct thing and needed **no change**:
 
 ```bash

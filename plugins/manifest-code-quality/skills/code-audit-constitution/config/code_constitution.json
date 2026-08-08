@@ -1,0 +1,380 @@
+{
+  "articles": [
+    {
+      "checks": [],
+      "id": "CON-001",
+      "rule": "Before adding a function, constant, model, or module, search the codebase for one that already does the job and extend it instead of forking it.",
+      "see_also": [
+        "ANTI-014"
+      ],
+      "severity": "high",
+      "title": "Search before you write"
+    },
+    {
+      "checks": [
+        "C-SIZE"
+      ],
+      "id": "CON-002",
+      "rule": "Every file, class, and function has one responsibility; when it crosses the size ceiling for its language, split it along a seam rather than raising the ceiling or suppressing the warning.",
+      "see_also": [
+        "ANTI-014"
+      ],
+      "severity": "high",
+      "title": "One reason to change"
+    },
+    {
+      "checks": [
+        "C-DUPE"
+      ],
+      "id": "CON-003",
+      "rule": "Write it once, note the second occurrence, and on the third extract it to a shared module every caller imports \u2014 never copy a block that already exists somewhere else in the repository.",
+      "see_also": [],
+      "severity": "high",
+      "title": "Third time, centralize"
+    },
+    {
+      "checks": [
+        "C-DATA"
+      ],
+      "id": "CON-004",
+      "rule": "JSON, YAML, Markdown, HTML, SQL, and prompt payloads live in their own files under a data/, templates/, or fixtures/ directory and are loaded by one loader \u2014 never pasted into a source file as a literal.",
+      "see_also": [],
+      "severity": "high",
+      "title": "Data is not code"
+    },
+    {
+      "checks": [
+        "C-TYPE"
+      ],
+      "id": "CON-005",
+      "rule": "Every value crossing a module, process, network, or file boundary is typed and validated at the boundary by a declared model, never passed as an untyped mapping and never trusted because the caller looked fine.",
+      "see_also": [
+        "ANTI-006",
+        "ANTI-009"
+      ],
+      "severity": "critical",
+      "title": "Typed, validated boundaries"
+    },
+    {
+      "checks": [],
+      "id": "CON-006",
+      "rule": "New behavior arrives as a new registry row, plugin, or config entry rather than a new branch inside a growing conditional \u2014 and the abstraction is introduced on the third real case, never speculatively on the first.",
+      "see_also": [
+        "ANTI-014",
+        "ANTI-030"
+      ],
+      "severity": "medium",
+      "title": "Extension by addition"
+    },
+    {
+      "checks": [
+        "C-ERR"
+      ],
+      "id": "CON-007",
+      "rule": "Catch the narrowest exception that can occur, attach the context the caller needs, and re-raise with the original cause attached; a caught error is never logged and dropped, and fail-open is a documented decision with a stated blast radius, never a default.",
+      "see_also": [
+        "ANTI-007",
+        "ANTI-008"
+      ],
+      "severity": "critical",
+      "title": "Errors travel"
+    },
+    {
+      "checks": [
+        "C-TEST"
+      ],
+      "id": "CON-008",
+      "rule": "A failing test that pins the intended behavior is written and observed failing before the implementation, and a new guard is not proven until the source has been mutated to the wrong behavior and exactly that test failed.",
+      "see_also": [],
+      "severity": "high",
+      "title": "Tests first"
+    },
+    {
+      "checks": [
+        "C-STRUCT"
+      ],
+      "id": "CON-009",
+      "rule": "Mirror the layout, module naming, error-output convention, and CLI contract already established in the tree, and place each test at the path that mirrors the source it covers.",
+      "see_also": [],
+      "severity": "medium",
+      "title": "Structure is a contract"
+    },
+    {
+      "checks": [
+        "C-DOC"
+      ],
+      "id": "CON-010",
+      "rule": "Document the public surface and explain why a non-obvious decision was made; delete commented-out code and any comment the adjacent code has already outgrown.",
+      "see_also": [],
+      "severity": "medium",
+      "title": "Comments earn their place"
+    },
+    {
+      "checks": [],
+      "id": "CON-011",
+      "rule": "Exhaust the standard library first, evaluate a candidate on maintenance, typing, transitive footprint, and license before adopting it, declare bounded ranges, resolve them into a committed lockfile, and audit that lockfile for known vulnerabilities.",
+      "see_also": [
+        "ANTI-021",
+        "ANTI-022"
+      ],
+      "severity": "critical",
+      "title": "Dependencies are liabilities"
+    },
+    {
+      "checks": [],
+      "id": "CON-012",
+      "rule": "Remove the dead branch, unused import, superseded config key, and orphaned test in the same change that obsoletes them; refactor the shape you need before accreting onto the shape you have.",
+      "see_also": [
+        "ANTI-030"
+      ],
+      "severity": "medium",
+      "title": "Delete before you add"
+    },
+    {
+      "checks": [
+        "C-DANGER"
+      ],
+      "id": "CON-013",
+      "rule": "Never hand caller-influenced input to an evaluator, a deserializer, or a shell, and never assemble a query by string formatting; use the safe counterpart and bind parameters instead.",
+      "see_also": [
+        "ANTI-001",
+        "ANTI-025"
+      ],
+      "severity": "critical",
+      "title": "No arbitrary execution"
+    }
+  ],
+  "checks": {
+    "C-DANGER": {
+      "advisory": false,
+      "article": "CON-013",
+      "module": "dangerous",
+      "summary": "Evaluators, unsafe deserializers, shell execution, built queries."
+    },
+    "C-DATA": {
+      "advisory": false,
+      "article": "CON-004",
+      "module": "payloads",
+      "summary": "Structured-data payloads embedded as source literals.",
+      "template_interpolation_ratio": 0.08,
+      "tiers": {
+        "error": 80,
+        "info": 0,
+        "warn": 40
+      }
+    },
+    "C-DOC": {
+      "advisory": true,
+      "article": "CON-010",
+      "module": "structure",
+      "summary": "Undocumented public surface; commented-out code blocks."
+    },
+    "C-DUPE": {
+      "advisory": false,
+      "article": "CON-003",
+      "module": "duplication",
+      "summary": "Normalized token-block repetition within and across the changed files."
+    },
+    "C-ERR": {
+      "advisory": false,
+      "article": "CON-007",
+      "module": "errors",
+      "summary": "Over-broad catches, swallowed exceptions, lost causes."
+    },
+    "C-SIZE": {
+      "advisory": false,
+      "article": "CON-002",
+      "module": "size",
+      "summary": "File, class, function, parameter, and nesting ceilings."
+    },
+    "C-STRUCT": {
+      "advisory": true,
+      "article": "CON-009",
+      "module": "structure",
+      "summary": "Entry point missing the repo's --help/error-output contract."
+    },
+    "C-TEST": {
+      "advisory": true,
+      "article": "CON-008",
+      "module": "structure",
+      "summary": "Source file with no test at the mirroring test path."
+    },
+    "C-TYPE": {
+      "advisory": true,
+      "article": "CON-005",
+      "module": "boundaries",
+      "summary": "Untyped or unvalidated values crossing a public boundary."
+    }
+  },
+  "languages": {
+    "go": {
+      "annex": "constitution/go.md",
+      "data_dirs": [
+        "data",
+        "templates",
+        "testdata"
+      ],
+      "extensions": [
+        ".go"
+      ],
+      "thresholds": {
+        "class_lines": 250,
+        "comment_prefix": "//",
+        "duplicate_block_lines": 8,
+        "file_lines": 500,
+        "function_lines": 60,
+        "methods_per_class": 12,
+        "nesting_depth": 3,
+        "parameters": 4,
+        "payload_container_lines": 15,
+        "payload_string_lines": 8
+      },
+      "toolchain": {
+        "audit": "govulncheck",
+        "formatter": "gofumpt",
+        "linter": "golangci-lint",
+        "manifest": "go.mod",
+        "packager": "go",
+        "tests": "go test",
+        "typechecker": "go vet"
+      }
+    },
+    "node": {
+      "annex": "constitution/node.md",
+      "data_dirs": [
+        "data",
+        "templates",
+        "test/fixtures"
+      ],
+      "extensions": [
+        ".ts",
+        ".tsx",
+        ".js",
+        ".jsx",
+        ".mjs",
+        ".cjs"
+      ],
+      "thresholds": {
+        "class_lines": 200,
+        "comment_prefix": "//",
+        "duplicate_block_lines": 8,
+        "file_lines": 400,
+        "function_lines": 50,
+        "methods_per_class": 12,
+        "nesting_depth": 4,
+        "parameters": 4,
+        "payload_container_lines": 15,
+        "payload_string_lines": 8
+      },
+      "toolchain": {
+        "audit": "npm audit",
+        "formatter": "prettier",
+        "linter": "eslint",
+        "manifest": "package.json",
+        "packager": "npm",
+        "tests": "vitest",
+        "typechecker": "tsc"
+      }
+    },
+    "python": {
+      "annex": "constitution/python.md",
+      "data_dirs": [
+        "data",
+        "templates",
+        "tests/fixtures"
+      ],
+      "extensions": [
+        ".py",
+        ".pyi"
+      ],
+      "thresholds": {
+        "class_lines": 250,
+        "comment_prefix": "#",
+        "duplicate_block_lines": 8,
+        "file_lines": 500,
+        "function_lines": 60,
+        "methods_per_class": 12,
+        "nesting_depth": 4,
+        "parameters": 5,
+        "payload_container_lines": 15,
+        "payload_string_lines": 8
+      },
+      "toolchain": {
+        "audit": "pip-audit",
+        "formatter": "ruff format",
+        "linter": "ruff",
+        "manifest": "pyproject.toml",
+        "packager": "uv",
+        "tests": "pytest",
+        "typechecker": "pyright"
+      }
+    },
+    "shell": {
+      "annex": "constitution/shell.md",
+      "data_dirs": [
+        "config",
+        "templates",
+        "tests/fixtures"
+      ],
+      "extensions": [
+        ".sh",
+        ".bash"
+      ],
+      "thresholds": {
+        "class_lines": 0,
+        "comment_prefix": "#",
+        "duplicate_block_lines": 8,
+        "file_lines": 600,
+        "function_lines": 60,
+        "methods_per_class": 0,
+        "nesting_depth": 4,
+        "parameters": 5,
+        "payload_container_lines": 0,
+        "payload_string_lines": 12
+      },
+      "toolchain": {
+        "audit": "",
+        "formatter": "shfmt",
+        "linter": "shellcheck",
+        "manifest": "",
+        "packager": "",
+        "tests": "bats",
+        "typechecker": ""
+      }
+    },
+    "terraform": {
+      "annex": "constitution/terraform.md",
+      "data_dirs": [
+        "templates",
+        "files"
+      ],
+      "extensions": [
+        ".tf",
+        ".tfvars"
+      ],
+      "thresholds": {
+        "class_lines": 0,
+        "comment_prefix": "#",
+        "duplicate_block_lines": 10,
+        "file_lines": 300,
+        "function_lines": 0,
+        "methods_per_class": 0,
+        "nesting_depth": 4,
+        "parameters": 0,
+        "payload_container_lines": 0,
+        "payload_string_lines": 12
+      },
+      "toolchain": {
+        "audit": "trivy",
+        "formatter": "terraform fmt",
+        "linter": "tflint",
+        "manifest": "versions.tf",
+        "packager": "terraform",
+        "tests": "terraform test",
+        "typechecker": "terraform validate"
+      }
+    }
+  },
+  "ratified": "2026-07-29",
+  "version": "1.0.0"
+}

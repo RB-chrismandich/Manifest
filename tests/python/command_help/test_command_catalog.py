@@ -238,6 +238,92 @@ def test_catalog_ordering_is_deterministic(env):
 
 
 def test_categories_block_is_closed_set(env):
+    # One skill so the catalog is non-empty: an empty catalog is now an error,
+    # and this test was only ever asserting the taxonomy, not the command set.
+    write_skill(env["skills"], "a", {"name": "a", "description": "Use when a."})
     cat = build(env)
     keys = [c["key"] for c in cat["categories"]]
     assert keys == ["git-pr", "docs", "security"]
+
+
+# --------------------------------------------------------------------------- #
+# Source resolution and the empty-catalog floor
+#
+# `.apm/skills` is a gitignored, generated mirror that is EMPTY in a fresh
+# checkout. Building a catalog from it used to succeed with zero commands, and
+# generate_commands_doc.py rendered that as a doc with every row deleted — 178
+# lines removed from COMMANDS.md, AGENTS.md and GEMINI.md, exit 0. Two guards
+# now stand between an empty tree and a destructive doc write.
+# --------------------------------------------------------------------------- #
+
+
+def test_default_roots_prefer_the_plugin_trees_over_the_generated_mirror(
+    monkeypatch, tmp_path
+):
+    """Source of truth wins, so a stale or absent mirror cannot drive the docs."""
+    (tmp_path / "plugins" / "bundle-a" / "skills").mkdir(parents=True)
+    (tmp_path / "plugins" / "bundle-b" / "skills").mkdir(parents=True)
+    (tmp_path / ".apm" / "skills").mkdir(parents=True)
+    monkeypatch.setattr(cc, "_REPO_ROOT", tmp_path)
+    monkeypatch.setattr(cc, "DEFAULT_SKILLS_DIR", tmp_path / ".apm" / "skills")
+
+    roots = cc.default_skills_dirs()
+    assert roots == [
+        tmp_path / "plugins" / "bundle-a" / "skills",
+        tmp_path / "plugins" / "bundle-b" / "skills",
+    ]
+
+
+def test_default_roots_fall_back_to_the_mirror_when_no_plugin_trees(
+    monkeypatch, tmp_path
+):
+    """A pre-cutover checkout still resolves."""
+    mirror = tmp_path / ".apm" / "skills"
+    mirror.mkdir(parents=True)
+    monkeypatch.setattr(cc, "_REPO_ROOT", tmp_path)
+    monkeypatch.setattr(cc, "DEFAULT_SKILLS_DIR", mirror)
+
+    assert cc.default_skills_dirs() == [mirror]
+
+
+def test_skills_are_collected_across_every_root(monkeypatch, tmp_path, env):
+    """Bundles are separate trees; the catalog is their union, not just the first."""
+    for bundle, skill in (("b1", "alpha"), ("b2", "beta")):
+        write_skill(
+            tmp_path / "plugins" / bundle / "skills",
+            skill,
+            {"name": skill, "description": f"Use when {skill} is needed."},
+        )
+    monkeypatch.setattr(cc, "_REPO_ROOT", tmp_path)
+    monkeypatch.delenv("COMMAND_CATALOG_SKILLS_DIR", raising=False)
+
+    catalog = cc.build_catalog(
+        categories_path=env["cats"], services_path=env["services"]
+    )
+    assert {c["name"] for c in catalog["commands"]} == {"alpha", "beta"}
+
+
+def test_an_empty_catalog_raises_instead_of_returning_zero_commands(tmp_path, env):
+    """The floor. Without it the emptiness travels silently into the doc writer."""
+    empty = tmp_path / "empty"
+    empty.mkdir()
+    with pytest.raises(cc.CatalogError) as excinfo:
+        cc.build_catalog(
+            skills_dir=str(empty),
+            categories_path=env["cats"],
+            services_path=env["services"],
+        )
+    assert "no skills found" in str(excinfo.value)
+
+
+def test_the_empty_catalog_error_names_the_mirror_remedy(monkeypatch, tmp_path, env):
+    """Whoever hits this locally needs to be told to generate the mirror."""
+    mirror = tmp_path / ".apm" / "skills"
+    mirror.mkdir(parents=True)
+    monkeypatch.setattr(cc, "_REPO_ROOT", tmp_path)
+    monkeypatch.setattr(cc, "DEFAULT_SKILLS_DIR", mirror)
+    monkeypatch.delenv("COMMAND_CATALOG_SKILLS_DIR", raising=False)
+
+    with pytest.raises(cc.CatalogError) as excinfo:
+        cc.build_catalog(categories_path=env["cats"], services_path=env["services"])
+    assert "generate_skill_mirror.sh" in str(excinfo.value)

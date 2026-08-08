@@ -2,9 +2,7 @@
 
 ## Install
 
-```bash
-npx skills add google-labs-code/stitch-skills --skill shadcn-ui --global
-```
+This skill ships in the `stitch-design` bundle as `stitch-design:shadcn-ui`.
 
 ## What It Does
 
@@ -260,8 +258,10 @@ Check your `tsconfig.json` includes path aliases:
 
 ## Contributing
 
-Contributions to improve this skill are welcome! See the root [CONTRIBUTING.md](../../CONTRIBUTING.md) for guidelines.
+Contributions are handled through the repository declared in the bundle
+contract.
 
 ## License
 
-See [LICENSE](../../LICENSE) in the repository root.
+This skill uses the license declared in the bundle
+bundle manifest-capabilities.yml.
