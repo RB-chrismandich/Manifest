@@ -52,6 +52,10 @@
         "method": "json_field",
         "field": "session_id"
       },
+      "response_capture": {
+        "method": "json_field",
+        "field": "result"
+      },
       "input": {
         "transport": "stdin",
         "max_payload_bytes": 10485760,

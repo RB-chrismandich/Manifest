@@ -33,7 +33,9 @@ def _run_backend_and_finish(store, job_id, entry, record, prompt_bytes):
     # Not `envelope = ...`: that would shadow the `envelope` module for the rest
     # of this function.
     result_envelope = envelope.normalize_envelope(
-        raw_output, entry["id"], record.get("model")
+        backend.extract_response_text(entry, raw_output),
+        entry["id"],
+        record.get("model"),
     )
     if session_ref is None and entry.get("resume"):
         constants.err(

@@ -276,6 +276,21 @@ def _spawn_backend(entry, argv, prompt_bytes, job_dir, budget, on_pgid=None):
         # reader (process exit reaps it) rather than hang past budget (a DoS
         # vector): the bytes read so far, including the envelope emitted before
         # the block, are already in the tail. Mark the run timed out (incomplete).
+        #
+        # Critically, kill that descendant's process group. It is write-capable
+        # and would otherwise keep mutating the workspace with NO cancellation
+        # path: this job is about to become terminal `timeout`, and cancel/reap
+        # treat a terminal job as a no-op. Killing the recorded pgid here is the
+        # one place that can still reach the orphan (mirrors the timeout path).
+        try:
+            os.killpg(pgid, signal.SIGKILL)
+        except OSError as exc:
+            constants.err(
+                f"job dir {job_dir}: failed to kill stdout-holding descendant "
+                f"pgid {pgid}: {exc}"
+            )
+        else:
+            proc.wait()
         timed_out = True
     raw = tail.value().decode("utf-8", errors="replace")
     output_file_content = (

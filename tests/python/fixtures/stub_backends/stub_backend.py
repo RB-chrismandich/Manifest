@@ -51,13 +51,18 @@ def _simulate_process_behavior(control):
     if detached_holder_secs:
         import subprocess
 
+        # `holder_in_group` keeps the holder in THIS backend's process group
+        # (no new session), so it is reachable by the dispatcher's killpg on the
+        # recorded pgid — the realistic runaway-child case. Default True keeps a
+        # fully-detached holder (start_new_session) for the pure no-hang test.
+        in_group = bool(control.get("holder_in_group"))
         subprocess.Popen(
             [
                 sys.executable,
                 "-c",
                 f"import time,sys; time.sleep({int(detached_holder_secs)})",
             ],
-            start_new_session=True,
+            start_new_session=not in_group,
         )  # inherits stdout; not waited on
 
     sleep_s = control.get("sleep", 0)

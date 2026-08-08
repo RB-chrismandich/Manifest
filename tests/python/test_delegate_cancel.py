@@ -54,6 +54,49 @@ class TestBackendDrainBound:
         )
         assert result.returncode in (0, 1), result.stderr
 
+    def test_drain_grace_kills_in_group_descendant_holding_stdout(self, env_factory):
+        """Codex HIGH: when the backend exits but an IN-GROUP descendant holds
+        stdout past the drain grace, the dispatcher must SIGKILL the recorded
+        process group. Otherwise that write-capable child runs on with NO cancel
+        path — the job goes terminal `timeout`, which cancel/reap treat as a
+        no-op. A holder in the backend's own group stands in for a runaway child.
+        Mutation check: revert the killpg on the drain-grace branch and the pgid
+        below stays alive, failing this test."""
+        env = env_factory(
+            control={
+                "detached_holder_secs": 45,
+                "holder_in_group": True,
+                "envelope": {
+                    "backend": "stub",
+                    "model": "default",
+                    "outcome": "success",
+                    "attempted": "x",
+                    "changes": [],
+                    "succeeded": [],
+                    "failed": [],
+                    "follow_ups": [],
+                },
+            }
+        )
+        result = _run(env, "task", "--json", "hi")
+        assert result.returncode in (0, 1), result.stderr
+        record = next(env_factory.delegations_dir.rglob("record.json"))
+        pgid = json.loads(record.read_text()).get("pgid")
+        assert pgid, "backend pgid was never recorded"
+        dead, deadline = False, time.time() + 5
+        while time.time() < deadline:
+            try:
+                os.killpg(pgid, 0)
+            except ProcessLookupError:
+                dead = True
+                break
+            time.sleep(0.2)
+        assert dead, (
+            "in-group stdout-holding descendant survived the drain grace "
+            "(pgid %s still alive) — no cancellation path for a terminal timeout"
+            % pgid
+        )
+
 
 class TestForegroundOwnership:
     def test_foreground_job_survives_concurrent_reap_past_grace(self, env_factory):

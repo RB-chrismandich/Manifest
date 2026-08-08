@@ -133,6 +133,29 @@ def extract_session_ref(entry, raw_output):
     return None
 
 
+def extract_response_text(entry, raw_output):
+    """Return the assistant text to scan for the result envelope.
+
+    Some backends wrap their assistant message in a structured envelope on
+    stdout — e.g. `claude -p --output-format json` emits a top-level JSON object
+    whose `result` field holds the text, with the fenced envelope inside it
+    JSON-escaped (newlines/quotes escaped) so the fence scanner cannot recover
+    it. When the registry entry declares `response_capture` (json_field), decode
+    that field first so normalization sees real newlines. No declaration, or
+    undecodable output, returns raw_output unchanged (backends that already
+    print the fenced block directly on stdout). Never raises."""
+    cap = entry.get("response_capture") or {}
+    if cap.get("method") == "json_field":
+        field = cap.get("field")
+        try:
+            obj = json.loads(raw_output)
+        except (json.JSONDecodeError, TypeError):
+            return raw_output
+        if isinstance(obj, dict) and isinstance(obj.get(field), str):
+            return obj[field]
+    return raw_output
+
+
 def check_payload_limits(entry, payload_bytes):
     input_cfg = entry.get("input") or {}
     max_payload = input_cfg.get("max_payload_bytes")
