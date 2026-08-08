@@ -249,9 +249,7 @@ def _is_tool_result_carrier(entry):
     content = entry.get("message", {}).get("content")
     if not isinstance(content, list):
         return False
-    return any(
-        isinstance(b, dict) and b.get("type") == "tool_result" for b in content
-    )
+    return any(isinstance(b, dict) and b.get("type") == "tool_result" for b in content)
 
 
 def _tool_use_names(entry):
