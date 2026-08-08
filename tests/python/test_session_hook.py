@@ -305,9 +305,7 @@ class TestTransferSessionDisambiguation:
         assert "sess-mine" in error and "sess-theirs" in error
         assert "--source" in error
 
-    def test_explicit_source_selects_the_right_transcript(
-        self, tmp_path, monkeypatch
-    ):
+    def test_explicit_source_selects_the_right_transcript(self, tmp_path, monkeypatch):
         mine = tmp_path / "mine.jsonl"
         theirs = tmp_path / "theirs.jsonl"
         mine.write_text("{}\n")
