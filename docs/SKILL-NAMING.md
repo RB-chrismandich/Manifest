@@ -71,6 +71,7 @@ cli
 code
 config
 data
+delegate
 deploy
 design
 docker
@@ -109,7 +110,6 @@ token
 ux
 version
 ```
-delegate
 <!-- /skill-naming:domains -->
 
 ### Adding a new domain token
@@ -129,6 +129,7 @@ conformance test parses the fenced block.
 ai-hooks-integration
 automation-rework-breakeven
 code-to-design
+delegate
 design-md
 enhance-prompt
 extract-design-md
@@ -152,7 +153,6 @@ stitch-loop
 taste-design
 upload-to-stitch
 ```
-delegate
 <!-- /skill-naming:exceptions -->
 
 | Name | Rationale |
