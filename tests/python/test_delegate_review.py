@@ -144,6 +144,24 @@ class TestReviewCommand:
         rc = delegate.cmd_review(args, [_valid_backend("codex")], {}, set())
         assert rc == 0
 
+    def test_review_partial_outcome_is_not_a_clean_pass(self, tmp_path, monkeypatch):
+        """Codex HIGH (round 8): outcome=partial means the reviewer could not
+        inspect the whole diff — even with empty findings it is NOT a clean
+        review, so `review` must exit nonzero rather than report success."""
+        self._setup(tmp_path, monkeypatch)
+
+        def fake_run(store_, job_id, entry, record, prompt_bytes):
+            return {
+                "state": "completed",
+                "envelope": {"outcome": "partial", "findings": []},
+            }
+
+        monkeypatch.setattr(delegate.worker, "_run_backend_and_finish", fake_run)
+        args = _ReviewArgs()
+        args.backend = "codex"
+        rc = delegate.cmd_review(args, [_valid_backend("codex")], {}, set())
+        assert rc == 1, "partial coverage must not be a clean exit 0"
+
     def test_adversarial_switches_prompt_with_focus(self, tmp_path, monkeypatch):
         self._setup(tmp_path, monkeypatch)
         captured = {}

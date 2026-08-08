@@ -169,7 +169,10 @@ def _dispatch_review(store, args, entry, model_tier, budget, prompt, prompt_byte
 
     if final.get("state") == "timeout":
         return 1
-    return 0 if envelope.get("outcome") != "failure" else 1
+    # Only `success` is a clean exit 0. `partial` means the reviewer could not
+    # inspect the whole diff — reporting it as a clean review would be a
+    # false-green, so it exits nonzero like `failure` (mirrors the Stop gate).
+    return 0 if envelope.get("outcome") == "success" else 1
 
 
 def _dispatch_review_background(store, args, entry, record):

@@ -203,7 +203,19 @@ def _gate_execute(store, entry, prompt, prompt_bytes, budget, json_mode, transcr
     if error_reason:
         return _gate_allow(error_reason, json_mode=json_mode, cause="backend unready")
     if not findings:
-        return _gate_allow(json_mode=json_mode, cause="no findings")
+        # An empty findings list is only a CLEAN pass on outcome=success. A
+        # `partial` outcome means the reviewer could not inspect the whole diff,
+        # so "no findings" there is incomplete coverage, not a clean review —
+        # reporting it as clean would be a false-green. Fail open (a Stop hook
+        # must never trap the turn) but say the coverage was incomplete.
+        if envelope.get("outcome") == "success":
+            return _gate_allow(json_mode=json_mode, cause="no findings")
+        return _gate_allow(
+            "gate review returned outcome={!r} with no findings — coverage was "
+            "incomplete, not a clean review".format(envelope.get("outcome")),
+            json_mode=json_mode,
+            cause="review incomplete",
+        )
 
     print(json.dumps(_gate_format_block(findings)))
     return 0
