@@ -376,18 +376,44 @@ def test_multiple_roots_are_scanned(tmp_path: Path):
 
 
 def test_real_repo_measurement_is_stable():
-    """Pins the measured 2026-07-30 figures so a regression is visible.
+    """Measures the tree the gate actually guards, against the committed ratchet.
 
-    Uses the pinned bug-tolerant form (test-pin-bug): asserts the counts are at
-    least the measured floor, so landing T1.1's remediation lowers them without
-    breaking this test.
+    This test used to pin `--roots .apm/skills` and assert both counts were
+    ABOVE zero -- two defects that cancelled out until they did not. The mirror
+    is generated and gitignored (T3.3), so in a fresh worktree it is empty and
+    the assertion failed for a reason unrelated to skill references; and once
+    T1.1's remediation landed, blocking legitimately reached 0, which the
+    strictly-positive assertion forbids. A gate test that fails on a clean tree
+    and on an unbuilt tree measures neither.
+
+    So: default roots (the plugin trees, source-first), and the ratchet
+    direction from the committed baseline -- counts may fall, never rise.
     """
-    result = run_checker("--roots", str(REPO_ROOT / ".apm" / "skills"), "--json")
-    payload = json.loads(result.stdout)
-    assert payload["blocking_count"] > 0, (
-        "expected the known 33-site surface pre-remediation"
+    catalog = list(REPO_ROOT.glob("plugins/*/skills/*/SKILL.md"))
+    assert len(catalog) > 50, (
+        f"only {len(catalog)} skills on disk: the gate would measure an empty "
+        "tree and report clean"
     )
-    assert payload["warning_count"] > 0
+
+    payload = json.loads(run_checker("--json").stdout)
+    baseline = json.loads(
+        (REPO_ROOT / "configs/claude/config/skill_reference_baseline.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert payload["blocking_count"] <= baseline["blocking_total"]
+    assert payload["warning_count"] <= baseline["warning_total"]
+
+
+def test_real_repo_passes_the_gate_ci_runs():
+    """The exact CI invocation, so local green and CI green cannot diverge."""
+    result = run_checker(
+        "--registry",
+        str(REPO_ROOT / "configs/claude/config/skill_policies.yml"),
+        "--baseline",
+        str(REPO_ROOT / "configs/claude/config/skill_reference_baseline.json"),
+    )
+    assert result.returncode == 0, result.stderr
 
 
 def test_default_roots_prefer_the_plugin_trees_over_the_generated_mirror(tmp_path):
