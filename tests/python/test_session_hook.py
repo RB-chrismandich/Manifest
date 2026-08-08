@@ -240,9 +240,14 @@ class TestTransferSourceFallback:
     def test_transfer_returns_none_when_no_sessions_captured(self, tmp_path):
         assert delegate._session_captured_transcript(str(tmp_path)) is None
 
-    def test_resolve_transfer_source_uses_capture_when_args_and_env_absent(
+    def test_resolve_transfer_source_fails_closed_without_explicit_source(
         self, tmp_path, monkeypatch
     ):
+        """Codex HIGH (rounds 2-3): even a sole cwd-matching capture (and any
+        ambient env var) must NOT be auto-imported — neither channel is bound to
+        the invoking session, so in a shared worktree either could be another
+        session's transcript. With no --source, transfer fails closed regardless
+        of what the workspace capture or environment holds."""
         transcript = tmp_path / "transcript.jsonl"
         transcript.write_text("{}\n")
         session_hook.handle_session_start(
@@ -254,15 +259,14 @@ class TestTransferSourceFallback:
             }
         )
         monkeypatch.chdir(tmp_path)
-        monkeypatch.delenv(delegate.TRANSCRIPT_PATH_ENV, raising=False)
-        monkeypatch.setattr(delegate.transfer, "TRANSCRIPT_ROOTS", (str(tmp_path),))
+        monkeypatch.setenv(delegate.TRANSCRIPT_PATH_ENV, str(transcript))
 
         class _Args:
             source = None
 
         real_source, error = delegate._resolve_transfer_source(_Args())
-        assert error is None
-        assert real_source is not None
+        assert real_source is None, "no auto-inference: --source must be explicit"
+        assert error is not None and "--source" in error
 
 
 class TestTransferSessionDisambiguation:
@@ -284,7 +288,9 @@ class TestTransferSessionDisambiguation:
         self, tmp_path, monkeypatch
     ):
         """The bug: the fallback took the last cwd-matching entry, so whichever
-        session ran `transfer` could receive the OTHER session's transcript."""
+        session ran `transfer` could receive the OTHER session's transcript. The
+        fix requires --source unconditionally, so two shared-worktree sessions
+        can never resolve a source implicitly at all."""
         mine = tmp_path / "mine.jsonl"
         theirs = tmp_path / "theirs.jsonl"
         mine.write_text("{}\n")
@@ -299,11 +305,8 @@ class TestTransferSessionDisambiguation:
             source = None
 
         real_source, error = delegate._resolve_transfer_source(_Args())
-        assert real_source is None, "ambiguous capture must not resolve a source"
-        assert error is not None
-        # Both session ids are named so the operator knows what to pass.
-        assert "sess-mine" in error and "sess-theirs" in error
-        assert "--source" in error
+        assert real_source is None, "two shared-worktree sessions must not resolve a source"
+        assert error is not None and "--source" in error
 
     def test_explicit_source_selects_the_right_transcript(self, tmp_path, monkeypatch):
         mine = tmp_path / "mine.jsonl"

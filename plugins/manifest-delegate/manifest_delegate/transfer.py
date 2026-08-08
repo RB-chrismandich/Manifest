@@ -230,28 +230,27 @@ def _session_captured_transcript(cwd=None):
 
 
 def _resolve_transfer_source(args):
-    """Resolve and validate the transcript source path. Returns (real_source, error_message)."""
-    source = args.source or os.environ.get(TRANSCRIPT_PATH_ENV)
-    if not source:
-        matching = _captured_sessions_for_cwd(os.getcwd())
-        if len(matching) > 1:
-            # Refuse rather than guess. Insertion order does not track recency
-            # (re-writing an existing key keeps its original position) and
-            # SessionEnd may not have run, so "the newest entry" is not a
-            # sound tiebreak — and guessing wrong silently imports another
-            # session's transcript.
-            names = ", ".join(sorted(sid for sid, _ in matching))
-            return None, (
-                f"delegate: --source required ({len(matching)} sessions captured "
-                f"for this workspace: {names}; pass --source <transcript> or set "
-                f"{TRANSCRIPT_PATH_ENV} to say which one)\n"
-            )
-        if len(matching) == 1:
-            source = matching[0][1].get("transcript_path")
+    """Resolve and validate the transcript source path. Returns (real_source, error_message).
+
+    Only an explicit --source is accepted. `transfer` deliberately performs NO
+    automatic transcript inference, because a `transfer` invocation carries no
+    trustworthy identity of the *calling* session:
+
+    - the SessionStart cwd-capture is keyed by workspace, so in a shared worktree
+      even the sole match can be a concurrent, unrelated session's transcript
+      (e.g. when the caller's own capture failed, timed out, or predates install), and
+    - an ambient env var is inherited and can go stale across sessions, so it
+      cannot be bound to *this* invocation either.
+
+    Either channel could silently hand another session's full transcript to the
+    backend. So the caller must name the transcript. --source is required by the
+    parser; this guard is the defensive backstop (and the unit-test contract)."""
+    source = args.source
     if not source:
         return None, (
-            "delegate: --source required (no SessionStart-captured transcript "
-            f"path found; set {TRANSCRIPT_PATH_ENV} or pass --source)\n"
+            "delegate: --source required — transfer never infers the "
+            "transcript (a workspace can host multiple sessions and none of "
+            "them identifies the caller); pass --source <transcript>\n"
         )
     real_source, path_error = _validate_transcript_source(source)
     if path_error:

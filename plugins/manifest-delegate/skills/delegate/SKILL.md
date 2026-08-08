@@ -22,9 +22,11 @@ the human-facing entry point; it never talks to a backend CLI directly.
   critique a prior job's envelope rather than redo the task.
 - **Job verbs** — `status [JOB_ID|--all] [--wait [--timeout N]]`,
   `result JOB_ID`, `cancel JOB_ID`. `JOB_ID` accepts a unique prefix.
-- **Transfer** — `transfer --backend NAME [--source TRANSCRIPT]` hands a
+- **Transfer** — `transfer --backend NAME --source TRANSCRIPT` hands a
   session to another surface using that backend's declared transfer
   contract (`transfer` in `backends.json`; `null` means unsupported).
+  `--source` is required: transfer never infers the transcript (a worktree can
+  hold several sessions and none identifies the caller), so name it explicitly.
 - **Review** — `review [--adversarial [FOCUS...]] [--base REF] [--scope
   auto|working-tree|branch]` reviews local git state on a backend,
   standalone (not tied to a prior `task`).

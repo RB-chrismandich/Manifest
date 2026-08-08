@@ -147,26 +147,25 @@ is confirmed.
 ### `transfer` — session handover (FR-015)
 
 ```
-delegate.py transfer [--backend <id>] [--source <transcript.jsonl>] [--json]
+delegate.py transfer --backend <id> --source <transcript.jsonl> [--json]
 ```
 
 codex: performs the app-server external-session import via a short-lived
 direct `codex app-server` invocation; prints the thread id + resume command.
 Backends without import support: states so and offers `task` with re-sent
-context. Source path defaults to the SessionStart-captured transcript path;
-it must canonicalize (realpath, symlinks resolved) to a path under
-`~/.claude/projects/` or `~/.claude/transcripts/` — the two transcript roots
-the harness uses (path-traversal guard, widened from the baseline's
-projects-only rule).
+context. `--source` is **required** and must canonicalize (realpath, symlinks
+resolved) to a path under `~/.claude/projects/` or `~/.claude/transcripts/` —
+the two transcript roots the harness uses (path-traversal guard, widened from
+the baseline's projects-only rule).
 
-The default only applies when **exactly one** captured session matches the
-current workspace. Nothing in a `transfer` invocation identifies the calling
-session, so when two sessions are open in the same worktree the command exits
-non-zero, names the candidate session ids, and requires `--source` (or
-`MANIFEST_TRANSCRIPT_PATH`). Guessing — "the most recent cwd match" — could
-hand the caller the other session's entire transcript. SessionEnd evicts the
-finishing session's capture entry, which is what returns the surviving session
-to the no-`--source` path.
+`transfer` performs **no** automatic transcript inference. A `transfer`
+invocation carries no trustworthy identity of the *calling* session, so neither
+a workspace (cwd) capture nor an ambient `MANIFEST_TRANSCRIPT_PATH` can be bound
+to it: in a shared worktree even a sole cwd match — or a stale inherited env
+var — could hand the caller a *different* session's entire transcript. Because
+the transcript can never be inferred safely, the caller must always name it with
+`--source`; omitting it is a usage error (exit 2). The SessionStart capture and
+`MANIFEST_TRANSCRIPT_PATH` are therefore not consulted by `transfer`.
 
 ### `gate` — soft review gate engine (US4; called by the Stop hook)
 

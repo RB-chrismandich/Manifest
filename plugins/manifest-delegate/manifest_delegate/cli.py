@@ -164,7 +164,11 @@ def _add_subcommand_args(name, p):
     elif name == "transfer":
         p.add_argument("--backend", help="backend id or alias")
         p.add_argument(
-            "--source", metavar="TRANSCRIPT", help="transcript path to import"
+            "--source",
+            metavar="TRANSCRIPT",
+            required=True,
+            help="transcript path to import (required; transfer never infers it "
+            "from the working directory or environment — see delegate.transfer)",
         )
     elif name == "review":
         _add_review_args(p)
