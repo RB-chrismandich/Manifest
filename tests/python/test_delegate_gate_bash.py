@@ -39,9 +39,9 @@ def _bash_transcript(tmp_path):
     return str(path)
 
 
-def _gate_setup(tmp_path, monkeypatch):
+def _gate_setup(tmp_path, monkeypatch, *, repo_dir=None):
     monkeypatch.setenv(delegate.DELEGATIONS_DIR_ENV, str(tmp_path / "delegations"))
-    monkeypatch.chdir(tmp_path)
+    monkeypatch.chdir(repo_dir or tmp_path)
     monkeypatch.setattr(delegate.backend, "_executable_missing", lambda argv: None)
     monkeypatch.setattr(
         delegate.review, "assemble_review_diff", lambda scope, base, cwd=None: "d\n"
@@ -91,9 +91,14 @@ def test_bash_turn_with_pending_diff_runs_the_gate(tmp_path, monkeypatch, capsys
 def test_bash_turn_with_clean_tree_still_allows(tmp_path, monkeypatch, capsys):
     """No over-trigger: a Bash turn that changed nothing (clean git tree) still
     allows with 'no code edits'."""
-    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
-    _gate_setup(tmp_path, monkeypatch)
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    subprocess.run(["git", "init", "-q"], cwd=repo, check=True)
+    # Transcript is outside the git worktree so hook input files are not
+    # mistaken for shell-mediated edits when checking porcelain status.
+    _gate_setup(tmp_path, monkeypatch, repo_dir=repo)
     args = _GateArgs()
+    args.json = True
     args.transcript = _bash_transcript(tmp_path)
     rc = delegate.cmd_gate(
         args,
@@ -103,5 +108,5 @@ def test_bash_turn_with_clean_tree_still_allows(tmp_path, monkeypatch, capsys):
     )
     assert rc == 0
     out = json.loads(capsys.readouterr().out)
-    assert '"decision": "block"' not in json.dumps(out)
-    assert "no code edits" in json.dumps(out).lower() or "systemMessage" in out
+    assert out.get("decision") == "allow"
+    assert "no code edits" in out.get("reason", "").lower()
