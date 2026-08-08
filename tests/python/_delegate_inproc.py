@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """In-process handles shared by the delegate unit tests.
 
 `delegate` is loaded ONCE here and imported by every unit-level test module, so
