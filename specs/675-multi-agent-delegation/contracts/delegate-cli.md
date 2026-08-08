@@ -185,10 +185,16 @@ job is still recorded per run as the audit trail.
 
 **Edit detection (deterministic)**: scan the transcript JSONL for the last
 user message that is not a tool-result carrier; the finishing turn = all
-entries after it; code edits are present iff any assistant `tool_use` in
-that window names `Edit`, `Write`, `MultiEdit`, or `NotebookEdit`. Bash is
-deliberately not classified (best-effort under-trigger; the gate is
-fail-open).
+entries after it. The gate reviews when either (a) any assistant `tool_use`
+in that window names `Edit`, `Write`, `MultiEdit`, or `NotebookEdit`, or
+(b) the window used `Bash` **and** `git status --porcelain` reports a pending
+change. Rationale (2026-08-08 adversarial-review revision of the original
+under-trigger decision): shell-mediated edits (`sed -i`, redirection,
+formatters, generators, patch tools) modify files without a dedicated edit
+tool, so a Bash-only turn would otherwise bypass the gate entirely. Requiring
+a non-empty working tree keeps a Bash turn that changed nothing from
+over-triggering; the git probe fails closed to "no changes" (allow), so the
+gate stays fail-open.
 
 Check order: gate disabled / `--stop-hook-active` / no code edits in the
 finishing turn / backend unready ⇒ `allow` (exit 0). Otherwise runs one

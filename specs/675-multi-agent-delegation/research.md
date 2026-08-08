@@ -481,10 +481,15 @@ review delegation on the gate backend, bounded by `review_gate.budget_seconds`
   audit trail.
 - **Deterministic edit detection**: scan the transcript JSONL for the last
   user message that is not a tool-result carrier; the finishing turn = all
-  entries after it; code edits are present iff any assistant `tool_use` in
-  that window names `Edit`, `Write`, `MultiEdit`, or `NotebookEdit`. Bash
-  commands are deliberately not classified — under-triggering is acceptable
-  because the gate is best-effort and fail-open.
+  entries after it. The gate reviews when either an assistant `tool_use` in
+  that window names `Edit`, `Write`, `MultiEdit`, or `NotebookEdit`, OR the
+  window used `Bash` and `git status --porcelain` reports a pending change.
+  (Adversarial-review revision 2026-08-08: the original "Bash deliberately not
+  classified — under-triggering acceptable" decision left a deterministic
+  bypass — `sed -i`, redirection, formatters, and generators change files with
+  no dedicated edit tool. Gating on Bash + a dirty tree closes it; the git
+  probe fails closed to "no change" so the gate stays fail-open and a Bash turn
+  that changed nothing does not over-trigger.)
 - **Block reason contract**: the emitted
   `{"decision":"block","reason":<text>}` reason presents findings
   severity-first, instructs the session to make **no tool calls and no

@@ -2,6 +2,7 @@
 
 import json
 import os
+import subprocess
 import sys
 
 from . import backend, config, jobstore, registry, review, worker
@@ -137,14 +138,20 @@ def cmd_gate(args, backends, user_config, services_disabled):
         return _gate_allow(json_mode=json_mode, cause="gate disabled")
 
     try:
-        edits_present = _finishing_turn_has_edits(args.transcript)
+        edits_present, bash_used = _finishing_turn_tool_use(args.transcript)
     except (OSError, ValueError) as exc:
         return _gate_allow(
             f"could not read transcript {args.transcript} ({exc})",
             json_mode=json_mode,
             cause="backend unready",
         )
-    if not edits_present:
+    # Dedicated edit tools are the clear signal. The edit-tool allowlist misses
+    # shell-mediated changes (sed -i, redirection, formatters, generators, patch
+    # tools), so also review when the finishing turn used Bash AND the working
+    # tree actually changed — otherwise a turn that only ran `sed -i` would
+    # silently bypass the gate. A Bash turn that changed nothing still allows
+    # (no over-trigger).
+    if not edits_present and not (bash_used and _working_tree_has_changes()):
         return _gate_allow(json_mode=json_mode, cause="no code edits")
 
     entry, error_reason = _gate_resolve_backend(
@@ -221,51 +228,82 @@ def _gate_execute(store, entry, prompt, prompt_bytes, budget, json_mode, transcr
     return 0
 
 
-def _finishing_turn_has_edits(transcript_path):
-    """Deterministic finishing-turn edit detection per contracts/delegate-cli.md.
+_EDIT_TOOL_NAMES = {"Edit", "Write", "MultiEdit", "NotebookEdit"}
 
-    The finishing turn is every entry after the last user message that is not a
-    tool-result carrier. Returns True iff any assistant tool_use in that window
-    names Edit, Write, MultiEdit, or NotebookEdit. Bash is deliberately not
-    classified. Scanned in a SINGLE streaming pass holding only one line and a
-    boolean at a time (no whole-transcript list), so a very long session cannot
-    exhaust memory: a non-carrier user message resets the running edit flag; an
-    edit tool_use after it sets it; the flag at EOF is the answer.
-    """
-    edit_tool_names = {"Edit", "Write", "MultiEdit", "NotebookEdit"}
 
-    def _is_tool_result_carrier(entry):
-        content = entry.get("message", {}).get("content")
-        if isinstance(content, list):
-            return any(
-                isinstance(b, dict) and b.get("type") == "tool_result" for b in content
-            )
-        return False
-
-    def _has_edit_tool_use(entry):
-        content = entry.get("message", {}).get("content")
-        if not isinstance(content, list):
-            return False
-        return any(
-            isinstance(b, dict)
-            and b.get("type") == "tool_use"
-            and b.get("name") in edit_tool_names
-            for b in content
-        )
-
-    edits_since_boundary = False
+def _iter_transcript_entries(transcript_path):
+    """Yield parsed JSONL entries, skipping blank and malformed lines. Streams
+    one line at a time so a very long session cannot exhaust memory."""
     with open(transcript_path, encoding="utf-8") as fh:
         for line in fh:
             line = line.strip()
             if not line:
                 continue
             try:
-                entry = json.loads(line)
+                yield json.loads(line)
             except json.JSONDecodeError:
                 continue
-            etype = entry.get("type")
-            if etype == "user" and not _is_tool_result_carrier(entry):
-                edits_since_boundary = False  # a new finishing turn begins here
-            elif etype == "assistant" and _has_edit_tool_use(entry):
-                edits_since_boundary = True
-    return edits_since_boundary
+
+
+def _is_tool_result_carrier(entry):
+    content = entry.get("message", {}).get("content")
+    if not isinstance(content, list):
+        return False
+    return any(
+        isinstance(b, dict) and b.get("type") == "tool_result" for b in content
+    )
+
+
+def _tool_use_names(entry):
+    content = entry.get("message", {}).get("content")
+    if not isinstance(content, list):
+        return ()
+    return tuple(
+        b.get("name")
+        for b in content
+        if isinstance(b, dict) and b.get("type") == "tool_use"
+    )
+
+
+def _finishing_turn_tool_use(transcript_path):
+    """(edit_tools_used, bash_used) in the finishing turn — one streaming pass.
+
+    The finishing turn is every entry after the last user message that is not a
+    tool-result carrier. Holds only two booleans: a non-carrier user message
+    resets both (a new finishing turn begins); an edit-tool or a Bash tool_use
+    after it sets the matching flag; the flags at EOF are the answer."""
+    edits = bash = False
+    for entry in _iter_transcript_entries(transcript_path):
+        etype = entry.get("type")
+        if etype == "user" and not _is_tool_result_carrier(entry):
+            edits = bash = False
+            continue
+        if etype != "assistant":
+            continue
+        names = _tool_use_names(entry)
+        edits = edits or any(n in _EDIT_TOOL_NAMES for n in names)
+        bash = bash or ("Bash" in names)
+    return edits, bash
+
+
+def _finishing_turn_has_edits(transcript_path):
+    """True iff the finishing turn used a dedicated edit tool (Edit/Write/
+    MultiEdit/NotebookEdit). Kept as the edit-tool predicate for callers/tests;
+    Bash is handled separately (see cmd_gate)."""
+    return _finishing_turn_tool_use(transcript_path)[0]
+
+
+def _working_tree_has_changes(cwd=None):
+    """True iff `git status --porcelain` reports any tracked or untracked change.
+    Fails CLOSED to False (allow) on any git error: a gate must never block a
+    turn because it could not inspect the tree."""
+    try:
+        proc = subprocess.run(
+            ["git", "status", "--porcelain"],
+            capture_output=True,
+            text=True,
+            cwd=cwd,
+        )
+    except OSError:
+        return False
+    return proc.returncode == 0 and bool(proc.stdout.strip())
