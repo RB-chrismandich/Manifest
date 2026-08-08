@@ -48,6 +48,18 @@ def _gate_setup(tmp_path, monkeypatch):
     )
 
 
+def _run_gate(transcript):
+    args = _GateArgs()
+    args.transcript = transcript
+    args.json = True  # emit a {"decision": ...} line for both allow and block
+    return delegate.cmd_gate(
+        args,
+        [_valid_backend("codex")],
+        {"review_gate": {"enabled": True, "backend": "codex"}},
+        set(),
+    )
+
+
 def test_bash_turn_with_pending_diff_runs_the_gate(tmp_path, monkeypatch, capsys):
     """Codex HIGH: a finishing turn that changed files only via Bash (here an
     untracked file in a real git repo) must NOT bypass the gate. With Bash used
@@ -74,14 +86,7 @@ def test_bash_turn_with_pending_diff_runs_the_gate(tmp_path, monkeypatch, capsys
             None,
         ),
     )
-    args = _GateArgs()
-    args.transcript = _bash_transcript(tmp_path)
-    rc = delegate.cmd_gate(
-        args,
-        [_valid_backend("codex")],
-        {"review_gate": {"enabled": True, "backend": "codex"}},
-        set(),
-    )
+    rc = _run_gate(_bash_transcript(tmp_path))
     assert rc == 0
     out = json.loads(capsys.readouterr().out)
     assert out.get("decision") == "block", "Bash-mediated change bypassed the gate"
@@ -89,19 +94,17 @@ def test_bash_turn_with_pending_diff_runs_the_gate(tmp_path, monkeypatch, capsys
 
 
 def test_bash_turn_with_clean_tree_still_allows(tmp_path, monkeypatch, capsys):
-    """No over-trigger: a Bash turn that changed nothing (clean git tree) still
-    allows with 'no code edits'."""
-    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+    """No over-trigger: a Bash turn whose working tree is clean allows with
+    'no code edits' and never reaches the backend. `_working_tree_has_changes`
+    is forced False here so the test asserts the gate's decision logic directly,
+    independent of what test scaffolding (transcript, job dir) leaves in cwd or
+    whether a backend binary is installed."""
     _gate_setup(tmp_path, monkeypatch)
-    args = _GateArgs()
-    args.transcript = _bash_transcript(tmp_path)
-    rc = delegate.cmd_gate(
-        args,
-        [_valid_backend("codex")],
-        {"review_gate": {"enabled": True, "backend": "codex"}},
-        set(),
+    monkeypatch.setattr(
+        delegate.gate, "_working_tree_has_changes", lambda cwd=None: False
     )
+    rc = _run_gate(_bash_transcript(tmp_path))
     assert rc == 0
     out = json.loads(capsys.readouterr().out)
     assert '"decision": "block"' not in json.dumps(out)
-    assert "no code edits" in json.dumps(out).lower() or "systemMessage" in out
+    assert out.get("reason") == "no code edits" or "no code edits" in json.dumps(out)
