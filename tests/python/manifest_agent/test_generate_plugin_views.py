@@ -45,6 +45,26 @@ EXPECTED_ADDON_ENTRIES = (
         "version": "0.1.0",
     },
     {
+        "category": "productivity",
+        "description": (
+            "Delegate tasks, second opinions, and reviews to Codex, Claude, or "
+            "Antigravity backends with resumable follow-ups, background jobs, and "
+            "an optional finish-time review gate."
+        ),
+        "homepage": "https://github.com/RB-chrismandich/Manifest",
+        "keywords": [
+            "delegation",
+            "multi-agent",
+            "codex",
+            "second-opinion",
+            "review-gate",
+            "background-jobs",
+        ],
+        "name": "manifest-delegate",
+        "source": "./plugins/manifest-delegate",
+        "version": "0.1.0",
+    },
+    {
         "category": "deployment",
         "description": (
             "The Ten Commandments of docker-compose (DC-001..DC-010): an advisory "

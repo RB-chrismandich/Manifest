@@ -310,6 +310,11 @@ def cmd_task(args, backends, user_config, services_disabled):
         second_opinion_record, entry, backends, user_config, services_disabled
     )
 
+    prompt, write, prompt_error = _build_task_prompt(args, second_opinion_record)
+    if prompt_error:
+        print(prompt_error, file=sys.stderr)
+        return 2
+
     model_tier = backend.resolve_model_tier(entry, user_config, args.model)
     ready_error, ready_code = _check_task_backend_ready(
         entry, user_config, services_disabled, model_tier
@@ -318,10 +323,6 @@ def cmd_task(args, backends, user_config, services_disabled):
         print(ready_error, file=sys.stderr)
         return ready_code
 
-    prompt, write, prompt_error = _build_task_prompt(args, second_opinion_record)
-    if prompt_error:
-        print(prompt_error, file=sys.stderr)
-        return 2
     prompt_bytes = prompt.encode("utf-8")
     limit_error = backend.check_payload_limits(entry, prompt_bytes)
     if limit_error:
