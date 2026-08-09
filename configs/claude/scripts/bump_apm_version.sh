@@ -20,7 +20,7 @@ set -euo pipefail
 err() { echo "bump_apm_version.sh: $*" >&2; }
 
 usage() {
-  sed -n '3,15p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+    sed -n '3,15p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
 }
 
 BUMP="patch"
@@ -28,42 +28,51 @@ FILE="apm.yml"
 PRINT_ONLY=false
 
 while [[ $# -gt 0 ]]; do
-  case "$1" in
-    --help|-h)
-      usage
-      exit 0
-      ;;
-    patch|minor|major)
-      BUMP="$1"
-      shift
-      ;;
-    --file)
-      FILE="${2:-}"
-      [[ -n "$FILE" ]] || { err "--file requires a path"; exit 2; }
-      shift 2
-      ;;
-    --print)
-      PRINT_ONLY=true
-      shift
-      ;;
-    *)
-      err "unrecognized argument: $1"
-      exit 2
-      ;;
-  esac
+    case "$1" in
+        --help | -h)
+            usage
+            exit 0
+            ;;
+        patch | minor | major)
+            BUMP="$1"
+            shift
+            ;;
+        --file)
+            FILE="${2:-}"
+            [[ -n "$FILE" ]] || {
+                err "--file requires a path"
+                exit 2
+            }
+            shift 2
+            ;;
+        --print)
+            PRINT_ONLY=true
+            shift
+            ;;
+        *)
+            err "unrecognized argument: $1"
+            exit 2
+            ;;
+    esac
 done
 
-[[ -f "$FILE" ]] || { err "no such file: $FILE"; exit 2; }
+[[ -f "$FILE" ]] || {
+    err "no such file: $FILE"
+    exit 2
+}
 
 VERSION_LINE="$(grep -m1 '^version: ' "$FILE" || true)"
-[[ -n "$VERSION_LINE" ]] || { err "no top-level 'version:' line found in $FILE"; exit 2; }
+[[ -n "$VERSION_LINE" ]] || {
+    err "no top-level 'version:' line found in $FILE"
+    exit 2
+}
 
 CURRENT="${VERSION_LINE#version: }"
 CURRENT="${CURRENT%%[[:space:]]*}"
 
 if [[ ! "$CURRENT" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
-  err "unparseable version '$CURRENT' in $FILE (expected X.Y.Z)"
-  exit 2
+    err "unparseable version '$CURRENT' in $FILE (expected X.Y.Z)"
+    exit 2
 fi
 
 MAJOR="${BASH_REMATCH[1]}"
@@ -71,25 +80,25 @@ MINOR="${BASH_REMATCH[2]}"
 PATCH="${BASH_REMATCH[3]}"
 
 case "$BUMP" in
-  major)
-    MAJOR=$((MAJOR + 1))
-    MINOR=0
-    PATCH=0
-    ;;
-  minor)
-    MINOR=$((MINOR + 1))
-    PATCH=0
-    ;;
-  patch)
-    PATCH=$((PATCH + 1))
-    ;;
+    major)
+        MAJOR=$((MAJOR + 1))
+        MINOR=0
+        PATCH=0
+        ;;
+    minor)
+        MINOR=$((MINOR + 1))
+        PATCH=0
+        ;;
+    patch)
+        PATCH=$((PATCH + 1))
+        ;;
 esac
 
 NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
 
 if [[ "$PRINT_ONLY" == true ]]; then
-  echo "$NEW_VERSION"
-  exit 0
+    echo "$NEW_VERSION"
+    exit 0
 fi
 
 TMP_FILE="$(mktemp "${FILE}.XXXXXX")"
