@@ -1,0 +1,85 @@
+name: Manifest Skills Release
+
+# Publishes manifest-skills as a permanent GitHub Release whenever a merge to
+# main touches any package file (plugins/**). Distribution is GitHub-native:
+# no APM registry, no APM_REGISTRY_TOKEN — the release tarball is built by
+# the same tools/build_manifest_release.py used in plugin-parity-live.yml,
+# just pointed at a GitHub Release download URL instead of an ephemeral
+# Actions-artifact URL.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'plugins/**'
+
+permissions:
+  contents: write  # version-bump commit + tag + release
+
+concurrency:
+  group: manifest-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7
+        with:
+          python-version: "3.14"
+
+      - name: Install uv
+        run: pip install uv
+
+      - name: Bump apm.yml version
+        id: version
+        run: |
+          set -euo pipefail
+          NEW_VERSION="$(configs/claude/scripts/bump_apm_version.sh patch)"
+          echo "version=${NEW_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "tag=v${NEW_VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Generate skill mirror (.apm/skills from plugins/)
+        run: configs/claude/scripts/generate_skill_mirror.sh
+
+      - name: Build release archive
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          set -euo pipefail
+          uv build
+          uv run python tools/build_manifest_release.py \
+            --repo-root "$GITHUB_WORKSPACE" \
+            --output-dir release \
+            --archive-base-url "https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}"
+
+      - name: Commit version bump
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add apm.yml
+          git commit -m "chore(release): manifest-skills ${{ steps.version.outputs.tag }} [skip ci]"
+          git push origin HEAD:main
+
+      - name: Tag release
+        run: |
+          set -euo pipefail
+          git tag -a "${{ steps.version.outputs.tag }}" -m "manifest-skills ${{ steps.version.outputs.tag }}"
+          git push origin "${{ steps.version.outputs.tag }}"
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          set -euo pipefail
+          gh release create "$TAG" \
+            --title "$TAG" \
+            --notes "Automated release: manifest-skills ${TAG}" \
+            release/manifest-plugins-*.tar.gz \
+            release/manifest-release.json
