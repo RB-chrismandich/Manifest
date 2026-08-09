@@ -156,8 +156,9 @@ model_fallback:
 
 `agy` is accepted as an input alias and normalized to `antigravity`. The schema
 remains extensible to Claude and Devin. Concrete GPT, Gemini, Antigravity, and
-Cursor model identifiers remain centralized in `command_config.yml`; skills
-express capability and cost intent through tiers.
+Cursor model identifiers remain centralized in `parallel_agent.yml`;
+`command_config.yml` contains routing references but no duplicate provider IDs.
+Skills express capability and cost intent through tiers.
 
 The metadata is optional. A skill without `models` or `model_fallback` keeps the
 active harness's configured defaults. Skills declare overrides only when their
