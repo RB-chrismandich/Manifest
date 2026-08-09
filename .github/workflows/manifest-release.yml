@@ -1,7 +1,7 @@
 name: Manifest Skills Release
 
 # Publishes manifest-skills as a permanent GitHub Release whenever a merge to
-# main touches any package file (plugins/**). Distribution is GitHub-native:
+# main touches a canonical domain bundle. Distribution is GitHub-native:
 # no APM registry, no APM_REGISTRY_TOKEN — the release tarball is built by
 # the same tools/build_manifest_release.py used in plugin-parity-live.yml,
 # just pointed at a GitHub Release download URL instead of an ephemeral
@@ -14,8 +14,8 @@ name: Manifest Skills Release
 # the bare version with no "v" prefix — src/manifest_agent/release.py's
 # RELEASE_INDEX_URL resolves releases/download/{version}/manifest-release.json
 # directly, and a mismatched tag scheme would 404 every published-release
-# install. This repo does not auto-bump bundle versions, so plugins/**
-# changing does not guarantee a new version exists; the workflow builds
+# install. This repo does not auto-bump bundle versions, so a bundle change
+# does not guarantee a new version exists; the workflow builds
 # first (to learn the version) and skips release creation if that version
 # was already published.
 
@@ -23,7 +23,14 @@ on:
   push:
     branches: [main]
     paths:
-      - 'plugins/**'
+      - 'plugins/manifest-code-quality/**'
+      - 'plugins/manifest-docs/**'
+      - 'plugins/manifest-forge/**'
+      - 'plugins/manifest-ops/**'
+      - 'plugins/manifest-security/**'
+      - 'plugins/manifest-spec-planning/**'
+      - 'plugins/manifest-workspace/**'
+      - 'plugins/stitch-design/**'
 
 permissions:
   contents: write  # tag + release
@@ -44,8 +51,10 @@ jobs:
         with:
           python-version: "3.14"
 
-      - name: Install uv
-        run: pip install uv
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e  # v6.8.0
+        with:
+          version: "0.11.32"
+          enable-cache: false
 
       - name: Generate skill mirror (.apm/skills from plugins/)
         run: configs/claude/scripts/generate_skill_mirror.sh
@@ -66,40 +75,90 @@ jobs:
           VERSION="$(python3 -c 'import json; print(json.load(open("release/manifest-release.json"))["version"])')"
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
 
-      - name: Skip if this version is already released
+      - name: Inspect existing release
         id: check
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VERSION: ${{ steps.version.outputs.version }}
         run: |
           set -euo pipefail
-          if gh release view "$VERSION" >/dev/null 2>&1; then
-            echo "manifest-skills ${VERSION} is already released — skipping"
-            echo "exists=true" >> "$GITHUB_OUTPUT"
+          ERROR_FILE="$(mktemp)"
+          trap 'rm -f "$ERROR_FILE"' EXIT
+          if RELEASE="$(gh release view "$VERSION" --json isDraft 2>"$ERROR_FILE")"; then
+            if [[ "$(jq -r '.isDraft' <<<"$RELEASE")" == "true" ]]; then
+              echo "state=draft" >> "$GITHUB_OUTPUT"
+            else
+              echo "manifest-skills ${VERSION} is already published — skipping"
+              echo "state=published" >> "$GITHUB_OUTPUT"
+            fi
+          elif grep -Fq "release not found" "$ERROR_FILE"; then
+            echo "state=absent" >> "$GITHUB_OUTPUT"
           else
-            echo "exists=false" >> "$GITHUB_OUTPUT"
+            cat "$ERROR_FILE" >&2
+            exit 1
           fi
 
-      - name: Tag release
-        if: steps.check.outputs.exists == 'false'
+      - name: Ensure release tag
+        if: steps.check.outputs.state != 'published'
         env:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
           set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git tag -a "$VERSION" -m "manifest-skills $VERSION"
-          git push origin "$VERSION"
+          set +e
+          REMOTE_REFS="$(git ls-remote --exit-code origin \
+            "refs/tags/${VERSION}" "refs/tags/${VERSION}^{}")"
+          STATUS=$?
+          set -e
 
-      - name: Create GitHub release
-        if: steps.check.outputs.exists == 'false'
+          if [[ $STATUS -eq 2 ]]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git tag -a "$VERSION" -m "manifest-skills $VERSION"
+            git push origin "refs/tags/${VERSION}"
+          elif [[ $STATUS -ne 0 ]]; then
+            exit "$STATUS"
+          else
+            TAG_COMMIT="$(awk '
+              $2 ~ /\^\{\}$/ { peeled=$1 }
+              $2 !~ /\^\{\}$/ { direct=$1 }
+              END { print peeled ? peeled : direct }
+            ' <<<"$REMOTE_REFS")"
+            if [[ "$TAG_COMMIT" != "$GITHUB_SHA" ]]; then
+              echo "release tag ${VERSION} points to ${TAG_COMMIT}, expected ${GITHUB_SHA}" >&2
+              exit 1
+            fi
+            echo "release tag ${VERSION} already points to ${GITHUB_SHA} — resuming"
+          fi
+
+      - name: Create draft release
+        if: steps.check.outputs.state == 'absent'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VERSION: ${{ steps.version.outputs.version }}
         run: |
           set -euo pipefail
           gh release create "$VERSION" \
+            --draft \
+            --verify-tag \
             --title "manifest-skills $VERSION" \
-            --notes "Automated release: manifest-skills $VERSION" \
+            --notes "Automated release: manifest-skills $VERSION"
+
+      - name: Upload release assets
+        if: steps.check.outputs.state != 'published'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          gh release upload "$VERSION" --clobber \
             release/manifest-plugins-*.tar.gz \
             release/manifest-release.json
+
+      - name: Publish release
+        if: steps.check.outputs.state != 'published'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          gh release edit "$VERSION" --draft=false
