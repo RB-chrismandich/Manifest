@@ -167,7 +167,7 @@ EOF
     # assert_output --partial "npm install -g @anthropic-ai/claude-code"
     assert_output --partial "Gemini CLI not installed"
     assert_output --partial "cursor-agent not available (optional)"
-    assert_output --partial "Codex CLI not installed"
+    assert_output --partial "Codex CLI not installed (optional)"
 }
 
 @test "verbose mode shows CLI location and version" {
