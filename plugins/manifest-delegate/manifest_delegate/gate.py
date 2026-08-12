@@ -13,7 +13,7 @@ from .envelope import validate_findings
 
 
 def _gate_allow(reason=None, json_mode=False, cause=None):
-    """Emit the Stop-hook 'allow' outcome, optionally noting why the gate was skipped.
+    """Emit the Stop-hook approval outcome, optionally noting why the gate was skipped.
 
     `reason` is the detailed (possibly dynamic) explanation used for the
     legacy stderr/systemMessage output. `cause` is the coarse, stable label
@@ -27,7 +27,7 @@ def _gate_allow(reason=None, json_mode=False, cause=None):
     if json_mode:
         print(
             json.dumps(
-                {"decision": "allow", "reason": cause or reason or "gate disabled"}
+                {"decision": "approve", "reason": cause or reason or "gate disabled"}
             )
         )
     return 0

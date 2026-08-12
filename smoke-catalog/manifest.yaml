@@ -787,8 +787,8 @@ tests:
               '{"role":"assistant","content":[{"type":"tool_use","name":"Edit","input":{}}]}' \
               > "$transcript"
             out=$(cd "$sb/repo" && python3 "$gate_py" gate --transcript "$transcript" --json --enable-review-gate-for-test 2>&1) || true
-            echo "$out" | grep -Eq '"decision"\s*:\s*"block"|"decision"\s*:\s*"allow"|systemMessage' \
-              || { echo "FAIL: expected block decision or fail-open allow/systemMessage, got: $out"; exit 1; }
+            echo "$out" | grep -Eq '"decision"\s*:\s*"block"|"decision"\s*:\s*"approve"|systemMessage' \
+              || { echo "FAIL: expected block decision or fail-open approve/systemMessage, got: $out"; exit 1; }
             echo 'delegate gate enabled-pause verified'
   - id: delegate-gate-disabled-no-pause
     title: disabled review gate allows the Stop through with no pause
@@ -816,7 +816,7 @@ tests:
               '{"role":"assistant","content":[{"type":"tool_use","name":"Edit","input":{}}]}' \
               > "$transcript"
             out=$(cd "$sb/repo" && HOME="$sb" python3 "$gate_py" gate --transcript "$transcript" --json 2>&1)
-            echo "$out" | grep -Eq '"decision"\s*:\s*"allow"|systemMessage' \
-              || { echo "FAIL: expected allow (gate off by default) or fail-open systemMessage, got: $out"; exit 1; }
+            echo "$out" | grep -Eq '"decision"\s*:\s*"approve"|systemMessage' \
+              || { echo "FAIL: expected approve (gate off by default) or fail-open systemMessage, got: $out"; exit 1; }
             echo "$out" | grep -q '"decision"\s*:\s*"block"' && { echo "FAIL: gate blocked while disabled: $out"; exit 1; } || true
             echo 'delegate gate disabled-no-pause verified'

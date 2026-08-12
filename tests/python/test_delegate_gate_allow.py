@@ -90,7 +90,7 @@ class TestGateAllows:
         lines = [ln for ln in out.splitlines() if ln.strip()]
         assert len(lines) == 1
         payload = json.loads(lines[0])
-        assert payload == {"decision": "allow", "reason": "gate disabled"}
+        assert payload == {"decision": "approve", "reason": "gate disabled"}
 
     def test_no_edits_in_finishing_turn_allows(self, tmp_path, monkeypatch):
         self._setup(tmp_path, monkeypatch)
