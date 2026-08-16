@@ -296,14 +296,6 @@ def _parse_kv(pairs):
             continue
         k, v = p.split("=", 1)
 
-        # ⚡ Bolt: Fast-path check for obvious non-JSON strings to avoid exception overhead
-        if not v or (
-            v[0] not in '{["tf-0123456789NIn'
-            and v.lstrip()[:1] not in '{["tf-0123456789NIn'
-        ):
-            out[k] = v
-            continue
-
         try:
             parsed = json.loads(v)
             if (
