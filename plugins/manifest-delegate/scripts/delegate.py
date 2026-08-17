@@ -87,13 +87,17 @@ def _editable_source_metadata(distribution, files, module_origin):
             continue
         try:
             direct_url = json.loads(distribution.read_text("direct_url.json") or "")
+            return (
+                direct_url.get("url") == source_policy.as_uri()
+                and direct_url.get("dir_info", {}).get("editable") is True
+                and any(str(item) == "_manifest_model_policy.pth" for item in files)
+            )
         except (AttributeError, json.JSONDecodeError, ValueError):
+            # Unreadable or non-object metadata is untrusted, not absent: the
+            # caller turns a False here into a hard exit, while letting the
+            # exception reach its own handler would report the distribution as
+            # merely missing and allow `--help` to answer normally.
             return False
-        return (
-            direct_url.get("url") == source_policy.as_uri()
-            and direct_url.get("dir_info", {}).get("editable") is True
-            and any(str(item) == "_manifest_model_policy.pth" for item in files)
-        )
     return False
 
 

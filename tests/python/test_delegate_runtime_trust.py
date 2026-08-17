@@ -162,3 +162,53 @@ def test_editable_metadata_must_name_the_path_it_imports_from(tmp_path: Path) ->
     assert result.returncode == 2
     assert "invalid manifest-model-policy distribution" in result.stderr
     assert "Delegate tasks/reviews" not in result.stdout
+
+
+def test_reexec_that_still_lacks_policy_names_the_runtime_not_tampering(
+    tmp_path: Path,
+) -> None:
+    """The second pass reports a runtime gap, not a shadowed distribution.
+
+    Reusing the tamper wording here sent diagnosis hunting a planted copy that
+    was never there, so the two outcomes must stay distinguishable.
+    """
+    home = tmp_path / "empty-home"
+    home.mkdir()
+
+    result = _run_guard(
+        _policyless_launcher(tmp_path),
+        home,
+        tmp_path,
+        MANIFEST_DELEGATE_RUNTIME_REEXEC="1",
+    )
+
+    assert result.returncode == 2
+    assert "did not provide manifest-model-policy" in result.stderr
+    assert "invalid manifest-model-policy distribution" not in result.stderr
+    assert "Delegate tasks/reviews" not in result.stdout
+
+
+def test_non_object_editable_metadata_is_untrusted_not_absent(tmp_path: Path) -> None:
+    """Unreadable editable metadata must stay a hard failure, not a missing one.
+
+    `direct_url.json` holding valid JSON that is not an object makes the field
+    lookups raise. If that escapes to the distribution-level handler the gate
+    reports the policy as merely absent and `--help` answers normally, turning a
+    tamper signal into a benign one.
+    """
+    plugin = _copied_plugin(tmp_path)
+    home = _deployed_home(tmp_path)
+    python = tmp_path / "deployed-venv/bin/python"
+    metadata = (
+        _site_packages(python) / "manifest_model_policy-0.1.0.dist-info/direct_url.json"
+    )
+    metadata.write_text("[1, 2]", encoding="utf-8")
+    # Without a home runtime to re-exec into, the verdict is decided in this
+    # process, so the exit distinguishes "untrusted" from "absent" directly.
+    (home / ".claude/.venv").unlink()
+
+    result = _run_guard(python, home, tmp_path, script=plugin / "scripts/delegate.py")
+
+    assert result.returncode == 2
+    assert "invalid manifest-model-policy distribution" in result.stderr
+    assert "Delegate tasks/reviews" not in result.stdout
