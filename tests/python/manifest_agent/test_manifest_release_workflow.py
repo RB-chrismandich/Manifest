@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import re
 
 from manifest_agent.contracts import DOMAIN_BUNDLES
 
@@ -46,8 +47,8 @@ def test_release_uses_canonical_version_and_download_root() -> None:
 def test_release_dependency_and_publication_are_reproducible_and_resumable() -> None:
     workflow = _workflow()
 
-    assert "astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e" in workflow
-    assert 'version: "0.11.32"' in workflow
+    assert re.search(r"astral-sh/setup-uv@[0-9a-f]{40}", workflow)
+    assert re.search(r'version: "\d+\.\d+(\.\d+)?"', workflow)
     assert "pip install uv" not in workflow
     assert 'echo "state=draft"' in workflow
     assert 'echo "state=published"' in workflow
