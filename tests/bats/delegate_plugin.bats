@@ -10,6 +10,12 @@ setup() {
   ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
   PLUGIN_DIR="$ROOT/plugins/manifest-delegate"
   HOOKS_JSON="$PLUGIN_DIR/hooks/hooks.json"
+  # CI runs `uv sync --project configs/claude` before bats; session_hook imports
+  # manifest-model-policy through the delegate facade.
+  PYTHON="${ROOT}/configs/claude/.venv/bin/python3"
+  if [[ ! -x "$PYTHON" ]]; then
+    PYTHON="$(command -v python3)"
+  fi
 }
 
 @test "hooks.json is valid JSON" {
@@ -118,9 +124,9 @@ print('ok', val)
   # T031 (gate subcommand) may not exist yet in a concurrently-edited
   # delegate.py; session_hook.py never calls delegate.py, so this is safe to
   # assert unconditionally.
-  run bash -c "echo '{\"hook_event_name\":\"SessionStart\",\"session_id\":\"t1\",\"transcript_path\":\"/tmp/x.jsonl\"}' | python3 '$PLUGIN_DIR/scripts/session_hook.py'"
+  run bash -c "echo '{\"hook_event_name\":\"SessionStart\",\"session_id\":\"t1\",\"transcript_path\":\"/tmp/x.jsonl\"}' | '$PYTHON' '$PLUGIN_DIR/scripts/session_hook.py'"
   [ "$status" -eq 0 ]
-  run bash -c "echo '{\"hook_event_name\":\"SessionEnd\",\"session_id\":\"t1\"}' | python3 '$PLUGIN_DIR/scripts/session_hook.py'"
+  run bash -c "echo '{\"hook_event_name\":\"SessionEnd\",\"session_id\":\"t1\"}' | '$PYTHON' '$PLUGIN_DIR/scripts/session_hook.py'"
   [ "$status" -eq 0 ]
 }
 

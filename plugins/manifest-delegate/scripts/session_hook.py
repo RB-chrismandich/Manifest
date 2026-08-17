@@ -55,10 +55,41 @@ if __name__ == "__main__" and len(sys.argv) == 2 and sys.argv[1] in ("-h", "--he
 _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 if _SCRIPT_DIR not in _sys.path:
     _sys.path.insert(0, _SCRIPT_DIR)
-import delegate  # noqa: E402
+
+_delegate_mod = None
+
+
+def _load_delegate_module():
+    """Import the delegate facade on demand; fail open when the runtime is absent."""
+    global _delegate_mod
+    if _delegate_mod is not None:
+        return _delegate_mod
+    try:
+        import delegate as _delegate_mod_impl
+
+        _delegate_mod = _delegate_mod_impl
+        return _delegate_mod
+    except ImportError as exc:
+        _sys.stderr.write(
+            "session_hook: delegate runtime unavailable (%s); skipping hook work\n"
+            % (exc,)
+        )
+        return None
+
+
+def __getattr__(name):
+    if name == "delegate":
+        mod = _load_delegate_module()
+        if mod is None:
+            raise AttributeError(name)
+        return mod
+    raise AttributeError(name)
 
 
 def _load_sessions():
+    delegate = _load_delegate_module()
+    if delegate is None:
+        return {}
     if not os.path.exists(delegate.transfer.SESSIONS_CAPTURE_FILE):
         return {}
     try:
@@ -75,6 +106,9 @@ def _mutate_sessions(mutate):
     all happen inside the lock; the temp file is unique (mkstemp) and fsync'd
     before the rename so a crash cannot leave a torn file.
     """
+    delegate = _load_delegate_module()
+    if delegate is None:
+        return
     path = delegate.transfer.SESSIONS_CAPTURE_FILE
     dest_dir = os.path.dirname(path)
     os.makedirs(dest_dir, exist_ok=True)
@@ -159,6 +193,9 @@ def handle_session_end(payload):
                 f"session_hook: failed to forget session {session_id}: {exc}\n"
             )
 
+    delegate = _load_delegate_module()
+    if delegate is None:
+        return 0
     store = delegate.JobStore(cwd=payload.get("cwd"))
     for job_id in store.list_job_ids():
         try:
