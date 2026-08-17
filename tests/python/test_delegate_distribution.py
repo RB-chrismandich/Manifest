@@ -1,161 +1,24 @@
 #!/usr/bin/env python3
-"""Installed and unpacked manifest-delegate distribution boundaries."""
+"""Installed and unpacked manifest-delegate distribution boundaries.
+
+Runtime trust-gate behaviour (re-exec target, editable-source trust) lives in
+test_delegate_runtime_trust.py; shared builders in _delegate_runtime_env.py.
+"""
 
 import os
 import shutil
 import subprocess
 import sys
-from collections.abc import Sequence
-from importlib import metadata
 from pathlib import Path
 
-import pytest
-
-
-def _install_offline_pyyaml(venv: Path) -> None:
-    python = venv / "bin/python"
-    site_query = subprocess.run(
-        [
-            str(python),
-            "-c",
-            "import site; print(site.getsitepackages()[0])",
-        ],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    assert site_query.returncode == 0, site_query.stderr
-    site_packages = Path(site_query.stdout.strip()).resolve()
-    assert site_packages.is_relative_to(venv.resolve())
-
-    distribution = metadata.distribution("pyyaml")
-    files = distribution.files or ()
-    assert files, "installed PyYAML distribution has no file inventory"
-    for item in files:
-        relative = Path(item)
-        assert not relative.is_absolute() and ".." not in relative.parts
-        source = Path(distribution.locate_file(item))
-        if not source.is_file():
-            continue
-        destination = site_packages / relative
-        destination.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(source, destination)
-    location = subprocess.run(
-        [
-            str(python),
-            "-c",
-            "import pathlib, yaml; print(pathlib.Path(yaml.__file__).resolve())",
-        ],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    assert location.returncode == 0, location.stderr
-    assert Path(location.stdout.strip()).is_relative_to(venv.resolve())
-
-
-def _build_wheels(tmp_path: Path, projects: Sequence[Path], directory: str) -> Path:
-    wheel_dir = tmp_path / directory
-    wheel_dir.mkdir()
-    for project in projects:
-        built = subprocess.run(
-            [
-                "uv",
-                "build",
-                "--project",
-                str(project),
-                "--wheel",
-                "--out-dir",
-                str(wheel_dir),
-            ],
-            cwd=tmp_path,
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        assert built.returncode == 0, built.stderr
-    return wheel_dir
-
-
-def _create_venv(tmp_path: Path, name: str) -> Path:
-    venv = tmp_path / name
-    subprocess.run(
-        [sys.executable, "-m", "venv", "--system-site-packages", str(venv)],
-        check=True,
-    )
-    return venv
-
-
-def _require_isolated_venv(venv: Path) -> None:
-    """Skip before installation if the target interpreter is not isolated."""
-    isolation = subprocess.run(
-        [
-            str(venv / "bin/python"),
-            "-c",
-            "import sys; print(sys.prefix); print(sys.base_prefix)",
-        ],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    prefixes = isolation.stdout.split()
-    if isolation.returncode == 0 and len(prefixes) == 2 and prefixes[0] != prefixes[1]:
-        return
-    pytest.skip(
-        "`python -m venv` produced a non-isolating environment "
-        f"(sys.prefix == sys.base_prefix) for {sys.executable}; installing "
-        "would write to system site-packages instead of the temp venv"
-    )
-
-
-def _install_distribution_wheels(
-    venv: Path, wheels: Path, cwd: Path
-) -> subprocess.CompletedProcess[str]:
-    """Install local wheels through the venv interpreter without retargeting."""
-    return subprocess.run(
-        [
-            str(venv / "bin/python"),
-            "-m",
-            "pip",
-            "install",
-            "--no-index",
-            "--no-deps",
-            "--ignore-installed",
-            *map(str, sorted(wheels.glob("*.whl"))),
-        ],
-        cwd=cwd,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-
-
-def _trusted_policy_venv(tmp_path: Path) -> Path:
-    repo_root = Path(__file__).resolve().parents[2]
-    wheel_dir = _build_wheels(
-        tmp_path,
-        (repo_root / "configs/claude/scripts/manifest_model_policy",),
-        "policy-wheel",
-    )
-    venv = _create_venv(tmp_path, "trusted-venv")
-    _install_offline_pyyaml(venv)
-    installed = subprocess.run(
-        [
-            "uv",
-            "pip",
-            "install",
-            "--python",
-            str(venv / "bin/python"),
-            "--offline",
-            "--no-deps",
-            str(next(wheel_dir.glob("*.whl"))),
-        ],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    assert installed.returncode == 0, installed.stderr
-    return venv
+from _delegate_runtime_env import (
+    _build_wheels,
+    _create_venv,
+    _install_distribution_wheels,
+    _install_offline_pyyaml,
+    _require_isolated_venv,
+    _trusted_policy_venv,
+)
 
 
 def test_unpacked_plugin_delegate_uses_root_model_policy_distribution(
@@ -379,91 +242,3 @@ def test_module_cli_reports_malformed_skill_policy_without_traceback(
         in result.stderr
     )
     assert "Traceback" not in result.stderr
-
-
-def _recorder_runtime_home(tmp_path: Path) -> tuple[Path, Path, Path]:
-    """Home whose `.claude/.venv/bin/python` symlinks to an argv[0] recorder.
-
-    Returns the home, the symlink the guard must exec, and the resolved target.
-    Execing the resolved target instead of the symlink is what strands a venv
-    re-exec in the base interpreter, so the two paths stay distinguishable.
-    """
-    home = tmp_path / "runtime-home"
-    binaries = home / ".claude/.venv/bin"
-    binaries.mkdir(parents=True)
-    recorder = binaries / "real-python"
-    recorder.write_text('#!/bin/sh\nprintf "%s\\n" "$0"\nexit 0\n', encoding="utf-8")
-    recorder.chmod(0o755)
-    symlink = binaries / "python"
-    symlink.symlink_to(recorder.name)
-    return home, symlink, recorder
-
-
-def _policyless_launcher(tmp_path: Path) -> Path:
-    """Interpreter without manifest-model-policy, so the guard must re-exec."""
-    venv = tmp_path / "policyless-venv"
-    subprocess.run([sys.executable, "-m", "venv", str(venv)], check=True)
-    _require_isolated_venv(venv)
-    return venv / "bin/python"
-
-
-def _run_guard(launcher: Path, home: Path, cwd: Path, **extra: str):
-    repo_root = Path(__file__).resolve().parents[2]
-    environment = dict(os.environ)
-    environment.update({"HOME": str(home), "PYTHONPATH": ""})
-    environment.pop("MANIFEST_DELEGATE_RUNTIME_REEXEC", None)
-    environment.update(extra)
-    return subprocess.run(
-        [
-            str(launcher),
-            str(repo_root / "plugins/manifest-delegate/scripts/delegate.py"),
-            "--help",
-        ],
-        cwd=cwd,
-        env=environment,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-
-
-def test_reexec_targets_the_symlink_not_its_resolved_interpreter(
-    tmp_path: Path,
-) -> None:
-    home, symlink, recorder = _recorder_runtime_home(tmp_path)
-
-    result = _run_guard(_policyless_launcher(tmp_path), home, tmp_path)
-
-    assert result.returncode == 0, result.stderr
-    assert result.stdout.strip() == str(symlink)
-    assert result.stdout.strip() != str(recorder)
-
-
-def test_reexec_reaches_policy_inside_a_symlinked_venv(tmp_path: Path) -> None:
-    trusted = _trusted_policy_venv(tmp_path)
-    assert (trusted / "bin/python").is_symlink(), "venv did not symlink its interpreter"
-    home = tmp_path / "venv-home"
-    (home / ".claude").mkdir(parents=True)
-    (home / ".claude/.venv").symlink_to(trusted, target_is_directory=True)
-
-    result = _run_guard(_policyless_launcher(tmp_path), home, tmp_path)
-
-    assert result.returncode == 0, result.stderr
-    assert "Delegate tasks/reviews" in result.stdout
-    assert "manifest-model-policy" not in result.stderr
-
-
-def test_runtime_override_accepts_an_equivalent_spelling(tmp_path: Path) -> None:
-    home, symlink, _ = _recorder_runtime_home(tmp_path)
-    equivalent = symlink.parent / ".." / "bin" / symlink.name
-
-    result = _run_guard(
-        _policyless_launcher(tmp_path),
-        home,
-        tmp_path,
-        MANIFEST_RUNTIME_PYTHON=str(equivalent),
-    )
-
-    assert result.returncode == 0, result.stderr
-    assert "rejected untrusted MANIFEST_RUNTIME_PYTHON" not in result.stderr
-    assert result.stdout.strip() == str(symlink)

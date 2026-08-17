@@ -57,6 +57,46 @@ if _PLUGIN_DIR not in sys.path:
     sys.path.insert(0, _PLUGIN_DIR)
 
 
+def _trusted_editable_policy_roots():
+    """Directories an editable policy distribution may legitimately live in.
+
+    Two, and only two. The repo checkout that owns this script, for a developer
+    running `plugins/.../delegate.py` in place; and the deployed
+    `~/.claude/scripts` tree, which is what `~/.claude/pyproject.toml` pins as an
+    editable source and therefore what every `uv sync` of the home runtime
+    recreates. The home path is anchored to `~`, not to `__file__`, because the
+    installed plugin copy sits under `~/.claude/plugins/cache/...` and has no
+    repo above it to derive an anchor from.
+
+    This adds no trust root: the gate already re-execs `~/.claude/.venv`, and
+    `~/.claude/scripts` is the same bootstrap-owned tree beside it.
+    """
+    return (
+        (
+            Path(__file__).resolve().parents[3]
+            / "configs/claude/scripts/manifest_model_policy"
+        ).resolve(),
+        Path(os.path.expanduser("~/.claude/scripts/manifest_model_policy")).resolve(),
+    )
+
+
+def _editable_source_metadata(distribution, files, module_origin):
+    """True when the distribution is an editable install of a trusted source."""
+    for source_policy in _trusted_editable_policy_roots():
+        if module_origin != source_policy / "__init__.py":
+            continue
+        try:
+            direct_url = json.loads(distribution.read_text("direct_url.json") or "")
+        except (AttributeError, json.JSONDecodeError, ValueError):
+            return False
+        return (
+            direct_url.get("url") == source_policy.as_uri()
+            and direct_url.get("dir_info", {}).get("editable") is True
+            and any(str(item) == "_manifest_model_policy.pth" for item in files)
+        )
+    return False
+
+
 def _trusted_model_policy_distribution():
     """Import and pin policy only from the exact distribution-owned package."""
     try:
@@ -81,21 +121,7 @@ def _trusted_model_policy_distribution():
         installed_runtime = distribution_root.is_relative_to(interpreter_root) and (
             module_origin in owned_policy_files
         )
-        source_root = Path(__file__).resolve().parents[3]
-        source_policy = (
-            source_root / "configs/claude/scripts/manifest_model_policy"
-        ).resolve()
-        source_metadata = False
-        if module_origin == source_policy / "__init__.py":
-            try:
-                direct_url = json.loads(distribution.read_text("direct_url.json") or "")
-                source_metadata = (
-                    direct_url.get("url") == source_policy.as_uri()
-                    and direct_url.get("dir_info", {}).get("editable") is True
-                    and any(str(item) == "_manifest_model_policy.pth" for item in files)
-                )
-            except (AttributeError, json.JSONDecodeError, ValueError):
-                source_metadata = False
+        source_metadata = _editable_source_metadata(distribution, files, module_origin)
         if not installed_runtime and not source_metadata:
             return None, True
         module = importlib.import_module("manifest_model_policy")
