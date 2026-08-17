@@ -1,0 +1,10 @@
+{
+  "manifest-code-quality": [[], [], [], ["git", "python3"], [], ["browser-use", "playwright", "semgrep"]],
+  "manifest-docs": [[], [], [], ["git", "python3"], [], []],
+  "manifest-forge": [[], [], ["atlassian", "github", "linear"], ["bash", "git", "python3"], [], ["curl", "gh", "glab", "gtimeout", "jq", "timeout"]],
+  "manifest-ops": [[], [], ["sentry"], ["bash", "git", "python3"], [], ["docker", "shasum", "sha256sum", "terraform", "tflint", "tofu"]],
+  "manifest-security": [[], [], [], ["bash", "git", "python3"], [], ["semgrep"]],
+  "manifest-spec-planning": [[], [], [], ["bash", "git", "python3"], [], ["agy", "devin", "shasum"]],
+  "manifest-workspace": [[], ["context7"], [], ["bash", "git", "python3"], [], ["pass-cli", "shellcheck", "markdownlint-cli2", "pytest", "bats"]],
+  "stitch-design": [[], [], ["stitch"], ["bash", "git", "python3"], ["node"], ["chromium", "curl"]]
+}

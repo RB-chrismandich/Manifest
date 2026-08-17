@@ -87,6 +87,45 @@ for skill_dir in "$SKILLS_DIR"/*/; do
     fi
     description="${description:-$skill_name skill}"
 
+    model_guidance=""
+    if command -v python3 > /dev/null 2>&1 && python3 -c 'import yaml' > /dev/null 2>&1; then
+        model_guidance="$(
+            PYTHONPATH="$REPO_ROOT/configs/claude/scripts" python3 - "$skill_file" "$skill_name" << 'PY'
+import sys
+from pathlib import Path
+
+from manifest_model_policy import (
+    ModelFallbackMode,
+    ModelPolicyError,
+    parse_skill_model_policy,
+)
+
+try:
+    policy = parse_skill_model_policy(Path(sys.argv[1]))
+except ModelPolicyError as error:
+    # A malformed `models:` block in one skill must not abort the generator
+    # for every other skill: report it, emit no guidance for this skill only.
+    # (No apostrophes here: bash parses this $( ) body before the heredoc.)
+    print(f"{sys.argv[2]}: {error}", file=sys.stderr)
+    sys.exit(0)
+tiers = policy.chains.get("cursor")
+if tiers:
+    mode = (policy.fallback_mode or ModelFallbackMode.CONFIRM).value
+    print(
+        "Model-aware invocation: `manifest skill-run "
+        f"{sys.argv[2]} --harness cursor "
+        f"--model-chain {','.join(tiers)} --model-fallback {mode}`."
+    )
+PY
+        )"
+    fi
+    model_guidance_block=""
+    if [[ -n "$model_guidance" ]]; then
+        model_guidance_block="$model_guidance
+
+"
+    fi
+
     # Escape for a double-quoted YAML scalar: backslash first, then double
     # quote, so a description containing " (e.g. a quoted phrase like
     # ("still in progress")) doesn't terminate the frontmatter scalar early
@@ -94,18 +133,26 @@ for skill_dir in "$SKILLS_DIR"/*/; do
     description_yaml="${description//\\/\\\\}"
     description_yaml="${description_yaml//\"/\\\"}"
 
-    # Build thin wrapper content
+    always_apply=false
+    globs_line="globs: \".claude/skills/$skill_name/**\""
+    if [[ "$skill_name" == "i-have-adhd" ]]; then
+        always_apply=true
+        globs_line=""
+    fi
+
+    # Build thin wrapper content. The ADHD rule is session-global by contract;
+    # every other skill remains invocation/path scoped.
     content="---
 description: \"$description_yaml\"
-globs: \".claude/skills/$skill_name/**\"
-alwaysApply: false
+${globs_line:+$globs_line
+}alwaysApply: $always_apply
 ---
 
 # ${skill_name}
 
 ${description}
 
-<!-- Auto-generated from .claude/skills/$skill_name/SKILL.md -->
+${model_guidance_block}<!-- Auto-generated from .claude/skills/$skill_name/SKILL.md -->
 <!-- Regenerate with: .claude/scripts/generate_cursor_rules.sh -->
 
 Refer to \`.cursor/skills/$skill_name/SKILL.md\` for the full skill definition.

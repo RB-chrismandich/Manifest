@@ -12,6 +12,7 @@ import pytest
 import manifest_agent.service as service_module
 from manifest_agent.contracts import DOMAIN_BUNDLES
 from manifest_agent.models import (
+    AdapterMutationHandle,
     BundleContract,
     CommandResult,
     HarnessReceipt,
@@ -58,6 +59,7 @@ class FakeAdapter:
         self.calls: list[str] = []
         self.uninstall_receipts = []
         self.snapshot_files: tuple[Path, ...] = ()
+        self.reconcile_state = "prior"
 
     def detect(self):
         self.calls.append("detect")
@@ -71,6 +73,68 @@ class FakeAdapter:
     def inspect(self, desired):
         del desired
         self.calls.append("inspect")
+        return self.inspection
+
+    def prepare_reconcile(self, receipt, prior, desired):
+        import hashlib
+        import json
+
+        from manifest_agent.service_state import bundle_checksums
+
+        self.calls.append("prepare")
+        self.reconcile_state = (
+            "target"
+            if self.inspection.state in {ResultState.READY, ResultState.DEGRADED}
+            else "prior"
+        )
+        payload = json.dumps(
+            {
+                "release_version": desired.release_version,
+                "source_commit": desired.source_commit,
+                "archive_sha256": desired.archive_sha256,
+                "bundle_checksums": bundle_checksums(desired),
+            },
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode()
+        from manifest_agent.models import AdapterPluginState
+
+        suffix = "@manifest" if self.name in {"claude", "codex"} else ""
+        return AdapterMutationHandle(
+            1,
+            self.name,
+            self.adapter_version,
+            hashlib.sha256(payload).hexdigest(),
+            tuple(
+                AdapterPluginState(f"{contract.name}{suffix}", contract.version, True)
+                for contract in prior.all_contracts
+            ),
+            tuple(
+                AdapterPluginState(f"{contract.name}{suffix}", contract.version, True)
+                for contract in desired.all_contracts
+            ),
+        )
+
+    def apply_reconcile(self, handle, desired):
+        del handle
+        self.calls.append("apply")
+        self.reconcile_state = "target"
+        return self.install(desired)
+
+    def verify_reconcile(self, handle, desired):
+        del handle
+        self.calls.append("verify")
+        return self.inspect(desired)
+
+    def classify_reconcile_state(self, handle, desired):
+        del handle, desired
+        return self.reconcile_state
+
+    def rollback_reconcile(self, handle, prior):
+        del handle, prior
+        self.calls.append("rollback")
+        self.reconcile_state = "prior"
+        self.inspection = harness_result(self.name)
         return self.inspection
 
     def uninstall(self, receipt):
@@ -296,7 +360,8 @@ def test_targeted_install_preserves_unrequested_receipt_ownership(service_factor
     after = read_receipt(service.receipt_path)
     assert after is not None
     assert after.harnesses["codex"] == before.harnesses["codex"]
-    assert after.harnesses["codex"].owned_entries == (codex_owned,)
+    assert after.harnesses["codex"].owned_entries[0] == codex_owned
+    assert after.harnesses["codex"].owned_entries[1].kind == "codex-receipt-auth"
 
 
 def test_targeted_install_blocks_incompatible_existing_release(service_factory):

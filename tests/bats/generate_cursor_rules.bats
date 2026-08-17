@@ -20,6 +20,7 @@ setup() {
     GEN="$SANDBOX/configs/claude/scripts/generate_cursor_rules.sh"
     mkdir -p "$SKILLS_DIR" "$RULES_DIR" "$SANDBOX/configs/claude/scripts" "$SANDBOX/configs/claude/config"
     cp "$REPO_ROOT/configs/claude/scripts/generate_cursor_rules.sh" "$GEN"
+    cp -R "$REPO_ROOT/configs/claude/scripts/manifest_model_policy" "$SANDBOX/configs/claude/scripts/manifest_model_policy"
     chmod +x "$GEN"
     # generate_cursor_rules.sh also regenerates configs/cursor/mcp.json (spec
     # 2026-07-11 cursor-feature-parity WS-1); stage the generator + a minimal
@@ -268,6 +269,25 @@ EOF
     assert_output --partial 'description: "nodesc skill"'
 }
 
+@test "cursor model policy emits exact installed skill-run guidance" {
+    mkdir -p "$SKILLS_DIR/model-aware"
+    cat > "$SKILLS_DIR/model-aware/SKILL.md" <<'EOF'
+---
+name: model-aware
+description: Model-aware fixture.
+models:
+  cursor: [advanced, flash, auto]
+model_fallback: {mode: auto}
+---
+Body.
+EOF
+
+    run "$GEN"
+    assert_success
+    run grep -F 'Model-aware invocation: `manifest skill-run model-aware --harness cursor --model-chain advanced,flash,auto --model-fallback auto`.' "$RULES_DIR/model-aware.mdc"
+    assert_success
+}
+
 # ── Idempotence / change detection ───────────────────────────────────────────
 
 @test "second run is byte-idempotent on disk and counts rules as unchanged" {
@@ -353,6 +373,25 @@ EOF
     assert_success
     assert_output --partial "0 created, 0 updated, 0 unchanged"
     assert_equal "$(ls "$RULES_DIR" | wc -l | tr -d ' ')" "0"
+}
+
+@test "i-have-adhd rule is always applied even when the skill is never invoked" {
+    mkdir -p "$SKILLS_DIR/i-have-adhd"
+    cat > "$SKILLS_DIR/i-have-adhd/SKILL.md" <<'EOF'
+---
+name: i-have-adhd
+description: Always shape responses for an ADHD reader.
+---
+Guidance body.
+EOF
+
+    run "$GEN"
+
+    assert_success
+    run grep -F "alwaysApply: true" "$RULES_DIR/i-have-adhd.mdc"
+    assert_success
+    run grep -F "globs:" "$RULES_DIR/i-have-adhd.mdc"
+    assert_failure
 }
 
 # ── Orphan rule pruning (spec 2026-07-11 cursor-feature-parity WS-3 / #505) ──
@@ -465,15 +504,23 @@ EOF
 }
 
 @test "real repo: every skill with SKILL.md has a corresponding .mdc rule" {
-    local missing=0
+    # configs/claude/skills is a symlink to the generated, gitignored
+    # .apm/skills mirror. If that mirror is empty or the symlink is stale the
+    # glob yields nothing (no nullglob here, so the literal pattern fails the
+    # -f test and `continue`s), missing stays 0, and this passes having checked
+    # zero skills. Count what was actually checked and require it to be > 0.
+    local missing=0 checked=0
     for skill_dir in "$REPO_ROOT"/configs/claude/skills/*/; do
         local name
         name=$(basename "$skill_dir")
         [ -f "$skill_dir/SKILL.md" ] || continue
+        checked=$((checked + 1))
         if [ ! -f "$REPO_ROOT/configs/cursor/rules/$name.mdc" ]; then
             echo "Missing rule for skill: $name"
             missing=$((missing + 1))
         fi
     done
+    [ "$checked" -gt 0 ] \
+        || { echo "no skills found: mirror not generated, check is vacuous"; false; }
     assert_equal "$missing" "0"
 }

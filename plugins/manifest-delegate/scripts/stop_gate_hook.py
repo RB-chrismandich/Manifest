@@ -2,11 +2,18 @@
 # help-coverage: covered by tests/bats/help_coverage.bats
 """Stop hook thin wrapper for the manifest-delegate soft review gate.
 
-Reads the Stop hook's stdin JSON (session_id, transcript_path, cwd,
-hook_event_name, stop_hook_active), forwards transcript_path (and
---stop-hook-active when true) to `delegate.py gate --json`, and passes the
-gate's hook-JSON decision straight through to stdout. See
+Reads the Stop hook's stdin JSON and forwards `transcript_path` (plus
+--stop-hook-active when true) to `delegate.py gate --json`, passing the gate's
+hook-JSON decision straight through to stdout. See
 specs/675-multi-agent-delegation/contracts/delegate-cli.md ("gate").
+
+Only those two keys are read, deliberately. The Stop payload also carries
+`session_id`, `cwd`, and `hook_event_name`; none reaches a consumer. `gate`
+derives its job-record workspace from `os.getcwd()`, which this hook already
+inherits from the harness, so `cwd` would be the same value arriving by a
+second path — and `gate` exposes no flag to accept it. `session_id` and
+`hook_event_name` feed nothing: the gate opens its own job record and is only
+ever wired to Stop. Parsing them to leave them unused would be dead surface.
 """
 
 import sys
@@ -40,10 +47,20 @@ DELEGATE_PY = os.path.join(SCRIPT_DIR, "delegate.py")
 # subprocess.run would kill only delegate.py and leave the setsid'd backend
 # group running (collected only by a later SessionEnd/status reap), while the
 # hook fails open. 840s was itself derived as "900s Stop-hook window minus
-# overhead", so the window is 900s. A drift guard lives in test_stop_gate_hook.
+# overhead", so the window is 900s.
+#
+# It must also stay UNDER hooks.json's declared Stop timeout (900s), which is
+# the harness's hard ceiling for this whole invocation. At exactly 900 there is
+# no room left to catch TimeoutExpired, format, and flush the fail-open JSON —
+# Claude Code would kill this script mid-write and get no decision at all,
+# which is the one outcome the fail-open design exists to prevent. So the
+# margin is taken out of THIS timeout, not out of the declared one:
+#   GATE_BUDGET_CAP_SECONDS (840) < this (870) < hooks.json Stop timeout (900)
+# Drift guards: test_stop_gate_hook.py and delegate_plugin.bats each assert
+# BOTH bounds (> backend cap, < the timeout declared in hooks.json).
 # (Kept as a literal, not a package import, so a package import fault cannot
 # crash this resilience wrapper — it must always be able to fail open.)
-GATE_WRAPPER_TIMEOUT_SECONDS = 900
+GATE_WRAPPER_TIMEOUT_SECONDS = 870
 
 
 def _read_payload(argv):

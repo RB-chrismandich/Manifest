@@ -136,9 +136,8 @@ def _default_config() -> dict:
             # VERIFIED 2026-07-29 via `claude --model <id> -p`.
             "claude": {
                 "haiku": "claude-haiku-4-5",
-                "sonnet": "claude-sonnet-5",
-                "opus": "claude-opus-5",
-                "fable": "claude-fable-5",
+                "sonnet": "claude-sonnet-5[1m]",
+                "opus": "claude-opus-5[1m]",
             },
             # UNVERIFIED — the gemini CLI is ineligible on this account
             # (free-tier Code Assist discontinued) and no API key is set.
@@ -237,7 +236,7 @@ def _default_config() -> dict:
             },
         },
         "credit_fallback": {
-            "claude": ["fable", "opus", "sonnet", "haiku"],
+            "claude": ["opus", "sonnet", "haiku"],
             "cursor": ["advanced", "flash", "mini"],
             "gemini": ["pro", "flash"],
             "codex": ["advanced", "flash", "mini"],

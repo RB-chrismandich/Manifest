@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import json
+import sys
 from collections.abc import Callable
+from importlib.resources import files
 from pathlib import Path
 from typing import Any
 
@@ -11,6 +13,7 @@ import click
 
 from manifest_agent.models import ResultState
 from manifest_agent.service import HARNESS_ORDER, ManifestService, ServiceReport
+from manifest_agent.skill_run import SkillRunExecutionError, execute_skill_command
 
 
 @click.group()
@@ -96,6 +99,15 @@ def install(context: click.Context, **options: Any) -> None:
     _emit(context, service.install(), options["as_json"])
 
 
+@cli.command("bootstrap-sync")
+@_lifecycle_options
+@click.pass_context
+def bootstrap_sync(context: click.Context, **options: Any) -> None:
+    """Converge native plugins and retire verified legacy skill sources."""
+    service = _service(**options)
+    _emit(context, service.bootstrap_sync(), options["as_json"])
+
+
 @cli.command()
 @_lifecycle_options
 @click.pass_context
@@ -122,6 +134,75 @@ def uninstall(context: click.Context, **options: Any) -> None:
     """Remove coordinator-owned Manifest installation state."""
     service = _service(**options)
     _emit(context, service.uninstall(), options["as_json"])
+
+
+@cli.command("skill-run")
+@click.argument("skill_path")
+@click.option("--harness", required=True, type=click.Choice((*HARNESS_ORDER, "agy")))
+@click.option(
+    "--task-file", type=click.Path(path_type=Path, exists=True, dir_okay=False)
+)
+@click.option("--model")
+@click.option("--model-chain")
+@click.option("--model-fallback", type=click.Choice(("auto", "confirm")))
+@click.option("--recovery-id")
+@click.option("--expected-version", type=int)
+@click.option("--fallback-decision", type=click.Choice(("approve", "reject", "auto")))
+@click.option("--replacement-tier")
+@click.option("--replacement-mode", type=click.Choice(("auto", "confirm")))
+@click.option("--non-interactive", is_flag=True)
+@click.option("--json", "as_json", is_flag=True)
+@click.pass_context
+def skill_run(
+    context: click.Context,
+    skill_path: str,
+    harness: str,
+    task_file: Path | None,
+    model: str | None,
+    model_chain: str | None,
+    model_fallback: str | None,
+    recovery_id: str | None,
+    expected_version: int | None,
+    fallback_decision: str | None,
+    replacement_tier: str | None,
+    replacement_mode: str | None,
+    non_interactive: bool,
+    as_json: bool,
+) -> None:
+    """Run one skill through an explicit model-aware native handoff."""
+    try:
+        config_path = files("manifest_agent.data").joinpath("parallel_agent.yml")
+        if not config_path.is_file():
+            config_path = (
+                Path(__file__).parents[2] / "configs/claude/config/parallel_agent.yml"
+            )
+        outcome = execute_skill_command(
+            skill=skill_path,
+            harness=harness,
+            task_stream=sys.stdin.buffer,
+            config_path=config_path,
+            task_file=task_file,
+            model=model,
+            model_chain=model_chain,
+            model_fallback=model_fallback,
+            recovery_id=recovery_id,
+            expected_version=expected_version,
+            fallback_decision=fallback_decision,
+            replacement_tier=replacement_tier,
+            replacement_mode=replacement_mode,
+            non_interactive=non_interactive,
+            as_json=as_json,
+            confirm_callback=click.confirm,
+        )
+    except (OSError, SkillRunExecutionError, UnicodeError, ValueError) as error:
+        raise click.UsageError(str(error)) from error
+    click.echo(
+        json.dumps(outcome.payload, sort_keys=True)
+        if as_json
+        else "\n".join(outcome.text)
+    )
+    if outcome.exit_code:
+        context.exit(outcome.exit_code)
 
 
 def main() -> None:

@@ -39,15 +39,171 @@ if sys.version_info < (3, 9):  # noqa: UP036 — deliberate runtime guard, see D
     sys.exit(2)
 
 # Everything below this line may use 3.9+ syntax.
+import importlib
+import importlib.metadata
+import importlib.util
+import json
 import os
+from pathlib import Path
 
-# The package sits beside `scripts/`, under the plugin root. Putting the plugin
-# root on sys.path is what lets this file be run directly (`python3
-# .../scripts/delegate.py`) or loaded by path from a test and find the package
-# in both cases — there is no install step and no dependency on the CWD.
+_POLICY_DISTRIBUTION = "manifest-model-policy"
+_POLICY_VERSION = "0.1.0"
+_REEXEC_SENTINEL = "MANIFEST_DELEGATE_RUNTIME_REEXEC"
 _PLUGIN_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+# Configure the exact path used by the delegate imports before resolving policy.
+# This makes a sibling shadow package visible to (and rejected by) the trust gate.
 if _PLUGIN_DIR not in sys.path:
     sys.path.insert(0, _PLUGIN_DIR)
+
+
+def _trusted_model_policy_distribution():
+    """Import and pin policy only from the exact distribution-owned package."""
+    try:
+        distribution = importlib.metadata.distribution(_POLICY_DISTRIBUTION)
+        spec = importlib.util.find_spec("manifest_model_policy")
+        if distribution.version != _POLICY_VERSION or spec is None or not spec.origin:
+            return None, True
+        distribution_root = Path(distribution.locate_file("")).resolve()
+        module_origin = Path(spec.origin).resolve()
+        interpreter_root = Path(sys.prefix).resolve()
+        files = distribution.files or ()
+        owned_policy_files = {
+            Path(distribution.locate_file(item)).resolve()
+            for item in files
+            if item.parts and item.parts[0] == "manifest_model_policy"
+        }
+        # A distribution rooted outside this interpreter is not the runtime's
+        # own copy, so it stays untrusted here and must qualify via the editable
+        # source-metadata path below. `is_relative_to` states that directly;
+        # catching relative_to's ValueError said the same thing but read as a
+        # swallowed error.
+        installed_runtime = distribution_root.is_relative_to(interpreter_root) and (
+            module_origin in owned_policy_files
+        )
+        source_root = Path(__file__).resolve().parents[3]
+        source_policy = (
+            source_root / "configs/claude/scripts/manifest_model_policy"
+        ).resolve()
+        source_metadata = False
+        if module_origin == source_policy / "__init__.py":
+            try:
+                direct_url = json.loads(distribution.read_text("direct_url.json") or "")
+                source_metadata = (
+                    direct_url.get("url") == source_policy.as_uri()
+                    and direct_url.get("dir_info", {}).get("editable") is True
+                    and any(str(item) == "_manifest_model_policy.pth" for item in files)
+                )
+            except (AttributeError, json.JSONDecodeError, ValueError):
+                source_metadata = False
+        if not installed_runtime and not source_metadata:
+            return None, True
+        module = importlib.import_module("manifest_model_policy")
+        imported_origin = Path(module.__file__ or "").resolve()
+        if imported_origin != module_origin:
+            sys.modules.pop("manifest_model_policy", None)
+            return None, True
+        return module, False
+    except (ImportError, importlib.metadata.PackageNotFoundError, OSError, ValueError):
+        return None, False
+
+
+def _ensure_root_model_policy_distribution(bare_help=False):
+    """Re-exec through Manifest's root runtime when plain Python lacks policy.
+
+    `bare_help` relaxes exactly one outcome: a policy distribution that is simply
+    ABSENT, where the caller only asked for usage. Every tamper signal — a
+    rejected runtime override, an invalid or shadowed distribution, a re-exec
+    that came back still broken — still exits 2 and prints no usage, because
+    those say something is wrong with this install rather than missing from it.
+    """
+    policy, invalid = _trusted_model_policy_distribution()
+    if policy is not None:
+        return policy
+    trusted_runtime = Path(os.path.expanduser("~/.claude/.venv/bin/python")).resolve(
+        strict=False
+    )
+    runtime_override = os.environ.get("MANIFEST_RUNTIME_PYTHON")
+    if runtime_override:
+        override = Path(runtime_override).expanduser()
+        if (
+            not override.is_absolute()
+            or override.resolve(strict=False) != trusted_runtime
+        ):
+            sys.stderr.write(
+                "delegate.py: rejected untrusted MANIFEST_RUNTIME_PYTHON override.\n"
+            )
+            sys.exit(2)
+    if invalid:
+        sys.stderr.write(
+            "delegate.py: trusted Manifest runtime has an invalid "
+            "manifest-model-policy distribution.\n"
+        )
+        sys.exit(2)
+    if os.environ.get(_REEXEC_SENTINEL) == "1":
+        sys.stderr.write(
+            "delegate.py: trusted Manifest runtime has an invalid "
+            "manifest-model-policy distribution.\n"
+        )
+        sys.exit(2)
+    if trusted_runtime.is_file() and os.access(trusted_runtime, os.X_OK):
+        os.environ[_REEXEC_SENTINEL] = "1"
+        os.execv(
+            str(trusted_runtime),
+            [str(trusted_runtime), os.path.abspath(__file__), *sys.argv[1:]],
+        )
+    if bare_help:
+        # Nothing is tampered with, the runtime is merely absent — a clean
+        # checkout, a CI image, a launchd/cron PATH. Usage dispatches nothing,
+        # so answering it here keeps the CLI discoverable without weakening any
+        # check above.
+        sys.stdout.write(_USAGE)
+        sys.exit(0)
+    sys.stderr.write(
+        "delegate.py: Manifest root runtime is missing manifest-model-policy; "
+        "re-run ./bootstrap.sh to converge ~/.claude/.venv.\n"
+    )
+    sys.exit(2)
+
+
+_USAGE = """\
+usage: delegate.py [-h] [--json] COMMAND ...
+
+Delegate tasks/reviews to a backend registry (codex, claude, antigravity).
+
+commands:
+  task              Delegate a task (--second-opinion, --write, --resume)
+  review            Standalone read-only review (--adversarial)
+  status            Show a job's current state
+  result            Print a job's normalized result envelope
+  cancel            Cancel a queued/running job
+  setup             Check backend readiness and write user config
+  transfer          Transfer a session to another surface
+  gate              Internal: Stop-hook review gate
+  resume-candidate  Most recent resumable job for a backend
+
+options:
+  -h, --help        show this help message and exit
+  --json            machine-readable JSON output
+
+Run `delegate.py COMMAND --help` for a command's own options.
+"""
+
+
+def _wants_bare_help() -> bool:
+    """True for a top-level `--help`/`-h` with no subcommand in front of it."""
+    return len(sys.argv) == 2 and sys.argv[1] in ("-h", "--help")
+
+
+_MODEL_POLICY = None
+if __name__ == "__main__":
+    # Bare `--help` still runs the full trust gate; it only changes what happens
+    # when the policy distribution is absent rather than tampered with. Skipping
+    # the gate outright would let a poisoned runtime answer `--help` normally.
+    _MODEL_POLICY = _ensure_root_model_policy_distribution(bare_help=_wants_bare_help())
+
+# The policy package is now pinned in sys.modules before delegate modules import
+# it. Direct module imports in tests skip the executable-only trust gate.
 
 from manifest_delegate import *  # noqa: E402,F403  (documented compatibility facade)
 from manifest_delegate import (  # noqa: E402,F401  (`import *` skips submodules)

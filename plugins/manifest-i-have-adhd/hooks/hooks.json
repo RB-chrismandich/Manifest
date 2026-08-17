@@ -1,0 +1,14 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "command": "python3 ${CLAUDE_PLUGIN_ROOT}/hooks/always_on.py",
+            "type": "command"
+          }
+        ]
+      }
+    ]
+  }
+}

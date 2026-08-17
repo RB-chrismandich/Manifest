@@ -8,12 +8,18 @@ import re
 import tempfile
 from collections.abc import Iterator
 from contextlib import contextmanager
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from pathlib import Path
 from typing import Any
 
 from manifest_agent.models import HarnessReceipt, InstallationReceipt, OwnedEntry
-from manifest_agent.ownership import capability_ownership_errors
+from manifest_agent.ownership import (
+    authenticate_codex_receipt,
+    capability_ownership_errors,
+    codex_catalog_ownership,
+    codex_receipt_ownership_errors,
+    owned_file_ownership,
+)
 from manifest_agent.paths import xdg_paths
 from manifest_agent.process import contains_credential_material
 
@@ -101,6 +107,8 @@ def write_receipt_atomic(
     if not isinstance(receipt, InstallationReceipt):
         raise TypeError("receipt must be an InstallationReceipt")
 
+    receipt = receipt_for_persistence(destination, receipt)
+
     document = asdict(receipt)
     _assert_secret_free(document)
     _validate_receipt(receipt, ownership_key_path=destination.parent / "ownership.key")
@@ -130,6 +138,24 @@ def write_receipt_atomic(
             os.close(descriptor)
         if temporary is not None:
             temporary.unlink(missing_ok=True)
+
+
+def receipt_for_persistence(
+    destination: Path, receipt: InstallationReceipt
+) -> InstallationReceipt:
+    """Return the exact ownership-authenticated receipt bytes will represent."""
+    codex = receipt.harnesses.get("codex")
+    if codex is None:
+        return receipt
+    return replace(
+        receipt,
+        harnesses={
+            **receipt.harnesses,
+            "codex": authenticate_codex_receipt(
+                codex, key_path=destination.parent / "ownership.key"
+            ),
+        },
+    )
 
 
 def read_receipt(path: Path | None = None) -> InstallationReceipt | None:
@@ -314,8 +340,61 @@ def _validate_receipt(
         ownership_errors = capability_ownership_errors(
             harness, key_path=ownership_key_path
         )
+        ownership_errors = (
+            *ownership_errors,
+            *_special_owned_entry_errors(harness, ownership_key_path),
+        )
         if ownership_errors:
             raise StateError("; ".join(ownership_errors))
+
+
+def _special_owned_entry_errors(
+    receipt: HarnessReceipt, ownership_key_path: Path
+) -> tuple[str, ...]:
+    errors: list[str] = []
+    if receipt.harness == "codex":
+        errors.extend(
+            codex_receipt_ownership_errors(receipt, key_path=ownership_key_path)
+        )
+    for entry in receipt.owned_entries:
+        if entry.kind == "codex-skill-source":
+            if (
+                receipt.harness != "codex"
+                or entry.identifier != "codex-shared-skills"
+                or entry.ownership_marker != "manifest"
+                or not entry.target_path
+                or Path(entry.target_path).name != "skills"
+                or Path(entry.target_path).parent.name != ".codex"
+            ):
+                errors.append("invalid Codex skill-source ownership entry")
+        elif entry.kind == "plugin-enabled-state" and (
+            receipt.harness != "codex"
+            or entry.identifier != "i-have-adhd@i-have-adhd"
+            or entry.ownership_marker != "manifest"
+            or not entry.target_path
+            or Path(entry.target_path).name != "config.toml"
+            or Path(entry.target_path).parent.name != ".codex"
+        ):
+            errors.append("invalid Codex plugin enabled-state ownership entry")
+        elif entry.kind == "codex-catalog":
+            _catalog, catalog_errors = codex_catalog_ownership(
+                entry, key_path=ownership_key_path
+            )
+            if receipt.harness != "codex" or catalog_errors:
+                errors.append("invalid Codex catalog ownership entry")
+        elif entry.kind == "codex-receipt-auth" and (
+            receipt.harness != "codex"
+            or entry.ownership_marker != "manifest"
+            or entry.target_path is not None
+        ):
+            errors.append("invalid full Codex ownership entry")
+        elif entry.kind == "owned-file":
+            _prior, _installed, file_errors = owned_file_ownership(
+                entry, key_path=ownership_key_path
+            )
+            if file_errors:
+                errors.extend(file_errors)
+    return tuple(errors)
 
 
 def _decode_receipt(value: Any) -> InstallationReceipt:

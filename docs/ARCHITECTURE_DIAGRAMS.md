@@ -579,7 +579,7 @@ flowchart TB
     subgraph "Agent Execution (Parallel)"
         GEMINI_EXEC["Gemini — SDK or gemini CLI<br/>(gemini-3-flash-preview / 3-pro-preview)"]:::process
         CURSOR_EXEC["Cursor Agent<br/>(cursor-grok-4.5-low/medium/high)"]:::process
-        CLAUDE_EXEC["Claude — SDK or claude CLI<br/>(haiku/sonnet/opus/fable)"]:::process
+        CLAUDE_EXEC["Claude — SDK or claude CLI<br/>(haiku/sonnet/opus)"]:::process
         CODEX_EXEC["Codex CLI<br/>(gpt-5.6-luna/terra/sol)"]:::process
         AGY_EXEC["Antigravity CLI<br/>(agy, gemini-3.6-flash-high)"]:::process
     end
@@ -900,7 +900,7 @@ gpt-5.2 (advanced) → gpt-5.1-codex (flash) → gpt-5.1-codex-mini (mini)
 **Claude Fallback Chain**:
 
 ```text
-fable → opus → sonnet → haiku
+opus → sonnet → haiku
 ```
 
 **Gemini Fallback Chain**:

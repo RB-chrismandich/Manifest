@@ -5,11 +5,11 @@
      style/effort conventions (flash default tier, single-shot framing) -->
 
 Antigravity defaults to `model_tier: flash` (`config/backends.json`),
-invoked via `agy -p`. Known gotcha: `agy -p` ignores piped stdin — the
-prompt must be passed inline by `delegate.py`'s invocation, not assumed to
-flow through a pipe; this is a dispatcher concern, not something the
-prompt text needs to account for, but it means retries must re-supply the
-full prompt rather than relying on a buffered stream.
+invoked via `agy --print <prompt>`. Known gotcha: print mode ignores piped
+stdin, so `delegate.py` uses the bounded `argv` transport and passes the
+prompt as the `--print` value. This is a dispatcher concern, not something
+the prompt text needs to account for, but it means retries must re-supply
+the full prompt rather than relying on a buffered stream.
 
 ## Composing the prompt
 

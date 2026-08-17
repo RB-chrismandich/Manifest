@@ -88,13 +88,20 @@ def deterministic_tree_sha256(root: Path) -> str:
             f"unable to inventory local checkout: {result.stderr.strip()}"
         )
 
+    deleted = runner.run(("git", "-C", str(root), "ls-files", "-z", "--deleted"))
+    if deleted.returncode != 0:
+        raise ReleaseError("unable to inspect deleted local checkout entries")
+    deleted_paths = {path for path in deleted.stdout.split("\0") if path}
+
     staged = runner.run(("git", "-C", str(root), "ls-files", "-s", "-z"))
     if staged.returncode != 0:
         raise ReleaseError("unable to inspect local checkout entries")
     gitlinks = _gitlink_commits(staged.stdout)
 
     digest = hashlib.sha256()
-    relative_paths = sorted(path for path in result.stdout.split("\0") if path)
+    relative_paths = sorted(
+        path for path in result.stdout.split("\0") if path and path not in deleted_paths
+    )
     for relative in relative_paths:
         _digest_checkout_entry(digest, root, relative, gitlinks.get(relative))
     return digest.hexdigest()

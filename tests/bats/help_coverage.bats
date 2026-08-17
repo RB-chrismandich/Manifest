@@ -25,6 +25,7 @@ setup() {
     load '../test_helper/bats-support/load'
     load '../test_helper/bats-assert/load'
     SCRIPTS="$(cd "$(dirname "$BATS_TEST_FILENAME")/../../configs/claude/scripts" && pwd)"
+    REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
 }
 
 EXEMPT_MARKER="help-coverage: exempt"
@@ -48,6 +49,44 @@ py_gated() {
         grep -q "$EXEMPT_MARKER" "$f" && continue
         basename "$f"
     done
+}
+
+# Plugin entry points, emitted as full paths. These carry the same in-file
+# `help-coverage: covered by ...` marker as the configs/ scripts, but nothing
+# enumerated them, so the marker asserted a coverage that did not exist. Their
+# --help must answer from a bare interpreter: these run from hooks and CI images
+# where the Manifest runtime venv is not on the path.
+py_plugin_gated() {
+    local f
+    for f in "$REPO_ROOT"/plugins/*/scripts/*.py; do
+        [ -f "$f" ] || continue
+        grep -q '__name__ == "__main__"' "$f" || continue
+        grep -q "$EXEMPT_MARKER" "$f" && continue
+        printf '%s\n' "$f"
+    done
+}
+
+@test "every plugin python entry point: --help exits 0 and prints usage" {
+    for f in $(py_plugin_gated); do
+        run env -i PATH=/usr/bin:/bin HOME="$BATS_TEST_TMPDIR" python3 "$f" --help
+        [ "$status" -eq 0 ] || { echo "$f: exit $status"; false; }
+        lc_output="$(printf '%s' "$output" | tr '[:upper:]' '[:lower:]')"
+        [[ "$lc_output" == *"usage"* ]] \
+            || { echo "$f: no usage in --help output"; false; }
+    done
+}
+
+@test "plugin --help answers without the Manifest runtime on the path" {
+    # The point of the gate above is the empty environment, so assert that the
+    # environment really is stripped — a PATH leak here would let a developer
+    # machine pass while a clean CI image fails.
+    run env -i PATH=/usr/bin:/bin HOME="$BATS_TEST_TMPDIR" python3 -c \
+        'import importlib.util,sys; sys.exit(0 if importlib.util.find_spec("manifest_model_policy") is None else 1)'
+    [ "$status" -eq 0 ] || {
+        echo "manifest_model_policy is importable from the stripped environment;"
+        echo "the plugin --help gate is not proving what it claims"
+        false
+    }
 }
 
 @test "every user-facing script: --help exits 0 and prints Usage on stdout" {
@@ -113,6 +152,13 @@ py_gated() {
     # entry point is either gated or carries a marker. Fails loudly if someone
     # reintroduces an inclusion list.
     local f base skipped
+    # The loops below are only meaningful if the globs match. Guard the same
+    # vacuous-pass risk the plugin gate guards, so a broken SCRIPTS path fails
+    # loudly instead of reporting full coverage of nothing.
+    [ "$(bash_gated | wc -l)" -gt 0 ] \
+        || { echo "bash_gated is empty: SCRIPTS path is wrong"; false; }
+    [ "$(py_gated | wc -l)" -gt 0 ] \
+        || { echo "py_gated is empty: SCRIPTS path is wrong"; false; }
     for f in "$SCRIPTS"/*.sh; do
         base=$(basename "$f")
         bash_gated | grep -qx "$base" && continue
@@ -128,4 +174,21 @@ py_gated() {
         grep -q "$EXEMPT_MARKER" "$f" && skipped=1                  # declared exempt
         [ "$skipped" -eq 1 ] || { echo "$base: neither gated nor exempt"; false; }
     done
+}
+
+@test "plugin coverage is enumerated too (the plugin gate cannot go vacuous)" {
+    # py_plugin_gated feeds a `for` loop, so if its glob ever stops matching the
+    # loop body never runs and the gate passes having checked nothing. Assert
+    # the enumeration independently, exactly as the configs/ gate above does.
+    local f skipped found=0
+    for f in "$REPO_ROOT"/plugins/*/scripts/*.py; do
+        [ -f "$f" ] || continue
+        found=$((found + 1))
+        py_plugin_gated | grep -qxF "$f" && continue
+        skipped=0
+        grep -q '__name__ == "__main__"' "$f" || skipped=1          # library
+        grep -q "$EXEMPT_MARKER" "$f" && skipped=1                  # declared exempt
+        [ "$skipped" -eq 1 ] || { echo "$f: neither gated nor exempt"; false; }
+    done
+    [ "$found" -gt 0 ] || { echo "no plugin scripts found: glob is stale"; false; }
 }

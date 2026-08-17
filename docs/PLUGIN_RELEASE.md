@@ -68,3 +68,10 @@ Two consequences when adding, renaming, or moving a skill:
   (ratcheted) for prose mentions.
 
 See [SKILL-NAMING.md](SKILL-NAMING.md) for the naming grammar itself.
+
+## Mirrored Plugin Provenance
+
+`manifest-i-have-adhd` is refreshed only with `tools/sync_i_have_adhd.py` from
+an already checked-out, reviewed Git commit. The tool reads regular-file bytes
+directly from the pinned commit object, rejects symlinks/submodules, verifies
+checksums in `upstream-lock.json`, and never fetches mutable upstream content.

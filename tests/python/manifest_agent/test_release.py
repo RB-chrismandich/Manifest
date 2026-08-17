@@ -98,6 +98,17 @@ def test_local_checkout_digest_and_dirty_flag_detect_uncommitted_drift(tmp_path)
     assert dirty.archive_sha256 != clean.archive_sha256
 
 
+def test_local_checkout_digest_excludes_tracked_worktree_deletions(tmp_path):
+    repo = _local_checkout(tmp_path)
+    clean = deterministic_tree_sha256(repo)
+    (repo / "plugins" / "bundle.txt").unlink()
+
+    dirty = resolve_release(repo)
+
+    assert dirty.source_dirty is True
+    assert dirty.archive_sha256 != clean
+
+
 def test_local_checkout_digest_encodes_uninitialized_gitlinks(tmp_path):
     repo = _local_checkout(tmp_path)
     commit = _git(repo, "rev-parse", "HEAD")

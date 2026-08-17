@@ -33,6 +33,31 @@ def test_matrix_has_an_explicit_state_for_every_harness_cell() -> None:
     assert all(line.count("|") == 9 for line in lines)
     assert "|  |" not in rendered
     assert all(state in rendered for state in ("READY", "DEGRADED(", "N/A("))
+    for identity in ("skill:i-have-adhd", "executable:python3"):
+        row = next(
+            line for line in lines if f"`manifest-i-have-adhd:{identity}`" in line
+        )
+        assert row.count("READY") == 6
+        assert "N/A(" not in row
+    for identity in (
+        "hook:adhd-session-start",
+        "guidance:adhd-always-on-guidance",
+        "runtime:adhd-hook-runtime",
+    ):
+        row = next(
+            line for line in lines if f"`manifest-i-have-adhd:{identity}`" in line
+        )
+        assert row.count("READY") == 6
+        assert "BLOCKED(" not in row
+
+    for identity in (
+        "hook:codex-session-start",
+        "hook:codex-stop",
+        "hook:codex-permission-request",
+    ):
+        row = next(line for line in lines if f"`manifest-workspace:{identity}`" in line)
+        assert row.count("READY") == 1
+        assert row.count("N/A(") == 5
 
 
 def test_matrix_checked_in_rendering_is_current() -> None:

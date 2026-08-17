@@ -1,0 +1,62 @@
+schema_version: 1
+bundle:
+  name: manifest-i-have-adhd
+  version: 0.1.0
+  description: Pinned ADHD-friendly always-on response guidance with fail-open diagnostics.
+  category: productivity
+components:
+  skills:
+    root: skills
+    include: ["*/SKILL.md"]
+  agents: []
+  hooks:
+    - id: adhd-session-start
+      path: hooks/hooks.json
+      compatibility:
+        claude: {mode: native}
+        codex: {mode: native}
+        gemini: {mode: generated}
+        cursor: {mode: generated}
+        antigravity: {mode: imported}
+        devin: {mode: generated}
+  runtime:
+    - id: adhd-hook-runtime
+      path: hooks/always_on.py
+      compatibility:
+        claude: {mode: native}
+        codex: {mode: native}
+        gemini: {mode: generated}
+        cursor: {mode: generated}
+        antigravity: {mode: imported}
+        devin: {mode: generated}
+  guidance:
+    - id: adhd-always-on-guidance
+      path: guidance/always-on.md
+      compatibility:
+        claude: {mode: native}
+        codex: {mode: native}
+        gemini: {mode: generated}
+        cursor: {mode: generated}
+        antigravity: {mode: imported}
+        devin: {mode: generated}
+capabilities:
+  mcp:
+    required: []
+    default: []
+    optional: []
+  executables:
+    required: [python3]
+    default: []
+    optional: []
+compatibility:
+  claude: {mode: native}
+  codex: {mode: native}
+  gemini: {mode: generated}
+  cursor: {mode: generated}
+  antigravity: {mode: imported}
+  devin: {mode: native}
+provenance:
+  repository: https://github.com/RB-chrismandich/Manifest
+  license: MIT
+  license_file: LICENSE.upstream
+  generated_by: tools/generate_plugin_views.py

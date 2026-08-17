@@ -1,6 +1,7 @@
 """manifest-delegate: cli."""
 
 import argparse
+import json
 import sys
 
 from . import (
@@ -68,10 +69,42 @@ def _add_task_args(p):
         "--wait", action="store_true", help="run in foreground (default)"
     )
     p.add_argument("--write", action="store_true", help="allow sandboxed writes")
+    _add_task_model_args(p)
+    _add_task_resume_args(p)
+
+
+def _add_task_model_args(p):
     p.add_argument("--model", help="model tier")
+    p.add_argument(
+        "--model-chain",
+        help="comma-separated portable fallback tiers (maximum four attempts)",
+    )
+    p.add_argument("--skill-path", help="read models/model_fallback from a SKILL.md")
+    p.add_argument(
+        "--model-fallback", choices=("auto", "confirm"), help="fallback authorization"
+    )
+    p.add_argument("--expected-version", type=int, default=None)
+    p.add_argument(
+        "--recovery-id",
+        help="recovery identity required for approve/reject/cancel transitions",
+    )
+    p.add_argument(
+        "--fallback-decision",
+        choices=("approve", "reject", "auto"),
+        help="versioned transition for a fallback_pending job",
+    )
+    p.add_argument("--replacement-tier", help="replace the proposed fallback tier")
+    p.add_argument(
+        "--replacement-mode",
+        choices=("auto", "confirm"),
+        help="replace fallback authorization for the resumed attempts",
+    )
     p.add_argument(
         "--budget", type=_positive_int_arg, help="budget in seconds (positive integer)"
     )
+
+
+def _add_task_resume_args(p):
     resume_group = p.add_mutually_exclusive_group()
     resume_group.add_argument(
         "--resume", metavar="JOB_ID", help="resume a prior job's session"
@@ -88,7 +121,13 @@ def _add_task_args(p):
         help="get a second opinion on a prior job",
     )
     p.add_argument("--of", metavar="JOB_ID", help="job id the second opinion is about")
-    p.add_argument("--prompt-file", metavar="FILE", help="read the prompt from FILE")
+    prompt_files = p.add_mutually_exclusive_group()
+    prompt_files.add_argument(
+        "--task-file", metavar="FILE", help="read freshly resubmitted task text"
+    )
+    prompt_files.add_argument(
+        "--prompt-file", metavar="FILE", help="deprecated alias for --task-file"
+    )
     p.add_argument(
         "prompt", nargs="?", default=None, help="prompt text, or - for stdin"
     )
@@ -161,6 +200,9 @@ def _add_subcommand_args(name, p):
         p.add_argument(
             "job_id", nargs="?", default=None, help="job id or unique prefix"
         )
+        p.add_argument("--expected-version", type=int, default=None)
+        if name == "cancel":
+            p.add_argument("--recovery-id", default=None)
     elif name == "transfer":
         p.add_argument("--backend", help="backend id or alias")
         p.add_argument(
@@ -218,63 +260,123 @@ def build_parser():
     return parser
 
 
-def main(argv=None):
-    argv = sys.argv[1:] if argv is None else argv
-    if argv and argv[0] == "_worker":
-        if len(argv) < 3:
-            sys.stderr.write("delegate.py _worker: missing job_id/workspace_dir\n")
-            return 2
-        return worker.cmd_worker(argv[1], argv[2])
+def _run_worker(argv):
+    if not argv or argv[0] != "_worker":
+        return None
+    if len(argv) < 3:
+        sys.stderr.write("delegate.py _worker: missing job_id/workspace_dir\n")
+        return 2
+    return worker.cmd_worker(
+        argv[1],
+        argv[2],
+        argv[3] if len(argv) > 3 else None,
+        argv[4] if len(argv) > 4 else None,
+        argv[5] if len(argv) > 5 else None,
+    )
 
+
+def _parse_args(argv):
     parser = build_parser()
     if not argv:
         parser.print_help()
-        return 0
+        return None, 0
     args, unknown = parser.parse_known_args(argv)
     if unknown:
         sys.stderr.write(
             "delegate: unrecognized arguments: {}\n".format(" ".join(unknown))
         )
-        return 2
+        return None, 2
     if args.command is None:
         parser.print_help()
-        return 0
+        return None, 0
+    return args, None
 
-    if args.command in ("task", "review", "status", "result", "cancel", "setup"):
-        backends = registry.load_registry_or_exit(backend._registry_path_override())
-        user_config = config.load_user_config()
-        services_disabled = config.load_services_disabled()
-        if args.command == "setup":
-            return setup.cmd_setup(args, backends, user_config, services_disabled)
-        if args.command == "task":
-            return task.cmd_task(args, backends, user_config, services_disabled)
-        if args.command == "review":
-            return review.cmd_review(args, backends, user_config, services_disabled)
-        if args.command == "status":
-            return jobs_cli.cmd_status(args)
-        if args.command == "result":
-            return jobs_cli.cmd_result(args)
-        if args.command == "cancel":
-            return jobs_cli.cmd_cancel(args)
 
+def _reject_fallback(args):
+    if not (
+        args.command == "task" and getattr(args, "fallback_decision", None) == "reject"
+    ):
+        return None
+    resume = getattr(args, "resume", None)
+    if not resume:
+        # _resolve_job_id matches by prefix, and every job id starts with "",
+        # so an empty prefix would silently target the only job in the store.
+        sys.stderr.write(
+            "delegate: rejecting fallback_pending requires --resume JOB_ID\n"
+        )
+        return 2
+    store = task.jobstore.JobStore()
+    job_id, error = task._resolve_job_id(store, resume)
+    if error:
+        sys.stderr.write(f"delegate: {error}\n")
+        return 2
+    expected = getattr(args, "expected_version", None)
+    recovery_id = getattr(args, "recovery_id", None)
+    if expected is None or not recovery_id:
+        sys.stderr.write(
+            "delegate: rejecting fallback_pending requires "
+            "--expected-version and --recovery-id\n"
+        )
+        return 2
+    try:
+        rejected = store.reject_fallback(
+            job_id,
+            expected_version=expected,
+            recovery_id=recovery_id,
+            action="reject",
+        )
+    except (OSError, ValueError) as error:
+        sys.stderr.write(f"delegate: {error}\n")
+        return 2
+    print(json.dumps(rejected) if args.json else "state: fallback_rejected")
+    return 0
+
+
+def _dispatch_configured(args):
+    backends = registry.load_registry_or_exit(backend._registry_path_override())
+    user_config = config.load_user_config()
+    services_disabled = config.load_services_disabled()
+    if args.command == "setup":
+        return setup.cmd_setup(args, backends, user_config, services_disabled)
+    if args.command == "task":
+        return task.cmd_task(args, backends, user_config, services_disabled)
+    if args.command == "review":
+        return review.cmd_review(args, backends, user_config, services_disabled)
+    return gate.cmd_gate(args, backends, user_config, services_disabled)
+
+
+def _dispatch_command(args):
+    if args.command in ("task", "review", "setup", "gate"):
+        return _dispatch_configured(args)
+    direct = {
+        "status": jobs_cli.cmd_status,
+        "result": jobs_cli.cmd_result,
+        "cancel": jobs_cli.cmd_cancel,
+    }
+    if args.command in direct:
+        return direct[args.command](args)
     if args.command in ("transfer", "resume-candidate"):
         backends = registry.load_registry_or_exit(backend._registry_path_override())
         user_config = config.load_user_config()
         if args.command == "transfer":
             return transfer.cmd_transfer(args, backends, user_config)
-        if args.command == "resume-candidate":
-            return transfer.cmd_resume_candidate(args, backends, user_config)
-
-    if args.command == "gate":
-        backends = registry.load_registry_or_exit(backend._registry_path_override())
-        user_config = config.load_user_config()
-        services_disabled = config.load_services_disabled()
-        return gate.cmd_gate(args, backends, user_config, services_disabled)
-
-    # Phase 2 only implements registry/config/job-store/envelope plumbing;
-    # remaining subcommand behaviors are scaffolded stubs (Phase 3+ user stories).
+        return transfer.cmd_resume_candidate(args, backends, user_config)
     sys.stderr.write(f"delegate.py {args.command}: not yet implemented (Phase 3+)\n")
     return 1
+
+
+def main(argv=None):
+    argv = sys.argv[1:] if argv is None else argv
+    worker_result = _run_worker(argv)
+    if worker_result is not None:
+        return worker_result
+    args, parse_result = _parse_args(argv)
+    if parse_result is not None:
+        return parse_result
+    rejection = _reject_fallback(args)
+    if rejection is not None:
+        return rejection
+    return _dispatch_command(args)
 
 
 if __name__ == "__main__":

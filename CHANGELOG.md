@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Reconcile the complete Codex plugin marketplace before retiring flat skills.
+- Add the pinned, cross-harness `manifest-i-have-adhd` plugin and reversible upstream migration.
+- Add portable skill model chains, bounded failure classification, explicit fallback authorization, and `manifest skill-run`.
+
 > Version history for the Manifest parallel agent orchestration framework
 
 **Last Updated**: 2026-07-26

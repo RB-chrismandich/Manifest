@@ -12,9 +12,16 @@
         "manifest-security",
         "manifest-spec-planning",
         "manifest-workspace",
-        "stitch-design"
+        "stitch-design",
+        "manifest-i-have-adhd"
       ],
       "components": {
+        "manifest-i-have-adhd": [
+          "guidance:adhd-always-on-guidance",
+          "hook:adhd-session-start",
+          "runtime:adhd-hook-runtime",
+          "skill:i-have-adhd"
+        ],
         "manifest-code-quality": [
           "runtime:code-audit-references",
           "runtime:constitution-config",
@@ -204,6 +211,9 @@
         ]
       },
       "capabilities": {
+        "manifest-i-have-adhd": [
+          "executable:python3"
+        ],
         "manifest-code-quality": [
           "executable:git",
           "executable:python3"
@@ -258,9 +268,16 @@
         "manifest-security",
         "manifest-spec-planning",
         "manifest-workspace",
-        "stitch-design"
+        "stitch-design",
+        "manifest-i-have-adhd"
       ],
       "components": {
+        "manifest-i-have-adhd": [
+          "guidance:adhd-always-on-guidance",
+          "hook:adhd-session-start",
+          "runtime:adhd-hook-runtime",
+          "skill:i-have-adhd"
+        ],
         "manifest-code-quality": [
           "runtime:code-audit-references",
           "runtime:constitution-config",
@@ -389,6 +406,9 @@
           "agent:verifier",
           "guidance:workspace-orchestration",
           "guidance:workspace-token-economy",
+          "hook:codex-permission-request",
+          "hook:codex-session-start",
+          "hook:codex-stop",
           "hook:manifest-hooks",
           "runtime:command-catalog",
           "runtime:deploy-reconcile-scripts",
@@ -450,6 +470,9 @@
         ]
       },
       "capabilities": {
+        "manifest-i-have-adhd": [
+          "executable:python3"
+        ],
         "manifest-code-quality": [
           "executable:git",
           "executable:python3"
@@ -504,9 +527,16 @@
         "manifest-security",
         "manifest-spec-planning",
         "manifest-workspace",
-        "stitch-design"
+        "stitch-design",
+        "manifest-i-have-adhd"
       ],
       "components": {
+        "manifest-i-have-adhd": [
+          "guidance:adhd-always-on-guidance",
+          "hook:adhd-session-start",
+          "runtime:adhd-hook-runtime",
+          "skill:i-have-adhd"
+        ],
         "manifest-code-quality": [
           "runtime:code-audit-references",
           "runtime:constitution-config",
@@ -696,6 +726,9 @@
         ]
       },
       "capabilities": {
+        "manifest-i-have-adhd": [
+          "executable:python3"
+        ],
         "manifest-code-quality": [
           "executable:git",
           "executable:python3"
@@ -750,9 +783,16 @@
         "manifest-security",
         "manifest-spec-planning",
         "manifest-workspace",
-        "stitch-design"
+        "stitch-design",
+        "manifest-i-have-adhd"
       ],
       "components": {
+        "manifest-i-have-adhd": [
+          "guidance:adhd-always-on-guidance",
+          "hook:adhd-session-start",
+          "runtime:adhd-hook-runtime",
+          "skill:i-have-adhd"
+        ],
         "manifest-code-quality": [
           "runtime:code-audit-references",
           "runtime:constitution-config",
@@ -942,6 +982,9 @@
         ]
       },
       "capabilities": {
+        "manifest-i-have-adhd": [
+          "executable:python3"
+        ],
         "manifest-code-quality": [
           "executable:git",
           "executable:python3"
@@ -985,10 +1028,11 @@
       }
     },
     "antigravity": {
-      "state": "READY",
+      "state": "BLOCKED(required ADHD always-on surfaces unsupported)",
       "version": "fixture-1",
       "verified": true,
       "installed_plugin_ids": [
+        "manifest-i-have-adhd",
         "manifest-code-quality",
         "manifest-docs",
         "manifest-forge",
@@ -999,6 +1043,12 @@
         "stitch-design"
       ],
       "components": {
+        "manifest-i-have-adhd": [
+          "guidance:adhd-always-on-guidance",
+          "hook:adhd-session-start",
+          "runtime:adhd-hook-runtime",
+          "skill:i-have-adhd"
+        ],
         "manifest-code-quality": [
           "runtime:code-audit-references",
           "runtime:constitution-config",
@@ -1226,15 +1276,19 @@
           "executable:bash",
           "executable:git",
           "executable:node",
+          "executable:python3"
+        ],
+        "manifest-i-have-adhd": [
           "executable:python3"
         ]
       }
     },
     "devin": {
-      "state": "READY",
+      "state": "BLOCKED(required ADHD always-on surfaces unsupported)",
       "version": "fixture-1",
       "verified": true,
       "installed_plugin_ids": [
+        "manifest-i-have-adhd",
         "manifest-code-quality",
         "manifest-docs",
         "manifest-forge",
@@ -1245,6 +1299,12 @@
         "stitch-design"
       ],
       "components": {
+        "manifest-i-have-adhd": [
+          "guidance:adhd-always-on-guidance",
+          "hook:adhd-session-start",
+          "runtime:adhd-hook-runtime",
+          "skill:i-have-adhd"
+        ],
         "manifest-code-quality": [
           "runtime:code-audit-references",
           "runtime:constitution-config",
@@ -1472,6 +1532,9 @@
           "executable:bash",
           "executable:git",
           "executable:node",
+          "executable:python3"
+        ],
+        "manifest-i-have-adhd": [
           "executable:python3"
         ]
       }

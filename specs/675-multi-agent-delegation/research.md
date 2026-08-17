@@ -250,8 +250,67 @@ Seed invocation facts (verified against installed CLIs and
 | Backend | One-shot | Resume | Read-only mode | Auth probe |
 |---|---|---|---|---|
 | codex | `codex exec --json --color never --output-last-message <f> [-m <model>] <prompt>` (sandbox args from D8 appended; `--json` streams JSONL events for session capture) | `codex exec resume <id> <prompt>` | `--sandbox read-only` | `codex login status` (fallback: `~/.codex/auth.json` presence per services.yml) |
-| claude | `claude -p [--model <model>] --output-format json <prompt>` | `claude -p --resume <id> <prompt>` | sandbox-enabled `--settings` + `--permission-mode plan` + write-tool denylist (D8) | `claude --version` + a 1-token `-p` probe or auth status; final probe resolved by T003's acceptance check against a real authenticated + logged-out CLI (non-interactive, ≤10s) |
+| claude | `claude -p [--model <model>] --output-format json <prompt>` | `claude -p --resume <id> <prompt>` | sandbox-enabled `--settings` + `--permission-mode plan` + write-tool denylist (D8) | `claude auth status` (resolved by T003's acceptance check — see below) |
 | antigravity | `agy -p [--model <model>] --output-format json <prompt>` | `agy -p --conversation <id> <prompt>` | `--sandbox --mode plan` (sandbox retained in write mode too — D8) | `agy models` (the bootstrap auth probe) |
+
+### T003 acceptance evidence (measured 2026-08-16)
+
+Probes run against the real binaries on macOS 25.5.0 — `codex-cli 0.147.0`,
+`claude` (Claude Code 2.x), `agy`. "Logged out" is simulated by isolating the
+CLI's own state dir (`CODEX_HOME` / `HOME`), never by logging the machine out.
+Every probe runs with stdin closed and is far inside the ≤10s budget.
+
+| Backend | Final `auth_probe_cmd` | Authenticated | Logged out |
+|---|---|---|---|
+| codex | `codex login status` | rc=0, `Logged in using ChatGPT`, 0.32s | rc=1, `Not logged in`, 0.25s |
+| claude | `claude auth status` | rc=0, `{"loggedIn": true, "authMethod": "claude.ai", …}`, 0.76s | rc=1, `{"loggedIn": false, "authMethod": "none", …}`, 0.54s |
+| antigravity | `agy models` | rc=0, model list, 2.45s | rc=1, `Error: Please sign in to view available models`, 0.83s |
+
+Two candidates seeded before this check were **rejected as false readouts**:
+
+- `claude config get -g hasCompletedOnboarding` — the CLI has no `-g` flag; it
+  exits 1 with `error: unknown option '-g'` whether or not the user is logged
+  in, so claude would report `not_authenticated` permanently. Its non-flag
+  variants (`claude config get …`, `claude config ls`) drop into an
+  *interactive* session (12–16s, "What do you need?"), disqualifying them on
+  both the non-interactive and ≤10s requirements.
+- `agy auth status` — fails with `bubbletea: could not open TTY` under a
+  closed stdin **yet still exits 0**, so antigravity would report `ready` even
+  when signed out. A green that cannot go red is exactly the failure mode
+  `false-green-check-audit` exists to catch.
+
+`claude auth status` additionally supplies the readiness row's `identity`
+field from its JSON `authMethod`/account keys; `codex login status` supplies
+it from the `Logged in using …` line.
+
+**Stdin transport, confirmed against the real binaries** (same session): the
+prompt `Reply with exactly: STDIN_OK` was piped to each CLI with the shipped
+argv and the reply read back.
+
+- codex — `codex exec --json --output-last-message <f> -` → replied `STDIN_OK`.
+  The trailing `-` is required; without it codex blocks reading stdin *in
+  addition to* the argv prompt.
+- claude — `claude -p --output-format json` with **no** prompt argument →
+  `result: "STDIN_OK"`.
+- antigravity — `agy --print <prompt>` keeps `transport: argv`: print mode
+  ignores piped stdin (silently, returning an answer to an empty prompt), so
+  the prompt must ride argv and stays bounded by `max_payload_bytes`.
+
+**Byte-limit derivation** (no invented numbers):
+
+- `max_payload_bytes` = `10485760` (10 MiB) for the two stdin backends — a
+  pipe has no ARG_MAX ceiling, so this is a self-imposed sanity bound, not a
+  transport limit.
+- `max_payload_bytes` = `65536` (64 KiB) for antigravity's argv transport,
+  derived from the measured `getconf ARG_MAX` = `1048576` on this platform,
+  leaving ~16× headroom for the environment block and the rest of the argv
+  (ARG_MAX covers both, so the usable prompt share is well under the raw
+  figure).
+- `max_context_bytes` = `null` for all three: none of the three CLIs documents
+  a stable byte-denominated context bound, and the token→byte ratio is
+  model- and tokenizer-dependent. An invented number would produce false
+  rejections, so the bound is explicitly absent and the transport bound is the
+  only one enforced — per the task's "explicit `null` with rationale".
 
 Session-id capture: claude/agy emit `--output-format json` payloads carrying
 session/conversation ids (`json_field` capture). codex runs with `--json`,
@@ -277,9 +336,9 @@ registry. The dispatcher validates context against both bounds and names the
 specific limit exceeded, never truncating; the exact stdin invocation per
 CLI is confirmed against the real binaries by T003's acceptance check before
 `input.transport` is seeded (`codex exec -` reads stdin; `claude -p` reads
-stdin when no prompt argument is given; agy's stdin behavior is unverified
-until that check runs), and T049's quickstart pass re-verifies delivery end
-to end.
+stdin when no prompt argument is given; `agy --print <prompt>` requires a
+bounded argv value because print mode ignores piped stdin), and T049's
+quickstart pass re-verifies delivery end to end.
 
 **Rationale**: FR-016 verbatim — adding a backend must be a registry entry +
 readiness probe, no surface redesign. A registry entry consumed by one dispatcher

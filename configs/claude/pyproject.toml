@@ -12,6 +12,7 @@ dependencies = [
   "pyyaml>=6.0.1",
   "rich>=13.0.0",
   "click>=8.1.0",
+  "manifest-model-policy==0.1.0",
 ]
 
 [project.scripts]
@@ -45,3 +46,6 @@ packages = [
 "scripts/smoke_orchestrator" = "smoke_orchestrator"
 "scripts/skillclaw" = "skillclaw"
 "scripts/manifest_cli" = "manifest_cli"
+
+[tool.uv.sources]
+manifest-model-policy = { path = "scripts/manifest_model_policy", editable = true }

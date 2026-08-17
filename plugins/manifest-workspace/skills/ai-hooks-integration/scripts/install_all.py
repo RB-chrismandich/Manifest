@@ -18,7 +18,10 @@ import subprocess
 import sys
 from pathlib import Path
 
-from runtime.tool_config import get_default_path
+# Child interpreters do not inherit pytest's sys.dont_write_bytecode flag.
+sys.dont_write_bytecode = True
+
+from runtime.tool_config import get_default_path  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent
 MERGE = ROOT / "merge_hooks.py"

@@ -1,0 +1,21 @@
+{
+  "events": [
+    {
+      "id": "codex-permission-request",
+      "native_event": "PermissionRequest",
+      "surface": "hooks.PermissionRequest"
+    },
+    {
+      "id": "codex-session-start",
+      "native_event": "SessionStart",
+      "surface": "hooks.SessionStart"
+    },
+    {
+      "id": "codex-stop",
+      "native_event": "Stop",
+      "surface": "hooks.Stop"
+    }
+  ],
+  "harness": "codex",
+  "schema_version": 1
+}

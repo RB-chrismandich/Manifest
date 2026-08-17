@@ -373,6 +373,26 @@ def test_uninstall_removes_only_receipt_plugins_and_retains_shared_marketplace()
     assert "unowned plugin" in result.warnings[0]
 
 
+def test_uninstall_rejects_receipt_missing_a_domain_bundle() -> None:
+    """An incomplete inventory must not authorise any removal command."""
+    runner = QueueRunner([])
+    receipt = HarnessReceipt(
+        harness="claude",
+        adapter_version="1",
+        native_version="2",
+        plugin_ids=tuple(f"{name}@manifest" for name in DOMAIN_BUNDLES[:-1]),
+        owned_entries=(OwnedEntry("marketplace", "manifest", "receipt"),),
+        capabilities={},
+        verified=True,
+    )
+
+    result = ClaudeAdapter(runner=runner, which=lambda name: name).uninstall(receipt)
+
+    assert result.state is ResultState.BLOCKED
+    assert "complete canonical plugin inventory" in "; ".join(result.errors)
+    assert runner.log == []
+
+
 def test_uninstall_removes_owned_marketplace_when_no_plugins_reference_it() -> None:
     runner = QueueRunner(
         [command() for _name in DOMAIN_BUNDLES] + [command(stdout="[]"), command()]

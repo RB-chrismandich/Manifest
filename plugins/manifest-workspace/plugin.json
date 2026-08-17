@@ -6,9 +6,30 @@
       "compatibility": {
         "degraded": [
           {
+            "component_id": "codex-permission-request",
+            "component_type": "hooks",
+            "mode": "not_applicable",
+            "path": "hooks/codex-lifecycle-events.json",
+            "reason": "This component records the Codex PermissionRequest surface only."
+          },
+          {
+            "component_id": "codex-session-start",
+            "component_type": "hooks",
+            "mode": "not_applicable",
+            "path": "hooks/codex-lifecycle-events.json",
+            "reason": "This component records the Codex SessionStart surface only."
+          },
+          {
+            "component_id": "codex-stop",
+            "component_type": "hooks",
+            "mode": "not_applicable",
+            "path": "hooks/codex-lifecycle-events.json",
+            "reason": "This component records the Codex Stop surface only."
+          },
+          {
             "component_id": "manifest-hooks",
             "component_type": "hooks",
-            "mode": "unsupported",
+            "mode": "degraded",
             "path": "hooks/manifest-hooks.json",
             "reason": "Antigravity has no native lifecycle hook surface."
           }
@@ -342,9 +363,9 @@
           {
             "component_id": "manifest-hooks",
             "component_type": "hooks",
-            "mode": "unsupported",
+            "mode": "degraded",
             "path": "hooks/manifest-hooks.json",
-            "reason": "Codex has no native lifecycle hook surface."
+            "reason": "The advisory manifest-hooks catalog is not a Codex lifecycle hook registration. Codex lifecycle support is declared per event below."
           }
         ],
         "native": [
@@ -449,6 +470,24 @@
             "component_type": "guidance",
             "mode": "native",
             "path": "guidance/token-economy.md"
+          },
+          {
+            "component_id": "codex-permission-request",
+            "component_type": "hooks",
+            "mode": "native",
+            "path": "hooks/codex-lifecycle-events.json"
+          },
+          {
+            "component_id": "codex-session-start",
+            "component_type": "hooks",
+            "mode": "native",
+            "path": "hooks/codex-lifecycle-events.json"
+          },
+          {
+            "component_id": "codex-stop",
+            "component_type": "hooks",
+            "mode": "native",
+            "path": "hooks/codex-lifecycle-events.json"
           },
           {
             "component_id": "command-catalog",
@@ -597,6 +636,20 @@
             "path": "guidance/token-economy.md"
           }
         ],
+        "hooks": [
+          {
+            "id": "codex-permission-request",
+            "path": "hooks/codex-lifecycle-events.json"
+          },
+          {
+            "id": "codex-session-start",
+            "path": "hooks/codex-lifecycle-events.json"
+          },
+          {
+            "id": "codex-stop",
+            "path": "hooks/codex-lifecycle-events.json"
+          }
+        ],
         "runtime": [
           {
             "id": "command-catalog",
@@ -672,6 +725,29 @@
     },
     "cursor": {
       "compatibility": {
+        "degraded": [
+          {
+            "component_id": "codex-permission-request",
+            "component_type": "hooks",
+            "mode": "not_applicable",
+            "path": "hooks/codex-lifecycle-events.json",
+            "reason": "This component records the Codex PermissionRequest surface only."
+          },
+          {
+            "component_id": "codex-session-start",
+            "component_type": "hooks",
+            "mode": "not_applicable",
+            "path": "hooks/codex-lifecycle-events.json",
+            "reason": "This component records the Codex SessionStart surface only."
+          },
+          {
+            "component_id": "codex-stop",
+            "component_type": "hooks",
+            "mode": "not_applicable",
+            "path": "hooks/codex-lifecycle-events.json",
+            "reason": "This component records the Codex Stop surface only."
+          }
+        ],
         "generated": [
           {
             "component_id": "compatibility-translator",
@@ -1011,9 +1087,30 @@
       "compatibility": {
         "degraded": [
           {
+            "component_id": "codex-permission-request",
+            "component_type": "hooks",
+            "mode": "not_applicable",
+            "path": "hooks/codex-lifecycle-events.json",
+            "reason": "This component records the Codex PermissionRequest surface only."
+          },
+          {
+            "component_id": "codex-session-start",
+            "component_type": "hooks",
+            "mode": "not_applicable",
+            "path": "hooks/codex-lifecycle-events.json",
+            "reason": "This component records the Codex SessionStart surface only."
+          },
+          {
+            "component_id": "codex-stop",
+            "component_type": "hooks",
+            "mode": "not_applicable",
+            "path": "hooks/codex-lifecycle-events.json",
+            "reason": "This component records the Codex Stop surface only."
+          },
+          {
             "component_id": "manifest-hooks",
             "component_type": "hooks",
-            "mode": "unsupported",
+            "mode": "degraded",
             "path": "hooks/manifest-hooks.json",
             "reason": "Devin has no native lifecycle hook surface."
           }

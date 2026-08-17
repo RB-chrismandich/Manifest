@@ -100,6 +100,13 @@ m = re.search(r'GATE_WRAPPER_TIMEOUT_SECONDS\s*=\s*(\d+)', src)
 assert m, 'no GATE_WRAPPER_TIMEOUT_SECONDS constant found'
 val = int(m.group(1))
 assert val > 840, val
+# Upper bound too: hooks.json's declared Stop timeout is the harness's hard
+# ceiling. Only the lower bound was ever checked, which let the wrapper sit at
+# exactly 900 with no room to flush its fail-open JSON before being killed.
+import json
+hooks = json.load(open('$PLUGIN_DIR/hooks/hooks.json'))
+declared = min(h['timeout'] for m2 in hooks['hooks']['Stop'] for h in m2['hooks'] if 'timeout' in h)
+assert val < declared, (val, declared)
 assert 'timeout=GATE_WRAPPER_TIMEOUT_SECONDS' in src, 'wrapper does not use the constant'
 print('ok', val)
 "

@@ -78,7 +78,11 @@ fi
 SKILL_DIRS=()
 while IFS= read -r _d; do
     [[ -n "$_d" ]] && SKILL_DIRS+=("$_d")
-done < <(find "$SRC_GLOB" -type d -path '*/skills/*' -mindepth 3 -maxdepth 3 2> /dev/null | sort)
+done < <(
+    find "$SRC_GLOB" -type f -path '*/skills/*/SKILL.md' 2> /dev/null |
+        sed 's|/SKILL.md$||' |
+        sort
+)
 unset _d
 if [[ ${#SKILL_DIRS[@]} -eq 0 ]]; then
     err "found no plugins/*/skills/* directories under $SRC_GLOB — refusing to write an empty mirror"

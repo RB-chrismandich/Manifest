@@ -27,6 +27,8 @@ DOMAIN_BUNDLES = (
     "manifest-workspace",
     "stitch-design",
 )
+ADDON_BUNDLES = ("manifest-i-have-adhd",)
+PORTABLE_BUNDLES = (*DOMAIN_BUNDLES, *ADDON_BUNDLES)
 
 _COMPONENT_KINDS = ("agents", "hooks", "runtime", "guidance")
 _TIER_NAMES = frozenset(tier.value for tier in CapabilityTier)
@@ -311,7 +313,11 @@ def _component_path_errors(bundle_path: Path, contract: BundleContract) -> list[
 
 def load_domain_contracts(root: Path) -> tuple[BundleContract, ...]:
     """Load the exact portable domain contracts rooted at ``plugins``."""
-    contract_paths = sorted(root.glob("*/manifest-capabilities.yml"))
+    contract_paths = sorted(
+        path
+        for path in root.glob("*/manifest-capabilities.yml")
+        if path.parent.name not in ADDON_BUNDLES
+    )
     errors: list[str] = []
     contracts_by_path: list[tuple[Path, BundleContract]] = []
     for contract_path in contract_paths:
@@ -360,3 +366,29 @@ def load_domain_contracts(root: Path) -> tuple[BundleContract, ...]:
 
     contracts_by_name = {contract.name: contract for _, contract in contracts_by_path}
     return tuple(contracts_by_name[name] for name in DOMAIN_BUNDLES)
+
+
+def load_addon_contracts(root: Path) -> tuple[BundleContract, ...]:
+    """Load every addon contract present in a verified release."""
+    contracts: list[BundleContract] = []
+    errors: list[str] = []
+    for path in sorted(root.glob("*/manifest-capabilities.yml")):
+        if path.parent.name in DOMAIN_BUNDLES:
+            continue
+        try:
+            contract = load_contract(path)
+        except ContractError as error:
+            errors.extend(f"{path}: {detail}" for detail in error.errors)
+            continue
+        if contract.name != path.parent.name:
+            errors.append(
+                f"{path}: bundle.name {contract.name!r} does not match bundle directory {path.parent.name!r}"
+            )
+        errors.extend(_component_path_errors(path.parent, contract))
+        contracts.append(contract)
+    names = [contract.name for contract in contracts]
+    if len(names) != len(set(names)):
+        errors.append("duplicate addon portable contract")
+    if errors:
+        raise ContractError(errors)
+    return tuple(contracts)

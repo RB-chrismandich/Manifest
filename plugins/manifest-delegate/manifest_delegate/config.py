@@ -357,6 +357,24 @@ def load_model_tiers(config_dir=None):
     return {}
 
 
+def load_model_policy(config_dir=None):
+    """Read the shared tier registry and fallback defaults as one mapping."""
+    yaml_mod = _yaml_module()
+    if yaml_mod is None:
+        return {}
+    for candidate_dir in _config_search_dirs(config_dir):
+        path = os.path.join(candidate_dir, "parallel_agent.yml")
+        if not os.path.isfile(path):
+            continue
+        try:
+            with open(path, encoding="utf-8") as fh:
+                data = yaml_mod.safe_load(fh) or {}
+        except Exception:
+            return {}
+        return data if isinstance(data, dict) else {}
+    return {}
+
+
 def effective_backend_enabled(backend_id, user_config, services_disabled):
     """Resolve enable/disable with layer attribution (workspace beats user).
 

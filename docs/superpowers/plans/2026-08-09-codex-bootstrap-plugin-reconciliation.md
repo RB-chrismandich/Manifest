@@ -482,6 +482,11 @@ git commit -m "feat(bootstrap): reconcile Codex plugins through coordinator"
 **Files:**
 
 - Create: `tests/python/manifest_agent/test_codex_bootstrap_native.py`
+- Modify: `tools/generate_plugin_views.py`
+- Modify: `tests/python/manifest_agent/test_generate_plugin_views.py`
+- Modify: `src/manifest_agent/adapters/codex.py`
+- Modify: `tests/python/manifest_agent/test_adapter_codex.py`
+- Modify: `configs/claude/config/skill_policies.yml`
 - Modify: `docs/CONFIGURATION.md`
 - Modify: `docs/TROUBLESHOOTING.md`
 - Modify: `docs/PLUGIN_RELEASE.md`
@@ -489,6 +494,8 @@ git commit -m "feat(bootstrap): reconcile Codex plugins through coordinator"
 **Interfaces:**
 
 - Verifies the user-observed nine-installed/two-missing state.
+- Generates Codex invocation policy for every installed Manifest skill.
+- Refreshes a local Codex marketplace when same-version plugin content changes.
 - Documents automatic plugin convergence and recovery commands.
 
 - [ ] **Step 1: Add an opt-in native Codex smoke test**
@@ -497,7 +504,10 @@ Mark it `@pytest.mark.native`. Use an isolated `HOME`, register the repository m
 nine entries, create the legacy skills symlink, and run `manifest bootstrap-sync` twice.
 
 Assert the first run installs `manifest-delegate` and `manifest-docker`, converts the skill source, and returns READY.
-Assert the second run reports no mutations.
+Assert the second run reports no mutations. Inspect `codex debug prompt-input` and assert the startup warning is absent,
+the three qualified implicit entry points are visible, and an explicit-only skill is absent from the startup list.
+Cover a previously installed same-version plugin tree and require prepared
+reconciliation to refresh the local marketplace before target verification.
 
 - [ ] **Step 2: Add troubleshooting documentation**
 
@@ -507,6 +517,8 @@ Document:
 - Why the flat skill link remains after a failed convergence.
 - How to rerun `manifest bootstrap-sync --source <checkout> --harness codex`.
 - That bootstrap now fails instead of claiming success when required plugins are missing.
+- That all skills remain explicitly callable even though only the policy
+  allowlist is visible in Codex's startup prompt.
 
 - [ ] **Step 3: Run focused verification**
 
@@ -517,7 +529,9 @@ uv run pytest tests/python/manifest_agent/test_catalog.py \
   tests/python/manifest_agent/test_adapter_codex.py \
   tests/python/manifest_agent/test_codex_skill_cutover.py \
   tests/python/manifest_agent/test_bootstrap_sync.py \
+  tests/python/manifest_agent/test_generate_plugin_views.py \
   tests/python/manifest_agent/test_cli.py -q
+uv run python tools/generate_plugin_views.py --check --repo-root .
 bats tests/bats/deploy_skills.bats tests/bats/bootstrap_services.bats
 pre-commit run --files src/manifest_agent/catalog.py src/manifest_agent/bootstrap_sync.py \
   src/manifest_agent/codex_skill_cutover.py src/manifest_agent/adapters/codex.py \
@@ -529,6 +543,12 @@ Expected: all focused tests pass. Run the native test only on a disposable authe
 - [ ] **Step 4: Commit**
 
 ```bash
-git add tests/python/manifest_agent/test_codex_bootstrap_native.py docs/CONFIGURATION.md docs/TROUBLESHOOTING.md docs/PLUGIN_RELEASE.md
+git add tests/python/manifest_agent/test_codex_bootstrap_native.py \
+  tests/python/manifest_agent/test_generate_plugin_views.py \
+  src/manifest_agent/adapters/codex.py \
+  tests/python/manifest_agent/test_adapter_codex.py \
+  tools/generate_plugin_views.py configs/claude/config/skill_policies.yml \
+  plugins/*/skills/*/agents/openai.yaml docs/CONFIGURATION.md \
+  docs/TROUBLESHOOTING.md docs/PLUGIN_RELEASE.md
 git commit -m "test(codex): cover bootstrap plugin reconciliation"
 ```

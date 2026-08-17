@@ -14,7 +14,7 @@ import pytest
 
 from manifest_agent.adapters.antigravity import AntigravityAdapter
 from manifest_agent.adapters.claude import ClaudeAdapter
-from manifest_agent.adapters.codex import CodexAdapter
+from manifest_agent.adapters.codex import CodexAdapter, _catalog_owned_entries
 from manifest_agent.adapters.cursor import CursorAdapter
 from manifest_agent.adapters.devin import DevinAdapter
 from manifest_agent.adapters.gemini import GeminiAdapter
@@ -22,6 +22,7 @@ from manifest_agent.contracts import (
     DOMAIN_BUNDLES,
     Capabilities,
     Components,
+    load_addon_contracts,
     load_domain_contracts,
 )
 from manifest_agent.models import (
@@ -34,6 +35,7 @@ from manifest_agent.models import (
     OwnedEntry,
     ResultState,
 )
+from manifest_agent.ownership import authenticate_codex_receipt
 from manifest_agent.process import CommandRunner
 
 _STUB = Path(__file__).parents[2] / "fixtures" / "harness_bins" / "harness-stub"
@@ -52,8 +54,9 @@ def _desired(harness: str) -> DesiredState:
     empty_capabilities = Capabilities(
         dict.fromkeys(CapabilityTier, ()), dict.fromkeys(CapabilityTier, ())
     )
-    contracts = tuple(
-        replace(
+
+    def without_component_requirements(contract):
+        return replace(
             contract,
             components=Components(
                 contract.components.skills_root,
@@ -65,7 +68,18 @@ def _desired(harness: str) -> DesiredState:
             ),
             capabilities=empty_capabilities,
         )
+
+    contracts = tuple(
+        without_component_requirements(contract)
         for contract in load_domain_contracts(_REPOSITORY / "plugins")
+    )
+    loaded_addons = load_addon_contracts(_REPOSITORY / "plugins")
+    addons = (
+        loaded_addons
+        if harness in {"antigravity", "devin"}
+        else tuple(
+            without_component_requirements(contract) for contract in loaded_addons
+        )
     )
     return DesiredState(
         release_version="0.2.0",
@@ -81,6 +95,17 @@ def _desired(harness: str) -> DesiredState:
         contracts=contracts,
         selected_optional=frozenset(),
         requested_harnesses=(harness,),
+        addon_contracts=addons,
+    )
+
+
+def _bundle_names(desired: DesiredState) -> tuple[str, ...]:
+    return tuple(contract.name for contract in desired.all_contracts)
+
+
+def _bundle_version(desired: DesiredState, name: str) -> str:
+    return next(
+        contract.version for contract in desired.all_contracts if contract.name == name
     )
 
 
@@ -114,13 +139,22 @@ def _configured_environment(
     executable = bin_dir / _HARNESS_EXECUTABLES[harness]
     executable.symlink_to(_STUB)
     log = tmp_path / "argv.jsonl"
-    return {
+    environment = {
         "HOME": str(tmp_path / "home"),
         "PATH": f"{bin_dir}:{os.environ['PATH']}",
         "HARNESS_STUB_LOG": str(log),
         "HARNESS_STUB_RESPONSES": _responses(harness, desired, "detect"),
         "HARNESS_STUB_STATE": str(tmp_path / "stub-state.json"),
     }
+    if harness == "codex":
+        codex_home = tmp_path / "home/.codex"
+        environment["CODEX_HOME"] = str(codex_home)
+        for contract in desired.all_contracts:
+            destination = (
+                codex_home / "plugins/cache/manifest" / contract.name / contract.version
+            )
+            shutil.copytree(desired.bundle_path(contract.name), destination)
+    return environment
 
 
 def _adapter(harness: str, environment: dict[str, str]):
@@ -158,15 +192,23 @@ def _local_adapter(harness: str):
 
 
 def _receipt(
-    harness: str, desired: DesiredState, plugin_ids: tuple[str, ...]
+    harness: str,
+    desired: DesiredState,
+    plugin_ids: tuple[str, ...],
+    environment: dict[str, str],
+    installed_result: HarnessResult | None = None,
 ) -> HarnessReceipt:
     if harness in {"claude", "codex"}:
         entries = (OwnedEntry("marketplace", "manifest", "receipt"),)
+        if harness == "codex":
+            entries = _catalog_owned_entries(desired, environment)
     elif harness == "cursor":
         entries = (OwnedEntry("marketplace", desired.repository_url, "manifest"),)
+    elif harness == "devin" and installed_result is not None:
+        entries = installed_result.owned_entries
     else:
         entries = ()
-    return HarnessReceipt(
+    receipt = HarnessReceipt(
         harness=harness,
         adapter_version="1",
         native_version="fixture-1",
@@ -175,6 +217,62 @@ def _receipt(
         capabilities={},
         verified=True,
     )
+    return (
+        authenticate_codex_receipt(receipt, env=environment)
+        if harness == "codex"
+        else receipt
+    )
+
+
+def _prepare_devin_guidance(
+    harness: str, desired: DesiredState, environment: dict[str, str]
+) -> None:
+    if harness != "devin":
+        return
+    rule = Path(environment["HOME"]) / ".codeium/windsurf/memories/global_rules.md"
+    rule.parent.mkdir(parents=True, exist_ok=True)
+    rule.write_bytes(
+        (
+            desired.bundle_path("manifest-i-have-adhd") / "devin/global-rule.md"
+        ).read_bytes()
+    )
+
+
+def _expected_plugin_ids(harness: str, desired: DesiredState) -> tuple[str, ...]:
+    bundle_names = _bundle_names(desired)
+    if harness in {"claude", "codex"}:
+        return tuple(f"{name}@manifest" for name in bundle_names)
+    return bundle_names
+
+
+def _assert_installed_state(
+    harness: str,
+    installed: HarnessResult,
+    inspected: HarnessResult,
+    plugin_ids: tuple[str, ...],
+) -> None:
+    if harness == "cursor":
+        assert installed.state is ResultState.DEGRADED
+        assert inspected.state is ResultState.DEGRADED
+        return
+    assert installed.state is ResultState.READY
+    assert inspected.state is ResultState.READY
+    if harness in {"antigravity", "devin"}:
+        assert (
+            installed.capabilities["manifest-i-have-adhd:skill:i-have-adhd"]
+            == "verified"
+        )
+        assert (
+            installed.capabilities["manifest-i-have-adhd:executable:python3"]
+            == "verified"
+        )
+        assert (
+            installed.capabilities["manifest-i-have-adhd:hook:adhd-session-start"]
+            == "verified"
+        )
+        return
+    assert installed.installed_plugin_ids == plugin_ids
+    assert inspected.installed_plugin_ids == plugin_ids
 
 
 @pytest.mark.parametrize("harness", tuple(_HARNESS_EXECUTABLES))
@@ -194,26 +292,21 @@ def test_response_driven_production_adapters_complete_receipt_lifecycles(
         harness, desired, before, _logged_argv(log)[pre_inspection_start:]
     )
     environment["HARNESS_STUB_RESPONSES"] = _responses(harness, desired, "installed")
+    _prepare_devin_guidance(harness, desired, environment)
     installed = adapter.install(desired)
     inspected = adapter.inspect(desired)
     environment["HARNESS_STUB_RESPONSES"] = _responses(harness, desired, "removed")
-    plugin_ids = (
-        tuple(f"{name}@manifest" for name in DOMAIN_BUNDLES)
-        if harness in {"claude", "codex"}
-        else DOMAIN_BUNDLES
+    plugin_ids = _expected_plugin_ids(harness, desired)
+    removed = adapter.uninstall(
+        _receipt(harness, desired, plugin_ids, environment, installed)
     )
-    removed = adapter.uninstall(_receipt(harness, desired, plugin_ids))
 
     assert detection.present is True
     assert len(desired.contracts) == len(DOMAIN_BUNDLES)
-    if harness == "cursor":
-        assert installed.state is ResultState.DEGRADED
-        assert inspected.state is ResultState.DEGRADED
-    else:
-        assert installed.state is ResultState.READY
-        assert installed.installed_plugin_ids == plugin_ids
-        assert inspected.state is ResultState.READY
-        assert inspected.installed_plugin_ids == plugin_ids
+    assert {contract.name for contract in desired.addon_contracts} == {
+        "manifest-i-have-adhd"
+    }
+    _assert_installed_state(harness, installed, inspected, plugin_ids)
     assert removed.state is ResultState.READY
     argv = _logged_argv(log)
     assert [row[1:] for row in argv if row[1:] == ["--version"]]
@@ -240,14 +333,15 @@ def _assert_lifecycle_commands(
     harness: str, desired: DesiredState, argv: list[list[str]]
 ) -> None:
     commands = [tuple(row[1:]) for row in argv]
-    bundle_paths = tuple(str(desired.bundle_path(name)) for name in DOMAIN_BUNDLES)
+    bundle_names = _bundle_names(desired)
+    bundle_paths = tuple(str(desired.bundle_path(name)) for name in bundle_names)
     expected_installs = {
         "claude": [
             ("plugin", "install", f"{name}@manifest", "--scope", "user")
-            for name in DOMAIN_BUNDLES
+            for name in bundle_names
         ],
         "codex": [
-            ("plugin", "add", f"{name}@manifest", "--json") for name in DOMAIN_BUNDLES
+            ("plugin", "add", f"{name}@manifest", "--json") for name in bundle_names
         ],
         "gemini": [
             ("extensions", "install", path, "--consent", "--skip-settings")
@@ -265,23 +359,20 @@ def _assert_lifecycle_commands(
         ],
         "antigravity": [("plugin", "validate", path) for path in bundle_paths]
         + [("plugin", "link", "manifest", str(desired.release_root))]
-        + [("plugin", "install", f"{name}@manifest") for name in DOMAIN_BUNDLES],
+        + [("plugin", "install", f"{name}@manifest") for name in bundle_names],
         "devin": [("plugins", "install", path, "--yes") for path in bundle_paths],
     }
     expected_removals = {
-        "claude": [
-            ("plugin", "uninstall", f"{name}@manifest") for name in DOMAIN_BUNDLES
-        ]
+        "claude": [("plugin", "uninstall", f"{name}@manifest") for name in bundle_names]
         + [("plugin", "marketplace", "remove", "manifest")],
         "codex": [
-            ("plugin", "remove", f"{name}@manifest", "--json")
-            for name in DOMAIN_BUNDLES
+            ("plugin", "remove", f"{name}@manifest", "--json") for name in bundle_names
         ]
         + [("plugin", "marketplace", "remove", "manifest", "--json")],
-        "gemini": [("extensions", "uninstall", name) for name in DOMAIN_BUNDLES],
+        "gemini": [("extensions", "uninstall", name) for name in bundle_names],
         "cursor": [("plugin", "marketplace", "remove", desired.repository_url)],
-        "antigravity": [("plugin", "uninstall", name) for name in DOMAIN_BUNDLES],
-        "devin": [("plugins", "remove", name) for name in DOMAIN_BUNDLES]
+        "antigravity": [("plugin", "uninstall", name) for name in bundle_names],
+        "devin": [("plugins", "remove", name) for name in bundle_names]
         + [("plugins", "prune")],
     }
     assert _commands_in_order(commands, expected_installs[harness])
@@ -294,6 +385,7 @@ def _assert_pre_install_inspection(
     result: HarnessResult,
     argv: list[list[str]],
 ) -> None:
+    bundle_names = _bundle_names(desired)
     expected_commands = {
         "claude": [
             ("plugin", "marketplace", "list", "--json"),
@@ -310,32 +402,35 @@ def _assert_pre_install_inspection(
         "cursor": [("plugin", "marketplace", "list", "--format", "json")],
         "antigravity": [("plugin", "list")],
         "devin": [("plugins", "list")]
-        + [("plugins", "info", name) for name in DOMAIN_BUNDLES],
+        + [("plugins", "info", name) for name in bundle_names],
     }
     expected_errors = {
-        "claude": [
-            f"missing required plugin: {name}@manifest" for name in DOMAIN_BUNDLES
-        ]
-        + _missing_skill_evidence(desired),
-        "codex": [
-            f"missing required plugin: {name}@manifest" for name in DOMAIN_BUNDLES
-        ]
-        + _missing_skill_evidence(desired),
-        "gemini": [f"missing required extension: {name}" for name in DOMAIN_BUNDLES]
-        + _missing_skill_evidence(desired),
+        "claude": [f"missing required plugin: {name}@manifest" for name in bundle_names]
+        + _missing_adapter_evidence(desired),
+        "codex": [f"missing required plugin: {name}@manifest" for name in bundle_names]
+        + _missing_adapter_evidence(desired),
+        "gemini": [f"missing required extension: {name}" for name in bundle_names]
+        + _missing_adapter_evidence(desired),
         "cursor": ["Cursor marketplace list must contain exactly one manifest source"],
-        "antigravity": [f"missing required plugin: {name}" for name in DOMAIN_BUNDLES]
-        + _missing_skill_evidence(desired),
-        "devin": [f"missing required plugin: {name}" for name in DOMAIN_BUNDLES],
+        "antigravity": [f"missing required plugin: {name}" for name in bundle_names]
+        + _missing_adapter_evidence(desired, "antigravity"),
+        "devin": [f"missing required plugin: {name}" for name in bundle_names]
+        + [
+            "missing adapter evidence: manifest-i-have-adhd:hook:adhd-session-start",
+            "missing adapter evidence: manifest-i-have-adhd:runtime:adhd-hook-runtime",
+            "missing adapter evidence: manifest-i-have-adhd:guidance:adhd-always-on-guidance",
+        ],
     }
     assert result.state is ResultState.BLOCKED
     assert [tuple(command[1:]) for command in argv] == expected_commands[harness]
     assert result.errors == tuple(expected_errors[harness])
 
 
-def _missing_skill_evidence(desired: DesiredState) -> list[str]:
+def _missing_adapter_evidence(
+    desired: DesiredState, harness: str | None = None
+) -> list[str]:
     errors: list[str] = []
-    for contract in desired.contracts:
+    for contract in desired.all_contracts:
         root = desired.bundle_path(contract.name) / contract.components.skills_root
         skill_paths = {
             path
@@ -347,7 +442,42 @@ def _missing_skill_evidence(desired: DesiredState) -> list[str]:
             f"missing adapter evidence: {contract.name}:skill:{path.parent.name}"
             for path in sorted(skill_paths)
         )
+        for component_type in ("agents", "hooks", "runtime", "guidance"):
+            label = component_type.removesuffix("s")
+            for component in getattr(contract.components, component_type):
+                status = (
+                    component.compatibility.get(harness)
+                    if harness is not None and component.compatibility is not None
+                    else None
+                )
+                if status is not None and status.mode in {"degraded", "unsupported"}:
+                    if status.reason and status.reason not in errors:
+                        errors.append(status.reason)
+                    continue
+                errors.append(
+                    f"missing adapter evidence: {contract.name}:{label}:{component.id}"
+                )
     return errors
+
+
+def _unsupported_component_reasons(desired: DesiredState, harness: str) -> list[str]:
+    reasons: list[str] = []
+    for contract in desired.all_contracts:
+        for component_type in ("agents", "hooks", "runtime", "guidance"):
+            for component in getattr(contract.components, component_type):
+                status = (
+                    component.compatibility.get(harness)
+                    if component.compatibility is not None
+                    else None
+                )
+                if (
+                    status is not None
+                    and status.mode in {"degraded", "unsupported"}
+                    and status.reason
+                    and status.reason not in reasons
+                ):
+                    reasons.append(status.reason)
+    return reasons
 
 
 def _logged_argv(log: Path) -> list[list[str]]:
@@ -372,18 +502,19 @@ def _fixture(responses: list[dict[str, object]]) -> str:
 
 
 def _claude_responses(desired: DesiredState, phase: str) -> str:
+    bundle_names = _bundle_names(desired)
     marketplace = json.dumps(
         [{"name": "manifest", "source": "directory", "path": str(_REPOSITORY)}]
     )
     rows = [
         {
             "id": f"{name}@manifest",
-            "version": "0.2.0",
+            "version": _bundle_version(desired, name),
             "scope": "user",
             "enabled": True,
             "installPath": str(desired.bundle_path(name)),
         }
-        for name in DOMAIN_BUNDLES
+        for name in bundle_names
     ]
     inspect_responses = [
         _response(["plugin", "marketplace", "list", "--json"], marketplace),
@@ -404,13 +535,13 @@ def _claude_responses(desired: DesiredState, phase: str) -> str:
         ]
         responses.extend(
             _response(["plugin", "install", f"{name}@manifest", "--scope", "user"])
-            for name in DOMAIN_BUNDLES
+            for name in bundle_names
         )
         return _fixture(responses)
     if phase == "removed":
         responses = [
             _response(["plugin", "uninstall", f"{name}@manifest"])
-            for name in DOMAIN_BUNDLES
+            for name in bundle_names
         ]
         responses.extend(
             [
@@ -425,6 +556,7 @@ def _claude_responses(desired: DesiredState, phase: str) -> str:
 # constitution: exempt C-SIZE — one ordered native JSON transcript prevents
 # fixture phases from silently diverging from Codex's marketplace lifecycle.
 def _codex_responses(desired: DesiredState, phase: str) -> str:
+    bundle_names = _bundle_names(desired)
     marketplace = json.dumps(
         {
             "marketplaces": [
@@ -444,12 +576,12 @@ def _codex_responses(desired: DesiredState, phase: str) -> str:
             "pluginId": f"{name}@manifest",
             "name": name,
             "marketplaceName": "manifest",
-            "version": "0.2.0",
+            "version": _bundle_version(desired, name),
             "installed": True,
             "enabled": True,
             "source": {"source": "local", "path": str(desired.bundle_path(name))},
         }
-        for name in DOMAIN_BUNDLES
+        for name in bundle_names
     ]
     inspect_responses = [
         _response(["plugin", "marketplace", "list", "--json"], marketplace),
@@ -476,9 +608,17 @@ def _codex_responses(desired: DesiredState, phase: str) -> str:
                     }
                 ),
             ),
-            *inspect_responses,
+            inspect_responses[0],
+            {
+                "argv": ["plugin", "list", "--json"],
+                "sequence": [
+                    {"stdout": json.dumps({"installed": []})},
+                    {"stdout": json.dumps({"installed": rows})},
+                    {"stdout": json.dumps({"installed": rows})},
+                ],
+            },
         ]
-        for name in DOMAIN_BUNDLES:
+        for name in bundle_names:
             responses.append(
                 _response(
                     ["plugin", "add", f"{name}@manifest", "--json"],
@@ -487,8 +627,10 @@ def _codex_responses(desired: DesiredState, phase: str) -> str:
                             "pluginId": f"{name}@manifest",
                             "name": name,
                             "marketplaceName": "manifest",
-                            "version": "0.2.0",
+                            "version": _bundle_version(desired, name),
                             "installedPath": str(desired.bundle_path(name)),
+                            "installed": True,
+                            "enabled": True,
                         }
                     ),
                 )
@@ -506,14 +648,21 @@ def _codex_responses(desired: DesiredState, phase: str) -> str:
                     }
                 ),
             )
-            for name in DOMAIN_BUNDLES
+            for name in bundle_names
         ]
         responses.extend(
             [
                 _response(["plugin", "list", "--json"], json.dumps({"installed": []})),
+                {
+                    "argv": ["plugin", "marketplace", "list", "--json"],
+                    "sequence": [
+                        {"stdout": marketplace},
+                        {"stdout": json.dumps({"marketplaces": []})},
+                    ],
+                },
                 _response(
                     ["plugin", "marketplace", "remove", "manifest", "--json"],
-                    json.dumps({"marketplaceName": "manifest"}),
+                    json.dumps({"marketplaceName": "manifest", "installedRoot": None}),
                 ),
             ]
         )
@@ -522,17 +671,18 @@ def _codex_responses(desired: DesiredState, phase: str) -> str:
 
 
 def _gemini_responses(desired: DesiredState, phase: str) -> str:
+    bundle_names = _bundle_names(desired)
     rows = [
         {
             "name": name,
-            "version": "0.2.0",
+            "version": _bundle_version(desired, name),
             "path": str(desired.bundle_path(name)),
             "isActive": True,
         }
-        for name in DOMAIN_BUNDLES
+        for name in bundle_names
     ]
     skills: list[str] = ["Discovered Agent Skills:", ""]
-    for contract in desired.contracts:
+    for contract in desired.all_contracts:
         root = desired.bundle_path(contract.name) / contract.components.skills_root
         for pattern in contract.components.skills_include:
             for path in sorted(root.glob(pattern)):
@@ -569,14 +719,14 @@ def _gemini_responses(desired: DesiredState, phase: str) -> str:
                             "--skip-settings",
                         ]
                     )
-                    for name in DOMAIN_BUNDLES
+                    for name in bundle_names
                 ],
                 *inspect_responses,
             ]
         )
     if phase == "removed":
         return _fixture(
-            [_response(["extensions", "uninstall", name]) for name in DOMAIN_BUNDLES]
+            [_response(["extensions", "uninstall", name]) for name in bundle_names]
         )
     raise AssertionError(f"unsupported fixture phase: {phase}")
 
@@ -628,11 +778,19 @@ def _cursor_responses(desired: DesiredState, phase: str) -> str:
 
 
 def _antigravity_responses(desired: DesiredState, phase: str) -> str:
+    bundle_names = _bundle_names(desired)
     inventory = json.dumps(
         {
             "imports": [
-                {"name": name, "source": "manifest", "components": ["skills"]}
-                for name in DOMAIN_BUNDLES
+                {
+                    "name": name,
+                    "source": "manifest",
+                    "components": [
+                        "skills",
+                        *([]),
+                    ],
+                }
+                for name in bundle_names
             ]
         }
     )
@@ -643,30 +801,31 @@ def _antigravity_responses(desired: DesiredState, phase: str) -> str:
     if phase == "installed":
         responses = [
             _response(["plugin", "validate", str(desired.bundle_path(name))])
-            for name in DOMAIN_BUNDLES
+            for name in bundle_names
         ]
         responses.append(
             _response(["plugin", "link", "manifest", str(desired.release_root)])
         )
         responses.extend(
             _response(["plugin", "install", f"{name}@manifest"])
-            for name in DOMAIN_BUNDLES
+            for name in bundle_names
         )
         responses.append(_response(["plugin", "list"], inventory))
         return _fixture(responses)
     if phase == "removed":
         return _fixture(
-            [_response(["plugin", "uninstall", name]) for name in DOMAIN_BUNDLES]
+            [_response(["plugin", "uninstall", name]) for name in bundle_names]
         )
     raise AssertionError(f"unsupported fixture phase: {phase}")
 
 
 def _devin_responses(desired: DesiredState, phase: str) -> str:
+    bundle_names = _bundle_names(desired)
     installed_listing = "Installed plugins\n" + "\n".join(
-        f"{name} 0.2.0" for name in DOMAIN_BUNDLES
+        f"{name} {_bundle_version(desired, name)}" for name in bundle_names
     )
     info_responses: list[dict[str, object]] = []
-    for contract in desired.contracts:
+    for contract in desired.all_contracts:
         root = desired.bundle_path(contract.name) / contract.components.skills_root
         skills = "\n".join(
             f"  - {path.parent.name}"
@@ -676,7 +835,8 @@ def _devin_responses(desired: DesiredState, phase: str) -> str:
         info_responses.append(
             _response(
                 ["plugins", "info", contract.name],
-                f"Plugin: {contract.name}\nversion: 0.2.0\nsource: {desired.bundle_path(contract.name)}\nSkills\n{skills}\nRequired plugins\n",
+                f"Plugin: {contract.name}\nversion: {contract.version}\nsource: {desired.bundle_path(contract.name)}\nSkills\n{skills}\n"
+                + "Required plugins\n",
             )
         )
     if phase == "detect":
@@ -688,7 +848,7 @@ def _devin_responses(desired: DesiredState, phase: str) -> str:
     if phase == "installed":
         responses = [
             _response(["plugins", "install", str(desired.bundle_path(name)), "--yes"])
-            for name in DOMAIN_BUNDLES
+            for name in bundle_names
         ]
         responses.extend(
             [_response(["plugins", "list"], installed_listing), *info_responses]
@@ -705,7 +865,7 @@ def _devin_responses(desired: DesiredState, phase: str) -> str:
                         {"stdout": "No plugins installed.\n"},
                     ],
                 },
-                *[_response(["plugins", "remove", name]) for name in DOMAIN_BUNDLES],
+                *[_response(["plugins", "remove", name]) for name in bundle_names],
                 _response(["plugins", "prune"]),
             ]
         )

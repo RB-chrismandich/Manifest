@@ -280,6 +280,7 @@ def test_rejects_mismatched_contract_versions(repo_root: Path, tmp_path: Path) -
     for relative in (
         ".claude-plugin/plugin.json",
         "gemini-extension.json",
+        "antigravity-extension.json",
         "plugin.json",
     ):
         path = bundle / relative

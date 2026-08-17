@@ -7,6 +7,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol, runtime_checkable
 
+from manifest_agent.adapters.adapter_command_results import (
+    _classified_diagnostic_result,
+    _command_diagnostic,
+    _unselected_optional_result,
+)
 from manifest_agent.adapters.capability_lifecycle import (
     CapabilityAdapterMixin as CapabilityAdapterMixin,
 )
@@ -21,6 +26,7 @@ from manifest_agent.adapters.capability_lifecycle import (
 )
 from manifest_agent.contracts import CompatibilityStatus, Component
 from manifest_agent.models import (
+    AdapterMutationHandle,
     BundleContract,
     CapabilityTier,
     CommandResult,
@@ -38,7 +44,7 @@ _COMPONENT_GROUPS = (
     ("guidance", "guidance"),
 )
 _MODE_STATES = frozenset({"native", "generated", "imported"})
-_DEGRADED_MODES = frozenset({"degraded", "unsupported"})
+_DEGRADED_MODES = frozenset({"degraded"})
 _STATE_PRIORITY = {
     ResultState.READY: 0,
     ResultState.DEGRADED: 1,
@@ -81,6 +87,36 @@ class HarnessAdapter(Protocol):
 
     def uninstall(self, receipt: HarnessReceipt) -> HarnessResult:
         """Remove only resources owned by the supplied receipt."""
+        ...
+
+    def prepare_reconcile(
+        self, receipt: HarnessReceipt, prior: DesiredState, desired: DesiredState
+    ) -> AdapterMutationHandle:
+        """Prepare exact prior/target inventory authority without changing state."""
+        ...
+
+    def apply_reconcile(
+        self, handle: AdapterMutationHandle, desired: DesiredState
+    ) -> HarnessResult:
+        """Apply a prepared release mutation."""
+        ...
+
+    def verify_reconcile(
+        self, handle: AdapterMutationHandle, desired: DesiredState
+    ) -> HarnessResult:
+        """Verify a prepared release mutation."""
+        ...
+
+    def classify_reconcile_state(
+        self, handle: AdapterMutationHandle, desired: DesiredState
+    ) -> str:
+        """Classify interrupted state as exact prior, target, or other."""
+        ...
+
+    def rollback_reconcile(
+        self, handle: AdapterMutationHandle, prior: DesiredState
+    ) -> HarnessResult:
+        """Compensate a prepared release mutation to the prior release."""
         ...
 
 
@@ -131,28 +167,6 @@ def run_native_command(
     return native_command_result(harness, command, tier, selected=selected)
 
 
-def _classified_diagnostic_result(
-    harness: str, tier: CapabilityTier, diagnostic: str
-) -> HarnessResult:
-    if tier is CapabilityTier.REQUIRED:
-        return HarnessResult(harness, ResultState.BLOCKED, (), {}, errors=(diagnostic,))
-    if tier is CapabilityTier.DEFAULT:
-        return HarnessResult(
-            harness, ResultState.DEGRADED, (), {}, errors=(diagnostic,)
-        )
-    return HarnessResult(harness, ResultState.READY, (), {}, warnings=(diagnostic,))
-
-
-def _unselected_optional_result(harness: str) -> HarnessResult:
-    return HarnessResult(
-        harness,
-        ResultState.BLOCKED,
-        (),
-        {},
-        errors=("optional native command was not explicitly selected",),
-    )
-
-
 def verify_required_plugins(
     harness: str,
     desired: DesiredState,
@@ -160,7 +174,7 @@ def verify_required_plugins(
 ) -> HarnessResult:
     """Require evidence that every desired domain bundle is installed."""
     installed = _evidence_set(installed_plugin_ids)
-    required = tuple(contract.name for contract in desired.contracts)
+    required = tuple(contract.name for contract in desired.all_contracts)
     errors = tuple(
         f"missing required plugin: {plugin_id}"
         for plugin_id in required
@@ -185,7 +199,7 @@ def verify_declared_components(
     observed = _evidence_set(evidence)
     results = tuple(
         _verify_contract(harness, desired, contract, observed)
-        for contract in desired.contracts
+        for contract in desired.all_contracts
     )
     if not results:
         return HarnessResult(harness, ResultState.READY, (), {})
@@ -200,7 +214,7 @@ def collect_native_component_evidence(
 ) -> set[str]:
     """Collect file and native capability evidence without assuming exposure."""
     evidence: set[str] = set()
-    for contract in desired.contracts:
+    for contract in desired.all_contracts:
         root = plugin_roots.get(contract.name)
         if root is not None:
             _add_installed_file_evidence(evidence, desired, contract, root)
@@ -252,57 +266,84 @@ def _verify_contract(
     contract: BundleContract,
     observed: set[str],
 ) -> HarnessResult:
-    capabilities: dict[str, str] = {}
-    errors: list[str] = []
-    warnings: list[str] = []
-    state = ResultState.READY
-
     bundle_status = contract.compatibility[harness]
     bundle_identities = _contract_identities(harness, desired, contract)
+    if bundle_status.mode == "unsupported":
+        return _unsupported_bundle_result(
+            harness, desired, bundle_status, bundle_identities
+        )
     if bundle_status.mode in _DEGRADED_MODES:
         return _degraded_bundle_result(
             harness, desired, bundle_status, bundle_identities
         )
 
+    result = _ContractVerification({}, [], [], ResultState.READY)
     for identity, tier, component_status in bundle_identities:
-        status = component_status or bundle_status
-        if status.mode in _DEGRADED_MODES:
-            capabilities[identity] = status.mode
-            state = _higher_state(state, ResultState.DEGRADED)
-            _append_once(errors, _compatibility_reason(status))
-            continue
-        if status.mode not in _MODE_STATES:
-            raise ValueError(
-                f"unknown compatibility mode {status.mode!r} for {identity}"
-            )
-        if tier is CapabilityTier.OPTIONAL and not _optional_selected(
-            desired, identity
-        ):
-            continue
-        if identity in observed:
-            capabilities[identity] = "verified"
-            continue
-
-        capabilities[identity] = "missing"
-        if tier is CapabilityTier.DEFAULT:
-            state = _higher_state(state, ResultState.DEGRADED)
-            errors.append(f"missing default capability evidence: {identity}")
-        elif tier is CapabilityTier.OPTIONAL:
-            warnings.append(
-                f"missing selected optional capability evidence: {identity}"
-            )
-        else:
-            state = ResultState.BLOCKED
-            errors.append(f"missing adapter evidence: {identity}")
+        _verify_contract_identity(
+            desired,
+            identity,
+            tier,
+            component_status or bundle_status,
+            observed,
+            result,
+        )
 
     return HarnessResult(
         harness=harness,
-        state=state,
+        state=result.state,
         installed_plugin_ids=(),
-        capabilities=capabilities,
-        errors=tuple(errors),
-        warnings=tuple(warnings),
+        capabilities=result.capabilities,
+        errors=tuple(result.errors),
+        warnings=tuple(result.warnings),
     )
+
+
+@dataclass
+class _ContractVerification:
+    capabilities: dict[str, str]
+    errors: list[str]
+    warnings: list[str]
+    state: ResultState
+
+
+def _verify_contract_identity(
+    desired: DesiredState,
+    identity: str,
+    tier: CapabilityTier,
+    status: CompatibilityStatus,
+    observed: set[str],
+    result: _ContractVerification,
+) -> None:
+    if status.mode == "not_applicable":
+        return
+    if status.mode == "unsupported":
+        result.capabilities[identity] = status.mode
+        result.state = ResultState.BLOCKED
+        _append_once(result.errors, _compatibility_reason(status))
+        return
+    if status.mode in _DEGRADED_MODES:
+        result.capabilities[identity] = status.mode
+        result.state = _higher_state(result.state, ResultState.DEGRADED)
+        _append_once(result.errors, _compatibility_reason(status))
+        return
+    if status.mode not in _MODE_STATES:
+        raise ValueError(f"unknown compatibility mode {status.mode!r} for {identity}")
+    if tier is CapabilityTier.OPTIONAL and not _optional_selected(desired, identity):
+        return
+    if identity in observed:
+        result.capabilities[identity] = "verified"
+        return
+    result.capabilities[identity] = "missing"
+    if tier is CapabilityTier.DEFAULT:
+        result.state = _higher_state(result.state, ResultState.DEGRADED)
+        result.errors.append(f"missing default capability evidence: {identity}")
+    elif tier is CapabilityTier.OPTIONAL:
+        result.warnings.append(
+            f"missing selected optional capability evidence: {identity}"
+        )
+    else:
+        result.state = ResultState.BLOCKED
+        result.errors.append(f"missing adapter evidence: {identity}")
 
 
 def _degraded_bundle_result(
@@ -319,6 +360,26 @@ def _degraded_bundle_result(
     return HarnessResult(
         harness,
         ResultState.DEGRADED,
+        (),
+        capabilities,
+        errors=(_compatibility_reason(status),),
+    )
+
+
+def _unsupported_bundle_result(
+    harness: str,
+    desired: DesiredState,
+    status: CompatibilityStatus,
+    identities: tuple[tuple[str, CapabilityTier, CompatibilityStatus | None], ...],
+) -> HarnessResult:
+    capabilities = {
+        identity: status.mode
+        for identity, tier, _component_status in identities
+        if tier is not CapabilityTier.OPTIONAL or _optional_selected(desired, identity)
+    }
+    return HarnessResult(
+        harness,
+        ResultState.BLOCKED,
         (),
         capabilities,
         errors=(_compatibility_reason(status),),
@@ -426,17 +487,6 @@ def _compatibility_reason(status: CompatibilityStatus) -> str:
     if status.reason is None:
         raise ValueError(f"compatibility mode {status.mode!r} requires a reason")
     return status.reason
-
-
-def _command_diagnostic(command: CommandResult) -> str:
-    parts = [f"native command exited {command.returncode}"]
-    stdout = redact_text(command.stdout.strip())
-    stderr = redact_text(command.stderr.strip())
-    if stdout:
-        parts.append(f"stdout: {stdout}")
-    if stderr:
-        parts.append(f"stderr: {stderr}")
-    return "; ".join(parts)
 
 
 def _higher_state(left: ResultState, right: ResultState) -> ResultState:

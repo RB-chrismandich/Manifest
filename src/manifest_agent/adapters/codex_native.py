@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import json
+import os
 from collections.abc import Mapping, Sequence
+from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit, urlunsplit
 
@@ -72,7 +74,9 @@ def marketplace_row(stdout: str) -> tuple[Mapping[str, Any], str | None]:
     return matches[0], None
 
 
-def plugin_rows(stdout: str) -> tuple[list[Mapping[str, Any]], str | None]:
+def plugin_rows(
+    stdout: str, env: Mapping[str, str] | None = None
+) -> tuple[list[Mapping[str, Any]], str | None]:
     try:
         document = json.loads(stdout)
     except json.JSONDecodeError:
@@ -84,7 +88,64 @@ def plugin_rows(stdout: str) -> tuple[list[Mapping[str, Any]], str | None]:
     rows = document["installed"]
     if any(not isinstance(row, dict) for row in rows):
         return [], "codex plugin list JSON has an invalid installed-plugin schema"
-    return rows, None
+    normalized: list[Mapping[str, Any]] = []
+    for row in rows:
+        item = dict(row)
+        if not isinstance(item.get("installedPath"), str):
+            installed, path_error = _runtime_cache_path(item, env)
+            if path_error is not None:
+                return [], path_error
+            if installed is not None:
+                item["installedPath"] = installed
+        normalized.append(item)
+    return normalized, None
+
+
+def installed_plugin_path(row: Mapping[str, Any]) -> str | None:
+    value = row.get("installedPath")
+    return value if isinstance(value, str) and value else None
+
+
+def _runtime_cache_path(
+    row: Mapping[str, Any], env: Mapping[str, str] | None
+) -> tuple[str | None, str | None]:
+    plugin_id = row.get("pluginId")
+    version = row.get("version")
+    if not isinstance(plugin_id, str) or "@" not in plugin_id:
+        return None, None
+    identifier_name, identifier_marketplace = plugin_id.rsplit("@", 1)
+    name = row.get("name", identifier_name)
+    marketplace = row.get("marketplaceName", identifier_marketplace)
+    components = (name, marketplace, version)
+    if not all(isinstance(value, str) for value in components):
+        return None, None
+    if plugin_id != f"{name}@{marketplace}" or any(
+        not _safe_cache_component(value) for value in components
+    ):
+        return None, "codex plugin list contains an unsafe installed-plugin identity"
+    values = dict(os.environ)
+    if env is not None:
+        values.update(env)
+    configured = values.get("CODEX_HOME")
+    if configured is None:
+        home = values.get("HOME")
+        if not home:
+            return None, "Codex home is unavailable for installed-plugin resolution"
+        configured = str(Path(home) / ".codex")
+    root = Path(configured)
+    if not root.is_absolute():
+        return None, "Codex home must be absolute for installed-plugin resolution"
+    return str(root / "plugins" / "cache" / marketplace / name / version), None
+
+
+def _safe_cache_component(value: str) -> bool:
+    return (
+        bool(value)
+        and value not in {".", ".."}
+        and "/" not in value
+        and "\\" not in value
+        and "\x00" not in value
+    )
 
 
 def normalized_git_source(value: str) -> str:

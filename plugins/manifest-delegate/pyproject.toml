@@ -1,0 +1,27 @@
+[project]
+name = "manifest-delegate-runtime"
+version = "0.1.0"
+description = "Standalone installed runtime for the Manifest delegate plugin"
+requires-python = ">=3.11"
+dependencies = ["manifest-model-policy==0.1.0"]
+
+[project.scripts]
+manifest-delegate = "manifest_delegate.cli:main"
+
+# manifest-model-policy exists only in this repository and is deliberately
+# unpublished. Without this mapping the pin above resolves against PyPI, where
+# the name is unregistered and therefore claimable by anyone — installing this
+# runtime would then execute a stranger's code. Enforced by
+# tests/python/test_requirements_drift.py.
+[tool.uv.sources]
+manifest-model-policy = { path = "../../configs/claude/scripts/manifest_model_policy", editable = true }
+
+[build-system]
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["manifest_delegate"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"config/backends.json" = "manifest_delegate/config/backends.json"

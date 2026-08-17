@@ -15,8 +15,10 @@ from manifest_agent.models import (
     HarnessReceipt,
     HarnessResult,
     InstallationReceipt,
+    OwnedEntry,
     ResultState,
 )
+from manifest_agent.ownership import advance_owned_file_entry, ownership_key_path
 from manifest_agent.process import redact_text
 from manifest_agent.state import write_receipt_atomic
 
@@ -152,7 +154,7 @@ def bundle_checksums(desired: DesiredState) -> dict[str, str]:
     """Digest each complete portable bundle using stable relative identities."""
     return {
         contract.name: _tree_checksum(desired.bundle_path(contract.name))
-        for contract in desired.contracts
+        for contract in desired.all_contracts
     }
 
 
@@ -224,14 +226,23 @@ def _harness_receipt(
     plugin_ids = result.installed_plugin_ids or (
         previous.plugin_ids if previous is not None else ()
     )
-    owned_entries = tuple(
-        dict.fromkeys(
-            (
-                *(previous.owned_entries if previous is not None else ()),
-                *result.owned_entries,
+    previous_entries = previous.owned_entries if previous is not None else ()
+    replacements = {
+        (entry.kind, entry.identifier): entry for entry in result.owned_entries
+    }
+    owned_entries_list: list[OwnedEntry] = []
+    for entry in previous_entries:
+        replacement = replacements.pop((entry.kind, entry.identifier), None)
+        if replacement is not None and entry.kind == "owned-file":
+            entry = advance_owned_file_entry(
+                entry,
+                replacement,
+                env=getattr(adapter, "_env", None),
+                key_path=ownership_key_path(getattr(adapter, "_env", None)),
             )
-        )
-    )
+        owned_entries_list.append(entry)
+    owned_entries_list.extend(replacements.values())
+    owned_entries = tuple(dict.fromkeys(owned_entries_list))
     native_version = (
         detection.version if detection is not None and detection.version else "unknown"
     )

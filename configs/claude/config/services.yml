@@ -14,8 +14,7 @@ services:
     model_tiers:
       - haiku    # Fast, economical
       - sonnet   # Balanced (default)
-      - opus     # Maximum capability
-      - fable    # Top tier (security-critical tasks)
+      - opus     # Maximum capability (1M context)
 
   # Gemini CLI - Google's AI assistant
   # Install: npm install -g @google/gemini-cli

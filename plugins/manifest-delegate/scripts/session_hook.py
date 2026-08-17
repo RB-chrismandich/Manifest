@@ -32,6 +32,26 @@ import sys as _sys
 import tempfile
 import time
 
+_USAGE = """\
+usage: session_hook.py [-h] [--stdin-json FILE]
+
+SessionStart/SessionEnd wrapper: session tracking + orphan job reap.
+Reads the hook payload as JSON on stdin and always exits 0, so it can
+never block the session it is attached to.
+
+options:
+  -h, --help         show this help message and exit
+  --stdin-json FILE  read hook payload from FILE instead of stdin (testing)
+"""
+
+# `--help` must answer before importing `delegate`, whose module chain requires
+# the manifest-model-policy distribution. Otherwise a clean checkout or CI image
+# cannot discover this entry point at all. Bare `--help` reads no payload and
+# dispatches nothing, so answering early skips no runtime check.
+if __name__ == "__main__" and len(sys.argv) == 2 and sys.argv[1] in ("-h", "--help"):
+    sys.stdout.write(_USAGE)
+    sys.exit(0)
+
 _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 if _SCRIPT_DIR not in _sys.path:
     _sys.path.insert(0, _SCRIPT_DIR)

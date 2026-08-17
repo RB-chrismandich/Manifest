@@ -36,6 +36,27 @@
         "reason": "claude native manifest cannot encode guidance component 'workspace-token-economy' at 'guidance/token-economy.md'"
       },
       {
+        "component_id": "codex-permission-request",
+        "component_type": "hooks",
+        "mode": "not_applicable",
+        "path": "hooks/codex-lifecycle-events.json",
+        "reason": "This component records the Codex PermissionRequest surface only."
+      },
+      {
+        "component_id": "codex-session-start",
+        "component_type": "hooks",
+        "mode": "not_applicable",
+        "path": "hooks/codex-lifecycle-events.json",
+        "reason": "This component records the Codex SessionStart surface only."
+      },
+      {
+        "component_id": "codex-stop",
+        "component_type": "hooks",
+        "mode": "not_applicable",
+        "path": "hooks/codex-lifecycle-events.json",
+        "reason": "This component records the Codex Stop surface only."
+      },
+      {
         "component_id": "command-catalog",
         "component_type": "runtime",
         "mode": "degraded",

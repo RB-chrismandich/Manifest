@@ -12,14 +12,15 @@ the human-facing entry point; it never talks to a backend CLI directly.
 
 ## Verbs
 
-- **Delegate a task** — `delegate.py task <prompt>` (or `--prompt-file
-  FILE`, or `-` for stdin). Runs in the foreground by default
+- **Delegate a task** — `delegate.py task <prompt>` (or `--task-file FILE`,
+  or `-` for stdin; `--prompt-file` remains a deprecated alias). Runs in the foreground by default
   (`--wait`); pass `--background` to get a `job_id` back immediately.
 - **Follow up on a job** — `--resume JOB_ID` (or `--resume-last`) to
   continue that backend's session with new instructions; `--fresh` to
   explicitly skip resume.
-- **Second opinion** — `--second-opinion --of JOB_ID` asks a backend to
-  critique a prior job's envelope rather than redo the task.
+- **Second opinion** — `--second-opinion --of JOB_ID --task-file FILE` (or
+  `-` plus piped stdin) combines a freshly resubmitted task only with bounded,
+  attempt-bound findings from the prior job.
 - **Job verbs** — `status [JOB_ID|--all] [--wait [--timeout N]]`,
   `result JOB_ID`, `cancel JOB_ID`. `JOB_ID` accepts a unique prefix. `cancel`
   and timeout kill the backend's process group (best-effort: a descendant that
@@ -56,10 +57,12 @@ research.md D10), not backend-specific prompting guidance.
 `--second-opinion --of JOB_ID` re-runs a prior job's task on a different
 backend for cross-verification:
 
-- The referenced job's `prompt_summary` and `envelope` (prior findings)
-  are injected into the new prompt, prefixed with attribution (`Second
-  opinion requested on job <id> (backend=<name>)`), so the second backend
-  sees the original task and what the first backend already found.
+- Fresh non-empty task text is mandatory through stdin (`-`) or `--task-file`;
+  positional task text is rejected so the resubmission boundary is explicit.
+- Prior context is limited to the source job ID and validated `title`, `detail`,
+  and `severity` findings belonging to one current attempt. Prompt summaries,
+  raw output/errors, prior task text, envelopes, sessions, and attempt history
+  are never copied into the new prompt.
 - The run is forced **read-only** regardless of `--write` — a second
   opinion never mutates the workspace.
 - If `--backend` resolves to the same backend as the original job, the
@@ -69,6 +72,25 @@ backend for cross-verification:
 - Both passes are attributed in the final output: the original backend
   (from the referenced job) and the second-opinion backend (from
   `--backend`) are each named, never merged into one unlabeled result.
+
+## Fallback recovery
+
+A background or JSON run in confirm mode can settle as `fallback_pending`.
+Resolve it with the exact `version` and `recovery_id` printed by `status`:
+
+```bash
+printf '%s' 'freshly resubmitted task' | delegate.py task --resume JOB_ID \
+  --expected-version VERSION --recovery-id RECOVERY_ID \
+  --fallback-decision approve -
+delegate.py task --resume JOB_ID --expected-version VERSION \
+  --recovery-id RECOVERY_ID --fallback-decision reject
+delegate.py cancel JOB_ID --expected-version VERSION --recovery-id RECOVERY_ID
+```
+
+Reject and cancel are task-free and end in `fallback_rejected`; repeating the
+same authenticated action is idempotent. If worker ownership reached or may
+have reached backend dispatch but the outcome cannot be proved, the job ends in
+non-resumable `dispatch_unknown` instead of risking a duplicate submission.
 
 ## Review flow
 

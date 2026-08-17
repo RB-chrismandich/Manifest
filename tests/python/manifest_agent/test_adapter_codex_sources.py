@@ -22,7 +22,7 @@ from manifest_agent.models import (
     ResultState,
 )
 from manifest_agent.process import CommandRunner
-from tests.python.manifest_agent.test_adapter_codex import (
+from tests.python.manifest_agent._codex_adapter_test_support import (
     QueueRunner,
     command,
     installed_json,
@@ -30,7 +30,7 @@ from tests.python.manifest_agent.test_adapter_codex import (
     marketplace_json,
     plugin_add_json,
 )
-from tests.python.manifest_agent.test_adapter_codex import (
+from tests.python.manifest_agent._codex_adapter_test_support import (
     desired as desired_fixture,
 )
 
@@ -60,6 +60,7 @@ def test_codex_published_release_pins_git_marketplace_ref(
             command(stdout=marketplace_add_json(git_root)),
             marketplace,
             command(stdout=published.source_commit),
+            command(stdout='{"installed": []}'),
             *[
                 command(stdout=plugin_add_json(published, name))
                 for name in DOMAIN_BUNDLES

@@ -3,14 +3,25 @@
 **Date:** 2026-08-09
 **Status:** Approved design
 
+> **Adopted implementation-review amendment:** Amendment 1 corrects the
+> assumption that retiring the legacy skill catalog alone resolves Codex's
+> startup budget. Rationale:
+> `2026-08-09-codex-plugin-reconciliation-SPEC-AMENDMENTS.md` §1.
+
 ## Problem
 
 Codex currently reports that its skills context budget has been exceeded. The
 observed installation has nine enabled Manifest plugins, while the canonical
 marketplace contains eleven. `manifest-delegate` and `manifest-docker` are
 missing. Because native plugin coverage is incomplete, bootstrap retains the
-full legacy `~/.codex/skills` catalog. Codex consequently loads overlapping
-skills from both native plugins and the flat catalog.
+full legacy `~/.codex/skills` catalog, creating overlapping discovery paths.
+
+Follow-up inspection with `codex debug prompt-input` showed that overlap is not
+the complete cause. After the flat catalog is retired, the native plugin catalog
+still contains enough skill names, descriptions, and paths to exceed Codex's
+startup limit. Codex limits initial skill metadata to 2% of model context, or
+8,000 characters when the context size is unknown. Native convergence therefore
+needs a startup-visibility policy in addition to legacy catalog retirement.
 
 The same installation also has the upstream `i-have-adhd` plugin enabled. Its
 session-start hook invokes `${CLAUDE_PLUGIN_ROOT}/hooks/always-on.mjs`, a
@@ -51,6 +62,11 @@ The new `manifest bootstrap-sync` operation will choose initial install, legacy
 migration, or receipt-backed reconciliation according to the observed state.
 The operation accepts a verified local checkout as its desired source and
 returns structured per-harness results to bootstrap.
+
+Generated Codex skill metadata keeps a small, qualified allowlist available for
+implicit routing and marks every other Manifest skill explicit-only. This does
+not generate a second skill catalog or remove capabilities from plugins; users
+can still invoke every installed skill explicitly.
 
 ## Architecture
 
@@ -137,6 +153,33 @@ Codex skills directory containing only Codex's system skills.
 
 The coordinator records the previous skill-source state so rollback can restore
 only the link or directory that Manifest changed.
+
+### Codex Startup Skill Policy
+
+Codex reads `agents/openai.yaml` beside each skill. The plugin-view generator
+must emit that file for every repository skill with an explicit
+`policy.allow_implicit_invocation` boolean. The qualified allowlist lives in
+`configs/claude/config/skill_policies.yml` and contains only:
+
+- `manifest-code-quality:antipattern-detect`
+- `manifest-security:code-audit`
+- `manifest-workspace:help`
+
+All other Manifest skills use `allow_implicit_invocation: false`. They remain in
+their plugin manifests and remain callable through explicit `$bundle:skill`
+invocation, but they do not consume the initial model-visible skill list.
+
+Generation fails closed when the allowlist is missing, contains duplicates, or
+names a qualified skill absent from the repository. Explicit true and false
+metadata is generated for every skill so a policy change cannot leave stale
+files behind.
+
+A local marketplace path and plugin version are not sufficient freshness
+proof. During prepared reconciliation, if an installed plugin tree hash differs
+from the desired tree hash at the same version, the adapter must replay the
+marketplace refresh before accepting version-matching rows. This ensures policy
+metadata reaches existing installations without requiring artificial version
+bumps for generated-view corrections.
 
 ### Cross-Harness Model Frontmatter
 
@@ -276,6 +319,10 @@ bootstrap deploy
   handoff or relaunch where they are not.
 - Frontmatter budget validation that prevents model metadata from recreating
   the Codex skills-context overflow.
+- Deterministic `agents/openai.yaml` generation for every repository skill,
+  with exact allowlist and fail-closed policy validation.
+- Same-version local plugin content drift forces marketplace refresh before
+  prepared reconciliation can verify the target tree hashes.
 
 ### Bootstrap and Adapter Integration Tests
 
@@ -301,6 +348,8 @@ symlink, and the incompatible upstream ADHD hook. After bootstrap:
 - `i-have-adhd@i-have-adhd` remains installed but is disabled.
 - `~/.codex/skills` exposes only Codex system skills.
 - A fresh Codex session emits no skills-context-budget warning.
+- `codex debug prompt-input` exposes only the three qualified Manifest implicit
+  entry points while explicit-only skills remain installed.
 - Session start emits no hook-failure notification.
 - A second bootstrap produces no state changes.
 
@@ -312,7 +361,8 @@ symlink, and the incompatible upstream ADHD hook. After bootstrap:
 3. Codex never loses the legacy skill fallback before native verification is
    complete.
 4. A fresh Codex session does not report that the skills context budget was
-   exceeded.
+   exceeded, and startup prompt inspection shows only the qualified implicit
+   allowlist from Manifest plugins.
 5. The mirrored ADHD plugin is reproducible, attributed, always-on, and
    represented truthfully across every supported harness.
 6. Existing upstream ADHD installations are disabled reversibly after the

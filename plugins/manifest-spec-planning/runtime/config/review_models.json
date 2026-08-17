@@ -19,9 +19,8 @@
     "claude": {
       "binary": "claude",
       "models": {
-        "fable": "claude-fable-5",
-        "opus": "claude-opus-5",
-        "sonnet": "claude-sonnet-5"
+        "opus": "claude-opus-5[1m]",
+        "sonnet": "claude-sonnet-5[1m]"
       }
     },
     "codex": {

@@ -110,6 +110,73 @@ class TestReviewCommand:
         assert captured["record"].get("write") is False
         assert "diff --git a b" in captured["prompt"]
 
+    def test_oversize_review_diff_is_rejected_before_a_job_record_exists(
+        self, tmp_path, monkeypatch
+    ):
+        """A diff over the dispatcher's 1 MiB task ceiling fails cleanly.
+
+        `review` builds its prompt internally, so it never passes through the
+        stdin/file readers that enforce TASK_LIMIT. Registry bounds alone let a
+        1-10 MiB prompt through, and the ceiling was then hit deep in the worker
+        as an unhandled ValueError: a traceback, exit 1, and a `queued` job
+        record for a worker that never spawned. Found by running the shipped
+        `review --adversarial --background` against this repository's own
+        working tree, 2026-08-16.
+        """
+        self._setup(tmp_path, monkeypatch)
+        monkeypatch.setattr(
+            delegate.review,
+            "assemble_review_diff",
+            lambda scope, base, cwd=None: "x" * (1024 * 1024 + 1),
+        )
+        args = _ReviewArgs()
+        args.backend = "codex"
+        args.background = True
+        args.wait = False
+        # The shipped codex entry declares a 10 MiB transport bound, which is
+        # LOOSER than the dispatcher's own 1 MiB ceiling. Mirror that here: a
+        # fixture whose registry bound is already under TASK_LIMIT hides the
+        # gap, because the registry check catches the prompt first.
+        entry = _valid_backend("codex")
+        entry["input"]["max_payload_bytes"] = 10 * 1024 * 1024
+
+        rc = delegate.cmd_review(args, [entry], {}, set())
+
+        assert rc == 2
+        delegations = tmp_path / "delegations"
+        records = list(delegations.rglob("record.json")) if delegations.exists() else []
+        assert records == [], f"oversize review left orphan job records: {records}"
+
+    def test_review_prompt_requires_parseable_result_envelope(
+        self, tmp_path, monkeypatch
+    ):
+        self._setup(tmp_path, monkeypatch)
+        captured = {}
+
+        def fake_run(store_, job_id, entry, record, prompt_bytes):
+            captured["prompt"] = prompt_bytes.decode("utf-8")
+            return {
+                "state": "completed",
+                "envelope": {"outcome": "success", "findings": []},
+            }
+
+        monkeypatch.setattr(delegate.worker, "_run_backend_and_finish", fake_run)
+        args = _ReviewArgs()
+        args.backend = "antigravity"
+
+        assert (
+            delegate.cmd_review(args, [_valid_backend("antigravity")], {}, set()) == 0
+        )
+        assert (
+            "End your final message with exactly one fenced JSON block"
+            in captured["prompt"]
+        )
+        assert (
+            "Do not create artifacts, plans, files, or ask for approval"
+            in captured["prompt"]
+        )
+        assert '"findings"' in captured["prompt"]
+
     def test_review_omitting_findings_is_a_failure_not_a_clean_pass(
         self, tmp_path, monkeypatch, capsys
     ):
@@ -220,6 +287,29 @@ class TestReviewCommand:
         store = delegate.JobStore(cwd=str(tmp_path))
         record = store.read(out["job_id"])
         assert record["kind"] == "review"
+
+
+class TestShippedAntigravityInvocation:
+    def test_antigravity_passes_prompt_as_print_flag_value(self, tmp_path):
+        from _delegate_inproc import REPO_ROOT
+
+        cfg = json.loads(
+            (REPO_ROOT / "plugins/manifest-delegate/config/backends.json").read_text()
+        )
+        entry = next(b for b in cfg["backends"] if b["id"] == "antigravity")
+        prompt = "review this exact change"
+
+        argv, process_prompt = delegate.worker._build_backend_invocation(
+            entry,
+            False,
+            "gemini-3.6-flash-low",
+            {"output_file": str(tmp_path / "output.txt")},
+            prompt.encode("utf-8"),
+        )
+
+        assert argv[:3] == ["agy", "--print", prompt]
+        assert (entry.get("input") or {}).get("transport") == "argv"
+        assert process_prompt == prompt.encode("utf-8")
 
 
 class TestBranchBaseResolution:

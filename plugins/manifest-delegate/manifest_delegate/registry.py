@@ -113,10 +113,10 @@ def _validate_registry_input_shape(entry, entry_id, path):
             )
 
     transport = (entry.get("input") or {}).get("transport")
-    if transport is not None and transport != "stdin":
+    if transport is not None and transport not in {"stdin", "argv"}:
         raise RegistryError(
             f"registry {path}: backend {entry_id!r} input.transport {transport!r} is unsupported "
-            "(only 'stdin' implemented)"
+            "(supported: 'stdin', 'argv')"
         )
 
 

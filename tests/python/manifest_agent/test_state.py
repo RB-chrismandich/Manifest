@@ -11,6 +11,7 @@ import pytest
 
 from manifest_agent.models import HarnessReceipt, InstallationReceipt, OwnedEntry
 from manifest_agent.ownership import (
+    codex_receipt_ownership_errors,
     graphify_retirement_transaction_proof,
     owned_capability_entry,
 )
@@ -331,3 +332,27 @@ def test_atomic_write_cleans_temporary_file_after_replace_failure(
     with pytest.raises(StateError, match="write receipt"):
         write_receipt_atomic(path, SAMPLE_RECEIPT)
     assert not list(tmp_path.glob("*.tmp"))
+
+
+def test_legacy_codex_receipt_error_names_its_remediation(tmp_path):
+    """A pre-authentication receipt must fail closed with an actionable reason.
+
+    Receipts written before Codex receipt authentication existed carry no
+    proof. Rejecting them is deliberate, but the operator needs to be told how
+    to recover rather than reading it as receipt corruption.
+    """
+    legacy = HarnessReceipt(
+        harness="codex",
+        adapter_version="1",
+        native_version="2",
+        plugin_ids=(),
+        owned_entries=(),
+        capabilities={},
+        verified=True,
+    )
+
+    errors = codex_receipt_ownership_errors(legacy, key_path=tmp_path / "ownership.key")
+
+    assert len(errors) == 1
+    assert "predates Codex receipt authentication" in errors[0]
+    assert "manifest install" in errors[0]

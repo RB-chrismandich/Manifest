@@ -43,7 +43,7 @@ def cmd_status(args):
         else None
     )
     record = store.reap_if_dead(resolved)
-    while args.wait and record.get("state") not in jobstore.TERMINAL_STATES:
+    while args.wait and record.get("state") not in jobstore.SETTLED_STATES:
         if deadline and time.time() >= deadline:
             break
         time.sleep(0.5)
@@ -55,6 +55,11 @@ def cmd_status(args):
         print("job_id: {}".format(record["job_id"]))
         print("backend: {}".format(record.get("backend")))
         print("state: {}".format(record.get("state")))
+        if record.get("state") == "fallback_pending":
+            recovery = record.get("recovery") or {}
+            print("version: {}".format(record.get("version")))
+            print("recovery_id: {}".format(recovery.get("recovery_id")))
+            print("next_tier: {}".format(recovery.get("next_tier")))
     return 0
 
 
@@ -69,7 +74,7 @@ def cmd_result(args):
         return 2
 
     record = store.reap_if_dead(resolved)
-    if record.get("state") not in jobstore.TERMINAL_STATES:
+    if record.get("state") not in jobstore.SETTLED_STATES:
         print(
             f"delegate: still running; delegate.py status {resolved} --wait",
             file=sys.stderr,
@@ -79,9 +84,22 @@ def cmd_result(args):
     job_dir = store.job_dir(resolved)
     output_path = os.path.join(job_dir, "output.txt")
     envelope = record.get("envelope") or {
-        "outcome": "failure",
+        "outcome": (
+            "fallback_pending"
+            if record.get("state") == "fallback_pending"
+            else "failure"
+        ),
         "error": record.get("error", "no envelope recorded"),
     }
+    if record.get("state") == "fallback_pending":
+        envelope = {
+            **envelope,
+            "job_id": record["job_id"],
+            "version": record.get("version"),
+            "model_attempts": record.get("model_attempts", []),
+            "failure_summary": record.get("failure_summary", {}),
+            "recovery": record.get("recovery", {}),
+        }
     if args.json:
         payload = dict(envelope)
         payload["raw_output_path"] = output_path
@@ -90,6 +108,10 @@ def cmd_result(args):
         print("outcome: {}".format(envelope.get("outcome")))
         if envelope.get("error"):
             print("error: {}".format(envelope["error"]))
+        if record.get("state") == "fallback_pending":
+            recovery = record.get("recovery") or {}
+            print("recovery_id: {}".format(recovery.get("recovery_id")))
+            print("next_tier: {}".format(recovery.get("next_tier")))
         print(f"raw_output_path: {output_path}")
     return 0
 
@@ -170,25 +192,70 @@ def _reap_raced_pgid(store, job_id, before_pgid):
     return False
 
 
-def cmd_cancel(args):
-    store = jobstore.JobStore()
+def _resolve_cancel_target(store, args):
     if args.job_id:
         resolved, error = task._resolve_job_id(store, args.job_id)
     else:
         resolved, error = task._resolve_sole_active(store)
     if error:
         print(f"delegate: {error}", file=sys.stderr)
+        return None, 2
+    return resolved, None
+
+
+def _validate_cancel_version(record, expected):
+    if expected is None or record.get("version") == expected:
+        return None
+    print(
+        "delegate: stale job version: expected {}, found {}".format(
+            expected, record.get("version")
+        ),
+        file=sys.stderr,
+    )
+    return 2
+
+
+def _cancel_fallback(store, resolved, record, args, expected):
+    if record.get("state") not in {"fallback_pending", "fallback_rejected"}:
+        return None
+    recovery_id = getattr(args, "recovery_id", None)
+    if expected is None or not recovery_id:
+        print(
+            "delegate: cancelling fallback_pending requires "
+            "--expected-version and --recovery-id",
+            file=sys.stderr,
+        )
         return 2
+    try:
+        record = store.reject_fallback(
+            resolved,
+            expected_version=expected,
+            recovery_id=recovery_id,
+            action="cancel",
+        )
+    except (OSError, ValueError) as error:
+        print(f"delegate: {error}", file=sys.stderr)
+        return 2
+    if args.json:
+        print(json.dumps(record))
+    else:
+        print(f"job_id: {resolved}")
+        print("state: fallback_rejected")
+    return 0
 
-    record = store.read(resolved)
-    if record.get("state") in jobstore.TERMINAL_STATES:
-        if args.json:
-            print(json.dumps(record))
-        else:
-            print(f"job_id: {resolved}")
-            print("state: {} (already terminal, no-op)".format(record.get("state")))
-        return 0
 
+def _render_cancelled(args, resolved, record, was_alive):
+    if args.json:
+        payload = dict(record)
+        payload["was_alive"] = was_alive
+        print(json.dumps(payload))
+        return
+    print(f"job_id: {resolved}")
+    print("state: {}".format(record.get("state")))
+    print(f"process_was_alive: {was_alive}")
+
+
+def _cancel_active(store, resolved, record, args, expected):
     before_pgid = record.get("pgid")
     was_alive = _terminate_job_processes(store, resolved, record)
 
@@ -198,18 +265,40 @@ def cmd_cancel(args):
         rec["state"] = "cancelled"
         return rec
 
-    record = store.mutate(resolved, _mark_cancelled)
+    try:
+        record = store.mutate(resolved, _mark_cancelled, expected_version=expected)
+    except (OSError, ValueError) as error:
+        # The worker can finalize the job between the pre-check read and this
+        # CAS, bumping the version. Report it like every other stale-version
+        # path instead of surfacing a traceback.
+        print(f"delegate: {error}", file=sys.stderr)
+        return 2
     if _reap_raced_pgid(store, resolved, before_pgid):
         was_alive = True
-    # Every backend for this job is now killed; erase the pgid tracking so no
-    # later reap/status re-derives the now-dead pgid and SIGKILLs a recycled one.
     process._clear_pgid_tracking(store, resolved)
-    if args.json:
-        payload = dict(record)
-        payload["was_alive"] = was_alive
-        print(json.dumps(payload))
-    else:
-        print(f"job_id: {resolved}")
-        print("state: {}".format(record.get("state")))
-        print(f"process_was_alive: {was_alive}")
+    _render_cancelled(args, resolved, record, was_alive)
     return 0
+
+
+def cmd_cancel(args):
+    store = jobstore.JobStore()
+    resolved, failure = _resolve_cancel_target(store, args)
+    if failure is not None:
+        return failure
+
+    record = store.read(resolved)
+    expected = getattr(args, "expected_version", None)
+    version_failure = _validate_cancel_version(record, expected)
+    if version_failure is not None:
+        return version_failure
+    fallback_result = _cancel_fallback(store, resolved, record, args, expected)
+    if fallback_result is not None:
+        return fallback_result
+    if record.get("state") in jobstore.TERMINAL_STATES:
+        if args.json:
+            print(json.dumps(record))
+        else:
+            print(f"job_id: {resolved}")
+            print("state: {} (already terminal, no-op)".format(record.get("state")))
+        return 0
+    return _cancel_active(store, resolved, record, args, expected)

@@ -90,12 +90,31 @@ from agents.config import (
     Logger,
     genai,
 )
-from agents.runners import BaseAgent
+from agents.runners import BaseAgent, _read_bounded_stream
 from agents.synthesis import SynthesisEngine
 from agents.validation import ValidationEngine
 
 if HAS_ANTHROPIC:
     from anthropic import AsyncAnthropic
+
+
+async def _bounded_probe_output(proc, timeout: int, provider: str):
+    """Wait for a provider probe while draining both streams within fixed caps."""
+    stdout_task = asyncio.create_task(_read_bounded_stream(proc.stdout))
+    stderr_task = asyncio.create_task(_read_bounded_stream(proc.stderr))
+    try:
+        await asyncio.wait_for(proc.wait(), timeout=timeout)
+    except TimeoutError as error:
+        proc.kill()
+        await proc.wait()
+        await asyncio.gather(stdout_task, stderr_task)
+        raise TimeoutError(f"{provider} probe timed out after {timeout}s") from error
+    (stdout, stdout_truncated), (stderr, stderr_truncated) = await asyncio.gather(
+        stdout_task, stderr_task
+    )
+    if stdout_truncated or stderr_truncated:
+        raise RuntimeError(f"{provider} probe output exceeded 64 KiB")
+    return stdout, stderr
 
 
 class Orchestrator:
@@ -668,19 +687,9 @@ async def check_credits(
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
-            # The timeout must cover communicate(), not just the spawn — mirrors
-            # the codex hang fix above (issue #307): agy blocked on auth/TTY
-            # must not hang --check-credits forever.
-            try:
-                _stdout, stderr = await asyncio.wait_for(
-                    proc.communicate(), timeout=probe_timeout
-                )
-            except TimeoutError as err:
-                proc.kill()
-                await proc.wait()
-                raise TimeoutError(
-                    f"antigravity probe timed out after {probe_timeout}s"
-                ) from err
+            _stdout, stderr = await _bounded_probe_output(
+                proc, probe_timeout, "antigravity"
+            )
             error_output = stderr.decode("utf-8", errors="ignore").lower()
 
             if any(
@@ -716,18 +725,7 @@ async def check_credits(
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
-            # The timeout must cover communicate(), not just the spawn —
-            # codex blocking on auth/TTY hung this probe forever (issue #307)
-            try:
-                _stdout, stderr = await asyncio.wait_for(
-                    proc.communicate(), timeout=probe_timeout
-                )
-            except TimeoutError as err:
-                proc.kill()
-                await proc.wait()
-                raise TimeoutError(
-                    f"codex probe timed out after {probe_timeout}s"
-                ) from err
+            _stdout, stderr = await _bounded_probe_output(proc, probe_timeout, "codex")
             error_output = stderr.decode("utf-8", errors="ignore").lower()
 
             if any(
@@ -764,16 +762,7 @@ async def check_credits(
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
-            try:
-                stdout, stderr = await asyncio.wait_for(
-                    proc.communicate(), timeout=probe_timeout
-                )
-            except TimeoutError as err:
-                proc.kill()
-                await proc.wait()
-                raise TimeoutError(
-                    f"devin probe timed out after {probe_timeout}s"
-                ) from err
+            stdout, stderr = await _bounded_probe_output(proc, probe_timeout, "devin")
             combined = (stderr + stdout).decode("utf-8", errors="ignore")
             lowered = combined.lower()
 

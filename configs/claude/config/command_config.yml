@@ -103,11 +103,12 @@ harness_routing:
 # command_config.yml is the canonical store; SKILL.md prose must agree and is verified by that test.
 #
 # Session-model fields (2026-07-25 credit baseline — see docs/MODEL-POLICY.md):
-#   session_model:           opus|fable                    # omit = Opus, the default start model
+#   session_model:           opus                          # omit = Opus, the default start model
 #   session_model_rationale: "<one line>"                  # REQUIRED whenever session_model is set
-# `fable` marks work that is genuinely long-horizon (hours of autonomous iteration). A skill that
-# wants Fable ASKS the user to switch and waits for the answer — it never assumes Fable is active
-# and never silently proceeds on the default. Enforced by tests/bats/subagent_policy.bats.
+# 2026-08-17: the `fable` session tier was retired. Opus (1M context) is now both the top tier and
+# the default start model, so there is no costlier tier left to ask the user to switch to — the
+# ask-before-premium gate that `fable` carried has no referent and was removed with it.
+# Enforced by tests/bats/subagent_policy.bats.
 tool_policies:
   issue-dev-auto:
     allowed:
@@ -123,8 +124,6 @@ tool_policies:
     # contradiction of the develop-loop policy.
     parallel_agents: gate-only
     validation_tier: 1
-    session_model: fable
-    session_model_rationale: Unattended end-to-end issue development under /loop; hours of autonomous work per run.
 
     subagents: never
     subagent_rationale: Develops exactly one issue per invocation then stops; /loop handles iteration.
@@ -176,8 +175,6 @@ tool_policies:
     forbidden: []
     parallel_agents: never        # a state-gated driver, not a cross-verification fan-out
     validation_tier: 1            # safety-gate logic + handles env-injected provider secrets
-    session_model: fable
-    session_model_rationale: Drives a feature across all nine state-gated phases in one run; long-horizon by construction.
     subagents: never
     subagent_rationale: Single config-driven engine runs the catalog sequentially via one script.
   issue-sync-pr:
@@ -492,8 +489,6 @@ tool_policies:
       - Edit      # Only the developer sub-agent writes code
     parallel_agents: never
     validation_tier: 1
-    session_model: fable
-    session_model_rationale: Multi-round CDDL loop; each round re-reads the whole tree and iterates until the gates clear.
 
     subagents: always
     subagent_rationale: Four-persona CDDL loop; developer sub-agent is the sole code author; three read-only reviewer sub-agents gate each iteration.
@@ -767,6 +762,16 @@ tool_policies:
   help:
     subagents: never
     subagent_rationale: Read-only interactive command discovery; single catalog query.
+  i-have-adhd:
+    allowed:
+      - Read
+    forbidden:
+      - Bash
+      - Write
+      - Edit
+    parallel_agents: never
+    subagents: never
+    subagent_rationale: Output-shaping session mode; no work to fan out and it mutates nothing.
   data-design-ingestion:
     subagents: never
     subagent_rationale: Single design decision for one table; sequential reasoning.
@@ -1039,7 +1044,7 @@ parallel_agent:
 task_model_defaults:
   security:
     cursor: advanced
-    claude: fable
+    claude: opus
     gemini: pro
     antigravity: advanced
     reason: "Security-critical code requires maximum model capability"

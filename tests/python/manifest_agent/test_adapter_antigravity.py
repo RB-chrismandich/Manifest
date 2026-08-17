@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Mapping, Sequence
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -13,6 +14,7 @@ from manifest_agent.contracts import (
     DOMAIN_BUNDLES,
     Capabilities,
     CompatibilityStatus,
+    Component,
     Components,
     Provenance,
 )
@@ -257,6 +259,76 @@ def test_antigravity_rejects_mismatched_generic_view_before_mutation(
 
     assert result.state is ResultState.BLOCKED
     assert "generic plugin view" in " ".join(result.errors)
+    assert runner.log == []
+
+
+def _desired_with_guidance_addon(desired: DesiredState) -> DesiredState:
+    addon_name = "manifest-i-have-adhd"
+    skill = (
+        desired.release_root / "plugins" / addon_name / "skills/i-have-adhd/SKILL.md"
+    )
+    skill.parent.mkdir(parents=True)
+    skill.write_text("# ADHD\n", encoding="utf-8")
+    guidance = Component(
+        "adhd-always-on-guidance",
+        "guidance/always-on.md",
+        {"antigravity": CompatibilityStatus("imported")},
+    )
+    addon = BundleContract(
+        addon_name,
+        "0.1.0",
+        "fixture",
+        "fixture",
+        Components("skills", ("*/SKILL.md",), (), (), (), (guidance,)),
+        Capabilities(
+            dict.fromkeys(CapabilityTier, ()),
+            dict.fromkeys(CapabilityTier, ()),
+        ),
+        {"antigravity": CompatibilityStatus("imported")},
+        Provenance("https://example.invalid", "MIT", "LICENSE", "test"),
+    )
+    (desired.release_root / "plugins" / addon_name / "plugin.json").write_text(
+        json.dumps(
+            {
+                "name": addon_name,
+                "version": "0.1.0",
+                "skills": ["skills/i-have-adhd"],
+                "harnesses": {
+                    "antigravity": {
+                        "mode": "imported",
+                        "skills": ["skills/i-have-adhd"],
+                    }
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    return replace(desired, addon_contracts=(addon,))
+
+
+def test_antigravity_requires_extension_context_only_for_declared_guidance(
+    desired: DesiredState,
+) -> None:
+    selected = _desired_with_guidance_addon(desired)
+    runner = QueueRunner([])
+
+    missing = AntigravityAdapter(runner=runner).install(selected)
+
+    assert missing.state is ResultState.BLOCKED
+    assert "no readable Antigravity extension context" in " ".join(missing.errors)
+    assert runner.log == []
+
+    extension = (
+        selected.bundle_path("manifest-i-have-adhd") / "antigravity-extension.json"
+    )
+    extension.write_text(
+        json.dumps({"contextFileName": "guidance/wrong.md"}), encoding="utf-8"
+    )
+
+    mismatched = AntigravityAdapter(runner=runner).install(selected)
+
+    assert mismatched.state is ResultState.BLOCKED
+    assert "context does not match" in " ".join(mismatched.errors)
     assert runner.log == []
 
 

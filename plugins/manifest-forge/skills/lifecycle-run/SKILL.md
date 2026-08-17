@@ -32,11 +32,9 @@ gate signal. Constitution: Principle VI + "Development Lifecycle". Contracts:
 
 This skill is **long-horizon**: one invocation drives a feature across all nine state-gated phases.
 
-Before starting, check the session's model. If it is not Fable 5, **ask the user to switch**
-(`/model` → Fable 5) and wait for the answer. Do not assume Fable is active, and do not silently
-proceed on the default model — the choice trades ~2x the per-token cost against capability, so it
-is the user's to make. Everything shorter than this runs on Opus by default
-(`session_model` in `command_config.yml`; rationale in `docs/MODEL-POLICY.md`).
+This skill runs on the session default, Opus (1M context) — the top tier, so there is
+nothing to switch to. It used to ask the user to move to Fable 5 first; that tier was
+retired 2026-08-17 (rationale in `docs/MODEL-POLICY.md`).
 
 ## Usage
 

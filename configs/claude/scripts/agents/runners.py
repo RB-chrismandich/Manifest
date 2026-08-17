@@ -9,9 +9,22 @@ import os
 import shutil
 import sys
 import tempfile
+import threading
 import time
 from typing import Any
 
+from manifest_model_policy import (
+    FailureClass,
+    FailureEvidence,
+    FallbackAction,
+    FallbackController,
+    ModelFallbackMode,
+    ResolvedModel,
+    classify_failure,
+    sdk_failure_evidence,
+)
+
+from agents.cli_policy import configured_fallback_tiers
 from agents.config import (
     HAS_ANTHROPIC,
     HAS_GENAI,
@@ -26,9 +39,43 @@ if HAS_ANTHROPIC:
     from anthropic import AsyncAnthropic
 
 
+_PROVIDER_STREAM_LIMIT = 64 * 1024
+_FALLBACK_CONFIRM_LOCK = threading.Lock()
+
+
+async def _read_bounded_stream(stream, limit: int = _PROVIDER_STREAM_LIMIT):
+    """Drain a subprocess stream while retaining at most ``limit`` bytes."""
+    retained = bytearray()
+    truncated = False
+    while True:
+        chunk = await stream.read(64 * 1024)
+        if not chunk:
+            break
+        room = limit - len(retained)
+        if room > 0:
+            retained.extend(chunk[:room])
+        if len(chunk) > room:
+            truncated = True
+    return bytes(retained), truncated
+
+
+def _read_bounded_output_file(path: str, limit: int = _PROVIDER_STREAM_LIMIT):
+    with open(path, "rb") as stream:
+        data = stream.read(limit + 1)
+    return data[:limit], len(data) > limit
+
+
 # ---------------------------------------------------------------------------
 # BaseAgent
 # ---------------------------------------------------------------------------
+
+
+class ProviderAttemptError(RuntimeError):
+    """Carry bounded provider evidence without exposing raw failure text."""
+
+    def __init__(self, evidence: FailureEvidence):
+        super().__init__("provider attempt failed")
+        self.evidence = evidence
 
 
 class BaseAgent:
@@ -44,6 +91,10 @@ class BaseAgent:
         logger: Logger | None = None,
         streaming: bool = False,
         progress_callback=None,
+        model_chain=None,
+        fallback_mode: str | ModelFallbackMode = ModelFallbackMode.CONFIRM,
+        interactive: bool = False,
+        confirm_callback=None,
     ):
         self.name = name
         self.model = model
@@ -58,97 +109,188 @@ class BaseAgent:
         self.credit_fallback_used = False
         self.streaming = streaming
         self.progress_callback = progress_callback
+        if model_chain is None:
+            model_chain = configured_fallback_tiers(
+                self.config.config, self.name, self.original_model
+            )
+        self.model_chain = tuple(
+            item
+            if isinstance(item, ResolvedModel)
+            else ResolvedModel(str(item), self._resolve_model(str(item)))
+            for item in model_chain
+        )
+        self.fallback_mode = ModelFallbackMode(fallback_mode)
+        self.interactive = interactive
+        self.confirm_callback = confirm_callback
+
+    async def _fallback_decision(self, controller, index, failure):
+        if not self.interactive or self.confirm_callback is None:
+            return controller.decide(index, failure)
+
+        def decide():
+            with _FALLBACK_CONFIRM_LOCK:
+                return controller.decide(index, failure)
+
+        return await asyncio.to_thread(decide)
 
     async def execute(self, prompt: str, mode: str = "prompt") -> dict:
         """Execute agent with rate limiting, timeout, and credit fallback"""
         await self.rate_limiter.acquire()
-
         start_time = time.time()
-
+        deadline = time.monotonic() + self.timeout
         if self.logger:
             self.logger.info(
                 f"[{self.name}] Starting execution with model {self.model}"
             )
-
-        # Try with original model first, then fallback on credit exhaustion
-        for _attempt in range(3):  # Max 3 fallback attempts
+        chain = self.model_chain
+        if chain is None:
+            chain = (ResolvedModel(self.model, self.model_name),)
+        controller = FallbackController(
+            chain,
+            self.fallback_mode,
+            interactive=self.interactive,
+            confirm_callback=self.confirm_callback,
+        )
+        attempts = []
+        last_decision = None
+        for index, resolved in enumerate(chain):
+            self.model = resolved.tier
+            self.model_name = resolved.model_id
+            attempts.append({"tier": resolved.tier, "model": resolved.model_id})
             try:
-                # Use streaming or regular execution
-                if self.streaming and hasattr(self, "_execute_streaming"):
-                    result = await asyncio.wait_for(
-                        self._execute_streaming(prompt, mode), timeout=self.timeout
-                    )
-                else:
-                    result = await asyncio.wait_for(
-                        self._execute_impl(prompt, mode), timeout=self.timeout
-                    )
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    raise TimeoutError
+                result = await self._execute_attempt(prompt, mode, remaining)
+            except Exception as error:
+                timed_out = isinstance(error, TimeoutError)
+                evidence = (
+                    error.evidence
+                    if isinstance(error, ProviderAttemptError)
+                    else sdk_failure_evidence(self.name, self.name, error)
+                )
+                failure = classify_failure(evidence, error=error)
+                decision = await self._fallback_decision(controller, index, failure)
+                last_decision = decision
+                if decision.action is FallbackAction.RETRY:
+                    await self._announce_retry(decision)
+                    continue
+                return self._exception_result(
+                    error, timed_out, failure, decision, start_time, attempts
+                )
+            if result.get("status") == "complete":
+                return self._completed_result(
+                    result, start_time, attempts, last_decision
+                )
+            failure = self._returned_failure(result)
+            decision = await self._fallback_decision(controller, index, failure)
+            last_decision = decision
+            if decision.action is FallbackAction.RETRY:
+                await self._announce_retry(decision)
+                continue
+            return self._returned_result(
+                result, failure, decision, start_time, attempts
+            )
+        return self._exhausted_result(start_time, attempts, last_decision)
 
-                result["duration_seconds"] = round(time.time() - start_time, 2)
-                result["credit_fallback"] = self.credit_fallback_used
+    async def _execute_attempt(self, prompt: str, mode: str, remaining: float) -> dict:
+        if self.streaming and hasattr(self, "_execute_streaming"):
+            operation = self._execute_streaming(prompt, mode)
+        else:
+            operation = self._execute_impl(prompt, mode)
+        return await asyncio.wait_for(operation, timeout=remaining)
 
-                if self.logger:
-                    self.logger.info(
-                        f"[{self.name}] Completed in {result['duration_seconds']}s"
-                    )
+    async def _announce_retry(self, decision) -> None:
+        self.credit_fallback_used = True
+        if self.logger:
+            self.logger.warning(f"[{self.name}] {decision.message}")
+        print(f"  [{self.name}] {decision.message}", file=sys.stderr)
+        await asyncio.sleep(1)
 
-                return result
+    def _completed_result(self, result, start_time, attempts, last_decision):
+        completed = dict(result)
+        completed["duration_seconds"] = round(time.time() - start_time, 2)
+        completed["credit_fallback"] = self.credit_fallback_used
+        completed["model_attempts"] = attempts
+        completed["fallback_reason"] = (
+            last_decision.failure.value if last_decision else None
+        )
+        completed["fallback_confirmed"] = (
+            last_decision.confirmed if last_decision else False
+        )
+        if self.logger:
+            self.logger.info(
+                f"[{self.name}] Completed in {completed['duration_seconds']}s"
+            )
+        return completed
 
-            except TimeoutError:
-                if self.logger:
-                    self.logger.error(f"[{self.name}] Timeout after {self.timeout}s")
+    def _returned_failure(self, result: dict) -> FailureClass:
+        try:
+            return FailureClass(result.get("fallback_reason"))
+        except (TypeError, ValueError):
+            pass
+        if result.get("status") == "missing":
+            return FailureClass.CONFIG
+        summary = result.get("failure_summary")
+        if not isinstance(summary, dict):
+            return FailureClass.UNKNOWN
+        exit_status = summary.get("exit_status")
+        if isinstance(exit_status, bool) or not isinstance(exit_status, int):
+            exit_status = None
+        evidence = FailureEvidence(
+            provider=self.name,
+            harness=self.name,
+            exit_status=exit_status,
+            output_envelope_status=summary.get("output_envelope_status") or None,
+            task_status=summary.get("task_status") or None,
+            truncated=summary.get("truncated") in {True, "true"},
+        )
+        return classify_failure(evidence)
 
-                return {
-                    "status": "failed",
-                    "error": f"timeout after {self.timeout}s",
-                    "duration_seconds": round(time.time() - start_time, 2),
-                    "credit_fallback": self.credit_fallback_used,
-                }
-            except Exception as e:
-                error_str = str(e).lower()
+    def _returned_result(self, result, failure, decision, start_time, attempts):
+        failed = dict(result)
+        failed["duration_seconds"] = round(time.time() - start_time, 2)
+        failed["credit_fallback"] = self.credit_fallback_used
+        failed["model_attempts"] = attempts
+        failed["fallback_reason"] = failure.value
+        failed["fallback_confirmed"] = decision.confirmed
+        failed["fallback_pending"] = (
+            decision.action is FallbackAction.NEEDS_CONFIRMATION
+        )
+        return failed
 
-                # Check for credit/quota exhaustion errors
-                if (
-                    self._is_credit_exhaustion_error(error_str)
-                    and not self.credit_fallback_used
-                ):
-                    fallback_model = self._get_fallback_model()
-                    if fallback_model:
-                        if self.logger:
-                            self.logger.warning(
-                                f"[{self.name}] Credit exhausted, falling back: {self.model} → {fallback_model}"
-                            )
-                        print(
-                            f"  [{self.name}] Credit exhausted, falling back: {self.model} → {fallback_model}",
-                            file=sys.stderr,
-                        )
-                        self.model = fallback_model
-                        # Re-resolve the concrete model name or the retry
-                        # silently re-runs the exhausted model (issue #304)
-                        self.model_name = self._resolve_model(fallback_model)
-                        self.credit_fallback_used = True
-                        await asyncio.sleep(1)  # Brief delay before retry
-                        continue
+    def _exception_result(
+        self, error, timed_out, failure, decision, start_time, attempts
+    ):
+        message = (
+            f"Timeout after {self.timeout}s"
+            if timed_out
+            else f"{type(error).__name__}: provider attempt failed"
+        )
+        if self.logger:
+            self.logger.error(f"[{self.name}] {message}")
+        return {
+            "status": "failed",
+            "error": message.lower() if timed_out else message,
+            "duration_seconds": round(time.time() - start_time, 2),
+            "credit_fallback": self.credit_fallback_used,
+            "model_attempts": attempts,
+            "fallback_reason": failure.value,
+            "fallback_confirmed": decision.confirmed,
+            "fallback_pending": decision.action is FallbackAction.NEEDS_CONFIRMATION,
+        }
 
-                # Non-recoverable error
-                if self.logger:
-                    self.logger.error(f"[{self.name}] Error: {e!s}")
-
-                return {
-                    "status": "failed",
-                    "error": str(e),
-                    "duration_seconds": round(time.time() - start_time, 2),
-                    "credit_fallback": self.credit_fallback_used,
-                }
-
-        # All fallback attempts exhausted
+    def _exhausted_result(self, start_time, attempts, last_decision):
         if self.logger:
             self.logger.error(f"[{self.name}] All credit fallback attempts exhausted")
-
         return {
             "status": "failed",
             "error": "all credit fallback attempts exhausted",
             "duration_seconds": round(time.time() - start_time, 2),
             "credit_fallback": self.credit_fallback_used,
+            "model_attempts": attempts,
+            "fallback_reason": last_decision.failure.value if last_decision else None,
+            "fallback_confirmed": last_decision.confirmed if last_decision else False,
         }
 
     def _is_credit_exhaustion_error(self, error: str) -> bool:
@@ -523,40 +665,76 @@ class CLIAgent(BaseAgent):
         return cmd
 
     def _collect_output(
-        self, returncode: int, stdout: bytes, stderr: bytes, output_file: str | None
+        self,
+        returncode: int,
+        stdout: bytes,
+        stderr: bytes,
+        output_file: str | None,
+        *,
+        truncated: bool = False,
     ) -> dict:
         """Apply the provider's output strategy: file > stdout > stderr-on-error."""
+        if returncode != 0:
+            evidence = self._failure_evidence(
+                returncode, stdout, stderr, truncated=truncated
+            )
+            return self._failed_result(evidence, classify_failure(evidence))
+
         output = ""
+        output_file_truncated = False
         if output_file and os.path.exists(output_file):
-            with open(output_file) as f:
-                output = f.read().strip()
+            output_bytes, output_file_truncated = _read_bounded_output_file(output_file)
+            output = output_bytes.decode("utf-8", errors="replace").strip()
+        if truncated or output_file_truncated:
+            evidence = self._failure_evidence(
+                returncode,
+                stdout,
+                stderr,
+                truncated=True,
+            )
+            return self._failed_result(evidence, FailureClass.UNKNOWN)
         if not output:
             output = stdout.decode("utf-8", errors="ignore").strip()
-        if returncode != 0:
-            # A nonzero exit means usage text / error banners, not an answer —
-            # letting it through corrupted consensus and synthesis (issue #308).
-            stderr_text = stderr.decode("utf-8", errors="ignore").strip()
-            error_parts = [f"exit code {returncode}"]
-            if stderr_text:
-                error_parts.append(stderr_text)
-            if output:
-                error_parts.append(f"stdout: {output}")
-            return {
-                "status": "failed",
-                "error": "; ".join(error_parts),
-                # Kept separate from "error" (which also carries stdout text)
-                # so credit-exhaustion classification checks stderr only —
-                # an answer's stdout content must never trigger a false
-                # "quota exceeded" fallback walk.
-                "stderr": stderr_text,
-                "output": "",
-                "model": self.model_name or "auto",
-            }
+        if not output:
+            evidence = FailureEvidence(
+                provider=self.name,
+                harness=self.name,
+                exit_status=returncode,
+                output_envelope_status="empty",
+            )
+            return self._failed_result(evidence, FailureClass.MALFORMED_OUTPUT)
         return {
             "status": "complete",
             "output": output,
             "model": self.model_name or "auto",
             "validated": False,
+        }
+
+    def _failure_evidence(
+        self,
+        returncode: int,
+        stdout: bytes,
+        stderr: bytes,
+        *,
+        truncated: bool = False,
+    ) -> FailureEvidence:
+        return FailureEvidence(
+            provider=self.name,
+            harness=self.name,
+            exit_status=returncode,
+            stdout=stdout.decode("utf-8", errors="replace"),
+            stderr=stderr.decode("utf-8", errors="replace"),
+            truncated=truncated,
+        )
+
+    def _failed_result(self, evidence: FailureEvidence, failure: FailureClass) -> dict:
+        return {
+            "status": "failed",
+            "error": f"provider command failed (exit code {evidence.exit_status})",
+            "failure_summary": evidence.persisted_summary(),
+            "fallback_reason": failure.value,
+            "output": "",
+            "model": self.model_name or "auto",
         }
 
     async def _execute_impl(self, prompt: str, mode: str) -> dict:
@@ -566,49 +744,67 @@ class CLIAgent(BaseAgent):
                 "error": f"{self.binary} command not found",
                 "output": "",
             }
-
-        output_file = None
-        if self.output_strategy == "file_then_stdout":
-            with tempfile.NamedTemporaryFile(
-                mode="w", suffix=".txt", delete=False, prefix=f"{self.name}_out_"
-            ) as tmp:
-                output_file = tmp.name
-
+        output_file = self._create_output_file()
         try:
             cmd = self._build_command(prompt, output_file)
-            # stdin=DEVNULL so headless CLIs (e.g. `claude -p`, which reads piped
-            # stdin) get immediate EOF instead of inheriting and blocking on the
-            # parent's stdin until the timeout fires.
-            proc = await asyncio.create_subprocess_exec(
-                *cmd,
-                stdin=asyncio.subprocess.DEVNULL,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
+            return self._process_result(
+                *(await self._run_cli_process(cmd)), output_file
             )
-            try:
-                stdout, stderr = await proc.communicate()
-            except asyncio.CancelledError:
-                # Timeout cancellation (asyncio.wait_for in BaseAgent.execute)
-                # interrupts communicate() but leaves the child running —
-                # kill it before the finally block unlinks its output file
-                # out from under it (issue #306).
-                proc.kill()
-                await proc.wait()
-                raise
-            result = self._collect_output(proc.returncode, stdout, stderr, output_file)
-            if result["status"] == "failed" and self._is_credit_exhaustion_error(
-                result.get("stderr", "").lower()
-            ):
-                # Mirror the SDK agents (Claude/Gemini raise real exceptions on
-                # quota errors, which BaseAgent.execute catches to walk
-                # credit_fallback): a CLI provider's credit-exhaustion stderr
-                # must also raise, or the configured credit_fallback chain
-                # (shared by every cli_agents provider: claude/gemini CLI
-                # fallback, cursor, codex, antigravity) is dead — a "failed"
-                # dict never reaches BaseAgent.execute's except-block.
-                raise RuntimeError(result["error"])
-            return result
         finally:
             if output_file:
                 with contextlib.suppress(OSError):
                     os.unlink(output_file)
+
+    def _create_output_file(self) -> str | None:
+        if self.output_strategy != "file_then_stdout":
+            return None
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".txt", delete=False, prefix=f"{self.name}_out_"
+        ) as temporary:
+            return temporary.name
+
+    async def _run_cli_process(self, cmd):
+        # Headless CLIs get EOF instead of inheriting stdin and blocking forever.
+        proc = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdin=asyncio.subprocess.DEVNULL,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        stdout_task = asyncio.create_task(_read_bounded_stream(proc.stdout))
+        stderr_task = asyncio.create_task(_read_bounded_stream(proc.stderr))
+        try:
+            await proc.wait()
+        except asyncio.CancelledError:
+            proc.kill()
+            await proc.wait()
+            await asyncio.gather(stdout_task, stderr_task)
+            raise
+        (stdout, stdout_truncated), (stderr, stderr_truncated) = await asyncio.gather(
+            stdout_task, stderr_task
+        )
+        return proc.returncode, stdout, stderr, stdout_truncated or stderr_truncated
+
+    def _process_result(self, returncode, stdout, stderr, truncated, output_file):
+        if returncode != 0:
+            evidence = self._failure_evidence(
+                returncode, stdout, stderr, truncated=truncated
+            )
+            failure = classify_failure(evidence)
+            if failure in {
+                FailureClass.MODEL_UNAVAILABLE,
+                FailureClass.RATE_LIMIT,
+                FailureClass.TRANSIENT,
+                FailureClass.CAPACITY,
+                FailureClass.QUOTA,
+                FailureClass.BILLING,
+            }:
+                raise ProviderAttemptError(evidence)
+            return self._failed_result(evidence, failure)
+        return self._collect_output(
+            returncode,
+            stdout,
+            stderr,
+            output_file,
+            truncated=truncated,
+        )

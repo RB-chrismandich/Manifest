@@ -1011,7 +1011,7 @@ Expected output:
 <!-- BEGIN GENERATED COMMANDS (command_catalog.py) — do not edit by hand -->
 <!-- Regenerate: configs/claude/scripts/generate_commands_doc.py -->
 
-_117 commands, generated from `.apm/skills/*/SKILL.md`._
+_118 commands, generated from `.apm/skills/*/SKILL.md`._
 
 ### Git & PRs
 
@@ -1155,6 +1155,7 @@ _117 commands, generated from `.apm/skills/*/SKILL.md`._
 | `/extract-static-html` | Extract self-contained static HTML from a built web app or React components by inlining CSS and images. Use to capture a UI state, share a static page, or prep assets for Stitch upload. | Extract self-contained static HTML from a built web app or React components by inlining CSS and images. | available |
 | `/false-green-check-audit` | Use when writing or reviewing a health-check, status, validation, or CI gate that can skip verifying something (missing credential, unsupported provider, absent tool); ensure a skipped/unverifiable check never renders as a green pass, and add verification through the channel the user actually uses (e.g. OAuth CLI, not an assumed API key). | Use when writing or reviewing a health-check, status, validation, or CI gate that can skip verifying something (missing credential, unsupported provider, absent tool); ensure a skipped/unverifiable check never renders as a green pass, and add verification through the channel the user actually uses (e. | available |
 | `/generate-design` | Generate new Stitch screens from text/images, edit existing screens with prompts and design tokens, and create design variants via the Stitch MCP server. | Generate new Stitch screens from text/images, edit existing screens with prompts and design tokens, and create design variants via the Stitch MCP server. | available |
+| `/i-have-adhd` | Shape output for a reader with ADHD: lead with the next action, number multi-step work, restate state across turns, suppress tangents, give specific time estimates, make wins visible. Invoke with /i-have-adhd; stays on until "stop adhd mode". | Shape output for a reader with ADHD: lead with the next action, number multi-step work, restate state across turns, suppress tangents, give specific time estimates, make wins visible. | available |
 | `/lifecycle-run` | Use when a feature or issue needs to move through the state-gated specify→verify lifecycle with hard phase-gating and a smoke-test Verify gate; entry is a ticket URL or issue key. | Use when a feature or issue needs to move through the state-gated specify→verify lifecycle with hard phase-gating and a smoke-test Verify gate; entry is a ticket URL or issue key. | available |
 | `/loop-scaffold` | Scaffold a design-pass artifact tree (.stitch/) — governance docs, prompts, designs, pinned render gate. | Scaffold a design-pass artifact tree (. | available |
 | `/manage-design-system` | Manage design systems in Stitch via MCP: retrieve assets, create/update design systems, and apply them to screens. | Manage design systems in Stitch via MCP: retrieve assets, create/update design systems, and apply them to screens. | available |

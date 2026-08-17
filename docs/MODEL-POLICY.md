@@ -193,15 +193,19 @@ Full dispatch rules: [configs/claude/references/sub-agent-dispatch.md](../config
 
 ---
 
-## 2. Sessions start on Opus; Fable is asked for, never assumed
+## 2. Sessions start on Opus (1M context); there is no tier above it
 
-**Rule.** Opus is the default start model. Fable 5 is for work that is
-genuinely **long-horizon** — hours of autonomous iteration, not merely hard.
+**Rule.** Opus is the default start model and, since the Fable tier was retired
+on **2026-08-17**, also the top tier. Both `sonnet` and `opus` now pin their
+1M-context variants (`claude-sonnet-5[1m]`, `claude-opus-5[1m]`).
 
-A skill that wants Fable **asks the user to switch and waits for the answer.**
-It does not assume Fable is active, and it does not silently proceed on the
-default. The switch trades ~2x per-token cost against capability; that is the
-user's call, and a skill that assumes either way makes it silently.
+Because no costlier Claude tier remains, the ask-before-switching rule this
+section used to carry has no referent and was removed along with the tier: the
+three skills that declared `session_model: fable` now run on the default, and
+`tests/bats/subagent_policy.bats` no longer enforces a switch prompt.
+
+The history below is kept as the measured record that motivated the original
+split — it describes spend under the retired tier, not current behaviour.
 
 **Measured.** Fable 5 was 39.9% of all spend on 18.1% of requests — the single
 most expensive line, slightly exceeding the entire Opus family. Of that,
@@ -407,3 +411,55 @@ change, not a routing change.
   — dispatch mechanism selection and thresholds
 - [configs/claude/references/cddl-role-models.md](../configs/claude/references/cddl-role-models.md)
   — per-role tier aliases for CDDL charters
+
+## Cross-Harness Skill Model Policy
+
+Skills may declare portable, ordered tiers without embedding provider model IDs:
+
+```yaml
+models:
+  codex: [advanced, flash, auto]
+  gemini: [pro, flash, auto]
+  antigravity: [advanced, flash, auto]
+  cursor: [advanced, flash, auto]
+model_fallback:
+  mode: confirm
+```
+
+`agy` is accepted on input and normalized to `antigravity`. Chains contain one
+to four unique tiers; `auto`, when supported, is final. Concrete IDs remain in
+`configs/claude/config/parallel_agent.yml`.
+
+Precedence is explicit CLI/session choice, skill frontmatter, then the global
+`confirm` default. `--model` replaces the chain unless `--model-chain` supplies
+subsequent fallbacks. Authentication, configuration, safety, malformed output,
+task errors, unknown evidence, and truncated evidence never trigger fallback.
+Model unavailability, rate limits, transient provider failures, capacity,
+quota, and billing failures are eligible.
+
+Non-interactive and JSON execution never prompts. Confirm mode returns a
+recovery command; auto mode advances. Provider evidence is retained only while
+classifying a bounded attempt. Durable summaries are allowlisted, redacted,
+and size bounded; task text is never stored in job state.
+
+Confirm-mode recovery is versioned and identity-bound. Approval requires the
+printed job version, `recovery_id`, and a freshly resubmitted task through stdin
+or `--task-file`. Reject/cancel validates only the job version and recovery
+identity, then terminates as `fallback_rejected` without resolving a backend or
+reading task/payload input. The background ownership protocol is durable:
+`spawned -> worker_owned -> backend_started -> terminal`; an unprovable loss at
+or after ownership becomes non-resumable `dispatch_unknown`, never an automatic
+retry.
+
+Second-opinion dispatch is also a fresh attempt. It accepts only bounded
+`title`/`detail`/`severity` findings tied to the source job's current attempt,
+plus freshly resubmitted task text. It excludes prior prompt summaries, raw
+provider output/errors, session references, full envelopes, and attempt history.
+
+Use an explicit model-aware entry point when policy must apply:
+
+```bash
+printf '%s' 'the task' | manifest skill-run path/to/SKILL.md --harness codex
+```
+
+Ordinary native skill invocation retains the harness default.
