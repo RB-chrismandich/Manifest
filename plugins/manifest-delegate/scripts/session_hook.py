@@ -55,7 +55,16 @@ if __name__ == "__main__" and len(sys.argv) == 2 and sys.argv[1] in ("-h", "--he
 _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 if _SCRIPT_DIR not in _sys.path:
     _sys.path.insert(0, _SCRIPT_DIR)
-import delegate  # noqa: E402
+try:
+    import delegate
+except ImportError:
+    # Same exposure the --help guard above documents, on the hook path: the
+    # delegate module chain requires the manifest-model-policy distribution,
+    # which a clean checkout, a CI image, or a user who installed the bundle
+    # without that dependency will not have. This hook's whole contract is to
+    # never block the session it is attached to, so a missing dependency must
+    # degrade to "track nothing" -- not raise and take the session with it.
+    delegate = None  # type: ignore[assignment]
 
 
 def _load_sessions():
@@ -187,6 +196,11 @@ def main(argv=None):
         help="read hook payload from FILE instead of stdin (testing)",
     )
     args = parser.parse_args(argv)
+
+    if delegate is None:
+        # Dependency missing: nothing can be tracked or reaped, but the session
+        # must still start. Exit 0 silently rather than degrade the session.
+        return 0
 
     if args.stdin_json:
         with open(args.stdin_json, encoding="utf-8") as fh:

@@ -124,6 +124,20 @@ print('ok', val)
   [ "$status" -eq 0 ]
 }
 
+@test "session_hook.py fails open when manifest-model-policy is absent" {
+  # The delegate module chain imports manifest_model_policy. A clean checkout,
+  # a CI image, or a user who installed the bundle without that distribution
+  # has no such module -- and a SessionStart hook that raises degrades every
+  # session it is attached to. The sibling test above passes on an ambient
+  # interpreter that HAS the package, so it cannot catch this; force an
+  # empty environment to pin the fail-open contract.
+  for ev in SessionStart SessionEnd; do
+    run env -i PATH=/usr/bin:/bin HOME="$BATS_TEST_TMPDIR" \
+      bash -c "echo '{\"hook_event_name\":\"$ev\",\"session_id\":\"t1\",\"transcript_path\":\"/tmp/x.jsonl\"}' | python3 '$PLUGIN_DIR/scripts/session_hook.py'"
+    [ "$status" -eq 0 ] || { echo "$ev exited $status: $output"; false; }
+  done
+}
+
 @test "stop_gate_hook.py fails open (exit 0) when transcript_path is missing" {
   # Tolerant of gate subcommand (T031) not existing yet — this path never
   # reaches delegate.py because transcript_path is absent.
