@@ -366,7 +366,7 @@ agent_not_installed_msg() {
         claude) echo "Claude CLI not installed (optional)" ;;
         gemini) echo "Gemini CLI not installed (optional)" ;;
         cursor) echo "cursor-agent not available (optional)" ;;
-        codex) echo "Codex CLI not installed" ;;
+        codex) echo "Codex CLI not installed (optional)" ;;
         antigravity) echo "Antigravity CLI (agy) not installed (optional)" ;;
         devin) echo "Devin CLI not installed (optional)" ;;
         *) echo "$(cap_name "$1") CLI not installed (optional)" ;;
