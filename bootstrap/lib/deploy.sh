@@ -1629,6 +1629,82 @@ register_manifest_marketplace() {
     fi
 }
 
+# marketplace_offers_bundle BUNDLE — can the registered "manifest" marketplace
+# install BUNDLE at all?
+#
+# Three-valued on purpose, because "you have not installed it" and "your
+# marketplace cannot offer it" need different remedies:
+#   0  offered — the checkout lists BUNDLE, so `plugin install` can succeed
+#   1  absent  — registered and readable, and BUNDLE is not in it (drift)
+#   2  unknown — nothing registered, no python3, or the JSON will not parse
+#
+# 2 is kept distinct from 1 so a can't-tell never gets promoted into a claim
+# about the operator's marketplace; the caller keeps its historical advice there.
+marketplace_offers_bundle() {
+    local bundle="$1"
+    local known="$TARGET_DIR/plugins/known_marketplaces.json"
+    [[ -n "$bundle" ]] || return 2
+    [[ -r "$known" ]] || return 2
+    command_exists python3 || return 2
+
+    python3 - "$known" "$bundle" << 'PYEOF'
+import json
+import pathlib
+import sys
+
+known, bundle = pathlib.Path(sys.argv[1]), sys.argv[2]
+try:
+    entry = json.loads(known.read_text())["marketplaces"]["manifest"]
+    checkout = pathlib.Path(entry["installLocation"])
+    manifest = json.loads((checkout / ".claude-plugin/marketplace.json").read_text())
+    plugins = manifest["plugins"]
+except (OSError, ValueError, KeyError, TypeError):
+    sys.exit(2)
+# Exact match: "manifest-doc" must not be satisfied by "manifest-docs".
+sys.exit(0 if any(p.get("name") == bundle for p in plugins) else 1)
+PYEOF
+}
+
+# verify_manifest_bundles — report each bundle in skill_policies.yml that Claude
+# Code has not installed, and echo the remedy that actually applies. Returns the
+# number of missing bundles so the caller can fold it into its error count.
+#
+# SELF-DISABLING on purpose (T4.4, spec 674). It only runs once the cutover has
+# started -- installed_plugins.json already names at least one manifest-* bundle.
+# Checking unconditionally would report a shortfall on a correct PRE-cutover
+# machine, and a gate that is always red is a gate nobody reads.
+verify_manifest_bundles() {
+    local installed_json="$TARGET_DIR/plugins/installed_plugins.json"
+    [[ -r "$installed_json" ]] || return 0
+    grep -q '"manifest-' "$installed_json" 2> /dev/null || return 0
+
+    local registry="$TARGET_DIR/config/skill_policies.yml"
+    [[ -r "$registry" ]] || return 0
+
+    print_step "Checking installed Manifest bundles..."
+    local bundle missing=0
+    while IFS= read -r bundle; do
+        [[ -n "$bundle" ]] || continue
+        if grep -q "\"$bundle@" "$installed_json" 2> /dev/null; then
+            print_success "Bundle installed: $bundle"
+            continue
+        fi
+        missing=$((missing + 1))
+        # 0 (offered) leaves this at 0; 1 (absent) and 2 (unknown) land in it.
+        local offered=0
+        marketplace_offers_bundle "$bundle" || offered=$?
+        if [[ $offered -eq 1 ]]; then
+            # Drift, not omission: `plugin install` cannot succeed here, so
+            # naming it would send the reader after the wrong cause.
+            print_error "Bundle NOT installed: $bundle — the registered marketplace does not offer it; run: claude plugin marketplace update manifest"
+        else
+            print_error "Bundle NOT installed: $bundle — run: claude plugin install $bundle@manifest"
+        fi
+    done < <(sed -n 's/^  \([a-z][a-z0-9-]*\):.*$/\1/p' "$registry")
+
+    return "$missing"
+}
+
 verify_installation() {
     print_header "Verifying Installation"
 
@@ -1886,23 +1962,7 @@ verify_installation() {
     # bundle. Checking unconditionally would report a shortfall on a correct
     # PRE-cutover machine, which is the same "permanently red gate" failure this
     # plan flags in T1.11; a gate that is always red is a gate nobody reads.
-    local installed_json="$TARGET_DIR/plugins/installed_plugins.json"
-    if [[ -r "$installed_json" ]] && grep -q '"manifest-' "$installed_json" 2> /dev/null; then
-        local registry="$TARGET_DIR/config/skill_policies.yml"
-        if [[ -r "$registry" ]]; then
-            print_step "Checking installed Manifest bundles..."
-            local bundle
-            while IFS= read -r bundle; do
-                [[ -n "$bundle" ]] || continue
-                if grep -q "\"$bundle@" "$installed_json" 2> /dev/null; then
-                    print_success "Bundle installed: $bundle"
-                else
-                    print_error "Bundle NOT installed: $bundle — run: claude plugin install $bundle@manifest"
-                    errors=$((errors + 1))
-                fi
-            done < <(sed -n 's/^  \([a-z][a-z0-9-]*\):.*$/\1/p' "$registry")
-        fi
-    fi
+    verify_manifest_bundles || errors=$((errors + $?))
 
     # Summary
     echo ""
