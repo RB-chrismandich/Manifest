@@ -205,6 +205,38 @@ def _ci_install_steps() -> list[str]:
     return scripts
 
 
+def _distribution_resolves_inside_repository(
+    dist: metadata.Distribution, repo_root: Path
+) -> Path | None:
+    """Return a repo-local path proving provenance, or None if outside.
+
+    Hatchling dev-mode editable installs keep metadata in site-packages but
+    point at the working tree via a ``.pth`` file; a plain wheel copy (or a
+  squatted index package) has no such pointer and its importable ``.py`` files
+    live only under site-packages.
+    """
+    for file in dist.files or []:
+        if not str(file).endswith(".pth"):
+            continue
+        for line in Path(file.locate()).read_text(encoding="utf-8").splitlines():
+            candidate = line.strip()
+            if not candidate or candidate.startswith("#"):
+                continue
+            resolved = Path(candidate).resolve()
+            if resolved.is_relative_to(repo_root):
+                return resolved
+    for file in dist.files or []:
+        if not str(file).endswith(".py"):
+            continue
+        located = Path(file.locate()).resolve()
+        if located.is_relative_to(repo_root):
+            return located
+    located = Path(dist.locate_file("")).resolve()
+    if located.is_relative_to(repo_root):
+        return located
+    return None
+
+
 def test_path_sourced_pins_are_installed_from_path_in_ci() -> None:
     """An unpublished pin must be satisfied locally before pip consults an index.
 
@@ -221,22 +253,22 @@ def test_path_sourced_pins_are_installed_from_path_in_ci() -> None:
     )
 
     for name in targets:
-        path_install = f"pip install ./{sources[name]}"
+        path_arg = f"./{sources[name]}"
         matching = [
             script
             for script in _ci_install_steps()
-            if path_install in script and "pip install" in script
+            if path_arg in script and "pip install" in script
         ]
         assert matching, (
-            f"{CI_WORKFLOW.name}: no run step installs {name} via `{path_install}`"
+            f"{CI_WORKFLOW.name}: no run step installs {name} from `{path_arg}`"
         )
         for script in matching:
             project_install = script.find("pip install -r")
             if project_install == -1:
                 continue
-            assert script.find(path_install) < project_install, (
-                f"{CI_WORKFLOW.name}: `{path_install}` must run BEFORE the project "
-                f"install in the same step, or pip resolves {name} from PyPI"
+            assert script.find(path_arg) < project_install, (
+                f"{CI_WORKFLOW.name}: install from `{path_arg}` must run BEFORE the "
+                f"project install in the same step, or pip resolves {name} from PyPI"
             )
 
 
@@ -289,9 +321,10 @@ def test_installed_local_distribution_resolves_inside_this_repository() -> None:
                 f"{name} is declared by {pyproject.relative_to(REPO_ROOT)} but is not "
                 f"installed; this guard cannot prove provenance for a missing package"
             )
-        located = Path(dist.locate_file("")).resolve()
-        assert located.is_relative_to(REPO_ROOT), (
-            f"{name} resolves to {located}, outside this repository. It exists only "
-            f"here, so an out-of-tree copy is someone else's code — treat this as a "
-            f"supply-chain incident, not a test failure"
+        located = _distribution_resolves_inside_repository(dist, REPO_ROOT)
+        assert located is not None, (
+            f"{name} resolves outside this repository (metadata at "
+            f"{Path(dist.locate_file('')).resolve()}). It exists only here, so an "
+            f"out-of-tree copy is someone else's code — treat this as a supply-chain "
+            f"incident, not a test failure"
         )
